@@ -71,8 +71,8 @@ where
         for i in 0..n {
             // Bitwise-exact: single IEEE op per lane, scalar == SIMD.
             assert_eq!(
-                got[i].to_f64().to_bits(),
-                expected[i].to_f64().to_bits(),
+                Scalar::to_f64(got[i]).to_bits(),
+                Scalar::to_f64(expected[i]).to_bits(),
                 "{op:?} mismatch at i={i}, n={n}",
             );
         }

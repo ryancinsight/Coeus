@@ -49,4 +49,14 @@ impl PyRMSNorm {
         }
         Ok(())
     }
+
+    /// Return the list of learnable parameters.
+    pub fn parameters(&self, py: Python<'_>) -> Vec<Py<PyTensor>> {
+        vec![self.weight.clone_ref(py)]
+    }
+
+    /// Zero the gradients of all parameters.
+    pub fn zero_grad(&self, py: Python<'_>) {
+        self.weight.bind(py).borrow().zero_grad();
+    }
 }

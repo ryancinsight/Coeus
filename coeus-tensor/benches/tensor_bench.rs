@@ -4,11 +4,6 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use leto::Array;
 use rayon::prelude::*;
 
-use burn::backend::NdArray as BurnNdArray;
-use burn::tensor::Tensor as BurnTensor;
-
-type BurnCpu = BurnNdArray<f32>;
-
 fn bench_elementwise_add(c: &mut Criterion) {
     let size = 1024;
     let shape = vec![size, size];
@@ -21,11 +16,6 @@ fn bench_elementwise_add(c: &mut Criterion) {
 
     let a_moirai = Tensor::<f32, MoiraiBackend>::ones(shape.clone());
     let b_moirai = Tensor::<f32, MoiraiBackend>::ones(shape.clone());
-
-    // Burn setup
-    let burn_device = Default::default();
-    let a_burn = BurnTensor::<BurnCpu, 2>::ones([size, size], &burn_device);
-    let b_burn = BurnTensor::<BurnCpu, 2>::ones([size, size], &burn_device);
 
     let a_rayon = vec![1.0f32; size * size];
     let b_rayon = vec![1.0f32; size * size];
@@ -49,12 +39,6 @@ fn bench_elementwise_add(c: &mut Criterion) {
                 black_box(&b_moirai),
                 black_box(&moirai_backend),
             ));
-        })
-    });
-
-    group.bench_function("Burn CPU (NdArray)", |b| {
-        b.iter(|| {
-            black_box(black_box(a_burn.clone()) + black_box(b_burn.clone()));
         })
     });
 
@@ -98,11 +82,6 @@ fn bench_matmul(c: &mut Criterion) {
     let coeus_a = vec![1.0f32; m * k];
     let coeus_b = vec![1.0f32; k * n];
 
-    // Burn setup
-    let burn_device = Default::default();
-    let a_burn = BurnTensor::<BurnCpu, 2>::ones([m, k], &burn_device);
-    let b_burn = BurnTensor::<BurnCpu, 2>::ones([k, n], &burn_device);
-
     let mut group = c.benchmark_group("Matrix Multiplication (256x256)");
 
     group.bench_function("Coeus Sequential", |b| {
@@ -122,12 +101,6 @@ fn bench_matmul(c: &mut Criterion) {
                 black_box(&b_moirai),
                 black_box(&moirai_backend),
             ));
-        })
-    });
-
-    group.bench_function("Burn CPU (NdArray)", |b| {
-        b.iter(|| {
-            black_box(black_box(a_burn.clone()).matmul(black_box(b_burn.clone())));
         })
     });
 

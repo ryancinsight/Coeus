@@ -52,4 +52,12 @@ impl PyDropout {
     fn load_state_dict(&self, _state_dict: &PyStateDict) -> PyResult<()> {
         Ok(())
     }
+
+    /// Return the list of learnable parameters.
+    pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
+        vec![]
+    }
+
+    /// Zero the gradients of all parameters.
+    pub fn zero_grad(&self, _py: Python<'_>) {}
 }

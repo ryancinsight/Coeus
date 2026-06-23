@@ -1,70 +1,20 @@
-use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
+use crate::driver::CUdeviceptr;
 use coeus_core::{Scalar, Storage, StorageMut};
-use half::{bf16, f16};
-use std::marker::PhantomData;
+use hephaestus_cuda::{ComputeDevice, CudaBuffer, DeviceBuffer};
 use std::sync::Arc;
 
-/// RAII wrapper for raw CUDA memory allocations.
-pub struct CudaAllocation {
-    pub(crate) ptr: CUdeviceptr,
-}
-
-unsafe impl Send for CudaAllocation {}
-unsafe impl Sync for CudaAllocation {}
-
-impl Drop for CudaAllocation {
-    fn drop(&mut self) {
-        // Memory deallocation is managed asynchronously by cutile::tensor::Tensor
-        // and cuda_async::device_buffer::DeviceBuffer when they are dropped.
-    }
-}
-
-/// Statically typed enum representing the underlying CUDA memory buffer.
-/// Eliminates type erasure and Box/Arc allocation of dynamic traits.
-#[derive(Clone)]
-pub enum CudaBuffer {
-    TensorF32(Arc<cutile::tensor::Tensor<f32>>, Arc<CudaAllocation>),
-    TensorF64(Arc<cutile::tensor::Tensor<f64>>, Arc<CudaAllocation>),
-    TensorF16(Arc<cutile::tensor::Tensor<f16>>, Arc<CudaAllocation>),
-    TensorBF16(Arc<cutile::tensor::Tensor<bf16>>, Arc<CudaAllocation>),
-    TensorI32(Arc<cutile::tensor::Tensor<i32>>, Arc<CudaAllocation>),
-    Fallback(
-        Arc<cuda_async::device_buffer::DeviceBuffer>,
-        Arc<CudaAllocation>,
-    ),
-    Null(Arc<CudaAllocation>),
-}
-
-impl CudaBuffer {
-    /// Return the enum value as &dyn Any for compatibility downcasting.
-    pub fn as_any(&self) -> &dyn std::any::Any {
-        match self {
-            CudaBuffer::TensorF32(t, _) => t.as_ref() as &dyn std::any::Any,
-            CudaBuffer::TensorF64(t, _) => t.as_ref() as &dyn std::any::Any,
-            CudaBuffer::TensorF16(t, _) => t.as_ref() as &dyn std::any::Any,
-            CudaBuffer::TensorBF16(t, _) => t.as_ref() as &dyn std::any::Any,
-            CudaBuffer::TensorI32(t, _) => t.as_ref() as &dyn std::any::Any,
-            CudaBuffer::Fallback(b, _) => b.as_ref() as &dyn std::any::Any,
-            CudaBuffer::Null(alloc) => alloc.as_ref() as &dyn std::any::Any,
-        }
-    }
-}
-
-/// Device storage allocated on an NVIDIA GPU.
+/// Device storage allocated on an NVIDIA GPU using the hephaestus-cuda backend.
 pub struct CudaStorage<T> {
-    pub(crate) buffer: CudaBuffer,
-    pub(crate) len: usize,
-    pub(crate) _marker: PhantomData<T>,
+    pub buffer: Arc<CudaBuffer<T>>,
 }
 
 impl<T> coeus_core::storage::private::Sealed for CudaStorage<T> {}
 
 impl<T> Clone for CudaStorage<T> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             buffer: self.buffer.clone(),
-            len: self.len,
-            _marker: PhantomData,
         }
     }
 }
@@ -75,124 +25,26 @@ unsafe impl<T: Sync> Sync for CudaStorage<T> {}
 impl<T: Scalar> CudaStorage<T> {
     /// Allocate a new GPU device buffer.
     pub fn new(len: usize) -> Self {
-        let size_in_bytes = (len * std::mem::size_of::<T>()).max(4);
-        let mut ptr: CUdeviceptr = 0;
-
-        if let Some(device) = crate::driver::get_borrowed_device() {
-            let _ = device.bind_to_thread();
-        }
-
-        if let Some(stream) = crate::driver::get_borrowed_stream() {
-            unsafe {
-                ptr = cuda_core::malloc_async(size_in_bytes, &stream);
-            }
-        }
-
-        let alloc = Arc::new(CudaAllocation { ptr });
-        let buffer = if ptr == 0 {
-            panic!("CudaStorage::new failed: allocated ptr is 0!");
-        } else {
-            let type_id = std::any::TypeId::of::<T>();
-            if type_id == std::any::TypeId::of::<f32>() {
-                let tensor = unsafe {
-                    cutile::tensor::Tensor::<f32>::from_raw_parts(
-                        ptr,
-                        size_in_bytes,
-                        0, // Default device id is 0
-                        vec![len as i32],
-                        vec![1],
-                    )
-                };
-                CudaBuffer::TensorF32(Arc::new(tensor), alloc)
-            } else if type_id == std::any::TypeId::of::<f64>() {
-                let tensor = unsafe {
-                    cutile::tensor::Tensor::<f64>::from_raw_parts(
-                        ptr,
-                        size_in_bytes,
-                        0,
-                        vec![len as i32],
-                        vec![1],
-                    )
-                };
-                CudaBuffer::TensorF64(Arc::new(tensor), alloc)
-            } else if type_id == std::any::TypeId::of::<f16>() {
-                let tensor = unsafe {
-                    cutile::tensor::Tensor::<f16>::from_raw_parts(
-                        ptr,
-                        size_in_bytes,
-                        0,
-                        vec![len as i32],
-                        vec![1],
-                    )
-                };
-                CudaBuffer::TensorF16(Arc::new(tensor), alloc)
-            } else if type_id == std::any::TypeId::of::<bf16>() {
-                let tensor = unsafe {
-                    cutile::tensor::Tensor::<bf16>::from_raw_parts(
-                        ptr,
-                        size_in_bytes,
-                        0,
-                        vec![len as i32],
-                        vec![1],
-                    )
-                };
-                CudaBuffer::TensorBF16(Arc::new(tensor), alloc)
-            } else if type_id == std::any::TypeId::of::<i32>() {
-                let tensor = unsafe {
-                    cutile::tensor::Tensor::<i32>::from_raw_parts(
-                        ptr,
-                        size_in_bytes,
-                        0,
-                        vec![len as i32],
-                        vec![1],
-                    )
-                };
-                CudaBuffer::TensorI32(Arc::new(tensor), alloc)
-            } else {
-                let buffer = unsafe {
-                    cuda_async::device_buffer::DeviceBuffer::from_raw_parts(ptr, size_in_bytes, 0)
-                };
-                CudaBuffer::Fallback(Arc::new(buffer), alloc)
-            }
-        };
-
+        let device = crate::backend::get_cuda_device();
+        let buffer = device
+            .alloc_zeroed::<T>(len)
+            .expect("CudaStorage::new failed to allocate GPU buffer");
         Self {
-            buffer,
-            len,
-            _marker: PhantomData,
+            buffer: Arc::new(buffer),
         }
     }
 
     /// Retrieve the raw CUDA device pointer.
     #[inline]
     pub fn cu_deviceptr(&self) -> CUdeviceptr {
-        match &self.buffer {
-            CudaBuffer::TensorF32(_, alloc) => alloc.ptr,
-            CudaBuffer::TensorF64(_, alloc) => alloc.ptr,
-            CudaBuffer::TensorF16(_, alloc) => alloc.ptr,
-            CudaBuffer::TensorBF16(_, alloc) => alloc.ptr,
-            CudaBuffer::TensorI32(_, alloc) => alloc.ptr,
-            CudaBuffer::Fallback(_, alloc) => alloc.ptr,
-            CudaBuffer::Null(alloc) => alloc.ptr,
-        }
-    }
-}
-
-impl<T: Scalar + cuda_core::DType> CudaStorage<T> {
-    /// Access the underlying `cutile` Tensor.
-    #[inline]
-    pub fn as_cutile_tensor(&self) -> &cutile::tensor::Tensor<T> {
-        self.buffer
-            .as_any()
-            .downcast_ref::<cutile::tensor::Tensor<T>>()
-            .expect("Downcast to cutile::tensor::Tensor failed")
+        self.buffer.raw()
     }
 }
 
 impl<T: Scalar> Storage<T> for CudaStorage<T> {
     #[inline]
     fn len(&self) -> usize {
-        self.len
+        self.buffer.len()
     }
 
     #[inline]
@@ -212,110 +64,27 @@ impl<T: Scalar> StorageMut<T> for CudaStorage<T> {
         None
     }
 
-    #[inline]
     fn make_unique(&mut self) {
-        let is_shared = match &self.buffer {
-            CudaBuffer::TensorF32(_, alloc) => Arc::strong_count(alloc) > 1,
-            CudaBuffer::TensorF64(_, alloc) => Arc::strong_count(alloc) > 1,
-            CudaBuffer::TensorF16(_, alloc) => Arc::strong_count(alloc) > 1,
-            CudaBuffer::TensorBF16(_, alloc) => Arc::strong_count(alloc) > 1,
-            CudaBuffer::TensorI32(_, alloc) => Arc::strong_count(alloc) > 1,
-            CudaBuffer::Fallback(_, alloc) => Arc::strong_count(alloc) > 1,
-            CudaBuffer::Null(_) => false,
-        };
+        if Arc::strong_count(&self.buffer) > 1 {
+            let device = crate::backend::get_cuda_device();
+            let len = self.buffer.len();
+            let new_buffer = device
+                .alloc_zeroed::<T>(len)
+                .expect("Failed to allocate CoW buffer");
 
-        if is_shared {
-            let size_in_bytes = (self.len * std::mem::size_of::<T>()).max(4);
-            let mut new_ptr: CUdeviceptr = 0;
-            if let Some(device) = crate::driver::get_borrowed_device() {
-                let _ = device.bind_to_thread();
-            }
-            if let Some(stream) = crate::driver::get_borrowed_stream() {
+            if len > 0 {
+                let bytes = len * std::mem::size_of::<T>();
+                device.bind().expect("Failed to bind CUDA device");
                 unsafe {
-                    new_ptr = cuda_core::malloc_async(size_in_bytes, &stream);
-                }
-            }
-
-            if new_ptr != 0 {
-                if let Some(drv) = CudaDriver::get() {
-                    if get_cuda_context().is_some() {
-                        unsafe {
-                            let old_ptr = self.cu_deviceptr();
-                            let _copy_res = (drv.cu_memcpy_dtod)(new_ptr, old_ptr, size_in_bytes);
-                        }
+                    let res =
+                        cuda_core::sys::cuMemcpyDtoD_v2(new_buffer.raw(), self.buffer.raw(), bytes);
+                    if res != 0 {
+                        panic!("cuMemcpyDtoD_v2 failed with code: {}", res);
                     }
                 }
             }
 
-            if new_ptr != 0 {
-                let alloc = Arc::new(CudaAllocation { ptr: new_ptr });
-                let type_id = std::any::TypeId::of::<T>();
-                self.buffer = if type_id == std::any::TypeId::of::<f32>() {
-                    let tensor = unsafe {
-                        cutile::tensor::Tensor::<f32>::from_raw_parts(
-                            new_ptr,
-                            size_in_bytes,
-                            0,
-                            vec![self.len as i32],
-                            vec![1],
-                        )
-                    };
-                    CudaBuffer::TensorF32(Arc::new(tensor), alloc)
-                } else if type_id == std::any::TypeId::of::<f64>() {
-                    let tensor = unsafe {
-                        cutile::tensor::Tensor::<f64>::from_raw_parts(
-                            new_ptr,
-                            size_in_bytes,
-                            0,
-                            vec![self.len as i32],
-                            vec![1],
-                        )
-                    };
-                    CudaBuffer::TensorF64(Arc::new(tensor), alloc)
-                } else if type_id == std::any::TypeId::of::<f16>() {
-                    let tensor = unsafe {
-                        cutile::tensor::Tensor::<f16>::from_raw_parts(
-                            new_ptr,
-                            size_in_bytes,
-                            0,
-                            vec![self.len as i32],
-                            vec![1],
-                        )
-                    };
-                    CudaBuffer::TensorF16(Arc::new(tensor), alloc)
-                } else if type_id == std::any::TypeId::of::<bf16>() {
-                    let tensor = unsafe {
-                        cutile::tensor::Tensor::<bf16>::from_raw_parts(
-                            new_ptr,
-                            size_in_bytes,
-                            0,
-                            vec![self.len as i32],
-                            vec![1],
-                        )
-                    };
-                    CudaBuffer::TensorBF16(Arc::new(tensor), alloc)
-                } else if type_id == std::any::TypeId::of::<i32>() {
-                    let tensor = unsafe {
-                        cutile::tensor::Tensor::<i32>::from_raw_parts(
-                            new_ptr,
-                            size_in_bytes,
-                            0,
-                            vec![self.len as i32],
-                            vec![1],
-                        )
-                    };
-                    CudaBuffer::TensorI32(Arc::new(tensor), alloc)
-                } else {
-                    let buffer = unsafe {
-                        cuda_async::device_buffer::DeviceBuffer::from_raw_parts(
-                            new_ptr,
-                            size_in_bytes,
-                            0,
-                        )
-                    };
-                    CudaBuffer::Fallback(Arc::new(buffer), alloc)
-                };
-            }
+            self.buffer = Arc::new(new_buffer);
         }
     }
 }

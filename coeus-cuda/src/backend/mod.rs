@@ -1,6 +1,7 @@
-use crate::driver::{get_cuda_context, CudaDriver};
 use crate::storage::CudaStorage;
 use coeus_core::{Backend, ComputeBackend, Scalar, Storage};
+use hephaestus_cuda::{ComputeDevice, CudaDevice};
+use std::sync::OnceLock;
 
 pub mod ops;
 
@@ -26,6 +27,15 @@ impl CudaScalar for half::bf16 {
 
 impl CudaScalar for i32 {
     const CUDA_TYPE: &'static str = "int";
+}
+
+static CUDA_DEVICE: OnceLock<CudaDevice> = OnceLock::new();
+
+/// Retrieve a reference to the global lazily-initialized hephaestus CUDA device.
+pub fn get_cuda_device() -> &'static CudaDevice {
+    CUDA_DEVICE.get_or_init(|| {
+        CudaDevice::try_default().expect("Failed to initialize hephaestus-cuda device")
+    })
 }
 
 /// NVIDIA CUDA acceleration backend.
@@ -63,56 +73,78 @@ impl ComputeBackend for CudaBackend {
     #[inline]
     fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
         let size = dst.len();
+        if size == 0 {
+            return;
+        }
+        let bytes = size * std::mem::size_of::<T>();
+        let device = get_cuda_device();
+        device.bind().expect("fill: failed to bind CUDA device");
+
+        // Fast path: if the value is bitwise zero, use cuMemsetD8_v2
+        let is_zero = val.to_f64() == 0.0;
+        if is_zero {
+            unsafe {
+                let res = cuda_core::sys::cuMemsetD8_v2(dst.cu_deviceptr(), 0, bytes);
+                if res == 0 {
+                    return;
+                }
+            }
+        }
+
+        // If T is 32-bit, use cuMemsetD32_v2
+        if std::mem::size_of::<T>() == 4 {
+            let val_u32 = unsafe {
+                let mut tmp = 0u32;
+                std::ptr::copy_nonoverlapping(
+                    &val as *const T as *const u8,
+                    &mut tmp as *mut u32 as *mut u8,
+                    4,
+                );
+                tmp
+            };
+            unsafe {
+                let res = cuda_core::sys::cuMemsetD32_v2(dst.cu_deviceptr(), val_u32, size);
+                if res == 0 {
+                    return;
+                }
+            }
+        }
+
+        // If T is 16-bit, use cuMemsetD16_v2
+        if std::mem::size_of::<T>() == 2 {
+            let val_u16 = unsafe {
+                let mut tmp = 0u16;
+                std::ptr::copy_nonoverlapping(
+                    &val as *const T as *const u8,
+                    &mut tmp as *mut u16 as *mut u8,
+                    2,
+                );
+                tmp
+            };
+            unsafe {
+                let res = cuda_core::sys::cuMemsetD16_v2(dst.cu_deviceptr(), val_u16, size);
+                if res == 0 {
+                    return;
+                }
+            }
+        }
+
         let data = vec![val; size];
         self.copy_to_device(&data, dst);
     }
 
     fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
-        if dst.cu_deviceptr() == 0 {
-            panic!("copy_to_device: dst.cu_deviceptr() is 0!");
-        }
-        if let Some(stream) = crate::driver::get_borrowed_stream() {
-            unsafe {
-                let _ = stream.synchronize();
-            }
-        }
-        if get_cuda_context().is_some() {
-            let bytesize = std::mem::size_of_val(src);
-            unsafe {
-                let res = cuda_core::sys::cuMemcpyHtoD_v2(
-                    dst.cu_deviceptr() as cuda_core::sys::CUdeviceptr,
-                    src.as_ptr() as *const std::ffi::c_void,
-                    bytesize,
-                );
-                if res != 0 {
-                    panic!("cuMemcpyHtoD_v2 failed with error code: {}", res);
-                }
-            }
-        }
+        let device = get_cuda_device();
+        device
+            .write_buffer(&dst.buffer, src)
+            .expect("copy_to_device: write_buffer failed");
     }
 
     fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
-        if src.cu_deviceptr() == 0 {
-            panic!("copy_to_host: src.cu_deviceptr() is 0!");
-        }
-        if let Some(stream) = crate::driver::get_borrowed_stream() {
-            unsafe {
-                let _ = stream.synchronize();
-            }
-        }
-        if get_cuda_context().is_some() {
-            let bytesize = std::mem::size_of_val(dst);
-            unsafe {
-                let res = cuda_core::sys::cuMemcpyDtoH_v2(
-                    dst.as_mut_ptr() as *mut std::ffi::c_void,
-                    src.cu_deviceptr() as cuda_core::sys::CUdeviceptr,
-                    bytesize,
-                );
-                if res != 0 {
-                    panic!("cuMemcpyDtoH_v2 failed with error code: {}", res);
-                }
-            }
-        }
+        let device = get_cuda_device();
+        device
+            .download(&src.buffer, dst)
+            .expect("copy_to_host: download failed");
     }
 }
 

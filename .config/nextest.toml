@@ -1,2 +1,9 @@
 [profile.default]
 slow-timeout = { period = "30s", terminate-after = 2 }
+
+[test-groups]
+gpu-tests = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'package(coeus-cuda) | package(coeus-wgpu)'
+test-group = 'gpu-tests'

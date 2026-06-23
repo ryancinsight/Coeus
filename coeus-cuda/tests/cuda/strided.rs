@@ -1,9 +1,12 @@
-use coeus_core::{ComputeBackend, SequentialBackend};
+use coeus_core::SequentialBackend;
 use coeus_cuda::CudaBackend;
 use coeus_tensor::{Tensor, Transpose};
 
 #[test]
 fn test_cuda_strided_ops() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
     if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
         let seq = SequentialBackend::new();
         let cuda_b = CudaBackend::new();

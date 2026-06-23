@@ -24,8 +24,8 @@ fn assert_same_bits<T: Scalar, const N: usize>(got: &[T], expected: [T; N], cont
     assert_eq!(got.len(), expected.len(), "{context} length mismatch");
     for (index, (&actual, &reference)) in got.iter().zip(&expected).enumerate() {
         assert_eq!(
-            actual.to_f64().to_bits(),
-            reference.to_f64().to_bits(),
+            Scalar::to_f64(actual).to_bits(),
+            Scalar::to_f64(reference).to_bits(),
             "{context} mismatch at index {index}",
         );
     }
@@ -42,12 +42,15 @@ where
 
     let total = coeus_ops::sum(&tensor, backend);
     assert_eq!(
-        total.to_f64().to_bits(),
-        T::from_f64(21.0).to_f64().to_bits()
+        Scalar::to_f64(total).to_bits(),
+        Scalar::to_f64(T::from_f64(21.0)).to_bits()
     );
 
     let mean = coeus_ops::mean(&tensor, backend);
-    assert_eq!(mean.to_f64().to_bits(), T::from_f64(3.5).to_f64().to_bits());
+    assert_eq!(
+        Scalar::to_f64(mean).to_bits(),
+        Scalar::to_f64(T::from_f64(3.5)).to_bits()
+    );
 
     let sum_axis = coeus_ops::sum_axis(&tensor, 0, backend);
     assert_eq!(sum_axis.shape(), &[1, 3]);
@@ -84,8 +87,8 @@ where
     let transposed = tensor.transpose();
     let transposed_mean_scalar = coeus_ops::mean(&transposed, backend);
     assert_eq!(
-        transposed_mean_scalar.to_f64().to_bits(),
-        T::from_f64(3.5).to_f64().to_bits()
+        Scalar::to_f64(transposed_mean_scalar).to_bits(),
+        Scalar::to_f64(T::from_f64(3.5)).to_bits()
     );
 
     let transposed_sum = coeus_ops::sum_axis(&transposed, 1, backend);

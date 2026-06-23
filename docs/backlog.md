@@ -139,7 +139,7 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     batched_matmul_dispatch_covers_rhs_batch_broadcast`, `cargo test -p
     coeus-ops --test batched_matmul_leto_diff`, and `cargo test -p coeus-wgpu
     wgpu::transfers_and_matmul::test_wgpu_backend_ops_unified` pass.
-- [ ] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
+- [x] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.
 
@@ -149,9 +149,9 @@ GPU device/buffer/dispatch substrate is a new standalone infra repo, `hephaestus
 (sibling of leto/moirai/hermes/mnemosyne), so apollo and coeus share one device layer
 with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* hephaestus;
 `Tensor<T,B>` and the backend seam are unchanged; autodiff stays in coeus.
-- [/] [arch] Re-base GPU backends onto `hephaestus` once it is scaffolded (atlas ADR 0001):
+- [x] [arch] Re-base GPU backends onto `hephaestus` once it is scaffolded (atlas ADR 0001):
   - [x] Re-base `coeus-wgpu` onto `hephaestus-wgpu`.
-  - [ ] Re-base `coeus-cuda` onto `hephaestus-cuda` once `hephaestus-cuda` is delivered.
+  - [x] Re-base `coeus-cuda` onto `hephaestus-cuda` once `hephaestus-cuda` is delivered.
   Coeus keeps autograd/nn/optim/sparse and the `ComputeBackend`/`BackendOps` seam. The CUDA backend **composes cuda-oxide + cutile** (cuda-oxide = driver/runtime/memory/streams; cutile = tile/PTX kernels) — not a migration; both coexist.
 - [ ] [minor] GPU op parity audit on the hephaestus backends (elementwise, matmul,
   reductions, conv/pool, attention, fused optimizer steps) with differential checks vs
@@ -181,7 +181,7 @@ with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* heph
   coeus-core --test dependency_policy` passes.
 
 ### Stage E — burn elimination end-to-end
-- [ ] [minor] Per-op differential parity of nn/autograd/optim vs a burn reference
+- [x] [minor] Per-op differential parity of nn/autograd/optim vs a burn reference
   (dev-only) for target models; remove any residual burn references.
 - [ ] [arch] Downstream integrator (CFDrs) swaps burn→coeus once parity holds.
 
@@ -287,7 +287,7 @@ within a core) and neither depends on the other — coeus composes them
   inside the shared GPU substrate. Coeus no longer depends on `pollster`
   directly; routing Hephaestus device acquisition through Moirai async remains an
   upstream Hephaestus item.
-- **coeus-dist** uses raw `std::thread`/std TCP rather than moirai-transport/async.
+- [x] **coeus-dist** has been migrated to use `moirai-async`'s `TcpStream` and `TcpListener` primitives under `moirai::block_on`.
 
 ---
 ## Sprint MS-55: hermes SIMD-effect SSOT Integration [minor]

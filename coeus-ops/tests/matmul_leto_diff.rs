@@ -6,9 +6,11 @@
 //! `f32`/`f64`; the products and sums stay below the exact-integer range, so
 //! bitwise equality is the correct oracle for both scalar widths.
 
+#[allow(unused_imports)]
+use coeus_core::Layout;
 use coeus_core::{
-    ComputeBackend, CpuAddressableStorageMut, Layout, MoiraiBackend, Scalar, SequentialBackend,
-    Shape, Strides,
+    ComputeBackend, CpuAddressableStorageMut, MoiraiBackend, Scalar, SequentialBackend, Shape,
+    Strides,
 };
 use coeus_ops::{BackendOps, CpuBackend};
 
@@ -132,8 +134,8 @@ fn assert_same_bits<T: Scalar>(got: &[T], expected: &[T]) {
     assert_eq!(got.len(), expected.len());
     for (index, (&actual, &reference)) in got.iter().zip(expected).enumerate() {
         assert_eq!(
-            actual.to_f64().to_bits(),
-            reference.to_f64().to_bits(),
+            Scalar::to_f64(actual).to_bits(),
+            Scalar::to_f64(reference).to_bits(),
             "matmul mismatch at index {index}",
         );
     }
@@ -155,4 +157,26 @@ fn moirai_matmul_matches_reference() {
     check_contiguous_matmul::<f64, _>(&backend);
     check_transposed_input_matmul::<f32, _>(&backend);
     check_transposed_input_matmul::<f64, _>(&backend);
+}
+
+#[test]
+fn test_parallel_matmul_loop() {
+    let backend = MoiraiBackend;
+    let m = 256;
+    let k = 256;
+    let n = 256;
+    let a = vec![1.0f32; m * k];
+    let b = vec![1.0f32; k * n];
+
+    for _i in 0..100 {
+        let got = device_matmul(
+            &backend,
+            &a,
+            &layout(&[m, k]),
+            &b,
+            &layout(&[k, n]),
+            &layout(&[m, n]),
+        );
+        assert_eq!(got.len(), m * n);
+    }
 }

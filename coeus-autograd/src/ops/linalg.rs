@@ -31,9 +31,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         // ∂/∂A: grad_C @ B^T — grad_C may be batched ([batch,m,n] × [n,k] → [batch,m,k])
         if let Some(Some(ref g)) = input_grads.get(0) {
             let b_t = b.t(); // B is always 2D (weight matrix); b.t() ✓
-            let grad_a = coeus_ops::matmul(grad_out, &b_t, backend);
             let mut gl = g.lock().unwrap();
-            coeus_ops::add_assign(&mut gl, &grad_a, backend);
+            coeus_ops::matmul_accumulate(grad_out, &b_t, &mut *gl, backend);
         }
         // ∂/∂B: A^T @ grad_C
         // When A is batched ([…,m,k]), flatten to [batch*m, k] to perform 2D matmul.
@@ -54,9 +53,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
                 (a.clone(), grad_out.clone())
             };
             let a_flat_t = a_flat.t();
-            let grad_b = coeus_ops::matmul(&a_flat_t, &go_flat, backend);
             let mut gl = g.lock().unwrap();
-            coeus_ops::add_assign(&mut gl, &grad_b, backend);
+            coeus_ops::matmul_accumulate(&a_flat_t, &go_flat, &mut *gl, backend);
         }
     }
 }

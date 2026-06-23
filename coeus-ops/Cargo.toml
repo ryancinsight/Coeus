@@ -11,7 +11,6 @@ coeus-tensor = { workspace = true }
 coeus-sparse = { workspace = true }
 coeus-leto   = { path = "../coeus-leto" }
 leto-ops     = { workspace = true }
-apollo-fft   = { workspace = true }
 smallvec     = { workspace = true }
 num-traits   = { workspace = true }
 thiserror    = { workspace = true }

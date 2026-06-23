@@ -1,9 +1,12 @@
-use coeus_core::{ComputeBackend, SequentialBackend};
+use coeus_core::SequentialBackend;
 use coeus_cuda::CudaBackend;
 use coeus_tensor::Tensor;
 
 #[test]
 fn test_cuda_evaluate_fused() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
     let cuda_b = CudaBackend::new();
     let seq = SequentialBackend::new();
 
@@ -36,6 +39,9 @@ fn test_cuda_evaluate_fused() {
 
 #[test]
 fn test_cuda_jit_fusion_correctness() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
     let cuda_b = CudaBackend::new();
     let seq = SequentialBackend::new();
 
@@ -85,6 +91,9 @@ fn test_cuda_jit_fusion_correctness() {
 
 #[test]
 fn test_cuda_jit_reductions() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
     let cuda_b = CudaBackend::new();
     let seq = SequentialBackend::new();
 
@@ -110,6 +119,9 @@ fn test_cuda_jit_reductions() {
 
 #[test]
 fn test_cuda_evaluate_fused_reduce() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
     let cuda_b = CudaBackend::new();
     let seq = SequentialBackend::new();
 

@@ -52,6 +52,14 @@ impl PyAvgPool2d {
     fn load_state_dict(&self, _state_dict: &PyStateDict) -> PyResult<()> {
         Ok(())
     }
+
+    /// Return the list of learnable parameters.
+    pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
+        vec![]
+    }
+
+    /// Zero the gradients of all parameters.
+    pub fn zero_grad(&self, _py: Python<'_>) {}
 }
 
 /// Python-exposed 2D Max Pooling layer.
@@ -105,6 +113,14 @@ impl PyMaxPool2d {
     fn load_state_dict(&self, _state_dict: &PyStateDict) -> PyResult<()> {
         Ok(())
     }
+
+    /// Return the list of learnable parameters.
+    pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
+        vec![]
+    }
+
+    /// Zero the gradients of all parameters.
+    pub fn zero_grad(&self, _py: Python<'_>) {}
 }
 
 /// Python-exposed 3D Average Pooling layer.
@@ -158,6 +174,14 @@ impl PyAvgPool3d {
     fn load_state_dict(&self, _state_dict: &PyStateDict) -> PyResult<()> {
         Ok(())
     }
+
+    /// Return the list of learnable parameters.
+    pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
+        vec![]
+    }
+
+    /// Zero the gradients of all parameters.
+    pub fn zero_grad(&self, _py: Python<'_>) {}
 }
 
 /// Python-exposed 3D Max Pooling layer.
@@ -211,4 +235,12 @@ impl PyMaxPool3d {
     fn load_state_dict(&self, _state_dict: &PyStateDict) -> PyResult<()> {
         Ok(())
     }
+
+    /// Return the list of learnable parameters.
+    pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
+        vec![]
+    }
+
+    /// Zero the gradients of all parameters.
+    pub fn zero_grad(&self, _py: Python<'_>) {}
 }

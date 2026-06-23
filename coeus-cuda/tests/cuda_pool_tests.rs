@@ -6,6 +6,9 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_cuda_max_pool2d() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
     let cuda_b = CudaBackend::new();
     let seq = SequentialBackend::new();
 
@@ -96,6 +99,9 @@ fn test_cuda_max_pool2d() {
 
 #[test]
 fn test_cuda_avg_pool2d() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
     let cuda_b = CudaBackend::new();
     let seq = SequentialBackend::new();
 

@@ -3,6 +3,7 @@ use crate::kernels::GpuLayoutInfo;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
+#[allow(clippy::too_many_arguments)]
 pub fn launch_adam_step(
     param: &mut CudaStorage<f32>,
     param_layout: &Layout,

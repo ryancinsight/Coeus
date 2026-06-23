@@ -8,6 +8,10 @@ license.workspace = true
 [dependencies]
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
-coeus-ops = { workspace = true }
-coeus-autograd = { workspace = true }
+coeus-ops = { workspace = true, default-features = false }
+coeus-autograd = { workspace = true, default-features = false }
 smallvec = { workspace = true }
+moirai = { workspace = true }
+moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", package = "moirai-async" }
+
+

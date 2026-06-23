@@ -140,33 +140,6 @@ fn test_reductions_parity() {
 }
 
 #[test]
-fn test_fft_1d_parity() {
-    // 1D signal (8 elements)
-    let data = vec![1.0f64, 2.0, 1.0, -1.0, 1.5, 3.0, 2.2, 0.5];
-    let signal = Tensor::<f64, MoiraiBackend>::from_vec(data.clone());
-
-    // Forward FFT
-    let spectrum = coeus_ops::fft_1d(&signal);
-    assert_eq!(spectrum.shape(), &[8]);
-
-    // Inverse FFT
-    let reconstructed = coeus_ops::ifft_1d(&spectrum);
-
-    // Assert reconstruction parity (original signal is recovered)
-    let original = signal.as_slice();
-    let recon = reconstructed.as_slice();
-    for i in 0..8 {
-        let diff = (original[i] - recon[i]).abs();
-        assert!(
-            diff < 1e-7,
-            "Reconstruction mismatch at index {i}: original={}, reconstructed={}",
-            original[i],
-            recon[i]
-        );
-    }
-}
-
-#[test]
 fn test_sparse_spmv_spmm_parity() {
     let backend = SequentialBackend::new();
 

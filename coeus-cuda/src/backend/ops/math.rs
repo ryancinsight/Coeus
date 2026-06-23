@@ -5,22 +5,27 @@ use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
 fn cast_storage<T, U>(storage: &CudaStorage<T>) -> CudaStorage<U> {
-    CudaStorage {
-        buffer: storage.buffer.clone(),
-        len: storage.len,
-        _marker: std::marker::PhantomData,
-    }
+    let buffer = unsafe {
+        std::mem::transmute::<
+            std::sync::Arc<hephaestus_cuda::CudaBuffer<T>>,
+            std::sync::Arc<hephaestus_cuda::CudaBuffer<U>>,
+        >(storage.buffer.clone())
+    };
+    CudaStorage { buffer }
 }
 
 fn cast_storage_mut<T, U>(storage: &mut CudaStorage<T>) -> CudaStorage<U> {
-    CudaStorage {
-        buffer: storage.buffer.clone(),
-        len: storage.len,
-        _marker: std::marker::PhantomData,
-    }
+    let buffer = unsafe {
+        std::mem::transmute::<
+            std::sync::Arc<hephaestus_cuda::CudaBuffer<T>>,
+            std::sync::Arc<hephaestus_cuda::CudaBuffer<U>>,
+        >(storage.buffer.clone())
+    };
+    CudaStorage { buffer }
 }
 
 impl CudaBackend {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn cuda_elementwise_binary<T: CudaScalar>(
         &self,
         op: coeus_ops::BinaryOp,
@@ -102,10 +107,10 @@ impl CudaBackend {
         c: &mut CudaStorage<T>,
         c_layout: &Layout,
     ) {
-        if get_cuda_context().is_some() {
-            if kernels::dispatch_reduce(op, a, a_layout, axis, c, c_layout) {
-                return;
-            }
+        if get_cuda_context().is_some()
+            && kernels::dispatch_reduce(op, a, a_layout, axis, c, c_layout)
+        {
+            return;
         }
         self.fallback_reduce(op, a, a_layout, axis, c, c_layout);
     }

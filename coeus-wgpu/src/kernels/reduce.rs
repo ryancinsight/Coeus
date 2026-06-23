@@ -178,7 +178,6 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     for (i, &p) in input_ptrs.iter().enumerate() {
         input_map.insert(p, i);
     }
-
     // 3. Generate the shader expression string
     let expr_str = expr.to_shader_expr(&input_map);
 
@@ -299,7 +298,6 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     // 6. Create cache key
     let key = format!("fused_reduce_{:?}_{}_{}", op, expr_str, wgsl_type);
     let pipeline = PIPELINE_CACHE.get_or_create(&key, &ctx.device, &shader_src, "main");
-
     // 7. Bind Group
     let bind_group_layout = pipeline.get_bind_group_layout(0);
     let mut entries = Vec::with_capacity(num_inputs + 3);

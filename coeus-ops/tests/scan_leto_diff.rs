@@ -19,7 +19,7 @@ where
 fn check_backend<T, B>(backend: &B)
 where
     T: Scalar + leto_ops::Scalar,
-    B: ComputeBackend + Default,
+    B: coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let data: Vec<T> = (1..=6).map(|value| T::from_f64(value as f64)).collect();
@@ -54,8 +54,8 @@ fn assert_same_bits<T: Scalar, const N: usize>(got: &[T], expected: [T; N]) {
     assert_eq!(got.len(), expected.len());
     for (index, (&actual, &reference)) in got.iter().zip(&expected).enumerate() {
         assert_eq!(
-            actual.to_f64().to_bits(),
-            reference.to_f64().to_bits(),
+            Scalar::to_f64(actual).to_bits(),
+            Scalar::to_f64(reference).to_bits(),
             "scan mismatch at index {index}",
         );
     }

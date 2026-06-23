@@ -1,6 +1,7 @@
 // ── Cumulative sum ──
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use crate::BackendOps;
+use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 
 /// Compute the inclusive cumulative sum of `x` along `dim`.
@@ -10,13 +11,10 @@ use coeus_tensor::Tensor;
 /// # Panics
 /// - `dim` is out of range.
 #[inline]
-pub fn cumsum<T: Scalar + leto_ops::Scalar, B: ComputeBackend + Default>(
+pub fn cumsum<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
     x: &Tensor<T, B>,
     dim: usize,
-) -> Tensor<T, B>
-where
-    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
-{
+) -> Tensor<T, B> {
     let ndim = x.ndim();
     assert!(
         dim < ndim,
@@ -27,14 +25,7 @@ where
     let shape = x.shape_cloned();
     let mut out = Tensor::zeros_on(shape, &backend);
     let (out_storage, out_layout) = out.storage_mut_and_layout();
-    coeus_leto::cumsum_into(
-        x.layout(),
-        x.storage().as_slice(),
-        dim,
-        out_layout,
-        out_storage.as_mut_slice(),
-    )
-    .expect("coeus-leto cumsum failed");
+    backend.cumsum(x.storage(), x.layout(), dim, out_storage, out_layout);
     out
 }
 
@@ -45,13 +36,10 @@ where
 /// # Panics
 /// - `dim` is out of range.
 #[inline]
-pub fn suffix_sum<T: Scalar + leto_ops::Scalar, B: ComputeBackend + Default>(
+pub fn suffix_sum<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
     x: &Tensor<T, B>,
     dim: usize,
-) -> Tensor<T, B>
-where
-    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
-{
+) -> Tensor<T, B> {
     let ndim = x.ndim();
     assert!(
         dim < ndim,
@@ -62,13 +50,6 @@ where
     let shape = x.shape_cloned();
     let mut out = Tensor::zeros_on(shape, &backend);
     let (out_storage, out_layout) = out.storage_mut_and_layout();
-    coeus_leto::suffix_sum_into(
-        x.layout(),
-        x.storage().as_slice(),
-        dim,
-        out_layout,
-        out_storage.as_mut_slice(),
-    )
-    .expect("coeus-leto suffix_sum failed");
+    backend.suffix_sum(x.storage(), x.layout(), dim, out_storage, out_layout);
     out
 }

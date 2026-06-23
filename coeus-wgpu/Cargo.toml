@@ -8,7 +8,7 @@ license.workspace = true
 [dependencies]
 coeus-core   = { workspace = true }
 coeus-tensor = { workspace = true }
-coeus-ops    = { workspace = true }
+coeus-ops    = { workspace = true, default-features = false }
 hephaestus-wgpu = { workspace = true }
 wgpu         = { workspace = true }
 bytemuck     = { workspace = true }
@@ -17,6 +17,6 @@ half         = { workspace = true }
 leto-ops     = { workspace = true }
 
 [dev-dependencies]
-coeus-autograd = { workspace = true }
-coeus-nn       = { workspace = true }
+coeus-autograd = { workspace = true, default-features = false }
+coeus-nn       = { workspace = true, default-features = false }
 

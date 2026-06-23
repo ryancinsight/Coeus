@@ -98,6 +98,9 @@ static WGPU_CONTEXT: OnceLock<WgpuContext> = OnceLock::new();
 /// Retrieve a reference to the global lazily-initialized wgpu context.
 pub fn get_wgpu_context() -> &'static WgpuContext {
     WGPU_CONTEXT.get_or_init(|| {
+        #[cfg(target_os = "windows")]
+        std::env::set_var("WGPU_BACKEND", "dx12");
+
         let hephaestus_device = hephaestus_wgpu::WgpuDevice::try_default_with_limits(
             "coeus-wgpu-device",
             wgpu::Limits::default(),

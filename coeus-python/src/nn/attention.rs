@@ -238,6 +238,49 @@ impl PyMultiHeadAttention {
         }
         Ok(())
     }
+
+    /// Return the list of learnable parameters.
+    pub fn parameters(&self, py: Python<'_>) -> Vec<Py<PyTensor>> {
+        let mut params = vec![
+            self.w_q.clone_ref(py),
+            self.w_k.clone_ref(py),
+            self.w_v.clone_ref(py),
+            self.w_o.clone_ref(py),
+        ];
+        if let Some(ref b) = self.b_q {
+            params.push(b.clone_ref(py));
+        }
+        if let Some(ref b) = self.b_k {
+            params.push(b.clone_ref(py));
+        }
+        if let Some(ref b) = self.b_v {
+            params.push(b.clone_ref(py));
+        }
+        if let Some(ref b) = self.b_o {
+            params.push(b.clone_ref(py));
+        }
+        params
+    }
+
+    /// Zero the gradients of all parameters.
+    pub fn zero_grad(&self, py: Python<'_>) {
+        self.w_q.bind(py).borrow().zero_grad();
+        self.w_k.bind(py).borrow().zero_grad();
+        self.w_v.bind(py).borrow().zero_grad();
+        self.w_o.bind(py).borrow().zero_grad();
+        if let Some(ref b) = self.b_q {
+            b.bind(py).borrow().zero_grad();
+        }
+        if let Some(ref b) = self.b_k {
+            b.bind(py).borrow().zero_grad();
+        }
+        if let Some(ref b) = self.b_v {
+            b.bind(py).borrow().zero_grad();
+        }
+        if let Some(ref b) = self.b_o {
+            b.bind(py).borrow().zero_grad();
+        }
+    }
 }
 
 /// Python-exposed Rotary Positional Embedding (RoPE) layer.
@@ -284,4 +327,12 @@ impl PyRotaryEmbedding {
     fn load_state_dict(&self, _state_dict: &PyStateDict) -> PyResult<()> {
         Ok(())
     }
+
+    /// Return the list of learnable parameters.
+    pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
+        vec![]
+    }
+
+    /// Zero the gradients of all parameters.
+    pub fn zero_grad(&self, _py: Python<'_>) {}
 }

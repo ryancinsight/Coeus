@@ -36,6 +36,23 @@ impl PyTensor {
         self.inner.tensor.to_contiguous().as_slice().to_vec()
     }
 
+    /// Data setter.
+    #[setter]
+    fn set_data(&mut self, data: Vec<f64>) -> PyResult<()> {
+        let shape = self.inner.tensor.shape().to_vec();
+        let expected_len: usize = shape.iter().product();
+        if data.len() != expected_len {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Data length {} does not match tensor shape {:?} (expected {})",
+                data.len(),
+                shape,
+                expected_len
+            )));
+        }
+        self.inner.tensor = Tensor::from_slice(shape, &data);
+        Ok(())
+    }
+
     /// Gradient getter.
     #[getter]
     fn grad(&self) -> Option<Vec<f64>> {
@@ -226,7 +243,7 @@ impl PyTensor {
     }
 
     /// Zero the accumulated gradient.
-    fn zero_grad(&self) {
+    pub fn zero_grad(&self) {
         self.inner.zero_grad();
     }
 

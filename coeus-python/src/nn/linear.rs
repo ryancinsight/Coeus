@@ -71,4 +71,21 @@ impl PyLinear {
         }
         Ok(())
     }
+
+    /// Return the list of learnable parameters.
+    pub fn parameters(&self, py: Python<'_>) -> Vec<Py<PyTensor>> {
+        let mut params = vec![self.weight.clone_ref(py)];
+        if let Some(ref b) = self.bias {
+            params.push(b.clone_ref(py));
+        }
+        params
+    }
+
+    /// Zero the gradients of all parameters.
+    pub fn zero_grad(&self, py: Python<'_>) {
+        self.weight.bind(py).borrow().zero_grad();
+        if let Some(ref b) = self.bias {
+            b.bind(py).borrow().zero_grad();
+        }
+    }
 }

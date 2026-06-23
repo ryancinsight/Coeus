@@ -5,22 +5,27 @@ use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
 fn cast_storage<T, U>(storage: &CudaStorage<T>) -> CudaStorage<U> {
-    CudaStorage {
-        buffer: storage.buffer.clone(),
-        len: storage.len,
-        _marker: std::marker::PhantomData,
-    }
+    let buffer = unsafe {
+        std::mem::transmute::<
+            std::sync::Arc<hephaestus_cuda::CudaBuffer<T>>,
+            std::sync::Arc<hephaestus_cuda::CudaBuffer<U>>,
+        >(storage.buffer.clone())
+    };
+    CudaStorage { buffer }
 }
 
 fn cast_storage_mut<T, U>(storage: &mut CudaStorage<T>) -> CudaStorage<U> {
-    CudaStorage {
-        buffer: storage.buffer.clone(),
-        len: storage.len,
-        _marker: std::marker::PhantomData,
-    }
+    let buffer = unsafe {
+        std::mem::transmute::<
+            std::sync::Arc<hephaestus_cuda::CudaBuffer<T>>,
+            std::sync::Arc<hephaestus_cuda::CudaBuffer<U>>,
+        >(storage.buffer.clone())
+    };
+    CudaStorage { buffer }
 }
 
 impl CudaBackend {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn cuda_conv1d<T: CudaScalar>(
         &self,
         input: &CudaStorage<T>,
@@ -72,6 +77,7 @@ impl CudaBackend {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn cuda_conv1d_backward<T: CudaScalar>(
         &self,
         grad_out: &CudaStorage<T>,
@@ -129,9 +135,25 @@ impl CudaBackend {
                 return;
             }
         }
-        panic!("CUDA conv1d_backward failed to launch or context is not initialized");
+        self.fallback_conv1d_backward(
+            grad_out,
+            grad_out_layout,
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            grad_input,
+            grad_input_layout,
+            grad_weight,
+            grad_weight_layout,
+            grad_bias,
+            stride,
+            padding,
+            dilation,
+        );
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn cuda_conv2d<T: CudaScalar>(
         &self,
         input: &CudaStorage<T>,
@@ -183,6 +205,7 @@ impl CudaBackend {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn cuda_conv2d_backward<T: CudaScalar>(
         &self,
         grad_out: &CudaStorage<T>,
@@ -240,6 +263,21 @@ impl CudaBackend {
                 return;
             }
         }
-        panic!("CUDA conv2d_backward failed to launch or context is not initialized");
+        self.fallback_conv2d_backward(
+            grad_out,
+            grad_out_layout,
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            grad_input,
+            grad_input_layout,
+            grad_weight,
+            grad_weight_layout,
+            grad_bias,
+            stride,
+            padding,
+            dilation,
+        );
     }
 }

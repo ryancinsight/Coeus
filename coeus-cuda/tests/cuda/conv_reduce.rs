@@ -1,9 +1,12 @@
 use coeus_core::{ComputeBackend, SequentialBackend};
 use coeus_cuda::CudaBackend;
-use coeus_tensor::{Tensor, Transpose};
+use coeus_tensor::Tensor;
 
 #[test]
 fn test_cuda_backend_conv_and_reduce() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
     let cuda_b = CudaBackend::new();
     let seq = SequentialBackend::new();
 
@@ -85,6 +88,9 @@ fn test_cuda_backend_conv_and_reduce() {
 
 #[test]
 fn test_cuda_conv_backward() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
     if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
         use coeus_core::CpuAddressableStorage;
         let seq = SequentialBackend::new();

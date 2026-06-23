@@ -29,7 +29,8 @@ Coeus is partitioned into a deep vertical hierarchy of workspace crates, enforci
 4. **Mnemosyne Memory Allocator**
    Low-level heap allocations are managed via the custom [Mnemosyne Allocator](https://github.com/ryancinsight/Mnemosyne), implementing aligned memory blocks (`RawBlock`) directly from the allocator instance.
 5. **Apollo FFT Integration**
-   1D forward and inverse Fast Fourier Transforms are routed to the [Apollo FFT Library](https://github.com/ryancinsight/apollo.git) using compile-time trait routing and dynamic `TypeId` mapping.
+   FFT operations on `coeus` Tensors and differentiable Vars are supported via the integration layer in the [Apollo FFT Library](https://github.com/ryancinsight/apollo.git), keeping `coeus` clean of compile-time dependencies on Apollo.
+
 
 ---
 

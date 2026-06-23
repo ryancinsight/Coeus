@@ -1,9 +1,12 @@
-use coeus_core::{ComputeBackend, SequentialBackend};
+use coeus_core::SequentialBackend;
 use coeus_cuda::CudaBackend;
 use coeus_tensor::Tensor;
 
 #[test]
 fn test_cuda_adamw_step() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
     let cuda_b = CudaBackend::new();
     let seq = SequentialBackend::new();
 
@@ -119,6 +122,9 @@ fn test_cuda_adamw_step() {
 
 #[test]
 fn test_cuda_conv3d() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
     let cuda_b = CudaBackend::new();
     let seq = SequentialBackend::new();
 
@@ -179,6 +185,9 @@ fn test_cuda_conv3d() {
 
 #[test]
 fn test_cuda_pool3d() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
     let cuda_b = CudaBackend::new();
     let seq = SequentialBackend::new();
 

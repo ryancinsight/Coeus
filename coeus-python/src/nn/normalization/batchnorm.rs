@@ -128,6 +128,17 @@ impl PyBatchNorm1d {
         }
         Ok(())
     }
+
+    /// Return the list of learnable parameters.
+    pub fn parameters(&self, py: Python<'_>) -> Vec<Py<PyTensor>> {
+        vec![self.weight.clone_ref(py), self.bias.clone_ref(py)]
+    }
+
+    /// Zero the gradients of all parameters.
+    pub fn zero_grad(&self, py: Python<'_>) {
+        self.weight.bind(py).borrow().zero_grad();
+        self.bias.bind(py).borrow().zero_grad();
+    }
 }
 
 /// Python-exposed 2D Batch Normalization layer.
@@ -257,6 +268,17 @@ impl PyBatchNorm2d {
         }
         Ok(())
     }
+
+    /// Return the list of learnable parameters.
+    pub fn parameters(&self, py: Python<'_>) -> Vec<Py<PyTensor>> {
+        vec![self.weight.clone_ref(py), self.bias.clone_ref(py)]
+    }
+
+    /// Zero the gradients of all parameters.
+    pub fn zero_grad(&self, py: Python<'_>) {
+        self.weight.bind(py).borrow().zero_grad();
+        self.bias.bind(py).borrow().zero_grad();
+    }
 }
 
 /// Python-exposed 3D Batch Normalization layer.
@@ -385,5 +407,16 @@ impl PyBatchNorm3d {
             self.running_var.bind(py).borrow_mut().inner.tensor = rv.clone();
         }
         Ok(())
+    }
+
+    /// Return the list of learnable parameters.
+    pub fn parameters(&self, py: Python<'_>) -> Vec<Py<PyTensor>> {
+        vec![self.weight.clone_ref(py), self.bias.clone_ref(py)]
+    }
+
+    /// Zero the gradients of all parameters.
+    pub fn zero_grad(&self, py: Python<'_>) {
+        self.weight.bind(py).borrow().zero_grad();
+        self.bias.bind(py).borrow().zero_grad();
     }
 }

@@ -26,17 +26,13 @@ license = "MIT OR Apache-2.0"
 # ── Remote System Dependencies ──
 # Parallelization/async SSOT. Moirai defaults carry parallel execution,
 # Mnemosyne-backed allocation surfaces, and Mellinoe branding.
-moirai     = { git = "https://github.com/ryancinsight/Moirai.git" }
-mnemosyne  = { git = "https://github.com/ryancinsight/Mnemosyne.git" }
-apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", package = "apollo-fft" }
-# SIMD-effect SSOT. Tracks hermes `main`; advance with `cargo update -p hermes-simd`.
-hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", package = "hermes-simd" }
+moirai     = { path = "../moirai/moirai", version = "0.2.0", features = ["melinoe", "no-global-alloc"] }
+mnemosyne  = { path = "../mnemosyne/crates/mnemosyne", version = "0.2.0" }
+# SIMD-effect SSOT. Tracks hermes `main`.
+hermes-simd = { path = "../hermes/crates/hermes-simd", version = "0.3.0" }
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
-# coeus-leto adapts coeus's dynamic-rank layout onto leto's const-rank kernels;
-# the const-rank dispatch shim is consumer-owned here per leto ADR 0002.
-# Advance with `cargo update -p leto -p leto-ops`.
-leto     = { git = "https://github.com/ryancinsight/leto.git", rev = "d8d34c617da453360931e50358e645743918962f" }
-leto-ops = { git = "https://github.com/ryancinsight/leto.git", rev = "d8d34c617da453360931e50358e645743918962f" }
+leto     = { path = "../leto/crates/leto", version = "0.35.1" }
+leto-ops = { path = "../leto/crates/leto-ops", version = "0.35.1" }
 
 # ── Numerical ──
 num-traits = "0.2"
@@ -47,8 +43,9 @@ half       = { version = "2.7", features = ["num-traits", "bytemuck"] }
 # ndarray-based FFT crate), but coeus's own code does not depend on it.
 smallvec   = "1.13"
 wgpu       = { version = "26.0", features = ["wgsl"] }
-hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", package = "hephaestus-wgpu" }
-hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", package = "hephaestus-core" }
+hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.10.0" }
+hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.10.0" }
+hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda", version = "0.10.0" }
 
 # ── Error ──
 thiserror = "2"
@@ -59,12 +56,12 @@ pyo3 = { version = "0.23", features = ["extension-module"] }
 # ── Local ──
 coeus-core     = { path = "coeus-core" }
 coeus-tensor   = { path = "coeus-tensor" }
-coeus-ops      = { path = "coeus-ops" }
-coeus-autograd = { path = "coeus-autograd" }
-coeus-nn       = { path = "coeus-nn" }
-coeus-optim    = { path = "coeus-optim" }
+coeus-ops      = { path = "coeus-ops", default-features = false }
+coeus-autograd = { path = "coeus-autograd", default-features = false }
+coeus-nn       = { path = "coeus-nn", default-features = false }
+coeus-optim    = { path = "coeus-optim", default-features = false }
 coeus-sparse   = { path = "coeus-sparse" }
-coeus-dist     = { path = "coeus-dist" }
+coeus-dist     = { path = "coeus-dist", default-features = false }
 
 [patch."https://github.com/ryancinsight/Mnemosyne.git"]
 mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
@@ -78,6 +75,8 @@ moirai = { path = "../moirai/moirai" }
 moirai-core = { path = "../moirai/moirai-core" }
 moirai-scheduler = { path = "../moirai/moirai-scheduler" }
 moirai-parallel = { path = "../moirai/moirai-parallel" }
+moirai-async = { path = "../moirai/moirai-async" }
+moirai-transport = { path = "../moirai/moirai-transport" }
 
 [patch."https://github.com/ryancinsight/leto.git"]
 leto = { path = "../leto/crates/leto" }
@@ -86,9 +85,15 @@ leto-ops = { path = "../leto/crates/leto-ops" }
 [patch."https://github.com/ryancinsight/hephaestus.git"]
 hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu" }
 hephaestus-core = { path = "../hephaestus/crates/hephaestus-core" }
+hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda" }
 
 [patch."https://github.com/ryancinsight/hermes.git"]
 hermes-simd = { path = "../hermes/crates/hermes-simd" }
+hermes-simd-core = { path = "../hermes/crates/hermes-simd-core" }
+hermes-simd-intrinsics = { path = "../hermes/crates/hermes-simd-intrinsics" }
+hermes-simd-macros = { path = "../hermes/crates/hermes-simd-macros" }
+hermes-simd-types = { path = "../hermes/crates/hermes-simd-types" }
+hermes-numeric = { path = "../hermes/crates/hermes-numeric" }
 
 [patch."https://github.com/ryancinsight/melinoe.git"]
 melinoe = { path = "../melinoe" }
@@ -96,10 +101,18 @@ melinoe = { path = "../melinoe" }
 [patch."https://github.com/ryancinsight/themis"]
 themis = { path = "../themis" }
 
-[patch."https://github.com/ryancinsight/apollo.git"]
-apollo-fft = { path = "../apollo/crates/apollo-fft" }
-
 [profile.bench]
 codegen-units = 1
 lto = "thin"
 opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+opt-level = 3
+
+[profile.dev]
+opt-level = 1
+
+[profile.test]
+opt-level = 1

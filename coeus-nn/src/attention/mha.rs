@@ -117,10 +117,20 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
         let k_proj = self.project_3d(key, &self.w_k, &self.b_k, batch, seq_k);
         let v_proj = self.project_3d(value, &self.w_v, &self.b_v, batch, seq_k);
 
+        // ── Reshape to [batch, seq, H, d_head] ──
+        let q_split = coeus_autograd::reshape(&q_proj, [batch, seq_q, H, d_head]);
+        let k_split = coeus_autograd::reshape(&k_proj, [batch, seq_k, H, d_head]);
+        let v_split = coeus_autograd::reshape(&v_proj, [batch, seq_k, H, d_head]);
+
+        // ── Permute to [batch, H, seq, d_head] ──
+        let q_perm = coeus_autograd::permute(&q_split, &[0, 2, 1, 3]);
+        let k_perm = coeus_autograd::permute(&k_split, &[0, 2, 1, 3]);
+        let v_perm = coeus_autograd::permute(&v_split, &[0, 2, 1, 3]);
+
         // ── Reshape to [batch * H, seq, d_head] ──
-        let q_heads = coeus_autograd::reshape(&q_proj, [batch * H, seq_q, d_head]);
-        let k_heads = coeus_autograd::reshape(&k_proj, [batch * H, seq_k, d_head]);
-        let v_heads = coeus_autograd::reshape(&v_proj, [batch * H, seq_k, d_head]);
+        let q_heads = coeus_autograd::reshape(&q_perm, [batch * H, seq_q, d_head]);
+        let k_heads = coeus_autograd::reshape(&k_perm, [batch * H, seq_k, d_head]);
+        let v_heads = coeus_autograd::reshape(&v_perm, [batch * H, seq_k, d_head]);
 
         // ── Scaled dot-product attention ──
         let (attn_out, _aw) = coeus_autograd::sdp_attention::<T, B, M>(
@@ -131,8 +141,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
             scale,
         );
 
-        // ── Merge heads: [batch * H, seq_q, d_head] → [batch, seq_q, d_model] ──
-        let merged = coeus_autograd::reshape(&attn_out, [batch, seq_q, self.d_model]);
+        // ── Reshape to [batch, H, seq_q, d_head] ──
+        let merged_split = coeus_autograd::reshape(&attn_out, [batch, H, seq_q, d_head]);
+
+        // ── Permute back to [batch, seq_q, H, d_head] ──
+        let merged_perm = coeus_autograd::permute(&merged_split, &[0, 2, 1, 3]);
+
+        // ── Merge heads: reshape to [batch, seq_q, self.d_model] ──
+        let merged = coeus_autograd::reshape(&merged_perm, [batch, seq_q, self.d_model]);
 
         // ── Output projection ──
         self.project_3d(&merged, &self.w_o, &self.b_o, batch, seq_q)

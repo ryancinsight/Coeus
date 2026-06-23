@@ -139,6 +139,7 @@ unsafe extern "C" fn local_cu_module_unload(hmod: CUmodule) -> CUresult {
     cuda_core::sys::cuModuleUnload(hmod as *mut _) as CUresult
 }
 
+#[allow(non_snake_case)]
 unsafe extern "C" fn local_cu_launch_kernel(
     f: CUfunction,
     gridDimX: u32,
@@ -162,8 +163,8 @@ unsafe extern "C" fn local_cu_launch_kernel(
         blockDimZ,
         sharedMemBytes,
         hStream as *mut _,
-        kernelParams as *mut *mut _,
-        extra as *mut *mut _,
+        kernelParams,
+        extra,
     ) as CUresult
 }
 
@@ -199,11 +200,46 @@ impl CudaDriver {
     }
 }
 
+fn stagger_nextest_init() {
+    static STAGGERED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if !STAGGERED.load(std::sync::atomic::Ordering::Acquire) {
+        if STAGGERED
+            .compare_exchange(
+                false,
+                true,
+                std::sync::atomic::Ordering::AcqRel,
+                std::sync::atomic::Ordering::Acquire,
+            )
+            .is_ok()
+        {
+            if let Ok(thread_id_str) = std::env::var("NEXTEST_THREAD_ID") {
+                if let Ok(thread_id) = thread_id_str.parse::<u64>() {
+                    std::thread::sleep(std::time::Duration::from_millis(thread_id * 100));
+                }
+            }
+        }
+    }
+}
+
+fn get_device_ordinal() -> usize {
+    if let Ok(thread_id_str) = std::env::var("NEXTEST_THREAD_ID") {
+        if let Ok(thread_id) = thread_id_str.parse::<usize>() {
+            let mut count: core::ffi::c_int = 0;
+            if unsafe { cuda_core::sys::cuDeviceGetCount(&mut count) } == 0 && count > 0 {
+                return thread_id % (count as usize);
+            }
+        }
+    }
+    0
+}
+
 /// Retrieve a reference to the active CUDA driver context.
 pub fn get_cuda_context() -> Option<CUcontext> {
+    stagger_nextest_init();
     let ctx = CONTEXT
         .get_or_init(|| {
-            cuda_async::device_context::with_device(0, |device| {
+            let ordinal = get_device_ordinal();
+            cuda_async::device_context::with_device(ordinal, |device| {
                 CUcontextWrapper(device.cu_ctx() as CUcontext)
             })
             .ok()
@@ -229,16 +265,22 @@ static BORROWED_STREAM: OnceLock<Option<Arc<cuda_core::Stream>>> = OnceLock::new
 
 /// Retrieve the borrowed cutile Device wrapper.
 pub fn get_borrowed_device() -> Option<Arc<cuda_core::Device>> {
+    stagger_nextest_init();
     BORROWED_DEVICE
-        .get_or_init(|| cuda_async::device_context::with_device(0, |device| device.clone()).ok())
+        .get_or_init(|| {
+            let ordinal = get_device_ordinal();
+            cuda_async::device_context::with_device(ordinal, |device| device.clone()).ok()
+        })
         .clone()
 }
 
 /// Retrieve the borrowed cutile Stream wrapper.
 pub fn get_borrowed_stream() -> Option<Arc<cuda_core::Stream>> {
+    stagger_nextest_init();
     BORROWED_STREAM
         .get_or_init(|| {
-            cuda_async::device_context::with_default_device_policy(|policy| {
+            let ordinal = get_device_ordinal();
+            cuda_async::device_context::with_device_policy(ordinal, |policy| {
                 policy.next_stream().ok()
             })
             .ok()

@@ -239,7 +239,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **coeus-core** | [coeus-core](file:///d:/coeus/coeus-core) | Scalar types, layouts, storage traits, backend traits, CPU backends | ✅ Compiles | Clean compilation |
 | **coeus-tensor** | [coeus-tensor](file:///d:/coeus/coeus-tensor) | N-dimensional strided tensor representation (`Tensor<T, B, S>`) | ✅ Compiles | Clean compilation |
-| **coeus-ops** | [coeus-ops](file:///d:/coeus/coeus-ops) | Element-wise math, matrix operations, reductions, Apollo FFT | ✅ Compiles | Zero-copy layout traversal and thread-safe |
+| **coeus-ops** | [coeus-ops](file:///d:/coeus/coeus-ops) | Element-wise math, matrix operations, reductions | ✅ Compiles | Zero-copy layout traversal and thread-safe |
 | **coeus-autograd** | [coeus-autograd](file:///d:/coeus/coeus-autograd) | Tape-based automatic differentiation (`Var`, `Tape`) | ✅ Compiles | Clean compilation |
 | **coeus-optim** | [coeus-optim](file:///d:/coeus/coeus-optim) | Optimizers (SGD, Adam, RMSProp) | ✅ Compiles | Borrow checker conflicts resolved |
 | **coeus-nn** | [coeus-nn](file:///d:/coeus/coeus-nn) | Neural network modules (Linear, activations, losses, normalization) | ✅ Compiles | Clean compilation |

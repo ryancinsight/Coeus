@@ -17,9 +17,18 @@ pub mod tensor;
 use dist::{PyMockCommunicator, PyTcpCommunicator, PyTcpMesh};
 use tensor::PyTensor;
 
+/// Shutdown the global Moirai executor.
+#[pyfunction]
+pub fn shutdown(py: Python<'_>) {
+    py.allow_threads(|| {
+        moirai::global().shutdown();
+    });
+}
+
 /// PyCoeus extension module definition.
 #[pymodule]
 pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(shutdown, m)?)?;
     m.add_class::<PyTensor>()?;
     m.add_class::<nn::PyLinear>()?;
     m.add_class::<tensor::PyStateDict>()?;

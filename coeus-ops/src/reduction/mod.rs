@@ -1,9 +1,9 @@
 // ── Reduction module ──
 
-mod cumsum;
-mod mean;
-mod sum;
-mod topk;
+pub(crate) mod cumsum;
+pub(crate) mod mean;
+pub(crate) mod sum;
+pub(crate) mod topk;
 
 pub use cumsum::{cumsum, suffix_sum};
 pub use mean::{mean, mean_axis};

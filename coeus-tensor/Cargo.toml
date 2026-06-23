@@ -14,15 +14,17 @@ smallvec    = { workspace = true }
 thiserror   = { workspace = true }
 bytemuck    = { workspace = true }
 
+
 [dev-dependencies]
 criterion = "0.5"
 coeus-ops = { workspace = true }
 leto = { workspace = true }
 leto-ops = { workspace = true }
-burn = { version = "0.15", features = ["std", "ndarray"] }
 bincode = { version = "=2.0.0-rc.3", features = ["serde"] }
 proptest  = "1.5"
 rayon = "1.12.0"
+mnemosyne = { workspace = true }
+
 
 [[bench]]
 name = "tensor_bench"

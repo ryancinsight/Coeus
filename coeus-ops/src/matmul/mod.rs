@@ -2,4 +2,4 @@
 
 mod kernel;
 
-pub use kernel::matmul;
+pub use kernel::{matmul, matmul_accumulate};

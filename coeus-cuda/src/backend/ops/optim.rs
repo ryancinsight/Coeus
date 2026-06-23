@@ -5,22 +5,27 @@ use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
 fn cast_storage<T, U>(storage: &CudaStorage<T>) -> CudaStorage<U> {
-    CudaStorage {
-        buffer: storage.buffer.clone(),
-        len: storage.len,
-        _marker: std::marker::PhantomData,
-    }
+    let buffer = unsafe {
+        std::mem::transmute::<
+            std::sync::Arc<hephaestus_cuda::CudaBuffer<T>>,
+            std::sync::Arc<hephaestus_cuda::CudaBuffer<U>>,
+        >(storage.buffer.clone())
+    };
+    CudaStorage { buffer }
 }
 
 fn cast_storage_mut<T, U>(storage: &mut CudaStorage<T>) -> CudaStorage<U> {
-    CudaStorage {
-        buffer: storage.buffer.clone(),
-        len: storage.len,
-        _marker: std::marker::PhantomData,
-    }
+    let buffer = unsafe {
+        std::mem::transmute::<
+            std::sync::Arc<hephaestus_cuda::CudaBuffer<T>>,
+            std::sync::Arc<hephaestus_cuda::CudaBuffer<U>>,
+        >(storage.buffer.clone())
+    };
+    CudaStorage { buffer }
 }
 
 impl CudaBackend {
+    #[allow(clippy::too_many_arguments, clippy::multiple_bound_locations)]
     pub(crate) fn cuda_sgd_step<T: CudaScalar>(
         &self,
         param: &mut CudaStorage<T>,
@@ -40,8 +45,8 @@ impl CudaBackend {
             let mut param_f32 = cast_storage_mut::<T, f32>(param);
             let grad_f32 = cast_storage::<T, f32>(grad);
             let mut velocity_f32 = cast_storage_mut::<T, f32>(velocity);
-            let lr_f32 = lr.to_f64() as f32;
-            let momentum_f32 = momentum.to_f64() as f32;
+            let lr_f32 = coeus_core::Scalar::to_f64(lr) as f32;
+            let momentum_f32 = coeus_core::Scalar::to_f64(momentum) as f32;
 
             if kernels::launch_sgd_step(
                 &mut param_f32,
@@ -68,6 +73,7 @@ impl CudaBackend {
         );
     }
 
+    #[allow(clippy::too_many_arguments, clippy::multiple_bound_locations)]
     pub(crate) fn cuda_adam_step<T: CudaScalar>(
         &self,
         param: &mut CudaStorage<T>,
@@ -93,10 +99,10 @@ impl CudaBackend {
             let grad_f32 = cast_storage::<T, f32>(grad);
             let mut m_f32 = cast_storage_mut::<T, f32>(m);
             let mut v_f32 = cast_storage_mut::<T, f32>(v);
-            let lr_f32 = lr.to_f64() as f32;
-            let beta1_f32 = beta1.to_f64() as f32;
-            let beta2_f32 = beta2.to_f64() as f32;
-            let eps_f32 = eps.to_f64() as f32;
+            let lr_f32 = coeus_core::Scalar::to_f64(lr) as f32;
+            let beta1_f32 = coeus_core::Scalar::to_f64(beta1) as f32;
+            let beta2_f32 = coeus_core::Scalar::to_f64(beta2) as f32;
+            let eps_f32 = coeus_core::Scalar::to_f64(eps) as f32;
 
             if kernels::launch_adam_step(
                 &mut param_f32,
@@ -133,6 +139,7 @@ impl CudaBackend {
         );
     }
 
+    #[allow(clippy::too_many_arguments, clippy::multiple_bound_locations)]
     pub(crate) fn cuda_rmsprop_step<T: CudaScalar>(
         &self,
         param: &mut CudaStorage<T>,
@@ -153,9 +160,9 @@ impl CudaBackend {
             let mut param_f32 = cast_storage_mut::<T, f32>(param);
             let grad_f32 = cast_storage::<T, f32>(grad);
             let mut v_f32 = cast_storage_mut::<T, f32>(v);
-            let lr_f32 = lr.to_f64() as f32;
-            let alpha_f32 = alpha.to_f64() as f32;
-            let eps_f32 = eps.to_f64() as f32;
+            let lr_f32 = coeus_core::Scalar::to_f64(lr) as f32;
+            let alpha_f32 = coeus_core::Scalar::to_f64(alpha) as f32;
+            let eps_f32 = coeus_core::Scalar::to_f64(eps) as f32;
 
             if kernels::launch_rmsprop_step(
                 &mut param_f32,
@@ -184,6 +191,7 @@ impl CudaBackend {
         );
     }
 
+    #[allow(clippy::too_many_arguments, clippy::multiple_bound_locations)]
     pub(crate) fn cuda_adagrad_step<T: CudaScalar>(
         &self,
         param: &mut CudaStorage<T>,
@@ -203,8 +211,8 @@ impl CudaBackend {
             let mut param_f32 = cast_storage_mut::<T, f32>(param);
             let grad_f32 = cast_storage::<T, f32>(grad);
             let mut history_f32 = cast_storage_mut::<T, f32>(history);
-            let lr_f32 = lr.to_f64() as f32;
-            let eps_f32 = eps.to_f64() as f32;
+            let lr_f32 = coeus_core::Scalar::to_f64(lr) as f32;
+            let eps_f32 = coeus_core::Scalar::to_f64(eps) as f32;
 
             if kernels::launch_adagrad_step(
                 &mut param_f32,
@@ -231,7 +239,7 @@ impl CudaBackend {
         );
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::multiple_bound_locations)]
     pub(crate) fn cuda_adamw_step<T: CudaScalar>(
         &self,
         param: &mut CudaStorage<T>,
@@ -258,11 +266,11 @@ impl CudaBackend {
             let grad_f32 = cast_storage::<T, f32>(grad);
             let mut m_f32 = cast_storage_mut::<T, f32>(m);
             let mut v_f32 = cast_storage_mut::<T, f32>(v);
-            let lr_f32 = lr.to_f64() as f32;
-            let beta1_f32 = beta1.to_f64() as f32;
-            let beta2_f32 = beta2.to_f64() as f32;
-            let eps_f32 = eps.to_f64() as f32;
-            let weight_decay_f32 = weight_decay.to_f64() as f32;
+            let lr_f32 = coeus_core::Scalar::to_f64(lr) as f32;
+            let beta1_f32 = coeus_core::Scalar::to_f64(beta1) as f32;
+            let beta2_f32 = coeus_core::Scalar::to_f64(beta2) as f32;
+            let eps_f32 = coeus_core::Scalar::to_f64(eps) as f32;
+            let weight_decay_f32 = coeus_core::Scalar::to_f64(weight_decay) as f32;
 
             if kernels::launch_adamw_step(
                 &mut param_f32,

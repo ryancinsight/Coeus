@@ -19,7 +19,6 @@ pub(crate) mod ptr;
 pub use backend_ops::{BackendOps, BinaryOp, CpuBackend, ReductionOp, UnaryOp};
 pub mod binary;
 pub mod embedding;
-pub mod fft;
 pub mod matmul;
 pub mod reduction;
 pub mod shape;
@@ -39,8 +38,7 @@ pub use binary::{
     sub, sub_assign,
 };
 pub use embedding::{embedding, embedding_backward};
-pub use fft::{fft_1d, ifft_1d, FftScalar};
-pub use matmul::matmul;
+pub use matmul::{matmul, matmul_accumulate};
 pub use reduction::{
     argmax, argmin, cumsum, max_axis, mean, mean_axis, min_axis, suffix_sum, sum, sum_axis, topk,
 };

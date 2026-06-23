@@ -86,8 +86,8 @@ where
 
         for (index, (&actual, &reference)) in got.iter().zip(&expected).enumerate() {
             assert_eq!(
-                actual.to_f64().to_bits(),
-                reference.to_f64().to_bits(),
+                Scalar::to_f64(actual).to_bits(),
+                Scalar::to_f64(reference).to_bits(),
                 "{op:?} mismatch at index {index}"
             );
         }

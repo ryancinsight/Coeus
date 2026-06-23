@@ -341,6 +341,37 @@ try:
     x_cont.backward()
     assert x_shape7.grad is not None
 
+    # Module parameters() and zero_grad() tests
+    linear_test = pycoeus.Linear(2, 3)
+    params = linear_test.parameters()
+    assert len(params) == 2, f'Expected 2 parameters, got {len(params)}'
+    
+    # Run forward/backward to populate grads
+    x_test = pycoeus.Tensor([1.0, 2.0], [1, 2], requires_grad=True)
+    y_test = linear_test.forward(x_test)
+    loss_test = y_test.sum_axis(0).sum_axis(1)
+    loss_test.backward()
+    
+    assert linear_test.weight.grad is not None
+    assert linear_test.bias.grad is not None
+    
+    linear_test.zero_grad()
+    assert all(g == 0.0 for g in linear_test.weight.grad)
+    assert all(g == 0.0 for g in linear_test.bias.grad)
+
+    # Check non-learnable modules have empty parameters and no-op zero_grad
+    dp_test = pycoeus.Dropout(0.5)
+    assert dp_test.parameters() == []
+    dp_test.zero_grad()
+
+    avgpool_test = pycoeus.AvgPool2d(2)
+    assert avgpool_test.parameters() == []
+    avgpool_test.zero_grad()
+
+    rope_test = pycoeus.RotaryEmbedding(10, 4)
+    assert rope_test.parameters() == []
+    rope_test.zero_grad()
+
 except Exception as e:
     traceback.print_exc()
     sys.exit(1)

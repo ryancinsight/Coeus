@@ -115,3 +115,80 @@ fn batch_layout(
         layout.offset(),
     )
 }
+
+/// Accumulating matrix multiplication: `out += a * b`.
+#[inline]
+pub fn matmul_accumulate<T: Scalar, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    b: &Tensor<T, B>,
+    out: &mut Tensor<T, B>,
+    backend: &B,
+) {
+    let a_ndim = a.ndim();
+    let b_ndim = b.ndim();
+
+    assert!(
+        a_ndim >= 2,
+        "matmul_accumulate: A must be ≥ 2-D, got {a_ndim}-D"
+    );
+    assert!(
+        b_ndim >= 2,
+        "matmul_accumulate: B must be ≥ 2-D, got {b_ndim}-D"
+    );
+
+    let a_shape = a.shape();
+    let b_shape = b.shape();
+
+    let m = a_shape[a_ndim - 2];
+    let k = a_shape[a_ndim - 1];
+    let k2 = b_shape[b_ndim - 2];
+    let n = b_shape[b_ndim - 1];
+    assert_eq!(
+        k, k2,
+        "matmul_accumulate: inner dimension mismatch: {} vs {}",
+        k, k2
+    );
+
+    if a_ndim == 2 && b_ndim == 2 {
+        let (out_storage, out_layout) = out.storage_mut_and_layout();
+        backend.matmul_accumulate(
+            a.storage(),
+            a.layout(),
+            b.storage(),
+            b.layout(),
+            out_storage,
+            out_layout,
+        );
+        return;
+    }
+
+    let a_slices: usize = if a_ndim > 2 {
+        a_shape[..a_ndim - 2].iter().product()
+    } else {
+        1
+    };
+    let b_slices: usize = if b_ndim > 2 {
+        b_shape[..b_ndim - 2].iter().product()
+    } else {
+        1
+    };
+    assert!(
+        a_slices == b_slices || a_slices == 1 || b_slices == 1,
+        "matmul_accumulate: batch dimensions not broadcastable: {} vs {}",
+        a_slices,
+        b_slices
+    );
+
+    let a_layout = batch_layout(a.layout(), a_slices, m, k, a_ndim == 2);
+    let b_layout = batch_layout(b.layout(), b_slices, k, n, b_ndim == 2);
+    let (out_storage, out_layout) = out.storage_mut_and_layout();
+
+    backend.batched_matmul_accumulate(
+        a.storage(),
+        &a_layout,
+        b.storage(),
+        &b_layout,
+        out_storage,
+        out_layout,
+    );
+}

@@ -50,6 +50,36 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         c_layout: &Layout,
     );
 
+    /// Matrix multiplication with accumulation: `c += a * b`.
+    fn matmul_accumulate(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        b: &Self::DeviceBuffer<T>,
+        b_layout: &Layout,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) {
+        let temp_len = c_layout.shape().iter().product();
+        let mut temp = self.allocate::<T>(temp_len);
+        let temp_layout =
+            Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
+        self.fill(&mut temp, T::zero());
+        self.matmul(a, a_layout, b, b_layout, &mut temp, &temp_layout);
+        let c_ptr = c as *mut Self::DeviceBuffer<T>;
+        unsafe {
+            self.elementwise_binary(
+                BinaryOp::Add,
+                &*c_ptr,
+                c_layout,
+                &temp,
+                &temp_layout,
+                &mut *c_ptr,
+                c_layout,
+            );
+        }
+    }
+
     /// Rank-3 batched matrix multiplication.
     ///
     /// The default implementation keeps backend compatibility by slicing each
@@ -122,6 +152,36 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         }
     }
 
+    /// Rank-3 batched matrix multiplication with accumulation: `c += a * b`.
+    fn batched_matmul_accumulate(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        b: &Self::DeviceBuffer<T>,
+        b_layout: &Layout,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) {
+        let temp_len = c_layout.shape().iter().product();
+        let mut temp = self.allocate::<T>(temp_len);
+        let temp_layout =
+            Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
+        self.fill(&mut temp, T::zero());
+        self.batched_matmul(a, a_layout, b, b_layout, &mut temp, &temp_layout);
+        let c_ptr = c as *mut Self::DeviceBuffer<T>;
+        unsafe {
+            self.elementwise_binary(
+                BinaryOp::Add,
+                &*c_ptr,
+                c_layout,
+                &temp,
+                &temp_layout,
+                &mut *c_ptr,
+                c_layout,
+            );
+        }
+    }
+
     /// Reduction operations along an axis.
     fn reduce(
         &self,
@@ -132,6 +192,127 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     );
+
+    /// Compute the indices of the maximum values along `axis`.
+    fn argmax(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<i64>,
+        c_layout: &Layout,
+    ) where
+        T: leto_ops::Scalar,
+    {
+        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
+        self.copy_to_host(a, &mut host_a);
+
+        let mut host_c = vec![0i64; c_layout.shape().iter().product()];
+        coeus_leto::argmax_into(a_layout, &host_a, axis, c_layout, &mut host_c)
+            .expect("argmax default impl failed");
+
+        self.copy_to_device(&host_c, c);
+    }
+
+    /// Compute the indices of the minimum values along `axis`.
+    fn argmin(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<i64>,
+        c_layout: &Layout,
+    ) where
+        T: leto_ops::Scalar,
+    {
+        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
+        self.copy_to_host(a, &mut host_a);
+
+        let mut host_c = vec![0i64; c_layout.shape().iter().product()];
+        coeus_leto::argmin_into(a_layout, &host_a, axis, c_layout, &mut host_c)
+            .expect("argmin default impl failed");
+
+        self.copy_to_device(&host_c, c);
+    }
+
+    /// Return the `k` largest (or smallest) values and their indices along an axis.
+    #[allow(clippy::too_many_arguments)]
+    fn topk(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        k: usize,
+        axis: usize,
+        largest: bool,
+        values: &mut Self::DeviceBuffer<T>,
+        values_layout: &Layout,
+        indices: &mut Self::DeviceBuffer<i64>,
+        indices_layout: &Layout,
+    ) where
+        T: leto_ops::Scalar,
+    {
+        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
+        self.copy_to_host(a, &mut host_a);
+
+        let mut host_values = vec![T::zero(); values_layout.shape().iter().product()];
+        let mut host_indices = vec![0i64; indices_layout.shape().iter().product()];
+
+        crate::reduction::topk::topk_impl(
+            &host_a,
+            a_layout.shape(),
+            k,
+            axis,
+            largest,
+            &mut host_values,
+            &mut host_indices,
+        );
+
+        self.copy_to_device(&host_values, values);
+        self.copy_to_device(&host_indices, indices);
+    }
+
+    /// Inclusive cumulative sum along an axis.
+    fn cumsum(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) where
+        T: leto_ops::Scalar,
+    {
+        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
+        self.copy_to_host(a, &mut host_a);
+
+        let mut host_c = vec![T::zero(); c_layout.shape().iter().product()];
+        coeus_leto::cumsum_into(a_layout, &host_a, axis, c_layout, &mut host_c)
+            .expect("cumsum default impl failed");
+
+        self.copy_to_device(&host_c, c);
+    }
+
+    /// Inclusive cumulative suffix sum (reverse cumulative sum) along an axis.
+    fn suffix_sum(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) where
+        T: leto_ops::Scalar,
+    {
+        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
+        self.copy_to_host(a, &mut host_a);
+
+        let mut host_c = vec![T::zero(); c_layout.shape().iter().product()];
+        coeus_leto::suffix_sum_into(a_layout, &host_a, axis, c_layout, &mut host_c)
+            .expect("suffix_sum default impl failed");
+
+        self.copy_to_device(&host_c, c);
+    }
+
 
     /// 1D Convolution
     fn conv1d(

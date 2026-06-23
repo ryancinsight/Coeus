@@ -1,9 +1,12 @@
 use coeus_core::{ComputeBackend, SequentialBackend};
 use coeus_cuda::CudaBackend;
-use coeus_tensor::{Tensor, Transpose};
+use coeus_tensor::Tensor;
 
 #[test]
 fn test_cuda_backend_compilation_and_fallback() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
     let cuda_b = CudaBackend::new();
     assert_eq!(cuda_b.name(), "cuda");
 
@@ -18,8 +21,12 @@ fn test_cuda_backend_compilation_and_fallback() {
     assert_eq!(a_seq_back.shape(), &[3]);
 }
 
+#[allow(clippy::excessive_precision)]
 #[test]
 fn test_cuda_backend_ops() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
     let cuda_b = CudaBackend::new();
     let seq = SequentialBackend::new();
 
