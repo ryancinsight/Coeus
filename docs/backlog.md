@@ -54,6 +54,10 @@
   rules; condition tensors receive zero gradient by contract.
 - [x] [minor] Extended `coeus-python` with `sin`, `cos`, `flip`, `where_cond`,
   `softmax`, `randn`, `topk`, and `sort` wrappers over Rust core/autograd ops.
+- [x] [patch] Extended live Burn activation parity to Mish, Softplus, and
+  LeakyReLU against Burn NdArray references in
+  `coeus-nn/tests/burn_live_parity.rs`. Evidence tier: empirical differential
+  validation.
 - [x] [patch] Replaced backward-node gradient storage with the `GradBuffer`
   UnsafeCell SSOT and removed the Mutex-compatible shim so optimizers,
   distributed gradient synchronization, and tests use the same direct
@@ -98,6 +102,10 @@
   Evidence tier: empirical differential validation. Evidence:
   `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests` passes
   with 42 value-semantic tests.
+- [x] [patch] Extended live CUDA feature differential parity to backward
+  `conv2d`, `max_pool2d`, and `avg_pool2d` kernels, comparing CudaBackend
+  gradients against `SequentialBackend` references. Evidence tier: empirical
+  differential validation.
 - [x] [patch] Consolidated the `coeus-python` embedded-Python test lock into
   `tests/common/mod.rs` and routed binding ops/distributed tests through it so
   module registration is serialized without duplicated lock definitions.

@@ -40,6 +40,11 @@ Python as a thin PyO3 wrapper over Rust core operations.
 - [x] [minor] Expanded live Burn parity to 25 value-semantic tests, including
   exact GELU, SiLU, sin/cos forward/backward, matmul/linear backward, layernorm,
   RMSNorm, clamp, stack/cat/reshape/transpose, flip, sort, and where-cond.
+- [x] [patch] Extended live Burn activation parity to Mish, Softplus, and
+  LeakyReLU in `coeus-nn/tests/burn_live_parity.rs`, using the derived
+  epsilon helper for value-semantic comparisons against Burn NdArray.
+  Evidence tier: empirical differential validation. Evidence:
+  `cargo nextest run -p coeus-nn --test burn_live_parity` passes with 31 tests.
 - [x] [minor] Added `coeus_ops::{flip, sort, where_cond}`, autograd
   `flip`/`where_cond`, and Python wrappers for `sin`, `cos`, `flip`,
   `where_cond`, `softmax`, `randn`, `topk`, and `sort`.
@@ -88,6 +93,12 @@ Python as a thin PyO3 wrapper over Rust core operations.
   differential validation. Evidence:
   `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests` passes
   with 48 tests.
+- [x] [patch] Extended CUDA live parity coverage to backward kernels for
+  `conv2d`, `max_pool2d`, and `avg_pool2d`, comparing device gradients against
+  `SequentialBackend` references for gradient input, weight, and bias where
+  applicable. Evidence tier: empirical differential validation.
+  Evidence: `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests`
+  passes with 51 tests.
 - [x] [patch] Consolidated the `coeus-python` embedded-Python test lock into
   `tests/common/mod.rs` and routed binding ops/distributed tests through that
   test-only SSOT. Evidence: `cargo nextest run -p coeus-python --test
@@ -107,12 +118,17 @@ Python as a thin PyO3 wrapper over Rust core operations.
   Evidence: `cargo nextest run -p coeus-core --test dependency_policy` passes
   and `rg -n "rustfft|apollo" -g "Cargo.toml" -g "*.rs" -g "*.md"` shows no
   production Coeus `rustfft` use.
+- [x] [patch] Added a root-scoped `/prog` ignore entry for transient checkpoint
+  transcript artifacts so generated session state is not staged as project
+  source. Evidence tier: repository hygiene.
 - [x] [patch] Verification: `cargo fmt --check`,
   `cargo check -p coeus-tensor --benches`,
   `cargo clippy --workspace --all-targets -- -D warnings`,
+  `cargo clippy -p coeus-nn --test burn_live_parity -- -D warnings`,
+  `cargo nextest run -p coeus-nn --test burn_live_parity` (31 passed),
   `cargo nextest run -p coeus-core --test dependency_policy`, and
   `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests`
-  (48 passed), `cargo nextest run --workspace` (420 passed),
+  (51 passed), `cargo nextest run --workspace` (421 passed),
   `cargo test --doc --workspace`, and `cargo doc --workspace --no-deps` pass on
   2026-06-24.
 

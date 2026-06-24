@@ -180,19 +180,17 @@ fn mish_softplus_leaky_relu_match_burn() {
     let xc = CoeusTensor::from_slice(vec![2, 3], &data);
     let xb: BurnTensor<BurnBackend, 2> =
         BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &dev());
-    assert_close_rel(
+    assert_close(
         "mish",
         coeus_ops::mish(&xc, &backend).as_slice(),
         &bvec(burn::tensor::activation::mish(xb.clone())),
-        1e-5,
     );
     // Burn `softplus(x, beta)` = (1/beta) ln(1 + exp(beta x)); beta = 1 matches
     // the coeus `softplus` contract ln(1 + exp(x)).
-    assert_close_rel(
+    assert_close(
         "softplus",
         coeus_ops::softplus(&xc, &backend).as_slice(),
         &bvec(burn::tensor::activation::softplus(xb.clone(), 1.0)),
-        1e-5,
     );
     assert_close(
         "leaky_relu",

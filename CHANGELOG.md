@@ -22,8 +22,11 @@
   3-D convolution cases.
 - **CUDA backend differential coverage**: `coeus-cuda/tests/cuda/parity.rs`
   compares `CudaBackend` against `SequentialBackend` for binary, unary,
-  unary activation-gradient, reduction, matmul, convolution, pooling, AdamW, and
-  host/device round-trip behavior under the live `cuda` feature.
+  unary activation-gradient, reduction, matmul, convolution and pooling forward
+  and backward, AdamW, and host/device round-trip behavior under the live `cuda`
+  feature.
+- **Burn activation parity**: `coeus-nn/tests/burn_live_parity.rs` now compares
+  Mish, Softplus, and LeakyReLU against live Burn NdArray references.
 - **coeus-python test harness**: shared test-only embedded-Python lock now
   serializes module registration for binding operation and distributed tests.
 - **8 new `binding_tests_ops.rs` test functions** covering all previously
@@ -37,6 +40,8 @@
   (zero gradient to `index` since integer indices are non-differentiable).
 - `coeus-core` dependency policy now rejects direct production `rustfft` imports
   and manifest dependencies, preserving Apollo FFT as the FFT SSOT for Coeus.
+- The repository ignores root-level `/prog` checkpoint transcript artifacts so
+  generated session state does not appear as source.
 - `coeus-tensor` benchmarks no longer carry a direct Rayon comparison row or
   dev-dependency; the benchmark surface uses the existing `Coeus Moirai` row as
   the parallel execution comparison.
