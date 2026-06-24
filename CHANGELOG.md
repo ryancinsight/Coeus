@@ -29,9 +29,10 @@
 
 - `coeus_autograd::gather` correctly routes backward through `scatter_add`
   (zero gradient to `index` since integer indices are non-differentiable).
-- `coeus-ops` contiguous CPU `conv1d` and `conv2d` row execution now use Melinoe
-  branded partitioning for disjoint output rows instead of raw output-pointer
-  writes on that path, sharing one branded row-shard SSOT across both kernels.
+- `coeus-ops` contiguous CPU `conv1d`, `conv2d`, and `conv3d` row execution now
+  use Melinoe branded partitioning for disjoint output rows instead of raw
+  output-pointer writes on that path, sharing one branded row-shard SSOT
+  (`brand_mut_slice`) across all three kernels.
 
 ## 0.2.2 - 2026-06-24
 
