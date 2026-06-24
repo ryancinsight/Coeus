@@ -85,6 +85,19 @@
   now compare WGPU buffers against `SequentialBackend` outputs and gradients.
   Evidence: `cargo nextest run -p coeus-wgpu --test wgpu_tests conv3d` passes
   with 4 value-semantic tests.
+- [x] [minor] Added live CUDA feature differential parity for binary, unary,
+  reduction, matmul, convolution, pooling, AdamW, and host/device round-trip
+  behavior against `SequentialBackend`. Also fixed CUDA fused-kernel PTX loading
+  by trimming the NVRTC trailing NUL before `CString` construction so JIT tests
+  exercise the CUDA path instead of falling back through a malformed PTX string,
+  routed broadcasted contiguous operands through strided binary kernels,
+  corrected CUDA GELU/GELU-gradient to the exact erf contract shared by CPU and
+  WGPU,
+  and aligned strided JIT output-coordinate decoding with fused-kernel layout
+  metadata to restore broadcasted strided binary correctness.
+  Evidence tier: empirical differential validation. Evidence:
+  `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests` passes
+  with 42 value-semantic tests.
 - [x] [patch] Consolidated the `coeus-python` embedded-Python test lock into
   `tests/common/mod.rs` and routed binding ops/distributed tests through it so
   module registration is serialized without duplicated lock definitions.

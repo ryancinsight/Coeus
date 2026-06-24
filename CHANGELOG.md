@@ -20,6 +20,10 @@
 - **WGPU conv3d differential coverage**: forward and backward tests now compare
   WGPU against `SequentialBackend` for baseline, stride+padding, and dilation
   3-D convolution cases.
+- **CUDA backend differential coverage**: `coeus-cuda/tests/cuda/parity.rs`
+  compares `CudaBackend` against `SequentialBackend` for binary, unary,
+  reduction, matmul, convolution, pooling, AdamW, and host/device round-trip
+  behavior under the live `cuda` feature.
 - **coeus-python test harness**: shared test-only embedded-Python lock now
   serializes module registration for binding operation and distributed tests.
 - **8 new `binding_tests_ops.rs` test functions** covering all previously
@@ -35,6 +39,20 @@
   use Melinoe branded partitioning for disjoint output rows instead of raw
   output-pointer writes on that path, sharing one branded row-shard SSOT
   (`brand_mut_slice`) across all three kernels.
+
+### Fixed
+
+- CUDA fused-kernel PTX loading now trims the NVRTC trailing NUL before
+  constructing a `CString`, preventing JIT kernels from silently falling back to
+  CPU execution when the CUDA feature is active.
+- CUDA binary dispatch now routes broadcasted contiguous operands through the
+  strided kernel instead of the elementwise contiguous kernel, which has no
+  broadcast indexing contract.
+- CUDA GELU and GELU-gradient kernels now use the exact erf formulation shared
+  by the CPU and WGPU contracts instead of the tanh approximation.
+- CUDA strided JIT kernels now decode output coordinates through the same
+  output-layout stride metadata used by fused kernels, fixing broadcasted
+  strided binary execution once the JIT path is active.
 
 ## 0.2.2 - 2026-06-24
 
