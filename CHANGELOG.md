@@ -12,15 +12,23 @@
 - **`interpolate_1d` / `interpolate_2d`** in `coeus-nn` (nearest + bilinear
   modes) and `coeus-python`: spatial resize for `[N,C,L]` and `[N,C,H,W]`
   inputs, matching the PyTorch/Burn `interpolate` API.
-- **7 new `binding_tests_ops.rs` test functions** covering all previously
+- **PyTensor first-dimension indexing and iteration**: `tensor[i]`,
+  `tensor[-1]`, `tensor[start:stop]`, and `for row in tensor` now return
+  tracked Rust-core slices through the PyO3 wrapper.
+- **`coeus-leto` sparse dispatch**: added `CsrDispatch`, `spmv_into`, and
+  `spmm_into` value-semantic coverage against direct `leto_ops` sparse kernels.
+- **8 new `binding_tests_ops.rs` test functions** covering all previously
   untested ops: `topk/sort`, `comparisons (eq/lt/gt)/where_fn`, `softmax/
   cumsum/flip`, `randn/zeros_like/ones_like/eye`, `gather/scatter_add`,
-  `repeat_interleave/interpolate`, `std_dev/var/norm`.
+  `repeat_interleave/interpolate`, `std_dev/var/norm`, and tensor indexing.
 
 ### Changed
 
 - `coeus_autograd::gather` correctly routes backward through `scatter_add`
   (zero gradient to `index` since integer indices are non-differentiable).
+- `coeus-ops` contiguous CPU `conv1d` row execution now uses Melinoe branded
+  partitioning for disjoint output rows instead of raw output-pointer writes on
+  that path.
 
 ## 0.2.2 - 2026-06-24
 

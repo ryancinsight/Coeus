@@ -407,6 +407,53 @@ assert out.data == [0.0, 40.0, 20.0, 0.0], f"scatter_add wrong: {out.data}"
 }
 
 #[test]
+fn test_tensor_index_slice_and_iter() {
+    run_script(
+        r#"
+import pycoeus
+
+x = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [3, 2])
+
+assert len(x) == 3, f"len wrong: {len(x)}"
+
+row0 = x[0]
+assert row0.shape == [2], f"row0 shape wrong: {row0.shape}"
+assert row0.data == [1.0, 2.0], f"row0 data wrong: {row0.data}"
+
+last = x[-1]
+assert last.shape == [2], f"last shape wrong: {last.shape}"
+assert last.data == [5.0, 6.0], f"last data wrong: {last.data}"
+
+middle = x[1:3]
+assert middle.shape == [2, 2], f"middle shape wrong: {middle.shape}"
+assert middle.data == [3.0, 4.0, 5.0, 6.0], f"middle data wrong: {middle.data}"
+
+rows = [row.data for row in x]
+assert rows == [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], f"iter rows wrong: {rows}"
+
+try:
+    _ = x[::2]
+    raise AssertionError("slice step should fail")
+except ValueError:
+    pass
+
+scalar = pycoeus.Tensor([7.0], [])
+try:
+    _ = len(scalar)
+    raise AssertionError("len(scalar) should fail")
+except TypeError:
+    pass
+
+try:
+    _ = scalar[0]
+    raise AssertionError("scalar indexing should fail")
+except IndexError:
+    pass
+"#,
+    );
+}
+
+#[test]
 fn test_repeat_interleave_and_interpolate() {
     run_script(
         r#"

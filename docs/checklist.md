@@ -2,10 +2,10 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: Sprint MS-61 (Burn Parity / GPU Parity / Python) [IN PROGRESS]
-**Objective**: Extend live Burn parity, wgpu differential audit, expand coeus-python
-functional op surface toward torch.*/jnp.*/mx.* style.
-**Target version**: 0.2.1.
+### Current Sprint: Sprint MS-64 (Python Tensor Parity / Shape Ops) [IN PROGRESS]
+**Objective**: Extend coeus/coeus-python shape and indexing parity while keeping
+Python as a thin PyO3 wrapper over Rust core operations.
+**Target version**: 0.2.3.
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
 > oracle values; wgpu parity.rs verifies implemented GPU paths against the CPU reference;
@@ -55,9 +55,19 @@ functional op surface toward torch.*/jnp.*/mx.* style.
 - [x] [patch] Renamed the real barrier-backed distributed test communicator
   from `MockCommunicator` to `LocalCommunicator`, including the PyO3 class and
   `create_local_cluster` constructor, with no compatibility alias.
+- [x] [minor] Added Rust-core `gather`, `scatter_add`, `repeat_interleave`,
+  and `interpolate_1d`/`interpolate_2d` surfaces with coeus-python wrappers.
+- [x] [patch] Added PyTensor first-dimension indexing and iteration
+  (`tensor[i]`, `tensor[-1]`, `tensor[start:stop]`, `for row in tensor`) using
+  tracked Rust-core slice/squeeze operations.
+- [x] [patch] Added `coeus-leto::CsrDispatch` sparse SpMV/SpMM dispatch coverage
+  against direct `leto_ops` sparse kernels.
+- [x] [patch] Routed contiguous CPU `conv1d` row execution through Melinoe
+  branded row partitioning, preserving the existing value-semantic conv parity
+  tests as the current evidence tier.
 - [x] [patch] Verification: `cargo fmt --check`, `cargo check --workspace`,
   `cargo clippy --workspace --all-targets -- -D warnings`,
-  `cargo nextest run --workspace` (408 passed), and
+  `cargo nextest run --workspace` (418 passed), and
   `cargo test --doc --workspace` all pass on 2026-06-24.
 
 ---

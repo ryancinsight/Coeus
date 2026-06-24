@@ -15,7 +15,7 @@ pub mod optim;
 pub mod tensor;
 
 use dist::{PyLocalCommunicator, PyTcpCommunicator, PyTcpMesh};
-use tensor::PyTensor;
+use tensor::{PyTensor, PyTensorIterator};
 
 /// Shutdown the global Moirai executor.
 #[pyfunction]
@@ -30,6 +30,7 @@ pub fn shutdown(py: Python<'_>) {
 pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(shutdown, m)?)?;
     m.add_class::<PyTensor>()?;
+    m.add_class::<PyTensorIterator>()?;
     m.add_class::<nn::PyLinear>()?;
     m.add_class::<tensor::PyStateDict>()?;
     m.add_class::<optim::PyLrScheduler>()?;

@@ -285,6 +285,91 @@ impl PyTensor {
         self.inner.tensor.ndim()
     }
 
+    /// Python `tensor[index]`: integer and slice indexing on the first dimension.
+    ///
+    /// `index` may be:
+    /// - An `int`: selects a single slice along dim 0, reducing ndim by 1.
+    /// - A `slice`: selects a range along dim 0.
+    ///
+    /// Negative integer indices are supported (`-1` means the last element).
+    fn __getitem__(&self, index: &pyo3::Bound<'_, pyo3::PyAny>, py: Python<'_>) -> PyResult<Self> {
+        let shape = self.inner.tensor.shape();
+        if shape.is_empty() {
+            return Err(pyo3::exceptions::PyIndexError::new_err(
+                "__getitem__: cannot index a 0-dimensional tensor",
+            ));
+        }
+
+        // Try integer index first (most common case).
+        if let Ok(i) = index.extract::<i64>() {
+            let n = shape[0] as i64;
+            let normalized = if i < 0 { n + i } else { i };
+            if !(0..n).contains(&normalized) {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "__getitem__: index {i} out of range for dim 0 size {n}"
+                )));
+            }
+            let idx = normalized as usize;
+            let ranges: Vec<(usize, usize)> = shape
+                .iter()
+                .enumerate()
+                .map(|(d, &s)| if d == 0 { (idx, idx + 1) } else { (0, s) })
+                .collect();
+            let inner = py.allow_threads(|| {
+                let sliced = coeus_autograd::slice(&self.inner, &ranges);
+                coeus_autograd::squeeze(&sliced, Some(0))
+            });
+            return Ok(Self { inner });
+        }
+
+        // Try slice object.
+        if let Ok(sl) = index.downcast::<pyo3::types::PySlice>() {
+            let n = shape[0];
+            let slice_len = isize::try_from(n).map_err(|_| {
+                pyo3::exceptions::PyOverflowError::new_err(format!(
+                    "__getitem__: dim 0 size {n} exceeds Python slice bounds"
+                ))
+            })?;
+            let indices = sl.indices(slice_len)?;
+            if indices.step != 1 {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "__getitem__: slice step {} is unsupported; expected 1",
+                    indices.step
+                )));
+            }
+            let start = indices.start.max(0) as usize;
+            let stop = (indices.stop.max(0) as usize).min(n);
+            if start >= stop {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "__getitem__: empty slice [{start}:{stop}]"
+                )));
+            }
+            let ranges: Vec<(usize, usize)> = shape
+                .iter()
+                .enumerate()
+                .map(|(d, &s)| if d == 0 { (start, stop) } else { (0, s) })
+                .collect();
+            let inner = py.allow_threads(|| coeus_autograd::slice(&self.inner, &ranges));
+            return Ok(Self { inner });
+        }
+
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "__getitem__: index must be an int or a slice",
+        ))
+    }
+
+    /// Python `iter(tensor)` over slices along the first dimension.
+    fn __iter__(&self) -> PyResult<PyTensorIterator> {
+        let length = self.inner.tensor.shape().first().copied().ok_or_else(|| {
+            pyo3::exceptions::PyTypeError::new_err("__iter__: tensor is 0-dimensional")
+        })?;
+        Ok(PyTensorIterator {
+            tensor: self.clone(),
+            current: 0,
+            length,
+        })
+    }
+
     /// First-dimension length (equivalent to `len(tensor)` in PyTorch/NumPy).
     fn __len__(&self) -> PyResult<usize> {
         let shape = self.inner.tensor.shape();
@@ -501,6 +586,46 @@ impl PyTensor {
             self.shape(),
             self.inner.grad.is_some()
         )
+    }
+}
+
+/// Python iterator over the first dimension of a `PyTensor`.
+///
+/// Created by `iter(tensor)` / `for x in tensor:`.  Each step yields
+/// a `PyTensor` slice with one fewer dimension (like `tensor[i]`).
+#[pyclass(name = "TensorIterator")]
+pub struct PyTensorIterator {
+    tensor: PyTensor,
+    current: usize,
+    length: usize,
+}
+
+#[pymethods]
+impl PyTensorIterator {
+    fn __iter__(slf: pyo3::PyRef<'_, Self>) -> pyo3::PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(&mut self, py: Python<'_>) -> Option<PyTensor> {
+        if self.current >= self.length {
+            return None;
+        }
+        let idx = self.current;
+        self.current += 1;
+        let ranges: Vec<(usize, usize)> = self
+            .tensor
+            .inner
+            .tensor
+            .shape()
+            .iter()
+            .enumerate()
+            .map(|(d, &s)| if d == 0 { (idx, idx + 1) } else { (0, s) })
+            .collect();
+        let inner = py.allow_threads(|| {
+            let sliced = coeus_autograd::slice(&self.tensor.inner, &ranges);
+            coeus_autograd::squeeze(&sliced, Some(0))
+        });
+        Some(PyTensor { inner })
     }
 }
 

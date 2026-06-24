@@ -625,7 +625,9 @@ pub fn scatter_add(
             &backend,
         )
     });
-    PyTensor { inner: Var::new(t, false) }
+    PyTensor {
+        inner: Var::new(t, false),
+    }
 }
 
 /// Repeat each element along `dim` exactly `repeats` times (interleaved).
@@ -637,7 +639,9 @@ pub fn repeat_interleave(input: &PyTensor, repeats: usize, dim: usize, py: Pytho
     let t = py.allow_threads(|| {
         coeus_ops::repeat_interleave(&input.inner.tensor, repeats, dim, &backend)
     });
-    PyTensor { inner: Var::new(t, false) }
+    PyTensor {
+        inner: Var::new(t, false),
+    }
 }
 
 // ── Spatial resize ────────────────────────────────────────────────────────────
@@ -658,7 +662,7 @@ pub fn interpolate(
     py: Python<'_>,
 ) -> PyResult<PyTensor> {
     let imode = match mode {
-        "nearest"  => coeus_nn::InterpolateMode::Nearest,
+        "nearest" => coeus_nn::InterpolateMode::Nearest,
         "bilinear" => coeus_nn::InterpolateMode::Bilinear,
         other => {
             return Err(pyo3::exceptions::PyValueError::new_err(format!(
@@ -673,8 +677,14 @@ pub fn interpolate(
             py.allow_threads(|| coeus_nn::interpolate_1d(&input.inner.tensor, size[0], imode))
         }
         4 => {
-            assert_eq!(size.len(), 2, "interpolate: 2-D input needs size=[new_H, new_W]");
-            py.allow_threads(|| coeus_nn::interpolate_2d(&input.inner.tensor, size[0], size[1], imode))
+            assert_eq!(
+                size.len(),
+                2,
+                "interpolate: 2-D input needs size=[new_H, new_W]"
+            );
+            py.allow_threads(|| {
+                coeus_nn::interpolate_2d(&input.inner.tensor, size[0], size[1], imode)
+            })
         }
         _ => {
             return Err(pyo3::exceptions::PyValueError::new_err(format!(
@@ -682,5 +692,7 @@ pub fn interpolate(
             )));
         }
     };
-    Ok(PyTensor { inner: Var::new(t, false) })
+    Ok(PyTensor {
+        inner: Var::new(t, false),
+    })
 }

@@ -1,5 +1,18 @@
 use crate::ptr::{MutPtr, Ptr};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+use melinoe::sync::{partition_for_each_with, PartitionPlan};
+use melinoe::{brand_scope, MelinoeCell};
+
+#[inline]
+unsafe fn brand_mut_slice<'brand, T>(
+    slice: &'brand mut [T],
+) -> &'brand mut [MelinoeCell<'brand, T>] {
+    let ptr = slice as *mut [T] as *mut [MelinoeCell<'brand, T>];
+    // SAFETY: `MelinoeCell<'brand, T>` is `#[repr(transparent)]` over
+    // `UnsafeCell<T>`, which is itself transparent over `T`, so `[T]` and
+    // `[MelinoeCell<'brand, T>]` share layout and slice metadata.
+    unsafe { &mut *ptr }
+}
 
 #[inline]
 pub(crate) fn conv1d<T: Scalar, B: Backend>(
@@ -24,16 +37,14 @@ pub(crate) fn conv1d<T: Scalar, B: Backend>(
     let k = weight_layout.shape()[2];
     let l_out = output_layout.shape()[2];
     let out_numel = n * c_out * l_out;
+    if out_numel == 0 {
+        return;
+    }
 
     let input_slice = input.as_slice();
     let weight_slice = weight.as_slice();
     let output_slice = output.as_mut_slice();
-
-    let input_ptr = Ptr(input_slice.as_ptr());
-    let weight_ptr = Ptr(weight_slice.as_ptr());
-    let output_ptr = MutPtr(output_slice.as_mut_ptr());
-
-    let bias_ptr = bias.map(|b| Ptr(b.as_slice().as_ptr()));
+    let bias_slice = bias.map(|b| b.as_slice());
 
     let input_layout = input_layout.clone();
     let weight_layout = weight_layout.clone();
@@ -56,36 +67,58 @@ pub(crate) fn conv1d<T: Scalar, B: Backend>(
         let input_offset = input_layout.offset();
         let weight_offset = weight_layout.offset();
         let output_offset = output_layout.offset();
+        let out_rows = n * c_out;
+        let output_region = &mut output_slice[output_offset..output_offset + out_numel];
+        let row_kernel = move |row: usize, row_out: &mut [T]| {
+            let oc = row % c_out;
+            let ni = row / c_out;
+            for (ol, slot) in row_out.iter_mut().enumerate() {
+                let mut sum = T::zero();
+                for ic in 0..c_in {
+                    let input_start = input_offset + (ni * c_in + ic) * l + ol * stride;
+                    let weight_start = weight_offset + (oc * c_in + ic) * k;
+                    // SAFETY: the contiguous fast path proves the logical window
+                    // `[input_start, input_start + k)` stays inside the backing
+                    // input slice for each output position.
+                    let input_window = &input_slice[input_start..input_start + k];
+                    // SAFETY: row-major contiguous weights store each
+                    // `(out_channel, in_channel)` kernel as one `k`-element run.
+                    let weight_window = &weight_slice[weight_start..weight_start + k];
+                    sum = sum + T::dot_slice(input_window, weight_window);
+                }
+                if let Some(bs) = bias_slice {
+                    sum = sum + bs[oc];
+                }
+                *slot = sum;
+            }
+        };
 
-        backend.parallel_for(0, out_numel, move |i| {
-            let ol = i % l_out;
-            let temp = i / l_out;
-            let oc = temp % c_out;
-            let ni = temp / c_out;
-
-            let mut sum = T::zero();
-            for ic in 0..c_in {
-                let input_start = input_offset + (ni * c_in + ic) * l + ol * stride;
-                let weight_start = weight_offset + (oc * c_in + ic) * k;
-                // SAFETY: the contiguous fast path is active only for row-major
-                // input/weight layouts. `output_layout.shape()` constrains
-                // `ol * stride + k <= l`, so both ranges stay within storage.
-                let input_window = unsafe { input_ptr.slice(input_start, k) };
-                // SAFETY: row-major weight layout stores each kernel row as a
-                // contiguous `k`-element run.
-                let weight_window = unsafe { weight_ptr.slice(weight_start, k) };
-                sum = sum + T::dot_slice(input_window, weight_window);
+        if backend.num_threads() <= 1 || out_rows <= 1 {
+            for (row, row_out) in output_region.chunks_mut(l_out).enumerate() {
+                row_kernel(row, row_out);
             }
-            if let Some(ref bp) = bias_ptr {
-                let bias_idx = bias_layout.as_ref().unwrap().physical_index(&[oc]);
-                sum = sum + unsafe { bp.read(bias_idx) };
-            }
-            unsafe {
-                output_ptr.write(output_offset + i, sum);
-            }
-        });
+        } else {
+            brand_scope(|_token| {
+                // SAFETY: `output_region` is a fresh exclusive borrow that lives
+                // entirely within this brand scope; `partition_for_each_with`
+                // then splits it into disjoint row-sized shards.
+                let output_cells = unsafe { brand_mut_slice(output_region) };
+                partition_for_each_with(
+                    output_cells,
+                    PartitionPlan::chunk_size(l_out),
+                    |start, mut shard| {
+                        row_kernel(start / l_out, shard.as_mut_slice());
+                    },
+                );
+            });
+        }
         return;
     }
+
+    let input_ptr = Ptr(input_slice.as_ptr());
+    let weight_ptr = Ptr(weight_slice.as_ptr());
+    let output_ptr = MutPtr(output_slice.as_mut_ptr());
+    let bias_ptr = bias_slice.map(|bs| Ptr(bs.as_ptr()));
 
     backend.parallel_for(0, out_numel, move |i| {
         let ol = i % l_out;

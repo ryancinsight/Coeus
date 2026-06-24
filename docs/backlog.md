@@ -66,9 +66,21 @@
   barrier-backed in-process communicator and PyO3 binding from
   `MockCommunicator`/`create_mock_cluster` to
   `LocalCommunicator`/`create_local_cluster`, with no compatibility alias.
+- [x] [minor] Added Rust-core `gather`, `scatter_add`, `repeat_interleave`,
+  and `interpolate_1d`/`interpolate_2d` operations, plus coeus-python wrappers
+  and value-semantic Python binding tests.
+- [x] [patch] Added PyTensor first-dimension indexing and iteration through
+  Rust-core autograd `slice`/`squeeze`, covering integer, negative integer,
+  range slice, iterator, and invalid scalar/stepped-slice behavior.
+- [x] [patch] Added `coeus-leto::CsrDispatch` sparse SpMV/SpMM dispatch coverage
+  against direct `leto_ops` sparse kernels while avoiding a high-arity sparse
+  API surface.
+- [x] [patch] Routed contiguous CPU `conv1d` row execution through Melinoe
+  branded row partitioning; current evidence is value-semantic conv parity, not
+  a benchmarked speedup claim.
 - [x] [patch] Verification on 2026-06-24: `cargo fmt --check`,
   `cargo check --workspace`, `cargo clippy --workspace --all-targets
-  -- -D warnings`, `cargo nextest run --workspace` (408 passed), and
+  -- -D warnings`, `cargo nextest run --workspace` (418 passed), and
   `cargo test --doc --workspace` all pass.
 
 ### Open items for this sprint
