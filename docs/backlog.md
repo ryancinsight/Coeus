@@ -58,6 +58,9 @@
   LeakyReLU against Burn NdArray references in
   `coeus-nn/tests/burn_live_parity.rs`. Evidence tier: empirical differential
   validation.
+- [x] [patch] Extended live Burn log-softmax parity to compare Coeus forward
+  values and autograd gradients against Burn NdArray autodiff. Evidence tier:
+  empirical differential validation.
 - [x] [patch] Replaced backward-node gradient storage with the `GradBuffer`
   UnsafeCell SSOT and removed the Mutex-compatible shim so optimizers,
   distributed gradient synchronization, and tests use the same direct

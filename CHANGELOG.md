@@ -27,6 +27,8 @@
   feature.
 - **Burn activation parity**: `coeus-nn/tests/burn_live_parity.rs` now compares
   Mish, Softplus, and LeakyReLU against live Burn NdArray references.
+- **Burn log-softmax parity**: `coeus-nn/tests/burn_live_parity.rs` now compares
+  Coeus forward values and autograd gradients against Burn NdArray autodiff.
 - **coeus-python test harness**: shared test-only embedded-Python lock now
   serializes module registration for binding operation and distributed tests.
 - **8 new `binding_tests_ops.rs` test functions** covering all previously

@@ -44,7 +44,12 @@ Python as a thin PyO3 wrapper over Rust core operations.
   LeakyReLU in `coeus-nn/tests/burn_live_parity.rs`, using the derived
   epsilon helper for value-semantic comparisons against Burn NdArray.
   Evidence tier: empirical differential validation. Evidence:
-  `cargo nextest run -p coeus-nn --test burn_live_parity` passes with 31 tests.
+  `cargo nextest run -p coeus-nn --test burn_live_parity` passes with 32 tests.
+- [x] [patch] Extended live Burn log-softmax parity to forward values and
+  backward gradients for `d/dx sum(log_softmax(x))`, comparing Coeus autograd
+  against Burn NdArray autodiff. Evidence tier: empirical differential
+  validation. Evidence: `cargo nextest run -p coeus-nn --test burn_live_parity
+  log_softmax_forward_and_backward_match_burn` passes.
 - [x] [minor] Added `coeus_ops::{flip, sort, where_cond}`, autograd
   `flip`/`where_cond`, and Python wrappers for `sin`, `cos`, `flip`,
   `where_cond`, `softmax`, `randn`, `topk`, and `sort`.
@@ -126,10 +131,10 @@ Python as a thin PyO3 wrapper over Rust core operations.
   `cargo check -p coeus-tensor --benches`,
   `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo clippy -p coeus-nn --test burn_live_parity -- -D warnings`,
-  `cargo nextest run -p coeus-nn --test burn_live_parity` (31 passed),
+  `cargo nextest run -p coeus-nn --test burn_live_parity` (32 passed),
   `cargo nextest run -p coeus-core --test dependency_policy`, and
   `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests`
-  (51 passed), `cargo nextest run --workspace` (421 passed),
+  (51 passed), `cargo nextest run --workspace` (422 passed),
   `cargo test --doc --workspace`, and `cargo doc --workspace --no-deps` pass on
   2026-06-24.
 
