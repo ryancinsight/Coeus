@@ -134,7 +134,7 @@ mod tests {
                 .grad
                 .as_ref()
                 .unwrap_or_else(|| panic!("SDPA: {label}.grad is None"));
-            let gdata = grad.lock().unwrap();
+            let gdata = grad.read();
             let slice = gdata
                 .storage()
                 .try_as_slice()
@@ -337,7 +337,7 @@ mod tests {
         let loss = coeus_autograd::sum(&out);
         loss.backward();
 
-        let k_grad = k_var.grad.as_ref().unwrap().lock().unwrap();
+        let k_grad = k_var.grad.as_ref().unwrap().read();
         let k_grad_slice = k_grad.storage().try_as_slice().unwrap();
         println!("k_grad_slice: {:?}", k_grad_slice);
 

@@ -1,11 +1,12 @@
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::Scalar;
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct SliceNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub ranges: Vec<(usize, usize)>,
 }
@@ -17,7 +18,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sl
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -27,10 +28,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sl
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let mut parent_grad = g.lock().unwrap();
+            let parent_grad = g.write();
             let (parent_storage, parent_layout) = parent_grad.storage_mut_and_layout();
             let sliced_layout = parent_layout.slice(&self.ranges);
 
@@ -63,7 +64,7 @@ pub fn slice<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
         return Var::new(out_tensor, false);
     }
 
-    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(
+    let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_tensor.shape_cloned(),
         &backend,
     )));

@@ -1,10 +1,11 @@
 // ── Differentiable variable ──
 
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use coeus_core::{ComputeBackend, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// A differentiable variable wrapping a tensor and its gradient accumulator.
 #[derive(Clone)]
@@ -12,7 +13,7 @@ pub struct Var<T: Scalar, B: ComputeBackend + Default = MoiraiBackend> {
     /// The tensor value.
     pub tensor: Tensor<T, B>,
     /// Accumulated gradient (None if not tracking).
-    pub grad: Option<Arc<Mutex<Tensor<T, B>>>>,
+    pub grad: Option<Arc<GradBuffer<T, B>>>,
     /// The operation that created this variable (None for leaf nodes).
     pub creator: Option<Arc<dyn BackwardNode<T, B>>>,
 }
@@ -22,7 +23,7 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     #[inline]
     pub fn new(tensor: Tensor<T, B>, requires_grad: bool) -> Self {
         let grad = if requires_grad {
-            Some(Arc::new(Mutex::new(Tensor::zeros_on(
+            Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
                 tensor.shape(),
                 &B::default(),
             ))))
@@ -40,7 +41,7 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     #[inline]
     pub fn with_creator(
         tensor: Tensor<T, B>,
-        grad: Option<Arc<Mutex<Tensor<T, B>>>>,
+        grad: Option<Arc<GradBuffer<T, B>>>,
         creator: Arc<dyn BackwardNode<T, B>>,
     ) -> Self {
         Self {
@@ -53,14 +54,14 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// Read the accumulated gradient.
     #[inline]
     pub fn grad(&self) -> Option<Tensor<T, B>> {
-        self.grad.as_ref().map(|g| g.lock().unwrap().clone())
+        self.grad.as_ref().map(|g| g.clone_tensor())
     }
 
     /// Set the gradient tensor.
     #[inline]
     pub fn set_grad(&self, grad: Tensor<T, B>) {
         if let Some(ref g) = self.grad {
-            *g.lock().unwrap() = grad;
+            *g.write() = grad;
         }
     }
 
@@ -68,8 +69,7 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     #[inline]
     pub fn zero_grad(&self) {
         if let Some(ref g) = self.grad {
-            let mut grad_ref = g.lock().unwrap();
-            B::default().fill(grad_ref.storage_mut(), T::zero());
+            B::default().fill(g.write().storage_mut(), T::zero());
         }
     }
 
@@ -128,13 +128,13 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
 
         // Seed with the provided gradient
         if let Some(ref g) = self.grad {
-            *g.lock().unwrap() = seed;
+            *g.write() = seed;
         }
 
         // Propagate in reverse topological order
         for node in order.into_iter().rev() {
-            let out_grad = node.output_grad().lock().unwrap().clone();
-            let input_grads: Vec<Option<Arc<Mutex<Tensor<T, B>>>>> =
+            let out_grad = node.output_grad().read().clone();
+            let input_grads: Vec<Option<Arc<GradBuffer<T, B>>>> =
                 node.inputs().iter().map(|v| v.grad.clone()).collect();
             node.backward(&out_grad, &input_grads);
         }

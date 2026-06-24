@@ -1,10 +1,11 @@
 use super::unary_op;
 use super::UnaryAutogradOp;
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, FloatOps, Scalar};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 // ── NegOp ──────────────────────────────────────────────────────────────────
 
@@ -137,7 +138,7 @@ pub fn sqrt<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
 
 /// Autograd node for element-wise power: `y = x ^ exp`.
 pub struct PowNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     /// Input tensor snapshot for backward.
     pub input_tensor: Tensor<T, B>,
@@ -151,7 +152,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Pow
         "pow"
     }
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
     #[inline]
@@ -159,7 +160,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Pow
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let exp = f64::from_bits(self.exp_bits);
@@ -180,8 +181,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Pow
             let n_tensor = Tensor::full_on(x_pow_n_m1.shape(), exp_t, &backend);
             let local_grad = coeus_ops::mul(&n_tensor, &x_pow_n_m1, &backend);
             let grad_in = coeus_ops::mul(grad_out, &local_grad, &backend);
-            let mut lock = g.lock().unwrap();
-            coeus_ops::add_assign(&mut *lock, &grad_in, &backend);
+            let lock = g.write();
+            coeus_ops::add_assign(lock, &grad_in, &backend);
         }
     }
 }
@@ -208,7 +209,7 @@ pub fn pow<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>, exp: 
 
     let requires_grad = a.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))
@@ -251,7 +252,7 @@ pub fn pow<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>, exp: 
 
 /// Autograd node for element-wise clamp.
 pub struct ClampNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     /// Input tensor snapshot for backward mask computation.
     pub input_tensor: Tensor<T, B>,
@@ -269,7 +270,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         "clamp"
     }
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
     #[inline]
@@ -277,7 +278,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let shape = self.input_tensor.shape();
@@ -294,8 +295,8 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
             // Inside mask = lo_mask AND hi_mask (product of indicators)
             let inside = coeus_ops::mul(&mask_lo, &mask_hi, &backend);
             let grad_in = coeus_ops::mul(grad_out, &inside, &backend);
-            let mut lock = g.lock().unwrap();
-            coeus_ops::add_assign(&mut *lock, &grad_in, &backend);
+            let lock = g.write();
+            coeus_ops::add_assign(lock, &grad_in, &backend);
         }
     }
 }
@@ -330,7 +331,7 @@ pub fn clamp<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
 
     let requires_grad = a.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))

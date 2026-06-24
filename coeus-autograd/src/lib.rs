@@ -20,10 +20,12 @@
 )]
 
 pub mod backward;
+pub(crate) mod grad_buffer;
 pub mod node;
 pub mod ops;
 pub mod var;
 
+pub use grad_buffer::GradBuffer;
 pub use node::BackwardNode;
 pub use ops::{
     abs,

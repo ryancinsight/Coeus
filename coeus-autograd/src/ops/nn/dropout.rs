@@ -1,8 +1,9 @@
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// A simple, fast, deterministic pseudo-random number generator (Xorshift64).
 pub struct Xorshift64 {
@@ -37,7 +38,7 @@ impl Xorshift64 {
 }
 
 pub struct DropoutNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub mask: Tensor<T, B>,
 }
@@ -49,7 +50,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Dro
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -59,12 +60,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Dro
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
             let prod = coeus_ops::mul(grad_out, &self.mask, &backend);
-            let mut gl = g.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &prod, &backend);
+            let gl = g.write();
+            coeus_ops::add_assign(gl, &prod, &backend);
         }
     }
 }
@@ -101,7 +102,7 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 
     let requires_grad = input.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             shape.clone(),
             &target_backend,
         ))))

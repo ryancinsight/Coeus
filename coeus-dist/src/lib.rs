@@ -35,13 +35,13 @@ pub fn synchronize_gradients<
 
     for param in params {
         if let Some(ref g) = param.grad {
-            let mut grad_tensor = g.lock().unwrap();
+            let grad_tensor = g.write();
 
             // All-reduce (sum) across processes
-            comm.all_reduce::<T, B, Sum>(&mut grad_tensor, &backend);
+            comm.all_reduce::<T, B, Sum>(grad_tensor, &backend);
 
             // Scale by 1 / world_size
-            coeus_ops::mul_assign(&mut grad_tensor, &scale_tensor, &backend);
+            coeus_ops::mul_assign(grad_tensor, &scale_tensor, &backend);
         }
     }
 }

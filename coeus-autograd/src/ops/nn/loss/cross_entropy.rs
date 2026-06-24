@@ -1,11 +1,12 @@
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct CrossEntropyLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub targets: Vec<usize>,
     /// Softmax probabilities stored as `Vec<T>` — no f64 widening.
@@ -23,7 +24,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -33,7 +34,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
             let temp_grad;
@@ -61,8 +62,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                 }
             }
             let grad_tensor = Tensor::from_slice_on([self.n, self.c], &d_logits, &backend);
-            let mut gl = g.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &grad_tensor, &backend);
+            let gl = g.write();
+            coeus_ops::add_assign(gl, &grad_tensor, &backend);
         }
     }
 }
@@ -81,7 +82,7 @@ pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let requires_grad = logits.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
     } else {
         None
     };

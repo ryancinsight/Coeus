@@ -1,11 +1,12 @@
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct SoftmaxNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub y_clone: Tensor<T, B>,
     pub dim_u: usize,
@@ -18,7 +19,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sof
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -28,15 +29,15 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sof
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g_in)) = input_grads.get(0) {
             let gy = coeus_ops::mul(grad_out, &self.y_clone, &backend);
             let sum_gy = coeus_ops::sum_axis(&gy, self.dim_u, &backend);
             let mut dx = coeus_ops::sub(grad_out, &sum_gy, &backend);
             coeus_ops::mul_assign(&mut dx, &self.y_clone, &backend);
-            let mut gl = g_in.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &dx, &backend);
+            let gl = g_in.write();
+            coeus_ops::add_assign(gl, &dx, &backend);
         }
     }
 }
@@ -66,7 +67,7 @@ pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 
     let requires_grad = input.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             y_t.shape_cloned(),
             &backend,
         ))))

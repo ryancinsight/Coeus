@@ -1,8 +1,9 @@
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Scalar, Shape};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// Abstract interface for compile-time specialized binary autograd operations.
 pub trait BinaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Send + Sync {
@@ -19,14 +20,14 @@ pub trait BinaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Se
         b: &Tensor<T, B>,
         a_shape: &Shape,
         b_shape: &Shape,
-        input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>],
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
     );
 }
 
 pub struct BinaryNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B>>
 {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub a_tensor: Tensor<T, B>,
     pub b_tensor: Tensor<T, B>,
@@ -44,7 +45,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -54,7 +55,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         Op::backward(
             grad_out,
@@ -82,7 +83,7 @@ pub fn binary_op<
     let out_tensor = Op::forward(&a.tensor, &b.tensor, &backend);
     let requires_grad = a.grad.is_some() || b.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))
@@ -137,7 +138,7 @@ pub struct ReductionNode<
     B: coeus_ops::BackendOps<T> + Default,
     Op: ReductionAutogradOp<T, B>,
 > {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub a_shape: Shape,
     pub scaler_tensor: Option<Tensor<T, B>>,
@@ -153,7 +154,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: ReductionAutogradOp<T
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -163,7 +164,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: ReductionAutogradOp<T
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
             let grad_to_broadcast = if let Some(ref scaler) = self.scaler_tensor {
@@ -172,8 +173,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: ReductionAutogradOp<T
                 grad_out.clone()
             };
             let broadcasted = grad_to_broadcast.broadcast(self.a_shape.clone());
-            let mut gl = g.lock().unwrap();
-            coeus_ops::add_assign(&mut gl, &broadcasted, &backend);
+            let gl = g.write();
+            coeus_ops::add_assign(gl, &broadcasted, &backend);
         }
     }
 }
@@ -192,7 +193,7 @@ pub fn reduction_op<
     let out_tensor = Op::forward(&a.tensor, param, &backend);
     let requires_grad = a.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))

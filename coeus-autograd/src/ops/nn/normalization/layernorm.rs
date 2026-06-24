@@ -1,11 +1,12 @@
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct LayerNormNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub d: usize,
     pub w_reshaped_captured: Tensor<T, B>,
@@ -21,7 +22,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lay
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -31,7 +32,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lay
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         let dy = grad_out; // [N, D]
         let mut dy_w = coeus_ops::mul(dy, &self.w_reshaped_captured, &backend);
@@ -42,16 +43,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lay
                 &backend,
             );
             let dg = dg_t.reshape([self.d]);
-            let mut gl = gw.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &dg, &backend);
+            let gl = gw.write();
+            coeus_ops::add_assign(gl, &dg, &backend);
         }
 
         // ── dL/dbeta = sum(dy, dim=0) [D] ──
         if let Some(Some(ref gb)) = input_grads.get(2) {
             let db_t = coeus_ops::sum_axis(dy, 0, &backend);
             let db = db_t.reshape([self.d]);
-            let mut gl = gb.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &db, &backend);
+            let gl = gb.write();
+            coeus_ops::add_assign(gl, &db, &backend);
         }
 
         // ── dL/dx ──
@@ -76,8 +77,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lay
             coeus_ops::div_assign(&mut term, &self.d_const, &backend);
             let dx = term;
 
-            let mut gl = gx.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &dx, &backend);
+            let gl = gx.write();
+            coeus_ops::add_assign(gl, &dx, &backend);
         }
     }
 }
@@ -95,7 +96,7 @@ pub fn layernorm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let requires_grad = input.grad.is_some() || weight.grad.is_some() || bias.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))

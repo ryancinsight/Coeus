@@ -38,7 +38,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for SGD<T,
 
         for (i, param) in self.params.iter_mut().enumerate() {
             if let Some(ref g) = param.grad {
-                let grad_tensor = g.lock().unwrap();
+                let grad_tensor = g.read();
                 let velocity_tensor = &mut self.velocity[i];
 
                 let (param_storage, param_layout) = param.tensor.storage_mut_and_layout();

@@ -1,15 +1,16 @@
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Scalar, Shape};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct CatNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub split_sizes: Vec<usize>,
     pub dim: usize,
@@ -27,7 +28,7 @@ where
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -36,7 +37,7 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         let ndim = self.out_shape.len();
         let dim = self.dim;
@@ -58,7 +59,7 @@ where
                 })
                 .collect();
 
-            let mut lock = g.lock().unwrap();
+            let lock = g.write();
             let (g_storage, g_layout) = lock.storage_mut_and_layout();
             let sliced_out_layout = grad_out.layout().slice(&ranges);
 
@@ -99,7 +100,10 @@ where
     }
 
     let out_shape = out_tensor.shape_cloned();
-    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(out_shape.clone(), &backend)));
+    let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
+        out_shape.clone(),
+        &backend,
+    )));
     let grad = Some(output_grad.clone());
 
     let node = CatNode {

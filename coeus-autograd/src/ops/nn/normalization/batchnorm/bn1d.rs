@@ -1,11 +1,12 @@
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct BatchNorm1dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub w_reshaped_captured: Tensor<T, B>,
     pub x_hat_clone: Tensor<T, B>,
@@ -27,7 +28,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Bat
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -37,7 +38,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Bat
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
 
         let go_nlc = grad_out.permute(&[0, 2, 1]).to_contiguous_on(&backend); // [N, L, C]
@@ -47,8 +48,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Bat
         if let Some(Some(ref gb)) = input_grads.get(2) {
             let db_t = coeus_ops::sum_axis(&go_flat, 0, &backend); // [1, C]
             let db = db_t.reshape([self.c]);
-            let mut gl = gb.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &db, &backend);
+            let gl = gb.write();
+            coeus_ops::add_assign(gl, &db, &backend);
         }
 
         // ── dL/dgamma = sum(dy * x_hat, dim=0) [C] ──
@@ -56,8 +57,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Bat
             let dy_xhat = coeus_ops::mul(&go_flat, &self.x_hat_clone, &backend);
             let dg_t = coeus_ops::sum_axis(&dy_xhat, 0, &backend); // [1, C]
             let dg = dg_t.reshape([self.c]);
-            let mut gl = gw_var.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &dg, &backend);
+            let gl = gw_var.write();
+            coeus_ops::add_assign(gl, &dg, &backend);
         }
 
         // ── dL/dx ──
@@ -90,8 +91,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Bat
             let dx_nlc = dx_flat.reshape([self.n, self.l, self.c]);
             let dx_ncl = dx_nlc.permute(&[0, 2, 1]).to_contiguous_on(&backend);
 
-            let mut gl = gx.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &dx_ncl, &backend);
+            let gl = gx.write();
+            coeus_ops::add_assign(gl, &dx_ncl, &backend);
         }
     }
 }
@@ -136,7 +137,7 @@ pub fn batchnorm1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let requires_grad = input.grad.is_some() || weight.grad.is_some() || bias.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             args.out_tensor.shape_cloned(),
             &backend,
         ))))

@@ -21,19 +21,20 @@
 //   max-subtraction stabilises the exp range to (−∞, 0] preventing overflow.
 //   Gradient flows through max_axis → sub → exp → sum_axis → log → add.
 
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::ops::activation::{exp, log};
 use crate::ops::arithmetic::{add, sub, sum_axis};
 use crate::var::Var;
 use coeus_core::{Float, FloatOps, Scalar};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 // ── MaxAxisNode ────────────────────────────────────────────────────────────
 
 /// Bespoke autograd node for `max_axis`.
 pub struct MaxAxisNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     /// Copy of the input tensor stored for backward mask construction.
     pub input_tensor: Tensor<T, B>,
@@ -50,7 +51,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         "max_axis"
     }
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
     #[inline]
@@ -58,7 +59,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         let Some(Some(ref g)) = input_grads.first() else {
             return;
@@ -86,8 +87,8 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         let grad_broad = grad_out.broadcast(self.input_tensor.shape_cloned());
         let grad_in = coeus_ops::mul(&grad_broad, &mask, &backend);
 
-        let mut lock = g.lock().unwrap();
-        coeus_ops::add_assign(&mut *lock, &grad_in, &backend);
+        let lock = g.write();
+        coeus_ops::add_assign(lock, &grad_in, &backend);
     }
 }
 
@@ -104,7 +105,7 @@ pub fn max_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
 
     let requires_grad = a.grad.is_some();
     let grad = requires_grad.then(|| {
-        Arc::new(Mutex::new(Tensor::zeros_on(
+        Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         )))
@@ -131,7 +132,7 @@ pub fn max_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
 
 /// Bespoke autograd node for `min_axis`.
 pub struct MinAxisNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub input_tensor: Tensor<T, B>,
     pub min_tensor: Tensor<T, B>,
@@ -146,7 +147,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         "min_axis"
     }
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
     #[inline]
@@ -154,7 +155,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         let Some(Some(ref g)) = input_grads.first() else {
             return;
@@ -174,8 +175,8 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         let grad_broad = grad_out.broadcast(self.input_tensor.shape_cloned());
         let grad_in = coeus_ops::mul(&grad_broad, &mask, &backend);
 
-        let mut lock = g.lock().unwrap();
-        coeus_ops::add_assign(&mut *lock, &grad_in, &backend);
+        let lock = g.write();
+        coeus_ops::add_assign(lock, &grad_in, &backend);
     }
 }
 
@@ -192,7 +193,7 @@ pub fn min_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
 
     let requires_grad = a.grad.is_some();
     let grad = requires_grad.then(|| {
-        Arc::new(Mutex::new(Tensor::zeros_on(
+        Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         )))

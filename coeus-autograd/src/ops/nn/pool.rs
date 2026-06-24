@@ -1,11 +1,12 @@
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar, Shape};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct MaxPool2dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub inp_clone: Tensor<T, B>,
     pub kernel_size: usize,
@@ -21,7 +22,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Max
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -31,7 +32,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Max
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g_in)) = input_grads.get(0) {
             let mut grad_input = Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend);
@@ -48,8 +49,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Max
                 gi_storage,
                 gi_layout,
             );
-            let mut gl = g_in.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &grad_input, &backend);
+            let gl = g_in.write();
+            coeus_ops::add_assign(gl, &grad_input, &backend);
         }
     }
 }
@@ -66,7 +67,7 @@ pub fn max_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let requires_grad = input.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))
@@ -101,7 +102,7 @@ pub fn max_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 pub struct AvgPool2dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub inp_shape: Shape,
     pub kernel_size: usize,
@@ -117,7 +118,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Avg
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -127,7 +128,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Avg
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g_in)) = input_grads.get(0) {
             let mut grad_input = Tensor::zeros_on(self.inp_shape.clone(), &backend);
@@ -142,8 +143,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Avg
                 gi_storage,
                 gi_layout,
             );
-            let mut gl = g_in.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &grad_input, &backend);
+            let gl = g_in.write();
+            coeus_ops::add_assign(gl, &grad_input, &backend);
         }
     }
 }
@@ -160,7 +161,7 @@ pub fn avg_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let requires_grad = input.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))
@@ -195,7 +196,7 @@ pub fn avg_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 pub struct MaxPool3dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub inp_clone: Tensor<T, B>,
     pub kernel_size: usize,
@@ -211,7 +212,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Max
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -221,7 +222,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Max
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g_in)) = input_grads.get(0) {
             let mut grad_input = Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend);
@@ -238,8 +239,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Max
                 grad_input.storage_mut(),
                 &grad_input_layout,
             );
-            let mut gl = g_in.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &grad_input, &backend);
+            let gl = g_in.write();
+            coeus_ops::add_assign(gl, &grad_input, &backend);
         }
     }
 }
@@ -255,7 +256,7 @@ pub fn max_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let requires_grad = input.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))
@@ -290,7 +291,7 @@ pub fn max_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 pub struct AvgPool3dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub inp_shape: Shape,
     pub kernel_size: usize,
@@ -306,7 +307,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Avg
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -316,7 +317,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Avg
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g_in)) = input_grads.get(0) {
             let mut grad_input = Tensor::zeros_on(self.inp_shape.clone(), &backend);
@@ -331,8 +332,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Avg
                 grad_input.storage_mut(),
                 &grad_input_layout,
             );
-            let mut gl = g_in.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &grad_input, &backend);
+            let gl = g_in.write();
+            coeus_ops::add_assign(gl, &grad_input, &backend);
         }
     }
 }
@@ -348,7 +349,7 @@ pub fn avg_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let requires_grad = input.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))

@@ -1,3 +1,4 @@
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::ops::activation::{unary_op, UnaryAutogradOp};
 use crate::ops::arithmetic::{binary_op, BinaryAutogradOp};
@@ -5,7 +6,7 @@ use crate::var::Var;
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar, Shape};
 use coeus_sparse::CsrTensor;
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// ZST tag for Matrix Multiplication autograd.
 pub struct MatmulOp;
@@ -25,14 +26,14 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         b: &Tensor<T, B>,
         _a_shape: &Shape,
         _b_shape: &Shape,
-        input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>],
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
     ) {
         // ∂/∂A: grad_C @ B^T — grad_C may be batched ([batch,m,n] × [n,k] → [batch,m,k])
         if let Some(Some(ref g)) = input_grads.get(0) {
             let b_t = b.t(); // B is always 2D (weight matrix); b.t() ✓
-            let mut gl = g.lock().unwrap();
-            coeus_ops::matmul_accumulate(grad_out, &b_t, &mut *gl, backend);
+            let gl = g.write();
+            coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend);
         }
         // ∂/∂B: A^T @ grad_C
         // When A is batched ([…,m,k]), flatten to [batch*m, k] to perform 2D matmul.
@@ -53,8 +54,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
                 (a.clone(), grad_out.clone())
             };
             let a_flat_t = a_flat.t();
-            let mut gl = g.lock().unwrap();
-            coeus_ops::matmul_accumulate(&a_flat_t, &go_flat, &mut *gl, backend);
+            let gl = g.write();
+            coeus_ops::matmul_accumulate(&a_flat_t, &go_flat, gl, backend);
         }
     }
 }
@@ -99,7 +100,7 @@ pub fn transpose_2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T,
 }
 
 pub struct SparseMatMulNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub a_values_tensor: Tensor<T, B>,
     pub a_col_indices: Tensor<i64, B>,
@@ -120,7 +121,7 @@ where
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -130,7 +131,7 @@ where
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         // ∂/∂A_values
         if let Some(Some(ref g)) = input_grads.get(0) {
@@ -142,8 +143,8 @@ where
                 grad_out,
                 &backend,
             );
-            let mut gl = g.lock().unwrap();
-            coeus_ops::add_assign(&mut gl, &grad_a_vals, &backend);
+            let gl = g.write();
+            coeus_ops::add_assign(gl, &grad_a_vals, &backend);
         }
         // ∂/∂B
         if let Some(Some(ref g)) = input_grads.get(1) {
@@ -155,8 +156,8 @@ where
                 grad_out,
                 &backend,
             );
-            let mut gl = g.lock().unwrap();
-            coeus_ops::add_assign(&mut gl, &grad_b, &backend);
+            let gl = g.write();
+            coeus_ops::add_assign(gl, &grad_b, &backend);
         }
     }
 }
@@ -183,7 +184,7 @@ where
 
     let requires_grad = a_values.grad.is_some() || b.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))

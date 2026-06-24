@@ -54,9 +54,17 @@
   rules; condition tensors receive zero gradient by contract.
 - [x] [minor] Extended `coeus-python` with `sin`, `cos`, `flip`, `where_cond`,
   `softmax`, `randn`, `topk`, and `sort` wrappers over Rust core/autograd ops.
+- [x] [patch] Replaced backward-node gradient storage with the `GradBuffer`
+  UnsafeCell SSOT and removed the Mutex-compatible shim so optimizers,
+  distributed gradient synchronization, and tests use the same direct
+  read/write surface.
+- [x] [patch] Kept parity evidence honest by renaming conv1d/conv2d/max-pool2d
+  tests that compare against manual references instead of live Burn tensors.
+- [x] [patch] Hardened Python comparison wrappers so shape mismatches raise
+  `ValueError` rather than panicking across the PyO3 boundary.
 - [x] [patch] Verification on 2026-06-24: `cargo fmt --check`,
   `cargo check --workspace`, `cargo clippy --workspace --all-targets
-  -- -D warnings`, `cargo nextest run --workspace` (403 passed), and
+  -- -D warnings`, `cargo nextest run --workspace` (408 passed), and
   `cargo test --doc --workspace` all pass.
 
 ### Open items for this sprint

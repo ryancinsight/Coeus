@@ -2,7 +2,42 @@ use crate::tensor::PyTensor;
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+
+// ── Internal helper ────────────────────────────────────────────────────────
+
+/// Element-wise comparison: calls `f(a_elem, b_elem)` for each pair of elements
+/// from contiguous CPU tensors of the same shape, returns a mask tensor.
+///
+/// Requires equal shapes; both tensors are materialised to contiguous first.
+pub(crate) fn tensor_cmp<F>(
+    a: &Tensor<f64, MoiraiBackend>,
+    b: &Tensor<f64, MoiraiBackend>,
+    f: F,
+) -> PyResult<Tensor<f64, MoiraiBackend>>
+where
+    F: Fn(f64, f64) -> f64,
+{
+    let backend = MoiraiBackend::new();
+    let a_c = a.to_contiguous_on(&backend);
+    let b_c = b.to_contiguous_on(&backend);
+    if a_c.shape() != b_c.shape() {
+        return Err(PyValueError::new_err(format!(
+            "tensor_cmp: shape mismatch: left={:?}, right={:?}",
+            a_c.shape(),
+            b_c.shape()
+        )));
+    }
+    let a_s = a_c.as_slice();
+    let b_s = b_c.as_slice();
+    let out: Vec<f64> = a_s
+        .iter()
+        .zip(b_s.iter())
+        .map(|(&ai, &bi)| f(ai, bi))
+        .collect();
+    Ok(Tensor::from_slice(a_c.shape().to_vec(), &out))
+}
 
 /// Element-wise exponential.
 #[pyfunction]
@@ -325,7 +360,7 @@ pub fn softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
 #[pyfunction]
 #[pyo3(signature = (shape, requires_grad = false))]
 pub fn randn(shape: Vec<usize>, requires_grad: bool) -> PyTensor {
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use ::std::time::{SystemTime, UNIX_EPOCH};
     let seed = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.subsec_nanos() as u64)
@@ -388,4 +423,169 @@ pub fn sort(
             inner: Var::new(idxs, false),
         },
     )
+}
+
+// ── Additional constructors ───────────────────────────────────────────────────
+
+/// Create a tensor of zeros with the same shape as `input`.
+#[pyfunction]
+#[pyo3(signature = (input, requires_grad = false))]
+pub fn zeros_like(input: &PyTensor, requires_grad: bool) -> PyTensor {
+    PyTensor {
+        inner: Var::new(
+            Tensor::<f64, MoiraiBackend>::zeros(input.inner.tensor.shape().to_vec()),
+            requires_grad,
+        ),
+    }
+}
+
+/// Create a tensor of ones with the same shape as `input`.
+#[pyfunction]
+#[pyo3(signature = (input, requires_grad = false))]
+pub fn ones_like(input: &PyTensor, requires_grad: bool) -> PyTensor {
+    PyTensor {
+        inner: Var::new(
+            Tensor::<f64, MoiraiBackend>::ones(input.inner.tensor.shape().to_vec()),
+            requires_grad,
+        ),
+    }
+}
+
+/// Create a square identity matrix of size `n×n`.
+#[pyfunction]
+#[pyo3(signature = (n, requires_grad = false))]
+pub fn eye(n: usize, requires_grad: bool) -> PyTensor {
+    let backend = MoiraiBackend::new();
+    let t = Tensor::<f64, MoiraiBackend>::eye_on(n, &backend);
+    PyTensor {
+        inner: Var::new(t, requires_grad),
+    }
+}
+
+// ── Statistical ops ──────────────────────────────────────────────────────────
+
+/// Global standard deviation over all elements.
+///
+/// Uses the unbiased (Bessel-corrected, N-1) formula unless `unbiased=False`.
+/// Named `std_dev` in Rust to avoid conflict with the `std` crate name.
+#[pyfunction]
+#[pyo3(name = "std", signature = (input, unbiased = true))]
+pub fn std_dev(input: &PyTensor, unbiased: bool, py: Python<'_>) -> PyResult<f64> {
+    py.allow_threads(|| {
+        let backend = MoiraiBackend::new();
+        let t = input.inner.tensor.to_contiguous_on(&backend);
+        let xs = t.as_slice();
+        if xs.is_empty() {
+            return Err(PyValueError::new_err(
+                "std: empty tensors have no standard deviation",
+            ));
+        }
+        let n = xs.len() as f64;
+        let mean = xs.iter().sum::<f64>() / n;
+        let var_sum: f64 = xs.iter().map(|&x| (x - mean).powi(2)).sum();
+        let denom = if unbiased && n > 1.0 { n - 1.0 } else { n };
+        Ok((var_sum / denom).sqrt())
+    })
+}
+
+/// Global variance over all elements.
+///
+/// Uses the unbiased (Bessel-corrected, N-1) formula unless `unbiased=False`.
+/// Named `tensor_var` in Rust to avoid potential name conflicts.
+#[pyfunction]
+#[pyo3(name = "var", signature = (input, unbiased = true))]
+pub fn tensor_var(input: &PyTensor, unbiased: bool, py: Python<'_>) -> PyResult<f64> {
+    py.allow_threads(|| {
+        let backend = MoiraiBackend::new();
+        let t = input.inner.tensor.to_contiguous_on(&backend);
+        let xs = t.as_slice();
+        if xs.is_empty() {
+            return Err(PyValueError::new_err("var: empty tensors have no variance"));
+        }
+        let n = xs.len() as f64;
+        let mean = xs.iter().sum::<f64>() / n;
+        let var_sum: f64 = xs.iter().map(|&x| (x - mean).powi(2)).sum();
+        let denom = if unbiased && n > 1.0 { n - 1.0 } else { n };
+        Ok(var_sum / denom)
+    })
+}
+
+/// L2 norm of all elements: `sqrt(sum(x^2))`.
+#[pyfunction]
+pub fn norm(input: &PyTensor, py: Python<'_>) -> f64 {
+    py.allow_threads(|| {
+        let backend = MoiraiBackend::new();
+        let t = input.inner.tensor.to_contiguous_on(&backend);
+        t.as_slice().iter().map(|&x| x * x).sum::<f64>().sqrt()
+    })
+}
+
+// ── Comparison / selection free functions ────────────────────────────────────
+
+/// Element-wise equal: returns float mask tensor (1.0 = equal, 0.0 = not).
+#[pyfunction]
+pub fn eq(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+    let t = py.allow_threads(|| {
+        tensor_cmp(&a.inner.tensor, &b.inner.tensor, |x, y| {
+            if (x - y).abs() < f64::EPSILON * 8.0 {
+                1.0
+            } else {
+                0.0
+            }
+        })
+    })?;
+    Ok(PyTensor {
+        inner: Var::new(t, false),
+    })
+}
+
+/// Element-wise less-than: returns float mask tensor.
+#[pyfunction]
+pub fn lt(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+    let t = py.allow_threads(|| {
+        tensor_cmp(&a.inner.tensor, &b.inner.tensor, |x, y| {
+            if x < y {
+                1.0
+            } else {
+                0.0
+            }
+        })
+    })?;
+    Ok(PyTensor {
+        inner: Var::new(t, false),
+    })
+}
+
+/// Element-wise greater-than: returns float mask tensor.
+#[pyfunction]
+pub fn gt(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+    let t = py.allow_threads(|| {
+        tensor_cmp(&a.inner.tensor, &b.inner.tensor, |x, y| {
+            if x > y {
+                1.0
+            } else {
+                0.0
+            }
+        })
+    })?;
+    Ok(PyTensor {
+        inner: Var::new(t, false),
+    })
+}
+
+/// Conditional selection (free-function form matching `torch.where`).
+///
+/// `where(cond, on_true, on_false)` — all tensors must have the same shape.
+/// `cond` is treated as boolean (non-zero = true).
+#[pyfunction]
+#[allow(clippy::needless_pass_by_ref_mut)]
+pub fn where_fn(
+    cond: &PyTensor,
+    on_true: &PyTensor,
+    on_false: &PyTensor,
+    py: Python<'_>,
+) -> PyTensor {
+    let inner = py
+        .allow_threads(|| coeus_autograd::where_cond(&cond.inner, &on_true.inner, &on_false.inner));
+    PyTensor { inner }
 }

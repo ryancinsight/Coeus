@@ -4,11 +4,12 @@
 // `M: AttentionMask` is a ZST; the causal branch is selected at compile time
 // by DCE on `M::IS_CAUSAL`.
 
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// ZST marker trait for attention mask strategies.
 ///
@@ -44,7 +45,7 @@ pub struct ScaledDotProductAttnNode<
     B: coeus_ops::BackendOps<T> + Default,
     M: AttentionMask,
 > {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     /// [Q_var, K_var, V_var]
     pub inputs: Vec<Var<T, B>>,
     pub q_clone: Tensor<T, B>,
@@ -65,7 +66,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Backward
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -74,7 +75,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Backward
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
 
         let need_gq = input_grads.first().and_then(|g| g.as_ref()).is_some();
@@ -104,16 +105,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Backward
         );
 
         if let (Some(acc), Some(gq)) = (input_grads.first().and_then(|g| g.as_ref()), grad_q) {
-            let mut lock = acc.lock().unwrap();
-            coeus_ops::add_assign(&mut *lock, &gq, &backend);
+            let lock = acc.write();
+            coeus_ops::add_assign(lock, &gq, &backend);
         }
         if let (Some(acc), Some(gk)) = (input_grads.get(1).and_then(|g| g.as_ref()), grad_k) {
-            let mut lock = acc.lock().unwrap();
-            coeus_ops::add_assign(&mut *lock, &gk, &backend);
+            let lock = acc.write();
+            coeus_ops::add_assign(lock, &gk, &backend);
         }
         if let (Some(acc), Some(gv)) = (input_grads.get(2).and_then(|g| g.as_ref()), grad_v) {
-            let mut lock = acc.lock().unwrap();
-            coeus_ops::add_assign(&mut *lock, &gv, &backend);
+            let lock = acc.write();
+            coeus_ops::add_assign(lock, &gv, &backend);
         }
     }
 }
@@ -156,7 +157,7 @@ pub fn sdp_attention<T: Float, B: coeus_ops::BackendOps<T> + Default, M: Attenti
         return (Var::new(out_tensor, false), attn_weights);
     }
 
-    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(
+    let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_tensor.shape_cloned(),
         &backend,
     )));

@@ -54,7 +54,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for Adam<T
 
         for (i, param) in self.params.iter_mut().enumerate() {
             if let Some(ref g) = param.grad {
-                let grad_tensor = g.lock().unwrap();
+                let grad_tensor = g.read();
                 let m_tensor = &mut self.m[i];
                 let v_tensor = &mut self.v[i];
 

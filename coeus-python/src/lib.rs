@@ -120,9 +120,21 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::softmax, m)?)?;
     // Constructors
     m.add_function(wrap_pyfunction!(ops::randn, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::zeros_like, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::ones_like, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::eye, m)?)?;
     // Sorting / selection
     m.add_function(wrap_pyfunction!(ops::topk, m)?)?;
     m.add_function(wrap_pyfunction!(ops::sort, m)?)?;
+    // Statistical ops
+    m.add_function(wrap_pyfunction!(ops::std_dev, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::tensor_var, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::norm, m)?)?;
+    // Comparison / selection
+    m.add_function(wrap_pyfunction!(ops::eq, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::lt, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::gt, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::where_fn, m)?)?;
 
     Ok(())
 }

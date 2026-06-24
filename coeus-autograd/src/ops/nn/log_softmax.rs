@@ -9,17 +9,18 @@
 // Stores softmax probabilities (exp of log-probs) as Tensor<T,B> so that the
 // backward pass can use coeus_ops tensor operations without raw slice access.
 
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// Autograd node for numerically-stable log-softmax.
 ///
 /// Stores softmax probabilities (`exp(log_softmax(x))`) for the backward pass.
 pub struct LogSoftmaxNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     /// softmax(x) = exp(log_softmax(x)), same shape as input.
     pub probs: Tensor<T, B>,
@@ -33,7 +34,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Log
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -48,7 +49,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Log
     //   sum_g  = sum_axis(g, axis)          — shape matches probs after broadcasting
     //   scaled = mul(probs, sum_g)           — element-wise, broadcasts sum_g along axis
     //   dx     = sub(g, scaled)              — element-wise
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let Some(Some(ref acc)) = input_grads.first() else {
             return;
         };
@@ -60,8 +61,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Log
         // g_i − p_i · Σ_j g_j
         let dx = coeus_ops::sub(grad_out, &scaled, &backend);
 
-        let mut lock = acc.lock().unwrap();
-        coeus_ops::add_assign(&mut *lock, &dx, &backend);
+        let lock = acc.write();
+        coeus_ops::add_assign(lock, &dx, &backend);
     }
 }
 
@@ -93,7 +94,7 @@ pub fn log_softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 
     let requires_grad = input.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             log_prob_tensor.shape_cloned(),
             &backend,
         ))))

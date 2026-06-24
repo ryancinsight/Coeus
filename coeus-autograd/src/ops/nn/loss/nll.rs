@@ -1,11 +1,12 @@
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar, Storage};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct NllLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub targets: Vec<usize>,
     pub n: usize,
@@ -16,14 +17,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nll
     fn op_name(&self) -> &'static str {
         "nll_loss"
     }
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
             let mut host_grad = [T::zero()];
@@ -45,8 +46,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nll
                 d_log[i * self.c + self.targets[i]] = neg_scale;
             }
             let grad_tensor = Tensor::from_slice_on([self.n, self.c], &d_log, &backend);
-            let mut gl = g.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &grad_tensor, &backend);
+            let gl = g.write();
+            coeus_ops::add_assign(gl, &grad_tensor, &backend);
         }
     }
 }
@@ -89,7 +90,7 @@ pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
     let requires_grad = log_probs.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
     } else {
         None
     };

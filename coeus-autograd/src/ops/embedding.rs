@@ -1,14 +1,15 @@
 // ── Embedding autograd operator ──
 
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::Scalar;
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// Autograd node for tracking embedding lookup operations.
 pub struct EmbeddingNode<T: Scalar, I: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub indices: Tensor<I, B>,
     pub num_embeddings: usize,
@@ -25,7 +26,7 @@ where
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -35,7 +36,7 @@ where
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref gw)) = input_grads.get(0) {
             let gw_update = coeus_ops::embedding_backward(
@@ -44,8 +45,8 @@ where
                 self.num_embeddings,
                 &backend,
             );
-            let mut gl = gw.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &gw_update, &backend);
+            let gl = gw.write();
+            coeus_ops::add_assign(gl, &gw_update, &backend);
         }
     }
 }
@@ -60,7 +61,7 @@ pub fn embedding<T: Scalar, I: Scalar + 'static, B: coeus_ops::BackendOps<T> + D
     let requires_grad = weight.grad.is_some();
 
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))

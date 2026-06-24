@@ -285,6 +285,210 @@ impl PyTensor {
         self.inner.tensor.ndim()
     }
 
+    /// First-dimension length (equivalent to `len(tensor)` in PyTorch/NumPy).
+    fn __len__(&self) -> PyResult<usize> {
+        let shape = self.inner.tensor.shape();
+        if shape.is_empty() {
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "__len__: tensor is 0-dimensional",
+            ));
+        }
+        Ok(shape[0])
+    }
+
+    /// `bool(tensor)` — scalar truthiness for 1-element tensors, otherwise
+    /// object-presence truthiness for non-empty tensors.
+    fn __bool__(&self) -> PyResult<bool> {
+        let numel: usize = self.inner.tensor.shape().iter().product();
+        if numel == 0 {
+            return Ok(false);
+        }
+        if numel != 1 {
+            return Ok(true);
+        }
+        Ok(self.inner.tensor.to_contiguous().as_slice()[0] != 0.0)
+    }
+
+    /// `float(tensor)` — only valid for single-element tensors.
+    fn __float__(&self) -> PyResult<f64> {
+        self.item()
+    }
+
+    /// `int(tensor)` — only valid for single-element tensors (truncates to int).
+    fn __int__(&self) -> PyResult<i64> {
+        self.item().map(|v| v as i64)
+    }
+
+    /// Return a copy of this tensor detached from the computation graph.
+    ///
+    /// Equivalent to `tensor.detach()` in PyTorch.
+    fn detach(&self) -> Self {
+        Self {
+            inner: coeus_autograd::Var::new(self.inner.tensor.clone(), false),
+        }
+    }
+
+    /// Set `requires_grad` in-place and return `self` (for chaining).
+    ///
+    /// Equivalent to `tensor.requires_grad_(True/False)` in PyTorch.
+    fn requires_grad_(&mut self, requires_grad: bool) -> Self {
+        if requires_grad && self.inner.grad.is_none() {
+            let t = self.inner.tensor.clone();
+            self.inner = coeus_autograd::Var::new(t, true);
+        } else if !requires_grad && self.inner.grad.is_some() {
+            let t = self.inner.tensor.clone();
+            self.inner = coeus_autograd::Var::new(t, false);
+        }
+        self.clone()
+    }
+
+    /// Whether gradient tracking is active for this tensor.
+    #[getter]
+    fn requires_grad(&self) -> bool {
+        self.inner.grad.is_some()
+    }
+
+    /// Flatten `dims[start..=end]` into a single dimension.
+    ///
+    /// Matches `torch.flatten(start_dim, end_dim)`.
+    #[pyo3(signature = (start_dim = 0, end_dim = -1))]
+    fn flatten(&self, start_dim: i64, end_dim: i64, py: Python<'_>) -> PyResult<Self> {
+        let ndim = self.inner.tensor.ndim() as i64;
+        let start = if start_dim < 0 {
+            (ndim + start_dim).max(0)
+        } else {
+            start_dim
+        } as usize;
+        let end = if end_dim < 0 {
+            (ndim + end_dim).max(0)
+        } else {
+            end_dim.min(ndim - 1)
+        } as usize;
+        let shape = self.inner.tensor.shape();
+        let mut new_shape: Vec<usize> = shape[..start].to_vec();
+        new_shape.push(shape[start..=end].iter().product());
+        new_shape.extend_from_slice(&shape[end + 1..]);
+        let inner = py.allow_threads(|| coeus_autograd::reshape(&self.inner, new_shape));
+        Ok(Self { inner })
+    }
+
+    /// Alias for `reshape` matching PyTorch's `tensor.view(shape)`.
+    fn view(&self, shape: Vec<usize>, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::reshape(&self.inner, shape));
+        Ok(Self { inner })
+    }
+
+    /// Expand singleton dimensions to a given shape (materialises via broadcast add with zero).
+    ///
+    /// Dimensions must be either 1 (expandable) or equal to the target size.
+    fn expand(&self, shape: Vec<usize>, py: Python<'_>) -> PyResult<Self> {
+        let src = self.inner.tensor.shape().to_vec();
+        if src.len() != shape.len() {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "expand: ndim mismatch: src={} target={}",
+                src.len(),
+                shape.len()
+            )));
+        }
+        for (s, t) in src.iter().zip(shape.iter()) {
+            if *s != 1 && *s != *t {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "expand: incompatible dim: src={s} target={t}"
+                )));
+            }
+        }
+        // Materialise via adding a zero tensor of the target shape (triggers broadcast).
+        let inner = py.allow_threads(|| {
+            let zeros_v = coeus_autograd::Var::new(
+                coeus_tensor::Tensor::<f64, coeus_core::MoiraiBackend>::zeros(shape),
+                false,
+            );
+            coeus_autograd::add(&self.inner, &zeros_v)
+        });
+        Ok(Self { inner })
+    }
+
+    /// Element-wise equal comparison: returns a float tensor (1.0 = equal, 0.0 = not).
+    fn eq(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
+        let inner_t = py.allow_threads(|| {
+            crate::ops::tensor_cmp(&self.inner.tensor, &other.inner.tensor, |a, b| {
+                if (a - b).abs() < f64::EPSILON * 8.0 {
+                    1.0
+                } else {
+                    0.0
+                }
+            })
+        })?;
+        Ok(Self {
+            inner: coeus_autograd::Var::new(inner_t, false),
+        })
+    }
+
+    /// Element-wise less-than: returns a float tensor (1.0 = true, 0.0 = false).
+    fn lt(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
+        let inner_t = py.allow_threads(|| {
+            crate::ops::tensor_cmp(&self.inner.tensor, &other.inner.tensor, |a, b| {
+                if a < b {
+                    1.0
+                } else {
+                    0.0
+                }
+            })
+        })?;
+        Ok(Self {
+            inner: coeus_autograd::Var::new(inner_t, false),
+        })
+    }
+
+    /// Element-wise greater-than: returns a float tensor (1.0 = true, 0.0 = false).
+    fn gt(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
+        let inner_t = py.allow_threads(|| {
+            crate::ops::tensor_cmp(&self.inner.tensor, &other.inner.tensor, |a, b| {
+                if a > b {
+                    1.0
+                } else {
+                    0.0
+                }
+            })
+        })?;
+        Ok(Self {
+            inner: coeus_autograd::Var::new(inner_t, false),
+        })
+    }
+
+    /// Element-wise not-equal: returns a float tensor (1.0 = not equal, 0.0 = equal).
+    fn ne(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
+        let inner_t = py.allow_threads(|| {
+            crate::ops::tensor_cmp(&self.inner.tensor, &other.inner.tensor, |a, b| {
+                if (a - b).abs() < f64::EPSILON * 8.0 {
+                    0.0
+                } else {
+                    1.0
+                }
+            })
+        })?;
+        Ok(Self {
+            inner: coeus_autograd::Var::new(inner_t, false),
+        })
+    }
+
+    /// Return data as a Python list (alias for `data` matching `torch.Tensor.tolist()`).
+    fn tolist(&self) -> Vec<f64> {
+        self.data()
+    }
+
+    /// Scalar multiplication via `scalar * tensor` (right-multiply by scalar).
+    fn __rmul__(&self, scalar: f64, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::scalar_mul(&self.inner, scalar));
+        Ok(Self { inner })
+    }
+
+    /// Scalar addition via `scalar + tensor`.
+    fn __radd__(&self, scalar: f64, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::scalar_add(&self.inner, scalar));
+        Ok(Self { inner })
+    }
+
     /// Zero the accumulated gradient.
     pub fn zero_grad(&self) {
         self.inner.zero_grad();

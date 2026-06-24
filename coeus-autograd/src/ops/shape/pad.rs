@@ -1,15 +1,16 @@
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::Scalar;
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct PadNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub pads: Vec<(usize, usize)>,
 }
@@ -25,7 +26,7 @@ where
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -34,7 +35,7 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         let Some(Some(ref acc)) = input_grads.first() else {
             return;
@@ -42,7 +43,7 @@ where
 
         let ndim = grad_out.ndim();
         let in_shape = {
-            let lock = acc.lock().unwrap();
+            let lock = acc.read();
             lock.shape_cloned()
         };
 
@@ -55,8 +56,8 @@ where
 
         let sliced_grad = grad_out.slice(&ranges);
 
-        let mut lock = acc.lock().unwrap();
-        coeus_ops::add_assign(&mut *lock, &sliced_grad, &backend);
+        let lock = acc.write();
+        coeus_ops::add_assign(lock, &sliced_grad, &backend);
     }
 }
 
@@ -78,7 +79,7 @@ where
         return Var::new(out_tensor, false);
     }
 
-    let output_grad = Arc::new(Mutex::new(Tensor::zeros_on(
+    let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_tensor.shape_cloned(),
         &backend,
     )));

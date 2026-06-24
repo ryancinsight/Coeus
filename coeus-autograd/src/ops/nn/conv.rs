@@ -1,11 +1,12 @@
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct Conv1dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub w_clone: Tensor<T, B>,
     pub inp_clone: Tensor<T, B>,
@@ -22,7 +23,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Con
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -32,7 +33,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Con
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
 
         let mut grad_input = if input_grads.get(0).and_then(|g| g.as_ref()).is_some() {
@@ -92,16 +93,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Con
         );
 
         if let Some(gi) = grad_input {
-            let mut gl = input_grads[0].as_ref().unwrap().lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &gi, &backend);
+            let gl = input_grads[0].as_ref().unwrap().write();
+            coeus_ops::add_assign(gl, &gi, &backend);
         }
         if let Some(gw) = grad_weight {
-            let mut gl = input_grads[1].as_ref().unwrap().lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &gw, &backend);
+            let gl = input_grads[1].as_ref().unwrap().write();
+            coeus_ops::add_assign(gl, &gw, &backend);
         }
         if let Some(gb) = grad_bias {
-            let mut gl = input_grads[2].as_ref().unwrap().lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &gb, &backend);
+            let gl = input_grads[2].as_ref().unwrap().write();
+            coeus_ops::add_assign(gl, &gb, &backend);
         }
     }
 }
@@ -122,7 +123,7 @@ pub fn conv1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         || bias.as_ref().map(|b| b.grad.is_some()).unwrap_or(false);
 
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))
@@ -166,7 +167,7 @@ pub fn conv1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 pub struct Conv2dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub w_clone: Tensor<T, B>,
     pub inp_clone: Tensor<T, B>,
@@ -183,7 +184,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Con
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -193,7 +194,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Con
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
 
         let mut grad_input = if input_grads.get(0).and_then(|g| g.as_ref()).is_some() {
@@ -253,16 +254,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Con
         );
 
         if let Some(gi) = grad_input {
-            let mut gl = input_grads[0].as_ref().unwrap().lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &gi, &backend);
+            let gl = input_grads[0].as_ref().unwrap().write();
+            coeus_ops::add_assign(gl, &gi, &backend);
         }
         if let Some(gw) = grad_weight {
-            let mut gl = input_grads[1].as_ref().unwrap().lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &gw, &backend);
+            let gl = input_grads[1].as_ref().unwrap().write();
+            coeus_ops::add_assign(gl, &gw, &backend);
         }
         if let Some(gb) = grad_bias {
-            let mut gl = input_grads[2].as_ref().unwrap().lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &gb, &backend);
+            let gl = input_grads[2].as_ref().unwrap().write();
+            coeus_ops::add_assign(gl, &gb, &backend);
         }
     }
 }
@@ -283,7 +284,7 @@ pub fn conv2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         || bias.as_ref().map(|b| b.grad.is_some()).unwrap_or(false);
 
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))
@@ -327,7 +328,7 @@ pub fn conv2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 pub struct Conv3dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub w_clone: Tensor<T, B>,
     pub inp_clone: Tensor<T, B>,
@@ -344,7 +345,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Con
     }
 
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
@@ -354,7 +355,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Con
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
 
         let mut grad_input = if input_grads.get(0).and_then(|g| g.as_ref()).is_some() {
@@ -414,16 +415,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Con
         );
 
         if let Some(gi) = grad_input {
-            let mut gl = input_grads[0].as_ref().unwrap().lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &gi, &backend);
+            let gl = input_grads[0].as_ref().unwrap().write();
+            coeus_ops::add_assign(gl, &gi, &backend);
         }
         if let Some(gw) = grad_weight {
-            let mut gl = input_grads[1].as_ref().unwrap().lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &gw, &backend);
+            let gl = input_grads[1].as_ref().unwrap().write();
+            coeus_ops::add_assign(gl, &gw, &backend);
         }
         if let Some(gb) = grad_bias {
-            let mut gl = input_grads[2].as_ref().unwrap().lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &gb, &backend);
+            let gl = input_grads[2].as_ref().unwrap().write();
+            coeus_ops::add_assign(gl, &gb, &backend);
         }
     }
 }
@@ -444,7 +445,7 @@ pub fn conv3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         || bias.as_ref().map(|b| b.grad.is_some()).unwrap_or(false);
 
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))

@@ -33,7 +33,7 @@ where
         let Some(ref grad_arc) = param.grad else {
             continue;
         };
-        let grad = grad_arc.lock().unwrap();
+        let grad = grad_arc.read();
         // grad tensors are always contiguous (constructed via zeros_on).
         let slice: &[T] = grad.as_slice();
         for &v in slice {
@@ -52,7 +52,7 @@ where
             let Some(ref grad_arc) = param.grad else {
                 continue;
             };
-            let mut grad = grad_arc.lock().unwrap();
+            let grad = grad_arc.write();
             let slice: &mut [T] = grad.as_mut_slice();
             for v in slice {
                 *v = *v * clip_coef;

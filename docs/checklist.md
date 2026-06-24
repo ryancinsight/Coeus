@@ -43,9 +43,18 @@ functional op surface toward torch.*/jnp.*/mx.* style.
 - [x] [minor] Added `coeus_ops::{flip, sort, where_cond}`, autograd
   `flip`/`where_cond`, and Python wrappers for `sin`, `cos`, `flip`,
   `where_cond`, `softmax`, `randn`, `topk`, and `sort`.
+- [x] [patch] Replaced autograd gradient `Arc<Mutex<Tensor<_, _>>>` storage
+  with the `GradBuffer` UnsafeCell SSOT and removed the temporary
+  Mutex-shaped compatibility shim; optimizers, distributed gradient sync, and
+  attention tests now read/write through `GradBuffer` directly.
+- [x] [patch] Corrected conv/pool parity test names whose oracles are manual
+  references rather than live Burn tensors, preserving the evidence tier stated
+  by the test names.
+- [x] [patch] Python comparison wrappers now return `ValueError` on shape
+  mismatch instead of panicking at the PyO3 boundary.
 - [x] [patch] Verification: `cargo fmt --check`, `cargo check --workspace`,
   `cargo clippy --workspace --all-targets -- -D warnings`,
-  `cargo nextest run --workspace` (403 passed), and
+  `cargo nextest run --workspace` (408 passed), and
   `cargo test --doc --workspace` all pass on 2026-06-24.
 - [ ] [patch] Residual audit debt: `coeus-dist` and `coeus-python` still contain
   mock-named distributed collective tests. They predate this slice and passed the

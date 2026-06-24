@@ -1,11 +1,12 @@
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar, Storage};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct CosineEmbeddingLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    pub output_grad: Arc<Mutex<Tensor<T, B>>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub x1_host: Vec<T>,
     pub x2_host: Vec<T>,
@@ -23,7 +24,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         "cosine_embedding_loss"
     }
     #[inline]
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
     #[inline]
@@ -31,7 +32,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         let need_g1 = input_grads.get(0).and_then(|g| g.as_ref()).is_some();
         let need_g2 = input_grads.get(1).and_then(|g| g.as_ref()).is_some();
@@ -107,13 +108,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 
         if let Some(Some(ref g)) = input_grads.get(0) {
             let grad_tensor = Tensor::from_slice_on([self.n, self.d], &dg1, &backend);
-            let mut gl = g.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &grad_tensor, &backend);
+            let gl = g.write();
+            coeus_ops::add_assign(gl, &grad_tensor, &backend);
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
             let grad_tensor = Tensor::from_slice_on([self.n, self.d], &dg2, &backend);
-            let mut gl = g.lock().unwrap();
-            coeus_ops::add_assign(&mut *gl, &grad_tensor, &backend);
+            let gl = g.write();
+            coeus_ops::add_assign(gl, &grad_tensor, &backend);
         }
     }
 }
@@ -212,7 +213,7 @@ pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
     let requires_grad = x1.grad.is_some() || x2.grad.is_some();
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
     } else {
         None
     };

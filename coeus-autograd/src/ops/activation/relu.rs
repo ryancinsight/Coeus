@@ -1,10 +1,11 @@
 use super::unary_op;
 use super::UnaryAutogradOp;
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// ZST tag for ReLU autograd.
 pub struct ReluOp;
@@ -37,7 +38,7 @@ pub fn relu<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> 
 
 /// Inline backward node for LeakyReLU.
 struct LeakyReluNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    output_grad: Arc<Mutex<Tensor<T, B>>>,
+    output_grad: Arc<GradBuffer<T, B>>,
     inputs: Vec<Var<T, B>>,
     input_tensor: Tensor<T, B>,
     negative_slope: u64, // f64::to_bits
@@ -47,14 +48,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lea
     fn op_name(&self) -> &'static str {
         "leaky_relu"
     }
-    fn output_grad(&self) -> &Arc<Mutex<Tensor<T, B>>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<Mutex<Tensor<T, B>>>>]) {
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
             let deriv = coeus_ops::elementwise_unary(
@@ -63,8 +64,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lea
                 coeus_ops::UnaryOp::LeakyReluGrad(self.negative_slope),
             );
             let mask = coeus_ops::mul(grad_out, &deriv, &backend);
-            let mut lock = g.lock().unwrap();
-            coeus_ops::add_assign(&mut *lock, &mask, &backend);
+            let lock = g.write();
+            coeus_ops::add_assign(lock, &mask, &backend);
         }
     }
 }
@@ -82,7 +83,7 @@ pub fn leaky_relu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let requires_grad = a.grad.is_some();
 
     let grad = if requires_grad {
-        Some(Arc::new(Mutex::new(Tensor::zeros_on(
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
         ))))

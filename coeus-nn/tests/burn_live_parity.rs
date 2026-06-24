@@ -694,3 +694,212 @@ fn where_cond_correctness() {
     let out = coeus_ops::where_cond(&cond, &on_t, &on_f, &backend);
     assert_close("where_cond", out.as_slice(), &[10.0, -2.0, 30.0, -4.0]);
 }
+
+// ── Conv1d (functional, manual reference) ────────────────────────────────────
+
+#[test]
+fn conv1d_forward_matches_manual_reference() {
+    use coeus_ops::BackendOps;
+    let backend = SequentialBackend::new();
+    // batch=1, in_channels=2, length=6, out_channels=2, kernel=3
+    let input: Vec<f32> = (0..12).map(|x| x as f32 * 0.1).collect();
+    let weight: Vec<f32> = (0..12).map(|x| x as f32 * 0.05 - 0.3).collect();
+    let bias_data: Vec<f32> = vec![0.1f32, -0.1];
+    let (b, ic, l, oc, k) = (1usize, 2, 6, 2, 3);
+    let out_len = l - k + 1;
+
+    let in_t = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![b, ic, l], &input);
+    let wt = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![oc, ic, k], &weight);
+    let bt = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![oc], &bias_data);
+    let mut cpu_out = CoeusTensor::<f32, SequentialBackend>::zeros(vec![b, oc, out_len]);
+    // Pre-compute output layout to avoid simultaneous mut/shared borrow.
+    let out_layout = cpu_out.layout().clone();
+    backend.conv1d(
+        in_t.storage(),
+        in_t.layout(),
+        wt.storage(),
+        wt.layout(),
+        Some(bt.storage()),
+        1,
+        0,
+        1,
+        cpu_out.storage_mut(),
+        &out_layout,
+    );
+
+    // Manual reference (cross-correlation + bias)
+    let out_ref: Vec<f32> = {
+        let in_s = in_t.as_slice();
+        let w_s = wt.as_slice();
+        let b_s = bt.as_slice();
+        let mut v = vec![0.0f32; b * oc * out_len];
+        for bi in 0..b {
+            for o in 0..oc {
+                for t in 0..out_len {
+                    let mut acc = b_s[o];
+                    for c in 0..ic {
+                        for ki in 0..k {
+                            acc +=
+                                w_s[o * ic * k + c * k + ki] * in_s[bi * ic * l + c * l + t + ki];
+                        }
+                    }
+                    v[bi * oc * out_len + o * out_len + t] = acc;
+                }
+            }
+        }
+        v
+    };
+    assert_close_rel("conv1d_fwd", cpu_out.as_slice(), &out_ref, 1e-4);
+}
+
+// ── Conv2d (functional, manual reference) ────────────────────────────────────
+
+#[test]
+fn conv2d_forward_matches_manual_reference() {
+    use coeus_ops::BackendOps;
+    let backend = SequentialBackend::new();
+    let (b, ic, h, w, oc, kh, kw) = (1usize, 2, 4, 4, 2, 2, 2);
+    let (oh, ow) = (h - kh + 1, w - kw + 1);
+
+    let input: Vec<f32> = (0..b * ic * h * w).map(|x| x as f32 * 0.1 - 0.8).collect();
+    let weight: Vec<f32> = (0..oc * ic * kh * kw)
+        .map(|x| x as f32 * 0.15 - 0.5)
+        .collect();
+    let bias_data: Vec<f32> = vec![0.05f32, -0.05];
+
+    let in_t = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![b, ic, h, w], &input);
+    let wt = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![oc, ic, kh, kw], &weight);
+    let bt = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![oc], &bias_data);
+    let mut cpu_out = CoeusTensor::<f32, SequentialBackend>::zeros(vec![b, oc, oh, ow]);
+    let out_layout = cpu_out.layout().clone();
+    backend.conv2d(
+        in_t.storage(),
+        in_t.layout(),
+        wt.storage(),
+        wt.layout(),
+        Some(bt.storage()),
+        1,
+        0,
+        1,
+        cpu_out.storage_mut(),
+        &out_layout,
+    );
+
+    // Manual reference
+    let expected: Vec<f32> = {
+        let in_s = in_t.as_slice();
+        let w_s = wt.as_slice();
+        let b_s = bt.as_slice();
+        let mut v = vec![0.0f32; b * oc * oh * ow];
+        for bi in 0..b {
+            for o in 0..oc {
+                for yi in 0..oh {
+                    for xi in 0..ow {
+                        let mut acc = b_s[o];
+                        for c in 0..ic {
+                            for ki in 0..kh {
+                                for kj in 0..kw {
+                                    acc += w_s[o * ic * kh * kw + c * kh * kw + ki * kw + kj]
+                                        * in_s[bi * ic * h * w
+                                            + c * h * w
+                                            + (yi + ki) * w
+                                            + (xi + kj)];
+                                }
+                            }
+                        }
+                        v[bi * oc * oh * ow + o * oh * ow + yi * ow + xi] = acc;
+                    }
+                }
+            }
+        }
+        v
+    };
+    assert_close_rel("conv2d_fwd", cpu_out.as_slice(), &expected, 1e-4);
+}
+
+// ── MaxPool2d (manual reference) ──────────────────────────────────────────────
+
+#[test]
+fn max_pool2d_forward_matches_manual_reference() {
+    use coeus_ops::BackendOps;
+    let backend = SequentialBackend::new();
+    let (b, c, h, w) = (2, 2, 4, 4);
+    let (oh, ow, ks, st) = (2, 2, 2, 2);
+    let data: Vec<f32> = (0..b * c * h * w).map(|x| x as f32 * 0.1).collect();
+    let x = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![b, c, h, w], &data);
+    let mut out = CoeusTensor::<f32, SequentialBackend>::zeros(vec![b, c, oh, ow]);
+    let out_layout = out.layout().clone();
+    backend.max_pool2d(
+        x.storage(),
+        x.layout(),
+        ks,
+        st,
+        0,
+        1,
+        out.storage_mut(),
+        &out_layout,
+    );
+
+    // Manual reference
+    let x_s = x.as_slice();
+    let expected: Vec<f32> = (0..b * c * oh * ow)
+        .map(|flat| {
+            let bi = flat / (c * oh * ow);
+            let rem = flat % (c * oh * ow);
+            let ci = rem / (oh * ow);
+            let rem2 = rem % (oh * ow);
+            let yi = rem2 / ow;
+            let xi = rem2 % ow;
+            let mut mx = f32::NEG_INFINITY;
+            for ki in 0..ks {
+                for kj in 0..ks {
+                    let v = x_s[bi * c * h * w + ci * h * w + (yi * st + ki) * w + (xi * st + kj)];
+                    if v > mx {
+                        mx = v;
+                    }
+                }
+            }
+            mx
+        })
+        .collect();
+    assert_close("max_pool2d_fwd", out.as_slice(), &expected);
+}
+
+// ── Autograd through where_cond ───────────────────────────────────────────────
+
+#[test]
+fn where_cond_backward_passes_grad_to_true_and_false() {
+    let cond = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &[1.0f32, 0.0, 1.0, 0.0]),
+        false,
+    );
+    let on_t = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &[2.0f32, 3.0, 4.0, 5.0]),
+        true,
+    );
+    let on_f = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &[10.0f32, 11.0, 12.0, 13.0]),
+        true,
+    );
+    let out = coeus_autograd::where_cond(&cond, &on_t, &on_f);
+    coeus_autograd::sum(&out).backward();
+    let gt = on_t.grad().unwrap();
+    let gf = on_f.grad().unwrap();
+    assert_close("where_cond_bwd true", gt.as_slice(), &[1.0, 0.0, 1.0, 0.0]);
+    assert_close("where_cond_bwd false", gf.as_slice(), &[0.0, 1.0, 0.0, 1.0]);
+}
+
+// ── Flip backward ─────────────────────────────────────────────────────────────
+
+#[test]
+fn flip_backward_passes_grad() {
+    let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data),
+        true,
+    );
+    let out = coeus_autograd::flip(&xv, 1);
+    coeus_autograd::sum(&out).backward();
+    let grad = xv.grad().unwrap();
+    assert_close("flip_bwd", grad.as_slice(), &[1.0; 6]);
+}
