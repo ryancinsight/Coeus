@@ -576,6 +576,159 @@ fn test_cuda_parity_conv2d_backward() {
     );
 }
 
+#[test]
+fn test_cuda_parity_conv3d_forward() {
+    use coeus_ops::BackendOps;
+    let Some((s, c)) = backends() else {
+        return;
+    };
+    let (n, in_c, d, h, w, out_c, kd, kh, kw) = (2, 2, 4, 4, 4, 3, 2, 2, 2);
+    let od = d - kd + 1;
+    let oh = h - kh + 1;
+    let ow = w - kw + 1;
+
+    let input: Vec<f32> = (0..n * in_c * d * h * w)
+        .map(|x| x as f32 * 0.05 - 1.0)
+        .collect();
+    let weight: Vec<f32> = (0..out_c * in_c * kd * kh * kw)
+        .map(|x| x as f32 * 0.1 - 1.5)
+        .collect();
+    let bias: Vec<f32> = (0..out_c).map(|x| x as f32 * 0.2 - 0.3).collect();
+
+    let in_t = Tensor::from_slice(vec![n, in_c, d, h, w], &input);
+    let w_t = Tensor::from_slice(vec![out_c, in_c, kd, kh, kw], &weight);
+    let b_t = Tensor::from_slice(vec![out_c], &bias);
+
+    let mut out_s = Tensor::<f32, SequentialBackend>::zeros(vec![n, out_c, od, oh, ow]);
+    let out_l = out_s.layout().clone();
+    s.conv3d(
+        in_t.storage(),
+        in_t.layout(),
+        w_t.storage(),
+        w_t.layout(),
+        Some(b_t.storage()),
+        1,
+        0,
+        1,
+        out_s.storage_mut(),
+        &out_l,
+    );
+
+    let in_g = to_gpu(&in_t, &s, &c);
+    let w_g = to_gpu(&w_t, &s, &c);
+    let b_g = to_gpu(&b_t, &s, &c);
+    let mut out_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, out_c, od, oh, ow], &c);
+    c.conv3d(
+        in_g.storage(),
+        in_g.layout(),
+        w_g.storage(),
+        w_g.layout(),
+        Some(b_g.storage()),
+        1,
+        0,
+        1,
+        out_g.storage_mut(),
+        &out_l,
+    );
+
+    assert_parity_tol(
+        "conv3d_fwd",
+        out_s.as_slice(),
+        to_cpu(&out_g, &c, &s).as_slice(),
+        CUDA_ACC_TOL,
+    );
+}
+
+#[test]
+fn test_cuda_parity_conv3d_backward() {
+    use coeus_ops::BackendOps;
+    let Some((s, c)) = backends() else {
+        return;
+    };
+    let (n, in_c, d, h, w, out_c, kd, kh, kw) = (2, 2, 4, 4, 4, 3, 2, 2, 2);
+    let od = d - kd + 1;
+    let oh = h - kh + 1;
+    let ow = w - kw + 1;
+
+    let input: Vec<f32> = (0..n * in_c * d * h * w)
+        .map(|x| x as f32 * 0.05 - 1.0)
+        .collect();
+    let weight: Vec<f32> = (0..out_c * in_c * kd * kh * kw)
+        .map(|x| x as f32 * 0.1 - 1.5)
+        .collect();
+    let grad_out: Vec<f32> = (0..n * out_c * od * oh * ow)
+        .map(|x| x as f32 * 0.03 - 0.4)
+        .collect();
+
+    let in_t = Tensor::from_slice(vec![n, in_c, d, h, w], &input);
+    let w_t = Tensor::from_slice(vec![out_c, in_c, kd, kh, kw], &weight);
+    let go_t = Tensor::from_slice(vec![n, out_c, od, oh, ow], &grad_out);
+
+    let mut gi_c = Tensor::<f32, SequentialBackend>::zeros(vec![n, in_c, d, h, w]);
+    let mut gw_c = Tensor::<f32, SequentialBackend>::zeros(vec![out_c, in_c, kd, kh, kw]);
+    let mut gb_c = Tensor::<f32, SequentialBackend>::zeros(vec![out_c]);
+    let gi_l = gi_c.layout().clone();
+    let gw_l = gw_c.layout().clone();
+    s.conv3d_backward(
+        go_t.storage(),
+        go_t.layout(),
+        in_t.storage(),
+        in_t.layout(),
+        w_t.storage(),
+        w_t.layout(),
+        Some(gi_c.storage_mut()),
+        &gi_l,
+        Some(gw_c.storage_mut()),
+        &gw_l,
+        Some(gb_c.storage_mut()),
+        1,
+        0,
+        1,
+    );
+
+    let in_g = to_gpu(&in_t, &s, &c);
+    let w_g = to_gpu(&w_t, &s, &c);
+    let go_g = to_gpu(&go_t, &s, &c);
+    let mut gi_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, in_c, d, h, w], &c);
+    let mut gw_g = Tensor::<f32, CudaBackend>::zeros_on(vec![out_c, in_c, kd, kh, kw], &c);
+    let mut gb_g = Tensor::<f32, CudaBackend>::zeros_on(vec![out_c], &c);
+    c.conv3d_backward(
+        go_g.storage(),
+        go_g.layout(),
+        in_g.storage(),
+        in_g.layout(),
+        w_g.storage(),
+        w_g.layout(),
+        Some(gi_g.storage_mut()),
+        &gi_l,
+        Some(gw_g.storage_mut()),
+        &gw_l,
+        Some(gb_g.storage_mut()),
+        1,
+        0,
+        1,
+    );
+
+    assert_parity_tol(
+        "conv3d_bwd_grad_input",
+        gi_c.as_slice(),
+        to_cpu(&gi_g, &c, &s).as_slice(),
+        CUDA_ACC_TOL,
+    );
+    assert_parity_tol(
+        "conv3d_bwd_grad_weight",
+        gw_c.as_slice(),
+        to_cpu(&gw_g, &c, &s).as_slice(),
+        CUDA_ACC_TOL,
+    );
+    assert_parity_tol(
+        "conv3d_bwd_grad_bias",
+        gb_c.as_slice(),
+        to_cpu(&gb_g, &c, &s).as_slice(),
+        CUDA_ACC_TOL,
+    );
+}
+
 // Pooling.
 
 #[test]

@@ -9,8 +9,8 @@ pub mod reduce;
 
 pub use fuse::dispatch_fused;
 pub use launch_conv::{
-    launch_conv1d, launch_conv1d_backward, launch_conv2d, launch_conv2d_backward,
-    launch_conv3d, launch_conv3d_backward,
+    launch_conv1d, launch_conv1d_backward, launch_conv2d, launch_conv2d_backward, launch_conv3d,
+    launch_conv3d_backward,
 };
 pub use launch_matmul::launch_matmul_tiled;
 pub use launch_ops::{
