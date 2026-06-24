@@ -477,6 +477,78 @@ fn relu_backward_matches_burn() {
     assert_close("relu_bwd dx", dx_c.as_slice(), &dx_b);
 }
 
+// ── Activation backward (sigmoid/tanh/silu/gelu) vs Burn autodiff ───────────────
+
+#[test]
+fn activation_backward_match_burn() {
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+    let data = vec![-1.5f32, -0.5, 0.25, 0.5, 1.5, 2.0];
+
+    let coeus_var = || {
+        Var::new(
+            CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data),
+            true,
+        )
+    };
+    let burn_var = || -> BurnTensor<AB, 2> {
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &device).require_grad()
+    };
+    let burn_grad = |xb: &BurnTensor<AB, 2>, grads| {
+        xb.grad(grads).unwrap().into_data().to_vec::<f32>().unwrap()
+    };
+
+    // sigmoid
+    let xv = coeus_var();
+    coeus_autograd::sum(&coeus_autograd::sigmoid(&xv)).backward();
+    let xb = burn_var();
+    let g = burn::tensor::activation::sigmoid(xb.clone())
+        .sum()
+        .backward();
+    assert_close(
+        "sigmoid_bwd",
+        xv.grad().unwrap().as_slice(),
+        &burn_grad(&xb, &g),
+    );
+
+    // tanh
+    let xv = coeus_var();
+    coeus_autograd::sum(&coeus_autograd::tanh(&xv)).backward();
+    let xb = burn_var();
+    let g = xb.clone().tanh().sum().backward();
+    assert_close(
+        "tanh_bwd",
+        xv.grad().unwrap().as_slice(),
+        &burn_grad(&xb, &g),
+    );
+
+    // silu
+    let xv = coeus_var();
+    coeus_autograd::sum(&coeus_autograd::silu(&xv)).backward();
+    let xb = burn_var();
+    let g = burn::tensor::activation::silu(xb.clone()).sum().backward();
+    assert_close(
+        "silu_bwd",
+        xv.grad().unwrap().as_slice(),
+        &burn_grad(&xb, &g),
+    );
+
+    // Burn 0.16 GELU forward is exact-erf, but its default GELU backward uses
+    // the tanh-approximation derivative. Compare that contract to Coeus'
+    // explicit tanh-approximation GELU rather than weakening the exact-GELU
+    // gradient bound.
+    let xv = coeus_var();
+    coeus_autograd::sum(&coeus_autograd::gelu_tanh(&xv)).backward();
+    let xb = burn_var();
+    let g = burn::tensor::activation::gelu(xb.clone()).sum().backward();
+    assert_close(
+        "gelu_tanh_bwd",
+        xv.grad().unwrap().as_slice(),
+        &burn_grad(&xb, &g),
+    );
+}
+
 // ── Sin/Cos backward ──────────────────────────────────────────────────────────
 
 #[test]
