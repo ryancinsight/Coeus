@@ -62,14 +62,19 @@ Python as a thin PyO3 wrapper over Rust core operations.
   tracked Rust-core slice/squeeze operations.
 - [x] [patch] Added `coeus-leto::CsrDispatch` sparse SpMV/SpMM dispatch coverage
   against direct `leto_ops` sparse kernels.
-- [x] [patch] Routed contiguous CPU `conv1d` row execution through Melinoe
-  branded row partitioning, preserving the existing value-semantic conv parity
-  tests as the current evidence tier.
+- [x] [patch] Routed contiguous CPU `conv1d`, `conv2d`, and `conv3d` row
+  execution through one shared Melinoe branded row-partition SSOT
+  (`brand_mut_slice` in `conv/mod.rs`), preserving the existing
+  value-semantic conv parity tests as the current evidence tier.
 - [x] [minor] Extended WGPU conv3d forward/backward differential parity beyond
   the baseline case: stride+padding and dilation cases now compare WGPU results
   against `SequentialBackend` values for output, input gradient, weight
   gradient, and bias gradient. Evidence: `cargo nextest run -p coeus-wgpu
   --test wgpu_tests conv3d` passes with 4 tests.
+- [x] [patch] Consolidated the `coeus-python` embedded-Python test lock into
+  `tests/common/mod.rs` and routed binding ops/distributed tests through that
+  test-only SSOT. Evidence: `cargo nextest run -p coeus-python --test
+  binding_tests_dist --test binding_tests_ops` passes with 26 tests.
 - [x] [patch] Verification: `cargo fmt --check`, `cargo check --workspace`,
   `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo nextest run --workspace` (420 passed), and

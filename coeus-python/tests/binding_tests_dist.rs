@@ -2,7 +2,12 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::ffi::CString;
 
+mod common;
+
 fn run_pycoeus_script(script: &str) {
+    let _guard = common::python_test_lock()
+        .lock()
+        .expect("python test lock poisoned");
     pyo3::prepare_freethreaded_python();
     Python::with_gil(|py| {
         let script = CString::new(script).unwrap();

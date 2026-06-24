@@ -85,6 +85,11 @@
   now compare WGPU buffers against `SequentialBackend` outputs and gradients.
   Evidence: `cargo nextest run -p coeus-wgpu --test wgpu_tests conv3d` passes
   with 4 value-semantic tests.
+- [x] [patch] Consolidated the `coeus-python` embedded-Python test lock into
+  `tests/common/mod.rs` and routed binding ops/distributed tests through it so
+  module registration is serialized without duplicated lock definitions.
+  Evidence: `cargo nextest run -p coeus-python --test binding_tests_dist
+  --test binding_tests_ops` passes with 26 value-semantic binding tests.
 - [x] [patch] Verification on 2026-06-24: `cargo fmt --check`,
   `cargo check --workspace`, `cargo clippy --workspace --all-targets
   -- -D warnings`, `cargo nextest run --workspace` (420 passed), and

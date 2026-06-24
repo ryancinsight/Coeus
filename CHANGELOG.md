@@ -20,6 +20,8 @@
 - **WGPU conv3d differential coverage**: forward and backward tests now compare
   WGPU against `SequentialBackend` for baseline, stride+padding, and dilation
   3-D convolution cases.
+- **coeus-python test harness**: shared test-only embedded-Python lock now
+  serializes module registration for binding operation and distributed tests.
 - **8 new `binding_tests_ops.rs` test functions** covering all previously
   untested ops: `topk/sort`, `comparisons (eq/lt/gt)/where_fn`, `softmax/
   cumsum/flip`, `randn/zeros_like/ones_like/eye`, `gather/scatter_add`,
