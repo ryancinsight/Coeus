@@ -7,6 +7,7 @@ pub mod reshape;
 pub mod slice;
 pub mod split;
 pub mod squeeze;
+pub mod stack;
 
 pub use cat::cat;
 pub use contiguous::contiguous;
@@ -17,3 +18,4 @@ pub use reshape::reshape;
 pub use slice::slice;
 pub use split::split;
 pub use squeeze::{squeeze, unsqueeze};
+pub use stack::stack;

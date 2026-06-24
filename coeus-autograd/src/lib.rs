@@ -90,6 +90,7 @@ pub use ops::{
     split,
     sqrt,
     squeeze,
+    stack,
     sub,
     sum,
     sum_axis,

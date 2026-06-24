@@ -4,6 +4,14 @@
 
 ### Added
 
+- Added WGPU attention forward/backward differential parity tests against the
+  CPU public attention path.
+- Added WGPU backend parity tests for elementwise ops, reductions, matmul,
+  conv/pool, AdamW, and CPU/GPU round-trip transfer.
+- Added a dev-only Burn NdArray live parity target for `coeus-nn` softmax and
+  cross-entropy loss.
+- Added Burn NdArray comparison rows to the `coeus-tensor` Criterion benchmark
+  harness for add, matmul, ReLU, and sum.
 - Added public `coeus_ops::stack` backed by `coeus-leto` dynamic-rank stack
   dispatch, with `SequentialBackend` and `MoiraiBackend` value-semantic
   coverage for strided input views.
@@ -62,6 +70,8 @@
 
 ### Fixed
 
+- Fixed the Python binding functional-op test harness for PyO3 0.23's `CStr`
+  script API and passed owned shapes into `Tensor::full_on`.
 - Fixed zero-length `CpuStorage` so empty tensors expose valid non-null aligned
   Rust slices.
 - Fixed rustdoc shape/type annotations that were parsed as intra-doc links or

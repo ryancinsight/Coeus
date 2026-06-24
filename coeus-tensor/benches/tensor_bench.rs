@@ -4,6 +4,11 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use leto::Array;
 use rayon::prelude::*;
 
+// ── Burn NdArray (dev/bench only) ─────────────────────────────────────────
+use burn::backend::ndarray::{NdArray, NdArrayDevice};
+use burn::tensor::{Tensor as BurnTensor, TensorData};
+type BurnB = NdArray<f32>;
+
 fn bench_elementwise_add(c: &mut Criterion) {
     let size = 1024;
     let shape = vec![size, size];
@@ -142,5 +147,176 @@ fn bench_matmul(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_elementwise_add, bench_matmul);
+// ── Burn NdArray comparison benchmarks ────────────────────────────────────
+
+fn bench_burn_elementwise_add(c: &mut Criterion) {
+    let size = 1024;
+    let device = NdArrayDevice::default();
+    let data: Vec<f32> = vec![1.0f32; size * size];
+
+    let a_burn: BurnTensor<BurnB, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [size, size]), &device);
+    let b_burn: BurnTensor<BurnB, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [size, size]), &device);
+
+    let mut group = c.benchmark_group("Burn vs Coeus — Elementwise Add (1024x1024)");
+
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(a_burn.clone() + b_burn.clone()))
+    });
+
+    let seq_backend = SequentialBackend::new();
+    let moirai_backend = MoiraiBackend::new();
+    let a_seq = Tensor::<f32, SequentialBackend>::ones(vec![size, size]);
+    let b_seq = Tensor::<f32, SequentialBackend>::ones(vec![size, size]);
+    let a_moirai = Tensor::<f32, MoiraiBackend>::ones(vec![size, size]);
+    let b_moirai = Tensor::<f32, MoiraiBackend>::ones(vec![size, size]);
+
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            black_box(coeus_ops::add(
+                black_box(&a_seq),
+                black_box(&b_seq),
+                black_box(&seq_backend),
+            ))
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(coeus_ops::add(
+                black_box(&a_moirai),
+                black_box(&b_moirai),
+                black_box(&moirai_backend),
+            ))
+        })
+    });
+
+    group.finish();
+}
+
+fn bench_burn_matmul(c: &mut Criterion) {
+    let (m, k, n) = (256, 256, 256);
+    let device = NdArrayDevice::default();
+    let a_data: Vec<f32> = (0..m * k).map(|x| x as f32 * 0.001).collect();
+    let b_data: Vec<f32> = (0..k * n).map(|x| x as f32 * 0.001).collect();
+
+    let a_burn: BurnTensor<BurnB, 2> =
+        BurnTensor::from_data(TensorData::new(a_data.clone(), [m, k]), &device);
+    let b_burn: BurnTensor<BurnB, 2> =
+        BurnTensor::from_data(TensorData::new(b_data.clone(), [k, n]), &device);
+
+    let seq_backend = SequentialBackend::new();
+    let moirai_backend = MoiraiBackend::new();
+    let a_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![m, k], &a_data);
+    let b_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![k, n], &b_data);
+    let a_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![m, k], &a_data);
+    let b_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![k, n], &b_data);
+
+    let mut group = c.benchmark_group("Burn vs Coeus — Matmul (256x256)");
+
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(a_burn.clone().matmul(b_burn.clone())))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            black_box(coeus_ops::matmul(
+                black_box(&a_seq),
+                black_box(&b_seq),
+                black_box(&seq_backend),
+            ))
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(coeus_ops::matmul(
+                black_box(&a_moirai),
+                black_box(&b_moirai),
+                black_box(&moirai_backend),
+            ))
+        })
+    });
+
+    group.finish();
+}
+
+fn bench_burn_relu(c: &mut Criterion) {
+    let size = 1024;
+    let device = NdArrayDevice::default();
+    let data: Vec<f32> = (0..size * size).map(|x| x as f32 * 0.01 - 5.0).collect();
+
+    let x_burn: BurnTensor<BurnB, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [size, size]), &device);
+    let seq_backend = SequentialBackend::new();
+    let moirai_backend = MoiraiBackend::new();
+    let x_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![size, size], &data);
+    let x_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![size, size], &data);
+
+    let mut group = c.benchmark_group("Burn vs Coeus — ReLU (1024x1024)");
+
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn::tensor::activation::relu(x_burn.clone())))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(coeus_ops::relu(black_box(&x_seq), black_box(&seq_backend))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(coeus_ops::relu(
+                black_box(&x_moirai),
+                black_box(&moirai_backend),
+            ))
+        })
+    });
+
+    group.finish();
+}
+
+fn bench_burn_sum(c: &mut Criterion) {
+    let size = 1024;
+    let device = NdArrayDevice::default();
+    let data: Vec<f32> = vec![1.0f32; size * size];
+
+    let x_burn: BurnTensor<BurnB, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [size, size]), &device);
+    let seq_backend = SequentialBackend::new();
+    let moirai_backend = MoiraiBackend::new();
+    let x_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![size, size], &data);
+    let x_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![size, size], &data);
+
+    let mut group = c.benchmark_group("Burn vs Coeus — Sum axis=1 (1024x1024)");
+
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(x_burn.clone().sum_dim(1)))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            black_box(coeus_ops::sum_axis(
+                black_box(&x_seq),
+                1,
+                black_box(&seq_backend),
+            ))
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(coeus_ops::sum_axis(
+                black_box(&x_moirai),
+                1,
+                black_box(&moirai_backend),
+            ))
+        })
+    });
+
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_elementwise_add,
+    bench_matmul,
+    bench_burn_elementwise_add,
+    bench_burn_matmul,
+    bench_burn_relu,
+    bench_burn_sum,
+);
 criterion_main!(benches);

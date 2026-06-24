@@ -29,5 +29,6 @@ pub use nn::{
 
 pub use embedding::embedding;
 pub use shape::{
-    cat, contiguous, cumsum, pad, permute, reshape, slice, split, squeeze, transpose, unsqueeze,
+    cat, contiguous, cumsum, pad, permute, reshape, slice, split, squeeze, stack, transpose,
+    unsqueeze,
 };

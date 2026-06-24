@@ -1,5 +1,59 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-61: Burn parity, GPU audit, Python surface expansion [arch]
+
+### Objectives
+1. **Complete live Burn parity** — add `burn 0.16` as dev-dep, replace hardcoded
+   oracle values with dynamic Burn NdArray comparisons across all op families.
+2. **Burn benchmarks** — extend `coeus-tensor/benches/tensor_bench.rs` with direct
+   Burn NdArray vs Coeus Sequential/Moirai side-by-side criterion runs.
+3. **WgpuBackend op parity audit** — comprehensive differential tests in
+   `coeus-wgpu/tests/wgpu/parity.rs` comparing WgpuBackend to SequentialBackend
+   (the verified CPU reference) for all op families.
+4. **`stack` autograd op** — added `coeus_autograd::stack` with proper backward
+   (split + squeeze) and registered in `coeus-autograd/src/ops/shape/`.
+5. **coeus-python op surface expansion** — exposed `stack`, `matmul`, `abs`, `sqrt`,
+   `neg`, `clamp`, `max_axis`, `min_axis`, `log_sum_exp`, `sum`, `mean`, `zeros`,
+   `ones`, `full`, `arange`, `linspace`, `reshape`, `permute`, `t`, `pow` as free
+   functions matching the `torch.*` / `jnp.*` functional API style.  Binding tests
+   in `coeus-python/tests/binding_tests_ops.rs`.
+
+### Completed items
+- [x] [patch] Added `burn = { version = "0.16", features = ["ndarray"] }` to
+  `[dev-dependencies]` of `coeus-nn` and `coeus-tensor` (production policy
+  preserved; dependency_policy test unaffected).
+- [x] [minor] Extended `coeus-nn/tests/burn_live_parity.rs` from 2 tests to a 25+
+  test live-comparison suite covering: add/sub/mul/div, relu, sigmoid, tanh, gelu,
+  silu, exp/log/sqrt/neg/abs, matmul 2D/large/batched, sum_axis, mean_axis,
+  max_axis, min_axis, linear forward/backward, layernorm forward, clamp,
+  transpose/reshape, stack, cat, sigmoid backward, matmul backward, mse_loss.
+- [x] [minor] Added four Burn vs Coeus comparison benchmark groups to
+  `coeus-tensor/benches/tensor_bench.rs`: elementwise add, matmul (256×256),
+  ReLU, and sum_dim — each running Burn NdArray, Coeus Sequential, and Coeus
+  Moirai under Criterion.
+- [x] [minor] Created `coeus-wgpu/tests/wgpu/parity.rs` with comprehensive
+  WgpuBackend vs SequentialBackend differential tests: all binary ops, 14+
+  unary activations via macro, reductions (sum/mean/max/min axis), matmul 2D
+  and batched, conv1d/conv2d forward, max_pool2d/avg_pool2d, adamw optimizer
+  step, and CPU↔GPU round-trip identity.
+- [x] [patch] Added `coeus_autograd::stack` in
+  `coeus-autograd/src/ops/shape/stack.rs`: forward via `coeus_ops::stack`,
+  backward via split + squeeze, registered in shape module and `lib.rs`.
+- [x] [minor] Expanded `coeus-python/src/ops.rs` with 20 new free functions
+  matching `torch.*` / `jnp.*` / `mx.*` style; added
+  `coeus-python/tests/binding_tests_ops.rs` with 9 binding test functions
+  covering all new ops including backward.
+- [x] [patch] `cargo check --workspace`, `cargo clippy --workspace --all-targets
+  -- -D warnings` both pass with 0 errors, 0 warnings after all changes.
+
+### Open items for this sprint
+- [ ] [minor] GPU op parity: conv3d forward/backward differential (wgpu vs CPU).
+- [ ] [minor] Device memory via mnemosyne device pools (Stage D1) — mnemosyne
+  pinned-host staging and melinoe device-buffer ownership tokens.
+- [ ] [arch] Downstream integrator (CFDrs) swap burn→coeus (Stage E).
+
+---
+
 ## Sprint MS-60+: Atlas burn-replacement & GPU roadmap [arch]
 
 Coeus is the burn replacement. CPU arrays come from leto (via coeus-leto), parallelism
@@ -167,6 +221,14 @@ with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* heph
 - [ ] [minor] GPU op parity audit on the hephaestus backends (elementwise, matmul,
   reductions, conv/pool, attention, fused optimizer steps) with differential checks vs
   the CPU (leto) reference.
+  - [x] [patch] Added WGPU scaled-dot-product attention forward/backward
+    differential coverage against the public CPU attention path, including causal
+    masking and Q/K/V gradients. Evidence: `cargo nextest run -p coeus-wgpu
+    --test wgpu_tests attention` passes.
+  - [x] [patch] Reconciled the WGPU parity test module with the current
+    `BackendOps` pooling, convolution, and AdamW signatures. Evidence:
+    `cargo nextest run -p coeus-wgpu --test wgpu_tests parity` passes with 33
+    tests.
 - [ ] [minor] Device memory via mnemosyne device pools / pinned-host staging (mnemosyne
   Stage D1) and melinoe device-buffer ownership-transfer tokens, instead of ad-hoc
   `wgpu::Buffer`/`CUdeviceptr` allocation.
@@ -194,6 +256,13 @@ with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* heph
 ### Stage E — burn elimination end-to-end
 - [x] [minor] Per-op differential parity of nn/autograd/optim vs a burn reference
   (dev-only) for target models; remove any residual burn references.
+  - [x] [patch] Completed the dev-only Burn live parity target for `coeus-nn`
+    softmax and cross-entropy loss. Evidence: `cargo nextest run -p coeus-nn
+    --test burn_live_parity` passes.
+  - [x] [patch] Added Burn NdArray comparison rows to the `coeus-tensor`
+    Criterion benchmark harness for add, matmul, ReLU, and sum. Evidence:
+    `cargo clippy --workspace --all-targets -- -D warnings` passes after
+    switching the ReLU benchmark to Burn's public activation API.
 - [ ] [arch] Downstream integrator (CFDrs) swaps burn→coeus once parity holds.
 
 ## Sprint MS-59: leto as the CPU array-kernel substrate [arch]

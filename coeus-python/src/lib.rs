@@ -86,11 +86,31 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::log, m)?)?;
     m.add_function(wrap_pyfunction!(ops::log_softmax, m)?)?;
     m.add_function(wrap_pyfunction!(ops::cat, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::stack, m)?)?;
     m.add_function(wrap_pyfunction!(ops::split, m)?)?;
     m.add_function(wrap_pyfunction!(ops::sum_axis, m)?)?;
     m.add_function(wrap_pyfunction!(ops::mean_axis, m)?)?;
     m.add_function(wrap_pyfunction!(ops::pad, m)?)?;
     m.add_function(wrap_pyfunction!(ops::cumsum, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::matmul, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::abs, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::sqrt, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::neg, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::clamp, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::max_axis, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::min_axis, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::log_sum_exp, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::sum, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::mean, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::zeros, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::ones, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::full, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::arange, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::linspace, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::reshape, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::permute, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::t, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::pow, m)?)?;
 
     Ok(())
 }

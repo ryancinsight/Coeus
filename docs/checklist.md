@@ -1,9 +1,44 @@
 # Global Progress Checklist: Coeus
 
-## Active Epic: Heterogeneous GPU Backends (wgpu & cuda-oxide)
+## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: Sprint MS-55 (Heterogeneous GPU Backends) [PLANNED]
-**Objective**: Overhaul the backend trait with associated types, implement `coeus-wgpu` and `coeus-cuda` workspace crates, and resolve remaining CPU operation compilation blockers.
+### Current Sprint: Sprint MS-61 (Burn Parity / GPU Parity / Python) [IN PROGRESS]
+**Objective**: Complete live Burn parity, wgpu differential audit, expand coeus-python
+functional op surface to match torch.*/jnp.*/mx.* style.
+**Target version**: 0.2.1.
+
+> **Roadmap (docs/backlog.md MS-61)**: live Burn comparison replaces hardcoded oracle
+> values; wgpu parity.rs verifies every shader kernel against the CPU reference;
+> coeus-python gains 20+ new functional ops (stack, matmul, constructors, abs/sqrt/neg,
+> clamp, max/min_axis, sum/mean, reshape, permute, t, pow, arange, linspace, etc.).
+
+### Current Verification Note (2026-06-24)
+
+- [x] [minor] Added `burn 0.16` as dev-dep to `coeus-nn` and `coeus-tensor`; production
+  dependency policy test unaffected (burn forbidden in `[dependencies]`, allowed in
+  `[dev-dependencies]`).
+- [x] [minor] Extended `coeus-nn/tests/burn_live_parity.rs` from 2 to 25+ live tests
+  covering all major op families with Burn NdArray as oracle.  Tests use
+  `burn::backend::Autodiff<NdArray<f32>>` for backward parity checks.
+- [x] [minor] Added four Burn benchmark groups to `tensor_bench.rs`: elementwise add,
+  matmul (256×256), ReLU (1024×1024), and sum_dim (1024×1024).  Each group shows Burn
+  NdArray, Coeus Sequential, and Coeus Moirai side-by-side under Criterion.
+- [x] [minor] Created `coeus-wgpu/tests/wgpu/parity.rs` with 20+ differential tests:
+  binary ops, 14 unary activations (macro), reductions, matmul 2D + batched,
+  conv1d/conv2d forward, max_pool2d/avg_pool2d, adamw step, round-trip identity.
+- [x] [patch] Added `coeus_autograd::stack` (`shape/stack.rs`) with correct backward
+  via split+squeeze; exported from `coeus-autograd/src/lib.rs`.
+- [x] [minor] Expanded `coeus-python/src/ops.rs` with 20 new free functions and added
+  `coeus-python/tests/binding_tests_ops.rs` with 9 test functions including backward.
+- [x] [patch] `cargo check --workspace` passes: 0 errors.
+- [x] [patch] `cargo clippy --workspace --all-targets -- -D warnings` passes: 0
+  errors, 0 warnings.
+
+---
+
+## Previous Sprint: Sprint MS-60+ (Atlas burn-replacement & GPU roadmap) [COMPLETE]
+**Objective**: Route CPU `BackendOps` through `coeus-leto`; Hermes SIMD integration;
+GPU backends over Hephaestus; dependency policy hardening.
 **Target version**: 0.2.0.
 
 > **Roadmap (docs/backlog.md MS-60+)**: the Atlas burn-replacement program now stages
@@ -13,7 +48,7 @@
 > wgpu op parity, consume mnemosyne device pools / melinoe device-buffer ownership.
 > burn is eliminated end-to-end in Stage E.
 
-### Current Verification Note (2026-06-12)
+### Verification Note (2026-06-12)
 
 - [x] [patch] Added committed nextest timeout config at `.config/nextest.toml`.
 - [x] [patch] Synced README verification commands to `cargo nextest run`,
@@ -225,6 +260,26 @@
   tests, and added missing Rust TCP reduce/gather/scatter coverage. Evidence:
   `cargo nextest run -p coeus-python --test binding_tests_dist` passes in
   0.620s; `cargo nextest run -p coeus-dist` passes with 16 tests.
+- [x] [patch] Added WGPU scaled-dot-product attention forward/backward
+  differential coverage against the public CPU attention path, including causal
+  masking and Q/K/V gradients. Evidence: `cargo nextest run -p coeus-wgpu
+  --test wgpu_tests attention` passes.
+- [x] [patch] Reconciled the WGPU parity test module with the current
+  `BackendOps` pooling, convolution, and AdamW signatures. Evidence:
+  `cargo nextest run -p coeus-wgpu --test wgpu_tests parity` passes with 33
+  tests.
+- [x] [patch] Completed the dev-only Burn live parity target for `coeus-nn`
+  softmax and cross-entropy loss. Burn remains outside production dependency
+  sections and is used only as a reference oracle. Evidence: `cargo nextest run
+  -p coeus-nn --test burn_live_parity` passes.
+- [x] [patch] Added Burn NdArray comparison rows to the `coeus-tensor`
+  Criterion benchmark harness for add, matmul, ReLU, and sum. Evidence:
+  `cargo clippy --workspace --all-targets -- -D warnings` passes after switching
+  the ReLU benchmark to Burn's public activation API.
+- [x] [patch] Fixed the Python binding functional-op test harness for PyO3
+  0.23's `CStr` script API and passed owned shapes into `Tensor::full_on`.
+  Evidence: `cargo clippy --workspace --all-targets -- -D warnings` and
+  `cargo nextest run --workspace` pass.
 - [x] [patch] Added `[profile.bench]` thin LTO with one codegen unit so
   cross-crate generic kernels are benchmarked after production-grade
   monomorphization. Evidence tier: empirical Criterion measurement.
