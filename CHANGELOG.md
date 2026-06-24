@@ -25,6 +25,9 @@
   unary activation-gradient, reduction, matmul, convolution and pooling forward
   and backward, AdamW, and host/device round-trip behavior under the live `cuda`
   feature.
+- **WGPU Hephaestus transfer routing**: `WgpuBackend` host/device copies now use
+  the Hephaestus `ComputeDevice` upload/download surface instead of local queue
+  writes and ad hoc staging-buffer readback.
 - **Burn activation parity**: `coeus-nn/tests/burn_live_parity.rs` now compares
   Mish, Softplus, and LeakyReLU against live Burn NdArray references.
 - **Burn log-softmax parity**: `coeus-nn/tests/burn_live_parity.rs` now compares

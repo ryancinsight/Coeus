@@ -164,6 +164,13 @@ GPU backends over Hephaestus; dependency policy hardening.
 > wgpu op parity, consume mnemosyne device pools / melinoe device-buffer ownership.
 > burn is eliminated end-to-end in Stage E.
 
+- [x] [patch] Routed `WgpuBackend` host/device copies through the Hephaestus
+  `ComputeDevice` upload/download surface, replacing the Coeus-local queue write
+  and staging-buffer readback path. This advances Stage D1 without claiming full
+  Mnemosyne/Melinoe device ownership-token completion. Evidence tier: empirical
+  differential validation. Evidence: `cargo nextest run -p coeus-wgpu --test
+  wgpu_tests` passes with 50 tests.
+
 ### Verification Note (2026-06-12)
 
 - [x] [patch] Added committed nextest timeout config at `.config/nextest.toml`.
@@ -387,6 +394,9 @@ GPU backends over Hephaestus; dependency policy hardening.
   `BackendOps` pooling, convolution, and AdamW signatures. Evidence:
   `cargo nextest run -p coeus-wgpu --test wgpu_tests parity` passes with 33
   tests.
+- [x] [patch] Routed WGPU transfer operations through Hephaestus
+  `ComputeDevice` upload/download APIs. Evidence: `cargo nextest run -p
+  coeus-wgpu --test wgpu_tests` passes with 50 tests.
 - [x] [patch] Completed the dev-only Burn live parity target for `coeus-nn`
   softmax and cross-entropy loss. Burn remains outside production dependency
   sections and is used only as a reference oracle. Evidence: `cargo nextest run

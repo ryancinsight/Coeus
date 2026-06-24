@@ -138,6 +138,10 @@
 ### Open items for this sprint
 - [ ] [minor] Device memory via mnemosyne device pools (Stage D1) — mnemosyne
   pinned-host staging and melinoe device-buffer ownership tokens.
+  - [x] [patch] Routed `WgpuBackend` host/device copies through the Hephaestus
+    `ComputeDevice` upload/download SSOT, deleting the local queue write and
+    ad hoc staging-buffer readback path from Coeus. Evidence tier: empirical
+    differential validation plus compile-time API validation.
 - [ ] [arch] Downstream integrator (CFDrs) swap burn→coeus (Stage E).
 
 ---
@@ -320,6 +324,10 @@ with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* heph
 - [ ] [minor] Device memory via mnemosyne device pools / pinned-host staging (mnemosyne
   Stage D1) and melinoe device-buffer ownership-transfer tokens, instead of ad-hoc
   `wgpu::Buffer`/`CUdeviceptr` allocation.
+  - [x] [patch] Routed WGPU copy-to-device/copy-to-host through
+    `hephaestus_wgpu::ComputeDevice::{write_buffer, download}`, removing the
+    Coeus-local staging-buffer readback path. Evidence: `cargo nextest run -p
+    coeus-wgpu --test wgpu_tests` passes with 50 tests.
 
 ### Stage B2 — parallelism SSOT
 - [x] [patch] Audit that no production `rayon`/`tokio` enters coeus. Added
