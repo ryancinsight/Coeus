@@ -66,6 +66,11 @@
   exact-erf GELU forward uses tanh-approximation GELU backward, so Coeus'
   explicit `gelu_tanh` backward is the correct comparison path for that branch.
   Evidence tier: empirical differential validation.
+- [x] [patch] Extended live Burn backward parity for probability losses and
+  normalization layers: BCE, MSE, Huber, LayerNorm, and RMSNorm now compare
+  Coeus autograd gradients against Burn NdArray autodiff. Huber is constrained
+  to `delta = 1`, where the current Coeus SmoothL1-style equation and Burn
+  Huber equation coincide. Evidence tier: empirical differential validation.
 - [x] [patch] Replaced backward-node gradient storage with the `GradBuffer`
   UnsafeCell SSOT and removed the Mutex-compatible shim so optimizers,
   distributed gradient synchronization, and tests use the same direct
