@@ -150,6 +150,12 @@ Python as a thin PyO3 wrapper over Rust core operations.
   Evidence: `cargo nextest run -p coeus-core --test dependency_policy` passes
   and `rg -n "rustfft|apollo" -g "Cargo.toml" -g "*.rs" -g "*.md"` shows no
   production Coeus `rustfft` use.
+- [x] [patch] Extended dependency policy to audit the resolved production normal
+  dependency tree with `cargo tree --workspace --edges normal`, blocking
+  transitive `rayon`, `tokio`, `ndarray`, `nalgebra`, `rustfft`, `burn`, `tch`,
+  and `pollster` regressions while preserving dev-only Burn benchmark/parity
+  edges. Evidence tier: compile-time dependency audit. Evidence:
+  `cargo nextest run -p coeus-core --test dependency_policy` passes with 3 tests.
 - [x] [patch] Added a root-scoped `/prog` ignore entry for transient checkpoint
   transcript artifacts so generated session state is not staged as project
   source. Evidence tier: repository hygiene.

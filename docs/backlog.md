@@ -143,6 +143,13 @@
   Evidence tier: compile-time dependency audit plus benchmark build. Evidence:
   `cargo check -p coeus-tensor --benches` and
   `cargo nextest run -p coeus-core --test dependency_policy` pass.
+- [x] [patch] Extended the dependency policy gate from direct source/manifest
+  scans to the resolved production normal dependency tree, using `cargo tree
+  --workspace --edges normal` to reject transitive `rayon`, `tokio`, `ndarray`,
+  `nalgebra`, `rustfft`, `burn`, `tch`, and `pollster` regressions. Dev-only
+  Burn benchmark/parity edges remain allowed. Evidence tier: compile-time
+  dependency audit. Evidence: `cargo nextest run -p coeus-core --test
+  dependency_policy` passes with 3 tests.
 - [x] [patch] Verification on 2026-06-24: `cargo fmt --check`,
   `cargo check --workspace`, `cargo clippy --workspace --all-targets
   -- -D warnings`, `cargo nextest run --workspace` (420 passed), and

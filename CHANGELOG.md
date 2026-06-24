@@ -53,6 +53,12 @@
   `coeus-wgpu/src/storage.rs` verify device-tier allocation, host-pinned
   staging tier selection, and device-tier upload/download round-trip value
   preservation.
+- **Resolved dependency policy audit** — `coeus-core/tests/dependency_policy.rs`
+  now checks `cargo tree --workspace --edges normal` for the replacement/runtime
+  crates Coeus must not resolve through production normal dependencies
+  (`rayon`, `tokio`, `ndarray`, `nalgebra`, `rustfft`, `burn`, `tch`,
+  `pollster`). Dev-only Burn benchmark/parity edges remain allowed. Evidence:
+  `cargo nextest run -p coeus-core --test dependency_policy` passes with 3 tests.
 
 ### Changed
 
