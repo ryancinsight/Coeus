@@ -311,27 +311,21 @@ fn bench_burn_conv2d(c: &mut Criterion) {
     const H_OUT: usize = H - KH + 1;
 
     let device = NdArrayDevice::default();
-    let x_data: Vec<f32> = (0..BATCH * C_IN * H * W)
-        .map(|i| i as f32 * 0.01)
-        .collect();
+    let x_data: Vec<f32> = (0..BATCH * C_IN * H * W).map(|i| i as f32 * 0.01).collect();
     let w_data: Vec<f32> = (0..C_OUT * C_IN * KH * KH)
         .map(|i| i as f32 * 0.001)
         .collect();
 
     let seq_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
-    let x_seq =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, C_IN, H, W], &x_data);
-    let w_seq = Tensor::<f32, SequentialBackend>::from_slice(
-        vec![C_OUT, C_IN, KH, KH],
-        &w_data,
+    let x_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, C_IN, H, W], &x_data);
+    let w_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![C_OUT, C_IN, KH, KH], &w_data);
+    let x_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, C_IN, H, W], &x_data);
+    let w_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![C_OUT, C_IN, KH, KH], &w_data);
+    let x_b: BT<BurnB, 4> = BT::from_data(
+        TensorData::new(x_data.clone(), [BATCH, C_IN, H, W]),
+        &device,
     );
-    let x_moirai =
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, C_IN, H, W], &x_data);
-    let w_moirai =
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![C_OUT, C_IN, KH, KH], &w_data);
-    let x_b: BT<BurnB, 4> =
-        BT::from_data(TensorData::new(x_data.clone(), [BATCH, C_IN, H, W]), &device);
     let w_b: BT<BurnB, 4> = BT::from_data(
         TensorData::new(w_data.clone(), [C_OUT, C_IN, KH, KH]),
         &device,
@@ -350,8 +344,7 @@ fn bench_burn_conv2d(c: &mut Criterion) {
         })
     });
     group.bench_function("Coeus Sequential", |ben| {
-        let mut out =
-            Tensor::<f32, SequentialBackend>::zeros(vec![BATCH, C_OUT, H_OUT, H_OUT]);
+        let mut out = Tensor::<f32, SequentialBackend>::zeros(vec![BATCH, C_OUT, H_OUT, H_OUT]);
         ben.iter(|| {
             let out_l = out.layout().clone();
             seq_backend.conv2d(
@@ -418,10 +411,8 @@ fn bench_burn_layernorm(c: &mut Criterion) {
     let ln_seq = LayerNorm::<f32, SequentialBackend>::new(FEAT, 1e-5);
     let ln_moirai = LayerNorm::<f32, MoiraiBackend>::new(FEAT, 1e-5);
     let ln_burn: BurnLN<BurnB> = LayerNormConfig::new(FEAT).init(&device);
-    let xb: BT<BurnB, 3> = BT::from_data(
-        TensorData::new(data.clone(), [BATCH, SEQ, FEAT]),
-        &device,
-    );
+    let xb: BT<BurnB, 3> =
+        BT::from_data(TensorData::new(data.clone(), [BATCH, SEQ, FEAT]), &device);
 
     let mut group = c.benchmark_group("Burn vs Coeus — LayerNorm (4×64×128)");
     group.bench_function("Burn NdArray", |b| {

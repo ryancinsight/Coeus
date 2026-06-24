@@ -416,7 +416,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        self.fallback_conv3d(
+        self.cuda_conv3d(
             input,
             input_layout,
             weight,
@@ -447,7 +447,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         padding: usize,
         dilation: usize,
     ) {
-        self.fallback_conv3d_backward(
+        self.cuda_conv3d_backward(
             grad_out,
             grad_out_layout,
             input,

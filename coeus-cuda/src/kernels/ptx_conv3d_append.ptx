@@ -1,0 +1,763 @@
+
+// conv3d_f32: each thread computes one output element [N,C_out,D_out,H_out,W_out]
+.visible .entry conv3d_f32(
+    .param .u64 input,
+    .param .u64 weight,
+    .param .u64 bias,
+    .param .u64 output,
+    .param .u64 in_layout,
+    .param .u64 w_layout,
+    .param .u64 out_layout,
+    .param .u32 stride,
+    .param .u32 padding,
+    .param .u32 dilation,
+    .param .u32 out_numel
+) {
+    .reg .pred %p1;
+    .reg .s32 %idx, %r2, %r3, %t_x;
+    mov.u32 %r2, %ctaid.x;
+    mov.u32 %r3, %ntid.x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
+
+    .reg .u32 %out_n;
+    ld.param.u32 %out_n, [out_numel];
+    setp.ge.u32 %p1, %idx, %out_n;
+    @%p1 bra L3_exit;
+
+    .reg .u64 %rd_in, %rd_w, %rd_b, %rd_out, %rd_il, %rd_wl, %rd_ol;
+    ld.param.u64 %rd_in, [input];
+    ld.param.u64 %rd_w, [weight];
+    ld.param.u64 %rd_b, [bias];
+    ld.param.u64 %rd_out, [output];
+    ld.param.u64 %rd_il, [in_layout];
+    ld.param.u64 %rd_wl, [w_layout];
+    ld.param.u64 %rd_ol, [out_layout];
+
+    .reg .u32 %d_out, %h_out, %w_out, %c_out;
+    .reg .u32 %c_in3, %d_in, %h_in3, %w_in3;
+    .reg .u32 %kd, %kh3, %kw3;
+    ld.global.u32 %d_out, [%rd_ol+16];
+    ld.global.u32 %h_out, [%rd_ol+20];
+    ld.global.u32 %w_out, [%rd_ol+24];
+    ld.global.u32 %c_out, [%rd_wl+8];
+    ld.global.u32 %c_in3, [%rd_il+12];
+    ld.global.u32 %d_in, [%rd_il+16];
+    ld.global.u32 %h_in3, [%rd_il+20];
+    ld.global.u32 %w_in3, [%rd_il+24];
+    ld.global.u32 %kd, [%rd_wl+16];
+    ld.global.u32 %kh3, [%rd_wl+20];
+    ld.global.u32 %kw3, [%rd_wl+24];
+
+    .reg .u32 %ow3, %oh3, %od3, %oc3, %ni3, %tmp1, %tmp2, %tmp3;
+    div.u32 %tmp1, %idx, %w_out;
+    rem.u32 %ow3, %idx, %w_out;
+    div.u32 %tmp2, %tmp1, %h_out;
+    rem.u32 %oh3, %tmp1, %h_out;
+    div.u32 %tmp3, %tmp2, %d_out;
+    rem.u32 %od3, %tmp2, %d_out;
+    div.u32 %ni3, %tmp3, %c_out;
+    rem.u32 %oc3, %tmp3, %c_out;
+
+    .reg .s32 %stride_s3, %pad_s3, %dil_s3;
+    ld.param.s32 %stride_s3, [stride];
+    ld.param.s32 %pad_s3, [padding];
+    ld.param.s32 %dil_s3, [dilation];
+
+    .reg .f32 %sum3;
+    mov.f32 %sum3, 0f00000000;
+
+    .reg .u32 %ic3, %ikd, %ikh3, %ikw3;
+    mov.u32 %ic3, 0;
+
+IC3_LOOP:
+    setp.ge.u32 %p1, %ic3, %c_in3;
+    @%p1 bra IC3_END;
+    mov.u32 %ikd, 0;
+
+IKD_LOOP:
+    setp.ge.u32 %p1, %ikd, %kd;
+    @%p1 bra IKD_END;
+
+    .reg .s32 %d_in_coord;
+    mul.lo.s32 %d_in_coord, %od3, %stride_s3;
+    sub.s32 %d_in_coord, %d_in_coord, %pad_s3;
+    mad.lo.s32 %d_in_coord, %ikd, %dil_s3, %d_in_coord;
+
+    .reg .pred %p_d_lo, %p_d_hi, %p_d_ok;
+    .reg .s32 %d_in_s;
+    cvt.s32.u32 %d_in_s, %d_in;
+    setp.ge.s32 %p_d_lo, %d_in_coord, 0;
+    setp.lt.s32 %p_d_hi, %d_in_coord, %d_in_s;
+    and.pred %p_d_ok, %p_d_lo, %p_d_hi;
+    @!%p_d_ok bra NEXT_IKD;
+
+    mov.u32 %ikh3, 0;
+
+IKH3_LOOP:
+    setp.ge.u32 %p1, %ikh3, %kh3;
+    @%p1 bra IKH3_END;
+
+    .reg .s32 %h_in_coord;
+    mul.lo.s32 %h_in_coord, %oh3, %stride_s3;
+    sub.s32 %h_in_coord, %h_in_coord, %pad_s3;
+    mad.lo.s32 %h_in_coord, %ikh3, %dil_s3, %h_in_coord;
+
+    .reg .pred %p_h_lo, %p_h_hi, %p_h_ok;
+    .reg .s32 %h_in_s;
+    cvt.s32.u32 %h_in_s, %h_in3;
+    setp.ge.s32 %p_h_lo, %h_in_coord, 0;
+    setp.lt.s32 %p_h_hi, %h_in_coord, %h_in_s;
+    and.pred %p_h_ok, %p_h_lo, %p_h_hi;
+    @!%p_h_ok bra NEXT_IKH3;
+
+    mov.u32 %ikw3, 0;
+
+IKW3_LOOP:
+    setp.ge.u32 %p1, %ikw3, %kw3;
+    @%p1 bra IKW3_END;
+
+    .reg .s32 %w_in_coord;
+    mul.lo.s32 %w_in_coord, %ow3, %stride_s3;
+    sub.s32 %w_in_coord, %w_in_coord, %pad_s3;
+    mad.lo.s32 %w_in_coord, %ikw3, %dil_s3, %w_in_coord;
+
+    .reg .pred %p_w_lo, %p_w_hi, %p_w_ok;
+    .reg .s32 %w_in_s;
+    cvt.s32.u32 %w_in_s, %w_in3;
+    setp.ge.s32 %p_w_lo, %w_in_coord, 0;
+    setp.lt.s32 %p_w_hi, %w_in_coord, %w_in_s;
+    and.pred %p_w_ok, %p_w_lo, %p_w_hi;
+    @!%p_w_ok bra NEXT_IKW3;
+
+    .reg .s32 %in3_off;
+    .reg .u32 %s3_0, %s3_1, %s3_2, %s3_3, %s3_4;
+    ld.global.u32 %in3_off, [%rd_il];
+    ld.global.u32 %s3_0, [%rd_il+40];
+    ld.global.u32 %s3_1, [%rd_il+44];
+    ld.global.u32 %s3_2, [%rd_il+48];
+    ld.global.u32 %s3_3, [%rd_il+52];
+    ld.global.u32 %s3_4, [%rd_il+56];
+    mad.lo.s32 %in3_off, %ni3, %s3_0, %in3_off;
+    mad.lo.s32 %in3_off, %ic3, %s3_1, %in3_off;
+    mad.lo.s32 %in3_off, %d_in_coord, %s3_2, %in3_off;
+    mad.lo.s32 %in3_off, %h_in_coord, %s3_3, %in3_off;
+    mad.lo.s32 %in3_off, %w_in_coord, %s3_4, %in3_off;
+
+    .reg .s32 %w3_off;
+    .reg .u32 %sw3_0, %sw3_1, %sw3_2, %sw3_3, %sw3_4;
+    ld.global.u32 %w3_off, [%rd_wl];
+    ld.global.u32 %sw3_0, [%rd_wl+40];
+    ld.global.u32 %sw3_1, [%rd_wl+44];
+    ld.global.u32 %sw3_2, [%rd_wl+48];
+    ld.global.u32 %sw3_3, [%rd_wl+52];
+    ld.global.u32 %sw3_4, [%rd_wl+56];
+    mad.lo.s32 %w3_off, %oc3, %sw3_0, %w3_off;
+    mad.lo.s32 %w3_off, %ic3, %sw3_1, %w3_off;
+    mad.lo.s32 %w3_off, %ikd, %sw3_2, %w3_off;
+    mad.lo.s32 %w3_off, %ikh3, %sw3_3, %w3_off;
+    mad.lo.s32 %w3_off, %ikw3, %sw3_4, %w3_off;
+
+    .reg .u64 %addr3_in, %addr3_w;
+    mul.wide.s32 %addr3_in, %in3_off, 4;
+    add.u64 %addr3_in, %rd_in, %addr3_in;
+    mul.wide.s32 %addr3_w, %w3_off, 4;
+    add.u64 %addr3_w, %rd_w, %addr3_w;
+
+    .reg .f32 %v3_in, %v3_w;
+    ld.global.f32 %v3_in, [%addr3_in];
+    ld.global.f32 %v3_w, [%addr3_w];
+    fma.rn.f32 %sum3, %v3_in, %v3_w, %sum3;
+
+NEXT_IKW3:
+    add.u32 %ikw3, %ikw3, 1;
+    bra IKW3_LOOP;
+
+IKW3_END:
+NEXT_IKH3:
+    add.u32 %ikh3, %ikh3, 1;
+    bra IKH3_LOOP;
+
+IKH3_END:
+NEXT_IKD:
+    add.u32 %ikd, %ikd, 1;
+    bra IKD_LOOP;
+
+IKD_END:
+    add.u32 %ic3, %ic3, 1;
+    bra IC3_LOOP;
+
+IC3_END:
+    .reg .pred %p_bias3;
+    setp.ne.u64 %p_bias3, %rd_b, 0;
+    @!%p_bias3 bra WRITE3_OUT;
+
+    .reg .u64 %addr3_b;
+    .reg .s32 %oc3_s;
+    cvt.s32.u32 %oc3_s, %oc3;
+    mul.wide.s32 %addr3_b, %oc3_s, 4;
+    add.u64 %addr3_b, %rd_b, %addr3_b;
+    .reg .f32 %bv3;
+    ld.global.f32 %bv3, [%addr3_b];
+    add.f32 %sum3, %sum3, %bv3;
+
+WRITE3_OUT:
+    .reg .s32 %out3_off;
+    .reg .u32 %so3_0, %so3_1, %so3_2, %so3_3, %so3_4;
+    ld.global.u32 %out3_off, [%rd_ol];
+    ld.global.u32 %so3_0, [%rd_ol+40];
+    ld.global.u32 %so3_1, [%rd_ol+44];
+    ld.global.u32 %so3_2, [%rd_ol+48];
+    ld.global.u32 %so3_3, [%rd_ol+52];
+    ld.global.u32 %so3_4, [%rd_ol+56];
+    mad.lo.s32 %out3_off, %ni3, %so3_0, %out3_off;
+    mad.lo.s32 %out3_off, %oc3, %so3_1, %out3_off;
+    mad.lo.s32 %out3_off, %od3, %so3_2, %out3_off;
+    mad.lo.s32 %out3_off, %oh3, %so3_3, %out3_off;
+    mad.lo.s32 %out3_off, %ow3, %so3_4, %out3_off;
+
+    .reg .u64 %addr3_out;
+    mul.wide.s32 %addr3_out, %out3_off, 4;
+    add.u64 %addr3_out, %rd_out, %addr3_out;
+    st.global.f32 [%addr3_out], %sum3;
+
+L3_exit:
+    ret;
+}
+
+// conv3d_grad_input_f32: each thread computes grad_input at one [N,C_in,D,H,W] element
+.visible .entry conv3d_grad_input_f32(
+    .param .u64 grad_out,
+    .param .u64 weight,
+    .param .u64 grad_input,
+    .param .u64 go_layout,
+    .param .u64 w_layout,
+    .param .u64 gi_layout,
+    .param .u32 stride,
+    .param .u32 padding,
+    .param .u32 dilation,
+    .param .u32 gi_numel
+) {
+    .reg .pred %p1;
+    .reg .s32 %idx, %r2, %r3, %t_x;
+    mov.u32 %r2, %ctaid.x;
+    mov.u32 %r3, %ntid.x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
+
+    .reg .u32 %gi_n;
+    ld.param.u32 %gi_n, [gi_numel];
+    setp.ge.u32 %p1, %idx, %gi_n;
+    @%p1 bra LGI3_exit;
+
+    .reg .u64 %rd_go, %rd_w, %rd_gi, %rd_gol, %rd_wl, %rd_gil;
+    ld.param.u64 %rd_go, [grad_out];
+    ld.param.u64 %rd_w, [weight];
+    ld.param.u64 %rd_gi, [grad_input];
+    ld.param.u64 %rd_gol, [go_layout];
+    ld.param.u64 %rd_wl, [w_layout];
+    ld.param.u64 %rd_gil, [gi_layout];
+
+    .reg .u32 %d_go, %h_go, %w_go, %c_out_gi, %c_in_gi, %kd_gi, %kh_gi, %kw_gi;
+    ld.global.u32 %d_go, [%rd_gol+16];
+    ld.global.u32 %h_go, [%rd_gol+20];
+    ld.global.u32 %w_go, [%rd_gol+24];
+    ld.global.u32 %c_out_gi, [%rd_wl+8];
+    ld.global.u32 %c_in_gi, [%rd_wl+12];
+    ld.global.u32 %kd_gi, [%rd_wl+16];
+    ld.global.u32 %kh_gi, [%rd_wl+20];
+    ld.global.u32 %kw_gi, [%rd_wl+24];
+
+    .reg .u32 %d_in_gi, %h_in_gi, %w_in_gi;
+    ld.global.u32 %d_in_gi, [%rd_gil+16];
+    ld.global.u32 %h_in_gi, [%rd_gil+20];
+    ld.global.u32 %w_in_gi, [%rd_gil+24];
+
+    .reg .u32 %iw_gi, %ih_gi, %id_gi, %ic_gi, %ni_gi, %tmp1, %tmp2, %tmp3;
+    div.u32 %tmp1, %idx, %w_in_gi;
+    rem.u32 %iw_gi, %idx, %w_in_gi;
+    div.u32 %tmp2, %tmp1, %h_in_gi;
+    rem.u32 %ih_gi, %tmp1, %h_in_gi;
+    div.u32 %tmp3, %tmp2, %d_in_gi;
+    rem.u32 %id_gi, %tmp2, %d_in_gi;
+    div.u32 %ni_gi, %tmp3, %c_in_gi;
+    rem.u32 %ic_gi, %tmp3, %c_in_gi;
+
+    .reg .s32 %stride_gi, %pad_gi, %dil_gi;
+    ld.param.s32 %stride_gi, [stride];
+    ld.param.s32 %pad_gi, [padding];
+    ld.param.s32 %dil_gi, [dilation];
+
+    .reg .f32 %g3sum;
+    mov.f32 %g3sum, 0f00000000;
+
+    .reg .u32 %oc_gi, %okd, %okh, %okw;
+    mov.u32 %oc_gi, 0;
+
+OC3_LOOP:
+    setp.ge.u32 %p1, %oc_gi, %c_out_gi;
+    @%p1 bra OC3_END;
+    mov.u32 %okd, 0;
+
+OKD_LOOP:
+    setp.ge.u32 %p1, %okd, %kd_gi;
+    @%p1 bra OKD_END;
+
+    .reg .s32 %od_num, %od_rem, %od_gi, %id_s;
+    cvt.s32.u32 %id_s, %id_gi;
+    mul.lo.s32 %od_num, %okd, %dil_gi;
+    sub.s32 %od_num, %id_s, %od_num;
+    add.s32 %od_num, %od_num, %pad_gi;
+    rem.s32 %od_rem, %od_num, %stride_gi;
+    .reg .pred %p_od_exact;
+    setp.eq.s32 %p_od_exact, %od_rem, 0;
+    @!%p_od_exact bra NEXT_OKD;
+    div.s32 %od_gi, %od_num, %stride_gi;
+    .reg .pred %p_od_lo, %p_od_hi, %p_od_ok;
+    .reg .s32 %d_go_s;
+    cvt.s32.u32 %d_go_s, %d_go;
+    setp.ge.s32 %p_od_lo, %od_gi, 0;
+    setp.lt.s32 %p_od_hi, %od_gi, %d_go_s;
+    and.pred %p_od_ok, %p_od_lo, %p_od_hi;
+    @!%p_od_ok bra NEXT_OKD;
+
+    mov.u32 %okh, 0;
+
+OKH_LOOP:
+    setp.ge.u32 %p1, %okh, %kh_gi;
+    @%p1 bra OKH_END;
+
+    .reg .s32 %oh_num, %oh_rem, %oh_gi, %ih_s;
+    cvt.s32.u32 %ih_s, %ih_gi;
+    mul.lo.s32 %oh_num, %okh, %dil_gi;
+    sub.s32 %oh_num, %ih_s, %oh_num;
+    add.s32 %oh_num, %oh_num, %pad_gi;
+    rem.s32 %oh_rem, %oh_num, %stride_gi;
+    .reg .pred %p_oh_exact;
+    setp.eq.s32 %p_oh_exact, %oh_rem, 0;
+    @!%p_oh_exact bra NEXT_OKH;
+    div.s32 %oh_gi, %oh_num, %stride_gi;
+    .reg .pred %p_oh_lo, %p_oh_hi, %p_oh_ok;
+    .reg .s32 %h_go_s;
+    cvt.s32.u32 %h_go_s, %h_go;
+    setp.ge.s32 %p_oh_lo, %oh_gi, 0;
+    setp.lt.s32 %p_oh_hi, %oh_gi, %h_go_s;
+    and.pred %p_oh_ok, %p_oh_lo, %p_oh_hi;
+    @!%p_oh_ok bra NEXT_OKH;
+
+    mov.u32 %okw, 0;
+
+OKW_LOOP:
+    setp.ge.u32 %p1, %okw, %kw_gi;
+    @%p1 bra OKW_END;
+
+    .reg .s32 %ow_num, %ow_rem, %ow_gi, %iw_s;
+    cvt.s32.u32 %iw_s, %iw_gi;
+    mul.lo.s32 %ow_num, %okw, %dil_gi;
+    sub.s32 %ow_num, %iw_s, %ow_num;
+    add.s32 %ow_num, %ow_num, %pad_gi;
+    rem.s32 %ow_rem, %ow_num, %stride_gi;
+    .reg .pred %p_ow_exact;
+    setp.eq.s32 %p_ow_exact, %ow_rem, 0;
+    @!%p_ow_exact bra NEXT_OKW;
+    div.s32 %ow_gi, %ow_num, %stride_gi;
+    .reg .pred %p_ow_lo, %p_ow_hi, %p_ow_ok;
+    .reg .s32 %w_go_s;
+    cvt.s32.u32 %w_go_s, %w_go;
+    setp.ge.s32 %p_ow_lo, %ow_gi, 0;
+    setp.lt.s32 %p_ow_hi, %ow_gi, %w_go_s;
+    and.pred %p_ow_ok, %p_ow_lo, %p_ow_hi;
+    @!%p_ow_ok bra NEXT_OKW;
+
+    .reg .s32 %go3_off;
+    .reg .u32 %sgo3_0, %sgo3_1, %sgo3_2, %sgo3_3, %sgo3_4;
+    ld.global.u32 %go3_off, [%rd_gol];
+    ld.global.u32 %sgo3_0, [%rd_gol+40];
+    ld.global.u32 %sgo3_1, [%rd_gol+44];
+    ld.global.u32 %sgo3_2, [%rd_gol+48];
+    ld.global.u32 %sgo3_3, [%rd_gol+52];
+    ld.global.u32 %sgo3_4, [%rd_gol+56];
+    mad.lo.s32 %go3_off, %ni_gi, %sgo3_0, %go3_off;
+    mad.lo.s32 %go3_off, %oc_gi, %sgo3_1, %go3_off;
+    mad.lo.s32 %go3_off, %od_gi, %sgo3_2, %go3_off;
+    mad.lo.s32 %go3_off, %oh_gi, %sgo3_3, %go3_off;
+    mad.lo.s32 %go3_off, %ow_gi, %sgo3_4, %go3_off;
+
+    .reg .s32 %wg3_off;
+    .reg .u32 %swg3_0, %swg3_1, %swg3_2, %swg3_3, %swg3_4;
+    ld.global.u32 %wg3_off, [%rd_wl];
+    ld.global.u32 %swg3_0, [%rd_wl+40];
+    ld.global.u32 %swg3_1, [%rd_wl+44];
+    ld.global.u32 %swg3_2, [%rd_wl+48];
+    ld.global.u32 %swg3_3, [%rd_wl+52];
+    ld.global.u32 %swg3_4, [%rd_wl+56];
+    mad.lo.s32 %wg3_off, %oc_gi, %swg3_0, %wg3_off;
+    mad.lo.s32 %wg3_off, %ic_gi, %swg3_1, %wg3_off;
+    mad.lo.s32 %wg3_off, %okd, %swg3_2, %wg3_off;
+    mad.lo.s32 %wg3_off, %okh, %swg3_3, %wg3_off;
+    mad.lo.s32 %wg3_off, %okw, %swg3_4, %wg3_off;
+
+    .reg .u64 %addr3_go, %addr3_wg;
+    mul.wide.s32 %addr3_go, %go3_off, 4;
+    add.u64 %addr3_go, %rd_go, %addr3_go;
+    mul.wide.s32 %addr3_wg, %wg3_off, 4;
+    add.u64 %addr3_wg, %rd_w, %addr3_wg;
+
+    .reg .f32 %vgo3, %vwg3;
+    ld.global.f32 %vgo3, [%addr3_go];
+    ld.global.f32 %vwg3, [%addr3_wg];
+    fma.rn.f32 %g3sum, %vgo3, %vwg3, %g3sum;
+
+NEXT_OKW:
+    add.u32 %okw, %okw, 1;
+    bra OKW_LOOP;
+OKW_END:
+NEXT_OKH:
+    add.u32 %okh, %okh, 1;
+    bra OKH_LOOP;
+OKH_END:
+NEXT_OKD:
+    add.u32 %okd, %okd, 1;
+    bra OKD_LOOP;
+OKD_END:
+    add.u32 %oc_gi, %oc_gi, 1;
+    bra OC3_LOOP;
+OC3_END:
+    .reg .s32 %gi3_off;
+    .reg .u32 %sgi3_0, %sgi3_1, %sgi3_2, %sgi3_3, %sgi3_4;
+    ld.global.u32 %gi3_off, [%rd_gil];
+    ld.global.u32 %sgi3_0, [%rd_gil+40];
+    ld.global.u32 %sgi3_1, [%rd_gil+44];
+    ld.global.u32 %sgi3_2, [%rd_gil+48];
+    ld.global.u32 %sgi3_3, [%rd_gil+52];
+    ld.global.u32 %sgi3_4, [%rd_gil+56];
+    mad.lo.s32 %gi3_off, %ni_gi, %sgi3_0, %gi3_off;
+    mad.lo.s32 %gi3_off, %ic_gi, %sgi3_1, %gi3_off;
+    mad.lo.s32 %gi3_off, %id_gi, %sgi3_2, %gi3_off;
+    mad.lo.s32 %gi3_off, %ih_gi, %sgi3_3, %gi3_off;
+    mad.lo.s32 %gi3_off, %iw_gi, %sgi3_4, %gi3_off;
+
+    .reg .u64 %addr3_gi;
+    mul.wide.s32 %addr3_gi, %gi3_off, 4;
+    add.u64 %addr3_gi, %rd_gi, %addr3_gi;
+    st.global.f32 [%addr3_gi], %g3sum;
+
+LGI3_exit:
+    ret;
+}
+
+// conv3d_grad_weight_f32: each thread accumulates grad_weight for one [C_out,C_in,kD,kH,kW] element
+.visible .entry conv3d_grad_weight_f32(
+    .param .u64 grad_out,
+    .param .u64 input,
+    .param .u64 grad_weight,
+    .param .u64 go_layout,
+    .param .u64 in_layout,
+    .param .u64 gw_layout,
+    .param .u32 stride,
+    .param .u32 padding,
+    .param .u32 dilation,
+    .param .u32 gw_numel
+) {
+    .reg .pred %p1;
+    .reg .s32 %idx, %r2, %r3, %t_x;
+    mov.u32 %r2, %ctaid.x;
+    mov.u32 %r3, %ntid.x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
+
+    .reg .u32 %gw_n;
+    ld.param.u32 %gw_n, [gw_numel];
+    setp.ge.u32 %p1, %idx, %gw_n;
+    @%p1 bra LGW3_exit;
+
+    .reg .u64 %rd_go, %rd_in, %rd_gw, %rd_gol, %rd_il, %rd_gwl;
+    ld.param.u64 %rd_go, [grad_out];
+    ld.param.u64 %rd_in, [input];
+    ld.param.u64 %rd_gw, [grad_weight];
+    ld.param.u64 %rd_gol, [go_layout];
+    ld.param.u64 %rd_il, [in_layout];
+    ld.param.u64 %rd_gwl, [gw_layout];
+
+    .reg .u32 %kw_gw, %kh_gw, %kd_gw, %ic_gw;
+    .reg .u32 %ikw_gw, %ikh_gw, %ikd_gw, %ic_g, %oc_g, %tmp1, %tmp2, %tmp3;
+    ld.global.u32 %kw_gw, [%rd_gwl+24];
+    ld.global.u32 %kh_gw, [%rd_gwl+20];
+    ld.global.u32 %kd_gw, [%rd_gwl+16];
+    ld.global.u32 %ic_gw, [%rd_gwl+12];
+    div.u32 %tmp1, %idx, %kw_gw;
+    rem.u32 %ikw_gw, %idx, %kw_gw;
+    div.u32 %tmp2, %tmp1, %kh_gw;
+    rem.u32 %ikh_gw, %tmp1, %kh_gw;
+    div.u32 %tmp3, %tmp2, %kd_gw;
+    rem.u32 %ikd_gw, %tmp2, %kd_gw;
+    div.u32 %oc_g, %tmp3, %ic_gw;
+    rem.u32 %ic_g, %tmp3, %ic_gw;
+
+    .reg .s32 %stride_gw, %pad_gw, %dil_gw;
+    ld.param.s32 %stride_gw, [stride];
+    ld.param.s32 %pad_gw, [padding];
+    ld.param.s32 %dil_gw, [dilation];
+
+    .reg .f32 %gw3sum;
+    mov.f32 %gw3sum, 0f00000000;
+
+    .reg .u32 %batch_n, %d_go_gw, %h_go_gw, %w_go_gw;
+    ld.global.u32 %batch_n, [%rd_gol+8];
+    ld.global.u32 %d_go_gw, [%rd_gol+16];
+    ld.global.u32 %h_go_gw, [%rd_gol+20];
+    ld.global.u32 %w_go_gw, [%rd_gol+24];
+
+    .reg .u32 %ni_gw, %od_gw, %oh_gw, %ow_gw;
+    mov.u32 %ni_gw, 0;
+
+N3_LOOP:
+    setp.ge.u32 %p1, %ni_gw, %batch_n;
+    @%p1 bra N3_END;
+    mov.u32 %od_gw, 0;
+
+OD3_LOOP:
+    setp.ge.u32 %p1, %od_gw, %d_go_gw;
+    @%p1 bra OD3_END;
+
+    .reg .s32 %id_gw;
+    mul.lo.s32 %id_gw, %od_gw, %stride_gw;
+    sub.s32 %id_gw, %id_gw, %pad_gw;
+    .reg .s32 %ikd_s;
+    cvt.s32.u32 %ikd_s, %ikd_gw;
+    mad.lo.s32 %id_gw, %ikd_s, %dil_gw, %id_gw;
+
+    .reg .u32 %d_in_gw;
+    ld.global.u32 %d_in_gw, [%rd_il+16];
+    .reg .pred %p_idgw_lo, %p_idgw_hi, %p_idgw_ok;
+    .reg .s32 %d_in_gw_s;
+    cvt.s32.u32 %d_in_gw_s, %d_in_gw;
+    setp.ge.s32 %p_idgw_lo, %id_gw, 0;
+    setp.lt.s32 %p_idgw_hi, %id_gw, %d_in_gw_s;
+    and.pred %p_idgw_ok, %p_idgw_lo, %p_idgw_hi;
+    @!%p_idgw_ok bra NEXT_OD3;
+
+    mov.u32 %oh_gw, 0;
+
+OH3_LOOP:
+    setp.ge.u32 %p1, %oh_gw, %h_go_gw;
+    @%p1 bra OH3_END;
+
+    .reg .s32 %ih_gw;
+    mul.lo.s32 %ih_gw, %oh_gw, %stride_gw;
+    sub.s32 %ih_gw, %ih_gw, %pad_gw;
+    .reg .s32 %ikh_s;
+    cvt.s32.u32 %ikh_s, %ikh_gw;
+    mad.lo.s32 %ih_gw, %ikh_s, %dil_gw, %ih_gw;
+
+    .reg .u32 %h_in_gw;
+    ld.global.u32 %h_in_gw, [%rd_il+20];
+    .reg .pred %p_ihgw_lo, %p_ihgw_hi, %p_ihgw_ok;
+    .reg .s32 %h_in_gw_s;
+    cvt.s32.u32 %h_in_gw_s, %h_in_gw;
+    setp.ge.s32 %p_ihgw_lo, %ih_gw, 0;
+    setp.lt.s32 %p_ihgw_hi, %ih_gw, %h_in_gw_s;
+    and.pred %p_ihgw_ok, %p_ihgw_lo, %p_ihgw_hi;
+    @!%p_ihgw_ok bra NEXT_OH3;
+
+    mov.u32 %ow_gw, 0;
+
+OW3_LOOP:
+    setp.ge.u32 %p1, %ow_gw, %w_go_gw;
+    @%p1 bra OW3_END;
+
+    .reg .s32 %iw_gw;
+    mul.lo.s32 %iw_gw, %ow_gw, %stride_gw;
+    sub.s32 %iw_gw, %iw_gw, %pad_gw;
+    .reg .s32 %ikw_s;
+    cvt.s32.u32 %ikw_s, %ikw_gw;
+    mad.lo.s32 %iw_gw, %ikw_s, %dil_gw, %iw_gw;
+
+    .reg .u32 %w_in_gw;
+    ld.global.u32 %w_in_gw, [%rd_il+24];
+    .reg .pred %p_iwgw_lo, %p_iwgw_hi, %p_iwgw_ok;
+    .reg .s32 %w_in_gw_s;
+    cvt.s32.u32 %w_in_gw_s, %w_in_gw;
+    setp.ge.s32 %p_iwgw_lo, %iw_gw, 0;
+    setp.lt.s32 %p_iwgw_hi, %iw_gw, %w_in_gw_s;
+    and.pred %p_iwgw_ok, %p_iwgw_lo, %p_iwgw_hi;
+    @!%p_iwgw_ok bra NEXT_OW3;
+
+    .reg .s32 %gog3_off;
+    .reg .u32 %sgog3_0, %sgog3_1, %sgog3_2, %sgog3_3, %sgog3_4;
+    ld.global.u32 %gog3_off, [%rd_gol];
+    ld.global.u32 %sgog3_0, [%rd_gol+40];
+    ld.global.u32 %sgog3_1, [%rd_gol+44];
+    ld.global.u32 %sgog3_2, [%rd_gol+48];
+    ld.global.u32 %sgog3_3, [%rd_gol+52];
+    ld.global.u32 %sgog3_4, [%rd_gol+56];
+    mad.lo.s32 %gog3_off, %ni_gw, %sgog3_0, %gog3_off;
+    mad.lo.s32 %gog3_off, %oc_g, %sgog3_1, %gog3_off;
+    mad.lo.s32 %gog3_off, %od_gw, %sgog3_2, %gog3_off;
+    mad.lo.s32 %gog3_off, %oh_gw, %sgog3_3, %gog3_off;
+    mad.lo.s32 %gog3_off, %ow_gw, %sgog3_4, %gog3_off;
+
+    .reg .s32 %ing3_off;
+    .reg .u32 %sing3_0, %sing3_1, %sing3_2, %sing3_3, %sing3_4;
+    ld.global.u32 %ing3_off, [%rd_il];
+    ld.global.u32 %sing3_0, [%rd_il+40];
+    ld.global.u32 %sing3_1, [%rd_il+44];
+    ld.global.u32 %sing3_2, [%rd_il+48];
+    ld.global.u32 %sing3_3, [%rd_il+52];
+    ld.global.u32 %sing3_4, [%rd_il+56];
+    mad.lo.s32 %ing3_off, %ni_gw, %sing3_0, %ing3_off;
+    mad.lo.s32 %ing3_off, %ic_g, %sing3_1, %ing3_off;
+    mad.lo.s32 %ing3_off, %id_gw, %sing3_2, %ing3_off;
+    mad.lo.s32 %ing3_off, %ih_gw, %sing3_3, %ing3_off;
+    mad.lo.s32 %ing3_off, %iw_gw, %sing3_4, %ing3_off;
+
+    .reg .u64 %addr3_gog, %addr3_ing;
+    mul.wide.s32 %addr3_gog, %gog3_off, 4;
+    add.u64 %addr3_gog, %rd_go, %addr3_gog;
+    mul.wide.s32 %addr3_ing, %ing3_off, 4;
+    add.u64 %addr3_ing, %rd_in, %addr3_ing;
+
+    .reg .f32 %vgog3, %ving3;
+    ld.global.f32 %vgog3, [%addr3_gog];
+    ld.global.f32 %ving3, [%addr3_ing];
+    fma.rn.f32 %gw3sum, %vgog3, %ving3, %gw3sum;
+
+NEXT_OW3:
+    add.u32 %ow_gw, %ow_gw, 1;
+    bra OW3_LOOP;
+OW3_END:
+NEXT_OH3:
+    add.u32 %oh_gw, %oh_gw, 1;
+    bra OH3_LOOP;
+OH3_END:
+NEXT_OD3:
+    add.u32 %od_gw, %od_gw, 1;
+    bra OD3_LOOP;
+OD3_END:
+    add.u32 %ni_gw, %ni_gw, 1;
+    bra N3_LOOP;
+N3_END:
+    .reg .s32 %gw3_off;
+    .reg .u32 %sgw3_0, %sgw3_1, %sgw3_2, %sgw3_3, %sgw3_4;
+    ld.global.u32 %gw3_off, [%rd_gwl];
+    ld.global.u32 %sgw3_0, [%rd_gwl+40];
+    ld.global.u32 %sgw3_1, [%rd_gwl+44];
+    ld.global.u32 %sgw3_2, [%rd_gwl+48];
+    ld.global.u32 %sgw3_3, [%rd_gwl+52];
+    ld.global.u32 %sgw3_4, [%rd_gwl+56];
+    mad.lo.s32 %gw3_off, %oc_g, %sgw3_0, %gw3_off;
+    mad.lo.s32 %gw3_off, %ic_g, %sgw3_1, %gw3_off;
+    mad.lo.s32 %gw3_off, %ikd_gw, %sgw3_2, %gw3_off;
+    mad.lo.s32 %gw3_off, %ikh_gw, %sgw3_3, %gw3_off;
+    mad.lo.s32 %gw3_off, %ikw_gw, %sgw3_4, %gw3_off;
+
+    .reg .u64 %addr3_gw;
+    mul.wide.s32 %addr3_gw, %gw3_off, 4;
+    add.u64 %addr3_gw, %rd_gw, %addr3_gw;
+    st.global.f32 [%addr3_gw], %gw3sum;
+
+LGW3_exit:
+    ret;
+}
+
+// conv3d_grad_bias_f32: each thread computes grad_bias for one output channel
+.visible .entry conv3d_grad_bias_f32(
+    .param .u64 grad_out,
+    .param .u64 grad_bias,
+    .param .u64 go_layout,
+    .param .u32 c_out_n,
+    .param .u32 go_numel
+) {
+    .reg .pred %p1;
+    .reg .s32 %idx, %r2, %r3, %t_x;
+    mov.u32 %r2, %ctaid.x;
+    mov.u32 %r3, %ntid.x;
+    mov.u32 %t_x, %tid.x;
+    mad.lo.s32 %idx, %r2, %r3, %t_x;
+
+    .reg .u32 %c_n;
+    ld.param.u32 %c_n, [c_out_n];
+    setp.ge.u32 %p1, %idx, %c_n;
+    @%p1 bra LGB3_exit;
+
+    .reg .u64 %rd_go, %rd_gb, %rd_gol;
+    ld.param.u64 %rd_go, [grad_out];
+    ld.param.u64 %rd_gb, [grad_bias];
+    ld.param.u64 %rd_gol, [go_layout];
+
+    .reg .u32 %batch_gb, %d_go_gb, %h_go_gb, %w_go_gb;
+    ld.global.u32 %batch_gb, [%rd_gol+8];
+    ld.global.u32 %d_go_gb, [%rd_gol+16];
+    ld.global.u32 %h_go_gb, [%rd_gol+20];
+    ld.global.u32 %w_go_gb, [%rd_gol+24];
+
+    .reg .f32 %gb3sum;
+    mov.f32 %gb3sum, 0f00000000;
+
+    .reg .u32 %ni_gb, %od_gb, %oh_gb, %ow_gb;
+    mov.u32 %ni_gb, 0;
+
+NGB3_LOOP:
+    setp.ge.u32 %p1, %ni_gb, %batch_gb;
+    @%p1 bra NGB3_END;
+    mov.u32 %od_gb, 0;
+
+ODGB3_LOOP:
+    setp.ge.u32 %p1, %od_gb, %d_go_gb;
+    @%p1 bra ODGB3_END;
+    mov.u32 %oh_gb, 0;
+
+OHGB3_LOOP:
+    setp.ge.u32 %p1, %oh_gb, %h_go_gb;
+    @%p1 bra OHGB3_END;
+    mov.u32 %ow_gb, 0;
+
+OWGB3_LOOP:
+    setp.ge.u32 %p1, %ow_gb, %w_go_gb;
+    @%p1 bra OWGB3_END;
+
+    .reg .s32 %gob3_off;
+    .reg .u32 %sgob3_0, %sgob3_1, %sgob3_2, %sgob3_3, %sgob3_4;
+    ld.global.u32 %gob3_off, [%rd_gol];
+    ld.global.u32 %sgob3_0, [%rd_gol+40];
+    ld.global.u32 %sgob3_1, [%rd_gol+44];
+    ld.global.u32 %sgob3_2, [%rd_gol+48];
+    ld.global.u32 %sgob3_3, [%rd_gol+52];
+    ld.global.u32 %sgob3_4, [%rd_gol+56];
+    mad.lo.s32 %gob3_off, %ni_gb, %sgob3_0, %gob3_off;
+    mad.lo.s32 %gob3_off, %idx, %sgob3_1, %gob3_off;
+    mad.lo.s32 %gob3_off, %od_gb, %sgob3_2, %gob3_off;
+    mad.lo.s32 %gob3_off, %oh_gb, %sgob3_3, %gob3_off;
+    mad.lo.s32 %gob3_off, %ow_gb, %sgob3_4, %gob3_off;
+
+    .reg .u64 %addr3_gob;
+    mul.wide.s32 %addr3_gob, %gob3_off, 4;
+    add.u64 %addr3_gob, %rd_go, %addr3_gob;
+    .reg .f32 %vgob;
+    ld.global.f32 %vgob, [%addr3_gob];
+    add.f32 %gb3sum, %gb3sum, %vgob;
+
+NEXT_OWB3:
+    add.u32 %ow_gb, %ow_gb, 1;
+    bra OWGB3_LOOP;
+OWGB3_END:
+NEXT_OHB3:
+    add.u32 %oh_gb, %oh_gb, 1;
+    bra OHGB3_LOOP;
+OHGB3_END:
+NEXT_ODB3:
+    add.u32 %od_gb, %od_gb, 1;
+    bra ODGB3_LOOP;
+ODGB3_END:
+NEXT_NB3:
+    add.u32 %ni_gb, %ni_gb, 1;
+    bra NGB3_LOOP;
+NGB3_END:
+    .reg .u64 %addr3_gb;
+    mul.wide.u32 %addr3_gb, %idx, 4;
+    add.u64 %addr3_gb, %rd_gb, %addr3_gb;
+    st.global.f32 [%addr3_gb], %gb3sum;
+
+LGB3_exit:
+    ret;
+}

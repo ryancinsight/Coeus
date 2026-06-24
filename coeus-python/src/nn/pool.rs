@@ -261,8 +261,7 @@ impl PyGlobalAvgPool1d {
         use coeus_nn::Module;
         let input_var = input.inner.clone();
         let result = py.allow_threads(|| {
-            coeus_nn::GlobalAvgPool1d::<f64, coeus_core::MoiraiBackend>::new()
-                .forward(&input_var)
+            coeus_nn::GlobalAvgPool1d::<f64, coeus_core::MoiraiBackend>::new().forward(&input_var)
         });
         Ok(PyTensor { inner: result })
     }
@@ -290,8 +289,7 @@ impl PyGlobalAvgPool2d {
         use coeus_nn::Module;
         let input_var = input.inner.clone();
         let result = py.allow_threads(|| {
-            coeus_nn::GlobalAvgPool2d::<f64, coeus_core::MoiraiBackend>::new()
-                .forward(&input_var)
+            coeus_nn::GlobalAvgPool2d::<f64, coeus_core::MoiraiBackend>::new().forward(&input_var)
         });
         Ok(PyTensor { inner: result })
     }
@@ -319,8 +317,7 @@ impl PyGlobalAvgPool3d {
         use coeus_nn::Module;
         let input_var = input.inner.clone();
         let result = py.allow_threads(|| {
-            coeus_nn::GlobalAvgPool3d::<f64, coeus_core::MoiraiBackend>::new()
-                .forward(&input_var)
+            coeus_nn::GlobalAvgPool3d::<f64, coeus_core::MoiraiBackend>::new().forward(&input_var)
         });
         Ok(PyTensor { inner: result })
     }
@@ -348,8 +345,7 @@ impl PyGlobalMaxPool2d {
         use coeus_nn::Module;
         let input_var = input.inner.clone();
         let result = py.allow_threads(|| {
-            coeus_nn::GlobalMaxPool2d::<f64, coeus_core::MoiraiBackend>::new()
-                .forward(&input_var)
+            coeus_nn::GlobalMaxPool2d::<f64, coeus_core::MoiraiBackend>::new().forward(&input_var)
         });
         Ok(PyTensor { inner: result })
     }
@@ -377,8 +373,7 @@ impl PyGlobalMaxPool3d {
         use coeus_nn::Module;
         let input_var = input.inner.clone();
         let result = py.allow_threads(|| {
-            coeus_nn::GlobalMaxPool3d::<f64, coeus_core::MoiraiBackend>::new()
-                .forward(&input_var)
+            coeus_nn::GlobalMaxPool3d::<f64, coeus_core::MoiraiBackend>::new().forward(&input_var)
         });
         Ok(PyTensor { inner: result })
     }
