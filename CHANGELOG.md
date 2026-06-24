@@ -29,6 +29,10 @@
   Mish, Softplus, and LeakyReLU against live Burn NdArray references.
 - **Burn log-softmax parity**: `coeus-nn/tests/burn_live_parity.rs` now compares
   Coeus forward values and autograd gradients against Burn NdArray autodiff.
+- **Burn activation-backward parity**: sigmoid, tanh, SiLU, and GELU-family
+  backward checks now compare Coeus autograd against Burn NdArray autodiff, with
+  Burn 0.16's tanh-approximation GELU backward routed to Coeus' explicit
+  `gelu_tanh` contract.
 - **coeus-python test harness**: shared test-only embedded-Python lock now
   serializes module registration for binding operation and distributed tests.
 - **8 new `binding_tests_ops.rs` test functions** covering all previously

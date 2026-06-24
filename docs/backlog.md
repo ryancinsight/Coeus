@@ -61,6 +61,11 @@
 - [x] [patch] Extended live Burn log-softmax parity to compare Coeus forward
   values and autograd gradients against Burn NdArray autodiff. Evidence tier:
   empirical differential validation.
+- [x] [patch] Extended live Burn activation-backward parity for sigmoid, tanh,
+  SiLU, and GELU-family gradients. Recorded the Burn 0.16 contract caveat:
+  exact-erf GELU forward uses tanh-approximation GELU backward, so Coeus'
+  explicit `gelu_tanh` backward is the correct comparison path for that branch.
+  Evidence tier: empirical differential validation.
 - [x] [patch] Replaced backward-node gradient storage with the `GradBuffer`
   UnsafeCell SSOT and removed the Mutex-compatible shim so optimizers,
   distributed gradient synchronization, and tests use the same direct
