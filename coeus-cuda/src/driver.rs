@@ -202,8 +202,8 @@ impl CudaDriver {
 
 fn stagger_nextest_init() {
     static STAGGERED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-    if !STAGGERED.load(std::sync::atomic::Ordering::Acquire) {
-        if STAGGERED
+    if !STAGGERED.load(std::sync::atomic::Ordering::Acquire)
+        && STAGGERED
             .compare_exchange(
                 false,
                 true,
@@ -211,11 +211,10 @@ fn stagger_nextest_init() {
                 std::sync::atomic::Ordering::Acquire,
             )
             .is_ok()
-        {
-            if let Ok(thread_id_str) = std::env::var("NEXTEST_THREAD_ID") {
-                if let Ok(thread_id) = thread_id_str.parse::<u64>() {
-                    std::thread::sleep(std::time::Duration::from_millis(thread_id * 100));
-                }
+    {
+        if let Ok(thread_id_str) = std::env::var("NEXTEST_THREAD_ID") {
+            if let Ok(thread_id) = thread_id_str.parse::<u64>() {
+                std::thread::sleep(std::time::Duration::from_millis(thread_id * 100));
             }
         }
     }

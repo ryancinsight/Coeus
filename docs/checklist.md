@@ -71,6 +71,16 @@ Python as a thin PyO3 wrapper over Rust core operations.
   against `SequentialBackend` values for output, input gradient, weight
   gradient, and bias gradient. Evidence: `cargo nextest run -p coeus-wgpu
   --test wgpu_tests conv3d` passes with 4 tests.
+- [x] [minor] Added CUDA feature parity coverage for binary, unary, reduction,
+  matmul, convolution, pooling, AdamW, and host/device round-trip behavior
+  against `SequentialBackend`; fixed NVRTC PTX trailing-NUL trimming so fused
+  CUDA kernels load through `CString` instead of silently falling back, routed
+  broadcasted contiguous operands through strided binary kernels, corrected CUDA
+  GELU/GELU-gradient to the exact erf contract, and aligned strided JIT
+  coordinate decoding with fused-kernel layout metadata.
+  Evidence tier: empirical differential validation. Evidence:
+  `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests` passes
+  with 42 tests.
 - [x] [patch] Consolidated the `coeus-python` embedded-Python test lock into
   `tests/common/mod.rs` and routed binding ops/distributed tests through that
   test-only SSOT. Evidence: `cargo nextest run -p coeus-python --test
