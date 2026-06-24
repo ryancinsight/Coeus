@@ -44,6 +44,11 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyMaxPool2d>()?;
     m.add_class::<nn::PyAvgPool3d>()?;
     m.add_class::<nn::PyMaxPool3d>()?;
+    m.add_class::<nn::PyGlobalAvgPool1d>()?;
+    m.add_class::<nn::PyGlobalAvgPool2d>()?;
+    m.add_class::<nn::PyGlobalAvgPool3d>()?;
+    m.add_class::<nn::PyGlobalMaxPool2d>()?;
+    m.add_class::<nn::PyGlobalMaxPool3d>()?;
     m.add_class::<nn::PyEmbedding>()?;
     m.add_class::<nn::PyDropout>()?;
     m.add_class::<nn::PyBatchNorm1d>()?;

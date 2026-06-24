@@ -15,4 +15,7 @@ pub use normalization::{
     PyBatchNorm1d, PyBatchNorm2d, PyBatchNorm3d, PyGroupNorm, PyInstanceNorm1d, PyInstanceNorm2d,
     PyLayerNorm, PyRMSNorm,
 };
-pub use pool::{PyAvgPool2d, PyAvgPool3d, PyMaxPool2d, PyMaxPool3d};
+pub use pool::{
+    PyAvgPool2d, PyAvgPool3d, PyGlobalAvgPool1d, PyGlobalAvgPool2d, PyGlobalAvgPool3d,
+    PyGlobalMaxPool2d, PyGlobalMaxPool3d, PyMaxPool2d, PyMaxPool3d,
+};
