@@ -589,3 +589,98 @@ pub fn where_fn(
         .allow_threads(|| coeus_autograd::where_cond(&cond.inner, &on_true.inner, &on_false.inner));
     PyTensor { inner }
 }
+
+// ── Indexing ops ─────────────────────────────────────────────────────────────
+
+/// Index-based element selection along `dim`.
+///
+/// `out[…, k, …] = input[…, index[…, k, …], …]`
+/// where `index` contains non-negative integer values (as f64).
+///
+/// Backward: gradient flows back to `input` via `scatter_add`.
+#[pyfunction]
+pub fn gather(input: &PyTensor, dim: usize, index: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::gather(&input.inner, dim, &index.inner));
+    PyTensor { inner }
+}
+
+/// Scatter-accumulate: `out = input` then `out[…, index[…,k,…], …] += src[…,k,…]`.
+///
+/// Returns a new tensor (does not mutate `input`). Non-differentiable.
+#[pyfunction]
+pub fn scatter_add(
+    input: &PyTensor,
+    dim: usize,
+    index: &PyTensor,
+    src: &PyTensor,
+    py: Python<'_>,
+) -> PyTensor {
+    let backend = MoiraiBackend::new();
+    let t = py.allow_threads(|| {
+        coeus_ops::scatter_add(
+            &input.inner.tensor,
+            dim,
+            &index.inner.tensor,
+            &src.inner.tensor,
+            &backend,
+        )
+    });
+    PyTensor { inner: Var::new(t, false) }
+}
+
+/// Repeat each element along `dim` exactly `repeats` times (interleaved).
+///
+/// Matches `torch.repeat_interleave(input, repeats, dim)`.
+#[pyfunction]
+pub fn repeat_interleave(input: &PyTensor, repeats: usize, dim: usize, py: Python<'_>) -> PyTensor {
+    let backend = MoiraiBackend::new();
+    let t = py.allow_threads(|| {
+        coeus_ops::repeat_interleave(&input.inner.tensor, repeats, dim, &backend)
+    });
+    PyTensor { inner: Var::new(t, false) }
+}
+
+// ── Spatial resize ────────────────────────────────────────────────────────────
+
+/// Resize a spatial tensor.
+///
+/// Input shape:
+/// - 1-D: `[N, C, L]`    → `size = [new_L]`
+/// - 2-D: `[N, C, H, W]` → `size = [new_H, new_W]`
+///
+/// `mode` must be one of `"nearest"` or `"bilinear"`.
+#[pyfunction]
+#[pyo3(signature = (input, size, mode = "nearest"))]
+pub fn interpolate(
+    input: &PyTensor,
+    size: Vec<usize>,
+    mode: &str,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
+    let imode = match mode {
+        "nearest"  => coeus_nn::InterpolateMode::Nearest,
+        "bilinear" => coeus_nn::InterpolateMode::Bilinear,
+        other => {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "interpolate: unknown mode '{other}'; expected 'nearest' or 'bilinear'"
+            )));
+        }
+    };
+    let ndim = input.inner.tensor.ndim();
+    let t = match ndim {
+        3 => {
+            assert_eq!(size.len(), 1, "interpolate: 1-D input needs size=[new_L]");
+            py.allow_threads(|| coeus_nn::interpolate_1d(&input.inner.tensor, size[0], imode))
+        }
+        4 => {
+            assert_eq!(size.len(), 2, "interpolate: 2-D input needs size=[new_H, new_W]");
+            py.allow_threads(|| coeus_nn::interpolate_2d(&input.inner.tensor, size[0], size[1], imode))
+        }
+        _ => {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "interpolate: expected 3-D or 4-D input, got {ndim}-D"
+            )));
+        }
+    };
+    Ok(PyTensor { inner: Var::new(t, false) })
+}

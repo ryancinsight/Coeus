@@ -42,7 +42,9 @@ pub use matmul::{matmul, matmul_accumulate};
 pub use reduction::{
     argmax, argmin, cumsum, max_axis, mean, mean_axis, min_axis, suffix_sum, sum, sum_axis, topk,
 };
-pub use shape::{cat, flip, pad, sort, split, stack, where_cond};
+pub use shape::{
+    cat, flip, gather, pad, repeat_interleave, scatter_add, sort, split, stack, where_cond,
+};
 pub use sparse::{
     coo_to_csr, coo_to_dense, csr_to_dense, dense_to_coo, dense_to_csr, spmm, spmm_backward_dense,
     spmm_backward_values, spmv,

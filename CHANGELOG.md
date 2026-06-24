@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.3 - 2026-06-24
+
+### Added
+
+- **`gather` / `scatter_add`** in `coeus-ops`, `coeus-autograd` (tracked with
+  backward), and `coeus-python`. `gather(input, dim, index)` selects elements
+  along a dimension; `scatter_add` is its backward (and standalone op).
+- **`repeat_interleave`** in `coeus-ops` and `coeus-python`: repeat each
+  element along a dimension, matching `torch.repeat_interleave`.
+- **`interpolate_1d` / `interpolate_2d`** in `coeus-nn` (nearest + bilinear
+  modes) and `coeus-python`: spatial resize for `[N,C,L]` and `[N,C,H,W]`
+  inputs, matching the PyTorch/Burn `interpolate` API.
+- **7 new `binding_tests_ops.rs` test functions** covering all previously
+  untested ops: `topk/sort`, `comparisons (eq/lt/gt)/where_fn`, `softmax/
+  cumsum/flip`, `randn/zeros_like/ones_like/eye`, `gather/scatter_add`,
+  `repeat_interleave/interpolate`, `std_dev/var/norm`.
+
+### Changed
+
+- `coeus_autograd::gather` correctly routes backward through `scatter_add`
+  (zero gradient to `index` since integer indices are non-differentiable).
+
 ## 0.2.2 - 2026-06-24
 
 ### Added

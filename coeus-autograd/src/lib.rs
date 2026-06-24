@@ -54,6 +54,8 @@ pub use ops::{
     exp,
     // Shape ops
     flip,
+    // Index ops
+    gather,
     gelu,
     gelu_tanh,
     huber_loss,

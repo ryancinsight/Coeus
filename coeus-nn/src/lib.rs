@@ -28,6 +28,7 @@ pub mod conv;
 pub mod dropout;
 pub mod embedding;
 pub mod init;
+pub mod interpolate;
 pub mod linear;
 pub mod loss;
 pub mod module;
@@ -50,6 +51,7 @@ pub use conv::{Conv1d, Conv2d, Conv3d};
 pub use dropout::Dropout;
 pub use embedding::Embedding;
 pub use init::{kaiming_uniform, xavier_uniform};
+pub use interpolate::{interpolate_1d, interpolate_2d, InterpolateMode};
 pub use linear::Linear;
 pub use loss::{
     binary_cross_entropy, cosine_embedding_loss, cross_entropy_loss, huber_loss, mse_loss, nll_loss,
