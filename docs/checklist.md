@@ -153,16 +153,34 @@ Python as a thin PyO3 wrapper over Rust core operations.
 - [x] [patch] Added a root-scoped `/prog` ignore entry for transient checkpoint
   transcript artifacts so generated session state is not staged as project
   source. Evidence tier: repository hygiene.
-- [x] [patch] Verification: `cargo fmt --check`,
-  `cargo check -p coeus-tensor --benches`,
-  `cargo clippy --workspace --all-targets -- -D warnings`,
-  `cargo clippy -p coeus-nn --test burn_live_parity -- -D warnings`,
-  `cargo nextest run -p coeus-nn --test burn_live_parity` (36 passed),
-  `cargo nextest run -p coeus-core --test dependency_policy`, and
-  `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests`
-  (51 passed), `cargo nextest run --workspace` (426 passed),
-  `cargo test --doc --workspace`, and `cargo doc --workspace --no-deps` pass on
-  2026-06-24.
+- [x] [minor] Added `coeus-ops/src/reduction/stats.rs` with `var`, `var_axis`,
+  `std_dev`, `std_dev_axis`, and `norm` as two-pass analytical compositions over
+  existing `BackendOps` primitives; exported from `coeus-ops`. Added Python
+  wrappers `pycoeus.std`, `pycoeus.var`, `pycoeus.norm` with axis/keepdim support.
+  Evidence: `cargo nextest run -p coeus-python --test binding_tests_ops` passes
+  with the `test_statistical_ops` test verifying all analytical oracle values.
+- [x] [minor] Refactored `GlobalAvgPool{2,3}d` and `GlobalMaxPool{2,3}d` to use
+  sequential `coeus_autograd::mean_axis`/`max_axis` calls, removing the
+  square/cubic spatial constraint. Exposed `GlobalAvgPool{1,2,3}d` and
+  `GlobalMaxPool{2,3}d` as PyO3 Python classes. Added Python binding tests for
+  shape reduction, forward values, and backward gradients.
+  Evidence: `cargo nextest run --workspace` passes with 439 tests.
+- [x] [minor] Added `coeus-python` wrappers for `unsqueeze`, `squeeze`,
+  `flatten`, `argmax`, `argmin`; Python stats (`std`, `var`, `norm`).
+- [x] [patch] Added `batchnorm1d_backward_bias_and_weight_grads_match_analytical`
+  test: verifies bias.grad = N*L per channel, weight.grad ≈ 0 (zero-mean x_hat),
+  and input.grad per-channel sum ≈ 0 (normalization backward invariant).
+  Evidence tier: analytical closed-form oracle.
+- [x] [minor] Added `bench_burn_conv2d` (1×4×16×16, k=3) and
+  `bench_burn_layernorm` (4×64×128) Criterion benchmark groups to
+  `coeus-tensor/benches/tensor_bench.rs` comparing Burn NdArray, Coeus
+  Sequential, and Coeus Moirai. Added `coeus-nn` and `coeus-autograd` as
+  dev-dependencies of `coeus-tensor`.
+- [x] [patch] Verification (2026-06-24):
+  `cargo clippy --workspace --all-targets -- -D warnings` (clean),
+  `cargo nextest run --workspace` (439 passed),
+  burn_live_parity 44 tests (incl. BatchNorm1d backward),
+  binding_tests_nn 1 test (incl. all global pool wrappers).
 
 ---
 
