@@ -192,6 +192,63 @@ unary_parity!(
     vec![0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, core::f32::consts::PI]
 );
 
+// Unary activation gradients (the `*Grad` kernel variants). These exercise the
+// device kernels driven by autograd backward, including the exact-erf
+// `GeluGrad` kernel, against the CPU `eval_unary` reference.
+
+macro_rules! unary_grad_parity {
+    ($name:ident, $op:expr, $data:expr) => {
+        #[test]
+        fn $name() {
+            let Some((s, c)) = backends() else {
+                return;
+            };
+            let data: Vec<f32> = $data;
+            let x = Tensor::from_slice(vec![data.len()], &data);
+            let cpu = coeus_ops::elementwise_unary(&x, &s, $op);
+            let gpu = to_cpu(
+                &coeus_ops::elementwise_unary(&to_gpu(&x, &s, &c), &c, $op),
+                &c,
+                &s,
+            );
+            assert_parity_tol(stringify!($name), cpu.as_slice(), gpu.as_slice(), CUDA_TOL);
+        }
+    };
+}
+
+unary_grad_parity!(
+    test_cuda_parity_relu_grad,
+    coeus_ops::UnaryOp::ReluGrad,
+    vec![-2.0, -1.0, 0.0, 0.5, 1.0, 2.0, -0.5, 3.0]
+);
+unary_grad_parity!(
+    test_cuda_parity_sigmoid_grad,
+    coeus_ops::UnaryOp::SigmoidGrad,
+    vec![0.05, 0.2, 0.4, 0.5, 0.6, 0.8, 0.95, 0.3]
+);
+unary_grad_parity!(
+    test_cuda_parity_tanh_grad,
+    coeus_ops::UnaryOp::TanhGrad,
+    vec![-0.9, -0.5, -0.1, 0.0, 0.1, 0.5, 0.9, 0.3]
+);
+unary_grad_parity!(
+    test_cuda_parity_gelu_grad,
+    coeus_ops::UnaryOp::GeluGrad,
+    // Span the region where the tanh-approx gradient diverges from exact erf,
+    // so this guards the exact-erf GeluGrad kernel contract.
+    vec![-3.0, -2.3, -1.5, -0.5, 0.5, 1.5, 2.3, 3.0]
+);
+unary_grad_parity!(
+    test_cuda_parity_silu_grad,
+    coeus_ops::UnaryOp::SiluGrad,
+    vec![-2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 1.5]
+);
+unary_grad_parity!(
+    test_cuda_parity_mish_grad,
+    coeus_ops::UnaryOp::MishGrad,
+    vec![-2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 1.5]
+);
+
 // Reductions.
 
 #[test]
