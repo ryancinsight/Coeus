@@ -79,10 +79,9 @@ That CUDA feature requires `CUDA_TOOLKIT_PATH` and a working CUDA driver.
 
 ### Run Benchmarks
 `coeus-tensor` contains Criterion baselines for Coeus Sequential, Coeus Moirai,
-direct Leto, the Coeus-Leto dispatch shim, `ndarray`, `nalgebra`, and a Rayon
-slice elementwise baseline. The workspace bench profile uses thin LTO and one
-codegen unit so generic cross-crate kernels are measured with production-grade
-monomorphization:
+direct Leto, the Coeus-Leto dispatch shim, and dev-only Burn NdArray oracle
+rows. The workspace bench profile uses thin LTO and one codegen unit so generic
+cross-crate kernels are measured with production-grade monomorphization:
 ```bash
 cargo bench -p coeus-tensor --bench tensor_bench
 ```

@@ -81,6 +81,13 @@ Python as a thin PyO3 wrapper over Rust core operations.
   Evidence tier: empirical differential validation. Evidence:
   `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests` passes
   with 42 tests.
+- [x] [patch] Extended CUDA live parity coverage to unary activation-gradient
+  kernels (`ReluGrad`, `SigmoidGrad`, `TanhGrad`, `GeluGrad`, `SiluGrad`,
+  `MishGrad`) against the CPU unary reference, including exact-erf `GeluGrad`
+  inputs where the tanh approximation would diverge. Evidence tier: empirical
+  differential validation. Evidence:
+  `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests` passes
+  with 48 tests.
 - [x] [patch] Consolidated the `coeus-python` embedded-Python test lock into
   `tests/common/mod.rs` and routed binding ops/distributed tests through that
   test-only SSOT. Evidence: `cargo nextest run -p coeus-python --test
@@ -90,10 +97,24 @@ Python as a thin PyO3 wrapper over Rust core operations.
   Evidence tier: compile-time dependency audit plus benchmark build. Evidence:
   `cargo check -p coeus-tensor --benches` and
   `cargo nextest run -p coeus-core --test dependency_policy` pass.
-- [x] [patch] Verification: `cargo fmt --check`, `cargo check --workspace`,
+- [x] [patch] Reconciled README and checklist benchmark descriptions with the
+  Rayon-free harness surface: Coeus Sequential, Coeus Moirai, direct Leto,
+  Coeus-Leto dispatch, and dev-only Burn NdArray oracle rows. Evidence tier:
+  documentation/dependency-surface consistency.
+- [x] [patch] Extended `coeus-core/tests/dependency_policy.rs` to reject direct
+  production `rustfft` imports and manifest dependencies, keeping Apollo FFT as
+  the FFT SSOT for Coeus. Evidence tier: compile-time dependency audit.
+  Evidence: `cargo nextest run -p coeus-core --test dependency_policy` passes
+  and `rg -n "rustfft|apollo" -g "Cargo.toml" -g "*.rs" -g "*.md"` shows no
+  production Coeus `rustfft` use.
+- [x] [patch] Verification: `cargo fmt --check`,
+  `cargo check -p coeus-tensor --benches`,
   `cargo clippy --workspace --all-targets -- -D warnings`,
-  `cargo nextest run --workspace` (420 passed), and
-  `cargo test --doc --workspace` all pass on 2026-06-24.
+  `cargo nextest run -p coeus-core --test dependency_policy`, and
+  `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests`
+  (48 passed), `cargo nextest run --workspace` (420 passed),
+  `cargo test --doc --workspace`, and `cargo doc --workspace --no-deps` pass on
+  2026-06-24.
 
 ---
 
@@ -136,22 +157,25 @@ GPU backends over Hephaestus; dependency policy hardening.
 - [x] [patch] Added `coeus-core/tests/dependency_policy.rs` to enforce the
   Moirai parallel/async SSOT: production sources and production manifest
   dependency sections may not import or depend on `rayon` or `tokio`. Evidence:
-  `cargo test -p coeus-core --test dependency_policy` passes; normal dependency
-  tree checks show no production `rayon` edge and no resolved `tokio` package.
+  `cargo nextest run -p coeus-core --test dependency_policy` passes; normal
+  dependency tree checks show no production `rayon` edge and no resolved
+  `tokio` package.
 - [x] [patch] Removed Coeus' direct `pollster` dependency from `coeus-wgpu` and
   extended `coeus-core/tests/dependency_policy.rs` to reject Coeus production
-  `pollster` imports/dependencies. Evidence: `cargo test -p coeus-core --test
-  dependency_policy` and `cargo tree -p coeus-wgpu --edges normal -i pollster`
-  pass; the remaining resolved `pollster` edge is isolated inside
+  `pollster` imports/dependencies. Evidence:
+  `cargo nextest run -p coeus-core --test dependency_policy` and
+  `cargo tree -p coeus-wgpu --edges normal -i pollster` pass; the remaining
+  resolved `pollster` edge is isolated inside
   `hephaestus-wgpu`.
 - [x] [patch] Extended the dependency policy to reject direct production imports
   and direct production manifest dependencies on replacement libraries (`burn`,
   `nalgebra`, `ndarray`, `tch`) while preserving benchmark/dev-only comparisons.
-  Evidence: `cargo test -p coeus-core --test dependency_policy` passes.
+  Evidence: `cargo nextest run -p coeus-core --test dependency_policy` passes.
 - [x] [patch] Expanded `coeus-leto` contract coverage for the CPU consolidation
   seam: binary dispatch covers `Sub`/`Mul`/`Div`, unary dispatch covers
   `Relu`/`Abs`/`Neg`, and keep-dim reductions cover `Sum`/`Max`/`Min`. Evidence:
-  `cargo test -p coeus-leto` passes; the current contract suite contains 14 tests.
+  `cargo nextest run -p coeus-leto` passes; the current contract suite contains
+  14 tests.
 - [x] [patch] Added `coeus-ops/tests/unary_leto_diff.rs` to prove
   `SequentialBackend` and `MoiraiBackend` unary `BackendOps` dispatch matches
   direct scalar `CpuUnaryDispatch::eval_unary` for the full `CpuUnaryOp` surface.
@@ -308,8 +332,8 @@ GPU backends over Hephaestus; dependency policy hardening.
   0 skipped), `cargo test --doc --workspace`, and `cargo doc --workspace
   --no-deps` pass.
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
-  for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice
-  elementwise add alongside Coeus Sequential and Moirai.
+  for direct Leto and Coeus-Leto dispatch alongside Coeus Sequential, Coeus
+  Moirai, and later dev-only Burn NdArray oracle rows.
 - [x] [patch] Consolidated duplicated fused CPU value/reduction traversal in
   `coeus-ops::fuse` behind shared writer helpers and replaced manual temporary
   host-cache cleanup with an RAII guard. Added value-semantic coverage for fused
@@ -344,19 +368,18 @@ GPU backends over Hephaestus; dependency policy hardening.
 - [x] [patch] Added `[profile.bench]` thin LTO with one codegen unit so
   cross-crate generic kernels are benchmarked after production-grade
   monomorphization. Evidence tier: empirical Criterion measurement.
-- [x] [minor] Ran a short empirical benchmark pass:
+- [x] [minor] Ran a short historical empirical benchmark pass:
   `cargo bench -p coeus-tensor --bench tensor_bench -- --warm-up-time 1
   --measurement-time 2 --sample-size 10`. Evidence tier: empirical Criterion
-  measurement. Median estimates before the bench-profile fix: 1024x1024 add,
-  Coeus Sequential 1.2061 ms, Coeus Moirai 1.2963 ms, ndarray 1.0895 ms,
-  nalgebra 954.33 us, Rayon slice 1.0532 ms; 256x256 matmul, Coeus Sequential
-  6.8640 ms, Coeus Moirai 6.8874 ms, ndarray 595.62 us, nalgebra 585.70 us.
-  Focused post-profile 256x256 matmul measurement: Coeus Sequential 1.0006 ms,
-  Coeus Moirai 1.1146 ms, direct Leto 1.1012 ms, Coeus-Leto dispatch 1.0905 ms,
-  ndarray 557.02 us, nalgebra 557.99 us. Rejected upstream Hermes tiled-GEMM
-  route: Leto 256x256 f64 regressed to 3.6848 ms and Coeus f32 direct Leto
-  regressed to 8.7577 ms; source change was removed. Dense matmul remains a
-  measured optimization target with an approximate 2x gap to ndarray/nalgebra.
+  measurement. The current harness no longer carries direct third-party tensor
+  or Rayon rows; it retains Coeus Sequential/Moirai, direct Leto,
+  Coeus-Leto dispatch, and dev-only Burn NdArray oracle rows. Focused
+  post-profile 256x256 matmul measurement: Coeus Sequential 1.0006 ms, Coeus
+  Moirai 1.1146 ms, direct Leto 1.1012 ms, Coeus-Leto dispatch 1.0905 ms.
+  Rejected upstream Hermes tiled-GEMM route: Leto 256x256 f64 regressed to
+  3.6848 ms and Coeus f32 direct Leto regressed to 8.7577 ms; source change was
+  removed. Dense matmul remains a measured optimization target against the
+  dev-only Burn oracle.
 
 ---
 
@@ -396,12 +419,16 @@ Resolve the remaining compiler and thread-safety blockers in `coeus-ops` and `co
 Establish numerical validation, autograd equivalence, and performance measurements against baseline libraries.
 
 - [x] **Numerical Parity Validation**:
-  - [x] Implement `coeus-tensor/tests/parity_tests.rs` comparing Coeus tensor operations against `ndarray` outputs.
+  - [x] Implement `coeus-tensor/tests/parity_tests.rs` comparing Coeus tensor
+    operations against self-contained row-major references.
   - [x] Verify exact parity across various strides, shapes, and layouts.
 - [x] **Autograd Parity & Design Equivalence**:
   - [x] Implement autograd validation tests and verify gradient correctness.
 - [x] **Performance Benchmarks**:
-  - [x] Configure `criterion` benchmarks in `coeus-tensor/benches/tensor_bench.rs` comparing Sequential/Moirai backends against `ndarray`.
+  - [x] Configure `criterion` benchmarks in
+    `coeus-tensor/benches/tensor_bench.rs` comparing Sequential/Moirai backends
+    against direct Leto, Coeus-Leto dispatch, and dev-only Burn NdArray oracle
+    rows.
 
 ### Phase 3: GPU Integration Abstractions (Sprint MS-55 Phase 1) [COMPLETE]
 Introduce generic, zero-cost associated-type abstractions to support device-specific execution.
