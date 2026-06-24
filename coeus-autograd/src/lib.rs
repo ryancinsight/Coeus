@@ -40,6 +40,8 @@ pub use ops::{
     conv1d,
     conv2d,
     conv3d,
+    // Trigonometric
+    cos,
     cosine_embedding_loss,
     cross_entropy_loss,
     cumsum,
@@ -48,6 +50,8 @@ pub use ops::{
     elu,
     embedding,
     exp,
+    // Shape ops
+    flip,
     gelu,
     gelu_tanh,
     huber_loss,
@@ -83,6 +87,8 @@ pub use ops::{
     sdp_attention,
     sigmoid,
     silu,
+    // Trigonometric
+    sin,
     slice,
     softmax,
     softplus,
@@ -98,6 +104,8 @@ pub use ops::{
     transpose,
     transpose_2d,
     unsqueeze,
+    // Shape ops
+    where_cond,
     AttentionMask,
     BatchNorm1dArgs,
     BatchNorm2dArgs,

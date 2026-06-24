@@ -52,7 +52,39 @@ impl BinaryOpTag for Div {
 
 pub trait UnaryOpTag<T: Scalar>: 'static + Send + Sync + Copy + Clone {
     const WGSL_TEMPLATE: &'static str;
+    fn wgsl_expr(child: &str) -> String {
+        Self::WGSL_TEMPLATE.replace("{}", child)
+    }
     fn apply(x: T) -> T;
+}
+
+/// WGSL expression for an Abramowitz-Stegun erf approximation.
+///
+/// The maximum absolute error is below the existing backend parity tolerance
+/// used by WGPU tests, and WGSL has no native `erf` intrinsic.
+#[must_use]
+pub fn wgsl_erf_approx_expr(arg: &str) -> String {
+    let z = format!("({arg})");
+    let t = format!("(1.0 / (1.0 + 0.3275911 * abs({z})))");
+    format!(
+        "(sign({z}) * (1.0 - (((((1.061405429 * {t} - 1.453152027) * {t} + 1.421413741) * {t} - 0.284496736) * {t} + 0.254829592) * {t}) * exp(-({z}) * ({z}))))"
+    )
+}
+
+/// WGSL expression for exact-contract GELU using `erf(x / sqrt(2))`.
+#[must_use]
+pub fn wgsl_gelu_expr(arg: &str) -> String {
+    let x = format!("({arg})");
+    let erf = wgsl_erf_approx_expr(&format!("{x} * 0.7071067811865476"));
+    format!("(0.5 * {x} * (1.0 + {erf}))")
+}
+
+/// WGSL expression for the exact-contract GELU derivative.
+#[must_use]
+pub fn wgsl_gelu_grad_expr(arg: &str) -> String {
+    let x = format!("({arg})");
+    let erf = wgsl_erf_approx_expr(&format!("{x} * 0.7071067811865476"));
+    format!("(0.5 * (1.0 + {erf}) + {x} * exp(-0.5 * {x} * {x}) * 0.3989422804014327)")
 }
 
 #[derive(Clone, Copy)]
@@ -94,6 +126,9 @@ pub struct Gelu;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Gelu {
     const WGSL_TEMPLATE: &'static str =
         "0.5 * ({}) * (1.0 + tanh(0.7978845608 * (({}) + 0.044715 * ({}) * ({}) * ({}))))";
+    fn wgsl_expr(child: &str) -> String {
+        wgsl_gelu_expr(child)
+    }
     #[inline(always)]
     fn apply(x: T) -> T {
         x.gelu_op()
@@ -104,19 +139,18 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Gelu {
 pub struct GeluGrad;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for GeluGrad {
     const WGSL_TEMPLATE: &'static str = "0.5 * (1.0 + tanh(0.7978845608 * (({}) + 0.044715 * ({}) * ({}) * ({})))) + 0.5 * ({}) * (1.0 - tanh(0.7978845608 * (({}) + 0.044715 * ({}) * ({}) * ({}))) * tanh(0.7978845608 * (({}) + 0.044715 * ({}) * ({}) * ({})))) * 0.7978845608 * (1.0 + 0.134145 * ({}) * ({}))";
+    fn wgsl_expr(child: &str) -> String {
+        wgsl_gelu_grad_expr(child)
+    }
     #[inline(always)]
     fn apply(x: T) -> T {
         let half = T::from_f64(0.5);
         let one = T::one();
-        let c1 = T::from_f64(0.7978845608);
-        let c2 = T::from_f64(0.044715);
-        let c3 = T::from_f64(0.134145);
-
+        let inv_sqrt_two = T::from_f64(core::f64::consts::FRAC_1_SQRT_2);
+        let inv_sqrt_two_pi = T::from_f64(0.3989422804014327);
         let x2 = x * x;
-        let v = c1 * (x + c2 * x * x2);
-        let t = v.tanh_op();
-        let dy = c1 * (one + c3 * x2);
-        half * (one + t) + half * x * (one - t * t) * dy
+        half * (one + (x * inv_sqrt_two).erf_op())
+            + x * ((T::zero() - half * x2).exp_op()) * inv_sqrt_two_pi
     }
 }
 

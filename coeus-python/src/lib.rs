@@ -111,6 +111,18 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::permute, m)?)?;
     m.add_function(wrap_pyfunction!(ops::t, m)?)?;
     m.add_function(wrap_pyfunction!(ops::pow, m)?)?;
+    // Trigonometric
+    m.add_function(wrap_pyfunction!(ops::sin, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::cos, m)?)?;
+    // Shape ops
+    m.add_function(wrap_pyfunction!(ops::flip, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::where_cond, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::softmax, m)?)?;
+    // Constructors
+    m.add_function(wrap_pyfunction!(ops::randn, m)?)?;
+    // Sorting / selection
+    m.add_function(wrap_pyfunction!(ops::topk, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::sort, m)?)?;
 
     Ok(())
 }

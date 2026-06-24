@@ -48,10 +48,13 @@ macro_rules! impl_scalar_float_half {
                 Self::from_f64(self.to_f64().cos())
             }
             #[inline(always)]
+            fn erf_op(self) -> Self {
+                Self::from_f64(libm::erf(self.to_f64()))
+            }
+            #[inline(always)]
             fn gelu_op(self) -> Self {
                 let x_f = self.to_f64();
-                let res =
-                    0.5 * x_f * (1.0 + (0.7978845608 * (x_f + 0.044715 * x_f.powi(3))).tanh());
+                let res = 0.5 * x_f * (1.0 + libm::erf(x_f * core::f64::consts::FRAC_1_SQRT_2));
                 Self::from_f64(res)
             }
             #[inline(always)]

@@ -18,7 +18,8 @@ thiserror      = { workspace = true }
 coeus-autograd = { workspace = true, default-features = false }
 coeus-ops      = { workspace = true, default-features = false }
 # Burn NdArray backend — dev/bench only (production policy enforced by dependency_policy test).
-burn           = { version = "0.16", features = ["ndarray"], default-features = false }
+# `autodiff` enables Autodiff<NdArray> for gradient comparison tests.
+burn           = { version = "0.16", features = ["ndarray", "autodiff"], default-features = false }
 
 [[test]]
 name = "burn_live_parity"

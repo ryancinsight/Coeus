@@ -24,8 +24,10 @@ pub fn tanh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Te
     elementwise_unary(input, backend, UnaryOp::Tanh)
 }
 
-/// GELU (Gaussian Error Linear Unit).
-/// Approx: 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
+/// Exact GELU (Gaussian Error Linear Unit).
+///
+/// Formula: `0.5 * x * (1 + erf(x / sqrt(2)))`.
+/// The tanh approximation is exposed separately as [`gelu_tanh`].
 #[inline]
 pub fn gelu<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Gelu)

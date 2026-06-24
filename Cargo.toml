@@ -38,6 +38,7 @@ leto-ops = { path = "../leto/crates/leto-ops", version = "0.35.1" }
 num-traits = "0.2"
 bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }
 half       = { version = "2.7", features = ["num-traits", "bytemuck"] }
+libm       = "0.2"
 # ndarray is intentionally absent: coeus implements its own tensor/array stack
 # (coeus-tensor). It may still appear transitively inside apollo-fft (an
 # ndarray-based FFT crate), but coeus's own code does not depend on it.

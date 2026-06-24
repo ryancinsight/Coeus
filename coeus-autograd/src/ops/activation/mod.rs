@@ -122,4 +122,4 @@ pub use relu::{elu, leaky_relu, relu, EluOp, ReluOp};
 pub use sigmoid::{sigmoid, SigmoidOp};
 pub use silu::{mish, silu, softplus, MishOp, SiluOp, SoftplusOp};
 pub use tanh_act::{tanh, TanhOp};
-pub use trig::{exp, log, ExpOp, LogOp};
+pub use trig::{cos, exp, log, sin, CosOp, ExpOp, LogOp, SinOp};

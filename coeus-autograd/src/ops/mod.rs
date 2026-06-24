@@ -10,8 +10,8 @@ pub mod shape;
 pub mod var_ops;
 
 pub use activation::{
-    abs, clamp, elu, exp, gelu, gelu_tanh, leaky_relu, log, mish, neg, pow, relu, sigmoid, silu,
-    softplus, sqrt, tanh,
+    abs, clamp, cos, elu, exp, gelu, gelu_tanh, leaky_relu, log, mish, neg, pow, relu, sigmoid,
+    silu, sin, softplus, sqrt, tanh,
 };
 pub use arithmetic::{
     add, div, mean, mean_axis, mul, scalar_add, scalar_div, scalar_mul, scalar_sub, sub, sum,
@@ -29,6 +29,6 @@ pub use nn::{
 
 pub use embedding::embedding;
 pub use shape::{
-    cat, contiguous, cumsum, pad, permute, reshape, slice, split, squeeze, stack, transpose,
-    unsqueeze,
+    cat, contiguous, cumsum, flip, pad, permute, reshape, slice, split, squeeze, stack, transpose,
+    unsqueeze, where_cond,
 };

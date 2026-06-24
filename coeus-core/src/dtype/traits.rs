@@ -28,6 +28,7 @@ pub trait FloatOps: private::Sealed {
     fn tanh_op(self) -> Self;
     fn sin_op(self) -> Self;
     fn cos_op(self) -> Self;
+    fn erf_op(self) -> Self;
     fn gelu_op(self) -> Self;
     fn sigmoid_op(self) -> Self;
 }

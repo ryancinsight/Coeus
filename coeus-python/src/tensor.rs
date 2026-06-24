@@ -242,6 +242,49 @@ impl PyTensor {
         Ok(Self { inner })
     }
 
+    /// Tracked element-wise sine.
+    fn sin(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::sin(&self.inner));
+        Ok(Self { inner })
+    }
+
+    /// Tracked element-wise cosine.
+    fn cos(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::cos(&self.inner));
+        Ok(Self { inner })
+    }
+
+    /// Flip the tensor along `axis`.
+    fn flip(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::flip(&self.inner, axis));
+        Ok(Self { inner })
+    }
+
+    /// Extract a scalar value from a single-element tensor.
+    ///
+    /// Raises `ValueError` if the tensor does not have exactly one element.
+    fn item(&self) -> PyResult<f64> {
+        let numel: usize = self.inner.tensor.shape().iter().product();
+        if numel != 1 {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "item(): tensor has {numel} elements, expected 1"
+            )));
+        }
+        let contiguous = self.inner.tensor.to_contiguous();
+        Ok(contiguous.as_slice()[0])
+    }
+
+    /// Total number of elements.
+    fn numel(&self) -> usize {
+        self.inner.tensor.shape().iter().product()
+    }
+
+    /// Number of dimensions.
+    #[getter]
+    fn ndim(&self) -> usize {
+        self.inner.tensor.ndim()
+    }
+
     /// Zero the accumulated gradient.
     pub fn zero_grad(&self) {
         self.inner.zero_grad();

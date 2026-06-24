@@ -264,3 +264,128 @@ pub fn pow(input: &PyTensor, exp: f64, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::pow(&input.inner, exp));
     PyTensor { inner }
 }
+
+// ── Trigonometric ────────────────────────────────────────────────────────────
+
+/// Element-wise sine with autograd.
+#[pyfunction]
+pub fn sin(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::sin(&input.inner));
+    PyTensor { inner }
+}
+
+/// Element-wise cosine with autograd.
+#[pyfunction]
+pub fn cos(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::cos(&input.inner));
+    PyTensor { inner }
+}
+
+// ── Shape ops ────────────────────────────────────────────────────────────────
+
+/// Flip the tensor along `axis` (reverse the elements).
+///
+/// Backward is a flip of the gradient along the same axis.
+#[pyfunction]
+pub fn flip(input: &PyTensor, axis: usize, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::flip(&input.inner, axis));
+    PyTensor { inner }
+}
+
+/// Conditional element-wise select.
+///
+/// `out[i] = on_true[i] if cond[i] != 0 else on_false[i]`
+///
+/// All three tensors must have the same shape.  Gradient flows through
+/// `on_true` and `on_false`; `cond` receives zero gradient.
+#[pyfunction]
+pub fn where_cond(
+    cond: &PyTensor,
+    on_true: &PyTensor,
+    on_false: &PyTensor,
+    py: Python<'_>,
+) -> PyTensor {
+    let inner = py
+        .allow_threads(|| coeus_autograd::where_cond(&cond.inner, &on_true.inner, &on_false.inner));
+    PyTensor { inner }
+}
+
+/// Softmax along `dim` (numerically stable).
+#[pyfunction]
+pub fn softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::softmax(&input.inner, dim as isize));
+    PyTensor { inner }
+}
+
+// ── Constructors (additions) ──────────────────────────────────────────────────
+
+/// Create a tensor filled with random samples from a normal distribution N(0, 1).
+///
+/// Uses `coeus_nn::init::normal_with_seed` with a time-derived seed.
+#[pyfunction]
+#[pyo3(signature = (shape, requires_grad = false))]
+pub fn randn(shape: Vec<usize>, requires_grad: bool) -> PyTensor {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.subsec_nanos() as u64)
+        .unwrap_or(12345);
+    // Build a zero tensor then fill via normal_with_seed.
+    let zeros_t = Tensor::<f64, MoiraiBackend>::zeros(shape);
+    let mut v = Var::new(zeros_t, requires_grad);
+    coeus_nn::init::normal_with_seed(&mut v, 0.0, 1.0, seed);
+    PyTensor { inner: v }
+}
+
+/// Top-k values and indices along `dim`.
+///
+/// Returns `(values, indices)` where `values` is a `PyTensor` and `indices`
+/// is a `PyTensor` with the original integer positions encoded as `f64`.
+#[pyfunction]
+#[pyo3(signature = (input, k, dim = 0))]
+pub fn topk(input: &PyTensor, k: usize, dim: usize, py: Python<'_>) -> (PyTensor, PyTensor) {
+    let backend = MoiraiBackend::new();
+    // topk returns (Tensor<f64>, Tensor<i64>); convert i64 indices to f64 for uniform PyTensor.
+    let (vals, idxs_i64) = py.allow_threads(|| coeus_ops::topk(&input.inner.tensor, k, dim, true));
+    // Convert i64 index tensor → f64 tensor via element-wise cast.
+    let idx_data: Vec<f64> = idxs_i64
+        .to_contiguous_on(&backend)
+        .as_slice()
+        .iter()
+        .map(|&x| x as f64)
+        .collect();
+    let idx_f64 = Tensor::<f64, MoiraiBackend>::from_slice(idxs_i64.shape().to_vec(), &idx_data);
+    (
+        PyTensor {
+            inner: Var::new(vals, false),
+        },
+        PyTensor {
+            inner: Var::new(idx_f64, false),
+        },
+    )
+}
+
+/// Sort tensor along `dim`.
+///
+/// Returns `(sorted_values, argsort_indices)`.  If `descending=True`,
+/// sorts in descending order.  Indices are encoded as `f64`.
+#[pyfunction]
+#[pyo3(signature = (input, dim = 0, descending = false))]
+pub fn sort(
+    input: &PyTensor,
+    dim: usize,
+    descending: bool,
+    py: Python<'_>,
+) -> (PyTensor, PyTensor) {
+    let backend = MoiraiBackend::new();
+    let (vals, idxs) =
+        py.allow_threads(|| coeus_ops::sort(&input.inner.tensor, dim, descending, &backend));
+    (
+        PyTensor {
+            inner: Var::new(vals, false),
+        },
+        PyTensor {
+            inner: Var::new(idxs, false),
+        },
+    )
+}

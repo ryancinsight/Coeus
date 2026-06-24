@@ -223,7 +223,7 @@ impl<Op: UnaryOpTag<T> + Send, Child: ExprNode<T, B>, T: Scalar, B: ComputeBacke
 
     fn to_shader_expr(&self, input_map: &HashMap<*const Tensor<T, B>, usize>) -> String {
         let child_str = self.child.to_shader_expr(input_map);
-        Op::WGSL_TEMPLATE.replace("{}", &child_str)
+        Op::wgsl_expr(&child_str)
     }
 
     unsafe fn eval_cpu(&self, coords: &[usize]) -> T {

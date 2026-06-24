@@ -1,7 +1,7 @@
 use crate::dtype::traits::{private, Float, FloatOps, Scalar};
 
 macro_rules! impl_scalar_float_native {
-    ($t:ty) => {
+    ($t:ty, $erf:path) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
@@ -109,13 +109,15 @@ macro_rules! impl_scalar_float_native {
                 self.cos()
             }
             #[inline(always)]
+            fn erf_op(self) -> Self {
+                $erf(self)
+            }
+            #[inline(always)]
             fn gelu_op(self) -> Self {
-                let x_f = self;
-                let c1 = Self::from_f64(0.5);
-                let c2 = Self::from_f64(1.0);
-                let c3 = Self::from_f64(0.797_884_560_8);
-                let c4 = Self::from_f64(0.044_715);
-                c1 * x_f * (c2 + (c3 * (x_f + c4 * x_f.powi(3))).tanh())
+                let half = Self::from_f64(0.5);
+                let one = Self::from_f64(1.0);
+                let inv_sqrt_two = Self::from_f64(core::f64::consts::FRAC_1_SQRT_2);
+                half * self * (one + (self * inv_sqrt_two).erf_op())
             }
             #[inline(always)]
             fn sigmoid_op(self) -> Self {
@@ -236,5 +238,5 @@ macro_rules! impl_scalar_float_native {
     };
 }
 
-impl_scalar_float_native!(f32);
-impl_scalar_float_native!(f64);
+impl_scalar_float_native!(f32, libm::erff);
+impl_scalar_float_native!(f64, libm::erf);

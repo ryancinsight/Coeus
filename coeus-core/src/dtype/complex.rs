@@ -180,6 +180,11 @@ impl<T: Float> FloatOps for Complex<T> {
     }
 
     #[inline(always)]
+    fn erf_op(self) -> Self {
+        panic!("erf not supported on complex types")
+    }
+
+    #[inline(always)]
     fn gelu_op(self) -> Self {
         panic!("gelu not supported on complex types")
     }

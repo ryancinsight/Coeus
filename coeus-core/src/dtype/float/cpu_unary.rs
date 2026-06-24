@@ -30,15 +30,11 @@ macro_rules! impl_cpu_unary_dispatch_float {
                     CpuUnaryOp::GeluGrad => {
                         let half = Self::from_f64(0.5);
                         let one = Self::one();
-                        let c1 = Self::from_f64(0.7978845608);
-                        let c2 = Self::from_f64(0.044715);
-                        let c3 = Self::from_f64(0.134145);
-
+                        let inv_sqrt_two = Self::from_f64(core::f64::consts::FRAC_1_SQRT_2);
+                        let inv_sqrt_two_pi = Self::from_f64(0.3989422804014327);
                         let x2 = x * x;
-                        let v = c1 * (x + c2 * x * x2);
-                        let t = v.tanh_op();
-                        let dy = c1 * (one + c3 * x2);
-                        half * (one + t) + half * x * (one - t * t) * dy
+                        half * (one + (x * inv_sqrt_two).erf_op())
+                            + x * ((Self::zero() - half * x2).exp_op()) * inv_sqrt_two_pi
                     }
                     CpuUnaryOp::Sin => x.sin_op(),
                     CpuUnaryOp::Cos => x.cos_op(),

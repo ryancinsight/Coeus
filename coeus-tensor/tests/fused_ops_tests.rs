@@ -1,4 +1,4 @@
-use coeus_core::SequentialBackend;
+use coeus_core::{FloatOps, SequentialBackend};
 use coeus_ops::fuse::{evaluate_fused_cpu, evaluate_fused_reduce_cpu, TensorExprExt};
 use coeus_ops::ReductionOp;
 use coeus_tensor::Tensor;
@@ -100,10 +100,8 @@ fn test_cpu_fusion_gelu() {
     let out_slice = fused_out.as_slice();
     let a_slice = a.as_slice();
     for i in 0..5 {
-        let x = a_slice[i] as f64;
-        let v = 0.7978845608 * (x + 0.044715 * x * x * x);
-        let expected = 0.5 * x * (1.0 + v.tanh());
-        assert!((out_slice[i] - expected as f32).abs() < 1e-5);
+        let expected = a_slice[i].gelu_op();
+        assert!((out_slice[i] - expected).abs() < 1e-5);
     }
 }
 
@@ -122,13 +120,14 @@ fn test_cpu_fusion_gelu_grad() {
     let out_slice = fused_out.as_slice();
     let a_slice = a.as_slice();
     for i in 0..5 {
-        let x = a_slice[i] as f64;
+        let x = a_slice[i];
         let x2 = x * x;
-        let v = 0.7978845608 * (x + 0.044715 * x * x2);
-        let t = v.tanh();
-        let dy = 0.7978845608 * (1.0 + 0.134145 * x2);
-        let expected = 0.5 * (1.0 + t) + 0.5 * x * (1.0 - t * t) * dy;
-        assert!((out_slice[i] - expected as f32).abs() < 1e-5);
+        let half = 0.5;
+        let inv_sqrt_two = core::f32::consts::FRAC_1_SQRT_2;
+        let inv_sqrt_two_pi = 0.398_942_3;
+        let expected = half * (1.0 + (x * inv_sqrt_two).erf_op())
+            + x * ((0.0 - half * x2).exp()) * inv_sqrt_two_pi;
+        assert!((out_slice[i] - expected).abs() < 1e-5);
     }
 }
 
