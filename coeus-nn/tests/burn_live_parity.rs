@@ -668,6 +668,117 @@ fn mse_loss_matches_burn() {
     assert_close("mse_loss", loss_c.tensor.as_slice(), &[loss_b]);
 }
 
+#[test]
+fn probability_loss_forward_and_backward_match_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use burn::nn::loss::{BinaryCrossEntropyLossConfig, HuberLossConfig, MseLoss, Reduction};
+    use burn::tensor::Int;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    let pred = vec![0.2_f32, 0.7, 0.6, 0.9];
+    let target = vec![0.0_f32, 1.0, 1.0, 0.0];
+    let pred_var = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &pred),
+        true,
+    );
+    let target_var = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &target),
+        false,
+    );
+    coeus_nn::binary_cross_entropy(&pred_var, &target_var, 1.0e-7).backward();
+    let pred_b: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(pred.clone(), [4]), &device).require_grad();
+    let target_b: BurnTensor<AB, 1, Int> =
+        BurnTensor::from_data(TensorData::new(vec![0_i64, 1, 1, 0], [4]), &device);
+    let grads = BinaryCrossEntropyLossConfig::new()
+        .init(&device)
+        .forward(pred_b.clone(), target_b)
+        .backward();
+    assert_close(
+        "binary_cross_entropy",
+        coeus_nn::binary_cross_entropy(&pred_var, &target_var, 1.0e-7)
+            .tensor
+            .as_slice(),
+        &bvec(BinaryCrossEntropyLossConfig::new().init(&device).forward(
+            BurnTensor::<BurnBackend, 1>::from_data(TensorData::new(pred.clone(), [4]), &dev()),
+            BurnTensor::<BurnBackend, 1, Int>::from_data(
+                TensorData::new(vec![0_i64, 1, 1, 0], [4]),
+                &dev(),
+            ),
+        )),
+    );
+    assert_close(
+        "binary_cross_entropy_bwd",
+        pred_var.grad().unwrap().as_slice(),
+        &pred_b
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
+    );
+
+    let y_hat = vec![-1.5_f32, -0.25, 0.5, 2.0];
+    let y = vec![0.0_f32, 0.25, -0.5, 1.25];
+    let y_hat_var = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &y_hat),
+        true,
+    );
+    let y_var = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &y),
+        false,
+    );
+    coeus_nn::mse_loss(&y_hat_var, &y_var).backward();
+    let y_hat_b: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(y_hat.clone(), [4]), &device).require_grad();
+    let y_b: BurnTensor<AB, 1> = BurnTensor::from_data(TensorData::new(y.clone(), [4]), &device);
+    let grads = MseLoss::new()
+        .forward(y_hat_b.clone(), y_b, Reduction::Mean)
+        .backward();
+    assert_close(
+        "mse_loss_bwd",
+        y_hat_var.grad().unwrap().as_slice(),
+        &y_hat_b
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
+    );
+
+    let huber_pred = vec![-1.5_f32, -0.25, 0.25, 1.75];
+    let huber_target = vec![0.0_f32, 0.25, 0.0, 0.5];
+    let huber_pred_var = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &huber_pred),
+        true,
+    );
+    let huber_target_var = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &huber_target),
+        false,
+    );
+    coeus_nn::huber_loss(&huber_pred_var, &huber_target_var, 1.0).backward();
+    let huber_pred_b: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(huber_pred.clone(), [4]), &device).require_grad();
+    let huber_target_b: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(huber_target.clone(), [4]), &device);
+    let grads = HuberLossConfig::new(1.0)
+        .init()
+        .forward(huber_pred_b.clone(), huber_target_b, Reduction::Mean)
+        .backward();
+    assert_close(
+        "huber_loss_bwd",
+        huber_pred_var.grad().unwrap().as_slice(),
+        &huber_pred_b
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
+    );
+}
+
 // ── LayerNorm ─────────────────────────────────────────────────────────────────
 
 #[test]
@@ -717,6 +828,106 @@ fn rmsnorm_forward_matches_burn_manual() {
     let out_b = xb / rms_b * wb.unsqueeze::<2>();
     assert_close_rel("rmsnorm_fwd", out_c.tensor.as_slice(), &bvec(out_b), 1e-4);
     let _ = backend;
+}
+
+// ── LayerNorm backward ──────────────────────────────────────────────────────────
+
+#[test]
+fn layernorm_backward_matches_burn_autodiff() {
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+    let x = vec![1.0f32, 2.0, 3.0, 4.0, -1.0, 0.5, 2.5, 3.0];
+    let w = vec![1.2f32, 0.8, 1.0, 0.9];
+    let b = vec![0.1f32, -0.1, 0.2, 0.0];
+    let eps = 1e-5f32;
+
+    // Coeus backward of sum(layernorm(x)).
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &x),
+        true,
+    );
+    let mut ln = coeus_nn::LayerNorm::<f32, SequentialBackend>::new(4, eps as f64);
+    ln.weight = Var::new(CoeusTensor::from_slice(vec![4], &w), true);
+    ln.bias = Var::new(CoeusTensor::from_slice(vec![4], &b), true);
+    coeus_autograd::sum(&ln.forward(&xv)).backward();
+
+    // Burn autodiff over the identical normalization formula.
+    let xb: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(x, [2, 4]), &device).require_grad();
+    let wb: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(w, [4]), &device).require_grad();
+    let bk: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(b, [4]), &device).require_grad();
+    let mean = xb.clone().mean_dim(1);
+    let xc = xb.clone() - mean;
+    let std = (xc.clone().powf_scalar(2.0).mean_dim(1) + eps).sqrt();
+    let out_b = xc / std * wb.clone().unsqueeze::<2>() + bk.clone().unsqueeze::<2>();
+    let grads = out_b.sum().backward();
+    let to_vec = |t: BurnTensor<NdArray<f32>, 1>| t.into_data().to_vec::<f32>().unwrap();
+    let to_vec2 = |t: BurnTensor<NdArray<f32>, 2>| t.into_data().to_vec::<f32>().unwrap();
+
+    assert_close_rel(
+        "layernorm_bwd dx",
+        xv.grad().unwrap().as_slice(),
+        &to_vec2(xb.grad(&grads).unwrap()),
+        1e-4,
+    );
+    assert_close_rel(
+        "layernorm_bwd dw",
+        ln.weight.grad().unwrap().as_slice(),
+        &to_vec(wb.grad(&grads).unwrap()),
+        1e-4,
+    );
+    assert_close_rel(
+        "layernorm_bwd db",
+        ln.bias.grad().unwrap().as_slice(),
+        &to_vec(bk.grad(&grads).unwrap()),
+        1e-4,
+    );
+}
+
+// ── RMSNorm backward ────────────────────────────────────────────────────────────
+
+#[test]
+fn rmsnorm_backward_matches_burn_autodiff() {
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+    let x = vec![1.0f32, 2.0, 3.0, 4.0, -1.0, 0.5, 2.5, 3.0];
+    let w = vec![1.0f32, 0.8, 1.2, 0.9];
+    let eps = 1e-6f32;
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &x),
+        true,
+    );
+    let mut rms = coeus_nn::RMSNorm::<f32, SequentialBackend>::new(4, eps as f64);
+    rms.weight = Var::new(CoeusTensor::from_slice(vec![4], &w), true);
+    coeus_autograd::sum(&rms.forward(&xv)).backward();
+
+    let xb: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(x, [2, 4]), &device).require_grad();
+    let wb: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(w, [4]), &device).require_grad();
+    let rms_b = (xb.clone().powf_scalar(2.0).mean_dim(1) + eps).sqrt();
+    let out_b = xb.clone() / rms_b * wb.clone().unsqueeze::<2>();
+    let grads = out_b.sum().backward();
+    let to_vec = |t: BurnTensor<NdArray<f32>, 1>| t.into_data().to_vec::<f32>().unwrap();
+    let to_vec2 = |t: BurnTensor<NdArray<f32>, 2>| t.into_data().to_vec::<f32>().unwrap();
+
+    assert_close_rel(
+        "rmsnorm_bwd dx",
+        xv.grad().unwrap().as_slice(),
+        &to_vec2(xb.grad(&grads).unwrap()),
+        1e-4,
+    );
+    assert_close_rel(
+        "rmsnorm_bwd dw",
+        rms.weight.grad().unwrap().as_slice(),
+        &to_vec(wb.grad(&grads).unwrap()),
+        1e-4,
+    );
 }
 
 // ── Clamp ─────────────────────────────────────────────────────────────────────
