@@ -496,6 +496,107 @@ assert d2[3] == 2.0, f"interp2d top-right wrong: {d2[3]}"
 }
 
 #[test]
+fn test_unsqueeze_squeeze_flatten() {
+    run_script(
+        r#"
+import pycoeus
+
+x = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3])
+assert x.shape == [2, 3]
+
+# unsqueeze at dim=0 → [1, 2, 3]
+u = pycoeus.unsqueeze(x, 0)
+assert u.shape == [1, 2, 3], f"unsqueeze dim=0: {u.shape}"
+
+# unsqueeze at dim=2 → [2, 3, 1]
+u2 = pycoeus.unsqueeze(x, 2)
+assert u2.shape == [2, 3, 1], f"unsqueeze dim=2: {u2.shape}"
+
+# squeeze u (has size-1 dim at 0) → [2, 3]
+s = pycoeus.squeeze(u)
+assert s.shape == [2, 3], f"squeeze all: {s.shape}"
+
+# squeeze with dim=0 explicitly
+s2 = pycoeus.squeeze(u, 0)
+assert s2.shape == [2, 3], f"squeeze dim=0: {s2.shape}"
+
+# flatten [2, 3] → [6]
+f = pycoeus.flatten(x)
+assert f.shape == [6], f"flatten default: {f.shape}"
+assert f.data == [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], f"flatten data: {f.data}"
+
+# flatten [1, 2, 3] → keep dim=0, flatten 1..2 → [1, 6]
+y = pycoeus.Tensor(list(range(24)), [2, 3, 4])
+f2 = pycoeus.flatten(y, 1, 2)
+assert f2.shape == [2, 12], f"flatten dim 1..2: {f2.shape}"
+
+# unsqueeze backward
+xg = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [4], requires_grad=True)
+ug = pycoeus.unsqueeze(xg, 0)
+loss = pycoeus.sum(ug)
+loss.backward()
+assert xg.grad == [1.0, 1.0, 1.0, 1.0], f"unsqueeze grad: {xg.grad}"
+
+try:
+    pycoeus.unsqueeze(x, 4)
+    raise AssertionError("unsqueeze out-of-range dim should fail")
+except ValueError:
+    pass
+
+try:
+    pycoeus.squeeze(x, 0)
+    raise AssertionError("squeeze of non-singleton dim should fail")
+except ValueError:
+    pass
+
+try:
+    pycoeus.flatten(x, 2)
+    raise AssertionError("flatten out-of-range start_dim should fail")
+except ValueError:
+    pass
+"#,
+    );
+}
+
+#[test]
+fn test_argmax_argmin() {
+    run_script(
+        r#"
+import pycoeus
+
+x = pycoeus.Tensor([3.0, 1.0, 4.0, 1.5, 9.0, 2.6, 5.3, 5.8, 9.7, 3.2], [2, 5])
+
+# argmax along dim=1 (keep-dim) → shape [2, 1]
+am = pycoeus.argmax(x, 1)
+assert am.shape == [2, 1], f"argmax shape: {am.shape}"
+# row0: [3,1,4,1.5,9] → max at idx 4
+# row1: [2.6,5.3,5.8,9.7,3.2] → max at idx 3
+assert am.data[0] == 4.0, f"argmax row0: {am.data[0]}"
+assert am.data[1] == 3.0, f"argmax row1: {am.data[1]}"
+
+# argmin along dim=1 (keep-dim) → shape [2, 1]
+an = pycoeus.argmin(x, 1)
+assert an.shape == [2, 1], f"argmin shape: {an.shape}"
+# row0: min at idx 1 (value 1.0)
+# row1: min at idx 0 (value 2.6)
+assert an.data[0] == 1.0, f"argmin row0: {an.data[0]}"
+assert an.data[1] == 0.0, f"argmin row1: {an.data[1]}"
+
+# 1-D case: argmax of [2, 5, 1, 8, 3] → idx 3
+v = pycoeus.Tensor([2.0, 5.0, 1.0, 8.0, 3.0], [5])
+assert pycoeus.argmax(v, 0).data[0] == 3.0
+assert pycoeus.argmin(v, 0).data[0] == 2.0
+
+try:
+    pycoeus.argmax(v, 1)
+    raise AssertionError("argmax out-of-range dim should fail")
+except ValueError:
+    pass
+"#,
+    );
+}
+
+#[test]
 fn test_statistical_ops() {
     run_script(
         r#"
@@ -506,7 +607,6 @@ x = pycoeus.Tensor([2.0, 4.0, 6.0, 8.0], [4])
 
 # std (unbiased)
 s = pycoeus.std(x)
-expected_std = math.sqrt(((4.0 + 0.0 + 4.0 + 16.0) / 3.0))  # wait, let me recompute
 # mean=5, deviations: -3,-1,1,3; sq: 9,1,1,9; sum=20; N-1=3; var=20/3; std=sqrt(20/3)
 expected_std2 = math.sqrt(20.0 / 3.0)
 assert abs(s - expected_std2) < 1e-9, f"std wrong: {s} vs {expected_std2}"
@@ -515,10 +615,65 @@ assert abs(s - expected_std2) < 1e-9, f"std wrong: {s} vs {expected_std2}"
 v = pycoeus.var(x)
 assert abs(v - 20.0 / 3.0) < 1e-9, f"var wrong: {v}"
 
+# var (biased, N divisor)
+v_biased = pycoeus.var(x, unbiased=False)
+assert abs(v_biased - 5.0) < 1e-9, f"var biased wrong: {v_biased}"
+
+# std (biased, N divisor)
+s_biased = pycoeus.std(x, unbiased=False)
+assert abs(s_biased - math.sqrt(5.0)) < 1e-9, f"std biased wrong: {s_biased}"
+
 # norm (L2)
 n = pycoeus.norm(x)
 expected_norm = math.sqrt(4 + 16 + 36 + 64)
 assert abs(n - expected_norm) < 1e-9, f"norm wrong: {n}"
+
+# 2-D axis + keepdim variance — matches torch.var(x, dim=1, keepdim=True)
+y = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3])
+# row 0 [1,2,3]: mean=2, dev^2=[1,0,1] sum=2, N-1=2, var=1.0
+# row 1 [4,5,6]: mean=5, dev^2=[1,0,1] sum=2, N-1=2, var=1.0
+v_axis1 = pycoeus.var(y, axis=1)
+assert v_axis1.shape == [2], f"var axis1 shape: {v_axis1.shape}"
+assert abs(v_axis1.data[0] - 1.0) < 1e-9, f"var axis1 row0 wrong: {v_axis1.data[0]}"
+assert abs(v_axis1.data[1] - 1.0) < 1e-9, f"var axis1 row1 wrong: {v_axis1.data[1]}"
+v_axis1_keep = pycoeus.var(y, axis=1, keepdim=True)
+assert v_axis1_keep.shape == [2, 1], f"var axis1 keepdim shape: {v_axis1_keep.shape}"
+assert abs(v_axis1_keep.data[0] - 1.0) < 1e-9, f"var axis1 keepdim row0 wrong: {v_axis1_keep.data[0]}"
+assert abs(v_axis1_keep.data[1] - 1.0) < 1e-9, f"var axis1 keepdim row1 wrong: {v_axis1_keep.data[1]}"
+# sum biased (N divisor): var(y, dim=0, unbiased=False) reduces the 2 rows.
+# col means: [2.5, 3.5, 4.5]; deviations per column: [-1.5, 1.5]
+# sq sum per column: 2*(1.5^2) = 4.5; N=2 -> 4.5/2 = 2.25
+v_axis0 = pycoeus.var(y, axis=0, unbiased=False)
+assert v_axis0.shape == [3], f"var axis0 shape: {v_axis0.shape}"
+assert v_axis0.data == [2.25, 2.25, 2.25], f"var axis0 biased wrong: {v_axis0.data}"
+
+# 2-D axis + keepdim std — std = sqrt(var)
+s_axis1 = pycoeus.std(y, axis=1)
+assert s_axis1.shape == [2], f"std axis1 shape: {s_axis1.shape}"
+assert abs(s_axis1.data[0] - 1.0) < 1e-9, f"std axis1 row0 wrong: {s_axis1.data[0]}"
+assert abs(s_axis1.data[1] - 1.0) < 1e-9, f"std axis1 row1 wrong: {s_axis1.data[1]}"
+s_axis1_keep = pycoeus.std(y, axis=1, keepdim=True)
+assert s_axis1_keep.shape == [2, 1], f"std axis1 keepdim shape: {s_axis1_keep.shape}"
+assert abs(s_axis1_keep.data[0] - 1.0) < 1e-9, f"std axis1 keepdim row0 wrong: {s_axis1_keep.data[0]}"
+assert abs(s_axis1_keep.data[1] - 1.0) < 1e-9, f"std axis1 keepdim row1 wrong: {s_axis1_keep.data[1]}"
+
+try:
+    _ = pycoeus.var(y, axis=2)
+    raise AssertionError("var out-of-range axis should raise")
+except ValueError:
+    pass
+
+# Error path: empty tensor surfaces ValueError, not a panic
+try:
+    _ = pycoeus.std(pycoeus.zeros([0]))
+    raise AssertionError("std of empty tensor should raise")
+except ValueError:
+    pass
+try:
+    _ = pycoeus.var(pycoeus.zeros([0]))
+    raise AssertionError("var of empty tensor should raise")
+except ValueError:
+    pass
 "#,
     );
 }

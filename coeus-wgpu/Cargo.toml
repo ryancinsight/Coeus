@@ -15,8 +15,8 @@ bytemuck     = { workspace = true }
 thiserror    = { workspace = true }
 half         = { workspace = true }
 leto-ops     = { workspace = true }
+themis       = { workspace = true }
 
 [dev-dependencies]
 coeus-autograd = { workspace = true, default-features = false }
 coeus-nn       = { workspace = true, default-features = false }
-

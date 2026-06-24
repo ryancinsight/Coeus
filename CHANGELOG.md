@@ -1,5 +1,64 @@
 # Changelog
 
+## 0.2.4 - 2026-06-24
+
+### Added
+
+- **Python ops surface expansion** — `coeus-python/src/ops.rs` gains five
+  new free functions:
+  - `unsqueeze(input, dim)` — insert a size-1 axis at `dim` (tracked; backward
+    via squeeze of the gradient).
+  - `squeeze(input, dim=None)` — remove size-1 axes (tracked; backward via
+    unsqueeze of the gradient).
+  - `flatten(input, start_dim=0, end_dim=None)` — flatten contiguous
+    dimensions into one (implemented as tracked reshape).
+  - `argmax(input, dim)` — index of maximum value along `dim`, keep-dim,
+    returns `f64` indices (non-differentiable).
+  - `argmin(input, dim)` — index of minimum value along `dim`, keep-dim,
+    returns `f64` indices (non-differentiable).
+  All five functions are registered in `coeus-python/src/lib.rs` and covered
+  by two new test functions in `coeus-python/tests/binding_tests_ops.rs`
+  (`test_unsqueeze_squeeze_flatten`, `test_argmax_argmin`). Evidence:
+  `cargo nextest run -p coeus-python --test binding_tests_ops` passes with 20
+  tests.
+
+- **Global pooling layers** in `coeus-nn/src/pool.rs`:
+  - `GlobalAvgPool1d<T,B>` — reduces `[N,C,L]` → `[N,C,1]` by pooling the
+    full length.
+  - `GlobalAvgPool2d<T,B>` — reduces `[N,C,H,W]` → `[N,C,1,1]` (square).
+  - `GlobalAvgPool3d<T,B>` — reduces `[N,C,D,H,W]` → `[N,C,1,1,1]` (cubic).
+  - `GlobalMaxPool2d<T,B>` — max-pool global spatial reduction for 4-D.
+  - `GlobalMaxPool3d<T,B>` — max-pool global spatial reduction for 5-D.
+  All five are zero-parameter ZSTs, exported from `coeus-nn/src/lib.rs`, and
+  delegate to the existing tracked `avg_pool2d`/`max_pool2d`/`avg_pool3d`/
+  `max_pool3d` autograd ops. Evidence: two new `burn_live_parity.rs` tests
+  (`global_avg_pool2d_reduces_spatial_to_one`,
+  `global_max_pool2d_reduces_spatial_to_one`) pass.
+
+- **Burn parity tests** — `coeus-nn/tests/burn_live_parity.rs` extended from
+  36 to 40 tests:
+  - `avg_pool2d_forward_matches_manual_reference` — manual biased-mean oracle.
+  - `global_avg_pool2d_reduces_spatial_to_one` — value-semantic global avg.
+  - `global_max_pool2d_reduces_spatial_to_one` — value-semantic global max.
+  - `batchnorm1d_forward_matches_manual_reference` — training-mode BatchNorm1d
+    on `[1,C,L]` input verified for zero-mean per-channel output. Evidence:
+  `cargo nextest run -p coeus-nn --test burn_live_parity` passes with 40
+  tests.
+
+- **Workspace device-tier routing** (from sprint MS-65) — `coeus-wgpu` and
+  `coeus-cuda` storage allocations now use explicit `PlacementHint::Tier(
+  MemoryTier::Device)` at every `alloc_zeroed` call site (including CoW
+  `make_unique`) so the allocation contract is anchored to the
+  Hephaestus+Mnemosyne device-tier seam. Three unit tests in
+  `coeus-wgpu/src/storage.rs` verify device-tier allocation, host-pinned
+  staging tier selection, and device-tier upload/download round-trip value
+  preservation.
+
+### Changed
+
+- Workspace version bumped `0.2.3` → `0.2.4`.
+
+
 ## 0.2.3 - 2026-06-24
 
 ### Added
@@ -28,6 +87,13 @@
 - **WGPU Hephaestus transfer routing**: `WgpuBackend` host/device copies now use
   the Hephaestus `ComputeDevice` upload/download surface instead of local queue
   writes and ad hoc staging-buffer readback.
+- **GPU placement hints**: WGPU and real-CUDA storage allocations now request
+  Hephaestus buffers with Themis `MemoryTier::Device`; host-pinned staging is
+  covered by value-semantic round-trip tests, and the CUDA Themis edge is
+  feature-scoped to the real `cuda` module.
+- **Global pooling modules**: `coeus-nn` now exports ZST global average/max
+  pooling modules for supported dimensions; `GlobalAvgPool1d` routes through
+  the tracked Rust autograd mean-axis reducer instead of a fake 2-D pool path.
 - **Burn activation parity**: `coeus-nn/tests/burn_live_parity.rs` now compares
   Mish, Softplus, and LeakyReLU against live Burn NdArray references.
 - **Burn log-softmax parity**: `coeus-nn/tests/burn_live_parity.rs` now compares
@@ -45,6 +111,9 @@
 - **coeus-python module-scope cleanup**: binding operation and distributed tests
   now execute scripts with explicit `pycoeus` globals and remove the temporary
   `sys.modules` entry after each run.
+- **coeus-python shape and selection parity**: added free-function wrappers for
+  `unsqueeze`, `squeeze`, `flatten`, `argmax`, and `argmin`, with PyO3
+  `ValueError` validation for invalid dimensions.
 - **8 new `binding_tests_ops.rs` test functions** covering all previously
   untested ops: `topk/sort`, `comparisons (eq/lt/gt)/where_fn`, `softmax/
   cumsum/flip`, `randn/zeros_like/ones_like/eye`, `gather/scatter_add`,

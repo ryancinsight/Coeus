@@ -62,7 +62,10 @@ pub use normalization::{
     RMSNorm,
 };
 pub use parameter::Parameter;
-pub use pool::{AvgPool2d, AvgPool3d, MaxPool2d, MaxPool3d};
+pub use pool::{
+    AvgPool2d, AvgPool3d, GlobalAvgPool1d, GlobalAvgPool2d, GlobalAvgPool3d, GlobalMaxPool2d,
+    GlobalMaxPool3d, MaxPool2d, MaxPool3d,
+};
 pub use positional::{RotaryEmbedding, SinusoidalEncoding};
 pub use sequential::{ModuleExt, Sequential, StaticSeq};
 pub use softmax::{softmax, Softmax};

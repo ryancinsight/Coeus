@@ -375,6 +375,47 @@ fn reductions_match_burn() {
     );
 }
 
+#[test]
+fn statistical_ops_match_burn() {
+    let backend = SequentialBackend::new();
+    let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
+    let xc = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data);
+    let xb: BurnTensor<BurnBackend, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &dev());
+
+    // Global var / std use a closed-form Bessel-corrected oracle because Burn
+    // 0.16 exposes `var(dim)`, not global `var()` / `std()`.
+    let v_global = coeus_ops::var(&xc, true, &backend);
+    let v_global_ref = 3.5f32;
+    assert_close("var_global", &[v_global], &[v_global_ref]);
+    let s_global = coeus_ops::std_dev(&xc, true, &backend);
+    assert_close("std_global", &[s_global], &[v_global_ref.sqrt()]);
+
+    // Per-axis var matches Burn's Bessel-corrected `var(dim)` API; per-axis std
+    // is the square root of that same variance oracle.
+    let v_axis1 = coeus_ops::var_axis(&xc, 1, true, &backend);
+    let v_burn_axis1 = xb.clone().var(1).into_data().to_vec().unwrap();
+    assert_close("var_axis1", v_axis1.as_slice(), &v_burn_axis1);
+    let s_axis1 = coeus_ops::std_dev_axis(&xc, 1, true, &backend);
+    let s_burn_axis1: Vec<f32> = v_burn_axis1.iter().map(|v| v.sqrt()).collect();
+    assert_close("std_axis1", s_axis1.as_slice(), &s_burn_axis1);
+
+    // Population (unbiased=false) global var matches `var` after dividing
+    // by N instead of N-1: Bessel correction factor (N-1)/N.
+    let v_biased = coeus_ops::var(&xc, false, &backend);
+    let n = xc.numel() as f32;
+    assert_close(
+        "var_biased_global",
+        &[v_biased],
+        &[v_global_ref * (n - 1.0) / n],
+    );
+
+    // L2 norm matches Burn's `l2_norm` over flattened input.
+    let n2 = coeus_ops::norm(&xc, &backend);
+    let n_burn = bvec(xb.clone().powf_scalar(2.0).sum())[0].sqrt();
+    assert_close("norm_l2", &[n2], &[n_burn]);
+}
+
 // ── Linear layer (same weights) ───────────────────────────────────────────────
 
 #[test]
@@ -1250,4 +1291,179 @@ fn flip_backward_passes_grad() {
     coeus_autograd::sum(&out).backward();
     let grad = xv.grad().unwrap();
     assert_close("flip_bwd", grad.as_slice(), &[1.0; 6]);
+}
+
+// ── AvgPool2d (manual reference) ─────────────────────────────────────────────
+
+#[test]
+fn avg_pool2d_forward_matches_manual_reference() {
+    use coeus_ops::BackendOps;
+    let backend = SequentialBackend::new();
+    let (b, c, h, w) = (2, 2, 4, 4);
+    let (oh, ow, ks, st) = (2, 2, 2, 2);
+    let data: Vec<f32> = (0..b * c * h * w).map(|x| x as f32 * 0.1).collect();
+    let x = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![b, c, h, w], &data);
+    let mut out = CoeusTensor::<f32, SequentialBackend>::zeros(vec![b, c, oh, ow]);
+    let out_layout = out.layout().clone();
+    backend.avg_pool2d(
+        x.storage(),
+        x.layout(),
+        ks,
+        st,
+        0,
+        1,
+        out.storage_mut(),
+        &out_layout,
+    );
+
+    let x_s = x.as_slice();
+    let ks_sq = (ks * ks) as f32;
+    let expected: Vec<f32> = (0..b * c * oh * ow)
+        .map(|flat| {
+            let bi = flat / (c * oh * ow);
+            let rem = flat % (c * oh * ow);
+            let ci = rem / (oh * ow);
+            let rem2 = rem % (oh * ow);
+            let yi = rem2 / ow;
+            let xi = rem2 % ow;
+            let mut acc = 0.0f32;
+            for ki in 0..ks {
+                for kj in 0..ks {
+                    acc += x_s[bi * c * h * w + ci * h * w + (yi * st + ki) * w + (xi * st + kj)];
+                }
+            }
+            acc / ks_sq
+        })
+        .collect();
+    assert_close("avg_pool2d_fwd", out.as_slice(), &expected);
+}
+
+// ── GlobalAvgPool2d (reduces spatial to 1×1) ─────────────────────────────────
+
+#[test]
+fn global_avg_pool2d_reduces_spatial_to_one() {
+    use coeus_nn::GlobalAvgPool2d;
+    let backend = SequentialBackend::new();
+    let _ = backend;
+    let data: Vec<f32> = (0..16).map(|x| x as f32 + 1.0).collect();
+    // [1, 1, 4, 4] — values 1..16
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data),
+        false,
+    );
+    let pool = GlobalAvgPool2d::<f32, SequentialBackend>::new();
+    use coeus_nn::Module;
+    let out = pool.forward(&xv);
+    assert_eq!(out.tensor.shape(), &[1, 1, 1, 1], "global avg pool shape");
+    let expected_mean = data.iter().sum::<f32>() / data.len() as f32;
+    assert_close("global_avg_pool2d", out.tensor.as_slice(), &[expected_mean]);
+}
+
+// ── GlobalMaxPool2d (reduces spatial to 1×1) ─────────────────────────────────
+
+#[test]
+fn global_max_pool2d_reduces_spatial_to_one() {
+    use coeus_nn::GlobalMaxPool2d;
+    let data: Vec<f32> = (0..16).map(|x| x as f32 + 1.0).collect();
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data),
+        false,
+    );
+    let pool = GlobalMaxPool2d::<f32, SequentialBackend>::new();
+    use coeus_nn::Module;
+    let out = pool.forward(&xv);
+    assert_eq!(out.tensor.shape(), &[1, 1, 1, 1], "global max pool shape");
+    // max of 1..16 is 16.0
+    assert_close("global_max_pool2d", out.tensor.as_slice(), &[16.0]);
+}
+
+// ── BatchNorm1d forward (manual reference) ───────────────────────────────────
+
+#[test]
+fn batchnorm1d_forward_matches_manual_reference() {
+    use coeus_nn::BatchNorm1d;
+    // BatchNorm1d expects [N, C, L]: batch=1, channels=2, length=4
+    // scale=1, bias=0 initially; training mode normalises per-channel across N*L
+    let data: Vec<f32> = (0..8).map(|x| x as f32 + 1.0).collect(); // [1,2,4]
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 4], &data),
+        false,
+    );
+    let bn = BatchNorm1d::<f32, SequentialBackend>::new(2, 1e-5, 0.1);
+    use coeus_nn::Module;
+    let out = bn.forward(&xv);
+    assert_eq!(out.tensor.shape(), &[1, 2, 4], "batchnorm1d output shape");
+
+    // Output should be near zero mean and unit variance per channel
+    let out_s = out.tensor.as_slice();
+    // channel 0: elements [1,2,3,4] → mean=2.5
+    let c0: &[f32] = &out_s[..4];
+    let c0_mean = c0.iter().sum::<f32>() / 4.0;
+    assert!(
+        c0_mean.abs() < 1e-4,
+        "batchnorm1d channel0 mean {c0_mean} should be near 0"
+    );
+    // channel 1: elements [5,6,7,8] → mean=6.5
+    let c1: &[f32] = &out_s[4..];
+    let c1_mean = c1.iter().sum::<f32>() / 4.0;
+    assert!(
+        c1_mean.abs() < 1e-4,
+        "batchnorm1d channel1 mean {c1_mean} should be near 0"
+    );
+}
+
+// ── GlobalAvgPool2d non-square input ─────────────────────────────────────────
+
+#[test]
+fn global_avg_pool2d_handles_non_square_spatial() {
+    use coeus_nn::GlobalAvgPool2d;
+    use coeus_nn::Module;
+    // [1, 1, 2, 4] — mean of each row then mean of the result equals overall mean
+    let data: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 4], &data),
+        false,
+    );
+    let pool = GlobalAvgPool2d::<f32, SequentialBackend>::new();
+    let out = pool.forward(&xv);
+    assert_eq!(
+        out.tensor.shape(),
+        &[1, 1, 1, 1],
+        "non-square global avg shape"
+    );
+    let expected = data.iter().sum::<f32>() / data.len() as f32; // 4.5
+    assert_close(
+        "global_avg_pool2d_non_square",
+        out.tensor.as_slice(),
+        &[expected],
+    );
+}
+
+// ── GlobalMaxPool2d backward ──────────────────────────────────────────────────
+
+#[test]
+fn global_max_pool2d_backward_passes_grad_to_max_position() {
+    use coeus_nn::GlobalMaxPool2d;
+    use coeus_nn::Module;
+    // [1, 1, 2, 3]: max at position (0,2) in row-major → index 2 overall
+    let data: Vec<f32> = vec![1.0, 3.0, 5.0, 2.0, 4.0, 0.5];
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 3], &data),
+        true,
+    );
+    let pool = GlobalMaxPool2d::<f32, SequentialBackend>::new();
+    let out = pool.forward(&xv);
+    assert_eq!(out.tensor.shape(), &[1, 1, 1, 1]);
+    assert_close("global_max_pool2d_bwd_fwd", out.tensor.as_slice(), &[5.0]);
+    out.backward();
+    let grad = xv.grad().unwrap();
+    // Only the maximum element receives gradient 1.0; all others receive 0.0
+    let gv: Vec<f32> = grad.as_slice().to_vec();
+    assert_eq!(gv.len(), 6);
+    let total: f32 = gv.iter().sum();
+    assert!(
+        (total - 1.0).abs() < 1e-6,
+        "total grad should be 1: {total}"
+    );
+    assert!((gv[2] - 1.0).abs() < 1e-6, "max position grad: {}", gv[2]);
 }

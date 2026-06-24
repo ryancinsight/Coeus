@@ -462,62 +462,138 @@ pub fn eye(n: usize, requires_grad: bool) -> PyTensor {
     }
 }
 
-// ── Statistical ops ──────────────────────────────────────────────────────────
+// ── Statistical ops ─────────────────────────────────────────────
 
 /// Global standard deviation over all elements.
 ///
-/// Uses the unbiased (Bessel-corrected, N-1) formula unless `unbiased=False`.
+/// Uses the unbiased (Bessel-corrected, N-1) formula unless `unbiased=False`
+/// — matches PyTorch's `torch.std` and JAX's `jnp.std` defaults. Pass
+/// `axis` and `keepdim` for `torch.std(x, dim=…)`-style behavior.
+///
 /// Named `std_dev` in Rust to avoid conflict with the `std` crate name.
 #[pyfunction]
-#[pyo3(name = "std", signature = (input, unbiased = true))]
-pub fn std_dev(input: &PyTensor, unbiased: bool, py: Python<'_>) -> PyResult<f64> {
-    py.allow_threads(|| {
-        let backend = MoiraiBackend::new();
-        let t = input.inner.tensor.to_contiguous_on(&backend);
-        let xs = t.as_slice();
-        if xs.is_empty() {
-            return Err(PyValueError::new_err(
-                "std: empty tensors have no standard deviation",
-            ));
-        }
-        let n = xs.len() as f64;
-        let mean = xs.iter().sum::<f64>() / n;
-        let var_sum: f64 = xs.iter().map(|&x| (x - mean).powi(2)).sum();
-        let denom = if unbiased && n > 1.0 { n - 1.0 } else { n };
-        Ok((var_sum / denom).sqrt())
-    })
+#[pyo3(name = "std", signature = (input, unbiased = true, axis = None, keepdim = false))]
+pub fn std_dev(
+    input: &PyTensor,
+    unbiased: bool,
+    axis: Option<usize>,
+    keepdim: bool,
+    py: Python<'_>,
+) -> PyResult<Py<PyAny>> {
+    let backend = MoiraiBackend::new();
+    if input.inner.tensor.numel() == 0 {
+        return Err(PyValueError::new_err(
+            "std: empty tensors have no standard deviation",
+        ));
+    }
+    if let Some(ax) = axis {
+        validate_stat_axis("std", input, ax)?;
+        let reduced = py
+            .allow_threads(|| coeus_ops::std_dev_axis(&input.inner.tensor, ax, unbiased, &backend));
+        return tensor_or_scalar_reduction(py, reduced, ax, keepdim);
+    }
+    let v = py.allow_threads(|| {
+        coeus_ops::std_dev::<f64, MoiraiBackend>(&input.inner.tensor, unbiased, &backend)
+    });
+    scalar_object(py, v)
 }
 
 /// Global variance over all elements.
 ///
-/// Uses the unbiased (Bessel-corrected, N-1) formula unless `unbiased=False`.
-/// Named `tensor_var` in Rust to avoid potential name conflicts.
+/// Uses the unbiased (Bessel-corrected, N-1) formula unless `unbiased=False`
+/// — matches PyTorch's `torch.var` and JAX's `jnp.var` defaults.
+///
+/// Named `tensor_var` in Rust to avoid conflict with `Var<T,B>` autograd
+/// wrapper naming.
 #[pyfunction]
-#[pyo3(name = "var", signature = (input, unbiased = true))]
-pub fn tensor_var(input: &PyTensor, unbiased: bool, py: Python<'_>) -> PyResult<f64> {
-    py.allow_threads(|| {
-        let backend = MoiraiBackend::new();
-        let t = input.inner.tensor.to_contiguous_on(&backend);
-        let xs = t.as_slice();
-        if xs.is_empty() {
-            return Err(PyValueError::new_err("var: empty tensors have no variance"));
-        }
-        let n = xs.len() as f64;
-        let mean = xs.iter().sum::<f64>() / n;
-        let var_sum: f64 = xs.iter().map(|&x| (x - mean).powi(2)).sum();
-        let denom = if unbiased && n > 1.0 { n - 1.0 } else { n };
-        Ok(var_sum / denom)
-    })
+#[pyo3(name = "var", signature = (input, unbiased = true, axis = None, keepdim = false))]
+pub fn tensor_var(
+    input: &PyTensor,
+    unbiased: bool,
+    axis: Option<usize>,
+    keepdim: bool,
+    py: Python<'_>,
+) -> PyResult<Py<PyAny>> {
+    let backend = MoiraiBackend::new();
+    if input.inner.tensor.numel() == 0 {
+        return Err(PyValueError::new_err("var: empty tensors have no variance"));
+    }
+    if let Some(ax) = axis {
+        validate_stat_axis("var", input, ax)?;
+        let reduced =
+            py.allow_threads(|| coeus_ops::var_axis(&input.inner.tensor, ax, unbiased, &backend));
+        return tensor_or_scalar_reduction(py, reduced, ax, keepdim);
+    }
+    let v = py.allow_threads(|| {
+        coeus_ops::var::<f64, MoiraiBackend>(&input.inner.tensor, unbiased, &backend)
+    });
+    scalar_object(py, v)
 }
 
-/// L2 norm of all elements: `sqrt(sum(x^2))`.
+/// L2 (Euclidean) norm of all elements: `sqrt(sum(x^2))`.
+///
+/// Matches `torch.linalg.vector_norm(x, ord=2)` with no shape argument. Ord-p
+/// variants beyond p=2 will land in MS-66+ once `BinaryOp::Pow` is added.
 #[pyfunction]
 pub fn norm(input: &PyTensor, py: Python<'_>) -> f64 {
     py.allow_threads(|| {
         let backend = MoiraiBackend::new();
-        let t = input.inner.tensor.to_contiguous_on(&backend);
-        t.as_slice().iter().map(|&x| x * x).sum::<f64>().sqrt()
+        coeus_ops::norm::<f64, MoiraiBackend>(&input.inner.tensor, &backend)
     })
+}
+
+fn validate_stat_axis(op: &str, input: &PyTensor, axis: usize) -> PyResult<()> {
+    let shape = input.inner.tensor.shape();
+    if axis >= shape.len() {
+        return Err(PyValueError::new_err(format!(
+            "{op}: axis {axis} out of range for rank {}",
+            shape.len()
+        )));
+    }
+    if shape[axis] == 0 {
+        return Err(PyValueError::new_err(format!(
+            "{op}: axis {axis} has zero elements"
+        )));
+    }
+    Ok(())
+}
+
+fn tensor_or_scalar_reduction(
+    py: Python<'_>,
+    reduced: Tensor<f64, MoiraiBackend>,
+    axis: usize,
+    keepdim: bool,
+) -> PyResult<Py<PyAny>> {
+    if keepdim {
+        return Ok(Py::new(
+            py,
+            PyTensor {
+                inner: Var::new(reduced, false),
+            },
+        )?
+        .into_any());
+    }
+
+    let mut shape = reduced.shape().to_vec();
+    shape.remove(axis);
+    if shape.is_empty() {
+        let backend = MoiraiBackend::new();
+        let value = reduced.to_contiguous_on(&backend).as_slice()[0];
+        scalar_object(py, value)
+    } else {
+        let squeezed = reduced.reshape(shape);
+        Ok(Py::new(
+            py,
+            PyTensor {
+                inner: Var::new(squeezed, false),
+            },
+        )?
+        .into_any())
+    }
+}
+
+fn scalar_object(py: Python<'_>, value: f64) -> PyResult<Py<PyAny>> {
+    Ok(value.into_pyobject(py)?.unbind().into_any())
 }
 
 // ── Comparison / selection free functions ────────────────────────────────────
@@ -642,6 +718,147 @@ pub fn repeat_interleave(input: &PyTensor, repeats: usize, dim: usize, py: Pytho
     PyTensor {
         inner: Var::new(t, false),
     }
+}
+
+// ── Shape extras ─────────────────────────────────────────────────────────────
+
+/// Insert a size-1 dimension at `dim`.
+///
+/// Equivalent to `torch.unsqueeze(input, dim)` / `jnp.expand_dims(input, dim)`.
+#[pyfunction]
+pub fn unsqueeze(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTensor> {
+    if dim > input.inner.tensor.ndim() {
+        return Err(PyValueError::new_err(format!(
+            "unsqueeze: dim {dim} out of range for rank {}",
+            input.inner.tensor.ndim()
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_autograd::unsqueeze(&input.inner, dim));
+    Ok(PyTensor { inner })
+}
+
+/// Remove size-1 dimensions.
+///
+/// If `dim` is given, squeeze only that axis (must have size 1); otherwise
+/// remove all size-1 dimensions (matches `torch.squeeze`/`jnp.squeeze`).
+#[pyfunction]
+#[pyo3(signature = (input, dim = None))]
+pub fn squeeze(input: &PyTensor, dim: Option<usize>, py: Python<'_>) -> PyResult<PyTensor> {
+    if let Some(axis) = dim {
+        let shape = input.inner.tensor.shape();
+        if axis >= shape.len() {
+            return Err(PyValueError::new_err(format!(
+                "squeeze: dim {axis} out of range for rank {}",
+                shape.len()
+            )));
+        }
+        if shape[axis] != 1 {
+            return Err(PyValueError::new_err(format!(
+                "squeeze: dim {axis} has extent {}, expected 1",
+                shape[axis]
+            )));
+        }
+    }
+    let inner = py.allow_threads(|| coeus_autograd::squeeze(&input.inner, dim));
+    Ok(PyTensor { inner })
+}
+
+/// Flatten contiguous dimensions `[start_dim, end_dim]` into one.
+///
+/// Equivalent to `torch.flatten(input, start_dim, end_dim)`.
+/// Negative indices are not currently supported; use Python-side arithmetic
+/// (`ndim + dim`) if needed.
+#[pyfunction]
+#[pyo3(signature = (input, start_dim = 0, end_dim = None))]
+pub fn flatten(
+    input: &PyTensor,
+    start_dim: usize,
+    end_dim: Option<usize>,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
+    let shape = input.inner.tensor.shape().to_vec();
+    let ndim = shape.len();
+    if ndim == 0 {
+        let inner = py.allow_threads(|| coeus_autograd::reshape(&input.inner, vec![1]));
+        return Ok(PyTensor { inner });
+    }
+    if start_dim >= ndim {
+        return Err(PyValueError::new_err(format!(
+            "flatten: start_dim {start_dim} out of range for rank {ndim}"
+        )));
+    }
+    let end = end_dim.unwrap_or(ndim - 1);
+    if end >= ndim {
+        return Err(PyValueError::new_err(format!(
+            "flatten: end_dim {end} out of range for rank {ndim}"
+        )));
+    }
+    if end < start_dim {
+        return Err(PyValueError::new_err(format!(
+            "flatten: end_dim {end} precedes start_dim {start_dim}"
+        )));
+    }
+    let flat: usize = shape[start_dim..=end].iter().product();
+    let mut new_shape: Vec<usize> = shape[..start_dim].to_vec();
+    new_shape.push(flat);
+    new_shape.extend_from_slice(&shape[end + 1..]);
+    let inner = py.allow_threads(move || coeus_autograd::reshape(&input.inner, new_shape));
+    Ok(PyTensor { inner })
+}
+
+// ── Selection / argmax / argmin ───────────────────────────────────────────────
+
+/// Return index of the maximum value along `dim` (keep-dim = True).
+///
+/// Result is a `f64` tensor of indices (no autograd; indices are integers).
+/// Matches `torch.argmax(input, dim, keepdim=True)`.
+#[pyfunction]
+pub fn argmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTensor> {
+    if dim >= input.inner.tensor.ndim() {
+        return Err(PyValueError::new_err(format!(
+            "argmax: dim {dim} out of range for rank {}",
+            input.inner.tensor.ndim()
+        )));
+    }
+    let backend = MoiraiBackend::new();
+    let idx_i64 =
+        py.allow_threads(|| coeus_ops::argmax::<f64, MoiraiBackend>(&input.inner.tensor, dim));
+    let data: Vec<f64> = idx_i64
+        .to_contiguous_on(&backend)
+        .as_slice()
+        .iter()
+        .map(|&x| x as f64)
+        .collect();
+    let t = Tensor::<f64, MoiraiBackend>::from_slice(idx_i64.shape().to_vec(), &data);
+    Ok(PyTensor {
+        inner: Var::new(t, false),
+    })
+}
+
+/// Return index of the minimum value along `dim` (keep-dim = True).
+///
+/// Matches `torch.argmin(input, dim, keepdim=True)`.
+#[pyfunction]
+pub fn argmin(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTensor> {
+    if dim >= input.inner.tensor.ndim() {
+        return Err(PyValueError::new_err(format!(
+            "argmin: dim {dim} out of range for rank {}",
+            input.inner.tensor.ndim()
+        )));
+    }
+    let backend = MoiraiBackend::new();
+    let idx_i64 =
+        py.allow_threads(|| coeus_ops::argmin::<f64, MoiraiBackend>(&input.inner.tensor, dim));
+    let data: Vec<f64> = idx_i64
+        .to_contiguous_on(&backend)
+        .as_slice()
+        .iter()
+        .map(|&x| x as f64)
+        .collect();
+    let t = Tensor::<f64, MoiraiBackend>::from_slice(idx_i64.shape().to_vec(), &data);
+    Ok(PyTensor {
+        inner: Var::new(t, false),
+    })
 }
 
 // ── Spatial resize ────────────────────────────────────────────────────────────

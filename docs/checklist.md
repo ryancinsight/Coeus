@@ -5,7 +5,7 @@
 ### Current Sprint: Sprint MS-64 (Python Tensor Parity / Shape Ops) [IN PROGRESS]
 **Objective**: Extend coeus/coeus-python shape and indexing parity while keeping
 Python as a thin PyO3 wrapper over Rust core operations.
-**Target version**: 0.2.3.
+**Target version**: 0.2.4.
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
 > oracle values; wgpu parity.rs verifies implemented GPU paths against the CPU reference;
@@ -125,6 +125,15 @@ Python as a thin PyO3 wrapper over Rust core operations.
   the `sys.modules` entry after each run. Evidence tier: empirical integration
   validation. Evidence: `cargo nextest run -p coeus-python --test
   binding_tests_dist --test binding_tests_ops` passes.
+- [x] [minor] Added PyTorch/JAX-style Python free functions for `unsqueeze`,
+  `squeeze`, `flatten`, `argmax`, and `argmin`; the wrappers release the GIL
+  around Rust work and return `ValueError` for invalid dimensions. Evidence
+  tier: empirical binding validation. Evidence: `cargo nextest run -p
+  coeus-python --test binding_tests_ops` passes.
+- [x] [minor] Completed `coeus-nn` global pooling module exports and corrected
+  `GlobalAvgPool1d` to route through `coeus_autograd::mean_axis(input, 2)`.
+  Evidence tier: empirical NN validation. Evidence: `cargo nextest run -p
+  coeus-nn` passes with 163 tests.
 - [x] [patch] Removed the direct Rayon comparison row and dev-dependency from
   `coeus-tensor` benchmarks; `Coeus Moirai` remains the parallel execution row.
   Evidence tier: compile-time dependency audit plus benchmark build. Evidence:
@@ -175,6 +184,14 @@ GPU backends over Hephaestus; dependency policy hardening.
   Mnemosyne/Melinoe device ownership-token completion. Evidence tier: empirical
   differential validation. Evidence: `cargo nextest run -p coeus-wgpu --test
   wgpu_tests` passes with 50 tests.
+- [x] [patch] Routed `coeus-wgpu` and `coeus-cuda` storage allocations through
+  explicit `PlacementHint::Tier(MemoryTier::Device)` so the allocation contract
+  is anchored to the Hephaestus+Mnemosyne device-tier seam instead of implicit
+  defaults, and added `coeus-wgpu` storage tests that verify device-tier
+  allocation, host-pinned staging tier routing, and value-preserving
+  upload/download roundtrip behavior. Evidence: `cargo nextest run -p
+  coeus-wgpu --lib` (3 passed), `cargo check -p coeus-cuda --features cuda`,
+  and `cargo check -p coeus-cuda`.
 
 ### Verification Note (2026-06-12)
 
@@ -225,16 +242,16 @@ GPU backends over Hephaestus; dependency policy hardening.
 - [x] [patch] Added `coeus-ops/tests/unary_leto_diff.rs` to prove
   `SequentialBackend` and `MoiraiBackend` unary `BackendOps` dispatch matches
   direct scalar `CpuUnaryDispatch::eval_unary` for the full `CpuUnaryOp` surface.
-  Evidence: `cargo test -p coeus-ops --test unary_leto_diff` passes.
+  Evidence: `cargo nextest run -p coeus-ops --test unary_leto_diff` passes.
 - [x] [patch] Added `coeus-ops/tests/matmul_leto_diff.rs` to prove
   `SequentialBackend` and `MoiraiBackend` `BackendOps::matmul` dispatch matches
   an independent row-major triple-loop reference for contiguous and strided
-  transposed input layouts. Evidence: `cargo test -p coeus-ops --test
+  transposed input layouts. Evidence: `cargo nextest run -p coeus-ops --test
   matmul_leto_diff` passes.
 - [x] [patch] Added `coeus-ops/tests/batched_matmul_leto_diff.rs` to prove the
   public `coeus_ops::matmul` batching layer matches an independent reference on
   `SequentialBackend` and `MoiraiBackend` for equal batch counts and RHS 2-D
-  broadcast. Evidence: `cargo test -p coeus-ops --test
+  broadcast. Evidence: `cargo nextest run -p coeus-ops --test
   batched_matmul_leto_diff` passes.
 - [x] [patch] Routed `coeus_ops::cumsum` and `suffix_sum` through
   `coeus-leto` scan dispatch and added value-semantic coverage in
@@ -243,11 +260,11 @@ GPU backends over Hephaestus; dependency policy hardening.
 - [x] [patch] Added public CPU reduction differential coverage for
   `sum`/`mean`/`sum_axis`/`mean_axis`/`max_axis`/`min_axis` on
   `SequentialBackend` and `MoiraiBackend`, including transposed input views.
-  Evidence: `cargo test -p coeus-ops --test public_reduction_leto_diff`
+  Evidence: `cargo nextest run -p coeus-ops --test public_reduction_leto_diff`
   passes.
 - [x] [patch] Routed public scalar `mean` through backend
   `ReductionOp::Mean`, so CPU scalar mean now uses the `coeus-leto` mean
-  reducer instead of local `sum / count` division. Evidence: `cargo test -p
+  reducer instead of local `sum / count` division. Evidence: `cargo nextest run -p
   coeus-ops --test public_reduction_leto_diff` passes.
 - [x] [patch] Promoted mean to `ReductionOp::Mean` and routed public
   `mean_axis` through backend reduction dispatch. CPU dispatch uses Leto
@@ -257,116 +274,116 @@ GPU backends over Hephaestus; dependency policy hardening.
 - [x] [patch] Routed public `argmax` and `argmin` through `coeus-leto`
   keep-dim arg-reduction dispatch for CPU-addressable tensors and added
   transposed-view coverage for `SequentialBackend` and `MoiraiBackend`.
-  Evidence: `cargo test -p coeus-leto
-  arg_reduction_dispatch_covers_keepdim_axis_ops` and `cargo test -p coeus-ops
+  Evidence: `cargo nextest run -p coeus-leto
+  arg_reduction_dispatch_covers_keepdim_axis_ops` and `cargo nextest run -p coeus-ops
   --test arg_reduction_leto_diff` pass.
 - [x] [patch] Routed public `coeus_ops::pad` through `coeus-leto` structural
   pad dispatch for CPU-addressable tensors and added strided/transposed-view
   coverage for `SequentialBackend` and `MoiraiBackend`. Evidence:
-  `cargo test -p coeus-leto pad_dispatch_covers_strided_input_view` and
-  `cargo test -p coeus-ops --test pad_leto_diff` pass.
+  `cargo nextest run -p coeus-leto pad_dispatch_covers_strided_input_view` and
+  `cargo nextest run -p coeus-ops --test pad_leto_diff` pass.
 - [x] [patch] Routed public `coeus_ops::cat` through `coeus-leto` structural
   concat dispatch for CPU-addressable tensors and added strided/transposed-view
   coverage for `SequentialBackend` and `MoiraiBackend`. Evidence:
-  `cargo test -p coeus-leto concat_dispatch_covers_strided_input_views` and
-  `cargo test -p coeus-ops --test concat_leto_diff` pass.
+  `cargo nextest run -p coeus-leto concat_dispatch_covers_strided_input_views` and
+  `cargo nextest run -p coeus-ops --test concat_leto_diff` pass.
 - [x] [patch] Routed public `coeus_ops::split` through `coeus-leto` structural
   split dispatch for CPU-addressable tensors and added strided/transposed-view
   coverage for `SequentialBackend` and `MoiraiBackend`. Evidence:
-  `cargo test -p coeus-leto split_dispatch_covers_strided_input_view` and
-  `cargo test -p coeus-ops --test split_leto_diff` pass.
+  `cargo nextest run -p coeus-leto split_dispatch_covers_strided_input_view` and
+  `cargo nextest run -p coeus-ops --test split_leto_diff` pass.
 - [x] [patch] Routed `coeus_nn::init::{uniform_with_seed, normal_with_seed}`
   through `coeus-leto` seeded random dispatch, deleting the local Xorshift
   initializer implementation. Constructor-only `RandomScalar` bounds preserve
-  forward/module surfaces for existing `Float` APIs. Evidence: `cargo test -p
-  coeus-leto random_dispatch_matches_leto_seeded_constructors` and `cargo test
-  -p coeus-nn --test init_leto_diff` pass.
+  forward/module surfaces for existing `Float` APIs. Evidence: `cargo nextest run -p
+  coeus-leto random_dispatch_matches_leto_seeded_constructors` and
+  `cargo nextest run -p coeus-nn --test init_leto_diff` pass.
 - [x] [patch] Routed `Tensor::to_contiguous_on` for CPU-addressable storage
   through `coeus-leto` view materialization, deleting the local strided
-  materialization loop from that path. Evidence: `cargo test -p coeus-leto
-  contiguous_dispatch_matches_leto_view_materialization` and `cargo test -p
+  materialization loop from that path. Evidence: `cargo nextest run -p coeus-leto
+  contiguous_dispatch_matches_leto_view_materialization` and `cargo nextest run -p
   coeus-tensor --test contiguous_leto_diff` pass.
 - [x] [patch] Routed `Tensor::{reshape, permute}` plus `t`/`t_nd` through
   `coeus-leto` layout validation, preserving zero-copy storage sharing while
   deleting the local reshape/permute metadata duplication from the public tensor
-  path. Evidence: `cargo test -p coeus-leto layout_dispatch` and `cargo test -p
+  path. Evidence: `cargo nextest run -p coeus-leto layout_dispatch` and `cargo nextest run -p
   coeus-tensor --test shape_view_leto_diff` pass.
 - [x] [patch] Routed non-contiguous cross-backend `Tensor::to_backend_on`
   materialization through `coeus-leto`, deleting the remaining local strided
-  transfer loops from the public tensor transfer path. Evidence: `cargo test -p
+  transfer loops from the public tensor transfer path. Evidence: `cargo nextest run -p
   coeus-tensor --test backend_transfer_leto_diff` passes.
 - [x] [patch] Routed `Tensor::from_fn_on` coordinate generation through
   `coeus-leto`, deleting the local row-major dynamic-index generation loop from
-  the public tensor constructor path. Evidence: `cargo test -p coeus-leto
-  shape_function_dispatch_matches_leto_coordinate_order` and `cargo test -p
+  the public tensor constructor path. Evidence: `cargo nextest run -p coeus-leto
+  shape_function_dispatch_matches_leto_coordinate_order` and `cargo nextest run -p
   coeus-tensor --test from_fn_leto_diff` pass.
 - [x] [patch] Routed `Tensor::eye_on` identity value generation through
   `coeus-leto`, deleting the local diagonal mutation loop from the public tensor
   constructor path. Fixed zero-length `CpuStorage` to expose non-null aligned
-  zero-length slices for empty tensors. Evidence: `cargo test -p coeus-core
-  --test cow_storage_tests` and `cargo test -p coeus-tensor --test
+  zero-length slices for empty tensors. Evidence: `cargo nextest run -p coeus-core
+  --test cow_storage_tests` and `cargo nextest run -p coeus-tensor --test
   identity_leto_diff` pass.
 - [x] [minor] Added `Scalar::from_usize` as the native index-conversion seam
   and routed `Tensor::arange_on` through `coeus-leto`, deleting the local
   mutation loop and the constructor's f64 index conversion. Evidence: `cargo
-  test -p coeus-core --test scalar_index_conversion` and `cargo test -p
+  test -p coeus-core --test scalar_index_conversion` and `cargo nextest run -p
   coeus-tensor --test arange_leto_diff` pass.
 - [x] [patch] Routed `Tensor::linspace_on` coordinate traversal through
   `coeus-leto`, deleting the local mutable fill loop while preserving the
-  existing `Scalar::from_f64` value contract. Evidence: `cargo test -p
+  existing `Scalar::from_f64` value contract. Evidence: `cargo nextest run -p
   coeus-tensor --test linspace_leto_diff` passes.
 - [x] [patch] Routed tensor broadcast shape and zero-copy broadcast layout
   validation through `coeus-leto`, deleting local dynamic broadcast metadata
   construction from `Tensor::broadcast` while preserving scalar rank-0
-  broadcasts. Evidence: `cargo test -p coeus-leto
-  broadcast_layout_dispatch_matches_leto_validation` and `cargo test -p
+  broadcasts. Evidence: `cargo nextest run -p coeus-leto
+  broadcast_layout_dispatch_matches_leto_validation` and `cargo nextest run -p
   coeus-tensor --test broadcast_leto_diff` pass.
 - [x] [minor] Added public `coeus_ops::stack` through dynamic-rank
   `coeus-leto` stack dispatch, covering equal-shaped strided input views on
-  `SequentialBackend` and `MoiraiBackend`. Evidence: `cargo test -p coeus-leto
-  stack_dispatch_covers_strided_input_views` and `cargo test -p coeus-ops
+  `SequentialBackend` and `MoiraiBackend`. Evidence: `cargo nextest run -p coeus-leto
+  stack_dispatch_covers_strided_input_views` and `cargo nextest run -p coeus-ops
   --test stack_leto_diff` pass.
 - [x] [minor] Added `BackendOps::batched_matmul` as the batched matmul seam,
   routed public batched `coeus_ops::matmul` through it, and overrode the CPU
   `SequentialBackend`/`MoiraiBackend` path with `coeus-leto` rank-3 batched
-  dispatch. Evidence: `cargo test -p coeus-leto
-  batched_matmul_dispatch_covers_rhs_batch_broadcast`, `cargo test -p coeus-ops
-  --test batched_matmul_leto_diff`, and `cargo test -p coeus-wgpu
+  dispatch. Evidence: `cargo nextest run -p coeus-leto
+  batched_matmul_dispatch_covers_rhs_batch_broadcast`, `cargo nextest run -p coeus-ops
+  --test batched_matmul_leto_diff`, and `cargo nextest run -p coeus-wgpu
   wgpu::transfers_and_matmul::test_wgpu_backend_ops_unified` pass.
 - [x] [patch] Added `Scalar::{dot_slice, scale_slice}` Hermes SIMD seams and
   routed CPU forward attention contiguous Q/K row dot products plus softmax row
-  scaling through them. Evidence: `cargo test -p coeus-core --test
-  scalar_dot_scale` and `cargo test -p coeus-nn --test nn_attention_tests`
+  scaling through them. Evidence: `cargo nextest run -p coeus-core --test
+  scalar_dot_scale` and `cargo nextest run -p coeus-nn --test nn_attention_tests`
   pass.
 - [x] [patch] Routed CPU attention backward contiguous `dO @ V^T` rows and
-  softmax row products through `Scalar::dot_slice`. Evidence: `cargo test -p
+  softmax row products through `Scalar::dot_slice`. Evidence: `cargo nextest run -p
   coeus-ops --test attention_backward_hermes_diff` passes.
 - [x] [patch] Routed contiguous unpadded unit-dilation CPU `conv1d` forward
   kernel rows through `Scalar::dot_slice`, preserving the indexed path for
-  padded, dilated, or non-contiguous layouts. Evidence: `cargo test -p
+  padded, dilated, or non-contiguous layouts. Evidence: `cargo nextest run -p
   coeus-ops --test conv1d_hermes_diff` passes.
 - [x] [patch] Routed contiguous unpadded unit-dilation CPU `conv2d` forward
   kernel rows through `Scalar::dot_slice`, preserving the indexed path for
-  padded, dilated, or non-contiguous layouts. Evidence: `cargo test -p
+  padded, dilated, or non-contiguous layouts. Evidence: `cargo nextest run -p
   coeus-ops --test conv2d_hermes_diff` passes.
 - [x] [patch] Routed contiguous unpadded unit-dilation CPU `conv3d` forward
   kernel rows through `Scalar::dot_slice`, preserving the indexed path for
-  padded, dilated, or non-contiguous layouts. Evidence: `cargo test -p
+  padded, dilated, or non-contiguous layouts. Evidence: `cargo nextest run -p
   coeus-ops --test conv3d_hermes_diff` passes.
 - [x] [patch] Routed contiguous unpadded unit-stride/unit-dilation CPU `conv1d`
   backward weight-gradient rows through `Scalar::dot_slice`, preserving the
   indexed path for padded, strided, dilated, or non-contiguous layouts.
-  Evidence: `cargo test -p coeus-ops --test conv1d_backward_hermes_diff`
+  Evidence: `cargo nextest run -p coeus-ops --test conv1d_backward_hermes_diff`
   passes.
 - [x] [patch] Routed contiguous unpadded unit-stride/unit-dilation CPU `conv2d`
   backward weight-gradient width rows through `Scalar::dot_slice`, preserving
   the indexed path for padded, strided, dilated, or non-contiguous layouts.
-  Evidence: `cargo test -p coeus-ops --test conv2d_backward_hermes_diff`
+  Evidence: `cargo nextest run -p coeus-ops --test conv2d_backward_hermes_diff`
   passes.
 - [x] [patch] Routed contiguous unpadded unit-stride/unit-dilation CPU `conv3d`
   backward weight-gradient width rows through `Scalar::dot_slice`, preserving
   the indexed path for padded, strided, dilated, or non-contiguous layouts.
-  Evidence: `cargo test -p coeus-ops --test conv3d_backward_hermes_diff`
+  Evidence: `cargo nextest run -p coeus-ops --test conv3d_backward_hermes_diff`
   passes.
 - [x] [patch] Fixed rustdoc shape/type annotations that were parsed as links or
   HTML, making workspace docs warning-clean. Evidence: `cargo doc --workspace
@@ -462,7 +479,7 @@ Resolve the remaining compiler and thread-safety blockers in `coeus-ops` and `co
   - [x] Refactor `coeus-ops/src/reduction/sum.rs` to pass `SendPtr`/`SendPtrMut` into the `parallel_for` closure.
 - [x] **Workspace Verification**:
   - [x] Run `cargo check --workspace` to verify zero compilation errors.
-  - [x] Run `cargo test --workspace` to verify that all existing CPU tests pass.
+  - [x] Run `cargo nextest run --workspace` to verify that all existing CPU tests pass.
 
 ### Phase 2: Parity Testing & Performance Benchmarks [COMPLETE]
 Establish numerical validation, autograd equivalence, and performance measurements against baseline libraries.

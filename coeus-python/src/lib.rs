@@ -142,6 +142,13 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::repeat_interleave, m)?)?;
     // Spatial resize
     m.add_function(wrap_pyfunction!(ops::interpolate, m)?)?;
+    // Shape extras
+    m.add_function(wrap_pyfunction!(ops::unsqueeze, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::squeeze, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::flatten, m)?)?;
+    // Selection
+    m.add_function(wrap_pyfunction!(ops::argmax, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::argmin, m)?)?;
 
     Ok(())
 }
