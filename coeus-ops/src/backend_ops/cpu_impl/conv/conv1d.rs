@@ -1,18 +1,8 @@
+use super::brand_mut_slice;
 use crate::ptr::{MutPtr, Ptr};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+use melinoe::brand_scope;
 use melinoe::sync::{partition_for_each_with, PartitionPlan};
-use melinoe::{brand_scope, MelinoeCell};
-
-#[inline]
-unsafe fn brand_mut_slice<'brand, T>(
-    slice: &'brand mut [T],
-) -> &'brand mut [MelinoeCell<'brand, T>] {
-    let ptr = slice as *mut [T] as *mut [MelinoeCell<'brand, T>];
-    // SAFETY: `MelinoeCell<'brand, T>` is `#[repr(transparent)]` over
-    // `UnsafeCell<T>`, which is itself transparent over `T`, so `[T]` and
-    // `[MelinoeCell<'brand, T>]` share layout and slice metadata.
-    unsafe { &mut *ptr }
-}
 
 #[inline]
 pub(crate) fn conv1d<T: Scalar, B: Backend>(
