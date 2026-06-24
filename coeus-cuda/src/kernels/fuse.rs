@@ -91,6 +91,15 @@ pub fn compile_cuda_to_ptx(src: &str) -> Result<String, String> {
 
         (nvrtc.nvrtcDestroyProgram)(&mut prog);
 
+        // `nvrtcGetPTXSize` reports the buffer size *including* the trailing NUL
+        // terminator, so `ptx_bytes` ends in one or more NUL bytes. Trim them;
+        // otherwise the PTX `String` carries an interior NUL and every
+        // `CString::new(ptx)` downstream fails, silently degrading all JIT
+        // kernels to the CPU fallback.
+        while ptx_bytes.last() == Some(&0) {
+            ptx_bytes.pop();
+        }
+
         let ptx_str =
             String::from_utf8(ptx_bytes).map_err(|e| format!("PTX is not valid UTF-8: {}", e))?;
         Ok(ptx_str)
