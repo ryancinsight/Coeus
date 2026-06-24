@@ -9,7 +9,7 @@ struct ForbiddenProductionCrate {
     owner: &'static str,
 }
 
-const FORBIDDEN_PRODUCTION_CRATES: [ForbiddenProductionCrate; 7] = [
+const FORBIDDEN_PRODUCTION_CRATES: [ForbiddenProductionCrate; 8] = [
     ForbiddenProductionCrate {
         manifest_name: "pollster",
         import_name: "pollster",
@@ -44,6 +44,11 @@ const FORBIDDEN_PRODUCTION_CRATES: [ForbiddenProductionCrate; 7] = [
         manifest_name: "tch",
         import_name: "tch",
         owner: "Coeus runtime tensor/autograd stack",
+    },
+    ForbiddenProductionCrate {
+        manifest_name: "rustfft",
+        import_name: "rustfft",
+        owner: "Apollo FFT SSOT",
     },
 ];
 
