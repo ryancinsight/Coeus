@@ -1,10 +1,11 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use std::ffi::CString;
 
-#[test]
-fn test_pycoeus_dist() {
+fn run_pycoeus_script(script: &str) {
     pyo3::prepare_freethreaded_python();
     Python::with_gil(|py| {
+        let script = CString::new(script).unwrap();
         let pycoeus_module = pyo3::types::PyModule::new(py, "pycoeus").unwrap();
         pycoeus::pycoeus(&pycoeus_module).unwrap();
 
@@ -13,314 +14,260 @@ fn test_pycoeus_dist() {
         let modules = modules_any.downcast::<PyDict>().unwrap();
         modules.set_item("pycoeus", &pycoeus_module).unwrap();
 
-        let test_script = c"
+        py.run(script.as_c_str(), None, None)
+            .unwrap_or_else(|e| panic!("Python execution failed: {e:?}"));
+    });
+}
+
+#[test]
+fn test_pycoeus_mock_collectives() {
+    run_pycoeus_script(
+        r#"
 import pycoeus
-import sys
-import traceback
 import threading
 
-try:
-    # 6. Distributed Communication & Collectives
-    world_size = 3
-    comms = pycoeus.create_mock_cluster(world_size)
-    assert len(comms) == world_size
+world_size = 3
+comms = pycoeus.create_mock_cluster(world_size)
+assert len(comms) == world_size
 
-    # Test all_reduce
-    results_reduce = [None] * world_size
-    def run_all_reduce(rank):
-        comm = comms[rank]
-        t = pycoeus.Tensor([float(rank + 1.0), float(rank + 2.0)])
-        comm.all_reduce(t)
-        results_reduce[rank] = t.data
-
+def run_collective(call):
     threads = []
-    for r in range(world_size):
-        t = threading.Thread(target=run_all_reduce, args=(r,))
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
+    for rank in range(world_size):
+        thread = threading.Thread(target=call, args=(rank,))
+        threads.append(thread)
+        thread.start()
+    for thread in threads:
+        thread.join()
 
-    for r in range(world_size):
-        assert results_reduce[r] == [6.0, 9.0], f'Rank {r} got {results_reduce[r]}'
+results_reduce = [None] * world_size
+def all_reduce(rank):
+    tensor = pycoeus.Tensor([float(rank + 1.0), float(rank + 2.0)])
+    comms[rank].all_reduce(tensor)
+    results_reduce[rank] = tensor.data
 
-    # Test broadcast
-    results_broadcast = [None] * world_size
-    def run_broadcast(rank):
-        comm = comms[rank]
-        if rank == 1:
-            t = pycoeus.Tensor([42.0, 100.0])
-        else:
-            t = pycoeus.Tensor([0.0, 0.0])
-        comm.broadcast(t, 1)
-        results_broadcast[rank] = t.data
+run_collective(all_reduce)
+for rank in range(world_size):
+    assert results_reduce[rank] == [6.0, 9.0], f'rank {rank} all_reduce {results_reduce[rank]}'
 
-    threads = []
-    for r in range(world_size):
-        t = threading.Thread(target=run_broadcast, args=(r,))
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
+results_broadcast = [None] * world_size
+def broadcast(rank):
+    tensor = pycoeus.Tensor([42.0, 100.0]) if rank == 1 else pycoeus.Tensor([0.0, 0.0])
+    comms[rank].broadcast(tensor, 1)
+    results_broadcast[rank] = tensor.data
 
-    for r in range(world_size):
-        assert results_broadcast[r] == [42.0, 100.0], f'Rank {r} got {results_broadcast[r]}'
+run_collective(broadcast)
+for rank in range(world_size):
+    assert results_broadcast[rank] == [42.0, 100.0], f'rank {rank} broadcast {results_broadcast[rank]}'
 
-    # Test all_gather
-    results_gather = [None] * world_size
-    def run_all_gather(rank):
-        comm = comms[rank]
-        t = pycoeus.Tensor([float(rank * 10.0)])
-        out = [pycoeus.Tensor([0.0]) for _ in range(world_size)]
-        comm.all_gather(t, out)
-        results_gather[rank] = [o.data[0] for o in out]
+results_gather = [None] * world_size
+def all_gather(rank):
+    tensor = pycoeus.Tensor([float(rank * 10.0)])
+    out = [pycoeus.Tensor([0.0]) for _ in range(world_size)]
+    comms[rank].all_gather(tensor, out)
+    results_gather[rank] = [item.data[0] for item in out]
 
-    threads = []
-    for r in range(world_size):
-        t = threading.Thread(target=run_all_gather, args=(r,))
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
+run_collective(all_gather)
+for rank in range(world_size):
+    assert results_gather[rank] == [0.0, 10.0, 20.0], f'rank {rank} all_gather {results_gather[rank]}'
 
-    for r in range(world_size):
-        assert results_gather[r] == [0.0, 10.0, 20.0], f'Rank {r} got {results_gather[r]}'
+results_reduce_only = [None] * world_size
+def reduce(rank):
+    tensor = pycoeus.Tensor([float(rank + 1.0), float(rank + 2.0)])
+    comms[rank].reduce(tensor, 1)
+    results_reduce_only[rank] = tensor.data
 
-    # Test DDP gradient synchronization
-    results_grad_sync = [None] * world_size
-    def run_grad_sync(rank):
-        comm = comms_sync[rank]
-        p = pycoeus.Tensor([0.0, 0.0], requires_grad=True)
-        loss = p * pycoeus.Tensor([float(rank + 1.0), float(rank + 10.0)])
-        loss.backward()
-        pycoeus.synchronize_gradients([p], comm)
-        results_grad_sync[rank] = p.grad
+run_collective(reduce)
+assert results_reduce_only[1] == [6.0, 9.0], f'root reduce {results_reduce_only[1]}'
 
-    threads = []
-    world_size_sync = 2
-    comms_sync = pycoeus.create_mock_cluster(world_size_sync)
-    for r in range(world_size_sync):
-        t = threading.Thread(target=run_grad_sync, args=(r,))
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
+results_gather_only = [None] * world_size
+def gather(rank):
+    tensor = pycoeus.Tensor([float(rank * 10.0)])
+    out = [pycoeus.Tensor([0.0]) for _ in range(world_size)] if rank == 2 else []
+    comms[rank].gather(tensor, out, 2)
+    if rank == 2:
+        results_gather_only[rank] = [item.data[0] for item in out]
 
-    for r in range(world_size_sync):
-        assert results_grad_sync[r] is not None
-        assert abs(results_grad_sync[r][0] - 1.5) < 1e-5, f'Rank {r} grad[0] is {results_grad_sync[r][0]}'
-        assert abs(results_grad_sync[r][1] - 10.5) < 1e-5, f'Rank {r} grad[1] is {results_grad_sync[r][1]}'
+run_collective(gather)
+assert results_gather_only[2] == [0.0, 10.0, 20.0], f'root gather {results_gather_only[2]}'
 
-    # Test reduce
-    results_reduce_only = [None] * world_size
-    def run_reduce(rank):
-        comm = comms[rank]
-        t = pycoeus.Tensor([float(rank + 1.0), float(rank + 2.0)])
-        comm.reduce(t, 1)
-        results_reduce_only[rank] = t.data
+results_scatter_only = [None] * world_size
+def scatter(rank):
+    tensor = pycoeus.Tensor([0.0])
+    inputs = [pycoeus.Tensor([100.0]), pycoeus.Tensor([200.0]), pycoeus.Tensor([300.0])] if rank == 0 else []
+    comms[rank].scatter(tensor, inputs, 0)
+    results_scatter_only[rank] = tensor.data
 
-    threads = []
-    for r in range(world_size):
-        t = threading.Thread(target=run_reduce, args=(r,))
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
+run_collective(scatter)
+for rank in range(world_size):
+    assert results_scatter_only[rank] == [(rank + 1.0) * 100.0], f'rank {rank} scatter {results_scatter_only[rank]}'
+"#,
+    );
+}
 
-    assert results_reduce_only[1] == [6.0, 9.0], f'Rank 1 got {results_reduce_only[1]}'
+#[test]
+fn test_pycoeus_gradient_synchronization() {
+    run_pycoeus_script(
+        r#"
+import pycoeus
+import threading
 
-    # Test gather
-    results_gather_only = [None] * world_size
-    def run_gather(rank):
-        comm = comms[rank]
-        t = pycoeus.Tensor([float(rank * 10.0)])
-        out = [pycoeus.Tensor([0.0]) for _ in range(world_size)] if rank == 2 else []
-        comm.gather(t, out, 2)
-        if rank == 2:
-            results_gather_only[rank] = [o.data[0] for o in out]
+world_size = 2
+comms = pycoeus.create_mock_cluster(world_size)
+results = [None] * world_size
 
-    threads = []
-    for r in range(world_size):
-        t = threading.Thread(target=run_gather, args=(r,))
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
+def run(rank):
+    param = pycoeus.Tensor([0.0, 0.0], requires_grad=True)
+    loss = param * pycoeus.Tensor([float(rank + 1.0), float(rank + 10.0)])
+    loss.backward()
+    pycoeus.synchronize_gradients([param], comms[rank])
+    results[rank] = param.grad
 
-    assert results_gather_only[2] == [0.0, 10.0, 20.0], f'Rank 2 got {results_gather_only[2]}'
+threads = [threading.Thread(target=run, args=(rank,)) for rank in range(world_size)]
+for thread in threads:
+    thread.start()
+for thread in threads:
+    thread.join()
 
-    # Test scatter
-    results_scatter_only = [None] * world_size
-    def run_scatter(rank):
-        comm = comms[rank]
-        t = pycoeus.Tensor([0.0])
-        inp = [pycoeus.Tensor([100.0]), pycoeus.Tensor([200.0]), pycoeus.Tensor([300.0])] if rank == 0 else []
-        comm.scatter(t, inp, 0)
-        results_scatter_only[rank] = t.data
+for rank in range(world_size):
+    assert results[rank] is not None
+    assert abs(results[rank][0] - 1.5) < 1e-5, f'rank {rank} grad[0] {results[rank][0]}'
+    assert abs(results[rank][1] - 10.5) < 1e-5, f'rank {rank} grad[1] {results[rank][1]}'
+"#,
+    );
+}
 
-    threads = []
-    for r in range(world_size):
-        t = threading.Thread(target=run_scatter, args=(r,))
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
+fn run_pycoeus_tcp_script(body: &str) {
+    let mut script = String::from(
+        r#"
+import pycoeus
+import socket
+import threading
 
-    for r in range(world_size):
-        assert results_scatter_only[r] == [(r + 1.0) * 100.0], f'Rank {r} got {results_scatter_only[r]}'
+def get_free_ports(count):
+    ports = []
+    sockets = []
+    for _ in range(count):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(('127.0.0.1', 0))
+        ports.append(f'127.0.0.1:{sock.getsockname()[1]}')
+        sockets.append(sock)
+    for sock in sockets:
+        sock.close()
+    return ports
 
-    # 6.5. TCP Mesh & TcpCommunicator Collectives
-    def get_free_ports(count):
-        import socket
-        ports = []
-        sockets = []
-        for _ in range(count):
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.bind(('127.0.0.1', 0))
-            ports.append(f'127.0.0.1:{s.getsockname()[1]}')
-            sockets.append(s)
-        for s in sockets:
-            s.close()
-        return ports
-
-    # Test all_reduce
-    tcp_addresses_all_reduce = get_free_ports(2)
-    tcp_results_reduce = [None] * 2
-    def run_tcp_all_reduce(rank):
-        mesh = pycoeus.TcpMesh(rank, 2, tcp_addresses_all_reduce)
+def run_tcp(addresses, call):
+    results = [None] * 2
+    def run(rank):
+        mesh = pycoeus.TcpMesh(rank, 2, addresses)
         comm = pycoeus.TcpCommunicator(mesh)
-        t = pycoeus.Tensor([float(rank + 1.0), float(rank + 2.0)])
-        comm.all_reduce(t)
-        tcp_results_reduce[rank] = t.data
+        results[rank] = call(rank, comm)
 
-    threads = []
-    for r in range(2):
-        t = threading.Thread(target=run_tcp_all_reduce, args=(r,))
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
+    threads = [threading.Thread(target=run, args=(rank,)) for rank in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    return results
 
-    for r in range(2):
-        assert tcp_results_reduce[r] == [3.0, 5.0], f'TCP all_reduce Rank {r} got {tcp_results_reduce[r]}'
+"#,
+    );
+    script.push_str(body);
+    run_pycoeus_script(&script);
+}
 
-    # Test broadcast
-    tcp_addresses_broadcast = get_free_ports(2)
-    tcp_results_broadcast = [None] * 2
-    def run_tcp_broadcast(rank):
-        mesh = pycoeus.TcpMesh(rank, 2, tcp_addresses_broadcast)
-        comm = pycoeus.TcpCommunicator(mesh)
-        if rank == 0:
-            t = pycoeus.Tensor([10.0, 20.0])
-        else:
-            t = pycoeus.Tensor([0.0, 0.0])
-        comm.broadcast(t, 0)
-        tcp_results_broadcast[rank] = t.data
+#[test]
+fn test_pycoeus_tcp_all_reduce() {
+    run_pycoeus_tcp_script(
+        r#"
+def all_reduce(rank, comm):
+    tensor = pycoeus.Tensor([float(rank + 1.0), float(rank + 2.0)])
+    comm.all_reduce(tensor)
+    return tensor.data
 
-    threads = []
-    for r in range(2):
-        t = threading.Thread(target=run_tcp_broadcast, args=(r,))
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
+all_reduce_results = run_tcp(get_free_ports(2), all_reduce)
+for rank in range(2):
+    assert all_reduce_results[rank] == [3.0, 5.0], f'tcp all_reduce rank {rank} {all_reduce_results[rank]}'
+"#,
+    );
+}
 
-    for r in range(2):
-        assert tcp_results_broadcast[r] == [10.0, 20.0], f'TCP broadcast Rank {r} got {tcp_results_broadcast[r]}'
+#[test]
+fn test_pycoeus_tcp_broadcast() {
+    run_pycoeus_tcp_script(
+        r#"
+def broadcast(rank, comm):
+    tensor = pycoeus.Tensor([10.0, 20.0]) if rank == 0 else pycoeus.Tensor([0.0, 0.0])
+    comm.broadcast(tensor, 0)
+    return tensor.data
 
-    # Test all_gather
-    tcp_addresses_all_gather = get_free_ports(2)
-    tcp_results_all_gather = [None] * 2
-    def run_tcp_all_gather(rank):
-        mesh = pycoeus.TcpMesh(rank, 2, tcp_addresses_all_gather)
-        comm = pycoeus.TcpCommunicator(mesh)
-        t = pycoeus.Tensor([float(rank * 100.0)])
-        out = [pycoeus.Tensor([0.0]) for _ in range(2)]
-        comm.all_gather(t, out)
-        tcp_results_all_gather[rank] = [o.data[0] for o in out]
+broadcast_results = run_tcp(get_free_ports(2), broadcast)
+for rank in range(2):
+    assert broadcast_results[rank] == [10.0, 20.0], f'tcp broadcast rank {rank} {broadcast_results[rank]}'
+"#,
+    );
+}
 
-    threads = []
-    for r in range(2):
-        t = threading.Thread(target=run_tcp_all_gather, args=(r,))
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
+#[test]
+fn test_pycoeus_tcp_all_gather() {
+    run_pycoeus_tcp_script(
+        r#"
+def all_gather(rank, comm):
+    tensor = pycoeus.Tensor([float(rank * 100.0)])
+    out = [pycoeus.Tensor([0.0]) for _ in range(2)]
+    comm.all_gather(tensor, out)
+    return [item.data[0] for item in out]
 
-    for r in range(2):
-        assert tcp_results_all_gather[r] == [0.0, 100.0], f'TCP all_gather Rank {r} got {tcp_results_all_gather[r]}'
+all_gather_results = run_tcp(get_free_ports(2), all_gather)
+for rank in range(2):
+    assert all_gather_results[rank] == [0.0, 100.0], f'tcp all_gather rank {rank} {all_gather_results[rank]}'
+"#,
+    );
+}
 
-    # Test reduce
-    tcp_addresses_reduce = get_free_ports(2)
-    tcp_results_reduce_only = [None] * 2
-    def run_tcp_reduce(rank):
-        mesh = pycoeus.TcpMesh(rank, 2, tcp_addresses_reduce)
-        comm = pycoeus.TcpCommunicator(mesh)
-        t = pycoeus.Tensor([float(rank + 1.0), float(rank + 2.0)])
-        comm.reduce(t, 1)
-        tcp_results_reduce_only[rank] = t.data
+#[test]
+fn test_pycoeus_tcp_reduce() {
+    run_pycoeus_tcp_script(
+        r#"
+def reduce(rank, comm):
+    tensor = pycoeus.Tensor([float(rank + 1.0), float(rank + 2.0)])
+    comm.reduce(tensor, 1)
+    return tensor.data
 
-    threads = []
-    for r in range(2):
-        t = threading.Thread(target=run_tcp_reduce, args=(r,))
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
+reduce_results = run_tcp(get_free_ports(2), reduce)
+assert reduce_results[1] == [3.0, 5.0], f'tcp reduce root {reduce_results[1]}'
+"#,
+    );
+}
 
-    assert tcp_results_reduce_only[1] == [3.0, 5.0], f'TCP reduce Rank 1 got {tcp_results_reduce_only[1]}'
+#[test]
+fn test_pycoeus_tcp_gather() {
+    run_pycoeus_tcp_script(
+        r#"
+def gather(rank, comm):
+    tensor = pycoeus.Tensor([float(rank * 100.0)])
+    out = [pycoeus.Tensor([0.0]) for _ in range(2)] if rank == 1 else []
+    comm.gather(tensor, out, 1)
+    return [item.data[0] for item in out] if rank == 1 else None
 
-    # Test gather
-    tcp_addresses_gather = get_free_ports(2)
-    tcp_results_gather_only = [None] * 2
-    def run_tcp_gather(rank):
-        mesh = pycoeus.TcpMesh(rank, 2, tcp_addresses_gather)
-        comm = pycoeus.TcpCommunicator(mesh)
-        t = pycoeus.Tensor([float(rank * 100.0)])
-        out = [pycoeus.Tensor([0.0]) for _ in range(2)] if rank == 1 else []
-        comm.gather(t, out, 1)
-        if rank == 1:
-            tcp_results_gather_only[rank] = [o.data[0] for o in out]
+gather_results = run_tcp(get_free_ports(2), gather)
+assert gather_results[1] == [0.0, 100.0], f'tcp gather root {gather_results[1]}'
+"#,
+    );
+}
 
-    threads = []
-    for r in range(2):
-        t = threading.Thread(target=run_tcp_gather, args=(r,))
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
+#[test]
+fn test_pycoeus_tcp_scatter() {
+    run_pycoeus_tcp_script(
+        r#"
+def scatter(rank, comm):
+    tensor = pycoeus.Tensor([0.0])
+    inputs = [pycoeus.Tensor([100.0]), pycoeus.Tensor([200.0])] if rank == 0 else []
+    comm.scatter(tensor, inputs, 0)
+    return tensor.data
 
-    assert tcp_results_gather_only[1] == [0.0, 100.0], f'TCP gather Rank 1 got {tcp_results_gather_only[1]}'
-
-    # Test scatter
-    tcp_addresses_scatter = get_free_ports(2)
-    tcp_results_scatter_only = [None] * 2
-    def run_tcp_scatter(rank):
-        mesh = pycoeus.TcpMesh(rank, 2, tcp_addresses_scatter)
-        comm = pycoeus.TcpCommunicator(mesh)
-        t = pycoeus.Tensor([0.0])
-        inp = [pycoeus.Tensor([100.0]), pycoeus.Tensor([200.0])] if rank == 0 else []
-        comm.scatter(t, inp, 0)
-        tcp_results_scatter_only[rank] = t.data
-
-    threads = []
-    for r in range(2):
-        t = threading.Thread(target=run_tcp_scatter, args=(r,))
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
-
-    for r in range(2):
-        assert tcp_results_scatter_only[r] == [(r + 1.0) * 100.0], f'TCP scatter Rank {r} got {tcp_results_scatter_only[r]}'
-
-except Exception as e:
-    traceback.print_exc()
-    sys.exit(1)
-";
-
-        if let Err(e) = py.run(test_script, None, None) {
-            panic!("Python execution failed: {:?}", e);
-        }
-    });
+scatter_results = run_tcp(get_free_ports(2), scatter)
+for rank in range(2):
+    assert scatter_results[rank] == [(rank + 1.0) * 100.0], f'tcp scatter rank {rank} {scatter_results[rank]}'
+"#,
+    );
 }

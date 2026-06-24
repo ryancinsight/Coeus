@@ -214,6 +214,17 @@
 - [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
   for direct Leto, Coeus-Leto dispatch, `ndarray`, `nalgebra`, and Rayon slice
   elementwise add alongside Coeus Sequential and Moirai.
+- [x] [patch] Consolidated duplicated fused CPU value/reduction traversal in
+  `coeus-ops::fuse` behind shared writer helpers and replaced manual temporary
+  host-cache cleanup with an RAII guard. Added value-semantic coverage for fused
+  sum/mean/max/min reductions. Evidence: `cargo clippy -p coeus-ops
+  --all-targets -- -D warnings` and `cargo nextest run -p coeus-tensor --test
+  fused_ops_tests` pass.
+- [x] [patch] Fixed the Python distributed binding timeout by splitting the
+  monolithic mock/TCP collective script into independently timed value-semantic
+  tests, and added missing Rust TCP reduce/gather/scatter coverage. Evidence:
+  `cargo nextest run -p coeus-python --test binding_tests_dist` passes in
+  0.620s; `cargo nextest run -p coeus-dist` passes with 16 tests.
 - [x] [patch] Added `[profile.bench]` thin LTO with one codegen unit so
   cross-crate generic kernels are benchmarked after production-grade
   monomorphization. Evidence tier: empirical Criterion measurement.

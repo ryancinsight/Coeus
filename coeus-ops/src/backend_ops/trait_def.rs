@@ -313,7 +313,6 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         self.copy_to_device(&host_c, c);
     }
 
-
     /// 1D Convolution
     fn conv1d(
         &self,

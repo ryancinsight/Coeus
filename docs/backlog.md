@@ -139,6 +139,17 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     batched_matmul_dispatch_covers_rhs_batch_broadcast`, `cargo test -p
     coeus-ops --test batched_matmul_leto_diff`, and `cargo test -p coeus-wgpu
     wgpu::transfers_and_matmul::test_wgpu_backend_ops_unified` pass.
+  - [x] [patch] Consolidated duplicated fused CPU value/reduction traversal
+    into shared writer helpers and guarded temporary host tensor cache entries
+    with RAII cleanup. Added value-semantic fused reduction coverage for
+    sum/mean/max/min. Evidence: `cargo clippy -p coeus-ops --all-targets --
+    -D warnings` and `cargo nextest run -p coeus-tensor --test fused_ops_tests`
+    pass.
+  - [x] [patch] Split the Python distributed binding parity script by
+    collective to remove the deterministic 60s nextest timeout while preserving
+    mock/TCP value assertions, and added Rust TCP reduce/gather/scatter tests.
+    Evidence: `cargo nextest run -p coeus-python --test binding_tests_dist`
+    passes in 0.620s and `cargo nextest run -p coeus-dist` passes.
 - [x] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)
   and coeus-tensor zip/broadcast once per-op parity is proven against the current
   CPU path; keep autograd/nn/optim/sparse and the GPU backends untouched.

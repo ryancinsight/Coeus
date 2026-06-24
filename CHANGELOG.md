@@ -54,6 +54,11 @@
   `Scalar::from_usize`.
 - Routed `Tensor::linspace_on` through `coeus-leto` coordinate dispatch while
   preserving its existing `Scalar::from_f64` value contract.
+- Consolidated duplicated fused CPU evaluation and reduction traversal into
+  shared writer helpers, with an RAII cache guard for temporary host tensor
+  downloads.
+- Split the Python distributed binding parity script into per-collective tests
+  so each mock/TCP collective is independently bounded by nextest.
 
 ### Fixed
 
@@ -61,3 +66,7 @@
   Rust slices.
 - Fixed rustdoc shape/type annotations that were parsed as intra-doc links or
   HTML so `cargo doc --workspace --no-deps` is warning-clean.
+- Added value-semantic fused reduction coverage for sum, mean, max, and min.
+- Added Rust TCP reduce, gather, and scatter coverage for `coeus-dist`.
+- Fixed the Python distributed binding test timeout by isolating the TCP
+  collectives instead of running every distributed scenario in one test body.

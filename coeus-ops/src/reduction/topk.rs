@@ -17,7 +17,12 @@ pub fn topk_impl<T: Scalar>(
 ) {
     let ndim = a_shape.len();
     let dim_size = a_shape[dim];
-    let in_strides = Layout::from_shape_strides(coeus_core::Shape::from(a_shape), Layout::new(coeus_core::Shape::from(a_shape)).strides_cloned(), 0).strides_cloned();
+    let in_strides = Layout::from_shape_strides(
+        coeus_core::Shape::from(a_shape),
+        Layout::new(coeus_core::Shape::from(a_shape)).strides_cloned(),
+        0,
+    )
+    .strides_cloned();
 
     let mut out_shape = a_shape.to_vec();
     out_shape[dim] = k;

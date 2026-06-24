@@ -1,5 +1,6 @@
 use coeus_core::SequentialBackend;
-use coeus_ops::fuse::{evaluate_fused_cpu, TensorExprExt};
+use coeus_ops::fuse::{evaluate_fused_cpu, evaluate_fused_reduce_cpu, TensorExprExt};
+use coeus_ops::ReductionOp;
 use coeus_tensor::Tensor;
 
 #[test]
@@ -129,4 +130,33 @@ fn test_cpu_fusion_gelu_grad() {
         let expected = 0.5 * (1.0 + t) + 0.5 * x * (1.0 - t * t) * dy;
         assert!((out_slice[i] - expected as f32).abs() < 1e-5);
     }
+}
+
+#[test]
+fn test_cpu_fusion_reduce_ops() {
+    let backend = SequentialBackend::new();
+    let a =
+        Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[1.0, -2.0, 3.0, 4.0, 5.0, -6.0]);
+    let b = Tensor::<f32, SequentialBackend>::from_slice(
+        vec![2, 3],
+        &[10.0, 20.0, -30.0, 1.5, -2.0, 0.5],
+    );
+
+    let expr = a.expr() + b.expr();
+
+    let sum = evaluate_fused_reduce_cpu(&expr, ReductionOp::Sum, 1, &backend);
+    assert_eq!(sum.shape(), &[2, 1]);
+    assert_eq!(sum.as_slice(), &[2.0, 3.0]);
+
+    let mean = evaluate_fused_reduce_cpu(&expr, ReductionOp::Mean, 1, &backend);
+    assert_eq!(mean.shape(), &[2, 1]);
+    assert_eq!(mean.as_slice(), &[2.0 / 3.0, 1.0]);
+
+    let max = evaluate_fused_reduce_cpu(&expr, ReductionOp::Max, 1, &backend);
+    assert_eq!(max.shape(), &[2, 1]);
+    assert_eq!(max.as_slice(), &[18.0, 5.5]);
+
+    let min = evaluate_fused_reduce_cpu(&expr, ReductionOp::Min, 1, &backend);
+    assert_eq!(min.shape(), &[2, 1]);
+    assert_eq!(min.as_slice(), &[-27.0, -5.5]);
 }
