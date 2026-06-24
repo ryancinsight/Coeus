@@ -17,6 +17,9 @@
   tracked Rust-core slices through the PyO3 wrapper.
 - **`coeus-leto` sparse dispatch**: added `CsrDispatch`, `spmv_into`, and
   `spmm_into` value-semantic coverage against direct `leto_ops` sparse kernels.
+- **WGPU conv3d differential coverage**: forward and backward tests now compare
+  WGPU against `SequentialBackend` for baseline, stride+padding, and dilation
+  3-D convolution cases.
 - **8 new `binding_tests_ops.rs` test functions** covering all previously
   untested ops: `topk/sort`, `comparisons (eq/lt/gt)/where_fn`, `softmax/
   cumsum/flip`, `randn/zeros_like/ones_like/eye`, `gather/scatter_add`,

@@ -78,13 +78,17 @@
 - [x] [patch] Routed contiguous CPU `conv1d` row execution through Melinoe
   branded row partitioning; current evidence is value-semantic conv parity, not
   a benchmarked speedup claim.
+- [x] [minor] Closed WGPU conv3d forward/backward differential parity for the
+  tested 3-D convolution surface: baseline, stride+padding, and dilation cases
+  now compare WGPU buffers against `SequentialBackend` outputs and gradients.
+  Evidence: `cargo nextest run -p coeus-wgpu --test wgpu_tests conv3d` passes
+  with 4 value-semantic tests.
 - [x] [patch] Verification on 2026-06-24: `cargo fmt --check`,
   `cargo check --workspace`, `cargo clippy --workspace --all-targets
-  -- -D warnings`, `cargo nextest run --workspace` (418 passed), and
+  -- -D warnings`, `cargo nextest run --workspace` (420 passed), and
   `cargo test --doc --workspace` all pass.
 
 ### Open items for this sprint
-- [ ] [minor] GPU op parity: conv3d forward/backward differential (wgpu vs CPU).
 - [ ] [minor] Device memory via mnemosyne device pools (Stage D1) — mnemosyne
   pinned-host staging and melinoe device-buffer ownership tokens.
 - [ ] [arch] Downstream integrator (CFDrs) swap burn→coeus (Stage E).

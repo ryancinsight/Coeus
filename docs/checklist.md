@@ -65,9 +65,14 @@ Python as a thin PyO3 wrapper over Rust core operations.
 - [x] [patch] Routed contiguous CPU `conv1d` row execution through Melinoe
   branded row partitioning, preserving the existing value-semantic conv parity
   tests as the current evidence tier.
+- [x] [minor] Extended WGPU conv3d forward/backward differential parity beyond
+  the baseline case: stride+padding and dilation cases now compare WGPU results
+  against `SequentialBackend` values for output, input gradient, weight
+  gradient, and bias gradient. Evidence: `cargo nextest run -p coeus-wgpu
+  --test wgpu_tests conv3d` passes with 4 tests.
 - [x] [patch] Verification: `cargo fmt --check`, `cargo check --workspace`,
   `cargo clippy --workspace --all-targets -- -D warnings`,
-  `cargo nextest run --workspace` (418 passed), and
+  `cargo nextest run --workspace` (420 passed), and
   `cargo test --doc --workspace` all pass on 2026-06-24.
 
 ---
