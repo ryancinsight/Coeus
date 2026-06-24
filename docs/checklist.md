@@ -32,6 +32,24 @@ functional op surface toward torch.*/jnp.*/mx.* style.
 - [x] [patch] `cargo check --workspace` passes: 0 errors.
 - [x] [patch] `cargo clippy --workspace --all-targets -- -D warnings` passes: 0
   errors, 0 warnings.
+- [x] [patch] Promoted primary `gelu` to the exact Burn/PyTorch contract
+  `0.5 * x * (1 + erf(x / sqrt(2)))` through the scalar SSOT; retained
+  `gelu_tanh` as the explicit tanh approximation.
+- [x] [patch] Added WGSL exact-contract GELU/GELU-gradient expressions using an
+  Abramowitz-Stegun `erf` approximation for WGPU unary and fused shader paths.
+- [x] [minor] Expanded live Burn parity to 25 value-semantic tests, including
+  exact GELU, SiLU, sin/cos forward/backward, matmul/linear backward, layernorm,
+  RMSNorm, clamp, stack/cat/reshape/transpose, flip, sort, and where-cond.
+- [x] [minor] Added `coeus_ops::{flip, sort, where_cond}`, autograd
+  `flip`/`where_cond`, and Python wrappers for `sin`, `cos`, `flip`,
+  `where_cond`, `softmax`, `randn`, `topk`, and `sort`.
+- [x] [patch] Verification: `cargo fmt --check`, `cargo check --workspace`,
+  `cargo clippy --workspace --all-targets -- -D warnings`,
+  `cargo nextest run --workspace` (403 passed), and
+  `cargo test --doc --workspace` all pass on 2026-06-24.
+- [ ] [patch] Residual audit debt: `coeus-dist` and `coeus-python` still contain
+  mock-named distributed collective tests. They predate this slice and passed the
+  gate, but need a follow-up audit against the no-mocks policy.
 
 ---
 

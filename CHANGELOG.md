@@ -22,10 +22,26 @@
   `torch.*` / `jnp.*` / `mx.*` functional style.
 - **`coeus-python/tests/binding_tests_ops.rs`**: 9 binding tests covering all new
   ops including autograd backward passes.
+- **Shape/select ops**: `coeus_ops::{flip, sort, where_cond}` plus autograd
+  `flip` and `where_cond` wrappers.
+- **Python parity surface**: added `sin`, `cos`, `flip`, `where_cond`,
+  `softmax`, `randn`, `topk`, and `sort` functions as thin PyO3 wrappers over
+  Rust Coeus operations.
 
 ### Changed
 
 - Updated `docs/backlog.md` and `docs/checklist.md` for Sprint MS-61.
+- Primary `gelu` now follows the exact Burn/PyTorch formula
+  `0.5 * x * (1 + erf(x / sqrt(2)))`; `gelu_tanh` remains the explicit tanh
+  approximation.
+- WGPU unary and fused GELU shader generation now uses one exact-contract WGSL
+  expression SSOT with an Abramowitz-Stegun `erf` approximation.
+
+### Fixed
+
+- Fixed live Burn GELU parity by removing the accidental tanh-approximation
+  behavior from the primary `gelu` path and aligning CPU, fused CPU, and WGPU
+  shader tests to the same exact contract.
 
 ### Performance (atlas crates)
 

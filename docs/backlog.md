@@ -42,12 +42,31 @@
   covering all new ops including backward.
 - [x] [patch] `cargo check --workspace`, `cargo clippy --workspace --all-targets
   -- -D warnings` both pass with 0 errors, 0 warnings after all changes.
+- [x] [patch] Promoted primary Coeus GELU to exact Burn/PyTorch semantics through
+  `FloatOps::erf_op` and exact `GeluGrad`; retained `gelu_tanh` for the tanh
+  approximation contract.
+- [x] [patch] Routed WGPU unary and fused GELU/GELU-gradient shader generation
+  through one WGSL expression SSOT using an Abramowitz-Stegun `erf`
+  approximation, restoring WGPU-vs-CPU parity under the existing tolerance.
+- [x] [minor] Added `coeus_ops::{flip, sort, where_cond}` and exported them from
+  `coeus-ops`; shared row-major index conversion lives in `shape/index.rs`.
+- [x] [minor] Added autograd `flip` and `where_cond` with value-flow backward
+  rules; condition tensors receive zero gradient by contract.
+- [x] [minor] Extended `coeus-python` with `sin`, `cos`, `flip`, `where_cond`,
+  `softmax`, `randn`, `topk`, and `sort` wrappers over Rust core/autograd ops.
+- [x] [patch] Verification on 2026-06-24: `cargo fmt --check`,
+  `cargo check --workspace`, `cargo clippy --workspace --all-targets
+  -- -D warnings`, `cargo nextest run --workspace` (403 passed), and
+  `cargo test --doc --workspace` all pass.
 
 ### Open items for this sprint
 - [ ] [minor] GPU op parity: conv3d forward/backward differential (wgpu vs CPU).
 - [ ] [minor] Device memory via mnemosyne device pools (Stage D1) — mnemosyne
   pinned-host staging and melinoe device-buffer ownership tokens.
 - [ ] [arch] Downstream integrator (CFDrs) swap burn→coeus (Stage E).
+- [ ] [patch] Audit `coeus-dist` and Python distributed binding mock-named tests
+  against the no-mocks policy; either rename real local transports or replace
+  non-production mock coverage with real in-process/TCP collective checks.
 
 ---
 
