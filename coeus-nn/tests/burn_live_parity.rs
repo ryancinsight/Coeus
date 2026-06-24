@@ -174,6 +174,34 @@ fn gelu_silu_match_burn() {
 }
 
 #[test]
+fn mish_softplus_leaky_relu_match_burn() {
+    let backend = SequentialBackend::new();
+    let data = vec![-2.0f32, -1.0, -0.5, 0.5, 1.0, 2.0];
+    let xc = CoeusTensor::from_slice(vec![2, 3], &data);
+    let xb: BurnTensor<BurnBackend, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &dev());
+    assert_close_rel(
+        "mish",
+        coeus_ops::mish(&xc, &backend).as_slice(),
+        &bvec(burn::tensor::activation::mish(xb.clone())),
+        1e-5,
+    );
+    // Burn `softplus(x, beta)` = (1/beta) ln(1 + exp(beta x)); beta = 1 matches
+    // the coeus `softplus` contract ln(1 + exp(x)).
+    assert_close_rel(
+        "softplus",
+        coeus_ops::softplus(&xc, &backend).as_slice(),
+        &bvec(burn::tensor::activation::softplus(xb.clone(), 1.0)),
+        1e-5,
+    );
+    assert_close(
+        "leaky_relu",
+        coeus_ops::leaky_relu(&xc, &backend, 0.01).as_slice(),
+        &bvec(burn::tensor::activation::leaky_relu(xb, 0.01)),
+    );
+}
+
+#[test]
 fn exp_log_sqrt_neg_abs_match_burn() {
     let backend = SequentialBackend::new();
     let pos = vec![0.1f32, 1.0, 4.0, 9.0];
