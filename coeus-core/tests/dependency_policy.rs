@@ -48,7 +48,7 @@ const FORBIDDEN_PRODUCTION_CRATES: [ForbiddenProductionCrate; 8] = [
     ForbiddenProductionCrate {
         manifest_name: "rustfft",
         import_name: "rustfft",
-        owner: "Apollo FFT SSOT",
+        owner: "Atlas-owned Apollo FFT implementation",
     },
 ];
 

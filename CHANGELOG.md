@@ -39,7 +39,8 @@
 - `coeus_autograd::gather` correctly routes backward through `scatter_add`
   (zero gradient to `index` since integer indices are non-differentiable).
 - `coeus-core` dependency policy now rejects direct production `rustfft` imports
-  and manifest dependencies, preserving Apollo FFT as the FFT SSOT for Coeus.
+  and manifest dependencies, preserving Apollo's Atlas-owned FFT implementation
+  as the Coeus FFT path.
 - The repository ignores root-level `/prog` checkpoint transcript artifacts so
   generated session state does not appear as source.
 - `coeus-tensor` benchmarks no longer carry a direct Rayon comparison row or

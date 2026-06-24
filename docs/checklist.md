@@ -113,8 +113,9 @@ Python as a thin PyO3 wrapper over Rust core operations.
   Coeus-Leto dispatch, and dev-only Burn NdArray oracle rows. Evidence tier:
   documentation/dependency-surface consistency.
 - [x] [patch] Extended `coeus-core/tests/dependency_policy.rs` to reject direct
-  production `rustfft` imports and manifest dependencies, keeping Apollo FFT as
-  the FFT SSOT for Coeus. Evidence tier: compile-time dependency audit.
+  production `rustfft` imports and manifest dependencies, keeping Apollo's
+  Atlas-owned FFT implementation as the Coeus FFT path. Evidence tier:
+  compile-time dependency audit.
   Evidence: `cargo nextest run -p coeus-core --test dependency_policy` passes
   and `rg -n "rustfft|apollo" -g "Cargo.toml" -g "*.rs" -g "*.md"` shows no
   production Coeus `rustfft` use.
