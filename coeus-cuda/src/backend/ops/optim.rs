@@ -1,28 +1,9 @@
+use super::cast::{cast_storage, cast_storage_mut};
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::get_cuda_context;
 use crate::kernels;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
-
-fn cast_storage<T, U>(storage: &CudaStorage<T>) -> CudaStorage<U> {
-    let buffer = unsafe {
-        std::mem::transmute::<
-            std::sync::Arc<hephaestus_cuda::CudaBuffer<T>>,
-            std::sync::Arc<hephaestus_cuda::CudaBuffer<U>>,
-        >(storage.buffer.clone())
-    };
-    CudaStorage { buffer }
-}
-
-fn cast_storage_mut<T, U>(storage: &mut CudaStorage<T>) -> CudaStorage<U> {
-    let buffer = unsafe {
-        std::mem::transmute::<
-            std::sync::Arc<hephaestus_cuda::CudaBuffer<T>>,
-            std::sync::Arc<hephaestus_cuda::CudaBuffer<U>>,
-        >(storage.buffer.clone())
-    };
-    CudaStorage { buffer }
-}
 
 impl CudaBackend {
     #[allow(clippy::too_many_arguments, clippy::multiple_bound_locations)]

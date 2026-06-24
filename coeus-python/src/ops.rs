@@ -861,6 +861,74 @@ pub fn argmin(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTensor
     })
 }
 
+// ── Triangular masking / roll ────────────────────────────────────────────────
+
+/// Lower-triangular mask on the last two dimensions.
+///
+/// Elements above diagonal `k` are zeroed. Backward masks the gradient with
+/// the same triangular mask (tracked).
+/// Matches `torch.tril(input, diagonal=k)`.
+#[pyfunction]
+#[pyo3(signature = (input, k = 0))]
+pub fn tril(input: &PyTensor, k: i64, py: Python<'_>) -> PyResult<PyTensor> {
+    let ndim = input.inner.tensor.ndim();
+    if ndim < 2 {
+        return Err(PyValueError::new_err(format!(
+            "tril: requires at least 2-D input, got {ndim}-D"
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_autograd::tril(&input.inner, k as isize));
+    Ok(PyTensor { inner })
+}
+
+/// Upper-triangular mask on the last two dimensions.
+///
+/// Elements below diagonal `k` are zeroed (tracked).
+/// Matches `torch.triu(input, diagonal=k)`.
+#[pyfunction]
+#[pyo3(signature = (input, k = 0))]
+pub fn triu(input: &PyTensor, k: i64, py: Python<'_>) -> PyResult<PyTensor> {
+    let ndim = input.inner.tensor.ndim();
+    if ndim < 2 {
+        return Err(PyValueError::new_err(format!(
+            "triu: requires at least 2-D input, got {ndim}-D"
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_autograd::triu(&input.inner, k as isize));
+    Ok(PyTensor { inner })
+}
+
+/// Circular shift along `dims` by `shifts` (tracked).
+///
+/// Matches `torch.roll(input, shifts, dims)`.
+#[pyfunction]
+pub fn roll(
+    input: &PyTensor,
+    shifts: Vec<i64>,
+    dims: Vec<usize>,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
+    if shifts.len() != dims.len() {
+        return Err(PyValueError::new_err(format!(
+            "roll: shifts ({}) and dims ({}) must have equal length",
+            shifts.len(),
+            dims.len()
+        )));
+    }
+    let ndim = input.inner.tensor.ndim();
+    for &d in &dims {
+        if d >= ndim {
+            return Err(PyValueError::new_err(format!(
+                "roll: dim {d} out of range for {ndim}-D tensor"
+            )));
+        }
+    }
+    let shifts_isize: Vec<isize> = shifts.iter().map(|&s| s as isize).collect();
+    let inner =
+        py.allow_threads(move || coeus_autograd::roll(&input.inner, &shifts_isize, &dims));
+    Ok(PyTensor { inner })
+}
+
 // ── Spatial resize ────────────────────────────────────────────────────────────
 
 /// Resize a spatial tensor.
@@ -912,4 +980,97 @@ pub fn interpolate(
     Ok(PyTensor {
         inner: Var::new(t, false),
     })
+}
+
+// ── Functional nn ops (stateless) ────────────────────────────────────────────
+
+/// Functional linear transform: `output = input @ weight.T + bias`.
+///
+/// Matches `torch.nn.functional.linear(input, weight, bias)`.
+/// - `input`: `[..., in_features]`
+/// - `weight`: `[out_features, in_features]`
+/// - `bias`: optional `[out_features]`
+#[pyfunction]
+#[pyo3(signature = (input, weight, bias = None))]
+pub fn linear(
+    input: &PyTensor,
+    weight: &PyTensor,
+    bias: Option<&PyTensor>,
+    py: Python<'_>,
+) -> PyTensor {
+    let w = weight.inner.clone();
+    let b = bias.map(|b| b.inner.clone());
+    let x = input.inner.clone();
+    let inner = py.allow_threads(move || {
+        use coeus_nn::linear::Linear;
+        let lin = Linear {
+            weight: w,
+            bias: b,
+        };
+        use coeus_nn::Module;
+        lin.forward(&x)
+    });
+    PyTensor { inner }
+}
+
+/// Functional layer normalization over the last `norm_shape` elements.
+///
+/// Matches `torch.nn.functional.layer_norm(input, norm_shape, weight, bias, eps)`.
+/// - `weight`: optional scale `[norm_shape]`.
+/// - `bias`: optional shift `[norm_shape]`.
+/// - `eps`: stability epsilon (default `1e-5`).
+#[pyfunction]
+#[pyo3(signature = (input, norm_shape, weight = None, bias = None, eps = 1e-5))]
+pub fn layer_norm(
+    input: &PyTensor,
+    norm_shape: usize,
+    weight: Option<&PyTensor>,
+    bias: Option<&PyTensor>,
+    eps: f64,
+    py: Python<'_>,
+) -> PyTensor {
+    let w = weight.map(|w| w.inner.clone());
+    let b = bias.map(|b| b.inner.clone());
+    let x = input.inner.clone();
+    let inner = py.allow_threads(move || {
+        use coeus_nn::normalization::LayerNorm;
+        use coeus_nn::Module;
+        let backend = coeus_core::MoiraiBackend::new();
+        let weight_var = w.unwrap_or_else(|| {
+            coeus_autograd::Var::new(
+                coeus_tensor::Tensor::ones_on([norm_shape], &backend),
+                false,
+            )
+        });
+        let bias_var = b.unwrap_or_else(|| {
+            coeus_autograd::Var::new(
+                coeus_tensor::Tensor::zeros_on([norm_shape], &backend),
+                false,
+            )
+        });
+        let ln = LayerNorm::from_parts(weight_var, bias_var, eps);
+        ln.forward(&x)
+    });
+    PyTensor { inner }
+}
+
+/// Functional dropout: zero each element with probability `p` during training.
+///
+/// Matches `torch.nn.functional.dropout(input, p, training)`.
+/// When `training=False` (the default), returns the input unchanged.
+#[pyfunction]
+#[pyo3(signature = (input, p = 0.5, training = false))]
+pub fn dropout(input: &PyTensor, p: f64, training: bool, py: Python<'_>) -> PyTensor {
+    if !training || p == 0.0 {
+        return input.clone();
+    }
+    let x = input.inner.clone();
+    let inner = py.allow_threads(move || {
+        use coeus_nn::Dropout;
+        use coeus_nn::Module;
+        let mut drop = Dropout::new(p);
+        drop.set_training(true);
+        drop.forward(&x)
+    });
+    PyTensor { inner }
 }

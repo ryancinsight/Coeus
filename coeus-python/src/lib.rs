@@ -154,6 +154,14 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Selection
     m.add_function(wrap_pyfunction!(ops::argmax, m)?)?;
     m.add_function(wrap_pyfunction!(ops::argmin, m)?)?;
+    // Triangular masking / roll
+    m.add_function(wrap_pyfunction!(ops::tril, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::triu, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::roll, m)?)?;
+    // Functional nn (stateless)
+    m.add_function(wrap_pyfunction!(ops::linear, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::layer_norm, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::dropout, m)?)?;
 
     Ok(())
 }

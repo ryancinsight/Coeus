@@ -54,6 +54,11 @@ pub use ops::{
     exp,
     // Shape ops
     flip,
+    // Triangular masking
+    tril,
+    triu,
+    // Circular shift
+    roll,
     // Index ops
     gather,
     gelu,

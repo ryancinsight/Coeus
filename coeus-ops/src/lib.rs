@@ -44,7 +44,8 @@ pub use reduction::{
     suffix_sum, sum, sum_axis, topk, var, var_axis,
 };
 pub use shape::{
-    cat, flip, gather, pad, repeat_interleave, scatter_add, sort, split, stack, where_cond,
+    cat, flip, gather, pad, repeat_interleave, roll, scatter_add, sort, split, stack, tril, triu,
+    where_cond,
 };
 pub use sparse::{
     coo_to_csr, coo_to_dense, csr_to_dense, dense_to_coo, dense_to_csr, spmm, spmm_backward_dense,

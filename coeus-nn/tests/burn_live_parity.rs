@@ -1293,6 +1293,133 @@ fn flip_backward_passes_grad() {
     assert_close("flip_bwd", grad.as_slice(), &[1.0; 6]);
 }
 
+// ── tril / triu forward + backward ────────────────────────────────────────────
+
+#[test]
+fn tril_triu_forward_and_backward() {
+    let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+
+    // tril forward: elements above main diagonal → 0
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3, 3], &data),
+        false,
+    );
+    let lo = coeus_autograd::tril(&xv, 0);
+    assert_close(
+        "tril_fwd",
+        lo.tensor.as_slice(),
+        &[1.0, 0.0, 0.0, 4.0, 5.0, 0.0, 7.0, 8.0, 9.0],
+    );
+
+    // tril backward: gradient is zero at positions that were masked out
+    let xg = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3, 3], &data),
+        true,
+    );
+    coeus_autograd::sum(&coeus_autograd::tril(&xg, 0)).backward();
+    assert_close(
+        "tril_bwd",
+        xg.grad().unwrap().as_slice(),
+        &[1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0],
+    );
+
+    // triu forward: elements below main diagonal → 0
+    let xv2 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3, 3], &data),
+        false,
+    );
+    let hi = coeus_autograd::triu(&xv2, 0);
+    assert_close(
+        "triu_fwd",
+        hi.tensor.as_slice(),
+        &[1.0, 2.0, 3.0, 0.0, 5.0, 6.0, 0.0, 0.0, 9.0],
+    );
+}
+
+// ── roll forward + backward ───────────────────────────────────────────────────
+
+#[test]
+fn roll_forward_and_backward() {
+    let data = vec![0.0f32, 1.0, 2.0, 3.0];
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &data),
+        false,
+    );
+    // shift +1: last element wraps to front
+    let rolled = coeus_autograd::roll(&xv, &[1], &[0]);
+    assert_close("roll_fwd", rolled.tensor.as_slice(), &[3.0, 0.0, 1.0, 2.0]);
+
+    // backward: all-ones gradient rolled by -1 is still all-ones
+    let xg = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &data),
+        true,
+    );
+    coeus_autograd::sum(&coeus_autograd::roll(&xg, &[1], &[0])).backward();
+    assert_close("roll_bwd", xg.grad().unwrap().as_slice(), &[1.0; 4]);
+}
+
+// ── FeedForward forward shape contract ───────────────────────────────────────
+//
+// We can't compare against Burn exactly (weight init differs), but we can
+// verify shape/rank and that forward produces finite, non-trivially-zero output.
+
+#[test]
+fn feed_forward_forward_shape_contract() {
+    use coeus_nn::{FeedForward, Module};
+    let (batch, seq, d_model, d_ff) = (2, 4, 8, 16);
+    let ffn = FeedForward::<f32, SequentialBackend>::new(d_model, d_ff, 0.0);
+
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::zeros(vec![batch, seq, d_model]),
+        false,
+    );
+    let out = ffn.forward(&x);
+    assert_eq!(
+        out.tensor.shape(),
+        &[batch, seq, d_model],
+        "ffn output shape"
+    );
+    // With bias=true and non-zero linear weights, output should not be all-zero
+    // for a non-zero input. Use a non-trivial input.
+    let x2 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(
+            vec![1, 1, d_model],
+            &vec![1.0f32; d_model],
+        ),
+        false,
+    );
+    let out2 = ffn.forward(&x2);
+    // At least some outputs should be non-zero (weights are Xavier init, not all zero).
+    let n_nonzero = out2.tensor.as_slice().iter().filter(|&&v| v.abs() > 1e-10).count();
+    assert!(n_nonzero > 0, "ffn produced all-zero output for non-zero input");
+}
+
+// ── Multi-head attention forward shape contract ───────────────────────────────
+
+#[test]
+fn multi_head_attention_forward_shape_contract() {
+    use coeus_nn::{Module, MultiHeadAttention, NullMask};
+    let (batch, seq, d_model) = (2, 6, 16);
+    // H = 4 heads (const generic; d_model = 16 must be divisible by H = 4).
+    let mha = MultiHeadAttention::<f32, SequentialBackend, 4, NullMask>::new(d_model, true);
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(
+            vec![batch, seq, d_model],
+            &vec![0.1f32; batch * seq * d_model],
+        ),
+        false,
+    );
+    let out = mha.forward(&x);
+    assert_eq!(
+        out.tensor.shape(),
+        &[batch, seq, d_model],
+        "mha output shape"
+    );
+    // With non-trivial input, output should not be all-zero.
+    let n_nonzero = out.tensor.as_slice().iter().filter(|&&v| v.abs() > 1e-10).count();
+    assert!(n_nonzero > 0, "mha produced all-zero output for non-zero input");
+}
+
 // ── AvgPool2d (manual reference) ─────────────────────────────────────────────
 
 #[test]

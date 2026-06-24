@@ -1,6 +1,58 @@
 # Changelog
 
-## 0.2.4 - 2026-06-24
+## 0.2.5 - 2026-06-24
+
+### Added
+
+- **`tril` / `triu` ops** — `coeus-ops::tril(T, k)` and `coeus-ops::triu(T, k)`
+  apply lower/upper triangular masking to the last two dimensions of any ≥2-D
+  tensor, matching `torch.tril`/`torch.triu`'s `diagonal=k` convention.
+  Both are re-exported from `coeus-autograd` with tracked backward nodes (mask
+  gradient with the same triangular pattern). 12 unit tests in
+  `coeus-ops/src/shape/tril.rs`.
+
+- **`roll` op** — `coeus-ops::roll(T, shifts, dims)` and tracked
+  `coeus_autograd::roll` implement circular shift along any dimensions.
+  Backward is `roll(grad, -shifts, dims)` (self-inverse unroll). 4 unit tests
+  in `coeus-ops/src/shape/roll.rs`.
+
+- **Python ops for `tril` / `triu` / `roll`** — registered in
+  `coeus-python/src/lib.rs` with dimension validation and `ValueError` on
+  invalid inputs. New `test_tril_triu_roll` test covers forward values,
+  backward gradient masking, and error paths. Evidence:
+  `cargo test -p coeus-python --test binding_tests_ops -- --test-threads=1`
+  passes 21 tests.
+
+- **Functional Python nn wrappers** — three stateless free functions added to
+  `coeus-python/src/ops.rs` matching `torch.nn.functional.*`:
+  - `linear(input, weight, bias=None)` — weight-matrix multiply + optional bias.
+  - `layer_norm(input, norm_shape, weight=None, bias=None, eps=1e-5)` — layer
+    normalization over the last `norm_shape` features.
+  - `dropout(input, p=0.5, training=False)` — training-mode dropout; returns
+    input unchanged when `training=False` or `p=0.0`.
+
+- **Burn parity suite expanded 40 → 48 tests** in
+  `coeus-nn/tests/burn_live_parity.rs`:
+  - `tril_triu_forward_and_backward` — value-semantic mask forward and masked
+    gradient backward.
+  - `roll_forward_and_backward` — circular shift forward and unroll backward.
+  - `feed_forward_forward_shape_contract` — shape contract + non-zero liveness
+    for the 3-layer FeedForward transformer sub-block.
+  - `multi_head_attention_forward_shape_contract` — shape contract + non-zero
+    liveness for `MultiHeadAttention<H=4>` self-attention.
+
+- **Moirai scheduler batch-drain** — `WorkStealingScheduler::try_execute_next_task`
+  and `next_task` now skip the `Mutex` lock entirely when `global_len == 0`
+  (relaxed-atomic early-out) and batch-drain all global tasks into the local
+  queue with a single lock acquisition when non-empty, reducing per-task lock
+  overhead on the common lock-free path. Evidence: `cargo test -p moirai-scheduler`
+  passes.
+
+### Changed
+
+- Workspace version bumped `0.2.4` → `0.2.5`.
+
+
 
 ### Added
 

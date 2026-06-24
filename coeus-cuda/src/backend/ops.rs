@@ -1,6 +1,8 @@
 use crate::backend::{CudaBackend, CudaScalar};
 use coeus_core::Layout;
 
+pub mod attention;
+mod cast;
 pub mod conv;
 pub mod math;
 pub mod optim;
@@ -580,7 +582,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
     ) where
         T: coeus_core::Float,
     {
-        self.fallback_sdp_attention(
+        self.cuda_sdp_attention(
             query,
             query_layout,
             key,
@@ -617,7 +619,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
     ) where
         T: coeus_core::Float,
     {
-        self.fallback_sdp_attention_backward(
+        self.cuda_sdp_attention_backward(
             grad_out,
             grad_out_layout,
             query,

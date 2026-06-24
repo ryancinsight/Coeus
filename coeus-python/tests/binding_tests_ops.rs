@@ -597,6 +597,76 @@ except ValueError:
 }
 
 #[test]
+fn test_tril_triu_roll() {
+    run_script(
+        r#"
+import pycoeus
+
+# ── tril ─────────────────────────────────────────────────────────────
+x = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0], [3, 3])
+
+lo = pycoeus.tril(x)
+assert lo.data == [1.0, 0.0, 0.0, 4.0, 5.0, 0.0, 7.0, 8.0, 9.0], f"tril k=0: {lo.data}"
+
+lo1 = pycoeus.tril(x, 1)
+assert lo1.data == [1.0, 2.0, 0.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0], f"tril k=1: {lo1.data}"
+
+lo_neg = pycoeus.tril(x, -1)
+assert lo_neg.data == [0.0, 0.0, 0.0, 4.0, 0.0, 0.0, 7.0, 8.0, 0.0], f"tril k=-1: {lo_neg.data}"
+
+# tril backward: gradient is masked with same tril
+xg = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0], [3, 3], requires_grad=True)
+loss = pycoeus.sum(pycoeus.tril(xg))
+loss.backward()
+# Only lower-triangle positions receive gradient=1
+assert xg.grad == [1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0], f"tril bwd: {xg.grad}"
+
+# ── triu ─────────────────────────────────────────────────────────────
+hi = pycoeus.triu(x)
+assert hi.data == [1.0, 2.0, 3.0, 0.0, 5.0, 6.0, 0.0, 0.0, 9.0], f"triu k=0: {hi.data}"
+
+hi1 = pycoeus.triu(x, 1)
+assert hi1.data == [0.0, 2.0, 3.0, 0.0, 0.0, 6.0, 0.0, 0.0, 0.0], f"triu k=1: {hi1.data}"
+
+# tril + triu extracts diagonal: triu(tril(x, 0), 0)
+diag = pycoeus.triu(pycoeus.tril(x), 0)
+assert diag.data == [1.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 9.0], f"diag: {diag.data}"
+
+# ── roll ─────────────────────────────────────────────────────────────
+v = pycoeus.Tensor([0.0, 1.0, 2.0, 3.0], [4])
+r1 = pycoeus.roll(v, [1], [0])
+assert r1.data == [3.0, 0.0, 1.0, 2.0], f"roll +1: {r1.data}"
+
+r_neg = pycoeus.roll(v, [-1], [0])
+assert r_neg.data == [1.0, 2.0, 3.0, 0.0], f"roll -1: {r_neg.data}"
+
+# roll backward: backward is roll by negative shift
+rg = pycoeus.Tensor([0.0, 1.0, 2.0, 3.0], [4], requires_grad=True)
+rolled = pycoeus.roll(rg, [1], [0])
+loss_r = pycoeus.sum(rolled)
+loss_r.backward()
+# all-ones gradient rolled by -1 is still all-ones
+assert rg.grad == [1.0, 1.0, 1.0, 1.0], f"roll bwd: {rg.grad}"
+
+# roll 2D along rows
+m = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3])
+m_row1 = pycoeus.roll(m, [1], [0])
+assert m_row1.data == [4.0, 5.0, 6.0, 1.0, 2.0, 3.0], f"roll 2d row: {m_row1.data}"
+
+# roll zero shift is identity
+assert pycoeus.roll(v, [0], [0]).data == [0.0, 1.0, 2.0, 3.0]
+
+# error paths
+try:
+    _ = pycoeus.tril(pycoeus.Tensor([1.0, 2.0, 3.0], [3]))  # 1-D
+    raise AssertionError("tril 1-D should raise")
+except ValueError:
+    pass
+"#,
+    );
+}
+
+#[test]
 fn test_statistical_ops() {
     run_script(
         r#"

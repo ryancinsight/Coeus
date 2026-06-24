@@ -1,3 +1,4 @@
+pub mod attention;
 pub mod fuse;
 pub mod launch_conv;
 pub mod launch_matmul;
@@ -7,6 +8,7 @@ pub mod pool;
 pub mod ptx;
 pub mod reduce;
 
+pub use attention::{launch_sdp_attention, launch_sdp_attention_backward};
 pub use fuse::dispatch_fused;
 pub use launch_conv::{
     launch_conv1d, launch_conv1d_backward, launch_conv2d, launch_conv2d_backward, launch_conv3d,
