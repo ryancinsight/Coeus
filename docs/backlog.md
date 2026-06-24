@@ -75,9 +75,11 @@
 - [x] [patch] Added `coeus-leto::CsrDispatch` sparse SpMV/SpMM dispatch coverage
   against direct `leto_ops` sparse kernels while avoiding a high-arity sparse
   API surface.
-- [x] [patch] Routed contiguous CPU `conv1d` row execution through Melinoe
-  branded row partitioning; current evidence is value-semantic conv parity, not
-  a benchmarked speedup claim.
+- [x] [patch] Routed contiguous CPU `conv1d`, `conv2d`, and `conv3d` row
+  execution through one shared Melinoe branded row-partition SSOT
+  (`brand_mut_slice` in `conv/mod.rs`) instead of raw output-pointer writes;
+  evidence is value-semantic conv parity (`conv{1,2,3}d_hermes_diff`,
+  Sequential + Moirai), not a benchmarked speedup claim.
 - [x] [minor] Closed WGPU conv3d forward/backward differential parity for the
   tested 3-D convolution surface: baseline, stride+padding, and dilation cases
   now compare WGPU buffers against `SequentialBackend` outputs and gradients.
