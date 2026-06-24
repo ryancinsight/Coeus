@@ -83,6 +83,45 @@ fn cross_entropy_loss_matches_burn_ndarray_reference() {
     assert_close("cross_entropy_loss", coeus.tensor.as_slice(), &[burn_loss]);
 }
 
+// ── Log-softmax (forward + backward) ────────────────────────────────────────────
+
+#[test]
+fn log_softmax_forward_and_backward_match_burn() {
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+    let data = vec![1.5f32, 0.5, -0.5, -1.0, 2.0, 0.0];
+
+    // Forward parity vs burn `activation::log_softmax`.
+    let fwd_v = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data),
+        false,
+    );
+    let fwd_c = coeus_autograd::log_softmax(&fwd_v, 1);
+    let xb_fwd: BurnTensor<BurnBackend, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &dev());
+    assert_close(
+        "log_softmax",
+        fwd_c.tensor.as_slice(),
+        &bvec(burn::tensor::activation::log_softmax(xb_fwd, 1)),
+    );
+
+    // Backward parity vs burn autodiff: d/dx sum(log_softmax(x)).
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data),
+        true,
+    );
+    coeus_autograd::sum(&coeus_autograd::log_softmax(&xv, 1)).backward();
+    let dx_c = xv.grad().unwrap();
+    let xb: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &device).require_grad();
+    let grads = burn::tensor::activation::log_softmax(xb.clone(), 1)
+        .sum()
+        .backward();
+    let dx_b: Vec<f32> = xb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+    assert_close("log_softmax_bwd dx", dx_c.as_slice(), &dx_b);
+}
+
 // ── Elementwise arithmetic ────────────────────────────────────────────────────
 
 #[test]
