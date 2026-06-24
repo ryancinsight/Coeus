@@ -54,11 +54,6 @@ pub use ops::{
     exp,
     // Shape ops
     flip,
-    // Triangular masking
-    tril,
-    triu,
-    // Circular shift
-    roll,
     // Index ops
     gather,
     gelu,
@@ -88,6 +83,8 @@ pub use ops::{
     relu,
     reshape,
     rmsnorm,
+    // Circular shift
+    roll,
     scalar_add,
     scalar_div,
     // New scalar arithmetic
@@ -112,6 +109,9 @@ pub use ops::{
     tanh,
     transpose,
     transpose_2d,
+    // Triangular masking
+    tril,
+    triu,
     unsqueeze,
     // Shape ops
     where_cond,

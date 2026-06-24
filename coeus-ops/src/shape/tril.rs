@@ -30,7 +30,10 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let ndim = input.ndim();
-    assert!(ndim >= 2, "tril: requires at least a 2-D input, got {ndim}-D");
+    assert!(
+        ndim >= 2,
+        "tril: requires at least a 2-D input, got {ndim}-D"
+    );
 
     let shape = input.shape();
     let rows = shape[ndim - 2];
@@ -75,7 +78,10 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let ndim = input.ndim();
-    assert!(ndim >= 2, "triu: requires at least a 2-D input, got {ndim}-D");
+    assert!(
+        ndim >= 2,
+        "triu: requires at least a 2-D input, got {ndim}-D"
+    );
 
     let shape = input.shape();
     let rows = shape[ndim - 2];
@@ -107,42 +113,60 @@ mod tests {
     use coeus_tensor::Tensor;
 
     fn mat() -> Tensor<f32, SequentialBackend> {
-        Tensor::from_slice(vec![3, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
+        Tensor::from_slice(
+            vec![3, 3],
+            &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
+        )
     }
 
     #[test]
     fn tril_k0_zeroes_above_main_diagonal() {
         let b = SequentialBackend::new();
         let out = tril(&mat(), 0, &b);
-        assert_eq!(out.as_slice(), &[1.0, 0.0, 0.0, 4.0, 5.0, 0.0, 7.0, 8.0, 9.0]);
+        assert_eq!(
+            out.as_slice(),
+            &[1.0, 0.0, 0.0, 4.0, 5.0, 0.0, 7.0, 8.0, 9.0]
+        );
     }
 
     #[test]
     fn tril_k1_keeps_one_superdiagonal() {
         let b = SequentialBackend::new();
         let out = tril(&mat(), 1, &b);
-        assert_eq!(out.as_slice(), &[1.0, 2.0, 0.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
+        assert_eq!(
+            out.as_slice(),
+            &[1.0, 2.0, 0.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+        );
     }
 
     #[test]
     fn tril_k_neg1_zeroes_main_and_above() {
         let b = SequentialBackend::new();
         let out = tril(&mat(), -1, &b);
-        assert_eq!(out.as_slice(), &[0.0, 0.0, 0.0, 4.0, 0.0, 0.0, 7.0, 8.0, 0.0]);
+        assert_eq!(
+            out.as_slice(),
+            &[0.0, 0.0, 0.0, 4.0, 0.0, 0.0, 7.0, 8.0, 0.0]
+        );
     }
 
     #[test]
     fn triu_k0_zeroes_below_main_diagonal() {
         let b = SequentialBackend::new();
         let out = triu(&mat(), 0, &b);
-        assert_eq!(out.as_slice(), &[1.0, 2.0, 3.0, 0.0, 5.0, 6.0, 0.0, 0.0, 9.0]);
+        assert_eq!(
+            out.as_slice(),
+            &[1.0, 2.0, 3.0, 0.0, 5.0, 6.0, 0.0, 0.0, 9.0]
+        );
     }
 
     #[test]
     fn triu_k1_zeroes_main_and_below() {
         let b = SequentialBackend::new();
         let out = triu(&mat(), 1, &b);
-        assert_eq!(out.as_slice(), &[0.0, 2.0, 3.0, 0.0, 0.0, 6.0, 0.0, 0.0, 0.0]);
+        assert_eq!(
+            out.as_slice(),
+            &[0.0, 2.0, 3.0, 0.0, 0.0, 6.0, 0.0, 0.0, 0.0]
+        );
     }
 
     #[test]
@@ -151,6 +175,9 @@ mod tests {
         let l = tril(&mat(), 0, &b);
         // triu(tril(x, 0), 0) picks out only the diagonal
         let diag = triu(&Tensor::from_slice(vec![3, 3], l.as_slice()), 0, &b);
-        assert_eq!(diag.as_slice(), &[1.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 9.0]);
+        assert_eq!(
+            diag.as_slice(),
+            &[1.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 9.0]
+        );
     }
 }

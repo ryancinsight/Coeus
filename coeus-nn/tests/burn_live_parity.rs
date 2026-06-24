@@ -1390,8 +1390,16 @@ fn feed_forward_forward_shape_contract() {
     );
     let out2 = ffn.forward(&x2);
     // At least some outputs should be non-zero (weights are Xavier init, not all zero).
-    let n_nonzero = out2.tensor.as_slice().iter().filter(|&&v| v.abs() > 1e-10).count();
-    assert!(n_nonzero > 0, "ffn produced all-zero output for non-zero input");
+    let n_nonzero = out2
+        .tensor
+        .as_slice()
+        .iter()
+        .filter(|&&v| v.abs() > 1e-10)
+        .count();
+    assert!(
+        n_nonzero > 0,
+        "ffn produced all-zero output for non-zero input"
+    );
 }
 
 // ── Multi-head attention forward shape contract ───────────────────────────────
@@ -1416,8 +1424,16 @@ fn multi_head_attention_forward_shape_contract() {
         "mha output shape"
     );
     // With non-trivial input, output should not be all-zero.
-    let n_nonzero = out.tensor.as_slice().iter().filter(|&&v| v.abs() > 1e-10).count();
-    assert!(n_nonzero > 0, "mha produced all-zero output for non-zero input");
+    let n_nonzero = out
+        .tensor
+        .as_slice()
+        .iter()
+        .filter(|&&v| v.abs() > 1e-10)
+        .count();
+    assert!(
+        n_nonzero > 0,
+        "mha produced all-zero output for non-zero input"
+    );
 }
 
 // ── AvgPool2d (manual reference) ─────────────────────────────────────────────

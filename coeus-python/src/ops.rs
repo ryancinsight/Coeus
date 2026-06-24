@@ -924,8 +924,7 @@ pub fn roll(
         }
     }
     let shifts_isize: Vec<isize> = shifts.iter().map(|&s| s as isize).collect();
-    let inner =
-        py.allow_threads(move || coeus_autograd::roll(&input.inner, &shifts_isize, &dims));
+    let inner = py.allow_threads(move || coeus_autograd::roll(&input.inner, &shifts_isize, &dims));
     Ok(PyTensor { inner })
 }
 
@@ -1003,10 +1002,7 @@ pub fn linear(
     let x = input.inner.clone();
     let inner = py.allow_threads(move || {
         use coeus_nn::linear::Linear;
-        let lin = Linear {
-            weight: w,
-            bias: b,
-        };
+        let lin = Linear { weight: w, bias: b };
         use coeus_nn::Module;
         lin.forward(&x)
     });
@@ -1037,10 +1033,7 @@ pub fn layer_norm(
         use coeus_nn::Module;
         let backend = coeus_core::MoiraiBackend::new();
         let weight_var = w.unwrap_or_else(|| {
-            coeus_autograd::Var::new(
-                coeus_tensor::Tensor::ones_on([norm_shape], &backend),
-                false,
-            )
+            coeus_autograd::Var::new(coeus_tensor::Tensor::ones_on([norm_shape], &backend), false)
         });
         let bias_var = b.unwrap_or_else(|| {
             coeus_autograd::Var::new(

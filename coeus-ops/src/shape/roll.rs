@@ -47,7 +47,10 @@ where
             let mut idx = super::index::flat_to_nd(flat, shape);
             // Apply each (shift, dim) in reverse order to find source position.
             for (&shift, &dim) in shifts.iter().zip(dims.iter()) {
-                assert!(dim < ndim, "roll: dim {dim} out of range for {ndim}-D tensor");
+                assert!(
+                    dim < ndim,
+                    "roll: dim {dim} out of range for {ndim}-D tensor"
+                );
                 let n = shape[dim] as isize;
                 // Normalise shift to [0, n) to handle negatives and large values.
                 let eff_shift = ((shift % n) + n) % n;
