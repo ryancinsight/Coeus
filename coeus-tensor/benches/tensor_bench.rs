@@ -2,7 +2,6 @@ use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_tensor::Tensor;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use leto::Array;
-use rayon::prelude::*;
 
 // ── Burn NdArray (dev/bench only) ─────────────────────────────────────────
 use burn::backend::ndarray::{NdArray, NdArrayDevice};
@@ -21,9 +20,6 @@ fn bench_elementwise_add(c: &mut Criterion) {
 
     let a_moirai = Tensor::<f32, MoiraiBackend>::ones(shape.clone());
     let b_moirai = Tensor::<f32, MoiraiBackend>::ones(shape.clone());
-
-    let a_rayon = vec![1.0f32; size * size];
-    let b_rayon = vec![1.0f32; size * size];
 
     let mut group = c.benchmark_group("Elementwise Add (1024x1024)");
 
@@ -44,18 +40,6 @@ fn bench_elementwise_add(c: &mut Criterion) {
                 black_box(&b_moirai),
                 black_box(&moirai_backend),
             ));
-        })
-    });
-
-    group.bench_function("rayon slice", |b| {
-        b.iter(|| {
-            black_box(
-                black_box(&a_rayon)
-                    .par_iter()
-                    .zip(black_box(&b_rayon))
-                    .map(|(x, y)| x + y)
-                    .collect::<Vec<f32>>(),
-            );
         })
     });
 

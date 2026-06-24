@@ -103,6 +103,12 @@
   module registration is serialized without duplicated lock definitions.
   Evidence: `cargo nextest run -p coeus-python --test binding_tests_dist
   --test binding_tests_ops` passes with 26 value-semantic binding tests.
+- [x] [patch] Removed the direct Rayon comparison row and dev-dependency from
+  `coeus-tensor` Criterion benchmarks; the existing `Coeus Moirai` row is the
+  parallel execution comparison, preserving Moirai as the parallelism SSOT.
+  Evidence tier: compile-time dependency audit plus benchmark build. Evidence:
+  `cargo check -p coeus-tensor --benches` and
+  `cargo nextest run -p coeus-core --test dependency_policy` pass.
 - [x] [patch] Verification on 2026-06-24: `cargo fmt --check`,
   `cargo check --workspace`, `cargo clippy --workspace --all-targets
   -- -D warnings`, `cargo nextest run --workspace` (420 passed), and

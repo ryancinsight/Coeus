@@ -35,6 +35,9 @@
 
 - `coeus_autograd::gather` correctly routes backward through `scatter_add`
   (zero gradient to `index` since integer indices are non-differentiable).
+- `coeus-tensor` benchmarks no longer carry a direct Rayon comparison row or
+  dev-dependency; the benchmark surface uses the existing `Coeus Moirai` row as
+  the parallel execution comparison.
 - `coeus-ops` contiguous CPU `conv1d`, `conv2d`, and `conv3d` row execution now
   use Melinoe branded partitioning for disjoint output rows instead of raw
   output-pointer writes on that path, sharing one branded row-shard SSOT
