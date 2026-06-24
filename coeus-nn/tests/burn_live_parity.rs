@@ -383,36 +383,36 @@ fn statistical_ops_match_burn() {
     let xb: BurnTensor<BurnBackend, 2> =
         BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &dev());
 
-    // Global var / std use a closed-form Bessel-corrected oracle because Burn
-    // 0.16 exposes `var(dim)`, not global `var()` / `std()`.
+    // Global var / std: Burn 0.16's `var(dim)` reduces one axis; flatten
+    // to a 1-D tensor first, then `var(0)` followed by `into_scalar` to
+    // obtain the global Bessel-corrected oracle.
     let v_global = coeus_ops::var(&xc, true, &backend);
-    let v_global_ref = 3.5f32;
-    assert_close("var_global", &[v_global], &[v_global_ref]);
+    let v_global_burn = xb.clone().flatten::<1>(0, 1).var(0).into_scalar();
+    assert_close("var_global", &[v_global], &[v_global_burn]);
     let s_global = coeus_ops::std_dev(&xc, true, &backend);
-    assert_close("std_global", &[s_global], &[v_global_ref.sqrt()]);
+    let s_global_burn = xb.clone().flatten::<1>(0, 1).var(0).into_scalar().sqrt();
+    assert_close("std_global", &[s_global], &[s_global_burn]);
 
-    // Per-axis var matches Burn's Bessel-corrected `var(dim)` API; per-axis std
-    // is the square root of that same variance oracle.
+    // Per-axis var matches Burn's Bessel-corrected `var(dim)` API; per-axis
+    // std is the square root of that same variance oracle.
     let v_axis1 = coeus_ops::var_axis(&xc, 1, true, &backend);
     let v_burn_axis1 = xb.clone().var(1).into_data().to_vec().unwrap();
     assert_close("var_axis1", v_axis1.as_slice(), &v_burn_axis1);
     let s_axis1 = coeus_ops::std_dev_axis(&xc, 1, true, &backend);
-    let s_burn_axis1: Vec<f32> = v_burn_axis1.iter().map(|v| v.sqrt()).collect();
+    let s_burn_axis1 = bvec(xb.clone().var(1).sqrt());
     assert_close("std_axis1", s_axis1.as_slice(), &s_burn_axis1);
 
-    // Population (unbiased=false) global var matches `var` after dividing
-    // by N instead of N-1: Bessel correction factor (N-1)/N.
+    // Population (unbiased=false) global variance matches Burn's
+    // `var_bias(dim)` on the flattened input — Bessel-correction skipped,
+    // so it is `N/(N-1)` smaller than the unbiased variant.
     let v_biased = coeus_ops::var(&xc, false, &backend);
-    let n = xc.numel() as f32;
-    assert_close(
-        "var_biased_global",
-        &[v_biased],
-        &[v_global_ref * (n - 1.0) / n],
-    );
+    let v_biased_burn = xb.clone().flatten::<1>(0, 1).var_bias(0).into_scalar();
+    assert_close("var_biased_global", &[v_biased], &[v_biased_burn]);
 
-    // L2 norm matches Burn's `l2_norm` over flattened input.
+    // L2 norm matches Burn's `powf_scalar(2).sum().sqrt()` over flattened
+    // input (matches torch.linalg.vector_norm default ord=2).
     let n2 = coeus_ops::norm(&xc, &backend);
-    let n_burn = bvec(xb.clone().powf_scalar(2.0).sum())[0].sqrt();
+    let n_burn = bvec(xb.powf_scalar(2.0).sum())[0].sqrt();
     assert_close("norm_l2", &[n2], &[n_burn]);
 }
 

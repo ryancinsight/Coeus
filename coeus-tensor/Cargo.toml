@@ -18,6 +18,8 @@ bytemuck    = { workspace = true }
 [dev-dependencies]
 criterion = "0.5"
 coeus-ops = { workspace = true }
+coeus-nn = { path = "../coeus-nn" }
+coeus-autograd = { workspace = true, default-features = false }
 leto = { workspace = true }
 leto-ops = { workspace = true }
 bincode = { version = "=2.0.0-rc.3", features = ["serde"] }
