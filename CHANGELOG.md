@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.2.1 - 2026-06-24
+
+### Added
+
+- **Live Burn parity suite** (`coeus-nn/tests/burn_live_parity.rs`): 25+ tests
+  comparing Coeus outputs against Burn NdArray for add/sub/mul/div, relu, sigmoid,
+  tanh, gelu, silu, exp/log/sqrt/neg/abs, matmul 2D/large/batched, reductions,
+  linear fwd/bwd, layernorm fwd, clamp, shape ops, mse_loss, and backward passes.
+- **Burn benchmarks** (`coeus-tensor/benches/tensor_bench.rs`): four Criterion
+  benchmark groups (elementwise add, matmul 256×256, ReLU, sum_dim) comparing
+  Burn NdArray against Coeus Sequential and Moirai side-by-side.
+- **WgpuBackend parity audit** (`coeus-wgpu/tests/wgpu/parity.rs`): 20+ differential
+  tests for binary ops, 14 unary activations, reductions, conv1d/conv2d forward,
+  max/avg pool2d, AdamW step, and CPU↔GPU round-trip identity.
+- **`coeus_autograd::stack`** with correct backward pass (split + squeeze);
+  exported from `coeus-autograd`.
+- **20 new coeus-python functional ops**: `stack`, `matmul`, `abs`, `sqrt`, `neg`,
+  `clamp`, `max_axis`, `min_axis`, `log_sum_exp`, `sum`, `mean`, `zeros`, `ones`,
+  `full`, `arange`, `linspace`, `reshape`, `permute`, `t`, `pow` — matching the
+  `torch.*` / `jnp.*` / `mx.*` functional style.
+- **`coeus-python/tests/binding_tests_ops.rs`**: 9 binding tests covering all new
+  ops including autograd backward passes.
+
+### Changed
+
+- Updated `docs/backlog.md` and `docs/checklist.md` for Sprint MS-61.
+
+### Performance (atlas crates)
+
+- **hermes** (`crates/hermes-simd/src/cpu.rs`): cached `has_amx()` and
+  `has_avx512()` results with `OnceLock`; previously each dispatch called the
+  serialising `cpuid` instruction (~50-200 cycles). Steady-state now pays one
+  relaxed atomic load.
+- **moirai** (`moirai-scheduler`): gated `Instant::now()` / `SystemTime::now()`
+  task timing behind `cfg(feature="metrics")`; saves ~15-30 ns per micro-task on
+  compute-intensive work-stealing workloads.
+- **moirai** (`moirai-core`): added `#[repr(align(64))]` + 63-byte padding to
+  `TaskResultSlot` to place the `state` field (written by producer) and
+  `result`/`waiter` fields (read by consumer) on separate cache lines, eliminating
+  producer-consumer false sharing.
+- **leto-ops** (`application/matrix.rs`): `parallel_cc_matmul`,
+  `parallel_dot_matmul`, and `parallel_outer_matmul` now dispatch in row blocks
+  of 4 (`PARALLEL_ROW_BLOCK`), reducing task count by 4× and amortising
+  per-task scheduling overhead; also prevents false sharing for small-`n` layouts.
+
 ## 0.2.0 - 2026-06-12
 
 ### Added
