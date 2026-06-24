@@ -187,6 +187,16 @@ Python as a thin PyO3 wrapper over Rust core operations.
   `cargo nextest run --workspace` (439 passed),
   burn_live_parity 44 tests (incl. BatchNorm1d backward),
   binding_tests_nn 1 test (incl. all global pool wrappers).
+- [x] [minor] Implemented on-device CUDA conv3d PTX kernels (`conv3d_f32`,
+  `conv3d_grad_input_f32`, `conv3d_grad_weight_f32`, `conv3d_grad_bias_f32`)
+  extending the existing conv1d/conv2d pattern to 5-D [N,C,D,H,W] tensors.
+  Wired dispatch through `cuda_conv3d`/`cuda_conv3d_backward` in
+  `coeus-cuda/src/backend/ops/conv.rs`, replacing the CPU fallback path.
+  Added `test_cuda_parity_conv3d_forward` and `test_cuda_parity_conv3d_backward`
+  differential tests verifying on-device output agrees with `SequentialBackend`
+  within CUDA_ACC_TOL (1e-3). Evidence tier: empirical differential validation.
+  Evidence: `cargo nextest run -p coeus-cuda --features cuda` passes with
+  57 tests (up from 55). Workspace remains 438 passed.
 
 ---
 
