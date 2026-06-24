@@ -147,7 +147,11 @@ extern "C" __global__ void sdp_attn_bwd_dkv_kernel(
 "#;
 
 #[inline]
-fn launch_1d(func: crate::driver::CUfunction, total: usize, args: &mut [*mut std::ffi::c_void]) -> bool {
+fn launch_1d(
+    func: crate::driver::CUfunction,
+    total: usize,
+    args: &mut [*mut std::ffi::c_void],
+) -> bool {
     let Some(drv) = CudaDriver::get() else {
         return false;
     };
@@ -264,7 +268,7 @@ pub fn launch_sdp_attention_backward(
         return false;
     };
 
-    let mut d_scores = CudaStorage::<f32>::new(batch * seq_q * seq_k);
+    let d_scores = CudaStorage::<f32>::new(batch * seq_q * seq_k);
 
     let mut go_ptr = grad_out.cu_deviceptr();
     let mut q_ptr = query.cu_deviceptr();

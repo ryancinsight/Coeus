@@ -1,3 +1,4 @@
+mod attention;
 mod backend_ops;
 mod conv_reduce;
 mod jit;

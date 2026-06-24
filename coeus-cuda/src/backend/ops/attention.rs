@@ -43,7 +43,7 @@ impl CudaBackend {
             let seq_k = key_layout.shape()[1];
             let d_v = value_layout.shape()[2];
             // T is TypeId-confirmed f32 here; f32->f64->f32 round-trips exactly.
-            let scale_f32 = scale.to_f64() as f32;
+            let scale_f32 = coeus_core::Scalar::to_f64(scale) as f32;
 
             let q32 = cast_storage::<T, f32>(query);
             let k32 = cast_storage::<T, f32>(key);
@@ -52,17 +52,7 @@ impl CudaBackend {
             let mut aw32 = cast_storage_mut::<T, f32>(attn_weights);
 
             if kernels::launch_sdp_attention(
-                &q32,
-                &k32,
-                &v32,
-                &mut out32,
-                &mut aw32,
-                batch,
-                seq_q,
-                seq_k,
-                d_k,
-                d_v,
-                is_causal,
+                &q32, &k32, &v32, &mut out32, &mut aw32, batch, seq_q, seq_k, d_k, d_v, is_causal,
                 scale_f32,
             ) {
                 return;
@@ -114,7 +104,7 @@ impl CudaBackend {
             let seq_k = key_layout.shape()[1];
             let d_v = value_layout.shape()[2];
             // T is TypeId-confirmed f32 here; f32->f64->f32 round-trips exactly.
-            let scale_f32 = scale.to_f64() as f32;
+            let scale_f32 = coeus_core::Scalar::to_f64(scale) as f32;
 
             let go32 = cast_storage::<T, f32>(grad_out);
             let q32 = cast_storage::<T, f32>(query);
