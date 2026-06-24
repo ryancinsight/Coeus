@@ -5,14 +5,17 @@
 // # Safety Invariant
 //
 // `GradBuffer` exposes non-synchronized mutable access to its inner
-// `Tensor`.  It is correct **only** because:
+// `Tensor`.  Coeus' current execution paths uphold that contract by ensuring:
 //
-//   1. The backward pass (`backward_with_seed`) is always a *sequential*
-//      depth-first traversal — no two nodes are executed concurrently.
-//   2. No user-facing API calls `write()` outside the backward pass.
+//   1. The backward pass (`backward_with_seed`) is a sequential reverse
+//      topological traversal, so no two nodes mutate a gradient concurrently.
+//   2. Optimizer steps and distributed gradient synchronization run after
+//      backward has completed and mutate each parameter gradient serially.
+//   3. Public gradient reads clone the tensor value instead of returning a
+//      shared alias to the accumulator.
 //
 // If a future parallel backward path is added, this type must be replaced
-// with a proper synchronization primitive (e.g. `moirai_sync::SpinLock`).
+// with a type-level borrow token or a proper synchronization primitive.
 
 use coeus_core::{ComputeBackend, Scalar};
 use coeus_tensor::Tensor;
@@ -27,8 +30,9 @@ use std::cell::UnsafeCell;
 /// invariant.
 pub struct GradBuffer<T: Scalar, B: ComputeBackend + Default>(UnsafeCell<Tensor<T, B>>);
 
-// SAFETY: GradBuffer is only mutated during the sequential backward pass.
-// The UnsafeCell content is never accessed concurrently by Coeus autograd.
+// SAFETY: Coeus mutates GradBuffer through serialized backward, optimizer, and
+// distributed-gradient phases. The UnsafeCell content is not accessed
+// concurrently by the current Coeus execution paths.
 unsafe impl<T: Scalar + Send, B: ComputeBackend + Default + Send> Send for GradBuffer<T, B> {}
 unsafe impl<T: Scalar + Send, B: ComputeBackend + Default + Send + Sync> Sync for GradBuffer<T, B> {}
 
@@ -45,7 +49,7 @@ impl<T: Scalar, B: ComputeBackend + Default> GradBuffer<T, B> {
     /// No concurrent mutable access may exist when this is called.
     #[inline]
     pub fn read(&self) -> &Tensor<T, B> {
-        // SAFETY: upheld by the single-threaded-backward invariant.
+        // SAFETY: upheld by the serialized gradient-access invariant.
         unsafe { &*self.0.get() }
     }
 
@@ -59,7 +63,7 @@ impl<T: Scalar, B: ComputeBackend + Default> GradBuffer<T, B> {
     #[inline]
     #[allow(clippy::mut_from_ref)]
     pub fn write(&self) -> &mut Tensor<T, B> {
-        // SAFETY: upheld by the single-threaded-backward invariant.
+        // SAFETY: upheld by the serialized gradient-access invariant.
         unsafe { &mut *self.0.get() }
     }
 
