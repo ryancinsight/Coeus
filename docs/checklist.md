@@ -120,6 +120,11 @@ Python as a thin PyO3 wrapper over Rust core operations.
   `tests/common/mod.rs` and routed binding ops/distributed tests through that
   test-only SSOT. Evidence: `cargo nextest run -p coeus-python --test
   binding_tests_dist --test binding_tests_ops` passes with 26 tests.
+- [x] [patch] Scoped temporary `pycoeus` module registration inside
+  operation/distributed binding scripts by passing explicit globals and removing
+  the `sys.modules` entry after each run. Evidence tier: empirical integration
+  validation. Evidence: `cargo nextest run -p coeus-python --test
+  binding_tests_dist --test binding_tests_ops` passes.
 - [x] [patch] Removed the direct Rayon comparison row and dev-dependency from
   `coeus-tensor` benchmarks; `Coeus Moirai` remains the parallel execution row.
   Evidence tier: compile-time dependency audit plus benchmark build. Evidence:

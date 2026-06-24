@@ -124,6 +124,10 @@
   module registration is serialized without duplicated lock definitions.
   Evidence: `cargo nextest run -p coeus-python --test binding_tests_dist
   --test binding_tests_ops` passes with 26 value-semantic binding tests.
+- [x] [patch] Scoped embedded `pycoeus` module registration to each
+  operation/distributed binding script by passing explicit Python globals and
+  removing the temporary `sys.modules` entry after execution. Evidence tier:
+  empirical integration validation.
 - [x] [patch] Removed the direct Rayon comparison row and dev-dependency from
   `coeus-tensor` Criterion benchmarks; the existing `Coeus Moirai` row is the
   parallel execution comparison, preserving Moirai as the parallelism SSOT.

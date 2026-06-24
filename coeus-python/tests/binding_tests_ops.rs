@@ -22,9 +22,14 @@ fn run_script(script: &str) {
         let modules_any = sys.getattr("modules").unwrap();
         let modules = modules_any.downcast::<PyDict>().unwrap();
         modules.set_item("pycoeus", &pycoeus_module).unwrap();
+        let globals = PyDict::new(py);
+        globals.set_item("pycoeus", &pycoeus_module).unwrap();
         let script = CString::new(script).expect("test script must not contain interior NUL");
-        py.run(script.as_c_str(), None, None)
-            .unwrap_or_else(|e| panic!("Python script failed:\n{e}"));
+        let result = py.run(script.as_c_str(), Some(&globals), None);
+        modules
+            .del_item("pycoeus")
+            .unwrap_or_else(|e| panic!("failed to remove pycoeus test module: {e:?}"));
+        result.unwrap_or_else(|e| panic!("Python script failed:\n{e}"));
     });
 }
 

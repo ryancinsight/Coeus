@@ -42,6 +42,9 @@
   SmoothL1-style formula and Burn's Huber contract coincide exactly.
 - **coeus-python test harness**: shared test-only embedded-Python lock now
   serializes module registration for binding operation and distributed tests.
+- **coeus-python module-scope cleanup**: binding operation and distributed tests
+  now execute scripts with explicit `pycoeus` globals and remove the temporary
+  `sys.modules` entry after each run.
 - **8 new `binding_tests_ops.rs` test functions** covering all previously
   untested ops: `topk/sort`, `comparisons (eq/lt/gt)/where_fn`, `softmax/
   cumsum/flip`, `randn/zeros_like/ones_like/eye`, `gather/scatter_add`,
