@@ -3,12 +3,12 @@
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
 ### Current Sprint: Sprint MS-61 (Burn Parity / GPU Parity / Python) [IN PROGRESS]
-**Objective**: Complete live Burn parity, wgpu differential audit, expand coeus-python
-functional op surface to match torch.*/jnp.*/mx.* style.
+**Objective**: Extend live Burn parity, wgpu differential audit, expand coeus-python
+functional op surface toward torch.*/jnp.*/mx.* style.
 **Target version**: 0.2.1.
 
-> **Roadmap (docs/backlog.md MS-61)**: live Burn comparison replaces hardcoded oracle
-> values; wgpu parity.rs verifies every shader kernel against the CPU reference;
+> **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
+> oracle values; wgpu parity.rs verifies implemented GPU paths against the CPU reference;
 > coeus-python gains 20+ new functional ops (stack, matmul, constructors, abs/sqrt/neg,
 > clamp, max/min_axis, sum/mean, reshape, permute, t, pow, arange, linspace, etc.).
 
@@ -17,9 +17,8 @@ functional op surface to match torch.*/jnp.*/mx.* style.
 - [x] [minor] Added `burn 0.16` as dev-dep to `coeus-nn` and `coeus-tensor`; production
   dependency policy test unaffected (burn forbidden in `[dependencies]`, allowed in
   `[dev-dependencies]`).
-- [x] [minor] Extended `coeus-nn/tests/burn_live_parity.rs` from 2 to 25+ live tests
-  covering all major op families with Burn NdArray as oracle.  Tests use
-  `burn::backend::Autodiff<NdArray<f32>>` for backward parity checks.
+- [x] [patch] Added `coeus-nn/tests/burn_live_parity.rs` with live Burn NdArray
+  reference checks for softmax and cross-entropy loss.
 - [x] [minor] Added four Burn benchmark groups to `tensor_bench.rs`: elementwise add,
   matmul (256×256), ReLU (1024×1024), and sum_dim (1024×1024).  Each group shows Burn
   NdArray, Coeus Sequential, and Coeus Moirai side-by-side under Criterion.

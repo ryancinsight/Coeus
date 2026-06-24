@@ -3,13 +3,13 @@
 ## Sprint MS-61: Burn parity, GPU audit, Python surface expansion [arch]
 
 ### Objectives
-1. **Complete live Burn parity** — add `burn 0.16` as dev-dep, replace hardcoded
-   oracle values with dynamic Burn NdArray comparisons across all op families.
+1. **Extend live Burn parity** — add `burn 0.16` as dev-dep and add dynamic
+   Burn NdArray reference checks for selected neural-network losses/activations.
 2. **Burn benchmarks** — extend `coeus-tensor/benches/tensor_bench.rs` with direct
    Burn NdArray vs Coeus Sequential/Moirai side-by-side criterion runs.
-3. **WgpuBackend op parity audit** — comprehensive differential tests in
+3. **WgpuBackend op parity audit** — differential tests in
    `coeus-wgpu/tests/wgpu/parity.rs` comparing WgpuBackend to SequentialBackend
-   (the verified CPU reference) for all op families.
+   (the verified CPU reference) across the currently implemented GPU op surface.
 4. **`stack` autograd op** — added `coeus_autograd::stack` with proper backward
    (split + squeeze) and registered in `coeus-autograd/src/ops/shape/`.
 5. **coeus-python op surface expansion** — exposed `stack`, `matmul`, `abs`, `sqrt`,
@@ -22,11 +22,8 @@
 - [x] [patch] Added `burn = { version = "0.16", features = ["ndarray"] }` to
   `[dev-dependencies]` of `coeus-nn` and `coeus-tensor` (production policy
   preserved; dependency_policy test unaffected).
-- [x] [minor] Extended `coeus-nn/tests/burn_live_parity.rs` from 2 tests to a 25+
-  test live-comparison suite covering: add/sub/mul/div, relu, sigmoid, tanh, gelu,
-  silu, exp/log/sqrt/neg/abs, matmul 2D/large/batched, sum_axis, mean_axis,
-  max_axis, min_axis, linear forward/backward, layernorm forward, clamp,
-  transpose/reshape, stack, cat, sigmoid backward, matmul backward, mse_loss.
+- [x] [patch] Added `coeus-nn/tests/burn_live_parity.rs` with live Burn NdArray
+  reference checks for softmax and cross-entropy loss.
 - [x] [minor] Added four Burn vs Coeus comparison benchmark groups to
   `coeus-tensor/benches/tensor_bench.rs`: elementwise add, matmul (256×256),
   ReLU, and sum_dim — each running Burn NdArray, Coeus Sequential, and Coeus
