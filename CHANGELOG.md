@@ -48,6 +48,13 @@
   overhead on the common lock-free path. Evidence: `cargo test -p moirai-scheduler`
   passes.
 
+- **CUDA scaled-dot-product attention parity** — added live CUDA differential
+  coverage for unmasked and causal forward attention, masked CPU-boundary
+  behavior, and backward `grad_q`/`grad_k`/`grad_v` against `SequentialBackend`.
+  Evidence tier: empirical differential validation. Evidence:
+  `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests attention`
+  passes with 4 tests.
+
 ### Changed
 
 - Workspace version bumped `0.2.4` → `0.2.5`.

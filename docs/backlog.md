@@ -119,6 +119,12 @@
   `conv2d`, `max_pool2d`, and `avg_pool2d` kernels, comparing CudaBackend
   gradients against `SequentialBackend` references. Evidence tier: empirical
   differential validation.
+- [x] [patch] Added live CUDA scaled-dot-product attention differential
+  coverage for unmasked and causal forward attention, masked CPU-boundary
+  behavior, and backward `grad_q`/`grad_k`/`grad_v` against `SequentialBackend`.
+  Evidence tier: empirical differential validation. Evidence:
+  `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests attention`
+  passes with 4 tests.
 - [x] [patch] Consolidated the `coeus-python` embedded-Python test lock into
   `tests/common/mod.rs` and routed binding ops/distributed tests through it so
   module registration is serialized without duplicated lock definitions.
@@ -344,6 +350,11 @@ with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* heph
     differential coverage against the public CPU attention path, including causal
     masking and Q/K/V gradients. Evidence: `cargo nextest run -p coeus-wgpu
     --test wgpu_tests attention` passes.
+  - [x] [patch] Added CUDA scaled-dot-product attention differential coverage
+    for unmasked and causal forward attention, masked CPU-boundary behavior, and
+    Q/K/V gradients against `SequentialBackend`. Evidence:
+    `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests attention`
+    passes.
   - [x] [patch] Reconciled the WGPU parity test module with the current
     `BackendOps` pooling, convolution, and AdamW signatures. Evidence:
     `cargo nextest run -p coeus-wgpu --test wgpu_tests parity` passes with 33

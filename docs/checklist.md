@@ -2,10 +2,10 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: Sprint MS-64 (Python Tensor Parity / Shape Ops) [IN PROGRESS]
+### Current Sprint: Sprint MS-65 (Burn/CUDA Parity Closure) [IN PROGRESS]
 **Objective**: Extend coeus/coeus-python shape and indexing parity while keeping
 Python as a thin PyO3 wrapper over Rust core operations.
-**Target version**: 0.2.4.
+**Target version**: 0.2.5.
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
 > oracle values; wgpu parity.rs verifies implemented GPU paths against the CPU reference;
@@ -197,6 +197,12 @@ Python as a thin PyO3 wrapper over Rust core operations.
   within CUDA_ACC_TOL (1e-3). Evidence tier: empirical differential validation.
   Evidence: `cargo nextest run -p coeus-cuda --features cuda` passes with
   57 tests (up from 55). Workspace remains 438 passed.
+- [x] [patch] Added CUDA scaled-dot-product attention differential coverage for
+  unmasked and causal forward attention, masked CPU-boundary behavior, and
+  backward `grad_q`, `grad_k`, and `grad_v` against `SequentialBackend`.
+  Evidence tier: empirical differential validation. Evidence:
+  `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests attention`
+  passes with 4 tests.
 
 ---
 
