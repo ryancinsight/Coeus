@@ -1412,6 +1412,81 @@ fn batchnorm1d_forward_matches_manual_reference() {
     );
 }
 
+// ── BatchNorm1d backward analytical parity ───────────────────────────────────
+
+#[test]
+fn batchnorm1d_backward_bias_and_weight_grads_match_analytical() {
+    use coeus_nn::BatchNorm1d;
+    // [N=1, C=2, L=3]: m = N*L = 3 per channel.
+    // Channel 0: [1, 2, 3] → x_hat zero-mean → weight grad ≈ 0, bias grad = 3.
+    // Channel 1: [4, 5, 6] → x_hat zero-mean → weight grad ≈ 0, bias grad = 3.
+    let data: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]; // [N=1, C=2, L=3]
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &data),
+        true,
+    );
+    let bn = BatchNorm1d::<f32, SequentialBackend>::new(2, 1e-5, 0.1);
+    use coeus_nn::Module;
+    let out = bn.forward(&xv);
+    // Loss = sum(output) → upstream gradient is all-ones.
+    coeus_autograd::sum(&out).backward();
+
+    // Bias gradient: dL/d_beta_c = sum_{N,L} 1 = m = 3 for each channel.
+    let bg = bn
+        .bias
+        .grad()
+        .expect("bias.grad must be set after backward");
+    let bg_s = bg.as_slice();
+    assert_eq!(bg_s.len(), 2, "bias grad length");
+    let m_f = 3.0_f32;
+    assert!(
+        (bg_s[0] - m_f).abs() < 1e-4,
+        "bias[0] grad={} expected={m_f}",
+        bg_s[0]
+    );
+    assert!(
+        (bg_s[1] - m_f).abs() < 1e-4,
+        "bias[1] grad={} expected={m_f}",
+        bg_s[1]
+    );
+
+    // Weight gradient: dL/d_gamma_c = sum_{N,L} x_hat_{c} * 1 = 0 (x_hat zero-mean).
+    let wg = bn
+        .weight
+        .grad()
+        .expect("weight.grad must be set after backward");
+    let wg_s = wg.as_slice();
+    assert_eq!(wg_s.len(), 2, "weight grad length");
+    assert!(
+        wg_s[0].abs() < 1e-4,
+        "weight[0] grad={} expected≈0",
+        wg_s[0]
+    );
+    assert!(
+        wg_s[1].abs() < 1e-4,
+        "weight[1] grad={} expected≈0",
+        wg_s[1]
+    );
+
+    // Input gradient must be set and have same shape as input.
+    let ig = xv.grad().expect("input.grad must be set after backward");
+    assert_eq!(ig.ndim(), 3, "input grad rank");
+    assert_eq!(ig.shape(), &[1, 2, 3], "input grad shape");
+    // BatchNorm1d backward: sum of input grads per channel = 0 (normalization
+    // property: dl/dx sums to zero across the normalization dim).
+    let ig_s = ig.as_slice();
+    let ig_c0_sum: f32 = ig_s[..3].iter().sum();
+    let ig_c1_sum: f32 = ig_s[3..].iter().sum();
+    assert!(
+        ig_c0_sum.abs() < 1e-4,
+        "input grad[c0] sum={ig_c0_sum} expected≈0"
+    );
+    assert!(
+        ig_c1_sum.abs() < 1e-4,
+        "input grad[c1] sum={ig_c1_sum} expected≈0"
+    );
+}
+
 // ── GlobalAvgPool2d non-square input ─────────────────────────────────────────
 
 #[test]
