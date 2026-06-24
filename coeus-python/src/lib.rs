@@ -14,7 +14,7 @@ pub mod ops;
 pub mod optim;
 pub mod tensor;
 
-use dist::{PyMockCommunicator, PyTcpCommunicator, PyTcpMesh};
+use dist::{PyLocalCommunicator, PyTcpCommunicator, PyTcpMesh};
 use tensor::PyTensor;
 
 /// Shutdown the global Moirai executor.
@@ -57,11 +57,11 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyInstanceNorm2d>()?;
     m.add_class::<nn::PyMultiHeadAttention>()?;
     m.add_class::<nn::PyRotaryEmbedding>()?;
-    m.add_class::<PyMockCommunicator>()?;
+    m.add_class::<PyLocalCommunicator>()?;
     m.add_class::<PyTcpMesh>()?;
     m.add_class::<PyTcpCommunicator>()?;
 
-    m.add_function(wrap_pyfunction!(dist::create_mock_cluster, m)?)?;
+    m.add_function(wrap_pyfunction!(dist::create_local_cluster, m)?)?;
     m.add_function(wrap_pyfunction!(dist::synchronize_gradients, m)?)?;
 
     m.add_function(wrap_pyfunction!(activations::relu, m)?)?;
@@ -135,6 +135,12 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::lt, m)?)?;
     m.add_function(wrap_pyfunction!(ops::gt, m)?)?;
     m.add_function(wrap_pyfunction!(ops::where_fn, m)?)?;
+    // Indexing ops
+    m.add_function(wrap_pyfunction!(ops::gather, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::scatter_add, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::repeat_interleave, m)?)?;
+    // Spatial resize
+    m.add_function(wrap_pyfunction!(ops::interpolate, m)?)?;
 
     Ok(())
 }

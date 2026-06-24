@@ -2,15 +2,15 @@ use crate::tensor::PyTensor;
 use coeus_dist::Communicator;
 use pyo3::prelude::*;
 
-/// Python-exposed MockCommunicator.
-#[pyclass(name = "MockCommunicator")]
+/// Python-exposed LocalCommunicator.
+#[pyclass(name = "LocalCommunicator")]
 #[derive(Clone)]
-pub struct PyMockCommunicator {
-    pub inner: coeus_dist::MockCommunicator,
+pub struct PyLocalCommunicator {
+    pub inner: coeus_dist::LocalCommunicator,
 }
 
 #[pymethods]
-impl PyMockCommunicator {
+impl PyLocalCommunicator {
     /// Get the rank of the current process within the process group.
     fn rank(&self) -> usize {
         self.inner.rank()
@@ -193,11 +193,11 @@ impl PyMockCommunicator {
 
 /// Create a new process cluster with `world_size` simulated ranks.
 #[pyfunction]
-pub fn create_mock_cluster(world_size: usize) -> PyResult<Vec<PyMockCommunicator>> {
-    let communicators = coeus_dist::MockCommunicator::create_cluster(world_size);
+pub fn create_local_cluster(world_size: usize) -> PyResult<Vec<PyLocalCommunicator>> {
+    let communicators = coeus_dist::LocalCommunicator::create_cluster(world_size);
     Ok(communicators
         .into_iter()
-        .map(|comm| PyMockCommunicator { inner: comm })
+        .map(|comm| PyLocalCommunicator { inner: comm })
         .collect())
 }
 
@@ -206,7 +206,7 @@ pub fn create_mock_cluster(world_size: usize) -> PyResult<Vec<PyMockCommunicator
 pub fn synchronize_gradients(
     py: Python<'_>,
     params: Vec<Py<PyTensor>>,
-    comm: &PyMockCommunicator,
+    comm: &PyLocalCommunicator,
 ) -> PyResult<()> {
     let mut rust_params: Vec<coeus_autograd::Var<f64>> = params
         .iter()

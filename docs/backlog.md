@@ -62,6 +62,10 @@
   tests that compare against manual references instead of live Burn tensors.
 - [x] [patch] Hardened Python comparison wrappers so shape mismatches raise
   `ValueError` rather than panicking across the PyO3 boundary.
+- [x] [patch] Closed the distributed no-mocks audit by renaming the real
+  barrier-backed in-process communicator and PyO3 binding from
+  `MockCommunicator`/`create_mock_cluster` to
+  `LocalCommunicator`/`create_local_cluster`, with no compatibility alias.
 - [x] [patch] Verification on 2026-06-24: `cargo fmt --check`,
   `cargo check --workspace`, `cargo clippy --workspace --all-targets
   -- -D warnings`, `cargo nextest run --workspace` (408 passed), and
@@ -72,9 +76,6 @@
 - [ ] [minor] Device memory via mnemosyne device pools (Stage D1) — mnemosyne
   pinned-host staging and melinoe device-buffer ownership tokens.
 - [ ] [arch] Downstream integrator (CFDrs) swap burn→coeus (Stage E).
-- [ ] [patch] Audit `coeus-dist` and Python distributed binding mock-named tests
-  against the no-mocks policy; either rename real local transports or replace
-  non-production mock coverage with real in-process/TCP collective checks.
 
 ---
 
@@ -225,7 +226,7 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     pass.
   - [x] [patch] Split the Python distributed binding parity script by
     collective to remove the deterministic 60s nextest timeout while preserving
-    mock/TCP value assertions, and added Rust TCP reduce/gather/scatter tests.
+    local/TCP value assertions, and added Rust TCP reduce/gather/scatter tests.
     Evidence: `cargo nextest run -p coeus-python --test binding_tests_dist`
     passes in 0.620s and `cargo nextest run -p coeus-dist` passes.
 - [x] [arch] Delete the duplicated CPU traversal in coeus-ops (binary/matmul/reduction)

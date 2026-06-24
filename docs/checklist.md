@@ -52,13 +52,13 @@ functional op surface toward torch.*/jnp.*/mx.* style.
   by the test names.
 - [x] [patch] Python comparison wrappers now return `ValueError` on shape
   mismatch instead of panicking at the PyO3 boundary.
+- [x] [patch] Renamed the real barrier-backed distributed test communicator
+  from `MockCommunicator` to `LocalCommunicator`, including the PyO3 class and
+  `create_local_cluster` constructor, with no compatibility alias.
 - [x] [patch] Verification: `cargo fmt --check`, `cargo check --workspace`,
   `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo nextest run --workspace` (408 passed), and
   `cargo test --doc --workspace` all pass on 2026-06-24.
-- [ ] [patch] Residual audit debt: `coeus-dist` and `coeus-python` still contain
-  mock-named distributed collective tests. They predate this slice and passed the
-  gate, but need a follow-up audit against the no-mocks policy.
 
 ---
 
@@ -282,7 +282,7 @@ GPU backends over Hephaestus; dependency policy hardening.
   --all-targets -- -D warnings` and `cargo nextest run -p coeus-tensor --test
   fused_ops_tests` pass.
 - [x] [patch] Fixed the Python distributed binding timeout by splitting the
-  monolithic mock/TCP collective script into independently timed value-semantic
+  monolithic local/TCP collective script into independently timed value-semantic
   tests, and added missing Rust TCP reduce/gather/scatter coverage. Evidence:
   `cargo nextest run -p coeus-python --test binding_tests_dist` passes in
   0.620s; `cargo nextest run -p coeus-dist` passes with 16 tests.

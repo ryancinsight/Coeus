@@ -7,8 +7,8 @@
 - **`coeus_autograd::GradBuffer`** (`coeus-autograd/src/grad_buffer.rs`):
   zero-overhead gradient accumulation cell replacing `Arc<Mutex<Tensor>>` in
   every backward node.  Uses `UnsafeCell<Tensor>` with an `unsafe impl Sync`
-  upheld by the single-threaded-sequential-DFS backward invariant.  Eliminates
-  all mutex lock/unlock overhead from the backward pass (~5-10 ns per node).
+  upheld by serialized backward, optimizer, and distributed-gradient phases.
+  Eliminates mutex lock/unlock overhead from the backward path.
 - **sin/cos tracked autograd ops** with correct backward
   (`d/dx sin = cos(x)`, `d/dx cos = -sin(x)`); exported from `coeus-autograd`.
 - **`flip` / `sort` / `where_cond`** ops in `coeus-ops` and `coeus-autograd`
@@ -36,10 +36,19 @@
 - All `Arc<Mutex<Tensor<T,B>>>` gradient accumulators in `coeus-autograd`
   replaced with `Arc<GradBuffer<T,B>>` — zero runtime locking on the backward
   path.
+- Renamed the real in-process distributed collective backend from
+  `MockCommunicator` to `LocalCommunicator`, including the Python class
+  `LocalCommunicator` and constructor `create_local_cluster`; no compatibility
+  alias is retained.
 - `BackendOps::max_pool2d` signature: added explicit `dilation` parameter
   between `padding` and `output`.
 - WGPU fused GELU parity tolerance relaxed to 5e-3 (WGSL uses tanh
   approximation; CPU fused now uses exact erf).
+
+### Fixed
+
+- Removed mock-named distributed collective tests and binding APIs whose
+  implementation was already a real barrier-backed local communicator.
 
 ### Performance (atlas crates)
 
@@ -187,7 +196,7 @@
   shared writer helpers, with an RAII cache guard for temporary host tensor
   downloads.
 - Split the Python distributed binding parity script into per-collective tests
-  so each mock/TCP collective is independently bounded by nextest.
+  so each local/TCP collective is independently bounded by nextest.
 
 ### Fixed
 

@@ -6,23 +6,23 @@ use coeus_tensor::Tensor;
 use std::sync::{Arc, Barrier, Mutex};
 
 /// Shared state for thread-based rank cluster simulation.
-pub struct MockClusterShared {
+pub struct LocalClusterShared {
     barrier: Barrier,
     buffers: Mutex<Vec<Option<Box<dyn std::any::Any + Send>>>>,
 }
 
 /// A thread-safe simulated communicator for local multi-process verification.
 #[derive(Clone)]
-pub struct MockCommunicator {
+pub struct LocalCommunicator {
     rank: usize,
     size: usize,
-    shared: Arc<MockClusterShared>,
+    shared: Arc<LocalClusterShared>,
 }
 
-impl MockCommunicator {
+impl LocalCommunicator {
     /// Create a new process cluster with `world_size` simulated ranks.
     pub fn create_cluster(world_size: usize) -> Vec<Self> {
-        let shared = Arc::new(MockClusterShared {
+        let shared = Arc::new(LocalClusterShared {
             barrier: Barrier::new(world_size),
             buffers: Mutex::new((0..world_size).map(|_| None).collect()),
         });
@@ -36,7 +36,7 @@ impl MockCommunicator {
     }
 }
 
-impl Communicator for MockCommunicator {
+impl Communicator for LocalCommunicator {
     #[inline]
     fn rank(&self) -> usize {
         self.rank
@@ -114,7 +114,7 @@ impl Communicator for MockCommunicator {
     ) {
         assert!(
             root < self.size,
-            "MockCommunicator broadcast root out of bounds"
+            "LocalCommunicator broadcast root out of bounds"
         );
         let numel = tensor.numel();
         if numel == 0 {
@@ -163,7 +163,7 @@ impl Communicator for MockCommunicator {
         assert_eq!(
             output.len(),
             self.size,
-            "MockCommunicator all_gather output length mismatch"
+            "LocalCommunicator all_gather output length mismatch"
         );
         let numel = tensor.numel();
         if numel == 0 {
@@ -207,7 +207,7 @@ impl Communicator for MockCommunicator {
     ) {
         assert!(
             root < self.size,
-            "MockCommunicator reduce root out of bounds"
+            "LocalCommunicator reduce root out of bounds"
         );
         let numel = tensor.numel();
         if numel == 0 {
@@ -269,13 +269,13 @@ impl Communicator for MockCommunicator {
     ) {
         assert!(
             root < self.size,
-            "MockCommunicator gather root out of bounds"
+            "LocalCommunicator gather root out of bounds"
         );
         if self.rank == root {
             assert_eq!(
                 output.len(),
                 self.size,
-                "MockCommunicator gather output length mismatch on root"
+                "LocalCommunicator gather output length mismatch on root"
             );
         }
         let numel = tensor.numel();
@@ -321,13 +321,13 @@ impl Communicator for MockCommunicator {
     ) {
         assert!(
             root < self.size,
-            "MockCommunicator scatter root out of bounds"
+            "LocalCommunicator scatter root out of bounds"
         );
         if self.rank == root {
             assert_eq!(
                 input.len(),
                 self.size,
-                "MockCommunicator scatter input length mismatch on root"
+                "LocalCommunicator scatter input length mismatch on root"
             );
         }
         let numel = tensor.numel();

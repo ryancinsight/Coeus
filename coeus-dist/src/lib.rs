@@ -1,11 +1,11 @@
 pub mod communicator;
 pub(crate) mod helpers;
-pub mod mock;
+pub mod local;
 pub mod ops;
 pub mod tcp;
 
 pub use communicator::Communicator;
-pub use mock::MockCommunicator;
+pub use local::LocalCommunicator;
 pub use ops::{Max, Min, Product, ReduceOpTag, Sum};
 pub use tcp::{TcpCommunicator, TcpMesh};
 

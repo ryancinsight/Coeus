@@ -20,14 +20,14 @@ fn run_pycoeus_script(script: &str) {
 }
 
 #[test]
-fn test_pycoeus_mock_collectives() {
+fn test_pycoeus_local_collectives() {
     run_pycoeus_script(
         r#"
 import pycoeus
 import threading
 
 world_size = 3
-comms = pycoeus.create_mock_cluster(world_size)
+comms = pycoeus.create_local_cluster(world_size)
 assert len(comms) == world_size
 
 def run_collective(call):
@@ -112,7 +112,7 @@ import pycoeus
 import threading
 
 world_size = 2
-comms = pycoeus.create_mock_cluster(world_size)
+comms = pycoeus.create_local_cluster(world_size)
 results = [None] * world_size
 
 def run(rank):

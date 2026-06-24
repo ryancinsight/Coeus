@@ -1,15 +1,15 @@
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
 use coeus_dist::{
-    synchronize_gradients, Communicator, MockCommunicator, Sum, TcpCommunicator, TcpMesh,
+    synchronize_gradients, Communicator, LocalCommunicator, Sum, TcpCommunicator, TcpMesh,
 };
 use coeus_tensor::Tensor;
 use std::thread;
 
 #[test]
-fn test_mock_all_reduce() {
+fn test_local_all_reduce() {
     let world_size = 3;
-    let communicators = MockCommunicator::create_cluster(world_size);
+    let communicators = LocalCommunicator::create_cluster(world_size);
     let mut handles = vec![];
 
     for comm in communicators {
@@ -33,9 +33,9 @@ fn test_mock_all_reduce() {
 }
 
 #[test]
-fn test_mock_broadcast() {
+fn test_local_broadcast() {
     let world_size = 4;
-    let communicators = MockCommunicator::create_cluster(world_size);
+    let communicators = LocalCommunicator::create_cluster(world_size);
     let mut handles = vec![];
 
     for comm in communicators {
@@ -62,9 +62,9 @@ fn test_mock_broadcast() {
 }
 
 #[test]
-fn test_mock_all_gather() {
+fn test_local_all_gather() {
     let world_size = 3;
-    let communicators = MockCommunicator::create_cluster(world_size);
+    let communicators = LocalCommunicator::create_cluster(world_size);
     let mut handles = vec![];
 
     for comm in communicators {
@@ -96,7 +96,7 @@ fn test_mock_all_gather() {
 #[test]
 fn test_gradient_synchronization() {
     let world_size = 2;
-    let communicators = MockCommunicator::create_cluster(world_size);
+    let communicators = LocalCommunicator::create_cluster(world_size);
     let mut handles = vec![];
 
     for comm in communicators {
@@ -124,9 +124,9 @@ fn test_gradient_synchronization() {
 }
 
 #[test]
-fn test_mock_reduce() {
+fn test_local_reduce() {
     let world_size = 3;
-    let communicators = MockCommunicator::create_cluster(world_size);
+    let communicators = LocalCommunicator::create_cluster(world_size);
     let mut handles = vec![];
 
     for comm in communicators {
@@ -152,9 +152,9 @@ fn test_mock_reduce() {
 }
 
 #[test]
-fn test_mock_gather() {
+fn test_local_gather() {
     let world_size = 3;
-    let communicators = MockCommunicator::create_cluster(world_size);
+    let communicators = LocalCommunicator::create_cluster(world_size);
     let mut handles = vec![];
 
     for comm in communicators {
@@ -190,9 +190,9 @@ fn test_mock_gather() {
 }
 
 #[test]
-fn test_mock_scatter() {
+fn test_local_scatter() {
     let world_size = 3;
-    let communicators = MockCommunicator::create_cluster(world_size);
+    let communicators = LocalCommunicator::create_cluster(world_size);
     let mut handles = vec![];
 
     for comm in communicators {
@@ -224,9 +224,9 @@ fn test_mock_scatter() {
 }
 
 #[test]
-fn test_mock_all_reduce_sliced() {
+fn test_local_all_reduce_sliced() {
     let world_size = 2;
-    let communicators = MockCommunicator::create_cluster(world_size);
+    let communicators = LocalCommunicator::create_cluster(world_size);
     let mut handles = vec![];
 
     for comm in communicators {
@@ -251,9 +251,9 @@ fn test_mock_all_reduce_sliced() {
 }
 
 #[test]
-fn test_mock_broadcast_sliced() {
+fn test_local_broadcast_sliced() {
     let world_size = 2;
-    let communicators = MockCommunicator::create_cluster(world_size);
+    let communicators = LocalCommunicator::create_cluster(world_size);
     let mut handles = vec![];
 
     for comm in communicators {
