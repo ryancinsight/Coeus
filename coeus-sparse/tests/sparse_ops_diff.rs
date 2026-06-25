@@ -85,3 +85,85 @@ fn spmm_identity_roundtrip() {
     let c = spmm(&csr, &identity, &s); // [4, 5] == dense
     assert_close("spmm_identity", c.as_slice(), dense.as_slice());
 }
+
+// ── SpMM backward gradients vs dense analytical oracle ──
+
+#[test]
+fn spmm_backward_dense_matches_transpose_matmul() {
+    // grad_B = Aᵀ · grad_C. Reference: transpose the densified A and matmul.
+    use coeus_ops::spmm_backward_dense;
+    let s = SequentialBackend::new();
+    let dense = dense_4x5(); // A: [M=4, K=5]
+    let (m, k, n) = (4usize, 5usize, 3usize);
+    let csr = dense_to_csr(&dense, &s);
+
+    let gc: Vec<f32> = (0..m * n).map(|i| (i as f32) * 0.2 - 0.5).collect();
+    let grad_c = Tensor::<f32, Seq>::from_slice([m, n], &gc);
+
+    let grad_b = spmm_backward_dense(
+        csr.values(),
+        csr.col_indices(),
+        csr.row_offsets(),
+        &[m, k],
+        &grad_c,
+        &s,
+    ); // [K, N]
+
+    // Reference: Aᵀ [K, M] · grad_C [M, N].
+    let a = dense.as_slice();
+    let mut at = vec![0.0f32; k * m];
+    for r in 0..m {
+        for c in 0..k {
+            at[c * m + r] = a[r * k + c];
+        }
+    }
+    let a_t = Tensor::<f32, Seq>::from_slice([k, m], &at);
+    let grad_b_ref = matmul(&a_t, &grad_c, &s); // [K, N]
+
+    assert_eq!(grad_b.shape(), &[k, n]);
+    assert_close("spmm_bwd_dense", grad_b.as_slice(), grad_b_ref.as_slice());
+}
+
+#[test]
+fn spmm_backward_values_matches_masked_outer() {
+    // grad_value at stored (r, col) = Σₙ grad_C[r,n] · B[col,n], returned in the
+    // CSR value order. Reference computed directly from the CSR structure.
+    use coeus_ops::spmm_backward_values;
+    let s = SequentialBackend::new();
+    let dense = dense_4x5(); // A: [M=4, K=5]
+    let (m, k, n) = (4usize, 5usize, 3usize);
+    let csr = dense_to_csr(&dense, &s);
+
+    let b_data: Vec<f32> = (0..k * n).map(|i| (i as f32) * 0.15 - 0.3).collect();
+    let b = Tensor::<f32, Seq>::from_slice([k, n], &b_data);
+    let gc: Vec<f32> = (0..m * n).map(|i| (i as f32) * 0.1 - 0.4).collect();
+    let grad_c = Tensor::<f32, Seq>::from_slice([m, n], &gc);
+
+    let grad_vals = spmm_backward_values(
+        csr.col_indices(),
+        csr.row_offsets(),
+        &[m, k],
+        &b,
+        &grad_c,
+        &s,
+    ); // [nnz]
+
+    // Reference in CSR value order.
+    let row_off: Vec<i64> = csr.row_offsets().as_slice().to_vec();
+    let cols: Vec<i64> = csr.col_indices().as_slice().to_vec();
+    let nnz = cols.len();
+    let mut reference = vec![0.0f32; nnz];
+    for r in 0..m {
+        for i in row_off[r] as usize..row_off[r + 1] as usize {
+            let col = cols[i] as usize;
+            let mut g = 0.0f32;
+            for j in 0..n {
+                g += gc[r * n + j] * b_data[col * n + j];
+            }
+            reference[i] = g;
+        }
+    }
+
+    assert_eq!(grad_vals.as_slice().len(), nnz);
+    assert_close("spmm_bwd_values", grad_vals.as_slice(), &reference);
+}
