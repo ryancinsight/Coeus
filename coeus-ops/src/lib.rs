@@ -66,3 +66,6 @@ pub use attention::{scaled_dot_product_attention, scaled_dot_product_attention_b
 
 pub mod conv_transpose;
 pub use conv_transpose::{conv_transpose1d, conv_transpose2d};
+
+pub mod constructors;
+pub use constructors::{geomspace, linspace, logspace};

@@ -5,6 +5,27 @@ use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
+/// Fused scatter-accumulate: copy-to-host the GradBuffer, add `values` element-wise
+/// in-place, then write back — eliminating the intermediate `Tensor::from_slice`.
+///
+/// Saves one device buffer allocation and one `add_assign` copy round-trip.
+#[inline]
+fn scatter_accumulate_into<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    target: &mut Tensor<T, B>,
+    values: &[T],
+    backend: &B,
+) {
+    let numel = target.numel();
+    debug_assert_eq!(numel, values.len(), "scatter_accumulate: shape mismatch");
+    let mut host = vec![T::zero(); numel];
+    backend.copy_to_host(target.storage(), &mut host);
+    // Fused host-side accumulate — no second allocation, single round-trip.
+    for (h, &v) in host.iter_mut().zip(values.iter()) {
+        *h = *h + v;
+    }
+    backend.copy_to_device(&host, target.storage_mut());
+}
+
 struct ConvBackwardDispatch<'a, T: Float, B: coeus_ops::BackendOps<T> + Default> {
     backend: &'a B,
     grad_out_storage: &'a B::DeviceBuffer<T>,
@@ -392,9 +413,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                     }
                 }
             }
-            let grad_tensor = Tensor::from_slice(self.inp_clone.shape().to_vec(), &grad_input);
-            let target = input_grads[0].as_ref().unwrap().write();
-            coeus_ops::add_assign(target, &grad_tensor, &backend);
+            // Fused: directly accumulate into the GradBuffer without an intermediate Tensor.
+            scatter_accumulate_into(input_grads[0].as_ref().unwrap().write(), &grad_input, &backend);
         }
 
         if needs_grad_weight {
@@ -426,9 +446,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                     }
                 }
             }
-            let grad_tensor = Tensor::from_slice(self.w_clone.shape().to_vec(), &grad_weight);
-            let target = input_grads[1].as_ref().unwrap().write();
-            coeus_ops::add_assign(target, &grad_tensor, &backend);
+            scatter_accumulate_into(input_grads[1].as_ref().unwrap().write(), &grad_weight, &backend);
         }
 
         if needs_grad_bias {
@@ -442,9 +460,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                     }
                 }
             }
-            let grad_tensor = Tensor::from_slice(vec![c_out], &grad_bias);
-            let target = input_grads[2].as_ref().unwrap().write();
-            coeus_ops::add_assign(target, &grad_tensor, &backend);
+            scatter_accumulate_into(input_grads[2].as_ref().unwrap().write(), &grad_bias, &backend);
         }
     }
 }
@@ -626,9 +642,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                     }
                 }
             }
-            let gt = Tensor::from_slice(self.inp_clone.shape().to_vec(), &gi);
-            let target = input_grads[0].as_ref().unwrap().write();
-            coeus_ops::add_assign(target, &gt, &backend);
+            scatter_accumulate_into(input_grads[0].as_ref().unwrap().write(), &gi, &backend);
         }
 
         if needs_grad_weight {
@@ -662,9 +676,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                     }
                 }
             }
-            let gt = Tensor::from_slice(self.w_clone.shape().to_vec(), &gw);
-            let target = input_grads[1].as_ref().unwrap().write();
-            coeus_ops::add_assign(target, &gt, &backend);
+            scatter_accumulate_into(input_grads[1].as_ref().unwrap().write(), &gw, &backend);
         }
 
         if needs_grad_bias {
@@ -678,9 +690,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                     }
                 }
             }
-            let gt = Tensor::from_slice(vec![c_out], &gb);
-            let target = input_grads[2].as_ref().unwrap().write();
-            coeus_ops::add_assign(target, &gt, &backend);
+            scatter_accumulate_into(input_grads[2].as_ref().unwrap().write(), &gb, &backend);
         }
     }
 }

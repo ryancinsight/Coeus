@@ -357,11 +357,34 @@ import pycoeus
 
 x = pycoeus.Tensor([3.0, 1.0, 4.0, 1.5, 9.0, 2.6], [6])
 
-# topk: top 3 values
+# topk largest=True (default): top 3 values
 vals, idxs = pycoeus.topk(x, 3, 0)
 assert vals.shape == [3]
 v = vals.data
-assert v[0] >= v[1] >= v[2], f"topk values should be descending: {v}"
+assert v[0] >= v[1] >= v[2], f"topk largest values should be descending: {v}"
+# largest 3 of [3,1,4,1.5,9,2.6] = [9,4,3]
+assert abs(v[0] - 9.0) < 1e-9, f"topk[0]={v[0]}"
+
+# topk largest=False: bottom 3 values
+vals_sm, idxs_sm = pycoeus.topk(x, 3, 0, False)
+assert vals_sm.shape == [3]
+vs = vals_sm.data
+# smallest 3 of [3,1,4,1.5,9,2.6] ≈ [1,1.5,2.6]
+assert abs(vs[0] - 1.0) < 1e-9, f"topk smallest[0]={vs[0]}"
+
+# topk with explicit largest=True
+vals2, idxs2 = pycoeus.topk(x, 2, 0, True)
+assert vals2.shape == [2]
+v2 = vals2.data
+assert v2[0] >= v2[1], f"explicit largest=True: {v2}"
+
+# 2D topk along dim=1
+m = pycoeus.Tensor([1.0, 5.0, 2.0, 4.0, 3.0, 0.0], [2, 3])
+mv, mi = pycoeus.topk(m, 2, 1)
+assert mv.shape == [2, 2], f"2d topk shape: {mv.shape}"
+# row0: [1,5,2] → top2: [5,2]; row1: [4,3,0] → top2: [4,3]
+assert abs(mv.data[0] - 5.0) < 1e-9, f"2d topk row0[0]={mv.data[0]}"
+assert abs(mv.data[2] - 4.0) < 1e-9, f"2d topk row1[0]={mv.data[2]}"
 
 # sort: ascending
 sv, si = pycoeus.sort(x, dim=0, descending=False)

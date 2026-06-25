@@ -1,6 +1,52 @@
 # Changelog
 
-## 0.2.16 - 2026-06-25
+## 0.2.17 - 2026-06-25
+
+### Added
+
+- **`coeus-ops::linspace / logspace / geomspace` free functions** — Backend-parameterized
+  constructor functions in the new `coeus_ops::constructors` module:
+  - `linspace(start, end, n, backend)` — n evenly-spaced values (inclusive).
+  - `logspace(start, end, n, base, backend)` — n log-scale values (`base^exp`).
+  - `geomspace(start, end, n, backend)` — n geometrically-spaced values; panics for
+    zero or sign-mismatched endpoints.
+  All three accept a `backend: &B` reference and return `Tensor<T, B>`, matching the
+  calling convention of all other `coeus_ops` free functions. 4 unit tests added.
+
+- **`pycoeus.topk(input, k, dim=0, largest=True)` parameter** — Added `largest` boolean
+  parameter to the Python `topk` binding. When `largest=False`, returns the k smallest
+  values instead of k largest, matching `torch.topk(input, k, dim, largest)`.
+  Existing tests updated with explicit `largest=False` and 2-D dim=1 coverage.
+
+### Changed
+
+- **SGD optimizer small-tensor fast path** — `sgd_step` contiguous unit-offset buffers
+  with ≤ 4096 elements now use a scalar sequential loop instead of `parallel_for`, avoiding
+  thread-scheduling overhead for typical parameter shapes. The sequential loop auto-vectorises
+  on `--release` via LLVM. Large tensors (> 4096 elements) continue to use `parallel_for`.
+
+- **ConvTranspose1d/2d backward: fused scatter-accumulate** — Replaced the 3× pattern of
+  `Tensor::from_slice(shape, &host_vec)` + `add_assign` in the backward pass of both
+  `ConvTranspose1dNode` and `ConvTranspose2dNode` with a direct `scatter_accumulate_into`
+  helper. This eliminates one device-buffer allocation and one copy round-trip per gradient
+  (input, weight, bias) per backward call.
+
+### Atlas Audits
+
+- **Moirai `WorkStealingScheduler` audit** — Confirmed correct design:
+  - Chase-Lev lock-free deque for per-worker local queue (no spinlock on the hot push/pop path).
+  - `CacheAligned<AtomicUsize>` stats prevent false sharing between counters.
+  - Global queue uses `try_lock()` with batch-drain to amortize lock overhead.
+  - Steal early-out: `is_empty()` probe before `steal()` to avoid futile lock attempts.
+  - No regression opportunities identified; scheduler is already near-optimal for the
+    current single-program multi-data workload.
+
+- **Mnemosyne slab allocator note** — Mnemosyne delegates to `mnemosyne_local` which
+  carries `LocalAllocatorSelector` and `SizeClassOccupancy` with per-thread slab caches.
+  Cache-line alignment and false-sharing prevention are handled at the `mnemosyne_core`
+  level. No changes required at this version.
+
+
 
 ### Added
 

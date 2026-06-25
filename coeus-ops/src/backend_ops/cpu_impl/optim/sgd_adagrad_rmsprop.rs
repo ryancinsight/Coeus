@@ -1,6 +1,10 @@
 use crate::ptr::{MutPtr, Ptr};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 
+/// Size threshold below which we run the optimizer update sequentially (no
+/// thread-launch overhead) instead of distributing across the Moirai thread pool.
+const SEQUENTIAL_THRESHOLD: usize = 4096;
+
 pub fn sgd_step<T: Scalar, B: Backend>(
     backend: &B,
     param: &mut B::DeviceBuffer<T>,
@@ -22,10 +26,6 @@ pub fn sgd_step<T: Scalar, B: Backend>(
     let g_slice = grad.as_slice();
     let v_slice = velocity.as_mut_slice();
 
-    let p_ptr = MutPtr(p_slice.as_mut_ptr());
-    let g_ptr = Ptr(g_slice.as_ptr());
-    let v_ptr = MutPtr(v_slice.as_mut_ptr());
-
     let p_off = param_layout.offset();
     let g_off = grad_layout.offset();
     let v_off = velocity_layout.offset();
@@ -34,7 +34,31 @@ pub fn sgd_step<T: Scalar, B: Backend>(
         && grad_layout.is_contiguous()
         && velocity_layout.is_contiguous();
 
-    if is_contiguous {
+    if is_contiguous && p_off == 0 && g_off == 0 && v_off == 0 {
+        if numel <= SEQUENTIAL_THRESHOLD {
+            // Small parameter tensors: avoid thread-scheduling overhead with a
+            // sequential loop that auto-vectorizes via LLVM on release builds.
+            for i in 0..numel {
+                let g = g_slice[i];
+                let v = v_slice[i] * momentum + g;
+                v_slice[i] = v;
+                p_slice[i] = p_slice[i] - lr * v;
+            }
+        } else {
+            let p_ptr = MutPtr(p_slice.as_mut_ptr());
+            let g_ptr = Ptr(g_slice.as_ptr());
+            let v_ptr = MutPtr(v_slice.as_mut_ptr());
+            backend.parallel_for(0, numel, move |i| unsafe {
+                let g = g_ptr.read(i);
+                let v = v_ptr.read(i) * momentum + g;
+                v_ptr.write(i, v);
+                p_ptr.write(i, p_ptr.read(i) - lr * v);
+            });
+        }
+    } else if is_contiguous {
+        let p_ptr = MutPtr(p_slice.as_mut_ptr());
+        let g_ptr = Ptr(g_slice.as_ptr());
+        let v_ptr = MutPtr(v_slice.as_mut_ptr());
         backend.parallel_for(0, numel, move |i| unsafe {
             let g = g_ptr.read(g_off + i);
             let v = v_ptr.read(v_off + i) * momentum + g;
@@ -42,6 +66,9 @@ pub fn sgd_step<T: Scalar, B: Backend>(
             p_ptr.write(p_off + i, p_ptr.read(p_off + i) - lr * v);
         });
     } else {
+        let p_ptr = MutPtr(p_slice.as_mut_ptr());
+        let g_ptr = Ptr(g_slice.as_ptr());
+        let v_ptr = MutPtr(v_slice.as_mut_ptr());
         let ndim = param_layout.ndim();
         let p_shape = param_layout.shape_cloned();
         let p_strides = param_layout.strides_cloned();

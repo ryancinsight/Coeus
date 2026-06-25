@@ -2230,16 +2230,8 @@ fn conv_transpose1d_backward_gradient_correctness() {
         true,
     );
     let backend = SequentialBackend::new();
-    let out_tensor = coeus_ops::conv_transpose1d(
-        &input.tensor,
-        &weight.tensor,
-        None,
-        1,
-        0,
-        0,
-        1,
-        &backend,
-    );
+    let out_tensor =
+        coeus_ops::conv_transpose1d(&input.tensor, &weight.tensor, None, 1, 0, 0, 1, &backend);
     let out = coeus_autograd::conv_transpose1d(&input, &weight, &None, out_tensor, 1, 0, 0, 1);
     let seed = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3], &[1.0, 1.0, 1.0]);
     out.backward_with_seed(seed);
@@ -2269,16 +2261,8 @@ fn conv_transpose2d_backward_gradient_correctness() {
         true,
     );
     let backend = SequentialBackend::new();
-    let out_tensor = coeus_ops::conv_transpose2d(
-        &input.tensor,
-        &weight.tensor,
-        None,
-        1,
-        0,
-        0,
-        1,
-        &backend,
-    );
+    let out_tensor =
+        coeus_ops::conv_transpose2d(&input.tensor, &weight.tensor, None, 1, 0, 0, 1, &backend);
     let out = coeus_autograd::conv_transpose2d(&input, &weight, &None, out_tensor, 1, 0, 0, 1);
     assert_eq!(out.tensor.shape(), &[1, 1, 2, 2]);
     assert_close("ct2d_fwd", out.tensor.to_contiguous().as_slice(), &[2.0; 4]);
@@ -2343,7 +2327,12 @@ fn max_pool2d_backward_gradient_correctness() {
     let out = pool.forward(&xv);
     assert_eq!(out.tensor.shape(), &[1, 1, 2, 2]);
     let expected_fwd = [5.0f32, 7.0, 13.0, 15.0];
-    assert_close_rel("max_pool2d_bwd_fwd", out.tensor.as_slice(), &expected_fwd, 1e-5);
+    assert_close_rel(
+        "max_pool2d_bwd_fwd",
+        out.tensor.as_slice(),
+        &expected_fwd,
+        1e-5,
+    );
 
     let seed = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &[1.0; 4]);
     out.backward_with_seed(seed);
@@ -2367,4 +2356,149 @@ fn max_pool2d_backward_gradient_correctness() {
             );
         }
     }
+}
+
+// ── GroupNorm forward (matches Burn NdArray) ──────────────────────────────────
+
+#[test]
+fn groupnorm_forward_matches_burn() {
+    use burn::nn::GroupNormConfig;
+    use coeus_nn::GroupNorm;
+
+    // [N=2, C=4, L=3] with G=2 groups.  Weight=ones, bias=zeros (default init).
+    let data: Vec<f32> = (0..24).map(|x| x as f32 * 0.1 - 1.0).collect();
+    let (n, c, l) = (2usize, 4, 3);
+
+    // Coeus
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, l], &data),
+        false,
+    );
+    let gn = GroupNorm::<f32, SequentialBackend, 2>::new(c, 1e-5);
+    let out_c = gn.forward(&xv);
+
+    // Burn
+    let gn_b = GroupNormConfig::new(2, c).init::<BurnBackend>(&dev());
+    let xb: BurnTensor<BurnBackend, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, l]), &dev());
+    let out_b = gn_b.forward(xb);
+
+    assert_close_rel(
+        "groupnorm_fwd",
+        out_c.tensor.to_contiguous().as_slice(),
+        &bvec(out_b),
+        1e-4,
+    );
+}
+
+// ── GroupNorm forward + backward (matches Burn autodiff) ──────────────────────
+
+#[test]
+fn groupnorm_forward_backward_match_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use coeus_nn::GroupNorm;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    // [N=2, C=4, L=3] with G=2 groups.  Custom weight/bias to test affine grads.
+    let data: Vec<f32> = (0..24).map(|x| x as f32 * 0.1 - 1.0).collect();
+    let w = vec![1.2_f32, 0.8, 1.0, 0.9];
+    let b = vec![0.1_f32, -0.1, 0.2, 0.0];
+    let (n, c, l, g) = (2usize, 4, 3, 2);
+    let eps = 1e-5_f32;
+    let c_per_g = c / g;
+    let hidden = c_per_g * l; // elements per group per sample
+
+    // ── Coeus forward + backward ──
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, l], &data),
+        true,
+    );
+    let mut gn = GroupNorm::<f32, SequentialBackend, 2>::new(c, eps as f64);
+    gn.weight = Var::new(CoeusTensor::from_slice(vec![c], &w), true);
+    gn.bias = Var::new(CoeusTensor::from_slice(vec![c], &b), true);
+    let out_c = coeus_autograd::sum(&gn.forward(&xv));
+    out_c.backward();
+
+    // ── Burn forward + backward (manual GroupNorm formula) ──
+    // Reshape [N, C, L] → [N, G, C/G * L] and normalize over dim 2, then
+    // reshape back and apply per-channel affine — matching Burn's group_norm.
+    let xb: BurnTensor<AB, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, l]), &device).require_grad();
+    let wb: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(w, [c]), &device).require_grad();
+    let bk: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(b, [c]), &device).require_grad();
+
+    let x_flat = xb.clone().reshape([n, g, hidden]);
+    let mean = x_flat.clone().sum_dim(2) / hidden as f32;
+    let xc = x_flat.sub(mean);
+    let var = xc.clone().powf_scalar(2.0).sum_dim(2) / hidden as f32;
+    let normed = xc.div(var.sqrt().add_scalar(eps));
+    let normed_3d = normed.reshape([n, c, l]);
+    let mut aff_shape = [1usize; 3];
+    aff_shape[1] = c;
+    let out_b = normed_3d.mul(wb.clone().reshape(aff_shape)) + bk.clone().reshape(aff_shape);
+    let grads = out_b.sum().backward();
+
+    let to_vec = |t: BurnTensor<NdArray<f32>, 1>| t.into_data().to_vec::<f32>().unwrap();
+    let to_vec3 = |t: BurnTensor<NdArray<f32>, 3>| t.into_data().to_vec::<f32>().unwrap();
+
+    // Backward parity: input gradient
+    assert_close_rel(
+        "groupnorm_bwd_dx",
+        xv.grad().unwrap().to_contiguous().as_slice(),
+        &to_vec3(xb.grad(&grads).unwrap()),
+        1e-4,
+    );
+
+    // Backward parity: weight gradient
+    assert_close_rel(
+        "groupnorm_bwd_dw",
+        gn.weight.grad().unwrap().as_slice(),
+        &to_vec(wb.grad(&grads).unwrap()),
+        1e-3,
+    );
+
+    // Backward parity: bias gradient
+    assert_close_rel(
+        "groupnorm_bwd_db",
+        gn.bias.grad().unwrap().as_slice(),
+        &to_vec(bk.grad(&grads).unwrap()),
+        1e-4,
+    );
+}
+
+// ── InstanceNorm forward (matches Burn NdArray) ──────────────────────────────
+
+#[test]
+fn instancenorm_forward_matches_burn() {
+    use burn::nn::InstanceNormConfig;
+    use coeus_nn::InstanceNorm1d;
+
+    // [N=2, C=3, L=4] with weight=ones, bias=zeros (default init).
+    let data: Vec<f32> = (0..24).map(|x| x as f32 * 0.1 - 0.5).collect();
+    let (n, c, l) = (2usize, 3, 4);
+
+    // Coeus
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, l], &data),
+        false,
+    );
+    let inorm = InstanceNorm1d::<f32, SequentialBackend>::new(c, 1e-5);
+    let out_c = inorm.forward(&xv);
+
+    // Burn
+    let in_b = InstanceNormConfig::new(c).init::<BurnBackend>(&dev());
+    let xb: BurnTensor<BurnBackend, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, l]), &dev());
+    let out_b = in_b.forward(xb);
+
+    assert_close_rel(
+        "instancenorm_fwd",
+        out_c.tensor.to_contiguous().as_slice(),
+        &bvec(out_b),
+        1e-4,
+    );
 }

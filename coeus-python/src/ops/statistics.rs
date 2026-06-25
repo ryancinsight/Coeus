@@ -102,10 +102,17 @@ pub fn vector_norm(
 }
 
 #[pyfunction]
-#[pyo3(signature = (input, k, dim = 0))]
-pub fn topk(input: &PyTensor, k: usize, dim: usize, py: Python<'_>) -> (PyTensor, PyTensor) {
+#[pyo3(signature = (input, k, dim = 0, largest = true))]
+pub fn topk(
+    input: &PyTensor,
+    k: usize,
+    dim: usize,
+    largest: bool,
+    py: Python<'_>,
+) -> (PyTensor, PyTensor) {
     let backend = MoiraiBackend::new();
-    let (vals, idxs_i64) = py.allow_threads(|| coeus_ops::topk(&input.inner.tensor, k, dim, true));
+    let (vals, idxs_i64) =
+        py.allow_threads(|| coeus_ops::topk(&input.inner.tensor, k, dim, largest));
     let idx_data: Vec<f64> = idxs_i64
         .to_contiguous_on(&backend)
         .as_slice()
