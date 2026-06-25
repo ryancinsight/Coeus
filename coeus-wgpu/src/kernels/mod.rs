@@ -2,6 +2,7 @@ pub mod attention;
 pub mod binary;
 pub mod cache;
 pub mod conv;
+pub mod conv_transpose;
 pub mod fuse;
 pub mod layout;
 pub mod matmul;
@@ -19,6 +20,10 @@ pub use conv::{
     dispatch_conv1d, dispatch_conv1d_backward, dispatch_conv2d, dispatch_conv2d_backward,
     dispatch_conv3d, dispatch_conv3d_backward, Conv1dBackwardDispatch, Conv1dDispatch,
     Conv2dBackwardDispatch, Conv2dDispatch, Conv3dBackwardDispatch, Conv3dDispatch,
+};
+pub use conv_transpose::{
+    dispatch_conv_transpose1d, dispatch_conv_transpose2d, ConvTranspose1dDispatch,
+    ConvTranspose2dDispatch,
 };
 pub use fuse::dispatch_fused;
 pub use matmul::dispatch_matmul;
