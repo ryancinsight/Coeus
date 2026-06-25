@@ -2,21 +2,19 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: Sprint MS-66 (Lp norm, shape ops & Python NN parity) [IN PROGRESS]
-**Objective**: Close the `vector_norm(ord=p)` Torch/JAX parity gap with
-native `coeus-ops::norm_p` and a thin PyO3 `pycoeus.vector_norm` wrapper;
-preserve `coeus-ops::norm` as the L2 short-circuit and avoid adding
-`BinaryOp::Pow` to the backend dispatch surface. Extend the same 0.2.6
-surface with Rust-core shape ops, thin PyO3 wrappers, optimizer parity tests,
-and on-device WGPU attention kernels.
-**Target version**: 0.2.6.
+### Current Sprint: Sprint MS-67 (einsum/index_select parity and audits) [IN PROGRESS]
+**Objective**: Extend the 0.2.7 Rust-core, autograd, and PyO3 shape surface
+with `einsum` and `index_select`; keep Python as a thin wrapper over Rust
+logic; preserve Burn/PyTorch parity evidence with value-semantic tests; and
+record Atlas provider audits without claiming unmeasured performance wins.
+**Target version**: 0.2.7.
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
 > oracle values; wgpu parity.rs verifies implemented GPU paths against the CPU reference;
 > coeus-python gains 20+ new functional ops (stack, matmul, constructors, abs/sqrt/neg,
 > clamp, max/min_axis, sum/mean, reshape, permute, t, pow, arange, linspace, etc.).
 
-### Current Verification Note (2026-06-24)
+### Current Verification Note (2026-06-25)
 
 - [x] [minor] Added `burn 0.16` as dev-dep to `coeus-nn` and `coeus-tensor`; production
   dependency policy test unaffected (burn forbidden in `[dependencies]`, allowed in
@@ -190,9 +188,9 @@ and on-device WGPU attention kernels.
   and `pollster` regressions while preserving dev-only Burn benchmark/parity
   edges. Evidence tier: compile-time dependency audit. Evidence:
   `cargo nextest run -p coeus-core --test dependency_policy` passes with 3 tests.
-- [x] [patch] Final MS-66 local gate clean after the WGPU/Python/autograd fixes:
+- [x] [patch] Final MS-67 local gate clean after the WGPU/Python/autograd fixes:
   `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
-  `cargo nextest run --workspace` (519 tests), `cargo test --doc --workspace`,
+  `cargo nextest run --workspace` (521 tests), `cargo test --doc --workspace`,
   and `cargo doc --workspace --no-deps`.
 - [x] [minor] Completed per-axis `vector_norm(ord=p)` Rust-core and PyO3
   parity: `coeus_ops::norm_p_axis` reduces the requested axis to size 1, and

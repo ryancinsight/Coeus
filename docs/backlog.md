@@ -557,7 +557,7 @@ that Coeus previously only supported at `p = 2` via `coeus_ops::norm`.
   `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo fmt --check`, `cargo nextest run --workspace`, `cargo test --doc
   --workspace`, and `cargo doc --workspace --no-deps` all clean. `cargo
-  nextest run --workspace` passes 519 tests, covering the 0.2.6 vector_norm,
+  nextest run --workspace` passes 521 tests, covering the 0.2.6 vector_norm,
   shape-op, Python wrapper, optimizer parity, WGPU attention, and WGPU unary
   shader additions.
 
