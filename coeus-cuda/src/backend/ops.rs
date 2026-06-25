@@ -467,6 +467,68 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         );
     }
 
+    fn conv_transpose1d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        output_padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) where
+        T: coeus_core::Float,
+    {
+        self.cuda_conv_transpose1d(
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            output_padding,
+            dilation,
+            output,
+            output_layout,
+        );
+    }
+
+    fn conv_transpose2d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        output_padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) where
+        T: coeus_core::Float,
+    {
+        self.cuda_conv_transpose2d(
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            output_padding,
+            dilation,
+            output,
+            output_layout,
+        );
+    }
+
     fn max_pool3d(
         &self,
         input: &Self::DeviceBuffer<T>,

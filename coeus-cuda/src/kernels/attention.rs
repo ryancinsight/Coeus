@@ -11,7 +11,8 @@
 // case routes to the CPU reference path (see `backend/ops/attention.rs`); this
 // is an explicit capability boundary, not a silent fallback.
 
-use crate::driver::{get_cuda_context, CudaDriver};
+use super::launch_1d;
+use crate::driver::get_cuda_context;
 use crate::storage::CudaStorage;
 
 const FWD_SRC: &str = r#"
@@ -149,35 +150,6 @@ extern "C" __global__ void sdp_attn_bwd_dkv_kernel(
     }
 }
 "#;
-
-#[inline]
-fn launch_1d(
-    func: crate::driver::CUfunction,
-    total: usize,
-    args: &mut [*mut std::ffi::c_void],
-) -> bool {
-    let Some(drv) = CudaDriver::get() else {
-        return false;
-    };
-    let block_size = 256usize;
-    let grid_size = total.div_ceil(block_size);
-    unsafe {
-        let res = (drv.cu_launch_kernel)(
-            func,
-            grid_size as u32,
-            1,
-            1,
-            block_size as u32,
-            1,
-            1,
-            0,
-            std::ptr::null_mut(),
-            args.as_mut_ptr(),
-            std::ptr::null_mut(),
-        );
-        res == 0
-    }
-}
 
 /// On-device SDP forward. Handles causal/unmasked and a contiguous
 /// key-padding mask (`mask` = `None` for the unmasked case). Returns `false`
