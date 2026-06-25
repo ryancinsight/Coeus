@@ -154,6 +154,8 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::where_fn, m)?)?;
     // Indexing ops
     m.add_function(wrap_pyfunction!(ops::gather, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::index_select, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::einsum, m)?)?;
     m.add_function(wrap_pyfunction!(ops::scatter_add, m)?)?;
     m.add_function(wrap_pyfunction!(ops::repeat_interleave, m)?)?;
     // Spatial resize

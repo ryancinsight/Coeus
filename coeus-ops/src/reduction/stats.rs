@@ -17,7 +17,11 @@
 // host-side fold with `T::powf`, avoiding any new `BinaryOp::Pow` opcode
 // (the `Pow` decision is owned by `docs/backlog.md` MS-62 quantum and
 // remains intentionally deferred to keep the backend dispatch surface
-// minimal).
+// minimal). The per-axis `norm_p_axis` mirrors the same per-slice host
+// fold over the `axis`-indexed slice lattice, matching
+// `torch.linalg.vector_norm(x, ord=p, dim=...)` up to torch's
+// output shape convention (collapsed axis → size 1; keepdim is the
+// caller's responsibility, identical to `var_axis` / `std_dev_axis`).
 //
 // The per-axis variants rely on the existing `BinaryOp` broadcast path
 // (`coeus_leto::elementwise_binary_into` automatically broadcasts a
@@ -170,6 +174,99 @@ pub fn norm_p<T: Float, B: BackendOps<T> + Default>(a: &Tensor<T, B>, p: T, back
     acc.powf(T::one() / p)
 }
 
+/// Per-axis `L_p` norm: tensor reduced along `axis` to size 1, with each
+/// slice evaluated as `(Σ|xᵢ|^p)^(1/p)` for finite `p > 0`.
+///
+/// Matches `torch.linalg.vector_norm(x, ord=p, dim=axis)` over a flattened
+/// view of every `axis`-slice. Implemented as a host-side fold with
+/// `T::powf` accumulation so the input can stay on any backend (the
+/// storage only requires `copy_to_host`-read access via `BackendOps`),
+/// and no new `BinaryOp::Pow` opcode is added.
+///
+/// Output shape is `input.shape` with `axis` reduced to size 1 — the same
+/// `ReductionOp::Sum`/`Mean` reduce shape used by [`mean_axis`] /
+/// [`sum_axis`] so callers compose a follow-up keepdim/squeeze in their
+/// own code (matching the pattern of `var_axis` / `std_dev_axis`).
+///
+/// # Panics
+/// Panics if `axis` is out of range, the axis has zero elements, `p <= 0`,
+/// or `p` is not finite.
+#[inline]
+pub fn norm_p_axis<T: Float, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    p: T,
+    axis: usize,
+    backend: &B,
+) -> Tensor<T, B> {
+    assert!(axis < a.ndim(), "norm_p_axis: axis {axis} out of bounds");
+    let n_axis = a.shape()[axis];
+    assert!(n_axis > 0, "norm_p_axis: axis {axis} has zero elements");
+    assert!(
+        p > T::zero() && p.is_finite(),
+        "norm_p_axis: ord must be a finite positive number, got {p:?}"
+    );
+
+    // Materialize contiguous storage so we can use the host fold with
+    // contiguous index math rather than chasing a strided layout. The
+    // contiguous-fast-path avoids an allocation for the common case
+    // (matches `norm` / `var` / `sum` / `mean`).
+    let n = a.numel();
+    let contiguous = if a.is_contiguous() && a.layout().offset() == 0 {
+        a.reshape(a.shape().to_vec())
+    } else {
+        a.to_contiguous_on(backend)
+    };
+    let mut host = vec![T::zero(); n];
+    backend.copy_to_host(contiguous.storage(), &mut host);
+
+    // Compute the per-axis reduced output shape with `axis` collapsed to 1.
+    let out_shape: Vec<usize> = {
+        let mut s = contiguous.shape().to_vec();
+        s[axis] = 1;
+        s
+    };
+    let out_numel: usize = out_shape.iter().product();
+
+    // Per-output-element linear host fold. Rearrangement: outer-product
+    // layout — output linear index splits into (pre, axis=0, post) so
+    // each pre-slice owns `post` consecutive output indices, and each
+    // post-step walks the `axis` stride. This avoids permutation
+    // altogether and matches row-major reader expectation.
+    let shape = contiguous.shape();
+    let axis_dim = shape[axis];
+    let pre_dims = &shape[..axis];
+    let post_dims = &shape[axis + 1..];
+    let pre_count: usize = pre_dims.iter().product();
+    let post_count: usize = post_dims.iter().product();
+
+    let mut out_host = vec![T::zero(); out_numel];
+    let inv_p = T::one() / p;
+
+    // Index strides over the outer (pre) and inner (post) dimensions.
+    // Output linear index = pre_idx * post_count + post_idx.
+    for pre_idx in 0..pre_count {
+        for post_idx in 0..post_count {
+            // Linear base of the input slice for this (pre, post) pair:
+            //   base = pre_idx * (axis_dim * post_count)
+            //        + post_idx       (because each "axis-step" moves
+            //                          post_count elements)
+            let base = pre_idx * (axis_dim * post_count) + post_idx;
+            let mut acc = T::zero();
+            for k in 0..axis_dim {
+                let linear = base + k * post_count;
+                acc = acc + host[linear].abs().powf(p);
+            }
+            let out_idx = pre_idx * post_count + post_idx;
+            out_host[out_idx] = acc.powf(inv_p);
+        }
+    }
+
+    // The output tensor holds the same element type as the input; use
+    // `from_slice_on` for the contiguous storage so the dtype and backend
+    // are normalised in one place.
+    Tensor::from_slice_on(out_shape, &out_host, backend)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -264,5 +361,115 @@ mod tests {
         let b = SequentialBackend::new();
         let x = v3();
         let _ = norm_p(&x, f64::INFINITY, &b);
+    }
+
+    #[test]
+    fn norm_p_axis_axis1_matches_row_references() {
+        let b = SequentialBackend::new();
+        let x = Tensor::<f64, SequentialBackend>::from_slice(
+            vec![2, 3],
+            &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0],
+        );
+        let got = norm_p_axis(&x, 2.0, 1, &b);
+        let want = [
+            (1.0_f64 + 4.0 + 9.0).sqrt(),
+            (16.0_f64 + 25.0 + 36.0).sqrt(),
+        ];
+        assert_eq!(got.shape(), &[2, 1]);
+        assert!(
+            got.as_slice()
+                .iter()
+                .zip(want)
+                .all(|(&g, w)| (g - w).abs() < 1e-12),
+            "norm_p_axis(axis=1) = {:?}, want {:?}",
+            got.as_slice(),
+            want
+        );
+    }
+
+    #[test]
+    fn norm_p_axis_axis0_matches_column_references() {
+        let b = SequentialBackend::new();
+        let x = Tensor::<f64, SequentialBackend>::from_slice(
+            vec![2, 3],
+            &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0],
+        );
+        let got = norm_p_axis(&x, 1.0, 0, &b);
+        let want = [5.0, 7.0, 9.0];
+        assert_eq!(got.shape(), &[1, 3]);
+        assert_eq!(got.as_slice(), &want);
+    }
+
+    #[test]
+    fn norm_p_axis_rank1_reduces_to_scalar_tensor() {
+        let b = SequentialBackend::new();
+        let x = v3();
+        // Rank-1 axis=0 must equal global `norm_p` — output is still a
+        // size-1 tensor (keepdim convention) and bits agree.
+        let got = norm_p_axis(&x, 2.0, 0, &b);
+        let n_global = norm_p(&x, 2.0, &b);
+        assert_eq!(got.shape(), &[1]);
+        assert_eq!(got.as_slice()[0].to_bits(), n_global.to_bits());
+    }
+
+    #[test]
+    fn norm_p_axis_3d_axis1_matches_manual_per_slice() {
+        let b = SequentialBackend::new();
+        // Shape [2, 3, 2]: 2 batches × 3 rows × 2 cols. Axis=1 keeps the
+        // (batch, _, col) lattice, output shape [2, 1, 2]. Each row sum of
+        // |x|^p^(1/p) is the closed form.
+        let x = Tensor::<f64, SequentialBackend>::from_slice(
+            vec![2, 3, 2],
+            &[
+                1.0, 2.0, // batch 0, row 0
+                3.0, 4.0, // batch 0, row 1
+                5.0, 6.0, // batch 0, row 2
+                -1.0, 2.0, // batch 1, row 0
+                -3.0, 4.0, // batch 1, row 1
+                -5.0, 6.0, // batch 1, row 2
+            ],
+        );
+        let got = norm_p_axis(&x, 3.0, 1, &b);
+        assert_eq!(got.shape(), &[2, 1, 2]);
+        let want = [
+            // batch 0, col 0: rows [1, 3, 5] => (1 + 27 + 125)^(1/3)
+            (1.0_f64 + 27.0 + 125.0).cbrt(),
+            // batch 0, col 1: rows [2, 4, 6] => (8 + 64 + 216)^(1/3)
+            (8.0_f64 + 64.0 + 216.0).cbrt(),
+            // batch 1, col 0: rows [1, 3, 5] (abs) => same as batch 0 col 0
+            (1.0_f64 + 27.0 + 125.0).cbrt(),
+            // batch 1, col 1: rows [2, 4, 6] (abs) => same as batch 0 col 1
+            (8.0_f64 + 64.0 + 216.0).cbrt(),
+        ];
+        for (g, w) in got.as_slice().iter().zip(want) {
+            assert!(
+                (*g - w).abs() < 1e-9,
+                "norm_p_axis(3D, axis=1) = {g}, want {w}"
+            );
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "axis 2 out of bounds")]
+    fn norm_p_axis_out_of_range_axis_panics() {
+        let b = SequentialBackend::new();
+        let x = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 3], &[1.0; 6]);
+        let _ = norm_p_axis(&x, 2.0, 2, &b);
+    }
+
+    #[test]
+    #[should_panic(expected = "axis 1 has zero elements")]
+    fn norm_p_axis_zero_size_axis_panics() {
+        let b = SequentialBackend::new();
+        let x = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 0, 3], &[]);
+        let _ = norm_p_axis(&x, 2.0, 1, &b);
+    }
+
+    #[test]
+    #[should_panic(expected = "ord must be a finite positive number")]
+    fn norm_p_axis_non_positive_ord_panics() {
+        let b = SequentialBackend::new();
+        let x = v3();
+        let _ = norm_p_axis(&x, 0.0, 0, &b);
     }
 }

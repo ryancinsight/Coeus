@@ -572,21 +572,21 @@ pub fn tensor_var(
     scalar_object(py, v)
 }
 
-/// L2 (Euclidean) norm of all elements: `sqrt(sum(x^2))`.
+/// Tracked L2 (Euclidean) norm over all elements, returns a `[1]` tensor.
 ///
-/// Matches `torch.linalg.vector_norm(x, ord=2)` with no shape argument. Use
-/// [`vector_norm`] for ord-p variants (`ord=1` Manhattan, `ord=3`, ...).
+/// Gradient flows: `∂y/∂x_i = x_i / y`.
 #[pyfunction]
-pub fn norm(input: &PyTensor, py: Python<'_>) -> f64 {
-    py.allow_threads(|| {
-        let backend = MoiraiBackend::new();
-        coeus_ops::norm::<f64, MoiraiBackend>(&input.inner.tensor, &backend)
-    })
+pub fn norm(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::norm(&input.inner));
+    PyTensor { inner }
 }
 
-/// `L_p` norm: `(Σ|xᵢ|^p)^(1/p)`.
+/// Tracked `L_p` norm: `(Σ|xᵢ|^p)^(1/p)`.
 ///
-/// Matches `torch.linalg.vector_norm(input, ord=p, dim=..., keepdim=...)`.
+/// Matches `torch.linalg.vector_norm(input, ord=p, dim=..., keepdim=...)`
+/// but always returns a `PyTensor` (differentiable). Use `.item()` to get
+/// the scalar value when `axis=None`.
+///
 /// `ord` must be a finite positive number. Empty tensors surface as
 /// `ValueError` (the Rust-core call panics on empty input rather than
 /// silently returning zero).
@@ -598,37 +598,35 @@ pub fn vector_norm(
     axis: Option<usize>,
     keepdim: bool,
     py: Python<'_>,
-) -> PyResult<Py<PyAny>> {
-    // `keepdim` is part of the public torch.linalg.vector_norm signature;
-    // the per-axis form is not yet implemented in Rust-core, so the
-    // parameter is currently a no-op reserved for symmetry. Documented as
-    // an "axis not supported" error below so the parameter is never
-    // silently ignored.
-    let _ = keepdim;
+) -> PyResult<PyTensor> {
     if !ord.is_finite() || ord <= 0.0 {
         return Err(PyValueError::new_err(format!(
             "vector_norm: ord must be a finite positive number, got {ord}"
         )));
     }
-    let backend = MoiraiBackend::new();
-    if input.inner.tensor.numel() == 0 {
+    let n = input.inner.tensor.numel();
+    if n == 0 {
         return Err(PyValueError::new_err(
             "vector_norm: empty tensors have no norm",
         ));
     }
     if let Some(ax) = axis {
         validate_stat_axis("vector_norm", input, ax)?;
-        // Per-axis ord-p norm: fold per-slice on the CPU backend. The current
-        // Rust-core surface only exposes a global `norm_p`; the per-axis form
-        // composes via per-slice reshape until the `norm_p_axis` SSOT lands.
-        return Err(PyValueError::new_err(
-            "vector_norm: axis/keepdim not yet supported; pass ord without axis for a global Lp norm",
-        ));
+        let inner = py.allow_threads(|| coeus_autograd::norm_p_axis(&input.inner, ord, ax));
+        let squeezed = if keepdim {
+            inner
+        } else {
+            let mut shape = inner.tensor.shape().to_vec();
+            shape.remove(ax);
+            if shape.is_empty() {
+                shape = vec![1];
+            }
+            coeus_autograd::reshape(&inner, shape)
+        };
+        return Ok(PyTensor { inner: squeezed });
     }
-    let v = py.allow_threads(|| {
-        coeus_ops::norm_p::<f64, MoiraiBackend>(&input.inner.tensor, ord, &backend)
-    });
-    scalar_object(py, v)
+    let inner = py.allow_threads(|| coeus_autograd::norm_p(&input.inner, ord));
+    Ok(PyTensor { inner })
 }
 
 fn validate_stat_axis(op: &str, input: &PyTensor, axis: usize) -> PyResult<()> {
@@ -999,6 +997,62 @@ pub fn argmin(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTensor
     Ok(PyTensor {
         inner: Var::new(t, false),
     })
+}
+
+// ── einsum / index_select ─────────────────────────────────────────────────────
+
+/// Einstein summation for common ML patterns (tracked where applicable).
+///
+/// Supported patterns:
+/// - `"ij,jk->ik"` — 2-D matmul (tracked via matmul autograd)
+/// - `"bij,bjk->bik"` — batched matmul (tracked via per-batch matmul + cat)
+/// - `"ij->ji"` — 2-D transpose (tracked via permute autograd)
+/// - `"i,i->"` — dot product (tracked via mul + sum)
+/// - `"i,j->ij"` — outer product (tracked via broadcast + mul)
+/// - `"ij,j->i"` — matrix-vector multiply (tracked via matmul + squeeze)
+/// - `"ii->"` — trace (non-differentiable)
+///
+/// Matches `torch.einsum(subscript, *operands)`.
+#[pyfunction]
+pub fn einsum(subscript: &str, operands: Vec<Py<PyTensor>>, py: Python<'_>) -> PyTensor {
+    let rust_vars: Vec<coeus_autograd::Var<f64>> = operands
+        .iter()
+        .map(|t| t.bind(py).borrow().inner.clone())
+        .collect();
+    let inner = py.allow_threads(move || {
+        let refs: Vec<&coeus_autograd::Var<f64>> = rust_vars.iter().collect();
+        coeus_autograd::einsum(subscript, &refs)
+    });
+    PyTensor { inner }
+}
+
+/// Select slices from `input` along `dim` at positions in 1-D `index` (tracked).
+///
+/// Output shape equals `input.shape` with `input.shape[dim]` replaced by
+/// `len(index)`. Backward scatters output gradients back to source positions.
+///
+/// Matches `torch.index_select(input, dim, index)`.
+#[pyfunction]
+pub fn index_select(
+    input: &PyTensor,
+    dim: usize,
+    index: &PyTensor,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
+    if index.inner.tensor.ndim() != 1 {
+        return Err(PyValueError::new_err(format!(
+            "index_select: index must be 1-D, got {}-D",
+            index.inner.tensor.ndim()
+        )));
+    }
+    if dim >= input.inner.tensor.ndim() {
+        return Err(PyValueError::new_err(format!(
+            "index_select: dim {dim} out of range for rank {}",
+            input.inner.tensor.ndim()
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_autograd::index_select(&input.inner, dim, &index.inner));
+    Ok(PyTensor { inner })
 }
 
 // ── broadcast_to / masked_fill / nonzero ─────────────────────────────────────

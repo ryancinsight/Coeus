@@ -192,8 +192,30 @@ and on-device WGPU attention kernels.
   `cargo nextest run -p coeus-core --test dependency_policy` passes with 3 tests.
 - [x] [patch] Final MS-66 local gate clean after the WGPU/Python/autograd fixes:
   `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
-  `cargo nextest run --workspace` (489 tests), `cargo test --doc --workspace`,
+  `cargo nextest run --workspace` (519 tests), `cargo test --doc --workspace`,
   and `cargo doc --workspace --no-deps`.
+- [x] [minor] Completed per-axis `vector_norm(ord=p)` Rust-core and PyO3
+  parity: `coeus_ops::norm_p_axis` reduces the requested axis to size 1, and
+  `pycoeus.vector_norm(input, ord=p, axis=..., keepdim=...)` now returns the
+  squeezed tensor/scalar or keepdim tensor instead of rejecting `axis`.
+  Evidence tier: empirical Burn differential and binding validation. Evidence:
+  `cargo nextest run -p coeus-ops norm_p_axis`, `cargo nextest run -p
+  coeus-python --test binding_tests_ops test_vector_norm_p_orders`, and `cargo
+  nextest run -p coeus-nn --test burn_live_parity statistical_ops_match_burn`
+  pass.
+- [x] [minor] Completed tracked Lp norm autograd exports for
+  `coeus_autograd::{norm, norm_p, norm_p_axis}` with analytical backward rules
+  and value-semantic gradient tests for scalar L3 and per-axis L2 norms.
+  Evidence tier: analytical oracle plus empirical execution. Evidence:
+  `cargo nextest run -p coeus-autograd --test autograd_tests norm_p` passes.
+- [x] [minor] Completed Rust-core and PyO3 shape parity for `einsum` and
+  `index_select`: `coeus_ops::{einsum, index_select}`, tracked autograd
+  wrappers, and registered `pycoeus.einsum` / `pycoeus.index_select` wrappers
+  now pass value-semantic Rust and Python binding tests.
+  Evidence tier: empirical binding and op validation. Evidence:
+  `cargo nextest run -p coeus-ops einsum`, `cargo nextest run -p coeus-python
+  --test binding_tests_ops test_einsum_wrapper`, and `cargo nextest run -p
+  coeus-python --test binding_tests_ops test_gather_scatter` pass.
 - [x] [patch] Added a root-scoped `/prog` ignore entry for transient checkpoint
   transcript artifacts so generated session state is not staged as project
   source. Evidence tier: repository hygiene.
@@ -262,9 +284,7 @@ and on-device WGPU attention kernels.
   `torch.linalg.vector_norm`'s full signature; `pycoeus.norm(input)`
   preserved as the L2 default. Empty tensors and `ord` outside the
   finite-positive range surface as `ValueError` rather than panicking
-  at the boundary. `axis`/`keepdim` are reserved in the signature and
-  currently raise `ValueError("axis/keepdim not yet supported")` until
-  `coeus_ops::norm_p_axis` lands in MS-67.
+  at the boundary. `axis`/`keepdim` now route through `coeus_ops::norm_p_axis`.
   `coeus-python/tests/binding_tests_ops.rs::test_vector_norm_p_orders`
   covers p ∈ {0.5, 1, 2, 3}, ord error paths, and empty-tensor errors.
 

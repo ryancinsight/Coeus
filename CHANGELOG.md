@@ -1,6 +1,60 @@
 # Changelog
 
-## 0.2.6 - 2026-06-24
+## 0.2.7 - 2026-06-25
+
+### Added
+
+- **`einsum` op** — `coeus-ops::einsum(subscript, operands)` and tracked
+  `coeus_autograd::einsum` dispatch common ML patterns to optimised kernels:
+  - `"ij,jk->ik"` — 2-D matmul (tracked via matmul autograd)
+  - `"bij,bjk->bik"` — batched matmul (tracked via per-batch matmul + cat)
+  - `"ij->ji"` — 2-D transpose (tracked via permute)
+  - `"i,i->"` — dot product (tracked via mul + sum)
+  - `"i,j->ij"` — outer product (tracked via broadcast + mul)
+  - `"ij,j->i"` — matrix-vector multiply (tracked via matmul + squeeze)
+  - `"ii->"` — trace (non-differentiable forward)
+  - Generic ND last-2-dims swap (tracked)
+  7 einsum unit tests in `coeus-ops/src/shape/einsum.rs`. Python
+  `pycoeus.einsum(subscript, [*tensors])` with backward flow through
+  autograd-delegated operations.
+
+- **`index_select` op** — `coeus-ops::index_select(input, dim, index)` selects
+  slices from `input` along `dim` at 1-D `index` positions (matching
+  `torch.index_select`). Tracked `coeus_autograd::index_select` with
+  scatter-add backward. Python `pycoeus.index_select(input, dim, index)` with
+  `ValueError` guards. 3 unit tests, 1 Python binding test.
+
+- **Burn parity suite expanded 50 → 51 tests**:
+  - `transformer_encoder_layer_forward_backward_shape_contract` — forward
+    shape contract and non-zero gradient verification for all encoder layer
+    parameters (TransformerEncoderLayer with H=2, d_model=8, d_ff=16).
+
+- **Python einsum/index_select binding tests** — `test_einsum_index_select`
+  covers matmul, transpose, dot product, outer product patterns and backward
+  flow through matmul autograd; index_select 1-D/2-D selection, backward
+  scatter-add, and error paths. Evidence: 27 Python ops binding tests pass.
+
+- **`hermes-simd` CPU feature probe audit** — confirmed all `AmxSupport` and
+  `Avx512Support` impls already cache via `OnceLock`; no per-call CPUID
+  overhead on steady-state paths.
+
+- **`mnemosyne` segment pool audit** — `NodeSegmentPool` already has:
+  - Relaxed-atomic `retained` early-out before spinlock acquisition on `pop()`
+  - `SpinLock` (not `Mutex`) for minimal overhead
+  - 16-bucket NUMA-aware partitioning via `GlobalSegmentPool`
+  No structural changes needed; documented as already optimal.
+
+- **`moirai` executor audit** — `HybridExecutor.task_registry` `Mutex` is
+  lifecycle-only (not on the hot `parallel_for` path which runs through the
+  lock-free work-stealing scheduler). Hot path confirmed lock-free.
+
+### Changed
+
+- Workspace version bumped `0.2.6` → `0.2.7`.
+- `coeus-ops/src/shape/mod.rs` adds `einsum` and `index_select` modules.
+- `coeus-autograd/src/ops/shape/mod.rs` adds `einsum` and `index_select` modules.
+
+
 
 ### Added
 
@@ -41,6 +95,23 @@
 - **`vector_norm(ord=p)` ord-p norm** — `coeus_ops::norm_p(x, p, backend)`
   returns `(Σ|xᵢ|^p)^(1/p)`. Python `pycoeus.vector_norm(input, ord=2.0)`.
   Verified against `torch.linalg.vector_norm` reference values for p ∈ {1, 2, 3}.
+
+- **Per-axis `vector_norm(ord=p)`** — `coeus_ops::norm_p_axis(x, p, axis,
+  backend)` reduces one axis to size 1 with `(sum(abs(x)^p))^(1/p)`, and
+  `pycoeus.vector_norm(input, ord=p, axis=..., keepdim=...)` now returns a
+  tensor or scalar matching PyTorch/JAX shape semantics. Evidence tier:
+  empirical Burn differential and PyO3 binding validation.
+
+- **Tracked Lp norm autograd** — `coeus_autograd::{norm, norm_p,
+  norm_p_axis}` are exported with analytical backward nodes for scalar and
+  per-axis norms. Evidence tier: analytical oracle tests plus empirical
+  execution.
+
+- **`einsum` / `index_select` shape parity** — added Rust-core
+  `coeus_ops::{einsum, index_select}`, tracked autograd wrappers, and PyO3
+  `pycoeus.einsum` / `pycoeus.index_select` registrations for common ML
+  patterns and slice selection. Evidence tier: value-semantic Rust and binding
+  tests.
 
 - **WGPU scaled-dot-product attention kernels** — unmasked and causal forward
   and backward attention now route through WGSL kernels instead of host-side

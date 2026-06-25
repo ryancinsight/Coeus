@@ -17,7 +17,7 @@ pub use arithmetic::{
     add, div, mean, mean_axis, mul, scalar_add, scalar_div, scalar_mul, scalar_sub, sub, sum,
     sum_axis,
 };
-pub use reduction::{log_sum_exp, max_axis, min_axis};
+pub use reduction::{log_sum_exp, max_axis, min_axis, norm, norm_p, norm_p_axis};
 
 pub use linalg::{matmul, sparse_matmul, transpose_2d};
 pub use nn::{
@@ -29,6 +29,7 @@ pub use nn::{
 
 pub use embedding::embedding;
 pub use shape::{
-    broadcast_to, cat, contiguous, cumsum, flip, gather, masked_fill, pad, permute, reshape, roll,
-    slice, split, squeeze, stack, transpose, tril, triu, unsqueeze, where_cond,
+    broadcast_to, cat, contiguous, cumsum, einsum, flip, gather, index_select, masked_fill, pad,
+    permute, reshape, roll, slice, split, squeeze, stack, transpose, tril, triu, unsqueeze,
+    where_cond,
 };

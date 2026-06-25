@@ -429,6 +429,16 @@ fn statistical_ops_match_burn() {
         let label = format!("norm_l{ord}");
         assert_close(&label, &[coeus_p], &[burn_p]);
     }
+
+    // Per-axis Lp norm uses the same ord-p contract with the selected
+    // dimension reduced to size 1, matching Burn's sum_dim keepdim shape.
+    let coeus_axis1_l2 = coeus_ops::norm_p_axis(&xc, 2.0, 1, &backend);
+    let burn_axis1_l2 = bvec(xb.clone().powf_scalar(2.0).sum_dim(1).powf_scalar(0.5));
+    assert_close("norm_l2_axis1", coeus_axis1_l2.as_slice(), &burn_axis1_l2);
+
+    let coeus_axis0_l1 = coeus_ops::norm_p_axis(&xc, 1.0, 0, &backend);
+    let burn_axis0_l1 = bvec(xb.clone().abs().sum_dim(0));
+    assert_close("norm_l1_axis0", coeus_axis0_l1.as_slice(), &burn_axis0_l1);
 }
 
 // ── Linear layer (same weights) ───────────────────────────────────────────────
@@ -1535,7 +1545,52 @@ fn global_max_pool2d_reduces_spatial_to_one() {
     assert_close("global_max_pool2d", out.tensor.as_slice(), &[16.0]);
 }
 
-// ── BatchNorm1d forward (manual reference) ───────────────────────────────────
+// ── TransformerEncoderLayer forward shape + gradient contract ─────────────────
+//
+// A full value comparison against Burn NdArray isn't possible because the
+// weight initialisation is different. We instead verify the shape contract and
+// that backward correctly computes non-zero gradients for all parameters.
+
+#[test]
+fn transformer_encoder_layer_forward_backward_shape_contract() {
+    use coeus_nn::{Module, NullMask, TransformerEncoderLayer};
+    const H: usize = 2;
+    let (batch, seq, d_model, d_ff) = (2, 4, 8, 16);
+
+    let layer =
+        TransformerEncoderLayer::<f32, SequentialBackend, H, NullMask>::new(d_model, d_ff, 0.0);
+    let params = layer.parameters();
+    assert!(!params.is_empty(), "encoder layer has parameters");
+
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(
+            vec![batch, seq, d_model],
+            &vec![0.1f32; batch * seq * d_model],
+        ),
+        true,
+    );
+    let out = layer.forward(&x);
+    assert_eq!(
+        out.tensor.shape(),
+        &[batch, seq, d_model],
+        "encoder layer output shape"
+    );
+
+    // Backward: verify gradients flow to input and all parameters.
+    coeus_autograd::sum(&out).backward();
+    assert!(x.grad().is_some(), "encoder layer: input grad must be set");
+    let input_grad_numel: f32 = x.grad().unwrap().as_slice().iter().map(|v| v.abs()).sum();
+    assert!(
+        input_grad_numel > 0.0,
+        "encoder layer: input grad is all zero"
+    );
+    for (i, p) in params.iter().enumerate() {
+        assert!(
+            p.grad().is_some(),
+            "encoder layer parameter {i} has no gradient"
+        );
+    }
+}
 
 #[test]
 fn batchnorm1d_forward_matches_manual_reference() {

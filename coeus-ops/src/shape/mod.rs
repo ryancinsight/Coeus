@@ -3,9 +3,11 @@
 
 mod broadcast;
 mod concat;
+mod einsum;
 mod flip;
 mod gather;
 mod index;
+mod index_select;
 mod masked_fill;
 mod nonzero;
 mod pad;
@@ -20,8 +22,10 @@ mod where_cond;
 
 pub use broadcast::broadcast_to;
 pub use concat::cat;
+pub use einsum::einsum;
 pub use flip::flip;
 pub use gather::gather;
+pub use index_select::index_select;
 pub use masked_fill::masked_fill;
 pub use nonzero::nonzero;
 pub use pad::pad;

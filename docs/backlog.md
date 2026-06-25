@@ -513,6 +513,28 @@ that Coeus previously only supported at `p = 2` via `coeus_ops::norm`.
   covers p ∈ {0.5, 1, 2, 3}, ord error paths (0, negative, ±∞), and
   empty-tensor errors. Evidence: `cargo nextest run -p coeus-python
   --test binding_tests_ops test_vector_norm_p_orders` passes.
+- **Per-axis Lp norm** — `coeus_ops::norm_p_axis(x, p, axis, backend)`
+  reduces one axis to size 1 with `(sum(abs(x)^p))^(1/p)`, preserving the
+  existing reduction shape convention used by `sum_axis`/`mean_axis`.
+  `pycoeus.vector_norm(input, ord=p, axis=..., keepdim=...)` now returns a
+  squeezed tensor/scalar when `keepdim=false` and a reduced-axis tensor when
+  `keepdim=true`. Evidence tier: empirical Burn differential and binding
+  validation. Evidence: `cargo nextest run -p coeus-ops norm_p_axis`, `cargo
+  nextest run -p coeus-python --test binding_tests_ops test_vector_norm_p_orders`,
+  and `cargo nextest run -p coeus-nn --test burn_live_parity
+  statistical_ops_match_burn` pass.
+- **Tracked Lp norm autograd** — `coeus_autograd::{norm, norm_p,
+  norm_p_axis}` are exported and carry analytical backward nodes for scalar
+  and per-axis Lp norms, including the zero-norm no-gradient edge case.
+  Evidence tier: analytical oracle plus empirical execution. Evidence:
+  `cargo nextest run -p coeus-autograd --test autograd_tests norm_p` passes.
+- **`einsum` / `index_select` shape parity** — Rust-core
+  `coeus_ops::{einsum, index_select}` and tracked autograd wrappers are
+  registered through thin PyO3 functions `pycoeus.einsum` and
+  `pycoeus.index_select`. Evidence tier: empirical value validation. Evidence:
+  `cargo nextest run -p coeus-ops einsum`, `cargo nextest run -p coeus-python
+  --test binding_tests_ops test_einsum_wrapper`, and `cargo nextest run -p
+  coeus-python --test binding_tests_ops test_gather_scatter` pass.
 - **Shape and mask parity surface** — `coeus_ops::{broadcast_to,
   masked_fill, nonzero}` plus tracked autograd `broadcast_to`/`masked_fill`
   and PyO3 wrappers close the current Torch/JAX shape utility gap. The
@@ -535,7 +557,7 @@ that Coeus previously only supported at `p = 2` via `coeus_ops::norm`.
   `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo fmt --check`, `cargo nextest run --workspace`, `cargo test --doc
   --workspace`, and `cargo doc --workspace --no-deps` all clean. `cargo
-  nextest run --workspace` passes 489 tests, covering the 0.2.6 vector_norm,
+  nextest run --workspace` passes 519 tests, covering the 0.2.6 vector_norm,
   shape-op, Python wrapper, optimizer parity, WGPU attention, and WGPU unary
   shader additions.
 
@@ -557,15 +579,9 @@ that Coeus previously only supported at `p = 2` via `coeus_ops::norm`.
   `std_var` already do.
 
 ### Residual risk / next (tracked, [minor]):
-- `coeus_ops::norm_p_axis(x, p, axis, backend)` for per-axis Lp norm
-  (matching `torch.linalg.vector_norm(x, ord=p, dim=…)`) is the next
-  Torch/JAX parity milestone. It needs an element-wise
-  `pow_compose(|x|, p, ?)` kernel or a per-slice GPU reduction path;
-  routes through MS-67 once a slice-walk composition lands.
-- `coeus_autograd::norm_p(x, p)` is the autograd node needed to make
-  `pycoeus.vector_norm` track gradients through PyTensor. Locked
-  pending the per-axis Rust-core path (a global reduction without
-  per-element gradients is void-trivial).
+- Broaden Python parity examples for `einsum` beyond the currently verified
+  matmul, transpose, and dot-product patterns, pairing each additional pattern
+  with PyTorch/JAX value comparisons.
 
 ---
 ## Sprint MS-65: Burn/CUDA parity closure [minor]

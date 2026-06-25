@@ -86,6 +86,31 @@ assert abs(c.data[3] - 154.0) < 1e-9
 }
 
 #[test]
+fn test_einsum_wrapper() {
+    run_script(
+        r#"
+import pycoeus
+
+a = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3])
+b = pycoeus.Tensor([7.0, 8.0, 9.0, 10.0, 11.0, 12.0], [3, 2])
+mm = pycoeus.einsum("ij,jk->ik", [a, b])
+assert mm.shape == [2, 2], f"einsum matmul shape wrong: {mm.shape}"
+assert mm.data == [58.0, 64.0, 139.0, 154.0], f"einsum matmul wrong: {mm.data}"
+
+tp = pycoeus.einsum("ij->ji", [a])
+assert tp.shape == [3, 2], f"einsum transpose shape wrong: {tp.shape}"
+assert tp.data == [1.0, 4.0, 2.0, 5.0, 3.0, 6.0], f"einsum transpose wrong: {tp.data}"
+
+x = pycoeus.Tensor([1.0, 2.0, 3.0], [3])
+y = pycoeus.Tensor([4.0, 5.0, 6.0], [3])
+dot = pycoeus.einsum("i,i->", [x, y])
+assert dot.shape == [1], f"einsum dot shape wrong: {dot.shape}"
+assert abs(dot.item() - 32.0) < 1e-9, f"einsum dot wrong: {dot.data}"
+"#,
+    );
+}
+
+#[test]
 fn test_abs_sqrt_neg_pow() {
     run_script(
         r#"
@@ -473,6 +498,14 @@ src  = pycoeus.Tensor([10.0, 20.0, 30.0], [3])
 out = pycoeus.scatter_add(base, 0, idx3, src)
 # idx=[1,2,1]: out[1] += 10+30 = 40, out[2] += 20
 assert out.data == [0.0, 40.0, 20.0, 0.0], f"scatter_add wrong: {out.data}"
+
+sel_rows = pycoeus.index_select(x2, 0, pycoeus.Tensor([1.0, 0.0], [2]))
+assert sel_rows.shape == [2, 3], f"index_select rows shape wrong: {sel_rows.shape}"
+assert sel_rows.data == [4.0, 5.0, 6.0, 1.0, 2.0, 3.0], f"index_select rows wrong: {sel_rows.data}"
+
+sel_cols = pycoeus.index_select(x2, 1, pycoeus.Tensor([2.0, 0.0], [2]))
+assert sel_cols.shape == [2, 2], f"index_select cols shape wrong: {sel_cols.shape}"
+assert sel_cols.data == [3.0, 1.0, 6.0, 4.0], f"index_select cols wrong: {sel_cols.data}"
 "#,
     );
 }
@@ -754,10 +787,11 @@ assert abs(v_biased - 5.0) < 1e-9, f"var biased wrong: {v_biased}"
 s_biased = pycoeus.std(x, unbiased=False)
 assert abs(s_biased - math.sqrt(5.0)) < 1e-9, f"std biased wrong: {s_biased}"
 
-# norm (L2)
+# norm (L2) returns [1] tensor
 n = pycoeus.norm(x)
+assert n.shape == [1]
 expected_norm = math.sqrt(4 + 16 + 36 + 64)
-assert abs(n - expected_norm) < 1e-9, f"norm wrong: {n}"
+assert abs(n.item() - expected_norm) < 1e-9, f"norm wrong: {n.item()}"
 
 # 2-D axis + keepdim variance — matches torch.var(x, dim=1, keepdim=True)
 y = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3])
@@ -803,6 +837,81 @@ except ValueError:
 try:
     _ = pycoeus.std(pycoeus.zeros([0]))
     raise AssertionError("std of empty tensor should raise")
+except ValueError:
+    pass
+"#,
+    );
+}
+
+#[test]
+fn test_einsum_index_select() {
+    run_script(
+        r#"
+import pycoeus
+import math
+
+# ── einsum: matmul ij,jk->ik ─────────────────────────────────────────
+a = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3])
+b = pycoeus.Tensor([7.0, 8.0, 9.0, 10.0, 11.0, 12.0], [3, 2])
+c = pycoeus.einsum("ij,jk->ik", [a, b])
+assert c.shape == [2, 2], f"einsum matmul shape: {c.shape}"
+# row0: [1*7+2*9+3*11, 1*8+2*10+3*12] = [58, 64]
+assert abs(c.data[0] - 58.0) < 1e-9
+assert abs(c.data[1] - 64.0) < 1e-9
+
+# ── einsum: transpose ij->ji ─────────────────────────────────────────
+tp = pycoeus.einsum("ij->ji", [a])
+assert tp.shape == [3, 2], f"einsum transpose shape: {tp.shape}"
+assert abs(tp.data[0] - 1.0) < 1e-9  # a[0,0]
+assert abs(tp.data[1] - 4.0) < 1e-9  # a[1,0]
+
+# ── einsum: dot product i,i-> ─────────────────────────────────────────
+v1 = pycoeus.Tensor([1.0, 2.0, 3.0], [3])
+v2 = pycoeus.Tensor([4.0, 5.0, 6.0], [3])
+dot = pycoeus.einsum("i,i->", [v1, v2])
+assert abs(dot.data[0] - (1*4 + 2*5 + 3*6)) < 1e-9, f"dot: {dot.data}"
+
+# ── einsum: outer product i,j->ij ─────────────────────────────────────
+u = pycoeus.Tensor([1.0, 2.0], [2])
+w = pycoeus.Tensor([3.0, 4.0, 5.0], [3])
+outer = pycoeus.einsum("i,j->ij", [u, w])
+assert outer.shape == [2, 3]
+assert outer.data == [3.0, 4.0, 5.0, 6.0, 8.0, 10.0], f"outer: {outer.data}"
+
+# ── einsum backward: matmul passes through autograd ─────────────────
+ag = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3], requires_grad=True)
+bg = pycoeus.Tensor([7.0, 8.0, 9.0, 10.0, 11.0, 12.0], [3, 2], requires_grad=True)
+cg = pycoeus.einsum("ij,jk->ik", [ag, bg])
+pycoeus.sum(cg).backward()
+assert ag.grad is not None, "einsum matmul backward: a.grad is None"
+assert bg.grad is not None, "einsum matmul backward: b.grad is None"
+
+# ── index_select: 1-D ────────────────────────────────────────────────
+x = pycoeus.Tensor([10.0, 20.0, 30.0, 40.0, 50.0], [5])
+idx = pycoeus.Tensor([4.0, 0.0, 2.0], [3])
+sel = pycoeus.index_select(x, 0, idx)
+assert sel.shape == [3], f"index_select shape: {sel.shape}"
+assert sel.data == [50.0, 10.0, 30.0], f"index_select data: {sel.data}"
+
+# ── index_select: 2-D row selection ──────────────────────────────────
+m = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0], [4, 3])
+ridx = pycoeus.Tensor([3.0, 1.0], [2])
+rows = pycoeus.index_select(m, 0, ridx)
+assert rows.shape == [2, 3], f"index_select rows shape: {rows.shape}"
+assert rows.data == [10.0, 11.0, 12.0, 4.0, 5.0, 6.0], f"rows: {rows.data}"
+
+# ── index_select backward ─────────────────────────────────────────────
+xg = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0], [5], requires_grad=True)
+idxg = pycoeus.Tensor([1.0, 3.0], [2])
+out = pycoeus.index_select(xg, 0, idxg)
+pycoeus.sum(out).backward()
+# grad[1] = 1, grad[3] = 1, others = 0
+assert xg.grad == [0.0, 1.0, 0.0, 1.0, 0.0], f"index_select bwd: {xg.grad}"
+
+# ── error: index_select with non-1-D index raises ────────────────────
+try:
+    _ = pycoeus.index_select(x, 0, m)  # m is 2-D
+    raise AssertionError("non-1-D index should raise")
 except ValueError:
     pass
 "#,
@@ -933,23 +1042,42 @@ import math
 
 x = pycoeus.Tensor([1.0, -2.0, 3.0, -4.0, 5.0], [5])
 
-# Default ord=2 matches pycoeus.norm (L2).
+# Default ord=2 matches pycoeus.norm (L2). Both now return [1] tensors.
 n2_default = pycoeus.vector_norm(x)
 n_l2 = pycoeus.norm(x)
-assert abs(n2_default - n_l2) < 1e-9, f"vector_norm default ord=2 != norm: {n2_default} vs {n_l2}"
+assert n2_default.shape == [1], f"vector_norm default shape: {n2_default.shape}"
+assert n_l2.shape == [1], f"norm shape: {n_l2.shape}"
+assert abs(n2_default.item() - n_l2.item()) < 1e-9, f"vector_norm default ord=2 != norm: {n2_default.item()} vs {n_l2.item()}"
 
 # ord=1: Manhattan distance = sum(|x_i|) = 1+2+3+4+5 = 15.
 n1 = pycoeus.vector_norm(x, ord=1.0)
-assert abs(n1 - 15.0) < 1e-9, f"vector_norm ord=1 wrong: {n1}"
+assert n1.shape == [1]
+assert abs(n1.item() - 15.0) < 1e-9, f"vector_norm ord=1 wrong: {n1.item()}"
 
 # ord=3: (sum(|x|^3))^(1/3) — closed-form reference.
 abs_vals = [1.0, 2.0, 3.0, 4.0, 5.0]
 sum_cubes = sum(v ** 3 for v in abs_vals)
 n3 = pycoeus.vector_norm(x, ord=3.0)
-assert abs(n3 - sum_cubes ** (1.0 / 3.0)) < 1e-9, f"vector_norm ord=3 wrong: {n3}"
+assert abs(n3.item() - sum_cubes ** (1.0 / 3.0)) < 1e-9, f"vector_norm ord=3 wrong: {n3.item()}"
 
 # ord=4 fractional is fine; p must be finite positive.
 n_half = pycoeus.vector_norm(x, ord=0.5)
+assert isinstance(n_half.item(), float)
+
+# per-axis ord-p norm returns a tensor (axis reduced).
+m = pycoeus.Tensor([1.0, -2.0, 3.0, -4.0, 5.0, -6.0], [2, 3])
+axis1 = pycoeus.vector_norm(m, ord=2.0, axis=1)
+assert axis1.shape == [2], f"vector_norm axis=1 shape: {axis1.shape}"
+want_axis1 = [math.sqrt(14.0), math.sqrt(77.0)]
+assert all(abs(g - w) < 1e-9 for g, w in zip(axis1.data, want_axis1)), f"axis1: {axis1.data}"
+
+axis0_keep = pycoeus.vector_norm(m, ord=1.0, axis=0, keepdim=True)
+assert axis0_keep.shape == [1, 3], f"vector_norm keepdim shape: {axis0_keep.shape}"
+assert axis0_keep.data == [5.0, 7.0, 9.0], f"axis0 keepdim: {axis0_keep.data}"
+
+one_dim_axis = pycoeus.vector_norm(x, ord=2.0, axis=0)
+assert one_dim_axis.shape == [1], f"1D axis shape: {one_dim_axis.shape}"
+assert abs(one_dim_axis.item() - n_l2.item()) < 1e-9, f"1D axis scalar: {one_dim_axis.item()}"
 
 # error: ord<=0 must raise ValueError, not panic.
 for bad in [0.0, -1.0, float('inf'), -float('inf')]:
@@ -963,6 +1091,12 @@ for bad in [0.0, -1.0, float('inf'), -float('inf')]:
 try:
     _ = pycoeus.vector_norm(pycoeus.zeros([0]))
     raise AssertionError("vector_norm on empty tensor should raise")
+except ValueError:
+    pass
+
+try:
+    _ = pycoeus.vector_norm(m, axis=2)
+    raise AssertionError("vector_norm out-of-range axis should raise")
 except ValueError:
     pass
 "#,
