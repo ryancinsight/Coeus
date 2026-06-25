@@ -1,8 +1,10 @@
+pub mod broadcast;
 pub mod cat;
 pub mod contiguous;
 pub mod cumsum;
 pub mod flip;
 pub mod gather;
+pub mod masked_fill;
 pub mod pad;
 pub mod permute;
 pub mod reshape;
@@ -14,11 +16,13 @@ pub mod stack;
 pub mod tril;
 pub mod where_cond;
 
+pub use broadcast::broadcast_to;
 pub use cat::cat;
 pub use contiguous::contiguous;
 pub use cumsum::cumsum;
 pub use flip::flip;
 pub use gather::gather;
+pub use masked_fill::masked_fill;
 pub use pad::pad;
 pub use permute::{permute, transpose};
 pub use reshape::reshape;

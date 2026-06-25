@@ -557,6 +557,38 @@ impl PyTensor {
         })
     }
 
+    /// Element-wise greater-or-equal: returns a float tensor (1.0 = true, 0.0 = false).
+    fn ge(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
+        let inner_t = py.allow_threads(|| {
+            crate::ops::tensor_cmp(&self.inner.tensor, &other.inner.tensor, |a, b| {
+                if a >= b {
+                    1.0
+                } else {
+                    0.0
+                }
+            })
+        })?;
+        Ok(Self {
+            inner: coeus_autograd::Var::new(inner_t, false),
+        })
+    }
+
+    /// Element-wise less-or-equal: returns a float tensor (1.0 = true, 0.0 = false).
+    fn le(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
+        let inner_t = py.allow_threads(|| {
+            crate::ops::tensor_cmp(&self.inner.tensor, &other.inner.tensor, |a, b| {
+                if a <= b {
+                    1.0
+                } else {
+                    0.0
+                }
+            })
+        })?;
+        Ok(Self {
+            inner: coeus_autograd::Var::new(inner_t, false),
+        })
+    }
+
     /// Return data as a Python list (alias for `data` matching `torch.Tensor.tolist()`).
     fn tolist(&self) -> Vec<f64> {
         self.data()

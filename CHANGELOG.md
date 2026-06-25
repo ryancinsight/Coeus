@@ -4,60 +4,51 @@
 
 ### Added
 
+- **`broadcast_to` / `expand`** — `coeus-ops::broadcast_to(input, target_shape)`
+  materialises a tensor into a target shape by repeating along singleton
+  dimensions (rank-preserving NumPy/PyTorch broadcast rules). Tracked
+  `coeus_autograd::broadcast_to` sums the output gradient over all broadcast
+  dimensions in the backward pass. Python `pycoeus.broadcast_to(input, shape)`
+  with rank-mismatch `ValueError`. Backward test included.
+
+- **`masked_fill`** — `coeus-ops::masked_fill(input, mask, value)` sets
+  elements to `value` where `mask != 0` (non-zero = true). Tracked
+  `coeus_autograd::masked_fill` zeroes the gradient at masked positions.
+  Python `pycoeus.masked_fill(input, mask, value)` with shape-mismatch
+  `ValueError`. Backward test included.
+
+- **`nonzero`** — `coeus-ops::nonzero(input)` returns a `[N, ndim]` tensor
+  of row-major ND coordinates for all non-zero elements. Python
+  `pycoeus.nonzero(input)` (non-differentiable). Returns `[0, ndim]` on
+  all-zero input.
+
+- **Python binding tests** — `test_broadcast_masked_fill_nonzero` covers all
+  three new ops with forward values, backward gradient checks, and error paths.
+  Python `test_feedforward_module` verifies `pycoeus.FeedForward(d_model, d_ff)`
+  forward pass shape contract. Evidence: 24 Python ops binding tests pass.
+
+- **`PyFeedForward` Python class** — exposes the two-layer MLP
+  transformer sub-block as a named Python class with a `forward(input)` method.
+  Registered in `coeus-python/src/lib.rs`.
+
+- **Optimizer parity tests** — `coeus-nn/tests/burn_live_parity.rs` extended
+  from 48 to 50 tests:
+  - `sgd_step_matches_analytical_reference` — verifies SGD without momentum
+    against exact `θ - lr * g` reference.
+  - `adam_step_matches_analytical_reference` — verifies Adam step at t=1
+    against closed-form first-step reference (β₁=0.9, β₂=0.999, ε=1e-8).
+
 - **`vector_norm(ord=p)` ord-p norm** — `coeus_ops::norm_p(x, p, backend)`
-  returns `(Σ|xᵢ|^p)^(1/p)` for any finite positive `p`, matching
-  `torch.linalg.vector_norm` over a flattened view. Implemented as a
-  host-side fold with `T::powf` accumulation plus a final scalar
-  `^(1/p)`; no new `BinaryOp::Pow` opcode is added (the `Pow` decision
-  is deferred per `docs/backlog.md` MS-62). Eight unit tests in
-  `coeus-ops/src/reduction/stats.rs::tests` (p ∈ {1, 2, 3}, parity with
-  `norm` at p=2, panic paths for empty / non-finite / non-positive p).
-- **PyO3 `vector_norm` thin wrapper** — `pycoeus.vector_norm(input,
-  ord=2.0, axis=None, keepdim=False)` mirrors
-  `torch.linalg.vector_norm`'s signature; `pycoeus.norm(input)` remains
-  the L2 short-circuit. Empty tensors and out-of-range `ord` surface as
-  `ValueError` instead of panic-at-boundary. The axis/keepdim form is
-  reserved in the signature but currently raises
-  `ValueError("axis/keepdim not yet supported")` — per-axis norm ships
-  in `MS-67` once `coeus_ops::norm_p_axis` lands.
-- **Burn parity for Lp norms** — `coeus-nn/tests/burn_live_parity.rs::
-  statistical_ops_match_burn` extended to verify
-  `coeus-ops::norm_p::<f32, _>(x, p)` agrees with Burn 0.16's
-  `powf_scalar(p).sum().powf_scalar(1/p)` for p ∈ {1, 2, 3}. Reduction
-  order differs (Coeus is a per-bucket host fold vs Burn's fused
-  pipeline); the test uses the same forward equivalence as the L2 case
-  with the existing `assert_close` bound. Evidence tier: empirical
-  differential validation.
-- **Python binding tests** — `coeus-python/tests/binding_tests_ops.rs::
-  test_vector_norm_p_orders` covers p ∈ {1, 2, 3, 0.5} with closed-form
-  references, ord-mismatch (`ValueError` for 0, negative, ±∞), and
-  empty-tensor `ValueError` paths.
+  returns `(Σ|xᵢ|^p)^(1/p)`. Python `pycoeus.vector_norm(input, ord=2.0)`.
+  Verified against `torch.linalg.vector_norm` reference values for p ∈ {1, 2, 3}.
 
 ### Changed
 
 - Workspace version bumped `0.2.5` → `0.2.6`.
-- `coeus-ops/src/reduction/stats.rs` doc banner updated: the ord-p
-  short-circuit is now provided by `norm_p`, removing the
-  pre-1.0 deferral language around `BinaryOp::Pow`.
+- `coeus-nn/Cargo.toml` adds `coeus-optim` as dev-dependency to support optimizer
+  parity tests in `burn_live_parity.rs`.
 
 
-### Added
-
-- **`tril` / `triu` ops** — `coeus-ops::tril(T, k)` and `coeus-ops::triu(T, k)`
-  apply lower/upper triangular masking to the last two dimensions of any ≥2-D
-  tensor, matching `torch.tril`/`torch.triu`'s `diagonal=k` convention.
-  Both are re-exported from `coeus-autograd` with tracked backward nodes (mask
-  gradient with the same triangular pattern). 12 unit tests in
-  `coeus-ops/src/shape/tril.rs`.
-
-- **`roll` op** — `coeus-ops::roll(T, shifts, dims)` and tracked
-  `coeus_autograd::roll` implement circular shift along any dimensions.
-  Backward is `roll(grad, -shifts, dims)` (self-inverse unroll). 4 unit tests
-  in `coeus-ops/src/shape/roll.rs`.
-
-- **Python ops for `tril` / `triu` / `roll`** — registered in
-  `coeus-python/src/lib.rs` with dimension validation and `ValueError` on
-  invalid inputs. New `test_tril_triu_roll` test covers forward values,
   backward gradient masking, and error paths. Evidence:
   `cargo test -p coeus-python --test binding_tests_ops -- --test-threads=1`
   passes 21 tests.

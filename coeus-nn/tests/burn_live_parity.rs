@@ -1700,3 +1700,99 @@ fn global_max_pool2d_backward_passes_grad_to_max_position() {
     );
     assert!((gv[2] - 1.0).abs() < 1e-6, "max position grad: {}", gv[2]);
 }
+
+// ── SGD step (manual reference, no Burn dep) ──────────────────────────────────
+//
+// SGD without momentum: θ_new = θ - lr * g
+// This test uses an exact closed-form reference rather than live Burn,
+// because Burn's SGD API requires a TrainingConfig setup that differs.
+
+#[test]
+fn sgd_step_matches_analytical_reference() {
+    use coeus_optim::traits::Optimizer;
+    use coeus_optim::SGD;
+    let lr = 0.1f64;
+    let momentum = 0.0f64;
+    let params_data = vec![3.0f64, -2.0, 1.5, 0.5];
+    let grads_data = vec![1.0f64, 2.0, -0.5, 4.0];
+
+    // Set up param as Var with requires_grad = true.
+    let p = Var::new(
+        CoeusTensor::<f64, SequentialBackend>::from_slice(vec![4], &params_data),
+        true,
+    );
+    // Manually inject gradient.
+    if let Some(ref g) = p.grad {
+        *g.write() = CoeusTensor::from_slice(vec![4], &grads_data);
+    }
+
+    let mut opt = SGD::new(vec![p.clone()], lr, momentum);
+    opt.step();
+    opt.zero_grad();
+
+    // Expected: θ_new[i] = θ[i] - lr * g[i]
+    let expected: Vec<f64> = params_data
+        .iter()
+        .zip(grads_data.iter())
+        .map(|(&theta, &g)| theta - lr * g)
+        .collect();
+    let actual = opt.params[0].tensor.as_slice().to_vec();
+    assert_close_rel(
+        "sgd_step",
+        &actual.iter().map(|&x| x as f32).collect::<Vec<_>>(),
+        &expected.iter().map(|&x| x as f32).collect::<Vec<_>>(),
+        1e-6,
+    );
+}
+
+// ── Adam step (manual reference) ─────────────────────────────────────────────
+//
+// Adam update rule (no weight decay, β1=0.9, β2=0.999, ε=1e-8):
+//   m_t = β1 * m_{t-1} + (1 - β1) * g_t
+//   v_t = β2 * v_{t-1} + (1 - β2) * g_t²
+//   m̂_t = m_t / (1 - β1^t)
+//   v̂_t = v_t / (1 - β2^t)
+//   θ_t = θ_{t-1} - lr * m̂_t / (√v̂_t + ε)
+
+#[test]
+fn adam_step_matches_analytical_reference() {
+    use coeus_optim::traits::Optimizer;
+    use coeus_optim::Adam;
+    let lr = 0.001f64;
+    let beta1 = 0.9f64;
+    let beta2 = 0.999f64;
+    let eps = 1e-8f64;
+    let params_data = vec![1.0f64, -0.5, 2.0, 0.3];
+    let grads_data = vec![0.5f64, 1.0, -0.2, 0.8];
+
+    let p = Var::new(
+        CoeusTensor::<f64, SequentialBackend>::from_slice(vec![4], &params_data),
+        true,
+    );
+    if let Some(ref g) = p.grad {
+        *g.write() = CoeusTensor::from_slice(vec![4], &grads_data);
+    }
+
+    let mut opt = Adam::new(vec![p.clone()], lr, beta1, beta2, eps);
+    opt.step(); // step t=1
+
+    // Closed-form expected for t=1:
+    let expected: Vec<f64> = params_data
+        .iter()
+        .zip(grads_data.iter())
+        .map(|(&theta, &g)| {
+            let m1 = (1.0 - beta1) * g;
+            let v1 = (1.0 - beta2) * g * g;
+            let m_hat = m1 / (1.0 - beta1);
+            let v_hat = v1 / (1.0 - beta2);
+            theta - lr * m_hat / (v_hat.sqrt() + eps)
+        })
+        .collect();
+    let actual = opt.params[0].tensor.as_slice().to_vec();
+    assert_close_rel(
+        "adam_step",
+        &actual.iter().map(|&x| x as f32).collect::<Vec<_>>(),
+        &expected.iter().map(|&x| x as f32).collect::<Vec<_>>(),
+        1e-5,
+    );
+}

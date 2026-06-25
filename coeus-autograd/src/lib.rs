@@ -36,6 +36,8 @@ pub use ops::{
     batchnorm2d,
     batchnorm3d,
     binary_cross_entropy,
+    // Shape ops
+    broadcast_to,
     cat,
     clamp,
     contiguous,
@@ -52,7 +54,6 @@ pub use ops::{
     elu,
     embedding,
     exp,
-    // Shape ops
     flip,
     // Index ops
     gather,
@@ -64,6 +65,7 @@ pub use ops::{
     log,
     log_softmax,
     log_sum_exp,
+    masked_fill,
     matmul,
     // New axis reductions
     max_axis,

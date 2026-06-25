@@ -63,6 +63,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyInstanceNorm2d>()?;
     m.add_class::<nn::PyMultiHeadAttention>()?;
     m.add_class::<nn::PyRotaryEmbedding>()?;
+    m.add_class::<nn::PyFeedForward>()?;
     m.add_class::<PyLocalCommunicator>()?;
     m.add_class::<PyTcpMesh>()?;
     m.add_class::<PyTcpCommunicator>()?;
@@ -141,6 +142,9 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::eq, m)?)?;
     m.add_function(wrap_pyfunction!(ops::lt, m)?)?;
     m.add_function(wrap_pyfunction!(ops::gt, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::ge, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::le, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::ne, m)?)?;
     m.add_function(wrap_pyfunction!(ops::where_fn, m)?)?;
     // Indexing ops
     m.add_function(wrap_pyfunction!(ops::gather, m)?)?;
@@ -155,6 +159,10 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Selection
     m.add_function(wrap_pyfunction!(ops::argmax, m)?)?;
     m.add_function(wrap_pyfunction!(ops::argmin, m)?)?;
+    // broadcast / masked_fill / nonzero
+    m.add_function(wrap_pyfunction!(ops::broadcast_to, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::masked_fill, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::nonzero, m)?)?;
     // Triangular masking / roll
     m.add_function(wrap_pyfunction!(ops::tril, m)?)?;
     m.add_function(wrap_pyfunction!(ops::triu, m)?)?;

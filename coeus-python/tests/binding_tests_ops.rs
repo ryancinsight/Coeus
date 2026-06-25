@@ -309,12 +309,30 @@ assert lt.data == [1.0, 0.0, 0.0, 1.0], f"lt failed: {lt.data}"
 gt = pycoeus.gt(a, b)
 assert gt.data == [0.0, 0.0, 1.0, 0.0], f"gt failed: {gt.data}"
 
+ge = pycoeus.ge(a, b)
+assert ge.data == [0.0, 1.0, 1.0, 0.0], f"ge failed: {ge.data}"
+
+le = pycoeus.le(a, b)
+assert le.data == [1.0, 1.0, 0.0, 1.0], f"le failed: {le.data}"
+
+ne = pycoeus.ne(a, b)
+assert ne.data == [1.0, 0.0, 1.0, 1.0], f"ne failed: {ne.data}"
+
 # Tensor method forms
 eq2 = a.eq(b)
 assert eq2.data == [0.0, 1.0, 0.0, 0.0]
 
 lt2 = a.lt(b)
 assert lt2.data == [1.0, 0.0, 0.0, 1.0]
+
+ge2 = a.ge(b)
+assert ge2.data == [0.0, 1.0, 1.0, 0.0]
+
+le2 = a.le(b)
+assert le2.data == [1.0, 1.0, 0.0, 1.0]
+
+ne2 = a.ne(b)
+assert ne2.data == [1.0, 0.0, 1.0, 1.0]
 
 # where_fn
 cond  = pycoeus.Tensor([1.0, 0.0, 1.0, 0.0], [4])
@@ -744,6 +762,106 @@ try:
     raise AssertionError("std of empty tensor should raise")
 except ValueError:
     pass
+"#,
+    );
+}
+
+#[test]
+fn test_broadcast_masked_fill_nonzero() {
+    run_script(
+        r#"
+import pycoeus
+
+# ── broadcast_to ─────────────────────────────────────────────────────
+x1 = pycoeus.Tensor([3.5], [1])
+b1 = pycoeus.broadcast_to(x1, [4])
+assert b1.shape == [4], f"broadcast_to 1D shape: {b1.shape}"
+assert b1.data == [3.5, 3.5, 3.5, 3.5], f"broadcast_to 1D data: {b1.data}"
+
+# 2-D: [1,3] → [2,3]
+x2 = pycoeus.Tensor([1.0, 2.0, 3.0], [1, 3])
+b2 = pycoeus.broadcast_to(x2, [2, 3])
+assert b2.shape == [2, 3]
+assert b2.data == [1.0, 2.0, 3.0, 1.0, 2.0, 3.0], f"broadcast_to 2D: {b2.data}"
+
+# identity (same shape)
+x3 = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [2, 2])
+b3 = pycoeus.broadcast_to(x3, [2, 2])
+assert b3.data == [1.0, 2.0, 3.0, 4.0]
+
+# broadcast backward: gradient sums over broadcast dims
+xg = pycoeus.Tensor([1.0, 2.0, 3.0], [1, 3], requires_grad=True)
+bg = pycoeus.broadcast_to(xg, [4, 3])
+loss = pycoeus.sum(bg)
+loss.backward()
+# each of 3 values broadcast to 4 rows → grad = 4 for each element
+assert xg.grad == [4.0, 4.0, 4.0], f"broadcast backward: {xg.grad}"
+
+# rank mismatch error
+try:
+    _ = pycoeus.broadcast_to(x1, [2, 2])  # rank 1 → target rank 2
+    raise AssertionError("rank mismatch should raise")
+except ValueError:
+    pass
+
+# ── masked_fill ───────────────────────────────────────────────────────
+inp = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [4])
+mask = pycoeus.Tensor([0.0, 1.0, 0.0, -2.0], [4])
+out = pycoeus.masked_fill(inp, mask, 9.0)
+assert out.data == [1.0, 9.0, 3.0, 9.0], f"masked_fill: {out.data}"
+
+# all-zero mask is identity
+z_mask = pycoeus.zeros([4])
+ident = pycoeus.masked_fill(inp, z_mask, 99.0)
+assert ident.data == [1.0, 2.0, 3.0, 4.0]
+
+# backward: gradient zeroed at masked positions
+inpg = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [4], requires_grad=True)
+mf = pycoeus.masked_fill(inpg, mask, 9.0)
+pycoeus.sum(mf).backward()
+assert inpg.grad == [1.0, 0.0, 1.0, 0.0], f"masked_fill bwd: {inpg.grad}"
+
+# shape mismatch error
+try:
+    _ = pycoeus.masked_fill(inp, pycoeus.Tensor([1.0, 0.0], [2]), 0.0)
+    raise AssertionError("shape mismatch should raise")
+except ValueError:
+    pass
+
+# ── nonzero ────────────────────────────────────────────────────────────
+v = pycoeus.Tensor([0.0, 2.0, 0.0, 3.0], [4])
+nz = pycoeus.nonzero(v)
+assert nz.shape == [2, 1], f"nonzero 1D shape: {nz.shape}"
+assert nz.data == [1.0, 3.0], f"nonzero 1D data: {nz.data}"
+
+# 2-D input
+m2 = pycoeus.Tensor([0.0, 5.0, 0.0, 6.0, 7.0, 0.0], [2, 3])
+nz2 = pycoeus.nonzero(m2)
+assert nz2.shape == [3, 2], f"nonzero 2D shape: {nz2.shape}"
+assert nz2.data == [0.0, 1.0, 1.0, 0.0, 1.0, 1.0], f"nonzero 2D data: {nz2.data}"
+
+# all-zero input → empty [0, ndim]
+nz_empty = pycoeus.nonzero(pycoeus.zeros([3, 3]))
+assert nz_empty.shape == [0, 2], f"nonzero empty: {nz_empty.shape}"
+"#,
+    );
+}
+
+#[test]
+fn test_feedforward_module() {
+    run_script(
+        r#"
+import pycoeus
+
+# FeedForward d_model=4, d_ff=8
+ffn = pycoeus.FeedForward(4, 8)
+
+x = pycoeus.Tensor([0.1, -0.2, 0.3, -0.4, 0.5, -0.6, 0.7, -0.8], [2, 4])
+out = ffn.forward(x)
+assert out.shape == [2, 4], f"FeedForward output shape: {out.shape}"
+# Output should be finite and not all the same value
+vals = out.data
+assert any(abs(v) > 0 for v in vals), "FeedForward output all zero"
 "#,
     );
 }

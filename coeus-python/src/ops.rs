@@ -696,6 +696,57 @@ pub fn gt(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     })
 }
 
+/// Element-wise greater-or-equal: returns float mask tensor.
+#[pyfunction]
+pub fn ge(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+    let t = py.allow_threads(|| {
+        tensor_cmp(&a.inner.tensor, &b.inner.tensor, |x, y| {
+            if x >= y {
+                1.0
+            } else {
+                0.0
+            }
+        })
+    })?;
+    Ok(PyTensor {
+        inner: Var::new(t, false),
+    })
+}
+
+/// Element-wise less-or-equal: returns float mask tensor.
+#[pyfunction]
+pub fn le(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+    let t = py.allow_threads(|| {
+        tensor_cmp(&a.inner.tensor, &b.inner.tensor, |x, y| {
+            if x <= y {
+                1.0
+            } else {
+                0.0
+            }
+        })
+    })?;
+    Ok(PyTensor {
+        inner: Var::new(t, false),
+    })
+}
+
+/// Element-wise not-equal: returns float mask tensor.
+#[pyfunction]
+pub fn ne(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+    let t = py.allow_threads(|| {
+        tensor_cmp(&a.inner.tensor, &b.inner.tensor, |x, y| {
+            if (x - y).abs() < f64::EPSILON * 8.0 {
+                0.0
+            } else {
+                1.0
+            }
+        })
+    })?;
+    Ok(PyTensor {
+        inner: Var::new(t, false),
+    })
+}
+
 /// Conditional selection (free-function form matching `torch.where`).
 ///
 /// `where(cond, on_true, on_false)` — all tensors must have the same shape.
@@ -906,6 +957,73 @@ pub fn argmin(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTensor
     Ok(PyTensor {
         inner: Var::new(t, false),
     })
+}
+
+// ── broadcast_to / masked_fill / nonzero ─────────────────────────────────────
+
+/// Materialize `input` into `target_shape` by repeating along singleton dims.
+///
+/// `target_shape` must have the same rank as `input`; each dimension must
+/// either match or the input dimension must be 1 (broadcast from size 1).
+/// Backward: sum the output gradient over all broadcast dimensions.
+///
+/// Matches `torch.broadcast_to(input, shape)` / `jnp.broadcast_to(input, shape)`.
+#[pyfunction]
+pub fn broadcast_to(
+    input: &PyTensor,
+    target_shape: Vec<usize>,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
+    if target_shape.len() != input.inner.tensor.ndim() {
+        return Err(PyValueError::new_err(format!(
+            "broadcast_to: target rank {} must match input rank {}",
+            target_shape.len(),
+            input.inner.tensor.ndim()
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_autograd::broadcast_to(&input.inner, target_shape));
+    Ok(PyTensor { inner })
+}
+
+/// Replace elements of `input` with `value` wherever `mask` is non-zero (tracked).
+///
+/// `mask` must have the same shape as `input`.
+/// Backward: gradient is zero at masked positions (mask zeroed by same pattern).
+///
+/// Matches `torch.masked_fill(input, mask.bool(), value)`.
+#[pyfunction]
+pub fn masked_fill(
+    input: &PyTensor,
+    mask: &PyTensor,
+    value: f64,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
+    if input.inner.tensor.shape() != mask.inner.tensor.shape() {
+        return Err(PyValueError::new_err(format!(
+            "masked_fill: input shape {:?} must match mask shape {:?}",
+            input.inner.tensor.shape(),
+            mask.inner.tensor.shape()
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_autograd::masked_fill(&input.inner, &mask.inner, value));
+    Ok(PyTensor { inner })
+}
+
+/// Return the ND coordinates of all non-zero elements as a `[N, ndim]` tensor.
+///
+/// Each row is the coordinate of one non-zero element in row-major order.
+/// Returns an empty `[0, ndim]` tensor when all elements are zero.
+/// Non-differentiable (indices are not differentiable).
+///
+/// Matches `torch.nonzero(input, as_tuple=False)`.
+#[pyfunction]
+pub fn nonzero(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let backend = MoiraiBackend::new();
+    let t = py
+        .allow_threads(|| coeus_ops::nonzero::<f64, MoiraiBackend>(&input.inner.tensor, &backend));
+    PyTensor {
+        inner: Var::new(t, false),
+    }
 }
 
 // ── Triangular masking / roll ────────────────────────────────────────────────
