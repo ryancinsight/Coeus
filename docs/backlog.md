@@ -12,11 +12,15 @@
   architecture, Atlas provider ownership, dispatch flow, and explicit
   CPU-reference capability boundaries without claiming unmeasured performance
   wins. Evidence tier: rustdoc validation.
+- [x] [minor] Replaced the host-side `BackendOps` transposed-convolution
+  forward path for WGPU and CUDA f32 with native on-device gather kernels while
+  preserving the CPU scatter reference and fallback boundary. Evidence tier:
+  empirical differential validation recorded in `docs/checklist.md`.
 
 ### Residual risk / next
-- [ ] [minor] Replace host-side `BackendOps` default transposed-convolution
-  implementations with native WGPU/CUDA kernels once benchmarks identify the
-  dominant input shapes and memory-transfer cost.
+- [ ] [minor] Extend native WGPU/CUDA transposed-convolution coverage to
+  backward kernels once forward benchmark baselines identify the dominant input
+  shapes and memory-transfer cost.
 - [ ] [minor] Move no-grad mode into `coeus-autograd` if a future core API
   needs graph-construction elision, not only PyO3-boundary output detachment.
 

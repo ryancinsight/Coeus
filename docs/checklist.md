@@ -206,6 +206,22 @@ and verify crate docs without claiming unmeasured performance wins.
   Evidence tier: empirical value-semantic binding validation. Evidence:
   `cargo nextest run -p coeus-python --test binding_tests_ops
   test_no_grad_detaches_operation_outputs` passes.
+- [x] [minor] Added native WGPU and CUDA f32 forward kernels for
+  `conv_transpose1d` / `conv_transpose2d` using the gather inverse of the CPU
+  scatter reference. Added WGPU and CUDA differential tests against
+  `SequentialBackend`, and registered the WGPU `ops_bench` Criterion harness as
+  a benchmark instrument without claiming a measured speedup. Evidence tier:
+  empirical differential validation plus benchmark build. Evidence:
+  `cargo nextest run -p coeus-wgpu --test wgpu_tests conv_transpose`,
+  `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests
+  conv_transpose`, and `cargo check -p coeus-wgpu --benches` pass.
+- [x] [patch] Removed the now-unreachable CUDA transposed-convolution fallback
+  helper methods and kept the CPU-reference fallback inline at the CUDA dispatch
+  boundary, eliminating dead code without weakening the fallback contract.
+  Evidence tier: compile-time lint validation. Evidence:
+  `cargo clippy -p coeus-cuda -p coeus-wgpu --all-targets -- -D warnings` and
+  `cargo clippy -p coeus-cuda --features cuda --all-targets -- -D warnings`
+  pass.
 - [x] [minor] Completed per-axis `vector_norm(ord=p)` Rust-core and PyO3
   parity: `coeus_ops::norm_p_axis` reduces the requested axis to size 1, and
   `pycoeus.vector_norm(input, ord=p, axis=..., keepdim=...)` now returns the

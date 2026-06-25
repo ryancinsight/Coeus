@@ -3,7 +3,7 @@ use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::get_cuda_context;
 use crate::kernels;
 use crate::storage::CudaStorage;
-use coeus_core::Layout;
+use coeus_core::{ComputeBackend, Layout, Storage};
 
 impl CudaBackend {
     #[allow(clippy::too_many_arguments)]
@@ -437,19 +437,39 @@ impl CudaBackend {
                 return;
             }
         }
-        self.fallback_conv_transpose1d(
-            input,
+        let mut host_input = vec![T::zero(); input.len()];
+        self.copy_to_host(input, &mut host_input);
+        let mut host_weight = vec![T::zero(); weight.len()];
+        self.copy_to_host(weight, &mut host_weight);
+        let host_bias = bias.map(|b| {
+            let mut hb = vec![T::zero(); b.len()];
+            self.copy_to_host(b, &mut hb);
+            hb
+        });
+
+        let seq = coeus_core::SequentialBackend::new();
+        let seq_in = coeus_core::CpuStorage::from_slice(&host_input);
+        let seq_w = coeus_core::CpuStorage::from_slice(&host_weight);
+        let seq_bias = host_bias.map(|hb| coeus_core::CpuStorage::from_slice(&hb));
+        let mut seq_out = coeus_core::CpuStorage::from_slice(&vec![T::zero(); output.len()]);
+
+        coeus_ops::BackendOps::conv_transpose1d(
+            &seq,
+            &seq_in,
             input_layout,
-            weight,
+            &seq_w,
             weight_layout,
-            bias,
+            seq_bias.as_ref(),
             stride,
             padding,
             output_padding,
             dilation,
-            output,
+            &mut seq_out,
             output_layout,
         );
+
+        use coeus_core::CpuAddressableStorage;
+        self.copy_to_device(seq_out.as_slice(), output);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -505,18 +525,38 @@ impl CudaBackend {
                 return;
             }
         }
-        self.fallback_conv_transpose2d(
-            input,
+        let mut host_input = vec![T::zero(); input.len()];
+        self.copy_to_host(input, &mut host_input);
+        let mut host_weight = vec![T::zero(); weight.len()];
+        self.copy_to_host(weight, &mut host_weight);
+        let host_bias = bias.map(|b| {
+            let mut hb = vec![T::zero(); b.len()];
+            self.copy_to_host(b, &mut hb);
+            hb
+        });
+
+        let seq = coeus_core::SequentialBackend::new();
+        let seq_in = coeus_core::CpuStorage::from_slice(&host_input);
+        let seq_w = coeus_core::CpuStorage::from_slice(&host_weight);
+        let seq_bias = host_bias.map(|hb| coeus_core::CpuStorage::from_slice(&hb));
+        let mut seq_out = coeus_core::CpuStorage::from_slice(&vec![T::zero(); output.len()]);
+
+        coeus_ops::BackendOps::conv_transpose2d(
+            &seq,
+            &seq_in,
             input_layout,
-            weight,
+            &seq_w,
             weight_layout,
-            bias,
+            seq_bias.as_ref(),
             stride,
             padding,
             output_padding,
             dilation,
-            output,
+            &mut seq_out,
             output_layout,
         );
+
+        use coeus_core::CpuAddressableStorage;
+        self.copy_to_device(seq_out.as_slice(), output);
     }
 }

@@ -6,12 +6,11 @@
 
 - **`ConvTranspose1d` / `ConvTranspose2d`** — Transposed convolution (deconvolution)
   implemented as default methods on `BackendOps<T>` via a host-side
-  dilated-input algorithm: `conv_transpose1d` / `conv_transpose2d` are
-  `BackendOps` default methods that transfer input/weight to host, run an
-  explicit scatter loop, and copy output back; backends can override for
-  native performance. Public API: `coeus_ops::conv_transpose1d/2d` entry
-  points, `coeus_nn::ConvTranspose1d/2d` zero-parameter modules, and
-  `pycoeus.ConvTranspose1d/2d` Python classes. 3 unit tests.
+  dilated-input scatter reference, with native WGPU and CUDA f32 forward
+  kernels using an equivalent conflict-free gather formulation. Public API:
+  `coeus_ops::conv_transpose1d/2d` entry points,
+  `coeus_nn::ConvTranspose1d/2d` zero-parameter modules, and
+  `pycoeus.ConvTranspose1d/2d` Python classes.
 
 - **`amax` / `amin` / `prod` ops** — global reduce functions in `coeus-ops`
   (no keepdim scalar return). Python `pycoeus.amax(input)`,
@@ -38,6 +37,11 @@
   crate-level architecture docs describing their backend-only responsibility,
   Atlas provider ownership, device dispatch flow, and explicit CPU-reference
   capability boundaries. Evidence tier: rustdoc validation.
+
+- **WGPU device benchmark harness** — `coeus-wgpu` now registers
+  `ops_bench`, an on-demand Criterion harness comparing CPU and WGPU matmul
+  and transposed-convolution forward paths. This is a benchmark instrument, not
+  a recorded speedup claim.
 
 ### Changed
 
