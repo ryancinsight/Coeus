@@ -49,7 +49,11 @@ pub use ops::{
     cos,
     cosine_embedding_loss,
     cross_entropy_loss,
+    cumprod,
     cumsum,
+    // Diagonal ops
+    diag,
+    diagonal,
     div,
     dropout,
     // Index ops

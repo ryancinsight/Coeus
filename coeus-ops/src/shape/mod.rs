@@ -3,6 +3,7 @@
 
 mod broadcast;
 mod concat;
+mod diag;
 mod einsum;
 mod flip;
 mod gather;
@@ -22,6 +23,7 @@ mod where_cond;
 
 pub use broadcast::broadcast_to;
 pub use concat::cat;
+pub use diag::{diag, diagonal};
 pub use einsum::einsum;
 pub use flip::flip;
 pub use gather::gather;

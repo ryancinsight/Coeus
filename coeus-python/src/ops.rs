@@ -1328,3 +1328,156 @@ pub fn dropout(input: &PyTensor, p: f64, training: bool, py: Python<'_>) -> PyTe
     });
     PyTensor { inner }
 }
+
+// ── diag / diagonal / cumprod ─────────────────────────────────────────────────
+
+/// Create a 2-D diagonal matrix from 1-D vector `v` placed on diagonal `k`.
+///
+/// - `k = 0` (default) — main diagonal.
+/// - `k > 0` — super-diagonal; `k < 0` — sub-diagonal.
+///
+/// Backward: gradient flows back through `diagonal(grad_out, k)`.
+/// Matches `torch.diag(v, k)`.
+#[pyfunction]
+#[pyo3(signature = (v, k = 0))]
+pub fn diag(v: &PyTensor, k: i64, py: Python<'_>) -> PyResult<PyTensor> {
+    if v.inner.tensor.ndim() != 1 {
+        return Err(PyValueError::new_err(format!(
+            "diag: input must be 1-D, got {}-D",
+            v.inner.tensor.ndim()
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_autograd::diag(&v.inner, k as isize));
+    Ok(PyTensor { inner })
+}
+
+/// Extract the `k`-th diagonal of a 2-D matrix as a 1-D vector (tracked).
+///
+/// Backward: places gradient on diagonal `k` of a zeros matrix.
+/// Matches `torch.diagonal(M, offset=k)`.
+#[pyfunction]
+#[pyo3(signature = (m, k = 0))]
+pub fn diagonal(m: &PyTensor, k: i64, py: Python<'_>) -> PyResult<PyTensor> {
+    if m.inner.tensor.ndim() != 2 {
+        return Err(PyValueError::new_err(format!(
+            "diagonal: input must be 2-D, got {}-D",
+            m.inner.tensor.ndim()
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_autograd::diagonal(&m.inner, k as isize));
+    Ok(PyTensor { inner })
+}
+
+/// Cumulative product along `dim` (tracked).
+///
+/// Backward uses the suffix-sum / division formula.
+/// Matches `torch.cumprod(input, dim)`.
+#[pyfunction]
+pub fn cumprod(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTensor> {
+    if dim >= input.inner.tensor.ndim() {
+        return Err(PyValueError::new_err(format!(
+            "cumprod: dim {dim} out of range for rank {}",
+            input.inner.tensor.ndim()
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_autograd::cumprod(&input.inner, dim));
+    Ok(PyTensor { inner })
+}
+
+// ── nn.functional-style free functions ───────────────────────────────────────
+//
+// These are stateless wrappers that parallel the existing class-based
+// `coeus_nn` layers and match `torch.nn.functional.*`.
+
+/// Softmax along `dim` (numerically stable, tracked).
+/// Same as the existing `softmax` function above — kept as F.softmax alias.
+#[pyfunction]
+pub fn f_softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::softmax(&input.inner, dim as isize));
+    PyTensor { inner }
+}
+
+/// Log-softmax along `dim` (tracked, matches `F.log_softmax`).
+#[pyfunction]
+pub fn f_log_softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::log_softmax(&input.inner, dim));
+    PyTensor { inner }
+}
+
+/// ReLU activation (tracked, matches `F.relu`).
+#[pyfunction]
+pub fn f_relu(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::relu(&input.inner));
+    PyTensor { inner }
+}
+
+/// Sigmoid activation (tracked, matches `F.sigmoid`).
+#[pyfunction]
+pub fn f_sigmoid(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::sigmoid(&input.inner));
+    PyTensor { inner }
+}
+
+/// Tanh activation (tracked, matches `F.tanh`).
+#[pyfunction]
+pub fn f_tanh(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::tanh(&input.inner));
+    PyTensor { inner }
+}
+
+/// GELU activation (exact erf version, tracked, matches `F.gelu`).
+#[pyfunction]
+pub fn f_gelu(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::gelu(&input.inner));
+    PyTensor { inner }
+}
+
+/// SiLU / Swish activation (tracked, matches `F.silu`).
+#[pyfunction]
+pub fn f_silu(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::silu(&input.inner));
+    PyTensor { inner }
+}
+
+/// Mean squared error loss (mean reduction, matches `F.mse_loss(reduction='mean')`).
+#[pyfunction]
+pub fn f_mse_loss(input: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+    if input.inner.tensor.shape() != target.inner.tensor.shape() {
+        return Err(PyValueError::new_err(format!(
+            "f_mse_loss: input shape {:?} must match target shape {:?}",
+            input.inner.tensor.shape(),
+            target.inner.tensor.shape()
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_nn::mse_loss(&input.inner, &target.inner));
+    Ok(PyTensor { inner })
+}
+
+/// Binary cross-entropy loss (mean reduction, matches `F.binary_cross_entropy`).
+#[pyfunction]
+pub fn f_binary_cross_entropy(
+    input: &PyTensor,
+    target: &PyTensor,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
+    if input.inner.tensor.shape() != target.inner.tensor.shape() {
+        return Err(PyValueError::new_err(format!(
+            "f_binary_cross_entropy: input shape {:?} must match target shape {:?}",
+            input.inner.tensor.shape(),
+            target.inner.tensor.shape()
+        )));
+    }
+    let inner = py.allow_threads(|| {
+        coeus_nn::binary_cross_entropy(&input.inner, &target.inner, 1e-7)
+    });
+    Ok(PyTensor { inner })
+}
+
+/// Cross-entropy loss: logits `[N, C]`, integer targets encoded as `f64` in `[N]`.
+///
+/// Matches `F.cross_entropy(logits, targets)`.
+#[pyfunction]
+pub fn f_cross_entropy(input: &PyTensor, targets: Vec<usize>, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_nn::cross_entropy_loss(&input.inner, &targets));
+    PyTensor { inner }
+}

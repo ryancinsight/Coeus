@@ -1,6 +1,47 @@
 # Changelog
 
-## 0.2.7 - 2026-06-25
+## 0.2.8 - 2026-06-25
+
+### Added
+
+- **`diag` / `diagonal` ops** — `coeus-ops::diag(v, k)` creates a diagonal
+  matrix from 1-D vector `v` at offset `k`; `coeus-ops::diagonal(M, k)`
+  extracts the `k`-th diagonal of a 2-D matrix as a 1-D vector. Both are
+  tracked in `coeus-autograd` (backward: `diag → diagonal` and vice-versa).
+  Python `pycoeus.diag(v, k=0)` and `pycoeus.diagonal(m, k=0)` with shape
+  validation. 5 unit tests; 2 Burn parity tests.
+
+- **`cumprod` op** — `coeus-ops::cumprod(input, dim)` inclusive cumulative
+  product. Tracked `coeus_autograd::cumprod` with suffix-sum backward (safe
+  for non-zero inputs; zero inputs receive zero gradient). Python
+  `pycoeus.cumprod(input, dim)`. 4 unit tests; 1 Burn parity test.
+
+- **FMA3 capability probe in Hermes** — `hermes_simd::cpu::has_fma3()` via
+  `OnceLock`-cached CPUID query (`CPUID.01H:ECX[bit 12]`); `FmaSupport` trait
+  implemented for `f32`, `f64`, `bf16`. New `DispatchDecision::Fma` variant
+  in `AdaptiveDispatcher` so FMA3-capable CPUs select the Fma path instead of
+  Scalar, letting the compiler emit `vfmaddXXXps/pd` for ~2× effective GEMM
+  throughput. Existing tile_matmul match arms treat `Fma` as Scalar today
+  (dedicated FMA kernel to land in a future sprint). All 357+ hermes tests pass.
+
+- **`nn.functional`-style Python free functions** — registered under the same
+  `pycoeus.*` namespace to match `torch.nn.functional.*`:
+  - `f_relu`, `f_sigmoid`, `f_tanh`, `f_gelu`, `f_silu` — activation free fns
+  - `f_softmax(input, dim)`, `f_log_softmax(input, dim)`
+  - `f_mse_loss(input, target)`, `f_binary_cross_entropy(input, target)`
+  - `f_cross_entropy(input, targets)` (integer targets as `List[int]`)
+
+- **Burn parity suite 51 → 53 tests** — `cumprod_forward_and_backward` and
+  `diag_diagonal_forward_and_backward` added.
+
+- **Python binding test count 27 → 29** — `test_diag_diagonal_cumprod` and
+  `test_nn_functional_ops`.
+
+### Changed
+
+- Workspace version bumped `0.2.7` → `0.2.8`.
+
+
 
 ### Added
 

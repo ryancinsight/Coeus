@@ -844,6 +844,140 @@ except ValueError:
 }
 
 #[test]
+fn test_diag_diagonal_cumprod() {
+    run_script(
+        r#"
+import pycoeus
+import math
+
+# ── diag: create diagonal matrix from vector ──────────────────────────
+v = pycoeus.Tensor([1.0, 2.0, 3.0], [3])
+m = pycoeus.diag(v)
+assert m.shape == [3, 3], f"diag shape: {m.shape}"
+assert m.data == [1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0], f"diag: {m.data}"
+
+# diag with super-diagonal k=1
+m1 = pycoeus.diag(v, 1)
+assert m1.shape == [4, 4]
+assert abs(m1.data[1] - 1.0) < 1e-9  # (0,1)
+assert abs(m1.data[6] - 2.0) < 1e-9  # (1,2)
+
+# ── diagonal: extract diagonal from matrix ───────────────────────────
+mat = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0], [3, 3])
+d = pycoeus.diagonal(mat)
+assert d.shape == [3], f"diagonal shape: {d.shape}"
+assert d.data == [1.0, 5.0, 9.0], f"diagonal: {d.data}"
+
+d1 = pycoeus.diagonal(mat, 1)
+assert d1.shape == [2]
+assert d1.data == [2.0, 6.0], f"diagonal k=1: {d1.data}"
+
+# ── diag backward: gradient goes via diagonal ─────────────────────────
+vg = pycoeus.Tensor([1.0, 2.0, 3.0], [3], requires_grad=True)
+mg = pycoeus.diag(vg)
+loss = pycoeus.sum(mg)
+loss.backward()
+# Gradient of sum(diag(v)) w.r.t. v is all-ones (only diagonal elements contribute)
+assert vg.grad == [1.0, 1.0, 1.0], f"diag backward: {vg.grad}"
+
+# ── diagonal backward: gradient goes via diag ────────────────────────
+matg = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0], [3, 3], requires_grad=True)
+dg = pycoeus.diagonal(matg)
+loss2 = pycoeus.sum(dg)
+loss2.backward()
+# Only diagonal positions receive gradient
+assert matg.grad[0] == 1.0, f"diagonal bwd [0,0]: {matg.grad[0]}"
+assert matg.grad[4] == 1.0, f"diagonal bwd [1,1]: {matg.grad[4]}"
+assert matg.grad[8] == 1.0, f"diagonal bwd [2,2]: {matg.grad[8]}"
+assert matg.grad[1] == 0.0, f"diagonal bwd [0,1] should be 0: {matg.grad[1]}"
+
+# ── cumprod: cumulative product ────────────────────────────────────────
+x = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [4])
+cp = pycoeus.cumprod(x, 0)
+assert cp.shape == [4]
+assert cp.data == [1.0, 2.0, 6.0, 24.0], f"cumprod: {cp.data}"
+
+# 2-D along dim=1
+y = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3])
+cpy = pycoeus.cumprod(y, 1)
+assert cpy.shape == [2, 3]
+assert cpy.data == [1.0, 2.0, 6.0, 4.0, 20.0, 120.0], f"cumprod 2D: {cpy.data}"
+
+# ── cumprod backward ───────────────────────────────────────────────────
+xg = pycoeus.Tensor([1.0, 2.0, 3.0], [3], requires_grad=True)
+cpg = pycoeus.cumprod(xg, 0)   # [1, 2, 6]
+loss3 = pycoeus.sum(cpg)        # 1+2+6=9
+loss3.backward()
+# grad[0] = 1+2+6=9 (all suffix products * 1), actually d/dx[0]= out[0]+out[1]+out[2] / x[0] = 9/1=9
+# grad[1] = out[1]+out[2] / x[1] = 8/2 = 4
+# grad[2] = out[2] / x[2] = 6/3 = 2
+assert abs(xg.grad[0] - 9.0) < 1e-6, f"cumprod bwd[0]: {xg.grad[0]}"
+assert abs(xg.grad[1] - 4.0) < 1e-6, f"cumprod bwd[1]: {xg.grad[1]}"
+assert abs(xg.grad[2] - 2.0) < 1e-6, f"cumprod bwd[2]: {xg.grad[2]}"
+
+# ── error paths ───────────────────────────────────────────────────────
+try:
+    _ = pycoeus.diag(y)  # 2-D input should fail
+    raise AssertionError("diag 2-D should raise")
+except ValueError:
+    pass
+"#,
+    );
+}
+
+#[test]
+fn test_nn_functional_ops() {
+    run_script(
+        r#"
+import pycoeus
+import math
+
+# ── F.relu ────────────────────────────────────────────────────────────
+x = pycoeus.Tensor([-2.0, -1.0, 0.0, 1.0, 2.0], [5])
+r = pycoeus.f_relu(x)
+assert r.data == [0.0, 0.0, 0.0, 1.0, 2.0], f"f_relu: {r.data}"
+
+# ── F.sigmoid ─────────────────────────────────────────────────────────
+s = pycoeus.f_sigmoid(pycoeus.Tensor([0.0], [1]))
+assert abs(s.data[0] - 0.5) < 1e-6
+
+# ── F.softmax ─────────────────────────────────────────────────────────
+logits = pycoeus.Tensor([1.0, 2.0, 3.0], [3])
+sm = pycoeus.f_softmax(logits, 0)
+assert abs(sum(sm.data) - 1.0) < 1e-6, f"f_softmax sum: {sum(sm.data)}"
+
+# ── F.log_softmax ─────────────────────────────────────────────────────
+lsm = pycoeus.f_log_softmax(logits, 0)
+# log_softmax values should all be <= 0
+assert all(v <= 0.0 for v in lsm.data), f"f_log_softmax: {lsm.data}"
+
+# ── F.gelu ────────────────────────────────────────────────────────────
+gx = pycoeus.f_gelu(pycoeus.Tensor([0.0], [1]))
+assert abs(gx.data[0]) < 1e-6  # gelu(0) = 0
+
+# ── F.silu ────────────────────────────────────────────────────────────
+sx = pycoeus.f_silu(pycoeus.Tensor([0.0], [1]))
+assert abs(sx.data[0]) < 1e-6  # silu(0) = 0
+
+# ── F.mse_loss ────────────────────────────────────────────────────────
+pred = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [4])
+targ = pycoeus.Tensor([1.5, 1.5, 4.0, 0.0], [4])
+mse = pycoeus.f_mse_loss(pred, targ)
+expected_mse = ((1-1.5)**2 + (2-1.5)**2 + (3-4)**2 + (4-0)**2) / 4
+assert abs(mse.data[0] - expected_mse) < 1e-5, f"f_mse_loss: {mse.data[0]}"
+
+# ── F.cross_entropy ───────────────────────────────────────────────────
+ce = pycoeus.f_cross_entropy(
+    pycoeus.Tensor([1.5, 0.5, -0.5, -1.0, 2.0, 0.0], [2, 3]),
+    [0, 1]
+)
+assert ce.shape == [1], f"f_cross_entropy shape: {ce.shape}"
+assert ce.data[0] > 0.0, f"f_cross_entropy value should be positive"
+"#,
+    );
+}
+
+#[test]
 fn test_einsum_index_select() {
     run_script(
         r#"

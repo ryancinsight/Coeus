@@ -1318,7 +1318,70 @@ fn flip_backward_passes_grad() {
     assert_close("flip_bwd", grad.as_slice(), &[1.0; 6]);
 }
 
-// ── tril / triu forward + backward ────────────────────────────────────────────
+
+// ── cumprod forward + backward ───────────────────────────────────────────────
+
+#[test]
+fn cumprod_forward_and_backward() {
+    // Forward: [1,2,3,4] → [1,2,6,24]
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0]),
+        false,
+    );
+    let backend = SequentialBackend::new();
+    let out = coeus_ops::cumprod(&x.tensor, 0, &backend);
+    assert_close("cumprod_fwd", out.as_slice(), &[1.0, 2.0, 6.0, 24.0]);
+
+    // Backward: d(sum(cumprod))/dx using the suffix-sum formula.
+    let xg = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0f32, 2.0, 3.0]),
+        true,
+    );
+    coeus_autograd::sum(&coeus_autograd::cumprod(&xg, 0)).backward();
+    // out=[1,2,6], sum=9
+    // grad[0] = (1+2+6)/1 = 9
+    // grad[1] = (2+6)/2   = 4
+    // grad[2] = 6/3       = 2
+    let grad = xg.grad().unwrap();
+    assert_close_rel("cumprod_bwd", grad.as_slice(), &[9.0, 4.0, 2.0], 1e-5);
+    let _ = backend;
+}
+
+// ── diag / diagonal forward + backward ──────────────────────────────────────
+
+#[test]
+fn diag_diagonal_forward_and_backward() {
+    let data = vec![1.0f32, 2.0, 3.0];
+    let v = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &data),
+        false,
+    );
+    let backend = SequentialBackend::new();
+
+    // diag forward
+    let m = coeus_ops::diag(&v.tensor, 0, &backend);
+    assert_eq!(m.shape(), &[3, 3]);
+    assert_close("diag_fwd", m.as_slice(), &[1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0]);
+
+    // diagonal forward (extract main diagonal of the matrix)
+    let mat = CoeusTensor::<f32, SequentialBackend>::from_slice(
+        vec![3, 3],
+        &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
+    );
+    let d = coeus_ops::diagonal(&mat, 0, &backend);
+    assert_close("diagonal_fwd", d.as_slice(), &[1.0, 5.0, 9.0]);
+
+    // diag backward: grad flows via diagonal
+    let vg = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &data),
+        true,
+    );
+    coeus_autograd::sum(&coeus_autograd::diag(&vg, 0)).backward();
+    assert_close("diag_bwd", vg.grad().unwrap().as_slice(), &[1.0, 1.0, 1.0]);
+
+    let _ = backend;
+}
+
 
 #[test]
 fn tril_triu_forward_and_backward() {

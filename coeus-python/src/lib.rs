@@ -179,6 +179,21 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::linear, m)?)?;
     m.add_function(wrap_pyfunction!(ops::layer_norm, m)?)?;
     m.add_function(wrap_pyfunction!(ops::dropout, m)?)?;
+    // diag / diagonal / cumprod
+    m.add_function(wrap_pyfunction!(ops::diag, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::diagonal, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::cumprod, m)?)?;
+    // nn.functional aliases (F.*)
+    m.add_function(wrap_pyfunction!(ops::f_softmax, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::f_log_softmax, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::f_relu, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::f_sigmoid, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::f_tanh, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::f_gelu, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::f_silu, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::f_mse_loss, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::f_binary_cross_entropy, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::f_cross_entropy, m)?)?;
 
     Ok(())
 }

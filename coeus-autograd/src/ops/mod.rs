@@ -29,7 +29,7 @@ pub use nn::{
 
 pub use embedding::embedding;
 pub use shape::{
-    broadcast_to, cat, contiguous, cumsum, einsum, flip, gather, index_select, masked_fill, pad,
-    permute, reshape, roll, slice, split, squeeze, stack, transpose, tril, triu, unsqueeze,
-    where_cond,
+    broadcast_to, cat, contiguous, cumprod, cumsum, diag, diagonal, einsum, flip, gather,
+    index_select, masked_fill, pad, permute, reshape, roll, slice, split, squeeze, stack,
+    transpose, tril, triu, unsqueeze, where_cond,
 };
