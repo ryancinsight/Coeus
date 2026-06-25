@@ -92,7 +92,7 @@ pub fn log_softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     // softmax probs = exp(log_probs), stored for backward
     let probs = coeus_ops::exp(&log_prob_tensor, &backend);
 
-    let requires_grad = input.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             log_prob_tensor.shape_cloned(),

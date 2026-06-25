@@ -100,7 +100,7 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let mask = mask_cpu.to_backend_on(&cpu_backend, &target_backend);
     let out_tensor = coeus_ops::mul(&input.tensor, &mask, &target_backend);
 
-    let requires_grad = input.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             shape.clone(),

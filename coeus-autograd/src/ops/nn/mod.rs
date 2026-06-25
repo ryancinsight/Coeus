@@ -10,7 +10,7 @@ pub mod pool;
 pub mod softmax;
 
 pub use attention::{sdp_attention, AttentionMask, CausalMask, NullMask};
-pub use conv::{conv1d, conv2d, conv3d};
+pub use conv::{conv1d, conv2d, conv3d, conv_transpose1d};
 pub use dropout::dropout;
 pub use log_softmax::log_softmax;
 pub use loss::{

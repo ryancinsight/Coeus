@@ -23,8 +23,13 @@
 
 - **`pycoeus.no_grad()` context manager** — `with pycoeus.no_grad():` block
   matching the Python-facing `torch.no_grad()` operation contract. Nested
-  scopes detach operation outputs at the PyO3 boundary, while explicit tensor
-  factories still honor `requires_grad`.
+  scopes now forward into `coeus-autograd` core grad-mode state so Rust
+  operations skip creator-node and gradient-buffer allocation inside the scope,
+  while explicit tensor factories still honor `requires_grad`.
+
+- **Tracked `coeus_autograd::conv_transpose1d`** — Autograd wrapper for 1-D
+  transposed convolution with value-semantic backward coverage for input,
+  weight, and bias gradients.
 
 - **`coeus_nn` / `coeus_ops` improvements**:
   - `prod()`, `amax()`, `amin()` exported from `coeus-ops`.
@@ -46,6 +51,10 @@
 ### Changed
 
 - Workspace version bumped `0.2.9` → `0.2.10`.
+
+- Convolution autograd backward wrappers now share one const-generic
+  `ConvNode<T, B, DIM>` implementation for 1-D, 2-D, and 3-D convolution
+  backward dispatch, removing per-dimension node duplication.
 
 
 

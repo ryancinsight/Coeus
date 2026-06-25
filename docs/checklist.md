@@ -206,6 +206,14 @@ and verify crate docs without claiming unmeasured performance wins.
   Evidence tier: empirical value-semantic binding validation. Evidence:
   `cargo nextest run -p coeus-python --test binding_tests_ops
   test_no_grad_detaches_operation_outputs` passes.
+- [x] [minor] Moved no-grad recording state into `coeus-autograd` and changed
+  tracked operations to consult the core grad-mode SSOT before allocating
+  gradient buffers or creator nodes. `coeus-python` now forwards context-manager
+  entry/exit to the Rust core adapter while preserving explicit leaf
+  `requires_grad` factory requests. Evidence tier: empirical value-semantic
+  validation. Evidence: `cargo nextest run -p coeus-autograd` passes with 27
+  tests, including `autograd::grad_mode::*`, and `cargo nextest run -p
+  coeus-python --test binding_tests_ops` passes with 31 tests.
 - [x] [minor] Added native WGPU and CUDA f32 forward kernels for
   `conv_transpose1d` / `conv_transpose2d` using the gather inverse of the CPU
   scatter reference. Added WGPU and CUDA differential tests against
@@ -222,6 +230,14 @@ and verify crate docs without claiming unmeasured performance wins.
   `cargo clippy -p coeus-cuda -p coeus-wgpu --all-targets -- -D warnings` and
   `cargo clippy -p coeus-cuda --features cuda --all-targets -- -D warnings`
   pass.
+- [x] [minor] Added tracked `coeus_autograd::conv_transpose1d` backward and
+  collapsed duplicated `conv1d`/`conv2d`/`conv3d` autograd backward nodes into
+  one const-generic `ConvNode<T, B, DIM>` dispatch path. Evidence tier:
+  empirical value-semantic validation. Evidence: `cargo nextest run -p
+  coeus-autograd` passes with 27 tests, including
+  `autograd::nn_conv::conv_transpose1d_backward_accumulates_exact_gradients`;
+  `cargo clippy -p coeus-autograd -p coeus-python --all-targets -- -D
+  warnings` passes.
 - [x] [minor] Completed per-axis `vector_norm(ord=p)` Rust-core and PyO3
   parity: `coeus_ops::norm_p_axis` reduces the requested axis to size 1, and
   `pycoeus.vector_norm(input, ord=p, axis=..., keepdim=...)` now returns the

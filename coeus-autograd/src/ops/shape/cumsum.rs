@@ -55,7 +55,7 @@ where
     let backend = B::default();
     let out_tensor = coeus_ops::cumsum(&x.tensor, dim);
 
-    let requires_grad = x.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(x);
     if !requires_grad {
         return Var::new(out_tensor, false);
     }

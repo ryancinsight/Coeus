@@ -59,7 +59,7 @@ pub fn slice<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let out_tensor = x.tensor.slice(ranges);
 
-    let requires_grad = x.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(x);
     if !requires_grad {
         return Var::new(out_tensor, false);
     }

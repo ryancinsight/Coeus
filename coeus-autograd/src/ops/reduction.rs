@@ -103,7 +103,7 @@ pub fn max_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let out_tensor = coeus_ops::max_axis(&a.tensor, axis, &backend);
 
-    let requires_grad = a.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = requires_grad.then(|| {
         Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
@@ -191,7 +191,7 @@ pub fn min_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let out_tensor = coeus_ops::min_axis(&a.tensor, axis, &backend);
 
-    let requires_grad = a.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = requires_grad.then(|| {
         Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
@@ -307,7 +307,7 @@ pub fn norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
     let norm_val = coeus_ops::norm(&a.tensor, &backend);
     let out_tensor = Tensor::full_on([1], norm_val, &backend);
 
-    let requires_grad = a.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = requires_grad.then(|| {
         Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
@@ -423,7 +423,7 @@ where
     let norm_val = coeus_ops::norm_p(&a.tensor, p, &backend);
     let out_tensor = Tensor::full_on([1], norm_val, &backend);
 
-    let requires_grad = a.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = requires_grad.then(|| {
         Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
@@ -572,7 +572,7 @@ where
     let backend = B::default();
     let out_tensor = coeus_ops::norm_p_axis(&a.tensor, p, axis, &backend);
 
-    let requires_grad = a.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = requires_grad.then(|| {
         Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),

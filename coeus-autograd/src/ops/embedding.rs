@@ -58,7 +58,7 @@ pub fn embedding<T: Scalar, I: Scalar + 'static, B: coeus_ops::BackendOps<T> + D
 ) -> Var<T, B> {
     let backend = B::default();
     let out_tensor = coeus_ops::embedding(&weight.tensor, indices, &backend);
-    let requires_grad = weight.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(weight);
 
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(

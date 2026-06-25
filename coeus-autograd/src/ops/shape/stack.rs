@@ -83,7 +83,7 @@ where
     let tensors: Vec<&Tensor<T, B>> = inputs.iter().map(|v| &v.tensor).collect();
     let out_tensor = coeus_ops::stack(&tensors, dim);
 
-    let requires_grad = inputs.iter().any(|v| v.grad.is_some());
+    let requires_grad = inputs.iter().any(|v| crate::grad_mode::should_track_var(v));
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),

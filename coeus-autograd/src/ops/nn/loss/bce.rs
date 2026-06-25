@@ -129,7 +129,7 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     loss_val = loss_val / n_t;
 
     let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
-    let requires_grad = pred.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(pred);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
     } else {

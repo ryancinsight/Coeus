@@ -88,7 +88,7 @@ where
     let input_shape = x.tensor.shape_cloned();
 
     let chunks = coeus_ops::split(&x.tensor, chunk_size, dim);
-    let requires_grad = x.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(x);
 
     let mut results = Vec::with_capacity(chunks.len());
     let mut offset = 0usize;

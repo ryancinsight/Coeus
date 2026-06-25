@@ -65,7 +65,7 @@ pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let sum_t = coeus_ops::sum_axis(&exp_x_t, dim_u, &backend);
     let y_t = coeus_ops::div(&exp_x_t, &sum_t, &backend);
 
-    let requires_grad = input.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             y_t.shape_cloned(),

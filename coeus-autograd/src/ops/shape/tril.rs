@@ -68,7 +68,7 @@ where
     let backend = B::default();
     let out_tensor = coeus_ops::tril(&input.tensor, k, &backend);
 
-    let requires_grad = input.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
@@ -147,7 +147,7 @@ where
     let backend = B::default();
     let out_tensor = coeus_ops::triu(&input.tensor, k, &backend);
 
-    let requires_grad = input.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),

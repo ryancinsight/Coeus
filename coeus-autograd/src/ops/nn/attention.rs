@@ -148,10 +148,10 @@ pub fn sdp_attention<T: Float, B: coeus_ops::BackendOps<T> + Default, M: Attenti
         &backend,
     );
 
-    let requires_grad = query.grad.is_some()
-        || key.grad.is_some()
-        || value.grad.is_some()
-        || key_padding_mask.is_some_and(|m| m.grad.is_some());
+    let requires_grad = crate::grad_mode::should_track_var(query)
+        || crate::grad_mode::should_track_var(key)
+        || crate::grad_mode::should_track_var(value)
+        || key_padding_mask.is_some_and(|m| crate::grad_mode::should_track_var(m));
 
     if !requires_grad {
         return (Var::new(out_tensor, false), attn_weights);

@@ -80,7 +80,7 @@ pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     c: usize,
 ) -> Var<T, B> {
     let backend = B::default();
-    let requires_grad = logits.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(logits);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
     } else {

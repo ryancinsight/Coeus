@@ -16,13 +16,19 @@
   forward path for WGPU and CUDA f32 with native on-device gather kernels while
   preserving the CPU scatter reference and fallback boundary. Evidence tier:
   empirical differential validation recorded in `docs/checklist.md`.
+- [x] [minor] Moved no-grad recording state into `coeus-autograd`, keeping
+  `coeus-python` as a PyO3 adapter and suppressing creator-node/gradient-buffer
+  allocation for core operations inside no-grad scopes. Evidence tier:
+  empirical value-semantic validation recorded in `docs/checklist.md`.
+- [x] [minor] Added tracked `coeus_autograd::conv_transpose1d` backward
+  coverage and consolidated 1-D/2-D/3-D convolution backward nodes through one
+  const-generic implementation. Evidence tier: empirical value-semantic
+  validation recorded in `docs/checklist.md`.
 
 ### Residual risk / next
 - [ ] [minor] Extend native WGPU/CUDA transposed-convolution coverage to
   backward kernels once forward benchmark baselines identify the dominant input
   shapes and memory-transfer cost.
-- [ ] [minor] Move no-grad mode into `coeus-autograd` if a future core API
-  needs graph-construction elision, not only PyO3-boundary output detachment.
 
 ---
 

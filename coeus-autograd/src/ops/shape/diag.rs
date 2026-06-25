@@ -58,7 +58,7 @@ where
     let backend = B::default();
     let out_tensor = coeus_ops::diag(&v.tensor, k, &backend);
 
-    let requires_grad = v.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(v);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
@@ -155,7 +155,7 @@ where
     let backend = B::default();
     let out_tensor = coeus_ops::diagonal(&m.tensor, k, &backend);
 
-    let requires_grad = m.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(m);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),

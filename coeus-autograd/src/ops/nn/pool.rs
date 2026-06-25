@@ -65,7 +65,7 @@ pub fn max_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     dilation: usize,
 ) -> Var<T, B> {
     let backend = B::default();
-    let requires_grad = input.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
@@ -159,7 +159,7 @@ pub fn avg_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     dilation: usize,
 ) -> Var<T, B> {
     let backend = B::default();
-    let requires_grad = input.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
@@ -254,7 +254,7 @@ pub fn max_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     dilation: usize,
 ) -> Var<T, B> {
     let backend = B::default();
-    let requires_grad = input.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
@@ -347,7 +347,7 @@ pub fn avg_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     dilation: usize,
 ) -> Var<T, B> {
     let backend = B::default();
-    let requires_grad = input.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),

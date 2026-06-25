@@ -182,7 +182,8 @@ where
     );
     let out_tensor = coeus_ops::spmm(&csr, &b.tensor, &backend);
 
-    let requires_grad = a_values.grad.is_some() || b.grad.is_some();
+    let requires_grad =
+        crate::grad_mode::should_track_var(a_values) || crate::grad_mode::should_track_var(b);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),

@@ -21,11 +21,15 @@
 
 pub mod backward;
 pub(crate) mod grad_buffer;
+pub mod grad_mode;
 pub mod node;
 pub mod ops;
 pub mod var;
 
 pub use grad_buffer::GradBuffer;
+pub use grad_mode::{
+    is_grad_enabled, is_no_grad_enabled, no_grad_guard, pop_no_grad, push_no_grad, NoGradGuard,
+};
 pub use node::BackwardNode;
 pub use ops::{
     abs,
@@ -45,6 +49,7 @@ pub use ops::{
     conv1d,
     conv2d,
     conv3d,
+    conv_transpose1d,
     // Trigonometric
     cos,
     cosine_embedding_loss,

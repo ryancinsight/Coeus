@@ -92,7 +92,9 @@ where
     let false_part = coeus_ops::mul(&on_false.tensor, &inv_mask, &backend);
     let out_tensor = coeus_ops::add(&true_part, &false_part, &backend);
 
-    let requires_grad = cond.grad.is_some() || on_true.grad.is_some() || on_false.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(cond)
+        || crate::grad_mode::should_track_var(on_true)
+        || crate::grad_mode::should_track_var(on_false);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),

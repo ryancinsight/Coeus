@@ -73,7 +73,7 @@ pub fn unary_op<
 ) -> Var<T, B> {
     let backend = B::default();
     let out_tensor = Op::forward(&a.tensor, &backend);
-    let requires_grad = a.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),

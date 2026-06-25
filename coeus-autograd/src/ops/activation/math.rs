@@ -207,7 +207,7 @@ pub fn pow<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>, exp: 
     let scaled = coeus_ops::mul(&n_tensor, &ln_x, &backend);
     let out_tensor = coeus_ops::exp(&scaled, &backend);
 
-    let requires_grad = a.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
@@ -329,7 +329,7 @@ pub fn clamp<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
     let relu_hi = coeus_ops::elementwise_unary(&shifted_hi, &backend, coeus_ops::UnaryOp::Relu);
     let out_tensor = coeus_ops::sub(&hi_t, &relu_hi, &backend);
 
-    let requires_grad = a.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),

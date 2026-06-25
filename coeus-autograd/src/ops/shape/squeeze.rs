@@ -55,7 +55,7 @@ pub fn squeeze<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
         x.tensor.squeeze_all()
     };
 
-    let requires_grad = x.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(x);
     if !requires_grad {
         return Var::new(out_tensor, false);
     }
@@ -122,7 +122,7 @@ pub fn unsqueeze<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Var<T, B> {
     let out_tensor = x.tensor.unsqueeze(axis);
 
-    let requires_grad = x.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(x);
     if !requires_grad {
         return Var::new(out_tensor, false);
     }

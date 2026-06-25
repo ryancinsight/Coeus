@@ -94,7 +94,7 @@ where
     let tensors: Vec<&Tensor<T, B>> = inputs.iter().map(|v| &v.tensor).collect();
     let out_tensor = coeus_ops::cat(&tensors, dim);
 
-    let requires_grad = inputs.iter().any(|v| v.grad.is_some());
+    let requires_grad = inputs.iter().any(|v| crate::grad_mode::should_track_var(v));
     if !requires_grad {
         return Var::new(out_tensor, false);
     }
