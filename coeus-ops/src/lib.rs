@@ -3,7 +3,8 @@
 //! # Operation families
 //! - **Elementwise** — [`unary`] and [`binary`] kernels dispatched via [`BackendOps::elementwise_unary`] / [`BackendOps::elementwise_binary`].
 //! - **Linear algebra** — [`matmul()`], [`sparse`] SpMM/SpMV, and FFT via Bluestein/Cooley-Tukey.
-//! - **Reductions** — [`reduction`]: `sum`, `mean`, `max/min`, `argmax/argmin`, `topk`, `cumsum`.
+//! - **Reductions** — [`reduction`]: `sum`, `mean`, `max/min`, `argmax/argmin`, `topk`, `cumsum`, `dot`, `cross`.
+//! - **Vector arithmetic** — `dot` (flat inner product) and `cross` (per-channel 3-vector cross along `dim`).
 //! - **Convolution** — 1-D/2-D/3-D forward+backward routed through `BackendOps::conv1d`/`conv2d`/`conv3d`.
 //! - **Pooling** — max and average pooling (2-D/3-D) with backward gradients.
 //! - **Attention** — [`attention::scaled_dot_product_attention`] with causal/padding mask support.
@@ -42,8 +43,9 @@ pub use binary::{
 pub use embedding::{embedding, embedding_backward};
 pub use matmul::{matmul, matmul_accumulate};
 pub use reduction::{
-    amax, amin, argmax, argmin, cumprod, cumsum, max_axis, mean, mean_axis, min_axis, norm, norm_p,
-    norm_p_axis, prod, std_dev, std_dev_axis, suffix_sum, sum, sum_axis, topk, var, var_axis,
+    amax, amin, argmax, argmin, cross, cumprod, cumsum, dot, max_axis, mean, mean_axis, min_axis,
+    norm, norm_p, norm_p_axis, prod, std_dev, std_dev_axis, suffix_sum, sum, sum_axis, topk, var,
+    var_axis,
 };
 pub use shape::{
     broadcast_to, cat, diag, diagonal, einsum, flip, gather, index_select, masked_fill, meshgrid,

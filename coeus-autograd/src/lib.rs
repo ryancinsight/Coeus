@@ -142,6 +142,7 @@ pub use ops::{
     BatchNormArgs,
     CausalMask,
     NullMask,
+    VarScalarExt,
 };
 
 pub use var::Var;

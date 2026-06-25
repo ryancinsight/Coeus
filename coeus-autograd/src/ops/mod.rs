@@ -19,6 +19,7 @@ pub use arithmetic::{
 };
 pub use reduction::{log_sum_exp, max_axis, min_axis, norm, norm_p, norm_p_axis};
 
+pub use arithmetic::VarScalarExt;
 pub use linalg::{matmul, sparse_matmul, transpose_2d};
 pub use nn::{
     avg_pool2d, avg_pool3d, batchnorm1d, batchnorm2d, batchnorm3d, binary_cross_entropy, conv1d,
