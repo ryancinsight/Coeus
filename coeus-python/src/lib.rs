@@ -122,6 +122,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyRotaryEmbedding>()?;
     m.add_class::<nn::PyFeedForward>()?;
     m.add_class::<nn::PyScaledDotProductAttention>()?;
+    m.add_class::<nn::PySequential>()?;
     m.add_class::<PyLocalCommunicator>()?;
     m.add_class::<PyTcpMesh>()?;
     m.add_class::<PyTcpCommunicator>()?;

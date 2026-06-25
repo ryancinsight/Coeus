@@ -129,6 +129,22 @@ impl PyTensor {
         Ok(Self::from_var(inner))
     }
 
+    /// Softmax along `dim` — tensor method form.
+    ///
+    /// Equivalent to `torch.nn.functional.softmax(tensor, dim=dim)`.
+    fn softmax(&self, dim: i64, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::softmax(&self.inner, dim as isize));
+        Ok(Self::from_var(inner))
+    }
+
+    /// Log-softmax along `dim` — tensor method form.
+    ///
+    /// Equivalent to `torch.nn.functional.log_softmax(tensor, dim=dim)`.
+    fn log_softmax(&self, dim: usize, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::log_softmax(&self.inner, dim));
+        Ok(Self::from_var(inner))
+    }
+
     /// Zero-copy reshape.
     fn reshape(&self, shape: Vec<usize>, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::reshape(&self.inner, shape));

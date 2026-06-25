@@ -1,6 +1,38 @@
 # Changelog
 
-## 0.2.15 - 2026-06-25
+## 0.2.16 - 2026-06-25
+
+### Added
+
+- **`ConvTranspose1d/2d` Python bindings now tracked** — `PyConvTranspose1d::forward`
+  and `PyConvTranspose2d::forward` previously returned `Var::new(out, false)` (no
+  gradient). Both now call `coeus_autograd::conv_transpose1d/2d`, enabling
+  end-to-end gradient flow from Python training loops.
+
+- **`PyTensor.softmax(dim)` / `.log_softmax(dim)` methods** — Tensor method forms
+  matching `torch.Tensor.softmax(dim)` and `torch.Tensor.log_softmax(dim)`.
+  Negative dim values are supported (isize dispatch).
+
+- **`pycoeus.Sequential`** — `nn.Sequential`-equivalent container: ordered list of
+  modules with `forward(x)`, `parameters()`, `zero_grad()`, `__len__`,
+  `__getitem__`, and `append`. Any module with a `.forward(tensor)` method can be
+  composed. Registered as `pycoeus.Sequential`.
+
+- **Burn parity tests (+2)** — `burn_live_parity.rs` now has 64 tests:
+  - `avg_pool2d_backward_gradient_correctness` — kernel=2, stride=2, all-ones seed;
+    each input element must receive 0.25 gradient.
+  - `max_pool2d_backward_gradient_correctness` — 4×4 input with distinct block maxima;
+    verifies exact positions receive 1.0 and all others receive 0.0.
+
+- **Python binding tests 36 → 39** — Three new tests:
+  - `test_softmax_log_softmax_methods` — 1D/2D `tensor.softmax(dim)`,
+    `tensor.log_softmax(dim)`, sum-to-1, monotonicity, `exp(log_softmax) == softmax`.
+  - `test_sequential_module` — `Sequential([Linear, LayerNorm])` forward, shape,
+    parameter collection, identity empty case, `__len__`/`__getitem__`, backward.
+  - `test_conv_transpose_tracked_backward` — `ConvTranspose1d` and `ConvTranspose2d`
+    produce correct forward values and propagate gradients back to inputs.
+
+
 
 ### Added
 

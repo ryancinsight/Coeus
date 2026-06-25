@@ -2292,3 +2292,79 @@ fn conv_transpose2d_backward_gradient_correctness() {
     assert_close("ct2d_bwd_gw", gw.to_contiguous().as_slice(), &[4.0]);
     let _ = backend;
 }
+
+// ── AvgPool2d backward (Coeus vs. manual reference) ──────────────────────────
+
+#[test]
+fn avg_pool2d_backward_gradient_correctness() {
+    // Input [1,1,4,4], kernel=2, stride=2 → output [1,1,2,2].
+    // Backward seed = all-ones → each input element receives grad = 1/(ks*ks) = 0.25.
+    let data: Vec<f32> = (0..16).map(|v| v as f32).collect();
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data),
+        true,
+    );
+    let pool = coeus_nn::AvgPool2d::<f32, SequentialBackend>::with_params(2, 2, 0, 1);
+    use coeus_nn::Module;
+    let out = pool.forward(&xv);
+    assert_eq!(out.tensor.shape(), &[1, 1, 2, 2]);
+
+    let seed = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &[1.0; 4]);
+    out.backward_with_seed(seed);
+
+    let grad = xv.grad().unwrap();
+    assert_eq!(grad.shape(), &[1, 1, 4, 4], "avg_pool2d grad shape");
+    // Each output element distributes its gradient equally over ks^2=4 input positions.
+    for &g in grad.to_contiguous().as_slice() {
+        assert!(
+            (g - 0.25f32).abs() < 1e-5,
+            "avg_pool2d grad element: expected 0.25, got {g}"
+        );
+    }
+}
+
+// ── MaxPool2d backward (Coeus vs. manual reference) ──────────────────────────
+
+#[test]
+fn max_pool2d_backward_gradient_correctness() {
+    // Input [1,1,4,4]: row-major 0..15.
+    // 2×2 non-overlapping blocks (stride=2):
+    //   block(0,0): positions [(0,0),(0,1),(1,0),(1,1)] = [0,1,4,5]  → max=5
+    //   block(0,1): positions [(0,2),(0,3),(1,2),(1,3)] = [2,3,6,7]  → max=7
+    //   block(1,0): positions [(2,0),(2,1),(3,0),(3,1)] = [8,9,12,13]→ max=13
+    //   block(1,1): positions [(2,2),(2,3),(3,2),(3,3)] = [10,11,14,15]→max=15
+    let data: Vec<f32> = (0..16).map(|v| v as f32).collect();
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data),
+        true,
+    );
+    let pool = coeus_nn::MaxPool2d::<f32, SequentialBackend>::with_params(2, 2, 0, 1);
+    use coeus_nn::Module;
+    let out = pool.forward(&xv);
+    assert_eq!(out.tensor.shape(), &[1, 1, 2, 2]);
+    let expected_fwd = [5.0f32, 7.0, 13.0, 15.0];
+    assert_close_rel("max_pool2d_bwd_fwd", out.tensor.as_slice(), &expected_fwd, 1e-5);
+
+    let seed = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &[1.0; 4]);
+    out.backward_with_seed(seed);
+
+    let grad = xv.grad().unwrap();
+    assert_eq!(grad.shape(), &[1, 1, 4, 4], "max_pool2d grad shape");
+    let gs = grad.to_contiguous();
+    let gs = gs.as_slice();
+    // Max positions (row-major flat index in 4×4): 5, 7, 13, 15
+    for (i, &v) in gs.iter().enumerate() {
+        let is_max_pos = matches!(i, 5 | 7 | 13 | 15);
+        if is_max_pos {
+            assert!(
+                (v - 1.0f32).abs() < 1e-5,
+                "max_pool2d grad[{i}]: expected 1.0, got {v}"
+            );
+        } else {
+            assert!(
+                v.abs() < 1e-5,
+                "max_pool2d grad[{i}]: expected 0.0, got {v}"
+            );
+        }
+    }
+}

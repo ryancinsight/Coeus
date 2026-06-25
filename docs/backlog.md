@@ -1,26 +1,62 @@
 # Coeus Project Backlog & Historical Archives
 
-## Sprint MS-71: torch.dot / torch.cross Torch parity [minor]
+## Sprint MS-76: PyO3 Sequential container + ConvTranspose2d Python wrapper [IN PROGRESS]
 
-### Objective
-Add Rust-core `dot` and `cross` ops plus thin PyO3 wrappers for
-`pycoeus.dot` and `pycoeus.cross`, with value-semantic tests against documented
-manual Torch/JAX/MLX-compatible oracles.
+### In flight
+- [ ] [minor] `coeus-python/src/nn/sequential.rs` — PySequential container module;
+  `PyConvTranspose2d` class wrapper; PyTensor additions. Concurrent agent work.
+
+---
+
+## Sprints MS-72 – MS-75: Burn parity, Torch parity, transposed-conv backward [COMPLETE]
+
+### MS-75 (0.2.15): ConvTranspose2d autograd backward + tracked nn modules [minor]
+- [x] `ConvTranspose2dNode` in `coeus-autograd/src/ops/nn/conv.rs` — grad_input,
+  grad_weight, grad_bias backward paths; exported through public flat surface.
+- [x] `ConvTranspose1d`/`ConvTranspose2d` nn modules now use tracked autograd
+  wrappers (removed `Var::new(out, false)` forward-only pattern).
+- [x] Autograd tests +2 (conv_transpose2d exact backward, no-bias path); 29 total.
+- [x] Burn parity tests +2 (conv_transpose1d/2d gradient correctness); 62 total.
+- [x] Version bump 0.2.14 → 0.2.15; doctest fix in `scalar_ext.rs`; cargo fmt.
+
+### MS-74 (0.2.14): LayerNorm forward_nd, Hermes FMA, parity tests [minor]
+- [x] `LayerNorm::forward_nd` — rank-N (≥2) LayerNorm via tracked reshape chain.
+- [x] `PyLayerNorm.forward_nd` + `layer_norm` functional rank ≥ 3 dispatch.
+- [x] Hermes `Dot::fma_pair_accumulate` — FMA fusion in `zip_reduce` (atlas crate).
+- [x] Burn parity test `layernorm_forward_nd_3d_matches_reshape_reference`.
+- [x] Python binding test `test_layernorm_3d_forward_nd`.
+
+### MS-73 (0.2.13): dtype casts, SDP attention, dot/cross parity [minor]
+- [x] PyTensor dtype cast methods (`.float()`, `.double()`, `.long()`, `.int()`,
+  `.half()`, `.to(dtype)`, `.type_as(other)`).
+- [x] `PyScaledDotProductAttention` nn module + `pycoeus.scaled_dot_product_attention`
+  functional (ZST NullMask/CausalMask dispatch).
+- [x] `coeus_ops::{dot, cross}` — `torch.dot`/`torch.cross` parity with 14 unit
+  tests + 1 Python binding test; `coeus-python/src/ops/linalg.rs` wrappers.
+- [x] `logspace`/`geomspace` constructor parity.
+- [x] Burn parity tests +4 (59 total); Python binding tests 32 → 35.
+
+### MS-72 (0.2.12): CUDA conv3d, SDP attention, pooling, sparse [minor]
+- [x] CUDA conv3d PTX kernels (forward + backward); 57 CUDA tests.
+- [x] CUDA scaled-dot-product attention differential coverage.
+- [x] CUDA 3D pooling forward/backward JIT kernels.
+- [x] Sparse SpMV/SpMM differential + gradient parity tests.
+- [x] `coeus-python` ops.rs split into 8 sub-modules; optim MLP classifier example.
+- [x] Optim scheduler tests (LinearWarmup, WarmupCosine); dist collectives
+  (Max/Min/Product reduce ops).
+
+---
+
+## Sprint MS-71: torch.dot / torch.cross Torch parity [COMPLETE]
 
 ### Completed items
 - [x] [minor] Consolidated BatchNorm autograd backward across 1-D/2-D/3-D into
-  one const-generic `BatchNormNode<T, B, DIM>` and `BatchNormArgs<T, B, DIM>`,
-  replacing the old per-rank argument/node names as a documented pre-1.0 minor
-  break. Evidence tier: empirical value-semantic validation recorded in
-  `docs/checklist.md`.
+  one const-generic `BatchNormNode<T, B, DIM>` and `BatchNormArgs<T, B, DIM>`.
 - [x] [patch] Split `coeus-leto` dynamic-rank dispatch into operation-family
-  leaf modules while preserving the public `coeus_leto::dispatch::*` re-export
-  surface. Evidence tier: compile-time lint/doc validation plus empirical
-  contract tests recorded in `docs/checklist.md`.
-
-### In flight
-- [ ] [minor] Add `coeus_ops::dot`, `coeus_ops::cross`, and thin PyO3 wrappers
-  with manual oracle tests; complete the 0.2.11 surface.
+  leaf modules while preserving the public `coeus_leto::dispatch::*` re-export.
+- [x] [minor] Added `coeus_ops::{dot, cross}` with thin PyO3 wrappers
+  `pycoeus.dot`/`pycoeus.cross`; 14 Rust unit tests + 1 Python binding test
+  against manual Torch/JAX/MLX-compatible oracles. Delivered in 0.2.13.
 
 ---
 

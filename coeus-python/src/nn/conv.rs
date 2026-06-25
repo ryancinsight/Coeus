@@ -466,25 +466,36 @@ impl PyConvTranspose1d {
         })
     }
     pub fn forward(&self, input: &PyTensor, py: pyo3::Python<'_>) -> pyo3::PyResult<PyTensor> {
-        let w = self.weight.bind(py).borrow().inner.tensor.clone();
-        let b = self
+        let w_var = self.weight.bind(py).borrow().inner.clone();
+        let b_var = self
             .bias
             .as_ref()
-            .map(|b| b.bind(py).borrow().inner.tensor.clone());
-        let x = input.inner.tensor.clone();
+            .map(|b| b.bind(py).borrow().inner.clone());
+        let x_var = input.inner.clone();
         let (s, p, op, d) = (
             self.stride,
             self.padding,
             self.output_padding,
             self.dilation,
         );
-        let t = py.allow_threads(|| {
+        let inner = py.allow_threads(move || {
             let bk = coeus_core::MoiraiBackend::new();
-            coeus_ops::conv_transpose1d(&x, &w, b.as_ref(), s, p, op, d, &bk)
+            let l = x_var.tensor.shape()[2];
+            let l_out = coeus_ops::conv_transpose::conv_transpose1d_output_len(l, w_var.tensor.shape()[2], s, p, op, d);
+            let n = x_var.tensor.shape()[0];
+            let c_out = w_var.tensor.shape()[1];
+            let mut out_tensor = coeus_tensor::Tensor::zeros_on([n, c_out, l_out], &bk);
+            let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+            use coeus_ops::BackendOps;
+            bk.conv_transpose1d(
+                x_var.tensor.storage(), x_var.tensor.layout(),
+                w_var.tensor.storage(), w_var.tensor.layout(),
+                b_var.as_ref().map(|b| b.tensor.storage()),
+                s, p, op, d, out_storage, out_layout,
+            );
+            coeus_autograd::conv_transpose1d(&x_var, &w_var, &b_var, out_tensor, s, p, op, d)
         });
-        Ok(PyTensor {
-            inner: coeus_autograd::Var::new(t, false),
-        })
+        Ok(PyTensor::from_var(inner))
     }
     pub fn parameters(&self, py: pyo3::Python<'_>) -> Vec<pyo3::Py<PyTensor>> {
         let mut v = vec![self.weight.clone_ref(py)];
@@ -558,25 +569,40 @@ impl PyConvTranspose2d {
         })
     }
     pub fn forward(&self, input: &PyTensor, py: pyo3::Python<'_>) -> pyo3::PyResult<PyTensor> {
-        let w = self.weight.bind(py).borrow().inner.tensor.clone();
-        let b = self
+        let w_var = self.weight.bind(py).borrow().inner.clone();
+        let b_var = self
             .bias
             .as_ref()
-            .map(|b| b.bind(py).borrow().inner.tensor.clone());
-        let x = input.inner.tensor.clone();
+            .map(|b| b.bind(py).borrow().inner.clone());
+        let x_var = input.inner.clone();
         let (s, p, op, d) = (
             self.stride,
             self.padding,
             self.output_padding,
             self.dilation,
         );
-        let t = py.allow_threads(|| {
+        let inner = py.allow_threads(move || {
             let bk = coeus_core::MoiraiBackend::new();
-            coeus_ops::conv_transpose2d(&x, &w, b.as_ref(), s, p, op, d, &bk)
+            let h = x_var.tensor.shape()[2];
+            let w = x_var.tensor.shape()[3];
+            let kh = w_var.tensor.shape()[2];
+            let kw = w_var.tensor.shape()[3];
+            let (h_out, w_out) =
+                coeus_ops::conv_transpose::conv_transpose2d_output_dims(h, w, kh, kw, s, p, op, d);
+            let n = x_var.tensor.shape()[0];
+            let c_out = w_var.tensor.shape()[1];
+            let mut out_tensor = coeus_tensor::Tensor::zeros_on([n, c_out, h_out, w_out], &bk);
+            let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+            use coeus_ops::BackendOps;
+            bk.conv_transpose2d(
+                x_var.tensor.storage(), x_var.tensor.layout(),
+                w_var.tensor.storage(), w_var.tensor.layout(),
+                b_var.as_ref().map(|b| b.tensor.storage()),
+                s, p, op, d, out_storage, out_layout,
+            );
+            coeus_autograd::conv_transpose2d(&x_var, &w_var, &b_var, out_tensor, s, p, op, d)
         });
-        Ok(PyTensor {
-            inner: coeus_autograd::Var::new(t, false),
-        })
+        Ok(PyTensor::from_var(inner))
     }
     pub fn parameters(&self, py: pyo3::Python<'_>) -> Vec<pyo3::Py<PyTensor>> {
         let mut v = vec![self.weight.clone_ref(py)];

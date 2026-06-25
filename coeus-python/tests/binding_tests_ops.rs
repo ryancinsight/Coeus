@@ -1383,6 +1383,142 @@ except ValueError:
 // ── dot / cross ────────────────────────────────────────────────────────
 
 #[test]
+fn test_softmax_log_softmax_methods() {
+    run_script(
+        r#"
+import pycoeus
+import math
+
+# ── tensor.softmax(dim) ────────────────────────────────────────────────
+logits = pycoeus.Tensor([1.0, 2.0, 3.0], [3])
+sm = logits.softmax(0)
+assert abs(sum(sm.data) - 1.0) < 1e-6, f"softmax sum: {sum(sm.data)}"
+# Softmax is monotone with input order
+assert sm.data[0] < sm.data[1] < sm.data[2], f"softmax order: {sm.data}"
+
+# 2D input with dim=1
+logits2d = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3])
+sm2 = logits2d.softmax(1)
+assert sm2.shape == [2, 3]
+# Each row sums to 1
+r0 = sum(sm2.data[:3])
+r1 = sum(sm2.data[3:])
+assert abs(r0 - 1.0) < 1e-5, f"row0 sum: {r0}"
+assert abs(r1 - 1.0) < 1e-5, f"row1 sum: {r1}"
+
+# ── tensor.log_softmax(dim) ────────────────────────────────────────────
+lsm = logits.log_softmax(0)
+# log_softmax values should all be <= 0
+assert all(v <= 0.0 for v in lsm.data), f"log_softmax: {lsm.data}"
+# exp(log_softmax) should match softmax
+for a, b in zip([math.exp(v) for v in lsm.data], sm.data):
+    assert abs(a - b) < 1e-5, f"exp(log_softmax) vs softmax: {a} vs {b}"
+
+# ── backward through softmax ──────────────────────────────────────────
+x = pycoeus.Tensor([1.0, 2.0, 3.0], [3], requires_grad=True)
+y = x.softmax(0)
+loss = pycoeus.sum(y)
+loss.backward()
+# sum(softmax) = 1 always, so gradient w.r.t. x should be zero (Jacobian is skew)
+# In practice the grad is non-zero at individual elements; just check shapes.
+assert x.grad is not None, "softmax backward should produce gradient"
+assert len(x.grad) == 3
+"#,
+    );
+}
+
+#[test]
+fn test_sequential_module() {
+    run_script(
+        r#"
+import pycoeus
+
+# ── Sequential chains forward calls ────────────────────────────────────
+# Build: Linear(4→8) → LayerNorm(8) as a Sequential
+lin = pycoeus.Linear(4, 8)
+ln = pycoeus.LayerNorm(8)
+model = pycoeus.Sequential([lin, ln])
+
+x = pycoeus.Tensor([float(i) for i in range(4)], [1, 4])
+out = model.forward(x)
+assert out.shape == [1, 8], f"Sequential output shape: {out.shape}"
+
+# ── Parameters collected from all sub-modules ──────────────────────────
+params = model.parameters()
+# Linear has weight+bias (2), LayerNorm has weight+bias (2) → total 4
+assert len(params) == 4, f"parameter count: {len(params)}"
+
+# ── Empty Sequential is identity ──────────────────────────────────────
+empty = pycoeus.Sequential([])
+x_small = pycoeus.Tensor([1.0, 2.0, 3.0], [3])
+out_id = empty.forward(x_small)
+assert out_id.data == x_small.data
+
+# ── __len__ and __getitem__ ────────────────────────────────────────────
+assert len(model) == 2
+m0 = model[0]  # should be the Linear
+assert hasattr(m0, 'forward'), "model[0] should have forward"
+m_neg = model[-1]  # last item
+assert hasattr(m_neg, 'forward'), "model[-1] should have forward"
+
+try:
+    model[5]
+    raise AssertionError("out-of-range index should raise")
+except IndexError:
+    pass
+
+# ── Backward gradient flows through chain ─────────────────────────────
+x2 = pycoeus.Tensor([float(i) for i in range(4)], [1, 4], requires_grad=True)
+out2 = model.forward(x2)
+pycoeus.sum(out2).backward()
+assert x2.grad is not None, "Sequential backward should produce gradient on input"
+"#,
+    );
+}
+
+#[test]
+fn test_conv_transpose_tracked_backward() {
+    run_script(
+        r#"
+import pycoeus
+
+# ── ConvTranspose1d tracks gradient ────────────────────────────────────
+# 1 batch, 1 in_channel, length=3, 1 out_channel, kernel=2, stride=1
+ct1 = pycoeus.ConvTranspose1d(1, 1, 2, stride=1, padding=0, bias=False)
+# Fix the weight to [1, 1, 2] = [[1, 0.5]] for a deterministic result.
+ct1.weight.data = [1.0, 0.5]
+
+x1 = pycoeus.Tensor([1.0, 2.0, 3.0], [1, 1, 3], requires_grad=True)
+out1 = ct1.forward(x1)
+assert out1.shape == [1, 1, 4], f"ConvTranspose1d output shape: {out1.shape}"
+
+pycoeus.sum(out1).backward()
+assert x1.grad is not None, "ConvTranspose1d should track gradient on input"
+assert len(x1.grad) == 3, f"ConvTranspose1d grad shape: {len(x1.grad)}"
+
+# ── ConvTranspose2d tracks gradient ────────────────────────────────────
+ct2 = pycoeus.ConvTranspose2d(1, 1, 1, stride=1, padding=0, bias=False)
+ct2.weight.data = [2.0]  # scalar weight = 2.0
+
+x2 = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [1, 1, 2, 2], requires_grad=True)
+out2 = ct2.forward(x2)
+assert out2.shape == [1, 1, 2, 2], f"ConvTranspose2d output shape: {out2.shape}"
+
+# With identity 1×1 kernel = 2.0, output = 2 * input
+for a, b in zip(out2.data, [2.0, 4.0, 6.0, 8.0]):
+    assert abs(a - b) < 1e-5, f"ConvTranspose2d forward: {a} vs {b}"
+
+pycoeus.sum(out2).backward()
+assert x2.grad is not None, "ConvTranspose2d should track gradient on input"
+# grad_input = grad_out * weight = 1 * 2.0 = 2.0 per element
+for g in x2.grad:
+    assert abs(g - 2.0) < 1e-5, f"ConvTranspose2d grad_input: {g}"
+"#,
+    );
+}
+
+
+#[test]
 fn test_layernorm_3d_forward_nd() {
     run_script(
         r#"

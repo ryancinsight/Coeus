@@ -6,6 +6,7 @@ pub mod feedforward;
 pub mod linear;
 pub mod normalization;
 pub mod pool;
+pub mod sequential;
 
 pub use attention::{PyMultiHeadAttention, PyRotaryEmbedding, PyScaledDotProductAttention};
 pub use conv::PyConvTranspose1d;
@@ -23,3 +24,4 @@ pub use pool::{
     PyAvgPool2d, PyAvgPool3d, PyGlobalAvgPool1d, PyGlobalAvgPool2d, PyGlobalAvgPool3d,
     PyGlobalMaxPool2d, PyGlobalMaxPool3d, PyMaxPool2d, PyMaxPool3d,
 };
+pub use sequential::PySequential;
