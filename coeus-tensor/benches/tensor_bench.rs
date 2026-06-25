@@ -585,6 +585,44 @@ fn bench_burn_max_pool2d(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_burn_softmax(c: &mut Criterion) {
+    use burn::tensor::activation::softmax as burn_softmax;
+    use burn::tensor::Tensor as BT;
+    use burn::tensor::TensorData;
+    use coeus_autograd::Var;
+    use coeus_nn::softmax;
+
+    // [rows=256, cols=1024], softmax over the last dim. Inputs use a
+    // requires_grad=false Var so the forward path builds no backward node —
+    // a fair forward-only comparison against Burn's NdArray (non-autodiff).
+    const ROWS: usize = 256;
+    const COLS: usize = 1024;
+    let device = NdArrayDevice::default();
+    let data: Vec<f32> = (0..ROWS * COLS).map(|i| (i as f32 * 0.001).sin()).collect();
+
+    let xv = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![ROWS, COLS], &data),
+        false,
+    );
+    let xv_m = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![ROWS, COLS], &data),
+        false,
+    );
+    let xb: BT<BurnB, 2> = BT::from_data(TensorData::new(data.clone(), [ROWS, COLS]), &device);
+
+    let mut group = c.benchmark_group("Burn vs Coeus — Softmax (256×1024, dim=-1)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_softmax(xb.clone(), 1)))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(softmax(black_box(&xv), 1)))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(softmax(black_box(&xv_m), 1)))
+    });
+    group.finish();
+}
+
 fn bench_burn_layernorm(c: &mut Criterion) {
     use burn::nn::{LayerNorm as BurnLN, LayerNormConfig};
     use burn::tensor::Tensor as BT;
@@ -639,6 +677,7 @@ criterion_group!(
     bench_burn_conv2d,
     bench_burn_conv_transpose2d,
     bench_burn_max_pool2d,
+    bench_burn_softmax,
     bench_burn_layernorm,
 );
 criterion_main!(benches);
