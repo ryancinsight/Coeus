@@ -26,9 +26,7 @@ pub struct AttentionForward<'a, T: Float> {
 }
 
 pub struct AttentionBackward<'a, T: Float> {
-    pub backend: &'a WgpuBackend,
     pub grad_out: &'a WgpuBuffer<T>,
-    pub grad_out_layout: &'a Layout,
     pub query: &'a WgpuBuffer<T>,
     pub query_layout: &'a Layout,
     pub key: &'a WgpuBuffer<T>,
@@ -36,7 +34,6 @@ pub struct AttentionBackward<'a, T: Float> {
     pub value: &'a WgpuBuffer<T>,
     pub value_layout: &'a Layout,
     pub attn_weights: &'a WgpuBuffer<T>,
-    pub attn_weights_layout: &'a Layout,
     pub scale: T,
     pub grad_q: Option<&'a mut WgpuBuffer<T>>,
     pub grad_k: Option<&'a mut WgpuBuffer<T>>,
@@ -44,6 +41,38 @@ pub struct AttentionBackward<'a, T: Float> {
 }
 
 pub fn sdp_attention<T: Float + leto_ops::Scalar>(request: AttentionForward<'_, T>) {
+    // The unmasked (causal or full) case runs on-device. The key_padding_mask
+    // case is an explicit CPU-reference capability boundary, not a silent
+    // fallback (see module note in `kernels/attention/forward.rs`).
+    if request.key_padding_mask.is_none() {
+        let q_shape = request.query_layout.shape();
+        let batch = q_shape[0];
+        let seq_q = q_shape[1];
+        let d_k = q_shape[2];
+        let seq_k = request.key_layout.shape()[1];
+        let d_v = request.value_layout.shape()[2];
+        // T is Float + WgpuScalar, i.e. f32; f32->f64->f32 round-trips exactly.
+        let scale_f32 = coeus_core::Scalar::to_f64(request.scale) as f32;
+        crate::kernels::dispatch_sdp_attention(crate::kernels::AttnForwardDispatch {
+            query: request.query.buffer.raw(),
+            key: request.key.buffer.raw(),
+            value: request.value.buffer.raw(),
+            output: request.output.buffer.raw(),
+            attn_weights: request.attn_weights.buffer.raw(),
+            batch,
+            seq_q,
+            seq_k,
+            d_k,
+            d_v,
+            is_causal: request.is_causal,
+            scale: scale_f32,
+        });
+        return;
+    }
+    sdp_attention_cpu(request);
+}
+
+fn sdp_attention_cpu<T: Float + leto_ops::Scalar>(request: AttentionForward<'_, T>) {
     let AttentionForward {
         backend,
         query,
@@ -104,10 +133,11 @@ pub fn sdp_attention<T: Float + leto_ops::Scalar>(request: AttentionForward<'_, 
 }
 
 pub fn sdp_attention_backward<T: Float + leto_ops::Scalar>(request: AttentionBackward<'_, T>) {
+    // The backward is mask-agnostic: masked positions carry A = 0 in the stored
+    // `attn_weights`, so they contribute nothing. It therefore always runs
+    // on-device regardless of how the forward was produced.
     let AttentionBackward {
-        backend,
         grad_out,
-        grad_out_layout,
         query,
         query_layout,
         key,
@@ -115,69 +145,35 @@ pub fn sdp_attention_backward<T: Float + leto_ops::Scalar>(request: AttentionBac
         value,
         value_layout,
         attn_weights,
-        attn_weights_layout,
         scale,
         grad_q,
         grad_k,
         grad_v,
     } = request;
-    let seq = SequentialBackend::new();
-    let go_len = grad_out.len();
-    let q_len = query.len();
-    let k_len = key.len();
-    let v_len = value.len();
-    let aw_len = attn_weights.len();
-    let mut go_cpu = seq.allocate::<T>(go_len);
-    let mut q_cpu = seq.allocate::<T>(q_len);
-    let mut k_cpu = seq.allocate::<T>(k_len);
-    let mut v_cpu = seq.allocate::<T>(v_len);
-    let mut aw_cpu = seq.allocate::<T>(aw_len);
-    backend.copy_to_host(grad_out, go_cpu.as_mut_slice());
-    backend.copy_to_host(query, q_cpu.as_mut_slice());
-    backend.copy_to_host(key, k_cpu.as_mut_slice());
-    backend.copy_to_host(value, v_cpu.as_mut_slice());
-    backend.copy_to_host(attn_weights, aw_cpu.as_mut_slice());
 
-    let mut gq_cpu = grad_q.as_ref().map(|g| {
-        let mut s = seq.allocate::<T>(g.len());
-        backend.copy_to_host(*g, s.as_mut_slice());
-        s
-    });
-    let mut gk_cpu = grad_k.as_ref().map(|g| {
-        let mut s = seq.allocate::<T>(g.len());
-        backend.copy_to_host(*g, s.as_mut_slice());
-        s
-    });
-    let mut gv_cpu = grad_v.as_ref().map(|g| {
-        let mut s = seq.allocate::<T>(g.len());
-        backend.copy_to_host(*g, s.as_mut_slice());
-        s
-    });
+    let q_shape = query_layout.shape();
+    let batch = q_shape[0];
+    let seq_q = q_shape[1];
+    let d_k = q_shape[2];
+    let seq_k = key_layout.shape()[1];
+    let d_v = value_layout.shape()[2];
+    // T is Float + WgpuScalar, i.e. f32; f32->f64->f32 round-trips exactly.
+    let scale_f32 = coeus_core::Scalar::to_f64(scale) as f32;
 
-    seq.sdp_attention_backward(
-        &go_cpu,
-        grad_out_layout,
-        &q_cpu,
-        query_layout,
-        &k_cpu,
-        key_layout,
-        &v_cpu,
-        value_layout,
-        &aw_cpu,
-        attn_weights_layout,
-        scale,
-        gq_cpu.as_mut(),
-        gk_cpu.as_mut(),
-        gv_cpu.as_mut(),
-    );
-
-    if let (Some(gq_gpu), Some(ref gq_c)) = (grad_q, &gq_cpu) {
-        backend.copy_to_device(gq_c.as_slice(), gq_gpu);
-    }
-    if let (Some(gk_gpu), Some(ref gk_c)) = (grad_k, &gk_cpu) {
-        backend.copy_to_device(gk_c.as_slice(), gk_gpu);
-    }
-    if let (Some(gv_gpu), Some(ref gv_c)) = (grad_v, &gv_cpu) {
-        backend.copy_to_device(gv_c.as_slice(), gv_gpu);
-    }
+    crate::kernels::dispatch_sdp_attention_backward(crate::kernels::AttnBackwardDispatch {
+        grad_out: grad_out.buffer.raw(),
+        query: query.buffer.raw(),
+        key: key.buffer.raw(),
+        value: value.buffer.raw(),
+        attn_weights: attn_weights.buffer.raw(),
+        grad_q: grad_q.map(|g| g.buffer.raw()),
+        grad_k: grad_k.map(|g| g.buffer.raw()),
+        grad_v: grad_v.map(|g| g.buffer.raw()),
+        batch,
+        seq_q,
+        seq_k,
+        d_k,
+        d_v,
+        scale: scale_f32,
+    });
 }

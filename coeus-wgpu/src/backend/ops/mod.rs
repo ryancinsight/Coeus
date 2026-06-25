@@ -538,7 +538,7 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
     fn sdp_attention_backward(
         &self,
         grad_out: &Self::DeviceBuffer<T>,
-        grad_out_layout: &Layout,
+        _grad_out_layout: &Layout,
         query: &Self::DeviceBuffer<T>,
         query_layout: &Layout,
         key: &Self::DeviceBuffer<T>,
@@ -546,7 +546,7 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         value: &Self::DeviceBuffer<T>,
         value_layout: &Layout,
         attn_weights: &Self::DeviceBuffer<T>,
-        attn_weights_layout: &Layout,
+        _attn_weights_layout: &Layout,
         scale: T,
         grad_q: Option<&mut Self::DeviceBuffer<T>>,
         grad_k: Option<&mut Self::DeviceBuffer<T>>,
@@ -555,9 +555,7 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         T: coeus_core::Float,
     {
         attention::sdp_attention_backward(attention::AttentionBackward {
-            backend: self,
             grad_out,
-            grad_out_layout,
             query,
             query_layout,
             key,
@@ -565,7 +563,6 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
             value,
             value_layout,
             attn_weights,
-            attn_weights_layout,
             scale,
             grad_q,
             grad_k,

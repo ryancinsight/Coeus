@@ -1,3 +1,4 @@
+pub mod attention;
 pub mod binary;
 pub mod cache;
 pub mod conv;
@@ -9,6 +10,10 @@ pub mod pool;
 pub mod reduce;
 pub mod unary;
 
+pub use attention::{
+    dispatch_sdp_attention, dispatch_sdp_attention_backward, AttnBackwardDispatch,
+    AttnForwardDispatch,
+};
 pub use binary::{dispatch_binary, dispatch_contiguous_binary};
 pub use conv::{
     dispatch_conv1d, dispatch_conv1d_backward, dispatch_conv2d, dispatch_conv2d_backward,
