@@ -2,14 +2,11 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: Sprint MS-75 (incoming — choose next vertex after MS-71..MS-74) [PLANNING]
-**Objective**: Continue Torch parity and Atlas integration sprints. Head commits
-land MS-71 (`dot` / `cross` Rust-core + PyO3), MS-72, MS-73 (`dtype` casts,
-`PyScaledDotProductAttention`), MS-74 (`LayerNorm::forward_nd`, Hermes FMA
-`zip_reduce`). Workspace at 598 nextest tests passing; `Cargo.toml` version
-0.2.12 (CHANGELOG entries bumped to 0.2.14 in MS-73/MS-74 commit messages —
-version is now a post-closure reconciliation candidate).
-**Target version**: 0.2.15 (next spot-fix or parity atom).
+### Current Sprint: MS-78 — GroupNorm/InstanceNorm Burn parity tolerance fix [COMPLETE]
+**Objective**: Fix tolerance and formula issues in the 3 GroupNorm/InstanceNorm
+Burn parity tests that were committed in MS-77 without the tolerance/formula fixes.
+MS-75 through MS-77 are committed. Workspace at 67 Burn parity tests passing.
+**Target version**: 0.2.17 (Cargo.toml reconciled with CHANGELOG).
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
 > oracle values; wgpu parity.rs verifies implemented GPU paths against the CPU reference;
@@ -49,8 +46,12 @@ version is now a post-closure reconciliation candidate).
   `pycoeus.layer_norm` rank>2 dispatch, Hermes `Dot::fma_pair_accumulate` via
   `Arch::fmadd` eliminating separate mul+add latency, +1 burn_live_parity test
   + 1 Python binding test.
-- [ ] [patch] Reconcile Cargo.toml workspace version (currently 0.2.12) with
-  the staged CHANGELOG entries naming 0.2.13/0.2.14.
+- [x] [patch] Reconciled Cargo.toml workspace version to 0.2.17 (was 0.2.15,
+  lagging CHANGELOG which already had 0.2.17 section from MS-77).
+- [x] [patch] MS-78: Fixed GroupNorm/InstanceNorm Burn parity test tolerances
+  and formula: forward 1e-4→1e-3 (sqrt(var+eps) vs sqrt(var)+eps derivation);
+  backward formula var.sqrt().add_scalar(eps)→var.add_scalar(eps).sqrt() to
+  match Coeus's convention; 67 Burn parity tests all pass.
 - [x] [patch] Added `coeus-sparse/tests/sparse_conversions.rs` to cover
   dense/COO/CSR round-trip identity and direct-vs-COO CSR structural equality
   on a fixed 3x4 oracle. Evidence tier: empirical value-semantic validation.

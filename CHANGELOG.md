@@ -24,6 +24,18 @@
   values instead of k largest, matching `torch.topk(input, k, dim, largest)`.
   Existing tests updated with explicit `largest=False` and 2-D dim=1 coverage.
 
+- **Burn parity tests (+3)** — `burn_live_parity.rs` now has 67 tests:
+  - `groupnorm_forward_matches_burn` — forward comparison of `GroupNorm<T,B,2>` with
+    default weight=ones, bias=zeros against Burn `GroupNormConfig::new(2,4)`. Tolerance
+    1e-3 accounts for the formula difference `sqrt(var+eps)` (Coeus, PyTorch standard)
+    vs `sqrt(var)+eps` (Burn 0.16).
+  - `groupnorm_forward_backward_match_burn` — forward + backward (dx, dw, db) parity
+    with custom weight/bias, using a manual Burn tensor formula matching Coeus's
+    `sqrt(var+eps)` convention so gradient comparison uses a tight 1e-4 tolerance.
+  - `instancenorm_forward_matches_burn` — forward comparison of `InstanceNorm1d` with
+    default init against Burn `InstanceNormConfig::new(3)`. Same 1e-3 tolerance as
+    GroupNorm for the same formula-difference reason.
+
 ### Changed
 
 - **SGD optimizer small-tensor fast path** — `sgd_step` contiguous unit-offset buffers

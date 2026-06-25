@@ -1,10 +1,34 @@
 # Coeus Project Backlog & Historical Archives
 
-## Sprint MS-76: PyO3 Sequential container + ConvTranspose2d Python wrapper [IN PROGRESS]
+## Sprint MS-78: GroupNorm/InstanceNorm Burn parity tolerance fix [COMPLETE]
 
-### In flight
-- [ ] [minor] `coeus-python/src/nn/sequential.rs` — PySequential container module;
-  `PyConvTranspose2d` class wrapper; PyTensor additions. Concurrent agent work.
+- [x] [patch] Fixed `groupnorm_forward_matches_burn` tolerance: 1e-4 → 1e-3 with
+  derivation for Coeus `sqrt(var+eps)` vs Burn 0.16 `sqrt(var)+eps` formula difference.
+- [x] [patch] Fixed `groupnorm_forward_backward_match_burn`: changed manual Burn
+  reference formula from `var.sqrt().add_scalar(eps)` to `var.add_scalar(eps).sqrt()`
+  to match Coeus's forward formula, enabling tight 1e-4 gradient tolerance.
+- [x] [patch] Fixed `instancenorm_forward_matches_burn` tolerance: 1e-4 → 1e-3
+  (same formula difference as GroupNorm).
+- [x] [patch] Cargo.toml version reconciled to 0.2.17.
+- [x] Burn parity test count: 67 total (all passing).
+
+## Sprints MS-76 – MS-77: Python Sequential, ConvTranspose tracking, constructors, SGD fast path [COMPLETE]
+
+### MS-77 (0.2.17): coeus-ops constructors, topk largest, SGD fast path, fused ConvTranspose backward [minor]
+- [x] `coeus_ops::constructors` module: `linspace`, `logspace`, `geomspace` free functions.
+- [x] `pycoeus.topk(input, k, dim, largest=True)` parameter added.
+- [x] SGD optimizer small-tensor fast path (≤4096 elements: sequential loop, >4096: parallel_for).
+- [x] ConvTranspose1d/2d backward fused scatter-accumulate.
+- [x] Moirai WorkStealingScheduler audit: Chase-Lev lock-free deque, no contention regression.
+- [x] Leto matmul-accumulate dispatch contract tests.
+- [x] GroupNorm/InstanceNorm Burn parity tests (+3, total 67) — committed in MS-77.
+
+### MS-76 (0.2.16): Tracked ConvTranspose Python, softmax/logsoftmax, Sequential, pooling backward [minor]
+- [x] PyConvTranspose1d/2d forward now calls tracked autograd path.
+- [x] PyTensor.softmax(dim) and .log_softmax(dim) tensor methods.
+- [x] PySequential nn.Sequential container.
+- [x] Burn parity tests +2 (avg_pool2d_backward, max_pool2d_backward); 64 total.
+- [x] Python binding tests 36 → 39.
 
 ### Completed patch increments
 - [x] [patch] Added sparse conversion integration coverage for

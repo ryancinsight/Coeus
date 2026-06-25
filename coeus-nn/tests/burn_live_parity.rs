@@ -2383,11 +2383,18 @@ fn groupnorm_forward_matches_burn() {
         BurnTensor::from_data(TensorData::new(data.clone(), [n, c, l]), &dev());
     let out_b = gn_b.forward(xb);
 
+    // Tolerance derivation: Coeus computes sqrt(var + eps) (eps before sqrt,
+    // the standard PyTorch formula), while Burn 0.16 computes sqrt(var) + eps
+    // (eps after sqrt).  The relative difference between the two divisors is
+    // approximately eps / (2 * sqrt(var)) ≈ 1e-5 / (2 * 0.17) ≈ 2.9e-5 for the
+    // smallest group variance (~0.03).  After normalization (amplification
+    // ~1/sqrt(var) ≈ 5.8) and accumulation across C*L output elements, the
+    // worst-case absolute error bound is ~6 * 5.8 * 2.9e-5 ≈ 1e-3.
     assert_close_rel(
         "groupnorm_fwd",
         out_c.tensor.to_contiguous().as_slice(),
         &bvec(out_b),
-        1e-4,
+        1e-3,
     );
 }
 
@@ -2434,8 +2441,10 @@ fn groupnorm_forward_backward_match_burn() {
     let x_flat = xb.clone().reshape([n, g, hidden]);
     let mean = x_flat.clone().sum_dim(2) / hidden as f32;
     let xc = x_flat.sub(mean);
+    // Use Coeus's formula sqrt(var + eps), NOT Burn's sqrt(var) + eps,
+    // so the reference gradient matches Coeus's forward computation.
     let var = xc.clone().powf_scalar(2.0).sum_dim(2) / hidden as f32;
-    let normed = xc.div(var.sqrt().add_scalar(eps));
+    let normed = xc.div(var.add_scalar(eps).sqrt());
     let normed_3d = normed.reshape([n, c, l]);
     let mut aff_shape = [1usize; 3];
     aff_shape[1] = c;
@@ -2495,10 +2504,12 @@ fn instancenorm_forward_matches_burn() {
         BurnTensor::from_data(TensorData::new(data.clone(), [n, c, l]), &dev());
     let out_b = in_b.forward(xb);
 
+    // Tolerance: same sqrt(var+eps) vs sqrt(var)+eps formula difference as
+    // GroupNorm.  See groupnorm_forward_matches_burn for the derivation.
     assert_close_rel(
         "instancenorm_fwd",
         out_c.tensor.to_contiguous().as_slice(),
         &bvec(out_b),
-        1e-4,
+        1e-3,
     );
 }
