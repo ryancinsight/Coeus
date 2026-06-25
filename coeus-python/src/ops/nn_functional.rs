@@ -285,19 +285,20 @@ pub fn scaled_dot_product_attention(
     let scale = scale.unwrap_or_else(|| 1.0 / (d_k as f64).sqrt());
 
     let inner = py.allow_threads(move || {
-        let (out, _attn) = if is_causal {
-            coeus_autograd::sdp_attention::<
-                f64,
-                coeus_core::MoiraiBackend,
-                coeus_autograd::CausalMask,
-            >(&q, &k, &v, mask.as_ref(), scale)
-        } else {
-            coeus_autograd::sdp_attention::<
-                f64,
-                coeus_core::MoiraiBackend,
-                coeus_autograd::NullMask,
-            >(&q, &k, &v, mask.as_ref(), scale)
-        };
+        let (out, _attn) =
+            if is_causal {
+                coeus_autograd::sdp_attention::<
+                    f64,
+                    coeus_core::MoiraiBackend,
+                    coeus_autograd::CausalMask,
+                >(&q, &k, &v, mask.as_ref(), scale)
+            } else {
+                coeus_autograd::sdp_attention::<
+                    f64,
+                    coeus_core::MoiraiBackend,
+                    coeus_autograd::NullMask,
+                >(&q, &k, &v, mask.as_ref(), scale)
+            };
         out
     });
     PyTensor::from_var(inner)

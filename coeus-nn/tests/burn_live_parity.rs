@@ -1516,9 +1516,8 @@ fn layernorm_forward_nd_3d_matches_reshape_reference() {
     let b = vec![0.1f32, -0.1, 0.05, -0.05];
     let eps = 1e-5;
 
-    let mut ln = coeus_nn::normalization::layernorm::LayerNorm::<f32, SequentialBackend>::new(
-        d, eps,
-    );
+    let mut ln =
+        coeus_nn::normalization::layernorm::LayerNorm::<f32, SequentialBackend>::new(d, eps);
     ln.weight = Var::new(CoeusTensor::from_slice(vec![d], &w), true);
     ln.bias = Var::new(CoeusTensor::from_slice(vec![d], &b), true);
 
@@ -1526,15 +1525,11 @@ fn layernorm_forward_nd_3d_matches_reshape_reference() {
 
     // Manual reference: reshape → LayerNorm 2-D → reshape back.
     let x_flat = Var::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(
-            vec![batch * seq, d],
-            &data,
-        ),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![batch * seq, d], &data),
         false,
     );
-    let mut ln2 = coeus_nn::normalization::layernorm::LayerNorm::<f32, SequentialBackend>::new(
-        d, eps,
-    );
+    let mut ln2 =
+        coeus_nn::normalization::layernorm::LayerNorm::<f32, SequentialBackend>::new(d, eps);
     ln2.weight = Var::new(CoeusTensor::from_slice(vec![d], &w), false);
     ln2.bias = Var::new(CoeusTensor::from_slice(vec![d], &b), false);
     use coeus_nn::Module;
@@ -1565,14 +1560,13 @@ fn conv_transpose1d_stride2_matches_manual_reference() {
     // batch=1, C_in=2, L=3 → C_out=2, K=2, stride=2 → L_out = (3-1)*2 + 2 = 6
     let input: Vec<f32> = vec![1.0, 0.0, -1.0, 2.0, -2.0, 0.5];
     let weight: Vec<f32> = vec![1.0, 0.5, -0.5, 0.25, 0.0, -1.0, 1.0, 0.5]; // [C_in=2, C_out=2, K=2]
-    let (n, c_in, l, c_out, k, stride, padding, op, dilation) =
-        (1usize, 2, 3, 2, 2, 2, 0, 0, 1);
-    let l_out = coeus_ops::conv_transpose::conv_transpose1d_output_len(l, k, stride, padding, op, dilation);
+    let (n, c_in, l, c_out, k, stride, padding, op, dilation) = (1usize, 2, 3, 2, 2, 2, 0, 0, 1);
+    let l_out =
+        coeus_ops::conv_transpose::conv_transpose1d_output_len(l, k, stride, padding, op, dilation);
     assert_eq!(l_out, 6);
 
     let in_t = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c_in, l], &input);
-    let wt =
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![c_in, c_out, k], &weight);
+    let wt = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![c_in, c_out, k], &weight);
     let mut out = CoeusTensor::<f32, SequentialBackend>::zeros(vec![n, c_out, l_out]);
     let out_layout = out.layout().clone();
     backend.conv_transpose1d(
@@ -1602,21 +1596,16 @@ fn conv_transpose1d_stride2_matches_manual_reference() {
                     for ki in 0..k {
                         let pos = li * stride + ki;
                         if pos < l_out {
-                            expected[ni * c_out * l_out + co * l_out + pos] +=
-                                in_s[ni * c_in * l + ci * l + li]
-                                    * w_s[ci * c_out * k + co * k + ki];
+                            expected[ni * c_out * l_out + co * l_out + pos] += in_s
+                                [ni * c_in * l + ci * l + li]
+                                * w_s[ci * c_out * k + co * k + ki];
                         }
                     }
                 }
             }
         }
     }
-    assert_close_rel(
-        "conv_transpose1d_stride2",
-        out.as_slice(),
-        &expected,
-        1e-4,
-    );
+    assert_close_rel("conv_transpose1d_stride2", out.as_slice(), &expected, 1e-4);
     let _ = backend;
 }
 
@@ -1632,15 +1621,13 @@ fn conv_transpose2d_unit_stride_matches_manual_reference() {
     let weight: Vec<f32> = vec![1.0, 0.0, 0.0, 1.0]; // identity-ish 2×2 kernel
     let (n, c_in, h, w, c_out, kh, kw, stride, padding, op, dilation) =
         (1usize, 1, 3, 3, 1, 2, 2, 1, 0, 0, 1);
-    let (h_out, w_out) =
-        coeus_ops::conv_transpose::conv_transpose2d_output_dims(h, w, kh, kw, stride, padding, op, dilation);
+    let (h_out, w_out) = coeus_ops::conv_transpose::conv_transpose2d_output_dims(
+        h, w, kh, kw, stride, padding, op, dilation,
+    );
     assert_eq!((h_out, w_out), (4, 4));
 
     let in_t = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c_in, h, w], &input);
-    let wt = CoeusTensor::<f32, SequentialBackend>::from_slice(
-        vec![c_in, c_out, kh, kw],
-        &weight,
-    );
+    let wt = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![c_in, c_out, kh, kw], &weight);
     let mut out = CoeusTensor::<f32, SequentialBackend>::zeros(vec![n, c_out, h_out, w_out]);
     let out_layout = out.layout().clone();
     backend.conv_transpose2d(
@@ -1702,15 +1689,23 @@ fn amax_amin_prod_match_manual_reference() {
     let x = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data);
 
     let amax_val = coeus_ops::amax(&x, &backend);
-    assert!((amax_val - 5.0f32).abs() < 1e-4, "amax: got {amax_val}, expected 5.0");
+    assert!(
+        (amax_val - 5.0f32).abs() < 1e-4,
+        "amax: got {amax_val}, expected 5.0"
+    );
 
     let amin_val = coeus_ops::amin(&x, &backend);
-    assert!((amin_val - (-4.0f32)).abs() < 1e-4, "amin: got {amin_val}, expected -4.0");
+    assert!(
+        (amin_val - (-4.0f32)).abs() < 1e-4,
+        "amin: got {amin_val}, expected -4.0"
+    );
 
     let prod_val = coeus_ops::prod(&x, &backend);
     let expected_prod: f32 = data.iter().product();
-    assert!((prod_val - expected_prod).abs() / expected_prod.abs().max(1e-6) < 1e-4,
-        "prod: got {prod_val}, expected {expected_prod}");
+    assert!(
+        (prod_val - expected_prod).abs() / expected_prod.abs().max(1e-6) < 1e-4,
+        "prod: got {prod_val}, expected {expected_prod}"
+    );
     let _ = backend;
 }
 
@@ -1725,7 +1720,10 @@ fn no_grad_context_does_not_track() {
     );
     let out_tracked = coeus_autograd::relu(&xv);
     // Creator is set when requires_grad is active.
-    assert!(out_tracked.creator.is_some(), "expected creator outside no_grad");
+    assert!(
+        out_tracked.creator.is_some(),
+        "expected creator outside no_grad"
+    );
 
     // Inside no_grad context: creator should be None even though the input has requires_grad.
     coeus_autograd::grad_mode::push_no_grad();
@@ -2208,4 +2206,89 @@ fn adam_step_matches_analytical_reference() {
         &expected.iter().map(|&x| x as f32).collect::<Vec<_>>(),
         1e-5,
     );
+}
+
+// ── ConvTranspose1d backward (gradient correctness) ───────────────────────────
+
+#[test]
+fn conv_transpose1d_backward_gradient_correctness() {
+    // Input [1,1,2], weight [1,1,2], no bias, stride=1.
+    // Forward: output [1,1,3] (L_out = (2-1)*1 + 2 = 3)
+    // seed = [1, 1, 1] (all-ones grad)
+    // grad_input[0,0,i] = Σ_{co,k} seed[0,co, i*1+k] * w[0,co,k]
+    //   → position 0: seed[0]=1.0 * w[0]=1.0 + seed[1]=1.0 * w[1]=0.5 = 1.5
+    //   → position 1: seed[1]=1.0 * w[0]=1.0 + seed[2]=1.0 * w[1]=0.5 = 1.5
+    // grad_weight[0,0,k] = Σ_{n,l} input[n,0,l] * seed[n,0, l+k]
+    //   → k=0: 2.0*1 + 3.0*1 = 5.0  (l=0→seed[0], l=1→seed[1])
+    //   → k=1: 2.0*1 + 3.0*1 = 5.0  (l=0→seed[1], l=1→seed[2])
+    let input = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2], &[2.0, 3.0]),
+        true,
+    );
+    let weight = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2], &[1.0, 0.5]),
+        true,
+    );
+    let backend = SequentialBackend::new();
+    let out_tensor = coeus_ops::conv_transpose1d(
+        &input.tensor,
+        &weight.tensor,
+        None,
+        1,
+        0,
+        0,
+        1,
+        &backend,
+    );
+    let out = coeus_autograd::conv_transpose1d(&input, &weight, &None, out_tensor, 1, 0, 0, 1);
+    let seed = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3], &[1.0, 1.0, 1.0]);
+    out.backward_with_seed(seed);
+
+    let gi = input.grad().unwrap();
+    let gw = weight.grad().unwrap();
+    assert_close_rel("ct1d_bwd_gi", gi.as_slice(), &[1.5, 1.5], 1e-5);
+    assert_close_rel("ct1d_bwd_gw", gw.as_slice(), &[5.0, 5.0], 1e-5);
+    let _ = backend;
+}
+
+// ── ConvTranspose2d backward (gradient correctness) ───────────────────────────
+
+#[test]
+fn conv_transpose2d_backward_gradient_correctness() {
+    // Input [1,1,2,2] all-ones, weight [1,1,1,1]=[2.0], bias [1]=[0].
+    // Forward: out[n,0,h,w] = input[n,0,h,w]*2.0 = 2.0 (all positions) → [2,2,2,2]
+    // Backward seed = all-ones [1,1,2,2]:
+    //   grad_input[n,0,h,w] = Σ_k seed[n,0,h,w] * weight = 1*2 = 2
+    //   grad_weight = Σ_{n,h,w} input*seed = 1*1 * 4 elements = 4
+    let input = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &[1.0; 4]),
+        true,
+    );
+    let weight = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 1, 1], &[2.0]),
+        true,
+    );
+    let backend = SequentialBackend::new();
+    let out_tensor = coeus_ops::conv_transpose2d(
+        &input.tensor,
+        &weight.tensor,
+        None,
+        1,
+        0,
+        0,
+        1,
+        &backend,
+    );
+    let out = coeus_autograd::conv_transpose2d(&input, &weight, &None, out_tensor, 1, 0, 0, 1);
+    assert_eq!(out.tensor.shape(), &[1, 1, 2, 2]);
+    assert_close("ct2d_fwd", out.tensor.to_contiguous().as_slice(), &[2.0; 4]);
+
+    let seed = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &[1.0; 4]);
+    out.backward_with_seed(seed);
+
+    let gi = input.grad().unwrap();
+    let gw = weight.grad().unwrap();
+    assert_close("ct2d_bwd_gi", gi.to_contiguous().as_slice(), &[2.0; 4]);
+    assert_close("ct2d_bwd_gw", gw.to_contiguous().as_slice(), &[4.0]);
+    let _ = backend;
 }

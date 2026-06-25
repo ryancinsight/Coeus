@@ -103,8 +103,8 @@ where
         let backend = B::default();
         let l = input.tensor.shape()[2];
         let l_out = self.output_len(l);
-
         let n = input.tensor.shape()[0];
+
         let mut out_tensor = Tensor::zeros_on([n, self.out_channels, l_out], &backend);
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
         backend.conv_transpose1d(
@@ -120,8 +120,16 @@ where
             out_storage,
             out_layout,
         );
-        // Return as a non-tracked Var (forward-only; backward via full autograd
-        // support is a future sprint item).
-        Var::new(out_tensor, false)
+
+        coeus_autograd::conv_transpose1d(
+            input,
+            &self.weight,
+            &self.bias,
+            out_tensor,
+            self.stride,
+            self.padding,
+            self.output_padding,
+            self.dilation,
+        )
     }
 }

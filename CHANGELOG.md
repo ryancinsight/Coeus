@@ -1,6 +1,36 @@
 # Changelog
 
-## 0.2.14 - 2026-06-25
+## 0.2.15 - 2026-06-25
+
+### Added
+
+- **`ConvTranspose2dNode` + tracked `conv_transpose2d`** — Autograd backward node
+  for 2-D transposed convolution in `coeus-autograd/src/ops/nn/conv.rs`.
+  Host-side backward implements the three derivative paths:
+  - `grad_input[n,cin,hin,win] = Σ grad_out × weight` (gather from output grad)
+  - `grad_weight[cin,cout,kh,kw] += Σ input × grad_out`
+  - `grad_bias[cout] = Σ grad_out` (optional)
+  Exported from `coeus-autograd` public flat surface as `conv_transpose2d`.
+
+- **`ConvTranspose1d` / `ConvTranspose2d` now fully tracked** — Both `coeus-nn`
+  modules previously returned `Var::new(out, false)` (no gradient tracking).
+  They now call the tracked `coeus_autograd::conv_transpose1d/2d` wrappers,
+  enabling end-to-end gradient flow through transposed convolution layers in
+  any training loop that uses `coeus-autograd`.
+
+- **Autograd tests (+2)** — `coeus-autograd` test suite (29 tests):
+  - `conv_transpose2d_backward_accumulates_exact_gradients` — identity-kernel
+    with bias; verifies exact grad_input, grad_weight, grad_bias.
+  - `conv_transpose2d_no_bias_backward` — stride-1 2×2 kernel without bias;
+    confirms gradients flow, shapes correct, grad_weight nonzero.
+
+- **Burn parity tests (+2)** — `burn_live_parity.rs` now has 62 tests:
+  - `conv_transpose1d_backward_gradient_correctness` — all-ones seed, 2-element
+    input, verifies grad_input and grad_weight analytically.
+  - `conv_transpose2d_backward_gradient_correctness` — identity kernel, all-ones
+    input + seed, verifies grad_input = 2×ones, grad_weight = 4.
+
+
 
 ### Added
 

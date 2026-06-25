@@ -120,6 +120,16 @@ where
             out_storage,
             out_layout,
         );
-        Var::new(out_tensor, false)
+
+        coeus_autograd::conv_transpose2d(
+            input,
+            &self.weight,
+            &self.bias,
+            out_tensor,
+            self.stride,
+            self.padding,
+            self.output_padding,
+            self.dilation,
+        )
     }
 }

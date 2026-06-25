@@ -1432,7 +1432,6 @@ assert out4.shape == [b2, c, h, w], f"4D forward_nd shape: {out4.shape}"
     );
 }
 
-
 #[test]
 fn test_dtype_cast_methods() {
     run_script(
@@ -1593,7 +1592,6 @@ assert abs(pr_empty - 1.0) < 1e-9, f"prod empty: {pr_empty}"
 "#,
     );
 }
-
 
 #[test]
 fn test_dot_cross_vector_ops() {

@@ -14,8 +14,12 @@ use coeus_core::Scalar;
 ///
 /// ```rust
 /// use coeus_autograd::{Var, VarScalarExt};
-/// # let v: Var<f64, _> = unimplemented!();
+/// use coeus_core::SequentialBackend;
+/// use coeus_tensor::Tensor;
+/// let v = Var::<f64, SequentialBackend>::new(
+///     Tensor::from_slice(vec![3], &[3.0_f64, 4.0, 5.0]), false);
 /// let scaled = v.scalar_mul(2.0);
+/// assert_eq!(scaled.tensor.as_slice(), &[6.0_f64, 8.0, 10.0]);
 /// ```
 ///
 /// For the default `MoiraiBackend`, the `*`/`+`/`-`/`/` operators also work

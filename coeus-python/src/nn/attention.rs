@@ -57,21 +57,17 @@ impl PyScaledDotProductAttention {
 
         let inner = py.allow_threads(move || {
             let (out, _attn) = if is_causal {
-                coeus_autograd::sdp_attention::<f64, coeus_core::MoiraiBackend, coeus_autograd::CausalMask>(
-                    &q,
-                    &k,
-                    &v,
-                    mask.as_ref(),
-                    scale,
-                )
+                coeus_autograd::sdp_attention::<
+                    f64,
+                    coeus_core::MoiraiBackend,
+                    coeus_autograd::CausalMask,
+                >(&q, &k, &v, mask.as_ref(), scale)
             } else {
-                coeus_autograd::sdp_attention::<f64, coeus_core::MoiraiBackend, coeus_autograd::NullMask>(
-                    &q,
-                    &k,
-                    &v,
-                    mask.as_ref(),
-                    scale,
-                )
+                coeus_autograd::sdp_attention::<
+                    f64,
+                    coeus_core::MoiraiBackend,
+                    coeus_autograd::NullMask,
+                >(&q, &k, &v, mask.as_ref(), scale)
             };
             out
         });
