@@ -119,7 +119,7 @@ impl PyMultiHeadAttention {
             }
             dispatch_mha_fwd!(1, 2, 4, 8, 16, 32)
         });
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     /// Cross-attention forward pass.
@@ -179,7 +179,7 @@ impl PyMultiHeadAttention {
             }
             dispatch_mha_cross!(1, 2, 4, 8, 16, 32)
         });
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -315,7 +315,7 @@ impl PyRotaryEmbedding {
         let rope = self.inner.clone();
 
         let inner = py.allow_threads(move || rope.forward(&input_var));
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self) -> PyStateDict {

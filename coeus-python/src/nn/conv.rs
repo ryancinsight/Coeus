@@ -93,7 +93,7 @@ impl PyConv1d {
         };
 
         let inner = py.allow_threads(move || rust_conv.forward(&input_var));
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -227,7 +227,7 @@ impl PyConv2d {
         };
 
         let inner = py.allow_threads(move || rust_conv.forward(&input_var));
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -361,7 +361,7 @@ impl PyConv3d {
         };
 
         let inner = py.allow_threads(move || rust_conv.forward(&input_var));
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {

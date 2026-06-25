@@ -43,42 +43,42 @@ where
 #[pyfunction]
 pub fn exp(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::exp(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Element-wise natural logarithm.
 #[pyfunction]
 pub fn log(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::log(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Sum along the specified axis.
 #[pyfunction]
 pub fn sum_axis(input: &PyTensor, axis: usize, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::sum_axis(&input.inner, axis));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Mean along the specified axis.
 #[pyfunction]
 pub fn mean_axis(input: &PyTensor, axis: usize, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::mean_axis(&input.inner, axis));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Compute log-softmax along the specified axis.
 #[pyfunction]
 pub fn log_softmax(input: &PyTensor, axis: usize, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::log_softmax(&input.inner, axis));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Cumulative sum along the specified axis.
 #[pyfunction]
 pub fn cumsum(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::cumsum(&input.inner, dim));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Constant padding.
@@ -86,7 +86,7 @@ pub fn cumsum(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
 #[pyo3(signature = (input, pads, value = 0.0))]
 pub fn pad(input: &PyTensor, pads: Vec<(usize, usize)>, value: f64, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::pad(&input.inner, &pads, value));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Concatenate a sequence of tensors along the specified dimension.
@@ -100,7 +100,7 @@ pub fn cat(inputs: Vec<Py<PyTensor>>, dim: usize, py: Python<'_>) -> PyTensor {
         let ref_inputs: Vec<&coeus_autograd::Var<f64>> = rust_inputs.iter().collect();
         coeus_autograd::cat(&ref_inputs, dim)
     });
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Stack tensors along a new dimension.
@@ -119,17 +119,14 @@ pub fn stack(inputs: Vec<Py<PyTensor>>, dim: usize, py: Python<'_>) -> PyTensor 
         let ref_inputs: Vec<&coeus_autograd::Var<f64>> = rust_inputs.iter().collect();
         coeus_autograd::stack(&ref_inputs, dim)
     });
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Split a tensor into chunks of `chunk_size` along the specified dimension.
 #[pyfunction]
 pub fn split(input: &PyTensor, chunk_size: usize, dim: usize, py: Python<'_>) -> Vec<PyTensor> {
     let inner_chunks = py.allow_threads(|| coeus_autograd::split(&input.inner, chunk_size, dim));
-    inner_chunks
-        .into_iter()
-        .map(|inner| PyTensor { inner })
-        .collect()
+    inner_chunks.into_iter().map(PyTensor::from_var).collect()
 }
 
 /// Functional matmul: `a @ b`.
@@ -139,112 +136,112 @@ pub fn split(input: &PyTensor, chunk_size: usize, dim: usize, py: Python<'_>) ->
 #[pyfunction]
 pub fn matmul(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::matmul(&a.inner, &b.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Element-wise absolute value.
 #[pyfunction]
 pub fn abs(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::abs(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Element-wise square root.
 #[pyfunction]
 pub fn sqrt(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::sqrt(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Element-wise negation.
 #[pyfunction]
 pub fn neg(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::neg(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Element-wise reciprocal: 1/x.
 #[pyfunction]
 pub fn recip(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::recip(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Element-wise signum: -1, 0, or 1.
 #[pyfunction]
 pub fn sign(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::sign(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Element-wise floor.
 #[pyfunction]
 pub fn floor(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::floor(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Element-wise ceil.
 #[pyfunction]
 pub fn ceil(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::ceil(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Element-wise round to nearest integer.
 #[pyfunction]
 pub fn round(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::round(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Element-wise truncation toward zero.
 #[pyfunction]
 pub fn trunc(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::trunc(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Element-wise clamp to `[min_val, max_val]`.
 #[pyfunction]
 pub fn clamp(input: &PyTensor, min_val: f64, max_val: f64, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::clamp(&input.inner, min_val, max_val));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Maximum along the specified axis (keep-dim).
 #[pyfunction]
 pub fn max_axis(input: &PyTensor, axis: usize, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::max_axis(&input.inner, axis));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Minimum along the specified axis (keep-dim).
 #[pyfunction]
 pub fn min_axis(input: &PyTensor, axis: usize, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::min_axis(&input.inner, axis));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Numerically stable log-sum-exp along `axis`.
 #[pyfunction]
 pub fn log_sum_exp(input: &PyTensor, axis: usize, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::log_sum_exp(&input.inner, axis));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Global sum over all elements → scalar tensor of shape `[1]`.
 #[pyfunction]
 pub fn sum(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::sum(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Global mean over all elements → scalar tensor of shape `[1]`.
 #[pyfunction]
 pub fn mean(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::mean(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 // ── Tensor constructors ──────────────────────────────────────────────────
@@ -318,28 +315,28 @@ pub fn linspace(start: f64, end: f64, steps: usize) -> PyTensor {
 #[pyfunction]
 pub fn reshape(input: &PyTensor, shape: Vec<usize>, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::reshape(&input.inner, shape));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Permute dimensions.  Equivalent to `tensor.permute(dims)`.
 #[pyfunction]
 pub fn permute(input: &PyTensor, dims: Vec<usize>, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::permute(&input.inner, &dims));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// 2-D transpose.  Equivalent to `tensor.t()`.
 #[pyfunction]
 pub fn t(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::transpose_2d(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Power: `input ** exp` element-wise.
 #[pyfunction]
 pub fn pow(input: &PyTensor, exp: f64, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::pow(&input.inner, exp));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 // ── Trigonometric ────────────────────────────────────────────────────────────
@@ -348,14 +345,14 @@ pub fn pow(input: &PyTensor, exp: f64, py: Python<'_>) -> PyTensor {
 #[pyfunction]
 pub fn sin(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::sin(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Element-wise cosine with autograd.
 #[pyfunction]
 pub fn cos(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::cos(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 // ── Shape ops ────────────────────────────────────────────────────────────────
@@ -366,7 +363,7 @@ pub fn cos(input: &PyTensor, py: Python<'_>) -> PyTensor {
 #[pyfunction]
 pub fn flip(input: &PyTensor, axis: usize, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::flip(&input.inner, axis));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Conditional element-wise select.
@@ -384,14 +381,14 @@ pub fn where_cond(
 ) -> PyTensor {
     let inner = py
         .allow_threads(|| coeus_autograd::where_cond(&cond.inner, &on_true.inner, &on_false.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Softmax along `dim` (numerically stable).
 #[pyfunction]
 pub fn softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::softmax(&input.inner, dim as isize));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 // ── Constructors (additions) ──────────────────────────────────────────────────
@@ -578,7 +575,7 @@ pub fn tensor_var(
 #[pyfunction]
 pub fn norm(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::norm(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Tracked `L_p` norm: `(Σ|xᵢ|^p)^(1/p)`.
@@ -626,7 +623,7 @@ pub fn vector_norm(
         return Ok(PyTensor { inner: squeezed });
     }
     let inner = py.allow_threads(|| coeus_autograd::norm_p(&input.inner, ord));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 fn validate_stat_axis(op: &str, input: &PyTensor, axis: usize) -> PyResult<()> {
@@ -801,7 +798,7 @@ pub fn where_fn(
 ) -> PyTensor {
     let inner = py
         .allow_threads(|| coeus_autograd::where_cond(&cond.inner, &on_true.inner, &on_false.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 // ── Indexing ops ─────────────────────────────────────────────────────────────
@@ -815,7 +812,7 @@ pub fn where_fn(
 #[pyfunction]
 pub fn gather(input: &PyTensor, dim: usize, index: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::gather(&input.inner, dim, &index.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Scatter-accumulate: `out = input` then `out[…, index[…,k,…], …] += src[…,k,…]`.
@@ -872,7 +869,7 @@ pub fn unsqueeze(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTen
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::unsqueeze(&input.inner, dim));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 /// Remove size-1 dimensions.
@@ -898,7 +895,7 @@ pub fn squeeze(input: &PyTensor, dim: Option<usize>, py: Python<'_>) -> PyResult
         }
     }
     let inner = py.allow_threads(|| coeus_autograd::squeeze(&input.inner, dim));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 /// Flatten contiguous dimensions `[start_dim, end_dim]` into one.
@@ -918,7 +915,7 @@ pub fn flatten(
     let ndim = shape.len();
     if ndim == 0 {
         let inner = py.allow_threads(|| coeus_autograd::reshape(&input.inner, vec![1]));
-        return Ok(PyTensor { inner });
+        return Ok(PyTensor::from_var(inner));
     }
     if start_dim >= ndim {
         return Err(PyValueError::new_err(format!(
@@ -941,7 +938,7 @@ pub fn flatten(
     new_shape.push(flat);
     new_shape.extend_from_slice(&shape[end + 1..]);
     let inner = py.allow_threads(move || coeus_autograd::reshape(&input.inner, new_shape));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 // ── Selection / argmax / argmin ───────────────────────────────────────────────
@@ -1023,7 +1020,7 @@ pub fn einsum(subscript: &str, operands: Vec<Py<PyTensor>>, py: Python<'_>) -> P
         let refs: Vec<&coeus_autograd::Var<f64>> = rust_vars.iter().collect();
         coeus_autograd::einsum(subscript, &refs)
     });
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Select slices from `input` along `dim` at positions in 1-D `index` (tracked).
@@ -1052,7 +1049,7 @@ pub fn index_select(
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::index_select(&input.inner, dim, &index.inner));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 // ── broadcast_to / masked_fill / nonzero ─────────────────────────────────────
@@ -1078,7 +1075,7 @@ pub fn broadcast_to(
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::broadcast_to(&input.inner, target_shape));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 /// Replace elements of `input` with `value` wherever `mask` is non-zero (tracked).
@@ -1102,7 +1099,7 @@ pub fn masked_fill(
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::masked_fill(&input.inner, &mask.inner, value));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 /// Return the ND coordinates of all non-zero elements as a `[N, ndim]` tensor.
@@ -1139,7 +1136,7 @@ pub fn tril(input: &PyTensor, k: i64, py: Python<'_>) -> PyResult<PyTensor> {
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::tril(&input.inner, k as isize));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 /// Upper-triangular mask on the last two dimensions.
@@ -1156,7 +1153,7 @@ pub fn triu(input: &PyTensor, k: i64, py: Python<'_>) -> PyResult<PyTensor> {
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::triu(&input.inner, k as isize));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 /// Circular shift along `dims` by `shifts` (tracked).
@@ -1186,7 +1183,7 @@ pub fn roll(
     }
     let shifts_isize: Vec<isize> = shifts.iter().map(|&s| s as isize).collect();
     let inner = py.allow_threads(move || coeus_autograd::roll(&input.inner, &shifts_isize, &dims));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 // ── meshgrid / tile ───────────────────────────────────────────────────────────
@@ -1240,7 +1237,7 @@ pub fn meshgrid(
 #[pyfunction]
 pub fn tile(input: &PyTensor, reps: Vec<usize>, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::tile(&input.inner, &reps));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 // ── Spatial resize ────────────────────────────────────────────────────────────
@@ -1321,7 +1318,7 @@ pub fn linear(
         use coeus_nn::Module;
         lin.forward(&x)
     });
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Functional layer normalization over the last `norm_shape` elements.
@@ -1359,7 +1356,7 @@ pub fn layer_norm(
         let ln = LayerNorm::from_parts(weight_var, bias_var, eps);
         ln.forward(&x)
     });
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Functional dropout: zero each element with probability `p` during training.
@@ -1380,7 +1377,7 @@ pub fn dropout(input: &PyTensor, p: f64, training: bool, py: Python<'_>) -> PyTe
         drop.set_training(true);
         drop.forward(&x)
     });
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 // ── diag / diagonal / cumprod ─────────────────────────────────────────────────
@@ -1402,7 +1399,7 @@ pub fn diag(v: &PyTensor, k: i64, py: Python<'_>) -> PyResult<PyTensor> {
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::diag(&v.inner, k as isize));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 /// Extract the `k`-th diagonal of a 2-D matrix as a 1-D vector (tracked).
@@ -1419,7 +1416,7 @@ pub fn diagonal(m: &PyTensor, k: i64, py: Python<'_>) -> PyResult<PyTensor> {
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::diagonal(&m.inner, k as isize));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 /// Cumulative product along `dim` (tracked).
@@ -1435,7 +1432,7 @@ pub fn cumprod(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTenso
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::cumprod(&input.inner, dim));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 // ── nn.functional-style free functions ───────────────────────────────────────
@@ -1448,49 +1445,49 @@ pub fn cumprod(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTenso
 #[pyfunction]
 pub fn f_softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::softmax(&input.inner, dim as isize));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Log-softmax along `dim` (tracked, matches `F.log_softmax`).
 #[pyfunction]
 pub fn f_log_softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::log_softmax(&input.inner, dim));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// ReLU activation (tracked, matches `F.relu`).
 #[pyfunction]
 pub fn f_relu(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::relu(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Sigmoid activation (tracked, matches `F.sigmoid`).
 #[pyfunction]
 pub fn f_sigmoid(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::sigmoid(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Tanh activation (tracked, matches `F.tanh`).
 #[pyfunction]
 pub fn f_tanh(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::tanh(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// GELU activation (exact erf version, tracked, matches `F.gelu`).
 #[pyfunction]
 pub fn f_gelu(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::gelu(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// SiLU / Swish activation (tracked, matches `F.silu`).
 #[pyfunction]
 pub fn f_silu(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::silu(&input.inner));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 /// Mean squared error loss (mean reduction, matches `F.mse_loss(reduction='mean')`).
@@ -1504,7 +1501,7 @@ pub fn f_mse_loss(input: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyResu
         )));
     }
     let inner = py.allow_threads(|| coeus_nn::mse_loss(&input.inner, &target.inner));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 /// Binary cross-entropy loss (mean reduction, matches `F.binary_cross_entropy`).
@@ -1523,7 +1520,7 @@ pub fn f_binary_cross_entropy(
     }
     let inner =
         py.allow_threads(|| coeus_nn::binary_cross_entropy(&input.inner, &target.inner, 1e-7));
-    Ok(PyTensor { inner })
+    Ok(PyTensor::from_var(inner))
 }
 
 /// Cross-entropy loss: logits `[N, C]`, integer targets encoded as `f64` in `[N]`.
@@ -1532,7 +1529,7 @@ pub fn f_binary_cross_entropy(
 #[pyfunction]
 pub fn f_cross_entropy(input: &PyTensor, targets: Vec<usize>, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_nn::cross_entropy_loss(&input.inner, &targets));
-    PyTensor { inner }
+    PyTensor::from_var(inner)
 }
 
 // ── amax / amin / prod ────────────────────────────────────────────────────────

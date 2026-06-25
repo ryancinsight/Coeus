@@ -40,7 +40,7 @@ impl PyLayerNorm {
                 coeus_nn::normalization::layernorm::LayerNorm::from_parts(w_var, b_var, eps_val);
             ln.forward(&input_var)
         });
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {

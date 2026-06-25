@@ -11,6 +11,14 @@ pub struct PyTensor {
     pub inner: Var<f64>,
 }
 
+impl PyTensor {
+    pub(crate) fn from_var(inner: Var<f64>) -> Self {
+        Self {
+            inner: crate::grad_mode::maybe_untrack_var(inner),
+        }
+    }
+}
+
 #[pymethods]
 impl PyTensor {
     /// Create a tensor from a list of data and an optional shape.
@@ -70,158 +78,158 @@ impl PyTensor {
     /// Element-wise add (+).
     fn __add__(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::add(&self.inner, &other.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise sub (-).
     fn __sub__(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::sub(&self.inner, &other.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise mul (*).
     fn __mul__(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::mul(&self.inner, &other.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise div (/).
     fn __truediv__(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::div(&self.inner, &other.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Matrix multiplication (@).
     fn __matmul__(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::matmul(&self.inner, &other.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise exponential.
     fn exp(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::exp(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise natural logarithm.
     fn log(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::log(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Sum along the specified axis.
     fn sum_axis(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::sum_axis(&self.inner, axis));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Mean along the specified axis.
     fn mean_axis(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::mean_axis(&self.inner, axis));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Zero-copy reshape.
     fn reshape(&self, shape: Vec<usize>, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::reshape(&self.inner, shape));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Zero-copy permute.
     fn permute(&self, dims: Vec<usize>, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::permute(&self.inner, &dims));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Zero-copy squeeze of dimensions of size 1.
     #[pyo3(signature = (axis = None))]
     fn squeeze(&self, axis: Option<usize>, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::squeeze(&self.inner, axis));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Zero-copy unsqueeze inserting a dimension of size 1.
     fn unsqueeze(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::unsqueeze(&self.inner, axis));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Zero-copy transpose of a 2D tensor.
     fn t(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::transpose_2d(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Zero-copy transpose swapping dim0 and dim1.
     fn transpose(&self, dim0: usize, dim1: usize, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::transpose(&self.inner, dim0, dim1));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Contiguous copy of the tensor.
     fn contiguous(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::contiguous(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Cumulative sum along `dim`.
     fn cumsum(&self, dim: usize, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::cumsum(&self.inner, dim));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise negation (unary −).
     fn __neg__(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::neg(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise absolute value.
     fn abs(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::abs(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise square root.
     fn sqrt(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::sqrt(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise reciprocal: 1/x.
     fn recip(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::recip(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise signum: -1, 0, or 1.
     fn sign(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::sign(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise floor.
     fn floor(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::floor(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise ceil.
     fn ceil(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::ceil(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise round to nearest integer.
     fn round(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::round(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise truncation toward zero.
     fn trunc(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::trunc(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise power: `self ** exp`.
@@ -229,13 +237,13 @@ impl PyTensor {
     /// `exp` is a scalar `f64` applied uniformly to all elements.
     fn pow(&self, exp: f64, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::pow(&self.inner, exp));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Python `**` operator: `self ** exp`.
     fn __pow__(&self, exp: f64, _modulo: Option<i64>, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::pow(&self.inner, exp));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise clamp to `[min_val, max_val]`.
@@ -243,13 +251,13 @@ impl PyTensor {
     /// Gradient is 1 inside the clamp range and 0 at saturated positions.
     fn clamp(&self, min_val: f64, max_val: f64, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::clamp(&self.inner, min_val, max_val));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Multiply all elements by a scalar (no intermediate broadcast tensor).
     fn scale(&self, s: f64, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::scalar_mul(&self.inner, s));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Maximum along `axis`, output shape has that axis = 1.
@@ -257,7 +265,7 @@ impl PyTensor {
     /// Backward: indicator gradient at the argmax position (tied maxima split equally).
     fn max_axis(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::max_axis(&self.inner, axis));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Minimum along `axis`, output shape has that axis = 1.
@@ -265,7 +273,7 @@ impl PyTensor {
     /// Backward: indicator gradient at the argmin position (tied minima split equally).
     fn min_axis(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::min_axis(&self.inner, axis));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Numerically stable log-sum-exp along `axis`.
@@ -275,25 +283,25 @@ impl PyTensor {
     /// Output shape has `axis` reduced to size 1. Gradient equals softmax(x) along `axis`.
     fn log_sum_exp(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::log_sum_exp(&self.inner, axis));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Tracked element-wise sine.
     fn sin(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::sin(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Tracked element-wise cosine.
     fn cos(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::cos(&self.inner));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Flip the tensor along `axis`.
     fn flip(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::flip(&self.inner, axis));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Extract a scalar value from a single-element tensor.
@@ -350,7 +358,7 @@ impl PyTensor {
                 let sliced = coeus_autograd::slice(&self.inner, &ranges);
                 coeus_autograd::squeeze(&sliced, Some(0))
             });
-            return Ok(Self { inner });
+            return Ok(Self::from_var(inner));
         }
 
         // Try slice object.
@@ -381,7 +389,7 @@ impl PyTensor {
                 .map(|(d, &s)| if d == 0 { (start, stop) } else { (0, s) })
                 .collect();
             let inner = py.allow_threads(|| coeus_autograd::slice(&self.inner, &ranges));
-            return Ok(Self { inner });
+            return Ok(Self::from_var(inner));
         }
 
         Err(pyo3::exceptions::PyTypeError::new_err(
@@ -485,13 +493,13 @@ impl PyTensor {
         new_shape.push(shape[start..=end].iter().product());
         new_shape.extend_from_slice(&shape[end + 1..]);
         let inner = py.allow_threads(|| coeus_autograd::reshape(&self.inner, new_shape));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Alias for `reshape` matching PyTorch's `tensor.view(shape)`.
     fn view(&self, shape: Vec<usize>, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::reshape(&self.inner, shape));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Expand singleton dimensions to a given shape (materialises via broadcast add with zero).
@@ -521,7 +529,7 @@ impl PyTensor {
             );
             coeus_autograd::add(&self.inner, &zeros_v)
         });
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Element-wise equal comparison: returns a float tensor (1.0 = equal, 0.0 = not).
@@ -656,7 +664,7 @@ impl PyTensor {
             )));
         }
         let inner = py.allow_threads(|| coeus_autograd::permute(&self.inner, &[1, 0]));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Tile this tensor by repeating it `reps[d]` times along each dimension.
@@ -664,19 +672,19 @@ impl PyTensor {
     /// Equivalent to `tensor.repeat(*reps)` in PyTorch / `np.tile`.
     fn repeat(&self, reps: Vec<usize>, py: Python<'_>) -> Self {
         let inner = py.allow_threads(|| coeus_autograd::tile(&self.inner, &reps));
-        Self { inner }
+        Self::from_var(inner)
     }
 
     /// Scalar multiplication via `scalar * tensor` (right-multiply by scalar).
     fn __rmul__(&self, scalar: f64, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::scalar_mul(&self.inner, scalar));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Scalar addition via `scalar + tensor`.
     fn __radd__(&self, scalar: f64, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::scalar_add(&self.inner, scalar));
-        Ok(Self { inner })
+        Ok(Self::from_var(inner))
     }
 
     /// Zero the accumulated gradient.
@@ -787,7 +795,7 @@ impl PyTensorIterator {
             let sliced = coeus_autograd::slice(&self.tensor.inner, &ranges);
             coeus_autograd::squeeze(&sliced, Some(0))
         });
-        Some(PyTensor { inner })
+        Some(PyTensor::from_var(inner))
     }
 }
 

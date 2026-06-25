@@ -934,6 +934,39 @@ assert c.data == a.data
 }
 
 #[test]
+fn test_no_grad_detaches_operation_outputs() {
+    run_script(
+        r#"
+import pycoeus
+
+x = pycoeus.Tensor([1.0, 2.0, 3.0], [3], requires_grad=True)
+
+with pycoeus.no_grad():
+    y = x + x
+    assert y.data == [2.0, 4.0, 6.0], f"no_grad add data: {y.data}"
+    assert y.requires_grad is False, "no_grad operation output should be detached"
+    assert y.grad is None, f"detached output grad should be None, got {y.grad}"
+
+    with pycoeus.no_grad():
+        z = pycoeus.relu(x)
+        assert z.data == [1.0, 2.0, 3.0], f"nested no_grad relu data: {z.data}"
+        assert z.requires_grad is False, "nested no_grad operation output should be detached"
+
+    still_off = pycoeus.exp(x)
+    assert still_off.requires_grad is False, "outer no_grad scope should remain active"
+
+explicit = pycoeus.zeros([2], requires_grad=True)
+assert explicit.requires_grad is True, "explicit factory requires_grad should be honored"
+
+tracked = x + x
+assert tracked.requires_grad is True, "tracking should resume after no_grad exits"
+pycoeus.sum(tracked).backward()
+assert x.grad == [2.0, 2.0, 2.0], f"post-no_grad gradient mismatch: {x.grad}"
+"#,
+    );
+}
+
+#[test]
 fn test_diag_diagonal_cumprod() {
     run_script(
         r#"

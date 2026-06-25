@@ -23,9 +23,9 @@
   non-tracked mutations matching PyTorch's in-place API.
 
 - **`pycoeus.no_grad()` context manager** — `with pycoeus.no_grad():` block
-  matching `torch.no_grad()`. Currently a structural no-op marker (Coeus'
-  backward is lazy, so no intermediate gradients are accumulated before
-  `.backward()` is called); ready for future gradient-disable semantics.
+  matching the Python-facing `torch.no_grad()` operation contract. Nested
+  scopes detach operation outputs at the PyO3 boundary, while explicit tensor
+  factories still honor `requires_grad`.
 
 - **`coeus_nn` / `coeus_ops` improvements**:
   - `prod()`, `amax()`, `amin()` exported from `coeus-ops`.

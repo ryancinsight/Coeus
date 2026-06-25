@@ -4,9 +4,10 @@
 
 ### Completed items
 - [x] [minor] Added `ConvTranspose1d` / `ConvTranspose2d`, global
-  `amax` / `amin` / `prod`, `pycoeus.no_grad()`, and in-place PyTensor methods
-  in the 0.2.10 surface. Evidence tier: empirical value-semantic validation
-  recorded in `CHANGELOG.md`.
+  `amax` / `amin` / `prod`, real Python-facing `pycoeus.no_grad()` operation
+  output detachment, and in-place PyTensor methods in the 0.2.10 surface.
+  Evidence tier: empirical value-semantic validation recorded in
+  `CHANGELOG.md`.
 - [x] [patch] Documented `coeus-cuda` and `coeus-wgpu` crate-level backend
   architecture, Atlas provider ownership, dispatch flow, and explicit
   CPU-reference capability boundaries without claiming unmeasured performance
@@ -16,6 +17,8 @@
 - [ ] [minor] Replace host-side `BackendOps` default transposed-convolution
   implementations with native WGPU/CUDA kernels once benchmarks identify the
   dominant input shapes and memory-transfer cost.
+- [ ] [minor] Move no-grad mode into `coeus-autograd` if a future core API
+  needs graph-construction elision, not only PyO3-boundary output detachment.
 
 ---
 

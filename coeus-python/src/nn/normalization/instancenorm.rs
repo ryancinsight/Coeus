@@ -55,7 +55,7 @@ impl PyInstanceNorm1d {
             inst.bias = b_var;
             inst.forward(&input_var)
         });
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -141,7 +141,7 @@ impl PyInstanceNorm2d {
             inst.bias = b_var;
             inst.forward(&input_var)
         });
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {

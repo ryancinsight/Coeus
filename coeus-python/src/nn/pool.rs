@@ -40,7 +40,7 @@ impl PyAvgPool2d {
         );
 
         let inner = py.allow_threads(move || pool.forward(&input_var));
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self) -> PyStateDict {
@@ -101,7 +101,7 @@ impl PyMaxPool2d {
         );
 
         let inner = py.allow_threads(move || pool.forward(&input_var));
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self) -> PyStateDict {
@@ -162,7 +162,7 @@ impl PyAvgPool3d {
         );
 
         let inner = py.allow_threads(move || pool.forward(&input_var));
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self) -> PyStateDict {
@@ -223,7 +223,7 @@ impl PyMaxPool3d {
         );
 
         let inner = py.allow_threads(move || pool.forward(&input_var));
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self) -> PyStateDict {

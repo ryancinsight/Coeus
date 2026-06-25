@@ -200,6 +200,12 @@ and verify crate docs without claiming unmeasured performance wins.
   `cargo clippy -p coeus-cuda -p coeus-wgpu --all-targets -- -D warnings`,
   `cargo clippy -p coeus-python --all-targets -- -D warnings`, and
   `cargo fmt --check` pass.
+- [x] [patch] Replaced the PyO3 `pycoeus.no_grad()` marker with nested
+  autograd-mode state and one `PyTensor::from_var` return path that detaches
+  operation outputs while preserving explicit factory `requires_grad` requests.
+  Evidence tier: empirical value-semantic binding validation. Evidence:
+  `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_no_grad_detaches_operation_outputs` passes.
 - [x] [minor] Completed per-axis `vector_norm(ord=p)` Rust-core and PyO3
   parity: `coeus_ops::norm_p_axis` reduces the requested axis to size 1, and
   `pycoeus.vector_norm(input, ord=p, axis=..., keepdim=...)` now returns the

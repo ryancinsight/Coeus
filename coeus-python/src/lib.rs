@@ -8,6 +8,7 @@ static GLOBAL: mnemosyne::Mnemosyne = mnemosyne::Mnemosyne;
 
 pub mod activations;
 pub mod dist;
+mod grad_mode;
 pub mod losses;
 pub mod nn;
 pub mod ops;
@@ -33,21 +34,28 @@ pub fn shutdown(py: Python<'_>) {
 ///     y = model(x)   # no gradients computed
 /// ```
 ///
-/// Implemented as a thin Python context manager; in the current version it is
-/// a no-op marker since Coeus' backward pass is lazy (no grads accumulate
-/// until `.backward()` is called).  Future versions will honour this flag for
-/// in-place mutation and memory saving.
+/// The context manager tracks nested scopes on the current Python thread. Values
+/// returned through PyO3 operation wrappers inside the scope are detached from
+/// the autograd graph; explicit tensor factories still honor `requires_grad`.
 #[pyclass(name = "no_grad")]
-pub struct NoGradCtx;
+pub struct NoGradCtx {
+    active: std::sync::atomic::AtomicBool,
+}
 
 #[pymethods]
 impl NoGradCtx {
     #[new]
     fn new() -> Self {
-        Self
+        Self {
+            active: std::sync::atomic::AtomicBool::new(false),
+        }
     }
 
-    fn __enter__(&self) {}
+    fn __enter__(&self) {
+        if !self.active.swap(true, std::sync::atomic::Ordering::AcqRel) {
+            grad_mode::push_no_grad();
+        }
+    }
 
     fn __exit__(
         &self,
@@ -55,7 +63,18 @@ impl NoGradCtx {
         _exc_val: pyo3::Bound<'_, pyo3::types::PyAny>,
         _exc_tb: pyo3::Bound<'_, pyo3::types::PyAny>,
     ) -> bool {
+        if self.active.swap(false, std::sync::atomic::Ordering::AcqRel) {
+            grad_mode::pop_no_grad();
+        }
         false // do not suppress exceptions
+    }
+}
+
+impl Drop for NoGradCtx {
+    fn drop(&mut self) {
+        if self.active.swap(false, std::sync::atomic::Ordering::AcqRel) {
+            grad_mode::pop_no_grad();
+        }
     }
 }
 

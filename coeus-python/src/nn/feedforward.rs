@@ -43,6 +43,6 @@ impl PyFeedForward {
             let ffn = FeedForward::<f64, coeus_core::MoiraiBackend>::new(d_model, d_ff, dropout_p);
             ffn.forward(&x)
         });
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 }
