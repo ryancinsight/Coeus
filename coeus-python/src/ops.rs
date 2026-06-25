@@ -1534,3 +1534,46 @@ pub fn f_cross_entropy(input: &PyTensor, targets: Vec<usize>, py: Python<'_>) ->
     let inner = py.allow_threads(|| coeus_nn::cross_entropy_loss(&input.inner, &targets));
     PyTensor { inner }
 }
+
+// ── amax / amin / prod ────────────────────────────────────────────────────────
+
+/// Global maximum over all elements.
+///
+/// Matches `torch.amax(input)` (no dim argument).
+#[pyfunction]
+pub fn amax(input: &PyTensor, py: Python<'_>) -> PyResult<f64> {
+    if input.inner.tensor.numel() == 0 {
+        return Err(PyValueError::new_err("amax: empty tensor has no maximum"));
+    }
+    let v = py.allow_threads(|| {
+        let backend = MoiraiBackend::new();
+        coeus_ops::amax::<f64, MoiraiBackend>(&input.inner.tensor, &backend)
+    });
+    Ok(v)
+}
+
+/// Global minimum over all elements.
+///
+/// Matches `torch.amin(input)` (no dim argument).
+#[pyfunction]
+pub fn amin(input: &PyTensor, py: Python<'_>) -> PyResult<f64> {
+    if input.inner.tensor.numel() == 0 {
+        return Err(PyValueError::new_err("amin: empty tensor has no minimum"));
+    }
+    let v = py.allow_threads(|| {
+        let backend = MoiraiBackend::new();
+        coeus_ops::amin::<f64, MoiraiBackend>(&input.inner.tensor, &backend)
+    });
+    Ok(v)
+}
+
+/// Global product of all elements (non-differentiable).
+///
+/// Matches `torch.prod(input)`.
+#[pyfunction]
+pub fn prod(input: &PyTensor, py: Python<'_>) -> f64 {
+    py.allow_threads(|| {
+        let backend = MoiraiBackend::new();
+        coeus_ops::prod::<f64, MoiraiBackend>(&input.inner.tensor, &backend)
+    })
+}

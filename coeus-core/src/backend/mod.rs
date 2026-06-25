@@ -5,6 +5,9 @@ mod moirai;
 mod sequential;
 mod traits;
 
+#[cfg(test)]
+mod tests_num_threads;
+
 pub use moirai::MoiraiBackend;
 pub use sequential::SequentialBackend;
 pub use traits::{private, Backend, ComputeBackend};

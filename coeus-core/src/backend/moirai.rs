@@ -4,6 +4,40 @@
 use crate::backend::{Backend, ComputeBackend};
 use crate::dtype::Scalar;
 use crate::storage::{CpuStorage, Storage};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::OnceLock;
+
+/// Cached `available_parallelism()` snapshot.
+///
+/// `std::thread::available_parallelism()` executes a syscall per invocation
+/// on most platforms (Linux reads cgroup limits; Windows queries the
+/// process affinity mask). Hot-path callers — the conv1d/conv2d/conv3d
+/// `Backend` kernels — invoke `num_threads()` per kernel call to decide
+/// between the parallel row-partition and the sequential short-circuit.
+/// Cache the result once with a relaxed-atomic snapshot so subsequent
+/// reads are lock-free and syscall-free.
+///
+/// # Invariant
+/// `available_parallelism()` is monotonic within a process — the kernel
+/// may advertise fewer cores at boot via affinity adjustments but never
+/// advertises more. A single snapshot therefore remains correct for the
+/// entire process lifetime; the relaxed load returns the value observed
+/// on the first call.
+static AVAILABLE_PARALLELISM: OnceLock<AtomicUsize> = OnceLock::new();
+
+#[inline]
+fn cached_parallelism() -> usize {
+    let cell = AVAILABLE_PARALLELISM.get_or_init(|| {
+        let n = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1);
+        AtomicUsize::new(n.max(1))
+    });
+    // Relaxed is sufficient — the cache is immutable after the first
+    // store (atomicity is structural, not ordering-driven), and we never
+    // need to synchronise-through this load.
+    cell.load(Ordering::Relaxed)
+}
 
 /// Moirai work-stealing backend.
 ///
@@ -33,11 +67,10 @@ impl ComputeBackend for MoiraiBackend {
         "moirai"
     }
 
+    /// Cached `available_parallelism()` snapshot (lock-free, syscall-free).
     #[inline]
     fn num_threads(&self) -> usize {
-        std::thread::available_parallelism()
-            .map(|n| n.get())
-            .unwrap_or(1)
+        cached_parallelism()
     }
 
     #[inline]

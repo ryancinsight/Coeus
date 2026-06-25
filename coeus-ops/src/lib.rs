@@ -42,8 +42,8 @@ pub use binary::{
 pub use embedding::{embedding, embedding_backward};
 pub use matmul::{matmul, matmul_accumulate};
 pub use reduction::{
-    argmax, argmin, cumprod, cumsum, max_axis, mean, mean_axis, min_axis, norm, norm_p,
-    norm_p_axis, std_dev, std_dev_axis, suffix_sum, sum, sum_axis, topk, var, var_axis,
+    amax, amin, argmax, argmin, cumprod, cumsum, max_axis, mean, mean_axis, min_axis, norm, norm_p,
+    norm_p_axis, prod, std_dev, std_dev_axis, suffix_sum, sum, sum_axis, topk, var, var_axis,
 };
 pub use shape::{
     broadcast_to, cat, diag, diagonal, einsum, flip, gather, index_select, masked_fill, meshgrid,
@@ -62,3 +62,6 @@ pub use fuse::{
 
 pub mod attention;
 pub use attention::{scaled_dot_product_attention, scaled_dot_product_attention_backward};
+
+pub mod conv_transpose;
+pub use conv_transpose::{conv_transpose1d, conv_transpose2d};

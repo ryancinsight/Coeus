@@ -692,6 +692,63 @@ impl PyTensor {
             self.inner.grad.is_some()
         )
     }
+
+    // ── In-place mutation methods ─────────────────────────────────────────────
+
+    /// Fill tensor in-place with `value`, return `self` for chaining.
+    ///
+    /// Equivalent to `tensor.fill_(value)` in PyTorch.
+    fn fill_(&mut self, value: f64) -> Self {
+        let backend = coeus_core::MoiraiBackend::new();
+        let shape = self.inner.tensor.shape().to_vec();
+        let numel: usize = shape.iter().product();
+        let data = vec![value; numel];
+        self.inner.tensor = coeus_tensor::Tensor::from_slice(shape, &data);
+        let _ = backend;
+        self.clone()
+    }
+
+    /// Fill tensor in-place with zeros, return `self` for chaining.
+    fn zero_(&mut self) -> Self {
+        self.fill_(0.0)
+    }
+
+    /// Fill tensor in-place with ones, return `self` for chaining.
+    fn one_(&mut self) -> Self {
+        self.fill_(1.0)
+    }
+
+    /// In-place addition: `self += other` (non-tracked).
+    fn __iadd__(&mut self, other: &PyTensor, py: Python<'_>) -> PyResult<()> {
+        let new_t = py.allow_threads(|| {
+            let backend = coeus_core::MoiraiBackend::new();
+            let a = self.inner.tensor.clone();
+            let b = other.inner.tensor.clone();
+            coeus_ops::add(&a, &b, &backend)
+        });
+        self.inner.tensor = new_t;
+        Ok(())
+    }
+
+    /// In-place subtraction: `self -= other` (non-tracked).
+    fn __isub__(&mut self, other: &PyTensor, py: Python<'_>) -> PyResult<()> {
+        let new_t = py.allow_threads(|| {
+            let backend = coeus_core::MoiraiBackend::new();
+            coeus_ops::sub(&self.inner.tensor, &other.inner.tensor, &backend)
+        });
+        self.inner.tensor = new_t;
+        Ok(())
+    }
+
+    /// In-place multiplication: `self *= other` (non-tracked).
+    fn __imul__(&mut self, other: &PyTensor, py: Python<'_>) -> PyResult<()> {
+        let new_t = py.allow_threads(|| {
+            let backend = coeus_core::MoiraiBackend::new();
+            coeus_ops::mul(&self.inner.tensor, &other.inner.tensor, &backend)
+        });
+        self.inner.tensor = new_t;
+        Ok(())
+    }
 }
 
 /// Python iterator over the first dimension of a `PyTensor`.

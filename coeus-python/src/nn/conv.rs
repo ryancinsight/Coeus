@@ -402,3 +402,91 @@ impl PyConv3d {
         }
     }
 }
+
+// ── ConvTranspose1d ─────────────────────────────────────────────────────────
+
+/// Python-exposed 1-D Transposed Convolution layer.
+#[pyo3::pyclass(name = "ConvTranspose1d")]
+pub struct PyConvTranspose1d {
+    #[pyo3(get)]
+    pub weight: pyo3::Py<PyTensor>,
+    #[pyo3(get)]
+    pub bias: Option<pyo3::Py<PyTensor>>,
+    pub in_channels: usize,
+    pub out_channels: usize,
+    pub kernel_size: usize,
+    pub stride: usize,
+    pub padding: usize,
+    pub output_padding: usize,
+    pub dilation: usize,
+}
+
+#[pyo3::pymethods]
+impl PyConvTranspose1d {
+    #[new]
+    #[pyo3(signature = (in_channels, out_channels, kernel_size, stride=1, padding=0, output_padding=0, dilation=1, bias=true))]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(py: pyo3::Python<'_>, in_channels: usize, out_channels: usize, kernel_size: usize, stride: usize, padding: usize, output_padding: usize, dilation: usize, bias: bool) -> pyo3::PyResult<Self> {
+        let rust = coeus_nn::conv::ConvTranspose1d::<f64, coeus_core::MoiraiBackend>::with_params(in_channels, out_channels, kernel_size, stride, padding, output_padding, dilation, bias);
+        let weight = pyo3::Py::new(py, PyTensor { inner: rust.weight })?;
+        let bias = if let Some(b) = rust.bias { Some(pyo3::Py::new(py, PyTensor { inner: b })?) } else { None };
+        Ok(Self { weight, bias, in_channels, out_channels, kernel_size, stride, padding, output_padding, dilation })
+    }
+    pub fn forward(&self, input: &PyTensor, py: pyo3::Python<'_>) -> pyo3::PyResult<PyTensor> {
+        let w = self.weight.bind(py).borrow().inner.tensor.clone();
+        let b = self.bias.as_ref().map(|b| b.bind(py).borrow().inner.tensor.clone());
+        let x = input.inner.tensor.clone();
+        let (s, p, op, d) = (self.stride, self.padding, self.output_padding, self.dilation);
+        let t = py.allow_threads(|| { let bk = coeus_core::MoiraiBackend::new(); coeus_ops::conv_transpose1d(&x, &w, b.as_ref(), s, p, op, d, &bk) });
+        Ok(PyTensor { inner: coeus_autograd::Var::new(t, false) })
+    }
+    pub fn parameters(&self, py: pyo3::Python<'_>) -> Vec<pyo3::Py<PyTensor>> {
+        let mut v = vec![self.weight.clone_ref(py)];
+        if let Some(ref b) = self.bias { v.push(b.clone_ref(py)); }
+        v
+    }
+}
+
+// ── ConvTranspose2d ─────────────────────────────────────────────────────────
+
+/// Python-exposed 2-D Transposed Convolution layer.
+#[pyo3::pyclass(name = "ConvTranspose2d")]
+pub struct PyConvTranspose2d {
+    #[pyo3(get)]
+    pub weight: pyo3::Py<PyTensor>,
+    #[pyo3(get)]
+    pub bias: Option<pyo3::Py<PyTensor>>,
+    pub in_channels: usize,
+    pub out_channels: usize,
+    pub kernel_size: usize,
+    pub stride: usize,
+    pub padding: usize,
+    pub output_padding: usize,
+    pub dilation: usize,
+}
+
+#[pyo3::pymethods]
+impl PyConvTranspose2d {
+    #[new]
+    #[pyo3(signature = (in_channels, out_channels, kernel_size, stride=1, padding=0, output_padding=0, dilation=1, bias=true))]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(py: pyo3::Python<'_>, in_channels: usize, out_channels: usize, kernel_size: usize, stride: usize, padding: usize, output_padding: usize, dilation: usize, bias: bool) -> pyo3::PyResult<Self> {
+        let rust = coeus_nn::conv::ConvTranspose2d::<f64, coeus_core::MoiraiBackend>::with_params(in_channels, out_channels, kernel_size, stride, padding, output_padding, dilation, bias);
+        let weight = pyo3::Py::new(py, PyTensor { inner: rust.weight })?;
+        let bias = if let Some(b) = rust.bias { Some(pyo3::Py::new(py, PyTensor { inner: b })?) } else { None };
+        Ok(Self { weight, bias, in_channels, out_channels, kernel_size, stride, padding, output_padding, dilation })
+    }
+    pub fn forward(&self, input: &PyTensor, py: pyo3::Python<'_>) -> pyo3::PyResult<PyTensor> {
+        let w = self.weight.bind(py).borrow().inner.tensor.clone();
+        let b = self.bias.as_ref().map(|b| b.bind(py).borrow().inner.tensor.clone());
+        let x = input.inner.tensor.clone();
+        let (s, p, op, d) = (self.stride, self.padding, self.output_padding, self.dilation);
+        let t = py.allow_threads(|| { let bk = coeus_core::MoiraiBackend::new(); coeus_ops::conv_transpose2d(&x, &w, b.as_ref(), s, p, op, d, &bk) });
+        Ok(PyTensor { inner: coeus_autograd::Var::new(t, false) })
+    }
+    pub fn parameters(&self, py: pyo3::Python<'_>) -> Vec<pyo3::Py<PyTensor>> {
+        let mut v = vec![self.weight.clone_ref(py)];
+        if let Some(ref b) = self.bias { v.push(b.clone_ref(py)); }
+        v
+    }
+}

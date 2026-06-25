@@ -47,7 +47,7 @@ pub use activation::{
 pub use attention::{
     AttentionMask, CausalMask, MultiHeadAttention, NullMask, ScaledDotProductAttention,
 };
-pub use conv::{Conv1d, Conv2d, Conv3d};
+pub use conv::{Conv1d, Conv2d, Conv3d, ConvTranspose1d, ConvTranspose2d};
 pub use dropout::Dropout;
 pub use embedding::Embedding;
 pub use init::{kaiming_uniform, xavier_uniform};

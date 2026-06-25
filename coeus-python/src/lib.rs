@@ -25,18 +25,56 @@ pub fn shutdown(py: Python<'_>) {
     });
 }
 
+/// Context manager that disables gradient tracking within its scope.
+///
+/// Usage:
+/// ```python
+/// with pycoeus.no_grad():
+///     y = model(x)   # no gradients computed
+/// ```
+///
+/// Implemented as a thin Python context manager; in the current version it is
+/// a no-op marker since Coeus' backward pass is lazy (no grads accumulate
+/// until `.backward()` is called).  Future versions will honour this flag for
+/// in-place mutation and memory saving.
+#[pyclass(name = "no_grad")]
+pub struct NoGradCtx;
+
+#[pymethods]
+impl NoGradCtx {
+    #[new]
+    fn new() -> Self {
+        Self
+    }
+
+    fn __enter__(&self) {}
+
+    fn __exit__(
+        &self,
+        _exc_type: pyo3::Bound<'_, pyo3::types::PyAny>,
+        _exc_val: pyo3::Bound<'_, pyo3::types::PyAny>,
+        _exc_tb: pyo3::Bound<'_, pyo3::types::PyAny>,
+    ) -> bool {
+        false // do not suppress exceptions
+    }
+}
+
 /// PyCoeus extension module definition.
 #[pymodule]
 pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(shutdown, m)?)?;
     m.add_class::<PyTensor>()?;
     m.add_class::<PyTensorIterator>()?;
+    // no_grad context manager
+    m.add_class::<NoGradCtx>()?;
     m.add_class::<nn::PyLinear>()?;
     m.add_class::<tensor::PyStateDict>()?;
     m.add_class::<optim::PyLrScheduler>()?;
     m.add_class::<nn::PyConv1d>()?;
     m.add_class::<nn::PyConv2d>()?;
     m.add_class::<nn::PyConv3d>()?;
+    m.add_class::<nn::PyConvTranspose1d>()?;
+    m.add_class::<nn::PyConvTranspose2d>()?;
     m.add_class::<nn::PyLayerNorm>()?;
     m.add_class::<nn::PyRMSNorm>()?;
     m.add_class::<nn::PyBatchNorm3d>()?;
@@ -197,6 +235,10 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::f_mse_loss, m)?)?;
     m.add_function(wrap_pyfunction!(ops::f_binary_cross_entropy, m)?)?;
     m.add_function(wrap_pyfunction!(ops::f_cross_entropy, m)?)?;
+    // amax / amin / prod
+    m.add_function(wrap_pyfunction!(ops::amax, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::amin, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::prod, m)?)?;
 
     Ok(())
 }

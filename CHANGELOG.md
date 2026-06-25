@@ -1,6 +1,44 @@
 # Changelog
 
-## 0.2.9 - 2026-06-25
+## 0.2.10 - 2026-06-25
+
+### Added
+
+- **`ConvTranspose1d` / `ConvTranspose2d`** — Transposed convolution (deconvolution)
+  implemented as default methods on `BackendOps<T>` via a host-side
+  dilated-input algorithm: `conv_transpose1d` / `conv_transpose2d` are
+  `BackendOps` default methods that transfer input/weight to host, run an
+  explicit scatter loop, and copy output back; backends can override for
+  native performance. Public API: `coeus_ops::conv_transpose1d/2d` entry
+  points, `coeus_nn::ConvTranspose1d/2d` zero-parameter modules, and
+  `pycoeus.ConvTranspose1d/2d` Python classes. 3 unit tests.
+
+- **`amax` / `amin` / `prod` ops** — global reduce functions in `coeus-ops`
+  (no keepdim scalar return). Python `pycoeus.amax(input)`,
+  `pycoeus.amin(input)`, `pycoeus.prod(input)` with empty-tensor
+  `ValueError` guards.
+
+- **In-place PyTensor methods** — `fill_(value)`, `zero_()`, `one_()`,
+  `__iadd__` (`+=`), `__isub__` (`-=`), `__imul__` (`*=`). These are
+  non-tracked mutations matching PyTorch's in-place API.
+
+- **`pycoeus.no_grad()` context manager** — `with pycoeus.no_grad():` block
+  matching `torch.no_grad()`. Currently a structural no-op marker (Coeus'
+  backward is lazy, so no intermediate gradients are accumulated before
+  `.backward()` is called); ready for future gradient-disable semantics.
+
+- **`coeus_nn` / `coeus_ops` improvements**:
+  - `prod()`, `amax()`, `amin()` exported from `coeus-ops`.
+  - `ConvTranspose1d/2d` exported from `coeus-nn`.
+  - `conv_transpose1d/2d` output dimension helpers exported as public API.
+
+- **Moirai parallel_for audit confirmed already optimal** — `ADAPTIVE_PARALLEL_THRESHOLD = 1024` with `Adaptive` policy routes sequentially below threshold; no changes needed.
+
+### Changed
+
+- Workspace version bumped `0.2.9` → `0.2.10`.
+
+
 
 ### Added
 

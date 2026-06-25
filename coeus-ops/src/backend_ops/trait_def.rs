@@ -657,6 +657,203 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         eps: T,
     ) where
         T: coeus_core::Float;
+
+    // ── Transposed Convolution (Deconvolution) ─────────────────────────────────
+    //
+    // Default implementations run the dilated-input algorithm on the host to keep
+    // the WGPU/CUDA backends functional without requiring new GPU kernels.  A
+    // specialised backend can override these for better throughput.
+
+    /// 1-D Transposed Convolution.
+    ///
+    /// Output length: `(L - 1) * stride - 2 * padding + dilation * (K - 1) + output_padding + 1`
+    ///
+    /// # Default implementation
+    /// Copies input and weight to host, runs an explicit strided loop, copies
+    /// the result back.
+    #[allow(clippy::too_many_arguments)]
+    fn conv_transpose1d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        output_padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) where
+        T: coeus_core::Float,
+    {
+        let n = input_layout.shape()[0];
+        let c_in = input_layout.shape()[1];
+        let l = input_layout.shape()[2];
+        let c_out = weight_layout.shape()[1];
+        let k = weight_layout.shape()[2];
+        let l_out = output_layout.shape()[2];
+
+        // Transfer to host slices.
+        let in_numel = n * c_in * l;
+        let w_numel = c_in * c_out * k;
+        let out_numel = n * c_out * l_out;
+
+        let mut in_h = vec![T::zero(); in_numel];
+        let mut w_h = vec![T::zero(); w_numel];
+        let mut out_h = vec![T::zero(); out_numel];
+
+        self.copy_to_host(input, &mut in_h);
+        self.copy_to_host(weight, &mut w_h);
+
+        // Compute conv_transpose1d on host.
+        // input:  [n, c_in,  l]
+        // weight: [c_in, c_out, k]   (note: transposed convention)
+        // output: [n, c_out, l_out]
+        //
+        // Each input element input[ni, ic, ti] "scatters" to output positions
+        // via the weight, spaced by stride:
+        //   out[ni, oc, ti * stride + ki * dilation - padding] += in[ni,ic,ti] * w[ic,oc,ki]
+        for ni in 0..n {
+            for ic in 0..c_in {
+                for ti in 0..l {
+                    let in_val = in_h[ni * c_in * l + ic * l + ti];
+                    for oc in 0..c_out {
+                        for ki in 0..k {
+                            let t_out = ti * stride + ki * dilation;
+                            if t_out < padding {
+                                continue;
+                            }
+                            let t_out = t_out - padding;
+                            if t_out >= l_out {
+                                continue;
+                            }
+                            let w_val = w_h[ic * c_out * k + oc * k + ki];
+                            out_h[ni * c_out * l_out + oc * l_out + t_out] =
+                                out_h[ni * c_out * l_out + oc * l_out + t_out] + in_val * w_val;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add bias if provided.
+        if let Some(b) = bias {
+            let mut b_h = vec![T::zero(); c_out];
+            self.copy_to_host(b, &mut b_h);
+            for ni in 0..n {
+                for oc in 0..c_out {
+                    for t in 0..l_out {
+                        out_h[ni * c_out * l_out + oc * l_out + t] =
+                            out_h[ni * c_out * l_out + oc * l_out + t] + b_h[oc];
+                    }
+                }
+            }
+        }
+
+        let _ = output_padding; // used in shape calculation, not in loop
+        self.copy_to_device(&out_h, output);
+    }
+
+    /// 2-D Transposed Convolution.
+    ///
+    /// Output shape: `[N, C_out, H_out, W_out]` where
+    /// `H_out = (H - 1) * stride - 2 * padding + dilation * (KH - 1) + output_padding + 1`.
+    #[allow(clippy::too_many_arguments)]
+    fn conv_transpose2d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        output_padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) where
+        T: coeus_core::Float,
+    {
+        let n = input_layout.shape()[0];
+        let c_in = input_layout.shape()[1];
+        let h = input_layout.shape()[2];
+        let w = input_layout.shape()[3];
+        let c_out = weight_layout.shape()[1];
+        let kh = weight_layout.shape()[2];
+        let kw = weight_layout.shape()[3];
+        let h_out = output_layout.shape()[2];
+        let w_out = output_layout.shape()[3];
+
+        let in_numel = n * c_in * h * w;
+        let weight_numel = c_in * c_out * kh * kw;
+        let out_numel = n * c_out * h_out * w_out;
+
+        let mut in_h = vec![T::zero(); in_numel];
+        let mut wt_h = vec![T::zero(); weight_numel];
+        let mut out_h = vec![T::zero(); out_numel];
+
+        self.copy_to_host(input, &mut in_h);
+        self.copy_to_host(weight, &mut wt_h);
+
+        // input:  [n, c_in, h, w]
+        // weight: [c_in, c_out, kh, kw]  (transposed convention: c_in first)
+        // output: [n, c_out, h_out, w_out]
+        for ni in 0..n {
+            for ic in 0..c_in {
+                for hi in 0..h {
+                    for wi in 0..w {
+                        let in_val = in_h[ni * c_in * h * w + ic * h * w + hi * w + wi];
+                        for oc in 0..c_out {
+                            for ki in 0..kh {
+                                for kj in 0..kw {
+                                    let h_pos = hi * stride + ki * dilation;
+                                    let w_pos = wi * stride + kj * dilation;
+                                    if h_pos < padding || w_pos < padding {
+                                        continue;
+                                    }
+                                    let h_out_idx = h_pos - padding;
+                                    let w_out_idx = w_pos - padding;
+                                    if h_out_idx >= h_out || w_out_idx >= w_out {
+                                        continue;
+                                    }
+                                    let wt_val =
+                                        wt_h[ic * c_out * kh * kw + oc * kh * kw + ki * kw + kj];
+                                    let out_idx = ni * c_out * h_out * w_out
+                                        + oc * h_out * w_out
+                                        + h_out_idx * w_out
+                                        + w_out_idx;
+                                    out_h[out_idx] = out_h[out_idx] + in_val * wt_val;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add bias if provided.
+        if let Some(b) = bias {
+            let mut b_h = vec![T::zero(); c_out];
+            self.copy_to_host(b, &mut b_h);
+            for ni in 0..n {
+                for oc in 0..c_out {
+                    for hi in 0..h_out {
+                        for wi in 0..w_out {
+                            let idx =
+                                ni * c_out * h_out * w_out + oc * h_out * w_out + hi * w_out + wi;
+                            out_h[idx] = out_h[idx] + b_h[oc];
+                        }
+                    }
+                }
+            }
+        }
+
+        let _ = output_padding;
+        self.copy_to_device(&out_h, output);
+    }
 }
 
 fn shape3(shape: &[usize], name: &str) -> [usize; 3] {
