@@ -1,3 +1,34 @@
+//! # coeus-cuda
+//!
+//! NVIDIA CUDA implementation of the Coeus [`ComputeBackend`](coeus_core::ComputeBackend)
+//! / [`BackendOps`](coeus_ops::BackendOps) surface. The crate is a pure backend:
+//! it adds no domain logic, only on-device realizations of the kernel contract
+//! the CPU [`SequentialBackend`](coeus_core::SequentialBackend) defines.
+//!
+//! ## Feature gating
+//!
+//! The real device path is behind the `cuda` feature (NVRTC + the CUDA driver
+//! via `hephaestus-cuda`). Without it, [`CudaBackend`] resolves to a stub so the
+//! workspace builds on machines without a CUDA toolkit; only `--features cuda`
+//! exercises the GPU.
+//!
+//! ## Dispatch architecture
+//!
+//! Each `BackendOps<T>` method routes to a `cuda_*` method that:
+//! 1. checks a live CUDA context exists and `T == f32` (the kernels are
+//!    monomorphized for `f32`; the [`TypeId`](std::any::TypeId) guard plus the
+//!    zero-copy reinterpret in `backend::ops::cast` keep the generic surface
+//!    honest without a fake-generic widen/narrow);
+//! 2. launches the on-device kernel (hand-written PTX in the `kernels` module for
+//!    conv/attention, NVRTC CUDA C for fused/elementwise/optimizer paths);
+//! 3. falls back to the CPU reference (`fallback::*`, a host round-trip) only
+//!    when the on-device path is unavailable or for an explicitly documented
+//!    capability boundary (e.g. a strided key-padding mask in attention).
+//!
+//! The fallback is a capability boundary, never a silent defect mask: the
+//! observable result matches the CPU reference either way, verified by the
+//! differential parity tests in `tests/cuda/`.
+
 #[cfg(feature = "cuda")]
 mod backend;
 #[cfg(not(feature = "cuda"))]

@@ -1,3 +1,29 @@
+//! # coeus-wgpu
+//!
+//! Cross-platform WebGPU implementation of the Coeus
+//! [`ComputeBackend`](coeus_core::ComputeBackend) /
+//! [`BackendOps`](coeus_ops::BackendOps) surface, built on `hephaestus-wgpu`.
+//! Like the other backends it carries no domain logic — only on-device
+//! realizations of the kernel contract the CPU
+//! [`SequentialBackend`](coeus_core::SequentialBackend) defines.
+//!
+//! ## Dispatch architecture
+//!
+//! Each `BackendOps<T>` method dispatches to a WGSL compute shader in the
+//! `kernels` module. Shaders are generated as `T::WGSL_TYPE`-templated source
+//! strings, compiled once and cached by the pipeline cache, then bound against
+//! the raw `wgpu::Buffer` behind each [`WgpuStorage`]. The element type is
+//! resolved through [`WgpuScalar`] (`f32`/`i32`/`u32`); float-only kernels such
+//! as attention are written for `f32`, the only `Float + WgpuScalar` type.
+//!
+//! ## CPU-reference boundaries
+//!
+//! A few paths fall back to the CPU reference via host transfer — currently a
+//! strided key-padding mask in attention. This is an explicit capability
+//! boundary, not a silent defect mask: the observable result matches the CPU
+//! reference, verified by the differential parity tests in `tests/wgpu/`, and
+//! the on-device speedup over that reference is tracked in `benches/`.
+
 mod backend;
 mod kernels;
 mod storage;
