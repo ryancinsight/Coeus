@@ -32,7 +32,10 @@ impl CudaBackend {
         attn_weights: &mut CudaStorage<T>,
         attn_weights_layout: &Layout,
     ) {
-        let on_device = key_padding_mask.is_none()
+        // A contiguous key-padding mask is handled on-device; a strided mask
+        // (rare) routes to the CPU reference, an explicit capability boundary.
+        let mask_on_device = key_padding_mask_layout.is_none_or(Layout::is_contiguous);
+        let on_device = mask_on_device
             && get_cuda_context().is_some()
             && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>();
         if on_device {
@@ -45,15 +48,38 @@ impl CudaBackend {
             // T is TypeId-confirmed f32 here; f32->f64->f32 round-trips exactly.
             let scale_f32 = coeus_core::Scalar::to_f64(scale) as f32;
 
+            let (mask_ndim, num_heads) = match key_padding_mask_layout {
+                Some(ml) => {
+                    let nd = ml.ndim();
+                    let batch_mask = if nd == 2 { ml.shape()[0] } else { 1 };
+                    (nd, batch / batch_mask.max(1))
+                }
+                None => (0, 1),
+            };
+
             let q32 = cast_storage::<T, f32>(query);
             let k32 = cast_storage::<T, f32>(key);
             let v32 = cast_storage::<T, f32>(value);
+            let mask32 = key_padding_mask.map(|m| cast_storage::<T, f32>(m));
             let mut out32 = cast_storage_mut::<T, f32>(output);
             let mut aw32 = cast_storage_mut::<T, f32>(attn_weights);
 
             if kernels::launch_sdp_attention(
-                &q32, &k32, &v32, &mut out32, &mut aw32, batch, seq_q, seq_k, d_k, d_v, is_causal,
+                &q32,
+                &k32,
+                &v32,
+                mask32.as_ref(),
+                &mut out32,
+                &mut aw32,
+                batch,
+                seq_q,
+                seq_k,
+                d_k,
+                d_v,
+                is_causal,
                 scale_f32,
+                mask_ndim,
+                num_heads,
             ) {
                 return;
             }

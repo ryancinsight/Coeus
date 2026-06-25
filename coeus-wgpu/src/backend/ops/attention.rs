@@ -44,7 +44,12 @@ pub fn sdp_attention<T: Float + leto_ops::Scalar>(request: AttentionForward<'_, 
     // The unmasked (causal or full) case runs on-device. The key_padding_mask
     // case is an explicit CPU-reference capability boundary, not a silent
     // fallback (see module note in `kernels/attention/forward.rs`).
-    if request.key_padding_mask.is_none() {
+    // A contiguous key-padding mask is handled on-device; a strided mask (rare)
+    // routes to the CPU reference, an explicit capability boundary.
+    let mask_on_device = request
+        .key_padding_mask_layout
+        .is_none_or(Layout::is_contiguous);
+    if mask_on_device {
         let q_shape = request.query_layout.shape();
         let batch = q_shape[0];
         let seq_q = q_shape[1];
@@ -53,10 +58,19 @@ pub fn sdp_attention<T: Float + leto_ops::Scalar>(request: AttentionForward<'_, 
         let d_v = request.value_layout.shape()[2];
         // T is Float + WgpuScalar, i.e. f32; f32->f64->f32 round-trips exactly.
         let scale_f32 = coeus_core::Scalar::to_f64(request.scale) as f32;
+        let (mask_ndim, num_heads) = match request.key_padding_mask_layout {
+            Some(ml) => {
+                let nd = ml.ndim();
+                let batch_mask = if nd == 2 { ml.shape()[0] } else { 1 };
+                (nd, batch / batch_mask.max(1))
+            }
+            None => (0, 1),
+        };
         crate::kernels::dispatch_sdp_attention(crate::kernels::AttnForwardDispatch {
             query: request.query.buffer.raw(),
             key: request.key.buffer.raw(),
             value: request.value.buffer.raw(),
+            mask: request.key_padding_mask.map(|m| m.buffer.raw()),
             output: request.output.buffer.raw(),
             attn_weights: request.attn_weights.buffer.raw(),
             batch,
@@ -66,6 +80,8 @@ pub fn sdp_attention<T: Float + leto_ops::Scalar>(request: AttentionForward<'_, 
             d_v,
             is_causal: request.is_causal,
             scale: scale_f32,
+            mask_ndim,
+            num_heads,
         });
         return;
     }

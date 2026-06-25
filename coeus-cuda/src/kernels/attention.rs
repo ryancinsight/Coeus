@@ -16,11 +16,12 @@ use crate::storage::CudaStorage;
 
 const FWD_SRC: &str = r#"
 extern "C" __global__ void sdp_attn_fwd_kernel(
-    const float* q, const float* k, const float* v,
+    const float* q, const float* k, const float* v, const float* mask,
     float* out, float* aw,
     unsigned int seq_q, unsigned int seq_k,
     unsigned int d_k, unsigned int d_v,
-    unsigned int is_causal, float scale, unsigned int total
+    unsigned int is_causal, float scale, unsigned int total,
+    unsigned int has_mask, unsigned int mask_ndim, unsigned int num_heads
 ) {
     unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= total) return;
@@ -31,11 +32,14 @@ extern "C" __global__ void sdp_attn_fwd_kernel(
     float* out_bi = out + (size_t)(b * seq_q + i) * d_v;
     const float* k_b = k + (size_t)b * seq_k * d_k;
     const float* v_b = v + (size_t)b * seq_k * d_v;
+    // Contiguous key-padding mask base: 2-D [batch_mask, seq_k] folds heads.
+    size_t mask_row = (mask_ndim == 2u) ? (size_t)(b / num_heads) * seq_k : 0;
 
-    // Phase 1: scores[j] = scale * dot(Q[i,:], K[j,:]); causal -> -inf.
+    // Phase 1: scores[j] = scale * dot(Q[i,:], K[j,:]); masked/causal -> -inf.
     float mx = -INFINITY;
     for (unsigned int j = 0; j < seq_k; ++j) {
         if (is_causal && j > i) { aw_bi[j] = -INFINITY; continue; }
+        if (has_mask && mask[mask_row + j] == 0.0f) { aw_bi[j] = -INFINITY; continue; }
         const float* k_j = k_b + (size_t)j * d_k;
         float dot = 0.0f;
         for (unsigned int d = 0; d < d_k; ++d) dot = fmaf(q_bi[d], k_j[d], dot);
@@ -175,13 +179,16 @@ fn launch_1d(
     }
 }
 
-/// On-device SDP forward (causal/unmasked). Returns `false` if no CUDA context
-/// or kernel compilation/launch fails, so the caller can fall back.
+/// On-device SDP forward. Handles causal/unmasked and a contiguous
+/// key-padding mask (`mask` = `None` for the unmasked case). Returns `false`
+/// if no CUDA context or kernel compilation/launch fails, so the caller can
+/// fall back.
 #[allow(clippy::too_many_arguments)]
 pub fn launch_sdp_attention(
     query: &CudaStorage<f32>,
     key: &CudaStorage<f32>,
     value: &CudaStorage<f32>,
+    mask: Option<&CudaStorage<f32>>,
     output: &mut CudaStorage<f32>,
     attn_weights: &mut CudaStorage<f32>,
     batch: usize,
@@ -191,6 +198,8 @@ pub fn launch_sdp_attention(
     d_v: usize,
     is_causal: bool,
     scale: f32,
+    mask_ndim: usize,
+    num_heads: usize,
 ) -> bool {
     if get_cuda_context().is_none() {
         return false;
@@ -204,6 +213,7 @@ pub fn launch_sdp_attention(
     let mut q_ptr = query.cu_deviceptr();
     let mut k_ptr = key.cu_deviceptr();
     let mut v_ptr = value.cu_deviceptr();
+    let mut mask_ptr = mask.map(|m| m.cu_deviceptr()).unwrap_or(0);
     let mut out_ptr = output.cu_deviceptr();
     let mut aw_ptr = attn_weights.cu_deviceptr();
     let mut seq_q_v = seq_q as u32;
@@ -214,11 +224,15 @@ pub fn launch_sdp_attention(
     let mut scale_v = scale;
     let total = batch * seq_q;
     let mut total_v = total as u32;
+    let mut has_mask_v = u32::from(mask.is_some());
+    let mut mask_ndim_v = mask_ndim as u32;
+    let mut num_heads_v = num_heads.max(1) as u32;
 
-    let mut args: [*mut std::ffi::c_void; 12] = [
+    let mut args: [*mut std::ffi::c_void; 16] = [
         &mut q_ptr as *mut u64 as *mut std::ffi::c_void,
         &mut k_ptr as *mut u64 as *mut std::ffi::c_void,
         &mut v_ptr as *mut u64 as *mut std::ffi::c_void,
+        &mut mask_ptr as *mut u64 as *mut std::ffi::c_void,
         &mut out_ptr as *mut u64 as *mut std::ffi::c_void,
         &mut aw_ptr as *mut u64 as *mut std::ffi::c_void,
         &mut seq_q_v as *mut u32 as *mut std::ffi::c_void,
@@ -228,6 +242,9 @@ pub fn launch_sdp_attention(
         &mut causal_v as *mut u32 as *mut std::ffi::c_void,
         &mut scale_v as *mut f32 as *mut std::ffi::c_void,
         &mut total_v as *mut u32 as *mut std::ffi::c_void,
+        &mut has_mask_v as *mut u32 as *mut std::ffi::c_void,
+        &mut mask_ndim_v as *mut u32 as *mut std::ffi::c_void,
+        &mut num_heads_v as *mut u32 as *mut std::ffi::c_void,
     ];
     launch_1d(kernel.func, total, &mut args)
 }

@@ -106,6 +106,7 @@ fn wgpu_attention_forward_causal_matches_cpu_on_device() {
 
 #[test]
 fn wgpu_attention_forward_matches_cpu_with_mask_and_causal() {
+    // Contiguous mask + causal -> on-device masked WGSL kernel.
     let seq = SequentialBackend::new();
     let wgpu = WgpuBackend::new();
     let (query_data, key_data, value_data, _) = attention_inputs();
@@ -146,12 +147,12 @@ fn wgpu_attention_forward_matches_cpu_with_mask_and_causal() {
 
     assert_eq!(actual_out.shape(), expected_out.shape());
     assert_eq!(actual_weights.shape(), expected_weights.shape());
-    assert_close(
+    assert_close_device(
         "attention output",
         actual_out.as_slice(),
         expected_out.as_slice(),
     );
-    assert_close(
+    assert_close_device(
         "attention weights",
         actual_weights.as_slice(),
         expected_weights.as_slice(),

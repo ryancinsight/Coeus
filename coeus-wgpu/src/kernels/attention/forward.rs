@@ -23,13 +23,19 @@ pub(crate) struct AttnParams {
     pub(crate) is_causal: u32,
     pub(crate) scale: f32,
     pub(crate) total: u32,
-    pub(crate) _pad: u32,
+    pub(crate) has_mask: u32,
+    pub(crate) mask_ndim: u32,
+    pub(crate) num_heads: u32,
+    pub(crate) _pad0: u32,
+    pub(crate) _pad1: u32,
 }
 
 pub struct AttnForwardDispatch<'a> {
     pub query: &'a wgpu::Buffer,
     pub key: &'a wgpu::Buffer,
     pub value: &'a wgpu::Buffer,
+    /// Contiguous key-padding mask (`None` for the unmasked case).
+    pub mask: Option<&'a wgpu::Buffer>,
     pub output: &'a wgpu::Buffer,
     pub attn_weights: &'a wgpu::Buffer,
     pub batch: usize,
@@ -39,12 +45,15 @@ pub struct AttnForwardDispatch<'a> {
     pub d_v: usize,
     pub is_causal: bool,
     pub scale: f32,
+    pub mask_ndim: usize,
+    pub num_heads: usize,
 }
 
 const SHADER: &str = r#"
 struct AttnParams {
     seq_q: u32, seq_k: u32, d_k: u32, d_v: u32,
-    is_causal: u32, scale: f32, total: u32, pad: u32,
+    is_causal: u32, scale: f32, total: u32, has_mask: u32,
+    mask_ndim: u32, num_heads: u32, pad0: u32, pad1: u32,
 }
 
 @group(0) @binding(0) var<storage, read> q: array<f32>;
@@ -52,7 +61,8 @@ struct AttnParams {
 @group(0) @binding(2) var<storage, read> v: array<f32>;
 @group(0) @binding(3) var<storage, read_write> out: array<f32>;
 @group(0) @binding(4) var<storage, read_write> aw: array<f32>;
-@group(0) @binding(5) var<storage, read> params: AttnParams;
+@group(0) @binding(5) var<storage, read> mask: array<f32>;
+@group(0) @binding(6) var<storage, read> params: AttnParams;
 
 @compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
@@ -70,11 +80,18 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let k_base = b * seq_k * d_k;
     let v_base = b * seq_k * d_v;
     let causal = params.is_causal != 0u;
+    let has_mask = params.has_mask != 0u;
+    // Contiguous mask base: 2-D [batch_mask, seq_k] folds heads into batch.
+    var mask_base = 0u;
+    if (has_mask && params.mask_ndim == 2u) {
+        mask_base = (b / params.num_heads) * seq_k;
+    }
 
     // Pass 1: scores over valid keys; track row max.
     var mx = -3.4028235e38;
     for (var j: u32 = 0u; j < seq_k; j = j + 1u) {
-        if (causal && j > i) { aw[aw_base + j] = 0.0; continue; }
+        let masked_out = (causal && j > i) || (has_mask && mask[mask_base + j] == 0.0);
+        if (masked_out) { aw[aw_base + j] = 0.0; continue; }
         var dot = 0.0;
         let kj = k_base + j * d_k;
         for (var d: u32 = 0u; d < d_k; d = d + 1u) {
@@ -87,7 +104,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     // Pass 2: exp(score - mx); accumulate denominator.
     var sum = 0.0;
     for (var j: u32 = 0u; j < seq_k; j = j + 1u) {
-        if (causal && j > i) { continue; }
+        let masked_out = (causal && j > i) || (has_mask && mask[mask_base + j] == 0.0);
+        if (masked_out) { continue; }
         let e = exp(aw[aw_base + j] - mx);
         aw[aw_base + j] = e;
         sum = sum + e;
@@ -95,7 +113,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let inv = 1.0 / sum;
     // Pass 3: normalize valid weights.
     for (var j: u32 = 0u; j < seq_k; j = j + 1u) {
-        if (causal && j > i) { continue; }
+        let masked_out = (causal && j > i) || (has_mask && mask[mask_base + j] == 0.0);
+        if (masked_out) { continue; }
         aw[aw_base + j] = aw[aw_base + j] * inv;
     }
     // Pass 4: out[i,l] = sum_j attn[i,j] * V[j,l] (masked weights are zero).
@@ -120,12 +139,21 @@ pub fn dispatch_sdp_attention(request: AttnForwardDispatch<'_>) {
         is_causal: u32::from(request.is_causal),
         scale: request.scale,
         total: total as u32,
-        _pad: 0,
+        has_mask: u32::from(request.mask.is_some()),
+        mask_ndim: request.mask_ndim as u32,
+        num_heads: request.num_heads.max(1) as u32,
+        _pad0: 0,
+        _pad1: 0,
     };
 
     let params_buf = crate::backend::PooledMetadataBuffer::new();
     ctx.queue
         .write_buffer(&params_buf, 0, bytemuck::bytes_of(&params));
+
+    // Masked binding requires a valid storage buffer even when unused; the
+    // shader never indexes it when `has_mask == 0`.
+    let dummy_mask = crate::backend::PooledMetadataBuffer::new();
+    let mask_buf = request.mask.unwrap_or(&dummy_mask);
 
     let pipeline = PIPELINE_CACHE.get_or_create("sdp_attn_fwd_f32", &ctx.device, SHADER, "main");
     let bind_group_layout = pipeline.get_bind_group_layout(0);
@@ -155,6 +183,10 @@ pub fn dispatch_sdp_attention(request: AttnForwardDispatch<'_>) {
             },
             wgpu::BindGroupEntry {
                 binding: 5,
+                resource: mask_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 6,
                 resource: params_buf.as_entire_binding(),
             },
         ],

@@ -106,9 +106,8 @@ fn test_cuda_attention_forward_causal() {
     run_forward_case(true, "attn_fwd_causal");
 }
 
-#[test]
-fn test_cuda_attention_forward_masked_uses_cpu_path() {
-    // key_padding_mask present routes to the CPU reference path; must still match.
+fn run_masked_case(is_causal: bool, label: &str) {
+    // 2-D contiguous key-padding mask [BATCH, SEQ_K] -> on-device masked kernel.
     let Some((seq, cuda)) = backends() else {
         return;
     };
@@ -127,14 +126,32 @@ fn test_cuda_attention_forward_masked_uses_cpu_path() {
     let m_g = m_cpu.to_backend_on(&seq, &cuda);
 
     let (out_cpu, aw_cpu) =
-        scaled_dot_product_attention(&q_cpu, &k_cpu, &v_cpu, Some(&m_cpu), false, scale, &seq);
+        scaled_dot_product_attention(&q_cpu, &k_cpu, &v_cpu, Some(&m_cpu), is_causal, scale, &seq);
     let (out_g, aw_g) =
-        scaled_dot_product_attention(&q_g, &k_g, &v_g, Some(&m_g), false, scale, &cuda);
+        scaled_dot_product_attention(&q_g, &k_g, &v_g, Some(&m_g), is_causal, scale, &cuda);
 
     let out_g = out_g.to_backend_on(&cuda, &seq);
     let aw_g = aw_g.to_backend_on(&cuda, &seq);
-    assert_close("attn_masked_out", out_g.as_slice(), out_cpu.as_slice());
-    assert_close("attn_masked_weights", aw_g.as_slice(), aw_cpu.as_slice());
+    assert_close(
+        &format!("{label}_out"),
+        out_g.as_slice(),
+        out_cpu.as_slice(),
+    );
+    assert_close(
+        &format!("{label}_weights"),
+        aw_g.as_slice(),
+        aw_cpu.as_slice(),
+    );
+}
+
+#[test]
+fn test_cuda_attention_forward_masked() {
+    run_masked_case(false, "attn_masked");
+}
+
+#[test]
+fn test_cuda_attention_forward_masked_causal() {
+    run_masked_case(true, "attn_masked_causal");
 }
 
 #[test]
