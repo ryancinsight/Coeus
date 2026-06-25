@@ -2,12 +2,12 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: Sprint MS-67 (einsum/index_select parity and audits) [IN PROGRESS]
-**Objective**: Extend the 0.2.7 Rust-core, autograd, and PyO3 shape surface
-with `einsum` and `index_select`; keep Python as a thin wrapper over Rust
-logic; preserve Burn/PyTorch parity evidence with value-semantic tests; and
-record Atlas provider audits without claiming unmeasured performance wins.
-**Target version**: 0.2.7.
+### Current Sprint: Sprint MS-70 (transposed convolution and backend docs) [IN PROGRESS]
+**Objective**: Complete the 0.2.10 transposed-convolution, scalar reduction,
+no-grad, and in-place PyTensor surface while keeping Python as a thin PyO3
+wrapper over Rust logic. Document GPU backend capability boundaries precisely
+and verify crate docs without claiming unmeasured performance wins.
+**Target version**: 0.2.10.
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
 > oracle values; wgpu parity.rs verifies implemented GPU paths against the CPU reference;
@@ -192,6 +192,14 @@ record Atlas provider audits without claiming unmeasured performance wins.
   `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo nextest run --workspace` (521 tests), `cargo test --doc --workspace`,
   and `cargo doc --workspace --no-deps`.
+- [x] [patch] Documented `coeus-cuda` and `coeus-wgpu` crate-level backend
+  responsibilities, dispatch flow, Atlas provider ownership, and explicit
+  CPU-reference capability boundaries. Also formatted the existing MS-70
+  ConvTranspose PyO3 binding code. Evidence tier: rustdoc and compile-time
+  lint validation. Evidence: `cargo doc -p coeus-cuda -p coeus-wgpu --no-deps`,
+  `cargo clippy -p coeus-cuda -p coeus-wgpu --all-targets -- -D warnings`,
+  `cargo clippy -p coeus-python --all-targets -- -D warnings`, and
+  `cargo fmt --check` pass.
 - [x] [minor] Completed per-axis `vector_norm(ord=p)` Rust-core and PyO3
   parity: `coeus_ops::norm_p_axis` reduces the requested axis to size 1, and
   `pycoeus.vector_norm(input, ord=p, axis=..., keepdim=...)` now returns the

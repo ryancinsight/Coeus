@@ -1,5 +1,24 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-70: transposed convolution, scalar reductions, and backend docs [minor]
+
+### Completed items
+- [x] [minor] Added `ConvTranspose1d` / `ConvTranspose2d`, global
+  `amax` / `amin` / `prod`, `pycoeus.no_grad()`, and in-place PyTensor methods
+  in the 0.2.10 surface. Evidence tier: empirical value-semantic validation
+  recorded in `CHANGELOG.md`.
+- [x] [patch] Documented `coeus-cuda` and `coeus-wgpu` crate-level backend
+  architecture, Atlas provider ownership, dispatch flow, and explicit
+  CPU-reference capability boundaries without claiming unmeasured performance
+  wins. Evidence tier: rustdoc validation.
+
+### Residual risk / next
+- [ ] [minor] Replace host-side `BackendOps` default transposed-convolution
+  implementations with native WGPU/CUDA kernels once benchmarks identify the
+  dominant input shapes and memory-transfer cost.
+
+---
+
 ## Sprint MS-61: Burn parity, GPU audit, Python surface expansion [arch]
 
 ### Objectives

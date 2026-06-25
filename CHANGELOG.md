@@ -34,6 +34,11 @@
 
 - **Moirai parallel_for audit confirmed already optimal** — `ADAPTIVE_PARALLEL_THRESHOLD = 1024` with `Adaptive` policy routes sequentially below threshold; no changes needed.
 
+- **GPU backend crate documentation** — `coeus-cuda` and `coeus-wgpu` now have
+  crate-level architecture docs describing their backend-only responsibility,
+  Atlas provider ownership, device dispatch flow, and explicit CPU-reference
+  capability boundaries. Evidence tier: rustdoc validation.
+
 ### Changed
 
 - Workspace version bumped `0.2.9` → `0.2.10`.
