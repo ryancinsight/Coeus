@@ -159,3 +159,70 @@ pub fn meshgrid(
         })
         .collect())
 }
+
+/// Broadcast a list of tensors to a common shape.
+///
+/// Returns a list of tensors all expanded to the same broadcastable shape.
+/// Equivalent to `torch.broadcast_tensors(*tensors)`.
+#[pyfunction]
+pub fn broadcast_tensors(
+    tensors: Vec<pyo3::Py<PyTensor>>,
+    py: Python<'_>,
+) -> PyResult<Vec<PyTensor>> {
+    if tensors.is_empty() {
+        return Ok(vec![]);
+    }
+    // Compute the broadcast output shape from all inputs.
+    let shapes: Vec<Vec<usize>> = tensors.iter()
+        .map(|t| t.bind(py).borrow().inner.tensor.shape().to_vec())
+        .collect();
+    // Fold over shapes to find the broadcast shape.
+    let mut out_shape = shapes[0].clone();
+    for shape in &shapes[1..] {
+        let ndim_out = out_shape.len().max(shape.len());
+        let mut new_shape = vec![1usize; ndim_out];
+        let out_pad = ndim_out - out_shape.len();
+        let shape_pad = ndim_out - shape.len();
+        for i in 0..ndim_out {
+            let a = if i >= out_pad { out_shape[i - out_pad] } else { 1 };
+            let b = if i >= shape_pad { shape[i - shape_pad] } else { 1 };
+            if a != b && a != 1 && b != 1 {
+                return Err(PyValueError::new_err(format!(
+                    "broadcast_tensors: shapes {:?} and {:?} are incompatible",
+                    out_shape, shape
+                )));
+            }
+            new_shape[i] = a.max(b);
+        }
+        out_shape = new_shape;
+    }
+    // Expand each tensor to the broadcast shape.
+    let results = tensors.iter()
+        .map(|t| {
+            let t_ref = t.bind(py).borrow();
+            let src_ndim = t_ref.inner.tensor.ndim();
+            // Prepend ones to match output ndim.
+            let padded_shape: Vec<usize> = (0..out_shape.len())
+                .map(|i| {
+                    let pad = out_shape.len() - src_ndim;
+                    if i < pad { 1 } else { t_ref.inner.tensor.shape()[i - pad] }
+                })
+                .collect();
+            // Expand to broadcast shape.
+            let expand_shape = out_shape.clone();
+            let var = if padded_shape == expand_shape {
+                t_ref.inner.clone()
+            } else {
+                // Reshape to padded then add zeros of target shape to broadcast.
+                let reshaped = coeus_autograd::reshape(&t_ref.inner, padded_shape);
+                let zeros_v = coeus_autograd::Var::new(
+                    coeus_tensor::Tensor::<f64, MoiraiBackend>::zeros(expand_shape),
+                    false,
+                );
+                coeus_autograd::add(&reshaped, &zeros_v)
+            };
+            PyTensor::from_var(var)
+        })
+        .collect();
+    Ok(results)
+}

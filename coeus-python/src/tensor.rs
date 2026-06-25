@@ -548,6 +548,11 @@ impl PyTensor {
         Ok(Self::from_var(inner))
     }
 
+    /// Alias for `expand` — matches `tensor.broadcast_to(shape)` in PyTorch/NumPy.
+    fn broadcast_to(&self, shape: Vec<usize>, py: Python<'_>) -> PyResult<Self> {
+        self.expand(shape, py)
+    }
+
     /// Element-wise equal comparison: returns a float tensor (1.0 = equal, 0.0 = not).
     fn eq(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
         let inner_t = py.allow_threads(|| {

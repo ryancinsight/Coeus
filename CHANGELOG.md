@@ -1,6 +1,28 @@
 # Changelog
 
-## 0.2.20 - 2026-06-25
+## 0.2.21 - 2026-06-25
+
+### Added
+
+- **`PyTensor.broadcast_to(shape)`** — Method alias for `expand(shape)`.
+  Matches `tensor.broadcast_to(shape)` in NumPy/PyTorch.
+
+- **`pycoeus.broadcast_tensors(tensors)`** — Free function that broadcasts a list
+  of tensors to a common shape by computing the broadcast shape and expanding each.
+  Equivalent to `torch.broadcast_tensors(*tensors)`.
+
+### Notes
+
+- **Hermes `reduce` already 4× unrolled** — Audit confirmed
+  `view/reduce.rs::reduce()` already uses `UNROLL_FACTOR` independent accumulators
+  (acc0–acc3) seeded by `Op::transform_vector`. No further unrolling was needed.
+
+- **`coeus-ops/src/backend_ops/defaults/` already partially extracted** —
+  `defaults/mod.rs` has `conv_transpose`, `matmul`, `reductions` submodules with
+  host-fallback default implementations. Further extraction is incremental architecture
+  work deferred to future sprints.
+
+
 
 ### Added
 

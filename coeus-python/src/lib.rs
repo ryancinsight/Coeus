@@ -239,6 +239,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::argmin, m)?)?;
     // broadcast / masked_fill / nonzero
     m.add_function(wrap_pyfunction!(ops::broadcast_to, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::broadcast_tensors, m)?)?;
     m.add_function(wrap_pyfunction!(ops::masked_fill, m)?)?;
     m.add_function(wrap_pyfunction!(ops::nonzero, m)?)?;
     // Triangular masking / roll
