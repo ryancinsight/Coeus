@@ -125,6 +125,11 @@
   Evidence tier: empirical differential validation. Evidence:
   `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests attention`
   passes with 4 tests.
+- [x] [patch] Routed live CUDA max/average 3D pooling forward and backward
+  through native JIT kernels instead of `BackendOps` CPU fallback paths, with
+  differential checks against `SequentialBackend`. Evidence tier: empirical
+  differential validation. Evidence: `cargo nextest run -p coeus-cuda
+  --features cuda --test cuda_tests pool3d` passes with 2 tests.
 - [x] [patch] Consolidated the `coeus-python` embedded-Python test lock into
   `tests/common/mod.rs` and routed binding ops/distributed tests through it so
   module registration is serialized without duplicated lock definitions.
@@ -354,6 +359,10 @@ with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* heph
     for unmasked and causal forward attention, masked CPU-boundary behavior, and
     Q/K/V gradients against `SequentialBackend`. Evidence:
     `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests attention`
+    passes.
+  - [x] [patch] Routed CUDA max/average 3D pooling forward/backward through
+    native JIT kernels and verified them against `SequentialBackend`. Evidence:
+    `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests pool3d`
     passes.
   - [x] [patch] Reconciled the WGPU parity test module with the current
     `BackendOps` pooling, convolution, and AdamW signatures. Evidence:

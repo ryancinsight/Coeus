@@ -22,8 +22,9 @@ pub use optim::{
     launch_adagrad_step, launch_adam_step, launch_adamw_step, launch_rmsprop_step, launch_sgd_step,
 };
 pub use pool::{
-    dispatch_avg_pool2d, dispatch_avg_pool2d_backward, dispatch_max_pool2d,
-    dispatch_max_pool2d_backward,
+    dispatch_avg_pool2d, dispatch_avg_pool2d_backward, dispatch_avg_pool3d,
+    dispatch_avg_pool3d_backward, dispatch_max_pool2d, dispatch_max_pool2d_backward,
+    dispatch_max_pool3d, dispatch_max_pool3d_backward,
 };
 pub use reduce::{dispatch_fused_reduce, dispatch_reduce};
 

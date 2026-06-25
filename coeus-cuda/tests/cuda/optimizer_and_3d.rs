@@ -1,5 +1,6 @@
 use coeus_core::SequentialBackend;
 use coeus_cuda::CudaBackend;
+use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
 #[test]
@@ -184,19 +185,19 @@ fn test_cuda_conv3d() {
 }
 
 #[test]
-fn test_cuda_pool3d() {
+fn test_cuda_max_pool3d_forward_backward() {
     if hephaestus_cuda::CudaDevice::try_default().is_err() {
         return;
     }
     let cuda_b = CudaBackend::new();
     let seq = SequentialBackend::new();
 
-    let input_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &input_data);
+    let input_data: Vec<f32> = (1..=27).map(|x| x as f32).collect();
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3, 3, 3], &input_data);
     let input_cuda = input_seq.to_backend_on(&seq, &cuda_b);
 
-    let mut out_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 1, 1, 1]);
-    let mut out_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 1, 1, 1]);
+    let mut out_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 2, 2, 2]);
+    let mut out_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2, 2]);
 
     let input_seq_layout = input_seq.layout().clone();
     let out_seq_layout = out_seq.layout().clone();
@@ -204,12 +205,11 @@ fn test_cuda_pool3d() {
     let input_cuda_layout = input_cuda.layout().clone();
     let out_cuda_layout = out_cuda.layout().clone();
 
-    use coeus_ops::BackendOps;
     seq.max_pool3d(
         input_seq.storage(),
         &input_seq_layout,
         2,
-        2,
+        1,
         0,
         1,
         out_seq.storage_mut(),
@@ -220,7 +220,7 @@ fn test_cuda_pool3d() {
         input_cuda.storage(),
         &input_cuda_layout,
         2,
-        2,
+        1,
         0,
         1,
         out_cuda.storage_mut(),
@@ -231,5 +231,154 @@ fn test_cuda_pool3d() {
 
     if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
         assert_eq!(out_cuda_on_cpu.as_slice(), out_seq.as_slice());
+    }
+
+    let grad_out_data: Vec<f32> = (1..=8).map(|x| x as f32).collect();
+    let grad_out_seq =
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &grad_out_data);
+    let grad_out_cuda = grad_out_seq.to_backend_on(&seq, &cuda_b);
+
+    let mut grad_input_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 3, 3, 3]);
+    let mut grad_input_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 3, 3, 3]);
+
+    let grad_out_seq_layout = grad_out_seq.layout().clone();
+    let grad_input_seq_layout = grad_input_seq.layout().clone();
+    let grad_out_cuda_layout = grad_out_cuda.layout().clone();
+    let grad_input_cuda_layout = grad_input_cuda.layout().clone();
+
+    seq.max_pool3d_backward(
+        grad_out_seq.storage(),
+        &grad_out_seq_layout,
+        input_seq.storage(),
+        &input_seq_layout,
+        2,
+        1,
+        0,
+        1,
+        grad_input_seq.storage_mut(),
+        &grad_input_seq_layout,
+    );
+
+    cuda_b.max_pool3d_backward(
+        grad_out_cuda.storage(),
+        &grad_out_cuda_layout,
+        input_cuda.storage(),
+        &input_cuda_layout,
+        2,
+        1,
+        0,
+        1,
+        grad_input_cuda.storage_mut(),
+        &grad_input_cuda_layout,
+    );
+
+    let grad_input_cuda_on_cpu = grad_input_cuda.to_backend_on(&cuda_b, &seq);
+
+    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
+        assert_eq!(grad_input_cuda_on_cpu.as_slice(), grad_input_seq.as_slice());
+    }
+}
+
+#[test]
+fn test_cuda_avg_pool3d_forward_backward() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
+    let cuda_b = CudaBackend::new();
+    let seq = SequentialBackend::new();
+
+    let input_data: Vec<f32> = (1..=27).map(|x| x as f32).collect();
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3, 3, 3], &input_data);
+    let input_cuda = input_seq.to_backend_on(&seq, &cuda_b);
+
+    let mut out_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 2, 2, 2]);
+    let mut out_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2, 2]);
+
+    let input_seq_layout = input_seq.layout().clone();
+    let out_seq_layout = out_seq.layout().clone();
+
+    let input_cuda_layout = input_cuda.layout().clone();
+    let out_cuda_layout = out_cuda.layout().clone();
+
+    seq.avg_pool3d(
+        input_seq.storage(),
+        &input_seq_layout,
+        2,
+        1,
+        0,
+        1,
+        out_seq.storage_mut(),
+        &out_seq_layout,
+    );
+
+    cuda_b.avg_pool3d(
+        input_cuda.storage(),
+        &input_cuda_layout,
+        2,
+        1,
+        0,
+        1,
+        out_cuda.storage_mut(),
+        &out_cuda_layout,
+    );
+
+    let out_cuda_on_cpu = out_cuda.to_backend_on(&cuda_b, &seq);
+
+    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
+        assert_close(out_cuda_on_cpu.as_slice(), out_seq.as_slice(), "avg_pool3d");
+    }
+
+    let grad_out_data: Vec<f32> = (1..=8).map(|x| x as f32).collect();
+    let grad_out_seq =
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &grad_out_data);
+    let grad_out_cuda = grad_out_seq.to_backend_on(&seq, &cuda_b);
+
+    let mut grad_input_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 3, 3, 3]);
+    let mut grad_input_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 3, 3, 3]);
+
+    let grad_out_seq_layout = grad_out_seq.layout().clone();
+    let grad_input_seq_layout = grad_input_seq.layout().clone();
+    let grad_out_cuda_layout = grad_out_cuda.layout().clone();
+    let grad_input_cuda_layout = grad_input_cuda.layout().clone();
+
+    seq.avg_pool3d_backward(
+        grad_out_seq.storage(),
+        &grad_out_seq_layout,
+        2,
+        1,
+        0,
+        1,
+        grad_input_seq.storage_mut(),
+        &grad_input_seq_layout,
+    );
+
+    cuda_b.avg_pool3d_backward(
+        grad_out_cuda.storage(),
+        &grad_out_cuda_layout,
+        2,
+        1,
+        0,
+        1,
+        grad_input_cuda.storage_mut(),
+        &grad_input_cuda_layout,
+    );
+
+    let grad_input_cuda_on_cpu = grad_input_cuda.to_backend_on(&cuda_b, &seq);
+
+    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
+        assert_close(
+            grad_input_cuda_on_cpu.as_slice(),
+            grad_input_seq.as_slice(),
+            "avg_pool3d_backward",
+        );
+    }
+}
+
+fn assert_close(actual: &[f32], expected: &[f32], label: &str) {
+    for (index, (&actual, &expected)) in actual.iter().zip(expected.iter()).enumerate() {
+        assert!(
+            (actual - expected).abs() <= 1e-5,
+            "{label} mismatch at {index}: actual={actual} expected={expected}"
+        );
     }
 }

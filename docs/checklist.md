@@ -203,6 +203,11 @@ Python as a thin PyO3 wrapper over Rust core operations.
   Evidence tier: empirical differential validation. Evidence:
   `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests attention`
   passes with 4 tests.
+- [x] [patch] Routed CUDA max/average 3D pooling forward and backward through
+  native JIT kernels (`dispatch_{max,avg}_pool3d{,_backward}`), replacing the
+  `BackendOps` CPU fallback path for this surface. Evidence tier: empirical
+  differential validation. Evidence: `cargo nextest run -p coeus-cuda
+  --features cuda --test cuda_tests pool3d` passes with 2 tests.
 
 ---
 

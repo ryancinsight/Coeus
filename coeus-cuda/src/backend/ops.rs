@@ -478,7 +478,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        self.fallback_max_pool3d(
+        self.cuda_max_pool3d(
             input,
             input_layout,
             kernel_size,
@@ -503,7 +503,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        self.fallback_max_pool3d_backward(
+        self.cuda_max_pool3d_backward(
             grad_out,
             grad_out_layout,
             input,
@@ -528,7 +528,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        self.fallback_avg_pool3d(
+        self.cuda_avg_pool3d(
             input,
             input_layout,
             kernel_size,
@@ -551,7 +551,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        self.fallback_avg_pool3d_backward(
+        self.cuda_avg_pool3d_backward(
             grad_out,
             grad_out_layout,
             kernel_size,

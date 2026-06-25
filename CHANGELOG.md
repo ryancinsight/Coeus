@@ -55,6 +55,13 @@
   `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests attention`
   passes with 4 tests.
 
+- **CUDA 3D pooling kernels** — routed `CudaBackend` max/average 3D pooling
+  forward and backward through native CUDA JIT kernels instead of the CPU
+  fallback path, with value-semantic differential tests against
+  `SequentialBackend`. Evidence tier: empirical differential validation.
+  Evidence: `cargo nextest run -p coeus-cuda --features cuda --test cuda_tests
+  pool3d` passes with 2 tests.
+
 ### Changed
 
 - Workspace version bumped `0.2.4` → `0.2.5`.
