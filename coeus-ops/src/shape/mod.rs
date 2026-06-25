@@ -2,6 +2,7 @@
 // Concatenation, splitting, padding, flipping, sorting, gathering, and conditional select.
 
 mod broadcast;
+mod chunk;
 mod concat;
 mod diag;
 mod einsum;
@@ -16,6 +17,7 @@ mod pad;
 mod repeat_interleave;
 mod roll;
 mod scatter;
+mod selection;
 mod sort;
 mod split;
 mod stack;
@@ -24,6 +26,7 @@ mod tril;
 mod where_cond;
 
 pub use broadcast::broadcast_to;
+pub use chunk::chunk;
 pub use concat::cat;
 pub use diag::{diag, diagonal};
 pub use einsum::einsum;
@@ -37,6 +40,7 @@ pub use pad::pad;
 pub use repeat_interleave::repeat_interleave;
 pub use roll::roll;
 pub use scatter::scatter_add;
+pub use selection::{masked_select, one_hot};
 pub use sort::sort;
 pub use split::split;
 pub use stack::stack;

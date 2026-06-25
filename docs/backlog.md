@@ -12,6 +12,26 @@
 - [x] [patch] Cargo.toml version reconciled to 0.2.17.
 - [x] Burn parity test count: 67 total (all passing).
 
+## Sprint MS-79: Python shape, selection, and module container parity [COMPLETE]
+
+- [x] [minor] Added Rust-core `coeus_ops::{bmm, outer, chunk, one_hot,
+  masked_select, glu}` exports with direct value-semantic tests for bmm, outer,
+  chunk, one-hot, masked-select, and GLU.
+- [x] [minor] Added thin PyO3 wrappers for `pycoeus.bmm`, `outer`,
+  `one_hot`, `masked_select`, `chunk`, and `glu`, with Python boundary
+  validation for rank, shape, dimension, class-count, and GLU even-axis
+  preconditions.
+- [x] [minor] Added `pycoeus.ModuleList` and binding coverage for list
+  indexing, mutation, append, parameter collection, and zero_grad dispatch.
+- [x] [minor] Added a GELU Burn/Coeus benchmark group to
+  `coeus-tensor/benches/tensor_bench.rs` as an instrumentation row only;
+  no performance win is claimed without Criterion baseline data.
+- [x] Evidence: `cargo clippy -p coeus-ops -p coeus-python --all-targets --
+  -D warnings`; `cargo nextest run -p coeus-ops bmm outer chunk one_hot
+  masked_select glu`; `cargo nextest run -p coeus-python --test
+  binding_tests_ops test_one_hot_masked_select_chunk test_bmm_outer_ops
+  test_glu_activation test_module_list`.
+
 ## Sprints MS-76 – MS-77: Python Sequential, ConvTranspose tracking, constructors, SGD fast path [COMPLETE]
 
 ### MS-77 (0.2.17): coeus-ops constructors, topk largest, SGD fast path, fused ConvTranspose backward [minor]

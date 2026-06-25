@@ -3,7 +3,7 @@
 
 use super::kernel::{elementwise_unary, elementwise_unary_assign};
 use crate::backend_ops::{BackendOps, UnaryOp};
-use coeus_core::{Float, Scalar};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, Scalar};
 use coeus_tensor::Tensor;
 
 /// Rectified Linear Unit: max(0, x).
@@ -173,4 +173,57 @@ pub fn log_softmax_axis<T: Float, B: BackendOps<T> + Default>(
     let log_sum_exp = elementwise_unary(&sum_exp, backend, UnaryOp::Log);
     // out = shifted - log_sum_exp  (broadcasts log_sum_exp along axis)
     super::super::binary::sub(&shifted, &log_sum_exp, backend)
+}
+
+/// Gated Linear Unit (GLU): splits `input` in half along `dim`, returns
+/// `first_half * sigmoid(second_half)`.
+///
+/// `input.shape()[dim]` must be even.
+/// Equivalent to `torch.nn.functional.glu(input, dim)`.
+#[inline]
+pub fn glu<T: Float, B: BackendOps<T> + Default>(
+    input: &Tensor<T, B>,
+    dim: usize,
+    backend: &B,
+) -> Tensor<T, B>
+where
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
+    let ndim = input.ndim();
+    assert!(
+        dim < ndim,
+        "glu: dim {dim} out of bounds for {ndim}D tensor"
+    );
+    let dim_size = input.shape()[dim];
+    assert!(
+        dim_size.is_multiple_of(2),
+        "glu: dim {dim} size {dim_size} must be even"
+    );
+    let half = dim_size / 2;
+    let mut parts = super::super::shape::split(input, half, dim);
+    assert_eq!(parts.len(), 2);
+    let b_part = parts.pop().unwrap();
+    let a_part = parts.pop().unwrap();
+    let gate = elementwise_unary(&b_part, backend, UnaryOp::Sigmoid);
+    super::super::binary::mul(&a_part, &gate, backend)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::SequentialBackend;
+
+    #[test]
+    fn glu_splits_axis_and_gates_first_half() {
+        let backend = SequentialBackend::new();
+        let input = Tensor::<f64, SequentialBackend>::from_slice([2], &[2.0, 4.0]);
+        let out = glu(&input, 0, &backend);
+        let expected = 2.0 / (1.0 + (-4.0f64).exp());
+        assert_eq!(out.shape(), &[1]);
+        assert!(
+            (out.as_slice()[0] - expected).abs() <= 1e-12,
+            "glu output {} vs {expected}",
+            out.as_slice()[0]
+        );
+    }
 }

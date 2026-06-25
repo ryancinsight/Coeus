@@ -2,11 +2,11 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-78 — GroupNorm/InstanceNorm Burn parity tolerance fix [COMPLETE]
-**Objective**: Fix tolerance and formula issues in the 3 GroupNorm/InstanceNorm
-Burn parity tests that were committed in MS-77 without the tolerance/formula fixes.
-MS-75 through MS-77 are committed. Workspace at 67 Burn parity tests passing.
-**Target version**: 0.2.17 (Cargo.toml reconciled with CHANGELOG).
+### Current Sprint: MS-79 - Python shape, selection, and module container parity [COMPLETE]
+**Objective**: Extend Rust-core and PyO3 functional parity with bmm, outer,
+one-hot, masked-select, chunk, GLU, and ModuleList while preserving Python as a
+thin binding layer over Coeus core/autograd surfaces.
+**Target version**: 0.2.18 (Cargo.toml reconciled with CHANGELOG).
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
 > oracle values; wgpu parity.rs verifies implemented GPU paths against the CPU reference;
@@ -15,6 +15,18 @@ MS-75 through MS-77 are committed. Workspace at 67 Burn parity tests passing.
 
 ### Current Verification Note (2026-06-25)
 
+- [x] [minor] Added `coeus_ops::{bmm, outer, chunk, one_hot, masked_select,
+  glu}` and Python wrappers `pycoeus.bmm`, `outer`, `one_hot`,
+  `masked_select`, `chunk`, `glu`, plus `pycoeus.ModuleList`. Python wrappers
+  are PyO3 boundary adapters: matmul-family functions compose through
+  autograd matmul/reshape, GLU composes through slice/sigmoid/mul, and
+  one-hot/masked-select/chunk delegate to `coeus_ops` after boundary
+  validation. Evidence tier: empirical value-semantic validation. Evidence:
+  `cargo clippy -p coeus-ops -p coeus-python --all-targets -- -D warnings`,
+  `cargo nextest run -p coeus-ops bmm outer chunk one_hot masked_select glu`,
+  and `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_one_hot_masked_select_chunk test_bmm_outer_ops test_glu_activation
+  test_module_list` pass.
 - [x] [minor] Closed MS-71: shipped `coeus_ops::dot` (flat inner product via
   single-pass fold), `coeus_ops::cross` (per-channel 3-vector cross along `dim`
   with size-3 axis assertion), Python `pycoeus.dot` (returns float) and

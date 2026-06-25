@@ -28,11 +28,11 @@ pub mod unary;
 pub use unary::{
     abs, abs_assign, ceil, ceil_assign, cos, cos_assign, elementwise_unary,
     elementwise_unary_assign, elementwise_unary_to, elu, elu_assign, exp, exp_assign, floor,
-    floor_assign, gelu, gelu_assign, gelu_tanh, gelu_tanh_assign, leaky_relu, leaky_relu_assign,
-    log, log_assign, log_softmax_axis, mish, mish_assign, neg, neg_assign, recip, recip_assign,
-    relu, relu_assign, round, round_assign, sigmoid, sigmoid_assign, sign, sign_assign, silu,
-    silu_assign, sin, sin_assign, softplus, softplus_assign, sqrt, sqrt_assign, tanh, tanh_assign,
-    trunc, trunc_assign,
+    floor_assign, gelu, gelu_assign, gelu_tanh, gelu_tanh_assign, glu, leaky_relu,
+    leaky_relu_assign, log, log_assign, log_softmax_axis, mish, mish_assign, neg, neg_assign,
+    recip, recip_assign, relu, relu_assign, round, round_assign, sigmoid, sigmoid_assign, sign,
+    sign_assign, silu, silu_assign, sin, sin_assign, softplus, softplus_assign, sqrt, sqrt_assign,
+    tanh, tanh_assign, trunc, trunc_assign,
 };
 
 pub use binary::{
@@ -40,16 +40,16 @@ pub use binary::{
     sub, sub_assign,
 };
 pub use embedding::{embedding, embedding_backward};
-pub use matmul::{matmul, matmul_accumulate};
+pub use matmul::{bmm, matmul, matmul_accumulate, outer};
 pub use reduction::{
     amax, amin, argmax, argmin, cross, cumprod, cumsum, dot, max_axis, mean, mean_axis, min_axis,
     norm, norm_p, norm_p_axis, prod, std_dev, std_dev_axis, suffix_sum, sum, sum_axis, topk, var,
     var_axis,
 };
 pub use shape::{
-    broadcast_to, cat, diag, diagonal, einsum, flip, gather, index_select, masked_fill, meshgrid,
-    nonzero, pad, repeat_interleave, roll, scatter_add, sort, split, stack, tile, tril, triu,
-    where_cond,
+    broadcast_to, cat, chunk, diag, diagonal, einsum, flip, gather, index_select, masked_fill,
+    masked_select, meshgrid, nonzero, one_hot, pad, repeat_interleave, roll, scatter_add, sort,
+    split, stack, tile, tril, triu, where_cond,
 };
 pub use sparse::{
     coo_to_csr, coo_to_dense, csr_to_dense, dense_to_coo, dense_to_csr, spmm, spmm_backward_dense,

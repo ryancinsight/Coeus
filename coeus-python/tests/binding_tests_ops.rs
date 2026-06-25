@@ -1406,6 +1406,224 @@ except ValueError:
 // ── dot / cross ────────────────────────────────────────────────────────
 
 #[test]
+fn test_bmm_outer_ops() {
+    run_script(
+        r#"
+import pycoeus
+import math
+
+# ── bmm (batch matrix multiply) ──────────────────────────────────────
+# [2, 2, 3] × [2, 3, 4] → [2, 2, 4]
+a = pycoeus.Tensor([float(i) for i in range(12)], [2, 2, 3])
+b = pycoeus.Tensor([float(i) for i in range(24)], [2, 3, 4])
+c = pycoeus.bmm(a, b)
+assert c.shape == [2, 2, 4], f"bmm shape: {c.shape}"
+# batch 0, row 0: [0,1,2] @ [[0,1,2,3],[4,5,6,7],[8,9,10,11]] = [20,23,26,29]
+assert abs(c.data[0] - 20.0) < 1e-5, f"bmm[0,0,0]={c.data[0]}"
+assert abs(c.data[1] - 23.0) < 1e-5, f"bmm[0,0,1]={c.data[1]}"
+
+# Error: non-3D input
+try:
+    pycoeus.bmm(pycoeus.Tensor([1.0, 2.0], [2]), b)
+    raise AssertionError("bmm non-3D a should raise")
+except ValueError:
+    pass
+
+# ── outer (outer product) ────────────────────────────────────────────
+v1 = pycoeus.Tensor([1.0, 2.0, 3.0], [3])
+v2 = pycoeus.Tensor([4.0, 5.0], [2])
+outer = pycoeus.outer(v1, v2)
+assert outer.shape == [3, 2], f"outer shape: {outer.shape}"
+# outer[i,j] = v1[i] * v2[j]
+assert abs(outer.data[0] - 4.0) < 1e-9  # 1*4
+assert abs(outer.data[1] - 5.0) < 1e-9  # 1*5
+assert abs(outer.data[2] - 8.0) < 1e-9  # 2*4
+assert abs(outer.data[5] - 15.0) < 1e-9  # 3*5
+
+# Error: non-1D input
+try:
+    pycoeus.outer(pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [2, 2]), v2)
+    raise AssertionError("outer non-1D a should raise")
+except ValueError:
+    pass
+"#,
+    );
+}
+
+#[test]
+fn test_one_hot_masked_select_chunk() {
+    run_script(
+        r#"
+import pycoeus
+
+# ── one_hot ────────────────────────────────────────────────────────────
+# indices [0, 2, 1, 2], num_classes=3 → [4, 3]
+idx = pycoeus.Tensor([0.0, 2.0, 1.0, 2.0], [4])
+oh = pycoeus.one_hot(idx, 3)
+assert oh.shape == [4, 3], f"one_hot shape: {oh.shape}"
+# row 0: [1,0,0], row 1: [0,0,1], row 2: [0,1,0], row 3: [0,0,1]
+assert oh.data == [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], f"one_hot: {oh.data}"
+
+# one_hot with 2 classes
+idx2 = pycoeus.Tensor([0.0, 1.0, 0.0], [3])
+oh2 = pycoeus.one_hot(idx2, 2)
+assert oh2.data == [1.0, 0.0, 0.0, 1.0, 1.0, 0.0], f"one_hot 2-class: {oh2.data}"
+
+# Error: non-1D indices
+try:
+    pycoeus.one_hot(pycoeus.Tensor([0.0, 1.0, 0.0, 1.0], [2, 2]), 3)
+    raise AssertionError("non-1D one_hot should raise")
+except ValueError:
+    pass
+
+# ── masked_select ────────────────────────────────────────────────────
+x = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3])
+m = pycoeus.Tensor([1.0, 0.0, 1.0, 0.0, 1.0, 0.0], [2, 3])
+sel = pycoeus.masked_select(x, m)
+assert sel.shape == [3], f"masked_select shape: {sel.shape}"
+assert sel.data == [1.0, 3.0, 5.0], f"masked_select: {sel.data}"
+
+# All selected
+m_all = pycoeus.ones([4])
+x_all = pycoeus.Tensor([7.0, 8.0, 9.0, 10.0], [4])
+sel_all = pycoeus.masked_select(x_all, m_all)
+assert sel_all.shape == [4]
+assert sel_all.data == [7.0, 8.0, 9.0, 10.0]
+
+# None selected
+m_none = pycoeus.zeros([4])
+sel_none = pycoeus.masked_select(x_all, m_none)
+assert sel_none.shape == [0], f"masked_select empty: {sel_none.shape}"
+
+# ── chunk ────────────────────────────────────────────────────────────
+v = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [6])
+
+# Even split: 3 chunks of 2
+parts = pycoeus.chunk(v, 3, 0)
+assert len(parts) == 3, f"chunk count: {len(parts)}"
+assert parts[0].data == [1.0, 2.0]
+assert parts[1].data == [3.0, 4.0]
+assert parts[2].data == [5.0, 6.0]
+
+# Uneven: 4 chunks of ceil(6/4)=2 with last smaller
+parts4 = pycoeus.chunk(v, 4, 0)
+assert len(parts4) == 3, f"chunk 4 count: {len(parts4)}"  # only 3 non-empty chunks for size 6
+
+# 2D chunk along dim=1
+m = pycoeus.Tensor([float(i+1) for i in range(12)], [2, 6])
+parts2d = pycoeus.chunk(m, 3, 1)
+assert len(parts2d) == 3
+assert parts2d[0].shape == [2, 2], f"2D chunk shape: {parts2d[0].shape}"
+
+# Default dim=0
+parts_def = pycoeus.chunk(v, 2)
+assert len(parts_def) == 2
+assert parts_def[0].data == [1.0, 2.0, 3.0]
+"#,
+    );
+}
+
+#[test]
+fn test_glu_activation() {
+    run_script(
+        r#"
+import pycoeus
+import math
+
+# ── glu (Gated Linear Unit) ───────────────────────────────────────────
+# glu(x, dim): first_half * sigmoid(second_half)
+# For a simple case: input = [a, b] along dim=0, glu = [a * sigmoid(b)]
+x = pycoeus.Tensor([2.0, 4.0], [2])
+out = pycoeus.glu(x, 0)
+assert out.shape == [1], f"glu 1D shape: {out.shape}"
+sig4 = 1.0 / (1.0 + math.exp(-4.0))
+expected = 2.0 * sig4
+assert abs(out.data[0] - expected) < 1e-5, f"glu 1D: {out.data[0]} vs {expected}"
+
+# 2D: split in half along last dim (default dim=-1)
+# input [2, 4]: each row split into [2] + [2]
+x2 = pycoeus.Tensor([1.0, 2.0, 0.5, -0.5, 3.0, 4.0, -1.0, 2.0], [2, 4])
+out2 = pycoeus.glu(x2)  # default dim=-1
+assert out2.shape == [2, 2], f"glu 2D shape: {out2.shape}"
+# row0: [1,2] * sigmoid([0.5,-0.5]) = [1*sig(0.5), 2*sig(-0.5)]
+sig05 = 1.0 / (1.0 + math.exp(-0.5))
+sig_neg05 = 1.0 / (1.0 + math.exp(0.5))
+assert abs(out2.data[0] - 1.0 * sig05) < 1e-5, f"glu[0,0]: {out2.data[0]}"
+assert abs(out2.data[1] - 2.0 * sig_neg05) < 1e-5, f"glu[0,1]: {out2.data[1]}"
+
+# Error: odd size along dim
+try:
+    pycoeus.glu(pycoeus.Tensor([1.0, 2.0, 3.0], [3]), 0)
+    raise AssertionError("glu odd dim should raise")
+except ValueError:
+    pass
+
+# Error: dim out of range
+try:
+    pycoeus.glu(pycoeus.Tensor([1.0, 2.0], [2]), 5)
+    raise AssertionError("glu out-of-range dim should raise")
+except ValueError:
+    pass
+"#,
+    );
+}
+
+#[test]
+fn test_module_list() {
+    run_script(
+        r#"
+import pycoeus
+
+# ── ModuleList ────────────────────────────────────────────────────────
+lin1 = pycoeus.Linear(4, 8)
+ln = pycoeus.LayerNorm(8)
+lin2 = pycoeus.Linear(8, 4)
+layers = pycoeus.ModuleList([lin1, ln, lin2])
+
+assert len(layers) == 3, f"len: {len(layers)}"
+
+# Explicit forward (not auto-chained)
+x = pycoeus.Tensor([float(i) for i in range(4)], [1, 4])
+out = layers[0].forward(x)
+assert out.shape == [1, 8], f"layer[0] output: {out.shape}"
+out = layers[1].forward(out)
+assert out.shape == [1, 8], f"layer[1] output: {out.shape}"
+out = layers[2].forward(out)
+assert out.shape == [1, 4], f"layer[2] output: {out.shape}"
+
+# parameters(): collects from all sub-modules
+params = layers.parameters()
+# Linear(4,8): weight[8,4]+bias[8]=2; LayerNorm(8): weight+bias=2; Linear(8,4): weight[4,8]+bias[4]=2 → 6 total
+assert len(params) == 6, f"parameter count: {len(params)}"
+
+# negative indexing
+last = layers[-1]
+assert hasattr(last, 'forward'), "layers[-1] should have forward"
+
+# setitem
+new_lin = pycoeus.Linear(4, 8)
+layers[0] = new_lin
+
+# empty ModuleList
+empty = pycoeus.ModuleList()
+assert len(empty) == 0
+empty.append(pycoeus.Linear(2, 2))
+assert len(empty) == 1
+
+# index out of range
+try:
+    _ = layers[10]
+    raise AssertionError("out-of-range should raise")
+except IndexError:
+    pass
+
+# zero_grad runs without error
+layers.zero_grad()
+"#,
+    );
+}
+
+#[test]
 fn test_softmax_log_softmax_methods() {
     run_script(
         r#"

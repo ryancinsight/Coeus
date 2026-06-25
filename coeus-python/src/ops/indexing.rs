@@ -166,6 +166,83 @@ pub fn split(input: &PyTensor, chunk_size: usize, dim: usize, py: Python<'_>) ->
 }
 
 #[pyfunction]
+#[pyo3(signature = (input, chunks, dim = 0))]
+pub fn chunk(
+    input: &PyTensor,
+    chunks: usize,
+    dim: usize,
+    py: Python<'_>,
+) -> PyResult<Vec<PyTensor>> {
+    let ndim = input.inner.tensor.ndim();
+    if chunks == 0 {
+        return Err(PyValueError::new_err(
+            "chunk: chunks must be greater than zero",
+        ));
+    }
+    if dim >= ndim {
+        return Err(PyValueError::new_err(format!(
+            "chunk: dim {dim} out of range for rank {ndim}"
+        )));
+    }
+    let dim_size = input.inner.tensor.shape()[dim];
+    if dim_size == 0 {
+        return Ok(Vec::new());
+    }
+    let chunk_size = dim_size.div_ceil(chunks);
+    let inner_chunks = py.allow_threads(|| coeus_autograd::split(&input.inner, chunk_size, dim));
+    Ok(inner_chunks.into_iter().map(PyTensor::from_var).collect())
+}
+
+#[pyfunction]
+pub fn one_hot(input: &PyTensor, num_classes: usize, py: Python<'_>) -> PyResult<PyTensor> {
+    if input.inner.tensor.ndim() != 1 {
+        return Err(PyValueError::new_err(format!(
+            "one_hot: indices must be 1-D, got {}-D",
+            input.inner.tensor.ndim()
+        )));
+    }
+    let indices = input.inner.tensor.to_contiguous();
+    for &value in indices.as_slice() {
+        if !value.is_finite() || value < 0.0 || value.fract() != 0.0 {
+            return Err(PyValueError::new_err(format!(
+                "one_hot: index value {value} is not a non-negative integer"
+            )));
+        }
+        let idx = value as usize;
+        if idx >= num_classes {
+            return Err(PyValueError::new_err(format!(
+                "one_hot: index {idx} out of range for num_classes={num_classes}"
+            )));
+        }
+    }
+    let backend = MoiraiBackend::new();
+    let tensor = py.allow_threads(|| {
+        coeus_ops::one_hot::<f64, MoiraiBackend>(&input.inner.tensor, num_classes, &backend)
+    });
+    Ok(PyTensor::from_var(coeus_autograd::Var::new(tensor, false)))
+}
+
+#[pyfunction]
+pub fn masked_select(input: &PyTensor, mask: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+    if input.inner.tensor.shape() != mask.inner.tensor.shape() {
+        return Err(PyValueError::new_err(format!(
+            "masked_select: input shape {:?} must match mask shape {:?}",
+            input.inner.tensor.shape(),
+            mask.inner.tensor.shape()
+        )));
+    }
+    let backend = MoiraiBackend::new();
+    let tensor = py.allow_threads(|| {
+        coeus_ops::masked_select::<f64, MoiraiBackend>(
+            &input.inner.tensor,
+            &mask.inner.tensor,
+            &backend,
+        )
+    });
+    Ok(PyTensor::from_var(coeus_autograd::Var::new(tensor, false)))
+}
+
+#[pyfunction]
 pub fn cat(inputs: Vec<pyo3::Py<PyTensor>>, dim: usize, py: Python<'_>) -> PyTensor {
     let rust_inputs: Vec<coeus_autograd::Var<f64>> = inputs
         .iter()

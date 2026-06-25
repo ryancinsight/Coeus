@@ -123,6 +123,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyFeedForward>()?;
     m.add_class::<nn::PyScaledDotProductAttention>()?;
     m.add_class::<nn::PySequential>()?;
+    m.add_class::<nn::PyModuleList>()?;
     m.add_class::<PyLocalCommunicator>()?;
     m.add_class::<PyTcpMesh>()?;
     m.add_class::<PyTcpCommunicator>()?;
@@ -140,6 +141,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(activations::softplus, m)?)?;
     m.add_function(wrap_pyfunction!(activations::gelu_tanh, m)?)?;
     m.add_function(wrap_pyfunction!(activations::leaky_relu, m)?)?;
+    m.add_function(wrap_pyfunction!(activations::glu, m)?)?;
 
     m.add_function(wrap_pyfunction!(losses::mse_loss, m)?)?;
     m.add_function(wrap_pyfunction!(losses::cross_entropy_loss, m)?)?;
@@ -267,6 +269,14 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::cross, m)?)?;
     // Functional attention
     m.add_function(wrap_pyfunction!(ops::scaled_dot_product_attention, m)?)?;
+    // Batch matmul / outer product
+    m.add_function(wrap_pyfunction!(ops::bmm, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::outer, m)?)?;
+    // Encoding / selection
+    m.add_function(wrap_pyfunction!(ops::one_hot, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::masked_select, m)?)?;
+    // Chunking
+    m.add_function(wrap_pyfunction!(ops::chunk, m)?)?;
 
     Ok(())
 }

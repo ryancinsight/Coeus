@@ -158,6 +158,48 @@ pub fn matmul(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
 }
 
 #[pyfunction]
+pub fn bmm(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+    let a_shape = a.inner.tensor.shape();
+    let b_shape = b.inner.tensor.shape();
+    if a_shape.len() != 3 || b_shape.len() != 3 {
+        return Err(PyValueError::new_err(format!(
+            "bmm: expected 3-D inputs, got ranks {} and {}",
+            a_shape.len(),
+            b_shape.len()
+        )));
+    }
+    if a_shape[0] != b_shape[0] || a_shape[2] != b_shape[1] {
+        return Err(PyValueError::new_err(format!(
+            "bmm: incompatible shapes {:?} and {:?}",
+            a_shape, b_shape
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_autograd::matmul(&a.inner, &b.inner));
+    Ok(PyTensor::from_var(inner))
+}
+
+#[pyfunction]
+pub fn outer(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+    let a_shape = a.inner.tensor.shape();
+    let b_shape = b.inner.tensor.shape();
+    if a_shape.len() != 1 || b_shape.len() != 1 {
+        return Err(PyValueError::new_err(format!(
+            "outer: expected 1-D inputs, got ranks {} and {}",
+            a_shape.len(),
+            b_shape.len()
+        )));
+    }
+    let rows = a_shape[0];
+    let cols = b_shape[0];
+    let inner = py.allow_threads(|| {
+        let a_col = coeus_autograd::reshape(&a.inner, vec![rows, 1]);
+        let b_row = coeus_autograd::reshape(&b.inner, vec![1, cols]);
+        coeus_autograd::matmul(&a_col, &b_row)
+    });
+    Ok(PyTensor::from_var(inner))
+}
+
+#[pyfunction]
 pub fn softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::softmax(&input.inner, dim as isize));
     PyTensor::from_var(inner)

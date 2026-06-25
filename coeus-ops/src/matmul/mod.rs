@@ -1,5 +1,76 @@
-// ── Matmul module ──
+// -- Matmul module --
 
 mod kernel;
 
 pub use kernel::{matmul, matmul_accumulate};
+
+use crate::backend_ops::BackendOps;
+use coeus_core::Scalar;
+use coeus_tensor::Tensor;
+
+/// Batch matrix multiply: `[B, M, K] x [B, K, N] -> [B, M, N]`.
+#[inline]
+pub fn bmm<T: Scalar, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    b: &Tensor<T, B>,
+    backend: &B,
+) -> Tensor<T, B> {
+    assert_eq!(a.ndim(), 3, "bmm: a must be 3-D, got {}-D", a.ndim());
+    assert_eq!(b.ndim(), 3, "bmm: b must be 3-D, got {}-D", b.ndim());
+    let (batch, _m, _k) = (a.shape()[0], a.shape()[1], a.shape()[2]);
+    let (_b2, _k2, _n) = (b.shape()[0], b.shape()[1], b.shape()[2]);
+    assert_eq!(batch, b.shape()[0], "bmm: batch mismatch");
+    assert_eq!(a.shape()[2], b.shape()[1], "bmm: inner dim mismatch");
+    kernel::matmul(a, b, backend)
+}
+
+/// Outer product: `[M] x [N] -> [M, N]`.
+#[inline]
+pub fn outer<T: Scalar, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    b: &Tensor<T, B>,
+    backend: &B,
+) -> Tensor<T, B> {
+    assert_eq!(a.ndim(), 1, "outer: a must be 1-D, got {}-D", a.ndim());
+    assert_eq!(b.ndim(), 1, "outer: b must be 1-D, got {}-D", b.ndim());
+    let m = a.shape()[0];
+    let n = b.shape()[0];
+    let a_col = a.clone().reshape([m, 1]);
+    let b_row = b.clone().reshape([1, n]);
+    kernel::matmul(&a_col, &b_row, backend)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::SequentialBackend;
+
+    #[test]
+    fn bmm_matches_manual_batch_matmul() {
+        let backend = SequentialBackend::new();
+        let a = Tensor::<f32, SequentialBackend>::from_slice(
+            [2, 2, 3],
+            &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 0.0, 2.0, 0.0, 1.0, 3.0],
+        );
+        let b = Tensor::<f32, SequentialBackend>::from_slice(
+            [2, 3, 2],
+            &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 0.0, 1.0, 3.0, 4.0],
+        );
+        let out = bmm(&a, &b, &backend);
+        assert_eq!(out.shape(), &[2, 2, 2]);
+        assert_eq!(
+            out.as_slice(),
+            &[10.0, 13.0, 28.0, 40.0, 7.0, 10.0, 9.0, 13.0]
+        );
+    }
+
+    #[test]
+    fn outer_matches_pairwise_products() {
+        let backend = SequentialBackend::new();
+        let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[1.0, 2.0, 3.0]);
+        let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[4.0, 5.0]);
+        let out = outer(&a, &b, &backend);
+        assert_eq!(out.shape(), &[3, 2]);
+        assert_eq!(out.as_slice(), &[4.0, 5.0, 8.0, 10.0, 12.0, 15.0]);
+    }
+}

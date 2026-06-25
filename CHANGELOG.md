@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.2.18 - 2026-06-25
+
+### Added
+
+- **`coeus_ops::bmm`** — Batch matrix multiply `[B,M,K]×[B,K,N]→[B,M,N]`;
+  delegates to the existing `matmul` kernel via shape assertion.
+  Python: `pycoeus.bmm(a, b)` with shape validation `ValueError`.
+
+- **`coeus_ops::outer`** — Outer product `[M]×[N]→[M,N]` via reshape+matmul.
+  Python: `pycoeus.outer(a, b)` with 1-D input `ValueError`.
+
+- **`coeus_ops::one_hot`** — One-hot encoding: `[N]→[N, num_classes]` float
+  tensor. Validates finite, non-negative integer scalar index values before
+  converting them to class offsets.
+  Python: `pycoeus.one_hot(indices, num_classes)`.
+
+- **`coeus_ops::masked_select`** — Select elements where mask ≠ 0.0; returns 1-D
+  tensor. Python: `pycoeus.masked_select(input, mask)` with shape-mismatch `ValueError`.
+
+- **`coeus_ops::chunk`** — Split tensor into ≤N approximately equal pieces along `dim`,
+  `chunk_size = ceil(dim_size / chunks)`. Python: `pycoeus.chunk(input, chunks, dim=0)`.
+
+- **`coeus_ops::glu`** — Gated Linear Unit: splits `input` in half along `dim`,
+  returns `first_half * sigmoid(second_half)`. Requires even dim size.
+  Python: `pycoeus.glu(input, dim=-1)` with `ValueError` for odd size or out-of-range dim.
+
+- **`pycoeus.ModuleList`** — Dynamic ordered container of nn modules. Supports
+  `forward(x)` (explicit, not auto-chained), `parameters()`, `zero_grad()`,
+  `__len__`, `__getitem__`, `__setitem__`, `append`, `extend`. Registered as
+  `pycoeus.ModuleList`.
+
+- **Python binding tests 39 → 43** (+4 new tests):
+  - `test_bmm_outer_ops` — bmm forward, outer product, error paths.
+  - `test_one_hot_masked_select_chunk` — one_hot encoding, masked_select 2D/empty,
+    chunk even/uneven/2D, default dim.
+  - `test_glu_activation` — 1D, 2D default dim, exact sigmoid gating, error paths.
+  - `test_module_list` — forward chain, parameter collection, `__getitem__`,
+    `__setitem__`, negative index, out-of-range error, empty list.
+
+- **Burn benchmark instrumentation** — Added a GELU benchmark group to
+  `coeus-tensor/benches/tensor_bench.rs` comparing Burn NdArray, Coeus
+  Sequential, and Coeus Moirai for a 1024x1024 tensor. This is an instrumented
+  benchmark row only; no speedup claim is made.
+
 ## 0.2.17 - 2026-06-25
 
 ### Added
@@ -35,7 +79,6 @@
   - `instancenorm_forward_matches_burn` — forward comparison of `InstanceNorm1d` with
     default init against Burn `InstanceNormConfig::new(3)`. Same 1e-3 tolerance as
     GroupNorm for the same formula-difference reason.
-
 ### Changed
 
 - **SGD optimizer small-tensor fast path** — `sgd_step` contiguous unit-offset buffers
