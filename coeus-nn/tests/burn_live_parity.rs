@@ -1498,8 +1498,65 @@ fn roll_forward_and_backward() {
     assert_close("roll_bwd", xg.grad().unwrap().as_slice(), &[1.0; 4]);
 }
 
-// ── ConvTranspose1d (stride-2, manual reference) ──────────────────────────────
+// ── LayerNorm forward_nd (3-D input, matches 2-D reshape path) ───────────────
 
+#[test]
+fn layernorm_forward_nd_3d_matches_reshape_reference() {
+    // [batch=2, seq=3, d=4] input — forward_nd should give identical output to
+    // manual reshape→LayerNorm→reshape.
+    let data: Vec<f32> = (0..24).map(|v| v as f32 * 0.1 - 1.2).collect();
+    let (batch, seq, d) = (2, 3, 4);
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![batch, seq, d], &data),
+        true,
+    );
+
+    let w = vec![1.2f32, 0.8, 1.0, 0.9];
+    let b = vec![0.1f32, -0.1, 0.05, -0.05];
+    let eps = 1e-5;
+
+    let mut ln = coeus_nn::normalization::layernorm::LayerNorm::<f32, SequentialBackend>::new(
+        d, eps,
+    );
+    ln.weight = Var::new(CoeusTensor::from_slice(vec![d], &w), true);
+    ln.bias = Var::new(CoeusTensor::from_slice(vec![d], &b), true);
+
+    let out_nd = ln.forward_nd(&xv);
+
+    // Manual reference: reshape → LayerNorm 2-D → reshape back.
+    let x_flat = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(
+            vec![batch * seq, d],
+            &data,
+        ),
+        false,
+    );
+    let mut ln2 = coeus_nn::normalization::layernorm::LayerNorm::<f32, SequentialBackend>::new(
+        d, eps,
+    );
+    ln2.weight = Var::new(CoeusTensor::from_slice(vec![d], &w), false);
+    ln2.bias = Var::new(CoeusTensor::from_slice(vec![d], &b), false);
+    use coeus_nn::Module;
+    let out_2d = ln2.forward(&x_flat);
+
+    // Shapes must match ([batch, seq, d] vs [batch*seq, d] — flat values equal).
+    assert_close_rel(
+        "layernorm_nd_3d",
+        out_nd.tensor.to_contiguous().as_slice(),
+        out_2d.tensor.as_slice(),
+        1e-4,
+    );
+
+    // Backward gradient must also flow through the 3-D path.
+    coeus_autograd::sum(&out_nd).backward();
+    assert!(
+        xv.grad().is_some(),
+        "layernorm forward_nd backward did not propagate gradient"
+    );
+}
+
+// ── ConvTranspose1d (stride-2, manual reference) ──────────────────────────────
 #[test]
 fn conv_transpose1d_stride2_matches_manual_reference() {
     use coeus_ops::BackendOps;

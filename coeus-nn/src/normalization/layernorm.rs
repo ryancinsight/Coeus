@@ -63,12 +63,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
         vec![self.weight.clone(), self.bias.clone()]
     }
 
+    /// Forward pass for 2-D input `[N, D]`.
+    ///
+    /// For inputs with rank ≥ 3 (e.g. `[batch, seq, D]`) use [`forward_nd`] instead,
+    /// or call [`forward_nd`] directly — it handles all ranks ≥ 2 via reshape.
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         let shape = input.tensor.shape_cloned();
         assert_eq!(
             shape.len(),
             2,
-            "LayerNorm expects 2D input [batch_size, normalized_shape]"
+            "LayerNorm::forward expects 2D input [N, D]; for rank-N (N≥3) inputs call forward_nd"
         );
         let _n = shape[0];
         let d = shape[1];
@@ -125,5 +129,43 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
             istdev,
             self.d_const.clone(),
         )
+    }
+}
+
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
+    /// Forward pass for any rank ≥ 2 input.
+    ///
+    /// Collapses all leading dimensions into a single batch dimension, applies
+    /// the standard 2-D LayerNorm over the last (`D`) dimension, then restores
+    /// the original shape.  All three operations use tracked `coeus_autograd::reshape`
+    /// so gradients flow through the entire reshape→normalize→reshape chain.
+    ///
+    /// # Examples
+    /// ```text
+    /// // 3-D Transformer hidden states [batch, seq, d_model]:
+    /// let output = layer_norm.forward_nd(&x);
+    ///
+    /// // 4-D activation map [batch, channels, h, w]:
+    /// let output = layer_norm.forward_nd(&x);
+    /// ```
+    pub fn forward_nd(&self, input: &Var<T, B>) -> Var<T, B> {
+        let shape = input.tensor.shape_cloned();
+        let ndim = shape.len();
+        assert!(
+            ndim >= 2,
+            "LayerNorm::forward_nd requires rank ≥ 2, got rank {ndim}"
+        );
+        if ndim == 2 {
+            // Fast path: avoid a no-op reshape pair.
+            return self.forward(input);
+        }
+        let d = shape[ndim - 1];
+        let leading: usize = shape[..ndim - 1].iter().product();
+        // Tracked flatten [... , D] → [leading, D]
+        let flat = coeus_autograd::reshape(input, [leading, d]);
+        // Apply 2-D LayerNorm
+        let normed = self.forward(&flat);
+        // Tracked unflatten back to original shape
+        coeus_autograd::reshape(&normed, shape)
     }
 }

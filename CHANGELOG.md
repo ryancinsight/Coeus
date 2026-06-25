@@ -1,6 +1,41 @@
 # Changelog
 
-## 0.2.13 - 2026-06-25
+## 0.2.14 - 2026-06-25
+
+### Added
+
+- **`LayerNorm::forward_nd`** — New method on `coeus_nn::LayerNorm<T, B>` that
+  accepts any rank ≥ 2 input by transparently collapsing all leading dimensions
+  via tracked `coeus_autograd::reshape`, applying 2-D LayerNorm over the last
+  axis, and reshaping back. Gradients flow through the entire
+  flatten → normalize → unflatten chain. Common usage: `[batch, seq, d_model]`
+  Transformer hidden states (3-D), or `[batch, channels, h, w]` feature maps (4-D).
+
+- **`PyLayerNorm.forward_nd`** — Python method that delegates to `LayerNorm::forward_nd`,
+  allowing `ln.forward_nd(x)` for any rank-N input from Python.
+
+- **`layer_norm` functional handles rank ≥ 3** — The `pycoeus.layer_norm` free
+  function now dispatches to `forward_nd` when the input has rank > 2,
+  matching `torch.nn.functional.layer_norm` behavior.
+
+- **Hermes `Dot::fma_pair_accumulate`** — Added `fma_pair_accumulate` virtual
+  method to the `ReductionOp` trait (default: `accumulate(acc, mul(a, b))`).
+  `Dot` overrides it with `Arch::fmadd(a, b, acc)`, fusing multiply and add into
+  a single `vfmadd` instruction when the architecture supports it. The
+  `zip_reduce` main loop and single-vector tail now call `fma_pair_accumulate`
+  instead of the two-step `pair()+accumulate()` sequence, eliminating a
+  latency-bound add per `LANE_COUNT` elements on AVX2/AVX512 hardware.
+
+- **Burn parity test** — `layernorm_forward_nd_3d_matches_reshape_reference`
+  verifies forward output of `LayerNorm::forward_nd` on `[2, 3, 4]` input
+  matches the manual reshape→2D-LayerNorm→reshape reference, and that
+  backward gradient propagates through the 3-D path.
+
+- **Python binding test** — `test_layernorm_3d_forward_nd` exercises
+  `LayerNorm.forward_nd` (3-D and 4-D), `layer_norm` functional 3-D dispatch,
+  backward gradient flow, and consistency with 2-D `forward`.
+
+
 
 ### Added
 

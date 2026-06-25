@@ -36,9 +36,9 @@ pub fn layer_norm(
     let w = weight.map(|w| w.inner.clone());
     let b = bias.map(|b| b.inner.clone());
     let x = input.inner.clone();
+    let ndim = x.tensor.ndim();
     let inner = py.allow_threads(move || {
         use coeus_nn::normalization::LayerNorm;
-        use coeus_nn::Module;
         let backend = coeus_core::MoiraiBackend::new();
         let weight_var = w.unwrap_or_else(|| {
             coeus_autograd::Var::new(Tensor::ones_on([norm_shape], &backend), false)
@@ -47,7 +47,12 @@ pub fn layer_norm(
             coeus_autograd::Var::new(Tensor::zeros_on([norm_shape], &backend), false)
         });
         let ln = LayerNorm::from_parts(weight_var, bias_var, eps);
-        ln.forward(&x)
+        if ndim == 2 {
+            use coeus_nn::Module;
+            ln.forward(&x)
+        } else {
+            ln.forward_nd(&x)
+        }
     });
     PyTensor::from_var(inner)
 }

@@ -1383,6 +1383,57 @@ except ValueError:
 // ── dot / cross ────────────────────────────────────────────────────────
 
 #[test]
+fn test_layernorm_3d_forward_nd() {
+    run_script(
+        r#"
+import pycoeus
+
+# ── LayerNorm on 3-D [batch, seq, d] ──────────────────────────────────
+batch, seq, d = 2, 3, 4
+x_data = [float(i) for i in range(batch * seq * d)]
+x = pycoeus.Tensor(x_data, [batch, seq, d], requires_grad=True)
+
+ln = pycoeus.LayerNorm(d, eps=1e-5)
+
+# forward_nd produces same shape as input
+out = ln.forward_nd(x)
+assert out.shape == [batch, seq, d], f"forward_nd shape: {out.shape}"
+
+# backward propagates gradients
+loss = pycoeus.sum(out)
+loss.backward()
+assert x.grad is not None, "forward_nd should track gradients"
+assert len(x.grad) == batch * seq * d, f"grad shape mismatch: {len(x.grad)}"
+
+# ── layer_norm functional handles 3-D transparently ────────────────────
+x2 = pycoeus.Tensor(x_data, [batch, seq, d], requires_grad=True)
+out2 = pycoeus.layer_norm(x2, d)
+assert out2.shape == [batch, seq, d], f"layer_norm 3D shape: {out2.shape}"
+
+# Identical to forward_nd output
+for a, b in zip(out.data, out2.data):
+    assert abs(a - b) < 1e-6, f"forward_nd vs layer_norm mismatch: {a} vs {b}"
+
+# ── 2-D forward is unchanged ────────────────────────────────────────────
+x3 = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, -1.0, 0.5, 2.5, 3.0], [2, 4])
+out3 = ln.forward(x3)
+out3_nd = ln.forward_nd(x3)
+assert out3.shape == [2, 4]
+for a, b in zip(out3.data, out3_nd.data):
+    assert abs(a - b) < 1e-9, f"forward vs forward_nd 2D: {a} vs {b}"
+
+# ── 4-D input [batch, channels, h, w] ────────────────────────────────
+b2, c, h, w = 1, 2, 3, 4
+ln4 = pycoeus.LayerNorm(w, eps=1e-5)
+x4 = pycoeus.Tensor([float(i) for i in range(b2 * c * h * w)], [b2, c, h, w])
+out4 = ln4.forward_nd(x4)
+assert out4.shape == [b2, c, h, w], f"4D forward_nd shape: {out4.shape}"
+"#,
+    );
+}
+
+
+#[test]
 fn test_dtype_cast_methods() {
     run_script(
         r#"
