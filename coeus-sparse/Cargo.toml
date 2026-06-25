@@ -10,3 +10,9 @@ coeus-core   = { workspace = true }
 coeus-tensor = { workspace = true }
 thiserror    = { workspace = true }
 smallvec     = { workspace = true }
+
+[dev-dependencies]
+# Dev-only: exercise the sparse ops (which live in coeus-ops, itself a consumer
+# of coeus-sparse) against a dense matmul oracle. A dev-dependency cycle, which
+# Cargo permits since it does not affect the normal build graph.
+coeus-ops = { workspace = true, default-features = false }
