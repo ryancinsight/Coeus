@@ -31,7 +31,12 @@ impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default>
     pub fn new(input_size: usize, hidden_size: usize) -> Self {
         let w_ih = Linear::new(input_size, 3 * hidden_size, true);
         let w_hh = Linear::new(hidden_size, 3 * hidden_size, true);
-        Self { w_ih, w_hh, input_size, hidden_size }
+        Self {
+            w_ih,
+            w_hh,
+            input_size,
+            hidden_size,
+        }
     }
 
     /// Forward step.
@@ -54,19 +59,16 @@ impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default>
             coeus_autograd::slice(&hh, &[(0, batch), (start, end)])
         };
 
-        let r = coeus_autograd::sigmoid(
-            &coeus_autograd::add(&slice_ih(0, hs), &slice_hh(0, hs))
-        );
-        let z = coeus_autograd::sigmoid(
-            &coeus_autograd::add(&slice_ih(hs, 2 * hs), &slice_hh(hs, 2 * hs))
-        );
+        let r = coeus_autograd::sigmoid(&coeus_autograd::add(&slice_ih(0, hs), &slice_hh(0, hs)));
+        let z = coeus_autograd::sigmoid(&coeus_autograd::add(
+            &slice_ih(hs, 2 * hs),
+            &slice_hh(hs, 2 * hs),
+        ));
         // n = tanh(ih_n + r * hh_n)
-        let n = coeus_autograd::tanh(
-            &coeus_autograd::add(
-                &slice_ih(2 * hs, 3 * hs),
-                &coeus_autograd::mul(&r, &slice_hh(2 * hs, 3 * hs)),
-            )
-        );
+        let n = coeus_autograd::tanh(&coeus_autograd::add(
+            &slice_ih(2 * hs, 3 * hs),
+            &coeus_autograd::mul(&r, &slice_hh(2 * hs, 3 * hs)),
+        ));
 
         // h_new = (1 - z) * n + z * h
         let backend = B::default();

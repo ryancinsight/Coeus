@@ -32,7 +32,12 @@ impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default>
     pub fn new(input_size: usize, hidden_size: usize) -> Self {
         let w_ih = Linear::new(input_size, 4 * hidden_size, true);
         let w_hh = Linear::new(hidden_size, 4 * hidden_size, true);
-        Self { w_ih, w_hh, input_size, hidden_size }
+        Self {
+            w_ih,
+            w_hh,
+            input_size,
+            hidden_size,
+        }
     }
 
     /// Forward step.

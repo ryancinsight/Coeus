@@ -33,21 +33,23 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     assert_eq!(
-        indices.ndim(), 1,
-        "index_put: indices must be 1-D, got {}-D", indices.ndim()
+        indices.ndim(),
+        1,
+        "index_put: indices must be 1-D, got {}-D",
+        indices.ndim()
     );
     let n_idx = indices.shape()[0];
-    assert!(
-        input.ndim() >= 1,
-        "index_put: input must be at least 1-D"
-    );
+    assert!(input.ndim() >= 1, "index_put: input must be at least 1-D");
 
     // Row size: product of all dimensions except dim 0.
     let row_size: usize = input.shape()[1..].iter().product::<usize>().max(1);
     assert_eq!(
-        values.numel(), n_idx * row_size,
+        values.numel(),
+        n_idx * row_size,
         "index_put: values.numel()={} must equal len(indices)*row_size={}*{}",
-        values.numel(), n_idx, row_size
+        values.numel(),
+        n_idx,
+        row_size
     );
 
     // Copy input to host, apply updates, copy back.
@@ -63,7 +65,10 @@ where
     let n_rows = input.shape()[0];
     for (src_row, &idx_val) in idx_s.iter().enumerate() {
         let row = idx_val.to_f64() as usize;
-        assert!(row < n_rows, "index_put: index {row} out of range for dim 0 size {n_rows}");
+        assert!(
+            row < n_rows,
+            "index_put: index {row} out of range for dim 0 size {n_rows}"
+        );
         let dst_start = row * row_size;
         let src_start = src_row * row_size;
         for k in 0..row_size {

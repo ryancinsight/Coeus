@@ -25,12 +25,26 @@ pub struct PyLSTMCell {
 impl PyLSTMCell {
     #[new]
     pub fn new(py: Python<'_>, input_size: usize, hidden_size: usize) -> PyResult<Self> {
-        let cell = coeus_nn::rnn::LSTMCell::<f64, coeus_core::MoiraiBackend>::new(
-            input_size, hidden_size,
-        );
-        let w_ih = Py::new(py, PyTensor { inner: cell.w_ih.weight })?;
-        let w_hh = Py::new(py, PyTensor { inner: cell.w_hh.weight })?;
-        Ok(Self { input_size, hidden_size, w_ih, w_hh })
+        let cell =
+            coeus_nn::rnn::LSTMCell::<f64, coeus_core::MoiraiBackend>::new(input_size, hidden_size);
+        let w_ih = Py::new(
+            py,
+            PyTensor {
+                inner: cell.w_ih.weight,
+            },
+        )?;
+        let w_hh = Py::new(
+            py,
+            PyTensor {
+                inner: cell.w_hh.weight,
+            },
+        )?;
+        Ok(Self {
+            input_size,
+            hidden_size,
+            w_ih,
+            w_hh,
+        })
     }
 
     /// Single-step forward: `(x, h, c) → (h_new, c_new)`.
@@ -50,7 +64,8 @@ impl PyLSTMCell {
 
         let (h_new, c_new) = py.allow_threads(move || {
             let mut cell = coeus_nn::rnn::LSTMCell::<f64, coeus_core::MoiraiBackend>::new(
-                w_ih_var.tensor.shape()[1], hs,
+                w_ih_var.tensor.shape()[1],
+                hs,
             );
             cell.w_ih.weight = w_ih_var;
             cell.w_hh.weight = w_hh_var;
@@ -89,12 +104,26 @@ pub struct PyGRUCell {
 impl PyGRUCell {
     #[new]
     pub fn new(py: Python<'_>, input_size: usize, hidden_size: usize) -> PyResult<Self> {
-        let cell = coeus_nn::rnn::GRUCell::<f64, coeus_core::MoiraiBackend>::new(
-            input_size, hidden_size,
-        );
-        let w_ih = Py::new(py, PyTensor { inner: cell.w_ih.weight })?;
-        let w_hh = Py::new(py, PyTensor { inner: cell.w_hh.weight })?;
-        Ok(Self { input_size, hidden_size, w_ih, w_hh })
+        let cell =
+            coeus_nn::rnn::GRUCell::<f64, coeus_core::MoiraiBackend>::new(input_size, hidden_size);
+        let w_ih = Py::new(
+            py,
+            PyTensor {
+                inner: cell.w_ih.weight,
+            },
+        )?;
+        let w_hh = Py::new(
+            py,
+            PyTensor {
+                inner: cell.w_hh.weight,
+            },
+        )?;
+        Ok(Self {
+            input_size,
+            hidden_size,
+            w_ih,
+            w_hh,
+        })
     }
 
     /// Single-step forward: `(x, h) → h_new`.
@@ -107,7 +136,8 @@ impl PyGRUCell {
 
         let h_new = py.allow_threads(move || {
             let mut cell = coeus_nn::rnn::GRUCell::<f64, coeus_core::MoiraiBackend>::new(
-                w_ih_var.tensor.shape()[1], hs,
+                w_ih_var.tensor.shape()[1],
+                hs,
             );
             cell.w_ih.weight = w_ih_var;
             cell.w_hh.weight = w_hh_var;

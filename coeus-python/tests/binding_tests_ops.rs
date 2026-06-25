@@ -1497,7 +1497,6 @@ except ValueError:
     );
 }
 
-
 #[test]
 fn test_bmm_outer_ops() {
     run_script(
@@ -2145,12 +2144,57 @@ try:
 except ValueError:
     pass
 
-# error: dim != 3
+// error: dim != 3
 try:
     _ = pycoeus.cross(pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [4]), pycoeus.Tensor([5.0, 6.0, 7.0, 8.0], [4]))
     raise AssertionError("cross axis-size!=3 should raise")
 except ValueError:
     pass
+"#,
+    );
+}
+
+// ── TransformerDecoderLayer ─────────────────────────────────────────────
+
+#[test]
+fn test_transformer_decoder_layer() {
+    run_script(
+        r#"
+import math
+import pycoeus
+
+# Construction: valid dropout_p ranges [0.0, 1.0)
+for p in (0.0, 0.1, 0.999):
+    pycoeus.TransformerDecoderLayer(d_model=4, d_ff=8, num_heads=2, dropout_p=p)
+# defaults: num_heads=8, dropout_p=0.0
+pycoeus.TransformerDecoderLayer(d_model=4, d_ff=8)
+
+# Validation: dropout_p must lie in [0.0, 1.0).
+for bad in (1.0, 1.5, -0.1):
+    try:
+        _ = pycoeus.TransformerDecoderLayer(d_model=4, d_ff=8, dropout_p=bad)
+        raise AssertionError(f"dropout_p={bad} should raise")
+    except ValueError:
+        pass
+
+# Forward: shape preservation across supported num_heads.
+for h in (1, 2, 4):
+    dec = pycoeus.TransformerDecoderLayer(d_model=4, d_ff=8, num_heads=h, dropout_p=0.0)
+    batch = 1
+    seq_tgt = 3
+    seq_src = 5
+    tgt = pycoeus.Tensor([0.01 * (i + 1) for i in range(batch * seq_tgt * 4)], [batch, seq_tgt, 4])
+    memory = pycoeus.Tensor([0.02 * (i + 1) for i in range(batch * seq_src * 4)], [batch, seq_src, 4])
+    out = dec.forward(tgt, memory)
+    assert out.shape == [batch, seq_tgt, 4], f"num_heads={h} shape={out.shape}"
+    # Real PyLayer cannot no-op on these inputs (random init weights produce
+    # non-trivial logits); absence of zeros guards against silent fall-through.
+    assert any(abs(v) > 1e-6 for v in out.data), f"num_heads={h} all-zero output"
+
+# Stateless wrapper surface
+dec = pycoeus.TransformerDecoderLayer(d_model=4, d_ff=8, num_heads=2)
+assert dec.parameters() == [], "stateless wrapper has no exposed parameters"
+dec.zero_grad()
 "#,
     );
 }

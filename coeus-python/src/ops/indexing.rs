@@ -282,7 +282,8 @@ pub fn index_put(
 ) -> PyResult<PyTensor> {
     if indices.inner.tensor.ndim() != 1 {
         return Err(pyo3::exceptions::PyValueError::new_err(format!(
-            "index_put: indices must be 1-D, got {}-D", indices.inner.tensor.ndim()
+            "index_put: indices must be 1-D, got {}-D",
+            indices.inner.tensor.ndim()
         )));
     }
     let x = input.inner.clone();

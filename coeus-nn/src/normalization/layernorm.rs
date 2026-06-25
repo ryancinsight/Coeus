@@ -65,8 +65,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
 
     /// Forward pass for 2-D input `[N, D]`.
     ///
-    /// For inputs with rank ≥ 3 (e.g. `[batch, seq, D]`) use [`forward_nd`] instead,
-    /// or call [`forward_nd`] directly — it handles all ranks ≥ 2 via reshape.
+    /// For inputs with rank ≥ 3 (e.g. `[batch, seq, D]`) use
+    /// [`LayerNorm::forward_nd`] instead; it handles all ranks ≥ 2 via reshape.
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         let shape = input.tensor.shape_cloned();
         assert_eq!(

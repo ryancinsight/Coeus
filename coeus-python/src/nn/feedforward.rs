@@ -20,7 +20,11 @@ impl PyFeedForward {
                 "FeedForward: dropout_p must be in [0.0, 1.0)",
             ));
         }
-        Ok(Self { d_model, d_ff, dropout_p })
+        Ok(Self {
+            d_model,
+            d_ff,
+            dropout_p,
+        })
     }
 
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
@@ -44,9 +48,13 @@ impl PyFeedForward {
 /// ```
 #[pyclass(name = "TransformerDecoderLayer")]
 pub struct PyTransformerDecoderLayer {
+    #[pyo3(get)]
     pub d_model: usize,
+    #[pyo3(get)]
     pub d_ff: usize,
+    #[pyo3(get)]
     pub num_heads: usize,
+    #[pyo3(get)]
     pub dropout_p: f64,
 }
 
@@ -60,7 +68,12 @@ impl PyTransformerDecoderLayer {
                 "TransformerDecoderLayer: dropout_p must be in [0.0, 1.0)",
             ));
         }
-        Ok(Self { d_model, d_ff, num_heads, dropout_p })
+        Ok(Self {
+            d_model,
+            d_ff,
+            num_heads,
+            dropout_p,
+        })
     }
 
     /// Cross-attention decoder forward.
@@ -70,12 +83,7 @@ impl PyTransformerDecoderLayer {
     ///
     /// Returns `[batch, seq_tgt, d_model]`.
     #[pyo3(signature = (tgt, memory))]
-    pub fn forward(
-        &self,
-        tgt: &PyTensor,
-        memory: &PyTensor,
-        py: Python<'_>,
-    ) -> PyResult<PyTensor> {
+    pub fn forward(&self, tgt: &PyTensor, memory: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         let tgt_var = tgt.inner.clone();
         let mem_var = memory.inner.clone();
         let (d_model, d_ff, num_heads, dropout_p) =
