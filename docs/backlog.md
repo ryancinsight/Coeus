@@ -24,6 +24,10 @@
   coverage and consolidated 1-D/2-D/3-D convolution backward nodes through one
   const-generic implementation. Evidence tier: empirical value-semantic
   validation recorded in `docs/checklist.md`.
+- [x] [minor] Consolidated 2-D/3-D max-pool and average-pool autograd backward
+  nodes through const-generic implementations while preserving backend dispatch
+  semantics. Evidence tier: empirical value-semantic validation recorded in
+  `docs/checklist.md`.
 
 ### Residual risk / next
 - [ ] [minor] Extend native WGPU/CUDA transposed-convolution coverage to

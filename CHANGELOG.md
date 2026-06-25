@@ -56,6 +56,11 @@
   `ConvNode<T, B, DIM>` implementation for 1-D, 2-D, and 3-D convolution
   backward dispatch, removing per-dimension node duplication.
 
+- Pooling autograd backward wrappers now share const-generic max-pool and
+  average-pool node implementations across 2-D and 3-D pooling, preserving the
+  backend-specific backward dispatch points while removing per-rank node
+  duplication.
+
 
 
 ### Added

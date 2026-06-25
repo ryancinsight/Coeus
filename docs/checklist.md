@@ -238,6 +238,15 @@ and verify crate docs without claiming unmeasured performance wins.
   `autograd::nn_conv::conv_transpose1d_backward_accumulates_exact_gradients`;
   `cargo clippy -p coeus-autograd -p coeus-python --all-targets -- -D
   warnings` passes.
+- [x] [minor] Collapsed duplicated `max_pool2d`/`max_pool3d` and
+  `avg_pool2d`/`avg_pool3d` autograd backward nodes into const-generic
+  `MaxPoolNode<T, B, DIM>` and `AvgPoolNode<T, B, DIM>` dispatch paths.
+  Evidence tier: empirical value-semantic validation. Evidence: `cargo
+  nextest run -p coeus-autograd` passes with 27 tests,
+  `cargo nextest run -p coeus-nn --test nn_norm_tests pool` passes with 2
+  tests, `cargo nextest run -p coeus-nn --test nn_tests pool3d` passes with 6
+  tests, and `cargo clippy -p coeus-autograd -p coeus-cuda --all-targets --
+  -D warnings` passes.
 - [x] [minor] Completed per-axis `vector_norm(ord=p)` Rust-core and PyO3
   parity: `coeus_ops::norm_p_axis` reduces the requested axis to size 1, and
   `pycoeus.vector_norm(input, ord=p, axis=..., keepdim=...)` now returns the
