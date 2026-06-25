@@ -122,6 +122,8 @@ pub use ops::{
     sum,
     sum_axis,
     tanh,
+    // Tile / repeat
+    tile,
     transpose,
     transpose_2d,
     // Triangular masking

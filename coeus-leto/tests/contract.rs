@@ -418,8 +418,8 @@ fn view_over_cpu_storage_reads_logical_values() {
 
 #[test]
 fn rank_beyond_dispatch_bound_is_rejected() {
-    let a = vec![0.0f64; 64];
-    let la = layout(&[2, 2, 2, 2, 2, 2]); // rank 6 > MAX_DISPATCH_RANK
-    let mut out = vec![0.0f64; 64];
+    let a = vec![0.0f64; 128];
+    let la = layout(&[2, 2, 2, 2, 2, 2, 2]); // rank 7 > MAX_DISPATCH_RANK
+    let mut out = vec![0.0f64; 128];
     assert!(elementwise_add_into(&la, &a, &la, &a, &la, &mut out).is_err());
 }

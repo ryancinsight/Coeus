@@ -14,7 +14,7 @@ use leto_ops::{
 /// Largest dynamic rank the const-rank dispatch resolves. Coeus activations and
 /// Apollo transforms stay well within this bound; ranks beyond it are a logged
 /// error rather than silent truncation.
-pub const MAX_DISPATCH_RANK: usize = 5;
+pub const MAX_DISPATCH_RANK: usize = 6;
 
 /// Rank-`N` elementwise add into caller-owned output. Inputs broadcast to the
 /// output shape through the leto kernel, so `[N,1]` + `[1,C]` -> `[N,C]` works
@@ -49,6 +49,7 @@ pub fn elementwise_add_into<T: LetoScalar>(
         3 => add_n::<T, 3>(a_layout, a, b_layout, b, out_layout, out),
         4 => add_n::<T, 4>(a_layout, a, b_layout, b, out_layout, out),
         5 => add_n::<T, 5>(a_layout, a, b_layout, b, out_layout, out),
+        6 => add_n::<T, 6>(a_layout, a, b_layout, b, out_layout, out),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -226,6 +227,7 @@ pub fn elementwise_binary_into<T: LetoScalar>(
         3 => binary_n::<T, 3>(op, a_layout, a, b_layout, b, out_layout, out),
         4 => binary_n::<T, 4>(op, a_layout, a, b_layout, b, out_layout, out),
         5 => binary_n::<T, 5>(op, a_layout, a, b_layout, b, out_layout, out),
+        6 => binary_n::<T, 6>(op, a_layout, a, b_layout, b, out_layout, out),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -259,6 +261,7 @@ pub fn elementwise_unary_into<T: LetoScalar + CoeusScalar>(
         3 => unary_n::<T, 3>(op, a_layout, a, out_layout, out),
         4 => unary_n::<T, 4>(op, a_layout, a, out_layout, out),
         5 => unary_n::<T, 5>(op, a_layout, a, out_layout, out),
+        6 => unary_n::<T, 6>(op, a_layout, a, out_layout, out),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -307,6 +310,7 @@ pub fn reduce_into<T: LetoScalar>(
         3 => reduce_n::<T, 3>(op, a_layout, a, axis, out_layout, out),
         4 => reduce_n::<T, 4>(op, a_layout, a, axis, out_layout, out),
         5 => reduce_n::<T, 5>(op, a_layout, a, axis, out_layout, out),
+        6 => reduce_n::<T, 6>(op, a_layout, a, axis, out_layout, out),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -341,6 +345,7 @@ pub fn cumsum_into<T: LetoScalar>(
         3 => scan_sum_n::<T, 3>(a_layout, a, axis, ScanDirection::Forward, out_layout, out),
         4 => scan_sum_n::<T, 4>(a_layout, a, axis, ScanDirection::Forward, out_layout, out),
         5 => scan_sum_n::<T, 5>(a_layout, a, axis, ScanDirection::Forward, out_layout, out),
+        6 => scan_sum_n::<T, 6>(a_layout, a, axis, ScanDirection::Forward, out_layout, out),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -362,6 +367,7 @@ pub fn suffix_sum_into<T: LetoScalar>(
         3 => scan_sum_n::<T, 3>(a_layout, a, axis, ScanDirection::Reverse, out_layout, out),
         4 => scan_sum_n::<T, 4>(a_layout, a, axis, ScanDirection::Reverse, out_layout, out),
         5 => scan_sum_n::<T, 5>(a_layout, a, axis, ScanDirection::Reverse, out_layout, out),
+        6 => scan_sum_n::<T, 6>(a_layout, a, axis, ScanDirection::Reverse, out_layout, out),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -465,6 +471,7 @@ pub fn argmax_into<T: LetoScalar>(
         3 => arg_reduce_n::<T, 3, 2>(a_layout, a, axis, out_layout, out, true),
         4 => arg_reduce_n::<T, 4, 3>(a_layout, a, axis, out_layout, out, true),
         5 => arg_reduce_n::<T, 5, 4>(a_layout, a, axis, out_layout, out, true),
+        6 => arg_reduce_n::<T, 6, 5>(a_layout, a, axis, out_layout, out, true),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -486,6 +493,7 @@ pub fn argmin_into<T: LetoScalar>(
         3 => arg_reduce_n::<T, 3, 2>(a_layout, a, axis, out_layout, out, false),
         4 => arg_reduce_n::<T, 4, 3>(a_layout, a, axis, out_layout, out, false),
         5 => arg_reduce_n::<T, 5, 4>(a_layout, a, axis, out_layout, out, false),
+        6 => arg_reduce_n::<T, 6, 5>(a_layout, a, axis, out_layout, out, false),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -525,6 +533,7 @@ pub fn pad_values<T: Clone>(
         3 => pad_values_n::<T, 3>(a_layout, a, widths, fill),
         4 => pad_values_n::<T, 4>(a_layout, a, widths, fill),
         5 => pad_values_n::<T, 5>(a_layout, a, widths, fill),
+        6 => pad_values_n::<T, 6>(a_layout, a, widths, fill),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -574,6 +583,7 @@ pub fn concat_values<T: Clone>(
         3 => concat_values_n::<T, 3>(layouts, inputs, axis),
         4 => concat_values_n::<T, 4>(layouts, inputs, axis),
         5 => concat_values_n::<T, 5>(layouts, inputs, axis),
+        6 => concat_values_n::<T, 6>(layouts, inputs, axis),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -609,6 +619,7 @@ pub fn split_values<T: Clone>(
         3 => split_values_n::<T, 3>(a_layout, a, axis, sizes),
         4 => split_values_n::<T, 4>(a_layout, a, axis, sizes),
         5 => split_values_n::<T, 5>(a_layout, a, axis, sizes),
+        6 => split_values_n::<T, 6>(a_layout, a, axis, sizes),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -661,6 +672,7 @@ pub fn stack_values<T: Clone>(
         2 => stack_values_n_m::<T, 2, 3>(layouts, inputs, axis),
         3 => stack_values_n_m::<T, 3, 4>(layouts, inputs, axis),
         4 => stack_values_n_m::<T, 4, 5>(layouts, inputs, axis),
+        5 => stack_values_n_m::<T, 5, 6>(layouts, inputs, axis),
         n => Err(LetoError::StorageError {
             reason: format!(
                 "coeus-leto stack dispatch supports input rank 0..{}, got {n}",
@@ -687,6 +699,7 @@ pub fn contiguous_values<T: Clone>(a_layout: &CoeusLayout, a: &[T]) -> Result<Ve
         3 => contiguous_values_n::<T, 3>(a_layout, a),
         4 => contiguous_values_n::<T, 4>(a_layout, a),
         5 => contiguous_values_n::<T, 5>(a_layout, a),
+        6 => contiguous_values_n::<T, 6>(a_layout, a),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -725,6 +738,7 @@ fn reshape_layout_n<const N: usize>(layout: &CoeusLayout, shape: &[usize]) -> Re
         3 => reshape_layout_n_m::<N, 3>(layout, shape),
         4 => reshape_layout_n_m::<N, 4>(layout, shape),
         5 => reshape_layout_n_m::<N, 5>(layout, shape),
+        6 => reshape_layout_n_m::<N, 6>(layout, shape),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -741,6 +755,7 @@ pub fn reshape_layout(layout: &CoeusLayout, shape: &[usize]) -> Result<CoeusLayo
         3 => reshape_layout_n::<3>(layout, shape),
         4 => reshape_layout_n::<4>(layout, shape),
         5 => reshape_layout_n::<5>(layout, shape),
+        6 => reshape_layout_n::<6>(layout, shape),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -761,6 +776,7 @@ pub fn permute_layout(layout: &CoeusLayout, axes: &[usize]) -> Result<CoeusLayou
         3 => permute_layout_n::<3>(layout, axes),
         4 => permute_layout_n::<4>(layout, axes),
         5 => permute_layout_n::<5>(layout, axes),
+        6 => permute_layout_n::<6>(layout, axes),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -786,6 +802,7 @@ fn broadcast_layout_n<const N: usize>(
         3 => broadcast_layout_n_m::<N, 3>(layout, target_shape),
         4 => broadcast_layout_n_m::<N, 4>(layout, target_shape),
         5 => broadcast_layout_n_m::<N, 5>(layout, target_shape),
+        6 => broadcast_layout_n_m::<N, 6>(layout, target_shape),
         n => Err(LetoError::StorageError {
             reason: format!(
                 "coeus-leto broadcast dispatch supports rank 0..={MAX_DISPATCH_RANK}, got {n}"
@@ -804,6 +821,7 @@ pub fn broadcast_layout(layout: &CoeusLayout, target_shape: &[usize]) -> Result<
         3 => broadcast_layout_n::<3>(layout, target_shape),
         4 => broadcast_layout_n::<4>(layout, target_shape),
         5 => broadcast_layout_n::<5>(layout, target_shape),
+        6 => broadcast_layout_n::<6>(layout, target_shape),
         n => Err(LetoError::StorageError {
             reason: format!(
                 "coeus-leto broadcast dispatch supports rank 0..={MAX_DISPATCH_RANK}, got {n}"
@@ -872,6 +890,7 @@ where
         3 => from_shape_fn_values_n::<T, F, 3>(shape, &f),
         4 => from_shape_fn_values_n::<T, F, 4>(shape, &f),
         5 => from_shape_fn_values_n::<T, F, 5>(shape, &f),
+        6 => from_shape_fn_values_n::<T, F, 6>(shape, &f),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -911,6 +930,7 @@ pub fn uniform_values<T: RealScalar>(
         3 => uniform_values_n::<T, 3>(shape, low, high, seed),
         4 => uniform_values_n::<T, 4>(shape, low, high, seed),
         5 => uniform_values_n::<T, 5>(shape, low, high, seed),
+        6 => uniform_values_n::<T, 6>(shape, low, high, seed),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),
@@ -941,6 +961,7 @@ pub fn normal_values<T: RealScalar>(
         3 => normal_values_n::<T, 3>(shape, mean, std_dev, seed),
         4 => normal_values_n::<T, 4>(shape, mean, std_dev, seed),
         5 => normal_values_n::<T, 5>(shape, mean, std_dev, seed),
+        6 => normal_values_n::<T, 6>(shape, mean, std_dev, seed),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),

@@ -17,6 +17,7 @@ pub mod slice;
 pub mod split;
 pub mod squeeze;
 pub mod stack;
+pub mod tile;
 pub mod tril;
 pub mod where_cond;
 
@@ -39,5 +40,6 @@ pub use slice::slice;
 pub use split::split;
 pub use squeeze::{squeeze, unsqueeze};
 pub use stack::stack;
+pub use tile::tile;
 pub use tril::{tril, triu};
 pub use where_cond::where_cond;

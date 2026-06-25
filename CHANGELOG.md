@@ -1,6 +1,47 @@
 # Changelog
 
-## 0.2.8 - 2026-06-25
+## 0.2.9 - 2026-06-25
+
+### Added
+
+- **`meshgrid` op** — `coeus-ops::meshgrid(&tensors, indexing)` creates N
+  coordinate grids from N 1-D tensors matching `torch.meshgrid(*tensors,
+  indexing="ij"/"xy")`. Python `pycoeus.meshgrid([*tensors], indexing="ij")`.
+  3 unit tests; 1 Burn parity test.
+
+- **`tile` op** — `coeus-ops::tile(input, reps)` replicates `input` by
+  `reps[d]` times along each dimension (matching `torch.Tensor.repeat` /
+  `np.tile`). Tracked `coeus_autograd::tile` with sum-over-copies backward.
+  Python `pycoeus.tile(input, reps)` and `Tensor.repeat(reps)` method form.
+  4 unit tests; 1 Burn parity test (forward + backward).
+
+- **`coeus-leto` rank-6 dispatch** — `MAX_DISPATCH_RANK` extended from 5 to 6.
+  All elementwise, binary, unary, reduction, scan, concat/split/stack/pad
+  dispatch functions now handle rank-6 tensors (needed for batched multi-head
+  attention with `[batch, heads, seq_q, seq_k]` or `[batch, heads, seq, d]`
+  shapes). Contract test `rank_beyond_dispatch_bound_is_rejected` updated to
+  use rank 7. All 22 coeus-leto contract tests pass.
+
+- **`PyTensor` API additions** — New methods on the Python `Tensor` class:
+  - `tensor.clone_tensor()` — shallow clone (same autograd graph).
+  - `tensor.is_contiguous()` → `bool` — checks row-major memory layout.
+  - `tensor.numel()` → `int` — total element count.
+  - `tensor.T` → property — 2-D transpose (raises `ValueError` for non-2-D).
+  - `tensor.repeat(reps)` — tile via autograd::tile (tracked).
+
+- **Burn parity suite 53 → 55 tests** — `meshgrid_ij_matches_manual_reference`
+  and `tile_forward_and_backward`.
+
+- **Python binding tests 29 → 30** — `test_meshgrid_tile_tensor_methods`
+  covers meshgrid ij/xy, tile 1-D/2-D backward, `Tensor.repeat`, `Tensor.T`,
+  `numel()`, `is_contiguous()`, `clone_tensor()`, and error paths.
+
+### Changed
+
+- Workspace version bumped `0.2.8` → `0.2.9`.
+- `coeus-ops/src/shape/tile.rs` unused variable fixed.
+
+
 
 ### Added
 

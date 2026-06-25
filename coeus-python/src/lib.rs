@@ -175,6 +175,9 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::tril, m)?)?;
     m.add_function(wrap_pyfunction!(ops::triu, m)?)?;
     m.add_function(wrap_pyfunction!(ops::roll, m)?)?;
+    // meshgrid / tile
+    m.add_function(wrap_pyfunction!(ops::meshgrid, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::tile, m)?)?;
     // Functional nn (stateless)
     m.add_function(wrap_pyfunction!(ops::linear, m)?)?;
     m.add_function(wrap_pyfunction!(ops::layer_norm, m)?)?;

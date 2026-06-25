@@ -310,11 +310,6 @@ impl PyTensor {
         Ok(contiguous.as_slice()[0])
     }
 
-    /// Total number of elements.
-    fn numel(&self) -> usize {
-        self.inner.tensor.shape().iter().product()
-    }
-
     /// Number of dimensions.
     #[getter]
     fn ndim(&self) -> usize {
@@ -628,6 +623,48 @@ impl PyTensor {
     /// Return data as a Python list (alias for `data` matching `torch.Tensor.tolist()`).
     fn tolist(&self) -> Vec<f64> {
         self.data()
+    }
+
+    /// Return a shallow clone of this tensor (tracked — same graph, new handle).
+    ///
+    /// Equivalent to `tensor.clone()` in PyTorch.
+    fn clone_tensor(&self) -> Self {
+        self.clone()
+    }
+
+    /// Return `True` if the tensor's data is contiguous in row-major (C) order.
+    fn is_contiguous(&self) -> bool {
+        self.inner.tensor.is_contiguous()
+    }
+
+    /// Total number of elements (equivalent to `tensor.numel()` in PyTorch).
+    #[pyo3(name = "numel")]
+    fn numel_method(&self) -> usize {
+        self.inner.tensor.shape().iter().product()
+    }
+
+    /// 2-D transpose property — shorthand for `permute([1, 0])`.
+    ///
+    /// Equivalent to `tensor.T` in PyTorch / NumPy.
+    #[getter]
+    #[allow(non_snake_case)]
+    fn T(&self, py: Python<'_>) -> PyResult<Self> {
+        let ndim = self.inner.tensor.ndim();
+        if ndim != 2 {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "tensor.T: expected 2-D tensor, got {ndim}-D"
+            )));
+        }
+        let inner = py.allow_threads(|| coeus_autograd::permute(&self.inner, &[1, 0]));
+        Ok(Self { inner })
+    }
+
+    /// Tile this tensor by repeating it `reps[d]` times along each dimension.
+    ///
+    /// Equivalent to `tensor.repeat(*reps)` in PyTorch / `np.tile`.
+    fn repeat(&self, reps: Vec<usize>, py: Python<'_>) -> Self {
+        let inner = py.allow_threads(|| coeus_autograd::tile(&self.inner, &reps));
+        Self { inner }
     }
 
     /// Scalar multiplication via `scalar * tensor` (right-multiply by scalar).

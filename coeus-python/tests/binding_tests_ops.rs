@@ -844,6 +844,96 @@ except ValueError:
 }
 
 #[test]
+fn test_meshgrid_tile_tensor_methods() {
+    run_script(
+        r#"
+import pycoeus
+
+# ── meshgrid ij ───────────────────────────────────────────────────────
+x = pycoeus.Tensor([0.0, 1.0, 2.0], [3])
+y = pycoeus.Tensor([10.0, 20.0], [2])
+grids = pycoeus.meshgrid([x, y], "ij")
+assert len(grids) == 2
+# grid_x varies along axis 0
+assert grids[0].shape == [3, 2], f"grid_x shape: {grids[0].shape}"
+assert grids[0].data == [0.0, 0.0, 1.0, 1.0, 2.0, 2.0], f"grid_x: {grids[0].data}"
+# grid_y varies along axis 1
+assert grids[1].shape == [3, 2]
+assert grids[1].data == [10.0, 20.0, 10.0, 20.0, 10.0, 20.0]
+
+# ── meshgrid xy ───────────────────────────────────────────────────────
+gxy = pycoeus.meshgrid([x, y], "xy")
+# xy: first output varies along dim 1, second along dim 0
+assert gxy[0].shape == [2, 3]
+
+# ── meshgrid errors ───────────────────────────────────────────────────
+try:
+    _ = pycoeus.meshgrid([x, y], "bad")
+    raise AssertionError("bad indexing should raise")
+except ValueError:
+    pass
+
+m2d = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [2, 2])
+try:
+    _ = pycoeus.meshgrid([x, m2d], "ij")  # 2-D tensor in list
+    raise AssertionError("2-D tensor in meshgrid should raise")
+except ValueError:
+    pass
+
+# ── tile ──────────────────────────────────────────────────────────────
+v = pycoeus.Tensor([1.0, 2.0, 3.0], [3])
+t1 = pycoeus.tile(v, [2])
+assert t1.shape == [6]
+assert t1.data == [1.0, 2.0, 3.0, 1.0, 2.0, 3.0], f"tile 1-D: {t1.data}"
+
+m = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [2, 2])
+t2 = pycoeus.tile(m, [2, 3])
+assert t2.shape == [4, 6]
+assert t2.data[:6] == [1.0, 2.0, 1.0, 2.0, 1.0, 2.0]
+
+# tile backward
+vg = pycoeus.Tensor([1.0, 2.0, 3.0], [3], requires_grad=True)
+tg = pycoeus.tile(vg, [3])
+pycoeus.sum(tg).backward()
+# each original element copied 3 times → grad = 3
+assert vg.grad == [3.0, 3.0, 3.0], f"tile bwd: {vg.grad}"
+
+# ── Tensor.repeat (method form) ───────────────────────────────────────
+r = v.repeat([2])
+assert r.data == [1.0, 2.0, 3.0, 1.0, 2.0, 3.0]
+
+# ── Tensor.T (2-D transpose) ─────────────────────────────────────────
+a = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3])
+at = a.T
+assert at.shape == [3, 2], f"T shape: {at.shape}"
+assert abs(at.data[0] - 1.0) < 1e-9  # a[0,0]
+assert abs(at.data[1] - 4.0) < 1e-9  # a[1,0]
+
+try:
+    _ = v.T  # 1-D should fail
+    raise AssertionError("1-D T should raise")
+except ValueError:
+    pass
+
+# ── Tensor.numel() ────────────────────────────────────────────────────
+assert a.numel() == 6
+assert v.numel() == 3
+
+# ── Tensor.is_contiguous() ────────────────────────────────────────────
+assert a.is_contiguous() == True
+# permuted tensor is not contiguous
+ap = pycoeus.permute(a, [1, 0])
+assert ap.is_contiguous() == False
+
+# ── Tensor.clone_tensor() ─────────────────────────────────────────────
+c = a.clone_tensor()
+assert c.shape == a.shape
+assert c.data == a.data
+"#,
+    );
+}
+
+#[test]
 fn test_diag_diagonal_cumprod() {
     run_script(
         r#"

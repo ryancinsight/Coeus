@@ -1319,7 +1319,50 @@ fn flip_backward_passes_grad() {
 }
 
 
-// ── cumprod forward + backward ───────────────────────────────────────────────
+
+// ── meshgrid / tile forward ────────────────────────────────────────────────
+
+#[test]
+fn meshgrid_ij_matches_manual_reference() {
+    let backend = SequentialBackend::new();
+    let x = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &[0.0f32, 1.0, 2.0]);
+    let y = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &[10.0f32, 20.0]);
+    let grids = coeus_ops::meshgrid(&[&x, &y], "ij", &backend);
+    assert_eq!(grids.len(), 2);
+    // grid_x varies along axis 0
+    assert_close("meshgrid_grid_x", grids[0].as_slice(), &[0.0, 0.0, 1.0, 1.0, 2.0, 2.0]);
+    // grid_y varies along axis 1
+    assert_close("meshgrid_grid_y", grids[1].as_slice(), &[10.0, 20.0, 10.0, 20.0, 10.0, 20.0]);
+}
+
+#[test]
+fn tile_forward_and_backward() {
+    let backend = SequentialBackend::new();
+    let x = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0f32, 2.0, 3.0]);
+    let out = coeus_ops::tile(&x, &[2], &backend);
+    assert_eq!(out.shape(), &[6]);
+    assert_close("tile_1d", out.as_slice(), &[1.0, 2.0, 3.0, 1.0, 2.0, 3.0]);
+
+    // 2-D tiling
+    let m = CoeusTensor::<f32, SequentialBackend>::from_slice(
+        vec![2, 2],
+        &[1.0f32, 2.0, 3.0, 4.0],
+    );
+    let m2 = coeus_ops::tile(&m, &[1, 3], &backend);
+    assert_eq!(m2.shape(), &[2, 6]);
+    assert_close("tile_2d_row0", &m2.as_slice()[..6], &[1.0, 2.0, 1.0, 2.0, 1.0, 2.0]);
+
+    // Tracked tile backward: grad sums over copies.
+    let xg = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0f32, 2.0, 3.0]),
+        true,
+    );
+    coeus_autograd::sum(&coeus_autograd::tile(&xg, &[3])).backward();
+    // Each element copied 3× → gradient = 3 for each.
+    assert_close("tile_bwd", xg.grad().unwrap().as_slice(), &[3.0, 3.0, 3.0]);
+    let _ = backend;
+}
+
 
 #[test]
 fn cumprod_forward_and_backward() {

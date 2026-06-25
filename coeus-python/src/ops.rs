@@ -1189,6 +1189,61 @@ pub fn roll(
     Ok(PyTensor { inner })
 }
 
+// ── meshgrid / tile ───────────────────────────────────────────────────────────
+
+/// Create coordinate grids from a list of 1-D tensors.
+///
+/// Returns a list of tensors of shape equal to the product of all input lengths.
+/// `indexing` must be `"ij"` (default, matrix convention) or `"xy"` (Cartesian).
+///
+/// Matches `torch.meshgrid(*tensors, indexing=indexing)`.
+#[pyfunction]
+#[pyo3(signature = (tensors, indexing = "ij"))]
+pub fn meshgrid(
+    tensors: Vec<Py<PyTensor>>,
+    indexing: &str,
+    py: Python<'_>,
+) -> PyResult<Vec<PyTensor>> {
+    if !matches!(indexing, "ij" | "xy") {
+        return Err(PyValueError::new_err(format!(
+            "meshgrid: indexing must be \"ij\" or \"xy\", got {indexing:?}"
+        )));
+    }
+    for (i, t) in tensors.iter().enumerate() {
+        if t.bind(py).borrow().inner.tensor.ndim() != 1 {
+            return Err(PyValueError::new_err(format!(
+                "meshgrid: tensor {i} must be 1-D, got {}-D",
+                t.bind(py).borrow().inner.tensor.ndim()
+            )));
+        }
+    }
+    let rust_tensors: Vec<coeus_tensor::Tensor<f64, MoiraiBackend>> = tensors
+        .iter()
+        .map(|t| t.bind(py).borrow().inner.tensor.clone())
+        .collect();
+    let backend = MoiraiBackend::new();
+    let grids = py.allow_threads(|| {
+        let refs: Vec<&coeus_tensor::Tensor<f64, MoiraiBackend>> =
+            rust_tensors.iter().collect();
+        coeus_ops::meshgrid(&refs, indexing, &backend)
+    });
+    Ok(grids
+        .into_iter()
+        .map(|t| PyTensor {
+            inner: Var::new(t, false),
+        })
+        .collect())
+}
+
+/// Tile `input` by repeating it `reps[d]` times along each dimension (tracked).
+///
+/// Matches `torch.Tensor.repeat(*reps)` / `np.tile(input, reps)`.
+#[pyfunction]
+pub fn tile(input: &PyTensor, reps: Vec<usize>, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::tile(&input.inner, &reps));
+    PyTensor { inner }
+}
+
 // ── Spatial resize ────────────────────────────────────────────────────────────
 
 /// Resize a spatial tensor.
