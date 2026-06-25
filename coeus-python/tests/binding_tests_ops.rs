@@ -735,13 +735,58 @@ except ValueError:
 
 # Error path: empty tensor surfaces ValueError, not a panic
 try:
+    _ = pycoeus.var(pycoeus.zeros([0]))
+    raise AssertionError("var of empty tensor should raise")
+except ValueError:
+    pass
+try:
     _ = pycoeus.std(pycoeus.zeros([0]))
     raise AssertionError("std of empty tensor should raise")
 except ValueError:
     pass
+"#,
+    );
+}
+
+#[test]
+fn test_vector_norm_p_orders() {
+    run_script(
+        r#"
+import pycoeus
+import math
+
+x = pycoeus.Tensor([1.0, -2.0, 3.0, -4.0, 5.0], [5])
+
+# Default ord=2 matches pycoeus.norm (L2).
+n2_default = pycoeus.vector_norm(x)
+n_l2 = pycoeus.norm(x)
+assert abs(n2_default - n_l2) < 1e-9, f"vector_norm default ord=2 != norm: {n2_default} vs {n_l2}"
+
+# ord=1: Manhattan distance = sum(|x_i|) = 1+2+3+4+5 = 15.
+n1 = pycoeus.vector_norm(x, ord=1.0)
+assert abs(n1 - 15.0) < 1e-9, f"vector_norm ord=1 wrong: {n1}"
+
+# ord=3: (sum(|x|^3))^(1/3) — closed-form reference.
+abs_vals = [1.0, 2.0, 3.0, 4.0, 5.0]
+sum_cubes = sum(v ** 3 for v in abs_vals)
+n3 = pycoeus.vector_norm(x, ord=3.0)
+assert abs(n3 - sum_cubes ** (1.0 / 3.0)) < 1e-9, f"vector_norm ord=3 wrong: {n3}"
+
+# ord=4 fractional is fine; p must be finite positive.
+n_half = pycoeus.vector_norm(x, ord=0.5)
+
+# error: ord<=0 must raise ValueError, not panic.
+for bad in [0.0, -1.0, float('inf'), -float('inf')]:
+    try:
+        _ = pycoeus.vector_norm(x, ord=bad)
+        raise AssertionError(f"vector_norm ord={bad} should raise")
+    except ValueError:
+        pass
+
+# error: empty tensor must raise ValueError.
 try:
-    _ = pycoeus.var(pycoeus.zeros([0]))
-    raise AssertionError("var of empty tensor should raise")
+    _ = pycoeus.vector_norm(pycoeus.zeros([0]))
+    raise AssertionError("vector_norm on empty tensor should raise")
 except ValueError:
     pass
 "#,

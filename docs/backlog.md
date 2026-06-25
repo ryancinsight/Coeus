@@ -467,6 +467,105 @@ calls `mnemosyne::Mnemosyne.alloc/dealloc` explicitly); every incidental allocat
   without a global mnemosyne registration — e.g. a pure-Rust downstream).
 - mnemosyne consumed with default features (`branded` → melinoe-branded heap).
 
+## Sprint MS-66: vector_norm(ord-p) Torch/JAX parity [minor]
+
+Closes the `L_p` norm gap inherited from MS-65's deferred norm family.
+`torch.linalg.vector_norm(x, ord=p)` is a core Torch/Numpy/JAX contract
+that Coeus previously only supported at `p = 2` via `coeus_ops::norm`.
+
+### Completed:
+- **`coeus_ops::norm_p<T: Float, B: BackendOps<T> + Default>(x, p, backend)`**
+  returns `(Σ|xᵢ|^p)^(1/p)` for any finite positive `p`, matching
+  `torch.linalg.vector_norm` on a flattened view. Implemented as a
+  single host-side fold with `T::powf` accumulation plus a final scalar
+  `^(1/p)`; the input can stay on any backend (`B::DeviceBuffer<T>` is
+  read through the existing `copy_to_host` surface) so no new
+  `BinaryOp::Pow` opcode is added to the dispatch surface.
+- **`coeus_ops::norm(x, backend)` preserved as the L2 short-circuit** —
+  its body (a direct `square → sum → sqrt`) is the optimal p=2 path and
+  bitwise-equivalent to `norm_p(x, T::from_usize(2), backend)`, asserted
+  in tests.
+- **PyO3 `vector_norm` thin wrapper** — `pycoeus.vector_norm(input,
+  ord=2.0, axis=None, keepdim=False)` mirrors
+  `torch.linalg.vector_norm`'s signature; `pycoeus.norm(input)` keeps the
+  L2 default. Empty tensors and out-of-range `ord` surface as
+  `ValueError` at the PyO3 boundary rather than panicking in Rust-core.
+- **Burn parity** — `coeus-nn/tests/burn_live_parity.rs::
+  statistical_ops_match_burn` extended with p ∈ {1, 2, 3} Lp-norm
+  assertions against `xb.powf_scalar(p).sum().powf_scalar(1/p)` from
+  Burn 0.16. Evidence: `cargo nextest run -p coeus-nn --test
+  burn_live_parity statistical_ops_match_burn` passes.
+- **Python binding test** —
+  `coeus-python/tests/binding_tests_ops.rs::test_vector_norm_p_orders`
+  covers p ∈ {0.5, 1, 2, 3}, ord error paths (0, negative, ±∞), and
+  empty-tensor errors. Evidence: `cargo nextest run -p coeus-python
+  --test binding_tests_ops test_vector_norm_p_orders` passes.
+- **MS-66 verification (2026-06-24)** — `cargo check --workspace`,
+  `cargo clippy --workspace --all-targets -- -D warnings`,
+  `cargo fmt --check`, `cargo test --doc --workspace` all clean.
+  `cargo nextest run --workspace` passes 464 tests, up from 455
+  baseline (8 new tests in `coeus-ops reduction::stats::tests`, 1 new
+  binding test). Pre-existing `statistical_ops_match_burn` retained
+  verbatim, extended by 3 cases in the same test function.
+
+### Decisions:
+- **No `BinaryOp::Pow`**: the `Pow` decision remains owned by
+  `docs/backlog.md` MS-62 and is intentionally deferred to keep the
+  backend dispatch surface minimal. `norm_p` uses scalar `T::powf` so
+  the SSOT is preserved without expanding the trait.
+- **Host-side fold**: the Lp-norm accumulator is intentionally a host
+  fold rather than a tensor composition (`exp(p * ln(x))` would require
+  an element-wise `pow`, which doubles backend dispatch without
+  correctness benefit since the GPU/CPU reduction order is irrelevant
+  for a global sum). The host fold matches Burn's
+  `powf_scalar(p).sum()` evaluation pattern.
+- **Empty-tensor error semantics**: `norm_p` panics on empty input (a
+  strong invariant — `0^p = 0` but `(0)^(1/p) = 0` collapses what
+  `torch.linalg.vector_norm` raises); the PyO3 wrapper surfaces the
+  `ValueError` boundary translation as `statistical_ops_match_burn`/
+  `std_var` already do.
+
+### Residual risk / next (tracked, [minor]):
+- `coeus_ops::norm_p_axis(x, p, axis, backend)` for per-axis Lp norm
+  (matching `torch.linalg.vector_norm(x, ord=p, dim=…)`) is the next
+  Torch/JAX parity milestone. It needs an element-wise
+  `pow_compose(|x|, p, ?)` kernel or a per-slice GPU reduction path;
+  routes through MS-67 once a slice-walk composition lands.
+- `coeus_autograd::norm_p(x, p)` is the autograd node needed to make
+  `pycoeus.vector_norm` track gradients through PyTensor. Locked
+  pending the per-axis Rust-core path (a global reduction without
+  per-element gradients is void-trivial).
+
+---
+## Sprint MS-65: Burn/CUDA parity closure [minor]
+
+Burn/CUDA parity burst closing MS-61/62's partial achievements with the
+Tril/Triu/Roll/Pooling/GlobalPool/StatsOp vertical slices plus CUDA on-
+device SDP attention parity coverage.
+
+### Completed:
+- `coeus_ops::{tril, triu, roll}` plus tracked autograd
+  counterparts (`coeus_autograd::{tril, triu, roll}` with pass-through
+  backward nodes for triangular masking and `roll(grad, -shifts, dims)`
+  for circular-shift unroll).
+- PyO3 wrappers `pycoeus.{tril, triu, roll}` with `ValueError` on
+  invalid `k` / dim.
+- Functional Python nn (`pycoeus.{linear, layer_norm, dropout}`)
+  matching `torch.nn.functional.*`.
+- `coeus_ops::stats::reduction::{var, var_axis, std_dev, std_dev_axis,
+  norm}` (L2 only) with `pycoeus.{var, std, norm}` matching torch/JAX.
+- `coeus-nn/tests/burn_live_parity.rs` grew from 41 → 48 tests.
+- CUDA conv3d forward/backward kernels (PTX)
+  (`coeus-cuda/src/kernels/ptx.ptx::conv3d_*`).
+- CUDA SDP attention (`kernels/attention.rs::launch_sdp_attention(…)`)
+  with on-device NVRTC kernels for unmasked/causal forward + backward
+  `grad_q`/`grad_k`/`grad_v`. The masked case (key_padding_mask
+  present) is now an explicit CPU-reference boundary rather than a
+  silent fallback.
+- CUDA max/avg 3D pooling forward + backward JIT kernels.
+- `coeus-wgpu/Cargo.toml`, `coeus-cuda/Cargo.toml` version auto-bumped
+  to 0.2.5 via workspace version inheritance.
+
 ---
 ## Sprint MS-57: remove ndarray from coeus [minor]
 

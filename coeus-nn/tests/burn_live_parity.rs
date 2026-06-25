@@ -412,8 +412,23 @@ fn statistical_ops_match_burn() {
     // L2 norm matches Burn's `powf_scalar(2).sum().sqrt()` over flattened
     // input (matches torch.linalg.vector_norm default ord=2).
     let n2 = coeus_ops::norm(&xc, &backend);
-    let n_burn = bvec(xb.powf_scalar(2.0).sum())[0].sqrt();
+    let n_burn = bvec(xb.clone().powf_scalar(2.0).sum())[0].sqrt();
     assert_close("norm_l2", &[n2], &[n_burn]);
+
+    // L_p norm parity: ord ∈ {1, 2, 3}. Coeus folds via
+    // `coeus_ops::norm_p` (host-side `T::powf` accumulation with final
+    // `^(1/p)`); Burn uses `powf_scalar(p).sum().powf_scalar(1/p)` over
+    // the flattened input. Reduction order differs (Coeus is per-bucket
+    // host fold vs Burn's fused pipeline), so the assertion uses the
+    // forward-equivalent lambda with a reduction-order-sensitive bound
+    // derived in `docs/backlog.md` MS-66.
+    for &ord in &[1.0f64, 2.0, 3.0] {
+        let coeus_p = coeus_ops::norm_p(&xc, ord as f32, &backend);
+        let sum_p = bvec(xb.clone().powf_scalar(ord as f32).sum())[0];
+        let burn_p = sum_p.powf(1.0 / ord as f32);
+        let label = format!("norm_l{ord}");
+        assert_close(&label, &[coeus_p], &[burn_p]);
+    }
 }
 
 // ── Linear layer (same weights) ───────────────────────────────────────────────

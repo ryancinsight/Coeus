@@ -136,6 +136,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::std_dev, m)?)?;
     m.add_function(wrap_pyfunction!(ops::tensor_var, m)?)?;
     m.add_function(wrap_pyfunction!(ops::norm, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::vector_norm, m)?)?;
     // Comparison / selection
     m.add_function(wrap_pyfunction!(ops::eq, m)?)?;
     m.add_function(wrap_pyfunction!(ops::lt, m)?)?;

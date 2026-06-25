@@ -1,6 +1,45 @@
 # Changelog
 
-## 0.2.5 - 2026-06-24
+## 0.2.6 - 2026-06-24
+
+### Added
+
+- **`vector_norm(ord=p)` ord-p norm** — `coeus_ops::norm_p(x, p, backend)`
+  returns `(Σ|xᵢ|^p)^(1/p)` for any finite positive `p`, matching
+  `torch.linalg.vector_norm` over a flattened view. Implemented as a
+  host-side fold with `T::powf` accumulation plus a final scalar
+  `^(1/p)`; no new `BinaryOp::Pow` opcode is added (the `Pow` decision
+  is deferred per `docs/backlog.md` MS-62). Eight unit tests in
+  `coeus-ops/src/reduction/stats.rs::tests` (p ∈ {1, 2, 3}, parity with
+  `norm` at p=2, panic paths for empty / non-finite / non-positive p).
+- **PyO3 `vector_norm` thin wrapper** — `pycoeus.vector_norm(input,
+  ord=2.0, axis=None, keepdim=False)` mirrors
+  `torch.linalg.vector_norm`'s signature; `pycoeus.norm(input)` remains
+  the L2 short-circuit. Empty tensors and out-of-range `ord` surface as
+  `ValueError` instead of panic-at-boundary. The axis/keepdim form is
+  reserved in the signature but currently raises
+  `ValueError("axis/keepdim not yet supported")` — per-axis norm ships
+  in `MS-67` once `coeus_ops::norm_p_axis` lands.
+- **Burn parity for Lp norms** — `coeus-nn/tests/burn_live_parity.rs::
+  statistical_ops_match_burn` extended to verify
+  `coeus-ops::norm_p::<f32, _>(x, p)` agrees with Burn 0.16's
+  `powf_scalar(p).sum().powf_scalar(1/p)` for p ∈ {1, 2, 3}. Reduction
+  order differs (Coeus is a per-bucket host fold vs Burn's fused
+  pipeline); the test uses the same forward equivalence as the L2 case
+  with the existing `assert_close` bound. Evidence tier: empirical
+  differential validation.
+- **Python binding tests** — `coeus-python/tests/binding_tests_ops.rs::
+  test_vector_norm_p_orders` covers p ∈ {1, 2, 3, 0.5} with closed-form
+  references, ord-mismatch (`ValueError` for 0, negative, ±∞), and
+  empty-tensor `ValueError` paths.
+
+### Changed
+
+- Workspace version bumped `0.2.5` → `0.2.6`.
+- `coeus-ops/src/reduction/stats.rs` doc banner updated: the ord-p
+  short-circuit is now provided by `norm_p`, removing the
+  pre-1.0 deferral language around `BinaryOp::Pow`.
+
 
 ### Added
 

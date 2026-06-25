@@ -2,10 +2,12 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: Sprint MS-65 (Burn/CUDA Parity Closure) [IN PROGRESS]
-**Objective**: Extend coeus/coeus-python shape and indexing parity while keeping
-Python as a thin PyO3 wrapper over Rust core operations.
-**Target version**: 0.2.5.
+### Current Sprint: Sprint MS-66 (Lp norm & vector_norm parity) [IN PROGRESS]
+**Objective**: Close the `vector_norm(ord=p)` Torch/JAX parity gap with
+native `coeus-ops::norm_p` and a thin PyO3 `pycoeus.vector_norm` wrapper;
+preserve `coeus-ops::norm` as the L2 short-circuit and avoid adding
+`BinaryOp::Pow` to the backend dispatch surface.
+**Target version**: 0.2.6.
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
 > oracle values; wgpu parity.rs verifies implemented GPU paths against the CPU reference;
@@ -208,6 +210,36 @@ Python as a thin PyO3 wrapper over Rust core operations.
   `BackendOps` CPU fallback path for this surface. Evidence tier: empirical
   differential validation. Evidence: `cargo nextest run -p coeus-cuda
   --features cuda --test cuda_tests pool3d` passes with 2 tests.
+
+- [x] [minor] Added `coeus_ops::norm_p<T: Float, B>(x, p, backend)` for
+  `(Σ|xᵢ|^p)^(1/p)` over a flattened view for any finite positive `p`
+  (matches `torch.linalg.vector_norm(ord=p)`). Host-side fold with
+  `T::powf` accumulation and final `^(1/p)`; no `BinaryOp::Pow` opcode
+  added. `coeus_ops::norm(x, backend)` retained as the L2 short-circuit.
+  Evidence tier: empirical differential validation (Burn 0.16 oracle).
+  Eight unit tests in `reduction/stats.rs::tests` and three new Burn
+  parity assertions covering p ∈ {1, 2, 3} in
+  `coeus-nn/tests/burn_live_parity.rs::statistical_ops_match_burn`.
+
+- [x] [minor] Added thin PyO3 wrapper `pycoeus.vector_norm(input,
+  ord=2.0, axis=None, keepdim=False)` mirroring
+  `torch.linalg.vector_norm`'s full signature; `pycoeus.norm(input)`
+  preserved as the L2 default. Empty tensors and `ord` outside the
+  finite-positive range surface as `ValueError` rather than panicking
+  at the boundary. `axis`/`keepdim` are reserved in the signature and
+  currently raise `ValueError("axis/keepdim not yet supported")` until
+  `coeus_ops::norm_p_axis` lands in MS-67.
+  `coeus-python/tests/binding_tests_ops.rs::test_vector_norm_p_orders`
+  covers p ∈ {0.5, 1, 2, 3}, ord error paths, and empty-tensor errors.
+
+- [x] [patch] Verification (2026-06-24):
+  `cargo check --workspace`, `cargo clippy --workspace --all-targets
+  -- -D warnings`, `cargo fmt --check`, `cargo test --doc --workspace`
+  all clean.
+  `cargo nextest run --workspace` passes with 464 tests up from 455
+  baseline; reached by 8 new tests in
+  `coeus-ops reduction::stats::tests`, 1 new binding test, and 0
+  regressions.
 
 ---
 

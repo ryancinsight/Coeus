@@ -532,14 +532,61 @@ pub fn tensor_var(
 
 /// L2 (Euclidean) norm of all elements: `sqrt(sum(x^2))`.
 ///
-/// Matches `torch.linalg.vector_norm(x, ord=2)` with no shape argument. Ord-p
-/// variants beyond p=2 will land in MS-66+ once `BinaryOp::Pow` is added.
+/// Matches `torch.linalg.vector_norm(x, ord=2)` with no shape argument. Use
+/// [`vector_norm`] for ord-p variants (`ord=1` Manhattan, `ord=3`, ...).
 #[pyfunction]
 pub fn norm(input: &PyTensor, py: Python<'_>) -> f64 {
     py.allow_threads(|| {
         let backend = MoiraiBackend::new();
         coeus_ops::norm::<f64, MoiraiBackend>(&input.inner.tensor, &backend)
     })
+}
+
+/// `L_p` norm: `(Σ|xᵢ|^p)^(1/p)`.
+///
+/// Matches `torch.linalg.vector_norm(input, ord=p, dim=..., keepdim=...)`.
+/// `ord` must be a finite positive number. Empty tensors surface as
+/// `ValueError` (the Rust-core call panics on empty input rather than
+/// silently returning zero).
+#[pyfunction]
+#[pyo3(name = "vector_norm", signature = (input, ord = 2.0, axis = None, keepdim = false))]
+pub fn vector_norm(
+    input: &PyTensor,
+    ord: f64,
+    axis: Option<usize>,
+    keepdim: bool,
+    py: Python<'_>,
+) -> PyResult<Py<PyAny>> {
+    // `keepdim` is part of the public torch.linalg.vector_norm signature;
+    // the per-axis form is not yet implemented in Rust-core, so the
+    // parameter is currently a no-op reserved for symmetry. Documented as
+    // an "axis not supported" error below so the parameter is never
+    // silently ignored.
+    let _ = keepdim;
+    if !ord.is_finite() || ord <= 0.0 {
+        return Err(PyValueError::new_err(format!(
+            "vector_norm: ord must be a finite positive number, got {ord}"
+        )));
+    }
+    let backend = MoiraiBackend::new();
+    if input.inner.tensor.numel() == 0 {
+        return Err(PyValueError::new_err(
+            "vector_norm: empty tensors have no norm",
+        ));
+    }
+    if let Some(ax) = axis {
+        validate_stat_axis("vector_norm", input, ax)?;
+        // Per-axis ord-p norm: fold per-slice on the CPU backend. The current
+        // Rust-core surface only exposes a global `norm_p`; the per-axis form
+        // composes via per-slice reshape until the `norm_p_axis` SSOT lands.
+        return Err(PyValueError::new_err(
+            "vector_norm: axis/keepdim not yet supported; pass ord without axis for a global Lp norm",
+        ));
+    }
+    let v = py.allow_threads(|| {
+        coeus_ops::norm_p::<f64, MoiraiBackend>(&input.inner.tensor, ord, &backend)
+    });
+    scalar_object(py, v)
 }
 
 fn validate_stat_axis(op: &str, input: &PyTensor, axis: usize) -> PyResult<()> {

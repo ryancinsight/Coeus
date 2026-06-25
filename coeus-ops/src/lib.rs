@@ -40,8 +40,8 @@ pub use binary::{
 pub use embedding::{embedding, embedding_backward};
 pub use matmul::{matmul, matmul_accumulate};
 pub use reduction::{
-    argmax, argmin, cumsum, max_axis, mean, mean_axis, min_axis, norm, std_dev, std_dev_axis,
-    suffix_sum, sum, sum_axis, topk, var, var_axis,
+    argmax, argmin, cumsum, max_axis, mean, mean_axis, min_axis, norm, norm_p, std_dev,
+    std_dev_axis, suffix_sum, sum, sum_axis, topk, var, var_axis,
 };
 pub use shape::{
     cat, flip, gather, pad, repeat_interleave, roll, scatter_add, sort, split, stack, tril, triu,
