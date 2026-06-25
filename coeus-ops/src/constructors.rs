@@ -154,7 +154,10 @@ mod tests {
         let s = t.as_slice();
         for (i, &v) in s.iter().enumerate() {
             let expected = 2.0f32.powi(i as i32);
-            assert!((v - expected).abs() < 1e-4, "geomspace[{i}]={v} vs {expected}");
+            assert!(
+                (v - expected).abs() < 1e-4,
+                "geomspace[{i}]={v} vs {expected}"
+            );
         }
     }
 

@@ -414,7 +414,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                 }
             }
             // Fused: directly accumulate into the GradBuffer without an intermediate Tensor.
-            scatter_accumulate_into(input_grads[0].as_ref().unwrap().write(), &grad_input, &backend);
+            scatter_accumulate_into(
+                input_grads[0].as_ref().unwrap().write(),
+                &grad_input,
+                &backend,
+            );
         }
 
         if needs_grad_weight {
@@ -446,7 +450,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                     }
                 }
             }
-            scatter_accumulate_into(input_grads[1].as_ref().unwrap().write(), &grad_weight, &backend);
+            scatter_accumulate_into(
+                input_grads[1].as_ref().unwrap().write(),
+                &grad_weight,
+                &backend,
+            );
         }
 
         if needs_grad_bias {
@@ -460,7 +468,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                     }
                 }
             }
-            scatter_accumulate_into(input_grads[2].as_ref().unwrap().write(), &grad_bias, &backend);
+            scatter_accumulate_into(
+                input_grads[2].as_ref().unwrap().write(),
+                &grad_bias,
+                &backend,
+            );
         }
     }
 }
@@ -667,8 +679,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                                             continue;
                                         }
                                         let widx = w_idx(ci, co, ki, kj);
-                                        gw[widx] = gw[widx]
-                                            + iv * go_host[go_idx(ni, co, ho, wo)];
+                                        gw[widx] = gw[widx] + iv * go_host[go_idx(ni, co, ho, wo)];
                                     }
                                 }
                             }

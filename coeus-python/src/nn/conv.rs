@@ -481,17 +481,31 @@ impl PyConvTranspose1d {
         let inner = py.allow_threads(move || {
             let bk = coeus_core::MoiraiBackend::new();
             let l = x_var.tensor.shape()[2];
-            let l_out = coeus_ops::conv_transpose::conv_transpose1d_output_len(l, w_var.tensor.shape()[2], s, p, op, d);
+            let l_out = coeus_ops::conv_transpose::conv_transpose1d_output_len(
+                l,
+                w_var.tensor.shape()[2],
+                s,
+                p,
+                op,
+                d,
+            );
             let n = x_var.tensor.shape()[0];
             let c_out = w_var.tensor.shape()[1];
             let mut out_tensor = coeus_tensor::Tensor::zeros_on([n, c_out, l_out], &bk);
             let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
             use coeus_ops::BackendOps;
             bk.conv_transpose1d(
-                x_var.tensor.storage(), x_var.tensor.layout(),
-                w_var.tensor.storage(), w_var.tensor.layout(),
+                x_var.tensor.storage(),
+                x_var.tensor.layout(),
+                w_var.tensor.storage(),
+                w_var.tensor.layout(),
                 b_var.as_ref().map(|b| b.tensor.storage()),
-                s, p, op, d, out_storage, out_layout,
+                s,
+                p,
+                op,
+                d,
+                out_storage,
+                out_layout,
             );
             coeus_autograd::conv_transpose1d(&x_var, &w_var, &b_var, out_tensor, s, p, op, d)
         });
@@ -595,10 +609,17 @@ impl PyConvTranspose2d {
             let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
             use coeus_ops::BackendOps;
             bk.conv_transpose2d(
-                x_var.tensor.storage(), x_var.tensor.layout(),
-                w_var.tensor.storage(), w_var.tensor.layout(),
+                x_var.tensor.storage(),
+                x_var.tensor.layout(),
+                w_var.tensor.storage(),
+                w_var.tensor.layout(),
                 b_var.as_ref().map(|b| b.tensor.storage()),
-                s, p, op, d, out_storage, out_layout,
+                s,
+                p,
+                op,
+                d,
+                out_storage,
+                out_layout,
             );
             coeus_autograd::conv_transpose2d(&x_var, &w_var, &b_var, out_tensor, s, p, op, d)
         });

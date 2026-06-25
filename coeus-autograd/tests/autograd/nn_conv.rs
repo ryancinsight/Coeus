@@ -59,10 +59,7 @@ fn conv_transpose2d_backward_accumulates_exact_gradients() {
         Tensor::from_slice_on(vec![1, 1, 1, 1], &[1.0_f64], &backend),
         true,
     );
-    let bias = Var::new(
-        Tensor::from_slice_on(vec![1], &[0.5_f64], &backend),
-        true,
-    );
+    let bias = Var::new(Tensor::from_slice_on(vec![1], &[0.5_f64], &backend), true);
 
     let out_tensor = coeus_ops::conv_transpose2d(
         &input.tensor,
@@ -76,16 +73,14 @@ fn conv_transpose2d_backward_accumulates_exact_gradients() {
     );
 
     // Verify forward output
-    let out =
-        conv_transpose2d(&input, &weight, &Some(bias.clone()), out_tensor, 1, 0, 0, 1);
+    let out = conv_transpose2d(&input, &weight, &Some(bias.clone()), out_tensor, 1, 0, 0, 1);
     assert_eq!(
         out.tensor.to_contiguous().as_slice(),
         &[1.5, 2.5, 3.5, 4.5],
         "conv_transpose2d forward mismatch"
     );
 
-    let seed =
-        Tensor::from_slice_on(vec![1, 1, 2, 2], &[1.0_f64, 2.0, 3.0, 4.0], &backend);
+    let seed = Tensor::from_slice_on(vec![1, 1, 2, 2], &[1.0_f64, 2.0, 3.0, 4.0], &backend);
     out.backward_with_seed(seed);
 
     // grad_input: each position * weight[0,0,0,0]=1.0 → same as seed
@@ -118,24 +113,12 @@ fn conv_transpose2d_no_bias_backward() {
         true,
     );
     let weight = Var::new(
-        Tensor::from_slice_on(
-            vec![1, 1, 2, 2],
-            &[1.0_f64, 0.5, 0.5, 0.25],
-            &backend,
-        ),
+        Tensor::from_slice_on(vec![1, 1, 2, 2], &[1.0_f64, 0.5, 0.5, 0.25], &backend),
         true,
     );
 
-    let out_tensor = coeus_ops::conv_transpose2d(
-        &input.tensor,
-        &weight.tensor,
-        None,
-        1,
-        0,
-        0,
-        1,
-        &backend,
-    );
+    let out_tensor =
+        coeus_ops::conv_transpose2d(&input.tensor, &weight.tensor, None, 1, 0, 0, 1, &backend);
     // stride=1, pad=0, dil=1, KH=KW=2: out_h = (2-1)*1 + 2 = 3
     assert_eq!(out_tensor.shape(), &[1, 1, 3, 3]);
 
