@@ -1223,8 +1223,7 @@ pub fn meshgrid(
         .collect();
     let backend = MoiraiBackend::new();
     let grids = py.allow_threads(|| {
-        let refs: Vec<&coeus_tensor::Tensor<f64, MoiraiBackend>> =
-            rust_tensors.iter().collect();
+        let refs: Vec<&coeus_tensor::Tensor<f64, MoiraiBackend>> = rust_tensors.iter().collect();
         coeus_ops::meshgrid(&refs, indexing, &backend)
     });
     Ok(grids
@@ -1522,9 +1521,8 @@ pub fn f_binary_cross_entropy(
             target.inner.tensor.shape()
         )));
     }
-    let inner = py.allow_threads(|| {
-        coeus_nn::binary_cross_entropy(&input.inner, &target.inner, 1e-7)
-    });
+    let inner =
+        py.allow_threads(|| coeus_nn::binary_cross_entropy(&input.inner, &target.inner, 1e-7));
     Ok(PyTensor { inner })
 }
 

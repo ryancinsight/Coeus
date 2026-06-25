@@ -47,10 +47,22 @@ where
             let pad_in = n - in_ndim;
             let pad_reps = n - self.reps.len();
             let eff_in: Vec<usize> = (0..n)
-                .map(|d| if d < pad_in { 1 } else { self.in_shape[d - pad_in] })
+                .map(|d| {
+                    if d < pad_in {
+                        1
+                    } else {
+                        self.in_shape[d - pad_in]
+                    }
+                })
                 .collect();
             let eff_reps: Vec<usize> = (0..n)
-                .map(|d| if d < pad_reps { 1 } else { self.reps[d - pad_reps] })
+                .map(|d| {
+                    if d < pad_reps {
+                        1
+                    } else {
+                        self.reps[d - pad_reps]
+                    }
+                })
                 .collect();
             let out_shape: Vec<usize> = (0..n).map(|d| eff_in[d] * eff_reps[d]).collect();
 
@@ -86,7 +98,10 @@ where
 
             // Reshape from eff_in back to original in_shape.
             let gi_inc = if pad_in > 0 {
-                Tensor::from_slice(self.in_shape.clone(), &gi_data[..self.in_shape.iter().product::<usize>()])
+                Tensor::from_slice(
+                    self.in_shape.clone(),
+                    &gi_data[..self.in_shape.iter().product::<usize>()],
+                )
             } else {
                 Tensor::from_slice(eff_in, &gi_data)
             };

@@ -1318,8 +1318,6 @@ fn flip_backward_passes_grad() {
     assert_close("flip_bwd", grad.as_slice(), &[1.0; 6]);
 }
 
-
-
 // ── meshgrid / tile forward ────────────────────────────────────────────────
 
 #[test]
@@ -1330,9 +1328,17 @@ fn meshgrid_ij_matches_manual_reference() {
     let grids = coeus_ops::meshgrid(&[&x, &y], "ij", &backend);
     assert_eq!(grids.len(), 2);
     // grid_x varies along axis 0
-    assert_close("meshgrid_grid_x", grids[0].as_slice(), &[0.0, 0.0, 1.0, 1.0, 2.0, 2.0]);
+    assert_close(
+        "meshgrid_grid_x",
+        grids[0].as_slice(),
+        &[0.0, 0.0, 1.0, 1.0, 2.0, 2.0],
+    );
     // grid_y varies along axis 1
-    assert_close("meshgrid_grid_y", grids[1].as_slice(), &[10.0, 20.0, 10.0, 20.0, 10.0, 20.0]);
+    assert_close(
+        "meshgrid_grid_y",
+        grids[1].as_slice(),
+        &[10.0, 20.0, 10.0, 20.0, 10.0, 20.0],
+    );
 }
 
 #[test]
@@ -1344,13 +1350,14 @@ fn tile_forward_and_backward() {
     assert_close("tile_1d", out.as_slice(), &[1.0, 2.0, 3.0, 1.0, 2.0, 3.0]);
 
     // 2-D tiling
-    let m = CoeusTensor::<f32, SequentialBackend>::from_slice(
-        vec![2, 2],
-        &[1.0f32, 2.0, 3.0, 4.0],
-    );
+    let m = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0]);
     let m2 = coeus_ops::tile(&m, &[1, 3], &backend);
     assert_eq!(m2.shape(), &[2, 6]);
-    assert_close("tile_2d_row0", &m2.as_slice()[..6], &[1.0, 2.0, 1.0, 2.0, 1.0, 2.0]);
+    assert_close(
+        "tile_2d_row0",
+        &m2.as_slice()[..6],
+        &[1.0, 2.0, 1.0, 2.0, 1.0, 2.0],
+    );
 
     // Tracked tile backward: grad sums over copies.
     let xg = Var::new(
@@ -1362,7 +1369,6 @@ fn tile_forward_and_backward() {
     assert_close("tile_bwd", xg.grad().unwrap().as_slice(), &[3.0, 3.0, 3.0]);
     let _ = backend;
 }
-
 
 #[test]
 fn cumprod_forward_and_backward() {
@@ -1404,7 +1410,11 @@ fn diag_diagonal_forward_and_backward() {
     // diag forward
     let m = coeus_ops::diag(&v.tensor, 0, &backend);
     assert_eq!(m.shape(), &[3, 3]);
-    assert_close("diag_fwd", m.as_slice(), &[1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0]);
+    assert_close(
+        "diag_fwd",
+        m.as_slice(),
+        &[1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0],
+    );
 
     // diagonal forward (extract main diagonal of the matrix)
     let mat = CoeusTensor::<f32, SequentialBackend>::from_slice(
@@ -1424,7 +1434,6 @@ fn diag_diagonal_forward_and_backward() {
 
     let _ = backend;
 }
-
 
 #[test]
 fn tril_triu_forward_and_backward() {

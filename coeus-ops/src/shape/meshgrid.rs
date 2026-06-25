@@ -114,16 +114,10 @@ mod tests {
         assert_eq!(grids.len(), 2);
         // x-grid [3,2]: each row is [0,0], [1,1], [2,2]
         assert_eq!(grids[0].shape(), &[3, 2]);
-        assert_eq!(
-            grids[0].as_slice(),
-            &[0.0, 0.0, 1.0, 1.0, 2.0, 2.0]
-        );
+        assert_eq!(grids[0].as_slice(), &[0.0, 0.0, 1.0, 1.0, 2.0, 2.0]);
         // y-grid [3,2]: each column is [10,20] repeated 3 times
         assert_eq!(grids[1].shape(), &[3, 2]);
-        assert_eq!(
-            grids[1].as_slice(),
-            &[10.0, 20.0, 10.0, 20.0, 10.0, 20.0]
-        );
+        assert_eq!(grids[1].as_slice(), &[10.0, 20.0, 10.0, 20.0, 10.0, 20.0]);
     }
 
     #[test]
