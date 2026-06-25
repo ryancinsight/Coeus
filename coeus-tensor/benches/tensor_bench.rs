@@ -623,6 +623,83 @@ fn bench_burn_softmax(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_burn_attention(c: &mut Criterion) {
+    use burn::tensor::activation::softmax as burn_softmax;
+    use burn::tensor::Tensor as BT;
+    use burn::tensor::TensorData;
+    use coeus_ops::scaled_dot_product_attention;
+
+    // Scaled dot-product attention computed identically on both sides:
+    //   scores = (Q·Kᵀ)·scale -> softmax(-1) -> ·V.
+    // Burn expresses it with batched matmul + softmax; Coeus uses its fused SDP.
+    // q/k/v: [batch*heads, seq, dim].
+    const B: usize = 8;
+    const SEQ: usize = 64;
+    const D: usize = 32;
+    let scale = (D as f32).powf(-0.5);
+    let device = NdArrayDevice::default();
+    let q_data: Vec<f32> = (0..B * SEQ * D)
+        .map(|i| ((i as f32 + 1.0) * 0.013).sin())
+        .collect();
+    let k_data: Vec<f32> = (0..B * SEQ * D)
+        .map(|i| ((i as f32 + 3.0) * 0.017).cos())
+        .collect();
+    let v_data: Vec<f32> = (0..B * SEQ * D)
+        .map(|i| ((i as f32 + 5.0) * 0.011).sin())
+        .collect();
+
+    let seq_backend = SequentialBackend::new();
+    let moirai_backend = MoiraiBackend::new();
+    let q_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![B, SEQ, D], &q_data);
+    let k_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![B, SEQ, D], &k_data);
+    let v_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![B, SEQ, D], &v_data);
+    let q_m = Tensor::<f32, MoiraiBackend>::from_slice(vec![B, SEQ, D], &q_data);
+    let k_m = Tensor::<f32, MoiraiBackend>::from_slice(vec![B, SEQ, D], &k_data);
+    let v_m = Tensor::<f32, MoiraiBackend>::from_slice(vec![B, SEQ, D], &v_data);
+    let qb: BT<BurnB, 3> = BT::from_data(TensorData::new(q_data.clone(), [B, SEQ, D]), &device);
+    let kb: BT<BurnB, 3> = BT::from_data(TensorData::new(k_data.clone(), [B, SEQ, D]), &device);
+    let vb: BT<BurnB, 3> = BT::from_data(TensorData::new(v_data.clone(), [B, SEQ, D]), &device);
+
+    let mut group = c.benchmark_group("Burn vs Coeus — SDP Attention (8×64×32)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| {
+            let scores = qb
+                .clone()
+                .matmul(kb.clone().swap_dims(1, 2))
+                .mul_scalar(scale);
+            let attn = burn_softmax(scores, 2);
+            black_box(attn.matmul(vb.clone()))
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            black_box(scaled_dot_product_attention(
+                black_box(&q_seq),
+                black_box(&k_seq),
+                black_box(&v_seq),
+                None,
+                false,
+                scale,
+                black_box(&seq_backend),
+            ))
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(scaled_dot_product_attention(
+                black_box(&q_m),
+                black_box(&k_m),
+                black_box(&v_m),
+                None,
+                false,
+                scale,
+                black_box(&moirai_backend),
+            ))
+        })
+    });
+    group.finish();
+}
+
 fn bench_burn_layernorm(c: &mut Criterion) {
     use burn::nn::{LayerNorm as BurnLN, LayerNormConfig};
     use burn::tensor::Tensor as BT;
@@ -678,6 +755,7 @@ criterion_group!(
     bench_burn_conv_transpose2d,
     bench_burn_max_pool2d,
     bench_burn_softmax,
+    bench_burn_attention,
     bench_burn_layernorm,
 );
 criterion_main!(benches);
