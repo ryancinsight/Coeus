@@ -1,6 +1,39 @@
 # Changelog
 
-## 0.2.18 - 2026-06-25
+## 0.2.19 - 2026-06-25
+
+### Added
+
+- **`coeus_nn::rnn::LSTMCell`** — Single-step LSTM cell with fused gate projection
+  (`W_ih [4H,I]`, `W_hh [4H,H]`). `step(x, h, c) → (h_new, c_new)`.
+  Autograd-tracked via `coeus_autograd::slice + mul + add + sigmoid + tanh`.
+  Python: `pycoeus.LSTMCell(input_size, hidden_size)` with `.step(x, h, c)`.
+
+- **`coeus_nn::rnn::GRUCell`** — Single-step GRU cell with reset/update/new gates.
+  `step(x, h) → h_new`. Python: `pycoeus.GRUCell(input_size, hidden_size)`.
+
+- **`coeus_ops::index_put`** — Scatter-assign: `index_put(input, indices, values, accumulate)`
+  assigns or accumulates `values` at 1-D integer row indices. Equivalent to
+  `torch.index_put(input, (indices,), values)`.
+  Python: `pycoeus.index_put(input, indices, values, accumulate=False)`.
+
+- **`pycoeus.TransformerDecoderLayer`** — Python wrapper for the existing
+  `coeus_nn::TransformerDecoderLayer`. Cross-attention decoder layer with
+  `forward(tgt, memory)` signature. Dispatches over `num_heads` via const-generic
+  macro (supported: 1, 2, 4, 8, 16, 32).
+
+- **Hermes `dispatch_scale_kernel` 4× unroll** — `scale.rs` now processes
+  `UNROLL_FACTOR×LANE_COUNT` elements per outer iteration using 4 independent
+  registers to hide load/store latency, matching the `dot()` and `axpy()` unroll
+  patterns. Falls back to single-vector loop for the residual.
+
+- **Python binding tests 43 → 45** (+2):
+  - `test_lstm_gru_cells` — LSTM and GRU cell shape, non-zero output, multi-step
+    state change, parameter count.
+  - `test_index_put_op` — replace mode, accumulate mode, 2D row update, non-1D
+    index `ValueError`.
+
+
 
 ### Added
 

@@ -7,6 +7,7 @@ pub mod linear;
 pub mod module_list;
 pub mod normalization;
 pub mod pool;
+pub mod rnn;
 pub mod sequential;
 
 pub use attention::{PyMultiHeadAttention, PyRotaryEmbedding, PyScaledDotProductAttention};
@@ -15,7 +16,7 @@ pub use conv::PyConvTranspose2d;
 pub use conv::{PyConv1d, PyConv2d, PyConv3d};
 pub use dropout::PyDropout;
 pub use embedding::PyEmbedding;
-pub use feedforward::PyFeedForward;
+pub use feedforward::{PyFeedForward, PyTransformerDecoderLayer};
 pub use linear::PyLinear;
 pub use module_list::PyModuleList;
 pub use normalization::{
@@ -26,4 +27,5 @@ pub use pool::{
     PyAvgPool2d, PyAvgPool3d, PyGlobalAvgPool1d, PyGlobalAvgPool2d, PyGlobalAvgPool3d,
     PyGlobalMaxPool2d, PyGlobalMaxPool3d, PyMaxPool2d, PyMaxPool3d,
 };
+pub use rnn::{PyGRUCell, PyLSTMCell};
 pub use sequential::PySequential;

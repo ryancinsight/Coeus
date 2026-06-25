@@ -267,3 +267,31 @@ pub fn stack(inputs: Vec<pyo3::Py<PyTensor>>, dim: usize, py: Python<'_>) -> PyT
     });
     PyTensor::from_var(inner)
 }
+
+/// Scatter-assign `values` into `input` at row indices given by `indices`.
+///
+/// Equivalent to `torch.index_put(input, (indices,), values, accumulate)`.
+#[pyfunction]
+#[pyo3(signature = (input, indices, values, accumulate = false))]
+pub fn index_put(
+    input: &PyTensor,
+    indices: &PyTensor,
+    values: &PyTensor,
+    accumulate: bool,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
+    if indices.inner.tensor.ndim() != 1 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "index_put: indices must be 1-D, got {}-D", indices.inner.tensor.ndim()
+        )));
+    }
+    let x = input.inner.clone();
+    let idx = indices.inner.clone();
+    let vals = values.inner.clone();
+    let inner = py.allow_threads(move || {
+        let backend = MoiraiBackend::new();
+        let t = coeus_ops::index_put(&x.tensor, &idx.tensor, &vals.tensor, accumulate, &backend);
+        coeus_autograd::Var::new(t, false)
+    });
+    Ok(PyTensor::from_var(inner))
+}

@@ -36,6 +36,7 @@ pub mod normalization;
 pub mod parameter;
 pub mod pool;
 pub mod positional;
+pub mod rnn;
 pub mod sequential;
 pub mod softmax;
 pub mod transformer;
@@ -67,6 +68,7 @@ pub use pool::{
     GlobalMaxPool3d, MaxPool2d, MaxPool3d,
 };
 pub use positional::{RotaryEmbedding, SinusoidalEncoding};
+pub use rnn::{GRUCell, LSTMCell};
 pub use sequential::{ModuleExt, Sequential, StaticSeq};
 pub use softmax::{softmax, Softmax};
 pub use transformer::{

@@ -1406,6 +1406,99 @@ except ValueError:
 // ── dot / cross ────────────────────────────────────────────────────────
 
 #[test]
+fn test_lstm_gru_cells() {
+    run_script(
+        r#"
+import pycoeus
+
+# ── LSTMCell ──────────────────────────────────────────────────────────
+input_size, hidden_size, batch = 4, 8, 2
+cell = pycoeus.LSTMCell(input_size, hidden_size)
+
+x = pycoeus.Tensor([float(i)*0.1 for i in range(batch * input_size)], [batch, input_size])
+h = pycoeus.zeros([batch, hidden_size])
+c = pycoeus.zeros([batch, hidden_size])
+
+h_new, c_new = cell.step(x, h, c)
+
+assert h_new.shape == [batch, hidden_size], f"LSTM h_new shape: {h_new.shape}"
+assert c_new.shape == [batch, hidden_size], f"LSTM c_new shape: {c_new.shape}"
+# h_new should be non-zero (tanh of non-zero gates * output gate)
+assert any(abs(v) > 1e-6 for v in h_new.data), "LSTM h_new all zero"
+
+# Consecutive steps
+h2, c2 = cell.step(x, h_new, c_new)
+assert h2.shape == [batch, hidden_size]
+# State should change across steps
+assert any(abs(a - b) > 1e-6 for a, b in zip(h2.data, h_new.data)), "LSTM: state unchanged"
+
+# Parameters: w_ih + w_hh (weights only, no bias exposed at cell level)
+params = cell.parameters()
+assert len(params) == 2, f"LSTM parameter count: {len(params)}"
+
+# ── GRUCell ───────────────────────────────────────────────────────────
+gru = pycoeus.GRUCell(input_size, hidden_size)
+
+h_gru = pycoeus.zeros([batch, hidden_size])
+h_gru_new = gru.step(x, h_gru)
+
+assert h_gru_new.shape == [batch, hidden_size], f"GRU h_new shape: {h_gru_new.shape}"
+# h_new bounded in (-1, 1) since tanh * gating
+for v in h_gru_new.data:
+    assert abs(v) <= 1.0 + 1e-6, f"GRU output out of tanh range: {v}"
+
+# Multiple steps
+h2g = gru.step(x, h_gru_new)
+assert h2g.shape == [batch, hidden_size]
+
+params_gru = gru.parameters()
+assert len(params_gru) == 2, f"GRU parameter count: {len(params_gru)}"
+"#,
+    );
+}
+
+#[test]
+fn test_index_put_op() {
+    run_script(
+        r#"
+import pycoeus
+
+# ── index_put: replace ────────────────────────────────────────────────
+x = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [4])
+idx = pycoeus.Tensor([1.0, 3.0], [2])
+vals = pycoeus.Tensor([10.0, 20.0], [2])
+out = pycoeus.index_put(x, idx, vals)
+assert out.data == [1.0, 10.0, 3.0, 20.0], f"index_put replace: {out.data}"
+
+# ── index_put: accumulate ──────────────────────────────────────────────
+out_acc = pycoeus.index_put(x, idx, vals, accumulate=True)
+# idx=[1,3], vals=[10,20], accumulate: x[1]+=10=12, x[3]+=20=24
+assert abs(out_acc.data[1] - 12.0) < 1e-5, f"index_put acc[1]={out_acc.data[1]}"
+assert abs(out_acc.data[3] - 24.0) < 1e-5, f"index_put acc[3]={out_acc.data[3]}"
+# Non-indexed unchanged
+assert out_acc.data[0] == 1.0
+assert out_acc.data[2] == 3.0
+
+# ── 2D tensor: replace rows ────────────────────────────────────────────
+m = pycoeus.Tensor([float(i+1) for i in range(9)], [3, 3])
+row_idx = pycoeus.Tensor([2.0], [1])
+new_row = pycoeus.Tensor([100.0, 200.0, 300.0], [1, 3])
+out2d = pycoeus.index_put(m, row_idx, new_row)
+assert out2d.data[6:9] == [100.0, 200.0, 300.0], f"index_put 2D row: {out2d.data[6:9]}"
+assert out2d.data[0] == 1.0  # Unchanged row
+
+# ── Error: non-1D indices ──────────────────────────────────────────────
+try:
+    pycoeus.index_put(x, m, vals)
+    raise AssertionError("non-1D indices should raise")
+except ValueError:
+    pass
+"#,
+    );
+}
+
+
+#[test]
 fn test_bmm_outer_ops() {
     run_script(
         r#"

@@ -2513,3 +2513,121 @@ fn instancenorm_forward_matches_burn() {
         1e-3,
     );
 }
+
+// ── Embedding forward (matches Burn NdArray) ───────────────────────────────────
+
+#[test]
+fn embedding_forward_matches_burn() {
+    use burn::tensor::Int;
+    use coeus_nn::Embedding;
+
+    // Weight [num_embeddings=5, embedding_dim=3] with known values.
+    let weights: Vec<f32> = (0..15).map(|x| x as f32 * 0.1).collect();
+    let (n_emb, d_model) = (5usize, 3);
+
+    // Indices [batch=2, seq=3]: token ids into the embedding table.
+    let indices: [[i32; 3]; 2] = [[0, 2, 4], [1, 3, 0]];
+
+    // ── Coeus ──
+    let backend = SequentialBackend::new();
+    let w_tensor =
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n_emb, d_model], &weights);
+    let weight_var = Var::new(w_tensor, false);
+    let emb = Embedding::<f32, SequentialBackend>::new(n_emb, d_model);
+    // Override the default ones weight with our known values.
+    let mut emb = emb;
+    emb.weight = weight_var;
+
+    // Coeus embedding expects float indices (same Scalar trait as weights).
+    let idx_flat: Vec<f32> = indices
+        .iter()
+        .flat_map(|row| row.iter())
+        .map(|&v| v as f32)
+        .collect();
+    let idx_tensor = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &idx_flat);
+    let out_c = emb.forward_indices(&idx_tensor);
+
+    // ── Burn ──
+    let wb: BurnTensor<BurnBackend, 2> =
+        BurnTensor::from_data(TensorData::new(weights.clone(), [n_emb, d_model]), &dev());
+    let ib: BurnTensor<BurnBackend, 2, Int> = BurnTensor::from_ints(indices, &dev());
+    let out_b = burn::tensor::module::embedding(wb, ib);
+
+    assert_close(
+        "embedding_fwd",
+        out_c.tensor.to_contiguous().as_slice(),
+        &bvec(out_b),
+    );
+}
+
+// ── Embedding forward + backward (matches Burn autodiff) ───────────────────────
+
+#[test]
+fn embedding_forward_backward_match_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use burn::tensor::Int;
+    use coeus_nn::Embedding;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    // Weight [num_embeddings=4, embedding_dim=2] with known values.
+    let weights: Vec<f32> = vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
+    let (n_emb, d_model) = (4usize, 2);
+
+    // Indices [batch=2, seq=2].
+    let indices: [[i32; 2]; 2] = [[0, 2], [3, 1]];
+
+    // ── Coeus forward + backward ──
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n_emb, d_model], &weights),
+        true,
+    );
+    let mut emb = Embedding::<f32, SequentialBackend>::new(n_emb, d_model);
+    emb.weight = xv.clone();
+
+    let idx_flat: Vec<f32> = indices
+        .iter()
+        .flat_map(|row| row.iter())
+        .map(|&v| v as f32)
+        .collect();
+    let idx_tensor = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 2], &idx_flat);
+    let out_c = coeus_autograd::sum(&emb.forward_indices(&idx_tensor));
+    out_c.backward();
+
+    // ── Burn forward + backward ──
+    let wb: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(weights.clone(), [n_emb, d_model]), &device)
+            .require_grad();
+    let ib: BurnTensor<AB, 2, Int> = BurnTensor::from_ints(indices, &device);
+    let out_b = burn::tensor::module::embedding(wb.clone(), ib);
+    let grads = out_b.sum().backward();
+
+    // Forward parity
+    let out_b_fwd: Vec<f32> = {
+        // Re-compute forward without autodiff for value comparison.
+        let wb_fwd: BurnTensor<BurnBackend, 2> =
+            BurnTensor::from_data(TensorData::new(weights.clone(), [n_emb, d_model]), &dev());
+        let ib_fwd: BurnTensor<BurnBackend, 2, Int> = BurnTensor::from_ints(indices, &dev());
+        bvec(burn::tensor::module::embedding(wb_fwd, ib_fwd))
+    };
+    assert_close(
+        "embedding_fwd_custom",
+        emb.forward_indices(&idx_tensor)
+            .tensor
+            .to_contiguous()
+            .as_slice(),
+        &out_b_fwd,
+    );
+
+    // Backward parity: weight gradient
+    // Embedding backward scatters the output gradient into the weight rows
+    // indexed by the input.  With sum loss, each indexed row gets +1 per
+    // occurrence.
+    let to_vec = |t: BurnTensor<NdArray<f32>, 2>| t.into_data().to_vec::<f32>().unwrap();
+    assert_close(
+        "embedding_bwd_dw",
+        xv.grad().unwrap().to_contiguous().as_slice(),
+        &to_vec(wb.grad(&grads).unwrap()),
+    );
+}
