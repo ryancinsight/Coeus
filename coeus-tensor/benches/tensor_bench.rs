@@ -507,6 +507,84 @@ fn bench_burn_conv_transpose2d(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_burn_max_pool2d(c: &mut Criterion) {
+    use burn::tensor::module::max_pool2d as burn_max_pool2d;
+    use burn::tensor::Tensor as BT;
+    use burn::tensor::TensorData;
+    use coeus_ops::BackendOps;
+
+    // [batch=1, c=8, h=32, w=32], kernel=2, stride=2 -> [1, 8, 16, 16].
+    const BATCH: usize = 1;
+    const C: usize = 8;
+    const H: usize = 32;
+    const W: usize = 32;
+    const K: usize = 2;
+    const STRIDE: usize = 2;
+    const H_OUT: usize = (H - K) / STRIDE + 1;
+
+    let device = NdArrayDevice::default();
+    let x_data: Vec<f32> = (0..BATCH * C * H * W)
+        .map(|i| (i as f32 * 0.05).sin())
+        .collect();
+
+    let seq_backend = SequentialBackend::new();
+    let moirai_backend = MoiraiBackend::new();
+    let x_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, C, H, W], &x_data);
+    let x_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, C, H, W], &x_data);
+    let x_b: BT<BurnB, 4> =
+        BT::from_data(TensorData::new(x_data.clone(), [BATCH, C, H, W]), &device);
+
+    let mut group = c.benchmark_group("Burn vs Coeus — MaxPool2d (1×8×32×32, k=2, s=2)");
+
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| {
+            black_box(burn_max_pool2d(
+                x_b.clone(),
+                [K, K],
+                [STRIDE, STRIDE],
+                [0, 0],
+                [1, 1],
+            ))
+        })
+    });
+    group.bench_function("Coeus Sequential", |ben| {
+        let mut out = Tensor::<f32, SequentialBackend>::zeros(vec![BATCH, C, H_OUT, H_OUT]);
+        ben.iter(|| {
+            let out_l = out.layout().clone();
+            seq_backend.max_pool2d(
+                x_seq.storage(),
+                x_seq.layout(),
+                K,
+                STRIDE,
+                0,
+                1,
+                out.storage_mut(),
+                &out_l,
+            );
+            black_box(());
+        })
+    });
+    group.bench_function("Coeus Moirai", |ben| {
+        let mut out = Tensor::<f32, MoiraiBackend>::zeros(vec![BATCH, C, H_OUT, H_OUT]);
+        ben.iter(|| {
+            let out_l = out.layout().clone();
+            moirai_backend.max_pool2d(
+                x_moirai.storage(),
+                x_moirai.layout(),
+                K,
+                STRIDE,
+                0,
+                1,
+                out.storage_mut(),
+                &out_l,
+            );
+            black_box(());
+        })
+    });
+
+    group.finish();
+}
+
 fn bench_burn_layernorm(c: &mut Criterion) {
     use burn::nn::{LayerNorm as BurnLN, LayerNormConfig};
     use burn::tensor::Tensor as BT;
@@ -560,6 +638,7 @@ criterion_group!(
     bench_burn_sum,
     bench_burn_conv2d,
     bench_burn_conv_transpose2d,
+    bench_burn_max_pool2d,
     bench_burn_layernorm,
 );
 criterion_main!(benches);
