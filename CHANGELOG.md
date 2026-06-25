@@ -4,6 +4,12 @@
 
 ### Added
 
+- **Sparse conversion integration test** — Added `coeus-sparse/tests/sparse_conversions.rs`
+  to verify dense→COO→dense, dense→CSR→dense, dense→COO→CSR→dense, and
+  dense→CSR structural equality against the COO→CSR route on one value-semantic
+  3×4 oracle. Evidence tier: empirical value-semantic validation via
+  `cargo nextest run -p coeus-sparse --test sparse_conversions`.
+
 - **`coeus-ops::linspace / logspace / geomspace` free functions** — Backend-parameterized
   constructor functions in the new `coeus_ops::constructors` module:
   - `linspace(start, end, n, backend)` — n evenly-spaced values (inclusive).

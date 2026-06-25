@@ -51,6 +51,11 @@ version is now a post-closure reconciliation candidate).
   + 1 Python binding test.
 - [ ] [patch] Reconcile Cargo.toml workspace version (currently 0.2.12) with
   the staged CHANGELOG entries naming 0.2.13/0.2.14.
+- [x] [patch] Added `coeus-sparse/tests/sparse_conversions.rs` to cover
+  dense/COO/CSR round-trip identity and direct-vs-COO CSR structural equality
+  on a fixed 3x4 oracle. Evidence tier: empirical value-semantic validation.
+  Evidence: `cargo nextest run -p coeus-sparse --test sparse_conversions`
+  passes with 4 tests.
 
 - [x] [minor] Added `burn 0.16` as dev-dep to `coeus-nn` and `coeus-tensor`; production
   dependency policy test unaffected (burn forbidden in `[dependencies]`, allowed in

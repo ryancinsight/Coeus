@@ -6,6 +6,12 @@
 - [ ] [minor] `coeus-python/src/nn/sequential.rs` — PySequential container module;
   `PyConvTranspose2d` class wrapper; PyTensor additions. Concurrent agent work.
 
+### Completed patch increments
+- [x] [patch] Added sparse conversion integration coverage for
+  dense/COO/CSR round-trip identity and direct-vs-COO CSR structural equality
+  in `coeus-sparse/tests/sparse_conversions.rs`. Evidence:
+  `cargo nextest run -p coeus-sparse --test sparse_conversions` passes.
+
 ---
 
 ## Sprints MS-72 – MS-75: Burn parity, Torch parity, transposed-conv backward [COMPLETE]
