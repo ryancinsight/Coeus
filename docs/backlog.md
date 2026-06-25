@@ -1,5 +1,29 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-80: RNN cells, index_put, Python parity wrappers, attention benchmark [COMPLETE]
+
+- [x] [minor] Added `coeus_nn::rnn::{LSTMCell, GRUCell}` and PyO3 wrappers
+  `pycoeus.LSTMCell` / `pycoeus.GRUCell` with value-semantic binding coverage.
+- [x] [minor] Added `coeus_ops::index_put` and `pycoeus.index_put` for
+  row-index scatter assignment/accumulation, with direct Rust and Python
+  binding coverage.
+- [x] [minor] Added `pycoeus.TransformerDecoderLayer` binding over the existing
+  Rust decoder layer and exposed immutable constructor fields for Python parity
+  inspection.
+- [x] [minor] Added Python parity wrappers for `rand`, `randint`, `bernoulli`,
+  module-level keepdim reductions, `normalize`, `isclose`, `allclose`,
+  `nan_to_num`, gradient clipping, and tensor value `repr`.
+- [x] [minor] Added SDP-attention Burn/Coeus benchmark instrumentation to
+  `coeus-tensor/benches/tensor_bench.rs`; no performance win is claimed without
+  Criterion baseline data.
+- [x] Evidence: `cargo clippy -p coeus-nn -p coeus-ops -p coeus-python
+  --all-targets -- -D warnings`; `cargo nextest run -p coeus-ops index_put`;
+  `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_randn_zeros_ones_like_eye
+  test_normalize_closeness_nan_and_grad_clipping test_lstm_gru_cells
+  test_index_put_op test_transformer_decoder_layer`; `cargo check -p
+  coeus-tensor --benches`.
+
 ## Sprint MS-78: GroupNorm/InstanceNorm Burn parity fix + Embedding parity tests [COMPLETE]
 
 - [x] [patch] Fixed `groupnorm_forward_matches_burn` tolerance: 1e-4 → 1e-3 with

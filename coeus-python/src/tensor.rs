@@ -708,13 +708,47 @@ impl PyTensor {
         self.inner.zero_grad();
     }
 
-    /// Repr representation.
+    /// Repr representation showing values for small tensors.
     fn __repr__(&self) -> String {
-        format!(
-            "Tensor(shape={:?}, requires_grad={})",
-            self.shape(),
-            self.inner.grad.is_some()
-        )
+        let shape = self.shape();
+        let requires_grad = self.inner.grad.is_some();
+        let data = self.inner.tensor.to_contiguous();
+        let vals = data.as_slice();
+        let max_display = 8;
+        let data_str = if vals.is_empty() {
+            "[]".to_string()
+        } else if vals.len() <= max_display {
+            // Format values concisely (3 decimal places).
+            let formatted: Vec<String> = vals
+                .iter()
+                .map(|&v| {
+                    if v == (v as i64) as f64 && v.abs() < 1e6 {
+                        format!("{:.1}", v)
+                    } else {
+                        format!("{:.4}", v)
+                    }
+                })
+                .collect();
+            format!("[{}]", formatted.join(", "))
+        } else {
+            // Truncated display.
+            let first: Vec<String> = vals[..3].iter().map(|&v| format!("{:.4}", v)).collect();
+            let last: Vec<String> = vals[vals.len() - 2..]
+                .iter()
+                .map(|&v| format!("{:.4}", v))
+                .collect();
+            format!("[{}, ..., {}]", first.join(", "), last.join(", "))
+        };
+        if requires_grad {
+            format!("Tensor({data_str}, shape={shape:?}, requires_grad=True)")
+        } else {
+            format!("Tensor({data_str}, shape={shape:?})")
+        }
+    }
+
+    /// String representation (same as repr for small tensors).
+    fn __str__(&self) -> String {
+        self.__repr__()
     }
 
     // ── In-place mutation methods ─────────────────────────────────────────────

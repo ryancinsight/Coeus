@@ -509,6 +509,91 @@ assert all(v == 1.0 for v in ol.data)
 e = pycoeus.eye(3)
 assert e.shape == [3, 3]
 assert e.data[0] == 1.0 and e.data[1] == 0.0 and e.data[4] == 1.0
+
+# rand: uniform [0, 1)
+u = pycoeus.rand([2, 3], requires_grad=True)
+assert u.shape == [2, 3]
+assert u.requires_grad is True
+assert all(0.0 <= v < 1.0 for v in u.data), f"rand range: {u.data}"
+
+# randint: integer values in [low, high)
+ri = pycoeus.randint(2, 5, [8])
+assert ri.shape == [8]
+assert all(v in (2.0, 3.0, 4.0) for v in ri.data), f"randint range: {ri.data}"
+try:
+    pycoeus.randint(5, 5, [1])
+    raise AssertionError("randint should reject empty range")
+except ValueError:
+    pass
+
+# bernoulli deterministic boundaries
+b0 = pycoeus.bernoulli([4], p=0.0)
+b1 = pycoeus.bernoulli([4], p=1.0)
+assert b0.data == [0.0, 0.0, 0.0, 0.0], f"bernoulli p=0: {b0.data}"
+assert b1.data == [1.0, 1.0, 1.0, 1.0], f"bernoulli p=1: {b1.data}"
+try:
+    pycoeus.bernoulli([1], p=1.5)
+    raise AssertionError("bernoulli should reject p > 1")
+except ValueError:
+    pass
+"#,
+    );
+}
+
+#[test]
+fn test_normalize_closeness_nan_and_grad_clipping() {
+    run_script(
+        r#"
+import pycoeus
+
+# module reductions default to keepdim=False, with explicit keepdim support.
+x = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [2, 2])
+row_sum = pycoeus.sum_axis(x, 1)
+row_mean_keep = pycoeus.mean_axis(x, 1, keepdim=True)
+assert row_sum.shape == [2], f"sum_axis squeeze shape: {row_sum.shape}"
+assert row_sum.data == [3.0, 7.0], f"sum_axis data: {row_sum.data}"
+assert row_mean_keep.shape == [2, 1], f"mean_axis keepdim shape: {row_mean_keep.shape}"
+assert row_mean_keep.data == [1.5, 3.5], f"mean_axis keepdim data: {row_mean_keep.data}"
+
+# normalize uses L2 norm per row and preserves zero rows through eps clamp.
+n = pycoeus.normalize(pycoeus.Tensor([3.0, 4.0, 0.0, 0.0], [2, 2]), dim=1)
+expected = [0.6, 0.8, 0.0, 0.0]
+assert n.shape == [2, 2], f"normalize shape: {n.shape}"
+for got, want in zip(n.data, expected):
+    assert abs(got - want) < 1e-12, f"normalize data: {n.data}"
+try:
+    pycoeus.normalize(x, p=0.0)
+    raise AssertionError("normalize should reject non-positive p")
+except ValueError:
+    pass
+
+# isclose/allclose expose PyTorch-style value tolerance semantics.
+a = pycoeus.Tensor([1.0, 2.0, 3.0], [3])
+b = pycoeus.Tensor([1.0 + 1e-6, 2.0, 3.1], [3])
+close = pycoeus.isclose(a, b, rtol=1e-5, atol=1e-8)
+assert close.data == [1.0, 1.0, 0.0], f"isclose data: {close.data}"
+assert pycoeus.allclose(a, b, rtol=1e-5, atol=1e-8) is False
+assert pycoeus.allclose(a, a) is True
+
+# nan_to_num replaces each special value according to the supplied contract.
+special = pycoeus.Tensor([float("nan"), float("inf"), -float("inf"), 2.0], [4])
+finite = pycoeus.nan_to_num(special, nan=-1.0, posinf=9.0, neginf=-9.0)
+assert finite.data == [-1.0, 9.0, -9.0, 2.0], f"nan_to_num data: {finite.data}"
+
+# gradient norm clipping returns the pre-clip norm and rescales gradients.
+p = pycoeus.Tensor([3.0, 4.0], [2], requires_grad=True)
+pycoeus.sum(p * p).backward()
+norm = pycoeus.clip_grad_norm_([p], 5.0)
+assert abs(norm - 10.0) < 1e-12, f"pre-clip norm: {norm}"
+assert abs(p.grad[0] - 3.0) < 1e-6 and abs(p.grad[1] - 4.0) < 1e-6, f"clip norm grad: {p.grad}"
+
+q = pycoeus.Tensor([2.0, -4.0], [2], requires_grad=True)
+pycoeus.sum(q * q).backward()
+pycoeus.clip_grad_value_([q], 2.5)
+assert q.grad == [2.5, -2.5], f"clip value grad: {q.grad}"
+
+shown = repr(pycoeus.Tensor([1.0, 2.0], [2]))
+assert shown == "Tensor([1.0, 2.0], shape=[2])", f"repr: {shown}"
 "#,
     );
 }
@@ -1432,9 +1517,9 @@ assert h2.shape == [batch, hidden_size]
 # State should change across steps
 assert any(abs(a - b) > 1e-6 for a, b in zip(h2.data, h_new.data)), "LSTM: state unchanged"
 
-# Parameters: w_ih + w_hh (weights only, no bias exposed at cell level)
+# Parameters: w_ih + b_ih + w_hh + b_hh = 4 (with bias=True by default)
 params = cell.parameters()
-assert len(params) == 2, f"LSTM parameter count: {len(params)}"
+assert len(params) == 4, f"LSTM parameter count: {len(params)}"
 
 # ── GRUCell ───────────────────────────────────────────────────────────
 gru = pycoeus.GRUCell(input_size, hidden_size)
@@ -1452,7 +1537,7 @@ h2g = gru.step(x, h_gru_new)
 assert h2g.shape == [batch, hidden_size]
 
 params_gru = gru.parameters()
-assert len(params_gru) == 2, f"GRU parameter count: {len(params_gru)}"
+assert len(params_gru) == 4, f"GRU parameter count: {len(params_gru)}"
 "#,
     );
 }
@@ -2144,7 +2229,7 @@ try:
 except ValueError:
     pass
 
-// error: dim != 3
+# error: dim != 3
 try:
     _ = pycoeus.cross(pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [4]), pycoeus.Tensor([5.0, 6.0, 7.0, 8.0], [4]))
     raise AssertionError("cross axis-size!=3 should raise")

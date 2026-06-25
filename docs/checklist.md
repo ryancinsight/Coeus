@@ -2,11 +2,11 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-78 - GroupNorm/InstanceNorm parity fix + Embedding parity [COMPLETE]
-**Objective**: Fix tolerance/formula issues in GroupNorm/InstanceNorm Burn parity
- tests and add Embedding forward/backward Burn parity tests. MS-79 (Python shape,
-selection, module container parity) is also complete.
-**Target version**: 0.2.18 (Cargo.toml reconciled with CHANGELOG).
+### Current Sprint: MS-80 - RNN cells, index_put, Python wrappers, attention benchmark [COMPLETE]
+**Objective**: Complete the RNN/index_put/decoder PyO3 parity slice and add an
+additional Python functional parity slice plus an SDP-attention Burn/Coeus
+benchmark instrument without claiming unmeasured performance wins.
+**Target version**: 0.2.19 (Cargo.toml reconciled with CHANGELOG).
 **Burn parity tests**: 69 total (all passing).
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
@@ -16,6 +16,22 @@ selection, module container parity) is also complete.
 
 ### Current Verification Note (2026-06-25)
 
+- [x] [minor] Added `coeus_nn::rnn::{LSTMCell, GRUCell}`, Python
+  `pycoeus.LSTMCell` / `GRUCell`, `coeus_ops::index_put`,
+  `pycoeus.index_put`, and `pycoeus.TransformerDecoderLayer`. Exposed
+  decoder constructor fields as Python getters and corrected the binding test
+  script. Added Python wrappers for `rand`, `randint`, `bernoulli`, keepdim
+  reductions, `normalize`, closeness checks, `nan_to_num`, gradient clipping,
+  and tensor value `repr`. Added SDP-attention Burn/Coeus benchmark
+  instrumentation without a speedup claim. Evidence tier: empirical
+  value-semantic validation plus benchmark build. Evidence: `cargo clippy -p
+  coeus-nn -p coeus-ops -p coeus-python --all-targets -- -D warnings`, `cargo
+  nextest run -p coeus-ops index_put`, `cargo nextest run -p coeus-python
+  --test binding_tests_ops test_randn_zeros_ones_like_eye
+  test_normalize_closeness_nan_and_grad_clipping test_lstm_gru_cells
+  test_index_put_op test_transformer_decoder_layer`, `cargo check -p
+  coeus-tensor --benches`, and `cargo doc -p coeus-nn -p coeus-ops -p
+  coeus-python --no-deps` pass.
 - [x] [minor] Added `coeus_ops::{bmm, outer, chunk, one_hot, masked_select,
   glu}` and Python wrappers `pycoeus.bmm`, `outer`, `one_hot`,
   `masked_select`, `chunk`, `glu`, plus `pycoeus.ModuleList`. Python wrappers

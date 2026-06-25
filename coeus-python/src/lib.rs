@@ -202,6 +202,9 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::zeros_like, m)?)?;
     m.add_function(wrap_pyfunction!(ops::ones_like, m)?)?;
     m.add_function(wrap_pyfunction!(ops::eye, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::rand, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::randint, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::bernoulli, m)?)?;
     // Sorting / selection
     m.add_function(wrap_pyfunction!(ops::topk, m)?)?;
     m.add_function(wrap_pyfunction!(ops::sort, m)?)?;
@@ -281,6 +284,15 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::masked_select, m)?)?;
     // Chunking
     m.add_function(wrap_pyfunction!(ops::chunk, m)?)?;
+    // Normalization
+    m.add_function(wrap_pyfunction!(ops::normalize, m)?)?;
+    // Comparison / closeness
+    m.add_function(wrap_pyfunction!(ops::isclose, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::allclose, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::nan_to_num, m)?)?;
+    // Gradient utilities
+    m.add_function(wrap_pyfunction!(ops::clip_grad_norm_, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::clip_grad_value_, m)?)?;
 
     Ok(())
 }

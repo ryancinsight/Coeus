@@ -1,5 +1,5 @@
 use crate::tensor::PyTensor;
-use coeus_core::MoiraiBackend;
+use coeus_core::{ComputeBackend, MoiraiBackend};
 use coeus_tensor::Tensor;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -203,4 +203,109 @@ fn tensor_or_scalar_reduction(
 
 fn scalar_object(py: Python<'_>, value: f64) -> PyResult<Py<PyAny>> {
     Ok(value.into_pyobject(py)?.unbind().into_any())
+}
+
+/// Clip the global gradient norm of a list of parameters.
+///
+/// Rescales gradients so that their global Lp norm does not exceed `max_norm`.
+/// Returns the global norm before clipping.
+///
+/// Equivalent to `torch.nn.utils.clip_grad_norm_(parameters, max_norm, norm_type=2)`.
+#[pyfunction]
+#[pyo3(signature = (parameters, max_norm, norm_type = 2.0))]
+pub fn clip_grad_norm_(
+    parameters: Vec<pyo3::Py<PyTensor>>,
+    max_norm: f64,
+    norm_type: f64,
+    py: Python<'_>,
+) -> PyResult<f64> {
+    if max_norm <= 0.0 {
+        return Err(PyValueError::new_err(format!(
+            "clip_grad_norm_: max_norm must be positive, got {max_norm}"
+        )));
+    }
+    // Collect all gradient slices.
+    let mut grad_data: Vec<Vec<f64>> = Vec::new();
+    for p in &parameters {
+        let p_ref = p.bind(py).borrow();
+        if let Some(g) = p_ref.inner.grad() {
+            let cont = g.to_contiguous();
+            grad_data.push(cont.as_slice().to_vec());
+        }
+    }
+    if grad_data.is_empty() {
+        return Ok(0.0);
+    }
+    // Compute global norm.
+    let global_norm = if (norm_type - 2.0).abs() < 1e-9 {
+        let sum_sq: f64 = grad_data
+            .iter()
+            .flat_map(|g| g.iter())
+            .map(|&v| v * v)
+            .sum();
+        sum_sq.sqrt()
+    } else {
+        let sum_p: f64 = grad_data
+            .iter()
+            .flat_map(|g| g.iter())
+            .map(|&v| v.abs().powf(norm_type))
+            .sum();
+        sum_p.powf(1.0 / norm_type)
+    };
+    // Scale if norm exceeds max_norm.
+    if global_norm > max_norm {
+        let scale = max_norm / (global_norm + 1e-6);
+        for p in &parameters {
+            let p_ref = p.bind(py).borrow();
+            if p_ref.inner.grad.is_none() {
+                continue;
+            }
+            let grad_buf = p_ref.inner.grad.as_ref().unwrap();
+            let grad_tensor = grad_buf.write();
+            let backend = MoiraiBackend::new();
+            // Apply scale in-place via host round-trip.
+            let numel = grad_tensor.numel();
+            let mut host = vec![0.0f64; numel];
+            backend.copy_to_host(grad_tensor.storage(), &mut host);
+            for v in &mut host {
+                *v *= scale;
+            }
+            backend.copy_to_device(&host, grad_tensor.storage_mut());
+        }
+    }
+    Ok(global_norm)
+}
+
+/// Clip each gradient's values element-wise to `[-clip_value, clip_value]`.
+///
+/// Equivalent to `torch.nn.utils.clip_grad_value_(parameters, clip_value)`.
+#[pyfunction]
+pub fn clip_grad_value_(
+    parameters: Vec<pyo3::Py<PyTensor>>,
+    clip_value: f64,
+    py: Python<'_>,
+) -> PyResult<()> {
+    if clip_value <= 0.0 {
+        return Err(PyValueError::new_err(format!(
+            "clip_grad_value_: clip_value must be positive, got {clip_value}"
+        )));
+    }
+    for p in &parameters {
+        let p_ref = p.bind(py).borrow();
+        if p_ref.inner.grad.is_none() {
+            continue;
+        }
+        let grad_buf = p_ref.inner.grad.as_ref().unwrap();
+        let grad_tensor = grad_buf.write();
+        let backend = MoiraiBackend::new();
+        // Clamp in-place via copy-to-host + clamp + copy-back.
+        let numel = grad_tensor.numel();
+        let mut host = vec![0.0f64; numel];
+        backend.copy_to_host(grad_tensor.storage(), &mut host);
+        for v in &mut host {
+            *v = v.clamp(-clip_value, clip_value);
+        }
+        backend.copy_to_device(&host, grad_tensor.storage_mut());
+    }
+    Ok(())
 }

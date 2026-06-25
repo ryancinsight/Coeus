@@ -33,7 +33,28 @@
   - `test_index_put_op` — replace mode, accumulate mode, 2D row update, non-1D
     index `ValueError`.
 
+- **Python functional parity wrappers** — Added `pycoeus.rand`, `randint`,
+  `bernoulli`, module-level `sum_axis(..., keepdim=False)`,
+  `mean_axis(..., keepdim=False)`, `normalize`, `isclose`, `allclose`,
+  `nan_to_num`, `clip_grad_norm_`, `clip_grad_value_`, and value-printing
+  tensor `repr`. Uniform `rand` routes through `coeus_nn::init::uniform_with_seed`
+  so the Python binding remains a thin Rust-core adapter.
 
+- **Python binding tests 45 → 47** (+2):
+  - `test_randn_zeros_ones_like_eye` now covers `rand`, `randint`, and
+    `bernoulli` shape/range/error contracts.
+  - `test_normalize_closeness_nan_and_grad_clipping` covers keepdim reductions,
+    `normalize`, closeness checks, `nan_to_num`, gradient clipping, and tensor
+    `repr`.
+
+- **Burn benchmark instrumentation** — Added an SDP-attention benchmark group to
+  `coeus-tensor/benches/tensor_bench.rs` comparing Burn NdArray batched
+  matmul+softmax attention with Coeus Sequential and Coeus Moirai
+  `scaled_dot_product_attention` on `[8, 64, 32]` q/k/v tensors. This is an
+  instrumented benchmark row only; no speedup claim is made.
+
+
+## 0.2.18 - 2026-06-25
 
 ### Added
 
