@@ -1,6 +1,51 @@
 # Changelog
 
-## 0.2.19 - 2026-06-25
+## 0.2.20 - 2026-06-25
+
+### Added
+
+- **`pycoeus.normalize(input, p=2, dim=1, eps=1e-12)`** — Lp normalization along
+  `dim`. Divides each slice by its Lp norm (clamped to `eps` from below).
+  Equivalent to `torch.nn.functional.normalize`. `p` and `dim` validated at boundary.
+
+- **`pycoeus.rand(shape)`, `pycoeus.randint(low, high, shape)`, `pycoeus.bernoulli(shape, p=0.5)`**
+  — Random tensor constructors using xorshift64 seeded from system time.
+  `randint` stores integers as f64, `bernoulli` stores 0.0/1.0 by Bernoulli(p).
+
+- **`pycoeus.clip_grad_norm_(parameters, max_norm, norm_type=2)`** — Returns the
+  pre-clip global gradient norm and rescales all parameter gradients so their global
+  Lp norm ≤ `max_norm`. Host-side round-trip with no intermediate Tensor allocation.
+
+- **`pycoeus.clip_grad_value_(parameters, clip_value)`** — Clamps each gradient
+  element-wise to `[-clip_value, clip_value]`.
+
+- **`pycoeus.isclose(a, b, rtol=1e-5, atol=1e-8)`** — Returns float tensor
+  (1.0 = within tolerance, 0.0 = not). Same tolerance formula as PyTorch.
+
+- **`pycoeus.allclose(a, b, rtol=1e-5, atol=1e-8)`** — Returns Python `bool`.
+
+- **`pycoeus.nan_to_num(input, nan=0.0, posinf=None, neginf=None)`** — Replaces
+  NaN, +Inf, -Inf with finite defaults.
+
+- **`pycoeus.sum_axis(input, axis, keepdim=False)`** — Added `keepdim` parameter;
+  default `False` now squeezes the reduced dimension (matching PyTorch convention).
+  **Breaking**: existing callers relying on keepdim behavior should pass `keepdim=True`.
+
+- **`pycoeus.mean_axis(input, axis, keepdim=False)`** — Same keepdim change.
+
+- **Improved `PyTensor.__repr__` / `__str__`** — Shows actual values for tensors
+  with ≤ 8 elements (`Tensor([1.0, 2.0], shape=[2])`), truncated display for larger.
+  Format matches PyTorch-style output.
+
+- **`LSTMCell`/`GRUCell` bias support** — `PyLSTMCell` and `PyGRUCell` now expose
+  `b_ih` and `b_hh` bias parameters. `parameters()` now returns 4 params
+  (w_ih, b_ih, w_hh, b_hh) when `bias=True` (default). `zero_grad()` zeros biases.
+
+- **Python binding tests 45 → 47** — `test_normalize_closeness_nan_and_grad_clipping`
+  exercises normalize, isclose/allclose, nan_to_num, clip_grad_norm_/value_, sum_axis
+  keepdim, and __repr__ formatting.
+
+
 
 ### Added
 
