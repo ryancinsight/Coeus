@@ -101,7 +101,7 @@
   values instead of k largest, matching `torch.topk(input, k, dim, largest)`.
   Existing tests updated with explicit `largest=False` and 2-D dim=1 coverage.
 
-- **Burn parity tests (+3)** — `burn_live_parity.rs` now has 67 tests:
+- **Burn parity tests (+5)** — `burn_live_parity.rs` now has 69 tests:
   - `groupnorm_forward_matches_burn` — forward comparison of `GroupNorm<T,B,2>` with
     default weight=ones, bias=zeros against Burn `GroupNormConfig::new(2,4)`. Tolerance
     1e-3 accounts for the formula difference `sqrt(var+eps)` (Coeus, PyTorch standard)
@@ -112,6 +112,19 @@
   - `instancenorm_forward_matches_burn` — forward comparison of `InstanceNorm1d` with
     default init against Burn `InstanceNormConfig::new(3)`. Same 1e-3 tolerance as
     GroupNorm for the same formula-difference reason.
+  - `embedding_forward_matches_burn` — forward comparison of `Embedding` with known
+    weight [5,3] and integer indices [2,3] against Burn `module::embedding`.
+  - `embedding_forward_backward_match_burn` — forward + backward (dw) parity with
+    custom weight [4,2] and indices [2,2] against Burn autodiff `module::embedding`.
+
+### Fixed
+
+- **GroupNorm/InstanceNorm tolerance and formula** — The 3 GroupNorm/InstanceNorm
+  tests committed in MS-77 were failing because the forward tolerance (1e-4) did not
+  account for the `sqrt(var+eps)` vs `sqrt(var)+eps` formula difference between Coeus
+  and Burn 0.16, and the backward test used Burn's formula instead of Coeus's. Fixed:
+  forward tolerance 1e-4 → 1e-3 (analytically derived), backward formula
+  `var.sqrt().add_scalar(eps)` → `var.add_scalar(eps).sqrt()`.
 ### Changed
 
 - **SGD optimizer small-tensor fast path** — `sgd_step` contiguous unit-offset buffers

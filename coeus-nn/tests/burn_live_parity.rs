@@ -2529,13 +2529,11 @@ fn embedding_forward_matches_burn() {
     let indices: [[i32; 3]; 2] = [[0, 2, 4], [1, 3, 0]];
 
     // ── Coeus ──
-    let backend = SequentialBackend::new();
     let w_tensor =
         CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n_emb, d_model], &weights);
     let weight_var = Var::new(w_tensor, false);
-    let emb = Embedding::<f32, SequentialBackend>::new(n_emb, d_model);
+    let mut emb = Embedding::<f32, SequentialBackend>::new(n_emb, d_model);
     // Override the default ones weight with our known values.
-    let mut emb = emb;
     emb.weight = weight_var;
 
     // Coeus embedding expects float indices (same Scalar trait as weights).

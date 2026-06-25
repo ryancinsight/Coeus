@@ -2,11 +2,12 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-79 - Python shape, selection, and module container parity [COMPLETE]
-**Objective**: Extend Rust-core and PyO3 functional parity with bmm, outer,
-one-hot, masked-select, chunk, GLU, and ModuleList while preserving Python as a
-thin binding layer over Coeus core/autograd surfaces.
+### Current Sprint: MS-78 - GroupNorm/InstanceNorm parity fix + Embedding parity [COMPLETE]
+**Objective**: Fix tolerance/formula issues in GroupNorm/InstanceNorm Burn parity
+ tests and add Embedding forward/backward Burn parity tests. MS-79 (Python shape,
+selection, module container parity) is also complete.
 **Target version**: 0.2.18 (Cargo.toml reconciled with CHANGELOG).
+**Burn parity tests**: 69 total (all passing).
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
 > oracle values; wgpu parity.rs verifies implemented GPU paths against the CPU reference;
@@ -63,7 +64,8 @@ thin binding layer over Coeus core/autograd surfaces.
 - [x] [patch] MS-78: Fixed GroupNorm/InstanceNorm Burn parity test tolerances
   and formula: forward 1e-4→1e-3 (sqrt(var+eps) vs sqrt(var)+eps derivation);
   backward formula var.sqrt().add_scalar(eps)→var.add_scalar(eps).sqrt() to
-  match Coeus's convention; 67 Burn parity tests all pass.
+  match Coeus's convention; added Embedding forward + backward Burn parity tests;
+  69 Burn parity tests all pass.
 - [x] [patch] Added `coeus-sparse/tests/sparse_conversions.rs` to cover
   dense/COO/CSR round-trip identity and direct-vs-COO CSR structural equality
   on a fixed 3x4 oracle. Evidence tier: empirical value-semantic validation.

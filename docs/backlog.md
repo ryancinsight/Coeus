@@ -1,6 +1,6 @@
 # Coeus Project Backlog & Historical Archives
 
-## Sprint MS-78: GroupNorm/InstanceNorm Burn parity tolerance fix [COMPLETE]
+## Sprint MS-78: GroupNorm/InstanceNorm Burn parity fix + Embedding parity tests [COMPLETE]
 
 - [x] [patch] Fixed `groupnorm_forward_matches_burn` tolerance: 1e-4 → 1e-3 with
   derivation for Coeus `sqrt(var+eps)` vs Burn 0.16 `sqrt(var)+eps` formula difference.
@@ -10,7 +10,11 @@
 - [x] [patch] Fixed `instancenorm_forward_matches_burn` tolerance: 1e-4 → 1e-3
   (same formula difference as GroupNorm).
 - [x] [patch] Cargo.toml version reconciled to 0.2.17.
-- [x] Burn parity test count: 67 total (all passing).
+- [x] [minor] `embedding_forward_matches_burn` — forward comparison with known
+  weight [5,3] and integer indices [2,3] against Burn `module::embedding`.
+- [x] [minor] `embedding_forward_backward_match_burn` — forward + backward (dw)
+  parity with custom weight [4,2] and indices [2,2] against Burn autodiff.
+- [x] Burn parity test count: 69 total (all passing).
 
 ## Sprint MS-79: Python shape, selection, and module container parity [COMPLETE]
 
