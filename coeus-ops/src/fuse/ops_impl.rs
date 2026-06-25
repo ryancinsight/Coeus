@@ -1,8 +1,8 @@
 use crate::fuse::expr_node::{BinaryExpr, Expr, ScalarVal, UnaryExpr};
 use crate::fuse::op_tags::{
-    Abs, Add, Cos, Div, Elu, EluGrad, Exp, Gelu, GeluGrad, GeluTanh, GeluTanhGrad, Log, Mish,
-    MishGrad, Mul, Neg, Relu, Sigmoid, Silu, SiluGrad, Sin, Softplus, SoftplusGrad, Sqrt, Sub,
-    Tanh,
+    Abs, Add, Ceil, Cos, Div, Elu, EluGrad, Exp, Floor, Gelu, GeluGrad, GeluTanh, GeluTanhGrad,
+    Log, Mish, MishGrad, Mul, Neg, Recip, Relu, Round, Sigmoid, Sign, Silu, SiluGrad, Sin,
+    Softplus, SoftplusGrad, Sqrt, Sub, Tanh, Trunc,
 };
 use coeus_core::Scalar;
 
@@ -282,6 +282,54 @@ impl<L> Expr<L> {
     pub fn gelu_tanh_grad(self) -> Expr<UnaryExpr<GeluTanhGrad, L>> {
         Expr(UnaryExpr {
             op: GeluTanhGrad,
+            child: self.0,
+        })
+    }
+
+    #[inline(always)]
+    pub fn recip(self) -> Expr<UnaryExpr<Recip, L>> {
+        Expr(UnaryExpr {
+            op: Recip,
+            child: self.0,
+        })
+    }
+
+    #[inline(always)]
+    pub fn sign(self) -> Expr<UnaryExpr<Sign, L>> {
+        Expr(UnaryExpr {
+            op: Sign,
+            child: self.0,
+        })
+    }
+
+    #[inline(always)]
+    pub fn floor(self) -> Expr<UnaryExpr<Floor, L>> {
+        Expr(UnaryExpr {
+            op: Floor,
+            child: self.0,
+        })
+    }
+
+    #[inline(always)]
+    pub fn ceil(self) -> Expr<UnaryExpr<Ceil, L>> {
+        Expr(UnaryExpr {
+            op: Ceil,
+            child: self.0,
+        })
+    }
+
+    #[inline(always)]
+    pub fn round(self) -> Expr<UnaryExpr<Round, L>> {
+        Expr(UnaryExpr {
+            op: Round,
+            child: self.0,
+        })
+    }
+
+    #[inline(always)]
+    pub fn trunc(self) -> Expr<UnaryExpr<Trunc, L>> {
+        Expr(UnaryExpr {
+            op: Trunc,
             child: self.0,
         })
     }

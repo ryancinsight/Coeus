@@ -66,7 +66,7 @@ where
     let backend = B::default();
     let out_tensor = coeus_ops::masked_fill(&input.tensor, &mask.tensor, value, &backend);
 
-    let requires_grad = input.grad.is_some() || mask.grad.is_some();
+    let requires_grad = input.grad.is_some();
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
@@ -78,7 +78,7 @@ where
     let creator = if requires_grad {
         let node = MaskedFillNode {
             output_grad: grad.as_ref().unwrap().clone(),
-            inputs: vec![input.clone(), mask.clone()],
+            inputs: vec![input.clone()],
             mask_tensor: mask.tensor.clone(),
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)

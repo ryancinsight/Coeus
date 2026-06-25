@@ -118,7 +118,10 @@ pub mod trig;
 
 // ── Re-exports ──
 pub use gelu::{gelu, gelu_tanh, GeluOp, GeluTanhOp};
-pub use math::{abs, clamp, neg, pow, sqrt, AbsOp, ClampNode, NegOp, PowNode, SqrtOp};
+pub use math::{
+    abs, ceil, clamp, floor, neg, pow, recip, round, sign, sqrt, trunc, AbsOp, CeilOp, ClampNode,
+    FloorOp, NegOp, PowNode, RecipOp, RoundOp, SignOp, SqrtOp, TruncOp,
+};
 pub use relu::{elu, leaky_relu, relu, EluOp, ReluOp};
 pub use sigmoid::{sigmoid, SigmoidOp};
 pub use silu::{mish, silu, softplus, MishOp, SiluOp, SoftplusOp};

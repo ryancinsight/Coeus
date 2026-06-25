@@ -163,6 +163,48 @@ pub fn neg(input: &PyTensor, py: Python<'_>) -> PyTensor {
     PyTensor { inner }
 }
 
+/// Element-wise reciprocal: 1/x.
+#[pyfunction]
+pub fn recip(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::recip(&input.inner));
+    PyTensor { inner }
+}
+
+/// Element-wise signum: -1, 0, or 1.
+#[pyfunction]
+pub fn sign(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::sign(&input.inner));
+    PyTensor { inner }
+}
+
+/// Element-wise floor.
+#[pyfunction]
+pub fn floor(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::floor(&input.inner));
+    PyTensor { inner }
+}
+
+/// Element-wise ceil.
+#[pyfunction]
+pub fn ceil(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::ceil(&input.inner));
+    PyTensor { inner }
+}
+
+/// Element-wise round to nearest integer.
+#[pyfunction]
+pub fn round(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::round(&input.inner));
+    PyTensor { inner }
+}
+
+/// Element-wise truncation toward zero.
+#[pyfunction]
+pub fn trunc(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::trunc(&input.inner));
+    PyTensor { inner }
+}
+
 /// Element-wise clamp to `[min_val, max_val]`.
 #[pyfunction]
 pub fn clamp(input: &PyTensor, min_val: f64, max_val: f64, py: Python<'_>) -> PyTensor {

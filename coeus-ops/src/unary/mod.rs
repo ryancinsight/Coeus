@@ -2,7 +2,7 @@
 
 mod activation;
 mod kernel;
-mod math;
+pub mod math;
 
 pub use activation::{
     elu, elu_assign, gelu, gelu_assign, gelu_tanh, gelu_tanh_assign, leaky_relu, leaky_relu_assign,
@@ -11,6 +11,7 @@ pub use activation::{
 };
 pub use kernel::{elementwise_unary, elementwise_unary_assign, elementwise_unary_to};
 pub use math::{
-    abs, abs_assign, cos, cos_assign, exp, exp_assign, log, log_assign, neg, neg_assign, sin,
-    sin_assign, sqrt, sqrt_assign,
+    abs, abs_assign, ceil, ceil_assign, cos, cos_assign, exp, exp_assign, floor, floor_assign, log,
+    log_assign, neg, neg_assign, recip, recip_assign, round, round_assign, sign, sign_assign, sin,
+    sin_assign, sqrt, sqrt_assign, trunc, trunc_assign,
 };

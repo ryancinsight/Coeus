@@ -26,11 +26,13 @@ pub mod sparse;
 pub mod unary;
 
 pub use unary::{
-    abs, abs_assign, cos, cos_assign, elementwise_unary, elementwise_unary_assign,
-    elementwise_unary_to, elu, elu_assign, exp, exp_assign, gelu, gelu_assign, gelu_tanh,
-    gelu_tanh_assign, leaky_relu, leaky_relu_assign, log, log_assign, log_softmax_axis, mish,
-    mish_assign, neg, neg_assign, relu, relu_assign, sigmoid, sigmoid_assign, silu, silu_assign,
-    sin, sin_assign, softplus, softplus_assign, sqrt, sqrt_assign, tanh, tanh_assign,
+    abs, abs_assign, ceil, ceil_assign, cos, cos_assign, elementwise_unary,
+    elementwise_unary_assign, elementwise_unary_to, elu, elu_assign, exp, exp_assign, floor,
+    floor_assign, gelu, gelu_assign, gelu_tanh, gelu_tanh_assign, leaky_relu, leaky_relu_assign,
+    log, log_assign, log_softmax_axis, mish, mish_assign, neg, neg_assign, recip, recip_assign,
+    relu, relu_assign, round, round_assign, sigmoid, sigmoid_assign, sign, sign_assign, silu,
+    silu_assign, sin, sin_assign, softplus, softplus_assign, sqrt, sqrt_assign, tanh, tanh_assign,
+    trunc, trunc_assign,
 };
 
 pub use binary::{

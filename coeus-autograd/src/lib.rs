@@ -39,6 +39,7 @@ pub use ops::{
     // Shape ops
     broadcast_to,
     cat,
+    ceil,
     clamp,
     contiguous,
     conv1d,
@@ -55,6 +56,7 @@ pub use ops::{
     embedding,
     exp,
     flip,
+    floor,
     // Index ops
     gather,
     gelu,
@@ -82,11 +84,12 @@ pub use ops::{
     pad,
     permute,
     pow,
+    recip,
     relu,
     reshape,
     rmsnorm,
-    // Circular shift
     roll,
+    round,
     scalar_add,
     scalar_div,
     // New scalar arithmetic
@@ -94,6 +97,7 @@ pub use ops::{
     scalar_sub,
     sdp_attention,
     sigmoid,
+    sign,
     silu,
     // Trigonometric
     sin,
@@ -114,6 +118,7 @@ pub use ops::{
     // Triangular masking
     tril,
     triu,
+    trunc,
     unsqueeze,
     // Shape ops
     where_cond,

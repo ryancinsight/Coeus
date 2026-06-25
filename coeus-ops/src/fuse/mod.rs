@@ -9,7 +9,8 @@ pub use expr_node::{
     CPU_EVAL_CACHE,
 };
 pub use op_tags::{
-    wgsl_gelu_expr, wgsl_gelu_grad_expr, Abs, Add, BinaryOpTag, Cos, Div, Elu, EluGrad, Exp, Gelu,
-    GeluGrad, GeluTanh, GeluTanhGrad, LeakyReluGradTag, LeakyReluTag, Log, Mish, MishGrad, Mul,
-    Neg, Relu, Sigmoid, Silu, SiluGrad, Sin, Softplus, SoftplusGrad, Sqrt, Sub, Tanh, UnaryOpTag,
+    wgsl_gelu_expr, wgsl_gelu_grad_expr, Abs, Add, BinaryOpTag, Ceil, Cos, Div, Elu, EluGrad, Exp,
+    Floor, Gelu, GeluGrad, GeluTanh, GeluTanhGrad, LeakyReluGradTag, LeakyReluTag, Log, Mish,
+    MishGrad, Mul, Neg, Recip, Relu, Round, Sigmoid, Sign, Silu, SiluGrad, Sin, Softplus,
+    SoftplusGrad, Sqrt, Sub, Tanh, Trunc, UnaryOpTag,
 };

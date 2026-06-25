@@ -2,11 +2,13 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: Sprint MS-66 (Lp norm & vector_norm parity) [IN PROGRESS]
+### Current Sprint: Sprint MS-66 (Lp norm, shape ops & Python NN parity) [IN PROGRESS]
 **Objective**: Close the `vector_norm(ord=p)` Torch/JAX parity gap with
 native `coeus-ops::norm_p` and a thin PyO3 `pycoeus.vector_norm` wrapper;
 preserve `coeus-ops::norm` as the L2 short-circuit and avoid adding
-`BinaryOp::Pow` to the backend dispatch surface.
+`BinaryOp::Pow` to the backend dispatch surface. Extend the same 0.2.6
+surface with Rust-core shape ops, thin PyO3 wrappers, optimizer parity tests,
+and on-device WGPU attention kernels.
 **Target version**: 0.2.6.
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
@@ -67,6 +69,36 @@ preserve `coeus-ops::norm` as the L2 short-circuit and avoid adding
 - [x] [minor] Added `coeus_ops::{flip, sort, where_cond}`, autograd
   `flip`/`where_cond`, and Python wrappers for `sin`, `cos`, `flip`,
   `where_cond`, `softmax`, `randn`, `topk`, and `sort`.
+- [x] [minor] Added `coeus_ops::{broadcast_to, masked_fill, nonzero}`;
+  tracked autograd `broadcast_to` and `masked_fill`; and thin PyO3 wrappers
+  for `broadcast_to`, `masked_fill`, and `nonzero`. `masked_fill` now tracks
+  gradients only through the differentiable input, not the mask. Evidence tier:
+  empirical binding and op validation. Evidence: `cargo nextest run -p
+  coeus-ops broadcast masked_fill nonzero` passes with 12 tests and `cargo
+  nextest run -p coeus-python --test binding_tests_ops
+  broadcast_masked_fill_nonzero` passes.
+- [x] [minor] Added Python `FeedForward` binding as a thin PyO3 wrapper over
+  `coeus_nn::transformer::ffn::FeedForward`, preserving `dropout_p` at the
+  boundary and validating it as `0.0 <= p < 1.0`. Evidence tier: empirical
+  binding validation. Evidence: `cargo nextest run -p coeus-python --test
+  binding_tests_ops test_feedforward_module` passes.
+- [x] [patch] Extended optimizer parity with analytical SGD and Adam first-step
+  references. Evidence tier: analytical oracle plus empirical test execution.
+  Evidence: `cargo nextest run -p coeus-nn --test burn_live_parity
+  sgd_step_matches_analytical_reference adam_step_matches_analytical_reference`
+  passes.
+- [x] [patch] Routed WGPU unmasked and causal scaled-dot-product attention
+  forward/backward through on-device WGSL kernels, keeping masked forward as an
+  explicit CPU-reference capability boundary. Evidence tier: empirical
+  differential validation. Evidence: `cargo nextest run -p coeus-wgpu --test
+  wgpu_tests attention` passes with 4 tests.
+- [x] [patch] Completed WGPU shader handling for the expanded unary math
+  opcode set (`recip`, `sign`, `floor`, `ceil`, `round`, `trunc`) and added
+  differential parity tests against `SequentialBackend`. Evidence tier:
+  empirical differential validation. Evidence: `cargo nextest run -p
+  coeus-wgpu --test wgpu_tests test_wgpu_parity_recip test_wgpu_parity_sign
+  test_wgpu_parity_floor test_wgpu_parity_ceil test_wgpu_parity_round
+  test_wgpu_parity_trunc` passes.
 - [x] [patch] Replaced autograd gradient `Arc<Mutex<Tensor<_, _>>>` storage
   with the `GradBuffer` UnsafeCell SSOT and removed the temporary
   Mutex-shaped compatibility shim; optimizers, distributed gradient sync, and
@@ -158,6 +190,10 @@ preserve `coeus-ops::norm` as the L2 short-circuit and avoid adding
   and `pollster` regressions while preserving dev-only Burn benchmark/parity
   edges. Evidence tier: compile-time dependency audit. Evidence:
   `cargo nextest run -p coeus-core --test dependency_policy` passes with 3 tests.
+- [x] [patch] Final MS-66 local gate clean after the WGPU/Python/autograd fixes:
+  `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+  `cargo nextest run --workspace` (489 tests), `cargo test --doc --workspace`,
+  and `cargo doc --workspace --no-deps`.
 - [x] [patch] Added a root-scoped `/prog` ignore entry for transient checkpoint
   transcript artifacts so generated session state is not staged as project
   source. Evidence tier: repository hygiene.

@@ -42,16 +42,30 @@
   returns `(Σ|xᵢ|^p)^(1/p)`. Python `pycoeus.vector_norm(input, ord=2.0)`.
   Verified against `torch.linalg.vector_norm` reference values for p ∈ {1, 2, 3}.
 
+- **WGPU scaled-dot-product attention kernels** — unmasked and causal forward
+  and backward attention now route through WGSL kernels instead of host-side
+  CPU copies; masked forward remains an explicit CPU-reference capability
+  boundary. Evidence tier: empirical differential validation. Evidence:
+  `cargo nextest run -p coeus-wgpu --test wgpu_tests attention` passes with 4
+  tests.
+
+- **WGPU unary shader parity for new math ops** — `recip`, `sign`, `floor`,
+  `ceil`, `round`, and `trunc` now have concrete WGSL expressions in the WGPU
+  unary shader generator and differential tests against `SequentialBackend`.
+  Evidence tier: empirical differential validation. Evidence: `cargo nextest
+  run -p coeus-wgpu --test wgpu_tests test_wgpu_parity_recip
+  test_wgpu_parity_sign test_wgpu_parity_floor test_wgpu_parity_ceil
+  test_wgpu_parity_round test_wgpu_parity_trunc` passes.
+
 ### Changed
 
 - Workspace version bumped `0.2.5` → `0.2.6`.
 - `coeus-nn/Cargo.toml` adds `coeus-optim` as dev-dependency to support optimizer
   parity tests in `burn_live_parity.rs`.
 
+## 0.2.5 - 2026-06-24
 
-  backward gradient masking, and error paths. Evidence:
-  `cargo test -p coeus-python --test binding_tests_ops -- --test-threads=1`
-  passes 21 tests.
+### Added
 
 - **Functional Python nn wrappers** — three stateless free functions added to
   `coeus-python/src/ops.rs` matching `torch.nn.functional.*`:

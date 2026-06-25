@@ -188,6 +188,42 @@ impl PyTensor {
         Ok(Self { inner })
     }
 
+    /// Element-wise reciprocal: 1/x.
+    fn recip(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::recip(&self.inner));
+        Ok(Self { inner })
+    }
+
+    /// Element-wise signum: -1, 0, or 1.
+    fn sign(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::sign(&self.inner));
+        Ok(Self { inner })
+    }
+
+    /// Element-wise floor.
+    fn floor(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::floor(&self.inner));
+        Ok(Self { inner })
+    }
+
+    /// Element-wise ceil.
+    fn ceil(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::ceil(&self.inner));
+        Ok(Self { inner })
+    }
+
+    /// Element-wise round to nearest integer.
+    fn round(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::round(&self.inner));
+        Ok(Self { inner })
+    }
+
+    /// Element-wise truncation toward zero.
+    fn trunc(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::trunc(&self.inner));
+        Ok(Self { inner })
+    }
+
     /// Element-wise power: `self ** exp`.
     ///
     /// `exp` is a scalar `f64` applied uniformly to all elements.

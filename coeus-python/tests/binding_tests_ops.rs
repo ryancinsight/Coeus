@@ -1,8 +1,9 @@
 // ── binding_tests_ops.rs ──
 //
 // Tests for functional ops exposed at the module level: stack, matmul, zeros,
-// ones, full, arange, linspace, abs, sqrt, neg, clamp, max_axis, min_axis,
-// sum, mean, reshape, permute, t, pow, log_sum_exp.
+// ones, full, arange, linspace, abs, sqrt, neg, recip, sign, floor, ceil,
+// round, trunc, clamp, max_axis, min_axis, sum, mean, reshape, permute, t,
+// pow, log_sum_exp.
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -105,6 +106,48 @@ assert n.data == [4.0, -9.0, 1.0, -4.0]
 p = pycoeus.pow(pycoeus.abs(x), 2.0)
 assert abs(p.data[0] - 16.0) < 1e-6
 assert abs(p.data[1] - 81.0) < 1e-6
+"#,
+    );
+}
+
+#[test]
+fn test_recip_sign_floor_ceil_round_trunc() {
+    run_script(
+        r#"
+import pycoeus
+
+x = pycoeus.Tensor([2.0, -3.0, 0.5, -0.5, 0.0], [5])
+
+# free function form
+r = pycoeus.recip(x)
+assert abs(r.data[0] - 0.5) < 1e-9
+assert abs(r.data[1] + 1.0/3.0) < 1e-9
+assert abs(r.data[2] - 2.0) < 1e-9
+
+s = pycoeus.sign(x)
+assert s.data == [1.0, -1.0, 1.0, -1.0, 0.0]
+
+f = pycoeus.floor(x)
+assert f.data == [2.0, -3.0, 0.0, -1.0, 0.0]
+
+c = pycoeus.ceil(x)
+assert c.data == [2.0, -3.0, 1.0, 0.0, 0.0]
+
+ro = pycoeus.round(x)
+assert ro.data[0] == 2.0
+assert ro.data[1] == -3.0
+
+t = pycoeus.trunc(x)
+assert t.data == [2.0, -3.0, 0.0, 0.0, 0.0]
+
+# tensor method form
+x2 = pycoeus.Tensor([1.5, -2.3, 3.8], [3])
+assert abs(x2.recip().data[0] - 1.0/1.5) < 1e-9
+assert x2.sign().data == [1.0, -1.0, 1.0]
+assert x2.floor().data == [1.0, -3.0, 3.0]
+assert x2.ceil().data == [2.0, -2.0, 4.0]
+assert x2.round().data == [2.0, -2.0, 4.0]
+assert x2.trunc().data == [1.0, -2.0, 3.0]
 "#,
     );
 }
@@ -821,6 +864,12 @@ mf = pycoeus.masked_fill(inpg, mask, 9.0)
 pycoeus.sum(mf).backward()
 assert inpg.grad == [1.0, 0.0, 1.0, 0.0], f"masked_fill bwd: {inpg.grad}"
 
+# mask is non-differentiable; a differentiable mask alone must not create a
+# tracked output.
+maskg = pycoeus.Tensor([0.0, 1.0, 0.0, 1.0], [4], requires_grad=True)
+mf_mask_only = pycoeus.masked_fill(inp, maskg, 7.0)
+assert mf_mask_only.requires_grad is False
+
 # shape mismatch error
 try:
     _ = pycoeus.masked_fill(inp, pycoeus.Tensor([1.0, 0.0], [2]), 0.0)
@@ -855,13 +904,22 @@ import pycoeus
 
 # FeedForward d_model=4, d_ff=8
 ffn = pycoeus.FeedForward(4, 8)
+ffn_with_dropout = pycoeus.FeedForward(4, 8, dropout_p=0.5)
 
 x = pycoeus.Tensor([0.1, -0.2, 0.3, -0.4, 0.5, -0.6, 0.7, -0.8], [2, 4])
 out = ffn.forward(x)
 assert out.shape == [2, 4], f"FeedForward output shape: {out.shape}"
+dropout_out = ffn_with_dropout.forward(x)
+assert dropout_out.shape == [2, 4], f"FeedForward dropout output shape: {dropout_out.shape}"
 # Output should be finite and not all the same value
 vals = out.data
 assert any(abs(v) > 0 for v in vals), "FeedForward output all zero"
+
+try:
+    _ = pycoeus.FeedForward(4, 8, dropout_p=1.0)
+    raise AssertionError("dropout_p=1.0 should raise")
+except ValueError:
+    pass
 "#,
     );
 }

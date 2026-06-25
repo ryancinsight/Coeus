@@ -88,3 +88,75 @@ pub fn abs_assign<T: Scalar, B: BackendOps<T>>(input: &mut Tensor<T, B>, backend
 pub fn sqrt_assign<T: Scalar, B: BackendOps<T>>(input: &mut Tensor<T, B>, backend: &B) {
     elementwise_unary_assign(input, backend, UnaryOp::Sqrt);
 }
+
+/// Element-wise reciprocal: 1/x.
+#[inline]
+pub fn recip<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Recip)
+}
+
+/// Element-wise signum: -1, 0, or 1.
+#[inline]
+pub fn sign<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Sign)
+}
+
+/// Element-wise floor.
+#[inline]
+pub fn floor<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Floor)
+}
+
+/// Element-wise ceil.
+#[inline]
+pub fn ceil<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Ceil)
+}
+
+/// Element-wise round to nearest integer.
+#[inline]
+pub fn round<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Round)
+}
+
+/// Element-wise truncation toward zero.
+#[inline]
+pub fn trunc<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Trunc)
+}
+
+/// In-place element-wise reciprocal.
+#[inline]
+pub fn recip_assign<T: Scalar, B: BackendOps<T>>(input: &mut Tensor<T, B>, backend: &B) {
+    elementwise_unary_assign(input, backend, UnaryOp::Recip);
+}
+
+/// In-place element-wise signum.
+#[inline]
+pub fn sign_assign<T: Scalar, B: BackendOps<T>>(input: &mut Tensor<T, B>, backend: &B) {
+    elementwise_unary_assign(input, backend, UnaryOp::Sign);
+}
+
+/// In-place element-wise floor.
+#[inline]
+pub fn floor_assign<T: Scalar, B: BackendOps<T>>(input: &mut Tensor<T, B>, backend: &B) {
+    elementwise_unary_assign(input, backend, UnaryOp::Floor);
+}
+
+/// In-place element-wise ceil.
+#[inline]
+pub fn ceil_assign<T: Scalar, B: BackendOps<T>>(input: &mut Tensor<T, B>, backend: &B) {
+    elementwise_unary_assign(input, backend, UnaryOp::Ceil);
+}
+
+/// In-place element-wise round.
+#[inline]
+pub fn round_assign<T: Scalar, B: BackendOps<T>>(input: &mut Tensor<T, B>, backend: &B) {
+    elementwise_unary_assign(input, backend, UnaryOp::Round);
+}
+
+/// In-place element-wise truncation.
+#[inline]
+pub fn trunc_assign<T: Scalar, B: BackendOps<T>>(input: &mut Tensor<T, B>, backend: &B) {
+    elementwise_unary_assign(input, backend, UnaryOp::Trunc);
+}

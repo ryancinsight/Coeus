@@ -355,6 +355,19 @@ with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* heph
     differential coverage against the public CPU attention path, including causal
     masking and Q/K/V gradients. Evidence: `cargo nextest run -p coeus-wgpu
     --test wgpu_tests attention` passes.
+  - [x] [patch] Routed WGPU unmasked and causal scaled-dot-product attention
+    forward/backward through on-device WGSL kernels instead of host-side CPU
+    copies; masked forward remains an explicit CPU-reference capability
+    boundary. Evidence tier: empirical differential validation. Evidence:
+    `cargo nextest run -p coeus-wgpu --test wgpu_tests attention` passes with 4
+    tests.
+  - [x] [patch] Added concrete WGPU shader expressions and differential tests
+    for the expanded unary math opcode set (`recip`, `sign`, `floor`, `ceil`,
+    `round`, `trunc`) against `SequentialBackend`. Evidence tier: empirical
+    differential validation. Evidence: `cargo nextest run -p coeus-wgpu --test
+    wgpu_tests test_wgpu_parity_recip test_wgpu_parity_sign
+    test_wgpu_parity_floor test_wgpu_parity_ceil test_wgpu_parity_round
+    test_wgpu_parity_trunc` passes.
   - [x] [patch] Added CUDA scaled-dot-product attention differential coverage
     for unmasked and causal forward attention, masked CPU-boundary behavior, and
     Q/K/V gradients against `SequentialBackend`. Evidence:
@@ -500,13 +513,31 @@ that Coeus previously only supported at `p = 2` via `coeus_ops::norm`.
   covers p ∈ {0.5, 1, 2, 3}, ord error paths (0, negative, ±∞), and
   empty-tensor errors. Evidence: `cargo nextest run -p coeus-python
   --test binding_tests_ops test_vector_norm_p_orders` passes.
+- **Shape and mask parity surface** — `coeus_ops::{broadcast_to,
+  masked_fill, nonzero}` plus tracked autograd `broadcast_to`/`masked_fill`
+  and PyO3 wrappers close the current Torch/JAX shape utility gap. The
+  `masked_fill` autograd contract treats the mask as non-differentiable and
+  only propagates gradients through `input`. Evidence: `cargo nextest run -p
+  coeus-ops broadcast masked_fill nonzero` passes with 12 tests and `cargo
+  nextest run -p coeus-python --test binding_tests_ops
+  broadcast_masked_fill_nonzero` passes.
+- **Python FeedForward wrapper** — `pycoeus.FeedForward` is a thin PyO3 class
+  over `coeus_nn::transformer::ffn::FeedForward`; constructor validation keeps
+  `dropout_p` in `[0, 1)` and forward releases the GIL around Rust work.
+  Evidence: `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_feedforward_module` passes.
+- **Optimizer parity** — analytical SGD and Adam first-step references extend
+  `coeus-nn/tests/burn_live_parity.rs` to 50 tests. Evidence: `cargo nextest
+  run -p coeus-nn --test burn_live_parity
+  sgd_step_matches_analytical_reference adam_step_matches_analytical_reference`
+  passes.
 - **MS-66 verification (2026-06-24)** — `cargo check --workspace`,
   `cargo clippy --workspace --all-targets -- -D warnings`,
-  `cargo fmt --check`, `cargo test --doc --workspace` all clean.
-  `cargo nextest run --workspace` passes 464 tests, up from 455
-  baseline (8 new tests in `coeus-ops reduction::stats::tests`, 1 new
-  binding test). Pre-existing `statistical_ops_match_burn` retained
-  verbatim, extended by 3 cases in the same test function.
+  `cargo fmt --check`, `cargo nextest run --workspace`, `cargo test --doc
+  --workspace`, and `cargo doc --workspace --no-deps` all clean. `cargo
+  nextest run --workspace` passes 489 tests, covering the 0.2.6 vector_norm,
+  shape-op, Python wrapper, optimizer parity, WGPU attention, and WGPU unary
+  shader additions.
 
 ### Decisions:
 - **No `BinaryOp::Pow`**: the `Pow` decision remains owned by
