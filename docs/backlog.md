@@ -1,5 +1,29 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-71: torch.dot / torch.cross Torch parity [minor]
+
+### Objective
+Add Rust-core `dot` and `cross` ops plus thin PyO3 wrappers for
+`pycoeus.dot` and `pycoeus.cross`, with value-semantic tests against documented
+manual Torch/JAX/MLX-compatible oracles.
+
+### Completed items
+- [x] [minor] Consolidated BatchNorm autograd backward across 1-D/2-D/3-D into
+  one const-generic `BatchNormNode<T, B, DIM>` and `BatchNormArgs<T, B, DIM>`,
+  replacing the old per-rank argument/node names as a documented pre-1.0 minor
+  break. Evidence tier: empirical value-semantic validation recorded in
+  `docs/checklist.md`.
+- [x] [patch] Split `coeus-leto` dynamic-rank dispatch into operation-family
+  leaf modules while preserving the public `coeus_leto::dispatch::*` re-export
+  surface. Evidence tier: compile-time lint/doc validation plus empirical
+  contract tests recorded in `docs/checklist.md`.
+
+### In flight
+- [ ] [minor] Add `coeus_ops::dot`, `coeus_ops::cross`, and thin PyO3 wrappers
+  with manual oracle tests; complete the 0.2.11 surface.
+
+---
+
 ## Sprint MS-70: transposed convolution, scalar reductions, and backend docs [minor]
 
 ### Completed items

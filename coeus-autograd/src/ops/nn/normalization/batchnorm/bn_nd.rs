@@ -5,7 +5,67 @@ use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
-pub struct BatchNorm3dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+// ── Permute/reshape dispatch helpers ──
+
+fn bn_permute_to_nhwc<T, B, const DIM: usize>(tensor: &Tensor<T, B>, backend: &B) -> Tensor<T, B>
+where
+    T: Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+{
+    match DIM {
+        1 => tensor.permute(&[0, 2, 1]).to_contiguous_on(backend),
+        2 => tensor.permute(&[0, 2, 3, 1]).to_contiguous_on(backend),
+        3 => tensor.permute(&[0, 2, 3, 4, 1]).to_contiguous_on(backend),
+        _ => panic!("bn_permute_to_nhwc: unsupported DIM {DIM}"),
+    }
+}
+
+fn bn_permute_from_nhwc<T, B, const DIM: usize>(tensor: &Tensor<T, B>, backend: &B) -> Tensor<T, B>
+where
+    T: Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+{
+    match DIM {
+        1 => tensor.permute(&[0, 2, 1]).to_contiguous_on(backend),
+        2 => tensor.permute(&[0, 3, 1, 2]).to_contiguous_on(backend),
+        3 => tensor.permute(&[0, 4, 1, 2, 3]).to_contiguous_on(backend),
+        _ => panic!("bn_permute_from_nhwc: unsupported DIM {DIM}"),
+    }
+}
+
+fn bn_reshape_to_flat<T, B, const DIM: usize>(
+    tensor: Tensor<T, B>,
+    m: usize,
+    c: usize,
+) -> Tensor<T, B>
+where
+    T: Scalar,
+    B: coeus_ops::BackendOps<T>,
+{
+    tensor.reshape([m, c])
+}
+
+fn bn_reshape_from_flat<T, B, const DIM: usize>(
+    tensor: Tensor<T, B>,
+    n: usize,
+    spatial: &[usize],
+    c: usize,
+) -> Tensor<T, B>
+where
+    T: Scalar,
+    B: coeus_ops::BackendOps<T>,
+{
+    match DIM {
+        1 => tensor.reshape([n, spatial[0], c]),
+        2 => tensor.reshape([n, spatial[0], spatial[1], c]),
+        3 => tensor.reshape([n, spatial[0], spatial[1], spatial[2], c]),
+        _ => panic!("bn_reshape_from_flat: unsupported DIM {DIM}"),
+    }
+}
+
+// ── Backward node ──
+
+pub struct BatchNormNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> {
     pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub w_reshaped_captured: Tensor<T, B>,
@@ -17,16 +77,21 @@ pub struct BatchNorm3dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub two_const: Tensor<T, B>,
     pub n: usize,
     pub c: usize,
-    pub d: usize,
-    pub h: usize,
-    pub w: usize,
+    pub spatial: [usize; 3],
     pub m: usize,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for BatchNorm3dNode<T, B> {
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BackwardNode<T, B>
+    for BatchNormNode<T, B, DIM>
+{
     #[inline]
     fn op_name(&self) -> &'static str {
-        "batchnorm3d"
+        match DIM {
+            1 => "batchnorm1d",
+            2 => "batchnorm2d",
+            3 => "batchnorm3d",
+            _ => "batchnormNd",
+        }
     }
 
     #[inline]
@@ -43,10 +108,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Bat
     fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
 
-        let go_ndhwc = grad_out
-            .permute(&[0, 2, 3, 4, 1])
-            .to_contiguous_on(&backend); // [N, D, H, W, C]
-        let go_flat = go_ndhwc.reshape([self.m, self.c]); // [M, C]
+        let go_nhwc = bn_permute_to_nhwc::<T, B, DIM>(grad_out, &backend); // [N, ..., C]
+        let go_flat = bn_reshape_to_flat::<T, B, DIM>(go_nhwc, self.m, self.c); // [M, C]
 
         // ── dL/dbeta = sum(dy, dim=0) [C] ──
         if let Some(Some(ref gb)) = input_grads.get(2) {
@@ -92,57 +155,39 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Bat
             coeus_ops::sub_assign(&mut term1, &term3, &backend);
             let dx_flat = term1; // [M, C]
 
-            let dx_ndhwc = dx_flat.reshape([self.n, self.d, self.h, self.w, self.c]);
-            let dx_ncdhw = dx_ndhwc
-                .permute(&[0, 4, 1, 2, 3])
-                .to_contiguous_on(&backend);
+            let dx_nhwc = bn_reshape_from_flat::<T, B, DIM>(dx_flat, self.n, &self.spatial, self.c);
+            let dx_nchw = bn_permute_from_nhwc::<T, B, DIM>(&dx_nhwc, &backend);
 
             let gl = gx.write();
-            coeus_ops::add_assign(gl, &dx_ncdhw, &backend);
+            coeus_ops::add_assign(gl, &dx_nchw, &backend);
         }
     }
 }
 
-/// Pre-computed intermediates and spatial dimensions for [`batchnorm3d`].
-///
-/// Groups the tensor results produced during the forward pass (needed for backward)
-/// together with the shape scalars `n`, `c`, `d`, `h`, `w`, `m` so that `batchnorm3d`
-/// accepts a single typed descriptor instead of sixteen positional arguments.
-pub struct BatchNorm3dArgs<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
-    /// Forward-pass output tensor `[N, C, D, H, W]`.
+// ── Args ──
+
+/// Pre-computed intermediates and spatial dimensions for tracked batch normalization.
+pub struct BatchNormArgs<T: Scalar, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> {
     pub out_tensor: Tensor<T, B>,
-    /// Normalised input `x_hat = (x - mu) / sqrt(var + eps)`, shape `[M, C]`.
     pub x_hat: Tensor<T, B>,
-    /// Centred input `x - mu`, shape `[M, C]`.
     pub xmu: Tensor<T, B>,
-    /// Inverse standard deviation `1 / sqrt(var + eps)`, shape `[1, C]`.
     pub istdev: Tensor<T, B>,
-    /// Scalar tensor holding the batch count `M = N * D * H * W`, shape `[1]`.
     pub m_const: Tensor<T, B>,
-    /// Constant tensor holding `-0.5`, shape `[1]`.
     pub minus_half: Tensor<T, B>,
-    /// Constant tensor holding `2.0`, shape `[1]`.
     pub two_const: Tensor<T, B>,
-    /// Batch size.
     pub n: usize,
-    /// Channel count.
     pub c: usize,
-    /// Depth.
-    pub d: usize,
-    /// Spatial height.
-    pub h: usize,
-    /// Spatial width.
-    pub w: usize,
-    /// Spatial batch size `N * D * H * W`.
+    pub spatial: [usize; 3],
     pub m: usize,
 }
 
-/// Tracked 3D Batch Normalization.
-pub fn batchnorm3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+// ── Tracked forward ──
+
+fn batchnorm_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
     bias: &Var<T, B>,
-    args: BatchNorm3dArgs<T, B>,
+    args: BatchNormArgs<T, B, DIM>,
 ) -> Var<T, B> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input)
@@ -162,7 +207,7 @@ pub fn batchnorm3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let inputs = vec![input.clone(), weight.clone(), bias.clone()];
         let w_reshaped_captured = weight.tensor.reshape([1, args.c]);
 
-        let node = BatchNorm3dNode {
+        let node = BatchNormNode::<T, B, DIM> {
             output_grad,
             inputs,
             w_reshaped_captured,
@@ -174,9 +219,7 @@ pub fn batchnorm3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             two_const: args.two_const,
             n: args.n,
             c: args.c,
-            d: args.d,
-            h: args.h,
-            w: args.w,
+            spatial: args.spatial,
             m: args.m,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
@@ -189,4 +232,34 @@ pub fn batchnorm3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         grad,
         creator,
     }
+}
+
+/// Tracked 1D Batch Normalization.
+pub fn batchnorm1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    weight: &Var<T, B>,
+    bias: &Var<T, B>,
+    args: BatchNormArgs<T, B, 1>,
+) -> Var<T, B> {
+    batchnorm_nd_inner::<T, B, 1>(input, weight, bias, args)
+}
+
+/// Tracked 2D Batch Normalization.
+pub fn batchnorm2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    weight: &Var<T, B>,
+    bias: &Var<T, B>,
+    args: BatchNormArgs<T, B, 2>,
+) -> Var<T, B> {
+    batchnorm_nd_inner::<T, B, 2>(input, weight, bias, args)
+}
+
+/// Tracked 3D Batch Normalization.
+pub fn batchnorm3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    weight: &Var<T, B>,
+    bias: &Var<T, B>,
+    args: BatchNormArgs<T, B, 3>,
+) -> Var<T, B> {
+    batchnorm_nd_inner::<T, B, 3>(input, weight, bias, args)
 }

@@ -2,19 +2,56 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: Sprint MS-70 (transposed convolution and backend docs) [IN PROGRESS]
-**Objective**: Complete the 0.2.10 transposed-convolution, scalar reduction,
-no-grad, and in-place PyTensor surface while keeping Python as a thin PyO3
-wrapper over Rust logic. Document GPU backend capability boundaries precisely
-and verify crate docs without claiming unmeasured performance wins.
-**Target version**: 0.2.10.
+### Current Sprint: Sprint MS-71 (torch.dot / torch.cross Torch parity) [IN PROGRESS]
+**Objective**: Add Rust-core `dot` and `cross` ops that close the remaining `torch.dot` /
+`torch.cross` Torch parity gaps; expose them as thin PyO3 wrappers
+(`pycoeus.dot`, `pycoeus.cross`) with value-semantic tests against a documented
+manual oracle (Burn 0.16 has no Tensor::dot/::cross). No new `BinaryOp` opcode;
+compose on existing `mul` + `sum` for dot, and per-channel index arithmetic for
+cross. Python remains a thin PyO3 wrapper over the same Rust-core.
+**Target version**: 0.2.11.
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
 > oracle values; wgpu parity.rs verifies implemented GPU paths against the CPU reference;
 > coeus-python gains 20+ new functional ops (stack, matmul, constructors, abs/sqrt/neg,
-> clamp, max/min_axis, sum/mean, reshape, permute, t, pow, arange, linspace, etc.).
+> clamp, max/min/min/max_axis, sum/mean, reshape, permute, t, pow, arange, linspace, etc.).
 
 ### Current Verification Note (2026-06-25)
+
+- [x] [minor] Closed MS-70 (0.2.10): added `ConvTranspose1d`/`ConvTranspose2d`
+  (host-side scatter default + `coeus-nn` modules + `PyConvTranspose{1,2}d`
+  class wrappers), Rust-core global `amax`/`amin`/`prod` reductions with empty
+  ValueError-surfacing bindings, `pycoeus.no_grad()` structural context manager,
+  in-place PyTensor methods (`fill_`/`zero_`/`one_`/`__iadd__`/`__isub__`/
+  `__imul__`), and crate-level rustdoc for `coeus-cuda` and `coeus-wgpu`
+  backend capability boundaries. Empirical value-semantic validation;
+  workspace 556 tests green; clippy/fmt/nextest/doctest gates clean.
+- [x] [patch] Cached `MoiraiBackend::num_threads()` via `OnceLock<AtomicUsize>`
+  (Relaxed ordering, immutable-after-first-store) to remove the per-conv-kernel
+  `std::thread::available_parallelism()` syscall. Sequence (SequentialBackend,
+  inline `1`) is unchanged. Evidence: `cargo nextest run -p coeus-core
+  backend::` passes with 5 race-free tests, including the 8-thread contention
+  hammer, and the workspace 556 baseline is unbroken by the cache.
+- [ ] [minor] MS-71 IN FLIGHT: add `coeus_ops::dot` (flat inner product via
+  `mul` + `sum`) and `coeus_ops::cross` (per-channel index arithmetic along `dim`
+  with size-3 axis assertion); expose `pycoeus.dot(input, other)` and
+  `pycoeus.cross(input, other, dim=...)` PyO3 wrappers; document the manual
+  oracle (Burn 0.16 has no Tensor::dot/::cross); bump to 0.2.11 on completion.
+- [x] [minor] Consolidated BatchNorm autograd backward through one
+  const-generic `BatchNormNode<T, B, DIM>` and `BatchNormArgs<T, B, DIM>`,
+  replacing the old per-rank argument/node names as a documented pre-1.0 minor
+  break. Evidence tier: empirical value-semantic validation. Evidence:
+  `cargo nextest run -p coeus-nn --test nn_norm_tests batchnorm` passes with 7
+  tests, `cargo nextest run -p coeus-nn --test nn_tests batchnorm3d` passes
+  with 1 test, and `cargo nextest run -p coeus-autograd` passes with 27 tests.
+- [x] [patch] Split the monolithic `coeus-leto/src/dispatch.rs` into
+  operation-family leaf modules under `coeus-leto/src/dispatch/`, preserving
+  the public `coeus_leto::dispatch::*` re-export surface. Evidence tier:
+  compile-time lint/doc validation plus empirical contract validation.
+  Evidence: `cargo nextest run -p coeus-leto` passes with 24 tests,
+  `cargo clippy -p coeus-autograd -p coeus-nn -p coeus-leto --all-targets --
+  -D warnings` passes, and `cargo doc -p coeus-autograd -p coeus-nn -p
+  coeus-leto --no-deps` passes.
 
 - [x] [minor] Added `burn 0.16` as dev-dep to `coeus-nn` and `coeus-tensor`; production
   dependency policy test unaffected (burn forbidden in `[dependencies]`, allowed in

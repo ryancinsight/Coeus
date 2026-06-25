@@ -139,9 +139,7 @@ pub use ops::{
     // Shape ops
     where_cond,
     AttentionMask,
-    BatchNorm1dArgs,
-    BatchNorm2dArgs,
-    BatchNorm3dArgs,
+    BatchNormArgs,
     CausalMask,
     NullMask,
 };

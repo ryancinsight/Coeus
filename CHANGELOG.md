@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.11 - 2026-06-25
+
+### Changed
+
+- **BatchNorm autograd consolidation** — replaced separate
+  `BatchNorm1dNode`/`BatchNorm2dNode`/`BatchNorm3dNode` implementations with
+  one const-generic `BatchNormNode<T, B, DIM>` and shared
+  `BatchNormArgs<T, B, DIM>`, preserving 1-D/2-D/3-D module behavior while
+  removing per-rank backward duplication.
+- **coeus-leto dispatch hierarchy** — split the monolithic dynamic-rank dispatch
+  module into operation-family leaf modules (`elementwise`, `init`, `layout`,
+  `linalg`, `reductions`, `sparse`, `structural`) while preserving the public
+  `coeus_leto::dispatch::*` re-export surface.
+
+### Breaking
+
+- Removed the public `BatchNorm1dArgs`, `BatchNorm2dArgs`, and
+  `BatchNorm3dArgs` names in favor of `BatchNormArgs<T, B, DIM>`. This is a
+  pre-1.0 minor-version API break with no compatibility aliases.
+
 ## 0.2.10 - 2026-06-25
 
 ### Added

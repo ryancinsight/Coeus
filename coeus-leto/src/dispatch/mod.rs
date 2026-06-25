@@ -1,0 +1,43 @@
+use leto::{LetoError, Result};
+
+/// Largest dynamic rank the const-rank dispatch resolves. Coeus activations and
+/// Apollo transforms stay well within this bound; ranks beyond it are a logged
+/// error rather than silent truncation.
+pub const MAX_DISPATCH_RANK: usize = 6;
+
+/// Convert a dynamic-rank slice to a const-rank array for leto dispatch calls.
+pub(crate) fn shape_n<const N: usize>(shape: &[usize]) -> Result<[usize; N]> {
+    shape.try_into().map_err(
+        |_: std::array::TryFromSliceError| LetoError::ShapeMismatch {
+            lhs: vec![N],
+            rhs: vec![shape.len()],
+        },
+    )
+}
+
+/// Elementwise binary and unary operation dispatch (add, sub, mul, div, map).
+pub mod elementwise;
+/// Tensor initialization dispatch (from_shape_fn, uniform, normal).
+pub mod init;
+/// Layout metadata dispatch (reshape, permute, broadcast, contiguous).
+pub mod layout;
+/// Linear algebra dispatch (matmul, batched_matmul, accumulate variants).
+pub mod linalg;
+/// Reduction and scan dispatch (sum, mean, max, min, cumsum, argmax, argmin).
+pub mod reductions;
+/// Sparse matrix dispatch (CSR mat-vec and mat-mat).
+pub mod sparse;
+/// Structural tensor ops dispatch (pad, concat, split, stack).
+pub mod structural;
+
+pub use elementwise::{elementwise_add_into, elementwise_binary_into, elementwise_unary_into};
+pub use init::{from_shape_fn_values, normal_values, uniform_values};
+pub use layout::{
+    broadcast_layout, broadcast_shape, contiguous_values, permute_layout, reshape_layout,
+};
+pub use linalg::{
+    batched_matmul_accumulate_into, batched_matmul_into, matmul_accumulate_into, matmul_into,
+};
+pub use reductions::{argmax_into, argmin_into, cumsum_into, reduce_into, suffix_sum_into};
+pub use sparse::{spmm_into, spmv_into, CsrDispatch};
+pub use structural::{concat_values, pad_values, split_values, stack_values};

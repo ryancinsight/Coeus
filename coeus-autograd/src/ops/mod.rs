@@ -24,8 +24,7 @@ pub use nn::{
     avg_pool2d, avg_pool3d, batchnorm1d, batchnorm2d, batchnorm3d, binary_cross_entropy, conv1d,
     conv2d, conv3d, conv_transpose1d, cosine_embedding_loss, cross_entropy_loss, dropout,
     huber_loss, layernorm, log_softmax, max_pool2d, max_pool3d, nll_loss, rmsnorm, sdp_attention,
-    softmax, AttentionMask, BatchNorm1dArgs, BatchNorm2dArgs, BatchNorm3dArgs, CausalMask,
-    NullMask,
+    softmax, AttentionMask, BatchNormArgs, CausalMask, NullMask,
 };
 
 pub use embedding::embedding;

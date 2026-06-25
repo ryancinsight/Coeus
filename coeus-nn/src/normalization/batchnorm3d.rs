@@ -201,7 +201,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for BatchNorm
             input,
             &self.weight,
             &self.bias,
-            coeus_autograd::BatchNorm3dArgs {
+            coeus_autograd::BatchNormArgs {
                 out_tensor,
                 x_hat,
                 xmu,
@@ -211,9 +211,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for BatchNorm
                 two_const: self.two_const.clone(),
                 n,
                 c,
-                d,
-                h,
-                w,
+                spatial: [d, h, w],
                 m,
             },
         )

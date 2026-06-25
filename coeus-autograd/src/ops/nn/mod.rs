@@ -16,9 +16,6 @@ pub use log_softmax::log_softmax;
 pub use loss::{
     binary_cross_entropy, cosine_embedding_loss, cross_entropy_loss, huber_loss, nll_loss,
 };
-pub use normalization::{
-    batchnorm1d, batchnorm2d, batchnorm3d, layernorm, rmsnorm, BatchNorm1dArgs, BatchNorm2dArgs,
-    BatchNorm3dArgs,
-};
+pub use normalization::{batchnorm1d, batchnorm2d, batchnorm3d, layernorm, rmsnorm, BatchNormArgs};
 pub use pool::{avg_pool2d, avg_pool3d, max_pool2d, max_pool3d};
 pub use softmax::softmax;
