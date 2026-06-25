@@ -22,3 +22,10 @@ cuda-async   = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-as
 
 [features]
 cuda = ["dep:cutile", "dep:cuda-core", "dep:cuda-async", "dep:themis", "hephaestus-cuda/cuda"]
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "ops_bench"
+harness = false
