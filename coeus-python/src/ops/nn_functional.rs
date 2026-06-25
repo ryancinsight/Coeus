@@ -249,3 +249,51 @@ pub fn f_cross_entropy(input: &PyTensor, targets: Vec<usize>, py: Python<'_>) ->
     let inner = py.allow_threads(|| coeus_nn::cross_entropy_loss(&input.inner, &targets));
     PyTensor::from_var(inner)
 }
+
+/// Functional (stateless) scaled dot-product attention.
+///
+/// Equivalent to `torch.nn.functional.scaled_dot_product_attention` /
+/// `F.scaled_dot_product_attention`.
+///
+/// # Shapes
+/// - `query`:  `[batch, seq_q, d_k]`
+/// - `key`:    `[batch, seq_k, d_k]`
+/// - `value`:  `[batch, seq_k, d_v]`
+///
+/// Returns the attended output `[batch, seq_q, d_v]`.
+#[pyfunction]
+#[pyo3(signature = (query, key, value, attn_mask = None, scale = None, is_causal = false))]
+pub fn scaled_dot_product_attention(
+    query: &PyTensor,
+    key: &PyTensor,
+    value: &PyTensor,
+    attn_mask: Option<&PyTensor>,
+    scale: Option<f64>,
+    is_causal: bool,
+    py: Python<'_>,
+) -> PyTensor {
+    let q = query.inner.clone();
+    let k = key.inner.clone();
+    let v = value.inner.clone();
+    let mask = attn_mask.map(|m| m.inner.clone());
+    let d_k = q.tensor.shape().last().copied().unwrap_or(1);
+    let scale = scale.unwrap_or_else(|| 1.0 / (d_k as f64).sqrt());
+
+    let inner = py.allow_threads(move || {
+        let (out, _attn) = if is_causal {
+            coeus_autograd::sdp_attention::<
+                f64,
+                coeus_core::MoiraiBackend,
+                coeus_autograd::CausalMask,
+            >(&q, &k, &v, mask.as_ref(), scale)
+        } else {
+            coeus_autograd::sdp_attention::<
+                f64,
+                coeus_core::MoiraiBackend,
+                coeus_autograd::NullMask,
+            >(&q, &k, &v, mask.as_ref(), scale)
+        };
+        out
+    });
+    PyTensor::from_var(inner)
+}

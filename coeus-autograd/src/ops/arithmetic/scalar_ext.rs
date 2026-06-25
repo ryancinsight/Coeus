@@ -1,4 +1,7 @@
-use super::scalar::{scalar_add as free_scalar_add, scalar_div as free_scalar_div, scalar_mul as free_scalar_mul, scalar_sub as free_scalar_sub};
+use super::scalar::{
+    scalar_add as free_scalar_add, scalar_div as free_scalar_div, scalar_mul as free_scalar_mul,
+    scalar_sub as free_scalar_sub,
+};
 use crate::var::Var;
 use coeus_core::Scalar;
 

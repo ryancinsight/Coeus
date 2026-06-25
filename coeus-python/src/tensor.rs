@@ -757,6 +757,91 @@ impl PyTensor {
         self.inner.tensor = new_t;
         Ok(())
     }
+
+    // ── Dtype cast methods ────────────────────────────────────────────────────
+
+    /// Return a copy as float64 (identity — internal storage is always f64).
+    ///
+    /// Matches `tensor.float()` / `tensor.to(torch.float32)` in PyTorch.
+    fn float(&self) -> Self {
+        self.clone()
+    }
+
+    /// Alias for `float()` — returns a float64 copy.
+    ///
+    /// Matches `tensor.double()` / `tensor.to(torch.float64)` in PyTorch.
+    fn double(&self) -> Self {
+        self.clone()
+    }
+
+    /// Return a copy with values truncated to integer (stored as f64).
+    ///
+    /// Equivalent to `tensor.long()` / `tensor.to(torch.int64)` in PyTorch.
+    /// Fractional parts are discarded toward zero.
+    fn long(&self) -> Self {
+        let data: Vec<f64> = self
+            .inner
+            .tensor
+            .to_contiguous()
+            .as_slice()
+            .iter()
+            .map(|&v| (v as i64) as f64)
+            .collect();
+        let shape = self.inner.tensor.shape().to_vec();
+        let t = coeus_tensor::Tensor::from_slice(shape, &data);
+        Self {
+            inner: coeus_autograd::Var::new(t, false),
+        }
+    }
+
+    /// Alias for `long()` — truncates to integer values.
+    ///
+    /// Matches `tensor.int()` in PyTorch.
+    fn int(&self) -> Self {
+        self.long()
+    }
+
+    /// Return a copy with values quantized to float16 precision (stored as f64).
+    ///
+    /// Equivalent to `tensor.half()` / `tensor.to(torch.float16)` in PyTorch.
+    /// Values are round-tripped through the `half::f16` representation.
+    fn half(&self) -> Self {
+        let data: Vec<f64> = self
+            .inner
+            .tensor
+            .to_contiguous()
+            .as_slice()
+            .iter()
+            .map(|&v| f64::from(half::f16::from_f64(v)))
+            .collect();
+        let shape = self.inner.tensor.shape().to_vec();
+        let t = coeus_tensor::Tensor::from_slice(shape, &data);
+        Self {
+            inner: coeus_autograd::Var::new(t, false),
+        }
+    }
+
+    /// Cast to the dtype given by a string: `"float"`, `"double"`, `"long"`, `"int"`, `"half"`.
+    ///
+    /// Matches `tensor.to(dtype=...)` in PyTorch (string-dispatch variant).
+    fn to(&self, dtype: &str) -> PyResult<Self> {
+        match dtype {
+            "float" | "float32" | "float64" | "double" => Ok(self.float()),
+            "long" | "int64" => Ok(self.long()),
+            "int" | "int32" => Ok(self.int()),
+            "half" | "float16" => Ok(self.half()),
+            other => Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "to: unknown dtype '{other}'; supported: float, double, long, int, half, float16, float32, float64, int32, int64"
+            ))),
+        }
+    }
+
+    /// Return a copy matching the scalar type of `other` (always f64 in this implementation).
+    ///
+    /// Equivalent to `tensor.type_as(other)` in PyTorch.
+    fn type_as(&self, _other: &PyTensor) -> Self {
+        self.clone()
+    }
 }
 
 /// Python iterator over the first dimension of a `PyTensor`.

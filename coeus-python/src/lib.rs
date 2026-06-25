@@ -121,6 +121,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyMultiHeadAttention>()?;
     m.add_class::<nn::PyRotaryEmbedding>()?;
     m.add_class::<nn::PyFeedForward>()?;
+    m.add_class::<nn::PyScaledDotProductAttention>()?;
     m.add_class::<PyLocalCommunicator>()?;
     m.add_class::<PyTcpMesh>()?;
     m.add_class::<PyTcpCommunicator>()?;
@@ -177,6 +178,8 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::full, m)?)?;
     m.add_function(wrap_pyfunction!(ops::arange, m)?)?;
     m.add_function(wrap_pyfunction!(ops::linspace, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::logspace, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::geomspace, m)?)?;
     m.add_function(wrap_pyfunction!(ops::reshape, m)?)?;
     m.add_function(wrap_pyfunction!(ops::permute, m)?)?;
     m.add_function(wrap_pyfunction!(ops::t, m)?)?;
@@ -258,6 +261,11 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::amax, m)?)?;
     m.add_function(wrap_pyfunction!(ops::amin, m)?)?;
     m.add_function(wrap_pyfunction!(ops::prod, m)?)?;
+    // vector arithmetic (dot / cross)
+    m.add_function(wrap_pyfunction!(ops::dot, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::cross, m)?)?;
+    // Functional attention
+    m.add_function(wrap_pyfunction!(ops::scaled_dot_product_attention, m)?)?;
 
     Ok(())
 }

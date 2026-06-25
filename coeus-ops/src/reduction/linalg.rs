@@ -248,17 +248,20 @@ mod tests {
     #[test]
     fn cross_2d_per_col_dim_first() {
         // shape [3, 3] with dim=0 (first axis is the 3-vector slice axis).
-        // Each ROW of the tensor is a 3-vector; cross product per row.
-        //   row 0: [1, 0, 0] × [0, 0, 5] = [0·0 - 0·0, 0·0 - 1·5, 1·0 - 0·0] = [0, -5, 0]
-        //   row 1: [0, 2, 0] × [0, 0, 0] = [0·0 - 0·0, 0·0 - 0·0, 0·0 - 2·0] = [0, 0, 0]
-        //   row 2: [0, 0, 4] × [5, 0, 0] = [0·0 - 4·0, 4·5 - 0·0, 0·0 - 0·5] = [0, 20, 0]
+        // Each COLUMN of the tensor is a 3-vector; cross product per column.
+        //   col 0: a[:,0]=[1,0,0] × b[:,0]=[0,0,5] = [0, -5, 0]
+        //   col 1: a[:,1]=[0,2,0] × b[:,1]=[0,0,0] = [0, 0, 0]
+        //   col 2: a[:,2]=[0,0,4] × b[:,2]=[5,0,0] = [0, 20, 0]
+        //
+        // Output is row-major [3, 3]: column j's three components land at
+        // storage[0*3+j], storage[1*3+j], storage[2*3+j].
         let a = t_2d(3, 3, &[1.0_f32, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 4.0]);
         let b = t_2d(3, 3, &[0.0_f32, 0.0, 5.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0]);
         let out = cross::<f32, B>(&a, &b, 0);
         assert_eq!(out.shape(), &[3, 3]);
         assert_eq!(
             out.as_slice(),
-            &[0.0_f32, -5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 20.0, 0.0]
+            &[0.0_f32, 0.0, 0.0, -5.0, 0.0, 20.0, 0.0, 0.0, 0.0]
         );
     }
 

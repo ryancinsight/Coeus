@@ -1,7 +1,103 @@
 use crate::tensor::{PyStateDict, PyTensor};
 use pyo3::prelude::*;
 
-/// Python-exposed Multi-Head Attention layer.
+/// Stateless Scaled Dot-Product Attention module.
+///
+/// Implements `F.scaled_dot_product_attention` semantics as a callable `nn.Module`.
+///
+/// # Shapes
+/// - `query`:  `[batch, seq_q, d_k]`
+/// - `key`:    `[batch, seq_k, d_k]`
+/// - `value`:  `[batch, seq_k, d_v]`
+///
+/// Returns `[batch, seq_q, d_v]`.
+///
+/// # Example
+/// ```python
+/// sdpa = pycoeus.ScaledDotProductAttention(scale=0.125)
+/// out = sdpa.forward(q, k, v)
+/// ```
+#[pyclass(name = "ScaledDotProductAttention")]
+#[derive(Clone)]
+pub struct PyScaledDotProductAttention {
+    /// Optional scaling factor applied before the softmax.  If `None` the
+    /// default `1 / sqrt(d_k)` scaling is computed at forward-pass time.
+    #[pyo3(get)]
+    pub scale: Option<f64>,
+    /// If `true` applies a causal lower-triangular mask.
+    #[pyo3(get)]
+    pub is_causal: bool,
+}
+
+#[pymethods]
+impl PyScaledDotProductAttention {
+    #[new]
+    #[pyo3(signature = (scale = None, is_causal = false))]
+    pub fn new(scale: Option<f64>, is_causal: bool) -> Self {
+        Self { scale, is_causal }
+    }
+
+    /// Forward pass: `(query, key, value) → attended output`.
+    #[pyo3(signature = (query, key, value, key_padding_mask = None))]
+    pub fn forward(
+        &self,
+        query: &PyTensor,
+        key: &PyTensor,
+        value: &PyTensor,
+        key_padding_mask: Option<&PyTensor>,
+        py: Python<'_>,
+    ) -> PyResult<PyTensor> {
+        let q = query.inner.clone();
+        let k = key.inner.clone();
+        let v = value.inner.clone();
+        let mask = key_padding_mask.map(|m| m.inner.clone());
+        let d_k = q.tensor.shape().last().copied().unwrap_or(1);
+        let scale = self.scale.unwrap_or_else(|| 1.0 / (d_k as f64).sqrt());
+        let is_causal = self.is_causal;
+
+        let inner = py.allow_threads(move || {
+            let (out, _attn) = if is_causal {
+                coeus_autograd::sdp_attention::<f64, coeus_core::MoiraiBackend, coeus_autograd::CausalMask>(
+                    &q,
+                    &k,
+                    &v,
+                    mask.as_ref(),
+                    scale,
+                )
+            } else {
+                coeus_autograd::sdp_attention::<f64, coeus_core::MoiraiBackend, coeus_autograd::NullMask>(
+                    &q,
+                    &k,
+                    &v,
+                    mask.as_ref(),
+                    scale,
+                )
+            };
+            out
+        });
+        Ok(PyTensor::from_var(inner))
+    }
+
+    /// Returns an empty state dict (no learnable parameters).
+    pub fn state_dict(&self) -> PyStateDict {
+        PyStateDict {
+            inner: coeus_tensor::checkpoint::StateDict::new(),
+        }
+    }
+
+    /// No-op load (no parameters to restore).
+    pub fn load_state_dict(&self, _state_dict: &PyStateDict) -> PyResult<()> {
+        Ok(())
+    }
+
+    /// Returns an empty parameter list.
+    pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
+        vec![]
+    }
+
+    /// No-op (no gradients to zero).
+    pub fn zero_grad(&self, _py: Python<'_>) {}
+}
 ///
 /// Supported `num_heads` values at runtime: 1, 2, 4, 8, 16, 32.
 /// `d_model` must be divisible by `num_heads`.

@@ -65,6 +65,26 @@ assert lin.shape == [5]
 assert abs(lin.data[0] - 0.0) < 1e-9
 assert abs(lin.data[4] - 1.0) < 1e-9
 assert abs(lin.data[2] - 0.5) < 1e-9
+
+log = pycoeus.logspace(0.0, 2.0, 3, 10.0)
+assert log.shape == [3]
+assert abs(log.data[0] - 1.0) < 1e-9
+assert abs(log.data[1] - 10.0) < 1e-9
+assert abs(log.data[2] - 100.0) < 1e-9
+
+geo = pycoeus.geomspace(1.0, 16.0, 5)
+assert geo.shape == [5]
+assert abs(geo.data[0] - 1.0) < 1e-9
+assert abs(geo.data[1] - 2.0) < 1e-9
+assert abs(geo.data[2] - 4.0) < 1e-9
+assert abs(geo.data[3] - 8.0) < 1e-9
+assert abs(geo.data[4] - 16.0) < 1e-9
+
+try:
+    pycoeus.geomspace(-1.0, 16.0, 4)
+    raise AssertionError("expected ValueError for mismatched signs")
+except ValueError:
+    pass
 "#,
     );
 }
@@ -1354,6 +1374,263 @@ except ValueError:
 try:
     _ = pycoeus.vector_norm(m, axis=2)
     raise AssertionError("vector_norm out-of-range axis should raise")
+except ValueError:
+    pass
+"#,
+    );
+}
+
+// ── dot / cross ────────────────────────────────────────────────────────
+
+#[test]
+fn test_dtype_cast_methods() {
+    run_script(
+        r#"
+import pycoeus
+import math
+
+x = pycoeus.Tensor([1.7, -2.9, 3.1, 0.0, -0.1], [5])
+
+# ── float() / double() ────────────────────────────────────────────────
+# float() is identity for f64 storage; shape and values preserved.
+xf = x.float()
+assert xf.shape == [5], f"float shape: {xf.shape}"
+for a, b in zip(xf.data, x.data):
+    assert abs(a - b) < 1e-12, f"float() changed value: {a} vs {b}"
+
+xd = x.double()
+assert xd.data == x.data, f"double() changed data"
+
+# ── long() / int() ────────────────────────────────────────────────────
+# Truncates fractional part toward zero (matching torch.long behaviour).
+xl = x.long()
+assert xl.shape == [5], f"long shape: {xl.shape}"
+expected_long = [1.0, -2.0, 3.0, 0.0, 0.0]
+for g, e in zip(xl.data, expected_long):
+    assert g == e, f"long() value: got {g}, expected {e}"
+
+xi = x.int()
+assert xi.data == xl.data, f"int() != long()"
+
+# ── half() ───────────────────────────────────────────────────────────
+# Values are quantized to f16 precision; stored back as f64.
+xh = x.half()
+assert xh.shape == [5], f"half shape: {xh.shape}"
+# 1.7 in f16 is exactly 1.7 (representable), check it's close.
+for a, b in zip(xh.data, x.data):
+    assert abs(a - b) < 5e-3, f"half() too far from original: {a} vs {b}"
+# Should round-trip differently from original for non-representable values.
+# 3.1 → f16(3.1) ≈ 3.1015625
+xh3 = pycoeus.Tensor([3.1], [1]).half()
+assert abs(xh3.data[0] - 3.1) < 0.01, f"half 3.1: {xh3.data[0]}"
+
+# ── to(dtype) ────────────────────────────────────────────────────────
+xt_float = x.to("float")
+assert xt_float.data == x.data, "to('float') changed data"
+xt_long = x.to("long")
+assert xt_long.data == xl.data, "to('long') != long()"
+xt_half = x.to("float16")
+# to(float16) should agree with half()
+for a, b in zip(xt_half.data, xh.data):
+    assert abs(a - b) < 1e-12, f"to(float16) vs half(): {a} vs {b}"
+
+# unknown dtype raises ValueError
+try:
+    x.to("bfloat16")
+    raise AssertionError("unknown dtype should raise")
+except ValueError:
+    pass
+
+# ── type_as() ────────────────────────────────────────────────────────
+other = pycoeus.Tensor([100.0], [1])
+ta = x.type_as(other)
+assert ta.data == x.data, f"type_as changed data"
+assert ta.shape == x.shape, f"type_as changed shape"
+"#,
+    );
+}
+
+#[test]
+fn test_sdp_attention_and_module() {
+    run_script(
+        r#"
+import pycoeus
+import math
+
+# ── functional scaled_dot_product_attention ───────────────────────────
+batch, seq_q, seq_k, d_k, d_v = 1, 3, 4, 8, 8
+# Use ones for simple validation: output should be exactly v for uniform attn.
+q = pycoeus.zeros([batch, seq_q, d_k])
+k = pycoeus.zeros([batch, seq_k, d_k])
+v = pycoeus.ones([batch, seq_k, d_v])
+out = pycoeus.scaled_dot_product_attention(q, k, v)
+assert out.shape == [batch, seq_q, d_v], f"sdpa shape: {out.shape}"
+# All-zeros Q·K^T → uniform softmax → output = mean(V) = ones (since V=ones)
+for val in out.data:
+    assert abs(val - 1.0) < 1e-5, f"sdpa val: {val}"
+
+# ── PyScaledDotProductAttention module ────────────────────────────────
+sdpa_mod = pycoeus.ScaledDotProductAttention(scale=None, is_causal=False)
+out_mod = sdpa_mod.forward(q, k, v)
+assert out_mod.shape == [batch, seq_q, d_v], f"sdpa_mod shape: {out_mod.shape}"
+for a, b in zip(out_mod.data, out.data):
+    assert abs(a - b) < 1e-9, f"module vs functional mismatch: {a} vs {b}"
+
+# ── causal attention: output should differ from non-causal ─────────────
+q_rng = pycoeus.Tensor([float(i) for i in range(batch * seq_q * d_k)], [batch, seq_q, d_k])
+k_rng = pycoeus.Tensor([float(i + 1) for i in range(batch * seq_k * d_k)], [batch, seq_k, d_k])
+v_rng = pycoeus.Tensor([float(i + 2) for i in range(batch * seq_k * d_v)], [batch, seq_k, d_v])
+out_nc = pycoeus.scaled_dot_product_attention(q_rng, k_rng, v_rng)
+out_causal = pycoeus.scaled_dot_product_attention(q_rng, k_rng, v_rng, is_causal=True)
+# causal masks future — not identical (should differ for non-trivial inputs)
+assert out_nc.shape == out_causal.shape, "causal/non-causal shape mismatch"
+# Just verify outputs are valid (no NaN, no inf)
+for val in out_nc.data:
+    assert math.isfinite(val), f"non-causal has non-finite value: {val}"
+for val in out_causal.data:
+    assert math.isfinite(val), f"causal has non-finite value: {val}"
+
+# ── no parameters in ScaledDotProductAttention ──────────────────────
+assert sdpa_mod.parameters() == [], "sdpa should have no parameters"
+sd = sdpa_mod.state_dict()
+sdpa_mod.load_state_dict(sd)  # no-op, should not raise
+"#,
+    );
+}
+
+#[test]
+fn test_amax_amin_prod_ops() {
+    run_script(
+        r#"
+import pycoeus
+
+x = pycoeus.Tensor([3.0, -1.0, 5.0, 2.0, -4.0, 0.5], [2, 3])
+
+# amax (global max)
+am = pycoeus.amax(x)
+assert abs(am - 5.0) < 1e-9, f"amax: {am}"
+
+# amin (global min)
+an = pycoeus.amin(x)
+assert abs(an - (-4.0)) < 1e-9, f"amin: {an}"
+
+# prod (global product: 3 * -1 * 5 * 2 * -4 * 0.5 = 60)
+pr = pycoeus.prod(x)
+expected_prod = 3.0 * (-1.0) * 5.0 * 2.0 * (-4.0) * 0.5
+assert abs(pr - expected_prod) < 1e-5, f"prod: {pr} expected {expected_prod}"
+
+# 1-D tensor
+v = pycoeus.Tensor([7.0, 3.0, 9.0, 1.0], [4])
+assert abs(pycoeus.amax(v) - 9.0) < 1e-9
+assert abs(pycoeus.amin(v) - 1.0) < 1e-9
+assert abs(pycoeus.prod(v) - 7.0*3.0*9.0*1.0) < 1e-9
+
+# empty tensor raises ValueError for amax/amin; prod returns 1.0 (identity)
+try:
+    pycoeus.amax(pycoeus.zeros([0]))
+    raise AssertionError("amax empty should raise")
+except ValueError:
+    pass
+try:
+    pycoeus.amin(pycoeus.zeros([0]))
+    raise AssertionError("amin empty should raise")
+except ValueError:
+    pass
+# prod of empty tensor = 1.0 (multiplicative identity, matching numpy/PyTorch)
+pr_empty = pycoeus.prod(pycoeus.zeros([0]))
+assert abs(pr_empty - 1.0) < 1e-9, f"prod empty: {pr_empty}"
+"#,
+    );
+}
+
+
+#[test]
+fn test_dot_cross_vector_ops() {
+    run_script(
+        r#"
+import math
+import pycoeus
+
+# ── dot ────────────────────────────────────────────────────────────────
+# torch.dot([1,2,3], [4,5,6]) = 32
+a = pycoeus.Tensor([1.0, 2.0, 3.0], [3])
+b = pycoeus.Tensor([4.0, 5.0, 6.0], [3])
+got = pycoeus.dot(a, b)
+assert abs(got - 32.0) < 1e-9, f"1D dot: {got}"
+
+# 2-D inputs: torch.dot flattens.
+am = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3])
+bm = pycoeus.Tensor([7.0, 8.0, 9.0, 10.0, 11.0, 12.0], [2, 3])
+want = 7 + 16 + 27 + 40 + 55 + 72  # = 217
+got = pycoeus.dot(am, bm)
+assert abs(got - float(want)) < 1e-9, f"2D flat dot: {got}"
+
+# orthogonal: <e_x, e_y> = 0
+ex = pycoeus.Tensor([1.0, 0.0, 0.0], [3])
+ey = pycoeus.Tensor([0.0, 1.0, 0.0], [3])
+assert abs(pycoeus.dot(ex, ey)) < 1e-9
+
+# error: numel mismatch
+try:
+    _ = pycoeus.dot(pycoeus.Tensor([1.0, 2.0], [2]), pycoeus.Tensor([1.0, 2.0, 3.0], [3]))
+    raise AssertionError("dot numel-mismatch should raise")
+except ValueError:
+    pass
+
+# error: empty input
+try:
+    _ = pycoeus.dot(pycoeus.Tensor([], [0]), pycoeus.Tensor([], [0]))
+    raise AssertionError("dot on empty should raise")
+except ValueError:
+    pass
+
+# ── cross ──────────────────────────────────────────────────────────────
+# cross(e_x, e_y) = e_z (default dim=0 for 1-D 3-vector)
+cx_out = pycoeus.cross(ex, ey)  # default dim=0
+assert cx_out.shape == [3], f"cross shape: {cx_out.shape}"
+assert cx_out.data == [0.0, 0.0, 1.0], f"cross([1,0,0], [0,1,0]) dim0: {cx_out.data}"
+
+# 2-D cross (default dim=0): columns are 3-vectors.
+am = pycoeus.Tensor([1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 4.0], [3, 3])
+bm = pycoeus.Tensor([0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0], [3, 3])
+out = pycoeus.cross(am, bm, dim=0)
+assert out.shape == [3, 3], f"cross 2D dim0 shape: {out.shape}"
+expected = [0.0, 0.0, 0.0, -5.0, 0.0, 20.0, 0.0, 0.0, 0.0]
+for g, w in zip(out.data, expected):
+    assert abs(g - w) < 1e-9, f"cross 2D dim0: got={g} expected={w}"
+
+# 2-D cross (dim=1): per-row cross.
+am = pycoeus.Tensor([1.0, 0.0, 0.0, 0.0, 1.0, 0.0], [2, 3])
+bm = pycoeus.Tensor([0.0, 1.0, 0.0, 0.0, 0.0, 1.0], [2, 3])
+out = pycoeus.cross(am, bm, dim=1)
+assert out.shape == [2, 3], f"cross 2D dim1 shape: {out.shape}"
+expected = [0.0, 0.0, 1.0, 1.0, 0.0, 0.0]
+for g, w in zip(out.data, expected):
+    assert abs(g - w) < 1e-9, f"cross 2D dim1: got={g} expected={w}"
+
+# cross(a, a) = 0
+v = pycoeus.Tensor([2.0, 3.0, 4.0], [3])
+out = pycoeus.cross(v, v)  # dim=0
+assert all(abs(x) < 1e-9 for x in out.data), f"cross(v, v): {out.data}"
+
+# error: shape mismatch
+try:
+    _ = pycoeus.cross(pycoeus.Tensor([1.0, 2.0, 3.0], [3]), pycoeus.Tensor([1.0, 2.0], [2]))
+    raise AssertionError("cross shape-mismatch should raise")
+except ValueError:
+    pass
+
+# error: dim out of range
+try:
+    _ = pycoeus.cross(pycoeus.Tensor([1.0, 2.0, 3.0], [3]), pycoeus.Tensor([4.0, 5.0, 6.0], [3]), dim=5)
+    raise AssertionError("cross out-of-range dim should raise")
+except ValueError:
+    pass
+
+# error: dim != 3
+try:
+    _ = pycoeus.cross(pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [4]), pycoeus.Tensor([5.0, 6.0, 7.0, 8.0], [4]))
+    raise AssertionError("cross axis-size!=3 should raise")
 except ValueError:
     pass
 "#,

@@ -1,6 +1,110 @@
 # Changelog
 
+## 0.2.13 - 2026-06-25
+
+### Added
+
+- **Tensor dtype cast methods** — Added `.float()`, `.double()`, `.long()`, `.int()`,
+  `.half()`, `.to(dtype)`, `.type_as(other)` on `PyTensor`. `.long()`/`.int()` truncate
+  fractional parts toward zero (matching `torch.long`). `.half()` round-trips through
+  `half::f16` representation. `.to(dtype)` dispatches by string key with `ValueError`
+  for unrecognised names. All methods return non-tracked copies.
+
+- **`PyScaledDotProductAttention` nn module** — Stateless attention module in
+  `coeus-python/src/nn/attention.rs` with `forward(q, k, v, key_padding_mask=None)`,
+  optional `scale`, `is_causal` flag, empty `state_dict`/`parameters()`. Registered
+  as `pycoeus.ScaledDotProductAttention`.
+
+- **`pycoeus.scaled_dot_product_attention` functional API** — Free function in
+  `coeus-python/src/ops/nn_functional.rs` with signature
+  `(query, key, value, attn_mask=None, scale=None, is_causal=False)`.
+  Delegates to `coeus_autograd::sdp_attention` (NullMask or CausalMask ZST dispatch,
+  dead code eliminated at monomorphization).
+
+- **Burn parity tests (+ 4)** — `burn_live_parity.rs` now has 59 tests:
+  - `conv_transpose1d_stride2_matches_manual_reference` — ConvTranspose1d stride-2
+    scatter scatter against manual reference.
+  - `conv_transpose2d_unit_stride_matches_manual_reference` — ConvTranspose2d unit
+    stride scatter against manual reference.
+  - `amax_amin_prod_match_manual_reference` — scalar reductions against
+    `data.iter().product()` and direct comparisons.
+  - `no_grad_context_does_not_track` — verifies `push_no_grad`/`pop_no_grad` suppress
+    creator-node creation even when inputs have `requires_grad=true`.
+
+- **Python binding tests 32 → 35** — new tests:
+  - `test_dtype_cast_methods` — covers float/double identity, long/int truncation,
+    half precision quantization, `to(dtype)` dispatch, `type_as` clone, unknown dtype
+    ValueError.
+  - `test_sdp_attention_and_module` — covers functional `scaled_dot_product_attention`
+    (uniform softmax → identity output, causal vs non-causal), `ScaledDotProductAttention`
+    module forward, `parameters()`, `state_dict`/`load_state_dict`.
+  - `test_amax_amin_prod_ops` — covers 2D/1D amax/amin/prod values, empty-tensor
+    ValueError for amax/amin, empty-tensor identity (1.0) for prod.
+
+### Changed
+
+- `coeus-python` now depends on `half` (workspace) for `.half()` dtype cast.
+
+
+
+### Added
+
+- **`torch.dot` parity** — `coeus_ops::dot<T: Scalar, B>(a, b, backend) -> T`
+  computes the flat inner product `Σᵢ aᵢ bᵢ` over equal-numel input
+  tensors, matching `torch.dot(input, tensor)`. Single-pass host-side fold
+  in native `T` precision; no `BinaryOp` opcode added (composes over the
+  existing `B::copy_to_host` SSOT). Empty inputs return `T::zero()`;
+  numel mismatch panics with the invariant named in the message.
+  Re-exported from `coeus_ops` flat surface and `coeus_ops::reduction`.
+
+- **`torch.cross` parity** — `coeus_ops::cross<T: Scalar, B>(a, b, dim, backend) -> Tensor<T,B>`
+  computes the per-channel 3-vector cross product along `dim`, matching
+  `torch.cross(input, other, dim)`. The slice axis must have exactly three
+  elements; the output keeps the same shape (no reduction). The element
+  ordering follows the right-handed cross product convention used by
+  `torch.cross` / `numpy.cross` / `jax.numpy.cross` / `mlx.core.cross`.
+
+- **Python bindings** — `pycoeus.dot(input, tensor) -> float` and
+  `pycoeus.cross(input, other, dim=0) -> Tensor` PyO3 wrappers with
+  `ValueError` boundary errors for numel-mismatch, shape-mismatch,
+  out-of-range `dim`, and `dim != 3` cases. Both wrappers live in the
+  new `coeus_python/src/ops/linalg.rs` module under the existing
+  operation-family subdirectory `coeus_python/src/ops/`.
+
+- **Rust unit tests (14)** — `coeus_ops::reduction::linalg::tests` covers
+  1-D and 2-D `dot` (flat fold), orthogonal-vector zero, empty-tensor
+  zero, numel-mismatch panic, three `cross` axis-3 invariants
+  (`e_x × e_y = e_z`, `e_y × e_x = -e_z`, `v × v = 0`), anticommutativity
+  (`cross(a, b) == -cross(b, a)`), per-row (dim=last), per-column (dim=first),
+  3-D middle-axis, plus panic paths for wrong axis size and out-of-range
+  `dim`.
+
+- **Python binding test (1)** —
+  `coeus-python::binding_tests_ops::test_dot_cross_vector_ops`
+  exercises both Python surfaces across 1-D, 2-D flat, orthogonal,
+  error paths, default-`dim`, dim=0, dim=1, parallel-vector, shape-mismatch,
+  out-of-range-dim, and dim-size-≠3 cases against value-semantic PyTorch
+  oracles.
+
+- **`logspace` / `geomspace` constructor parity** — Added
+  `Tensor::logspace(_on)` and `Tensor::geomspace(_on)` in `coeus-tensor`, plus
+  Python `pycoeus.logspace(start, end, steps, base=10.0)` and
+  `pycoeus.geomspace(start, end, steps)` constructors. `geomspace` now enforces
+  non-zero endpoints with matching sign (Rust invariants + Python `ValueError`).
+  Expanded Python constructor coverage in `binding_tests_ops::test_constructors`.
+
+### Notes
+
+- Burn 0.16 (the active dev-only oracle backend) does **not** expose
+  `Tensor::dot` or `Tensor::cross`. The `coeus-nn/tests/burn_live_parity`
+  diff parity tests for these ops are therefore not added at this version;
+  the test surface lives against the documented manual oracle (right-hand
+  rule, dense Python loops) and against the value-semantic PyO3 binding
+  assertions above. Torch / NumPy / JAX / MLX parity remains the binding
+  oracle for `dot` and `cross`.
+
 ## 0.2.11 - 2026-06-25
+
 
 ### Changed
 

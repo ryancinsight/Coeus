@@ -1498,6 +1498,192 @@ fn roll_forward_and_backward() {
     assert_close("roll_bwd", xg.grad().unwrap().as_slice(), &[1.0; 4]);
 }
 
+// ── ConvTranspose1d (stride-2, manual reference) ──────────────────────────────
+
+#[test]
+fn conv_transpose1d_stride2_matches_manual_reference() {
+    use coeus_ops::BackendOps;
+    let backend = SequentialBackend::new();
+
+    // batch=1, C_in=2, L=3 → C_out=2, K=2, stride=2 → L_out = (3-1)*2 + 2 = 6
+    let input: Vec<f32> = vec![1.0, 0.0, -1.0, 2.0, -2.0, 0.5];
+    let weight: Vec<f32> = vec![1.0, 0.5, -0.5, 0.25, 0.0, -1.0, 1.0, 0.5]; // [C_in=2, C_out=2, K=2]
+    let (n, c_in, l, c_out, k, stride, padding, op, dilation) =
+        (1usize, 2, 3, 2, 2, 2, 0, 0, 1);
+    let l_out = coeus_ops::conv_transpose::conv_transpose1d_output_len(l, k, stride, padding, op, dilation);
+    assert_eq!(l_out, 6);
+
+    let in_t = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c_in, l], &input);
+    let wt =
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![c_in, c_out, k], &weight);
+    let mut out = CoeusTensor::<f32, SequentialBackend>::zeros(vec![n, c_out, l_out]);
+    let out_layout = out.layout().clone();
+    backend.conv_transpose1d(
+        in_t.storage(),
+        in_t.layout(),
+        wt.storage(),
+        wt.layout(),
+        None,
+        stride,
+        padding,
+        op,
+        dilation,
+        out.storage_mut(),
+        &out_layout,
+    );
+
+    // Manual reference: scatter input→output via stride=2 mapping.
+    // For each (n_i, c_in_i, l_i): for each (c_out_j, k_i):
+    //   output[n_i, c_out_j, l_i * stride + k_i] += input[n_i, c_in_i, l_i] * weight[c_in_i, c_out_j, k_i]
+    let mut expected = vec![0.0f32; n * c_out * l_out];
+    let in_s = in_t.as_slice();
+    let w_s = wt.as_slice();
+    for ni in 0..n {
+        for ci in 0..c_in {
+            for li in 0..l {
+                for co in 0..c_out {
+                    for ki in 0..k {
+                        let pos = li * stride + ki;
+                        if pos < l_out {
+                            expected[ni * c_out * l_out + co * l_out + pos] +=
+                                in_s[ni * c_in * l + ci * l + li]
+                                    * w_s[ci * c_out * k + co * k + ki];
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assert_close_rel(
+        "conv_transpose1d_stride2",
+        out.as_slice(),
+        &expected,
+        1e-4,
+    );
+    let _ = backend;
+}
+
+// ── ConvTranspose2d (stride-1, manual reference) ──────────────────────────────
+
+#[test]
+fn conv_transpose2d_unit_stride_matches_manual_reference() {
+    use coeus_ops::BackendOps;
+    let backend = SequentialBackend::new();
+
+    // batch=1, C_in=1, H=3, W=3, C_out=1, KH=2, KW=2, stride=1 → H_out=4, W_out=4
+    let input: Vec<f32> = (0..9).map(|v| v as f32).collect();
+    let weight: Vec<f32> = vec![1.0, 0.0, 0.0, 1.0]; // identity-ish 2×2 kernel
+    let (n, c_in, h, w, c_out, kh, kw, stride, padding, op, dilation) =
+        (1usize, 1, 3, 3, 1, 2, 2, 1, 0, 0, 1);
+    let (h_out, w_out) =
+        coeus_ops::conv_transpose::conv_transpose2d_output_dims(h, w, kh, kw, stride, padding, op, dilation);
+    assert_eq!((h_out, w_out), (4, 4));
+
+    let in_t = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c_in, h, w], &input);
+    let wt = CoeusTensor::<f32, SequentialBackend>::from_slice(
+        vec![c_in, c_out, kh, kw],
+        &weight,
+    );
+    let mut out = CoeusTensor::<f32, SequentialBackend>::zeros(vec![n, c_out, h_out, w_out]);
+    let out_layout = out.layout().clone();
+    backend.conv_transpose2d(
+        in_t.storage(),
+        in_t.layout(),
+        wt.storage(),
+        wt.layout(),
+        None,
+        stride,
+        padding,
+        op,
+        dilation,
+        out.storage_mut(),
+        &out_layout,
+    );
+
+    // Manual scatter reference.
+    let mut expected = vec![0.0f32; n * c_out * h_out * w_out];
+    let in_s = in_t.as_slice();
+    let w_s = wt.as_slice();
+    for ni in 0..n {
+        for ci in 0..c_in {
+            for yi in 0..h {
+                for xi in 0..w {
+                    for co in 0..c_out {
+                        for ki in 0..kh {
+                            for kj in 0..kw {
+                                let py = yi * stride + ki;
+                                let px = xi * stride + kj;
+                                if py < h_out && px < w_out {
+                                    expected[ni * c_out * h_out * w_out
+                                        + co * h_out * w_out
+                                        + py * w_out
+                                        + px] += in_s[ni * c_in * h * w + ci * h * w + yi * w + xi]
+                                        * w_s[ci * c_out * kh * kw + co * kh * kw + ki * kw + kj];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assert_close_rel(
+        "conv_transpose2d_unit_stride",
+        out.as_slice(),
+        &expected,
+        1e-4,
+    );
+    let _ = backend;
+}
+
+// ── amax / amin / prod (manual references) ────────────────────────────────────
+
+#[test]
+fn amax_amin_prod_match_manual_reference() {
+    let backend = SequentialBackend::new();
+    let data = vec![3.0f32, -1.0, 5.0, 2.0, -4.0, 0.5];
+    let x = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data);
+
+    let amax_val = coeus_ops::amax(&x, &backend);
+    assert!((amax_val - 5.0f32).abs() < 1e-4, "amax: got {amax_val}, expected 5.0");
+
+    let amin_val = coeus_ops::amin(&x, &backend);
+    assert!((amin_val - (-4.0f32)).abs() < 1e-4, "amin: got {amin_val}, expected -4.0");
+
+    let prod_val = coeus_ops::prod(&x, &backend);
+    let expected_prod: f32 = data.iter().product();
+    assert!((prod_val - expected_prod).abs() / expected_prod.abs().max(1e-6) < 1e-4,
+        "prod: got {prod_val}, expected {expected_prod}");
+    let _ = backend;
+}
+
+// ── no_grad context (Rust-level) ──────────────────────────────────────────────
+
+#[test]
+fn no_grad_context_does_not_track() {
+    // Outside no_grad: requires_grad=true should produce tracked var.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0f32, 2.0, 3.0]),
+        true,
+    );
+    let out_tracked = coeus_autograd::relu(&xv);
+    // Creator is set when requires_grad is active.
+    assert!(out_tracked.creator.is_some(), "expected creator outside no_grad");
+
+    // Inside no_grad context: creator should be None even though the input has requires_grad.
+    coeus_autograd::grad_mode::push_no_grad();
+    let xv2 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0f32, 2.0, 3.0]),
+        true,
+    );
+    let out_nograd = coeus_autograd::relu(&xv2);
+    coeus_autograd::grad_mode::pop_no_grad();
+    assert!(
+        out_nograd.creator.is_none(),
+        "expected no creator inside no_grad"
+    );
+}
+
 // ── FeedForward forward shape contract ───────────────────────────────────────
 //
 // We can't compare against Burn exactly (weight init differs), but we can

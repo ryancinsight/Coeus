@@ -7,7 +7,7 @@ pub mod linear;
 pub mod normalization;
 pub mod pool;
 
-pub use attention::{PyMultiHeadAttention, PyRotaryEmbedding};
+pub use attention::{PyMultiHeadAttention, PyRotaryEmbedding, PyScaledDotProductAttention};
 pub use conv::PyConvTranspose1d;
 pub use conv::PyConvTranspose2d;
 pub use conv::{PyConv1d, PyConv2d, PyConv3d};

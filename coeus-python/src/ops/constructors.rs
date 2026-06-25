@@ -2,6 +2,7 @@ use crate::tensor::PyTensor;
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 #[pyfunction]
@@ -56,6 +57,62 @@ pub fn linspace(start: f64, end: f64, steps: usize) -> PyTensor {
     PyTensor {
         inner: Var::new(t, false),
     }
+}
+
+#[pyfunction]
+#[pyo3(signature = (start, end, steps, base = 10.0))]
+pub fn logspace(start: f64, end: f64, steps: usize, base: f64) -> PyTensor {
+    let data: Vec<f64> = if steps == 0 {
+        vec![]
+    } else if steps == 1 {
+        vec![base.powf(start)]
+    } else {
+        (0..steps)
+            .map(|i| {
+                let exp = start + (end - start) * i as f64 / (steps - 1) as f64;
+                base.powf(exp)
+            })
+            .collect()
+    };
+    let t = Tensor::from_slice(vec![steps], &data);
+    PyTensor {
+        inner: Var::new(t, false),
+    }
+}
+
+#[pyfunction]
+pub fn geomspace(start: f64, end: f64, steps: usize) -> PyResult<PyTensor> {
+    if start == 0.0 || end == 0.0 {
+        return Err(PyValueError::new_err(
+            "geomspace requires non-zero start/end",
+        ));
+    }
+    if start.signum() != end.signum() {
+        return Err(PyValueError::new_err(
+            "geomspace requires start/end to have the same sign",
+        ));
+    }
+    let sign = start.signum();
+    let start_abs = start.abs();
+    let end_abs = end.abs();
+    let ratio = if steps > 1 {
+        (end_abs / start_abs).powf(1.0 / (steps - 1) as f64)
+    } else {
+        1.0
+    };
+    let data: Vec<f64> = if steps == 0 {
+        vec![]
+    } else if steps == 1 {
+        vec![start]
+    } else {
+        (0..steps)
+            .map(|i| sign * start_abs * ratio.powf(i as f64))
+            .collect()
+    };
+    let t = Tensor::from_slice(vec![steps], &data);
+    Ok(PyTensor {
+        inner: Var::new(t, false),
+    })
 }
 
 #[pyfunction]
