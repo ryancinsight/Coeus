@@ -12,6 +12,41 @@ pub struct LocalClusterShared {
 }
 
 /// A thread-safe simulated communicator for local multi-process verification.
+///
+/// Each rank shares a single [`LocalClusterShared`] state and coordinates via barriers,
+/// so a real distributed run can be reproduced inside one process with threads.
+///
+/// # Examples
+///
+/// Spawn one thread per simulated rank, reduce gradients with [`Sum`](crate::Sum),
+/// and verify every rank holds the summed result:
+///
+/// ```
+/// use coeus_core::SequentialBackend;
+/// use coeus_dist::{Communicator, LocalCommunicator, Sum};
+/// use coeus_tensor::Tensor;
+/// use std::thread;
+///
+/// let communicators = LocalCommunicator::create_cluster(3);
+/// let mut handles = vec![];
+/// for comm in communicators {
+///     handles.push(thread::spawn(move || {
+///         let backend = SequentialBackend::new();
+///         let rank = comm.rank() as f32;
+///         // rank r contributes [r+1, r+2] -> [1,2], [2,3], [3,4]
+///         let mut tensor =
+///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend);
+///         comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
+///         // sum across 3 ranks: [1+2+3, 2+3+4] = [6, 9]
+///         let data = tensor.as_slice();
+///         assert_eq!(data[0], 6.0);
+///         assert_eq!(data[1], 9.0);
+///     }));
+/// }
+/// for h in handles {
+///     h.join().unwrap();
+/// }
+/// ```
 #[derive(Clone)]
 pub struct LocalCommunicator {
     rank: usize,
@@ -21,6 +56,22 @@ pub struct LocalCommunicator {
 
 impl LocalCommunicator {
     /// Create a new process cluster with `world_size` simulated ranks.
+    ///
+    /// Returns one [`LocalCommunicator`] per rank; move each into its own thread to
+    /// simulate independent processes that synchronize through shared barriers.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_dist::LocalCommunicator;
+    /// use coeus_dist::Communicator;
+    ///
+    /// let comms = LocalCommunicator::create_cluster(2);
+    /// assert_eq!(comms.len(), 2);
+    /// assert_eq!(comms[0].rank(), 0);
+    /// assert_eq!(comms[1].rank(), 1);
+    /// assert_eq!(comms[0].size(), 2);
+    /// ```
     pub fn create_cluster(world_size: usize) -> Vec<Self> {
         let shared = Arc::new(LocalClusterShared {
             barrier: Barrier::new(world_size),
