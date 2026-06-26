@@ -1,5 +1,6 @@
-use coeus_core::{Layout, Scalar, Shape, Strides};
+use coeus_core::{Layout, Scalar};
 
+use super::defaults;
 use super::ops::{BinaryOp, ReductionOp, UnaryOp};
 
 /// Dynamic operations supported by execution hardware backends.
@@ -60,31 +61,10 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        let temp_len = c_layout.shape().iter().product();
-        let mut temp = self.allocate::<T>(temp_len);
-        let temp_layout =
-            Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
-        self.fill(&mut temp, T::zero());
-        self.matmul(a, a_layout, b, b_layout, &mut temp, &temp_layout);
-        let c_ptr = c as *mut Self::DeviceBuffer<T>;
-        unsafe {
-            self.elementwise_binary(
-                BinaryOp::Add,
-                &*c_ptr,
-                c_layout,
-                &temp,
-                &temp_layout,
-                &mut *c_ptr,
-                c_layout,
-            );
-        }
+        defaults::matmul::matmul_accumulate(self, a, a_layout, b, b_layout, c, c_layout)
     }
 
     /// Rank-3 batched matrix multiplication.
-    ///
-    /// The default implementation keeps backend compatibility by slicing each
-    /// batch into rank-2 layouts and dispatching through [`Self::matmul`]. CPU
-    /// backends override this with the `coeus-leto` batched kernel.
     fn batched_matmul(
         &self,
         a: &Self::DeviceBuffer<T>,
@@ -94,62 +74,7 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        assert_eq!(a_layout.ndim(), 3, "batched_matmul: lhs must be rank 3");
-        assert_eq!(b_layout.ndim(), 3, "batched_matmul: rhs must be rank 3");
-        assert_eq!(c_layout.ndim(), 3, "batched_matmul: out must be rank 3");
-
-        let [lhs_batch, m, lhs_k] = shape3(a_layout.shape(), "lhs");
-        let [rhs_batch, rhs_k, n] = shape3(b_layout.shape(), "rhs");
-        let [out_batch, out_m, out_n] = shape3(c_layout.shape(), "out");
-        assert!(
-            (lhs_batch == out_batch || lhs_batch == 1)
-                && (rhs_batch == out_batch || rhs_batch == 1)
-                && lhs_k == rhs_k
-                && m == out_m
-                && n == out_n,
-            "batched_matmul: incompatible shapes {:?}, {:?}, {:?}",
-            a_layout.shape(),
-            b_layout.shape(),
-            c_layout.shape(),
-        );
-
-        let lhs_batch_stride = if lhs_batch == 1 {
-            0
-        } else {
-            a_layout.strides()[0]
-        };
-        let rhs_batch_stride = if rhs_batch == 1 {
-            0
-        } else {
-            b_layout.strides()[0]
-        };
-        let out_batch_stride = c_layout.strides()[0];
-
-        let lhs_shape = Shape::from([m, lhs_k].as_slice());
-        let rhs_shape = Shape::from([rhs_k, n].as_slice());
-        let out_shape = Shape::from([out_m, out_n].as_slice());
-        let lhs_strides = Strides::from([a_layout.strides()[1], a_layout.strides()[2]].as_slice());
-        let rhs_strides = Strides::from([b_layout.strides()[1], b_layout.strides()[2]].as_slice());
-        let out_strides = Strides::from([c_layout.strides()[1], c_layout.strides()[2]].as_slice());
-
-        for batch in 0..out_batch {
-            let lhs_layout = Layout::from_shape_strides(
-                lhs_shape.clone(),
-                lhs_strides.clone(),
-                a_layout.offset() + batch * lhs_batch_stride,
-            );
-            let rhs_layout = Layout::from_shape_strides(
-                rhs_shape.clone(),
-                rhs_strides.clone(),
-                b_layout.offset() + batch * rhs_batch_stride,
-            );
-            let out_layout = Layout::from_shape_strides(
-                out_shape.clone(),
-                out_strides.clone(),
-                c_layout.offset() + batch * out_batch_stride,
-            );
-            self.matmul(a, &lhs_layout, b, &rhs_layout, c, &out_layout);
-        }
+        defaults::matmul::batched_matmul(self, a, a_layout, b, b_layout, c, c_layout)
     }
 
     /// Rank-3 batched matrix multiplication with accumulation: `c += a * b`.
@@ -162,24 +87,7 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        let temp_len = c_layout.shape().iter().product();
-        let mut temp = self.allocate::<T>(temp_len);
-        let temp_layout =
-            Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
-        self.fill(&mut temp, T::zero());
-        self.batched_matmul(a, a_layout, b, b_layout, &mut temp, &temp_layout);
-        let c_ptr = c as *mut Self::DeviceBuffer<T>;
-        unsafe {
-            self.elementwise_binary(
-                BinaryOp::Add,
-                &*c_ptr,
-                c_layout,
-                &temp,
-                &temp_layout,
-                &mut *c_ptr,
-                c_layout,
-            );
-        }
+        defaults::matmul::batched_matmul_accumulate(self, a, a_layout, b, b_layout, c, c_layout)
     }
 
     /// Reduction operations along an axis.
@@ -204,14 +112,7 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     ) where
         T: leto_ops::Scalar,
     {
-        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
-        self.copy_to_host(a, &mut host_a);
-
-        let mut host_c = vec![0i64; c_layout.shape().iter().product()];
-        coeus_leto::argmax_into(a_layout, &host_a, axis, c_layout, &mut host_c)
-            .expect("argmax default impl failed");
-
-        self.copy_to_device(&host_c, c);
+        defaults::reductions::argmax(self, a, a_layout, axis, c, c_layout)
     }
 
     /// Compute the indices of the minimum values along `axis`.
@@ -225,14 +126,7 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     ) where
         T: leto_ops::Scalar,
     {
-        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
-        self.copy_to_host(a, &mut host_a);
-
-        let mut host_c = vec![0i64; c_layout.shape().iter().product()];
-        coeus_leto::argmin_into(a_layout, &host_a, axis, c_layout, &mut host_c)
-            .expect("argmin default impl failed");
-
-        self.copy_to_device(&host_c, c);
+        defaults::reductions::argmin(self, a, a_layout, axis, c, c_layout)
     }
 
     /// Return the `k` largest (or smallest) values and their indices along an axis.
@@ -251,24 +145,18 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     ) where
         T: leto_ops::Scalar,
     {
-        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
-        self.copy_to_host(a, &mut host_a);
-
-        let mut host_values = vec![T::zero(); values_layout.shape().iter().product()];
-        let mut host_indices = vec![0i64; indices_layout.shape().iter().product()];
-
-        crate::reduction::topk::topk_impl(
-            &host_a,
-            a_layout.shape(),
+        defaults::reductions::topk(
+            self,
+            a,
+            a_layout,
             k,
             axis,
             largest,
-            &mut host_values,
-            &mut host_indices,
-        );
-
-        self.copy_to_device(&host_values, values);
-        self.copy_to_device(&host_indices, indices);
+            values,
+            values_layout,
+            indices,
+            indices_layout,
+        )
     }
 
     /// Inclusive cumulative sum along an axis.
@@ -282,14 +170,7 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     ) where
         T: leto_ops::Scalar,
     {
-        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
-        self.copy_to_host(a, &mut host_a);
-
-        let mut host_c = vec![T::zero(); c_layout.shape().iter().product()];
-        coeus_leto::cumsum_into(a_layout, &host_a, axis, c_layout, &mut host_c)
-            .expect("cumsum default impl failed");
-
-        self.copy_to_device(&host_c, c);
+        defaults::reductions::cumsum(self, a, a_layout, axis, c, c_layout)
     }
 
     /// Inclusive cumulative suffix sum (reverse cumulative sum) along an axis.
@@ -303,14 +184,7 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     ) where
         T: leto_ops::Scalar,
     {
-        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
-        self.copy_to_host(a, &mut host_a);
-
-        let mut host_c = vec![T::zero(); c_layout.shape().iter().product()];
-        coeus_leto::suffix_sum_into(a_layout, &host_a, axis, c_layout, &mut host_c)
-            .expect("suffix_sum default impl failed");
-
-        self.copy_to_device(&host_c, c);
+        defaults::reductions::suffix_sum(self, a, a_layout, axis, c, c_layout)
     }
 
     /// 1D Convolution
@@ -524,13 +398,6 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     );
 
     /// Scaled dot-product attention forward.
-    ///
-    /// # Shapes
-    /// - `query`:        `[batch, seq_q, d_k]`
-    /// - `key`:          `[batch, seq_k, d_k]`
-    /// - `value`:        `[batch, seq_k, d_v]`
-    /// - `output`:       `[batch, seq_q, d_v]`  (pre-allocated, overwritten)
-    /// - `attn_weights`: `[batch, seq_q, seq_k]` (pre-allocated, overwritten; stored for backward)
     fn sdp_attention(
         &self,
         query: &Self::DeviceBuffer<T>,
@@ -551,8 +418,6 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         T: coeus_core::Float;
 
     /// Scaled dot-product attention backward.
-    ///
-    /// Accumulates gradients into `grad_q`, `grad_k`, `grad_v` (if Some).
     #[allow(clippy::too_many_arguments)]
     fn sdp_attention_backward(
         &self,
@@ -622,9 +487,6 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         T: coeus_core::Float;
 
     /// Fused AdamW step update (decoupled weight decay).
-    ///
-    /// Applies weight decay directly to the parameter before the Adam update:
-    /// `p = p * (1 - lr * weight_decay)`, then applies the standard Adam correction.
     fn adamw_step(
         &self,
         param: &mut Self::DeviceBuffer<T>,
@@ -657,13 +519,74 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         eps: T,
     ) where
         T: coeus_core::Float;
-}
 
-fn shape3(shape: &[usize], name: &str) -> [usize; 3] {
-    assert_eq!(
-        shape.len(),
-        3,
-        "batched_matmul: {name} shape must have rank 3"
-    );
-    [shape[0], shape[1], shape[2]]
+    // ── Transposed Convolution (Deconvolution) ─────────────────────────────────
+
+    /// 1-D Transposed Convolution default (host-side fallback).
+    #[allow(clippy::too_many_arguments)]
+    fn conv_transpose1d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        output_padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) where
+        T: coeus_core::Float,
+    {
+        defaults::conv_transpose::conv_transpose1d(
+            self,
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            output_padding,
+            dilation,
+            output,
+            output_layout,
+        )
+    }
+
+    /// 2-D Transposed Convolution default (host-side fallback).
+    #[allow(clippy::too_many_arguments)]
+    fn conv_transpose2d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        output_padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) where
+        T: coeus_core::Float,
+    {
+        defaults::conv_transpose::conv_transpose2d(
+            self,
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            output_padding,
+            dilation,
+            output,
+            output_layout,
+        )
+    }
 }

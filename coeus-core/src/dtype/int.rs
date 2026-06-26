@@ -179,6 +179,27 @@ macro_rules! impl_cpu_unary_dispatch_int {
                             slope
                         }
                     }
+                    CpuUnaryOp::Recip => {
+                        if x == Self::zero() {
+                            Self::zero()
+                        } else {
+                            Self::one() / x
+                        }
+                    }
+                    CpuUnaryOp::Sign => {
+                        if x > Self::zero() {
+                            Self::one()
+                        } else if x < Self::zero() {
+                            Self::zero() - Self::one()
+                        } else {
+                            Self::zero()
+                        }
+                    }
+                    // Floor/ceil/round/trunc are identity for integers.
+                    CpuUnaryOp::Floor
+                    | CpuUnaryOp::Ceil
+                    | CpuUnaryOp::Round
+                    | CpuUnaryOp::Trunc => x,
                     _ => panic!("Float unary operation not supported for integer types"),
                 }
             }

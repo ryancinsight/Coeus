@@ -79,13 +79,12 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> Neg for &Var<T
 //
 // Only implemented for the default `MoiraiBackend` to avoid the orphan rule:
 // the impl `Mul<T> for &Var<T, B>` would require `T: Scalar` but `T` is also
-// the right-hand side type, creating a conflict if `B` is generic.  The
-// cleanest resolution without a newtype is to restrict to the concrete default
-// backend.  Users on custom backends can call `scalar_mul` / `scalar_add`
-// directly.
+// the right-hand side type, creating a conflict if `B` is generic.  These
+// concrete impls provide operator-syntax convenience only for the default
+// backend.
 //
-// If a generic-backend scalar form is required, the extension-trait pattern
-// (a sealed trait re-exporting these impls) is the correct path.
+// For generic-backend scalar arithmetic, use the extension trait:
+// `VarScalarExt::scalar_mul/add/sub/div` (callable on any backend).
 
 impl<T: Scalar + leto_ops::Scalar> Mul<T> for &Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
@@ -213,6 +212,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Div<Var<T, B>> for Var<T,
 }
 
 // ── Scalar rhs for owned Var (MoiraiBackend) ─────────────────────────────
+// See comment above for the generic alternative (`VarScalarExt`).
 
 impl<T: Scalar + leto_ops::Scalar> Mul<T> for Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;

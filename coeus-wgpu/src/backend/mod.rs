@@ -1,5 +1,6 @@
 use crate::storage::WgpuStorage;
 use coeus_core::{ComputeBackend, Scalar, Storage};
+use hephaestus_wgpu::ComputeDevice;
 use std::sync::OnceLock;
 
 pub mod ops;
@@ -163,45 +164,15 @@ impl ComputeBackend for WgpuBackend {
     #[inline]
     fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
         let ctx = get_wgpu_context();
-        let bytes = bytemuck::cast_slice(src);
-        ctx.queue.write_buffer(dst.buffer.raw(), 0, bytes);
+        ctx.hephaestus_device
+            .write_buffer(dst.buffer.as_ref(), src)
+            .expect("Failed to copy host tensor into WgpuBuffer");
     }
 
     fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
         let ctx = get_wgpu_context();
-        let size_in_bytes = (src.len() * std::mem::size_of::<T>()).max(4) as u64;
-
-        let staging_buffer = ctx
-            .hephaestus_device
-            .get_staging_buffer(size_in_bytes)
-            .expect("Failed to allocate or acquire staging buffer from Hephaestus device");
-
-        let mut encoder = ctx
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("coeus-wgpu-read-encoder"),
-            });
-        encoder.copy_buffer_to_buffer(src.buffer.raw(), 0, &staging_buffer, 0, size_in_bytes);
-        ctx.queue.submit(Some(encoder.finish()));
-
-        let buffer_slice = staging_buffer.slice(..size_in_bytes);
-        let (tx, rx) = std::sync::mpsc::channel();
-        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
-            let _ = tx.send(result);
-        });
-
-        let _ = ctx.device.poll(wgpu::PollType::Wait);
-        rx.recv()
-            .unwrap()
-            .expect("Failed to map staging buffer for read");
-
-        let data = buffer_slice.get_mapped_range();
-        let dst_bytes = bytemuck::cast_slice_mut(dst);
-        dst_bytes.copy_from_slice(&data);
-
-        drop(data);
-        staging_buffer.unmap();
-
-        ctx.hephaestus_device.recycle_staging_buffer(staging_buffer);
+        ctx.hephaestus_device
+            .download(src.buffer.as_ref(), dst)
+            .expect("Failed to copy WgpuBuffer into host tensor");
     }
 }

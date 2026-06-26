@@ -10,16 +10,31 @@ pub struct PyEmbedding {
     pub num_embeddings: usize,
     #[pyo3(get)]
     pub embedding_dim: usize,
+    #[pyo3(get)]
+    pub padding_idx: Option<usize>,
 }
 
 #[pymethods]
 impl PyEmbedding {
     #[new]
-    pub fn new(py: Python<'_>, num_embeddings: usize, embedding_dim: usize) -> PyResult<Self> {
-        let rust_emb = coeus_nn::Embedding::<f64, coeus_core::MoiraiBackend>::new(
-            num_embeddings,
-            embedding_dim,
-        );
+    #[pyo3(signature = (num_embeddings, embedding_dim, padding_idx = None))]
+    pub fn new(
+        py: Python<'_>,
+        num_embeddings: usize,
+        embedding_dim: usize,
+        padding_idx: Option<usize>,
+    ) -> PyResult<Self> {
+        let rust_emb = match padding_idx {
+            Some(idx) => coeus_nn::Embedding::<f64, coeus_core::MoiraiBackend>::with_padding_idx(
+                num_embeddings,
+                embedding_dim,
+                idx,
+            ),
+            None => coeus_nn::Embedding::<f64, coeus_core::MoiraiBackend>::new(
+                num_embeddings,
+                embedding_dim,
+            ),
+        };
         let weight = Py::new(
             py,
             PyTensor {
@@ -30,6 +45,7 @@ impl PyEmbedding {
             weight,
             num_embeddings,
             embedding_dim,
+            padding_idx,
         })
     }
 
@@ -40,16 +56,18 @@ impl PyEmbedding {
         let input_var = input.inner.clone();
         let num_emb = self.num_embeddings;
         let emb_dim = self.embedding_dim;
+        let padding_idx = self.padding_idx;
 
         let inner = py.allow_threads(move || {
             let emb = coeus_nn::Embedding {
                 weight: w_var,
                 num_embeddings: num_emb,
                 embedding_dim: emb_dim,
+                padding_idx,
             };
             emb.forward(&input_var)
         });
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {

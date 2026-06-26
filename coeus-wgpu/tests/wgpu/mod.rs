@@ -2,6 +2,7 @@ mod activations;
 mod attention;
 mod conv;
 mod conv3d;
+mod conv_transpose;
 mod optimizer;
 mod parity;
 mod pooling;

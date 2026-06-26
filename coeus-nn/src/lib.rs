@@ -24,6 +24,7 @@
 
 pub mod activation;
 pub mod attention;
+pub mod bilinear;
 pub mod conv;
 pub mod dropout;
 pub mod embedding;
@@ -36,6 +37,7 @@ pub mod normalization;
 pub mod parameter;
 pub mod pool;
 pub mod positional;
+pub mod rnn;
 pub mod sequential;
 pub mod softmax;
 pub mod transformer;
@@ -47,7 +49,8 @@ pub use activation::{
 pub use attention::{
     AttentionMask, CausalMask, MultiHeadAttention, NullMask, ScaledDotProductAttention,
 };
-pub use conv::{Conv1d, Conv2d, Conv3d};
+pub use bilinear::Bilinear;
+pub use conv::{Conv1d, Conv2d, Conv3d, ConvTranspose1d, ConvTranspose2d};
 pub use dropout::Dropout;
 pub use embedding::Embedding;
 pub use init::{kaiming_uniform, xavier_uniform};
@@ -62,8 +65,12 @@ pub use normalization::{
     RMSNorm,
 };
 pub use parameter::Parameter;
-pub use pool::{AvgPool2d, AvgPool3d, MaxPool2d, MaxPool3d};
+pub use pool::{
+    AvgPool2d, AvgPool3d, GlobalAvgPool1d, GlobalAvgPool2d, GlobalAvgPool3d, GlobalMaxPool2d,
+    GlobalMaxPool3d, MaxPool2d, MaxPool3d,
+};
 pub use positional::{RotaryEmbedding, SinusoidalEncoding};
+pub use rnn::{GRUCell, Gru, LSTMCell, Lstm};
 pub use sequential::{ModuleExt, Sequential, StaticSeq};
 pub use softmax::{softmax, Softmax};
 pub use transformer::{

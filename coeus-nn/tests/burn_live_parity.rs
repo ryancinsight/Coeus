@@ -1,8 +1,9 @@
 use burn::backend::ndarray::{NdArray, NdArrayDevice};
-use burn::tensor::{Tensor as BurnTensor, TensorData};
+use burn::tensor::{activation as burn_act, Tensor as BurnTensor, TensorData};
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
 use coeus_nn::{cross_entropy_loss, softmax, Module};
+use coeus_ops::{leaky_relu, log_softmax_axis, mish, sigmoid, silu, softplus, tanh};
 use coeus_tensor::Tensor as CoeusTensor;
 
 type BurnBackend = NdArray<f32>;
@@ -81,6 +82,45 @@ fn cross_entropy_loss_matches_burn_ndarray_reference() {
         .sum::<f32>()
         / targets.len() as f32;
     assert_close("cross_entropy_loss", coeus.tensor.as_slice(), &[burn_loss]);
+}
+
+// ── Log-softmax (forward + backward) ────────────────────────────────────────────
+
+#[test]
+fn log_softmax_forward_and_backward_match_burn() {
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+    let data = vec![1.5f32, 0.5, -0.5, -1.0, 2.0, 0.0];
+
+    // Forward parity vs burn `activation::log_softmax`.
+    let fwd_v = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data),
+        false,
+    );
+    let fwd_c = coeus_autograd::log_softmax(&fwd_v, 1);
+    let xb_fwd: BurnTensor<BurnBackend, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &dev());
+    assert_close(
+        "log_softmax",
+        fwd_c.tensor.as_slice(),
+        &bvec(burn::tensor::activation::log_softmax(xb_fwd, 1)),
+    );
+
+    // Backward parity vs burn autodiff: d/dx sum(log_softmax(x)).
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data),
+        true,
+    );
+    coeus_autograd::sum(&coeus_autograd::log_softmax(&xv, 1)).backward();
+    let dx_c = xv.grad().unwrap();
+    let xb: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &device).require_grad();
+    let grads = burn::tensor::activation::log_softmax(xb.clone(), 1)
+        .sum()
+        .backward();
+    let dx_b: Vec<f32> = xb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+    assert_close("log_softmax_bwd dx", dx_c.as_slice(), &dx_b);
 }
 
 // ── Elementwise arithmetic ────────────────────────────────────────────────────
@@ -170,6 +210,32 @@ fn gelu_silu_match_burn() {
         "silu",
         coeus_ops::silu(&xc, &backend).as_slice(),
         &bvec(silu_b),
+    );
+}
+
+#[test]
+fn mish_softplus_leaky_relu_match_burn() {
+    let backend = SequentialBackend::new();
+    let data = vec![-2.0f32, -1.0, -0.5, 0.5, 1.0, 2.0];
+    let xc = CoeusTensor::from_slice(vec![2, 3], &data);
+    let xb: BurnTensor<BurnBackend, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &dev());
+    assert_close(
+        "mish",
+        coeus_ops::mish(&xc, &backend).as_slice(),
+        &bvec(burn::tensor::activation::mish(xb.clone())),
+    );
+    // Burn `softplus(x, beta)` = (1/beta) ln(1 + exp(beta x)); beta = 1 matches
+    // the coeus `softplus` contract ln(1 + exp(x)).
+    assert_close(
+        "softplus",
+        coeus_ops::softplus(&xc, &backend).as_slice(),
+        &bvec(burn::tensor::activation::softplus(xb.clone(), 1.0)),
+    );
+    assert_close(
+        "leaky_relu",
+        coeus_ops::leaky_relu(&xc, &backend, 0.01).as_slice(),
+        &bvec(burn::tensor::activation::leaky_relu(xb, 0.01)),
     );
 }
 
@@ -310,6 +376,72 @@ fn reductions_match_burn() {
     );
 }
 
+#[test]
+fn statistical_ops_match_burn() {
+    let backend = SequentialBackend::new();
+    let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
+    let xc = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data);
+    let xb: BurnTensor<BurnBackend, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &dev());
+
+    // Global var / std: Burn 0.16's `var(dim)` reduces one axis; flatten
+    // to a 1-D tensor first, then `var(0)` followed by `into_scalar` to
+    // obtain the global Bessel-corrected oracle.
+    let v_global = coeus_ops::var(&xc, true, &backend);
+    let v_global_burn = xb.clone().flatten::<1>(0, 1).var(0).into_scalar();
+    assert_close("var_global", &[v_global], &[v_global_burn]);
+    let s_global = coeus_ops::std_dev(&xc, true, &backend);
+    let s_global_burn = xb.clone().flatten::<1>(0, 1).var(0).into_scalar().sqrt();
+    assert_close("std_global", &[s_global], &[s_global_burn]);
+
+    // Per-axis var matches Burn's Bessel-corrected `var(dim)` API; per-axis
+    // std is the square root of that same variance oracle.
+    let v_axis1 = coeus_ops::var_axis(&xc, 1, true, &backend);
+    let v_burn_axis1 = xb.clone().var(1).into_data().to_vec().unwrap();
+    assert_close("var_axis1", v_axis1.as_slice(), &v_burn_axis1);
+    let s_axis1 = coeus_ops::std_dev_axis(&xc, 1, true, &backend);
+    let s_burn_axis1 = bvec(xb.clone().var(1).sqrt());
+    assert_close("std_axis1", s_axis1.as_slice(), &s_burn_axis1);
+
+    // Population (unbiased=false) global variance matches Burn's
+    // `var_bias(dim)` on the flattened input — Bessel-correction skipped,
+    // so it is `N/(N-1)` smaller than the unbiased variant.
+    let v_biased = coeus_ops::var(&xc, false, &backend);
+    let v_biased_burn = xb.clone().flatten::<1>(0, 1).var_bias(0).into_scalar();
+    assert_close("var_biased_global", &[v_biased], &[v_biased_burn]);
+
+    // L2 norm matches Burn's `powf_scalar(2).sum().sqrt()` over flattened
+    // input (matches torch.linalg.vector_norm default ord=2).
+    let n2 = coeus_ops::norm(&xc, &backend);
+    let n_burn = bvec(xb.clone().powf_scalar(2.0).sum())[0].sqrt();
+    assert_close("norm_l2", &[n2], &[n_burn]);
+
+    // L_p norm parity: ord ∈ {1, 2, 3}. Coeus folds via
+    // `coeus_ops::norm_p` (host-side `T::powf` accumulation with final
+    // `^(1/p)`); Burn uses `powf_scalar(p).sum().powf_scalar(1/p)` over
+    // the flattened input. Reduction order differs (Coeus is per-bucket
+    // host fold vs Burn's fused pipeline), so the assertion uses the
+    // forward-equivalent lambda with a reduction-order-sensitive bound
+    // derived in `docs/backlog.md` MS-66.
+    for &ord in &[1.0f64, 2.0, 3.0] {
+        let coeus_p = coeus_ops::norm_p(&xc, ord as f32, &backend);
+        let sum_p = bvec(xb.clone().powf_scalar(ord as f32).sum())[0];
+        let burn_p = sum_p.powf(1.0 / ord as f32);
+        let label = format!("norm_l{ord}");
+        assert_close(&label, &[coeus_p], &[burn_p]);
+    }
+
+    // Per-axis Lp norm uses the same ord-p contract with the selected
+    // dimension reduced to size 1, matching Burn's sum_dim keepdim shape.
+    let coeus_axis1_l2 = coeus_ops::norm_p_axis(&xc, 2.0, 1, &backend);
+    let burn_axis1_l2 = bvec(xb.clone().powf_scalar(2.0).sum_dim(1).powf_scalar(0.5));
+    assert_close("norm_l2_axis1", coeus_axis1_l2.as_slice(), &burn_axis1_l2);
+
+    let coeus_axis0_l1 = coeus_ops::norm_p_axis(&xc, 1.0, 0, &backend);
+    let burn_axis0_l1 = bvec(xb.clone().abs().sum_dim(0));
+    assert_close("norm_l1_axis0", coeus_axis0_l1.as_slice(), &burn_axis0_l1);
+}
+
 // ── Linear layer (same weights) ───────────────────────────────────────────────
 
 #[test]
@@ -410,6 +542,78 @@ fn relu_backward_matches_burn() {
     let grads = burn::tensor::activation::relu(xb.clone()).sum().backward();
     let dx_b: Vec<f32> = xb.grad(&grads).unwrap().into_data().to_vec().unwrap();
     assert_close("relu_bwd dx", dx_c.as_slice(), &dx_b);
+}
+
+// ── Activation backward (sigmoid/tanh/silu/gelu) vs Burn autodiff ───────────────
+
+#[test]
+fn activation_backward_match_burn() {
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+    let data = vec![-1.5f32, -0.5, 0.25, 0.5, 1.5, 2.0];
+
+    let coeus_var = || {
+        Var::new(
+            CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data),
+            true,
+        )
+    };
+    let burn_var = || -> BurnTensor<AB, 2> {
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &device).require_grad()
+    };
+    let burn_grad = |xb: &BurnTensor<AB, 2>, grads| {
+        xb.grad(grads).unwrap().into_data().to_vec::<f32>().unwrap()
+    };
+
+    // sigmoid
+    let xv = coeus_var();
+    coeus_autograd::sum(&coeus_autograd::sigmoid(&xv)).backward();
+    let xb = burn_var();
+    let g = burn::tensor::activation::sigmoid(xb.clone())
+        .sum()
+        .backward();
+    assert_close(
+        "sigmoid_bwd",
+        xv.grad().unwrap().as_slice(),
+        &burn_grad(&xb, &g),
+    );
+
+    // tanh
+    let xv = coeus_var();
+    coeus_autograd::sum(&coeus_autograd::tanh(&xv)).backward();
+    let xb = burn_var();
+    let g = xb.clone().tanh().sum().backward();
+    assert_close(
+        "tanh_bwd",
+        xv.grad().unwrap().as_slice(),
+        &burn_grad(&xb, &g),
+    );
+
+    // silu
+    let xv = coeus_var();
+    coeus_autograd::sum(&coeus_autograd::silu(&xv)).backward();
+    let xb = burn_var();
+    let g = burn::tensor::activation::silu(xb.clone()).sum().backward();
+    assert_close(
+        "silu_bwd",
+        xv.grad().unwrap().as_slice(),
+        &burn_grad(&xb, &g),
+    );
+
+    // Burn 0.16 GELU forward is exact-erf, but its default GELU backward uses
+    // the tanh-approximation derivative. Compare that contract to Coeus'
+    // explicit tanh-approximation GELU rather than weakening the exact-GELU
+    // gradient bound.
+    let xv = coeus_var();
+    coeus_autograd::sum(&coeus_autograd::gelu_tanh(&xv)).backward();
+    let xb = burn_var();
+    let g = burn::tensor::activation::gelu(xb.clone()).sum().backward();
+    assert_close(
+        "gelu_tanh_bwd",
+        xv.grad().unwrap().as_slice(),
+        &burn_grad(&xb, &g),
+    );
 }
 
 // ── Sin/Cos backward ──────────────────────────────────────────────────────────
@@ -531,6 +735,117 @@ fn mse_loss_matches_burn() {
     assert_close("mse_loss", loss_c.tensor.as_slice(), &[loss_b]);
 }
 
+#[test]
+fn probability_loss_forward_and_backward_match_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use burn::nn::loss::{BinaryCrossEntropyLossConfig, HuberLossConfig, MseLoss, Reduction};
+    use burn::tensor::Int;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    let pred = vec![0.2_f32, 0.7, 0.6, 0.9];
+    let target = vec![0.0_f32, 1.0, 1.0, 0.0];
+    let pred_var = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &pred),
+        true,
+    );
+    let target_var = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &target),
+        false,
+    );
+    coeus_nn::binary_cross_entropy(&pred_var, &target_var, 1.0e-7).backward();
+    let pred_b: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(pred.clone(), [4]), &device).require_grad();
+    let target_b: BurnTensor<AB, 1, Int> =
+        BurnTensor::from_data(TensorData::new(vec![0_i64, 1, 1, 0], [4]), &device);
+    let grads = BinaryCrossEntropyLossConfig::new()
+        .init(&device)
+        .forward(pred_b.clone(), target_b)
+        .backward();
+    assert_close(
+        "binary_cross_entropy",
+        coeus_nn::binary_cross_entropy(&pred_var, &target_var, 1.0e-7)
+            .tensor
+            .as_slice(),
+        &bvec(BinaryCrossEntropyLossConfig::new().init(&device).forward(
+            BurnTensor::<BurnBackend, 1>::from_data(TensorData::new(pred.clone(), [4]), &dev()),
+            BurnTensor::<BurnBackend, 1, Int>::from_data(
+                TensorData::new(vec![0_i64, 1, 1, 0], [4]),
+                &dev(),
+            ),
+        )),
+    );
+    assert_close(
+        "binary_cross_entropy_bwd",
+        pred_var.grad().unwrap().as_slice(),
+        &pred_b
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
+    );
+
+    let y_hat = vec![-1.5_f32, -0.25, 0.5, 2.0];
+    let y = vec![0.0_f32, 0.25, -0.5, 1.25];
+    let y_hat_var = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &y_hat),
+        true,
+    );
+    let y_var = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &y),
+        false,
+    );
+    coeus_nn::mse_loss(&y_hat_var, &y_var).backward();
+    let y_hat_b: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(y_hat.clone(), [4]), &device).require_grad();
+    let y_b: BurnTensor<AB, 1> = BurnTensor::from_data(TensorData::new(y.clone(), [4]), &device);
+    let grads = MseLoss::new()
+        .forward(y_hat_b.clone(), y_b, Reduction::Mean)
+        .backward();
+    assert_close(
+        "mse_loss_bwd",
+        y_hat_var.grad().unwrap().as_slice(),
+        &y_hat_b
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
+    );
+
+    let huber_pred = vec![-1.5_f32, -0.25, 0.25, 1.75];
+    let huber_target = vec![0.0_f32, 0.25, 0.0, 0.5];
+    let huber_pred_var = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &huber_pred),
+        true,
+    );
+    let huber_target_var = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &huber_target),
+        false,
+    );
+    coeus_nn::huber_loss(&huber_pred_var, &huber_target_var, 1.0).backward();
+    let huber_pred_b: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(huber_pred.clone(), [4]), &device).require_grad();
+    let huber_target_b: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(huber_target.clone(), [4]), &device);
+    let grads = HuberLossConfig::new(1.0)
+        .init()
+        .forward(huber_pred_b.clone(), huber_target_b, Reduction::Mean)
+        .backward();
+    assert_close(
+        "huber_loss_bwd",
+        huber_pred_var.grad().unwrap().as_slice(),
+        &huber_pred_b
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
+    );
+}
+
 // ── LayerNorm ─────────────────────────────────────────────────────────────────
 
 #[test]
@@ -580,6 +895,106 @@ fn rmsnorm_forward_matches_burn_manual() {
     let out_b = xb / rms_b * wb.unsqueeze::<2>();
     assert_close_rel("rmsnorm_fwd", out_c.tensor.as_slice(), &bvec(out_b), 1e-4);
     let _ = backend;
+}
+
+// ── LayerNorm backward ──────────────────────────────────────────────────────────
+
+#[test]
+fn layernorm_backward_matches_burn_autodiff() {
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+    let x = vec![1.0f32, 2.0, 3.0, 4.0, -1.0, 0.5, 2.5, 3.0];
+    let w = vec![1.2f32, 0.8, 1.0, 0.9];
+    let b = vec![0.1f32, -0.1, 0.2, 0.0];
+    let eps = 1e-5f32;
+
+    // Coeus backward of sum(layernorm(x)).
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &x),
+        true,
+    );
+    let mut ln = coeus_nn::LayerNorm::<f32, SequentialBackend>::new(4, eps as f64);
+    ln.weight = Var::new(CoeusTensor::from_slice(vec![4], &w), true);
+    ln.bias = Var::new(CoeusTensor::from_slice(vec![4], &b), true);
+    coeus_autograd::sum(&ln.forward(&xv)).backward();
+
+    // Burn autodiff over the identical normalization formula.
+    let xb: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(x, [2, 4]), &device).require_grad();
+    let wb: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(w, [4]), &device).require_grad();
+    let bk: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(b, [4]), &device).require_grad();
+    let mean = xb.clone().mean_dim(1);
+    let xc = xb.clone() - mean;
+    let std = (xc.clone().powf_scalar(2.0).mean_dim(1) + eps).sqrt();
+    let out_b = xc / std * wb.clone().unsqueeze::<2>() + bk.clone().unsqueeze::<2>();
+    let grads = out_b.sum().backward();
+    let to_vec = |t: BurnTensor<NdArray<f32>, 1>| t.into_data().to_vec::<f32>().unwrap();
+    let to_vec2 = |t: BurnTensor<NdArray<f32>, 2>| t.into_data().to_vec::<f32>().unwrap();
+
+    assert_close_rel(
+        "layernorm_bwd dx",
+        xv.grad().unwrap().as_slice(),
+        &to_vec2(xb.grad(&grads).unwrap()),
+        1e-4,
+    );
+    assert_close_rel(
+        "layernorm_bwd dw",
+        ln.weight.grad().unwrap().as_slice(),
+        &to_vec(wb.grad(&grads).unwrap()),
+        1e-4,
+    );
+    assert_close_rel(
+        "layernorm_bwd db",
+        ln.bias.grad().unwrap().as_slice(),
+        &to_vec(bk.grad(&grads).unwrap()),
+        1e-4,
+    );
+}
+
+// ── RMSNorm backward ────────────────────────────────────────────────────────────
+
+#[test]
+fn rmsnorm_backward_matches_burn_autodiff() {
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+    let x = vec![1.0f32, 2.0, 3.0, 4.0, -1.0, 0.5, 2.5, 3.0];
+    let w = vec![1.0f32, 0.8, 1.2, 0.9];
+    let eps = 1e-6f32;
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &x),
+        true,
+    );
+    let mut rms = coeus_nn::RMSNorm::<f32, SequentialBackend>::new(4, eps as f64);
+    rms.weight = Var::new(CoeusTensor::from_slice(vec![4], &w), true);
+    coeus_autograd::sum(&rms.forward(&xv)).backward();
+
+    let xb: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(x, [2, 4]), &device).require_grad();
+    let wb: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(w, [4]), &device).require_grad();
+    let rms_b = (xb.clone().powf_scalar(2.0).mean_dim(1) + eps).sqrt();
+    let out_b = xb.clone() / rms_b * wb.clone().unsqueeze::<2>();
+    let grads = out_b.sum().backward();
+    let to_vec = |t: BurnTensor<NdArray<f32>, 1>| t.into_data().to_vec::<f32>().unwrap();
+    let to_vec2 = |t: BurnTensor<NdArray<f32>, 2>| t.into_data().to_vec::<f32>().unwrap();
+
+    assert_close_rel(
+        "rmsnorm_bwd dx",
+        xv.grad().unwrap().as_slice(),
+        &to_vec2(xb.grad(&grads).unwrap()),
+        1e-4,
+    );
+    assert_close_rel(
+        "rmsnorm_bwd dw",
+        rms.weight.grad().unwrap().as_slice(),
+        &to_vec(wb.grad(&grads).unwrap()),
+        1e-4,
+    );
 }
 
 // ── Clamp ─────────────────────────────────────────────────────────────────────
@@ -902,4 +1317,1681 @@ fn flip_backward_passes_grad() {
     coeus_autograd::sum(&out).backward();
     let grad = xv.grad().unwrap();
     assert_close("flip_bwd", grad.as_slice(), &[1.0; 6]);
+}
+
+// ── meshgrid / tile forward ────────────────────────────────────────────────
+
+#[test]
+fn meshgrid_ij_matches_manual_reference() {
+    let backend = SequentialBackend::new();
+    let x = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &[0.0f32, 1.0, 2.0]);
+    let y = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &[10.0f32, 20.0]);
+    let grids = coeus_ops::meshgrid(&[&x, &y], "ij", &backend);
+    assert_eq!(grids.len(), 2);
+    // grid_x varies along axis 0
+    assert_close(
+        "meshgrid_grid_x",
+        grids[0].as_slice(),
+        &[0.0, 0.0, 1.0, 1.0, 2.0, 2.0],
+    );
+    // grid_y varies along axis 1
+    assert_close(
+        "meshgrid_grid_y",
+        grids[1].as_slice(),
+        &[10.0, 20.0, 10.0, 20.0, 10.0, 20.0],
+    );
+}
+
+#[test]
+fn tile_forward_and_backward() {
+    let backend = SequentialBackend::new();
+    let x = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0f32, 2.0, 3.0]);
+    let out = coeus_ops::tile(&x, &[2], &backend);
+    assert_eq!(out.shape(), &[6]);
+    assert_close("tile_1d", out.as_slice(), &[1.0, 2.0, 3.0, 1.0, 2.0, 3.0]);
+
+    // 2-D tiling
+    let m = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0]);
+    let m2 = coeus_ops::tile(&m, &[1, 3], &backend);
+    assert_eq!(m2.shape(), &[2, 6]);
+    assert_close(
+        "tile_2d_row0",
+        &m2.as_slice()[..6],
+        &[1.0, 2.0, 1.0, 2.0, 1.0, 2.0],
+    );
+
+    // Tracked tile backward: grad sums over copies.
+    let xg = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0f32, 2.0, 3.0]),
+        true,
+    );
+    coeus_autograd::sum(&coeus_autograd::tile(&xg, &[3])).backward();
+    // Each element copied 3× → gradient = 3 for each.
+    assert_close("tile_bwd", xg.grad().unwrap().as_slice(), &[3.0, 3.0, 3.0]);
+    let _ = backend;
+}
+
+#[test]
+fn cumprod_forward_and_backward() {
+    // Forward: [1,2,3,4] → [1,2,6,24]
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0]),
+        false,
+    );
+    let backend = SequentialBackend::new();
+    let out = coeus_ops::cumprod(&x.tensor, 0, &backend);
+    assert_close("cumprod_fwd", out.as_slice(), &[1.0, 2.0, 6.0, 24.0]);
+
+    // Backward: d(sum(cumprod))/dx using the suffix-sum formula.
+    let xg = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0f32, 2.0, 3.0]),
+        true,
+    );
+    coeus_autograd::sum(&coeus_autograd::cumprod(&xg, 0)).backward();
+    // out=[1,2,6], sum=9
+    // grad[0] = (1+2+6)/1 = 9
+    // grad[1] = (2+6)/2   = 4
+    // grad[2] = 6/3       = 2
+    let grad = xg.grad().unwrap();
+    assert_close_rel("cumprod_bwd", grad.as_slice(), &[9.0, 4.0, 2.0], 1e-5);
+    let _ = backend;
+}
+
+// ── diag / diagonal forward + backward ──────────────────────────────────────
+
+#[test]
+fn diag_diagonal_forward_and_backward() {
+    let data = vec![1.0f32, 2.0, 3.0];
+    let v = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &data),
+        false,
+    );
+    let backend = SequentialBackend::new();
+
+    // diag forward
+    let m = coeus_ops::diag(&v.tensor, 0, &backend);
+    assert_eq!(m.shape(), &[3, 3]);
+    assert_close(
+        "diag_fwd",
+        m.as_slice(),
+        &[1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0],
+    );
+
+    // diagonal forward (extract main diagonal of the matrix)
+    let mat = CoeusTensor::<f32, SequentialBackend>::from_slice(
+        vec![3, 3],
+        &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
+    );
+    let d = coeus_ops::diagonal(&mat, 0, &backend);
+    assert_close("diagonal_fwd", d.as_slice(), &[1.0, 5.0, 9.0]);
+
+    // diag backward: grad flows via diagonal
+    let vg = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &data),
+        true,
+    );
+    coeus_autograd::sum(&coeus_autograd::diag(&vg, 0)).backward();
+    assert_close("diag_bwd", vg.grad().unwrap().as_slice(), &[1.0, 1.0, 1.0]);
+
+    let _ = backend;
+}
+
+#[test]
+fn tril_triu_forward_and_backward() {
+    let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+
+    // tril forward: elements above main diagonal → 0
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3, 3], &data),
+        false,
+    );
+    let lo = coeus_autograd::tril(&xv, 0);
+    assert_close(
+        "tril_fwd",
+        lo.tensor.as_slice(),
+        &[1.0, 0.0, 0.0, 4.0, 5.0, 0.0, 7.0, 8.0, 9.0],
+    );
+
+    // tril backward: gradient is zero at positions that were masked out
+    let xg = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3, 3], &data),
+        true,
+    );
+    coeus_autograd::sum(&coeus_autograd::tril(&xg, 0)).backward();
+    assert_close(
+        "tril_bwd",
+        xg.grad().unwrap().as_slice(),
+        &[1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0],
+    );
+
+    // triu forward: elements below main diagonal → 0
+    let xv2 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3, 3], &data),
+        false,
+    );
+    let hi = coeus_autograd::triu(&xv2, 0);
+    assert_close(
+        "triu_fwd",
+        hi.tensor.as_slice(),
+        &[1.0, 2.0, 3.0, 0.0, 5.0, 6.0, 0.0, 0.0, 9.0],
+    );
+}
+
+// ── roll forward + backward ───────────────────────────────────────────────────
+
+#[test]
+fn roll_forward_and_backward() {
+    let data = vec![0.0f32, 1.0, 2.0, 3.0];
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &data),
+        false,
+    );
+    // shift +1: last element wraps to front
+    let rolled = coeus_autograd::roll(&xv, &[1], &[0]);
+    assert_close("roll_fwd", rolled.tensor.as_slice(), &[3.0, 0.0, 1.0, 2.0]);
+
+    // backward: all-ones gradient rolled by -1 is still all-ones
+    let xg = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &data),
+        true,
+    );
+    coeus_autograd::sum(&coeus_autograd::roll(&xg, &[1], &[0])).backward();
+    assert_close("roll_bwd", xg.grad().unwrap().as_slice(), &[1.0; 4]);
+}
+
+// ── LayerNorm forward_nd (3-D input, matches 2-D reshape path) ───────────────
+
+#[test]
+fn layernorm_forward_nd_3d_matches_reshape_reference() {
+    // [batch=2, seq=3, d=4] input — forward_nd should give identical output to
+    // manual reshape→LayerNorm→reshape.
+    let data: Vec<f32> = (0..24).map(|v| v as f32 * 0.1 - 1.2).collect();
+    let (batch, seq, d) = (2, 3, 4);
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![batch, seq, d], &data),
+        true,
+    );
+
+    let w = vec![1.2f32, 0.8, 1.0, 0.9];
+    let b = vec![0.1f32, -0.1, 0.05, -0.05];
+    let eps = 1e-5;
+
+    let mut ln =
+        coeus_nn::normalization::layernorm::LayerNorm::<f32, SequentialBackend>::new(d, eps);
+    ln.weight = Var::new(CoeusTensor::from_slice(vec![d], &w), true);
+    ln.bias = Var::new(CoeusTensor::from_slice(vec![d], &b), true);
+
+    let out_nd = ln.forward_nd(&xv);
+
+    // Manual reference: reshape → LayerNorm 2-D → reshape back.
+    let x_flat = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![batch * seq, d], &data),
+        false,
+    );
+    let mut ln2 =
+        coeus_nn::normalization::layernorm::LayerNorm::<f32, SequentialBackend>::new(d, eps);
+    ln2.weight = Var::new(CoeusTensor::from_slice(vec![d], &w), false);
+    ln2.bias = Var::new(CoeusTensor::from_slice(vec![d], &b), false);
+    use coeus_nn::Module;
+    let out_2d = ln2.forward(&x_flat);
+
+    // Shapes must match ([batch, seq, d] vs [batch*seq, d] — flat values equal).
+    assert_close_rel(
+        "layernorm_nd_3d",
+        out_nd.tensor.to_contiguous().as_slice(),
+        out_2d.tensor.as_slice(),
+        1e-4,
+    );
+
+    // Backward gradient must also flow through the 3-D path.
+    coeus_autograd::sum(&out_nd).backward();
+    assert!(
+        xv.grad().is_some(),
+        "layernorm forward_nd backward did not propagate gradient"
+    );
+}
+
+// ── ConvTranspose1d (stride-2, manual reference) ──────────────────────────────
+#[test]
+fn conv_transpose1d_stride2_matches_manual_reference() {
+    use coeus_ops::BackendOps;
+    let backend = SequentialBackend::new();
+
+    // batch=1, C_in=2, L=3 → C_out=2, K=2, stride=2 → L_out = (3-1)*2 + 2 = 6
+    let input: Vec<f32> = vec![1.0, 0.0, -1.0, 2.0, -2.0, 0.5];
+    let weight: Vec<f32> = vec![1.0, 0.5, -0.5, 0.25, 0.0, -1.0, 1.0, 0.5]; // [C_in=2, C_out=2, K=2]
+    let (n, c_in, l, c_out, k, stride, padding, op, dilation) = (1usize, 2, 3, 2, 2, 2, 0, 0, 1);
+    let l_out =
+        coeus_ops::conv_transpose::conv_transpose1d_output_len(l, k, stride, padding, op, dilation);
+    assert_eq!(l_out, 6);
+
+    let in_t = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c_in, l], &input);
+    let wt = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![c_in, c_out, k], &weight);
+    let mut out = CoeusTensor::<f32, SequentialBackend>::zeros(vec![n, c_out, l_out]);
+    let out_layout = out.layout().clone();
+    backend.conv_transpose1d(
+        in_t.storage(),
+        in_t.layout(),
+        wt.storage(),
+        wt.layout(),
+        None,
+        stride,
+        padding,
+        op,
+        dilation,
+        out.storage_mut(),
+        &out_layout,
+    );
+
+    // Manual reference: scatter input→output via stride=2 mapping.
+    // For each (n_i, c_in_i, l_i): for each (c_out_j, k_i):
+    //   output[n_i, c_out_j, l_i * stride + k_i] += input[n_i, c_in_i, l_i] * weight[c_in_i, c_out_j, k_i]
+    let mut expected = vec![0.0f32; n * c_out * l_out];
+    let in_s = in_t.as_slice();
+    let w_s = wt.as_slice();
+    for ni in 0..n {
+        for ci in 0..c_in {
+            for li in 0..l {
+                for co in 0..c_out {
+                    for ki in 0..k {
+                        let pos = li * stride + ki;
+                        if pos < l_out {
+                            expected[ni * c_out * l_out + co * l_out + pos] += in_s
+                                [ni * c_in * l + ci * l + li]
+                                * w_s[ci * c_out * k + co * k + ki];
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assert_close_rel("conv_transpose1d_stride2", out.as_slice(), &expected, 1e-4);
+    let _ = backend;
+}
+
+// ── ConvTranspose2d (stride-1, manual reference) ──────────────────────────────
+
+#[test]
+fn conv_transpose2d_unit_stride_matches_manual_reference() {
+    use coeus_ops::BackendOps;
+    let backend = SequentialBackend::new();
+
+    // batch=1, C_in=1, H=3, W=3, C_out=1, KH=2, KW=2, stride=1 → H_out=4, W_out=4
+    let input: Vec<f32> = (0..9).map(|v| v as f32).collect();
+    let weight: Vec<f32> = vec![1.0, 0.0, 0.0, 1.0]; // identity-ish 2×2 kernel
+    let (n, c_in, h, w, c_out, kh, kw, stride, padding, op, dilation) =
+        (1usize, 1, 3, 3, 1, 2, 2, 1, 0, 0, 1);
+    let (h_out, w_out) = coeus_ops::conv_transpose::conv_transpose2d_output_dims(
+        h, w, kh, kw, stride, padding, op, dilation,
+    );
+    assert_eq!((h_out, w_out), (4, 4));
+
+    let in_t = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c_in, h, w], &input);
+    let wt = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![c_in, c_out, kh, kw], &weight);
+    let mut out = CoeusTensor::<f32, SequentialBackend>::zeros(vec![n, c_out, h_out, w_out]);
+    let out_layout = out.layout().clone();
+    backend.conv_transpose2d(
+        in_t.storage(),
+        in_t.layout(),
+        wt.storage(),
+        wt.layout(),
+        None,
+        stride,
+        padding,
+        op,
+        dilation,
+        out.storage_mut(),
+        &out_layout,
+    );
+
+    // Manual scatter reference.
+    let mut expected = vec![0.0f32; n * c_out * h_out * w_out];
+    let in_s = in_t.as_slice();
+    let w_s = wt.as_slice();
+    for ni in 0..n {
+        for ci in 0..c_in {
+            for yi in 0..h {
+                for xi in 0..w {
+                    for co in 0..c_out {
+                        for ki in 0..kh {
+                            for kj in 0..kw {
+                                let py = yi * stride + ki;
+                                let px = xi * stride + kj;
+                                if py < h_out && px < w_out {
+                                    expected[ni * c_out * h_out * w_out
+                                        + co * h_out * w_out
+                                        + py * w_out
+                                        + px] += in_s[ni * c_in * h * w + ci * h * w + yi * w + xi]
+                                        * w_s[ci * c_out * kh * kw + co * kh * kw + ki * kw + kj];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assert_close_rel(
+        "conv_transpose2d_unit_stride",
+        out.as_slice(),
+        &expected,
+        1e-4,
+    );
+    let _ = backend;
+}
+
+// ── amax / amin / prod (manual references) ────────────────────────────────────
+
+#[test]
+fn amax_amin_prod_match_manual_reference() {
+    let backend = SequentialBackend::new();
+    let data = vec![3.0f32, -1.0, 5.0, 2.0, -4.0, 0.5];
+    let x = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data);
+
+    let amax_val = coeus_ops::amax(&x, &backend);
+    assert!(
+        (amax_val - 5.0f32).abs() < 1e-4,
+        "amax: got {amax_val}, expected 5.0"
+    );
+
+    let amin_val = coeus_ops::amin(&x, &backend);
+    assert!(
+        (amin_val - (-4.0f32)).abs() < 1e-4,
+        "amin: got {amin_val}, expected -4.0"
+    );
+
+    let prod_val = coeus_ops::prod(&x, &backend);
+    let expected_prod: f32 = data.iter().product();
+    assert!(
+        (prod_val - expected_prod).abs() / expected_prod.abs().max(1e-6) < 1e-4,
+        "prod: got {prod_val}, expected {expected_prod}"
+    );
+    let _ = backend;
+}
+
+// ── no_grad context (Rust-level) ──────────────────────────────────────────────
+
+#[test]
+fn no_grad_context_does_not_track() {
+    // Outside no_grad: requires_grad=true should produce tracked var.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0f32, 2.0, 3.0]),
+        true,
+    );
+    let out_tracked = coeus_autograd::relu(&xv);
+    // Creator is set when requires_grad is active.
+    assert!(
+        out_tracked.creator.is_some(),
+        "expected creator outside no_grad"
+    );
+
+    // Inside no_grad context: creator should be None even though the input has requires_grad.
+    coeus_autograd::grad_mode::push_no_grad();
+    let xv2 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0f32, 2.0, 3.0]),
+        true,
+    );
+    let out_nograd = coeus_autograd::relu(&xv2);
+    coeus_autograd::grad_mode::pop_no_grad();
+    assert!(
+        out_nograd.creator.is_none(),
+        "expected no creator inside no_grad"
+    );
+}
+
+// ── FeedForward forward shape contract ───────────────────────────────────────
+//
+// We can't compare against Burn exactly (weight init differs), but we can
+// verify shape/rank and that forward produces finite, non-trivially-zero output.
+
+#[test]
+fn feed_forward_forward_shape_contract() {
+    use coeus_nn::{FeedForward, Module};
+    let (batch, seq, d_model, d_ff) = (2, 4, 8, 16);
+    let ffn = FeedForward::<f32, SequentialBackend>::new(d_model, d_ff, 0.0);
+
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::zeros(vec![batch, seq, d_model]),
+        false,
+    );
+    let out = ffn.forward(&x);
+    assert_eq!(
+        out.tensor.shape(),
+        &[batch, seq, d_model],
+        "ffn output shape"
+    );
+    // With bias=true and non-zero linear weights, output should not be all-zero
+    // for a non-zero input. Use a non-trivial input.
+    let x2 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(
+            vec![1, 1, d_model],
+            &vec![1.0f32; d_model],
+        ),
+        false,
+    );
+    let out2 = ffn.forward(&x2);
+    // At least some outputs should be non-zero (weights are Xavier init, not all zero).
+    let n_nonzero = out2
+        .tensor
+        .as_slice()
+        .iter()
+        .filter(|&&v| v.abs() > 1e-10)
+        .count();
+    assert!(
+        n_nonzero > 0,
+        "ffn produced all-zero output for non-zero input"
+    );
+}
+
+// ── Multi-head attention forward shape contract ───────────────────────────────
+
+#[test]
+fn multi_head_attention_forward_shape_contract() {
+    use coeus_nn::{Module, MultiHeadAttention, NullMask};
+    let (batch, seq, d_model) = (2, 6, 16);
+    // H = 4 heads (const generic; d_model = 16 must be divisible by H = 4).
+    let mha = MultiHeadAttention::<f32, SequentialBackend, 4, NullMask>::new(d_model, true);
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(
+            vec![batch, seq, d_model],
+            &vec![0.1f32; batch * seq * d_model],
+        ),
+        false,
+    );
+    let out = mha.forward(&x);
+    assert_eq!(
+        out.tensor.shape(),
+        &[batch, seq, d_model],
+        "mha output shape"
+    );
+    // With non-trivial input, output should not be all-zero.
+    let n_nonzero = out
+        .tensor
+        .as_slice()
+        .iter()
+        .filter(|&&v| v.abs() > 1e-10)
+        .count();
+    assert!(
+        n_nonzero > 0,
+        "mha produced all-zero output for non-zero input"
+    );
+}
+
+// ── AvgPool2d (manual reference) ─────────────────────────────────────────────
+
+#[test]
+fn avg_pool2d_forward_matches_manual_reference() {
+    use coeus_ops::BackendOps;
+    let backend = SequentialBackend::new();
+    let (b, c, h, w) = (2, 2, 4, 4);
+    let (oh, ow, ks, st) = (2, 2, 2, 2);
+    let data: Vec<f32> = (0..b * c * h * w).map(|x| x as f32 * 0.1).collect();
+    let x = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![b, c, h, w], &data);
+    let mut out = CoeusTensor::<f32, SequentialBackend>::zeros(vec![b, c, oh, ow]);
+    let out_layout = out.layout().clone();
+    backend.avg_pool2d(
+        x.storage(),
+        x.layout(),
+        ks,
+        st,
+        0,
+        1,
+        out.storage_mut(),
+        &out_layout,
+    );
+
+    let x_s = x.as_slice();
+    let ks_sq = (ks * ks) as f32;
+    let expected: Vec<f32> = (0..b * c * oh * ow)
+        .map(|flat| {
+            let bi = flat / (c * oh * ow);
+            let rem = flat % (c * oh * ow);
+            let ci = rem / (oh * ow);
+            let rem2 = rem % (oh * ow);
+            let yi = rem2 / ow;
+            let xi = rem2 % ow;
+            let mut acc = 0.0f32;
+            for ki in 0..ks {
+                for kj in 0..ks {
+                    acc += x_s[bi * c * h * w + ci * h * w + (yi * st + ki) * w + (xi * st + kj)];
+                }
+            }
+            acc / ks_sq
+        })
+        .collect();
+    assert_close("avg_pool2d_fwd", out.as_slice(), &expected);
+}
+
+// ── GlobalAvgPool2d (reduces spatial to 1×1) ─────────────────────────────────
+
+#[test]
+fn global_avg_pool2d_reduces_spatial_to_one() {
+    use coeus_nn::GlobalAvgPool2d;
+    let backend = SequentialBackend::new();
+    let _ = backend;
+    let data: Vec<f32> = (0..16).map(|x| x as f32 + 1.0).collect();
+    // [1, 1, 4, 4] — values 1..16
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data),
+        false,
+    );
+    let pool = GlobalAvgPool2d::<f32, SequentialBackend>::new();
+    use coeus_nn::Module;
+    let out = pool.forward(&xv);
+    assert_eq!(out.tensor.shape(), &[1, 1, 1, 1], "global avg pool shape");
+    let expected_mean = data.iter().sum::<f32>() / data.len() as f32;
+    assert_close("global_avg_pool2d", out.tensor.as_slice(), &[expected_mean]);
+}
+
+// ── GlobalMaxPool2d (reduces spatial to 1×1) ─────────────────────────────────
+
+#[test]
+fn global_max_pool2d_reduces_spatial_to_one() {
+    use coeus_nn::GlobalMaxPool2d;
+    let data: Vec<f32> = (0..16).map(|x| x as f32 + 1.0).collect();
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data),
+        false,
+    );
+    let pool = GlobalMaxPool2d::<f32, SequentialBackend>::new();
+    use coeus_nn::Module;
+    let out = pool.forward(&xv);
+    assert_eq!(out.tensor.shape(), &[1, 1, 1, 1], "global max pool shape");
+    // max of 1..16 is 16.0
+    assert_close("global_max_pool2d", out.tensor.as_slice(), &[16.0]);
+}
+
+// ── TransformerEncoderLayer forward shape + gradient contract ─────────────────
+//
+// A full value comparison against Burn NdArray isn't possible because the
+// weight initialisation is different. We instead verify the shape contract and
+// that backward correctly computes non-zero gradients for all parameters.
+
+#[test]
+fn transformer_encoder_layer_forward_backward_shape_contract() {
+    use coeus_nn::{Module, NullMask, TransformerEncoderLayer};
+    const H: usize = 2;
+    let (batch, seq, d_model, d_ff) = (2, 4, 8, 16);
+
+    let layer =
+        TransformerEncoderLayer::<f32, SequentialBackend, H, NullMask>::new(d_model, d_ff, 0.0);
+    let params = layer.parameters();
+    assert!(!params.is_empty(), "encoder layer has parameters");
+
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(
+            vec![batch, seq, d_model],
+            &vec![0.1f32; batch * seq * d_model],
+        ),
+        true,
+    );
+    let out = layer.forward(&x);
+    assert_eq!(
+        out.tensor.shape(),
+        &[batch, seq, d_model],
+        "encoder layer output shape"
+    );
+
+    // Backward: verify gradients flow to input and all parameters.
+    coeus_autograd::sum(&out).backward();
+    assert!(x.grad().is_some(), "encoder layer: input grad must be set");
+    let input_grad_numel: f32 = x.grad().unwrap().as_slice().iter().map(|v| v.abs()).sum();
+    assert!(
+        input_grad_numel > 0.0,
+        "encoder layer: input grad is all zero"
+    );
+    for (i, p) in params.iter().enumerate() {
+        assert!(
+            p.grad().is_some(),
+            "encoder layer parameter {i} has no gradient"
+        );
+    }
+}
+
+#[test]
+fn batchnorm1d_forward_matches_manual_reference() {
+    use coeus_nn::BatchNorm1d;
+    // BatchNorm1d expects [N, C, L]: batch=1, channels=2, length=4
+    // scale=1, bias=0 initially; training mode normalises per-channel across N*L
+    let data: Vec<f32> = (0..8).map(|x| x as f32 + 1.0).collect(); // [1,2,4]
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 4], &data),
+        false,
+    );
+    let bn = BatchNorm1d::<f32, SequentialBackend>::new(2, 1e-5, 0.1);
+    use coeus_nn::Module;
+    let out = bn.forward(&xv);
+    assert_eq!(out.tensor.shape(), &[1, 2, 4], "batchnorm1d output shape");
+
+    // Output should be near zero mean and unit variance per channel
+    let out_s = out.tensor.as_slice();
+    // channel 0: elements [1,2,3,4] → mean=2.5
+    let c0: &[f32] = &out_s[..4];
+    let c0_mean = c0.iter().sum::<f32>() / 4.0;
+    assert!(
+        c0_mean.abs() < 1e-4,
+        "batchnorm1d channel0 mean {c0_mean} should be near 0"
+    );
+    // channel 1: elements [5,6,7,8] → mean=6.5
+    let c1: &[f32] = &out_s[4..];
+    let c1_mean = c1.iter().sum::<f32>() / 4.0;
+    assert!(
+        c1_mean.abs() < 1e-4,
+        "batchnorm1d channel1 mean {c1_mean} should be near 0"
+    );
+}
+
+// ── BatchNorm1d backward analytical parity ───────────────────────────────────
+
+#[test]
+fn batchnorm1d_backward_bias_and_weight_grads_match_analytical() {
+    use coeus_nn::BatchNorm1d;
+    // [N=1, C=2, L=3]: m = N*L = 3 per channel.
+    // Channel 0: [1, 2, 3] → x_hat zero-mean → weight grad ≈ 0, bias grad = 3.
+    // Channel 1: [4, 5, 6] → x_hat zero-mean → weight grad ≈ 0, bias grad = 3.
+    let data: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]; // [N=1, C=2, L=3]
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &data),
+        true,
+    );
+    let bn = BatchNorm1d::<f32, SequentialBackend>::new(2, 1e-5, 0.1);
+    use coeus_nn::Module;
+    let out = bn.forward(&xv);
+    // Loss = sum(output) → upstream gradient is all-ones.
+    coeus_autograd::sum(&out).backward();
+
+    // Bias gradient: dL/d_beta_c = sum_{N,L} 1 = m = 3 for each channel.
+    let bg = bn
+        .bias
+        .grad()
+        .expect("bias.grad must be set after backward");
+    let bg_s = bg.as_slice();
+    assert_eq!(bg_s.len(), 2, "bias grad length");
+    let m_f = 3.0_f32;
+    assert!(
+        (bg_s[0] - m_f).abs() < 1e-4,
+        "bias[0] grad={} expected={m_f}",
+        bg_s[0]
+    );
+    assert!(
+        (bg_s[1] - m_f).abs() < 1e-4,
+        "bias[1] grad={} expected={m_f}",
+        bg_s[1]
+    );
+
+    // Weight gradient: dL/d_gamma_c = sum_{N,L} x_hat_{c} * 1 = 0 (x_hat zero-mean).
+    let wg = bn
+        .weight
+        .grad()
+        .expect("weight.grad must be set after backward");
+    let wg_s = wg.as_slice();
+    assert_eq!(wg_s.len(), 2, "weight grad length");
+    assert!(
+        wg_s[0].abs() < 1e-4,
+        "weight[0] grad={} expected≈0",
+        wg_s[0]
+    );
+    assert!(
+        wg_s[1].abs() < 1e-4,
+        "weight[1] grad={} expected≈0",
+        wg_s[1]
+    );
+
+    // Input gradient must be set and have same shape as input.
+    let ig = xv.grad().expect("input.grad must be set after backward");
+    assert_eq!(ig.ndim(), 3, "input grad rank");
+    assert_eq!(ig.shape(), &[1, 2, 3], "input grad shape");
+    // BatchNorm1d backward: sum of input grads per channel = 0 (normalization
+    // property: dl/dx sums to zero across the normalization dim).
+    let ig_s = ig.as_slice();
+    let ig_c0_sum: f32 = ig_s[..3].iter().sum();
+    let ig_c1_sum: f32 = ig_s[3..].iter().sum();
+    assert!(
+        ig_c0_sum.abs() < 1e-4,
+        "input grad[c0] sum={ig_c0_sum} expected≈0"
+    );
+    assert!(
+        ig_c1_sum.abs() < 1e-4,
+        "input grad[c1] sum={ig_c1_sum} expected≈0"
+    );
+}
+
+// ── GlobalAvgPool2d non-square input ─────────────────────────────────────────
+
+#[test]
+fn global_avg_pool2d_handles_non_square_spatial() {
+    use coeus_nn::GlobalAvgPool2d;
+    use coeus_nn::Module;
+    // [1, 1, 2, 4] — mean of each row then mean of the result equals overall mean
+    let data: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 4], &data),
+        false,
+    );
+    let pool = GlobalAvgPool2d::<f32, SequentialBackend>::new();
+    let out = pool.forward(&xv);
+    assert_eq!(
+        out.tensor.shape(),
+        &[1, 1, 1, 1],
+        "non-square global avg shape"
+    );
+    let expected = data.iter().sum::<f32>() / data.len() as f32; // 4.5
+    assert_close(
+        "global_avg_pool2d_non_square",
+        out.tensor.as_slice(),
+        &[expected],
+    );
+}
+
+// ── GlobalMaxPool2d backward ──────────────────────────────────────────────────
+
+#[test]
+fn global_max_pool2d_backward_passes_grad_to_max_position() {
+    use coeus_nn::GlobalMaxPool2d;
+    use coeus_nn::Module;
+    // [1, 1, 2, 3]: max at position (0,2) in row-major → index 2 overall
+    let data: Vec<f32> = vec![1.0, 3.0, 5.0, 2.0, 4.0, 0.5];
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 3], &data),
+        true,
+    );
+    let pool = GlobalMaxPool2d::<f32, SequentialBackend>::new();
+    let out = pool.forward(&xv);
+    assert_eq!(out.tensor.shape(), &[1, 1, 1, 1]);
+    assert_close("global_max_pool2d_bwd_fwd", out.tensor.as_slice(), &[5.0]);
+    out.backward();
+    let grad = xv.grad().unwrap();
+    // Only the maximum element receives gradient 1.0; all others receive 0.0
+    let gv: Vec<f32> = grad.as_slice().to_vec();
+    assert_eq!(gv.len(), 6);
+    let total: f32 = gv.iter().sum();
+    assert!(
+        (total - 1.0).abs() < 1e-6,
+        "total grad should be 1: {total}"
+    );
+    assert!((gv[2] - 1.0).abs() < 1e-6, "max position grad: {}", gv[2]);
+}
+
+// ── SGD step (manual reference, no Burn dep) ──────────────────────────────────
+//
+// SGD without momentum: θ_new = θ - lr * g
+// This test uses an exact closed-form reference rather than live Burn,
+// because Burn's SGD API requires a TrainingConfig setup that differs.
+
+#[test]
+fn sgd_step_matches_analytical_reference() {
+    use coeus_optim::traits::Optimizer;
+    use coeus_optim::SGD;
+    let lr = 0.1f64;
+    let momentum = 0.0f64;
+    let params_data = vec![3.0f64, -2.0, 1.5, 0.5];
+    let grads_data = vec![1.0f64, 2.0, -0.5, 4.0];
+
+    // Set up param as Var with requires_grad = true.
+    let p = Var::new(
+        CoeusTensor::<f64, SequentialBackend>::from_slice(vec![4], &params_data),
+        true,
+    );
+    // Manually inject gradient.
+    if let Some(ref g) = p.grad {
+        *g.write() = CoeusTensor::from_slice(vec![4], &grads_data);
+    }
+
+    let mut opt = SGD::new(vec![p.clone()], lr, momentum);
+    opt.step();
+    opt.zero_grad();
+
+    // Expected: θ_new[i] = θ[i] - lr * g[i]
+    let expected: Vec<f64> = params_data
+        .iter()
+        .zip(grads_data.iter())
+        .map(|(&theta, &g)| theta - lr * g)
+        .collect();
+    let actual = opt.params[0].tensor.as_slice().to_vec();
+    assert_close_rel(
+        "sgd_step",
+        &actual.iter().map(|&x| x as f32).collect::<Vec<_>>(),
+        &expected.iter().map(|&x| x as f32).collect::<Vec<_>>(),
+        1e-6,
+    );
+}
+
+// ── Adam step (manual reference) ─────────────────────────────────────────────
+//
+// Adam update rule (no weight decay, β1=0.9, β2=0.999, ε=1e-8):
+//   m_t = β1 * m_{t-1} + (1 - β1) * g_t
+//   v_t = β2 * v_{t-1} + (1 - β2) * g_t²
+//   m̂_t = m_t / (1 - β1^t)
+//   v̂_t = v_t / (1 - β2^t)
+//   θ_t = θ_{t-1} - lr * m̂_t / (√v̂_t + ε)
+
+#[test]
+fn adam_step_matches_analytical_reference() {
+    use coeus_optim::traits::Optimizer;
+    use coeus_optim::Adam;
+    let lr = 0.001f64;
+    let beta1 = 0.9f64;
+    let beta2 = 0.999f64;
+    let eps = 1e-8f64;
+    let params_data = vec![1.0f64, -0.5, 2.0, 0.3];
+    let grads_data = vec![0.5f64, 1.0, -0.2, 0.8];
+
+    let p = Var::new(
+        CoeusTensor::<f64, SequentialBackend>::from_slice(vec![4], &params_data),
+        true,
+    );
+    if let Some(ref g) = p.grad {
+        *g.write() = CoeusTensor::from_slice(vec![4], &grads_data);
+    }
+
+    let mut opt = Adam::new(vec![p.clone()], lr, beta1, beta2, eps);
+    opt.step(); // step t=1
+
+    // Closed-form expected for t=1:
+    let expected: Vec<f64> = params_data
+        .iter()
+        .zip(grads_data.iter())
+        .map(|(&theta, &g)| {
+            let m1 = (1.0 - beta1) * g;
+            let v1 = (1.0 - beta2) * g * g;
+            let m_hat = m1 / (1.0 - beta1);
+            let v_hat = v1 / (1.0 - beta2);
+            theta - lr * m_hat / (v_hat.sqrt() + eps)
+        })
+        .collect();
+    let actual = opt.params[0].tensor.as_slice().to_vec();
+    assert_close_rel(
+        "adam_step",
+        &actual.iter().map(|&x| x as f32).collect::<Vec<_>>(),
+        &expected.iter().map(|&x| x as f32).collect::<Vec<_>>(),
+        1e-5,
+    );
+}
+
+// ── ConvTranspose1d backward (gradient correctness) ───────────────────────────
+
+#[test]
+fn conv_transpose1d_backward_gradient_correctness() {
+    // Input [1,1,2], weight [1,1,2], no bias, stride=1.
+    // Forward: output [1,1,3] (L_out = (2-1)*1 + 2 = 3)
+    // seed = [1, 1, 1] (all-ones grad)
+    // grad_input[0,0,i] = Σ_{co,k} seed[0,co, i*1+k] * w[0,co,k]
+    //   → position 0: seed[0]=1.0 * w[0]=1.0 + seed[1]=1.0 * w[1]=0.5 = 1.5
+    //   → position 1: seed[1]=1.0 * w[0]=1.0 + seed[2]=1.0 * w[1]=0.5 = 1.5
+    // grad_weight[0,0,k] = Σ_{n,l} input[n,0,l] * seed[n,0, l+k]
+    //   → k=0: 2.0*1 + 3.0*1 = 5.0  (l=0→seed[0], l=1→seed[1])
+    //   → k=1: 2.0*1 + 3.0*1 = 5.0  (l=0→seed[1], l=1→seed[2])
+    let input = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2], &[2.0, 3.0]),
+        true,
+    );
+    let weight = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2], &[1.0, 0.5]),
+        true,
+    );
+    let backend = SequentialBackend::new();
+    let out_tensor =
+        coeus_ops::conv_transpose1d(&input.tensor, &weight.tensor, None, 1, 0, 0, 1, &backend);
+    let out = coeus_autograd::conv_transpose1d(&input, &weight, &None, out_tensor, 1, 0, 0, 1);
+    let seed = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3], &[1.0, 1.0, 1.0]);
+    out.backward_with_seed(seed);
+
+    let gi = input.grad().unwrap();
+    let gw = weight.grad().unwrap();
+    assert_close_rel("ct1d_bwd_gi", gi.as_slice(), &[1.5, 1.5], 1e-5);
+    assert_close_rel("ct1d_bwd_gw", gw.as_slice(), &[5.0, 5.0], 1e-5);
+    let _ = backend;
+}
+
+// ── ConvTranspose2d backward (gradient correctness) ───────────────────────────
+
+#[test]
+fn conv_transpose2d_backward_gradient_correctness() {
+    // Input [1,1,2,2] all-ones, weight [1,1,1,1]=[2.0], bias [1]=[0].
+    // Forward: out[n,0,h,w] = input[n,0,h,w]*2.0 = 2.0 (all positions) → [2,2,2,2]
+    // Backward seed = all-ones [1,1,2,2]:
+    //   grad_input[n,0,h,w] = Σ_k seed[n,0,h,w] * weight = 1*2 = 2
+    //   grad_weight = Σ_{n,h,w} input*seed = 1*1 * 4 elements = 4
+    let input = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &[1.0; 4]),
+        true,
+    );
+    let weight = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 1, 1], &[2.0]),
+        true,
+    );
+    let backend = SequentialBackend::new();
+    let out_tensor =
+        coeus_ops::conv_transpose2d(&input.tensor, &weight.tensor, None, 1, 0, 0, 1, &backend);
+    let out = coeus_autograd::conv_transpose2d(&input, &weight, &None, out_tensor, 1, 0, 0, 1);
+    assert_eq!(out.tensor.shape(), &[1, 1, 2, 2]);
+    assert_close("ct2d_fwd", out.tensor.to_contiguous().as_slice(), &[2.0; 4]);
+
+    let seed = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &[1.0; 4]);
+    out.backward_with_seed(seed);
+
+    let gi = input.grad().unwrap();
+    let gw = weight.grad().unwrap();
+    assert_close("ct2d_bwd_gi", gi.to_contiguous().as_slice(), &[2.0; 4]);
+    assert_close("ct2d_bwd_gw", gw.to_contiguous().as_slice(), &[4.0]);
+    let _ = backend;
+}
+
+// ── AvgPool2d backward (Coeus vs. manual reference) ──────────────────────────
+
+#[test]
+fn avg_pool2d_backward_gradient_correctness() {
+    // Input [1,1,4,4], kernel=2, stride=2 → output [1,1,2,2].
+    // Backward seed = all-ones → each input element receives grad = 1/(ks*ks) = 0.25.
+    let data: Vec<f32> = (0..16).map(|v| v as f32).collect();
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data),
+        true,
+    );
+    let pool = coeus_nn::AvgPool2d::<f32, SequentialBackend>::with_params(2, 2, 0, 1);
+    use coeus_nn::Module;
+    let out = pool.forward(&xv);
+    assert_eq!(out.tensor.shape(), &[1, 1, 2, 2]);
+
+    let seed = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &[1.0; 4]);
+    out.backward_with_seed(seed);
+
+    let grad = xv.grad().unwrap();
+    assert_eq!(grad.shape(), &[1, 1, 4, 4], "avg_pool2d grad shape");
+    // Each output element distributes its gradient equally over ks^2=4 input positions.
+    for &g in grad.to_contiguous().as_slice() {
+        assert!(
+            (g - 0.25f32).abs() < 1e-5,
+            "avg_pool2d grad element: expected 0.25, got {g}"
+        );
+    }
+}
+
+// ── MaxPool2d backward (Coeus vs. manual reference) ──────────────────────────
+
+#[test]
+fn max_pool2d_backward_gradient_correctness() {
+    // Input [1,1,4,4]: row-major 0..15.
+    // 2×2 non-overlapping blocks (stride=2):
+    //   block(0,0): positions [(0,0),(0,1),(1,0),(1,1)] = [0,1,4,5]  → max=5
+    //   block(0,1): positions [(0,2),(0,3),(1,2),(1,3)] = [2,3,6,7]  → max=7
+    //   block(1,0): positions [(2,0),(2,1),(3,0),(3,1)] = [8,9,12,13]→ max=13
+    //   block(1,1): positions [(2,2),(2,3),(3,2),(3,3)] = [10,11,14,15]→max=15
+    let data: Vec<f32> = (0..16).map(|v| v as f32).collect();
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data),
+        true,
+    );
+    let pool = coeus_nn::MaxPool2d::<f32, SequentialBackend>::with_params(2, 2, 0, 1);
+    use coeus_nn::Module;
+    let out = pool.forward(&xv);
+    assert_eq!(out.tensor.shape(), &[1, 1, 2, 2]);
+    let expected_fwd = [5.0f32, 7.0, 13.0, 15.0];
+    assert_close_rel(
+        "max_pool2d_bwd_fwd",
+        out.tensor.as_slice(),
+        &expected_fwd,
+        1e-5,
+    );
+
+    let seed = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &[1.0; 4]);
+    out.backward_with_seed(seed);
+
+    let grad = xv.grad().unwrap();
+    assert_eq!(grad.shape(), &[1, 1, 4, 4], "max_pool2d grad shape");
+    let gs = grad.to_contiguous();
+    let gs = gs.as_slice();
+    // Max positions (row-major flat index in 4×4): 5, 7, 13, 15
+    for (i, &v) in gs.iter().enumerate() {
+        let is_max_pos = matches!(i, 5 | 7 | 13 | 15);
+        if is_max_pos {
+            assert!(
+                (v - 1.0f32).abs() < 1e-5,
+                "max_pool2d grad[{i}]: expected 1.0, got {v}"
+            );
+        } else {
+            assert!(
+                v.abs() < 1e-5,
+                "max_pool2d grad[{i}]: expected 0.0, got {v}"
+            );
+        }
+    }
+}
+
+// ── GroupNorm forward (matches Burn NdArray) ──────────────────────────────────
+
+#[test]
+fn groupnorm_forward_matches_burn() {
+    use burn::nn::GroupNormConfig;
+    use coeus_nn::GroupNorm;
+
+    // [N=2, C=4, L=3] with G=2 groups.  Weight=ones, bias=zeros (default init).
+    let data: Vec<f32> = (0..24).map(|x| x as f32 * 0.1 - 1.0).collect();
+    let (n, c, l) = (2usize, 4, 3);
+
+    // Coeus
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, l], &data),
+        false,
+    );
+    let gn = GroupNorm::<f32, SequentialBackend, 2>::new(c, 1e-5);
+    let out_c = gn.forward(&xv);
+
+    // Burn
+    let gn_b = GroupNormConfig::new(2, c).init::<BurnBackend>(&dev());
+    let xb: BurnTensor<BurnBackend, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, l]), &dev());
+    let out_b = gn_b.forward(xb);
+
+    // Tolerance derivation: Coeus computes sqrt(var + eps) (eps before sqrt,
+    // the standard PyTorch formula), while Burn 0.16 computes sqrt(var) + eps
+    // (eps after sqrt).  The relative difference between the two divisors is
+    // approximately eps / (2 * sqrt(var)) ≈ 1e-5 / (2 * 0.17) ≈ 2.9e-5 for the
+    // smallest group variance (~0.03).  After normalization (amplification
+    // ~1/sqrt(var) ≈ 5.8) and accumulation across C*L output elements, the
+    // worst-case absolute error bound is ~6 * 5.8 * 2.9e-5 ≈ 1e-3.
+    assert_close_rel(
+        "groupnorm_fwd",
+        out_c.tensor.to_contiguous().as_slice(),
+        &bvec(out_b),
+        1e-3,
+    );
+}
+
+// ── GroupNorm forward + backward (matches Burn autodiff) ──────────────────────
+
+#[test]
+fn groupnorm_forward_backward_match_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use coeus_nn::GroupNorm;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    // [N=2, C=4, L=3] with G=2 groups.  Custom weight/bias to test affine grads.
+    let data: Vec<f32> = (0..24).map(|x| x as f32 * 0.1 - 1.0).collect();
+    let w = vec![1.2_f32, 0.8, 1.0, 0.9];
+    let b = vec![0.1_f32, -0.1, 0.2, 0.0];
+    let (n, c, l, g) = (2usize, 4, 3, 2);
+    let eps = 1e-5_f32;
+    let c_per_g = c / g;
+    let hidden = c_per_g * l; // elements per group per sample
+
+    // ── Coeus forward + backward ──
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, l], &data),
+        true,
+    );
+    let mut gn = GroupNorm::<f32, SequentialBackend, 2>::new(c, eps as f64);
+    gn.weight = Var::new(CoeusTensor::from_slice(vec![c], &w), true);
+    gn.bias = Var::new(CoeusTensor::from_slice(vec![c], &b), true);
+    let out_c = coeus_autograd::sum(&gn.forward(&xv));
+    out_c.backward();
+
+    // ── Burn forward + backward (manual GroupNorm formula) ──
+    // Reshape [N, C, L] → [N, G, C/G * L] and normalize over dim 2, then
+    // reshape back and apply per-channel affine — matching Burn's group_norm.
+    let xb: BurnTensor<AB, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, l]), &device).require_grad();
+    let wb: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(w, [c]), &device).require_grad();
+    let bk: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(b, [c]), &device).require_grad();
+
+    let x_flat = xb.clone().reshape([n, g, hidden]);
+    let mean = x_flat.clone().sum_dim(2) / hidden as f32;
+    let xc = x_flat.sub(mean);
+    // Use Coeus's formula sqrt(var + eps), NOT Burn's sqrt(var) + eps,
+    // so the reference gradient matches Coeus's forward computation.
+    let var = xc.clone().powf_scalar(2.0).sum_dim(2) / hidden as f32;
+    let normed = xc.div(var.add_scalar(eps).sqrt());
+    let normed_3d = normed.reshape([n, c, l]);
+    let mut aff_shape = [1usize; 3];
+    aff_shape[1] = c;
+    let out_b = normed_3d.mul(wb.clone().reshape(aff_shape)) + bk.clone().reshape(aff_shape);
+    let grads = out_b.sum().backward();
+
+    let to_vec = |t: BurnTensor<NdArray<f32>, 1>| t.into_data().to_vec::<f32>().unwrap();
+    let to_vec3 = |t: BurnTensor<NdArray<f32>, 3>| t.into_data().to_vec::<f32>().unwrap();
+
+    // Backward parity: input gradient
+    assert_close_rel(
+        "groupnorm_bwd_dx",
+        xv.grad().unwrap().to_contiguous().as_slice(),
+        &to_vec3(xb.grad(&grads).unwrap()),
+        1e-4,
+    );
+
+    // Backward parity: weight gradient
+    assert_close_rel(
+        "groupnorm_bwd_dw",
+        gn.weight.grad().unwrap().as_slice(),
+        &to_vec(wb.grad(&grads).unwrap()),
+        1e-3,
+    );
+
+    // Backward parity: bias gradient
+    assert_close_rel(
+        "groupnorm_bwd_db",
+        gn.bias.grad().unwrap().as_slice(),
+        &to_vec(bk.grad(&grads).unwrap()),
+        1e-4,
+    );
+}
+
+#[test]
+fn batchnorm1d_eval_uses_running_stats_without_update() {
+    use coeus_nn::BatchNorm1d;
+
+    let (n, c, l) = (2usize, 3, 2);
+    let data = vec![
+        1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, //
+        7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+    ];
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, l], &data),
+        false,
+    );
+    let running_mean = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![c], &[1.0, 2.0, 3.0]);
+    let running_var = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![c], &[4.0, 9.0, 16.0]);
+    let weight = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![c], &[1.0, 1.0, 1.0]),
+        true,
+    );
+    let bias = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![c], &[0.0, 0.0, 0.0]),
+        true,
+    );
+    let mut bn = BatchNorm1d::<f32, SequentialBackend>::from_parts(
+        c,
+        weight,
+        bias,
+        1e-5,
+        0.1,
+        running_mean.clone(),
+        running_var.clone(),
+    );
+    bn.set_training(false);
+
+    let out = bn.forward(&x);
+    assert_eq!(out.tensor.shape(), &[n, c, l]);
+    assert_eq!(bn.running_mean.borrow().as_slice(), running_mean.as_slice());
+    assert_eq!(bn.running_var.borrow().as_slice(), running_var.as_slice());
+
+    let expected0 = (data[0] - 1.0) / (4.0_f32 + 1e-5).sqrt();
+    let got0 = out.tensor.as_slice()[0];
+    assert!(
+        (got0 - expected0).abs() < 1e-6,
+        "batchnorm eval value: got {got0}, expected {expected0}"
+    );
+}
+
+// ── BatchNorm1d eval-mode forward matches Burn NdArray ───────────────────────
+
+#[test]
+fn batchnorm1d_eval_forward_matches_burn() {
+    use burn::nn::BatchNormConfig;
+    use coeus_nn::BatchNorm1d;
+
+    // Burn's non-autodiff NdArray backend runs BatchNorm in inference (eval)
+    // mode, using running statistics rather than batch statistics.  Both
+    // implementations default to running_mean=0 and running_var=1 so the
+    // eval outputs are directly comparable.
+    let data: Vec<f32> = (0..12).map(|x| x as f32 - 5.5).collect();
+    let (n, c, l) = (2usize, 2, 3);
+
+    // Coeus in eval mode: running_mean=0, running_var=1, weight=1, bias=0.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, l], &data),
+        false,
+    );
+    let mut bn = BatchNorm1d::<f32, SequentialBackend>::new(c, 1e-5, 0.1);
+    bn.set_training(false);
+    let out_c = bn.forward(&xv);
+
+    // Burn (NdArray = eval mode by default): running_mean=0, running_var=1.
+    let bn_b: burn::nn::BatchNorm<BurnBackend, 1> =
+        BatchNormConfig::new(c).init::<BurnBackend, 1>(&dev());
+    let xb: BurnTensor<BurnBackend, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, l]), &dev());
+    let out_b = bvec(bn_b.forward(xb));
+
+    // Tolerance derivation: Burn 0.16 uses sqrt(var) + eps (eps after sqrt),
+    // coeus uses sqrt(var + eps).  With running_var=1 and eps=1e-5 the
+    // denominators are sqrt(1+1e-5) ≈ 1.000005 vs (1+1e-5) = 1.00001 —
+    // difference ≈ 5e-6.  For |x| ≤ 5.5 the per-element error ≤ 2.8e-5.
+    // tol = 1e-4 covers this plus f32 rounding.
+    assert_close_rel(
+        "batchnorm1d_eval_vs_burn",
+        out_c.tensor.as_slice(),
+        &out_b,
+        1e-4,
+    );
+}
+
+// ── InstanceNorm forward (matches Burn NdArray) ──────────────────────────────
+
+#[test]
+fn instancenorm_forward_matches_burn() {
+    use burn::nn::InstanceNormConfig;
+    use coeus_nn::InstanceNorm1d;
+
+    // [N=2, C=3, L=4] with weight=ones, bias=zeros (default init).
+    let data: Vec<f32> = (0..24).map(|x| x as f32 * 0.1 - 0.5).collect();
+    let (n, c, l) = (2usize, 3, 4);
+
+    // Coeus
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, l], &data),
+        false,
+    );
+    let inorm = InstanceNorm1d::<f32, SequentialBackend>::new(c, 1e-5);
+    let out_c = inorm.forward(&xv);
+
+    // Burn
+    let in_b = InstanceNormConfig::new(c).init::<BurnBackend>(&dev());
+    let xb: BurnTensor<BurnBackend, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, l]), &dev());
+    let out_b = in_b.forward(xb);
+
+    // Tolerance: same sqrt(var+eps) vs sqrt(var)+eps formula difference as
+    // GroupNorm.  See groupnorm_forward_matches_burn for the derivation.
+    assert_close_rel(
+        "instancenorm_fwd",
+        out_c.tensor.to_contiguous().as_slice(),
+        &bvec(out_b),
+        1e-3,
+    );
+}
+
+// ── Embedding forward (matches Burn NdArray) ───────────────────────────────────
+
+#[test]
+fn embedding_forward_matches_burn() {
+    use burn::tensor::Int;
+    use coeus_nn::Embedding;
+
+    // Weight [num_embeddings=5, embedding_dim=3] with known values.
+    let weights: Vec<f32> = (0..15).map(|x| x as f32 * 0.1).collect();
+    let (n_emb, d_model) = (5usize, 3);
+
+    // Indices [batch=2, seq=3]: token ids into the embedding table.
+    let indices: [[i32; 3]; 2] = [[0, 2, 4], [1, 3, 0]];
+
+    // ── Coeus ──
+    let w_tensor =
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n_emb, d_model], &weights);
+    let weight_var = Var::new(w_tensor, false);
+    let mut emb = Embedding::<f32, SequentialBackend>::new(n_emb, d_model);
+    // Override the default ones weight with our known values.
+    emb.weight = weight_var;
+
+    // Coeus embedding expects float indices (same Scalar trait as weights).
+    let idx_flat: Vec<f32> = indices
+        .iter()
+        .flat_map(|row| row.iter())
+        .map(|&v| v as f32)
+        .collect();
+    let idx_tensor = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &idx_flat);
+    let out_c = emb.forward_indices(&idx_tensor);
+
+    // ── Burn ──
+    let wb: BurnTensor<BurnBackend, 2> =
+        BurnTensor::from_data(TensorData::new(weights.clone(), [n_emb, d_model]), &dev());
+    let ib: BurnTensor<BurnBackend, 2, Int> = BurnTensor::from_ints(indices, &dev());
+    let out_b = burn::tensor::module::embedding(wb, ib);
+
+    assert_close(
+        "embedding_fwd",
+        out_c.tensor.to_contiguous().as_slice(),
+        &bvec(out_b),
+    );
+}
+
+// ── Embedding forward + backward (matches Burn autodiff) ───────────────────────
+
+#[test]
+fn embedding_forward_backward_match_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use burn::tensor::Int;
+    use coeus_nn::Embedding;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    // Weight [num_embeddings=4, embedding_dim=2] with known values.
+    let weights: Vec<f32> = vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
+    let (n_emb, d_model) = (4usize, 2);
+
+    // Indices [batch=2, seq=2].
+    let indices: [[i32; 2]; 2] = [[0, 2], [3, 1]];
+
+    // ── Coeus forward + backward ──
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n_emb, d_model], &weights),
+        true,
+    );
+    let mut emb = Embedding::<f32, SequentialBackend>::new(n_emb, d_model);
+    emb.weight = xv.clone();
+
+    let idx_flat: Vec<f32> = indices
+        .iter()
+        .flat_map(|row| row.iter())
+        .map(|&v| v as f32)
+        .collect();
+    let idx_tensor = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 2], &idx_flat);
+    let out_c = coeus_autograd::sum(&emb.forward_indices(&idx_tensor));
+    out_c.backward();
+
+    // ── Burn forward + backward ──
+    let wb: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(weights.clone(), [n_emb, d_model]), &device)
+            .require_grad();
+    let ib: BurnTensor<AB, 2, Int> = BurnTensor::from_ints(indices, &device);
+    let out_b = burn::tensor::module::embedding(wb.clone(), ib);
+    let grads = out_b.sum().backward();
+
+    // Forward parity
+    let out_b_fwd: Vec<f32> = {
+        // Re-compute forward without autodiff for value comparison.
+        let wb_fwd: BurnTensor<BurnBackend, 2> =
+            BurnTensor::from_data(TensorData::new(weights.clone(), [n_emb, d_model]), &dev());
+        let ib_fwd: BurnTensor<BurnBackend, 2, Int> = BurnTensor::from_ints(indices, &dev());
+        bvec(burn::tensor::module::embedding(wb_fwd, ib_fwd))
+    };
+    assert_close(
+        "embedding_fwd_custom",
+        emb.forward_indices(&idx_tensor)
+            .tensor
+            .to_contiguous()
+            .as_slice(),
+        &out_b_fwd,
+    );
+
+    // Backward parity: weight gradient
+    // Embedding backward scatters the output gradient into the weight rows
+    // indexed by the input.  With sum loss, each indexed row gets +1 per
+    // occurrence.
+    let to_vec = |t: BurnTensor<NdArray<f32>, 2>| t.into_data().to_vec::<f32>().unwrap();
+    assert_close(
+        "embedding_bwd_dw",
+        xv.grad().unwrap().to_contiguous().as_slice(),
+        &to_vec(wb.grad(&grads).unwrap()),
+    );
+}
+
+// ── Embedding backward: gradient accumulation for repeated indices ────────────
+
+#[test]
+fn embedding_backward_accumulates_grad_for_repeated_indices() {
+    // Input indices [0, 1, 0] — index 0 appears twice.
+    // With sum loss, weight.grad[0] should be 2 × grad_out_row and weight.grad[1] = 1 × grad_out_row.
+    let weights = vec![1.0f32, 2.0, 3.0, 4.0]; // [vocab=2, dim=2]
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 2], &weights),
+        true,
+    );
+
+    let idx = vec![0i32, 1, 0];
+    let idx_tensor = CoeusTensor::<i32, SequentialBackend>::from_slice(vec![3], &idx);
+
+    let out = coeus_autograd::embedding(&xv, &idx_tensor);
+    assert_eq!(out.tensor.shape(), &[3, 2]);
+    // out[0] = weights[0] = [1, 2], out[1] = weights[1] = [3, 4], out[2] = weights[0] = [1, 2]
+
+    // Backward with all-ones grad → accumulation should double grad for row 0.
+    coeus_autograd::sum(&out).backward();
+
+    let gw = xv.grad().unwrap();
+    // row 0 was accessed twice → grad = 2.0 for each element
+    assert!(
+        (gw.as_slice()[0] - 2.0).abs() < 1e-6,
+        "grad[0,0]={}",
+        gw.as_slice()[0]
+    );
+    assert!(
+        (gw.as_slice()[1] - 2.0).abs() < 1e-6,
+        "grad[0,1]={}",
+        gw.as_slice()[1]
+    );
+    // row 1 was accessed once → grad = 1.0 for each element
+    assert!(
+        (gw.as_slice()[2] - 1.0).abs() < 1e-6,
+        "grad[1,0]={}",
+        gw.as_slice()[2]
+    );
+    assert!(
+        (gw.as_slice()[3] - 1.0).abs() < 1e-6,
+        "grad[1,1]={}",
+        gw.as_slice()[3]
+    );
+}
+
+#[test]
+fn embedding_padding_idx_zeroes_grad_for_pad_token() {
+    let emb = coeus_nn::Embedding::<f32, SequentialBackend>::with_padding_idx(4, 3, 0);
+
+    let w_slice = emb.weight.tensor.as_slice();
+    assert_eq!(
+        &w_slice[0..3],
+        &[0.0, 0.0, 0.0],
+        "padding_idx row must be zero-initialized"
+    );
+
+    let idx = CoeusTensor::<i32, SequentialBackend>::from_slice(vec![4], &[0, 1, 2, 0]);
+    let out = emb.forward_indices(&idx);
+    assert_eq!(out.tensor.shape(), &[4, 3]);
+
+    coeus_autograd::sum(&out).backward();
+    let gw = emb.weight.grad().expect("embedding weight must have grad");
+    let gw_s = gw.as_slice();
+
+    assert_eq!(
+        &gw_s[0..3],
+        &[0.0, 0.0, 0.0],
+        "padding_idx gradient row must stay zero"
+    );
+    assert_eq!(&gw_s[3..6], &[1.0, 1.0, 1.0]);
+    assert_eq!(&gw_s[6..9], &[1.0, 1.0, 1.0]);
+    assert_eq!(&gw_s[9..12], &[0.0, 0.0, 0.0]);
+}
+
+// ── New activation parity tests (sigmoid, tanh, silu, log_softmax, ──────────
+// ── leaky_relu, softplus, mish) against Burn 0.16 NdArray reference ─────────
+//
+// Each test uses a small [2, 4] deterministic tensor that contains negative,
+// zero, and positive values so all activation branches are exercised.
+// Tolerance: 512 * f32::EPSILON * (1 + |ref|)  — same as the file-global
+// `assert_close`, which accounts for up to 512 ULP of accumulated rounding.
+
+fn act_input() -> Vec<f32> {
+    vec![-2.0f32, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 3.0]
+}
+
+fn burn_act_tensor() -> BurnTensor<BurnBackend, 2> {
+    BurnTensor::from_data(TensorData::new(act_input(), [2, 4]), &dev())
+}
+
+fn coeus_act_tensor() -> CoeusTensor<f32, SequentialBackend> {
+    CoeusTensor::<f32, SequentialBackend>::from_slice([2, 4], &act_input())
+}
+
+#[test]
+fn sigmoid_matches_burn() {
+    let s = SequentialBackend::new();
+    let coeus_out = sigmoid(&coeus_act_tensor(), &s);
+    let burn_out: Vec<f32> = bvec(burn_act::sigmoid(burn_act_tensor()));
+    assert_close("sigmoid", coeus_out.as_slice(), &burn_out);
+}
+
+#[test]
+fn tanh_matches_burn() {
+    let s = SequentialBackend::new();
+    let coeus_out = tanh(&coeus_act_tensor(), &s);
+    let burn_out: Vec<f32> = bvec(burn_act::tanh(burn_act_tensor()));
+    assert_close("tanh", coeus_out.as_slice(), &burn_out);
+}
+
+#[test]
+fn silu_matches_burn() {
+    // Burn: silu(x) = x * sigmoid(x)
+    let s = SequentialBackend::new();
+    let coeus_out = silu(&coeus_act_tensor(), &s);
+    let burn_out: Vec<f32> = bvec(burn_act::silu(burn_act_tensor()));
+    assert_close("silu", coeus_out.as_slice(), &burn_out);
+}
+
+#[test]
+fn log_softmax_matches_burn() {
+    // Burn log_softmax along dim=1 (last axis of a [2,4] tensor).
+    let s = SequentialBackend::new();
+    let coeus_out = log_softmax_axis(&coeus_act_tensor(), 1, &s);
+    let burn_out: Vec<f32> = bvec(burn_act::log_softmax(burn_act_tensor(), 1));
+    assert_close("log_softmax", coeus_out.as_slice(), &burn_out);
+}
+
+#[test]
+fn leaky_relu_matches_burn() {
+    // Burn leaky_relu with negative_slope = 0.01.
+    let s = SequentialBackend::new();
+    let coeus_out = leaky_relu(&coeus_act_tensor(), &s, 0.01);
+    let burn_out: Vec<f32> = bvec(burn_act::leaky_relu(burn_act_tensor(), 0.01));
+    assert_close("leaky_relu", coeus_out.as_slice(), &burn_out);
+}
+
+#[test]
+fn softplus_matches_burn() {
+    // Burn softplus with beta = 1.0.
+    // Coeus: log(1 + exp(beta * x)) / beta where beta = 1.
+    let s = SequentialBackend::new();
+    let coeus_out = softplus(&coeus_act_tensor(), &s);
+    // Burn signature: softplus(tensor, beta: f64)
+    let burn_out: Vec<f32> = bvec(burn_act::softplus(burn_act_tensor(), 1.0));
+    assert_close("softplus", coeus_out.as_slice(), &burn_out);
+}
+
+#[test]
+fn mish_matches_burn() {
+    // Burn: mish(x) = x * tanh(softplus(x, 1.0))
+    // Coeus mirrors this composition so results are within rounding.
+    let s = SequentialBackend::new();
+    let coeus_out = mish(&coeus_act_tensor(), &s);
+    let burn_out: Vec<f32> = bvec(burn_act::mish(burn_act_tensor()));
+    assert_close("mish", coeus_out.as_slice(), &burn_out);
+}
+
+// ── cat backward: gradient routing ────────────────────────────────────────────
+
+#[test]
+fn cat_backward_routes_grad_to_each_input() {
+    // cat([x, y], dim=0) then backward-with-ones should give x.grad = ones[:x_len]
+    // and y.grad = ones[x_len:].
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[1.0f32; 6]),
+        true,
+    );
+    let y = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3, 3], &[2.0f32; 9]),
+        true,
+    );
+    let out = coeus_autograd::cat(&[&x, &y], 0);
+    assert_eq!(out.tensor.shape(), &[5, 3]);
+
+    let seed = CoeusTensor::<f32, SequentialBackend>::ones(vec![5, 3]);
+    out.backward_with_seed(seed);
+
+    // x.grad and y.grad should both be all-ones (identity backward through cat).
+    let gx = x.grad().expect("x.grad must be set");
+    let gy = y.grad().expect("y.grad must be set");
+    for &v in gx.as_slice() {
+        assert!(
+            (v - 1.0).abs() < 1e-6,
+            "cat_bwd x.grad: expected 1.0 got {v}"
+        );
+    }
+    for &v in gy.as_slice() {
+        assert!(
+            (v - 1.0).abs() < 1e-6,
+            "cat_bwd y.grad: expected 1.0 got {v}"
+        );
+    }
+}
+
+// ── where_cond backward: gradient to true/false branches ─────────────────────
+
+#[test]
+fn where_cond_backward_routes_grad_correctly() {
+    // where(cond, on_true, on_false) — already tested via burn parity; extra check
+    // that gradient is exactly zero at masked positions.
+    let cond = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &[1.0, 0.0, 1.0, 0.0]),
+        false,
+    );
+    let on_true = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &[10.0, 11.0, 12.0, 13.0]),
+        true,
+    );
+    let on_false = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &[20.0, 21.0, 22.0, 23.0]),
+        true,
+    );
+    let out = coeus_autograd::where_cond(&cond, &on_true, &on_false);
+    assert_eq!(out.tensor.as_slice(), &[10.0, 21.0, 12.0, 23.0]);
+
+    let seed = CoeusTensor::<f32, SequentialBackend>::ones(vec![4]);
+    out.backward_with_seed(seed);
+
+    let gt = on_true.grad().expect("on_true grad must be set");
+    let gf = on_false.grad().expect("on_false grad must be set");
+    // Gradient flows where cond==1 for on_true, where cond==0 for on_false.
+    assert_close("where_true_grad", gt.as_slice(), &[1.0, 0.0, 1.0, 0.0]);
+    assert_close("where_false_grad", gf.as_slice(), &[0.0, 1.0, 0.0, 1.0]);
+}
+
+// ── Dropout backward: gradient masked correctly ───────────────────────────────
+
+#[test]
+fn dropout_backward_masks_gradient() {
+    // Use p=0 (no dropout) to verify identity, then check that gradient
+    // is zero at dropped positions when p > 0 (seed-deterministic).
+    use coeus_nn::{Dropout, Module};
+
+    // p=0: identity pass-through.
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &[1.0, 2.0, 3.0, 4.0]),
+        true,
+    );
+    let drop0 = Dropout::new(0.0);
+    let out0 = drop0.forward(&x);
+    assert_eq!(
+        out0.tensor.as_slice(),
+        x.tensor.as_slice(),
+        "p=0 should be identity"
+    );
+
+    // Backward with p=0 passes gradient unchanged.
+    coeus_autograd::sum(&out0).backward();
+    let gx0 = x.grad().unwrap();
+    for &v in gx0.as_slice() {
+        assert!((v - 1.0).abs() < 1e-6, "p=0 grad should be 1.0, got {v}");
+    }
+
+    // p > 0 training: output is scaled (some elements may be zero).
+    // We only check the mask consistency: grad is non-negative (mask is 0 or 1/(1-p)).
+    let x2 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![100], &vec![1.0f32; 100]),
+        true,
+    );
+    let drop_p = Dropout::new(0.5);
+    let out_p = drop_p.forward(&x2);
+    coeus_autograd::sum(&out_p).backward();
+    let gx2 = x2.grad().unwrap();
+    // All gradient values must be either 0 or ≥ 1 (scale = 2.0 for p=0.5).
+    for &v in gx2.as_slice() {
+        assert!(
+            v == 0.0 || v >= 1.0,
+            "dropout backward: unexpected grad {v}"
+        );
+    }
 }

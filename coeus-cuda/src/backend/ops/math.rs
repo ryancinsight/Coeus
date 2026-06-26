@@ -1,28 +1,9 @@
+use super::cast::{cast_storage, cast_storage_mut};
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::get_cuda_context;
 use crate::kernels;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
-
-fn cast_storage<T, U>(storage: &CudaStorage<T>) -> CudaStorage<U> {
-    let buffer = unsafe {
-        std::mem::transmute::<
-            std::sync::Arc<hephaestus_cuda::CudaBuffer<T>>,
-            std::sync::Arc<hephaestus_cuda::CudaBuffer<U>>,
-        >(storage.buffer.clone())
-    };
-    CudaStorage { buffer }
-}
-
-fn cast_storage_mut<T, U>(storage: &mut CudaStorage<T>) -> CudaStorage<U> {
-    let buffer = unsafe {
-        std::mem::transmute::<
-            std::sync::Arc<hephaestus_cuda::CudaBuffer<T>>,
-            std::sync::Arc<hephaestus_cuda::CudaBuffer<U>>,
-        >(storage.buffer.clone())
-    };
-    CudaStorage { buffer }
-}
 
 impl CudaBackend {
     #[allow(clippy::too_many_arguments)]
@@ -38,14 +19,23 @@ impl CudaBackend {
     ) {
         if get_cuda_context().is_some() {
             let n = c_layout.shape().iter().product();
-            if a_layout.is_contiguous() && b_layout.is_contiguous() && c_layout.is_contiguous() {
+            // The contiguous kernel computes `c[i] = a[i] op b[i]` with no
+            // broadcasting, so it is only valid when both operands already share
+            // the output shape. A broadcast operand (e.g. `[3,1]` against
+            // `[3,2]`) must go through the strided kernel, which resolves each
+            // output coordinate against per-operand strides.
+            let same_shape =
+                a_layout.shape() == c_layout.shape() && b_layout.shape() == c_layout.shape();
+            if same_shape
+                && a_layout.is_contiguous()
+                && b_layout.is_contiguous()
+                && c_layout.is_contiguous()
+            {
                 if kernels::launch_contiguous_binary(op, a, b, c, n) {
                     return;
                 }
-            } else {
-                if kernels::launch_strided_binary(op, a, a_layout, b, b_layout, c, c_layout, n) {
-                    return;
-                }
+            } else if kernels::launch_strided_binary(op, a, a_layout, b, b_layout, c, c_layout, n) {
+                return;
             }
         }
         self.fallback_binary(op, a, a_layout, b, b_layout, c, c_layout);

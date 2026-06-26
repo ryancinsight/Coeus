@@ -78,6 +78,18 @@ pub enum CpuUnaryOp {
     GeluTanhGrad,
     LeakyRelu(u64),
     LeakyReluGrad(u64),
+    /// Element-wise reciprocal: 1/x
+    Recip,
+    /// Element-wise signum: -1, 0, or 1
+    Sign,
+    /// Element-wise floor: largest integer ≤ x
+    Floor,
+    /// Element-wise ceil: smallest integer ≥ x
+    Ceil,
+    /// Element-wise round to nearest integer
+    Round,
+    /// Element-wise truncation toward zero
+    Trunc,
 }
 
 pub trait CpuUnaryDispatch: private::Sealed {

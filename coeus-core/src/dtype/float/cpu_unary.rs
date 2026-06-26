@@ -109,6 +109,20 @@ macro_rules! impl_cpu_unary_dispatch_float {
                             slope
                         }
                     }
+                    CpuUnaryOp::Recip => Self::one() / x,
+                    CpuUnaryOp::Sign => {
+                        if x > Self::zero() {
+                            Self::one()
+                        } else if x < Self::zero() {
+                            Self::zero() - Self::one()
+                        } else {
+                            Self::zero()
+                        }
+                    }
+                    CpuUnaryOp::Floor => Self::from_f64(Self::to_f64(x).floor()),
+                    CpuUnaryOp::Ceil => Self::from_f64(Self::to_f64(x).ceil()),
+                    CpuUnaryOp::Round => Self::from_f64(Self::to_f64(x).round()),
+                    CpuUnaryOp::Trunc => Self::from_f64(Self::to_f64(x).trunc()),
                 }
             }
         }

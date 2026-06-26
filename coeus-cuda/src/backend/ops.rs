@@ -1,6 +1,8 @@
 use crate::backend::{CudaBackend, CudaScalar};
 use coeus_core::Layout;
 
+pub mod attention;
+mod cast;
 pub mod conv;
 pub mod math;
 pub mod optim;
@@ -416,7 +418,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        self.fallback_conv3d(
+        self.cuda_conv3d(
             input,
             input_layout,
             weight,
@@ -447,7 +449,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         padding: usize,
         dilation: usize,
     ) {
-        self.fallback_conv3d_backward(
+        self.cuda_conv3d_backward(
             grad_out,
             grad_out_layout,
             input,
@@ -465,6 +467,68 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         );
     }
 
+    fn conv_transpose1d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        output_padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) where
+        T: coeus_core::Float,
+    {
+        self.cuda_conv_transpose1d(
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            output_padding,
+            dilation,
+            output,
+            output_layout,
+        );
+    }
+
+    fn conv_transpose2d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        output_padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) where
+        T: coeus_core::Float,
+    {
+        self.cuda_conv_transpose2d(
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            output_padding,
+            dilation,
+            output,
+            output_layout,
+        );
+    }
+
     fn max_pool3d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -476,7 +540,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        self.fallback_max_pool3d(
+        self.cuda_max_pool3d(
             input,
             input_layout,
             kernel_size,
@@ -501,7 +565,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        self.fallback_max_pool3d_backward(
+        self.cuda_max_pool3d_backward(
             grad_out,
             grad_out_layout,
             input,
@@ -526,7 +590,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        self.fallback_avg_pool3d(
+        self.cuda_avg_pool3d(
             input,
             input_layout,
             kernel_size,
@@ -549,7 +613,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        self.fallback_avg_pool3d_backward(
+        self.cuda_avg_pool3d_backward(
             grad_out,
             grad_out_layout,
             kernel_size,
@@ -580,7 +644,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
     ) where
         T: coeus_core::Float,
     {
-        self.fallback_sdp_attention(
+        self.cuda_sdp_attention(
             query,
             query_layout,
             key,
@@ -617,7 +681,7 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
     ) where
         T: coeus_core::Float,
     {
-        self.fallback_sdp_attention_backward(
+        self.cuda_sdp_attention_backward(
             grad_out,
             grad_out_layout,
             query,

@@ -287,6 +287,81 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
     }
 
     #[inline]
+    fn conv_transpose1d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        output_padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) where
+        T: coeus_core::Float,
+    {
+        let _ = output_padding; // encoded in output_layout shape, not the kernel loop
+                                // input [n, c_in, l] / weight [c_in, c_out, k] / output [n, c_out, l_out]
+        kernels::dispatch_conv_transpose1d(kernels::ConvTranspose1dDispatch {
+            input: input.buffer.raw(),
+            weight: weight.buffer.raw(),
+            bias: bias.map(|b| b.buffer.raw()),
+            output: output.buffer.raw(),
+            n: input_layout.shape()[0],
+            c_in: input_layout.shape()[1],
+            l: input_layout.shape()[2],
+            c_out: weight_layout.shape()[1],
+            k: weight_layout.shape()[2],
+            l_out: output_layout.shape()[2],
+            stride,
+            padding,
+            dilation,
+        });
+    }
+
+    #[inline]
+    fn conv_transpose2d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        output_padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) where
+        T: coeus_core::Float,
+    {
+        let _ = output_padding; // encoded in output_layout shape, not the kernel loop
+                                // input [n, c_in, h, w] / weight [c_in, c_out, kh, kw] / output [n, c_out, h_out, w_out]
+        kernels::dispatch_conv_transpose2d(kernels::ConvTranspose2dDispatch {
+            input: input.buffer.raw(),
+            weight: weight.buffer.raw(),
+            bias: bias.map(|b| b.buffer.raw()),
+            output: output.buffer.raw(),
+            n: input_layout.shape()[0],
+            c_in: input_layout.shape()[1],
+            h: input_layout.shape()[2],
+            w: input_layout.shape()[3],
+            c_out: weight_layout.shape()[1],
+            kh: weight_layout.shape()[2],
+            kw: weight_layout.shape()[3],
+            h_out: output_layout.shape()[2],
+            w_out: output_layout.shape()[3],
+            stride,
+            padding,
+            dilation,
+        });
+    }
+
+    #[inline]
     fn max_pool2d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -538,7 +613,7 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
     fn sdp_attention_backward(
         &self,
         grad_out: &Self::DeviceBuffer<T>,
-        grad_out_layout: &Layout,
+        _grad_out_layout: &Layout,
         query: &Self::DeviceBuffer<T>,
         query_layout: &Layout,
         key: &Self::DeviceBuffer<T>,
@@ -546,7 +621,7 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         value: &Self::DeviceBuffer<T>,
         value_layout: &Layout,
         attn_weights: &Self::DeviceBuffer<T>,
-        attn_weights_layout: &Layout,
+        _attn_weights_layout: &Layout,
         scale: T,
         grad_q: Option<&mut Self::DeviceBuffer<T>>,
         grad_k: Option<&mut Self::DeviceBuffer<T>>,
@@ -555,9 +630,7 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
         T: coeus_core::Float,
     {
         attention::sdp_attention_backward(attention::AttentionBackward {
-            backend: self,
             grad_out,
-            grad_out_layout,
             query,
             query_layout,
             key,
@@ -565,7 +638,6 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
             value,
             value_layout,
             attn_weights,
-            attn_weights_layout,
             scale,
             grad_q,
             grad_k,

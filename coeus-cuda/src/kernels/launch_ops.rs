@@ -1,10 +1,10 @@
 #![allow(clippy::too_many_arguments)]
 
 use super::GpuLayoutInfo;
-use crate::backend::CudaScalar;
+use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
 use crate::storage::CudaStorage;
-use coeus_core::Layout;
+use coeus_core::{ComputeBackend, Layout};
 
 pub fn launch_contiguous_binary<T: CudaScalar>(
     op: coeus_ops::BinaryOp,
@@ -107,8 +107,12 @@ pub fn launch_contiguous_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::SigmoidGrad => "a[idx] * (1.0f - a[idx])",
         coeus_ops::UnaryOp::Tanh => "tanhf(a[idx])",
         coeus_ops::UnaryOp::TanhGrad => "1.0f - a[idx] * a[idx]",
-        coeus_ops::UnaryOp::Gelu => "0.5f * a[idx] * (1.0f + tanhf(0.79788456f * (a[idx] + 0.044715f * a[idx] * a[idx] * a[idx])))",
-        coeus_ops::UnaryOp::GeluGrad => "0.5f * (1.0f + tanhf(0.79788456f * (a[idx] + 0.044715f * a[idx] * a[idx] * a[idx]))) + 0.5f * a[idx] * (1.0f - tanhf(0.79788456f * (a[idx] + 0.044715f * a[idx] * a[idx] * a[idx])) * tanhf(0.79788456f * (a[idx] + 0.044715f * a[idx] * a[idx] * a[idx]))) * 0.79788456f * (1.0f + 0.134145f * a[idx] * a[idx])",
+        // Exact erf GELU, matching the CPU `gelu_op` and WGPU contract
+        // (0.5 x (1 + erf(x/sqrt(2)))). 0.70710678f = 1/sqrt(2).
+        coeus_ops::UnaryOp::Gelu => "0.5f * a[idx] * (1.0f + erff(a[idx] * 0.70710678f))",
+        // d/dx of exact GELU: 0.5(1 + erf(x/sqrt(2))) + x/sqrt(2pi) exp(-x^2/2).
+        // 0.3989422804f = 1/sqrt(2pi).
+        coeus_ops::UnaryOp::GeluGrad => "0.5f * (1.0f + erff(a[idx] * 0.70710678f)) + a[idx] * 0.3989422804f * expf(-0.5f * a[idx] * a[idx])",
         coeus_ops::UnaryOp::Sin => "sinf(a[idx])",
         coeus_ops::UnaryOp::Cos => "cosf(a[idx])",
         coeus_ops::UnaryOp::Exp => "expf(a[idx])",
@@ -120,6 +124,12 @@ pub fn launch_contiguous_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::SiluGrad => "(1.0f / (1.0f + expf(-a[idx]))) * (1.0f + a[idx] * (1.0f - (1.0f / (1.0f + expf(-a[idx])))))",
         coeus_ops::UnaryOp::Mish => "a[idx] * tanhf(logf(1.0f + expf(a[idx])))",
         coeus_ops::UnaryOp::MishGrad => "tanhf(logf(1.0f + expf(a[idx]))) + a[idx] * (1.0f - tanhf(logf(1.0f + expf(a[idx]))) * tanhf(logf(1.0f + expf(a[idx])))) * (1.0f / (1.0f + expf(-a[idx])))",
+        coeus_ops::UnaryOp::Recip => "1.0f / a[idx]",
+        coeus_ops::UnaryOp::Sign => "(a[idx] > 0.0f) ? 1.0f : ((a[idx] < 0.0f) ? -1.0f : 0.0f)",
+        coeus_ops::UnaryOp::Floor => "floorf(a[idx])",
+        coeus_ops::UnaryOp::Ceil => "ceilf(a[idx])",
+        coeus_ops::UnaryOp::Round => "roundf(a[idx])",
+        coeus_ops::UnaryOp::Trunc => "truncf(a[idx])",
         _ => return false,
     };
 
@@ -214,22 +224,17 @@ struct GpuLayoutInfo {{
 
 extern "C" __global__ void binary_strided_kernel(
     const {cuda_type}* a,
-    GpuLayoutInfo a_layout,
     const {cuda_type}* b,
-    GpuLayoutInfo b_layout,
     {cuda_type}* c,
-    GpuLayoutInfo c_layout,
+    const GpuLayoutInfo* layout_infos,
     unsigned int n
 ) {{
     unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= n) return;
-    
-    unsigned int c_contig_strides[8];
-    unsigned int accum = 1;
-    for (int d = (int)c_layout.ndim - 1; d >= 0; --d) {{
-        c_contig_strides[d] = accum;
-        accum *= c_layout.shape[d];
-    }}
+
+    GpuLayoutInfo a_layout = layout_infos[0];
+    GpuLayoutInfo b_layout = layout_infos[1];
+    GpuLayoutInfo c_layout = layout_infos[2];
     
     unsigned int temp = idx;
     unsigned int off_a = a_layout.offset;
@@ -237,8 +242,8 @@ extern "C" __global__ void binary_strided_kernel(
     unsigned int off_c = c_layout.offset;
     
     for (unsigned int d = 0; d < c_layout.ndim; ++d) {{
-        unsigned int coord = temp / c_contig_strides[d];
-        temp = temp % c_contig_strides[d];
+        unsigned int coord = temp / c_layout.strides[d];
+        temp = temp % c_layout.strides[d];
         
         off_c += coord * c_layout.strides[d];
         
@@ -271,22 +276,28 @@ extern "C" __global__ void binary_strided_kernel(
         return false;
     };
 
-    let gpu_a_layout = GpuLayoutInfo::from_layout(a_layout);
-    let gpu_b_layout = GpuLayoutInfo::from_layout(b_layout);
-    let gpu_c_layout = GpuLayoutInfo::from_layout(c_layout);
+    let layouts = [
+        GpuLayoutInfo::from_layout(a_layout),
+        GpuLayoutInfo::from_layout(b_layout),
+        GpuLayoutInfo::from_layout(c_layout),
+    ];
+    let layout_words = layouts.len() * (std::mem::size_of::<GpuLayoutInfo>() / 4);
+    let mut layout_buf = CudaStorage::<u32>::new(layout_words);
+    let layout_slice =
+        unsafe { std::slice::from_raw_parts(layouts.as_ptr() as *const u32, layout_words) };
+    CudaBackend::new().copy_to_device(layout_slice, &mut layout_buf);
 
     let mut a_ptr = a.cu_deviceptr();
     let mut b_ptr = b.cu_deviceptr();
     let mut c_ptr = c.cu_deviceptr();
+    let mut layouts_ptr = layout_buf.cu_deviceptr();
     let mut n_val = n as u32;
 
-    let mut args: [*mut std::ffi::c_void; 7] = [
+    let mut args: [*mut std::ffi::c_void; 5] = [
         &mut a_ptr as *mut CUdeviceptr as *mut std::ffi::c_void,
-        &gpu_a_layout as *const GpuLayoutInfo as *mut std::ffi::c_void,
         &mut b_ptr as *mut CUdeviceptr as *mut std::ffi::c_void,
-        &gpu_b_layout as *const GpuLayoutInfo as *mut std::ffi::c_void,
         &mut c_ptr as *mut CUdeviceptr as *mut std::ffi::c_void,
-        &gpu_c_layout as *const GpuLayoutInfo as *mut std::ffi::c_void,
+        &mut layouts_ptr as *mut CUdeviceptr as *mut std::ffi::c_void,
         &mut n_val as *mut u32 as *mut std::ffi::c_void,
     ];
 
@@ -334,8 +345,12 @@ pub fn launch_strided_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::SigmoidGrad => "val_a * (1.0f - val_a)",
         coeus_ops::UnaryOp::Tanh => "tanhf(val_a)",
         coeus_ops::UnaryOp::TanhGrad => "1.0f - val_a * val_a",
-        coeus_ops::UnaryOp::Gelu => "0.5f * val_a * (1.0f + tanhf(0.79788456f * (val_a + 0.044715f * val_a * val_a * val_a)))",
-        coeus_ops::UnaryOp::GeluGrad => "0.5f * (1.0f + tanhf(0.79788456f * (val_a + 0.044715f * val_a * val_a * val_a))) + 0.5f * val_a * (1.0f - tanhf(0.79788456f * (val_a + 0.044715f * val_a * val_a * val_a)) * tanhf(0.79788456f * (val_a + 0.044715f * val_a * val_a * val_a))) * 0.79788456f * (1.0f + 0.134145f * val_a * val_a)",
+        // Exact erf GELU, matching the CPU `gelu_op` and WGPU contract
+        // (0.5 x (1 + erf(x/sqrt(2)))). 0.70710678f = 1/sqrt(2).
+        coeus_ops::UnaryOp::Gelu => "0.5f * val_a * (1.0f + erff(val_a * 0.70710678f))",
+        // d/dx of exact GELU: 0.5(1 + erf(x/sqrt(2))) + x/sqrt(2pi) exp(-x^2/2).
+        // 0.3989422804f = 1/sqrt(2pi).
+        coeus_ops::UnaryOp::GeluGrad => "0.5f * (1.0f + erff(val_a * 0.70710678f)) + val_a * 0.3989422804f * expf(-0.5f * val_a * val_a)",
         coeus_ops::UnaryOp::Sin => "sinf(val_a)",
         coeus_ops::UnaryOp::Cos => "cosf(val_a)",
         coeus_ops::UnaryOp::Exp => "expf(val_a)",
@@ -347,6 +362,12 @@ pub fn launch_strided_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::SiluGrad => "(1.0f / (1.0f + expf(-val_a))) * (1.0f + val_a * (1.0f - (1.0f / (1.0f + expf(-val_a)))))",
         coeus_ops::UnaryOp::Mish => "val_a * tanhf(logf(1.0f + expf(val_a)))",
         coeus_ops::UnaryOp::MishGrad => "tanhf(logf(1.0f + expf(val_a))) + val_a * (1.0f - tanhf(logf(1.0f + expf(val_a))) * tanhf(logf(1.0f + expf(val_a)))) * (1.0f / (1.0f + expf(-val_a)))",
+        coeus_ops::UnaryOp::Recip => "1.0f / val_a",
+        coeus_ops::UnaryOp::Sign => "(val_a > 0.0f) ? 1.0f : ((val_a < 0.0f) ? -1.0f : 0.0f)",
+        coeus_ops::UnaryOp::Floor => "floorf(val_a)",
+        coeus_ops::UnaryOp::Ceil => "ceilf(val_a)",
+        coeus_ops::UnaryOp::Round => "roundf(val_a)",
+        coeus_ops::UnaryOp::Trunc => "truncf(val_a)",
         _ => return false,
     };
 
@@ -361,28 +382,23 @@ struct GpuLayoutInfo {{
 
 extern "C" __global__ void unary_strided_kernel(
     const {cuda_type}* a,
-    GpuLayoutInfo a_layout,
     {cuda_type}* c,
-    GpuLayoutInfo c_layout,
+    const GpuLayoutInfo* layout_infos,
     unsigned int n
 ) {{
     unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= n) return;
-    
-    unsigned int c_contig_strides[8];
-    unsigned int accum = 1;
-    for (int d = (int)c_layout.ndim - 1; d >= 0; --d) {{
-        c_contig_strides[d] = accum;
-        accum *= c_layout.shape[d];
-    }}
+
+    GpuLayoutInfo a_layout = layout_infos[0];
+    GpuLayoutInfo c_layout = layout_infos[1];
     
     unsigned int temp = idx;
     unsigned int off_a = a_layout.offset;
     unsigned int off_c = c_layout.offset;
     
     for (unsigned int d = 0; d < c_layout.ndim; ++d) {{
-        unsigned int coord = temp / c_contig_strides[d];
-        temp = temp % c_contig_strides[d];
+        unsigned int coord = temp / c_layout.strides[d];
+        temp = temp % c_layout.strides[d];
         
         off_c += coord * c_layout.strides[d];
         
@@ -408,18 +424,25 @@ extern "C" __global__ void unary_strided_kernel(
         return false;
     };
 
-    let gpu_a_layout = GpuLayoutInfo::from_layout(a_layout);
-    let gpu_c_layout = GpuLayoutInfo::from_layout(c_layout);
+    let layouts = [
+        GpuLayoutInfo::from_layout(a_layout),
+        GpuLayoutInfo::from_layout(c_layout),
+    ];
+    let layout_words = layouts.len() * (std::mem::size_of::<GpuLayoutInfo>() / 4);
+    let mut layout_buf = CudaStorage::<u32>::new(layout_words);
+    let layout_slice =
+        unsafe { std::slice::from_raw_parts(layouts.as_ptr() as *const u32, layout_words) };
+    CudaBackend::new().copy_to_device(layout_slice, &mut layout_buf);
 
     let mut a_ptr = a.cu_deviceptr();
     let mut c_ptr = c.cu_deviceptr();
+    let mut layouts_ptr = layout_buf.cu_deviceptr();
     let mut n_val = n as u32;
 
-    let mut args: [*mut std::ffi::c_void; 5] = [
+    let mut args: [*mut std::ffi::c_void; 4] = [
         &mut a_ptr as *mut CUdeviceptr as *mut std::ffi::c_void,
-        &gpu_a_layout as *const GpuLayoutInfo as *mut std::ffi::c_void,
         &mut c_ptr as *mut CUdeviceptr as *mut std::ffi::c_void,
-        &gpu_c_layout as *const GpuLayoutInfo as *mut std::ffi::c_void,
+        &mut layouts_ptr as *mut CUdeviceptr as *mut std::ffi::c_void,
         &mut n_val as *mut u32 as *mut std::ffi::c_void,
     ];
 

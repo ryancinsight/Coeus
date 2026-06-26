@@ -267,6 +267,25 @@ impl<T: Float> crate::dtype::CpuUnaryDispatch for Complex<T> {
             CpuUnaryOp::Neg => Self::zero() - x,
             CpuUnaryOp::Abs => x.abs_val(),
             CpuUnaryOp::Sqrt => x.sqrt_val(),
+            CpuUnaryOp::Recip => {
+                // 1 / (a + bi) = (a - bi) / (a² + b²)
+                let mag_sq = x.re * x.re + x.im * x.im;
+                Self {
+                    re: x.re / mag_sq,
+                    im: T::zero() - x.im / mag_sq,
+                }
+            }
+            CpuUnaryOp::Sign => {
+                let mag = (x.re * x.re + x.im * x.im).sqrt();
+                if mag == T::zero() {
+                    Self::zero()
+                } else {
+                    Self {
+                        re: x.re / mag,
+                        im: x.im / mag,
+                    }
+                }
+            }
             _ => panic!("Unary operation not supported for Complex"),
         }
     }

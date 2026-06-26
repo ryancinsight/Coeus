@@ -98,6 +98,30 @@ impl PyBatchNorm1d {
         Ok(PyTensor { inner: out_var })
     }
 
+    /// Eval-mode forward: normalizes using `running_mean`/`running_var`, does not update them.
+    pub fn eval_forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+        use coeus_nn::Module;
+        let w_var = self.weight.bind(py).borrow().inner.clone();
+        let b_var = self.bias.bind(py).borrow().inner.clone();
+        let rm_t = self.running_mean.bind(py).borrow().inner.tensor.clone();
+        let rv_t = self.running_var.bind(py).borrow().inner.tensor.clone();
+        let input_var = input.inner.clone();
+        let out_var = py.allow_threads(move || {
+            let mut bn = coeus_nn::normalization::BatchNorm1d::from_parts(
+                self.num_features,
+                w_var,
+                b_var,
+                self.eps,
+                self.momentum,
+                rm_t,
+                rv_t,
+            );
+            bn.is_training = false;
+            bn.forward(&input_var)
+        });
+        Ok(PyTensor { inner: out_var })
+    }
+
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
         let mut sd = coeus_tensor::checkpoint::StateDict::new();
         sd.insert("weight", self.weight.bind(py).borrow().inner.tensor.clone());
@@ -207,7 +231,7 @@ impl PyBatchNorm2d {
         })
     }
 
-    /// Forward pass through the BatchNorm2d layer.
+    /// Forward pass through the BatchNorm2d layer (training mode, updates running stats).
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_nn::Module;
         let w_var = self.weight.bind(py).borrow().inner.clone();
@@ -234,6 +258,32 @@ impl PyBatchNorm2d {
 
         self.running_mean.bind(py).borrow_mut().inner.tensor = next_rm;
         self.running_var.bind(py).borrow_mut().inner.tensor = next_rv;
+
+        Ok(PyTensor { inner: out_var })
+    }
+
+    /// Eval-mode forward: normalizes using `running_mean`/`running_var`, does not update them.
+    pub fn eval_forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+        use coeus_nn::Module;
+        let w_var = self.weight.bind(py).borrow().inner.clone();
+        let b_var = self.bias.bind(py).borrow().inner.clone();
+        let rm_t = self.running_mean.bind(py).borrow().inner.tensor.clone();
+        let rv_t = self.running_var.bind(py).borrow().inner.tensor.clone();
+        let input_var = input.inner.clone();
+
+        let out_var = py.allow_threads(move || {
+            let mut bn = coeus_nn::normalization::BatchNorm2d::from_parts(
+                self.num_features,
+                w_var,
+                b_var,
+                self.eps,
+                self.momentum,
+                rm_t,
+                rv_t,
+            );
+            bn.is_training = false;
+            bn.forward(&input_var)
+        });
 
         Ok(PyTensor { inner: out_var })
     }
@@ -375,6 +425,30 @@ impl PyBatchNorm3d {
         self.running_mean.bind(py).borrow_mut().inner.tensor = next_rm;
         self.running_var.bind(py).borrow_mut().inner.tensor = next_rv;
 
+        Ok(PyTensor { inner: out_var })
+    }
+
+    /// Eval-mode forward: normalizes using `running_mean`/`running_var`, does not update them.
+    pub fn eval_forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+        use coeus_nn::Module;
+        let w_var = self.weight.bind(py).borrow().inner.clone();
+        let b_var = self.bias.bind(py).borrow().inner.clone();
+        let rm_t = self.running_mean.bind(py).borrow().inner.tensor.clone();
+        let rv_t = self.running_var.bind(py).borrow().inner.tensor.clone();
+        let input_var = input.inner.clone();
+        let out_var = py.allow_threads(move || {
+            let mut bn = coeus_nn::normalization::BatchNorm3d::from_parts(
+                self.num_features,
+                w_var,
+                b_var,
+                self.eps,
+                self.momentum,
+                rm_t,
+                rv_t,
+            );
+            bn.is_training = false;
+            bn.forward(&input_var)
+        });
         Ok(PyTensor { inner: out_var })
     }
 

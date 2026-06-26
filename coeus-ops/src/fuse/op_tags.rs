@@ -357,6 +357,90 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for GeluTanhGrad {
     }
 }
 
+// ── Recip ───────────────────────────────────────────────────────────────────
+
+/// Element-wise reciprocal: 1/x.
+#[derive(Clone, Copy)]
+pub struct Recip;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Recip {
+    const WGSL_TEMPLATE: &'static str = "(1.0 / ({}))";
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        T::one() / x
+    }
+}
+
+// ── Sign ────────────────────────────────────────────────────────────────────
+
+/// Element-wise signum: -1, 0, or 1.
+#[derive(Clone, Copy)]
+pub struct Sign;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Sign {
+    const WGSL_TEMPLATE: &'static str = "sign(({}))";
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        if x > T::zero() {
+            T::one()
+        } else if x < T::zero() {
+            T::zero() - T::one()
+        } else {
+            T::zero()
+        }
+    }
+}
+
+// ── Floor ───────────────────────────────────────────────────────────────────
+
+/// Element-wise floor.
+#[derive(Clone, Copy)]
+pub struct Floor;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Floor {
+    const WGSL_TEMPLATE: &'static str = "floor(({}))";
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        T::from_f64(T::to_f64(x).floor())
+    }
+}
+
+// ── Ceil ────────────────────────────────────────────────────────────────────
+
+/// Element-wise ceil.
+#[derive(Clone, Copy)]
+pub struct Ceil;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Ceil {
+    const WGSL_TEMPLATE: &'static str = "ceil(({}))";
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        T::from_f64(T::to_f64(x).ceil())
+    }
+}
+
+// ── Round ───────────────────────────────────────────────────────────────────
+
+/// Element-wise round to nearest integer.
+#[derive(Clone, Copy)]
+pub struct Round;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Round {
+    const WGSL_TEMPLATE: &'static str = "round(({}))";
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        T::from_f64(T::to_f64(x).round())
+    }
+}
+
+// ── Trunc ───────────────────────────────────────────────────────────────────
+
+/// Element-wise truncation toward zero.
+#[derive(Clone, Copy)]
+pub struct Trunc;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Trunc {
+    const WGSL_TEMPLATE: &'static str = "trunc(({}))";
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        T::from_f64(T::to_f64(x).trunc())
+    }
+}
+
 /// LeakyRelu tag — NOT a ZST; carries slope encoded as `f64::to_bits()`.
 ///
 /// Cannot implement `UnaryOpTag` because `WGSL_TEMPLATE` must be `&'static str`

@@ -300,6 +300,85 @@ mod tests {
     }
 
     #[test]
+    fn encoder_layer_forward_with_key_padding_mask_shape_and_grad() {
+        const H: usize = 2;
+        let d_model = 8;
+        let d_ff = 32;
+
+        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0);
+        let backend = B::default();
+        let batch = 1;
+        let seq = 4;
+
+        let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
+        let x_var = Var::new(x, true);
+
+        // Keep first two tokens, mask the last two.
+        let mask = Tensor::<f32, B>::from_slice_on([batch, seq], &[1.0, 1.0, 0.0, 0.0], &backend);
+        let mask_var = Var::new(mask, false);
+
+        let out = layer.forward_with_mask(&x_var, Some(&mask_var));
+        assert_eq!(
+            out.tensor.shape(),
+            &[batch, seq, d_model],
+            "EncoderLayer(masked) output shape mismatch"
+        );
+
+        let loss = coeus_autograd::sum(&out);
+        loss.backward();
+
+        let params = layer.parameters();
+        for (i, p) in params.iter().enumerate() {
+            assert!(
+                p.grad.is_some(),
+                "EncoderLayer(masked) parameter {i} has no gradient"
+            );
+        }
+    }
+
+    #[test]
+    fn encoder_layer_all_ones_mask_matches_unmasked_forward() {
+        const H: usize = 2;
+        let d_model = 8;
+        let d_ff = 32;
+
+        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0);
+        let backend = B::default();
+        let batch = 1;
+        let seq = 4;
+
+        let data: Vec<f32> = (1..=(batch * seq * d_model))
+            .map(|x| x as f32 * 0.01)
+            .collect();
+        let x = Tensor::<f32, B>::from_slice_on([batch, seq, d_model], &data, &backend);
+        let x_var = Var::new(x, false);
+
+        let mask = Tensor::<f32, B>::ones_on([batch, seq], &backend);
+        let mask_var = Var::new(mask, false);
+
+        let unmasked = layer.forward(&x_var);
+        let masked = layer.forward_with_mask(&x_var, Some(&mask_var));
+        let unmasked_data = unmasked
+            .tensor
+            .storage()
+            .try_as_slice()
+            .expect("test: unmasked encoder output must be CPU-addressable");
+        let masked_data = masked
+            .tensor
+            .storage()
+            .try_as_slice()
+            .expect("test: masked encoder output must be CPU-addressable");
+
+        assert_eq!(unmasked_data.len(), masked_data.len());
+        for (i, (a, b)) in unmasked_data.iter().zip(masked_data.iter()).enumerate() {
+            assert!(
+                (a - b).abs() < EPS,
+                "all-ones mask mismatch at idx {i}: unmasked={a}, masked={b}"
+            );
+        }
+    }
+
+    #[test]
     fn test_mha_key_padding_mask() {
         const H: usize = 2;
         let d_model = 8;

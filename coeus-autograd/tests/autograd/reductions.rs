@@ -1,4 +1,6 @@
-use coeus_autograd::{cumsum, log_sum_exp, max_axis, mean_axis, min_axis, sum_axis, Var};
+use coeus_autograd::{
+    cumsum, log_sum_exp, max_axis, mean_axis, min_axis, norm_p, norm_p_axis, sum_axis, Var,
+};
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 
@@ -118,6 +120,54 @@ fn test_min_axis_autograd() {
     assert!((gx_s[3] - 0.0).abs() < 1e-10, "[1,0]: {}", gx_s[3]);
     assert!((gx_s[4] - 1.0).abs() < 1e-10, "[1,1]: {}", gx_s[4]);
     assert!((gx_s[5] - 0.0).abs() < 1e-10, "[1,2]: {}", gx_s[5]);
+}
+
+#[test]
+fn test_norm_p_autograd() {
+    let backend = MoiraiBackend::new();
+    let x_val = Tensor::from_slice_on(vec![2], &[2.0f64, -4.0], &backend);
+    let x = Var::new(x_val, true);
+
+    let y = norm_p(&x, 3.0);
+    let expected_y = 72.0f64.powf(1.0 / 3.0);
+    assert_eq!(y.tensor.shape(), &[1]);
+    assert!((y.tensor.as_slice()[0] - expected_y).abs() < 1e-10);
+
+    let seed = Tensor::from_slice_on(vec![1], &[1.5f64], &backend);
+    y.backward_with_seed(seed);
+    let gx = x.grad().unwrap();
+    let gx_s = gx.as_slice();
+    let denom = expected_y.powf(2.0);
+    let expected = [1.5 * 4.0 / denom, -1.5 * 16.0 / denom];
+    for (i, (&actual, &expected)) in gx_s.iter().zip(expected.iter()).enumerate() {
+        assert!(
+            (actual - expected).abs() < 1e-10,
+            "norm_p grad[{i}]: {actual} vs {expected}"
+        );
+    }
+}
+
+#[test]
+fn test_norm_p_axis_autograd() {
+    let backend = MoiraiBackend::new();
+    let x_val = Tensor::from_slice_on(vec![2, 2], &[3.0f64, 4.0, 5.0, 12.0], &backend);
+    let x = Var::new(x_val, true);
+
+    let y = norm_p_axis(&x, 2.0, 1);
+    assert_eq!(y.tensor.shape(), &[2, 1]);
+    assert_eq!(y.tensor.as_slice(), &[5.0, 13.0]);
+
+    let seed = Tensor::from_slice_on(vec![2, 1], &[2.0f64, 3.0], &backend);
+    y.backward_with_seed(seed);
+    let gx = x.grad().unwrap();
+    let gx_s = gx.as_slice();
+    let expected = [6.0 / 5.0, 8.0 / 5.0, 15.0 / 13.0, 36.0 / 13.0];
+    for (i, (&actual, &expected)) in gx_s.iter().zip(expected.iter()).enumerate() {
+        assert!(
+            (actual - expected).abs() < 1e-10,
+            "norm_p_axis grad[{i}]: {actual} vs {expected}"
+        );
+    }
 }
 
 #[test]

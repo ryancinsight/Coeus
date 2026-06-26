@@ -102,3 +102,52 @@ pub fn min_axis<T: Scalar, B: BackendOps<T> + Default>(
 
     out
 }
+
+/// Global maximum — returns a scalar-shaped `[1]` tensor.
+///
+/// Equivalent to `torch.amax(input)` with no dim argument.
+#[inline]
+pub fn amax<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B) -> T {
+    if a.numel() == 0 {
+        panic!("amax: empty tensor has no maximum");
+    }
+    let flat = if a.is_contiguous() && a.layout().offset() == 0 {
+        a.reshape([a.numel()])
+    } else {
+        a.to_contiguous_on(backend).reshape([a.numel()])
+    };
+    let reduced = max_axis(&flat, 0, backend);
+    let mut host = [T::zero()];
+    backend.copy_to_host(reduced.storage(), &mut host);
+    host[0]
+}
+
+/// Global minimum — returns a scalar value.
+///
+/// Equivalent to `torch.amin(input)` with no dim argument.
+#[inline]
+pub fn amin<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B) -> T {
+    if a.numel() == 0 {
+        panic!("amin: empty tensor has no minimum");
+    }
+    let flat = if a.is_contiguous() && a.layout().offset() == 0 {
+        a.reshape([a.numel()])
+    } else {
+        a.to_contiguous_on(backend).reshape([a.numel()])
+    };
+    let reduced = min_axis(&flat, 0, backend);
+    let mut host = [T::zero()];
+    backend.copy_to_host(reduced.storage(), &mut host);
+    host[0]
+}
+
+/// Global product of all elements.
+///
+/// Equivalent to `torch.prod(input)`.
+#[inline]
+pub fn prod<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B) -> T {
+    let cont = a.to_contiguous_on(backend);
+    let mut host = vec![T::zero(); a.numel()];
+    backend.copy_to_host(cont.storage(), &mut host);
+    host.iter().fold(T::one(), |acc, &x| acc * x)
+}

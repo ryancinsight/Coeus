@@ -15,6 +15,7 @@ pub struct BatchNorm3d<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiB
     pub bias: Var<T, B>,
     pub eps: f64,
     pub momentum: f64,
+    pub is_training: bool,
     /// Running mean `[C]`.
     pub running_mean: RefCell<Tensor<T, B>>,
     /// Running variance `[C]`.
@@ -50,6 +51,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm3d<T, B> {
             bias: Var::new(Tensor::zeros_on([num_features], &backend), true),
             eps,
             momentum,
+            is_training: true,
             running_mean: RefCell::new(Tensor::zeros_on([num_features], &backend)),
             running_var: RefCell::new(Tensor::ones_on([num_features], &backend)),
             eps_t,
@@ -84,6 +86,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm3d<T, B> {
             bias,
             eps,
             momentum,
+            is_training: true,
             running_mean: RefCell::new(running_mean),
             running_var: RefCell::new(running_var),
             eps_t,
@@ -95,11 +98,19 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm3d<T, B> {
             m_cache: RefCell::new(None),
         }
     }
+
+    pub fn set_training(&mut self, mode: bool) {
+        self.is_training = mode;
+    }
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for BatchNorm3d<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone(), self.bias.clone()]
+    }
+
+    fn train(&mut self, mode: bool) {
+        self.is_training = mode;
     }
 
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
@@ -108,8 +119,38 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for BatchNorm
         let d = input.tensor.shape()[2];
         let h = input.tensor.shape()[3];
         let w = input.tensor.shape()[4];
-        let m = n * d * h * w; // spatial batch size
         let backend = B::default();
+
+        // Eval mode: use running stats
+        if !self.is_training {
+            let rm = self.running_mean.borrow();
+            let rv = self.running_var.borrow();
+            let ndhw = n * d * h * w;
+            let ndhwc = input
+                .tensor
+                .permute(&[0, 2, 3, 4, 1])
+                .to_contiguous_on(&backend);
+            let flat = ndhwc.reshape([ndhw, c]);
+            let rm_row = rm.reshape([1, c]);
+            let rv_row = rv.reshape([1, c]);
+            let mut istdev = rv_row.clone();
+            coeus_ops::add_assign(&mut istdev, &self.eps_t, &backend);
+            coeus_ops::sqrt_assign(&mut istdev, &backend);
+            let ones = Tensor::ones_on([1, c], &backend);
+            let mut istdev_inv = ones;
+            coeus_ops::div_assign(&mut istdev_inv, &istdev, &backend);
+            let xmu = coeus_ops::sub(&flat, &rm_row, &backend);
+            let x_hat = coeus_ops::mul(&xmu, &istdev_inv, &backend);
+            let w_r = self.weight.tensor.reshape([1, c]);
+            let b_r = self.bias.tensor.reshape([1, c]);
+            let mut y = coeus_ops::mul(&x_hat, &w_r, &backend);
+            coeus_ops::add_assign(&mut y, &b_r, &backend);
+            let y_ndhwc = y.reshape([n, d, h, w, c]);
+            let out_tensor = y_ndhwc.permute(&[0, 4, 1, 2, 3]).to_contiguous_on(&backend);
+            return Var::new(out_tensor, false);
+        }
+
+        let m = n * d * h * w; // spatial batch size
 
         // Retrieve or update cached m constants
         let (m_const, corr_t) = {
@@ -201,7 +242,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for BatchNorm
             input,
             &self.weight,
             &self.bias,
-            coeus_autograd::BatchNorm3dArgs {
+            coeus_autograd::BatchNormArgs {
                 out_tensor,
                 x_hat,
                 xmu,
@@ -211,9 +252,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for BatchNorm
                 two_const: self.two_const.clone(),
                 n,
                 c,
-                d,
-                h,
-                w,
+                spatial: [d, h, w],
                 m,
             },
         )

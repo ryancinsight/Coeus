@@ -1,5 +1,8 @@
 mod embedding;
 mod exp_log;
+mod float16;
+mod grad_mode;
+mod nn_conv;
 mod ops_overloads;
 mod reductions;
 mod shape_ops;

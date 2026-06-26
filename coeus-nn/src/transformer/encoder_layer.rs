@@ -63,6 +63,30 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
         // Tracked unflatten [batch*seq, d] → [batch, seq, d]
         coeus_autograd::reshape(&normed, [batch, seq, d])
     }
+
+    /// Pre-LayerNorm forward with optional key padding mask.
+    ///
+    /// Input/output shape: `[batch, seq, d_model]`.
+    /// `key_padding_mask` shape: `[batch, seq]` (or backend-supported broadcast form).
+    pub fn forward_with_mask(
+        &self,
+        input: &Var<T, B>,
+        key_padding_mask: Option<&Var<T, B>>,
+    ) -> Var<T, B> {
+        // Sub-layer 1: Self-Attention with residual
+        let normed1 = self.layernorm_3d(&self.norm1, input);
+        let attn_out = self
+            .self_attn
+            .forward_cross(&normed1, &normed1, &normed1, key_padding_mask);
+        let dropped1 = self.dropout1.forward(&attn_out);
+        let x = coeus_autograd::add(input, &dropped1);
+
+        // Sub-layer 2: FFN with residual
+        let normed2 = self.layernorm_3d(&self.norm2, &x);
+        let ffn_out = self.ffn.forward(&normed2);
+        let dropped2 = self.dropout2.forward(&ffn_out);
+        coeus_autograd::add(&x, &dropped2)
+    }
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: AttentionMask> Module<T, B>
@@ -78,17 +102,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
 
     /// Pre-LayerNorm forward. Input/output: `[batch, seq, d_model]`.
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        // Sub-layer 1: Self-Attention with residual
-        let normed1 = self.layernorm_3d(&self.norm1, input);
-        let attn_out = self.self_attn.forward(&normed1);
-        let dropped1 = self.dropout1.forward(&attn_out);
-        let x = coeus_autograd::add(input, &dropped1);
-
-        // Sub-layer 2: FFN with residual
-        let normed2 = self.layernorm_3d(&self.norm2, &x);
-        let ffn_out = self.ffn.forward(&normed2);
-        let dropped2 = self.dropout2.forward(&ffn_out);
-        coeus_autograd::add(&x, &dropped2)
+        self.forward_with_mask(input, None)
     }
 }
 

@@ -73,7 +73,7 @@ pub fn unary_op<
 ) -> Var<T, B> {
     let backend = B::default();
     let out_tensor = Op::forward(&a.tensor, &backend);
-    let requires_grad = a.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
@@ -118,7 +118,10 @@ pub mod trig;
 
 // ── Re-exports ──
 pub use gelu::{gelu, gelu_tanh, GeluOp, GeluTanhOp};
-pub use math::{abs, clamp, neg, pow, sqrt, AbsOp, ClampNode, NegOp, PowNode, SqrtOp};
+pub use math::{
+    abs, ceil, clamp, floor, neg, pow, recip, round, sign, sqrt, trunc, AbsOp, CeilOp, ClampNode,
+    FloorOp, NegOp, PowNode, RecipOp, RoundOp, SignOp, SqrtOp, TruncOp,
+};
 pub use relu::{elu, leaky_relu, relu, EluOp, ReluOp};
 pub use sigmoid::{sigmoid, SigmoidOp};
 pub use silu::{mish, silu, softplus, MishOp, SiluOp, SoftplusOp};

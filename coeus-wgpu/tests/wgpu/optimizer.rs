@@ -1,105 +1,271 @@
+// On-device optimizer step parity against the CPU reference.
+//
+// Each fused optimizer kernel (`sgd`, `adam`, `rmsprop`, `adamw`, `adagrad`)
+// runs the same step on `WgpuBackend` and `SequentialBackend` with identical
+// inputs and asserts element-wise agreement on the updated parameter and
+// optimizer state. The updates are element-wise (no cross-element reduction),
+// so the device result matches the CPU `f32` arithmetic within tight roundoff.
+
 use coeus_core::SequentialBackend;
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 use coeus_wgpu::WgpuBackend;
 
+/// Element-wise fused-update tolerance: device f32 vs CPU f32 over the same
+/// straight-line arithmetic (mul/add/sqrt/div, no reduction reorder).
+const TOL: f32 = 1e-5;
+
+fn assert_close(label: &str, gpu: &[f32], cpu: &[f32]) {
+    assert_eq!(gpu.len(), cpu.len(), "{label}: length mismatch");
+    for (i, (&g, &c)) in gpu.iter().zip(cpu).enumerate() {
+        assert!(
+            (g - c).abs() < TOL,
+            "{label} mismatch at {i}: GPU={g}, CPU={c}",
+        );
+    }
+}
+
+const SHAPE: [usize; 2] = [2, 3];
+const P: [f32; 6] = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+const G: [f32; 6] = [0.1, -0.2, 0.3, -0.4, 0.5, -0.6];
+const S1: [f32; 6] = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06];
+const S2: [f32; 6] = [0.11, 0.12, 0.13, 0.14, 0.15, 0.16];
+
+fn pair<const N: usize>(
+    seq: &SequentialBackend,
+    wgpu: &WgpuBackend,
+    data: &[f32; N],
+) -> (Tensor<f32, SequentialBackend>, Tensor<f32, WgpuBackend>) {
+    let cpu = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), data);
+    let gpu = cpu.to_backend_on(seq, wgpu);
+    (cpu, gpu)
+}
+
 #[test]
-fn test_wgpu_adamw() {
+fn test_wgpu_sgd_step() {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
-
-    let shape = vec![2, 3];
-    let p_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
-    let g_data = vec![0.1f32, -0.2, 0.3, -0.4, 0.5, -0.6];
-    let m_data = vec![0.01f32, 0.02, 0.03, 0.04, 0.05, 0.06];
-    let v_data = vec![0.11f32, 0.12, 0.13, 0.14, 0.15, 0.16];
-
-    let mut p_seq = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &p_data);
-    let g_seq = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &g_data);
-    let mut m_seq = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &m_data);
-    let mut v_seq = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &v_data);
-
-    let mut p_wgpu = p_seq.to_backend_on(&seq, &wgpu_b);
-    let g_wgpu = g_seq.to_backend_on(&seq, &wgpu_b);
-    let mut m_wgpu = m_seq.to_backend_on(&seq, &wgpu_b);
-    let mut v_wgpu = v_seq.to_backend_on(&seq, &wgpu_b);
-
-    let lr = 0.05f32;
-    let beta1 = 0.9f32;
-    let beta2 = 0.99f32;
-    let eps = 1e-6f32;
-    let weight_decay = 0.02f32;
-    let t = 3usize;
+    let wgpu = WgpuBackend::new();
+    let (mut p_c, mut p_g) = pair(&seq, &wgpu, &P);
+    let (g_c, g_g) = pair(&seq, &wgpu, &G);
+    let (mut vel_c, mut vel_g) = pair(&seq, &wgpu, &S1);
+    let (lr, momentum) = (0.05f32, 0.9f32);
 
     {
-        let (p_storage, p_layout) = p_seq.storage_mut_and_layout();
-        let (m_storage, m_layout) = m_seq.storage_mut_and_layout();
-        let (v_storage, v_layout) = v_seq.storage_mut_and_layout();
+        let (p, pl) = p_c.storage_mut_and_layout();
+        let (vel, vl) = vel_c.storage_mut_and_layout();
+        seq.sgd_step(p, pl, g_c.storage(), g_c.layout(), vel, vl, lr, momentum);
+    }
+    {
+        let (p, pl) = p_g.storage_mut_and_layout();
+        let (vel, vl) = vel_g.storage_mut_and_layout();
+        wgpu.sgd_step(p, pl, g_g.storage(), g_g.layout(), vel, vl, lr, momentum);
+    }
+    assert_close(
+        "sgd_p",
+        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_c.as_slice(),
+    );
+    assert_close(
+        "sgd_velocity",
+        vel_g.to_backend_on(&wgpu, &seq).as_slice(),
+        vel_c.as_slice(),
+    );
+}
+
+#[test]
+fn test_wgpu_adam_step() {
+    let seq = SequentialBackend::new();
+    let wgpu = WgpuBackend::new();
+    let (mut p_c, mut p_g) = pair(&seq, &wgpu, &P);
+    let (g_c, g_g) = pair(&seq, &wgpu, &G);
+    let (mut m_c, mut m_g) = pair(&seq, &wgpu, &S1);
+    let (mut v_c, mut v_g) = pair(&seq, &wgpu, &S2);
+    let (lr, beta1, beta2, eps, t) = (0.05f32, 0.9f32, 0.99f32, 1e-6f32, 3usize);
+
+    {
+        let (p, pl) = p_c.storage_mut_and_layout();
+        let (m, ml) = m_c.storage_mut_and_layout();
+        let (v, vl) = v_c.storage_mut_and_layout();
+        seq.adam_step(
+            p,
+            pl,
+            g_c.storage(),
+            g_c.layout(),
+            m,
+            ml,
+            v,
+            vl,
+            lr,
+            beta1,
+            beta2,
+            eps,
+            t,
+        );
+    }
+    {
+        let (p, pl) = p_g.storage_mut_and_layout();
+        let (m, ml) = m_g.storage_mut_and_layout();
+        let (v, vl) = v_g.storage_mut_and_layout();
+        wgpu.adam_step(
+            p,
+            pl,
+            g_g.storage(),
+            g_g.layout(),
+            m,
+            ml,
+            v,
+            vl,
+            lr,
+            beta1,
+            beta2,
+            eps,
+            t,
+        );
+    }
+    assert_close(
+        "adam_p",
+        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_c.as_slice(),
+    );
+    assert_close(
+        "adam_m",
+        m_g.to_backend_on(&wgpu, &seq).as_slice(),
+        m_c.as_slice(),
+    );
+    assert_close(
+        "adam_v",
+        v_g.to_backend_on(&wgpu, &seq).as_slice(),
+        v_c.as_slice(),
+    );
+}
+
+#[test]
+fn test_wgpu_rmsprop_step() {
+    let seq = SequentialBackend::new();
+    let wgpu = WgpuBackend::new();
+    let (mut p_c, mut p_g) = pair(&seq, &wgpu, &P);
+    let (g_c, g_g) = pair(&seq, &wgpu, &G);
+    let (mut v_c, mut v_g) = pair(&seq, &wgpu, &S1);
+    let (lr, alpha, eps) = (0.05f32, 0.99f32, 1e-6f32);
+
+    {
+        let (p, pl) = p_c.storage_mut_and_layout();
+        let (v, vl) = v_c.storage_mut_and_layout();
+        seq.rmsprop_step(p, pl, g_c.storage(), g_c.layout(), v, vl, lr, alpha, eps);
+    }
+    {
+        let (p, pl) = p_g.storage_mut_and_layout();
+        let (v, vl) = v_g.storage_mut_and_layout();
+        wgpu.rmsprop_step(p, pl, g_g.storage(), g_g.layout(), v, vl, lr, alpha, eps);
+    }
+    assert_close(
+        "rmsprop_p",
+        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_c.as_slice(),
+    );
+    assert_close(
+        "rmsprop_v",
+        v_g.to_backend_on(&wgpu, &seq).as_slice(),
+        v_c.as_slice(),
+    );
+}
+
+#[test]
+fn test_wgpu_adagrad_step() {
+    let seq = SequentialBackend::new();
+    let wgpu = WgpuBackend::new();
+    let (mut p_c, mut p_g) = pair(&seq, &wgpu, &P);
+    let (g_c, g_g) = pair(&seq, &wgpu, &G);
+    let (mut h_c, mut h_g) = pair(&seq, &wgpu, &S1);
+    let (lr, eps) = (0.05f32, 1e-6f32);
+
+    {
+        let (p, pl) = p_c.storage_mut_and_layout();
+        let (h, hl) = h_c.storage_mut_and_layout();
+        seq.adagrad_step(p, pl, g_c.storage(), g_c.layout(), h, hl, lr, eps);
+    }
+    {
+        let (p, pl) = p_g.storage_mut_and_layout();
+        let (h, hl) = h_g.storage_mut_and_layout();
+        wgpu.adagrad_step(p, pl, g_g.storage(), g_g.layout(), h, hl, lr, eps);
+    }
+    assert_close(
+        "adagrad_p",
+        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_c.as_slice(),
+    );
+    assert_close(
+        "adagrad_history",
+        h_g.to_backend_on(&wgpu, &seq).as_slice(),
+        h_c.as_slice(),
+    );
+}
+
+#[test]
+fn test_wgpu_adamw_step() {
+    let seq = SequentialBackend::new();
+    let wgpu = WgpuBackend::new();
+    let (mut p_c, mut p_g) = pair(&seq, &wgpu, &P);
+    let (g_c, g_g) = pair(&seq, &wgpu, &G);
+    let (mut m_c, mut m_g) = pair(&seq, &wgpu, &S1);
+    let (mut v_c, mut v_g) = pair(&seq, &wgpu, &S2);
+    let (lr, beta1, beta2, eps, wd, t) = (0.05f32, 0.9f32, 0.99f32, 1e-6f32, 0.02f32, 3usize);
+
+    {
+        let (p, pl) = p_c.storage_mut_and_layout();
+        let (m, ml) = m_c.storage_mut_and_layout();
+        let (v, vl) = v_c.storage_mut_and_layout();
         seq.adamw_step(
-            p_storage,
-            p_layout,
-            g_seq.storage(),
-            g_seq.layout(),
-            m_storage,
-            m_layout,
-            v_storage,
-            v_layout,
+            p,
+            pl,
+            g_c.storage(),
+            g_c.layout(),
+            m,
+            ml,
+            v,
+            vl,
             lr,
             beta1,
             beta2,
             eps,
-            weight_decay,
+            wd,
             t,
         );
     }
-
     {
-        let (p_storage, p_layout) = p_wgpu.storage_mut_and_layout();
-        let (m_storage, m_layout) = m_wgpu.storage_mut_and_layout();
-        let (v_storage, v_layout) = v_wgpu.storage_mut_and_layout();
-        wgpu_b.adamw_step(
-            p_storage,
-            p_layout,
-            g_wgpu.storage(),
-            g_wgpu.layout(),
-            m_storage,
-            m_layout,
-            v_storage,
-            v_layout,
+        let (p, pl) = p_g.storage_mut_and_layout();
+        let (m, ml) = m_g.storage_mut_and_layout();
+        let (v, vl) = v_g.storage_mut_and_layout();
+        wgpu.adamw_step(
+            p,
+            pl,
+            g_g.storage(),
+            g_g.layout(),
+            m,
+            ml,
+            v,
+            vl,
             lr,
             beta1,
             beta2,
             eps,
-            weight_decay,
+            wd,
             t,
         );
     }
-
-    let p_res = p_wgpu.to_backend_on(&wgpu_b, &seq);
-    let m_res = m_wgpu.to_backend_on(&wgpu_b, &seq);
-    let v_res = v_wgpu.to_backend_on(&wgpu_b, &seq);
-
-    for i in 0..p_seq.as_slice().len() {
-        assert!(
-            (p_res.as_slice()[i] - p_seq.as_slice()[i]).abs() < 1e-5,
-            "p mismatch at {}: GPU={:?}, CPU={:?}",
-            i,
-            p_res.as_slice()[i],
-            p_seq.as_slice()[i]
-        );
-        assert!(
-            (m_res.as_slice()[i] - m_seq.as_slice()[i]).abs() < 1e-5,
-            "m mismatch at {}: GPU={:?}, CPU={:?}",
-            i,
-            m_res.as_slice()[i],
-            m_seq.as_slice()[i]
-        );
-        assert!(
-            (v_res.as_slice()[i] - v_seq.as_slice()[i]).abs() < 1e-5,
-            "v mismatch at {}: GPU={:?}, CPU={:?}",
-            i,
-            v_res.as_slice()[i],
-            v_seq.as_slice()[i]
-        );
-    }
+    assert_close(
+        "adamw_p",
+        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_c.as_slice(),
+    );
+    assert_close(
+        "adamw_m",
+        m_g.to_backend_on(&wgpu, &seq).as_slice(),
+        m_c.as_slice(),
+    );
+    assert_close(
+        "adamw_v",
+        v_g.to_backend_on(&wgpu, &seq).as_slice(),
+        v_c.as_slice(),
+    );
 }

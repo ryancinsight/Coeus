@@ -79,7 +79,7 @@ impl PyGroupNorm {
             }
             dispatch_gn!(1, 2, 4, 8, 16, 32, 64)
         });
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {

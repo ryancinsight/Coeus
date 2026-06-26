@@ -28,6 +28,9 @@ impl PyLayerNorm {
     }
 
     /// Forward pass through the LayerNorm layer.
+    ///
+    /// Accepts 2-D input `[N, D]`. For higher-rank inputs (`[batch, seq, D]`, etc.)
+    /// call `forward_nd` which handles any rank ≥ 2 via transparent reshape.
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_nn::Module;
         let w_var = self.weight.bind(py).borrow().inner.clone();
@@ -40,7 +43,29 @@ impl PyLayerNorm {
                 coeus_nn::normalization::layernorm::LayerNorm::from_parts(w_var, b_var, eps_val);
             ln.forward(&input_var)
         });
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
+    }
+
+    /// Forward pass accepting any rank ≥ 2 input.
+    ///
+    /// Applies LayerNorm over the last dimension regardless of the number of leading
+    /// dimensions.  Equivalent to `torch.nn.LayerNorm` called on 3-D Transformer
+    /// hidden states `[batch, seq, d_model]` or any other rank-N tensor.
+    ///
+    /// All reshape operations are tracked, so gradients flow through the entire
+    /// flatten → normalize → unflatten chain.
+    pub fn forward_nd(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+        let w_var = self.weight.bind(py).borrow().inner.clone();
+        let b_var = self.bias.bind(py).borrow().inner.clone();
+        let input_var = input.inner.clone();
+        let eps_val = self.eps;
+
+        let inner = py.allow_threads(move || {
+            let ln =
+                coeus_nn::normalization::layernorm::LayerNorm::from_parts(w_var, b_var, eps_val);
+            ln.forward_nd(&input_var)
+        });
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {

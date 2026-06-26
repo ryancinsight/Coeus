@@ -185,6 +185,36 @@ test_unary_parity!(
     coeus_ops::sin,
     vec![0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, core::f32::consts::PI]
 );
+test_unary_parity!(
+    test_wgpu_parity_recip,
+    coeus_ops::recip,
+    vec![-4.0, -2.0, -0.5, 0.5, 1.0, 2.0, 4.0, 8.0]
+);
+test_unary_parity!(
+    test_wgpu_parity_sign,
+    coeus_ops::sign,
+    vec![-4.0, -0.25, 0.0, 0.25, 1.0, -1.0, 3.0, -3.0]
+);
+test_unary_parity!(
+    test_wgpu_parity_floor,
+    coeus_ops::floor,
+    vec![-2.7, -1.2, -0.1, 0.0, 0.1, 1.2, 2.7, 3.0]
+);
+test_unary_parity!(
+    test_wgpu_parity_ceil,
+    coeus_ops::ceil,
+    vec![-2.7, -1.2, -0.1, 0.0, 0.1, 1.2, 2.7, 3.0]
+);
+test_unary_parity!(
+    test_wgpu_parity_round,
+    coeus_ops::round,
+    vec![-2.7, -1.6, -1.2, -0.1, 0.1, 1.2, 1.6, 2.7]
+);
+test_unary_parity!(
+    test_wgpu_parity_trunc,
+    coeus_ops::trunc,
+    vec![-2.7, -1.5, -1.2, -0.1, 0.1, 1.2, 1.5, 2.7]
+);
 
 // ── Reductions ────────────────────────────────────────────────────────────
 

@@ -2,7 +2,12 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::ffi::CString;
 
+mod common;
+
 fn run_pycoeus_script(script: &str) {
+    let _guard = common::python_test_lock()
+        .lock()
+        .expect("python test lock poisoned");
     pyo3::prepare_freethreaded_python();
     Python::with_gil(|py| {
         let script = CString::new(script).unwrap();
@@ -13,9 +18,14 @@ fn run_pycoeus_script(script: &str) {
         let modules_any = sys.getattr("modules").unwrap();
         let modules = modules_any.downcast::<PyDict>().unwrap();
         modules.set_item("pycoeus", &pycoeus_module).unwrap();
+        let globals = PyDict::new(py);
+        globals.set_item("pycoeus", &pycoeus_module).unwrap();
 
-        py.run(script.as_c_str(), None, None)
-            .unwrap_or_else(|e| panic!("Python execution failed: {e:?}"));
+        let result = py.run(script.as_c_str(), Some(&globals), None);
+        modules
+            .del_item("pycoeus")
+            .unwrap_or_else(|e| panic!("failed to remove pycoeus test module: {e:?}"));
+        result.unwrap_or_else(|e| panic!("Python execution failed: {e:?}"));
     });
 }
 

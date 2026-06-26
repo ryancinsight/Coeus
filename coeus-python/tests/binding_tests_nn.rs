@@ -368,6 +368,52 @@ try:
     assert avgpool_test.parameters() == []
     avgpool_test.zero_grad()
 
+    # GlobalAvgPool1d: [N, C, L] -> [N, C, 1]
+    gap1d = pycoeus.GlobalAvgPool1d()
+    assert gap1d.parameters() == []
+    x_gap1d = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [1, 2, 3], requires_grad=True)
+    y_gap1d = gap1d.forward(x_gap1d)
+    assert y_gap1d.shape == [1, 2, 1], f'GlobalAvgPool1d shape: {y_gap1d.shape}'
+    # channel 0 mean = (1+2+3)/3 = 2.0, channel 1 mean = (4+5+6)/3 = 5.0
+    assert abs(y_gap1d.data[0] - 2.0) < 1e-6, f'gap1d ch0: {y_gap1d.data[0]}'
+    assert abs(y_gap1d.data[1] - 5.0) < 1e-6, f'gap1d ch1: {y_gap1d.data[1]}'
+    y_gap1d.backward()
+    assert x_gap1d.grad is not None
+
+    # GlobalAvgPool2d: [N, C, H, W] -> [N, C, 1, 1]
+    gap2d = pycoeus.GlobalAvgPool2d()
+    x_gap2d = pycoeus.Tensor([1.0]*8, [1, 2, 2, 2], requires_grad=True)
+    y_gap2d = gap2d.forward(x_gap2d)
+    assert y_gap2d.shape == [1, 2, 1, 1], f'GlobalAvgPool2d shape: {y_gap2d.shape}'
+    assert abs(y_gap2d.data[0] - 1.0) < 1e-6, f'gap2d ch0: {y_gap2d.data[0]}'
+    y_gap2d.backward()
+    assert x_gap2d.grad is not None
+
+    # GlobalAvgPool3d: [N, C, D, H, W] -> [N, C, 1, 1, 1]
+    gap3d = pycoeus.GlobalAvgPool3d()
+    x_gap3d = pycoeus.Tensor([1.0]*16, [1, 2, 2, 2, 2], requires_grad=True)
+    y_gap3d = gap3d.forward(x_gap3d)
+    assert y_gap3d.shape == [1, 2, 1, 1, 1], f'GlobalAvgPool3d shape: {y_gap3d.shape}'
+    y_gap3d.backward()
+    assert x_gap3d.grad is not None
+
+    # GlobalMaxPool2d: [N, C, H, W] -> [N, C, 1, 1]
+    gmp2d = pycoeus.GlobalMaxPool2d()
+    x_gmp2d = pycoeus.Tensor([1.0, 3.0, 2.0, 4.0], [1, 1, 2, 2], requires_grad=True)
+    y_gmp2d = gmp2d.forward(x_gmp2d)
+    assert y_gmp2d.shape == [1, 1, 1, 1], f'GlobalMaxPool2d shape: {y_gmp2d.shape}'
+    assert abs(y_gmp2d.data[0] - 4.0) < 1e-6, f'gmp2d value: {y_gmp2d.data[0]}'
+    y_gmp2d.backward()
+    assert x_gmp2d.grad is not None
+
+    # GlobalMaxPool3d: [N, C, D, H, W] -> [N, C, 1, 1, 1]
+    gmp3d = pycoeus.GlobalMaxPool3d()
+    x_gmp3d = pycoeus.Tensor([1.0]*16, [1, 2, 2, 2, 2], requires_grad=True)
+    y_gmp3d = gmp3d.forward(x_gmp3d)
+    assert y_gmp3d.shape == [1, 2, 1, 1, 1], f'GlobalMaxPool3d shape: {y_gmp3d.shape}'
+    y_gmp3d.backward()
+    assert x_gmp3d.grad is not None
+
     rope_test = pycoeus.RotaryEmbedding(10, 4)
     assert rope_test.parameters() == []
     rope_test.zero_grad()

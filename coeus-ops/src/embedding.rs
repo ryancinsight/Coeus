@@ -101,6 +101,40 @@ pub fn embedding_backward<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     num_embeddings: usize,
     backend: &B,
 ) -> Tensor<T, B> {
+    embedding_backward_impl(grad_out, indices, num_embeddings, None, backend)
+}
+
+/// Compute embedding lookup gradients while suppressing an optional padding row.
+#[allow(clippy::unnecessary_map_or)]
+pub fn embedding_backward_with_padding_idx<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
+    grad_out: &Tensor<T, B>,
+    indices: &Tensor<I, B>,
+    num_embeddings: usize,
+    padding_idx: Option<usize>,
+    backend: &B,
+) -> Tensor<T, B> {
+    assert!(
+        padding_idx.is_none_or(|idx| idx < num_embeddings),
+        "embedding_backward: padding_idx {:?} out of bounds [0, {})",
+        padding_idx,
+        num_embeddings
+    );
+    embedding_backward_impl(
+        grad_out,
+        indices,
+        num_embeddings,
+        padding_idx.map(|idx| idx as isize),
+        backend,
+    )
+}
+
+fn embedding_backward_impl<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
+    grad_out: &Tensor<T, B>,
+    indices: &Tensor<I, B>,
+    num_embeddings: usize,
+    skip_index: Option<isize>,
+    backend: &B,
+) -> Tensor<T, B> {
     let grad_shape = grad_out.shape();
     let ndim_grad = grad_shape.len();
     assert!(ndim_grad >= 2, "grad_out must have at least 2 dimensions");
@@ -138,7 +172,10 @@ pub fn embedding_backward<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
             let token_val = idx_slice[physical_idx];
             let token_idx = token_val.to_f64() as isize;
 
-            if token_idx >= 0 && token_idx < num_embeddings as isize {
+            if token_idx >= 0
+                && token_idx < num_embeddings as isize
+                && Some(token_idx) != skip_index
+            {
                 let go_row_stride = if ndim_idx > 0 {
                     go_strides[ndim_idx - 1]
                 } else {
@@ -166,9 +203,36 @@ pub fn embedding_backward<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
         let host_backend = coeus_core::MoiraiBackend::new();
         let go_host = grad_out.to_backend(&host_backend);
         let idx_host = indices.to_backend(&host_backend);
-        let gw_host = embedding_backward(&go_host, &idx_host, num_embeddings, &host_backend);
+        let gw_host = embedding_backward_impl(
+            &go_host,
+            &idx_host,
+            num_embeddings,
+            skip_index,
+            &host_backend,
+        );
         grad_weight = gw_host.to_backend(backend);
     }
 
     grad_weight
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::SequentialBackend;
+
+    #[test]
+    fn embedding_backward_padding_idx_skips_padding_row() {
+        let backend = SequentialBackend::new();
+        let grad_out = Tensor::<f32, SequentialBackend>::from_slice(
+            vec![3, 2],
+            &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        );
+        let indices = Tensor::<i32, SequentialBackend>::from_slice(vec![3], &[0, 1, 0]);
+
+        let grad = embedding_backward_with_padding_idx(&grad_out, &indices, 2, Some(0), &backend);
+
+        assert_eq!(grad.shape(), &[2, 2]);
+        assert_eq!(grad.as_slice(), &[0.0, 0.0, 3.0, 4.0]);
+    }
 }

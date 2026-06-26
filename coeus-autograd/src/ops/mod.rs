@@ -10,25 +10,27 @@ pub mod shape;
 pub mod var_ops;
 
 pub use activation::{
-    abs, clamp, cos, elu, exp, gelu, gelu_tanh, leaky_relu, log, mish, neg, pow, relu, sigmoid,
-    silu, sin, softplus, sqrt, tanh,
+    abs, ceil, clamp, cos, elu, exp, floor, gelu, gelu_tanh, leaky_relu, log, mish, neg, pow,
+    recip, relu, round, sigmoid, sign, silu, sin, softplus, sqrt, tanh, trunc,
 };
 pub use arithmetic::{
     add, div, mean, mean_axis, mul, scalar_add, scalar_div, scalar_mul, scalar_sub, sub, sum,
     sum_axis,
 };
-pub use reduction::{log_sum_exp, max_axis, min_axis};
+pub use reduction::{log_sum_exp, max_axis, min_axis, norm, norm_p, norm_p_axis};
 
-pub use linalg::{matmul, sparse_matmul, transpose_2d};
+pub use arithmetic::VarScalarExt;
+pub use linalg::{matmul, sparse_matmul, sparse_matmul_coo, transpose_2d};
 pub use nn::{
     avg_pool2d, avg_pool3d, batchnorm1d, batchnorm2d, batchnorm3d, binary_cross_entropy, conv1d,
-    conv2d, conv3d, cosine_embedding_loss, cross_entropy_loss, dropout, huber_loss, layernorm,
-    log_softmax, max_pool2d, max_pool3d, nll_loss, rmsnorm, sdp_attention, softmax, AttentionMask,
-    BatchNorm1dArgs, BatchNorm2dArgs, BatchNorm3dArgs, CausalMask, NullMask,
+    conv2d, conv3d, conv_transpose1d, conv_transpose2d, cosine_embedding_loss, cross_entropy_loss,
+    dropout, huber_loss, layernorm, log_softmax, max_pool2d, max_pool3d, nll_loss, rmsnorm,
+    sdp_attention, softmax, AttentionMask, BatchNormArgs, CausalMask, NullMask,
 };
 
-pub use embedding::embedding;
+pub use embedding::{embedding, embedding_with_padding_idx};
 pub use shape::{
-    cat, contiguous, cumsum, flip, gather, pad, permute, reshape, slice, split, squeeze, stack,
-    transpose, unsqueeze, where_cond,
+    broadcast_to, cat, contiguous, cumprod, cumsum, diag, diagonal, einsum, einsum3, flip, gather,
+    index_select, masked_fill, pad, permute, reshape, roll, slice, split, squeeze, stack, tile,
+    transpose, tril, triu, unsqueeze, where_cond,
 };

@@ -94,7 +94,9 @@ pub fn layernorm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     d_const: Tensor<T, B>,
 ) -> Var<T, B> {
     let backend = B::default();
-    let requires_grad = input.grad.is_some() || weight.grad.is_some() || bias.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(input)
+        || crate::grad_mode::should_track_var(weight)
+        || crate::grad_mode::should_track_var(bias);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),

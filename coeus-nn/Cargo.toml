@@ -17,6 +17,7 @@ thiserror      = { workspace = true }
 [dev-dependencies]
 coeus-autograd = { workspace = true, default-features = false }
 coeus-ops      = { workspace = true, default-features = false }
+coeus-optim    = { path = "../coeus-optim" }
 # Burn NdArray backend — dev/bench only (production policy enforced by dependency_policy test).
 # `autodiff` enables Autodiff<NdArray> for gradient comparison tests.
 burn           = { version = "0.16", features = ["ndarray", "autodiff"], default-features = false }

@@ -1,6 +1,7 @@
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 #[derive(Clone, Copy)]
 struct ForbiddenProductionCrate {
@@ -9,7 +10,7 @@ struct ForbiddenProductionCrate {
     owner: &'static str,
 }
 
-const FORBIDDEN_PRODUCTION_CRATES: [ForbiddenProductionCrate; 7] = [
+const FORBIDDEN_PRODUCTION_CRATES: [ForbiddenProductionCrate; 8] = [
     ForbiddenProductionCrate {
         manifest_name: "pollster",
         import_name: "pollster",
@@ -44,6 +45,11 @@ const FORBIDDEN_PRODUCTION_CRATES: [ForbiddenProductionCrate; 7] = [
         manifest_name: "tch",
         import_name: "tch",
         owner: "Coeus runtime tensor/autograd stack",
+    },
+    ForbiddenProductionCrate {
+        manifest_name: "rustfft",
+        import_name: "rustfft",
+        owner: "Atlas-owned Apollo FFT implementation",
     },
 ];
 
@@ -124,6 +130,64 @@ fn production_manifests_do_not_depend_on_non_ssot_runtime_or_replacement_crates(
     }
 
     assert_eq!(violations, Vec::<String>::new());
+}
+
+#[test]
+fn resolved_normal_dependency_tree_excludes_non_ssot_runtime_or_replacement_crates() {
+    let root = workspace_root();
+    let mut violations = Vec::new();
+
+    for forbidden_crate in FORBIDDEN_PRODUCTION_CRATES {
+        let output = Command::new(cargo_binary())
+            .current_dir(&root)
+            .args([
+                "tree",
+                "--quiet",
+                "--workspace",
+                "--edges",
+                "normal",
+                "-i",
+                forbidden_crate.manifest_name,
+            ])
+            .output()
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to run cargo tree for `{}` from {}: {error}",
+                    forbidden_crate.manifest_name,
+                    root.display()
+                )
+            });
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let tree = stdout.trim();
+
+        if output.status.success() {
+            if !tree.is_empty() {
+                violations.push(format!(
+                    "normal dependency tree resolves `{}` outside {}:\n{}",
+                    forbidden_crate.manifest_name, forbidden_crate.owner, tree
+                ));
+            }
+            continue;
+        }
+
+        if !stderr.contains("did not match any packages") {
+            violations.push(format!(
+                "cargo tree failed while checking `{}`: {}",
+                forbidden_crate.manifest_name,
+                stderr.trim()
+            ));
+        }
+    }
+
+    assert_eq!(violations, Vec::<String>::new());
+}
+
+fn cargo_binary() -> PathBuf {
+    std::env::var_os("CARGO")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("cargo"))
 }
 
 fn workspace_root() -> PathBuf {

@@ -80,7 +80,7 @@ pub fn leaky_relu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let slope_bits = f64::to_bits(negative_slope);
     let out_tensor = coeus_ops::leaky_relu(&a.tensor, &backend, negative_slope);
-    let requires_grad = a.grad.is_some();
+    let requires_grad = crate::grad_mode::should_track_var(a);
 
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(

@@ -1,8 +1,12 @@
 //! First-order optimizers for the Coeus training stack.
 //!
 //! # Optimizer trait
-//! [`Optimizer<T, B>`](traits::Optimizer) requires `step(&mut self, params: &[&Var<T,B>])` and `zero_grad`;
-//! all concrete types implement it via fused [`BackendOps`](coeus_ops::BackendOps) kernel calls.
+//! [`Optimizer<T, B>`](traits::Optimizer) requires `step`, `zero_grad`, `set_lr`,
+//! and `clip_grad_norm`. Concrete optimizers own their parameter `Var`s
+//! (constructed from a `Vec<Var>`, e.g. `SGD::new`) and update them in place
+//! on `step()` via fused [`BackendOps`](coeus_ops::BackendOps) kernel calls;
+//! gradient buffers are `Arc`-shared with the autograd graph, so `backward()`
+//! populates exactly the gradients the optimizer reads.
 //!
 //! # Implementations
 //! - [`SGD`] — stochastic gradient descent with momentum.

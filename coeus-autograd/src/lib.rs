@@ -21,11 +21,15 @@
 
 pub mod backward;
 pub(crate) mod grad_buffer;
+pub mod grad_mode;
 pub mod node;
 pub mod ops;
 pub mod var;
 
 pub use grad_buffer::GradBuffer;
+pub use grad_mode::{
+    is_grad_enabled, is_no_grad_enabled, no_grad_guard, pop_no_grad, push_no_grad, NoGradGuard,
+};
 pub use node::BackwardNode;
 pub use ops::{
     abs,
@@ -36,34 +40,48 @@ pub use ops::{
     batchnorm2d,
     batchnorm3d,
     binary_cross_entropy,
+    // Shape ops
+    broadcast_to,
     cat,
+    ceil,
     clamp,
     contiguous,
     conv1d,
     conv2d,
     conv3d,
+    conv_transpose1d,
+    conv_transpose2d,
     // Trigonometric
     cos,
     cosine_embedding_loss,
     cross_entropy_loss,
+    cumprod,
     cumsum,
+    // Diagonal ops
+    diag,
+    diagonal,
     div,
     dropout,
+    // Index ops
+    einsum,
+    einsum3,
     elu,
     embedding,
+    embedding_with_padding_idx,
     exp,
-    // Shape ops
     flip,
-    // Index ops
+    floor,
     gather,
     gelu,
     gelu_tanh,
     huber_loss,
+    index_select,
     layernorm,
     leaky_relu,
     log,
     log_softmax,
     log_sum_exp,
+    masked_fill,
     matmul,
     // New axis reductions
     max_axis,
@@ -77,12 +95,18 @@ pub use ops::{
     // New unary math ops
     neg,
     nll_loss,
+    norm,
+    norm_p,
+    norm_p_axis,
     pad,
     permute,
     pow,
+    recip,
     relu,
     reshape,
     rmsnorm,
+    roll,
+    round,
     scalar_add,
     scalar_div,
     // New scalar arithmetic
@@ -90,6 +114,7 @@ pub use ops::{
     scalar_sub,
     sdp_attention,
     sigmoid,
+    sign,
     silu,
     // Trigonometric
     sin,
@@ -97,6 +122,7 @@ pub use ops::{
     softmax,
     softplus,
     sparse_matmul,
+    sparse_matmul_coo,
     split,
     sqrt,
     squeeze,
@@ -105,17 +131,22 @@ pub use ops::{
     sum,
     sum_axis,
     tanh,
+    // Tile / repeat
+    tile,
     transpose,
     transpose_2d,
+    // Triangular masking
+    tril,
+    triu,
+    trunc,
     unsqueeze,
     // Shape ops
     where_cond,
     AttentionMask,
-    BatchNorm1dArgs,
-    BatchNorm2dArgs,
-    BatchNorm3dArgs,
+    BatchNormArgs,
     CausalMask,
     NullMask,
+    VarScalarExt,
 };
 
 pub use var::Var;

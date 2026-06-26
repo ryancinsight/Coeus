@@ -1,3 +1,5 @@
+pub mod attention;
+pub mod conv_transpose;
 pub mod fuse;
 pub mod launch_conv;
 pub mod launch_matmul;
@@ -7,9 +9,12 @@ pub mod pool;
 pub mod ptx;
 pub mod reduce;
 
+pub use attention::{launch_sdp_attention, launch_sdp_attention_backward};
+pub use conv_transpose::{launch_conv_transpose1d, launch_conv_transpose2d};
 pub use fuse::dispatch_fused;
 pub use launch_conv::{
-    launch_conv1d, launch_conv1d_backward, launch_conv2d, launch_conv2d_backward,
+    launch_conv1d, launch_conv1d_backward, launch_conv2d, launch_conv2d_backward, launch_conv3d,
+    launch_conv3d_backward,
 };
 pub use launch_matmul::launch_matmul_tiled;
 pub use launch_ops::{
@@ -19,8 +24,9 @@ pub use optim::{
     launch_adagrad_step, launch_adam_step, launch_adamw_step, launch_rmsprop_step, launch_sgd_step,
 };
 pub use pool::{
-    dispatch_avg_pool2d, dispatch_avg_pool2d_backward, dispatch_max_pool2d,
-    dispatch_max_pool2d_backward,
+    dispatch_avg_pool2d, dispatch_avg_pool2d_backward, dispatch_avg_pool3d,
+    dispatch_avg_pool3d_backward, dispatch_max_pool2d, dispatch_max_pool2d_backward,
+    dispatch_max_pool3d, dispatch_max_pool3d_backward,
 };
 pub use reduce::{dispatch_fused_reduce, dispatch_reduce};
 
@@ -127,5 +133,38 @@ pub fn get_cuda_function(name: &str) -> Option<CUfunction> {
         } else {
             None
         }
+    }
+}
+
+/// Launch a kernel over a flat 1-D grid of `total` threads (256/block).
+///
+/// Shared by the NVRTC-compiled kernels (attention, conv_transpose) that map
+/// one thread to one output element. Returns `false` if the driver is absent or
+/// the launch fails, so callers can fall back.
+pub(crate) fn launch_1d(
+    func: CUfunction,
+    total: usize,
+    args: &mut [*mut std::ffi::c_void],
+) -> bool {
+    let Some(drv) = CudaDriver::get() else {
+        return false;
+    };
+    let block_size = 256usize;
+    let grid_size = total.div_ceil(block_size);
+    unsafe {
+        let res = (drv.cu_launch_kernel)(
+            func,
+            grid_size as u32,
+            1,
+            1,
+            block_size as u32,
+            1,
+            1,
+            0,
+            std::ptr::null_mut(),
+            args.as_mut_ptr(),
+            std::ptr::null_mut(),
+        );
+        res == 0
     }
 }

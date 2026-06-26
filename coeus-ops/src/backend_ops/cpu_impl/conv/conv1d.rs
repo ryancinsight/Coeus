@@ -1,18 +1,8 @@
+use super::brand_mut_slice;
 use crate::ptr::{MutPtr, Ptr};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+use melinoe::brand_scope;
 use melinoe::sync::{partition_for_each_with, PartitionPlan};
-use melinoe::{brand_scope, MelinoeCell};
-
-#[inline]
-unsafe fn brand_mut_slice<'brand, T>(
-    slice: &'brand mut [T],
-) -> &'brand mut [MelinoeCell<'brand, T>] {
-    let ptr = slice as *mut [T] as *mut [MelinoeCell<'brand, T>];
-    // SAFETY: `MelinoeCell<'brand, T>` is `#[repr(transparent)]` over
-    // `UnsafeCell<T>`, which is itself transparent over `T`, so `[T]` and
-    // `[MelinoeCell<'brand, T>]` share layout and slice metadata.
-    unsafe { &mut *ptr }
-}
 
 #[inline]
 pub(crate) fn conv1d<T: Scalar, B: Backend>(
@@ -98,19 +88,44 @@ pub(crate) fn conv1d<T: Scalar, B: Backend>(
                 row_kernel(row, row_out);
             }
         } else {
-            brand_scope(|_token| {
-                // SAFETY: `output_region` is a fresh exclusive borrow that lives
-                // entirely within this brand scope; `partition_for_each_with`
-                // then splits it into disjoint row-sized shards.
-                let output_cells = unsafe { brand_mut_slice(output_region) };
-                partition_for_each_with(
-                    output_cells,
-                    PartitionPlan::chunk_size(l_out),
-                    |start, mut shard| {
-                        row_kernel(start / l_out, shard.as_mut_slice());
-                    },
-                );
-            });
+            // ── Atlas contention guard ────────────────────────────────────
+            // `partition_for_each_with` shards the region across the available
+            // worker pool; for tiny regions (e.g. conv1d on `2×8×128` with
+            // ~2 K output cells split across ~16 threads → ~128 cells per
+            // worker), the work-stealing-deque setup cost dominates the actual
+            // compute. The bench `Burn vs Coeus — Conv1d (2×8×128, k=3)`
+            // measured the parallel canonical path ~6.6× slower than the
+            // sequential path on this workload (criterion `Median` ~1.14ms vs
+            // ~172µs). Bypass the partition driver when the per-thread share
+            // would be too small to amortise scheduling.
+            //
+            // Calibration: a single f32 conv-row kernel on `l_out` elements is
+            // ~12·l_out flops / ~4·c_in·l_out + ~4·l_out bytes — a row of
+            // `l_out = 126` cells at `c_in = 8` reads/writes ~5 KiB per row,
+            // which fits in L1. We require each thread to own at least 4 such
+            // rows (≈ 512 cells, ≥ 20 KiB L1 footprint) before paying the
+            // partition overhead.
+            const MIN_ROWS_PER_THREAD: usize = 4;
+            let n_threads = backend.num_threads();
+            if out_rows < MIN_ROWS_PER_THREAD * n_threads {
+                for (row, row_out) in output_region.chunks_mut(l_out).enumerate() {
+                    row_kernel(row, row_out);
+                }
+            } else {
+                brand_scope(|_token| {
+                    // SAFETY: `output_region` is a fresh exclusive borrow that lives
+                    // entirely within this brand scope; `partition_for_each_with`
+                    // then splits it into disjoint row-sized shards.
+                    let output_cells = unsafe { brand_mut_slice(output_region) };
+                    partition_for_each_with(
+                        output_cells,
+                        PartitionPlan::chunk_size(l_out),
+                        |start, mut shard| {
+                            row_kernel(start / l_out, shard.as_mut_slice());
+                        },
+                    );
+                });
+            }
         }
         return;
     }

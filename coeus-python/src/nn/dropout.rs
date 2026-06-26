@@ -40,7 +40,7 @@ impl PyDropout {
         };
 
         let inner = py.allow_threads(move || rust_dropout.forward(&input_var));
-        Ok(PyTensor { inner })
+        Ok(PyTensor::from_var(inner))
     }
 
     fn state_dict(&self) -> PyStateDict {
