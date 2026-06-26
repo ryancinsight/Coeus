@@ -1,10 +1,139 @@
 use crate::backend::{WgpuBackend, WgpuScalar};
 use crate::kernels;
 use coeus_core::{Layout, Storage};
+use std::sync::Arc;
 
 mod attention;
 
-impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend {
+fn try_hephaestus_contiguous_binary<T: WgpuScalar + hephaestus_wgpu::WgslScalar>(
+    op: coeus_ops::BinaryOp,
+    a: &crate::storage::WgpuStorage<T>,
+    b: &crate::storage::WgpuStorage<T>,
+    c: &mut crate::storage::WgpuStorage<T>,
+) -> bool {
+    if Arc::ptr_eq(&a.buffer, &c.buffer) || Arc::ptr_eq(&b.buffer, &c.buffer) {
+        return false;
+    }
+    let ctx = crate::backend::get_wgpu_context();
+    let run = |result: hephaestus_wgpu::Result<hephaestus_wgpu::WgpuBuffer<T>>,
+               c: &mut crate::storage::WgpuStorage<T>| {
+        c.buffer = Arc::new(result.expect("hephaestus-wgpu contiguous binary dispatch failed"));
+        true
+    };
+    match op {
+        coeus_ops::BinaryOp::Add => run(
+            hephaestus_wgpu::binary_elementwise::<hephaestus_wgpu::AddOp, T>(
+                &ctx.hephaestus_device,
+                a.buffer.as_ref(),
+                b.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::BinaryOp::Sub => run(
+            hephaestus_wgpu::binary_elementwise::<hephaestus_wgpu::SubOp, T>(
+                &ctx.hephaestus_device,
+                a.buffer.as_ref(),
+                b.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::BinaryOp::Mul => run(
+            hephaestus_wgpu::binary_elementwise::<hephaestus_wgpu::MulOp, T>(
+                &ctx.hephaestus_device,
+                a.buffer.as_ref(),
+                b.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::BinaryOp::Div => run(
+            hephaestus_wgpu::binary_elementwise::<hephaestus_wgpu::DivOp, T>(
+                &ctx.hephaestus_device,
+                a.buffer.as_ref(),
+                b.buffer.as_ref(),
+            ),
+            c,
+        ),
+    }
+}
+
+fn try_hephaestus_contiguous_unary<T: WgpuScalar + hephaestus_wgpu::WgslScalar>(
+    op: coeus_ops::UnaryOp,
+    a: &crate::storage::WgpuStorage<T>,
+    c: &mut crate::storage::WgpuStorage<T>,
+) -> bool {
+    if Arc::ptr_eq(&a.buffer, &c.buffer) {
+        return false;
+    }
+    let ctx = crate::backend::get_wgpu_context();
+    let run = |result: hephaestus_wgpu::Result<hephaestus_wgpu::WgpuBuffer<T>>,
+               c: &mut crate::storage::WgpuStorage<T>| {
+        c.buffer = Arc::new(result.expect("hephaestus-wgpu contiguous unary dispatch failed"));
+        true
+    };
+    match op {
+        coeus_ops::UnaryOp::Sin => run(
+            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::SinOp, T>(
+                &ctx.hephaestus_device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::UnaryOp::Cos => run(
+            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::CosOp, T>(
+                &ctx.hephaestus_device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::UnaryOp::Exp => run(
+            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::ExpOp, T>(
+                &ctx.hephaestus_device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::UnaryOp::Log => run(
+            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::LnOp, T>(
+                &ctx.hephaestus_device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::UnaryOp::Neg => run(
+            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::NegOp, T>(
+                &ctx.hephaestus_device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::UnaryOp::Abs => run(
+            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::AbsOp, T>(
+                &ctx.hephaestus_device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::UnaryOp::Sqrt => run(
+            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::SqrtOp, T>(
+                &ctx.hephaestus_device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::UnaryOp::Recip => run(
+            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::RecipOp, T>(
+                &ctx.hephaestus_device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        _ => false,
+    }
+}
+
+impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::BackendOps<T>
+    for WgpuBackend
+{
     #[inline]
     fn elementwise_binary(
         &self,
@@ -25,7 +154,15 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
             && c_layout.is_contiguous()
             && c_layout.offset() == 0
         {
-            kernels::dispatch_contiguous_binary::<T>(op, &a.buffer, &b.buffer, &c.buffer, c.len());
+            if !try_hephaestus_contiguous_binary(op, a, b, c) {
+                kernels::dispatch_contiguous_binary::<T>(
+                    op,
+                    &a.buffer,
+                    &b.buffer,
+                    &c.buffer,
+                    c.len(),
+                );
+            }
         } else {
             kernels::dispatch_binary::<T>(
                 op,
@@ -55,7 +192,9 @@ impl<T: WgpuScalar + leto_ops::Scalar> coeus_ops::BackendOps<T> for WgpuBackend 
             && c_layout.is_contiguous()
             && c_layout.offset() == 0
         {
-            kernels::dispatch_contiguous_unary::<T>(op, &a.buffer, &c.buffer, c.len());
+            if !try_hephaestus_contiguous_unary(op, a, c) {
+                kernels::dispatch_contiguous_unary::<T>(op, &a.buffer, &c.buffer, c.len());
+            }
         } else {
             kernels::dispatch_unary::<T>(op, &a.buffer, a_layout, &c.buffer, c_layout, c.len());
         }

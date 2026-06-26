@@ -14,6 +14,10 @@ contention in `coeus-wgpu` while preserving kernel parity behavior.
 - [x] [patch] Replaced global `Mutex<HashMap<...>>` with
   `RwLock<HashMap<...>>` and double-checked insertion to avoid holding the
   write lock while compiling pipelines.
+- [x] [patch] Reduced GPU kernel redundancy against `hephaestus-wgpu` by routing
+  contiguous non-aliased `Add/Sub/Mul/Div` and unary
+  `Sin/Cos/Exp/Log/Neg/Abs/Sqrt/Recip` through Hephaestus elementwise dispatch,
+  while retaining Coeus-local kernels for aliasing and unsupported unary ops.
 - [x] Evidence: `cargo fmt`; `cargo test -p coeus-wgpu`; `cargo clippy -p
   coeus-wgpu --all-targets -- -D warnings`.
 

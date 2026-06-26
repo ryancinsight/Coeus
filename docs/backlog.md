@@ -8,6 +8,9 @@
 - [x] [patch] Reduced cache lock contention by switching from
   `Mutex<HashMap<...>>` to `RwLock<HashMap<...>>` and using a compile-outside-
   lock, double-check insert pattern.
+- [x] [patch] Routed contiguous non-aliased elementwise binary and a supported
+  unary subset through `hephaestus-wgpu` public kernels to reduce Coeus-local
+  WGSL duplication and rely on Hephaestus pipeline caching where possible.
 - [x] Evidence: `cargo fmt`; `cargo test -p coeus-wgpu`;
   `cargo clippy -p coeus-wgpu --all-targets -- -D warnings`.
 
