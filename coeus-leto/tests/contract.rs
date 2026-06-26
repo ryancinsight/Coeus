@@ -83,6 +83,25 @@ fn unary_dispatch_covers_scalar_mapping() {
 }
 
 #[test]
+fn unary_dispatch_exp_log_sqrt_matches_scalar_reference() {
+    let input = vec![0.0f64, 1.0, 4.0, 16.0];
+    let mut out = vec![0.0f64; 4];
+    let la = layout(&[2, 2]);
+
+    elementwise_unary_into(CpuUnaryOp::Exp, &la, &input, &la, &mut out).unwrap();
+    assert_eq!(out, vec![1.0, 1.0_f64.exp(), 4.0_f64.exp(), 16.0_f64.exp()]);
+
+    elementwise_unary_into(CpuUnaryOp::Log, &la, &input, &la, &mut out).unwrap();
+    assert_eq!(
+        out,
+        vec![f64::NEG_INFINITY, 0.0, 4.0_f64.ln(), 16.0_f64.ln()]
+    );
+
+    elementwise_unary_into(CpuUnaryOp::Sqrt, &la, &input, &la, &mut out).unwrap();
+    assert_eq!(out, vec![0.0, 1.0, 2.0, 4.0]);
+}
+
+#[test]
 fn reduction_dispatch_covers_keepdim_axis_ops() {
     let input = vec![1.0f64, 4.0, -2.0, 5.0, 3.0, 6.0];
     let input_layout = layout(&[2, 3]);
@@ -426,8 +445,8 @@ fn rank_beyond_dispatch_bound_is_rejected() {
 
 #[test]
 fn matmul_accumulate_adds_into_existing_output() {
-    // out += A·B (must accumulate onto a non-zero output, not overwrite).
-    // A = [[1,2],[3,4]], B = [[5,6],[7,8]] -> A·B = [[19,22],[43,50]].
+    // out += A*B (must accumulate onto a non-zero output, not overwrite).
+    // A = [[1,2],[3,4]], B = [[5,6],[7,8]] -> A*B = [[19,22],[43,50]].
     let a = vec![1.0f64, 2.0, 3.0, 4.0];
     let b = vec![5.0f64, 6.0, 7.0, 8.0];
     let mut out = vec![1.0f64; 4]; // pre-seeded
@@ -440,10 +459,10 @@ fn matmul_accumulate_adds_into_existing_output() {
 
 #[test]
 fn batched_matmul_accumulate_adds_per_batch() {
-    // out += A·B over a batch of 2. Batch 0: I·B0 = B0; batch 1: 2I·B1 = 2·B1.
+    // out += A*B over a batch of 2. Batch 0: I*B0 = B0; batch 1: 2I*B1 = 2*B1.
     let a = vec![
         1.0f64, 0.0, 0.0, 1.0, // batch 0: identity
-        2.0, 0.0, 0.0, 2.0, // batch 1: 2·identity
+        2.0, 0.0, 0.0, 2.0, // batch 1: 2*identity
     ];
     let b = vec![
         5.0f64, 6.0, 7.0, 8.0, // batch 0

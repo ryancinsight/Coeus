@@ -1,18 +1,18 @@
 //! Differential parity for sparse format conversion operations.
 //!
 //! Functions exercised:
-//!   `dense_to_coo`  — dense tensor → COO sparse format
-//!   `coo_to_dense`  — COO → dense tensor
-//!   `dense_to_csr`  — dense tensor → CSR sparse format
-//!   `csr_to_dense`  — CSR → dense tensor
-//!   `coo_to_csr`    — COO → CSR format conversion
+//!   `dense_to_coo`  - dense tensor -> COO sparse format
+//!   `coo_to_dense`  - COO -> dense tensor
+//!   `dense_to_csr`  - dense tensor -> CSR sparse format
+//!   `csr_to_dense`  - CSR -> dense tensor
+//!   `coo_to_csr`    - COO -> CSR format conversion
 //!
 //! Reference matrix throughout:
 //!   A = [[2, 0, 1],     nnz=5: (0,0)=2, (0,2)=1, (1,1)=3, (2,0)=1, (2,2)=4
 //!        [0, 3, 0],
 //!        [1, 0, 4]]
 //!
-//! Roundtrip invariant: dense → sparse → dense = identity.
+//! Roundtrip invariant: dense -> sparse -> dense = identity.
 //! All assertions use `assert_eq!` (exact integer values).
 //! SequentialBackend and MoiraiBackend must return identical results.
 
@@ -76,7 +76,7 @@ where
     assert_eq!(coo.nnz(), 5, "dense_to_coo nnz");
     assert_eq!(&**coo.shape(), d.shape(), "dense_to_coo shape");
 
-    // Roundtrip: COO → dense.
+    // Roundtrip: COO -> dense.
     let recovered = coeus_ops::coo_to_dense(&coo, backend);
     assert_eq!(recovered.shape(), &[3, 3], "coo_to_dense shape");
     assert_eq!(recovered.as_slice(), &A_DENSE, "coo_to_dense roundtrip");
@@ -158,7 +158,7 @@ where
     let coo = make_coo(backend);
     let csr = coeus_ops::coo_to_csr(&coo, backend);
 
-    // After COO→CSR, recover the dense matrix to verify correctness.
+    // After COO->CSR, recover the dense matrix to verify correctness.
     let dense = coeus_ops::csr_to_dense(&csr, backend);
     assert_eq!(dense.shape(), &[3, 3], "coo_to_csr dense shape");
     assert_eq!(dense.as_slice(), &A_DENSE, "coo_to_csr then csr_to_dense");

@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.2.33 - 2026-06-26
+
+### Added
+
+- **Embedding differential coverage** — `coeus-ops` now verifies embedding
+  lookup, repeated-index gradient accumulation, and padding-index gradient
+  suppression on SequentialBackend and MoiraiBackend.
+- **Unary and shape ops differential coverage** — `coeus-ops` now verifies
+  unary math identities plus `flip`, `roll`, triangular masks, sorting,
+  one-hot, repeat-interleave, outer product, and cross product on
+  SequentialBackend and MoiraiBackend.
+- **Activation differential coverage** — `coeus-ops` now verifies sigmoid,
+  GELU, tanh-GELU, SiLU, Mish, ELU, Softplus, and LeakyReLU against exact or
+  analytically bounded scalar references.
+- **Transposed convolution differential coverage** — `coeus-ops` now verifies
+  `conv_transpose1d` and `conv_transpose2d` against hand-derived
+  scatter-accumulate references.
+- **Miscellaneous ops differential coverage** — `coeus-ops` now verifies `amax`,
+  `amin`, `dot`, `cumprod`, `broadcast_to`, `chunk`, `diag`, and `diagonal`
+  against exact integer-valued references.
+- **Product/tile/masked-fill differential coverage** — `coeus-ops` now verifies
+  `prod`, `tile`, and `masked_fill` exact references on SequentialBackend and
+  MoiraiBackend.
+- **Sparse conversion differential coverage** — `coeus-ops` now verifies
+  dense/COO/CSR conversions and dense roundtrip invariants.
+- **Leto unary dispatch contract coverage** — `coeus-leto` now verifies
+  `Exp`, `Log`, and `Sqrt` dispatch against exact scalar references while
+  consuming the upstream Leto SIMD sqrt strategy through public Leto APIs.
+
+### Verified
+
+- `cargo nextest run -p coeus-ops` passes 189/189 tests.
+- `cargo nextest run -p coeus-leto --test contract` passes 25/25 tests.
+- `cargo fmt --check`, `coeus-ops`/`coeus-leto` clippy, and
+  `coeus-ops`/`coeus-leto` rustdoc pass.
+
 ## 0.2.32 - 2026-06-26
 
 ### Added

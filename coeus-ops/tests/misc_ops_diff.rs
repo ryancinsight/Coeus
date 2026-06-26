@@ -1,14 +1,14 @@
 //! Differential parity for miscellaneous reduction and shape operations.
 //!
 //! Functions exercised:
-//!   `amax`         — global maximum scalar
-//!   `amin`         — global minimum scalar
-//!   `dot`          — 1-D dot product
-//!   `cumprod`      — cumulative product along a dimension
-//!   `broadcast_to` — repeat along singleton dimensions
-//!   `chunk`        — split tensor into N slices along a dimension
-//!   `diag`         — construct diagonal matrix from 1-D vector
-//!   `diagonal`     — extract main (or k-th) diagonal from 2-D matrix
+//!   `amax`         - global maximum scalar
+//!   `amin`         - global minimum scalar
+//!   `dot`          - 1-D dot product
+//!   `cumprod`      - cumulative product along a dimension
+//!   `broadcast_to` - repeat along singleton dimensions
+//!   `chunk`        - split tensor into N slices along a dimension
+//!   `diag`         - construct diagonal matrix from 1-D vector
+//!   `diagonal`     - extract main (or k-th) diagonal from 2-D matrix
 //!
 //! All reference values are integer-valued (exact in f64) so assertions use
 //! `assert_eq!` without an epsilon band.  SequentialBackend and MoiraiBackend
@@ -57,17 +57,17 @@ where
     B: coeus_ops::BackendOps<f64> + Default,
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
-    // [1,2,3] · [4,5,6] = 4+10+18 = 32
+    // [1,2,3] dot [4,5,6] = 4+10+18 = 32
     let a = t(&[3], &[1.0, 2.0, 3.0], backend);
     let b = t(&[3], &[4.0, 5.0, 6.0], backend);
-    assert_eq!(coeus_ops::dot(&a, &b), 32.0_f64, "dot [1,2,3]·[4,5,6]");
+    assert_eq!(coeus_ops::dot(&a, &b), 32.0_f64, "dot [1,2,3] dot [4,5,6]");
 
     // Orthogonal vectors: dot = 0.
     let x = t(&[2], &[1.0, 0.0], backend);
     let y = t(&[2], &[0.0, 1.0], backend);
     assert_eq!(coeus_ops::dot(&x, &y), 0.0_f64, "dot orthogonal");
 
-    // Self dot: [3,4]·[3,4] = 9+16 = 25
+    // Self dot: [3,4] dot [3,4] = 9+16 = 25
     let u = t(&[2], &[3.0, 4.0], backend);
     assert_eq!(coeus_ops::dot(&u, &u), 25.0_f64, "dot self");
 }

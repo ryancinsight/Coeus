@@ -2,7 +2,42 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-95 - sparse ops differential parity [COMPLETE]
+### Current Sprint: MS-96 - ops parity and Leto unary integration cleanup [COMPLETE]
+**Objective**: Close additional `coeus-ops` differential coverage gaps and
+preserve Coeus/Leto layering by consuming unary acceleration only through public
+Leto APIs.
+**Target version**: 0.2.33 (patch-class).
+**Tests delivered**: 16 differential tests across 8 `coeus-ops` binaries plus
+25 `coeus-leto` dispatch contract tests.
+
+- [x] [patch] `coeus-ops/tests/embedding_diff.rs`: covers `embedding`,
+  `embedding_backward`, and `embedding_backward_with_padding_idx` with repeated
+  indices and padding suppression.
+- [x] [patch] `coeus-ops/tests/unary_math_diff.rs`: covers exact unary math
+  identities on SequentialBackend and MoiraiBackend.
+- [x] [patch] `coeus-ops/tests/shape_ops_diff.rs`: covers `flip`, `roll`,
+  `tril`, `triu`, `sort`, `one_hot`, `repeat_interleave`, `outer`, and `cross`.
+- [x] [patch] `coeus-ops/tests/activation_diff.rs`: covers sigmoid, GELU,
+  tanh-GELU, SiLU, Mish, ELU, Softplus, and LeakyReLU.
+- [x] [patch] `coeus-ops/tests/conv_transpose_diff.rs`: covers
+  `conv_transpose1d` and `conv_transpose2d`.
+- [x] [patch] `coeus-ops/tests/misc_ops_diff.rs`: covers `amax`, `amin`, `dot`,
+  `cumprod`, `broadcast_to`, `chunk`, `diag`, and `diagonal`.
+- [x] [patch] `coeus-ops/tests/prod_tile_maskfill_diff.rs`: covers `prod`,
+  `tile`, and `masked_fill`.
+- [x] [patch] `coeus-ops/tests/sparse_conv_diff.rs`: covers `dense_to_coo`,
+  `coo_to_dense`, `dense_to_csr`, `csr_to_dense`, and `coo_to_csr` roundtrips.
+- [x] [patch] `coeus-leto`: added exact `Exp`/`Log`/`Sqrt` dispatch contract
+  coverage while preserving public Leto API routing.
+- [x] Upstream provider: `leto` commit `d38addb` routes contiguous `SqrtOp`
+  through the Leto `RealScalar::sqrt_slice` strategy seam.
+- [x] Evidence: `cargo fmt --check`; targeted 16/16 ops nextest;
+  `cargo nextest run -p coeus-ops` (189/189);
+  `cargo nextest run -p coeus-leto --test contract` (25/25);
+  `cargo clippy -p coeus-ops -p coeus-leto --all-targets -- -D warnings`;
+  `cargo doc -p coeus-ops -p coeus-leto --no-deps`.
+
+### Previous Sprint: MS-95 - sparse ops differential parity [COMPLETE]
 **Objective**: Add value-semantic sparse forward/backward coverage for CSR
 operations on SequentialBackend and MoiraiBackend, using exact integer-valued
 references.

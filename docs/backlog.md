@@ -1,5 +1,32 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-96: ops parity and Leto unary integration cleanup [COMPLETE]
+
+- [x] [patch] Added `coeus-ops/tests/embedding_diff.rs` covering embedding
+  lookup, repeated-index gradient accumulation, and padding-index gradient
+  suppression on SequentialBackend and MoiraiBackend.
+- [x] [patch] Added `coeus-ops/tests/unary_math_diff.rs` and
+  `coeus-ops/tests/shape_ops_diff.rs` covering exact unary identities and
+  shape-manipulation operations on SequentialBackend and MoiraiBackend.
+- [x] [patch] Added `coeus-ops/tests/activation_diff.rs` covering activation
+  functions against exact or analytically bounded scalar references.
+- [x] [patch] Added `coeus-ops/tests/conv_transpose_diff.rs` covering
+  transposed convolution scatter-accumulate references.
+- [x] [patch] Added `coeus-ops/tests/misc_ops_diff.rs` covering `amax`, `amin`,
+  `dot`, `cumprod`, `broadcast_to`, `chunk`, `diag`, and `diagonal`.
+- [x] [patch] Added `coeus-ops/tests/prod_tile_maskfill_diff.rs` covering
+  `prod`, `tile`, and `masked_fill`.
+- [x] [patch] Added `coeus-ops/tests/sparse_conv_diff.rs` covering dense/COO/CSR
+  sparse-format conversions and dense roundtrip invariants.
+- [x] [patch] Added `coeus-leto` exact unary dispatch contract coverage and kept
+  Coeus consuming upstream Leto unary dispatch through public Leto APIs.
+  Provider commit: `leto` `d38addb`.
+- [x] Evidence: `cargo fmt --check`; targeted 16/16 ops nextest;
+  `cargo nextest run -p coeus-ops` (189/189);
+  `cargo nextest run -p coeus-leto --test contract` (25/25);
+  `cargo clippy -p coeus-ops -p coeus-leto --all-targets -- -D warnings`;
+  `cargo doc -p coeus-ops -p coeus-leto --no-deps`.
+
 ## Sprint MS-95: sparse ops differential parity [COMPLETE]
 
 - [x] [patch] Added `coeus-ops/tests/sparse_ops_diff.rs` covering `spmv`,
