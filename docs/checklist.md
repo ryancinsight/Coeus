@@ -2,7 +2,19 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-106 - CUDA Hephaestus primitive routing [COMPLETE]
+### Current Sprint: MS-108 - BatchNorm2d training-mode backward parity [COMPLETE]
+**Objective**: Add differential Burn autodiff parity for BatchNorm2d training-mode
+backward pass (dx, dw, db), matching Coeus's NHWC-based population-variance formula
+against the same formula manually expressed in Burn autodiff tensors.
+**Target version**: 0.5.1 (patch-class; test coverage).
+**Tests delivered**: `batchnorm2d_training_backward_matches_burn` (97th parity test).
+
+- [x] [patch] Added `batchnorm2d_training_backward_matches_burn` — manual BN2d
+  formula in Burn autodiff tensors matching Coeus NHWC-layout, population variance
+  (÷M not ÷(M-1)), verifies dx/dw/db within 1e-4 relative tolerance.
+- [x] Evidence: `cargo nextest run -p coeus-nn --test burn_live_parity`: 97/97 pass.
+
+### Previous Sprint: MS-107 - CUDA Hephaestus primitive routing [COMPLETE]
 **Objective**: Keep CUDA and WGPU shared primitive GPU dispatch centralized in
 Hephaestus while preserving Coeus-local kernels only for aliasing, strided
 coverage not yet mapped through the static-rank Hephaestus API, and
