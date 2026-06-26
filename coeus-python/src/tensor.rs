@@ -1,6 +1,7 @@
 // ── Python tensor wrapper ──
 
 use coeus_autograd::Var;
+use coeus_core::ComputeBackend;
 use coeus_tensor::Tensor;
 use pyo3::prelude::*;
 
@@ -411,6 +412,72 @@ impl PyTensor {
         Err(pyo3::exceptions::PyTypeError::new_err(
             "__getitem__: index must be an int or a slice",
         ))
+    }
+
+    /// Python `tensor[index] = value`: integer and scalar assignment on the first dimension.
+    ///
+    /// `index` must be an integer. `value` may be a `float`, `int`, or `PyTensor`.
+    /// Non-tracked in-place mutation (detaches from autograd graph).
+    fn __setitem__(
+        &mut self,
+        index: &pyo3::Bound<'_, pyo3::PyAny>,
+        value: &pyo3::Bound<'_, pyo3::PyAny>,
+        py: Python<'_>,
+    ) -> PyResult<()> {
+        let shape = self.inner.tensor.shape().to_vec();
+        if shape.is_empty() {
+            return Err(pyo3::exceptions::PyIndexError::new_err(
+                "__setitem__: cannot index a 0-dimensional tensor",
+            ));
+        }
+        let n = shape[0];
+
+        // Resolve integer index.
+        let idx = if let Ok(i) = index.extract::<i64>() {
+            let normalized = if i < 0 { n as i64 + i } else { i };
+            if normalized < 0 || normalized as usize >= n {
+                return Err(pyo3::exceptions::PyIndexError::new_err(format!(
+                    "__setitem__: index {i} out of range for dim 0 size {n}"
+                )));
+            }
+            normalized as usize
+        } else {
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "__setitem__: index must be an int",
+            ));
+        };
+
+        // Resolve scalar or tensor value.
+        let row_numel: usize = shape[1..].iter().product::<usize>().max(1);
+        let fill_data: Vec<f64> = if let Ok(v) = value.extract::<f64>() {
+            vec![v; row_numel]
+        } else if let Ok(t) = value.extract::<PyTensor>() {
+            let cont = t.inner.tensor.to_contiguous();
+            cont.as_slice().to_vec()
+        } else {
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "__setitem__: value must be a float or Tensor",
+            ));
+        };
+
+        if fill_data.len() != row_numel {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "__setitem__: value has {} elements but row requires {}",
+                fill_data.len(),
+                row_numel
+            )));
+        }
+
+        // Materialise the full tensor as host, overwrite the indexed row, write back.
+        let _ = py; // allow_threads not needed for host-side op
+        let numel: usize = shape.iter().product();
+        let mut host = vec![0.0f64; numel];
+        let backend = coeus_core::MoiraiBackend::new();
+        backend.copy_to_host(self.inner.tensor.storage(), &mut host);
+        let start = idx * row_numel;
+        host[start..start + row_numel].copy_from_slice(&fill_data);
+        self.inner.tensor = coeus_tensor::Tensor::from_slice(shape, &host);
+        Ok(())
     }
 
     /// Python `iter(tensor)` over slices along the first dimension.

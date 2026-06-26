@@ -24,6 +24,7 @@
 
 pub mod activation;
 pub mod attention;
+pub mod bilinear;
 pub mod conv;
 pub mod dropout;
 pub mod embedding;
@@ -69,6 +70,7 @@ pub use pool::{
 };
 pub use positional::{RotaryEmbedding, SinusoidalEncoding};
 pub use rnn::{GRUCell, LSTMCell};
+pub use bilinear::Bilinear;
 pub use sequential::{ModuleExt, Sequential, StaticSeq};
 pub use softmax::{softmax, Softmax};
 pub use transformer::{

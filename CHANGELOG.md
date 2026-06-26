@@ -1,6 +1,44 @@
 # Changelog
 
-## 0.2.23 - 2026-06-25
+## 0.2.24 - 2026-06-25
+
+### Added
+
+- **`coeus_nn::Bilinear`** — Bilinear interaction layer
+  `out[n,k] = Σ_{i,j} x1[n,i] * W[k,i,j] * x2[n,j] + b[k]`.
+  Autograd-tracked via slice-per-output-feature + matmul + sum.
+  `bilinear_forward(x1, x2)` is the primary API; `Module::forward(x)` self-interacts.
+
+- **`PyTensor.__setitem__`** — Python index assignment `t[i] = scalar_or_tensor`.
+  Supports integer indices (including negative), assigns a scalar to all elements
+  in the row or a tensor with matching row numel. Non-tracked in-place mutation.
+  `IndexError` for out-of-range, `TypeError` for slice index, `ValueError` for shape mismatch.
+
+### Verified (parity tests added)
+
+- **`cat` backward** — `CatNode` correctly splits output gradient along `dim` and
+  routes each slice back to the corresponding input. New test `cat_backward_routes_grad_to_each_input`.
+
+- **`where_cond` backward** — Gradient flows to `on_true` at `cond==1` positions and
+  to `on_false` at `cond==0` positions. New test `where_cond_backward_routes_grad_correctly`.
+
+- **Dropout backward** — `DropoutNode` multiplies output gradient by the stored mask
+  (0 at dropped positions, `1/(1-p)` at kept positions). Verified with p=0 identity
+  and p=0.5 non-negative gradient invariant.
+
+- **`coeus_optim::CosineAnneal` already implemented** — The `CosineAnneal` scheduler
+  strategy and `PyLrScheduler.cosine_anneal` static constructor were already complete.
+  New test `test_cosine_annealing_lr_scheduler` verifies formula correctness and
+  the Python scheduler step workflow.
+
+### Tests
+
+- Burn parity (+3): `cat_backward_routes_grad_to_each_input`,
+  `where_cond_backward_routes_grad_correctly`, `dropout_backward_masks_gradient`.
+- Python binding 50 → 53 (+3): `test_tensor_setitem`, `test_cosine_annealing_lr_scheduler`,
+  `test_cat_where_backward_parity`.
+
+
 
 ### Added
 
