@@ -2,17 +2,33 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-83 - einsum3 parity and audit verification [COMPLETE]
-**Objective**: Complete three-operand einsum parity through `coeus_ops`,
-`coeus_autograd`, and `coeus-python`, and record the current audit findings for
-Moirai adaptive thresholds, MHA const generics, and Coeus CoW infrastructure.
-**Target version**: 0.2.23 (Cargo.toml reconciled with CHANGELOG).
-**Burn parity tests**: 69 total (all passing).
+### Current Sprint: MS-84 - Activation parity coverage + Moirai dispatch floor
+**Objective**: Extend Burn parity test suite to cover the new activation ops
+shipped in MS-83 (sigmoid, tanh, silu, log_softmax, leaky_relu, softplus, mish)
+and reduce Moirai parallel-dispatch overhead for medium-sized ops.
+**Target version**: 0.2.24 (patch items only; no public API change).
+**Burn parity tests**: 207 total (207 passing) — 7 activation parity tests added.
+
+### Previous Sprint: MS-83 - einsum3 parity and audit verification [COMPLETE]
+**Burn parity tests at close**: 69 (superseded by MS-84 additions).
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
 > oracle values; wgpu parity.rs verifies implemented GPU paths against the CPU reference;
 > coeus-python gains 20+ new functional ops (stack, matmul, constructors, abs/sqrt/neg,
 > clamp, max/min/min/max_axis, sum/mean, reshape, permute, t, pow, arange, linspace, etc.).
+
+### MS-84 Progress (2026-06-25)
+
+- [x] [patch] moirai-executor: add `MIN_ELEMENTS_PER_CHUNK = 256` floor to
+  `indexed_chunk_count` — caps chunk count so each scheduled chunk processes
+  ≥256 iterations, reducing unpark calls for 1024-element ops from 8 to 3.
+  Evidence: 700/700 moirai workspace tests pass; 18/18 coeus-core tests pass.
+  Commit: `bded467` (moirai repo).
+- [x] [patch] coeus-nn: Add Burn 0.16 parity tests for sigmoid, tanh, silu,
+  log_softmax (dim=1), leaky_relu, softplus, mish — 7 new tests covering the
+  activation batch shipped in MS-83 (UnaryOp dispatch via elementwise_unary).
+  Evidence: `cargo nextest run -p coeus-nn` — 207 tests, 207 passed.
+  Commit: `69055d9`.
 
 ### Current Verification Note (2026-06-25)
 
