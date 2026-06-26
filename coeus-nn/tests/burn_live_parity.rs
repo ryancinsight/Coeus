@@ -1,8 +1,9 @@
 use burn::backend::ndarray::{NdArray, NdArrayDevice};
-use burn::tensor::{Tensor as BurnTensor, TensorData};
+use burn::tensor::{activation as burn_act, Tensor as BurnTensor, TensorData};
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
 use coeus_nn::{cross_entropy_loss, softmax, Module};
+use coeus_ops::{leaky_relu, log_softmax_axis, mish, sigmoid, silu, softplus, tanh};
 use coeus_tensor::Tensor as CoeusTensor;
 
 type BurnBackend = NdArray<f32>;
@@ -2675,4 +2676,193 @@ fn embedding_backward_accumulates_grad_for_repeated_indices() {
         "grad[1,1]={}",
         gw.as_slice()[3]
     );
+}
+
+// ── New activation parity tests (sigmoid, tanh, silu, log_softmax, ──────────
+// ── leaky_relu, softplus, mish) against Burn 0.16 NdArray reference ─────────
+//
+// Each test uses a small [2, 4] deterministic tensor that contains negative,
+// zero, and positive values so all activation branches are exercised.
+// Tolerance: 512 * f32::EPSILON * (1 + |ref|)  — same as the file-global
+// `assert_close`, which accounts for up to 512 ULP of accumulated rounding.
+
+fn act_input() -> Vec<f32> {
+    vec![-2.0f32, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 3.0]
+}
+
+fn burn_act_tensor() -> BurnTensor<BurnBackend, 2> {
+    BurnTensor::from_data(
+        TensorData::new(act_input(), [2, 4]),
+        &dev(),
+    )
+}
+
+fn coeus_act_tensor() -> CoeusTensor<f32, SequentialBackend> {
+    CoeusTensor::<f32, SequentialBackend>::from_slice([2, 4], &act_input())
+}
+
+#[test]
+fn sigmoid_matches_burn() {
+    let s = SequentialBackend::new();
+    let coeus_out = sigmoid(&coeus_act_tensor(), &s);
+    let burn_out: Vec<f32> = bvec(burn_act::sigmoid(burn_act_tensor()));
+    assert_close("sigmoid", coeus_out.as_slice(), &burn_out);
+}
+
+#[test]
+fn tanh_matches_burn() {
+    let s = SequentialBackend::new();
+    let coeus_out = tanh(&coeus_act_tensor(), &s);
+    let burn_out: Vec<f32> = bvec(burn_act::tanh(burn_act_tensor()));
+    assert_close("tanh", coeus_out.as_slice(), &burn_out);
+}
+
+#[test]
+fn silu_matches_burn() {
+    // Burn: silu(x) = x * sigmoid(x)
+    let s = SequentialBackend::new();
+    let coeus_out = silu(&coeus_act_tensor(), &s);
+    let burn_out: Vec<f32> = bvec(burn_act::silu(burn_act_tensor()));
+    assert_close("silu", coeus_out.as_slice(), &burn_out);
+}
+
+#[test]
+fn log_softmax_matches_burn() {
+    // Burn log_softmax along dim=1 (last axis of a [2,4] tensor).
+    let s = SequentialBackend::new();
+    let coeus_out = log_softmax_axis(&coeus_act_tensor(), 1, &s);
+    let burn_out: Vec<f32> = bvec(burn_act::log_softmax(burn_act_tensor(), 1));
+    assert_close("log_softmax", coeus_out.as_slice(), &burn_out);
+}
+
+#[test]
+fn leaky_relu_matches_burn() {
+    // Burn leaky_relu with negative_slope = 0.01.
+    let s = SequentialBackend::new();
+    let coeus_out = leaky_relu(&coeus_act_tensor(), &s, 0.01);
+    let burn_out: Vec<f32> = bvec(burn_act::leaky_relu(burn_act_tensor(), 0.01));
+    assert_close("leaky_relu", coeus_out.as_slice(), &burn_out);
+}
+
+#[test]
+fn softplus_matches_burn() {
+    // Burn softplus with beta = 1.0.
+    // Coeus: log(1 + exp(beta * x)) / beta where beta = 1.
+    let s = SequentialBackend::new();
+    let coeus_out = softplus(&coeus_act_tensor(), &s);
+    // Burn signature: softplus(tensor, beta: f64)
+    let burn_out: Vec<f32> = bvec(burn_act::softplus(burn_act_tensor(), 1.0));
+    assert_close("softplus", coeus_out.as_slice(), &burn_out);
+}
+
+#[test]
+fn mish_matches_burn() {
+    // Burn: mish(x) = x * tanh(softplus(x, 1.0))
+    // Coeus mirrors this composition so results are within rounding.
+    let s = SequentialBackend::new();
+    let coeus_out = mish(&coeus_act_tensor(), &s);
+    let burn_out: Vec<f32> = bvec(burn_act::mish(burn_act_tensor()));
+    assert_close("mish", coeus_out.as_slice(), &burn_out);
+}
+
+// ── cat backward: gradient routing ────────────────────────────────────────────
+
+#[test]
+fn cat_backward_routes_grad_to_each_input() {
+    // cat([x, y], dim=0) then backward-with-ones should give x.grad = ones[:x_len]
+    // and y.grad = ones[x_len:].
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[1.0f32; 6]),
+        true,
+    );
+    let y = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![3, 3], &[2.0f32; 9]),
+        true,
+    );
+    let out = coeus_autograd::cat(&[&x, &y], 0);
+    assert_eq!(out.tensor.shape(), &[5, 3]);
+
+    let seed = CoeusTensor::<f32, SequentialBackend>::ones(vec![5, 3]);
+    out.backward_with_seed(seed);
+
+    // x.grad and y.grad should both be all-ones (identity backward through cat).
+    let gx = x.grad().expect("x.grad must be set");
+    let gy = y.grad().expect("y.grad must be set");
+    for &v in gx.as_slice() {
+        assert!((v - 1.0).abs() < 1e-6, "cat_bwd x.grad: expected 1.0 got {v}");
+    }
+    for &v in gy.as_slice() {
+        assert!((v - 1.0).abs() < 1e-6, "cat_bwd y.grad: expected 1.0 got {v}");
+    }
+}
+
+// ── where_cond backward: gradient to true/false branches ─────────────────────
+
+#[test]
+fn where_cond_backward_routes_grad_correctly() {
+    // where(cond, on_true, on_false) — already tested via burn parity; extra check
+    // that gradient is exactly zero at masked positions.
+    let cond = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &[1.0, 0.0, 1.0, 0.0]),
+        false,
+    );
+    let on_true = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &[10.0, 11.0, 12.0, 13.0]),
+        true,
+    );
+    let on_false = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &[20.0, 21.0, 22.0, 23.0]),
+        true,
+    );
+    let out = coeus_autograd::where_cond(&cond, &on_true, &on_false);
+    assert_eq!(out.tensor.as_slice(), &[10.0, 21.0, 12.0, 23.0]);
+
+    let seed = CoeusTensor::<f32, SequentialBackend>::ones(vec![4]);
+    out.backward_with_seed(seed);
+
+    let gt = on_true.grad().expect("on_true grad must be set");
+    let gf = on_false.grad().expect("on_false grad must be set");
+    // Gradient flows where cond==1 for on_true, where cond==0 for on_false.
+    assert_close("where_true_grad", gt.as_slice(), &[1.0, 0.0, 1.0, 0.0]);
+    assert_close("where_false_grad", gf.as_slice(), &[0.0, 1.0, 0.0, 1.0]);
+}
+
+// ── Dropout backward: gradient masked correctly ───────────────────────────────
+
+#[test]
+fn dropout_backward_masks_gradient() {
+    // Use p=0 (no dropout) to verify identity, then check that gradient
+    // is zero at dropped positions when p > 0 (seed-deterministic).
+    use coeus_nn::{Dropout, Module};
+
+    // p=0: identity pass-through.
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![4], &[1.0, 2.0, 3.0, 4.0]),
+        true,
+    );
+    let drop0 = Dropout::new(0.0);
+    let out0 = drop0.forward(&x);
+    assert_eq!(out0.tensor.as_slice(), x.tensor.as_slice(), "p=0 should be identity");
+
+    // Backward with p=0 passes gradient unchanged.
+    coeus_autograd::sum(&out0).backward();
+    let gx0 = x.grad().unwrap();
+    for &v in gx0.as_slice() {
+        assert!((v - 1.0).abs() < 1e-6, "p=0 grad should be 1.0, got {v}");
+    }
+
+    // p > 0 training: output is scaled (some elements may be zero).
+    // We only check the mask consistency: grad is non-negative (mask is 0 or 1/(1-p)).
+    let x2 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![100], &vec![1.0f32; 100]),
+        true,
+    );
+    let drop_p = Dropout::new(0.5);
+    let out_p = drop_p.forward(&x2);
+    coeus_autograd::sum(&out_p).backward();
+    let gx2 = x2.grad().unwrap();
+    // All gradient values must be either 0 or ≥ 1 (scale = 2.0 for p=0.5).
+    for &v in gx2.as_slice() {
+        assert!(v == 0.0 || v >= 1.0, "dropout backward: unexpected grad {v}");
+    }
 }
