@@ -1855,6 +1855,176 @@ fn multi_head_attention_identity_weights_matches_analytical_sdpa() {
     );
 }
 
+// ── Multi-head attention backward matches Burn MHA module ────────────────────
+//
+// Uses Burn's full MultiHeadAttention module (not a manual formula) with
+// non-trivial projection weights to verify forward + backward parity.
+//
+// Weight convention: Coeus stores projection weights as `[out, in]` and computes
+// `x @ W^T`; Burn Linear stores `[in, out]` and computes `x @ W`. Burn weights
+// are transposed on setup, and Burn weight gradients are transposed back before
+// comparison.
+//
+// Configuration: d_model=2, H=1 (d_k=2), batch=1, seq=3, no bias.
+// Tolerance: 1e-4 (f32 summation over small matrices).
+
+#[test]
+fn multi_head_attention_backward_matches_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use burn::nn::attention::{MhaInput, MultiHeadAttentionConfig};
+    use coeus_nn::{Module, MultiHeadAttention, NullMask};
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    let (batch, seq, d_model) = (1usize, 3, 2);
+
+    let data: Vec<f32> = vec![0.1, 0.4, 0.7, -0.2, -0.3, 0.9];
+    // Coeus: stores W [d_model, d_model], computes x @ W^T.
+    // Burn Linear: stores W [d_in, d_out], computes x @ W  (no transpose in forward!).
+    // Convention match: burn_W = coeus_W^T.
+    let wq: Vec<f32> = vec![0.8, 0.2, -0.1, 0.7];
+    let wk: Vec<f32> = vec![0.6, -0.3, 0.4, 0.9];
+    let wv: Vec<f32> = vec![0.5, 0.1, 0.3, -0.4];
+    let wo: Vec<f32> = vec![0.7, 0.3, -0.2, 0.6];
+    // Transpose of each 2×2 row-major matrix: [a,b,c,d] → [a,c,b,d].
+    let t2x2 = |w: &[f32]| vec![w[0], w[2], w[1], w[3]];
+    let wq_t = t2x2(&wq);
+    let wk_t = t2x2(&wk);
+    let wv_t = t2x2(&wv);
+    let wo_t = t2x2(&wo);
+
+    // ── Coeus ──
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![batch, seq, d_model], &data),
+        true,
+    );
+    let mut mha = MultiHeadAttention::<f32, SequentialBackend, 1, NullMask>::new(d_model, false);
+    mha.w_q = Var::new(CoeusTensor::from_slice(vec![d_model, d_model], &wq), true);
+    mha.w_k = Var::new(CoeusTensor::from_slice(vec![d_model, d_model], &wk), true);
+    mha.w_v = Var::new(CoeusTensor::from_slice(vec![d_model, d_model], &wv), true);
+    mha.w_o = Var::new(CoeusTensor::from_slice(vec![d_model, d_model], &wo), true);
+    let out_c = mha.forward(&xv);
+    coeus_autograd::sum(&out_c).backward();
+
+    // ── Burn MHA module (same weights, no bias) ──
+    let xb: BurnTensor<AB, 3> = BurnTensor::from_data(
+        TensorData::new(data.clone(), [batch, seq, d_model]),
+        &device,
+    )
+    .require_grad();
+    // Config::new(d_model, n_heads) — d_model is the first field in the struct.
+    // dropout=0.0: Burn defaults to 0.1; we need deterministic attention scores.
+    let mut mha_b = MultiHeadAttentionConfig::new(d_model, 1)
+        .with_dropout(0.0)
+        .with_quiet_softmax(false)
+        .init::<AB>(&device);
+    // Burn Linear weight shape is [d_in, d_out] and computes x @ W (no transpose).
+    // Set burn_W = coeus_W^T so both produce x @ coeus_W^T.
+    mha_b.query.weight =
+        burn::module::Param::from_data(TensorData::new(wq_t.clone(), [d_model, d_model]), &device);
+    mha_b.key.weight =
+        burn::module::Param::from_data(TensorData::new(wk_t.clone(), [d_model, d_model]), &device);
+    mha_b.value.weight =
+        burn::module::Param::from_data(TensorData::new(wv_t.clone(), [d_model, d_model]), &device);
+    mha_b.output.weight =
+        burn::module::Param::from_data(TensorData::new(wo_t.clone(), [d_model, d_model]), &device);
+    // Disable bias to match Coeus (bias=false).
+    mha_b.query.bias = None;
+    mha_b.key.bias = None;
+    mha_b.value.bias = None;
+    mha_b.output.bias = None;
+
+    let input = MhaInput::self_attn(xb.clone());
+    let out_b = mha_b.forward(input);
+    let grads = out_b.context.clone().sum().backward();
+
+    // Forward context: .detach() returns AB type; into_data() works on both backends.
+    assert_close_rel(
+        "mha_bwd_fwd",
+        out_c.tensor.as_slice(),
+        &out_b.context.detach().into_data().to_vec::<f32>().unwrap(),
+        1e-4,
+    );
+    // dx: .grad() returns Option<Tensor<NdArray<f32>, D>> (inner backend).
+    assert_close_rel(
+        "mha_bwd_dx",
+        xv.grad().unwrap().as_slice(),
+        &xb.grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
+        1e-4,
+    );
+    // dW_q, dW_k, dW_v, dW_o: transpose Burn [in, out] gradients back to
+    // Coeus [out, in] storage before comparing.
+    let burn_dwq = t2x2(
+        &mha_b
+            .query
+            .weight
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
+    );
+    let burn_dwk = t2x2(
+        &mha_b
+            .key
+            .weight
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
+    );
+    let burn_dwv = t2x2(
+        &mha_b
+            .value
+            .weight
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
+    );
+    let burn_dwo = t2x2(
+        &mha_b
+            .output
+            .weight
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
+    );
+    assert_close_rel(
+        "mha_bwd_dwq",
+        mha.w_q.grad().unwrap().as_slice(),
+        &burn_dwq,
+        1e-4,
+    );
+    assert_close_rel(
+        "mha_bwd_dwk",
+        mha.w_k.grad().unwrap().as_slice(),
+        &burn_dwk,
+        1e-4,
+    );
+    assert_close_rel(
+        "mha_bwd_dwv",
+        mha.w_v.grad().unwrap().as_slice(),
+        &burn_dwv,
+        1e-4,
+    );
+    assert_close_rel(
+        "mha_bwd_dwo",
+        mha.w_o.grad().unwrap().as_slice(),
+        &burn_dwo,
+        1e-4,
+    );
+}
+
 // ── Multi-head attention forward shape contract ───────────────────────────────
 
 #[test]
@@ -2506,8 +2676,7 @@ fn conv_transpose1d_backward_matches_burn() {
         true,
     );
     let backend = SequentialBackend::new();
-    let out_fwd =
-        coeus_ops::conv_transpose1d(&xv.tensor, &wv.tensor, None, 1, 0, 0, 1, &backend);
+    let out_fwd = coeus_ops::conv_transpose1d(&xv.tensor, &wv.tensor, None, 1, 0, 0, 1, &backend);
     let out_c = coeus_autograd::conv_transpose1d(&xv, &wv, &None, out_fwd, 1, 0, 0, 1);
     assert_eq!(out_c.tensor.shape(), &[n, cout, l_out]);
     coeus_autograd::sum(&out_c).backward();
@@ -2518,10 +2687,8 @@ fn conv_transpose1d_backward_matches_burn() {
     let mut conv_b = ConvTranspose1dConfig::new([cin, cout], k)
         .with_bias(false)
         .init::<AB>(&device);
-    conv_b.weight = burn::module::Param::from_data(
-        TensorData::new(w_vec.clone(), [cin, cout, k]),
-        &device,
-    );
+    conv_b.weight =
+        burn::module::Param::from_data(TensorData::new(w_vec.clone(), [cin, cout, k]), &device);
     let out_b = conv_b.forward(xb.clone());
     let grads = out_b.sum().backward();
 
@@ -2571,8 +2738,7 @@ fn conv_transpose2d_backward_matches_burn() {
         true,
     );
     let backend = SequentialBackend::new();
-    let out_fwd =
-        coeus_ops::conv_transpose2d(&xv.tensor, &wv.tensor, None, 1, 0, 0, 1, &backend);
+    let out_fwd = coeus_ops::conv_transpose2d(&xv.tensor, &wv.tensor, None, 1, 0, 0, 1, &backend);
     let out_c = coeus_autograd::conv_transpose2d(&xv, &wv, &None, out_fwd, 1, 0, 0, 1);
     coeus_autograd::sum(&out_c).backward();
 

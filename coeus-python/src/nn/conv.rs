@@ -81,16 +81,18 @@ impl PyConv1d {
             .map(|b| b.bind(py).borrow().inner.clone());
         let input_var = input.inner.clone();
 
-        let rust_conv = coeus_nn::conv::Conv1d {
-            weight: w_var,
-            bias: b_var,
-            in_channels: self.in_channels,
-            out_channels: self.out_channels,
-            kernel_size: self.kernel_size,
-            stride: self.stride,
-            padding: self.padding,
-            dilation: self.dilation,
-        };
+        let rust_conv = coeus_nn::conv::Conv1d::from_vars(
+            w_var,
+            b_var,
+            coeus_nn::conv::ConvParams::new(
+                self.in_channels,
+                self.out_channels,
+                self.kernel_size,
+                self.stride,
+                self.padding,
+                self.dilation,
+            ),
+        );
 
         let inner = py.allow_threads(move || rust_conv.forward(&input_var));
         Ok(PyTensor::from_var(inner))
@@ -215,16 +217,18 @@ impl PyConv2d {
             .map(|b| b.bind(py).borrow().inner.clone());
         let input_var = input.inner.clone();
 
-        let rust_conv = coeus_nn::conv::Conv2d {
-            weight: w_var,
-            bias: b_var,
-            in_channels: self.in_channels,
-            out_channels: self.out_channels,
-            kernel_size: self.kernel_size,
-            stride: self.stride,
-            padding: self.padding,
-            dilation: self.dilation,
-        };
+        let rust_conv = coeus_nn::conv::Conv2d::from_vars(
+            w_var,
+            b_var,
+            coeus_nn::conv::ConvParams::new(
+                self.in_channels,
+                self.out_channels,
+                self.kernel_size,
+                self.stride,
+                self.padding,
+                self.dilation,
+            ),
+        );
 
         let inner = py.allow_threads(move || rust_conv.forward(&input_var));
         Ok(PyTensor::from_var(inner))
@@ -349,16 +353,18 @@ impl PyConv3d {
             .map(|b| b.bind(py).borrow().inner.clone());
         let input_var = input.inner.clone();
 
-        let rust_conv = coeus_nn::conv::Conv3d {
-            weight: w_var,
-            bias: b_var,
-            in_channels: self.in_channels,
-            out_channels: self.out_channels,
-            kernel_size: self.kernel_size,
-            stride: self.stride,
-            padding: self.padding,
-            dilation: self.dilation,
-        };
+        let rust_conv = coeus_nn::conv::Conv3d::from_vars(
+            w_var,
+            b_var,
+            coeus_nn::conv::ConvParams::new(
+                self.in_channels,
+                self.out_channels,
+                self.kernel_size,
+                self.stride,
+                self.padding,
+                self.dilation,
+            ),
+        );
 
         let inner = py.allow_threads(move || rust_conv.forward(&input_var));
         Ok(PyTensor::from_var(inner))

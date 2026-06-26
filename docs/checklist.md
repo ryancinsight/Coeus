@@ -2,14 +2,16 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-123 - MHA backward + Conv const-generic consolidation
-**Objective**: Close the MultiHeadAttention backward parity gap and consolidate Conv1d/2d/3d into a single `Conv<const N: usize>` generic.
+### Current Sprint: MS-123 - MHA backward + Conv generic consolidation
+**Objective**: Close the MultiHeadAttention backward parity gap and consolidate Conv1d/2d/3d into a single `Conv<D: ConvDim>` generic.
 **Target version**: 0.5.2 (minor-class; new parity tests + SRP consolidation).
 
-- [ ] [patch] Add MHA forward+backward Burn parity test (single-head, explicit weights)
-- [ ] [minor] Consolidate Conv1d/2d/3d in coeus-nn into `Conv<const N: usize>` (95% identical code)
-- [ ] [patch] Split `coeus-ops/src/backend_ops/cpu_impl.rs` (910 lines) into family submodules
-- [ ] [patch] Split `coeus-autograd/src/ops/nn/conv.rs` (793 lines) into conv1d/conv2d/conv3d leaf modules
+- [x] [patch] Add MHA forward+backward Burn parity test (single-head, explicit weights) — `multi_head_attention_backward_matches_burn` passes under `cargo nextest run -p coeus-nn --test burn_live_parity conv multi_head_attention_backward_matches_burn`
+- [x] [minor] Consolidate Conv1d/2d/3d in coeus-nn into `Conv<D: ConvDim>` strategy trait (95% identical code; stable-Rust design: ConvDim sealed trait encoding dim-specific weight shape, spatial compute, backend dispatch, and autograd dispatch; type aliases Conv1d/Conv2d/Conv3d = Conv<Dim1D/Dim2D/Dim3D>) — verified with `cargo clippy -p coeus-nn --all-targets -- -D warnings`, `cargo doc -p coeus-nn --no-deps`, and focused Burn conv parity nextest
+- [~] [patch] Split `coeus-ops/src/backend_ops/cpu_impl.rs` (910 lines) into family submodules — agent acaf72f9f9e9c035c in progress
+- [~] [patch] Split `coeus-autograd/src/ops/nn/conv.rs` (793 lines) into conv1d/conv2d/conv3d leaf modules — agent a502cd6b889f8e559 in progress
+- [x] [patch] Fix coeus-nn missing_docs (196 items) — `cargo doc -p coeus-nn --no-deps` completes warning-clean
+- [ ] [patch] Fix coeus-python missing_docs (293 diagnostics) — `cargo check -p coeus-python --all-targets` currently stops on crate-wide missing docs before package gate can pass
 
 ### Previous Sprint: MS-122 - Burn parity + SRP + Python transformer bindings [COMPLETE]
 **Objective**: Add BatchNorm3d training backward, ConvTranspose1d/2d Burn parity, Python
