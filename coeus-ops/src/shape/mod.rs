@@ -30,7 +30,7 @@ pub use broadcast::broadcast_to;
 pub use chunk::chunk;
 pub use concat::cat;
 pub use diag::{diag, diagonal};
-pub use einsum::einsum;
+pub use einsum::{einsum, einsum3};
 pub use flip::flip;
 pub use gather::gather;
 pub use index_put::index_put;

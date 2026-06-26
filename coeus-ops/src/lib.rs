@@ -47,9 +47,9 @@ pub use reduction::{
     var_axis,
 };
 pub use shape::{
-    broadcast_to, cat, chunk, diag, diagonal, einsum, flip, gather, index_put, index_select,
-    masked_fill, masked_select, meshgrid, nonzero, one_hot, pad, repeat_interleave, roll,
-    scatter_add, sort, split, stack, tile, tril, triu, where_cond,
+    broadcast_to, cat, chunk, diag, diagonal, einsum, einsum3, flip, gather, index_put,
+    index_select, masked_fill, masked_select, meshgrid, nonzero, one_hot, pad, repeat_interleave,
+    roll, scatter_add, sort, split, stack, tile, tril, triu, where_cond,
 };
 pub use sparse::{
     coo_to_csr, coo_to_dense, csr_to_dense, dense_to_coo, dense_to_csr, spmm, spmm_backward_dense,

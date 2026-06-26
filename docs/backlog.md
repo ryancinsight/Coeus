@@ -4,6 +4,9 @@
 
 - [x] [minor] Added `coeus_ops::{masked_softmax, causal_softmax}` with
   deterministic all-masked-row semantics and public exports.
+- [x] [minor] Added `coeus_ops::einsum3` for supported three-operand contraction
+  chains and routed three-operand `pycoeus.einsum` through the Rust autograd
+  helper.
 - [x] [minor] Added Python wrappers `pycoeus.masked_softmax`,
   `pycoeus.causal_softmax`, `pycoeus.Module`, and the `pycoeus.init`
   submodule as PyO3 boundary adapters over Rust Coeus logic.
@@ -19,7 +22,10 @@
   test_module_list`; `cargo nextest run -p coeus-autograd
   test_contiguous_backward_is_identity`; `cargo nextest run -p coeus-nn
   embedding_backward_accumulates_grad_for_repeated_indices`; `cargo nextest run
-  -p coeus-ops conv1d conv2d conv3d`.
+  -p coeus-ops conv1d conv2d conv3d`; `cargo nextest run -p coeus-ops
+  einsum_three_operand_matmul_chain`; `cargo nextest run -p coeus-python
+  --test binding_tests_ops test_einsum_wrapper`; `cargo nextest run -p
+  coeus-autograd test_einsum3_matmul_chain_backward`.
 
 ## Sprint MS-80: RNN cells, index_put, Python parity wrappers, attention benchmark [COMPLETE]
 

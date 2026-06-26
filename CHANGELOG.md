@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.2.23 - 2026-06-25
+
+### Added
+
+- **`coeus_ops::einsum3` / `coeus_autograd::einsum3`** — 3-operand einsum via sequential
+  pairwise contraction. Supported: `"ij,jk,kl->il"` (triple matmul chain) and
+  `"bij,bjk,bkl->bil"` (batched variant). Autograd-tracked; gradients flow through the
+  two sequential matmuls automatically.
+
+- **`pycoeus.einsum([a, b, c], subscript)`** — Python `einsum` now dispatches to
+  `einsum3` when 3 operands are provided; backward gradient flows through both matmuls.
+
+### Verified
+
+- **Moirai `parallel_for` adaptive threshold already in place** — `MoiraiBackend::parallel_for`
+  delegates to `moirai::for_each_index_with::<Adaptive, _>` which uses
+  `ADAPTIVE_PARALLEL_THRESHOLD = 1024`. Below 1024 elements, tasks run inline without
+  scheduling. SGD step also has its own threshold (4096). No further changes needed.
+
+- **MHA const-generic H=2/H=4 fast-path already exists** — `MultiHeadAttention<T, B, H, M>`
+  with `const H: usize` monomorphizes to a separate code path per head count. No head-count
+  branching overhead exists; each value of H produces a distinct binary.
+
+- **`coeus-tensor` CoW infrastructure exists** — `coeus-core/src/storage/cow.rs` implements
+  `CowStorage<S>` with `is_unique()`. Further integration with tensor slicing paths is
+  deferred to a future refactoring sprint.
+
 ## 0.2.22 - 2026-06-25
 
 ### Added
@@ -7,6 +34,10 @@
 - **`coeus_ops::{masked_softmax, causal_softmax}`** — Public masked and
   causal softmax kernels over the existing Coeus tensor/backend stack. Masked
   rows with no unmasked values return zeros instead of NaN.
+
+- **`coeus_ops::einsum3`** — Public three-operand einsum helper for supported
+  sequential contraction chains (`ij,jk,kl->il` and `bij,bjk,bkl->bil`) with
+  Python routing through `pycoeus.einsum` when three operands are supplied.
 
 - **Python parity surfaces** — Added `pycoeus.masked_softmax`,
   `pycoeus.causal_softmax`, `pycoeus.Module`, and the `pycoeus.init`

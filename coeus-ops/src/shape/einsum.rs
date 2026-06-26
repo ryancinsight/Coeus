@@ -280,6 +280,42 @@ where
     panic!("einsum: unsupported pattern '{subscript}'");
 }
 
+/// Evaluate a 3-operand einsum by pairwise contraction.
+///
+/// Pattern `"abc,bcd,def->..."` is decomposed into two 2-operand einsums.
+/// Only patterns expressible as two sequential 2-operand contractions are
+/// supported.  The intermediate subscript is inferred automatically.
+///
+/// Currently supported:
+/// - `"ij,jk,kl->il"` — two sequential matmuls (3-layer linear chain).
+/// - `"bij,bjk,bkl->bil"` — batched 3-layer linear chain.
+#[inline]
+pub fn einsum3<T: Scalar, B: BackendOps<T> + Default>(
+    subscript: &str,
+    a: &Tensor<T, B>,
+    b: &Tensor<T, B>,
+    c: &Tensor<T, B>,
+    backend: &B,
+) -> Tensor<T, B>
+where
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
+    let sub = subscript.trim();
+    match sub {
+        // "ij,jk,kl->il" — triple matmul chain
+        "ij,jk,kl->il" => {
+            let ab = einsum("ij,jk->ik", &[a, b], backend);
+            einsum("ij,jk->ik", &[&ab, c], backend)
+        }
+        // "bij,bjk,bkl->bil" — batched triple matmul chain
+        "bij,bjk,bkl->bil" => {
+            let ab = einsum("bij,bjk->bik", &[a, b], backend);
+            einsum("bij,bjk->bik", &[&ab, c], backend)
+        }
+        _ => panic!("einsum3: unsupported 3-operand pattern '{subscript}'"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -358,5 +394,15 @@ mod tests {
         assert_eq!(out.shape(), &[1, 2, 2]);
         // [[1,2],[3,4]] @ [[5,6],[7,8]] = [[19,22],[43,50]]
         assert_eq!(out.as_slice(), &[19.0, 22.0, 43.0, 50.0]);
+    }
+
+    #[test]
+    fn einsum_three_operand_matmul_chain() {
+        let a = Tensor::from_slice(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0]);
+        let bt = Tensor::from_slice(vec![2, 2], &[5.0f32, 6.0, 7.0, 8.0]);
+        let c = Tensor::from_slice(vec![2, 2], &[9.0f32, 10.0, 11.0, 12.0]);
+        let out = einsum3("ij,jk,kl->il", &a, &bt, &c, &b());
+        assert_eq!(out.shape(), &[2, 2]);
+        assert_eq!(out.as_slice(), &[413.0, 454.0, 937.0, 1030.0]);
     }
 }

@@ -2,6 +2,16 @@ use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 
+fn assert_close(actual: &[f32], expected: &[f32], label: &str) {
+    assert_eq!(actual.len(), expected.len(), "{label} length mismatch");
+    for (index, (&got, &want)) in actual.iter().zip(expected).enumerate() {
+        assert!(
+            (got - want).abs() <= 1e-5,
+            "{label}[{index}] = {got}, expected {want}"
+        );
+    }
+}
+
 #[test]
 fn test_pad_autograd() {
     let backend = MoiraiBackend::new();
@@ -108,4 +118,43 @@ fn test_contiguous_backward_is_identity() {
             "contiguous bwd grad should be 1.0, got {v}"
         );
     }
+}
+
+#[test]
+fn test_einsum3_matmul_chain_backward() {
+    let backend = MoiraiBackend::new();
+    let a = Var::new(
+        Tensor::from_slice_on(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0], &backend),
+        true,
+    );
+    let b = Var::new(
+        Tensor::from_slice_on(vec![2, 2], &[5.0f32, 6.0, 7.0, 8.0], &backend),
+        true,
+    );
+    let c = Var::new(
+        Tensor::from_slice_on(vec![2, 2], &[9.0f32, 10.0, 11.0, 12.0], &backend),
+        true,
+    );
+
+    let y = coeus_autograd::einsum3("ij,jk,kl->il", &a, &b, &c);
+    assert_eq!(y.tensor.shape(), &[2, 2]);
+    assert_eq!(y.tensor.as_slice(), &[413.0, 454.0, 937.0, 1030.0]);
+
+    coeus_autograd::sum(&y).backward();
+
+    assert_close(
+        a.grad().unwrap().as_slice(),
+        &[233.0, 317.0, 233.0, 317.0],
+        "dA",
+    );
+    assert_close(
+        b.grad().unwrap().as_slice(),
+        &[76.0, 92.0, 114.0, 138.0],
+        "dB",
+    );
+    assert_close(
+        c.grad().unwrap().as_slice(),
+        &[62.0, 62.0, 72.0, 72.0],
+        "dC",
+    );
 }

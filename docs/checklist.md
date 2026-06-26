@@ -3,9 +3,9 @@
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
 ### Current Sprint: MS-82 - masked softmax, init binding, conv contention guard [COMPLETE]
-**Objective**: Complete masked/causal softmax parity surfaces, expose Rust
-initializers through a thin PyO3 submodule, add small-workload convolution
-partition guards, and close two regression-test gaps.
+**Objective**: Complete masked/causal softmax and three-operand einsum parity
+surfaces, expose Rust initializers through a thin PyO3 submodule, add
+small-workload convolution partition guards, and close two regression-test gaps.
 **Target version**: 0.2.22 (Cargo.toml reconciled with CHANGELOG).
 **Burn parity tests**: 69 total (all passing).
 
@@ -17,8 +17,9 @@ partition guards, and close two regression-test gaps.
 ### Current Verification Note (2026-06-25)
 
 - [x] [minor] Added `coeus_ops::{masked_softmax, causal_softmax}`,
-  `pycoeus.masked_softmax`, `pycoeus.causal_softmax`, `pycoeus.Module`, and
-  `pycoeus.init`. Added small-workload contention guards to CPU
+  `coeus_ops::einsum3`, `pycoeus.masked_softmax`,
+  `pycoeus.causal_softmax`, three-operand `pycoeus.einsum` routing,
+  `pycoeus.Module`, and `pycoeus.init`. Added small-workload contention guards to CPU
   `conv1d`/`conv2d`/`conv3d` and regression coverage for `contiguous()`
   backward plus repeated-index embedding gradient accumulation. Evidence tier:
   empirical value-semantic validation plus differential convolution checks.
@@ -28,8 +29,11 @@ partition guards, and close two regression-test gaps.
   test_init_submodule_mutates_tensor_values test_glu_activation
   test_module_list`, `cargo nextest run -p coeus-autograd
   test_contiguous_backward_is_identity`, `cargo nextest run -p coeus-nn
-  embedding_backward_accumulates_grad_for_repeated_indices`, and `cargo
-  nextest run -p coeus-ops conv1d conv2d conv3d` pass.
+  embedding_backward_accumulates_grad_for_repeated_indices`, `cargo nextest
+  run -p coeus-ops conv1d conv2d conv3d`, `cargo nextest run -p coeus-ops
+  einsum_three_operand_matmul_chain`, and `cargo nextest run -p coeus-python
+  --test binding_tests_ops test_einsum_wrapper`, and `cargo nextest run -p
+  coeus-autograd test_einsum3_matmul_chain_backward` pass.
 - [x] [minor] Added `coeus_nn::rnn::{LSTMCell, GRUCell}`, Python
   `pycoeus.LSTMCell` / `GRUCell`, `coeus_ops::index_put`,
   `pycoeus.index_put`, and `pycoeus.TransformerDecoderLayer`. Exposed

@@ -64,6 +64,7 @@ pub use ops::{
     dropout,
     // Index ops
     einsum,
+    einsum3,
     elu,
     embedding,
     exp,

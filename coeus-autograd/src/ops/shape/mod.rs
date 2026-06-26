@@ -27,7 +27,7 @@ pub use contiguous::contiguous;
 pub use cumprod::cumprod;
 pub use cumsum::cumsum;
 pub use diag::{diag, diagonal};
-pub use einsum::einsum;
+pub use einsum::{einsum, einsum3};
 pub use flip::flip;
 pub use gather::gather;
 pub use index_select::index_select;

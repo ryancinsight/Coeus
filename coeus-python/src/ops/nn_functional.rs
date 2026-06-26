@@ -213,7 +213,11 @@ pub fn einsum(subscript: &str, operands: Vec<pyo3::Py<PyTensor>>, py: Python<'_>
         .collect();
     let inner = py.allow_threads(move || {
         let refs: Vec<&coeus_autograd::Var<f64>> = rust_vars.iter().collect();
-        coeus_autograd::einsum(subscript, &refs)
+        if refs.len() == 3 {
+            coeus_autograd::einsum3(subscript, refs[0], refs[1], refs[2])
+        } else {
+            coeus_autograd::einsum(subscript, &refs)
+        }
     });
     PyTensor::from_var(inner)
 }

@@ -30,7 +30,7 @@ pub use nn::{
 
 pub use embedding::embedding;
 pub use shape::{
-    broadcast_to, cat, contiguous, cumprod, cumsum, diag, diagonal, einsum, flip, gather,
+    broadcast_to, cat, contiguous, cumprod, cumsum, diag, diagonal, einsum, einsum3, flip, gather,
     index_select, masked_fill, pad, permute, reshape, roll, slice, split, squeeze, stack, tile,
     transpose, tril, triu, unsqueeze, where_cond,
 };

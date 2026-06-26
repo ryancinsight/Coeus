@@ -168,6 +168,11 @@ y = pycoeus.Tensor([4.0, 5.0, 6.0], [3])
 dot = pycoeus.einsum("i,i->", [x, y])
 assert dot.shape == [1], f"einsum dot shape wrong: {dot.shape}"
 assert abs(dot.item() - 32.0) < 1e-9, f"einsum dot wrong: {dot.data}"
+
+c = pycoeus.Tensor([9.0, 10.0, 11.0, 12.0], [2, 2])
+chain = pycoeus.einsum("ij,jk,kl->il", [a, b, c])
+assert chain.shape == [2, 2], f"einsum3 chain shape wrong: {chain.shape}"
+assert chain.data == [1226.0, 1348.0, 2945.0, 3238.0], f"einsum3 chain wrong: {chain.data}"
 "#,
     );
 }

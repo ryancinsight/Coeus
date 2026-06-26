@@ -176,3 +176,34 @@ where
     let out = coeus_ops::einsum(subscript, &raw_operands, &backend);
     Var::new(out, false)
 }
+
+/// Tracked 3-operand einsum via sequential pairwise contraction.
+///
+/// Supported patterns:
+/// - `"ij,jk,kl->il"` — triple matmul chain
+/// - `"bij,bjk,bkl->bil"` — batched triple matmul chain
+#[must_use]
+#[inline]
+pub fn einsum3<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    subscript: &str,
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+    c: &Var<T, B>,
+) -> Var<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
+    let sub = subscript.trim();
+    match sub {
+        "ij,jk,kl->il" => {
+            let ab = einsum("ij,jk->ik", &[a, b]);
+            einsum("ij,jk->ik", &[&ab, c])
+        }
+        "bij,bjk,bkl->bil" => {
+            let ab = einsum("bij,bjk->bik", &[a, b]);
+            einsum("bij,bjk->bik", &[&ab, c])
+        }
+        _ => panic!("einsum3: unsupported 3-operand pattern '{subscript}'"),
+    }
+}
