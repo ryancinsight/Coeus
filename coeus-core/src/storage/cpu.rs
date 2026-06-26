@@ -65,6 +65,35 @@ unsafe impl Sync for RawBlock {}
 ///
 /// Built on Mnemosyne for allocation. Cloning is `Arc::clone` (cheap).
 /// Mutation on a shared buffer triggers a deep copy (COW).
+///
+/// # Examples
+///
+/// Allocate, fill, and read back data:
+///
+/// ```
+/// use coeus_core::CpuStorage;
+/// use coeus_core::storage::CpuAddressableStorage;
+///
+/// let mut s = CpuStorage::<f32>::new(4);
+/// let slice = s.as_slice();
+/// assert_eq!(slice.len(), 4);
+/// ```
+///
+/// Clone is cheap (Arc refcount); mutation triggers COW:
+///
+/// ```
+/// use coeus_core::CpuStorage;
+/// use coeus_core::storage::{CpuAddressableStorage, CpuAddressableStorageMut};
+///
+/// let a = CpuStorage::<f32>::from_slice(&[1.0, 2.0, 3.0]);
+/// let b = a.clone();       // Arc clone — no data copy
+/// assert!(!a.is_unique());  // shared
+///
+/// let mut c = a.clone();
+/// c.as_mut_slice()[0] = 99.0; // COW: deep copy happens here
+/// assert!(c.is_unique());     // now unique after mutation
+/// assert_eq!(b.as_slice()[0], 1.0); // original unchanged
+/// ```
 #[derive(Clone)]
 pub struct CpuStorage<T> {
     block: Arc<RawBlock>,
@@ -82,6 +111,16 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     ///
     /// # Panics
     /// If Mnemosyne allocation fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::CpuStorage;
+    /// use coeus_core::storage::{CpuAddressableStorage, Storage};
+    ///
+    /// let s = CpuStorage::<f64>::new(8);
+    /// assert_eq!(s.len(), 8);
+    /// ```
     #[inline]
     pub fn new(len: usize) -> Self {
         let byte_size = len * std::mem::size_of::<T>();
@@ -96,6 +135,16 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     }
 
     /// Create from existing slice (copies data).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::CpuStorage;
+    /// use coeus_core::storage::CpuAddressableStorage;
+    ///
+    /// let s = CpuStorage::from_slice(&[1.0_f32, 2.0, 3.0]);
+    /// assert_eq!(s.as_slice(), &[1.0, 2.0, 3.0]);
+    /// ```
     #[inline]
     pub fn from_slice(data: &[T]) -> Self {
         let mut s = Self::new(data.len());

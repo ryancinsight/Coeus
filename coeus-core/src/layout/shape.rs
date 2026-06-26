@@ -5,6 +5,18 @@ use smallvec::SmallVec;
 use std::ops::{Deref, DerefMut};
 
 /// Shape type: inline for up to 4 dims, spills to heap beyond.
+///
+/// # Examples
+///
+/// Construct from an array, iterate dimensions, and compute the product:
+///
+/// ```
+/// use coeus_core::Shape;
+///
+/// let shape: Shape = [2, 3, 4].into();
+/// assert_eq!(shape.len(), 3); // Shape derefs to &[usize]
+/// assert_eq!(shape.iter().product::<usize>(), 24);
+/// ```
 #[derive(Clone, PartialEq, Eq, Hash, Default)]
 pub struct Shape(pub SmallVec<[usize; 4]>);
 
@@ -12,6 +24,15 @@ pub struct Shape(pub SmallVec<[usize; 4]>);
 ///
 /// Used to statically encode shapes in type signatures,
 /// enabling monomorphized dispatch and zero-cost dimension checks.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_core::ConstShape;
+///
+/// const SHAPE: ConstShape<3> = ConstShape::new([2, 3, 4]);
+/// assert_eq!(SHAPE.numel(), 24);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ConstShape<const DIMS: usize> {
     /// Dimension values.
@@ -20,12 +41,30 @@ pub struct ConstShape<const DIMS: usize> {
 
 impl<const DIMS: usize> ConstShape<DIMS> {
     /// Create from array.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::ConstShape;
+    ///
+    /// const S: ConstShape<2> = ConstShape::new([3, 4]);
+    /// assert_eq!(S.dims, [3, 4]);
+    /// ```
     #[inline]
     pub const fn new(dims: [usize; DIMS]) -> Self {
         Self { dims }
     }
 
-    /// Number of elements.
+    /// Number of elements (product of all dimensions).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::ConstShape;
+    ///
+    /// const S: ConstShape<3> = ConstShape::new([2, 3, 4]);
+    /// assert_eq!(S.numel(), 24);
+    /// ```
     #[inline]
     pub const fn numel(&self) -> usize {
         let mut n = 1;
@@ -37,7 +76,17 @@ impl<const DIMS: usize> ConstShape<DIMS> {
         n
     }
 
-    /// Convert to dynamic Shape.
+    /// Convert to dynamic [`Shape`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::ConstShape;
+    ///
+    /// let s = ConstShape::new([2, 3]);
+    /// let dyn_shape = s.to_shape();
+    /// assert_eq!(&*dyn_shape, &[2, 3]);
+    /// ```
     #[inline]
     pub fn to_shape(&self) -> Shape {
         let mut s = Shape::new();

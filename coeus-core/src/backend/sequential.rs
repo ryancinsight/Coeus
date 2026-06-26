@@ -9,6 +9,20 @@ use crate::storage::{CpuStorage, Storage};
 ///
 /// # ZST
 /// Zero-sized type — used as a compile-time default or fallback.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_core::{Backend, ComputeBackend, SequentialBackend};
+///
+/// let backend = SequentialBackend::new();
+/// assert_eq!(backend.num_threads(), 1);
+/// assert_eq!(backend.name(), "sequential");
+///
+/// backend.parallel_for(0, 4, |i| {
+///     // executes sequentially: 0, 1, 2, 3
+/// });
+/// ```
 #[derive(Debug, Clone, Copy, Default)]
 pub struct SequentialBackend;
 
@@ -16,6 +30,15 @@ impl crate::backend::traits::private::Sealed for SequentialBackend {}
 
 impl SequentialBackend {
     /// Create a new handle (ZST).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::{ComputeBackend, SequentialBackend};
+    ///
+    /// let backend = SequentialBackend::new();
+    /// assert_eq!(backend.name(), "sequential");
+    /// ```
     #[inline]
     pub const fn new() -> Self {
         Self

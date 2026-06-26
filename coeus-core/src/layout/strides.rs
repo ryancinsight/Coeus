@@ -9,6 +9,15 @@ pub type Strides = SmallVec<[usize; 4]>;
 /// Compute row-major (C order) strides from shape.
 ///
 /// For shape [d0, d1, d2], returns [d1*d2, d2, 1].
+///
+/// # Examples
+///
+/// ```
+/// use coeus_core::layout::row_major_strides;
+///
+/// let strides = row_major_strides(&[2, 3, 4]);
+/// assert_eq!(strides.as_slice(), &[12, 4, 1]);
+/// ```
 #[inline]
 pub fn row_major_strides(shape: &[usize]) -> Strides {
     let ndim = shape.len();
@@ -24,6 +33,19 @@ pub fn row_major_strides(shape: &[usize]) -> Strides {
 }
 
 /// Check if strides represent contiguous row-major layout for given shape.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_core::layout::{is_contiguous, row_major_strides};
+///
+/// let shape = [2, 3, 4];
+/// let strides = row_major_strides(&shape);
+/// assert!(is_contiguous(&shape, &strides));
+///
+/// let non_contiguous = [12, 5, 1]; // gap in dim 1
+/// assert!(!is_contiguous(&shape, &non_contiguous));
+/// ```
 #[inline]
 pub fn is_contiguous(shape: &[usize], strides: &[usize]) -> bool {
     let mut expected = 1;

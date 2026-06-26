@@ -8,6 +8,31 @@ use crate::layout::strides::{is_contiguous, row_major_strides, Strides};
 ///
 /// Owns shape, pre-computed strides, and an optional base offset
 /// for views/slices into shared storage.
+///
+/// # Examples
+///
+/// Create a contiguous row-major layout and verify strides:
+///
+/// ```
+/// use coeus_core::{Layout, Shape};
+///
+/// let layout = Layout::new([2, 3].into());
+/// assert_eq!(layout.shape(), &[2, 3]);
+/// assert_eq!(layout.strides(), &[3, 1]);
+/// assert_eq!(layout.numel(), 6);
+/// assert!(layout.is_contiguous());
+/// ```
+///
+/// Zero-copy slicing adjusts the offset and shape without copying data:
+///
+/// ```
+/// use coeus_core::{Layout, Shape};
+///
+/// let layout = Layout::new([2, 3].into());
+/// let sliced = layout.slice(&[(0, 1), (1, 3)]);
+/// assert_eq!(sliced.shape(), &[1, 2]);
+/// assert_eq!(sliced.offset(), 1); // skip element at [0, 0]
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Layout {
     pub(crate) shape: Shape,
@@ -17,6 +42,16 @@ pub struct Layout {
 
 impl Layout {
     /// Create contiguous row-major layout from shape.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::{Layout, Shape};
+    ///
+    /// let l = Layout::new([2, 3, 4].into());
+    /// assert_eq!(l.strides(), &[12, 4, 1]);
+    /// assert!(l.is_contiguous());
+    /// ```
     #[inline]
     pub fn new(shape: Shape) -> Self {
         let strides = row_major_strides(&shape);
@@ -38,12 +73,30 @@ impl Layout {
     }
 
     /// Number of dimensions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::Layout;
+    ///
+    /// let l = Layout::new([2, 3, 4].into());
+    /// assert_eq!(l.ndim(), 3);
+    /// ```
     #[inline]
     pub fn ndim(&self) -> usize {
         self.shape.len()
     }
 
     /// Total number of logical elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::Layout;
+    ///
+    /// let l = Layout::new([2, 3, 4].into());
+    /// assert_eq!(l.numel(), 24);
+    /// ```
     #[inline]
     pub fn numel(&self) -> usize {
         self.shape.iter().product()
@@ -80,6 +133,18 @@ impl Layout {
     }
 
     /// True if row-major contiguous.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::Layout;
+    ///
+    /// let l = Layout::new([2, 3].into());
+    /// assert!(l.is_contiguous());
+    ///
+    /// let sliced = l.slice(&[(0, 1), (0, 3)]);
+    /// assert!(sliced.is_contiguous()); // single row is contiguous
+    /// ```
     #[inline]
     pub fn is_contiguous(&self) -> bool {
         is_contiguous(&self.shape, &self.strides)
@@ -89,6 +154,16 @@ impl Layout {
     ///
     /// # Panics
     /// In debug: index length mismatch or out-of-bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::Layout;
+    ///
+    /// let l = Layout::new([2, 3].into());
+    /// assert_eq!(l.physical_index(&[0, 0]), 0);
+    /// assert_eq!(l.physical_index(&[1, 2]), 5); // 1*3 + 2*1
+    /// ```
     #[inline]
     pub fn physical_index(&self, index: &[usize]) -> usize {
         debug_assert_eq!(index.len(), self.shape.len(), "index ndim mismatch");
@@ -107,6 +182,22 @@ impl Layout {
     /// Create a zero-copy sliced layout.
     ///
     /// `ranges` is a slice of `(start, end)` pairs, one per dimension.
+    /// The resulting layout shares the same underlying storage with an
+    /// adjusted offset and shape.
+    ///
+    /// # Panics
+    /// If `ranges.len() != ndim` or any range is out of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::Layout;
+    ///
+    /// let l = Layout::new([3, 4].into());
+    /// let s = l.slice(&[(1, 3), (0, 2)]);
+    /// assert_eq!(s.shape(), &[2, 2]);
+    /// assert_eq!(s.offset(), 4); // 1 * stride[0] = 1 * 4
+    /// ```
     #[inline]
     pub fn slice(&self, ranges: &[(usize, usize)]) -> Self {
         assert_eq!(ranges.len(), self.shape.len(), "ranges.len() != ndim");
@@ -133,6 +224,19 @@ impl Layout {
     }
 
     /// Create a zero-copy unsqueezed layout by inserting a dimension of size 1 at `axis`.
+    ///
+    /// # Panics
+    /// If `axis > ndim`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::Layout;
+    ///
+    /// let l = Layout::new([2, 3].into());
+    /// let u = l.unsqueeze(0);
+    /// assert_eq!(u.shape(), &[1, 2, 3]);
+    /// ```
     #[inline]
     pub fn unsqueeze(&self, axis: usize) -> Self {
         let ndim = self.ndim();
@@ -172,6 +276,20 @@ impl Layout {
     }
 
     /// Create a zero-copy squeezed layout by removing the dimension of size 1 at `axis`.
+    ///
+    /// # Panics
+    /// If `axis >= ndim` or `shape[axis] != 1`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::Layout;
+    ///
+    /// let l = Layout::new([2, 3].into());
+    /// let u = l.unsqueeze(1); // [2, 1, 3]
+    /// let s = u.squeeze(1);   // [2, 3]
+    /// assert_eq!(s.shape(), &[2, 3]);
+    /// ```
     #[inline]
     pub fn squeeze(&self, axis: usize) -> Self {
         let ndim = self.ndim();
@@ -203,6 +321,16 @@ impl Layout {
     }
 
     /// Create a zero-copy squeezed layout by removing all dimensions of size 1.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::Layout;
+    ///
+    /// let l = Layout::new([1, 2, 1, 3].into());
+    /// let s = l.squeeze_all();
+    /// assert_eq!(s.shape(), &[2, 3]);
+    /// ```
     #[inline]
     pub fn squeeze_all(&self) -> Self {
         let ndim = self.ndim();
@@ -225,6 +353,17 @@ impl Layout {
 }
 
 /// Compile-time layout descriptor parameterized by const arity.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_core::{ConstLayout, ConstShape};
+///
+/// const SHAPE: ConstShape<3> = ConstShape::new([2, 3, 4]);
+/// const LAYOUT: ConstLayout<3> = ConstLayout::new(SHAPE);
+/// assert_eq!(LAYOUT.strides, [12, 4, 1]);
+/// assert!(LAYOUT.is_contiguous());
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ConstLayout<const DIMS: usize> {
     pub shape: crate::layout::ConstShape<DIMS>,

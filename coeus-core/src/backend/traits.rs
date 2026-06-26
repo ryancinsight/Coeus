@@ -15,6 +15,19 @@ pub mod private {
 }
 
 /// General interface for hardware execution backends (CPU, GPU, etc.)
+///
+/// # Examples
+///
+/// ```
+/// use coeus_core::{ComputeBackend, SequentialBackend};
+///
+/// let backend = SequentialBackend::new();
+/// let mut buf = backend.allocate::<f32>(3);
+/// backend.fill(&mut buf, 42.0);
+/// let mut host = [0.0_f32; 3];
+/// backend.copy_to_host(&buf, &mut host);
+/// assert_eq!(host, [42.0; 3]);
+/// ```
 pub trait ComputeBackend: private::Sealed + Send + Sync + Clone + 'static {
     /// Memory handle type representing device-allocated storage.
     type DeviceBuffer<T: Scalar>: StorageMut<T>;
@@ -50,6 +63,19 @@ pub trait ComputeBackend: private::Sealed + Send + Sync + Clone + 'static {
 /// - ZST implementations (MoiraiBackend, SequentialBackend)
 /// - Monomorphized: `parallel_for` takes a generic closure, not a trait object
 /// - The closure `F` is `Fn(usize) + Send + Sync + 'static` for thread safety
+///
+/// # Examples
+///
+/// ```
+/// use coeus_core::{Backend, SequentialBackend};
+///
+/// let backend = SequentialBackend::new();
+/// let mut sum = 0usize;
+/// backend.parallel_for(0, 5, |i| {
+///     // In a real kernel this would write to a pre-allocated output slice.
+///     // SequentialBackend executes in order: 0, 1, 2, 3, 4.
+/// });
+/// ```
 pub trait Backend: ComputeBackend + Default {
     /// Execute `f(i)` for `i` in `[start, end)` — possibly in parallel.
     ///
