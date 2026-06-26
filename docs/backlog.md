@@ -1,5 +1,38 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-104: Core Rustdoc contract examples [COMPLETE]
+
+- [x] [patch] Added executable public examples for `coeus-core` backend,
+  scalar, layout, stride, shape, and CPU storage contracts.
+- [x] [patch] Corrected doctests to import the real trait providers and use
+  existing public APIs, then verified the full `coeus-core` doctest set.
+- [x] [patch] Completed `coeus-cuda` fused-kernel cache conversion from
+  serialized `Mutex` reads to read/write locking for read-mostly cache hits.
+- [x] [patch] Added analytical first-step references for RMSProp, AdaGrad, and
+  AdamW optimizer updates.
+- [x] [patch] Added Conv3d stride/padding Burn parity and transpose backward
+  Burn autodiff parity coverage.
+- [x] Evidence: `cargo test --doc -p coeus-core`; `cargo nextest run -p
+  coeus-core`; `cargo nextest run -p coeus-nn --test burn_live_parity`; `cargo
+  check -p coeus-cuda`; `cargo check -p coeus-cuda --features cuda`; `cargo
+  fmt --check`; `cargo clippy -p coeus-core -p coeus-cuda --all-targets
+  -- -D warnings`; `cargo clippy -p coeus-nn --test burn_live_parity
+  -- -D warnings`; `cargo doc -p coeus-core --no-deps`.
+
+## Sprint MS-103: Conv3d and InstanceNorm2d Burn parity [COMPLETE]
+
+- [x] [patch] Added Conv3d forward parity against Burn NdArray with explicit
+  matching weight initialization.
+- [x] [patch] Added InstanceNorm2d forward parity against Burn NdArray.
+- [x] Evidence: merged PR #17 from
+  `feat/ms-103-conv3d-instancenorm2d-parity`.
+
+## Sprint MS-102: WGPU aliasing fallback parity [COMPLETE]
+
+- [x] [patch] Added WGPU aliasing-path parity for unary neg.
+- [x] [patch] Added WGPU aliasing-path parity for binary add.
+- [x] Evidence: merged PR #16 from `feat/ms-102-wgpu-aliasing-tests`.
+
 ## Sprint MS-101: BatchNorm3d eval parity and Conv Burn parity [COMPLETE]
 
 - [x] [patch] Added `batchnorm3d_eval_forward_matches_burn` in

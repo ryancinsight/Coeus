@@ -3171,10 +3171,7 @@ fn conv3d_forward_matches_burn() {
         false,
     );
     let mut conv_c = Conv3d::<f32, SequentialBackend>::new(ic, oc, k, false);
-    conv_c.weight = Var::new(
-        CoeusTensor::from_slice(vec![oc, ic, k, k, k], &w_vec),
-        true,
-    );
+    conv_c.weight = Var::new(CoeusTensor::from_slice(vec![oc, ic, k, k, k], &w_vec), true);
     let out_c = conv_c.forward(&xv);
 
     let xb: BurnTensor<BurnBackend, 5> =
@@ -3183,10 +3180,8 @@ fn conv3d_forward_matches_burn() {
         .with_bias(false)
         .with_padding(PaddingConfig3d::Valid)
         .init::<BurnBackend>(&dev());
-    conv_b.weight = burn::module::Param::from_data(
-        TensorData::new(w_vec.clone(), [oc, ic, k, k, k]),
-        &dev(),
-    );
+    conv_b.weight =
+        burn::module::Param::from_data(TensorData::new(w_vec.clone(), [oc, ic, k, k, k]), &dev());
     let out_b = bvec(conv_b.forward(xb));
 
     assert_eq!(out_c.tensor.shape(), &[n, oc, out_d, out_h, out_w]);
@@ -3225,4 +3220,233 @@ fn instancenorm2d_forward_matches_burn() {
         &out_b,
         1e-4,
     );
+}
+
+// ── RMSProp step (analytical reference) ──────────────────────────────────────
+//
+// RMSProp update rule (first step, no momentum):
+//   v_t = α * v_{t-1} + (1 - α) * g_t²   (v_0 = 0)
+//   θ_t = θ_{t-1} - lr * g_t / (√v_t + ε)
+
+#[test]
+fn rmsprop_step_matches_analytical_reference() {
+    use coeus_optim::traits::Optimizer;
+    use coeus_optim::RMSProp;
+    let lr = 0.01f64;
+    let alpha = 0.9f64;
+    let eps = 1e-8f64;
+    let params_data = vec![1.0f64, -0.5, 2.0, 0.3];
+    let grads_data = vec![0.5f64, 1.0, -0.2, 0.8];
+
+    let p = Var::new(
+        CoeusTensor::<f64, SequentialBackend>::from_slice(vec![4], &params_data),
+        true,
+    );
+    if let Some(ref g) = p.grad {
+        *g.write() = CoeusTensor::from_slice(vec![4], &grads_data);
+    }
+
+    let mut opt = RMSProp::new(vec![p.clone()], lr, alpha, eps);
+    opt.step();
+
+    // Closed-form expected for t=1 (v_0 = 0):
+    //   v_1 = (1 - α) * g²
+    //   θ_1 = θ - lr * g / (√v_1 + ε)
+    let expected: Vec<f64> = params_data
+        .iter()
+        .zip(grads_data.iter())
+        .map(|(&theta, &g)| {
+            let v1 = (1.0 - alpha) * g * g;
+            theta - lr * g / (v1.sqrt() + eps)
+        })
+        .collect();
+    let actual = opt.params[0].tensor.as_slice().to_vec();
+    assert_close_rel(
+        "rmsprop_step",
+        &actual.iter().map(|&x| x as f32).collect::<Vec<_>>(),
+        &expected.iter().map(|&x| x as f32).collect::<Vec<_>>(),
+        1e-6,
+    );
+}
+
+// ── AdaGrad step (analytical reference) ──────────────────────────────────────
+//
+// AdaGrad update rule (first step):
+//   G_t = G_{t-1} + g_t²   (G_0 = 0)
+//   θ_t = θ_{t-1} - lr * g_t / (√G_t + ε)
+
+#[test]
+fn adagrad_step_matches_analytical_reference() {
+    use coeus_optim::traits::Optimizer;
+    use coeus_optim::AdaGrad;
+    let lr = 0.1f64;
+    let eps = 1e-8f64;
+    let params_data = vec![0.5f64, -1.0, 1.5, -0.3];
+    let grads_data = vec![0.2f64, 0.8, -0.4, 1.0];
+
+    let p = Var::new(
+        CoeusTensor::<f64, SequentialBackend>::from_slice(vec![4], &params_data),
+        true,
+    );
+    if let Some(ref g) = p.grad {
+        *g.write() = CoeusTensor::from_slice(vec![4], &grads_data);
+    }
+
+    let mut opt = AdaGrad::new(vec![p.clone()], lr, eps);
+    opt.step();
+
+    // Closed-form expected for t=1 (G_0 = 0):
+    //   G_1 = g²
+    //   θ_1 = θ - lr * g / (√G_1 + ε)
+    let expected: Vec<f64> = params_data
+        .iter()
+        .zip(grads_data.iter())
+        .map(|(&theta, &g)| {
+            let g1 = g * g;
+            theta - lr * g / (g1.sqrt() + eps)
+        })
+        .collect();
+    let actual = opt.params[0].tensor.as_slice().to_vec();
+    assert_close_rel(
+        "adagrad_step",
+        &actual.iter().map(|&x| x as f32).collect::<Vec<_>>(),
+        &expected.iter().map(|&x| x as f32).collect::<Vec<_>>(),
+        1e-6,
+    );
+}
+
+// ── AdamW step (analytical reference) ────────────────────────────────────────
+//
+// AdamW update (decoupled weight decay, first step t=1):
+//   m_t = β1 * 0 + (1 - β1) * g = (1 - β1) * g
+//   v_t = β2 * 0 + (1 - β2) * g² = (1 - β2) * g²
+//   m̂ = m_t / (1 - β1^1) = m_t / (1 - β1)
+//   v̂ = v_t / (1 - β2^1) = v_t / (1 - β2)
+//   θ_t = θ_{t-1} - lr * (m̂ / (√v̂ + ε) + wd * θ_{t-1})
+
+#[test]
+fn adamw_step_matches_analytical_reference() {
+    use coeus_optim::traits::Optimizer;
+    use coeus_optim::AdamW;
+    let lr = 0.001f64;
+    let beta1 = 0.9f64;
+    let beta2 = 0.999f64;
+    let eps = 1e-8f64;
+    let wd = 0.01f64;
+    let params_data = vec![1.0f64, -0.5, 2.0, 0.3];
+    let grads_data = vec![0.5f64, 1.0, -0.2, 0.8];
+
+    let p = Var::new(
+        CoeusTensor::<f64, SequentialBackend>::from_slice(vec![4], &params_data),
+        true,
+    );
+    if let Some(ref g) = p.grad {
+        *g.write() = CoeusTensor::from_slice(vec![4], &grads_data);
+    }
+
+    let mut opt = AdamW::new(vec![p.clone()], lr, beta1, beta2, eps, wd);
+    opt.step();
+
+    let expected: Vec<f64> = params_data
+        .iter()
+        .zip(grads_data.iter())
+        .map(|(&theta, &g)| {
+            let m1 = (1.0 - beta1) * g;
+            let v1 = (1.0 - beta2) * g * g;
+            let m_hat = m1 / (1.0 - beta1);
+            let v_hat = v1 / (1.0 - beta2);
+            theta - lr * (m_hat / (v_hat.sqrt() + eps) + wd * theta)
+        })
+        .collect();
+    let actual = opt.params[0].tensor.as_slice().to_vec();
+    assert_close_rel(
+        "adamw_step",
+        &actual.iter().map(|&x| x as f32).collect::<Vec<_>>(),
+        &expected.iter().map(|&x| x as f32).collect::<Vec<_>>(),
+        1e-5,
+    );
+}
+
+// ── Conv3d with stride and padding matches Burn NdArray ───────────────────────
+
+#[test]
+fn conv3d_stride_padding_matches_burn() {
+    use burn::nn::conv::Conv3dConfig;
+    use burn::nn::PaddingConfig3d;
+    use coeus_nn::Conv3d;
+
+    // C_in=1, C_out=1, K=2×2×2, stride=2, padding=1, no bias, ones weight.
+    // Input [N=1, C_in=1, D=4, H=4, W=4].
+    // Output D_out = (4 + 2*1 - 2) / 2 + 1 = 3.
+    let (n, ic, oc, d, h, w, k, stride, pad) = (1usize, 1, 1, 4, 4, 4, 2, 2, 1);
+    let out_d = (d + 2 * pad - k) / stride + 1;
+    let out_h = (h + 2 * pad - k) / stride + 1;
+    let out_w = (w + 2 * pad - k) / stride + 1;
+    let data: Vec<f32> = (0..n * ic * d * h * w)
+        .map(|x| x as f32 * 0.1 - 2.0)
+        .collect();
+    let w_vec = vec![1.0f32; oc * ic * k * k * k];
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, ic, d, h, w], &data),
+        false,
+    );
+    let mut conv_c =
+        Conv3d::<f32, SequentialBackend>::with_params(ic, oc, k, stride, pad, 1, false);
+    conv_c.weight = Var::new(CoeusTensor::from_slice(vec![oc, ic, k, k, k], &w_vec), true);
+    let out_c = conv_c.forward(&xv);
+
+    let xb: BurnTensor<BurnBackend, 5> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, ic, d, h, w]), &dev());
+    let mut conv_b = Conv3dConfig::new([ic, oc], [k, k, k])
+        .with_stride([stride, stride, stride])
+        .with_bias(false)
+        .with_padding(PaddingConfig3d::Explicit(pad, pad, pad))
+        .init::<BurnBackend>(&dev());
+    conv_b.weight =
+        burn::module::Param::from_data(TensorData::new(w_vec.clone(), [oc, ic, k, k, k]), &dev());
+    let out_b = bvec(conv_b.forward(xb));
+
+    assert_eq!(out_c.tensor.shape(), &[n, oc, out_d, out_h, out_w]);
+    assert_close(
+        "conv3d_stride_padding_vs_burn",
+        out_c.tensor.as_slice(),
+        &out_b,
+    );
+}
+
+// ── Transpose backward (gradient routing) matches Burn autodiff ──────────────
+
+#[test]
+fn transpose_backward_matches_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use burn::tensor::TensorData;
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    // 2×3 matrix transposed → 3×2; gradient of sum flows back unchanged
+    // through the transpose (transposing the grad tensor).
+    let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
+    let shape = [2usize, 3usize];
+
+    // Coeus: forward transpose, backward = transpose of upstream grad.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(shape.to_vec(), &data),
+        true,
+    );
+    let yt = coeus_autograd::transpose(&xv, 0, 1);
+    let loss = coeus_autograd::sum(&yt);
+    loss.backward();
+    let coeus_grad = xv.grad().unwrap();
+
+    // Burn: same computation via autodiff.
+    let xb: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), shape), &device).require_grad();
+    let yt_b = xb.clone().transpose();
+    let loss_b = yt_b.sum();
+    let grads = loss_b.backward();
+    let burn_grad: Vec<f32> = xb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+
+    // Gradient of sum(transpose(x)) = ones(2,3) — same shape and values as input.
+    assert_close("transpose_backward", coeus_grad.as_slice(), &burn_grad);
 }
