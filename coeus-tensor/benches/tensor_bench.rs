@@ -1,3 +1,33 @@
+//! Coeus tensor benchmarks, including a Burn-NdArray comparison suite.
+//!
+//! Run all:        `cargo bench -p coeus-tensor --bench tensor_bench`
+//! Run one group:  `cargo bench -p coeus-tensor --bench tensor_bench -- GELU`
+//!
+//! Each `bench_burn_*` group times the identical computation on Burn's NdArray
+//! backend and on Coeus's `SequentialBackend` / `MoiraiBackend`, so the rows are
+//! directly comparable. `burn` is a dev-only dependency (the dependency policy
+//! forbids it in production manifests). Numbers are machine-specific — record
+//! the host when committing a baseline; the values below are from the reference
+//! dev host and are relative, for direction only.
+//!
+//! Coverage: elementwise-add, matmul, ReLU, GELU, sum, conv1d, conv2d,
+//! conv_transpose2d, max_pool2d, softmax, SDP attention, layernorm.
+//!
+//! ## Profile-first optimization targets surfaced by this suite
+//!
+//! Coeus's leto/hermes CPU kernels lead on compute-bound elementwise/activation
+//! ops (GELU ~11x, conv_transpose2d ~6.4x, softmax ~2.8x faster than Burn) and
+//! sit near parity on memory-bound pooling (~1.2x). Three measured gaps remain,
+//! ordered by impact — each is a regression target, not an assumption:
+//!  1. SDP attention (`coeus_ops::scaled_dot_product_attention`): ~2x slower
+//!     than Burn's batched-matmul attention. The per-`(batch, query)` score/
+//!     output dot loops should route through the batched-matmul path.
+//!  2. conv1d: ~2x slower than Burn's NdArray conv1d (sequential kernel).
+//!  3. Moirai small-op parallelism: for small ops (e.g. the conv1d shape here)
+//!     `MoiraiBackend` is markedly slower than `SequentialBackend` — dispatch
+//!     overhead exceeds the compute. Argues for a size threshold below which
+//!     dispatch stays sequential (contention / parallel-overhead concern).
+
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_tensor::Tensor;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
