@@ -13,6 +13,9 @@
   backward gradients against Burn NdArray/autodiff.
 - **Optimizer analytical coverage** — `coeus-nn` Burn parity tests now include
   closed-form RMSProp, AdaGrad, and AdamW first-step references.
+- **BatchNorm2d training-mode backward parity** — differential Burn autodiff
+  test verifying `dx`, `dw`, `db` for training-mode BatchNorm2d using Coeus's
+  NHWC-layout, population-variance formula (97th parity test; ε ≤ 1e-4).
 
 ### Fixed
 

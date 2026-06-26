@@ -3552,3 +3552,83 @@ fn conv2d_backward_matches_burn() {
     assert_close("conv2d_bwd_dx", dx_c.as_slice(), &dx_b);
     assert_close("conv2d_bwd_dw", dw_c.as_slice(), &dw_b);
 }
+
+// ── BatchNorm2d training-mode backward: dx, dw, db match Burn autodiff ────────
+//
+// Implements the same training-mode formula manually in Burn autodiff tensors:
+//   view [N,C,H,W] as [M=N*H*W, C] (NHWC permutation, matching Coeus layout),
+//   mean[1,C] over M, var[1,C] (population, /M), x_hat, gamma*x_hat + beta.
+// Bessel correction is NOT applied — Coeus uses population variance.
+
+#[test]
+fn batchnorm2d_training_backward_matches_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use coeus_nn::BatchNorm2d;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    let (n, c, h, w) = (2usize, 2, 3, 3);
+    let m = (n * h * w) as f32; // = 18
+    let eps = 1e-5_f32;
+    let data: Vec<f32> = (0..n * c * h * w).map(|x| x as f32 * 0.05 - 1.0).collect();
+    let gamma = vec![1.2f32, 0.8];
+    let beta = vec![0.1f32, -0.1];
+
+    // Coeus: training-mode forward + backward.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, h, w], &data),
+        true,
+    );
+    let mut bn = BatchNorm2d::<f32, SequentialBackend>::new(c, eps as f64, 0.1);
+    bn.weight = Var::new(CoeusTensor::from_slice(vec![c], &gamma), true);
+    bn.bias = Var::new(CoeusTensor::from_slice(vec![c], &beta), true);
+    coeus_autograd::sum(&bn.forward(&xv)).backward();
+
+    // Burn autodiff: manual BN2d formula matching Coeus NHWC layout.
+    // [N,C,H,W] → permute [N,H,W,C] → reshape [M, C].
+    let xb: BurnTensor<AB, 4> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, h, w]), &device)
+            .require_grad();
+    let wb: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(gamma.clone(), [c]), &device).require_grad();
+    let bk: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(beta.clone(), [c]), &device).require_grad();
+
+    let flat: BurnTensor<AB, 2> = xb
+        .clone()
+        .permute([0, 2, 3, 1]) // [N,H,W,C]
+        .reshape([n * h * w, c]); // [M, C]
+    let mean = flat.clone().sum_dim(0) / m; // [1, C]
+    let xmu = flat.sub(mean);
+    let var = xmu.clone().powf_scalar(2.0).sum_dim(0) / m; // [1, C] population
+    let xhat = xmu / (var.add_scalar(eps)).sqrt(); // [M, C]
+    let out_b = xhat.mul(wb.clone().reshape([1, c])) + bk.clone().reshape([1, c]);
+    let grads = out_b.sum().backward();
+
+    let to_vec = |t: BurnTensor<NdArray<f32>, 1>| t.into_data().to_vec::<f32>().unwrap();
+    let to_vec4 = |t: BurnTensor<NdArray<f32>, 4>| t.into_data().to_vec::<f32>().unwrap();
+
+    assert_close_rel(
+        "batchnorm2d_bwd_dw",
+        bn.weight.grad().unwrap().as_slice(),
+        &to_vec(wb.grad(&grads).unwrap()),
+        1e-4,
+    );
+    assert_close_rel(
+        "batchnorm2d_bwd_db",
+        bn.bias.grad().unwrap().as_slice(),
+        &to_vec(bk.grad(&grads).unwrap()),
+        1e-4,
+    );
+    // dx comparison: Coeus returns [N,C,H,W]; Burn reference is in [M,C] layout
+    // converted back via the same NHWC permutation.
+    let dx_b_flat = to_vec4(xb.grad(&grads).unwrap());
+    let dx_c_flat = xv.grad().unwrap();
+    assert_close_rel(
+        "batchnorm2d_bwd_dx",
+        dx_c_flat.as_slice(),
+        &dx_b_flat,
+        1e-4,
+    );
+}
