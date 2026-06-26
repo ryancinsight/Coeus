@@ -99,6 +99,85 @@ fn test_wgpu_parity_div() {
 }
 
 #[test]
+fn test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer() {
+    use coeus_ops::BackendOps;
+    use std::sync::Arc;
+
+    let s = seq();
+    let w = wgpu();
+    let a = Tensor::from_slice(vec![4, 4], &(0..16).map(|x| x as f32).collect::<Vec<_>>());
+    let b = Tensor::from_slice(
+        vec![4, 4],
+        &(0..16).map(|x| x as f32 * 0.5 - 4.0).collect::<Vec<_>>(),
+    );
+    let a_gpu = to_gpu(&a);
+    let b_gpu = to_gpu(&b);
+    let mut out_gpu = Tensor::<f32, WgpuBackend>::zeros_on(vec![4, 4], &w);
+    let out_layout = out_gpu.layout().clone();
+    let before = Arc::as_ptr(&out_gpu.storage().buffer);
+
+    w.elementwise_binary(
+        coeus_ops::BinaryOp::Add,
+        a_gpu.storage(),
+        a_gpu.layout(),
+        b_gpu.storage(),
+        b_gpu.layout(),
+        out_gpu.storage_mut(),
+        &out_layout,
+    );
+
+    let after = Arc::as_ptr(&out_gpu.storage().buffer);
+    assert_eq!(
+        before, after,
+        "delegated binary path reallocated output buffer"
+    );
+
+    let expected = coeus_ops::add(&a, &b, &s);
+    let got = to_cpu(&out_gpu);
+    assert_parity(
+        "hephaestus_binary_into_add",
+        expected.as_slice(),
+        got.as_slice(),
+    );
+}
+
+#[test]
+fn test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer() {
+    use coeus_ops::BackendOps;
+    use std::sync::Arc;
+
+    let s = seq();
+    let w = wgpu();
+    let x = Tensor::from_slice(vec![8], &[-4.0f32, -2.0, -1.0, -0.5, 0.5, 1.0, 2.0, 4.0]);
+    let x_gpu = to_gpu(&x);
+    let mut out_gpu = Tensor::<f32, WgpuBackend>::zeros_on(vec![8], &w);
+    let out_layout = out_gpu.layout().clone();
+    let before = Arc::as_ptr(&out_gpu.storage().buffer);
+
+    w.elementwise_unary(
+        coeus_ops::UnaryOp::Recip,
+        x_gpu.storage(),
+        x_gpu.layout(),
+        out_gpu.storage_mut(),
+        &out_layout,
+    );
+
+    let after = Arc::as_ptr(&out_gpu.storage().buffer);
+    assert_eq!(
+        before, after,
+        "delegated unary path reallocated output buffer"
+    );
+
+    let expected = coeus_ops::recip(&x, &s);
+    let got = to_cpu(&out_gpu);
+    assert_parity(
+        "hephaestus_unary_into_recip",
+        expected.as_slice(),
+        got.as_slice(),
+    );
+}
+
+#[test]
 fn test_wgpu_aliasing_unary_neg_matches_cpu() {
     use coeus_ops::BackendOps;
 

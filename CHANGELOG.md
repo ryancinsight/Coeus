@@ -32,6 +32,10 @@
   `hephaestus-cuda`, matching the existing WGPU provider-first boundary while
   retaining Coeus-local CUDA kernels for aliasing, dynamic-layout strided paths,
   and NN-specific formulas.
+- **WGPU Hephaestus zero-allocation dispatch** — contiguous non-aliased
+  elementwise unary/binary routes in `coeus-wgpu` now use Hephaestus `*_into`
+  APIs to write into caller-owned output buffers instead of allocating and
+  swapping buffers.
 
 ### Verified
 
@@ -45,6 +49,12 @@
   validates the CUDA routing surface.
 - `cargo nextest run -p coeus-cuda --features cuda` passes 69/69 live CUDA
   tests, including primitive parity rows routed through Hephaestus.
+- `cargo test -p coeus-wgpu
+  test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer` validates
+  contiguous binary delegated routing preserves output-buffer identity.
+- `cargo test -p coeus-wgpu
+  test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer` validates
+  contiguous unary delegated routing preserves output-buffer identity.
 - `cargo fmt --check`, `coeus-core`/`coeus-cuda` clippy, and `coeus-core`
   rustdoc pass.
 

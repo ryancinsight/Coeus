@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-109: WGPU Hephaestus zero-allocation elementwise routing [COMPLETE]
+
+- [x] [patch] Switched contiguous non-aliased WGPU Hephaestus elementwise routing
+  in `coeus-wgpu` from allocating-return APIs to `*_into` APIs that write into
+  caller-owned output buffers.
+- [x] [patch] Preserved alias safety and fallback behavior: aliased output paths
+  still bypass Hephaestus and use Coeus-local kernels.
+- [x] [patch] Added parity tests proving delegated contiguous unary/binary paths
+  preserve output-buffer identity while matching CPU reference values.
+- [x] Evidence: `cargo fmt --check`; `cargo test -p coeus-wgpu
+  test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer`; `cargo test -p
+  coeus-wgpu test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer`;
+  `cargo test -p coeus-wgpu test_wgpu_aliasing_unary_neg_matches_cpu`.
+
 ## Sprint MS-106: CUDA Hephaestus primitive routing [COMPLETE]
 
 - [x] [patch] Routed supported contiguous non-aliased `coeus-cuda` primitive
