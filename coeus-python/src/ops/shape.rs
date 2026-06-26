@@ -173,7 +173,8 @@ pub fn broadcast_tensors(
         return Ok(vec![]);
     }
     // Compute the broadcast output shape from all inputs.
-    let shapes: Vec<Vec<usize>> = tensors.iter()
+    let shapes: Vec<Vec<usize>> = tensors
+        .iter()
         .map(|t| t.bind(py).borrow().inner.tensor.shape().to_vec())
         .collect();
     // Fold over shapes to find the broadcast shape.
@@ -184,8 +185,16 @@ pub fn broadcast_tensors(
         let out_pad = ndim_out - out_shape.len();
         let shape_pad = ndim_out - shape.len();
         for i in 0..ndim_out {
-            let a = if i >= out_pad { out_shape[i - out_pad] } else { 1 };
-            let b = if i >= shape_pad { shape[i - shape_pad] } else { 1 };
+            let a = if i >= out_pad {
+                out_shape[i - out_pad]
+            } else {
+                1
+            };
+            let b = if i >= shape_pad {
+                shape[i - shape_pad]
+            } else {
+                1
+            };
             if a != b && a != 1 && b != 1 {
                 return Err(PyValueError::new_err(format!(
                     "broadcast_tensors: shapes {:?} and {:?} are incompatible",
@@ -197,7 +206,8 @@ pub fn broadcast_tensors(
         out_shape = new_shape;
     }
     // Expand each tensor to the broadcast shape.
-    let results = tensors.iter()
+    let results = tensors
+        .iter()
         .map(|t| {
             let t_ref = t.bind(py).borrow();
             let src_ndim = t_ref.inner.tensor.ndim();
@@ -205,7 +215,11 @@ pub fn broadcast_tensors(
             let padded_shape: Vec<usize> = (0..out_shape.len())
                 .map(|i| {
                     let pad = out_shape.len() - src_ndim;
-                    if i < pad { 1 } else { t_ref.inner.tensor.shape()[i - pad] }
+                    if i < pad {
+                        1
+                    } else {
+                        t_ref.inner.tensor.shape()[i - pad]
+                    }
                 })
                 .collect();
             // Expand to broadcast shape.
