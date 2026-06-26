@@ -7,8 +7,11 @@ use super::PyTensor;
 /// Python iterator over the first dimension of a `PyTensor`.
 #[pyclass(name = "TensorIterator")]
 pub struct PyTensorIterator {
+    /// The tensor being iterated (sliced along its first dimension).
     pub tensor: PyTensor,
+    /// Current position in the first dimension.
     pub current: usize,
+    /// Total number of elements in the first dimension.
     pub length: usize,
 }
 

@@ -4,12 +4,16 @@ use pyo3::prelude::*;
 /// Python-exposed 2D Average Pooling layer.
 #[pyclass(name = "AvgPool2d")]
 pub struct PyAvgPool2d {
+    /// Square pooling kernel side length.
     #[pyo3(get)]
     pub kernel_size: usize,
+    /// Pooling stride (defaults to `kernel_size` when not specified).
     #[pyo3(get)]
     pub stride: usize,
+    /// Zero-padding applied to spatial dimensions.
     #[pyo3(get)]
     pub padding: usize,
+    /// Dilation factor for the pooling kernel.
     #[pyo3(get)]
     pub dilation: usize,
 }
@@ -18,6 +22,7 @@ pub struct PyAvgPool2d {
 impl PyAvgPool2d {
     #[new]
     #[pyo3(signature = (kernel_size, stride = None, padding = 0, dilation = 1))]
+    /// Create an AvgPool2d layer.
     pub fn new(kernel_size: usize, stride: Option<usize>, padding: usize, dilation: usize) -> Self {
         let stride = stride.unwrap_or(kernel_size);
         Self {
@@ -65,12 +70,16 @@ impl PyAvgPool2d {
 /// Python-exposed 2D Max Pooling layer.
 #[pyclass(name = "MaxPool2d")]
 pub struct PyMaxPool2d {
+    /// Square pooling kernel side length.
     #[pyo3(get)]
     pub kernel_size: usize,
+    /// Pooling stride (defaults to `kernel_size` when not specified).
     #[pyo3(get)]
     pub stride: usize,
+    /// Zero-padding applied to spatial dimensions.
     #[pyo3(get)]
     pub padding: usize,
+    /// Dilation factor for the pooling kernel.
     #[pyo3(get)]
     pub dilation: usize,
 }
@@ -79,6 +88,7 @@ pub struct PyMaxPool2d {
 impl PyMaxPool2d {
     #[new]
     #[pyo3(signature = (kernel_size, stride = None, padding = 0, dilation = 1))]
+    /// Create a MaxPool2d layer.
     pub fn new(kernel_size: usize, stride: Option<usize>, padding: usize, dilation: usize) -> Self {
         let stride = stride.unwrap_or(kernel_size);
         Self {
@@ -126,12 +136,16 @@ impl PyMaxPool2d {
 /// Python-exposed 3D Average Pooling layer.
 #[pyclass(name = "AvgPool3d")]
 pub struct PyAvgPool3d {
+    /// Cubic pooling kernel side length.
     #[pyo3(get)]
     pub kernel_size: usize,
+    /// Pooling stride (defaults to `kernel_size` when not specified).
     #[pyo3(get)]
     pub stride: usize,
+    /// Zero-padding applied to spatial dimensions.
     #[pyo3(get)]
     pub padding: usize,
+    /// Dilation factor for the pooling kernel.
     #[pyo3(get)]
     pub dilation: usize,
 }
@@ -140,6 +154,7 @@ pub struct PyAvgPool3d {
 impl PyAvgPool3d {
     #[new]
     #[pyo3(signature = (kernel_size, stride = None, padding = 0, dilation = 1))]
+    /// Create an AvgPool3d layer.
     pub fn new(kernel_size: usize, stride: Option<usize>, padding: usize, dilation: usize) -> Self {
         let stride = stride.unwrap_or(kernel_size);
         Self {
@@ -187,12 +202,16 @@ impl PyAvgPool3d {
 /// Python-exposed 3D Max Pooling layer.
 #[pyclass(name = "MaxPool3d")]
 pub struct PyMaxPool3d {
+    /// Cubic pooling kernel side length.
     #[pyo3(get)]
     pub kernel_size: usize,
+    /// Pooling stride (defaults to `kernel_size` when not specified).
     #[pyo3(get)]
     pub stride: usize,
+    /// Zero-padding applied to spatial dimensions.
     #[pyo3(get)]
     pub padding: usize,
+    /// Dilation factor for the pooling kernel.
     #[pyo3(get)]
     pub dilation: usize,
 }
@@ -201,6 +220,7 @@ pub struct PyMaxPool3d {
 impl PyMaxPool3d {
     #[new]
     #[pyo3(signature = (kernel_size, stride = None, padding = 0, dilation = 1))]
+    /// Create a MaxPool3d layer.
     pub fn new(kernel_size: usize, stride: Option<usize>, padding: usize, dilation: usize) -> Self {
         let stride = stride.unwrap_or(kernel_size);
         Self {
@@ -253,10 +273,12 @@ pub struct PyGlobalAvgPool1d;
 #[pymethods]
 impl PyGlobalAvgPool1d {
     #[new]
+    /// Create a GlobalAvgPool1d layer.
     pub fn new() -> Self {
         Self
     }
 
+    /// Forward pass: reduce `[N, C, L]` → `[N, C, 1]` by global average pooling.
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_nn::Module;
         let input_var = input.inner.clone();
@@ -266,10 +288,12 @@ impl PyGlobalAvgPool1d {
         Ok(PyTensor { inner: result })
     }
 
+    /// Return the list of learnable parameters (always empty — no parameters).
     pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
         vec![]
     }
 
+    /// Zero gradients of all parameters (no-op).
     pub fn zero_grad(&self, _py: Python<'_>) {}
 }
 
@@ -281,10 +305,12 @@ pub struct PyGlobalAvgPool2d;
 #[pymethods]
 impl PyGlobalAvgPool2d {
     #[new]
+    /// Create a GlobalAvgPool2d layer.
     pub fn new() -> Self {
         Self
     }
 
+    /// Forward pass: reduce `[N, C, H, W]` → `[N, C, 1, 1]` by global average pooling.
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_nn::Module;
         let input_var = input.inner.clone();
@@ -294,10 +320,12 @@ impl PyGlobalAvgPool2d {
         Ok(PyTensor { inner: result })
     }
 
+    /// Return the list of learnable parameters (always empty — no parameters).
     pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
         vec![]
     }
 
+    /// Zero gradients of all parameters (no-op).
     pub fn zero_grad(&self, _py: Python<'_>) {}
 }
 
@@ -309,10 +337,12 @@ pub struct PyGlobalAvgPool3d;
 #[pymethods]
 impl PyGlobalAvgPool3d {
     #[new]
+    /// Create a GlobalAvgPool3d layer.
     pub fn new() -> Self {
         Self
     }
 
+    /// Forward pass: reduce `[N, C, D, H, W]` → `[N, C, 1, 1, 1]` by global average pooling.
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_nn::Module;
         let input_var = input.inner.clone();
@@ -322,10 +352,12 @@ impl PyGlobalAvgPool3d {
         Ok(PyTensor { inner: result })
     }
 
+    /// Return the list of learnable parameters (always empty — no parameters).
     pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
         vec![]
     }
 
+    /// Zero gradients of all parameters (no-op).
     pub fn zero_grad(&self, _py: Python<'_>) {}
 }
 
@@ -337,10 +369,12 @@ pub struct PyGlobalMaxPool2d;
 #[pymethods]
 impl PyGlobalMaxPool2d {
     #[new]
+    /// Create a GlobalMaxPool2d layer.
     pub fn new() -> Self {
         Self
     }
 
+    /// Forward pass: reduce `[N, C, H, W]` → `[N, C, 1, 1]` by global max pooling.
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_nn::Module;
         let input_var = input.inner.clone();
@@ -350,10 +384,12 @@ impl PyGlobalMaxPool2d {
         Ok(PyTensor { inner: result })
     }
 
+    /// Return the list of learnable parameters (always empty — no parameters).
     pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
         vec![]
     }
 
+    /// Zero gradients of all parameters (no-op).
     pub fn zero_grad(&self, _py: Python<'_>) {}
 }
 
@@ -365,10 +401,12 @@ pub struct PyGlobalMaxPool3d;
 #[pymethods]
 impl PyGlobalMaxPool3d {
     #[new]
+    /// Create a GlobalMaxPool3d layer.
     pub fn new() -> Self {
         Self
     }
 
+    /// Forward pass: reduce `[N, C, D, H, W]` → `[N, C, 1, 1, 1]` by global max pooling.
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_nn::Module;
         let input_var = input.inner.clone();
@@ -378,9 +416,11 @@ impl PyGlobalMaxPool3d {
         Ok(PyTensor { inner: result })
     }
 
+    /// Return the list of learnable parameters (always empty — no parameters).
     pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
         vec![]
     }
 
+    /// Zero gradients of all parameters (no-op).
     pub fn zero_grad(&self, _py: Python<'_>) {}
 }

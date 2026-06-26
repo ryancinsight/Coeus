@@ -1,15 +1,28 @@
+/// Attention layers (MultiHeadAttention, ScaledDotProductAttention, RotaryEmbedding).
 pub mod attention;
+/// Bilinear interaction layer.
 pub mod bilinear;
+/// Convolutional layers (Conv1d, Conv2d, Conv3d, ConvTranspose1d, ConvTranspose2d).
 pub mod conv;
+/// Dropout regularization layer.
 pub mod dropout;
+/// Embedding lookup layer.
 pub mod embedding;
+/// Feed-forward and Transformer building blocks.
 pub mod feedforward;
+/// Linear (fully-connected) layer.
 pub mod linear;
+/// Abstract module base class.
 pub mod module_base;
+/// Ordered container of child modules.
 pub mod module_list;
+/// Normalization layers (BatchNorm, LayerNorm, RMSNorm, GroupNorm, InstanceNorm).
 pub mod normalization;
+/// Pooling layers (AvgPool, MaxPool, GlobalAvgPool, GlobalMaxPool).
 pub mod pool;
+/// Recurrent cells (LSTMCell, GRUCell).
 pub mod rnn;
+/// Sequential container that chains module forwards.
 pub mod sequential;
 
 pub use attention::{PyMultiHeadAttention, PyRotaryEmbedding, PyScaledDotProductAttention};

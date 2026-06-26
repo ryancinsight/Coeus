@@ -34,12 +34,14 @@ use pyo3::prelude::*;
 ///   Dropout / BatchNorm subclasses).
 #[pyclass(subclass, name = "Module")]
 pub struct PyModule {
+    /// Whether the module is in training mode.
     pub training: bool,
 }
 
 #[pymethods]
 impl PyModule {
     #[new]
+    /// Create a Module in training mode.
     pub fn new() -> Self {
         Self { training: true }
     }

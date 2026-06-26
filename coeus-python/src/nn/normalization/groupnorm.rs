@@ -13,10 +13,13 @@ pub struct PyGroupNorm {
     /// Trainable shift (beta), shape `[num_features]`.
     #[pyo3(get)]
     pub bias: Py<PyTensor>,
+    /// Number of groups to divide the channels into.
     #[pyo3(get)]
     pub num_groups: usize,
+    /// Total number of channels (must be divisible by `num_groups`).
     #[pyo3(get)]
     pub num_features: usize,
+    /// Numerical stability epsilon added to the denominator.
     #[pyo3(get)]
     pub eps: f64,
 }
@@ -25,6 +28,7 @@ pub struct PyGroupNorm {
 impl PyGroupNorm {
     #[new]
     #[pyo3(signature = (num_groups, num_features, eps = 1e-5))]
+    /// Create a GroupNorm layer dividing `num_features` channels into `num_groups` groups.
     pub fn new(py: Python<'_>, num_groups: usize, num_features: usize, eps: f64) -> PyResult<Self> {
         // Use G=1 to allocate canonical weight/bias tensors:
         // GroupNorm always initialises weight=ones([num_features]) and bias=zeros([num_features])

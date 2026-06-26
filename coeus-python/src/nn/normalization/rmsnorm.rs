@@ -4,8 +4,10 @@ use pyo3::prelude::*;
 /// Python-exposed RMS Normalization layer.
 #[pyclass(name = "RMSNorm")]
 pub struct PyRMSNorm {
+    /// Learnable scale (gamma), shape `[normalized_shape]`.
     #[pyo3(get)]
     pub weight: Py<PyTensor>,
+    /// Numerical stability epsilon added to the RMS denominator.
     #[pyo3(get)]
     pub eps: f64,
 }
@@ -14,6 +16,7 @@ pub struct PyRMSNorm {
 impl PyRMSNorm {
     #[new]
     #[pyo3(signature = (normalized_shape, eps = 1e-8))]
+    /// Create an RMSNorm layer normalizing over `normalized_shape` dimensions.
     pub fn new(py: Python<'_>, normalized_shape: usize, eps: f64) -> PyResult<Self> {
         let rms = coeus_nn::normalization::rmsnorm::RMSNorm::<f64, coeus_core::MoiraiBackend>::new(
             normalized_shape,

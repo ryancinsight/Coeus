@@ -1,7 +1,12 @@
+/// Batch normalization layers (BatchNorm1d, BatchNorm2d, BatchNorm3d).
 pub mod batchnorm;
+/// Group normalization layer.
 pub mod groupnorm;
+/// Instance normalization layers (InstanceNorm1d, InstanceNorm2d, InstanceNorm3d).
 pub mod instancenorm;
+/// Layer normalization layer.
 pub mod layernorm;
+/// Root-mean-square normalization layer.
 pub mod rmsnorm;
 
 pub use batchnorm::{PyBatchNorm1d, PyBatchNorm2d, PyBatchNorm3d};

@@ -6,6 +6,7 @@ use pyo3::prelude::*;
 #[pyclass(name = "LocalCommunicator")]
 #[derive(Clone)]
 pub struct PyLocalCommunicator {
+    /// Underlying Rust LocalCommunicator handle.
     pub inner: coeus_dist::LocalCommunicator,
 }
 
@@ -224,6 +225,7 @@ pub fn synchronize_gradients(
 /// Python-exposed TcpMesh.
 #[pyclass(name = "TcpMesh")]
 pub struct PyTcpMesh {
+    /// Underlying Rust TcpMesh handle (consumed on communicator construction).
     pub inner: std::sync::Mutex<Option<coeus_dist::TcpMesh>>,
 }
 
@@ -252,6 +254,7 @@ impl PyTcpMesh {
 #[pyclass(name = "TcpCommunicator")]
 #[derive(Clone)]
 pub struct PyTcpCommunicator {
+    /// Shared reference to the underlying Rust TcpCommunicator.
     pub inner: std::sync::Arc<coeus_dist::TcpCommunicator>,
 }
 

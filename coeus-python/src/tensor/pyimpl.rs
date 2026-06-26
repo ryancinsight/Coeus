@@ -7,6 +7,7 @@ use pyo3::prelude::*;
 #[pyclass(name = "Tensor")]
 #[derive(Clone)]
 pub struct PyTensor {
+    /// Underlying Rust autograd variable holding the tensor data and gradient.
     pub inner: Var<f64>,
 }
 
@@ -709,6 +710,7 @@ impl PyTensor {
         self.clone()
     }
 
+    /// Zero the gradient of this tensor.
     pub fn zero_grad(&self) {
         self.inner.zero_grad();
     }

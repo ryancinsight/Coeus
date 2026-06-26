@@ -4,8 +4,10 @@ use pyo3::prelude::*;
 /// Python-exposed Linear layer.
 #[pyclass(name = "Linear")]
 pub struct PyLinear {
+    /// Learnable weight matrix, shape `[out_features, in_features]`.
     #[pyo3(get)]
     pub weight: Py<PyTensor>,
+    /// Optional learnable bias vector, shape `[out_features]`.
     #[pyo3(get)]
     pub bias: Option<Py<PyTensor>>,
 }

@@ -5,7 +5,9 @@ use pyo3::prelude::*;
 /// Python-exposed SGD optimizer.
 #[pyclass(name = "SGD")]
 pub struct PySGD {
+    /// Python-owned parameter tensors being optimized.
     pub params: Vec<Py<PyTensor>>,
+    /// Underlying Rust SGD optimizer state.
     pub inner: coeus_optim::SGD<f64, coeus_core::MoiraiBackend>,
 }
 
@@ -13,6 +15,7 @@ pub struct PySGD {
 impl PySGD {
     #[new]
     #[pyo3(signature = (params, lr, momentum = 0.0))]
+    /// Create an SGD optimizer over `params` with learning rate `lr` and optional `momentum`.
     pub fn new(py: Python<'_>, params: Vec<Py<PyTensor>>, lr: f64, momentum: f64) -> Self {
         let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> =
             params.iter().map(|p| p.borrow(py).inner.clone()).collect();
@@ -48,7 +51,9 @@ impl PySGD {
 /// Python-exposed Adam optimizer.
 #[pyclass(name = "Adam")]
 pub struct PyAdam {
+    /// Python-owned parameter tensors being optimized.
     pub params: Vec<Py<PyTensor>>,
+    /// Underlying Rust Adam optimizer state.
     pub inner: coeus_optim::Adam<f64, coeus_core::MoiraiBackend>,
 }
 
@@ -56,6 +61,7 @@ pub struct PyAdam {
 impl PyAdam {
     #[new]
     #[pyo3(signature = (params, lr = 1e-3, beta1 = 0.9, beta2 = 0.999, eps = 1e-8))]
+    /// Create an Adam optimizer over `params`.
     pub fn new(
         py: Python<'_>,
         params: Vec<Py<PyTensor>>,
@@ -98,7 +104,9 @@ impl PyAdam {
 /// Python-exposed RMSProp optimizer.
 #[pyclass(name = "RMSProp")]
 pub struct PyRMSProp {
+    /// Python-owned parameter tensors being optimized.
     pub params: Vec<Py<PyTensor>>,
+    /// Underlying Rust RMSProp optimizer state.
     pub inner: coeus_optim::RMSProp<f64, coeus_core::MoiraiBackend>,
 }
 
@@ -106,6 +114,7 @@ pub struct PyRMSProp {
 impl PyRMSProp {
     #[new]
     #[pyo3(signature = (params, lr = 1e-2, alpha = 0.99, eps = 1e-8))]
+    /// Create an RMSProp optimizer over `params`.
     pub fn new(py: Python<'_>, params: Vec<Py<PyTensor>>, lr: f64, alpha: f64, eps: f64) -> Self {
         let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> =
             params.iter().map(|p| p.borrow(py).inner.clone()).collect();
@@ -141,7 +150,9 @@ impl PyRMSProp {
 /// Python-exposed AdaGrad optimizer.
 #[pyclass(name = "AdaGrad")]
 pub struct PyAdaGrad {
+    /// Python-owned parameter tensors being optimized.
     pub params: Vec<Py<PyTensor>>,
+    /// Underlying Rust AdaGrad optimizer state.
     pub inner: coeus_optim::AdaGrad<f64, coeus_core::MoiraiBackend>,
 }
 
@@ -149,6 +160,7 @@ pub struct PyAdaGrad {
 impl PyAdaGrad {
     #[new]
     #[pyo3(signature = (params, lr = 1e-2, eps = 1e-10))]
+    /// Create an AdaGrad optimizer over `params`.
     pub fn new(py: Python<'_>, params: Vec<Py<PyTensor>>, lr: f64, eps: f64) -> Self {
         let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> =
             params.iter().map(|p| p.borrow(py).inner.clone()).collect();
@@ -184,7 +196,9 @@ impl PyAdaGrad {
 /// Python-exposed AdamW optimizer.
 #[pyclass(name = "AdamW")]
 pub struct PyAdamW {
+    /// Python-owned parameter tensors being optimized.
     pub params: Vec<Py<PyTensor>>,
+    /// Underlying Rust AdamW optimizer state.
     pub inner: coeus_optim::AdamW<f64, coeus_core::MoiraiBackend>,
 }
 
@@ -192,6 +206,7 @@ pub struct PyAdamW {
 impl PyAdamW {
     #[new]
     #[pyo3(signature = (params, lr = 1e-3, beta1 = 0.9, beta2 = 0.999, eps = 1e-8, weight_decay = 1e-2))]
+    /// Create an AdamW optimizer over `params`.
     pub fn new(
         py: Python<'_>,
         params: Vec<Py<PyTensor>>,
@@ -234,24 +249,33 @@ impl PyAdamW {
 
 /// Helper enum for Python-exposed scheduler strategies.
 pub enum PySchedulerStrategy {
+    /// Step decay: multiply LR by `gamma` every `step_size` epochs.
     StepDecay(coeus_optim::StepDecay),
+    /// Cosine annealing: LR follows a cosine curve down to `eta_min`.
     CosineAnneal(coeus_optim::CosineAnneal),
+    /// Linear warmup: LR increases linearly from 0 to `base_lr` over `warmup_steps`.
     LinearWarmup(coeus_optim::LinearWarmup),
+    /// Warmup then cosine decay: linear warmup followed by cosine annealing.
     WarmupCosine(coeus_optim::WarmupCosine),
 }
 
 /// Python-exposed compile-time learning rate scheduler wrapper.
 #[pyclass(name = "LrScheduler")]
 pub struct PyLrScheduler {
+    /// Active scheduling strategy.
     pub strategy: PySchedulerStrategy,
+    /// The wrapped optimizer whose LR will be updated each step.
     pub optimizer: PyObject,
+    /// Initial (peak) learning rate.
     pub base_lr: f64,
+    /// Current training step count.
     pub step: usize,
 }
 
 #[pymethods]
 impl PyLrScheduler {
     #[staticmethod]
+    /// Create a scheduler using StepDecay: multiply LR by `gamma` every `step_size` steps.
     pub fn step_decay(optimizer: PyObject, base_lr: f64, step_size: usize, gamma: f64) -> Self {
         Self {
             strategy: PySchedulerStrategy::StepDecay(coeus_optim::StepDecay { step_size, gamma }),
@@ -262,6 +286,7 @@ impl PyLrScheduler {
     }
 
     #[staticmethod]
+    /// Create a scheduler using CosineAnneal over `t_max` steps down to `eta_min`.
     pub fn cosine_anneal(optimizer: PyObject, base_lr: f64, t_max: usize, eta_min: f64) -> Self {
         Self {
             strategy: PySchedulerStrategy::CosineAnneal(coeus_optim::CosineAnneal {
@@ -275,6 +300,7 @@ impl PyLrScheduler {
     }
 
     #[staticmethod]
+    /// Create a scheduler using LinearWarmup over `warmup_steps` steps.
     pub fn linear_warmup(optimizer: PyObject, base_lr: f64, warmup_steps: usize) -> Self {
         Self {
             strategy: PySchedulerStrategy::LinearWarmup(coeus_optim::LinearWarmup { warmup_steps }),
@@ -285,6 +311,7 @@ impl PyLrScheduler {
     }
 
     #[staticmethod]
+    /// Create a scheduler using linear warmup followed by cosine decay.
     pub fn warmup_cosine(
         optimizer: PyObject,
         base_lr: f64,

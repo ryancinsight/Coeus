@@ -4,10 +4,13 @@ use pyo3::prelude::*;
 /// Python-exposed Dropout layer.
 #[pyclass(name = "Dropout")]
 pub struct PyDropout {
+    /// Drop probability in `[0, 1)`.
     #[pyo3(get)]
     pub p: f64,
+    /// Whether the layer is in training mode (dropout active when `true`).
     #[pyo3(get)]
     pub is_training: bool,
+    /// Random seed used for the dropout mask.
     #[pyo3(get)]
     pub seed: u64,
 }
@@ -16,6 +19,7 @@ pub struct PyDropout {
 impl PyDropout {
     #[new]
     #[pyo3(signature = (p = 0.5))]
+    /// Create a Dropout layer with drop probability `p`.
     pub fn new(p: f64) -> Self {
         Self {
             p,

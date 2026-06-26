@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 /// Python-exposed StateDict class wrapping weight/bias checkpoints.
 #[pyclass(name = "StateDict")]
 pub struct PyStateDict {
+    /// Underlying Rust StateDict holding named tensors.
     pub inner: coeus_tensor::checkpoint::StateDict<f64, coeus_core::MoiraiBackend>,
 }
 

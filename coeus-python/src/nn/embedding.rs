@@ -4,12 +4,16 @@ use pyo3::prelude::*;
 /// Python-exposed Embedding layer.
 #[pyclass(name = "Embedding")]
 pub struct PyEmbedding {
+    /// Learnable embedding weight table, shape `[num_embeddings, embedding_dim]`.
     #[pyo3(get)]
     pub weight: Py<PyTensor>,
+    /// Vocabulary size (number of distinct token indices).
     #[pyo3(get)]
     pub num_embeddings: usize,
+    /// Dimensionality of each embedding vector.
     #[pyo3(get)]
     pub embedding_dim: usize,
+    /// Token index whose embedding row is forced to all-zeros.
     #[pyo3(get)]
     pub padding_idx: Option<usize>,
 }
@@ -18,6 +22,7 @@ pub struct PyEmbedding {
 impl PyEmbedding {
     #[new]
     #[pyo3(signature = (num_embeddings, embedding_dim, padding_idx = None))]
+    /// Create an Embedding layer with `num_embeddings` tokens of dimension `embedding_dim`.
     pub fn new(
         py: Python<'_>,
         num_embeddings: usize,

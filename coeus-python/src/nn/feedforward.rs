@@ -5,8 +5,11 @@ use pyo3::prelude::*;
 /// Python-exposed FeedForward (2-layer MLP) transformer sub-block.
 #[pyclass(name = "FeedForward")]
 pub struct PyFeedForward {
+    /// Model embedding dimensionality (input/output width of the FFN).
     pub d_model: usize,
+    /// Feed-forward hidden dimensionality (inner expansion width).
     pub d_ff: usize,
+    /// Dropout probability applied between the two linear layers.
     pub dropout_p: f64,
 }
 
@@ -14,6 +17,7 @@ pub struct PyFeedForward {
 impl PyFeedForward {
     #[new]
     #[pyo3(signature = (d_model, d_ff, dropout_p = 0.0))]
+    /// Create a FeedForward block with `d_model` → `d_ff` → `d_model` projections.
     pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> PyResult<Self> {
         if !(0.0..1.0).contains(&dropout_p) {
             return Err(PyValueError::new_err(
@@ -27,6 +31,7 @@ impl PyFeedForward {
         })
     }
 
+    /// Forward pass through the FeedForward block.
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_nn::transformer::ffn::FeedForward;
         use coeus_nn::Module;
@@ -48,12 +53,16 @@ impl PyFeedForward {
 /// ```
 #[pyclass(name = "TransformerDecoderLayer")]
 pub struct PyTransformerDecoderLayer {
+    /// Model embedding dimensionality.
     #[pyo3(get)]
     pub d_model: usize,
+    /// Feed-forward hidden dimensionality.
     #[pyo3(get)]
     pub d_ff: usize,
+    /// Number of attention heads.
     #[pyo3(get)]
     pub num_heads: usize,
+    /// Dropout probability.
     #[pyo3(get)]
     pub dropout_p: f64,
 }
@@ -62,6 +71,7 @@ pub struct PyTransformerDecoderLayer {
 impl PyTransformerDecoderLayer {
     #[new]
     #[pyo3(signature = (d_model, d_ff, num_heads = 8, dropout_p = 0.0))]
+    /// Create a TransformerDecoderLayer with given model dimensions.
     pub fn new(d_model: usize, d_ff: usize, num_heads: usize, dropout_p: f64) -> PyResult<Self> {
         if !(0.0..1.0).contains(&dropout_p) {
             return Err(PyValueError::new_err(
@@ -112,11 +122,13 @@ impl PyTransformerDecoderLayer {
         Ok(PyTensor::from_var(inner?))
     }
 
+    /// Return the list of learnable parameters (stateless wrapper — always empty).
     pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
         // Weights are constructed fresh each forward pass (stateless wrapper).
         vec![]
     }
 
+    /// Zero gradients of all parameters.
     pub fn zero_grad(&self, _py: Python<'_>) {}
 }
 
@@ -130,12 +142,16 @@ impl PyTransformerDecoderLayer {
 /// ```
 #[pyclass(name = "TransformerEncoderLayer")]
 pub struct PyTransformerEncoderLayer {
+    /// Model embedding dimensionality.
     #[pyo3(get)]
     pub d_model: usize,
+    /// Feed-forward hidden dimensionality.
     #[pyo3(get)]
     pub d_ff: usize,
+    /// Number of attention heads.
     #[pyo3(get)]
     pub num_heads: usize,
+    /// Dropout probability.
     #[pyo3(get)]
     pub dropout_p: f64,
 }
@@ -144,6 +160,7 @@ pub struct PyTransformerEncoderLayer {
 impl PyTransformerEncoderLayer {
     #[new]
     #[pyo3(signature = (d_model, d_ff, num_heads = 8, dropout_p = 0.0))]
+    /// Create a TransformerEncoderLayer with given model dimensions.
     pub fn new(d_model: usize, d_ff: usize, num_heads: usize, dropout_p: f64) -> PyResult<Self> {
         if !(0.0..1.0).contains(&dropout_p) {
             return Err(PyValueError::new_err(
@@ -191,10 +208,12 @@ impl PyTransformerEncoderLayer {
         Ok(PyTensor::from_var(inner?))
     }
 
+    /// Return the list of learnable parameters (stateless wrapper — always empty).
     pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
         vec![]
     }
 
+    /// Zero gradients of all parameters.
     pub fn zero_grad(&self, _py: Python<'_>) {}
 }
 
@@ -208,14 +227,19 @@ impl PyTransformerEncoderLayer {
 /// ```
 #[pyclass(name = "TransformerEncoder")]
 pub struct PyTransformerEncoder {
+    /// Model embedding dimensionality.
     #[pyo3(get)]
     pub d_model: usize,
+    /// Feed-forward hidden dimensionality.
     #[pyo3(get)]
     pub d_ff: usize,
+    /// Number of attention heads.
     #[pyo3(get)]
     pub num_heads: usize,
+    /// Number of stacked encoder layers.
     #[pyo3(get)]
     pub num_layers: usize,
+    /// Dropout probability.
     #[pyo3(get)]
     pub dropout_p: f64,
 }
@@ -224,6 +248,7 @@ pub struct PyTransformerEncoder {
 impl PyTransformerEncoder {
     #[new]
     #[pyo3(signature = (d_model, d_ff, num_heads = 8, num_layers = 6, dropout_p = 0.0))]
+    /// Create a TransformerEncoder stack with given model dimensions and layer count.
     pub fn new(
         d_model: usize,
         d_ff: usize,
@@ -291,10 +316,12 @@ impl PyTransformerEncoder {
         Ok(PyTensor::from_var(inner?))
     }
 
+    /// Return the list of learnable parameters (stateless wrapper — always empty).
     pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
         vec![]
     }
 
+    /// Zero gradients of all parameters.
     pub fn zero_grad(&self, _py: Python<'_>) {}
 }
 
@@ -308,8 +335,10 @@ impl PyTransformerEncoder {
 /// ```
 #[pyclass(name = "SinusoidalEncoding")]
 pub struct PySinusoidalEncoding {
+    /// Maximum sequence length for which encodings are pre-computed.
     #[pyo3(get)]
     pub max_len: usize,
+    /// Model embedding dimensionality (must be positive and even).
     #[pyo3(get)]
     pub d_model: usize,
 }
@@ -317,6 +346,7 @@ pub struct PySinusoidalEncoding {
 #[pymethods]
 impl PySinusoidalEncoding {
     #[new]
+    /// Create a SinusoidalEncoding table of shape `[max_len, d_model]`.
     pub fn new(max_len: usize, d_model: usize) -> PyResult<Self> {
         if d_model == 0 || !d_model.is_multiple_of(2) {
             return Err(PyValueError::new_err(

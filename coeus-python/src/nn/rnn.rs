@@ -11,14 +11,20 @@ use pyo3::prelude::*;
 /// ```
 #[pyclass(name = "LSTMCell")]
 pub struct PyLSTMCell {
+    /// Dimensionality of the input vector.
     pub input_size: usize,
+    /// Dimensionality of the hidden state.
     pub hidden_size: usize,
+    /// Input-hidden weight matrix, shape `[4*hidden_size, input_size]`.
     #[pyo3(get)]
     pub w_ih: Py<PyTensor>,
+    /// Optional input-hidden bias, shape `[4*hidden_size]`.
     #[pyo3(get)]
     pub b_ih: Option<Py<PyTensor>>,
+    /// Hidden-hidden weight matrix, shape `[4*hidden_size, hidden_size]`.
     #[pyo3(get)]
     pub w_hh: Py<PyTensor>,
+    /// Optional hidden-hidden bias, shape `[4*hidden_size]`.
     #[pyo3(get)]
     pub b_hh: Option<Py<PyTensor>>,
 }
@@ -27,6 +33,7 @@ pub struct PyLSTMCell {
 impl PyLSTMCell {
     #[new]
     #[pyo3(signature = (input_size, hidden_size, bias = true))]
+    /// Create an LSTMCell with given input and hidden sizes.
     pub fn new(
         py: Python<'_>,
         input_size: usize,
@@ -110,6 +117,7 @@ impl PyLSTMCell {
         Ok((PyTensor::from_var(h_new), PyTensor::from_var(c_new)))
     }
 
+    /// Return the list of learnable parameters (w_ih, w_hh, b_ih, b_hh).
     pub fn parameters(&self, py: Python<'_>) -> Vec<Py<PyTensor>> {
         let mut p = vec![self.w_ih.clone_ref(py), self.w_hh.clone_ref(py)];
         if let Some(ref b) = self.b_ih {
@@ -121,6 +129,7 @@ impl PyLSTMCell {
         p
     }
 
+    /// Zero the gradients of all parameters.
     pub fn zero_grad(&self, py: Python<'_>) {
         self.w_ih.bind(py).borrow().zero_grad();
         self.w_hh.bind(py).borrow().zero_grad();
@@ -136,14 +145,20 @@ impl PyLSTMCell {
 /// Python-exposed GRU cell.
 #[pyclass(name = "GRUCell")]
 pub struct PyGRUCell {
+    /// Dimensionality of the input vector.
     pub input_size: usize,
+    /// Dimensionality of the hidden state.
     pub hidden_size: usize,
+    /// Input-hidden weight matrix, shape `[3*hidden_size, input_size]`.
     #[pyo3(get)]
     pub w_ih: Py<PyTensor>,
+    /// Optional input-hidden bias, shape `[3*hidden_size]`.
     #[pyo3(get)]
     pub b_ih: Option<Py<PyTensor>>,
+    /// Hidden-hidden weight matrix, shape `[3*hidden_size, hidden_size]`.
     #[pyo3(get)]
     pub w_hh: Py<PyTensor>,
+    /// Optional hidden-hidden bias, shape `[3*hidden_size]`.
     #[pyo3(get)]
     pub b_hh: Option<Py<PyTensor>>,
 }
@@ -152,6 +167,7 @@ pub struct PyGRUCell {
 impl PyGRUCell {
     #[new]
     #[pyo3(signature = (input_size, hidden_size, bias = true))]
+    /// Create a GRUCell with given input and hidden sizes.
     pub fn new(
         py: Python<'_>,
         input_size: usize,
@@ -198,6 +214,7 @@ impl PyGRUCell {
         })
     }
 
+    /// Single-step forward: `(x, h) → h_new`.
     pub fn step(&self, x: &PyTensor, h: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         let w_ih = self.w_ih.bind(py).borrow().inner.clone();
         let b_ih = self
@@ -227,6 +244,7 @@ impl PyGRUCell {
         Ok(PyTensor::from_var(h_new))
     }
 
+    /// Return the list of learnable parameters (w_ih, w_hh, b_ih, b_hh).
     pub fn parameters(&self, py: Python<'_>) -> Vec<Py<PyTensor>> {
         let mut p = vec![self.w_ih.clone_ref(py), self.w_hh.clone_ref(py)];
         if let Some(ref b) = self.b_ih {
@@ -238,6 +256,7 @@ impl PyGRUCell {
         p
     }
 
+    /// Zero the gradients of all parameters.
     pub fn zero_grad(&self, py: Python<'_>) {
         self.w_ih.bind(py).borrow().zero_grad();
         self.w_hh.bind(py).borrow().zero_grad();

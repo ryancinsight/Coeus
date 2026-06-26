@@ -4,10 +4,13 @@ use pyo3::prelude::*;
 /// Python-exposed Layer Normalization layer.
 #[pyclass(name = "LayerNorm")]
 pub struct PyLayerNorm {
+    /// Learnable scale (gamma), shape `[normalized_shape]`.
     #[pyo3(get)]
     pub weight: Py<PyTensor>,
+    /// Learnable shift (beta), shape `[normalized_shape]`.
     #[pyo3(get)]
     pub bias: Py<PyTensor>,
+    /// Numerical stability epsilon added to the denominator.
     #[pyo3(get)]
     pub eps: f64,
 }
@@ -16,6 +19,7 @@ pub struct PyLayerNorm {
 impl PyLayerNorm {
     #[new]
     #[pyo3(signature = (normalized_shape, eps = 1e-5))]
+    /// Create a LayerNorm layer normalizing over `normalized_shape` dimensions.
     pub fn new(py: Python<'_>, normalized_shape: usize, eps: f64) -> PyResult<Self> {
         let ln =
             coeus_nn::normalization::layernorm::LayerNorm::<f64, coeus_core::MoiraiBackend>::new(

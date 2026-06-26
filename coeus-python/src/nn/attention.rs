@@ -33,6 +33,7 @@ pub struct PyScaledDotProductAttention {
 impl PyScaledDotProductAttention {
     #[new]
     #[pyo3(signature = (scale = None, is_causal = false))]
+    /// Create a ScaledDotProductAttention with optional manual `scale` and causal masking flag.
     pub fn new(scale: Option<f64>, is_causal: bool) -> Self {
         Self { scale, is_causal }
     }
@@ -123,8 +124,10 @@ pub struct PyMultiHeadAttention {
     /// Output projection bias, shape `[d_model]`.
     #[pyo3(get)]
     pub b_o: Option<Py<PyTensor>>,
+    /// Model embedding dimensionality.
     #[pyo3(get)]
     pub d_model: usize,
+    /// Number of attention heads.
     #[pyo3(get)]
     pub num_heads: usize,
 }
@@ -133,6 +136,7 @@ pub struct PyMultiHeadAttention {
 impl PyMultiHeadAttention {
     #[new]
     #[pyo3(signature = (d_model, num_heads = 8, bias = true))]
+    /// Create a MultiHeadAttention layer with `d_model` embedding dim and `num_heads` heads.
     pub fn new(py: Python<'_>, d_model: usize, num_heads: usize, bias: bool) -> PyResult<Self> {
         // Construct via the monomorphized new() for the matching H, then extract weights.
         macro_rules! dispatch_mha_new {
@@ -378,11 +382,15 @@ impl PyMultiHeadAttention {
 /// Python-exposed Rotary Positional Embedding (RoPE) layer.
 #[pyclass(name = "RotaryEmbedding")]
 pub struct PyRotaryEmbedding {
+    /// Underlying Rust RotaryEmbedding instance.
     pub inner: coeus_nn::positional::RotaryEmbedding<f64, coeus_core::MoiraiBackend>,
+    /// Maximum sequence length for which sinusoidal tables are pre-computed.
     #[pyo3(get)]
     pub max_len: usize,
+    /// Per-head key/query dimension.
     #[pyo3(get)]
     pub d_head: usize,
+    /// Base for the frequency progression (default 10000).
     #[pyo3(get)]
     pub base: f64,
 }
@@ -391,6 +399,7 @@ pub struct PyRotaryEmbedding {
 impl PyRotaryEmbedding {
     #[new]
     #[pyo3(signature = (max_len, d_head, base = 10000.0))]
+    /// Create a RotaryEmbedding with `max_len` positions, `d_head` key/query dim, and frequency `base`.
     pub fn new(max_len: usize, d_head: usize, base: f64) -> Self {
         let inner = coeus_nn::positional::RotaryEmbedding::new(max_len, d_head, base);
         Self {

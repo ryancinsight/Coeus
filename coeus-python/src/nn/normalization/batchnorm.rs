@@ -4,18 +4,25 @@ use pyo3::prelude::*;
 /// Python-exposed 1D Batch Normalization layer.
 #[pyclass(name = "BatchNorm1d")]
 pub struct PyBatchNorm1d {
+    /// Learnable scale (gamma), shape `[num_features]`.
     #[pyo3(get)]
     pub weight: Py<PyTensor>,
+    /// Learnable shift (beta), shape `[num_features]`.
     #[pyo3(get)]
     pub bias: Py<PyTensor>,
+    /// Running mean tracked during training.
     #[pyo3(get)]
     pub running_mean: Py<PyTensor>,
+    /// Running variance tracked during training.
     #[pyo3(get)]
     pub running_var: Py<PyTensor>,
+    /// Number of features (channels) being normalized.
     #[pyo3(get)]
     pub num_features: usize,
+    /// Numerical stability epsilon added to the denominator.
     #[pyo3(get)]
     pub eps: f64,
+    /// Exponential moving-average factor for running statistics.
     #[pyo3(get)]
     pub momentum: f64,
 }
@@ -24,6 +31,7 @@ pub struct PyBatchNorm1d {
 impl PyBatchNorm1d {
     #[new]
     #[pyo3(signature = (num_features, eps = 1e-5, momentum = 0.1))]
+    /// Create a BatchNorm1d layer for `num_features` input channels.
     pub fn new(py: Python<'_>, num_features: usize, eps: f64, momentum: f64) -> PyResult<Self> {
         let rust_bn = coeus_nn::normalization::BatchNorm1d::<f64, coeus_core::MoiraiBackend>::new(
             num_features,
@@ -168,18 +176,25 @@ impl PyBatchNorm1d {
 /// Python-exposed 2D Batch Normalization layer.
 #[pyclass(name = "BatchNorm2d")]
 pub struct PyBatchNorm2d {
+    /// Learnable scale (gamma), shape `[num_features]`.
     #[pyo3(get)]
     pub weight: Py<PyTensor>,
+    /// Learnable shift (beta), shape `[num_features]`.
     #[pyo3(get)]
     pub bias: Py<PyTensor>,
+    /// Running mean tracked during training.
     #[pyo3(get)]
     pub running_mean: Py<PyTensor>,
+    /// Running variance tracked during training.
     #[pyo3(get)]
     pub running_var: Py<PyTensor>,
+    /// Number of features (channels) being normalized.
     #[pyo3(get)]
     pub num_features: usize,
+    /// Numerical stability epsilon added to the denominator.
     #[pyo3(get)]
     pub eps: f64,
+    /// Exponential moving-average factor for running statistics.
     #[pyo3(get)]
     pub momentum: f64,
 }
@@ -188,6 +203,7 @@ pub struct PyBatchNorm2d {
 impl PyBatchNorm2d {
     #[new]
     #[pyo3(signature = (num_features, eps = 1e-5, momentum = 0.1))]
+    /// Create a BatchNorm2d layer for `num_features` input channels.
     pub fn new(py: Python<'_>, num_features: usize, eps: f64, momentum: f64) -> PyResult<Self> {
         let rust_bn = coeus_nn::normalization::BatchNorm2d::<f64, coeus_core::MoiraiBackend>::new(
             num_features,
@@ -334,18 +350,25 @@ impl PyBatchNorm2d {
 /// Python-exposed 3D Batch Normalization layer.
 #[pyclass(name = "BatchNorm3d")]
 pub struct PyBatchNorm3d {
+    /// Learnable scale (gamma), shape `[num_features]`.
     #[pyo3(get)]
     pub weight: Py<PyTensor>,
+    /// Learnable shift (beta), shape `[num_features]`.
     #[pyo3(get)]
     pub bias: Py<PyTensor>,
+    /// Running mean tracked during training.
     #[pyo3(get)]
     pub running_mean: Py<PyTensor>,
+    /// Running variance tracked during training.
     #[pyo3(get)]
     pub running_var: Py<PyTensor>,
+    /// Number of features (channels) being normalized.
     #[pyo3(get)]
     pub num_features: usize,
+    /// Numerical stability epsilon added to the denominator.
     #[pyo3(get)]
     pub eps: f64,
+    /// Exponential moving-average factor for running statistics.
     #[pyo3(get)]
     pub momentum: f64,
 }
@@ -354,6 +377,7 @@ pub struct PyBatchNorm3d {
 impl PyBatchNorm3d {
     #[new]
     #[pyo3(signature = (num_features, eps = 1e-5, momentum = 0.1))]
+    /// Create a BatchNorm3d layer for `num_features` input channels.
     pub fn new(py: Python<'_>, num_features: usize, eps: f64, momentum: f64) -> PyResult<Self> {
         let rust_bn = coeus_nn::normalization::BatchNorm3d::<f64, coeus_core::MoiraiBackend>::new(
             num_features,

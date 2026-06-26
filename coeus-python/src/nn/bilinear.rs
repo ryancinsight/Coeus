@@ -20,12 +20,17 @@ use pyo3::prelude::*;
 /// ```
 #[pyclass(name = "Bilinear")]
 pub struct PyBilinear {
+    /// Bilinear weight tensor, shape `[out_features, in1_features, in2_features]`.
     #[pyo3(get)]
     pub weight: Py<PyTensor>,
+    /// Optional bias, shape `[out_features]`.
     #[pyo3(get)]
     pub bias: Option<Py<PyTensor>>,
+    /// Number of features in the first input vector.
     pub in1_features: usize,
+    /// Number of features in the second input vector.
     pub in2_features: usize,
+    /// Number of output features.
     pub out_features: usize,
 }
 
@@ -33,6 +38,7 @@ pub struct PyBilinear {
 impl PyBilinear {
     #[new]
     #[pyo3(signature = (in1_features, in2_features, out_features, bias = true))]
+    /// Create a Bilinear layer with given feature dimensions and optional bias.
     pub fn new(
         py: Python<'_>,
         in1_features: usize,
@@ -86,6 +92,7 @@ impl PyBilinear {
         Ok(PyTensor::from_var(inner))
     }
 
+    /// Return a StateDict containing the layer weights.
     pub fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
         let mut sd = coeus_tensor::checkpoint::StateDict::new();
         sd.insert("weight", self.weight.bind(py).borrow().inner.tensor.clone());
@@ -95,6 +102,7 @@ impl PyBilinear {
         Ok(PyStateDict { inner: sd })
     }
 
+    /// Load weights from a StateDict into this layer.
     pub fn load_state_dict(&self, state_dict: &PyStateDict, py: Python<'_>) -> PyResult<()> {
         if let Some(w) = state_dict.inner.get("weight") {
             self.weight.bind(py).borrow_mut().inner.tensor = w.clone();
@@ -107,6 +115,7 @@ impl PyBilinear {
         Ok(())
     }
 
+    /// Return the list of learnable parameters.
     pub fn parameters(&self, py: Python<'_>) -> Vec<Py<PyTensor>> {
         let mut p = vec![self.weight.clone_ref(py)];
         if let Some(ref b) = self.bias {
@@ -115,6 +124,7 @@ impl PyBilinear {
         p
     }
 
+    /// Zero the gradients of all parameters.
     pub fn zero_grad(&self, py: Python<'_>) {
         self.weight.bind(py).borrow().zero_grad();
         if let Some(ref b) = self.bias {

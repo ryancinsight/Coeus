@@ -12,8 +12,10 @@ pub struct PyInstanceNorm1d {
     /// Trainable shift (beta), shape `[num_features]`.
     #[pyo3(get)]
     pub bias: Py<PyTensor>,
+    /// Number of channels being normalized per sample.
     #[pyo3(get)]
     pub num_features: usize,
+    /// Numerical stability epsilon added to the denominator.
     #[pyo3(get)]
     pub eps: f64,
 }
@@ -22,6 +24,7 @@ pub struct PyInstanceNorm1d {
 impl PyInstanceNorm1d {
     #[new]
     #[pyo3(signature = (num_features, eps = 1e-5))]
+    /// Create an InstanceNorm1d layer for `num_features` input channels.
     pub fn new(py: Python<'_>, num_features: usize, eps: f64) -> PyResult<Self> {
         let inst = coeus_nn::normalization::instancenorm::InstanceNorm1d::<
             f64,
@@ -98,8 +101,10 @@ pub struct PyInstanceNorm3d {
     /// Trainable shift (beta), shape `[num_features]`.
     #[pyo3(get)]
     pub bias: Py<PyTensor>,
+    /// Number of channels being normalized per sample.
     #[pyo3(get)]
     pub num_features: usize,
+    /// Numerical stability epsilon added to the denominator.
     #[pyo3(get)]
     pub eps: f64,
 }
@@ -108,6 +113,7 @@ pub struct PyInstanceNorm3d {
 impl PyInstanceNorm3d {
     #[new]
     #[pyo3(signature = (num_features, eps = 1e-5))]
+    /// Create an InstanceNorm3d layer for `num_features` input channels.
     pub fn new(py: Python<'_>, num_features: usize, eps: f64) -> PyResult<Self> {
         let inst = coeus_nn::normalization::instancenorm::InstanceNorm3d::<
             f64,
@@ -184,8 +190,10 @@ pub struct PyInstanceNorm2d {
     /// Trainable shift (beta), shape `[num_features]`.
     #[pyo3(get)]
     pub bias: Py<PyTensor>,
+    /// Number of channels being normalized per sample.
     #[pyo3(get)]
     pub num_features: usize,
+    /// Numerical stability epsilon added to the denominator.
     #[pyo3(get)]
     pub eps: f64,
 }
@@ -194,6 +202,7 @@ pub struct PyInstanceNorm2d {
 impl PyInstanceNorm2d {
     #[new]
     #[pyo3(signature = (num_features, eps = 1e-5))]
+    /// Create an InstanceNorm2d layer for `num_features` input channels.
     pub fn new(py: Python<'_>, num_features: usize, eps: f64) -> PyResult<Self> {
         let inst = coeus_nn::normalization::instancenorm::InstanceNorm2d::<
             f64,

@@ -9,6 +9,7 @@ use pyo3::prelude::*;
 /// Callers index modules and call `.forward()` explicitly.
 #[pyclass(name = "ModuleList")]
 pub struct PyModuleList {
+    /// Ordered list of contained child modules.
     pub modules: Vec<PyObject>,
 }
 
@@ -16,16 +17,19 @@ pub struct PyModuleList {
 impl PyModuleList {
     #[new]
     #[pyo3(signature = (modules = None))]
+    /// Create a ModuleList, optionally pre-populated with `modules`.
     pub fn new(modules: Option<Vec<PyObject>>) -> Self {
         Self {
             modules: modules.unwrap_or_default(),
         }
     }
 
+    /// Append a single module to the end of the list.
     pub fn append(&mut self, module: PyObject) {
         self.modules.push(module);
     }
 
+    /// Extend the list with an iterable of modules.
     pub fn extend(&mut self, modules: Vec<PyObject>) {
         self.modules.extend(modules);
     }
@@ -70,6 +74,7 @@ impl PyModuleList {
         params
     }
 
+    /// Zero gradients in all child modules.
     pub fn zero_grad(&self, py: Python<'_>) {
         for module in &self.modules {
             let _ = module.bind(py).call_method0("zero_grad");
