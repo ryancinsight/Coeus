@@ -116,6 +116,48 @@ fn moirai_initializers_match_leto_dispatch() {
     check_backend::<f64, _>(&backend);
 }
 
+// xavier_uniform bound: limit = sqrt(6 / (fan_in + fan_out))
+// xavier_normal std_dev: sigma = sqrt(2 / (fan_in + fan_out))
+fn check_xavier<T, B>(backend: &B)
+where
+    T: coeus_core::Float + coeus_leto::RandomScalar,
+    B: coeus_ops::BackendOps<T> + ComputeBackend + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
+    let shape = [3usize, 4];
+    let fan_in = 3usize;
+    let fan_out = 4usize;
+    let seed = 53u64;
+
+    let mut weight = Var::new(Tensor::<T, B>::zeros_on(shape, backend), true);
+    coeus_nn::init::xavier_uniform_with_seed(&mut weight, fan_in, fan_out, seed);
+
+    let limit = (6.0f64 / (fan_in + fan_out) as f64).sqrt();
+    let expected_uniform = coeus_leto::uniform_values(
+        &shape,
+        <T as Scalar>::from_f64(-limit),
+        <T as Scalar>::from_f64(limit),
+        seed,
+    )
+    .unwrap();
+    assert_values(
+        weight.tensor.as_slice(),
+        &expected_uniform,
+        "xavier_uniform",
+    );
+
+    coeus_nn::init::xavier_normal_with_seed(&mut weight, fan_in, fan_out, seed);
+    let std_dev = (2.0f64 / (fan_in + fan_out) as f64).sqrt();
+    let expected_normal = coeus_leto::normal_values(
+        &shape,
+        <T as Scalar>::from_f64(0.0),
+        <T as Scalar>::from_f64(std_dev),
+        seed,
+    )
+    .unwrap();
+    assert_values(weight.tensor.as_slice(), &expected_normal, "xavier_normal");
+}
+
 #[test]
 fn sequential_kaiming_matches_leto_dispatch() {
     let backend = SequentialBackend;
@@ -128,4 +170,18 @@ fn moirai_kaiming_matches_leto_dispatch() {
     let backend = MoiraiBackend;
     check_kaiming::<f32, _>(&backend);
     check_kaiming::<f64, _>(&backend);
+}
+
+#[test]
+fn sequential_xavier_matches_leto_dispatch() {
+    let backend = SequentialBackend;
+    check_xavier::<f32, _>(&backend);
+    check_xavier::<f64, _>(&backend);
+}
+
+#[test]
+fn moirai_xavier_matches_leto_dispatch() {
+    let backend = MoiraiBackend;
+    check_xavier::<f32, _>(&backend);
+    check_xavier::<f64, _>(&backend);
 }
