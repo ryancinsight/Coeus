@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.31 - 2026-06-26
+
+### Added
+
+- **Constructor and selection differential coverage** — `coeus-ops` now verifies
+  `linspace`, `logspace`, `geomspace`, `meshgrid`, `nonzero`, and `where_cond`
+  on SequentialBackend and MoiraiBackend against bitwise-exact references.
+- **Index/scatter/BMM differential coverage** — `coeus-ops` now verifies
+  `gather`, `index_select`, `index_put`, `scatter_add`, `masked_select`, and
+  `bmm` with value-semantic backend parity assertions.
+- **Initializer and interpolation parity coverage** — `coeus-nn` now verifies
+  seeded uniform/normal, Xavier, and Kaiming initializer dispatch against
+  `coeus-leto`, plus analytical nearest/bilinear interpolation references.
+
+### Verified
+
+- `cargo nextest run -p coeus-ops` passes 171/171 tests.
+- `cargo nextest run -p coeus-nn` passes 224/224 tests.
+- `cargo fmt --check`, touched-package clippy, and touched-package rustdoc pass.
+
 ## 0.2.30 - 2026-06-26
 
 ### Added

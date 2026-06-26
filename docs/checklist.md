@@ -2,7 +2,36 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-93 - sparse COO autograd parity + PyTensor vertical split [COMPLETE]
+### Current Sprint: MS-94 - constructors, index ops, initializers, and interpolate parity [COMPLETE]
+**Objective**: Extend value-semantic differential coverage across untested
+constructor/index utilities and neural-network initializer/interpolation paths,
+while keeping oracle logic analytical or routed through the Atlas-owned Leto
+dispatch layer.
+**Target version**: 0.2.31 (patch-class).
+**Tests delivered**: 2 constructor/selection tests, 2 index/scatter/BMM tests,
+initializer dispatch parity on SequentialBackend and MoiraiBackend, and 8
+interpolation analytical-reference tests. Package gates cover 171 ops tests and
+224 nn tests.
+
+- [x] [patch] `coeus-ops/tests/constructors_diff.rs`: SequentialBackend and
+  MoiraiBackend differential coverage for `linspace`, `logspace`, `geomspace`,
+  `meshgrid`, `nonzero`, and `where_cond` using bitwise-exact integer-valued
+  or power-valued references.
+- [x] [patch] `coeus-ops/tests/index_ops_diff.rs`: SequentialBackend and
+  MoiraiBackend differential coverage for `gather`, `index_select`,
+  `index_put`, `scatter_add`, `masked_select`, and `bmm`.
+- [x] [patch] `coeus-nn/tests/init_leto_diff.rs`: initializer parity verifies
+  seeded uniform/normal, Xavier, and Kaiming paths against direct
+  `coeus-leto` dispatch for the same shape, scalar type, and seed.
+- [x] [patch] `coeus-nn/tests/nn_interpolate_tests.rs`: analytical-reference
+  coverage for `interpolate_1d` and `interpolate_2d` nearest/bilinear paths
+  under the align-half-pixel contract.
+- [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-ops` (171/171);
+  `cargo nextest run -p coeus-nn` (224/224);
+  `cargo clippy -p coeus-ops -p coeus-nn --all-targets -- -D warnings`;
+  `cargo doc -p coeus-ops -p coeus-nn --no-deps`.
+
+### Previous Sprint: MS-93 - sparse COO autograd parity + PyTensor vertical split [COMPLETE]
 **Objective**: Add tracked COO sparse matrix multiplication without duplicating
 the existing CSR gradient kernels; keep the Python tensor binding surface as a
 thin PyO3 wrapper after splitting the previous monolithic file by concern.

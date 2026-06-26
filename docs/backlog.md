@@ -1,5 +1,23 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-94: constructors, index ops, initializers, and interpolate parity [COMPLETE]
+
+- [x] [patch] Added `coeus-ops/tests/constructors_diff.rs` covering `linspace`,
+  `logspace`, `geomspace`, `meshgrid`, `nonzero`, and `where_cond` on
+  SequentialBackend and MoiraiBackend with bitwise-exact references.
+- [x] [patch] Added `coeus-ops/tests/index_ops_diff.rs` covering `gather`,
+  `index_select`, `index_put`, `scatter_add`, `masked_select`, and `bmm` with
+  value-semantic backend parity assertions.
+- [x] [patch] Extended `coeus-nn/tests/init_leto_diff.rs` with seeded Xavier
+  and Kaiming checks against direct `coeus-leto` dispatch.
+- [x] [patch] Added `coeus-nn/tests/nn_interpolate_tests.rs` analytical
+  nearest/bilinear coverage for 1-D and 2-D interpolation under the
+  align-half-pixel contract.
+- [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-ops`
+  (171/171); `cargo nextest run -p coeus-nn` (224/224);
+  `cargo clippy -p coeus-ops -p coeus-nn --all-targets -- -D warnings`;
+  `cargo doc -p coeus-ops -p coeus-nn --no-deps`.
+
 ## Sprint MS-93: sparse COO autograd parity + PyTensor vertical split [COMPLETE]
 
 - [x] [minor] Added `coeus_autograd::sparse_matmul_coo`, backed by a single
