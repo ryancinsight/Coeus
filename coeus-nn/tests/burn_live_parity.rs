@@ -3450,3 +3450,105 @@ fn transpose_backward_matches_burn() {
     // Gradient of sum(transpose(x)) = ones(2,3) — same shape and values as input.
     assert_close("transpose_backward", coeus_grad.as_slice(), &burn_grad);
 }
+
+// ── Conv1d backward: dx and dw match Burn autodiff ───────────────────────────
+//
+// Uses burn::tensor::module::conv1d with tracked weight tensor so both dx and
+// dw can be extracted from the same GradientsParams without needing std-gated
+// burn::optim.  Non-trivial weights ensure the gradients are non-constant.
+//
+// Backward equations:
+//   dx  = full-correlation(upstream, flipped-weight)
+//   dw  = valid-correlation(input, upstream)
+
+#[test]
+fn conv1d_backward_matches_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use burn::tensor::module::conv1d as burn_conv1d;
+    use burn::tensor::ops::ConvOptions;
+    use coeus_nn::Conv1d;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    let (n, ic, oc, l, k) = (1usize, 2, 1, 6, 3);
+    // Non-trivial inputs and weights — constant values would mask wrong gradients.
+    let data: Vec<f32> = (0..n * ic * l).map(|x| x as f32 * 0.1 - 0.5).collect();
+    let w_vec: Vec<f32> = (0..oc * ic * k).map(|x| (x as f32 + 1.0) * 0.2 - 0.3).collect();
+
+    // Coeus: forward + backward.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, ic, l], &data),
+        true,
+    );
+    let mut conv_c = Conv1d::<f32, SequentialBackend>::new(ic, oc, k, false);
+    conv_c.weight = Var::new(CoeusTensor::from_slice(vec![oc, ic, k], &w_vec), true);
+    coeus_autograd::sum(&conv_c.forward(&xv)).backward();
+    let dx_c = xv.grad().unwrap();
+    let dw_c = conv_c.weight.grad().unwrap();
+
+    // Burn: raw tensor conv1d via autodiff so weight is a tracked tensor.
+    let xb: BurnTensor<AB, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, ic, l]), &device).require_grad();
+    let wb: BurnTensor<AB, 3> =
+        BurnTensor::from_data(TensorData::new(w_vec.clone(), [oc, ic, k]), &device).require_grad();
+    // stride=1, padding=0 (valid), dilation=1, groups=1.
+    let opts = ConvOptions::new([1], [0], [1], 1);
+    let grads = burn_conv1d(xb.clone(), wb.clone(), None, opts)
+        .sum()
+        .backward();
+
+    let dx_b: Vec<f32> = xb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+    let dw_b: Vec<f32> = wb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+
+    assert_close("conv1d_bwd_dx", dx_c.as_slice(), &dx_b);
+    assert_close("conv1d_bwd_dw", dw_c.as_slice(), &dw_b);
+}
+
+// ── Conv2d backward: dx and dw match Burn autodiff ───────────────────────────
+
+#[test]
+fn conv2d_backward_matches_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use burn::tensor::module::conv2d as burn_conv2d;
+    use burn::tensor::ops::ConvOptions;
+    use coeus_nn::Conv2d;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    let (n, ic, oc, h, w, k) = (1usize, 2, 1, 5, 5, 3);
+    let data: Vec<f32> = (0..n * ic * h * w).map(|x| x as f32 * 0.05 - 1.0).collect();
+    let w_vec: Vec<f32> = (0..oc * ic * k * k)
+        .map(|x| (x as f32 + 1.0) * 0.1 - 0.45)
+        .collect();
+
+    // Coeus backward.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, ic, h, w], &data),
+        true,
+    );
+    let mut conv_c = Conv2d::<f32, SequentialBackend>::new(ic, oc, k, false);
+    conv_c.weight = Var::new(CoeusTensor::from_slice(vec![oc, ic, k, k], &w_vec), true);
+    coeus_autograd::sum(&conv_c.forward(&xv)).backward();
+    let dx_c = xv.grad().unwrap();
+    let dw_c = conv_c.weight.grad().unwrap();
+
+    // Burn: raw tensor conv2d via autodiff so weight is a tracked tensor.
+    let xb: BurnTensor<AB, 4> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, ic, h, w]), &device)
+            .require_grad();
+    let wb: BurnTensor<AB, 4> =
+        BurnTensor::from_data(TensorData::new(w_vec.clone(), [oc, ic, k, k]), &device)
+            .require_grad();
+    let opts = ConvOptions::new([1, 1], [0, 0], [1, 1], 1);
+    let grads = burn_conv2d(xb.clone(), wb.clone(), None, opts)
+        .sum()
+        .backward();
+
+    let dx_b: Vec<f32> = xb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+    let dw_b: Vec<f32> = wb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+
+    assert_close("conv2d_bwd_dx", dx_c.as_slice(), &dx_b);
+    assert_close("conv2d_bwd_dw", dw_c.as_slice(), &dw_b);
+}
