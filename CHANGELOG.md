@@ -40,6 +40,18 @@
 - **Coeus ops Rustdoc examples** — public arithmetic, CPU backend dispatch,
   reductions, matmul helpers, shape concatenation/stacking, and unary math APIs
   now carry executable examples.
+- **Distributed and sparse Rustdoc examples** — `coeus-dist` communicator/local
+  cluster examples and `coeus-sparse` COO/CSR construction/accessor examples now
+  compile as doctests.
+- **Leto bridge Rustdoc examples** — `coeus-leto` layout conversion, view
+  conversion, elementwise dispatch, initialization, layout transform, and linear
+  algebra bridge APIs now carry executable examples.
+- **BatchNorm3d training-mode backward parity** — differential Burn autodiff
+  test verifying `dx`, `dw`, and `db` for training-mode BatchNorm3d using the
+  Coeus population-variance formula (ε ≤ 1e-4).
+- **Python transformer encoder bindings** — `coeus-python` now registers
+  `TransformerEncoderLayer`, `TransformerEncoder`, and `SinusoidalEncoding`
+  wrappers over Rust-core `coeus_nn` implementations.
 - **Autograd public documentation surface** — documented public operation
   modules, backward-node state, and tracked sparse/shape entry points so
   `coeus-autograd` satisfies its `#![deny(missing_docs)]` contract.
@@ -79,6 +91,8 @@
   on contended kernel submissions and preventing unbounded pool growth.
 - **GELU doctest reference** — corrected the `coeus-ops` exact-GELU doctest to
   assert the exact `erf`-based reference value, not the tanh approximation.
+- **Python transformer dispatch errors** — unsupported transformer const-generic
+  binding selections now return `ValueError` instead of unwinding through PyO3.
 
 ### Verified
 
@@ -106,6 +120,12 @@
 - `rustup run nightly cargo nextest run -p coeus-python --test
   binding_tests_ops test_nn_functional_ops` validates Python functional norm
   wrappers.
+- `rustup run nightly cargo nextest run -p coeus-python --test
+  binding_tests_ops test_transformer_encoder_bindings test_transformer_decoder_layer
+  test_nn_functional_ops` passes 3/3 focused Python binding tests.
+- `rustup run nightly cargo nextest run -p coeus-nn --test burn_live_parity
+  batchnorm3d_training_backward_matches_burn` passes the BatchNorm3d
+  training-backward Burn parity case.
 - `rustup run nightly cargo test --doc -p coeus-optim` passes 10/10 doctests.
 - `rustup run nightly cargo nextest run -p coeus-optim` passes 14/14 tests.
 - `rustup run nightly cargo doc -p coeus-wgpu -p coeus-nn -p coeus-python -p
@@ -114,6 +134,10 @@
   tests, including strided Hephaestus parity and storage tier tests.
 - `rustup run nightly cargo test --doc -p coeus-ops` validates arithmetic and
   activation public examples.
+- `rustup run nightly cargo test --doc -p coeus-dist -p coeus-sparse` passes
+  16/16 distributed and sparse doctests.
+- `rustup run nightly cargo test --doc -p coeus-leto` passes 28/28 bridge
+  doctests.
 - `rustup run nightly cargo fmt -p coeus-autograd --check` validates autograd
   formatting.
 - `rustup run nightly cargo test --doc -p coeus-autograd` passes 15/15 doctests.

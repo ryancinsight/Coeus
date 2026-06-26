@@ -38,6 +38,33 @@ fn reduce_n<T: LetoScalar, const N: usize>(
 
 /// Keep-dim axis reductions of a coeus CPU tensor into caller-owned output,
 /// dispatched to the matching monomorphized leto reduction kernel.
+///
+/// # Examples
+///
+/// Reduce a `[2,3]` matrix along axis 1 into a `[2,1]` keep-dim output, for the
+/// `sum`, `mean`, `max`, and `min` operators:
+///
+/// ```
+/// use coeus_core::{Layout, ReductionOp};
+/// use coeus_leto::reduce_into;
+///
+/// let input = [1.0_f64, 4.0, -2.0, 5.0, 3.0, 6.0];
+/// let input_layout = Layout::new([2, 3].into());
+/// let output_layout = Layout::new([2, 1].into());
+/// let mut out = [0.0_f64; 2];
+///
+/// reduce_into(ReductionOp::Sum, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// assert_eq!(out, [3.0, 14.0]);
+///
+/// reduce_into(ReductionOp::Mean, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// assert_eq!(out, [1.0, 14.0 / 3.0]);
+///
+/// reduce_into(ReductionOp::Max, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// assert_eq!(out, [4.0, 6.0]);
+///
+/// reduce_into(ReductionOp::Min, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// assert_eq!(out, [-2.0, 3.0]);
+/// ```
 pub fn reduce_into<T: LetoScalar>(
     op: ReductionOp,
     a_layout: &CoeusLayout,
@@ -74,6 +101,21 @@ fn scan_sum_n<T: LetoScalar, const N: usize>(
 
 /// Forward inclusive cumulative sum of a coeus CPU tensor into caller-owned
 /// output, dispatched to the matching monomorphized leto scan kernel.
+///
+/// # Examples
+///
+/// Forward cumulative sum along axis 1 of a `[2,3]` matrix:
+///
+/// ```
+/// use coeus_core::Layout;
+/// use coeus_leto::cumsum_into;
+///
+/// let input = [1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0];
+/// let layout = Layout::new([2, 3].into());
+/// let mut out = [0.0_f64; 6];
+/// cumsum_into(&layout, &input, 1, &layout, &mut out).unwrap();
+/// assert_eq!(out, [1.0, 3.0, 6.0, 4.0, 9.0, 15.0]);
+/// ```
 pub fn cumsum_into<T: LetoScalar>(
     a_layout: &CoeusLayout,
     a: &[T],
@@ -96,6 +138,21 @@ pub fn cumsum_into<T: LetoScalar>(
 
 /// Reverse inclusive cumulative sum of a coeus CPU tensor into caller-owned
 /// output, dispatched to the matching monomorphized leto scan kernel.
+///
+/// # Examples
+///
+/// Reverse cumulative sum (suffix sum) along axis 1 of a `[2,3]` matrix:
+///
+/// ```
+/// use coeus_core::Layout;
+/// use coeus_leto::suffix_sum_into;
+///
+/// let input = [1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0];
+/// let layout = Layout::new([2, 3].into());
+/// let mut out = [0.0_f64; 6];
+/// suffix_sum_into(&layout, &input, 1, &layout, &mut out).unwrap();
+/// assert_eq!(out, [6.0, 5.0, 3.0, 15.0, 11.0, 6.0]);
+/// ```
 pub fn suffix_sum_into<T: LetoScalar>(
     a_layout: &CoeusLayout,
     a: &[T],
@@ -200,6 +257,22 @@ fn write_keepdim_indices<const N: usize, const M: usize>(
 
 /// Keep-dim argmax of a coeus CPU tensor into caller-owned output, dispatched
 /// to the matching monomorphized leto arg-reduction kernel.
+///
+/// # Examples
+///
+/// Argmax along axis 1 of a `[2,3]` matrix into a `[2,1]` keep-dim output:
+///
+/// ```
+/// use coeus_core::Layout;
+/// use coeus_leto::argmax_into;
+///
+/// let input = [1.0_f64, 4.0, -2.0, 5.0, 3.0, 6.0];
+/// let input_layout = Layout::new([2, 3].into());
+/// let output_layout = Layout::new([2, 1].into());
+/// let mut out = [0_i64; 2];
+/// argmax_into(&input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// assert_eq!(out, [1, 2]);
+/// ```
 pub fn argmax_into<T: LetoScalar>(
     a_layout: &CoeusLayout,
     a: &[T],
@@ -222,6 +295,22 @@ pub fn argmax_into<T: LetoScalar>(
 
 /// Keep-dim argmin of a coeus CPU tensor into caller-owned output, dispatched
 /// to the matching monomorphized leto arg-reduction kernel.
+///
+/// # Examples
+///
+/// Argmin along axis 1 of a `[2,3]` matrix into a `[2,1]` keep-dim output:
+///
+/// ```
+/// use coeus_core::Layout;
+/// use coeus_leto::argmin_into;
+///
+/// let input = [1.0_f64, 4.0, -2.0, 5.0, 3.0, 6.0];
+/// let input_layout = Layout::new([2, 3].into());
+/// let output_layout = Layout::new([2, 1].into());
+/// let mut out = [0_i64; 2];
+/// argmin_into(&input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// assert_eq!(out, [2, 1]);
+/// ```
 pub fn argmin_into<T: LetoScalar>(
     a_layout: &CoeusLayout,
     a: &[T],

@@ -2,7 +2,32 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-121 - Public docs and parity surface [COMPLETE]
+### Current Sprint: MS-123 - MHA backward + Conv const-generic consolidation
+**Objective**: Close the MultiHeadAttention backward parity gap and consolidate Conv1d/2d/3d into a single `Conv<const N: usize>` generic.
+**Target version**: 0.5.2 (minor-class; new parity tests + SRP consolidation).
+
+- [ ] [patch] Add MHA forward+backward Burn parity test (single-head, explicit weights)
+- [ ] [minor] Consolidate Conv1d/2d/3d in coeus-nn into `Conv<const N: usize>` (95% identical code)
+- [ ] [patch] Split `coeus-ops/src/backend_ops/cpu_impl.rs` (910 lines) into family submodules
+- [ ] [patch] Split `coeus-autograd/src/ops/nn/conv.rs` (793 lines) into conv1d/conv2d/conv3d leaf modules
+
+### Previous Sprint: MS-122 - Burn parity + SRP + Python transformer bindings [COMPLETE]
+**Objective**: Add BatchNorm3d training backward, ConvTranspose1d/2d Burn parity, Python
+TransformerEncoderLayer/TransformerEncoder/SinusoidalEncoding bindings, split
+wgpu ops/mod.rs (1182→7 SRP files), fix coeus-ops missing_docs.
+**Target version**: 0.5.1.
+
+- [x] [patch] BatchNorm3d training-mode backward: dγ, dβ, dx vs Burn autodiff
+- [x] [patch] ConvTranspose1d backward vs Burn autodiff (dx, dw)
+- [x] [patch] ConvTranspose2d backward vs Burn autodiff (dx, dw)
+- [x] [minor] PyTransformerEncoderLayer: dispatches const H ∈ {1,2,4,8,16,32}
+- [x] [minor] PyTransformerEncoder: dispatches 36 (H,N) specializations
+- [x] [minor] PySinusoidalEncoding: stateless PE wrapper
+- [x] [patch] Split coeus-wgpu/src/backend/ops/mod.rs → conv.rs, pool.rs, optim.rs, matmul.rs, reduction.rs
+- [x] [patch] Fix coeus-ops fuse module missing_docs (87 items)
+- [x] Evidence: `cargo nextest run --workspace --exclude coeus-cuda`: 797/797 passed.
+
+### Previous Sprint: MS-121 - Public docs and parity surface [COMPLETE]
 **Objective**: Add executable public examples across touched operation,
 distributed, and sparse APIs; expand thin Python transformer wrappers; and add
 the next Burn-backed normalization parity case.
@@ -18,6 +43,9 @@ documentation/test cleanup).
   approximation value.
 - [x] [patch] Added executable Rustdoc examples for `coeus-dist` local
   communicators and `coeus-sparse` COO/CSR construction/accessor contracts.
+- [x] [patch] Added executable Rustdoc examples for `coeus-leto` layout/view
+  conversion, elementwise dispatch, initialization, layout transforms, and
+  linear algebra bridge contracts.
 - [x] [minor] Registered Python `TransformerEncoderLayer`,
   `TransformerEncoder`, and `SinusoidalEncoding` wrappers over existing
   `coeus_nn` Rust-core implementations, with unsupported const-generic choices
@@ -36,8 +64,9 @@ documentation/test cleanup).
   `rustup run nightly cargo nextest run -p coeus-python --test
   binding_tests_ops test_transformer_encoder_bindings test_transformer_decoder_layer
   test_nn_functional_ops`; `rustup run nightly cargo nextest run -p coeus-wgpu`
-  (83/83); `rustup run nightly cargo doc -p coeus-ops -p coeus-nn -p
-  coeus-python -p coeus-wgpu -p coeus-optim --no-deps`.
+  (83/83); `rustup run nightly cargo test --doc -p coeus-leto` (28/28);
+  `rustup run nightly cargo doc -p coeus-dist -p coeus-sparse -p coeus-ops -p
+  coeus-nn -p coeus-python -p coeus-wgpu -p coeus-optim --no-deps`.
 
 ### Previous Sprint: MS-120 - WGPU bounded metadata pool [COMPLETE]
 **Objective**: Reduce WGPU metadata-buffer pool contention and prevent

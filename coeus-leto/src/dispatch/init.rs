@@ -13,6 +13,23 @@ where
 
 /// Generate C-contiguous row-major values for a coeus dynamic-rank shape,
 /// dispatched to Leto's const-rank coordinate generator.
+///
+/// # Examples
+///
+/// Generate a `[2,3,2]` tensor whose values encode their own multi-index:
+///
+/// ```
+/// use coeus_leto::from_shape_fn_values;
+///
+/// let values = from_shape_fn_values(&[2, 3, 2], |index| {
+///     i32::try_from(index[0] * 100 + index[1] * 10 + index[2]).unwrap()
+/// })
+/// .unwrap();
+/// assert_eq!(
+///     values,
+///     vec![0, 1, 10, 11, 20, 21, 100, 101, 110, 111, 120, 121]
+/// );
+/// ```
 pub fn from_shape_fn_values<T: Clone, F>(shape: &[usize], f: F) -> Result<Vec<T>>
 where
     F: Fn(&[usize]) -> T,
@@ -42,6 +59,21 @@ fn uniform_values_n<T: RealScalar, const N: usize>(
 
 /// Deterministic uniform initialization values for a coeus dynamic-rank shape,
 /// dispatched to the matching monomorphized leto random constructor.
+///
+/// # Examples
+///
+/// A fixed seed produces a deterministic sample, and every value lies in
+/// `[low, high)`:
+///
+/// ```
+/// use coeus_leto::uniform_values;
+///
+/// let a = uniform_values(&[2, 3], -2.0_f64, 5.0, 42).unwrap();
+/// let b = uniform_values(&[2, 3], -2.0_f64, 5.0, 42).unwrap();
+/// assert_eq!(a, b); // same seed -> identical draw
+/// assert_eq!(a.len(), 6);
+/// assert!(a.iter().all(|&v| (-2.0..5.0).contains(&v)));
+/// ```
 pub fn uniform_values<T: RealScalar>(
     shape: &[usize],
     low: T,
@@ -73,6 +105,20 @@ fn normal_values_n<T: RealScalar, const N: usize>(
 
 /// Deterministic normal initialization values for a coeus dynamic-rank shape,
 /// dispatched to the matching monomorphized leto random constructor.
+///
+/// # Examples
+///
+/// A fixed seed produces a deterministic sample with the requested element
+/// count:
+///
+/// ```
+/// use coeus_leto::normal_values;
+///
+/// let a = normal_values(&[2, 3], 1.0_f64, 2.0, 11).unwrap();
+/// let b = normal_values(&[2, 3], 1.0_f64, 2.0, 11).unwrap();
+/// assert_eq!(a, b); // same seed -> identical draw
+/// assert_eq!(a.len(), 6);
+/// ```
 pub fn normal_values<T: RealScalar>(
     shape: &[usize],
     mean: T,

@@ -11,6 +11,9 @@
 - [x] [patch] Added executable Rustdoc examples for `coeus-dist` communicator
   and local-cluster contracts, plus `coeus-sparse` COO/CSR construction and
   accessor contracts.
+- [x] [patch] Added executable Rustdoc examples for `coeus-leto` layout/view
+  conversion, elementwise dispatch, initialization, layout transforms, and
+  linear algebra bridge contracts.
 - [x] [minor] Registered Python `TransformerEncoderLayer`,
   `TransformerEncoder`, and `SinusoidalEncoding` wrappers over Rust-core
   `coeus_nn` implementations; unsupported const-generic selections return
@@ -29,8 +32,9 @@
   `rustup run nightly cargo nextest run -p coeus-python --test
   binding_tests_ops test_transformer_encoder_bindings test_transformer_decoder_layer
   test_nn_functional_ops`; `rustup run nightly cargo nextest run -p coeus-wgpu`
-  (83/83); `rustup run nightly cargo doc -p coeus-ops -p coeus-nn -p
-  coeus-python -p coeus-wgpu -p coeus-optim --no-deps`.
+  (83/83); `rustup run nightly cargo test --doc -p coeus-leto` (28/28);
+  `rustup run nightly cargo doc -p coeus-dist -p coeus-sparse -p coeus-ops -p
+  coeus-nn -p coeus-python -p coeus-wgpu -p coeus-optim --no-deps`.
 
 ## Sprint MS-120: WGPU bounded metadata pool [COMPLETE]
 

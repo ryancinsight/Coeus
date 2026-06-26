@@ -3,6 +3,23 @@ use leto::{LetoError, Result};
 /// Largest dynamic rank the const-rank dispatch resolves. Coeus activations and
 /// Apollo transforms stay well within this bound; ranks beyond it are a logged
 /// error rather than silent truncation.
+///
+/// # Examples
+///
+/// The bound is a fixed constant, and dispatch rejects a rank that exceeds it:
+///
+/// ```
+/// use coeus_core::Layout;
+/// use coeus_leto::{elementwise_add_into, MAX_DISPATCH_RANK};
+///
+/// assert_eq!(MAX_DISPATCH_RANK, 6);
+///
+/// // A rank-7 tensor is beyond the dispatch bound.
+/// let a = vec![0.0_f64; 128];
+/// let la = Layout::new([2, 2, 2, 2, 2, 2, 2].into());
+/// let mut out = vec![0.0_f64; 128];
+/// assert!(elementwise_add_into(&la, &a, &la, &a, &la, &mut out).is_err());
+/// ```
 pub const MAX_DISPATCH_RANK: usize = 6;
 
 /// Convert a dynamic-rank slice to a const-rank array for leto dispatch calls.
