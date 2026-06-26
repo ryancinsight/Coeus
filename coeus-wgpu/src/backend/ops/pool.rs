@@ -1,0 +1,193 @@
+use super::*;
+
+pub(super) fn dispatch_max_pool2d<T: WgpuScalar>(
+    input: &crate::backend::WgpuStorage<T>,
+    input_layout: &Layout,
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+    output: &mut crate::backend::WgpuStorage<T>,
+    output_layout: &Layout,
+) {
+    kernels::dispatch_max_pool2d::<T>(
+        &input.buffer,
+        input_layout,
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+        &output.buffer,
+        output_layout,
+        output.len(),
+    );
+}
+
+pub(super) fn dispatch_max_pool2d_backward<T: WgpuScalar>(
+    grad_out: &crate::backend::WgpuStorage<T>,
+    grad_out_layout: &Layout,
+    input: &crate::backend::WgpuStorage<T>,
+    input_layout: &Layout,
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+    grad_input: &mut crate::backend::WgpuStorage<T>,
+    grad_input_layout: &Layout,
+) {
+    kernels::dispatch_max_pool2d_backward::<T>(
+        &grad_out.buffer,
+        grad_out_layout,
+        &input.buffer,
+        input_layout,
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+        &grad_input.buffer,
+        grad_input_layout,
+        grad_input.len(),
+    );
+}
+
+pub(super) fn dispatch_avg_pool2d<T: WgpuScalar>(
+    input: &crate::backend::WgpuStorage<T>,
+    input_layout: &Layout,
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+    output: &mut crate::backend::WgpuStorage<T>,
+    output_layout: &Layout,
+) {
+    kernels::dispatch_avg_pool2d::<T>(
+        &input.buffer,
+        input_layout,
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+        &output.buffer,
+        output_layout,
+        output.len(),
+    );
+}
+
+pub(super) fn dispatch_avg_pool2d_backward<T: WgpuScalar>(
+    grad_out: &crate::backend::WgpuStorage<T>,
+    grad_out_layout: &Layout,
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+    grad_input: &mut crate::backend::WgpuStorage<T>,
+    grad_input_layout: &Layout,
+) {
+    kernels::dispatch_avg_pool2d_backward::<T>(
+        &grad_out.buffer,
+        grad_out_layout,
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+        &grad_input.buffer,
+        grad_input_layout,
+        grad_input.len(),
+    );
+}
+
+pub(super) fn dispatch_max_pool3d<T: WgpuScalar>(
+    input: &crate::backend::WgpuStorage<T>,
+    input_layout: &Layout,
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+    output: &mut crate::backend::WgpuStorage<T>,
+    output_layout: &Layout,
+) {
+    kernels::dispatch_max_pool3d::<T>(
+        &input.buffer,
+        input_layout,
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+        &output.buffer,
+        output_layout,
+        output.len(),
+    );
+}
+
+pub(super) fn dispatch_max_pool3d_backward<T: WgpuScalar>(
+    grad_out: &crate::backend::WgpuStorage<T>,
+    grad_out_layout: &Layout,
+    input: &crate::backend::WgpuStorage<T>,
+    input_layout: &Layout,
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+    grad_input: &mut crate::backend::WgpuStorage<T>,
+    grad_input_layout: &Layout,
+) {
+    kernels::dispatch_max_pool3d_backward::<T>(
+        &grad_out.buffer,
+        grad_out_layout,
+        &input.buffer,
+        input_layout,
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+        &grad_input.buffer,
+        grad_input_layout,
+        grad_input.len(),
+    );
+}
+
+pub(super) fn dispatch_avg_pool3d<T: WgpuScalar>(
+    input: &crate::backend::WgpuStorage<T>,
+    input_layout: &Layout,
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+    output: &mut crate::backend::WgpuStorage<T>,
+    output_layout: &Layout,
+) {
+    kernels::dispatch_avg_pool3d::<T>(
+        &input.buffer,
+        input_layout,
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+        &output.buffer,
+        output_layout,
+        output.len(),
+    );
+}
+
+pub(super) fn dispatch_avg_pool3d_backward<T: WgpuScalar>(
+    grad_out: &crate::backend::WgpuStorage<T>,
+    grad_out_layout: &Layout,
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+    grad_input: &mut crate::backend::WgpuStorage<T>,
+    grad_input_layout: &Layout,
+) {
+    kernels::dispatch_avg_pool3d_backward::<T>(
+        &grad_out.buffer,
+        grad_out_layout,
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+        &grad_input.buffer,
+        grad_input_layout,
+        grad_input.len(),
+    );
+}

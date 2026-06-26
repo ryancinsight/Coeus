@@ -10,6 +10,11 @@ use leto::Layout as LetoLayout;
 use std::sync::Arc;
 
 mod attention;
+mod conv;
+mod matmul;
+mod optim;
+mod pool;
+mod reduction;
 
 // ── WGPU Hephaestus strided routing helpers ───────────────────────────────────
 
@@ -73,19 +78,44 @@ fn try_hephaestus_strided_binary_wgpu<T: WgpuScalar + hephaestus_wgpu::WgslScala
             let la = coeus_to_leto_layout!(a_layout, $n);
             let lb = coeus_to_leto_layout!(b_layout, $n);
             let lc = coeus_to_leto_layout!(c_layout, $n);
-            let a_op = StridedOperand { buffer: a_buf.buffer.as_ref(), layout: &la };
-            let b_op = StridedOperand { buffer: b_buf.buffer.as_ref(), layout: &lb };
-            let c_op = StridedOperand { buffer: c_buf.buffer.as_ref(), layout: &lc };
+            let a_op = StridedOperand {
+                buffer: a_buf.buffer.as_ref(),
+                layout: &la,
+            };
+            let b_op = StridedOperand {
+                buffer: b_buf.buffer.as_ref(),
+                layout: &lb,
+            };
+            let c_op = StridedOperand {
+                buffer: c_buf.buffer.as_ref(),
+                layout: &lc,
+            };
             let ok = |r: hephaestus_wgpu::Result<()>| {
                 r.expect("hephaestus-wgpu strided binary dispatch failed");
                 true
             };
             let dev = &crate::backend::get_wgpu_context().hephaestus_device;
             match op {
-                BinaryOp::Add => ok(binary_elementwise_strided_into::<hephaestus_wgpu::AddOp, T, $n>(dev, a_op, b_op, c_op, BlockWidth::DEFAULT)),
-                BinaryOp::Sub => ok(binary_elementwise_strided_into::<hephaestus_wgpu::SubOp, T, $n>(dev, a_op, b_op, c_op, BlockWidth::DEFAULT)),
-                BinaryOp::Mul => ok(binary_elementwise_strided_into::<hephaestus_wgpu::MulOp, T, $n>(dev, a_op, b_op, c_op, BlockWidth::DEFAULT)),
-                BinaryOp::Div => ok(binary_elementwise_strided_into::<hephaestus_wgpu::DivOp, T, $n>(dev, a_op, b_op, c_op, BlockWidth::DEFAULT)),
+                BinaryOp::Add => ok(binary_elementwise_strided_into::<
+                    hephaestus_wgpu::AddOp,
+                    T,
+                    $n,
+                >(dev, a_op, b_op, c_op, BlockWidth::DEFAULT)),
+                BinaryOp::Sub => ok(binary_elementwise_strided_into::<
+                    hephaestus_wgpu::SubOp,
+                    T,
+                    $n,
+                >(dev, a_op, b_op, c_op, BlockWidth::DEFAULT)),
+                BinaryOp::Mul => ok(binary_elementwise_strided_into::<
+                    hephaestus_wgpu::MulOp,
+                    T,
+                    $n,
+                >(dev, a_op, b_op, c_op, BlockWidth::DEFAULT)),
+                BinaryOp::Div => ok(binary_elementwise_strided_into::<
+                    hephaestus_wgpu::DivOp,
+                    T,
+                    $n,
+                >(dev, a_op, b_op, c_op, BlockWidth::DEFAULT)),
             }
         }};
     }
@@ -113,22 +143,63 @@ fn try_hephaestus_strided_unary_wgpu<T: WgpuScalar + hephaestus_wgpu::WgslScalar
         ($n:expr) => {{
             let la = coeus_to_leto_layout!(a_layout, $n);
             let lc = coeus_to_leto_layout!(c_layout, $n);
-            let a_op = StridedOperand { buffer: a_buf.buffer.as_ref(), layout: &la };
-            let c_op = StridedOperand { buffer: c_buf.buffer.as_ref(), layout: &lc };
+            let a_op = StridedOperand {
+                buffer: a_buf.buffer.as_ref(),
+                layout: &la,
+            };
+            let c_op = StridedOperand {
+                buffer: c_buf.buffer.as_ref(),
+                layout: &lc,
+            };
             let ok = |r: hephaestus_wgpu::Result<()>| {
                 r.expect("hephaestus-wgpu strided unary dispatch failed");
                 true
             };
             let dev = &crate::backend::get_wgpu_context().hephaestus_device;
             match op {
-                UnaryOp::Sin => ok(unary_elementwise_strided_into::<hephaestus_wgpu::SinOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
-                UnaryOp::Cos => ok(unary_elementwise_strided_into::<hephaestus_wgpu::CosOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
-                UnaryOp::Exp => ok(unary_elementwise_strided_into::<hephaestus_wgpu::ExpOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
-                UnaryOp::Log => ok(unary_elementwise_strided_into::<hephaestus_wgpu::LnOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
-                UnaryOp::Neg => ok(unary_elementwise_strided_into::<hephaestus_wgpu::NegOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
-                UnaryOp::Abs => ok(unary_elementwise_strided_into::<hephaestus_wgpu::AbsOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
-                UnaryOp::Sqrt => ok(unary_elementwise_strided_into::<hephaestus_wgpu::SqrtOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
-                UnaryOp::Recip => ok(unary_elementwise_strided_into::<hephaestus_wgpu::RecipOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Sin => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::SinOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Cos => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::CosOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Exp => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::ExpOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Log => ok(
+                    unary_elementwise_strided_into::<hephaestus_wgpu::LnOp, T, $n>(
+                        dev,
+                        a_op,
+                        c_op,
+                        BlockWidth::DEFAULT,
+                    ),
+                ),
+                UnaryOp::Neg => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::NegOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Abs => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::AbsOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Sqrt => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::SqrtOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Recip => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::RecipOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
                 _ => false,
             }
         }};
@@ -376,9 +447,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        kernels::dispatch_matmul::<T>(
-            &a.buffer, a_layout, &b.buffer, b_layout, &c.buffer, c_layout,
-        );
+        matmul::dispatch_matmul(a, a_layout, b, b_layout, c, c_layout);
     }
 
     #[inline]
@@ -391,7 +460,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        kernels::dispatch_reduce::<T>(op, &a.buffer, a_layout, axis, &c.buffer, c_layout);
+        reduction::dispatch_reduce(op, a, a_layout, axis, c, c_layout);
     }
 
     #[inline]
@@ -408,20 +477,18 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        let out_numel = output_layout.shape().iter().product::<usize>();
-        kernels::dispatch_conv1d::<T>(kernels::Conv1dDispatch {
-            input: &input.buffer,
-            weight: &weight.buffer,
-            bias: bias.map(|b| b.buffer.raw()),
-            output: &output.buffer,
+        conv::dispatch_conv1d(
+            input,
             input_layout,
+            weight,
             weight_layout,
-            output_layout,
+            bias,
             stride,
             padding,
             dilation,
-            out_numel,
-        });
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -442,22 +509,22 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         padding: usize,
         dilation: usize,
     ) {
-        kernels::dispatch_conv1d_backward::<T>(kernels::Conv1dBackwardDispatch {
-            grad_out: &grad_out.buffer,
+        conv::dispatch_conv1d_backward(
+            grad_out,
             grad_out_layout,
-            input: &input.buffer,
+            input,
             input_layout,
-            weight: &weight.buffer,
+            weight,
             weight_layout,
-            grad_input: grad_input.map(|gi| gi.buffer.raw()),
+            grad_input,
             grad_input_layout,
-            grad_weight: grad_weight.map(|gw| gw.buffer.raw()),
+            grad_weight,
             grad_weight_layout,
-            grad_bias: grad_bias.map(|gb| gb.buffer.raw()),
+            grad_bias,
             stride,
             padding,
             dilation,
-        });
+        );
     }
 
     #[inline]
@@ -474,20 +541,18 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        let out_numel = output_layout.shape().iter().product::<usize>();
-        kernels::dispatch_conv2d::<T>(kernels::Conv2dDispatch {
-            input: &input.buffer,
-            weight: &weight.buffer,
-            bias: bias.map(|b| b.buffer.raw()),
-            output: &output.buffer,
+        conv::dispatch_conv2d(
+            input,
             input_layout,
+            weight,
             weight_layout,
-            output_layout,
+            bias,
             stride,
             padding,
             dilation,
-            out_numel,
-        });
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -508,22 +573,22 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         padding: usize,
         dilation: usize,
     ) {
-        kernels::dispatch_conv2d_backward::<T>(kernels::Conv2dBackwardDispatch {
-            grad_out: &grad_out.buffer,
+        conv::dispatch_conv2d_backward(
+            grad_out,
             grad_out_layout,
-            input: &input.buffer,
+            input,
             input_layout,
-            weight: &weight.buffer,
+            weight,
             weight_layout,
-            grad_input: grad_input.map(|gi| gi.buffer.raw()),
+            grad_input,
             grad_input_layout,
-            grad_weight: grad_weight.map(|gw| gw.buffer.raw()),
+            grad_weight,
             grad_weight_layout,
-            grad_bias: grad_bias.map(|gb| gb.buffer.raw()),
+            grad_bias,
             stride,
             padding,
             dilation,
-        });
+        );
     }
 
     #[inline]
@@ -540,19 +605,18 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        kernels::dispatch_conv3d::<T>(kernels::Conv3dDispatch {
-            input: &input.buffer,
-            weight: &weight.buffer,
-            bias: bias.map(|b| b.buffer.raw()),
-            output: &output.buffer,
+        conv::dispatch_conv3d(
+            input,
             input_layout,
+            weight,
             weight_layout,
-            output_layout,
+            bias,
             stride,
             padding,
             dilation,
-            out_numel: output.len(),
-        });
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -573,22 +637,22 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         padding: usize,
         dilation: usize,
     ) {
-        kernels::dispatch_conv3d_backward::<T>(kernels::Conv3dBackwardDispatch {
-            grad_out: &grad_out.buffer,
+        conv::dispatch_conv3d_backward(
+            grad_out,
             grad_out_layout,
-            input: &input.buffer,
+            input,
             input_layout,
-            weight: &weight.buffer,
+            weight,
             weight_layout,
-            grad_input: grad_input.map(|gi| gi.buffer.raw()),
+            grad_input,
             grad_input_layout,
-            grad_weight: grad_weight.map(|gw| gw.buffer.raw()),
+            grad_weight,
             grad_weight_layout,
-            grad_bias: grad_bias.map(|gb| gb.buffer.raw()),
+            grad_bias,
             stride,
             padding,
             dilation,
-        });
+        );
     }
 
     #[inline]
@@ -608,23 +672,19 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
     ) where
         T: coeus_core::Float,
     {
-        let _ = output_padding; // encoded in output_layout shape, not the kernel loop
-                                // input [n, c_in, l] / weight [c_in, c_out, k] / output [n, c_out, l_out]
-        kernels::dispatch_conv_transpose1d(kernels::ConvTranspose1dDispatch {
-            input: input.buffer.raw(),
-            weight: weight.buffer.raw(),
-            bias: bias.map(|b| b.buffer.raw()),
-            output: output.buffer.raw(),
-            n: input_layout.shape()[0],
-            c_in: input_layout.shape()[1],
-            l: input_layout.shape()[2],
-            c_out: weight_layout.shape()[1],
-            k: weight_layout.shape()[2],
-            l_out: output_layout.shape()[2],
+        conv::dispatch_conv_transpose1d(
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
             stride,
             padding,
+            output_padding,
             dilation,
-        });
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -644,26 +704,19 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
     ) where
         T: coeus_core::Float,
     {
-        let _ = output_padding; // encoded in output_layout shape, not the kernel loop
-                                // input [n, c_in, h, w] / weight [c_in, c_out, kh, kw] / output [n, c_out, h_out, w_out]
-        kernels::dispatch_conv_transpose2d(kernels::ConvTranspose2dDispatch {
-            input: input.buffer.raw(),
-            weight: weight.buffer.raw(),
-            bias: bias.map(|b| b.buffer.raw()),
-            output: output.buffer.raw(),
-            n: input_layout.shape()[0],
-            c_in: input_layout.shape()[1],
-            h: input_layout.shape()[2],
-            w: input_layout.shape()[3],
-            c_out: weight_layout.shape()[1],
-            kh: weight_layout.shape()[2],
-            kw: weight_layout.shape()[3],
-            h_out: output_layout.shape()[2],
-            w_out: output_layout.shape()[3],
+        conv::dispatch_conv_transpose2d(
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
             stride,
             padding,
+            output_padding,
             dilation,
-        });
+            output,
+            output_layout,
+        );
     }
 
     #[inline]
@@ -678,16 +731,15 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        kernels::dispatch_max_pool2d::<T>(
-            &input.buffer,
+        pool::dispatch_max_pool2d(
+            input,
             input_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &output.buffer,
+            output,
             output_layout,
-            output.len(),
         );
     }
 
@@ -705,18 +757,17 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        kernels::dispatch_max_pool2d_backward::<T>(
-            &grad_out.buffer,
+        pool::dispatch_max_pool2d_backward(
+            grad_out,
             grad_out_layout,
-            &input.buffer,
+            input,
             input_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &grad_input.buffer,
+            grad_input,
             grad_input_layout,
-            grad_input.len(),
         );
     }
 
@@ -732,16 +783,15 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        kernels::dispatch_avg_pool2d::<T>(
-            &input.buffer,
+        pool::dispatch_avg_pool2d(
+            input,
             input_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &output.buffer,
+            output,
             output_layout,
-            output.len(),
         );
     }
 
@@ -757,16 +807,15 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        kernels::dispatch_avg_pool2d_backward::<T>(
-            &grad_out.buffer,
+        pool::dispatch_avg_pool2d_backward(
+            grad_out,
             grad_out_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &grad_input.buffer,
+            grad_input,
             grad_input_layout,
-            grad_input.len(),
         );
     }
 
@@ -782,16 +831,15 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        kernels::dispatch_max_pool3d::<T>(
-            &input.buffer,
+        pool::dispatch_max_pool3d(
+            input,
             input_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &output.buffer,
+            output,
             output_layout,
-            output.len(),
         );
     }
 
@@ -809,18 +857,17 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        kernels::dispatch_max_pool3d_backward::<T>(
-            &grad_out.buffer,
+        pool::dispatch_max_pool3d_backward(
+            grad_out,
             grad_out_layout,
-            &input.buffer,
+            input,
             input_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &grad_input.buffer,
+            grad_input,
             grad_input_layout,
-            grad_input.len(),
         );
     }
 
@@ -836,16 +883,15 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) {
-        kernels::dispatch_avg_pool3d::<T>(
-            &input.buffer,
+        pool::dispatch_avg_pool3d(
+            input,
             input_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &output.buffer,
+            output,
             output_layout,
-            output.len(),
         );
     }
 
@@ -861,16 +907,15 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
     ) {
-        kernels::dispatch_avg_pool3d_backward::<T>(
-            &grad_out.buffer,
+        pool::dispatch_avg_pool3d_backward(
+            grad_out,
             grad_out_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            &grad_input.buffer,
+            grad_input,
             grad_input_layout,
-            grad_input.len(),
         );
     }
 
@@ -964,17 +1009,15 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
     ) where
         T: coeus_core::Float,
     {
-        let len = param_layout.shape().iter().product::<usize>();
-        kernels::dispatch_sgd_step::<T>(
-            &param.buffer,
+        optim::dispatch_sgd_step(
+            param,
             param_layout,
-            &grad.buffer,
+            grad,
             grad_layout,
-            &velocity.buffer,
+            velocity,
             velocity_layout,
             lr,
             momentum,
-            len,
         );
     }
 
@@ -997,22 +1040,9 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
     ) where
         T: coeus_core::Float,
     {
-        let len = param_layout.shape().iter().product::<usize>();
-        kernels::dispatch_adam_step::<T>(
-            &param.buffer,
-            param_layout,
-            &grad.buffer,
-            grad_layout,
-            &m.buffer,
-            m_layout,
-            &v.buffer,
-            v_layout,
-            lr,
-            beta1,
-            beta2,
-            eps,
-            t,
-            len,
+        optim::dispatch_adam_step(
+            param, param_layout, grad, grad_layout, m, m_layout, v, v_layout, lr, beta1, beta2,
+            eps, t,
         );
     }
 
@@ -1031,18 +1061,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
     ) where
         T: coeus_core::Float,
     {
-        let len = param_layout.shape().iter().product::<usize>();
-        kernels::dispatch_rmsprop_step::<T>(
-            &param.buffer,
-            param_layout,
-            &grad.buffer,
-            grad_layout,
-            &v.buffer,
-            v_layout,
-            lr,
-            alpha,
-            eps,
-            len,
+        optim::dispatch_rmsprop_step(
+            param, param_layout, grad, grad_layout, v, v_layout, lr, alpha, eps,
         );
     }
 
@@ -1066,15 +1086,14 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
     ) where
         T: coeus_core::Float,
     {
-        let len = param_layout.shape().iter().product::<usize>();
-        kernels::dispatch_adamw_step::<T>(
-            &param.buffer,
+        optim::dispatch_adamw_step(
+            param,
             param_layout,
-            &grad.buffer,
+            grad,
             grad_layout,
-            &m.buffer,
+            m,
             m_layout,
-            &v.buffer,
+            v,
             v_layout,
             lr,
             beta1,
@@ -1082,7 +1101,6 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
             eps,
             weight_decay,
             t,
-            len,
         );
     }
 
@@ -1100,17 +1118,15 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
     ) where
         T: coeus_core::Float,
     {
-        let len = param_layout.shape().iter().product::<usize>();
-        kernels::dispatch_adagrad_step::<T>(
-            &param.buffer,
+        optim::dispatch_adagrad_step(
+            param,
             param_layout,
-            &grad.buffer,
+            grad,
             grad_layout,
-            &history.buffer,
+            history,
             history_layout,
             lr,
             eps,
-            len,
         );
     }
 }
