@@ -2,14 +2,31 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-89 - transformer source masks + BatchNorm eval bindings [COMPLETE]
-**Objective**: Add optional source key-padding-mask routing to transformer
-encoder stacks and complete Python BatchNorm eval-mode parity across
-BatchNorm1d/2d/3d while keeping Python as a thin PyO3 boundary over Rust-core
-logic.
+### Current Sprint: MS-90 - frobenius_norm differential parity + optimizer convergence [COMPLETE]
+**Objective**: Close differential test gaps for frobenius_norm/frobenius_norm_batched
+(added in MS-88, had no backend parity coverage) and extend optimizer test suite
+with multi-step convergence verification (existing tests only covered 1-step
+closed-form formulas).
+**Target version**: 0.2.29 (patch-class).
+**Tests delivered**: 8 frobenius norm differential tests + 4 optimizer convergence
+tests; workspace at 621/621.
+
+- [x] [patch] `coeus-ops/tests/norm_diff.rs` (NEW): 8 differential tests for
+  `frobenius_norm` (2-D, rectangular, identity, zeros) and `frobenius_norm_batched`
+  (rank-3, rank-4, row-vector batch) against analytical reference ‖A‖_F=sqrt(Σaᵢⱼ²).
+  SequentialBackend + MoiraiBackend each. Tolerances derived from f32 ε × element count.
+  Evidence: `cargo nextest run -p coeus-ops --test norm_diff` — 4/4 passed.
+- [x] [patch] `coeus-optim/tests/optim_tests.rs`: 4 new multi-step tests —
+  `test_sgd_convergence_quadratic_50steps` (closed-form: x_n = x₀·0.8ⁿ),
+  `test_sgd_momentum_convergence_100steps` (derived bound via spectral radius √0.9 ≈ 0.9487),
+  `test_adam_convergence_quadratic_200steps` (200-step convex convergence to |p|<0.05),
+  `test_adamw_weight_decay_shrinkage_50steps` (closed-form: p_n = p₀·(1−lr·λ)ⁿ with g=0).
+  Evidence: `cargo nextest run -p coeus-optim` — 14/14 passed.
+- [x] Evidence: 621/621 workspace tests; `cargo clippy -D warnings` clean; `cargo fmt --check` clean.
+  Commit: `6afaab4`.
+
+### Previous Sprint: MS-89 - transformer source masks + BatchNorm eval bindings [COMPLETE]
 **Target version**: 0.2.29.
-**Tests delivered**: 2 encoder mask regression tests plus expanded Python
-BatchNorm eval-mode coverage for 1D, 2D, and 3D.
 
 ### Previous Sprint: MS-88 - matrix_norm(ord='fro') Torch parity [COMPLETE]
 **Target version**: 0.2.28.
@@ -196,6 +213,13 @@ BatchNorm eval-mode coverage for 1D, 2D, and 3D.
   on a fixed 3x4 oracle. Evidence tier: empirical value-semantic validation.
   Evidence: `cargo nextest run -p coeus-sparse --test sparse_conversions`
   passes with 4 tests.
+- [x] [patch] Added tracked COO sparse matmul autograd path
+  `coeus_autograd::sparse_matmul_coo` with sparse-value backward mapped back to
+  original COO value order and dense-operand backward parity through existing
+  SpMM kernels. Evidence tier: empirical value-semantic + backward differential
+  validation. Evidence: `cargo test -p coeus-autograd
+  sparse_coo_matmul_backward sparse_matmul_backward -- --test-threads=1` and
+  `cargo clippy -p coeus-autograd --all-targets -- -D warnings` pass.
 
 - [x] [minor] Added `burn 0.16` as dev-dep to `coeus-nn` and `coeus-tensor`; production
   dependency policy test unaffected (burn forbidden in `[dependencies]`, allowed in

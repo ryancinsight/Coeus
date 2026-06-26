@@ -1,5 +1,18 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-90: frobenius_norm differential parity + optimizer convergence [COMPLETE]
+
+- [x] [patch] `coeus-ops/tests/norm_diff.rs` (NEW): 8 differential parity tests for
+  `frobenius_norm` and `frobenius_norm_batched` (added MS-88, previously uncovered by
+  backend differential tests). Analytical reference: ‖A‖_F = sqrt(Σaᵢⱼ²). Cases:
+  3–4–5 exact, rectangular [2,3], identity [2,2], zeros [3,3]; batched rank-3 [2,2,2],
+  [3,1,2]; rank-4 [2,2,2,2]. Tolerances derived from f32 ε × max additions.
+- [x] [patch] `coeus-optim/tests/optim_tests.rs`: 4 multi-step convergence tests
+  covering compounding optimizer state correctness that 1-step tests cannot reach:
+  SGD 50-step closed-form, SGD+momentum 100-step spectral-radius bound,
+  Adam 200-step quadratic convergence, AdamW 50-step weight-decay separability.
+- [x] Evidence: 621/621 workspace tests; clippy/fmt clean. Commit `6afaab4`.
+
 ## Sprint MS-89: transformer source masks + BatchNorm eval bindings [COMPLETE]
 
 - [x] [minor] Added optional source key-padding-mask routing through
