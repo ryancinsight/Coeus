@@ -1,5 +1,16 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-101: BatchNorm3d eval parity and Conv Burn parity [COMPLETE]
+
+- [x] [patch] Added `batchnorm3d_eval_forward_matches_burn` in
+  `coeus-nn/tests/burn_live_parity.rs`.
+- [x] [patch] Added `conv1d_forward_matches_burn` differential test against
+  Burn NdArray (explicit ones-weight, no bias, valid padding).
+- [x] [patch] Added `conv2d_forward_matches_burn` differential test against
+  Burn NdArray (same pattern).
+- [x] Evidence: `cargo nextest run` (768/768); `cargo fmt --check`;
+  `cargo clippy --all-targets --all-features -- -D warnings`.
+
 ## Sprint MS-100: Python functional GroupNorm wrapper [COMPLETE]
 
 - [x] [minor] Added registered `pycoeus.group_norm` as a thin PyO3 wrapper over
