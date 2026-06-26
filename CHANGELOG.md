@@ -16,6 +16,9 @@
 - **BatchNorm2d training-mode backward parity** — differential Burn autodiff
   test verifying `dx`, `dw`, `db` for training-mode BatchNorm2d using Coeus's
   NHWC-layout, population-variance formula (97th parity test; ε ≤ 1e-4).
+- **Conv3d backward parity** — differential Burn autodiff test verifying `dx`
+  and `dw` for valid 3D convolution, completing backward coverage for Conv1d/2d/3d
+  (98th parity test).
 
 ### Fixed
 
