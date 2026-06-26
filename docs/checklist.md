@@ -2,7 +2,32 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-104 - Core Rustdoc contract examples [COMPLETE]
+### Current Sprint: MS-106 - CUDA Hephaestus primitive routing [COMPLETE]
+**Objective**: Keep CUDA and WGPU shared primitive GPU dispatch centralized in
+Hephaestus while preserving Coeus-local kernels only for aliasing, strided
+coverage not yet mapped through the static-rank Hephaestus API, and
+NN-specific activation/optimizer/convolution kernels.
+**Target version**: 0.5.1 (patch-class; internal routing cleanup).
+**Acceptance**: `coeus-cuda` contiguous non-aliased primitive binary
+`Add/Sub/Mul/Div` and unary `Sin/Cos/Exp/Log/Neg/Abs/Sqrt/Recip` route through
+`hephaestus-cuda`, with Coeus-local kernels retained as the fallback for
+unsupported or aliased cases. Evidence tier: type-level compile verification
+plus package build/clippy/doc gates; live CUDA value parity remains covered by
+the existing `coeus-cuda --features cuda` parity suite when CUDA hardware is
+available.
+
+- [x] [patch] Added `coeus-cuda` Hephaestus-first routing for supported
+  contiguous non-aliased primitive binary and unary elementwise ops.
+- [x] [patch] Kept Coeus-local CUDA kernels as the explicit fallback for output
+  aliasing and unsupported Coeus activation formulas, matching the existing
+  WGPU redundancy boundary.
+- [x] Evidence: `cargo check -p coeus-cuda`; `cargo check -p coeus-cuda
+  --features cuda`; `cargo fmt -p coeus-cuda --check`; `cargo clippy -p
+  coeus-cuda --all-targets --features cuda -- -D warnings`; `cargo doc -p
+  coeus-cuda --features cuda --no-deps`; `cargo nextest run -p coeus-cuda
+  --features cuda` (69/69).
+
+### Previous Sprint: MS-104 - Core Rustdoc contract examples [COMPLETE]
 **Objective**: Make `coeus-core` public documentation executable for storage,
 layout, shape, scalar, stride, and backend contracts while preserving the
 already-merged Burn/WGPU parity work and completing the CUDA fused-kernel cache

@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-106: CUDA Hephaestus primitive routing [COMPLETE]
+
+- [x] [patch] Routed supported contiguous non-aliased `coeus-cuda` primitive
+  elementwise operations through `hephaestus-cuda`, matching the WGPU backend's
+  provider-first policy and reducing duplicated generated-kernel ownership.
+- [x] [patch] Preserved Coeus-local CUDA kernels for aliased outputs,
+  dynamic-layout/strided paths not yet mapped through Hephaestus static-rank
+  operands, and Coeus-specific activation/optimizer/convolution kernels.
+- [x] Evidence: `cargo check -p coeus-cuda`; `cargo check -p coeus-cuda
+  --features cuda`; `cargo fmt -p coeus-cuda --check`; `cargo clippy -p
+  coeus-cuda --all-targets --features cuda -- -D warnings`; `cargo doc -p
+  coeus-cuda --features cuda --no-deps`; `cargo nextest run -p coeus-cuda
+  --features cuda` (69/69).
+
 ## Sprint MS-104: Core Rustdoc contract examples [COMPLETE]
 
 - [x] [patch] Added executable public examples for `coeus-core` backend,

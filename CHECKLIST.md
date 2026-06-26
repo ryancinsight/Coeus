@@ -52,5 +52,9 @@ Implemented a native NVIDIA GPU backend dynamically loading the CUDA driver.
 - [x] **Context Management**: Dynamically binds to the native CUDA Driver API (`cuInit`, `cuCtxCreate`, etc.) via `libloading` at runtime.
 - [x] **Staging Memory Transfers**: Implemented FFI copies between host CPU and device GPU memory (`cuMemcpyHtoD`, `cuMemcpyDtoH`).
 - [x] **Thread-Safe Context**: Implemented a thread-safe static wrapper for the loaded context pointer.
-- [x] **Embedded PTX Kernels**: Implemented tiled matrix multiplication, sum reduction, Conv1D/Conv2D forward and backward passes, and strided/broadcasted element-wise operations entirely on-device.
+- [x] **Hephaestus CUDA Substrate**: Allocations and shared primitive
+  contiguous elementwise kernels route through `hephaestus-cuda`, matching the
+  WGPU provider boundary; Coeus-local CUDA kernels remain for aliasing,
+  strided/dynamic layout coverage, and NN-specific convolution, pooling,
+  optimizer, and activation formulas.
 
