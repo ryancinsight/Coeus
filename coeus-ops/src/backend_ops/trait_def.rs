@@ -145,7 +145,18 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     ) where
         T: leto_ops::Scalar,
     {
-        defaults::reductions::topk(self, a, a_layout, k, axis, largest, values, values_layout, indices, indices_layout)
+        defaults::reductions::topk(
+            self,
+            a,
+            a_layout,
+            k,
+            axis,
+            largest,
+            values,
+            values_layout,
+            indices,
+            indices_layout,
+        )
     }
 
     /// Inclusive cumulative sum along an axis.
@@ -530,8 +541,18 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         T: coeus_core::Float,
     {
         defaults::conv_transpose::conv_transpose1d(
-            self, input, input_layout, weight, weight_layout, bias,
-            stride, padding, output_padding, dilation, output, output_layout,
+            self,
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            output_padding,
+            dilation,
+            output,
+            output_layout,
         )
     }
 
@@ -554,8 +575,18 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         T: coeus_core::Float,
     {
         defaults::conv_transpose::conv_transpose2d(
-            self, input, input_layout, weight, weight_layout, bias,
-            stride, padding, output_padding, dilation, output, output_layout,
+            self,
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            output_padding,
+            dilation,
+            output,
+            output_layout,
         )
     }
 }

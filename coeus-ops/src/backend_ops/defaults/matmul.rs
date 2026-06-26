@@ -1,6 +1,6 @@
-use coeus_core::{Layout, Scalar, Shape, Strides};
 use crate::backend_ops::ops::BinaryOp;
 use crate::backend_ops::trait_def::BackendOps;
+use coeus_core::{Layout, Scalar, Shape, Strides};
 
 fn shape3(shape: &[usize], name: &str) -> [usize; 3] {
     assert_eq!(
@@ -23,7 +23,8 @@ pub fn matmul_accumulate<T: Scalar, B: BackendOps<T>>(
 ) {
     let temp_len = c_layout.shape().iter().product();
     let mut temp = backend.allocate::<T>(temp_len);
-    let temp_layout = Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
+    let temp_layout =
+        Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
     backend.fill(&mut temp, T::zero());
     backend.matmul(a, a_layout, b, b_layout, &mut temp, &temp_layout);
     let c_ptr = c as *mut B::DeviceBuffer<T>;
@@ -69,8 +70,16 @@ pub fn batched_matmul<T: Scalar, B: BackendOps<T>>(
         c_layout.shape(),
     );
 
-    let lhs_batch_stride = if lhs_batch == 1 { 0 } else { a_layout.strides()[0] };
-    let rhs_batch_stride = if rhs_batch == 1 { 0 } else { b_layout.strides()[0] };
+    let lhs_batch_stride = if lhs_batch == 1 {
+        0
+    } else {
+        a_layout.strides()[0]
+    };
+    let rhs_batch_stride = if rhs_batch == 1 {
+        0
+    } else {
+        b_layout.strides()[0]
+    };
     let out_batch_stride = c_layout.strides()[0];
 
     let lhs_shape = Shape::from([m, lhs_k].as_slice());
@@ -82,15 +91,18 @@ pub fn batched_matmul<T: Scalar, B: BackendOps<T>>(
 
     for batch in 0..out_batch {
         let lhs_layout = Layout::from_shape_strides(
-            lhs_shape.clone(), lhs_strides.clone(),
+            lhs_shape.clone(),
+            lhs_strides.clone(),
             a_layout.offset() + batch * lhs_batch_stride,
         );
         let rhs_layout = Layout::from_shape_strides(
-            rhs_shape.clone(), rhs_strides.clone(),
+            rhs_shape.clone(),
+            rhs_strides.clone(),
             b_layout.offset() + batch * rhs_batch_stride,
         );
         let out_layout = Layout::from_shape_strides(
-            out_shape.clone(), out_strides.clone(),
+            out_shape.clone(),
+            out_strides.clone(),
             c_layout.offset() + batch * out_batch_stride,
         );
         backend.matmul(a, &lhs_layout, b, &rhs_layout, c, &out_layout);
@@ -109,7 +121,8 @@ pub fn batched_matmul_accumulate<T: Scalar, B: BackendOps<T>>(
 ) {
     let temp_len = c_layout.shape().iter().product();
     let mut temp = backend.allocate::<T>(temp_len);
-    let temp_layout = Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
+    let temp_layout =
+        Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
     backend.fill(&mut temp, T::zero());
     batched_matmul(backend, a, a_layout, b, b_layout, &mut temp, &temp_layout);
     let c_ptr = c as *mut B::DeviceBuffer<T>;

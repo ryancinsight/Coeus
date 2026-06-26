@@ -1,5 +1,5 @@
-use coeus_core::{Layout, Scalar};
 use crate::backend_ops::trait_def::BackendOps;
+use coeus_core::{Layout, Scalar};
 
 /// Default: copy to host, run `coeus_leto::argmax_into`, copy back.
 pub fn argmax<T, B>(

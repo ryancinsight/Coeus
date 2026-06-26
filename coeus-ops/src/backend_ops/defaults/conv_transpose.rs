@@ -1,5 +1,5 @@
-use coeus_core::{Float, Layout};
 use crate::backend_ops::trait_def::BackendOps;
+use coeus_core::{Float, Layout};
 
 /// Default host-side 1-D transposed convolution.
 ///
@@ -43,9 +43,13 @@ pub fn conv_transpose1d<T: Float, B: BackendOps<T>>(
                 for oc in 0..c_out {
                     for ki in 0..k {
                         let t_out = ti * stride + ki * dilation;
-                        if t_out < padding { continue; }
+                        if t_out < padding {
+                            continue;
+                        }
                         let t_out = t_out - padding;
-                        if t_out >= l_out { continue; }
+                        if t_out >= l_out {
+                            continue;
+                        }
                         let w_val = w_h[ic * c_out * k + oc * k + ki];
                         out_h[ni * c_out * l_out + oc * l_out + t_out] =
                             out_h[ni * c_out * l_out + oc * l_out + t_out] + in_val * w_val;
@@ -118,11 +122,16 @@ pub fn conv_transpose2d<T: Float, B: BackendOps<T>>(
                             for kj in 0..kw {
                                 let h_pos = hi * stride + ki * dilation;
                                 let w_pos = wi * stride + kj * dilation;
-                                if h_pos < padding || w_pos < padding { continue; }
+                                if h_pos < padding || w_pos < padding {
+                                    continue;
+                                }
                                 let h_out_idx = h_pos - padding;
                                 let w_out_idx = w_pos - padding;
-                                if h_out_idx >= h_out || w_out_idx >= w_out { continue; }
-                                let wt_val = wt_h[ic * c_out * kh * kw + oc * kh * kw + ki * kw + kj];
+                                if h_out_idx >= h_out || w_out_idx >= w_out {
+                                    continue;
+                                }
+                                let wt_val =
+                                    wt_h[ic * c_out * kh * kw + oc * kh * kw + ki * kw + kj];
                                 let out_idx = ni * c_out * h_out * w_out
                                     + oc * h_out * w_out
                                     + h_out_idx * w_out
