@@ -1,7 +1,7 @@
 use coeus_autograd::Var;
 use coeus_nn::{
-    init, softmax, AvgPool2d, BatchNorm1d, BatchNorm2d, Dropout, LayerNorm, MaxPool2d, Module,
-    RMSNorm, Softmax,
+    init, layer_norm, rms_norm, softmax, AvgPool2d, BatchNorm1d, BatchNorm2d, Dropout, LayerNorm,
+    MaxPool2d, Module, RMSNorm, Softmax,
 };
 use coeus_tensor::Tensor;
 
@@ -17,7 +17,20 @@ fn test_layernorm() {
     );
 
     let output = ln.forward(&input);
+    let output_fn = layer_norm(&input, 4, Some(&ln.weight), Some(&ln.bias), 1e-5);
     assert_eq!(output.tensor.shape(), &[2, 4]);
+    assert_eq!(output_fn.tensor.shape(), &[2, 4]);
+    for (a, b) in output
+        .tensor
+        .as_slice()
+        .iter()
+        .zip(output_fn.tensor.as_slice())
+    {
+        assert!(
+            (a - b).abs() < 1e-10,
+            "layer_norm functional parity: {a} vs {b}"
+        );
+    }
 
     // Output elements for each batch should have mean ~0 and std ~1
     let out_slice = output.tensor.as_slice();
@@ -45,8 +58,21 @@ fn test_rmsnorm() {
 
     let input = Var::new(Tensor::from_slice(vec![1, 3], &[1.0f64, 2.0, 3.0]), true);
     let output = rms.forward(&input);
+    let output_fn = rms_norm(&input, Some(&rms.weight), 1e-5);
 
     assert_eq!(output.tensor.shape(), &[1, 3]);
+    assert_eq!(output_fn.tensor.shape(), &[1, 3]);
+    for (a, b) in output
+        .tensor
+        .as_slice()
+        .iter()
+        .zip(output_fn.tensor.as_slice())
+    {
+        assert!(
+            (a - b).abs() < 1e-10,
+            "rms_norm functional parity: {a} vs {b}"
+        );
+    }
 
     output.backward();
     assert!(input.grad().is_some());

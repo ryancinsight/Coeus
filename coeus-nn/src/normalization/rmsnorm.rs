@@ -3,6 +3,23 @@ use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
 
+/// Functional (stateless) RMS normalization.
+///
+/// Applies RMSNorm over the last dimension of a rank-2 input `[N, D]`.
+/// `weight` defaults to ones of shape `[D]`.
+pub fn rms_norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    weight: Option<&Var<T, B>>,
+    eps: f64,
+) -> Var<T, B> {
+    let d = input.tensor.shape().last().copied().unwrap_or(1);
+    let backend = B::default();
+    let w = weight
+        .cloned()
+        .unwrap_or_else(|| Var::new(Tensor::ones_on([d], &backend), false));
+    RMSNorm::from_parts(w, eps).forward(input)
+}
+
 /// Root Mean Square Normalization (RMSNorm) module.
 ///
 /// Applies RMSNorm over the last dimension of a 2D tensor `[N, D]`.

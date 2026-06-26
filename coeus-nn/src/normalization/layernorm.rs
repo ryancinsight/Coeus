@@ -4,6 +4,38 @@ use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
 
+/// Functional (stateless) layer normalization.
+///
+/// For rank-2 inputs this matches [`LayerNorm::forward`]; for rank≥3 it matches
+/// [`LayerNorm::forward_nd`] by normalizing the last dimension.
+///
+/// `weight` and `bias` default to ones/zeros of shape `[normalized_shape]`.
+pub fn layer_norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    normalized_shape: usize,
+    weight: Option<&Var<T, B>>,
+    bias: Option<&Var<T, B>>,
+    eps: f64,
+) -> Var<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
+    let backend = B::default();
+    let w = weight
+        .cloned()
+        .unwrap_or_else(|| Var::new(Tensor::ones_on([normalized_shape], &backend), false));
+    let b = bias
+        .cloned()
+        .unwrap_or_else(|| Var::new(Tensor::zeros_on([normalized_shape], &backend), false));
+    let ln = LayerNorm::from_parts(w, b, eps);
+    if input.tensor.ndim() == 2 {
+        ln.forward(input)
+    } else {
+        ln.forward_nd(input)
+    }
+}
+
 /// Layer Normalization module.
 ///
 /// Applies Layer Normalization over the last dimension of a 2D tensor `[N, D]`.
