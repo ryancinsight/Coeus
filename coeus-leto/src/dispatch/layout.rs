@@ -145,7 +145,7 @@ fn permute_layout_n<const N: usize>(layout: &CoeusLayout, axes: &[usize]) -> Res
 ///
 /// # Examples
 ///
-/// Permute a [2,3,4] layout with axes `[2,0,1]`: the new shape and strides
+/// Permute a `\[2,3,4\]` layout with axes `[2,0,1]`: the new shape and strides
 /// are the selected reorderings of the originals:
 ///
 /// ```

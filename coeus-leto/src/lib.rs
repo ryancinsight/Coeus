@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! # coeus-leto
 //!
 //! The const-rank dispatch shim that lets coeus delegate CPU array kernels to
