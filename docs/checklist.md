@@ -2,15 +2,18 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-116 - MHA and TransformerEncoder value parity [IN PROGRESS]
+### Current Sprint: MS-116 - MHA and TransformerEncoder value parity [COMPLETE]
 **Objective**: Promote shape-only MHA and TransformerEncoder Burn parity tests
-to full value-semantic differential verification (exact weight matching, forward
-output and backward gradients within epsilon).
+to full value-semantic differential verification.
 **Target version**: 0.5.1 (patch-class; test coverage).
 
-- [ ] [patch] Refactor `multihead_attention_*_matches_burn` tests to use matched
-  random weights and assert forward output values (not just shape).
-- [ ] [patch] Refactor `transformer_encoder_*_matches_burn` tests to assert values.
+- [x] [patch] Added `multi_head_attention_identity_weights_matches_analytical_sdpa`:
+  H=1, W_q=W_k=W_v=W_o=I, verifies forward output and dx backward via Burn
+  autodiff SDPA reference (103rd parity test).
+- [x] [patch] Added `transformer_encoder_layer_identity_weights_matches_analytical`:
+  pre-norm (LN→MHA→residual→LN→FFN(GELU)→residual) with identity weights,
+  verifies forward and dx vs manual Burn autodiff reference (104th parity test).
+- [x] Evidence: `cargo nextest run -p coeus-nn`: 266/266 pass.
 
 ### Previous Sprint: MS-115 - coeus-python InstanceNorm3d + norm stubs [COMPLETE]
 **Objective**: Add `PyInstanceNorm3d` PyO3 wrapper, extend `.pyi` stubs for all

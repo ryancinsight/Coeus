@@ -1784,6 +1784,80 @@ fn feed_forward_forward_shape_contract() {
     );
 }
 
+// ── Multi-head attention forward: identity weights, analytical SDPA reference ──
+//
+// With W_q = W_k = W_v = W_o = I (identity, no bias) and H=1 head:
+//   Q = K = V = X  (projections are identity)
+//   A = softmax(X @ X^T / sqrt(d_model))
+//   context = A @ X
+//   output = context @ I^T = context
+// We compute this reference in Burn autodiff tensors and compare elementwise.
+
+#[test]
+fn multi_head_attention_identity_weights_matches_analytical_sdpa() {
+    use burn::backend::autodiff::Autodiff;
+    use coeus_nn::{Module, MultiHeadAttention, NullMask};
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    // H = 1 head so d_k = d_model; keeps the reference simple.
+    let (batch, seq, d_model) = (1usize, 3, 4);
+    let data: Vec<f32> = (0..batch * seq * d_model)
+        .map(|x| (x as f32 + 1.0) * 0.1)
+        .collect(); // [0.1, 0.2, ..., 1.2]
+
+    // Coeus MHA with H=1, no bias, identity projection weights.
+    let mut mha = MultiHeadAttention::<f32, SequentialBackend, 1, NullMask>::new(d_model, false);
+    // Set W_q = W_k = W_v = W_o = identity [d_model, d_model].
+    let eye: Vec<f32> = (0..d_model * d_model)
+        .map(|i| if i % (d_model + 1) == 0 { 1.0 } else { 0.0 })
+        .collect();
+    let eye_t = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![d_model, d_model], &eye);
+    mha.w_q = Var::new(eye_t.clone(), false);
+    mha.w_k = Var::new(eye_t.clone(), false);
+    mha.w_v = Var::new(eye_t.clone(), false);
+    mha.w_o = Var::new(eye_t, false);
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![batch, seq, d_model], &data),
+        true,
+    );
+    let out_c = mha.forward(&xv);
+
+    // Burn autodiff reference: identity SDPA over the same input.
+    // Q = K = V = X [batch, seq, d_model]; A = softmax(X @ X^T / sqrt(d)), ctx = A @ X.
+    let xb: BurnTensor<AB, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [batch, seq, d_model]), &device)
+            .require_grad();
+    let scale = (d_model as f32).sqrt();
+    // [batch, seq, seq] = [batch, seq, d] @ [batch, d, seq]
+    let attn_logits = xb.clone().matmul(xb.clone().swap_dims(1, 2)) / scale;
+    // softmax over last dim (seq axis = axis 2)
+    let attn_w = burn_act::softmax(attn_logits, 2);
+    // [batch, seq, d] = [batch, seq, seq] @ [batch, seq, d]
+    let ctx: BurnTensor<AB, 3> = attn_w.matmul(xb.clone());
+    let grads = ctx.clone().sum().backward();
+
+    let out_b: Vec<f32> = ctx.detach().into_data().to_vec::<f32>().unwrap();
+    let dx_b: Vec<f32> = xb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+
+    assert_close_rel(
+        "mha_identity_fwd",
+        out_c.tensor.as_slice(),
+        &out_b,
+        1e-4,
+    );
+
+    // Backward: backward gradients through Coeus MHA.
+    coeus_autograd::sum(&out_c).backward();
+    assert_close_rel(
+        "mha_identity_bwd_dx",
+        xv.grad().unwrap().as_slice(),
+        &dx_b,
+        1e-4,
+    );
+}
+
 // ── Multi-head attention forward shape contract ───────────────────────────────
 
 #[test]
@@ -1900,6 +1974,136 @@ fn global_max_pool2d_reduces_spatial_to_one() {
     assert_eq!(out.tensor.shape(), &[1, 1, 1, 1], "global max pool shape");
     // max of 1..16 is 16.0
     assert_close("global_max_pool2d", out.tensor.as_slice(), &[16.0]);
+}
+
+// ── TransformerEncoderLayer: identity-weight value parity ─────────────────────
+//
+// Set all MHA weights and FFN linear weights to identity / zeros, LayerNorm
+// weights to ones / zeros, then verify the forward output against a manual
+// reference computed in Burn autodiff tensors.
+//
+// With identity MHA (W_q=W_k=W_v=W_o=I, no bias) and identity FFN (W1=I, b1=0,
+// W2=I, b2=0) and LayerNorm(γ=1, β=0):
+//   attn_out = LN(X + SDPA(X, X, X))
+//   ffn_out  = LN(attn_out + ReLU(attn_out) @ I^T + 0)
+// This is analytically reproducible.
+
+#[test]
+fn transformer_encoder_layer_identity_weights_matches_analytical() {
+    use burn::backend::autodiff::Autodiff;
+    use coeus_nn::{Module, NullMask, TransformerEncoderLayer};
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    // H=1, d_model=4, d_ff=4, no dropout
+    let (batch, seq, d_model, d_ff) = (1usize, 3, 4, 4);
+    let data: Vec<f32> = (0..batch * seq * d_model)
+        .map(|i| (i as f32 + 1.0) * 0.1)
+        .collect();
+
+    // Build Coeus TransformerEncoderLayer and force identity/zero weights.
+    let mut layer =
+        TransformerEncoderLayer::<f32, SequentialBackend, 1, NullMask>::new(d_model, d_ff, 0.0);
+
+    let eye4: Vec<f32> = (0..d_model * d_model)
+        .map(|i| if i % (d_model + 1) == 0 { 1.0 } else { 0.0 })
+        .collect();
+    let zeros4 = vec![0.0f32; d_model];
+    let ones4 = vec![1.0f32; d_model];
+    let eye_t = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![d_model, d_model], &eye4);
+    let zt = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![d_model], &zeros4);
+    let ot = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![d_model], &ones4);
+
+    // MHA weights (field: self_attn)
+    layer.self_attn.w_q = Var::new(eye_t.clone(), false);
+    layer.self_attn.w_k = Var::new(eye_t.clone(), false);
+    layer.self_attn.w_v = Var::new(eye_t.clone(), false);
+    layer.self_attn.w_o = Var::new(eye_t.clone(), false);
+    layer.self_attn.b_q = None;
+    layer.self_attn.b_k = None;
+    layer.self_attn.b_v = None;
+    layer.self_attn.b_o = None;
+    // LayerNorm1 (post-attention): γ=1, β=0
+    layer.norm1.weight = Var::new(ot.clone(), false);
+    layer.norm1.bias = Var::new(zt.clone(), false);
+    // FFN linear1: [d_ff, d_model] → identity; linear2: [d_model, d_ff] → identity
+    let eye_ff =
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![d_ff, d_model], &eye4);
+    let zt_ff = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![d_ff], &zeros4);
+    let eye_ff2 =
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![d_model, d_ff], &eye4);
+    layer.ffn.linear1.weight = Var::new(eye_ff, false);
+    layer.ffn.linear1.bias = Some(Var::new(zt_ff, false));
+    layer.ffn.linear2.weight = Var::new(eye_ff2, false);
+    layer.ffn.linear2.bias = Some(Var::new(zt.clone(), false));
+    // LayerNorm2 (post-FFN): γ=1, β=0
+    layer.norm2.weight = Var::new(ot.clone(), false);
+    layer.norm2.bias = Var::new(zt.clone(), false);
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(
+            vec![batch, seq, d_model],
+            &data,
+        ),
+        true,
+    );
+    let out_c = layer.forward(&xv);
+
+    // Burn autodiff reference: Pre-LN encoder — LN→SDPA→residual→LN→FFN(GELU)→residual.
+    // Matches forward_with_mask in encoder_layer.rs (dropout p=0 so pass-through).
+    let xb: BurnTensor<AB, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [batch, seq, d_model]), &device)
+            .require_grad();
+    let scale = (d_model as f32).sqrt();
+
+    // Helper: LayerNorm over last dim (population var, γ=1, β=0)
+    let ln3 = |x: BurnTensor<AB, 3>| -> BurnTensor<AB, 3> {
+        let mean = x.clone().sum_dim(2) / (d_model as f32);
+        let diff = x - mean;
+        let var = diff.clone().powf_scalar(2.0).sum_dim(2) / (d_model as f32);
+        diff / (var.add_scalar(1e-5_f32)).sqrt()
+    };
+
+    // Sub-layer 1: LN(X) → SDPA → residual
+    let normed1 = ln3(xb.clone());
+    let logits = normed1.clone().matmul(normed1.clone().swap_dims(1, 2)) / scale;
+    let attn_w = burn_act::softmax(logits, 2);
+    let ctx = attn_w.matmul(normed1);
+    let x = xb.clone() + ctx; // residual (dropout p=0)
+
+    // Sub-layer 2: LN(x) → identity FFN(GELU) → residual
+    let normed2 = ln3(x.clone());
+    // GELU: 0.5 * t * (1 + tanh(sqrt(2/π) * (t + 0.044715 * t^3)))
+    let sqrt_2_pi: f32 = (2.0_f32 / std::f32::consts::PI).sqrt();
+    let gelu = |t: BurnTensor<AB, 3>| -> BurnTensor<AB, 3> {
+        let c = t.clone().powf_scalar(3.0).mul_scalar(0.044715);
+        let inner = (t.clone() + c).mul_scalar(sqrt_2_pi);
+        let tanh_val = inner.tanh();
+        t.clone() * (tanh_val.add_scalar(1.0)) * 0.5
+    };
+    // FFN with identity W1=W2=I, b1=b2=0: output = gelu(normed2 @ I^T + 0) @ I^T + 0 = gelu(normed2)
+    let ffn_out = gelu(normed2);
+    let output = x.clone() + ffn_out; // residual (dropout p=0)
+    let grads = output.clone().sum().backward();
+
+    let out_b: Vec<f32> = output.detach().into_data().to_vec::<f32>().unwrap();
+    let dx_b: Vec<f32> = xb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+
+    assert_close_rel(
+        "transformer_enc_identity_fwd",
+        out_c.tensor.as_slice(),
+        &out_b,
+        1e-3,
+    );
+
+    coeus_autograd::sum(&out_c).backward();
+    assert_close_rel(
+        "transformer_enc_identity_bwd_dx",
+        xv.grad().unwrap().as_slice(),
+        &dx_b,
+        1e-3,
+    );
 }
 
 // ── TransformerEncoderLayer forward shape + gradient contract ─────────────────
