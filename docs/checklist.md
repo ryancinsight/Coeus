@@ -2,17 +2,29 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-115 - coeus-python InstanceNorm3d + norm stubs [IN PROGRESS]
+### Current Sprint: MS-116 - MHA and TransformerEncoder value parity [IN PROGRESS]
+**Objective**: Promote shape-only MHA and TransformerEncoder Burn parity tests
+to full value-semantic differential verification (exact weight matching, forward
+output and backward gradients within epsilon).
+**Target version**: 0.5.1 (patch-class; test coverage).
+
+- [ ] [patch] Refactor `multihead_attention_*_matches_burn` tests to use matched
+  random weights and assert forward output values (not just shape).
+- [ ] [patch] Refactor `transformer_encoder_*_matches_burn` tests to assert values.
+
+### Previous Sprint: MS-115 - coeus-python InstanceNorm3d + norm stubs [COMPLETE]
 **Objective**: Add `PyInstanceNorm3d` PyO3 wrapper, extend `.pyi` stubs for all
-three InstanceNorm variants and BatchNorm stubs, and add Python-side value parity.
+three InstanceNorm variants and missing GroupNorm functional stub, add Python-side
+value parity tests.
 **Target version**: 0.5.1 (minor-class; additive Python binding).
 
-- [ ] [minor] Add `PyInstanceNorm3d` in `coeus-python/src/nn/instancenorm.rs`
-  (thin wrapper over `coeus_nn::InstanceNorm3d`).
-- [ ] [minor] Extend `pycoeus.pyi` with stubs for `InstanceNorm1d`, `InstanceNorm2d`,
-  `InstanceNorm3d`, `BatchNorm1d`, `BatchNorm2d`, `BatchNorm3d` (currently missing).
-- [ ] [patch] Add binding tests verifying shape and value correctness for all
-  InstanceNorm variants via `cargo nextest run -p coeus-python`.
+- [x] [minor] Added `PyInstanceNorm3d` delegating to `coeus_nn::InstanceNorm3d`;
+  registered in normalization/mod → nn/mod → lib.rs.
+- [x] [minor] Extended `pycoeus.pyi` with `GroupNorm`, `InstanceNorm1d/2d/3d`
+  class stubs and `group_norm` functional stub (previously missing entirely).
+- [x] [patch] Added `test_instancenorm_forward_shape_and_value` verifying shape
+  and population-variance normalized values for all three variants.
+- [x] Evidence: `cargo nextest run -p coeus-python`: 71/71 pass.
 
 ### Previous Sprint: MS-114 - Autograd public documentation surface [COMPLETE]
 **Objective**: Close the `coeus-autograd` public documentation gap under
