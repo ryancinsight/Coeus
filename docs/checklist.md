@@ -2,7 +2,18 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-109 - WGPU Hephaestus zero-allocation elementwise routing [COMPLETE]
+### Current Sprint: MS-110 - Conv3d backward parity vs Burn autodiff [COMPLETE]
+**Objective**: Add differential Burn autodiff parity for Conv3d backward
+pass (dx, dw), completing backward parity coverage for all three conv dims.
+**Target version**: 0.5.1 (patch-class; test coverage).
+
+- [x] [patch] Added `conv3d_backward_matches_burn` — free-function Burn conv3d
+  with tracked input/weight, valid convolution (stride=1, pad=0, dil=1),
+  comparing dx and dw within epsilon tolerance.
+- [x] Evidence: `cargo nextest run -p coeus-nn --test burn_live_parity`:
+  98/98 pass.
+
+### Previous Sprint: MS-109 - WGPU Hephaestus zero-allocation elementwise routing [COMPLETE]
 **Objective**: Reduce WGPU elementwise allocation churn by keeping delegated
 Hephaestus contiguous routes in caller-owned output buffers.
 **Target version**: 0.5.1 (patch-class; behavior-preserving backend optimization).

@@ -3415,6 +3415,61 @@ fn conv3d_stride_padding_matches_burn() {
     );
 }
 
+// ── Conv3d backward (dx, dw) matches Burn autodiff ────────────────────────────
+//
+// Valid (no-padding) convolution so the backward formula is exact with stride=1.
+// Weight shape [oc, ic, kd, kh, kw]; no bias.
+// Uses `burn::tensor::module::conv3d` free function with tracked input/weight
+// tensors (no std-gated GradientsParams needed).
+
+#[test]
+fn conv3d_backward_matches_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use burn::tensor::module::conv3d as burn_conv3d;
+    use burn::tensor::ops::ConvOptions;
+    use coeus_nn::Conv3d;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    let (n, ic, oc, d, h, w, k) = (1usize, 2, 1, 5, 5, 5, 3);
+    let data: Vec<f32> = (0..n * ic * d * h * w)
+        .map(|x| x as f32 * 0.03 - 2.0)
+        .collect();
+    let w_vec: Vec<f32> = (0..oc * ic * k * k * k)
+        .map(|x| (x as f32 + 1.0) * 0.1 - 0.5)
+        .collect();
+
+    // Coeus: forward + backward (valid conv, stride=1, pad=0).
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, ic, d, h, w], &data),
+        true,
+    );
+    let mut conv_c = Conv3d::<f32, SequentialBackend>::new(ic, oc, k, false);
+    conv_c.weight = Var::new(CoeusTensor::from_slice(vec![oc, ic, k, k, k], &w_vec), true);
+    coeus_autograd::sum(&conv_c.forward(&xv)).backward();
+    let dx_c = xv.grad().unwrap();
+    let dw_c = conv_c.weight.grad().unwrap();
+
+    // Burn: free-function conv3d with tracked input and weight.
+    let xb: BurnTensor<AB, 5> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, ic, d, h, w]), &device)
+            .require_grad();
+    let wb: BurnTensor<AB, 5> =
+        BurnTensor::from_data(TensorData::new(w_vec.clone(), [oc, ic, k, k, k]), &device)
+            .require_grad();
+    let opts = ConvOptions::new([1, 1, 1], [0, 0, 0], [1, 1, 1], 1);
+    let grads = burn_conv3d(xb.clone(), wb.clone(), None, opts)
+        .sum()
+        .backward();
+
+    let dx_b: Vec<f32> = xb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+    let dw_b: Vec<f32> = wb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+
+    assert_close("conv3d_bwd_dx", dx_c.as_slice(), &dx_b);
+    assert_close("conv3d_bwd_dw", dw_c.as_slice(), &dw_b);
+}
+
 // ── Transpose backward (gradient routing) matches Burn autodiff ──────────────
 
 #[test]
