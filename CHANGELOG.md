@@ -32,6 +32,8 @@
 - **Functional bilinear Python surface** — added `pycoeus.bilinear(input1,
   input2, weight, bias=None)` as a thin validated wrapper over Rust-core
   `coeus_nn::bilinear(...)`.
+- **Autograd and tensor Rustdoc examples** — added executable examples for
+  gradient mode, `Var`, core tracked ops, and tensor shape/view contracts.
 
 ### Fixed
 
@@ -81,6 +83,14 @@
 - `cargo nextest run -p coeus-python --test binding_tests_ops
   test_nn_functional_ops` validates new `pycoeus.bilinear` functional behavior
   and validation paths.
+- `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_bilinear_module` validates the Python module path after direct
+  Rust-core bilinear delegation.
+- `cargo nextest run -p coeus-nn --test burn_live_parity
+  instancenorm3d_forward_backward_matches_burn` validates InstanceNorm3d
+  forward and backward parity against Burn autodiff.
+- `cargo test --doc -p coeus-autograd -p coeus-tensor -p coeus-nn` validates
+  executable Rustdoc examples for the touched public APIs.
 - `cargo fmt --check`, `coeus-core`/`coeus-cuda` clippy, and `coeus-core`
   rustdoc pass.
 

@@ -2,12 +2,13 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-113 - InstanceNorm3d + consolidation [COMPLETE]
+### Current Sprint: MS-113 - InstanceNorm3d + bilinear SSOT [COMPLETE]
 **Objective**: Consolidate duplicate `get_cache` logic from InstanceNorm1d/2d
 into shared `ensure_cache` + `instance_norm_forward` free functions, add
 InstanceNorm3d ([N,C,D,H,W] normalization over D*H*W), export it, and add a
-full Burn autodiff parity test for forward + backward (dx/dw/db).
-**Target version**: 0.5.1 (minor-class; new InstanceNorm3d).
+full Burn autodiff parity test for forward + backward (dx/dw/db). Keep bilinear
+math in Rust-core while exposing a thin Python functional wrapper.
+**Target version**: 0.5.1 (minor-class; new InstanceNorm3d + Python function).
 
 - [x] [minor] Consolidated `InstanceNorm1d` and `InstanceNorm2d` to share
   `ensure_cache` + `instance_norm_forward` free functions; eliminated duplicate
@@ -16,7 +17,21 @@ full Burn autodiff parity test for forward + backward (dx/dw/db).
   `normalization::mod` and `coeus_nn::lib`.
 - [x] [patch] Added `instancenorm3d_forward_backward_matches_burn` parity test
   (101st test); verifies forward values and dx/dw/db backward within 1e-4.
-- [x] Evidence: `cargo nextest run -p coeus-nn`: 264/264 pass.
+- [x] [patch] Added `coeus_nn::bilinear(...)` functional helper and made
+  `Bilinear::bilinear_forward` delegate to it (single SSOT path).
+- [x] [patch] Updated `coeus-python` `PyBilinear::bilinear_forward` to call the
+  Rust-core helper directly using existing weight/bias Vars.
+- [x] [minor] Added `pycoeus.bilinear(input1, input2, weight, bias=None)` as a
+  shape-validated thin binding over Rust-core and added the `.pyi` stub.
+- [x] [patch] Added executable Rustdoc examples for touched autograd and tensor
+  public APIs.
+- [x] Evidence: `cargo nextest run -p coeus-nn --test bilinear_parity`;
+  `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_nn_functional_ops`; `cargo nextest run -p coeus-python --test
+  binding_tests_ops test_bilinear_module`; `cargo nextest run -p coeus-nn
+  --test burn_live_parity instancenorm3d_forward_backward_matches_burn`;
+  `cargo test --doc -p coeus-autograd -p coeus-tensor -p coeus-nn`;
+  `cargo clippy -p coeus-nn -p coeus-python --tests -- -D warnings`.
 
 ### Previous Sprint: MS-112 - InstanceNorm1d/2d backward parity [COMPLETE]
 **Objective**: Add differential Burn autodiff parity for InstanceNorm1d and
