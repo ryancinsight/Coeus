@@ -9,7 +9,7 @@
 
 use crate::module::Module;
 use coeus_autograd::Var;
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, MoiraiBackend};
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
 
@@ -201,4 +201,107 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
         let scaled = coeus_autograd::mul(&normed, &w_reshaped);
         coeus_autograd::add(&scaled, &b_reshaped)
     }
+}
+
+/// Functional (stateless) group normalization — tensor-level, no autograd tracking.
+///
+/// Equivalent to `torch.nn.functional.group_norm(input, num_groups, weight, bias, eps)`.
+///
+/// # Shape
+/// Input: `[N, C, *]` where `C % num_groups == 0`.
+/// Output: same shape as input.
+///
+/// # Panics
+/// Panics if:
+/// - `input` has fewer than two dimensions.
+/// - `num_groups == 0`.
+/// - `C % num_groups != 0`.
+/// - `weight` or `bias` is present and not shaped `[C]`.
+/// - `eps` is not finite or is negative.
+pub fn group_norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Tensor<T, B>,
+    num_groups: usize,
+    weight: Option<&Tensor<T, B>>,
+    bias: Option<&Tensor<T, B>>,
+    eps: f64,
+) -> Tensor<T, B>
+where
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
+    use coeus_ops::{add_assign, div_assign, mean_axis, mul, sqrt_assign, sub};
+    let backend = B::default();
+    let shape = input.shape_cloned();
+    assert!(
+        shape.len() >= 2,
+        "group_norm: input must have at least 2 dimensions"
+    );
+    assert!(num_groups > 0, "group_norm: num_groups must be greater than 0");
+    assert!(
+        eps.is_finite() && eps >= 0.0,
+        "group_norm: eps must be finite and non-negative"
+    );
+    let n = shape[0];
+    let c = shape[1];
+    assert_eq!(
+        c % num_groups,
+        0,
+        "group_norm: channels ({c}) not divisible by num_groups ({num_groups})"
+    );
+    if let Some(w) = weight {
+        assert_eq!(w.shape(), &[c], "group_norm: weight must have shape [C]");
+    }
+    if let Some(b) = bias {
+        assert_eq!(b.shape(), &[c], "group_norm: bias must have shape [C]");
+    }
+    let c_per_g = c / num_groups;
+    let spatial: usize = if shape.len() > 2 {
+        shape[2..].iter().product()
+    } else {
+        1
+    };
+    let group_size = c_per_g * spatial;
+
+    // Reshape to [N*G, group_size] for per-group normalization
+    let flat = input.reshape([n * num_groups, group_size]);
+
+    // Mean over last dim: [N*G, 1]
+    let mean = mean_axis(&flat, 1, &backend);
+
+    // Centre: x − μ  (broadcasts [N*G, 1] → [N*G, group_size])
+    let xmu = sub(&flat, &mean, &backend);
+
+    // Variance = mean(xmu²) over last dim: [N*G, 1]
+    let xmu_sq = mul(&xmu, &xmu, &backend);
+    let mut var = mean_axis(&xmu_sq, 1, &backend);
+
+    // stdev = sqrt(var + eps): reuse var buffer
+    let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
+    add_assign(&mut var, &eps_t, &backend);
+    sqrt_assign(&mut var, &backend); // now holds stdev
+
+    // istdev = 1 / stdev
+    let ones = Tensor::ones_on([n * num_groups, 1], &backend);
+    let mut istdev = ones;
+    div_assign(&mut istdev, &var, &backend);
+
+    // x_hat = xmu * istdev (broadcasts [N*G, 1] → [N*G, group_size])
+    let x_hat = mul(&xmu, &istdev, &backend);
+
+    // Reshape back to original layout
+    let mut out = x_hat.reshape(shape.clone());
+
+    // Per-channel affine transform (both weight and bias are [C])
+    let mut broadcast_shape = vec![1usize; shape.len()];
+    broadcast_shape[1] = c;
+
+    if let Some(w) = weight {
+        let w_bc = w.reshape(broadcast_shape.clone());
+        out = mul(&out, &w_bc, &backend);
+    }
+    if let Some(b) = bias {
+        let b_bc = b.reshape(broadcast_shape.clone());
+        add_assign(&mut out, &b_bc, &backend);
+    }
+
+    out
 }

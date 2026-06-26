@@ -61,8 +61,8 @@ pub use loss::{
 };
 pub use module::Module;
 pub use normalization::{
-    BatchNorm1d, BatchNorm2d, BatchNorm3d, GroupNorm, InstanceNorm1d, InstanceNorm2d, LayerNorm,
-    RMSNorm,
+    group_norm, BatchNorm1d, BatchNorm2d, BatchNorm3d, GroupNorm, InstanceNorm1d, InstanceNorm2d,
+    LayerNorm, RMSNorm,
 };
 pub use parameter::Parameter;
 pub use pool::{
