@@ -1,45 +1,14 @@
-pub mod broadcast;
-pub mod cat;
-pub mod contiguous;
-pub mod cumprod;
-pub mod cumsum;
-pub mod diag;
-pub mod einsum;
-pub mod flip;
-pub mod gather;
-pub mod index_select;
-pub mod masked_fill;
-pub mod pad;
-pub mod permute;
-pub mod reshape;
-pub mod roll;
-pub mod slice;
-pub mod split;
-pub mod squeeze;
-pub mod stack;
-pub mod tile;
-pub mod tril;
-pub mod where_cond;
+pub mod cat_split_stack;
+pub mod mask;
+pub mod select;
+pub mod transform;
+pub mod util;
 
-pub use broadcast::broadcast_to;
-pub use cat::cat;
-pub use contiguous::contiguous;
-pub use cumprod::cumprod;
-pub use cumsum::cumsum;
-pub use diag::{diag, diagonal};
-pub use einsum::{einsum, einsum3};
-pub use flip::flip;
-pub use gather::gather;
-pub use index_select::index_select;
-pub use masked_fill::masked_fill;
-pub use pad::pad;
-pub use permute::{permute, transpose};
-pub use reshape::reshape;
-pub use roll::roll;
-pub use slice::slice;
-pub use split::split;
-pub use squeeze::{squeeze, unsqueeze};
-pub use stack::stack;
-pub use tile::tile;
-pub use tril::{tril, triu};
-pub use where_cond::where_cond;
+pub use cat_split_stack::{cat, split, stack};
+pub use mask::masked_fill;
+pub use select::{gather, index_select};
+pub use transform::{
+    broadcast_to, diag, diagonal, flip, pad, permute, reshape, roll, slice, squeeze, tile,
+    transpose, tril, triu, unsqueeze, where_cond,
+};
+pub use util::{contiguous, cumprod, cumsum, einsum, einsum3};

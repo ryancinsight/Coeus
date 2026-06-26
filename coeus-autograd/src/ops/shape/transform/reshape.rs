@@ -1,6 +1,6 @@
-use super::contiguous;
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
+use crate::ops::shape::contiguous as make_contiguous;
 use crate::var::Var;
 use coeus_core::{Scalar, Shape};
 use coeus_tensor::Tensor;
@@ -11,7 +11,6 @@ pub struct ReshapeNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub inputs: Vec<Var<T, B>>,
     pub original_shape: Shape,
 }
-
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for ReshapeNode<T, B> {
     #[inline]
     fn op_name(&self) -> &'static str {
@@ -47,7 +46,7 @@ pub fn reshape<T: Scalar, B: coeus_ops::BackendOps<T> + Default, S: Into<Shape>>
 ) -> Var<T, B> {
     let shape = shape.into();
     if !x.tensor.is_contiguous() {
-        let x_cont = contiguous::contiguous(x);
+        let x_cont = make_contiguous(x);
         return reshape(&x_cont, shape);
     }
     let backend = B::default();

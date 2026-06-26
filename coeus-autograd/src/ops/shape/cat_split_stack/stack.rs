@@ -18,8 +18,6 @@ where
 {
     pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
-    /// Number of inputs stacked — each chunk along `dim` has size 1 after stacking.
-    pub n: usize,
     pub dim: usize,
 }
 
@@ -96,7 +94,6 @@ where
         let node = StackNode {
             output_grad: grad.as_ref().unwrap().clone(),
             inputs: inputs.iter().map(|v| (*v).clone()).collect(),
-            n: inputs.len(),
             dim,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)

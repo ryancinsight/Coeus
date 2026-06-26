@@ -126,7 +126,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for BatchNorm
             let rm = self.running_mean.borrow();
             let rv = self.running_var.borrow();
             let ndhw = n * d * h * w;
-            let ndhwc = input.tensor.permute(&[0, 2, 3, 4, 1]).to_contiguous_on(&backend);
+            let ndhwc = input
+                .tensor
+                .permute(&[0, 2, 3, 4, 1])
+                .to_contiguous_on(&backend);
             let flat = ndhwc.reshape([ndhw, c]);
             let rm_row = rm.reshape([1, c]);
             let rv_row = rv.reshape([1, c]);

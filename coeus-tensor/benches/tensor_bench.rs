@@ -335,7 +335,12 @@ fn bench_burn_sigmoid(c: &mut Criterion) {
         b.iter(|| black_box(burn::tensor::activation::sigmoid(x_burn.clone())))
     });
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(coeus_ops::sigmoid(black_box(&x_seq), black_box(&seq_backend))))
+        b.iter(|| {
+            black_box(coeus_ops::sigmoid(
+                black_box(&x_seq),
+                black_box(&seq_backend),
+            ))
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {

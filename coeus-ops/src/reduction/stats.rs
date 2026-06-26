@@ -23,6 +23,14 @@
 // output shape convention (collapsed axis → size 1; keepdim is the
 // caller's responsibility, identical to `var_axis` / `std_dev_axis`).
 //
+// `frobenius_norm` / `frobenius_norm_batched` compose on the same
+// `BinaryOp::Mul` + `ReductionOp::Sum` + native `T::sqrt` chain:
+// `norm(x) = sqrt(sum(x·x))` is the canonical 2-D matrix_norm
+// (matches `torch.linalg.matrix_norm(A, ord='fro')`), and the per-batch
+// variant reduces over the last two dimensions for any tensor of rank
+// ≥ 2 — raw composition, no new `BinaryOp::Pow` opcode (the `Pow`
+// deferral remains owned by MS-62).
+//
 // The per-axis variants rely on the existing `BinaryOp` broadcast path
 // (`coeus_leto::elementwise_binary_into` automatically broadcasts a
 // `[d0, 1, …, 1]` mean against the full input).
@@ -267,6 +275,100 @@ pub fn norm_p_axis<T: Float, B: BackendOps<T> + Default>(
     Tensor::from_slice_on(out_shape, &out_host, backend)
 }
 
+/// Frobenius (matrix L2) norm over a single 2-D tensor: `sqrt(Σ aᵢⱼ²)`.
+///
+/// Matches `torch.linalg.matrix_norm(A, ord='fro')` for a 2-D input matrix.
+/// Composition on the existing L2 vector norm ([`norm`]) requires no new
+/// `BinaryOp` opcodes and no new backend dispatch — the input materialises
+/// to contiguous (no copy on the fast path), the squared sum runs through
+/// the canonical `mul`+`sum` chain, and the final `sqrt` uses the native
+/// `T::sqrt` already exposed by [`crate::unary::sqrt`].
+///
+/// For ≥3-D tensors see [`frobenius_norm_batched`], which reduces over the
+/// last two dimensions per batch.
+#[inline]
+pub fn frobenius_norm<T: Float, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B) -> T {
+    norm(a, backend)
+}
+
+/// Per-batch Frobenius (matrix L2) norm: reduces over the last two
+/// dimensions for every batch slot in the input.
+///
+/// Matches `torch.linalg.matrix_norm(A, ord='fro')` for inputs of rank
+/// `≥ 2`: the norm is computed over the dimensions specified by the
+/// canonical last-2-dim pair (`dim = (-2, -1)`), and the leading batch
+/// dimensions are kept in the output. Equivalent to applying
+/// [`frobenius_norm`] to each `m × n` slice of the batched input.
+///
+/// # Semantics
+///
+/// - `ndim == 2`: returns a 0-D scalar Tensor holding the single
+///   Frobenius norm (mirrors the scalar return of the flat [`norm`]). The
+///   boundary adapter at `coeus_python::matrix_norm` materialises this to
+///   a Python `float` for ergonomics.
+/// - `ndim >= 3`: returns a Tensor with shape `a.shape[..ndim-2]`
+///   holding one Frobenius norm per batch slot.
+///
+/// Composition, like the other reduction ops, runs in native precision of
+/// `T`. The host-side fold is unavoidable here (Frobenius is a reduction
+/// over a variable last-two-dim window, and `B::copy_to_host` is the
+/// canonical device→host transfer already in use by `norm` / `var` /
+/// `var_axis`), so the kernel is lock-free and allocation-light.
+///
+/// # Panics
+/// Panics if the input has rank < 2, mirroring the `torch.linalg.matrix_norm`
+/// precondition.
+#[inline]
+pub fn frobenius_norm_batched<T: Float, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    backend: &B,
+) -> Tensor<T, B> {
+    let ndim = a.ndim();
+    assert!(
+        ndim >= 2,
+        "frobenius_norm_batched: tensor must have rank >= 2, got ndim={ndim}"
+    );
+    if ndim == 2 {
+        // 2-D → 0-D scalar tensor. Mirrors `torch.linalg.matrix_norm(A)`
+        // returning a single-element Tensor, which Python materialises to a
+        // plain float at the binding boundary.
+        let v = norm(a, backend);
+        return Tensor::from_slice_on([], &[v], backend);
+    }
+
+    // Materialise contiguous storage so we can iterate with linear
+    // arithmetic on the last-two-dim window per batch slot. Same fast-path
+    // convention as `norm` / `norm_p_axis` / `var`.
+    let contiguous = if a.is_contiguous() && a.layout().offset() == 0 {
+        a.reshape(a.shape().to_vec())
+    } else {
+        a.to_contiguous_on(backend)
+    };
+    let n = contiguous.numel();
+    let mut host = vec![T::zero(); n];
+    backend.copy_to_host(contiguous.storage(), &mut host);
+
+    // Each batch slot owns `last_two = m · n` consecutive elements; per
+    // slot we sum squares and sqrt at the end.
+    let last_two: usize = contiguous.shape()[ndim - 1] * contiguous.shape()[ndim - 2];
+    let pre: usize = n / last_two;
+    let mut out_host = Vec::with_capacity(pre);
+    for batch_idx in 0..pre {
+        let mut acc = T::zero();
+        for j in 0..last_two {
+            let v = host[batch_idx * last_two + j];
+            acc = acc + v * v;
+        }
+        out_host.push(acc.sqrt());
+    }
+
+    // Output shape is the input shape with the last two axes dropped —
+    // matches `torch.linalg.matrix_norm`'s default `dim=(-2, -1)`,
+    // `keepdim=False`.
+    let out_shape: Vec<usize> = contiguous.shape()[..ndim - 2].to_vec();
+    Tensor::from_slice_on(out_shape, &out_host, backend)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -471,5 +573,120 @@ mod tests {
         let b = SequentialBackend::new();
         let x = v3();
         let _ = norm_p_axis(&x, 0.0, 0, &b);
+    }
+
+    // ── frobenius_norm / frobenius_norm_batched ─────────────────────────────
+    //
+    // Reference oracle: `torch.linalg.matrix_norm(A, ord='fro')` returns
+    // `sqrt(sum(a_ij ** 2))` over the last two dimensions. For 2-D inputs
+    // this collapses to a single scalar; for ≥3-D inputs the per-batch
+    // Frobenius norms are returned with the leading batch dimensions
+    // preserved.
+
+    fn mat3x3(data: &[f64; 9]) -> Tensor<f64, SequentialBackend> {
+        Tensor::<f64, SequentialBackend>::from_slice(vec![3, 3], data)
+    }
+
+    #[test]
+    fn frobenius_norm_2d_matches_torch_oracle() {
+        // `A = reshape(arange(9), (3, 3))` from the torch.linalg.matrix_norm docs:
+        //   [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+        //   sum of squares = 0+1+4+9+16+25+36+49+64 = 204
+        //   frobenius norm = sqrt(204) ≈ 14.2829
+        let b = SequentialBackend::new();
+        let a = mat3x3(&[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+        let got = frobenius_norm(&a, &b);
+        let want = (204.0_f64).sqrt();
+        assert!(
+            (got - want).abs() < 1e-12,
+            "frobenius_norm(3x3) = {got}, want {want}"
+        );
+    }
+
+    #[test]
+    fn frobenius_norm_2d_identity_matrix_is_sqrt_3() {
+        let b = SequentialBackend::new();
+        let id = mat3x3(&[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
+        let got = frobenius_norm(&id, &b);
+        let want = 3.0_f64.sqrt();
+        assert!(
+            (got - want).abs() < 1e-12,
+            "frobenius_norm(I_3) = {got}, want {want}"
+        );
+    }
+
+    #[test]
+    fn frobenius_norm_batched_3d_returns_per_batch_scalars() {
+        // `B = A.expand(2, -1, -1)` from the torch docs: two stacked 3×3
+        // copies of `A = arange(9).reshape(3, 3)`. Each batch slot has
+        // Frobenius norm `sqrt(204)`; output shape is `[2]`.
+        let b = SequentialBackend::new();
+        let a = mat3x3(&[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+        let stacked = Tensor::<f64, SequentialBackend>::from_slice(
+            vec![2, 3, 3],
+            // batch 0 = a; batch 1 = a
+            &[
+                0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
+                7.0, 8.0,
+            ],
+        );
+        let got = frobenius_norm_batched(&stacked, &b);
+        assert_eq!(got.shape(), &[2]);
+        let want = (204.0_f64).sqrt();
+        for (g, _) in got.as_slice().iter().zip([want, want]) {
+            assert!((*g - want).abs() < 1e-12, "got {g}, want {want}");
+        }
+        // Sanity: the 2-D reference matches the per-batch call.
+        let ref_scalar = frobenius_norm(&a, &b);
+        assert!(
+            (ref_scalar - want).abs() < 1e-12,
+            "2-D refr scalar = {ref_scalar}, want {want}"
+        );
+    }
+
+    #[test]
+    fn frobenius_norm_batched_4d_collapses_last_two_dims() {
+        // Shape `[2, 2, 3, 3]`: leading 2×2 batch of 3×3 identity matrices.
+        // Each batch slot has Frobenius norm `sqrt(3)`; output shape is
+        // `[2, 2]`.
+        let b = SequentialBackend::new();
+        let batch = Tensor::<f64, SequentialBackend>::from_slice(
+            vec![2, 2, 3, 3],
+            // each 3×3 slice is the identity
+            &[
+                1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, //
+                1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, //
+                1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, //
+                1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
+            ],
+        );
+        let got = frobenius_norm_batched(&batch, &b);
+        assert_eq!(got.shape(), &[2, 2]);
+        let want = 3.0_f64.sqrt();
+        for (g, _) in got.as_slice().iter().zip([0.0; 4]) {
+            assert!((*g - want).abs() < 1e-12, "got {g}, want {want}");
+        }
+    }
+
+    #[test]
+    fn frobenius_norm_batched_2d_returns_zero_dim_scalar_tensor() {
+        // For a 2-D matrix, the batched dispatch must still return a
+        // 0-D scalar tensor so the Python adapter can collapse one float.
+        let b = SequentialBackend::new();
+        let a = mat3x3(&[3.0, 0.0, 0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 5.0]);
+        let got = frobenius_norm_batched(&a, &b);
+        assert_eq!(got.shape(), &[]);
+        // sqrt(9 + 16 + 25) = sqrt(50)
+        let want = 50.0_f64.sqrt();
+        let v = got.as_slice()[0];
+        assert!((v - want).abs() < 1e-12, "got {v}, want {want}");
+    }
+
+    #[test]
+    #[should_panic(expected = "rank >= 2")]
+    fn frobenius_norm_batched_1d_panics() {
+        let b = SequentialBackend::new();
+        let x = v3();
+        let _ = frobenius_norm_batched(&x, &b);
     }
 }

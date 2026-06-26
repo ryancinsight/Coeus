@@ -2480,6 +2480,53 @@ fn groupnorm_forward_backward_match_burn() {
     );
 }
 
+#[test]
+fn batchnorm1d_eval_uses_running_stats_without_update() {
+    use coeus_nn::BatchNorm1d;
+
+    let (n, c, l) = (2usize, 3, 2);
+    let data = vec![
+        1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, //
+        7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+    ];
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, l], &data),
+        false,
+    );
+    let running_mean = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![c], &[1.0, 2.0, 3.0]);
+    let running_var = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![c], &[4.0, 9.0, 16.0]);
+    let weight = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![c], &[1.0, 1.0, 1.0]),
+        true,
+    );
+    let bias = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![c], &[0.0, 0.0, 0.0]),
+        true,
+    );
+    let mut bn = BatchNorm1d::<f32, SequentialBackend>::from_parts(
+        c,
+        weight,
+        bias,
+        1e-5,
+        0.1,
+        running_mean.clone(),
+        running_var.clone(),
+    );
+    bn.set_training(false);
+
+    let out = bn.forward(&x);
+    assert_eq!(out.tensor.shape(), &[n, c, l]);
+    assert_eq!(bn.running_mean.borrow().as_slice(), running_mean.as_slice());
+    assert_eq!(bn.running_var.borrow().as_slice(), running_var.as_slice());
+
+    let expected0 = (data[0] - 1.0) / (4.0_f32 + 1e-5).sqrt();
+    let got0 = out.tensor.as_slice()[0];
+    assert!(
+        (got0 - expected0).abs() < 1e-6,
+        "batchnorm eval value: got {got0}, expected {expected0}"
+    );
+}
+
 // ── InstanceNorm forward (matches Burn NdArray) ──────────────────────────────
 
 #[test]
@@ -2678,6 +2725,35 @@ fn embedding_backward_accumulates_grad_for_repeated_indices() {
     );
 }
 
+#[test]
+fn embedding_padding_idx_zeroes_grad_for_pad_token() {
+    let emb = coeus_nn::Embedding::<f32, SequentialBackend>::with_padding_idx(4, 3, 0);
+
+    let w_slice = emb.weight.tensor.as_slice();
+    assert_eq!(
+        &w_slice[0..3],
+        &[0.0, 0.0, 0.0],
+        "padding_idx row must be zero-initialized"
+    );
+
+    let idx = CoeusTensor::<i32, SequentialBackend>::from_slice(vec![4], &[0, 1, 2, 0]);
+    let out = emb.forward_indices(&idx);
+    assert_eq!(out.tensor.shape(), &[4, 3]);
+
+    coeus_autograd::sum(&out).backward();
+    let gw = emb.weight.grad().expect("embedding weight must have grad");
+    let gw_s = gw.as_slice();
+
+    assert_eq!(
+        &gw_s[0..3],
+        &[0.0, 0.0, 0.0],
+        "padding_idx gradient row must stay zero"
+    );
+    assert_eq!(&gw_s[3..6], &[1.0, 1.0, 1.0]);
+    assert_eq!(&gw_s[6..9], &[1.0, 1.0, 1.0]);
+    assert_eq!(&gw_s[9..12], &[0.0, 0.0, 0.0]);
+}
+
 // ── New activation parity tests (sigmoid, tanh, silu, log_softmax, ──────────
 // ── leaky_relu, softplus, mish) against Burn 0.16 NdArray reference ─────────
 //
@@ -2691,10 +2767,7 @@ fn act_input() -> Vec<f32> {
 }
 
 fn burn_act_tensor() -> BurnTensor<BurnBackend, 2> {
-    BurnTensor::from_data(
-        TensorData::new(act_input(), [2, 4]),
-        &dev(),
-    )
+    BurnTensor::from_data(TensorData::new(act_input(), [2, 4]), &dev())
 }
 
 fn coeus_act_tensor() -> CoeusTensor<f32, SequentialBackend> {
@@ -2789,10 +2862,16 @@ fn cat_backward_routes_grad_to_each_input() {
     let gx = x.grad().expect("x.grad must be set");
     let gy = y.grad().expect("y.grad must be set");
     for &v in gx.as_slice() {
-        assert!((v - 1.0).abs() < 1e-6, "cat_bwd x.grad: expected 1.0 got {v}");
+        assert!(
+            (v - 1.0).abs() < 1e-6,
+            "cat_bwd x.grad: expected 1.0 got {v}"
+        );
     }
     for &v in gy.as_slice() {
-        assert!((v - 1.0).abs() < 1e-6, "cat_bwd y.grad: expected 1.0 got {v}");
+        assert!(
+            (v - 1.0).abs() < 1e-6,
+            "cat_bwd y.grad: expected 1.0 got {v}"
+        );
     }
 }
 
@@ -2842,7 +2921,11 @@ fn dropout_backward_masks_gradient() {
     );
     let drop0 = Dropout::new(0.0);
     let out0 = drop0.forward(&x);
-    assert_eq!(out0.tensor.as_slice(), x.tensor.as_slice(), "p=0 should be identity");
+    assert_eq!(
+        out0.tensor.as_slice(),
+        x.tensor.as_slice(),
+        "p=0 should be identity"
+    );
 
     // Backward with p=0 passes gradient unchanged.
     coeus_autograd::sum(&out0).backward();
@@ -2863,6 +2946,9 @@ fn dropout_backward_masks_gradient() {
     let gx2 = x2.grad().unwrap();
     // All gradient values must be either 0 or ≥ 1 (scale = 2.0 for p=0.5).
     for &v in gx2.as_slice() {
-        assert!(v == 0.0 || v >= 1.0, "dropout backward: unexpected grad {v}");
+        assert!(
+            v == 0.0 || v >= 1.0,
+            "dropout backward: unexpected grad {v}"
+        );
     }
 }

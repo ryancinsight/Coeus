@@ -1892,6 +1892,28 @@ layers.zero_grad()
 }
 
 #[test]
+fn test_embedding_padding_idx() {
+    run_script(
+        r#"
+import pycoeus
+
+emb = pycoeus.Embedding(4, 3, padding_idx=0)
+assert emb.padding_idx == 0, f"padding_idx: {emb.padding_idx}"
+assert emb.weight.data[:3] == [0.0, 0.0, 0.0], f"padding row: {emb.weight.data[:3]}"
+
+idx = pycoeus.Tensor([0.0, 1.0, 2.0, 0.0], [4])
+out = emb.forward(idx)
+assert out.shape == [4, 3], f"embedding output shape: {out.shape}"
+assert out.data[:3] == [0.0, 0.0, 0.0], f"first padding output: {out.data[:3]}"
+assert out.data[9:12] == [0.0, 0.0, 0.0], f"second padding output: {out.data[9:12]}"
+
+no_pad = pycoeus.Embedding(2, 2)
+assert no_pad.padding_idx is None, f"no padding_idx: {no_pad.padding_idx}"
+"#,
+    );
+}
+
+#[test]
 fn test_softmax_log_softmax_methods() {
     run_script(
         r#"
@@ -2634,3 +2656,199 @@ assert on_false.grad == [0.0, 1.0, 0.0, 1.0], f"where on_false.grad: {on_false.g
     );
 }
 
+#[test]
+fn test_matrix_norm_fro() {
+    run_script(
+        r#"
+import math
+import pycoeus
+
+# ── torch.linalg.matrix_norm(input, ord='fro') parity ──────────────────
+# Reference: torch.linalg.matrix_norm(reshape(arange(9), (3,3))) =
+# sqrt(0+1+4+9+16+25+36+49+64) = sqrt(204) ≈ 14.2829.
+
+# 2-D input → plain Python float.
+flat = pycoeus.matrix_norm(pycoeus.Tensor([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], [3, 3]))
+assert isinstance(flat, float), f"2-D should return float, got {type(flat)}"
+assert abs(flat - math.sqrt(204.0)) < 1e-9, f"2-D frobenius: {flat}"
+
+# 3x3 identity matrix → sqrt(3).
+id_flat = pycoeus.matrix_norm(
+    pycoeus.Tensor([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], [3, 3]),
+)
+assert abs(id_flat - math.sqrt(3.0)) < 1e-9, f"identity frobenius: {id_flat}"
+
+# Non-square (3x2) reduction: sqrt(1+4+9+16+25+36) = sqrt(91).
+nsq = pycoeus.matrix_norm(
+    pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [3, 2]),
+)
+assert abs(nsq - math.sqrt(91.0)) < 1e-9, f"3x2 frobenius: {nsq}"
+
+# 3-D batched input with two stacked copies — returns a [2] PyTensor
+# carrying one Frobenius norm per batch slot.
+stacked = pycoeus.Tensor(
+    [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0,
+     0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+    [2, 3, 3],
+)
+out = pycoeus.matrix_norm(stacked)
+assert out.shape == [2], f"3-D batched shape: {out.shape}"
+for got in out.data:
+    assert abs(got - math.sqrt(204.0)) < 1e-9, f"3-D batched entry: {got}"
+
+# 4-D batched input — returns a [2, 2] PyTensor of Frobenius norms for
+# the leading 2x2 batch of identity matrices.
+batch4 = pycoeus.Tensor(
+    [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
+     1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
+     1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
+     1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+    [2, 2, 3, 3],
+)
+out4 = pycoeus.matrix_norm(batch4)
+assert out4.shape == [2, 2], f"4-D batched shape: {out4.shape}"
+for got in out4.data:
+    assert abs(got - math.sqrt(3.0)) < 1e-9, f"4-D batched entry: {got}"
+
+# 1-D input → ValueError.
+try:
+    pycoeus.matrix_norm(pycoeus.Tensor([1.0, 2.0, 3.0], [3]))
+    raise AssertionError("matrix_norm on 1-D should raise")
+except ValueError:
+    pass
+
+# ord != 'fro' → ValueError (only Frobenius is currently shipped).
+try:
+    pycoeus.matrix_norm(pycoeus.Tensor([1.0, 2.0], [1, 2]), ord='nuc')
+    raise AssertionError("matrix_norm with ord='nuc' should raise")
+except ValueError:
+    pass
+
+# ord default is 'fro' (omit keyword → 2-D returns float).
+default = pycoeus.matrix_norm(pycoeus.Tensor([3.0, 4.0], [1, 2]))
+assert isinstance(default, float), f"default ord: {type(default)}"
+assert abs(default - 5.0) < 1e-9, f"default ord frobenius: {default}"
+"#,
+    );
+}
+
+#[test]
+fn test_bilinear_module() {
+    run_script(
+        r#"
+import pycoeus
+
+# ── Bilinear forward ──────────────────────────────────────────────────
+# Bilinear(in1=2, in2=2, out=1) with identity weight: W[0,:,:] = I_2
+bil = pycoeus.Bilinear(2, 2, 1, bias=False)
+# Set W[0] to identity
+bil.weight.data = [1.0, 0.0, 0.0, 1.0]
+
+x1 = pycoeus.Tensor([1.0, 2.0], [1, 2])
+x2 = pycoeus.Tensor([3.0, 4.0], [1, 2])
+
+# out[0,0] = x1 @ W[0] @ x2.T = [1,2] @ [[1,0],[0,1]] @ [3,4].T = 1*3+2*4=11
+out = bil.bilinear_forward(x1, x2)
+assert out.shape == [1, 1], f"bilinear shape: {out.shape}"
+assert abs(out.data[0] - 11.0) < 1e-5, f"bilinear value: {out.data[0]}"
+
+# With bias
+bil_b = pycoeus.Bilinear(2, 2, 1, bias=True)
+bil_b.weight.data = [1.0, 0.0, 0.0, 1.0]
+bil_b.bias.data = [5.0]
+out_b = bil_b.bilinear_forward(x1, x2)
+assert abs(out_b.data[0] - 16.0) < 1e-5, f"bilinear+bias: {out_b.data[0]}"
+
+# Parameters
+params = bil.parameters()
+assert len(params) == 1, f"no-bias params: {len(params)}"
+params_b = bil_b.parameters()
+assert len(params_b) == 2, f"with-bias params: {len(params_b)}"
+
+# state_dict roundtrip
+sd = bil.state_dict()
+bil2 = pycoeus.Bilinear(2, 2, 1, bias=False)
+bil2.load_state_dict(sd)
+out2 = bil2.bilinear_forward(x1, x2)
+assert abs(out2.data[0] - 11.0) < 1e-5, f"state_dict roundtrip: {out2.data[0]}"
+"#,
+    );
+}
+
+#[test]
+fn test_gradient_accumulation() {
+    run_script(
+        r#"
+import pycoeus
+
+# ── Gradient accumulation: N backward passes before zero_grad ─────────
+# sum(x * x).backward() gives grad = 2 * x.
+# Accumulating over N steps without zeroing should give N * single_step.
+
+p = pycoeus.Tensor([1.0, 2.0, 3.0], [3], requires_grad=True)
+single_step_grad = [2.0, 4.0, 6.0]
+N = 3
+
+for _ in range(N):
+    loss = pycoeus.sum(p * p)
+    loss.backward()
+
+assert p.grad is not None, "gradient must exist"
+for got, want in zip(p.grad, [v * N for v in single_step_grad]):
+    assert abs(got - want) < 1e-5, f"accumulated grad: got {got} want {want}"
+
+# After zero_grad, accumulated grad is cleared.
+p.zero_grad()
+assert p.grad is None or all(v == 0.0 for v in (p.grad or [])), "zero_grad must clear"
+
+# One more forward+backward gives single_step again.
+pycoeus.sum(p * p).backward()
+for got, want in zip(p.grad, single_step_grad):
+    assert abs(got - want) < 1e-5, f"post-zero grad: got {got} want {want}"
+"#,
+    );
+}
+
+#[test]
+fn test_batchnorm_eval_mode() {
+    run_script(
+        r#"
+import pycoeus
+
+# ── BatchNorm2d training vs eval mode ────────────────────────────────
+# During training, BN normalizes using batch stats.
+# During eval, BN normalizes using stored running stats.
+bn = pycoeus.BatchNorm2d(2, eps=1e-5, momentum=1.0)  # momentum=1 → pure batch stats
+
+# Set known running stats.
+bn.running_mean.data = [1.0, 2.0]
+bn.running_var.data  = [4.0, 9.0]
+
+x = pycoeus.Tensor([
+    2.0, 4.0, 3.0, 5.0,   # C0 row: mean=3.5
+    5.0, 8.0, 6.0, 9.0,   # C1 row: mean=7.0
+], [1, 2, 2, 2])  # [N=1, C=2, H=2, W=2]
+
+# Training forward normalizes by batch stats and updates running stats.
+out_train = bn.forward(x)
+assert out_train.shape == [1, 2, 2, 2], f"train shape: {out_train.shape}"
+
+# After training forward with momentum=1.0, running stats equal batch stats.
+# Capture them.
+rm_after = list(bn.running_mean.data)
+rv_after = list(bn.running_var.data)
+
+# Eval forward: output should differ from training (uses running stats instead of batch stats).
+# Set a distinctive running mean to detect whether it's used.
+bn.running_mean.data = [10.0, 20.0]
+bn.running_var.data  = [1.0,  1.0]
+out_eval = bn.eval_forward(x)
+assert out_eval.shape == [1, 2, 2, 2], f"eval shape: {out_eval.shape}"
+# With running_mean=10 for C0, normalized value of x=2 is (2-10)/sqrt(1+1e-5) ≈ -8
+# Each element in C0 row should be ≈ (x - 10) / 1 = x - 10
+for v, xv in zip(out_eval.data[:4], x.data[:4]):
+    expected = (xv - 10.0) / (1.0 + 1e-5) ** 0.5
+    assert abs(v - expected) < 1e-3, f"eval C0: got {v} expected {expected:.4f}"
+"#,
+    );
+}

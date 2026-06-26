@@ -3,7 +3,7 @@
 //! # Operation families
 //! - **Elementwise** — [`unary`] and [`binary`] kernels dispatched via [`BackendOps::elementwise_unary`] / [`BackendOps::elementwise_binary`].
 //! - **Linear algebra** — [`matmul()`], [`sparse`] SpMM/SpMV, and FFT via Bluestein/Cooley-Tukey.
-//! - **Reductions** — [`reduction`]: `sum`, `mean`, `max/min`, `argmax/argmin`, `topk`, `cumsum`, plus vector arithmetic `dot` (flat inner product) and `cross` (per-channel 3-vector cross along `dim`).
+//! - **Reductions** — [`reduction`]: `sum`, `mean`, `max/min`, `argmax/argmin`, `topk`, `cumsum`, plus vector arithmetic `dot` (flat inner product) and `cross` (per-channel 3-vector cross along `dim`), plus matrix norms `frobenius_norm` / `frobenius_norm_batched` (compose on `norm` for `torch.linalg.matrix_norm(A, ord='fro')`).
 //! - **Convolution** — 1-D/2-D/3-D forward+backward routed through `BackendOps::conv1d`/`conv2d`/`conv3d`.
 //! - **Pooling** — max and average pooling (2-D/3-D) with backward gradients.
 //! - **Attention** — [`attention::scaled_dot_product_attention`] with causal/padding mask support.
@@ -39,12 +39,12 @@ pub use binary::{
     add, add_assign, div, div_assign, elementwise_binary, elementwise_binary_to, mul, mul_assign,
     sub, sub_assign,
 };
-pub use embedding::{embedding, embedding_backward};
+pub use embedding::{embedding, embedding_backward, embedding_backward_with_padding_idx};
 pub use matmul::{bmm, matmul, matmul_accumulate, outer};
 pub use reduction::{
-    amax, amin, argmax, argmin, cross, cumprod, cumsum, dot, max_axis, mean, mean_axis, min_axis,
-    norm, norm_p, norm_p_axis, prod, std_dev, std_dev_axis, suffix_sum, sum, sum_axis, topk, var,
-    var_axis,
+    amax, amin, argmax, argmin, cross, cumprod, cumsum, dot, frobenius_norm,
+    frobenius_norm_batched, max_axis, mean, mean_axis, min_axis, norm, norm_p, norm_p_axis, prod,
+    std_dev, std_dev_axis, suffix_sum, sum, sum_axis, topk, var, var_axis,
 };
 pub use shape::{
     broadcast_to, cat, chunk, diag, diagonal, einsum, einsum3, flip, gather, index_put,

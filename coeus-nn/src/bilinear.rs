@@ -43,14 +43,17 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Bilinear<T, B> {
         );
         crate::init::xavier_uniform(&mut w, fan_in, out_features);
         let b = if bias {
-            Some(Var::new(
-                Tensor::zeros_on([out_features], &_backend),
-                true,
-            ))
+            Some(Var::new(Tensor::zeros_on([out_features], &_backend), true))
         } else {
             None
         };
-        Self { weight: w, bias: b, in1_features, in2_features, out_features }
+        Self {
+            weight: w,
+            bias: b,
+            in1_features,
+            in2_features,
+            out_features,
+        }
     }
 
     /// Forward pass.

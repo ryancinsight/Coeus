@@ -49,6 +49,7 @@ pub use activation::{
 pub use attention::{
     AttentionMask, CausalMask, MultiHeadAttention, NullMask, ScaledDotProductAttention,
 };
+pub use bilinear::Bilinear;
 pub use conv::{Conv1d, Conv2d, Conv3d, ConvTranspose1d, ConvTranspose2d};
 pub use dropout::Dropout;
 pub use embedding::Embedding;
@@ -70,7 +71,6 @@ pub use pool::{
 };
 pub use positional::{RotaryEmbedding, SinusoidalEncoding};
 pub use rnn::{GRUCell, LSTMCell};
-pub use bilinear::Bilinear;
 pub use sequential::{ModuleExt, Sequential, StaticSeq};
 pub use softmax::{softmax, Softmax};
 pub use transformer::{

@@ -1,5 +1,59 @@
 # Changelog
 
+## 0.2.28 - 2026-06-26
+
+### Added
+
+- **`coeus_ops::frobenius_norm` / `coeus_ops::frobenius_norm_batched`** — Frobenius
+  matrix-norm kernels composing on the existing `coeus_ops::norm`
+  (`sqrt(sum(x·x))`) and a host-side per-batch fold for higher-rank inputs.
+  `frobenius_norm(a)` reduces a single 2-D matrix to a scalar; the batched
+  variant reduces an N-D tensor over its last two dimensions, returning one
+  Frobenius norm per leading batch slot (shape `a.shape[..-2]`).
+  Compositionally identical to `torch.linalg.matrix_norm(input, ord='fro')`
+  semantics for any rank ≥ 2. Zero new `BinaryOp` opcodes, zero new backend
+  dispatch.
+
+- **`pycoeus.matrix_norm(input, ord='fro')`** — PyO3 binding over the Rust
+  kernel. 2-D inputs return a Python `float` (mirrors `torch`'s coercion of
+  a 0-D Tensor to a Python scalar); N-D inputs return a `PyTensor` with
+  leading batch shape. 1-D inputs surface as `ValueError`; `ord` values
+  other than `'fro'` are also rejected at the boundary (other matrix-norm
+  orderings require SVD or column/row-sum analysis and are deferred per
+  MS-88). The dispatch pattern mirrors the existing
+  `coeus_python::ops::statistics::sum_axis` adapter (rank-aware `float` vs
+  `PyTensor`).
+
+- **Embedding padding index contract** — `coeus_nn::Embedding` now stores an
+  optional `padding_idx`, zeros that row on construction, and routes forward
+  through `coeus_autograd::embedding_with_padding_idx` so the padding row
+  receives no gradient. `pycoeus.Embedding(..., padding_idx=...)` preserves
+  the same Rust-core contract.
+
+- **Vertical shape module hierarchy** — `coeus-ops` and `coeus-autograd`
+  shape operations now live under concern-oriented submodules
+  (`concat_split_stack`, `transform`, `select`, `mask`, `util`) while preserving
+  the existing public exports.
+
+### Verified
+
+- **Axis-aware sum + sqrt mirrors scalar `norm`** — `frobenius_norm(a)`
+  and `frobenius_norm_batched(a)` share the exact same squared-sum
+  accumulator as `coeus_ops::norm`; the 2-D case is bitwise-identical
+  (both reduce the entire matrix to a single scalar with the same
+  `mul`+`reduce(Sum)`+`sqrt` chain). The new ops do not introduce a new
+  accumulation order or a new precision contract on the supported
+  path.
+
+- **CoW storage integration unchanged** — `coeus_tensor`'s existing
+  `CowStorage<S>` (verified in MS-83) covers the cloned-slice inputs
+  passed to `frobenius_norm_batched`; the host-side fold runs on
+  contiguous storage and avoids any second copy of the input data.
+
+- **BatchNorm eval-mode coverage** — `BatchNorm1d::set_training(false)` is
+  covered by a value-semantic regression test that verifies running stats are
+  read without mutation.
+
 ## 0.2.25 - 2026-06-25
 
 ### Added

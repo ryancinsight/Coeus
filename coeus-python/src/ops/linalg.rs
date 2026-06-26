@@ -87,3 +87,65 @@ pub fn cross(input: &PyTensor, other: &PyTensor, dim: usize, py: Python<'_>) -> 
         inner: coeus_autograd::Var::new(out, false),
     })
 }
+
+/// Frobenius (matrix L2) norm of a 2-D tensor or per-batch of an N-D tensor.
+///
+/// Matches `torch.linalg.matrix_norm(input, ord='fro')`:
+///
+/// - **2-D input**: returns a Python `float` equal to
+///   `sqrt(sum(input ** 2))` over the entire matrix.
+/// - **N-D input (N >= 3)**: returns a [`PyTensor`] with leading shape
+///   `input.shape[..-2]`, holding one Frobenius norm per batch slot
+///   (composition on `coeus_ops::frobenius_norm_batched`).
+/// - **1-D input**: surfaces as `ValueError` (matches torch's rank
+///   precondition; torch raises `RuntimeError` for the same case).
+///
+/// `ord` is currently restricted to `'fro'`, the canonical Frobenius
+/// default. Other norms (`'nuc'`, `inf`, `-inf`, `1`, `-1`, `2`, `-2`)
+/// require SVD or column/row-sum analysis and are intentionally deferred
+/// (see `docs/backlog.md` MS-86 for the staged roll-out).
+///
+/// The dispatch pattern mirrors `coeus_python::ops::statistics::sum_axis`:
+/// Python receives a `float` only when the result is a 0-D scalar
+/// tensor, and a `PyTensor` (rank ≥ 1) otherwise. This avoids
+/// domain-inspecting the tensor inside the Python interpreter and keeps
+/// the PyO3 boundary surface value-semantic.
+#[pyfunction]
+#[pyo3(name = "matrix_norm", signature = (input, ord = "fro"))]
+pub fn matrix_norm(input: &PyTensor, ord: &str, py: Python<'_>) -> PyResult<Py<PyAny>> {
+    let a = &input.inner.tensor;
+    if ord != "fro" {
+        return Err(PyValueError::new_err(format!(
+            "matrix_norm: only ord='fro' is currently supported, got ord={ord:?}"
+        )));
+    }
+    let ndim = a.ndim();
+    if ndim < 2 {
+        return Err(PyValueError::new_err(format!(
+            "matrix_norm: input must have rank >= 2, got {ndim}-D"
+        )));
+    }
+
+    if ndim == 2 {
+        // 2-D → plain Python `float` (torch coerces a 0-D Tensor to a
+        // scalar at the binding boundary, same as `scalar_object` in
+        // `statistics.rs`).
+        let v: f64 = py.allow_threads(|| {
+            coeus_ops::frobenius_norm::<f64, MoiraiBackend>(a, &MoiraiBackend::new())
+        });
+        Ok(v.into_pyobject(py)?.into_any().unbind())
+    } else {
+        // N-D → PyTensor with shape `a.shape[..-2]`. Matches the rank≥1
+        // branch of `coeus_python::ops::statistics::sum_axis`.
+        let out: Tensor<f64, MoiraiBackend> = py.allow_threads(|| {
+            coeus_ops::frobenius_norm_batched::<f64, MoiraiBackend>(a, &MoiraiBackend::new())
+        });
+        Ok(Py::new(
+            py,
+            PyTensor {
+                inner: coeus_autograd::Var::new(out, false),
+            },
+        )?
+        .into_any())
+    }
+}

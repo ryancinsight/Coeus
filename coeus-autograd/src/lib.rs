@@ -67,6 +67,7 @@ pub use ops::{
     einsum3,
     elu,
     embedding,
+    embedding_with_padding_idx,
     exp,
     flip,
     floor,

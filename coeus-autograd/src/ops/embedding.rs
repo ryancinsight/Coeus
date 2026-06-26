@@ -13,6 +13,7 @@ pub struct EmbeddingNode<T: Scalar, I: Scalar, B: coeus_ops::BackendOps<T> + Def
     pub inputs: Vec<Var<T, B>>,
     pub indices: Tensor<I, B>,
     pub num_embeddings: usize,
+    pub padding_idx: Option<usize>,
 }
 
 impl<T: Scalar, I: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
@@ -39,10 +40,11 @@ where
     fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref gw)) = input_grads.get(0) {
-            let gw_update = coeus_ops::embedding_backward(
+            let gw_update = coeus_ops::embedding_backward_with_padding_idx(
                 grad_out,
                 &self.indices,
                 self.num_embeddings,
+                self.padding_idx,
                 &backend,
             );
             let gl = gw.write();
@@ -55,6 +57,20 @@ where
 pub fn embedding<T: Scalar, I: Scalar + 'static, B: coeus_ops::BackendOps<T> + Default>(
     weight: &Var<T, B>,
     indices: &Tensor<I, B>,
+) -> Var<T, B> {
+    embedding_with_padding_idx(weight, indices, None)
+}
+
+/// Tracked embedding lookup operation with an optional padding row whose
+/// gradient is forced to zero during backward.
+pub fn embedding_with_padding_idx<
+    T: Scalar,
+    I: Scalar + 'static,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
+    weight: &Var<T, B>,
+    indices: &Tensor<I, B>,
+    padding_idx: Option<usize>,
 ) -> Var<T, B> {
     let backend = B::default();
     let out_tensor = coeus_ops::embedding(&weight.tensor, indices, &backend);
@@ -80,6 +96,7 @@ pub fn embedding<T: Scalar, I: Scalar + 'static, B: coeus_ops::BackendOps<T> + D
             inputs,
             indices: indices_clone,
             num_embeddings,
+            padding_idx,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
     } else {

@@ -12,18 +12,25 @@ use half::f16;
 fn f16_tensor_add_smoke() {
     let a = Tensor::<f16, SequentialBackend>::from_slice(
         vec![4],
-        &[f16::from_f32(1.0), f16::from_f32(2.0), f16::from_f32(3.0), f16::from_f32(4.0)],
+        &[
+            f16::from_f32(1.0),
+            f16::from_f32(2.0),
+            f16::from_f32(3.0),
+            f16::from_f32(4.0),
+        ],
     );
-    let b = Tensor::<f16, SequentialBackend>::from_slice(
-        vec![4],
-        &[f16::from_f32(0.5); 4],
-    );
+    let b = Tensor::<f16, SequentialBackend>::from_slice(vec![4], &[f16::from_f32(0.5); 4]);
     let backend = SequentialBackend::new();
     let c = coeus_ops::add(&a, &b, &backend);
     let expected = [1.5f32, 2.5, 3.5, 4.5];
     for (got, want) in c.as_slice().iter().zip(expected.iter()) {
         let diff = (got.to_f32() - want).abs();
-        assert!(diff < 0.01, "f16 add: got {:.4} want {:.4}", got.to_f32(), want);
+        assert!(
+            diff < 0.01,
+            "f16 add: got {:.4} want {:.4}",
+            got.to_f32(),
+            want
+        );
     }
 }
 
@@ -47,7 +54,12 @@ fn f16_matmul_smoke() {
     let expected_f32 = [1.0f32, 2.0, 3.0, 4.0];
     for (got, want) in c.as_slice().iter().zip(expected_f32.iter()) {
         let diff = (got.to_f32() - want).abs();
-        assert!(diff < 0.01, "f16 matmul: got {:.4} want {:.4}", got.to_f32(), want);
+        assert!(
+            diff < 0.01,
+            "f16 matmul: got {:.4} want {:.4}",
+            got.to_f32(),
+            want
+        );
     }
 }
 
@@ -69,6 +81,11 @@ fn f16_autograd_smoke() {
     let expected_grad = [2.0f32, 4.0, 6.0];
     for (got, want) in gx.as_slice().iter().zip(expected_grad.iter()) {
         let diff = (got.to_f32() - want).abs();
-        assert!(diff < 0.1, "f16 autograd grad: got {:.4} want {:.4}", got.to_f32(), want);
+        assert!(
+            diff < 0.1,
+            "f16 autograd grad: got {:.4} want {:.4}",
+            got.to_f32(),
+            want
+        );
     }
 }

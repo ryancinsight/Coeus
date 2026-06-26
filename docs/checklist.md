@@ -2,15 +2,22 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-84 - Activation parity coverage + Moirai dispatch floor
-**Objective**: Extend Burn parity test suite to cover the new activation ops
-shipped in MS-83 (sigmoid, tanh, silu, log_softmax, leaky_relu, softplus, mish)
-and reduce Moirai parallel-dispatch overhead for medium-sized ops.
-**Target version**: 0.2.24 (patch items only; no public API change).
-**Burn parity tests**: 207 total (207 passing) — 7 activation parity tests added.
+### Current Sprint: MS-88 - matrix_norm(ord='fro') Torch parity [COMPLETE]
+**Objective**: Close the `torch.linalg.matrix_norm(ord='fro')` Torch/JAX gap
+for both 2-D scalars and higher-rank batched inputs via
+`coeus_ops::frobenius_norm` / `frobenius_norm_batched`, plus the
+`pycoeus.matrix_norm` PyO3 boundary adapter that returns a Python `float`
+for 2-D inputs (mirroring torch's 0-D coercion) and a `PyTensor` for
+per-batch results on rank-≥3 inputs. Composes on the existing
+`coeus_ops::norm` chain (no new `BinaryOp::Pow` opcode, no new backend
+dispatch surface).
+**Target version**: 0.2.28.
+**Tests delivered**: 6 Frobenius Rust unit tests, 1 ops embedding padding
+unit test, 1 BatchNorm1d eval regression, 1 Embedding padding regression, and
+2 Python binding tests in this slice.
 
-### Previous Sprint: MS-83 - einsum3 parity and audit verification [COMPLETE]
-**Burn parity tests at close**: 69 (superseded by MS-84 additions).
+### Previous Sprint: MS-87 - sigmoid/tanh/silu benches + binding parity [COMPLETE]
+**Target version**: 0.2.27.
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
 > oracle values; wgpu parity.rs verifies implemented GPU paths against the CPU reference;
@@ -30,6 +37,51 @@ and reduce Moirai parallel-dispatch overhead for medium-sized ops.
   Evidence: `cargo nextest run -p coeus-nn` — 207 tests, 207 passed.
   Commit: `69055d9`.
 
+### MS-85 Progress (2026-06-25)
+
+- [x] [patch] f16 / bf16 half-precision compute path — `half::f16` and `bf16`
+  already implement `Scalar` and `Float` in `coeus-core`. Added 3 smoke tests
+  (`coeus-ops::add`, `coeus-ops::matmul`, autograd `sum(x*x).backward()`) to
+  confirm end-to-end half-precision operation.
+- [x] [patch] `pycoeus.pyi` comprehensive Python type stub covering all public
+  functions, classes, and properties — enables IDE auto-completion and mypy
+  validation of the entire public Python surface.
+- [x] [patch] Hermes GEMV 8× row-blocking already in place —
+  `hermes-simd::dispatch_gemv_kernel` already dispatches `TilingPolicy<8,1>`
+  for `LANE_COUNT > 8` (AVX512). FFT via Apollo integration documented and
+  deferred pending Apollo crate stabilization.
+
+### MS-88 Progress (2026-06-26)
+
+- [x] [minor] Added `coeus_ops::frobenius_norm` / `coeus_ops::frobenius_norm_batched`
+  composing on the existing `coeus_ops::norm` chain (`sqrt(sum(x·x))`), no
+  new `BinaryOp::Pow` opcode, no new backend dispatch.
+- [x] [minor] Added `pycoeus.matrix_norm(input, ord='fro')` PyO3 binding with
+  rank-aware Python return: `float` for 2-D inputs (mirroring torch's 0-D
+  coercion), `PyTensor` for higher-rank per-batch results. 1-D and
+  non-`'fro'` `ord` surface as `ValueError` at the boundary.
+- [x] [patch] Completed embedding padding-index semantics across
+  `coeus_ops`, `coeus_autograd`, `coeus_nn`, and `pycoeus.Embedding`:
+  padding rows are zero-initialized and receive zero gradient.
+- [x] [patch] Completed vertical shape module hierarchy integration for
+  `coeus-ops` and `coeus-autograd` under concern-oriented submodules while
+  preserving the existing public exports.
+- [x] [patch] Added BatchNorm1d eval-mode regression verifying running stats
+  are used without mutation.
+- [x] Documented ordering in CHANGELOG, raised workspace `Cargo.toml`
+  0.2.23 → 0.2.28 without regressing the existing MS-87 branch history.
+- Evidence: `cargo nextest run -p coeus-ops frobenius` passes with 6 tests
+  (2-D oracle, identity, 3-D batched, 4-D batched, 2-D batched 0-D shape, 1-D
+  panic); `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_matrix_norm_fro` passes (2-D float, non-square, 3-D batched, 4-D batched,
+  1-D ValueError, ord!='fro' ValueError, default ord); `cargo nextest run -p
+  coeus-ops` passes with 147 tests; `cargo nextest run -p coeus-autograd`
+  passes with 34 tests; `cargo nextest run -p coeus-nn` passes with 209 tests;
+  `cargo nextest run -p coeus-python` passes with 70 tests; `cargo clippy -p
+  coeus-ops -p coeus-autograd -p coeus-nn -p coeus-python --all-targets --
+  -D warnings`, `cargo doc -p coeus-ops -p coeus-autograd -p coeus-nn -p
+  coeus-python --no-deps`, and `cargo fmt --check` are clean.
+
 ### Current Verification Note (2026-06-25)
 
 - [x] [minor] Added `coeus_ops::einsum3`, `coeus_autograd::einsum3`, and
@@ -42,6 +94,19 @@ and reduce Moirai parallel-dispatch overhead for medium-sized ops.
   coeus-autograd test_einsum3_matmul_chain_backward`, `cargo clippy -p
   coeus-autograd -p coeus-nn -p coeus-ops -p coeus-python --all-targets --
   -D warnings`, and `cargo doc -p coeus-autograd -p coeus-nn -p coeus-ops -p
+  coeus-python --no-deps` pass.
+
+### Current Verification Note (2026-06-26)
+
+- [x] [patch] Repaired provider graph blockers exposed by RITK registration:
+  `coeus-ops` root shape re-export for moved leaves, the real
+  `embedding_backward_with_padding_idx` accumulation path, and autograd reshape's
+  contiguous-function import. Evidence: `cargo fmt --check`,
+  `cargo clippy -p coeus-ops -p coeus-autograd -p coeus-nn -p coeus-python
+  --all-targets -- -D warnings`, `cargo nextest run -p coeus-ops` (147
+  passed), `cargo nextest run -p coeus-autograd` (34 passed), `cargo nextest
+  run -p coeus-nn` (209 passed), `cargo nextest run -p coeus-python` (70
+  passed), and `cargo doc -p coeus-ops -p coeus-autograd -p coeus-nn -p
   coeus-python --no-deps` pass.
 - [x] [minor] Added `coeus_nn::rnn::{LSTMCell, GRUCell}`, Python
   `pycoeus.LSTMCell` / `GRUCell`, `coeus_ops::index_put`,

@@ -1,5 +1,37 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-88: matrix_norm(ord='fro') Torch parity [COMPLETE]
+
+- [x] [minor] Added `coeus_ops::frobenius_norm` (2-D scalar Frobenius) and
+  `coeus_ops::frobenius_norm_batched` (rank-≥3 per-batch Frobenius).
+  - 2-D path composes directly on `coeus_ops::norm` (`sqrt(sum(x·x))`); no
+    new backend dispatch, no new `BinaryOp::Pow` opcode (matches the MS-62
+    `Pow` deferral).
+  - 3-D and 4-D paths run a host-side per-batch fold over the contiguous
+    materialised layout, returning one Frobenius norm per leading batch
+    slot. Matches `torch.linalg.matrix_norm(A, ord='fro')` for any rank ≥ 2.
+- [x] [minor] Added `pycoeus.matrix_norm(input, ord='fro')` PyO3 binding.
+  - 2-D input returns a Python `float` (mirrors torch's coercion of a 0-D
+    Tensor to a Python scalar).
+  - N-D input (N ≥ 3) returns a `PyTensor` with shape `input.shape[..-2]`.
+  - 1-D input and `ord != 'fro'` surface as `ValueError` at the boundary
+    adapter. Other matrix-norm orderings (`'nuc'`, `inf`, `-inf`, `1`,
+    `-1`, `2`, `-2`) are documented as deferred pending SVD +
+    column/row-sum analysis.
+- [x] [patch] Completed embedding padding-index semantics in Rust and Python:
+  padding rows are zero-initialized and skipped by embedding backward.
+- [x] [patch] Completed concern-oriented vertical shape module hierarchy
+  integration for `coeus-ops` and `coeus-autograd`.
+- [x] [patch] Added BatchNorm1d eval-mode regression coverage.
+- [x] Evidence: `cargo nextest run -p coeus-ops frobenius` (6 tests);
+  `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_matrix_norm_fro` (1 test); `cargo nextest run -p coeus-ops` (147
+  tests); `cargo nextest run -p coeus-autograd` (34 tests); `cargo nextest
+  run -p coeus-nn` (209 tests); `cargo nextest run -p coeus-python` (70
+  tests); `cargo clippy -p coeus-ops -p coeus-autograd -p coeus-nn -p
+  coeus-python --all-targets -- -D warnings`; `cargo doc -p coeus-ops -p
+  coeus-autograd -p coeus-nn -p coeus-python --no-deps`; `cargo fmt --check`.
+
 ## Sprint MS-83: einsum3 parity and audit verification [COMPLETE]
 
 - [x] [minor] Added `coeus_ops::einsum3` and `coeus_autograd::einsum3` for
