@@ -138,6 +138,194 @@ where
     }
 }
 
+#[inline]
+fn hephaestus_operand<'a, T>(
+    storage: &'a CudaStorage<T>,
+    layout: &'a Layout,
+) -> hephaestus_cuda::StridedOperandDyn<'a, T> {
+    hephaestus_cuda::StridedOperandDyn {
+        buffer: storage.buffer.as_ref(),
+        layout: hephaestus_cuda::StridedLayout {
+            shape: layout.shape(),
+            strides: layout.strides(),
+            offset: layout.offset(),
+        },
+    }
+}
+
+#[inline]
+fn can_route_dynamic_strided(layouts: &[&Layout], out: &Layout) -> bool {
+    layouts
+        .iter()
+        .chain(std::iter::once(&out))
+        .all(|layout| layout.ndim() <= hephaestus_cuda::MAX_STRIDED_RANK)
+        && !out
+            .shape()
+            .iter()
+            .zip(out.strides())
+            .any(|(&dim, &stride)| dim > 1 && stride == 0)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn try_hephaestus_strided_binary<T>(
+    op: coeus_ops::BinaryOp,
+    a: &CudaStorage<T>,
+    a_layout: &Layout,
+    b: &CudaStorage<T>,
+    b_layout: &Layout,
+    c: &mut CudaStorage<T>,
+    c_layout: &Layout,
+) -> bool
+where
+    T: CudaScalar + hephaestus_cuda::CudaScalar,
+{
+    if !can_route_dynamic_strided(&[a_layout, b_layout], c_layout) {
+        return false;
+    }
+    let device = crate::backend::get_cuda_device();
+    let run = |result: hephaestus_cuda::Result<()>| {
+        result.expect("hephaestus-cuda dynamic strided binary dispatch failed");
+        true
+    };
+    match op {
+        coeus_ops::BinaryOp::Add => run(hephaestus_cuda::binary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::AddOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(b, b_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::BinaryOp::Sub => run(hephaestus_cuda::binary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::SubOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(b, b_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::BinaryOp::Mul => run(hephaestus_cuda::binary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::MulOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(b, b_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::BinaryOp::Div => run(hephaestus_cuda::binary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::DivOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(b, b_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+    }
+}
+
+fn try_hephaestus_strided_unary<T>(
+    op: coeus_ops::UnaryOp,
+    a: &CudaStorage<T>,
+    a_layout: &Layout,
+    c: &mut CudaStorage<T>,
+    c_layout: &Layout,
+) -> bool
+where
+    T: CudaScalar + hephaestus_cuda::CudaScalar,
+{
+    if !can_route_dynamic_strided(&[a_layout], c_layout) {
+        return false;
+    }
+    let device = crate::backend::get_cuda_device();
+    let run = |result: hephaestus_cuda::Result<()>| {
+        result.expect("hephaestus-cuda dynamic strided unary dispatch failed");
+        true
+    };
+    match op {
+        coeus_ops::UnaryOp::Sin => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::SinOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Cos => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::CosOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Exp => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::ExpOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Log => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::LnOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Neg => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::NegOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Abs => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::AbsOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Sqrt => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::SqrtOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Recip => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::RecipOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        _ => false,
+    }
+}
+
 impl CudaBackend {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn cuda_elementwise_binary<T>(
@@ -172,7 +360,9 @@ impl CudaBackend {
                 if kernels::launch_contiguous_binary(op, a, b, c, n) {
                     return;
                 }
-            } else if kernels::launch_strided_binary(op, a, a_layout, b, b_layout, c, c_layout, n) {
+            } else if try_hephaestus_strided_binary(op, a, a_layout, b, b_layout, c, c_layout)
+                || kernels::launch_strided_binary(op, a, a_layout, b, b_layout, c, c_layout, n)
+            {
                 return;
             }
         }
@@ -199,7 +389,9 @@ impl CudaBackend {
                     return;
                 }
             } else {
-                if kernels::launch_strided_unary(op, a, a_layout, c, c_layout, n) {
+                if try_hephaestus_strided_unary(op, a, a_layout, c, c_layout)
+                    || kernels::launch_strided_unary(op, a, a_layout, c, c_layout, n)
+                {
                     return;
                 }
             }

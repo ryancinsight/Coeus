@@ -30,11 +30,12 @@
 
 ### Changed
 
-- **CUDA Hephaestus primitive routing** — contiguous non-aliased
-  `coeus-cuda` primitive elementwise operations now route through
-  `hephaestus-cuda`, matching the existing WGPU provider-first boundary while
-  retaining Coeus-local CUDA kernels for aliasing, dynamic-layout strided paths,
-  and NN-specific formulas.
+- **CUDA Hephaestus primitive routing (contiguous + strided)** — contiguous
+  non-aliased `coeus-cuda` primitive elementwise operations route through
+  `hephaestus-cuda` first; strided paths with rank ≤ `MAX_STRIDED_RANK` and no
+  broadcast output dimension now also route through Hephaestus's dynamic-strided
+  kernel, with Coeus-local CUDA kernels retained for aliasing, out-of-range rank,
+  broadcast output, and NN-specific formulas.
 - **WGPU Hephaestus zero-allocation dispatch** — contiguous non-aliased
   elementwise unary/binary routes in `coeus-wgpu` now use Hephaestus `*_into`
   APIs to write into caller-owned output buffers instead of allocating and
