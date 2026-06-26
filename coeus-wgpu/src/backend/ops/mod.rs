@@ -2,9 +2,146 @@ use crate::backend::{WgpuBackend, WgpuScalar};
 use crate::kernels;
 use coeus_core::{Layout, Storage};
 use hephaestus_core::BlockWidth;
+use hephaestus_wgpu::{
+    binary_elementwise_strided_into, unary_elementwise_strided_into, StridedOperand,
+    MAX_STRIDED_RANK,
+};
+use leto::Layout as LetoLayout;
 use std::sync::Arc;
 
 mod attention;
+
+// ── WGPU Hephaestus strided routing helpers ───────────────────────────────────
+
+/// Guard: all layouts have rank ≤ MAX_STRIDED_RANK and the output has no
+/// broadcast (zero-stride) dimensions where dim > 1.
+fn can_route_strided_wgpu(layouts: &[&Layout], out: &Layout) -> bool {
+    let max_rank = MAX_STRIDED_RANK;
+    layouts
+        .iter()
+        .chain(std::iter::once(&out))
+        .all(|l| l.ndim() <= max_rank)
+        && !out
+            .shape()
+            .iter()
+            .zip(out.strides())
+            .any(|(&dim, &stride)| dim > 1 && stride == 0)
+}
+
+/// Convert a dynamic Coeus Layout to a `leto::Layout<N>`.
+/// Pads a shorter layout on the left with size-1/stride-0 dimensions
+/// so it can be broadcast against the target rank N.
+macro_rules! coeus_to_leto_layout {
+    ($layout:expr, $n:expr) => {{
+        let rank = $layout.ndim();
+        let pad = $n - rank.min($n);
+        let shape: [usize; $n] = {
+            let s = $layout.shape();
+            let mut arr = [1usize; $n];
+            for i in 0..rank.min($n) {
+                arr[pad + i] = s[i];
+            }
+            arr
+        };
+        let strides: [isize; $n] = {
+            let st = $layout.strides();
+            let mut arr = [0isize; $n];
+            for i in 0..rank.min($n) {
+                arr[pad + i] = st[i] as isize;
+            }
+            arr
+        };
+        LetoLayout::new(shape, strides, $layout.offset())
+    }};
+}
+
+/// Dispatch a binary Hephaestus strided op at the rank determined by `out.ndim()`.
+/// Returns `true` when dispatched, `false` when the rank falls outside [1, 4].
+fn try_hephaestus_strided_binary_wgpu<T: WgpuScalar + hephaestus_wgpu::WgslScalar>(
+    op: coeus_ops::BinaryOp,
+    a_buf: &crate::backend::WgpuStorage<T>,
+    a_layout: &Layout,
+    b_buf: &crate::backend::WgpuStorage<T>,
+    b_layout: &Layout,
+    c_buf: &crate::backend::WgpuStorage<T>,
+    c_layout: &Layout,
+) -> bool {
+    use coeus_ops::BinaryOp;
+
+    macro_rules! dispatch_n {
+        ($n:expr) => {{
+            let la = coeus_to_leto_layout!(a_layout, $n);
+            let lb = coeus_to_leto_layout!(b_layout, $n);
+            let lc = coeus_to_leto_layout!(c_layout, $n);
+            let a_op = StridedOperand { buffer: a_buf.buffer.as_ref(), layout: &la };
+            let b_op = StridedOperand { buffer: b_buf.buffer.as_ref(), layout: &lb };
+            let c_op = StridedOperand { buffer: c_buf.buffer.as_ref(), layout: &lc };
+            let ok = |r: hephaestus_wgpu::Result<()>| {
+                r.expect("hephaestus-wgpu strided binary dispatch failed");
+                true
+            };
+            let dev = &crate::backend::get_wgpu_context().hephaestus_device;
+            match op {
+                BinaryOp::Add => ok(binary_elementwise_strided_into::<hephaestus_wgpu::AddOp, T, $n>(dev, a_op, b_op, c_op, BlockWidth::DEFAULT)),
+                BinaryOp::Sub => ok(binary_elementwise_strided_into::<hephaestus_wgpu::SubOp, T, $n>(dev, a_op, b_op, c_op, BlockWidth::DEFAULT)),
+                BinaryOp::Mul => ok(binary_elementwise_strided_into::<hephaestus_wgpu::MulOp, T, $n>(dev, a_op, b_op, c_op, BlockWidth::DEFAULT)),
+                BinaryOp::Div => ok(binary_elementwise_strided_into::<hephaestus_wgpu::DivOp, T, $n>(dev, a_op, b_op, c_op, BlockWidth::DEFAULT)),
+            }
+        }};
+    }
+
+    match c_layout.ndim().max(a_layout.ndim()).max(b_layout.ndim()) {
+        1 => dispatch_n!(1),
+        2 => dispatch_n!(2),
+        3 => dispatch_n!(3),
+        4 => dispatch_n!(4),
+        _ => false,
+    }
+}
+
+/// Dispatch a unary Hephaestus strided op at the rank determined by `out.ndim()`.
+fn try_hephaestus_strided_unary_wgpu<T: WgpuScalar + hephaestus_wgpu::WgslScalar>(
+    op: coeus_ops::UnaryOp,
+    a_buf: &crate::backend::WgpuStorage<T>,
+    a_layout: &Layout,
+    c_buf: &crate::backend::WgpuStorage<T>,
+    c_layout: &Layout,
+) -> bool {
+    use coeus_ops::UnaryOp;
+
+    macro_rules! dispatch_n {
+        ($n:expr) => {{
+            let la = coeus_to_leto_layout!(a_layout, $n);
+            let lc = coeus_to_leto_layout!(c_layout, $n);
+            let a_op = StridedOperand { buffer: a_buf.buffer.as_ref(), layout: &la };
+            let c_op = StridedOperand { buffer: c_buf.buffer.as_ref(), layout: &lc };
+            let ok = |r: hephaestus_wgpu::Result<()>| {
+                r.expect("hephaestus-wgpu strided unary dispatch failed");
+                true
+            };
+            let dev = &crate::backend::get_wgpu_context().hephaestus_device;
+            match op {
+                UnaryOp::Sin => ok(unary_elementwise_strided_into::<hephaestus_wgpu::SinOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Cos => ok(unary_elementwise_strided_into::<hephaestus_wgpu::CosOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Exp => ok(unary_elementwise_strided_into::<hephaestus_wgpu::ExpOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Log => ok(unary_elementwise_strided_into::<hephaestus_wgpu::LnOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Neg => ok(unary_elementwise_strided_into::<hephaestus_wgpu::NegOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Abs => ok(unary_elementwise_strided_into::<hephaestus_wgpu::AbsOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Sqrt => ok(unary_elementwise_strided_into::<hephaestus_wgpu::SqrtOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Recip => ok(unary_elementwise_strided_into::<hephaestus_wgpu::RecipOp, T, $n>(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                _ => false,
+            }
+        }};
+    }
+
+    match c_layout.ndim().max(a_layout.ndim()) {
+        1 => dispatch_n!(1),
+        2 => dispatch_n!(2),
+        3 => dispatch_n!(3),
+        4 => dispatch_n!(4),
+        _ => false,
+    }
+}
 
 fn try_hephaestus_contiguous_binary<T: WgpuScalar + hephaestus_wgpu::WgslScalar>(
     op: coeus_ops::BinaryOp,
@@ -186,6 +323,9 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
                     c.len(),
                 );
             }
+        } else if can_route_strided_wgpu(&[a_layout, b_layout], c_layout)
+            && try_hephaestus_strided_binary_wgpu(op, a, a_layout, b, b_layout, c, c_layout)
+        {
         } else {
             kernels::dispatch_binary::<T>(
                 op,
@@ -218,6 +358,9 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
             if !try_hephaestus_contiguous_unary(op, a, c) {
                 kernels::dispatch_contiguous_unary::<T>(op, &a.buffer, &c.buffer, c.len());
             }
+        } else if can_route_strided_wgpu(&[a_layout], c_layout)
+            && try_hephaestus_strided_unary_wgpu(op, a, a_layout, c, c_layout)
+        {
         } else {
             kernels::dispatch_unary::<T>(op, &a.buffer, a_layout, &c.buffer, c_layout, c.len());
         }

@@ -2,7 +2,27 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-116 - MHA and TransformerEncoder value parity [COMPLETE]
+### Current Sprint: MS-117 - WGPU strided Hephaestus routing [COMPLETE]
+**Objective**: Route non-contiguous binary and unary elementwise ops through
+Hephaestus `*_elementwise_strided_into` for rank ≤ 4, with a CPU fallback.
+**Target version**: 0.5.1 (patch-class; no API change).
+
+- [x] [patch] Add `leto` as a direct dep in `coeus-wgpu/Cargo.toml` for
+  `LetoLayout::new`.
+- [x] [patch] Implement `coeus_to_leto_layout!` macro: pads Coeus dynamic
+  layout to const-rank `[usize; N]`/`[isize; N]` arrays.
+- [x] [patch] `can_route_strided_wgpu`: guard for rank ≤ MAX_STRIDED_RANK and
+  no broadcast output dim (zero stride where dim > 1).
+- [x] [patch] `try_hephaestus_strided_binary_wgpu`: dispatches
+  Add/Sub/Mul/Div to Hephaestus at rank N=1..4.
+- [x] [patch] `try_hephaestus_strided_unary_wgpu`: dispatches
+  Sin/Cos/Exp/Log/Neg/Abs/Sqrt/Recip; falls back for other ops.
+- [x] [patch] Wire into `BackendOps::elementwise_binary` and
+  `elementwise_unary` between contiguous-Hephaestus and CPU-fallback paths.
+- [x] Evidence: `cargo nextest run`: 789/789 pass; `cargo clippy -p
+  coeus-wgpu -- -D warnings`: no errors.
+
+### Previous Sprint: MS-116 - MHA and TransformerEncoder value parity [COMPLETE]
 **Objective**: Promote shape-only MHA and TransformerEncoder Burn parity tests
 to full value-semantic differential verification.
 **Target version**: 0.5.1 (patch-class; test coverage).
