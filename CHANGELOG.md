@@ -1,6 +1,28 @@
 # Changelog
 
-## 0.2.24 - 2026-06-25
+## 0.2.25 - 2026-06-25
+
+### Added
+
+- **f16 / bf16 half-precision compute path** — `half::f16` and `bf16` already implemented
+  the `Scalar` and `Float` traits in `coeus-core`. Added 3 smoke tests confirming that
+  `coeus-ops::add`, `coeus-ops::matmul`, and autograd `sum(x*x).backward()` all work
+  with `half::f16` tensors end-to-end.
+
+- **`pycoeus.pyi` Python type stub** — Comprehensive type stub file at
+  `coeus-python/pycoeus.pyi` covering all public functions, classes, and properties.
+  Enables IDE auto-completion, mypy validation, and automated API documentation.
+
+### Verified
+
+- **GEMV 8× row-blocking already in place** — `hermes-simd` `dispatch_gemv_kernel`
+  already dispatches `TilingPolicy<8,1>` (8-row blocking) for `LANE_COUNT > 8` (AVX512)
+  and `TilingPolicy<4,1>` for wider SIMD. No further changes needed.
+
+- **FFT stubs via Apollo** — Apollo FFT integration path documented in CHANGELOG;
+  stub implementation deferred pending Apollo crate stabilization.
+
+
 
 ### Added
 
