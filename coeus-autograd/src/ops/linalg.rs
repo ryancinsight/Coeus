@@ -123,24 +123,41 @@ pub fn transpose_2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T,
     unary_op::<T, B, Transpose2dOp>(a)
 }
 
+/// Autograd node for sparse CSR matrix-multiply (A_sparse × B_dense).
 pub struct SparseMatMulNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Non-zero values of the sparse CSR matrix A.
     pub a_values_tensor: Tensor<T, B>,
+    /// Column indices of the sparse CSR matrix A.
     pub a_col_indices: Tensor<i64, B>,
+    /// Row offsets of the sparse CSR matrix A.
     pub a_row_offsets: Tensor<i64, B>,
+    /// Dense shape of the sparse matrix A.
     pub a_shape: Shape,
+    /// Saved dense matrix B for backward computation.
     pub b_tensor: Tensor<T, B>,
 }
 
+/// Autograd node for sparse COO matrix-multiply (A_sparse_coo × B_dense).
 pub struct SparseCooMatMulNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Non-zero values of the COO matrix converted to CSR format.
     pub csr_values_tensor: Tensor<T, B>,
+    /// Column indices of the CSR representation of the COO matrix.
     pub csr_col_indices: Tensor<i64, B>,
+    /// Row offsets of the CSR representation of the COO matrix.
     pub csr_row_offsets: Tensor<i64, B>,
+    /// Permutation mapping sorted CSR order back to original COO order.
     pub sorted_to_orig: Tensor<i64, B>,
+    /// Dense shape of the sparse matrix A.
     pub a_shape: Shape,
+    /// Saved dense matrix B for backward computation.
     pub b_tensor: Tensor<T, B>,
 }
 
@@ -340,6 +357,11 @@ where
     (csr_values, csr_col_indices, csr_row_offsets, sorted_to_orig)
 }
 
+/// Multiplies a CSR sparse matrix by a dense tracked matrix.
+///
+/// The sparse matrix is represented by tracked nonzero values plus CSR column
+/// indices, row offsets, and shape. Backward propagation accumulates gradients
+/// for the sparse values and dense right-hand matrix.
 pub fn sparse_matmul<T: Scalar, B: coeus_ops::BackendOps<T> + coeus_core::Backend + Default>(
     a_values: &Var<T, B>,
     a_col_indices: &Tensor<i64, B>,
@@ -396,6 +418,10 @@ where
     }
 }
 
+/// Multiplies a COO sparse matrix by a dense tracked matrix.
+///
+/// The COO coordinates are converted to CSR once for the forward pass while a
+/// permutation map preserves gradients for the original COO value ordering.
 pub fn sparse_matmul_coo<T: Scalar, B: coeus_ops::BackendOps<T> + coeus_core::Backend + Default>(
     a_values: &Var<T, B>,
     a_indices: &Tensor<i64, B>,

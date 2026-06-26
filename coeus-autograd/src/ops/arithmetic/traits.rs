@@ -25,14 +25,22 @@ pub trait BinaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Se
     );
 }
 
+/// Autograd node for a generic binary operation.
 pub struct BinaryNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B>>
 {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Saved first input tensor for backward computation.
     pub a_tensor: Tensor<T, B>,
+    /// Saved second input tensor for backward computation.
     pub b_tensor: Tensor<T, B>,
+    /// Shape of the first input, for broadcast gradient reduction.
     pub a_shape: Shape,
+    /// Shape of the second input, for broadcast gradient reduction.
     pub b_shape: Shape,
+    /// Zero-sized phantom to bind the op type parameter.
     pub _phantom: std::marker::PhantomData<Op>,
 }
 
@@ -134,15 +142,21 @@ pub trait ReductionAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>:
     fn scaler(a: &Tensor<T, B>, param: Option<usize>, backend: &B) -> Option<Tensor<T, B>>;
 }
 
+/// Autograd node for reduction operations (sum, mean, norm, etc.).
 pub struct ReductionNode<
     T: Scalar,
     B: coeus_ops::BackendOps<T> + Default,
     Op: ReductionAutogradOp<T, B>,
 > {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Shape of the input tensor, used to broadcast gradients on backward.
     pub a_shape: Shape,
+    /// Optional scaling tensor applied during backward (e.g. for mean reduction).
     pub scaler_tensor: Option<Tensor<T, B>>,
+    /// Zero-sized phantom to bind the op type parameter.
     pub _phantom: std::marker::PhantomData<Op>,
 }
 

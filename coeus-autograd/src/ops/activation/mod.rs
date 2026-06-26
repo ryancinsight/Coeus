@@ -25,11 +25,17 @@ pub trait UnaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Sen
     ) -> Tensor<T, B>;
 }
 
+/// Autograd node for a generic unary activation operation.
 pub struct UnaryNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: UnaryAutogradOp<T, B>> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Saved input tensor for backward computation.
     pub a_tensor: Tensor<T, B>,
+    /// Saved output tensor for backward computation.
     pub out_tensor: Tensor<T, B>,
+    /// Zero-sized phantom to bind the op type parameter.
     pub _phantom: std::marker::PhantomData<Op>,
 }
 
@@ -108,12 +114,19 @@ pub fn unary_op<
 }
 
 // ── Leaf modules ──
+/// GELU activation forward/backward nodes.
 pub mod gelu;
+/// Mathematical unary ops (abs, floor, round, sign, sqrt, etc.).
 pub mod math;
+/// ReLU-family activations (ReLU, LeakyReLU, ELU).
 pub mod relu;
+/// Sigmoid activation forward/backward.
 pub mod sigmoid;
+/// SiLU-family activations (SiLU, Mish, Softplus).
 pub mod silu;
+/// Tanh activation forward/backward.
 pub mod tanh_act;
+/// Trigonometric and exponential ops (sin, cos, exp, log).
 pub mod trig;
 
 // ── Re-exports ──

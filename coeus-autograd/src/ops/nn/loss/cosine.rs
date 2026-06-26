@@ -5,14 +5,23 @@ use coeus_core::{Float, Scalar, Storage};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
+/// Autograd node for cosine embedding loss.
 pub struct CosineEmbeddingLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Host-side copy of the first input vector.
     pub x1_host: Vec<T>,
+    /// Host-side copy of the second input vector.
     pub x2_host: Vec<T>,
+    /// Target labels (1 or -1) stored as `Vec<T>`.
     pub y: Vec<T>,
+    /// Margin for dissimilar pairs.
     pub margin: T,
+    /// Batch size.
     pub n: usize,
+    /// Embedding dimension.
     pub d: usize,
 }
 

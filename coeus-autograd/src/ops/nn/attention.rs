@@ -45,15 +45,21 @@ pub struct ScaledDotProductAttnNode<
     B: coeus_ops::BackendOps<T> + Default,
     M: AttentionMask,
 > {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
     /// [Q_var, K_var, V_var]
     pub inputs: Vec<Var<T, B>>,
+    /// Saved query tensor for backward.
     pub q_clone: Tensor<T, B>,
+    /// Saved key tensor for backward.
     pub k_clone: Tensor<T, B>,
+    /// Saved value tensor for backward.
     pub v_clone: Tensor<T, B>,
     /// Post-softmax attention weight matrix `[batch, seq_q, seq_k]`.
     pub attn_weights: Tensor<T, B>,
+    /// Scaling factor `1/sqrt(head_dim)`.
     pub scale: T,
+    /// Zero-sized phantom to bind the mask type parameter.
     pub _mask: std::marker::PhantomData<M>,
 }
 

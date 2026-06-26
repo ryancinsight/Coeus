@@ -1,12 +1,20 @@
 // ── Tracked autograd ops ──
 
+/// Activation functions (ReLU, sigmoid, GELU, etc.).
 pub mod activation;
+/// Arithmetic operations (add, sub, mul, div, reductions, scalar ops).
 pub mod arithmetic;
+/// Embedding lookup operations.
 pub mod embedding;
+/// Linear algebra operations (matmul, sparse matmul, transpose).
 pub mod linalg;
+/// Neural network layers (conv, pooling, normalization, loss, attention).
 pub mod nn;
+/// Reduction operations (norm, log-sum-exp, min/max over axes).
 pub mod reduction;
+/// Shape manipulation operations (reshape, permute, cat, split, etc.).
 pub mod shape;
+/// Variable-level operation helpers.
 pub mod var_ops;
 
 pub use activation::{

@@ -1,7 +1,12 @@
+/// Binary cross-entropy loss.
 pub mod bce;
+/// Cosine embedding loss.
 pub mod cosine;
+/// Cross-entropy loss.
 pub mod cross_entropy;
+/// Huber loss.
 pub mod huber;
+/// Negative log-likelihood loss.
 pub mod nll;
 
 pub use bce::{binary_cross_entropy, BinaryCrossEntropyNode};

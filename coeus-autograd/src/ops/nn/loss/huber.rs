@@ -5,12 +5,17 @@ use coeus_core::{Float, Scalar, Storage};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
+/// Autograd node for Huber loss.
 pub struct HuberLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
     /// Element-wise differences `pred[i] - target[i]`, stored for backward.
     pub diffs: Vec<T>,
+    /// Delta threshold separating quadratic from linear regions.
     pub delta: T,
+    /// Number of elements in the loss reduction.
     pub n: usize,
 }
 

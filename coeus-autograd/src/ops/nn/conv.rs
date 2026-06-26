@@ -120,14 +120,23 @@ fn dispatch_conv_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, const
     }
 }
 
+/// Autograd node for N-dimensional convolution.
 pub struct ConvNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Saved weight tensor for backward.
     pub w_clone: Tensor<T, B>,
+    /// Saved input tensor for backward.
     pub inp_clone: Tensor<T, B>,
+    /// Whether a bias term was applied.
     pub has_bias: bool,
+    /// Convolution stride.
     pub stride: usize,
+    /// Convolution padding.
     pub padding: usize,
+    /// Convolution dilation.
     pub dilation: usize,
 }
 
@@ -330,14 +339,23 @@ pub fn conv3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     conv_nd_inner::<T, B, 3>(input, weight, bias, out_tensor, stride, padding, dilation)
 }
 
+/// Autograd node for 1-D transposed convolution.
 pub struct ConvTranspose1dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Saved weight tensor for backward.
     pub w_clone: Tensor<T, B>,
+    /// Saved input tensor for backward.
     pub inp_clone: Tensor<T, B>,
+    /// Whether a bias term was applied.
     pub has_bias: bool,
+    /// Convolution stride.
     pub stride: usize,
+    /// Convolution padding.
     pub padding: usize,
+    /// Convolution dilation.
     pub dilation: usize,
 }
 
@@ -555,13 +573,21 @@ pub fn conv_transpose1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// grad_bias[cout] = Σ_{n, hout, wout} grad_out[n, cout, hout, wout]
 /// ```
 pub struct ConvTranspose2dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Saved weight tensor for backward computation.
     pub w_clone: Tensor<T, B>,
+    /// Saved input tensor for backward computation.
     pub inp_clone: Tensor<T, B>,
+    /// Whether the convolution includes a bias term.
     pub has_bias: bool,
+    /// Stride of the transposed convolution.
     pub stride: usize,
+    /// Padding applied to the transposed convolution.
     pub padding: usize,
+    /// Dilation of the transposed convolution.
     pub dilation: usize,
 }
 

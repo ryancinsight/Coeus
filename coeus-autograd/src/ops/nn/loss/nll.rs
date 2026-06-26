@@ -5,11 +5,17 @@ use coeus_core::{Float, Scalar, Storage};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
+/// Autograd node for negative log-likelihood loss.
 pub struct NllLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Target class indices for each sample.
     pub targets: Vec<usize>,
+    /// Batch size.
     pub n: usize,
+    /// Number of classes.
     pub c: usize,
 }
 

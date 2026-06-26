@@ -74,6 +74,14 @@ where
     }
 }
 
+/// Splits a tracked variable into chunks of size `chunk_size` along `dim`.
+///
+/// Backward propagation scatters each chunk gradient back into the parent input
+/// gradient at the chunk's recorded offset.
+///
+/// # Panics
+///
+/// Panics when `chunk_size` is zero.
 pub fn split<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     chunk_size: usize,

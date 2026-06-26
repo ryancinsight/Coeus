@@ -2,7 +2,28 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-113 - InstanceNorm3d + bilinear SSOT [COMPLETE]
+### Current Sprint: MS-114 - Autograd public documentation surface [COMPLETE]
+**Objective**: Close the `coeus-autograd` public documentation gap under
+`#![deny(missing_docs)]` without changing runtime behavior. Document public
+operation modules, autograd backward-node state, and tracked sparse/shape
+entry points so doctests and rustdoc become package-clean.
+**Target version**: 0.5.1 (patch-class; documentation and diagnostics).
+
+- [x] [patch] Documented the public autograd operation hierarchy and node
+  fields for activation, arithmetic, embedding, sparse linalg, neural-network,
+  normalization, loss, pooling, softmax, and shape operation surfaces.
+- [x] [patch] Documented tracked sparse matmul, COO sparse matmul, concat,
+  split, pad, and cumsum public entry points, including backward semantics and
+  panic surfaces where current implementations assert.
+- [x] [patch] Corrected accidental `bytex_ops` bounds in touched autograd node
+  definitions back to the canonical `coeus_ops` backend trait.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-autograd --check`;
+  `rustup run nightly cargo test --doc -p coeus-autograd` (15/15);
+  `rustup run nightly cargo clippy -p coeus-autograd --tests -- -D warnings`;
+  `rustup run nightly cargo nextest run -p coeus-autograd` (35/35);
+  `rustup run nightly cargo doc -p coeus-autograd --no-deps`.
+
+### Previous Sprint: MS-113 - InstanceNorm3d + bilinear SSOT [COMPLETE]
 **Objective**: Consolidate duplicate `get_cache` logic from InstanceNorm1d/2d
 into shared `ensure_cache` + `instance_norm_forward` free functions, add
 InstanceNorm3d ([N,C,D,H,W] normalization over D*H*W), export it, and add a

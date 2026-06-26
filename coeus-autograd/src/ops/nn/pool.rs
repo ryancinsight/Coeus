@@ -109,13 +109,21 @@ fn dispatch_avg_pool_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, c
 
 // ── Max Pool ──
 
+/// Autograd node for N-D max pooling.
 pub struct MaxPoolNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Saved input tensor for max-index recomputation during backward.
     pub inp_clone: Tensor<T, B>,
+    /// Pooling window size.
     pub kernel_size: usize,
+    /// Stride between pooling windows.
     pub stride: usize,
+    /// Zero-padding applied to the input.
     pub padding: usize,
+    /// Dilation of the pooling window.
     pub dilation: usize,
 }
 
@@ -239,13 +247,21 @@ pub fn max_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 
 // ── Average Pool ──
 
+/// Autograd node for N-D average pooling.
 pub struct AvgPoolNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Shape of the input tensor, used to broadcast gradients on backward.
     pub inp_shape: coeus_core::Shape,
+    /// Pooling window size.
     pub kernel_size: usize,
+    /// Stride between pooling windows.
     pub stride: usize,
+    /// Zero-padding applied to the input.
     pub padding: usize,
+    /// Dilation of the pooling window.
     pub dilation: usize,
 }
 

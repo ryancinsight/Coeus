@@ -34,6 +34,9 @@
   `coeus_nn::bilinear(...)`.
 - **Autograd and tensor Rustdoc examples** — added executable examples for
   gradient mode, `Var`, core tracked ops, and tensor shape/view contracts.
+- **Autograd public documentation surface** — documented public operation
+  modules, backward-node state, and tracked sparse/shape entry points so
+  `coeus-autograd` satisfies its `#![deny(missing_docs)]` contract.
 
 ### Fixed
 
@@ -59,6 +62,8 @@
   delegates to shared functional `coeus_nn::bilinear`, and `coeus-python`
   bilinear module forward reuses that same core path without constructing a
   temporary module per call.
+- **Autograd backend bounds** — corrected touched autograd node definitions to
+  use the canonical `coeus_ops::BackendOps` backend trait in public bounds.
 
 ### Verified
 
@@ -78,6 +83,14 @@
 - `cargo test -p coeus-wgpu
   test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer` validates
   contiguous unary delegated routing preserves output-buffer identity.
+- `rustup run nightly cargo fmt -p coeus-autograd --check` validates autograd
+  formatting.
+- `rustup run nightly cargo test --doc -p coeus-autograd` passes 15/15 doctests.
+- `rustup run nightly cargo clippy -p coeus-autograd --tests -- -D warnings`
+  validates the documented autograd test surface.
+- `rustup run nightly cargo nextest run -p coeus-autograd` passes 35/35 tests.
+- `rustup run nightly cargo doc -p coeus-autograd --no-deps` validates the
+  warning-clean public documentation build.
 - `cargo nextest run -p coeus-nn --test bilinear_parity` validates functional and
   module bilinear parity on Sequential and Moirai backends.
 - `cargo nextest run -p coeus-python --test binding_tests_ops

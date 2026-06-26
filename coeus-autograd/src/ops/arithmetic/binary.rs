@@ -6,6 +6,7 @@ use coeus_core::{Scalar, Shape};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
+/// ZST tag for element-wise addition autograd.
 pub struct AddOp;
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> for AddOp {
     const OP_NAME: &'static str = "add";
@@ -46,6 +47,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
     }
 }
 
+/// ZST tag for element-wise subtraction autograd.
 pub struct SubOp;
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> for SubOp {
     const OP_NAME: &'static str = "sub";
@@ -86,6 +88,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
     }
 }
 
+/// ZST tag for element-wise multiplication autograd.
 pub struct MulOp;
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> for MulOp {
     const OP_NAME: &'static str = "mul";
@@ -128,6 +131,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
     }
 }
 
+/// ZST tag for element-wise division autograd.
 pub struct DivOp;
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> for DivOp {
     const OP_NAME: &'static str = "div";

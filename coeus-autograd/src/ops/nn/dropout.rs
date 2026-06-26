@@ -37,9 +37,13 @@ impl Xorshift64 {
     }
 }
 
+/// Autograd node for dropout, storing the random mask for backward.
 pub struct DropoutNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Binary dropout mask (1 for kept, 0 for dropped elements).
     pub mask: Tensor<T, B>,
 }
 

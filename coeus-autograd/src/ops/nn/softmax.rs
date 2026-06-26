@@ -5,10 +5,15 @@ use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
+/// Autograd node for softmax, storing the output for backward.
 pub struct SoftmaxNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Saved softmax output `y = softmax(x)` for backward.
     pub y_clone: Tensor<T, B>,
+    /// Axis along which softmax was computed.
     pub dim_u: usize,
 }
 

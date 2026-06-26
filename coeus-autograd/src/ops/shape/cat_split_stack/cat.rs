@@ -79,6 +79,14 @@ where
     }
 }
 
+/// Concatenates tracked variables along `dim`, propagating gradients to each input.
+///
+/// Backward propagation slices the output gradient by each input's extent along
+/// `dim` and accumulates the matching slice into that input's gradient buffer.
+///
+/// # Panics
+///
+/// Panics when `inputs` is empty.
 pub fn cat<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     inputs: &[&Var<T, B>],
     dim: usize,

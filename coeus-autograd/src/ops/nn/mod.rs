@@ -1,12 +1,20 @@
 // ── Tracked neural network and loss operations module ──
 
+/// Scaled dot-product attention and masking types.
 pub mod attention;
+/// Convolution layers (1D, 2D, 3D, transpose).
 pub mod conv;
+/// Dropout layer with tracked random masking.
 pub mod dropout;
+/// Log-softmax operation.
 pub mod log_softmax;
+/// Loss functions (BCE, cross-entropy, NLL, Huber, cosine embedding).
 pub mod loss;
+/// Normalization layers (batchnorm, layernorm, rmsnorm).
 pub mod normalization;
+/// Pooling layers (max-pool, avg-pool 2D/3D).
 pub mod pool;
+/// Softmax operation.
 pub mod softmax;
 
 pub use attention::{sdp_attention, AttentionMask, CausalMask, NullMask};

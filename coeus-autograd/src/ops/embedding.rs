@@ -9,10 +9,15 @@ use std::sync::Arc;
 
 /// Autograd node for tracking embedding lookup operations.
 pub struct EmbeddingNode<T: Scalar, I: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Index tensor used for the embedding lookup.
     pub indices: Tensor<I, B>,
+    /// Number of embedding rows in the weight table.
     pub num_embeddings: usize,
+    /// Optional padding index whose gradient is zeroed.
     pub padding_idx: Option<usize>,
 }
 
