@@ -2932,3 +2932,67 @@ assert_eval_uses_running_stats_and_does_not_mutate(
 "#,
     );
 }
+
+#[test]
+fn test_instancenorm_forward_shape_and_value() {
+    run_script(
+        r#"
+import pycoeus
+import math
+
+eps = 1e-5
+
+# ── InstanceNorm1d [N, C, L] ──────────────────────────────────────────────────
+in1 = pycoeus.InstanceNorm1d(2, eps=eps)
+in1.weight.data = [1.0, 1.0]
+in1.bias.data = [0.0, 0.0]
+x1 = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [1, 2, 3])  # [N=1, C=2, L=3]
+y1 = in1.forward(x1)
+assert y1.shape == [1, 2, 3], f"InstanceNorm1d shape: {y1.shape}"
+
+# Channel 0: [1,2,3] → mean=2, population var=2/3
+mean_c0 = 2.0
+var_c0 = 2.0 / 3.0
+std_c0 = math.sqrt(var_c0 + eps)
+expected_c0 = [(v - mean_c0) / std_c0 for v in [1.0, 2.0, 3.0]]
+for i, (got, exp) in enumerate(zip(y1.data[:3], expected_c0)):
+    assert abs(got - exp) < 1e-4, f"in1 C0[{i}]: got {got:.6f} expected {exp:.6f}"
+
+# ── InstanceNorm2d [N, C, H, W] ──────────────────────────────────────────────
+in2 = pycoeus.InstanceNorm2d(2, eps=eps)
+in2.weight.data = [1.0, 1.0]
+in2.bias.data = [0.0, 0.0]
+x2 = pycoeus.Tensor([
+    1.0, 2.0, 3.0, 4.0,
+    5.0, 6.0, 7.0, 8.0,
+], [1, 2, 2, 2])
+y2 = in2.forward(x2)
+assert y2.shape == [1, 2, 2, 2], f"InstanceNorm2d shape: {y2.shape}"
+
+vals_c0 = [1.0, 2.0, 3.0, 4.0]
+mean2 = sum(vals_c0) / 4.0
+var2 = sum((v - mean2) ** 2 for v in vals_c0) / 4.0
+std2 = math.sqrt(var2 + eps)
+expected2 = [(v - mean2) / std2 for v in vals_c0]
+for i, (got, exp) in enumerate(zip(y2.data[:4], expected2)):
+    assert abs(got - exp) < 1e-4, f"in2 C0[{i}]: got {got:.6f} expected {exp:.6f}"
+
+# ── InstanceNorm3d [N, C, D, H, W] ───────────────────────────────────────────
+in3 = pycoeus.InstanceNorm3d(2, eps=eps)
+in3.weight.data = [1.0, 1.0]
+in3.bias.data = [0.0, 0.0]
+data3 = [float(v) for v in range(1, 17)]  # 1..16, [N=1, C=2, D=2, H=2, W=2]
+x3 = pycoeus.Tensor(data3, [1, 2, 2, 2, 2])
+y3 = in3.forward(x3)
+assert y3.shape == [1, 2, 2, 2, 2], f"InstanceNorm3d shape: {y3.shape}"
+
+vals3_c0 = [float(v) for v in range(1, 9)]
+mean3 = sum(vals3_c0) / 8.0
+var3 = sum((v - mean3) ** 2 for v in vals3_c0) / 8.0
+std3 = math.sqrt(var3 + eps)
+expected3 = [(v - mean3) / std3 for v in vals3_c0]
+for i, (got, exp) in enumerate(zip(y3.data[:8], expected3)):
+    assert abs(got - exp) < 1e-4, f"in3 C0[{i}]: got {got:.6f} expected {exp:.6f}"
+"#,
+    );
+}

@@ -6,7 +6,7 @@ pub mod rmsnorm;
 
 pub use batchnorm::{PyBatchNorm1d, PyBatchNorm2d, PyBatchNorm3d};
 pub use groupnorm::PyGroupNorm;
-pub use instancenorm::{PyInstanceNorm1d, PyInstanceNorm2d};
+pub use instancenorm::{PyInstanceNorm1d, PyInstanceNorm2d, PyInstanceNorm3d};
 pub use layernorm::PyLayerNorm;
 pub use rmsnorm::PyRMSNorm;
 
@@ -22,5 +22,6 @@ pub fn register_normalization(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyGroupNorm>()?;
     m.add_class::<PyInstanceNorm1d>()?;
     m.add_class::<PyInstanceNorm2d>()?;
+    m.add_class::<PyInstanceNorm3d>()?;
     Ok(())
 }

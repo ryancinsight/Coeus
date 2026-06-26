@@ -120,6 +120,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyGroupNorm>()?;
     m.add_class::<nn::PyInstanceNorm1d>()?;
     m.add_class::<nn::PyInstanceNorm2d>()?;
+    m.add_class::<nn::PyInstanceNorm3d>()?;
     m.add_class::<nn::PyMultiHeadAttention>()?;
     m.add_class::<nn::PyRotaryEmbedding>()?;
     m.add_class::<nn::PyFeedForward>()?;

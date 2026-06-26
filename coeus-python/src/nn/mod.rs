@@ -25,7 +25,7 @@ pub use module_base::PyModule;
 pub use module_list::PyModuleList;
 pub use normalization::{
     PyBatchNorm1d, PyBatchNorm2d, PyBatchNorm3d, PyGroupNorm, PyInstanceNorm1d, PyInstanceNorm2d,
-    PyLayerNorm, PyRMSNorm,
+    PyInstanceNorm3d, PyLayerNorm, PyRMSNorm,
 };
 pub use pool::{
     PyAvgPool2d, PyAvgPool3d, PyGlobalAvgPool1d, PyGlobalAvgPool2d, PyGlobalAvgPool3d,

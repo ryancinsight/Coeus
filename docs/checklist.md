@@ -2,7 +2,19 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-114 - Autograd public documentation surface [COMPLETE]
+### Current Sprint: MS-115 - coeus-python InstanceNorm3d + norm stubs [IN PROGRESS]
+**Objective**: Add `PyInstanceNorm3d` PyO3 wrapper, extend `.pyi` stubs for all
+three InstanceNorm variants and BatchNorm stubs, and add Python-side value parity.
+**Target version**: 0.5.1 (minor-class; additive Python binding).
+
+- [ ] [minor] Add `PyInstanceNorm3d` in `coeus-python/src/nn/instancenorm.rs`
+  (thin wrapper over `coeus_nn::InstanceNorm3d`).
+- [ ] [minor] Extend `pycoeus.pyi` with stubs for `InstanceNorm1d`, `InstanceNorm2d`,
+  `InstanceNorm3d`, `BatchNorm1d`, `BatchNorm2d`, `BatchNorm3d` (currently missing).
+- [ ] [patch] Add binding tests verifying shape and value correctness for all
+  InstanceNorm variants via `cargo nextest run -p coeus-python`.
+
+### Previous Sprint: MS-114 - Autograd public documentation surface [COMPLETE]
 **Objective**: Close the `coeus-autograd` public documentation gap under
 `#![deny(missing_docs)]` without changing runtime behavior. Document public
 operation modules, autograd backward-node state, and tracked sparse/shape
