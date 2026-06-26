@@ -2,7 +2,22 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-98 - stats pair reductions and PyO3 wrappers [COMPLETE]
+### Current Sprint: MS-99 - WGPU shader cache hardening [COMPLETE]
+**Objective**: Strengthen shader/pipeline caching correctness and reduce cache
+contention in `coeus-wgpu` while preserving kernel parity behavior.
+**Target version**: 0.3.0 (patch-class).
+**Tests delivered**: full `coeus-wgpu` package tests plus touched-package clippy.
+
+- [x] [patch] `coeus-wgpu/src/kernels/cache.rs`: made cache entries
+  device-scoped and source-sensitive (`device_addr`, shader key, entry point,
+  WGSL source hash) to prevent cross-device or stale-key collisions.
+- [x] [patch] Replaced global `Mutex<HashMap<...>>` with
+  `RwLock<HashMap<...>>` and double-checked insertion to avoid holding the
+  write lock while compiling pipelines.
+- [x] Evidence: `cargo fmt`; `cargo test -p coeus-wgpu`; `cargo clippy -p
+  coeus-wgpu --all-targets -- -D warnings`.
+
+### Previous Sprint: MS-98 - stats pair reductions and PyO3 wrappers [COMPLETE]
 **Objective**: Add Rust-owned `var_mean` / `std_mean` statistics pairs and
 thin Python wrappers while consolidating standalone variance/std paths through
 the pair-returning SSOT, and expose verified sequence-level RNN modules.

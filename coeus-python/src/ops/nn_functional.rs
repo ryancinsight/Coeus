@@ -362,12 +362,7 @@ pub fn batch_norm_1d(
 /// inputs `[N, D]`. `weight` (γ) defaults to ones.
 #[pyfunction]
 #[pyo3(signature = (input, weight = None, eps = 1e-8))]
-pub fn rms_norm(
-    input: &PyTensor,
-    weight: Option<&PyTensor>,
-    eps: f64,
-    py: Python<'_>,
-) -> PyTensor {
+pub fn rms_norm(input: &PyTensor, weight: Option<&PyTensor>, eps: f64, py: Python<'_>) -> PyTensor {
     let d = input.inner.tensor.shape().last().copied().unwrap_or(1);
     let w = weight.map(|w| w.inner.clone());
     let x = input.inner.clone();
@@ -375,9 +370,8 @@ pub fn rms_norm(
         use coeus_nn::normalization::RMSNorm;
         use coeus_nn::Module;
         let backend = coeus_core::MoiraiBackend::new();
-        let weight_var = w.unwrap_or_else(|| {
-            coeus_autograd::Var::new(Tensor::ones_on([d], &backend), false)
-        });
+        let weight_var =
+            w.unwrap_or_else(|| coeus_autograd::Var::new(Tensor::ones_on([d], &backend), false));
         RMSNorm::from_parts(weight_var, eps).forward(&x)
     });
     PyTensor::from_var(inner)

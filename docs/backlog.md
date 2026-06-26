@@ -1,5 +1,16 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-99: WGPU shader cache hardening [COMPLETE]
+
+- [x] [patch] Hardened `coeus-wgpu` pipeline cache keys with device scoping
+  plus source/entry-point identity so cached pipelines cannot be reused across
+  incompatible devices or stale shader variants.
+- [x] [patch] Reduced cache lock contention by switching from
+  `Mutex<HashMap<...>>` to `RwLock<HashMap<...>>` and using a compile-outside-
+  lock, double-check insert pattern.
+- [x] Evidence: `cargo fmt`; `cargo test -p coeus-wgpu`;
+  `cargo clippy -p coeus-wgpu --all-targets -- -D warnings`.
+
 ## Sprint MS-98: stats pair reductions and PyO3 wrappers [COMPLETE]
 
 - [x] [minor] Added Rust-core `var_mean`, `std_mean`, `var_mean_axis`, and

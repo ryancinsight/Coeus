@@ -129,11 +129,7 @@ where
 
     // Batch dimension: N=2, C=4, G=2.
     // Same values per batch row → same oracle per row.
-    let inp2 = v(
-        &[2, 4],
-        &[1.0, 5.0, 3.0, 7.0, 1.0, 5.0, 3.0, 7.0],
-        backend,
-    );
+    let inp2 = v(&[2, 4], &[1.0, 5.0, 3.0, 7.0, 1.0, 5.0, 3.0, 7.0], backend);
     let out2 = Module::<f64, B>::forward(&gn, &inp2);
     assert_eq!(out2.tensor.shape(), &[2, 4], "GroupNorm N=2 shape");
     assert_eq!(
