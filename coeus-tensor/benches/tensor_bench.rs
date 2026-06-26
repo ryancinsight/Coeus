@@ -417,6 +417,90 @@ fn bench_burn_conv2d(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_burn_conv1d(c: &mut Criterion) {
+    use burn::tensor::module::conv1d as burn_conv1d;
+    use burn::tensor::ops::ConvOptions;
+    use burn::tensor::Tensor as BT;
+    use burn::tensor::TensorData;
+    use coeus_ops::BackendOps;
+
+    // [batch=2, c_in=8, L=128] × [c_out=16, c_in=8, k=3] (sequence-model conv).
+    const BATCH: usize = 2;
+    const C_IN: usize = 8;
+    const L: usize = 128;
+    const C_OUT: usize = 16;
+    const K: usize = 3;
+    const L_OUT: usize = L - K + 1;
+
+    let device = NdArrayDevice::default();
+    let x_data: Vec<f32> = (0..BATCH * C_IN * L)
+        .map(|i| (i as f32 * 0.01).sin())
+        .collect();
+    let w_data: Vec<f32> = (0..C_OUT * C_IN * K).map(|i| i as f32 * 0.001).collect();
+
+    let seq_backend = SequentialBackend::new();
+    let moirai_backend = MoiraiBackend::new();
+    let x_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, C_IN, L], &x_data);
+    let w_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![C_OUT, C_IN, K], &w_data);
+    let x_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, C_IN, L], &x_data);
+    let w_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![C_OUT, C_IN, K], &w_data);
+    let x_b: BT<BurnB, 3> =
+        BT::from_data(TensorData::new(x_data.clone(), [BATCH, C_IN, L]), &device);
+    let w_b: BT<BurnB, 3> =
+        BT::from_data(TensorData::new(w_data.clone(), [C_OUT, C_IN, K]), &device);
+
+    let mut group = c.benchmark_group("Burn vs Coeus — Conv1d (2×8×128, k=3)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| {
+            black_box(burn_conv1d(
+                x_b.clone(),
+                w_b.clone(),
+                None,
+                ConvOptions::new([1], [0], [1], 1),
+            ))
+        })
+    });
+    group.bench_function("Coeus Sequential", |ben| {
+        let mut out = Tensor::<f32, SequentialBackend>::zeros(vec![BATCH, C_OUT, L_OUT]);
+        ben.iter(|| {
+            let out_l = out.layout().clone();
+            seq_backend.conv1d(
+                x_seq.storage(),
+                x_seq.layout(),
+                w_seq.storage(),
+                w_seq.layout(),
+                None,
+                1,
+                0,
+                1,
+                out.storage_mut(),
+                &out_l,
+            );
+            black_box(());
+        })
+    });
+    group.bench_function("Coeus Moirai", |ben| {
+        let mut out = Tensor::<f32, MoiraiBackend>::zeros(vec![BATCH, C_OUT, L_OUT]);
+        ben.iter(|| {
+            let out_l = out.layout().clone();
+            moirai_backend.conv1d(
+                x_moirai.storage(),
+                x_moirai.layout(),
+                w_moirai.storage(),
+                w_moirai.layout(),
+                None,
+                1,
+                0,
+                1,
+                out.storage_mut(),
+                &out_l,
+            );
+            black_box(());
+        })
+    });
+    group.finish();
+}
+
 fn bench_burn_conv_transpose2d(c: &mut Criterion) {
     use burn::tensor::module::conv_transpose2d as burn_conv_transpose2d;
     use burn::tensor::ops::ConvTransposeOptions;
@@ -751,6 +835,7 @@ criterion_group!(
     bench_burn_relu,
     bench_burn_gelu,
     bench_burn_sum,
+    bench_burn_conv1d,
     bench_burn_conv2d,
     bench_burn_conv_transpose2d,
     bench_burn_max_pool2d,
