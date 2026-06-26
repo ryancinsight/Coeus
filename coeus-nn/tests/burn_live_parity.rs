@@ -1826,9 +1826,11 @@ fn multi_head_attention_identity_weights_matches_analytical_sdpa() {
 
     // Burn autodiff reference: identity SDPA over the same input.
     // Q = K = V = X [batch, seq, d_model]; A = softmax(X @ X^T / sqrt(d)), ctx = A @ X.
-    let xb: BurnTensor<AB, 3> =
-        BurnTensor::from_data(TensorData::new(data.clone(), [batch, seq, d_model]), &device)
-            .require_grad();
+    let xb: BurnTensor<AB, 3> = BurnTensor::from_data(
+        TensorData::new(data.clone(), [batch, seq, d_model]),
+        &device,
+    )
+    .require_grad();
     let scale = (d_model as f32).sqrt();
     // [batch, seq, seq] = [batch, seq, d] @ [batch, d, seq]
     let attn_logits = xb.clone().matmul(xb.clone().swap_dims(1, 2)) / scale;
@@ -1841,12 +1843,7 @@ fn multi_head_attention_identity_weights_matches_analytical_sdpa() {
     let out_b: Vec<f32> = ctx.detach().into_data().to_vec::<f32>().unwrap();
     let dx_b: Vec<f32> = xb.grad(&grads).unwrap().into_data().to_vec().unwrap();
 
-    assert_close_rel(
-        "mha_identity_fwd",
-        out_c.tensor.as_slice(),
-        &out_b,
-        1e-4,
-    );
+    assert_close_rel("mha_identity_fwd", out_c.tensor.as_slice(), &out_b, 1e-4);
 
     // Backward: backward gradients through Coeus MHA.
     coeus_autograd::sum(&out_c).backward();
@@ -2028,11 +2025,9 @@ fn transformer_encoder_layer_identity_weights_matches_analytical() {
     layer.norm1.weight = Var::new(ot.clone(), false);
     layer.norm1.bias = Var::new(zt.clone(), false);
     // FFN linear1: [d_ff, d_model] → identity; linear2: [d_model, d_ff] → identity
-    let eye_ff =
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![d_ff, d_model], &eye4);
+    let eye_ff = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![d_ff, d_model], &eye4);
     let zt_ff = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![d_ff], &zeros4);
-    let eye_ff2 =
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![d_model, d_ff], &eye4);
+    let eye_ff2 = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![d_model, d_ff], &eye4);
     layer.ffn.linear1.weight = Var::new(eye_ff, false);
     layer.ffn.linear1.bias = Some(Var::new(zt_ff, false));
     layer.ffn.linear2.weight = Var::new(eye_ff2, false);
@@ -2042,19 +2037,18 @@ fn transformer_encoder_layer_identity_weights_matches_analytical() {
     layer.norm2.bias = Var::new(zt.clone(), false);
 
     let xv = Var::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(
-            vec![batch, seq, d_model],
-            &data,
-        ),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![batch, seq, d_model], &data),
         true,
     );
     let out_c = layer.forward(&xv);
 
     // Burn autodiff reference: Pre-LN encoder — LN→SDPA→residual→LN→FFN(GELU)→residual.
     // Matches forward_with_mask in encoder_layer.rs (dropout p=0 so pass-through).
-    let xb: BurnTensor<AB, 3> =
-        BurnTensor::from_data(TensorData::new(data.clone(), [batch, seq, d_model]), &device)
-            .require_grad();
+    let xb: BurnTensor<AB, 3> = BurnTensor::from_data(
+        TensorData::new(data.clone(), [batch, seq, d_model]),
+        &device,
+    )
+    .require_grad();
     let scale = (d_model as f32).sqrt();
 
     // Helper: LayerNorm over last dim (population var, γ=1, β=0)
@@ -2480,6 +2474,136 @@ fn conv_transpose2d_backward_gradient_correctness() {
     assert_close("ct2d_bwd_gi", gi.to_contiguous().as_slice(), &[2.0; 4]);
     assert_close("ct2d_bwd_gw", gw.to_contiguous().as_slice(), &[4.0]);
     let _ = backend;
+}
+
+// ── ConvTranspose1d backward matches Burn autodiff ───────────────────────────
+//
+// Input [N=1, Cin=1, L=3], weight [Cin=1, Cout=1, K=2], no bias, stride=1.
+// L_out = (3-1)*1 + 2 = 4.
+// Burn weight shape matches Coeus: [Cin, Cout, K].
+// Tolerance: standard 1e-4 (f32 accumulation over short kernel).
+
+#[test]
+fn conv_transpose1d_backward_matches_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use burn::nn::conv::ConvTranspose1dConfig;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    let (n, cin, cout, l, k) = (1usize, 1, 1, 3, 2);
+    let l_out = (l - 1) + k; // stride=1, no padding
+    let data: Vec<f32> = vec![0.5, -0.3, 0.8];
+    let w_vec: Vec<f32> = vec![0.7, -0.4];
+
+    // Coeus: autograd forward + backward.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, cin, l], &data),
+        true,
+    );
+    let wv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![cin, cout, k], &w_vec),
+        true,
+    );
+    let backend = SequentialBackend::new();
+    let out_fwd =
+        coeus_ops::conv_transpose1d(&xv.tensor, &wv.tensor, None, 1, 0, 0, 1, &backend);
+    let out_c = coeus_autograd::conv_transpose1d(&xv, &wv, &None, out_fwd, 1, 0, 0, 1);
+    assert_eq!(out_c.tensor.shape(), &[n, cout, l_out]);
+    coeus_autograd::sum(&out_c).backward();
+
+    // Burn autodiff reference.
+    let xb: BurnTensor<AB, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, cin, l]), &device).require_grad();
+    let mut conv_b = ConvTranspose1dConfig::new([cin, cout], k)
+        .with_bias(false)
+        .init::<AB>(&device);
+    conv_b.weight = burn::module::Param::from_data(
+        TensorData::new(w_vec.clone(), [cin, cout, k]),
+        &device,
+    );
+    let out_b = conv_b.forward(xb.clone());
+    let grads = out_b.sum().backward();
+
+    let to_vec = |t: BurnTensor<NdArray<f32>, 3>| t.into_data().to_vec::<f32>().unwrap();
+    let to_vecw = |t: BurnTensor<NdArray<f32>, 3>| t.into_data().to_vec::<f32>().unwrap();
+
+    assert_close_rel(
+        "ct1d_bwd_dx",
+        xv.grad().unwrap().as_slice(),
+        &to_vec(xb.grad(&grads).unwrap()),
+        1e-4,
+    );
+    assert_close_rel(
+        "ct1d_bwd_dw",
+        wv.grad().unwrap().as_slice(),
+        &to_vecw(conv_b.weight.grad(&grads).unwrap()),
+        1e-4,
+    );
+}
+
+// ── ConvTranspose2d backward matches Burn autodiff ───────────────────────────
+//
+// Input [N=1, Cin=1, H=3, W=3], weight [Cin=1, Cout=1, Kh=2, Kw=2], no bias, stride=1.
+// H_out = (3-1)*1 + 2 = 4, W_out = 4.
+// Burn weight shape: [Cin, Cout, Kh, Kw] matches Coeus.
+// Tolerance: 1e-4 from f32 accumulation.
+
+#[test]
+fn conv_transpose2d_backward_matches_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use burn::nn::conv::ConvTranspose2dConfig;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    let (n, cin, cout, h, w, kh, kw) = (1usize, 1, 1, 3, 3, 2, 2);
+    let data: Vec<f32> = (0..n * cin * h * w).map(|x| x as f32 * 0.1 - 0.4).collect();
+    let w_vec: Vec<f32> = vec![0.6, -0.2, 0.3, -0.5];
+
+    // Coeus.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, cin, h, w], &data),
+        true,
+    );
+    let wv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![cin, cout, kh, kw], &w_vec),
+        true,
+    );
+    let backend = SequentialBackend::new();
+    let out_fwd =
+        coeus_ops::conv_transpose2d(&xv.tensor, &wv.tensor, None, 1, 0, 0, 1, &backend);
+    let out_c = coeus_autograd::conv_transpose2d(&xv, &wv, &None, out_fwd, 1, 0, 0, 1);
+    coeus_autograd::sum(&out_c).backward();
+
+    // Burn autodiff reference.
+    let xb: BurnTensor<AB, 4> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, cin, h, w]), &device)
+            .require_grad();
+    let mut conv_b = ConvTranspose2dConfig::new([cin, cout], [kh, kw])
+        .with_bias(false)
+        .init::<AB>(&device);
+    conv_b.weight = burn::module::Param::from_data(
+        TensorData::new(w_vec.clone(), [cin, cout, kh, kw]),
+        &device,
+    );
+    let out_b = conv_b.forward(xb.clone());
+    let grads = out_b.sum().backward();
+
+    let to_vec4 = |t: BurnTensor<NdArray<f32>, 4>| t.into_data().to_vec::<f32>().unwrap();
+
+    assert_close_rel(
+        "ct2d_bwd_dx",
+        xv.grad().unwrap().to_contiguous().as_slice(),
+        &to_vec4(xb.grad(&grads).unwrap()),
+        1e-4,
+    );
+    assert_close_rel(
+        "ct2d_bwd_dw",
+        wv.grad().unwrap().to_contiguous().as_slice(),
+        &to_vec4(conv_b.weight.grad(&grads).unwrap()),
+        1e-4,
+    );
 }
 
 // ── AvgPool2d backward (Coeus vs. manual reference) ──────────────────────────
@@ -4115,4 +4239,81 @@ fn instancenorm3d_forward_backward_matches_burn() {
         &to_vec(bk.grad(&grads).unwrap()),
         1e-4,
     );
+}
+
+// ── BatchNorm3d training-mode forward + backward matches Burn autodiff ────────
+//
+// Input [N=2, C=2, D=2, H=2, W=2] = 32 elements.
+// Training mode: batch mean/var computed over the N*D*H*W = 16 samples per channel.
+// Burn reference: permute [N,C,D,H,W] → [N,D,H,W,C] → reshape [M=N*D*H*W, C],
+//   population-variance BN (÷M), then affine transform.
+// Tolerance: standard 1e-4 derived from f32 rounding in reciprocal-sqrt.
+
+#[test]
+fn batchnorm3d_training_backward_matches_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use coeus_nn::BatchNorm3d;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    let (n, c, d, h, w) = (2usize, 2, 2, 2, 2);
+    let m = (n * d * h * w) as f32; // 16
+    let eps = 1e-5_f32;
+    let data: Vec<f32> = (0..n * c * d * h * w)
+        .map(|x| x as f32 * 0.05 - 0.75)
+        .collect();
+    let gamma = vec![1.1f32, 0.9];
+    let beta = vec![0.05f32, -0.05];
+
+    // Coeus: training-mode forward + backward.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, d, h, w], &data),
+        true,
+    );
+    let mut bn = BatchNorm3d::<f32, SequentialBackend>::new(c, eps as f64, 0.1);
+    bn.weight = Var::new(CoeusTensor::from_slice(vec![c], &gamma), true);
+    bn.bias = Var::new(CoeusTensor::from_slice(vec![c], &beta), true);
+    coeus_autograd::sum(&bn.forward(&xv)).backward();
+
+    // Burn autodiff reference: manual BN3d formula matching Coeus NDHWC layout.
+    // Permute [N,C,D,H,W] → [N,D,H,W,C] → reshape [M, C].
+    let xb: BurnTensor<AB, 5> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, d, h, w]), &device)
+            .require_grad();
+    let wb: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(gamma.clone(), [c]), &device).require_grad();
+    let bk: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(beta.clone(), [c]), &device).require_grad();
+
+    let flat: BurnTensor<AB, 2> = xb
+        .clone()
+        .permute([0, 2, 3, 4, 1]) // [N,D,H,W,C]
+        .reshape([n * d * h * w, c]); // [M, C]
+    let mean = flat.clone().sum_dim(0) / m; // [1, C]
+    let xmu = flat.sub(mean);
+    let var = xmu.clone().powf_scalar(2.0).sum_dim(0) / m; // [1, C] population
+    let xhat = xmu / (var.add_scalar(eps)).sqrt(); // [M, C]
+    let out_b = xhat.mul(wb.clone().reshape([1, c])) + bk.clone().reshape([1, c]);
+    let grads = out_b.sum().backward();
+
+    let to_vec = |t: BurnTensor<NdArray<f32>, 1>| t.into_data().to_vec::<f32>().unwrap();
+    let to_vec5 = |t: BurnTensor<NdArray<f32>, 5>| t.into_data().to_vec::<f32>().unwrap();
+
+    assert_close_rel(
+        "batchnorm3d_bwd_dw",
+        bn.weight.grad().unwrap().as_slice(),
+        &to_vec(wb.grad(&grads).unwrap()),
+        1e-4,
+    );
+    assert_close_rel(
+        "batchnorm3d_bwd_db",
+        bn.bias.grad().unwrap().as_slice(),
+        &to_vec(bk.grad(&grads).unwrap()),
+        1e-4,
+    );
+    // dx: Coeus [N,C,D,H,W]; Burn computes in [M,C] → grads flow back to [N,C,D,H,W] via permute
+    let dx_b = to_vec5(xb.grad(&grads).unwrap());
+    let dx_c = xv.grad().unwrap();
+    assert_close_rel("batchnorm3d_bwd_dx", dx_c.as_slice(), &dx_b, 1e-4);
 }
