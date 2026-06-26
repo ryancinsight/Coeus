@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.3.0 - 2026-06-26
+
+### Added
+
+- **Statistics pair reductions** — `coeus-ops` now exposes `var_mean`,
+  `std_mean`, `var_mean_axis`, and `std_mean_axis`; standalone variance and
+  standard-deviation APIs delegate to the pair-returning SSOT.
+- **Python statistics pairs** — `coeus-python` now exposes thin PyO3
+  `var_mean` and `std_mean` wrappers with optional `axis` and `keepdim`.
+- **Sequence-level RNN modules** — `coeus-nn` now exports `Gru` and `Lstm`
+  modules with `forward_seq` outputs and final hidden/cell state access.
+- **NN module parity coverage** — `coeus-nn` now verifies `Bilinear`,
+  `ConvTranspose1d`/`ConvTranspose2d`, and sequence-level `Gru`/`Lstm`
+  modules against analytical references on SequentialBackend and MoiraiBackend.
+
+### Verified
+
+- `cargo nextest run -p coeus-ops --test stats_diff` passes 2/2 tests.
+- `cargo nextest run -p coeus-python --test binding_tests_ops` passes 58/58
+  tests.
+- `cargo nextest run -p coeus-nn --test bilinear_parity --test
+  conv_transpose_nn_parity --test rnn_seq_parity` passes 6/6 tests.
+- `cargo fmt --check`, `coeus-ops`/`coeus-python`/`coeus-nn` clippy, and
+  `coeus-ops`/`coeus-python`/`coeus-nn` rustdoc pass.
+
 ## 0.2.34 - 2026-06-26
 
 ### Added

@@ -3,5 +3,5 @@
 pub mod gru;
 pub mod lstm;
 
-pub use gru::GRUCell;
-pub use lstm::LSTMCell;
+pub use gru::{GRUCell, Gru};
+pub use lstm::{LSTMCell, Lstm};

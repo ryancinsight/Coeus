@@ -962,6 +962,14 @@ assert abs(v_biased - 5.0) < 1e-9, f"var biased wrong: {v_biased}"
 s_biased = pycoeus.std(x, unbiased=False)
 assert abs(s_biased - math.sqrt(5.0)) < 1e-9, f"std biased wrong: {s_biased}"
 
+# var_mean / std_mean without axis return scalar pairs.
+vm_var, vm_mean = pycoeus.var_mean(x)
+assert abs(vm_var - v) < 1e-9, f"var_mean scalar variance wrong: {vm_var}"
+assert abs(vm_mean - 5.0) < 1e-9, f"var_mean scalar mean wrong: {vm_mean}"
+sm_std, sm_mean = pycoeus.std_mean(x, unbiased=False)
+assert abs(sm_std - s_biased) < 1e-9, f"std_mean scalar std wrong: {sm_std}"
+assert abs(sm_mean - 5.0) < 1e-9, f"std_mean scalar mean wrong: {sm_mean}"
+
 # norm (L2) returns [1] tensor
 n = pycoeus.norm(x)
 assert n.shape == [1]
@@ -997,6 +1005,17 @@ assert s_axis1_keep.shape == [2, 1], f"std axis1 keepdim shape: {s_axis1_keep.sh
 assert abs(s_axis1_keep.data[0] - 1.0) < 1e-9, f"std axis1 keepdim row0 wrong: {s_axis1_keep.data[0]}"
 assert abs(s_axis1_keep.data[1] - 1.0) < 1e-9, f"std axis1 keepdim row1 wrong: {s_axis1_keep.data[1]}"
 
+vm_axis1, mean_axis1 = pycoeus.var_mean(y, axis=1)
+assert vm_axis1.shape == [2], f"var_mean axis1 variance shape: {vm_axis1.shape}"
+assert mean_axis1.shape == [2], f"var_mean axis1 mean shape: {mean_axis1.shape}"
+assert vm_axis1.data == [1.0, 1.0], f"var_mean axis1 variance wrong: {vm_axis1.data}"
+assert mean_axis1.data == [2.0, 5.0], f"var_mean axis1 mean wrong: {mean_axis1.data}"
+sm_axis1_keep, sm_mean_axis1_keep = pycoeus.std_mean(y, axis=1, keepdim=True)
+assert sm_axis1_keep.shape == [2, 1], f"std_mean keepdim std shape: {sm_axis1_keep.shape}"
+assert sm_mean_axis1_keep.shape == [2, 1], f"std_mean keepdim mean shape: {sm_mean_axis1_keep.shape}"
+assert sm_axis1_keep.data == [1.0, 1.0], f"std_mean keepdim std wrong: {sm_axis1_keep.data}"
+assert sm_mean_axis1_keep.data == [2.0, 5.0], f"std_mean keepdim mean wrong: {sm_mean_axis1_keep.data}"
+
 try:
     _ = pycoeus.var(y, axis=2)
     raise AssertionError("var out-of-range axis should raise")
@@ -1012,6 +1031,11 @@ except ValueError:
 try:
     _ = pycoeus.std(pycoeus.zeros([0]))
     raise AssertionError("std of empty tensor should raise")
+except ValueError:
+    pass
+try:
+    _ = pycoeus.var_mean(y, axis=2)
+    raise AssertionError("var_mean out-of-range axis should raise")
 except ValueError:
     pass
 "#,

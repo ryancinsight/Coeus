@@ -216,6 +216,8 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Statistical ops
     m.add_function(wrap_pyfunction!(ops::std_dev, m)?)?;
     m.add_function(wrap_pyfunction!(ops::tensor_var, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::var_mean, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::std_mean, m)?)?;
     m.add_function(wrap_pyfunction!(ops::norm, m)?)?;
     m.add_function(wrap_pyfunction!(ops::vector_norm, m)?)?;
     // Comparison / selection

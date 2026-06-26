@@ -87,3 +87,93 @@ impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default>
         self.step(x, &h, &c).0
     }
 }
+
+// ── Lstm (sequence-level) ──
+
+/// Sequence-level LSTM module: unrolls [`LSTMCell`] across the time axis.
+///
+/// Input layout: `[batch, seq_len, input_size]`.
+/// Output layout: `[batch, seq_len, hidden_size]`.
+/// Final state: `(h_n, c_n)`, each `[batch, hidden_size]`.
+///
+/// Initial hidden and cell states default to zeros; use [`Lstm::forward_seq`]
+/// for full `(output, (h_n, c_n))` when the final state is needed, or
+/// `Module::forward` when only the output sequence is needed.
+///
+/// # Example
+/// ```text
+/// zeros input ⟹ all gate pre-activations = 0
+///   i = f = o = σ(0) = 0.5,  g = tanh(0) = 0
+///   c_new = f·c + i·g = 0,   h_new = o·tanh(c_new) = 0
+/// ∴ output is all zeros for any sequence length.
+/// ```
+#[derive(Clone)]
+pub struct Lstm<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
+    cell: LSTMCell<T, B>,
+    /// Number of input features per timestep.
+    pub input_size: usize,
+    /// Number of hidden features.
+    pub hidden_size: usize,
+}
+
+impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default> Lstm<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
+    /// Create with Xavier-initialized weights and zero biases.
+    pub fn new(input_size: usize, hidden_size: usize) -> Self {
+        Self {
+            cell: LSTMCell::new(input_size, hidden_size),
+            input_size,
+            hidden_size,
+        }
+    }
+
+    /// Unroll over the sequence dimension with zero initial state.
+    ///
+    /// Returns `(output, (h_n, c_n))`:
+    /// - `output`: `[batch, seq_len, hidden_size]` — all hidden states stacked.
+    /// - `h_n`, `c_n`: `[batch, hidden_size]` — final hidden and cell state.
+    pub fn forward_seq(&self, x: &Var<T, B>) -> (Var<T, B>, (Var<T, B>, Var<T, B>)) {
+        let batch = x.tensor.shape()[0];
+        let seq_len = x.tensor.shape()[1];
+        let backend = B::default();
+
+        let mut h = Var::new(Tensor::zeros_on([batch, self.hidden_size], &backend), false);
+        let mut c = Var::new(Tensor::zeros_on([batch, self.hidden_size], &backend), false);
+
+        let mut outputs: Vec<Var<T, B>> = Vec::with_capacity(seq_len);
+        for t in 0..seq_len {
+            let x_t_3d = coeus_autograd::slice(x, &[(0, batch), (t, t + 1), (0, self.input_size)]);
+            let x_t = coeus_autograd::reshape(&x_t_3d, vec![batch, self.input_size]);
+            let (h_new, c_new) = self.cell.step(&x_t, &h, &c);
+            outputs.push(coeus_autograd::reshape(
+                &h_new,
+                vec![batch, 1, self.hidden_size],
+            ));
+            h = h_new;
+            c = c_new;
+        }
+
+        let refs: Vec<&Var<T, B>> = outputs.iter().collect();
+        let output = coeus_autograd::cat(&refs, 1);
+        (output, (h, c))
+    }
+}
+
+impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for Lstm<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
+    fn parameters(&self) -> Vec<Var<T, B>> {
+        self.cell.parameters()
+    }
+
+    /// Returns `output` of shape `[batch, seq_len, hidden_size]`.
+    fn forward(&self, x: &Var<T, B>) -> Var<T, B> {
+        self.forward_seq(x).0
+    }
+}

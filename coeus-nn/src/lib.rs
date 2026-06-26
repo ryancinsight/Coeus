@@ -70,7 +70,7 @@ pub use pool::{
     GlobalMaxPool3d, MaxPool2d, MaxPool3d,
 };
 pub use positional::{RotaryEmbedding, SinusoidalEncoding};
-pub use rnn::{GRUCell, LSTMCell};
+pub use rnn::{GRUCell, Gru, LSTMCell, Lstm};
 pub use sequential::{ModuleExt, Sequential, StaticSeq};
 pub use softmax::{softmax, Softmax};
 pub use transformer::{

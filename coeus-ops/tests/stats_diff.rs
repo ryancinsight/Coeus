@@ -3,8 +3,12 @@
 //! Functions exercised:
 //!   `var`          - population / sample variance (scalar)
 //!   `var_axis`     - per-axis population / sample variance (tensor)
+//!   `var_mean`     - global variance + mean pair
+//!   `var_mean_axis` - per-axis variance + mean pair
 //!   `std_dev`      - population / sample standard deviation (scalar)
 //!   `std_dev_axis` - per-axis standard deviation (tensor)
+//!   `std_mean`     - global standard deviation + mean pair
+//!   `std_mean_axis` - per-axis standard deviation + mean pair
 //!   `norm_p`       - Lp-norm over all elements (scalar)
 //!   `norm_p_axis`  - per-axis Lp-norm (tensor)
 //!
@@ -172,6 +176,88 @@ where
     );
 }
 
+// VAR_MEAN / STD_MEAN (global + axis)
+
+fn check_stat_pairs<B>(backend: &B)
+where
+    B: coeus_ops::BackendOps<f64> + Default,
+    B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
+{
+    // Global x = [2,4,4,4,5,5,7,9], mean=5, pop_var=4, pop_std=2.
+    let x = t(&[8], &[2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0], backend);
+    let (v, mu) = coeus_ops::var_mean(&x, false, backend);
+    assert_eq!(mu, 5.0_f64, "var_mean global mean");
+    assert_eq!(
+        v,
+        coeus_ops::var(&x, false, backend),
+        "var_mean global variance"
+    );
+
+    let (s, s_mu) = coeus_ops::std_mean(&x, false, backend);
+    assert_eq!(s_mu, 5.0_f64, "std_mean global mean");
+    assert_eq!(
+        s,
+        coeus_ops::std_dev(&x, false, backend),
+        "std_mean global std"
+    );
+
+    // M = [[0, 4], [4, 4]], shape [2, 2]
+    // axis=0 means [2,4], population variance [4,0], std [2,0].
+    // axis=1 means [2,4], population variance [4,0], std [2,0].
+    let m = t(&[2, 2], &[0.0, 4.0, 4.0, 4.0], backend);
+    let (v0, mu0) = coeus_ops::var_mean_axis(&m, 0, false, backend);
+    assert_eq!(v0.shape(), &[1, 2], "var_mean_axis=0 variance shape");
+    assert_eq!(mu0.shape(), &[1, 2], "var_mean_axis=0 mean shape");
+    assert_close(
+        v0.as_slice(),
+        &[4.0, 0.0],
+        VAR_STD_EPS,
+        "var_mean_axis=0 variance",
+    );
+    assert_close(
+        mu0.as_slice(),
+        &[2.0, 4.0],
+        VAR_STD_EPS,
+        "var_mean_axis=0 mean",
+    );
+    assert_eq!(
+        v0.as_slice(),
+        coeus_ops::var_axis(&m, 0, false, backend).as_slice(),
+        "var_mean_axis=0 variance matches var_axis"
+    );
+    assert_eq!(
+        mu0.as_slice(),
+        coeus_ops::mean_axis(&m, 0, backend).as_slice(),
+        "var_mean_axis=0 mean matches mean_axis"
+    );
+
+    let (s1, smu1) = coeus_ops::std_mean_axis(&m, 1, false, backend);
+    assert_eq!(s1.shape(), &[2, 1], "std_mean_axis=1 std shape");
+    assert_eq!(smu1.shape(), &[2, 1], "std_mean_axis=1 mean shape");
+    assert_close(
+        s1.as_slice(),
+        &[2.0, 0.0],
+        VAR_STD_EPS,
+        "std_mean_axis=1 std",
+    );
+    assert_close(
+        smu1.as_slice(),
+        &[2.0, 4.0],
+        VAR_STD_EPS,
+        "std_mean_axis=1 mean",
+    );
+    assert_eq!(
+        s1.as_slice(),
+        coeus_ops::std_dev_axis(&m, 1, false, backend).as_slice(),
+        "std_mean_axis=1 std matches std_dev_axis"
+    );
+    assert_eq!(
+        smu1.as_slice(),
+        coeus_ops::mean_axis(&m, 1, backend).as_slice(),
+        "std_mean_axis=1 mean matches mean_axis"
+    );
+}
+
 // NORM_P (global)
 
 fn check_norm_p<B>(backend: &B)
@@ -280,6 +366,7 @@ where
 {
     check_var_std(backend);
     check_var_axis(backend);
+    check_stat_pairs(backend);
     check_norm_p(backend);
     check_norm_p_axis(backend);
 }

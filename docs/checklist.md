@@ -2,7 +2,42 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-97 - NN differential parity expansion [COMPLETE]
+### Current Sprint: MS-98 - stats pair reductions and PyO3 wrappers [COMPLETE]
+**Objective**: Add Rust-owned `var_mean` / `std_mean` statistics pairs and
+thin Python wrappers while consolidating standalone variance/std paths through
+the pair-returning SSOT, and expose verified sequence-level RNN modules.
+**Target version**: 0.3.0 (minor-class; additive public Rust/Python/NN API).
+**Tests delivered**: value-semantic Rust/Python coverage for global and
+per-axis pair reductions plus NN module analytical parity for Bilinear,
+ConvTranspose, and sequence-level RNNs.
+
+- [x] [minor] `coeus-ops`: added `var_mean`, `std_mean`, `var_mean_axis`, and
+  `std_mean_axis`; `var`, `std_dev`, `var_axis`, and `std_dev_axis` now reuse
+  the pair-returning implementations.
+- [x] [minor] `coeus-python`: exposed `var_mean` and `std_mean` as thin PyO3
+  wrappers with optional `axis` and `keepdim`, preserving Rust-core ownership
+  of statistics logic.
+- [x] [patch] `coeus-ops/tests/stats_diff.rs`: added analytical global and
+  per-axis assertions comparing pair outputs against standalone reductions and
+  `mean_axis`.
+- [x] [patch] `coeus-python/tests/binding_tests_ops.rs`: added scalar,
+  per-axis, keepdim, and error-path checks for `pycoeus.var_mean` and
+  `pycoeus.std_mean`.
+- [x] [minor] `coeus-nn/src/rnn/{gru,lstm}.rs`: added and exported
+  sequence-level `Gru` and `Lstm` modules with `forward_seq`, including the
+  `CpuAddressableStorageMut` bounds required by output concatenation.
+- [x] [patch] `coeus-nn/tests/{bilinear,conv_transpose_nn,rnn_seq}_parity.rs`:
+  added analytical module parity checks on SequentialBackend and MoiraiBackend.
+- [x] Evidence: `cargo fmt --check`;
+  `cargo nextest run -p coeus-ops --test stats_diff` (2/2);
+  `cargo nextest run -p coeus-python --test binding_tests_ops` (58/58);
+  `cargo nextest run -p coeus-nn --test bilinear_parity --test
+  conv_transpose_nn_parity --test rnn_seq_parity` (6/6);
+  `cargo clippy -p coeus-ops -p coeus-python -p coeus-nn --all-targets
+  -- -D warnings`;
+  `cargo doc -p coeus-ops -p coeus-python -p coeus-nn --no-deps`.
+
+### Previous Sprint: MS-97 - NN differential parity expansion [COMPLETE]
 **Objective**: Extend `coeus-nn` parity coverage across recurrent cells,
 interpolation, losses, positional encodings, global pooling, and 3D pooling
 with value-semantic analytical references on SequentialBackend and

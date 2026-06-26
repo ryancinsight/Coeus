@@ -1,5 +1,29 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-98: stats pair reductions and PyO3 wrappers [COMPLETE]
+
+- [x] [minor] Added Rust-core `var_mean`, `std_mean`, `var_mean_axis`, and
+  `std_mean_axis` in `coeus-ops`, with standalone variance/std functions
+  delegating to the pair-returning implementations.
+- [x] [minor] Added thin `coeus-python` `var_mean` / `std_mean` wrappers that
+  release the GIL around Rust computation and only convert scalar/tensor
+  results for Python.
+- [x] [patch] Added value-semantic Rust and Python tests for global, per-axis,
+  keepdim, and error-path behavior.
+- [x] [minor] Added and exported sequence-level `Gru` and `Lstm` modules with
+  `forward_seq`, including the mutable CPU-addressable storage contract
+  required by output concatenation.
+- [x] [patch] Added analytical `coeus-nn` module parity tests for `Bilinear`,
+  `ConvTranspose1d`/`ConvTranspose2d`, and sequence-level `Gru`/`Lstm`.
+- [x] Evidence: `cargo fmt --check`;
+  `cargo nextest run -p coeus-ops --test stats_diff` (2/2);
+  `cargo nextest run -p coeus-python --test binding_tests_ops` (58/58);
+  `cargo nextest run -p coeus-nn --test bilinear_parity --test
+  conv_transpose_nn_parity --test rnn_seq_parity` (6/6);
+  `cargo clippy -p coeus-ops -p coeus-python -p coeus-nn --all-targets
+  -- -D warnings`;
+  `cargo doc -p coeus-ops -p coeus-python -p coeus-nn --no-deps`.
+
 ## Sprint MS-97: NN differential parity expansion [COMPLETE]
 
 - [x] [patch] Added `coeus-nn/tests/rnn_parity.rs` covering `GRUCell` and
