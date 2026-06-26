@@ -7,20 +7,27 @@ use std::marker::PhantomData;
 
 // ── MaxPool2d ──
 
+/// 2D max pooling layer.
 #[derive(Clone)]
 pub struct MaxPool2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
+    /// Pooling window side length.
     pub kernel_size: usize,
+    /// Stride along H and W dimensions.
     pub stride: usize,
+    /// Zero-padding applied to all spatial sides.
     pub padding: usize,
+    /// Spacing between pooling window elements.
     pub dilation: usize,
     _marker: PhantomData<(T, B)>,
 }
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> MaxPool2d<T, B> {
+    /// Create with stride equal to kernel_size, no padding, no dilation.
     pub fn new(kernel_size: usize) -> Self {
         Self::with_params(kernel_size, kernel_size, 0, 1)
     }
 
+    /// Create with explicit hyperparameters.
     pub fn with_params(kernel_size: usize, stride: usize, padding: usize, dilation: usize) -> Self {
         assert!(
             stride >= 1 && dilation >= 1,
@@ -98,20 +105,27 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool2d
 
 // ── MaxPool3d ──
 
+/// 3D max pooling layer.
 #[derive(Clone)]
 pub struct MaxPool3d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
+    /// Cubic pooling window side length.
     pub kernel_size: usize,
+    /// Stride along D, H, and W dimensions.
     pub stride: usize,
+    /// Zero-padding applied to all spatial sides.
     pub padding: usize,
+    /// Spacing between pooling window elements.
     pub dilation: usize,
     _marker: PhantomData<(T, B)>,
 }
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> MaxPool3d<T, B> {
+    /// Create with stride equal to kernel_size, no padding, no dilation.
     pub fn new(kernel_size: usize) -> Self {
         Self::with_params(kernel_size, kernel_size, 0, 1)
     }
 
+    /// Create with explicit hyperparameters.
     pub fn with_params(kernel_size: usize, stride: usize, padding: usize, dilation: usize) -> Self {
         assert!(
             stride >= 1 && dilation >= 1,

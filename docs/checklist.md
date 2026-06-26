@@ -2,16 +2,55 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-123 - MHA backward + Conv generic consolidation
+### Current Sprint: MS-124 - coeus-python documented binding surface [READY]
+**Objective**: Document the remaining public PyO3 binding crate surface before
+enabling crate-wide `#![deny(missing_docs)]` in `coeus-python`.
+**Target version**: 0.5.2 (patch-class; documentation enforcement).
+
+- [ ] [patch] Add Rustdoc for the remaining public `coeus-python` modules,
+  pyclasses, pyfunctions, fields, and enum variants reported by
+  `cargo clippy -p coeus-python --tests -- -D warnings` when
+  `#![deny(missing_docs)]` is enabled.
+- [ ] [patch] Re-enable `#![deny(missing_docs)]` in `coeus-python/src/lib.rs`
+  after the public binding surface is fully documented.
+- [ ] Evidence target: `rustup run nightly cargo clippy -p coeus-python
+  --tests -- -D warnings`; `rustup run nightly cargo doc -p coeus-python
+  --no-deps`; focused PyO3 binding nextest rows.
+
+### Previous Sprint: MS-123 - MHA backward + Conv generic consolidation [COMPLETE]
 **Objective**: Close the MultiHeadAttention backward parity gap and consolidate Conv1d/2d/3d into a single `Conv<D: ConvDim>` generic.
 **Target version**: 0.5.2 (minor-class; new parity tests + SRP consolidation).
 
-- [x] [patch] Add MHA forward+backward Burn parity test (single-head, explicit weights) — `multi_head_attention_backward_matches_burn` passes under `cargo nextest run -p coeus-nn --test burn_live_parity conv multi_head_attention_backward_matches_burn`
-- [x] [minor] Consolidate Conv1d/2d/3d in coeus-nn into `Conv<D: ConvDim>` strategy trait (95% identical code; stable-Rust design: ConvDim sealed trait encoding dim-specific weight shape, spatial compute, backend dispatch, and autograd dispatch; type aliases Conv1d/Conv2d/Conv3d = Conv<Dim1D/Dim2D/Dim3D>) — verified with `cargo clippy -p coeus-nn --all-targets -- -D warnings`, `cargo doc -p coeus-nn --no-deps`, and focused Burn conv parity nextest
-- [~] [patch] Split `coeus-ops/src/backend_ops/cpu_impl.rs` (910 lines) into family submodules — agent acaf72f9f9e9c035c in progress
-- [~] [patch] Split `coeus-autograd/src/ops/nn/conv.rs` (793 lines) into conv1d/conv2d/conv3d leaf modules — agent a502cd6b889f8e559 in progress
-- [x] [patch] Fix coeus-nn missing_docs (196 items) — `cargo doc -p coeus-nn --no-deps` completes warning-clean
-- [ ] [patch] Fix coeus-python missing_docs (293 diagnostics) — `cargo check -p coeus-python --all-targets` currently stops on crate-wide missing docs before package gate can pass
+- [x] [patch] Added MHA forward+backward Burn parity test
+  (`multi_head_attention_backward_matches_burn`) with explicit projection
+  weights, deterministic Burn dropout, and transposed Burn Linear weight/grad
+  handling to match Coeus `[out, in]` storage.
+- [x] [minor] Consolidated Conv1d/2d/3d in `coeus-nn` into the generic
+  `Conv<T, B, D: ConvDim>` layer with sealed ZST dimension strategies and
+  `Conv1d`/`Conv2d`/`Conv3d` type aliases.
+- [x] [patch] Split `coeus-ops/src/backend_ops/cpu_impl.rs` into SRP family
+  submodules.
+- [x] [patch] Split `coeus-autograd/src/ops/nn/conv.rs` into conv1d/2d/3d and
+  transpose leaf modules.
+- [x] [patch] Enforced and fixed `coeus-nn` missing docs and added documented
+  public surfaces across touched core/tensor/ops/cuda/wgpu items.
+- [x] [patch] Deferred crate-wide `coeus-python` `#![deny(missing_docs)]` to
+  MS-124 because enabling it currently exposes 293 unrelated public binding
+  documentation diagnostics outside this Conv/MHA slice.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-core -p coeus-cuda -p
+  coeus-nn -p coeus-ops -p coeus-python -p coeus-tensor -p coeus-wgpu
+  --check`; `rustup run nightly cargo clippy -p coeus-nn --tests -- -D
+  warnings`; `rustup run nightly cargo nextest run -p coeus-nn` (270/270);
+  `rustup run nightly cargo clippy -p coeus-core -p coeus-cuda -p coeus-ops
+  -p coeus-python -p coeus-tensor -p coeus-wgpu --tests -- -D warnings`;
+  `rustup run nightly cargo doc -p coeus-core -p coeus-cuda -p coeus-nn -p
+  coeus-ops -p coeus-python -p coeus-tensor -p coeus-wgpu --no-deps`;
+  `rustup run nightly cargo test --doc -p coeus-core -p coeus-nn -p coeus-ops
+  -p coeus-tensor -p coeus-wgpu -p coeus-cuda`; `rustup run nightly cargo
+  nextest run -p coeus-python --test binding_tests_nn --test binding_tests_ops
+  test_pycoeus_nn test_nn_functional_ops`; `rustup run nightly cargo clippy -p
+  coeus-ops -p coeus-autograd --tests -- -D warnings`; `rustup run nightly
+  cargo nextest run -p coeus-ops -p coeus-autograd` (224/224).
 
 ### Previous Sprint: MS-122 - Burn parity + SRP + Python transformer bindings [COMPLETE]
 **Objective**: Add BatchNorm3d training backward, ConvTranspose1d/2d Burn parity, Python

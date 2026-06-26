@@ -3,6 +3,7 @@
 //! Cross-platform WebGPU implementation of the Coeus
 //! [`ComputeBackend`](coeus_core::ComputeBackend) /
 //! [`BackendOps`](coeus_ops::BackendOps) surface, built on `hephaestus-wgpu`.
+#![deny(missing_docs)]
 //! Like the other backends it carries no domain logic — only on-device
 //! realizations of the kernel contract the CPU
 //! [`SequentialBackend`](coeus_core::SequentialBackend) defines.

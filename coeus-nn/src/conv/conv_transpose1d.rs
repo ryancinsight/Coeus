@@ -15,14 +15,23 @@ use coeus_tensor::Tensor;
 /// calls `BackendOps::conv_transpose1d` (default host-side implementation).
 #[derive(Clone)]
 pub struct ConvTranspose1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
+    /// Transposed convolution weight: `[in_channels, out_channels, kernel_size]`.
     pub weight: Var<T, B>,
+    /// Optional bias: `[out_channels]`.
     pub bias: Option<Var<T, B>>,
+    /// Number of input channels.
     pub in_channels: usize,
+    /// Number of output channels.
     pub out_channels: usize,
+    /// Kernel length.
     pub kernel_size: usize,
+    /// Stride (upsampling factor).
     pub stride: usize,
+    /// Input-side zero-padding removed from the output.
     pub padding: usize,
+    /// Extra output length added to one side to resolve output-size ambiguity.
     pub output_padding: usize,
+    /// Spacing between kernel elements.
     pub dilation: usize,
 }
 

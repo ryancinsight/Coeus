@@ -21,11 +21,17 @@ pub struct TransformerEncoderLayer<
     const H: usize = 8,
     M: AttentionMask = NullMask,
 > {
+    /// Pre-LayerNorm before self-attention.
     pub norm1: LayerNorm<T, B>,
+    /// Self-attention sub-layer.
     pub self_attn: MultiHeadAttention<T, B, H, M>,
+    /// Dropout applied after self-attention.
     pub dropout1: Dropout,
+    /// Pre-LayerNorm before FFN.
     pub norm2: LayerNorm<T, B>,
+    /// Feed-forward sub-layer.
     pub ffn: FeedForward<T, B>,
+    /// Dropout applied after FFN.
     pub dropout2: Dropout,
 }
 

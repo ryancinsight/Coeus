@@ -1,7 +1,9 @@
 use crate::storage::CudaStorage;
 use coeus_core::{Backend, ComputeBackend, Layout, Scalar, Storage, StorageMut};
 
+/// Trait mapping CPU scalar types to their CUDA type representation.
 pub trait CudaScalar: Scalar + leto_ops::Scalar {
+    /// CUDA type name string used in NVRTC kernel compilation.
     const CUDA_TYPE: &'static str;
 }
 
@@ -32,6 +34,7 @@ pub struct CudaBackend;
 impl coeus_core::backend::private::Sealed for CudaBackend {}
 
 impl CudaBackend {
+    /// Create a new CUDA backend instance.
     #[inline]
     pub const fn new() -> Self {
         Self

@@ -1,5 +1,34 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-124: coeus-python documented binding surface [READY]
+
+- [ ] [patch] Document remaining public `coeus-python` modules, pyclasses,
+  pyfunctions, fields, methods, and enum variants.
+- [ ] [patch] Re-enable `#![deny(missing_docs)]` in `coeus-python/src/lib.rs`
+  once the binding surface is fully documented.
+- [ ] Evidence target: `rustup run nightly cargo clippy -p coeus-python
+  --tests -- -D warnings`; `rustup run nightly cargo doc -p coeus-python
+  --no-deps`; focused PyO3 binding nextest rows.
+
+## Sprint MS-123: MHA backward + Conv generic consolidation [COMPLETE]
+
+- [x] [patch] Added `multi_head_attention_backward_matches_burn`, verifying
+  MHA forward output, input gradient, and projection-weight gradients against
+  Burn autodiff with explicit projection weights.
+- [x] [minor] Consolidated `Conv1d`/`Conv2d`/`Conv3d` into generic
+  `Conv<T, B, D: ConvDim>` with sealed ZST dimension strategies and public type
+  aliases.
+- [x] [patch] Split `coeus-ops` CPU backend dispatch and `coeus-autograd` conv
+  nodes into SRP leaf modules.
+- [x] [patch] Enforced and fixed `coeus-nn` missing docs and documented touched
+  core/tensor/ops/cuda/wgpu public items.
+- [x] [patch] Deferred crate-wide `coeus-python` missing-docs denial to MS-124
+  because it exposes 293 unrelated binding docs diagnostics outside this slice.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-nn` (270/270);
+  `rustup run nightly cargo nextest run -p coeus-ops -p coeus-autograd`
+  (224/224); touched-package fmt/clippy/doc/doctest gates recorded in
+  `docs/checklist.md`.
+
 ## Sprint MS-121: Public docs and parity surface [COMPLETE]
 
 - [x] [patch] Replaced macro-generated public `add`/`sub`/`mul`/`div` docs with

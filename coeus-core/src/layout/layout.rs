@@ -366,8 +366,11 @@ impl Layout {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ConstLayout<const DIMS: usize> {
+    /// Shape dimensions.
     pub shape: crate::layout::ConstShape<DIMS>,
+    /// Per-dimension strides.
     pub strides: [usize; DIMS],
+    /// Linear offset into the buffer.
     pub offset: usize,
 }
 

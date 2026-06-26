@@ -17,8 +17,11 @@ use std::marker::PhantomData;
 #[derive(Clone)]
 pub struct FeedForward<T: coeus_core::Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend>
 {
+    /// First linear projection: `d_model → d_ff`.
     pub linear1: Linear<T, B>,
+    /// Second linear projection: `d_ff → d_model`.
     pub linear2: Linear<T, B>,
+    /// Dropout between the two projections.
     pub dropout: Dropout,
     _marker: PhantomData<(T, B)>,
 }

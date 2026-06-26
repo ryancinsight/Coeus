@@ -1,5 +1,4 @@
 // ── Coeus Python bindings entry point ──
-
 use pyo3::prelude::*;
 
 #[cfg(feature = "mnemosyne-global")]

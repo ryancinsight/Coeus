@@ -43,7 +43,9 @@ pub struct GroupNorm<
     pub weight: Var<T, B>,
     /// Trainable shift (beta): shape `[num_features]`.
     pub bias: Var<T, B>,
+    /// Total number of input channels.
     pub num_features: usize,
+    /// Numerical stability constant added to variance.
     pub eps: f64,
     cache: RefCell<Option<GroupNormCache<T, B>>>,
 }

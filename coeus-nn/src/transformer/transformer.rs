@@ -19,7 +19,9 @@ pub struct Transformer<
     DecSelfM: AttentionMask = CausalMask,
     DecCrossM: AttentionMask = NullMask,
 > {
+    /// Encoder stack processing the source sequence.
     pub encoder: TransformerEncoder<T, B, H, NUM_ENC, EncM>,
+    /// Decoder stack producing the target sequence.
     pub decoder: TransformerDecoder<T, B, H, NUM_DEC, DecSelfM, DecCrossM>,
 }
 

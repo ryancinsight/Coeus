@@ -41,6 +41,7 @@ pub struct MultiHeadAttention<
     pub w_o: Var<T, B>,
     /// Output projection bias: `[d_model]`.
     pub b_o: Option<Var<T, B>>,
+    /// Model embedding dimension (must be divisible by `H`).
     pub d_model: usize,
     _mask: PhantomData<M>,
 }

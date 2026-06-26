@@ -20,9 +20,13 @@ use coeus_tensor::Tensor;
 /// Fused implementation uses a single `[3*H]` projection for efficiency.
 #[derive(Clone)]
 pub struct GRUCell<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
+    /// Input-to-hidden projection: `[input_size, 3*hidden_size]`.
     pub w_ih: Linear<T, B>,
+    /// Hidden-to-hidden projection: `[hidden_size, 3*hidden_size]`.
     pub w_hh: Linear<T, B>,
+    /// Number of input features per timestep.
     pub input_size: usize,
+    /// Number of hidden features.
     pub hidden_size: usize,
 }
 

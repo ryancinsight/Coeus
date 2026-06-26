@@ -10,11 +10,17 @@ use std::cell::RefCell;
 /// Running stats are updated during each forward call.
 #[derive(Clone)]
 pub struct BatchNorm2d<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
+    /// Number of channels (C dimension).
     pub num_features: usize,
+    /// Learnable scale (gamma): `[C]`.
     pub weight: Var<T, B>,
+    /// Learnable shift (beta): `[C]`.
     pub bias: Var<T, B>,
+    /// Numerical stability constant added to variance.
     pub eps: f64,
+    /// Exponential moving average factor for running stats.
     pub momentum: f64,
+    /// Whether the layer is in training mode (updates running stats when true).
     pub is_training: bool,
     /// Running mean `[C]`.
     pub running_mean: RefCell<Tensor<T, B>>,
@@ -37,6 +43,7 @@ pub struct BatchNorm2d<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiB
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm2d<T, B> {
+    /// Create with ones weight, zeros bias, and initialized running stats.
     pub fn new(num_features: usize, eps: f64, momentum: f64) -> Self {
         let backend = B::default();
         let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
@@ -64,6 +71,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm2d<T, B> {
         }
     }
 
+    /// Construct from pre-existing weight, bias, and running-stat tensors (e.g., after checkpoint load).
     pub fn from_parts(
         num_features: usize,
         weight: Var<T, B>,
@@ -99,6 +107,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm2d<T, B> {
         }
     }
 
+    /// Switch between training and eval mode.
     pub fn set_training(&mut self, mode: bool) {
         self.is_training = mode;
     }

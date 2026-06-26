@@ -5,6 +5,7 @@ use crate::module::Module;
 use coeus_autograd::Var;
 use coeus_core::Float;
 
+/// Functional softmax along `dim`.
 pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: isize,
@@ -15,10 +16,12 @@ pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Softmax module (last dimension by default).
 #[derive(Clone, Debug, Default)]
 pub struct Softmax {
+    /// Axis along which to apply softmax (negative indices count from the end).
     pub dim: isize,
 }
 
 impl Softmax {
+    /// Create a `Softmax` module that normalizes along `dim`.
     pub fn new(dim: isize) -> Self {
         Self { dim }
     }

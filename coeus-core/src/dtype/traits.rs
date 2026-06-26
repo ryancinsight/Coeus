@@ -23,60 +23,106 @@ pub(crate) mod private {
 /// this trait — calling `exp_op`, `log_op`, etc. on an integer type is a
 /// compile error, not a runtime panic.
 pub trait FloatOps: private::Sealed {
+    /// Element-wise exponential: e^x.
     fn exp_op(self) -> Self;
+    /// Element-wise natural logarithm: ln(x).
     fn log_op(self) -> Self;
+    /// Element-wise hyperbolic tangent: tanh(x).
     fn tanh_op(self) -> Self;
+    /// Element-wise sine: sin(x).
     fn sin_op(self) -> Self;
+    /// Element-wise cosine: cos(x).
     fn cos_op(self) -> Self;
+    /// Gauss error function: erf(x).
     fn erf_op(self) -> Self;
+    /// Gaussian Error Linear Unit: 0.5 * x * (1 + erf(x / sqrt(2))).
     fn gelu_op(self) -> Self;
+    /// Logistic sigmoid: 1 / (1 + e^(-x)).
     fn sigmoid_op(self) -> Self;
 }
 
+/// Binary element-wise operation tag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOp {
+    /// Addition: a + b.
     Add,
+    /// Subtraction: a - b.
     Sub,
+    /// Multiplication: a * b.
     Mul,
+    /// Division: a / b.
     Div,
 }
 
+/// Reduction operation tag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReductionOp {
+    /// Sum of all elements.
     Sum,
+    /// Arithmetic mean of all elements.
     Mean,
+    /// Maximum element.
     Max,
+    /// Minimum element.
     Min,
 }
 
+/// CPU unary operation dispatch tag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CpuUnaryOp {
+    /// Rectified Linear Unit: max(0, x).
     Relu,
+    /// ReLU gradient: 1 if x > 0, else 0.
     ReluGrad,
+    /// Logistic sigmoid: 1 / (1 + e^(-x)).
     Sigmoid,
+    /// Sigmoid gradient: σ(x) * (1 - σ(x)).
     SigmoidGrad,
+    /// Hyperbolic tangent: tanh(x).
     Tanh,
+    /// Tanh gradient: 1 - tanh(x)^2.
     TanhGrad,
+    /// Exact GELU: 0.5 * x * (1 + erf(x / sqrt(2))).
     Gelu,
+    /// GELU gradient.
     GeluGrad,
+    /// Element-wise sine: sin(x).
     Sin,
+    /// Element-wise cosine: cos(x).
     Cos,
+    /// Element-wise exponential: e^x.
     Exp,
+    /// Element-wise natural logarithm: ln(x).
     Log,
+    /// Element-wise negation: -x.
     Neg,
+    /// Element-wise absolute value: |x|.
     Abs,
+    /// Element-wise square root: sqrt(x).
     Sqrt,
+    /// SiLU (Sigmoid Linear Unit): x * sigmoid(x).
     Silu,
+    /// SiLU gradient.
     SiluGrad,
+    /// Mish: x * tanh(softplus(x)).
     Mish,
+    /// Mish gradient.
     MishGrad,
+    /// ELU: x > 0 ? x : alpha * (e^x - 1).
     Elu,
+    /// ELU gradient.
     EluGrad,
+    /// Softplus: ln(1 + e^x).
     Softplus,
+    /// Softplus gradient: sigmoid(x).
     SoftplusGrad,
+    /// Tanh-approximated GELU: 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3))).
     GeluTanh,
+    /// Tanh-GELU gradient.
     GeluTanhGrad,
+    /// Leaky ReLU: x > 0 ? x : slope * x. The packed `u64` is the negative-slope bit pattern.
     LeakyRelu(u64),
+    /// Leaky ReLU gradient. The packed `u64` is the negative-slope bit pattern.
     LeakyReluGrad(u64),
     /// Element-wise reciprocal: 1/x
     Recip,
@@ -92,7 +138,11 @@ pub enum CpuUnaryOp {
     Trunc,
 }
 
+/// CPU dispatch trait for unary operations.
+///
+/// Implemented for all `Scalar` types that support CPU-side unary kernels.
 pub trait CpuUnaryDispatch: private::Sealed {
+    /// Evaluate a unary operation on a single element.
     fn eval_unary(op: CpuUnaryOp, x: Self) -> Self;
 }
 
@@ -299,31 +349,58 @@ pub trait Float: Scalar + FloatOps {
     /// Positive infinity.
     const INFINITY: Self;
 
+    /// Floor: largest integer ≤ self.
+    /// Floor: largest integer ≤ self.
     fn floor(self) -> Self;
+    /// Ceiling: smallest integer ≥ self.
     fn ceil(self) -> Self;
+    /// Round to nearest integer.
     fn round(self) -> Self;
+    /// Truncate toward zero.
     fn trunc(self) -> Self;
+    /// Fractional part.
     fn fract(self) -> Self;
+    /// Absolute value.
     fn abs(self) -> Self;
+    /// Sign function: -1, 0, or 1.
     fn signum(self) -> Self;
+    /// Square root.
     fn sqrt(self) -> Self;
+    /// Exponential: e^self.
     fn exp(self) -> Self;
+    /// Base-2 exponential: 2^self.
     fn exp2(self) -> Self;
+    /// Natural logarithm: ln(self).
     fn ln(self) -> Self;
+    /// Base-2 logarithm.
     fn log2(self) -> Self;
+    /// Base-10 logarithm.
     fn log10(self) -> Self;
+    /// Sine.
     fn sin(self) -> Self;
+    /// Cosine.
     fn cos(self) -> Self;
+    /// Tangent.
     fn tan(self) -> Self;
+    /// Arcsine.
     fn asin(self) -> Self;
+    /// Arccosine.
     fn acos(self) -> Self;
+    /// Arctangent.
     fn atan(self) -> Self;
+    /// Hyperbolic sine.
     fn sinh(self) -> Self;
+    /// Hyperbolic cosine.
     fn cosh(self) -> Self;
+    /// Hyperbolic tangent.
     fn tanh(self) -> Self;
+    /// Power: self^n.
     fn powf(self, n: Self) -> Self;
+    /// True if self is NaN.
     fn is_nan(self) -> bool;
+    /// True if self is positive or negative infinity.
     fn is_infinite(self) -> bool;
+    /// True if self is a finite (non-infinite, non-NaN) value.
     fn is_finite(self) -> bool;
 }
 
@@ -332,12 +409,20 @@ pub trait Float: Scalar + FloatOps {
 /// Provides bitwise operations and integer-specific math.
 /// Implemented for i8, i16, i32, i64, u8, u16, u32, u64.
 pub trait Int: Scalar + num_traits::NumCast {
+    /// Count of set bits (popcount).
     fn count_ones(self) -> u32;
+    /// Count of unset bits.
     fn count_zeros(self) -> u32;
+    /// Count of leading zero bits.
     fn leading_zeros(self) -> u32;
+    /// Count of trailing zero bits.
     fn trailing_zeros(self) -> u32;
+    /// Bitwise rotate left by `n` positions.
     fn rotate_left(self, n: u32) -> Self;
+    /// Bitwise rotate right by `n` positions.
     fn rotate_right(self, n: u32) -> Self;
+    /// Integer power: self^exp.
     fn pow(self, exp: u32) -> Self;
+    /// Absolute value.
     fn abs(self) -> Self;
 }

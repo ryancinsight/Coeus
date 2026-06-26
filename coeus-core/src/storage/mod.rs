@@ -3,6 +3,7 @@
 
 mod cow;
 mod cpu;
+/// Storage trait definitions.
 pub mod traits;
 
 pub use cow::CowStorage;

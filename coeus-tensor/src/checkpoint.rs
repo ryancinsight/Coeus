@@ -11,6 +11,7 @@ use std::io::{Error, ErrorKind, Read, Result, Write};
 /// A dictionary mapping parameter names to their weight/bias tensors.
 #[derive(Clone)]
 pub struct StateDict<T: Scalar, B: ComputeBackend + Default> {
+    /// Parameter name → tensor map.
     pub tensors: HashMap<String, Tensor<T, B>>,
 }
 

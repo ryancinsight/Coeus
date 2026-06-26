@@ -22,7 +22,9 @@ pub struct RotaryEmbedding<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Mo
     pub cos: Tensor<T, B>,
     /// Precomputed sin table: `[max_len, d_head]`.
     pub sin: Tensor<T, B>,
+    /// Maximum sequence length supported by the precomputed tables.
     pub max_len: usize,
+    /// Dimension per attention head (must be even).
     pub d_head: usize,
 }
 

@@ -1,7 +1,10 @@
 // ── Attention module root ──
 
+/// Attention mask types (causal, null).
 pub mod mask;
+/// Multi-head attention layer.
 pub mod mha;
+/// Scaled dot-product attention layer.
 pub mod sdp;
 
 // Re-export from coeus_autograd (the single authoritative source)

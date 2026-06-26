@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.5.2 - 2026-06-26
+
+### Added
+
+- **MHA backward Burn parity** — added `multi_head_attention_backward_matches_burn`
+  covering forward output, input gradient, and Q/K/V/O projection-weight
+  gradients against Burn autodiff with explicit weights.
+
+### Changed
+
+- **Generic Conv dimension strategy** — consolidated `Conv1d`/`Conv2d`/`Conv3d`
+  into a single `Conv<T, B, D: ConvDim>` layer with sealed ZST dimension
+  strategies and public type aliases for the concrete ranks.
+- **SRP backend/autograd layout** — split `coeus-ops` CPU backend dispatch and
+  `coeus-autograd` convolution nodes into operation-family leaf modules.
+- **Documented public surfaces** — enforced and fixed `coeus-nn`
+  `missing_docs`, added missing docs across touched core/tensor/ops/cuda/wgpu
+  public items, and kept `coeus-python` missing-docs enforcement as the next
+  ready sprint because its binding surface still needs a crate-wide docs pass.
+
+### Verified
+
+- `rustup run nightly cargo fmt -p coeus-core -p coeus-cuda -p coeus-nn -p
+  coeus-ops -p coeus-python -p coeus-tensor -p coeus-wgpu --check`.
+- `rustup run nightly cargo clippy -p coeus-nn --tests -- -D warnings`.
+- `rustup run nightly cargo nextest run -p coeus-nn` passes 270/270.
+- `rustup run nightly cargo clippy -p coeus-core -p coeus-cuda -p coeus-ops
+  -p coeus-python -p coeus-tensor -p coeus-wgpu --tests -- -D warnings`.
+- `rustup run nightly cargo doc -p coeus-core -p coeus-cuda -p coeus-nn -p
+  coeus-ops -p coeus-python -p coeus-tensor -p coeus-wgpu --no-deps`.
+- `rustup run nightly cargo test --doc -p coeus-core -p coeus-nn -p coeus-ops
+  -p coeus-tensor -p coeus-wgpu -p coeus-cuda`.
+- `rustup run nightly cargo nextest run -p coeus-python --test
+  binding_tests_nn --test binding_tests_ops test_pycoeus_nn
+  test_nn_functional_ops` passes 2/2.
+- `rustup run nightly cargo clippy -p coeus-ops -p coeus-autograd --tests --
+  -D warnings`.
+- `rustup run nightly cargo nextest run -p coeus-ops -p coeus-autograd` passes
+  224/224.
+
 ## 0.5.1 - 2026-06-26
 
 ### Added

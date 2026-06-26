@@ -6,6 +6,7 @@ use themis::{MemoryTier, PlacementHint};
 
 /// GPU-allocated buffer managed by hephaestus-wgpu.
 pub struct WgpuStorage<T> {
+    /// Underlying GPU buffer handle.
     pub buffer: Arc<hephaestus_wgpu::WgpuBuffer<T>>,
 }
 

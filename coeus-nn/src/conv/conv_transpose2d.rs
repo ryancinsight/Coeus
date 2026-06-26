@@ -13,18 +13,28 @@ use coeus_tensor::Tensor;
 /// Weight convention: `[C_in, C_out, KH, KW]` (groups=1; opposite of Conv2d).
 #[derive(Clone)]
 pub struct ConvTranspose2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
+    /// Transposed convolution weight: `[in_channels, out_channels, kH, kW]`.
     pub weight: Var<T, B>,
+    /// Optional bias: `[out_channels]`.
     pub bias: Option<Var<T, B>>,
+    /// Number of input channels.
     pub in_channels: usize,
+    /// Number of output channels.
     pub out_channels: usize,
+    /// Square kernel side length.
     pub kernel_size: usize,
+    /// Stride (upsampling factor) along H and W.
     pub stride: usize,
+    /// Input-side zero-padding removed from the output.
     pub padding: usize,
+    /// Extra output pixels added to one side to resolve output-size ambiguity.
     pub output_padding: usize,
+    /// Spacing between kernel elements.
     pub dilation: usize,
 }
 
 impl<T: Scalar + coeus_core::Float, B: coeus_ops::BackendOps<T> + Default> ConvTranspose2d<T, B> {
+    /// Create with default stride=1, padding=0, output_padding=0, dilation=1.
     pub fn new(in_channels: usize, out_channels: usize, kernel_size: usize, bias: bool) -> Self
     where
         T: coeus_leto::RandomScalar,

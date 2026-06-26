@@ -1,11 +1,18 @@
 use std::sync::Arc;
 
+/// CUDA device identifier.
 pub type CUdevice = i32;
+/// CUDA context handle.
 pub type CUcontext = *mut std::ffi::c_void;
+/// CUDA device memory pointer.
 pub type CUdeviceptr = u64;
+/// CUDA driver API result code.
 pub type CUresult = i32;
+/// CUDA module handle.
 pub type CUmodule = *mut std::ffi::c_void;
+/// CUDA function handle.
 pub type CUfunction = *mut std::ffi::c_void;
+/// CUDA stream handle.
 pub type CUstream = *mut std::ffi::c_void;
 
 /// CUDA driver facade for builds compiled without the `cuda` feature.

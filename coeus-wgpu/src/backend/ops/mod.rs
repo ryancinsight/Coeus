@@ -1041,8 +1041,19 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         T: coeus_core::Float,
     {
         optim::dispatch_adam_step(
-            param, param_layout, grad, grad_layout, m, m_layout, v, v_layout, lr, beta1, beta2,
-            eps, t,
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            m,
+            m_layout,
+            v,
+            v_layout,
+            lr,
+            beta1,
+            beta2,
+            eps,
+            t,
         );
     }
 
@@ -1062,7 +1073,15 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         T: coeus_core::Float,
     {
         optim::dispatch_rmsprop_step(
-            param, param_layout, grad, grad_layout, v, v_layout, lr, alpha, eps,
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            v,
+            v_layout,
+            lr,
+            alpha,
+            eps,
         );
     }
 

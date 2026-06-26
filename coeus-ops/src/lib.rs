@@ -13,6 +13,7 @@
 // ── Coeus Ops ──
 // Tensor operations: unary, binary, matmul, reductions, FFT.
 #![allow(clippy::needless_range_loop)]
+#![deny(missing_docs)]
 /// Backend dispatch trait and CPU implementation.
 pub mod backend_ops;
 pub(crate) mod ptr;

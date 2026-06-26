@@ -7,7 +7,9 @@ use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct Complex<T> {
+    /// Real part.
     pub re: T,
+    /// Imaginary part.
     pub im: T,
 }
 

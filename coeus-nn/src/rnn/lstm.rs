@@ -21,9 +21,13 @@ use coeus_tensor::Tensor;
 /// ```
 #[derive(Clone)]
 pub struct LSTMCell<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
+    /// Input-to-hidden projection: `[input_size, 4*hidden_size]`.
     pub w_ih: Linear<T, B>,
+    /// Hidden-to-hidden projection: `[hidden_size, 4*hidden_size]`.
     pub w_hh: Linear<T, B>,
+    /// Number of input features per timestep.
     pub input_size: usize,
+    /// Number of hidden features.
     pub hidden_size: usize,
 }
 

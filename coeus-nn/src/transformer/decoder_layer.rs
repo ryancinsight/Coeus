@@ -23,14 +23,23 @@ pub struct TransformerDecoderLayer<
     SelfM: AttentionMask = CausalMask,
     CrossM: AttentionMask = NullMask,
 > {
+    /// Pre-LayerNorm before self-attention.
     pub norm1: LayerNorm<T, B>,
+    /// Masked self-attention sub-layer.
     pub self_attn: MultiHeadAttention<T, B, H, SelfM>,
+    /// Dropout applied after self-attention.
     pub dropout1: Dropout,
+    /// Pre-LayerNorm before cross-attention.
     pub norm2: LayerNorm<T, B>,
+    /// Cross-attention sub-layer attending to encoder memory.
     pub cross_attn: MultiHeadAttention<T, B, H, CrossM>,
+    /// Dropout applied after cross-attention.
     pub dropout2: Dropout,
+    /// Pre-LayerNorm before FFN.
     pub norm3: LayerNorm<T, B>,
+    /// Feed-forward sub-layer.
     pub ffn: FeedForward<T, B>,
+    /// Dropout applied after FFN.
     pub dropout3: Dropout,
 }
 

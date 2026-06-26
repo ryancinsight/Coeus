@@ -140,7 +140,9 @@ pub struct InstanceNorm1d<T: Float, B: coeus_ops::BackendOps<T> + Default = Moir
     pub weight: Var<T, B>,
     /// Trainable shift (beta): shape `[num_features]`.
     pub bias: Var<T, B>,
+    /// Number of channels.
     pub num_features: usize,
+    /// Numerical stability constant added to variance.
     pub eps: f64,
     cache: RefCell<Option<InstanceNormCache<T, B>>>,
 }
@@ -205,7 +207,9 @@ pub struct InstanceNorm2d<T: Float, B: coeus_ops::BackendOps<T> + Default = Moir
     pub weight: Var<T, B>,
     /// Trainable shift (beta): shape `[num_features]`.
     pub bias: Var<T, B>,
+    /// Number of channels.
     pub num_features: usize,
+    /// Numerical stability constant added to variance.
     pub eps: f64,
     cache: RefCell<Option<InstanceNormCache<T, B>>>,
 }
@@ -270,7 +274,9 @@ pub struct InstanceNorm3d<T: Float, B: coeus_ops::BackendOps<T> + Default = Moir
     pub weight: Var<T, B>,
     /// Trainable shift (beta): shape `[num_features]`.
     pub bias: Var<T, B>,
+    /// Number of channels.
     pub num_features: usize,
+    /// Numerical stability constant added to variance.
     pub eps: f64,
     cache: RefCell<Option<InstanceNormCache<T, B>>>,
 }

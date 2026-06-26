@@ -129,6 +129,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
 
 /// Transpose marker trait (used in matmul autograd).
 pub trait Transpose {
+    /// Return the transpose of this value.
     fn transpose(&self) -> Self;
 }
 

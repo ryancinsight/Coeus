@@ -11,11 +11,17 @@
 // ── Coeus Core: Fundamental abstractions ──
 // Provides dtype system, layout descriptors, storage primitives,
 // and backend execution abstractions.
+#![deny(missing_docs)]
 
+/// Backend execution abstractions (`Backend`, `ComputeBackend`).
 pub mod backend;
+/// Dtype system (`Scalar`, `Float`, `Complex`, operation enums).
 pub mod dtype;
+/// Layout descriptors (`Shape`, `Layout`, `ConstShape`, `ConstLayout`, strides).
 pub mod layout;
+/// Raw pointer utilities for thread-safe shared storage.
 pub mod ptr;
+/// Storage abstractions (`Storage`, `CpuStorage`, `CowStorage`).
 pub mod storage;
 
 // Re-export the most commonly used items

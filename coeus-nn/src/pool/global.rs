@@ -18,6 +18,7 @@ pub struct GlobalAvgPool1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Mo
 );
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> GlobalAvgPool1d<T, B> {
+    /// Create a new `GlobalAvgPool1d` (zero-sized, no parameters).
     pub const fn new() -> Self {
         Self(PhantomData)
     }
@@ -43,6 +44,7 @@ pub struct GlobalAvgPool2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Mo
 );
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> GlobalAvgPool2d<T, B> {
+    /// Create a new `GlobalAvgPool2d` (zero-sized, no parameters).
     pub const fn new() -> Self {
         Self(PhantomData)
     }
@@ -69,6 +71,7 @@ pub struct GlobalAvgPool3d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Mo
 );
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> GlobalAvgPool3d<T, B> {
+    /// Create a new `GlobalAvgPool3d` (zero-sized, no parameters).
     pub const fn new() -> Self {
         Self(PhantomData)
     }
@@ -100,6 +103,7 @@ pub struct GlobalMaxPool2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Mo
 );
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> GlobalMaxPool2d<T, B> {
+    /// Create a new `GlobalMaxPool2d` (zero-sized, no parameters).
     pub const fn new() -> Self {
         Self(PhantomData)
     }
@@ -124,6 +128,7 @@ pub struct GlobalMaxPool3d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Mo
 );
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> GlobalMaxPool3d<T, B> {
+    /// Create a new `GlobalMaxPool3d` (zero-sized, no parameters).
     pub const fn new() -> Self {
         Self(PhantomData)
     }

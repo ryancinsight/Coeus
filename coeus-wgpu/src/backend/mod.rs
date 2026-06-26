@@ -10,8 +10,11 @@ const METADATA_POOL_CAPACITY: usize = 64;
 
 /// Trait mapping CPU types to their WGSL representation types on the GPU.
 pub trait WgpuScalar: Scalar + bytemuck::Pod {
+    /// WGSL type name string (e.g. `"f32"`).
     const WGSL_TYPE: &'static str;
+    /// WGSL zero literal string (e.g. `"0.0"`).
     const WGSL_ZERO: &'static str;
+    /// WGSL one literal string (e.g. `"1.0"`).
     const WGSL_ONE: &'static str;
 }
 

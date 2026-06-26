@@ -105,8 +105,11 @@ pub struct Bilinear<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBack
     pub weight: Var<T, B>,
     /// Bias vector: `[out_features]`.
     pub bias: Option<Var<T, B>>,
+    /// Number of input features for the first operand.
     pub in1_features: usize,
+    /// Number of input features for the second operand.
     pub in2_features: usize,
+    /// Number of output features.
     pub out_features: usize,
 }
 

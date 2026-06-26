@@ -15,6 +15,7 @@
 
 // ── Coeus NN ──
 // Neural network building blocks.
+#![deny(missing_docs)]
 #![allow(
     clippy::needless_range_loop,
     clippy::get_first,
@@ -22,24 +23,43 @@
     clippy::type_complexity
 )]
 
+/// Activation functions (ReLU, GeLU, SiLU, etc.).
 pub mod activation;
+/// Attention mechanisms (MHA, SDP, masks).
 pub mod attention;
+/// Bilinear interaction layer.
 pub mod bilinear;
+/// Convolution layers (1D/2D/3D and transposed variants).
 pub mod conv;
+/// Dropout regularization layer.
 pub mod dropout;
+/// Embedding lookup layer.
 pub mod embedding;
+/// Weight initialization utilities (Xavier, Kaiming).
 pub mod init;
+/// Spatial interpolation operations.
 pub mod interpolate;
+/// Fully-connected linear layer.
 pub mod linear;
+/// Loss functions (cross-entropy, MSE, etc.).
 pub mod loss;
+/// Core `Module` trait for neural network layers.
 pub mod module;
+/// Normalization layers (LayerNorm, BatchNorm, GroupNorm, etc.).
 pub mod normalization;
+/// Learnable parameter wrapper.
 pub mod parameter;
+/// Pooling layers (max, average, global).
 pub mod pool;
+/// Positional encoding layers (sinusoidal, RoPE).
 pub mod positional;
+/// Recurrent layers (LSTM, GRU).
 pub mod rnn;
+/// Sequential and static-sequence module containers.
 pub mod sequential;
+/// Softmax layer and functional softmax.
 pub mod softmax;
+/// Transformer encoder, decoder, and sub-layers.
 pub mod transformer;
 
 pub use activation::{
@@ -50,7 +70,9 @@ pub use attention::{
     AttentionMask, CausalMask, MultiHeadAttention, NullMask, ScaledDotProductAttention,
 };
 pub use bilinear::{bilinear, Bilinear};
-pub use conv::{Conv1d, Conv2d, Conv3d, ConvTranspose1d, ConvTranspose2d};
+pub use conv::{
+    Conv, Conv1d, Conv2d, Conv3d, ConvDim, ConvTranspose1d, ConvTranspose2d, Dim1D, Dim2D, Dim3D,
+};
 pub use dropout::Dropout;
 pub use embedding::Embedding;
 pub use init::{kaiming_uniform, xavier_uniform};

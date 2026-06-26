@@ -28,6 +28,7 @@
 //! The fallback is a capability boundary, never a silent defect mask: the
 //! observable result matches the CPU reference either way, verified by the
 //! differential parity tests in `tests/cuda/`.
+#![deny(missing_docs)]
 
 #[cfg(feature = "cuda")]
 mod backend;
@@ -36,9 +37,11 @@ mod backend;
 mod backend;
 
 #[cfg(feature = "cuda")]
+/// CUDA driver context management for the real device backend.
 pub mod driver;
 #[cfg(not(feature = "cuda"))]
 #[path = "driver_stub.rs"]
+/// Stub CUDA driver surface used when the `cuda` feature is disabled.
 pub mod driver;
 
 mod fallback;

@@ -35,6 +35,7 @@ impl<T: coeus_core::Scalar, B: coeus_ops::BackendOps<T> + Default, M: AttentionM
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask>
     ScaledDotProductAttention<T, B, M>
 {
+    /// Create a new `ScaledDotProductAttention` layer (stateless, no parameters).
     pub fn new() -> Self {
         Self::default()
     }

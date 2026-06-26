@@ -22,7 +22,9 @@ pub struct SinusoidalEncoding<
 > {
     /// Precomputed PE table: `[max_len, d_model]`.
     pub table: Tensor<T, B>,
+    /// Maximum sequence length the precomputed table covers.
     pub max_len: usize,
+    /// Embedding dimension (must be even).
     pub d_model: usize,
 }
 
