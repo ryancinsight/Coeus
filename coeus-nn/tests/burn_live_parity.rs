@@ -3091,10 +3091,7 @@ fn conv1d_forward_matches_burn() {
         false,
     );
     let mut conv_c = Conv1d::<f32, SequentialBackend>::new(ic, oc, k, false);
-    conv_c.weight = Var::new(
-        CoeusTensor::from_slice(vec![oc, ic, k], &w_vec),
-        true,
-    );
+    conv_c.weight = Var::new(CoeusTensor::from_slice(vec![oc, ic, k], &w_vec), true);
     let out_c = conv_c.forward(&xv);
 
     // Burn: identical weight.
@@ -3104,10 +3101,8 @@ fn conv1d_forward_matches_burn() {
         .with_bias(false)
         .with_padding(PaddingConfig1d::Valid)
         .init::<BurnBackend>(&dev());
-    conv_b.weight = burn::module::Param::from_data(
-        TensorData::new(w_vec.clone(), [oc, ic, k]),
-        &dev(),
-    );
+    conv_b.weight =
+        burn::module::Param::from_data(TensorData::new(w_vec.clone(), [oc, ic, k]), &dev());
     let out_b = bvec(conv_b.forward(xb));
 
     assert_eq!(out_c.tensor.shape(), &[n, oc, out_len]);
@@ -3127,9 +3122,7 @@ fn conv2d_forward_matches_burn() {
     let (n, ic, oc, h, w, k) = (1usize, 2, 1, 5, 5, 3);
     let out_h = h - k + 1;
     let out_w = w - k + 1;
-    let data: Vec<f32> = (0..n * ic * h * w)
-        .map(|x| x as f32 * 0.05 - 1.0)
-        .collect();
+    let data: Vec<f32> = (0..n * ic * h * w).map(|x| x as f32 * 0.05 - 1.0).collect();
     let w_vec = vec![1.0f32; oc * ic * k * k];
 
     let xv = Var::new(
@@ -3137,10 +3130,7 @@ fn conv2d_forward_matches_burn() {
         false,
     );
     let mut conv_c = Conv2d::<f32, SequentialBackend>::new(ic, oc, k, false);
-    conv_c.weight = Var::new(
-        CoeusTensor::from_slice(vec![oc, ic, k, k], &w_vec),
-        true,
-    );
+    conv_c.weight = Var::new(CoeusTensor::from_slice(vec![oc, ic, k, k], &w_vec), true);
     let out_c = conv_c.forward(&xv);
 
     let xb: BurnTensor<BurnBackend, 4> =
@@ -3149,10 +3139,8 @@ fn conv2d_forward_matches_burn() {
         .with_bias(false)
         .with_padding(PaddingConfig2d::Valid)
         .init::<BurnBackend>(&dev());
-    conv_b.weight = burn::module::Param::from_data(
-        TensorData::new(w_vec.clone(), [oc, ic, k, k]),
-        &dev(),
-    );
+    conv_b.weight =
+        burn::module::Param::from_data(TensorData::new(w_vec.clone(), [oc, ic, k, k]), &dev());
     let out_b = bvec(conv_b.forward(xb));
 
     assert_eq!(out_c.tensor.shape(), &[n, oc, out_h, out_w]);
