@@ -52,20 +52,12 @@ where
     // 1-D nearest identity: same L.
     let inp3 = t1d(&[5.0, 3.0, 8.0], 3, backend);
     let out3 = interpolate_1d(&inp3, 3, InterpolateMode::Nearest);
-    assert_eq!(
-        out3.as_slice(),
-        inp3.as_slice(),
-        "1d nearest identity"
-    );
+    assert_eq!(out3.as_slice(), inp3.as_slice(), "1d nearest identity");
 
     // 1-D bilinear same-size: align-half-pixel maps xi → xi, so output = input.
     let inp4 = t1d(&[7.0, 11.0, 3.0], 3, backend);
     let out4 = interpolate_1d(&inp4, 3, InterpolateMode::Bilinear);
-    assert_eq!(
-        out4.as_slice(),
-        inp4.as_slice(),
-        "1d bilinear identity"
-    );
+    assert_eq!(out4.as_slice(), inp4.as_slice(), "1d bilinear identity");
 
     // 2-D nearest upsample: [[1,2],[3,4]] → [4,4]
     // sy=floor((yi+0.5)*2/4), sx=floor((xi+0.5)*2/4)
@@ -75,9 +67,7 @@ where
     assert_eq!(out5.shape(), &[1, 1, 4, 4], "2d nearest upsample shape");
     assert_eq!(
         out5.as_slice(),
-        &[
-            1.0_f64, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 3.0, 3.0, 4.0, 4.0,
-        ],
+        &[1.0_f64, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 3.0, 3.0, 4.0, 4.0,],
         "2d nearest upsample"
     );
 
@@ -98,11 +88,7 @@ where
     // 2-D bilinear same-size: output = input.
     let inp7 = t2d(&[10.0, 20.0, 30.0, 40.0], 2, 2, backend);
     let out7 = interpolate_2d(&inp7, 2, 2, InterpolateMode::Bilinear);
-    assert_eq!(
-        out7.as_slice(),
-        inp7.as_slice(),
-        "2d bilinear identity"
-    );
+    assert_eq!(out7.as_slice(), inp7.as_slice(), "2d bilinear identity");
 }
 
 #[test]

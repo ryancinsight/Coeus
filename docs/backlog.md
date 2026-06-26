@@ -1,5 +1,25 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-97: NN differential parity expansion [COMPLETE]
+
+- [x] [patch] Added `coeus-nn/tests/rnn_parity.rs` covering `GRUCell` and
+  `LSTMCell` zero-input analytical references on SequentialBackend and
+  MoiraiBackend.
+- [x] [patch] Added `coeus-nn/tests/interpolate_parity.rs` covering 1-D and
+  2-D interpolation analytical references on both CPU backends.
+- [x] [patch] Added `coeus-nn/tests/loss_parity.rs` covering MSE, NLL, Huber,
+  binary cross entropy, and cosine embedding loss against closed-form
+  references.
+- [x] [patch] Added `coeus-nn/tests/positional_parity.rs` covering sinusoidal
+  and rotary positional encodings against analytical references.
+- [x] [patch] Added `coeus-nn/tests/global_pool_parity.rs` and
+  `coeus-nn/tests/pool3d_parity.rs` covering global 1-D/3-D pooling plus
+  `AvgPool3d` and `MaxPool3d`.
+- [x] Evidence: `cargo nextest run -p coeus-nn` (236/236);
+  `cargo fmt --check`;
+  `cargo clippy -p coeus-nn --all-targets -- -D warnings`;
+  `cargo doc -p coeus-nn --no-deps`.
+
 ## Sprint MS-96: ops parity and Leto unary integration cleanup [COMPLETE]
 
 - [x] [patch] Added `coeus-ops/tests/embedding_diff.rs` covering embedding

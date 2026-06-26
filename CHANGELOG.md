@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.34 - 2026-06-26
+
+### Added
+
+- **Recurrent-cell differential coverage** — `coeus-nn` now verifies `GRUCell`
+  and `LSTMCell` zero-input analytical references on SequentialBackend and
+  MoiraiBackend.
+- **Interpolation differential coverage** — `coeus-nn` now verifies
+  `interpolate_1d` and `interpolate_2d` references on both CPU backends.
+- **Loss differential coverage** — `coeus-nn` now verifies MSE, NLL, Huber,
+  binary cross entropy, and cosine embedding loss against closed-form
+  references.
+- **Positional encoding differential coverage** — `coeus-nn` now verifies
+  sinusoidal and rotary positional encodings against analytical references.
+- **Pooling differential coverage** — `coeus-nn` now verifies global 1-D/3-D
+  pooling plus `AvgPool3d` and `MaxPool3d` analytical references.
+
+### Verified
+
+- `cargo nextest run -p coeus-nn` passes 236/236 tests.
+- `cargo fmt --check`, `coeus-nn` clippy, and `coeus-nn` rustdoc pass.
+
 ## 0.2.33 - 2026-06-26
 
 ### Added

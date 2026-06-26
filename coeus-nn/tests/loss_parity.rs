@@ -18,9 +18,7 @@ use coeus_autograd::Var;
 use coeus_core::{
     CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, SequentialBackend,
 };
-use coeus_nn::{
-    binary_cross_entropy, cosine_embedding_loss, huber_loss, mse_loss, nll_loss,
-};
+use coeus_nn::{binary_cross_entropy, cosine_embedding_loss, huber_loss, mse_loss, nll_loss};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
@@ -39,11 +37,7 @@ where
     let pred = v(&[3], &[1.0, 2.0, 3.0], backend);
     let tgt = v(&[3], &[1.0, 2.0, 3.0], backend);
     let mse = mse_loss(&pred, &tgt);
-    assert_eq!(
-        mse.tensor.as_slice(),
-        &[0.0_f64],
-        "mse_loss(x,x)=0"
-    );
+    assert_eq!(mse.tensor.as_slice(), &[0.0_f64], "mse_loss(x,x)=0");
 
     // NLL: log_probs=[[-1,-2,-3]], targets=[0] → -(-1) = 1.0 exactly.
     let lp = v(&[1, 3], &[-1.0, -2.0, -3.0], backend);
@@ -69,11 +63,7 @@ where
     let hzp = v(&[2], &[1.0, 2.0], backend);
     let hzt = v(&[2], &[1.0, 2.0], backend);
     let hz = huber_loss(&hzp, &hzt, 1.0_f64);
-    assert_eq!(
-        hz.tensor.as_slice(),
-        &[0.0_f64],
-        "huber_loss(x,x)=0"
-    );
+    assert_eq!(hz.tensor.as_slice(), &[0.0_f64], "huber_loss(x,x)=0");
 
     // BCE: pred=[0.5], target=[0.0], eps=0.
     // loss = -0*log(0.5) - 1*log(1-0.5) = -log(0.5) = log(2).

@@ -47,7 +47,11 @@ where
     // input [1,1,4] (batch=1, seq_len=1): forward adds table[0] = [0,1,0,1].
     let inp = zeros_var(&[1, 1, 4], backend);
     let out = Module::<f64, B>::forward(&pe, &inp);
-    assert_eq!(out.tensor.shape(), &[1, 1, 4], "SinusoidalEncoding output shape");
+    assert_eq!(
+        out.tensor.shape(),
+        &[1, 1, 4],
+        "SinusoidalEncoding output shape"
+    );
     assert_eq!(
         out.tensor.as_slice(),
         &[0.0_f64, 1.0, 0.0, 1.0],
@@ -73,7 +77,11 @@ where
     let rope = RotaryEmbedding::<f64, B>::new(4, 4, 10000.0);
     let inp = v(&[1, 1, 1, 4], &[1.0, 2.0, 3.0, 4.0], backend);
     let out = rope.forward(&inp);
-    assert_eq!(out.tensor.shape(), &[1, 1, 1, 4], "RotaryEmbedding output shape");
+    assert_eq!(
+        out.tensor.shape(),
+        &[1, 1, 1, 4],
+        "RotaryEmbedding output shape"
+    );
     assert_eq!(
         out.tensor.as_slice(),
         inp.tensor.as_slice(),

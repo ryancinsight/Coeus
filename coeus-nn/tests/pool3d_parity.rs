@@ -56,7 +56,11 @@ where
     // AvgPool3d kernel=1, stride=1: identity (each element passed through unchanged).
     let avg1 = AvgPool3d::<f64, B>::new(1);
     let out_id = Module::<f64, B>::forward(&avg1, &inp);
-    assert_eq!(out_id.tensor.shape(), &[1, 1, 2, 2, 2], "AvgPool3d K=1 shape");
+    assert_eq!(
+        out_id.tensor.shape(),
+        &[1, 1, 2, 2, 2],
+        "AvgPool3d K=1 shape"
+    );
     assert_eq!(
         out_id.tensor.as_slice(),
         inp.tensor.as_slice(),

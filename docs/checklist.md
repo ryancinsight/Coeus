@@ -2,7 +2,34 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-96 - ops parity and Leto unary integration cleanup [COMPLETE]
+### Current Sprint: MS-97 - NN differential parity expansion [COMPLETE]
+**Objective**: Extend `coeus-nn` parity coverage across recurrent cells,
+interpolation, losses, positional encodings, global pooling, and 3D pooling
+with value-semantic analytical references on SequentialBackend and
+MoiraiBackend.
+**Target version**: 0.2.34 (patch-class).
+**Tests delivered**: 12 differential tests across 6 `coeus-nn` parity binaries.
+
+- [x] [patch] `coeus-nn/tests/rnn_parity.rs`: covers `GRUCell` and `LSTMCell`
+  zero-input analytical oracles plus `Module::forward` equivalence.
+- [x] [patch] `coeus-nn/tests/interpolate_parity.rs`: covers
+  `interpolate_1d` and `interpolate_2d` exact references on SequentialBackend
+  and MoiraiBackend.
+- [x] [patch] `coeus-nn/tests/loss_parity.rs`: covers `mse_loss`,
+  `nll_loss`, `huber_loss`, `binary_cross_entropy`, and
+  `cosine_embedding_loss` against closed-form scalar references.
+- [x] [patch] `coeus-nn/tests/positional_parity.rs`: covers
+  `SinusoidalEncoding` and `RotaryEmbedding` analytical positional references.
+- [x] [patch] `coeus-nn/tests/global_pool_parity.rs`: covers
+  `GlobalAvgPool1d`, `GlobalAvgPool3d`, and `GlobalMaxPool3d` references.
+- [x] [patch] `coeus-nn/tests/pool3d_parity.rs`: covers `AvgPool3d` and
+  `MaxPool3d` analytical references.
+- [x] Evidence: `cargo nextest run -p coeus-nn` (236/236);
+  `cargo fmt --check`;
+  `cargo clippy -p coeus-nn --all-targets -- -D warnings`;
+  `cargo doc -p coeus-nn --no-deps`.
+
+### Previous Sprint: MS-96 - ops parity and Leto unary integration cleanup [COMPLETE]
 **Objective**: Close additional `coeus-ops` differential coverage gaps and
 preserve Coeus/Leto layering by consuming unary acceleration only through public
 Leto APIs.

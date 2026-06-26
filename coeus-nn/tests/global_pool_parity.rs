@@ -33,7 +33,11 @@ where
     let pool1d = GlobalAvgPool1d::<f64, B>::new();
     let inp1 = v(&[1, 1, 4], &[1.0, 2.0, 3.0, 4.0], backend);
     let out1 = Module::<f64, B>::forward(&pool1d, &inp1);
-    assert_eq!(out1.tensor.shape(), &[1, 1, 1], "GlobalAvgPool1d output shape");
+    assert_eq!(
+        out1.tensor.shape(),
+        &[1, 1, 1],
+        "GlobalAvgPool1d output shape"
+    );
     assert_eq!(
         out1.tensor.as_slice(),
         &[2.5_f64],
@@ -43,7 +47,11 @@ where
     // Uniform input: mean of all-same values = that value (exact).
     let inp1b = v(&[1, 2, 3], &[3.0_f64; 6], backend);
     let out1b = Module::<f64, B>::forward(&pool1d, &inp1b);
-    assert_eq!(out1b.tensor.shape(), &[1, 2, 1], "GlobalAvgPool1d uniform shape");
+    assert_eq!(
+        out1b.tensor.shape(),
+        &[1, 2, 1],
+        "GlobalAvgPool1d uniform shape"
+    );
     assert_eq!(
         out1b.tensor.as_slice(),
         &[3.0_f64, 3.0],
