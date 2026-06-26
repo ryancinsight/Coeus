@@ -23,7 +23,9 @@ pub use backend::{Backend, ComputeBackend, MoiraiBackend, SequentialBackend};
 pub use dtype::{
     BinaryOp, Complex, CpuUnaryDispatch, CpuUnaryOp, Float, FloatOps, Int, ReductionOp, Scalar,
 };
-pub use layout::{ConstLayout, ConstShape, Layout, Shape, Strides};
+pub use layout::{
+    is_contiguous, row_major_strides, ConstLayout, ConstShape, Layout, Shape, Strides,
+};
 pub use ptr::{SendPtr, SendPtrMut};
 pub use storage::{
     CowStorage, CpuAddressableStorage, CpuAddressableStorageMut, CpuStorage, Storage, StorageMut,

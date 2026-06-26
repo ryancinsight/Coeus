@@ -102,6 +102,23 @@ pub trait CpuUnaryDispatch: private::Sealed {
 /// - `Pod` enables zero-copy byte transmutation (bytemuck).
 /// - `Num` gives arithmetic ops (Add, Sub, Mul, Div, Rem).
 /// - Sealed prevents downstream impls, guaranteeing monomorphization.
+///
+/// # Examples
+///
+/// Scalar operations on contiguous slices (the SIMD seam):
+///
+/// ```
+/// use coeus_core::Scalar;
+///
+/// let a = [1.0_f32, 2.0, 3.0];
+/// let b = [4.0_f32, 5.0, 6.0];
+/// let mut out = [0.0_f32; 3];
+/// f32::add_slice(&a, &b, &mut out);
+/// assert_eq!(out, [5.0, 7.0, 9.0]);
+///
+/// let dot = f32::dot_slice(&a, &b);
+/// assert_eq!(dot, 32.0); // 1*4 + 2*5 + 3*6
+/// ```
 pub trait Scalar:
     private::Sealed
     + Num
@@ -259,6 +276,17 @@ pub trait Scalar:
 /// Provides transcendental functions, rounding, and float-specific checks.
 /// Implemented for f16, bf16, f32, f64. Extends `Scalar + FloatOps`, so
 /// any bound `T: Float` automatically implies `T: Scalar` and `T: FloatOps`.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_core::Float;
+///
+/// let x: f32 = 2.0;
+/// assert_eq!(x.sqrt(), 1.4142135_f32);
+/// assert!(!x.is_nan());
+/// assert!(x.is_finite());
+/// ```
 pub trait Float: Scalar + FloatOps {
     /// Largest finite value.
     const MAX: Self;

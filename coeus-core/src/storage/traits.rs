@@ -7,6 +7,16 @@ pub mod private {
 }
 
 /// Immutable storage access.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_core::{CpuStorage, Storage};
+///
+/// let s = CpuStorage::<f32>::from_slice(&[1.0, 2.0, 3.0]);
+/// assert_eq!(s.len(), 3);
+/// assert!(!s.is_empty());
+/// ```
 pub trait Storage<T>: private::Sealed + Clone + Send + Sync + 'static {
     /// Number of elements stored.
     fn len(&self) -> usize;

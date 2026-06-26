@@ -44,6 +44,16 @@ fn cached_parallelism() -> usize {
 /// # ZST
 /// This is a zero-sized type — it carries no state and is
 /// freely copyable. All state lives in the global Moirai runtime.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_core::{ComputeBackend, MoiraiBackend};
+///
+/// let backend = MoiraiBackend::new();
+/// assert_eq!(backend.name(), "moirai");
+/// assert!(backend.num_threads() >= 1);
+/// ```
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MoiraiBackend;
 
@@ -51,6 +61,15 @@ impl crate::backend::traits::private::Sealed for MoiraiBackend {}
 
 impl MoiraiBackend {
     /// Create a new handle (ZST, no allocation).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::{ComputeBackend, MoiraiBackend};
+    ///
+    /// let backend = MoiraiBackend::new();
+    /// assert_eq!(backend.name(), "moirai");
+    /// ```
     #[inline]
     pub const fn new() -> Self {
         Self

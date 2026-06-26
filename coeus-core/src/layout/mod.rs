@@ -8,4 +8,4 @@ mod strides;
 
 pub use layout::{ConstLayout, Layout};
 pub use shape::{ConstShape, Shape};
-pub use strides::Strides;
+pub use strides::{is_contiguous, row_major_strides, Strides};
