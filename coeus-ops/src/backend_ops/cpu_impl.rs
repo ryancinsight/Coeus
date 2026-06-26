@@ -1,10 +1,13 @@
 use super::{BackendOps, BinaryOp, ReductionOp, UnaryOp};
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{Backend, CpuAddressableStorageMut, Layout, Scalar};
 
 mod attention;
 mod conv;
+mod elementwise;
+mod matmul;
 mod optim;
 mod pool;
+mod reduction;
 
 mod sealed {
     pub trait Sealed {}
@@ -52,6 +55,7 @@ impl CpuBackend for coeus_core::MoiraiBackend {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> BackendOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
@@ -67,16 +71,7 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        coeus_leto::elementwise_binary_into(
-            op,
-            a_layout,
-            a.as_slice(),
-            b_layout,
-            b.as_slice(),
-            c_layout,
-            c.as_mut_slice(),
-        )
-        .expect("coeus-leto elementwise_binary failed");
+        elementwise::elementwise_binary(self, op, a, a_layout, b, b_layout, c, c_layout);
     }
 
     #[inline]
@@ -88,8 +83,7 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        coeus_leto::elementwise_unary_into(op, a_layout, a.as_slice(), c_layout, c.as_mut_slice())
-            .expect("coeus-leto elementwise_unary failed");
+        elementwise::elementwise_unary(self, op, a, a_layout, c, c_layout);
     }
 
     #[inline]
@@ -102,15 +96,7 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        coeus_leto::matmul_into(
-            a_layout,
-            a.as_slice(),
-            b_layout,
-            b.as_slice(),
-            c_layout,
-            c.as_mut_slice(),
-        )
-        .expect("coeus-leto matmul failed");
+        matmul::matmul(self, a, a_layout, b, b_layout, c, c_layout);
     }
 
     #[inline]
@@ -123,15 +109,7 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        coeus_leto::batched_matmul_into(
-            a_layout,
-            a.as_slice(),
-            b_layout,
-            b.as_slice(),
-            c_layout,
-            c.as_mut_slice(),
-        )
-        .expect("coeus-leto batched matmul failed");
+        matmul::batched_matmul(self, a, a_layout, b, b_layout, c, c_layout);
     }
 
     #[inline]
@@ -144,15 +122,7 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        coeus_leto::matmul_accumulate_into(
-            a_layout,
-            a.as_slice(),
-            b_layout,
-            b.as_slice(),
-            c_layout,
-            c.as_mut_slice(),
-        )
-        .expect("coeus-leto matmul_accumulate failed");
+        matmul::matmul_accumulate(self, a, a_layout, b, b_layout, c, c_layout);
     }
 
     #[inline]
@@ -165,15 +135,7 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        coeus_leto::batched_matmul_accumulate_into(
-            a_layout,
-            a.as_slice(),
-            b_layout,
-            b.as_slice(),
-            c_layout,
-            c.as_mut_slice(),
-        )
-        .expect("coeus-leto batched_matmul_accumulate failed");
+        matmul::batched_matmul_accumulate(self, a, a_layout, b, b_layout, c, c_layout);
     }
 
     #[inline]
@@ -186,8 +148,7 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        coeus_leto::reduce_into(op, a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
-            .expect("coeus-leto reduce failed");
+        reduction::reduce(self, op, a, a_layout, axis, c, c_layout);
     }
 
     #[inline]
@@ -201,14 +162,7 @@ where
     ) where
         T: leto_ops::Scalar,
     {
-        coeus_leto::argmax_into(
-            a_layout,
-            a.as_slice(),
-            axis,
-            c_layout,
-            self.as_mut_slice_i64(c),
-        )
-        .expect("coeus-leto argmax failed");
+        reduction::argmax(self, a, a_layout, axis, c, c_layout);
     }
 
     #[inline]
@@ -222,14 +176,7 @@ where
     ) where
         T: leto_ops::Scalar,
     {
-        coeus_leto::argmin_into(
-            a_layout,
-            a.as_slice(),
-            axis,
-            c_layout,
-            self.as_mut_slice_i64(c),
-        )
-        .expect("coeus-leto argmin failed");
+        reduction::argmin(self, a, a_layout, axis, c, c_layout);
     }
 
     #[inline]
@@ -872,7 +819,6 @@ where
     }
 
     #[inline]
-    #[allow(clippy::too_many_arguments)]
     fn topk(
         &self,
         a: &Self::DeviceBuffer<T>,
@@ -881,20 +827,23 @@ where
         axis: usize,
         largest: bool,
         values: &mut Self::DeviceBuffer<T>,
-        _values_layout: &Layout,
+        values_layout: &Layout,
         indices: &mut Self::DeviceBuffer<i64>,
-        _indices_layout: &Layout,
+        indices_layout: &Layout,
     ) where
         T: leto_ops::Scalar,
     {
-        crate::reduction::topk::topk_impl(
-            a.as_slice(),
-            a_layout.shape(),
+        reduction::topk(
+            self,
+            a,
+            a_layout,
             k,
             axis,
             largest,
-            values.as_mut_slice(),
-            self.as_mut_slice_i64(indices),
+            values,
+            values_layout,
+            indices,
+            indices_layout,
         );
     }
 
@@ -909,8 +858,7 @@ where
     ) where
         T: leto_ops::Scalar,
     {
-        coeus_leto::cumsum_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
-            .expect("coeus-leto cumsum failed");
+        reduction::cumsum(self, a, a_layout, axis, c, c_layout);
     }
 
     #[inline]
@@ -924,7 +872,6 @@ where
     ) where
         T: leto_ops::Scalar,
     {
-        coeus_leto::suffix_sum_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
-            .expect("coeus-leto suffix_sum failed");
+        reduction::suffix_sum(self, a, a_layout, axis, c, c_layout);
     }
 }
