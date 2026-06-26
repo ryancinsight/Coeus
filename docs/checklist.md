@@ -2,7 +2,20 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-91 - einsum/einsum3 differential parity + cosine_embedding_loss [COMPLETE]
+### Current Sprint: MS-92 - f16/bf16 differential parity on both backends [COMPLETE]
+**Objective**: Close bf16 zero-coverage gap and extend f16 backend parity beyond
+SequentialBackend-only. Verifies that MoiraiBackend dispatches half-precision ops
+identically to SequentialBackend.
+**Target version**: 0.2.29 (patch-class).
+**Tests delivered**: 4 differential tests (f16+bf16 × Sequential+Moirai); 630/630.
+
+- [x] [patch] `coeus-ops/tests/half_precision_diff.rs` (NEW): 4 tests covering
+  add, matmul, sum, relu for f16 and bf16 on both backends. Integer inputs within
+  each type's mantissa (≤2^11 f16, ≤2^7 bf16) → bitwise-exact assertions via
+  `T::from_f32` round-trip. Evidence: `a844606`, 4/4 passed.
+- [x] Evidence: 630/630 workspace tests; clippy/fmt clean. Commit: `a844606`.
+
+### Previous Sprint: MS-91 - einsum/einsum3 differential parity + cosine_embedding_loss [COMPLETE]
 **Objective**: Close differential test gap for `einsum`/`einsum3` (no backend parity
 coverage since MS-83) and add `cosine_embedding_loss` analytical coverage (function
 shipped but never tested against closed-form reference).

@@ -1,5 +1,13 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-92: f16/bf16 differential parity on both backends [COMPLETE]
+
+- [x] [patch] `coeus-ops/tests/half_precision_diff.rs` (NEW): 4 tests verifying
+  add, matmul, sum, relu for f16 and bf16 on SequentialBackend + MoiraiBackend.
+  Integer inputs within each format's mantissa precision → bitwise-exact assertions.
+  Closes bf16 zero-coverage gap; extends f16 beyond SequentialBackend-only tests.
+- [x] Evidence: 630/630 workspace tests; clippy/fmt clean. Commit `a844606`.
+
 ## Sprint MS-91: einsum/einsum3 differential parity + cosine_embedding_loss coverage [COMPLETE]
 
 - [x] [patch] `coeus-ops/tests/einsum_diff.rs` (NEW): 4 differential tests verifying
