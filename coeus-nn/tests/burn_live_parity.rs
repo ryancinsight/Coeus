@@ -3774,9 +3774,7 @@ fn instancenorm2d_backward_matches_burn() {
     let nc = n * c;
     let hw = h * w;
     let eps = 1e-5_f32;
-    let data: Vec<f32> = (0..n * c * h * w)
-        .map(|x| x as f32 * 0.05 - 1.0)
-        .collect();
+    let data: Vec<f32> = (0..n * c * h * w).map(|x| x as f32 * 0.05 - 1.0).collect();
     let gamma = vec![1.2f32, 0.8];
     let beta = vec![0.1f32, -0.1];
 
@@ -3826,6 +3824,90 @@ fn instancenorm2d_backward_matches_burn() {
     assert_close_rel(
         "instancenorm2d_bwd_db",
         in2.bias.grad().unwrap().as_slice(),
+        &to_vec(bk.grad(&grads).unwrap()),
+        1e-4,
+    );
+}
+
+// ── InstanceNorm3d forward matches Burn ───────────────────────────────────────
+//
+// InstanceNorm3d does not exist in Burn's nn module; use a manual reference:
+// reshape [N,C,D,H,W] → [N*C, D*H*W], normalize over D*H*W (population var),
+// apply per-channel gamma/beta via repeat_dim. Verifies both forward values
+// and backward dx/dw/db.
+
+#[test]
+fn instancenorm3d_forward_backward_matches_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use coeus_nn::InstanceNorm3d;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    let (n, c, d, h, w) = (1usize, 2, 3, 3, 3);
+    let nc = n * c;
+    let dhw = d * h * w;
+    let eps = 1e-5_f32;
+    let data: Vec<f32> = (0..n * c * d * h * w)
+        .map(|x| x as f32 * 0.05 - 1.0)
+        .collect();
+    let gamma = vec![1.2f32, 0.8];
+    let beta = vec![0.1f32, -0.1];
+
+    // Coeus forward + backward.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, d, h, w], &data),
+        true,
+    );
+    let mut in3 = InstanceNorm3d::<f32, SequentialBackend>::new(c, eps as f64);
+    in3.weight = Var::new(CoeusTensor::from_slice(vec![c], &gamma), true);
+    in3.bias = Var::new(CoeusTensor::from_slice(vec![c], &beta), true);
+    let out_c = in3.forward(&xv);
+    coeus_autograd::sum(&out_c).backward();
+
+    // Burn autodiff: manual InstanceNorm3d formula.
+    // [N,C,D,H,W] → reshape [N*C, D*H*W], normalize over D*H*W per (sample,channel).
+    let xb: BurnTensor<AB, 5> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, d, h, w]), &device)
+            .require_grad();
+    let wb: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(gamma.clone(), [c]), &device).require_grad();
+    let bk: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(beta.clone(), [c]), &device).require_grad();
+
+    let flat: BurnTensor<AB, 2> = xb.clone().reshape([nc, dhw]);
+    let mean = flat.clone().sum_dim(1) / (dhw as f32);
+    let xmu = flat.sub(mean);
+    let var = xmu.clone().powf_scalar(2.0).sum_dim(1) / (dhw as f32);
+    let xhat = xmu / (var.add_scalar(eps)).sqrt();
+    let g2 = wb.clone().reshape([1, c]).repeat_dim(0, n).reshape([nc, 1]);
+    let b2 = bk.clone().reshape([1, c]).repeat_dim(0, n).reshape([nc, 1]);
+    let out_ref = xhat.mul(g2) + b2;
+
+    // Forward value comparison.
+    let out_c_flat: Vec<f32> = out_c.tensor.as_slice().to_vec();
+    let out_b_flat: Vec<f32> = out_ref.clone().into_data().to_vec().unwrap();
+    assert_close_rel("instancenorm3d_fwd", &out_c_flat, &out_b_flat, 1e-4);
+
+    let grads = out_ref.sum().backward();
+
+    let to_vec = |t: BurnTensor<NdArray<f32>, 1>| t.into_data().to_vec::<f32>().unwrap();
+    let dx_b: Vec<f32> = xb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+    assert_close_rel(
+        "instancenorm3d_bwd_dx",
+        xv.grad().unwrap().as_slice(),
+        &dx_b,
+        1e-4,
+    );
+    assert_close_rel(
+        "instancenorm3d_bwd_dw",
+        in3.weight.grad().unwrap().as_slice(),
+        &to_vec(wb.grad(&grads).unwrap()),
+        1e-4,
+    );
+    assert_close_rel(
+        "instancenorm3d_bwd_db",
+        in3.bias.grad().unwrap().as_slice(),
         &to_vec(bk.grad(&grads).unwrap()),
         1e-4,
     );

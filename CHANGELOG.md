@@ -22,6 +22,16 @@
 - **InstanceNorm1d/2d backward parity** — differential Burn autodiff tests
   verifying `dx`, `dw`, `db` for InstanceNorm1d [N,C,L] and InstanceNorm2d
   [N,C,H,W] backward passes (99th and 100th parity tests; ε ≤ 1e-4).
+- **InstanceNorm3d** — new `InstanceNorm3d<T, B>` layer normalizing [N,C,D,H,W]
+  inputs over the D×H×W spatial volume per (sample, channel); shared
+  `ensure_cache` + `instance_norm_forward` helpers eliminate the duplicate
+  `get_cache` from InstanceNorm1d/2d (consolidation). Exported from `coeus_nn`.
+- **InstanceNorm3d Burn parity** — differential test verifying forward values
+  and `dx`/`dw`/`db` against a manual Burn autodiff reference (101st parity test;
+  ε ≤ 1e-4).
+- **Functional bilinear Python surface** — added `pycoeus.bilinear(input1,
+  input2, weight, bias=None)` as a thin validated wrapper over Rust-core
+  `coeus_nn::bilinear(...)`.
 
 ### Fixed
 
@@ -43,6 +53,10 @@
   elementwise unary/binary routes in `coeus-wgpu` now use Hephaestus `*_into`
   APIs to write into caller-owned output buffers instead of allocating and
   swapping buffers.
+- **Bilinear SSOT routing** — `coeus_nn::Bilinear::bilinear_forward` now
+  delegates to shared functional `coeus_nn::bilinear`, and `coeus-python`
+  bilinear module forward reuses that same core path without constructing a
+  temporary module per call.
 
 ### Verified
 
@@ -62,6 +76,11 @@
 - `cargo test -p coeus-wgpu
   test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer` validates
   contiguous unary delegated routing preserves output-buffer identity.
+- `cargo nextest run -p coeus-nn --test bilinear_parity` validates functional and
+  module bilinear parity on Sequential and Moirai backends.
+- `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_nn_functional_ops` validates new `pycoeus.bilinear` functional behavior
+  and validation paths.
 - `cargo fmt --check`, `coeus-core`/`coeus-cuda` clippy, and `coeus-core`
   rustdoc pass.
 

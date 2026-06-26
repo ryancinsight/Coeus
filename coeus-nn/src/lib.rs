@@ -6,7 +6,7 @@
 //! # Layer families
 //! - **Linear** — [`Linear`], weight + optional bias, Xavier/Kaiming init via [`init`].
 //! - **Convolution** — [`Conv1d`], [`Conv2d`], [`Conv3d`] with stride/padding/dilation.
-//! - **Normalization** — [`LayerNorm`], [`RMSNorm`], [`BatchNorm1d/2d/3d`](BatchNorm2d), [`GroupNorm`], [`InstanceNorm1d/2d`](InstanceNorm2d).
+//! - **Normalization** — [`LayerNorm`], [`RMSNorm`], [`BatchNorm1d/2d/3d`](BatchNorm2d), [`GroupNorm`], [`InstanceNorm1d`], [`InstanceNorm2d`], [`InstanceNorm3d`].
 //! - **Pooling** — [`MaxPool2d`], [`AvgPool2d`], [`MaxPool3d`], [`AvgPool3d`].
 //! - **Attention** — [`MultiHeadAttention`], [`ScaledDotProductAttention`] with [`CausalMask`] / [`NullMask`].
 //! - **Transformer** — [`TransformerEncoder`], [`TransformerDecoder`], [`FeedForward`] blocks.
@@ -49,7 +49,7 @@ pub use activation::{
 pub use attention::{
     AttentionMask, CausalMask, MultiHeadAttention, NullMask, ScaledDotProductAttention,
 };
-pub use bilinear::Bilinear;
+pub use bilinear::{bilinear, Bilinear};
 pub use conv::{Conv1d, Conv2d, Conv3d, ConvTranspose1d, ConvTranspose2d};
 pub use dropout::Dropout;
 pub use embedding::Embedding;
@@ -62,7 +62,7 @@ pub use loss::{
 pub use module::Module;
 pub use normalization::{
     group_norm, BatchNorm1d, BatchNorm2d, BatchNorm3d, GroupNorm, InstanceNorm1d, InstanceNorm2d,
-    LayerNorm, RMSNorm,
+    InstanceNorm3d, LayerNorm, RMSNorm,
 };
 pub use parameter::Parameter;
 pub use pool::{

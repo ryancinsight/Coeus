@@ -2,7 +2,23 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-112 - InstanceNorm1d/2d backward parity [COMPLETE]
+### Current Sprint: MS-113 - InstanceNorm3d + consolidation [COMPLETE]
+**Objective**: Consolidate duplicate `get_cache` logic from InstanceNorm1d/2d
+into shared `ensure_cache` + `instance_norm_forward` free functions, add
+InstanceNorm3d ([N,C,D,H,W] normalization over D*H*W), export it, and add a
+full Burn autodiff parity test for forward + backward (dx/dw/db).
+**Target version**: 0.5.1 (minor-class; new InstanceNorm3d).
+
+- [x] [minor] Consolidated `InstanceNorm1d` and `InstanceNorm2d` to share
+  `ensure_cache` + `instance_norm_forward` free functions; eliminated duplicate
+  `get_cache` methods.
+- [x] [minor] Added `InstanceNorm3d` with spatial = D*H*W; exported from
+  `normalization::mod` and `coeus_nn::lib`.
+- [x] [patch] Added `instancenorm3d_forward_backward_matches_burn` parity test
+  (101st test); verifies forward values and dx/dw/db backward within 1e-4.
+- [x] Evidence: `cargo nextest run -p coeus-nn`: 264/264 pass.
+
+### Previous Sprint: MS-112 - InstanceNorm1d/2d backward parity [COMPLETE]
 **Objective**: Add differential Burn autodiff parity for InstanceNorm1d and
 InstanceNorm2d backward passes (dx, dw, db), closing the norm backward gap.
 **Target version**: 0.5.1 (patch-class; test coverage).

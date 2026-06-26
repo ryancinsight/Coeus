@@ -10,6 +10,6 @@ pub use batchnorm1d::BatchNorm1d;
 pub use batchnorm2d::BatchNorm2d;
 pub use batchnorm3d::BatchNorm3d;
 pub use groupnorm::{group_norm, GroupNorm};
-pub use instancenorm::{InstanceNorm1d, InstanceNorm2d};
+pub use instancenorm::{InstanceNorm1d, InstanceNorm2d, InstanceNorm3d};
 pub use layernorm::LayerNorm;
 pub use rmsnorm::RMSNorm;
