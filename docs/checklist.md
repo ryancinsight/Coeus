@@ -2,7 +2,22 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-117 - WGPU strided Hephaestus routing [COMPLETE]
+### Current Sprint: MS-118 - WGPU strided parity tests [COMPLETE]
+**Objective**: Add differential parity coverage for the new WGPU Hephaestus
+strided dispatch path (MS-117) via transposed and permuted non-contiguous views.
+**Target version**: 0.5.1 (patch-class; test coverage).
+
+- [x] [patch] Added 6 tests in `coeus-wgpu/tests/wgpu/parity.rs`:
+  `test_wgpu_strided_add_transposed_matches_cpu`,
+  `test_wgpu_strided_mul_transposed_matches_cpu`,
+  `test_wgpu_strided_exp_transposed_matches_cpu`,
+  `test_wgpu_strided_neg_transposed_matches_cpu`,
+  `test_wgpu_strided_sqrt_transposed_matches_cpu`,
+  `test_wgpu_strided_rank3_binary_matches_cpu` — each exercises the
+  non-contiguous Hephaestus strided path via transposed/permuted layouts.
+- [x] Evidence: `cargo nextest run -p coeus-wgpu`: 83/83 pass.
+
+### Previous Sprint: MS-117 - WGPU strided Hephaestus routing [COMPLETE]
 **Objective**: Route non-contiguous binary and unary elementwise ops through
 Hephaestus `*_elementwise_strided_into` for rank ≤ 4, with a CPU fallback.
 **Target version**: 0.5.1 (patch-class; no API change).
