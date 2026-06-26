@@ -15,6 +15,18 @@ use std::marker::PhantomData;
 ///
 /// Implementors are stateless value types — no heap, no vtable.
 /// Monomorphized into `LrScheduler` at compile time: zero overhead.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_optim::scheduler::{SchedulerStrategy, StepDecay};
+///
+/// let s = StepDecay { step_size: 2, gamma: 0.5 };
+/// // lr(t) = base * gamma^floor(t / step_size)
+/// assert!((s.lr(1.0, 0) - 1.0).abs() < 1e-12);
+/// assert!((s.lr(1.0, 2) - 0.5).abs() < 1e-12);
+/// assert!((s.lr(1.0, 4) - 0.25).abs() < 1e-12);
+/// ```
 pub trait SchedulerStrategy: 'static {
     /// Return the absolute learning rate at `step`, given `base_lr`.
     fn lr(&self, base_lr: f64, step: usize) -> f64;
@@ -25,9 +37,22 @@ pub trait SchedulerStrategy: 'static {
 /// Step decay: multiply LR by `gamma` every `step_size` steps.
 ///
 /// `lr(t) = base_lr × γ^⌊t / step_size⌋`
+///
+/// # Examples
+///
+/// ```
+/// use coeus_optim::scheduler::{SchedulerStrategy, StepDecay};
+///
+/// let s = StepDecay { step_size: 10, gamma: 0.1 };
+/// assert!((s.lr(1e-3, 0) - 1e-3).abs() < 1e-12);
+/// assert!((s.lr(1e-3, 10) - 1e-4).abs() < 1e-12);
+/// assert!((s.lr(1e-3, 20) - 1e-5).abs() < 1e-12);
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct StepDecay {
+    /// Number of steps between each LR decay.
     pub step_size: usize,
+    /// Multiplicative decay factor applied every `step_size` steps.
     pub gamma: f64,
 }
 
@@ -43,7 +68,9 @@ impl SchedulerStrategy for StepDecay {
 /// `lr(t) = η_min + ½(base_lr − η_min)(1 + cos(π · min(t, t_max) / t_max))`
 #[derive(Clone, Copy, Debug)]
 pub struct CosineAnneal {
+    /// Total number of steps over which the LR anneals to `eta_min`.
     pub t_max: usize,
+    /// Minimum learning rate reached at `t_max`.
     pub eta_min: f64,
 }
 
@@ -65,6 +92,7 @@ impl SchedulerStrategy for CosineAnneal {
 /// `lr(t) = base_lr × min(t, warmup_steps) / warmup_steps`
 #[derive(Clone, Copy, Debug)]
 pub struct LinearWarmup {
+    /// Number of steps to linearly ramp the LR from 0 to `base_lr`.
     pub warmup_steps: usize,
 }
 
@@ -84,8 +112,11 @@ impl SchedulerStrategy for LinearWarmup {
 /// - Steps `[warmup_steps, …)`: cosine anneal over `t_max` steps (measured from end of warmup).
 #[derive(Clone, Copy, Debug)]
 pub struct WarmupCosine {
+    /// Number of warmup steps ramping the LR from 0 to `base_lr`.
     pub warmup_steps: usize,
+    /// Number of cosine-annealing steps (measured from end of warmup).
     pub t_max: usize,
+    /// Minimum learning rate reached at the end of annealing.
     pub eta_min: f64,
 }
 
@@ -116,11 +147,23 @@ impl SchedulerStrategy for WarmupCosine {
 /// The only overhead beyond `O::step()` is one `f64` multiply (strategy), one
 /// `Scalar::from_f64` cast, and one `O::set_lr` call per training step.
 ///
-/// # Usage
-/// ```ignore
-/// let scheduler = LrScheduler::new(optimizer, CosineAnneal { t_max: 1000, eta_min: 1e-6 }, 1e-3);
-/// // Per step:
-/// scheduler.step(); // sets lr then calls optimizer.step()
+/// # Examples
+///
+/// ```
+/// use coeus_autograd::Var;
+/// use coeus_optim::scheduler::{LrScheduler, StepDecay};
+/// use coeus_optim::{Optimizer, SGD};
+/// use coeus_tensor::Tensor;
+///
+/// let p: Var<f32> = Var::new(Tensor::from_slice(vec![1], &[1.0f32]), true);
+/// let opt = SGD::new(vec![p], 1e-3f32, 0.0f32);
+/// let mut scheduler = LrScheduler::new(opt, StepDecay { step_size: 2, gamma: 0.5 }, 1e-3);
+///
+/// assert!((scheduler.current_lr() - 1e-3).abs() < 1e-7); // step 0
+/// scheduler.step();
+/// assert!((scheduler.current_lr() - 1e-3).abs() < 1e-7); // step 1
+/// scheduler.step();
+/// assert!((scheduler.current_lr() - 5e-4).abs() < 1e-7); // step 2: gamma^1
 /// ```
 pub struct LrScheduler<T, B, O, S>
 where
@@ -129,7 +172,9 @@ where
     O: Optimizer<T, B>,
     S: SchedulerStrategy,
 {
+    /// The wrapped optimizer, updated each `step()`.
     pub optimizer: O,
+    /// The compile-time schedule strategy computing the per-step LR.
     pub strategy: S,
     /// Maximum / reference learning rate (in f64 for schedule arithmetic).
     pub base_lr: f64,

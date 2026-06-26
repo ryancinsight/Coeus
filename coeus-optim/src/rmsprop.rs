@@ -4,6 +4,26 @@ use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
 
 /// RMSProp optimizer.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_autograd::Var;
+/// use coeus_optim::{Optimizer, RMSProp};
+/// use coeus_tensor::Tensor;
+///
+/// let x: Var<f32> = Var::new(Tensor::from_slice(vec![2], &[2.0f32, 3.0]), true);
+/// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
+///
+/// let mut opt = RMSProp::new(vec![x.clone()], 0.1f32, 0.99f32, 1e-8f32);
+/// opt.step();
+/// // v = (1-alpha) * grad^2 = 0.01 * [1.0, 4.0] = [0.01, 0.04]
+/// // update = lr * grad / (sqrt(v) + eps) = 0.1 * [1.0, -2.0] / [0.1, 0.2] = [1.0, -1.0]
+/// // p' = [2.0, 3.0] - [1.0, -1.0] = [1.0, 4.0]
+/// let updated = opt.params[0].tensor.as_slice();
+/// assert!((updated[0] - 1.0).abs() < 1e-4);
+/// assert!((updated[1] - 4.0).abs() < 1e-4);
+/// ```
 pub struct RMSProp<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// List of tracked parameters.
     pub params: Vec<Var<T, B>>,

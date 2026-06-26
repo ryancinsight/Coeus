@@ -9,6 +9,24 @@ use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 
 /// Batch matrix multiply: `[B, M, K] x [B, K, N] -> [B, M, N]`.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::bmm;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([1, 2, 2], &[1.0, 2.0, 3.0, 4.0]);
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([1, 2, 2], &[5.0, 6.0, 7.0, 8.0]);
+/// let c = bmm(&a, &b, &backend);
+/// assert_eq!(c.shape(), &[1, 2, 2]);
+/// let expected = [19.0, 22.0, 43.0, 50.0];
+/// for (got, want) in c.as_slice().iter().zip(expected.iter()) {
+///     assert!((got - want).abs() < 1e-4);
+/// }
+/// ```
 #[inline]
 pub fn bmm<T: Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
@@ -25,6 +43,21 @@ pub fn bmm<T: Scalar, B: BackendOps<T> + Default>(
 }
 
 /// Outer product: `[M] x [N] -> [M, N]`.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::outer;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[1.0, 2.0, 3.0]);
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[4.0, 5.0]);
+/// let c = outer(&a, &b, &backend);
+/// assert_eq!(c.shape(), &[3, 2]);
+/// assert_eq!(c.as_slice(), &[4.0, 5.0, 8.0, 10.0, 12.0, 15.0]);
+/// ```
 #[inline]
 pub fn outer<T: Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,

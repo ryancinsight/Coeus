@@ -18,6 +18,21 @@ pub fn cos<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Ten
 }
 
 /// Element-wise exponential.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::exp;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[0.0, 1.0]);
+/// let b = exp(&a, &backend);
+/// let s = b.as_slice();
+/// assert!((s[0] - 1.0).abs() < 1e-5);
+/// assert!((s[1] - std::f32::consts::E).abs() < 1e-5);
+/// ```
 #[inline]
 pub fn exp<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Exp)
@@ -30,6 +45,19 @@ pub fn log<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Ten
 }
 
 /// Element-wise negation (works for any Scalar).
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::neg;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[1.0, -2.0, 3.0]);
+/// let b = neg(&a, &backend);
+/// assert_eq!(b.as_slice(), &[-1.0, 2.0, -3.0]);
+/// ```
 #[inline]
 pub fn neg<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Neg)
@@ -42,6 +70,22 @@ pub fn abs<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Te
 }
 
 /// Element-wise square root.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::sqrt;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[1.0, 4.0, 9.0]);
+/// let b = sqrt(&a, &backend);
+/// let s = b.as_slice();
+/// assert!((s[0] - 1.0).abs() < 1e-5);
+/// assert!((s[1] - 2.0).abs() < 1e-5);
+/// assert!((s[2] - 3.0).abs() < 1e-5);
+/// ```
 #[inline]
 pub fn sqrt<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Sqrt)

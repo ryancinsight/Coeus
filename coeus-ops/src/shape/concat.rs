@@ -13,6 +13,20 @@ use coeus_tensor::Tensor;
 /// - `tensors` is empty.
 /// - Any tensor has mismatched shape on a non-cat dimension.
 /// - `dim` is out of range for any tensor.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::cat;
+///
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]);
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[5.0, 6.0, 7.0, 8.0]);
+/// let c = cat(&[&a, &b], 0);
+/// assert_eq!(c.shape(), &[4, 2]);
+/// assert_eq!(c.as_slice(), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+/// ```
 #[inline]
 pub fn cat<T: Scalar, B: ComputeBackend + Default>(
     tensors: &[&Tensor<T, B>],

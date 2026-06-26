@@ -118,6 +118,7 @@ impl<L> std::ops::Neg for Expr<L> {
 // ── Activation methods ──
 
 impl<L> Expr<L> {
+    /// Apply ReLU to this expression.
     #[inline(always)]
     pub fn relu(self) -> Expr<UnaryExpr<Relu, L>> {
         Expr(UnaryExpr {
@@ -126,6 +127,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply sigmoid to this expression.
     #[inline(always)]
     pub fn sigmoid(self) -> Expr<UnaryExpr<Sigmoid, L>> {
         Expr(UnaryExpr {
@@ -134,6 +136,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply tanh to this expression.
     #[inline(always)]
     pub fn tanh(self) -> Expr<UnaryExpr<Tanh, L>> {
         Expr(UnaryExpr {
@@ -142,6 +145,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply exact GELU to this expression.
     #[inline(always)]
     pub fn gelu(self) -> Expr<UnaryExpr<Gelu, L>> {
         Expr(UnaryExpr {
@@ -150,6 +154,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply exact GELU gradient to this expression.
     #[inline(always)]
     pub fn gelu_grad(self) -> Expr<UnaryExpr<GeluGrad, L>> {
         Expr(UnaryExpr {
@@ -158,6 +163,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply sine to this expression.
     #[inline(always)]
     pub fn sin(self) -> Expr<UnaryExpr<Sin, L>> {
         Expr(UnaryExpr {
@@ -166,6 +172,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply cosine to this expression.
     #[inline(always)]
     pub fn cos(self) -> Expr<UnaryExpr<Cos, L>> {
         Expr(UnaryExpr {
@@ -174,6 +181,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply exponential to this expression.
     #[inline(always)]
     pub fn exp(self) -> Expr<UnaryExpr<Exp, L>> {
         Expr(UnaryExpr {
@@ -182,6 +190,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply natural log to this expression.
     #[inline(always)]
     pub fn log(self) -> Expr<UnaryExpr<Log, L>> {
         Expr(UnaryExpr {
@@ -190,6 +199,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply absolute value to this expression.
     #[inline(always)]
     pub fn abs(self) -> Expr<UnaryExpr<Abs, L>> {
         Expr(UnaryExpr {
@@ -198,6 +208,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply square root to this expression.
     #[inline(always)]
     pub fn sqrt(self) -> Expr<UnaryExpr<Sqrt, L>> {
         Expr(UnaryExpr {
@@ -206,6 +217,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply SiLU to this expression.
     #[inline(always)]
     pub fn silu(self) -> Expr<UnaryExpr<Silu, L>> {
         Expr(UnaryExpr {
@@ -214,6 +226,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply SiLU gradient to this expression.
     #[inline(always)]
     pub fn silu_grad(self) -> Expr<UnaryExpr<SiluGrad, L>> {
         Expr(UnaryExpr {
@@ -222,6 +235,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply Mish to this expression.
     #[inline(always)]
     pub fn mish(self) -> Expr<UnaryExpr<Mish, L>> {
         Expr(UnaryExpr {
@@ -230,6 +244,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply Mish gradient to this expression.
     #[inline(always)]
     pub fn mish_grad(self) -> Expr<UnaryExpr<MishGrad, L>> {
         Expr(UnaryExpr {
@@ -238,6 +253,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply ELU to this expression.
     #[inline(always)]
     pub fn elu(self) -> Expr<UnaryExpr<Elu, L>> {
         Expr(UnaryExpr {
@@ -246,6 +262,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply ELU gradient to this expression.
     #[inline(always)]
     pub fn elu_grad(self) -> Expr<UnaryExpr<EluGrad, L>> {
         Expr(UnaryExpr {
@@ -254,6 +271,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply softplus to this expression.
     #[inline(always)]
     pub fn softplus(self) -> Expr<UnaryExpr<Softplus, L>> {
         Expr(UnaryExpr {
@@ -262,6 +280,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply softplus gradient to this expression.
     #[inline(always)]
     pub fn softplus_grad(self) -> Expr<UnaryExpr<SoftplusGrad, L>> {
         Expr(UnaryExpr {
@@ -270,6 +289,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply tanh-approximation GELU to this expression.
     #[inline(always)]
     pub fn gelu_tanh(self) -> Expr<UnaryExpr<GeluTanh, L>> {
         Expr(UnaryExpr {
@@ -278,6 +298,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply tanh-approximation GELU gradient to this expression.
     #[inline(always)]
     pub fn gelu_tanh_grad(self) -> Expr<UnaryExpr<GeluTanhGrad, L>> {
         Expr(UnaryExpr {
@@ -286,6 +307,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply reciprocal (1/x) to this expression.
     #[inline(always)]
     pub fn recip(self) -> Expr<UnaryExpr<Recip, L>> {
         Expr(UnaryExpr {
@@ -294,6 +316,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply signum to this expression.
     #[inline(always)]
     pub fn sign(self) -> Expr<UnaryExpr<Sign, L>> {
         Expr(UnaryExpr {
@@ -302,6 +325,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply floor to this expression.
     #[inline(always)]
     pub fn floor(self) -> Expr<UnaryExpr<Floor, L>> {
         Expr(UnaryExpr {
@@ -310,6 +334,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply ceil to this expression.
     #[inline(always)]
     pub fn ceil(self) -> Expr<UnaryExpr<Ceil, L>> {
         Expr(UnaryExpr {
@@ -318,6 +343,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply round to this expression.
     #[inline(always)]
     pub fn round(self) -> Expr<UnaryExpr<Round, L>> {
         Expr(UnaryExpr {
@@ -326,6 +352,7 @@ impl<L> Expr<L> {
         })
     }
 
+    /// Apply truncation toward zero to this expression.
     #[inline(always)]
     pub fn trunc(self) -> Expr<UnaryExpr<Trunc, L>> {
         Expr(UnaryExpr {

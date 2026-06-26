@@ -5,24 +5,105 @@ use crate::backend_ops::{BackendOps, BinaryOp};
 use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 
-macro_rules! binary_op {
-    ($name:ident, $op:expr, $doc:expr) => {
-        #[doc = $doc]
-        #[inline]
-        pub fn $name<T: Scalar, B: BackendOps<T>>(
-            a: &Tensor<T, B>,
-            b: &Tensor<T, B>,
-            backend: &B,
-        ) -> Tensor<T, B> {
-            elementwise_binary(a, b, backend, $op)
-        }
-    };
+/// Element-wise addition.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::add;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[1.0, 2.0]);
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0]);
+/// let c = add(&a, &b, &backend);
+/// assert_eq!(c.as_slice(), &[4.0, 6.0]);
+/// ```
+#[inline]
+pub fn add<T: Scalar, B: BackendOps<T>>(
+    a: &Tensor<T, B>,
+    b: &Tensor<T, B>,
+    backend: &B,
+) -> Tensor<T, B> {
+    elementwise_binary(a, b, backend, BinaryOp::Add)
 }
 
-binary_op!(add, BinaryOp::Add, "Element-wise addition.");
-binary_op!(sub, BinaryOp::Sub, "Element-wise subtraction.");
-binary_op!(mul, BinaryOp::Mul, "Element-wise multiplication.");
-binary_op!(div, BinaryOp::Div, "Element-wise division.");
+/// Element-wise subtraction.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::sub;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[5.0, 6.0, 7.0, 8.0]);
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
+/// let c = sub(&a, &b, &backend);
+/// assert_eq!(c.as_slice(), &[4.0, 4.0, 4.0, 4.0]);
+/// ```
+#[inline]
+pub fn sub<T: Scalar, B: BackendOps<T>>(
+    a: &Tensor<T, B>,
+    b: &Tensor<T, B>,
+    backend: &B,
+) -> Tensor<T, B> {
+    elementwise_binary(a, b, backend, BinaryOp::Sub)
+}
+
+/// Element-wise multiplication.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::mul;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[5.0, 6.0, 7.0, 8.0]);
+/// let c = mul(&a, &b, &backend);
+/// assert_eq!(c.as_slice(), &[5.0, 12.0, 21.0, 32.0]);
+/// ```
+#[inline]
+pub fn mul<T: Scalar, B: BackendOps<T>>(
+    a: &Tensor<T, B>,
+    b: &Tensor<T, B>,
+    backend: &B,
+) -> Tensor<T, B> {
+    elementwise_binary(a, b, backend, BinaryOp::Mul)
+}
+
+/// Element-wise division.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::div;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[6.0, 8.0, 10.0, 12.0]);
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[2.0, 4.0, 5.0, 6.0]);
+/// let c = div(&a, &b, &backend);
+/// let s = c.as_slice();
+/// assert!((s[0] - 3.0).abs() < 1e-5);
+/// assert!((s[1] - 2.0).abs() < 1e-5);
+/// assert!((s[2] - 2.0).abs() < 1e-5);
+/// assert!((s[3] - 2.0).abs() < 1e-5);
+/// ```
+#[inline]
+pub fn div<T: Scalar, B: BackendOps<T>>(
+    a: &Tensor<T, B>,
+    b: &Tensor<T, B>,
+    backend: &B,
+) -> Tensor<T, B> {
+    elementwise_binary(a, b, backend, BinaryOp::Div)
+}
 
 macro_rules! binary_assign_op {
     ($name:ident, $op:expr, $doc:expr) => {

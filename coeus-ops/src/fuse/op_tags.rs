@@ -3,12 +3,16 @@ use coeus_core::Scalar;
 
 // ── Binary Operations ZST Tags ──
 
+/// Tag trait for binary operations in the fused expression DAG.
 pub trait BinaryOpTag: 'static + Send + Sync + Copy + Clone {
+    /// WGSL symbol for the operation (e.g. `"+"`, `"*"`).
     const WGSL_SYMBOL: &'static str;
+    /// Apply the binary operation to two scalar values.
     fn apply<T: Scalar>(x: T, y: T) -> T;
 }
 
 #[derive(Clone, Copy)]
+/// Addition operation tag.
 pub struct Add;
 impl BinaryOpTag for Add {
     const WGSL_SYMBOL: &'static str = "+";
@@ -19,6 +23,7 @@ impl BinaryOpTag for Add {
 }
 
 #[derive(Clone, Copy)]
+/// Subtraction operation tag.
 pub struct Sub;
 impl BinaryOpTag for Sub {
     const WGSL_SYMBOL: &'static str = "-";
@@ -29,6 +34,7 @@ impl BinaryOpTag for Sub {
 }
 
 #[derive(Clone, Copy)]
+/// Multiplication operation tag.
 pub struct Mul;
 impl BinaryOpTag for Mul {
     const WGSL_SYMBOL: &'static str = "*";
@@ -39,6 +45,7 @@ impl BinaryOpTag for Mul {
 }
 
 #[derive(Clone, Copy)]
+/// Division operation tag.
 pub struct Div;
 impl BinaryOpTag for Div {
     const WGSL_SYMBOL: &'static str = "/";
@@ -50,11 +57,15 @@ impl BinaryOpTag for Div {
 
 // ── Unary Operations ZST Tags ──
 
+/// Tag trait for unary operations in the fused expression DAG.
 pub trait UnaryOpTag<T: Scalar>: 'static + Send + Sync + Copy + Clone {
+    /// WGSL template string with `{}` as the child expression placeholder.
     const WGSL_TEMPLATE: &'static str;
+    /// Render the WGSL expression for this operation applied to `child`.
     fn wgsl_expr(child: &str) -> String {
         Self::WGSL_TEMPLATE.replace("{}", child)
     }
+    /// Apply the unary operation to a scalar value.
     fn apply(x: T) -> T;
 }
 
@@ -88,6 +99,7 @@ pub fn wgsl_gelu_grad_expr(arg: &str) -> String {
 }
 
 #[derive(Clone, Copy)]
+/// ReLU operation tag.
 pub struct Relu;
 impl<T: Scalar> UnaryOpTag<T> for Relu {
     const WGSL_TEMPLATE: &'static str = "max(({}), 0.0)";
@@ -102,6 +114,7 @@ impl<T: Scalar> UnaryOpTag<T> for Relu {
 }
 
 #[derive(Clone, Copy)]
+/// Sigmoid operation tag.
 pub struct Sigmoid;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Sigmoid {
     const WGSL_TEMPLATE: &'static str = "1.0 / (1.0 + exp(-({})))";
@@ -112,6 +125,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Sigmoid {
 }
 
 #[derive(Clone, Copy)]
+/// Tanh operation tag.
 pub struct Tanh;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Tanh {
     const WGSL_TEMPLATE: &'static str = "tanh(({}))";
@@ -122,6 +136,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Tanh {
 }
 
 #[derive(Clone, Copy)]
+/// Exact GELU operation tag.
 pub struct Gelu;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Gelu {
     const WGSL_TEMPLATE: &'static str =
@@ -136,6 +151,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Gelu {
 }
 
 #[derive(Clone, Copy)]
+/// Exact GELU gradient operation tag.
 pub struct GeluGrad;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for GeluGrad {
     const WGSL_TEMPLATE: &'static str = "0.5 * (1.0 + tanh(0.7978845608 * (({}) + 0.044715 * ({}) * ({}) * ({})))) + 0.5 * ({}) * (1.0 - tanh(0.7978845608 * (({}) + 0.044715 * ({}) * ({}) * ({}))) * tanh(0.7978845608 * (({}) + 0.044715 * ({}) * ({}) * ({})))) * 0.7978845608 * (1.0 + 0.134145 * ({}) * ({}))";
@@ -155,6 +171,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for GeluGrad {
 }
 
 #[derive(Clone, Copy)]
+/// Sine operation tag.
 pub struct Sin;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Sin {
     const WGSL_TEMPLATE: &'static str = "sin(({}))";
@@ -165,6 +182,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Sin {
 }
 
 #[derive(Clone, Copy)]
+/// Cosine operation tag.
 pub struct Cos;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Cos {
     const WGSL_TEMPLATE: &'static str = "cos(({}))";
@@ -175,6 +193,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Cos {
 }
 
 #[derive(Clone, Copy)]
+/// Exponential operation tag.
 pub struct Exp;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Exp {
     const WGSL_TEMPLATE: &'static str = "exp(({}))";
@@ -185,6 +204,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Exp {
 }
 
 #[derive(Clone, Copy)]
+/// Natural log operation tag.
 pub struct Log;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Log {
     const WGSL_TEMPLATE: &'static str = "log(({}))";
@@ -195,6 +215,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Log {
 }
 
 #[derive(Clone, Copy)]
+/// Negation operation tag.
 pub struct Neg;
 impl<T: Scalar> UnaryOpTag<T> for Neg {
     const WGSL_TEMPLATE: &'static str = "-(({}))";
@@ -205,6 +226,7 @@ impl<T: Scalar> UnaryOpTag<T> for Neg {
 }
 
 #[derive(Clone, Copy)]
+/// Absolute value operation tag.
 pub struct Abs;
 impl<T: Scalar> UnaryOpTag<T> for Abs {
     const WGSL_TEMPLATE: &'static str = "abs(({}))";
@@ -215,6 +237,7 @@ impl<T: Scalar> UnaryOpTag<T> for Abs {
 }
 
 #[derive(Clone, Copy)]
+/// Square root operation tag.
 pub struct Sqrt;
 impl<T: Scalar> UnaryOpTag<T> for Sqrt {
     const WGSL_TEMPLATE: &'static str = "sqrt(({}))";
@@ -225,6 +248,7 @@ impl<T: Scalar> UnaryOpTag<T> for Sqrt {
 }
 
 #[derive(Clone, Copy)]
+/// SiLU operation tag.
 pub struct Silu;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Silu {
     const WGSL_TEMPLATE: &'static str = "({}) / (1.0 + exp(-({})))";
@@ -235,6 +259,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Silu {
 }
 
 #[derive(Clone, Copy)]
+/// SiLU gradient operation tag.
 pub struct SiluGrad;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for SiluGrad {
     const WGSL_TEMPLATE: &'static str =
@@ -247,6 +272,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for SiluGrad {
 }
 
 #[derive(Clone, Copy)]
+/// Mish operation tag.
 pub struct Mish;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Mish {
     const WGSL_TEMPLATE: &'static str = "({}) * tanh(log(1.0 + exp(({}))))";
@@ -258,6 +284,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Mish {
 }
 
 #[derive(Clone, Copy)]
+/// Mish gradient operation tag.
 pub struct MishGrad;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for MishGrad {
     const WGSL_TEMPLATE: &'static str = "tanh(log(1.0 + exp(({})))) + ({}) * (1.0 - tanh(log(1.0 + exp(({})))) * tanh(log(1.0 + exp(({}))))) * (1.0 / (1.0 + exp(-({}))))";
@@ -272,6 +299,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for MishGrad {
 // ── Phase 7 Activation Tags ──
 
 #[derive(Clone, Copy)]
+/// ELU operation tag.
 pub struct Elu;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Elu {
     const WGSL_TEMPLATE: &'static str = "select(exp({}) - 1.0, {}, {} >= 0.0)";
@@ -286,6 +314,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Elu {
 }
 
 #[derive(Clone, Copy)]
+/// ELU gradient operation tag.
 pub struct EluGrad;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for EluGrad {
     const WGSL_TEMPLATE: &'static str = "select(exp({}), 1.0, {} >= 0.0)";
@@ -300,6 +329,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for EluGrad {
 }
 
 #[derive(Clone, Copy)]
+/// Softplus operation tag.
 pub struct Softplus;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Softplus {
     const WGSL_TEMPLATE: &'static str = "log(1.0 + exp({}))";
@@ -310,6 +340,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Softplus {
 }
 
 #[derive(Clone, Copy)]
+/// Softplus gradient operation tag.
 pub struct SoftplusGrad;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for SoftplusGrad {
     const WGSL_TEMPLATE: &'static str = "1.0 / (1.0 + exp(-{}))";
@@ -320,6 +351,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for SoftplusGrad {
 }
 
 #[derive(Clone, Copy)]
+/// Tanh-approximation GELU operation tag.
 pub struct GeluTanh;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for GeluTanh {
     const WGSL_TEMPLATE: &'static str =
@@ -336,6 +368,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for GeluTanh {
 }
 
 #[derive(Clone, Copy)]
+/// Tanh-approximation GELU gradient operation tag.
 pub struct GeluTanhGrad;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for GeluTanhGrad {
     const WGSL_TEMPLATE: &'static str =
@@ -452,6 +485,7 @@ pub struct LeakyReluTag {
 }
 
 impl LeakyReluTag {
+    /// Create a new tag with the given negative-region slope.
     #[inline]
     pub fn new(slope: f64) -> Self {
         Self {
@@ -459,11 +493,13 @@ impl LeakyReluTag {
         }
     }
 
+    /// Decode the stored slope back to `f64`.
     #[inline]
     pub fn slope(&self) -> f64 {
         f64::from_bits(self.slope_bits)
     }
 
+    /// Apply LeakyReLU: `x >= 0 ? x : slope * x`.
     #[inline(always)]
     pub fn apply<T: Scalar>(&self, x: T) -> T {
         let slope = T::from_f64(self.slope());
@@ -486,6 +522,7 @@ pub struct LeakyReluGradTag {
 }
 
 impl LeakyReluGradTag {
+    /// Create a new gradient tag with the given negative-region slope.
     #[inline]
     pub fn new(slope: f64) -> Self {
         Self {
@@ -493,11 +530,13 @@ impl LeakyReluGradTag {
         }
     }
 
+    /// Decode the stored slope back to `f64`.
     #[inline]
     pub fn slope(&self) -> f64 {
         f64::from_bits(self.slope_bits)
     }
 
+    /// Apply LeakyReLU gradient: `x >= 0 ? 1 : slope`.
     #[inline(always)]
     pub fn apply<T: Scalar>(&self, x: T) -> T {
         let slope = T::from_f64(self.slope());

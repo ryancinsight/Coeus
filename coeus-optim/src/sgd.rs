@@ -4,6 +4,24 @@ use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
 
 /// SGD with optional momentum.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_autograd::Var;
+/// use coeus_optim::{Optimizer, SGD};
+/// use coeus_tensor::Tensor;
+///
+/// let x: Var<f32> = Var::new(Tensor::from_slice(vec![2], &[2.0f32, 3.0]), true);
+/// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
+///
+/// let mut opt = SGD::new(vec![x.clone()], 0.1f32, 0.0f32);
+/// opt.step();
+/// // p' = p - lr * grad: [2.0, 3.0] - 0.1 * [1.0, -2.0] = [1.9, 3.2]
+/// let updated = opt.params[0].tensor.as_slice();
+/// assert!((updated[0] - 1.9).abs() < 1e-5);
+/// assert!((updated[1] - 3.2).abs() < 1e-5);
+/// ```
 pub struct SGD<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Parameters to optimize.
     pub params: Vec<Var<T, B>>,

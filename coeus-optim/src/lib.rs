@@ -19,13 +19,18 @@
 //! - [`clip_grad_norm`] — global gradient norm clipping.
 //! - [`scheduler`] — [`LrScheduler`] implementations: [`StepDecay`], [`CosineAnneal`], [`LinearWarmup`], [`WarmupCosine`].
 
+#![deny(missing_docs)]
+
 mod adagrad;
 mod adam;
 mod adamw;
+/// Gradient-clipping utilities.
 pub mod clip;
 mod rmsprop;
+/// Learning-rate schedulers and schedule strategies.
 pub mod scheduler;
 mod sgd;
+/// The [`Optimizer`] trait and its method contract.
 pub mod traits;
 
 pub use adagrad::AdaGrad;

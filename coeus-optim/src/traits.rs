@@ -3,6 +3,29 @@
 use coeus_core::{MoiraiBackend, Scalar};
 
 /// Trait for parameter optimizers.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_autograd::Var;
+/// use coeus_optim::{Optimizer, SGD};
+/// use coeus_tensor::Tensor;
+///
+/// let x: Var<f32> = Var::new(Tensor::from_slice(vec![1], &[1.0f32]), true);
+/// x.set_grad(Tensor::from_slice(vec![1], &[-2.0f32]));
+///
+/// let mut opt: SGD<f32> = SGD::new(vec![x.clone()], 0.1f32, 0.0f32);
+/// // `step`, `zero_grad`, and `set_lr` come from the `Optimizer` trait.
+/// opt.step();
+/// // x' = x - lr * grad = 1.0 - 0.1 * (-2.0) = 1.2
+/// assert!((opt.params[0].tensor.as_slice()[0] - 1.2).abs() < 1e-5);
+///
+/// opt.zero_grad();
+/// assert_eq!(opt.params[0].grad().unwrap().as_slice(), &[0.0f32]);
+///
+/// opt.set_lr(0.5f32);
+/// assert_eq!(opt.lr, 0.5f32);
+/// ```
 pub trait Optimizer<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Perform one optimization step using accumulated gradients.
     fn step(&mut self);

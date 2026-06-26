@@ -18,6 +18,24 @@ use coeus_tensor::Tensor;
 /// # Implementation
 /// Uses `BackendOps::matmul` with Layout offset arithmetic for each batch
 /// slice — no CPU storage access required, so GPU backends work identically.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::matmul;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([3, 2], &[7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
+/// let c = matmul(&a, &b, &backend);
+/// assert_eq!(c.shape(), &[2, 2]);
+/// let expected = [58.0, 64.0, 139.0, 154.0];
+/// for (got, want) in c.as_slice().iter().zip(expected.iter()) {
+///     assert!((got - want).abs() < 1e-4);
+/// }
+/// ```
 #[inline]
 pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
@@ -117,6 +135,25 @@ fn batch_layout(
 }
 
 /// Accumulating matrix multiplication: `out += a * b`.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::matmul_accumulate;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]);
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[5.0, 6.0, 7.0, 8.0]);
+/// let mut out = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[10.0, 20.0, 30.0, 40.0]);
+/// matmul_accumulate(&a, &b, &mut out, &backend);
+/// // out = [[10+19, 20+22], [30+43, 40+50]] = [[29, 42], [73, 90]]
+/// let expected = [29.0, 42.0, 73.0, 90.0];
+/// for (got, want) in out.as_slice().iter().zip(expected.iter()) {
+///     assert!((got - want).abs() < 1e-4);
+/// }
+/// ```
 #[inline]
 pub fn matmul_accumulate<T: Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,

@@ -13,6 +13,20 @@ use coeus_tensor::Tensor;
 /// - `tensors` is empty.
 /// - Any tensor shape differs from the first tensor.
 /// - `dim` is outside `0..=ndim`.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::stack;
+///
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[1.0, 2.0]);
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0]);
+/// let c = stack(&[&a, &b], 0);
+/// assert_eq!(c.shape(), &[2, 2]);
+/// assert_eq!(c.as_slice(), &[1.0, 2.0, 3.0, 4.0]);
+/// ```
 #[inline]
 pub fn stack<T: Scalar, B: ComputeBackend + Default>(
     tensors: &[&Tensor<T, B>],

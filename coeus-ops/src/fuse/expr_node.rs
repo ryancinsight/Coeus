@@ -5,17 +5,27 @@ use coeus_tensor::Tensor;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+/// Cached tensor data and layout for CPU evaluation of device-resident tensors.
 pub struct CachedTensor<T> {
+    /// Flat data buffer.
     pub data: Vec<T>,
+    /// Tensor layout descriptor.
     pub layout: Layout,
 }
 
 thread_local! {
+    /// Thread-local cache mapping tensor pointers to CPU-cached data for fused evaluation.
     pub static CPU_EVAL_CACHE: RefCell<HashMap<usize, Box<dyn std::any::Any>>> = RefCell::new(HashMap::new());
 }
 
+/// A node in the fused expression DAG.
+///
+/// Implementors describe how to collect input tensors, emit a WGSL shader
+/// fragment, and evaluate the node on the CPU.
 pub trait ExprNode<T: Scalar, B: ComputeBackend>: 'static + Send + Sync {
+    /// Collect all input tensor pointers reachable from this node.
     fn collect_inputs(&self, list: &mut Vec<*const Tensor<T, B>>);
+    /// Emit a WGSL expression string referencing the inputs by index.
     fn to_shader_expr(&self, input_map: &HashMap<*const Tensor<T, B>, usize>) -> String;
 
     /// Evaluates the expression node on the CPU at the specified coordinates.
@@ -24,8 +34,10 @@ pub trait ExprNode<T: Scalar, B: ComputeBackend>: 'static + Send + Sync {
     /// The caller must ensure that the coordinates are within bounds for the expression shape,
     /// and that the underlying input tensors are still valid.
     unsafe fn eval_cpu(&self, coords: &[usize]) -> T;
+    /// Returns the output shape of this node, or `None` for scalar nodes.
     fn shape(&self) -> Option<Shape>;
 
+    /// Returns `true` if this node is contiguous and matches `out_shape`.
     fn is_contiguous_and_same_shape(&self, out_shape: &[usize]) -> bool;
     /// Evaluates the expression node on the CPU at a flat index for contiguous tensors.
     ///
@@ -34,6 +46,7 @@ pub trait ExprNode<T: Scalar, B: ComputeBackend>: 'static + Send + Sync {
     unsafe fn eval_cpu_flat(&self, idx: usize) -> T;
 }
 
+/// A raw pointer reference to a tensor, used as a leaf node in the fused expression DAG.
 pub struct TensorRef<T: Scalar, B: ComputeBackend>(pub *const Tensor<T, B>);
 
 unsafe impl<T: Scalar, B: ComputeBackend> Send for TensorRef<T, B> {}
@@ -166,6 +179,7 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for TensorRef<T, B> {
 }
 
 #[derive(Clone, Copy)]
+/// A scalar constant leaf node in the fused expression DAG.
 pub struct ScalarVal<T: Scalar>(pub T);
 
 impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for ScalarVal<T> {
@@ -209,8 +223,11 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for ScalarVal<T> {
 }
 
 #[derive(Clone, Copy)]
+/// A unary operation node in the fused expression DAG.
 pub struct UnaryExpr<Op, Child> {
+    /// The operation tag.
     pub op: Op,
+    /// The child sub-expression.
     pub child: Child,
 }
 
@@ -246,9 +263,13 @@ impl<Op: UnaryOpTag<T> + Send, Child: ExprNode<T, B>, T: Scalar, B: ComputeBacke
 }
 
 #[derive(Clone, Copy)]
+/// A binary operation node in the fused expression DAG.
 pub struct BinaryExpr<Op: BinaryOpTag, Left, Right> {
+    /// The operation tag.
     pub op: Op,
+    /// The left-hand sub-expression.
     pub left: Left,
+    /// The right-hand sub-expression.
     pub right: Right,
 }
 
@@ -305,6 +326,7 @@ impl<
 }
 
 #[derive(Clone, Copy)]
+/// A wrapper around an expression node, providing operator overloading and builder methods.
 pub struct Expr<E>(pub E);
 
 impl<E: ExprNode<T, B>, T: Scalar, B: ComputeBackend> ExprNode<T, B> for Expr<E> {
@@ -339,7 +361,9 @@ impl<E: ExprNode<T, B>, T: Scalar, B: ComputeBackend> ExprNode<T, B> for Expr<E>
     }
 }
 
+/// Extension trait that converts a [`Tensor`] into a fused expression leaf.
 pub trait TensorExprExt<T: Scalar, B: ComputeBackend> {
+    /// Create a fused expression leaf referencing this tensor.
     fn expr(&self) -> Expr<TensorRef<T, B>>;
 }
 
@@ -350,6 +374,7 @@ impl<T: Scalar, B: ComputeBackend> TensorExprExt<T, B> for Tensor<T, B> {
     }
 }
 
+/// Create a fused expression scalar constant.
 #[inline(always)]
 pub fn scalar<T: Scalar, B: ComputeBackend>(val: T) -> Expr<ScalarVal<T>> {
     Expr(ScalarVal(val))

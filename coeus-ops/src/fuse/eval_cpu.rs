@@ -232,6 +232,7 @@ fn write_fused_reductions<E, T, B>(
     });
 }
 
+/// Evaluate a fused expression DAG on the CPU, returning a new tensor with the result.
 pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend>(
     expr: &E,
     backend: &B,
@@ -277,6 +278,7 @@ pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend
     out
 }
 
+/// Evaluate a fused expression DAG with a reduction along `axis` on the CPU.
 pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend>(
     expr: &E,
     op: crate::ReductionOp,

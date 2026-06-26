@@ -7,12 +7,41 @@ use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, Scalar}
 use coeus_tensor::Tensor;
 
 /// Rectified Linear Unit: max(0, x).
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::relu;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[-1.0, 0.0, 1.0]);
+/// let b = relu(&a, &backend);
+/// assert_eq!(b.as_slice(), &[0.0, 0.0, 1.0]);
+/// ```
 #[inline]
 pub fn relu<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Relu)
 }
 
 /// Sigmoid: 1 / (1 + exp(-x)).
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::sigmoid;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[0.0, 1.0, -1.0]);
+/// let b = sigmoid(&a, &backend);
+/// let s = b.as_slice();
+/// assert!((s[0] - 0.5).abs() < 1e-5);
+/// assert!((s[1] - 0.73105858_f32).abs() < 1e-5);
+/// assert!((s[2] - 0.26894142_f32).abs() < 1e-5);
+/// ```
 #[inline]
 pub fn sigmoid<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Sigmoid)
@@ -28,6 +57,21 @@ pub fn tanh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Te
 ///
 /// Formula: `0.5 * x * (1 + erf(x / sqrt(2)))`.
 /// The tanh approximation is exposed separately as [`gelu_tanh`].
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::gelu;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[0.0, 1.0]);
+/// let b = gelu(&a, &backend);
+/// let s = b.as_slice();
+/// assert!((s[0] - 0.0).abs() < 1e-5);
+/// assert!((s[1] - 0.8413447_f32).abs() < 1e-5);
+/// ```
 #[inline]
 pub fn gelu<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Gelu)
@@ -58,6 +102,21 @@ pub fn gelu_assign<T: Float, B: BackendOps<T>>(input: &mut Tensor<T, B>, backend
 }
 
 /// SiLU (Sigmoid Linear Unit): x * sigmoid(x).
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::silu;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[0.0, 1.0]);
+/// let b = silu(&a, &backend);
+/// let s = b.as_slice();
+/// assert!((s[0] - 0.0).abs() < 1e-5);
+/// assert!((s[1] - 0.73105858_f32).abs() < 1e-5);
+/// ```
 #[inline]
 pub fn silu<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Silu)

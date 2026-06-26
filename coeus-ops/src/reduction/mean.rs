@@ -5,6 +5,19 @@ use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 
 /// Mean of all elements.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::mean;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+/// let result = mean(&a, &backend);
+/// assert!((result - 3.5).abs() < 1e-5);
+/// ```
 #[inline]
 pub fn mean<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B) -> T {
     if a.numel() == 0 {
@@ -23,6 +36,22 @@ pub fn mean<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B
 }
 
 /// Mean along a specific axis.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::mean_axis;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+/// let result = mean_axis(&a, 1, &backend);
+/// assert_eq!(result.shape(), &[2, 1]);
+/// let s = result.as_slice();
+/// assert!((s[0] - 2.0).abs() < 1e-5);
+/// assert!((s[1] - 5.0).abs() < 1e-5);
+/// ```
 #[inline]
 pub fn mean_axis<T: Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
