@@ -2,11 +2,11 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-82 - masked softmax, init binding, conv contention guard [COMPLETE]
-**Objective**: Complete masked/causal softmax and three-operand einsum parity
-surfaces, expose Rust initializers through a thin PyO3 submodule, add
-small-workload convolution partition guards, and close two regression-test gaps.
-**Target version**: 0.2.22 (Cargo.toml reconciled with CHANGELOG).
+### Current Sprint: MS-83 - einsum3 parity and audit verification [COMPLETE]
+**Objective**: Complete three-operand einsum parity through `coeus_ops`,
+`coeus_autograd`, and `coeus-python`, and record the current audit findings for
+Moirai adaptive thresholds, MHA const generics, and Coeus CoW infrastructure.
+**Target version**: 0.2.23 (Cargo.toml reconciled with CHANGELOG).
 **Burn parity tests**: 69 total (all passing).
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
@@ -16,24 +16,17 @@ small-workload convolution partition guards, and close two regression-test gaps.
 
 ### Current Verification Note (2026-06-25)
 
-- [x] [minor] Added `coeus_ops::{masked_softmax, causal_softmax}`,
-  `coeus_ops::einsum3`, `pycoeus.masked_softmax`,
-  `pycoeus.causal_softmax`, three-operand `pycoeus.einsum` routing,
-  `pycoeus.Module`, and `pycoeus.init`. Added small-workload contention guards to CPU
-  `conv1d`/`conv2d`/`conv3d` and regression coverage for `contiguous()`
-  backward plus repeated-index embedding gradient accumulation. Evidence tier:
-  empirical value-semantic validation plus differential convolution checks.
-  Evidence: `cargo clippy -p coeus-ops -p coeus-python --all-targets -- -D
-  warnings`, `cargo nextest run -p coeus-ops masked_softmax causal_softmax`,
-  `cargo nextest run -p coeus-python --test binding_tests_ops
-  test_init_submodule_mutates_tensor_values test_glu_activation
-  test_module_list`, `cargo nextest run -p coeus-autograd
-  test_contiguous_backward_is_identity`, `cargo nextest run -p coeus-nn
-  embedding_backward_accumulates_grad_for_repeated_indices`, `cargo nextest
-  run -p coeus-ops conv1d conv2d conv3d`, `cargo nextest run -p coeus-ops
-  einsum_three_operand_matmul_chain`, and `cargo nextest run -p coeus-python
-  --test binding_tests_ops test_einsum_wrapper`, and `cargo nextest run -p
-  coeus-autograd test_einsum3_matmul_chain_backward` pass.
+- [x] [minor] Added `coeus_ops::einsum3`, `coeus_autograd::einsum3`, and
+  three-operand `pycoeus.einsum` routing. Recorded audit findings that Moirai
+  adaptive thresholds, MHA const-generic head routing, and Coeus CoW
+  infrastructure already exist. Evidence tier: empirical value-semantic and
+  analytical-gradient validation. Evidence: `cargo nextest run -p coeus-ops
+  einsum_three_operand_matmul_chain`, `cargo nextest run -p coeus-python
+  --test binding_tests_ops test_einsum_wrapper`, `cargo nextest run -p
+  coeus-autograd test_einsum3_matmul_chain_backward`, `cargo clippy -p
+  coeus-autograd -p coeus-nn -p coeus-ops -p coeus-python --all-targets --
+  -D warnings`, and `cargo doc -p coeus-autograd -p coeus-nn -p coeus-ops -p
+  coeus-python --no-deps` pass.
 - [x] [minor] Added `coeus_nn::rnn::{LSTMCell, GRUCell}`, Python
   `pycoeus.LSTMCell` / `GRUCell`, `coeus_ops::index_put`,
   `pycoeus.index_put`, and `pycoeus.TransformerDecoderLayer`. Exposed

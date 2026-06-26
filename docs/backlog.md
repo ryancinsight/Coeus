@@ -1,12 +1,25 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-83: einsum3 parity and audit verification [COMPLETE]
+
+- [x] [minor] Added `coeus_ops::einsum3` and `coeus_autograd::einsum3` for
+  supported three-operand contraction chains.
+- [x] [minor] Routed three-operand `pycoeus.einsum` through the Rust autograd
+  helper.
+- [x] [patch] Recorded audit verification that Moirai adaptive thresholds,
+  MHA const-generic head routing, and Coeus CoW infrastructure already exist.
+- [x] Evidence: `cargo nextest run -p coeus-ops
+  einsum_three_operand_matmul_chain`; `cargo nextest run -p coeus-python
+  --test binding_tests_ops test_einsum_wrapper`; `cargo nextest run -p
+  coeus-autograd test_einsum3_matmul_chain_backward`; `cargo clippy -p
+  coeus-autograd -p coeus-nn -p coeus-ops -p coeus-python --all-targets --
+  -D warnings`; `cargo doc -p coeus-autograd -p coeus-nn -p coeus-ops -p
+  coeus-python --no-deps`.
+
 ## Sprint MS-82: masked softmax, init binding, conv contention guard [COMPLETE]
 
 - [x] [minor] Added `coeus_ops::{masked_softmax, causal_softmax}` with
   deterministic all-masked-row semantics and public exports.
-- [x] [minor] Added `coeus_ops::einsum3` for supported three-operand contraction
-  chains and routed three-operand `pycoeus.einsum` through the Rust autograd
-  helper.
 - [x] [minor] Added Python wrappers `pycoeus.masked_softmax`,
   `pycoeus.causal_softmax`, `pycoeus.Module`, and the `pycoeus.init`
   submodule as PyO3 boundary adapters over Rust Coeus logic.
@@ -22,10 +35,7 @@
   test_module_list`; `cargo nextest run -p coeus-autograd
   test_contiguous_backward_is_identity`; `cargo nextest run -p coeus-nn
   embedding_backward_accumulates_grad_for_repeated_indices`; `cargo nextest run
-  -p coeus-ops conv1d conv2d conv3d`; `cargo nextest run -p coeus-ops
-  einsum_three_operand_matmul_chain`; `cargo nextest run -p coeus-python
-  --test binding_tests_ops test_einsum_wrapper`; `cargo nextest run -p
-  coeus-autograd test_einsum3_matmul_chain_backward`.
+  -p coeus-ops conv1d conv2d conv3d`.
 
 ## Sprint MS-80: RNN cells, index_put, Python parity wrappers, attention benchmark [COMPLETE]
 
