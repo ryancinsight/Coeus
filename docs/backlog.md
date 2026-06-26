@@ -1,5 +1,17 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-91: einsum/einsum3 differential parity + cosine_embedding_loss coverage [COMPLETE]
+
+- [x] [patch] `coeus-ops/tests/einsum_diff.rs` (NEW): 4 differential tests verifying
+  6 einsum subscript patterns (matmul, transpose, trace, dot, outer, mat-vec) and
+  2 einsum3 chain patterns against bitwise-exact analytical references (integer inputs).
+  SequentialBackend + MoiraiBackend. Evidence: `b9f0a28`, 4/4 passed.
+- [x] [patch] `coeus-nn/tests/nn_loss_tests.rs`: added `test_cosine_embedding_loss`
+  with 5 cases (identical/orthogonal/opposite unit vectors, batch mean, backward
+  existence). Analytical reference: y=1→1−cos_sim; y=−1→max(0,cos_sim−margin); mean.
+  Evidence: `b9f0a28`, 1/1 passed.
+- [x] Evidence: 626/626 workspace tests; clippy/fmt clean. Commit `b9f0a28`.
+
 ## Sprint MS-90: frobenius_norm differential parity + optimizer convergence [COMPLETE]
 
 - [x] [patch] `coeus-ops/tests/norm_diff.rs` (NEW): 8 differential parity tests for

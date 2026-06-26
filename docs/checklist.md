@@ -2,11 +2,26 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-90 - frobenius_norm differential parity + optimizer convergence [COMPLETE]
-**Objective**: Close differential test gaps for frobenius_norm/frobenius_norm_batched
-(added in MS-88, had no backend parity coverage) and extend optimizer test suite
-with multi-step convergence verification (existing tests only covered 1-step
-closed-form formulas).
+### Current Sprint: MS-91 - einsum/einsum3 differential parity + cosine_embedding_loss [COMPLETE]
+**Objective**: Close differential test gap for `einsum`/`einsum3` (no backend parity
+coverage since MS-83) and add `cosine_embedding_loss` analytical coverage (function
+shipped but never tested against closed-form reference).
+**Target version**: 0.2.29 (patch-class).
+**Tests delivered**: 4 einsum differential tests (6 subscript patterns) + 1 cosine
+loss test (5 cases + backward); workspace at 626/626.
+
+- [x] [patch] `coeus-ops/tests/einsum_diff.rs` (NEW): 4 differential tests verifying
+  einsum patterns (matmul, transpose, trace, dot, outer, mat-vec) and einsum3 triple
+  chain on both backends. Integer inputs → bitwise-exact assertions.
+  Evidence: `b9f0a28`, 4/4 passed.
+- [x] [patch] `coeus-nn/tests/nn_loss_tests.rs`: `test_cosine_embedding_loss` with
+  identical/orthogonal/opposite/batch/backward cases. All assertions value-semantic
+  against closed-form definition with eps=1e-10.
+  Evidence: `b9f0a28`, 1/1 passed.
+- [x] Evidence: 626/626 workspace tests; `cargo clippy -D warnings` clean;
+  `cargo fmt --check` clean. Commit: `b9f0a28`.
+
+### Previous Sprint: MS-90 - frobenius_norm differential parity + optimizer convergence [COMPLETE]
 **Target version**: 0.2.29 (patch-class).
 **Tests delivered**: 8 frobenius norm differential tests + 4 optimizer convergence
 tests; workspace at 621/621.
