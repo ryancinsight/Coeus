@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.2.29 - 2026-06-26
+
+### Added
+
+- **Transformer encoder source key-padding masks** —
+  `TransformerEncoderLayer::forward_with_mask`,
+  `TransformerEncoder::forward_with_mask`, and
+  `Transformer::forward_seq2seq_with_src_mask` route optional source masks
+  through the existing attention mask path while preserving `Module::forward`
+  as the unmasked entry point.
+
+- **BatchNorm eval bindings for Python** — `pycoeus.BatchNorm1d` and
+  `pycoeus.BatchNorm3d` now expose `eval_forward`, matching the existing
+  BatchNorm2d binding. The Python stub also records `BatchNorm1d/2d/3d`,
+  `matrix_norm`, and `Embedding(..., padding_idx=...)` surface parity.
+
+### Verified
+
+- `cargo nextest run -p coeus-nn` passes with 211 tests, including masked
+  encoder-layer shape/gradient coverage and all-ones-mask parity with the
+  unmasked path.
+- `cargo nextest run -p coeus-python` passes with 70 tests, including
+  BatchNorm1d/2d/3d eval-mode normalization against running stats without
+  mutation.
+- `cargo fmt --check`, `cargo clippy -p coeus-nn -p coeus-python
+  --all-targets -- -D warnings`, and `cargo doc -p coeus-nn -p coeus-python
+  --no-deps` pass.
+
 ## 0.2.28 - 2026-06-26
 
 ### Added

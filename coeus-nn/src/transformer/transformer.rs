@@ -55,7 +55,21 @@ where
     ///
     /// Returns decoded output `[batch, seq_tgt, d_model]`.
     pub fn forward_seq2seq(&self, src: &Var<T, B>, tgt: &Var<T, B>) -> Var<T, B> {
-        let memory = self.encoder.forward(src);
+        let memory = self.encoder.forward_with_mask(src, None);
+        self.decoder.forward_decoder(tgt, &memory)
+    }
+
+    /// Complete Seq2Seq forward pass with optional source key-padding mask.
+    ///
+    /// - `src_key_padding_mask`: mask for encoder self-attention keys, typically shape
+    ///   `[batch, seq_src]` with non-zero for keep and zero for padded tokens.
+    pub fn forward_seq2seq_with_src_mask(
+        &self,
+        src: &Var<T, B>,
+        tgt: &Var<T, B>,
+        src_key_padding_mask: Option<&Var<T, B>>,
+    ) -> Var<T, B> {
+        let memory = self.encoder.forward_with_mask(src, src_key_padding_mask);
         self.decoder.forward_decoder(tgt, &memory)
     }
 }

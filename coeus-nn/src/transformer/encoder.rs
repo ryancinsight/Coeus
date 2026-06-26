@@ -54,6 +54,20 @@ where
         });
         Self { layers }
     }
+
+    /// Forward through all N layers sequentially with optional key padding mask.
+    ///
+    /// Input/output shape: `[batch, seq, d_model]`.
+    /// `key_padding_mask` shape: `[batch, seq]` (or backend-supported broadcast form).
+    pub fn forward_with_mask(
+        &self,
+        input: &Var<T, B>,
+        key_padding_mask: Option<&Var<T, B>>,
+    ) -> Var<T, B> {
+        self.layers.iter().fold(input.clone(), |x, layer| {
+            layer.forward_with_mask(&x, key_padding_mask)
+        })
+    }
 }
 
 impl<
@@ -72,8 +86,6 @@ impl<
     ///
     /// Input/output shape: `[batch, seq, d_model]`.
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        self.layers
-            .iter()
-            .fold(input.clone(), |x, layer| layer.forward(&x))
+        self.forward_with_mask(input, None)
     }
 }

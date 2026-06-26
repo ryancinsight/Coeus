@@ -1,5 +1,30 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-89: transformer source masks + BatchNorm eval bindings [COMPLETE]
+
+- [x] [minor] Added optional source key-padding-mask routing through
+  `TransformerEncoderLayer::forward_with_mask`,
+  `TransformerEncoder::forward_with_mask`, and
+  `Transformer::forward_seq2seq_with_src_mask`.
+  - `Module::forward` remains the unmasked entry point and delegates to the
+    masked implementation with `None`.
+  - Encoder tests verify output shape, gradient propagation through masked
+    forward, and all-ones-mask parity with the unmasked path.
+- [x] [minor] Completed Python BatchNorm eval-mode parity for
+  `BatchNorm1d/2d/3d`.
+  - `BatchNorm1d` and `BatchNorm3d` now expose `eval_forward`, matching the
+    existing BatchNorm2d surface.
+  - Regression coverage verifies eval outputs use `running_mean` /
+    `running_var` and do not mutate stored running statistics.
+- [x] [patch] Synchronized `pycoeus.pyi` for `matrix_norm`,
+  `BatchNorm1d/2d/3d`, and `Embedding(..., padding_idx=...)`.
+- [x] Evidence: `cargo nextest run -p coeus-nn --test nn_attention_tests`;
+  `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_batchnorm_eval_mode`; `cargo nextest run -p coeus-nn` (211 tests);
+  `cargo nextest run -p coeus-python` (70 tests); `cargo clippy -p coeus-nn
+  -p coeus-python --all-targets -- -D warnings`; `cargo doc -p coeus-nn -p
+  coeus-python --no-deps`; `cargo fmt --check`.
+
 ## Sprint MS-88: matrix_norm(ord='fro') Torch parity [COMPLETE]
 
 - [x] [minor] Added `coeus_ops::frobenius_norm` (2-D scalar Frobenius) and

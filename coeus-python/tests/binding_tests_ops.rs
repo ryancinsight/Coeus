@@ -2815,40 +2815,63 @@ fn test_batchnorm_eval_mode() {
         r#"
 import pycoeus
 
-# ── BatchNorm2d training vs eval mode ────────────────────────────────
 # During training, BN normalizes using batch stats.
-# During eval, BN normalizes using stored running stats.
-bn = pycoeus.BatchNorm2d(2, eps=1e-5, momentum=1.0)  # momentum=1 → pure batch stats
+# During eval, BN normalizes using stored running stats and must not mutate them.
 
-# Set known running stats.
-bn.running_mean.data = [1.0, 2.0]
-bn.running_var.data  = [4.0, 9.0]
+def assert_eval_uses_running_stats_and_does_not_mutate(
+    bn, x, running_mean, running_var, c0_prefix_len, shape_expected
+):
+    # Prime with one training step so forward path is exercised.
+    out_train = bn.forward(x)
+    assert out_train.shape == shape_expected, f"train shape: {out_train.shape}"
 
-x = pycoeus.Tensor([
-    2.0, 4.0, 3.0, 5.0,   # C0 row: mean=3.5
-    5.0, 8.0, 6.0, 9.0,   # C1 row: mean=7.0
-], [1, 2, 2, 2])  # [N=1, C=2, H=2, W=2]
+    bn.running_mean.data = list(running_mean)
+    bn.running_var.data = list(running_var)
+    before_mean = list(bn.running_mean.data)
+    before_var = list(bn.running_var.data)
 
-# Training forward normalizes by batch stats and updates running stats.
-out_train = bn.forward(x)
-assert out_train.shape == [1, 2, 2, 2], f"train shape: {out_train.shape}"
+    out_eval = bn.eval_forward(x)
+    assert out_eval.shape == shape_expected, f"eval shape: {out_eval.shape}"
 
-# After training forward with momentum=1.0, running stats equal batch stats.
-# Capture them.
-rm_after = list(bn.running_mean.data)
-rv_after = list(bn.running_var.data)
+    # Running stats must not change during eval_forward.
+    assert bn.running_mean.data == before_mean, "eval_forward must not mutate running_mean"
+    assert bn.running_var.data == before_var, "eval_forward must not mutate running_var"
 
-# Eval forward: output should differ from training (uses running stats instead of batch stats).
-# Set a distinctive running mean to detect whether it's used.
-bn.running_mean.data = [10.0, 20.0]
-bn.running_var.data  = [1.0,  1.0]
-out_eval = bn.eval_forward(x)
-assert out_eval.shape == [1, 2, 2, 2], f"eval shape: {out_eval.shape}"
-# With running_mean=10 for C0, normalized value of x=2 is (2-10)/sqrt(1+1e-5) ≈ -8
-# Each element in C0 row should be ≈ (x - 10) / 1 = x - 10
-for v, xv in zip(out_eval.data[:4], x.data[:4]):
-    expected = (xv - 10.0) / (1.0 + 1e-5) ** 0.5
-    assert abs(v - expected) < 1e-3, f"eval C0: got {v} expected {expected:.4f}"
+    # Channel 0 values occupy the first contiguous block in [N, C, ...] layout.
+    for v, xv in zip(out_eval.data[:c0_prefix_len], x.data[:c0_prefix_len]):
+        expected = (xv - running_mean[0]) / (running_var[0] + 1e-5) ** 0.5
+        assert abs(v - expected) < 1e-3, f"eval C0: got {v} expected {expected:.4f}"
+
+
+# ── BatchNorm1d ───────────────────────────────────────────────────────
+bn1 = pycoeus.BatchNorm1d(2, eps=1e-5, momentum=1.0)
+x1 = pycoeus.Tensor([
+    2.0, 4.0,   # C0
+    5.0, 8.0,   # C1
+], [1, 2, 2])  # [N, C, L]
+assert_eval_uses_running_stats_and_does_not_mutate(
+    bn1, x1, [10.0, 20.0], [1.0, 1.0], c0_prefix_len=2, shape_expected=[1, 2, 2]
+)
+
+# ── BatchNorm2d ───────────────────────────────────────────────────────
+bn2 = pycoeus.BatchNorm2d(2, eps=1e-5, momentum=1.0)
+x2 = pycoeus.Tensor([
+    2.0, 4.0, 3.0, 5.0,   # C0
+    5.0, 8.0, 6.0, 9.0,   # C1
+], [1, 2, 2, 2])  # [N, C, H, W]
+assert_eval_uses_running_stats_and_does_not_mutate(
+    bn2, x2, [10.0, 20.0], [1.0, 1.0], c0_prefix_len=4, shape_expected=[1, 2, 2, 2]
+)
+
+# ── BatchNorm3d ───────────────────────────────────────────────────────
+bn3 = pycoeus.BatchNorm3d(2, eps=1e-5, momentum=1.0)
+x3 = pycoeus.Tensor([
+    2.0, 4.0,   # C0
+    5.0, 8.0,   # C1
+], [1, 2, 1, 1, 2])  # [N, C, D, H, W]
+assert_eval_uses_running_stats_and_does_not_mutate(
+    bn3, x3, [10.0, 20.0], [1.0, 1.0], c0_prefix_len=2, shape_expected=[1, 2, 1, 1, 2]
+)
 "#,
     );
 }

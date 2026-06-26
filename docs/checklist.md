@@ -2,22 +2,17 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-88 - matrix_norm(ord='fro') Torch parity [COMPLETE]
-**Objective**: Close the `torch.linalg.matrix_norm(ord='fro')` Torch/JAX gap
-for both 2-D scalars and higher-rank batched inputs via
-`coeus_ops::frobenius_norm` / `frobenius_norm_batched`, plus the
-`pycoeus.matrix_norm` PyO3 boundary adapter that returns a Python `float`
-for 2-D inputs (mirroring torch's 0-D coercion) and a `PyTensor` for
-per-batch results on rank-≥3 inputs. Composes on the existing
-`coeus_ops::norm` chain (no new `BinaryOp::Pow` opcode, no new backend
-dispatch surface).
-**Target version**: 0.2.28.
-**Tests delivered**: 6 Frobenius Rust unit tests, 1 ops embedding padding
-unit test, 1 BatchNorm1d eval regression, 1 Embedding padding regression, and
-2 Python binding tests in this slice.
+### Current Sprint: MS-89 - transformer source masks + BatchNorm eval bindings [COMPLETE]
+**Objective**: Add optional source key-padding-mask routing to transformer
+encoder stacks and complete Python BatchNorm eval-mode parity across
+BatchNorm1d/2d/3d while keeping Python as a thin PyO3 boundary over Rust-core
+logic.
+**Target version**: 0.2.29.
+**Tests delivered**: 2 encoder mask regression tests plus expanded Python
+BatchNorm eval-mode coverage for 1D, 2D, and 3D.
 
-### Previous Sprint: MS-87 - sigmoid/tanh/silu benches + binding parity [COMPLETE]
-**Target version**: 0.2.27.
+### Previous Sprint: MS-88 - matrix_norm(ord='fro') Torch parity [COMPLETE]
+**Target version**: 0.2.28.
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
 > oracle values; wgpu parity.rs verifies implemented GPU paths against the CPU reference;
@@ -66,8 +61,10 @@ unit test, 1 BatchNorm1d eval regression, 1 Embedding padding regression, and
 - [x] [patch] Completed vertical shape module hierarchy integration for
   `coeus-ops` and `coeus-autograd` under concern-oriented submodules while
   preserving the existing public exports.
-- [x] [patch] Added BatchNorm1d eval-mode regression verifying running stats
-  are used without mutation.
+- [x] [patch] Expanded BatchNorm eval-mode parity across Python bindings:
+  `BatchNorm1d`, `BatchNorm2d`, and `BatchNorm3d` now expose `eval_forward`,
+  and regression coverage verifies eval-path normalization uses
+  `running_mean`/`running_var` without mutating them.
 - [x] Documented ordering in CHANGELOG, raised workspace `Cargo.toml`
   0.2.23 → 0.2.28 without regressing the existing MS-87 branch history.
 - Evidence: `cargo nextest run -p coeus-ops frobenius` passes with 6 tests
@@ -81,6 +78,26 @@ unit test, 1 BatchNorm1d eval regression, 1 Embedding padding regression, and
   coeus-ops -p coeus-autograd -p coeus-nn -p coeus-python --all-targets --
   -D warnings`, `cargo doc -p coeus-ops -p coeus-autograd -p coeus-nn -p
   coeus-python --no-deps`, and `cargo fmt --check` are clean.
+
+### MS-89 Progress (2026-06-26)
+
+- [x] [minor] Added optional source key-padding-mask routing through
+  `TransformerEncoderLayer::forward_with_mask`,
+  `TransformerEncoder::forward_with_mask`, and
+  `Transformer::forward_seq2seq_with_src_mask`; `Module::forward` delegates to
+  the same implementation with no mask.
+- [x] [minor] Completed `pycoeus.BatchNorm1d/2d/3d` eval-mode binding parity.
+  Regression coverage verifies eval normalization uses `running_mean` /
+  `running_var` without mutating them.
+- [x] [patch] Synchronized `pycoeus.pyi` for `matrix_norm`,
+  `BatchNorm1d/2d/3d`, and `Embedding(..., padding_idx=...)`.
+- Evidence: `cargo nextest run -p coeus-nn --test nn_attention_tests` passes
+  with 13 tests; `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_batchnorm_eval_mode` passes; `cargo nextest run -p coeus-nn` passes
+  with 211 tests; `cargo nextest run -p coeus-python` passes with 70 tests;
+  `cargo clippy -p coeus-nn -p coeus-python --all-targets -- -D warnings`,
+  `cargo doc -p coeus-nn -p coeus-python --no-deps`, and `cargo fmt --check`
+  pass.
 
 ### Current Verification Note (2026-06-25)
 
