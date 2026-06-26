@@ -2,7 +2,24 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-110 - Conv3d backward parity vs Burn autodiff [COMPLETE]
+### Current Sprint: MS-111 - CUDA strided Hephaestus routing [COMPLETE]
+**Objective**: Extend CUDA Hephaestus routing to the dynamic-strided path so
+non-contiguous CUDA elementwise ops also prefer the Hephaestus kernel (with
+rank ≤ MAX_STRIDED_RANK and no broadcast dimensions in output) before the
+Coeus-local strided fallback.
+**Target version**: 0.5.1 (patch-class; performance).
+
+- [x] [patch] Added `try_hephaestus_strided_binary` routing Add/Sub/Mul/Div
+  through `hephaestus_cuda::binary_elementwise_strided_dyn_into` with guard for
+  rank and broadcast exclusion.
+- [x] [patch] Added `try_hephaestus_strided_unary` routing Sin/Cos/Exp/Log/Neg/
+  Abs/Sqrt/Recip through `hephaestus_cuda::unary_elementwise_strided_dyn_into`.
+- [x] [patch] Added `hephaestus_operand` helper to convert Coeus layout
+  (shape/strides/offset) to `hephaestus_cuda::StridedOperandDyn`.
+- [x] Evidence: `cargo check -p coeus-cuda --all-targets` clean;
+  `cargo check -p coeus-cuda --features cuda` clean.
+
+### Previous Sprint: MS-110 - Conv3d backward parity vs Burn autodiff [COMPLETE]
 **Objective**: Add differential Burn autodiff parity for Conv3d backward
 pass (dx, dw), completing backward parity coverage for all three conv dims.
 **Target version**: 0.5.1 (patch-class; test coverage).
