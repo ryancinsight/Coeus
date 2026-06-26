@@ -22,6 +22,14 @@
   lock for fused-kernel cache hits and inserts, matching the read-mostly cache
   contract.
 
+### Changed
+
+- **CUDA Hephaestus primitive routing** — contiguous non-aliased
+  `coeus-cuda` primitive elementwise operations now route through
+  `hephaestus-cuda`, matching the existing WGPU provider-first boundary while
+  retaining Coeus-local CUDA kernels for aliasing, dynamic-layout strided paths,
+  and NN-specific formulas.
+
 ### Verified
 
 - `cargo test --doc -p coeus-core` passes 32/32 doctests.
@@ -30,6 +38,10 @@
   validates 94/94 Burn parity and analytical optimizer tests.
 - `cargo check -p coeus-cuda` and `cargo check -p coeus-cuda --features cuda`
   validate both CUDA backend build surfaces.
+- `cargo clippy -p coeus-cuda --all-targets --features cuda -- -D warnings`
+  validates the CUDA routing surface.
+- `cargo nextest run -p coeus-cuda --features cuda` passes 69/69 live CUDA
+  tests, including primitive parity rows routed through Hephaestus.
 - `cargo fmt --check`, `coeus-core`/`coeus-cuda` clippy, and `coeus-core`
   rustdoc pass.
 

@@ -8,7 +8,7 @@ pub mod math;
 pub mod optim;
 pub mod pool;
 
-impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
+impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
     #[inline]
     fn elementwise_binary(
         &self,
