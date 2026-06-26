@@ -2570,6 +2570,42 @@ fn batchnorm1d_eval_forward_matches_burn() {
     );
 }
 
+// ── BatchNorm2d eval-mode forward matches Burn NdArray ───────────────────────
+
+#[test]
+fn batchnorm2d_eval_forward_matches_burn() {
+    use burn::nn::BatchNormConfig;
+    use coeus_nn::BatchNorm2d;
+
+    // Input [N=2, C=2, H=3, W=3] = 36 elements.
+    // running_mean=0, running_var=1 on both sides; eval mode throughout.
+    // Tolerance derivation identical to BatchNorm1d: |err| ≤ 2.8e-5 for |x|≤8.5,
+    // plus f32 rounding → tol = 1e-4.
+    let data: Vec<f32> = (0..36).map(|x| x as f32 - 17.5).collect();
+    let (n, c, h, w) = (2usize, 2, 3, 3);
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, h, w], &data),
+        false,
+    );
+    let mut bn = BatchNorm2d::<f32, SequentialBackend>::new(c, 1e-5, 0.1);
+    bn.set_training(false);
+    let out_c = bn.forward(&xv);
+
+    let bn_b: burn::nn::BatchNorm<BurnBackend, 2> =
+        BatchNormConfig::new(c).init::<BurnBackend, 2>(&dev());
+    let xb: BurnTensor<BurnBackend, 4> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, h, w]), &dev());
+    let out_b = bvec(bn_b.forward(xb));
+
+    assert_close_rel(
+        "batchnorm2d_eval_vs_burn",
+        out_c.tensor.as_slice(),
+        &out_b,
+        1e-4,
+    );
+}
+
 // ── InstanceNorm forward (matches Burn NdArray) ──────────────────────────────
 
 #[test]

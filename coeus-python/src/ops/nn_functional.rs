@@ -311,6 +311,7 @@ pub fn f_cross_entropy(input: &PyTensor, targets: Vec<usize>, py: Python<'_>) ->
 ///
 /// `weight` (γ) and `bias` (β) default to ones and zeros respectively.
 #[pyfunction]
+#[allow(clippy::too_many_arguments)] // PyO3 boundary mirrors the functional batch_norm API.
 #[pyo3(signature = (
     input,
     running_mean,
@@ -375,6 +376,71 @@ pub fn rms_norm(input: &PyTensor, weight: Option<&PyTensor>, eps: f64, py: Pytho
         RMSNorm::from_parts(weight_var, eps).forward(&x)
     });
     PyTensor::from_var(inner)
+}
+
+/// Functional (stateless) group normalization.
+///
+/// Matches `torch.nn.functional.group_norm(input, num_groups, weight, bias, eps)`.
+///
+/// # Shapes
+/// - `input`:  `[N, C, *]` where `C % num_groups == 0`
+/// - `weight`: optional `[C]` scale (γ); defaults to ones
+/// - `bias`:   optional `[C]` shift (β); defaults to zeros
+/// - Output:   same shape as `input`
+#[pyfunction]
+#[pyo3(signature = (input, num_groups, weight = None, bias = None, eps = 1e-5))]
+pub fn group_norm(
+    input: &PyTensor,
+    num_groups: usize,
+    weight: Option<&PyTensor>,
+    bias: Option<&PyTensor>,
+    eps: f64,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
+    let shape = input.inner.tensor.shape();
+    if shape.len() < 2 {
+        return Err(PyValueError::new_err(
+            "group_norm: input must have at least 2 dimensions",
+        ));
+    }
+    if num_groups == 0 {
+        return Err(PyValueError::new_err(
+            "group_norm: num_groups must be greater than 0",
+        ));
+    }
+    if !eps.is_finite() || eps < 0.0 {
+        return Err(PyValueError::new_err(
+            "group_norm: eps must be finite and non-negative",
+        ));
+    }
+    let c = shape[1];
+    if !c.is_multiple_of(num_groups) {
+        return Err(PyValueError::new_err(format!(
+            "group_norm: channels ({c}) must be divisible by num_groups ({num_groups})"
+        )));
+    }
+    if let Some(w) = weight {
+        if w.inner.tensor.shape() != [c] {
+            return Err(PyValueError::new_err(
+                "group_norm: weight must have shape [C]",
+            ));
+        }
+    }
+    if let Some(b) = bias {
+        if b.inner.tensor.shape() != [c] {
+            return Err(PyValueError::new_err(
+                "group_norm: bias must have shape [C]",
+            ));
+        }
+    }
+    let x = input.inner.tensor.clone();
+    let w = weight.map(|w| w.inner.tensor.clone());
+    let b = bias.map(|b| b.inner.tensor.clone());
+    let inner = py.allow_threads(move || {
+        use coeus_nn::group_norm as gn;
+        gn(&x, num_groups, w.as_ref(), b.as_ref(), eps)
+    });
+    Ok(PyTensor::from_var(coeus_autograd::Var::new(inner, false)))
 }
 
 /// Functional (stateless) scaled dot-product attention.

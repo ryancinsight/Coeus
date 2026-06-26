@@ -2,7 +2,29 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-99 - WGPU routing and functional GroupNorm [COMPLETE]
+### Current Sprint: MS-100 - Python functional GroupNorm wrapper [COMPLETE]
+**Objective**: Expose Rust-core functional GroupNorm through `coeus-python`
+without adding Python-side normalization logic.
+**Target version**: 0.5.0 (minor-class; additive public Python API).
+**Tests delivered**: Python binding value checks for no-affine output, affine
+output, and invalid group count, plus BatchNorm2d eval-mode parity against Burn
+NdArray.
+
+- [x] [minor] Added registered `pycoeus.group_norm` as a thin PyO3 wrapper over
+  `coeus_nn::group_norm`, with GIL release around Rust computation.
+- [x] [patch] Added Python-boundary validation for rank, group count, epsilon,
+  and optional affine tensor shape before delegating to Rust core.
+- [x] [patch] Extended `coeus-python/tests/binding_tests_ops.rs` with exact
+  functional GroupNorm output assertions and zero-group rejection.
+- [x] [patch] Added `coeus-nn/tests/burn_live_parity.rs` BatchNorm2d eval-mode
+  forward parity against Burn NdArray.
+- [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-python --test
+  binding_tests_ops test_nn_functional_ops`; `cargo nextest run -p coeus-nn
+  --test burn_live_parity batchnorm2d_eval_forward_matches_burn`; `cargo
+  clippy -p coeus-python --all-targets -- -D warnings`; `cargo doc -p
+  coeus-python --no-deps`.
+
+### Previous Sprint: MS-99 - WGPU routing and functional GroupNorm [COMPLETE]
 **Objective**: Strengthen `coeus-wgpu` shader/pipeline cache correctness,
 route contiguous elementwise work through Hephaestus public kernels where
 aliasing permits, and add a Rust-core functional GroupNorm API for parity with

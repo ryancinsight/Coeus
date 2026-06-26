@@ -261,6 +261,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::layer_norm, m)?)?;
     m.add_function(wrap_pyfunction!(ops::batch_norm_1d, m)?)?;
     m.add_function(wrap_pyfunction!(ops::rms_norm, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::group_norm, m)?)?;
     m.add_function(wrap_pyfunction!(ops::dropout, m)?)?;
     // diag / diagonal / cumprod
     m.add_function(wrap_pyfunction!(ops::diag, m)?)?;

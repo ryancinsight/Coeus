@@ -1,5 +1,20 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-100: Python functional GroupNorm wrapper [COMPLETE]
+
+- [x] [minor] Added registered `pycoeus.group_norm` as a thin PyO3 wrapper over
+  Rust-core `coeus_nn::group_norm`, keeping the binding layer limited to type
+  conversion, validation, error mapping, and GIL release.
+- [x] [patch] Added exact Python binding assertions for no-affine output,
+  affine output, and zero-group rejection.
+- [x] [patch] Added BatchNorm2d eval-mode forward parity coverage against Burn
+  NdArray.
+- [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-python --test
+  binding_tests_ops test_nn_functional_ops`; `cargo nextest run -p coeus-nn
+  --test burn_live_parity batchnorm2d_eval_forward_matches_burn`; `cargo
+  clippy -p coeus-python --all-targets -- -D warnings`; `cargo doc -p
+  coeus-python --no-deps`.
+
 ## Sprint MS-99: WGPU routing and functional GroupNorm [COMPLETE]
 
 - [x] [patch] Hardened `coeus-wgpu` pipeline cache keys with device scoping

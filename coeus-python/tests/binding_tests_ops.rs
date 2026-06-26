@@ -1295,6 +1295,23 @@ ce = pycoeus.f_cross_entropy(
 )
 assert ce.shape == [1], f"f_cross_entropy shape: {ce.shape}"
 assert ce.data[0] > 0.0, f"f_cross_entropy value should be positive"
+
+# ── functional group_norm ─────────────────────────────────────────────
+x_gn = pycoeus.Tensor([1.0, 3.0, 10.0, 14.0], [1, 4, 1])
+gn = pycoeus.group_norm(x_gn, 2, None, None, 0.0)
+assert gn.shape == [1, 4, 1], f"group_norm shape: {gn.shape}"
+assert gn.data == [-1.0, 1.0, -1.0, 1.0], f"group_norm: {gn.data}"
+
+w_gn = pycoeus.Tensor([2.0, 2.0, 3.0, 3.0], [4])
+b_gn = pycoeus.Tensor([0.5, -0.5, 1.0, -1.0], [4])
+gn_affine = pycoeus.group_norm(x_gn, 2, w_gn, b_gn, 0.0)
+assert gn_affine.data == [-1.5, 1.5, -2.0, 2.0], f"group_norm affine: {gn_affine.data}"
+
+try:
+    pycoeus.group_norm(x_gn, 0)
+    raise AssertionError("group_norm zero groups should raise")
+except ValueError as exc:
+    assert "num_groups" in str(exc)
 "#,
     );
 }

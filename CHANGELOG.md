@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.5.0 - 2026-06-26
+
+### Added
+
+- **Python functional GroupNorm** — `coeus-python` now exposes
+  `pycoeus.group_norm` as a thin PyO3 wrapper over Rust-core
+  `coeus_nn::group_norm`, including Python boundary validation and
+  `allow_threads` compute execution.
+- **BatchNorm2d Burn parity coverage** — `coeus-nn` now verifies eval-mode
+  `BatchNorm2d` forward output against Burn NdArray.
+
+### Verified
+
+- `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_nn_functional_ops` validates exact no-affine and affine GroupNorm
+  output plus zero-group rejection through the Python binding.
+- `cargo nextest run -p coeus-nn --test burn_live_parity
+  batchnorm2d_eval_forward_matches_burn` validates BatchNorm2d eval-mode
+  parity against Burn.
+- `cargo fmt --check`, `coeus-python` clippy, and `coeus-python` rustdoc pass.
+
 ## 0.4.0 - 2026-06-26
 
 ### Added
