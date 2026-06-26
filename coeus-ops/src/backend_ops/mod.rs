@@ -3,6 +3,7 @@
 #![allow(clippy::too_many_arguments)]
 
 mod cpu_impl;
+pub(crate) mod defaults;
 pub mod ops;
 pub mod trait_def;
 

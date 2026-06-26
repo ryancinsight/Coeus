@@ -1,5 +1,6 @@
-use coeus_core::{Layout, Scalar, Shape, Strides};
+use coeus_core::{Layout, Scalar};
 
+use super::defaults;
 use super::ops::{BinaryOp, ReductionOp, UnaryOp};
 
 /// Dynamic operations supported by execution hardware backends.
@@ -60,31 +61,10 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        let temp_len = c_layout.shape().iter().product();
-        let mut temp = self.allocate::<T>(temp_len);
-        let temp_layout =
-            Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
-        self.fill(&mut temp, T::zero());
-        self.matmul(a, a_layout, b, b_layout, &mut temp, &temp_layout);
-        let c_ptr = c as *mut Self::DeviceBuffer<T>;
-        unsafe {
-            self.elementwise_binary(
-                BinaryOp::Add,
-                &*c_ptr,
-                c_layout,
-                &temp,
-                &temp_layout,
-                &mut *c_ptr,
-                c_layout,
-            );
-        }
+        defaults::matmul::matmul_accumulate(self, a, a_layout, b, b_layout, c, c_layout)
     }
 
     /// Rank-3 batched matrix multiplication.
-    ///
-    /// The default implementation keeps backend compatibility by slicing each
-    /// batch into rank-2 layouts and dispatching through [`Self::matmul`]. CPU
-    /// backends override this with the `coeus-leto` batched kernel.
     fn batched_matmul(
         &self,
         a: &Self::DeviceBuffer<T>,
@@ -94,62 +74,7 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        assert_eq!(a_layout.ndim(), 3, "batched_matmul: lhs must be rank 3");
-        assert_eq!(b_layout.ndim(), 3, "batched_matmul: rhs must be rank 3");
-        assert_eq!(c_layout.ndim(), 3, "batched_matmul: out must be rank 3");
-
-        let [lhs_batch, m, lhs_k] = shape3(a_layout.shape(), "lhs");
-        let [rhs_batch, rhs_k, n] = shape3(b_layout.shape(), "rhs");
-        let [out_batch, out_m, out_n] = shape3(c_layout.shape(), "out");
-        assert!(
-            (lhs_batch == out_batch || lhs_batch == 1)
-                && (rhs_batch == out_batch || rhs_batch == 1)
-                && lhs_k == rhs_k
-                && m == out_m
-                && n == out_n,
-            "batched_matmul: incompatible shapes {:?}, {:?}, {:?}",
-            a_layout.shape(),
-            b_layout.shape(),
-            c_layout.shape(),
-        );
-
-        let lhs_batch_stride = if lhs_batch == 1 {
-            0
-        } else {
-            a_layout.strides()[0]
-        };
-        let rhs_batch_stride = if rhs_batch == 1 {
-            0
-        } else {
-            b_layout.strides()[0]
-        };
-        let out_batch_stride = c_layout.strides()[0];
-
-        let lhs_shape = Shape::from([m, lhs_k].as_slice());
-        let rhs_shape = Shape::from([rhs_k, n].as_slice());
-        let out_shape = Shape::from([out_m, out_n].as_slice());
-        let lhs_strides = Strides::from([a_layout.strides()[1], a_layout.strides()[2]].as_slice());
-        let rhs_strides = Strides::from([b_layout.strides()[1], b_layout.strides()[2]].as_slice());
-        let out_strides = Strides::from([c_layout.strides()[1], c_layout.strides()[2]].as_slice());
-
-        for batch in 0..out_batch {
-            let lhs_layout = Layout::from_shape_strides(
-                lhs_shape.clone(),
-                lhs_strides.clone(),
-                a_layout.offset() + batch * lhs_batch_stride,
-            );
-            let rhs_layout = Layout::from_shape_strides(
-                rhs_shape.clone(),
-                rhs_strides.clone(),
-                b_layout.offset() + batch * rhs_batch_stride,
-            );
-            let out_layout = Layout::from_shape_strides(
-                out_shape.clone(),
-                out_strides.clone(),
-                c_layout.offset() + batch * out_batch_stride,
-            );
-            self.matmul(a, &lhs_layout, b, &rhs_layout, c, &out_layout);
-        }
+        defaults::matmul::batched_matmul(self, a, a_layout, b, b_layout, c, c_layout)
     }
 
     /// Rank-3 batched matrix multiplication with accumulation: `c += a * b`.
@@ -162,24 +87,7 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) {
-        let temp_len = c_layout.shape().iter().product();
-        let mut temp = self.allocate::<T>(temp_len);
-        let temp_layout =
-            Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
-        self.fill(&mut temp, T::zero());
-        self.batched_matmul(a, a_layout, b, b_layout, &mut temp, &temp_layout);
-        let c_ptr = c as *mut Self::DeviceBuffer<T>;
-        unsafe {
-            self.elementwise_binary(
-                BinaryOp::Add,
-                &*c_ptr,
-                c_layout,
-                &temp,
-                &temp_layout,
-                &mut *c_ptr,
-                c_layout,
-            );
-        }
+        defaults::matmul::batched_matmul_accumulate(self, a, a_layout, b, b_layout, c, c_layout)
     }
 
     /// Reduction operations along an axis.
@@ -204,14 +112,7 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     ) where
         T: leto_ops::Scalar,
     {
-        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
-        self.copy_to_host(a, &mut host_a);
-
-        let mut host_c = vec![0i64; c_layout.shape().iter().product()];
-        coeus_leto::argmax_into(a_layout, &host_a, axis, c_layout, &mut host_c)
-            .expect("argmax default impl failed");
-
-        self.copy_to_device(&host_c, c);
+        defaults::reductions::argmax(self, a, a_layout, axis, c, c_layout)
     }
 
     /// Compute the indices of the minimum values along `axis`.
@@ -225,14 +126,7 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     ) where
         T: leto_ops::Scalar,
     {
-        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
-        self.copy_to_host(a, &mut host_a);
-
-        let mut host_c = vec![0i64; c_layout.shape().iter().product()];
-        coeus_leto::argmin_into(a_layout, &host_a, axis, c_layout, &mut host_c)
-            .expect("argmin default impl failed");
-
-        self.copy_to_device(&host_c, c);
+        defaults::reductions::argmin(self, a, a_layout, axis, c, c_layout)
     }
 
     /// Return the `k` largest (or smallest) values and their indices along an axis.
@@ -251,24 +145,7 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     ) where
         T: leto_ops::Scalar,
     {
-        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
-        self.copy_to_host(a, &mut host_a);
-
-        let mut host_values = vec![T::zero(); values_layout.shape().iter().product()];
-        let mut host_indices = vec![0i64; indices_layout.shape().iter().product()];
-
-        crate::reduction::topk::topk_impl(
-            &host_a,
-            a_layout.shape(),
-            k,
-            axis,
-            largest,
-            &mut host_values,
-            &mut host_indices,
-        );
-
-        self.copy_to_device(&host_values, values);
-        self.copy_to_device(&host_indices, indices);
+        defaults::reductions::topk(self, a, a_layout, k, axis, largest, values, values_layout, indices, indices_layout)
     }
 
     /// Inclusive cumulative sum along an axis.
@@ -282,14 +159,7 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     ) where
         T: leto_ops::Scalar,
     {
-        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
-        self.copy_to_host(a, &mut host_a);
-
-        let mut host_c = vec![T::zero(); c_layout.shape().iter().product()];
-        coeus_leto::cumsum_into(a_layout, &host_a, axis, c_layout, &mut host_c)
-            .expect("cumsum default impl failed");
-
-        self.copy_to_device(&host_c, c);
+        defaults::reductions::cumsum(self, a, a_layout, axis, c, c_layout)
     }
 
     /// Inclusive cumulative suffix sum (reverse cumulative sum) along an axis.
@@ -303,14 +173,7 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     ) where
         T: leto_ops::Scalar,
     {
-        let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
-        self.copy_to_host(a, &mut host_a);
-
-        let mut host_c = vec![T::zero(); c_layout.shape().iter().product()];
-        coeus_leto::suffix_sum_into(a_layout, &host_a, axis, c_layout, &mut host_c)
-            .expect("suffix_sum default impl failed");
-
-        self.copy_to_device(&host_c, c);
+        defaults::reductions::suffix_sum(self, a, a_layout, axis, c, c_layout)
     }
 
     /// 1D Convolution
@@ -524,13 +387,6 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     );
 
     /// Scaled dot-product attention forward.
-    ///
-    /// # Shapes
-    /// - `query`:        `[batch, seq_q, d_k]`
-    /// - `key`:          `[batch, seq_k, d_k]`
-    /// - `value`:        `[batch, seq_k, d_v]`
-    /// - `output`:       `[batch, seq_q, d_v]`  (pre-allocated, overwritten)
-    /// - `attn_weights`: `[batch, seq_q, seq_k]` (pre-allocated, overwritten; stored for backward)
     fn sdp_attention(
         &self,
         query: &Self::DeviceBuffer<T>,
@@ -551,8 +407,6 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         T: coeus_core::Float;
 
     /// Scaled dot-product attention backward.
-    ///
-    /// Accumulates gradients into `grad_q`, `grad_k`, `grad_v` (if Some).
     #[allow(clippy::too_many_arguments)]
     fn sdp_attention_backward(
         &self,
@@ -622,9 +476,6 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         T: coeus_core::Float;
 
     /// Fused AdamW step update (decoupled weight decay).
-    ///
-    /// Applies weight decay directly to the parameter before the Adam update:
-    /// `p = p * (1 - lr * weight_decay)`, then applies the standard Adam correction.
     fn adamw_step(
         &self,
         param: &mut Self::DeviceBuffer<T>,
@@ -659,18 +510,8 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
         T: coeus_core::Float;
 
     // ── Transposed Convolution (Deconvolution) ─────────────────────────────────
-    //
-    // Default implementations run the dilated-input algorithm on the host to keep
-    // the WGPU/CUDA backends functional without requiring new GPU kernels.  A
-    // specialised backend can override these for better throughput.
 
-    /// 1-D Transposed Convolution.
-    ///
-    /// Output length: `(L - 1) * stride - 2 * padding + dilation * (K - 1) + output_padding + 1`
-    ///
-    /// # Default implementation
-    /// Copies input and weight to host, runs an explicit strided loop, copies
-    /// the result back.
+    /// 1-D Transposed Convolution default (host-side fallback).
     #[allow(clippy::too_many_arguments)]
     fn conv_transpose1d(
         &self,
@@ -688,78 +529,13 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     ) where
         T: coeus_core::Float,
     {
-        let n = input_layout.shape()[0];
-        let c_in = input_layout.shape()[1];
-        let l = input_layout.shape()[2];
-        let c_out = weight_layout.shape()[1];
-        let k = weight_layout.shape()[2];
-        let l_out = output_layout.shape()[2];
-
-        // Transfer to host slices.
-        let in_numel = n * c_in * l;
-        let w_numel = c_in * c_out * k;
-        let out_numel = n * c_out * l_out;
-
-        let mut in_h = vec![T::zero(); in_numel];
-        let mut w_h = vec![T::zero(); w_numel];
-        let mut out_h = vec![T::zero(); out_numel];
-
-        self.copy_to_host(input, &mut in_h);
-        self.copy_to_host(weight, &mut w_h);
-
-        // Compute conv_transpose1d on host.
-        // input:  [n, c_in,  l]
-        // weight: [c_in, c_out, k]   (note: transposed convention)
-        // output: [n, c_out, l_out]
-        //
-        // Each input element input[ni, ic, ti] "scatters" to output positions
-        // via the weight, spaced by stride:
-        //   out[ni, oc, ti * stride + ki * dilation - padding] += in[ni,ic,ti] * w[ic,oc,ki]
-        for ni in 0..n {
-            for ic in 0..c_in {
-                for ti in 0..l {
-                    let in_val = in_h[ni * c_in * l + ic * l + ti];
-                    for oc in 0..c_out {
-                        for ki in 0..k {
-                            let t_out = ti * stride + ki * dilation;
-                            if t_out < padding {
-                                continue;
-                            }
-                            let t_out = t_out - padding;
-                            if t_out >= l_out {
-                                continue;
-                            }
-                            let w_val = w_h[ic * c_out * k + oc * k + ki];
-                            out_h[ni * c_out * l_out + oc * l_out + t_out] =
-                                out_h[ni * c_out * l_out + oc * l_out + t_out] + in_val * w_val;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Add bias if provided.
-        if let Some(b) = bias {
-            let mut b_h = vec![T::zero(); c_out];
-            self.copy_to_host(b, &mut b_h);
-            for ni in 0..n {
-                for oc in 0..c_out {
-                    for t in 0..l_out {
-                        out_h[ni * c_out * l_out + oc * l_out + t] =
-                            out_h[ni * c_out * l_out + oc * l_out + t] + b_h[oc];
-                    }
-                }
-            }
-        }
-
-        let _ = output_padding; // used in shape calculation, not in loop
-        self.copy_to_device(&out_h, output);
+        defaults::conv_transpose::conv_transpose1d(
+            self, input, input_layout, weight, weight_layout, bias,
+            stride, padding, output_padding, dilation, output, output_layout,
+        )
     }
 
-    /// 2-D Transposed Convolution.
-    ///
-    /// Output shape: `[N, C_out, H_out, W_out]` where
-    /// `H_out = (H - 1) * stride - 2 * padding + dilation * (KH - 1) + output_padding + 1`.
+    /// 2-D Transposed Convolution default (host-side fallback).
     #[allow(clippy::too_many_arguments)]
     fn conv_transpose2d(
         &self,
@@ -777,90 +553,9 @@ pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     ) where
         T: coeus_core::Float,
     {
-        let n = input_layout.shape()[0];
-        let c_in = input_layout.shape()[1];
-        let h = input_layout.shape()[2];
-        let w = input_layout.shape()[3];
-        let c_out = weight_layout.shape()[1];
-        let kh = weight_layout.shape()[2];
-        let kw = weight_layout.shape()[3];
-        let h_out = output_layout.shape()[2];
-        let w_out = output_layout.shape()[3];
-
-        let in_numel = n * c_in * h * w;
-        let weight_numel = c_in * c_out * kh * kw;
-        let out_numel = n * c_out * h_out * w_out;
-
-        let mut in_h = vec![T::zero(); in_numel];
-        let mut wt_h = vec![T::zero(); weight_numel];
-        let mut out_h = vec![T::zero(); out_numel];
-
-        self.copy_to_host(input, &mut in_h);
-        self.copy_to_host(weight, &mut wt_h);
-
-        // input:  [n, c_in, h, w]
-        // weight: [c_in, c_out, kh, kw]  (transposed convention: c_in first)
-        // output: [n, c_out, h_out, w_out]
-        for ni in 0..n {
-            for ic in 0..c_in {
-                for hi in 0..h {
-                    for wi in 0..w {
-                        let in_val = in_h[ni * c_in * h * w + ic * h * w + hi * w + wi];
-                        for oc in 0..c_out {
-                            for ki in 0..kh {
-                                for kj in 0..kw {
-                                    let h_pos = hi * stride + ki * dilation;
-                                    let w_pos = wi * stride + kj * dilation;
-                                    if h_pos < padding || w_pos < padding {
-                                        continue;
-                                    }
-                                    let h_out_idx = h_pos - padding;
-                                    let w_out_idx = w_pos - padding;
-                                    if h_out_idx >= h_out || w_out_idx >= w_out {
-                                        continue;
-                                    }
-                                    let wt_val =
-                                        wt_h[ic * c_out * kh * kw + oc * kh * kw + ki * kw + kj];
-                                    let out_idx = ni * c_out * h_out * w_out
-                                        + oc * h_out * w_out
-                                        + h_out_idx * w_out
-                                        + w_out_idx;
-                                    out_h[out_idx] = out_h[out_idx] + in_val * wt_val;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Add bias if provided.
-        if let Some(b) = bias {
-            let mut b_h = vec![T::zero(); c_out];
-            self.copy_to_host(b, &mut b_h);
-            for ni in 0..n {
-                for oc in 0..c_out {
-                    for hi in 0..h_out {
-                        for wi in 0..w_out {
-                            let idx =
-                                ni * c_out * h_out * w_out + oc * h_out * w_out + hi * w_out + wi;
-                            out_h[idx] = out_h[idx] + b_h[oc];
-                        }
-                    }
-                }
-            }
-        }
-
-        let _ = output_padding;
-        self.copy_to_device(&out_h, output);
+        defaults::conv_transpose::conv_transpose2d(
+            self, input, input_layout, weight, weight_layout, bias,
+            stride, padding, output_padding, dilation, output, output_layout,
+        )
     }
-}
-
-fn shape3(shape: &[usize], name: &str) -> [usize; 3] {
-    assert_eq!(
-        shape.len(),
-        3,
-        "batched_matmul: {name} shape must have rank 3"
-    );
-    [shape[0], shape[1], shape[2]]
 }
