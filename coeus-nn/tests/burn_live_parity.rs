@@ -3146,3 +3146,83 @@ fn conv2d_forward_matches_burn() {
     assert_eq!(out_c.tensor.shape(), &[n, oc, out_h, out_w]);
     assert_close("conv2d_vs_burn", out_c.tensor.as_slice(), &out_b);
 }
+
+// ── Conv3d forward matches Burn NdArray (ones kernel) ────────────────────────
+
+#[test]
+fn conv3d_forward_matches_burn() {
+    use burn::nn::conv::Conv3dConfig;
+    use burn::nn::PaddingConfig3d;
+    use coeus_nn::Conv3d;
+
+    // C_in=2, C_out=1, K=2×2×2, no bias, ones weight.
+    // Input [N=1, C_in=2, D=3, H=3, W=3]; valid conv → output [N=1, C_out=1, D=2, H=2, W=2].
+    let (n, ic, oc, d, h, w, k) = (1usize, 2, 1, 3, 3, 3, 2);
+    let out_d = d - k + 1;
+    let out_h = h - k + 1;
+    let out_w = w - k + 1;
+    let data: Vec<f32> = (0..n * ic * d * h * w)
+        .map(|x| x as f32 * 0.05 - 1.25)
+        .collect();
+    let w_vec = vec![1.0f32; oc * ic * k * k * k];
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, ic, d, h, w], &data),
+        false,
+    );
+    let mut conv_c = Conv3d::<f32, SequentialBackend>::new(ic, oc, k, false);
+    conv_c.weight = Var::new(
+        CoeusTensor::from_slice(vec![oc, ic, k, k, k], &w_vec),
+        true,
+    );
+    let out_c = conv_c.forward(&xv);
+
+    let xb: BurnTensor<BurnBackend, 5> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, ic, d, h, w]), &dev());
+    let mut conv_b = Conv3dConfig::new([ic, oc], [k, k, k])
+        .with_bias(false)
+        .with_padding(PaddingConfig3d::Valid)
+        .init::<BurnBackend>(&dev());
+    conv_b.weight = burn::module::Param::from_data(
+        TensorData::new(w_vec.clone(), [oc, ic, k, k, k]),
+        &dev(),
+    );
+    let out_b = bvec(conv_b.forward(xb));
+
+    assert_eq!(out_c.tensor.shape(), &[n, oc, out_d, out_h, out_w]);
+    assert_close("conv3d_vs_burn", out_c.tensor.as_slice(), &out_b);
+}
+
+// ── InstanceNorm2d forward matches Burn NdArray ──────────────────────────────
+
+#[test]
+fn instancenorm2d_forward_matches_burn() {
+    use burn::nn::InstanceNormConfig;
+    use coeus_nn::InstanceNorm2d;
+
+    // [N=2, C=2, H=3, W=3] — Burn InstanceNorm uses affine=false by default (weight=1, bias=0).
+    // Coeus InstanceNorm2d::new also defaults to no affine.
+    // Both normalize over [H, W] = 9 elements independently per (N, C) pair.
+    let (n, c, h, w) = (2usize, 2, 3, 3);
+    let data: Vec<f32> = (0..n * c * h * w).map(|x| x as f32 * 0.25 - 4.5).collect();
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, h, w], &data),
+        false,
+    );
+    let inorm = InstanceNorm2d::<f32, SequentialBackend>::new(c, 1e-5);
+    let out_c = inorm.forward(&xv);
+
+    let in_b = InstanceNormConfig::new(c).init::<BurnBackend>(&dev());
+    let xb: BurnTensor<BurnBackend, 4> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, h, w]), &dev());
+    let out_b = bvec(in_b.forward(xb));
+
+    // Tolerance: same sqrt(var+eps) vs sqrt(var)+eps gap as GroupNorm; tol=1e-4.
+    assert_close_rel(
+        "instancenorm2d_vs_burn",
+        out_c.tensor.as_slice(),
+        &out_b,
+        1e-4,
+    );
+}
