@@ -20,11 +20,16 @@
 )]
 #![deny(missing_docs)]
 
+/// Backward-pass graph traversal and gradient propagation.
 pub mod backward;
 pub(crate) mod grad_buffer;
+/// Thread-local autograd recording mode (no-grad scopes).
 pub mod grad_mode;
+/// Computation graph node trait and implementations.
 pub mod node;
+/// Differentiable operations that build the autograd graph.
 pub mod ops;
+/// The differentiable variable type.
 pub mod var;
 
 pub use grad_buffer::GradBuffer;

@@ -3,6 +3,7 @@ use crate::var::Var;
 use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 
+/// ZST tag for sum reduction autograd.
 pub struct SumOp;
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B> for SumOp {
     const OP_NAME: &'static str = "sum";
@@ -19,6 +20,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
     }
 }
 
+/// ZST tag for sum-along-axis reduction autograd.
 pub struct SumAxisOp;
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B> for SumAxisOp {
     const OP_NAME: &'static str = "sum_axis";
@@ -34,6 +36,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
     }
 }
 
+/// ZST tag for mean reduction autograd.
 pub struct MeanOp;
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B> for MeanOp {
     const OP_NAME: &'static str = "mean";
@@ -52,6 +55,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
     }
 }
 
+/// ZST tag for mean-along-axis reduction autograd.
 pub struct MeanAxisOp;
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B> for MeanAxisOp {
     const OP_NAME: &'static str = "mean_axis";

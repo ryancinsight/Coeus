@@ -5,13 +5,19 @@ use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
+/// Autograd node for cross-entropy loss.
 pub struct CrossEntropyLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Target class indices for each sample.
     pub targets: Vec<usize>,
     /// Softmax probabilities stored as `Vec<T>` — no f64 widening.
     pub probs: Vec<T>,
+    /// Batch size.
     pub n: usize,
+    /// Number of classes.
     pub c: usize,
 }
 

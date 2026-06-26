@@ -5,13 +5,21 @@ use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
+/// Autograd node for layer normalization.
 pub struct LayerNormNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Normalized feature dimension.
     pub d: usize,
+    /// Captured weight tensor reshaped for broadcasting.
     pub w_reshaped_captured: Tensor<T, B>,
+    /// Saved normalized input `x_hat = (x - mean) / std` for backward.
     pub x_hat_clone: Tensor<T, B>,
+    /// Saved inverse standard deviation for backward.
     pub istdev_clone: Tensor<T, B>,
+    /// Constant tensor holding the feature dimension `d`.
     pub d_const: Tensor<T, B>,
 }
 

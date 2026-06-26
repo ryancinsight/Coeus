@@ -5,13 +5,17 @@ use coeus_core::{Float, Scalar, Storage};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
+/// Autograd node for binary cross-entropy loss.
 pub struct BinaryCrossEntropyNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
     /// Clamped prediction values in `[eps, 1-eps]`, stored as `Vec<T>`.
     pub probs: Vec<T>,
     /// Target values (0.0 or 1.0) stored as `Vec<T>`.
     pub targets: Vec<T>,
+    /// Number of elements in the loss reduction.
     pub n: usize,
 }
 

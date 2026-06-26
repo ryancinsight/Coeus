@@ -138,7 +138,9 @@ pub fn sqrt<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
 
 /// Autograd node for element-wise power: `y = x ^ exp`.
 pub struct PowNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
     /// Input tensor snapshot for backward.
     pub input_tensor: Tensor<T, B>,
@@ -252,7 +254,9 @@ pub fn pow<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>, exp: 
 
 /// Autograd node for element-wise clamp.
 pub struct ClampNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
     /// Input tensor snapshot for backward mask computation.
     pub input_tensor: Tensor<T, B>,
@@ -402,6 +406,7 @@ pub fn recip<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
 
 macro_rules! impl_zero_grad_op {
     ($struct:ident, $func:ident, $op_name:expr, $forward_fn:ident) => {
+        #[doc = concat!("Zero-gradient unary op marker for `", stringify!($struct), "`.")]
         pub struct $struct;
         impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B>
             for $struct

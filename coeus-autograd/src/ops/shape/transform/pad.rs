@@ -61,6 +61,10 @@ where
     }
 }
 
+/// Pads a tracked variable with `value` according to per-axis `(before, after)` extents.
+///
+/// Backward propagation slices away the padded region and accumulates only the
+/// gradient corresponding to the original unpadded input.
 #[inline]
 pub fn pad<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,

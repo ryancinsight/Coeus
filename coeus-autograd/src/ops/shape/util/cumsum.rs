@@ -44,6 +44,10 @@ where
 }
 
 #[inline]
+/// Computes a tracked cumulative sum along `dim`.
+///
+/// Backward propagation uses the reverse cumulative sum along the same axis,
+/// matching the transpose of the lower-triangular cumulative-sum operator.
 pub fn cumsum<T: Scalar + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     dim: usize,

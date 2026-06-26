@@ -20,10 +20,13 @@ use std::sync::Arc;
 ///
 /// Stores softmax probabilities (`exp(log_softmax(x))`) for the backward pass.
 pub struct LogSoftmaxNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
     /// softmax(x) = exp(log_softmax(x)), same shape as input.
     pub probs: Tensor<T, B>,
+    /// Axis along which log-softmax was computed.
     pub axis: usize,
 }
 

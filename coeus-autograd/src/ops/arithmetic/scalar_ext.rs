@@ -25,6 +25,7 @@ use coeus_core::Scalar;
 /// For the default `MoiraiBackend`, the `*`/`+`/`-`/`/` operators also work
 /// directly via the concrete impls in `var_ops`.
 pub trait VarScalarExt<T: Scalar>: Sized {
+    /// Resulting tracked variable type after applying the scalar operation.
     type Output;
 
     /// `self * scalar` (element-wise multiply by scalar).

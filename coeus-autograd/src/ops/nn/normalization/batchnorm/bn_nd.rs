@@ -65,19 +65,33 @@ where
 
 // ── Backward node ──
 
+/// Autograd node for N-dimensional batch normalization.
 pub struct BatchNormNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> {
+    /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
+    /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
+    /// Captured weight tensor reshaped for broadcasting.
     pub w_reshaped_captured: Tensor<T, B>,
+    /// Saved normalized input `x_hat` for backward.
     pub x_hat_clone: Tensor<T, B>,
+    /// Saved `(x - mean)` for backward.
     pub xmu_clone: Tensor<T, B>,
+    /// Saved inverse standard deviation for backward.
     pub istdev_clone: Tensor<T, B>,
+    /// Constant tensor holding `-0.5` for backward.
     pub minus_half: Tensor<T, B>,
+    /// Constant tensor holding the normalization count `m`.
     pub m_const_captured: Tensor<T, B>,
+    /// Constant tensor holding `2.0` for backward.
     pub two_const: Tensor<T, B>,
+    /// Batch size.
     pub n: usize,
+    /// Number of channels.
     pub c: usize,
+    /// Spatial dimensions (padded with 0 for lower-D cases).
     pub spatial: [usize; 3],
+    /// Normalization count `n * product(spatial)`.
     pub m: usize,
 }
 
@@ -168,16 +182,27 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
 
 /// Pre-computed intermediates and spatial dimensions for tracked batch normalization.
 pub struct BatchNormArgs<T: Scalar, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> {
+    /// Normalized output tensor from the forward pass.
     pub out_tensor: Tensor<T, B>,
+    /// Standardized input `(x - mean) / std` saved for backward.
     pub x_hat: Tensor<T, B>,
+    /// Mean-centered input `x - mean` saved for backward.
     pub xmu: Tensor<T, B>,
+    /// Reciprocal standard deviation `1 / sqrt(var + eps)` saved for backward.
     pub istdev: Tensor<T, B>,
+    /// Scalar constant tensor holding `1 / m` for mean gradient computation.
     pub m_const: Tensor<T, B>,
+    /// Scalar constant tensor holding `-0.5` for variance gradient computation.
     pub minus_half: Tensor<T, B>,
+    /// Scalar constant tensor holding `2.0` for variance gradient computation.
     pub two_const: Tensor<T, B>,
+    /// Batch size (number of samples).
     pub n: usize,
+    /// Number of channels.
     pub c: usize,
+    /// Spatial dimensions packed as `[d, h, w]` (unused dims set to 1).
     pub spatial: [usize; 3],
+    /// Total number of elements per channel: `n * d * h * w`.
     pub m: usize,
 }
 
