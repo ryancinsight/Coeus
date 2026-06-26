@@ -98,6 +98,64 @@ fn test_wgpu_parity_div() {
     assert_parity("div", cpu.as_slice(), gpu.as_slice());
 }
 
+#[test]
+fn test_wgpu_aliasing_unary_neg_matches_cpu() {
+    use coeus_ops::BackendOps;
+
+    let s = seq();
+    let w = wgpu();
+    let data = vec![-4.0f32, -1.5, -0.5, 0.0, 0.5, 1.0, 2.0, 3.0];
+    let x_cpu = Tensor::from_slice(vec![data.len()], &data);
+    let x_gpu = to_gpu(&x_cpu);
+
+    // Clone shares storage; output aliases input and must use non-hephaestus fallback.
+    let mut out_gpu = x_gpu.clone();
+    let out_layout = out_gpu.layout().clone();
+    w.elementwise_unary(
+        coeus_ops::UnaryOp::Neg,
+        x_gpu.storage(),
+        x_gpu.layout(),
+        out_gpu.storage_mut(),
+        &out_layout,
+    );
+
+    let expected = coeus_ops::neg(&x_cpu, &s);
+    let got = to_cpu(&out_gpu);
+    assert_parity("aliasing_unary_neg", expected.as_slice(), got.as_slice());
+}
+
+#[test]
+fn test_wgpu_aliasing_binary_add_matches_cpu() {
+    use coeus_ops::BackendOps;
+
+    let s = seq();
+    let w = wgpu();
+    let a_data: Vec<f32> = (0..16).map(|x| x as f32 * 0.25 - 2.0).collect();
+    let b_data: Vec<f32> = (0..16).map(|x| x as f32 * 0.1 + 0.5).collect();
+
+    let a_cpu = Tensor::from_slice(vec![4, 4], &a_data);
+    let b_cpu = Tensor::from_slice(vec![4, 4], &b_data);
+    let a_gpu = to_gpu(&a_cpu);
+    let b_gpu = to_gpu(&b_cpu);
+
+    // Clone shares storage; output aliases left input and must use non-hephaestus fallback.
+    let mut out_gpu = a_gpu.clone();
+    let out_layout = out_gpu.layout().clone();
+    w.elementwise_binary(
+        coeus_ops::BinaryOp::Add,
+        a_gpu.storage(),
+        a_gpu.layout(),
+        b_gpu.storage(),
+        b_gpu.layout(),
+        out_gpu.storage_mut(),
+        &out_layout,
+    );
+
+    let expected = coeus_ops::add(&a_cpu, &b_cpu, &s);
+    let got = to_cpu(&out_gpu);
+    assert_parity("aliasing_binary_add", expected.as_slice(), got.as_slice());
+}
+
 // ── Unary activations ────────────────────────────────────────────────────
 
 macro_rules! test_unary_parity {
