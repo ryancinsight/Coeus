@@ -109,6 +109,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyGlobalMaxPool3d>()?;
     m.add_class::<nn::PyEmbedding>()?;
     m.add_class::<nn::PyDropout>()?;
+    m.add_class::<nn::PyBilinear>()?;
     m.add_class::<nn::PyBatchNorm1d>()?;
     m.add_class::<nn::PyBatchNorm2d>()?;
     m.add_class::<optim::PySGD>()?;
@@ -279,6 +280,8 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // vector arithmetic (dot / cross)
     m.add_function(wrap_pyfunction!(ops::dot, m)?)?;
     m.add_function(wrap_pyfunction!(ops::cross, m)?)?;
+    // matrix norm (Frobenius; ord!='fro' is a ValueError)
+    m.add_function(wrap_pyfunction!(ops::matrix_norm, m)?)?;
     // Functional attention
     m.add_function(wrap_pyfunction!(ops::scaled_dot_product_attention, m)?)?;
     // Batch matmul / outer product
