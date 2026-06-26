@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.32 - 2026-06-26
+
+### Added
+
+- **Sparse operation differential coverage** — `coeus-ops` now verifies `spmv`,
+  `spmm`, `spmm_backward_values`, and `spmm_backward_dense` on SequentialBackend
+  and MoiraiBackend against exact integer-valued CSR references.
+
+### Verified
+
+- `cargo nextest run -p coeus-ops` passes 173/173 tests.
+- `cargo fmt --check`, sparse-op clippy, and `coeus-ops` rustdoc pass.
+
 ## 0.2.31 - 2026-06-26
 
 ### Added

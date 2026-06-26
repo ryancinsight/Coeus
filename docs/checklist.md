@@ -2,7 +2,22 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-94 - constructors, index ops, initializers, and interpolate parity [COMPLETE]
+### Current Sprint: MS-95 - sparse ops differential parity [COMPLETE]
+**Objective**: Add value-semantic sparse forward/backward coverage for CSR
+operations on SequentialBackend and MoiraiBackend, using exact integer-valued
+references.
+**Target version**: 0.2.32 (patch-class).
+**Tests delivered**: 2 sparse-operation differential tests; package gate covers
+173 ops tests.
+
+- [x] [patch] `coeus-ops/tests/sparse_ops_diff.rs`: SequentialBackend and
+  MoiraiBackend differential coverage for `spmv`, `spmm`,
+  `spmm_backward_values`, and `spmm_backward_dense`.
+- [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-ops`
+  (173/173); `cargo clippy -p coeus-ops --test sparse_ops_diff -- -D warnings`;
+  `cargo doc -p coeus-ops --no-deps`.
+
+### Previous Sprint: MS-94 - constructors, index ops, initializers, and interpolate parity [COMPLETE]
 **Objective**: Extend value-semantic differential coverage across untested
 constructor/index utilities and neural-network initializer/interpolation paths,
 while keeping oracle logic analytical or routed through the Atlas-owned Leto

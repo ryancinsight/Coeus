@@ -1,5 +1,14 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-95: sparse ops differential parity [COMPLETE]
+
+- [x] [patch] Added `coeus-ops/tests/sparse_ops_diff.rs` covering `spmv`,
+  `spmm`, `spmm_backward_values`, and `spmm_backward_dense` on
+  SequentialBackend and MoiraiBackend with exact integer-valued CSR references.
+- [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-ops`
+  (173/173); `cargo clippy -p coeus-ops --test sparse_ops_diff -- -D warnings`;
+  `cargo doc -p coeus-ops --no-deps`.
+
 ## Sprint MS-94: constructors, index ops, initializers, and interpolate parity [COMPLETE]
 
 - [x] [patch] Added `coeus-ops/tests/constructors_diff.rs` covering `linspace`,
