@@ -3031,3 +3031,118 @@ fn dropout_backward_masks_gradient() {
         );
     }
 }
+
+// ── BatchNorm3d eval-mode forward matches Burn NdArray ───────────────────────
+
+#[test]
+fn batchnorm3d_eval_forward_matches_burn() {
+    use burn::nn::BatchNormConfig;
+    use coeus_nn::BatchNorm3d;
+
+    // Input [N=2, C=2, D=2, H=3, W=3] = 72 elements.
+    // running_mean=0, running_var=1 on both sides; eval mode throughout.
+    // Tolerance derivation: identical to BatchNorm1d/2d; |err| ≤ 2.8e-5 for
+    // |x| ≤ 8.5 from the sqrt(var+eps) vs sqrt(var)+eps formula difference.
+    // tol = 1e-4 accounts for f32 rounding.
+    let data: Vec<f32> = (0..72).map(|x| x as f32 - 35.5).collect();
+    let (n, c, d, h, w) = (2usize, 2, 2, 3, 3);
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, d, h, w], &data),
+        false,
+    );
+    let mut bn = BatchNorm3d::<f32, SequentialBackend>::new(c, 1e-5, 0.1);
+    bn.set_training(false);
+    let out_c = bn.forward(&xv);
+
+    let bn_b: burn::nn::BatchNorm<BurnBackend, 3> =
+        BatchNormConfig::new(c).init::<BurnBackend, 3>(&dev());
+    let xb: BurnTensor<BurnBackend, 5> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, d, h, w]), &dev());
+    let out_b = bvec(bn_b.forward(xb));
+
+    assert_close_rel(
+        "batchnorm3d_eval_vs_burn",
+        out_c.tensor.as_slice(),
+        &out_b,
+        1e-4,
+    );
+}
+
+// ── Conv1d forward matches Burn NdArray (ones kernel) ────────────────────────
+
+#[test]
+fn conv1d_forward_matches_burn() {
+    use burn::nn::conv::Conv1dConfig;
+    use burn::nn::PaddingConfig1d;
+    use coeus_nn::Conv1d;
+
+    // C_in=2, C_out=1, K=3, no bias, ones weight → output[j] = sum(input[:, j:j+3]).
+    // Input [N=1, C_in=2, L=6]; valid conv → output [N=1, C_out=1, L=4].
+    // Tolerance: 512 * f32::EPSILON * (1 + max_output).
+    let data: Vec<f32> = (0..12).map(|x| x as f32 * 0.1).collect();
+    let (n, ic, oc, l, k) = (1usize, 2, 1, 6, 3);
+    let out_len = l - k + 1;
+    let w_vec = vec![1.0f32; oc * ic * k];
+
+    // Coeus: weight=ones, no bias.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, ic, l], &data),
+        false,
+    );
+    let mut conv_c = Conv1d::<f32, SequentialBackend>::new(ic, oc, k, false);
+    conv_c.weight = Var::new(CoeusTensor::from_slice(vec![oc, ic, k], &w_vec), true);
+    let out_c = conv_c.forward(&xv);
+
+    // Burn: identical weight.
+    let xb: BurnTensor<BurnBackend, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, ic, l]), &dev());
+    let mut conv_b = Conv1dConfig::new(ic, oc, k)
+        .with_bias(false)
+        .with_padding(PaddingConfig1d::Valid)
+        .init::<BurnBackend>(&dev());
+    conv_b.weight =
+        burn::module::Param::from_data(TensorData::new(w_vec.clone(), [oc, ic, k]), &dev());
+    let out_b = bvec(conv_b.forward(xb));
+
+    assert_eq!(out_c.tensor.shape(), &[n, oc, out_len]);
+    assert_close("conv1d_vs_burn", out_c.tensor.as_slice(), &out_b);
+}
+
+// ── Conv2d forward matches Burn NdArray (ones kernel) ────────────────────────
+
+#[test]
+fn conv2d_forward_matches_burn() {
+    use burn::nn::conv::Conv2dConfig;
+    use burn::nn::PaddingConfig2d;
+    use coeus_nn::Conv2d;
+
+    // C_in=2, C_out=1, K=3×3, no bias, ones weight.
+    // Input [N=1, C_in=2, H=5, W=5]; valid conv → output [N=1, C_out=1, H=3, W=3].
+    let (n, ic, oc, h, w, k) = (1usize, 2, 1, 5, 5, 3);
+    let out_h = h - k + 1;
+    let out_w = w - k + 1;
+    let data: Vec<f32> = (0..n * ic * h * w).map(|x| x as f32 * 0.05 - 1.0).collect();
+    let w_vec = vec![1.0f32; oc * ic * k * k];
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, ic, h, w], &data),
+        false,
+    );
+    let mut conv_c = Conv2d::<f32, SequentialBackend>::new(ic, oc, k, false);
+    conv_c.weight = Var::new(CoeusTensor::from_slice(vec![oc, ic, k, k], &w_vec), true);
+    let out_c = conv_c.forward(&xv);
+
+    let xb: BurnTensor<BurnBackend, 4> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, ic, h, w]), &dev());
+    let mut conv_b = Conv2dConfig::new([ic, oc], [k, k])
+        .with_bias(false)
+        .with_padding(PaddingConfig2d::Valid)
+        .init::<BurnBackend>(&dev());
+    conv_b.weight =
+        burn::module::Param::from_data(TensorData::new(w_vec.clone(), [oc, ic, k, k]), &dev());
+    let out_b = bvec(conv_b.forward(xb));
+
+    assert_eq!(out_c.tensor.shape(), &[n, oc, out_h, out_w]);
+    assert_close("conv2d_vs_burn", out_c.tensor.as_slice(), &out_b);
+}

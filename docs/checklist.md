@@ -2,7 +2,22 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-100 - Python functional GroupNorm wrapper [COMPLETE]
+### Current Sprint: MS-101 - BatchNorm3d eval parity and Conv Burn parity [COMPLETE]
+**Objective**: Close Burn normalization parity gap for 3D batch norm and add
+Conv1d/Conv2d differential parity against Burn NdArray.
+**Target version**: 0.5.0 (patch-class; additive tests, no public API change).
+**Tests delivered**: BatchNorm3d eval-mode forward vs Burn, Conv1d and Conv2d
+forward vs Burn with explicit ones-kernel initialization.
+
+- [x] [patch] Added `batchnorm3d_eval_forward_matches_burn` in
+  `coeus-nn/tests/burn_live_parity.rs` — same eval-mode pattern as 1d/2d.
+- [x] [patch] Added `conv1d_forward_matches_burn` — explicit ones-weight coeus
+  Conv1d vs Burn `Conv1dConfig` with matching weight; asserts shape and values.
+- [x] [patch] Added `conv2d_forward_matches_burn` — same for 2D.
+- [x] Evidence: `cargo nextest run` (768/768 passed, 50 s); `cargo fmt --check`;
+  `cargo clippy --all-targets --all-features -- -D warnings`; no new `#[allow]`.
+
+### Previous Sprint: MS-100 - Python functional GroupNorm wrapper [COMPLETE]
 **Objective**: Expose Rust-core functional GroupNorm through `coeus-python`
 without adding Python-side normalization logic.
 **Target version**: 0.5.0 (minor-class; additive public Python API).
