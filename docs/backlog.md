@@ -1,5 +1,70 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-121: Public docs and parity surface [COMPLETE]
+
+- [x] [patch] Replaced macro-generated public `add`/`sub`/`mul`/`div` docs with
+  explicit generic functions and executable Rustdoc examples.
+- [x] [patch] Added executable examples for CPU backend dispatch, reductions,
+  matmul helpers, shape concatenation/stacking, and unary math operations.
+- [x] [patch] Corrected the `gelu` doctest reference value to the exact-GELU
+  contract instead of the tanh approximation value.
+- [x] [patch] Added executable Rustdoc examples for `coeus-dist` communicator
+  and local-cluster contracts, plus `coeus-sparse` COO/CSR construction and
+  accessor contracts.
+- [x] [minor] Registered Python `TransformerEncoderLayer`,
+  `TransformerEncoder`, and `SinusoidalEncoding` wrappers over Rust-core
+  `coeus_nn` implementations; unsupported const-generic selections return
+  `ValueError`.
+- [x] [patch] Added Python binding tests for encoder-layer, encoder-stack,
+  sinusoidal, decoder, and functional norm wrapper behavior.
+- [x] [patch] Added BatchNorm3d training-mode backward Burn autodiff parity for
+  `dx`, `dw`, and `db`.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-nn -p coeus-ops -p
+  coeus-python -p coeus-wgpu --check`; `rustup run nightly cargo clippy -p
+  coeus-ops --tests -- -D warnings`; `rustup run nightly cargo clippy -p
+  coeus-nn -p coeus-python --tests -- -D warnings`; `rustup run nightly cargo
+  test --doc -p coeus-ops -p coeus-optim`; `rustup run nightly cargo test --doc
+  -p coeus-dist -p coeus-sparse`; `rustup run nightly cargo nextest run -p
+  coeus-nn --test burn_live_parity batchnorm3d_training_backward_matches_burn`;
+  `rustup run nightly cargo nextest run -p coeus-python --test
+  binding_tests_ops test_transformer_encoder_bindings test_transformer_decoder_layer
+  test_nn_functional_ops`; `rustup run nightly cargo nextest run -p coeus-wgpu`
+  (83/83); `rustup run nightly cargo doc -p coeus-ops -p coeus-nn -p
+  coeus-python -p coeus-wgpu -p coeus-optim --no-deps`.
+
+## Sprint MS-120: WGPU bounded metadata pool [COMPLETE]
+
+- [x] [patch] Changed `WgpuContext::get_metadata_buffer` to use a nonblocking
+  pool fast path: reuse an existing metadata buffer when the mutex is
+  immediately available, otherwise allocate a short-lived metadata buffer
+  instead of waiting on the pool lock.
+- [x] [patch] Changed `WgpuContext::recycle_metadata_buffer` to retain buffers
+  only when the pool lock is immediately available and the fixed retained-buffer
+  cap has not been reached. Contended or excess returns drop the buffer.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-wgpu --check`;
+  `rustup run nightly cargo clippy -p coeus-wgpu --tests -- -D warnings`;
+  `rustup run nightly cargo nextest run -p coeus-wgpu` (83/83);
+  `rustup run nightly cargo doc -p coeus-wgpu --no-deps`.
+
+## Sprint MS-119: Python functional norm pure-wrapper SSOT [COMPLETE]
+
+- [x] [minor] Added Rust-core functional `coeus_nn::layer_norm(...)` and
+  `coeus_nn::rms_norm(...)` helpers in normalization, exported via
+  `coeus_nn::{layer_norm, rms_norm}`.
+- [x] [patch] Routed `coeus-python` functional `layer_norm` / `rms_norm`
+  wrappers through those core helpers, removing binding-side module
+  construction from those paths.
+- [x] [patch] Added explicit PyO3 boundary validation for rank, shape, and
+  epsilon domain in both wrappers.
+- [x] [patch] Extended Rust and Python tests for functional parity and error
+  behavior.
+- [x] Evidence: `rustup run nightly cargo check -p coeus-nn --lib`; `rustup
+  run nightly cargo check -p coeus-python --lib`; `rustup run nightly cargo
+  nextest run -p coeus-nn --test nn_norm_tests test_layernorm test_rmsnorm`
+  (4/4); `rustup run nightly cargo nextest run -p coeus-python --test
+  binding_tests_ops test_nn_functional_ops` (1/1); `rustup run nightly cargo
+  clippy -p coeus-nn -p coeus-python --tests -- -D warnings`.
+
 ## Sprint MS-109: WGPU Hephaestus zero-allocation elementwise routing [COMPLETE]
 
 - [x] [patch] Switched contiguous non-aliased WGPU Hephaestus elementwise routing

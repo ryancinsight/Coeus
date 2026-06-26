@@ -5,6 +5,9 @@ use std::sync::OnceLock;
 
 pub mod ops;
 
+const METADATA_BUFFER_SIZE: u64 = 1024;
+const METADATA_POOL_CAPACITY: usize = 64;
+
 /// Trait mapping CPU types to their WGSL representation types on the GPU.
 pub trait WgpuScalar: Scalar + bytemuck::Pod {
     const WGSL_TYPE: &'static str;
@@ -41,23 +44,30 @@ pub struct WgpuContext {
 impl WgpuContext {
     /// Retrieve a metadata buffer from the pool, or create a new one.
     pub fn get_metadata_buffer(&self) -> wgpu::Buffer {
-        let mut pool = self.metadata_pool.lock().unwrap();
-        if let Some(buf) = pool.pop() {
-            buf
-        } else {
-            self.device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("coeus-wgpu-metadata-buffer"),
-                size: 1024,
-                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-                mapped_at_creation: false,
-            })
+        if let Ok(mut pool) = self.metadata_pool.try_lock() {
+            if let Some(buf) = pool.pop() {
+                return buf;
+            }
         }
+        self.create_metadata_buffer()
     }
 
     /// Recycle a metadata buffer back to the pool.
     pub fn recycle_metadata_buffer(&self, buf: wgpu::Buffer) {
-        let mut pool = self.metadata_pool.lock().unwrap();
-        pool.push(buf);
+        if let Ok(mut pool) = self.metadata_pool.try_lock() {
+            if pool.len() < METADATA_POOL_CAPACITY {
+                pool.push(buf);
+            }
+        }
+    }
+
+    fn create_metadata_buffer(&self) -> wgpu::Buffer {
+        self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("coeus-wgpu-metadata-buffer"),
+            size: METADATA_BUFFER_SIZE,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        })
     }
 }
 

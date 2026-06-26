@@ -32,8 +32,14 @@
 - **Functional bilinear Python surface** — added `pycoeus.bilinear(input1,
   input2, weight, bias=None)` as a thin validated wrapper over Rust-core
   `coeus_nn::bilinear(...)`.
+- **Functional normalization core helpers** — added Rust-core
+  `coeus_nn::layer_norm(...)` and `coeus_nn::rms_norm(...)` for thin-wrapper
+  reuse across bindings.
 - **Autograd and tensor Rustdoc examples** — added executable examples for
   gradient mode, `Var`, core tracked ops, and tensor shape/view contracts.
+- **Coeus ops Rustdoc examples** — public arithmetic, CPU backend dispatch,
+  reductions, matmul helpers, shape concatenation/stacking, and unary math APIs
+  now carry executable examples.
 - **Autograd public documentation surface** — documented public operation
   modules, backward-node state, and tracked sparse/shape entry points so
   `coeus-autograd` satisfies its `#![deny(missing_docs)]` contract.
@@ -62,8 +68,17 @@
   delegates to shared functional `coeus_nn::bilinear`, and `coeus-python`
   bilinear module forward reuses that same core path without constructing a
   temporary module per call.
+- **Normalization wrapper SSOT routing** — `coeus-python` functional
+  `layer_norm` / `rms_norm` now dispatch directly to Rust-core functional
+  helpers with explicit boundary validation instead of constructing modules in
+  the binding.
 - **Autograd backend bounds** — corrected touched autograd node definitions to
   use the canonical `coeus_ops::BackendOps` backend trait in public bounds.
+- **WGPU metadata-buffer pooling** — the metadata-buffer pool now uses a
+  nonblocking reuse path and a fixed retained-buffer cap, avoiding mutex waits
+  on contended kernel submissions and preventing unbounded pool growth.
+- **GELU doctest reference** — corrected the `coeus-ops` exact-GELU doctest to
+  assert the exact `erf`-based reference value, not the tanh approximation.
 
 ### Verified
 
@@ -83,6 +98,22 @@
 - `cargo test -p coeus-wgpu
   test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer` validates
   contiguous unary delegated routing preserves output-buffer identity.
+- `rustup run nightly cargo check -p coeus-nn --lib` and `rustup run nightly
+  cargo check -p coeus-python --lib` validate exported normalization functional
+  surfaces and wrapper routing.
+- `rustup run nightly cargo nextest run -p coeus-nn --test nn_norm_tests
+  test_layernorm test_rmsnorm` passes 4/4 normalization functional tests.
+- `rustup run nightly cargo nextest run -p coeus-python --test
+  binding_tests_ops test_nn_functional_ops` validates Python functional norm
+  wrappers.
+- `rustup run nightly cargo test --doc -p coeus-optim` passes 10/10 doctests.
+- `rustup run nightly cargo nextest run -p coeus-optim` passes 14/14 tests.
+- `rustup run nightly cargo doc -p coeus-wgpu -p coeus-nn -p coeus-python -p
+  coeus-optim --no-deps` validates touched package docs.
+- `rustup run nightly cargo nextest run -p coeus-wgpu` passes 83/83 WGPU
+  tests, including strided Hephaestus parity and storage tier tests.
+- `rustup run nightly cargo test --doc -p coeus-ops` validates arithmetic and
+  activation public examples.
 - `rustup run nightly cargo fmt -p coeus-autograd --check` validates autograd
   formatting.
 - `rustup run nightly cargo test --doc -p coeus-autograd` passes 15/15 doctests.

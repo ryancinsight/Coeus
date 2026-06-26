@@ -2,7 +2,84 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-118 - WGPU strided parity tests [COMPLETE]
+### Current Sprint: MS-121 - Public docs and parity surface [COMPLETE]
+**Objective**: Add executable public examples across touched operation,
+distributed, and sparse APIs; expand thin Python transformer wrappers; and add
+the next Burn-backed normalization parity case.
+**Target version**: 0.5.1 (minor-class; additive binding surface + patch-class
+documentation/test cleanup).
+
+- [x] [patch] Replaced the `binary_op!`-generated public `add`/`sub`/`mul`/`div`
+  functions with explicit generic functions carrying compiling Rustdoc examples.
+- [x] [patch] Added executable examples for CPU backend dispatch, reductions,
+  matmul helpers, shape concatenation/stacking, and unary math operations.
+- [x] [patch] Corrected the `gelu` doctest reference value to the exact-GELU
+  contract (`0.5 * x * (1 + erf(x / sqrt(2)))`) instead of the tanh
+  approximation value.
+- [x] [patch] Added executable Rustdoc examples for `coeus-dist` local
+  communicators and `coeus-sparse` COO/CSR construction/accessor contracts.
+- [x] [minor] Registered Python `TransformerEncoderLayer`,
+  `TransformerEncoder`, and `SinusoidalEncoding` wrappers over existing
+  `coeus_nn` Rust-core implementations, with unsupported const-generic choices
+  mapped to `ValueError` instead of panics.
+- [x] [patch] Added Python binding tests for encoder-layer, encoder-stack,
+  sinusoidal, and decoder error paths.
+- [x] [patch] Added BatchNorm3d training-mode backward differential parity
+  against a Burn autodiff reference for `dx`, `dw`, and `db`.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-nn -p coeus-ops -p
+  coeus-python -p coeus-wgpu --check`; `rustup run nightly cargo clippy -p
+  coeus-ops --tests -- -D warnings`; `rustup run nightly cargo clippy -p
+  coeus-nn -p coeus-python --tests -- -D warnings`; `rustup run nightly cargo
+  test --doc -p coeus-ops -p coeus-optim`; `rustup run nightly cargo test --doc
+  -p coeus-dist -p coeus-sparse`; `rustup run nightly cargo nextest run -p
+  coeus-nn --test burn_live_parity batchnorm3d_training_backward_matches_burn`;
+  `rustup run nightly cargo nextest run -p coeus-python --test
+  binding_tests_ops test_transformer_encoder_bindings test_transformer_decoder_layer
+  test_nn_functional_ops`; `rustup run nightly cargo nextest run -p coeus-wgpu`
+  (83/83); `rustup run nightly cargo doc -p coeus-ops -p coeus-nn -p
+  coeus-python -p coeus-wgpu -p coeus-optim --no-deps`.
+
+### Previous Sprint: MS-120 - WGPU bounded metadata pool [COMPLETE]
+**Objective**: Reduce WGPU metadata-buffer pool contention and prevent
+unbounded retained metadata buffers without changing kernel semantics or public
+backend APIs.
+**Target version**: 0.5.1 (patch-class; backend memory/contention cleanup).
+
+- [x] [patch] Changed `WgpuContext::get_metadata_buffer` to use a nonblocking
+  pool fast path: reuse an existing metadata buffer when the mutex is
+  immediately available, otherwise allocate a fresh short-lived metadata buffer
+  instead of blocking a concurrent kernel submission.
+- [x] [patch] Changed `WgpuContext::recycle_metadata_buffer` to recycle only
+  when the mutex is immediately available and the pool is below a fixed
+  capacity; excess or contended returns drop the buffer so the pool cannot grow
+  without bound.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-wgpu --check`;
+  `rustup run nightly cargo clippy -p coeus-wgpu --tests -- -D warnings`;
+  `rustup run nightly cargo nextest run -p coeus-wgpu` (83/83);
+  `rustup run nightly cargo doc -p coeus-wgpu --no-deps`.
+
+### Previous Sprint: MS-119 - Python functional norm pure-wrapper SSOT [COMPLETE]
+**Objective**: Keep layer/rms norm computation in Rust core and make Python
+functionals thin validated wrappers.
+**Target version**: 0.5.1 (minor-class; additive core functional exports +
+wrapper cleanup).
+
+- [x] [minor] Added `coeus_nn::layer_norm(...)` and `coeus_nn::rms_norm(...)`
+  functional helpers and exported both from `coeus_nn`.
+- [x] [patch] Routed `coeus-python` `layer_norm` / `rms_norm` wrappers through
+  those helpers.
+- [x] [patch] Added PyO3 input validation (rank/shape/epsilon) for both
+  wrappers with clear `ValueError` messages.
+- [x] [patch] Added functional parity checks in `coeus-nn/tests/nn_norm_tests.rs`
+  and Python functional checks in `coeus-python/tests/binding_tests_ops.rs`.
+- [x] Evidence: `rustup run nightly cargo check -p coeus-nn --lib`; `rustup
+  run nightly cargo check -p coeus-python --lib`; `rustup run nightly cargo
+  nextest run -p coeus-nn --test nn_norm_tests test_layernorm test_rmsnorm`
+  (4/4); `rustup run nightly cargo nextest run -p coeus-python --test
+  binding_tests_ops test_nn_functional_ops` (1/1); `rustup run nightly cargo
+  clippy -p coeus-nn -p coeus-python --tests -- -D warnings`.
+
+### Previous Sprint: MS-118 - WGPU strided parity tests [COMPLETE]
 **Objective**: Add differential parity coverage for the new WGPU Hephaestus
 strided dispatch path (MS-117) via transposed and permuted non-contiguous views.
 **Target version**: 0.5.1 (patch-class; test coverage).

@@ -80,29 +80,44 @@ pub fn layer_norm(
     bias: Option<&PyTensor>,
     eps: f64,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
+    if !eps.is_finite() || eps < 0.0 {
+        return Err(PyValueError::new_err(
+            "layer_norm: eps must be finite and non-negative",
+        ));
+    }
+    let shape = input.inner.tensor.shape();
+    if shape.len() < 2 {
+        return Err(PyValueError::new_err(
+            "layer_norm: input must have rank >= 2",
+        ));
+    }
+    let last_dim = shape[shape.len() - 1];
+    if norm_shape != last_dim {
+        return Err(PyValueError::new_err(format!(
+            "layer_norm: norm_shape ({norm_shape}) must match input last dimension ({last_dim})"
+        )));
+    }
+    if let Some(w) = weight {
+        if w.inner.tensor.shape() != [norm_shape] {
+            return Err(PyValueError::new_err(
+                "layer_norm: weight must have shape [norm_shape]",
+            ));
+        }
+    }
+    if let Some(b) = bias {
+        if b.inner.tensor.shape() != [norm_shape] {
+            return Err(PyValueError::new_err(
+                "layer_norm: bias must have shape [norm_shape]",
+            ));
+        }
+    }
     let w = weight.map(|w| w.inner.clone());
     let b = bias.map(|b| b.inner.clone());
     let x = input.inner.clone();
-    let ndim = x.tensor.ndim();
-    let inner = py.allow_threads(move || {
-        use coeus_nn::normalization::LayerNorm;
-        let backend = coeus_core::MoiraiBackend::new();
-        let weight_var = w.unwrap_or_else(|| {
-            coeus_autograd::Var::new(Tensor::ones_on([norm_shape], &backend), false)
-        });
-        let bias_var = b.unwrap_or_else(|| {
-            coeus_autograd::Var::new(Tensor::zeros_on([norm_shape], &backend), false)
-        });
-        let ln = LayerNorm::from_parts(weight_var, bias_var, eps);
-        if ndim == 2 {
-            use coeus_nn::Module;
-            ln.forward(&x)
-        } else {
-            ln.forward_nd(&x)
-        }
-    });
-    PyTensor::from_var(inner)
+    let inner =
+        py.allow_threads(move || coeus_nn::layer_norm(&x, norm_shape, w.as_ref(), b.as_ref(), eps));
+    Ok(PyTensor::from_var(inner))
 }
 
 #[pyfunction]
@@ -411,19 +426,36 @@ pub fn batch_norm_1d(
 /// inputs `[N, D]`. `weight` (γ) defaults to ones.
 #[pyfunction]
 #[pyo3(signature = (input, weight = None, eps = 1e-8))]
-pub fn rms_norm(input: &PyTensor, weight: Option<&PyTensor>, eps: f64, py: Python<'_>) -> PyTensor {
-    let d = input.inner.tensor.shape().last().copied().unwrap_or(1);
+pub fn rms_norm(
+    input: &PyTensor,
+    weight: Option<&PyTensor>,
+    eps: f64,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
+    if !eps.is_finite() || eps < 0.0 {
+        return Err(PyValueError::new_err(
+            "rms_norm: eps must be finite and non-negative",
+        ));
+    }
+    let shape = input.inner.tensor.shape();
+    if shape.len() != 2 {
+        return Err(PyValueError::new_err(format!(
+            "rms_norm: input must be rank-2 [N, D], got rank {}",
+            shape.len()
+        )));
+    }
+    let d = shape[1];
+    if let Some(w) = weight {
+        if w.inner.tensor.shape() != [d] {
+            return Err(PyValueError::new_err(
+                "rms_norm: weight must have shape [D]",
+            ));
+        }
+    }
     let w = weight.map(|w| w.inner.clone());
     let x = input.inner.clone();
-    let inner = py.allow_threads(move || {
-        use coeus_nn::normalization::RMSNorm;
-        use coeus_nn::Module;
-        let backend = coeus_core::MoiraiBackend::new();
-        let weight_var =
-            w.unwrap_or_else(|| coeus_autograd::Var::new(Tensor::ones_on([d], &backend), false));
-        RMSNorm::from_parts(weight_var, eps).forward(&x)
-    });
-    PyTensor::from_var(inner)
+    let inner = py.allow_threads(move || coeus_nn::rms_norm(&x, w.as_ref(), eps));
+    Ok(PyTensor::from_var(inner))
 }
 
 /// Functional (stateless) group normalization.

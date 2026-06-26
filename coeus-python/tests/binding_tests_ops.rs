@@ -1328,6 +1328,16 @@ try:
     raise AssertionError("bilinear rank mismatch should raise")
 except ValueError:
     pass
+
+# ── functional rms_norm ───────────────────────────────────────────────
+x_rms = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [2, 2])
+rms = pycoeus.rms_norm(x_rms)
+assert rms.shape == [2, 2], f"rms_norm shape: {rms.shape}"
+try:
+    pycoeus.rms_norm(pycoeus.Tensor([1.0, 2.0], [2]))
+    raise AssertionError("rms_norm rank mismatch should raise")
+except ValueError:
+    pass
 "#,
     );
 }
@@ -2450,6 +2460,78 @@ for h in (1, 2, 4):
 dec = pycoeus.TransformerDecoderLayer(d_model=4, d_ff=8, num_heads=2)
 assert dec.parameters() == [], "stateless wrapper has no exposed parameters"
 dec.zero_grad()
+"#,
+    );
+}
+
+// ── TransformerEncoderLayer / TransformerEncoder / SinusoidalEncoding ───────
+
+#[test]
+fn test_transformer_encoder_bindings() {
+    run_script(
+        r#"
+import pycoeus
+
+# Encoder layer construction validates dropout_p and preserves [batch, seq, d_model].
+for p in (0.0, 0.2, 0.999):
+    pycoeus.TransformerEncoderLayer(d_model=4, d_ff=8, num_heads=2, dropout_p=p)
+for bad in (1.0, -0.1):
+    try:
+        _ = pycoeus.TransformerEncoderLayer(d_model=4, d_ff=8, num_heads=2, dropout_p=bad)
+        raise AssertionError(f"encoder layer dropout_p={bad} should raise")
+    except ValueError:
+        pass
+
+src = pycoeus.Tensor([0.01 * (i + 1) for i in range(1 * 3 * 4)], [1, 3, 4])
+for h in (1, 2, 4):
+    enc_layer = pycoeus.TransformerEncoderLayer(d_model=4, d_ff=8, num_heads=h, dropout_p=0.0)
+    out = enc_layer.forward(src)
+    assert out.shape == [1, 3, 4], f"encoder layer h={h} shape={out.shape}"
+    assert any(abs(v) > 1e-6 for v in out.data), f"encoder layer h={h} all-zero output"
+
+try:
+    bad = pycoeus.TransformerEncoderLayer(d_model=4, d_ff=8, num_heads=3, dropout_p=0.0)
+    bad.forward(src)
+    raise AssertionError("unsupported encoder layer num_heads should raise")
+except ValueError:
+    pass
+
+# Encoder stack construction validates dropout_p and supported const-generic pairs.
+for p in (0.0, 0.25):
+    pycoeus.TransformerEncoder(d_model=4, d_ff=8, num_heads=2, num_layers=2, dropout_p=p)
+for bad in (1.0, -0.1):
+    try:
+        _ = pycoeus.TransformerEncoder(d_model=4, d_ff=8, num_heads=2, num_layers=2, dropout_p=bad)
+        raise AssertionError(f"encoder dropout_p={bad} should raise")
+    except ValueError:
+        pass
+
+for h, n in ((1, 1), (2, 2), (4, 1)):
+    enc = pycoeus.TransformerEncoder(d_model=4, d_ff=8, num_heads=h, num_layers=n, dropout_p=0.0)
+    out = enc.forward(src)
+    assert out.shape == [1, 3, 4], f"encoder h={h} n={n} shape={out.shape}"
+    assert any(abs(v) > 1e-6 for v in out.data), f"encoder h={h} n={n} all-zero output"
+
+try:
+    bad = pycoeus.TransformerEncoder(d_model=4, d_ff=8, num_heads=2, num_layers=3, dropout_p=0.0)
+    bad.forward(src)
+    raise AssertionError("unsupported encoder layer count should raise")
+except ValueError:
+    pass
+
+# Sinusoidal encoding validates even d_model and adds position signal.
+for bad_d in (0, 3):
+    try:
+        _ = pycoeus.SinusoidalEncoding(max_len=8, d_model=bad_d)
+        raise AssertionError(f"sinusoidal d_model={bad_d} should raise")
+    except ValueError:
+        pass
+
+pe = pycoeus.SinusoidalEncoding(max_len=8, d_model=4)
+zeros = pycoeus.Tensor([0.0] * (1 * 3 * 4), [1, 3, 4])
+pos = pe.forward(zeros)
+assert pos.shape == [1, 3, 4], f"sinusoidal shape={pos.shape}"
+assert any(abs(v) > 1e-6 for v in pos.data), "sinusoidal output should contain position signal"
 "#,
     );
 }

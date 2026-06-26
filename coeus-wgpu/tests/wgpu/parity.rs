@@ -782,7 +782,11 @@ fn test_wgpu_strided_add_transposed_matches_cpu() {
     let a_gpu = to_gpu(&a).t();
     let b_gpu = to_gpu(&b).t();
     let gpu_out = to_cpu(&coeus_ops::add(&a_gpu, &b_gpu, &w));
-    assert_parity("strided_add_transposed", cpu_out.as_slice(), gpu_out.as_slice());
+    assert_parity(
+        "strided_add_transposed",
+        cpu_out.as_slice(),
+        gpu_out.as_slice(),
+    );
 }
 
 #[test]
@@ -798,7 +802,11 @@ fn test_wgpu_strided_mul_transposed_matches_cpu() {
     let a_gpu = to_gpu(&a).t();
     let b_gpu = to_gpu(&b).t();
     let gpu_out = to_cpu(&coeus_ops::mul(&a_gpu, &b_gpu, &w));
-    assert_parity("strided_mul_transposed", cpu_out.as_slice(), gpu_out.as_slice());
+    assert_parity(
+        "strided_mul_transposed",
+        cpu_out.as_slice(),
+        gpu_out.as_slice(),
+    );
 }
 
 #[test]
@@ -811,8 +819,16 @@ fn test_wgpu_strided_exp_transposed_matches_cpu() {
     let at = a.t();
     let cpu_out = coeus_ops::elementwise_unary(&at, &s, coeus_ops::UnaryOp::Exp);
     let a_gpu = to_gpu(&a).t();
-    let gpu_out = to_cpu(&coeus_ops::elementwise_unary(&a_gpu, &w, coeus_ops::UnaryOp::Exp));
-    assert_parity("strided_exp_transposed", cpu_out.as_slice(), gpu_out.as_slice());
+    let gpu_out = to_cpu(&coeus_ops::elementwise_unary(
+        &a_gpu,
+        &w,
+        coeus_ops::UnaryOp::Exp,
+    ));
+    assert_parity(
+        "strided_exp_transposed",
+        cpu_out.as_slice(),
+        gpu_out.as_slice(),
+    );
 }
 
 #[test]
@@ -824,8 +840,16 @@ fn test_wgpu_strided_neg_transposed_matches_cpu() {
     let at = a.t();
     let cpu_out = coeus_ops::elementwise_unary(&at, &s, coeus_ops::UnaryOp::Neg);
     let a_gpu = to_gpu(&a).t();
-    let gpu_out = to_cpu(&coeus_ops::elementwise_unary(&a_gpu, &w, coeus_ops::UnaryOp::Neg));
-    assert_parity("strided_neg_transposed", cpu_out.as_slice(), gpu_out.as_slice());
+    let gpu_out = to_cpu(&coeus_ops::elementwise_unary(
+        &a_gpu,
+        &w,
+        coeus_ops::UnaryOp::Neg,
+    ));
+    assert_parity(
+        "strided_neg_transposed",
+        cpu_out.as_slice(),
+        gpu_out.as_slice(),
+    );
 }
 
 #[test]
@@ -837,8 +861,16 @@ fn test_wgpu_strided_sqrt_transposed_matches_cpu() {
     let at = a.t();
     let cpu_out = coeus_ops::elementwise_unary(&at, &s, coeus_ops::UnaryOp::Sqrt);
     let a_gpu = to_gpu(&a).t();
-    let gpu_out = to_cpu(&coeus_ops::elementwise_unary(&a_gpu, &w, coeus_ops::UnaryOp::Sqrt));
-    assert_parity("strided_sqrt_transposed", cpu_out.as_slice(), gpu_out.as_slice());
+    let gpu_out = to_cpu(&coeus_ops::elementwise_unary(
+        &a_gpu,
+        &w,
+        coeus_ops::UnaryOp::Sqrt,
+    ));
+    assert_parity(
+        "strided_sqrt_transposed",
+        cpu_out.as_slice(),
+        gpu_out.as_slice(),
+    );
 }
 
 #[test]
