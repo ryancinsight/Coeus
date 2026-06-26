@@ -2,7 +2,38 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-92 - f16/bf16 differential parity on both backends [COMPLETE]
+### Current Sprint: MS-93 - sparse COO autograd parity + PyTensor vertical split [COMPLETE]
+**Objective**: Add tracked COO sparse matrix multiplication without duplicating
+the existing CSR gradient kernels; keep the Python tensor binding surface as a
+thin PyO3 wrapper after splitting the previous monolithic file by concern.
+**Target version**: 0.2.30 (minor-class; new public autograd API).
+**Tests delivered**: 1 new sparse COO autograd parity test plus 2 statistical
+reduction differential tests; package-scoped gates cover 35 autograd tests, 167
+ops tests, and 70 Python binding tests.
+
+- [x] [minor] `coeus_autograd::sparse_matmul_coo`: converts COO inputs to CSR
+  once, preserves a sorted-to-original permutation for value-gradient remapping,
+  reuses `coeus_ops::spmm`, `spmm_backward_values`, and
+  `spmm_backward_dense`, and validates COO row/column bounds before CSR
+  construction.
+- [x] [patch] `coeus-autograd/tests/autograd/sparse.rs`: forward and backward
+  COO parity against dense `matmul`, with value-semantic checks for COO-value
+  gradients and dense RHS gradients.
+- [x] [patch] `coeus-ops/tests/stats_diff.rs`: SequentialBackend and
+  MoiraiBackend differential coverage for variance, standard deviation, and
+  Lp-norm reductions against analytical references.
+- [x] [patch] `coeus-python/src/tensor/`: split `PyTensor`, iterator, and
+  state-dict bindings into concern-specific modules while retaining Rust-core
+  ownership of tensor behavior.
+- [x] [patch] `coeus-ops/Cargo.toml`: removed unused direct `num-traits`
+  dependency from `coeus-ops`; `coeus-core` remains the numeric-trait owner.
+- [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-autograd`;
+  `cargo nextest run -p coeus-ops`; `cargo nextest run -p coeus-python`;
+  `cargo clippy -p coeus-autograd -p coeus-python -p coeus-ops --all-targets
+  -- -D warnings`; `cargo doc -p coeus-autograd -p coeus-python -p coeus-ops
+  --no-deps`.
+
+### Previous Sprint: MS-92 - f16/bf16 differential parity on both backends [COMPLETE]
 **Objective**: Close bf16 zero-coverage gap and extend f16 backend parity beyond
 SequentialBackend-only. Verifies that MoiraiBackend dispatches half-precision ops
 identically to SequentialBackend.

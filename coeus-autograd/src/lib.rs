@@ -122,6 +122,7 @@ pub use ops::{
     softmax,
     softplus,
     sparse_matmul,
+    sparse_matmul_coo,
     split,
     sqrt,
     squeeze,

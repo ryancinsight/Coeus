@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.2.30 - 2026-06-26
+
+### Added
+
+- **COO sparse autograd matmul** —
+  `coeus_autograd::sparse_matmul_coo` accepts tracked COO values plus COO
+  indices, converts to CSR once, reuses the existing CSR SpMM forward/backward
+  kernels, and remaps value gradients back to original COO order.
+- **Statistical reduction differential coverage** — `coeus-ops` now verifies
+  variance, standard deviation, and Lp-norm reductions on SequentialBackend and
+  MoiraiBackend against analytical references.
+
+### Changed
+
+- **PyTensor binding hierarchy** — split the former monolithic tensor binding
+  file into `tensor::pyimpl`, `tensor::iter`, and `tensor::state_dict`, keeping
+  Python as a thin PyO3 boundary over Rust tensor/autograd behavior.
+- **Direct dependency cleanup** — removed unused `num-traits` from `coeus-ops`;
+  numeric trait integration remains centralized in `coeus-core`.
+
+### Verified
+
+- `cargo nextest run -p coeus-autograd` passes 35/35 tests, including COO sparse
+  matmul forward/backward parity against dense `matmul`.
+- `cargo nextest run -p coeus-ops` passes 167/167 tests after the dependency
+  cleanup.
+- `cargo nextest run -p coeus-python` passes 70/70 tests after the tensor module
+  split.
+- `cargo fmt --check`, touched-package clippy, and touched-package rustdoc pass.
+
 ## 0.2.29 - 2026-06-26
 
 ### Added

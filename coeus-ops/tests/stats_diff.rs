@@ -126,16 +126,31 @@ where
 
     let sd0 = coeus_ops::std_dev_axis(&m, 0, false, backend);
     assert_eq!(sd0.shape(), &[1, 2], "std_dev_axis=0 shape");
-    assert_close(sd0.as_slice(), &[2.0, 0.0], VAR_STD_EPS, "std_dev_axis=0 pop");
+    assert_close(
+        sd0.as_slice(),
+        &[2.0, 0.0],
+        VAR_STD_EPS,
+        "std_dev_axis=0 pop",
+    );
 
     let sd1 = coeus_ops::std_dev_axis(&m, 1, false, backend);
     assert_eq!(sd1.shape(), &[2, 1], "std_dev_axis=1 shape");
-    assert_close(sd1.as_slice(), &[2.0, 0.0], VAR_STD_EPS, "std_dev_axis=1 pop");
+    assert_close(
+        sd1.as_slice(),
+        &[2.0, 0.0],
+        VAR_STD_EPS,
+        "std_dev_axis=1 pop",
+    );
 
     // sample (Bessel correction, N-1=1): same squared-deviation sum, divide by 1 instead of 2
     // col0 unbiased_var = 8/1 = 8.0, col1 = 0.0
     let vs0 = coeus_ops::var_axis(&m, 0, true, backend);
-    assert_close(vs0.as_slice(), &[8.0, 0.0], VAR_STD_EPS, "var_axis=0 sample");
+    assert_close(
+        vs0.as_slice(),
+        &[8.0, 0.0],
+        VAR_STD_EPS,
+        "var_axis=0 sample",
+    );
 
     // rank-3 shape [2,3,2], axis=2 (inner-most, N=2 per slice)
     // rows: [1,3],[5,7],[2,4],[6,8],[3,5],[7,9]

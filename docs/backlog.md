@@ -1,5 +1,27 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-93: sparse COO autograd parity + PyTensor vertical split [COMPLETE]
+
+- [x] [minor] Added `coeus_autograd::sparse_matmul_coo`, backed by a single
+  COO-to-CSR conversion helper that carries a sorted-to-original permutation for
+  gradient remapping. The implementation reuses the authoritative CSR SpMM
+  forward/backward kernels instead of introducing parallel sparse math.
+- [x] [patch] Hardened COO conversion with explicit row/column bounds checks
+  before CSR row-offset construction.
+- [x] [patch] Added dense differential coverage for COO sparse matmul forward,
+  COO-value gradients, and dense RHS gradients.
+- [x] [patch] Added `coeus-ops/tests/stats_diff.rs` differential coverage for
+  variance, standard deviation, and Lp-norm reductions on SequentialBackend and
+  MoiraiBackend.
+- [x] [patch] Split `coeus-python/src/tensor.rs` into
+  `tensor/{pyimpl,iter,state_dict}.rs`, preserving PyO3 as a wrapper-only layer.
+- [x] [patch] Removed unused `num-traits` from `coeus-ops`; `coeus-core`
+  remains the numeric trait integration point.
+- [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-autograd`
+  (35/35); `cargo nextest run -p coeus-ops` (167/167);
+  `cargo nextest run -p coeus-python` (70/70); touched-package clippy and
+  rustdoc clean.
+
 ## Sprint MS-92: f16/bf16 differential parity on both backends [COMPLETE]
 
 - [x] [patch] `coeus-ops/tests/half_precision_diff.rs` (NEW): 4 tests verifying

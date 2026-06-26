@@ -9,7 +9,9 @@
 //! transcendental chains (exp, div, mul) accumulate at most ~8 ULPs ≈ 1e-6 for f32.
 //! Exact integer values (topk indices, exactly-representable floats) are bit-equal.
 
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, SequentialBackend};
+use coeus_core::{
+    CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, SequentialBackend,
+};
 use coeus_tensor::Tensor;
 
 fn from_slice_f32<B>(shape: &[usize], data: &[f32], backend: &B) -> Tensor<f32, B>
@@ -163,7 +165,12 @@ where
     let (val, idx) = coeus_ops::topk(&x, 2, 1, true);
     assert_eq!(val.shape(), &[2, 2]);
     assert_eq!(idx.shape(), &[2, 2]);
-    assert_close(val.as_slice(), &[5.0f32, 4.0, 9.0, 6.0], 0.0, "topk largest values");
+    assert_close(
+        val.as_slice(),
+        &[5.0f32, 4.0, 9.0, 6.0],
+        0.0,
+        "topk largest values",
+    );
     assert_eq_i64(idx.as_slice(), &[3, 2, 0, 2], "topk largest indices");
 
     // topk(k=2, dim=1, largest=false): bottom-2 values sorted ascending.
@@ -171,7 +178,12 @@ where
     //   Row 1: values=[2.0, 3.0], indices=[1, 4]
     let (val2, idx2) = coeus_ops::topk(&x, 2, 1, false);
     assert_eq!(val2.shape(), &[2, 2]);
-    assert_close(val2.as_slice(), &[1.0f32, 2.0, 2.0, 3.0], 0.0, "topk smallest values");
+    assert_close(
+        val2.as_slice(),
+        &[1.0f32, 2.0, 2.0, 3.0],
+        0.0,
+        "topk smallest values",
+    );
     assert_eq_i64(idx2.as_slice(), &[1, 4, 1, 4], "topk smallest indices");
 
     // k=1 edge: top-1 per row.
