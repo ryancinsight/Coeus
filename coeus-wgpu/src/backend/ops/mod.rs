@@ -1,6 +1,7 @@
 use crate::backend::{WgpuBackend, WgpuScalar};
 use crate::kernels;
 use coeus_core::{Layout, Storage};
+use hephaestus_core::BlockWidth;
 use std::sync::Arc;
 
 mod attention;
@@ -15,44 +16,51 @@ fn try_hephaestus_contiguous_binary<T: WgpuScalar + hephaestus_wgpu::WgslScalar>
         return false;
     }
     let ctx = crate::backend::get_wgpu_context();
-    let run = |result: hephaestus_wgpu::Result<hephaestus_wgpu::WgpuBuffer<T>>,
-               c: &mut crate::storage::WgpuStorage<T>| {
-        c.buffer = Arc::new(result.expect("hephaestus-wgpu contiguous binary dispatch failed"));
+    let run = |result: hephaestus_wgpu::Result<()>| {
+        result.expect("hephaestus-wgpu contiguous binary dispatch failed");
         true
     };
     match op {
-        coeus_ops::BinaryOp::Add => run(
-            hephaestus_wgpu::binary_elementwise::<hephaestus_wgpu::AddOp, T>(
-                &ctx.hephaestus_device,
-                a.buffer.as_ref(),
-                b.buffer.as_ref(),
-            ),
-            c,
-        ),
-        coeus_ops::BinaryOp::Sub => run(
-            hephaestus_wgpu::binary_elementwise::<hephaestus_wgpu::SubOp, T>(
-                &ctx.hephaestus_device,
-                a.buffer.as_ref(),
-                b.buffer.as_ref(),
-            ),
-            c,
-        ),
-        coeus_ops::BinaryOp::Mul => run(
-            hephaestus_wgpu::binary_elementwise::<hephaestus_wgpu::MulOp, T>(
-                &ctx.hephaestus_device,
-                a.buffer.as_ref(),
-                b.buffer.as_ref(),
-            ),
-            c,
-        ),
-        coeus_ops::BinaryOp::Div => run(
-            hephaestus_wgpu::binary_elementwise::<hephaestus_wgpu::DivOp, T>(
-                &ctx.hephaestus_device,
-                a.buffer.as_ref(),
-                b.buffer.as_ref(),
-            ),
-            c,
-        ),
+        coeus_ops::BinaryOp::Add => run(hephaestus_wgpu::binary_elementwise_into::<
+            hephaestus_wgpu::AddOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            b.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::BinaryOp::Sub => run(hephaestus_wgpu::binary_elementwise_into::<
+            hephaestus_wgpu::SubOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            b.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::BinaryOp::Mul => run(hephaestus_wgpu::binary_elementwise_into::<
+            hephaestus_wgpu::MulOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            b.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::BinaryOp::Div => run(hephaestus_wgpu::binary_elementwise_into::<
+            hephaestus_wgpu::DivOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            b.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
     }
 }
 
@@ -65,68 +73,83 @@ fn try_hephaestus_contiguous_unary<T: WgpuScalar + hephaestus_wgpu::WgslScalar>(
         return false;
     }
     let ctx = crate::backend::get_wgpu_context();
-    let run = |result: hephaestus_wgpu::Result<hephaestus_wgpu::WgpuBuffer<T>>,
-               c: &mut crate::storage::WgpuStorage<T>| {
-        c.buffer = Arc::new(result.expect("hephaestus-wgpu contiguous unary dispatch failed"));
+    let run = |result: hephaestus_wgpu::Result<()>| {
+        result.expect("hephaestus-wgpu contiguous unary dispatch failed");
         true
     };
     match op {
-        coeus_ops::UnaryOp::Sin => run(
-            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::SinOp, T>(
-                &ctx.hephaestus_device,
-                a.buffer.as_ref(),
-            ),
-            c,
-        ),
-        coeus_ops::UnaryOp::Cos => run(
-            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::CosOp, T>(
-                &ctx.hephaestus_device,
-                a.buffer.as_ref(),
-            ),
-            c,
-        ),
-        coeus_ops::UnaryOp::Exp => run(
-            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::ExpOp, T>(
-                &ctx.hephaestus_device,
-                a.buffer.as_ref(),
-            ),
-            c,
-        ),
-        coeus_ops::UnaryOp::Log => run(
-            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::LnOp, T>(
-                &ctx.hephaestus_device,
-                a.buffer.as_ref(),
-            ),
-            c,
-        ),
-        coeus_ops::UnaryOp::Neg => run(
-            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::NegOp, T>(
-                &ctx.hephaestus_device,
-                a.buffer.as_ref(),
-            ),
-            c,
-        ),
-        coeus_ops::UnaryOp::Abs => run(
-            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::AbsOp, T>(
-                &ctx.hephaestus_device,
-                a.buffer.as_ref(),
-            ),
-            c,
-        ),
-        coeus_ops::UnaryOp::Sqrt => run(
-            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::SqrtOp, T>(
-                &ctx.hephaestus_device,
-                a.buffer.as_ref(),
-            ),
-            c,
-        ),
-        coeus_ops::UnaryOp::Recip => run(
-            hephaestus_wgpu::unary_elementwise::<hephaestus_wgpu::RecipOp, T>(
-                &ctx.hephaestus_device,
-                a.buffer.as_ref(),
-            ),
-            c,
-        ),
+        coeus_ops::UnaryOp::Sin => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::SinOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Cos => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::CosOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Exp => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::ExpOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Log => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::LnOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Neg => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::NegOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Abs => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::AbsOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Sqrt => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::SqrtOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Recip => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::RecipOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
         _ => false,
     }
 }

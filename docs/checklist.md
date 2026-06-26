@@ -2,6 +2,26 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
+### Current Sprint: MS-109 - WGPU Hephaestus zero-allocation elementwise routing [COMPLETE]
+**Objective**: Reduce WGPU elementwise allocation churn by keeping delegated
+Hephaestus contiguous routes in caller-owned output buffers.
+**Target version**: 0.5.1 (patch-class; behavior-preserving backend optimization).
+**Tests delivered**: delegated contiguous unary/binary parity and output-buffer
+identity assertions, plus aliasing fallback parity.
+
+- [x] [patch] `coeus-wgpu/src/backend/ops/mod.rs`: replaced allocating
+  `binary_elementwise`/`unary_elementwise` calls with `*_into` variants for
+  contiguous non-aliased Hephaestus dispatch.
+- [x] [patch] Kept alias-guard contract unchanged so aliased output continues to
+  use Coeus-local kernels.
+- [x] [patch] `coeus-wgpu/tests/wgpu/parity.rs`: added delegated contiguous
+  unary/binary tests asserting output Arc identity is preserved and values match
+  CPU reference.
+- [x] Evidence: `cargo fmt --check`; `cargo test -p coeus-wgpu
+  test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer`; `cargo test -p
+  coeus-wgpu test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer`;
+  `cargo test -p coeus-wgpu test_wgpu_aliasing_unary_neg_matches_cpu`.
+
 ### Current Sprint: MS-108 - BatchNorm2d training-mode backward parity [COMPLETE]
 **Objective**: Add differential Burn autodiff parity for BatchNorm2d training-mode
 backward pass (dx, dw, db), matching Coeus's NHWC-based population-variance formula
@@ -14,7 +34,7 @@ against the same formula manually expressed in Burn autodiff tensors.
   (÷M not ÷(M-1)), verifies dx/dw/db within 1e-4 relative tolerance.
 - [x] Evidence: `cargo nextest run -p coeus-nn --test burn_live_parity`: 97/97 pass.
 
-### Previous Sprint: MS-107 - CUDA Hephaestus primitive routing [COMPLETE]
+### Current Sprint: MS-107 - CUDA Hephaestus primitive routing [COMPLETE]
 **Objective**: Keep CUDA and WGPU shared primitive GPU dispatch centralized in
 Hephaestus while preserving Coeus-local kernels only for aliasing, strided
 coverage not yet mapped through the static-rank Hephaestus API, and
@@ -38,6 +58,40 @@ available.
   coeus-cuda --all-targets --features cuda -- -D warnings`; `cargo doc -p
   coeus-cuda --features cuda --no-deps`; `cargo nextest run -p coeus-cuda
   --features cuda` (69/69).
+
+### Previous Sprint: MS-106 - Conv1d + Conv2d backward gradient parity [COMPLETE]
+**Objective**: Close the Burn autodiff-parity gap for Conv1d / Conv2d backward
+gradients (dx + dw) so the full forward + backward Burn parity envelope now
+covers 1D and 2D convolution modules.
+**Target version**: 0.5.1 (patch-class; additive test coverage only).
+
+- [x] [patch] Added `conv1d_backward_matches_burn` and `conv2d_backward_matches_burn`
+  in `coeus-nn/tests/burn_live_parity.rs` against Burn `Autodiff<NdArray<f32>>`.
+- [x] [patch] Both tests compare `dx` (input gradient) and `dw` (weight gradient)
+  using exact same data shapes and weight values as the corresponding forward
+  Burn parity cases.
+- [x] Evidence: merged PR #20 from `feat/ms-106-conv-backward-parity`
+  (`cargo nextest run -p coeus-nn --test burn_live_parity`
+  → 96/96 pass; `cargo nextest run -p coeus-nn`
+  → 259/259 pass).
+
+### Previous Sprint: MS-105 - Optimizer + Conv3d parity + CUDA cache RwLock [COMPLETE]
+**Objective**: Add closed-form RMSProp / AdaGrad / AdamW first-step analytic
+references, Conv3d stride+padding Burn parity, transpose backward Burn autodiff
+parity, and complete the `coeus-cuda` fused-kernel cache `Mutex` → `RwLock`
+conversion (read-mostly swap with double-checked write-lock insert).
+**Target version**: 0.5.1 (patch-class; additive tests + internal cache fix).
+
+- [x] [patch] Added `rmsprop_step_matches_analytical_reference`,
+  `adagrad_step_matches_analytical_reference`,
+  `adamw_step_matches_analytical_reference` in `burn_live_parity::optimizer_*`.
+- [x] [patch] Added `conv3d_forward_matches_burn` and transpose-backward
+  autodiff parity in `coeus-nn/tests/burn_live_parity.rs`.
+- [x] [patch] Converted `coeus-cuda/src/kernels/fuse.rs::KERNEL_CACHE` from
+  `Mutex<HashMap<…>>` to `RwLock<HashMap<…>>` with read-lock fast-path and
+  double-checked write-lock insert path.
+- [x] Evidence: `cargo nextest run -p coeus-nn --test burn_live_parity` →
+  94/94 pass; `cargo check -p coeus-cuda` → clean.
 
 ### Previous Sprint: MS-104 - Core Rustdoc contract examples [COMPLETE]
 **Objective**: Make `coeus-core` public documentation executable for storage,

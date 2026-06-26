@@ -3474,7 +3474,9 @@ fn conv1d_backward_matches_burn() {
     let (n, ic, oc, l, k) = (1usize, 2, 1, 6, 3);
     // Non-trivial inputs and weights — constant values would mask wrong gradients.
     let data: Vec<f32> = (0..n * ic * l).map(|x| x as f32 * 0.1 - 0.5).collect();
-    let w_vec: Vec<f32> = (0..oc * ic * k).map(|x| (x as f32 + 1.0) * 0.2 - 0.3).collect();
+    let w_vec: Vec<f32> = (0..oc * ic * k)
+        .map(|x| (x as f32 + 1.0) * 0.2 - 0.3)
+        .collect();
 
     // Coeus: forward + backward.
     let xv = Var::new(
@@ -3536,8 +3538,7 @@ fn conv2d_backward_matches_burn() {
 
     // Burn: raw tensor conv2d via autodiff so weight is a tracked tensor.
     let xb: BurnTensor<AB, 4> =
-        BurnTensor::from_data(TensorData::new(data.clone(), [n, ic, h, w]), &device)
-            .require_grad();
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, ic, h, w]), &device).require_grad();
     let wb: BurnTensor<AB, 4> =
         BurnTensor::from_data(TensorData::new(w_vec.clone(), [oc, ic, k, k]), &device)
             .require_grad();
@@ -3588,8 +3589,7 @@ fn batchnorm2d_training_backward_matches_burn() {
     // Burn autodiff: manual BN2d formula matching Coeus NHWC layout.
     // [N,C,H,W] → permute [N,H,W,C] → reshape [M, C].
     let xb: BurnTensor<AB, 4> =
-        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, h, w]), &device)
-            .require_grad();
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, h, w]), &device).require_grad();
     let wb: BurnTensor<AB, 1> =
         BurnTensor::from_data(TensorData::new(gamma.clone(), [c]), &device).require_grad();
     let bk: BurnTensor<AB, 1> =
@@ -3625,10 +3625,5 @@ fn batchnorm2d_training_backward_matches_burn() {
     // converted back via the same NHWC permutation.
     let dx_b_flat = to_vec4(xb.grad(&grads).unwrap());
     let dx_c_flat = xv.grad().unwrap();
-    assert_close_rel(
-        "batchnorm2d_bwd_dx",
-        dx_c_flat.as_slice(),
-        &dx_b_flat,
-        1e-4,
-    );
+    assert_close_rel("batchnorm2d_bwd_dx", dx_c_flat.as_slice(), &dx_b_flat, 1e-4);
 }
