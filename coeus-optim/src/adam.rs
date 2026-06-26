@@ -4,6 +4,25 @@ use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
 
 /// Adam optimizer.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_autograd::Var;
+/// use coeus_optim::{Adam, Optimizer};
+/// use coeus_tensor::Tensor;
+///
+/// let x: Var<f32> = Var::new(Tensor::from_slice(vec![2], &[2.0f32, 3.0]), true);
+/// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
+///
+/// let mut opt = Adam::new(vec![x.clone()], 0.1f32, 0.9f32, 0.999f32, 1e-8f32);
+/// opt.step();
+/// // t=1: m_hat = grad, v_hat = grad^2, update = lr * m_hat / (sqrt(v_hat) + eps)
+/// // p' = [2.0, 3.0] - 0.1 * [1.0, -1.0] = [1.9, 3.1]
+/// let updated = opt.params[0].tensor.as_slice();
+/// assert!((updated[0] - 1.9).abs() < 1e-4);
+/// assert!((updated[1] - 3.1).abs() < 1e-4);
+/// ```
 pub struct Adam<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// List of tracked parameters.
     pub params: Vec<Var<T, B>>,

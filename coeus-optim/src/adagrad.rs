@@ -4,6 +4,26 @@ use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
 
 /// AdaGrad optimizer.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_autograd::Var;
+/// use coeus_optim::{AdaGrad, Optimizer};
+/// use coeus_tensor::Tensor;
+///
+/// let x: Var<f32> = Var::new(Tensor::from_slice(vec![2], &[2.0f32, 3.0]), true);
+/// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
+///
+/// let mut opt = AdaGrad::new(vec![x.clone()], 0.1f32, 1e-6f32);
+/// opt.step();
+/// // history = grad^2 = [1.0, 4.0]; denom = sqrt(history) + eps ≈ [1.0, 2.0]
+/// // update = lr * grad / denom ≈ 0.1 * [1.0, -1.0] = [0.1, -0.1]
+/// // p' = [2.0, 3.0] - [0.1, -0.1] = [1.9, 3.1]
+/// let updated = opt.params[0].tensor.as_slice();
+/// assert!((updated[0] - 1.9).abs() < 1e-4);
+/// assert!((updated[1] - 3.1).abs() < 1e-4);
+/// ```
 pub struct AdaGrad<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Parameters to optimize.
     pub params: Vec<Var<T, B>>,

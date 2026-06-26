@@ -14,6 +14,25 @@ use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float};
 ///
 /// Returns the pre-clip total norm (in `T` precision).
 ///
+/// # Examples
+///
+/// ```
+/// use coeus_autograd::Var;
+/// use coeus_optim::clip_grad_norm;
+/// use coeus_tensor::Tensor;
+///
+/// let x: Var<f32> = Var::new(Tensor::from_slice(vec![2], &[1.0f32, 1.0]), true);
+/// // Gradient [3.0, 4.0] has L2 norm 5.0; clipping to 2.5 scales by 0.5.
+/// x.set_grad(Tensor::from_slice(vec![2], &[3.0f32, 4.0]));
+///
+/// let pre_norm = clip_grad_norm(&[x.clone()], 2.5f32);
+/// assert!((pre_norm - 5.0).abs() < 1e-5);
+///
+/// let g = x.grad().unwrap();
+/// assert!((g.as_slice()[0] - 1.5).abs() < 1e-5);
+/// assert!((g.as_slice()[1] - 2.0).abs() < 1e-5);
+/// ```
+///
 /// # Bounds
 /// Requires `B::DeviceBuffer<T>` to implement `CpuAddressableStorage<T>` and
 /// `CpuAddressableStorageMut<T>` so that gradient slices are directly readable and
