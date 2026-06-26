@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.4.0 - 2026-06-26
+
+### Added
+
+- **Functional GroupNorm** — `coeus-nn` now exports stateless
+  `group_norm`, keeping normalization computation in Rust core for thin PyO3
+  wrapper parity with Burn/PyTorch-style functional APIs.
+
+### Changed
+
+- **WGPU elementwise routing** — contiguous non-aliased unary and binary
+  elementwise operations in `coeus-wgpu` now route through Hephaestus public
+  kernels where supported, retaining Coeus-local kernels for aliasing and
+  unsupported operation cases.
+
+### Verified
+
+- `cargo nextest run -p coeus-nn --test norm_parity` validates exact
+  analytical functional GroupNorm output and rejection semantics.
+- `cargo nextest run -p coeus-wgpu` validates WGPU package behavior.
+- `cargo fmt --check`, `coeus-nn`/`coeus-wgpu` clippy, and
+  `coeus-nn`/`coeus-wgpu` rustdoc pass.
+
 ## 0.3.0 - 2026-06-26
 
 ### Added

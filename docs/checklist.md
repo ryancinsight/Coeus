@@ -2,11 +2,14 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-99 - WGPU shader cache hardening [COMPLETE]
-**Objective**: Strengthen shader/pipeline caching correctness and reduce cache
-contention in `coeus-wgpu` while preserving kernel parity behavior.
-**Target version**: 0.3.0 (patch-class).
-**Tests delivered**: full `coeus-wgpu` package tests plus touched-package clippy.
+### Current Sprint: MS-99 - WGPU routing and functional GroupNorm [COMPLETE]
+**Objective**: Strengthen `coeus-wgpu` shader/pipeline cache correctness,
+route contiguous elementwise work through Hephaestus public kernels where
+aliasing permits, and add a Rust-core functional GroupNorm API for parity with
+Burn/PyTorch-style stateless normalization.
+**Target version**: 0.4.0 (minor-class; additive public `coeus-nn` API).
+**Tests delivered**: WGPU package nextest plus analytical normalization parity
+for module and functional GroupNorm on SequentialBackend and MoiraiBackend.
 
 - [x] [patch] `coeus-wgpu/src/kernels/cache.rs`: made cache entries
   device-scoped and source-sensitive (`device_addr`, shader key, entry point,
@@ -18,8 +21,15 @@ contention in `coeus-wgpu` while preserving kernel parity behavior.
   contiguous non-aliased `Add/Sub/Mul/Div` and unary
   `Sin/Cos/Exp/Log/Neg/Abs/Sqrt/Recip` through Hephaestus elementwise dispatch,
   while retaining Coeus-local kernels for aliasing and unsupported unary ops.
-- [x] Evidence: `cargo fmt`; `cargo test -p coeus-wgpu`; `cargo clippy -p
-  coeus-wgpu --all-targets -- -D warnings`.
+- [x] [minor] Added and exported stateless `coeus_nn::group_norm`, backed by
+  tensor-level Rust-core ops and explicit rank/group/affine/epsilon validation.
+- [x] [patch] Extended `coeus-nn/tests/norm_parity.rs` with exact analytical
+  functional GroupNorm assertions, including affine output and zero-group
+  rejection.
+- [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-nn --test
+  norm_parity`; `cargo nextest run -p coeus-wgpu`; `cargo clippy -p coeus-nn -p
+  coeus-wgpu --all-targets -- -D warnings`; `cargo doc -p coeus-nn -p
+  coeus-wgpu --no-deps`.
 
 ### Previous Sprint: MS-98 - stats pair reductions and PyO3 wrappers [COMPLETE]
 **Objective**: Add Rust-owned `var_mean` / `std_mean` statistics pairs and

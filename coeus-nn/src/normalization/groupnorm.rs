@@ -235,7 +235,10 @@ where
         shape.len() >= 2,
         "group_norm: input must have at least 2 dimensions"
     );
-    assert!(num_groups > 0, "group_norm: num_groups must be greater than 0");
+    assert!(
+        num_groups > 0,
+        "group_norm: num_groups must be greater than 0"
+    );
     assert!(
         eps.is_finite() && eps >= 0.0,
         "group_norm: eps must be finite and non-negative"

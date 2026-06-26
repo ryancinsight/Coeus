@@ -1,6 +1,6 @@
 # Coeus Project Backlog & Historical Archives
 
-## Sprint MS-99: WGPU shader cache hardening [COMPLETE]
+## Sprint MS-99: WGPU routing and functional GroupNorm [COMPLETE]
 
 - [x] [patch] Hardened `coeus-wgpu` pipeline cache keys with device scoping
   plus source/entry-point identity so cached pipelines cannot be reused across
@@ -11,8 +11,15 @@
 - [x] [patch] Routed contiguous non-aliased elementwise binary and a supported
   unary subset through `hephaestus-wgpu` public kernels to reduce Coeus-local
   WGSL duplication and rely on Hephaestus pipeline caching where possible.
-- [x] Evidence: `cargo fmt`; `cargo test -p coeus-wgpu`;
-  `cargo clippy -p coeus-wgpu --all-targets -- -D warnings`.
+- [x] [minor] Added stateless `coeus_nn::group_norm` as Rust-core functional
+  normalization for Burn/PyTorch-style parity without moving logic into Python
+  bindings.
+- [x] [patch] Added exact analytical functional GroupNorm parity assertions for
+  no-affine output, affine output, and zero-group rejection.
+- [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-nn --test
+  norm_parity`; `cargo nextest run -p coeus-wgpu`; `cargo clippy -p coeus-nn -p
+  coeus-wgpu --all-targets -- -D warnings`; `cargo doc -p coeus-nn -p
+  coeus-wgpu --no-deps`.
 
 ## Sprint MS-98: stats pair reductions and PyO3 wrappers [COMPLETE]
 

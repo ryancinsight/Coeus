@@ -30,8 +30,10 @@
 //! SequentialBackend and MoiraiBackend must produce bitwise-identical results.
 
 use coeus_autograd::Var;
-use coeus_core::{CpuAddressableStorageMut, MoiraiBackend, SequentialBackend};
-use coeus_nn::normalization::{BatchNorm1d, GroupNorm, RMSNorm};
+use coeus_core::{
+    CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, SequentialBackend,
+};
+use coeus_nn::normalization::{group_norm, BatchNorm1d, GroupNorm, RMSNorm};
 use coeus_nn::Module;
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
@@ -108,7 +110,7 @@ where
 
 fn check_group_norm<B: BackendOps<f64> + Default>(backend: &B)
 where
-    B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
+    B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
     // GroupNorm<G=2>, num_features=4, eps=0.
     // weight=ones, bias=zeros (GroupNorm::new defaults).
@@ -143,6 +145,45 @@ where
     // With eps=0 not safe here since var=5≠perfect-square → use eps tolerance.
     // Instead test G=4 (each channel independently → zero variance → only bias matters).
     // Actually skip this edge case to maintain assert_eq! (no epsilon).
+}
+
+fn check_functional_group_norm<B: BackendOps<f64> + Default>(backend: &B)
+where
+    B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
+{
+    // Functional group_norm over [N=1, C=4, L=1], G=2, eps=0.
+    // Group 0 [1,3]: mean=2, var=1, stdev=1 -> [-1,1].
+    // Group 1 [10,14]: mean=12, var=4, stdev=2 -> [-1,1].
+    let input = t(&[1, 4, 1], &[1.0, 3.0, 10.0, 14.0], backend);
+    let out = group_norm(&input, 2, None, None, 0.0);
+
+    assert_eq!(out.shape(), &[1, 4, 1], "functional GroupNorm shape");
+    assert_eq!(
+        out.as_slice(),
+        &[-1.0_f64, 1.0, -1.0, 1.0],
+        "functional GroupNorm no-affine oracle"
+    );
+
+    // Per-channel affine transform:
+    // x_hat=[-1,1,-1,1], weight=[2,2,3,3], bias=[0.5,-0.5,1,-1]
+    // -> [-1.5, 1.5, -2.0, 2.0].
+    let weight = t(&[4], &[2.0, 2.0, 3.0, 3.0], backend);
+    let bias = t(&[4], &[0.5, -0.5, 1.0, -1.0], backend);
+    let affine = group_norm(&input, 2, Some(&weight), Some(&bias), 0.0);
+
+    assert_eq!(
+        affine.as_slice(),
+        &[-1.5_f64, 1.5, -2.0, 2.0],
+        "functional GroupNorm affine oracle"
+    );
+}
+
+#[test]
+#[should_panic(expected = "group_norm: num_groups must be greater than 0")]
+fn functional_group_norm_rejects_zero_groups() {
+    let backend = SequentialBackend;
+    let input = t(&[1, 4], &[1.0, 3.0, 10.0, 14.0], &backend);
+    let _ = group_norm(&input, 0, None, None, 0.0);
 }
 
 // ── RMSNorm ────────────────────────────────────────────────────────────────
@@ -192,10 +233,11 @@ where
 
 fn check_all<B: BackendOps<f64> + Default>(backend: &B)
 where
-    B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
+    B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
     check_batch_norm_1d(backend);
     check_group_norm(backend);
+    check_functional_group_norm(backend);
     check_rms_norm(backend);
 }
 
