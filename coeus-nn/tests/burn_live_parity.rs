@@ -2527,6 +2527,49 @@ fn batchnorm1d_eval_uses_running_stats_without_update() {
     );
 }
 
+// ── BatchNorm1d eval-mode forward matches Burn NdArray ───────────────────────
+
+#[test]
+fn batchnorm1d_eval_forward_matches_burn() {
+    use burn::nn::BatchNormConfig;
+    use coeus_nn::BatchNorm1d;
+
+    // Burn's non-autodiff NdArray backend runs BatchNorm in inference (eval)
+    // mode, using running statistics rather than batch statistics.  Both
+    // implementations default to running_mean=0 and running_var=1 so the
+    // eval outputs are directly comparable.
+    let data: Vec<f32> = (0..12).map(|x| x as f32 - 5.5).collect();
+    let (n, c, l) = (2usize, 2, 3);
+
+    // Coeus in eval mode: running_mean=0, running_var=1, weight=1, bias=0.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, l], &data),
+        false,
+    );
+    let mut bn = BatchNorm1d::<f32, SequentialBackend>::new(c, 1e-5, 0.1);
+    bn.set_training(false);
+    let out_c = bn.forward(&xv);
+
+    // Burn (NdArray = eval mode by default): running_mean=0, running_var=1.
+    let bn_b: burn::nn::BatchNorm<BurnBackend, 1> =
+        BatchNormConfig::new(c).init::<BurnBackend, 1>(&dev());
+    let xb: BurnTensor<BurnBackend, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, l]), &dev());
+    let out_b = bvec(bn_b.forward(xb));
+
+    // Tolerance derivation: Burn 0.16 uses sqrt(var) + eps (eps after sqrt),
+    // coeus uses sqrt(var + eps).  With running_var=1 and eps=1e-5 the
+    // denominators are sqrt(1+1e-5) ≈ 1.000005 vs (1+1e-5) = 1.00001 —
+    // difference ≈ 5e-6.  For |x| ≤ 5.5 the per-element error ≤ 2.8e-5.
+    // tol = 1e-4 covers this plus f32 rounding.
+    assert_close_rel(
+        "batchnorm1d_eval_vs_burn",
+        out_c.tensor.as_slice(),
+        &out_b,
+        1e-4,
+    );
+}
+
 // ── InstanceNorm forward (matches Burn NdArray) ──────────────────────────────
 
 #[test]
