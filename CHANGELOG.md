@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.5.1 - 2026-06-26
+
+### Added
+
+- **Core Rustdoc examples** — `coeus-core` now carries compiling examples for
+  backend, scalar, layout, stride, shape, and CPU storage contracts.
+- **WGPU aliasing parity coverage** — `coeus-wgpu` verifies aliased unary and
+  binary elementwise paths remain correct when Hephaestus routing is not used.
+- **Additional Burn parity coverage** — `coeus-nn` verifies Conv3d forward and
+  stride/padding behavior, InstanceNorm2d forward behavior, and transpose
+  backward gradients against Burn NdArray/autodiff.
+- **Optimizer analytical coverage** — `coeus-nn` Burn parity tests now include
+  closed-form RMSProp, AdaGrad, and AdamW first-step references.
+
+### Fixed
+
+- **Core doctest correctness** — corrected public examples to import the real
+  trait providers and use existing `Shape` APIs.
+- **CUDA fused-kernel cache contention** — `coeus-cuda` now uses a read/write
+  lock for fused-kernel cache hits and inserts, matching the read-mostly cache
+  contract.
+
+### Verified
+
+- `cargo test --doc -p coeus-core` passes 32/32 doctests.
+- `cargo nextest run -p coeus-core` validates core tests.
+- `cargo nextest run -p coeus-nn --test burn_live_parity
+  validates 94/94 Burn parity and analytical optimizer tests.
+- `cargo check -p coeus-cuda` and `cargo check -p coeus-cuda --features cuda`
+  validate both CUDA backend build surfaces.
+- `cargo fmt --check`, `coeus-core`/`coeus-cuda` clippy, and `coeus-core`
+  rustdoc pass.
+
 ## 0.5.0 - 2026-06-26
 
 ### Added
