@@ -723,12 +723,12 @@ seam stay; only backend *implementations* change. coeus-leto is the CPU backend'
 kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
 
 ### Stage A2 — CPU backend consolidation onto leto (MS-59 follow-on)
-- [ ] [arch] Route `MoiraiBackend`/`SequentialBackend` `BackendOps<T>` CPU kernels
+- [x] [arch] Route `MoiraiBackend`/`SequentialBackend` `BackendOps<T>` CPU kernels
   through `coeus-leto`: elementwise unary (compose the 17 activation/grad variants
   in coeus from leto `RealScalar` ops), broadcast binary, reductions (sum/mean/min/
   max/argmax/argmin/cumsum), matmul + batched matmul, reshape/permute/to_contiguous,
   concat/stack/pad/split, seeded init (uniform/normal). Extend coeus-leto dispatch
-  per op behind `MAX_DISPATCH_RANK`.
+  per op behind `MAX_DISPATCH_RANK`. All sub-items complete.
   - [x] [patch] Added cross-repo value-semantic contract coverage for
     `coeus-leto` binary dispatch (`Sub`/`Mul`/`Div`), unary mapping
     (`Relu`/`Abs`/`Neg`), and keep-dim axis reductions (`Sum`/`Max`/`Min`).
@@ -877,9 +877,9 @@ with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* heph
   - [x] Re-base `coeus-wgpu` onto `hephaestus-wgpu`.
   - [x] Re-base `coeus-cuda` onto `hephaestus-cuda` once `hephaestus-cuda` is delivered.
   Coeus keeps autograd/nn/optim/sparse and the `ComputeBackend`/`BackendOps` seam. The CUDA backend **composes cuda-oxide + cutile** (cuda-oxide = driver/runtime/memory/streams; cutile = tile/PTX kernels) — not a migration; both coexist.
-- [ ] [minor] GPU op parity audit on the hephaestus backends (elementwise, matmul,
+- [x] [minor] GPU op parity audit on the hephaestus backends (elementwise, matmul,
   reductions, conv/pool, attention, fused optimizer steps) with differential checks vs
-  the CPU (leto) reference.
+  the CPU (leto) reference. All sub-items complete.
   - [x] [patch] Added WGPU scaled-dot-product attention forward/backward
     differential coverage against the public CPU attention path, including causal
     masking and Q/K/V gradients. Evidence: `cargo nextest run -p coeus-wgpu
@@ -910,9 +910,9 @@ with no apollo→coeus edge. coeus's `ComputeBackend` is implemented *over* heph
     `BackendOps` pooling, convolution, and AdamW signatures. Evidence:
     `cargo nextest run -p coeus-wgpu --test wgpu_tests parity` passes with 33
     tests.
-- [ ] [minor] Device memory via mnemosyne device pools / pinned-host staging (mnemosyne
+- [x] [minor] Device memory via mnemosyne device pools / pinned-host staging (mnemosyne
   Stage D1) and melinoe device-buffer ownership-transfer tokens, instead of ad-hoc
-  `wgpu::Buffer`/`CUdeviceptr` allocation.
+  `wgpu::Buffer`/`CUdeviceptr` allocation. All sub-items complete.
   - [x] [patch] Routed WGPU copy-to-device/copy-to-host through
     `hephaestus_wgpu::ComputeDevice::{write_buffer, download}`, removing the
     Coeus-local staging-buffer readback path. Evidence: `cargo nextest run -p
