@@ -13,16 +13,23 @@
 // ── Coeus Ops ──
 // Tensor operations: unary, binary, matmul, reductions, FFT.
 #![allow(clippy::needless_range_loop)]
-
+/// Backend dispatch trait and CPU implementation.
 pub mod backend_ops;
 pub(crate) mod ptr;
 pub use backend_ops::{BackendOps, BinaryOp, CpuBackend, ReductionOp, UnaryOp};
+/// Element-wise binary operations (add, sub, mul, div).
 pub mod binary;
+/// Embedding lookup and backward pass.
 pub mod embedding;
+/// Matrix multiplication kernels (matmul, bmm, outer).
 pub mod matmul;
+/// Reduction operations (sum, mean, max, min, norms, variance).
 pub mod reduction;
+/// Shape manipulation operations (cat, stack, reshape, flip, sort, etc.).
 pub mod shape;
+/// Sparse tensor operations (SpMM, SpMV, format conversions).
 pub mod sparse;
+/// Element-wise unary operations (activations, math functions).
 pub mod unary;
 
 pub use unary::{
@@ -57,16 +64,20 @@ pub use sparse::{
     spmm_backward_values, spmv,
 };
 
+/// Fused expression evaluation DAG for single-pass CPU computation.
 pub mod fuse;
 pub use fuse::{
     evaluate_fused_cpu, evaluate_fused_reduce_cpu, scalar, Expr, ExprNode, TensorExprExt,
 };
 
+/// Scaled dot-product attention with causal and padding mask support.
 pub mod attention;
 pub use attention::{scaled_dot_product_attention, scaled_dot_product_attention_backward};
 
+/// Transposed convolution operations (1-D and 2-D).
 pub mod conv_transpose;
 pub use conv_transpose::{conv_transpose1d, conv_transpose2d};
 
+/// Tensor constructors (linspace, logspace, geomspace).
 pub mod constructors;
 pub use constructors::{geomspace, linspace, logspace};

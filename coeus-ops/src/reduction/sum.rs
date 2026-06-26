@@ -5,6 +5,19 @@ use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 
 /// Sum all elements.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::sum;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+/// let result = sum(&a, &backend);
+/// assert!((result - 21.0).abs() < 1e-5);
+/// ```
 #[inline]
 pub fn sum<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B) -> T {
     if a.numel() == 0 {
@@ -23,6 +36,20 @@ pub fn sum<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B)
 }
 
 /// Sum along a specific axis, reducing it to size 1.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::sum_axis;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+/// let result = sum_axis(&a, 1, &backend);
+/// assert_eq!(result.shape(), &[2, 1]);
+/// assert_eq!(result.as_slice(), &[6.0, 15.0]);
+/// ```
 #[inline]
 pub fn sum_axis<T: Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,

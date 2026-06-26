@@ -4,7 +4,9 @@
 
 mod cpu_impl;
 pub(crate) mod defaults;
+/// Operation enum types (BinaryOp, ReductionOp, UnaryOp) re-exported from coeus_core.
 pub mod ops;
+/// BackendOps trait definition.
 pub mod trait_def;
 
 pub use cpu_impl::CpuBackend;

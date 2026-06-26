@@ -12,7 +12,27 @@ mod sealed {
     impl Sealed for coeus_core::MoiraiBackend {}
 }
 
+/// CPU execution backend marker trait.
+///
+/// Implemented by [`MoiraiBackend`] and [`SequentialBackend`] from `coeus_core`.
+/// The trait is sealed: external crates cannot add new implementations.
+///
+/// [`MoiraiBackend`]: coeus_core::MoiraiBackend
+/// [`SequentialBackend`]: coeus_core::SequentialBackend
+///
+/// # Examples
+///
+/// ```
+/// use coeus_ops::CpuBackend;
+/// use coeus_core::SequentialBackend;
+///
+/// fn accept_cpu<B: CpuBackend>(_: &B) {}
+///
+/// let backend = SequentialBackend::new();
+/// accept_cpu(&backend);
+/// ```
 pub trait CpuBackend: Backend + sealed::Sealed {
+    /// Borrow an `i64` device buffer as a mutable slice.
     fn as_mut_slice_i64<'a>(&self, buf: &'a mut Self::DeviceBuffer<i64>) -> &'a mut [i64];
 }
 

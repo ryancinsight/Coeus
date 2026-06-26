@@ -12,10 +12,27 @@ use super::ops::{BinaryOp, ReductionOp, UnaryOp};
 /// touching the algorithm bodies.
 ///
 /// # Examples
-/// ```ignore
-/// // Obtain the default CPU backend and run an elementwise add.
-/// let backend = coeus_ops::CpuBackend::default();
-/// backend.elementwise_binary(BinaryOp::Add, &a_buf, &a_layout, &b_buf, &b_layout, &mut c_buf, &c_layout);
+///
+/// `SequentialBackend` implements `BackendOps` and drives all kernel dispatch:
+///
+/// ```
+/// use coeus_ops::{BackendOps, add};
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+///
+/// fn compute<B: BackendOps<f32>>(
+///     a: &Tensor<f32, B>,
+///     b: &Tensor<f32, B>,
+///     backend: &B,
+/// ) -> Tensor<f32, B> {
+///     add(a, b, backend)
+/// }
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[1.0, 2.0]);
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0]);
+/// let c = compute(&a, &b, &backend);
+/// assert_eq!(c.as_slice(), &[4.0, 6.0]);
 /// ```
 pub trait BackendOps<T: Scalar>: coeus_core::ComputeBackend {
     /// Element-wise binary operations.

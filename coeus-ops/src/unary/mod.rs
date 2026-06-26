@@ -2,6 +2,7 @@
 
 mod activation;
 mod kernel;
+/// Element-wise math functions (exp, log, sin, cos, sqrt, abs, neg, etc.).
 pub mod math;
 
 pub use activation::{
