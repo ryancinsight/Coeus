@@ -87,3 +87,25 @@ fn test_squeeze_unsqueeze_autograd() {
     assert_eq!(gx3.shape(), &[1, 2, 1, 3]);
     assert_eq!(gx3.as_slice(), &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
 }
+
+/// Verify contiguous() backward is identity — gradient flows through unchanged.
+#[test]
+fn test_contiguous_backward_is_identity() {
+    let backend = MoiraiBackend::new();
+    let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
+    let x = Var::new(Tensor::from_slice_on(vec![2, 3], &data, &backend), true);
+    // Permute to create a non-contiguous view, then force contiguous.
+    let y = coeus_autograd::contiguous(&coeus_autograd::permute(&x, &[1, 0]));
+    assert_eq!(y.tensor.shape(), &[3, 2]);
+    // sum(contiguous(permute(x))).backward() — grad should be all-ones (same as sum backward).
+    coeus_autograd::sum(&y).backward();
+    let gx = x.grad().unwrap();
+    assert_eq!(gx.shape(), &[2, 3]);
+    // Every element contributed once to the sum, so all grads = 1.
+    for &v in gx.as_slice() {
+        assert!(
+            (v - 1.0).abs() < 1e-6,
+            "contiguous bwd grad should be 1.0, got {v}"
+        );
+    }
+}

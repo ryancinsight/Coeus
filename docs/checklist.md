@@ -2,11 +2,11 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-80 - RNN cells, index_put, Python wrappers, attention benchmark [COMPLETE]
-**Objective**: Complete the RNN/index_put/decoder PyO3 parity slice and add an
-additional Python functional parity slice plus an SDP-attention Burn/Coeus
-benchmark instrument without claiming unmeasured performance wins.
-**Target version**: 0.2.19 (Cargo.toml reconciled with CHANGELOG).
+### Current Sprint: MS-82 - masked softmax, init binding, conv contention guard [COMPLETE]
+**Objective**: Complete masked/causal softmax parity surfaces, expose Rust
+initializers through a thin PyO3 submodule, add small-workload convolution
+partition guards, and close two regression-test gaps.
+**Target version**: 0.2.22 (Cargo.toml reconciled with CHANGELOG).
 **Burn parity tests**: 69 total (all passing).
 
 > **Roadmap (docs/backlog.md MS-61)**: live Burn comparison starts replacing hardcoded
@@ -16,6 +16,20 @@ benchmark instrument without claiming unmeasured performance wins.
 
 ### Current Verification Note (2026-06-25)
 
+- [x] [minor] Added `coeus_ops::{masked_softmax, causal_softmax}`,
+  `pycoeus.masked_softmax`, `pycoeus.causal_softmax`, `pycoeus.Module`, and
+  `pycoeus.init`. Added small-workload contention guards to CPU
+  `conv1d`/`conv2d`/`conv3d` and regression coverage for `contiguous()`
+  backward plus repeated-index embedding gradient accumulation. Evidence tier:
+  empirical value-semantic validation plus differential convolution checks.
+  Evidence: `cargo clippy -p coeus-ops -p coeus-python --all-targets -- -D
+  warnings`, `cargo nextest run -p coeus-ops masked_softmax causal_softmax`,
+  `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_init_submodule_mutates_tensor_values test_glu_activation
+  test_module_list`, `cargo nextest run -p coeus-autograd
+  test_contiguous_backward_is_identity`, `cargo nextest run -p coeus-nn
+  embedding_backward_accumulates_grad_for_repeated_indices`, and `cargo
+  nextest run -p coeus-ops conv1d conv2d conv3d` pass.
 - [x] [minor] Added `coeus_nn::rnn::{LSTMCell, GRUCell}`, Python
   `pycoeus.LSTMCell` / `GRUCell`, `coeus_ops::index_put`,
   `pycoeus.index_put`, and `pycoeus.TransformerDecoderLayer`. Exposed

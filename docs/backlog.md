@@ -1,5 +1,26 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-82: masked softmax, init binding, conv contention guard [COMPLETE]
+
+- [x] [minor] Added `coeus_ops::{masked_softmax, causal_softmax}` with
+  deterministic all-masked-row semantics and public exports.
+- [x] [minor] Added Python wrappers `pycoeus.masked_softmax`,
+  `pycoeus.causal_softmax`, `pycoeus.Module`, and the `pycoeus.init`
+  submodule as PyO3 boundary adapters over Rust Coeus logic.
+- [x] [patch] Added small-workload contention guards to CPU
+  `conv1d`/`conv2d`/`conv3d` partition dispatch while preserving the existing
+  Hermes differential correctness surface.
+- [x] [patch] Added regression coverage for `contiguous()` backward identity
+  and repeated-index embedding gradient accumulation.
+- [x] Evidence: `cargo clippy -p coeus-ops -p coeus-python --all-targets --
+  -D warnings`; `cargo nextest run -p coeus-ops masked_softmax
+  causal_softmax`; `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_init_submodule_mutates_tensor_values test_glu_activation
+  test_module_list`; `cargo nextest run -p coeus-autograd
+  test_contiguous_backward_is_identity`; `cargo nextest run -p coeus-nn
+  embedding_backward_accumulates_grad_for_repeated_indices`; `cargo nextest run
+  -p coeus-ops conv1d conv2d conv3d`.
+
 ## Sprint MS-80: RNN cells, index_put, Python parity wrappers, attention benchmark [COMPLETE]
 
 - [x] [minor] Added `coeus_nn::rnn::{LSTMCell, GRUCell}` and PyO3 wrappers

@@ -90,6 +90,48 @@ except ValueError:
 }
 
 #[test]
+fn test_init_submodule_mutates_tensor_values() {
+    run_script(
+        r#"
+import pycoeus
+
+t = pycoeus.zeros([2, 3], requires_grad=True)
+pycoeus.init.constant_(t, 2.5)
+assert t.shape == [2, 3]
+assert t.requires_grad is True
+assert t.data == [2.5] * 6, f"constant_: {t.data}"
+
+pycoeus.init.zeros_(t)
+assert t.data == [0.0] * 6, f"zeros_: {t.data}"
+
+pycoeus.init.ones_(t)
+assert t.data == [1.0] * 6, f"ones_: {t.data}"
+
+pycoeus.init.uniform_(t, -0.25, 0.25)
+assert all(-0.25 <= v <= 0.25 for v in t.data), f"uniform_ range: {t.data}"
+assert any(v != 0.0 for v in t.data), f"uniform_ should write nonzero values: {t.data}"
+
+pycoeus.init.normal_(t, 1.0, 0.5)
+assert len(t.data) == 6 and all(v == v for v in t.data), f"normal_: {t.data}"
+
+pycoeus.init.xavier_uniform_(t, 3, 5)
+limit = (6.0 / 8.0) ** 0.5
+assert all(-limit <= v <= limit for v in t.data), f"xavier_uniform_ range: {t.data}"
+
+pycoeus.init.xavier_normal_(t, 3, 5)
+assert len(t.data) == 6 and all(v == v for v in t.data), f"xavier_normal_: {t.data}"
+
+pycoeus.init.kaiming_uniform_(t, 3)
+k_limit = (6.0 / 3.0) ** 0.5
+assert all(-k_limit <= v <= k_limit for v in t.data), f"kaiming_uniform_ range: {t.data}"
+
+pycoeus.init.kaiming_normal_(t, 3)
+assert len(t.data) == 6 and all(v == v for v in t.data), f"kaiming_normal_: {t.data}"
+"#,
+    );
+}
+
+#[test]
 fn test_functional_matmul() {
     run_script(
         r#"
@@ -1741,6 +1783,37 @@ try:
     raise AssertionError("glu out-of-range dim should raise")
 except ValueError:
     pass
+
+# ── masked_softmax ───────────────────────────────────────────────────
+logits = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3])
+mask = pycoeus.Tensor([1.0, 0.0, 1.0, 0.0, 1.0, 1.0], [2, 3])
+msm = pycoeus.masked_softmax(logits, mask, 1)
+e1, e3 = math.exp(1.0), math.exp(3.0)
+e5, e6 = math.exp(5.0), math.exp(6.0)
+expected_msm = [e1/(e1+e3), 0.0, e3/(e1+e3), 0.0, e5/(e5+e6), e6/(e5+e6)]
+for got, want in zip(msm.data, expected_msm):
+    assert abs(got - want) < 1e-9, f"masked_softmax: {msm.data}"
+
+all_masked = pycoeus.masked_softmax(pycoeus.Tensor([1.0, 2.0, 3.0], [1, 3]), pycoeus.zeros([1, 3]), 1)
+assert all_masked.data == [0.0, 0.0, 0.0], f"all masked row: {all_masked.data}"
+
+try:
+    pycoeus.masked_softmax(logits, pycoeus.ones([3]), 1)
+    raise AssertionError("masked_softmax shape mismatch should raise")
+except ValueError:
+    pass
+
+# ── causal_softmax ───────────────────────────────────────────────────
+attn = pycoeus.Tensor([1.0, 9.0, 9.0, 1.0, 2.0, 9.0, 1.0, 2.0, 3.0], [1, 3, 3])
+csm = pycoeus.causal_softmax(attn, -1)
+e2 = math.exp(2.0)
+expected_csm = [
+    1.0, 0.0, 0.0,
+    e1/(e1+e2), e2/(e1+e2), 0.0,
+    e1/(e1+e2+e3), e2/(e1+e2+e3), e3/(e1+e2+e3),
+]
+for got, want in zip(csm.data, expected_csm):
+    assert abs(got - want) < 1e-9, f"causal_softmax: {csm.data}"
 "#,
     );
 }
@@ -1752,6 +1825,19 @@ fn test_module_list() {
 import pycoeus
 
 # ── ModuleList ────────────────────────────────────────────────────────
+base = pycoeus.Module()
+assert base.parameters() == [], f"base parameters: {base.parameters()}"
+assert base.is_training is True
+base.eval()
+assert base.is_training is False
+base.train()
+assert base.is_training is True
+try:
+    base.forward(pycoeus.Tensor([1.0], [1]))
+    raise AssertionError("base Module.forward should raise")
+except NotImplementedError:
+    pass
+
 lin1 = pycoeus.Linear(4, 8)
 ln = pycoeus.LayerNorm(8)
 lin2 = pycoeus.Linear(8, 4)
@@ -2280,6 +2366,130 @@ for h in (1, 2, 4):
 dec = pycoeus.TransformerDecoderLayer(d_model=4, d_ff=8, num_heads=2)
 assert dec.parameters() == [], "stateless wrapper has no exposed parameters"
 dec.zero_grad()
+"#,
+    );
+}
+
+#[test]
+fn test_masked_causal_softmax() {
+    run_script(
+        r#"
+import pycoeus
+import math
+
+# ── masked_softmax ────────────────────────────────────────────────────
+# Input: [2, 4] logits; mask the last element in each row.
+logits = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0], [2, 4])
+mask = pycoeus.Tensor([1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0], [2, 4])
+ms = pycoeus.masked_softmax(logits, mask, dim=1)
+assert ms.shape == [2, 4], f"masked_softmax shape: {ms.shape}"
+
+# Masked positions must be 0.
+assert abs(ms.data[3]) < 1e-9, f"masked pos should be 0: {ms.data[3]}"
+assert abs(ms.data[6]) < 1e-9, f"masked pos should be 0: {ms.data[6]}"
+assert abs(ms.data[7]) < 1e-9, f"masked pos should be 0: {ms.data[7]}"
+
+# Kept positions must sum to 1 per row.
+row0_sum = sum(ms.data[:4])
+assert abs(row0_sum - 1.0) < 1e-5, f"row0 sum: {row0_sum}"
+row1_sum = sum(ms.data[4:8])
+assert abs(row1_sum - 1.0) < 1e-5, f"row1 sum: {row1_sum}"
+
+# All-kept mask == regular softmax.
+full_mask = pycoeus.ones([2, 4])
+ms_full = pycoeus.masked_softmax(logits, full_mask, dim=1)
+sm_ref = pycoeus.f_softmax(logits, 1)
+for a, b in zip(ms_full.data, sm_ref.data):
+    assert abs(a - b) < 1e-5, f"masked(all-keep) vs softmax: {a} vs {b}"
+
+# Error: shape mismatch
+try:
+    pycoeus.masked_softmax(logits, pycoeus.ones([3, 4]), dim=1)
+    raise AssertionError("shape mismatch should raise")
+except ValueError:
+    pass
+
+# ── causal_softmax ────────────────────────────────────────────────────
+# For a [3, 3] square, causal along dim=1:
+# row i should only attend to positions j <= i.
+sq = pycoeus.Tensor([1.0] * 9, [3, 3])
+cs = pycoeus.causal_softmax(sq, dim=1)
+assert cs.shape == [3, 3], f"causal_softmax shape: {cs.shape}"
+
+# row 0: only position 0 kept → [1, 0, 0]
+assert abs(cs.data[0] - 1.0) < 1e-5, f"causal row0[0]={cs.data[0]}"
+assert abs(cs.data[1]) < 1e-5, f"causal row0[1]={cs.data[1]}"
+assert abs(cs.data[2]) < 1e-5, f"causal row0[2]={cs.data[2]}"
+
+# row 1: positions 0,1 kept → [0.5, 0.5, 0]
+assert abs(cs.data[3] - 0.5) < 1e-5, f"causal row1[0]={cs.data[3]}"
+assert abs(cs.data[4] - 0.5) < 1e-5, f"causal row1[1]={cs.data[4]}"
+assert abs(cs.data[5]) < 1e-5, f"causal row1[2]={cs.data[5]}"
+
+# row 2: all positions kept → uniform [1/3, 1/3, 1/3]
+for v in cs.data[6:9]:
+    assert abs(v - 1.0/3.0) < 1e-5, f"causal row2={v}"
+"#,
+    );
+}
+
+#[test]
+fn test_module_base_class() {
+    run_script(
+        r#"
+import pycoeus
+
+# ── pycoeus.Module base class ─────────────────────────────────────────
+# Can be instantiated directly (but forward raises NotImplementedError).
+m = pycoeus.Module()
+assert m.parameters() == [], "default parameters() should be empty"
+assert m.is_training is True, "default training mode should be True"
+
+m.train(False)
+assert m.is_training is False, "train(False) should set eval mode"
+m.eval()
+assert m.is_training is False
+
+# Resetting back to training mode
+m.train()
+assert m.is_training is True, "train() with no args should set training=True"
+
+# forward raises NotImplementedError
+try:
+    x = pycoeus.Tensor([1.0], [1])
+    m.forward(x)
+    raise AssertionError("Module.forward() should raise NotImplementedError")
+except NotImplementedError:
+    pass
+
+# ── Module works in Sequential / ModuleList as a duck-typed interface ─
+# pycoeus modules (Linear, LayerNorm, etc.) satisfy the Module protocol
+# without formally inheriting; Sequential accepts any object with forward().
+lin = pycoeus.Linear(4, 4)
+assert hasattr(lin, 'forward'), "Linear has forward"
+assert hasattr(lin, 'parameters'), "Linear has parameters"
+assert hasattr(lin, 'zero_grad'), "Linear has zero_grad"
+
+# Custom module (pure Python, no inheritance needed for protocol use):
+class ScaleLayer:
+    def __init__(self, scale_val):
+        self.scale = pycoeus.Tensor([scale_val], [1])
+    def forward(self, x):
+        return pycoeus.Tensor([v * self.scale.data[0] for v in x.data], x.shape)
+    def parameters(self):
+        return []
+    def zero_grad(self):
+        pass
+
+sl = ScaleLayer(2.0)
+x = pycoeus.Tensor([1.0, 2.0, 3.0], [3])
+out = sl.forward(x)
+assert out.data == [2.0, 4.0, 6.0], f"scale layer: {out.data}"
+
+# Combine in Sequential (duck typing).
+seq = pycoeus.Sequential([sl])
+out2 = seq.forward(x)
+assert out2.data == [2.0, 4.0, 6.0], f"sequential scale: {out2.data}"
 "#,
     );
 }

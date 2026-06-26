@@ -1,4 +1,5 @@
 use crate::tensor::PyTensor;
+use coeus_core::MoiraiBackend;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -113,4 +114,66 @@ pub fn glu(input: &PyTensor, dim: isize, py: Python<'_>) -> PyResult<PyTensor> {
         coeus_autograd::mul(&first, &gate)
     });
     Ok(PyTensor::from_var(inner))
+}
+
+/// Masked softmax: replaces `mask==0` positions with `-inf` before softmax.
+///
+/// `mask` shape must match `input` shape. Equivalent to
+/// `torch.softmax(input.masked_fill(~mask, float('-inf')), dim=dim)`.
+#[pyfunction]
+#[pyo3(signature = (input, mask, dim = -1))]
+pub fn masked_softmax(
+    input: &PyTensor,
+    mask: &PyTensor,
+    dim: i64,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
+    let ndim = input.inner.tensor.ndim() as i64;
+    let axis = if dim < 0 { ndim + dim } else { dim };
+    if axis < 0 || axis >= ndim {
+        return Err(PyValueError::new_err(format!(
+            "masked_softmax: dim {dim} out of range for rank {ndim}"
+        )));
+    }
+    if input.inner.tensor.shape() != mask.inner.tensor.shape() {
+        return Err(PyValueError::new_err(format!(
+            "masked_softmax: input shape {:?} must match mask shape {:?}",
+            input.inner.tensor.shape(),
+            mask.inner.tensor.shape()
+        )));
+    }
+    let x = input.inner.tensor.clone();
+    let m = mask.inner.tensor.clone();
+    let ax = axis as usize;
+    let inner = py.allow_threads(move || {
+        let backend = MoiraiBackend::new();
+        coeus_ops::masked_softmax(&x, &m, ax, &backend)
+    });
+    Ok(PyTensor {
+        inner: coeus_autograd::Var::new(inner, false),
+    })
+}
+
+/// Causal (lower-triangular) softmax — masks future positions before softmax.
+///
+/// Equivalent to `torch.softmax(input.masked_fill(upper_tri_mask, -inf), dim)`.
+#[pyfunction]
+#[pyo3(signature = (input, dim = -1))]
+pub fn causal_softmax(input: &PyTensor, dim: i64, py: Python<'_>) -> PyResult<PyTensor> {
+    let ndim = input.inner.tensor.ndim() as i64;
+    let axis = if dim < 0 { ndim + dim } else { dim };
+    if axis < 0 || axis >= ndim {
+        return Err(PyValueError::new_err(format!(
+            "causal_softmax: dim {dim} out of range for rank {ndim}"
+        )));
+    }
+    let x = input.inner.tensor.clone();
+    let ax = axis as usize;
+    let inner = py.allow_threads(move || {
+        let backend = MoiraiBackend::new();
+        coeus_ops::causal_softmax(&x, ax, &backend)
+    });
+    Ok(PyTensor {
+        inner: coeus_autograd::Var::new(inner, false),
+    })
 }

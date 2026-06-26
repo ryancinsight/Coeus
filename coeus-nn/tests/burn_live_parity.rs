@@ -2629,3 +2629,50 @@ fn embedding_forward_backward_match_burn() {
         &to_vec(wb.grad(&grads).unwrap()),
     );
 }
+
+// ── Embedding backward: gradient accumulation for repeated indices ────────────
+
+#[test]
+fn embedding_backward_accumulates_grad_for_repeated_indices() {
+    // Input indices [0, 1, 0] — index 0 appears twice.
+    // With sum loss, weight.grad[0] should be 2 × grad_out_row and weight.grad[1] = 1 × grad_out_row.
+    let weights = vec![1.0f32, 2.0, 3.0, 4.0]; // [vocab=2, dim=2]
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 2], &weights),
+        true,
+    );
+
+    let idx = vec![0i32, 1, 0];
+    let idx_tensor = CoeusTensor::<i32, SequentialBackend>::from_slice(vec![3], &idx);
+
+    let out = coeus_autograd::embedding(&xv, &idx_tensor);
+    assert_eq!(out.tensor.shape(), &[3, 2]);
+    // out[0] = weights[0] = [1, 2], out[1] = weights[1] = [3, 4], out[2] = weights[0] = [1, 2]
+
+    // Backward with all-ones grad → accumulation should double grad for row 0.
+    coeus_autograd::sum(&out).backward();
+
+    let gw = xv.grad().unwrap();
+    // row 0 was accessed twice → grad = 2.0 for each element
+    assert!(
+        (gw.as_slice()[0] - 2.0).abs() < 1e-6,
+        "grad[0,0]={}",
+        gw.as_slice()[0]
+    );
+    assert!(
+        (gw.as_slice()[1] - 2.0).abs() < 1e-6,
+        "grad[0,1]={}",
+        gw.as_slice()[1]
+    );
+    // row 1 was accessed once → grad = 1.0 for each element
+    assert!(
+        (gw.as_slice()[2] - 1.0).abs() < 1e-6,
+        "grad[1,0]={}",
+        gw.as_slice()[2]
+    );
+    assert!(
+        (gw.as_slice()[3] - 1.0).abs() < 1e-6,
+        "grad[1,1]={}",
+        gw.as_slice()[3]
+    );
+}

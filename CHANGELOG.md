@@ -1,6 +1,74 @@
 # Changelog
 
-## 0.2.21 - 2026-06-25
+## 0.2.22 - 2026-06-25
+
+### Added
+
+- **`coeus_ops::{masked_softmax, causal_softmax}`** — Public masked and
+  causal softmax kernels over the existing Coeus tensor/backend stack. Masked
+  rows with no unmasked values return zeros instead of NaN.
+
+- **Python parity surfaces** — Added `pycoeus.masked_softmax`,
+  `pycoeus.causal_softmax`, `pycoeus.Module`, and the `pycoeus.init`
+  submodule (`uniform_`, `normal_`, `constant_`, `zeros_`, `ones_`,
+  `xavier_*`, `kaiming_*`) as PyO3 wrappers over Rust Coeus logic.
+
+### Changed
+
+- **CPU convolution contention guard** — `conv1d`/`conv2d`/`conv3d` now bypass
+  Moirai partition dispatch for small output-row counts where per-thread work
+  is below the scheduling amortization threshold. Correctness is unchanged and
+  remains covered by the Hermes differential convolution tests.
+
+### Fixed
+
+- **Autograd shape regression test hygiene** — Added `contiguous()` backward
+  identity coverage and removed duplicated malformed shape-test content.
+
+- **Embedding repeated-index coverage** — Added a value-semantic regression test
+  proving repeated embedding indices accumulate gradients into the same weight
+  row.
+
+## 0.2.22 - 2026-06-25
+
+### Added
+
+- **`coeus_ops::masked_softmax(input, mask, dim)`** — Sets masked positions (mask==0)
+  to `-inf` before numerically-stable softmax; output at masked positions is 0.
+  Python: `pycoeus.masked_softmax(input, mask, dim=-1)`.
+
+- **`coeus_ops::causal_softmax(input, dim)`** — Builds a lower-triangular causal mask
+  and delegates to `masked_softmax`. For attention weight matrices `[..., seq, seq]`.
+  Python: `pycoeus.causal_softmax(input, dim=-1)`.
+
+- **`pycoeus.Module` base class** — `#[pyclass(subclass)]` base with `forward()`,
+  `parameters()`, `zero_grad()`, `train(mode=True)`, `eval()`, `is_training`.
+  Default `forward()` raises `NotImplementedError`. Registered as `pycoeus.Module`.
+
+- **Hermes `dispatch_axpy_kernel` 4× unroll** — Single-register loop replaced with
+  4-accumulator loop `acc0..acc3`, each processing one `LANE_COUNT`-wide FMA per
+  iteration. Matches the pattern used by `dot()` and `scale()`. Scalar tail unchanged.
+
+- **Autograd test: `contiguous()` backward is identity** — New test confirms that
+  `sum(contiguous(permute(x))).backward()` accumulates all-ones gradient into `x`.
+
+- **Burn parity test: embedding gradient accumulation for repeated indices** —
+  `embedding_backward_accumulates_grad_for_repeated_indices` verifies that index 0
+  appearing twice in `[0, 1, 0]` produces `grad[0] == 2 × grad[1]` as expected.
+
+- **Python binding tests 48 → 50** (+2):
+  - `test_masked_causal_softmax` — masked_softmax forward, masked positions zero,
+    row-sum=1, all-keep==regular-softmax; causal_softmax lower-triangular pattern,
+    row-uniform for fully-visible rows.
+  - `test_module_base_class` — `Module()` training flag, `forward()` raises
+    `NotImplementedError`, duck-typed custom module works in `Sequential`.
+
+### Verified
+
+- **Softmax backward** — Already correct: `dx = (grad_out - dot(grad_out, y)) * y`.
+  Verified against Burn autodiff in `activation_backward_match_burn`.
+
+
 
 ### Added
 

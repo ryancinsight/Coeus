@@ -5,9 +5,10 @@ mod kernel;
 pub mod math;
 
 pub use activation::{
-    elu, elu_assign, gelu, gelu_assign, gelu_tanh, gelu_tanh_assign, glu, leaky_relu,
-    leaky_relu_assign, log_softmax_axis, mish, mish_assign, relu, relu_assign, sigmoid,
-    sigmoid_assign, silu, silu_assign, softplus, softplus_assign, tanh, tanh_assign,
+    causal_softmax, elu, elu_assign, gelu, gelu_assign, gelu_tanh, gelu_tanh_assign, glu,
+    leaky_relu, leaky_relu_assign, log_softmax_axis, masked_softmax, mish, mish_assign, relu,
+    relu_assign, sigmoid, sigmoid_assign, silu, silu_assign, softplus, softplus_assign, tanh,
+    tanh_assign,
 };
 pub use kernel::{elementwise_unary, elementwise_unary_assign, elementwise_unary_to};
 pub use math::{

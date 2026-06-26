@@ -9,6 +9,7 @@ static GLOBAL: mnemosyne::Mnemosyne = mnemosyne::Mnemosyne;
 pub mod activations;
 pub mod dist;
 mod grad_mode;
+pub mod init;
 pub mod losses;
 pub mod nn;
 pub mod ops;
@@ -125,6 +126,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyScaledDotProductAttention>()?;
     m.add_class::<nn::PySequential>()?;
     m.add_class::<nn::PyModuleList>()?;
+    m.add_class::<nn::PyModule>()?;
     m.add_class::<nn::PyLSTMCell>()?;
     m.add_class::<nn::PyGRUCell>()?;
     m.add_class::<PyLocalCommunicator>()?;
@@ -145,6 +147,8 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(activations::gelu_tanh, m)?)?;
     m.add_function(wrap_pyfunction!(activations::leaky_relu, m)?)?;
     m.add_function(wrap_pyfunction!(activations::glu, m)?)?;
+    m.add_function(wrap_pyfunction!(activations::masked_softmax, m)?)?;
+    m.add_function(wrap_pyfunction!(activations::causal_softmax, m)?)?;
 
     m.add_function(wrap_pyfunction!(losses::mse_loss, m)?)?;
     m.add_function(wrap_pyfunction!(losses::cross_entropy_loss, m)?)?;
@@ -294,6 +298,19 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Gradient utilities
     m.add_function(wrap_pyfunction!(ops::clip_grad_norm_, m)?)?;
     m.add_function(wrap_pyfunction!(ops::clip_grad_value_, m)?)?;
+
+    // ── init sub-module (weight initialization functions) ──
+    let init_mod = PyModule::new(m.py(), "init")?;
+    init_mod.add_function(wrap_pyfunction!(init::uniform_, &init_mod)?)?;
+    init_mod.add_function(wrap_pyfunction!(init::normal_, &init_mod)?)?;
+    init_mod.add_function(wrap_pyfunction!(init::constant_, &init_mod)?)?;
+    init_mod.add_function(wrap_pyfunction!(init::zeros_, &init_mod)?)?;
+    init_mod.add_function(wrap_pyfunction!(init::ones_, &init_mod)?)?;
+    init_mod.add_function(wrap_pyfunction!(init::xavier_uniform_, &init_mod)?)?;
+    init_mod.add_function(wrap_pyfunction!(init::xavier_normal_, &init_mod)?)?;
+    init_mod.add_function(wrap_pyfunction!(init::kaiming_uniform_, &init_mod)?)?;
+    init_mod.add_function(wrap_pyfunction!(init::kaiming_normal_, &init_mod)?)?;
+    m.add_submodule(&init_mod)?;
 
     Ok(())
 }

@@ -106,19 +106,36 @@ pub(crate) fn conv2d<T: Scalar, B: Backend>(
                 row_kernel(row, row_out);
             }
         } else {
-            brand_scope(|_token| {
-                // SAFETY: `output_region` is a fresh exclusive borrow that lives
-                // entirely within this brand scope; `partition_for_each_with`
-                // then splits it into disjoint row-sized shards.
-                let output_cells = unsafe { brand_mut_slice(output_region) };
-                partition_for_each_with(
-                    output_cells,
-                    PartitionPlan::chunk_size(w_out),
-                    |start, mut shard| {
-                        row_kernel(start / w_out, shard.as_mut_slice());
-                    },
-                );
-            });
+            // ── Atlas contention guard (mirrors conv1d). ────────────────────
+            // Same justification: tiny `out_rows × w_out` regions (e.g. Conv2d
+            // on `1×4×16×16` with k=3 → `out_rows = 1·8 = 8` × `w_out = 14` =
+            // 112 cells split across ~16 threads → ~7 cells per worker) make
+            // the partition driver's scheduling cost dominate. The bench
+            // `Burn vs Coeus — Conv2d (1×4×16×16, k=3)` measures the parallel
+            // canonical path ~42× slower than the sequential path on this
+            // workload (criterion `Median` ~3.91ms vs ~92µs). Bypass when each
+            // thread would own fewer than `MIN_ROWS_PER_THREAD` rows.
+            const MIN_ROWS_PER_THREAD: usize = 4;
+            let n_threads = backend.num_threads();
+            if out_rows < MIN_ROWS_PER_THREAD * n_threads {
+                for (row, row_out) in output_region.chunks_mut(w_out).enumerate() {
+                    row_kernel(row, row_out);
+                }
+            } else {
+                brand_scope(|_token| {
+                    // SAFETY: `output_region` is a fresh exclusive borrow that lives
+                    // entirely within this brand scope; `partition_for_each_with`
+                    // then splits it into disjoint row-sized shards.
+                    let output_cells = unsafe { brand_mut_slice(output_region) };
+                    partition_for_each_with(
+                        output_cells,
+                        PartitionPlan::chunk_size(w_out),
+                        |start, mut shard| {
+                            row_kernel(start / w_out, shard.as_mut_slice());
+                        },
+                    );
+                });
+            }
         }
         return;
     }
