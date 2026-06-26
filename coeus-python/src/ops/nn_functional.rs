@@ -301,6 +301,88 @@ pub fn f_cross_entropy(input: &PyTensor, targets: Vec<usize>, py: Python<'_>) ->
     PyTensor::from_var(inner)
 }
 
+/// Functional (stateless) batch normalization for 3-D inputs `[N, C, L]`.
+///
+/// Matches `torch.nn.functional.batch_norm` with `input` of shape
+/// `[N, C, L]`. In eval mode (`training=False`) normalizes with the
+/// supplied `running_mean` / `running_var`; in training mode normalizes
+/// with batch statistics (running stats are updated inside the call but
+/// not returned — manage them externally when persistent state is needed).
+///
+/// `weight` (γ) and `bias` (β) default to ones and zeros respectively.
+#[pyfunction]
+#[pyo3(signature = (
+    input,
+    running_mean,
+    running_var,
+    weight = None,
+    bias = None,
+    training = false,
+    momentum = 0.1,
+    eps = 1e-5
+))]
+pub fn batch_norm_1d(
+    input: &PyTensor,
+    running_mean: &PyTensor,
+    running_var: &PyTensor,
+    weight: Option<&PyTensor>,
+    bias: Option<&PyTensor>,
+    training: bool,
+    momentum: f64,
+    eps: f64,
+    py: Python<'_>,
+) -> PyTensor {
+    let num_features = input.inner.tensor.shape()[1];
+    let w = weight.map(|w| w.inner.clone());
+    let b = bias.map(|b| b.inner.clone());
+    let x = input.inner.clone();
+    let rm = running_mean.inner.tensor.clone();
+    let rv = running_var.inner.tensor.clone();
+    let inner = py.allow_threads(move || {
+        use coeus_nn::normalization::BatchNorm1d;
+        use coeus_nn::Module;
+        let backend = coeus_core::MoiraiBackend::new();
+        let weight_var = w.unwrap_or_else(|| {
+            coeus_autograd::Var::new(Tensor::ones_on([num_features], &backend), false)
+        });
+        let bias_var = b.unwrap_or_else(|| {
+            coeus_autograd::Var::new(Tensor::zeros_on([num_features], &backend), false)
+        });
+        let mut bn =
+            BatchNorm1d::from_parts(num_features, weight_var, bias_var, eps, momentum, rm, rv);
+        bn.set_training(training);
+        bn.forward(&x)
+    });
+    PyTensor::from_var(inner)
+}
+
+/// Functional (stateless) RMS normalization.
+///
+/// Matches `torch.nn.functional.rms_norm(input, weight, eps)` for 2-D
+/// inputs `[N, D]`. `weight` (γ) defaults to ones.
+#[pyfunction]
+#[pyo3(signature = (input, weight = None, eps = 1e-8))]
+pub fn rms_norm(
+    input: &PyTensor,
+    weight: Option<&PyTensor>,
+    eps: f64,
+    py: Python<'_>,
+) -> PyTensor {
+    let d = input.inner.tensor.shape().last().copied().unwrap_or(1);
+    let w = weight.map(|w| w.inner.clone());
+    let x = input.inner.clone();
+    let inner = py.allow_threads(move || {
+        use coeus_nn::normalization::RMSNorm;
+        use coeus_nn::Module;
+        let backend = coeus_core::MoiraiBackend::new();
+        let weight_var = w.unwrap_or_else(|| {
+            coeus_autograd::Var::new(Tensor::ones_on([d], &backend), false)
+        });
+        RMSNorm::from_parts(weight_var, eps).forward(&x)
+    });
+    PyTensor::from_var(inner)
+}
+
 /// Functional (stateless) scaled dot-product attention.
 ///
 /// Equivalent to `torch.nn.functional.scaled_dot_product_attention` /
