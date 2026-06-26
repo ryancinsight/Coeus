@@ -1,6 +1,6 @@
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
-use coeus_nn::{binary_cross_entropy, huber_loss, nll_loss};
+use coeus_nn::{binary_cross_entropy, cosine_embedding_loss, huber_loss, nll_loss};
 use coeus_tensor::Tensor;
 
 #[test]
@@ -124,4 +124,88 @@ fn test_huber_loss() {
 
     loss.backward();
     assert!(pred.grad().is_some());
+}
+
+#[test]
+fn test_cosine_embedding_loss() {
+    // cosine_embedding_loss semantics:
+    //   y = 1:  loss_i = 1 − cos(x1_i, x2_i)
+    //   y = −1: loss_i = max(0, cos(x1_i, x2_i) − margin)
+    //   total   = mean(loss_i)
+    //
+    // All inputs are unit vectors so cos_sim is exact.
+
+    // ── Case 1: identical unit vectors, y=1 → loss = 1−1 = 0.0 ──────────
+    let x1 = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[1.0_f64, 0.0]),
+        false,
+    );
+    let x2 = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[1.0_f64, 0.0]),
+        false,
+    );
+    let loss_0 = cosine_embedding_loss(&x1, &x2, &[1.0_f64], 0.0);
+    assert!(
+        (loss_0.tensor.as_slice()[0] - 0.0).abs() < 1e-10,
+        "identical y=1"
+    );
+
+    // ── Case 2: orthogonal unit vectors, y=1 → loss = 1−0 = 1.0 ─────────
+    let x2_orth = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0_f64, 1.0]),
+        false,
+    );
+    let loss_1 = cosine_embedding_loss(&x1, &x2_orth, &[1.0_f64], 0.0);
+    assert!(
+        (loss_1.tensor.as_slice()[0] - 1.0).abs() < 1e-10,
+        "orthogonal y=1"
+    );
+
+    // ── Case 3: opposite vectors, y=−1, margin=0 → max(0,−1−0)=0.0 ───────
+    let x2_opp = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[-1.0_f64, 0.0]),
+        false,
+    );
+    let loss_2 = cosine_embedding_loss(&x1, &x2_opp, &[-1.0_f64], 0.0);
+    assert!(
+        (loss_2.tensor.as_slice()[0] - 0.0).abs() < 1e-10,
+        "opposite y=-1 margin=0"
+    );
+
+    // ── Case 4: identical vectors, y=−1, margin=0 → max(0, 1−0)=1.0 ─────
+    let loss_3 = cosine_embedding_loss(&x1, &x1, &[-1.0_f64], 0.0);
+    assert!(
+        (loss_3.tensor.as_slice()[0] - 1.0).abs() < 1e-10,
+        "identical y=-1 margin=0"
+    );
+
+    // ── Case 5: batch of 2, y=[1,1] → mean([0.0, 1.0]) = 0.5 ────────────
+    // pair 0: [[1,0]] vs [[1,0]] → cos=1, loss=0
+    // pair 1: [[1,0]] vs [[0,1]] → cos=0, loss=1
+    let x1_b = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[1.0_f64, 0.0, 1.0, 0.0]),
+        false,
+    );
+    let x2_b = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[1.0_f64, 0.0, 0.0, 1.0]),
+        false,
+    );
+    let loss_b = cosine_embedding_loss(&x1_b, &x2_b, &[1.0_f64, 1.0], 0.0);
+    assert!(
+        (loss_b.tensor.as_slice()[0] - 0.5).abs() < 1e-10,
+        "batch mean"
+    );
+
+    // ── Backward: gradients must exist when requires_grad=true ────────────
+    let x1_g = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[1.0_f64, 0.0]),
+        true,
+    );
+    let x2_g = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0_f64, 1.0]),
+        true,
+    );
+    cosine_embedding_loss(&x1_g, &x2_g, &[1.0_f64], 0.0).backward();
+    assert!(x1_g.grad().is_some(), "x1 grad");
+    assert!(x2_g.grad().is_some(), "x2 grad");
 }
