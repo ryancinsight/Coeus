@@ -3682,3 +3682,151 @@ fn batchnorm2d_training_backward_matches_burn() {
     let dx_c_flat = xv.grad().unwrap();
     assert_close_rel("batchnorm2d_bwd_dx", dx_c_flat.as_slice(), &dx_b_flat, 1e-4);
 }
+
+// ── InstanceNorm1d backward (dx) matches Burn autodiff ────────────────────────
+//
+// InstanceNorm normalizes each (sample, channel) slice over the spatial dim L.
+// Formula: reshape [N,C,L] → [N*C, L], population variance (÷L), then
+//   y[nc, l] = gamma[nc%C] * x_hat[nc, l] + beta[nc%C].
+// gamma/beta are tiled [C] → [N*C, 1] via repeat_dim(0, N).
+
+#[test]
+fn instancenorm1d_backward_matches_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use coeus_nn::InstanceNorm1d;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    let (n, c, l) = (2usize, 2, 4);
+    let nc = n * c;
+    let eps = 1e-5_f32;
+    let data: Vec<f32> = (0..n * c * l).map(|x| x as f32 * 0.1 - 1.0).collect();
+    let gamma = vec![1.2f32, 0.8];
+    let beta = vec![0.1f32, -0.1];
+
+    // Coeus forward + backward.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, l], &data),
+        true,
+    );
+    let mut in1 = InstanceNorm1d::<f32, SequentialBackend>::new(c, eps as f64);
+    in1.weight = Var::new(CoeusTensor::from_slice(vec![c], &gamma), true);
+    in1.bias = Var::new(CoeusTensor::from_slice(vec![c], &beta), true);
+    coeus_autograd::sum(&in1.forward(&xv)).backward();
+
+    // Burn autodiff: manual InstanceNorm1d formula.
+    // gamma/beta: [C] → repeat N times dim-0 → [N*C] → [N*C, 1] for broadcast.
+    let xb: BurnTensor<AB, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, l]), &device).require_grad();
+    let wb: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(gamma.clone(), [c]), &device).require_grad();
+    let bk: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(beta.clone(), [c]), &device).require_grad();
+
+    let flat: BurnTensor<AB, 2> = xb.clone().reshape([nc, l]);
+    let mean = flat.clone().sum_dim(1) / (l as f32); // [N*C, 1]
+    let xmu = flat.sub(mean);
+    let var = xmu.clone().powf_scalar(2.0).sum_dim(1) / (l as f32);
+    let xhat = xmu / (var.add_scalar(eps)).sqrt(); // [N*C, L]
+    let g2 = wb.clone().reshape([1, c]).repeat_dim(0, n).reshape([nc, 1]);
+    let b2 = bk.clone().reshape([1, c]).repeat_dim(0, n).reshape([nc, 1]);
+    let grads = (xhat.mul(g2) + b2).sum().backward();
+
+    let dx_b: Vec<f32> = xb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+    let to_vec = |t: BurnTensor<NdArray<f32>, 1>| t.into_data().to_vec::<f32>().unwrap();
+
+    assert_close_rel(
+        "instancenorm1d_bwd_dx",
+        xv.grad().unwrap().as_slice(),
+        &dx_b,
+        1e-4,
+    );
+    assert_close_rel(
+        "instancenorm1d_bwd_dw",
+        in1.weight.grad().unwrap().as_slice(),
+        &to_vec(wb.grad(&grads).unwrap()),
+        1e-4,
+    );
+    assert_close_rel(
+        "instancenorm1d_bwd_db",
+        in1.bias.grad().unwrap().as_slice(),
+        &to_vec(bk.grad(&grads).unwrap()),
+        1e-4,
+    );
+}
+
+// ── InstanceNorm2d backward (dx) matches Burn autodiff ────────────────────────
+//
+// Same as InstanceNorm1d but spatial = H*W (normalized over each HxW slice).
+// Reshape [N,C,H,W] → [N*C, H*W], same population-variance normalize, then
+//   y[nc, hw] = gamma[nc%C] * x_hat[nc, hw] + beta[nc%C].
+
+#[test]
+fn instancenorm2d_backward_matches_burn() {
+    use burn::backend::autodiff::Autodiff;
+    use coeus_nn::InstanceNorm2d;
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    let (n, c, h, w) = (2usize, 2, 3, 3);
+    let nc = n * c;
+    let hw = h * w;
+    let eps = 1e-5_f32;
+    let data: Vec<f32> = (0..n * c * h * w)
+        .map(|x| x as f32 * 0.05 - 1.0)
+        .collect();
+    let gamma = vec![1.2f32, 0.8];
+    let beta = vec![0.1f32, -0.1];
+
+    // Coeus forward + backward.
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, h, w], &data),
+        true,
+    );
+    let mut in2 = InstanceNorm2d::<f32, SequentialBackend>::new(c, eps as f64);
+    in2.weight = Var::new(CoeusTensor::from_slice(vec![c], &gamma), true);
+    in2.bias = Var::new(CoeusTensor::from_slice(vec![c], &beta), true);
+    coeus_autograd::sum(&in2.forward(&xv)).backward();
+
+    // Burn autodiff: manual InstanceNorm2d formula.
+    // Reshape [N,C,H,W] → [N*C, H*W] for spatial normalization.
+    let xb: BurnTensor<AB, 4> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, h, w]), &device).require_grad();
+    let wb: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(gamma.clone(), [c]), &device).require_grad();
+    let bk: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(beta.clone(), [c]), &device).require_grad();
+
+    let flat: BurnTensor<AB, 2> = xb.clone().reshape([nc, hw]);
+    let mean = flat.clone().sum_dim(1) / (hw as f32); // [N*C, 1]
+    let xmu = flat.sub(mean);
+    let var = xmu.clone().powf_scalar(2.0).sum_dim(1) / (hw as f32);
+    let xhat = xmu / (var.add_scalar(eps)).sqrt(); // [N*C, H*W]
+    let g2 = wb.clone().reshape([1, c]).repeat_dim(0, n).reshape([nc, 1]);
+    let b2 = bk.clone().reshape([1, c]).repeat_dim(0, n).reshape([nc, 1]);
+    let grads = (xhat.mul(g2) + b2).sum().backward();
+
+    let dx_b: Vec<f32> = xb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+    let to_vec = |t: BurnTensor<NdArray<f32>, 1>| t.into_data().to_vec::<f32>().unwrap();
+
+    assert_close_rel(
+        "instancenorm2d_bwd_dx",
+        xv.grad().unwrap().as_slice(),
+        &dx_b,
+        1e-4,
+    );
+    assert_close_rel(
+        "instancenorm2d_bwd_dw",
+        in2.weight.grad().unwrap().as_slice(),
+        &to_vec(wb.grad(&grads).unwrap()),
+        1e-4,
+    );
+    assert_close_rel(
+        "instancenorm2d_bwd_db",
+        in2.bias.grad().unwrap().as_slice(),
+        &to_vec(bk.grad(&grads).unwrap()),
+        1e-4,
+    );
+}

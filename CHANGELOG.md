@@ -19,6 +19,9 @@
 - **Conv3d backward parity** — differential Burn autodiff test verifying `dx`
   and `dw` for valid 3D convolution, completing backward coverage for Conv1d/2d/3d
   (98th parity test).
+- **InstanceNorm1d/2d backward parity** — differential Burn autodiff tests
+  verifying `dx`, `dw`, `db` for InstanceNorm1d [N,C,L] and InstanceNorm2d
+  [N,C,H,W] backward passes (99th and 100th parity tests; ε ≤ 1e-4).
 
 ### Fixed
 

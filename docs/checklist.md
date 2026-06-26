@@ -2,7 +2,20 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-111 - CUDA strided Hephaestus routing [COMPLETE]
+### Current Sprint: MS-112 - InstanceNorm1d/2d backward parity [COMPLETE]
+**Objective**: Add differential Burn autodiff parity for InstanceNorm1d and
+InstanceNorm2d backward passes (dx, dw, db), closing the norm backward gap.
+**Target version**: 0.5.1 (patch-class; test coverage).
+
+- [x] [patch] Added `instancenorm1d_backward_matches_burn` — [N,C,L] input,
+  per-(sample,channel) spatial normalization formula in Burn autodiff,
+  verifies dx/dw/db within 1e-4 relative tolerance (99th parity test).
+- [x] [patch] Added `instancenorm2d_backward_matches_burn` — [N,C,H,W] input,
+  reshape to [N*C, H*W] for spatial normalization (100th parity test).
+- [x] Evidence: `cargo nextest run -p coeus-nn --test burn_live_parity`:
+  100/100 pass.
+
+### Previous Sprint: MS-111 - CUDA strided Hephaestus routing [COMPLETE]
 **Objective**: Extend CUDA Hephaestus routing to the dynamic-strided path so
 non-contiguous CUDA elementwise ops also prefer the Hephaestus kernel (with
 rank ≤ MAX_STRIDED_RANK and no broadcast dimensions in output) before the
@@ -50,7 +63,7 @@ identity assertions, plus aliasing fallback parity.
   coeus-wgpu test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer`;
   `cargo test -p coeus-wgpu test_wgpu_aliasing_unary_neg_matches_cpu`.
 
-### Current Sprint: MS-108 - BatchNorm2d training-mode backward parity [COMPLETE]
+### Previous Sprint: MS-108 - BatchNorm2d training-mode backward parity [COMPLETE]
 **Objective**: Add differential Burn autodiff parity for BatchNorm2d training-mode
 backward pass (dx, dw, db), matching Coeus's NHWC-based population-variance formula
 against the same formula manually expressed in Burn autodiff tensors.
@@ -62,7 +75,7 @@ against the same formula manually expressed in Burn autodiff tensors.
   (÷M not ÷(M-1)), verifies dx/dw/db within 1e-4 relative tolerance.
 - [x] Evidence: `cargo nextest run -p coeus-nn --test burn_live_parity`: 97/97 pass.
 
-### Current Sprint: MS-107 - CUDA Hephaestus primitive routing [COMPLETE]
+### Previous Sprint: MS-107 - CUDA Hephaestus primitive routing [COMPLETE]
 **Objective**: Keep CUDA and WGPU shared primitive GPU dispatch centralized in
 Hephaestus while preserving Coeus-local kernels only for aliasing, strided
 coverage not yet mapped through the static-rank Hephaestus API, and
