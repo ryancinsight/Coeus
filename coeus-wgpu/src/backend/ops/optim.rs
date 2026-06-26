@@ -1,3 +1,6 @@
+// Delegation functions mirror BackendOps trait signatures verbatim; argument
+// counts cannot be reduced without breaking the trait contract.
+#![allow(clippy::too_many_arguments)]
 use super::*;
 
 pub(super) fn dispatch_sgd_step<T: WgpuScalar + coeus_core::Float>(
