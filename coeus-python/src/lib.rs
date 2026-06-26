@@ -258,6 +258,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::tile, m)?)?;
     // Functional nn (stateless)
     m.add_function(wrap_pyfunction!(ops::linear, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::bilinear, m)?)?;
     m.add_function(wrap_pyfunction!(ops::layer_norm, m)?)?;
     m.add_function(wrap_pyfunction!(ops::batch_norm_1d, m)?)?;
     m.add_function(wrap_pyfunction!(ops::rms_norm, m)?)?;

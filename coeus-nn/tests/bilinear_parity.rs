@@ -18,7 +18,7 @@ use coeus_autograd::Var;
 use coeus_core::{
     CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, SequentialBackend,
 };
-use coeus_nn::{Bilinear, Module};
+use coeus_nn::{bilinear as bilinear_fn, Bilinear, Module};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
@@ -65,6 +65,12 @@ where
         out.tensor.as_slice(),
         &[21.0_f64, 21.0],
         "Bilinear([1,2],[3,4]) = [21,21]"
+    );
+    let out_fn = bilinear_fn(&x1, &x2, &bil.weight, bil.bias.as_ref());
+    assert_eq!(
+        out_fn.tensor.as_slice(),
+        out.tensor.as_slice(),
+        "functional bilinear matches module bilinear_forward"
     );
 
     // x1=x2=[1,2] (sum=3): out[0,k] = 9 for both k.

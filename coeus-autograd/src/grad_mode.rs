@@ -15,6 +15,33 @@ thread_local! {
 }
 
 /// RAII guard that restores the previous autograd recording depth on drop.
+///
+/// Construct one via [`no_grad_guard`] to enter a no-grad scope; the recording
+/// mode is restored automatically when the guard goes out of scope.
+///
+/// # Examples
+///
+/// Inside the guard's scope, differentiable ops skip graph construction, so the
+/// result carries no creator node and no gradient buffer. Recording resumes on drop.
+///
+/// ```
+/// use coeus_autograd::{Var, no_grad_guard, is_grad_enabled};
+/// use coeus_core::MoiraiBackend;
+/// use coeus_tensor::Tensor;
+///
+/// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[1.0, 2.0]), true);
+/// assert!(is_grad_enabled());
+///
+/// {
+///     let _g = no_grad_guard();
+///     assert!(!is_grad_enabled());
+///     let y = coeus_autograd::mul(&x, &x);
+///     assert!(y.creator.is_none()); // no graph recorded
+///     assert!(y.grad.is_none());    // no gradient buffer allocated
+/// }
+///
+/// assert!(is_grad_enabled()); // restored after the guard drops
+/// ```
 #[must_use]
 pub struct NoGradGuard;
 
@@ -40,12 +67,43 @@ pub fn pop_no_grad() {
 }
 
 /// Create a no-grad guard for scoped Rust use.
+///
+/// Returns an RAII [`NoGradGuard`] that pushes a no-grad frame on construction
+/// and pops it on drop, so the disabled-recording scope is bounded lexically.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_autograd::{no_grad_guard, is_grad_enabled};
+///
+/// assert!(is_grad_enabled());
+/// let _g = no_grad_guard();
+/// assert!(!is_grad_enabled());
+/// drop(_g);
+/// assert!(is_grad_enabled());
+/// ```
 pub fn no_grad_guard() -> NoGradGuard {
     push_no_grad();
     NoGradGuard
 }
 
 /// Return whether operation graph recording is currently enabled.
+///
+/// Recording is enabled by default and disabled inside a [`no_grad_guard`]
+/// scope (or after a manual [`push_no_grad`] without a matching [`pop_no_grad`]).
+///
+/// # Examples
+///
+/// ```
+/// use coeus_autograd::{is_grad_enabled, no_grad_guard};
+///
+/// assert!(is_grad_enabled());
+/// {
+///     let _g = no_grad_guard();
+///     assert!(!is_grad_enabled());
+/// }
+/// assert!(is_grad_enabled());
+/// ```
 pub fn is_grad_enabled() -> bool {
     NO_GRAD_DEPTH.with(|depth| depth.get() == 0)
 }

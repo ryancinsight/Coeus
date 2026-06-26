@@ -8,6 +8,87 @@ use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
 
+/// Functional bilinear interaction.
+///
+/// Computes:
+/// `out[n, k] = Σ_{i,j} x1[n,i] * weight[k,i,j] * x2[n,j] + bias[k]`.
+///
+/// # Shapes
+/// - `x1`: `[batch, in1_features]`
+/// - `x2`: `[batch, in2_features]`
+/// - `weight`: `[out_features, in1_features, in2_features]`
+/// - `bias` (optional): `[out_features]`
+/// - Output: `[batch, out_features]`
+///
+/// # Panics
+/// Panics if input shapes are incompatible.
+pub fn bilinear<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    x1: &Var<T, B>,
+    x2: &Var<T, B>,
+    weight: &Var<T, B>,
+    bias: Option<&Var<T, B>>,
+) -> Var<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
+    let x1_shape = x1.tensor.shape();
+    let x2_shape = x2.tensor.shape();
+    let w_shape = weight.tensor.shape();
+    assert_eq!(
+        x1_shape.len(),
+        2,
+        "bilinear: x1 must be rank-2 [batch, in1]"
+    );
+    assert_eq!(
+        x2_shape.len(),
+        2,
+        "bilinear: x2 must be rank-2 [batch, in2]"
+    );
+    assert_eq!(
+        w_shape.len(),
+        3,
+        "bilinear: weight must be rank-3 [out, in1, in2]"
+    );
+    let batch = x1_shape[0];
+    let in1 = x1_shape[1];
+    let in2 = x2_shape[1];
+    let out_features = w_shape[0];
+    assert_eq!(x2_shape[0], batch, "bilinear: x1/x2 batch mismatch");
+    assert_eq!(
+        w_shape[1], in1,
+        "bilinear: weight in1 dimension must match x1 feature dimension"
+    );
+    assert_eq!(
+        w_shape[2], in2,
+        "bilinear: weight in2 dimension must match x2 feature dimension"
+    );
+    if let Some(bias) = bias {
+        assert_eq!(
+            bias.tensor.shape(),
+            &[out_features],
+            "bilinear: bias must have shape [out_features]"
+        );
+    }
+
+    let mut out_rows: Vec<Var<T, B>> = Vec::with_capacity(out_features);
+    for k in 0..out_features {
+        let w_k_var = coeus_autograd::slice(weight, &[(k, k + 1), (0, in1), (0, in2)]);
+        let w_k = coeus_autograd::reshape(&w_k_var, vec![in1, in2]);
+        let x1w = coeus_autograd::matmul(x1, &w_k);
+        let prod = coeus_autograd::mul(&x1w, x2);
+        let row = coeus_autograd::sum_axis(&prod, 1);
+        out_rows.push(row);
+    }
+    let refs: Vec<&Var<T, B>> = out_rows.iter().collect();
+    let out = coeus_autograd::cat(&refs, 1);
+    if let Some(b) = bias {
+        coeus_autograd::add(&out, b)
+    } else {
+        out
+    }
+}
+
 /// Bilinear layer: `out[n] = Σ_{ij} x1[n,i] * W[k,i,j] * x2[n,j] + b[k]`
 ///
 /// Equivalent to `torch.nn.Bilinear(in1_features, in2_features, out_features)`.
@@ -66,34 +147,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Bilinear<T, B> {
         B::DeviceBuffer<T>:
             coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
     {
-        // For each output feature k, compute:
-        //   w_k = weight[k, :, :] — shape [in1, in2]
-        //   x1_w = x1 @ w_k       — shape [batch, in2]
-        //   row_k = sum(x1_w * x2, dim=1) — shape [batch]
-        // Stack all rows into [batch, out_features]
-        let mut out_rows: Vec<Var<T, B>> = Vec::with_capacity(self.out_features);
-        for k in 0..self.out_features {
-            // Extract w_k: [in1, in2]
-            let w_k_var = coeus_autograd::slice(
-                &self.weight,
-                &[(k, k + 1), (0, self.in1_features), (0, self.in2_features)],
-            );
-            let w_k = coeus_autograd::reshape(&w_k_var, vec![self.in1_features, self.in2_features]);
-            // x1 @ w_k: [batch, in2]
-            let x1w = coeus_autograd::matmul(x1, &w_k);
-            // element-wise mul with x2, then sum over in2 → [batch, 1]
-            let prod = coeus_autograd::mul(&x1w, x2);
-            let row = coeus_autograd::sum_axis(&prod, 1); // [batch, 1]
-            out_rows.push(row);
-        }
-        // cat along dim=1: [batch, out_features]
-        let refs: Vec<&Var<T, B>> = out_rows.iter().collect();
-        let out = coeus_autograd::cat(&refs, 1);
-        if let Some(ref b) = self.bias {
-            coeus_autograd::add(&out, b)
-        } else {
-            out
-        }
+        bilinear(x1, x2, &self.weight, self.bias.as_ref())
     }
 }
 

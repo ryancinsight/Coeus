@@ -79,20 +79,9 @@ impl PyBilinear {
             .map(|b| b.bind(py).borrow().inner.clone());
         let x1_v = x1.inner.clone();
         let x2_v = x2.inner.clone();
-        let in1 = self.in1_features;
-        let in2 = self.in2_features;
-        let out = self.out_features;
 
         let inner = py.allow_threads(move || {
-            let mut bil = coeus_nn::bilinear::Bilinear::<f64, coeus_core::MoiraiBackend>::new(
-                in1,
-                in2,
-                out,
-                b_var.is_some(),
-            );
-            bil.weight = w_var;
-            bil.bias = b_var;
-            bil.bilinear_forward(&x1_v, &x2_v)
+            coeus_nn::bilinear::bilinear(&x1_v, &x2_v, &w_var, b_var.as_ref())
         });
         Ok(PyTensor::from_var(inner))
     }

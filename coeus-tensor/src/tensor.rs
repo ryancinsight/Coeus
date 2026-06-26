@@ -17,6 +17,30 @@ use coeus_core::{
 /// # COW semantics
 /// Mutation triggers copy-on-write if storage is shared.
 /// Views (slice, transpose) share the underlying storage.
+///
+/// # Examples
+///
+/// Create a 2×3 tensor from a flat slice and inspect its shape:
+///
+/// ```
+/// use coeus_tensor::Tensor;
+///
+/// let t: Tensor<f32> = Tensor::from_slice([2, 3], &[1., 2., 3., 4., 5., 6.]);
+/// assert_eq!(t.shape(), &[2, 3]);
+/// assert_eq!(t.numel(), 6);
+/// assert_eq!(t.as_slice(), &[1., 2., 3., 4., 5., 6.]);
+/// ```
+///
+/// Zero-copy views share storage:
+///
+/// ```
+/// use coeus_tensor::Tensor;
+///
+/// let t: Tensor<f32> = Tensor::from_slice([2, 3], &[1., 2., 3., 4., 5., 6.]);
+/// let row = t.slice(&[(0, 1), (0, 3)]); // first row
+/// assert_eq!(row.shape(), &[1, 3]);
+/// assert_eq!(row.as_slice(), &[1., 2., 3.]);
+/// ```
 pub struct Tensor<T: Scalar, B: ComputeBackend = MoiraiBackend> {
     pub(crate) storage: B::DeviceBuffer<T>,
     pub(crate) layout: Layout,
@@ -38,18 +62,48 @@ impl<T: Scalar, B: ComputeBackend> Clone for Tensor<T, B> {
 
 impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// Number of dimensions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_tensor::Tensor;
+    /// use coeus_core::SequentialBackend;
+    ///
+    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 4], &[0.0; 24]);
+    /// assert_eq!(t.ndim(), 3);
+    /// ```
     #[inline]
     pub fn ndim(&self) -> usize {
         self.layout.ndim()
     }
 
     /// Total number of elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_tensor::Tensor;
+    /// use coeus_core::SequentialBackend;
+    ///
+    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 4], &[0.0; 24]);
+    /// assert_eq!(t.numel(), 24);
+    /// ```
     #[inline]
     pub fn numel(&self) -> usize {
         self.layout.numel()
     }
 
     /// Shape as slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_tensor::Tensor;
+    /// use coeus_core::SequentialBackend;
+    ///
+    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[0.0; 6]);
+    /// assert_eq!(t.shape(), &[2, 3]);
+    /// ```
     #[inline]
     pub fn shape(&self) -> &[usize] {
         self.layout.shape()

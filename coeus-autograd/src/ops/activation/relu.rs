@@ -30,6 +30,27 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for
 }
 
 /// Tracked ReLU activation.
+///
+/// # Examples
+///
+/// `relu(x) = max(0, x)`; the gradient is 1 where `x > 0` and 0 otherwise.
+/// For the scalar sum of `relu([2, -1])`, `dx = [1, 0]`.
+///
+/// ```
+/// use coeus_autograd::Var;
+/// use coeus_core::MoiraiBackend;
+/// use coeus_tensor::Tensor;
+///
+/// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[2.0, -1.0]), true);
+/// let y = coeus_autograd::relu(&x);
+/// assert!((y.tensor.as_slice()[0] - 2.0).abs() < 1e-5);
+/// assert!((y.tensor.as_slice()[1] - 0.0).abs() < 1e-5);
+/// let loss = coeus_autograd::sum(&y);
+/// loss.backward();
+/// let grad = x.grad().unwrap();
+/// assert!((grad.as_slice()[0] - 1.0).abs() < 1e-5); // x > 0
+/// assert!((grad.as_slice()[1] - 0.0).abs() < 1e-5); // x < 0
+/// ```
 #[must_use]
 #[inline]
 pub fn relu<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {

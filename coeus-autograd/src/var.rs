@@ -8,6 +8,25 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 /// A differentiable variable wrapping a tensor and its gradient accumulator.
+///
+/// # Examples
+///
+/// Build a small computation graph, run reverse-mode autodiff, and read back the
+/// leaf gradients. For `y = x^2` with `x = [3, 4]`, the analytic gradient is
+/// `dy/dx = 2x = [6, 8]`.
+///
+/// ```
+/// use coeus_autograd::Var;
+/// use coeus_core::MoiraiBackend;
+/// use coeus_tensor::Tensor;
+///
+/// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[3.0, 4.0]), true);
+/// let y = coeus_autograd::mul(&x, &x); // y = x * x
+/// y.backward();
+/// let grad = x.grad().unwrap();
+/// assert!((grad.as_slice()[0] - 6.0).abs() < 1e-5); // 2 * 3
+/// assert!((grad.as_slice()[1] - 8.0).abs() < 1e-5); // 2 * 4
+/// ```
 #[derive(Clone)]
 pub struct Var<T: Scalar, B: ComputeBackend + Default = MoiraiBackend> {
     /// The tensor value.
@@ -20,6 +39,28 @@ pub struct Var<T: Scalar, B: ComputeBackend + Default = MoiraiBackend> {
 
 impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// Create a new leaf variable.
+    ///
+    /// When `requires_grad` is `true` the leaf allocates a gradient buffer that
+    /// accumulates gradients during [`Var::backward`]. A leaf constructed with
+    /// `requires_grad = false` is a constant: it carries no gradient state.
+    ///
+    /// # Examples
+    ///
+    /// A leaf with `requires_grad = true` accumulates gradients; one with
+    /// `requires_grad = false` reports `None`.
+    ///
+    /// ```
+    /// use coeus_autograd::Var;
+    /// use coeus_core::MoiraiBackend;
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[1.0, 2.0]), true);
+    /// let c = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[10.0, 20.0]), false);
+    /// let y = coeus_autograd::add(&x, &c);
+    /// y.backward();
+    /// assert!(x.grad().is_some()); // tracked leaf: gradient present
+    /// assert!(c.grad().is_none()); // constant leaf: no gradient state
+    /// ```
     #[inline]
     pub fn new(tensor: Tensor<T, B>, requires_grad: bool) -> Self {
         let grad = if requires_grad {
@@ -52,6 +93,30 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     }
 
     /// Read the accumulated gradient.
+    ///
+    /// Returns `None` for constants (leaves built with `requires_grad = false`)
+    /// and for intermediate variables produced under a no-grad scope. After
+    /// [`Var::backward`], a tracked leaf holds the sum of gradients pushed to it.
+    ///
+    /// # Examples
+    ///
+    /// For `y = x + 1` summed to a scalar, `dy/dx = 1` for every element.
+    ///
+    /// ```
+    /// use coeus_autograd::Var;
+    /// use coeus_core::MoiraiBackend;
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0, 2.0, 3.0]), true);
+    /// let one = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0; 3]), false);
+    /// let y = coeus_autograd::add(&x, &one);
+    /// let loss = coeus_autograd::sum(&y);
+    /// loss.backward();
+    /// let grad = x.grad().unwrap();
+    /// assert!((grad.as_slice()[0] - 1.0).abs() < 1e-5);
+    /// assert!((grad.as_slice()[1] - 1.0).abs() < 1e-5);
+    /// assert!((grad.as_slice()[2] - 1.0).abs() < 1e-5);
+    /// ```
     #[inline]
     pub fn grad(&self) -> Option<Tensor<T, B>> {
         self.grad.as_ref().map(|g| g.clone_tensor())
@@ -66,6 +131,32 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     }
 
     /// Zero the accumulated gradient.
+    ///
+    /// Useful when a leaf is reused across multiple backward passes: call
+    /// `zero_grad` between passes so gradients accumulate from a clean slate
+    /// rather than summing across passes.
+    ///
+    /// # Examples
+    ///
+    /// Running backward twice without `zero_grad` accumulates; calling
+    /// `zero_grad` between passes resets the buffer to zero.
+    ///
+    /// ```
+    /// use coeus_autograd::Var;
+    /// use coeus_core::MoiraiBackend;
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[2.0, 3.0]), true);
+    /// let y = coeus_autograd::sum(&x);
+    ///
+    /// y.backward();
+    /// let g1 = x.grad().unwrap();
+    /// assert!((g1.as_slice()[0] - 1.0).abs() < 1e-5);
+    ///
+    /// // Second backward would accumulate; zero first.
+    /// x.zero_grad();
+    /// assert!((x.grad().unwrap().as_slice()[0] - 0.0).abs() < 1e-5);
+    /// ```
     #[inline]
     pub fn zero_grad(&self) {
         if let Some(ref g) = self.grad {
@@ -76,6 +167,25 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// Run reverse-mode autodiff from this variable, seeding with `Tensor::ones`.
     ///
     /// Equivalent to `self.backward_with_seed(Tensor::ones(self.tensor.shape().to_vec()))`.
+    ///
+    /// # Examples
+    ///
+    /// For `y = x^2` summed to a scalar, `backward` seeds the scalar output with
+    /// 1 and propagates `dy/dx = 2x` to the leaf.
+    ///
+    /// ```
+    /// use coeus_autograd::Var;
+    /// use coeus_core::MoiraiBackend;
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[3.0, 4.0]), true);
+    /// let y = coeus_autograd::mul(&x, &x);
+    /// let loss = coeus_autograd::sum(&y); // scalar: y_0 + y_1
+    /// loss.backward();
+    /// let grad = x.grad().unwrap();
+    /// assert!((grad.as_slice()[0] - 6.0).abs() < 1e-5); // 2 * 3
+    /// assert!((grad.as_slice()[1] - 8.0).abs() < 1e-5); // 2 * 4
+    /// ```
     #[inline]
     pub fn backward(&self) {
         let seed = Tensor::ones_on(self.tensor.shape(), &B::default());

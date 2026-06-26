@@ -1312,6 +1312,22 @@ try:
     raise AssertionError("group_norm zero groups should raise")
 except ValueError as exc:
     assert "num_groups" in str(exc)
+
+# ── functional bilinear ───────────────────────────────────────────────
+x1 = pycoeus.Tensor([1.0, 2.0], [1, 2])
+x2 = pycoeus.Tensor([3.0, 4.0], [1, 2])
+w = pycoeus.Tensor([1.0, 0.0, 0.0, 1.0], [1, 2, 2])  # identity
+b = pycoeus.Tensor([5.0], [1])
+bil = pycoeus.bilinear(x1, x2, w)
+assert bil.shape == [1, 1], f"bilinear shape: {bil.shape}"
+assert abs(bil.data[0] - 11.0) < 1e-5, f"bilinear value: {bil.data[0]}"
+bil_b = pycoeus.bilinear(x1, x2, w, b)
+assert abs(bil_b.data[0] - 16.0) < 1e-5, f"bilinear+bias: {bil_b.data[0]}"
+try:
+    pycoeus.bilinear(pycoeus.Tensor([1.0, 2.0], [2]), x2, w)
+    raise AssertionError("bilinear rank mismatch should raise")
+except ValueError:
+    pass
 "#,
     );
 }

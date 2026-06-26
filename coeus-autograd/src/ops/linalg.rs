@@ -83,6 +83,30 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for
 }
 
 /// Tracked matrix multiplication.
+///
+/// # Examples
+///
+/// For `C = A @ B` with `A = [[1, 2]]`, `B = [[3], [4]]`, the scalar output
+/// `C[0,0] = 11` seeds with 1, giving `dA = B^T = [[3, 4]]` and
+/// `dB = A^T = [[1], [2]]`.
+///
+/// ```
+/// use coeus_autograd::Var;
+/// use coeus_core::MoiraiBackend;
+/// use coeus_tensor::Tensor;
+///
+/// let a = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([1, 2], &[1.0, 2.0]), true);
+/// let b = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2, 1], &[3.0, 4.0]), true);
+/// let c = coeus_autograd::matmul(&a, &b);
+/// assert!((c.tensor.as_slice()[0] - 11.0).abs() < 1e-5); // 1*3 + 2*4
+/// c.backward(); // scalar output, seed = 1
+/// let ga = a.grad().unwrap();
+/// assert!((ga.as_slice()[0] - 3.0).abs() < 1e-5); // dA = B^T
+/// assert!((ga.as_slice()[1] - 4.0).abs() < 1e-5);
+/// let gb = b.grad().unwrap();
+/// assert!((gb.as_slice()[0] - 1.0).abs() < 1e-5); // dB = A^T
+/// assert!((gb.as_slice()[1] - 2.0).abs() < 1e-5);
+/// ```
 #[must_use]
 #[inline]
 pub fn matmul<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(

@@ -24,6 +24,54 @@ pub fn linear(
 }
 
 #[pyfunction]
+#[pyo3(signature = (input1, input2, weight, bias = None))]
+pub fn bilinear(
+    input1: &PyTensor,
+    input2: &PyTensor,
+    weight: &PyTensor,
+    bias: Option<&PyTensor>,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
+    let x1_shape = input1.inner.tensor.shape();
+    let x2_shape = input2.inner.tensor.shape();
+    let w_shape = weight.inner.tensor.shape();
+    if x1_shape.len() != 2 || x2_shape.len() != 2 {
+        return Err(PyValueError::new_err(
+            "bilinear: input1 and input2 must be rank-2 tensors [batch, features]",
+        ));
+    }
+    if w_shape.len() != 3 {
+        return Err(PyValueError::new_err(
+            "bilinear: weight must be rank-3 [out_features, in1_features, in2_features]",
+        ));
+    }
+    if x1_shape[0] != x2_shape[0] {
+        return Err(PyValueError::new_err(
+            "bilinear: input1 and input2 batch sizes must match",
+        ));
+    }
+    if x1_shape[1] != w_shape[1] || x2_shape[1] != w_shape[2] {
+        return Err(PyValueError::new_err(format!(
+            "bilinear: incompatible shapes input1={x1_shape:?}, input2={x2_shape:?}, weight={w_shape:?}"
+        )));
+    }
+    if let Some(b) = bias {
+        if b.inner.tensor.shape() != [w_shape[0]] {
+            return Err(PyValueError::new_err(
+                "bilinear: bias must have shape [out_features]",
+            ));
+        }
+    }
+
+    let x1 = input1.inner.clone();
+    let x2 = input2.inner.clone();
+    let w = weight.inner.clone();
+    let b = bias.map(|b| b.inner.clone());
+    let inner = py.allow_threads(move || coeus_nn::bilinear::bilinear(&x1, &x2, &w, b.as_ref()));
+    Ok(PyTensor::from_var(inner))
+}
+
+#[pyfunction]
 #[pyo3(signature = (input, norm_shape, weight = None, bias = None, eps = 1e-5))]
 pub fn layer_norm(
     input: &PyTensor,

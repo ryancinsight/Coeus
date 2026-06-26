@@ -18,6 +18,7 @@
     clippy::needless_range_loop,
     clippy::get_first
 )]
+#![deny(missing_docs)]
 
 pub mod backward;
 pub(crate) mod grad_buffer;

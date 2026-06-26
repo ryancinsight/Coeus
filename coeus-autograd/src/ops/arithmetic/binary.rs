@@ -172,6 +172,28 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
 }
 
 /// Tracked element-wise addition.
+///
+/// # Examples
+///
+/// `y = a + b`; the gradient of the scalar sum flows through unchanged, so
+/// `da = db = [1, 1, 1]`.
+///
+/// ```
+/// use coeus_autograd::Var;
+/// use coeus_core::MoiraiBackend;
+/// use coeus_tensor::Tensor;
+///
+/// let a = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0, 2.0, 3.0]), true);
+/// let b = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[4.0, 5.0, 6.0]), true);
+/// let y = coeus_autograd::add(&a, &b);
+/// assert!((y.tensor.as_slice()[0] - 5.0).abs() < 1e-5);
+/// let loss = coeus_autograd::sum(&y);
+/// loss.backward();
+/// let ga = a.grad().unwrap();
+/// assert!((ga.as_slice()[0] - 1.0).abs() < 1e-5);
+/// assert!((ga.as_slice()[1] - 1.0).abs() < 1e-5);
+/// assert!((ga.as_slice()[2] - 1.0).abs() < 1e-5);
+/// ```
 #[must_use]
 #[inline]
 pub fn add<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
@@ -192,6 +214,29 @@ pub fn sub<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Tracked element-wise multiplication.
+///
+/// # Examples
+///
+/// `y = a * b`; for the scalar sum, `da = b` and `db = a`.
+///
+/// ```
+/// use coeus_autograd::Var;
+/// use coeus_core::MoiraiBackend;
+/// use coeus_tensor::Tensor;
+///
+/// let a = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0, 2.0, 3.0]), true);
+/// let b = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[4.0, 5.0, 6.0]), true);
+/// let y = coeus_autograd::mul(&a, &b);
+/// assert!((y.tensor.as_slice()[0] - 4.0).abs() < 1e-5);
+/// let loss = coeus_autograd::sum(&y);
+/// loss.backward();
+/// let ga = a.grad().unwrap();
+/// assert!((ga.as_slice()[0] - 4.0).abs() < 1e-5); // da = b
+/// assert!((ga.as_slice()[1] - 5.0).abs() < 1e-5);
+/// let gb = b.grad().unwrap();
+/// assert!((gb.as_slice()[0] - 1.0).abs() < 1e-5); // db = a
+/// assert!((gb.as_slice()[2] - 3.0).abs() < 1e-5);
+/// ```
 #[must_use]
 #[inline]
 pub fn mul<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
