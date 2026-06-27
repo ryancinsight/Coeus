@@ -1,5 +1,17 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-155: TCP zero-numel rooted contract enforcement [COMPLETE]
+
+- [x] [patch] Enforced TCP `gather` root output-length contract before zero-numel
+  early-return, so invalid root output lengths no longer bypass validation.
+- [x] [patch] Enforced TCP `scatter` root input-length contract before zero-numel
+  early-return, so invalid root input lengths no longer bypass validation.
+- [x] [patch] Added panic-contract tests:
+  `test_tcp_gather_zero_numel_output_len_mismatch_panics`,
+  `test_tcp_scatter_zero_numel_input_len_mismatch_panics`.
+- [x] Evidence: `cargo test -p coeus-dist zero_numel_ -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-154: SiLU/Mish gradient value semantics [COMPLETE]
 
 - [x] [patch] Replaced residual existence-only gradient checks in

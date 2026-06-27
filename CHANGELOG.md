@@ -71,6 +71,12 @@
 
 ### Fixed
 
+- **TCP zero-numel rooted contract bypass** — TCP `gather` and `scatter` now
+  enforce root output/input length contracts before the zero-numel fast-return,
+  so invalid rooted call shapes fail fast consistently.
+- **TCP zero-numel rooted panic-contract tests** — added
+  `test_tcp_gather_zero_numel_output_len_mismatch_panics` and
+  `test_tcp_scatter_zero_numel_input_len_mismatch_panics`.
 - **TCP rooted-collective root panic coverage completion** — added
   `test_tcp_reduce_root_out_of_bounds_panics`,
   `test_tcp_gather_root_out_of_bounds_panics`, and
