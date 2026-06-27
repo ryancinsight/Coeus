@@ -1,14 +1,10 @@
 # Coeus Project Backlog & Historical Archives
 
-## Sprint MS-124: coeus-python documented binding surface [READY]
+## Sprint MS-124: coeus-python documented binding surface [COMPLETE]
 
-- [ ] [patch] Document remaining public `coeus-python` modules, pyclasses,
-  pyfunctions, fields, methods, and enum variants.
-- [ ] [patch] Re-enable `#![deny(missing_docs)]` in `coeus-python/src/lib.rs`
-  once the binding surface is fully documented.
-- [ ] Evidence target: `rustup run nightly cargo clippy -p coeus-python
-  --tests -- -D warnings`; `rustup run nightly cargo doc -p coeus-python
-  --no-deps`; focused PyO3 binding nextest rows.
+- [x] [patch] Documented all 293 previously-undocumented public PyO3 items across
+  25 files; enabled `#![deny(missing_docs)]` in `coeus-python/src/lib.rs`.
+  Evidence: `cargo check -p coeus-python` clean; 72/72 tests passed. (commit 684ce02)
 
 ## Sprint MS-123: MHA backward + Conv generic consolidation [COMPLETE]
 

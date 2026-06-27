@@ -2,7 +2,25 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-125 - TransformerEncoderLayer Burn parity + pytest PyTorch scaffold [COMPLETE]
+### Current Sprint: MS-126 - Extend pytest PyTorch parity surface [COMPLETE]
+**Objective**: Expand `test_pytorch_parity.py` to cover Conv1d/2d, LayerNorm,
+MHA backward (dx + dW), and TransformerEncoderLayer shape contract.
+**Target version**: 0.5.2 (patch-class).
+
+- [x] [patch] `test_conv1d_matches_pytorch`: Conv1d(2→3, k=3) forward+backward
+  (out, dx, dW, db) at 1e-5 atol.
+- [x] [patch] `test_conv2d_matches_pytorch`: Conv2d(2→2, k=2) forward+backward.
+- [x] [patch] `test_layernorm_matches_pytorch`: LayerNorm([4], eps=1e-5)
+  forward+backward (out, dx, dγ, dβ) at 1e-4 atol.
+- [x] [patch] `test_mha_backward_matches_pytorch`: MHA(d_model=4, H=2) dx + dW_q
+  after sum-loss backward at 1e-5 atol.
+- [x] [patch] `test_transformer_encoder_layer_shape_contract`: shape [B,S,D]
+  preserved; weight-parity test blocked by G-001 (stateless binding). Gap filed
+  in `docs/gap_audit.md` as G-001.
+- [x] Evidence: `pytest coeus-python/tests/test_pytorch_parity.py -v` 7/7 passed;
+  rebuilt wheel with maturin to get current `TransformerEncoderLayer` binding.
+
+### Previous Sprint: MS-125 - TransformerEncoderLayer Burn parity + pytest PyTorch scaffold [COMPLETE]
 **Objective**: Add TransformerEncoderLayer forward+backward Burn parity tests and
 scaffold the coeus-python pytest harness for PyTorch/JAX/MLX output parity.
 **Target version**: 0.5.2 (patch-class; parity tests).
