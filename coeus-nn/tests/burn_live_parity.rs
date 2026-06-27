@@ -4654,3 +4654,155 @@ fn transformer_encoder_layer_forward_matches_burn() {
         2e-4,
     );
 }
+
+// ── TransformerEncoderLayer Pre-LN backward (dx) matches Burn ────────────────
+//
+// Same setup as the forward test, but wraps both paths with autodiff and
+// compares the input gradient dx after loss = sum(output).
+//
+// Only dx is asserted here because weight gradients span multiple separately-
+// assembled Burn components that lack a flat gather API; dx is sufficient to
+// verify that the backward graph through LN→MHA→residual→LN→FFN→residual
+// is correctly wired in Coeus.
+
+#[test]
+fn transformer_encoder_layer_backward_matches_burn() {
+    use burn::nn::{
+        attention::{MhaInput, MultiHeadAttentionConfig},
+        transformer::PositionWiseFeedForwardConfig,
+        LayerNormConfig,
+    };
+    use burn::{backend::autodiff::Autodiff, module::Param, tensor::TensorData};
+    use coeus_nn::{Module, NullMask, TransformerEncoderLayer};
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+    let (batch, seq, d_model, d_ff) = (1usize, 3, 4, 8);
+
+    let transpose = |w: &[f32], rows: usize, cols: usize| -> Vec<f32> {
+        let mut t = vec![0f32; rows * cols];
+        for i in 0..rows {
+            for j in 0..cols {
+                t[j * rows + i] = w[i * cols + j];
+            }
+        }
+        t
+    };
+
+    // Coeus layer — biases zeroed / removed for simplicity.
+    let mut layer =
+        TransformerEncoderLayer::<f32, SequentialBackend, 2, NullMask>::new(d_model, d_ff, 0.0);
+    layer.self_attn.b_q = None;
+    layer.self_attn.b_k = None;
+    layer.self_attn.b_v = None;
+    layer.self_attn.b_o = None;
+
+    let input_data: Vec<f32> = (0..batch * seq * d_model)
+        .map(|i| (i as f32) * 0.05 - 0.3)
+        .collect();
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![batch, seq, d_model], &input_data),
+        true,
+    );
+    let out_c = layer.forward(&xv);
+    coeus_autograd::sum(&out_c).backward();
+
+    // Extract Coeus weights.
+    let wq = layer.self_attn.w_q.tensor.as_slice().to_vec();
+    let wk = layer.self_attn.w_k.tensor.as_slice().to_vec();
+    let wv = layer.self_attn.w_v.tensor.as_slice().to_vec();
+    let wo = layer.self_attn.w_o.tensor.as_slice().to_vec();
+    let gamma1 = layer.norm1.weight.tensor.as_slice().to_vec();
+    let beta1 = layer.norm1.bias.tensor.as_slice().to_vec();
+    let gamma2 = layer.norm2.weight.tensor.as_slice().to_vec();
+    let beta2 = layer.norm2.bias.tensor.as_slice().to_vec();
+    let wff1 = layer.ffn.linear1.weight.tensor.as_slice().to_vec();
+    let wff2 = layer.ffn.linear2.weight.tensor.as_slice().to_vec();
+    let bff1 = layer
+        .ffn
+        .linear1
+        .bias
+        .as_ref()
+        .map(|b| b.tensor.as_slice().to_vec())
+        .unwrap_or_else(|| vec![0f32; d_ff]);
+    let bff2 = layer
+        .ffn
+        .linear2
+        .bias
+        .as_ref()
+        .map(|b| b.tensor.as_slice().to_vec())
+        .unwrap_or_else(|| vec![0f32; d_model]);
+
+    // Burn components with matching weights.
+    let mut mha_b = MultiHeadAttentionConfig::new(d_model, 2)
+        .with_dropout(0.0)
+        .with_quiet_softmax(false)
+        .init::<AB>(&device);
+    mha_b.query.weight = Param::from_data(
+        TensorData::new(transpose(&wq, d_model, d_model), [d_model, d_model]),
+        &device,
+    );
+    mha_b.key.weight = Param::from_data(
+        TensorData::new(transpose(&wk, d_model, d_model), [d_model, d_model]),
+        &device,
+    );
+    mha_b.value.weight = Param::from_data(
+        TensorData::new(transpose(&wv, d_model, d_model), [d_model, d_model]),
+        &device,
+    );
+    mha_b.output.weight = Param::from_data(
+        TensorData::new(transpose(&wo, d_model, d_model), [d_model, d_model]),
+        &device,
+    );
+    mha_b.query.bias = None;
+    mha_b.key.bias = None;
+    mha_b.value.bias = None;
+    mha_b.output.bias = None;
+
+    let mut norm_mha_b = LayerNormConfig::new(d_model).init::<AB>(&device);
+    norm_mha_b.gamma = Param::from_data(TensorData::new(gamma1, [d_model]), &device);
+    norm_mha_b.beta = Param::from_data(TensorData::new(beta1, [d_model]), &device);
+
+    let mut norm_ffn_b = LayerNormConfig::new(d_model).init::<AB>(&device);
+    norm_ffn_b.gamma = Param::from_data(TensorData::new(gamma2, [d_model]), &device);
+    norm_ffn_b.beta = Param::from_data(TensorData::new(beta2, [d_model]), &device);
+
+    let mut pwff_b = PositionWiseFeedForwardConfig::new(d_model, d_ff)
+        .with_dropout(0.0)
+        .init::<AB>(&device);
+    pwff_b.linear_inner.weight = Param::from_data(
+        TensorData::new(transpose(&wff1, d_ff, d_model), [d_model, d_ff]),
+        &device,
+    );
+    pwff_b.linear_outer.weight = Param::from_data(
+        TensorData::new(transpose(&wff2, d_model, d_ff), [d_ff, d_model]),
+        &device,
+    );
+    pwff_b.linear_inner.bias = Some(Param::from_data(TensorData::new(bff1, [d_ff]), &device));
+    pwff_b.linear_outer.bias = Some(Param::from_data(TensorData::new(bff2, [d_model]), &device));
+
+    // Burn Pre-LN forward with autodiff.
+    let xb: BurnTensor<AB, 3> =
+        BurnTensor::from_data(TensorData::new(input_data, [batch, seq, d_model]), &device)
+            .require_grad();
+
+    let normed_mha = norm_mha_b.forward(xb.clone());
+    let attn_out = mha_b.forward(MhaInput::self_attn(normed_mha)).context;
+    let x_b = xb.clone() + attn_out;
+    let normed_ffn = norm_ffn_b.forward(x_b.clone());
+    let ffn_out = pwff_b.forward(normed_ffn);
+    let out_b = x_b + ffn_out;
+    let grads = out_b.sum().backward();
+
+    // Compare dx.
+    assert_close_rel(
+        "encoder_bwd_dx",
+        xv.grad().unwrap().as_slice(),
+        &xb.grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
+        2e-4,
+    );
+}
