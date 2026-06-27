@@ -780,6 +780,13 @@ fn test_tcp_mesh_new_rank_out_of_bounds_panics() {
 }
 
 #[test]
+#[should_panic(expected = "world size must be > 0")]
+fn test_tcp_mesh_new_zero_world_size_panics() {
+    let addresses: Vec<std::net::SocketAddr> = vec![];
+    let _mesh = TcpMesh::new(0, 0, &addresses);
+}
+
+#[test]
 #[should_panic(expected = "addresses list length must match world size")]
 fn test_tcp_mesh_new_addresses_len_mismatch_panics() {
     let addresses = get_free_ports(1);

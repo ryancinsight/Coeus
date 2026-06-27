@@ -1,5 +1,14 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-162: TcpMesh non-zero world-size invariant [COMPLETE]
+
+- [x] [patch] Added explicit `TcpMesh::new` invariant `world_size > 0` for
+  clearer constructor contract semantics before rank/address validation.
+- [x] [patch] Added panic-contract coverage
+  `test_tcp_mesh_new_zero_world_size_panics`.
+- [x] Evidence: `cargo test -p coeus-dist test_tcp_mesh_new_ -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-161: KL/MarginRanking loss parity coverage [COMPLETE]
 
 - [x] [patch] Added tracked `coeus_autograd::{kl_divergence,
