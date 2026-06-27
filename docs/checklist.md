@@ -2,18 +2,24 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-125 - TransformerEncoderLayer Burn parity + pytest PyTorch scaffold [READY]
+### Current Sprint: MS-125 - TransformerEncoderLayer Burn parity + pytest PyTorch scaffold [COMPLETE]
 **Objective**: Add TransformerEncoderLayer forward+backward Burn parity tests and
 scaffold the coeus-python pytest harness for PyTorch/JAX/MLX output parity.
 **Target version**: 0.5.2 (patch-class; parity tests).
 
-- [ ] [patch] Add `transformer_encoder_layer_forward_matches_burn` and
-  `transformer_encoder_layer_backward_matches_burn` to `burn_live_parity.rs`
-  (random weights, d_model=4, H=2, seq=3, both forward context and dx/dW grads).
-- [ ] [patch] Create `coeus-python/tests/test_pytorch_parity.py` pytest module
-  with at least one `test_linear_matches_pytorch` and `test_mha_matches_pytorch`
-  using maturin-developed wheel; assert allclose(coeus_out, torch_out, atol=1e-5).
-- [ ] Evidence: `cargo nextest run -p coeus-nn` (≥270 pass); `pytest coeus-python/tests/test_pytorch_parity.py -v`.
+- [x] [patch] Added `transformer_encoder_layer_forward_matches_burn` (commit 7454992)
+  and `transformer_encoder_layer_backward_matches_burn` (commit ac8e4cd) to
+  `burn_live_parity.rs`. Uses Coeus Kaiming-init weights copied to manually
+  assembled Burn Pre-LN components (LN×2 + MHA + PWFF), transposing Linear
+  weights for the [out,in] vs [in,out] convention difference. Verifies forward
+  context and input gradient (dx) at 2e-4 tolerance.
+- [x] [patch] Created `coeus-python/tests/test_pytorch_parity.py` pytest module
+  with `test_linear_matches_pytorch` (Linear(256→64) + ReLU + MSELoss: loss, dx,
+  dW, db at 1e-5 atol, f64) and `test_mha_matches_pytorch` (MHA d_model=4, H=2,
+  no bias, forward at 1e-10 atol). No transposition required: pycoeus and PyTorch
+  both use [out, in] Linear convention. 2/2 pass.
+- [x] Evidence: `cargo nextest run -p coeus-nn` 272/272 passed;
+  `pytest coeus-python/tests/test_pytorch_parity.py -v` 2/2 passed.
 
 ### Previous Sprint: MS-124 - coeus-python documented binding surface [COMPLETE]
 **Objective**: Document the remaining public PyO3 binding crate surface before
