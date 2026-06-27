@@ -253,6 +253,50 @@ fn test_local_scatter_mismatched_input_numel_panics() {
 }
 
 #[test]
+#[should_panic(expected = "LocalCommunicator world_size must be > 0")]
+fn test_local_create_cluster_zero_world_size_panics() {
+    let _ = LocalCommunicator::create_cluster(0);
+}
+
+#[test]
+#[should_panic(expected = "LocalCommunicator broadcast root out of bounds")]
+fn test_local_broadcast_root_out_of_bounds_panics() {
+    let comm = LocalCommunicator::create_cluster(1).remove(0);
+    let backend = SequentialBackend::new();
+    let mut tensor = Tensor::from_slice_on([1], &[1.0f32], &backend);
+    comm.broadcast(&mut tensor, 1, &backend);
+}
+
+#[test]
+#[should_panic(expected = "LocalCommunicator reduce root out of bounds")]
+fn test_local_reduce_root_out_of_bounds_panics() {
+    let comm = LocalCommunicator::create_cluster(1).remove(0);
+    let backend = SequentialBackend::new();
+    let mut tensor = Tensor::from_slice_on([1], &[1.0f32], &backend);
+    comm.reduce::<f32, _, Sum>(&mut tensor, 1, &backend);
+}
+
+#[test]
+#[should_panic(expected = "LocalCommunicator gather root out of bounds")]
+fn test_local_gather_root_out_of_bounds_panics() {
+    let comm = LocalCommunicator::create_cluster(1).remove(0);
+    let backend = SequentialBackend::new();
+    let tensor = Tensor::from_slice_on([1], &[1.0f32], &backend);
+    let mut output = vec![Tensor::zeros_on([1], &backend)];
+    comm.gather(&tensor, &mut output, 1, &backend);
+}
+
+#[test]
+#[should_panic(expected = "LocalCommunicator scatter root out of bounds")]
+fn test_local_scatter_root_out_of_bounds_panics() {
+    let comm = LocalCommunicator::create_cluster(1).remove(0);
+    let backend = SequentialBackend::new();
+    let mut tensor = Tensor::zeros_on([1], &backend);
+    let input = vec![Tensor::from_slice_on([1], &[1.0f32], &backend)];
+    comm.scatter(&mut tensor, &input, 1, &backend);
+}
+
+#[test]
 fn test_local_all_reduce_sliced() {
     let world_size = 2;
     let communicators = LocalCommunicator::create_cluster(world_size);

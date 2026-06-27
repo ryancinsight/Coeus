@@ -1,5 +1,31 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-157: LocalCommunicator invariant hardening [COMPLETE]
+
+- [x] [patch] Added explicit `LocalCommunicator::create_cluster` invariant
+  (`world_size > 0`) to fail fast on invalid zero-sized process groups.
+- [x] [patch] Added panic-contract tests for local rooted collective bounds:
+  `test_local_broadcast_root_out_of_bounds_panics`,
+  `test_local_reduce_root_out_of_bounds_panics`,
+  `test_local_gather_root_out_of_bounds_panics`,
+  `test_local_scatter_root_out_of_bounds_panics`.
+- [x] [patch] Added panic-contract test for constructor bound invariant:
+  `test_local_create_cluster_zero_world_size_panics`.
+- [x] Evidence: `cargo test -p coeus-dist local_ -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
+## Sprint MS-156: BCE/Huber loss PyTorch differential parity [COMPLETE]
+
+- [x] [patch] Added `test_binary_cross_entropy_matches_pytorch`, asserting
+  scalar loss and prediction gradient against
+  `torch.nn.functional.binary_cross_entropy` at f64, `atol=1e-9`, with
+  probabilities held inside `(0, 1)`.
+- [x] [patch] Added `test_huber_loss_matches_pytorch`, asserting scalar loss
+  and prediction gradient against `torch.nn.functional.huber_loss` at f64,
+  `atol=1e-10`, with samples covering both quadratic and linear regions.
+- [x] Evidence tier: differential/empirical; `D:\miniforge3\python.exe -m pytest
+  coeus-python/tests/test_pytorch_parity.py -q` (31/31 pass).
+
 ## Sprint MS-155: TCP zero-numel rooted contract enforcement [COMPLETE]
 
 - [x] [patch] Enforced TCP `gather` root output-length contract before zero-numel
