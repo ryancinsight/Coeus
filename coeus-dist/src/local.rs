@@ -105,16 +105,19 @@ impl LocalCommunicator {
     }
 
     #[inline]
-    fn assert_numel(
-        data_len: usize,
-        expected_numel: usize,
-        rank: usize,
-        collective: &'static str,
-    ) {
+    fn assert_numel(data_len: usize, expected_numel: usize, rank: usize, collective: &'static str) {
         assert_eq!(
             data_len, expected_numel,
             "{collective}: payload numel mismatch for rank {rank}; expected {expected_numel}, got {data_len}",
         );
+    }
+
+    #[inline]
+    fn clear_staging(&self) {
+        let mut bufs = self.shared.buffers.lock().unwrap();
+        for item in bufs.iter_mut() {
+            *item = None;
+        }
     }
 }
 
@@ -189,10 +192,7 @@ impl Communicator for LocalCommunicator {
 
         // 7. Clear staging board
         if self.rank == 0 {
-            let mut bufs = self.shared.buffers.lock().unwrap();
-            for item in bufs.iter_mut() {
-                *item = None;
-            }
+            self.clear_staging();
         }
 
         // 8. Barrier sync post clear
@@ -236,8 +236,7 @@ impl Communicator for LocalCommunicator {
         self.barrier();
 
         if self.rank == root {
-            let mut bufs = self.shared.buffers.lock().unwrap();
-            bufs[root] = None;
+            self.clear_staging();
         }
 
         self.barrier();
@@ -275,7 +274,8 @@ impl Communicator for LocalCommunicator {
         {
             let bufs = self.shared.buffers.lock().unwrap();
             for r in 0..self.size {
-                let r_data = bufs[r].as_ref().unwrap().downcast_ref::<Vec<T>>().unwrap();
+                let r_data = Self::slot_vec_ref::<T>(&bufs[r], r, "all_gather");
+                Self::assert_numel(r_data.len(), numel, r, "all_gather");
                 copy_host_slice_to_tensor(r_data, &mut output[r], backend);
             }
         }
@@ -283,10 +283,7 @@ impl Communicator for LocalCommunicator {
         self.barrier();
 
         if self.rank == 0 {
-            let mut bufs = self.shared.buffers.lock().unwrap();
-            for item in bufs.iter_mut() {
-                *item = None;
-            }
+            self.clear_staging();
         }
 
         self.barrier();
@@ -340,10 +337,7 @@ impl Communicator for LocalCommunicator {
 
         // 5. Clear staging board
         if self.rank == root {
-            let mut bufs = self.shared.buffers.lock().unwrap();
-            for item in bufs.iter_mut() {
-                *item = None;
-            }
+            self.clear_staging();
         }
 
         // 6. Barrier sync post clear
@@ -390,7 +384,8 @@ impl Communicator for LocalCommunicator {
         if self.rank == root {
             let bufs = self.shared.buffers.lock().unwrap();
             for r in 0..self.size {
-                let r_data = bufs[r].as_ref().unwrap().downcast_ref::<Vec<T>>().unwrap();
+                let r_data = Self::slot_vec_ref::<T>(&bufs[r], r, "gather");
+                Self::assert_numel(r_data.len(), numel, r, "gather");
                 copy_host_slice_to_tensor(r_data, &mut output[r], backend);
             }
         }
@@ -398,10 +393,7 @@ impl Communicator for LocalCommunicator {
         self.barrier();
 
         if self.rank == root {
-            let mut bufs = self.shared.buffers.lock().unwrap();
-            for item in bufs.iter_mut() {
-                *item = None;
-            }
+            self.clear_staging();
         }
 
         self.barrier();
@@ -433,6 +425,12 @@ impl Communicator for LocalCommunicator {
         if self.rank == root {
             let mut bufs = self.shared.buffers.lock().unwrap();
             for r in 0..self.size {
+                assert_eq!(
+                    input[r].numel(),
+                    numel,
+                    "LocalCommunicator scatter input numel mismatch on root at rank {}",
+                    r
+                );
                 let host_data = get_tensor_host_data(&input[r], backend).into_owned();
                 bufs[r] = Some(Box::new(host_data));
             }
@@ -451,10 +449,7 @@ impl Communicator for LocalCommunicator {
         self.barrier();
 
         if self.rank == root {
-            let mut bufs = self.shared.buffers.lock().unwrap();
-            for item in bufs.iter_mut() {
-                *item = None;
-            }
+            self.clear_staging();
         }
 
         self.barrier();

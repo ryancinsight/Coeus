@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-146: LocalCommunicator collective SSOT hardening [COMPLETE]
+
+- [x] [patch] Extended staged-payload guards to `all_gather` and `gather`
+  (`slot_vec_ref` + `assert_numel`) to remove unchecked `Any` downcasts and
+  enforce explicit payload shape validation.
+- [x] [patch] Added `clear_staging` helper in `coeus-dist/src/local.rs` and
+  reused it across `all_reduce`, `broadcast`, `all_gather`, `reduce`, `gather`,
+  and `scatter` to remove duplicated staging-clear logic.
+- [x] [patch] Added root-side `scatter` input `numel` validation and a focused
+  panic contract test:
+  `coeus-dist/tests/dist_tests.rs::test_local_scatter_mismatched_input_numel_panics`.
+- [x] Evidence: `cargo test -p coeus-dist test_local_ -- --nocapture`
+  (13/13 pass); `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-144: LocalCommunicator contention and safety hardening [COMPLETE]
 
 - [x] [patch] Refactored `coeus-dist/src/local.rs::all_reduce` so reduction is

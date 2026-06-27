@@ -23,6 +23,16 @@
 
 ### Fixed
 
+- **Local gather/all-gather staged payload safety** — `LocalCommunicator`
+  now validates staged payload type and `numel` in both `all_gather` and
+  `gather` via shared helpers, removing unchecked downcasts.
+- **Local collective staging cleanup DRY** — added `clear_staging` in
+  `coeus-dist/src/local.rs` and reused it across local collectives to remove
+  duplicated staging-reset loops.
+- **Scatter shape contract enforcement** — `LocalCommunicator::scatter`
+  now validates root-side input tensor `numel` for each rank and includes
+  dedicated panic-contract coverage in
+  `coeus-dist/tests/dist_tests.rs::test_local_scatter_mismatched_input_numel_panics`.
 - **InstanceNorm parity oracle** — the PyTorch reference affine `weight`/`bias`
   tensors now set `requires_grad=True`, so their gradients are populated for the
   differential comparison (previously `None`, which would have masked any
