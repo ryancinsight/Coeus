@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-154: SiLU/Mish gradient value semantics [COMPLETE]
+
+- [x] [patch] Replaced residual existence-only gradient checks in
+  `coeus-nn/tests/nn_silu_tests.rs` with analytical value assertions for
+  functional, module, and non-contiguous paths.
+- [x] [patch] Replaced residual existence-only gradient checks in
+  `coeus-nn/tests/nn_mish_tests.rs` with analytical value assertions for
+  functional, module, and non-contiguous paths.
+- [x] [patch] Avoided invalid non-contiguous `as_slice()` use by expressing the
+  logical transpose order directly for the fixed 2x3 fixture.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-nn --check`;
+  `rustup run nightly cargo nextest run -p coeus-nn --test nn_silu_tests --test nn_mish_tests`
+  (6/6).
+
 ## Sprint MS-150: TCP collective root contract completion [COMPLETE]
 
 - [x] [patch] Added explicit panic-contract tests for TCP root out-of-bounds

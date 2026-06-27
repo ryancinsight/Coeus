@@ -25,6 +25,10 @@
 
 ### Added
 
+- **SiLU/Mish analytical gradient assertions** — upgraded focused
+  `coeus-nn` SiLU and Mish module/non-contiguous tests from gradient-existence
+  checks to analytical value-semantic forward and backward assertions. Evidence
+  tier: analytical Rust tests. ([patch])
 - **`PyTensor.sum()` / `PyTensor.mean()`** — full-reduction methods on the
   Python `Tensor`, mirroring `torch.Tensor.sum()` / `.mean()` with no `dim`
   argument. Both preserve the autograd graph (delegating to

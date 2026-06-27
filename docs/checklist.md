@@ -2,7 +2,23 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-153 - CrossEntropy/NLL loss PyTorch differential parity [COMPLETE]
+### Current Sprint: MS-154 - SiLU/Mish gradient value semantics [COMPLETE]
+**Objective**: Replace residual existence-only gradient checks in focused SiLU
+and Mish Rust tests with analytical forward and backward value assertions,
+including module and non-contiguous view paths.
+**Target version**: 0.5.4 (test-only [patch]).
+
+- [x] [patch] Consolidated SiLU test expectations through shared analytical
+  helpers for `x * sigmoid(x)` and `sigmoid(x) * (1 + x * (1 - sigmoid(x)))`.
+- [x] [patch] Consolidated Mish test expectations through shared analytical
+  helpers for `x * tanh(softplus(x))` and its derivative.
+- [x] [patch] Upgraded module and non-contiguous SiLU/Mish checks from
+  `grad().is_some()` to explicit gradient-value assertions.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-nn --check`;
+  `rustup run nightly cargo nextest run -p coeus-nn --test nn_silu_tests --test nn_mish_tests`
+  (6/6).
+
+### Previous Sprint: MS-153 - CrossEntropy/NLL loss PyTorch differential parity [COMPLETE]
 **Objective**: Add value-semantic forward+backward differential parity for the
 classification loss path (cross_entropy_loss, nll_loss over log_softmax),
 previously absent from the PyTorch parity suite.

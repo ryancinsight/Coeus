@@ -2,6 +2,13 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-019: SiLU/Mish tests still had existence-only gradient checks~~ **CLOSED**
+**Location**: `coeus-nn/tests/nn_silu_tests.rs`,
+`coeus-nn/tests/nn_mish_tests.rs`
+**Closed by**: MS-154 — Module and non-contiguous SiLU/Mish paths now assert
+analytical forward and backward values instead of only checking that gradients
+exist. Evidence tier: analytical value-semantic Rust tests.
+
 ### ~~G-018: CrossEntropy/NLL loss differential parity missing~~ **CLOSED**
 **Location**: `coeus-python/tests/test_pytorch_parity.py`
 **Closed by**: MS-153 — Added `test_cross_entropy_loss_matches_pytorch` and
