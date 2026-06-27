@@ -13,6 +13,7 @@ pub struct TcpMesh {
 impl TcpMesh {
     /// Create a new TCP mesh connecting all ranks.
     pub fn new(rank: usize, size: usize, addresses: &[SocketAddr]) -> Self {
+        assert!(rank < size, "rank must be less than world size");
         assert_eq!(
             addresses.len(),
             size,
@@ -80,6 +81,15 @@ impl TcpMesh {
         }
     }
 
+    #[inline]
+    fn stream_for_peer(&self, peer: usize, op: &'static str) -> &Mutex<TcpStream> {
+        assert!(peer < self.size, "{op} peer out of bounds");
+        assert!(peer != self.rank, "{op} peer must differ from local rank");
+        self.streams[peer]
+            .as_ref()
+            .unwrap_or_else(|| panic!("{op} stream not established for peer {peer}"))
+    }
+
     /// Access local rank.
     #[inline]
     pub fn rank(&self) -> usize {
@@ -95,7 +105,7 @@ impl TcpMesh {
     /// Send raw bytes to a target rank.
     #[inline]
     pub fn send(&self, target: usize, bytes: &[u8]) {
-        let stream_mutex = self.streams[target].as_ref().expect("stream not found");
+        let stream_mutex = self.stream_for_peer(target, "send");
         let mut stream = stream_mutex.lock().unwrap();
         moirai::global().block_on(async {
             stream
@@ -108,7 +118,7 @@ impl TcpMesh {
     /// Receive raw bytes from a source rank.
     #[inline]
     pub fn recv(&self, source: usize, bytes: &mut [u8]) {
-        let stream_mutex = self.streams[source].as_ref().expect("stream not found");
+        let stream_mutex = self.stream_for_peer(source, "recv");
         let mut stream = stream_mutex.lock().unwrap();
         moirai::global().block_on(async {
             stream

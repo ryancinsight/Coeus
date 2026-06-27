@@ -59,6 +59,16 @@
 
 ### Fixed
 
+- **TcpMesh peer-invariant enforcement** — added shared
+  `TcpMesh::stream_for_peer` guardrails and routed `send`/`recv` through bounds,
+  self-peer, and stream-established checks for explicit failure diagnostics.
+- **TcpMesh constructor invariant** — `TcpMesh::new` now asserts `rank < size`
+  before binding/connection setup.
+- **Tcp collective root bounds** — added shared `TcpCommunicator::assert_root`
+  and enforced root bounds in `broadcast`, `reduce`, `gather`, and `scatter`.
+- **TCP invariant panic-contract tests** — added
+  `test_tcp_broadcast_root_out_of_bounds_panics`,
+  `test_tcp_mesh_send_self_panics`, and `test_tcp_mesh_recv_self_panics`.
 - **TcpCommunicator payload-shape contract enforcement** — added shared
   `TcpCommunicator::assert_numel` checks for `all_gather`, `gather`, and
   `scatter` so mismatched tensor shapes fail fast with explicit rank-indexed

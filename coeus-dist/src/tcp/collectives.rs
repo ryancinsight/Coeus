@@ -31,6 +31,11 @@ impl TcpCommunicator {
             "{collective} numel mismatch at rank index {index}: expected {expected_numel}, got {actual_numel}",
         );
     }
+
+    #[inline]
+    fn assert_root(root: usize, size: usize) {
+        assert!(root < size, "collective root out of bounds");
+    }
 }
 
 impl Communicator for TcpCommunicator {
@@ -82,6 +87,7 @@ impl Communicator for TcpCommunicator {
     ) {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
+        Self::assert_root(root, size);
         if size <= 1 {
             return;
         }
@@ -154,6 +160,7 @@ impl Communicator for TcpCommunicator {
     ) {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
+        Self::assert_root(root, size);
         if size <= 1 {
             return;
         }
@@ -193,6 +200,7 @@ impl Communicator for TcpCommunicator {
     ) {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
+        Self::assert_root(root, size);
         let numel = tensor.numel();
         if numel == 0 {
             return;
@@ -229,6 +237,7 @@ impl Communicator for TcpCommunicator {
     ) {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
+        Self::assert_root(root, size);
         let numel = tensor.numel();
         if numel == 0 {
             return;
