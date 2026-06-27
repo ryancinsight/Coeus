@@ -274,6 +274,14 @@ impl Communicator for LocalCommunicator {
             "LocalCommunicator all_gather output length mismatch"
         );
         let numel = tensor.numel();
+        for (r, out) in output.iter().enumerate() {
+            assert_eq!(
+                out.numel(),
+                numel,
+                "LocalCommunicator all_gather output numel mismatch at rank {}",
+                r
+            );
+        }
         if numel == 0 {
             return;
         }
@@ -373,14 +381,22 @@ impl Communicator for LocalCommunicator {
             root < self.size,
             "LocalCommunicator gather root out of bounds"
         );
+        let numel = tensor.numel();
         if self.rank == root {
             assert_eq!(
                 output.len(),
                 self.size,
                 "LocalCommunicator gather output length mismatch on root"
             );
+            for (r, out) in output.iter().enumerate() {
+                assert_eq!(
+                    out.numel(),
+                    numel,
+                    "LocalCommunicator gather output numel mismatch on root at rank {}",
+                    r
+                );
+            }
         }
-        let numel = tensor.numel();
         if numel == 0 {
             return;
         }
@@ -424,14 +440,22 @@ impl Communicator for LocalCommunicator {
             root < self.size,
             "LocalCommunicator scatter root out of bounds"
         );
+        let numel = tensor.numel();
         if self.rank == root {
             assert_eq!(
                 input.len(),
                 self.size,
                 "LocalCommunicator scatter input length mismatch on root"
             );
+            for (r, in_tensor) in input.iter().enumerate() {
+                assert_eq!(
+                    in_tensor.numel(),
+                    numel,
+                    "LocalCommunicator scatter input numel mismatch on root at rank {}",
+                    r
+                );
+            }
         }
-        let numel = tensor.numel();
         if numel == 0 {
             return;
         }
@@ -441,15 +465,7 @@ impl Communicator for LocalCommunicator {
                 .iter()
                 .enumerate()
                 .take(self.size)
-                .map(|(r, in_tensor)| {
-                    assert_eq!(
-                        in_tensor.numel(),
-                        numel,
-                        "LocalCommunicator scatter input numel mismatch on root at rank {}",
-                        r
-                    );
-                    get_tensor_host_data(in_tensor, backend).into_owned()
-                })
+                .map(|(_, in_tensor)| get_tensor_host_data(in_tensor, backend).into_owned())
                 .collect::<Vec<Vec<T>>>();
 
             let mut bufs = self.shared.buffers.lock().unwrap();

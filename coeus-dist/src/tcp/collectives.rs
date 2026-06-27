@@ -120,11 +120,11 @@ impl Communicator for TcpCommunicator {
         let size = self.mesh.size();
         assert_eq!(output.len(), size, "all_gather output length mismatch");
         let numel = tensor.numel();
-        if numel == 0 {
-            return;
-        }
         for (idx, out) in output.iter().enumerate().take(size) {
             Self::assert_numel("all_gather output", idx, out.numel(), numel);
+        }
+        if numel == 0 {
+            return;
         }
 
         let self_host_data = get_tensor_host_data(tensor, backend);
@@ -201,18 +201,18 @@ impl Communicator for TcpCommunicator {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
         Self::assert_root(root, size);
+        let numel = tensor.numel();
         if rank == root {
             assert_eq!(output.len(), size, "gather output length mismatch on root");
+            for (idx, out) in output.iter().enumerate().take(size) {
+                Self::assert_numel("gather output", idx, out.numel(), numel);
+            }
         }
-        let numel = tensor.numel();
         if numel == 0 {
             return;
         }
 
         if rank == root {
-            for (idx, out) in output.iter().enumerate().take(size) {
-                Self::assert_numel("gather output", idx, out.numel(), numel);
-            }
             let self_host_data = get_tensor_host_data(tensor, backend);
             copy_host_slice_to_tensor(&self_host_data, &mut output[root], backend);
 
@@ -240,18 +240,18 @@ impl Communicator for TcpCommunicator {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
         Self::assert_root(root, size);
+        let numel = tensor.numel();
         if rank == root {
             assert_eq!(input.len(), size, "scatter input length mismatch on root");
+            for (idx, in_tensor) in input.iter().enumerate().take(size) {
+                Self::assert_numel("scatter input", idx, in_tensor.numel(), numel);
+            }
         }
-        let numel = tensor.numel();
         if numel == 0 {
             return;
         }
 
         if rank == root {
-            for (idx, in_tensor) in input.iter().enumerate().take(size) {
-                Self::assert_numel("scatter input", idx, in_tensor.numel(), numel);
-            }
             let self_host_data = get_tensor_host_data(&input[root], backend);
             copy_host_slice_to_tensor(&self_host_data, tensor, backend);
 

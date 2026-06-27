@@ -301,8 +301,18 @@ fn test_local_scatter_root_out_of_bounds_panics() {
 fn test_local_all_gather_zero_numel_output_len_mismatch_panics() {
     let comm = LocalCommunicator::create_cluster(1).remove(0);
     let backend = SequentialBackend::new();
-    let tensor = Tensor::zeros_on([0], &backend);
+    let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
     let mut output: Vec<Tensor<f32, SequentialBackend>> = vec![];
+    comm.all_gather(&tensor, &mut output, &backend);
+}
+
+#[test]
+#[should_panic(expected = "LocalCommunicator all_gather output numel mismatch at rank 0")]
+fn test_local_all_gather_zero_numel_output_numel_mismatch_panics() {
+    let comm = LocalCommunicator::create_cluster(1).remove(0);
+    let backend = SequentialBackend::new();
+    let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
+    let mut output = vec![Tensor::zeros_on([1], &backend)];
     comm.all_gather(&tensor, &mut output, &backend);
 }
 
@@ -311,8 +321,18 @@ fn test_local_all_gather_zero_numel_output_len_mismatch_panics() {
 fn test_local_gather_zero_numel_output_len_mismatch_panics() {
     let comm = LocalCommunicator::create_cluster(1).remove(0);
     let backend = SequentialBackend::new();
-    let tensor = Tensor::zeros_on([0], &backend);
+    let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
     let mut output: Vec<Tensor<f32, SequentialBackend>> = vec![];
+    comm.gather(&tensor, &mut output, 0, &backend);
+}
+
+#[test]
+#[should_panic(expected = "LocalCommunicator gather output numel mismatch on root at rank 0")]
+fn test_local_gather_zero_numel_output_numel_mismatch_panics() {
+    let comm = LocalCommunicator::create_cluster(1).remove(0);
+    let backend = SequentialBackend::new();
+    let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
+    let mut output = vec![Tensor::zeros_on([1], &backend)];
     comm.gather(&tensor, &mut output, 0, &backend);
 }
 
@@ -321,8 +341,18 @@ fn test_local_gather_zero_numel_output_len_mismatch_panics() {
 fn test_local_scatter_zero_numel_input_len_mismatch_panics() {
     let comm = LocalCommunicator::create_cluster(1).remove(0);
     let backend = SequentialBackend::new();
-    let mut tensor = Tensor::zeros_on([0], &backend);
+    let mut tensor = Tensor::<f32, _>::zeros_on([0], &backend);
     let input: Vec<Tensor<f32, SequentialBackend>> = vec![];
+    comm.scatter(&mut tensor, &input, 0, &backend);
+}
+
+#[test]
+#[should_panic(expected = "LocalCommunicator scatter input numel mismatch on root at rank 0")]
+fn test_local_scatter_zero_numel_input_numel_mismatch_panics() {
+    let comm = LocalCommunicator::create_cluster(1).remove(0);
+    let backend = SequentialBackend::new();
+    let mut tensor = Tensor::<f32, _>::zeros_on([0], &backend);
+    let input = vec![Tensor::zeros_on([1], &backend)];
     comm.scatter(&mut tensor, &input, 0, &backend);
 }
 
@@ -650,8 +680,21 @@ fn test_tcp_all_gather_zero_numel_output_len_mismatch_panics() {
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
 
-    let tensor = Tensor::zeros_on([0], &backend);
+    let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
     let mut output: Vec<Tensor<f32, SequentialBackend>> = vec![];
+    comm.all_gather(&tensor, &mut output, &backend);
+}
+
+#[test]
+#[should_panic(expected = "all_gather output numel mismatch")]
+fn test_tcp_all_gather_zero_numel_output_numel_mismatch_panics() {
+    let addresses = get_free_ports(1);
+    let mesh = TcpMesh::new(0, 1, &addresses);
+    let comm = TcpCommunicator::new(mesh);
+    let backend = SequentialBackend::new();
+
+    let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
+    let mut output = vec![Tensor::zeros_on([1], &backend)];
     comm.all_gather(&tensor, &mut output, &backend);
 }
 
@@ -721,8 +764,20 @@ fn test_tcp_gather_zero_numel_output_len_mismatch_panics() {
     let mesh = TcpMesh::new(0, 1, &addresses);
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
-    let tensor = Tensor::zeros_on([0], &backend);
+    let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
     let mut output: Vec<Tensor<f32, SequentialBackend>> = vec![];
+    comm.gather(&tensor, &mut output, 0, &backend);
+}
+
+#[test]
+#[should_panic(expected = "gather output numel mismatch")]
+fn test_tcp_gather_zero_numel_output_numel_mismatch_panics() {
+    let addresses = get_free_ports(1);
+    let mesh = TcpMesh::new(0, 1, &addresses);
+    let comm = TcpCommunicator::new(mesh);
+    let backend = SequentialBackend::new();
+    let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
+    let mut output = vec![Tensor::zeros_on([1], &backend)];
     comm.gather(&tensor, &mut output, 0, &backend);
 }
 
@@ -733,8 +788,20 @@ fn test_tcp_scatter_zero_numel_input_len_mismatch_panics() {
     let mesh = TcpMesh::new(0, 1, &addresses);
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
-    let mut tensor = Tensor::zeros_on([0], &backend);
+    let mut tensor = Tensor::<f32, _>::zeros_on([0], &backend);
     let input: Vec<Tensor<f32, SequentialBackend>> = vec![];
+    comm.scatter(&mut tensor, &input, 0, &backend);
+}
+
+#[test]
+#[should_panic(expected = "scatter input numel mismatch")]
+fn test_tcp_scatter_zero_numel_input_numel_mismatch_panics() {
+    let addresses = get_free_ports(1);
+    let mesh = TcpMesh::new(0, 1, &addresses);
+    let comm = TcpCommunicator::new(mesh);
+    let backend = SequentialBackend::new();
+    let mut tensor = Tensor::<f32, _>::zeros_on([0], &backend);
+    let input = vec![Tensor::zeros_on([1], &backend)];
     comm.scatter(&mut tensor, &input, 0, &backend);
 }
 
