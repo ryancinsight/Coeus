@@ -2,7 +2,26 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-161 - KL/MarginRanking loss parity coverage [COMPLETE]
+### Current Sprint: MS-163 - Local collective snapshot and Conv2d bench [COMPLETE]
+**Objective**: Reduce local distributed critical-section scope and extend the
+Burn/Coeus NN benchmark harness with Conv2d forward coverage.
+**Target version**: 0.5.4 ([patch]).
+
+- [x] [patch] Added `LocalCommunicator::snapshot_payloads` and routed
+  `all_reduce`, `reduce`, `all_gather`, and `gather` through snapshot reads so
+  reduction/copy work no longer runs while holding the staging-board mutex.
+- [x] [patch] Moved root `scatter` host extraction ahead of staging-board
+  publication so tensor host copies do not run under the shared mutex.
+- [x] [patch] Added a Conv2d forward group to
+  `coeus-nn/benches/nn_bench.rs` comparing Burn NdArray, Coeus Sequential, and
+  Coeus Moirai on the same `8x16x32x32`, `16 -> 16`, `k=3` workload.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-dist local_`
+  (21/21); `rustup run nightly cargo bench -p coeus-nn --bench nn_bench
+  -- Conv2d --warm-up-time 1 --measurement-time 2 --sample-size 10`
+  (median: Burn NdArray 2.19 ms, Coeus Sequential 32.83 ms, Coeus Moirai
+  126.56 ms).
+
+### Previous Sprint: MS-161 - KL/MarginRanking loss parity coverage [COMPLETE]
 **Objective**: Extend the tracked loss-function surface with KL divergence and
 margin ranking loss entry points, and pin their forward/backward semantics with
 value-semantic Rust tests.
