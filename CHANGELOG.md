@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Coeus Ops einsum SSOT** — removed duplicate
+  `coeus-ops/src/shape/util/einsum.rs` and routed the utility namespace
+  `einsum`/`einsum3` re-exports through canonical `shape::einsum`. Evidence
+  tier: compile/lint/docs plus value-semantic tests. `coeus-ops` passed
+  rustfmt, all-target check, clippy with `-D warnings`, full nextest 189/189,
+  focused einsum nextest 12/12, doctests 23/23, and rustdoc. ([patch])
+- **Scalar identity SSOT** — replaced Coeus' direct `num-traits` scalar
+  supertrait dependency with explicit std arithmetic bounds plus
+  `Scalar::zero()` / `Scalar::one()`, removed direct workspace `num-traits` and
+  `libm` dependencies, and routed `erf`/GELU through a Coeus-owned piecewise
+  rational implementation with f32/f64 value tests. Evidence tier:
+  compile/lint/docs plus value-semantic Rust tests. ([patch])
+
 ### Added
 
 - **`PyTensor.sum()` / `PyTensor.mean()`** — full-reduction methods on the
@@ -20,6 +35,14 @@
   `test_rmsprop_step_matches_pytorch` and `test_adagrad_step_matches_pytorch`
   comparing one optimizer step against `torch.optim.RMSprop` / `torch.optim.Adagrad`
   at `atol=1e-10` after a real `mse_loss().backward()` gradient path. ([patch])
+- **GroupNorm PyTorch parity** — added
+  `coeus-python/tests/test_pytorch_parity.py::test_groupnorm_matches_pytorch`
+  (GroupNorm(num_groups=2, C=4) on `[2,4,2,2]`), asserting forward output plus
+  input, weight, and bias gradients against `torch.nn.functional.group_norm` at
+  f64, `atol=1e-10`. Replaces the prior existence-only (`grad is not None`)
+  binding-smoke coverage with value-semantic differential parity. Evidence tier:
+  differential/empirical; `D:\miniforge3\python.exe -m pytest
+  coeus-python/tests/test_pytorch_parity.py -q` passes 25/25. ([patch])
 
 ### Fixed
 

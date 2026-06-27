@@ -5,7 +5,6 @@ macro_rules! impl_cpu_unary_dispatch_float {
         impl $crate::dtype::CpuUnaryDispatch for $t {
             #[inline]
             fn eval_unary(op: $crate::dtype::CpuUnaryOp, x: Self) -> Self {
-                use num_traits::{One, Zero};
                 use $crate::dtype::{CpuUnaryOp, FloatOps, Scalar};
                 match op {
                     CpuUnaryOp::Relu => {

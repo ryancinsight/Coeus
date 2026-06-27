@@ -8,6 +8,14 @@ macro_rules! impl_scalar_int_signed {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
+            fn zero() -> Self {
+                0 as $t
+            }
+            #[inline(always)]
+            fn one() -> Self {
+                1 as $t
+            }
+            #[inline(always)]
             fn to_f64(self) -> f64 {
                 self as f64
             }
@@ -69,6 +77,14 @@ macro_rules! impl_scalar_int_unsigned {
     ($t:ty) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
+            #[inline(always)]
+            fn zero() -> Self {
+                0 as $t
+            }
+            #[inline(always)]
+            fn one() -> Self {
+                1 as $t
+            }
             #[inline(always)]
             fn to_f64(self) -> f64 {
                 self as f64
@@ -141,7 +157,6 @@ macro_rules! impl_cpu_unary_dispatch_int {
         impl $crate::dtype::CpuUnaryDispatch for $t {
             #[inline]
             fn eval_unary(op: $crate::dtype::CpuUnaryOp, x: Self) -> Self {
-                use num_traits::{One, Zero};
                 use $crate::dtype::{CpuUnaryOp, Scalar};
                 match op {
                     CpuUnaryOp::Relu => {

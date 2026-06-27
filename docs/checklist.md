@@ -2,7 +2,57 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-145 - PyTensor sum/mean + InstanceNorm/RMSProp/AdaGrad parity [COMPLETE]
+### Current Sprint: MS-150 - Scalar identity and direct libm removal [COMPLETE]
+**Objective**: Remove Coeus' direct `num-traits`/`libm` scalar dependency path
+without weakening GELU/erf value semantics or the sealed `Scalar` contract.
+**Target version**: 0.5.4 (patch-class; internal dependency and scalar trait cleanup).
+
+- [x] [patch] Replaced `Scalar: Num + Zero + One` with explicit std arithmetic
+  bounds and `Scalar::zero()` / `Scalar::one()` identity methods.
+- [x] [patch] Removed Coeus workspace direct `num-traits` and `libm`
+  dependencies; `half` now uses only the `bytemuck` feature.
+- [x] [patch] Added `coeus-core::dtype::float::erf` as the Coeus-owned
+  piecewise rational `erf` implementation used by native and half GELU paths.
+- [x] [patch] Updated sparse backward zero checks to use the `Scalar` identity
+  contract instead of `num_traits::Zero::is_zero`.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-core -p coeus-ops --check`;
+  `rustup run nightly cargo check -p coeus-core -p coeus-ops --all-targets`;
+  `rustup run nightly cargo clippy -p coeus-core -p coeus-ops --all-targets -- -D warnings`;
+  `rustup run nightly cargo nextest run -p coeus-core` (22/22);
+  `rustup run nightly cargo nextest run -p coeus-ops` (189/189);
+  `rustup run nightly cargo test --doc -p coeus-core -p coeus-ops` (55/55);
+  `rustup run nightly cargo doc -p coeus-core -p coeus-ops --no-deps`.
+
+### Previous Sprint: MS-149 - GroupNorm PyTorch differential parity [COMPLETE]
+**Objective**: Replace GroupNorm's existence-only (`grad is not None`) Python
+coverage with value-semantic forward+backward differential parity against PyTorch,
+matching the InstanceNorm parity established in MS-145.
+**Target version**: 0.5.4 (test-only [patch]).
+
+- [x] [patch] Added `test_groupnorm_matches_pytorch`: GroupNorm(2, 4) on `[2,4,2,2]`;
+  forward + dx + dγ + dβ vs `torch.nn.functional.group_norm` at f64, atol=1e-10.
+- [x] Evidence: `D:\miniforge3\python.exe -m pytest
+  coeus-python/tests/test_pytorch_parity.py -q` (25/25 pass).
+
+### Previous Sprint: MS-148 - Shape einsum SSOT cleanup [COMPLETE]
+**Objective**: Remove the duplicate einsum implementation under
+`coeus-ops::shape::util` while preserving both public re-export surfaces.
+**Target version**: 0.5.4 (patch-class; internal topology cleanup).
+
+- [x] [patch] Deleted `coeus-ops/src/shape/util/einsum.rs`; it was
+  byte-identical to `coeus-ops/src/shape/einsum.rs`.
+- [x] [patch] Routed `coeus_ops::shape::util::{einsum,einsum3}` through the
+  canonical parent `shape::einsum` implementation, preserving call sites and
+  removing duplicated tests/logic.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-ops --check`;
+  `rustup run nightly cargo check -p coeus-ops --all-targets`;
+  `rustup run nightly cargo clippy -p coeus-ops --all-targets -- -D warnings`;
+  `rustup run nightly cargo nextest run -p coeus-ops einsum` (12/12);
+  `rustup run nightly cargo nextest run -p coeus-ops` (189/189);
+  `rustup run nightly cargo test --doc -p coeus-ops` (23/23);
+  `rustup run nightly cargo doc -p coeus-ops --no-deps`.
+
+### Previous Sprint: MS-145 - PyTensor sum/mean + InstanceNorm/RMSProp/AdaGrad parity [COMPLETE]
 **Objective**: Close the Python scalar-reduction gap (`Tensor.sum`/`.mean`) blocking
 idiomatic `loss.backward()`, and land differential PyTorch parity for InstanceNorm
 {1,2,3}d and the RMSProp/AdaGrad optimizer steps.

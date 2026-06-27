@@ -243,7 +243,7 @@ where
                 let end = row_ptr.read(r + 1) as usize;
                 let go_idx = go_offset + r * go_stride_row + j * go_stride_col;
                 let go_v = grad_out_ptr.read(go_idx);
-                if go_v.is_zero() {
+                if go_v == T::zero() {
                     continue;
                 }
                 for i in start..end {

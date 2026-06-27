@@ -35,10 +35,8 @@ leto     = { path = "../leto/crates/leto", version = "0.35.1" }
 leto-ops = { path = "../leto/crates/leto-ops", version = "0.35.1" }
 
 # ── Numerical ──
-num-traits = "0.2"
 bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }
-half       = { version = "2.7", features = ["num-traits", "bytemuck"] }
-libm       = "0.2"
+half       = { version = "2.7", features = ["bytemuck"] }
 # ndarray is intentionally absent: coeus implements its own tensor/array stack
 # (coeus-tensor). FFT integration routes through Atlas-owned Apollo APIs rather
 # than rustfft or a Coeus-local array dependency.

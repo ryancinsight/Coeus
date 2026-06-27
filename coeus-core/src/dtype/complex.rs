@@ -1,6 +1,5 @@
 use crate::dtype::traits::{private, Float, FloatOps, Scalar};
 use bytemuck::{Pod, Zeroable};
-use num_traits::{Num, One, Zero};
 use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 
 /// Complex number representation.
@@ -46,7 +45,7 @@ impl<T: Sub<Output = T>> Sub for Complex<T> {
     }
 }
 
-impl<T: Num + Clone> Mul for Complex<T> {
+impl<T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Clone> Mul for Complex<T> {
     type Output = Self;
     #[inline(always)]
     fn mul(self, other: Self) -> Self {
@@ -57,7 +56,9 @@ impl<T: Num + Clone> Mul for Complex<T> {
     }
 }
 
-impl<T: Num + Clone> Div for Complex<T> {
+impl<T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Clone> Div
+    for Complex<T>
+{
     type Output = Self;
     #[inline(always)]
     fn div(self, other: Self) -> Self {
@@ -89,38 +90,6 @@ impl<T: Neg<Output = T>> Neg for Complex<T> {
             re: -self.re,
             im: -self.im,
         }
-    }
-}
-
-impl<T: Zero> Zero for Complex<T> {
-    #[inline(always)]
-    fn zero() -> Self {
-        Self {
-            re: T::zero(),
-            im: T::zero(),
-        }
-    }
-    #[inline(always)]
-    fn is_zero(&self) -> bool {
-        self.re.is_zero() && self.im.is_zero()
-    }
-}
-
-impl<T: One + Zero + Num + Clone> One for Complex<T> {
-    #[inline(always)]
-    fn one() -> Self {
-        Self {
-            re: T::one(),
-            im: T::zero(),
-        }
-    }
-}
-
-impl<T: Num + Clone> Num for Complex<T> {
-    type FromStrRadixErr = ();
-    #[inline(always)]
-    fn from_str_radix(_str: &str, _radix: u32) -> Result<Self, Self::FromStrRadixErr> {
-        Err(())
     }
 }
 
@@ -205,6 +174,22 @@ impl<T: Float> FloatOps for Complex<T> {
 
 impl<T: Float> Scalar for Complex<T> {
     #[inline(always)]
+    fn zero() -> Self {
+        Self {
+            re: <T as Scalar>::zero(),
+            im: <T as Scalar>::zero(),
+        }
+    }
+
+    #[inline(always)]
+    fn one() -> Self {
+        Self {
+            re: <T as Scalar>::one(),
+            im: <T as Scalar>::zero(),
+        }
+    }
+
+    #[inline(always)]
     fn to_f64(self) -> f64 {
         self.re.to_f64()
     }
@@ -252,7 +237,6 @@ impl<T: Float> crate::dtype::CpuUnaryDispatch for Complex<T> {
     #[inline]
     fn eval_unary(op: crate::dtype::CpuUnaryOp, x: Self) -> Self {
         use crate::dtype::{CpuUnaryOp, FloatOps, Scalar};
-        use num_traits::{One, Zero};
         match op {
             CpuUnaryOp::Relu => panic!("Relu not supported on complex types"),
             CpuUnaryOp::ReluGrad => panic!("ReluGrad not supported on complex types"),

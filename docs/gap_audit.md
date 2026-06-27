@@ -2,6 +2,29 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-015: Scalar identity still depended on num-traits/libm~~ **CLOSED**
+**Location**: `Cargo.toml`, `coeus-core/src/dtype/traits.rs`,
+`coeus-core/src/dtype/float/erf.rs`, `coeus-ops/src/sparse/ops.rs`
+**Closed by**: MS-150 — Removed Coeus' direct `num-traits`/`libm` dependency
+path from the scalar contract, added canonical `Scalar::zero()`/`one()`, and
+routed GELU/erf through a Coeus-owned piecewise rational implementation.
+Evidence tier: compile/lint/docs plus value-semantic Rust tests.
+
+### ~~G-014: GroupNorm Python differential parity missing~~ **CLOSED**
+**Location**: `coeus-python/tests/test_pytorch_parity.py`
+**Closed by**: MS-149 — Added `test_groupnorm_matches_pytorch`, asserting
+GroupNorm forward output plus input, weight, and bias gradients against
+`torch.nn.functional.group_norm` at f64, `atol=1e-10`.
+Evidence tier: differential/empirical.
+
+### ~~G-013: Duplicate einsum implementation under shape::util~~ **CLOSED**
+**Location**: `coeus-ops/src/shape/einsum.rs`,
+`coeus-ops/src/shape/util/einsum.rs`
+**Closed by**: MS-148 — Deleted the byte-identical utility copy and routed
+`shape::util::{einsum,einsum3}` through the canonical parent implementation.
+Evidence tier: compile/lint/docs plus value-semantic tests (`coeus-ops` full
+nextest 189/189, focused einsum nextest 12/12).
+
 ### ~~G-001: PyTransformerEncoderLayer stateless binding~~ **CLOSED**
 **Location**: `coeus-python/src/nn/feedforward.rs` — `PyTransformerEncoderLayer`  
 **Closed by**: MS-127 — Refactored to stateful `Py<PyLayerNorm>` + `Py<PyMultiHeadAttention>` +
@@ -138,5 +161,8 @@ Evidence tier: differential/empirical (PyTorch f64).
 | G-010 Optimizer step correctness unverified | analytical + differential | **closed MS-139** |
 | G-011 Bilinear per-output indexing parity gap | analytical + differential | **closed MS-140** |
 | G-012 Python `Tensor.sum`/`.mean` reduction + InstanceNorm parity missing | differential | **closed MS-145** |
+| G-013 duplicate einsum implementation under shape::util | compile/lint/docs + value-semantic tests | **closed MS-148** |
+| G-014 GroupNorm Python differential parity missing | differential/empirical | **closed MS-149** |
+| G-015 Scalar identity still depended on num-traits/libm | compile/lint/docs + value-semantic tests | **closed MS-150** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |

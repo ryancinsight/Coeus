@@ -9,8 +9,8 @@
 // - bytemuck::Pod guarantees safe transmutation to/from [u8]
 
 use bytemuck::Pod;
-use num_traits::{Num, One, Zero};
 use std::fmt::Debug;
+use std::ops::{Add, Div, Mul, Rem, Sub};
 
 // ── Sealed pattern ──
 pub(crate) mod private {
@@ -171,19 +171,26 @@ pub trait CpuUnaryDispatch: private::Sealed {
 /// ```
 pub trait Scalar:
     private::Sealed
-    + Num
     + Copy
     + Clone
     + Send
     + Sync
     + Debug
     + Pod
-    + Zero
-    + One
     + PartialOrd
     + CpuUnaryDispatch
+    + Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Output = Self>
+    + Div<Output = Self>
+    + Rem<Output = Self>
     + 'static
 {
+    /// Additive identity (0).
+    fn zero() -> Self;
+
+    /// Multiplicative identity (1).
+    fn one() -> Self;
     /// Convert to f64 (for mixed-precision checkpoints).
     fn to_f64(self) -> f64;
 
@@ -408,7 +415,7 @@ pub trait Float: Scalar + FloatOps {
 ///
 /// Provides bitwise operations and integer-specific math.
 /// Implemented for i8, i16, i32, i64, u8, u16, u32, u64.
-pub trait Int: Scalar + num_traits::NumCast {
+pub trait Int: Scalar {
     /// Count of set bits (popcount).
     fn count_ones(self) -> u32;
     /// Count of unset bits.

@@ -1,9 +1,17 @@
 use crate::dtype::traits::{private, Float, FloatOps, Scalar};
 
 macro_rules! impl_scalar_float_native {
-    ($t:ty, $erf:path) => {
+    ($t:ty, $erf_fn:path) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
+            #[inline(always)]
+            fn zero() -> Self {
+                0.0 as $t
+            }
+            #[inline(always)]
+            fn one() -> Self {
+                1.0 as $t
+            }
             #[inline(always)]
             fn to_f64(self) -> f64 {
                 self as f64
@@ -110,7 +118,7 @@ macro_rules! impl_scalar_float_native {
             }
             #[inline(always)]
             fn erf_op(self) -> Self {
-                $erf(self)
+                $erf_fn(self)
             }
             #[inline(always)]
             fn gelu_op(self) -> Self {
@@ -238,5 +246,5 @@ macro_rules! impl_scalar_float_native {
     };
 }
 
-impl_scalar_float_native!(f32, libm::erff);
-impl_scalar_float_native!(f64, libm::erf);
+impl_scalar_float_native!(f32, crate::dtype::float::erf::erf_f32);
+impl_scalar_float_native!(f64, crate::dtype::float::erf::erf_f64);

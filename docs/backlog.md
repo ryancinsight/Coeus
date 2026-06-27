@@ -1,5 +1,53 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-150: Scalar identity and direct libm removal [COMPLETE]
+
+- [x] [patch] Replaced `Scalar`'s external `Num + Zero + One` supertraits with
+  explicit std arithmetic bounds plus canonical `Scalar::zero()` and
+  `Scalar::one()` methods.
+- [x] [patch] Removed Coeus' direct workspace `num-traits` and `libm`
+  dependencies and disabled `half`'s `num-traits` feature.
+- [x] [patch] Added a Coeus-owned piecewise rational `erf` implementation for
+  native and reduced-precision GELU paths, with f32/f64 reference-value,
+  odd-symmetry, NaN, and infinity coverage.
+- [x] [patch] Updated sparse backward zero detection to use `go_v == T::zero()`
+  through the scalar contract.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-core -p coeus-ops --check`;
+  `rustup run nightly cargo check -p coeus-core -p coeus-ops --all-targets`;
+  `rustup run nightly cargo clippy -p coeus-core -p coeus-ops --all-targets -- -D warnings`;
+  `rustup run nightly cargo nextest run -p coeus-core` (22/22);
+  `rustup run nightly cargo nextest run -p coeus-ops` (189/189);
+  `rustup run nightly cargo test --doc -p coeus-core -p coeus-ops` (55/55);
+  `rustup run nightly cargo doc -p coeus-core -p coeus-ops --no-deps`.
+
+## Sprint MS-149: GroupNorm PyTorch differential parity [COMPLETE]
+
+- [x] [patch] Added
+  `coeus-python/tests/test_pytorch_parity.py::test_groupnorm_matches_pytorch`
+  to replace existence-only GroupNorm gradient coverage with a PyTorch
+  differential oracle.
+- [x] [patch] Asserted forward output plus input, weight, and bias gradients
+  for `GroupNorm(2, 4)` on `[2,4,2,2]` against
+  `torch.nn.functional.group_norm` at f64, `atol=1e-10`.
+- [x] Evidence: `D:\miniforge3\python.exe -m pytest
+  coeus-python/tests/test_pytorch_parity.py -q` (25/25 pass).
+
+## Sprint MS-148: Shape einsum SSOT cleanup [COMPLETE]
+
+- [x] [patch] Removed duplicate einsum implementation and tests from
+  `coeus-ops/src/shape/util/einsum.rs`; `shape::util` now re-exports the
+  canonical `shape::einsum::{einsum,einsum3}` implementation.
+- [x] [patch] Preserved both public surfaces without adding a forwarding
+  compatibility layer; the utility namespace is a direct re-export over the
+  canonical implementation.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-ops --check`;
+  `rustup run nightly cargo check -p coeus-ops --all-targets`;
+  `rustup run nightly cargo clippy -p coeus-ops --all-targets -- -D warnings`;
+  `rustup run nightly cargo nextest run -p coeus-ops einsum` (12/12);
+  `rustup run nightly cargo nextest run -p coeus-ops` (189/189);
+  `rustup run nightly cargo test --doc -p coeus-ops` (23/23);
+  `rustup run nightly cargo doc -p coeus-ops --no-deps`.
+
 ## Sprint MS-147: TcpCommunicator staging contract hardening [COMPLETE]
 
 - [x] [patch] Added shared TCP collective numel contract guard
