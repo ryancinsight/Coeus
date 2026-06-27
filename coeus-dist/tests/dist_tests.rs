@@ -628,6 +628,30 @@ fn test_tcp_scatter_root_out_of_bounds_panics() {
 }
 
 #[test]
+#[should_panic(expected = "gather output length mismatch on root")]
+fn test_tcp_gather_zero_numel_output_len_mismatch_panics() {
+    let addresses = get_free_ports(1);
+    let mesh = TcpMesh::new(0, 1, &addresses);
+    let comm = TcpCommunicator::new(mesh);
+    let backend = SequentialBackend::new();
+    let tensor = Tensor::zeros_on([0], &backend);
+    let mut output: Vec<Tensor<f32, SequentialBackend>> = vec![];
+    comm.gather(&tensor, &mut output, 0, &backend);
+}
+
+#[test]
+#[should_panic(expected = "scatter input length mismatch on root")]
+fn test_tcp_scatter_zero_numel_input_len_mismatch_panics() {
+    let addresses = get_free_ports(1);
+    let mesh = TcpMesh::new(0, 1, &addresses);
+    let comm = TcpCommunicator::new(mesh);
+    let backend = SequentialBackend::new();
+    let mut tensor = Tensor::zeros_on([0], &backend);
+    let input: Vec<Tensor<f32, SequentialBackend>> = vec![];
+    comm.scatter(&mut tensor, &input, 0, &backend);
+}
+
+#[test]
 #[should_panic(expected = "send peer must differ from local rank")]
 fn test_tcp_mesh_send_self_panics() {
     let addresses = get_free_ports(1);

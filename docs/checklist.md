@@ -18,6 +18,18 @@ including module and non-contiguous view paths.
   `rustup run nightly cargo nextest run -p coeus-nn --test nn_silu_tests --test nn_mish_tests`
   (6/6).
 
+### Previous Sprint: MS-155 - TCP zero-numel rooted contract enforcement [COMPLETE]
+**Objective**: Close rooted-contract bypasses in TCP `gather`/`scatter` where
+zero-numel tensors previously skipped root length validation.
+
+- [x] [patch] Moved root length checks ahead of zero-numel fast-return in TCP
+  `gather` and `scatter`.
+- [x] [patch] Added panic-contract tests for zero-numel mismatch paths
+  (`test_tcp_gather_zero_numel_output_len_mismatch_panics`,
+  `test_tcp_scatter_zero_numel_input_len_mismatch_panics`).
+- [x] Evidence: `cargo test -p coeus-dist zero_numel_ -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ### Previous Sprint: MS-153 - CrossEntropy/NLL loss PyTorch differential parity [COMPLETE]
 **Objective**: Add value-semantic forward+backward differential parity for the
 classification loss path (cross_entropy_loss, nll_loss over log_softmax),

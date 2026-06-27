@@ -201,13 +201,15 @@ impl Communicator for TcpCommunicator {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
         Self::assert_root(root, size);
+        if rank == root {
+            assert_eq!(output.len(), size, "gather output length mismatch on root");
+        }
         let numel = tensor.numel();
         if numel == 0 {
             return;
         }
 
         if rank == root {
-            assert_eq!(output.len(), size, "gather output length mismatch on root");
             for (idx, out) in output.iter().enumerate().take(size) {
                 Self::assert_numel("gather output", idx, out.numel(), numel);
             }
@@ -238,13 +240,15 @@ impl Communicator for TcpCommunicator {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
         Self::assert_root(root, size);
+        if rank == root {
+            assert_eq!(input.len(), size, "scatter input length mismatch on root");
+        }
         let numel = tensor.numel();
         if numel == 0 {
             return;
         }
 
         if rank == root {
-            assert_eq!(input.len(), size, "scatter input length mismatch on root");
             for (idx, in_tensor) in input.iter().enumerate().take(size) {
                 Self::assert_numel("scatter input", idx, in_tensor.numel(), numel);
             }
