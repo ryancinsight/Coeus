@@ -4,6 +4,14 @@
 
 ### Changed
 
+- **Conv2d CPU AXPY kernel** — canonical contiguous CPU Conv2d forward now uses
+  an output-stationary row kernel with `Scalar::axpy_slice` routed through
+  Hermes SIMD for native floats, and coarser row-block partitioning for Moirai
+  parallel execution. The scalar seam rejects length mismatches instead of
+  silently zipping. Evidence tier: value-semantic scalar and Conv2d differential
+  tests plus Criterion row comparison; short local Conv2d medians improved from
+  the previous documented Coeus rows (Sequential 32.83 ms, Moirai 126.56 ms) to
+  Sequential 2.39 ms and Moirai 1.05 ms. ([patch])
 - **Local collective staging lock scope** — local `all_reduce`, `reduce`,
   `all_gather`, `gather`, and root `scatter` now snapshot or prepare rank
   payloads outside the shared staging-board mutex before reduction/copy work,
@@ -102,6 +110,11 @@
 
 ### Fixed
 
+- **Zero-numel collective shape validation** — local and TCP `all_gather`,
+  `gather`, and `scatter` now validate per-rank output/input tensor element
+  counts before zero-numel early returns, so malformed zero-sized collectives no
+  longer bypass rank-local shape contracts. Evidence tier: panic-contract
+  nextest coverage. ([patch])
 - **Local collective mutex contention** — reduced `LocalCommunicator` staging
   mutex critical-section duration by snapshotting staged payloads, then running
   reduction and tensor copy work outside the lock in `all_reduce`, `reduce`,

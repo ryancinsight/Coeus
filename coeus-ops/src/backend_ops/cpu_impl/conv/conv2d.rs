@@ -68,36 +68,52 @@ pub(crate) fn conv2d<T: Scalar, B: Backend>(
         let output_offset = output_layout.offset();
         let out_rows = n * c_out * h_out;
         let output_region = &mut output_slice[output_offset..output_offset + out_numel];
+        // Output-stationary AXPY kernel: hold the contiguous `w_out` output row
+        // and accumulate `out_row += weight * input_window` across the receptive
+        // field. For stride 1 the input window is contiguous, so each inner step
+        // is a single vectorized BLAS-1 AXPY (`T::axpy_slice` → `hermes_simd`),
+        // replacing the previous `c_in * kh` tiny `kw`-length `dot_slice` calls
+        // per output element (per-call overhead and a cache-thrashing `ic`
+        // stride dominated the old path).
         let row_kernel = move |row: usize, row_out: &mut [T]| {
             let oh = row % h_out;
             let temp = row / h_out;
             let oc = temp % c_out;
             let ni = temp / c_out;
 
-            for (ow, slot) in row_out.iter_mut().enumerate() {
-                let mut sum = T::zero();
-                for ic in 0..c_in {
-                    for ikh in 0..kh {
-                        let h_in = oh * stride + ikh;
-                        let input_start =
-                            input_offset + ((ni * c_in + ic) * h + h_in) * w + ow * stride;
-                        let weight_start = weight_offset + ((oc * c_in + ic) * kh + ikh) * kw;
-                        // SAFETY: the contiguous fast path is active only for
-                        // row-major input/weight layouts with zero padding and
-                        // unit dilation. `output_layout.shape()` constrains
-                        // `ow * stride + kw <= w`, so both ranges are in bounds.
-                        let input_window = unsafe { input_ptr.slice(input_start, kw) };
-                        // SAFETY: row-major weight layout stores each kernel row
-                        // as a contiguous `kw`-element run.
-                        let weight_window = unsafe { weight_ptr.slice(weight_start, kw) };
-                        sum = sum + T::dot_slice(input_window, weight_window);
+            let bias_val = if let Some(ref bp) = bias_ptr {
+                let bias_idx = bias_layout.as_ref().unwrap().physical_index(&[oc]);
+                unsafe { bp.read(bias_idx) }
+            } else {
+                T::zero()
+            };
+            for slot in row_out.iter_mut() {
+                *slot = bias_val;
+            }
+
+            for ic in 0..c_in {
+                for ikh in 0..kh {
+                    let h_in = oh * stride + ikh;
+                    let in_row_base = input_offset + ((ni * c_in + ic) * h + h_in) * w;
+                    let weight_base = weight_offset + ((oc * c_in + ic) * kh + ikh) * kw;
+                    for ikw in 0..kw {
+                        let wv = unsafe { weight_ptr.read(weight_base + ikw) };
+                        if stride == 1 {
+                            // SAFETY: canonical contiguous path with zero padding
+                            // and unit dilation guarantees `ikw + w_out <= w`, so
+                            // the window `[in_row_base + ikw, + w_out)` is in bounds.
+                            let input_window = unsafe { input_ptr.slice(in_row_base + ikw, w_out) };
+                            T::axpy_slice(wv, input_window, row_out);
+                        } else {
+                            for (ow, slot) in row_out.iter_mut().enumerate() {
+                                // SAFETY: `output_layout` constrains
+                                // `ow * stride + ikw < w` for every `ow < w_out`.
+                                let iv = unsafe { input_ptr.read(in_row_base + ow * stride + ikw) };
+                                *slot = *slot + wv * iv;
+                            }
+                        }
                     }
                 }
-                if let Some(ref bp) = bias_ptr {
-                    let bias_idx = bias_layout.as_ref().unwrap().physical_index(&[oc]);
-                    sum = sum + unsafe { bp.read(bias_idx) };
-                }
-                *slot = sum;
             }
         };
 
@@ -107,14 +123,14 @@ pub(crate) fn conv2d<T: Scalar, B: Backend>(
             }
         } else {
             // ── Atlas contention guard (mirrors conv1d). ────────────────────
-            // Same justification: tiny `out_rows × w_out` regions (e.g. Conv2d
-            // on `1×4×16×16` with k=3 → `out_rows = 1·8 = 8` × `w_out = 14` =
-            // 112 cells split across ~16 threads → ~7 cells per worker) make
-            // the partition driver's scheduling cost dominate. The bench
-            // `Burn vs Coeus — Conv2d (1×4×16×16, k=3)` measures the parallel
-            // canonical path ~42× slower than the sequential path on this
-            // workload (criterion `Median` ~3.91ms vs ~92µs). Bypass when each
-            // thread would own fewer than `MIN_ROWS_PER_THREAD` rows.
+            // For tiny `out_rows × w_out` regions (e.g. Conv2d on `1×4×16×16`
+            // with k=3 → `out_rows = 8`, `w_out = 14`), the per-row work is so
+            // small that the partition driver's setup cost outweighs any
+            // parallel gain. Stay sequential when each thread would own fewer
+            // than `MIN_ROWS_PER_THREAD` rows; above that the coarse whole-row
+            // shards below amortize scheduling (the bench shape `8×16×32×32`,
+            // `out_rows = 3840`, runs the parallel path ~2.5× faster than the
+            // sequential AXPY kernel).
             const MIN_ROWS_PER_THREAD: usize = 4;
             let n_threads = backend.num_threads();
             if out_rows < MIN_ROWS_PER_THREAD * n_threads {
@@ -122,16 +138,30 @@ pub(crate) fn conv2d<T: Scalar, B: Backend>(
                     row_kernel(row, row_out);
                 }
             } else {
+                // Coarse, whole-row shards: ~one block of `rows_per_shard`
+                // contiguous rows per worker. A per-row shard (`chunk_size =
+                // w_out`) spawned `out_rows` tasks (e.g. 3840 on the bench
+                // shape), and the partition driver's per-shard cost then
+                // dominated — the parallel path measured ~80× slower than the
+                // sequential AXPY kernel. Sizing the chunk to whole rows keeps
+                // `row_kernel`'s contiguous-output-row invariant intact while
+                // amortizing scheduling over many rows.
+                let rows_per_shard = out_rows.div_ceil(n_threads);
+                let shard_cells = rows_per_shard * w_out;
                 brand_scope(|_token| {
                     // SAFETY: `output_region` is a fresh exclusive borrow that lives
                     // entirely within this brand scope; `partition_for_each_with`
-                    // then splits it into disjoint row-sized shards.
+                    // splits it into disjoint blocks whose length is a multiple of
+                    // `w_out`, so each `chunks_mut(w_out)` row is a complete output row.
                     let output_cells = unsafe { brand_mut_slice(output_region) };
                     partition_for_each_with(
                         output_cells,
-                        PartitionPlan::chunk_size(w_out),
+                        PartitionPlan::chunk_size(shard_cells),
                         |start, mut shard| {
-                            row_kernel(start / w_out, shard.as_mut_slice());
+                            let first_row = start / w_out;
+                            for (r, row_out) in shard.as_mut_slice().chunks_mut(w_out).enumerate() {
+                                row_kernel(first_row + r, row_out);
+                            }
                         },
                     );
                 });

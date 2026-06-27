@@ -2,7 +2,55 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-163 - Local collective snapshot and Conv2d bench [COMPLETE]
+### Current Sprint: MS-165 - Zero-numel collective numel contracts [COMPLETE]
+**Objective**: Ensure local and TCP collectives validate per-rank tensor element
+counts before zero-numel early returns, not only list lengths.
+**Target version**: 0.5.4 ([patch]).
+
+- [x] [patch] Moved local `all_gather` output numel validation ahead of the
+  zero-numel return.
+- [x] [patch] Moved local rooted `gather` output and `scatter` input numel
+  validation ahead of zero-numel returns.
+- [x] [patch] Moved TCP `all_gather`, rooted `gather`, and rooted `scatter`
+  per-rank numel validation ahead of zero-numel returns.
+- [x] [patch] Added panic-contract tests for each local/TCP zero-numel numel
+  mismatch path.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-dist
+  zero_numel_` (12/12); `rustup run nightly cargo clippy -p coeus-dist
+  --all-targets -- -D warnings`; `rustup run nightly cargo doc -p coeus-dist
+  --no-deps`.
+
+### Previous Sprint: MS-164 - Conv2d CPU AXPY kernel [COMPLETE]
+**Objective**: Replace the canonical contiguous CPU Conv2d dot-per-output path
+with an output-stationary AXPY row kernel through the existing Hermes SIMD seam,
+while preserving value semantics across sequential and Moirai backends.
+**Target version**: 0.5.4 ([patch]).
+
+- [x] [patch] Added `Scalar::axpy_slice` as a BLAS-1 scaled-accumulate seam,
+  with native `f32`/`f64` implementations delegated to `hermes_simd::axpy`.
+- [x] [patch] Enforced the `axpy_slice` equal-length invariant and pinned it
+  with native-float, integer-default, and panic-contract tests.
+- [x] [patch] Rewrote canonical contiguous Conv2d forward to accumulate each
+  output row with `out_row += weight * input_window`, using AXPY for stride 1
+  and preserving the scalar strided path when stride is greater than one.
+- [x] [patch] Coarsened Moirai Conv2d row partitioning from one row per shard to
+  row blocks sized by `out_rows.div_ceil(num_threads)`, preserving row
+  boundaries while reducing scheduler overhead.
+- [x] [patch] Repaired Mnemosyne's tagged `NodeSegmentPool::pop` path so Coeus'
+  local path dependency compiles with the ABA-immune Treiber stack provider.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-core --test
+  scalar_dot_scale` (5/5); `rustup run nightly cargo nextest run -p coeus-ops
+  --test conv2d_hermes_diff` (2/2); `rustup run nightly cargo clippy -p
+  coeus-core -p coeus-ops --all-targets -- -D warnings`; `rustup run nightly
+  cargo bench -p coeus-nn --bench nn_bench -- Conv2d --warm-up-time 1
+  --measurement-time 2 --sample-size 10` (median: Burn NdArray 1.97 ms, Coeus
+  Sequential 2.39 ms, Coeus Moirai 1.05 ms); Mnemosyne provider gates
+  `rustup run nightly cargo check -p mnemosyne-arena --all-targets`,
+  `rustup run nightly cargo nextest run -p mnemosyne-arena --test
+  segment_pool_concurrency`, and `rustup run nightly cargo nextest run -p
+  mnemosyne-arena segment`.
+
+### Previous Sprint: MS-163 - Local collective snapshot and Conv2d bench [COMPLETE]
 **Objective**: Reduce local distributed critical-section scope and extend the
 Burn/Coeus NN benchmark harness with Conv2d forward coverage.
 **Target version**: 0.5.4 ([patch]).

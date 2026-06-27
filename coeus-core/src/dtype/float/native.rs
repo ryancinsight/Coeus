@@ -83,6 +83,15 @@ macro_rules! impl_scalar_float_native {
                 hermes_simd::scale::<$t>(data, scalar);
             }
             #[inline]
+            fn axpy_slice(alpha: Self, x: &[Self], out: &mut [Self]) {
+                assert_eq!(x.len(), out.len(), "axpy_slice: length mismatch");
+                if hermes_simd::axpy::<$t>(alpha, x, out).is_err() {
+                    for (o, &xi) in out.iter_mut().zip(x.iter()) {
+                        *o += alpha * xi;
+                    }
+                }
+            }
+            #[inline]
             fn sum_slice(s: &[Self]) -> Self {
                 hermes_simd::sum::<$t>(s)
             }

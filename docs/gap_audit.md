@@ -2,6 +2,21 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-024: Zero-numel collectives skipped per-rank numel validation~~ **CLOSED**
+**Location**: `coeus-dist/src/local.rs`,
+`coeus-dist/src/tcp/collectives.rs`
+**Closed by**: MS-165 — Local and TCP `all_gather`, rooted `gather`, and rooted
+`scatter` now validate per-rank output/input tensor element counts before
+zero-numel early returns. Evidence tier: panic-contract nextest coverage.
+
+### ~~G-023: Conv2d canonical CPU path retained dot-per-output overhead~~ **CLOSED**
+**Location**: `coeus-ops/src/backend_ops/cpu_impl/conv/conv2d.rs`,
+`coeus-core/src/dtype/traits.rs`
+**Closed by**: MS-164 — Added the `Scalar::axpy_slice` seam and rewrote the
+canonical contiguous Conv2d forward path as an output-stationary AXPY row
+kernel, with coarser row-block partitioning for Moirai execution. Evidence
+tier: value-semantic scalar/Conv2d tests plus Criterion Conv2d row.
+
 ### ~~G-022: Local collective staging mutex covered payload work~~ **CLOSED**
 **Location**: `coeus-dist/src/local.rs`
 **Closed by**: MS-163 — Local collectives now snapshot staged rank payloads

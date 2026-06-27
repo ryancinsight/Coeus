@@ -1,9 +1,10 @@
-//! Differential verification for the CPU conv2d Hermes dot fast path.
+//! Differential verification for the CPU conv2d Hermes AXPY fast path.
 //!
-//! Contiguous, unpadded, unit-dilation conv2d kernel rows are row-contiguous dot
-//! products. CPU `BackendOps::conv2d` routes those reductions through
-//! `Scalar::dot_slice` (`hermes_simd::dot` for native floats), while padded or
-//! dilated cases keep the general layout-indexed path.
+//! Contiguous, unpadded, unit-dilation, unit-stride conv2d rows are accumulated
+//! as output-stationary AXPY operations. CPU `BackendOps::conv2d` routes those
+//! row accumulations through `Scalar::axpy_slice` (`hermes_simd::axpy` for
+//! native floats), while strided, padded, or dilated cases keep scalar or
+//! layout-indexed paths.
 
 use coeus_core::{CpuAddressableStorageMut, Layout, MoiraiBackend, SequentialBackend, Shape};
 use coeus_ops::{BackendOps, CpuBackend};
@@ -106,9 +107,10 @@ where
 fn assert_close(label: &str, actual: &[f32], expected: &[f32]) {
     assert_eq!(actual.len(), expected.len(), "{label}: length mismatch");
     for (index, (&got, &want)) in actual.iter().zip(expected).enumerate() {
-        // The Hermes path may reassociate each kernel-row dot product. The
-        // tested cases use at most twelve products per output, so this bound
-        // covers row-dot reassociation plus channel/row accumulation.
+        // The Hermes AXPY path may use fused multiply-add and SIMD lane order.
+        // The tested cases use at most twelve products per output, so this bound
+        // covers one rounding difference per product plus channel/row
+        // accumulation.
         let tol = 128.0 * f32::EPSILON * (1.0 + want.abs());
         assert!(
             (got - want).abs() <= tol,
@@ -126,28 +128,37 @@ where
     let weight: Vec<f32> = (0..24).map(|i| ((i as f32 % 7.0) - 3.0) * 0.1875).collect();
     let bias = [0.125, -0.25, 0.375];
 
-    let fast_case = Conv2dCase {
+    let axpy_case = Conv2dCase {
         input: &input,
         input_shape: [1, 2, 4, 4],
         weight: &weight,
         weight_shape: [3, 2, 2, 2],
         bias: &bias,
-        stride: 2,
+        stride: 1,
         padding: 0,
         dilation: 1,
+        output_shape: [1, 3, 3, 3],
+    };
+    let strided_case = Conv2dCase {
+        stride: 2,
         output_shape: [1, 3, 2, 2],
+        ..axpy_case
     };
     let fallback_case = Conv2dCase {
         stride: 1,
         padding: 1,
         dilation: 2,
         output_shape: [1, 3, 4, 4],
-        ..fast_case
+        ..axpy_case
     };
 
-    let fast_expected = conv2d_reference(&fast_case);
-    let fast_actual = device_conv2d(backend, &fast_case);
-    assert_close("contiguous", &fast_actual, &fast_expected);
+    let axpy_expected = conv2d_reference(&axpy_case);
+    let axpy_actual = device_conv2d(backend, &axpy_case);
+    assert_close("contiguous_axpy", &axpy_actual, &axpy_expected);
+
+    let strided_expected = conv2d_reference(&strided_case);
+    let strided_actual = device_conv2d(backend, &strided_case);
+    assert_close("contiguous_strided", &strided_actual, &strided_expected);
 
     let fallback_expected = conv2d_reference(&fallback_case);
     let fallback_actual = device_conv2d(backend, &fallback_case);

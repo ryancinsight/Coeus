@@ -1,5 +1,35 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-165: Zero-numel collective numel contracts [COMPLETE]
+
+- [x] [patch] Local `all_gather`, rooted `gather`, and rooted `scatter` now
+  validate per-rank output/input tensor `numel` before zero-numel early returns.
+- [x] [patch] TCP `all_gather`, rooted `gather`, and rooted `scatter` now
+  validate per-rank output/input tensor `numel` before zero-numel early returns.
+- [x] [patch] Added six panic-contract tests covering local/TCP zero-numel
+  output/input numel mismatches.
+- [x] Evidence tier: panic-contract Rust tests; `rustup run nightly cargo
+  nextest run -p coeus-dist zero_numel_` (12/12), `rustup run nightly cargo
+  clippy -p coeus-dist --all-targets -- -D warnings`, and `rustup run nightly
+  cargo doc -p coeus-dist --no-deps`.
+
+## Sprint MS-164: Conv2d CPU AXPY kernel [COMPLETE]
+
+- [x] [patch] Added `Scalar::axpy_slice` with Hermes-backed native float
+  implementations and a length-mismatch panic contract.
+- [x] [patch] Rewrote canonical contiguous CPU Conv2d forward as an
+  output-stationary row kernel that uses AXPY for stride-1 input windows and
+  scalar accumulation for strided canonical windows.
+- [x] [patch] Coarsened Moirai Conv2d row partitioning to whole-row blocks,
+  reducing partition-driver overhead while preserving row-boundary invariants.
+- [x] [patch] Repaired Mnemosyne's tagged `NodeSegmentPool::pop` provider path
+  and added/verified the ABA conservation integration test needed by Coeus'
+  local path dependency.
+- [x] Evidence tier: value-semantic Rust tests plus empirical Criterion row;
+  Conv2d median: Burn NdArray 1.97 ms, Coeus Sequential 2.39 ms, Coeus Moirai
+  1.05 ms. The prior documented MS-163 Coeus medians were 32.83 ms Sequential
+  and 126.56 ms Moirai on the same short row.
+
 ## Sprint MS-163: Local collective snapshot and Conv2d bench [COMPLETE]
 
 - [x] [patch] Added shared `LocalCommunicator::snapshot_payloads` helper to

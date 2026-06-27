@@ -168,6 +168,10 @@ pub trait CpuUnaryDispatch: private::Sealed {
 ///
 /// let dot = f32::dot_slice(&a, &b);
 /// assert_eq!(dot, 32.0); // 1*4 + 2*5 + 3*6
+///
+/// let mut acc = [10.0_f32, 10.0, 10.0];
+/// f32::axpy_slice(2.0, &a, &mut acc);
+/// assert_eq!(acc, [12.0, 14.0, 16.0]); // 10 + 2*[1,2,3]
 /// ```
 pub trait Scalar:
     private::Sealed
@@ -276,6 +280,22 @@ pub trait Scalar:
     fn scale_slice(data: &mut [Self], scalar: Self) {
         for value in data {
             *value = *value * scalar;
+        }
+    }
+
+    /// Fused scaled accumulate: `out[i] += alpha * x[i]` over a contiguous slice.
+    ///
+    /// The per-type seam onto the SIMD-effect SSOT for AXPY (BLAS level-1). The
+    /// operation is lane-independent; native-float overrides route to
+    /// `hermes_simd::axpy` and remain within the type's rounding error of this
+    /// scalar default (differential tests use an epsilon bound, not bitwise
+    /// equality). `x` and `out` must have equal length.
+    #[inline]
+    fn axpy_slice(alpha: Self, x: &[Self], out: &mut [Self]) {
+        assert_eq!(x.len(), out.len(), "axpy_slice: length mismatch");
+        for (o, &xi) in out.iter_mut().zip(x.iter()) {
+            let next = *o + alpha * xi;
+            *o = next;
         }
     }
 
