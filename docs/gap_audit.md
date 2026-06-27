@@ -83,13 +83,22 @@ MLX not installed).
 ### ~~G-010: Optimizer step correctness unverified~~ **CLOSED**
 **Location**: `coeus-optim/src/{sgd,adam,adamw}.rs` — SGD, Adam, AdamW step implementations
 had zero tests (no analytical derivation, no differential parity).
-**Closed by**: MS-139 — Added 3 Rust analytical tests using `Var::set_grad` + optimizer step:
-`sgd_vanilla_step_analytical` (exact linear update), `adam_first_step_analytical` (closed-form
-from zero-init moment invariants: m̂=g, v̂=g² at t=1), `adamw_first_step_analytical` (same plus
-decoupled weight decay λ). Added 3 Python PyTorch differential tests:
+**Closed by**: MS-139 — Existing Rust analytical tests cover first-step SGD,
+Adam, and AdamW formulas in `burn_live_parity.rs`; MS-139 added 3 Python
+PyTorch differential tests:
 `test_sgd_step_matches_pytorch`, `test_adam_step_matches_pytorch`,
 `test_adamw_step_matches_pytorch` — each sets up mse_loss→backward→step and compares
 against torch.optim at atol=1e-10. Evidence tier: analytical (Rust) + differential/empirical (Python).
+
+### ~~G-011: Bilinear per-output indexing parity gap~~ **CLOSED**
+**Location**: `coeus-nn/tests/bilinear_parity.rs`,
+`coeus-python/tests/test_pytorch_parity.py` — Bilinear had all-ones analytical
+coverage but lacked a per-output weight-indexing oracle and direct PyTorch
+parity check.
+**Closed by**: MS-140 — Added a Rust analytical identity/swap weight oracle
+that verifies `[out, in1, in2]` indexing on Sequential and Moirai backends, and
+added `test_bilinear_forward_matches_pytorch` against `torch.nn.Bilinear`.
+Evidence tier: analytical (Rust) + differential/empirical (Python).
 
 ## Slop Pattern Library
 
@@ -108,7 +117,7 @@ against torch.optim at atol=1e-10. Evidence tier: analytical (Rust) + differenti
 | G-007 Transformer seq2seq structural parity tests missing | structural | **closed MS-136** |
 | G-008 LSTM/GRU PyTorch parity tests missing | differential | **closed MS-136** |
 | G-009 JAX/MLX Python parity harnesses missing | differential/optional empirical | **closed MS-138** |
-| G-010 Optimizer step correctness unverified | analytical + differential | **closed MS-140** |
-| G-011 Bilinear zero tests | analytical + differential | **closed MS-140** |
+| G-010 Optimizer step correctness unverified | analytical + differential | **closed MS-139** |
+| G-011 Bilinear per-output indexing parity gap | analytical + differential | **closed MS-140** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |
