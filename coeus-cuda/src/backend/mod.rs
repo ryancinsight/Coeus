@@ -5,7 +5,9 @@ use std::sync::OnceLock;
 
 pub mod ops;
 
+/// Trait combining [`Scalar`] with the CUDA type-name mapping required for kernel codegen.
 pub trait CudaScalar: Scalar + leto_ops::Scalar {
+    /// CUDA C type name string used in NVRTC-compiled kernel source.
     const CUDA_TYPE: &'static str;
 }
 
@@ -45,6 +47,7 @@ pub struct CudaBackend;
 impl coeus_core::backend::private::Sealed for CudaBackend {}
 
 impl CudaBackend {
+    /// Construct a new CUDA backend instance.
     pub const fn new() -> Self {
         Self
     }

@@ -3,6 +3,10 @@ use crate::kernels::GpuLayoutInfo;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
+/// Launch the RMSprop optimizer step kernel on the GPU.
+///
+/// Updates parameters using the RMSprop moving-average squared gradient rule. Returns `true` if the
+/// kernel launched successfully, `false` if the driver or context is unavailable.
 #[allow(clippy::too_many_arguments)]
 pub fn launch_rmsprop_step(
     param: &mut CudaStorage<f32>,

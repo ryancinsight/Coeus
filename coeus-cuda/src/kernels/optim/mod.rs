@@ -1,7 +1,12 @@
+/// Kernel module for AdaGrad optimizer step.
 pub mod adagrad;
+/// Kernel module for Adam optimizer step.
 pub mod adam;
+/// Kernel module for AdamW optimizer step.
 pub mod adamw;
+/// Kernel module for RMSprop optimizer step.
 pub mod rmsprop;
+/// Kernel module for SGD optimizer step.
 pub mod sgd;
 
 pub use adagrad::launch_adagrad_step;

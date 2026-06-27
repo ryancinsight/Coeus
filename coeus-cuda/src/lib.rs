@@ -46,6 +46,7 @@ pub mod driver;
 
 mod fallback;
 #[cfg(feature = "cuda")]
+/// CUDA kernel modules and launch helpers for on-device computation.
 pub mod kernels;
 
 #[cfg(feature = "cuda")]

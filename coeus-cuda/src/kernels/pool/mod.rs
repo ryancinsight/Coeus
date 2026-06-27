@@ -1,6 +1,10 @@
+/// Kernel module for 2-D average pooling.
 pub mod avg;
+/// Kernel module for 3-D average pooling.
 pub mod avg3d;
+/// Kernel module for 2-D max pooling.
 pub mod max;
+/// Kernel module for 3-D max pooling.
 pub mod max3d;
 
 pub use avg::{dispatch_avg_pool2d, dispatch_avg_pool2d_backward};

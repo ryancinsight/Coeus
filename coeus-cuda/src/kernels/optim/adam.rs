@@ -3,6 +3,10 @@ use crate::kernels::GpuLayoutInfo;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
+/// Launch the Adam optimizer step kernel on the GPU.
+///
+/// Updates parameters using the Adam first/second moment estimates. Returns `true` if the
+/// kernel launched successfully, `false` if the driver or context is unavailable.
 #[allow(clippy::too_many_arguments)]
 pub fn launch_adam_step(
     param: &mut CudaStorage<f32>,

@@ -6,6 +6,10 @@ use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
 use crate::storage::CudaStorage;
 use coeus_core::{ComputeBackend, Layout};
 
+/// Launch a contiguous binary element-wise kernel on the GPU.
+///
+/// Computes `c = op(a, b)` over `n` contiguous elements. Returns `true` if the
+/// kernel launched successfully, `false` if the driver or context is unavailable.
 pub fn launch_contiguous_binary<T: CudaScalar>(
     op: coeus_ops::BinaryOp,
     a: &CudaStorage<T>,
@@ -86,6 +90,10 @@ extern "C" __global__ void contiguous_binary_kernel(
     }
 }
 
+/// Launch a contiguous unary element-wise kernel on the GPU.
+///
+/// Computes `c = op(a)` over `n` contiguous elements. Returns `true` if the
+/// kernel launched successfully, `false` if the driver or context is unavailable.
 pub fn launch_contiguous_unary<T: CudaScalar>(
     op: coeus_ops::UnaryOp,
     a: &CudaStorage<T>,
@@ -188,6 +196,11 @@ extern "C" __global__ void contiguous_unary_kernel(
     }
 }
 
+/// Launch a strided binary element-wise kernel on the GPU.
+///
+/// Computes `c = op(a, b)` over `n` elements using the provided layouts for
+/// strided indexing. Returns `true` if the kernel launched successfully, `false`
+/// if the driver or context is unavailable.
 pub fn launch_strided_binary<T: CudaScalar>(
     op: coeus_ops::BinaryOp,
     a: &CudaStorage<T>,
@@ -235,18 +248,18 @@ extern "C" __global__ void binary_strided_kernel(
     GpuLayoutInfo a_layout = layout_infos[0];
     GpuLayoutInfo b_layout = layout_infos[1];
     GpuLayoutInfo c_layout = layout_infos[2];
-    
+
     unsigned int temp = idx;
     unsigned int off_a = a_layout.offset;
     unsigned int off_b = b_layout.offset;
     unsigned int off_c = c_layout.offset;
-    
+
     for (unsigned int d = 0; d < c_layout.ndim; ++d) {{
         unsigned int coord = temp / c_layout.strides[d];
         temp = temp % c_layout.strides[d];
-        
+
         off_c += coord * c_layout.strides[d];
-        
+
         if (d >= c_layout.ndim - a_layout.ndim) {{
             unsigned int ad = d + a_layout.ndim - c_layout.ndim;
             if (a_layout.shape[ad] > 1) {{
@@ -260,7 +273,7 @@ extern "C" __global__ void binary_strided_kernel(
             }}
         }}
     }}
-    
+
     {cuda_type} val_a = a[off_a];
     {cuda_type} val_b = b[off_b];
     c[off_c] = {op_expr};
@@ -322,6 +335,11 @@ extern "C" __global__ void binary_strided_kernel(
     }
 }
 
+/// Launch a strided unary element-wise kernel on the GPU.
+///
+/// Computes `c = op(a)` over `n` elements using the provided layouts for strided
+/// indexing. Returns `true` if the kernel launched successfully, `false` if the
+/// driver or context is unavailable.
 pub fn launch_strided_unary<T: CudaScalar>(
     op: coeus_ops::UnaryOp,
     a: &CudaStorage<T>,
@@ -391,17 +409,17 @@ extern "C" __global__ void unary_strided_kernel(
 
     GpuLayoutInfo a_layout = layout_infos[0];
     GpuLayoutInfo c_layout = layout_infos[1];
-    
+
     unsigned int temp = idx;
     unsigned int off_a = a_layout.offset;
     unsigned int off_c = c_layout.offset;
-    
+
     for (unsigned int d = 0; d < c_layout.ndim; ++d) {{
         unsigned int coord = temp / c_layout.strides[d];
         temp = temp % c_layout.strides[d];
-        
+
         off_c += coord * c_layout.strides[d];
-        
+
         if (d >= c_layout.ndim - a_layout.ndim) {{
             unsigned int ad = d + a_layout.ndim - c_layout.ndim;
             if (a_layout.shape[ad] > 1) {{
@@ -409,7 +427,7 @@ extern "C" __global__ void unary_strided_kernel(
             }}
         }}
     }}
-    
+
     {cuda_type} val_a = a[off_a];
     c[off_c] = {op_expr};
 }}

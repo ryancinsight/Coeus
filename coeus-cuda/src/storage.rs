@@ -6,6 +6,7 @@ use themis::{MemoryTier, PlacementHint};
 
 /// Device storage allocated on an NVIDIA GPU using the hephaestus-cuda backend.
 pub struct CudaStorage<T> {
+    /// Reference-counted GPU device buffer backing this storage.
     pub buffer: Arc<CudaBuffer<T>>,
 }
 

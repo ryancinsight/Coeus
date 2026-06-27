@@ -3,6 +3,10 @@ use crate::driver::{get_cuda_context, CudaDriver};
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
+/// Launch the tiled matrix multiplication kernel on the GPU.
+///
+/// Computes `c = a × b` using the PTX-compiled tiled matmul kernel. Returns `true`
+/// if the kernel launched successfully, `false` if the driver or context is unavailable.
 pub fn launch_matmul_tiled(
     a: &CudaStorage<f32>,
     b: &CudaStorage<f32>,
@@ -36,31 +40,31 @@ extern "C" __global__ void matmul_kernel(
 ) {
     __shared__ float A_shared[256];
     __shared__ float B_shared[256];
-    
+
     unsigned int tx = threadIdx.x;
     unsigned int ty = threadIdx.y;
     unsigned int bx = blockIdx.x;
     unsigned int by = blockIdx.y;
     unsigned int dx = blockDim.x;
     unsigned int dy = blockDim.y;
-    
+
     unsigned int col = bx * dx + tx;
     unsigned int row = by * dy + ty;
-    
+
     unsigned int m = a_layout.shape[0];
     unsigned int k = a_layout.shape[1];
     unsigned int n = b_layout.shape[1];
-    
+
     unsigned int stride_a_row = a_layout.strides[0];
     unsigned int stride_a_col = a_layout.strides[1];
     unsigned int stride_b_row = b_layout.strides[0];
     unsigned int stride_b_col = b_layout.strides[1];
-    
+
     float sum = 0.0f;
-    
+
     unsigned int num_tiles = (k + 15) / 16;
     unsigned int local_idx = ty * 16 + tx;
-    
+
     for (unsigned int tile_idx = 0; tile_idx < num_tiles; ++tile_idx) {
         unsigned int col_a = tile_idx * 16 + tx;
         float val_a = 0.0f;
@@ -69,7 +73,7 @@ extern "C" __global__ void matmul_kernel(
             val_a = a[offset_a];
         }
         A_shared[local_idx] = val_a;
-        
+
         unsigned int row_b = tile_idx * 16 + ty;
         float val_b = 0.0f;
         if (row_b < k && col < n) {
@@ -77,16 +81,16 @@ extern "C" __global__ void matmul_kernel(
             val_b = b[offset_b];
         }
         B_shared[local_idx] = val_b;
-        
+
         __syncthreads();
-        
+
         for (unsigned int i = 0; i < 16; ++i) {
             sum += A_shared[ty * 16 + i] * B_shared[i * 16 + tx];
         }
-        
+
         __syncthreads();
     }
-    
+
     if (row < m && col < n) {
         unsigned int stride_c_row = c_layout.strides[0];
         unsigned int stride_c_col = c_layout.strides[1];

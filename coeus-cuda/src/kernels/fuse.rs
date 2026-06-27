@@ -38,6 +38,9 @@ impl Drop for SafeCachedKernel {
 // kernel reference regardless of lock type.
 static KERNEL_CACHE: OnceLock<RwLock<HashMap<String, Arc<SafeCachedKernel>>>> = OnceLock::new();
 
+/// Compile a CUDA C source string to PTX using the NVRTC driver.
+///
+/// Returns the PTX assembly string on success or an error message on failure.
 pub fn compile_cuda_to_ptx(src: &str) -> Result<String, String> {
     let nvrtc = NvrtcDriver::get().ok_or_else(|| "NVRTC driver not available".to_string())?;
 
