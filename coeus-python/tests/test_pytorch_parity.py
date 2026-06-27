@@ -656,3 +656,119 @@ def test_transformer_seq2seq_composition() -> None:
 
     # Same computation path → bitwise identical (tolerance = 1e-12)
     _allclose("transformer_seq2seq", list(out_t.data), list(out_manual.data), atol=1e-12)
+
+
+# ---------------------------------------------------------------------------
+# RNN cell PyTorch parity (MS-132)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "LSTMCell"),
+    reason="pycoeus.LSTMCell not available",
+)
+def test_lstm_cell_step_matches_pytorch() -> None:
+    """PyTorch parity for LSTMCell.step.
+
+    Weight-injection approach: copy w_ih/b_ih/w_hh/b_hh from a freshly
+    constructed pycoeus.LSTMCell (zero-initialized biases) into a PyTorch
+    LSTMCell; run one step on both and compare h_new and c_new.
+
+    Gate ordering matches: both coeus and PyTorch use [i, f, g, o] for
+    weight_ih [4H, I] and weight_hh [4H, H].
+    """
+    input_size, hidden_size = 4, 6
+    batch = 2
+
+    lstm = pycoeus.LSTMCell(input_size=input_size, hidden_size=hidden_size, bias=True)
+    assert len(lstm.parameters()) == 4  # w_ih, w_hh, b_ih, b_hh
+
+    x_data = [0.05 * i for i in range(batch * input_size)]
+    h_data = [0.0] * (batch * hidden_size)
+    c_data = [0.0] * (batch * hidden_size)
+
+    x_pyc = pycoeus.Tensor(x_data, [batch, input_size], requires_grad=False)
+    h_pyc = pycoeus.Tensor(h_data, [batch, hidden_size], requires_grad=False)
+    c_pyc = pycoeus.Tensor(c_data, [batch, hidden_size], requires_grad=False)
+
+    h_new_pyc, c_new_pyc = lstm.step(x_pyc, h_pyc, c_pyc)
+
+    torch_lstm = torch.nn.LSTMCell(input_size, hidden_size).double()
+    with torch.no_grad():
+        torch_lstm.weight_ih[:] = torch.tensor(
+            list(lstm.w_ih.data), dtype=torch.float64
+        ).reshape(4 * hidden_size, input_size)
+        torch_lstm.weight_hh[:] = torch.tensor(
+            list(lstm.w_hh.data), dtype=torch.float64
+        ).reshape(4 * hidden_size, hidden_size)
+        torch_lstm.bias_ih[:] = (
+            torch.tensor(list(lstm.b_ih.data), dtype=torch.float64)
+            if lstm.b_ih is not None
+            else torch.zeros(4 * hidden_size, dtype=torch.float64)
+        )
+        torch_lstm.bias_hh[:] = (
+            torch.tensor(list(lstm.b_hh.data), dtype=torch.float64)
+            if lstm.b_hh is not None
+            else torch.zeros(4 * hidden_size, dtype=torch.float64)
+        )
+
+    x_t = torch.tensor(x_data, dtype=torch.float64).reshape(batch, input_size)
+    h_t = torch.tensor(h_data, dtype=torch.float64).reshape(batch, hidden_size)
+    c_t = torch.tensor(c_data, dtype=torch.float64).reshape(batch, hidden_size)
+
+    h_new_t, c_new_t = torch_lstm(x_t, (h_t, c_t))
+
+    _allclose("lstm_h_new", list(h_new_pyc.data), h_new_t.flatten().tolist(), atol=1e-10)
+    _allclose("lstm_c_new", list(c_new_pyc.data), c_new_t.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "GRUCell"),
+    reason="pycoeus.GRUCell not available",
+)
+def test_gru_cell_step_matches_pytorch() -> None:
+    """PyTorch parity for GRUCell.step.
+
+    Gate ordering: both coeus and PyTorch use [r, z, n] for
+    weight_ih [3H, I] and weight_hh [3H, H].  The new-gate formula
+    n = tanh(W_in@x + b_in + r * (W_hn@h + b_hn)) matches in both.
+    """
+    input_size, hidden_size = 4, 6
+    batch = 2
+
+    gru = pycoeus.GRUCell(input_size=input_size, hidden_size=hidden_size, bias=True)
+    assert len(gru.parameters()) == 4  # w_ih, w_hh, b_ih, b_hh
+
+    x_data = [0.05 * i for i in range(batch * input_size)]
+    h_data = [0.0] * (batch * hidden_size)
+
+    x_pyc = pycoeus.Tensor(x_data, [batch, input_size], requires_grad=False)
+    h_pyc = pycoeus.Tensor(h_data, [batch, hidden_size], requires_grad=False)
+
+    h_new_pyc = gru.step(x_pyc, h_pyc)
+
+    torch_gru = torch.nn.GRUCell(input_size, hidden_size).double()
+    with torch.no_grad():
+        torch_gru.weight_ih[:] = torch.tensor(
+            list(gru.w_ih.data), dtype=torch.float64
+        ).reshape(3 * hidden_size, input_size)
+        torch_gru.weight_hh[:] = torch.tensor(
+            list(gru.w_hh.data), dtype=torch.float64
+        ).reshape(3 * hidden_size, hidden_size)
+        torch_gru.bias_ih[:] = (
+            torch.tensor(list(gru.b_ih.data), dtype=torch.float64)
+            if gru.b_ih is not None
+            else torch.zeros(3 * hidden_size, dtype=torch.float64)
+        )
+        torch_gru.bias_hh[:] = (
+            torch.tensor(list(gru.b_hh.data), dtype=torch.float64)
+            if gru.b_hh is not None
+            else torch.zeros(3 * hidden_size, dtype=torch.float64)
+        )
+
+    x_t = torch.tensor(x_data, dtype=torch.float64).reshape(batch, input_size)
+    h_t = torch.tensor(h_data, dtype=torch.float64).reshape(batch, hidden_size)
+
+    h_new_t = torch_gru(x_t, h_t)
+
+    _allclose("gru_h_new", list(h_new_pyc.data), h_new_t.flatten().tolist(), atol=1e-10)

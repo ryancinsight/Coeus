@@ -2,29 +2,60 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-134 - MHA functional SSOT routing [COMPLETE]
-**Objective**: Complete MultiHeadAttention module/functional SSOT in Rust and
-thin the PyO3 binding path to call core helpers directly, eliminating
-per-forward module reconstruction while preserving self/cross attention parity.
+### Current Sprint: MS-136 - Transformer seq2seq structural tests + RNN PyTorch parity [COMPLETE]
+**Objective**: Add two Transformer structural self-consistency proofs
+(forward_seq2seq == manual encoder→decoder chain; Module::forward == forward_seq2seq(x,x))
+and LSTM/GRU differential PyTorch parity tests (weight injection via w_ih/b_ih/w_hh/b_hh).
+**Target version**: 0.5.2 (patch-class; test-only additions).
+
+- [x] [patch] Added `transformer_seq2seq_self_consistent`: `forward_seq2seq(src,tgt)` ==
+  `encoder.forward_with_mask(src,None)` followed by `decoder.forward_decoder(tgt,memory)`;
+  tolerance f32::EPSILON*4 (deterministic; same code path, dropout_p=0).
+- [x] [patch] Added `transformer_module_forward_routes_to_seq2seq_self`: `Module::forward(x)`
+  == `forward_seq2seq(x,x)` — structural contract of the Module impl.
+- [x] [patch] Added `test_lstm_cell_step_matches_pytorch`: copies w_ih/b_ih/w_hh/b_hh from
+  LSTMCell(4,6) into torch.nn.LSTMCell.double(); compares h_new and c_new at atol=1e-10.
+  Gate order [i,f,g,o] matches PyTorch.
+- [x] [patch] Added `test_gru_cell_step_matches_pytorch`: same injection pattern for
+  GRUCell(4,6) vs torch.nn.GRUCell.double(); n=tanh(ih_n+r*hh_n) formula matches.
+  Compares h_new at atol=1e-10.
+- [x] Fixed pre-existing mnemosyne-heap dyn-compatibility compile error
+  (TierSelection::backend removed; committed mnemosyne Phase 3 Stage D1 as 4750f88).
+- [x] Evidence: `cargo nextest run -p coeus-nn` 294/294 passed;
+  `cargo clippy -p coeus-nn --tests -- -D warnings` clean.
+
+### Previous Sprint: MS-135 - TransformerEncoderLayer functional SSOT routing [COMPLETE]
+**Objective**: Complete TransformerEncoderLayer module/functional SSOT in Rust
+and thin the PyO3 encoder-layer forward path to call core helpers directly,
+eliminating per-forward module reconstruction while preserving parity behavior.
 **Target version**: 0.5.2 (minor-class; additive functional surface + wrapper cleanup).
 
 - [x] [minor] Added and exported Rust-core
-  `coeus_nn::multi_head_attention_cross(...)` plus
-  `coeus_nn::MhaProjectionParams` from attention and crate root exports.
-- [x] [patch] Routed `MultiHeadAttention::forward_cross`,
-  `PyMultiHeadAttention.forward`, and `PyMultiHeadAttention.forward_cross`
-  through the shared functional helper.
+  `coeus_nn::transformer_encoder_layer(...)` plus
+  `coeus_nn::TransformerEncoderLayerParams`.
+- [x] [patch] Routed `TransformerEncoderLayer::forward_with_mask` through the
+  shared functional helper.
+- [x] [patch] Routed `PyTransformerEncoderLayer.forward` through the shared
+  functional helper (no temporary Rust module reconstruction per call).
 - [x] [patch] Added Rust functional/module parity assertion in
-  `attention::test_mha_cross_attention_shape`.
+  `nn_attention_tests::encoder_layer_forward_shape`.
 - [x] [patch] Added Python SSOT parity assertion in
-  `binding_tests_nn::test_pycoeus_nn` for
-  `mha.forward(x) == mha.forward_cross(x, x, x)`.
-- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-nn --test
-  nn_tests test_mha_cross_attention_shape`; `rustup run nightly cargo nextest
-  run -p coeus-python --test binding_tests_nn test_pycoeus_nn`; `rustup run
-  nightly cargo clippy -p coeus-nn --test nn_tests -- -D warnings`; `rustup
-  run nightly cargo clippy -p coeus-python --test binding_tests_nn -- -D
-  warnings`.
+  `binding_tests_ops::test_transformer_encoder_bindings` for
+  encoder-layer composition equivalence with `dropout_p=0`.
+- [x] Evidence: `cargo test -p coeus-nn --test nn_attention_tests
+  encoder_layer_forward_shape`; `cargo test -p coeus-python --test
+  binding_tests_ops test_transformer_encoder_bindings`; `cargo clippy -p
+  coeus-nn --test nn_attention_tests -- -D warnings`; `cargo clippy -p
+  coeus-python --test binding_tests_ops -- -D warnings`.
+
+### Previous Sprint: MS-134 - MHA functional SSOT routing [COMPLETE]
+
+- [x] [minor] Added `coeus_nn::multi_head_attention_cross(...)` and
+  `coeus_nn::MhaProjectionParams` for shared MHA self/cross execution.
+- [x] [patch] Routed Rust and Python MHA forward paths through the shared helper.
+- [x] Evidence: `cargo test -p coeus-nn --test nn_tests
+  test_mha_cross_attention_shape`; `cargo test -p coeus-python --test
+  binding_tests_nn test_pycoeus_nn`.
 
 ### Previous Sprint: MS-133 - PyTransformer seq2seq + RNN/PE Burn parity tests [COMPLETE]
 **Objective**: Add `PyTransformer` full seq2seq Python binding; add LSTM/GRU structural
@@ -1855,3 +1886,4 @@ Implement an optimized native NVIDIA GPU backend dynamically loading the CUDA dr
 - [x] **Numerical Parity**: Parity tests verify absolute numerical equivalence between CPU, `wgpu`, and `cuda` execution (absolute tolerance $\le 10^{-5}$).
 - [x] **Test Coverage**: 100% of tensor operations have verification tests covering contiguous, non-contiguous, broadcasted, and sliced tensor views.
 - [x] **Memory Safety**: No memory leaks or data races on GPU backends under parallel operations (RAII wrapper verification).
+

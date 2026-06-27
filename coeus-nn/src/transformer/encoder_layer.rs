@@ -1,12 +1,130 @@
 // ── Transformer Encoder Layer (Pre-LayerNorm) ──
 
 use super::ffn::FeedForward;
-use crate::attention::{MultiHeadAttention, NullMask};
+use crate::attention::{
+    multi_head_attention_cross, MhaProjectionParams, MultiHeadAttention, NullMask,
+};
 use crate::dropout::Dropout;
+use crate::linear::Linear;
 use crate::module::Module;
 use crate::normalization::LayerNorm;
 use coeus_autograd::{AttentionMask, Var};
 use coeus_core::{Float, MoiraiBackend};
+
+/// Borrowed parameters for functional transformer encoder-layer execution.
+pub struct TransformerEncoderLayerParams<'a, T: Float, B: coeus_ops::BackendOps<T> + Default> {
+    /// LayerNorm1 gamma `[d_model]`.
+    pub norm1_weight: &'a Var<T, B>,
+    /// LayerNorm1 beta `[d_model]`.
+    pub norm1_bias: &'a Var<T, B>,
+    /// Self-attention projections.
+    pub self_attn: MhaProjectionParams<'a, T, B>,
+    /// LayerNorm2 gamma `[d_model]`.
+    pub norm2_weight: &'a Var<T, B>,
+    /// LayerNorm2 beta `[d_model]`.
+    pub norm2_bias: &'a Var<T, B>,
+    /// FFN linear1 weight `[d_ff, d_model]`.
+    pub ffn_w1: &'a Var<T, B>,
+    /// FFN linear1 bias `[d_ff]`.
+    pub ffn_b1: Option<&'a Var<T, B>>,
+    /// FFN linear2 weight `[d_model, d_ff]`.
+    pub ffn_w2: &'a Var<T, B>,
+    /// FFN linear2 bias `[d_model]`.
+    pub ffn_b2: Option<&'a Var<T, B>>,
+    /// Dropout probability after self-attention.
+    pub attn_residual_dropout_p: f64,
+    /// Training mode for dropout after self-attention.
+    pub attn_residual_training: bool,
+    /// Dropout probability inside FFN hidden projection.
+    pub ffn_hidden_dropout_p: f64,
+    /// Training mode for FFN hidden dropout.
+    pub ffn_hidden_training: bool,
+    /// Dropout probability after FFN residual branch.
+    pub ffn_residual_dropout_p: f64,
+    /// Training mode for dropout after FFN.
+    pub ffn_residual_training: bool,
+}
+
+fn layernorm_3d_from_parts<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    x: &Var<T, B>,
+    weight: &Var<T, B>,
+    bias: &Var<T, B>,
+    eps: f64,
+) -> Var<T, B> {
+    let shape = x.tensor.shape_cloned();
+    let batch = shape[0];
+    let seq = shape[1];
+    let d = shape[2];
+    let flat = coeus_autograd::reshape(x, [batch * seq, d]);
+    let norm = LayerNorm::from_parts(weight.clone(), bias.clone(), eps);
+    let normed = norm.forward(&flat);
+    coeus_autograd::reshape(&normed, [batch, seq, d])
+}
+
+fn apply_dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    x: &Var<T, B>,
+    p: f64,
+    is_training: bool,
+) -> Var<T, B> {
+    let mut dropout = Dropout::new(p);
+    dropout.set_training(is_training);
+    dropout.forward(x)
+}
+
+/// Functional (stateless) TransformerEncoderLayer forward.
+///
+/// Computes pre-LN encoder sublayers:
+/// `x1 = x + Dropout(SelfAttn(LN1(x)))`
+/// `x2 = x1 + Dropout(Linear2(Dropout(GELU(Linear1(LN2(x1))))))`.
+pub fn transformer_encoder_layer<
+    T: Float,
+    B: coeus_ops::BackendOps<T> + Default,
+    const H: usize,
+    M: AttentionMask,
+>(
+    input: &Var<T, B>,
+    key_padding_mask: Option<&Var<T, B>>,
+    params: TransformerEncoderLayerParams<'_, T, B>,
+) -> Var<T, B> {
+    let normed1 = layernorm_3d_from_parts(input, params.norm1_weight, params.norm1_bias, 1e-5);
+    let attn_out = multi_head_attention_cross::<T, B, H, M>(
+        &normed1,
+        &normed1,
+        &normed1,
+        params.self_attn,
+        key_padding_mask,
+    );
+    let dropped1 = apply_dropout(
+        &attn_out,
+        params.attn_residual_dropout_p,
+        params.attn_residual_training,
+    );
+    let x = coeus_autograd::add(input, &dropped1);
+
+    let normed2 = layernorm_3d_from_parts(&x, params.norm2_weight, params.norm2_bias, 1e-5);
+    let linear1 = Linear {
+        weight: params.ffn_w1.clone(),
+        bias: params.ffn_b1.cloned(),
+    };
+    let linear2 = Linear {
+        weight: params.ffn_w2.clone(),
+        bias: params.ffn_b2.cloned(),
+    };
+    let ff_hidden = linear1.forward(&normed2);
+    let ff_hidden = coeus_autograd::gelu(&ff_hidden);
+    let ff_hidden = apply_dropout(
+        &ff_hidden,
+        params.ffn_hidden_dropout_p,
+        params.ffn_hidden_training,
+    );
+    let ff_out = linear2.forward(&ff_hidden);
+    let dropped2 = apply_dropout(
+        &ff_out,
+        params.ffn_residual_dropout_p,
+        params.ffn_residual_training,
+    );
+    coeus_autograd::add(&x, &dropped2)
+}
 
 /// Single Transformer encoder layer.
 ///
@@ -53,23 +171,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
         }
     }
 
-    /// Apply LayerNorm to a 3D `[batch, seq, d_model]` var.
-    ///
-    /// Uses tracked reshape (`coeus_autograd::reshape`) to flatten to `[batch*seq, d_model]`,
-    /// apply LayerNorm, and reshape back. Gradients flow through all three ops.
-    fn layernorm_3d(&self, norm: &LayerNorm<T, B>, x: &Var<T, B>) -> Var<T, B> {
-        let shape = x.tensor.shape_cloned();
-        let batch = shape[0];
-        let seq = shape[1];
-        let d = shape[2];
-        // Tracked flatten [batch, seq, d] → [batch*seq, d]
-        let flat = coeus_autograd::reshape(x, [batch * seq, d]);
-        // Apply LayerNorm ([batch*seq, d] → [batch*seq, d])
-        let normed = norm.forward(&flat);
-        // Tracked unflatten [batch*seq, d] → [batch, seq, d]
-        coeus_autograd::reshape(&normed, [batch, seq, d])
-    }
-
     /// Pre-LayerNorm forward with optional key padding mask.
     ///
     /// Input/output shape: `[batch, seq, d_model]`.
@@ -79,19 +180,36 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
         input: &Var<T, B>,
         key_padding_mask: Option<&Var<T, B>>,
     ) -> Var<T, B> {
-        // Sub-layer 1: Self-Attention with residual
-        let normed1 = self.layernorm_3d(&self.norm1, input);
-        let attn_out = self
-            .self_attn
-            .forward_cross(&normed1, &normed1, &normed1, key_padding_mask);
-        let dropped1 = self.dropout1.forward(&attn_out);
-        let x = coeus_autograd::add(input, &dropped1);
-
-        // Sub-layer 2: FFN with residual
-        let normed2 = self.layernorm_3d(&self.norm2, &x);
-        let ffn_out = self.ffn.forward(&normed2);
-        let dropped2 = self.dropout2.forward(&ffn_out);
-        coeus_autograd::add(&x, &dropped2)
+        transformer_encoder_layer::<T, B, H, M>(
+            input,
+            key_padding_mask,
+            TransformerEncoderLayerParams {
+                norm1_weight: &self.norm1.weight,
+                norm1_bias: &self.norm1.bias,
+                self_attn: MhaProjectionParams {
+                    w_q: &self.self_attn.w_q,
+                    b_q: self.self_attn.b_q.as_ref(),
+                    w_k: &self.self_attn.w_k,
+                    b_k: self.self_attn.b_k.as_ref(),
+                    w_v: &self.self_attn.w_v,
+                    b_v: self.self_attn.b_v.as_ref(),
+                    w_o: &self.self_attn.w_o,
+                    b_o: self.self_attn.b_o.as_ref(),
+                },
+                norm2_weight: &self.norm2.weight,
+                norm2_bias: &self.norm2.bias,
+                ffn_w1: &self.ffn.linear1.weight,
+                ffn_b1: self.ffn.linear1.bias.as_ref(),
+                ffn_w2: &self.ffn.linear2.weight,
+                ffn_b2: self.ffn.linear2.bias.as_ref(),
+                attn_residual_dropout_p: self.dropout1.p,
+                attn_residual_training: self.dropout1.is_training,
+                ffn_hidden_dropout_p: self.ffn.dropout.p,
+                ffn_hidden_training: self.ffn.dropout.is_training,
+                ffn_residual_dropout_p: self.dropout2.p,
+                ffn_residual_training: self.dropout2.is_training,
+            },
+        )
     }
 }
 

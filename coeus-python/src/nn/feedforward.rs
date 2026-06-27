@@ -243,14 +243,10 @@ impl PyTransformerDecoderLayer {
     /// Returns `[batch, seq_tgt, d_model]`.
     #[pyo3(signature = (tgt, memory))]
     pub fn forward(&self, tgt: &PyTensor, memory: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
-        use coeus_nn::transformer::decoder_layer::TransformerDecoderLayer;
-
         let tgt_var = tgt.inner.clone();
         let mem_var = memory.inner.clone();
         let num_heads = self.num_heads;
         let dropout_p = self.dropout_p;
-        let d_model = self.d_model;
-        let d_ff = self.d_ff;
 
         // Extract norm1
         let n1w = self
@@ -490,35 +486,53 @@ impl PyTransformerDecoderLayer {
                 ($($h:literal),*) => {
                     match num_heads {
                         $($h => {
-                            use coeus_nn::normalization::layernorm::LayerNorm;
                             use coeus_autograd::{CausalMask, NullMask};
-                            let mut dec = TransformerDecoderLayer::<
+                            Ok(coeus_nn::transformer_decoder_layer::<
                                 f64, coeus_core::MoiraiBackend, $h, CausalMask, NullMask,
-                            >::new(d_model, d_ff, dropout_p);
-                            dec.norm1 = LayerNorm::from_parts(n1w, n1b, 1e-5);
-                            dec.self_attn.w_q = sa_wq;
-                            dec.self_attn.b_q = sa_bq;
-                            dec.self_attn.w_k = sa_wk;
-                            dec.self_attn.b_k = sa_bk;
-                            dec.self_attn.w_v = sa_wv;
-                            dec.self_attn.b_v = sa_bv;
-                            dec.self_attn.w_o = sa_wo;
-                            dec.self_attn.b_o = sa_bo;
-                            dec.norm2 = LayerNorm::from_parts(n2w, n2b, 1e-5);
-                            dec.cross_attn.w_q = ca_wq;
-                            dec.cross_attn.b_q = ca_bq;
-                            dec.cross_attn.w_k = ca_wk;
-                            dec.cross_attn.b_k = ca_bk;
-                            dec.cross_attn.w_v = ca_wv;
-                            dec.cross_attn.b_v = ca_bv;
-                            dec.cross_attn.w_o = ca_wo;
-                            dec.cross_attn.b_o = ca_bo;
-                            dec.norm3 = LayerNorm::from_parts(n3w, n3b, 1e-5);
-                            dec.ffn.linear1.weight = fw1;
-                            dec.ffn.linear1.bias = fb1;
-                            dec.ffn.linear2.weight = fw2;
-                            dec.ffn.linear2.bias = fb2;
-                            Ok(dec.forward_decoder(&tgt_var, &mem_var))
+                            >(
+                                &tgt_var,
+                                &mem_var,
+                                coeus_nn::TransformerDecoderLayerParams {
+                                    norm1_weight: &n1w,
+                                    norm1_bias: &n1b,
+                                    self_attn: coeus_nn::MhaProjectionParams {
+                                        w_q: &sa_wq,
+                                        b_q: sa_bq.as_ref(),
+                                        w_k: &sa_wk,
+                                        b_k: sa_bk.as_ref(),
+                                        w_v: &sa_wv,
+                                        b_v: sa_bv.as_ref(),
+                                        w_o: &sa_wo,
+                                        b_o: sa_bo.as_ref(),
+                                    },
+                                    norm2_weight: &n2w,
+                                    norm2_bias: &n2b,
+                                    cross_attn: coeus_nn::MhaProjectionParams {
+                                        w_q: &ca_wq,
+                                        b_q: ca_bq.as_ref(),
+                                        w_k: &ca_wk,
+                                        b_k: ca_bk.as_ref(),
+                                        w_v: &ca_wv,
+                                        b_v: ca_bv.as_ref(),
+                                        w_o: &ca_wo,
+                                        b_o: ca_bo.as_ref(),
+                                    },
+                                    norm3_weight: &n3w,
+                                    norm3_bias: &n3b,
+                                    ffn_w1: &fw1,
+                                    ffn_b1: fb1.as_ref(),
+                                    ffn_w2: &fw2,
+                                    ffn_b2: fb2.as_ref(),
+                                    self_attn_residual_dropout_p: dropout_p,
+                                    self_attn_residual_training: dropout_p > 0.0,
+                                    cross_attn_residual_dropout_p: dropout_p,
+                                    cross_attn_residual_training: dropout_p > 0.0,
+                                    ffn_hidden_dropout_p: dropout_p,
+                                    ffn_hidden_training: dropout_p > 0.0,
+                                    ffn_residual_dropout_p: dropout_p,
+                                    ffn_residual_training: dropout_p > 0.0,
+                                },
+                            ))
                         },)*
                         _ => Err(PyValueError::new_err(format!(
                             "TransformerDecoderLayer: unsupported num_heads={num_heads}"
@@ -902,14 +916,10 @@ impl PyTransformerEncoderLayer {
     /// Returns `[batch, seq, d_model]`.
     pub fn forward(&self, src: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_autograd::NullMask;
-        use coeus_nn::transformer::encoder_layer::TransformerEncoderLayer;
-        use coeus_nn::Module as _;
 
         let src_var = src.inner.clone();
         let num_heads = self.num_heads;
         let dropout_p = self.dropout_p;
-        let d_model = self.d_model;
-        let d_ff = self.d_ff;
 
         // Extract weights from Python sub-objects.
         let n1w = self
@@ -1062,25 +1072,38 @@ impl PyTransformerEncoderLayer {
                 ($($h:literal),*) => {
                     match num_heads {
                         $($h => {
-                            use coeus_nn::normalization::layernorm::LayerNorm;
-                            let mut enc = TransformerEncoderLayer::<
+                            Ok(coeus_nn::transformer_encoder_layer::<
                                 f64, coeus_core::MoiraiBackend, $h, NullMask,
-                            >::new(d_model, d_ff, dropout_p);
-                            enc.norm1 = LayerNorm::from_parts(n1w, n1b, 1e-5);
-                            enc.self_attn.w_q = wq;
-                            enc.self_attn.b_q = bq;
-                            enc.self_attn.w_k = wk;
-                            enc.self_attn.b_k = bk;
-                            enc.self_attn.w_v = wv;
-                            enc.self_attn.b_v = bv;
-                            enc.self_attn.w_o = wo;
-                            enc.self_attn.b_o = bo;
-                            enc.norm2 = LayerNorm::from_parts(n2w, n2b, 1e-5);
-                            enc.ffn.linear1.weight = fw1;
-                            enc.ffn.linear1.bias = fb1;
-                            enc.ffn.linear2.weight = fw2;
-                            enc.ffn.linear2.bias = fb2;
-                            Ok(enc.forward(&src_var))
+                            >(
+                                &src_var,
+                                None,
+                                coeus_nn::TransformerEncoderLayerParams {
+                                    norm1_weight: &n1w,
+                                    norm1_bias: &n1b,
+                                    self_attn: coeus_nn::MhaProjectionParams {
+                                        w_q: &wq,
+                                        b_q: bq.as_ref(),
+                                        w_k: &wk,
+                                        b_k: bk.as_ref(),
+                                        w_v: &wv,
+                                        b_v: bv.as_ref(),
+                                        w_o: &wo,
+                                        b_o: bo.as_ref(),
+                                    },
+                                    norm2_weight: &n2w,
+                                    norm2_bias: &n2b,
+                                    ffn_w1: &fw1,
+                                    ffn_b1: fb1.as_ref(),
+                                    ffn_w2: &fw2,
+                                    ffn_b2: fb2.as_ref(),
+                                    attn_residual_dropout_p: dropout_p,
+                                    attn_residual_training: dropout_p > 0.0,
+                                    ffn_hidden_dropout_p: dropout_p,
+                                    ffn_hidden_training: dropout_p > 0.0,
+                                    ffn_residual_dropout_p: dropout_p,
+                                    ffn_residual_training: dropout_p > 0.0,
+                                },
+                            ))
                         },)*
                         _ => Err(PyValueError::new_err(format!(
                             "TransformerEncoderLayer: unsupported num_heads={num_heads}"

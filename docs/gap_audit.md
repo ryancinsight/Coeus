@@ -54,6 +54,23 @@ zero-bias+zero-input→zero; evidence tier: compile-time proof via docstring inv
 `sinusoidal_encoding_pos0_equals_analytical` (PE[0]=[0,1,0,1,...] analytically derived),
 `rope_zero_input_zero_output`, `rope_output_shape_matches_input`. 292/292 Rust tests pass.
 
+### ~~G-007: Transformer seq2seq structural parity tests missing~~ **CLOSED**
+**Location**: `coeus-nn/tests/burn_live_parity.rs` — no `forward_seq2seq` structural tests  
+**Closed by**: MS-136 — Added `transformer_seq2seq_self_consistent` (proves `forward_seq2seq`
+== manual encoder+decoder chain; f32::EPSILON*4 tolerance) and
+`transformer_module_forward_routes_to_seq2seq_self` (proves `Module::forward(x)` ==
+`forward_seq2seq(x,x)`). Both use `Transformer<f32, SequentialBackend, 2, 1, 1>` with
+dropout_p=0. Evidence tier: structural/deterministic. 294/294 Rust tests pass.
+
+### ~~G-008: LSTM/GRU PyTorch parity tests missing~~ **CLOSED**
+**Location**: `coeus-python/tests/test_pytorch_parity.py` — 0 tests for LSTMCell/GRUCell step  
+**Closed by**: MS-136 — Added `test_lstm_cell_step_matches_pytorch`: copies w_ih/b_ih/w_hh/b_hh
+from pycoeus LSTMCell(4,6) into torch.nn.LSTMCell.double(); verifies h_new and c_new at
+atol=1e-10 after one step on zero-init hidden state. Gate order [i,f,g,o] matches between coeus
+and PyTorch. Added `test_gru_cell_step_matches_pytorch`: same weight-injection approach for
+GRUCell, verifying h_new; n=tanh(ih_n+r*hh_n) formula is consistent between implementations.
+Evidence tier: differential/empirical.
+
 ## Slop Pattern Library
 
 *(Empty — no recurring agent slop patterns identified yet.)*
@@ -68,5 +85,7 @@ zero-bias+zero-input→zero; evidence tier: compile-time proof via docstring inv
 | G-004 PyTransformerDecoder missing | structural | **closed MS-129** |
 | G-005 PyTransformer (full seq2seq) missing | structural | **closed MS-131** |
 | G-006 RNN/PE Burn parity tests missing | structural | **closed MS-131** |
+| G-007 Transformer seq2seq structural parity tests missing | structural | **closed MS-136** |
+| G-008 LSTM/GRU PyTorch parity tests missing | differential | **closed MS-136** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
-| mnemosyne-backend lib.rs docstring stale (describes old guard/reset impl structure) | documentation | deferred (mnemosyne repo) |
+| mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |

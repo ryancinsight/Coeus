@@ -15,8 +15,12 @@ pub mod ffn;
 pub mod transformer;
 
 pub use decoder::TransformerDecoder;
-pub use decoder_layer::TransformerDecoderLayer;
+pub use decoder_layer::{
+    transformer_decoder_layer, TransformerDecoderLayer, TransformerDecoderLayerParams,
+};
 pub use encoder::TransformerEncoder;
-pub use encoder_layer::TransformerEncoderLayer;
+pub use encoder_layer::{
+    transformer_encoder_layer, TransformerEncoderLayer, TransformerEncoderLayerParams,
+};
 pub use ffn::{feed_forward, FeedForward};
 pub use transformer::Transformer;

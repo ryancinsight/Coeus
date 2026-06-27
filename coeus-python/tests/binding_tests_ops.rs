@@ -2466,6 +2466,15 @@ for h in (1, 2, 4):
     memory = pycoeus.Tensor([0.02 * (i + 1) for i in range(batch * seq_src * 4)], [batch, seq_src, 4])
     out = dec.forward(tgt, memory)
     assert out.shape == [batch, seq_tgt, 4], f"num_heads={h} shape={out.shape}"
+    # SSOT parity: decoder forward equals explicit pre-LN composition when dropout=0.
+    n1 = pycoeus.layer_norm(tgt, 4, dec.norm1.weight, dec.norm1.bias, eps=1e-5)
+    x1 = tgt + dec.self_attn.forward(n1)
+    n2 = pycoeus.layer_norm(x1, 4, dec.norm2.weight, dec.norm2.bias, eps=1e-5)
+    x2 = x1 + dec.cross_attn.forward_cross(n2, memory, memory)
+    n3 = pycoeus.layer_norm(x2, 4, dec.norm3.weight, dec.norm3.bias, eps=1e-5)
+    manual = x2 + dec.ffn.forward(n3)
+    for a, b in zip(out.data, manual.data):
+        assert abs(a - b) < 1e-9, f"decoder layer SSOT mismatch (h={h}): {a} vs {b}"
     # Real PyLayer cannot no-op on these inputs (random init weights produce
     # non-trivial logits); absence of zeros guards against silent fall-through.
     assert any(abs(v) > 1e-6 for v in out.data), f"num_heads={h} all-zero output"
@@ -2502,6 +2511,13 @@ for h in (1, 2, 4):
     out = enc_layer.forward(src)
     assert out.shape == [1, 3, 4], f"encoder layer h={h} shape={out.shape}"
     assert any(abs(v) > 1e-6 for v in out.data), f"encoder layer h={h} all-zero output"
+    # SSOT parity: forward == pre-LN composition when dropout=0.
+    n1 = pycoeus.layer_norm(src, 4, enc_layer.norm1.weight, enc_layer.norm1.bias, eps=1e-5)
+    x1 = src + enc_layer.self_attn.forward(n1)
+    n2 = pycoeus.layer_norm(x1, 4, enc_layer.norm2.weight, enc_layer.norm2.bias, eps=1e-5)
+    manual = x1 + enc_layer.ffn.forward(n2)
+    for a, b in zip(out.data, manual.data):
+        assert abs(a - b) < 1e-9, f"encoder layer SSOT mismatch (h={h}): {a} vs {b}"
 
 try:
     bad = pycoeus.TransformerEncoderLayer(d_model=4, d_ff=8, num_heads=3, dropout_p=0.0)

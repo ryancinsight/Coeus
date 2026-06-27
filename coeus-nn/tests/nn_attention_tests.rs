@@ -13,8 +13,9 @@ mod tests {
     use coeus_autograd::Var;
     use coeus_core::{MoiraiBackend, Storage};
     use coeus_nn::{
-        feed_forward, FeedForward, Module, MultiHeadAttention, NullMask, SinusoidalEncoding,
-        TransformerEncoderLayer,
+        feed_forward, transformer_encoder_layer, FeedForward, MhaProjectionParams, Module,
+        MultiHeadAttention, NullMask, SinusoidalEncoding, TransformerEncoderLayer,
+        TransformerEncoderLayerParams,
     };
     use coeus_tensor::Tensor;
 
@@ -287,6 +288,44 @@ mod tests {
             &[batch, seq, d_model],
             "EncoderLayer output shape mismatch"
         );
+
+        let out_fn = transformer_encoder_layer::<f32, B, H, NullMask>(
+            &x_var,
+            None,
+            TransformerEncoderLayerParams {
+                norm1_weight: &layer.norm1.weight,
+                norm1_bias: &layer.norm1.bias,
+                self_attn: MhaProjectionParams {
+                    w_q: &layer.self_attn.w_q,
+                    b_q: layer.self_attn.b_q.as_ref(),
+                    w_k: &layer.self_attn.w_k,
+                    b_k: layer.self_attn.b_k.as_ref(),
+                    w_v: &layer.self_attn.w_v,
+                    b_v: layer.self_attn.b_v.as_ref(),
+                    w_o: &layer.self_attn.w_o,
+                    b_o: layer.self_attn.b_o.as_ref(),
+                },
+                norm2_weight: &layer.norm2.weight,
+                norm2_bias: &layer.norm2.bias,
+                ffn_w1: &layer.ffn.linear1.weight,
+                ffn_b1: layer.ffn.linear1.bias.as_ref(),
+                ffn_w2: &layer.ffn.linear2.weight,
+                ffn_b2: layer.ffn.linear2.bias.as_ref(),
+                attn_residual_dropout_p: 0.0,
+                attn_residual_training: false,
+                ffn_hidden_dropout_p: 0.0,
+                ffn_hidden_training: false,
+                ffn_residual_dropout_p: 0.0,
+                ffn_residual_training: false,
+            },
+        );
+        assert_eq!(out_fn.tensor.shape(), &[batch, seq, d_model]);
+        for (a, b) in out.tensor.as_slice().iter().zip(out_fn.tensor.as_slice()) {
+            assert!(
+                (a - b).abs() < 1e-6,
+                "encoder_layer functional parity mismatch: {a} vs {b}"
+            );
+        }
     }
 
     #[test]

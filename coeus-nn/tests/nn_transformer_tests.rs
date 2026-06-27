@@ -1,6 +1,9 @@
 use coeus_autograd::{CausalMask, NullMask, Var};
 use coeus_core::MoiraiBackend;
-use coeus_nn::{Module, Transformer, TransformerDecoder, TransformerDecoderLayer};
+use coeus_nn::{
+    transformer_decoder_layer, MhaProjectionParams, Module, Transformer, TransformerDecoder,
+    TransformerDecoderLayer, TransformerDecoderLayerParams,
+};
 use coeus_tensor::Tensor;
 
 #[test]
@@ -34,6 +37,61 @@ fn test_transformer_decoder_layer() {
 
     let output = layer.forward_decoder(&tgt, &memory);
     assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
+    let output_fn = transformer_decoder_layer::<f64, MoiraiBackend, H, CausalMask, NullMask>(
+        &tgt,
+        &memory,
+        TransformerDecoderLayerParams {
+            norm1_weight: &layer.norm1.weight,
+            norm1_bias: &layer.norm1.bias,
+            self_attn: MhaProjectionParams {
+                w_q: &layer.self_attn.w_q,
+                b_q: layer.self_attn.b_q.as_ref(),
+                w_k: &layer.self_attn.w_k,
+                b_k: layer.self_attn.b_k.as_ref(),
+                w_v: &layer.self_attn.w_v,
+                b_v: layer.self_attn.b_v.as_ref(),
+                w_o: &layer.self_attn.w_o,
+                b_o: layer.self_attn.b_o.as_ref(),
+            },
+            norm2_weight: &layer.norm2.weight,
+            norm2_bias: &layer.norm2.bias,
+            cross_attn: MhaProjectionParams {
+                w_q: &layer.cross_attn.w_q,
+                b_q: layer.cross_attn.b_q.as_ref(),
+                w_k: &layer.cross_attn.w_k,
+                b_k: layer.cross_attn.b_k.as_ref(),
+                w_v: &layer.cross_attn.w_v,
+                b_v: layer.cross_attn.b_v.as_ref(),
+                w_o: &layer.cross_attn.w_o,
+                b_o: layer.cross_attn.b_o.as_ref(),
+            },
+            norm3_weight: &layer.norm3.weight,
+            norm3_bias: &layer.norm3.bias,
+            ffn_w1: &layer.ffn.linear1.weight,
+            ffn_b1: layer.ffn.linear1.bias.as_ref(),
+            ffn_w2: &layer.ffn.linear2.weight,
+            ffn_b2: layer.ffn.linear2.bias.as_ref(),
+            self_attn_residual_dropout_p: 0.0,
+            self_attn_residual_training: false,
+            cross_attn_residual_dropout_p: 0.0,
+            cross_attn_residual_training: false,
+            ffn_hidden_dropout_p: 0.0,
+            ffn_hidden_training: false,
+            ffn_residual_dropout_p: 0.0,
+            ffn_residual_training: false,
+        },
+    );
+    for (a, b) in output
+        .tensor
+        .as_slice()
+        .iter()
+        .zip(output_fn.tensor.as_slice())
+    {
+        assert!(
+            (a - b).abs() < 1e-10,
+            "decoder layer functional parity mismatch: {a} vs {b}"
+        );
+    }
 
     // Backward pass
     let loss = coeus_autograd::sum(&output);

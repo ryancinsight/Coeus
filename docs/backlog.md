@@ -1,5 +1,27 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-135: TransformerEncoderLayer functional SSOT routing [COMPLETE]
+
+- [x] [minor] Added and exported Rust-core
+  `coeus_nn::transformer_encoder_layer(...)` plus
+  `coeus_nn::TransformerEncoderLayerParams` for borrowed encoder-layer state.
+- [x] [patch] Routed `TransformerEncoderLayer::forward_with_mask` through the
+  shared helper, preserving module behavior while centralizing pre-LN
+  orchestration logic.
+- [x] [patch] Routed Python `TransformerEncoderLayer.forward` through the same
+  Rust-core helper, removing per-call temporary
+  `TransformerEncoderLayer::new(...)` reconstruction in `coeus-python`.
+- [x] [patch] Added Rust/Python SSOT parity checks:
+  `encoder_layer_forward_shape` now checks module-vs-functional parity; Python
+  `test_transformer_encoder_bindings` now checks
+  `forward(src) == src + self_attn(layer_norm(src)) + ffn(layer_norm(...))`
+  composition (dropout=0 path).
+- [x] Evidence: `cargo test -p coeus-nn --test nn_attention_tests
+  encoder_layer_forward_shape`; `cargo test -p coeus-python --test
+  binding_tests_ops test_transformer_encoder_bindings`; `cargo clippy -p
+  coeus-nn --test nn_attention_tests -- -D warnings`; `cargo clippy -p
+  coeus-python --test binding_tests_ops -- -D warnings`.
+
 ## Sprint MS-134: MHA functional SSOT routing [COMPLETE]
 
 - [x] [minor] Added and exported Rust-core

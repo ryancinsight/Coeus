@@ -4,6 +4,14 @@
 
 ### Added
 
+- **Transformer seq2seq structural parity tests** — `transformer_seq2seq_self_consistent`
+  and `transformer_module_forward_routes_to_seq2seq_self` in `burn_live_parity.rs` prove
+  `forward_seq2seq` equals a manual encoder+decoder chain and `Module::forward(x)` equals
+  `forward_seq2seq(x,x)` at f32::EPSILON*4 tolerance (same deterministic path, dropout_p=0).
+- **LSTMCell/GRUCell PyTorch parity tests** — `test_lstm_cell_step_matches_pytorch` and
+  `test_gru_cell_step_matches_pytorch` copy w_ih/b_ih/w_hh/b_hh from pycoeus cells into
+  torch.nn.LSTMCell/GRUCell.double() and verify step output at atol=1e-10. Gate ordering
+  [i,f,g,o] (LSTM) and [r,z,n] (GRU) confirmed equivalent between coeus and PyTorch.
 - **MHA backward Burn parity** — added `multi_head_attention_backward_matches_burn`
   covering forward output, input gradient, and Q/K/V/O projection-weight
   gradients against Burn autodiff with explicit weights.
@@ -32,6 +40,12 @@
   `MultiHeadAttention::forward_cross`, `PyMultiHeadAttention.forward`, and
   `PyMultiHeadAttention.forward_cross` through this shared helper so the Python
   wrapper no longer reconstructs a temporary Rust module for every call.
+- **TransformerEncoderLayer SSOT routing** — added/exported Rust-core
+  `coeus_nn::transformer_encoder_layer(...)` plus
+  `coeus_nn::TransformerEncoderLayerParams`; routed
+  `TransformerEncoderLayer::forward_with_mask` and
+  `PyTransformerEncoderLayer.forward` through this shared helper so the Python
+  wrapper no longer reconstructs a temporary Rust encoder-layer module per call.
 - **SRP backend/autograd layout** — split `coeus-ops` CPU backend dispatch and
   `coeus-autograd` convolution nodes into operation-family leaf modules.
 - **Documented public surfaces** — enforced and fixed `coeus-nn`
@@ -103,6 +117,13 @@
 - `rustup run nightly cargo nextest run -p coeus-python --test
   binding_tests_nn test_pycoeus_nn` passes the Python MHA self/cross SSOT
   parity assertion.
+- `cargo test -p coeus-nn --test nn_attention_tests
+  encoder_layer_forward_shape` passes encoder-layer module-vs-functional SSOT
+  parity.
+- `cargo test -p coeus-python --test binding_tests_ops
+  test_transformer_encoder_bindings` passes Python encoder-layer SSOT parity.
+- `cargo clippy -p coeus-nn --test nn_attention_tests -- -D warnings`.
+- `cargo clippy -p coeus-python --test binding_tests_ops -- -D warnings`.
 
 ## 0.5.1 - 2026-06-26
 

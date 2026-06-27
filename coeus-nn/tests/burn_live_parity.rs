@@ -5539,3 +5539,72 @@ fn rope_output_shape_matches_input() {
     let out = rope.forward(&x);
     assert_eq!(out.tensor.shape(), &[batch, seq_len, num_heads, d_head]);
 }
+
+// ── Transformer seq2seq structural parity ────────────────────────────────────
+
+#[test]
+fn transformer_seq2seq_self_consistent() {
+    // Proof: forward_seq2seq(src, tgt) is defined as
+    //   memory = encoder.forward_with_mask(src, None)
+    //   decoder.forward_decoder(tgt, &memory)
+    // Calling the two halves explicitly with dropout_p=0 must produce the
+    // same deterministic result.
+    use coeus_nn::{CausalMask, NullMask, Transformer};
+    const H: usize = 2;
+    const N_ENC: usize = 1;
+    const N_DEC: usize = 1;
+    let d_model = 4;
+    let d_ff = 8;
+    let t =
+        Transformer::<f32, SequentialBackend, H, N_ENC, N_DEC, NullMask, CausalMask, NullMask>::new(
+            d_model, d_ff, 0.0,
+        );
+    let src_data: Vec<f32> = (0..20).map(|i| 0.05 * i as f32).collect();
+    let tgt_data: Vec<f32> = (0..12).map(|i| 0.1 * i as f32 - 0.3).collect();
+    let src = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 5, d_model], &src_data),
+        false,
+    );
+    let tgt = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 3, d_model], &tgt_data),
+        false,
+    );
+    let out_seq2seq = t.forward_seq2seq(&src, &tgt);
+    let memory = t.encoder.forward_with_mask(&src, None);
+    let out_manual = t.decoder.forward_decoder(&tgt, &memory);
+    assert_close_rel(
+        "transformer_seq2seq_self_consistent",
+        out_seq2seq.tensor.as_slice(),
+        out_manual.tensor.as_slice(),
+        f32::EPSILON * 4.0,
+    );
+}
+
+#[test]
+fn transformer_module_forward_routes_to_seq2seq_self() {
+    // Proof: Module::forward(x) is defined as forward_seq2seq(x, x).
+    // With dropout_p=0 and a deterministic backend, both paths must agree.
+    use coeus_nn::{CausalMask, Module, NullMask, Transformer};
+    const H: usize = 2;
+    const N_ENC: usize = 1;
+    const N_DEC: usize = 1;
+    let d_model = 4;
+    let d_ff = 8;
+    let t =
+        Transformer::<f32, SequentialBackend, H, N_ENC, N_DEC, NullMask, CausalMask, NullMask>::new(
+            d_model, d_ff, 0.0,
+        );
+    let data: Vec<f32> = (0..12).map(|i| 0.1 * i as f32 - 0.3).collect();
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 3, d_model], &data),
+        false,
+    );
+    let v_fwd = t.forward(&x).tensor.as_slice().to_vec();
+    let v_seq2seq = t.forward_seq2seq(&x, &x).tensor.as_slice().to_vec();
+    assert_close_rel(
+        "transformer_module_forward_vs_seq2seq_self",
+        &v_fwd,
+        &v_seq2seq,
+        f32::EPSILON * 4.0,
+    );
+}
