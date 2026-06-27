@@ -9,6 +9,22 @@ const METADATA_BUFFER_SIZE: u64 = 1024;
 const METADATA_POOL_CAPACITY: usize = 64;
 
 /// Trait mapping CPU types to their WGSL representation types on the GPU.
+///
+/// # Example
+///
+/// ```
+/// use coeus_wgpu::WgpuScalar;
+///
+/// assert_eq!(f32::WGSL_TYPE, "f32");
+/// assert_eq!(f32::WGSL_ZERO, "0.0");
+/// assert_eq!(f32::WGSL_ONE, "1.0");
+///
+/// assert_eq!(i32::WGSL_TYPE, "i32");
+/// assert_eq!(i32::WGSL_ZERO, "0");
+///
+/// assert_eq!(u32::WGSL_TYPE, "u32");
+/// assert_eq!(u32::WGSL_ZERO, "0u");
+/// ```
 pub trait WgpuScalar: Scalar + bytemuck::Pod {
     /// WGSL type name string (e.g. `"f32"`).
     const WGSL_TYPE: &'static str;
@@ -135,6 +151,20 @@ pub fn get_wgpu_context() -> &'static WgpuContext {
 ///
 /// # ZST
 /// Encoded as a Zero-Sized Type to guarantee static routing and zero runtime context overhead.
+///
+/// # Example
+///
+/// ```
+/// use coeus_wgpu::WgpuBackend;
+/// use coeus_core::ComputeBackend;
+///
+/// let backend = WgpuBackend::new();
+/// assert_eq!(backend.name(), "wgpu");
+/// assert_eq!(backend.num_threads(), 1);
+///
+/// // ZST: occupies no memory
+/// assert_eq!(std::mem::size_of::<WgpuBackend>(), 0);
+/// ```
 #[derive(Debug, Clone, Copy, Default)]
 pub struct WgpuBackend;
 
@@ -142,6 +172,17 @@ impl coeus_core::backend::private::Sealed for WgpuBackend {}
 
 impl WgpuBackend {
     /// Create a new instance of the WebGPU backend ZST.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use coeus_wgpu::WgpuBackend;
+    /// use coeus_core::ComputeBackend;
+    ///
+    /// let backend = WgpuBackend::new();
+    /// let default = WgpuBackend::default();
+    /// assert_eq!(backend.name(), default.name());
+    /// ```
     pub const fn new() -> Self {
         Self
     }
