@@ -2,16 +2,11 @@
 
 ## Known Gaps & Residual Risks
 
-### G-001: PyTransformerEncoderLayer stateless binding [minor]
+### ~~G-001: PyTransformerEncoderLayer stateless binding~~ **CLOSED**
 **Location**: `coeus-python/src/nn/feedforward.rs` — `PyTransformerEncoderLayer`  
-**Description**: The Python binding re-initializes `TransformerEncoderLayer` with
-Kaiming-random weights on every `forward()` call and returns `parameters() = []`.
-This makes the layer untrinable from Python and prevents weight-parity testing.  
-**Fix**: Refactor to store the underlying Rust `TransformerEncoderLayer` as an
-`Arc<Mutex<...>>` field (or equivalent) and expose `norm1`, `norm2`, `self_attn`,
-and `ffn` sub-modules as `PyObject` fields with `get/set`.  
-**Evidence tier**: Type-level / structural analysis (binding source read).  
-**Priority**: Blocks `test_transformer_encoder_layer_matches_pytorch`.
+**Closed by**: MS-127 — Refactored to stateful `Py<PyLayerNorm>` + `Py<PyMultiHeadAttention>` +
+`Py<PyFeedForward>` sub-module fields; `parameters()` returns 16 params; forward replaces
+dummy weights from Python sub-objects; `test_transformer_encoder_layer_matches_pytorch` PASSES.
 
 ### G-002: PyTransformerEncoder shares the same stateless defect [minor]
 **Location**: `coeus-python/src/nn/feedforward.rs` — `PyTransformerEncoder`  
@@ -27,6 +22,6 @@ with random weights.
 
 | Risk | Evidence Tier | Status |
 |------|--------------|--------|
-| G-001 stateless PyTransformerEncoderLayer binding | structural | open |
+| G-001 stateless PyTransformerEncoderLayer binding | structural | **closed MS-127** |
 | G-002 stateless PyTransformerEncoder binding | structural | open |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |

@@ -308,32 +308,93 @@ def test_mha_backward_matches_pytorch() -> None:
 
 
 # ---------------------------------------------------------------------------
-# TransformerEncoderLayer shape contract
+# TransformerEncoderLayer (Pre-LN) forward parity
 # ---------------------------------------------------------------------------
-#
-# NOTE: pycoeus.TransformerEncoderLayer is a stateless wrapper — it
-# re-initialises weights with Kaiming random values on every forward() call
-# and does not expose its parameters, so direct weight-matching parity is not
-# possible through this binding.  A weight-exposure refactor is tracked in
-# gap_audit.md (PyTransformerEncoderLayer stateless binding defect).
-# This test verifies only the shape contract and that the forward runs.
 
 
 @pytest.mark.skipif(
     not hasattr(pycoeus, "TransformerEncoderLayer"),
     reason="pycoeus.TransformerEncoderLayer not available in this wheel build",
 )
-def test_transformer_encoder_layer_shape_contract() -> None:
-    """Shape contract: TransformerEncoderLayer(d_model=4, H=2, d_ff=8) preserves [B, S, D]."""
+def test_transformer_encoder_layer_matches_pytorch() -> None:
+    """Forward parity: TransformerEncoderLayer(d_model=4, H=2, d_ff=8, dropout=0).
+
+    Pre-LN forward:
+      x₁ = x + MHA(LN1(x))
+      out = x₁ + FFN(LN2(x₁))
+
+    Weights are extracted from the stateful pycoeus sub-modules and copied to
+    individually assembled PyTorch components (same weight convention — no
+    transposition needed).
+    """
     d_model, num_heads, d_ff = 4, 2, 8
-    batch, seq = 2, 5
+    batch, seq = 1, 3
+    _ATOL_ENC = 2e-4
+
     tel = pycoeus.TransformerEncoderLayer(d_model=d_model, d_ff=d_ff, num_heads=num_heads)
-    x_pyc = pycoeus.Tensor(
-        [0.1 * i for i in range(batch * seq * d_model)],
-        [batch, seq, d_model],
-        requires_grad=False,
+
+    # Extract weights from stateful sub-modules.
+    wq = list(tel.self_attn.w_q.data)
+    wk = list(tel.self_attn.w_k.data)
+    wv = list(tel.self_attn.w_v.data)
+    wo = list(tel.self_attn.w_o.data)
+    gamma1 = list(tel.norm1.weight.data)
+    beta1 = list(tel.norm1.bias.data)
+    gamma2 = list(tel.norm2.weight.data)
+    beta2 = list(tel.norm2.bias.data)
+    wff1 = list(tel.ffn.linear1.weight.data)
+    bff1 = list(tel.ffn.linear1.bias.data) if tel.ffn.linear1.bias else [0.0] * d_ff
+    wff2 = list(tel.ffn.linear2.weight.data)
+    bff2 = list(tel.ffn.linear2.bias.data) if tel.ffn.linear2.bias else [0.0] * d_model
+
+    x_data = [0.1 * i - 0.3 for i in range(batch * seq * d_model)]
+    x_pyc = pycoeus.Tensor(x_data, [batch, seq, d_model], requires_grad=False)
+    out_pyc = tel.forward(x_pyc)
+
+    # PyTorch Pre-LN composed forward.
+    mha_t = torch.nn.MultiheadAttention(
+        embed_dim=d_model, num_heads=num_heads, bias=False,
+        batch_first=True, dtype=torch.float64,
     )
-    out = tel.forward(x_pyc)
-    assert len(out.data) == batch * seq * d_model, (
-        f"shape mismatch: expected {batch * seq * d_model}, got {len(out.data)}"
-    )
+    with torch.no_grad():
+        mha_t.in_proj_weight[:d_model, :] = (
+            torch.tensor(wq, dtype=torch.float64).reshape(d_model, d_model)
+        )
+        mha_t.in_proj_weight[d_model : 2 * d_model, :] = (
+            torch.tensor(wk, dtype=torch.float64).reshape(d_model, d_model)
+        )
+        mha_t.in_proj_weight[2 * d_model :, :] = (
+            torch.tensor(wv, dtype=torch.float64).reshape(d_model, d_model)
+        )
+        mha_t.out_proj.weight[:] = (
+            torch.tensor(wo, dtype=torch.float64).reshape(d_model, d_model)
+        )
+    # MHA has no bias in this layer (b_q/b_k/b_v/b_o all None on default init).
+    mha_t.in_proj_bias = None
+    mha_t.out_proj.bias = None
+
+    ln1_t = torch.nn.LayerNorm(d_model, eps=1e-5, dtype=torch.float64)
+    ln2_t = torch.nn.LayerNorm(d_model, eps=1e-5, dtype=torch.float64)
+    with torch.no_grad():
+        ln1_t.weight[:] = torch.tensor(gamma1, dtype=torch.float64)
+        ln1_t.bias[:] = torch.tensor(beta1, dtype=torch.float64)
+        ln2_t.weight[:] = torch.tensor(gamma2, dtype=torch.float64)
+        ln2_t.bias[:] = torch.tensor(beta2, dtype=torch.float64)
+
+    ff1_t = torch.nn.Linear(d_model, d_ff, bias=True, dtype=torch.float64)
+    ff2_t = torch.nn.Linear(d_ff, d_model, bias=True, dtype=torch.float64)
+    with torch.no_grad():
+        ff1_t.weight[:] = torch.tensor(wff1, dtype=torch.float64).reshape(d_ff, d_model)
+        ff1_t.bias[:] = torch.tensor(bff1, dtype=torch.float64)
+        ff2_t.weight[:] = torch.tensor(wff2, dtype=torch.float64).reshape(d_model, d_ff)
+        ff2_t.bias[:] = torch.tensor(bff2, dtype=torch.float64)
+
+    x_t = torch.tensor(x_data, dtype=torch.float64).reshape(batch, seq, d_model)
+    normed1 = ln1_t(x_t)
+    attn_out, _ = mha_t(normed1, normed1, normed1, need_weights=False)
+    x1_t = x_t + attn_out
+    normed2 = ln2_t(x1_t)
+    ffn_out = ff2_t(torch.nn.functional.gelu(ff1_t(normed2)))
+    out_t = x1_t + ffn_out
+
+    _allclose("encoder_layer_fwd", list(out_pyc.data), out_t.flatten().tolist(), atol=_ATOL_ENC)

@@ -2,7 +2,31 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-126 - Extend pytest PyTorch parity surface [COMPLETE]
+### Current Sprint: MS-127 - Fix G-001: Stateful PyTransformerEncoderLayer binding [COMPLETE]
+**Objective**: Refactor `PyFeedForward` and `PyTransformerEncoderLayer` in
+`coeus-python/src/nn/feedforward.rs` to be stateful — storing `norm1`, `self_attn`,
+`norm2`, and `ffn` as `Py<>` sub-module fields — and promote the pytest encoder test
+from shape-contract-only to full weight-parity verification.
+**Target version**: 0.5.2 (minor-class; new parameter-accessible binding surface).
+
+- [x] [minor] `PyFeedForward`: replaced dimension-only struct with `linear1: Py<PyLinear>`,
+  `linear2: Py<PyLinear>` fields; `new()` extracts weights from Rust `FeedForward::new()`;
+  `forward()` reconstructs Rust struct from Python sub-objects; `parameters()` and
+  `zero_grad()` delegate to sub-modules.
+- [x] [minor] `PyTransformerEncoderLayer`: replaced dimension-only struct with `norm1`,
+  `self_attn`, `norm2`, `ffn` as `Py<PyLayerNorm>`, `Py<PyMultiHeadAttention>`,
+  `Py<PyLayerNorm>`, `Py<PyFeedForward>` fields; `new()` extracts weights from
+  `TransformerEncoderLayer::new()` via const-dispatch macro; `forward()` reads
+  weights from Python sub-objects and reconstructs the Rust encoder; `parameters()`
+  returns all 16 params; `zero_grad()` delegates to sub-modules.
+- [x] [patch] Replaced `test_transformer_encoder_layer_shape_contract` with
+  `test_transformer_encoder_layer_matches_pytorch`: extracts actual weights from Python
+  sub-modules, copies to assembled PyTorch Pre-LN components, verifies output at 2e-4 atol.
+- [x] [patch] Closed G-001 in `docs/gap_audit.md`.
+- [x] Evidence: `cargo nextest run -p coeus-nn` 272/272 passed;
+  `pytest coeus-python/tests/test_pytorch_parity.py -v` 7/7 passed.
+
+### Previous Sprint: MS-126 - Extend pytest PyTorch parity surface [COMPLETE]
 **Objective**: Expand `test_pytorch_parity.py` to cover Conv1d/2d, LayerNorm,
 MHA backward (dx + dW), and TransformerEncoderLayer shape contract.
 **Target version**: 0.5.2 (patch-class).
