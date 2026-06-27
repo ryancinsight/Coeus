@@ -1,5 +1,105 @@
 # Changelog
 
+## [Unreleased] 0.5.2
+
+### Added
+
+- **Optimizer step analytical tests** — added `sgd_vanilla_step_analytical`,
+  `adam_first_step_analytical`, and `adamw_first_step_analytical` to
+  `coeus-nn/tests/burn_live_parity.rs`. Each uses `Var::set_grad` to inject a
+  known gradient then asserts the optimizer step matches the closed-form update
+  (SGD: `w−lr·g`; Adam: `w−lr·g/|g|` via zero-init bias-cancel; AdamW: same plus
+  decoupled `lr·λ·p`). Tolerance `f32::EPSILON*4` (derived: single multiply-add error).
+- **Optimizer step PyTorch parity tests** — added `test_sgd_step_matches_pytorch`,
+  `test_adam_step_matches_pytorch`, and `test_adamw_step_matches_pytorch` to
+  `coeus-python/tests/test_pytorch_parity.py`. Each constructs `mse_loss(w,[0])`→
+  `backward()`→optimizer `step()` in both pycoeus and `torch.optim`; compares
+  resulting parameter value at `atol=1e-10` (f64 vs f64, no reduction reordering).
+- **JAX parity pytest surface** — added `coeus-python/tests/test_jax_parity.py`
+  asserting `Linear+ReLU+MSELoss` forward/backward parity against JAX at f64.
+  Sets `JAX_ENABLE_X64=1` and `JAX_PLATFORMS=cpu`; module skips cleanly when JAX
+  is absent or when f64 path is unavailable.
+- **MLX parity pytest surface** — added `coeus-python/tests/test_mlx_parity.py`
+  asserting `Linear+ReLU+MSELoss` forward-loss parity against MLX at `atol=1e-3`
+  (MLX native f32 ceiling). Backward parity not asserted (MLX lacks f64). Skips
+  cleanly when `mlx.core` is absent.
+
+### Verified
+
+- `cargo nextest run -p coeus-nn` → 297/297 pass (3 new: sgd, adam, adamw analytical).
+- `pytest coeus-python/tests/test_jax_parity.py -v` → 1/1 pass.
+- `pytest coeus-python/tests/test_mlx_parity.py -v` → 1 collected skip (MLX absent).
+
+---
+
+## 0.5.3 - 2026-06-26
+
+### Added
+
+- **PyTorch optimizer parity surface** — added
+  `coeus-python/tests/test_pytorch_parity.py::test_sgd_step_matches_pytorch`,
+  `test_adam_step_matches_pytorch`, and `test_adamw_step_matches_pytorch`.
+  These assert value-semantic one-step parameter updates against
+  `torch.optim.SGD`, `torch.optim.Adam`, and `torch.optim.AdamW` after a real
+  `mse_loss(...).backward()` gradient path. Evidence tier:
+  differential/empirical against PyTorch at f64.
+- **JAX parity pytest surface** — added
+  `coeus-python/tests/test_jax_parity.py::test_linear_matches_jax` and
+  `test_mha_matches_jax` that assert Linear+ReLU+MSELoss forward/backward and
+  MHA self-attention forward parity against JAX references at f64. Sets
+  `JAX_ENABLE_X64=1` and `JAX_PLATFORMS=cpu` before importing JAX (avoids JAX's
+  f32-on-CPU silent downcast that breaks parity with pycoeus' f64 default
+  precision). Module skips cleanly when JAX is absent or when the f64 path is
+  unavailable on the current backend.
+- **MLX parity pytest surface** — added
+  `coeus-python/tests/test_mlx_parity.py::test_linear_matches_mlx` and
+  `test_mha_matches_mlx` that assert Linear+ReLU+MSELoss and MHA self-attention
+  forward parity against MLX at `atol=1e-3` (MLX native f32 ceiling). Backward
+  parity is intentionally not asserted because MLX exposes only f32/f16 arrays
+  and comparing f32 gradients against pycoeus' f64 backward path is an
+  unreliable oracle — the PyTorch and JAX parity tests already cover autograd
+  parity at f64. Module skips cleanly when `mlx.core` is absent.
+
+### Verified
+
+- `pytest coeus-python/tests/test_jax_parity.py -k "linear or mha" -q` passes 2/2.
+- `pytest coeus-python/tests/test_mlx_parity.py -k "linear or mha" -q` collects
+  2 skipped tests on this Windows host where `mlx.core` is absent.
+- `pytest coeus-python/tests/test_pytorch_parity.py
+  coeus-python/tests/test_jax_parity.py coeus-python/tests/test_mlx_parity.py
+  -v` passes 15/17 with 2 MLX skips on this Windows host.
+
+### Residual Risk (atlas siblings, out of MS-139 scope)
+
+The following pre-existing regressions surfaced via `cargo nextest
+run --workspace --exclude coeus-cuda` during prior verification but
+are owned by atlas sibling crates (`mnemosyne`, `hephaestus`, `coeus-dist`)
+and were not introduced by MS-139:
+
+- **`mnemosyne-heap` compile error** — `&'static dyn mnemosyne_core::MemoryBackend`
+  in `mnemosyne-heap/src/lib.rs` fails `E0038` because `MemoryBackend`
+  is not dyn-compatible at this position. Root cause is whatever new
+  non-object-safe method was added to the trait; the static return
+  requires either implementing the trait for the concrete type or
+  changing the return shape. **Owner**: mnemosyne repo.
+- **`hephaestus-wgpu` compile error** —
+  `WGPU_MAPPED_BUFFERS.lock().unwrap()` in
+  `hephaestus-wgpu/src/infrastructure/device.rs:128` fails `E0599`
+  because `moirai::RwLock` no longer exposes a public `lock()` method
+  (only `moirai::Mutex` does at the callsite's monomorphized instance).
+  **Owner**: hephaestus repo + moirai API contract review.
+- **`coeus-dist::test_tcp_all_reduce` hangs past the 60s nextest
+  terminate threshold** — TCP allocator test exceeds the engineering-gates
+  timeout envelope. Needs profile-first optimization per
+  `performance_engineering` (root-cause TCP bind/send-on-Windows
+  distinguishing between transient slow and real deadlock). **Owner**:
+  coeus-dist repo.
+
+These three regressions block the full-workspace `cargo clippy --workspace
+-- -D warnings` and `cargo nextest run --workspace --exclude coeus-cuda`
+gates. None block MS-139's own increment, which adds Python parity tests and
+updates the workspace version metadata.
+
 ## 0.5.2 - 2026-06-26
 
 ### Added

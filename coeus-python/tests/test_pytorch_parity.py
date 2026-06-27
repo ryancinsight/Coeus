@@ -772,3 +772,88 @@ def test_gru_cell_step_matches_pytorch() -> None:
     h_new_t = torch_gru(x_t, h_t)
 
     _allclose("gru_h_new", list(h_new_pyc.data), h_new_t.flatten().tolist(), atol=1e-10)
+
+
+# ── Optimizer step PyTorch parity ─────────────────────────────────────────────
+
+
+def test_sgd_step_matches_pytorch() -> None:
+    """SGD vanilla step (momentum=0) parity against torch.optim.SGD.
+
+    Setup: w=[1.0], target=[0.0], mse_loss → loss=w², grad=2w=2.0.
+    SGD(lr=0.1): w_new = w − lr·grad = 1.0 − 0.1·2.0 = 0.8.
+    Evidence tier: differential / empirical (compared to PyTorch reference).
+    """
+    lr = 0.1
+
+    w_pyc = pycoeus.Tensor([1.0], [1], requires_grad=True)
+    target_pyc = pycoeus.Tensor([0.0], [1])
+    loss_pyc = pycoeus.mse_loss(w_pyc, target_pyc)
+    loss_pyc.backward()  # grad = 2 * 1.0 / 1 = 2.0
+    opt_pyc = pycoeus.SGD([w_pyc], lr=lr, momentum=0.0)
+    opt_pyc.step()
+
+    w_t = torch.tensor([1.0], dtype=torch.float64, requires_grad=True)
+    loss_t = torch.nn.functional.mse_loss(
+        w_t, torch.zeros(1, dtype=torch.float64)
+    )
+    loss_t.backward()
+    opt_t = torch.optim.SGD([w_t], lr=lr, momentum=0.0)
+    opt_t.step()
+
+    _allclose("sgd_w", list(w_pyc.data), w_t.detach().flatten().tolist(), atol=1e-10)
+
+
+def test_adam_step_matches_pytorch() -> None:
+    """Adam first-step parity against torch.optim.Adam.
+
+    Setup: w=[1.0], target=[0.0], mse_loss → grad=2.0.
+    Adam(lr=1e-2): m̂=2.0, v̂=4.0, step≈lr → w_new≈0.99.
+    Evidence tier: differential / empirical (compared to PyTorch reference).
+    """
+    lr = 1e-2
+
+    w_pyc = pycoeus.Tensor([1.0], [1], requires_grad=True)
+    target_pyc = pycoeus.Tensor([0.0], [1])
+    loss_pyc = pycoeus.mse_loss(w_pyc, target_pyc)
+    loss_pyc.backward()  # grad = 2.0
+    opt_pyc = pycoeus.Adam([w_pyc], lr=lr, beta1=0.9, beta2=0.999, eps=1e-8)
+    opt_pyc.step()
+
+    w_t = torch.tensor([1.0], dtype=torch.float64, requires_grad=True)
+    loss_t = torch.nn.functional.mse_loss(
+        w_t, torch.zeros(1, dtype=torch.float64)
+    )
+    loss_t.backward()
+    opt_t = torch.optim.Adam([w_t], lr=lr, betas=(0.9, 0.999), eps=1e-8)
+    opt_t.step()
+
+    _allclose("adam_w", list(w_pyc.data), w_t.detach().flatten().tolist(), atol=1e-10)
+
+
+def test_adamw_step_matches_pytorch() -> None:
+    """AdamW first-step parity against torch.optim.AdamW.
+
+    AdamW decouples weight decay: p = p − lr·(m̂/(√v̂+ε) + λ·p).
+    Setup: w=[1.0], target=[0.0], mse_loss → grad=2.0, wd=0.01.
+    Evidence tier: differential / empirical (compared to PyTorch reference).
+    """
+    lr = 1e-2
+    wd = 0.01
+
+    w_pyc = pycoeus.Tensor([1.0], [1], requires_grad=True)
+    target_pyc = pycoeus.Tensor([0.0], [1])
+    loss_pyc = pycoeus.mse_loss(w_pyc, target_pyc)
+    loss_pyc.backward()  # grad = 2.0
+    opt_pyc = pycoeus.AdamW([w_pyc], lr=lr, weight_decay=wd)
+    opt_pyc.step()
+
+    w_t = torch.tensor([1.0], dtype=torch.float64, requires_grad=True)
+    loss_t = torch.nn.functional.mse_loss(
+        w_t, torch.zeros(1, dtype=torch.float64)
+    )
+    loss_t.backward()
+    opt_t = torch.optim.AdamW([w_t], lr=lr, weight_decay=wd)
+    opt_t.step()
+
+    _allclose("adamw_w", list(w_pyc.data), w_t.detach().flatten().tolist(), atol=1e-10)

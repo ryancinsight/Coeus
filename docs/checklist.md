@@ -2,21 +2,41 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-138 - JAX and MLX Python parity harnesses [COMPLETE]
+### Current Sprint: MS-139 - Python optimizer and attention parity [COMPLETE]
+**Objective**: Extend the thin `coeus-python` parity harness with real PyTorch
+optimizer-step checks and JAX/MLX MHA forward checks while keeping domain logic
+inside Rust/PyO3 bindings.
+**Target version**: 0.5.3 (patch-class; test-only additions).
+
+- [x] [patch] Added `test_sgd_step_matches_pytorch`: w=[1.0], mse_loss→grad=2.0,
+  SGD(lr=0.1)→w_new=0.8; compared against torch.optim.SGD at atol=1e-10.
+- [x] [patch] Added `test_adam_step_matches_pytorch`: same setup, Adam(lr=1e-2)→w_new≈0.99;
+  compared against torch.optim.Adam at atol=1e-10.
+- [x] [patch] Added `test_adamw_step_matches_pytorch`: AdamW(lr=1e-2, wd=0.01) compared
+  against torch.optim.AdamW; decoupled weight decay verified; atol=1e-10.
+- [x] [patch] Extended JAX and MLX parity harnesses with `MultiHeadAttention`
+  self-attention forward references.
+- [x] Evidence: `pytest coeus-python/tests/test_pytorch_parity.py
+  coeus-python/tests/test_jax_parity.py coeus-python/tests/test_mlx_parity.py
+  -v` passes 15/17 with 2 MLX skips on this Windows host.
+
+### Previous Sprint: MS-138 - JAX and MLX Python parity harnesses [COMPLETE]
 **Objective**: Extend `coeus-python` framework parity coverage beyond PyTorch
 with thin pytest harnesses for JAX and MLX while keeping all domain logic in
 Rust/PyO3 bindings.
 **Target version**: 0.5.2 (patch-class; test coverage).
 
-- [x] [patch] Added `test_jax_parity.py` for `Linear + ReLU + MSELoss`
-  forward/backward parity against JAX at f64.
-- [x] [patch] Added `test_mlx_parity.py` for `Linear + ReLU + MSELoss`
-  forward-loss parity against MLX at f32 when MLX is installed.
+- [x] [patch] Added `test_jax_parity.py` for
+  `Linear + ReLU + MSELoss` forward/backward parity and
+  `MultiHeadAttention` forward parity against JAX at f64.
+- [x] [patch] Added `test_mlx_parity.py` for
+  `Linear + ReLU + MSELoss` forward-loss parity and
+  `MultiHeadAttention` forward parity against MLX at f32 when MLX is installed.
 - [x] [patch] MLX absence now produces one collected skipped test rather than a
   no-tests-collected failure.
-- [x] Evidence: `pytest coeus-python/tests/test_jax_parity.py -v` (1/1 pass);
-  `pytest coeus-python/tests/test_mlx_parity.py -v` (1 collected skip: MLX not
-  installed).
+- [x] Evidence: `pytest coeus-python/tests/test_jax_parity.py -k "linear or
+  mha" -q` (2/2 pass); `pytest coeus-python/tests/test_mlx_parity.py -k
+  "linear or mha" -q` (2 collected skips: MLX not installed).
 
 ### Previous Sprint: MS-137 - TransformerDecoderLayer functional SSOT routing [COMPLETE]
 **Objective**: Complete TransformerDecoderLayer module/functional SSOT in Rust
