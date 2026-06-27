@@ -4,6 +4,16 @@
 
 ### Added
 
+- **LocalCommunicator all-reduce contention fix** — refactored
+  `coeus-dist/src/local.rs::all_reduce` to compute the reduction once on rank 0
+  and publish the reduced payload for all ranks, removing redundant per-rank
+  reduction loops under shared lock.
+- **Collective payload safety guards** — added local staged-payload helpers in
+  `coeus-dist/src/local.rs` (`slot_vec_ref`, `assert_numel`) to provide explicit
+  type and numel validation across local collectives.
+- **Local collective temporary allocation cleanup** — removed zero-filled temp
+  vectors in `broadcast`, `reduce`, and `scatter` by cloning validated staging
+  payloads directly.
 - **Fusion op-tag hierarchy cleanup** — moved binary fused-expression ZST tags
   (`BinaryOpTag`, `Add`, `Sub`, `Mul`, `Div`) into
   `coeus-ops/src/fuse/op_tags/binary.rs` and re-exported them through

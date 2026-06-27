@@ -1,5 +1,17 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-144: LocalCommunicator contention and safety hardening [COMPLETE]
+
+- [x] [patch] Refactored `coeus-dist/src/local.rs::all_reduce` so reduction is
+  computed once on rank 0 and published for all ranks, removing per-rank
+  redundant O(world_size*numel) reduction work under shared lock.
+- [x] [patch] Added staged payload guards via `slot_vec_ref` and
+  `assert_numel` for explicit type/shape validation during collectives.
+- [x] [patch] Removed unnecessary zero-initialized temporary buffers in
+  `broadcast`, `reduce`, and `scatter` by cloning validated payloads.
+- [x] Evidence: `cargo test -p coeus-dist --tests` (20/20 pass);
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-143: Fusion op-tag binary ZST split [COMPLETE]
 
 - [x] [patch] Promoted binary fused-expression tags from the monolithic
