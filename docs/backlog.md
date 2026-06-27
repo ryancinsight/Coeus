@@ -1,5 +1,20 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-148: TcpMesh/collective invariant hardening [COMPLETE]
+
+- [x] [patch] Added `TcpMesh` peer-invariant guardrail via shared
+  `stream_for_peer` (`peer < size`, `peer != rank`, stream established) and
+  routed `send`/`recv` through it for explicit fail-fast diagnostics.
+- [x] [patch] Added `TcpMesh::new` invariant `rank < size`.
+- [x] [patch] Added shared `TcpCommunicator::assert_root` and enforced root
+  bounds in `broadcast`, `reduce`, `gather`, and `scatter`.
+- [x] [patch] Added panic-contract coverage:
+  `test_tcp_broadcast_root_out_of_bounds_panics`,
+  `test_tcp_mesh_send_self_panics`, and `test_tcp_mesh_recv_self_panics`.
+- [x] Evidence: `cargo test -p coeus-dist test_tcp_mesh_ -- --nocapture`;
+  `cargo test -p coeus-dist test_tcp_broadcast_root_out_of_bounds_panics -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-152: FeedForward binding module split [COMPLETE]
 
 - [x] [patch] Promoted `coeus-python/src/nn/feedforward.rs` to

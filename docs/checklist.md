@@ -24,6 +24,22 @@ vertical module tree while preserving the public PyO3 export surface.
   `D:\miniforge3\python.exe -m pytest coeus-python/tests/test_pytorch_parity.py -q`
   (27/27).
 
+### Previous Sprint: MS-148 - TcpMesh/collective invariant hardening [COMPLETE]
+**Objective**: Harden TCP distributed-runtime safety contracts by enforcing peer
+and root invariants explicitly at the mesh/collective boundaries.
+
+- [x] [patch] Added `TcpMesh` shared peer guard path (`stream_for_peer`) and
+  routed `send`/`recv` through explicit peer/rank/stream checks.
+- [x] [patch] Added `rank < size` invariant in `TcpMesh::new`.
+- [x] [patch] Added shared `TcpCommunicator::assert_root` and enforced root
+  bounds in `broadcast`, `reduce`, `gather`, and `scatter`.
+- [x] [patch] Added panic-contract tests
+  (`test_tcp_broadcast_root_out_of_bounds_panics`,
+  `test_tcp_mesh_send_self_panics`, `test_tcp_mesh_recv_self_panics`).
+- [x] Evidence: `cargo test -p coeus-dist test_tcp_mesh_ -- --nocapture`;
+  `cargo test -p coeus-dist test_tcp_broadcast_root_out_of_bounds_panics -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ### Previous Sprint: MS-151 - MaxPool2d/AvgPool2d PyTorch differential parity [COMPLETE]
 **Objective**: Add value-semantic forward+backward differential parity for 2D
 pooling, previously absent from the PyTorch parity suite (only binding smoke tests).
