@@ -4989,3 +4989,97 @@ fn transformer_encoder_stack_2layer_forward_matches_burn() {
         2e-4,
     );
 }
+
+// ── TransformerDecoder structural tests ─────────────────────────────────────
+
+#[test]
+fn transformer_decoder_layer_forward_is_deterministic() {
+    use coeus_autograd::CausalMask;
+    use coeus_nn::{NullMask, TransformerDecoderLayer};
+    const H: usize = 2;
+    let d_model = 4;
+    let d_ff = 8;
+    let dec = TransformerDecoderLayer::<f32, SequentialBackend, H, CausalMask, NullMask>::new(
+        d_model, d_ff, 0.0,
+    );
+    let tgt_data: Vec<f32> = (0..12).map(|i| 0.1 * (i as f32) - 0.5).collect();
+    let mem_data: Vec<f32> = (0..12).map(|i| 0.05 * (i as f32)).collect();
+    let tgt = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 3, d_model], &tgt_data),
+        false,
+    );
+    let memory = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 3, d_model], &mem_data),
+        false,
+    );
+    let out1 = dec.forward_decoder(&tgt, &memory);
+    let out2 = dec.forward_decoder(&tgt, &memory);
+    let v1 = out1.tensor.as_slice().to_vec();
+    let v2 = out2.tensor.as_slice().to_vec();
+    assert_close_rel("dec_layer_deterministic", &v1, &v2, f32::EPSILON);
+}
+
+#[test]
+fn transformer_decoder_stack_2layer_self_consistent() {
+    use coeus_autograd::CausalMask;
+    use coeus_nn::{NullMask, TransformerDecoder};
+    const H: usize = 2;
+    const N: usize = 2;
+    let d_model = 4;
+    let d_ff = 8;
+    let dec = TransformerDecoder::<f32, SequentialBackend, H, N, CausalMask, NullMask>::new(
+        d_model, d_ff, 0.0,
+    );
+    let tgt_data: Vec<f32> = (0..12).map(|i| 0.1 * (i as f32) - 0.5).collect();
+    let mem_data: Vec<f32> = (0..12).map(|i| 0.05 * (i as f32)).collect();
+    let tgt = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 3, d_model], &tgt_data),
+        false,
+    );
+    let memory = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 3, d_model], &mem_data),
+        false,
+    );
+
+    // Stack forward
+    let stack_out = dec.forward_decoder(&tgt, &memory);
+
+    // Manual layer chaining
+    let mid = dec.layers[0].forward_decoder(&tgt, &memory);
+    let manual_out = dec.layers[1].forward_decoder(&mid, &memory);
+
+    let v_stack = stack_out.tensor.as_slice().to_vec();
+    let v_manual = manual_out.tensor.as_slice().to_vec();
+    assert_close_rel(
+        "decoder_stack_2layer_self_consistent",
+        &v_stack,
+        &v_manual,
+        f32::EPSILON * 32.0,
+    );
+}
+
+#[test]
+fn transformer_decoder_forward_uses_self_as_memory() {
+    // dec.forward(x) is defined as dec.forward_decoder(x, x).
+    use coeus_autograd::CausalMask;
+    use coeus_nn::{Module, NullMask, TransformerDecoderLayer};
+    const H: usize = 2;
+    let d_model = 4;
+    let d_ff = 8;
+    let dec = TransformerDecoderLayer::<f32, SequentialBackend, H, CausalMask, NullMask>::new(
+        d_model, d_ff, 0.0,
+    );
+    let data: Vec<f32> = (0..12).map(|i| 0.1 * (i as f32) - 0.5).collect();
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 3, d_model], &data),
+        false,
+    );
+    let v_fwd = dec.forward(&x).tensor.as_slice().to_vec();
+    let v_cross = dec.forward_decoder(&x, &x).tensor.as_slice().to_vec();
+    assert_close_rel(
+        "decoder_forward_vs_forward_decoder_self",
+        &v_fwd,
+        &v_cross,
+        f32::EPSILON * 2.0,
+    );
+}

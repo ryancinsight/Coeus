@@ -134,6 +134,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyRotaryEmbedding>()?;
     m.add_class::<nn::PyFeedForward>()?;
     m.add_class::<nn::PyTransformerDecoderLayer>()?;
+    m.add_class::<nn::PyTransformerDecoder>()?;
     m.add_class::<nn::PyTransformerEncoderLayer>()?;
     m.add_class::<nn::PyTransformerEncoder>()?;
     m.add_class::<nn::PySinusoidalEncoding>()?;

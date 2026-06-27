@@ -454,3 +454,161 @@ def test_transformer_encoder_stack_matches_pytorch() -> None:
         x_t = _torch_preln_layer_fwd(x_t, layer, d_model, num_heads)
 
     _allclose("encoder_stack_fwd", list(out_pyc.data), x_t.flatten().tolist(), atol=_ATOL_ENC)
+
+
+# ── TransformerDecoder parity ────────────────────────────────────────────────
+
+
+def _torch_preln_decoder_layer_fwd(
+    tgt_t: "torch.Tensor",
+    memory_t: "torch.Tensor",
+    layer: "pycoeus.TransformerDecoderLayer",
+    d_model: int,
+    num_heads: int,
+) -> "torch.Tensor":
+    """PyTorch Pre-LN decoder forward from a pycoeus decoder layer's weights.
+
+    Implements:
+      x1  = tgt + self_attn(norm1(tgt))          # causal self-attention
+      x2  = x1  + cross_attn(norm2(x1), memory)  # cross-attention
+      out = x2  + ffn(norm3(x2))                 # position-wise FFN
+
+    MHA biases are zero-initialised in coeus (additive no-ops), excluded here.
+    """
+    import torch.nn.functional as F
+
+    d_ff = layer.d_ff
+    seq_tgt = tgt_t.shape[1]
+
+    sa_wq = list(layer.self_attn.w_q.data)
+    sa_wk = list(layer.self_attn.w_k.data)
+    sa_wv = list(layer.self_attn.w_v.data)
+    sa_wo = list(layer.self_attn.w_o.data)
+    ca_wq = list(layer.cross_attn.w_q.data)
+    ca_wk = list(layer.cross_attn.w_k.data)
+    ca_wv = list(layer.cross_attn.w_v.data)
+    ca_wo = list(layer.cross_attn.w_o.data)
+    gamma1 = list(layer.norm1.weight.data)
+    beta1  = list(layer.norm1.bias.data)
+    gamma2 = list(layer.norm2.weight.data)
+    beta2  = list(layer.norm2.bias.data)
+    gamma3 = list(layer.norm3.weight.data)
+    beta3  = list(layer.norm3.bias.data)
+    wff1 = list(layer.ffn.linear1.weight.data)
+    bff1 = list(layer.ffn.linear1.bias.data) if layer.ffn.linear1.bias else [0.0] * d_ff
+    wff2 = list(layer.ffn.linear2.weight.data)
+    bff2 = list(layer.ffn.linear2.bias.data) if layer.ffn.linear2.bias else [0.0] * d_model
+
+    def _make_mha(wq, wk, wv, wo):
+        mha = torch.nn.MultiheadAttention(
+            embed_dim=d_model, num_heads=num_heads, bias=False,
+            batch_first=True, dtype=torch.float64,
+        )
+        with torch.no_grad():
+            mha.in_proj_weight[:d_model, :] = (
+                torch.tensor(wq, dtype=torch.float64).reshape(d_model, d_model)
+            )
+            mha.in_proj_weight[d_model:2 * d_model, :] = (
+                torch.tensor(wk, dtype=torch.float64).reshape(d_model, d_model)
+            )
+            mha.in_proj_weight[2 * d_model:, :] = (
+                torch.tensor(wv, dtype=torch.float64).reshape(d_model, d_model)
+            )
+            mha.out_proj.weight[:] = (
+                torch.tensor(wo, dtype=torch.float64).reshape(d_model, d_model)
+            )
+        mha.in_proj_bias = None
+        mha.out_proj.bias = None
+        return mha
+
+    sa_mha = _make_mha(sa_wq, sa_wk, sa_wv, sa_wo)
+    ca_mha = _make_mha(ca_wq, ca_wk, ca_wv, ca_wo)
+
+    ln1 = torch.nn.LayerNorm(d_model, eps=1e-5, dtype=torch.float64)
+    ln2 = torch.nn.LayerNorm(d_model, eps=1e-5, dtype=torch.float64)
+    ln3 = torch.nn.LayerNorm(d_model, eps=1e-5, dtype=torch.float64)
+    with torch.no_grad():
+        ln1.weight[:] = torch.tensor(gamma1, dtype=torch.float64)
+        ln1.bias[:] = torch.tensor(beta1, dtype=torch.float64)
+        ln2.weight[:] = torch.tensor(gamma2, dtype=torch.float64)
+        ln2.bias[:] = torch.tensor(beta2, dtype=torch.float64)
+        ln3.weight[:] = torch.tensor(gamma3, dtype=torch.float64)
+        ln3.bias[:] = torch.tensor(beta3, dtype=torch.float64)
+
+    ff1 = torch.nn.Linear(d_model, d_ff, bias=True, dtype=torch.float64)
+    ff2 = torch.nn.Linear(d_ff, d_model, bias=True, dtype=torch.float64)
+    with torch.no_grad():
+        ff1.weight[:] = torch.tensor(wff1, dtype=torch.float64).reshape(d_ff, d_model)
+        ff1.bias[:] = torch.tensor(bff1, dtype=torch.float64)
+        ff2.weight[:] = torch.tensor(wff2, dtype=torch.float64).reshape(d_model, d_ff)
+        ff2.bias[:] = torch.tensor(bff2, dtype=torch.float64)
+
+    # causal mask: True = mask out (future positions)
+    causal = torch.triu(torch.ones(seq_tgt, seq_tgt, dtype=torch.bool), diagonal=1)
+
+    normed1 = ln1(tgt_t)
+    sa_out, _ = sa_mha(normed1, normed1, normed1, attn_mask=causal, need_weights=False)
+    x1 = tgt_t + sa_out
+    ca_out, _ = ca_mha(ln2(x1), memory_t, memory_t, need_weights=False)
+    x2 = x1 + ca_out
+    ffn_out = ff2(F.gelu(ff1(ln3(x2))))
+    return x2 + ffn_out
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "TransformerDecoderLayer"),
+    reason="pycoeus.TransformerDecoderLayer not available",
+)
+def test_transformer_decoder_layer_matches_pytorch() -> None:
+    """Forward parity: TransformerDecoderLayer(d_model=4, H=2, d_ff=8, dropout=0)."""
+    d_model, num_heads = 4, 2
+    batch, seq_tgt, seq_src = 1, 3, 5
+    _ATOL = 2e-4
+
+    dec = pycoeus.TransformerDecoderLayer(d_model=d_model, d_ff=8, num_heads=num_heads)
+    assert dec.num_heads == num_heads
+    assert dec.d_model == d_model
+    assert len(dec.parameters()) == 26
+
+    tgt_data = [0.1 * i - 0.3 for i in range(batch * seq_tgt * d_model)]
+    mem_data = [0.05 * i for i in range(batch * seq_src * d_model)]
+    tgt_pyc = pycoeus.Tensor(tgt_data, [batch, seq_tgt, d_model], requires_grad=False)
+    mem_pyc = pycoeus.Tensor(mem_data, [batch, seq_src, d_model], requires_grad=False)
+    out_pyc = dec.forward(tgt_pyc, mem_pyc)
+
+    tgt_t = torch.tensor(tgt_data, dtype=torch.float64).reshape(batch, seq_tgt, d_model)
+    mem_t = torch.tensor(mem_data, dtype=torch.float64).reshape(batch, seq_src, d_model)
+    out_t = _torch_preln_decoder_layer_fwd(tgt_t, mem_t, dec, d_model, num_heads)
+
+    _allclose("dec_layer_fwd", list(out_pyc.data), out_t.flatten().tolist(), atol=_ATOL)
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "TransformerDecoder"),
+    reason="pycoeus.TransformerDecoder not available",
+)
+def test_transformer_decoder_stack_matches_pytorch() -> None:
+    """Forward parity: TransformerDecoder(d_model=4, H=2, d_ff=8, num_layers=2, dropout=0)."""
+    d_model, num_heads, num_layers = 4, 2, 2
+    batch, seq_tgt, seq_src = 1, 3, 5
+    _ATOL = 2e-4
+
+    dec = pycoeus.TransformerDecoder(
+        d_model=d_model, d_ff=8, num_heads=num_heads, num_layers=num_layers,
+    )
+    assert dec.num_layers == num_layers
+    assert len(dec.parameters()) == 26 * num_layers
+
+    tgt_data = [0.1 * i - 0.3 for i in range(batch * seq_tgt * d_model)]
+    mem_data = [0.05 * i for i in range(batch * seq_src * d_model)]
+    tgt_pyc = pycoeus.Tensor(tgt_data, [batch, seq_tgt, d_model], requires_grad=False)
+    mem_pyc = pycoeus.Tensor(mem_data, [batch, seq_src, d_model], requires_grad=False)
+    out_pyc = dec.forward(tgt_pyc, mem_pyc)
+
+    tgt_t = torch.tensor(tgt_data, dtype=torch.float64).reshape(batch, seq_tgt, d_model)
+    mem_t = torch.tensor(mem_data, dtype=torch.float64).reshape(batch, seq_src, d_model)
+    for layer in dec.layers:
+        tgt_t = _torch_preln_decoder_layer_fwd(tgt_t, mem_t, layer, d_model, num_heads)
+
+    _allclose("decoder_stack_fwd", list(out_pyc.data), tgt_t.flatten().tolist(), atol=_ATOL)
+

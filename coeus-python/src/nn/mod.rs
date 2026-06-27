@@ -33,8 +33,8 @@ pub use conv::{PyConv1d, PyConv2d, PyConv3d};
 pub use dropout::PyDropout;
 pub use embedding::PyEmbedding;
 pub use feedforward::{
-    PyFeedForward, PySinusoidalEncoding, PyTransformerDecoderLayer, PyTransformerEncoder,
-    PyTransformerEncoderLayer,
+    PyFeedForward, PySinusoidalEncoding, PyTransformerDecoder, PyTransformerDecoderLayer,
+    PyTransformerEncoder, PyTransformerEncoderLayer,
 };
 pub use linear::PyLinear;
 pub use module_base::PyModule;
