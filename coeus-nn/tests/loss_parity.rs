@@ -1,6 +1,7 @@
 //! Differential parity for loss functions:
 //!   `mse_loss`, `nll_loss`, `huber_loss`,
-//!   `binary_cross_entropy`, `cosine_embedding_loss`.
+//!   `binary_cross_entropy`, `kl_divergence`, `margin_ranking_loss`,
+//!   `cosine_embedding_loss`.
 //!
 //! (`cross_entropy_loss` is already covered by `nn_parity::test_cross_entropy_loss_parity`.)
 //!
@@ -8,6 +9,8 @@
 //!   mse_loss(x, x) = 0                          (exact — identical tensors)
 //!   nll_loss([[-1,-2,-3]], [0]) = 1.0            (exact — pick index 0, val=-(-1)=1)
 //!   huber_loss([2.0],[0.0], δ=1.0) = 1.5        (exact — δ*(|err|-0.5δ) = 1*(2-0.5))
+//!   kl_divergence(log([0.25,0.75]), [0.25,0.75]) = 0 (exact — P == Q)
+//!   margin_ranking_loss([2,0,1,2], [1,1,1,1], [1,-1,1,-1], m=0.5) = 0.5
 //!   cosine_embedding_loss([1,0],[1,0], y=1) = 0  (exact — cos=1, loss=max(0,0)=0)
 //!
 //! binary_cross_entropy(pred=0.5, target=0) = -log(1-0.5) = log(2) (1-ULP eps)
@@ -18,7 +21,10 @@ use coeus_autograd::Var;
 use coeus_core::{
     CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, SequentialBackend,
 };
-use coeus_nn::{binary_cross_entropy, cosine_embedding_loss, huber_loss, mse_loss, nll_loss};
+use coeus_nn::{
+    binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence, margin_ranking_loss,
+    mse_loss, nll_loss,
+};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
@@ -75,6 +81,29 @@ where
     assert!(
         (bce_val - bce_expected).abs() <= 2.0 * f64::EPSILON * bce_expected,
         "BCE pred=0.5 target=0 → ln(2): got {bce_val:.17}, expected {bce_expected:.17}"
+    );
+
+    // KL divergence is zero when target probabilities match input log-probabilities.
+    let probs = [0.25_f64, 0.75_f64];
+    let log_probs = [probs[0].ln(), probs[1].ln()];
+    let kl_input = v(&[2], &log_probs, backend);
+    let kl_target = v(&[2], &probs, backend);
+    let kl = kl_divergence(&kl_input, &kl_target);
+    assert!(
+        kl.tensor.as_slice()[0].abs() <= 2.0 * f64::EPSILON,
+        "kl_divergence(P || P) = 0"
+    );
+
+    // Margin ranking:
+    // samples 0/1 are inactive, sample 2 has hinge 0.5, sample 3 has hinge 1.5.
+    // mean = (0 + 0 + 0.5 + 1.5) / 4 = 0.5.
+    let mr_i1 = v(&[4], &[2.0, 0.0, 1.0, 2.0], backend);
+    let mr_i2 = v(&[4], &[1.0, 1.0, 1.0, 1.0], backend);
+    let mr = margin_ranking_loss(&mr_i1, &mr_i2, &[1.0, -1.0, 1.0, -1.0], 0.5);
+    assert_eq!(
+        mr.tensor.as_slice(),
+        &[0.5_f64],
+        "margin_ranking_loss mixed active/inactive hinges"
     );
 
     // Cosine embedding loss: identical unit vectors, y=1 → loss=0 exactly.

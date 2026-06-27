@@ -131,6 +131,32 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     coeus_autograd::huber_loss(pred, target, delta)
 }
 
+/// KL divergence loss.
+///
+/// `input` is log-probabilities and `target` is probabilities. Computes
+/// `mean(target * (log(target) - input))`.
+#[inline]
+pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    target: &Var<T, B>,
+) -> Var<T, B> {
+    coeus_autograd::kl_divergence(input, target)
+}
+
+/// Margin ranking loss.
+///
+/// `target` contains `+1` or `-1` labels. Computes
+/// `mean(max(0, -target * (input1 - input2) + margin))`.
+#[inline]
+pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input1: &Var<T, B>,
+    input2: &Var<T, B>,
+    target: &[T],
+    margin: T,
+) -> Var<T, B> {
+    coeus_autograd::margin_ranking_loss(input1, input2, target, margin)
+}
+
 /// Cosine Embedding Loss.
 /// x1: `[N, D]`, x2: `[N, D]`, y: `[N]`, margin: threshold.
 #[inline]

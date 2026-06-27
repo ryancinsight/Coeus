@@ -5774,3 +5774,151 @@ fn bilinear_no_bias_output_shape() {
     let out = bil.bilinear_forward(&x1, &x2);
     assert_eq!(out.tensor.shape(), &[2, 5]);
 }
+
+// ── KL Divergence loss (analytical reference) ────────────────────────────────
+
+#[test]
+fn kl_divergence_zero_when_p_equals_q_analytical() {
+    // When P == Q, KL(P || Q) = 0.
+    // P = [0.5, 0.5], log Q = [log(0.5), log(0.5)]
+    // loss = mean(0.5 * (log(0.5) - log(0.5))) = 0
+    // Evidence tier: analytical derivation.
+    use coeus_nn::kl_divergence;
+
+    let log_q = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(
+            vec![2],
+            &[-std::f32::consts::LN_2, -std::f32::consts::LN_2],
+        ),
+        true,
+    );
+    let p = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &[0.5_f32, 0.5]),
+        false,
+    );
+    let loss = kl_divergence(&log_q, &p);
+    assert_close_rel("kl_div_zero", loss.tensor.as_slice(), &[0.0_f32], 1e-5);
+}
+
+#[test]
+fn kl_divergence_forward_and_backward_match_analytical() {
+    // P = [0.5, 0.5], log Q = [log(0.3), log(0.7)]
+    // loss = mean([
+    //     0.5*(log(0.5) - log(0.3)),
+    //     0.5*(log(0.5) - log(0.7)),
+    // ])
+    //      = (0.5*log(5/3) + 0.5*log(5/7)) / 2
+    //      ≈ 0.04359
+    // grad w.r.t. input = -P / N * grad_out = [-0.25, -0.25] (grad_out = 1, N = 2)
+    // Evidence tier: analytical derivation.
+    use coeus_nn::kl_divergence;
+
+    let log_q = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &[-1.2039728_f32, -0.35667494]),
+        true,
+    );
+    let p = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &[0.5_f32, 0.5]),
+        false,
+    );
+    let loss = kl_divergence(&log_q, &p);
+    let expected_loss =
+        (0.5_f32 * (0.5_f32.ln() - 0.3_f32.ln()) + 0.5_f32 * (0.5_f32.ln() - 0.7_f32.ln())) / 2.0;
+    assert_close_rel(
+        "kl_div_forward",
+        loss.tensor.as_slice(),
+        &[expected_loss],
+        1e-5,
+    );
+
+    loss.backward();
+    let g = log_q.grad.as_ref().unwrap().read();
+    let g_slice = g.as_slice();
+    assert_close_rel("kl_div_grad", g_slice, &[-0.25_f32, -0.25_f32], 1e-5);
+}
+
+// ── Margin Ranking loss (analytical reference) ───────────────────────────────
+
+#[test]
+fn margin_ranking_loss_forward_and_backward_match_analytical() {
+    // input1 = [2, 1], input2 = [1, 2], target = [1, 1], margin = 1
+    // hinge[0] = max(0, -1*(2-1) + 1) = max(0, 0) = 0  (inactive)
+    // hinge[1] = max(0, -1*(1-2) + 1) = max(0, 2) = 2  (active)
+    // loss = mean(0, 2) = 1.0
+    // grad w.r.t. input1 = [-target*mask/N] = [-1*0/2, -1*1/2] = [0, -0.5]
+    // grad w.r.t. input2 = [ target*mask/N] = [ 1*0/2,  1*1/2] = [0,  0.5]
+    // Evidence tier: analytical derivation.
+    use coeus_nn::margin_ranking_loss;
+
+    let input1 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0_f32, 1.0]),
+        true,
+    );
+    let input2 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0_f32, 2.0]),
+        true,
+    );
+    let loss = margin_ranking_loss(&input1, &input2, &[1.0_f32, 1.0], 1.0);
+    assert_close_rel(
+        "margin_ranking_forward",
+        loss.tensor.as_slice(),
+        &[1.0_f32],
+        1e-5,
+    );
+
+    loss.backward();
+    let g1 = input1.grad.as_ref().unwrap().read();
+    assert_close_rel(
+        "margin_ranking_grad1",
+        g1.as_slice(),
+        &[0.0_f32, -0.5],
+        1e-5,
+    );
+    let g2 = input2.grad.as_ref().unwrap().read();
+    assert_close_rel("margin_ranking_grad2", g2.as_slice(), &[0.0_f32, 0.5], 1e-5);
+}
+
+#[test]
+fn margin_ranking_loss_target_minus_one_flips_gradient_sign() {
+    // target = -1 flips the sign: hinge = max(0, (input1 - input2) + margin)
+    // input1 = [2, 1], input2 = [1, 2], target = [-1, -1], margin = 1
+    // hinge[0] = max(0, (2-1) + 1) = max(0, 2) = 2  (active)
+    // hinge[1] = max(0, (1-2) + 1) = max(0, 0) = 0  (inactive)
+    // loss = mean(2, 0) = 1.0
+    // grad w.r.t. input1 = [-(-1)*mask/N] = [1*1/2, 1*0/2] = [0.5, 0]
+    // grad w.r.t. input2 = [ (-1)*mask/N] = [-1*1/2, -1*0/2] = [-0.5, 0]
+    // Evidence tier: analytical derivation.
+    use coeus_nn::margin_ranking_loss;
+
+    let input1 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0_f32, 1.0]),
+        true,
+    );
+    let input2 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0_f32, 2.0]),
+        true,
+    );
+    let loss = margin_ranking_loss(&input1, &input2, &[-1.0_f32, -1.0], 1.0);
+    assert_close_rel(
+        "margin_ranking_neg_forward",
+        loss.tensor.as_slice(),
+        &[1.0_f32],
+        1e-5,
+    );
+
+    loss.backward();
+    let g1 = input1.grad.as_ref().unwrap().read();
+    assert_close_rel(
+        "margin_ranking_neg_grad1",
+        g1.as_slice(),
+        &[0.5_f32, 0.0],
+        1e-5,
+    );
+    let g2 = input2.grad.as_ref().unwrap().read();
+    assert_close_rel(
+        "margin_ranking_neg_grad2",
+        g2.as_slice(),
+        &[-0.5_f32, 0.0],
+        1e-5,
+    );
+}

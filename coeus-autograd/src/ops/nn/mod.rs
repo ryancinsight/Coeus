@@ -22,7 +22,8 @@ pub use conv::{conv1d, conv2d, conv3d, conv_transpose1d, conv_transpose2d};
 pub use dropout::dropout;
 pub use log_softmax::log_softmax;
 pub use loss::{
-    binary_cross_entropy, cosine_embedding_loss, cross_entropy_loss, huber_loss, nll_loss,
+    binary_cross_entropy, cosine_embedding_loss, cross_entropy_loss, huber_loss, kl_divergence,
+    margin_ranking_loss, nll_loss,
 };
 pub use normalization::{batchnorm1d, batchnorm2d, batchnorm3d, layernorm, rmsnorm, BatchNormArgs};
 pub use pool::{avg_pool2d, avg_pool3d, max_pool2d, max_pool3d};
