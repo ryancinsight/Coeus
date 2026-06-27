@@ -1,37 +1,5 @@
 # Changelog
 
-## [Unreleased] 0.5.2
-
-### Added
-
-- **Optimizer step analytical tests** — added `sgd_vanilla_step_analytical`,
-  `adam_first_step_analytical`, and `adamw_first_step_analytical` to
-  `coeus-nn/tests/burn_live_parity.rs`. Each uses `Var::set_grad` to inject a
-  known gradient then asserts the optimizer step matches the closed-form update
-  (SGD: `w−lr·g`; Adam: `w−lr·g/|g|` via zero-init bias-cancel; AdamW: same plus
-  decoupled `lr·λ·p`). Tolerance `f32::EPSILON*4` (derived: single multiply-add error).
-- **Optimizer step PyTorch parity tests** — added `test_sgd_step_matches_pytorch`,
-  `test_adam_step_matches_pytorch`, and `test_adamw_step_matches_pytorch` to
-  `coeus-python/tests/test_pytorch_parity.py`. Each constructs `mse_loss(w,[0])`→
-  `backward()`→optimizer `step()` in both pycoeus and `torch.optim`; compares
-  resulting parameter value at `atol=1e-10` (f64 vs f64, no reduction reordering).
-- **JAX parity pytest surface** — added `coeus-python/tests/test_jax_parity.py`
-  asserting `Linear+ReLU+MSELoss` forward/backward parity against JAX at f64.
-  Sets `JAX_ENABLE_X64=1` and `JAX_PLATFORMS=cpu`; module skips cleanly when JAX
-  is absent or when f64 path is unavailable.
-- **MLX parity pytest surface** — added `coeus-python/tests/test_mlx_parity.py`
-  asserting `Linear+ReLU+MSELoss` forward-loss parity against MLX at `atol=1e-3`
-  (MLX native f32 ceiling). Backward parity not asserted (MLX lacks f64). Skips
-  cleanly when `mlx.core` is absent.
-
-### Verified
-
-- `cargo nextest run -p coeus-nn` → 297/297 pass (3 new: sgd, adam, adamw analytical).
-- `pytest coeus-python/tests/test_jax_parity.py -v` → 1/1 pass.
-- `pytest coeus-python/tests/test_mlx_parity.py -v` → 1 collected skip (MLX absent).
-
----
-
 ## 0.5.3 - 2026-06-26
 
 ### Added
@@ -60,6 +28,10 @@
   unreliable oracle — the PyTorch and JAX parity tests already cover autograd
   parity at f64. Module skips cleanly when `mlx.core` is absent.
 
+### Changed
+
+- Bumped workspace package metadata to `0.5.3`.
+
 ### Verified
 
 - `pytest coeus-python/tests/test_jax_parity.py -k "linear or mha" -q` passes 2/2.
@@ -67,7 +39,7 @@
   2 skipped tests on this Windows host where `mlx.core` is absent.
 - `pytest coeus-python/tests/test_pytorch_parity.py
   coeus-python/tests/test_jax_parity.py coeus-python/tests/test_mlx_parity.py
-  -v` passes 15/17 with 2 MLX skips on this Windows host.
+  -v` passes 18/20 with 2 MLX skips on this Windows host.
 
 ### Residual Risk (atlas siblings, out of MS-139 scope)
 

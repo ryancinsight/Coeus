@@ -1,18 +1,32 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-139: Python optimizer and attention parity [COMPLETE]
+
+- [x] [patch] Added `coeus-python/tests/test_pytorch_parity.py` checks for
+  `pycoeus.SGD`, `pycoeus.Adam`, and `pycoeus.AdamW` one-step updates after a
+  real `mse_loss(...).backward()` gradient path.
+- [x] [patch] Extended JAX and MLX harnesses with `pycoeus.MultiHeadAttention`
+  self-attention forward parity against framework-native references.
+- [x] [patch] Bumped workspace version metadata to `0.5.3`.
+- [x] Evidence: `pytest coeus-python/tests/test_pytorch_parity.py
+  coeus-python/tests/test_jax_parity.py coeus-python/tests/test_mlx_parity.py
+  -v` passes 18/20 with 2 MLX skips on this Windows host.
+
 ## Sprint MS-138: JAX and MLX Python parity harnesses [COMPLETE]
 
 - [x] [patch] Added `coeus-python/tests/test_jax_parity.py`, verifying
   `pycoeus.Linear + relu + mse_loss` forward loss plus input/weight/bias
-  gradients against JAX at f64 with `JAX_ENABLE_X64=1`.
+  gradients against JAX at f64 with `JAX_ENABLE_X64=1`, and
+  `pycoeus.MultiHeadAttention` self-attention forward parity against a JAX
+  reference implementation.
 - [x] [patch] Added `coeus-python/tests/test_mlx_parity.py`, verifying the same
   forward-loss computation against MLX at MLX-native f32 precision when MLX is
-  installed.
+  installed, plus MHA self-attention forward parity in MLX's f32 domain.
 - [x] [patch] Made the MLX test collect and skip when MLX is unavailable, so
   optional-framework absence is explicit and non-failing.
-- [x] Evidence: `pytest coeus-python/tests/test_jax_parity.py -v` (1/1 pass);
-  `pytest coeus-python/tests/test_mlx_parity.py -v` (1 collected skip: MLX not
-  installed).
+- [x] Evidence: `pytest coeus-python/tests/test_jax_parity.py -k "linear or
+  mha" -q` (2/2 pass); `pytest coeus-python/tests/test_mlx_parity.py -k
+  "linear or mha" -q` (2 collected skips: MLX not installed).
 
 ## Sprint MS-137: TransformerDecoderLayer functional SSOT routing [COMPLETE]
 
