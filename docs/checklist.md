@@ -17,6 +17,18 @@ idiomatic `loss.backward()`, and land differential PyTorch parity for InstanceNo
 - [x] Removed stale `coeus-python/tests/pycoeus*.pyd` shadowing artifacts.
 - [x] Evidence: `pytest test_pytorch_parity.py` 24/24; `clippy -D warnings` + `fmt` clean.
 
+### Previous Sprint: MS-146 - LocalCommunicator collective SSOT hardening [COMPLETE]
+**Objective**: Complete local collective hardening by removing unchecked staged
+payload reads, deduplicating staging cleanup, and enforcing scatter payload
+shape contracts.
+
+- [x] [patch] Applied staged payload guards to `all_gather` and `gather`.
+- [x] [patch] Added and reused `clear_staging` helper across local collectives.
+- [x] [patch] Added `scatter` root input `numel` validation and panic contract
+  coverage (`test_local_scatter_mismatched_input_numel_panics`).
+- [x] Evidence: `cargo test -p coeus-dist test_local_ -- --nocapture` passes
+  13/13; `cargo clippy -p coeus-dist --all-targets -- -D warnings` passes.
+
 ### Previous Sprint: MS-144 - LocalCommunicator contention and safety hardening [COMPLETE]
 **Objective**: Resolve a distributed-runtime hotspot by eliminating redundant
 `all_reduce` work across ranks, hardening staged payload validation, and

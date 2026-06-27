@@ -225,6 +225,34 @@ fn test_local_scatter() {
 }
 
 #[test]
+fn test_local_scatter_mismatched_input_numel_panics() {
+    let world_size = 2;
+    let communicators = LocalCommunicator::create_cluster(world_size);
+    let mut handles = vec![];
+
+    for comm in communicators {
+        handles.push(thread::spawn(move || {
+            let backend = SequentialBackend::new();
+            let mut tensor = Tensor::zeros_on([2], &backend);
+            let input = if comm.rank() == 0 {
+                vec![
+                    Tensor::from_slice_on([2], &[1.0f32, 2.0], &backend),
+                    Tensor::from_slice_on([1], &[3.0f32], &backend),
+                ]
+            } else {
+                vec![]
+            };
+            comm.scatter(&mut tensor, &input, 0, &backend);
+        }));
+    }
+
+    assert!(
+        handles.into_iter().any(|h| h.join().is_err()),
+        "scatter with mismatched root input numel should panic on at least one rank"
+    );
+}
+
+#[test]
 fn test_local_all_reduce_sliced() {
     let world_size = 2;
     let communicators = LocalCommunicator::create_cluster(world_size);
