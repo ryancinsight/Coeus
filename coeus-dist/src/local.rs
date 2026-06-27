@@ -114,6 +114,22 @@ impl LocalCommunicator {
     }
 
     #[inline]
+    fn snapshot_payloads<T: Scalar>(
+        bufs: &[Option<Box<dyn std::any::Any + Send>>],
+        size: usize,
+        numel: usize,
+        collective: &'static str,
+    ) -> Vec<Vec<T>> {
+        let mut staged = Vec::with_capacity(size);
+        for (r, slot) in bufs.iter().enumerate().take(size) {
+            let r_data = Self::slot_vec_ref::<T>(slot, r, collective);
+            Self::assert_numel(r_data.len(), numel, r, collective);
+            staged.push(r_data.clone());
+        }
+        staged
+    }
+
+    #[inline]
     fn clear_staging(&self) {
         let mut bufs = self.shared.buffers.lock().unwrap();
         for item in bufs.iter_mut() {
@@ -161,19 +177,18 @@ impl Communicator for LocalCommunicator {
 
         // 3. Perform reduction once on rank 0 and publish it to slot 0.
         if self.rank == 0 {
-            let mut bufs = self.shared.buffers.lock().unwrap();
-            let mut reduced = {
-                let r0_data = Self::slot_vec_ref::<T>(&bufs[0], 0, "all_reduce");
-                Self::assert_numel(r0_data.len(), numel, 0, "all_reduce");
-                r0_data.clone()
+            let staged = {
+                let bufs = self.shared.buffers.lock().unwrap();
+                Self::snapshot_payloads::<T>(&bufs, self.size, numel, "all_reduce")
             };
-            for r in 1..self.size {
-                let r_data = Self::slot_vec_ref::<T>(&bufs[r], r, "all_reduce");
-                Self::assert_numel(r_data.len(), numel, r, "all_reduce");
+            let mut reduced = staged[0].clone();
+            for r_data in staged.iter().skip(1) {
                 for i in 0..numel {
                     reduced[i] = Op::apply(reduced[i], r_data[i]);
                 }
             }
+
+            let mut bufs = self.shared.buffers.lock().unwrap();
             bufs[0] = Some(Box::new(reduced));
         }
 
@@ -272,13 +287,12 @@ impl Communicator for LocalCommunicator {
 
         self.barrier();
 
-        {
+        let staged = {
             let bufs = self.shared.buffers.lock().unwrap();
-            for r in 0..self.size {
-                let r_data = Self::slot_vec_ref::<T>(&bufs[r], r, "all_gather");
-                Self::assert_numel(r_data.len(), numel, r, "all_gather");
-                copy_host_slice_to_tensor(r_data, &mut output[r], backend);
-            }
+            Self::snapshot_payloads::<T>(&bufs, self.size, numel, "all_gather")
+        };
+        for r in 0..self.size {
+            copy_host_slice_to_tensor(&staged[r], &mut output[r], backend);
         }
 
         self.barrier();
@@ -319,14 +333,12 @@ impl Communicator for LocalCommunicator {
         // 3. Perform reduction on root process
         let mut reduced = Vec::new();
         if self.rank == root {
-            let bufs = self.shared.buffers.lock().unwrap();
-            let r0_data = Self::slot_vec_ref::<T>(&bufs[0], 0, "reduce");
-            Self::assert_numel(r0_data.len(), numel, 0, "reduce");
-            reduced = r0_data.clone();
-
-            for r in 1..self.size {
-                let r_data = Self::slot_vec_ref::<T>(&bufs[r], r, "reduce");
-                Self::assert_numel(r_data.len(), numel, r, "reduce");
+            let staged = {
+                let bufs = self.shared.buffers.lock().unwrap();
+                Self::snapshot_payloads::<T>(&bufs, self.size, numel, "reduce")
+            };
+            reduced = staged[0].clone();
+            for r_data in staged.iter().skip(1) {
                 for i in 0..numel {
                     reduced[i] = Op::apply(reduced[i], r_data[i]);
                 }
@@ -383,11 +395,12 @@ impl Communicator for LocalCommunicator {
         self.barrier();
 
         if self.rank == root {
-            let bufs = self.shared.buffers.lock().unwrap();
+            let staged = {
+                let bufs = self.shared.buffers.lock().unwrap();
+                Self::snapshot_payloads::<T>(&bufs, self.size, numel, "gather")
+            };
             for r in 0..self.size {
-                let r_data = Self::slot_vec_ref::<T>(&bufs[r], r, "gather");
-                Self::assert_numel(r_data.len(), numel, r, "gather");
-                copy_host_slice_to_tensor(r_data, &mut output[r], backend);
+                copy_host_slice_to_tensor(&staged[r], &mut output[r], backend);
             }
         }
 
@@ -424,15 +437,23 @@ impl Communicator for LocalCommunicator {
         }
 
         if self.rank == root {
+            let staged_inputs = input
+                .iter()
+                .enumerate()
+                .take(self.size)
+                .map(|(r, in_tensor)| {
+                    assert_eq!(
+                        in_tensor.numel(),
+                        numel,
+                        "LocalCommunicator scatter input numel mismatch on root at rank {}",
+                        r
+                    );
+                    get_tensor_host_data(in_tensor, backend).into_owned()
+                })
+                .collect::<Vec<Vec<T>>>();
+
             let mut bufs = self.shared.buffers.lock().unwrap();
-            for r in 0..self.size {
-                assert_eq!(
-                    input[r].numel(),
-                    numel,
-                    "LocalCommunicator scatter input numel mismatch on root at rank {}",
-                    r
-                );
-                let host_data = get_tensor_host_data(&input[r], backend).into_owned();
+            for (r, host_data) in staged_inputs.into_iter().enumerate() {
                 bufs[r] = Some(Box::new(host_data));
             }
         }
