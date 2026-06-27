@@ -16,6 +16,15 @@ pub type CUfunction = *mut std::ffi::c_void;
 pub type CUstream = *mut std::ffi::c_void;
 
 /// CUDA driver facade for builds compiled without the `cuda` feature.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_cuda::CudaDriver;
+///
+/// // Without the `cuda` feature, no driver is available.
+/// assert!(CudaDriver::get().is_none());
+/// ```
 pub struct CudaDriver;
 
 impl CudaDriver {

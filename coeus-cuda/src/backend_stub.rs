@@ -2,6 +2,16 @@ use crate::storage::CudaStorage;
 use coeus_core::{Backend, ComputeBackend, Layout, Scalar, Storage, StorageMut};
 
 /// Trait mapping CPU scalar types to their CUDA type representation.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_cuda::CudaScalar;
+///
+/// assert_eq!(f32::CUDA_TYPE, "float");
+/// assert_eq!(f64::CUDA_TYPE, "double");
+/// assert_eq!(i32::CUDA_TYPE, "int");
+/// ```
 pub trait CudaScalar: Scalar + leto_ops::Scalar {
     /// CUDA type name string used in NVRTC kernel compilation.
     const CUDA_TYPE: &'static str;
@@ -28,6 +38,21 @@ impl CudaScalar for i32 {
 }
 
 /// CUDA backend compiled without CUDA provider support.
+///
+/// Without the `cuda` feature, `CudaBackend` delegates to the CPU
+/// sequential backend so the workspace builds on machines without a
+/// CUDA toolkit.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_cuda::CudaBackend;
+/// use coeus_core::ComputeBackend;
+///
+/// let backend = CudaBackend::new();
+/// assert_eq!(backend.name(), "cuda-cpu-fallback");
+/// assert_eq!(backend.num_threads(), 1);
+/// ```
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CudaBackend;
 
@@ -35,6 +60,14 @@ impl coeus_core::backend::private::Sealed for CudaBackend {}
 
 impl CudaBackend {
     /// Create a new CUDA backend instance.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_cuda::CudaBackend;
+    ///
+    /// let backend = CudaBackend::new();
+    /// ```
     #[inline]
     pub const fn new() -> Self {
         Self
