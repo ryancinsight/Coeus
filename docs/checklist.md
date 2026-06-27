@@ -24,6 +24,15 @@ vertical module tree while preserving the public PyO3 export surface.
   `D:\miniforge3\python.exe -m pytest coeus-python/tests/test_pytorch_parity.py -q`
   (27/27).
 
+### Previous Sprint: MS-150 - TCP collective root contract completion [COMPLETE]
+**Objective**: Close remaining root-out-of-bounds panic-contract gaps across TCP
+collectives for complete rooted-op safety coverage.
+
+- [x] [patch] Added root-out-of-bounds panic tests for TCP `reduce`, `gather`,
+  and `scatter`.
+- [x] Evidence: `cargo test -p coeus-dist root_out_of_bounds_panics -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ### Previous Sprint: MS-149 - TcpMesh contract completion [COMPLETE]
 **Objective**: Complete TCP mesh contract hardening with defensive slot
 invariants and explicit panic-contract coverage for bounds/constructor errors.

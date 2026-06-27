@@ -1,5 +1,15 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-150: TCP collective root contract completion [COMPLETE]
+
+- [x] [patch] Added explicit panic-contract tests for TCP root out-of-bounds
+  paths across all rooted collectives:
+  `test_tcp_reduce_root_out_of_bounds_panics`,
+  `test_tcp_gather_root_out_of_bounds_panics`,
+  `test_tcp_scatter_root_out_of_bounds_panics`.
+- [x] Evidence: `cargo test -p coeus-dist root_out_of_bounds_panics -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-149: TcpMesh contract completion [COMPLETE]
 
 - [x] [patch] Added defensive duplicate-slot guards in `TcpMesh::new` for both

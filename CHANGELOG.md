@@ -59,6 +59,11 @@
 
 ### Fixed
 
+- **TCP rooted-collective root panic coverage completion** — added
+  `test_tcp_reduce_root_out_of_bounds_panics`,
+  `test_tcp_gather_root_out_of_bounds_panics`, and
+  `test_tcp_scatter_root_out_of_bounds_panics` so `broadcast/reduce/gather/scatter`
+  all have explicit root-bound panic contracts.
 - **TcpMesh duplicate stream-slot guardrails** — `TcpMesh::new` now asserts that
   outgoing and incoming stream slots are unpopulated before assignment, making
   malformed or duplicated peer-handshake paths fail fast.

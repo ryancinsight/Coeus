@@ -593,6 +593,41 @@ fn test_tcp_broadcast_root_out_of_bounds_panics() {
 }
 
 #[test]
+#[should_panic(expected = "collective root out of bounds")]
+fn test_tcp_reduce_root_out_of_bounds_panics() {
+    let addresses = get_free_ports(1);
+    let mesh = TcpMesh::new(0, 1, &addresses);
+    let comm = TcpCommunicator::new(mesh);
+    let backend = SequentialBackend::new();
+    let mut tensor = Tensor::from_slice_on([1], &[1.0f32], &backend);
+    comm.reduce::<f32, _, Sum>(&mut tensor, 1, &backend);
+}
+
+#[test]
+#[should_panic(expected = "collective root out of bounds")]
+fn test_tcp_gather_root_out_of_bounds_panics() {
+    let addresses = get_free_ports(1);
+    let mesh = TcpMesh::new(0, 1, &addresses);
+    let comm = TcpCommunicator::new(mesh);
+    let backend = SequentialBackend::new();
+    let tensor = Tensor::from_slice_on([1], &[1.0f32], &backend);
+    let mut output = vec![Tensor::zeros_on([1], &backend)];
+    comm.gather(&tensor, &mut output, 1, &backend);
+}
+
+#[test]
+#[should_panic(expected = "collective root out of bounds")]
+fn test_tcp_scatter_root_out_of_bounds_panics() {
+    let addresses = get_free_ports(1);
+    let mesh = TcpMesh::new(0, 1, &addresses);
+    let comm = TcpCommunicator::new(mesh);
+    let backend = SequentialBackend::new();
+    let mut tensor = Tensor::zeros_on([1], &backend);
+    let input = vec![Tensor::from_slice_on([1], &[1.0f32], &backend)];
+    comm.scatter(&mut tensor, &input, 1, &backend);
+}
+
+#[test]
 #[should_panic(expected = "send peer must differ from local rank")]
 fn test_tcp_mesh_send_self_panics() {
     let addresses = get_free_ports(1);
