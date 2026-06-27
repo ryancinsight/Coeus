@@ -2,20 +2,29 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-124 - coeus-python documented binding surface [READY]
+### Current Sprint: MS-125 - TransformerEncoderLayer Burn parity + pytest PyTorch scaffold [READY]
+**Objective**: Add TransformerEncoderLayer forward+backward Burn parity tests and
+scaffold the coeus-python pytest harness for PyTorch/JAX/MLX output parity.
+**Target version**: 0.5.2 (patch-class; parity tests).
+
+- [ ] [patch] Add `transformer_encoder_layer_forward_matches_burn` and
+  `transformer_encoder_layer_backward_matches_burn` to `burn_live_parity.rs`
+  (random weights, d_model=4, H=2, seq=3, both forward context and dx/dW grads).
+- [ ] [patch] Create `coeus-python/tests/test_pytorch_parity.py` pytest module
+  with at least one `test_linear_matches_pytorch` and `test_mha_matches_pytorch`
+  using maturin-developed wheel; assert allclose(coeus_out, torch_out, atol=1e-5).
+- [ ] Evidence: `cargo nextest run -p coeus-nn` (≥270 pass); `pytest coeus-python/tests/test_pytorch_parity.py -v`.
+
+### Previous Sprint: MS-124 - coeus-python documented binding surface [COMPLETE]
 **Objective**: Document the remaining public PyO3 binding crate surface before
 enabling crate-wide `#![deny(missing_docs)]` in `coeus-python`.
 **Target version**: 0.5.2 (patch-class; documentation enforcement).
 
-- [ ] [patch] Add Rustdoc for the remaining public `coeus-python` modules,
-  pyclasses, pyfunctions, fields, and enum variants reported by
-  `cargo clippy -p coeus-python --tests -- -D warnings` when
-  `#![deny(missing_docs)]` is enabled.
-- [ ] [patch] Re-enable `#![deny(missing_docs)]` in `coeus-python/src/lib.rs`
-  after the public binding surface is fully documented.
-- [ ] Evidence target: `rustup run nightly cargo clippy -p coeus-python
-  --tests -- -D warnings`; `rustup run nightly cargo doc -p coeus-python
-  --no-deps`; focused PyO3 binding nextest rows.
+- [x] [patch] Added Rustdoc to all 293 previously-undocumented public PyO3 items
+  across 25 files: crate root, all module declarations, pyclass constructors,
+  fields, and all `#[pymethods]` methods. (commit 684ce02)
+- [x] [patch] Enabled `#![deny(missing_docs)]` in `coeus-python/src/lib.rs`.
+- [x] Evidence: `cargo check -p coeus-python` clean; `cargo nextest run -p coeus-python` 72/72 passed.
 
 ### Previous Sprint: MS-123 - MHA backward + Conv generic consolidation [COMPLETE]
 **Objective**: Close the MultiHeadAttention backward parity gap and consolidate Conv1d/2d/3d into a single `Conv<D: ConvDim>` generic.

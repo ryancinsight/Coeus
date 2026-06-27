@@ -4483,3 +4483,174 @@ fn batchnorm3d_training_backward_matches_burn() {
     let dx_c = xv.grad().unwrap();
     assert_close_rel("batchnorm3d_bwd_dx", dx_c.as_slice(), &dx_b, 1e-4);
 }
+
+// ── TransformerEncoderLayer Pre-LN forward matches Burn components ────────────
+//
+// Coeus Pre-LN: x₁ = x + Attn(LN1(x)), x₂ = x₁ + FFN(LN2(x₁)).
+//
+// Burn norm_first=true uses the same Pre-LN order but with reversed norm naming:
+//   norm_2 is applied before MHA, norm_1 is applied before FFN.
+//
+// We assemble individual Burn components (MHA + LN×2 + PWFF) with Coeus weights
+// (transposed where Linear convention differs) and manually compose the Pre-LN
+// forward to sidestep the private fields on TransformerEncoderLayer.
+//
+// Configuration: d_model=4, H=2, d_ff=8, batch=1, seq=3, dropout=0, no bias.
+// Tolerance: 2e-4 (f32 summation over 4-dimensional inner products).
+
+#[test]
+fn transformer_encoder_layer_forward_matches_burn() {
+    use burn::nn::{
+        attention::{MhaInput, MultiHeadAttentionConfig},
+        transformer::PositionWiseFeedForwardConfig,
+        LayerNormConfig,
+    };
+    use burn::{backend::autodiff::Autodiff, module::Param, tensor::TensorData};
+    use coeus_autograd::Var;
+    use coeus_nn::{Module, NullMask, TransformerEncoderLayer};
+
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+    let (batch, seq, d_model, d_ff) = (1usize, 3, 4, 8);
+
+    // Utility: transpose a matrix stored row-major [rows × cols] → [cols × rows].
+    let transpose = |w: &[f32], rows: usize, cols: usize| -> Vec<f32> {
+        let mut t = vec![0f32; rows * cols];
+        for i in 0..rows {
+            for j in 0..cols {
+                t[j * rows + i] = w[i * cols + j];
+            }
+        }
+        t
+    };
+
+    // ── Coeus layer (H=2, dropout=0, bias=false for MHA to simplify) ──
+    let mut layer =
+        TransformerEncoderLayer::<f32, SequentialBackend, 2, NullMask>::new(d_model, d_ff, 0.0);
+    // Set MHA biases to None (Coeus initializes them to zeros anyway;
+    // Burn MHA will have no bias, making both equivalent since 0 + x = x).
+    layer.self_attn.b_q = None;
+    layer.self_attn.b_k = None;
+    layer.self_attn.b_v = None;
+    layer.self_attn.b_o = None;
+
+    // Input: [batch=1, seq=3, d_model=4].
+    let input_data: Vec<f32> = (0..batch * seq * d_model)
+        .map(|i| (i as f32) * 0.05 - 0.3)
+        .collect();
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![batch, seq, d_model], &input_data),
+        false,
+    );
+    let out_c = layer.forward(&xv);
+
+    // Extract Coeus weights as slices for Burn setup.
+    let wq = layer.self_attn.w_q.tensor.as_slice().to_vec();
+    let wk = layer.self_attn.w_k.tensor.as_slice().to_vec();
+    let wv = layer.self_attn.w_v.tensor.as_slice().to_vec();
+    let wo = layer.self_attn.w_o.tensor.as_slice().to_vec();
+    let gamma1 = layer.norm1.weight.tensor.as_slice().to_vec();
+    let beta1 = layer.norm1.bias.tensor.as_slice().to_vec();
+    let gamma2 = layer.norm2.weight.tensor.as_slice().to_vec();
+    let beta2 = layer.norm2.bias.tensor.as_slice().to_vec();
+    let wff1 = layer.ffn.linear1.weight.tensor.as_slice().to_vec(); // [d_ff, d_model]
+    let wff2 = layer.ffn.linear2.weight.tensor.as_slice().to_vec(); // [d_model, d_ff]
+
+    // ── Burn components: manually compose Pre-LN encoder forward ──
+    // Coeus stores W [out, in], computes x @ W^T.
+    // Burn Linear stores W [in, out], computes x @ W.
+    // So burn_weight = transpose(coeus_weight).
+
+    let mut mha_b = MultiHeadAttentionConfig::new(d_model, 2)
+        .with_dropout(0.0)
+        .with_quiet_softmax(false)
+        .init::<AB>(&device);
+    mha_b.query.weight = Param::from_data(
+        TensorData::new(transpose(&wq, d_model, d_model), [d_model, d_model]),
+        &device,
+    );
+    mha_b.key.weight = Param::from_data(
+        TensorData::new(transpose(&wk, d_model, d_model), [d_model, d_model]),
+        &device,
+    );
+    mha_b.value.weight = Param::from_data(
+        TensorData::new(transpose(&wv, d_model, d_model), [d_model, d_model]),
+        &device,
+    );
+    mha_b.output.weight = Param::from_data(
+        TensorData::new(transpose(&wo, d_model, d_model), [d_model, d_model]),
+        &device,
+    );
+    mha_b.query.bias = None;
+    mha_b.key.bias = None;
+    mha_b.value.bias = None;
+    mha_b.output.bias = None;
+
+    // Burn norm_mha ← Coeus norm1 (MHA pre-norm).
+    let mut norm_mha_b = LayerNormConfig::new(d_model).init::<AB>(&device);
+    norm_mha_b.gamma = Param::from_data(TensorData::new(gamma1.clone(), [d_model]), &device);
+    norm_mha_b.beta = Param::from_data(TensorData::new(beta1.clone(), [d_model]), &device);
+
+    // Burn norm_ffn ← Coeus norm2 (FFN pre-norm).
+    let mut norm_ffn_b = LayerNormConfig::new(d_model).init::<AB>(&device);
+    norm_ffn_b.gamma = Param::from_data(TensorData::new(gamma2.clone(), [d_model]), &device);
+    norm_ffn_b.beta = Param::from_data(TensorData::new(beta2.clone(), [d_model]), &device);
+
+    // Burn PWFF: linear_inner [d_model, d_ff] ← transpose(coeus_wff1 [d_ff, d_model]).
+    //            linear_outer [d_ff, d_model]  ← transpose(coeus_wff2 [d_model, d_ff]).
+    let mut pwff_b = PositionWiseFeedForwardConfig::new(d_model, d_ff)
+        .with_dropout(0.0)
+        .init::<AB>(&device);
+    pwff_b.linear_inner.weight = Param::from_data(
+        TensorData::new(transpose(&wff1, d_ff, d_model), [d_model, d_ff]),
+        &device,
+    );
+    pwff_b.linear_outer.weight = Param::from_data(
+        TensorData::new(transpose(&wff2, d_model, d_ff), [d_ff, d_model]),
+        &device,
+    );
+    // Coeus FFN biases are zeros; set Burn biases to zero vectors.
+    let zeros_d = vec![0f32; d_model];
+    let zeros_ff = vec![0f32; d_ff];
+    let bff1 = layer
+        .ffn
+        .linear1
+        .bias
+        .as_ref()
+        .map(|b| b.tensor.as_slice().to_vec());
+    let bff2 = layer
+        .ffn
+        .linear2
+        .bias
+        .as_ref()
+        .map(|b| b.tensor.as_slice().to_vec());
+    pwff_b.linear_inner.bias = Some(Param::from_data(
+        TensorData::new(bff1.unwrap_or(zeros_ff.clone()), [d_ff]),
+        &device,
+    ));
+    pwff_b.linear_outer.bias = Some(Param::from_data(
+        TensorData::new(bff2.unwrap_or(zeros_d.clone()), [d_model]),
+        &device,
+    ));
+
+    // ── Manual Pre-LN forward (mirrors Burn norm_first=true behaviour) ──
+    //   x₁ = x + MHA(norm_mha(x))
+    //   out = x₁ + FFN(norm_ffn(x₁))
+    let xb: BurnTensor<AB, 3> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [batch, seq, d_model]),
+        &device,
+    );
+    let normed_mha = norm_mha_b.forward(xb.clone());
+    let attn_out = mha_b.forward(MhaInput::self_attn(normed_mha)).context;
+    let x_b = xb.clone() + attn_out;
+    let normed_ffn = norm_ffn_b.forward(x_b.clone());
+    let ffn_out = pwff_b.forward(normed_ffn);
+    let out_b = x_b + ffn_out;
+
+    assert_close_rel(
+        "encoder_layer_fwd",
+        out_c.tensor.as_slice(),
+        &out_b.into_data().to_vec::<f32>().unwrap(),
+        2e-4,
+    );
+}
