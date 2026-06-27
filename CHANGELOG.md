@@ -4,6 +4,12 @@
 
 ### Changed
 
+- **coeus-python FeedForward binding topology** — split the monolithic
+  `coeus-python/src/nn/feedforward.rs` file into `feedforward/mod.rs`,
+  `feedforward/positional.rs`, and `feedforward/transformer/*` leaf modules
+  while preserving the public `nn` export surface used by `pycoeus`
+  registration. Evidence tier: compile/lint/docs plus Rust and Python binding
+  tests. ([patch])
 - **Coeus Ops einsum SSOT** — removed duplicate
   `coeus-ops/src/shape/util/einsum.rs` and routed the utility namespace
   `einsum`/`einsum3` re-exports through canonical `shape::einsum`. Evidence

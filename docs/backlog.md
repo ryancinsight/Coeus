@@ -1,5 +1,34 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-152: FeedForward binding module split [COMPLETE]
+
+- [x] [patch] Promoted `coeus-python/src/nn/feedforward.rs` to
+  `coeus-python/src/nn/feedforward/mod.rs` and deleted the flat source file.
+- [x] [patch] Moved positional encoding and transformer layer/stack/seq2seq
+  PyO3 bindings into `feedforward/positional.rs` and
+  `feedforward/transformer/*` leaf modules.
+- [x] [patch] Preserved the public `nn` export surface used by `pycoeus`
+  module registration; this is a topology cleanup, not a Python API change.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-python --check`;
+  `rustup run nightly cargo check -p coeus-python --all-targets`;
+  `rustup run nightly cargo clippy -p coeus-python --all-targets -- -D warnings`;
+  `rustup run nightly cargo nextest run -p coeus-python` (72/72);
+  `rustup run nightly cargo test --doc -p coeus-python` (0/0);
+  `D:\miniforge3\python.exe -m maturin develop -m coeus-python/Cargo.toml`;
+  `D:\miniforge3\python.exe -m pytest coeus-python/tests/test_pytorch_parity.py -q`
+  (27/27).
+
+## Sprint MS-151: MaxPool2d/AvgPool2d PyTorch differential parity [COMPLETE]
+
+- [x] [patch] Added `test_maxpool2d_matches_pytorch`, asserting forward output
+  and input gradient against `torch.nn.functional.max_pool2d` for k=2,s=2 on
+  `[1,2,4,4]` at f64, `atol=1e-10`.
+- [x] [patch] Added `test_avgpool2d_matches_pytorch`, asserting forward output
+  and input gradient against `torch.nn.functional.avg_pool2d` for the same
+  shape and pooling parameters.
+- [x] Evidence tier: differential/empirical; `D:\miniforge3\python.exe -m pytest
+  coeus-python/tests/test_pytorch_parity.py -q` (27/27 pass).
+
 ## Sprint MS-150: Scalar identity and direct libm removal [COMPLETE]
 
 - [x] [patch] Replaced `Scalar`'s external `Num + Zero + One` supertraits with

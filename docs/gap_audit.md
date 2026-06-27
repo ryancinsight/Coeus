@@ -2,6 +2,14 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-017: FeedForward binding monolith~~ **CLOSED**
+**Location**: `coeus-python/src/nn/feedforward.rs`
+**Closed by**: MS-152 — Replaced the flat binding file with
+`coeus-python/src/nn/feedforward/mod.rs`, `feedforward/positional.rs`, and
+`feedforward/transformer/*` leaf modules while preserving `pycoeus` `nn`
+registration exports. Evidence tier: compile/lint/docs plus Rust and Python
+binding tests.
+
 ### ~~G-016: MaxPool2d/AvgPool2d differential parity missing~~ **CLOSED**
 **Location**: `coeus-python/tests/test_pytorch_parity.py`
 **Closed by**: MS-151 — Added `test_maxpool2d_matches_pytorch` and

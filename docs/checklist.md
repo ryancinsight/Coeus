@@ -2,7 +2,29 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-151 - MaxPool2d/AvgPool2d PyTorch differential parity [COMPLETE]
+### Current Sprint: MS-152 - FeedForward binding module split [COMPLETE]
+**Objective**: Replace the monolithic Python FeedForward binding file with a
+vertical module tree while preserving the public PyO3 export surface.
+**Target version**: 0.5.4 (internal topology [patch]).
+
+- [x] [patch] Promoted `coeus-python/src/nn/feedforward.rs` to
+  `coeus-python/src/nn/feedforward/mod.rs`.
+- [x] [patch] Moved positional encoding and transformer layer/stack/seq2seq
+  bindings into `feedforward/positional.rs` and
+  `feedforward/transformer/*` leaf modules.
+- [x] [patch] Preserved the `nn` re-export surface used by `pycoeus`
+  registration for `PyFeedForward`, `PySinusoidalEncoding`, and
+  `PyTransformer*`.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-python --check`;
+  `rustup run nightly cargo check -p coeus-python --all-targets`;
+  `rustup run nightly cargo clippy -p coeus-python --all-targets -- -D warnings`;
+  `rustup run nightly cargo nextest run -p coeus-python` (72/72);
+  `rustup run nightly cargo test --doc -p coeus-python` (0/0);
+  `D:\miniforge3\python.exe -m maturin develop -m coeus-python/Cargo.toml`;
+  `D:\miniforge3\python.exe -m pytest coeus-python/tests/test_pytorch_parity.py -q`
+  (27/27).
+
+### Previous Sprint: MS-151 - MaxPool2d/AvgPool2d PyTorch differential parity [COMPLETE]
 **Objective**: Add value-semantic forward+backward differential parity for 2D
 pooling, previously absent from the PyTorch parity suite (only binding smoke tests).
 **Target version**: 0.5.4 (test-only [patch]).
