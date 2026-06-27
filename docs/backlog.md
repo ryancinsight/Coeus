@@ -1,5 +1,15 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-158: Local zero-numel rooted contract coverage [COMPLETE]
+
+- [x] [patch] Added panic-contract tests proving rooted LocalCommunicator
+  length contracts are enforced even when `numel == 0`:
+  `test_local_all_gather_zero_numel_output_len_mismatch_panics`,
+  `test_local_gather_zero_numel_output_len_mismatch_panics`,
+  `test_local_scatter_zero_numel_input_len_mismatch_panics`.
+- [x] Evidence: `cargo test -p coeus-dist zero_numel_ -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-157: LocalCommunicator invariant hardening [COMPLETE]
 
 - [x] [patch] Added explicit `LocalCommunicator::create_cluster` invariant
