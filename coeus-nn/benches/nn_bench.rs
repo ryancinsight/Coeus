@@ -101,37 +101,35 @@ fn bench_layernorm_forward(c: &mut Criterion) {
     group.finish();
 }
 
-fn bench_conv2d_forward(c: &mut Criterion) {
-    // Workload: [N=8, C_in=16, 32x32] -> Conv2d(16 -> 16, k=3, stride=1, no pad),
-    // bias disabled on both sides for a like-for-like forward comparison.
-    const N: usize = 8;
-    const C: usize = 16;
-    const HW: usize = 32;
-    const K: usize = 3;
+/// One Coeus-vs-Burn Conv2d forward comparison for a square `[n, ch, hw, hw]`
+/// input through `Conv2d(ch -> ch, k, stride 1, no pad, no bias)`. Bias is
+/// disabled on both sides for a like-for-like forward; Coeus `Conv2d::new`
+/// defaults (stride 1, padding 0, dilation 1) match Burn's `Valid` padding.
+fn bench_conv2d_shape(c: &mut Criterion, label: &str, n: usize, ch: usize, hw: usize, k: usize) {
     let device = NdArrayDevice::default();
-    let input_data: Vec<f32> = vec![1.0f32; N * C * HW * HW];
+    let input_data: Vec<f32> = vec![1.0f32; n * ch * hw * hw];
 
-    // Burn: stride 1, Valid padding (== no padding), matching Coeus defaults.
-    let burn_conv = Conv2dConfig::new([C, C], [K, K])
+    let burn_conv = Conv2dConfig::new([ch, ch], [k, k])
         .with_bias(false)
         .with_padding(PaddingConfig2d::Valid)
         .init::<BurnB>(&device);
-    let x_burn: BurnTensor<BurnB, 4> =
-        BurnTensor::from_data(TensorData::new(input_data.clone(), [N, C, HW, HW]), &device);
+    let x_burn: BurnTensor<BurnB, 4> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [n, ch, hw, hw]),
+        &device,
+    );
 
-    // Coeus: Conv2d::new defaults to stride=1, padding=0, dilation=1.
-    let conv_seq = Conv2d::<f32, SequentialBackend>::new(C, C, K, false);
-    let conv_moirai = Conv2d::<f32, MoiraiBackend>::new(C, C, K, false);
+    let conv_seq = Conv2d::<f32, SequentialBackend>::new(ch, ch, k, false);
+    let conv_moirai = Conv2d::<f32, MoiraiBackend>::new(ch, ch, k, false);
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::ones(vec![N, C, HW, HW]),
+        Tensor::<f32, SequentialBackend>::ones(vec![n, ch, hw, hw]),
         false,
     );
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::ones(vec![N, C, HW, HW]),
+        Tensor::<f32, MoiraiBackend>::ones(vec![n, ch, hw, hw]),
         false,
     );
 
-    let mut group = c.benchmark_group("Burn vs Coeus — Conv2d forward (8x16x32x32, k3)");
+    let mut group = c.benchmark_group(label);
     group.bench_function("Burn NdArray", |b| {
         b.iter(|| black_box(burn_conv.forward(black_box(x_burn.clone()))))
     });
@@ -142,6 +140,30 @@ fn bench_conv2d_forward(c: &mut Criterion) {
         b.iter(|| black_box(conv_moirai.forward(black_box(&x_moirai))))
     });
     group.finish();
+}
+
+fn bench_conv2d_forward(c: &mut Criterion) {
+    // Small shape: per-output-row input band c_in*kh*w = 16*3*32 ≈ 6 KB is
+    // L1-resident, so the AXPY kernel is bounded by call/dispatch overhead.
+    bench_conv2d_shape(
+        c,
+        "Burn vs Coeus — Conv2d forward (8x16x32x32, k3)",
+        8,
+        16,
+        32,
+        3,
+    );
+    // Large shape: band c_in*kh*w = 128*3*32 ≈ 49 KB spills L1, so cross-channel
+    // input reuse (each input window feeds every output channel) is the lever —
+    // this is the regime that would justify a channel-batched (axpy_rows) tile.
+    bench_conv2d_shape(
+        c,
+        "Burn vs Coeus — Conv2d forward (2x128x32x32, k3)",
+        2,
+        128,
+        32,
+        3,
+    );
 }
 
 criterion_group!(
