@@ -1,5 +1,17 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-161: KL/MarginRanking loss parity coverage [COMPLETE]
+
+- [x] [patch] Added tracked `coeus_autograd::{kl_divergence,
+  margin_ranking_loss}` operations and `coeus_nn` wrapper exports.
+- [x] [patch] Added analytical forward/backward tests for KL divergence and
+  margin ranking loss, including target-sign gradient coverage for margin
+  ranking.
+- [x] [patch] Added sequential and Moirai loss-parity assertions for both losses.
+- [x] Evidence tier: analytical Rust tests; `rustup run nightly cargo nextest run
+  -p coeus-autograd` (35/35) and `rustup run nightly cargo nextest run -p
+  coeus-nn` (305/305).
+
 ## Sprint MS-160: TCP all_gather zero-numel rooted contract coverage [COMPLETE]
 
 - [x] [patch] Added `test_tcp_all_gather_zero_numel_output_len_mismatch_panics`

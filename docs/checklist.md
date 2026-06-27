@@ -2,7 +2,23 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-156 - BCE/Huber loss PyTorch differential parity [COMPLETE]
+### Current Sprint: MS-161 - KL/MarginRanking loss parity coverage [COMPLETE]
+**Objective**: Extend the tracked loss-function surface with KL divergence and
+margin ranking loss entry points, and pin their forward/backward semantics with
+value-semantic Rust tests.
+**Target version**: 0.5.4 ([patch]).
+
+- [x] [patch] Added `kl_divergence` and `margin_ranking_loss` as tracked
+  `coeus_autograd` operations and `coeus_nn` wrapper exports.
+- [x] [patch] Added analytical forward/backward checks for KL divergence
+  (`mean(target * (log(target) - input))`) and margin ranking
+  (`mean(max(0, -target * (input1 - input2) + margin))`).
+- [x] [patch] Added sequential and Moirai loss-parity assertions for both
+  losses in `coeus-nn/tests/loss_parity.rs`.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-autograd`
+  (35/35); `rustup run nightly cargo nextest run -p coeus-nn` (305/305).
+
+### Previous Sprint: MS-156 - BCE/Huber loss PyTorch differential parity [COMPLETE]
 **Objective**: Extend loss-function parity to the binary and regression losses
 (binary_cross_entropy, huber_loss), previously absent from the differential suite.
 **Target version**: 0.5.4 (test-only [patch]).
