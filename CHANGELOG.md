@@ -68,6 +68,14 @@
   Pins the fused log-softmax+NLL path and the softmax-minus-onehot gradient —
   the core classification training signal, previously untested for value-semantic
   parity. Evidence tier: differential/empirical; full suite 29/29. ([patch])
+- **BinaryCrossEntropy / Huber loss PyTorch parity** — added
+  `test_binary_cross_entropy_matches_pytorch` and `test_huber_loss_matches_pytorch`.
+  BCE: probabilities in (0,1) vs `F.binary_cross_entropy` at `atol=1e-9`, pinning
+  the −[t·log p + (1−t)·log(1−p)] forward and (p−t)/(p(1−p)) gradient. Huber
+  (δ=1.0): samples straddling the transition so both the quadratic (|e|≤δ) and
+  linear (|e|>δ) regions and their gradients are exercised vs `F.huber_loss` at
+  `atol=1e-10` (both default mean reduction). Evidence tier: differential/empirical;
+  full suite 31/31. ([patch])
 
 ### Fixed
 

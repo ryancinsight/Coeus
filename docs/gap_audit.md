@@ -2,6 +2,14 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-020: BCE/Huber Python differential parity missing~~ **CLOSED**
+**Location**: `coeus-python/tests/test_pytorch_parity.py`
+**Closed by**: MS-156 — Added `test_binary_cross_entropy_matches_pytorch`
+and `test_huber_loss_matches_pytorch`, asserting scalar losses and prediction
+gradients against `torch.nn.functional.binary_cross_entropy` and
+`torch.nn.functional.huber_loss` at f64. Evidence tier:
+differential/empirical.
+
 ### ~~G-019: SiLU/Mish tests still had existence-only gradient checks~~ **CLOSED**
 **Location**: `coeus-nn/tests/nn_silu_tests.rs`,
 `coeus-nn/tests/nn_mish_tests.rs`
@@ -199,5 +207,6 @@ Evidence tier: differential/empirical (PyTorch f64).
 | G-015 Scalar identity still depended on num-traits/libm | compile/lint/docs + value-semantic tests | **closed MS-150** |
 | G-016 MaxPool2d/AvgPool2d differential parity missing | differential | **closed MS-151** |
 | G-018 CrossEntropy/NLL loss differential parity missing | differential | **closed MS-153** |
+| G-020 BCE/Huber loss differential parity missing | differential | **closed MS-156** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |

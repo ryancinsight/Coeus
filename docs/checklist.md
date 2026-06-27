@@ -2,7 +2,18 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-154 - SiLU/Mish gradient value semantics [COMPLETE]
+### Current Sprint: MS-156 - BCE/Huber loss PyTorch differential parity [COMPLETE]
+**Objective**: Extend loss-function parity to the binary and regression losses
+(binary_cross_entropy, huber_loss), previously absent from the differential suite.
+**Target version**: 0.5.4 (test-only [patch]).
+
+- [x] [patch] `test_binary_cross_entropy_matches_pytorch`: probs in (0,1); loss + dp
+  vs `F.binary_cross_entropy` at atol=1e-9.
+- [x] [patch] `test_huber_loss_matches_pytorch`: δ=1.0, samples spanning quadratic
+  (|e|≤δ) and linear (|e|>δ) regions; loss + dp vs `F.huber_loss` at atol=1e-10.
+- [x] Evidence: `pytest test_pytorch_parity.py` 31/31 pass.
+
+### Previous Sprint: MS-154 - SiLU/Mish gradient value semantics [COMPLETE]
 **Objective**: Replace residual existence-only gradient checks in focused SiLU
 and Mish Rust tests with analytical forward and backward value assertions,
 including module and non-contiguous view paths.

@@ -1598,6 +1598,61 @@ def test_nll_loss_matches_pytorch() -> None:
     _allclose("nll_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
 
 
+# ── Regression/binary loss PyTorch parity (BCE / Huber) (MS-156) ────────────
+
+
+def test_binary_cross_entropy_matches_pytorch() -> None:
+    """Forward and prediction-gradient parity for binary_cross_entropy on [4].
+
+    Differential against ``torch.nn.functional.binary_cross_entropy`` (default
+    mean reduction) at f64, `atol=1e-9`.  ``pred`` are probabilities in (0, 1)
+    held away from the 0/1 extremes so the eps-clamp contract does not diverge
+    from PyTorch's log-clamp.  Pins the −[t·log p + (1−t)·log(1−p)] forward and
+    the (p−t)/(p·(1−p)) gradient.
+    """
+    pred = [0.8, 0.3, 0.6, 0.1]
+    target = [1.0, 0.0, 1.0, 0.0]
+
+    p_pyc = pycoeus.Tensor(pred, [4], requires_grad=True)
+    t_pyc = pycoeus.Tensor(target, [4])
+    loss_pyc = pycoeus.binary_cross_entropy(p_pyc, t_pyc)
+    loss_pyc.backward()
+
+    p_t = torch.tensor(pred, dtype=torch.float64, requires_grad=True)
+    t_t = torch.tensor(target, dtype=torch.float64)
+    loss_t = torch.nn.functional.binary_cross_entropy(p_t, t_t)
+    loss_t.backward()
+
+    _allclose("bce_loss", list(loss_pyc.data), [loss_t.item()], atol=1e-9)
+    _allclose("bce_dx", list(p_pyc.grad), p_t.grad.flatten().tolist(), atol=1e-9)
+
+
+def test_huber_loss_matches_pytorch() -> None:
+    """Forward and prediction-gradient parity for huber_loss(delta=1.0) on [4].
+
+    Differential against ``torch.nn.functional.huber_loss`` (default mean
+    reduction) at f64, `atol=1e-10`.  The four samples straddle the transition:
+    errors −0.2 and −0.5 fall in the quadratic region (|e| ≤ δ) and 2.5, −3.0 in
+    the linear region (|e| > δ), exercising both pieces of the loss and its
+    gradient (e in the quadratic region, δ·sign(e) in the linear region).
+    """
+    pred = [0.0, 2.5, 1.0, -3.0]
+    target = [0.2, 0.0, 1.5, 0.0]
+
+    p_pyc = pycoeus.Tensor(pred, [4], requires_grad=True)
+    t_pyc = pycoeus.Tensor(target, [4])
+    loss_pyc = pycoeus.huber_loss(p_pyc, t_pyc, 1.0)
+    loss_pyc.backward()
+
+    p_t = torch.tensor(pred, dtype=torch.float64, requires_grad=True)
+    t_t = torch.tensor(target, dtype=torch.float64)
+    loss_t = torch.nn.functional.huber_loss(p_t, t_t, delta=1.0)
+    loss_t.backward()
+
+    _allclose("huber_loss", list(loss_pyc.data), [loss_t.item()], atol=1e-10)
+    _allclose("huber_dx", list(p_pyc.grad), p_t.grad.flatten().tolist(), atol=1e-10)
+
+
 # ── Optimizer step parity closure (RMSProp + AdaGrad) (MS-144) ──────────────
 
 
