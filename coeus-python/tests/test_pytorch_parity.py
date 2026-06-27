@@ -612,3 +612,47 @@ def test_transformer_decoder_stack_matches_pytorch() -> None:
 
     _allclose("decoder_stack_fwd", list(out_pyc.data), tgt_t.flatten().tolist(), atol=_ATOL)
 
+
+
+# ── Transformer seq2seq composition test ─────────────────────────────────────
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "Transformer"),
+    reason="pycoeus.Transformer not available",
+)
+def test_transformer_seq2seq_composition() -> None:
+    """Transformer.forward(src, tgt) == encoder.forward(src) → decoder.forward(tgt, memory).
+
+    Confirms the seq2seq chaining is bitwise-identical to manual composition
+    via the stored sub-modules, and that parameter count is 16*E + 26*D.
+    """
+    d_model, num_heads, num_enc, num_dec = 4, 2, 1, 1
+    batch, seq_src, seq_tgt = 1, 5, 3
+
+    t = pycoeus.Transformer(
+        d_model=d_model,
+        d_ff=8,
+        num_heads=num_heads,
+        num_enc_layers=num_enc,
+        num_dec_layers=num_dec,
+    )
+    assert t.num_enc_layers == num_enc
+    assert t.num_dec_layers == num_dec
+    assert t.d_model == d_model
+    assert len(t.parameters()) == 16 * num_enc + 26 * num_dec
+
+    src_data = [0.05 * i for i in range(batch * seq_src * d_model)]
+    tgt_data = [0.1 * i - 0.3 for i in range(batch * seq_tgt * d_model)]
+    src_pyc = pycoeus.Tensor(src_data, [batch, seq_src, d_model], requires_grad=False)
+    tgt_pyc = pycoeus.Tensor(tgt_data, [batch, seq_tgt, d_model], requires_grad=False)
+
+    # Full transformer forward
+    out_t = t.forward(src_pyc, tgt_pyc)
+
+    # Manual composition via stored sub-modules
+    memory = t.encoder.forward(src_pyc)
+    out_manual = t.decoder.forward(tgt_pyc, memory)
+
+    # Same computation path → bitwise identical (tolerance = 1e-12)
+    _allclose("transformer_seq2seq", list(out_t.data), list(out_manual.data), atol=1e-12)

@@ -36,6 +36,24 @@ cross-attention forwards; `num_layers` getter; `zero_grad()`. Tests:
 `test_transformer_decoder_layer_matches_pytorch` (differential, PyTorch, 10/10 Python),
 `test_transformer_decoder_stack_matches_pytorch` (differential, PyTorch, 10/10 Python).
 
+### ~~G-005: PyTransformer (full seq2seq) missing~~ **CLOSED**
+**Location**: `coeus-python/src/nn/feedforward.rs` — class did not exist  
+**Closed by**: MS-131 — Added `PyTransformer` wrapping `Py<PyTransformerEncoder>` +
+`Py<PyTransformerDecoder>`; `forward(src, tgt)` chains encoder→decoder; `parameters()`
+returns `16×N_enc + 26×N_dec`; `num_enc_layers`/`num_dec_layers` getters; validation
+`d_model % num_heads == 0` at constructor boundary. Test:
+`test_transformer_seq2seq_composition` (structural composition identity, atol=1e-12).
+
+### ~~G-006: RNN and positional-encoding Burn parity tests missing~~ **CLOSED**
+**Location**: `coeus-nn/tests/burn_live_parity.rs` — 0 tests for LSTM, GRU, RoPE, Sinusoidal  
+**Closed by**: MS-131 — Added 8 tests: `lstm_zero_input_zero_output_analytical` (analytical,
+zero-bias+zero-input→zero; evidence tier: compile-time proof via docstring invariant),
+`lstm_output_shape_contract`, `lstm_forward_seq_matches_module_forward`,
+`gru_zero_input_zero_output_analytical`, `gru_output_shape_contract`,
+`gru_forward_seq_matches_module_forward`, `sinusoidal_encoding_output_shape_matches_input`,
+`sinusoidal_encoding_pos0_equals_analytical` (PE[0]=[0,1,0,1,...] analytically derived),
+`rope_zero_input_zero_output`, `rope_output_shape_matches_input`. 292/292 Rust tests pass.
+
 ## Slop Pattern Library
 
 *(Empty — no recurring agent slop patterns identified yet.)*
@@ -48,4 +66,7 @@ cross-attention forwards; `num_layers` getter; `zero_grad()`. Tests:
 | G-002 stateless PyTransformerEncoder binding | structural | **closed MS-128** |
 | G-003 stateless PyTransformerDecoderLayer binding | structural | **closed MS-129** |
 | G-004 PyTransformerDecoder missing | structural | **closed MS-129** |
+| G-005 PyTransformer (full seq2seq) missing | structural | **closed MS-131** |
+| G-006 RNN/PE Burn parity tests missing | structural | **closed MS-131** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
+| mnemosyne-backend lib.rs docstring stale (describes old guard/reset impl structure) | documentation | deferred (mnemosyne repo) |

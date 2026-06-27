@@ -59,20 +59,16 @@ impl PyFeedForward {
                     .transpose()?,
             },
         )?;
-        let ffn_init2 =
-            coeus_nn::transformer::ffn::FeedForward::<f64, coeus_core::MoiraiBackend>::new(
-                d_model, d_ff, dropout_p,
-            );
         let linear2 = Py::new(
             py,
             PyLinear {
                 weight: Py::new(
                     py,
                     PyTensor {
-                        inner: ffn_init2.linear2.weight,
+                        inner: ffn_init.linear2.weight,
                     },
                 )?,
-                bias: ffn_init2
+                bias: ffn_init
                     .linear2
                     .bias
                     .map(|v| Py::new(py, PyTensor { inner: v }))
@@ -91,8 +87,6 @@ impl PyFeedForward {
     /// Accepts any rank ≥ 2 input; the standard transformer shape is
     /// `[batch, seq, d_model]`.
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
-        use coeus_nn::transformer::ffn::FeedForward;
-        use coeus_nn::Module;
         let w1 = self
             .linear1
             .bind(py)
@@ -128,12 +122,7 @@ impl PyFeedForward {
         let dropout_p = self.dropout_p;
         let x = input.inner.clone();
         let inner = py.allow_threads(move || {
-            let mut ffn = FeedForward::<f64, coeus_core::MoiraiBackend>::new(1, 1, dropout_p);
-            ffn.linear1.weight = w1;
-            ffn.linear1.bias = b1;
-            ffn.linear2.weight = w2;
-            ffn.linear2.bias = b2;
-            ffn.forward(&x)
+            coeus_nn::feed_forward(&x, &w1, b1.as_ref(), &w2, b2.as_ref(), dropout_p)
         });
         Ok(PyTensor::from_var(inner))
     }
@@ -1636,6 +1625,113 @@ impl PyTransformerDecoder {
         for l in &self.layers {
             l.bind(py).borrow().zero_grad(py);
         }
+    }
+}
+
+// ── Transformer (seq2seq) ────────────────────────────────────────────────────
+
+/// Python-exposed full sequence-to-sequence Transformer.
+///
+/// Composes `TransformerEncoder` and `TransformerDecoder`:
+///
+/// ```python
+/// t = pycoeus.Transformer(d_model=64, d_ff=256, num_heads=4,
+///                          num_enc_layers=2, num_dec_layers=2)
+/// out = t.forward(src, tgt)   # [batch, seq_tgt, d_model]
+/// ```
+#[pyclass(name = "Transformer")]
+pub struct PyTransformer {
+    /// Encoder stack.
+    #[pyo3(get)]
+    pub encoder: Py<PyTransformerEncoder>,
+    /// Decoder stack.
+    #[pyo3(get)]
+    pub decoder: Py<PyTransformerDecoder>,
+    /// Model embedding dimension.
+    #[pyo3(get)]
+    pub d_model: usize,
+    /// Feed-forward hidden dimension.
+    #[pyo3(get)]
+    pub d_ff: usize,
+    /// Number of attention heads.
+    #[pyo3(get)]
+    pub num_heads: usize,
+    /// Dropout probability (0 = disabled).
+    #[pyo3(get)]
+    pub dropout_p: f64,
+}
+
+#[pymethods]
+impl PyTransformer {
+    /// Create a sequence-to-sequence Transformer from encoder/decoder stacks.
+    #[new]
+    #[pyo3(signature = (d_model, d_ff, num_heads=8, num_enc_layers=6, num_dec_layers=6, dropout_p=0.0))]
+    pub fn new(
+        py: Python<'_>,
+        d_model: usize,
+        d_ff: usize,
+        num_heads: usize,
+        num_enc_layers: usize,
+        num_dec_layers: usize,
+        dropout_p: f64,
+    ) -> PyResult<Self> {
+        if num_heads == 0 || d_model == 0 || !d_model.is_multiple_of(num_heads) {
+            return Err(PyValueError::new_err(format!(
+                "Transformer: d_model ({d_model}) must be a positive multiple of num_heads ({num_heads})"
+            )));
+        }
+        let encoder = Py::new(
+            py,
+            PyTransformerEncoder::new(py, d_model, d_ff, num_heads, num_enc_layers, dropout_p)?,
+        )?;
+        let decoder = Py::new(
+            py,
+            PyTransformerDecoder::new(py, d_model, d_ff, num_heads, num_dec_layers, dropout_p)?,
+        )?;
+        Ok(Self {
+            encoder,
+            decoder,
+            d_model,
+            d_ff,
+            num_heads,
+            dropout_p,
+        })
+    }
+
+    /// Number of encoder layers.
+    #[getter]
+    pub fn num_enc_layers(&self, py: Python<'_>) -> usize {
+        self.encoder.bind(py).borrow().num_layers()
+    }
+
+    /// Number of decoder layers.
+    #[getter]
+    pub fn num_dec_layers(&self, py: Python<'_>) -> usize {
+        self.decoder.bind(py).borrow().num_layers()
+    }
+
+    /// Full seq2seq forward pass.
+    ///
+    /// - `src`: `[batch, seq_src, d_model]`
+    /// - `tgt`: `[batch, seq_tgt, d_model]`
+    ///
+    /// Returns `[batch, seq_tgt, d_model]`.
+    pub fn forward(&self, src: &PyTensor, tgt: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+        let memory = self.encoder.bind(py).borrow().forward(src, py)?;
+        self.decoder.bind(py).borrow().forward(tgt, &memory, py)
+    }
+
+    /// Collect all learnable parameters from encoder and decoder.
+    pub fn parameters(&self, py: Python<'_>) -> Vec<Py<PyTensor>> {
+        let mut p = self.encoder.bind(py).borrow().parameters(py);
+        p.extend(self.decoder.bind(py).borrow().parameters(py));
+        p
+    }
+
+    /// Zero all parameter gradients.
+    pub fn zero_grad(&self, py: Python<'_>) {
+        self.encoder.bind(py).borrow().zero_grad(py);
+        self.decoder.bind(py).borrow().zero_grad(py);
     }
 }
 

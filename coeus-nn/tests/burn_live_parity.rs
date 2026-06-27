@@ -616,6 +616,113 @@ fn activation_backward_match_burn() {
     );
 }
 
+// ── Extended activation backward (leaky_relu/softplus/mish) vs Burn autodiff ──
+
+#[test]
+fn activation_backward_extended_match_burn() {
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+    let data = vec![-1.5f32, -0.5, 0.25, 0.5, 1.5, 2.0];
+
+    let coeus_var = || {
+        Var::new(
+            CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data),
+            true,
+        )
+    };
+    let burn_var = || -> BurnTensor<AB, 2> {
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &device).require_grad()
+    };
+    let burn_grad = |xb: &BurnTensor<AB, 2>, grads| {
+        xb.grad(grads).unwrap().into_data().to_vec::<f32>().unwrap()
+    };
+
+    // leaky_relu backward (negative_slope = 0.01)
+    let xv = coeus_var();
+    coeus_autograd::sum(&coeus_autograd::leaky_relu(&xv, 0.01)).backward();
+    let xb = burn_var();
+    let g = burn::tensor::activation::leaky_relu(xb.clone(), 0.01)
+        .sum()
+        .backward();
+    assert_close(
+        "leaky_relu_bwd",
+        xv.grad().unwrap().as_slice(),
+        &burn_grad(&xb, &g),
+    );
+
+    // softplus backward (beta = 1.0)
+    let xv = coeus_var();
+    coeus_autograd::sum(&coeus_autograd::softplus(&xv)).backward();
+    let xb = burn_var();
+    let g = burn::tensor::activation::softplus(xb.clone(), 1.0)
+        .sum()
+        .backward();
+    assert_close(
+        "softplus_bwd",
+        xv.grad().unwrap().as_slice(),
+        &burn_grad(&xb, &g),
+    );
+
+    // mish backward
+    let xv = coeus_var();
+    coeus_autograd::sum(&coeus_autograd::mish(&xv)).backward();
+    let xb = burn_var();
+    let g = burn::tensor::activation::mish(xb.clone()).sum().backward();
+    assert_close(
+        "mish_bwd",
+        xv.grad().unwrap().as_slice(),
+        &burn_grad(&xb, &g),
+    );
+}
+
+// ── Pow backward vs Burn autodiff ─────────────────────────────────────────────
+
+#[test]
+fn pow_backward_matches_burn() {
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+    // pow uses exp(n * ln(x)), so inputs must be positive
+    let data = vec![0.5f32, 1.0, 1.5, 2.0, 3.0, 4.0];
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data),
+        true,
+    );
+    coeus_autograd::sum(&coeus_autograd::pow(&xv, 2.0)).backward();
+    let dx_c = xv.grad().unwrap();
+
+    let xb: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &device).require_grad();
+    let grads = xb.clone().powf_scalar(2.0f32).sum().backward();
+    let dx_b: Vec<f32> = xb.grad(&grads).unwrap().into_data().to_vec().unwrap();
+
+    assert_close("pow_bwd dx", dx_c.as_slice(), &dx_b);
+}
+
+// ── ELU backward vs analytical reference ──────────────────────────────────────
+// Burn 0.16 does not expose an ELU activation, so the gradient is validated
+// against the analytical derivative: 1 for x > 0, exp(x) for x <= 0.
+
+#[test]
+fn elu_backward_matches_analytical() {
+    let data = vec![-2.0f32, -1.0, -0.5, 0.5, 1.0, 2.0];
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data),
+        true,
+    );
+    coeus_autograd::sum(&coeus_autograd::elu(&xv)).backward();
+    let dx_c = xv.grad().unwrap();
+
+    // Analytical ELU gradient: d/dx ELU(x) = 1 if x > 0 else exp(x)
+    let expected: Vec<f32> = data
+        .iter()
+        .map(|&x| if x > 0.0 { 1.0 } else { x.exp() })
+        .collect();
+    assert_close("elu_bwd_analytical", dx_c.as_slice(), &expected);
+}
+
 // ── Sin/Cos backward ──────────────────────────────────────────────────────────
 
 #[test]
@@ -843,6 +950,153 @@ fn probability_loss_forward_and_backward_match_burn() {
             .into_data()
             .to_vec::<f32>()
             .unwrap(),
+    );
+}
+
+// ── NLL loss forward + backward vs analytical reference ────────────────────────
+// Burn 0.16 does not expose a standalone NLL loss; validate against the
+// analytical formula: loss = -mean(log_probs[i, targets[i]]),
+// gradient = -1/N at target indices, 0 elsewhere.
+
+#[test]
+fn nll_loss_forward_backward_match_analytical() {
+    let log_probs_data = vec![
+        -1.2f32, -0.8, -2.1, // sample 0: class 1 selected
+        -0.5, -1.5, -3.0, // sample 1: class 0 selected
+        -2.0, -1.0, -0.7, // sample 2: class 2 selected
+    ];
+    let targets = vec![1usize, 0, 2];
+    let n = 3;
+    let c = 3;
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c], &log_probs_data),
+        true,
+    );
+    let loss_var = coeus_autograd::nll_loss(&xv, &targets);
+    loss_var.backward();
+
+    // Forward: loss = -mean(log_probs[i, targets[i]])
+    let expected_loss: f32 = -log_probs_data
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, &v)| {
+            let sample = idx / c;
+            let class = idx % c;
+            if class == targets[sample] {
+                Some(v)
+            } else {
+                None
+            }
+        })
+        .sum::<f32>()
+        / n as f32;
+    assert_close(
+        "nll_loss_forward",
+        loss_var.tensor.as_slice(),
+        &[expected_loss],
+    );
+
+    // Backward: gradient = -1/N at target indices, 0 elsewhere
+    let mut expected_grad = vec![0.0f32; n * c];
+    for i in 0..n {
+        expected_grad[i * c + targets[i]] = -1.0 / n as f32;
+    }
+    assert_close(
+        "nll_loss_backward",
+        xv.grad().unwrap().as_slice(),
+        &expected_grad,
+    );
+}
+
+// ── Cosine embedding loss forward + backward vs analytical reference ──────────
+// Burn 0.16 does not expose cosine embedding loss; validate against the
+// analytical formula. For y=1: loss += (1 - cos_sim), grad ∝ -(x2 - cos*x1)/norm.
+// For y=-1: loss += max(0, cos - margin), grad ∝ (x2 - cos*x1)/norm if cos > margin.
+
+#[test]
+fn cosine_embedding_loss_forward_backward_match_analytical() {
+    let x1_data = vec![1.0f32, 0.0, 0.0, 1.0, 1.0, 0.0]; // [3, 2]
+    let x2_data = vec![1.0f32, 0.0, 1.0, 1.0, 0.0, 1.0]; // [3, 2]
+    let y = vec![1.0f32, -1.0, 1.0]; // sample 0 similar, 1 dissimilar, 2 similar
+    let margin: f32 = 0.5;
+    let n = 3;
+    let d = 2;
+
+    let x1v = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, d], &x1_data),
+        true,
+    );
+    let x2v = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, d], &x2_data),
+        true,
+    );
+    let loss_var = coeus_autograd::cosine_embedding_loss(&x1v, &x2v, &y, margin);
+    loss_var.backward();
+
+    // Analytical forward
+    let mut expected_loss = 0.0f32;
+    for i in 0..n {
+        let dot = x1_data[i * d] * x2_data[i * d] + x1_data[i * d + 1] * x2_data[i * d + 1];
+        let norm1 = (x1_data[i * d].powi(2) + x1_data[i * d + 1].powi(2)).sqrt();
+        let norm2 = (x2_data[i * d].powi(2) + x2_data[i * d + 1].powi(2)).sqrt();
+        let cos = dot / (norm1 * norm2);
+        if y[i] == 1.0 {
+            expected_loss += 1.0 - cos;
+        } else {
+            let diff = cos - margin;
+            expected_loss += if diff > 0.0 { diff } else { 0.0 };
+        }
+    }
+    expected_loss /= n as f32;
+    assert_close(
+        "cosine_emb_loss_forward",
+        loss_var.tensor.as_slice(),
+        &[expected_loss],
+    );
+
+    // Analytical backward from d cos(x1, x2) / d x:
+    // d/dx1 = (x2 - (dot / ||x1||^2) * x1) / (||x1|| * ||x2||)
+    // d/dx2 = (x1 - (dot / ||x2||^2) * x2) / (||x1|| * ||x2||)
+    let eps = 1e-8f32;
+    let scale = 1.0 / n as f32;
+    let mut expected_g1 = vec![0.0f32; n * d];
+    let mut expected_g2 = vec![0.0f32; n * d];
+    for i in 0..n {
+        let offset = i * d;
+        let dot = x1_data[offset] * x2_data[offset] + x1_data[offset + 1] * x2_data[offset + 1];
+        let norm1_sq = x1_data[offset].powi(2) + x1_data[offset + 1].powi(2);
+        let norm2_sq = x2_data[offset].powi(2) + x2_data[offset + 1].powi(2);
+        let norm1 = norm1_sq.sqrt();
+        let norm2 = norm2_sq.sqrt();
+        let den = (norm1 * norm2).max(eps);
+        let cos = dot / den;
+        let weight = if y[i] == 1.0 {
+            -1.0
+        } else if cos > margin {
+            1.0
+        } else {
+            0.0
+        };
+        let norm1_sq_safe = norm1_sq.max(eps);
+        let norm2_sq_safe = norm2_sq.max(eps);
+        for j in 0..d {
+            let idx = offset + j;
+            expected_g1[idx] =
+                weight * scale * (x2_data[idx] - (dot / norm1_sq_safe) * x1_data[idx]) / den;
+            expected_g2[idx] =
+                weight * scale * (x1_data[idx] - (dot / norm2_sq_safe) * x2_data[idx]) / den;
+        }
+    }
+    assert_close(
+        "cosine_emb_loss_backward_x1",
+        x1v.grad().unwrap().as_slice(),
+        &expected_g1,
+    );
+    assert_close(
+        "cosine_emb_loss_backward_x2",
+        x2v.grad().unwrap().as_slice(),
+        &expected_g2,
     );
 }
 
@@ -5082,4 +5336,209 @@ fn transformer_decoder_forward_uses_self_as_memory() {
         &v_cross,
         f32::EPSILON * 2.0,
     );
+}
+
+// ── LSTM structural tests ─────────────────────────────────────────────────────
+
+#[test]
+fn lstm_zero_input_zero_output_analytical() {
+    // Zero input + zero biases → all hidden states zero.
+    // Proof: gates = x@W_ih.T + b_ih + h@W_hh.T + b_hh; with x=0, h=0, b=0 → gates=0;
+    //        i=f=o=σ(0)=0.5, g=tanh(0)=0; c_new=0, h_new=0; induction completes.
+    // See coeus_nn::rnn::Lstm docstring.
+    use coeus_nn::Lstm;
+    let (batch, seq_len, input_size, hidden_size) = (2, 4, 3, 5);
+    let lstm = Lstm::<f32, SequentialBackend>::new(input_size, hidden_size);
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::zeros_on(
+            [batch, seq_len, input_size],
+            &SequentialBackend::default(),
+        ),
+        false,
+    );
+    let (output, _) = lstm.forward_seq(&x);
+    let v = output.tensor.as_slice().to_vec();
+    assert_eq!(v.len(), batch * seq_len * hidden_size);
+    let expected = vec![0.0f32; v.len()];
+    assert_close_rel("lstm_zero_input", &v, &expected, f32::EPSILON);
+}
+
+#[test]
+fn lstm_output_shape_contract() {
+    use coeus_nn::{Lstm, Module};
+    let (batch, seq_len, input_size, hidden_size) = (2, 5, 4, 8);
+    let lstm = Lstm::<f32, SequentialBackend>::new(input_size, hidden_size);
+    let data: Vec<f32> = (0..batch * seq_len * input_size)
+        .map(|i| 0.01 * i as f32)
+        .collect();
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![batch, seq_len, input_size], &data),
+        false,
+    );
+    let out = lstm.forward(&x);
+    assert_eq!(
+        out.tensor.shape(),
+        &[batch, seq_len, hidden_size],
+        "Lstm output shape mismatch"
+    );
+}
+
+#[test]
+fn lstm_forward_seq_matches_module_forward() {
+    // Module::forward returns forward_seq().0
+    use coeus_nn::{Lstm, Module};
+    let (batch, seq_len, input_size, hidden_size) = (1, 3, 4, 6);
+    let lstm = Lstm::<f32, SequentialBackend>::new(input_size, hidden_size);
+    let data: Vec<f32> = (0..batch * seq_len * input_size)
+        .map(|i| 0.05 * i as f32 - 0.2)
+        .collect();
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![batch, seq_len, input_size], &data),
+        false,
+    );
+    let v_module = lstm.forward(&x).tensor.as_slice().to_vec();
+    let (seq_out, _) = lstm.forward_seq(&x);
+    let v_seq = seq_out.tensor.as_slice().to_vec();
+    assert_close_rel("lstm_fwd_vs_seq_fwd", &v_module, &v_seq, f32::EPSILON * 2.0);
+}
+
+// ── GRU structural tests ──────────────────────────────────────────────────────
+
+#[test]
+fn gru_zero_input_zero_output_analytical() {
+    // Zero input + zero biases → all hidden states zero.
+    // Proof: r=z=σ(0)=0.5, n=tanh(0+0.5·0)=0; h_new=(1−z)·n+z·h=0.
+    // See coeus_nn::rnn::Gru docstring.
+    use coeus_nn::Gru;
+    let (batch, seq_len, input_size, hidden_size) = (2, 3, 4, 6);
+    let gru = Gru::<f32, SequentialBackend>::new(input_size, hidden_size);
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::zeros_on(
+            [batch, seq_len, input_size],
+            &SequentialBackend::default(),
+        ),
+        false,
+    );
+    let (output, _) = gru.forward_seq(&x);
+    let v = output.tensor.as_slice().to_vec();
+    assert_eq!(v.len(), batch * seq_len * hidden_size);
+    let expected = vec![0.0f32; v.len()];
+    assert_close_rel("gru_zero_input", &v, &expected, f32::EPSILON);
+}
+
+#[test]
+fn gru_output_shape_contract() {
+    use coeus_nn::{Gru, Module};
+    let (batch, seq_len, input_size, hidden_size) = (2, 5, 4, 8);
+    let gru = Gru::<f32, SequentialBackend>::new(input_size, hidden_size);
+    let data: Vec<f32> = (0..batch * seq_len * input_size)
+        .map(|i| 0.01 * i as f32)
+        .collect();
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![batch, seq_len, input_size], &data),
+        false,
+    );
+    let out = gru.forward(&x);
+    assert_eq!(
+        out.tensor.shape(),
+        &[batch, seq_len, hidden_size],
+        "Gru output shape mismatch"
+    );
+}
+
+#[test]
+fn gru_forward_seq_matches_module_forward() {
+    use coeus_nn::{Gru, Module};
+    let (batch, seq_len, input_size, hidden_size) = (1, 4, 3, 5);
+    let gru = Gru::<f32, SequentialBackend>::new(input_size, hidden_size);
+    let data: Vec<f32> = (0..batch * seq_len * input_size)
+        .map(|i| 0.05 * i as f32 - 0.3)
+        .collect();
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![batch, seq_len, input_size], &data),
+        false,
+    );
+    let v_module = gru.forward(&x).tensor.as_slice().to_vec();
+    let (seq_out, _) = gru.forward_seq(&x);
+    let v_seq = seq_out.tensor.as_slice().to_vec();
+    assert_close_rel("gru_fwd_vs_seq_fwd", &v_module, &v_seq, f32::EPSILON * 2.0);
+}
+
+// ── SinusoidalEncoding structural tests ──────────────────────────────────────
+
+#[test]
+fn sinusoidal_encoding_output_shape_matches_input() {
+    use coeus_nn::{Module, SinusoidalEncoding};
+    let (batch, seq_len, d_model) = (2, 8, 16);
+    let pe = SinusoidalEncoding::<f32, SequentialBackend>::new(seq_len, d_model);
+    let data: Vec<f32> = (0..batch * seq_len * d_model)
+        .map(|i| 0.01 * i as f32)
+        .collect();
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![batch, seq_len, d_model], &data),
+        false,
+    );
+    let out = pe.forward(&x);
+    assert_eq!(out.tensor.shape(), &[batch, seq_len, d_model]);
+}
+
+#[test]
+fn sinusoidal_encoding_pos0_equals_analytical() {
+    // PE(0, 2i) = sin(0) = 0, PE(0, 2i+1) = cos(0) = 1.
+    // forward(zeros[1,1,4]) = PE[0] = [0, 1, 0, 1].
+    use coeus_nn::{Module, SinusoidalEncoding};
+    let d_model = 4;
+    let pe = SinusoidalEncoding::<f32, SequentialBackend>::new(1, d_model);
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::zeros_on(
+            [1, 1, d_model],
+            &SequentialBackend::default(),
+        ),
+        false,
+    );
+    let out = pe.forward(&x);
+    // pos=0: sin(0)=0, cos(0)=1, sin(0)=0, cos(0)=1
+    let expected = [0.0f32, 1.0, 0.0, 1.0];
+    let v = out.tensor.as_slice().to_vec();
+    assert_close_rel("sinusoidal_pos0", &v, &expected, 1e-6);
+}
+
+// ── RotaryEmbedding structural tests ─────────────────────────────────────────
+
+#[test]
+fn rope_zero_input_zero_output() {
+    // x_rotated = x * cos + rotate_half(x) * sin; zeros → zeros.
+    use coeus_nn::{Module, RotaryEmbedding};
+    let (batch, seq_len, num_heads, d_head) = (1, 4, 2, 8);
+    let rope = RotaryEmbedding::<f32, SequentialBackend>::new(seq_len, d_head, 10000.0);
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::zeros_on(
+            [batch, seq_len, num_heads, d_head],
+            &SequentialBackend::default(),
+        ),
+        false,
+    );
+    let out = rope.forward(&x);
+    let v = out.tensor.as_slice().to_vec();
+    let expected = vec![0.0f32; v.len()];
+    assert_close_rel("rope_zero_input", &v, &expected, f32::EPSILON);
+}
+
+#[test]
+fn rope_output_shape_matches_input() {
+    use coeus_nn::{Module, RotaryEmbedding};
+    let (batch, seq_len, num_heads, d_head) = (2, 6, 4, 8);
+    let rope = RotaryEmbedding::<f32, SequentialBackend>::new(seq_len, d_head, 10000.0);
+    let data: Vec<f32> = (0..batch * seq_len * num_heads * d_head)
+        .map(|i| 0.01 * i as f32)
+        .collect();
+    let x = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(
+            vec![batch, seq_len, num_heads, d_head],
+            &data,
+        ),
+        false,
+    );
+    let out = rope.forward(&x);
+    assert_eq!(out.tensor.shape(), &[batch, seq_len, num_heads, d_head]);
 }

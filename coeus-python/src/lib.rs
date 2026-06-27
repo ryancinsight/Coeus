@@ -137,6 +137,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyTransformerDecoder>()?;
     m.add_class::<nn::PyTransformerEncoderLayer>()?;
     m.add_class::<nn::PyTransformerEncoder>()?;
+    m.add_class::<nn::PyTransformer>()?;
     m.add_class::<nn::PySinusoidalEncoding>()?;
     m.add_class::<nn::PyScaledDotProductAttention>()?;
     m.add_class::<nn::PySequential>()?;

@@ -2,7 +2,38 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-128 - Fix G-002: Stateful PyTransformerEncoder binding [COMPLETE]
+### Current Sprint: MS-131 - PyTransformer seq2seq + RNN/PE Burn parity tests [COMPLETE]
+**Objective**: Add `PyTransformer` full seq2seq Python binding; add LSTM/GRU structural
+Burn parity tests (zero-input analytical, shape contract, forward_seq vs Module::forward);
+add SinusoidalEncoding and RotaryEmbedding structural tests; PyTransformer composition
+parity test.
+**Target version**: 0.5.2 (minor-class; new `PyTransformer` public binding).
+
+- [x] [minor] Added `PyTransformer` to `coeus-python/src/nn/feedforward.rs`: stores
+  `encoder: Py<PyTransformerEncoder>`, `decoder: Py<PyTransformerDecoder>` sub-modules;
+  `new(d_model, d_ff, num_heads, num_enc_layers, num_dec_layers, dropout_p)` delegates
+  to existing constructors (no dispatch macro needed — already handled by sub-modules);
+  `forward(src, tgt)` chains encoder→decoder; `parameters()` flat-maps both;
+  `num_enc_layers`/`num_dec_layers` getters; validated `d_model % num_heads == 0`.
+- [x] [minor] Exported `PyTransformer` from `mod.rs`; registered in `lib.rs`.
+- [x] [patch] Added 3 LSTM structural Burn parity tests: `lstm_zero_input_zero_output_analytical`
+  (analytical: zero-bias + zero-input → zero output by induction), `lstm_output_shape_contract`
+  (shape: [B,T,I] → [B,T,H]), `lstm_forward_seq_matches_module_forward` (API: Module::forward == forward_seq().0).
+- [x] [patch] Added 3 GRU structural Burn parity tests: `gru_zero_input_zero_output_analytical`
+  (same analytical invariant), `gru_output_shape_contract`, `gru_forward_seq_matches_module_forward`.
+- [x] [patch] Added 2 SinusoidalEncoding tests: `sinusoidal_encoding_output_shape_matches_input`,
+  `sinusoidal_encoding_pos0_equals_analytical` (pos=0 → [0,1,0,1,...] analytically derived).
+- [x] [patch] Added 2 RotaryEmbedding tests: `rope_zero_input_zero_output` (zeros → zeros),
+  `rope_output_shape_matches_input`.
+- [x] [patch] Added `test_transformer_seq2seq_composition` to `test_pytorch_parity.py`:
+  asserts `Transformer.forward(src,tgt)` == `encoder.forward(src)` → `decoder.forward(tgt,memory)`;
+  param count == 16*E + 26*D.
+- [x] Fixed pre-existing stale mnemosyne-backend artifact in coeus workspace cache
+  (`cargo clean -p mnemosyne-backend`; mnemosyne-backend compiles correctly in isolation).
+- [x] Evidence: `cargo clippy -p coeus-nn -p coeus-python -- -D warnings` clean;
+  `cargo nextest run -p coeus-nn` 292/292 passed (8 new tests added from 284 baseline).
+
+### Previous Sprint: MS-128 - Fix G-002: Stateful PyTransformerEncoder binding [COMPLETE]
 **Objective**: Refactor `PyTransformerEncoder` to store `Vec<Py<PyTransformerEncoderLayer>>`
 instead of scalars; extract shared `build_from_layer`/`from_rust_layer` inherent methods
 (SSOT with `PyTransformerEncoderLayer::new`); add N-layer Burn and PyTorch parity tests.
@@ -30,6 +61,44 @@ instead of scalars; extract shared `build_from_layer`/`from_rust_layer` inherent
 - [x] [patch] Closed G-002 in `docs/gap_audit.md`.
 - [x] Evidence: `cargo nextest run -p coeus-nn` 111/111 passed;
   `pytest coeus-python/tests/test_pytorch_parity.py -v` 8/8 passed.
+
+### Previous Sprint: MS-131 - Extended activation backward parity [COMPLETE]
+**Objective**: Extend Burn-backed scalar activation backward coverage for
+`coeus_autograd` operations used by Coeus NN modules.
+**Target version**: 0.5.2 (patch-class; parity test coverage).
+
+- [x] [patch] Added Burn autodiff backward parity for `leaky_relu`,
+  `softplus`, `mish`, and scalar `pow`.
+- [x] [patch] Added analytical ELU derivative coverage because Burn 0.16 does
+  not expose an ELU activation oracle.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-nn --check`; `rustup run
+  nightly cargo clippy -p coeus-nn --test burn_live_parity -- -D warnings`;
+  `rustup run nightly cargo nextest run -p coeus-nn --test burn_live_parity
+  activation_backward_extended_match_burn pow_backward_matches_burn
+  elu_backward_matches_analytical` (3/3).
+
+### Previous Sprint: MS-132 - FeedForward functional SSOT routing [COMPLETE]
+**Objective**: Complete FeedForward module/functional SSOT in Rust and thin the
+PyO3 binding path to call core helpers directly, eliminating per-forward module
+reconstruction while preserving parity behavior.
+**Target version**: 0.5.2 (minor-class; additive functional surface + wrapper cleanup).
+
+- [x] [minor] Added and exported Rust-core `coeus_nn::feed_forward(...)` from
+  transformer and crate root exports.
+- [x] [patch] Routed `FeedForward::forward` and `PyFeedForward::forward` through
+  the shared functional helper.
+- [x] [patch] Updated `PyFeedForward::new` to initialize both linear
+  projections from one Rust `FeedForward::new(...)` instance.
+- [x] [patch] Added Rust functional/module parity assertion in
+  `nn_attention_tests::ffn_forward_shape`.
+- [x] [patch] Added Python SSOT parity assertion in
+  `binding_tests_ops::test_feedforward_module` for
+  `ffn.forward(x) == linear2(gelu(linear1(x)))` when `dropout_p=0`.
+- [x] Evidence: `cargo test -p coeus-nn --test nn_attention_tests
+  ffn_forward_shape`; `cargo test -p coeus-python --test binding_tests_ops
+  test_feedforward_module`; `cargo clippy -p coeus-nn --test nn_attention_tests
+  -- -D warnings`; `cargo clippy -p coeus-python --test binding_tests_ops
+  -- -D warnings`.
 
 ### Previous Sprint: MS-130 - Python transformer head validation [COMPLETE]
 **Objective**: Harden Python transformer/MHA construction so invalid
