@@ -1495,6 +1495,57 @@ def test_groupnorm_matches_pytorch() -> None:
     )
 
 
+# ── MaxPool2d / AvgPool2d PyTorch parity (MS-151) ───────────────────────────
+
+
+def test_maxpool2d_matches_pytorch() -> None:
+    """Forward and input-gradient parity: MaxPool2d(k=2, stride=2) on [1, 2, 4, 4].
+
+    Differential against ``torch.nn.functional.max_pool2d`` at f64, atol=1e-10.
+    MaxPool routes the upstream gradient only to the argmax position in each
+    window; the test exercises that routing via ``out.sum().backward()``.
+    """
+    n, c, h, w = 1, 2, 4, 4
+    data = [0.1 * i - 0.7 for i in range(n * c * h * w)]
+
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    out_pyc = pycoeus.MaxPool2d(2, stride=2, padding=0).forward(x_pyc)
+    out_pyc.sum().backward()
+
+    x_t = (
+        torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    )
+    out_t = torch.nn.functional.max_pool2d(x_t, 2, stride=2, padding=0)
+    out_t.sum().backward()
+
+    _allclose("maxpool2d_out", list(out_pyc.data), out_t.flatten().tolist(), atol=1e-10)
+    _allclose("maxpool2d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+def test_avgpool2d_matches_pytorch() -> None:
+    """Forward and input-gradient parity: AvgPool2d(k=2, stride=2) on [1, 2, 4, 4].
+
+    Differential against ``torch.nn.functional.avg_pool2d`` at f64, atol=1e-10.
+    AvgPool distributes the upstream gradient uniformly (1/window_size) across
+    each window; verified via ``out.sum().backward()``.
+    """
+    n, c, h, w = 1, 2, 4, 4
+    data = [0.1 * i - 0.7 for i in range(n * c * h * w)]
+
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    out_pyc = pycoeus.AvgPool2d(2, stride=2, padding=0).forward(x_pyc)
+    out_pyc.sum().backward()
+
+    x_t = (
+        torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    )
+    out_t = torch.nn.functional.avg_pool2d(x_t, 2, stride=2, padding=0)
+    out_t.sum().backward()
+
+    _allclose("avgpool2d_out", list(out_pyc.data), out_t.flatten().tolist(), atol=1e-10)
+    _allclose("avgpool2d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
 # ── Optimizer step parity closure (RMSProp + AdaGrad) (MS-144) ──────────────
 
 

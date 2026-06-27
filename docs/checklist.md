@@ -2,7 +2,18 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-150 - Scalar identity and direct libm removal [COMPLETE]
+### Current Sprint: MS-151 - MaxPool2d/AvgPool2d PyTorch differential parity [COMPLETE]
+**Objective**: Add value-semantic forward+backward differential parity for 2D
+pooling, previously absent from the PyTorch parity suite (only binding smoke tests).
+**Target version**: 0.5.4 (test-only [patch]).
+
+- [x] [patch] `test_maxpool2d_matches_pytorch`: k=2,s=2 on `[1,2,4,4]`; forward +
+  dx vs `F.max_pool2d` at atol=1e-10 (max-routing gradient).
+- [x] [patch] `test_avgpool2d_matches_pytorch`: same vs `F.avg_pool2d`
+  (uniform-distribution gradient).
+- [x] Evidence: `pytest test_pytorch_parity.py` 27/27 pass.
+
+### Previous Sprint: MS-150 - Scalar identity and direct libm removal [COMPLETE]
 **Objective**: Remove Coeus' direct `num-traits`/`libm` scalar dependency path
 without weakening GELU/erf value semantics or the sealed `Scalar` contract.
 **Target version**: 0.5.4 (patch-class; internal dependency and scalar trait cleanup).

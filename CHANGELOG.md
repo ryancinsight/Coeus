@@ -43,6 +43,13 @@
   binding-smoke coverage with value-semantic differential parity. Evidence tier:
   differential/empirical; `D:\miniforge3\python.exe -m pytest
   coeus-python/tests/test_pytorch_parity.py -q` passes 25/25. ([patch])
+- **MaxPool2d / AvgPool2d PyTorch parity** — added
+  `test_maxpool2d_matches_pytorch` and `test_avgpool2d_matches_pytorch`
+  (kernel=2, stride=2 on `[1,2,4,4]`), asserting forward output and input
+  gradient against `torch.nn.functional.{max,avg}_pool2d` at f64, `atol=1e-10`.
+  Covers max-routing (gradient to argmax position) and average-distribution
+  (uniform 1/window) backward paths, previously untested in the differential
+  parity suite. Evidence tier: differential/empirical; full suite 27/27. ([patch])
 
 ### Fixed
 

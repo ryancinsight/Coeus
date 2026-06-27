@@ -2,6 +2,15 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-016: MaxPool2d/AvgPool2d differential parity missing~~ **CLOSED**
+**Location**: `coeus-python/tests/test_pytorch_parity.py`
+**Closed by**: MS-151 — Added `test_maxpool2d_matches_pytorch` and
+`test_avgpool2d_matches_pytorch` (kernel=2, stride=2 on `[1,2,4,4]`), asserting
+forward output and input gradient against `torch.nn.functional.{max,avg}_pool2d`
+at f64, `atol=1e-10`. Exercises the max-routing (gradient to argmax) and
+average-distribution (uniform 1/window) backward paths, previously covered only
+by binding smoke tests. Evidence tier: differential/empirical.
+
 ### ~~G-015: Scalar identity still depended on num-traits/libm~~ **CLOSED**
 **Location**: `Cargo.toml`, `coeus-core/src/dtype/traits.rs`,
 `coeus-core/src/dtype/float/erf.rs`, `coeus-ops/src/sparse/ops.rs`
@@ -164,5 +173,6 @@ Evidence tier: differential/empirical (PyTorch f64).
 | G-013 duplicate einsum implementation under shape::util | compile/lint/docs + value-semantic tests | **closed MS-148** |
 | G-014 GroupNorm Python differential parity missing | differential/empirical | **closed MS-149** |
 | G-015 Scalar identity still depended on num-traits/libm | compile/lint/docs + value-semantic tests | **closed MS-150** |
+| G-016 MaxPool2d/AvgPool2d differential parity missing | differential | **closed MS-151** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |
