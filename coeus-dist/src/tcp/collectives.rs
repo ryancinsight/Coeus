@@ -182,6 +182,22 @@ impl Communicator for TcpCommunicator {
             return;
         }
         let numel = tensor.numel();
+        let local_numel_bytes = (numel as u64).to_le_bytes();
+
+        if rank == root {
+            for other in 0..size {
+                if other == root {
+                    continue;
+                }
+                let mut peer_numel_bytes = [0u8; 8];
+                self.mesh.recv(other, &mut peer_numel_bytes);
+                let peer_numel = u64::from_le_bytes(peer_numel_bytes) as usize;
+                Self::assert_numel("reduce input", other, peer_numel, numel);
+            }
+        } else {
+            self.mesh.send(root, &local_numel_bytes);
+        }
+
         if numel == 0 {
             return;
         }
