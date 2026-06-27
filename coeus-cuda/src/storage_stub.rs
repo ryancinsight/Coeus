@@ -3,6 +3,17 @@ use coeus_core::{
 };
 
 /// CPU-backed storage used when `coeus-cuda` is compiled without CUDA support.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_cuda::CudaStorage;
+/// use coeus_core::Storage;
+///
+/// let storage: CudaStorage<f32> = CudaStorage::new(4);
+/// assert_eq!(storage.len(), 4);
+/// assert_eq!(storage.cu_deviceptr(), 0);
+/// ```
 #[derive(Clone)]
 pub struct CudaStorage<T: Scalar> {
     inner: CpuStorage<T>,
