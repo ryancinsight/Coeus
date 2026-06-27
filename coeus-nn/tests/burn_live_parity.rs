@@ -1062,7 +1062,7 @@ fn cosine_embedding_loss_forward_backward_match_analytical() {
     let scale = 1.0 / n as f32;
     let mut expected_g1 = vec![0.0f32; n * d];
     let mut expected_g2 = vec![0.0f32; n * d];
-    for i in 0..n {
+    for (i, &y_val) in y.iter().enumerate() {
         let offset = i * d;
         let dot = x1_data[offset] * x2_data[offset] + x1_data[offset + 1] * x2_data[offset + 1];
         let norm1_sq = x1_data[offset].powi(2) + x1_data[offset + 1].powi(2);
@@ -1071,7 +1071,7 @@ fn cosine_embedding_loss_forward_backward_match_analytical() {
         let norm2 = norm2_sq.sqrt();
         let den = (norm1 * norm2).max(eps);
         let cos = dot / den;
-        let weight = if y[i] == 1.0 {
+        let weight = if y_val == 1.0 {
             -1.0
         } else if cos > margin {
             1.0
@@ -5352,7 +5352,7 @@ fn lstm_zero_input_zero_output_analytical() {
     let x = Var::new(
         CoeusTensor::<f32, SequentialBackend>::zeros_on(
             [batch, seq_len, input_size],
-            &SequentialBackend::default(),
+            &SequentialBackend::new(),
         ),
         false,
     );
@@ -5415,7 +5415,7 @@ fn gru_zero_input_zero_output_analytical() {
     let x = Var::new(
         CoeusTensor::<f32, SequentialBackend>::zeros_on(
             [batch, seq_len, input_size],
-            &SequentialBackend::default(),
+            &SequentialBackend::new(),
         ),
         false,
     );
@@ -5490,10 +5490,7 @@ fn sinusoidal_encoding_pos0_equals_analytical() {
     let d_model = 4;
     let pe = SinusoidalEncoding::<f32, SequentialBackend>::new(1, d_model);
     let x = Var::new(
-        CoeusTensor::<f32, SequentialBackend>::zeros_on(
-            [1, 1, d_model],
-            &SequentialBackend::default(),
-        ),
+        CoeusTensor::<f32, SequentialBackend>::zeros_on([1, 1, d_model], &SequentialBackend::new()),
         false,
     );
     let out = pe.forward(&x);
@@ -5508,13 +5505,13 @@ fn sinusoidal_encoding_pos0_equals_analytical() {
 #[test]
 fn rope_zero_input_zero_output() {
     // x_rotated = x * cos + rotate_half(x) * sin; zeros → zeros.
-    use coeus_nn::{Module, RotaryEmbedding};
+    use coeus_nn::RotaryEmbedding;
     let (batch, seq_len, num_heads, d_head) = (1, 4, 2, 8);
     let rope = RotaryEmbedding::<f32, SequentialBackend>::new(seq_len, d_head, 10000.0);
     let x = Var::new(
         CoeusTensor::<f32, SequentialBackend>::zeros_on(
             [batch, seq_len, num_heads, d_head],
-            &SequentialBackend::default(),
+            &SequentialBackend::new(),
         ),
         false,
     );
@@ -5526,7 +5523,7 @@ fn rope_zero_input_zero_output() {
 
 #[test]
 fn rope_output_shape_matches_input() {
-    use coeus_nn::{Module, RotaryEmbedding};
+    use coeus_nn::RotaryEmbedding;
     let (batch, seq_len, num_heads, d_head) = (2, 6, 4, 8);
     let rope = RotaryEmbedding::<f32, SequentialBackend>::new(seq_len, d_head, 10000.0);
     let data: Vec<f32> = (0..batch * seq_len * num_heads * d_head)
