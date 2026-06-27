@@ -2,6 +2,13 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-022: Local collective staging mutex covered payload work~~ **CLOSED**
+**Location**: `coeus-dist/src/local.rs`
+**Closed by**: MS-163 — Local collectives now snapshot staged rank payloads
+under the shared staging mutex and perform reductions/output copies after the
+lock is released; root scatter extracts tensor host data before publishing
+payloads. Evidence tier: value-semantic local communicator tests.
+
 ### ~~G-021: KL/MarginRanking tracked loss coverage missing~~ **CLOSED**
 **Location**: `coeus-autograd/src/ops/nn/loss`,
 `coeus-nn/tests/burn_live_parity.rs`, `coeus-nn/tests/loss_parity.rs`

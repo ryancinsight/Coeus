@@ -4,6 +4,11 @@
 
 ### Changed
 
+- **Local collective staging lock scope** — local `all_reduce`, `reduce`,
+  `all_gather`, `gather`, and root `scatter` now snapshot or prepare rank
+  payloads outside the shared staging-board mutex before reduction/copy work,
+  reducing critical-section size while preserving existing value semantics.
+  Evidence tier: value-semantic local communicator tests. ([patch])
 - **coeus-python FeedForward binding topology** — split the monolithic
   `coeus-python/src/nn/feedforward.rs` file into `feedforward/mod.rs`,
   `feedforward/positional.rs`, and `feedforward/transformer/*` leaf modules
@@ -34,7 +39,10 @@
   `SequentialBackend` vs Coeus `MoiraiBackend`. `burn` stays a dev/bench-only
   dependency. Verified: compiles under the bench profile and produces comparable
   measurements (Linear ≈0.46–0.59 ms, LayerNorm ≈0.05–0.06 ms across backends).
-  ([patch])
+  The harness now also covers Conv2d forward (`8x16x32x32`, `16 -> 16`, `k=3`,
+  no bias/padding) across the same three backends. Short local Criterion run:
+  Burn NdArray 2.19 ms, Coeus Sequential 32.83 ms, Coeus Moirai 126.56 ms
+  median; no Conv2d speedup is claimed. ([patch])
 - **KL divergence / MarginRanking loss coverage** — added tracked
   `coeus_autograd` and `coeus_nn` entry points for KL divergence and margin
   ranking losses, plus analytical forward/backward tests and sequential/Moirai
