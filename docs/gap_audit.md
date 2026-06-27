@@ -108,6 +108,7 @@ against torch.optim at atol=1e-10. Evidence tier: analytical (Rust) + differenti
 | G-007 Transformer seq2seq structural parity tests missing | structural | **closed MS-136** |
 | G-008 LSTM/GRU PyTorch parity tests missing | differential | **closed MS-136** |
 | G-009 JAX/MLX Python parity harnesses missing | differential/optional empirical | **closed MS-138** |
-| G-010 Optimizer step correctness unverified | analytical + differential | **closed MS-139** |
+| G-010 Optimizer step correctness unverified | analytical + differential | **closed MS-140** |
+| G-011 Bilinear zero tests | analytical + differential | **closed MS-140** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |

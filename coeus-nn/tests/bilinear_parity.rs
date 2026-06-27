@@ -114,6 +114,35 @@ where
         "Bilinear no-bias([1,2],[3,4]) = [21]"
     );
 
+    // Per-output weights verify the [out, in1, in2] indexing contract:
+    // W[0] is identity, W[1] swaps x2 coordinates, bias=[0.5,-0.5].
+    // x1=[2,3], x2=[4,5] -> [2*4 + 3*5 + 0.5, 2*5 + 3*4 - 0.5].
+    let indexed_bilinear = Bilinear {
+        weight: Var::new(
+            Tensor::from_slice_on(
+                vec![2_usize, 2, 2],
+                &[1.0_f64, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0],
+                backend,
+            ),
+            false,
+        ),
+        bias: Some(Var::new(
+            Tensor::from_slice_on(vec![2_usize], &[0.5_f64, -0.5], backend),
+            false,
+        )),
+        in1_features: 2,
+        in2_features: 2,
+        out_features: 2,
+    };
+    let indexed_x1 = v(&[1, 2], &[2.0, 3.0], backend);
+    let indexed_x2 = v(&[1, 2], &[4.0, 5.0], backend);
+    let indexed_out = indexed_bilinear.bilinear_forward(&indexed_x1, &indexed_x2);
+    assert_eq!(
+        indexed_out.tensor.as_slice(),
+        &[23.5_f64, 21.5],
+        "Bilinear per-output weight indexing"
+    );
+
     // Batch dimension: 2 samples.
     // x1=[1,2; 0,1] (sums=[3,1]), x2=[3,4; 2,0] (sums=[7,2])
     // out[0,k]=21, out[1,k]=2

@@ -857,3 +857,46 @@ def test_adamw_step_matches_pytorch() -> None:
     opt_t.step()
 
     _allclose("adamw_w", list(w_pyc.data), w_t.detach().flatten().tolist(), atol=1e-10)
+
+
+# ── Bilinear PyTorch parity ───────────────────────────────────────────────────
+
+
+def test_bilinear_forward_matches_pytorch() -> None:
+    """Bilinear forward parity against torch.nn.Bilinear.
+
+    Weight layout [out, in1, in2] is identical between pycoeus and PyTorch,
+    so weights are copied flat without transposition.
+    Evidence tier: differential / empirical.
+    """
+    in1, in2, out, batch = 3, 4, 2, 5
+
+    bil = pycoeus.Bilinear(in1, in2, out, bias=True)
+    w_flat = list(bil.weight.data)  # [out*in1*in2] row-major
+    b_flat = list(bil.bias.data)  # [out]
+
+    x1_data = [float(i) * 0.1 for i in range(batch * in1)]
+    x2_data = [float(i) * 0.05 - 0.5 for i in range(batch * in2)]
+
+    # pycoeus forward
+    x1_pyc = pycoeus.Tensor(x1_data, [batch, in1])
+    x2_pyc = pycoeus.Tensor(x2_data, [batch, in2])
+    out_pyc = bil.bilinear_forward(x1_pyc, x2_pyc)
+
+    # PyTorch reference (double precision to match pycoeus f64)
+    torch_bil = torch.nn.Bilinear(in1, in2, out, bias=True).double()
+    with torch.no_grad():
+        torch_bil.weight[:] = torch.tensor(
+            w_flat, dtype=torch.float64
+        ).reshape(out, in1, in2)
+        torch_bil.bias[:] = torch.tensor(b_flat, dtype=torch.float64)
+    x1_t = torch.tensor(x1_data, dtype=torch.float64).reshape(batch, in1)
+    x2_t = torch.tensor(x2_data, dtype=torch.float64).reshape(batch, in2)
+    out_t = torch_bil(x1_t, x2_t)
+
+    _allclose(
+        "bilinear_out",
+        list(out_pyc.data),
+        out_t.flatten().tolist(),
+        atol=1e-10,
+    )

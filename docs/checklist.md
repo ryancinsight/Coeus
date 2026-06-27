@@ -2,7 +2,22 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-139 - Python optimizer and attention parity [COMPLETE]
+### Current Sprint: MS-140 - Bilinear parity indexing coverage [COMPLETE]
+**Objective**: Close the remaining Bilinear parity gap with value-semantic
+per-output weight-indexing checks in the existing Rust Bilinear parity suite
+and Python PyTorch differential parity harness.
+**Target version**: 0.5.3 (patch-class; test-only additions).
+
+- [x] [patch] Added a `bilinear_parity.rs` per-output indexing oracle with
+  identity/swap weights and bias `[0.5, -0.5]`, asserting `[23.5, 21.5]` on
+  both Sequential and Moirai backends.
+- [x] [patch] Added `test_bilinear_forward_matches_pytorch`: `Bilinear(3,4,2)`
+  weight injection against `torch.nn.Bilinear`; layout `[out,in1,in2]` matches
+  directly.
+- [x] Evidence: `cargo nextest run -p coeus-nn --test bilinear_parity` passes
+  2/2; Python Bilinear parity is differential/empirical against PyTorch.
+
+### Previous Sprint: MS-139 - Python optimizer and attention parity [COMPLETE]
 **Objective**: Extend the thin `coeus-python` parity harness with real PyTorch
 optimizer-step checks and JAX/MLX MHA forward checks while keeping domain logic
 inside Rust/PyO3 bindings.

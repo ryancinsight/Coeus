@@ -4,6 +4,25 @@
 
 ### Added
 
+- **Bilinear PyTorch parity test** — added
+  `coeus-python/tests/test_pytorch_parity.py::test_bilinear_forward_matches_pytorch`.
+  Creates `pycoeus.Bilinear(3,4,2)` with Xavier-init weights, copies weight
+  `[out*in1*in2]` flat and bias `[out]` directly into `torch.nn.Bilinear.double()` —
+  the `[out, in1, in2]` layout is identical between pycoeus and PyTorch. Compares
+  `bilinear_forward(x1, x2)` at atol=1e-10 on a batch=5 input.
+  Evidence tier: differential/empirical.
+- **Optimizer step analytical tests** — added
+  `coeus-nn/tests/burn_live_parity.rs::sgd_vanilla_step_analytical` (exact linear
+  update `w_new=w-lr*g`), `adam_first_step_analytical` (t=1 zero-init: m̂=g, v̂=g²,
+  step=lr·g/|g|), and `adamw_first_step_analytical` (Adam step plus decoupled weight
+  decay λ per Loshchilov & Hutter 2019). All use `Var::set_grad` for gradient injection
+  and assert value-semantic correctness at f32::EPSILON*4.0.
+  Evidence tier: closed-form analytical derivation.
+- **Bilinear formula analytical tests** — added
+  `bilinear_output_shape_and_formula_analytical` (W[0]=identity→dot(x1,x2),
+  W[1]=swap; x1=[2,3], x2=[4,5], b=[0.5,-0.5] → out=[23.5, 21.5]; exact integer
+  arithmetic, no floating-point error) and `bilinear_no_bias_output_shape`
+  ([batch,out] contract for shape `[2,5]`). 299/299 Rust tests pass.
 - **PyTorch optimizer parity surface** — added
   `coeus-python/tests/test_pytorch_parity.py::test_sgd_step_matches_pytorch`,
   `test_adam_step_matches_pytorch`, and `test_adamw_step_matches_pytorch`.
