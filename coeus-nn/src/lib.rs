@@ -67,7 +67,8 @@ pub use activation::{
     LeakyReLU, Mish, ReLU, SiLU, Sigmoid, Softplus, Tanh, ELU,
 };
 pub use attention::{
-    AttentionMask, CausalMask, MultiHeadAttention, NullMask, ScaledDotProductAttention,
+    multi_head_attention_cross, AttentionMask, CausalMask, MhaProjectionParams, MultiHeadAttention,
+    NullMask, ScaledDotProductAttention,
 };
 pub use bilinear::{bilinear, Bilinear};
 pub use conv::{

@@ -2,7 +2,31 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-133 - PyTransformer seq2seq + RNN/PE Burn parity tests [COMPLETE]
+### Current Sprint: MS-134 - MHA functional SSOT routing [COMPLETE]
+**Objective**: Complete MultiHeadAttention module/functional SSOT in Rust and
+thin the PyO3 binding path to call core helpers directly, eliminating
+per-forward module reconstruction while preserving self/cross attention parity.
+**Target version**: 0.5.2 (minor-class; additive functional surface + wrapper cleanup).
+
+- [x] [minor] Added and exported Rust-core
+  `coeus_nn::multi_head_attention_cross(...)` plus
+  `coeus_nn::MhaProjectionParams` from attention and crate root exports.
+- [x] [patch] Routed `MultiHeadAttention::forward_cross`,
+  `PyMultiHeadAttention.forward`, and `PyMultiHeadAttention.forward_cross`
+  through the shared functional helper.
+- [x] [patch] Added Rust functional/module parity assertion in
+  `attention::test_mha_cross_attention_shape`.
+- [x] [patch] Added Python SSOT parity assertion in
+  `binding_tests_nn::test_pycoeus_nn` for
+  `mha.forward(x) == mha.forward_cross(x, x, x)`.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-nn --test
+  nn_tests test_mha_cross_attention_shape`; `rustup run nightly cargo nextest
+  run -p coeus-python --test binding_tests_nn test_pycoeus_nn`; `rustup run
+  nightly cargo clippy -p coeus-nn --test nn_tests -- -D warnings`; `rustup
+  run nightly cargo clippy -p coeus-python --test binding_tests_nn -- -D
+  warnings`.
+
+### Previous Sprint: MS-133 - PyTransformer seq2seq + RNN/PE Burn parity tests [COMPLETE]
 **Objective**: Add `PyTransformer` full seq2seq Python binding; add LSTM/GRU structural
 Burn parity tests (zero-input analytical, shape contract, forward_seq vs Module::forward);
 add SinusoidalEncoding and RotaryEmbedding structural tests; PyTransformer composition

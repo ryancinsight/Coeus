@@ -254,7 +254,10 @@ try:
     mha = pycoeus.MultiHeadAttention(d_model=8, num_heads=4)
     x_mha = pycoeus.Tensor([0.1 * i for i in range(40)], [1, 5, 8], requires_grad=True)
     out_mha = mha.forward(x_mha)
+    out_mha_cross = mha.forward_cross(x_mha, x_mha, x_mha)
     assert out_mha.shape == [1, 5, 8], f'MHA self-attention shape is {out_mha.shape}'
+    for a, b in zip(out_mha.data, out_mha_cross.data):
+        assert abs(a - b) < 1e-9, f'MHA self/cross SSOT mismatch: {a} vs {b}'
     out_mha.backward()
     assert x_mha.grad is not None, 'MHA input grad is None'
     assert mha.w_q.grad is not None, 'MHA w_q grad is None'

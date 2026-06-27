@@ -26,6 +26,12 @@
   `PyFeedForward::forward` through this shared helper; and switched
   `PyFeedForward::new` to initialize both linear projections from one Rust
   `FeedForward::new(...)` construction path.
+- **MHA SSOT routing** — added and exported Rust-core
+  `coeus_nn::multi_head_attention_cross(...)` plus
+  `coeus_nn::MhaProjectionParams`; routed
+  `MultiHeadAttention::forward_cross`, `PyMultiHeadAttention.forward`, and
+  `PyMultiHeadAttention.forward_cross` through this shared helper so the Python
+  wrapper no longer reconstructs a temporary Rust module for every call.
 - **SRP backend/autograd layout** — split `coeus-ops` CPU backend dispatch and
   `coeus-autograd` convolution nodes into operation-family leaf modules.
 - **Documented public surfaces** — enforced and fixed `coeus-nn`
@@ -87,6 +93,16 @@
   warnings`.
 - `rustup run nightly cargo clippy -p coeus-python --test binding_tests_ops --
   -D warnings`.
+- `rustup run nightly cargo clippy -p coeus-nn --test nn_tests -- -D
+  warnings`.
+- `rustup run nightly cargo clippy -p coeus-python --test binding_tests_nn --
+  -D warnings`.
+- `rustup run nightly cargo nextest run -p coeus-nn --test nn_tests
+  test_mha_cross_attention_shape` passes the MHA module-vs-functional parity
+  assertion.
+- `rustup run nightly cargo nextest run -p coeus-python --test
+  binding_tests_nn test_pycoeus_nn` passes the Python MHA self/cross SSOT
+  parity assertion.
 
 ## 0.5.1 - 2026-06-26
 

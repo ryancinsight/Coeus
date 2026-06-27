@@ -17,13 +17,43 @@ fn test_mha_self_attention_shape() {
 fn test_mha_cross_attention_shape() {
     use coeus_autograd::NullMask;
     use coeus_nn::attention::mha::MultiHeadAttention;
+    use coeus_nn::multi_head_attention_cross;
+    use coeus_nn::MhaProjectionParams;
 
     let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true);
     let query = Var::new(Tensor::zeros(vec![1, 3, 4]), true);
     let key = Var::new(Tensor::zeros(vec![1, 5, 4]), false);
     let value = Var::new(Tensor::zeros(vec![1, 5, 4]), false);
     let output = mha.forward_cross(&query, &key, &value, None);
+    let output_fn = multi_head_attention_cross::<f64, coeus_core::MoiraiBackend, 2, NullMask>(
+        &query,
+        &key,
+        &value,
+        MhaProjectionParams {
+            w_q: &mha.w_q,
+            b_q: mha.b_q.as_ref(),
+            w_k: &mha.w_k,
+            b_k: mha.b_k.as_ref(),
+            w_v: &mha.w_v,
+            b_v: mha.b_v.as_ref(),
+            w_o: &mha.w_o,
+            b_o: mha.b_o.as_ref(),
+        },
+        None,
+    );
     assert_eq!(output.tensor.shape(), &[1, 3, 4]);
+    assert_eq!(output_fn.tensor.shape(), &[1, 3, 4]);
+    for (a, b) in output
+        .tensor
+        .as_slice()
+        .iter()
+        .zip(output_fn.tensor.as_slice())
+    {
+        assert!(
+            (a - b).abs() < 1e-10,
+            "MHA module/functional mismatch: {a} vs {b}"
+        );
+    }
 }
 
 #[test]

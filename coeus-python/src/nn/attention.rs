@@ -191,7 +191,6 @@ impl PyMultiHeadAttention {
         let bo = self.b_o.as_ref().map(|b| b.bind(py).borrow().inner.clone());
         let input_var = input.inner.clone();
         let mask_var = key_padding_mask.map(|m| m.inner.clone());
-        let d_model = self.d_model;
         let num_heads = self.num_heads;
 
         let inner = py.allow_threads(move || {
@@ -199,18 +198,24 @@ impl PyMultiHeadAttention {
                 ($($h:literal),*) => {
                     match num_heads {
                         $($h => {
-                            let mut mha = coeus_nn::attention::mha::MultiHeadAttention::<
+                            coeus_nn::multi_head_attention_cross::<
                                 f64, coeus_core::MoiraiBackend, $h, coeus_autograd::NullMask,
-                            >::new(d_model, bq.is_some());
-                            mha.w_q = wq;
-                            mha.b_q = bq;
-                            mha.w_k = wk;
-                            mha.b_k = bk;
-                            mha.w_v = wv;
-                            mha.b_v = bv;
-                            mha.w_o = wo;
-                            mha.b_o = bo;
-                            mha.forward_cross(&input_var, &input_var, &input_var, mask_var.as_ref())
+                            >(
+                                &input_var,
+                                &input_var,
+                                &input_var,
+                                coeus_nn::MhaProjectionParams {
+                                    w_q: &wq,
+                                    b_q: bq.as_ref(),
+                                    w_k: &wk,
+                                    b_k: bk.as_ref(),
+                                    w_v: &wv,
+                                    b_v: bv.as_ref(),
+                                    w_o: &wo,
+                                    b_o: bo.as_ref(),
+                                },
+                                mask_var.as_ref(),
+                            )
                         },)*
                         _ => panic!(
                             "PyMultiHeadAttention: unsupported num_heads={num_heads}"
@@ -251,7 +256,6 @@ impl PyMultiHeadAttention {
         let k_var = key.inner.clone();
         let v_var = value.inner.clone();
         let mask_var = key_padding_mask.map(|m| m.inner.clone());
-        let d_model = self.d_model;
         let num_heads = self.num_heads;
 
         let inner = py.allow_threads(move || {
@@ -259,18 +263,24 @@ impl PyMultiHeadAttention {
                 ($($h:literal),*) => {
                     match num_heads {
                         $($h => {
-                            let mut mha = coeus_nn::attention::mha::MultiHeadAttention::<
+                            coeus_nn::multi_head_attention_cross::<
                                 f64, coeus_core::MoiraiBackend, $h, coeus_autograd::NullMask,
-                            >::new(d_model, bq.is_some());
-                            mha.w_q = wq;
-                            mha.b_q = bq;
-                            mha.w_k = wk;
-                            mha.b_k = bk;
-                            mha.w_v = wv;
-                            mha.b_v = bv;
-                            mha.w_o = wo;
-                            mha.b_o = bo;
-                            mha.forward_cross(&q_var, &k_var, &v_var, mask_var.as_ref())
+                            >(
+                                &q_var,
+                                &k_var,
+                                &v_var,
+                                coeus_nn::MhaProjectionParams {
+                                    w_q: &wq,
+                                    b_q: bq.as_ref(),
+                                    w_k: &wk,
+                                    b_k: bk.as_ref(),
+                                    w_v: &wv,
+                                    b_v: bv.as_ref(),
+                                    w_o: &wo,
+                                    b_o: bo.as_ref(),
+                                },
+                                mask_var.as_ref(),
+                            )
                         },)*
                         _ => panic!(
                             "PyMultiHeadAttention: unsupported num_heads={num_heads}"

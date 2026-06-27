@@ -1,5 +1,25 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-134: MHA functional SSOT routing [COMPLETE]
+
+- [x] [minor] Added and exported Rust-core
+  `coeus_nn::multi_head_attention_cross(...)` plus
+  `coeus_nn::MhaProjectionParams` as the shared self/cross-attention functional
+  path over borrowed projection weights and biases.
+- [x] [patch] Routed `MultiHeadAttention::forward_cross`,
+  `PyMultiHeadAttention.forward`, and `PyMultiHeadAttention.forward_cross`
+  through the shared helper, removing Python binding-side temporary Rust module
+  reconstruction on every attention call.
+- [x] [patch] Added Rust/Python parity checks asserting functional equivalence:
+  `test_mha_cross_attention_shape` checks module-vs-functional output parity;
+  `test_pycoeus_nn` checks `forward(x) == forward_cross(x, x, x)`.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-nn --test
+  nn_tests test_mha_cross_attention_shape`; `rustup run nightly cargo nextest
+  run -p coeus-python --test binding_tests_nn test_pycoeus_nn`; `rustup run
+  nightly cargo clippy -p coeus-nn --test nn_tests -- -D warnings`; `rustup
+  run nightly cargo clippy -p coeus-python --test binding_tests_nn -- -D
+  warnings`.
+
 ## Sprint MS-133: PyTransformer seq2seq and structural parity [COMPLETE]
 
 - [x] [minor] Added `pycoeus.Transformer` as a thin PyO3 composition over the
