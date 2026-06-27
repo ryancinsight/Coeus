@@ -13,6 +13,7 @@ pub struct TcpMesh {
 impl TcpMesh {
     /// Create a new TCP mesh connecting all ranks.
     pub fn new(rank: usize, size: usize, addresses: &[SocketAddr]) -> Self {
+        assert!(size > 0, "world size must be > 0");
         assert!(rank < size, "rank must be less than world size");
         assert_eq!(
             addresses.len(),

@@ -94,6 +94,11 @@
 
 ### Fixed
 
+- **TcpMesh zero-world-size constructor guard** — added explicit
+  `world_size > 0` assertion in `TcpMesh::new` so invalid zero-sized process
+  groups fail with a direct contract error.
+- **TcpMesh zero-world-size panic-contract test** — added
+  `test_tcp_mesh_new_zero_world_size_panics`.
 - **TCP zero-numel rooted contract bypass** — TCP `gather` and `scatter` now
   enforce root output/input length contracts before the zero-numel fast-return,
   so invalid rooted call shapes fail fast consistently.
