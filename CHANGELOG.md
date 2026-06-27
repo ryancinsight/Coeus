@@ -4,6 +4,11 @@
 
 ### Added
 
+- **Fusion op-tag hierarchy cleanup** — moved binary fused-expression ZST tags
+  (`BinaryOpTag`, `Add`, `Sub`, `Mul`, `Div`) into
+  `coeus-ops/src/fuse/op_tags/binary.rs` and re-exported them through
+  `op_tags::mod`, preserving the public surface while removing the duplicate
+  split copy.
 - **Bilinear PyTorch parity test** — added
   `coeus-python/tests/test_pytorch_parity.py::test_bilinear_forward_matches_pytorch`.
   Creates `pycoeus.Bilinear(3,4,2)` with Xavier-init weights, copies weight
@@ -18,15 +23,16 @@
   decay λ per Loshchilov & Hutter 2019). All use `Var::set_grad` for gradient injection
   and assert value-semantic correctness at f32::EPSILON*4.0.
   Evidence tier: closed-form analytical derivation.
+- **JAX decoder-layer parity** — added
+  `coeus-python/tests/test_jax_parity.py::test_transformer_decoder_layer_matches_jax`
+  with a JAX pre-layernorm decoder reference assembled from stateful
+  `pycoeus.TransformerDecoderLayer` weights (self-attn, cross-attn, norms, FFN)
+  and compared at `atol=2e-4`.
 - **Bilinear formula analytical tests** — added
   `bilinear_output_shape_and_formula_analytical` (W[0]=identity→dot(x1,x2),
   W[1]=swap; x1=[2,3], x2=[4,5], b=[0.5,-0.5] → out=[23.5, 21.5]; exact integer
   arithmetic, no floating-point error) and `bilinear_no_bias_output_shape`
   ([batch,out] contract for shape `[2,5]`). 299/299 Rust tests pass.
-## 0.5.3 - 2026-06-26
-
-### Added
-
 - **PyTorch optimizer parity surface** — added
   `coeus-python/tests/test_pytorch_parity.py::test_sgd_step_matches_pytorch`,
   `test_adam_step_matches_pytorch`, and `test_adamw_step_matches_pytorch`.

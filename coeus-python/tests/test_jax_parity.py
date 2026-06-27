@@ -180,3 +180,88 @@ def test_mha_matches_jax() -> None:
     out_jax = merged @ wo_jax.T
 
     _allclose("mha_out", list(out_pyc.data), out_jax.flatten().tolist(), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# TransformerDecoderLayer forward parity
+# ---------------------------------------------------------------------------
+
+
+def _jax_layer_norm(x, gamma, beta, eps=1e-5):
+    mean = jnp.mean(x, axis=-1, keepdims=True)
+    var = jnp.mean((x - mean) ** 2, axis=-1, keepdims=True)
+    xhat = (x - mean) / jnp.sqrt(var + eps)
+    return xhat * gamma.reshape(1, 1, -1) + beta.reshape(1, 1, -1)
+
+
+def _jax_mha_forward(q_in, k_in, v_in, wq, wk, wv, wo, num_heads):
+    batch, seq_q, d_model = q_in.shape
+    seq_k = k_in.shape[1]
+    d_head = d_model // num_heads
+
+    q = q_in @ wq.T
+    k = k_in @ wk.T
+    v = v_in @ wv.T
+
+    qh = q.reshape(batch, seq_q, num_heads, d_head).transpose(0, 2, 1, 3)
+    kh = k.reshape(batch, seq_k, num_heads, d_head).transpose(0, 2, 1, 3)
+    vh = v.reshape(batch, seq_k, num_heads, d_head).transpose(0, 2, 1, 3)
+
+    scores = jnp.matmul(qh, jnp.swapaxes(kh, -1, -2)) / math.sqrt(d_head)
+    attn = jax.nn.softmax(scores, axis=-1)
+    ctx = jnp.matmul(attn, vh)
+    merged = jnp.swapaxes(ctx, 1, 2).reshape(batch, seq_q, d_model)
+    return merged @ wo.T
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "TransformerDecoderLayer"),
+    reason="pycoeus.TransformerDecoderLayer not available",
+)
+def test_transformer_decoder_layer_matches_jax() -> None:
+    """Forward parity: TransformerDecoderLayer(d_model=4, H=2, d_ff=8, dropout=0)."""
+    d_model, num_heads, d_ff = 4, 2, 8
+    batch, seq_tgt, seq_src = 1, 3, 5
+    _ATOL_DEC = 2e-4
+
+    dec = pycoeus.TransformerDecoderLayer(d_model=d_model, d_ff=d_ff, num_heads=num_heads)
+
+    tgt_data = [0.1 * i - 0.3 for i in range(batch * seq_tgt * d_model)]
+    mem_data = [0.05 * i for i in range(batch * seq_src * d_model)]
+    tgt_pyc = pycoeus.Tensor(tgt_data, [batch, seq_tgt, d_model], requires_grad=False)
+    mem_pyc = pycoeus.Tensor(mem_data, [batch, seq_src, d_model], requires_grad=False)
+    out_pyc = dec.forward(tgt_pyc, mem_pyc)
+
+    tgt = jnp.asarray(tgt_data, dtype=jnp.float64).reshape(batch, seq_tgt, d_model)
+    memory = jnp.asarray(mem_data, dtype=jnp.float64).reshape(batch, seq_src, d_model)
+
+    sa_wq = jnp.asarray(list(dec.self_attn.w_q.data), dtype=jnp.float64).reshape(d_model, d_model)
+    sa_wk = jnp.asarray(list(dec.self_attn.w_k.data), dtype=jnp.float64).reshape(d_model, d_model)
+    sa_wv = jnp.asarray(list(dec.self_attn.w_v.data), dtype=jnp.float64).reshape(d_model, d_model)
+    sa_wo = jnp.asarray(list(dec.self_attn.w_o.data), dtype=jnp.float64).reshape(d_model, d_model)
+    ca_wq = jnp.asarray(list(dec.cross_attn.w_q.data), dtype=jnp.float64).reshape(d_model, d_model)
+    ca_wk = jnp.asarray(list(dec.cross_attn.w_k.data), dtype=jnp.float64).reshape(d_model, d_model)
+    ca_wv = jnp.asarray(list(dec.cross_attn.w_v.data), dtype=jnp.float64).reshape(d_model, d_model)
+    ca_wo = jnp.asarray(list(dec.cross_attn.w_o.data), dtype=jnp.float64).reshape(d_model, d_model)
+
+    n1_g = jnp.asarray(list(dec.norm1.weight.data), dtype=jnp.float64)
+    n1_b = jnp.asarray(list(dec.norm1.bias.data), dtype=jnp.float64)
+    n2_g = jnp.asarray(list(dec.norm2.weight.data), dtype=jnp.float64)
+    n2_b = jnp.asarray(list(dec.norm2.bias.data), dtype=jnp.float64)
+    n3_g = jnp.asarray(list(dec.norm3.weight.data), dtype=jnp.float64)
+    n3_b = jnp.asarray(list(dec.norm3.bias.data), dtype=jnp.float64)
+
+    ff1_w = jnp.asarray(list(dec.ffn.linear1.weight.data), dtype=jnp.float64).reshape(d_ff, d_model)
+    ff1_b = jnp.asarray(list(dec.ffn.linear1.bias.data), dtype=jnp.float64)
+    ff2_w = jnp.asarray(list(dec.ffn.linear2.weight.data), dtype=jnp.float64).reshape(d_model, d_ff)
+    ff2_b = jnp.asarray(list(dec.ffn.linear2.bias.data), dtype=jnp.float64)
+
+    n1 = _jax_layer_norm(tgt, n1_g, n1_b, eps=1e-5)
+    x1 = tgt + _jax_mha_forward(n1, n1, n1, sa_wq, sa_wk, sa_wv, sa_wo, num_heads)
+    n2 = _jax_layer_norm(x1, n2_g, n2_b, eps=1e-5)
+    x2 = x1 + _jax_mha_forward(n2, memory, memory, ca_wq, ca_wk, ca_wv, ca_wo, num_heads)
+    n3 = _jax_layer_norm(x2, n3_g, n3_b, eps=1e-5)
+    ff = jax.nn.gelu(n3 @ ff1_w.T + ff1_b)
+    out_jax = x2 + (ff @ ff2_w.T + ff2_b)
+
+    _allclose("decoder_layer_fwd", list(out_pyc.data), out_jax.flatten().tolist(), atol=_ATOL_DEC)

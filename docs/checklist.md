@@ -2,7 +2,32 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-141 - RMSNorm and Embedding PyTorch parity [COMPLETE]
+### Current Sprint: MS-143 - Fusion op-tag binary ZST split [COMPLETE]
+**Objective**: Remove the partial duplicate `op_tags/binary.rs` split by making
+binary fused-expression tags a real vertical module under `coeus-ops` while
+preserving the existing public re-export surface.
+
+- [x] [patch] Moved binary ZST tags (`BinaryOpTag`, `Add`, `Sub`, `Mul`,
+  `Div`) into `coeus-ops/src/fuse/op_tags/binary.rs`.
+- [x] [patch] Converted `op_tags.rs` into `op_tags/mod.rs` and re-exported the
+  binary tags from the module root so existing call sites remain unchanged.
+- [x] Evidence: `cargo fmt -p coeus-ops --check`; `cargo clippy -p coeus-ops
+  --all-targets -- -D warnings`; `cargo nextest run -p coeus-ops` passes
+  189/189.
+
+### Previous Sprint: MS-142 - JAX TransformerDecoderLayer parity [COMPLETE]
+**Objective**: Extend JAX differential parity from primitive ops to a stateful
+transformer decoder block using exported pycoeus layer weights and a JAX
+pre-layernorm decoder reference.
+
+- [x] [patch] Added `test_transformer_decoder_layer_matches_jax` in
+  `coeus-python/tests/test_jax_parity.py`.
+- [x] [patch] Added JAX decoder reference helpers (`_jax_layer_norm`,
+  `_jax_mha_forward`) used by the parity oracle.
+- [x] Evidence: `pytest coeus-python/tests/test_jax_parity.py -k "decoder_layer
+  or mha or linear" -q` passes 3/3.
+
+### Previous Sprint: MS-141 - RMSNorm and Embedding PyTorch parity [COMPLETE]
 **Objective**: Close the next PyTorch parity gap for the two normalization/embedding
 modules that exposed binding classes but no differential PyTorch tests.
 

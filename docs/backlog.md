@@ -1,5 +1,30 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-143: Fusion op-tag binary ZST split [COMPLETE]
+
+- [x] [patch] Promoted binary fused-expression tags from the monolithic
+  `coeus-ops/src/fuse/op_tags.rs` file into
+  `coeus-ops/src/fuse/op_tags/binary.rs`.
+- [x] [patch] Preserved the existing `op_tags::{BinaryOpTag, Add, Sub, Mul,
+  Div}` public surface through `op_tags::mod` re-exports; no call-site
+  compatibility shim was added.
+- [x] Evidence: `cargo fmt -p coeus-ops --check`; `cargo clippy -p coeus-ops
+  --all-targets -- -D warnings`; `cargo nextest run -p coeus-ops` passes
+  189/189.
+
+## Sprint MS-142: JAX TransformerDecoderLayer parity [COMPLETE]
+
+- [x] [patch] Added `test_transformer_decoder_layer_matches_jax` to
+  `coeus-python/tests/test_jax_parity.py`, asserting differential forward
+  parity for stateful `pycoeus.TransformerDecoderLayer` against a JAX
+  pre-layernorm decoder reference built from exported layer weights
+  (self-attn, cross-attn, three norms, FFN).
+- [x] [patch] Added local JAX decoder reference helpers
+  (`_jax_layer_norm`, `_jax_mha_forward`) to keep decoder parity logic explicit
+  and SSOT-aligned with Python binding semantics.
+- [x] Evidence: `pytest coeus-python/tests/test_jax_parity.py -k "decoder_layer
+  or mha or linear" -q` (3/3 pass).
+
 ## Sprint MS-141: RMSNorm and Embedding PyTorch parity [COMPLETE]
 
 - [x] [patch] Added `test_rmsnorm_matches_pytorch` to
