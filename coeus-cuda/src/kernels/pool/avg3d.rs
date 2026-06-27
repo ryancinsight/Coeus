@@ -7,6 +7,10 @@ use crate::kernels::fuse::get_or_create_kernel;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
+/// Dispatch the 3-D average pooling forward kernel on the GPU.
+///
+/// Computes average pooling over 3-D windows with the given kernel size, stride, padding, and dilation.
+/// Returns `true` if the kernel launched successfully, `false` if the driver or context is unavailable.
 pub fn dispatch_avg_pool3d<T: CudaScalar>(
     input: &CudaStorage<T>,
     input_layout: &Layout,
@@ -148,6 +152,10 @@ extern "C" __global__ void avg_pool3d_kernel(
     }
 }
 
+/// Dispatch the 3-D average pooling backward kernel on the GPU.
+///
+/// Computes input gradients for 3-D average pooling. Returns `true` if the kernel
+/// launched successfully, `false` if the driver or context is unavailable.
 pub fn dispatch_avg_pool3d_backward<T: CudaScalar>(
     grad_out: &CudaStorage<T>,
     grad_out_layout: &Layout,

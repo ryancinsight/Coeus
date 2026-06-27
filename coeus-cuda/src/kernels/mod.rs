@@ -1,12 +1,22 @@
+/// Kernel module for scaled-dot-product attention operations.
 pub mod attention;
+/// Kernel module for transposed convolution operations.
 pub mod conv_transpose;
+/// Kernel module for fused element-wise expression compilation and dispatch.
 pub mod fuse;
+/// Kernel module for convolution kernel launch helpers.
 pub mod launch_conv;
+/// Kernel module for tiled matrix multiplication kernel launch.
 pub mod launch_matmul;
+/// Kernel module for element-wise operator kernel launches.
 pub mod launch_ops;
+/// Kernel module for optimizer step kernels.
 pub mod optim;
+/// Kernel module for pooling operations.
 pub mod pool;
+/// Kernel module for embedded PTX kernel source.
 pub mod ptx;
+/// Kernel module for reduction operations.
 pub mod reduce;
 
 pub use attention::{launch_sdp_attention, launch_sdp_attention_backward};
@@ -37,16 +47,22 @@ use crate::storage::CudaStorage;
 use coeus_core::{ComputeBackend, Layout};
 use std::sync::OnceLock;
 
+/// GPU-side layout descriptor passed to CUDA kernels as a POD struct.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct GpuLayoutInfo {
+    /// Element offset into the underlying buffer.
     pub offset: u32,
+    /// Number of dimensions in the layout.
     pub ndim: u32,
+    /// Per-dimension shape, padded to 8 entries.
     pub shape: [u32; 8],
+    /// Per-dimension strides, padded to 8 entries.
     pub strides: [u32; 8],
 }
 
 impl GpuLayoutInfo {
+    /// Convert a CPU [`Layout`] into a GPU-compatible layout descriptor.
     pub fn from_layout(layout: &Layout) -> Self {
         let mut shape = [0u32; 8];
         let mut strides = [0u32; 8];
@@ -65,6 +81,7 @@ impl GpuLayoutInfo {
     }
 }
 
+/// Create a device buffer containing the serialized GPU layout descriptor.
 pub fn create_layout_buffer(layout: &Layout) -> CudaStorage<u32> {
     let gpu_layout = GpuLayoutInfo::from_layout(layout);
     let size_u32 = std::mem::size_of::<GpuLayoutInfo>() / 4;
@@ -97,6 +114,7 @@ unsafe impl Sync for CudaModuleWrapper {}
 
 static CUDA_MODULE: OnceLock<Option<CudaModuleWrapper>> = OnceLock::new();
 
+/// Retrieve the lazily-loaded CUDA module singleton containing the embedded PTX kernels.
 pub fn get_cuda_module() -> Option<CUmodule> {
     CUDA_MODULE
         .get_or_init(|| {
@@ -121,6 +139,7 @@ pub fn get_cuda_module() -> Option<CUmodule> {
         .map(|wrapper| wrapper.module)
 }
 
+/// Look up a kernel function by name from the loaded CUDA module.
 pub fn get_cuda_function(name: &str) -> Option<CUfunction> {
     let drv = CudaDriver::get()?;
     let module = get_cuda_module()?;

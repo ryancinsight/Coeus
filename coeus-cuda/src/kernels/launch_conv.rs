@@ -5,6 +5,10 @@ use crate::driver::CudaDriver;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
+/// Launch the 1-D convolution kernel on the GPU.
+///
+/// Computes forward 1-D convolution with optional bias, stride, padding, and dilation.
+/// Returns `true` if the kernel launched successfully, `false` if the driver or context is unavailable.
 pub fn launch_conv1d(
     input: &CudaStorage<f32>,
     weight: &CudaStorage<f32>,
@@ -76,6 +80,10 @@ pub fn launch_conv1d(
     }
 }
 
+/// Launch the 2-D convolution kernel on the GPU.
+///
+/// Computes forward 2-D convolution with optional bias, stride, padding, and dilation.
+/// Returns `true` if the kernel launched successfully, `false` if the driver or context is unavailable.
 pub fn launch_conv2d(
     input: &CudaStorage<f32>,
     weight: &CudaStorage<f32>,
@@ -147,6 +155,10 @@ pub fn launch_conv2d(
     }
 }
 
+/// Launch the 1-D convolution backward kernel on the GPU.
+///
+/// Computes gradients for input and weight from the 1-D convolution backward pass.
+/// Returns `true` if the kernel launched successfully, `false` if the driver or context is unavailable.
 pub fn launch_conv1d_backward(
     grad_out: &CudaStorage<f32>,
     grad_out_layout: &Layout,
@@ -314,6 +326,10 @@ pub fn launch_conv1d_backward(
     true
 }
 
+/// Launch the 2-D convolution backward kernel on the GPU.
+///
+/// Computes gradients for input and weight from the 2-D convolution backward pass.
+/// Returns `true` if the kernel launched successfully, `false` if the driver or context is unavailable.
 pub fn launch_conv2d_backward(
     grad_out: &CudaStorage<f32>,
     grad_out_layout: &Layout,
@@ -481,6 +497,10 @@ pub fn launch_conv2d_backward(
     true
 }
 
+/// Launch the 3-D convolution kernel on the GPU.
+///
+/// Computes forward 3-D convolution with optional bias, stride, padding, and dilation.
+/// Returns `true` if the kernel launched successfully, `false` if the driver or context is unavailable.
 pub fn launch_conv3d(
     input: &CudaStorage<f32>,
     weight: &CudaStorage<f32>,
@@ -552,6 +572,10 @@ pub fn launch_conv3d(
     }
 }
 
+/// Launch the 3-D convolution backward kernel on the GPU.
+///
+/// Computes gradients for input and weight from the 3-D convolution backward pass.
+/// Returns `true` if the kernel launched successfully, `false` if the driver or context is unavailable.
 pub fn launch_conv3d_backward(
     grad_out: &CudaStorage<f32>,
     grad_out_layout: &Layout,

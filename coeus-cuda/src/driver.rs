@@ -1,46 +1,66 @@
 use libloading::Library;
 use std::sync::{Arc, OnceLock};
 
+/// CUDA device ordinal type alias matching the C API.
 pub type CUdevice = i32;
+/// CUDA context handle type alias matching the C API.
 pub type CUcontext = *mut std::ffi::c_void;
+/// CUDA device pointer type alias matching the C API.
 pub type CUdeviceptr = u64;
+/// CUDA driver API result code type alias matching the C API.
 pub type CUresult = i32;
+/// CUDA module handle type alias matching the C API.
 pub type CUmodule = *mut std::ffi::c_void;
+/// CUDA kernel function handle type alias matching the C API.
 pub type CUfunction = *mut std::ffi::c_void;
+/// CUDA stream handle type alias matching the C API.
 pub type CUstream = *mut std::ffi::c_void;
 
 /// Dynamically loaded CUDA driver function pointers.
 pub struct CudaDriver {
+    /// Owning handle to the dynamically loaded CUDA driver library.
     _lib: Library,
+    /// Function pointer to `cuInit` — initializes the CUDA driver API.
     pub cu_init: unsafe extern "C" fn(flags: u32) -> CUresult,
+    /// Function pointer to `cuDeviceGet` — retrieves a device handle by ordinal.
     pub cu_device_get: unsafe extern "C" fn(device: *mut CUdevice, ordinal: i32) -> CUresult,
+    /// Function pointer to `cuCtxCreate` — creates a CUDA execution context.
     pub cu_ctx_create:
         unsafe extern "C" fn(pctx: *mut CUcontext, flags: u32, dev: CUdevice) -> CUresult,
+    /// Function pointer to `cuMemAlloc` — allocates device memory.
     pub cu_mem_alloc: unsafe extern "C" fn(dptr: *mut CUdeviceptr, bytesize: usize) -> CUresult,
+    /// Function pointer to `cuMemFree` — frees device memory.
     pub cu_mem_free: unsafe extern "C" fn(dptr: CUdeviceptr) -> CUresult,
+    /// Function pointer to `cuMemcpyHtoD` — copies data from host to device.
     pub cu_memcpy_htod: unsafe extern "C" fn(
         dst_device: CUdeviceptr,
         src_host: *const std::ffi::c_void,
         byte_count: usize,
     ) -> CUresult,
+    /// Function pointer to `cuMemcpyDtoH` — copies data from device to host.
     pub cu_memcpy_dtoh: unsafe extern "C" fn(
         dst_host: *mut std::ffi::c_void,
         src_device: CUdeviceptr,
         byte_count: usize,
     ) -> CUresult,
+    /// Function pointer to `cuMemcpyDtoD` — copies data between device buffers.
     pub cu_memcpy_dtod: unsafe extern "C" fn(
         dst_device: CUdeviceptr,
         src_device: CUdeviceptr,
         byte_count: usize,
     ) -> CUresult,
+    /// Function pointer to `cuModuleLoadData` — loads a module from an in-memory image.
     pub cu_module_load_data:
         unsafe extern "C" fn(module: *mut CUmodule, image: *const std::ffi::c_void) -> CUresult,
+    /// Function pointer to `cuModuleGetFunction` — retrieves a kernel function from a loaded module.
     pub cu_module_get_function: unsafe extern "C" fn(
         hfunc: *mut CUfunction,
         hmod: CUmodule,
         name: *const std::ffi::c_char,
     ) -> CUresult,
+    /// Function pointer to `cuModuleUnload` — unloads a loaded CUDA module.
     pub cu_module_unload: unsafe extern "C" fn(hmod: CUmodule) -> CUresult,
+    /// Function pointer to `cuLaunchKernel` — launches a CUDA kernel on the device.
     #[allow(non_snake_case)]
     pub cu_launch_kernel: unsafe extern "C" fn(
         f: CUfunction,
@@ -289,13 +309,18 @@ pub fn get_borrowed_stream() -> Option<Arc<cuda_core::Stream>> {
 }
 
 #[allow(non_camel_case_types)]
+/// NVRTC program handle type alias matching the C API.
 pub type nvrtcProgram = *mut std::ffi::c_void;
 #[allow(non_camel_case_types)]
+/// NVRTC result code type alias matching the C API.
 pub type nvrtcResult = i32;
 
+/// Dynamically loaded NVRTC library function pointers.
 #[allow(non_snake_case)]
 pub struct NvrtcDriver {
+    /// Owning handle to the dynamically loaded NVRTC library.
     _lib: Library,
+    /// Function pointer to `nvrtcCreateProgram` — creates an NVRTC compilation program.
     pub nvrtcCreateProgram: unsafe extern "C" fn(
         prog: *mut nvrtcProgram,
         src: *const std::ffi::c_char,
@@ -304,26 +329,34 @@ pub struct NvrtcDriver {
         headers: *const *const std::ffi::c_char,
         includeNames: *const *const std::ffi::c_char,
     ) -> nvrtcResult,
+    /// Function pointer to `nvrtcCompileProgram` — compiles an NVRTC program to PTX.
     pub nvrtcCompileProgram: unsafe extern "C" fn(
         prog: nvrtcProgram,
         numOptions: std::ffi::c_int,
         options: *const *const std::ffi::c_char,
     ) -> nvrtcResult,
+    /// Function pointer to `nvrtcGetPTXSize` — retrieves the size of the compiled PTX output.
     pub nvrtcGetPTXSize:
         unsafe extern "C" fn(prog: nvrtcProgram, ptxSize: *mut usize) -> nvrtcResult,
+    /// Function pointer to `nvrtcGetPTX` — retrieves the compiled PTX source string.
     pub nvrtcGetPTX:
         unsafe extern "C" fn(prog: nvrtcProgram, ptx: *mut std::ffi::c_char) -> nvrtcResult,
+    /// Function pointer to `nvrtcGetProgramLogSize` — retrieves the size of the compilation log.
     pub nvrtcGetProgramLogSize:
         unsafe extern "C" fn(prog: nvrtcProgram, logSize: *mut usize) -> nvrtcResult,
+    /// Function pointer to `nvrtcGetProgramLog` — retrieves the compilation log string.
     pub nvrtcGetProgramLog:
         unsafe extern "C" fn(prog: nvrtcProgram, log: *mut std::ffi::c_char) -> nvrtcResult,
+    /// Function pointer to `nvrtcDestroyProgram` — destroys an NVRTC program.
     pub nvrtcDestroyProgram: unsafe extern "C" fn(prog: *mut nvrtcProgram) -> nvrtcResult,
+    /// Function pointer to `nvrtcGetErrorString` — retrieves a human-readable error string.
     pub nvrtcGetErrorString: unsafe extern "C" fn(result: nvrtcResult) -> *const std::ffi::c_char,
 }
 
 static NVRTC_DRIVER: OnceLock<Option<NvrtcDriver>> = OnceLock::new();
 
 impl NvrtcDriver {
+    /// Retrieve a reference to the dynamically loaded NVRTC driver singleton if available.
     #[allow(non_snake_case)]
     pub fn get() -> Option<&'static Self> {
         NVRTC_DRIVER
