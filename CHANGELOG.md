@@ -23,6 +23,19 @@
 
 ### Fixed
 
+- **TcpCommunicator payload-shape contract enforcement** — added shared
+  `TcpCommunicator::assert_numel` checks for `all_gather`, `gather`, and
+  `scatter` so mismatched tensor shapes fail fast with explicit rank-indexed
+  diagnostics instead of late I/O failures.
+- **Tcp root self-path allocation cleanup** — replaced root self
+  `tensor.clone()` assignments in TCP `all_gather`, `gather`, and `scatter`
+  with `get_tensor_host_data` + `copy_host_slice_to_tensor`, preserving
+  preallocated destination tensors and avoiding unnecessary root-side
+  allocations.
+- **TCP mismatch panic-contract tests** — added
+  `test_tcp_all_gather_mismatched_output_numel_panics` and
+  `test_tcp_scatter_mismatched_input_numel_panics` in
+  `coeus-dist/tests/dist_tests.rs`.
 - **Local gather/all-gather staged payload safety** — `LocalCommunicator`
   now validates staged payload type and `numel` in both `all_gather` and
   `gather` via shared helpers, removing unchecked downcasts.
