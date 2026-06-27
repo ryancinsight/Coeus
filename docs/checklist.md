@@ -2,7 +2,21 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-143 - Fusion op-tag binary ZST split [COMPLETE]
+### Current Sprint: MS-144 - LocalCommunicator contention and safety hardening [COMPLETE]
+**Objective**: Resolve a distributed-runtime hotspot by eliminating redundant
+`all_reduce` work across ranks, hardening staged payload validation, and
+cutting avoidable temporary allocations in local collectives.
+
+- [x] [patch] Refactored `coeus-dist/src/local.rs::all_reduce` to compute the
+  reduction once on rank 0 and publish the reduced payload for all ranks.
+- [x] [patch] Added explicit staged-payload validation helpers
+  (`slot_vec_ref`, `assert_numel`) for type/shape guardrails.
+- [x] [patch] Removed unnecessary zero-fill temp allocations in `broadcast`,
+  `reduce`, and `scatter`.
+- [x] Evidence: `cargo test -p coeus-dist --tests` passes 20/20; `cargo clippy
+  -p coeus-dist --all-targets -- -D warnings` passes.
+
+### Previous Sprint: MS-143 - Fusion op-tag binary ZST split [COMPLETE]
 **Objective**: Remove the partial duplicate `op_tags/binary.rs` split by making
 binary fused-expression tags a real vertical module under `coeus-ops` while
 preserving the existing public re-export surface.

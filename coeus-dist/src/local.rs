@@ -3,6 +3,7 @@ use crate::helpers::{copy_host_slice_to_tensor, get_tensor_host_data};
 use crate::ops::ReduceOpTag;
 use coeus_core::{ComputeBackend, Scalar};
 use coeus_tensor::Tensor;
+use std::any::type_name;
 use std::sync::{Arc, Barrier, Mutex};
 
 /// Shared state for thread-based rank cluster simulation.
@@ -85,6 +86,36 @@ impl LocalCommunicator {
             })
             .collect()
     }
+
+    #[inline]
+    fn slot_vec_ref<'a, T: Scalar>(
+        slot: &'a Option<Box<dyn std::any::Any + Send>>,
+        rank: usize,
+        collective: &'static str,
+    ) -> &'a Vec<T> {
+        let payload = slot.as_ref().unwrap_or_else(|| {
+            panic!("{collective}: missing staging payload for rank {rank}");
+        });
+        payload.downcast_ref::<Vec<T>>().unwrap_or_else(|| {
+            panic!(
+                "{collective}: staging payload type mismatch on rank {rank}; expected {}",
+                type_name::<Vec<T>>()
+            )
+        })
+    }
+
+    #[inline]
+    fn assert_numel(
+        data_len: usize,
+        expected_numel: usize,
+        rank: usize,
+        collective: &'static str,
+    ) {
+        assert_eq!(
+            data_len, expected_numel,
+            "{collective}: payload numel mismatch for rank {rank}; expected {expected_numel}, got {data_len}",
+        );
+    }
 }
 
 impl Communicator for LocalCommunicator {
@@ -124,25 +155,39 @@ impl Communicator for LocalCommunicator {
         // 2. Barrier sync
         self.barrier();
 
-        // 3. Perform reduction on host
-        let mut reduced = vec![T::zero(); numel];
-        {
-            let bufs = self.shared.buffers.lock().unwrap();
-            let r0_data = bufs[0].as_ref().unwrap().downcast_ref::<Vec<T>>().unwrap();
-            reduced.copy_from_slice(r0_data);
-
+        // 3. Perform reduction once on rank 0 and publish it to slot 0.
+        if self.rank == 0 {
+            let mut bufs = self.shared.buffers.lock().unwrap();
+            let mut reduced = {
+                let r0_data = Self::slot_vec_ref::<T>(&bufs[0], 0, "all_reduce");
+                Self::assert_numel(r0_data.len(), numel, 0, "all_reduce");
+                r0_data.clone()
+            };
             for r in 1..self.size {
-                let r_data = bufs[r].as_ref().unwrap().downcast_ref::<Vec<T>>().unwrap();
+                let r_data = Self::slot_vec_ref::<T>(&bufs[r], r, "all_reduce");
+                Self::assert_numel(r_data.len(), numel, r, "all_reduce");
                 for i in 0..numel {
                     reduced[i] = Op::apply(reduced[i], r_data[i]);
                 }
             }
+            bufs[0] = Some(Box::new(reduced));
         }
 
-        // 4. Barrier sync before clear
+        // 4. Barrier sync to ensure reduced payload is published.
         self.barrier();
 
-        // 5. Clear staging board
+        // 5. All ranks read reduced payload.
+        let reduced = {
+            let bufs = self.shared.buffers.lock().unwrap();
+            let reduced = Self::slot_vec_ref::<T>(&bufs[0], 0, "all_reduce");
+            Self::assert_numel(reduced.len(), numel, 0, "all_reduce");
+            reduced.clone()
+        };
+
+        // 6. Barrier sync before clear.
+        self.barrier();
+
+        // 7. Clear staging board
         if self.rank == 0 {
             let mut bufs = self.shared.buffers.lock().unwrap();
             for item in bufs.iter_mut() {
@@ -150,10 +195,10 @@ impl Communicator for LocalCommunicator {
             }
         }
 
-        // 6. Barrier sync post clear
+        // 8. Barrier sync post clear
         self.barrier();
 
-        // 7. Transfer to device
+        // 9. Transfer to device
         copy_host_slice_to_tensor(&reduced, tensor, backend);
     }
 
@@ -180,15 +225,12 @@ impl Communicator for LocalCommunicator {
 
         self.barrier();
 
-        let mut broadcasted = vec![T::zero(); numel];
+        let mut broadcasted = Vec::new();
         if self.rank != root {
             let bufs = self.shared.buffers.lock().unwrap();
-            let root_data = bufs[root]
-                .as_ref()
-                .unwrap()
-                .downcast_ref::<Vec<T>>()
-                .unwrap();
-            broadcasted.copy_from_slice(root_data);
+            let root_data = Self::slot_vec_ref::<T>(&bufs[root], root, "broadcast");
+            Self::assert_numel(root_data.len(), numel, root, "broadcast");
+            broadcasted = root_data.clone();
         }
 
         self.barrier();
@@ -277,14 +319,16 @@ impl Communicator for LocalCommunicator {
         self.barrier();
 
         // 3. Perform reduction on root process
-        let mut reduced = vec![T::zero(); numel];
+        let mut reduced = Vec::new();
         if self.rank == root {
             let bufs = self.shared.buffers.lock().unwrap();
-            let r0_data = bufs[0].as_ref().unwrap().downcast_ref::<Vec<T>>().unwrap();
-            reduced.copy_from_slice(r0_data);
+            let r0_data = Self::slot_vec_ref::<T>(&bufs[0], 0, "reduce");
+            Self::assert_numel(r0_data.len(), numel, 0, "reduce");
+            reduced = r0_data.clone();
 
             for r in 1..self.size {
-                let r_data = bufs[r].as_ref().unwrap().downcast_ref::<Vec<T>>().unwrap();
+                let r_data = Self::slot_vec_ref::<T>(&bufs[r], r, "reduce");
+                Self::assert_numel(r_data.len(), numel, r, "reduce");
                 for i in 0..numel {
                     reduced[i] = Op::apply(reduced[i], r_data[i]);
                 }
@@ -396,15 +440,12 @@ impl Communicator for LocalCommunicator {
 
         self.barrier();
 
-        let mut scattered = vec![T::zero(); numel];
+        let scattered;
         {
             let bufs = self.shared.buffers.lock().unwrap();
-            let rank_data = bufs[self.rank]
-                .as_ref()
-                .unwrap()
-                .downcast_ref::<Vec<T>>()
-                .unwrap();
-            scattered.copy_from_slice(rank_data);
+            let rank_data = Self::slot_vec_ref::<T>(&bufs[self.rank], self.rank, "scatter");
+            Self::assert_numel(rank_data.len(), numel, self.rank, "scatter");
+            scattered = rank_data.clone();
         }
 
         self.barrier();
