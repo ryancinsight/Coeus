@@ -24,6 +24,18 @@ vertical module tree while preserving the public PyO3 export surface.
   `D:\miniforge3\python.exe -m pytest coeus-python/tests/test_pytorch_parity.py -q`
   (27/27).
 
+### Previous Sprint: MS-149 - TcpMesh contract completion [COMPLETE]
+**Objective**: Complete TCP mesh contract hardening with defensive slot
+invariants and explicit panic-contract coverage for bounds/constructor errors.
+
+- [x] [patch] Added duplicate-slot guards in `TcpMesh::new` for outgoing and
+  incoming stream assignment.
+- [x] [patch] Added panic-contract tests for send/recv out-of-bounds and
+  constructor rank bounds.
+- [x] Evidence: `cargo test -p coeus-dist test_tcp_mesh_ -- --nocapture`;
+  `cargo test -p coeus-dist test_tcp_mesh_new_rank_out_of_bounds_panics -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ### Previous Sprint: MS-148 - TcpMesh/collective invariant hardening [COMPLETE]
 **Objective**: Harden TCP distributed-runtime safety contracts by enforcing peer
 and root invariants explicitly at the mesh/collective boundaries.

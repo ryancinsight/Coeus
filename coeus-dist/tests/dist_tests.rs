@@ -609,6 +609,30 @@ fn test_tcp_mesh_recv_self_panics() {
     mesh.recv(0, &mut byte);
 }
 
+#[test]
+#[should_panic(expected = "send peer out of bounds")]
+fn test_tcp_mesh_send_out_of_bounds_panics() {
+    let addresses = get_free_ports(1);
+    let mesh = TcpMesh::new(0, 1, &addresses);
+    mesh.send(1, &[1u8]);
+}
+
+#[test]
+#[should_panic(expected = "recv peer out of bounds")]
+fn test_tcp_mesh_recv_out_of_bounds_panics() {
+    let addresses = get_free_ports(1);
+    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mut byte = [0u8; 1];
+    mesh.recv(1, &mut byte);
+}
+
+#[test]
+#[should_panic(expected = "rank must be less than world size")]
+fn test_tcp_mesh_new_rank_out_of_bounds_panics() {
+    let addresses = get_free_ports(1);
+    let _mesh = TcpMesh::new(1, 1, &addresses);
+}
+
 // ── all_reduce with Max / Min / Product reduce ops ──
 //
 // world_size = 3, rank r contributes [r+1, r+2] -> ranks [1,2], [2,3], [3,4].

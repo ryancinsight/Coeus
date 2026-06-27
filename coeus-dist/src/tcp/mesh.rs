@@ -49,6 +49,10 @@ impl TcpMesh {
                         }
                     }
                 };
+                assert!(
+                    streams[other].is_none(),
+                    "outgoing stream slot already populated for peer {other}"
+                );
                 streams[other] = Some(Mutex::new(stream));
             }
 
@@ -69,6 +73,10 @@ impl TcpMesh {
                 assert!(
                     incoming_rank < rank,
                     "incoming rank must be less than current rank"
+                );
+                assert!(
+                    streams[incoming_rank].is_none(),
+                    "incoming stream slot already populated for peer {incoming_rank}"
                 );
                 streams[incoming_rank] = Some(Mutex::new(s_mut));
             }

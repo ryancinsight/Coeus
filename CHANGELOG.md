@@ -59,6 +59,13 @@
 
 ### Fixed
 
+- **TcpMesh duplicate stream-slot guardrails** — `TcpMesh::new` now asserts that
+  outgoing and incoming stream slots are unpopulated before assignment, making
+  malformed or duplicated peer-handshake paths fail fast.
+- **TCP mesh bounds panic-contract tests** — added
+  `test_tcp_mesh_send_out_of_bounds_panics`,
+  `test_tcp_mesh_recv_out_of_bounds_panics`, and
+  `test_tcp_mesh_new_rank_out_of_bounds_panics`.
 - **TcpMesh peer-invariant enforcement** — added shared
   `TcpMesh::stream_for_peer` guardrails and routed `send`/`recv` through bounds,
   self-peer, and stream-established checks for explicit failure diagnostics.
