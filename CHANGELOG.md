@@ -25,6 +25,16 @@
 
 ### Added
 
+- **Coeus-vs-Burn nn-layer forward benchmarks** — added
+  `coeus-nn/benches/nn_bench.rs` (criterion, `harness = false`) timing whole
+  `nn` layer forward passes against Burn's NdArray backend on identical
+  `[128, 256]` shapes, complementing `coeus-tensor/benches/tensor_bench.rs`
+  (tensor primitives). Two groups — Linear forward (`128x256 → 256`) and
+  LayerNorm forward (`128x256`) — each compare Burn NdArray vs Coeus
+  `SequentialBackend` vs Coeus `MoiraiBackend`. `burn` stays a dev/bench-only
+  dependency. Verified: compiles under the bench profile and produces comparable
+  measurements (Linear ≈0.46–0.59 ms, LayerNorm ≈0.05–0.06 ms across backends).
+  ([patch])
 - **KL divergence / MarginRanking loss coverage** — added tracked
   `coeus_autograd` and `coeus_nn` entry points for KL divergence and margin
   ranking losses, plus analytical forward/backward tests and sequential/Moirai
