@@ -1,5 +1,18 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-149: TcpMesh contract completion [COMPLETE]
+
+- [x] [patch] Added defensive duplicate-slot guards in `TcpMesh::new` for both
+  outgoing and incoming stream assignment paths.
+- [x] [patch] Added panic-contract coverage for mesh bounds and constructor
+  invariants:
+  `test_tcp_mesh_send_out_of_bounds_panics`,
+  `test_tcp_mesh_recv_out_of_bounds_panics`, and
+  `test_tcp_mesh_new_rank_out_of_bounds_panics`.
+- [x] Evidence: `cargo test -p coeus-dist test_tcp_mesh_ -- --nocapture`;
+  `cargo test -p coeus-dist test_tcp_mesh_new_rank_out_of_bounds_panics -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-148: TcpMesh/collective invariant hardening [COMPLETE]
 
 - [x] [patch] Added `TcpMesh` peer-invariant guardrail via shared
