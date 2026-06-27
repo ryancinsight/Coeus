@@ -74,6 +74,7 @@ impl LocalCommunicator {
     /// assert_eq!(comms[0].size(), 2);
     /// ```
     pub fn create_cluster(world_size: usize) -> Vec<Self> {
+        assert!(world_size > 0, "LocalCommunicator world_size must be > 0");
         let shared = Arc::new(LocalClusterShared {
             barrier: Barrier::new(world_size),
             buffers: Mutex::new((0..world_size).map(|_| None).collect()),
