@@ -766,6 +766,13 @@ fn test_tcp_mesh_new_rank_out_of_bounds_panics() {
     let _mesh = TcpMesh::new(1, 1, &addresses);
 }
 
+#[test]
+#[should_panic(expected = "addresses list length must match world size")]
+fn test_tcp_mesh_new_addresses_len_mismatch_panics() {
+    let addresses = get_free_ports(1);
+    let _mesh = TcpMesh::new(0, 2, &addresses);
+}
+
 // ── all_reduce with Max / Min / Product reduce ops ──
 //
 // world_size = 3, rank r contributes [r+1, r+2] -> ranks [1,2], [2,3], [3,4].
