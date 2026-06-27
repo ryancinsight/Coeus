@@ -88,14 +88,27 @@ impl Communicator for TcpCommunicator {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
         Self::assert_root(root, size);
+        let numel = tensor.numel();
         if size <= 1 {
             return;
         }
-        if tensor.numel() == 0 {
-            return;
-        }
 
+        // Exchange expected payload lengths first so rank-shape mismatches fail fast
+        // instead of desynchronizing the byte stream.
+        let local_numel_bytes = (numel as u64).to_le_bytes();
         if rank == root {
+            for other in 0..size {
+                if other == root {
+                    continue;
+                }
+                let mut peer_numel_bytes = [0u8; 8];
+                self.mesh.recv(other, &mut peer_numel_bytes);
+                let peer_numel = u64::from_le_bytes(peer_numel_bytes) as usize;
+                Self::assert_numel("broadcast", other, peer_numel, numel);
+            }
+            if numel == 0 {
+                return;
+            }
             with_tensor_host_bytes(tensor, backend, |slice| {
                 for other in 0..size {
                     if other != root {
@@ -104,6 +117,10 @@ impl Communicator for TcpCommunicator {
                 }
             });
         } else {
+            self.mesh.send(root, &local_numel_bytes);
+            if numel == 0 {
+                return;
+            }
             recv_tensor_data(tensor, backend, |slice| {
                 self.mesh.recv(root, slice);
             });

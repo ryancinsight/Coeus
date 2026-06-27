@@ -497,6 +497,36 @@ fn test_tcp_broadcast() {
 }
 
 #[test]
+fn test_tcp_broadcast_mismatched_numel_panics() {
+    let world_size = 2;
+    let addresses = get_free_ports(world_size);
+
+    let mut handles = vec![];
+
+    for rank in 0..world_size {
+        let addrs = addresses.clone();
+        handles.push(thread::spawn(move || {
+            let mesh = TcpMesh::new(rank, world_size, &addrs);
+            let comm = TcpCommunicator::new(mesh);
+            let backend = SequentialBackend::new();
+
+            let mut tensor = if rank == 0 {
+                Tensor::from_slice_on([2], &[10.0f32, 20.0], &backend)
+            } else {
+                Tensor::zeros_on([1], &backend)
+            };
+
+            comm.broadcast(&mut tensor, 0, &backend);
+        }));
+    }
+
+    assert!(
+        handles.into_iter().any(|h| h.join().is_err()),
+        "TCP broadcast with mismatched tensor numel should panic on at least one rank"
+    );
+}
+
+#[test]
 fn test_tcp_all_gather() {
     let world_size = 2;
     let addresses = get_free_ports(world_size);
