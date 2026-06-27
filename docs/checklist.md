@@ -15,7 +15,9 @@ and Python PyTorch differential parity harness.
   weight injection against `torch.nn.Bilinear`; layout `[out,in1,in2]` matches
   directly.
 - [x] Evidence: `cargo nextest run -p coeus-nn --test bilinear_parity` passes
-  2/2; Python Bilinear parity is differential/empirical against PyTorch.
+  2/2; `pytest coeus-python/tests/test_pytorch_parity.py -k bilinear -v`
+  passes 1/1; `cargo clippy -p coeus-nn --test bilinear_parity -- -D warnings`
+  is clean.
 
 ### Previous Sprint: MS-139 - Python optimizer and attention parity [COMPLETE]
 **Objective**: Extend the thin `coeus-python` parity harness with real PyTorch

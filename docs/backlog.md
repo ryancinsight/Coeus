@@ -1,5 +1,18 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-140: Bilinear parity indexing coverage [COMPLETE]
+
+- [x] [patch] Added a `coeus-nn/tests/bilinear_parity.rs` per-output indexing
+  oracle with identity/swap weights and bias `[0.5, -0.5]`, asserting
+  `[23.5, 21.5]` on Sequential and Moirai backends.
+- [x] [patch] Added
+  `coeus-python/tests/test_pytorch_parity.py::test_bilinear_forward_matches_pytorch`
+  against `torch.nn.Bilinear` with direct `[out,in1,in2]` weight injection.
+- [x] Evidence: `cargo nextest run -p coeus-nn --test bilinear_parity` passes
+  2/2; `pytest coeus-python/tests/test_pytorch_parity.py -k bilinear -v`
+  passes 1/1; `cargo clippy -p coeus-nn --test bilinear_parity -- -D warnings`
+  is clean.
+
 ## Sprint MS-139: Python optimizer and attention parity [COMPLETE]
 
 - [x] [patch] Added `coeus-python/tests/test_pytorch_parity.py` checks for
