@@ -1,5 +1,21 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-147: TcpCommunicator staging contract hardening [COMPLETE]
+
+- [x] [patch] Added shared TCP collective numel contract guard
+  (`TcpCommunicator::assert_numel`) and applied it to `all_gather`, `gather`,
+  and `scatter` to fail fast on payload shape mismatches.
+- [x] [patch] Removed allocation-heavy root self-copy paths in `all_gather`,
+  `gather`, and `scatter` by replacing `tensor.clone()` assignment with
+  `get_tensor_host_data` + `copy_host_slice_to_tensor`, preserving preallocated
+  output tensors and reducing avoidable allocations.
+- [x] [patch] Added focused panic-contract tests:
+  `test_tcp_all_gather_mismatched_output_numel_panics` and
+  `test_tcp_scatter_mismatched_input_numel_panics`.
+- [x] Evidence: `cargo test -p coeus-dist test_tcp_all_gather -- --nocapture`;
+  `cargo test -p coeus-dist test_tcp_scatter -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-146: LocalCommunicator collective SSOT hardening [COMPLETE]
 
 - [x] [patch] Extended staged-payload guards to `all_gather` and `gather`

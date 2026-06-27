@@ -18,6 +18,19 @@ impl TcpCommunicator {
     pub fn new(mesh: TcpMesh) -> Self {
         Self { mesh }
     }
+
+    #[inline]
+    fn assert_numel(
+        collective: &'static str,
+        index: usize,
+        actual_numel: usize,
+        expected_numel: usize,
+    ) {
+        assert_eq!(
+            actual_numel, expected_numel,
+            "{collective} numel mismatch at rank index {index}: expected {expected_numel}, got {actual_numel}",
+        );
+    }
 }
 
 impl Communicator for TcpCommunicator {
@@ -100,11 +113,16 @@ impl Communicator for TcpCommunicator {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
         assert_eq!(output.len(), size, "all_gather output length mismatch");
-        if tensor.numel() == 0 {
+        let numel = tensor.numel();
+        if numel == 0 {
             return;
         }
+        for (idx, out) in output.iter().enumerate().take(size) {
+            Self::assert_numel("all_gather output", idx, out.numel(), numel);
+        }
 
-        output[rank] = tensor.clone();
+        let self_host_data = get_tensor_host_data(tensor, backend);
+        copy_host_slice_to_tensor(&self_host_data, &mut output[rank], backend);
 
         with_tensor_host_bytes(tensor, backend, |send_raw_slice| {
             for (other, out_tensor) in output.iter_mut().enumerate().take(size) {
@@ -175,13 +193,18 @@ impl Communicator for TcpCommunicator {
     ) {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
-        if tensor.numel() == 0 {
+        let numel = tensor.numel();
+        if numel == 0 {
             return;
         }
 
         if rank == root {
             assert_eq!(output.len(), size, "gather output length mismatch on root");
-            output[root] = tensor.clone();
+            for (idx, out) in output.iter().enumerate().take(size) {
+                Self::assert_numel("gather output", idx, out.numel(), numel);
+            }
+            let self_host_data = get_tensor_host_data(tensor, backend);
+            copy_host_slice_to_tensor(&self_host_data, &mut output[root], backend);
 
             for (other, out_tensor) in output.iter_mut().enumerate().take(size) {
                 if other != root {
@@ -206,13 +229,18 @@ impl Communicator for TcpCommunicator {
     ) {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
-        if tensor.numel() == 0 {
+        let numel = tensor.numel();
+        if numel == 0 {
             return;
         }
 
         if rank == root {
             assert_eq!(input.len(), size, "scatter input length mismatch on root");
-            *tensor = input[root].clone();
+            for (idx, in_tensor) in input.iter().enumerate().take(size) {
+                Self::assert_numel("scatter input", idx, in_tensor.numel(), numel);
+            }
+            let self_host_data = get_tensor_host_data(&input[root], backend);
+            copy_host_slice_to_tensor(&self_host_data, tensor, backend);
 
             for (other, in_tensor) in input.iter().enumerate().take(size) {
                 if other != root {

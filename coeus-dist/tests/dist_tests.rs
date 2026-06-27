@@ -555,6 +555,32 @@ fn test_tcp_scatter() {
     }
 }
 
+#[test]
+#[should_panic(expected = "all_gather output numel mismatch")]
+fn test_tcp_all_gather_mismatched_output_numel_panics() {
+    let addresses = get_free_ports(1);
+    let mesh = TcpMesh::new(0, 1, &addresses);
+    let comm = TcpCommunicator::new(mesh);
+    let backend = SequentialBackend::new();
+
+    let tensor = Tensor::from_slice_on([2], &[1.0f32, 2.0], &backend);
+    let mut output = vec![Tensor::zeros_on([1], &backend)];
+    comm.all_gather(&tensor, &mut output, &backend);
+}
+
+#[test]
+#[should_panic(expected = "scatter input numel mismatch")]
+fn test_tcp_scatter_mismatched_input_numel_panics() {
+    let addresses = get_free_ports(1);
+    let mesh = TcpMesh::new(0, 1, &addresses);
+    let comm = TcpCommunicator::new(mesh);
+    let backend = SequentialBackend::new();
+
+    let mut tensor = Tensor::zeros_on([2], &backend);
+    let input = vec![Tensor::from_slice_on([1], &[3.0f32], &backend)];
+    comm.scatter(&mut tensor, &input, 0, &backend);
+}
+
 // ── all_reduce with Max / Min / Product reduce ops ──
 //
 // world_size = 3, rank r contributes [r+1, r+2] -> ranks [1,2], [2,3], [3,4].
