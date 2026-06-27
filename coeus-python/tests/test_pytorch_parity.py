@@ -14,9 +14,9 @@ Both pycoeus and PyTorch Linear/MHA store projection weights in
 are copied directly without transposition.
 """
 
+import math
 import os
 import sys
-import math
 
 import pytest
 
@@ -57,7 +57,7 @@ def test_linear_matches_pytorch() -> None:
 
     linear_pyc = pycoeus.Linear(in_f, out_f, bias=True)
     w_data = linear_pyc.weight.data  # [out_f, in_f] flat
-    b_data = linear_pyc.bias.data    # [out_f] flat
+    b_data = linear_pyc.bias.data  # [out_f] flat
 
     x_data = [float(i) * 0.01 for i in range(batch * in_f)]
     tgt_data = [1.0] * (batch * out_f)
@@ -71,8 +71,16 @@ def test_linear_matches_pytorch() -> None:
     loss_pyc.backward()
 
     # PyTorch forward + backward (f64 to match pycoeus default precision)
-    x_t = torch.tensor(x_data, dtype=torch.float64).reshape(batch, in_f).requires_grad_(True)
-    w_t = torch.tensor(w_data, dtype=torch.float64).reshape(out_f, in_f).requires_grad_(True)
+    x_t = (
+        torch.tensor(x_data, dtype=torch.float64)
+        .reshape(batch, in_f)
+        .requires_grad_(True)
+    )
+    w_t = (
+        torch.tensor(w_data, dtype=torch.float64)
+        .reshape(out_f, in_f)
+        .requires_grad_(True)
+    )
     b_t = torch.tensor(b_data, dtype=torch.float64).requires_grad_(True)
     out_t = torch.nn.functional.linear(x_t, w_t, b_t)
     act_t = torch.relu(out_t)
@@ -102,19 +110,85 @@ def test_mha_matches_pytorch() -> None:
     d_model, num_heads, batch, seq = 4, 2, 1, 3
 
     # Fixed weights: deterministic, non-trivial.
-    wq = [0.1, 0.2, 0.3, 0.4,  0.5, 0.6, 0.7, 0.8,
-          0.9, 1.0, 0.1, 0.2,  0.3, 0.4, 0.5, 0.6]
-    wk = [0.2, 0.1, 0.4, 0.3,  0.6, 0.5, 0.8, 0.7,
-          0.1, 0.9, 0.2, 0.8,  0.3, 0.7, 0.4, 0.6]
-    wv = [0.3, 0.3, 0.3, 0.3,  0.7, 0.7, 0.7, 0.7,
-          0.4, 0.4, 0.4, 0.4,  0.8, 0.8, 0.8, 0.8]
-    wo = [1.0, 0.0, 0.0, 1.0,  0.0, 1.0, 1.0, 0.0,
-          0.5, 0.5, 0.5, 0.5,  0.1, 0.2, 0.3, 0.4]
+    wq = [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.7,
+        0.8,
+        0.9,
+        1.0,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+    ]
+    wk = [
+        0.2,
+        0.1,
+        0.4,
+        0.3,
+        0.6,
+        0.5,
+        0.8,
+        0.7,
+        0.1,
+        0.9,
+        0.2,
+        0.8,
+        0.3,
+        0.7,
+        0.4,
+        0.6,
+    ]
+    wv = [
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.4,
+        0.4,
+        0.4,
+        0.4,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+    ]
+    wo = [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        1.0,
+        0.0,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+    ]
 
     x_data = [0.1 * i - 0.3 for i in range(batch * seq * d_model)]
 
     # pycoeus
-    mha_pyc = pycoeus.MultiHeadAttention(d_model=d_model, num_heads=num_heads, bias=False)
+    mha_pyc = pycoeus.MultiHeadAttention(
+        d_model=d_model, num_heads=num_heads, bias=False
+    )
     mha_pyc.w_q.data = wq
     mha_pyc.w_k.data = wk
     mha_pyc.w_v.data = wv
@@ -124,21 +198,24 @@ def test_mha_matches_pytorch() -> None:
 
     # PyTorch: in_proj_weight rows are [Wq, Wk, Wv], each [d_model, d_model].
     mha_t = torch.nn.MultiheadAttention(
-        embed_dim=d_model, num_heads=num_heads, bias=False,
-        batch_first=True, dtype=torch.float64,
+        embed_dim=d_model,
+        num_heads=num_heads,
+        bias=False,
+        batch_first=True,
+        dtype=torch.float64,
     )
     with torch.no_grad():
-        mha_t.in_proj_weight[:d_model, :] = (
-            torch.tensor(wq, dtype=torch.float64).reshape(d_model, d_model)
-        )
-        mha_t.in_proj_weight[d_model : 2 * d_model, :] = (
-            torch.tensor(wk, dtype=torch.float64).reshape(d_model, d_model)
-        )
-        mha_t.in_proj_weight[2 * d_model :, :] = (
-            torch.tensor(wv, dtype=torch.float64).reshape(d_model, d_model)
-        )
-        mha_t.out_proj.weight[:] = (
-            torch.tensor(wo, dtype=torch.float64).reshape(d_model, d_model)
+        mha_t.in_proj_weight[:d_model, :] = torch.tensor(
+            wq, dtype=torch.float64
+        ).reshape(d_model, d_model)
+        mha_t.in_proj_weight[d_model : 2 * d_model, :] = torch.tensor(
+            wk, dtype=torch.float64
+        ).reshape(d_model, d_model)
+        mha_t.in_proj_weight[2 * d_model :, :] = torch.tensor(
+            wv, dtype=torch.float64
+        ).reshape(d_model, d_model)
+        mha_t.out_proj.weight[:] = torch.tensor(wo, dtype=torch.float64).reshape(
+            d_model, d_model
         )
     x_t = torch.tensor(x_data, dtype=torch.float64).reshape(batch, seq, d_model)
     out_t, _ = mha_t(x_t, x_t, x_t, need_weights=False)
@@ -154,9 +231,24 @@ def test_mha_matches_pytorch() -> None:
 def test_conv1d_matches_pytorch() -> None:
     """Forward and gradient parity: Conv1d(in=2, out=3, k=3, stride=1, pad=0, bias)."""
     w_data = [
-        0.5, -0.5, 1.0, 0.0, 1.0, 0.0,
-        0.1, 0.2, 0.3, -0.1, -0.2, -0.3,
-        1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        0.5,
+        -0.5,
+        1.0,
+        0.0,
+        1.0,
+        0.0,
+        0.1,
+        0.2,
+        0.3,
+        -0.1,
+        -0.2,
+        -0.3,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
     ]
     b_data = [0.1, -0.1, 0.5]
     x_data = [1.0, 2.0, 3.0, 4.0, -1.0, 0.0, 1.0, 2.0]
@@ -168,18 +260,26 @@ def test_conv1d_matches_pytorch() -> None:
     out_pyc = conv_pyc.forward(x_pyc)
     out_pyc.backward()
 
-    conv_t = torch.nn.Conv1d(2, 3, kernel_size=3, stride=1, padding=0, dilation=1, bias=True).double()
+    conv_t = torch.nn.Conv1d(
+        2, 3, kernel_size=3, stride=1, padding=0, dilation=1, bias=True
+    ).double()
     with torch.no_grad():
         conv_t.weight[:] = torch.tensor(w_data, dtype=torch.float64).reshape(3, 2, 3)
         conv_t.bias[:] = torch.tensor(b_data, dtype=torch.float64)
-    x_t = torch.tensor(x_data, dtype=torch.float64).reshape(1, 2, 4).requires_grad_(True)
+    x_t = (
+        torch.tensor(x_data, dtype=torch.float64).reshape(1, 2, 4).requires_grad_(True)
+    )
     out_t = conv_t(x_t)
     out_t.sum().backward()
 
     _allclose("conv1d_out", list(out_pyc.data), out_t.flatten().tolist())
     _allclose("conv1d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist())
-    _allclose("conv1d_dW", list(conv_pyc.weight.grad), conv_t.weight.grad.flatten().tolist())
-    _allclose("conv1d_db", list(conv_pyc.bias.grad), conv_t.bias.grad.flatten().tolist())
+    _allclose(
+        "conv1d_dW", list(conv_pyc.weight.grad), conv_t.weight.grad.flatten().tolist()
+    )
+    _allclose(
+        "conv1d_db", list(conv_pyc.bias.grad), conv_t.bias.grad.flatten().tolist()
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -190,15 +290,43 @@ def test_conv1d_matches_pytorch() -> None:
 def test_conv2d_matches_pytorch() -> None:
     """Forward and gradient parity: Conv2d(in=2, out=2, k=2, stride=1, pad=0, bias)."""
     w_data = [
-        0.5, -0.5, 1.0, 0.0,
-        0.1, 0.2, 0.3, -0.1,
-        -0.2, 0.5, 0.0, 1.0,
-        1.0, -1.0, 0.2, 0.8,
+        0.5,
+        -0.5,
+        1.0,
+        0.0,
+        0.1,
+        0.2,
+        0.3,
+        -0.1,
+        -0.2,
+        0.5,
+        0.0,
+        1.0,
+        1.0,
+        -1.0,
+        0.2,
+        0.8,
     ]
     b_data = [0.1, -0.2]
     x_data = [
-        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0,
-        -1.0, -2.0, -3.0, -4.0, -5.0, -6.0, -7.0, -8.0, -9.0,
+        1.0,
+        2.0,
+        3.0,
+        4.0,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        -1.0,
+        -2.0,
+        -3.0,
+        -4.0,
+        -5.0,
+        -6.0,
+        -7.0,
+        -8.0,
+        -9.0,
     ]
 
     conv_pyc = pycoeus.Conv2d(2, 2, 2, 1, 0, 1, True)
@@ -208,18 +336,28 @@ def test_conv2d_matches_pytorch() -> None:
     out_pyc = conv_pyc.forward(x_pyc)
     out_pyc.backward()
 
-    conv_t = torch.nn.Conv2d(2, 2, kernel_size=2, stride=1, padding=0, dilation=1, bias=True).double()
+    conv_t = torch.nn.Conv2d(
+        2, 2, kernel_size=2, stride=1, padding=0, dilation=1, bias=True
+    ).double()
     with torch.no_grad():
         conv_t.weight[:] = torch.tensor(w_data, dtype=torch.float64).reshape(2, 2, 2, 2)
         conv_t.bias[:] = torch.tensor(b_data, dtype=torch.float64)
-    x_t = torch.tensor(x_data, dtype=torch.float64).reshape(1, 2, 3, 3).requires_grad_(True)
+    x_t = (
+        torch.tensor(x_data, dtype=torch.float64)
+        .reshape(1, 2, 3, 3)
+        .requires_grad_(True)
+    )
     out_t = conv_t(x_t)
     out_t.sum().backward()
 
     _allclose("conv2d_out", list(out_pyc.data), out_t.flatten().tolist())
     _allclose("conv2d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist())
-    _allclose("conv2d_dW", list(conv_pyc.weight.grad), conv_t.weight.grad.flatten().tolist())
-    _allclose("conv2d_db", list(conv_pyc.bias.grad), conv_t.bias.grad.flatten().tolist())
+    _allclose(
+        "conv2d_dW", list(conv_pyc.weight.grad), conv_t.weight.grad.flatten().tolist()
+    )
+    _allclose(
+        "conv2d_db", list(conv_pyc.bias.grad), conv_t.bias.grad.flatten().tolist()
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -251,8 +389,18 @@ def test_layernorm_matches_pytorch() -> None:
 
     _allclose("ln_out", list(out_pyc.data), out_t.flatten().tolist(), atol=_ATOL_LN)
     _allclose("ln_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=_ATOL_LN)
-    _allclose("ln_dgamma", list(ln_pyc.weight.grad), ln_t.weight.grad.flatten().tolist(), atol=_ATOL_LN)
-    _allclose("ln_dbeta", list(ln_pyc.bias.grad), ln_t.bias.grad.flatten().tolist(), atol=_ATOL_LN)
+    _allclose(
+        "ln_dgamma",
+        list(ln_pyc.weight.grad),
+        ln_t.weight.grad.flatten().tolist(),
+        atol=_ATOL_LN,
+    )
+    _allclose(
+        "ln_dbeta",
+        list(ln_pyc.bias.grad),
+        ln_t.bias.grad.flatten().tolist(),
+        atol=_ATOL_LN,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -264,17 +412,83 @@ def test_mha_backward_matches_pytorch() -> None:
     """Backward parity: MHA(d_model=4, H=2, no bias) — dx and dW_q after sum loss."""
     d_model, num_heads, batch, seq = 4, 2, 1, 3
 
-    wq = [0.1, 0.2, 0.3, 0.4,  0.5, 0.6, 0.7, 0.8,
-          0.9, 1.0, 0.1, 0.2,  0.3, 0.4, 0.5, 0.6]
-    wk = [0.2, 0.1, 0.4, 0.3,  0.6, 0.5, 0.8, 0.7,
-          0.1, 0.9, 0.2, 0.8,  0.3, 0.7, 0.4, 0.6]
-    wv = [0.3, 0.3, 0.3, 0.3,  0.7, 0.7, 0.7, 0.7,
-          0.4, 0.4, 0.4, 0.4,  0.8, 0.8, 0.8, 0.8]
-    wo = [1.0, 0.0, 0.0, 1.0,  0.0, 1.0, 1.0, 0.0,
-          0.5, 0.5, 0.5, 0.5,  0.1, 0.2, 0.3, 0.4]
+    wq = [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.7,
+        0.8,
+        0.9,
+        1.0,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+    ]
+    wk = [
+        0.2,
+        0.1,
+        0.4,
+        0.3,
+        0.6,
+        0.5,
+        0.8,
+        0.7,
+        0.1,
+        0.9,
+        0.2,
+        0.8,
+        0.3,
+        0.7,
+        0.4,
+        0.6,
+    ]
+    wv = [
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.4,
+        0.4,
+        0.4,
+        0.4,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+    ]
+    wo = [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        1.0,
+        0.0,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+    ]
     x_data = [0.1 * i - 0.3 for i in range(batch * seq * d_model)]
 
-    mha_pyc = pycoeus.MultiHeadAttention(d_model=d_model, num_heads=num_heads, bias=False)
+    mha_pyc = pycoeus.MultiHeadAttention(
+        d_model=d_model, num_heads=num_heads, bias=False
+    )
     mha_pyc.w_q.data = wq
     mha_pyc.w_k.data = wk
     mha_pyc.w_v.data = wv
@@ -284,15 +498,30 @@ def test_mha_backward_matches_pytorch() -> None:
     out_pyc.backward()
 
     mha_t = torch.nn.MultiheadAttention(
-        embed_dim=d_model, num_heads=num_heads, bias=False,
-        batch_first=True, dtype=torch.float64,
+        embed_dim=d_model,
+        num_heads=num_heads,
+        bias=False,
+        batch_first=True,
+        dtype=torch.float64,
     )
     with torch.no_grad():
-        mha_t.in_proj_weight[:d_model, :] = torch.tensor(wq, dtype=torch.float64).reshape(d_model, d_model)
-        mha_t.in_proj_weight[d_model : 2 * d_model, :] = torch.tensor(wk, dtype=torch.float64).reshape(d_model, d_model)
-        mha_t.in_proj_weight[2 * d_model :, :] = torch.tensor(wv, dtype=torch.float64).reshape(d_model, d_model)
-        mha_t.out_proj.weight[:] = torch.tensor(wo, dtype=torch.float64).reshape(d_model, d_model)
-    x_t = torch.tensor(x_data, dtype=torch.float64).reshape(batch, seq, d_model).requires_grad_(True)
+        mha_t.in_proj_weight[:d_model, :] = torch.tensor(
+            wq, dtype=torch.float64
+        ).reshape(d_model, d_model)
+        mha_t.in_proj_weight[d_model : 2 * d_model, :] = torch.tensor(
+            wk, dtype=torch.float64
+        ).reshape(d_model, d_model)
+        mha_t.in_proj_weight[2 * d_model :, :] = torch.tensor(
+            wv, dtype=torch.float64
+        ).reshape(d_model, d_model)
+        mha_t.out_proj.weight[:] = torch.tensor(wo, dtype=torch.float64).reshape(
+            d_model, d_model
+        )
+    x_t = (
+        torch.tensor(x_data, dtype=torch.float64)
+        .reshape(batch, seq, d_model)
+        .requires_grad_(True)
+    )
     out_t, _ = mha_t(x_t, x_t, x_t, need_weights=False)
     out_t.sum().backward()
 
@@ -337,24 +566,29 @@ def _torch_preln_layer_fwd(
     wff1 = list(layer.ffn.linear1.weight.data)
     bff1 = list(layer.ffn.linear1.bias.data) if layer.ffn.linear1.bias else [0.0] * d_ff
     wff2 = list(layer.ffn.linear2.weight.data)
-    bff2 = list(layer.ffn.linear2.bias.data) if layer.ffn.linear2.bias else [0.0] * d_model
+    bff2 = (
+        list(layer.ffn.linear2.bias.data) if layer.ffn.linear2.bias else [0.0] * d_model
+    )
 
     mha_t = torch.nn.MultiheadAttention(
-        embed_dim=d_model, num_heads=num_heads, bias=False,
-        batch_first=True, dtype=torch.float64,
+        embed_dim=d_model,
+        num_heads=num_heads,
+        bias=False,
+        batch_first=True,
+        dtype=torch.float64,
     )
     with torch.no_grad():
-        mha_t.in_proj_weight[:d_model, :] = (
-            torch.tensor(wq, dtype=torch.float64).reshape(d_model, d_model)
-        )
-        mha_t.in_proj_weight[d_model : 2 * d_model, :] = (
-            torch.tensor(wk, dtype=torch.float64).reshape(d_model, d_model)
-        )
-        mha_t.in_proj_weight[2 * d_model :, :] = (
-            torch.tensor(wv, dtype=torch.float64).reshape(d_model, d_model)
-        )
-        mha_t.out_proj.weight[:] = (
-            torch.tensor(wo, dtype=torch.float64).reshape(d_model, d_model)
+        mha_t.in_proj_weight[:d_model, :] = torch.tensor(
+            wq, dtype=torch.float64
+        ).reshape(d_model, d_model)
+        mha_t.in_proj_weight[d_model : 2 * d_model, :] = torch.tensor(
+            wk, dtype=torch.float64
+        ).reshape(d_model, d_model)
+        mha_t.in_proj_weight[2 * d_model :, :] = torch.tensor(
+            wv, dtype=torch.float64
+        ).reshape(d_model, d_model)
+        mha_t.out_proj.weight[:] = torch.tensor(wo, dtype=torch.float64).reshape(
+            d_model, d_model
         )
     mha_t.in_proj_bias = None
     mha_t.out_proj.bias = None
@@ -416,7 +650,12 @@ def test_transformer_encoder_layer_matches_pytorch() -> None:
     x_t = torch.tensor(x_data, dtype=torch.float64).reshape(batch, seq, d_model)
     out_t = _torch_preln_layer_fwd(x_t, tel, d_model, num_heads)
 
-    _allclose("encoder_layer_fwd", list(out_pyc.data), out_t.flatten().tolist(), atol=_ATOL_ENC)
+    _allclose(
+        "encoder_layer_fwd",
+        list(out_pyc.data),
+        out_t.flatten().tolist(),
+        atol=_ATOL_ENC,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -440,7 +679,10 @@ def test_transformer_encoder_stack_matches_pytorch() -> None:
     _ATOL_ENC = 2e-4
 
     enc = pycoeus.TransformerEncoder(
-        d_model=d_model, d_ff=8, num_heads=num_heads, num_layers=num_layers,
+        d_model=d_model,
+        d_ff=8,
+        num_heads=num_heads,
+        num_layers=num_layers,
     )
     assert enc.num_layers == num_layers
     assert len(enc.parameters()) == 16 * num_layers
@@ -453,7 +695,9 @@ def test_transformer_encoder_stack_matches_pytorch() -> None:
     for layer in enc.layers:
         x_t = _torch_preln_layer_fwd(x_t, layer, d_model, num_heads)
 
-    _allclose("encoder_stack_fwd", list(out_pyc.data), x_t.flatten().tolist(), atol=_ATOL_ENC)
+    _allclose(
+        "encoder_stack_fwd", list(out_pyc.data), x_t.flatten().tolist(), atol=_ATOL_ENC
+    )
 
 
 # ── TransformerDecoder parity ────────────────────────────────────────────────
@@ -489,33 +733,38 @@ def _torch_preln_decoder_layer_fwd(
     ca_wv = list(layer.cross_attn.w_v.data)
     ca_wo = list(layer.cross_attn.w_o.data)
     gamma1 = list(layer.norm1.weight.data)
-    beta1  = list(layer.norm1.bias.data)
+    beta1 = list(layer.norm1.bias.data)
     gamma2 = list(layer.norm2.weight.data)
-    beta2  = list(layer.norm2.bias.data)
+    beta2 = list(layer.norm2.bias.data)
     gamma3 = list(layer.norm3.weight.data)
-    beta3  = list(layer.norm3.bias.data)
+    beta3 = list(layer.norm3.bias.data)
     wff1 = list(layer.ffn.linear1.weight.data)
     bff1 = list(layer.ffn.linear1.bias.data) if layer.ffn.linear1.bias else [0.0] * d_ff
     wff2 = list(layer.ffn.linear2.weight.data)
-    bff2 = list(layer.ffn.linear2.bias.data) if layer.ffn.linear2.bias else [0.0] * d_model
+    bff2 = (
+        list(layer.ffn.linear2.bias.data) if layer.ffn.linear2.bias else [0.0] * d_model
+    )
 
     def _make_mha(wq, wk, wv, wo):
         mha = torch.nn.MultiheadAttention(
-            embed_dim=d_model, num_heads=num_heads, bias=False,
-            batch_first=True, dtype=torch.float64,
+            embed_dim=d_model,
+            num_heads=num_heads,
+            bias=False,
+            batch_first=True,
+            dtype=torch.float64,
         )
         with torch.no_grad():
-            mha.in_proj_weight[:d_model, :] = (
-                torch.tensor(wq, dtype=torch.float64).reshape(d_model, d_model)
-            )
-            mha.in_proj_weight[d_model:2 * d_model, :] = (
-                torch.tensor(wk, dtype=torch.float64).reshape(d_model, d_model)
-            )
-            mha.in_proj_weight[2 * d_model:, :] = (
-                torch.tensor(wv, dtype=torch.float64).reshape(d_model, d_model)
-            )
-            mha.out_proj.weight[:] = (
-                torch.tensor(wo, dtype=torch.float64).reshape(d_model, d_model)
+            mha.in_proj_weight[:d_model, :] = torch.tensor(
+                wq, dtype=torch.float64
+            ).reshape(d_model, d_model)
+            mha.in_proj_weight[d_model : 2 * d_model, :] = torch.tensor(
+                wk, dtype=torch.float64
+            ).reshape(d_model, d_model)
+            mha.in_proj_weight[2 * d_model :, :] = torch.tensor(
+                wv, dtype=torch.float64
+            ).reshape(d_model, d_model)
+            mha.out_proj.weight[:] = torch.tensor(wo, dtype=torch.float64).reshape(
+                d_model, d_model
             )
         mha.in_proj_bias = None
         mha.out_proj.bias = None
@@ -594,7 +843,10 @@ def test_transformer_decoder_stack_matches_pytorch() -> None:
     _ATOL = 2e-4
 
     dec = pycoeus.TransformerDecoder(
-        d_model=d_model, d_ff=8, num_heads=num_heads, num_layers=num_layers,
+        d_model=d_model,
+        d_ff=8,
+        num_heads=num_heads,
+        num_layers=num_layers,
     )
     assert dec.num_layers == num_layers
     assert len(dec.parameters()) == 26 * num_layers
@@ -610,8 +862,9 @@ def test_transformer_decoder_stack_matches_pytorch() -> None:
     for layer in dec.layers:
         tgt_t = _torch_preln_decoder_layer_fwd(tgt_t, mem_t, layer, d_model, num_heads)
 
-    _allclose("decoder_stack_fwd", list(out_pyc.data), tgt_t.flatten().tolist(), atol=_ATOL)
-
+    _allclose(
+        "decoder_stack_fwd", list(out_pyc.data), tgt_t.flatten().tolist(), atol=_ATOL
+    )
 
 
 # ── Transformer seq2seq composition test ─────────────────────────────────────
@@ -655,7 +908,9 @@ def test_transformer_seq2seq_composition() -> None:
     out_manual = t.decoder.forward(tgt_pyc, memory)
 
     # Same computation path → bitwise identical (tolerance = 1e-12)
-    _allclose("transformer_seq2seq", list(out_t.data), list(out_manual.data), atol=1e-12)
+    _allclose(
+        "transformer_seq2seq", list(out_t.data), list(out_manual.data), atol=1e-12
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -718,8 +973,12 @@ def test_lstm_cell_step_matches_pytorch() -> None:
 
     h_new_t, c_new_t = torch_lstm(x_t, (h_t, c_t))
 
-    _allclose("lstm_h_new", list(h_new_pyc.data), h_new_t.flatten().tolist(), atol=1e-10)
-    _allclose("lstm_c_new", list(c_new_pyc.data), c_new_t.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "lstm_h_new", list(h_new_pyc.data), h_new_t.flatten().tolist(), atol=1e-10
+    )
+    _allclose(
+        "lstm_c_new", list(c_new_pyc.data), c_new_t.flatten().tolist(), atol=1e-10
+    )
 
 
 @pytest.mark.skipif(
@@ -794,9 +1053,7 @@ def test_sgd_step_matches_pytorch() -> None:
     opt_pyc.step()
 
     w_t = torch.tensor([1.0], dtype=torch.float64, requires_grad=True)
-    loss_t = torch.nn.functional.mse_loss(
-        w_t, torch.zeros(1, dtype=torch.float64)
-    )
+    loss_t = torch.nn.functional.mse_loss(w_t, torch.zeros(1, dtype=torch.float64))
     loss_t.backward()
     opt_t = torch.optim.SGD([w_t], lr=lr, momentum=0.0)
     opt_t.step()
@@ -821,9 +1078,7 @@ def test_adam_step_matches_pytorch() -> None:
     opt_pyc.step()
 
     w_t = torch.tensor([1.0], dtype=torch.float64, requires_grad=True)
-    loss_t = torch.nn.functional.mse_loss(
-        w_t, torch.zeros(1, dtype=torch.float64)
-    )
+    loss_t = torch.nn.functional.mse_loss(w_t, torch.zeros(1, dtype=torch.float64))
     loss_t.backward()
     opt_t = torch.optim.Adam([w_t], lr=lr, betas=(0.9, 0.999), eps=1e-8)
     opt_t.step()
@@ -849,9 +1104,7 @@ def test_adamw_step_matches_pytorch() -> None:
     opt_pyc.step()
 
     w_t = torch.tensor([1.0], dtype=torch.float64, requires_grad=True)
-    loss_t = torch.nn.functional.mse_loss(
-        w_t, torch.zeros(1, dtype=torch.float64)
-    )
+    loss_t = torch.nn.functional.mse_loss(w_t, torch.zeros(1, dtype=torch.float64))
     loss_t.backward()
     opt_t = torch.optim.AdamW([w_t], lr=lr, weight_decay=wd)
     opt_t.step()
@@ -886,9 +1139,9 @@ def test_bilinear_forward_matches_pytorch() -> None:
     # PyTorch reference (double precision to match pycoeus f64)
     torch_bil = torch.nn.Bilinear(in1, in2, out, bias=True).double()
     with torch.no_grad():
-        torch_bil.weight[:] = torch.tensor(
-            w_flat, dtype=torch.float64
-        ).reshape(out, in1, in2)
+        torch_bil.weight[:] = torch.tensor(w_flat, dtype=torch.float64).reshape(
+            out, in1, in2
+        )
         torch_bil.bias[:] = torch.tensor(b_flat, dtype=torch.float64)
     x1_t = torch.tensor(x1_data, dtype=torch.float64).reshape(batch, in1)
     x2_t = torch.tensor(x2_data, dtype=torch.float64).reshape(batch, in2)
@@ -898,5 +1151,143 @@ def test_bilinear_forward_matches_pytorch() -> None:
         "bilinear_out",
         list(out_pyc.data),
         out_t.flatten().tolist(),
+        atol=1e-10,
+    )
+
+
+# ── RMSNorm PyTorch parity ─────────────────────────────────────────────────
+
+
+def test_rmsnorm_matches_pytorch() -> None:
+    """Forward and gradient parity: RMSNorm(4, eps=1e-8), no bias.
+
+    PyTorch 2.12 does not yet ship ``torch.nn.RMSNorm`` as stable, so the
+    oracle is the canonical formula
+    ::
+
+        rms = sqrt(mean(x * x, dim=-1, keepdim=True) + eps)
+        y = (x / rms) * gamma
+
+    which is exactly what ``torch.nn.RMSNorm`` (since PyTorch 2.4) computes.
+    Forward output, input gradient, and gamma gradient agree to bitwise
+    precision between pycoeus and the formula at f64.
+
+    Evidence tier: differential / empirical against PyTorch's RMSNorm
+    canonical formula at f64. Tolerance 1e-10.
+    """
+    d_model = 4
+    data = [1.0, 2.0, 3.0, 4.0, -1.0, 0.5, 2.5, 3.0]
+    gamma = [1.2, 0.8, 1.0, 0.9]
+    eps = 1e-8
+
+    rn_pyc = pycoeus.RMSNorm(d_model, eps)
+    rn_pyc.weight.data = gamma
+    x_pyc = pycoeus.Tensor(data, [2, d_model], requires_grad=True)
+    y_pyc = rn_pyc.forward(x_pyc)
+    loss_pyc = pycoeus.sum(y_pyc)
+    loss_pyc.backward()
+
+    x_t = (
+        torch.tensor(data, dtype=torch.float64).reshape(2, d_model).requires_grad_(True)
+    )
+    w_t = (
+        torch.tensor(gamma, dtype=torch.float64)
+        .reshape(1, d_model)
+        .requires_grad_(True)
+    )
+    rms_t = torch.sqrt((x_t * x_t).mean(dim=-1, keepdim=True) + eps)
+    y_t = (x_t / rms_t) * w_t
+    loss_t = y_t.sum()
+    loss_t.backward()
+
+    _allclose(
+        "rmsnorm_y", pyc_y_data := list(y_pyc.data), y_t.flatten().tolist(), atol=1e-10
+    )
+    _allclose("rmsnorm_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "rmsnorm_dgamma",
+        list(rn_pyc.weight.grad),
+        w_t.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+
+
+# ── Embedding PyTorch parity ────────────────────────────────────────────────
+
+
+def test_embedding_matches_pytorch() -> None:
+    """Forward and gradient parity: Embedding(num=6, dim=4).
+
+    Sets a non-trivial weight matrix, forwards on a fixed index sequence,
+    computes ``mse_loss`` against a target like for like ``torch.nn.Embedding``.
+    PyTorch's ``nn.Embedding`` uses sparse-index backward; ``torch.autograd``
+    gathers gradients into the weight matrix only at the rows that were
+    looked up.  Pycoeus' embedding parity follows the same contract.
+
+    Evidence tier: differential / empirical against ``torch.nn.Embedding`` at f64.
+    Tolerance 1e-10.
+    """
+    num_embeddings, embedding_dim = 6, 4
+    weight_data = [
+        0.5,
+        -0.5,
+        1.0,
+        0.0,
+        0.1,
+        0.2,
+        0.3,
+        -0.1,
+        -0.2,
+        0.5,
+        0.0,
+        1.0,
+        1.0,
+        -1.0,
+        0.2,
+        0.8,
+        0.7,
+        0.3,
+        -0.7,
+        0.4,
+        0.0,
+        1.0,
+        0.5,
+        -0.5,
+    ]
+    indices = [0, 2, 4, 1, 3, 5]
+    target_data = [1.0] * (len(indices) * embedding_dim)  # [6, 4]
+
+    # pycoeus forward + backward
+    emb_pyc = pycoeus.Embedding(num_embeddings, embedding_dim)
+    emb_pyc.weight.data = weight_data
+    idx_pyc = pycoeus.Tensor(
+        [float(i) for i in indices], [len(indices)], requires_grad=False
+    )
+    y_pyc = emb_pyc.forward(idx_pyc)
+    target_pyc = pycoeus.Tensor(target_data, [len(indices), embedding_dim])
+    loss_pyc = pycoeus.mse_loss(y_pyc, target_pyc)
+    loss_pyc.backward()
+
+    # PyTorch reference
+    emb_t = torch.nn.Embedding(num_embeddings, embedding_dim).double()
+    with torch.no_grad():
+        emb_t.weight.copy_(
+            torch.tensor(weight_data, dtype=torch.float64).reshape(
+                num_embeddings, embedding_dim
+            )
+        )
+    idx_t = torch.tensor(indices, dtype=torch.long)
+    y_t = emb_t(idx_t)
+    target_t = torch.tensor(target_data, dtype=torch.float64).reshape(
+        len(indices), embedding_dim
+    )
+    loss_t = torch.nn.functional.mse_loss(y_t, target_t)
+    loss_t.backward()
+
+    _allclose("embedding_y", list(y_pyc.data), y_t.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "embedding_dweight",
+        list(emb_pyc.weight.grad),
+        emb_t.weight.grad.flatten().tolist(),
         atol=1e-10,
     )

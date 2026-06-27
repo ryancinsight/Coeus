@@ -23,6 +23,10 @@
   W[1]=swap; x1=[2,3], x2=[4,5], b=[0.5,-0.5] → out=[23.5, 21.5]; exact integer
   arithmetic, no floating-point error) and `bilinear_no_bias_output_shape`
   ([batch,out] contract for shape `[2,5]`). 299/299 Rust tests pass.
+## 0.5.3 - 2026-06-26
+
+### Added
+
 - **PyTorch optimizer parity surface** — added
   `coeus-python/tests/test_pytorch_parity.py::test_sgd_step_matches_pytorch`,
   `test_adam_step_matches_pytorch`, and `test_adamw_step_matches_pytorch`.
@@ -46,6 +50,20 @@
   and comparing f32 gradients against pycoeus' f64 backward path is an
   unreliable oracle — the PyTorch and JAX parity tests already cover autograd
   parity at f64. Module skips cleanly when `mlx.core` is absent.
+- **RMSNorm PyTorch parity** — added `test_rmsnorm_matches_pytorch` asserting
+  forward output, `dx`, and `dgamma` against PyTorch's canonical RMSNorm
+  formula `y = (x / sqrt(mean(x², dim=-1, keepdim=True) + eps)) * gamma`
+  at `atol=1e-10`. PyTorch 2.12 does not yet ship a stable
+  `torch.nn.RMSNorm`, so the oracle is the formulaic implementation
+  identical to the canonical reference. Pycoeus and the formula agree
+  to bitwise precision across the normalized dimension.
+- **Embedding PyTorch parity** — added `test_embedding_matches_pytorch`
+  asserting forward output and weight gradient against
+  `torch.nn.Embedding` with sparse-index backward at `atol=1e-10`.
+  Sets a non-trivial weight matrix and a fixed index sequence
+  `[0, 2, 4, 1, 3, 5]`, then verifies the gathered-rows weight gradient
+  matches PyTorch's `nn.Embedding` exactly.
+
 
 ### Changed
 
@@ -58,7 +76,10 @@
   2 skipped tests on this Windows host where `mlx.core` is absent.
 - `pytest coeus-python/tests/test_pytorch_parity.py
   coeus-python/tests/test_jax_parity.py coeus-python/tests/test_mlx_parity.py
-  -v` passes 18/20 with 2 MLX skips on this Windows host.
+  -v` passes 21/23 with 2 MLX skips on this Windows host
+  (19 PyTorch + 2 JAX + 2 MLX collected).
+- `pytest coeus-python/tests/test_pytorch_parity.py -k "rmsnorm or embedding" -v`
+  passes 2/2 (RMSNorm and Embedding PyTorch independent of parity above).
 
 ### Residual Risk (atlas siblings, out of MS-139 scope)
 

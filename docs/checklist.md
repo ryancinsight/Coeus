@@ -2,7 +2,28 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-140 - Bilinear parity indexing coverage [COMPLETE]
+### Current Sprint: MS-141 - RMSNorm and Embedding PyTorch parity [COMPLETE]
+**Objective**: Close the next PyTorch parity gap for the two normalization/embedding
+modules that exposed binding classes but no differential PyTorch tests.
+
+- [x] [patch] Added `test_rmsnorm_matches_pytorch` to
+  `coeus-python/tests/test_pytorch_parity.py`: forward `y`, `dx`, `dgamma`
+  against PyTorch's canonical RMSNorm formula
+  `y = (x / sqrt(mean(x**2, dim=-1, keepdim=True) + eps)) * gamma`
+  at `atol=1e-10`. PyTorch 2.12 does not yet ship `torch.nn.RMSNorm` as
+  stable, so the oracle is the formulaic implementation identical to the
+  canonical reference; both produce bitwise-precise agreement.
+- [x] [patch] Added `test_embedding_matches_pytorch` asserting forward output
+  and gathered-rows weight gradient against `torch.nn.Embedding` with
+  sparse-index backward at `atol=1e-10`.
+- [x] Evidence: `pytest coeus-python/tests/test_pytorch_parity.py -k
+  "rmsnorm or embedding" -v` passes 2/2; full parity ensemble
+  `pytest coeus-python/tests/test_pytorch_parity.py
+  coeus-python/tests/test_jax_parity.py coeus-python/tests/test_mlx_parity.py
+  -v` passes 21/23 with 2 MLX skips on this Windows host
+  (19 PyTorch + 2 JAX + 2 MLX collected).
+
+### Previous Sprint: MS-140 - Bilinear parity indexing coverage [COMPLETE]
 **Objective**: Close the remaining Bilinear parity gap with value-semantic
 per-output weight-indexing checks in the existing Rust Bilinear parity suite
 and Python PyTorch differential parity harness.

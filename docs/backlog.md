@@ -1,5 +1,29 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-141: RMSNorm and Embedding PyTorch parity [COMPLETE]
+
+- [x] [patch] Added `test_rmsnorm_matches_pytorch` to
+  `coeus-python/tests/test_pytorch_parity.py`: forward `y`, `dx`, and
+  `dgamma` against PyTorch's canonical RMSNorm formula
+  `y = (x / sqrt(mean(x**2, dim=-1, keepdim=True) + eps)) * gamma`
+  at `atol=1e-10` (f64 vs f64). PyTorch 2.12 lacks a stable
+  `torch.nn.RMSNorm`, so the oracle is the formulaic implementation
+  identical to the canonical reference; both produce bitwise-pre-
+  cise agreement (no tolerance relaxation needed).
+- [x] [patch] Added `test_embedding_matches_pytorch` asserting forward
+  output and weight gradient against `torch.nn.Embedding` with
+  sparse-index backward at `atol=1e-10`. Sets a non-trivial weight
+  matrix (24 floats) and fixed indices `[0, 2, 4, 1, 3, 5]`; verifies
+  gathered-rows weight gradient matches PyTorch's `nn.Embedding`
+  to bitwise precision.
+- [x] Evidence: `pytest coeus-python/tests/test_pytorch_parity.py -k
+  "rmsnorm or embedding" -v` passes 2/2; full parity ensemble
+  `pytest coeus-python/tests/test_pytorch_parity.py
+  coeus-python/tests/test_jax_parity.py coeus-python/tests/test_mlx_parity.py
+  -v` passes 21/23 with 2 MLX skips on this Windows host
+  (19 PyTorch + 2 JAX + 2 MLX collected).
+- [x] Target version: 0.5.3 (patch-class; test-only additions).
+
 ## Sprint MS-140: Bilinear parity indexing coverage [COMPLETE]
 
 - [x] [patch] Added a `coeus-nn/tests/bilinear_parity.rs` per-output indexing
