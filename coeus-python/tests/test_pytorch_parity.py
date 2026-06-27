@@ -1443,6 +1443,58 @@ def test_instancenorm3d_matches_pytorch() -> None:
     )
 
 
+# ── GroupNorm PyTorch parity (MS-149) ───────────────────────────────────────
+
+
+def test_groupnorm_matches_pytorch() -> None:
+    """Forward and gradient parity: GroupNorm(num_groups=2, C=4) on [N=2, C=4, H=2, W=2].
+
+    Differential against ``torch.nn.functional.group_norm`` at f64, with affine
+    weight/bias injected from pycoeus into the PyTorch reference.  GroupNorm
+    normalizes over the C/G channels of each group plus all spatial positions;
+    the affine ``weight``/``bias`` layout ``[num_features]`` is identical between
+    pycoeus and PyTorch.
+    """
+    n, c, h, w = 2, 4, 2, 2
+    num_groups = 2
+    eps = 1e-5
+    data = [0.1 * i - 0.5 for i in range(n * c * h * w)]
+    gamma = [1.5, 0.5, 1.2, 0.8]
+    beta = [0.1, -0.1, 0.2, -0.2]
+
+    gn_pyc = pycoeus.GroupNorm(num_groups, c, eps=eps)
+    gn_pyc.weight.data = gamma
+    gn_pyc.bias.data = beta
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    out_pyc = gn_pyc.forward(x_pyc)
+    out_pyc.sum().backward()
+
+    x_t = (
+        torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    )
+    g_t = torch.tensor(gamma, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(beta, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.group_norm(
+        x_t, num_groups, weight=g_t, bias=b_t, eps=eps
+    )
+    out_t.sum().backward()
+
+    _allclose("gn_out", list(out_pyc.data), out_t.flatten().tolist(), atol=1e-10)
+    _allclose("gn_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "gn_dgamma",
+        list(gn_pyc.weight.grad),
+        g_t.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+    _allclose(
+        "gn_dbeta",
+        list(gn_pyc.bias.grad),
+        b_t.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+
+
 # ── Optimizer step parity closure (RMSProp + AdaGrad) (MS-144) ──────────────
 
 
