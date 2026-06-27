@@ -7,6 +7,33 @@ use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use std::marker::PhantomData;
 
+/// Functional (stateless) transformer feed-forward block.
+///
+/// Computes: `Linear1(d_model→d_ff) → GELU → Dropout(p) → Linear2(d_ff→d_model)`.
+pub fn feed_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    w1: &Var<T, B>,
+    b1: Option<&Var<T, B>>,
+    w2: &Var<T, B>,
+    b2: Option<&Var<T, B>>,
+    dropout_p: f64,
+) -> Var<T, B> {
+    let linear1 = Linear {
+        weight: w1.clone(),
+        bias: b1.cloned(),
+    };
+    let linear2 = Linear {
+        weight: w2.clone(),
+        bias: b2.cloned(),
+    };
+    let x = linear1.forward(input);
+    let x = coeus_autograd::gelu(&x);
+    let mut dropout = Dropout::new(dropout_p);
+    dropout.set_training(dropout_p > 0.0);
+    let x = dropout.forward(&x);
+    linear2.forward(&x)
+}
+
 /// Two-layer feed-forward sub-layer.
 ///
 /// Computes: `Linear(d_model → d_ff) → GELU → Dropout → Linear(d_ff → d_model)`.
@@ -55,9 +82,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for FeedForwa
     /// Works for any input rank (`[batch, seq, d_model]`, `[batch, d_model]`, etc.)
     /// because `Linear::forward` dispatches to the batched matmul kernel.
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        let x = self.linear1.forward(input);
-        let x = coeus_autograd::gelu(&x);
-        let x = self.dropout.forward(&x);
-        self.linear2.forward(&x)
+        feed_forward(
+            input,
+            &self.linear1.weight,
+            self.linear1.bias.as_ref(),
+            &self.linear2.weight,
+            self.linear2.bias.as_ref(),
+            self.dropout.p,
+        )
     }
 }

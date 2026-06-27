@@ -13,7 +13,7 @@ mod tests {
     use coeus_autograd::Var;
     use coeus_core::{MoiraiBackend, Storage};
     use coeus_nn::{
-        FeedForward, Module, MultiHeadAttention, NullMask, SinusoidalEncoding,
+        feed_forward, FeedForward, Module, MultiHeadAttention, NullMask, SinusoidalEncoding,
         TransformerEncoderLayer,
     };
     use coeus_tensor::Tensor;
@@ -248,6 +248,22 @@ mod tests {
 
         let out = ffn.forward(&x_var);
         assert_eq!(out.tensor.shape(), &[batch, seq, d_model]);
+
+        let out_fn = feed_forward(
+            &x_var,
+            &ffn.linear1.weight,
+            ffn.linear1.bias.as_ref(),
+            &ffn.linear2.weight,
+            ffn.linear2.bias.as_ref(),
+            0.0,
+        );
+        assert_eq!(out_fn.tensor.shape(), &[batch, seq, d_model]);
+        for (a, b) in out.tensor.as_slice().iter().zip(out_fn.tensor.as_slice()) {
+            assert!(
+                (a - b).abs() < 1e-6,
+                "feed_forward parity mismatch: {a} vs {b}"
+            );
+        }
     }
 
     // ── TransformerEncoderLayer: shape and gradient ──────────────────────────

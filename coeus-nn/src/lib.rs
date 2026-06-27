@@ -96,6 +96,6 @@ pub use rnn::{GRUCell, Gru, LSTMCell, Lstm};
 pub use sequential::{ModuleExt, Sequential, StaticSeq};
 pub use softmax::{softmax, Softmax};
 pub use transformer::{
-    FeedForward, Transformer, TransformerDecoder, TransformerDecoderLayer, TransformerEncoder,
-    TransformerEncoderLayer,
+    feed_forward, FeedForward, Transformer, TransformerDecoder, TransformerDecoderLayer,
+    TransformerEncoder, TransformerEncoderLayer,
 };

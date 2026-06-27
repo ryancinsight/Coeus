@@ -1523,6 +1523,15 @@ assert dropout_out.shape == [2, 4], f"FeedForward dropout output shape: {dropout
 vals = out.data
 assert any(abs(v) > 0 for v in vals), "FeedForward output all zero"
 
+# SSOT parity: FeedForward.forward equals linear2(gelu(linear1(x))) when dropout=0.
+manual = pycoeus.linear(
+    pycoeus.f_gelu(pycoeus.linear(x, ffn.linear1.weight, ffn.linear1.bias)),
+    ffn.linear2.weight,
+    ffn.linear2.bias,
+)
+for a, b in zip(out.data, manual.data):
+    assert abs(a - b) < 1e-9, f"FeedForward SSOT mismatch: {a} vs {b}"
+
 try:
     _ = pycoeus.FeedForward(4, 8, dropout_p=1.0)
     raise AssertionError("dropout_p=1.0 should raise")

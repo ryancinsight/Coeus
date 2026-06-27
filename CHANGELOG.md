@@ -7,12 +7,25 @@
 - **MHA backward Burn parity** — added `multi_head_attention_backward_matches_burn`
   covering forward output, input gradient, and Q/K/V/O projection-weight
   gradients against Burn autodiff with explicit weights.
+- **Extended activation backward parity** — added Burn autodiff parity for
+  `leaky_relu`, `softplus`, `mish`, and scalar `pow`, plus analytical ELU
+  derivative coverage because Burn 0.16 does not expose ELU. Added analytical
+  NLL and cosine embedding loss forward/backward coverage where Burn 0.16 does
+  not expose standalone or matching loss oracles.
+- **PyTransformer seq2seq binding** — added `pycoeus.Transformer` as a thin
+  PyO3 composition over the existing stateful encoder and decoder bindings, plus
+  RNN and positional-encoding structural parity tests in `burn_live_parity`.
 
 ### Changed
 
 - **Generic Conv dimension strategy** — consolidated `Conv1d`/`Conv2d`/`Conv3d`
   into a single `Conv<T, B, D: ConvDim>` layer with sealed ZST dimension
   strategies and public type aliases for the concrete ranks.
+- **FeedForward SSOT routing** — added and exported Rust-core
+  `coeus_nn::feed_forward(...)`; routed `FeedForward::forward` and
+  `PyFeedForward::forward` through this shared helper; and switched
+  `PyFeedForward::new` to initialize both linear projections from one Rust
+  `FeedForward::new(...)` construction path.
 - **SRP backend/autograd layout** — split `coeus-ops` CPU backend dispatch and
   `coeus-autograd` convolution nodes into operation-family leaf modules.
 - **Documented public surfaces** — enforced and fixed `coeus-nn`
@@ -54,6 +67,26 @@
 - `rustup run nightly cargo nextest run -p coeus-nn --test burn_live_parity
   transformer_decoder` passes 3/3.
 - `pytest coeus-python/tests/test_pytorch_parity.py -v` passes 10/10.
+- `rustup run nightly cargo fmt -p coeus-nn --check`.
+- `rustup run nightly cargo clippy -p coeus-nn --test burn_live_parity -- -D
+  warnings`.
+- `rustup run nightly cargo nextest run -p coeus-nn --test burn_live_parity
+  activation_backward_extended_match_burn pow_backward_matches_burn
+  elu_backward_matches_analytical nll_loss_forward_backward_match_analytical
+  cosine_embedding_loss_forward_backward_match_analytical` passes 5/5.
+- `rustup run nightly cargo nextest run -p coeus-nn --test nn_attention_tests
+  ffn_forward_shape` passes the FeedForward module-vs-functional parity
+  assertion.
+- `rustup run nightly cargo nextest run -p coeus-python --test
+  binding_tests_ops test_feedforward_module` passes the Python FeedForward SSOT
+  parity assertion.
+- `pytest coeus-python/tests/test_pytorch_parity.py -k
+  test_transformer_seq2seq_composition -v` passes the PyTransformer composition
+  parity assertion.
+- `rustup run nightly cargo clippy -p coeus-nn --test nn_attention_tests -- -D
+  warnings`.
+- `rustup run nightly cargo clippy -p coeus-python --test binding_tests_ops --
+  -D warnings`.
 
 ## 0.5.1 - 2026-06-26
 

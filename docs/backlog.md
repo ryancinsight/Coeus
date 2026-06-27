@@ -1,5 +1,51 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-133: PyTransformer seq2seq and structural parity [COMPLETE]
+
+- [x] [minor] Added `pycoeus.Transformer` as a thin PyO3 composition over the
+  existing stateful `PyTransformerEncoder` and `PyTransformerDecoder` wrappers.
+- [x] [patch] Added value-semantic structural coverage for LSTM, GRU,
+  sinusoidal encoding, and rotary embedding in `burn_live_parity`.
+- [x] [patch] Added Python composition parity asserting
+  `Transformer.forward(src, tgt) == decoder.forward(tgt, encoder.forward(src))`
+  and the expected `16 * encoder_layers + 26 * decoder_layers` parameter count.
+- [x] Evidence: `pytest coeus-python/tests/test_pytorch_parity.py -k
+  test_transformer_seq2seq_composition -v`; `rustup run nightly cargo clippy -p
+  coeus-python --tests -- -D warnings`.
+
+## Sprint MS-132: FeedForward functional SSOT routing [COMPLETE]
+
+- [x] [minor] Added and exported Rust-core `coeus_nn::feed_forward(...)` as the
+  shared FeedForward functional path (`transformer::mod` and crate root export).
+- [x] [patch] Routed `FeedForward::forward` and `PyFeedForward::forward` through
+  `coeus_nn::feed_forward(...)`, removing Python binding-side temporary module
+  reconstruction on every forward call.
+- [x] [patch] Updated `PyFeedForward::new` to source both linear projections
+  from one Rust `FeedForward::new(...)` initialization (single SSOT
+  initialization path).
+- [x] [patch] Added Rust/Python parity checks asserting functional equivalence:
+  `ffn_forward_shape` now checks module-vs-functional output parity; Python
+  `test_feedforward_module` checks
+  `ffn.forward(x) == linear2(gelu(linear1(x)))` when `dropout_p=0`.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-nn --test
+  nn_attention_tests ffn_forward_shape`; `rustup run nightly cargo nextest run
+  -p coeus-python --test binding_tests_ops test_feedforward_module`; `rustup
+  run nightly cargo clippy -p coeus-nn --test nn_attention_tests -- -D
+  warnings`; `rustup run nightly cargo clippy -p coeus-python --test
+  binding_tests_ops -- -D warnings`.
+
+## Sprint MS-131: Extended activation backward parity [COMPLETE]
+
+- [x] [patch] Added Burn autodiff backward parity for `leaky_relu`, `softplus`,
+  `mish`, and scalar `pow`, plus analytical ELU, NLL loss, and cosine embedding
+  loss forward/backward checks where Burn 0.16 has no matching oracle.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-nn --check`; `rustup run
+  nightly cargo clippy -p coeus-nn --test burn_live_parity -- -D warnings`;
+  `rustup run nightly cargo nextest run -p coeus-nn --test burn_live_parity
+  activation_backward_extended_match_burn pow_backward_matches_burn
+  elu_backward_matches_analytical nll_loss_forward_backward_match_analytical
+  cosine_embedding_loss_forward_backward_match_analytical` (5/5).
+
 ## Sprint MS-130: Python transformer head validation [COMPLETE]
 
 - [x] [patch] Added PyO3 boundary validation for `d_model % num_heads == 0`

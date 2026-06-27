@@ -18,5 +18,5 @@ pub use decoder::TransformerDecoder;
 pub use decoder_layer::TransformerDecoderLayer;
 pub use encoder::TransformerEncoder;
 pub use encoder_layer::TransformerEncoderLayer;
-pub use ffn::FeedForward;
+pub use ffn::{feed_forward, FeedForward};
 pub use transformer::Transformer;
