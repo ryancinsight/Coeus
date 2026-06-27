@@ -1,5 +1,16 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-159: TcpMesh constructor contract coverage [COMPLETE]
+
+- [x] [patch] Added panic-contract coverage for constructor input mismatch:
+  `test_tcp_mesh_new_addresses_len_mismatch_panics` asserting the
+  `addresses.len() == world_size` contract.
+- [x] [patch] Retained existing constructor/rank panic coverage
+  (`test_tcp_mesh_new_rank_out_of_bounds_panics`) and validated both
+  invariants together via focused selector.
+- [x] Evidence: `cargo test -p coeus-dist test_tcp_mesh_new_ -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-158: Local zero-numel rooted contract coverage [COMPLETE]
 
 - [x] [patch] Added panic-contract tests proving rooted LocalCommunicator
