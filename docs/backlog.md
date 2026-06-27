@@ -1,5 +1,15 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-160: TCP all_gather zero-numel rooted contract coverage [COMPLETE]
+
+- [x] [patch] Added `test_tcp_all_gather_zero_numel_output_len_mismatch_panics`
+  to prove TCP `all_gather` enforces output length contracts even when
+  `numel == 0`.
+- [x] [patch] Completed zero-numel rooted panic-contract parity across local and
+  TCP collectives (`all_gather`, `gather`, `scatter`).
+- [x] Evidence: `cargo test -p coeus-dist zero_numel_ -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-159: TcpMesh constructor contract coverage [COMPLETE]
 
 - [x] [patch] Added panic-contract coverage for constructor input mismatch:

@@ -643,6 +643,19 @@ fn test_tcp_all_gather_mismatched_output_numel_panics() {
 }
 
 #[test]
+#[should_panic(expected = "all_gather output length mismatch")]
+fn test_tcp_all_gather_zero_numel_output_len_mismatch_panics() {
+    let addresses = get_free_ports(1);
+    let mesh = TcpMesh::new(0, 1, &addresses);
+    let comm = TcpCommunicator::new(mesh);
+    let backend = SequentialBackend::new();
+
+    let tensor = Tensor::zeros_on([0], &backend);
+    let mut output: Vec<Tensor<f32, SequentialBackend>> = vec![];
+    comm.all_gather(&tensor, &mut output, &backend);
+}
+
+#[test]
 #[should_panic(expected = "scatter input numel mismatch")]
 fn test_tcp_scatter_mismatched_input_numel_panics() {
     let addresses = get_free_ports(1);
