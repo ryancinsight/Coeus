@@ -19,6 +19,7 @@ are copied directly without transposition.
 
 import os
 import sys
+import math
 
 import pytest
 
@@ -128,3 +129,54 @@ def test_linear_matches_jax() -> None:
     _allclose("dx", list(x_pyc.grad), dx_jax.flatten().tolist())
     _allclose("dW", list(linear_pyc.weight.grad), dw_jax.flatten().tolist())
     _allclose("db", list(linear_pyc.bias.grad), db_jax.flatten().tolist())
+
+
+# ---------------------------------------------------------------------------
+# MultiHeadAttention forward parity
+# ---------------------------------------------------------------------------
+
+
+def test_mha_matches_jax() -> None:
+    """Forward parity: MultiHeadAttention(d_model=4, H=2), self-attention, no bias."""
+    d_model, num_heads, batch, seq = 4, 2, 1, 3
+    d_head = d_model // num_heads
+
+    wq = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8,
+          0.9, 1.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+    wk = [0.2, 0.1, 0.4, 0.3, 0.6, 0.5, 0.8, 0.7,
+          0.1, 0.9, 0.2, 0.8, 0.3, 0.7, 0.4, 0.6]
+    wv = [0.3, 0.3, 0.3, 0.3, 0.7, 0.7, 0.7, 0.7,
+          0.4, 0.4, 0.4, 0.4, 0.8, 0.8, 0.8, 0.8]
+    wo = [1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0,
+          0.5, 0.5, 0.5, 0.5, 0.1, 0.2, 0.3, 0.4]
+    x_data = [0.1 * i - 0.3 for i in range(batch * seq * d_model)]
+
+    mha_pyc = pycoeus.MultiHeadAttention(d_model=d_model, num_heads=num_heads, bias=False)
+    mha_pyc.w_q.data = wq
+    mha_pyc.w_k.data = wk
+    mha_pyc.w_v.data = wv
+    mha_pyc.w_o.data = wo
+    x_pyc = pycoeus.Tensor(x_data, [batch, seq, d_model], requires_grad=False)
+    out_pyc = mha_pyc.forward(x_pyc)
+
+    x_jax = jnp.asarray(x_data, dtype=jnp.float64).reshape(batch, seq, d_model)
+    wq_jax = jnp.asarray(wq, dtype=jnp.float64).reshape(d_model, d_model)
+    wk_jax = jnp.asarray(wk, dtype=jnp.float64).reshape(d_model, d_model)
+    wv_jax = jnp.asarray(wv, dtype=jnp.float64).reshape(d_model, d_model)
+    wo_jax = jnp.asarray(wo, dtype=jnp.float64).reshape(d_model, d_model)
+
+    q = x_jax @ wq_jax.T
+    k = x_jax @ wk_jax.T
+    v = x_jax @ wv_jax.T
+
+    qh = q.reshape(batch, seq, num_heads, d_head).transpose(0, 2, 1, 3)
+    kh = k.reshape(batch, seq, num_heads, d_head).transpose(0, 2, 1, 3)
+    vh = v.reshape(batch, seq, num_heads, d_head).transpose(0, 2, 1, 3)
+
+    scores = jnp.matmul(qh, jnp.swapaxes(kh, -1, -2)) / math.sqrt(d_head)
+    attn = jax.nn.softmax(scores, axis=-1)
+    ctx = jnp.matmul(attn, vh)
+    merged = jnp.swapaxes(ctx, 1, 2).reshape(batch, seq, d_model)
+    out_jax = merged @ wo_jax.T
+
+    _allclose("mha_out", list(out_pyc.data), out_jax.flatten().tolist(), atol=1e-10)
