@@ -1,5 +1,40 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-138: JAX and MLX Python parity harnesses [COMPLETE]
+
+- [x] [patch] Added `coeus-python/tests/test_jax_parity.py`, verifying
+  `pycoeus.Linear + relu + mse_loss` forward loss plus input/weight/bias
+  gradients against JAX at f64 with `JAX_ENABLE_X64=1`.
+- [x] [patch] Added `coeus-python/tests/test_mlx_parity.py`, verifying the same
+  forward-loss computation against MLX at MLX-native f32 precision when MLX is
+  installed.
+- [x] [patch] Made the MLX test collect and skip when MLX is unavailable, so
+  optional-framework absence is explicit and non-failing.
+- [x] Evidence: `pytest coeus-python/tests/test_jax_parity.py -v` (1/1 pass);
+  `pytest coeus-python/tests/test_mlx_parity.py -v` (1 collected skip: MLX not
+  installed).
+
+## Sprint MS-137: TransformerDecoderLayer functional SSOT routing [COMPLETE]
+
+- [x] [minor] Added/exported Rust-core
+  `coeus_nn::transformer_decoder_layer(...)` plus
+  `coeus_nn::TransformerDecoderLayerParams` for borrowed decoder-layer state.
+- [x] [patch] Routed `TransformerDecoderLayer::forward_decoder` through the
+  shared helper, centralizing pre-LN decoder orchestration in one core path.
+- [x] [patch] Routed Python `TransformerDecoderLayer.forward` through the same
+  helper, removing per-call temporary `TransformerDecoderLayer::new(...)`
+  reconstruction in `coeus-python`.
+- [x] [patch] Added Rust/Python SSOT parity checks:
+  `nn_transformer_tests::test_transformer_decoder_layer` now checks
+  module-vs-functional parity; Python `test_transformer_decoder_layer` now
+  checks explicit pre-LN composition equivalence at `dropout_p=0`.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-nn --test
+  nn_transformer_tests test_transformer_decoder_layer`; `rustup run nightly
+  cargo nextest run -p coeus-python --test binding_tests_ops
+  test_transformer_decoder_layer`; `rustup run nightly cargo clippy -p coeus-nn
+  --test nn_transformer_tests -- -D warnings`; `rustup run nightly cargo clippy
+  -p coeus-python --test binding_tests_ops -- -D warnings`.
+
 ## Sprint MS-135: TransformerEncoderLayer functional SSOT routing [COMPLETE]
 
 - [x] [minor] Added and exported Rust-core
@@ -16,11 +51,12 @@
   `test_transformer_encoder_bindings` now checks
   `forward(src) == src + self_attn(layer_norm(src)) + ffn(layer_norm(...))`
   composition (dropout=0 path).
-- [x] Evidence: `cargo test -p coeus-nn --test nn_attention_tests
-  encoder_layer_forward_shape`; `cargo test -p coeus-python --test
-  binding_tests_ops test_transformer_encoder_bindings`; `cargo clippy -p
-  coeus-nn --test nn_attention_tests -- -D warnings`; `cargo clippy -p
-  coeus-python --test binding_tests_ops -- -D warnings`.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-nn --test
+  nn_attention_tests encoder_layer_forward_shape`; `rustup run nightly cargo
+  nextest run -p coeus-python --test binding_tests_ops
+  test_transformer_encoder_bindings`; `rustup run nightly cargo clippy -p
+  coeus-nn --test nn_attention_tests -- -D warnings`; `rustup run nightly
+  cargo clippy -p coeus-python --test binding_tests_ops -- -D warnings`.
 
 ## Sprint MS-134: MHA functional SSOT routing [COMPLETE]
 

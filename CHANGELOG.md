@@ -4,6 +4,10 @@
 
 ### Added
 
+- **JAX/MLX Python parity harnesses** — added `test_jax_parity.py` for f64
+  Linear + ReLU + MSE forward/backward parity against JAX, and
+  `test_mlx_parity.py` for MLX-native f32 forward-loss parity when MLX is
+  installed.
 - **Transformer seq2seq structural parity tests** — `transformer_seq2seq_self_consistent`
   and `transformer_module_forward_routes_to_seq2seq_self` in `burn_live_parity.rs` prove
   `forward_seq2seq` equals a manual encoder+decoder chain and `Module::forward(x)` equals
@@ -46,6 +50,12 @@
   `TransformerEncoderLayer::forward_with_mask` and
   `PyTransformerEncoderLayer.forward` through this shared helper so the Python
   wrapper no longer reconstructs a temporary Rust encoder-layer module per call.
+- **TransformerDecoderLayer SSOT routing** — added/exported Rust-core
+  `coeus_nn::transformer_decoder_layer(...)` plus
+  `coeus_nn::TransformerDecoderLayerParams`; routed
+  `TransformerDecoderLayer::forward_decoder` and
+  `PyTransformerDecoderLayer.forward` through this shared helper so the Python
+  wrapper no longer reconstructs a temporary Rust decoder-layer module per call.
 - **SRP backend/autograd layout** — split `coeus-ops` CPU backend dispatch and
   `coeus-autograd` convolution nodes into operation-family leaf modules.
 - **Documented public surfaces** — enforced and fixed `coeus-nn`
@@ -117,13 +127,24 @@
 - `rustup run nightly cargo nextest run -p coeus-python --test
   binding_tests_nn test_pycoeus_nn` passes the Python MHA self/cross SSOT
   parity assertion.
-- `cargo test -p coeus-nn --test nn_attention_tests
+- `rustup run nightly cargo nextest run -p coeus-nn --test nn_attention_tests
   encoder_layer_forward_shape` passes encoder-layer module-vs-functional SSOT
   parity.
-- `cargo test -p coeus-python --test binding_tests_ops
-  test_transformer_encoder_bindings` passes Python encoder-layer SSOT parity.
-- `cargo clippy -p coeus-nn --test nn_attention_tests -- -D warnings`.
-- `cargo clippy -p coeus-python --test binding_tests_ops -- -D warnings`.
+- `rustup run nightly cargo nextest run -p coeus-python --test
+  binding_tests_ops test_transformer_encoder_bindings` passes Python
+  encoder-layer SSOT parity.
+- `rustup run nightly cargo clippy -p coeus-nn --test nn_attention_tests -- -D warnings`.
+- `rustup run nightly cargo nextest run -p coeus-nn --test nn_transformer_tests
+  test_transformer_decoder_layer` passes decoder-layer module-vs-functional
+  SSOT parity.
+- `rustup run nightly cargo nextest run -p coeus-python --test
+  binding_tests_ops test_transformer_decoder_layer` passes Python
+  decoder-layer SSOT parity.
+- `rustup run nightly cargo clippy -p coeus-nn --test nn_transformer_tests -- -D warnings`.
+- `rustup run nightly cargo clippy -p coeus-python --test binding_tests_ops -- -D warnings`.
+- `pytest coeus-python/tests/test_jax_parity.py -v` passes 1/1.
+- `pytest coeus-python/tests/test_mlx_parity.py -v` collects 1 test and skips it
+  because MLX is not installed in this Windows environment.
 
 ## 0.5.1 - 2026-06-26
 

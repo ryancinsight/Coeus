@@ -2,7 +2,48 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-136 - Transformer seq2seq structural tests + RNN PyTorch parity [COMPLETE]
+### Current Sprint: MS-138 - JAX and MLX Python parity harnesses [COMPLETE]
+**Objective**: Extend `coeus-python` framework parity coverage beyond PyTorch
+with thin pytest harnesses for JAX and MLX while keeping all domain logic in
+Rust/PyO3 bindings.
+**Target version**: 0.5.2 (patch-class; test coverage).
+
+- [x] [patch] Added `test_jax_parity.py` for `Linear + ReLU + MSELoss`
+  forward/backward parity against JAX at f64.
+- [x] [patch] Added `test_mlx_parity.py` for `Linear + ReLU + MSELoss`
+  forward-loss parity against MLX at f32 when MLX is installed.
+- [x] [patch] MLX absence now produces one collected skipped test rather than a
+  no-tests-collected failure.
+- [x] Evidence: `pytest coeus-python/tests/test_jax_parity.py -v` (1/1 pass);
+  `pytest coeus-python/tests/test_mlx_parity.py -v` (1 collected skip: MLX not
+  installed).
+
+### Previous Sprint: MS-137 - TransformerDecoderLayer functional SSOT routing [COMPLETE]
+**Objective**: Complete TransformerDecoderLayer module/functional SSOT in Rust
+and thin the PyO3 decoder-layer forward path to call core helpers directly,
+eliminating per-forward module reconstruction while preserving parity behavior.
+**Target version**: 0.5.2 (minor-class; additive functional surface + wrapper cleanup).
+
+- [x] [minor] Added and exported Rust-core
+  `coeus_nn::transformer_decoder_layer(...)` plus
+  `coeus_nn::TransformerDecoderLayerParams`.
+- [x] [patch] Routed `TransformerDecoderLayer::forward_decoder` through the
+  shared functional helper.
+- [x] [patch] Routed `PyTransformerDecoderLayer.forward` through the shared
+  functional helper (no temporary Rust module reconstruction per call).
+- [x] [patch] Added Rust functional/module parity assertion in
+  `nn_transformer_tests::test_transformer_decoder_layer`.
+- [x] [patch] Added Python SSOT parity assertion in
+  `binding_tests_ops::test_transformer_decoder_layer` for decoder-layer
+  composition equivalence with `dropout_p=0`.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-nn --test
+  nn_transformer_tests test_transformer_decoder_layer`; `rustup run nightly
+  cargo nextest run -p coeus-python --test binding_tests_ops
+  test_transformer_decoder_layer`; `rustup run nightly cargo clippy -p coeus-nn
+  --test nn_transformer_tests -- -D warnings`; `rustup run nightly cargo clippy
+  -p coeus-python --test binding_tests_ops -- -D warnings`.
+
+### Previous Sprint: MS-136 - Transformer seq2seq structural tests + RNN PyTorch parity [COMPLETE]
 **Objective**: Add two Transformer structural self-consistency proofs
 (forward_seq2seq == manual encoder→decoder chain; Module::forward == forward_seq2seq(x,x))
 and LSTM/GRU differential PyTorch parity tests (weight injection via w_ih/b_ih/w_hh/b_hh).
@@ -21,8 +62,8 @@ and LSTM/GRU differential PyTorch parity tests (weight injection via w_ih/b_ih/w
   Compares h_new at atol=1e-10.
 - [x] Fixed pre-existing mnemosyne-heap dyn-compatibility compile error
   (TierSelection::backend removed; committed mnemosyne Phase 3 Stage D1 as 4750f88).
-- [x] Evidence: `cargo nextest run -p coeus-nn` 294/294 passed;
-  `cargo clippy -p coeus-nn --tests -- -D warnings` clean.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-nn` 294/294 passed;
+  `rustup run nightly cargo clippy -p coeus-nn --tests -- -D warnings` clean.
 
 ### Previous Sprint: MS-135 - TransformerEncoderLayer functional SSOT routing [COMPLETE]
 **Objective**: Complete TransformerEncoderLayer module/functional SSOT in Rust
@@ -42,20 +83,21 @@ eliminating per-forward module reconstruction while preserving parity behavior.
 - [x] [patch] Added Python SSOT parity assertion in
   `binding_tests_ops::test_transformer_encoder_bindings` for
   encoder-layer composition equivalence with `dropout_p=0`.
-- [x] Evidence: `cargo test -p coeus-nn --test nn_attention_tests
-  encoder_layer_forward_shape`; `cargo test -p coeus-python --test
-  binding_tests_ops test_transformer_encoder_bindings`; `cargo clippy -p
-  coeus-nn --test nn_attention_tests -- -D warnings`; `cargo clippy -p
-  coeus-python --test binding_tests_ops -- -D warnings`.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-nn --test
+  nn_attention_tests encoder_layer_forward_shape`; `rustup run nightly cargo
+  nextest run -p coeus-python --test binding_tests_ops
+  test_transformer_encoder_bindings`; `rustup run nightly cargo clippy -p
+  coeus-nn --test nn_attention_tests -- -D warnings`; `rustup run nightly
+  cargo clippy -p coeus-python --test binding_tests_ops -- -D warnings`.
 
 ### Previous Sprint: MS-134 - MHA functional SSOT routing [COMPLETE]
 
 - [x] [minor] Added `coeus_nn::multi_head_attention_cross(...)` and
   `coeus_nn::MhaProjectionParams` for shared MHA self/cross execution.
 - [x] [patch] Routed Rust and Python MHA forward paths through the shared helper.
-- [x] Evidence: `cargo test -p coeus-nn --test nn_tests
-  test_mha_cross_attention_shape`; `cargo test -p coeus-python --test
-  binding_tests_nn test_pycoeus_nn`.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-nn --test
+  nn_tests test_mha_cross_attention_shape`; `rustup run nightly cargo nextest
+  run -p coeus-python --test binding_tests_nn test_pycoeus_nn`.
 
 ### Previous Sprint: MS-133 - PyTransformer seq2seq + RNN/PE Burn parity tests [COMPLETE]
 **Objective**: Add `PyTransformer` full seq2seq Python binding; add LSTM/GRU structural
@@ -1886,4 +1928,3 @@ Implement an optimized native NVIDIA GPU backend dynamically loading the CUDA dr
 - [x] **Numerical Parity**: Parity tests verify absolute numerical equivalence between CPU, `wgpu`, and `cuda` execution (absolute tolerance $\le 10^{-5}$).
 - [x] **Test Coverage**: 100% of tensor operations have verification tests covering contiguous, non-contiguous, broadcasted, and sliced tensor views.
 - [x] **Memory Safety**: No memory leaks or data races on GPU backends under parallel operations (RAII wrapper verification).
-

@@ -71,6 +71,15 @@ and PyTorch. Added `test_gru_cell_step_matches_pytorch`: same weight-injection a
 GRUCell, verifying h_new; n=tanh(ih_n+r*hh_n) formula is consistent between implementations.
 Evidence tier: differential/empirical.
 
+### ~~G-009: JAX and MLX Python parity harnesses missing~~ **CLOSED**
+**Location**: `coeus-python/tests/` — no JAX or MLX parity harness existed
+**Closed by**: MS-138 — Added `test_jax_parity.py` for f64
+`Linear + ReLU + MSELoss` forward/backward parity against JAX, and
+`test_mlx_parity.py` for MLX-native f32 forward-loss parity when MLX is
+installed. Evidence tier: JAX differential/empirical; MLX optional-framework
+collection behavior verified on this Windows environment (1 collected skip,
+MLX not installed).
+
 ## Slop Pattern Library
 
 *(Empty — no recurring agent slop patterns identified yet.)*
@@ -87,5 +96,6 @@ Evidence tier: differential/empirical.
 | G-006 RNN/PE Burn parity tests missing | structural | **closed MS-131** |
 | G-007 Transformer seq2seq structural parity tests missing | structural | **closed MS-136** |
 | G-008 LSTM/GRU PyTorch parity tests missing | differential | **closed MS-136** |
+| G-009 JAX/MLX Python parity harnesses missing | differential/optional empirical | **closed MS-138** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |
