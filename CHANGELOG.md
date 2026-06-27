@@ -94,6 +94,10 @@
 
 ### Fixed
 
+- **Local collective mutex contention** — reduced `LocalCommunicator` staging
+  mutex critical-section duration by snapshotting staged payloads, then running
+  reduction and tensor copy work outside the lock in `all_reduce`, `reduce`,
+  `all_gather`, `gather`, and rooted `scatter`.
 - **TcpMesh zero-world-size constructor guard** — added explicit
   `world_size > 0` assertion in `TcpMesh::new` so invalid zero-sized process
   groups fail with a direct contract error.

@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-163: Local collective lock-scope reduction [COMPLETE]
+
+- [x] [patch] Added shared `LocalCommunicator::snapshot_payloads` helper to
+  snapshot and validate staged host payloads under lock, then perform reduction
+  and output copies outside critical sections.
+- [x] [patch] Refactored local `all_reduce` and rooted `reduce` so lock hold
+  time no longer includes elementwise reduction work.
+- [x] [patch] Refactored local `all_gather` and rooted `gather` to avoid
+  tensor copy work while holding shared staging mutex.
+- [x] [patch] Refactored local rooted `scatter` to precompute validated root
+  host payloads before entering staging critical section.
+- [x] Evidence: `cargo test -p coeus-dist local_ -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-162: TcpMesh non-zero world-size invariant [COMPLETE]
 
 - [x] [patch] Added explicit `TcpMesh::new` invariant `world_size > 0` for
