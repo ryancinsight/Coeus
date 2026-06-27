@@ -2,6 +2,15 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-018: CrossEntropy/NLL loss differential parity missing~~ **CLOSED**
+**Location**: `coeus-python/tests/test_pytorch_parity.py`
+**Closed by**: MS-153 — Added `test_cross_entropy_loss_matches_pytorch` and
+`test_nll_loss_matches_pytorch` (logits `[3,4]`, class-index targets), asserting
+the scalar loss and logit gradient against `torch.nn.functional.cross_entropy`
+and `nll_loss(log_softmax(x))` at f64, `atol=1e-10` (both mean reduction). Pins
+the fused log-softmax+NLL forward and the softmax-minus-onehot backward — the
+classification training signal. Evidence tier: differential/empirical.
+
 ### ~~G-017: FeedForward binding monolith~~ **CLOSED**
 **Location**: `coeus-python/src/nn/feedforward.rs`
 **Closed by**: MS-152 — Replaced the flat binding file with
@@ -182,5 +191,6 @@ Evidence tier: differential/empirical (PyTorch f64).
 | G-014 GroupNorm Python differential parity missing | differential/empirical | **closed MS-149** |
 | G-015 Scalar identity still depended on num-traits/libm | compile/lint/docs + value-semantic tests | **closed MS-150** |
 | G-016 MaxPool2d/AvgPool2d differential parity missing | differential | **closed MS-151** |
+| G-018 CrossEntropy/NLL loss differential parity missing | differential | **closed MS-153** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |

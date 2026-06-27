@@ -1546,6 +1546,58 @@ def test_avgpool2d_matches_pytorch() -> None:
     _allclose("avgpool2d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
 
 
+# ── Classification loss PyTorch parity (CrossEntropy / NLL) (MS-153) ─────────
+
+
+def test_cross_entropy_loss_matches_pytorch() -> None:
+    """Forward and logit-gradient parity for cross_entropy_loss on [N=3, C=4].
+
+    Differential against ``torch.nn.functional.cross_entropy`` (default mean
+    reduction) at f64, `atol=1e-10`.  coeus' ``cross_entropy_loss`` fuses
+    log-softmax + NLL internally; the test pins both the scalar loss and the
+    full softmax-minus-onehot gradient routed back to the logits.
+    """
+    logits = [2.0, 1.0, 0.1, -0.5, 0.3, 2.2, 1.1, 0.0, -1.0, 0.5, 3.0, 1.5]
+    targets = [0, 1, 2]
+
+    x_pyc = pycoeus.Tensor(logits, [3, 4], requires_grad=True)
+    loss_pyc = pycoeus.cross_entropy_loss(x_pyc, targets)
+    loss_pyc.backward()
+
+    x_t = torch.tensor(logits, dtype=torch.float64).reshape(3, 4).requires_grad_(True)
+    t_t = torch.tensor(targets, dtype=torch.long)
+    loss_t = torch.nn.functional.cross_entropy(x_t, t_t)
+    loss_t.backward()
+
+    _allclose("ce_loss", list(loss_pyc.data), [loss_t.item()], atol=1e-10)
+    _allclose("ce_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+def test_nll_loss_matches_pytorch() -> None:
+    """Forward and gradient parity for nll_loss over log-softmax on [N=3, C=4].
+
+    Differential against ``torch.nn.functional.nll_loss`` (default mean
+    reduction) at f64, `atol=1e-10`.  Verifies that ``nll_loss(log_softmax(x))``
+    composes to the same value and gradient as the fused cross-entropy path.
+    """
+    logits = [2.0, 1.0, 0.1, -0.5, 0.3, 2.2, 1.1, 0.0, -1.0, 0.5, 3.0, 1.5]
+    targets = [0, 1, 2]
+
+    x_pyc = pycoeus.Tensor(logits, [3, 4], requires_grad=True)
+    log_probs_pyc = pycoeus.log_softmax(x_pyc, 1)
+    loss_pyc = pycoeus.nll_loss(log_probs_pyc, targets)
+    loss_pyc.backward()
+
+    x_t = torch.tensor(logits, dtype=torch.float64).reshape(3, 4).requires_grad_(True)
+    t_t = torch.tensor(targets, dtype=torch.long)
+    log_probs_t = torch.nn.functional.log_softmax(x_t, 1)
+    loss_t = torch.nn.functional.nll_loss(log_probs_t, t_t)
+    loss_t.backward()
+
+    _allclose("nll_loss", list(loss_pyc.data), [loss_t.item()], atol=1e-10)
+    _allclose("nll_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
 # ── Optimizer step parity closure (RMSProp + AdaGrad) (MS-144) ──────────────
 
 

@@ -2,7 +2,19 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-152 - FeedForward binding module split [COMPLETE]
+### Current Sprint: MS-153 - CrossEntropy/NLL loss PyTorch differential parity [COMPLETE]
+**Objective**: Add value-semantic forward+backward differential parity for the
+classification loss path (cross_entropy_loss, nll_loss over log_softmax),
+previously absent from the PyTorch parity suite.
+**Target version**: 0.5.4 (test-only [patch]).
+
+- [x] [patch] `test_cross_entropy_loss_matches_pytorch`: logits `[3,4]`; loss + dx
+  vs `F.cross_entropy` (mean reduction) at atol=1e-10.
+- [x] [patch] `test_nll_loss_matches_pytorch`: `nll_loss(log_softmax(x))` vs
+  `F.nll_loss(F.log_softmax(x))` at atol=1e-10.
+- [x] Evidence: `pytest test_pytorch_parity.py` 29/29 pass.
+
+### Previous Sprint: MS-152 - FeedForward binding module split [COMPLETE]
 **Objective**: Replace the monolithic Python FeedForward binding file with a
 vertical module tree while preserving the public PyO3 export surface.
 **Target version**: 0.5.4 (internal topology [patch]).

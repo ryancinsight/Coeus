@@ -56,6 +56,14 @@
   Covers max-routing (gradient to argmax position) and average-distribution
   (uniform 1/window) backward paths, previously untested in the differential
   parity suite. Evidence tier: differential/empirical; full suite 27/27. ([patch])
+- **CrossEntropy / NLL loss PyTorch parity** — added
+  `test_cross_entropy_loss_matches_pytorch` and `test_nll_loss_matches_pytorch`
+  (logits `[3,4]`, class-index targets), asserting the scalar loss and the
+  logit gradient against `torch.nn.functional.cross_entropy` and
+  `nll_loss(log_softmax(x))` at f64, `atol=1e-10` (both default mean reduction).
+  Pins the fused log-softmax+NLL path and the softmax-minus-onehot gradient —
+  the core classification training signal, previously untested for value-semantic
+  parity. Evidence tier: differential/empirical; full suite 29/29. ([patch])
 
 ### Fixed
 
