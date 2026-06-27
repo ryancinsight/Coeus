@@ -297,6 +297,36 @@ fn test_local_scatter_root_out_of_bounds_panics() {
 }
 
 #[test]
+#[should_panic(expected = "LocalCommunicator all_gather output length mismatch")]
+fn test_local_all_gather_zero_numel_output_len_mismatch_panics() {
+    let comm = LocalCommunicator::create_cluster(1).remove(0);
+    let backend = SequentialBackend::new();
+    let tensor = Tensor::zeros_on([0], &backend);
+    let mut output: Vec<Tensor<f32, SequentialBackend>> = vec![];
+    comm.all_gather(&tensor, &mut output, &backend);
+}
+
+#[test]
+#[should_panic(expected = "LocalCommunicator gather output length mismatch on root")]
+fn test_local_gather_zero_numel_output_len_mismatch_panics() {
+    let comm = LocalCommunicator::create_cluster(1).remove(0);
+    let backend = SequentialBackend::new();
+    let tensor = Tensor::zeros_on([0], &backend);
+    let mut output: Vec<Tensor<f32, SequentialBackend>> = vec![];
+    comm.gather(&tensor, &mut output, 0, &backend);
+}
+
+#[test]
+#[should_panic(expected = "LocalCommunicator scatter input length mismatch on root")]
+fn test_local_scatter_zero_numel_input_len_mismatch_panics() {
+    let comm = LocalCommunicator::create_cluster(1).remove(0);
+    let backend = SequentialBackend::new();
+    let mut tensor = Tensor::zeros_on([0], &backend);
+    let input: Vec<Tensor<f32, SequentialBackend>> = vec![];
+    comm.scatter(&mut tensor, &input, 0, &backend);
+}
+
+#[test]
 fn test_local_all_reduce_sliced() {
     let world_size = 2;
     let communicators = LocalCommunicator::create_cluster(world_size);
