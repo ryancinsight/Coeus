@@ -2,7 +2,36 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-127 - Fix G-001: Stateful PyTransformerEncoderLayer binding [COMPLETE]
+### Current Sprint: MS-128 - Fix G-002: Stateful PyTransformerEncoder binding [COMPLETE]
+**Objective**: Refactor `PyTransformerEncoder` to store `Vec<Py<PyTransformerEncoderLayer>>`
+instead of scalars; extract shared `build_from_layer`/`from_rust_layer` inherent methods
+(SSOT with `PyTransformerEncoderLayer::new`); add N-layer Burn and PyTorch parity tests.
+**Target version**: 0.5.2 (minor-class; new per-layer parameter access surface).
+
+- [x] [minor] `PyTransformerEncoder`: replaced dimension-only struct with
+  `layers: Vec<Py<PyTransformerEncoderLayer>>`; `new()` dispatches 36 (H,N) pairs and
+  stores layers as `from_rust_layer::<H>` per layer; `forward()` chains each layer's
+  stateful Pre-LN forward without re-creating a Rust encoder;
+  `parameters()` flat-maps across layers (returns 16×N params); `num_layers` is a
+  `#[getter]` returning `self.layers.len()`; `zero_grad()` iterates layers.
+- [x] [minor] Added `PyTransformerEncoderLayer::build_from_layer<const H>` and
+  `from_rust_layer<const H>` inherent methods (non-`#[pymethods]`) eliminating code
+  duplication between `PyTransformerEncoderLayer::new()` and `PyTransformerEncoder::new()`.
+- [x] [patch] Added `transformer_encoder_stack_2layer_self_consistent` (structural
+  self-consistency: `TransformerEncoder<H=2,N=2>::forward` == manual layer chain).
+- [x] [patch] Added `transformer_encoder_stack_2layer_forward_matches_burn` (differential
+  vs Burn autodiff NdArray: 2-layer weighted Coeus stack vs 2 manually-assembled Burn Pre-LN
+  layers, 2e-4 tolerance).
+- [x] [patch] Extracted `_torch_preln_layer_fwd` helper in `test_pytorch_parity.py`
+  (DRY: second occurrence of PyTorch Pre-LN forward assembly); refactored
+  `test_transformer_encoder_layer_matches_pytorch` to use it.
+- [x] [patch] Added `test_transformer_encoder_stack_matches_pytorch` (differential vs
+  PyTorch: 2-layer encoder, 32 parameters, output at 2e-4 atol).
+- [x] [patch] Closed G-002 in `docs/gap_audit.md`.
+- [x] Evidence: `cargo nextest run -p coeus-nn` 111/111 passed;
+  `pytest coeus-python/tests/test_pytorch_parity.py -v` 8/8 passed.
+
+### Previous Sprint: MS-127 - Fix G-001: Stateful PyTransformerEncoderLayer binding [COMPLETE]
 **Objective**: Refactor `PyFeedForward` and `PyTransformerEncoderLayer` in
 `coeus-python/src/nn/feedforward.rs` to be stateful — storing `norm1`, `self_attn`,
 `norm2`, and `ffn` as `Py<>` sub-module fields — and promote the pytest encoder test

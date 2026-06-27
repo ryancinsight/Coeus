@@ -308,50 +308,37 @@ def test_mha_backward_matches_pytorch() -> None:
 
 
 # ---------------------------------------------------------------------------
-# TransformerEncoderLayer (Pre-LN) forward parity
+# TransformerEncoderLayer / TransformerEncoder — shared PyTorch helper
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(
-    not hasattr(pycoeus, "TransformerEncoderLayer"),
-    reason="pycoeus.TransformerEncoderLayer not available in this wheel build",
-)
-def test_transformer_encoder_layer_matches_pytorch() -> None:
-    """Forward parity: TransformerEncoderLayer(d_model=4, H=2, d_ff=8, dropout=0).
+def _torch_preln_layer_fwd(
+    x_t: "torch.Tensor",
+    layer: "pycoeus.TransformerEncoderLayer",
+    d_model: int,
+    num_heads: int,
+) -> "torch.Tensor":
+    """PyTorch Pre-LN encoder forward assembled from a pycoeus layer's weights.
 
-    Pre-LN forward:
-      x₁ = x + MHA(LN1(x))
-      out = x₁ + FFN(LN2(x₁))
+    ``x_t``   – ``[batch, seq, d_model]`` float64 tensor.
+    ``layer`` – a fully-stateful ``pycoeus.TransformerEncoderLayer``.
 
-    Weights are extracted from the stateful pycoeus sub-modules and copied to
-    individually assembled PyTorch components (same weight convention — no
-    transposition needed).
+    Returns ``[batch, seq, d_model]`` float64 tensor.
     """
-    d_model, num_heads, d_ff = 4, 2, 8
-    batch, seq = 1, 3
-    _ATOL_ENC = 2e-4
+    d_ff = layer.d_ff
+    wq = list(layer.self_attn.w_q.data)
+    wk = list(layer.self_attn.w_k.data)
+    wv = list(layer.self_attn.w_v.data)
+    wo = list(layer.self_attn.w_o.data)
+    gamma1 = list(layer.norm1.weight.data)
+    beta1 = list(layer.norm1.bias.data)
+    gamma2 = list(layer.norm2.weight.data)
+    beta2 = list(layer.norm2.bias.data)
+    wff1 = list(layer.ffn.linear1.weight.data)
+    bff1 = list(layer.ffn.linear1.bias.data) if layer.ffn.linear1.bias else [0.0] * d_ff
+    wff2 = list(layer.ffn.linear2.weight.data)
+    bff2 = list(layer.ffn.linear2.bias.data) if layer.ffn.linear2.bias else [0.0] * d_model
 
-    tel = pycoeus.TransformerEncoderLayer(d_model=d_model, d_ff=d_ff, num_heads=num_heads)
-
-    # Extract weights from stateful sub-modules.
-    wq = list(tel.self_attn.w_q.data)
-    wk = list(tel.self_attn.w_k.data)
-    wv = list(tel.self_attn.w_v.data)
-    wo = list(tel.self_attn.w_o.data)
-    gamma1 = list(tel.norm1.weight.data)
-    beta1 = list(tel.norm1.bias.data)
-    gamma2 = list(tel.norm2.weight.data)
-    beta2 = list(tel.norm2.bias.data)
-    wff1 = list(tel.ffn.linear1.weight.data)
-    bff1 = list(tel.ffn.linear1.bias.data) if tel.ffn.linear1.bias else [0.0] * d_ff
-    wff2 = list(tel.ffn.linear2.weight.data)
-    bff2 = list(tel.ffn.linear2.bias.data) if tel.ffn.linear2.bias else [0.0] * d_model
-
-    x_data = [0.1 * i - 0.3 for i in range(batch * seq * d_model)]
-    x_pyc = pycoeus.Tensor(x_data, [batch, seq, d_model], requires_grad=False)
-    out_pyc = tel.forward(x_pyc)
-
-    # PyTorch Pre-LN composed forward.
     mha_t = torch.nn.MultiheadAttention(
         embed_dim=d_model, num_heads=num_heads, bias=False,
         batch_first=True, dtype=torch.float64,
@@ -369,7 +356,6 @@ def test_transformer_encoder_layer_matches_pytorch() -> None:
         mha_t.out_proj.weight[:] = (
             torch.tensor(wo, dtype=torch.float64).reshape(d_model, d_model)
         )
-    # MHA has no bias in this layer (b_q/b_k/b_v/b_o all None on default init).
     mha_t.in_proj_bias = None
     mha_t.out_proj.bias = None
 
@@ -389,12 +375,82 @@ def test_transformer_encoder_layer_matches_pytorch() -> None:
         ff2_t.weight[:] = torch.tensor(wff2, dtype=torch.float64).reshape(d_model, d_ff)
         ff2_t.bias[:] = torch.tensor(bff2, dtype=torch.float64)
 
-    x_t = torch.tensor(x_data, dtype=torch.float64).reshape(batch, seq, d_model)
     normed1 = ln1_t(x_t)
     attn_out, _ = mha_t(normed1, normed1, normed1, need_weights=False)
     x1_t = x_t + attn_out
     normed2 = ln2_t(x1_t)
     ffn_out = ff2_t(torch.nn.functional.gelu(ff1_t(normed2)))
-    out_t = x1_t + ffn_out
+    return x1_t + ffn_out
+
+
+# ---------------------------------------------------------------------------
+# TransformerEncoderLayer (Pre-LN) forward parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "TransformerEncoderLayer"),
+    reason="pycoeus.TransformerEncoderLayer not available in this wheel build",
+)
+def test_transformer_encoder_layer_matches_pytorch() -> None:
+    """Forward parity: TransformerEncoderLayer(d_model=4, H=2, d_ff=8, dropout=0).
+
+    Pre-LN forward:
+      x₁ = x + MHA(LN1(x))
+      out = x₁ + FFN(LN2(x₁))
+
+    Weights are extracted from the stateful pycoeus sub-modules and copied to
+    individually assembled PyTorch components (same weight convention — no
+    transposition needed).
+    """
+    d_model, num_heads = 4, 2
+    batch, seq = 1, 3
+    _ATOL_ENC = 2e-4
+
+    tel = pycoeus.TransformerEncoderLayer(d_model=d_model, d_ff=8, num_heads=num_heads)
+
+    x_data = [0.1 * i - 0.3 for i in range(batch * seq * d_model)]
+    x_pyc = pycoeus.Tensor(x_data, [batch, seq, d_model], requires_grad=False)
+    out_pyc = tel.forward(x_pyc)
+
+    x_t = torch.tensor(x_data, dtype=torch.float64).reshape(batch, seq, d_model)
+    out_t = _torch_preln_layer_fwd(x_t, tel, d_model, num_heads)
 
     _allclose("encoder_layer_fwd", list(out_pyc.data), out_t.flatten().tolist(), atol=_ATOL_ENC)
+
+
+# ---------------------------------------------------------------------------
+# TransformerEncoder (Pre-LN N-layer stack) forward parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "TransformerEncoder"),
+    reason="pycoeus.TransformerEncoder not available in this wheel build",
+)
+def test_transformer_encoder_stack_matches_pytorch() -> None:
+    """Forward parity: TransformerEncoder(d_model=4, H=2, d_ff=8, num_layers=2, dropout=0).
+
+    Each stateful pycoeus layer is independently assembled as a PyTorch Pre-LN
+    forward and chained sequentially.  Confirms both the weight-extraction path
+    and the N-layer composition logic.
+    """
+    d_model, num_heads, num_layers = 4, 2, 2
+    batch, seq = 1, 3
+    _ATOL_ENC = 2e-4
+
+    enc = pycoeus.TransformerEncoder(
+        d_model=d_model, d_ff=8, num_heads=num_heads, num_layers=num_layers,
+    )
+    assert enc.num_layers == num_layers
+    assert len(enc.parameters()) == 16 * num_layers
+
+    x_data = [0.1 * i - 0.3 for i in range(batch * seq * d_model)]
+    x_pyc = pycoeus.Tensor(x_data, [batch, seq, d_model], requires_grad=False)
+    out_pyc = enc.forward(x_pyc)
+
+    x_t = torch.tensor(x_data, dtype=torch.float64).reshape(batch, seq, d_model)
+    for layer in enc.layers:
+        x_t = _torch_preln_layer_fwd(x_t, layer, d_model, num_heads)
+
+    _allclose("encoder_stack_fwd", list(out_pyc.data), x_t.flatten().tolist(), atol=_ATOL_ENC)

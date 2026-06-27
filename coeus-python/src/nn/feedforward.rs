@@ -39,16 +39,46 @@ impl PyFeedForward {
                 "FeedForward: dropout_p must be in [0.0, 1.0)",
             ));
         }
-        let ffn_init = coeus_nn::transformer::ffn::FeedForward::<f64, coeus_core::MoiraiBackend>::new(d_model, d_ff, dropout_p);
-        let linear1 = Py::new(py, PyLinear {
-            weight: Py::new(py, PyTensor { inner: ffn_init.linear1.weight })?,
-            bias: ffn_init.linear1.bias.map(|v| Py::new(py, PyTensor { inner: v })).transpose()?,
-        })?;
-        let ffn_init2 = coeus_nn::transformer::ffn::FeedForward::<f64, coeus_core::MoiraiBackend>::new(d_model, d_ff, dropout_p);
-        let linear2 = Py::new(py, PyLinear {
-            weight: Py::new(py, PyTensor { inner: ffn_init2.linear2.weight })?,
-            bias: ffn_init2.linear2.bias.map(|v| Py::new(py, PyTensor { inner: v })).transpose()?,
-        })?;
+        let ffn_init =
+            coeus_nn::transformer::ffn::FeedForward::<f64, coeus_core::MoiraiBackend>::new(
+                d_model, d_ff, dropout_p,
+            );
+        let linear1 = Py::new(
+            py,
+            PyLinear {
+                weight: Py::new(
+                    py,
+                    PyTensor {
+                        inner: ffn_init.linear1.weight,
+                    },
+                )?,
+                bias: ffn_init
+                    .linear1
+                    .bias
+                    .map(|v| Py::new(py, PyTensor { inner: v }))
+                    .transpose()?,
+            },
+        )?;
+        let ffn_init2 =
+            coeus_nn::transformer::ffn::FeedForward::<f64, coeus_core::MoiraiBackend>::new(
+                d_model, d_ff, dropout_p,
+            );
+        let linear2 = Py::new(
+            py,
+            PyLinear {
+                weight: Py::new(
+                    py,
+                    PyTensor {
+                        inner: ffn_init2.linear2.weight,
+                    },
+                )?,
+                bias: ffn_init2
+                    .linear2
+                    .bias
+                    .map(|v| Py::new(py, PyTensor { inner: v }))
+                    .transpose()?,
+            },
+        )?;
         Ok(Self {
             linear1,
             linear2,
@@ -63,11 +93,37 @@ impl PyFeedForward {
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_nn::transformer::ffn::FeedForward;
         use coeus_nn::Module;
-        let w1 = self.linear1.bind(py).borrow().weight.bind(py).borrow().inner.clone();
-        let b1 = self.linear1.bind(py).borrow().bias.as_ref()
+        let w1 = self
+            .linear1
+            .bind(py)
+            .borrow()
+            .weight
+            .bind(py)
+            .borrow()
+            .inner
+            .clone();
+        let b1 = self
+            .linear1
+            .bind(py)
+            .borrow()
+            .bias
+            .as_ref()
             .map(|b| b.bind(py).borrow().inner.clone());
-        let w2 = self.linear2.bind(py).borrow().weight.bind(py).borrow().inner.clone();
-        let b2 = self.linear2.bind(py).borrow().bias.as_ref()
+        let w2 = self
+            .linear2
+            .bind(py)
+            .borrow()
+            .weight
+            .bind(py)
+            .borrow()
+            .inner
+            .clone();
+        let b2 = self
+            .linear2
+            .bind(py)
+            .borrow()
+            .bias
+            .as_ref()
             .map(|b| b.bind(py).borrow().inner.clone());
         let dropout_p = self.dropout_p;
         let x = input.inner.clone();
@@ -244,8 +300,9 @@ impl PyTransformerEncoderLayer {
                 "TransformerEncoderLayer: dropout_p must be in [0.0, 1.0)",
             ));
         }
-        // Build a fresh Rust encoder layer with Kaiming-initialised MHA weights
-        // and ones/zeros for LN and FFN, then unpack into Python sub-objects.
+        // Build a fresh Rust encoder layer, then unpack into Python sub-objects via
+        // the SSOT helper `build_from_layer` (avoids duplicating extraction logic
+        // between `PyTransformerEncoderLayer::new` and `PyTransformerEncoder::new`).
         macro_rules! build {
             ($($h:literal),*) => {
                 match num_heads {
@@ -255,55 +312,7 @@ impl PyTransformerEncoderLayer {
                         let enc = TransformerEncoderLayer::<
                             f64, coeus_core::MoiraiBackend, $h, NullMask,
                         >::new(d_model, d_ff, dropout_p);
-
-                        let norm1 = Py::new(py, PyLayerNorm {
-                            weight: Py::new(py, PyTensor { inner: enc.norm1.weight })?,
-                            bias:   Py::new(py, PyTensor { inner: enc.norm1.bias })?,
-                            eps: 1e-5,
-                        })?;
-
-                        let self_attn = Py::new(py, PyMultiHeadAttention {
-                            d_model,
-                            num_heads,
-                            w_q: Py::new(py, PyTensor { inner: enc.self_attn.w_q })?,
-                            b_q: enc.self_attn.b_q.map(|v| Py::new(py, PyTensor { inner: v }))
-                                .transpose()?,
-                            w_k: Py::new(py, PyTensor { inner: enc.self_attn.w_k })?,
-                            b_k: enc.self_attn.b_k.map(|v| Py::new(py, PyTensor { inner: v }))
-                                .transpose()?,
-                            w_v: Py::new(py, PyTensor { inner: enc.self_attn.w_v })?,
-                            b_v: enc.self_attn.b_v.map(|v| Py::new(py, PyTensor { inner: v }))
-                                .transpose()?,
-                            w_o: Py::new(py, PyTensor { inner: enc.self_attn.w_o })?,
-                            b_o: enc.self_attn.b_o.map(|v| Py::new(py, PyTensor { inner: v }))
-                                .transpose()?,
-                        })?;
-
-                        let norm2 = Py::new(py, PyLayerNorm {
-                            weight: Py::new(py, PyTensor { inner: enc.norm2.weight })?,
-                            bias:   Py::new(py, PyTensor { inner: enc.norm2.bias })?,
-                            eps: 1e-5,
-                        })?;
-
-                        let ffn_linear1 = Py::new(py, PyLinear {
-                            weight: Py::new(py, PyTensor { inner: enc.ffn.linear1.weight })?,
-                            bias: enc.ffn.linear1.bias
-                                .map(|v| Py::new(py, PyTensor { inner: v }))
-                                .transpose()?,
-                        })?;
-                        let ffn_linear2 = Py::new(py, PyLinear {
-                            weight: Py::new(py, PyTensor { inner: enc.ffn.linear2.weight })?,
-                            bias: enc.ffn.linear2.bias
-                                .map(|v| Py::new(py, PyTensor { inner: v }))
-                                .transpose()?,
-                        })?;
-                        let ffn = Py::new(py, PyFeedForward {
-                            linear1: ffn_linear1,
-                            linear2: ffn_linear2,
-                            dropout_p,
-                        })?;
-
-                        Ok(Self { norm1, self_attn, norm2, ffn, d_model, d_ff, num_heads, dropout_p })
+                        Self::build_from_layer::<$h>(py, enc, d_model, d_ff, dropout_p)
                     },)*
                     _ => Err(PyValueError::new_err(format!(
                         "TransformerEncoderLayer: unsupported num_heads={num_heads}; \
@@ -321,9 +330,9 @@ impl PyTransformerEncoderLayer {
     ///
     /// Returns `[batch, seq, d_model]`.
     pub fn forward(&self, src: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+        use coeus_autograd::NullMask;
         use coeus_nn::transformer::encoder_layer::TransformerEncoderLayer;
         use coeus_nn::Module as _;
-        use coeus_autograd::NullMask;
 
         let src_var = src.inner.clone();
         let num_heads = self.num_heads;
@@ -332,30 +341,150 @@ impl PyTransformerEncoderLayer {
         let d_ff = self.d_ff;
 
         // Extract weights from Python sub-objects.
-        let n1w = self.norm1.bind(py).borrow().weight.bind(py).borrow().inner.clone();
-        let n1b = self.norm1.bind(py).borrow().bias.bind(py).borrow().inner.clone();
-        let wq  = self.self_attn.bind(py).borrow().w_q.bind(py).borrow().inner.clone();
-        let bq  = self.self_attn.bind(py).borrow().b_q.as_ref()
+        let n1w = self
+            .norm1
+            .bind(py)
+            .borrow()
+            .weight
+            .bind(py)
+            .borrow()
+            .inner
+            .clone();
+        let n1b = self
+            .norm1
+            .bind(py)
+            .borrow()
+            .bias
+            .bind(py)
+            .borrow()
+            .inner
+            .clone();
+        let wq = self
+            .self_attn
+            .bind(py)
+            .borrow()
+            .w_q
+            .bind(py)
+            .borrow()
+            .inner
+            .clone();
+        let bq = self
+            .self_attn
+            .bind(py)
+            .borrow()
+            .b_q
+            .as_ref()
             .map(|v| v.bind(py).borrow().inner.clone());
-        let wk  = self.self_attn.bind(py).borrow().w_k.bind(py).borrow().inner.clone();
-        let bk  = self.self_attn.bind(py).borrow().b_k.as_ref()
+        let wk = self
+            .self_attn
+            .bind(py)
+            .borrow()
+            .w_k
+            .bind(py)
+            .borrow()
+            .inner
+            .clone();
+        let bk = self
+            .self_attn
+            .bind(py)
+            .borrow()
+            .b_k
+            .as_ref()
             .map(|v| v.bind(py).borrow().inner.clone());
-        let wv  = self.self_attn.bind(py).borrow().w_v.bind(py).borrow().inner.clone();
-        let bv  = self.self_attn.bind(py).borrow().b_v.as_ref()
+        let wv = self
+            .self_attn
+            .bind(py)
+            .borrow()
+            .w_v
+            .bind(py)
+            .borrow()
+            .inner
+            .clone();
+        let bv = self
+            .self_attn
+            .bind(py)
+            .borrow()
+            .b_v
+            .as_ref()
             .map(|v| v.bind(py).borrow().inner.clone());
-        let wo  = self.self_attn.bind(py).borrow().w_o.bind(py).borrow().inner.clone();
-        let bo  = self.self_attn.bind(py).borrow().b_o.as_ref()
+        let wo = self
+            .self_attn
+            .bind(py)
+            .borrow()
+            .w_o
+            .bind(py)
+            .borrow()
+            .inner
+            .clone();
+        let bo = self
+            .self_attn
+            .bind(py)
+            .borrow()
+            .b_o
+            .as_ref()
             .map(|v| v.bind(py).borrow().inner.clone());
-        let n2w = self.norm2.bind(py).borrow().weight.bind(py).borrow().inner.clone();
-        let n2b = self.norm2.bind(py).borrow().bias.bind(py).borrow().inner.clone();
-        let fw1 = self.ffn.bind(py).borrow().linear1.bind(py).borrow()
-            .weight.bind(py).borrow().inner.clone();
-        let fb1 = self.ffn.bind(py).borrow().linear1.bind(py).borrow()
-            .bias.as_ref().map(|v| v.bind(py).borrow().inner.clone());
-        let fw2 = self.ffn.bind(py).borrow().linear2.bind(py).borrow()
-            .weight.bind(py).borrow().inner.clone();
-        let fb2 = self.ffn.bind(py).borrow().linear2.bind(py).borrow()
-            .bias.as_ref().map(|v| v.bind(py).borrow().inner.clone());
+        let n2w = self
+            .norm2
+            .bind(py)
+            .borrow()
+            .weight
+            .bind(py)
+            .borrow()
+            .inner
+            .clone();
+        let n2b = self
+            .norm2
+            .bind(py)
+            .borrow()
+            .bias
+            .bind(py)
+            .borrow()
+            .inner
+            .clone();
+        let fw1 = self
+            .ffn
+            .bind(py)
+            .borrow()
+            .linear1
+            .bind(py)
+            .borrow()
+            .weight
+            .bind(py)
+            .borrow()
+            .inner
+            .clone();
+        let fb1 = self
+            .ffn
+            .bind(py)
+            .borrow()
+            .linear1
+            .bind(py)
+            .borrow()
+            .bias
+            .as_ref()
+            .map(|v| v.bind(py).borrow().inner.clone());
+        let fw2 = self
+            .ffn
+            .bind(py)
+            .borrow()
+            .linear2
+            .bind(py)
+            .borrow()
+            .weight
+            .bind(py)
+            .borrow()
+            .inner
+            .clone();
+        let fb2 = self
+            .ffn
+            .bind(py)
+            .borrow()
+            .linear2
+            .bind(py)
+            .borrow()
+            .bias
+            .as_ref()
+            .map(|v| v.bind(py).borrow().inner.clone());
 
         let inner = py.allow_threads(move || -> PyResult<_> {
             macro_rules! dispatch {
@@ -411,29 +540,214 @@ impl PyTransformerEncoderLayer {
     }
 }
 
+/// Non-`#[pymethods]` constructors shared between `PyTransformerEncoderLayer` and
+/// [`PyTransformerEncoder`] to avoid duplicating the field-extraction logic.
+impl PyTransformerEncoderLayer {
+    /// Extract every sub-component of a Rust `TransformerEncoderLayer` into its Python
+    /// counterpart. The const generic `H` pins the head count at compile time so the
+    /// function is called once per monomorphization, never per runtime head value.
+    pub(crate) fn build_from_layer<const H: usize>(
+        py: Python<'_>,
+        enc: coeus_nn::transformer::encoder_layer::TransformerEncoderLayer<
+            f64,
+            coeus_core::MoiraiBackend,
+            H,
+            coeus_autograd::NullMask,
+        >,
+        d_model: usize,
+        d_ff: usize,
+        dropout_p: f64,
+    ) -> PyResult<Self> {
+        let norm1 = Py::new(
+            py,
+            PyLayerNorm {
+                weight: Py::new(
+                    py,
+                    PyTensor {
+                        inner: enc.norm1.weight,
+                    },
+                )?,
+                bias: Py::new(
+                    py,
+                    PyTensor {
+                        inner: enc.norm1.bias,
+                    },
+                )?,
+                eps: 1e-5,
+            },
+        )?;
+        let self_attn = Py::new(
+            py,
+            PyMultiHeadAttention {
+                d_model,
+                num_heads: H,
+                w_q: Py::new(
+                    py,
+                    PyTensor {
+                        inner: enc.self_attn.w_q,
+                    },
+                )?,
+                b_q: enc
+                    .self_attn
+                    .b_q
+                    .map(|v| Py::new(py, PyTensor { inner: v }))
+                    .transpose()?,
+                w_k: Py::new(
+                    py,
+                    PyTensor {
+                        inner: enc.self_attn.w_k,
+                    },
+                )?,
+                b_k: enc
+                    .self_attn
+                    .b_k
+                    .map(|v| Py::new(py, PyTensor { inner: v }))
+                    .transpose()?,
+                w_v: Py::new(
+                    py,
+                    PyTensor {
+                        inner: enc.self_attn.w_v,
+                    },
+                )?,
+                b_v: enc
+                    .self_attn
+                    .b_v
+                    .map(|v| Py::new(py, PyTensor { inner: v }))
+                    .transpose()?,
+                w_o: Py::new(
+                    py,
+                    PyTensor {
+                        inner: enc.self_attn.w_o,
+                    },
+                )?,
+                b_o: enc
+                    .self_attn
+                    .b_o
+                    .map(|v| Py::new(py, PyTensor { inner: v }))
+                    .transpose()?,
+            },
+        )?;
+        let norm2 = Py::new(
+            py,
+            PyLayerNorm {
+                weight: Py::new(
+                    py,
+                    PyTensor {
+                        inner: enc.norm2.weight,
+                    },
+                )?,
+                bias: Py::new(
+                    py,
+                    PyTensor {
+                        inner: enc.norm2.bias,
+                    },
+                )?,
+                eps: 1e-5,
+            },
+        )?;
+        let ffn_l1 = Py::new(
+            py,
+            PyLinear {
+                weight: Py::new(
+                    py,
+                    PyTensor {
+                        inner: enc.ffn.linear1.weight,
+                    },
+                )?,
+                bias: enc
+                    .ffn
+                    .linear1
+                    .bias
+                    .map(|v| Py::new(py, PyTensor { inner: v }))
+                    .transpose()?,
+            },
+        )?;
+        let ffn_l2 = Py::new(
+            py,
+            PyLinear {
+                weight: Py::new(
+                    py,
+                    PyTensor {
+                        inner: enc.ffn.linear2.weight,
+                    },
+                )?,
+                bias: enc
+                    .ffn
+                    .linear2
+                    .bias
+                    .map(|v| Py::new(py, PyTensor { inner: v }))
+                    .transpose()?,
+            },
+        )?;
+        let ffn = Py::new(
+            py,
+            PyFeedForward {
+                linear1: ffn_l1,
+                linear2: ffn_l2,
+                dropout_p,
+            },
+        )?;
+        Ok(Self {
+            norm1,
+            self_attn,
+            norm2,
+            ffn,
+            d_model,
+            d_ff,
+            num_heads: H,
+            dropout_p,
+        })
+    }
+
+    /// Wrap [`build_from_layer`](Self::build_from_layer) in a `Py<Self>` for storage in
+    /// `Vec<Py<PyTransformerEncoderLayer>>` inside [`PyTransformerEncoder`].
+    pub(crate) fn from_rust_layer<const H: usize>(
+        py: Python<'_>,
+        enc: coeus_nn::transformer::encoder_layer::TransformerEncoderLayer<
+            f64,
+            coeus_core::MoiraiBackend,
+            H,
+            coeus_autograd::NullMask,
+        >,
+        d_model: usize,
+        d_ff: usize,
+        dropout_p: f64,
+    ) -> PyResult<Py<Self>> {
+        Py::new(
+            py,
+            Self::build_from_layer::<H>(py, enc, d_model, d_ff, dropout_p)?,
+        )
+    }
+}
+
 // ── TransformerEncoder ───────────────────────────────────────────────────────
 
 /// Python-exposed Transformer Encoder stack (Pre-LayerNorm, N layers).
 ///
+/// Each layer is stored as a fully-stateful [`TransformerEncoderLayer`] so weights
+/// can be read, written, and differentiated from Python at per-layer resolution.
+///
 /// ```python
-/// enc = pycoeus.TransformerEncoder(d_model=64, d_ff=256, num_heads=4, num_layers=6)
-/// out = enc.forward(src)   # src: [batch, seq, d_model]
+/// enc = pycoeus.TransformerEncoder(d_model=64, d_ff=256, num_heads=4, num_layers=2)
+/// out = enc.forward(src)            # src: [batch, seq, d_model]
+/// enc.layers[0].norm1.weight.data   # per-layer weight access
+/// len(enc.parameters())             # 16 * num_layers
 /// ```
 #[pyclass(name = "TransformerEncoder")]
 pub struct PyTransformerEncoder {
+    /// Stack of independently-initialised encoder layers.
+    #[pyo3(get)]
+    pub layers: Vec<Py<PyTransformerEncoderLayer>>,
     /// Model embedding dimensionality.
     #[pyo3(get)]
     pub d_model: usize,
     /// Feed-forward hidden dimensionality.
     #[pyo3(get)]
     pub d_ff: usize,
-    /// Number of attention heads.
+    /// Number of attention heads per layer.
     #[pyo3(get)]
     pub num_heads: usize,
-    /// Number of stacked encoder layers.
-    #[pyo3(get)]
-    pub num_layers: usize,
-    /// Dropout probability.
+    /// Dropout probability applied within each layer.
     #[pyo3(get)]
     pub dropout_p: f64,
 }
@@ -442,8 +756,13 @@ pub struct PyTransformerEncoder {
 impl PyTransformerEncoder {
     #[new]
     #[pyo3(signature = (d_model, d_ff, num_heads = 8, num_layers = 6, dropout_p = 0.0))]
-    /// Create a TransformerEncoder stack with given model dimensions and layer count.
+    /// Create a `TransformerEncoder` with `num_layers` independently-initialised layers.
+    ///
+    /// Each layer is stored as a [`TransformerEncoderLayer`] with full sub-module access.
+    /// Supported `num_heads` values: 1, 2, 4, 8, 16, 32.
+    /// Supported `num_layers` values: 1, 2, 4, 6, 8, 12.
     pub fn new(
+        py: Python<'_>,
         d_model: usize,
         d_ff: usize,
         num_heads: usize,
@@ -455,68 +774,113 @@ impl PyTransformerEncoder {
                 "TransformerEncoder: dropout_p must be in [0.0, 1.0)",
             ));
         }
+        macro_rules! build {
+            ($(($h:literal, $n:literal)),*) => {
+                match (num_heads, num_layers) {
+                    $(($h, $n) => {
+                        use coeus_nn::transformer::encoder::TransformerEncoder;
+                        use coeus_autograd::NullMask;
+                        let enc = TransformerEncoder::<
+                            f64, coeus_core::MoiraiBackend, $h, $n, NullMask,
+                        >::new(d_model, d_ff, dropout_p);
+                        enc.layers
+                            .into_iter()
+                            .map(|layer| PyTransformerEncoderLayer::from_rust_layer::<$h>(
+                                py, layer, d_model, d_ff, dropout_p,
+                            ))
+                            .collect::<PyResult<Vec<_>>>()?
+                    },)*
+                    _ => return Err(PyValueError::new_err(format!(
+                        "TransformerEncoder: unsupported (num_heads={num_heads}, \
+                         num_layers={num_layers}); supported heads: 1,2,4,8,16,32 \
+                         and layers: 1,2,4,6,8,12"
+                    ))),
+                }
+            }
+        }
+        let layers = build!(
+            (1, 1),
+            (1, 2),
+            (1, 4),
+            (1, 6),
+            (1, 8),
+            (1, 12),
+            (2, 1),
+            (2, 2),
+            (2, 4),
+            (2, 6),
+            (2, 8),
+            (2, 12),
+            (4, 1),
+            (4, 2),
+            (4, 4),
+            (4, 6),
+            (4, 8),
+            (4, 12),
+            (8, 1),
+            (8, 2),
+            (8, 4),
+            (8, 6),
+            (8, 8),
+            (8, 12),
+            (16, 1),
+            (16, 2),
+            (16, 4),
+            (16, 6),
+            (16, 8),
+            (16, 12),
+            (32, 1),
+            (32, 2),
+            (32, 4),
+            (32, 6),
+            (32, 8),
+            (32, 12)
+        );
         Ok(Self {
+            layers,
             d_model,
             d_ff,
             num_heads,
-            num_layers,
             dropout_p,
         })
     }
 
-    /// Stack of encoder layers forward.
+    /// Number of stacked encoder layers (convenience alias for `len(enc.layers)`).
+    #[getter]
+    pub fn num_layers(&self) -> usize {
+        self.layers.len()
+    }
+
+    /// Chain each layer's Pre-LN forward sequentially.
     ///
     /// - `src`: `[batch, seq, d_model]`
     ///
     /// Returns `[batch, seq, d_model]`.
     pub fn forward(&self, src: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
-        let src_var = src.inner.clone();
-        let (d_model, d_ff, num_heads, num_layers, dropout_p) = (
-            self.d_model,
-            self.d_ff,
-            self.num_heads,
-            self.num_layers,
-            self.dropout_p,
-        );
-        let inner = py.allow_threads(move || -> PyResult<_> {
-            macro_rules! dispatch {
-                ($(($h:literal, $n:literal)),*) => {
-                    match (num_heads, num_layers) {
-                        $(($h, $n) => {
-                            use coeus_nn::transformer::encoder::TransformerEncoder;
-                            use coeus_nn::Module as _;
-                            use coeus_autograd::NullMask;
-                            let enc = TransformerEncoder::<
-                                f64, coeus_core::MoiraiBackend, $h, $n, NullMask,
-                            >::new(d_model, d_ff, dropout_p);
-                            Ok(enc.forward(&src_var))
-                        },)*
-                        _ => Err(PyValueError::new_err(format!(
-                            "TransformerEncoder: unsupported (num_heads={num_heads}, num_layers={num_layers}); \
-                             supported heads: 1,2,4,8,16,32 and layers: 1,2,4,6,8,12"
-                        ))),
-                    }
-                }
-            }
-            dispatch!(
-                (1,1),(1,2),(1,4),(1,6),(1,8),(1,12),
-                (2,1),(2,2),(2,4),(2,6),(2,8),(2,12),
-                (4,1),(4,2),(4,4),(4,6),(4,8),(4,12),
-                (8,1),(8,2),(8,4),(8,6),(8,8),(8,12),
-                (16,1),(16,2),(16,4),(16,6),(16,8),(16,12),
-                (32,1),(32,2),(32,4),(32,6),(32,8),(32,12)
-            )
-        });
-        Ok(PyTensor::from_var(inner?))
+        let mut current = PyTensor {
+            inner: src.inner.clone(),
+        };
+        for layer_py in &self.layers {
+            let layer = layer_py.bind(py).borrow();
+            current = layer.forward(&current, py)?;
+        }
+        Ok(current)
     }
 
-    /// Return the list of learnable parameters (stateless wrapper — always empty).
-    pub fn parameters(&self, _py: Python<'_>) -> Vec<Py<PyTensor>> {
-        vec![]
+    /// Return all learnable parameters across every layer.
+    pub fn parameters(&self, py: Python<'_>) -> Vec<Py<PyTensor>> {
+        self.layers
+            .iter()
+            .flat_map(|l| l.bind(py).borrow().parameters(py))
+            .collect()
     }
 
-    /// Zero gradients of all parameters.
-    pub fn zero_grad(&self, _py: Python<'_>) {}
+    /// Zero gradients of all parameters across every layer.
+    pub fn zero_grad(&self, py: Python<'_>) {
+        for l in &self.layers {
+            l.bind(py).borrow().zero_grad(py);
+        }
+    }
 }
 
 // ── SinusoidalEncoding ───────────────────────────────────────────────────────
