@@ -82,11 +82,13 @@ pub use ops::{
     gelu_tanh,
     huber_loss,
     index_select,
+    kl_divergence,
     layernorm,
     leaky_relu,
     log,
     log_softmax,
     log_sum_exp,
+    margin_ranking_loss,
     masked_fill,
     matmul,
     // New axis reductions

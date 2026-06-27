@@ -1,6 +1,9 @@
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
-use coeus_nn::{binary_cross_entropy, cosine_embedding_loss, huber_loss, nll_loss};
+use coeus_nn::{
+    binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence, margin_ranking_loss,
+    nll_loss,
+};
 use coeus_tensor::Tensor;
 
 #[test]
@@ -124,6 +127,57 @@ fn test_huber_loss() {
 
     loss.backward();
     assert!(pred.grad().is_some());
+}
+
+#[test]
+fn test_kl_divergence_loss() {
+    let input_data = [0.25_f64.ln(), 0.75_f64.ln()];
+    let target_data = [0.25_f64, 0.75_f64];
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &input_data),
+        true,
+    );
+    let target = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &target_data),
+        false,
+    );
+
+    let loss = kl_divergence(&input, &target);
+    assert_eq!(loss.tensor.shape(), &[1]);
+    assert!(loss.tensor.as_slice()[0].abs() <= 2.0 * f64::EPSILON);
+
+    loss.backward();
+    let grad = input.grad().expect("invariant: KL input requires grad");
+    let grad_slice = grad.as_slice();
+    assert!((grad_slice[0] + 0.125).abs() < 1e-12);
+    assert!((grad_slice[1] + 0.375).abs() < 1e-12);
+}
+
+#[test]
+fn test_margin_ranking_loss() {
+    let input1 = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[2.0, 0.0, 1.0, 2.0]),
+        true,
+    );
+    let input2 = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 1.0, 1.0, 1.0]),
+        true,
+    );
+    let target = [1.0_f64, -1.0, 1.0, -1.0];
+
+    let loss = margin_ranking_loss(&input1, &input2, &target, 0.5);
+    assert_eq!(loss.tensor.shape(), &[1]);
+    assert_eq!(loss.tensor.as_slice(), &[0.5_f64]);
+
+    loss.backward();
+    let g1 = input1
+        .grad()
+        .expect("invariant: margin ranking input1 requires grad");
+    let g2 = input2
+        .grad()
+        .expect("invariant: margin ranking input2 requires grad");
+    assert_eq!(g1.as_slice(), &[0.0, 0.0, -0.25, 0.25]);
+    assert_eq!(g2.as_slice(), &[0.0, 0.0, 0.25, -0.25]);
 }
 
 #[test]
