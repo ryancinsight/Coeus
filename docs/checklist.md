@@ -2,7 +2,22 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-144 - LocalCommunicator contention and safety hardening [COMPLETE]
+### Current Sprint: MS-145 - PyTensor sum/mean + InstanceNorm/RMSProp/AdaGrad parity [COMPLETE]
+**Objective**: Close the Python scalar-reduction gap (`Tensor.sum`/`.mean`) blocking
+idiomatic `loss.backward()`, and land differential PyTorch parity for InstanceNorm
+{1,2,3}d and the RMSProp/AdaGrad optimizer steps.
+**Target version**: 0.5.4 (`PyTensor.sum`/`.mean` are additive [minor]; tests [patch]).
+
+- [x] [minor] Added `PyTensor::sum`/`PyTensor::mean` full-reduction methods
+  (`coeus-python/src/tensor/pyimpl.rs`) delegating to `coeus_autograd::{sum,mean}`,
+  GIL released; synced `pycoeus.pyi` stub.
+- [x] [patch] InstanceNorm{1,2,3}d PyTorch parity (forward + dx + dγ + dβ, atol=1e-10).
+- [x] [patch] RMSProp/AdaGrad step PyTorch parity (atol=1e-10).
+- [x] [patch] Corrected InstanceNorm parity oracle: affine weight/bias `requires_grad=True`.
+- [x] Removed stale `coeus-python/tests/pycoeus*.pyd` shadowing artifacts.
+- [x] Evidence: `pytest test_pytorch_parity.py` 24/24; `clippy -D warnings` + `fmt` clean.
+
+### Previous Sprint: MS-144 - LocalCommunicator contention and safety hardening [COMPLETE]
 **Objective**: Resolve a distributed-runtime hotspot by eliminating redundant
 `all_reduce` work across ranks, hardening staged payload validation, and
 cutting avoidable temporary allocations in local collectives.

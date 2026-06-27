@@ -100,9 +100,27 @@ that verifies `[out, in1, in2]` indexing on Sequential and Moirai backends, and
 added `test_bilinear_forward_matches_pytorch` against `torch.nn.Bilinear`.
 Evidence tier: analytical (Rust) + differential/empirical (Python).
 
+### ~~G-012: Python `Tensor.sum`/`.mean` reduction + InstanceNorm parity missing~~ **CLOSED**
+**Location**: `coeus-python/src/tensor/pyimpl.rs` — the Python `Tensor` exposed only
+axis reductions (`sum_axis`/`mean_axis`), no full-reduction `sum()`/`mean()`, so the
+idiomatic scalar-loss path `out.sum().backward()` was inexpressible and InstanceNorm
+{1,2,3}d had no PyTorch parity coverage.
+**Closed by**: MS-145 — Added `PyTensor::sum`/`PyTensor::mean` (GIL-released,
+autograd-preserving, delegating to `coeus_autograd::{sum,mean}`); added
+`test_instancenorm{1,2,3}d_matches_pytorch` (forward + dx + dγ + dβ at atol=1e-10)
+and `test_{rmsprop,adagrad}_step_matches_pytorch`. Corrected the InstanceNorm oracle
+to set `requires_grad=True` on the reference affine params. Removed stale
+`tests/pycoeus*.pyd` artifacts that shadowed the installed extension during pytest.
+Evidence tier: differential/empirical (PyTorch f64).
+
 ## Slop Pattern Library
 
-*(Empty — no recurring agent slop patterns identified yet.)*
+- **Stale local `*.pyd` shadowing the installed extension**: pytest prepends the
+  test directory to `sys.path`, so a leftover `coeus-python/tests/pycoeus*.pyd`
+  build artifact silently overrides the freshly `maturin develop`-installed module,
+  pinning an out-of-date binary and producing spurious `AttributeError`s for
+  newly-added bindings. Mitigation: keep built extensions out of `tests/`; the
+  canonical module is the site-packages install. (Detected MS-145.)
 
 ## Residual Risks
 
@@ -119,5 +137,6 @@ Evidence tier: analytical (Rust) + differential/empirical (Python).
 | G-009 JAX/MLX Python parity harnesses missing | differential/optional empirical | **closed MS-138** |
 | G-010 Optimizer step correctness unverified | analytical + differential | **closed MS-139** |
 | G-011 Bilinear per-output indexing parity gap | analytical + differential | **closed MS-140** |
+| G-012 Python `Tensor.sum`/`.mean` reduction + InstanceNorm parity missing | differential | **closed MS-145** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |

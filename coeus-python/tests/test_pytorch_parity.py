@@ -1291,3 +1291,219 @@ def test_embedding_matches_pytorch() -> None:
         emb_t.weight.grad.flatten().tolist(),
         atol=1e-10,
     )
+
+
+# ── InstanceNorm{1d,2d,3d} PyTorch parity (MS-144) ──────────────────────────
+
+
+def test_instancenorm2d_matches_pytorch() -> None:
+    """Forward and gradient parity: InstanceNorm2d(2, eps=1e-5) on [N=2, C=2, H=2, W=2].
+
+    Differential against ``torch.nn.functional.instance_norm`` at f64, with
+    affine weight/bias injected from pycoeus into the PyTorch reference via
+    ``F.instance_norm(..., weight, bias)``.  Weight layout
+    ``[num_features]`` is identical between pycoeus and PyTorch.
+    """
+    n, c, h, w = 2, 2, 2, 2
+    eps = 1e-5
+    data = [0.1 * i - 0.2 for i in range(n * c * h * w)]
+    gamma = [1.5, 0.5]
+    beta = [0.1, -0.1]
+
+    in_pyc = pycoeus.InstanceNorm2d(c, eps=eps)
+    in_pyc.weight.data = gamma
+    in_pyc.bias.data = beta
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    out_pyc = in_pyc.forward(x_pyc)
+    out_pyc.sum().backward()
+
+    x_t = (
+        torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    )
+    g_t = torch.tensor(gamma, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(beta, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.instance_norm(
+        x_t,
+        weight=g_t,
+        bias=b_t,
+        use_input_stats=True,
+        eps=eps,
+    )
+    out_t.sum().backward()
+
+    _allclose("in2d_out", list(out_pyc.data), out_t.flatten().tolist(), atol=1e-10)
+    _allclose("in2d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "in2d_dgamma",
+        list(in_pyc.weight.grad),
+        g_t.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+    _allclose(
+        "in2d_dbeta",
+        list(in_pyc.bias.grad),
+        b_t.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+
+
+def test_instancenorm1d_matches_pytorch() -> None:
+    """Forward and gradient parity: InstanceNorm1d(2, eps=1e-5) on [N=1, C=2, L=4].
+
+    Differential against ``torch.nn.functional.instance_norm`` at f64.
+    """
+    n, c, l = 1, 2, 4
+    eps = 1e-5
+    data = [0.1 * i - 0.1 for i in range(n * c * l)]
+    gamma = [1.2, 0.8]
+    beta = [0.05, -0.05]
+
+    in_pyc = pycoeus.InstanceNorm1d(c, eps=eps)
+    in_pyc.weight.data = gamma
+    in_pyc.bias.data = beta
+    x_pyc = pycoeus.Tensor(data, [n, c, l], requires_grad=True)
+    out_pyc = in_pyc.forward(x_pyc)
+    out_pyc.sum().backward()
+
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, l).requires_grad_(True)
+    g_t = torch.tensor(gamma, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(beta, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.instance_norm(
+        x_t,
+        weight=g_t,
+        bias=b_t,
+        use_input_stats=True,
+        eps=eps,
+    )
+    out_t.sum().backward()
+
+    _allclose("in1d_out", list(out_pyc.data), out_t.flatten().tolist(), atol=1e-10)
+    _allclose("in1d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "in1d_dgamma",
+        list(in_pyc.weight.grad),
+        g_t.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+    _allclose(
+        "in1d_dbeta",
+        list(in_pyc.bias.grad),
+        b_t.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+
+
+def test_instancenorm3d_matches_pytorch() -> None:
+    """Forward and gradient parity: InstanceNorm3d(2, eps=1e-5) on [N=1, C=2, D=2, H=2, W=2].
+
+    Differential against ``torch.nn.functional.instance_norm`` at f64.
+    """
+    n, c, d, h, w = 1, 2, 2, 2, 2
+    eps = 1e-5
+    data = [0.05 * i - 0.1 for i in range(n * c * d * h * w)]
+    gamma = [1.3, 0.7]
+    beta = [0.2, -0.2]
+
+    in_pyc = pycoeus.InstanceNorm3d(c, eps=eps)
+    in_pyc.weight.data = gamma
+    in_pyc.bias.data = beta
+    x_pyc = pycoeus.Tensor(data, [n, c, d, h, w], requires_grad=True)
+    out_pyc = in_pyc.forward(x_pyc)
+    out_pyc.sum().backward()
+
+    x_t = (
+        torch.tensor(data, dtype=torch.float64)
+        .reshape(n, c, d, h, w)
+        .requires_grad_(True)
+    )
+    g_t = torch.tensor(gamma, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(beta, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.instance_norm(
+        x_t,
+        weight=g_t,
+        bias=b_t,
+        use_input_stats=True,
+        eps=eps,
+    )
+    out_t.sum().backward()
+
+    _allclose("in3d_out", list(out_pyc.data), out_t.flatten().tolist(), atol=1e-10)
+    _allclose("in3d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "in3d_dgamma",
+        list(in_pyc.weight.grad),
+        g_t.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+    _allclose(
+        "in3d_dbeta",
+        list(in_pyc.bias.grad),
+        b_t.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+
+
+# ── Optimizer step parity closure (RMSProp + AdaGrad) (MS-144) ──────────────
+
+
+def test_rmsprop_step_matches_pytorch() -> None:
+    """RMSProp first-step parity against torch.optim.RMSprop.
+
+    Setup: w=[1.0], target=[0.0], mse_loss → grad=2.0.
+    RMSProp(lr=1e-2, alpha=0.99, eps=1e-8) update:
+      square_avg = α·0 + (1−α)·g² = 0.01·4 = 0.04
+      lr_step = lr / (sqrt(square_avg) + eps) = 0.01 / (0.2 + 1e-8) ≈ 0.05
+      w_new = w − lr_step ≈ 0.95.
+    """
+    lr = 1e-2
+    alpha = 0.99
+    eps = 1e-8
+
+    w_pyc = pycoeus.Tensor([1.0], [1], requires_grad=True)
+    target_pyc = pycoeus.Tensor([0.0], [1])
+    loss_pyc = pycoeus.mse_loss(w_pyc, target_pyc)
+    loss_pyc.backward()  # grad = 2.0
+    opt_pyc = pycoeus.RMSProp([w_pyc], lr=lr, alpha=alpha, eps=eps)
+    opt_pyc.step()
+
+    w_t = torch.tensor([1.0], dtype=torch.float64, requires_grad=True)
+    loss_t = torch.nn.functional.mse_loss(w_t, torch.zeros(1, dtype=torch.float64))
+    loss_t.backward()
+    opt_t = torch.optim.RMSprop(
+        [w_t], lr=lr, alpha=alpha, eps=eps, momentum=0.0, centered=False
+    )
+    opt_t.step()
+
+    _allclose(
+        "rmsprop_w", list(w_pyc.data), w_t.detach().flatten().tolist(), atol=1e-10
+    )
+
+
+def test_adagrad_step_matches_pytorch() -> None:
+    """AdaGrad first-step parity against torch.optim.Adagrad.
+
+    Setup: w=[1.0], target=[0.0], mse_loss → grad=2.0.
+    AdaGrad(lr=1e-2, eps=1e-10):
+      accumulated = g² = 4
+      update = lr · g / (sqrt(accumulated) + eps) = 0.01 · 2 / (2 + 1e-10) ≈ 0.01
+      w_new = w − update ≈ 0.99.
+    """
+    lr = 1e-2
+    eps = 1e-10
+
+    w_pyc = pycoeus.Tensor([1.0], [1], requires_grad=True)
+    target_pyc = pycoeus.Tensor([0.0], [1])
+    loss_pyc = pycoeus.mse_loss(w_pyc, target_pyc)
+    loss_pyc.backward()  # grad = 2.0
+    opt_pyc = pycoeus.AdaGrad([w_pyc], lr=lr, eps=eps)
+    opt_pyc.step()
+
+    w_t = torch.tensor([1.0], dtype=torch.float64, requires_grad=True)
+    loss_t = torch.nn.functional.mse_loss(w_t, torch.zeros(1, dtype=torch.float64))
+    loss_t.backward()
+    opt_t = torch.optim.Adagrad([w_t], lr=lr, eps=eps, weight_decay=0.0)
+    opt_t.step()
+
+    _allclose(
+        "adagrad_w", list(w_pyc.data), w_t.detach().flatten().tolist(), atol=1e-10
+    )

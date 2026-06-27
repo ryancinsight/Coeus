@@ -1,5 +1,40 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **`PyTensor.sum()` / `PyTensor.mean()`** — full-reduction methods on the
+  Python `Tensor`, mirroring `torch.Tensor.sum()` / `.mean()` with no `dim`
+  argument. Both preserve the autograd graph (delegating to
+  `coeus_autograd::{sum,mean}`) and release the GIL around the reduction. The
+  scalar-loss reduction `loss = out.sum(); loss.backward()` is now expressible
+  in the Python surface. ([minor])
+- **InstanceNorm{1d,2d,3d} PyTorch parity** — added
+  `coeus-python/tests/test_pytorch_parity.py::test_instancenorm{1,2,3}d_matches_pytorch`.
+  Each injects pycoeus affine weight/bias into `torch.nn.functional.instance_norm`
+  and asserts forward output plus input, weight, and bias gradients at f64,
+  `atol=1e-10`, driven by `out.sum().backward()`. Evidence tier:
+  differential/empirical. ([patch])
+- **RMSProp / AdaGrad step PyTorch parity** — added
+  `test_rmsprop_step_matches_pytorch` and `test_adagrad_step_matches_pytorch`
+  comparing one optimizer step against `torch.optim.RMSprop` / `torch.optim.Adagrad`
+  at `atol=1e-10` after a real `mse_loss().backward()` gradient path. ([patch])
+
+### Fixed
+
+- **InstanceNorm parity oracle** — the PyTorch reference affine `weight`/`bias`
+  tensors now set `requires_grad=True`, so their gradients are populated for the
+  differential comparison (previously `None`, which would have masked any
+  affine-gradient divergence). ([patch])
+
+### Removed
+
+- Stale local `coeus-python/tests/pycoeus*.pyd` build artifacts (three ~100 MB
+  duplicate copies) that shadowed the installed extension during pytest and
+  pinned an out-of-date binary. These are gitignored build outputs, not tracked
+  sources.
+
 ## 0.5.3 - 2026-06-26
 
 ### Added

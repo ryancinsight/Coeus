@@ -315,6 +315,23 @@ impl PyTensor {
         Ok(Self::from_var(inner))
     }
 
+    /// Sum all elements into a scalar (shape `[1]`), preserving the autograd graph.
+    ///
+    /// Mirrors `torch.Tensor.sum()` with no `dim` argument; the canonical
+    /// scalar-loss reduction for `loss.backward()`.
+    fn sum(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::sum(&self.inner));
+        Ok(Self::from_var(inner))
+    }
+
+    /// Mean of all elements into a scalar (shape `[1]`), preserving the autograd graph.
+    ///
+    /// Mirrors `torch.Tensor.mean()` with no `dim` argument.
+    fn mean(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::mean(&self.inner));
+        Ok(Self::from_var(inner))
+    }
+
     fn softmax(&self, dim: i64, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::softmax(&self.inner, dim as isize));
         Ok(Self::from_var(inner))
