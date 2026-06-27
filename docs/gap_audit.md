@@ -2,6 +2,14 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-021: KL/MarginRanking tracked loss coverage missing~~ **CLOSED**
+**Location**: `coeus-autograd/src/ops/nn/loss`,
+`coeus-nn/tests/burn_live_parity.rs`, `coeus-nn/tests/loss_parity.rs`
+**Closed by**: MS-161 — Added tracked KL divergence and margin ranking loss
+entry points, NN wrappers, analytical forward/backward tests, and
+sequential/Moirai loss parity checks. Evidence tier: analytical Rust tests plus
+package nextest.
+
 ### ~~G-020: BCE/Huber Python differential parity missing~~ **CLOSED**
 **Location**: `coeus-python/tests/test_pytorch_parity.py`
 **Closed by**: MS-156 — Added `test_binary_cross_entropy_matches_pytorch`

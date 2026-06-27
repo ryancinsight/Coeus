@@ -25,6 +25,11 @@
 
 ### Added
 
+- **KL divergence / MarginRanking loss coverage** — added tracked
+  `coeus_autograd` and `coeus_nn` entry points for KL divergence and margin
+  ranking losses, plus analytical forward/backward tests and sequential/Moirai
+  loss parity coverage. Evidence tier: analytical Rust tests plus package
+  nextest. ([patch])
 - **SiLU/Mish analytical gradient assertions** — upgraded focused
   `coeus-nn` SiLU and Mish module/non-contiguous tests from gradient-existence
   checks to analytical value-semantic forward and backward assertions. Evidence
