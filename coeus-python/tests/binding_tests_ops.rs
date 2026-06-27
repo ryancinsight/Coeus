@@ -2431,8 +2431,8 @@ import pycoeus
 # Construction: valid dropout_p ranges [0.0, 1.0)
 for p in (0.0, 0.1, 0.999):
     pycoeus.TransformerDecoderLayer(d_model=4, d_ff=8, num_heads=2, dropout_p=p)
-# defaults: num_heads=8, dropout_p=0.0
-pycoeus.TransformerDecoderLayer(d_model=4, d_ff=8)
+# defaults: num_heads=8, dropout_p=0.0; use a compatible d_model.
+pycoeus.TransformerDecoderLayer(d_model=8, d_ff=16)
 
 # Validation: dropout_p must lie in [0.0, 1.0).
 for bad in (1.0, 1.5, -0.1):
@@ -2441,6 +2441,11 @@ for bad in (1.0, 1.5, -0.1):
         raise AssertionError(f"dropout_p={bad} should raise")
     except ValueError:
         pass
+try:
+    _ = pycoeus.TransformerDecoderLayer(d_model=4, d_ff=8)
+    raise AssertionError("default num_heads=8 should reject d_model=4")
+except ValueError:
+    pass
 
 # Forward: shape preservation across supported num_heads.
 for h in (1, 2, 4):
@@ -2456,9 +2461,9 @@ for h in (1, 2, 4):
     # non-trivial logits); absence of zeros guards against silent fall-through.
     assert any(abs(v) > 1e-6 for v in out.data), f"num_heads={h} all-zero output"
 
-# Stateless wrapper surface
+# Stateful wrapper surface
 dec = pycoeus.TransformerDecoderLayer(d_model=4, d_ff=8, num_heads=2)
-assert dec.parameters() == [], "stateless wrapper has no exposed parameters"
+assert len(dec.parameters()) == 26, "stateful decoder layer exposes all learnable parameters"
 dec.zero_grad()
 "#,
     );

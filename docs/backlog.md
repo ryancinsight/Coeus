@@ -1,5 +1,25 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-130: Python transformer head validation [COMPLETE]
+
+- [x] [patch] Added PyO3 boundary validation for `d_model % num_heads == 0`
+  across `MultiHeadAttention`, `TransformerEncoderLayer`, `TransformerEncoder`,
+  `TransformerDecoderLayer`, and `TransformerDecoder`, converting what was a
+  Rust panic into Python `ValueError`.
+- [x] [patch] Updated the decoder binding test to assert the new stateful
+  `TransformerDecoderLayer` parameter surface (`26` learnable tensors) and the
+  invalid default-head case (`d_model=4`, default `num_heads=8`) as explicit
+  value-semantic behavior.
+- [x] [patch] Regenerated the tracked CPython 3.13 test wheel used by the pytest
+  parity harness after the PyO3 validation change.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-nn -p coeus-python
+  --check`; `rustup run nightly cargo clippy -p coeus-python --tests -- -D
+  warnings`; `rustup run nightly cargo doc -p coeus-python --no-deps`;
+  `rustup run nightly cargo nextest run -p coeus-python` (72/72);
+  `rustup run nightly cargo nextest run -p coeus-nn --test burn_live_parity
+  transformer_decoder` (3/3); `pytest coeus-python/tests/test_pytorch_parity.py
+  -v` (10/10).
+
 ## Sprint MS-124: coeus-python documented binding surface [COMPLETE]
 
 - [x] [patch] Documented all 293 previously-undocumented public PyO3 items across

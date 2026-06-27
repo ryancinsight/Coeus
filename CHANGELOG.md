@@ -20,6 +20,14 @@
   public items, and kept `coeus-python` missing-docs enforcement as the next
   ready sprint because its binding surface still needs a crate-wide docs pass.
 
+### Fixed
+
+- **Python transformer head validation** — `MultiHeadAttention`,
+  `TransformerEncoderLayer`, `TransformerEncoder`, `TransformerDecoderLayer`,
+  and `TransformerDecoder` now reject invalid `d_model`/`num_heads`
+  combinations with `ValueError` at the PyO3 boundary instead of allowing a
+  Rust constructor panic.
+
 ### Verified
 
 - `rustup run nightly cargo fmt -p coeus-core -p coeus-cuda -p coeus-nn -p
@@ -39,6 +47,13 @@
   -D warnings`.
 - `rustup run nightly cargo nextest run -p coeus-ops -p coeus-autograd` passes
   224/224.
+- `rustup run nightly cargo fmt -p coeus-nn -p coeus-python --check`.
+- `rustup run nightly cargo clippy -p coeus-python --tests -- -D warnings`.
+- `rustup run nightly cargo doc -p coeus-python --no-deps`.
+- `rustup run nightly cargo nextest run -p coeus-python` passes 72/72.
+- `rustup run nightly cargo nextest run -p coeus-nn --test burn_live_parity
+  transformer_decoder` passes 3/3.
+- `pytest coeus-python/tests/test_pytorch_parity.py -v` passes 10/10.
 
 ## 0.5.1 - 2026-06-26
 

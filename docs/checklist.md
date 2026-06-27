@@ -31,6 +31,29 @@ instead of scalars; extract shared `build_from_layer`/`from_rust_layer` inherent
 - [x] Evidence: `cargo nextest run -p coeus-nn` 111/111 passed;
   `pytest coeus-python/tests/test_pytorch_parity.py -v` 8/8 passed.
 
+### Previous Sprint: MS-130 - Python transformer head validation [COMPLETE]
+**Objective**: Harden Python transformer/MHA construction so invalid
+`d_model`/`num_heads` combinations return `ValueError` at the PyO3 boundary
+instead of panicking inside Rust constructors, and re-verify the decoder parity
+surface introduced in MS-129.
+**Target version**: 0.5.2 (patch-class; boundary validation and gate closure).
+
+- [x] [patch] Added divisibility validation to `PyMultiHeadAttention`,
+  `PyTransformerEncoderLayer`, `PyTransformerEncoder`,
+  `PyTransformerDecoderLayer`, and `PyTransformerDecoder`.
+- [x] [patch] Updated `test_transformer_decoder_layer` to assert compatible
+  default construction, incompatible default-head rejection, and the stateful
+  26-parameter decoder layer surface.
+- [x] [patch] Rebuilt the CPython 3.13 test wheel used by
+  `coeus-python/tests/test_pytorch_parity.py`.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-nn -p coeus-python
+  --check`; `rustup run nightly cargo clippy -p coeus-python --tests -- -D
+  warnings`; `rustup run nightly cargo doc -p coeus-python --no-deps`;
+  `rustup run nightly cargo nextest run -p coeus-python` (72/72);
+  `rustup run nightly cargo nextest run -p coeus-nn --test burn_live_parity
+  transformer_decoder` (3/3); `pytest coeus-python/tests/test_pytorch_parity.py
+  -v` (10/10).
+
 ### Previous Sprint: MS-127 - Fix G-001: Stateful PyTransformerEncoderLayer binding [COMPLETE]
 **Objective**: Refactor `PyFeedForward` and `PyTransformerEncoderLayer` in
 `coeus-python/src/nn/feedforward.rs` to be stateful — storing `norm1`, `self_attn`,

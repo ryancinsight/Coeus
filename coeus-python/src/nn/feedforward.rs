@@ -220,6 +220,11 @@ impl PyTransformerDecoderLayer {
                 "TransformerDecoderLayer: dropout_p must be in [0.0, 1.0)",
             ));
         }
+        if num_heads == 0 || !d_model.is_multiple_of(num_heads) {
+            return Err(PyValueError::new_err(format!(
+                "TransformerDecoderLayer: d_model ({d_model}) must be divisible by num_heads ({num_heads})"
+            )));
+        }
         macro_rules! build {
             ($($h:literal),*) => {
                 match num_heads {
@@ -872,6 +877,11 @@ impl PyTransformerEncoderLayer {
                 "TransformerEncoderLayer: dropout_p must be in [0.0, 1.0)",
             ));
         }
+        if num_heads == 0 || !d_model.is_multiple_of(num_heads) {
+            return Err(PyValueError::new_err(format!(
+                "TransformerEncoderLayer: d_model ({d_model}) must be divisible by num_heads ({num_heads})"
+            )));
+        }
         // Build a fresh Rust encoder layer, then unpack into Python sub-objects via
         // the SSOT helper `build_from_layer` (avoids duplicating extraction logic
         // between `PyTransformerEncoderLayer::new` and `PyTransformerEncoder::new`).
@@ -1296,7 +1306,7 @@ impl PyTransformerEncoderLayer {
 
 /// Python-exposed Transformer Encoder stack (Pre-LayerNorm, N layers).
 ///
-/// Each layer is stored as a fully-stateful [`TransformerEncoderLayer`] so weights
+/// Each layer is stored as a fully-stateful [`PyTransformerEncoderLayer`] so weights
 /// can be read, written, and differentiated from Python at per-layer resolution.
 ///
 /// ```python
@@ -1330,7 +1340,7 @@ impl PyTransformerEncoder {
     #[pyo3(signature = (d_model, d_ff, num_heads = 8, num_layers = 6, dropout_p = 0.0))]
     /// Create a `TransformerEncoder` with `num_layers` independently-initialised layers.
     ///
-    /// Each layer is stored as a [`TransformerEncoderLayer`] with full sub-module access.
+    /// Each layer is stored as a [`PyTransformerEncoderLayer`] with full sub-module access.
     /// Supported `num_heads` values: 1, 2, 4, 8, 16, 32.
     /// Supported `num_layers` values: 1, 2, 4, 6, 8, 12.
     pub fn new(
@@ -1345,6 +1355,11 @@ impl PyTransformerEncoder {
             return Err(PyValueError::new_err(
                 "TransformerEncoder: dropout_p must be in [0.0, 1.0)",
             ));
+        }
+        if num_heads == 0 || !d_model.is_multiple_of(num_heads) {
+            return Err(PyValueError::new_err(format!(
+                "TransformerEncoder: d_model ({d_model}) must be divisible by num_heads ({num_heads})"
+            )));
         }
         macro_rules! build {
             ($(($h:literal, $n:literal)),*) => {
@@ -1459,7 +1474,7 @@ impl PyTransformerEncoder {
 
 /// Python-exposed Transformer Decoder stack (Pre-LayerNorm, N layers).
 ///
-/// Each layer is stored as a fully-stateful [`TransformerDecoderLayer`] so weights
+/// Each layer is stored as a fully-stateful [`PyTransformerDecoderLayer`] so weights
 /// can be read, written, and differentiated from Python at per-layer resolution.
 ///
 /// ```python
@@ -1493,7 +1508,7 @@ impl PyTransformerDecoder {
     #[pyo3(signature = (d_model, d_ff, num_heads = 8, num_layers = 6, dropout_p = 0.0))]
     /// Create a `TransformerDecoder` with `num_layers` independently-initialised layers.
     ///
-    /// Each layer is stored as a [`TransformerDecoderLayer`] with full sub-module access.
+    /// Each layer is stored as a [`PyTransformerDecoderLayer`] with full sub-module access.
     /// Supported `num_heads` values: 1, 2, 4, 8, 16, 32.
     /// Supported `num_layers` values: 1, 2, 4, 6, 8, 12.
     pub fn new(
@@ -1508,6 +1523,11 @@ impl PyTransformerDecoder {
             return Err(PyValueError::new_err(
                 "TransformerDecoder: dropout_p must be in [0.0, 1.0)",
             ));
+        }
+        if num_heads == 0 || !d_model.is_multiple_of(num_heads) {
+            return Err(PyValueError::new_err(format!(
+                "TransformerDecoder: d_model ({d_model}) must be divisible by num_heads ({num_heads})"
+            )));
         }
         macro_rules! build {
             ($(($h:literal, $n:literal)),*) => {

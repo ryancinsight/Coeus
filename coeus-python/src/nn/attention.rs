@@ -138,6 +138,11 @@ impl PyMultiHeadAttention {
     #[pyo3(signature = (d_model, num_heads = 8, bias = true))]
     /// Create a MultiHeadAttention layer with `d_model` embedding dim and `num_heads` heads.
     pub fn new(py: Python<'_>, d_model: usize, num_heads: usize, bias: bool) -> PyResult<Self> {
+        if num_heads == 0 || !d_model.is_multiple_of(num_heads) {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "PyMultiHeadAttention: d_model ({d_model}) must be divisible by num_heads ({num_heads})"
+            )));
+        }
         // Construct via the monomorphized new() for the matching H, then extract weights.
         macro_rules! dispatch_mha_new {
             ($($h:literal),*) => {
