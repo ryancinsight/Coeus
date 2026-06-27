@@ -5608,3 +5608,169 @@ fn transformer_module_forward_routes_to_seq2seq_self() {
         f32::EPSILON * 4.0,
     );
 }
+
+// ── Optimizer step correctness ────────────────────────────────────────────────
+
+#[test]
+fn sgd_vanilla_step_analytical() {
+    // SGD with momentum=0: w_new = w - lr*grad (exact linear update).
+    // p=[2.0, 3.0], g=[1.0, -2.0], lr=0.1 ->
+    //   p_new = [2.0-0.1, 3.0+0.2] = [1.9, 3.2]
+    // Evidence tier: type-level derivation (closed-form, no approximation).
+    use coeus_optim::{Optimizer, SGD};
+    let w = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0_f32, 3.0]),
+        true,
+    );
+    w.set_grad(CoeusTensor::<f32, SequentialBackend>::from_slice(
+        vec![2],
+        &[1.0_f32, -2.0],
+    ));
+    let mut opt = SGD::<f32, SequentialBackend>::new(vec![w.clone()], 0.1_f32, 0.0_f32);
+    opt.step();
+    assert_close_rel(
+        "sgd_vanilla_step",
+        opt.params[0].tensor.as_slice(),
+        &[1.9_f32, 3.2_f32],
+        f32::EPSILON * 4.0,
+    );
+}
+
+#[test]
+fn adam_first_step_analytical() {
+    // Adam at t=1 with zero-init moments: bias-correction factors cancel, so
+    // m_hat = g and v_hat = g^2.
+    // update[i] = lr * g[i] / (|g[i]| + eps)  ~= lr * sign(g[i])
+    // p=[2.0, 3.0], g=[1.0, -2.0], lr=0.1, eps=1e-8 ->
+    //   expected ~= [1.9, 3.1]
+    // Evidence tier: closed-form derivation from zero-init moment invariants.
+    use coeus_optim::{Adam, Optimizer};
+    let p_init = [2.0_f32, 3.0_f32];
+    let g = [1.0_f32, -2.0_f32];
+    let lr = 0.1_f32;
+    let eps = 1.0e-8_f32;
+    let w = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &p_init),
+        true,
+    );
+    w.set_grad(CoeusTensor::<f32, SequentialBackend>::from_slice(
+        vec![2],
+        &g,
+    ));
+    let mut opt = Adam::<f32, SequentialBackend>::new(vec![w.clone()], lr, 0.9_f32, 0.999_f32, eps);
+    opt.step();
+    // m_hat = g, v_hat = g^2 -> step[i] = lr*g[i]/(|g[i]|+eps)
+    let expected: Vec<f32> = p_init
+        .iter()
+        .zip(g.iter())
+        .map(|(&pi, &gi)| pi - lr * gi / (gi.abs() + eps))
+        .collect();
+    assert_close_rel(
+        "adam_first_step",
+        opt.params[0].tensor.as_slice(),
+        &expected,
+        f32::EPSILON * 4.0,
+    );
+}
+
+#[test]
+fn adamw_first_step_analytical() {
+    // AdamW (Loshchilov & Hutter 2019): p = p - lr*(m_hat/(sqrt(v_hat)+eps) + lambda*p)
+    // with m_hat=g, v_hat=g^2 at t=1 (same zero-init cancellation as Adam).
+    // p=[2.0, 3.0], g=[1.0, -2.0], lr=0.1, eps=1e-8, lambda=0.01 ->
+    //   adam_step ~= [0.1, -0.1]; wd_step = 0.1*0.01*[2,3] = [0.002, 0.003]
+    //   p_new ~= [1.898, 3.097]
+    // Evidence tier: closed-form derivation from AdamW docstring formula.
+    use coeus_optim::{AdamW, Optimizer};
+    let p_init = [2.0_f32, 3.0_f32];
+    let g = [1.0_f32, -2.0_f32];
+    let lr = 0.1_f32;
+    let eps = 1.0e-8_f32;
+    let wd = 0.01_f32;
+    let w = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &p_init),
+        true,
+    );
+    w.set_grad(CoeusTensor::<f32, SequentialBackend>::from_slice(
+        vec![2],
+        &g,
+    ));
+    let mut opt =
+        AdamW::<f32, SequentialBackend>::new(vec![w.clone()], lr, 0.9_f32, 0.999_f32, eps, wd);
+    opt.step();
+    // Formula: p_new = p - lr*(m_hat/(sqrt(v_hat)+eps) + lambda*p)
+    //                = p - lr*g/|g| - lr*lambda*p
+    let expected: Vec<f32> = p_init
+        .iter()
+        .zip(g.iter())
+        .map(|(&pi, &gi)| {
+            let adam_step = lr * gi / (gi.abs() + eps);
+            let wd_step = lr * wd * pi;
+            pi - adam_step - wd_step
+        })
+        .collect();
+    assert_close_rel(
+        "adamw_first_step",
+        opt.params[0].tensor.as_slice(),
+        &expected,
+        f32::EPSILON * 4.0,
+    );
+}
+
+// ── Bilinear correctness ──────────────────────────────────────────────────────
+
+#[test]
+fn bilinear_output_shape_and_formula_analytical() {
+    // Verifies the formula: out[n,k] = sum_{ij} x1[n,i]*W[k,i,j]*x2[n,j] + b[k]
+    //
+    // Setup: in1=2, in2=2, out=2, batch=1
+    // W[0] = [[1,0],[0,1]] (identity -> dot(x1,x2))
+    // W[1] = [[0,1],[1,0]] (swap   -> x1[0]*x2[1]+x1[1]*x2[0])
+    // x1=[2,3], x2=[4,5], b=[0.5,-0.5]
+    //   out[0] = 2*4 + 3*5 + 0.5 = 23.5
+    //   out[1] = 2*5 + 3*4 - 0.5 = 21.5
+    // Evidence tier: analytical derivation.
+    use coeus_nn::Bilinear;
+    let mut bil = Bilinear::<f32, SequentialBackend>::new(2, 2, 2, true);
+    bil.weight.tensor = CoeusTensor::<f32, SequentialBackend>::from_slice(
+        vec![2, 2, 2],
+        &[1.0_f32, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0],
+    );
+    if let Some(ref mut b) = bil.bias {
+        b.tensor = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &[0.5_f32, -0.5]);
+    }
+    let x1 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 2], &[2.0_f32, 3.0]),
+        false,
+    );
+    let x2 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1, 2], &[4.0_f32, 5.0]),
+        false,
+    );
+    let out = bil.bilinear_forward(&x1, &x2);
+    assert_eq!(out.tensor.shape(), &[1, 2], "output shape mismatch");
+    assert_close_rel(
+        "bilinear_formula",
+        out.tensor.as_slice(),
+        &[23.5_f32, 21.5_f32],
+        f32::EPSILON * 32.0,
+    );
+}
+
+#[test]
+fn bilinear_no_bias_output_shape() {
+    // Without bias the formula reduces to pure trilinear contraction.
+    // Shape contract: [batch, in1] x [batch, in2] -> [batch, out].
+    use coeus_nn::Bilinear;
+    let bil = Bilinear::<f32, SequentialBackend>::new(3, 4, 5, false);
+    let x1 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[0.1_f32; 6]),
+        false,
+    );
+    let x2 = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &[0.1_f32; 8]),
+        false,
+    );
+    let out = bil.bilinear_forward(&x1, &x2);
+    assert_eq!(out.tensor.shape(), &[2, 5]);
+}
