@@ -151,6 +151,15 @@
   linear (|e|>δ) regions and their gradients are exercised vs `F.huber_loss` at
   `atol=1e-10` (both default mean reduction). Evidence tier: differential/empirical;
   full suite 31/31. ([patch])
+- **Bilinear backward PyTorch parity** — added
+  `coeus-python/tests/test_pytorch_parity.py::test_bilinear_backward_matches_pytorch`.
+  Tests `pycoeus.Bilinear(3,4,2, bias=True)` differentiated through `out.sum().backward()`
+  and compares the flat `[out, in1, in2]` weight gradient, `[out]` bias gradient,
+  and `[batch, in1]` / `[batch, in2]` input gradients against `torch.nn.Bilinear.double()`
+  at f64, `atol=1e-10`. Pins the autograd composition chain
+  (matmul → mul → sum_axis → cat → add) for the bilinear interaction layer
+  forward and backward paths; full suite 32/32. Evidence tier:
+  differential/empirical. ([patch])
 
 ### Fixed
 

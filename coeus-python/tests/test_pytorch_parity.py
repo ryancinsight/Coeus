@@ -1155,6 +1155,82 @@ def test_bilinear_forward_matches_pytorch() -> None:
     )
 
 
+def test_bilinear_backward_matches_pytorch() -> None:
+    """Backward parity: Bilinear(in1=3, in2=4, out=2, bias=True) — dweight + dbias.
+
+    The pycoeus Bilinear is implemented by autograd-tracked composition
+    (matmul + mul + sum_axis + cat + add), so no custom backward is needed.
+    The differential check vs ``torch.nn.Bilinear`` at f64 exercises the full
+    composition chain at machine precision.
+
+    Evidence tier: differential / empirical against PyTorch's autograd at f64.
+    Tolerance 1e-10.
+    """
+    in1, in2, out, batch = 3, 4, 2, 5
+
+    bil = pycoeus.Bilinear(in1, in2, out, bias=True)
+    w_flat = list(bil.weight.data)
+    b_flat = list(bil.bias.data)
+
+    x1_data = [float(i) * 0.1 for i in range(batch * in1)]
+    x2_data = [float(i) * 0.05 - 0.5 for i in range(batch * in2)]
+
+    # pycoeus forward + backward
+    x1_pyc = pycoeus.Tensor(x1_data, [batch, in1], requires_grad=True)
+    x2_pyc = pycoeus.Tensor(x2_data, [batch, in2], requires_grad=True)
+    out_pyc = bil.bilinear_forward(x1_pyc, x2_pyc)
+    loss_pyc = pycoeus.sum(out_pyc)
+    loss_pyc.backward()
+
+    # PyTorch reference (double precision; weight layout identical: [out, in1, in2])
+    torch_bil = torch.nn.Bilinear(in1, in2, out, bias=True).double()
+    with torch.no_grad():
+        torch_bil.weight[:] = torch.tensor(w_flat, dtype=torch.float64).reshape(
+            out, in1, in2
+        )
+        torch_bil.bias[:] = torch.tensor(b_flat, dtype=torch.float64)
+    x1_t = (
+        torch.tensor(x1_data, dtype=torch.float64)
+        .reshape(batch, in1)
+        .requires_grad_(True)
+    )
+    x2_t = (
+        torch.tensor(x2_data, dtype=torch.float64)
+        .reshape(batch, in2)
+        .requires_grad_(True)
+    )
+    out_t = torch_bil(x1_t, x2_t)
+    out_t.sum().backward()
+
+    # dweight: pycoeus flat [out, in1, in2] == PyTorch weight.grad same layout.
+    _allclose(
+        "bilinear_bwd_dweight",
+        list(bil.weight.grad),
+        torch_bil.weight.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+    # dbias: [out] == [out].
+    _allclose(
+        "bilinear_bwd_dbias",
+        list(bil.bias.grad),
+        torch_bil.bias.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+    # dx1, dx2: parity of input gradients.
+    _allclose(
+        "bilinear_bwd_dx1",
+        list(x1_pyc.grad),
+        x1_t.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+    _allclose(
+        "bilinear_bwd_dx2",
+        list(x2_pyc.grad),
+        x2_t.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+
+
 # ── RMSNorm PyTorch parity ─────────────────────────────────────────────────
 
 
