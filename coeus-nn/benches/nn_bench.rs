@@ -18,12 +18,15 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
-use coeus_nn::{Conv2d, LayerNorm, Linear, Module, MultiHeadAttention, NullMask};
+use coeus_nn::{
+    Conv2d, LayerNorm, Linear, Module, MultiHeadAttention, NullMask, TransformerEncoderLayer,
+};
 use coeus_tensor::Tensor;
 
 use burn::backend::ndarray::{NdArray, NdArrayDevice};
 use burn::nn::attention::{MhaInput, MultiHeadAttentionConfig};
 use burn::nn::conv::Conv2dConfig;
+use burn::nn::transformer::{TransformerEncoderConfig, TransformerEncoderInput};
 use burn::nn::{LayerNormConfig, LinearConfig, PaddingConfig2d};
 use burn::tensor::{Tensor as BurnTensor, TensorData};
 type BurnB = NdArray<f32>;
@@ -202,11 +205,55 @@ fn bench_mha_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_transformer_encoder_forward(c: &mut Criterion) {
+    // One Pre-LN transformer encoder layer (self-attn + FFN + 2 LayerNorms +
+    // residuals) on [batch=8, seq=64, d_model=256], d_ff=1024, 8 heads. Burn uses
+    // a single-layer encoder with norm-first and dropout disabled to match.
+    const B: usize = 8;
+    const SEQ: usize = 64;
+    const D: usize = 256;
+    const D_FF: usize = 1024;
+    const H: usize = 8;
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = vec![0.02f32; B * SEQ * D];
+
+    let burn_enc = TransformerEncoderConfig::new(D, D_FF, 1, H)
+        .with_norm_first(true)
+        .with_dropout(0.0)
+        .init::<BurnB>(&device);
+    let x_burn: BurnTensor<BurnB, 3> =
+        BurnTensor::from_data(TensorData::new(input_data.clone(), [B, SEQ, D]), &device);
+
+    let enc_seq = TransformerEncoderLayer::<f32, SequentialBackend, H, NullMask>::new(D, D_FF, 0.0);
+    let enc_moirai = TransformerEncoderLayer::<f32, MoiraiBackend, H, NullMask>::new(D, D_FF, 0.0);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::ones(vec![B, SEQ, D]),
+        false,
+    );
+    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::ones(vec![B, SEQ, D]), false);
+
+    let mut group = c
+        .benchmark_group("Burn vs Coeus — Transformer encoder layer forward (8x64x256, d_ff=1024)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| {
+            black_box(burn_enc.forward(TransformerEncoderInput::new(black_box(x_burn.clone()))))
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(enc_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(enc_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
     bench_layernorm_forward,
     bench_conv2d_forward,
-    bench_mha_forward
+    bench_mha_forward,
+    bench_transformer_encoder_forward
 );
 criterion_main!(benches);

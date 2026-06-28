@@ -4,6 +4,11 @@
 
 ### Changed
 
+- **Burn/PyTorch parity gap audit** — compared the current `coeus-nn` and
+  `coeus-python` public surfaces against Burn and PyTorch NN module families,
+  then filed open G-035..G-043 parity items in `docs/gap_audit.md` and mirrored
+  them in `docs/backlog.md`. Evidence tier: source-surface audit plus external
+  API documentation audit. ([patch])
 - **Linear/loss gradient test hardening** — `coeus-nn` Linear, MSE, and
   CrossEntropy focused tests now assert analytical gradient values instead of
   only checking that gradient buffers exist. CrossEntropy uses a stable
@@ -114,6 +119,12 @@
   no bias/padding) across the same three backends. Short local Criterion run:
   Burn NdArray 2.19 ms, Coeus Sequential 32.83 ms, Coeus Moirai 126.56 ms
   median; no Conv2d speedup is claimed. ([patch])
+- **NN benchmark matrix expansion (Transformer encoder layer)** — extended
+  `coeus-nn/benches/nn_bench.rs` with a Transformer encoder layer forward row
+  (`[8,64,256]`, `d_ff=1024`, 8 heads, dropout disabled), comparing Burn
+  NdArray against Coeus `SequentialBackend` and `MoiraiBackend` in the same
+  Criterion group. Short local run medians: Burn 233.47–239.80 ms, Coeus
+  Sequential 19.73–20.54 ms, Coeus Moirai 17.18–17.54 ms. ([patch])
 - **KL divergence / MarginRanking loss coverage** — added tracked
   `coeus_autograd` and `coeus_nn` entry points for KL divergence and margin
   ranking losses, plus analytical forward/backward tests and sequential/Moirai
