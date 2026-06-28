@@ -462,7 +462,7 @@ fn bench_burn_conv2d(c: &mut Criterion) {
     use burn::tensor::ops::ConvOptions;
     use burn::tensor::Tensor as BT;
     use burn::tensor::TensorData;
-    use coeus_ops::BackendOps;
+    use coeus_ops::ConvOps;
 
     // [batch=1, c_in=4, h=16, w=16] × [c_out=8, c_in=4, kh=3, kw=3]
     const BATCH: usize = 1;
@@ -553,7 +553,7 @@ fn bench_burn_conv1d(c: &mut Criterion) {
     use burn::tensor::ops::ConvOptions;
     use burn::tensor::Tensor as BT;
     use burn::tensor::TensorData;
-    use coeus_ops::BackendOps;
+    use coeus_ops::ConvOps;
 
     // [batch=2, c_in=8, L=128] × [c_out=16, c_in=8, k=3] (sequence-model conv).
     const BATCH: usize = 2;
@@ -726,7 +726,7 @@ fn bench_burn_max_pool2d(c: &mut Criterion) {
     use burn::tensor::module::max_pool2d as burn_max_pool2d;
     use burn::tensor::Tensor as BT;
     use burn::tensor::TensorData;
-    use coeus_ops::BackendOps;
+    use coeus_ops::PoolOps;
 
     // [batch=1, c=8, h=32, w=32], kernel=2, stride=2 -> [1, 8, 16, 16].
     const BATCH: usize = 1;
