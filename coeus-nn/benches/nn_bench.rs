@@ -19,16 +19,17 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
-    BatchNorm2d, Conv2d, Embedding, LayerNorm, Linear, Module, MultiHeadAttention, NullMask,
-    TransformerEncoderLayer,
+    BatchNorm2d, Conv1d, Conv2d, Embedding, LayerNorm, Linear, Module, MultiHeadAttention,
+    NullMask, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
 use burn::backend::ndarray::{NdArray, NdArrayDevice};
 use burn::nn::attention::{MhaInput, MultiHeadAttentionConfig};
+use burn::nn::conv::Conv1dConfig;
 use burn::nn::conv::Conv2dConfig;
 use burn::nn::transformer::{TransformerEncoderConfig, TransformerEncoderInput};
-use burn::nn::{BatchNormConfig, LayerNormConfig, LinearConfig, PaddingConfig2d};
+use burn::nn::{BatchNormConfig, LayerNormConfig, LinearConfig, PaddingConfig1d, PaddingConfig2d};
 use burn::tensor::{Int, Tensor as BurnTensor, TensorData};
 type BurnB = NdArray<f32>;
 
@@ -150,6 +151,43 @@ fn bench_batchnorm2d_eval_forward(c: &mut Criterion) {
         b.iter(|| black_box(bn_moirai.forward(black_box(&x_moirai))))
     });
     group.finish();
+}
+
+/// One Coeus-vs-Burn Conv1d forward comparison for `[n, ch, len]` input through
+/// `Conv1d(ch -> ch, k, stride 1, no pad, no bias)`.
+fn bench_conv1d_shape(c: &mut Criterion, label: &str, n: usize, ch: usize, len: usize, k: usize) {
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = vec![1.0f32; n * ch * len];
+
+    let burn_conv = Conv1dConfig::new(ch, ch, k)
+        .with_bias(false)
+        .with_padding(PaddingConfig1d::Valid)
+        .init::<BurnB>(&device);
+    let x_burn: BurnTensor<BurnB, 3> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [n, ch, len]),
+        &device,
+    );
+
+    let conv_seq = Conv1d::<f32, SequentialBackend>::new(ch, ch, k, false);
+    let conv_moirai = Conv1d::<f32, MoiraiBackend>::new(ch, ch, k, false);
+    let x_seq = Var::new(Tensor::<f32, SequentialBackend>::ones(vec![n, ch, len]), false);
+    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::ones(vec![n, ch, len]), false);
+
+    let mut group = c.benchmark_group(label);
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_conv.forward(black_box(x_burn.clone()))))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(conv_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(conv_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_conv1d_forward(c: &mut Criterion) {
+    bench_conv1d_shape(c, "Burn vs Coeus — Conv1d forward (8x32x256, k3)", 8, 32, 256, 3);
 }
 
 /// One Coeus-vs-Burn Conv2d forward comparison for a square `[n, ch, hw, hw]`
@@ -411,6 +449,7 @@ criterion_group!(
     bench_linear_forward,
     bench_layernorm_forward,
     bench_batchnorm2d_eval_forward,
+    bench_conv1d_forward,
     bench_conv2d_forward,
     bench_mha_forward,
     bench_transformer_encoder_forward,
