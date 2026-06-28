@@ -2,7 +2,23 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-180 - Burn/PyTorch parity gap audit [COMPLETE]
+### Current Sprint: MS-181 - Transformer encoder benchmark matrix expansion [COMPLETE]
+**Objective**: Extend the Burn-vs-Coeus NN benchmark matrix with a
+TransformerEncoder-layer forward row so one additional implemented NN family is
+measured across Burn NdArray and both Coeus CPU backends.
+**Target version**: 0.5.4 (benchmark/docs [patch]).
+
+- [x] [patch] Added `bench_transformer_encoder_forward` in
+  `coeus-nn/benches/nn_bench.rs` using shape `[8,64,256]`, `d_ff=1024`,
+  `heads=8`, and dropout disabled.
+- [x] [patch] Benchmarks Burn NdArray vs Coeus `SequentialBackend` vs Coeus
+  `MoiraiBackend` for the same encoder-layer forward contract and registers the
+  row in `criterion_group!`.
+- [x] Evidence: `cargo bench -p coeus-nn --bench nn_bench --no-run`; `cargo
+  bench -p coeus-nn --bench nn_bench -- Transformer --warm-up-time 1
+  --measurement-time 2 --sample-size 10`.
+
+### Previous Sprint: MS-180 - Burn/PyTorch parity gap audit [COMPLETE]
 **Objective**: Compare Coeus NN and Python public surfaces against Burn and
 PyTorch module families, then file remaining parity work as concrete backlog
 items.

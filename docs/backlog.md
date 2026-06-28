@@ -24,6 +24,19 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-181: Transformer encoder benchmark matrix expansion [COMPLETE]
+
+- [x] [patch] Added a Burn-vs-Coeus forward benchmark row for
+  `TransformerEncoderLayer` in `coeus-nn/benches/nn_bench.rs` on
+  `[batch=8, seq=64, d_model=256]` with `d_ff=1024`, `heads=8`, and dropout
+  disabled, comparing Burn NdArray, Coeus `SequentialBackend`, and Coeus
+  `MoiraiBackend`.
+- [x] [patch] Registered the Transformer encoder row in the Criterion group so
+  it runs with the existing NN benchmark matrix.
+- [x] Evidence tier: empirical benchmark harness; `cargo bench -p coeus-nn
+  --bench nn_bench --no-run`; `cargo bench -p coeus-nn --bench nn_bench --
+  Transformer --warm-up-time 1 --measurement-time 2 --sample-size 10`.
+
 ## Sprint MS-180: Burn/PyTorch parity gap audit [COMPLETE]
 
 - [x] [patch] Compared `coeus-nn` and `coeus-python` public NN/loss surfaces
