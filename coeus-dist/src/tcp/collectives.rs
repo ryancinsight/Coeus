@@ -235,11 +235,23 @@ impl Communicator for TcpCommunicator {
         let size = self.mesh.size();
         Self::assert_root(root, size);
         let numel = tensor.numel();
+        let local_numel_bytes = (numel as u64).to_le_bytes();
         if rank == root {
             assert_eq!(output.len(), size, "gather output length mismatch on root");
             for (idx, out) in output.iter().enumerate().take(size) {
                 Self::assert_numel("gather output", idx, out.numel(), numel);
             }
+            for other in 0..size {
+                if other == root {
+                    continue;
+                }
+                let mut peer_numel_bytes = [0u8; 8];
+                self.mesh.recv(other, &mut peer_numel_bytes);
+                let peer_numel = u64::from_le_bytes(peer_numel_bytes) as usize;
+                Self::assert_numel("gather input", other, peer_numel, numel);
+            }
+        } else {
+            self.mesh.send(root, &local_numel_bytes);
         }
         if numel == 0 {
             return;
@@ -274,11 +286,23 @@ impl Communicator for TcpCommunicator {
         let size = self.mesh.size();
         Self::assert_root(root, size);
         let numel = tensor.numel();
+        let local_numel_bytes = (numel as u64).to_le_bytes();
         if rank == root {
             assert_eq!(input.len(), size, "scatter input length mismatch on root");
             for (idx, in_tensor) in input.iter().enumerate().take(size) {
                 Self::assert_numel("scatter input", idx, in_tensor.numel(), numel);
             }
+            for other in 0..size {
+                if other == root {
+                    continue;
+                }
+                let mut peer_numel_bytes = [0u8; 8];
+                self.mesh.recv(other, &mut peer_numel_bytes);
+                let peer_numel = u64::from_le_bytes(peer_numel_bytes) as usize;
+                Self::assert_numel("scatter target", other, peer_numel, numel);
+            }
+        } else {
+            self.mesh.send(root, &local_numel_bytes);
         }
         if numel == 0 {
             return;

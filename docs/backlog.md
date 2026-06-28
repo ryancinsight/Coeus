@@ -1,5 +1,21 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-167: TCP gather/scatter peer numel handshakes [COMPLETE]
+
+- [x] [patch] Added pre-payload peer-numel handshakes in TCP rooted
+  `gather`/`scatter` so root validates each participating rank's tensor length
+  before any payload bytes are transferred.
+- [x] [patch] Enforced handshake validation ahead of zero-numel fast returns so
+  zero-sized rooted collectives still fail fast on cross-rank shape mismatch.
+- [x] [patch] Added panic-contract coverage:
+  `test_tcp_gather_mismatched_peer_numel_panics`,
+  `test_tcp_gather_zero_numel_mismatched_peer_numel_panics`,
+  `test_tcp_scatter_mismatched_target_numel_panics`, and
+  `test_tcp_scatter_zero_numel_mismatched_target_numel_panics`.
+- [x] Evidence: `cargo test -p coeus-dist test_tcp_gather -- --nocapture`;
+  `cargo test -p coeus-dist test_tcp_scatter -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-165: Zero-numel collective numel contracts [COMPLETE]
 
 - [x] [patch] Local `all_gather`, rooted `gather`, and rooted `scatter` now
