@@ -58,18 +58,16 @@ duplicating cell math; expose thin PyO3 wrappers; verify forward/backward
 against PyTorch and Burn where direct APIs exist.
 **Evidence tier**: source-surface audit plus external API documentation audit.
 
-### G-039: Python loss wrappers lag existing Rust loss surface
+### ~~G-039: Python loss wrappers lag existing Rust loss surface~~ **CLOSED**
 **Location**: `coeus-nn/src/loss.rs`, `coeus-python/src/losses.rs`,
-`coeus-python/src/lib.rs`
-**Compared against**: Coeus Rust surface and PyTorch functional losses.
-**Gap**: Rust `coeus-nn` exports `kl_divergence` and `margin_ranking_loss`, but
-`coeus-python` does not expose corresponding thin PyO3 functions. This violates
-the wrapper-only parity direction because existing Rust functionality is not
-reachable from Python.
-**Acceptance**: Add PyO3 wrappers for Rust KL divergence and margin ranking
-loss without Python-side math; add PyTorch differential tests for forward value
-and prediction/input gradients at f64.
-**Evidence tier**: source-surface audit.
+`coeus-python/src/lib.rs`, `coeus-python/tests/test_pytorch_parity.py`
+**Closed by**: MS-182 — Added thin PyO3 wrappers
+`pycoeus.{kl_divergence,margin_ranking_loss}` delegating directly to
+`coeus_nn::loss::{kl_divergence,margin_ranking_loss}`, exported both in the
+module registration/stub surface, and added PyTorch differential tests
+`test_kl_divergence_matches_pytorch` and
+`test_margin_ranking_loss_matches_pytorch` asserting scalar forward and input
+gradients at f64. Evidence tier: differential/empirical.
 
 ### G-038: Loss and distance surface remains below PyTorch coverage
 **Location**: `coeus-nn/src/loss.rs`, `coeus-python/src/losses.rs`

@@ -181,6 +181,14 @@
   linear (|e|>δ) regions and their gradients are exercised vs `F.huber_loss` at
   `atol=1e-10` (both default mean reduction). Evidence tier: differential/empirical;
   full suite 31/31. ([patch])
+- **KL divergence / MarginRanking Python wrapper parity** — added
+  `pycoeus.kl_divergence` and `pycoeus.margin_ranking_loss` as thin PyO3
+  delegates to `coeus_nn::loss::{kl_divergence, margin_ranking_loss}`, exported
+  them through module registration and `pycoeus.pyi`, and added
+  `test_kl_divergence_matches_pytorch` /
+  `test_margin_ranking_loss_matches_pytorch` asserting forward scalar value plus
+  input gradients against `torch.nn.functional` at f64 (`atol=1e-10`).
+  Evidence tier: differential/empirical. ([patch])
 - **Bilinear backward PyTorch parity** — added
   `coeus-python/tests/test_pytorch_parity.py::test_bilinear_backward_matches_pytorch`.
   Tests `pycoeus.Bilinear(3,4,2, bias=True)` differentiated through `out.sum().backward()`

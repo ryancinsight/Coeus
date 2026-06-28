@@ -171,6 +171,8 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(losses::binary_cross_entropy, m)?)?;
     m.add_function(wrap_pyfunction!(losses::nll_loss, m)?)?;
     m.add_function(wrap_pyfunction!(losses::huber_loss, m)?)?;
+    m.add_function(wrap_pyfunction!(losses::kl_divergence, m)?)?;
+    m.add_function(wrap_pyfunction!(losses::margin_ranking_loss, m)?)?;
     m.add_function(wrap_pyfunction!(losses::cosine_embedding_loss, m)?)?;
 
     m.add_function(wrap_pyfunction!(ops::exp, m)?)?;

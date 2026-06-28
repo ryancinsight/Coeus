@@ -11,8 +11,6 @@
 - [ ] [minor] G-038: Extend loss and distance parity for L1/SmoothL1,
   BCEWithLogits, CTC, NLL variants, multilabel/multimargin, triplet, pairwise,
   and cosine similarity surfaces.
-- [ ] [patch] G-039: Expose existing Rust KL divergence and margin ranking
-  losses through thin PyO3 wrappers with PyTorch differential tests.
 - [ ] [minor] G-040: Add vanilla and bidirectional recurrent module parity
   without duplicating GRU/LSTM cell math.
 - [ ] [minor] G-041: Add regularization, sparse, and local-response modules:
@@ -23,6 +21,27 @@
 - [ ] [patch] G-043: Expand the Coeus-vs-Burn/PyTorch benchmark/parity manifest
   so every implemented NN family has an explicit measurement or differential
   row.
+
+## Sprint MS-182: Python KL/Margin wrapper parity [COMPLETE]
+
+- [x] [patch] Added thin PyO3 loss wrappers
+  `pycoeus.kl_divergence(input, target)` and
+  `pycoeus.margin_ranking_loss(input1, input2, target, margin=0.0)` in
+  `coeus-python/src/losses.rs`, delegating directly to
+  `coeus_nn::loss::{kl_divergence, margin_ranking_loss}` with no Python-side
+  math.
+- [x] [patch] Exported both wrappers from `coeus-python/src/lib.rs` and updated
+  `coeus-python/pycoeus.pyi` so the Python module/stub surface matches the Rust
+  binding exports.
+- [x] [patch] Added PyTorch differential tests
+  `test_kl_divergence_matches_pytorch` and
+  `test_margin_ranking_loss_matches_pytorch` in
+  `coeus-python/tests/test_pytorch_parity.py`, asserting forward scalar value
+  plus input gradients at f64.
+- [x] Evidence tier: differential/empirical; `D:\miniforge3\python.exe -m
+  maturin develop -m coeus-python/Cargo.toml`; `D:\miniforge3\python.exe -m
+  pytest coeus-python/tests/test_pytorch_parity.py -k
+  "kl_divergence_matches_pytorch or margin_ranking_loss_matches_pytorch" -q`.
 
 ## Sprint MS-181: Transformer encoder benchmark matrix expansion [COMPLETE]
 

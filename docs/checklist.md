@@ -2,7 +2,29 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-181 - Transformer encoder benchmark matrix expansion [COMPLETE]
+### Current Sprint: MS-182 - Python KL/Margin wrapper parity [COMPLETE]
+**Objective**: Close the wrapper-only parity gap for existing Rust loss APIs by
+exposing `kl_divergence` and `margin_ranking_loss` through thin PyO3 bindings
+and pinning forward/backward parity against PyTorch.
+**Target version**: 0.5.4 (python binding/test/docs [patch]).
+
+- [x] [patch] Added `pycoeus.kl_divergence` and
+  `pycoeus.margin_ranking_loss` wrappers in `coeus-python/src/losses.rs` that
+  delegate directly to `coeus_nn::loss` with no Python-side math.
+- [x] [patch] Exported both wrappers in `coeus-python/src/lib.rs` and updated
+  `coeus-python/pycoeus.pyi` to keep the Python stub/API surface aligned.
+- [x] [patch] Added PyTorch differential tests
+  `test_kl_divergence_matches_pytorch` and
+  `test_margin_ranking_loss_matches_pytorch`, asserting scalar forward value and
+  input gradients at f64.
+- [x] Evidence: `D:\miniforge3\python.exe -m maturin develop -m
+  coeus-python/Cargo.toml`; `D:\miniforge3\python.exe -m pytest
+  coeus-python/tests/test_pytorch_parity.py -k
+  "kl_divergence_matches_pytorch or margin_ranking_loss_matches_pytorch" -q`;
+  `cargo check -p coeus-python --all-targets`; `cargo clippy -p coeus-python
+  --all-targets -- -D warnings`.
+
+### Previous Sprint: MS-181 - Transformer encoder benchmark matrix expansion [COMPLETE]
 **Objective**: Extend the Burn-vs-Coeus NN benchmark matrix with a
 TransformerEncoder-layer forward row so one additional implemented NN family is
 measured across Burn NdArray and both Coeus CPU backends.

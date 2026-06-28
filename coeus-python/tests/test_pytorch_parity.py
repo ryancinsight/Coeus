@@ -1847,6 +1847,71 @@ def test_huber_loss_matches_pytorch() -> None:
     _allclose("huber_dx", list(p_pyc.grad), p_t.grad.flatten().tolist(), atol=1e-10)
 
 
+# ── KL / MarginRanking loss PyTorch parity (MS-182) ───────────────────────────
+
+
+def test_kl_divergence_matches_pytorch() -> None:
+    """Forward and input-gradient parity for KL divergence on [N=2, C=3].
+
+    Differential against ``torch.nn.functional.kl_div`` with
+    ``reduction='mean'`` and ``log_target=False`` at f64. ``input`` carries
+    log-probabilities and ``target`` carries probabilities.
+    """
+    log_probs = [
+        math.log(0.7),
+        math.log(0.2),
+        math.log(0.1),
+        math.log(0.3),
+        math.log(0.6),
+        math.log(0.1),
+    ]
+    target = [0.6, 0.2, 0.2, 0.0, 0.3, 0.7]
+
+    i_pyc = pycoeus.Tensor(log_probs, [2, 3], requires_grad=True)
+    t_pyc = pycoeus.Tensor(target, [2, 3])
+    loss_pyc = pycoeus.kl_divergence(i_pyc, t_pyc)
+    loss_pyc.backward()
+
+    i_t = torch.tensor(log_probs, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    t_t = torch.tensor(target, dtype=torch.float64).reshape(2, 3)
+    loss_t = (
+        torch.nn.functional.kl_div(i_t, t_t, reduction="sum", log_target=False) / i_t.numel()
+    )
+    loss_t.backward()
+
+    _allclose("kl_loss", list(loss_pyc.data), [loss_t.item()], atol=1e-10)
+    _allclose("kl_dinput", list(i_pyc.grad), i_t.grad.flatten().tolist(), atol=1e-10)
+
+
+def test_margin_ranking_loss_matches_pytorch() -> None:
+    """Forward and input-gradient parity for margin_ranking_loss on [4].
+
+    Differential against ``torch.nn.functional.margin_ranking_loss`` with
+    ``reduction='mean'`` at f64. Samples span active and inactive hinge regions.
+    """
+    input1 = [0.1, 1.3, -0.4, 0.3]
+    input2 = [0.5, 1.0, 0.2, -0.6]
+    target = [1.0, 1.0, -1.0, -1.0]
+    margin = 0.2
+
+    i1_pyc = pycoeus.Tensor(input1, [4], requires_grad=True)
+    i2_pyc = pycoeus.Tensor(input2, [4], requires_grad=True)
+    loss_pyc = pycoeus.margin_ranking_loss(i1_pyc, i2_pyc, target, margin)
+    loss_pyc.backward()
+
+    i1_t = torch.tensor(input1, dtype=torch.float64, requires_grad=True)
+    i2_t = torch.tensor(input2, dtype=torch.float64, requires_grad=True)
+    t_t = torch.tensor(target, dtype=torch.float64)
+    loss_t = torch.nn.functional.margin_ranking_loss(
+        i1_t, i2_t, t_t, margin=margin, reduction="mean"
+    )
+    loss_t.backward()
+
+    _allclose("margin_loss", list(loss_pyc.data), [loss_t.item()], atol=1e-10)
+    _allclose("margin_dinput1", list(i1_pyc.grad), i1_t.grad.flatten().tolist(), atol=1e-10)
+    _allclose("margin_dinput2", list(i2_pyc.grad), i2_t.grad.flatten().tolist(), atol=1e-10)
+
+
 # ── Optimizer step parity closure (RMSProp + AdaGrad) (MS-144) ──────────────
 
 

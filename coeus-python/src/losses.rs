@@ -44,6 +44,29 @@ pub fn huber_loss(pred: &PyTensor, target: &PyTensor, delta: f64, py: Python<'_>
     PyTensor::from_var(inner)
 }
 
+/// KL divergence loss.
+#[pyfunction]
+pub fn kl_divergence(input: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_nn::loss::kl_divergence(&input.inner, &target.inner));
+    PyTensor::from_var(inner)
+}
+
+/// Margin ranking loss.
+#[pyfunction]
+#[pyo3(signature = (input1, input2, target, margin = 0.0))]
+pub fn margin_ranking_loss(
+    input1: &PyTensor,
+    input2: &PyTensor,
+    target: Vec<f64>,
+    margin: f64,
+    py: Python<'_>,
+) -> PyTensor {
+    let inner = py.allow_threads(|| {
+        coeus_nn::loss::margin_ranking_loss(&input1.inner, &input2.inner, &target, margin)
+    });
+    PyTensor::from_var(inner)
+}
+
 /// Cosine Embedding Loss.
 #[pyfunction]
 #[pyo3(signature = (x1, x2, y, margin = 0.0))]
