@@ -11,6 +11,9 @@ surface as explicit panic diagnostics instead of 60s hangs.
 - [x] [patch] Added a file-backed cross-process TCP port allocator lock and
   deterministic local port reservation for `coeus-dist/tests/dist_tests.rs`,
   covering multi-rank and single-rank TCP panic-contract tests.
+- [x] [patch] Treated Windows `PermissionDenied` during TCP lock-file creation
+  as an already-held lock, preserving stale-lock diagnostics for nextest
+  process contention.
 - [x] [patch] Added debug-only timeout diagnostics around TCP mesh connect,
   accept, peer-rank read, send, and recv paths while preserving async backoff
   through `moirai_async::sleep`.

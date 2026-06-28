@@ -5,6 +5,9 @@
 - [x] [patch] Added a file-backed cross-process TCP port allocator lock and
   deterministic localhost port reservation to prevent nextest process-parallel
   TCP tests from racing on ephemeral port reuse.
+- [x] [patch] Treated Windows `PermissionDenied` from lock-file creation as
+  lock contention rather than a fatal allocator setup error, preserving the
+  existing stale-lock timeout path.
 - [x] [patch] Added debug-only TCP mesh timeouts for connect, accept, peer-rank
   read, send, and recv paths so failures surface with peer/rank context instead
   of reaching the nextest 60s termination threshold.

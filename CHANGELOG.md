@@ -10,6 +10,10 @@
   send/recv waits with peer/rank panic diagnostics. Connect retry backoff
   remains async through `moirai_async::sleep`. Evidence tier:
   empirical/value-semantic `coeus-dist` package gate. ([patch])
+- **TCP port allocator lock robustness** — the test-only TCP port allocator now
+  treats Windows `PermissionDenied` during lock-file creation as an already-held
+  lock, preserving the same stale-lock timeout and diagnostics instead of
+  failing spuriously while another process owns the lock handle. ([patch])
 - **Conv2d CPU AXPY kernel** — canonical contiguous CPU Conv2d forward now uses
   an output-stationary row kernel with `Scalar::axpy_slice` routed through
   Hermes SIMD for native floats, and coarser row-block partitioning for Moirai
