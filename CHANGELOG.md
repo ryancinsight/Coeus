@@ -62,6 +62,14 @@
 
 ### Added
 
+- **ConvTranspose3d CPU/PyO3 parity** — added
+  `coeus_ops::conv_transpose3d`, `conv_transpose3d_output_dims`,
+  `ConvOps::conv_transpose3d`, tracked `coeus_autograd::conv_transpose3d`,
+  `coeus_nn::ConvTranspose3d`, and `pycoeus.ConvTranspose3d`. Rust tests cover
+  Sequential/Moirai value semantics; Python parity compares forward output plus
+  input, weight, and bias gradients against `torch.nn.ConvTranspose3d` at f64.
+  G-035 remains open for WGPU/CUDA backend-specific parity coverage. Evidence
+  tier: value-semantic Rust tests plus PyTorch differential tests. ([minor])
 - **ConvTranspose backward GPU coverage** — added WGPU and CUDA
   backend-autograd parity tests for `conv_transpose1d` and `conv_transpose2d`,
   seeding non-uniform output gradients and comparing input/weight gradients

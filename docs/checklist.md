@@ -2,7 +2,36 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-184 - BatchNorm2d benchmark matrix expansion [COMPLETE]
+### Current Sprint: MS-185 - ConvTranspose3d CPU/PyO3 parity [COMPLETE]
+**Objective**: Advance G-035 through the CPU/default backend, autograd,
+`coeus-nn`, and PyO3 parity surfaces while leaving WGPU/CUDA backend-specific
+coverage open.
+**Target version**: 0.5.4 (NN/PyO3/test/docs [minor]).
+
+- [x] [minor] Added `conv_transpose3d_output_dims`,
+  `coeus_ops::conv_transpose3d`, and `ConvOps::conv_transpose3d` with the
+  host-side default backend implementation.
+- [x] [minor] Added tracked `coeus_autograd::conv_transpose3d` with input,
+  weight, and bias backward accumulation.
+- [x] [minor] Added `coeus_nn::ConvTranspose3d` and Sequential/Moirai
+  value-semantic module tests.
+- [x] [minor] Added `pycoeus.ConvTranspose3d` plus PyTorch f64 differential
+  parity for forward output and input/weight/bias gradients.
+- [x] [patch] Updated `docs/gap_audit.md` to record completed CPU/PyO3
+  progress and keep WGPU/CUDA backend parity open.
+- [x] Evidence: `rustup run nightly cargo check -p coeus-ops -p
+  coeus-autograd -p coeus-nn -p coeus-python --all-targets`; `rustup run
+  nightly cargo clippy -p coeus-ops -p coeus-autograd -p coeus-nn -p
+  coeus-python --all-targets -- -D warnings`; `rustup run nightly cargo
+  nextest run -p coeus-ops -p coeus-autograd -p coeus-nn` (531/531);
+  `D:\miniforge3\python.exe -m maturin develop -m coeus-python\Cargo.toml`;
+  `D:\miniforge3\python.exe -m pytest
+  coeus-python\tests\test_pytorch_parity.py::test_conv_transpose3d_matches_pytorch
+  -q`; `rustup run nightly cargo test --doc -p coeus-ops -p coeus-autograd -p
+  coeus-nn`; `rustup run nightly cargo doc -p coeus-ops -p coeus-autograd -p
+  coeus-nn --no-deps`.
+
+### Previous Sprint: MS-184 - BatchNorm2d benchmark matrix expansion [COMPLETE]
 **Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with a BatchNorm2d
 eval-forward row so one additional implemented NN family is measured across Burn
 NdArray and both Coeus CPU backends.

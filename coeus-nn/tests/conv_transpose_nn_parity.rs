@@ -20,7 +20,7 @@ use coeus_autograd::Var;
 use coeus_core::{
     CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, SequentialBackend,
 };
-use coeus_nn::{ConvTranspose1d, ConvTranspose2d, Module};
+use coeus_nn::{ConvTranspose1d, ConvTranspose2d, ConvTranspose3d, Module};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
@@ -184,6 +184,109 @@ where
 {
     check_conv_transpose1d(backend);
     check_conv_transpose2d(backend);
+    check_conv_transpose3d(backend);
+}
+
+fn check_conv_transpose3d<B: BackendOps<f64> + Default>(backend: &B)
+where
+    B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
+{
+    // Weight [1,1,1,1,1] = [1.0] (identity impulse). Input [1,1,2,2,2] = [1..8].
+    // D=H=W=2 → D_out=H_out=W_out=2 (stride=1, padding=0).
+    // output_dims() agrees with the public formula: 2 = (2-1)*1 + 1*(1-1) + 0 + 1.
+    let ct3 = ConvTranspose3d::<f64, B> {
+        weight: Var::new(t(&[1, 1, 1, 1, 1], &[1.0], backend), false),
+        bias: None,
+        in_channels: 1,
+        out_channels: 1,
+        kernel_size: 1,
+        stride: 1,
+        padding: 0,
+        output_padding: 0,
+        dilation: 1,
+    };
+    assert_eq!(
+        ct3.output_dims(2, 2, 2),
+        (2, 2, 2),
+        "ConvTranspose3d::output_dims(K=1 stride=1 padding=0)"
+    );
+    let inp = v(
+        &[1, 1, 2, 2, 2],
+        &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+        backend,
+    );
+    let out = Module::<f64, B>::forward(&ct3, &inp);
+    assert_eq!(
+        out.tensor.shape(),
+        &[1, 1, 2, 2, 2],
+        "ConvTranspose3d identity shape"
+    );
+    assert_eq!(
+        out.tensor.as_slice(),
+        inp.tensor.as_slice(),
+        "ConvTranspose3d K=1 identity"
+    );
+
+    // Scale K=1, weight=[2.0]: output = 2 × input. output_dims unchanged.
+    let ct3_scale = ConvTranspose3d::<f64, B> {
+        weight: Var::new(t(&[1, 1, 1, 1, 1], &[2.0], backend), false),
+        bias: None,
+        in_channels: 1,
+        out_channels: 1,
+        kernel_size: 1,
+        stride: 1,
+        padding: 0,
+        output_padding: 0,
+        dilation: 1,
+    };
+    let out_s = Module::<f64, B>::forward(&ct3_scale, &inp);
+    assert_eq!(
+        out_s.tensor.as_slice(),
+        &[2.0_f64, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0],
+        "ConvTranspose3d K=1 weight=2"
+    );
+
+    // Stride=2 K=1 identity: each axis doubles.
+    // D_out = (2-1)*2 + 1*(1-1) + 0 + 1 = 3.
+    let ct3_s2 = ConvTranspose3d::<f64, B> {
+        weight: Var::new(t(&[1, 1, 1, 1, 1], &[1.0], backend), false),
+        bias: None,
+        in_channels: 1,
+        out_channels: 1,
+        kernel_size: 1,
+        stride: 2,
+        padding: 0,
+        output_padding: 0,
+        dilation: 1,
+    };
+    assert_eq!(ct3_s2.output_dims(2, 2, 2), (3, 3, 3), "stride=2 D_out");
+    let out_s2 = Module::<f64, B>::forward(&ct3_s2, &inp);
+    assert_eq!(
+        out_s2.tensor.shape(),
+        &[1, 1, 3, 3, 3],
+        "ConvTranspose3d stride=2 shape"
+    );
+    assert_eq!(
+        out_s2.tensor.as_slice(),
+        // Even (d,h,w) positions get the input value at (d/2,h/2,w/2); odd positions are 0.
+        // Row-major with W fastest, then H, then D:
+        &[
+            1.0_f64, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0, 0.0, 4.0, // d=0
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // d=1: all zeros
+            5.0, 0.0, 6.0, 0.0, 0.0, 0.0, 7.0, 0.0, 8.0, // d=2
+        ],
+        "ConvTranspose3d stride=2 K=1"
+    );
+}
+
+#[test]
+fn sequential_conv_transpose3d_nn_match_reference() {
+    check_conv_transpose3d(&SequentialBackend);
+}
+
+#[test]
+fn moirai_conv_transpose3d_nn_match_reference() {
+    check_conv_transpose3d(&MoiraiBackend);
 }
 
 #[test]

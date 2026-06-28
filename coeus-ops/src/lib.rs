@@ -78,9 +78,9 @@ pub use fuse::{
 pub mod attention;
 pub use attention::{scaled_dot_product_attention, scaled_dot_product_attention_backward};
 
-/// Transposed convolution operations (1-D and 2-D).
+/// Transposed convolution operations (1-D, 2-D, and 3-D).
 pub mod conv_transpose;
-pub use conv_transpose::{conv_transpose1d, conv_transpose2d};
+pub use conv_transpose::{conv_transpose1d, conv_transpose2d, conv_transpose3d};
 
 /// Tensor constructors (linspace, logspace, geomspace).
 pub mod constructors;
