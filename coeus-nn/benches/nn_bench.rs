@@ -19,7 +19,8 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
-    Conv2d, LayerNorm, Linear, Module, MultiHeadAttention, NullMask, TransformerEncoderLayer,
+    Conv2d, Embedding, LayerNorm, Linear, Module, MultiHeadAttention, NullMask,
+    TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -28,7 +29,7 @@ use burn::nn::attention::{MhaInput, MultiHeadAttentionConfig};
 use burn::nn::conv::Conv2dConfig;
 use burn::nn::transformer::{TransformerEncoderConfig, TransformerEncoderInput};
 use burn::nn::{LayerNormConfig, LinearConfig, PaddingConfig2d};
-use burn::tensor::{Tensor as BurnTensor, TensorData};
+use burn::tensor::{Int, Tensor as BurnTensor, TensorData};
 type BurnB = NdArray<f32>;
 
 // Shared workload: batch of `BATCH` vectors of width `FEATURES`.
@@ -248,6 +249,56 @@ fn bench_transformer_encoder_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_embedding_forward(c: &mut Criterion) {
+    // Embedding lookup on [batch=2, seq=16] into [vocab=4096, d_model=256].
+    // Burn uses integer index tensors; Coeus routes through the same embedding
+    // forward path used by the module via `forward_indices`.
+    const EMB_BATCH: usize = 2;
+    const EMB_SEQ: usize = 16;
+    const EMB_VOCAB: usize = 4096;
+    const EMB_DIM: usize = 256;
+
+    let device = NdArrayDevice::default();
+    let indices: [[i32; EMB_SEQ]; EMB_BATCH] = [
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+    ];
+    let idx_data: Vec<f32> = indices
+        .iter()
+        .flat_map(|row| row.iter())
+        .map(|&v| v as f32)
+        .collect();
+
+    let burn_weight: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(vec![1.0f32; EMB_VOCAB * EMB_DIM], [EMB_VOCAB, EMB_DIM]),
+        &device,
+    );
+    let burn_indices: BurnTensor<BurnB, 2, Int> = BurnTensor::from_ints(indices, &device);
+
+    let emb_seq = Embedding::<f32, SequentialBackend>::new(EMB_VOCAB, EMB_DIM);
+    let emb_moirai = Embedding::<f32, MoiraiBackend>::new(EMB_VOCAB, EMB_DIM);
+    let idx_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![EMB_BATCH, EMB_SEQ], &idx_data);
+    let idx_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![EMB_BATCH, EMB_SEQ], &idx_data);
+
+    let mut group =
+        c.benchmark_group("Burn vs Coeus — Embedding lookup forward (2x16, vocab=4096, d=256)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| {
+            black_box(burn::tensor::module::embedding(
+                black_box(burn_weight.clone()),
+                black_box(burn_indices.clone()),
+            ))
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(emb_seq.forward_indices(black_box(&idx_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(emb_moirai.forward_indices(black_box(&idx_moirai))))
+    });
+    group.finish();
+}
+
 fn bench_linear_forward_backward(c: &mut Criterion) {
     // Full autograd cycle — forward + sum-loss + backward — for Linear
     // [128x256 -> 256], the part the forward-only groups don't measure. Burn
@@ -316,6 +367,7 @@ criterion_group!(
     bench_conv2d_forward,
     bench_mha_forward,
     bench_transformer_encoder_forward,
+    bench_embedding_forward,
     bench_linear_forward_backward
 );
 criterion_main!(benches);

@@ -22,6 +22,20 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-183: Embedding benchmark matrix expansion [COMPLETE]
+
+- [x] [patch] Added a Burn-vs-Coeus forward benchmark row for embedding lookup
+  in `coeus-nn/benches/nn_bench.rs` on `[batch=2, seq=16]` over
+  `[vocab=4096, d_model=256]`, comparing Burn NdArray, Coeus
+  `SequentialBackend`, and Coeus `MoiraiBackend`.
+- [x] [patch] Registered the embedding benchmark row in the Criterion benchmark
+  group so it executes with the existing NN benchmark matrix.
+- [x] [patch] Updated `docs/gap_audit.md` selected-row detail for G-043 and
+  added a changelog entry for the new benchmark row.
+- [x] Evidence tier: empirical benchmark harness; `cargo bench -p coeus-nn
+  --bench nn_bench --no-run`; `cargo bench -p coeus-nn --bench nn_bench --
+  Embedding --warm-up-time 1 --measurement-time 2 --sample-size 10`.
+
 ## Sprint MS-182: Python KL/Margin wrapper parity [COMPLETE]
 
 - [x] [patch] Added thin PyO3 loss wrappers
