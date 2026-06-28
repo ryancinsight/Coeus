@@ -110,6 +110,10 @@
 
 ### Fixed
 
+- **TCP rooted peer-numel handshake contracts** — rooted `gather` and `scatter`
+  now exchange and validate per-rank tensor `numel` metadata before payload
+  transfer, including zero-numel paths, so cross-rank shape mismatches fail fast
+  instead of risking stream desynchronization.
 - **Zero-numel collective shape validation** — local and TCP `all_gather`,
   `gather`, and `scatter` now validate per-rank output/input tensor element
   counts before zero-numel early returns, so malformed zero-sized collectives no

@@ -684,6 +684,72 @@ fn test_tcp_gather() {
 }
 
 #[test]
+fn test_tcp_gather_mismatched_peer_numel_panics() {
+    let world_size = 2;
+    let addresses = get_free_ports(world_size);
+    let mut handles = vec![];
+
+    for rank in 0..world_size {
+        let addrs = addresses.clone();
+        handles.push(thread::spawn(move || {
+            let mesh = TcpMesh::new(rank, world_size, &addrs);
+            let comm = TcpCommunicator::new(mesh);
+            let backend = SequentialBackend::new();
+            let tensor = if rank == 1 {
+                Tensor::from_slice_on([2], &[11.0f32, 12.0], &backend)
+            } else {
+                Tensor::from_slice_on([1], &[3.0f32], &backend)
+            };
+            let mut output = if rank == 1 {
+                vec![Tensor::zeros_on([2], &backend), Tensor::zeros_on([2], &backend)]
+            } else {
+                vec![]
+            };
+
+            comm.gather(&tensor, &mut output, 1, &backend);
+        }));
+    }
+
+    assert!(
+        handles.into_iter().any(|h| h.join().is_err()),
+        "TCP gather with mismatched peer tensor numel should panic on at least one rank"
+    );
+}
+
+#[test]
+fn test_tcp_gather_zero_numel_mismatched_peer_numel_panics() {
+    let world_size = 2;
+    let addresses = get_free_ports(world_size);
+    let mut handles = vec![];
+
+    for rank in 0..world_size {
+        let addrs = addresses.clone();
+        handles.push(thread::spawn(move || {
+            let mesh = TcpMesh::new(rank, world_size, &addrs);
+            let comm = TcpCommunicator::new(mesh);
+            let backend = SequentialBackend::new();
+            let tensor = if rank == 1 {
+                Tensor::<f32, _>::zeros_on([0], &backend)
+            } else {
+                Tensor::zeros_on([1], &backend)
+            };
+            let mut output = if rank == 1 {
+                vec![Tensor::zeros_on([0], &backend), Tensor::zeros_on([0], &backend)]
+            } else {
+                vec![]
+            };
+
+            comm.gather(&tensor, &mut output, 1, &backend);
+        }));
+    }
+
+    assert!(
+        handles.into_iter().any(|h| h.join().is_err()),
+        "TCP gather zero-numel with mismatched peer tensor numel should panic on at least one rank"
+    );
+}
+
+#[test]
 fn test_tcp_scatter() {
     let world_size = 2;
     let addresses = get_free_ports(world_size);
@@ -717,6 +783,77 @@ fn test_tcp_scatter() {
     for h in handles {
         h.join().unwrap();
     }
+}
+
+#[test]
+fn test_tcp_scatter_mismatched_target_numel_panics() {
+    let world_size = 2;
+    let addresses = get_free_ports(world_size);
+    let mut handles = vec![];
+
+    for rank in 0..world_size {
+        let addrs = addresses.clone();
+        handles.push(thread::spawn(move || {
+            let mesh = TcpMesh::new(rank, world_size, &addrs);
+            let comm = TcpCommunicator::new(mesh);
+            let backend = SequentialBackend::new();
+
+            let mut tensor = if rank == 0 {
+                Tensor::zeros_on([2], &backend)
+            } else {
+                Tensor::zeros_on([1], &backend)
+            };
+            let input = if rank == 0 {
+                vec![
+                    Tensor::from_slice_on([2], &[100.0f32, 101.0], &backend),
+                    Tensor::from_slice_on([2], &[200.0f32, 201.0], &backend),
+                ]
+            } else {
+                vec![]
+            };
+
+            comm.scatter(&mut tensor, &input, 0, &backend);
+        }));
+    }
+
+    assert!(
+        handles.into_iter().any(|h| h.join().is_err()),
+        "TCP scatter with mismatched target tensor numel should panic on at least one rank"
+    );
+}
+
+#[test]
+fn test_tcp_scatter_zero_numel_mismatched_target_numel_panics() {
+    let world_size = 2;
+    let addresses = get_free_ports(world_size);
+    let mut handles = vec![];
+
+    for rank in 0..world_size {
+        let addrs = addresses.clone();
+        handles.push(thread::spawn(move || {
+            let mesh = TcpMesh::new(rank, world_size, &addrs);
+            let comm = TcpCommunicator::new(mesh);
+            let backend = SequentialBackend::new();
+
+            let mut tensor = if rank == 0 {
+                Tensor::<f32, _>::zeros_on([0], &backend)
+            } else {
+                Tensor::zeros_on([1], &backend)
+            };
+            let input = if rank == 0 {
+                vec![Tensor::zeros_on([0], &backend), Tensor::zeros_on([0], &backend)]
+            } else {
+                vec![]
+            };
+
+            comm.scatter(&mut tensor, &input, 0, &backend);
+        }));
+    }
+
+    assert!(
+        handles.into_iter().any(|h| h.join().is_err()),
+        "TCP scatter zero-numel with mismatched target tensor numel should panic on at least one rank"
+    );
 }
 
 #[test]
