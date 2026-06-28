@@ -2,7 +2,25 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-182 - Python KL/Margin wrapper parity [COMPLETE]
+### Current Sprint: MS-183 - Embedding benchmark matrix expansion [COMPLETE]
+**Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with an embedding
+lookup row so one additional implemented NN family is measured across Burn
+NdArray and both Coeus CPU backends.
+**Target version**: 0.5.4 (benchmark/docs [patch]).
+
+- [x] [patch] Added `bench_embedding_forward` in
+  `coeus-nn/benches/nn_bench.rs` for `[batch=2, seq=16]`,
+  `[vocab=4096, d_model=256]`.
+- [x] [patch] Benchmarks Burn NdArray embedding lookup vs Coeus
+  `Embedding::<_, SequentialBackend>` and `Embedding::<_, MoiraiBackend>` and
+  registers the row in `criterion_group!`.
+- [x] [patch] Updated G-043 selected-row detail in `docs/gap_audit.md`.
+- [x] Evidence: `cargo check -p coeus-nn --all-targets`; `cargo clippy -p
+  coeus-nn --all-targets -- -D warnings`; `cargo bench -p coeus-nn --bench
+  nn_bench --no-run`; `cargo bench -p coeus-nn --bench nn_bench -- Embedding
+  --warm-up-time 1 --measurement-time 2 --sample-size 10`.
+
+### Previous Sprint: MS-182 - Python KL/Margin wrapper parity [COMPLETE]
 **Objective**: Close the wrapper-only parity gap for existing Rust loss APIs by
 exposing `kl_divergence` and `margin_ranking_loss` through thin PyO3 bindings
 and pinning forward/backward parity against PyTorch.
