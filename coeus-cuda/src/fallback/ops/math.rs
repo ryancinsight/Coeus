@@ -30,7 +30,7 @@ impl CudaBackend {
         let seq_b = coeus_core::CpuStorage::from_slice(&host_b);
         let mut seq_c = coeus_core::CpuStorage::from_slice(&host_c);
 
-        coeus_ops::BackendOps::elementwise_binary(
+        coeus_ops::ElementwiseOps::elementwise_binary(
             &seq, op, &seq_a, a_layout, &seq_b, b_layout, &mut seq_c, c_layout,
         );
 
@@ -55,7 +55,9 @@ impl CudaBackend {
         let seq_a = coeus_core::CpuStorage::from_slice(&host_a);
         let mut seq_c = coeus_core::CpuStorage::from_slice(&host_c);
 
-        coeus_ops::BackendOps::elementwise_unary(&seq, op, &seq_a, a_layout, &mut seq_c, c_layout);
+        coeus_ops::ElementwiseOps::elementwise_unary(
+            &seq, op, &seq_a, a_layout, &mut seq_c, c_layout,
+        );
 
         use coeus_core::CpuAddressableStorage;
         self.copy_to_device(seq_c.as_slice(), c);
@@ -82,7 +84,7 @@ impl CudaBackend {
         let seq_b = coeus_core::CpuStorage::from_slice(&host_b);
         let mut seq_c = coeus_core::CpuStorage::from_slice(&host_c);
 
-        coeus_ops::BackendOps::matmul(
+        coeus_ops::MatmulOps::matmul(
             &seq, &seq_a, a_layout, &seq_b, b_layout, &mut seq_c, c_layout,
         );
 
@@ -108,7 +110,7 @@ impl CudaBackend {
         let seq_a = coeus_core::CpuStorage::from_slice(&host_a);
         let mut seq_c = coeus_core::CpuStorage::from_slice(&host_c);
 
-        coeus_ops::BackendOps::reduce(&seq, op, &seq_a, a_layout, axis, &mut seq_c, c_layout);
+        coeus_ops::ReductionOps::reduce(&seq, op, &seq_a, a_layout, axis, &mut seq_c, c_layout);
 
         use coeus_core::CpuAddressableStorage;
         self.copy_to_device(seq_c.as_slice(), c);

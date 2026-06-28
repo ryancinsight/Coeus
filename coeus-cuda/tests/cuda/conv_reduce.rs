@@ -32,7 +32,7 @@ fn test_cuda_backend_conv_and_reduce() {
     let mut out_cuda_storage = cuda_b.allocate::<f32>(6);
     let out_layout = coeus_core::Layout::new(vec![1, 2, 3].into());
 
-    coeus_ops::BackendOps::conv1d(
+    coeus_ops::ConvOps::conv1d(
         &cuda_b,
         input_cuda.storage(),
         input_cuda.layout(),
@@ -51,7 +51,7 @@ fn test_cuda_backend_conv_and_reduce() {
     let out_seq = out_tensor_cuda.to_backend_on(&cuda_b, &seq);
 
     let mut out_expected_storage = seq.allocate::<f32>(6);
-    coeus_ops::BackendOps::conv1d(
+    coeus_ops::ConvOps::conv1d(
         &seq,
         input_seq.storage(),
         input_seq.layout(),
@@ -119,7 +119,7 @@ fn test_cuda_conv_backward() {
         let gi_layout = coeus_core::Layout::new(vec![1, 2, 3].into());
         let gw_layout = coeus_core::Layout::new(vec![2, 2, 1].into());
 
-        coeus_ops::BackendOps::conv1d_backward(
+        coeus_ops::ConvOps::conv1d_backward(
             &cuda_b,
             grad_out_cuda.storage(),
             grad_out_cuda.layout(),
@@ -144,7 +144,7 @@ fn test_cuda_conv_backward() {
         let mut gb_expected = seq.allocate::<f32>(2);
         seq.fill(&mut gb_expected, 0.0);
 
-        coeus_ops::BackendOps::conv1d_backward(
+        coeus_ops::ConvOps::conv1d_backward(
             &seq,
             grad_out_seq.storage(),
             grad_out_seq.layout(),

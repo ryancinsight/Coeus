@@ -2,7 +2,71 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-168 - Activation JAX parity (SiLU/Mish/ELU/Softplus/LeakyReLU) [COMPLETE]
+### Current Sprint: MS-174 - LayerNorm/RMSNorm JAX parity [COMPLETE]
+**Objective**: Extend the JAX parity harness to normalization modules already
+covered by PyTorch parity.
+**Target version**: 0.5.4 (test-only [patch]).
+
+- [x] [patch] Added `test_layernorm_matches_jax`, asserting forward output and
+  input/gamma/beta gradients against an inline JAX LayerNorm reference at f64.
+- [x] [patch] Added `test_rmsnorm_matches_jax`, asserting forward output and
+  input/gamma gradients against an inline JAX RMSNorm reference at f64.
+- [x] Evidence: `D:\miniforge3\python.exe -m pytest
+  coeus-python/tests/test_jax_parity.py -q` (13/13).
+
+### Previous Sprint: MS-173 - Softmax/log-softmax/cross-entropy JAX parity [COMPLETE]
+**Objective**: Extend the JAX parity harness to the classification softmax path
+covered by PyTorch parity.
+**Target version**: 0.5.4 (test-only [patch]).
+
+- [x] [patch] Added `test_softmax_matches_jax` and
+  `test_log_softmax_matches_jax`, asserting forward output and input gradient
+  against `jax.nn.{softmax,log_softmax}` at f64.
+- [x] [patch] Added `test_cross_entropy_loss_matches_jax`, asserting scalar
+  mean loss and logit gradient against a fused log-softmax + NLL JAX reference.
+- [x] Evidence: `D:\miniforge3\python.exe -m pytest
+  coeus-python/tests/test_jax_parity.py -q` (11/11).
+
+### Previous Sprint: MS-172 - Deterministic local/TCP numel contract tests [COMPLETE]
+**Objective**: Replace thread-join panic detection with deterministic direct
+panic-contract coverage for shape/numel mismatch paths.
+**Target version**: 0.5.4 ([patch]).
+
+- [x] [patch] Replaced the multi-thread local scatter mismatch panic test with
+  a deterministic single-rank root-input numel mismatch test.
+- [x] [patch] Added deterministic non-zero local `all_gather` and rooted
+  `gather` output-numel mismatch tests.
+- [x] [patch] Added deterministic non-zero TCP rooted `gather` output-numel
+  mismatch coverage.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-dist
+  test_local_scatter_mismatched_input_numel_panics
+  test_local_all_gather_mismatched_output_numel_panics
+  test_local_gather_mismatched_output_numel_panics
+  test_tcp_gather_mismatched_output_numel_panics` (4/4);
+  `rustup run nightly cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
+### Previous Sprint: MS-171 - BackendOps interface segregation [COMPLETE]
+**Objective**: Replace the monolithic backend operation trait body with
+single-concern operation traits while preserving the aggregate `BackendOps`
+bound and CPU kernel delegation.
+**Target version**: 0.5.4 ([patch]).
+
+- [x] [patch] Added `ElementwiseOps`, `MatmulOps`, `ReductionOps`, `ConvOps`,
+  `PoolOps`, `AttentionOps`, and `OptimizerOps` under
+  `coeus-ops/src/backend_ops/traits/`.
+- [x] [patch] Reduced `BackendOps` to a super-trait with a blanket impl so
+  backends compose the aggregate bound from single-concern trait impls.
+- [x] [patch] Split the CPU backend implementation into one impl block per
+  operation concern, eliminating the duplicate blanket-impl coherence failure.
+- [x] [patch] Re-exported the sub-traits at the crate root and updated direct
+  backend-dispatch tests to import the precise operation trait they exercise.
+- [x] Evidence: `rustup run nightly cargo check -p coeus-ops --all-targets`;
+  `rustup run nightly cargo clippy -p coeus-ops --all-targets -- -D warnings`;
+  `rustup run nightly cargo nextest run -p coeus-ops` (189/189);
+  `rustup run nightly cargo test --doc -p coeus-ops` (23/23);
+  `rustup run nightly cargo doc -p coeus-ops --no-deps`.
+
+### Previous Sprint: MS-168 - Activation JAX parity (SiLU/Mish/ELU/Softplus/LeakyReLU) [COMPLETE]
 **Objective**: Extend the JAX parity harness (Linear/MHA/decoder only) to the
 elementwise activations, mirroring the PyTorch activation parity of MS-167.
 **Target version**: 0.5.4 (test-only [patch]).

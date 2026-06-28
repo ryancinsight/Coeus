@@ -7,7 +7,7 @@
 // so the device result matches the CPU `f32` arithmetic within tight roundoff.
 
 use coeus_core::SequentialBackend;
-use coeus_ops::BackendOps;
+use coeus_ops::OptimizerOps;
 use coeus_tensor::Tensor;
 use coeus_wgpu::WgpuBackend;
 

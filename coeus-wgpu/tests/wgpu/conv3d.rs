@@ -93,7 +93,7 @@ fn assert_forward_matches_cpu(case: Conv3dCase) {
     let out_layout = coeus_core::Layout::new(output_shape.into());
     let mut out_wgpu_storage = wgpu_b.allocate::<f32>(out_len);
 
-    coeus_ops::BackendOps::conv3d(
+    coeus_ops::ConvOps::conv3d(
         &wgpu_b,
         input_wgpu.storage(),
         input_wgpu.layout(),
@@ -112,7 +112,7 @@ fn assert_forward_matches_cpu(case: Conv3dCase) {
     let out_wgpu_cpu = out_tensor_wgpu.to_backend_on(&wgpu_b, &seq);
 
     let mut out_expected_storage = seq.allocate::<f32>(out_len);
-    coeus_ops::BackendOps::conv3d(
+    coeus_ops::ConvOps::conv3d(
         &seq,
         input_seq.storage(),
         input_seq.layout(),
@@ -170,7 +170,7 @@ fn assert_backward_matches_cpu(case: Conv3dCase) {
     let gw_layout = coeus_core::Layout::new(weight_shape.into());
     let gb_layout = coeus_core::Layout::new(vec![case.out_channels].into());
 
-    coeus_ops::BackendOps::conv3d_backward(
+    coeus_ops::ConvOps::conv3d_backward(
         &wgpu_b,
         grad_out_wgpu.storage(),
         grad_out_wgpu.layout(),
@@ -195,7 +195,7 @@ fn assert_backward_matches_cpu(case: Conv3dCase) {
     let mut gb_expected = seq.allocate::<f32>(case.out_channels);
     seq.fill(&mut gb_expected, 0.0);
 
-    coeus_ops::BackendOps::conv3d_backward(
+    coeus_ops::ConvOps::conv3d_backward(
         &seq,
         grad_out_seq.storage(),
         grad_out_seq.layout(),

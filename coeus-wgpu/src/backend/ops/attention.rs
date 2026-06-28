@@ -3,7 +3,7 @@ use coeus_core::{
     ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, Layout,
     SequentialBackend, Storage,
 };
-use coeus_ops::BackendOps;
+use coeus_ops::AttentionOps;
 
 type WgpuBuffer<T> = <WgpuBackend as ComputeBackend>::DeviceBuffer<T>;
 

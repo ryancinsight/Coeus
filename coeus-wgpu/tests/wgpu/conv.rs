@@ -19,7 +19,7 @@ fn test_wgpu_conv() {
     let mut out_wgpu_storage = wgpu_b.allocate::<f32>(6);
     let out_layout = coeus_core::Layout::new(vec![1, 2, 3].into());
 
-    coeus_ops::BackendOps::conv1d(
+    coeus_ops::ConvOps::conv1d(
         &wgpu_b,
         input_wgpu.storage(),
         input_wgpu.layout(),
@@ -38,7 +38,7 @@ fn test_wgpu_conv() {
     let out_seq = out_tensor_wgpu.to_backend_on(&wgpu_b, &seq);
 
     let mut out_expected_storage = seq.allocate::<f32>(6);
-    coeus_ops::BackendOps::conv1d(
+    coeus_ops::ConvOps::conv1d(
         &seq,
         input_seq.storage(),
         input_seq.layout(),
@@ -85,7 +85,7 @@ fn test_wgpu_conv() {
     let mut out_2d_wgpu_storage = wgpu_b.allocate::<f32>(4);
     let out_2d_layout = coeus_core::Layout::new(vec![1, 1, 2, 2].into());
 
-    coeus_ops::BackendOps::conv2d(
+    coeus_ops::ConvOps::conv2d(
         &wgpu_b,
         input_2d_wgpu.storage(),
         input_2d_wgpu.layout(),
@@ -104,7 +104,7 @@ fn test_wgpu_conv() {
     let out_2d_seq = out_2d_tensor_wgpu.to_backend_on(&wgpu_b, &seq);
 
     let mut out_2d_expected_storage = seq.allocate::<f32>(4);
-    coeus_ops::BackendOps::conv2d(
+    coeus_ops::ConvOps::conv2d(
         &seq,
         input_2d_seq.storage(),
         input_2d_seq.layout(),
@@ -164,7 +164,7 @@ fn test_wgpu_conv_backward() {
     let gi_layout = coeus_core::Layout::new(vec![1, 2, 3].into());
     let gw_layout = coeus_core::Layout::new(vec![2, 2, 1].into());
 
-    coeus_ops::BackendOps::conv1d_backward(
+    coeus_ops::ConvOps::conv1d_backward(
         &wgpu_b,
         grad_out_wgpu.storage(),
         grad_out_wgpu.layout(),
@@ -189,7 +189,7 @@ fn test_wgpu_conv_backward() {
     let mut gb_expected = seq.allocate::<f32>(2);
     seq.fill(&mut gb_expected, 0.0);
 
-    coeus_ops::BackendOps::conv1d_backward(
+    coeus_ops::ConvOps::conv1d_backward(
         &seq,
         grad_out_seq.storage(),
         grad_out_seq.layout(),

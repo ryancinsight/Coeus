@@ -13,6 +13,7 @@
 
 use coeus_core::SequentialBackend;
 use coeus_cuda::CudaBackend;
+use coeus_ops::{ConvOps, OptimizerOps, PoolOps};
 use coeus_tensor::Tensor;
 
 /// Element-wise tolerance for direct (non-accumulating) ops. f32 transcendental
@@ -364,7 +365,6 @@ fn test_cuda_parity_batched_matmul() {
 
 #[test]
 fn test_cuda_parity_conv1d_forward() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -425,7 +425,6 @@ fn test_cuda_parity_conv1d_forward() {
 
 #[test]
 fn test_cuda_parity_conv2d_forward() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -487,7 +486,6 @@ fn test_cuda_parity_conv2d_forward() {
 
 #[test]
 fn test_cuda_parity_conv2d_backward() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -578,7 +576,6 @@ fn test_cuda_parity_conv2d_backward() {
 
 #[test]
 fn test_cuda_parity_conv3d_forward() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -641,7 +638,6 @@ fn test_cuda_parity_conv3d_forward() {
 
 #[test]
 fn test_cuda_parity_conv3d_backward() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -733,7 +729,6 @@ fn test_cuda_parity_conv3d_backward() {
 
 #[test]
 fn test_cuda_parity_max_pool2d() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -777,7 +772,6 @@ fn test_cuda_parity_max_pool2d() {
 
 #[test]
 fn test_cuda_parity_avg_pool2d() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -821,7 +815,6 @@ fn test_cuda_parity_avg_pool2d() {
 
 #[test]
 fn test_cuda_parity_max_pool2d_backward() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -874,7 +867,6 @@ fn test_cuda_parity_max_pool2d_backward() {
 
 #[test]
 fn test_cuda_parity_avg_pool2d_backward() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -921,7 +913,6 @@ fn test_cuda_parity_avg_pool2d_backward() {
 
 #[test]
 fn test_cuda_parity_adamw_step() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -1012,7 +1003,6 @@ fn test_cuda_parity_roundtrip_identity() {
 
 #[test]
 fn test_cuda_parity_sgd_step() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -1069,7 +1059,6 @@ fn test_cuda_parity_sgd_step() {
 
 #[test]
 fn test_cuda_parity_adam_step() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -1146,7 +1135,6 @@ fn test_cuda_parity_adam_step() {
 
 #[test]
 fn test_cuda_parity_rmsprop_step() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -1205,7 +1193,6 @@ fn test_cuda_parity_rmsprop_step() {
 
 #[test]
 fn test_cuda_parity_adagrad_step() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -1264,7 +1251,6 @@ fn test_cuda_parity_adagrad_step() {
 
 #[test]
 fn test_cuda_parity_conv_transpose1d() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };
@@ -1327,7 +1313,6 @@ fn test_cuda_parity_conv_transpose1d() {
 
 #[test]
 fn test_cuda_parity_conv_transpose2d() {
-    use coeus_ops::BackendOps;
     let Some((s, c)) = backends() else {
         return;
     };

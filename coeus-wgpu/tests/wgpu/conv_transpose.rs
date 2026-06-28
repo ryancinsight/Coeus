@@ -5,7 +5,7 @@
 // tolerance (f32 sum-order differs between gather and scatter).
 
 use coeus_core::SequentialBackend;
-use coeus_ops::BackendOps;
+use coeus_ops::ConvOps;
 use coeus_tensor::Tensor;
 use coeus_wgpu::WgpuBackend;
 

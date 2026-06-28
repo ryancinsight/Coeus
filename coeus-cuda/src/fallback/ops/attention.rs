@@ -7,7 +7,7 @@
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::storage::CudaStorage;
 use coeus_core::{ComputeBackend, Layout, Storage};
-use coeus_ops::BackendOps;
+use coeus_ops::AttentionOps;
 
 impl CudaBackend {
     pub(crate) fn fallback_sdp_attention<T: CudaScalar>(

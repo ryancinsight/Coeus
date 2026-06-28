@@ -14,7 +14,7 @@ fn test_wgpu_max_pool2d() {
     let mut out_wgpu_storage = wgpu_b.allocate::<f32>(4);
     let out_layout = coeus_core::Layout::new(vec![1, 1, 2, 2].into());
 
-    coeus_ops::BackendOps::max_pool2d(
+    coeus_ops::PoolOps::max_pool2d(
         &wgpu_b,
         input_wgpu.storage(),
         input_wgpu.layout(),
@@ -42,7 +42,7 @@ fn test_wgpu_max_pool2d() {
     wgpu_b.fill(&mut grad_input_wgpu_storage, 0.0);
     let gi_layout = coeus_core::Layout::new(vec![1, 1, 4, 4].into());
 
-    coeus_ops::BackendOps::max_pool2d_backward(
+    coeus_ops::PoolOps::max_pool2d_backward(
         &wgpu_b,
         grad_out_wgpu.storage(),
         grad_out_wgpu.layout(),
@@ -81,7 +81,7 @@ fn test_wgpu_avg_pool2d() {
     let mut out_wgpu_storage = wgpu_b.allocate::<f32>(4);
     let out_layout = coeus_core::Layout::new(vec![1, 1, 2, 2].into());
 
-    coeus_ops::BackendOps::avg_pool2d(
+    coeus_ops::PoolOps::avg_pool2d(
         &wgpu_b,
         input_wgpu.storage(),
         input_wgpu.layout(),
@@ -109,7 +109,7 @@ fn test_wgpu_avg_pool2d() {
     wgpu_b.fill(&mut grad_input_wgpu_storage, 0.0);
     let gi_layout = coeus_core::Layout::new(vec![1, 1, 4, 4].into());
 
-    coeus_ops::BackendOps::avg_pool2d_backward(
+    coeus_ops::PoolOps::avg_pool2d_backward(
         &wgpu_b,
         grad_out_wgpu.storage(),
         grad_out_wgpu.layout(),
@@ -143,7 +143,7 @@ fn test_wgpu_max_pool3d() {
     let mut out_wgpu_storage = wgpu_b.allocate::<f32>(8);
     let out_layout = coeus_core::Layout::new(vec![1, 1, 2, 2, 2].into());
 
-    coeus_ops::BackendOps::max_pool3d(
+    coeus_ops::PoolOps::max_pool3d(
         &wgpu_b,
         input_wgpu.storage(),
         input_wgpu.layout(),
@@ -160,7 +160,7 @@ fn test_wgpu_max_pool3d() {
     let out_wgpu_cpu = out_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
 
     let mut out_expected_storage = seq.allocate::<f32>(8);
-    coeus_ops::BackendOps::max_pool3d(
+    coeus_ops::PoolOps::max_pool3d(
         &seq,
         input_seq.storage(),
         input_seq.layout(),
@@ -186,7 +186,7 @@ fn test_wgpu_max_pool3d() {
     wgpu_b.fill(&mut grad_input_wgpu_storage, 0.0);
     let gi_layout = coeus_core::Layout::new(vec![1, 1, 3, 3, 3].into());
 
-    coeus_ops::BackendOps::max_pool3d_backward(
+    coeus_ops::PoolOps::max_pool3d_backward(
         &wgpu_b,
         grad_out_wgpu.storage(),
         grad_out_wgpu.layout(),
@@ -206,7 +206,7 @@ fn test_wgpu_max_pool3d() {
 
     let mut grad_input_expected_storage = seq.allocate::<f32>(27);
     seq.fill(&mut grad_input_expected_storage, 0.0);
-    coeus_ops::BackendOps::max_pool3d_backward(
+    coeus_ops::PoolOps::max_pool3d_backward(
         &seq,
         grad_out_seq.storage(),
         grad_out_seq.layout(),
@@ -237,7 +237,7 @@ fn test_wgpu_avg_pool3d() {
     let mut out_wgpu_storage = wgpu_b.allocate::<f32>(8);
     let out_layout = coeus_core::Layout::new(vec![1, 1, 2, 2, 2].into());
 
-    coeus_ops::BackendOps::avg_pool3d(
+    coeus_ops::PoolOps::avg_pool3d(
         &wgpu_b,
         input_wgpu.storage(),
         input_wgpu.layout(),
@@ -254,7 +254,7 @@ fn test_wgpu_avg_pool3d() {
     let out_wgpu_cpu = out_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
 
     let mut out_expected_storage = seq.allocate::<f32>(8);
-    coeus_ops::BackendOps::avg_pool3d(
+    coeus_ops::PoolOps::avg_pool3d(
         &seq,
         input_seq.storage(),
         input_seq.layout(),
@@ -293,7 +293,7 @@ fn test_wgpu_avg_pool3d() {
     wgpu_b.fill(&mut grad_input_wgpu_storage, 0.0);
     let gi_layout = coeus_core::Layout::new(vec![1, 1, 3, 3, 3].into());
 
-    coeus_ops::BackendOps::avg_pool3d_backward(
+    coeus_ops::PoolOps::avg_pool3d_backward(
         &wgpu_b,
         grad_out_wgpu.storage(),
         grad_out_wgpu.layout(),
@@ -311,7 +311,7 @@ fn test_wgpu_avg_pool3d() {
 
     let mut grad_input_expected_storage = seq.allocate::<f32>(27);
     seq.fill(&mut grad_input_expected_storage, 0.0);
-    coeus_ops::BackendOps::avg_pool3d_backward(
+    coeus_ops::PoolOps::avg_pool3d_backward(
         &seq,
         grad_out_seq.storage(),
         grad_out_seq.layout(),

@@ -34,7 +34,7 @@ impl CudaBackend {
         let seq_grad = coeus_core::CpuStorage::from_slice(&host_grad);
         let mut seq_velocity = coeus_core::CpuStorage::from_slice(&host_velocity);
 
-        coeus_ops::BackendOps::sgd_step(
+        coeus_ops::OptimizerOps::sgd_step(
             &seq,
             &mut seq_param,
             param_layout,
@@ -84,7 +84,7 @@ impl CudaBackend {
         let mut seq_m = coeus_core::CpuStorage::from_slice(&host_m);
         let mut seq_v = coeus_core::CpuStorage::from_slice(&host_v);
 
-        coeus_ops::BackendOps::adam_step(
+        coeus_ops::OptimizerOps::adam_step(
             &seq,
             &mut seq_param,
             param_layout,
@@ -133,7 +133,7 @@ impl CudaBackend {
         let seq_grad = coeus_core::CpuStorage::from_slice(&host_grad);
         let mut seq_v = coeus_core::CpuStorage::from_slice(&host_v);
 
-        coeus_ops::BackendOps::rmsprop_step(
+        coeus_ops::OptimizerOps::rmsprop_step(
             &seq,
             &mut seq_param,
             param_layout,
@@ -176,7 +176,7 @@ impl CudaBackend {
         let seq_grad = coeus_core::CpuStorage::from_slice(&host_grad);
         let mut seq_history = coeus_core::CpuStorage::from_slice(&host_history);
 
-        coeus_ops::BackendOps::adagrad_step(
+        coeus_ops::OptimizerOps::adagrad_step(
             &seq,
             &mut seq_param,
             param_layout,
@@ -228,7 +228,7 @@ impl CudaBackend {
         let mut seq_m = coeus_core::CpuStorage::from_slice(&host_m);
         let mut seq_v = coeus_core::CpuStorage::from_slice(&host_v);
 
-        coeus_ops::BackendOps::adamw_step(
+        coeus_ops::OptimizerOps::adamw_step(
             &seq,
             &mut seq_param,
             param_layout,
