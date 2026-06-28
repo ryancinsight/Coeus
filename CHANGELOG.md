@@ -38,6 +38,13 @@
 
 ### Added
 
+- **MSE / BinaryCrossEntropy / Huber loss JAX parity** — added
+  `test_{mse_loss,binary_cross_entropy,huber_loss}_matches_jax` to
+  `coeus-python/tests/test_jax_parity.py`, asserting forward loss and prediction
+  gradient against inline JAX references at f64. Huber (δ=1.0) straddles the
+  quadratic/linear transition; BCE holds probabilities away from 0/1. Completes
+  the regression/binary loss parity against JAX, symmetric with PyTorch.
+  Evidence tier: differential/empirical; JAX suite 16/16. ([patch])
 - **LayerNorm / RMSNorm JAX parity** — added
   `test_{layernorm,rmsnorm}_matches_jax`, asserting forward output and
   input/parameter gradients against formulaic JAX references at f64. Evidence

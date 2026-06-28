@@ -2,6 +2,14 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-031: JAX harness lacked regression/binary loss parity~~ **CLOSED**
+**Location**: `coeus-python/tests/test_jax_parity.py`
+**Closed by**: MS-175 — Added `test_{mse_loss,binary_cross_entropy,huber_loss}_matches_jax`,
+asserting forward loss and prediction gradient against inline JAX references at f64
+(Huber δ=1.0 spans both regions; BCE probabilities in (0,1)). Completes the
+regression/binary loss parity against JAX, symmetric with PyTorch. Evidence tier:
+differential/empirical.
+
 ### ~~G-030: JAX harness lacked LayerNorm/RMSNorm parity~~ **CLOSED**
 **Location**: `coeus-python/tests/test_jax_parity.py`
 **Closed by**: MS-174 — Added `test_{layernorm,rmsnorm}_matches_jax`,
@@ -292,5 +300,6 @@ Evidence tier: differential/empirical (PyTorch f64).
 | G-027 JAX harness lacked elementwise activation parity | differential | **closed MS-168** |
 | G-029 JAX harness lacked softmax/log-softmax/cross-entropy parity | differential | **closed MS-173** |
 | G-030 JAX harness lacked LayerNorm/RMSNorm parity | differential | **closed MS-174** |
+| G-031 JAX harness lacked regression/binary loss parity | differential | **closed MS-175** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |

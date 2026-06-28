@@ -445,3 +445,76 @@ def test_rmsnorm_matches_jax() -> None:
     _allclose("rms_out", list(out_pyc.data), out_jax.flatten().tolist())
     _allclose("rms_dx", list(x_pyc.grad), gx.flatten().tolist())
     _allclose("rms_dgamma", list(rms.weight.grad), gg.tolist())
+
+
+# ---------------------------------------------------------------------------
+# Regression / binary loss forward + backward (mirrors the PyTorch loss parity,
+# against inline JAX references)
+# ---------------------------------------------------------------------------
+
+
+def test_mse_loss_matches_jax() -> None:
+    """Forward and prediction-gradient parity: mse_loss (mean) on [4]."""
+    pred = [0.8, 0.3, 0.6, 0.1]
+    target = [1.0, 0.0, 1.0, 0.0]
+
+    p_pyc = pycoeus.Tensor(pred, [4], requires_grad=True)
+    loss_pyc = pycoeus.mse_loss(p_pyc, pycoeus.Tensor(target, [4]))
+    loss_pyc.backward()
+
+    t_jax = jnp.array(target, dtype=jnp.float64)
+
+    def _jax_mse(z):
+        return jnp.mean((z - t_jax) ** 2)
+
+    p_jax = jnp.array(pred, dtype=jnp.float64)
+    _allclose("mse_loss", list(loss_pyc.data), [float(_jax_mse(p_jax))])
+    _allclose("mse_dx", list(p_pyc.grad), jax.grad(_jax_mse)(p_jax).tolist())
+
+
+def test_binary_cross_entropy_matches_jax() -> None:
+    """Forward and prediction-gradient parity: binary_cross_entropy (mean) on [4].
+
+    Probabilities in (0, 1) held away from 0/1 so the eps-clamp does not diverge.
+    """
+    pred = [0.8, 0.3, 0.6, 0.1]
+    target = [1.0, 0.0, 1.0, 0.0]
+
+    p_pyc = pycoeus.Tensor(pred, [4], requires_grad=True)
+    loss_pyc = pycoeus.binary_cross_entropy(p_pyc, pycoeus.Tensor(target, [4]))
+    loss_pyc.backward()
+
+    t_jax = jnp.array(target, dtype=jnp.float64)
+
+    def _jax_bce(z):
+        return -jnp.mean(t_jax * jnp.log(z) + (1.0 - t_jax) * jnp.log(1.0 - z))
+
+    p_jax = jnp.array(pred, dtype=jnp.float64)
+    _allclose("bce_loss", list(loss_pyc.data), [float(_jax_bce(p_jax))])
+    _allclose("bce_dx", list(p_pyc.grad), jax.grad(_jax_bce)(p_jax).tolist())
+
+
+def test_huber_loss_matches_jax() -> None:
+    """Forward and prediction-gradient parity: huber_loss(delta=1.0) on [4].
+
+    Samples straddle the transition so both the quadratic (|e| <= delta) and
+    linear (|e| > delta) regions and their gradients are exercised.
+    """
+    pred = [0.0, 2.5, 1.0, -3.0]
+    target = [0.2, 0.0, 1.5, 0.0]
+    delta = 1.0
+
+    p_pyc = pycoeus.Tensor(pred, [4], requires_grad=True)
+    loss_pyc = pycoeus.huber_loss(p_pyc, pycoeus.Tensor(target, [4]), delta)
+    loss_pyc.backward()
+
+    t_jax = jnp.array(target, dtype=jnp.float64)
+
+    def _jax_huber(z):
+        d = z - t_jax
+        a = jnp.abs(d)
+        return jnp.mean(jnp.where(a <= delta, 0.5 * d * d, delta * (a - 0.5 * delta)))
+
+    p_jax = jnp.array(pred, dtype=jnp.float64)
+    _allclose("huber_loss", list(loss_pyc.data), [float(_jax_huber(p_jax))])
+    _allclose("huber_dx", list(p_pyc.grad), jax.grad(_jax_huber)(p_jax).tolist())

@@ -2,7 +2,17 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-174 - LayerNorm/RMSNorm JAX parity [COMPLETE]
+### Current Sprint: MS-175 - MSE/BCE/Huber loss JAX parity [COMPLETE]
+**Objective**: Extend the JAX parity harness to the regression/binary losses
+(mse_loss, binary_cross_entropy, huber_loss), mirroring the PyTorch loss parity.
+**Target version**: 0.5.4 (test-only [patch]).
+
+- [x] [patch] `test_mse_loss_matches_jax`, `test_binary_cross_entropy_matches_jax`,
+  `test_huber_loss_matches_jax`: forward loss + prediction gradient vs inline JAX
+  references at f64. Huber (δ=1.0) spans quadratic/linear regions; BCE probs in (0,1).
+- [x] Evidence: `pytest test_jax_parity.py` 16/16 pass.
+
+### Previous Sprint: MS-174 - LayerNorm/RMSNorm JAX parity [COMPLETE]
 **Objective**: Extend the JAX parity harness to normalization modules already
 covered by PyTorch parity.
 **Target version**: 0.5.4 (test-only [patch]).
