@@ -22,6 +22,21 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-184: BatchNorm2d benchmark matrix expansion [COMPLETE]
+
+- [x] [patch] Added a Burn-vs-Coeus forward benchmark row for BatchNorm2d eval
+  mode in `coeus-nn/benches/nn_bench.rs` on `[2,64,32,32]`, comparing Burn
+  NdArray, Coeus `SequentialBackend`, and Coeus `MoiraiBackend`.
+- [x] [patch] Registered the BatchNorm2d row in the Criterion benchmark group
+  so it executes with the existing NN benchmark matrix.
+- [x] [patch] Updated `docs/gap_audit.md` selected-row detail for G-043 and
+  added a changelog entry for the new benchmark row.
+- [x] Evidence tier: empirical benchmark harness; `cargo check -p coeus-nn
+  --all-targets`; `cargo clippy -p coeus-nn --all-targets -- -D warnings`;
+  `cargo bench -p coeus-nn --bench nn_bench --no-run`; `cargo bench -p
+  coeus-nn --bench nn_bench -- BatchNorm2d --warm-up-time 1 --measurement-time
+  2 --sample-size 10`.
+
 ## Sprint MS-183: Embedding benchmark matrix expansion [COMPLETE]
 
 - [x] [patch] Added a Burn-vs-Coeus forward benchmark row for embedding lookup
