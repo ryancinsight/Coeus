@@ -125,6 +125,10 @@
 
 ### Fixed
 
+- **TCP all_reduce mismatch-contract coverage** — added explicit panic tests for
+  composed `all_reduce` cross-rank tensor-size mismatches (including zero-numel
+  mismatch), confirming fail-fast contract behavior through the
+  `reduce + broadcast` integration path.
 - **TCP all_gather peer-numel handshake contract** — `all_gather` now exchanges
   and validates per-peer tensor `numel` metadata before payload transfer,
   including the zero-numel path, so cross-rank shape mismatches fail fast

@@ -1,5 +1,18 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-170: TCP all_reduce mismatch contract coverage [COMPLETE]
+
+- [x] [patch] Added panic-contract coverage for all-reduce cross-rank shape
+  mismatches:
+  `test_tcp_all_reduce_mismatched_numel_panics` and
+  `test_tcp_all_reduce_zero_numel_mismatched_numel_panics`.
+- [x] [patch] Coverage closes an explicit integration seam for
+  `all_reduce = reduce + broadcast`, verifying mismatch contracts remain fail-fast
+  through the composed collective path.
+- [x] Validation attempt was blocked by existing unrelated workspace edits in
+  `coeus-ops` (trait-surface mismatch compile errors during `cargo test -p
+  coeus-dist ...`).
+
 ## Sprint MS-169: TCP handshake SSOT refactor [COMPLETE]
 
 - [x] [patch] Extracted shared `TcpCommunicator` helpers for numel metadata
