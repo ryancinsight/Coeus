@@ -248,12 +248,74 @@ fn bench_transformer_encoder_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_linear_forward_backward(c: &mut Criterion) {
+    // Full autograd cycle — forward + sum-loss + backward — for Linear
+    // [128x256 -> 256], the part the forward-only groups don't measure. Burn
+    // uses its Autodiff<NdArray> backend over the same manual linear expression.
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    let device = NdArrayDevice::default();
+
+    let xb: BurnTensor<AB, 2> = BurnTensor::from_data(
+        TensorData::new(vec![0.01f32; BATCH * FEATURES], [BATCH, FEATURES]),
+        &device,
+    )
+    .require_grad();
+    let wb: BurnTensor<AB, 2> = BurnTensor::from_data(
+        TensorData::new(vec![0.01f32; FEATURES * FEATURES], [FEATURES, FEATURES]),
+        &device,
+    )
+    .require_grad();
+    let bb: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(vec![0.0f32; FEATURES], [FEATURES]), &device)
+            .require_grad();
+
+    let lin_seq = Linear::<f32, SequentialBackend>::new(FEATURES, FEATURES, true);
+    let lin_moirai = Linear::<f32, MoiraiBackend>::new(FEATURES, FEATURES, true);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::ones(vec![BATCH, FEATURES]),
+        true,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::ones(vec![BATCH, FEATURES]),
+        true,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — Linear forward+backward (128x256 -> 256)");
+    group.bench_function("Burn NdArray (autodiff)", |b| {
+        b.iter(|| {
+            let grads = (xb.clone().matmul(wb.clone().transpose()) + bb.clone().unsqueeze::<2>())
+                .sum()
+                .backward();
+            black_box(wb.grad(&grads));
+        })
+    });
+    // Coeus accumulates grads into the leaf Vars; zero them each iteration so the
+    // measured backward work is identical across iterations (zero_grad is O(params)).
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            lin_seq.zero_grad();
+            x_seq.zero_grad();
+            coeus_autograd::sum(&lin_seq.forward(black_box(&x_seq))).backward();
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            lin_moirai.zero_grad();
+            x_moirai.zero_grad();
+            coeus_autograd::sum(&lin_moirai.forward(black_box(&x_moirai))).backward();
+        })
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
     bench_layernorm_forward,
     bench_conv2d_forward,
     bench_mha_forward,
-    bench_transformer_encoder_forward
+    bench_transformer_encoder_forward,
+    bench_linear_forward_backward
 );
 criterion_main!(benches);
