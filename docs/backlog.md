@@ -1,5 +1,21 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-172: Deterministic local/TCP numel contract tests [COMPLETE]
+
+- [x] [patch] Replaced the deadlock-prone multi-thread
+  `test_local_scatter_mismatched_input_numel_panics` with deterministic
+  single-rank panic-contract coverage.
+- [x] [patch] Added non-zero local output-shape panic tests:
+  `test_local_all_gather_mismatched_output_numel_panics` and
+  `test_local_gather_mismatched_output_numel_panics`.
+- [x] [patch] Added non-zero TCP rooted gather output-shape panic test:
+  `test_tcp_gather_mismatched_output_numel_panics`.
+- [x] Evidence: `cargo test -p coeus-dist --test dist_tests test_local_scatter_mismatched_input_numel_panics -- --nocapture`;
+  `cargo test -p coeus-dist --test dist_tests test_local_all_gather_mismatched_output_numel_panics -- --nocapture`;
+  `cargo test -p coeus-dist --test dist_tests test_local_gather_mismatched_output_numel_panics -- --nocapture`;
+  `cargo test -p coeus-dist --test dist_tests test_tcp_gather_mismatched_output_numel_panics -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-170: TCP all_reduce mismatch contract coverage [COMPLETE]
 
 - [x] [patch] Added panic-contract coverage for all-reduce cross-rank shape
