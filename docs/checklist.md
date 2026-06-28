@@ -2,7 +2,24 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-185 - ConvTranspose3d CPU/PyO3 parity [COMPLETE]
+### Current Sprint: MS-186 - Conv1d benchmark matrix expansion [COMPLETE]
+**Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with a Conv1d
+forward row so one additional implemented NN family is measured across Burn
+NdArray and both Coeus CPU backends.
+**Target version**: 0.5.4 (benchmark/docs [patch]).
+
+- [x] [patch] Added `bench_conv1d_forward` in `coeus-nn/benches/nn_bench.rs`
+  for `[8,32,256]`, `k=3`.
+- [x] [patch] Benchmarks Burn NdArray Conv1d forward vs Coeus
+  `Conv1d::<_, SequentialBackend>` and `Conv1d::<_, MoiraiBackend>` and
+  registers the row in `criterion_group!`.
+- [x] [patch] Updated G-043 selected-row detail in `docs/gap_audit.md`.
+- [x] Evidence: `cargo check -p coeus-nn --all-targets`; `cargo clippy -p
+  coeus-nn --all-targets -- -D warnings`; `cargo bench -p coeus-nn --bench
+  nn_bench --no-run`; `cargo bench -p coeus-nn --bench nn_bench -- Conv1d
+  --warm-up-time 1 --measurement-time 2 --sample-size 10`.
+
+### Previous Sprint: MS-185 - ConvTranspose3d CPU/PyO3 parity [COMPLETE]
 **Objective**: Advance G-035 through the CPU/default backend, autograd,
 `coeus-nn`, and PyO3 parity surfaces while leaving WGPU/CUDA backend-specific
 coverage open.
