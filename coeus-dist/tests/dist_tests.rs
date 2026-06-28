@@ -476,7 +476,12 @@ fn port_allocator_lock() -> PortAllocatorLock {
     loop {
         match OpenOptions::new().write(true).create_new(true).open(&path) {
             Ok(_) => return PortAllocatorLock { path },
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::PermissionDenied
+                ) =>
+            {
                 if start.elapsed() > Duration::from_secs(20) {
                     let metadata = fs::metadata(&path)
                         .expect("TCP port allocator lock exists but metadata could not be read");

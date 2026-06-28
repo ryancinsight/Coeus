@@ -9,8 +9,10 @@
 file-backed cross-process port allocator lock, and debug-mode mesh timeouts around
 connect, accept, peer-rank read, send, and recv paths. Connect retry backoff
 remains async through `moirai_async::sleep`, so the debug diagnostics do not
-introduce executor-blocking sleep. Evidence tier: empirical/value-semantic
-through the `coeus-dist` package gate.
+introduce executor-blocking sleep. The lock creation path also treats Windows
+`PermissionDenied` as lock contention rather than a distinct fatal failure,
+preserving the stale-lock timeout diagnostic under nextest process contention.
+Evidence tier: empirical/value-semantic through the `coeus-dist` package gate.
 
 ### ~~G-031: JAX harness lacked regression/binary loss parity~~ **CLOSED**
 **Location**: `coeus-python/tests/test_jax_parity.py`
