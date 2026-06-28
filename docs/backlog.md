@@ -1,5 +1,18 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-175: TCP rooted handshake fail-status propagation [COMPLETE]
+
+- [x] [patch] Upgraded `TcpCommunicator::rooted_numel_handshake` to propagate a
+  one-byte pass/fail status from root to all non-root ranks after numel exchange.
+- [x] [patch] Root now gathers peer numels, broadcasts handshake status, then
+  panics on mismatch; non-root ranks receive status and panic immediately on
+  mismatch instead of waiting for payload bytes that may never arrive.
+- [x] [patch] Preserved existing root-side panic-contract wording via
+  `assert_numel` after status fanout.
+- [x] Validation attempt was blocked by existing unrelated workspace state in
+  `mnemosyne-prof` compile errors while running
+  `cargo test -p coeus-dist --test dist_tests test_tcp_broadcast_mismatched_numel_panics -- --nocapture`.
+
 ## Sprint MS-174: LayerNorm/RMSNorm JAX parity [COMPLETE]
 
 - [x] [patch] Added JAX differential parity for `pycoeus.LayerNorm`,

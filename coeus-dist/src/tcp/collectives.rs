@@ -60,15 +60,34 @@ impl TcpCommunicator {
     ) {
         let local_numel_bytes = Self::numel_bytes(numel);
         if rank == root {
+            let mut mismatch: Option<(usize, usize)> = None;
             for other in 0..size {
                 if other == root {
                     continue;
                 }
                 let peer_numel = self.recv_numel_from(other);
+                if mismatch.is_none() && peer_numel != numel {
+                    mismatch = Some((other, peer_numel));
+                }
+            }
+            let status = if mismatch.is_some() { [0u8] } else { [1u8] };
+            for other in 0..size {
+                if other != root {
+                    self.mesh.send(other, &status);
+                }
+            }
+            if let Some((other, peer_numel)) = mismatch {
                 Self::assert_numel(collective, other, peer_numel, numel);
             }
         } else {
             self.mesh.send(root, &local_numel_bytes);
+            let mut status = [0u8; 1];
+            self.mesh.recv(root, &mut status);
+            match status[0] {
+                1 => {}
+                0 => panic!("{collective} numel handshake failed on rank {rank}"),
+                value => panic!("{collective} numel handshake status invalid: {value}"),
+            }
         }
     }
 
