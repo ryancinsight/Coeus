@@ -18,10 +18,11 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
-use coeus_nn::{Conv2d, LayerNorm, Linear, Module};
+use coeus_nn::{Conv2d, LayerNorm, Linear, Module, MultiHeadAttention, NullMask};
 use coeus_tensor::Tensor;
 
 use burn::backend::ndarray::{NdArray, NdArrayDevice};
+use burn::nn::attention::{MhaInput, MultiHeadAttentionConfig};
 use burn::nn::conv::Conv2dConfig;
 use burn::nn::{LayerNormConfig, LinearConfig, PaddingConfig2d};
 use burn::tensor::{Tensor as BurnTensor, TensorData};
@@ -166,10 +167,46 @@ fn bench_conv2d_forward(c: &mut Criterion) {
     );
 }
 
+fn bench_mha_forward(c: &mut Criterion) {
+    // Self-attention forward on a realistic transformer block:
+    // [batch=8, seq=64, d_model=256] with 8 heads (d_head=32).
+    const B: usize = 8;
+    const SEQ: usize = 64;
+    const D: usize = 256;
+    const H: usize = 8;
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = vec![0.02f32; B * SEQ * D];
+
+    let burn_mha = MultiHeadAttentionConfig::new(D, H).init::<BurnB>(&device);
+    let x_burn: BurnTensor<BurnB, 3> =
+        BurnTensor::from_data(TensorData::new(input_data.clone(), [B, SEQ, D]), &device);
+
+    let mha_seq = MultiHeadAttention::<f32, SequentialBackend, H, NullMask>::new(D, true);
+    let mha_moirai = MultiHeadAttention::<f32, MoiraiBackend, H, NullMask>::new(D, true);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::ones(vec![B, SEQ, D]),
+        false,
+    );
+    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::ones(vec![B, SEQ, D]), false);
+
+    let mut group = c.benchmark_group("Burn vs Coeus — MHA self-attn forward (8x64x256, 8 heads)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_mha.forward(MhaInput::self_attn(black_box(x_burn.clone())))))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(mha_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(mha_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
     bench_layernorm_forward,
-    bench_conv2d_forward
+    bench_conv2d_forward,
+    bench_mha_forward
 );
 criterion_main!(benches);
