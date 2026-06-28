@@ -1,5 +1,18 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-177: TCP distributed test determinism [COMPLETE]
+
+- [x] [patch] Added a file-backed cross-process TCP port allocator lock and
+  deterministic localhost port reservation to prevent nextest process-parallel
+  TCP tests from racing on ephemeral port reuse.
+- [x] [patch] Added debug-only TCP mesh timeouts for connect, accept, peer-rank
+  read, send, and recv paths so failures surface with peer/rank context instead
+  of reaching the nextest 60s termination threshold.
+- [x] [patch] Kept connect backoff async via `moirai_async::sleep`; no blocking
+  sleep is introduced in the async mesh construction path.
+- [x] Evidence tier: empirical/value-semantic through the `coeus-dist` package
+  gate.
+
 ## Sprint MS-145: Bilinear backward PyTorch differential parity [COMPLETE]
 
 - [x] [patch] Added

@@ -4,6 +4,12 @@
 
 ### Changed
 
+- **TCP distributed test determinism** — `coeus-dist` TCP tests now use a
+  file-backed cross-process port allocator lock plus deterministic localhost
+  port reservation, and TCP mesh debug builds bound connect/accept/rank-read/
+  send/recv waits with peer/rank panic diagnostics. Connect retry backoff
+  remains async through `moirai_async::sleep`. Evidence tier:
+  empirical/value-semantic `coeus-dist` package gate. ([patch])
 - **Conv2d CPU AXPY kernel** — canonical contiguous CPU Conv2d forward now uses
   an output-stationary row kernel with `Scalar::axpy_slice` routed through
   Hermes SIMD for native floats, and coarser row-block partitioning for Moirai

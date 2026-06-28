@@ -11,6 +11,11 @@ pub struct TcpMesh {
 }
 
 impl TcpMesh {
+    #[inline]
+    fn debug_timeout() -> Option<Duration> {
+        cfg!(debug_assertions).then_some(Duration::from_secs(5))
+    }
+
     /// Create a new TCP mesh connecting all ranks.
     pub fn new(rank: usize, size: usize, addresses: &[SocketAddr]) -> Self {
         assert!(size > 0, "world size must be > 0");
@@ -32,23 +37,36 @@ impl TcpMesh {
             for other in (rank + 1)..size {
                 let other_addr = addresses[other].to_string();
                 let mut delay = Duration::from_millis(5);
-                let stream = loop {
-                    match TcpStream::connect(&other_addr).await {
-                        Ok(s) => {
-                            s.set_nodelay(true).unwrap();
-                            let rank_bytes = (rank as u64).to_le_bytes();
-                            let mut s_mut = s;
-                            if s_mut.write_all(&rank_bytes).await.is_ok() {
-                                break s_mut;
+                let connect_future = async {
+                    loop {
+                        match TcpStream::connect(&other_addr).await {
+                            Ok(s) => {
+                                s.set_nodelay(true).unwrap();
+                                let rank_bytes = (rank as u64).to_le_bytes();
+                                let mut s_mut = s;
+                                if s_mut.write_all(&rank_bytes).await.is_ok() {
+                                    break s_mut;
+                                }
                             }
-                        }
-                        Err(_) => {
-                            moirai_async::sleep(delay).await;
-                            if delay < Duration::from_millis(500) {
-                                delay *= 2;
+                            Err(_) => {
+                                moirai_async::sleep(delay).await;
+                                if delay < Duration::from_millis(500) {
+                                    delay *= 2;
+                                }
                             }
                         }
                     }
+                };
+                let stream = if let Some(timeout) = Self::debug_timeout() {
+                    moirai_async::timeout(timeout, connect_future)
+                        .await
+                        .unwrap_or_else(|_| {
+                            panic!(
+                                "rank {rank} timed out connecting to peer {other} at {other_addr}"
+                            )
+                        })
+                } else {
+                    connect_future.await
                 };
                 assert!(
                     streams[other].is_none(),
@@ -59,17 +77,35 @@ impl TcpMesh {
 
             // Accept connections from lower ranks
             for _ in 0..rank {
-                let (s, _) = listener
-                    .accept()
-                    .await
-                    .expect("failed to accept connection");
+                let (s, _) = if let Some(timeout) = Self::debug_timeout() {
+                    moirai_async::timeout(timeout, listener.accept())
+                        .await
+                        .unwrap_or_else(|_| {
+                            panic!("rank {rank} timed out accepting lower-rank peer connection")
+                        })
+                        .expect("failed to accept connection")
+                } else {
+                    listener
+                        .accept()
+                        .await
+                        .expect("failed to accept connection")
+                };
                 s.set_nodelay(true).unwrap();
                 let mut rank_bytes = [0u8; 8];
                 let mut s_mut = s;
-                s_mut
-                    .read_exact(&mut rank_bytes)
-                    .await
-                    .expect("failed to read rank from incoming connection");
+                if let Some(timeout) = Self::debug_timeout() {
+                    moirai_async::timeout(timeout, s_mut.read_exact(&mut rank_bytes))
+                        .await
+                        .unwrap_or_else(|_| {
+                            panic!("rank {rank} timed out reading incoming peer rank during accept")
+                        })
+                        .expect("failed to read rank from incoming connection");
+                } else {
+                    s_mut
+                        .read_exact(&mut rank_bytes)
+                        .await
+                        .expect("failed to read rank from incoming connection");
+                }
                 let incoming_rank = u64::from_le_bytes(rank_bytes) as usize;
                 assert!(
                     incoming_rank < rank,
@@ -117,10 +153,17 @@ impl TcpMesh {
         let stream_mutex = self.stream_for_peer(target, "send");
         let mut stream = stream_mutex.lock().unwrap();
         moirai::global().block_on(async {
-            stream
-                .write_all(bytes)
-                .await
-                .expect("failed to send bytes over TCP");
+            if let Some(timeout) = Self::debug_timeout() {
+                moirai_async::timeout(timeout, stream.write_all(bytes))
+                    .await
+                    .unwrap_or_else(|_| panic!("send to peer {target} timed out"))
+                    .expect("failed to send bytes over TCP");
+            } else {
+                stream
+                    .write_all(bytes)
+                    .await
+                    .expect("failed to send bytes over TCP");
+            }
         });
     }
 
@@ -130,10 +173,17 @@ impl TcpMesh {
         let stream_mutex = self.stream_for_peer(source, "recv");
         let mut stream = stream_mutex.lock().unwrap();
         moirai::global().block_on(async {
-            stream
-                .read_exact(bytes)
-                .await
-                .expect("failed to receive bytes over TCP");
+            if let Some(timeout) = Self::debug_timeout() {
+                moirai_async::timeout(timeout, stream.read_exact(bytes))
+                    .await
+                    .unwrap_or_else(|_| panic!("recv from peer {source} timed out"))
+                    .expect("failed to receive bytes over TCP");
+            } else {
+                stream
+                    .read_exact(bytes)
+                    .await
+                    .expect("failed to receive bytes over TCP");
+            }
         });
     }
 }
