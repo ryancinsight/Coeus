@@ -1976,3 +1976,89 @@ def test_adagrad_step_matches_pytorch() -> None:
     _allclose(
         "adagrad_w", list(w_pyc.data), w_t.detach().flatten().tolist(), atol=1e-10
     )
+
+
+# ── ConvTranspose3d PyTorch parity (MS-183) ─────────────────────────────────
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "ConvTranspose3d"),
+    reason="pycoeus.ConvTranspose3d not available in this wheel build",
+)
+def test_conv_transpose3d_matches_pytorch() -> None:
+    """Forward + gradient parity: ConvTranspose3d(in=2, out=2, k=2, stride=1, pad=0, bias).
+
+    Differential against ``torch.nn.ConvTranspose3d`` at f64 with weights copied
+    flat (pycoeus ``[in_channels, out_channels, kD, kH, kW]`` matches PyTorch's
+    transposed-conv convention — no transposition needed).  Pins forward output,
+    input gradient, weight gradient, and bias gradient.
+
+    Evidence tier: differential / empirical at f64, atol=1e-10.
+    """
+    in_channels, out_channels = 2, 2
+    kernel_size, stride, padding, dilation = 2, 1, 0, 1
+
+    w_data = [
+        # ic=0, oc=0 (kD,kH,kW)
+        0.5, -0.5, 1.0, 0.0,    0.1, 0.2, 0.3, -0.1,
+        # ic=0, oc=1
+        -0.2, 0.5, 0.0, 1.0,   1.0, -1.0, 0.2, 0.8,
+        # ic=1, oc=0
+        0.7, 0.3, -0.7, 0.4,   0.0, 1.0, 0.5, -0.5,
+        # ic=1, oc=1
+        0.5, -0.5, 1.0, 0.0,   0.1, 0.2, 0.3, -0.1,
+    ]
+    assert len(w_data) == in_channels * out_channels * kernel_size ** 3
+    b_data = [0.1, -0.2]
+    x_data = [
+        1.0, 2.0, 3.0, 4.0,
+        5.0, 6.0, 7.0, 8.0,
+        -1.0, -2.0, -3.0, -4.0,
+        -5.0, -6.0, -7.0, -8.0,
+    ]
+    assert len(x_data) == 1 * in_channels * 2 * 2 * 2
+    input_shape = [1, in_channels, 2, 2, 2]  # N=1, C_in=2, D=H=W=2
+
+    ct_pyc = pycoeus.ConvTranspose3d(
+        in_channels, out_channels, kernel_size,
+        stride=stride, padding=padding, output_padding=0,
+        dilation=dilation, bias=True,
+    )
+    ct_pyc.weight.data = w_data
+    ct_pyc.bias.data = b_data
+    x_pyc = pycoeus.Tensor(x_data, input_shape, requires_grad=True)
+    out_pyc = ct_pyc.forward(x_pyc)
+    out_pyc.sum().backward()
+
+    ct_t = torch.nn.ConvTranspose3d(
+        in_channels, out_channels, kernel_size,
+        stride=stride, padding=padding, output_padding=0,
+        dilation=dilation, bias=True,
+    ).double()
+    with torch.no_grad():
+        ct_t.weight[:] = torch.tensor(w_data, dtype=torch.float64).reshape(
+            in_channels, out_channels, kernel_size, kernel_size, kernel_size,
+        )
+        ct_t.bias[:] = torch.tensor(b_data, dtype=torch.float64)
+    x_t = (
+        torch.tensor(x_data, dtype=torch.float64)
+        .reshape(*input_shape)
+        .requires_grad_(True)
+    )
+    out_t = ct_t(x_t)
+    out_t.sum().backward()
+
+    _allclose("ct3d_out", list(out_pyc.data), out_t.flatten().tolist(), atol=1e-10)
+    _allclose("ct3d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "ct3d_dW",
+        list(ct_pyc.weight.grad),
+        ct_t.weight.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+    _allclose(
+        "ct3d_db",
+        list(ct_pyc.bias.grad),
+        ct_t.bias.grad.flatten().tolist(),
+        atol=1e-10,
+    )

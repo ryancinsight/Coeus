@@ -29,6 +29,7 @@ pub use attention::{PyMultiHeadAttention, PyRotaryEmbedding, PyScaledDotProductA
 pub use bilinear::PyBilinear;
 pub use conv::PyConvTranspose1d;
 pub use conv::PyConvTranspose2d;
+pub use conv::PyConvTranspose3d;
 pub use conv::{PyConv1d, PyConv2d, PyConv3d};
 pub use dropout::PyDropout;
 pub use embedding::PyEmbedding;

@@ -72,7 +72,8 @@ pub use attention::{
 };
 pub use bilinear::{bilinear, Bilinear};
 pub use conv::{
-    Conv, Conv1d, Conv2d, Conv3d, ConvDim, ConvTranspose1d, ConvTranspose2d, Dim1D, Dim2D, Dim3D,
+    Conv, Conv1d, Conv2d, Conv3d, ConvDim, ConvTranspose1d, ConvTranspose2d, ConvTranspose3d,
+    Dim1D, Dim2D, Dim3D,
 };
 pub use dropout::Dropout;
 pub use embedding::Embedding;

@@ -57,6 +57,7 @@ pub use ops::{
     conv3d,
     conv_transpose1d,
     conv_transpose2d,
+    conv_transpose3d,
     // Trigonometric
     cos,
     cosine_embedding_loss,

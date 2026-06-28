@@ -104,6 +104,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyConv3d>()?;
     m.add_class::<nn::PyConvTranspose1d>()?;
     m.add_class::<nn::PyConvTranspose2d>()?;
+    m.add_class::<nn::PyConvTranspose3d>()?;
     m.add_class::<nn::PyLayerNorm>()?;
     m.add_class::<nn::PyRMSNorm>()?;
     m.add_class::<nn::PyBatchNorm3d>()?;

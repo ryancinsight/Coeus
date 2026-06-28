@@ -132,6 +132,91 @@ pub fn conv_transpose2d<T: Float, B: BackendOps<T> + Default>(
     output
 }
 
+/// Compute the output spatial dimensions of a transposed 3-D convolution.
+///
+/// Mirrors `torch.nn.ConvTranspose3d`'s output-shape formula per spatial axis:
+/// `d_out = (d - 1) * stride - 2 * padding + dilation * (kd - 1) + output_padding + 1`
+/// (analogous for `h_out`, `w_out`).
+#[allow(clippy::too_many_arguments)]
+#[inline]
+pub fn conv_transpose3d_output_dims(
+    d: usize,
+    h: usize,
+    w: usize,
+    kd: usize,
+    kh: usize,
+    kw: usize,
+    stride: usize,
+    padding: usize,
+    output_padding: usize,
+    dilation: usize,
+) -> (usize, usize, usize) {
+    let d_out = (d - 1) * stride + dilation * (kd - 1) + output_padding + 1 - 2 * padding;
+    let h_out = (h - 1) * stride + dilation * (kh - 1) + output_padding + 1 - 2 * padding;
+    let w_out = (w - 1) * stride + dilation * (kw - 1) + output_padding + 1 - 2 * padding;
+    (d_out, h_out, w_out)
+}
+
+/// 3-D Transposed Convolution.
+///
+/// - `input`:  `[N, C_in, D, H, W]`
+/// - `weight`: `[C_in, C_out, KD, KH, KW]`  (transposed weight convention)
+/// - `bias`:   optional `[C_out]`
+/// - `output`: `[N, C_out, D_out, H_out, W_out]`
+///
+/// `D_out = (D - 1) * stride - 2 * padding + dilation * (KD - 1) + output_padding + 1`
+/// (analogous for `H_out`, `W_out`).
+#[allow(clippy::too_many_arguments)]
+#[inline]
+pub fn conv_transpose3d<T: Float, B: BackendOps<T> + Default>(
+    input: &Tensor<T, B>,
+    weight: &Tensor<T, B>,
+    bias: Option<&Tensor<T, B>>,
+    stride: usize,
+    padding: usize,
+    output_padding: usize,
+    dilation: usize,
+    backend: &B,
+) -> Tensor<T, B> {
+    let n = input.shape()[0];
+    let c_out = weight.shape()[1];
+    let d = input.shape()[2];
+    let h = input.shape()[3];
+    let w = input.shape()[4];
+    let kd = weight.shape()[2];
+    let kh = weight.shape()[3];
+    let kw = weight.shape()[4];
+    let (d_out, h_out, w_out) = conv_transpose3d_output_dims(
+        d,
+        h,
+        w,
+        kd,
+        kh,
+        kw,
+        stride,
+        padding,
+        output_padding,
+        dilation,
+    );
+
+    let mut output = Tensor::zeros_on([n, c_out, d_out, h_out, w_out], backend);
+    let (out_storage, out_layout) = output.storage_mut_and_layout();
+    backend.conv_transpose3d(
+        input.storage(),
+        input.layout(),
+        weight.storage(),
+        weight.layout(),
+        bias.map(|b| b.storage()),
+        stride,
+        padding,
+        output_padding,
+        dilation,
+        out_storage,
+        out_layout,
+    );
+    output
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

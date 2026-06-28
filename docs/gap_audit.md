@@ -121,6 +121,11 @@ PyTorch differential test.
 family architecture, add value-semantic forward/backward Rust tests, add
 WGPU/CUDA backend-autograd parity where supported, and expose a thin PyO3
 wrapper with PyTorch f64 differential coverage.
+**Progress**: MS-184 adds the `coeus-ops` forward operation, backend default
+method, tracked autograd backward node, `coeus-nn::ConvTranspose3d`,
+Sequential/Moirai value-semantic module tests, `pycoeus.ConvTranspose3d`, and
+PyTorch f64 differential coverage for forward output plus input, weight, and
+bias gradients. Remaining work: WGPU/CUDA backend-specific parity coverage.
 **Evidence tier**: source-surface audit plus external API documentation audit.
 
 ### ~~G-034: Linear/loss tests only checked gradient existence~~ **CLOSED**

@@ -22,6 +22,22 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-184: ConvTranspose3d CPU/PyO3 parity [COMPLETE]
+
+- [x] [minor] Added `coeus_ops::conv_transpose3d`,
+  `conv_transpose3d_output_dims`, and `ConvOps::conv_transpose3d` through the
+  existing backend seam and host-side default fallback.
+- [x] [minor] Added tracked `coeus_autograd::conv_transpose3d` backward support
+  for input, weight, and bias gradients.
+- [x] [minor] Added `coeus_nn::ConvTranspose3d` and value-semantic Sequential
+  and Moirai module parity tests.
+- [x] [minor] Added `pycoeus.ConvTranspose3d` as a thin PyO3 wrapper and a
+  PyTorch f64 differential test for forward output plus input, weight, and bias
+  gradients.
+- [x] [patch] Kept G-035 open for WGPU/CUDA backend-specific parity coverage.
+- [x] Evidence tier: value-semantic Rust tests plus PyTorch differential
+  Python parity.
+
 ## Sprint MS-183: Embedding benchmark matrix expansion [COMPLETE]
 
 - [x] [patch] Added a Burn-vs-Coeus forward benchmark row for embedding lookup
