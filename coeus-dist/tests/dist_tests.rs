@@ -560,6 +560,76 @@ fn test_tcp_all_gather() {
 }
 
 #[test]
+fn test_tcp_all_gather_mismatched_peer_numel_panics() {
+    let world_size = 2;
+    let addresses = get_free_ports(world_size);
+    let mut handles = vec![];
+
+    for rank in 0..world_size {
+        let addrs = addresses.clone();
+        handles.push(thread::spawn(move || {
+            let mesh = TcpMesh::new(rank, world_size, &addrs);
+            let comm = TcpCommunicator::new(mesh);
+            let backend = SequentialBackend::new();
+
+            let tensor = if rank == 0 {
+                Tensor::from_slice_on([2], &[1.0f32, 2.0], &backend)
+            } else {
+                Tensor::from_slice_on([1], &[3.0f32], &backend)
+            };
+            let mut output = if rank == 0 {
+                vec![Tensor::zeros_on([2], &backend), Tensor::zeros_on([2], &backend)]
+            } else {
+                vec![Tensor::zeros_on([1], &backend), Tensor::zeros_on([1], &backend)]
+            };
+
+            comm.all_gather(&tensor, &mut output, &backend);
+        }));
+    }
+
+    let panicked = handles.into_iter().map(|h| h.join().is_err()).collect::<Vec<_>>();
+    assert!(
+        panicked.iter().any(|&p| p),
+        "TCP all_gather with mismatched peer tensor numel should panic on at least one rank"
+    );
+}
+
+#[test]
+fn test_tcp_all_gather_zero_numel_mismatched_peer_numel_panics() {
+    let world_size = 2;
+    let addresses = get_free_ports(world_size);
+    let mut handles = vec![];
+
+    for rank in 0..world_size {
+        let addrs = addresses.clone();
+        handles.push(thread::spawn(move || {
+            let mesh = TcpMesh::new(rank, world_size, &addrs);
+            let comm = TcpCommunicator::new(mesh);
+            let backend = SequentialBackend::new();
+
+            let tensor = if rank == 0 {
+                Tensor::<f32, _>::zeros_on([0], &backend)
+            } else {
+                Tensor::zeros_on([1], &backend)
+            };
+            let mut output = if rank == 0 {
+                vec![Tensor::zeros_on([0], &backend), Tensor::zeros_on([0], &backend)]
+            } else {
+                vec![Tensor::zeros_on([1], &backend), Tensor::zeros_on([1], &backend)]
+            };
+
+            comm.all_gather(&tensor, &mut output, &backend);
+        }));
+    }
+
+    let panicked = handles.into_iter().map(|h| h.join().is_err()).collect::<Vec<_>>();
+    assert!(
+        panicked.iter().any(|&p| p),
+        "TCP all_gather zero-numel with mismatched peer tensor numel should panic on at least one rank"
+    );
+}
+
+#[test]
 fn test_tcp_barrier() {
     let world_size = 2;
     let addresses = get_free_ports(world_size);

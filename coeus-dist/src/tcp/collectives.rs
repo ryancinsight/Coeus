@@ -137,8 +137,27 @@ impl Communicator for TcpCommunicator {
         let size = self.mesh.size();
         assert_eq!(output.len(), size, "all_gather output length mismatch");
         let numel = tensor.numel();
+        let local_numel_bytes = (numel as u64).to_le_bytes();
         for (idx, out) in output.iter().enumerate().take(size) {
             Self::assert_numel("all_gather output", idx, out.numel(), numel);
+        }
+        for other in 0..size {
+            if other == rank {
+                continue;
+            }
+            if rank < other {
+                self.mesh.send(other, &local_numel_bytes);
+                let mut peer_numel_bytes = [0u8; 8];
+                self.mesh.recv(other, &mut peer_numel_bytes);
+                let peer_numel = u64::from_le_bytes(peer_numel_bytes) as usize;
+                Self::assert_numel("all_gather input", other, peer_numel, numel);
+            } else {
+                let mut peer_numel_bytes = [0u8; 8];
+                self.mesh.recv(other, &mut peer_numel_bytes);
+                self.mesh.send(other, &local_numel_bytes);
+                let peer_numel = u64::from_le_bytes(peer_numel_bytes) as usize;
+                Self::assert_numel("all_gather input", other, peer_numel, numel);
+            }
         }
         if numel == 0 {
             return;

@@ -1,5 +1,18 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-168: TCP all_gather peer numel handshake [COMPLETE]
+
+- [x] [patch] Added per-peer pre-payload numel handshakes in TCP `all_gather`
+  so each rank validates partner tensor length contracts before payload exchange.
+- [x] [patch] Enforced handshake validation before the zero-numel fast path, so
+  cross-rank zero-numel mismatches fail fast instead of bypassing the collective
+  contract.
+- [x] [patch] Added panic-contract coverage:
+  `test_tcp_all_gather_mismatched_peer_numel_panics` and
+  `test_tcp_all_gather_zero_numel_mismatched_peer_numel_panics`.
+- [x] Evidence: `cargo test -p coeus-dist test_tcp_all_gather -- --nocapture`;
+  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+
 ## Sprint MS-167: TCP gather/scatter peer numel handshakes [COMPLETE]
 
 - [x] [patch] Added pre-payload peer-numel handshakes in TCP rooted

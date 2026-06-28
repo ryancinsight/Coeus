@@ -110,6 +110,10 @@
 
 ### Fixed
 
+- **TCP all_gather peer-numel handshake contract** — `all_gather` now exchanges
+  and validates per-peer tensor `numel` metadata before payload transfer,
+  including the zero-numel path, so cross-rank shape mismatches fail fast
+  instead of risking stream desynchronization.
 - **TCP rooted peer-numel handshake contracts** — rooted `gather` and `scatter`
   now exchange and validate per-rank tensor `numel` metadata before payload
   transfer, including zero-numel paths, so cross-rank shape mismatches fail fast
