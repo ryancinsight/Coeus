@@ -326,6 +326,48 @@ def test_leaky_relu_matches_jax() -> None:
     )
 
 
+def test_relu_matches_jax() -> None:
+    # ReLU kink at 0 -> exclude 0.0 (subgradient convention).
+    _assert_activation_matches_jax(
+        "relu", lambda x: pycoeus.relu(x), jax.nn.relu, _ACT_INPUT_NO_ZERO
+    )
+
+
+def test_sigmoid_matches_jax() -> None:
+    _assert_activation_matches_jax(
+        "sigmoid", lambda x: pycoeus.sigmoid(x), jax.nn.sigmoid, _ACT_INPUT
+    )
+
+
+def test_tanh_matches_jax() -> None:
+    _assert_activation_matches_jax("tanh", lambda x: pycoeus.tanh(x), jnp.tanh, _ACT_INPUT)
+
+
+def test_gelu_matches_jax() -> None:
+    # Exact GELU (erf form); JAX exact via approximate=False.
+    _assert_activation_matches_jax(
+        "gelu",
+        lambda x: pycoeus.gelu(x),
+        lambda z: jax.nn.gelu(z, approximate=False),
+        _ACT_INPUT,
+    )
+
+
+def test_glu_matches_jax() -> None:
+    """Gated Linear Unit over dim=1: [2, 4] -> [2, 2] (a * sigmoid(b) split)."""
+    data = [0.1 * i - 0.5 for i in range(2 * 4)]
+    x_pyc = pycoeus.Tensor(data, [2, 4], requires_grad=True)
+    out_pyc = pycoeus.glu(x_pyc, 1)
+    out_pyc.sum().backward()
+
+    x_jax = jnp.array(data, dtype=jnp.float64).reshape(2, 4)
+    out_jax = jax.nn.glu(x_jax, axis=1)
+    grad_jax = jax.grad(lambda z: jnp.sum(jax.nn.glu(z, axis=1)))(x_jax)
+
+    _allclose("glu_out", list(out_pyc.data), out_jax.flatten().tolist())
+    _allclose("glu_dx", list(x_pyc.grad), grad_jax.flatten().tolist())
+
+
 # ---------------------------------------------------------------------------
 # Softmax / log-softmax / cross-entropy forward + backward (mirrors the
 # PyTorch loss/softmax parity, against jax.nn references)
