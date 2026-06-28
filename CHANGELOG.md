@@ -38,6 +38,15 @@
 
 ### Added
 
+- **LayerNorm / RMSNorm JAX parity** — added
+  `test_{layernorm,rmsnorm}_matches_jax`, asserting forward output and
+  input/parameter gradients against formulaic JAX references at f64. Evidence
+  tier: differential/empirical; JAX suite 13/13. ([patch])
+- **Softmax / log-softmax / cross-entropy JAX parity** — added
+  `test_{softmax,log_softmax,cross_entropy_loss}_matches_jax`, asserting
+  forward output and input/logit gradients against `jax.nn` and a fused
+  log-softmax + NLL mean reference at f64. Evidence tier:
+  differential/empirical; JAX suite 11/11. ([patch])
 - **Activation JAX parity (SiLU/Mish/ELU/Softplus/LeakyReLU)** — added
   `test_{silu,mish,elu,softplus,leaky_relu}_matches_jax` to
   `coeus-python/tests/test_jax_parity.py` via a shared

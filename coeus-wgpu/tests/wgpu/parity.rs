@@ -6,6 +6,7 @@
 // matches the verified CPU path for all supported op families.
 
 use coeus_core::SequentialBackend;
+use coeus_ops::{ConvOps, ElementwiseOps, OptimizerOps, PoolOps};
 use coeus_tensor::Tensor;
 use coeus_wgpu::WgpuBackend;
 
@@ -100,7 +101,6 @@ fn test_wgpu_parity_div() {
 
 #[test]
 fn test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer() {
-    use coeus_ops::BackendOps;
     use std::sync::Arc;
 
     let s = seq();
@@ -143,7 +143,6 @@ fn test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer() {
 
 #[test]
 fn test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer() {
-    use coeus_ops::BackendOps;
     use std::sync::Arc;
 
     let s = seq();
@@ -179,8 +178,6 @@ fn test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer() {
 
 #[test]
 fn test_wgpu_aliasing_unary_neg_matches_cpu() {
-    use coeus_ops::BackendOps;
-
     let s = seq();
     let w = wgpu();
     let data = vec![-4.0f32, -1.5, -0.5, 0.0, 0.5, 1.0, 2.0, 3.0];
@@ -205,8 +202,6 @@ fn test_wgpu_aliasing_unary_neg_matches_cpu() {
 
 #[test]
 fn test_wgpu_aliasing_binary_add_matches_cpu() {
-    use coeus_ops::BackendOps;
-
     let s = seq();
     let w = wgpu();
     let a_data: Vec<f32> = (0..16).map(|x| x as f32 * 0.25 - 2.0).collect();
@@ -466,8 +461,6 @@ fn test_wgpu_parity_batched_matmul() {
 
 #[test]
 fn test_wgpu_parity_conv1d_forward() {
-    use coeus_ops::BackendOps;
-
     let s = seq();
     let w = wgpu();
     let (batch, in_c, len, out_c, ksize) = (2, 3, 8, 4, 3);
@@ -533,8 +526,6 @@ fn test_wgpu_parity_conv1d_forward() {
 
 #[test]
 fn test_wgpu_parity_conv2d_forward() {
-    use coeus_ops::BackendOps;
-
     let s = seq();
     let w = wgpu();
     let (batch, in_c, h, ww, out_c, kh, kw) = (2, 2, 5, 5, 3, 3, 3);
@@ -603,8 +594,6 @@ fn test_wgpu_parity_conv2d_forward() {
 
 #[test]
 fn test_wgpu_parity_max_pool2d() {
-    use coeus_ops::BackendOps;
-
     let s = seq();
     let w = wgpu();
     let data: Vec<f32> = (0..2 * 2 * 4 * 4).map(|x| x as f32 * 0.1).collect();
@@ -646,8 +635,6 @@ fn test_wgpu_parity_max_pool2d() {
 
 #[test]
 fn test_wgpu_parity_avg_pool2d() {
-    use coeus_ops::BackendOps;
-
     let s = seq();
     let w = wgpu();
     let data: Vec<f32> = (0..2 * 2 * 4 * 4).map(|x| x as f32 * 0.1).collect();
@@ -691,8 +678,6 @@ fn test_wgpu_parity_avg_pool2d() {
 
 #[test]
 fn test_wgpu_parity_adamw_step() {
-    use coeus_ops::BackendOps;
-
     let s = seq();
     let w = wgpu();
     let n = 16;

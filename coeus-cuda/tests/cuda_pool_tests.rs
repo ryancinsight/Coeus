@@ -20,7 +20,7 @@ fn test_cuda_max_pool2d() {
     let mut output_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2]);
 
     let (out_seq_storage, out_seq_layout) = output_seq.storage_mut_and_layout();
-    coeus_ops::BackendOps::max_pool2d(
+    coeus_ops::PoolOps::max_pool2d(
         &seq,
         input_seq.storage(),
         input_seq.layout(),
@@ -33,7 +33,7 @@ fn test_cuda_max_pool2d() {
     );
 
     let (out_cuda_storage, out_cuda_layout) = output_cuda.storage_mut_and_layout();
-    coeus_ops::BackendOps::max_pool2d(
+    coeus_ops::PoolOps::max_pool2d(
         &cuda_b,
         input_cuda.storage(),
         input_cuda.layout(),
@@ -61,7 +61,7 @@ fn test_cuda_max_pool2d() {
     let mut grad_in_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 4, 4]);
 
     let (gi_seq_storage, gi_seq_layout) = grad_in_seq.storage_mut_and_layout();
-    coeus_ops::BackendOps::max_pool2d_backward(
+    coeus_ops::PoolOps::max_pool2d_backward(
         &seq,
         grad_out_seq.storage(),
         grad_out_seq.layout(),
@@ -76,7 +76,7 @@ fn test_cuda_max_pool2d() {
     );
 
     let (gi_cuda_storage, gi_cuda_layout) = grad_in_cuda.storage_mut_and_layout();
-    coeus_ops::BackendOps::max_pool2d_backward(
+    coeus_ops::PoolOps::max_pool2d_backward(
         &cuda_b,
         grad_out_cuda.storage(),
         grad_out_cuda.layout(),
@@ -113,7 +113,7 @@ fn test_cuda_avg_pool2d() {
     let mut output_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2]);
 
     let (out_seq_storage, out_seq_layout) = output_seq.storage_mut_and_layout();
-    coeus_ops::BackendOps::avg_pool2d(
+    coeus_ops::PoolOps::avg_pool2d(
         &seq,
         input_seq.storage(),
         input_seq.layout(),
@@ -126,7 +126,7 @@ fn test_cuda_avg_pool2d() {
     );
 
     let (out_cuda_storage, out_cuda_layout) = output_cuda.storage_mut_and_layout();
-    coeus_ops::BackendOps::avg_pool2d(
+    coeus_ops::PoolOps::avg_pool2d(
         &cuda_b,
         input_cuda.storage(),
         input_cuda.layout(),
@@ -154,7 +154,7 @@ fn test_cuda_avg_pool2d() {
     let mut grad_in_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 4, 4]);
 
     let (gi_seq_storage, gi_seq_layout) = grad_in_seq.storage_mut_and_layout();
-    coeus_ops::BackendOps::avg_pool2d_backward(
+    coeus_ops::PoolOps::avg_pool2d_backward(
         &seq,
         grad_out_seq.storage(),
         grad_out_seq.layout(),
@@ -167,7 +167,7 @@ fn test_cuda_avg_pool2d() {
     );
 
     let (gi_cuda_storage, gi_cuda_layout) = grad_in_cuda.storage_mut_and_layout();
-    coeus_ops::BackendOps::avg_pool2d_backward(
+    coeus_ops::PoolOps::avg_pool2d_backward(
         &cuda_b,
         grad_out_cuda.storage(),
         grad_out_cuda.layout(),

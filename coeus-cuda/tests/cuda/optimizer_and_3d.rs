@@ -1,6 +1,6 @@
 use coeus_core::SequentialBackend;
 use coeus_cuda::CudaBackend;
-use coeus_ops::BackendOps;
+use coeus_ops::{ConvOps, OptimizerOps, PoolOps};
 use coeus_tensor::Tensor;
 
 #[test]
@@ -35,8 +35,6 @@ fn test_cuda_adamw_step() {
     let g_cuda_layout = grad_cuda.layout().clone();
     let m_cuda_layout = m_cuda.layout().clone();
     let v_cuda_layout = v_cuda.layout().clone();
-
-    use coeus_ops::BackendOps;
     seq.adamw_step(
         param_seq.storage_mut(),
         &p_seq_layout,
@@ -149,8 +147,6 @@ fn test_cuda_conv3d() {
     let input_cuda_layout = input_cuda.layout().clone();
     let weight_cuda_layout = weight_cuda.layout().clone();
     let out_cuda_layout = out_cuda.layout().clone();
-
-    use coeus_ops::BackendOps;
     seq.conv3d(
         input_seq.storage(),
         &input_seq_layout,

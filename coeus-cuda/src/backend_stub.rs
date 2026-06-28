@@ -128,7 +128,7 @@ impl Backend for CudaBackend {
     }
 }
 
-impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
+impl<T: CudaScalar> coeus_ops::ElementwiseOps<T> for CudaBackend {
     #[inline]
     fn elementwise_binary(
         &self,
@@ -154,7 +154,9 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
     ) {
         self.fallback_unary(op, a, a_layout, c, c_layout);
     }
+}
 
+impl<T: CudaScalar> coeus_ops::MatmulOps<T> for CudaBackend {
     #[inline]
     fn matmul(
         &self,
@@ -167,7 +169,9 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
     ) {
         self.fallback_matmul(a, a_layout, b, b_layout, c, c_layout);
     }
+}
 
+impl<T: CudaScalar> coeus_ops::ReductionOps<T> for CudaBackend {
     #[inline]
     fn reduce(
         &self,
@@ -180,7 +184,10 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
     ) {
         self.fallback_reduce(op, a, a_layout, axis, c, c_layout);
     }
+}
 
+#[allow(clippy::too_many_arguments)]
+impl<T: CudaScalar> coeus_ops::ConvOps<T> for CudaBackend {
     #[inline]
     fn conv1d(
         &self,
@@ -372,7 +379,10 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
             dilation,
         );
     }
+}
 
+#[allow(clippy::too_many_arguments)]
+impl<T: CudaScalar> coeus_ops::PoolOps<T> for CudaBackend {
     #[inline]
     fn max_pool2d(
         &self,
@@ -572,7 +582,10 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
             grad_input_layout,
         );
     }
+}
 
+#[allow(clippy::too_many_arguments)]
+impl<T: CudaScalar> coeus_ops::AttentionOps<T> for CudaBackend {
     #[inline]
     fn sdp_attention(
         &self,
@@ -648,7 +661,10 @@ impl<T: CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
             grad_v,
         );
     }
+}
 
+#[allow(clippy::too_many_arguments)]
+impl<T: CudaScalar> coeus_ops::OptimizerOps<T> for CudaBackend {
     #[inline]
     fn sgd_step(
         &self,

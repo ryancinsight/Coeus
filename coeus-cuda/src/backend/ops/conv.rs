@@ -453,7 +453,7 @@ impl CudaBackend {
         let seq_bias = host_bias.map(|hb| coeus_core::CpuStorage::from_slice(&hb));
         let mut seq_out = coeus_core::CpuStorage::from_slice(&vec![T::zero(); output.len()]);
 
-        coeus_ops::BackendOps::conv_transpose1d(
+        coeus_ops::ConvOps::conv_transpose1d(
             &seq,
             &seq_in,
             input_layout,
@@ -541,7 +541,7 @@ impl CudaBackend {
         let seq_bias = host_bias.map(|hb| coeus_core::CpuStorage::from_slice(&hb));
         let mut seq_out = coeus_core::CpuStorage::from_slice(&vec![T::zero(); output.len()]);
 
-        coeus_ops::BackendOps::conv_transpose2d(
+        coeus_ops::ConvOps::conv_transpose2d(
             &seq,
             &seq_in,
             input_layout,

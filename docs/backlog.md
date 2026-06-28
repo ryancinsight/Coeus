@@ -1,5 +1,26 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-174: LayerNorm/RMSNorm JAX parity [COMPLETE]
+
+- [x] [patch] Added JAX differential parity for `pycoeus.LayerNorm`,
+  asserting forward output plus input, gamma, and beta gradients at f64.
+- [x] [patch] Added JAX differential parity for `pycoeus.RMSNorm`, asserting
+  forward output plus input and gamma gradients against the formulaic RMSNorm
+  reference at f64.
+- [x] Evidence tier: differential/empirical;
+  `D:\miniforge3\python.exe -m pytest coeus-python/tests/test_jax_parity.py -q`
+  passes 13/13.
+
+## Sprint MS-173: Softmax/log-softmax/cross-entropy JAX parity [COMPLETE]
+
+- [x] [patch] Added JAX differential parity for `pycoeus.softmax` and
+  `pycoeus.log_softmax`, covering forward values and input gradients at f64.
+- [x] [patch] Added JAX differential parity for `pycoeus.cross_entropy_loss`
+  against a fused log-softmax + negative-log-likelihood mean reference.
+- [x] Evidence tier: differential/empirical;
+  `D:\miniforge3\python.exe -m pytest coeus-python/tests/test_jax_parity.py -q`
+  passes 11/11.
+
 ## Sprint MS-172: Deterministic local/TCP numel contract tests [COMPLETE]
 
 - [x] [patch] Replaced the deadlock-prone multi-thread
@@ -10,11 +31,12 @@
   `test_local_gather_mismatched_output_numel_panics`.
 - [x] [patch] Added non-zero TCP rooted gather output-shape panic test:
   `test_tcp_gather_mismatched_output_numel_panics`.
-- [x] Evidence: `cargo test -p coeus-dist --test dist_tests test_local_scatter_mismatched_input_numel_panics -- --nocapture`;
-  `cargo test -p coeus-dist --test dist_tests test_local_all_gather_mismatched_output_numel_panics -- --nocapture`;
-  `cargo test -p coeus-dist --test dist_tests test_local_gather_mismatched_output_numel_panics -- --nocapture`;
-  `cargo test -p coeus-dist --test dist_tests test_tcp_gather_mismatched_output_numel_panics -- --nocapture`;
-  `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-dist
+  test_local_scatter_mismatched_input_numel_panics
+  test_local_all_gather_mismatched_output_numel_panics
+  test_local_gather_mismatched_output_numel_panics
+  test_tcp_gather_mismatched_output_numel_panics` (4/4);
+  `rustup run nightly cargo clippy -p coeus-dist --all-targets -- -D warnings`.
 
 ## Sprint MS-170: TCP all_reduce mismatch contract coverage [COMPLETE]
 

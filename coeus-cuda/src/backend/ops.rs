@@ -8,7 +8,7 @@ pub mod math;
 pub mod optim;
 pub mod pool;
 
-impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::BackendOps<T> for CudaBackend {
+impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::ElementwiseOps<T> for CudaBackend {
     #[inline]
     fn elementwise_binary(
         &self,
@@ -34,7 +34,9 @@ impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::BackendOps<T> for C
     ) {
         self.cuda_elementwise_unary(op, a, a_layout, c, c_layout);
     }
+}
 
+impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::MatmulOps<T> for CudaBackend {
     #[inline]
     fn matmul(
         &self,
@@ -47,7 +49,9 @@ impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::BackendOps<T> for C
     ) {
         self.cuda_matmul(a, a_layout, b, b_layout, c, c_layout);
     }
+}
 
+impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::ReductionOps<T> for CudaBackend {
     #[inline]
     fn reduce(
         &self,
@@ -60,7 +64,10 @@ impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::BackendOps<T> for C
     ) {
         self.cuda_reduce(op, a, a_layout, axis, c, c_layout);
     }
+}
 
+#[allow(clippy::too_many_arguments)]
+impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::ConvOps<T> for CudaBackend {
     #[inline]
     fn conv1d(
         &self,
@@ -189,222 +196,6 @@ impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::BackendOps<T> for C
         );
     }
 
-    #[inline]
-    fn max_pool2d(
-        &self,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        kernel_size: usize,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-        output: &mut Self::DeviceBuffer<T>,
-        output_layout: &Layout,
-    ) {
-        self.cuda_max_pool2d(
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        );
-    }
-
-    #[inline]
-    fn max_pool2d_backward(
-        &self,
-        grad_out: &Self::DeviceBuffer<T>,
-        grad_out_layout: &Layout,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        kernel_size: usize,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-        grad_input: &mut Self::DeviceBuffer<T>,
-        grad_input_layout: &Layout,
-    ) {
-        self.cuda_max_pool2d_backward(
-            grad_out,
-            grad_out_layout,
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            grad_input,
-            grad_input_layout,
-        );
-    }
-
-    #[inline]
-    fn avg_pool2d(
-        &self,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        kernel_size: usize,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-        output: &mut Self::DeviceBuffer<T>,
-        output_layout: &Layout,
-    ) {
-        self.cuda_avg_pool2d(
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        );
-    }
-
-    #[inline]
-    fn avg_pool2d_backward(
-        &self,
-        grad_out: &Self::DeviceBuffer<T>,
-        grad_out_layout: &Layout,
-        kernel_size: usize,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-        grad_input: &mut Self::DeviceBuffer<T>,
-        grad_input_layout: &Layout,
-    ) {
-        self.cuda_avg_pool2d_backward(
-            grad_out,
-            grad_out_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            grad_input,
-            grad_input_layout,
-        );
-    }
-
-    #[inline]
-    fn sgd_step(
-        &self,
-        param: &mut Self::DeviceBuffer<T>,
-        param_layout: &Layout,
-        grad: &Self::DeviceBuffer<T>,
-        grad_layout: &Layout,
-        velocity: &mut Self::DeviceBuffer<T>,
-        velocity_layout: &Layout,
-        lr: T,
-        momentum: T,
-    ) where
-        T: coeus_core::Float,
-    {
-        self.cuda_sgd_step(
-            param,
-            param_layout,
-            grad,
-            grad_layout,
-            velocity,
-            velocity_layout,
-            lr,
-            momentum,
-        );
-    }
-
-    #[inline]
-    fn adam_step(
-        &self,
-        param: &mut Self::DeviceBuffer<T>,
-        param_layout: &Layout,
-        grad: &Self::DeviceBuffer<T>,
-        grad_layout: &Layout,
-        m: &mut Self::DeviceBuffer<T>,
-        m_layout: &Layout,
-        v: &mut Self::DeviceBuffer<T>,
-        v_layout: &Layout,
-        lr: T,
-        beta1: T,
-        beta2: T,
-        eps: T,
-        t: usize,
-    ) where
-        T: coeus_core::Float,
-    {
-        self.cuda_adam_step(
-            param,
-            param_layout,
-            grad,
-            grad_layout,
-            m,
-            m_layout,
-            v,
-            v_layout,
-            lr,
-            beta1,
-            beta2,
-            eps,
-            t,
-        );
-    }
-
-    #[inline]
-    fn rmsprop_step(
-        &self,
-        param: &mut Self::DeviceBuffer<T>,
-        param_layout: &Layout,
-        grad: &Self::DeviceBuffer<T>,
-        grad_layout: &Layout,
-        v: &mut Self::DeviceBuffer<T>,
-        v_layout: &Layout,
-        lr: T,
-        alpha: T,
-        eps: T,
-    ) where
-        T: coeus_core::Float,
-    {
-        self.cuda_rmsprop_step(
-            param,
-            param_layout,
-            grad,
-            grad_layout,
-            v,
-            v_layout,
-            lr,
-            alpha,
-            eps,
-        );
-    }
-
-    #[inline]
-    fn adagrad_step(
-        &self,
-        param: &mut Self::DeviceBuffer<T>,
-        param_layout: &Layout,
-        grad: &Self::DeviceBuffer<T>,
-        grad_layout: &Layout,
-        history: &mut Self::DeviceBuffer<T>,
-        history_layout: &Layout,
-        lr: T,
-        eps: T,
-    ) where
-        T: coeus_core::Float,
-    {
-        self.cuda_adagrad_step(
-            param,
-            param_layout,
-            grad,
-            grad_layout,
-            history,
-            history_layout,
-            lr,
-            eps,
-        );
-    }
-
     fn conv3d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -528,6 +319,109 @@ impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::BackendOps<T> for C
             output_layout,
         );
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::PoolOps<T> for CudaBackend {
+    #[inline]
+    fn max_pool2d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) {
+        self.cuda_max_pool2d(
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
+    }
+
+    #[inline]
+    fn max_pool2d_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<T>,
+        grad_out_layout: &Layout,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        grad_input: &mut Self::DeviceBuffer<T>,
+        grad_input_layout: &Layout,
+    ) {
+        self.cuda_max_pool2d_backward(
+            grad_out,
+            grad_out_layout,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        );
+    }
+
+    #[inline]
+    fn avg_pool2d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) {
+        self.cuda_avg_pool2d(
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        );
+    }
+
+    #[inline]
+    fn avg_pool2d_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<T>,
+        grad_out_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        grad_input: &mut Self::DeviceBuffer<T>,
+        grad_input_layout: &Layout,
+    ) {
+        self.cuda_avg_pool2d_backward(
+            grad_out,
+            grad_out_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        );
+    }
 
     fn max_pool3d(
         &self,
@@ -624,7 +518,10 @@ impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::BackendOps<T> for C
             grad_input_layout,
         );
     }
+}
 
+#[allow(clippy::too_many_arguments)]
+impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::AttentionOps<T> for CudaBackend {
     fn sdp_attention(
         &self,
         query: &Self::DeviceBuffer<T>,
@@ -696,6 +593,125 @@ impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::BackendOps<T> for C
             grad_q,
             grad_k,
             grad_v,
+        );
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::OptimizerOps<T> for CudaBackend {
+    #[inline]
+    fn sgd_step(
+        &self,
+        param: &mut Self::DeviceBuffer<T>,
+        param_layout: &Layout,
+        grad: &Self::DeviceBuffer<T>,
+        grad_layout: &Layout,
+        velocity: &mut Self::DeviceBuffer<T>,
+        velocity_layout: &Layout,
+        lr: T,
+        momentum: T,
+    ) where
+        T: coeus_core::Float,
+    {
+        self.cuda_sgd_step(
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            velocity,
+            velocity_layout,
+            lr,
+            momentum,
+        );
+    }
+
+    #[inline]
+    fn adam_step(
+        &self,
+        param: &mut Self::DeviceBuffer<T>,
+        param_layout: &Layout,
+        grad: &Self::DeviceBuffer<T>,
+        grad_layout: &Layout,
+        m: &mut Self::DeviceBuffer<T>,
+        m_layout: &Layout,
+        v: &mut Self::DeviceBuffer<T>,
+        v_layout: &Layout,
+        lr: T,
+        beta1: T,
+        beta2: T,
+        eps: T,
+        t: usize,
+    ) where
+        T: coeus_core::Float,
+    {
+        self.cuda_adam_step(
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            m,
+            m_layout,
+            v,
+            v_layout,
+            lr,
+            beta1,
+            beta2,
+            eps,
+            t,
+        );
+    }
+
+    #[inline]
+    fn rmsprop_step(
+        &self,
+        param: &mut Self::DeviceBuffer<T>,
+        param_layout: &Layout,
+        grad: &Self::DeviceBuffer<T>,
+        grad_layout: &Layout,
+        v: &mut Self::DeviceBuffer<T>,
+        v_layout: &Layout,
+        lr: T,
+        alpha: T,
+        eps: T,
+    ) where
+        T: coeus_core::Float,
+    {
+        self.cuda_rmsprop_step(
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            v,
+            v_layout,
+            lr,
+            alpha,
+            eps,
+        );
+    }
+
+    #[inline]
+    fn adagrad_step(
+        &self,
+        param: &mut Self::DeviceBuffer<T>,
+        param_layout: &Layout,
+        grad: &Self::DeviceBuffer<T>,
+        grad_layout: &Layout,
+        history: &mut Self::DeviceBuffer<T>,
+        history_layout: &Layout,
+        lr: T,
+        eps: T,
+    ) where
+        T: coeus_core::Float,
+    {
+        self.cuda_adagrad_step(
+            param,
+            param_layout,
+            grad,
+            grad_layout,
+            history,
+            history_layout,
+            lr,
+            eps,
         );
     }
 

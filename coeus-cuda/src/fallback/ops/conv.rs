@@ -38,7 +38,7 @@ impl CudaBackend {
         let seq_bias = host_bias.map(|hb| coeus_core::CpuStorage::from_slice(&hb));
         let mut seq_out = coeus_core::CpuStorage::from_slice(&vec![T::zero(); output.len()]);
 
-        coeus_ops::BackendOps::conv1d(
+        coeus_ops::ConvOps::conv1d(
             &seq,
             &seq_in,
             input_layout,
@@ -86,7 +86,7 @@ impl CudaBackend {
         let seq_bias = host_bias.map(|hb| coeus_core::CpuStorage::from_slice(&hb));
         let mut seq_out = coeus_core::CpuStorage::from_slice(&vec![T::zero(); output.len()]);
 
-        coeus_ops::BackendOps::conv2d(
+        coeus_ops::ConvOps::conv2d(
             &seq,
             &seq_in,
             input_layout,
@@ -143,7 +143,7 @@ impl CudaBackend {
             .as_ref()
             .map(|gb| coeus_core::CpuStorage::from_slice(&vec![T::zero(); gb.len()]));
 
-        coeus_ops::BackendOps::conv1d_backward(
+        coeus_ops::ConvOps::conv1d_backward(
             &seq,
             &seq_go,
             grad_out_layout,
@@ -212,7 +212,7 @@ impl CudaBackend {
             .as_ref()
             .map(|gb| coeus_core::CpuStorage::from_slice(&vec![T::zero(); gb.len()]));
 
-        coeus_ops::BackendOps::conv2d_backward(
+        coeus_ops::ConvOps::conv2d_backward(
             &seq,
             &seq_go,
             grad_out_layout,
@@ -272,7 +272,7 @@ impl CudaBackend {
         let seq_bias = host_bias.map(|hb| coeus_core::CpuStorage::from_slice(&hb));
         let mut seq_out = coeus_core::CpuStorage::from_slice(&vec![T::zero(); output.len()]);
 
-        coeus_ops::BackendOps::conv3d(
+        coeus_ops::ConvOps::conv3d(
             &seq,
             &seq_in,
             input_layout,
@@ -329,7 +329,7 @@ impl CudaBackend {
             .as_ref()
             .map(|gb| coeus_core::CpuStorage::from_slice(&vec![T::zero(); gb.len()]));
 
-        coeus_ops::BackendOps::conv3d_backward(
+        coeus_ops::ConvOps::conv3d_backward(
             &seq,
             &seq_go,
             grad_out_layout,

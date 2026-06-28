@@ -28,7 +28,7 @@ impl CudaBackend {
         let seq_in = coeus_core::CpuStorage::from_slice(&host_in);
         let mut seq_out = coeus_core::CpuStorage::from_slice(&host_out);
 
-        coeus_ops::BackendOps::max_pool2d(
+        coeus_ops::PoolOps::max_pool2d(
             &seq,
             &seq_in,
             input_layout,
@@ -69,7 +69,7 @@ impl CudaBackend {
         let seq_in = coeus_core::CpuStorage::from_slice(&host_in);
         let mut seq_gi = coeus_core::CpuStorage::from_slice(&host_gi);
 
-        coeus_ops::BackendOps::max_pool2d_backward(
+        coeus_ops::PoolOps::max_pool2d_backward(
             &seq,
             &seq_go,
             grad_out_layout,
@@ -107,7 +107,7 @@ impl CudaBackend {
         let seq_in = coeus_core::CpuStorage::from_slice(&host_in);
         let mut seq_out = coeus_core::CpuStorage::from_slice(&host_out);
 
-        coeus_ops::BackendOps::avg_pool2d(
+        coeus_ops::PoolOps::avg_pool2d(
             &seq,
             &seq_in,
             input_layout,
@@ -143,7 +143,7 @@ impl CudaBackend {
         let seq_go = coeus_core::CpuStorage::from_slice(&host_go);
         let mut seq_gi = coeus_core::CpuStorage::from_slice(&host_gi);
 
-        coeus_ops::BackendOps::avg_pool2d_backward(
+        coeus_ops::PoolOps::avg_pool2d_backward(
             &seq,
             &seq_go,
             grad_out_layout,
@@ -179,7 +179,7 @@ impl CudaBackend {
         let seq_in = coeus_core::CpuStorage::from_slice(&host_in);
         let mut seq_out = coeus_core::CpuStorage::from_slice(&host_out);
 
-        coeus_ops::BackendOps::max_pool3d(
+        coeus_ops::PoolOps::max_pool3d(
             &seq,
             &seq_in,
             input_layout,
@@ -220,7 +220,7 @@ impl CudaBackend {
         let seq_in = coeus_core::CpuStorage::from_slice(&host_in);
         let mut seq_gi = coeus_core::CpuStorage::from_slice(&host_gi);
 
-        coeus_ops::BackendOps::max_pool3d_backward(
+        coeus_ops::PoolOps::max_pool3d_backward(
             &seq,
             &seq_go,
             grad_out_layout,
@@ -258,7 +258,7 @@ impl CudaBackend {
         let seq_in = coeus_core::CpuStorage::from_slice(&host_in);
         let mut seq_out = coeus_core::CpuStorage::from_slice(&host_out);
 
-        coeus_ops::BackendOps::avg_pool3d(
+        coeus_ops::PoolOps::avg_pool3d(
             &seq,
             &seq_in,
             input_layout,
@@ -294,7 +294,7 @@ impl CudaBackend {
         let seq_go = coeus_core::CpuStorage::from_slice(&host_go);
         let mut seq_gi = coeus_core::CpuStorage::from_slice(&host_gi);
 
-        coeus_ops::BackendOps::avg_pool3d_backward(
+        coeus_ops::PoolOps::avg_pool3d_backward(
             &seq,
             &seq_go,
             grad_out_layout,
