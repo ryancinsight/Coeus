@@ -36,6 +36,66 @@ impl TcpCommunicator {
     fn assert_root(root: usize, size: usize) {
         assert!(root < size, "collective root out of bounds");
     }
+
+    #[inline]
+    fn numel_bytes(numel: usize) -> [u8; 8] {
+        (numel as u64).to_le_bytes()
+    }
+
+    #[inline]
+    fn recv_numel_from(&self, peer: usize) -> usize {
+        let mut peer_numel_bytes = [0u8; 8];
+        self.mesh.recv(peer, &mut peer_numel_bytes);
+        u64::from_le_bytes(peer_numel_bytes) as usize
+    }
+
+    #[inline]
+    fn rooted_numel_handshake(
+        &self,
+        collective: &'static str,
+        rank: usize,
+        size: usize,
+        root: usize,
+        numel: usize,
+    ) {
+        let local_numel_bytes = Self::numel_bytes(numel);
+        if rank == root {
+            for other in 0..size {
+                if other == root {
+                    continue;
+                }
+                let peer_numel = self.recv_numel_from(other);
+                Self::assert_numel(collective, other, peer_numel, numel);
+            }
+        } else {
+            self.mesh.send(root, &local_numel_bytes);
+        }
+    }
+
+    #[inline]
+    fn pairwise_numel_handshake(
+        &self,
+        collective: &'static str,
+        rank: usize,
+        size: usize,
+        numel: usize,
+    ) {
+        let local_numel_bytes = Self::numel_bytes(numel);
+        for other in 0..size {
+            if other == rank {
+                continue;
+            }
+            if rank < other {
+                self.mesh.send(other, &local_numel_bytes);
+                let peer_numel = self.recv_numel_from(other);
+                Self::assert_numel(collective, other, peer_numel, numel);
+            } else {
+                let peer_numel = self.recv_numel_from(other);
+                self.mesh.send(other, &local_numel_bytes);
+                Self::assert_numel(collective, other, peer_numel, numel);
+            }
+        }
+    }
 }
 
 impl Communicator for TcpCommunicator {
@@ -95,17 +155,8 @@ impl Communicator for TcpCommunicator {
 
         // Exchange expected payload lengths first so rank-shape mismatches fail fast
         // instead of desynchronizing the byte stream.
-        let local_numel_bytes = (numel as u64).to_le_bytes();
+        self.rooted_numel_handshake("broadcast", rank, size, root, numel);
         if rank == root {
-            for other in 0..size {
-                if other == root {
-                    continue;
-                }
-                let mut peer_numel_bytes = [0u8; 8];
-                self.mesh.recv(other, &mut peer_numel_bytes);
-                let peer_numel = u64::from_le_bytes(peer_numel_bytes) as usize;
-                Self::assert_numel("broadcast", other, peer_numel, numel);
-            }
             if numel == 0 {
                 return;
             }
@@ -117,7 +168,6 @@ impl Communicator for TcpCommunicator {
                 }
             });
         } else {
-            self.mesh.send(root, &local_numel_bytes);
             if numel == 0 {
                 return;
             }
@@ -137,28 +187,10 @@ impl Communicator for TcpCommunicator {
         let size = self.mesh.size();
         assert_eq!(output.len(), size, "all_gather output length mismatch");
         let numel = tensor.numel();
-        let local_numel_bytes = (numel as u64).to_le_bytes();
         for (idx, out) in output.iter().enumerate().take(size) {
             Self::assert_numel("all_gather output", idx, out.numel(), numel);
         }
-        for other in 0..size {
-            if other == rank {
-                continue;
-            }
-            if rank < other {
-                self.mesh.send(other, &local_numel_bytes);
-                let mut peer_numel_bytes = [0u8; 8];
-                self.mesh.recv(other, &mut peer_numel_bytes);
-                let peer_numel = u64::from_le_bytes(peer_numel_bytes) as usize;
-                Self::assert_numel("all_gather input", other, peer_numel, numel);
-            } else {
-                let mut peer_numel_bytes = [0u8; 8];
-                self.mesh.recv(other, &mut peer_numel_bytes);
-                self.mesh.send(other, &local_numel_bytes);
-                let peer_numel = u64::from_le_bytes(peer_numel_bytes) as usize;
-                Self::assert_numel("all_gather input", other, peer_numel, numel);
-            }
-        }
+        self.pairwise_numel_handshake("all_gather input", rank, size, numel);
         if numel == 0 {
             return;
         }
@@ -201,21 +233,7 @@ impl Communicator for TcpCommunicator {
             return;
         }
         let numel = tensor.numel();
-        let local_numel_bytes = (numel as u64).to_le_bytes();
-
-        if rank == root {
-            for other in 0..size {
-                if other == root {
-                    continue;
-                }
-                let mut peer_numel_bytes = [0u8; 8];
-                self.mesh.recv(other, &mut peer_numel_bytes);
-                let peer_numel = u64::from_le_bytes(peer_numel_bytes) as usize;
-                Self::assert_numel("reduce input", other, peer_numel, numel);
-            }
-        } else {
-            self.mesh.send(root, &local_numel_bytes);
-        }
+        self.rooted_numel_handshake("reduce input", rank, size, root, numel);
 
         if numel == 0 {
             return;
@@ -254,24 +272,13 @@ impl Communicator for TcpCommunicator {
         let size = self.mesh.size();
         Self::assert_root(root, size);
         let numel = tensor.numel();
-        let local_numel_bytes = (numel as u64).to_le_bytes();
         if rank == root {
             assert_eq!(output.len(), size, "gather output length mismatch on root");
             for (idx, out) in output.iter().enumerate().take(size) {
                 Self::assert_numel("gather output", idx, out.numel(), numel);
             }
-            for other in 0..size {
-                if other == root {
-                    continue;
-                }
-                let mut peer_numel_bytes = [0u8; 8];
-                self.mesh.recv(other, &mut peer_numel_bytes);
-                let peer_numel = u64::from_le_bytes(peer_numel_bytes) as usize;
-                Self::assert_numel("gather input", other, peer_numel, numel);
-            }
-        } else {
-            self.mesh.send(root, &local_numel_bytes);
         }
+        self.rooted_numel_handshake("gather input", rank, size, root, numel);
         if numel == 0 {
             return;
         }
@@ -305,24 +312,13 @@ impl Communicator for TcpCommunicator {
         let size = self.mesh.size();
         Self::assert_root(root, size);
         let numel = tensor.numel();
-        let local_numel_bytes = (numel as u64).to_le_bytes();
         if rank == root {
             assert_eq!(input.len(), size, "scatter input length mismatch on root");
             for (idx, in_tensor) in input.iter().enumerate().take(size) {
                 Self::assert_numel("scatter input", idx, in_tensor.numel(), numel);
             }
-            for other in 0..size {
-                if other == root {
-                    continue;
-                }
-                let mut peer_numel_bytes = [0u8; 8];
-                self.mesh.recv(other, &mut peer_numel_bytes);
-                let peer_numel = u64::from_le_bytes(peer_numel_bytes) as usize;
-                Self::assert_numel("scatter target", other, peer_numel, numel);
-            }
-        } else {
-            self.mesh.send(root, &local_numel_bytes);
         }
+        self.rooted_numel_handshake("scatter target", rank, size, root, numel);
         if numel == 0 {
             return;
         }

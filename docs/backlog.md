@@ -1,5 +1,17 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-169: TCP handshake SSOT refactor [COMPLETE]
+
+- [x] [patch] Extracted shared `TcpCommunicator` helpers for numel metadata
+  exchange (`numel_bytes`, `recv_numel_from`, `rooted_numel_handshake`,
+  `pairwise_numel_handshake`) to remove duplicated handshake logic across
+  `broadcast`, `reduce`, `gather`, `scatter`, and `all_gather`.
+- [x] [patch] Preserved fail-fast contract semantics/messages while reducing
+  repeated per-collective control-flow branches (SRP/SSOT/DRY cleanup).
+- [x] Validation attempt was blocked by existing unrelated workspace changes in
+  `coeus-ops` producing conflicting `BackendOps` impl errors during
+  `cargo test -p coeus-dist --test dist_tests test_tcp_all_gather -- --nocapture`.
+
 ## Sprint MS-168: TCP all_gather peer numel handshake [COMPLETE]
 
 - [x] [patch] Added per-peer pre-payload numel handshakes in TCP `all_gather`
