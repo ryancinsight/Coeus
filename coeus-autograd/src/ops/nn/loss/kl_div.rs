@@ -17,6 +17,8 @@ pub struct KlDivLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub inputs: Vec<Var<T, B>>,
     /// Target probabilities copied to host for backward.
     pub target_host: Vec<T>,
+    /// Original input shape for backward gradient materialization.
+    pub input_shape: Vec<usize>,
     /// Number of elements in the loss reduction.
     pub n: usize,
 }
@@ -53,7 +55,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for KlD
             for i in 0..self.n {
                 d_input[i] = (T::zero() - self.target_host[i]) * scale;
             }
-            let grad_tensor = Tensor::from_slice_on([self.n], &d_input, &backend);
+            let grad_tensor = Tensor::from_slice_on(self.input_shape.clone(), &d_input, &backend);
             let gl = g.write();
             coeus_ops::add_assign(gl, &grad_tensor, &backend);
         }
@@ -71,10 +73,16 @@ pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Var<T, B> {
     let backend = B::default();
     let n = input.tensor.numel();
+    let input_shape = input.tensor.shape().to_vec();
     assert_eq!(
         target.tensor.numel(),
         n,
         "input and target must have the same number of elements"
+    );
+    assert_eq!(
+        target.tensor.shape(),
+        input.tensor.shape(),
+        "input and target must have the same shape"
     );
 
     let i_cont;
@@ -137,6 +145,7 @@ pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             output_grad,
             inputs: vec![input.clone()],
             target_host: target_owned,
+            input_shape,
             n,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
