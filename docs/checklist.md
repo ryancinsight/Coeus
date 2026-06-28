@@ -3,7 +3,7 @@
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
 ### Current Sprint: MS-178 - Conv gradient value assertions [COMPLETE]
-**Objective**: Remove existence-only Conv1d/Conv2d module gradient checks and
+**Objective**: Remove existence-only Conv1d/Conv2d/Conv3d module gradient checks and
 replace them with analytical value-semantic assertions for small deterministic
 kernels.
 **Target version**: 0.5.4 (test-only [patch]).
@@ -14,6 +14,10 @@ kernels.
 - [x] [patch] Replaced `test_conv2d_backward_gradients_exist` with
   `test_conv2d_backward_gradients_match_reference`, asserting exact input,
   weight, and bias gradients for a `[1,1,3,3]` input and all-ones `2x2` kernel.
+- [x] [patch] Replaced `test_conv3d_backward_gradients_exist` with
+  `test_conv3d_backward_gradients_match_reference`, asserting exact input,
+  weight, and bias gradients for a `[1,1,2,2,2]` input and all-ones `2x2x2`
+  kernel.
 - [x] Evidence: `rustup run nightly cargo fmt -p coeus-nn --check`; `rustup
   run nightly cargo check -p coeus-nn --all-targets`; `rustup run nightly cargo
   clippy -p coeus-nn --all-targets -- -D warnings`; `rustup run nightly cargo

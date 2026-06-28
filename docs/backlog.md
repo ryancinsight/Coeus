@@ -2,7 +2,7 @@
 
 ## Sprint MS-178: Conv gradient value assertions [COMPLETE]
 
-- [x] [patch] Replaced Conv1d/Conv2d module backward existence-only assertions
+- [x] [patch] Replaced Conv1d/Conv2d/Conv3d module backward existence-only assertions
   with exact analytical checks for input, weight, and bias gradients.
 - [x] Evidence tier: analytical/value-semantic Rust tests.
 

@@ -4,8 +4,9 @@
 
 ### ~~G-033: Conv module tests only checked gradient existence~~ **CLOSED**
 **Location**: `coeus-nn/tests/nn/conv1d.rs`,
-`coeus-nn/tests/nn/conv2d.rs`
-**Closed by**: MS-178 — Replaced Conv1d/Conv2d module backward smoke checks with
+`coeus-nn/tests/nn/conv2d.rs`,
+`coeus-nn/tests/nn/conv3d_pool3d.rs`
+**Closed by**: MS-178 — Replaced Conv1d/Conv2d/Conv3d module backward smoke checks with
 exact analytical assertions for input, weight, and bias gradients under
 deterministic all-ones kernels. Evidence tier: analytical/value-semantic Rust
 tests.
