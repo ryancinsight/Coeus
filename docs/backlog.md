@@ -1,5 +1,12 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-179: Linear/loss gradient value assertions [COMPLETE]
+
+- [x] [patch] Replaced Linear, MSE, and CrossEntropy focused test
+  gradient-existence assertions with analytical value checks for input,
+  parameter, and loss gradients.
+- [x] Evidence tier: analytical/value-semantic Rust tests.
+
 ## Sprint MS-178: Conv gradient value assertions [COMPLETE]
 
 - [x] [patch] Replaced Conv1d/Conv2d/Conv3d module backward existence-only assertions

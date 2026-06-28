@@ -2,7 +2,26 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-178 - Conv gradient value assertions [COMPLETE]
+### Current Sprint: MS-179 - Linear/loss gradient value assertions [COMPLETE]
+**Objective**: Remove existence-only Linear/MSE/CrossEntropy focused gradient
+checks and replace them with analytical value-semantic assertions.
+**Target version**: 0.5.4 (test-only [patch]).
+
+- [x] [patch] Replaced Linear module gradient-existence checks with exact
+  analytical assertions for input, weight, and bias gradients under a
+  deterministic all-ones layer and unit output seed.
+- [x] [patch] Replaced MSE loss gradient-existence checks with the analytical
+  mean-reduction derivative `2 * (prediction - target) / n`.
+- [x] [patch] Replaced CrossEntropy loss gradient-existence checks with a
+  stable softmax-minus-onehot mean-reduction oracle for the logits gradient.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-nn --check`; `rustup
+  run nightly cargo check -p coeus-nn --all-targets`; `rustup run nightly cargo
+  clippy -p coeus-nn --all-targets -- -D warnings`; `rustup run nightly cargo
+  nextest run -p coeus-nn --test nn_tests`; `rustup run nightly cargo nextest
+  run -p coeus-nn`; `rustup run nightly cargo test --doc -p coeus-nn`; `rustup run
+  nightly cargo doc -p coeus-nn --no-deps`; `git diff --check`.
+
+### Previous Sprint: MS-178 - Conv gradient value assertions [COMPLETE]
 **Objective**: Remove existence-only Conv1d/Conv2d/Conv3d module gradient checks and
 replace them with analytical value-semantic assertions for small deterministic
 kernels.

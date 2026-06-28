@@ -2,6 +2,15 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-034: Linear/loss tests only checked gradient existence~~ **CLOSED**
+**Location**: `coeus-nn/tests/nn/linear_activation_loss.rs`
+**Closed by**: MS-179 — Replaced Linear, MSE, and CrossEntropy
+gradient-existence checks with value-semantic assertions. Linear now pins
+input, weight, and bias gradients for a deterministic all-ones layer; MSE pins
+the mean-reduction derivative; CrossEntropy pins the stable
+softmax-minus-onehot mean-reduction gradient. Evidence tier:
+analytical/value-semantic Rust tests.
+
 ### ~~G-033: Conv module tests only checked gradient existence~~ **CLOSED**
 **Location**: `coeus-nn/tests/nn/conv1d.rs`,
 `coeus-nn/tests/nn/conv2d.rs`,

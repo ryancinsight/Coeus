@@ -2,6 +2,60 @@ use coeus_autograd::Var;
 use coeus_nn::{cross_entropy_loss, gelu, init, mse_loss, relu, sigmoid, tanh, Linear, Module};
 use coeus_tensor::Tensor;
 
+fn assert_slice_close(label: &str, actual: &[f64], expected: &[f64], tolerance: f64) {
+    assert_eq!(
+        actual.len(),
+        expected.len(),
+        "{label}: length mismatch: actual {}, expected {}",
+        actual.len(),
+        expected.len()
+    );
+
+    for (index, (&actual, &expected)) in actual.iter().zip(expected).enumerate() {
+        let diff = (actual - expected).abs();
+        assert!(
+            diff <= tolerance,
+            "{label}[{index}]: actual {actual}, expected {expected}, diff {diff}, tolerance {tolerance}"
+        );
+    }
+}
+
+fn expected_cross_entropy_gradients(
+    logits: &[f64],
+    rows: usize,
+    cols: usize,
+    targets: &[usize],
+) -> Vec<f64> {
+    assert_eq!(logits.len(), rows * cols);
+    assert_eq!(targets.len(), rows);
+
+    let batch_scale = 1.0 / rows as f64;
+    let mut expected = Vec::with_capacity(logits.len());
+    for (row, &target) in targets.iter().enumerate() {
+        assert!(
+            target < cols,
+            "target class {target} must be less than {cols}"
+        );
+        let row_start = row * cols;
+        let row_logits = &logits[row_start..row_start + cols];
+        let max_logit = row_logits.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        let exp_sum: f64 = row_logits
+            .iter()
+            .map(|logit| (*logit - max_logit).exp())
+            .sum();
+
+        for (class, &logit) in row_logits.iter().enumerate() {
+            let mut grad = ((logit - max_logit).exp() / exp_sum) * batch_scale;
+            if class == target {
+                grad -= batch_scale;
+            }
+            expected.push(grad);
+        }
+    }
+
+    expected
+}
+
 #[test]
 fn test_linear_layer() {
     let mut layer = Linear::<f64>::new(3, 2, true);
@@ -17,10 +71,28 @@ fn test_linear_layer() {
     assert_eq!(output.tensor.as_slice(), &[6.5, 6.5]);
 
     output.backward();
-    assert!(input.grad().is_some());
-    assert!(layer.weight.grad().is_some());
+    assert_eq!(
+        input
+            .grad()
+            .expect("linear input gradient must be populated")
+            .as_slice(),
+        &[2.0, 2.0, 2.0]
+    );
+    assert_eq!(
+        layer
+            .weight
+            .grad()
+            .expect("linear weight gradient must be populated")
+            .as_slice(),
+        &[1.0, 2.0, 3.0, 1.0, 2.0, 3.0]
+    );
     if let Some(ref b) = layer.bias {
-        assert!(b.grad().is_some());
+        assert_eq!(
+            b.grad()
+                .expect("linear bias gradient must be populated")
+                .as_slice(),
+            &[1.0, 1.0]
+        );
     }
 }
 
@@ -62,18 +134,30 @@ fn test_losses() {
     let loss_mse = mse_loss(&pred, &target);
     assert_eq!(loss_mse.tensor.as_slice(), &[0.25]);
     loss_mse.backward();
-    assert!(pred.grad().is_some());
+    assert_eq!(
+        pred.grad()
+            .expect("mse prediction gradient must be populated")
+            .as_slice(),
+        &[-0.5, 0.5]
+    );
 
     // Cross entropy
-    let logits: Var<f64> = Var::new(
-        Tensor::from_slice(vec![2, 3], &[1.0f64, 2.0, 0.0, 0.0, 2.0, 1.0]),
-        true,
-    );
+    let logits_values = &[1.0f64, 2.0, 0.0, 0.0, 2.0, 1.0];
+    let logits: Var<f64> = Var::new(Tensor::from_slice(vec![2, 3], logits_values), true);
     let targets = vec![1, 2];
     let loss_ce = cross_entropy_loss(&logits, &targets);
     assert_eq!(loss_ce.tensor.shape(), &[1]);
     loss_ce.backward();
-    assert!(logits.grad().is_some());
+    let expected_ce_gradients = expected_cross_entropy_gradients(logits_values, 2, 3, &targets);
+    assert_slice_close(
+        "cross_entropy_logits_grad",
+        logits
+            .grad()
+            .expect("cross-entropy logit gradient must be populated")
+            .as_slice(),
+        &expected_ce_gradients,
+        1e-12,
+    );
 }
 
 #[test]

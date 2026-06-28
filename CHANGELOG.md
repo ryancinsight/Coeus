@@ -4,6 +4,11 @@
 
 ### Changed
 
+- **Linear/loss gradient test hardening** — `coeus-nn` Linear, MSE, and
+  CrossEntropy focused tests now assert analytical gradient values instead of
+  only checking that gradient buffers exist. CrossEntropy uses a stable
+  softmax-minus-onehot mean-reduction oracle. Evidence tier:
+  analytical/value-semantic Rust tests. ([patch])
 - **Conv1d/Conv2d/Conv3d gradient test hardening** — `coeus-nn` Conv module
   tests now assert exact analytical input, weight, and bias gradients
   instead of only checking that gradient buffers exist. Evidence tier:
