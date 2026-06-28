@@ -560,3 +560,57 @@ def test_huber_loss_matches_jax() -> None:
     p_jax = jnp.array(pred, dtype=jnp.float64)
     _allclose("huber_loss", list(loss_pyc.data), [float(_jax_huber(p_jax))])
     _allclose("huber_dx", list(p_pyc.grad), jax.grad(_jax_huber)(p_jax).tolist())
+
+
+def test_kl_divergence_matches_jax() -> None:
+    """KL divergence (input = log-probs, target = probs) on [2, 3], mean reduction.
+
+    Mirrors the PyTorch parity: ``kl_div(log_input, target, reduction='sum')/numel``
+    = mean of ``target * (log target - log_input)``, with the ``target == 0`` terms
+    contributing 0 (the JAX reference masks them so ``0 * log 0`` is not a NaN).
+    """
+    log_probs = [
+        math.log(0.7), math.log(0.2), math.log(0.1),
+        math.log(0.3), math.log(0.6), math.log(0.1),
+    ]
+    target = [0.6, 0.2, 0.2, 0.0, 0.3, 0.7]
+
+    i_pyc = pycoeus.Tensor(log_probs, [2, 3], requires_grad=True)
+    t_pyc = pycoeus.Tensor(target, [2, 3])
+    loss_pyc = pycoeus.kl_divergence(i_pyc, t_pyc)
+    loss_pyc.backward()
+
+    t_jax = jnp.array(target, dtype=jnp.float64).reshape(2, 3)
+
+    def _jax_kl(inp):
+        terms = jnp.where(t_jax > 0.0, t_jax * (jnp.log(t_jax) - inp), 0.0)
+        return jnp.sum(terms) / inp.size
+
+    i_jax = jnp.array(log_probs, dtype=jnp.float64).reshape(2, 3)
+    _allclose("kl_loss", list(loss_pyc.data), [float(_jax_kl(i_jax))])
+    _allclose("kl_dinput", list(i_pyc.grad), jax.grad(_jax_kl)(i_jax).flatten().tolist())
+
+
+def test_margin_ranking_loss_matches_jax() -> None:
+    """MarginRanking loss on [4], mean reduction: mean(relu(-t*(i1-i2) + margin))."""
+    input1 = [0.1, 1.3, -0.4, 0.3]
+    input2 = [0.5, 1.0, 0.2, -0.6]
+    target = [1.0, 1.0, -1.0, -1.0]
+    margin = 0.2
+
+    i1_pyc = pycoeus.Tensor(input1, [4], requires_grad=True)
+    i2_pyc = pycoeus.Tensor(input2, [4], requires_grad=True)
+    loss_pyc = pycoeus.margin_ranking_loss(i1_pyc, i2_pyc, target, margin)
+    loss_pyc.backward()
+
+    t_jax = jnp.array(target, dtype=jnp.float64)
+
+    def _jax_margin(x1, x2):
+        return jnp.mean(jnp.maximum(0.0, -t_jax * (x1 - x2) + margin))
+
+    x1 = jnp.array(input1, dtype=jnp.float64)
+    x2 = jnp.array(input2, dtype=jnp.float64)
+    g1, g2 = jax.grad(_jax_margin, argnums=(0, 1))(x1, x2)
+    _allclose("margin_loss", list(loss_pyc.data), [float(_jax_margin(x1, x2))])
+    _allclose("margin_dinput1", list(i1_pyc.grad), g1.tolist())
+    _allclose("margin_dinput2", list(i2_pyc.grad), g2.tolist())
