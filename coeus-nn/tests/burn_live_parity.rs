@@ -1368,7 +1368,7 @@ fn where_cond_correctness() {
 
 #[test]
 fn conv1d_forward_matches_manual_reference() {
-    use coeus_ops::BackendOps;
+    use coeus_ops::ConvOps;
     let backend = SequentialBackend::new();
     // batch=1, in_channels=2, length=6, out_channels=2, kernel=3
     let input: Vec<f32> = (0..12).map(|x| x as f32 * 0.1).collect();
@@ -1425,7 +1425,7 @@ fn conv1d_forward_matches_manual_reference() {
 
 #[test]
 fn conv2d_forward_matches_manual_reference() {
-    use coeus_ops::BackendOps;
+    use coeus_ops::ConvOps;
     let backend = SequentialBackend::new();
     let (b, ic, h, w, oc, kh, kw) = (1usize, 2, 4, 4, 2, 2, 2);
     let (oh, ow) = (h - kh + 1, w - kw + 1);
@@ -1490,7 +1490,7 @@ fn conv2d_forward_matches_manual_reference() {
 
 #[test]
 fn max_pool2d_forward_matches_manual_reference() {
-    use coeus_ops::BackendOps;
+    use coeus_ops::PoolOps;
     let backend = SequentialBackend::new();
     let (b, c, h, w) = (2, 2, 4, 4);
     let (oh, ow, ks, st) = (2, 2, 2, 2);
@@ -1809,7 +1809,7 @@ fn layernorm_forward_nd_3d_matches_reshape_reference() {
 // ── ConvTranspose1d (stride-2, manual reference) ──────────────────────────────
 #[test]
 fn conv_transpose1d_stride2_matches_manual_reference() {
-    use coeus_ops::BackendOps;
+    use coeus_ops::ConvOps;
     let backend = SequentialBackend::new();
 
     // batch=1, C_in=2, L=3 → C_out=2, K=2, stride=2 → L_out = (3-1)*2 + 2 = 6
@@ -1868,7 +1868,7 @@ fn conv_transpose1d_stride2_matches_manual_reference() {
 
 #[test]
 fn conv_transpose2d_unit_stride_matches_manual_reference() {
-    use coeus_ops::BackendOps;
+    use coeus_ops::ConvOps;
     let backend = SequentialBackend::new();
 
     // batch=1, C_in=1, H=3, W=3, C_out=1, KH=2, KW=2, stride=1 → H_out=4, W_out=4
@@ -2317,7 +2317,7 @@ fn multi_head_attention_forward_shape_contract() {
 
 #[test]
 fn avg_pool2d_forward_matches_manual_reference() {
-    use coeus_ops::BackendOps;
+    use coeus_ops::PoolOps;
     let backend = SequentialBackend::new();
     let (b, c, h, w) = (2, 2, 4, 4);
     let (oh, ow, ks, st) = (2, 2, 2, 2);
