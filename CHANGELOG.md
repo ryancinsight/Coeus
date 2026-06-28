@@ -4,6 +4,10 @@
 
 ### Changed
 
+- **Conv1d/Conv2d/Conv3d gradient test hardening** — `coeus-nn` Conv module
+  tests now assert exact analytical input, weight, and bias gradients
+  instead of only checking that gradient buffers exist. Evidence tier:
+  analytical/value-semantic Rust tests. ([patch])
 - **TCP distributed test determinism** — `coeus-dist` TCP tests now use a
   file-backed cross-process port allocator lock plus deterministic localhost
   port reservation, and TCP mesh debug builds bound connect/accept/rank-read/
