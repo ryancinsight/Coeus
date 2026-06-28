@@ -124,6 +124,38 @@ pub enum CpuUnaryOp {
     LeakyRelu(u64),
     /// Leaky ReLU gradient. The packed `u64` is the negative-slope bit pattern.
     LeakyReluGrad(u64),
+    /// Hardtanh: clamp(x, min, max). The packed `u64` is `(min_bits, max_bits)` bit-cast as `(u32, u32)` little-endian.
+    Hardtanh(u64),
+    /// Hardtanh gradient: 1 inside (min, max), 0 outside. Same packed-min/max convention.
+    HardtanhGrad(u64),
+    /// Hardsigmoid: clamp(x/6 + 0.5, 0, 1). No parameters.
+    Hardsigmoid,
+    /// Hardsigmoid gradient: 1/6 inside (-3, 3), 0 outside.
+    HardsigmoidGrad,
+    /// Hardswish: x * ReLU6(x+3) / 6. No parameters.
+    Hardswish,
+    /// Hardswish gradient.
+    HardswishGrad,
+    /// Hardshrink: x if |x| > λ else 0. Packed `u64` is `λ.bits()`.
+    Hardshrink(u64),
+    /// Hardshrink gradient: 1 if |x| > λ else 0.
+    HardshrinkGrad(u64),
+    /// Softshrink: sign(x) * max(|x| - λ, 0). Packed `u64` is `λ.bits()`.
+    Softshrink(u64),
+    /// Softshrink gradient: 1 if |x| > λ else 0.
+    SoftshrinkGrad(u64),
+    /// Softsign: x / (1 + |x|). No parameters.
+    Softsign,
+    /// Softsign gradient: 1 / (1 + |x|)^2.
+    SoftsignGrad,
+    /// Threshold: x if x > threshold else value. Packed `u64` is `(threshold_bits, value_bits)` as `(u32, u32)` little-endian.
+    Threshold(u64),
+    /// Threshold gradient: 1 if x > threshold else 0.
+    ThresholdGrad(u64),
+    /// CELU: max(0,x) + min(0, α·(exp(x/α) - 1)). Packed `u64` is `α.bits()` (default α = 1.0).
+    Celu(u64),
+    /// CELU gradient: 1 if x ≥ 0 else exp(x/α).
+    CeluGrad(u64),
     /// Element-wise reciprocal: 1/x
     Recip,
     /// Element-wise signum: -1, 0, or 1

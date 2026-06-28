@@ -177,3 +177,74 @@ pub fn causal_softmax(input: &PyTensor, dim: i64, py: Python<'_>) -> PyResult<Py
         inner: coeus_autograd::Var::new(inner, false),
     })
 }
+
+// ── G-037 extended activation family ──
+
+/// Element-wise Hardtanh activation (default range `[-1, 1]`).
+#[pyfunction]
+#[pyo3(signature = (input, min_val = -1.0, max_val = 1.0))]
+pub fn hardtanh(input: &PyTensor, min_val: f64, max_val: f64, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::hardtanh(&input.inner, min_val, max_val));
+    PyTensor::from_var(inner)
+}
+
+/// Element-wise Hardsigmoid activation.
+#[pyfunction]
+pub fn hardsigmoid(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::hardsigmoid(&input.inner));
+    PyTensor::from_var(inner)
+}
+
+/// Element-wise Hardswish activation.
+#[pyfunction]
+pub fn hardswish(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::hardswish(&input.inner));
+    PyTensor::from_var(inner)
+}
+
+/// Element-wise Hardshrink activation.
+#[pyfunction]
+#[pyo3(signature = (input, lambd = 0.5))]
+pub fn hardshrink(input: &PyTensor, lambd: f64, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::hardshrink(&input.inner, lambd));
+    PyTensor::from_var(inner)
+}
+
+/// Element-wise Softshrink activation.
+#[pyfunction]
+#[pyo3(signature = (input, lambd = 0.5))]
+pub fn softshrink(input: &PyTensor, lambd: f64, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::softshrink(&input.inner, lambd));
+    PyTensor::from_var(inner)
+}
+
+/// Element-wise Softsign activation.
+#[pyfunction]
+pub fn softsign(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::softsign(&input.inner));
+    PyTensor::from_var(inner)
+}
+
+/// Threshold activation: `x if x > threshold else value`.
+#[pyfunction]
+#[pyo3(signature = (input, threshold, value))]
+pub fn threshold(input: &PyTensor, threshold: f64, value: f64, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::threshold(&input.inner, threshold, value));
+    PyTensor::from_var(inner)
+}
+
+/// Celu activation: `max(0,x) + min(0, α·(exp(x/α)-1))`.
+#[pyfunction]
+#[pyo3(signature = (input, alpha = 1.0))]
+pub fn celu(input: &PyTensor, alpha: f64, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::celu(&input.inner, alpha));
+    PyTensor::from_var(inner)
+}
+
+/// PReLU activation (single scalar α).
+#[pyfunction]
+#[pyo3(signature = (input, alpha = 0.25))]
+pub fn prelu(input: &PyTensor, alpha: f64, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::prelu(&input.inner, alpha));
+    PyTensor::from_var(inner)
+}

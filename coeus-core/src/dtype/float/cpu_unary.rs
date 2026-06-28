@@ -108,6 +108,184 @@ macro_rules! impl_cpu_unary_dispatch_float {
                             slope
                         }
                     }
+                    CpuUnaryOp::Hardtanh(bits) => {
+                        let min_v = Self::from_f64(f64::from_bits((bits as u32) as u64));
+                        let max_v = Self::from_f64(f64::from_bits(((bits >> 32) as u32) as u64));
+                        if x < min_v {
+                            min_v
+                        } else if x > max_v {
+                            max_v
+                        } else {
+                            x
+                        }
+                    }
+                    CpuUnaryOp::HardtanhGrad(bits) => {
+                        let min_v = Self::from_f64(f64::from_bits((bits as u32) as u64));
+                        let max_v = Self::from_f64(f64::from_bits(((bits >> 32) as u32) as u64));
+                        if x > min_v && x < max_v {
+                            Self::one()
+                        } else {
+                            Self::zero()
+                        }
+                    }
+                    CpuUnaryOp::Hardsigmoid => {
+                        let six = Self::from_f64(6.0);
+                        let half = Self::from_f64(0.5);
+                        let one = Self::one();
+                        let v = x / six + half;
+                        if v < Self::zero() {
+                            Self::zero()
+                        } else if v > one {
+                            one
+                        } else {
+                            v
+                        }
+                    }
+                    CpuUnaryOp::HardsigmoidGrad => {
+                        let three = Self::from_f64(3.0);
+                        let six = Self::from_f64(6.0);
+                        if x > -three && x < three {
+                            Self::one() / six
+                        } else {
+                            Self::zero()
+                        }
+                    }
+                    CpuUnaryOp::Hardswish => {
+                        let three = Self::from_f64(3.0);
+                        let six = Self::from_f64(6.0);
+                        let v = x + three;
+                        let relu6 = if v < Self::zero() {
+                            Self::zero()
+                        } else if v > six {
+                            six
+                        } else {
+                            v
+                        };
+                        x * relu6 / six
+                    }
+                    CpuUnaryOp::HardswishGrad => {
+                        let three = Self::from_f64(3.0);
+                        let six = Self::from_f64(6.0);
+                        let two = Self::from_f64(2.0);
+                        let one = Self::one();
+                        if x < -three {
+                            Self::zero()
+                        } else if x <= three {
+                            (two * x + three) / six
+                        } else {
+                            one
+                        }
+                    }
+                    CpuUnaryOp::Hardshrink(lam_bits) => {
+                        let lam = Self::from_f64(f64::from_bits(lam_bits));
+                        let ax = if x < Self::zero() {
+                            Self::zero() - x
+                        } else {
+                            x
+                        };
+                        if ax > lam {
+                            x
+                        } else {
+                            Self::zero()
+                        }
+                    }
+                    CpuUnaryOp::HardshrinkGrad(lam_bits) => {
+                        let lam = Self::from_f64(f64::from_bits(lam_bits));
+                        let ax = if x < Self::zero() {
+                            Self::zero() - x
+                        } else {
+                            x
+                        };
+                        if ax > lam {
+                            Self::one()
+                        } else {
+                            Self::zero()
+                        }
+                    }
+                    CpuUnaryOp::Softshrink(lam_bits) => {
+                        let lam = Self::from_f64(f64::from_bits(lam_bits));
+                        let ax = if x < Self::zero() {
+                            Self::zero() - x
+                        } else {
+                            x
+                        };
+                        if ax > lam {
+                            let s = if x < Self::zero() {
+                                Self::zero() - Self::one()
+                            } else {
+                                Self::one()
+                            };
+                            s * (ax - lam)
+                        } else {
+                            Self::zero()
+                        }
+                    }
+                    CpuUnaryOp::SoftshrinkGrad(lam_bits) => {
+                        let lam = Self::from_f64(f64::from_bits(lam_bits));
+                        let ax = if x < Self::zero() {
+                            Self::zero() - x
+                        } else {
+                            x
+                        };
+                        if ax > lam {
+                            Self::one()
+                        } else {
+                            Self::zero()
+                        }
+                    }
+                    CpuUnaryOp::Softsign => {
+                        let one = Self::one();
+                        let ax = if x < Self::zero() {
+                            Self::zero() - x
+                        } else {
+                            x
+                        };
+                        x / (one + ax)
+                    }
+                    CpuUnaryOp::SoftsignGrad => {
+                        let one = Self::one();
+                        let ax = if x < Self::zero() {
+                            Self::zero() - x
+                        } else {
+                            x
+                        };
+                        let denom = (one + ax) * (one + ax);
+                        one / denom
+                    }
+                    CpuUnaryOp::Threshold(bits) => {
+                        let thr = Self::from_f64(f64::from_bits((bits as u32) as u64));
+                        let val = Self::from_f64(f64::from_bits(((bits >> 32) as u32) as u64));
+                        if x > thr {
+                            x
+                        } else {
+                            val
+                        }
+                    }
+                    CpuUnaryOp::ThresholdGrad(bits) => {
+                        let thr = Self::from_f64(f64::from_bits((bits as u32) as u64));
+                        if x > thr {
+                            Self::one()
+                        } else {
+                            Self::zero()
+                        }
+                    }
+                    CpuUnaryOp::Celu(alpha_bits) => {
+                        let alpha = Self::from_f64(f64::from_bits(alpha_bits));
+                        let one = Self::one();
+                        if x >= Self::zero() {
+                            x
+                        } else {
+                            alpha * ((x / alpha).exp_op() - one)
+                        }
+                    }
+                    CpuUnaryOp::CeluGrad(alpha_bits) => {
+                        let alpha = Self::from_f64(f64::from_bits(alpha_bits));
+                        if x >= Self::zero() {
+                            Self::one()
+                        } else {
+                            (x / alpha).exp_op()
+                        }
+                    }
                     CpuUnaryOp::Recip => Self::one() / x,
                     CpuUnaryOp::Sign => {
                         if x > Self::zero() {

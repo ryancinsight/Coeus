@@ -114,6 +114,10 @@ pub fn unary_op<
 }
 
 // ── Leaf modules ──
+/// Extended activation family (Hardtanh, Hardsigmoid, Hardswish, Hardshrink,
+/// Softshrink, Softsign, Threshold, Celu). See `ext.rs` for subgradient
+/// contracts at kink points.
+pub mod ext;
 /// GELU activation forward/backward nodes.
 pub mod gelu;
 /// Mathematical unary ops (abs, floor, round, sign, sqrt, etc.).
@@ -135,8 +139,13 @@ pub use math::{
     abs, ceil, clamp, floor, neg, pow, recip, round, sign, sqrt, trunc, AbsOp, CeilOp, ClampNode,
     FloorOp, NegOp, PowNode, RecipOp, RoundOp, SignOp, SqrtOp, TruncOp,
 };
-pub use relu::{elu, leaky_relu, relu, EluOp, ReluOp};
+pub use relu::{elu, leaky_relu, prelu, relu, EluOp, ReluOp};
 pub use sigmoid::{sigmoid, SigmoidOp};
 pub use silu::{mish, silu, softplus, MishOp, SiluOp, SoftplusOp};
 pub use tanh_act::{tanh, TanhOp};
 pub use trig::{cos, exp, log, sin, CosOp, ExpOp, LogOp, SinOp};
+// Extended-family re-exports (G-037).
+pub use ext::{
+    celu, hardshrink, hardsigmoid, hardswish, hardtanh, pack_pairs, softshrink, softsign,
+    threshold, HardsigmoidOp, HardswishOp, SoftsignOp,
+};

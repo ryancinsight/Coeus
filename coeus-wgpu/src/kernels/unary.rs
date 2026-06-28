@@ -37,6 +37,69 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> String {
             let slope = f64::from_bits(slope_bits);
             format!("select({slope:.17}, 1.0, val >= 0.0)")
         }
+        coeus_ops::UnaryOp::Hardtanh(bits) => {
+            let min_v = f64::from_bits((bits as u32) as u64);
+            let max_v = f64::from_bits(((bits >> 32) as u32) as u64);
+            format!("clamp(val, {min_v:.17}, {max_v:.17})")
+        }
+        coeus_ops::UnaryOp::HardtanhGrad(bits) => {
+            let min_v = f64::from_bits((bits as u32) as u64);
+            let max_v = f64::from_bits(((bits >> 32) as u32) as u64);
+            format!("select(0.0, 1.0, (val > {min_v:.17}) && (val < {max_v:.17}))")
+        }
+        coeus_ops::UnaryOp::Hardsigmoid => {
+            "clamp(val / 6.0 + 0.5, 0.0, 1.0)".to_string()
+        }
+        coeus_ops::UnaryOp::HardsigmoidGrad => {
+            "select(0.0, 1.0 / 6.0, (val > -3.0) && (val < 3.0))".to_string()
+        }
+        coeus_ops::UnaryOp::Hardswish => {
+            "val * clamp(val + 3.0, 0.0, 6.0) / 6.0".to_string()
+        }
+        coeus_ops::UnaryOp::HardswishGrad => {
+            // Piecewise: 0 if val < -3, (2*val + 3) / 6 if -3 <= val <= 3, 1 if val > 3.
+            "select(select(0.0, (2.0 * val + 3.0) / 6.0, val <= 3.0), 1.0, val > 3.0)"
+                .to_string()
+        }
+        coeus_ops::UnaryOp::Hardshrink(lam_bits) => {
+            let lam = f64::from_bits(lam_bits);
+            format!("select(0.0, val, abs(val) > {lam:.17})")
+        }
+        coeus_ops::UnaryOp::HardshrinkGrad(lam_bits) => {
+            let lam = f64::from_bits(lam_bits);
+            format!("select(0.0, 1.0, abs(val) > {lam:.17})")
+        }
+        coeus_ops::UnaryOp::Softshrink(lam_bits) => {
+            let lam = f64::from_bits(lam_bits);
+            format!("sign(val) * max(abs(val) - {lam:.17}, 0.0)")
+        }
+        coeus_ops::UnaryOp::SoftshrinkGrad(lam_bits) => {
+            let lam = f64::from_bits(lam_bits);
+            format!("select(0.0, 1.0, abs(val) > {lam:.17})")
+        }
+        coeus_ops::UnaryOp::Softsign => "val / (1.0 + abs(val))".to_string(),
+        coeus_ops::UnaryOp::SoftsignGrad => "1.0 / ((1.0 + abs(val)) * (1.0 + abs(val)))".to_string(),
+        coeus_ops::UnaryOp::Threshold(bits) => {
+            let thr = f64::from_bits((bits as u32) as u64);
+            let val = f64::from_bits(((bits >> 32) as u32) as u64);
+            format!("select({val:.17}, val, val > {thr:.17})")
+        }
+        coeus_ops::UnaryOp::ThresholdGrad(bits) => {
+            let thr = f64::from_bits((bits as u32) as u64);
+            format!("select(0.0, 1.0, val > {thr:.17})")
+        }
+        coeus_ops::UnaryOp::Celu(alpha_bits) => {
+            let alpha = f64::from_bits(alpha_bits);
+            if alpha == 1.0 {
+                "select(exp(val) - 1.0, val, val >= 0.0)".to_string()
+            } else {
+                format!("select({alpha:.17} * (exp(val / {alpha:.17}) - 1.0), val, val >= 0.0)")
+            }
+        }
+        coeus_ops::UnaryOp::CeluGrad(alpha_bits) => {
+            let alpha = f64::from_bits(alpha_bits);
+            format!("select(exp(val / {alpha:.17}), 1.0, val >= 0.0)")
+        }
         coeus_ops::UnaryOp::Recip => "1.0 / val".to_string(),
         coeus_ops::UnaryOp::Sign => {
             "select(select(0.0, -1.0, val < 0.0), 1.0, val > 0.0)".to_string()
