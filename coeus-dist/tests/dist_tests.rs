@@ -7,6 +7,14 @@ use coeus_dist::{
 use coeus_tensor::Tensor;
 use std::thread;
 
+fn assert_any_thread_panicked(handles: Vec<thread::JoinHandle<()>>, message: &str) {
+    let panicked = handles
+        .into_iter()
+        .map(|h| h.join().is_err())
+        .collect::<Vec<_>>();
+    assert!(panicked.iter().any(|&p| p), "{}", message);
+}
+
 #[test]
 fn test_local_all_reduce() {
     let world_size = 3;
@@ -486,9 +494,9 @@ fn test_tcp_all_reduce_mismatched_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP all_reduce with mismatched tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP all_reduce with mismatched tensor numel should panic on at least one rank",
     );
 }
 
@@ -514,9 +522,9 @@ fn test_tcp_all_reduce_zero_numel_mismatched_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP all_reduce zero-numel with mismatched tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP all_reduce zero-numel with mismatched tensor numel should panic on at least one rank",
     );
 }
 
@@ -578,9 +586,9 @@ fn test_tcp_broadcast_mismatched_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP broadcast with mismatched tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP broadcast with mismatched tensor numel should panic on at least one rank",
     );
 }
 
@@ -784,9 +792,9 @@ fn test_tcp_reduce_mismatched_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP reduce with mismatched tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP reduce with mismatched tensor numel should panic on at least one rank",
     );
 }
 
@@ -859,9 +867,9 @@ fn test_tcp_gather_mismatched_peer_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP gather with mismatched peer tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP gather with mismatched peer tensor numel should panic on at least one rank",
     );
 }
 
@@ -895,9 +903,9 @@ fn test_tcp_gather_zero_numel_mismatched_peer_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP gather zero-numel with mismatched peer tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP gather zero-numel with mismatched peer tensor numel should panic on at least one rank",
     );
 }
 
@@ -968,9 +976,9 @@ fn test_tcp_scatter_mismatched_target_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP scatter with mismatched target tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP scatter with mismatched target tensor numel should panic on at least one rank",
     );
 }
 
@@ -1005,9 +1013,9 @@ fn test_tcp_scatter_zero_numel_mismatched_target_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP scatter zero-numel with mismatched target tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP scatter zero-numel with mismatched target tensor numel should panic on at least one rank",
     );
 }
 
