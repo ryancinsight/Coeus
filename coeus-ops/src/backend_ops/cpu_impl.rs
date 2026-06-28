@@ -1,4 +1,7 @@
-use super::{BackendOps, BinaryOp, ReductionOp, UnaryOp};
+use super::traits::{
+    AttentionOps, ConvOps, ElementwiseOps, MatmulOps, OptimizerOps, PoolOps, ReductionOps,
+};
+use super::{BinaryOp, ReductionOp, UnaryOp};
 use coeus_core::{Backend, CpuAddressableStorageMut, Layout, Scalar};
 
 mod attention;
@@ -56,7 +59,7 @@ impl CpuBackend for coeus_core::MoiraiBackend {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> BackendOps<T> for B
+impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> ElementwiseOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -85,7 +88,13 @@ where
     ) {
         elementwise::elementwise_unary(self, op, a, a_layout, c, c_layout);
     }
+}
 
+#[allow(clippy::too_many_arguments)]
+impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> MatmulOps<T> for B
+where
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
     #[inline]
     fn matmul(
         &self,
@@ -137,7 +146,13 @@ where
     ) {
         matmul::batched_matmul_accumulate(self, a, a_layout, b, b_layout, c, c_layout);
     }
+}
 
+#[allow(clippy::too_many_arguments)]
+impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> ReductionOps<T> for B
+where
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
     #[inline]
     fn reduce(
         &self,
@@ -179,6 +194,69 @@ where
         reduction::argmin(self, a, a_layout, axis, c, c_layout);
     }
 
+    #[inline]
+    fn topk(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        k: usize,
+        axis: usize,
+        largest: bool,
+        values: &mut Self::DeviceBuffer<T>,
+        values_layout: &Layout,
+        indices: &mut Self::DeviceBuffer<i64>,
+        indices_layout: &Layout,
+    ) where
+        T: leto_ops::Scalar,
+    {
+        reduction::topk(
+            self,
+            a,
+            a_layout,
+            k,
+            axis,
+            largest,
+            values,
+            values_layout,
+            indices,
+            indices_layout,
+        );
+    }
+
+    #[inline]
+    fn cumsum(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) where
+        T: leto_ops::Scalar,
+    {
+        reduction::cumsum(self, a, a_layout, axis, c, c_layout);
+    }
+
+    #[inline]
+    fn suffix_sum(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) where
+        T: leto_ops::Scalar,
+    {
+        reduction::suffix_sum(self, a, a_layout, axis, c, c_layout);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> ConvOps<T> for B
+where
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
     #[inline]
     fn conv1d(
         &self,
@@ -376,7 +454,13 @@ where
             dilation,
         );
     }
+}
 
+#[allow(clippy::too_many_arguments)]
+impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> PoolOps<T> for B
+where
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
     #[inline]
     fn max_pool2d(
         &self,
@@ -584,7 +668,13 @@ where
             grad_input_layout,
         );
     }
+}
 
+#[allow(clippy::too_many_arguments)]
+impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> OptimizerOps<T> for B
+where
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
     #[inline]
     fn sgd_step(
         &self,
@@ -739,7 +829,13 @@ where
             eps,
         );
     }
+}
 
+#[allow(clippy::too_many_arguments)]
+impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> AttentionOps<T> for B
+where
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
     #[inline]
     fn sdp_attention(
         &self,
@@ -816,62 +912,5 @@ where
             grad_k,
             grad_v,
         );
-    }
-
-    #[inline]
-    fn topk(
-        &self,
-        a: &Self::DeviceBuffer<T>,
-        a_layout: &Layout,
-        k: usize,
-        axis: usize,
-        largest: bool,
-        values: &mut Self::DeviceBuffer<T>,
-        values_layout: &Layout,
-        indices: &mut Self::DeviceBuffer<i64>,
-        indices_layout: &Layout,
-    ) where
-        T: leto_ops::Scalar,
-    {
-        reduction::topk(
-            self,
-            a,
-            a_layout,
-            k,
-            axis,
-            largest,
-            values,
-            values_layout,
-            indices,
-            indices_layout,
-        );
-    }
-
-    #[inline]
-    fn cumsum(
-        &self,
-        a: &Self::DeviceBuffer<T>,
-        a_layout: &Layout,
-        axis: usize,
-        c: &mut Self::DeviceBuffer<T>,
-        c_layout: &Layout,
-    ) where
-        T: leto_ops::Scalar,
-    {
-        reduction::cumsum(self, a, a_layout, axis, c, c_layout);
-    }
-
-    #[inline]
-    fn suffix_sum(
-        &self,
-        a: &Self::DeviceBuffer<T>,
-        a_layout: &Layout,
-        axis: usize,
-        c: &mut Self::DeviceBuffer<T>,
-        c_layout: &Layout,
-    ) where
-        T: leto_ops::Scalar,
-    {
-        reduction::suffix_sum(self, a, a_layout, axis, c, c_layout);
     }
 }

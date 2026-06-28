@@ -12,7 +12,8 @@ use coeus_core::{
     ComputeBackend, CpuAddressableStorageMut, MoiraiBackend, Scalar, SequentialBackend, Shape,
     Strides,
 };
-use coeus_ops::{BackendOps, CpuBackend};
+use coeus_ops::backend_ops::MatmulOps;
+use coeus_ops::CpuBackend;
 
 fn layout(shape: &[usize]) -> Layout {
     Layout::new(Shape::from(shape.to_vec()))

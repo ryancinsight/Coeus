@@ -1,5 +1,5 @@
 use crate::backend_ops::ops::BinaryOp;
-use crate::backend_ops::trait_def::BackendOps;
+use crate::backend_ops::traits::{ElementwiseOps, MatmulOps};
 use coeus_core::{Layout, Scalar, Shape, Strides};
 
 fn shape3(shape: &[usize], name: &str) -> [usize; 3] {
@@ -12,7 +12,7 @@ fn shape3(shape: &[usize], name: &str) -> [usize; 3] {
 }
 
 /// Default: `c += a @ b` via temp + add.
-pub fn matmul_accumulate<T: Scalar, B: BackendOps<T>>(
+pub fn matmul_accumulate<T: Scalar, B: MatmulOps<T> + ElementwiseOps<T>>(
     backend: &B,
     a: &B::DeviceBuffer<T>,
     a_layout: &Layout,
@@ -42,7 +42,7 @@ pub fn matmul_accumulate<T: Scalar, B: BackendOps<T>>(
 }
 
 /// Default: rank-3 batched matmul via per-slice rank-2 dispatch.
-pub fn batched_matmul<T: Scalar, B: BackendOps<T>>(
+pub fn batched_matmul<T: Scalar, B: MatmulOps<T>>(
     backend: &B,
     a: &B::DeviceBuffer<T>,
     a_layout: &Layout,
@@ -110,7 +110,7 @@ pub fn batched_matmul<T: Scalar, B: BackendOps<T>>(
 }
 
 /// Default: `c += batched a @ b` via temp + add.
-pub fn batched_matmul_accumulate<T: Scalar, B: BackendOps<T>>(
+pub fn batched_matmul_accumulate<T: Scalar, B: MatmulOps<T> + ElementwiseOps<T>>(
     backend: &B,
     a: &B::DeviceBuffer<T>,
     a_layout: &Layout,

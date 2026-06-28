@@ -10,7 +10,8 @@ use coeus_core::{
     ComputeBackend, CpuAddressableStorageMut, CpuUnaryDispatch, CpuUnaryOp, Layout, MoiraiBackend,
     Scalar, SequentialBackend, Shape,
 };
-use coeus_ops::{BackendOps, CpuBackend};
+use coeus_ops::backend_ops::ElementwiseOps;
+use coeus_ops::CpuBackend;
 
 const LEAKY_SLOPE: f64 = 0.125;
 

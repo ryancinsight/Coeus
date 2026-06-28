@@ -10,7 +10,8 @@ use coeus_core::{
     ComputeBackend, CpuAddressableStorageMut, Layout, MoiraiBackend, Scalar, SequentialBackend,
     Shape,
 };
-use coeus_ops::{BackendOps, BinaryOp, CpuBackend};
+use coeus_ops::backend_ops::ElementwiseOps;
+use coeus_ops::{BinaryOp, CpuBackend};
 
 /// Sizes chosen to exercise: empty-ish, sub-SIMD-width, exact chunk, chunk+1,
 /// multi-chunk, and a non-chunk-multiple multi-chunk tail.

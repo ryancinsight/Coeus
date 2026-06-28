@@ -1,5 +1,4 @@
-use crate::backend_ops::trait_def::BackendOps;
-use coeus_core::{Layout, Scalar};
+use coeus_core::{ComputeBackend, Layout, Scalar};
 
 /// Default: copy to host, run `coeus_leto::argmax_into`, copy back.
 pub fn argmax<T, B>(
@@ -11,7 +10,7 @@ pub fn argmax<T, B>(
     c_layout: &Layout,
 ) where
     T: Scalar + leto_ops::Scalar,
-    B: BackendOps<T>,
+    B: ComputeBackend,
 {
     let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
     backend.copy_to_host(a, &mut host_a);
@@ -33,7 +32,7 @@ pub fn argmin<T, B>(
     c_layout: &Layout,
 ) where
     T: Scalar + leto_ops::Scalar,
-    B: BackendOps<T>,
+    B: ComputeBackend,
 {
     let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
     backend.copy_to_host(a, &mut host_a);
@@ -60,7 +59,7 @@ pub fn topk<T, B>(
     indices_layout: &Layout,
 ) where
     T: Scalar + leto_ops::Scalar,
-    B: BackendOps<T>,
+    B: ComputeBackend,
 {
     let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
     backend.copy_to_host(a, &mut host_a);
@@ -92,7 +91,7 @@ pub fn cumsum<T, B>(
     c_layout: &Layout,
 ) where
     T: Scalar + leto_ops::Scalar,
-    B: BackendOps<T>,
+    B: ComputeBackend,
 {
     let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
     backend.copy_to_host(a, &mut host_a);
@@ -114,7 +113,7 @@ pub fn suffix_sum<T, B>(
     c_layout: &Layout,
 ) where
     T: Scalar + leto_ops::Scalar,
-    B: BackendOps<T>,
+    B: ComputeBackend,
 {
     let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
     backend.copy_to_host(a, &mut host_a);

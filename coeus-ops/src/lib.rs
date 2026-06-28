@@ -1,7 +1,7 @@
 //! Tensor operation kernels and backend dispatch for the Coeus stack.
 //!
 //! # Operation families
-//! - **Elementwise** — [`unary`] and [`binary`] kernels dispatched via [`BackendOps::elementwise_unary`] / [`BackendOps::elementwise_binary`].
+//! - **Elementwise** — [`unary`] and [`binary`] kernels dispatched via [`ElementwiseOps::elementwise_unary`] / [`ElementwiseOps::elementwise_binary`].
 //! - **Linear algebra** — [`matmul()`], [`sparse`] SpMM/SpMV, and FFT via Bluestein/Cooley-Tukey.
 //! - **Reductions** — [`reduction`]: `sum`, `mean`, `max/min`, `argmax/argmin`, `topk`, `cumsum`, plus vector arithmetic `dot` (flat inner product) and `cross` (per-channel 3-vector cross along `dim`), plus matrix norms `frobenius_norm` / `frobenius_norm_batched` (compose on `norm` for `torch.linalg.matrix_norm(A, ord='fro')`).
 //! - **Convolution** — 1-D/2-D/3-D forward+backward routed through `BackendOps::conv1d`/`conv2d`/`conv3d`.
@@ -17,7 +17,10 @@
 /// Backend dispatch trait and CPU implementation.
 pub mod backend_ops;
 pub(crate) mod ptr;
-pub use backend_ops::{BackendOps, BinaryOp, CpuBackend, ReductionOp, UnaryOp};
+pub use backend_ops::{
+    AttentionOps, BackendOps, BinaryOp, ConvOps, CpuBackend, ElementwiseOps, MatmulOps,
+    OptimizerOps, PoolOps, ReductionOp, ReductionOps, UnaryOp,
+};
 /// Element-wise binary operations (add, sub, mul, div).
 pub mod binary;
 /// Embedding lookup and backward pass.

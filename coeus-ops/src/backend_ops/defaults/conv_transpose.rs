@@ -1,10 +1,9 @@
-use crate::backend_ops::trait_def::BackendOps;
-use coeus_core::{Float, Layout};
+use coeus_core::{ComputeBackend, Float, Layout};
 
 /// Default host-side 1-D transposed convolution.
 ///
 /// Copies input/weight/bias to host, scatters via stride loop, copies back.
-pub fn conv_transpose1d<T: Float, B: BackendOps<T>>(
+pub fn conv_transpose1d<T: Float, B: ComputeBackend>(
     backend: &B,
     input: &B::DeviceBuffer<T>,
     input_layout: &Layout,
@@ -77,7 +76,7 @@ pub fn conv_transpose1d<T: Float, B: BackendOps<T>>(
 }
 
 /// Default host-side 2-D transposed convolution.
-pub fn conv_transpose2d<T: Float, B: BackendOps<T>>(
+pub fn conv_transpose2d<T: Float, B: ComputeBackend>(
     backend: &B,
     input: &B::DeviceBuffer<T>,
     input_layout: &Layout,
