@@ -5,7 +5,46 @@ use coeus_dist::{
     TcpCommunicator, TcpMesh,
 };
 use coeus_tensor::Tensor;
+use std::fs::{self, OpenOptions};
+use std::path::PathBuf;
+use std::sync::mpsc;
 use std::thread;
+use std::time::{Duration, Instant};
+
+fn assert_any_thread_panicked(handles: Vec<thread::JoinHandle<()>>, message: &str) {
+    let total = handles.len();
+    let (tx, rx) = mpsc::channel();
+    for handle in handles {
+        let tx = tx.clone();
+        thread::spawn(move || {
+            let _ = tx.send(handle.join().is_err());
+        });
+    }
+    drop(tx);
+
+    let deadline = Instant::now() + Duration::from_secs(20);
+    let mut completed = 0usize;
+    let mut panicked = false;
+    while completed < total {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        match rx.recv_timeout(remaining) {
+            Ok(did_panic) => {
+                completed += 1;
+                panicked |= did_panic;
+                if panicked {
+                    break;
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => break,
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        }
+    }
+
+    assert!(panicked, "{}", message);
+}
 
 #[test]
 fn test_local_all_reduce() {
@@ -420,18 +459,105 @@ fn test_local_broadcast_sliced() {
     }
 }
 
-fn get_free_ports(count: usize) -> Vec<std::net::SocketAddr> {
-    use std::net::TcpListener;
-    let mut addrs = Vec::new();
-    let mut listeners = Vec::new();
-    for _ in 0..count {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind dynamic port");
-        let addr = listener.local_addr().expect("failed to get local address");
-        addrs.push(addr);
-        listeners.push(listener);
+struct PortAllocatorLock {
+    path: PathBuf,
+}
+
+impl Drop for PortAllocatorLock {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
     }
-    drop(listeners);
-    addrs
+}
+
+fn port_allocator_lock() -> PortAllocatorLock {
+    let path = std::env::temp_dir().join("coeus-dist-tcp-port-counter.lock");
+    let start = Instant::now();
+
+    loop {
+        match OpenOptions::new().write(true).create_new(true).open(&path) {
+            Ok(_) => return PortAllocatorLock { path },
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                if start.elapsed() > Duration::from_secs(20) {
+                    let metadata = fs::metadata(&path)
+                        .expect("TCP port allocator lock exists but metadata could not be read");
+                    let modified = metadata
+                        .modified()
+                        .expect("TCP port allocator lock modified time could not be read");
+                    if modified.elapsed().unwrap_or(Duration::ZERO) > Duration::from_secs(120) {
+                        let _ = fs::remove_file(&path);
+                        continue;
+                    }
+                    panic!(
+                        "timed out waiting for TCP port allocator lock at {}",
+                        path.display()
+                    );
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
+            Err(error) => panic!(
+                "failed to acquire TCP port allocator lock at {}: {error}",
+                path.display()
+            ),
+        }
+    }
+}
+
+fn get_free_ports(count: usize) -> Vec<std::net::SocketAddr> {
+    use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener};
+
+    assert!(count > 0, "port count must be positive");
+
+    let _lock = port_allocator_lock();
+    let counter_path = std::env::temp_dir().join("coeus-dist-tcp-port-counter.txt");
+    let mut start = fs::read_to_string(&counter_path)
+        .ok()
+        .and_then(|raw| raw.trim().parse::<usize>().ok())
+        .unwrap_or(30_000);
+
+    for _ in 0..4096 {
+        if start < 30_000 || start + count >= u16::MAX as usize {
+            start = 30_000;
+            continue;
+        }
+
+        let mut addrs = Vec::with_capacity(count);
+        let mut listeners = Vec::with_capacity(count);
+        let mut all_bound = true;
+
+        for offset in 0..count {
+            let port = (start + offset) as u16;
+            let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, port));
+            match TcpListener::bind(addr) {
+                Ok(listener) => {
+                    addrs.push(addr);
+                    listeners.push(listener);
+                }
+                Err(_) => {
+                    all_bound = false;
+                    break;
+                }
+            }
+        }
+
+        if all_bound {
+            let next = start + count + 1;
+            fs::write(
+                &counter_path,
+                if next + count < u16::MAX as usize {
+                    next.to_string()
+                } else {
+                    "30000".to_string()
+                },
+            )
+            .expect("failed to persist TCP test port counter");
+            drop(listeners);
+            return addrs;
+        }
+
+        start += count + 1;
+    }
+
+    panic!("failed to reserve {count} local TCP test ports after multiple attempts");
 }
 
 #[test]
@@ -486,9 +612,9 @@ fn test_tcp_all_reduce_mismatched_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP all_reduce with mismatched tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP all_reduce with mismatched tensor numel should panic on at least one rank",
     );
 }
 
@@ -514,9 +640,9 @@ fn test_tcp_all_reduce_zero_numel_mismatched_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP all_reduce zero-numel with mismatched tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP all_reduce zero-numel with mismatched tensor numel should panic on at least one rank",
     );
 }
 
@@ -578,9 +704,9 @@ fn test_tcp_broadcast_mismatched_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP broadcast with mismatched tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP broadcast with mismatched tensor numel should panic on at least one rank",
     );
 }
 
@@ -651,13 +777,9 @@ fn test_tcp_all_gather_mismatched_peer_numel_panics() {
         }));
     }
 
-    let panicked = handles
-        .into_iter()
-        .map(|h| h.join().is_err())
-        .collect::<Vec<_>>();
-    assert!(
-        panicked.iter().any(|&p| p),
-        "TCP all_gather with mismatched peer tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP all_gather with mismatched peer tensor numel should panic on at least one rank",
     );
 }
 
@@ -695,12 +817,8 @@ fn test_tcp_all_gather_zero_numel_mismatched_peer_numel_panics() {
         }));
     }
 
-    let panicked = handles
-        .into_iter()
-        .map(|h| h.join().is_err())
-        .collect::<Vec<_>>();
-    assert!(
-        panicked.iter().any(|&p| p),
+    assert_any_thread_panicked(
+        handles,
         "TCP all_gather zero-numel with mismatched peer tensor numel should panic on at least one rank"
     );
 }
@@ -784,9 +902,9 @@ fn test_tcp_reduce_mismatched_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP reduce with mismatched tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP reduce with mismatched tensor numel should panic on at least one rank",
     );
 }
 
@@ -859,9 +977,9 @@ fn test_tcp_gather_mismatched_peer_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP gather with mismatched peer tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP gather with mismatched peer tensor numel should panic on at least one rank",
     );
 }
 
@@ -895,9 +1013,9 @@ fn test_tcp_gather_zero_numel_mismatched_peer_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP gather zero-numel with mismatched peer tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP gather zero-numel with mismatched peer tensor numel should panic on at least one rank",
     );
 }
 
@@ -968,9 +1086,9 @@ fn test_tcp_scatter_mismatched_target_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP scatter with mismatched target tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP scatter with mismatched target tensor numel should panic on at least one rank",
     );
 }
 
@@ -1005,9 +1123,9 @@ fn test_tcp_scatter_zero_numel_mismatched_target_numel_panics() {
         }));
     }
 
-    assert!(
-        handles.into_iter().any(|h| h.join().is_err()),
-        "TCP scatter zero-numel with mismatched target tensor numel should panic on at least one rank"
+    assert_any_thread_panicked(
+        handles,
+        "TCP scatter zero-numel with mismatched target tensor numel should panic on at least one rank",
     );
 }
 

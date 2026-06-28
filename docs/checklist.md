@@ -2,7 +2,41 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-176 - ConvTranspose backward GPU coverage [COMPLETE]
+### Current Sprint: MS-177 - TCP distributed test determinism [COMPLETE]
+**Objective**: Make `coeus-dist` TCP collective tests deterministic under
+nextest process parallelism and bound debug-mode TCP mesh waits so failures
+surface as explicit panic diagnostics instead of 60s hangs.
+**Target version**: 0.5.4 (test/runtime diagnostics [patch]).
+
+- [x] [patch] Added a file-backed cross-process TCP port allocator lock and
+  deterministic local port reservation for `coeus-dist/tests/dist_tests.rs`,
+  covering multi-rank and single-rank TCP panic-contract tests.
+- [x] [patch] Added debug-only timeout diagnostics around TCP mesh connect,
+  accept, peer-rank read, send, and recv paths while preserving async backoff
+  through `moirai_async::sleep`.
+- [x] [patch] Consolidated remaining TCP panic-thread assertions through
+  `assert_any_thread_panicked`.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-dist --check`; `rustup
+  run nightly cargo check -p coeus-dist --all-targets`; `rustup run nightly
+  cargo clippy -p coeus-dist --all-targets -- -D warnings`; `rustup run nightly
+  cargo nextest run -p coeus-dist`; `git diff --check`.
+
+### Previous Sprint: MS-145 - Bilinear backward PyTorch parity [COMPLETE]
+**Objective**: Close the deferred backward gap for `pycoeus.Bilinear` from
+MS-140 forward parity; extend the differential harness to the bilinear
+interaction layer's autograd-tracked composition.
+**Target version**: 0.5.4 (test-only [patch]).
+
+- [x] [patch] Added
+  `coeus-python/tests/test_pytorch_parity.py::test_bilinear_backward_matches_pytorch`
+  asserting `pycoeus.Bilinear(3,4,2, bias=True)` differentiated via
+  `out.sum().backward()` against `torch.nn.Bilinear.double()` at f64, atol=1e-10.
+  Covers dweight (`[out, in1, in2]` flat), dbias, dx1, dx2.
+- [x] Evidence: `JAX_ENABLE_X64=1 JAX_PLATFORMS=cpu D:\miniforge3\python.exe -m
+  pytest coeus-python/tests/test_pytorch_parity.py::test_bilinear_backward_matches_pytorch
+  -v` (1/1 PASS); full Python parity suite 55 passed + 2 MLX-skipped.
+
+### Previous Sprint: MS-176 - ConvTranspose backward GPU coverage [COMPLETE]
 **Objective**: Close the deferred ConvTranspose backward coverage gap for the
 WGPU and CUDA backend-autograd paths without adding a duplicate backend backward
 API before there is a dedicated kernel seam.

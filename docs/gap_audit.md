@@ -2,6 +2,16 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-032: TCP collectives could hang past nextest timeout~~ **CLOSED**
+**Location**: `coeus-dist/src/tcp/mesh.rs`,
+`coeus-dist/tests/dist_tests.rs`
+**Closed by**: MS-177 — Added deterministic TCP test port reservation through a
+file-backed cross-process port allocator lock, and debug-mode mesh timeouts around
+connect, accept, peer-rank read, send, and recv paths. Connect retry backoff
+remains async through `moirai_async::sleep`, so the debug diagnostics do not
+introduce executor-blocking sleep. Evidence tier: empirical/value-semantic
+through the `coeus-dist` package gate.
+
 ### ~~G-031: JAX harness lacked regression/binary loss parity~~ **CLOSED**
 **Location**: `coeus-python/tests/test_jax_parity.py`
 **Closed by**: MS-175 — Added `test_{mse_loss,binary_cross_entropy,huber_loss}_matches_jax`,
