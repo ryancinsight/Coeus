@@ -2,6 +2,15 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-025: GlobalAvg/MaxPool2d differential parity missing~~ **CLOSED**
+**Location**: `coeus-python/tests/test_pytorch_parity.py`
+**Closed by**: MS-166 — Added `test_global_avg_pool2d_matches_pytorch` and
+`test_global_max_pool2d_matches_pytorch` (input `[2,3,4,4]` → `[N,C,1,1]`),
+asserting forward output and input gradient against
+`torch.nn.functional.adaptive_{avg,max}_pool2d(x, 1)` at f64, `atol=1e-10`.
+Covers the uniform-distribution (avg) and argmax-routing (max) backward paths,
+replacing prior existence-only binding coverage. Evidence tier: differential/empirical.
+
 ### ~~G-024: Zero-numel collectives skipped per-rank numel validation~~ **CLOSED**
 **Location**: `coeus-dist/src/local.rs`,
 `coeus-dist/src/tcp/collectives.rs`
@@ -238,5 +247,6 @@ Evidence tier: differential/empirical (PyTorch f64).
 | G-016 MaxPool2d/AvgPool2d differential parity missing | differential | **closed MS-151** |
 | G-018 CrossEntropy/NLL loss differential parity missing | differential | **closed MS-153** |
 | G-020 BCE/Huber loss differential parity missing | differential | **closed MS-156** |
+| G-025 GlobalAvg/MaxPool2d differential parity missing | differential | **closed MS-166** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |

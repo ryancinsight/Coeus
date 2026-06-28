@@ -38,6 +38,14 @@
 
 ### Added
 
+- **GlobalAvgPool2d / GlobalMaxPool2d PyTorch parity** — added
+  `test_global_avg_pool2d_matches_pytorch` and `test_global_max_pool2d_matches_pytorch`
+  (input `[2,3,4,4]`), asserting forward output `[N,C,1,1]` and input gradient
+  against `torch.nn.functional.adaptive_{avg,max}_pool2d(x, 1)` at f64, `atol=1e-10`.
+  Covers the uniform-distribution (avg) and argmax-routing (max) global-pool
+  backward paths; replaces prior existence-only binding coverage with
+  value-semantic differential parity. Evidence tier: differential/empirical;
+  full suite 33/33. ([patch])
 - **Coeus-vs-Burn nn-layer forward benchmarks** — added
   `coeus-nn/benches/nn_bench.rs` (criterion, `harness = false`) timing whole
   `nn` layer forward passes against Burn's NdArray backend on identical

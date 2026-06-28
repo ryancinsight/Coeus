@@ -2,7 +2,18 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-165 - Zero-numel collective numel contracts [COMPLETE]
+### Current Sprint: MS-166 - GlobalAvgPool2d/GlobalMaxPool2d PyTorch parity [COMPLETE]
+**Objective**: Add value-semantic forward+backward differential parity for the
+global pooling layers, previously covered only by binding smoke tests.
+**Target version**: 0.5.4 (test-only [patch]).
+
+- [x] [patch] `test_global_avg_pool2d_matches_pytorch`: `[2,3,4,4]` -> `[N,C,1,1]`;
+  forward + dx vs `F.adaptive_avg_pool2d(x,1)` at atol=1e-10 (uniform gradient).
+- [x] [patch] `test_global_max_pool2d_matches_pytorch`: same vs
+  `F.adaptive_max_pool2d(x,1)` (argmax-routing gradient).
+- [x] Evidence: `pytest test_pytorch_parity.py` 33/33 pass.
+
+### Previous Sprint: MS-165 - Zero-numel collective numel contracts [COMPLETE]
 **Objective**: Ensure local and TCP collectives validate per-rank tensor element
 counts before zero-numel early returns, not only list lengths.
 **Target version**: 0.5.4 ([patch]).

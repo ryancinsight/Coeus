@@ -1546,6 +1546,59 @@ def test_avgpool2d_matches_pytorch() -> None:
     _allclose("avgpool2d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
 
 
+# ── GlobalAvgPool2d / GlobalMaxPool2d PyTorch parity (MS-166) ────────────────
+
+
+def test_global_avg_pool2d_matches_pytorch() -> None:
+    """Forward and input-gradient parity: GlobalAvgPool2d on [2, 3, 4, 4].
+
+    Differential against ``torch.nn.functional.adaptive_avg_pool2d(x, 1)`` at f64,
+    atol=1e-10. Global average pooling reduces every spatial position to one value
+    per channel (output ``[N, C, 1, 1]``); the backward distributes the upstream
+    gradient uniformly (1/(H*W)) across the window.
+    """
+    n, c, h, w = 2, 3, 4, 4
+    data = [0.1 * i - 1.0 for i in range(n * c * h * w)]
+
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    out_pyc = pycoeus.GlobalAvgPool2d().forward(x_pyc)
+    out_pyc.sum().backward()
+
+    x_t = (
+        torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    )
+    out_t = torch.nn.functional.adaptive_avg_pool2d(x_t, 1)
+    out_t.sum().backward()
+
+    _allclose("gap2d_out", list(out_pyc.data), out_t.flatten().tolist(), atol=1e-10)
+    _allclose("gap2d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+def test_global_max_pool2d_matches_pytorch() -> None:
+    """Forward and input-gradient parity: GlobalMaxPool2d on [2, 3, 4, 4].
+
+    Differential against ``torch.nn.functional.adaptive_max_pool2d(x, 1)`` at f64,
+    atol=1e-10. Global max pooling takes the maximum over all spatial positions
+    per channel (output ``[N, C, 1, 1]``); the backward routes the upstream
+    gradient to the single argmax position in each window.
+    """
+    n, c, h, w = 2, 3, 4, 4
+    data = [0.1 * i - 1.0 for i in range(n * c * h * w)]
+
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    out_pyc = pycoeus.GlobalMaxPool2d().forward(x_pyc)
+    out_pyc.sum().backward()
+
+    x_t = (
+        torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    )
+    out_t = torch.nn.functional.adaptive_max_pool2d(x_t, 1)
+    out_t.sum().backward()
+
+    _allclose("gmp2d_out", list(out_pyc.data), out_t.flatten().tolist(), atol=1e-10)
+    _allclose("gmp2d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
 # ── Classification loss PyTorch parity (CrossEntropy / NLL) (MS-153) ─────────
 
 
