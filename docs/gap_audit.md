@@ -2,6 +2,14 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-026: Elementwise activation differential parity missing (only GELU covered)~~ **CLOSED**
+**Location**: `coeus-python/tests/test_pytorch_parity.py`
+**Closed by**: MS-167 — Added a shared `_assert_activation_parity` helper and
+`test_{silu,mish,elu,softplus,leaky_relu}_matches_pytorch`, asserting forward
+output and input gradient against `torch.nn.functional.*` at f64 on mixed-sign
+inputs. LeakyReLU excludes the `x=0` kink (implementation-defined subgradient);
+the C1 activations include it. Evidence tier: differential/empirical.
+
 ### ~~G-025: GlobalAvg/MaxPool2d differential parity missing~~ **CLOSED**
 **Location**: `coeus-python/tests/test_pytorch_parity.py`
 **Closed by**: MS-166 — Added `test_global_avg_pool2d_matches_pytorch` and
@@ -248,5 +256,6 @@ Evidence tier: differential/empirical (PyTorch f64).
 | G-018 CrossEntropy/NLL loss differential parity missing | differential | **closed MS-153** |
 | G-020 BCE/Huber loss differential parity missing | differential | **closed MS-156** |
 | G-025 GlobalAvg/MaxPool2d differential parity missing | differential | **closed MS-166** |
+| G-026 Elementwise activation differential parity missing | differential | **closed MS-167** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |

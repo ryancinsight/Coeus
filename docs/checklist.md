@@ -2,7 +2,18 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-166 - GlobalAvgPool2d/GlobalMaxPool2d PyTorch parity [COMPLETE]
+### Current Sprint: MS-167 - Activation PyTorch parity (SiLU/Mish/ELU/Softplus/LeakyReLU) [COMPLETE]
+**Objective**: Close the elementwise-activation differential gap — only GELU had
+PyTorch parity; SiLU, Mish, ELU, Softplus, LeakyReLU had none.
+**Target version**: 0.5.4 (test-only [patch]).
+
+- [x] [patch] Added `_assert_activation_parity` helper (DRY) + 5 tests asserting
+  forward + dx vs `torch.nn.functional.{silu,mish,elu,softplus,leaky_relu}` at f64.
+- [x] [patch] LeakyReLU input excludes the `x=0` kink (subgradient convention);
+  C1 activations include it.
+- [x] Evidence: `pytest test_pytorch_parity.py` 38/38 pass.
+
+### Previous Sprint: MS-166 - GlobalAvgPool2d/GlobalMaxPool2d PyTorch parity [COMPLETE]
 **Objective**: Add value-semantic forward+backward differential parity for the
 global pooling layers, previously covered only by binding smoke tests.
 **Target version**: 0.5.4 (test-only [patch]).

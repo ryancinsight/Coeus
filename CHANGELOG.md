@@ -38,6 +38,13 @@
 
 ### Added
 
+- **Activation PyTorch parity (SiLU/Mish/ELU/Softplus/LeakyReLU)** — added
+  `test_{silu,mish,elu,softplus,leaky_relu}_matches_pytorch` via a shared
+  `_assert_activation_parity` helper, asserting forward output and input gradient
+  against `torch.nn.functional.*` at f64 on mixed-sign inputs. LeakyReLU excludes
+  the `x=0` kink (implementation-defined subgradient); the C1 activations include
+  it. Closes the elementwise-activation differential gap (only GELU was covered).
+  Evidence tier: differential/empirical; full suite 38/38. ([patch])
 - **GlobalAvgPool2d / GlobalMaxPool2d PyTorch parity** — added
   `test_global_avg_pool2d_matches_pytorch` and `test_global_max_pool2d_matches_pytorch`
   (input `[2,3,4,4]`), asserting forward output `[N,C,1,1]` and input gradient

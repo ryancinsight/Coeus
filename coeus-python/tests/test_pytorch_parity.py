@@ -1599,6 +1599,71 @@ def test_global_max_pool2d_matches_pytorch() -> None:
     _allclose("gmp2d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
 
 
+# ── Activation function PyTorch parity (SiLU/Mish/ELU/Softplus/LeakyReLU) (MS-167) ──
+
+
+def _assert_activation_parity(name, pyc_fn, torch_fn, data, atol=1e-9):
+    """Differential forward + input-gradient parity for an elementwise activation.
+
+    Drives `out.sum().backward()` so the full elementwise derivative is compared
+    against the PyTorch reference at f64.
+    """
+    x_pyc = pycoeus.Tensor(data, [len(data)], requires_grad=True)
+    out_pyc = pyc_fn(x_pyc)
+    out_pyc.sum().backward()
+
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch_fn(x_t)
+    out_t.sum().backward()
+
+    _allclose(f"{name}_out", list(out_pyc.data), out_t.detach().tolist(), atol=atol)
+    _allclose(f"{name}_dx", list(x_pyc.grad), x_t.grad.tolist(), atol=atol)
+
+
+# Mixed-sign inputs exercise both regimes of each nonlinearity. SiLU/Mish/ELU/
+# Softplus are C1 everywhere (0.0 is safe to include); LeakyReLU has a kink at 0,
+# where the subgradient convention is implementation-defined, so 0.0 is excluded.
+_ACTIVATION_INPUT = [-2.0, -0.5, 0.0, 0.3, 1.5, 3.0]
+_ACTIVATION_INPUT_NO_ZERO = [-2.0, -0.5, 0.3, 1.5, 3.0]
+
+
+def test_silu_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "silu", lambda x: pycoeus.silu(x), torch.nn.functional.silu, _ACTIVATION_INPUT
+    )
+
+
+def test_mish_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "mish", lambda x: pycoeus.mish(x), torch.nn.functional.mish, _ACTIVATION_INPUT
+    )
+
+
+def test_elu_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "elu", lambda x: pycoeus.elu(x), torch.nn.functional.elu, _ACTIVATION_INPUT
+    )
+
+
+def test_softplus_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "softplus",
+        lambda x: pycoeus.softplus(x),
+        torch.nn.functional.softplus,
+        _ACTIVATION_INPUT,
+    )
+
+
+def test_leaky_relu_matches_pytorch() -> None:
+    # Default negative slope 0.01 on both sides; 0.0 excluded (kink subgradient).
+    _assert_activation_parity(
+        "leaky_relu",
+        lambda x: pycoeus.leaky_relu(x),
+        torch.nn.functional.leaky_relu,
+        _ACTIVATION_INPUT_NO_ZERO,
+    )
+
+
 # ── Classification loss PyTorch parity (CrossEntropy / NLL) (MS-153) ─────────
 
 
