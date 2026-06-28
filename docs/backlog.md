@@ -22,6 +22,21 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-187: Conv3d benchmark matrix expansion [COMPLETE]
+
+- [x] [patch] Added a Burn-vs-Coeus forward benchmark row for Conv3d in
+  `coeus-nn/benches/nn_bench.rs` on `[2,8,16,16,16]` with `k=3`, comparing
+  Burn NdArray, Coeus `SequentialBackend`, and Coeus `MoiraiBackend`.
+- [x] [patch] Registered the Conv3d row in the Criterion benchmark group so it
+  executes with the existing NN benchmark matrix.
+- [x] [patch] Corrected the extended activation gradient routing and pair
+  parameter packing regression exposed by the `coeus-nn` package gate.
+- [x] [patch] Updated `docs/gap_audit.md` selected-row detail for G-043 and
+  added a changelog entry for the new benchmark row.
+- [x] Evidence tier: empirical benchmark harness; package check, clippy, bench
+  compile, value-semantic activation tests, and focused Criterion execution
+  recorded in `docs/checklist.md`.
+
 ## Sprint MS-186: Conv1d benchmark matrix expansion [COMPLETE]
 
 - [x] [patch] Added a Burn-vs-Coeus forward benchmark row for Conv1d in

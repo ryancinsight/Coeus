@@ -30,15 +30,16 @@ use std::sync::Arc;
 
 // ── Bit-packing helpers ─────────────────────────────────────────────────────
 
-/// Pack two `f64` values into a single `u64` as little-endian `u32` pair.
+/// Pack two scalar parameter values into a single `u64` as little-endian `f32`
+/// bit patterns.
 ///
-/// Layout (LSB→MSB): `bits[0..32] = low.to_bits() as u32`, `bits[32..64] =
-/// high.to_bits() as u32`. Decoded in `coeus-core::CpuUnaryOp` consumers via
-/// `(bits as u32) as u64` and `((bits >> 32) as u32) as u64`.
+/// Layout (LSB->MSB): `bits[0..32] = (low as f32).to_bits()`,
+/// `bits[32..64] = (high as f32).to_bits()`. `CpuUnaryOp` decodes each half as
+/// `f32` and then converts to the active scalar type.
 #[inline]
 pub fn pack_pairs(low: f64, high: f64) -> u64 {
-    let low = (low.to_bits() as u32) as u64;
-    let high = ((high.to_bits() as u32) as u64) << 32;
+    let low = (low as f32).to_bits() as u64;
+    let high = ((high as f32).to_bits() as u64) << 32;
     low | high
 }
 
@@ -48,6 +49,7 @@ pub fn pack_pairs(low: f64, high: f64) -> u64 {
 struct HardtanhNode<T: Float, B: coeus_ops::BackendOps<T> + Default> {
     output_grad: Arc<GradBuffer<T, B>>,
     inputs: Vec<Var<T, B>>,
+    input_tensor: Tensor<T, B>,
     bits: u64,
 }
 
@@ -67,11 +69,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Har
     fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let local = coeus_ops::elementwise_unary(
-                grad_out,
+            let deriv = coeus_ops::elementwise_unary(
+                &self.input_tensor,
                 &backend,
                 coeus_ops::UnaryOp::HardtanhGrad(self.bits),
             );
+            let local = coeus_ops::mul(grad_out, &deriv, &backend);
             let lock = g.write();
             coeus_ops::add_assign(lock, &local, &backend);
         }
@@ -105,6 +108,7 @@ pub fn hardtanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let node = HardtanhNode {
             output_grad: grad.as_ref().unwrap().clone(),
             inputs: vec![a.clone()],
+            input_tensor: a.tensor.clone(),
             bits,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
@@ -133,11 +137,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     #[inline(always)]
     fn backward(
         grad_out: &Tensor<T, B>,
-        _x: &Tensor<T, B>,
+        x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
     ) -> Tensor<T, B> {
-        coeus_ops::elementwise_unary(grad_out, backend, coeus_ops::UnaryOp::HardsigmoidGrad)
+        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::HardsigmoidGrad);
+        coeus_ops::mul(grad_out, &deriv, backend)
     }
 }
 
@@ -165,11 +170,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     #[inline(always)]
     fn backward(
         grad_out: &Tensor<T, B>,
-        _x: &Tensor<T, B>,
+        x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
     ) -> Tensor<T, B> {
-        coeus_ops::elementwise_unary(grad_out, backend, coeus_ops::UnaryOp::HardswishGrad)
+        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::HardswishGrad);
+        coeus_ops::mul(grad_out, &deriv, backend)
     }
 }
 
@@ -189,6 +195,7 @@ pub fn hardswish<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>)
 struct HardshrinkNode<T: Float, B: coeus_ops::BackendOps<T> + Default> {
     output_grad: Arc<GradBuffer<T, B>>,
     inputs: Vec<Var<T, B>>,
+    input_tensor: Tensor<T, B>,
     bits: u64,
 }
 
@@ -208,11 +215,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Har
     fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let local = coeus_ops::elementwise_unary(
-                grad_out,
+            let deriv = coeus_ops::elementwise_unary(
+                &self.input_tensor,
                 &backend,
                 coeus_ops::UnaryOp::HardshrinkGrad(self.bits),
             );
+            let local = coeus_ops::mul(grad_out, &deriv, &backend);
             let lock = g.write();
             coeus_ops::add_assign(lock, &local, &backend);
         }
@@ -247,6 +255,7 @@ pub fn hardshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let node = HardshrinkNode {
             output_grad: grad.as_ref().unwrap().clone(),
             inputs: vec![a.clone()],
+            input_tensor: a.tensor.clone(),
             bits,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
@@ -266,6 +275,7 @@ pub fn hardshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 struct SoftshrinkNode<T: Float, B: coeus_ops::BackendOps<T> + Default> {
     output_grad: Arc<GradBuffer<T, B>>,
     inputs: Vec<Var<T, B>>,
+    input_tensor: Tensor<T, B>,
     bits: u64,
 }
 
@@ -285,11 +295,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sof
     fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let local = coeus_ops::elementwise_unary(
-                grad_out,
+            let deriv = coeus_ops::elementwise_unary(
+                &self.input_tensor,
                 &backend,
                 coeus_ops::UnaryOp::SoftshrinkGrad(self.bits),
             );
+            let local = coeus_ops::mul(grad_out, &deriv, &backend);
             let lock = g.write();
             coeus_ops::add_assign(lock, &local, &backend);
         }
@@ -323,6 +334,7 @@ pub fn softshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let node = SoftshrinkNode {
             output_grad: grad.as_ref().unwrap().clone(),
             inputs: vec![a.clone()],
+            input_tensor: a.tensor.clone(),
             bits,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
@@ -351,11 +363,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     #[inline(always)]
     fn backward(
         grad_out: &Tensor<T, B>,
-        _x: &Tensor<T, B>,
+        x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
     ) -> Tensor<T, B> {
-        coeus_ops::elementwise_unary(grad_out, backend, coeus_ops::UnaryOp::SoftsignGrad)
+        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::SoftsignGrad);
+        coeus_ops::mul(grad_out, &deriv, backend)
     }
 }
 
@@ -374,6 +387,7 @@ pub fn softsign<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) 
 struct ThresholdNode<T: Float, B: coeus_ops::BackendOps<T> + Default> {
     output_grad: Arc<GradBuffer<T, B>>,
     inputs: Vec<Var<T, B>>,
+    input_tensor: Tensor<T, B>,
     bits: u64,
 }
 
@@ -393,11 +407,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Thr
     fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let local = coeus_ops::elementwise_unary(
-                grad_out,
+            let deriv = coeus_ops::elementwise_unary(
+                &self.input_tensor,
                 &backend,
                 coeus_ops::UnaryOp::ThresholdGrad(self.bits),
             );
+            let local = coeus_ops::mul(grad_out, &deriv, &backend);
             let lock = g.write();
             coeus_ops::add_assign(lock, &local, &backend);
         }
@@ -433,6 +448,7 @@ pub fn threshold<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let node = ThresholdNode {
             output_grad: grad.as_ref().unwrap().clone(),
             inputs: vec![a.clone()],
+            input_tensor: a.tensor.clone(),
             bits,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
@@ -452,6 +468,7 @@ pub fn threshold<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 struct CeluNode<T: Float, B: coeus_ops::BackendOps<T> + Default> {
     output_grad: Arc<GradBuffer<T, B>>,
     inputs: Vec<Var<T, B>>,
+    input_tensor: Tensor<T, B>,
     bits: u64,
 }
 
@@ -471,11 +488,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Cel
     fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let local = coeus_ops::elementwise_unary(
-                grad_out,
+            let deriv = coeus_ops::elementwise_unary(
+                &self.input_tensor,
                 &backend,
                 coeus_ops::UnaryOp::CeluGrad(self.bits),
             );
+            let local = coeus_ops::mul(grad_out, &deriv, &backend);
             let lock = g.write();
             coeus_ops::add_assign(lock, &local, &backend);
         }
@@ -509,6 +527,7 @@ pub fn celu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let node = CeluNode {
             output_grad: grad.as_ref().unwrap().clone(),
             inputs: vec![a.clone()],
+            input_tensor: a.tensor.clone(),
             bits,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)

@@ -157,8 +157,8 @@ fn hardtanh_forward_and_backward() {
     assert_close_slice("hardtanh_backward", grad.as_slice(), &expected_grad, 1e-12);
     // Validate the bit-packing helper is reversible.
     let bits = coeus_autograd::pack_pairs(lo, hi);
-    let lo_lo = f64::from_bits((bits as u32) as u64);
-    let hi_hi = f64::from_bits(((bits >> 32) as u32) as u64);
+    let lo_lo = f32::from_bits(bits as u32) as f64;
+    let hi_hi = f32::from_bits((bits >> 32) as u32) as f64;
     close(lo_lo, lo, 0.0);
     close(hi_hi, hi, 0.0);
 }

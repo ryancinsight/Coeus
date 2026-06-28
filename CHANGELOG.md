@@ -4,6 +4,22 @@
 
 ### Changed
 
+- **Conv3d benchmark matrix row** — added a Burn NdArray vs Coeus
+  Sequential/Moirai Conv3d forward benchmark row on `[2,8,16,16,16]` with
+  `k=3`, and registered it in the existing Criterion NN benchmark group.
+  Focused Criterion medians were Burn NdArray 14.981 ms, Coeus Sequential
+  17.584 ms, and Coeus Moirai 133.54 ms. Updates G-043 selected-row coverage.
+  Evidence tier: empirical benchmark harness. ([patch])
+- **Extended activation gradient repair** — corrected G-037 extended activation
+  backward routing so gradient operators evaluate on the saved input and are
+  multiplied by the upstream gradient. Pair-parameter unary ops now document and
+  decode little-endian `f32` lanes inside the packed `u64`, matching the actual
+  kernel contract. Evidence tier: analytical/value-semantic Rust tests. ([patch])
+
+## 0.5.4 - 2026-06-28
+
+### Changed
+
 - **Burn/PyTorch parity gap audit** — compared the current `coeus-nn` and
   `coeus-python` public surfaces against Burn and PyTorch NN module families,
   then filed open G-035..G-043 parity items in `docs/gap_audit.md` and mirrored

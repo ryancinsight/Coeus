@@ -83,12 +83,14 @@ gradients at f64. Evidence tier: differential/empirical.
 **Hardsigmoid**, **Hardswish**, **Hardshrink** (default λ=0.5),
 **Softshrink** (default λ=0.5), **Softsign**, **Threshold** (default `threshold=0, value=0`),
 **Celu** (default α=1.0), and **PReLU** (single scalar α default 0.25). Implementation extends
-`coeus-core::CpuUnaryOp` with 18 new variants (forward + gradient pairs, parameterized scalars
-packed via `f64::to_bits` following the `LeakyRelu` precedent), adds the corresponding float
-dispatcher in `coeus-core::dtype::float::cpu_unary`, and extends the WGSL codegen emitter in
-`coeus-wgpu::kernels::unary` for GPU parity. Tracked autograd nodes follow the existing
-`LeakyReluNode` manual-node pattern for parameterized ops, and the generic
-`unary_op<T,B,Op>` ZST template for parameter-free ops (Hardsigmoid, Hardswish, Softsign).
+`coeus-core::CpuUnaryOp` with 18 new variants (forward + gradient pairs, single-parameter scalars
+packed via `f64::to_bits` following the `LeakyRelu` precedent, pair parameters
+packed as little-endian `f32` lanes inside one `u64`), adds the corresponding
+float dispatcher in `coeus-core::dtype::float::cpu_unary`, and extends the WGSL
+codegen emitter in `coeus-wgpu::kernels::unary` for GPU parity. Tracked
+autograd nodes follow the existing `LeakyReluNode` manual-node pattern for
+parameterized ops, and the generic `unary_op<T,B,Op>` ZST template for
+parameter-free ops (Hardsigmoid, Hardswish, Softsign).
 PReLU's α is exposed as a single scalar α in the tracked functional
 (`coeus_autograd::prelu(x, alpha)`); per-channel PReLU composes via
 `coeus_ops::broadcast_to`. Kink/subgradient points documented inline and excluded from
@@ -98,7 +100,9 @@ Threshold at x=threshold → 0). Evidence tier: value-semantic Rust analytical
 backward tests (`coeus-nn/tests/act_extended_tests.rs` covering 9 ops at f64
 with closed-form formula oracles) plus PyTorch f64 differential tests
 (`coeus-python/tests/test_pytorch_parity.py` adds 9 new tests using the
-existing `_assert_activation_parity` helper).
+existing `_assert_activation_parity` helper). MS-187 corrected the regression
+where gradient operators evaluated on `grad_out` instead of the saved input and
+where pair-parameter decoding treated truncated halves as `f64` bit patterns.
 
 ### G-038: Loss and distance surface remains below PyTorch coverage
 **Location**: `coeus-nn/src/loss.rs`, `coeus-python/src/losses.rs`

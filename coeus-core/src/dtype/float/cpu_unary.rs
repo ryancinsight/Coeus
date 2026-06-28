@@ -109,8 +109,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::Hardtanh(bits) => {
-                        let min_v = Self::from_f64(f64::from_bits((bits as u32) as u64));
-                        let max_v = Self::from_f64(f64::from_bits(((bits >> 32) as u32) as u64));
+                        let min_v = Self::from_f64(f32::from_bits(bits as u32) as f64);
+                        let max_v = Self::from_f64(f32::from_bits((bits >> 32) as u32) as f64);
                         if x < min_v {
                             min_v
                         } else if x > max_v {
@@ -120,8 +120,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::HardtanhGrad(bits) => {
-                        let min_v = Self::from_f64(f64::from_bits((bits as u32) as u64));
-                        let max_v = Self::from_f64(f64::from_bits(((bits >> 32) as u32) as u64));
+                        let min_v = Self::from_f64(f32::from_bits(bits as u32) as f64);
+                        let max_v = Self::from_f64(f32::from_bits((bits >> 32) as u32) as f64);
                         if x > min_v && x < max_v {
                             Self::one()
                         } else {
@@ -253,8 +253,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         one / denom
                     }
                     CpuUnaryOp::Threshold(bits) => {
-                        let thr = Self::from_f64(f64::from_bits((bits as u32) as u64));
-                        let val = Self::from_f64(f64::from_bits(((bits >> 32) as u32) as u64));
+                        let thr = Self::from_f64(f32::from_bits(bits as u32) as f64);
+                        let val = Self::from_f64(f32::from_bits((bits >> 32) as u32) as f64);
                         if x > thr {
                             x
                         } else {
@@ -262,7 +262,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::ThresholdGrad(bits) => {
-                        let thr = Self::from_f64(f64::from_bits((bits as u32) as u64));
+                        let thr = Self::from_f64(f32::from_bits(bits as u32) as f64);
                         if x > thr {
                             Self::one()
                         } else {

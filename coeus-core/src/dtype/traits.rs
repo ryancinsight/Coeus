@@ -124,7 +124,8 @@ pub enum CpuUnaryOp {
     LeakyRelu(u64),
     /// Leaky ReLU gradient. The packed `u64` is the negative-slope bit pattern.
     LeakyReluGrad(u64),
-    /// Hardtanh: clamp(x, min, max). The packed `u64` is `(min_bits, max_bits)` bit-cast as `(u32, u32)` little-endian.
+    /// Hardtanh: clamp(x, min, max). The packed `u64` stores `(min, max)` as
+    /// little-endian `f32` bit patterns.
     Hardtanh(u64),
     /// Hardtanh gradient: 1 inside (min, max), 0 outside. Same packed-min/max convention.
     HardtanhGrad(u64),
@@ -148,7 +149,8 @@ pub enum CpuUnaryOp {
     Softsign,
     /// Softsign gradient: 1 / (1 + |x|)^2.
     SoftsignGrad,
-    /// Threshold: x if x > threshold else value. Packed `u64` is `(threshold_bits, value_bits)` as `(u32, u32)` little-endian.
+    /// Threshold: x if x > threshold else value. The packed `u64` stores
+    /// `(threshold, value)` as little-endian `f32` bit patterns.
     Threshold(u64),
     /// Threshold gradient: 1 if x > threshold else 0.
     ThresholdGrad(u64),
