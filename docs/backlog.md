@@ -22,6 +22,17 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-188: Embedding and GroupNorm JAX parity [COMPLETE]
+
+- [x] [patch] Added `test_embedding_matches_jax` for `pycoeus.Embedding`
+  forward output and weight scatter-add gradients against an inline JAX
+  advanced-indexing reference.
+- [x] [patch] Added `test_groupnorm_matches_jax` for `pycoeus.GroupNorm`
+  forward output and input/gamma/beta gradients against an inline JAX formula
+  reference.
+- [x] Evidence tier: differential/empirical; focused JAX tests 2/2 and full
+  JAX parity file 25/25 recorded in `docs/checklist.md`.
+
 ## Sprint MS-187: Conv3d benchmark matrix expansion [COMPLETE]
 
 - [x] [patch] Added a Burn-vs-Coeus forward benchmark row for Conv3d in

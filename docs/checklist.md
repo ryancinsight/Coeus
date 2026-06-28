@@ -2,7 +2,24 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-187 - Conv3d benchmark matrix expansion [COMPLETE]
+### Current Sprint: MS-188 - Embedding and GroupNorm JAX parity [COMPLETE]
+**Objective**: Extend the Python JAX differential suite for existing Rust-owned
+module surfaces without adding Python-side domain logic.
+**Target version**: 0.5.4 (python parity/test/docs [patch]).
+
+- [x] [patch] Added `test_embedding_matches_jax`, comparing
+  `pycoeus.Embedding` forward output and weight scatter-add gradient against an
+  inline JAX advanced-indexing reference.
+- [x] [patch] Added `test_groupnorm_matches_jax`, comparing
+  `pycoeus.GroupNorm(groups=2, channels=4)` forward output and input/gamma/beta
+  gradients against an inline JAX formula reference.
+- [x] Evidence: `D:\miniforge3\python.exe -m pytest
+  coeus-python\tests\test_jax_parity.py::test_embedding_matches_jax
+  coeus-python\tests\test_jax_parity.py::test_groupnorm_matches_jax -q` (2/2);
+  `D:\miniforge3\python.exe -m pytest coeus-python\tests\test_jax_parity.py
+  -q` (25/25).
+
+### Previous Sprint: MS-187 - Conv3d benchmark matrix expansion [COMPLETE]
 **Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with a Conv3d
 forward row so one additional implemented NN family is measured across Burn
 NdArray and both Coeus CPU backends.

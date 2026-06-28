@@ -614,3 +614,72 @@ def test_margin_ranking_loss_matches_jax() -> None:
     _allclose("margin_loss", list(loss_pyc.data), [float(_jax_margin(x1, x2))])
     _allclose("margin_dinput1", list(i1_pyc.grad), g1.tolist())
     _allclose("margin_dinput2", list(i2_pyc.grad), g2.tolist())
+
+
+# ---------------------------------------------------------------------------
+# Embedding lookup and GroupNorm (mirrors the PyTorch parity, against inline
+# JAX references)
+# ---------------------------------------------------------------------------
+
+
+def test_embedding_matches_jax() -> None:
+    """Embedding lookup forward + weight-gradient parity on [6] indices -> [6, 4].
+
+    The backward scatter-adds the upstream gradient to the looked-up rows; JAX's
+    advanced-index gradient does the same, so a sum-loss gradient is compared.
+    """
+    num_embeddings, embedding_dim = 6, 4
+    weight = [0.1 * i - 1.0 for i in range(num_embeddings * embedding_dim)]
+    indices = [0, 2, 4, 1, 3, 5]
+
+    emb = pycoeus.Embedding(num_embeddings, embedding_dim)
+    emb.weight.data = weight
+    idx_pyc = pycoeus.Tensor([float(i) for i in indices], [len(indices)], requires_grad=False)
+    out_pyc = emb.forward(idx_pyc)
+    out_pyc.sum().backward()
+
+    w_jax = jnp.array(weight, dtype=jnp.float64).reshape(num_embeddings, embedding_dim)
+    idx_jax = jnp.array(indices)
+
+    def _jax_emb(w):
+        return jnp.sum(w[idx_jax])
+
+    _allclose("emb_out", list(out_pyc.data), w_jax[idx_jax].flatten().tolist())
+    _allclose("emb_dweight", list(emb.weight.grad), jax.grad(_jax_emb)(w_jax).flatten().tolist())
+
+
+def test_groupnorm_matches_jax() -> None:
+    """GroupNorm(groups=2, C=4) on [2, 4, 2, 2]: forward + input/gamma/beta grads."""
+    n, c, h, w = 2, 4, 2, 2
+    groups = 2
+    eps = 1e-5
+    data = [0.1 * i - 0.5 for i in range(n * c * h * w)]
+    gamma = [1.5, 0.5, 1.2, 0.8]
+    beta = [0.1, -0.1, 0.2, -0.2]
+
+    gn = pycoeus.GroupNorm(groups, c, eps=eps)
+    gn.weight.data = gamma
+    gn.bias.data = beta
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    out_pyc = gn.forward(x_pyc)
+    out_pyc.sum().backward()
+
+    def _jax_gn(z, ga, be):
+        zr = z.reshape(n, groups, c // groups, h, w)
+        mu = jnp.mean(zr, axis=(2, 3, 4), keepdims=True)
+        var = jnp.mean((zr - mu) ** 2, axis=(2, 3, 4), keepdims=True)
+        norm = ((zr - mu) / jnp.sqrt(var + eps)).reshape(n, c, h, w)
+        return norm * ga.reshape(1, c, 1, 1) + be.reshape(1, c, 1, 1)
+
+    x_jax = jnp.array(data, dtype=jnp.float64).reshape(n, c, h, w)
+    ga_jax = jnp.array(gamma, dtype=jnp.float64)
+    be_jax = jnp.array(beta, dtype=jnp.float64)
+    out_jax = _jax_gn(x_jax, ga_jax, be_jax)
+    gx, gg, gb = jax.grad(lambda z, ga, be: jnp.sum(_jax_gn(z, ga, be)), argnums=(0, 1, 2))(
+        x_jax, ga_jax, be_jax
+    )
+
+    _allclose("gn_out", list(out_pyc.data), out_jax.flatten().tolist())
+    _allclose("gn_dx", list(x_pyc.grad), gx.flatten().tolist())
+    _allclose("gn_dgamma", list(gn.weight.grad), gg.tolist())
+    _allclose("gn_dbeta", list(gn.bias.grad), gb.tolist())

@@ -4,6 +4,10 @@
 
 ### Changed
 
+- **Embedding and GroupNorm JAX parity** — added JAX differential tests for
+  `pycoeus.Embedding` forward plus weight scatter-add gradients, and
+  `pycoeus.GroupNorm` forward plus input/gamma/beta gradients on a 4D tensor.
+  Evidence tier: differential/empirical; JAX parity file 25/25. ([patch])
 - **Conv3d benchmark matrix row** — added a Burn NdArray vs Coeus
   Sequential/Moirai Conv3d forward benchmark row on `[2,8,16,16,16]` with
   `k=3`, and registered it in the existing Criterion NN benchmark group.
