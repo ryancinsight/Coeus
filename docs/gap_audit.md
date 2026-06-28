@@ -301,5 +301,5 @@ Evidence tier: differential/empirical (PyTorch f64).
 | G-029 JAX harness lacked softmax/log-softmax/cross-entropy parity | differential | **closed MS-173** |
 | G-030 JAX harness lacked LayerNorm/RMSNorm parity | differential | **closed MS-174** |
 | G-031 JAX harness lacked regression/binary loss parity | differential | **closed MS-175** |
-| ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
+| ConvTranspose backward WGPU/CUDA coverage | empirical GPU/CPU autograd differential | **closed MS-176** |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |

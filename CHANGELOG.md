@@ -38,6 +38,12 @@
 
 ### Added
 
+- **ConvTranspose backward GPU coverage** — added WGPU and CUDA
+  backend-autograd parity tests for `conv_transpose1d` and `conv_transpose2d`,
+  seeding non-uniform output gradients and comparing input/weight gradients
+  against the CPU autograd reference. Evidence tier: empirical differential;
+  backend nextest 87/87, CUDA feature nextest 71/71, CUDA feature check, and
+  touched-backend clippy all pass. ([patch])
 - **MSE / BinaryCrossEntropy / Huber loss JAX parity** — added
   `test_{mse_loss,binary_cross_entropy,huber_loss}_matches_jax` to
   `coeus-python/tests/test_jax_parity.py`, asserting forward loss and prediction

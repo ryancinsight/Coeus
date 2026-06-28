@@ -4,6 +4,7 @@
 // (`BackendOps::conv_transpose1d`/`2d`) element-wise within an accumulation
 // tolerance (f32 sum-order differs between gather and scatter).
 
+use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
 use coeus_ops::ConvOps;
 use coeus_tensor::Tensor;
@@ -142,5 +143,153 @@ fn test_wgpu_conv_transpose2d() {
         "conv_transpose2d",
         out_g.to_backend_on(&wgpu, &seq).as_slice(),
         out_c.as_slice(),
+    );
+}
+
+#[test]
+fn test_wgpu_conv_transpose1d_backward_matches_cpu_autograd() {
+    let seq = SequentialBackend::new();
+    let wgpu = WgpuBackend::new();
+
+    let input = [0.5f32, -0.25, 0.75];
+    let weight = [0.7f32, -0.4];
+    let seed = [1.0f32, -0.5, 0.25, 2.0];
+
+    let input_cpu = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 3], &input),
+        true,
+    );
+    let weight_cpu = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2], &weight),
+        true,
+    );
+    let out_cpu = coeus_ops::conv_transpose1d(
+        &input_cpu.tensor,
+        &weight_cpu.tensor,
+        None,
+        1,
+        0,
+        0,
+        1,
+        &seq,
+    );
+    let tracked_cpu =
+        coeus_autograd::conv_transpose1d(&input_cpu, &weight_cpu, &None, out_cpu, 1, 0, 0, 1);
+    tracked_cpu.backward_with_seed(Tensor::<f32, SequentialBackend>::from_slice(
+        [1, 1, 4],
+        &seed,
+    ));
+
+    let input_gpu = Var::new(
+        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 3], &input, &wgpu),
+        true,
+    );
+    let weight_gpu = Var::new(
+        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 2], &weight, &wgpu),
+        true,
+    );
+    let out_gpu = coeus_ops::conv_transpose1d(
+        &input_gpu.tensor,
+        &weight_gpu.tensor,
+        None,
+        1,
+        0,
+        0,
+        1,
+        &wgpu,
+    );
+    let tracked_gpu =
+        coeus_autograd::conv_transpose1d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
+    tracked_gpu.backward_with_seed(Tensor::<f32, WgpuBackend>::from_slice_on(
+        [1, 1, 4],
+        &seed,
+        &wgpu,
+    ));
+
+    let input_grad_gpu = input_gpu.grad().unwrap().to_backend_on(&wgpu, &seq);
+    let weight_grad_gpu = weight_gpu.grad().unwrap().to_backend_on(&wgpu, &seq);
+    assert_close(
+        "conv_transpose1d_backward_input",
+        input_grad_gpu.as_slice(),
+        input_cpu.grad().unwrap().as_slice(),
+    );
+    assert_close(
+        "conv_transpose1d_backward_weight",
+        weight_grad_gpu.as_slice(),
+        weight_cpu.grad().unwrap().as_slice(),
+    );
+}
+
+#[test]
+fn test_wgpu_conv_transpose2d_backward_matches_cpu_autograd() {
+    let seq = SequentialBackend::new();
+    let wgpu = WgpuBackend::new();
+
+    let input = [0.5f32, -0.25, 0.75, 1.25];
+    let weight = [0.6f32, -0.2, 0.3, -0.5];
+    let seed: Vec<f32> = (0..9).map(|x| x as f32 * 0.2 - 0.7).collect();
+
+    let input_cpu = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2, 2], &input),
+        true,
+    );
+    let weight_cpu = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2, 2], &weight),
+        true,
+    );
+    let out_cpu = coeus_ops::conv_transpose2d(
+        &input_cpu.tensor,
+        &weight_cpu.tensor,
+        None,
+        1,
+        0,
+        0,
+        1,
+        &seq,
+    );
+    let tracked_cpu =
+        coeus_autograd::conv_transpose2d(&input_cpu, &weight_cpu, &None, out_cpu, 1, 0, 0, 1);
+    tracked_cpu.backward_with_seed(Tensor::<f32, SequentialBackend>::from_slice(
+        [1, 1, 3, 3],
+        &seed,
+    ));
+
+    let input_gpu = Var::new(
+        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 2, 2], &input, &wgpu),
+        true,
+    );
+    let weight_gpu = Var::new(
+        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 2, 2], &weight, &wgpu),
+        true,
+    );
+    let out_gpu = coeus_ops::conv_transpose2d(
+        &input_gpu.tensor,
+        &weight_gpu.tensor,
+        None,
+        1,
+        0,
+        0,
+        1,
+        &wgpu,
+    );
+    let tracked_gpu =
+        coeus_autograd::conv_transpose2d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
+    tracked_gpu.backward_with_seed(Tensor::<f32, WgpuBackend>::from_slice_on(
+        [1, 1, 3, 3],
+        &seed,
+        &wgpu,
+    ));
+
+    let input_grad_gpu = input_gpu.grad().unwrap().to_backend_on(&wgpu, &seq);
+    let weight_grad_gpu = weight_gpu.grad().unwrap().to_backend_on(&wgpu, &seq);
+    assert_close(
+        "conv_transpose2d_backward_input",
+        input_grad_gpu.as_slice(),
+        input_cpu.grad().unwrap().as_slice(),
+    );
+    assert_close(
+        "conv_transpose2d_backward_weight",
+        weight_grad_gpu.as_slice(),
+        weight_cpu.grad().unwrap().as_slice(),
     );
 }
