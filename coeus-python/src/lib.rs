@@ -166,6 +166,16 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(activations::glu, m)?)?;
     m.add_function(wrap_pyfunction!(activations::masked_softmax, m)?)?;
     m.add_function(wrap_pyfunction!(activations::causal_softmax, m)?)?;
+    // G-037 extended activation family
+    m.add_function(wrap_pyfunction!(activations::hardtanh, m)?)?;
+    m.add_function(wrap_pyfunction!(activations::hardsigmoid, m)?)?;
+    m.add_function(wrap_pyfunction!(activations::hardswish, m)?)?;
+    m.add_function(wrap_pyfunction!(activations::hardshrink, m)?)?;
+    m.add_function(wrap_pyfunction!(activations::softshrink, m)?)?;
+    m.add_function(wrap_pyfunction!(activations::softsign, m)?)?;
+    m.add_function(wrap_pyfunction!(activations::threshold, m)?)?;
+    m.add_function(wrap_pyfunction!(activations::celu, m)?)?;
+    m.add_function(wrap_pyfunction!(activations::prelu, m)?)?;
 
     m.add_function(wrap_pyfunction!(losses::mse_loss, m)?)?;
     m.add_function(wrap_pyfunction!(losses::cross_entropy_loss, m)?)?;

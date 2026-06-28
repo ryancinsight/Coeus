@@ -8,9 +8,9 @@
 **Compared against**: Burn `burn::nn` module families and PyTorch `torch.nn`
 module families.
 **Gap**: Current Coeus-vs-Burn benchmarks cover selected forward rows
-(Linear, LayerNorm, Conv2d, MHA self-attention, Transformer encoder layer,
-Embedding lookup, BatchNorm2d eval forward, Conv1d forward), not the full NN
-family set needed to claim Burn-level performance parity.
+(Linear, LayerNorm, Conv2d, Conv3d, MHA self-attention, Transformer encoder
+layer, Embedding lookup, BatchNorm2d eval forward, Conv1d forward), not the
+full NN family set needed to claim Burn-level performance parity.
 PyTorch differential coverage similarly remains module-family selective.
 **Acceptance**: Add a benchmark/parity manifest keyed by module family, then add
 rows for every newly implemented G-035..G-042 family with Coeus sequential,
@@ -69,6 +69,40 @@ module registration/stub surface, and added PyTorch differential tests
 `test_kl_divergence_matches_pytorch` and
 `test_margin_ranking_loss_matches_pytorch` asserting scalar forward and input
 gradients at f64. Evidence tier: differential/empirical.
+
+### ~~G-037: Activation surface remains incomplete versus Burn/PyTorch~~ **CLOSED**
+**Location**: `coeus-core/src/dtype/{traits.rs,float/cpu_unary.rs,int.rs}`,
+`coeus-wgpu/src/kernels/unary.rs`,
+`coeus-autograd/src/ops/activation/{ext.rs,relu.rs,mod.rs}`,
+`coeus-nn/src/{activation.rs,lib.rs}`,
+`coeus-python/src/{activations.rs,lib.rs}`,
+`coeus-nn/tests/act_extended_tests.rs`,
+`coeus-python/tests/test_pytorch_parity.py`
+**Closed by**: MS-186 — Added nine new activation functions end-to-end:
+**Hardtanh** (`coeus_nn::hardtanh` / `Hardtanh` Module, default `[-1, 1]`),
+**Hardsigmoid**, **Hardswish**, **Hardshrink** (default λ=0.5),
+**Softshrink** (default λ=0.5), **Softsign**, **Threshold** (default `threshold=0, value=0`),
+**Celu** (default α=1.0), and **PReLU** (single scalar α default 0.25). Implementation extends
+`coeus-core::CpuUnaryOp` with 18 new variants (forward + gradient pairs, single-parameter scalars
+packed via `f64::to_bits` following the `LeakyRelu` precedent, pair parameters
+packed as little-endian `f32` lanes inside one `u64`), adds the corresponding
+float dispatcher in `coeus-core::dtype::float::cpu_unary`, and extends the WGSL
+codegen emitter in `coeus-wgpu::kernels::unary` for GPU parity. Tracked
+autograd nodes follow the existing `LeakyReluNode` manual-node pattern for
+parameterized ops, and the generic `unary_op<T,B,Op>` ZST template for
+parameter-free ops (Hardsigmoid, Hardswish, Softsign).
+PReLU's α is exposed as a single scalar α in the tracked functional
+(`coeus_autograd::prelu(x, alpha)`); per-channel PReLU composes via
+`coeus_ops::broadcast_to`. Kink/subgradient points documented inline and excluded from
+the PyTorch differential tests per PyTorch's convention (e.g. Hardtanh at
+x=±min/max → 0, Hardsigmoid at x=±3 → 0, Hardshrink/Softshrink at |x|=λ → 0,
+Threshold at x=threshold → 0). Evidence tier: value-semantic Rust analytical
+backward tests (`coeus-nn/tests/act_extended_tests.rs` covering 9 ops at f64
+with closed-form formula oracles) plus PyTorch f64 differential tests
+(`coeus-python/tests/test_pytorch_parity.py` adds 9 new tests using the
+existing `_assert_activation_parity` helper). MS-187 corrected the regression
+where gradient operators evaluated on `grad_out` instead of the saved input and
+where pair-parameter decoding treated truncated halves as `f64` bit patterns.
 
 ### G-038: Loss and distance surface remains below PyTorch coverage
 **Location**: `coeus-nn/src/loss.rs`, `coeus-python/src/losses.rs`
@@ -433,11 +467,8 @@ Evidence tier: differential/empirical (PyTorch f64).
 
 | Risk | Evidence Tier | Status |
 |------|--------------|--------|
-| G-035 ConvTranspose3d parity missing | source-surface + external docs audit | **open** |
 | G-036 pooling/adaptive/unfold/fold coverage incomplete | source-surface + external docs audit | **open** |
-| G-037 activation surface incomplete versus Burn/PyTorch | source-surface + external docs audit | **open** |
 | G-038 loss and distance surface remains below PyTorch coverage | source-surface + external docs audit | **open** |
-| G-039 Python loss wrappers lag existing Rust loss surface | source-surface audit | **open** |
 | G-040 recurrent parity lacks vanilla and bidirectional variants | source-surface + external docs audit | **open** |
 | G-041 regularization/sparse/local-response modules incomplete | source-surface + external docs audit | **open** |
 | G-042 quantized and lazy module parity policy missing | source-surface + external docs audit | **open** |

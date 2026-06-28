@@ -2,7 +2,34 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-186 - Conv1d benchmark matrix expansion [COMPLETE]
+### Current Sprint: MS-187 - Conv3d benchmark matrix expansion [COMPLETE]
+**Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with a Conv3d
+forward row so one additional implemented NN family is measured across Burn
+NdArray and both Coeus CPU backends.
+**Target version**: 0.5.4 (benchmark/docs [patch]).
+
+- [x] [patch] Added `bench_conv3d_forward` in `coeus-nn/benches/nn_bench.rs`
+  for `[2,8,16,16,16]`, `k=3`.
+- [x] [patch] Benchmarks Burn NdArray Conv3d forward vs Coeus
+  `Conv3d::<_, SequentialBackend>` and `Conv3d::<_, MoiraiBackend>` and
+  registers the row in `criterion_group!`.
+- [x] [patch] Corrected extended activation backward routing discovered by the
+  package gate: derivative kernels now evaluate on the saved input and multiply
+  by `grad_out`; packed pair parameters use documented little-endian `f32`
+  lanes.
+- [x] [patch] Updated G-043 selected-row detail in `docs/gap_audit.md`.
+- [x] Evidence: `rustup run nightly cargo fmt -p coeus-core -p
+  coeus-autograd -p coeus-nn --check`; `rustup run nightly cargo check -p
+  coeus-nn --all-targets`; `rustup run nightly cargo clippy -p coeus-nn
+  --all-targets -- -D warnings`; `rustup run nightly cargo nextest run -p
+  coeus-nn` (319/319); `rustup run nightly cargo nextest run -p coeus-nn -E
+  'binary(act_extended_tests)'` (12/12); `rustup run nightly cargo bench -p
+  coeus-nn --bench nn_bench --no-run`; `rustup run nightly cargo bench -p
+  coeus-nn --bench nn_bench -- Conv3d --warm-up-time 1 --measurement-time 2
+  --sample-size 10` (Burn 14.981 ms, Coeus Sequential 17.584 ms, Coeus Moirai
+  133.54 ms median estimates).
+
+### Previous Sprint: MS-186 - Conv1d benchmark matrix expansion [COMPLETE]
 **Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with a Conv1d
 forward row so one additional implemented NN family is measured across Burn
 NdArray and both Coeus CPU backends.

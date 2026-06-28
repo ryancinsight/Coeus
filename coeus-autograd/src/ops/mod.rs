@@ -18,8 +18,9 @@ pub mod shape;
 pub mod var_ops;
 
 pub use activation::{
-    abs, ceil, clamp, cos, elu, exp, floor, gelu, gelu_tanh, leaky_relu, log, mish, neg, pow,
-    recip, relu, round, sigmoid, sign, silu, sin, softplus, sqrt, tanh, trunc,
+    abs, ceil, celu, clamp, cos, elu, exp, floor, gelu, gelu_tanh, hardshrink, hardsigmoid,
+    hardswish, hardtanh, leaky_relu, log, mish, neg, pack_pairs, pow, prelu, recip, relu, round,
+    sigmoid, sign, silu, sin, softplus, softshrink, softsign, sqrt, tanh, threshold, trunc,
 };
 pub use arithmetic::{
     add, div, mean, mean_axis, mul, scalar_add, scalar_div, scalar_mul, scalar_sub, sub, sum,

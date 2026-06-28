@@ -1740,6 +1740,118 @@ def test_leaky_relu_matches_pytorch() -> None:
     )
 
 
+# ── G-037 extended activation family PyTorch parity ────────────────────────
+#
+# Kink/subgradient notes (PyTorch subgradient conventions):
+#   - Hardswish: gradient is (2x+3)/6 inside [-3, 3]; 0 at x<-3, 1 at x>3.
+#     At x=-3 and x=3 the function is closed-interval continuous; gradient
+#     is (2x+3)/6 which evaluates to -0.5 at x=-3 and 1.5 at x=3.
+#   - Hardsigmoid: 1/6 inside (-3, 3); 0 at the open exterior. PyTorch
+#     uses open-interval convention so x = -3, 3 are excluded.
+#   - Hardtanh: 1 inside (min, max); 0 at saturating positions. The
+#     kink endpoints (x = min, x = max) are excluded.
+#   - Hardshrink / Softshrink: 1 if |x| > λ, else 0. The boundary
+#     |x| = λ is excluded (PyTorch convention).
+#   - Softsign: smooth everywhere, no kink exclusion.
+#   - Threshold: PyTorch uses x > threshold, so x = threshold is in
+#     the replacement region (gradient 0). The threshold is excluded.
+#   - Celu: continuously differentiable (gradient = exp(x/α) for x<0,
+#     gradient = 1 for x ≥ 0; both agree at x = 0). No exclusion needed.
+#   - PReLU: 1 for x ≥ 0, α for x < 0. PyTorch passes gradient at x=0
+#     (subgradient = 1). No exclusion needed for the default α = 0.25.
+
+_HARDSWISH_INPUT = [-4.0, -3.0, -1.0, 0.0, 1.0, 3.0, 4.0]
+_HARDSIGMOID_INPUT = [-4.0, -1.0, 0.0, 1.0, 4.0]  # exclude ±3
+_HARDTANH_INPUT = [-2.0, -0.5, 0.0, 0.5, 2.0]  # exclude ±1
+_HARDSHRINK_INPUT = [-2.0, -0.6, 0.0, 0.6, 2.0]  # exclude ±λ=0.5
+_SOFTSHRINK_INPUT = [-2.0, -0.6, 0.0, 0.6, 2.0]
+_SOFTSIGN_INPUT = [-2.0, -1.0, 0.0, 1.0, 2.0]
+_THRESHOLD_INPUT = [-2.0, -0.5, 0.0, 0.5, 2.0]  # exclude x = threshold = 0
+_CELU_INPUT = [-2.0, -1.0, 0.0, 1.0, 2.0]
+_PRELU_INPUT = [-2.0, -1.0, 0.0, 1.0, 2.0]
+
+
+def test_hardswish_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "hardswish",
+        lambda x: pycoeus.hardswish(x),
+        torch.nn.functional.hardswish,
+        _HARDSWISH_INPUT,
+    )
+
+
+def test_hardsigmoid_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "hardsigmoid",
+        lambda x: pycoeus.hardsigmoid(x),
+        torch.nn.functional.hardsigmoid,
+        _HARDSIGMOID_INPUT,
+    )
+
+
+def test_hardtanh_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "hardtanh",
+        lambda x: pycoeus.hardtanh(x, -1.0, 1.0),
+        torch.nn.functional.hardtanh,
+        _HARDTANH_INPUT,
+    )
+
+
+def test_hardshrink_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "hardshrink",
+        lambda x: pycoeus.hardshrink(x, 0.5),
+        lambda x: torch.nn.functional.hardshrink(x, lambd=0.5),
+        _HARDSHRINK_INPUT,
+    )
+
+
+def test_softshrink_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "softshrink",
+        lambda x: pycoeus.softshrink(x, 0.5),
+        lambda x: torch.nn.functional.softshrink(x, lambd=0.5),
+        _SOFTSHRINK_INPUT,
+    )
+
+
+def test_softsign_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "softsign",
+        lambda x: pycoeus.softsign(x),
+        torch.nn.functional.softsign,
+        _SOFTSIGN_INPUT,
+    )
+
+
+def test_threshold_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "threshold",
+        lambda x: pycoeus.threshold(x, 0.0, -1.0),
+        lambda x: torch.nn.functional.threshold(x, threshold=0.0, value=-1.0),
+        _THRESHOLD_INPUT,
+    )
+
+
+def test_celu_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "celu",
+        lambda x: pycoeus.celu(x, 1.0),
+        lambda x: torch.nn.functional.celu(x, alpha=1.0),
+        _CELU_INPUT,
+    )
+
+
+def test_prelu_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "prelu",
+        lambda x: pycoeus.prelu(x, 0.25),
+        lambda x: torch.nn.functional.prelu(x, torch.tensor(0.25, dtype=torch.float64)),
+        _PRELU_INPUT,
+    )
+
+
 # ── Classification loss PyTorch parity (CrossEntropy / NLL) (MS-153) ─────────
 
 

@@ -63,8 +63,11 @@ pub mod softmax;
 pub mod transformer;
 
 pub use activation::{
-    elu, gelu, gelu_tanh, leaky_relu, mish, relu, sigmoid, silu, softplus, tanh, GeLU, GeLUTanh,
-    LeakyReLU, Mish, ReLU, SiLU, Sigmoid, Softplus, Tanh, ELU,
+    celu, elu, gelu, gelu_tanh, hardshrink, hardsigmoid, hardswish, hardtanh, leaky_relu, mish,
+    prelu, relu, sigmoid, silu, softplus, softshrink, softsign, tanh, threshold, Celu, CeluOp,
+    GeLU, GeLUTanh, Hardshrink, HardshrinkOp, Hardsigmoid, HardsigmoidOp, Hardswish, HardswishOp,
+    Hardtanh, HardtanhOp, LeakyReLU, Mish, PReLU, ReLU, SiLU, Sigmoid, Softplus, Softshrink,
+    SoftshrinkOp, Softsign, SoftsignOp, Tanh, Threshold, ThresholdNode, ELU,
 };
 pub use attention::{
     multi_head_attention_cross, AttentionMask, CausalMask, MhaProjectionParams, MultiHeadAttention,
