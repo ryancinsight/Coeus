@@ -2,6 +2,23 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-029: JAX harness lacked softmax/log-softmax/cross-entropy parity~~ **CLOSED**
+**Location**: `coeus-python/tests/test_jax_parity.py`
+**Closed by**: MS-170 — Added `test_{softmax,log_softmax,cross_entropy_loss}_matches_jax`,
+asserting forward output and gradient against `jax.nn.{softmax,log_softmax}` and a
+fused log-softmax+NLL mean reference at f64. Extends the JAX harness to the
+classification/softmax path, symmetric with the PyTorch coverage. Evidence tier:
+differential/empirical.
+
+### ~~G-028: `BackendOps` mixed every operation concern in one trait~~ **CLOSED**
+**Location**: `coeus-ops/src/backend_ops/trait_def.rs`,
+`coeus-ops/src/backend_ops/cpu_impl.rs`
+**Closed by**: MS-171 — Added single-concern operation traits and made
+`BackendOps` an aggregate super-trait with a blanket impl. CPU dispatch now
+implements one operation trait per concern, preserving the existing kernel leaf
+modules while eliminating duplicate blanket-impl coherence failures. Evidence
+tier: compile/lint/docs plus value-semantic `coeus-ops` nextest coverage.
+
 ### ~~G-027: JAX harness lacked elementwise activation parity~~ **CLOSED**
 **Location**: `coeus-python/tests/test_jax_parity.py`
 **Closed by**: MS-168 — Added `_assert_activation_matches_jax` (`jax.grad` for
@@ -266,5 +283,6 @@ Evidence tier: differential/empirical (PyTorch f64).
 | G-025 GlobalAvg/MaxPool2d differential parity missing | differential | **closed MS-166** |
 | G-026 Elementwise activation differential parity missing | differential | **closed MS-167** |
 | G-027 JAX harness lacked elementwise activation parity | differential | **closed MS-168** |
+| G-029 JAX harness lacked softmax/log-softmax/cross-entropy parity | differential | **closed MS-170** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |

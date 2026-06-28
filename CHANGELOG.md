@@ -132,6 +132,10 @@
 
 ### Fixed
 
+- **Deterministic local/TCP numel contract tests** — replaced a deadlock-prone
+  threaded local scatter mismatch test with deterministic single-rank panic
+  coverage, and added missing non-zero `all_gather`/`gather` output-numel panic
+  tests for local and TCP rooted gather paths.
 - **TCP all_reduce mismatch-contract coverage** — added explicit panic tests for
   composed `all_reduce` cross-rank tensor-size mismatches (including zero-numel
   mismatch), confirming fail-fast contract behavior through the

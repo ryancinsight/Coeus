@@ -324,3 +324,64 @@ def test_leaky_relu_matches_jax() -> None:
         jax.nn.leaky_relu,
         _ACT_INPUT_NO_ZERO,
     )
+
+
+# ---------------------------------------------------------------------------
+# Softmax / log-softmax / cross-entropy forward + backward (mirrors the
+# PyTorch loss/softmax parity, against jax.nn references)
+# ---------------------------------------------------------------------------
+
+_LOGITS = [2.0, 1.0, 0.1, -0.5, 0.3, 2.2, 1.1, 0.0, -1.0, 0.5, 3.0, 1.5]
+_LOGITS_SHAPE = [3, 4]
+_TARGETS = [0, 1, 2]
+
+
+def test_softmax_matches_jax() -> None:
+    """Forward and input-gradient parity: softmax over dim=1 on [3, 4]."""
+    x_pyc = pycoeus.Tensor(_LOGITS, _LOGITS_SHAPE, requires_grad=True)
+    out_pyc = pycoeus.softmax(x_pyc, 1)
+    out_pyc.sum().backward()
+
+    x_jax = jnp.array(_LOGITS, dtype=jnp.float64).reshape(3, 4)
+    out_jax = jax.nn.softmax(x_jax, axis=1)
+    grad_jax = jax.grad(lambda z: jnp.sum(jax.nn.softmax(z, axis=1)))(x_jax)
+
+    _allclose("softmax_out", list(out_pyc.data), out_jax.flatten().tolist())
+    _allclose("softmax_dx", list(x_pyc.grad), grad_jax.flatten().tolist())
+
+
+def test_log_softmax_matches_jax() -> None:
+    """Forward and input-gradient parity: log-softmax over dim=1 on [3, 4]."""
+    x_pyc = pycoeus.Tensor(_LOGITS, _LOGITS_SHAPE, requires_grad=True)
+    out_pyc = pycoeus.log_softmax(x_pyc, 1)
+    out_pyc.sum().backward()
+
+    x_jax = jnp.array(_LOGITS, dtype=jnp.float64).reshape(3, 4)
+    out_jax = jax.nn.log_softmax(x_jax, axis=1)
+    grad_jax = jax.grad(lambda z: jnp.sum(jax.nn.log_softmax(z, axis=1)))(x_jax)
+
+    _allclose("log_softmax_out", list(out_pyc.data), out_jax.flatten().tolist())
+    _allclose("log_softmax_dx", list(x_pyc.grad), grad_jax.flatten().tolist())
+
+
+def test_cross_entropy_loss_matches_jax() -> None:
+    """Forward and logit-gradient parity: cross_entropy_loss (mean) on [3, 4].
+
+    JAX reference fuses log-softmax + negative-log-likelihood with mean reduction,
+    matching pycoeus' ``cross_entropy_loss``.
+    """
+
+    def _jax_ce(z):
+        log_probs = jax.nn.log_softmax(z, axis=1)
+        return -jnp.mean(log_probs[jnp.arange(3), jnp.array(_TARGETS)])
+
+    x_pyc = pycoeus.Tensor(_LOGITS, _LOGITS_SHAPE, requires_grad=True)
+    loss_pyc = pycoeus.cross_entropy_loss(x_pyc, _TARGETS)
+    loss_pyc.backward()
+
+    x_jax = jnp.array(_LOGITS, dtype=jnp.float64).reshape(3, 4)
+    loss_jax = _jax_ce(x_jax)
+    grad_jax = jax.grad(_jax_ce)(x_jax)
+
+    _allclose("ce_loss", list(loss_pyc.data), [float(loss_jax)])
+    _allclose("ce_dx", list(x_pyc.grad), grad_jax.flatten().tolist())
