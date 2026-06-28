@@ -1,5 +1,39 @@
 # Coeus Project Backlog & Historical Archives
 
+## Open Burn/PyTorch Parity Backlog
+
+- [ ] [minor] G-035: Implement ConvTranspose3d across Rust, backend-autograd,
+  PyO3, and PyTorch differential parity surfaces.
+- [ ] [minor] G-036: Fill 1D pooling, adaptive pooling, and unfold/fold family
+  gaps through canonical shared pooling/window kernels.
+- [ ] [minor] G-037: Extend activation parity for PReLU, CELU, hard/shrink,
+  softsign, threshold, GLU, and SwiGLU families.
+- [ ] [minor] G-038: Extend loss and distance parity for L1/SmoothL1,
+  BCEWithLogits, CTC, NLL variants, multilabel/multimargin, triplet, pairwise,
+  and cosine similarity surfaces.
+- [ ] [patch] G-039: Expose existing Rust KL divergence and margin ranking
+  losses through thin PyO3 wrappers with PyTorch differential tests.
+- [ ] [minor] G-040: Add vanilla and bidirectional recurrent module parity
+  without duplicating GRU/LSTM cell math.
+- [ ] [minor] G-041: Add regularization, sparse, and local-response modules:
+  AlphaDropout, FeatureAlphaDropout, EmbeddingBag, GaussianNoise, and
+  LocalResponseNorm.
+- [ ] [minor] G-042: Define and implement or explicitly scope Coeus parity for
+  quantized and lazy module families.
+- [ ] [patch] G-043: Expand the Coeus-vs-Burn/PyTorch benchmark/parity manifest
+  so every implemented NN family has an explicit measurement or differential
+  row.
+
+## Sprint MS-180: Burn/PyTorch parity gap audit [COMPLETE]
+
+- [x] [patch] Compared `coeus-nn` and `coeus-python` public NN/loss surfaces
+  against Burn and PyTorch NN module families, using current source exports as
+  the Coeus SSOT.
+- [x] [patch] Filed G-035..G-043 with acceptance criteria in
+  `docs/gap_audit.md` and mirrored them in the open parity backlog.
+- [x] Evidence tier: source-surface audit plus external API documentation audit;
+  no Rust or Python implementation changed.
+
 ## Sprint MS-179: Linear/loss gradient value assertions [COMPLETE]
 
 - [x] [patch] Replaced Linear, MSE, and CrossEntropy focused test

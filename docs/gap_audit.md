@@ -2,6 +2,127 @@
 
 ## Known Gaps & Residual Risks
 
+### G-043: Burn/PyTorch NN benchmark matrix remains partial
+**Location**: `coeus-nn/benches/nn_bench.rs`,
+`coeus-python/tests/test_pytorch_parity.py`
+**Compared against**: Burn `burn::nn` module families and PyTorch `torch.nn`
+module families.
+**Gap**: Current Coeus-vs-Burn benchmarks cover selected forward rows, not the
+full NN family set needed to claim Burn-level performance parity. PyTorch
+differential coverage similarly remains module-family selective.
+**Acceptance**: Add a benchmark/parity manifest keyed by module family, then add
+rows for every newly implemented G-035..G-042 family with Coeus sequential,
+Moirai, WGPU/CUDA where applicable, Burn NdArray where comparable, and PyTorch
+Python differential tests at f64. Report median/confidence intervals for
+benchmarks and analytical tolerance derivations for numerical comparisons.
+**Evidence tier**: source-surface audit plus external API documentation audit.
+
+### G-042: Quantized and lazy module parity policy missing
+**Location**: `coeus-nn/src/lib.rs`, `coeus-python/src/lib.rs`
+**Compared against**: PyTorch quantized/lazy NN module families.
+**Gap**: Coeus has no documented implementation policy or public surface for
+PyTorch-style quantized and lazy NN modules. The current scalar/backend design
+may support the underlying representation through typed scalar/backend contracts,
+but the parity scope is not recorded.
+**Acceptance**: Define the Coeus parity policy for quantized and lazy modules in
+the NN design notes, then either implement typed Coeus module surfaces and PyO3
+wrappers with PyTorch differential tests, or record a precise non-goal with the
+replacement Coeus contract and explicit user-facing migration path.
+**Evidence tier**: source-surface audit plus external API documentation audit.
+
+### G-041: Regularization, sparse, and local-response modules incomplete
+**Location**: `coeus-nn/src/dropout.rs`, `coeus-nn/src/embedding.rs`,
+`coeus-nn/src/normalization/`, `coeus-python/src/nn/`
+**Compared against**: Burn `GaussianNoise`/`LocalResponseNorm` and PyTorch
+`AlphaDropout`, `FeatureAlphaDropout`, `EmbeddingBag`, and
+`LocalResponseNorm`.
+**Gap**: Coeus exposes `Dropout` and `Embedding`, but lacks AlphaDropout,
+FeatureAlphaDropout, EmbeddingBag, GaussianNoise, and LocalResponseNorm module
+surfaces and PyO3 wrappers.
+**Acceptance**: Implement each family once in Rust with value-semantic forward
+and backward tests; add PyO3 wrappers that only delegate to Rust; add PyTorch
+differential tests where PyTorch has a direct oracle and Burn parity tests where
+Burn exposes the module.
+**Evidence tier**: source-surface audit plus external API documentation audit.
+
+### G-040: Recurrent parity lacks vanilla and bidirectional sequence variants
+**Location**: `coeus-nn/src/rnn/`, `coeus-python/src/nn/rnn.rs`
+**Compared against**: Burn recurrent modules and PyTorch
+`RNN`/`RNNCell`/bidirectional recurrent configurations.
+**Gap**: Coeus exposes LSTM/GRU cells and sequence modules, but no vanilla
+RNN/RNNCell and no explicit bidirectional RNN/LSTM/GRU module surfaces.
+**Acceptance**: Add a generic recurrent core that shares step logic across
+vanilla, GRU, and LSTM families; implement bidirectional composition without
+duplicating cell math; expose thin PyO3 wrappers; verify forward/backward
+against PyTorch and Burn where direct APIs exist.
+**Evidence tier**: source-surface audit plus external API documentation audit.
+
+### G-039: Python loss wrappers lag existing Rust loss surface
+**Location**: `coeus-nn/src/loss.rs`, `coeus-python/src/losses.rs`,
+`coeus-python/src/lib.rs`
+**Compared against**: Coeus Rust surface and PyTorch functional losses.
+**Gap**: Rust `coeus-nn` exports `kl_divergence` and `margin_ranking_loss`, but
+`coeus-python` does not expose corresponding thin PyO3 functions. This violates
+the wrapper-only parity direction because existing Rust functionality is not
+reachable from Python.
+**Acceptance**: Add PyO3 wrappers for Rust KL divergence and margin ranking
+loss without Python-side math; add PyTorch differential tests for forward value
+and prediction/input gradients at f64.
+**Evidence tier**: source-surface audit.
+
+### G-038: Loss and distance surface remains below PyTorch coverage
+**Location**: `coeus-nn/src/loss.rs`, `coeus-python/src/losses.rs`
+**Compared against**: PyTorch loss and distance families.
+**Gap**: Coeus lacks direct L1, SmoothL1, BCEWithLogits, CTC, PoissonNLL,
+GaussianNLL, MultiMargin, MultiLabel margin/soft-margin, TripletMargin,
+PairwiseDistance, and CosineSimilarity public surfaces. Some behavior may be
+expressible by existing primitives, but there is no authoritative module/API
+parity, no wrapper, and no differential harness coverage.
+**Acceptance**: Implement missing losses/distances as Rust canonical functions
+or modules with typed reduction policy where applicable; expose PyO3 wrappers
+only as delegates; add analytical tests for formulae and PyTorch differential
+tests for forward/backward where PyTorch provides gradients.
+**Evidence tier**: source-surface audit plus external API documentation audit.
+
+### G-037: Activation surface remains incomplete versus Burn/PyTorch
+**Location**: `coeus-nn/src/activation.rs`, `coeus-python/src/activation.rs`
+**Compared against**: Burn activations and PyTorch activation modules/functions.
+**Gap**: Coeus covers common activations, but lacks Rust module/API parity for
+PReLU, CELU, Hardshrink, Hardsigmoid, Hardtanh, Hardswish, Softshrink,
+Softsign, Threshold, and a Rust `nn` GLU/SwiGLU family surface matching
+framework module expectations.
+**Acceptance**: Add one generic Rust activation implementation per operation
+family with analytical derivative tests; expose PyO3 wrappers as delegation
+only; add PyTorch/Burn differential tests at f64, with kink/subgradient points
+handled by documented analytical contracts.
+**Evidence tier**: source-surface audit plus external API documentation audit.
+
+### G-036: Pooling, adaptive pooling, and unfold/fold coverage incomplete
+**Location**: `coeus-nn/src/pool.rs`, `coeus-python/src/nn/pool.rs`
+**Compared against**: Burn `Unfold4d` and PyTorch pooling/unfold/fold module
+families.
+**Gap**: Coeus exposes 2D/3D average and max pooling plus selected global
+pooling wrappers, but lacks 1D pooling modules, adaptive pooling surfaces beyond
+global wrappers, and Unfold/Fold/Unfold4d parity surfaces.
+**Acceptance**: Add canonical N-dimensional pooling kernels with shape policy
+types or const-generic rank routing, then expose 1D/adaptive/unfold/fold module
+surfaces without duplicating math. Verify forward/backward against PyTorch and
+Burn where direct APIs exist.
+**Evidence tier**: source-surface audit plus external API documentation audit.
+
+### G-035: ConvTranspose3d parity missing
+**Location**: `coeus-nn/src/conv/`, `coeus-python/src/nn/conv.rs`
+**Compared against**: PyTorch `ConvTranspose3d` and the existing Coeus
+ConvTranspose1d/2d family.
+**Gap**: Coeus exports ConvTranspose1d and ConvTranspose2d, but has no
+ConvTranspose3d Rust module, backend route, autograd coverage, PyO3 wrapper, or
+PyTorch differential test.
+**Acceptance**: Implement ConvTranspose3d through the existing convolution
+family architecture, add value-semantic forward/backward Rust tests, add
+WGPU/CUDA backend-autograd parity where supported, and expose a thin PyO3
+wrapper with PyTorch f64 differential coverage.
+**Evidence tier**: source-surface audit plus external API documentation audit.
+
 ### ~~G-034: Linear/loss tests only checked gradient existence~~ **CLOSED**
 **Location**: `coeus-nn/tests/nn/linear_activation_loss.rs`
 **Closed by**: MS-179 — Replaced Linear, MSE, and CrossEntropy
@@ -307,6 +428,15 @@ Evidence tier: differential/empirical (PyTorch f64).
 
 | Risk | Evidence Tier | Status |
 |------|--------------|--------|
+| G-035 ConvTranspose3d parity missing | source-surface + external docs audit | **open** |
+| G-036 pooling/adaptive/unfold/fold coverage incomplete | source-surface + external docs audit | **open** |
+| G-037 activation surface incomplete versus Burn/PyTorch | source-surface + external docs audit | **open** |
+| G-038 loss and distance surface remains below PyTorch coverage | source-surface + external docs audit | **open** |
+| G-039 Python loss wrappers lag existing Rust loss surface | source-surface audit | **open** |
+| G-040 recurrent parity lacks vanilla and bidirectional variants | source-surface + external docs audit | **open** |
+| G-041 regularization/sparse/local-response modules incomplete | source-surface + external docs audit | **open** |
+| G-042 quantized and lazy module parity policy missing | source-surface + external docs audit | **open** |
+| G-043 Burn/PyTorch NN benchmark matrix remains partial | source-surface + external docs audit | **open** |
 | G-001 stateless PyTransformerEncoderLayer binding | structural | **closed MS-127** |
 | G-002 stateless PyTransformerEncoder binding | structural | **closed MS-128** |
 | G-003 stateless PyTransformerDecoderLayer binding | structural | **closed MS-129** |

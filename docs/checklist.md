@@ -2,7 +2,24 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-179 - Linear/loss gradient value assertions [COMPLETE]
+### Current Sprint: MS-180 - Burn/PyTorch parity gap audit [COMPLETE]
+**Objective**: Compare Coeus NN and Python public surfaces against Burn and
+PyTorch module families, then file remaining parity work as concrete backlog
+items.
+**Target version**: 0.5.4 (audit/docs-only [patch]).
+
+- [x] [patch] Audited `coeus-nn/src/lib.rs`, `coeus-nn/src/loss.rs`,
+  `coeus-python/src/lib.rs`, and `coeus-python/src/losses.rs` public surfaces
+  against Burn/PyTorch NN categories and the current parity harness scope.
+- [x] [patch] Added G-035..G-043 to `docs/gap_audit.md`, covering
+  ConvTranspose3d, pooling/adaptive/unfold/fold, activations, losses/distances,
+  Python loss wrapper lag, recurrent variants, regularization/sparse/local
+  response modules, quantized/lazy policy, and benchmark matrix coverage.
+- [x] [patch] Mirrored the open parity queue in `docs/backlog.md`.
+- [x] Evidence: source-surface audit plus Burn/PyTorch documentation audit; no
+  Rust or Python implementation changed.
+
+### Previous Sprint: MS-179 - Linear/loss gradient value assertions [COMPLETE]
 **Objective**: Remove existence-only Linear/MSE/CrossEntropy focused gradient
 checks and replace them with analytical value-semantic assertions.
 **Target version**: 0.5.4 (test-only [patch]).

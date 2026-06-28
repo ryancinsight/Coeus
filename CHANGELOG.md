@@ -4,6 +4,11 @@
 
 ### Changed
 
+- **Burn/PyTorch parity gap audit** — compared the current `coeus-nn` and
+  `coeus-python` public surfaces against Burn and PyTorch NN module families,
+  then filed open G-035..G-043 parity items in `docs/gap_audit.md` and mirrored
+  them in `docs/backlog.md`. Evidence tier: source-surface audit plus external
+  API documentation audit. ([patch])
 - **Linear/loss gradient test hardening** — `coeus-nn` Linear, MSE, and
   CrossEntropy focused tests now assert analytical gradient values instead of
   only checking that gradient buffers exist. CrossEntropy uses a stable
