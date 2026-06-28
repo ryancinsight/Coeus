@@ -1,5 +1,18 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-145: Bilinear backward PyTorch differential parity [COMPLETE]
+
+- [x] [patch] Added
+  `coeus-python/tests/test_pytorch_parity.py::test_bilinear_backward_matches_pytorch`
+  asserting `pycoeus.Bilinear(3,4,2, bias=True)` differentiated via
+  `out.sum().backward()` against `torch.nn.Bilinear.double()` at f64, atol=1e-10.
+  Covers the flat `[out, in1, in2]` weight gradient, `[out]` bias gradient, and
+  `[batch, in1]` / `[batch, in2]` input gradients — exercising the autograd
+  composition chain (matmul → mul → sum_axis → cat → add).
+- [x] Evidence tier: differential/empirical against PyTorch's autograd at f64.
+  Full Python parity suite passes 55 passed, 2 MLX-skipped; isolated bilinear
+  backward test passes 1/1.
+
 ## Sprint MS-176: ConvTranspose backward GPU coverage [COMPLETE]
 
 - [x] [patch] Added WGPU backend-autograd `conv_transpose1d` and
