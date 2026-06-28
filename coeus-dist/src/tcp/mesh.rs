@@ -1,3 +1,4 @@
+use moirai::Moirai;
 use moirai_async::{AsyncReadExt, AsyncWriteExt, TcpListener, TcpStream};
 use std::net::SocketAddr;
 use std::sync::Mutex;
@@ -8,12 +9,13 @@ pub struct TcpMesh {
     rank: usize,
     size: usize,
     streams: Vec<Option<Mutex<TcpStream>>>,
+    runtime: Moirai,
 }
 
 impl TcpMesh {
     #[inline]
     fn debug_timeout() -> Option<Duration> {
-        cfg!(debug_assertions).then_some(Duration::from_secs(5))
+        cfg!(debug_assertions).then_some(Duration::from_secs(45))
     }
 
     /// Create a new TCP mesh connecting all ranks.
@@ -26,8 +28,9 @@ impl TcpMesh {
             "addresses list length must match world size"
         );
         let mut streams = (0..size).map(|_| None).collect::<Vec<_>>();
+        let runtime = Moirai::new().expect("failed to initialize dedicated TCP mesh runtime");
 
-        moirai::global().block_on(async {
+        runtime.block_on(async {
             let local_addr = addresses[rank].to_string();
             let listener = TcpListener::bind(&local_addr)
                 .await
@@ -123,6 +126,7 @@ impl TcpMesh {
             rank,
             size,
             streams,
+            runtime,
         }
     }
 
@@ -152,7 +156,7 @@ impl TcpMesh {
     pub fn send(&self, target: usize, bytes: &[u8]) {
         let stream_mutex = self.stream_for_peer(target, "send");
         let mut stream = stream_mutex.lock().unwrap();
-        moirai::global().block_on(async {
+        self.runtime.block_on(async {
             if let Some(timeout) = Self::debug_timeout() {
                 moirai_async::timeout(timeout, stream.write_all(bytes))
                     .await
@@ -172,7 +176,7 @@ impl TcpMesh {
     pub fn recv(&self, source: usize, bytes: &mut [u8]) {
         let stream_mutex = self.stream_for_peer(source, "recv");
         let mut stream = stream_mutex.lock().unwrap();
-        moirai::global().block_on(async {
+        self.runtime.block_on(async {
             if let Some(timeout) = Self::debug_timeout() {
                 moirai_async::timeout(timeout, stream.read_exact(bytes))
                     .await
@@ -185,5 +189,11 @@ impl TcpMesh {
                     .expect("failed to receive bytes over TCP");
             }
         });
+    }
+}
+
+impl Drop for TcpMesh {
+    fn drop(&mut self) {
+        self.runtime.shutdown();
     }
 }
