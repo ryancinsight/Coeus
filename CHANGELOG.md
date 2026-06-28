@@ -38,6 +38,13 @@
 
 ### Added
 
+- **Activation JAX parity (SiLU/Mish/ELU/Softplus/LeakyReLU)** — added
+  `test_{silu,mish,elu,softplus,leaky_relu}_matches_jax` to
+  `coeus-python/tests/test_jax_parity.py` via a shared
+  `_assert_activation_matches_jax` helper (`jax.grad` for backward), mirroring the
+  PyTorch activation parity against `jax.nn.*` at f64. Extends JAX coverage beyond
+  Linear/MHA/decoder to the elementwise activations. Evidence tier:
+  differential/empirical; JAX suite 8/8. ([patch])
 - **Activation PyTorch parity (SiLU/Mish/ELU/Softplus/LeakyReLU)** — added
   `test_{silu,mish,elu,softplus,leaky_relu}_matches_pytorch` via a shared
   `_assert_activation_parity` helper, asserting forward output and input gradient

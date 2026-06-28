@@ -265,3 +265,62 @@ def test_transformer_decoder_layer_matches_jax() -> None:
     out_jax = x2 + (ff @ ff2_w.T + ff2_b)
 
     _allclose("decoder_layer_fwd", list(out_pyc.data), out_jax.flatten().tolist(), atol=_ATOL_DEC)
+
+
+# ---------------------------------------------------------------------------
+# Elementwise activation forward + backward (mirrors the PyTorch activation
+# parity tests, against jax.nn references)
+# ---------------------------------------------------------------------------
+
+
+def _assert_activation_matches_jax(name, pyc_fn, jax_fn, data) -> None:
+    """Differential forward + input-gradient parity for an elementwise activation.
+
+    pycoeus drives ``out.sum().backward()``; JAX uses ``jax.grad`` of the summed
+    activation. Compared at f64, ``_ATOL``.
+    """
+    x_pyc = pycoeus.Tensor(data, [len(data)], requires_grad=True)
+    out_pyc = pyc_fn(x_pyc)
+    out_pyc.sum().backward()
+
+    x_jax = jnp.array(data, dtype=jnp.float64)
+    out_jax = jax_fn(x_jax)
+    grad_jax = jax.grad(lambda z: jnp.sum(jax_fn(z)))(x_jax)
+
+    _allclose(f"{name}_out", list(out_pyc.data), list(out_jax))
+    _allclose(f"{name}_dx", list(x_pyc.grad), list(grad_jax))
+
+
+# Mixed-sign inputs span both regimes of each nonlinearity. SiLU/Mish/ELU/
+# Softplus are C1 everywhere (0.0 safe); LeakyReLU has a kink at 0 where the
+# subgradient convention is implementation-defined, so 0.0 is excluded.
+_ACT_INPUT = [-2.0, -0.5, 0.0, 0.3, 1.5, 3.0]
+_ACT_INPUT_NO_ZERO = [-2.0, -0.5, 0.3, 1.5, 3.0]
+
+
+def test_silu_matches_jax() -> None:
+    _assert_activation_matches_jax("silu", lambda x: pycoeus.silu(x), jax.nn.silu, _ACT_INPUT)
+
+
+def test_mish_matches_jax() -> None:
+    _assert_activation_matches_jax("mish", lambda x: pycoeus.mish(x), jax.nn.mish, _ACT_INPUT)
+
+
+def test_elu_matches_jax() -> None:
+    _assert_activation_matches_jax("elu", lambda x: pycoeus.elu(x), jax.nn.elu, _ACT_INPUT)
+
+
+def test_softplus_matches_jax() -> None:
+    _assert_activation_matches_jax(
+        "softplus", lambda x: pycoeus.softplus(x), jax.nn.softplus, _ACT_INPUT
+    )
+
+
+def test_leaky_relu_matches_jax() -> None:
+    # Default negative slope 0.01 on both sides; 0.0 excluded (kink subgradient).
+    _assert_activation_matches_jax(
+        "leaky_relu",
+        lambda x: pycoeus.leaky_relu(x),
+        jax.nn.leaky_relu,
+        _ACT_INPUT_NO_ZERO,
+    )

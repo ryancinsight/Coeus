@@ -2,6 +2,14 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-027: JAX harness lacked elementwise activation parity~~ **CLOSED**
+**Location**: `coeus-python/tests/test_jax_parity.py`
+**Closed by**: MS-168 — Added `_assert_activation_matches_jax` (`jax.grad` for
+backward) and `test_{silu,mish,elu,softplus,leaky_relu}_matches_jax`, asserting
+forward output and input gradient against `jax.nn.*` at f64. Extends the JAX
+harness beyond Linear/MHA/decoder to the elementwise activations, symmetric with
+the PyTorch coverage of MS-167. Evidence tier: differential/empirical.
+
 ### ~~G-026: Elementwise activation differential parity missing (only GELU covered)~~ **CLOSED**
 **Location**: `coeus-python/tests/test_pytorch_parity.py`
 **Closed by**: MS-167 — Added a shared `_assert_activation_parity` helper and
@@ -257,5 +265,6 @@ Evidence tier: differential/empirical (PyTorch f64).
 | G-020 BCE/Huber loss differential parity missing | differential | **closed MS-156** |
 | G-025 GlobalAvg/MaxPool2d differential parity missing | differential | **closed MS-166** |
 | G-026 Elementwise activation differential parity missing | differential | **closed MS-167** |
+| G-027 JAX harness lacked elementwise activation parity | differential | **closed MS-168** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical (forward-only) | deferred |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |

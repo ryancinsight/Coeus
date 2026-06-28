@@ -2,7 +2,17 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-167 - Activation PyTorch parity (SiLU/Mish/ELU/Softplus/LeakyReLU) [COMPLETE]
+### Current Sprint: MS-168 - Activation JAX parity (SiLU/Mish/ELU/Softplus/LeakyReLU) [COMPLETE]
+**Objective**: Extend the JAX parity harness (Linear/MHA/decoder only) to the
+elementwise activations, mirroring the PyTorch activation parity of MS-167.
+**Target version**: 0.5.4 (test-only [patch]).
+
+- [x] [patch] Added `_assert_activation_matches_jax` helper (`jax.grad` backward) +
+  5 tests asserting forward + dx vs `jax.nn.{silu,mish,elu,softplus,leaky_relu}`.
+- [x] [patch] LeakyReLU input excludes the `x=0` kink; C1 activations include it.
+- [x] Evidence: `pytest test_jax_parity.py` 8/8 pass.
+
+### Previous Sprint: MS-167 - Activation PyTorch parity (SiLU/Mish/ELU/Softplus/LeakyReLU) [COMPLETE]
 **Objective**: Close the elementwise-activation differential gap — only GELU had
 PyTorch parity; SiLU, Mish, ELU, Softplus, LeakyReLU had none.
 **Target version**: 0.5.4 (test-only [patch]).
