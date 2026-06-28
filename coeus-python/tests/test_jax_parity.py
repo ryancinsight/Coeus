@@ -385,3 +385,63 @@ def test_cross_entropy_loss_matches_jax() -> None:
 
     _allclose("ce_loss", list(loss_pyc.data), [float(loss_jax)])
     _allclose("ce_dx", list(x_pyc.grad), grad_jax.flatten().tolist())
+
+
+# ---------------------------------------------------------------------------
+# LayerNorm / RMSNorm forward + backward (mirrors the PyTorch norm parity,
+# against inline JAX references)
+# ---------------------------------------------------------------------------
+
+_NORM_DATA = [0.1 * i - 0.3 for i in range(2 * 4)]
+_NORM_GAMMA = [1.5, 0.5, 1.2, 0.8]
+_NORM_BETA = [0.1, -0.1, 0.2, -0.2]
+_NORM_EPS = 1e-5
+
+
+def test_layernorm_matches_jax() -> None:
+    """Forward + input/weight/bias gradient parity: LayerNorm(4) on [2, 4]."""
+    ln = pycoeus.LayerNorm(4, eps=_NORM_EPS)
+    ln.weight.data = _NORM_GAMMA
+    ln.bias.data = _NORM_BETA
+    x_pyc = pycoeus.Tensor(_NORM_DATA, [2, 4], requires_grad=True)
+    out_pyc = ln.forward(x_pyc)
+    out_pyc.sum().backward()
+
+    def _jax_ln(z, g, b):
+        mu = jnp.mean(z, axis=-1, keepdims=True)
+        var = jnp.mean((z - mu) ** 2, axis=-1, keepdims=True)
+        return (z - mu) / jnp.sqrt(var + _NORM_EPS) * g + b
+
+    x_jax = jnp.array(_NORM_DATA, dtype=jnp.float64).reshape(2, 4)
+    g_jax = jnp.array(_NORM_GAMMA, dtype=jnp.float64)
+    b_jax = jnp.array(_NORM_BETA, dtype=jnp.float64)
+    out_jax = _jax_ln(x_jax, g_jax, b_jax)
+    gx, gg, gb = jax.grad(lambda z, g, b: jnp.sum(_jax_ln(z, g, b)), argnums=(0, 1, 2))(
+        x_jax, g_jax, b_jax
+    )
+
+    _allclose("ln_out", list(out_pyc.data), out_jax.flatten().tolist())
+    _allclose("ln_dx", list(x_pyc.grad), gx.flatten().tolist())
+    _allclose("ln_dgamma", list(ln.weight.grad), gg.tolist())
+    _allclose("ln_dbeta", list(ln.bias.grad), gb.tolist())
+
+
+def test_rmsnorm_matches_jax() -> None:
+    """Forward + input/weight gradient parity: RMSNorm(4) on [2, 4] (no bias)."""
+    rms = pycoeus.RMSNorm(4, eps=_NORM_EPS)
+    rms.weight.data = _NORM_GAMMA
+    x_pyc = pycoeus.Tensor(_NORM_DATA, [2, 4], requires_grad=True)
+    out_pyc = rms.forward(x_pyc)
+    out_pyc.sum().backward()
+
+    def _jax_rms(z, g):
+        return z / jnp.sqrt(jnp.mean(z**2, axis=-1, keepdims=True) + _NORM_EPS) * g
+
+    x_jax = jnp.array(_NORM_DATA, dtype=jnp.float64).reshape(2, 4)
+    g_jax = jnp.array(_NORM_GAMMA, dtype=jnp.float64)
+    out_jax = _jax_rms(x_jax, g_jax)
+    gx, gg = jax.grad(lambda z, g: jnp.sum(_jax_rms(z, g)), argnums=(0, 1))(x_jax, g_jax)
+
+    _allclose("rms_out", list(out_pyc.data), out_jax.flatten().tolist())
+    _allclose("rms_dx", list(x_pyc.grad), gx.flatten().tolist())
+    _allclose("rms_dgamma", list(rms.weight.grad), gg.tolist())
