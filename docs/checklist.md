@@ -2,7 +2,24 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-175 - MSE/BCE/Huber loss JAX parity [COMPLETE]
+### Current Sprint: MS-176 - ConvTranspose backward GPU coverage [COMPLETE]
+**Objective**: Close the deferred ConvTranspose backward coverage gap for the
+WGPU and CUDA backend-autograd paths without adding a duplicate backend backward
+API before there is a dedicated kernel seam.
+**Target version**: 0.5.4 (test-only [patch]).
+
+- [x] [patch] Added WGPU `conv_transpose1d` and `conv_transpose2d` backward
+  tests that run tracked backend tensors, seed non-uniform gradients, and compare
+  input/weight gradients against the existing CPU autograd reference.
+- [x] [patch] Added CUDA feature-gated `conv_transpose1d` and
+  `conv_transpose2d` backward parity tests with the same CPU-autograd oracle.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-wgpu -p
+  coeus-cuda` (87/87); `rustup run nightly cargo check -p coeus-cuda
+  --all-targets --features cuda`; `rustup run nightly cargo nextest run -p
+  coeus-cuda --features cuda` (71/71); `rustup run nightly cargo clippy -p
+  coeus-wgpu -p coeus-cuda --all-targets -- -D warnings`.
+
+### Previous Sprint: MS-175 - MSE/BCE/Huber loss JAX parity [COMPLETE]
 **Objective**: Extend the JAX parity harness to the regression/binary losses
 (mse_loss, binary_cross_entropy, huber_loss), mirroring the PyTorch loss parity.
 **Target version**: 0.5.4 (test-only [patch]).

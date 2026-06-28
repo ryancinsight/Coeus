@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-176: ConvTranspose backward GPU coverage [COMPLETE]
+
+- [x] [patch] Added WGPU backend-autograd `conv_transpose1d` and
+  `conv_transpose2d` backward tests that seed non-uniform output gradients and
+  compare input/weight gradients against the existing CPU autograd reference.
+- [x] [patch] Added CUDA feature-gated backend-autograd `conv_transpose1d` and
+  `conv_transpose2d` backward parity tests using the same CPU-autograd oracle.
+- [x] Evidence tier: empirical differential; `rustup run nightly cargo nextest
+  run -p coeus-wgpu -p coeus-cuda` passes 87/87; `rustup run nightly cargo
+  check -p coeus-cuda --all-targets --features cuda` passes; `rustup run
+  nightly cargo nextest run -p coeus-cuda --features cuda` passes 71/71;
+  `rustup run nightly cargo clippy -p coeus-wgpu -p coeus-cuda --all-targets
+  -- -D warnings` passes.
+
 ## Sprint MS-175: TCP rooted handshake fail-status propagation [COMPLETE]
 
 - [x] [patch] Upgraded `TcpCommunicator::rooted_numel_handshake` to propagate a

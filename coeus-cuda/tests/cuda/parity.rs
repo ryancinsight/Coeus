@@ -11,6 +11,7 @@
 // must match the CPU reference. Every test is skipped unless a live CUDA
 // device, driver, and context are all present.
 
+use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
 use coeus_cuda::CudaBackend;
 use coeus_ops::{ConvOps, OptimizerOps, PoolOps};
@@ -1372,6 +1373,124 @@ fn test_cuda_parity_conv_transpose2d() {
         "conv_transpose2d",
         out_s.as_slice(),
         to_cpu(&out_g, &c, &s).as_slice(),
+        CUDA_ACC_TOL,
+    );
+}
+
+#[test]
+fn test_cuda_parity_conv_transpose1d_backward() {
+    let Some((s, c)) = backends() else {
+        return;
+    };
+
+    let input = [0.5f32, -0.25, 0.75];
+    let weight = [0.7f32, -0.4];
+    let seed = [1.0f32, -0.5, 0.25, 2.0];
+
+    let input_cpu = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 3], &input),
+        true,
+    );
+    let weight_cpu = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2], &weight),
+        true,
+    );
+    let out_cpu =
+        coeus_ops::conv_transpose1d(&input_cpu.tensor, &weight_cpu.tensor, None, 1, 0, 0, 1, &s);
+    let tracked_cpu =
+        coeus_autograd::conv_transpose1d(&input_cpu, &weight_cpu, &None, out_cpu, 1, 0, 0, 1);
+    tracked_cpu.backward_with_seed(Tensor::<f32, SequentialBackend>::from_slice(
+        [1, 1, 4],
+        &seed,
+    ));
+
+    let input_gpu = Var::new(
+        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 3], &input, &c),
+        true,
+    );
+    let weight_gpu = Var::new(
+        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 2], &weight, &c),
+        true,
+    );
+    let out_gpu =
+        coeus_ops::conv_transpose1d(&input_gpu.tensor, &weight_gpu.tensor, None, 1, 0, 0, 1, &c);
+    let tracked_gpu =
+        coeus_autograd::conv_transpose1d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
+    tracked_gpu.backward_with_seed(Tensor::<f32, CudaBackend>::from_slice_on(
+        [1, 1, 4],
+        &seed,
+        &c,
+    ));
+
+    assert_parity_tol(
+        "conv_transpose1d_backward_input",
+        input_cpu.grad().unwrap().as_slice(),
+        to_cpu(&input_gpu.grad().unwrap(), &c, &s).as_slice(),
+        CUDA_ACC_TOL,
+    );
+    assert_parity_tol(
+        "conv_transpose1d_backward_weight",
+        weight_cpu.grad().unwrap().as_slice(),
+        to_cpu(&weight_gpu.grad().unwrap(), &c, &s).as_slice(),
+        CUDA_ACC_TOL,
+    );
+}
+
+#[test]
+fn test_cuda_parity_conv_transpose2d_backward() {
+    let Some((s, c)) = backends() else {
+        return;
+    };
+
+    let input = [0.5f32, -0.25, 0.75, 1.25];
+    let weight = [0.6f32, -0.2, 0.3, -0.5];
+    let seed: Vec<f32> = (0..9).map(|x| x as f32 * 0.2 - 0.7).collect();
+
+    let input_cpu = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2, 2], &input),
+        true,
+    );
+    let weight_cpu = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2, 2], &weight),
+        true,
+    );
+    let out_cpu =
+        coeus_ops::conv_transpose2d(&input_cpu.tensor, &weight_cpu.tensor, None, 1, 0, 0, 1, &s);
+    let tracked_cpu =
+        coeus_autograd::conv_transpose2d(&input_cpu, &weight_cpu, &None, out_cpu, 1, 0, 0, 1);
+    tracked_cpu.backward_with_seed(Tensor::<f32, SequentialBackend>::from_slice(
+        [1, 1, 3, 3],
+        &seed,
+    ));
+
+    let input_gpu = Var::new(
+        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 2, 2], &input, &c),
+        true,
+    );
+    let weight_gpu = Var::new(
+        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 2, 2], &weight, &c),
+        true,
+    );
+    let out_gpu =
+        coeus_ops::conv_transpose2d(&input_gpu.tensor, &weight_gpu.tensor, None, 1, 0, 0, 1, &c);
+    let tracked_gpu =
+        coeus_autograd::conv_transpose2d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
+    tracked_gpu.backward_with_seed(Tensor::<f32, CudaBackend>::from_slice_on(
+        [1, 1, 3, 3],
+        &seed,
+        &c,
+    ));
+
+    assert_parity_tol(
+        "conv_transpose2d_backward_input",
+        input_cpu.grad().unwrap().as_slice(),
+        to_cpu(&input_gpu.grad().unwrap(), &c, &s).as_slice(),
+        CUDA_ACC_TOL,
+    );
+    assert_parity_tol(
+        "conv_transpose2d_backward_weight",
+        weight_cpu.grad().unwrap().as_slice(),
+        to_cpu(&weight_gpu.grad().unwrap(), &c, &s).as_slice(),
         CUDA_ACC_TOL,
     );
 }
