@@ -65,7 +65,7 @@ fn test_conv1d_forward_multi_channel() {
 }
 
 #[test]
-fn test_conv1d_backward_gradients_exist() {
+fn test_conv1d_backward_gradients_match_reference() {
     let mut conv = Conv1d::<f64>::new(1, 1, 2, true);
     init::constant(&mut conv.weight, 1.0);
     if let Some(ref mut b) = conv.bias {
@@ -80,10 +80,18 @@ fn test_conv1d_backward_gradients_exist() {
     let output = conv.forward(&input);
     output.backward();
 
-    assert!(input.grad().is_some());
-    assert!(conv.weight.grad().is_some());
+    let input_grad = input.grad().expect("input gradient must be set");
+    assert_eq!(input_grad.shape(), &[1, 1, 4]);
+    assert_eq!(input_grad.as_slice(), &[1.0, 2.0, 2.0, 1.0]);
+
+    let weight_grad = conv.weight.grad().expect("weight gradient must be set");
+    assert_eq!(weight_grad.shape(), &[1, 1, 2]);
+    assert_eq!(weight_grad.as_slice(), &[6.0, 9.0]);
+
     if let Some(ref b) = conv.bias {
-        assert!(b.grad().is_some());
+        let bias_grad = b.grad().expect("bias gradient must be set");
+        assert_eq!(bias_grad.shape(), &[1]);
+        assert_eq!(bias_grad.as_slice(), &[3.0]);
     }
 }
 

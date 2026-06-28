@@ -1,5 +1,11 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-178: Conv gradient value assertions [COMPLETE]
+
+- [x] [patch] Replaced Conv1d/Conv2d module backward existence-only assertions
+  with exact analytical checks for input, weight, and bias gradients.
+- [x] Evidence tier: analytical/value-semantic Rust tests.
+
 ## Sprint MS-177: TCP distributed test determinism [COMPLETE]
 
 - [x] [patch] Added a file-backed cross-process TCP port allocator lock and
