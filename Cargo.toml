@@ -93,7 +93,9 @@ hermes-simd-core = { path = "../hermes/crates/hermes-simd-core" }
 hermes-simd-intrinsics = { path = "../hermes/crates/hermes-simd-intrinsics" }
 hermes-simd-macros = { path = "../hermes/crates/hermes-simd-macros" }
 hermes-simd-types = { path = "../hermes/crates/hermes-simd-types" }
-hermes-numeric = { path = "../hermes/crates/hermes-numeric" }
+
+[patch."https://github.com/ryancinsight/eunomia"]
+eunomia = { path = "../eunomia/crates/eunomia" }
 
 [patch."https://github.com/ryancinsight/melinoe.git"]
 melinoe = { path = "../melinoe" }
