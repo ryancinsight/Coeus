@@ -19,7 +19,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
-    cross_entropy_loss, gelu, huber_loss, mse_loss, relu, sigmoid, silu, tanh,
+    cross_entropy_loss, gelu, huber_loss, mse_loss, relu, sigmoid, silu, tanh, AdaptiveAvgPool2d,
     AvgPool1d as CoeusAvgPool1d, AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d,
     Conv3d, Embedding, EmbeddingBag, EmbeddingBagMode, GroupNorm, InstanceNorm2d, LayerNorm,
     Linear, Lstm, MaxPool1d, MaxPool2d, Module, MultiHeadAttention, NullMask, RMSNorm,
@@ -1285,22 +1285,20 @@ fn bench_embeddingbag_sum(c: &mut Criterion) {
     let device = NdArrayDevice::default();
 
     // Build deterministic indices: each bag cycles through vocab.
-    let flat_indices: Vec<usize> = (0..(EB_BAGS * EB_BAG_SIZE))
-        .map(|i| i % EB_VOCAB)
-        .collect();
+    let flat_indices: Vec<usize> = (0..(EB_BAGS * EB_BAG_SIZE)).map(|i| i % EB_VOCAB).collect();
     let offsets: Vec<usize> = (0..EB_BAGS).map(|b| b * EB_BAG_SIZE).collect();
     let idx_i64_2d: Vec<i64> = flat_indices.iter().map(|&x| x as i64).collect();
 
     // Burn: Embedding + sum_dim (equivalent to EmbeddingBag sum).
     let burn_emb = burn::nn::EmbeddingConfig::new(EB_VOCAB, EB_DIM).init::<BurnB>(&device);
-    let x_burn: BurnTensor<BurnB, 2, Int> = BurnTensor::from_data(
-        TensorData::new(idx_i64_2d, [EB_BAGS, EB_BAG_SIZE]),
-        &device,
-    );
+    let x_burn: BurnTensor<BurnB, 2, Int> =
+        BurnTensor::from_data(TensorData::new(idx_i64_2d, [EB_BAGS, EB_BAG_SIZE]), &device);
 
     // Coeus EmbeddingBag.
-    let eb_seq = EmbeddingBag::<f32, SequentialBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum);
-    let eb_moirai = EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum);
+    let eb_seq =
+        EmbeddingBag::<f32, SequentialBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum);
+    let eb_moirai =
+        EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum);
 
     let mut group = c.benchmark_group(
         "Burn vs Coeus — EmbeddingBag sum (16 bags × 100 tokens, vocab=200 dim=64)",
@@ -1313,19 +1311,62 @@ fn bench_embeddingbag_sum(c: &mut Criterion) {
     });
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
-            black_box(eb_seq.forward_with_offsets(
-                black_box(&flat_indices),
-                Some(black_box(&offsets)),
-            ))
+            black_box(
+                eb_seq.forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))),
+            )
         })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
-            black_box(eb_moirai.forward_with_offsets(
-                black_box(&flat_indices),
-                Some(black_box(&offsets)),
-            ))
+            black_box(
+                eb_moirai.forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))),
+            )
         })
+    });
+    group.finish();
+}
+
+fn bench_adaptive_avg_pool2d_forward(c: &mut Criterion) {
+    // AdaptiveAvgPool2d(1,1): ResNet-style global pooling step.
+    // Input [8, 64, 7, 7] → output [8, 64, 1, 1].
+    const AAP_N: usize = 8;
+    const AAP_C: usize = 64;
+    const AAP_H: usize = 7;
+    const AAP_W: usize = 7;
+
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(AAP_N * AAP_C * AAP_H * AAP_W))
+        .map(|i| (i as f32 * 0.0021).sin())
+        .collect();
+
+    // Burn: AdaptiveAvgPool2d — init() has no type parameter.
+    let burn_pool = burn::nn::pool::AdaptiveAvgPool2dConfig::new([1, 1]).init();
+    let x_burn: BurnTensor<BurnB, 4> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [AAP_N, AAP_C, AAP_H, AAP_W]),
+        &device,
+    );
+
+    // Coeus AdaptiveAvgPool2d.
+    let pool_seq = AdaptiveAvgPool2d::<f32, SequentialBackend>::square(1);
+    let pool_moirai = AdaptiveAvgPool2d::<f32, MoiraiBackend>::square(1);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![AAP_N, AAP_C, AAP_H, AAP_W], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![AAP_N, AAP_C, AAP_H, AAP_W], &input_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — AdaptiveAvgPool2d(1,1) forward (8x64x7x7)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_pool.forward::<BurnB>(black_box(x_burn.clone()))))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
     });
     group.finish();
 }
@@ -1350,6 +1391,7 @@ criterion_group!(
     bench_embeddingbag_sum,
     bench_linear_forward_backward,
     bench_lstm_forward,
+    bench_adaptive_avg_pool2d_forward,
     bench_instancenorm2d_forward,
     bench_cross_entropy_loss,
     bench_mse_loss,

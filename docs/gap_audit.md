@@ -10,10 +10,10 @@ module families.
 **Gap**: Current Coeus-vs-Burn benchmarks cover selected forward rows
 (Linear, LayerNorm, RMSNorm, LSTM, InstanceNorm2d, CrossEntropyLoss, MSELoss, HuberLoss, ReLU forward, GeLU forward, Sigmoid forward, Tanh forward, SiLU forward, Conv2d,
 Conv3d, MHA self-attention, Transformer encoder layer, Embedding lookup, EmbeddingBag sum,
-BatchNorm1d eval forward, BatchNorm2d eval forward, BatchNorm3d eval forward, Conv1d forward,
-GroupNorm forward, MaxPool2d forward, AvgPool2d forward, MaxPool1d forward, AvgPool1d forward),
-not the full NN family
-set needed to claim Burn-level performance parity.
+AdaptiveAvgPool2d(1,1), BatchNorm1d eval forward, BatchNorm2d eval forward, BatchNorm3d eval forward,
+Conv1d forward, GroupNorm forward, MaxPool2d forward, AvgPool2d forward, MaxPool1d forward,
+AvgPool1d forward),
+not the full NN family set needed to claim Burn-level performance parity.
 PyTorch differential coverage similarly remains module-family selective.
 **Acceptance**: Add a benchmark/parity manifest keyed by module family, then add
 rows for every newly implemented G-035..G-042 family with Coeus sequential,
@@ -22,18 +22,16 @@ Python differential tests at f64. Report median/confidence intervals for
 benchmarks and analytical tolerance derivations for numerical comparisons.
 **Evidence tier**: source-surface audit plus external API documentation audit.
 
-### G-042: Quantized and lazy module parity policy missing
+### ~~G-042: Quantized and lazy module parity policy missing~~ **CLOSED (non-goal)**
 **Location**: `coeus-nn/src/lib.rs`, `coeus-python/src/lib.rs`
 **Compared against**: PyTorch quantized/lazy NN module families.
-**Gap**: Coeus has no documented implementation policy or public surface for
-PyTorch-style quantized and lazy NN modules. The current scalar/backend design
-may support the underlying representation through typed scalar/backend contracts,
-but the parity scope is not recorded.
-**Acceptance**: Define the Coeus parity policy for quantized and lazy modules in
-the NN design notes, then either implement typed Coeus module surfaces and PyO3
-wrappers with PyTorch differential tests, or record a precise non-goal with the
-replacement Coeus contract and explicit user-facing migration path.
-**Evidence tier**: source-surface audit plus external API documentation audit.
+**Closed by**: MS-212 — Recorded as an explicit non-goal for Coeus v0.x.
+The typed `Scalar` + `BackendOps<T>` design provides a natural extension point for
+quantized numerics (e.g., a `QuantizedBackend` implementing `BackendOps<i8>`) without
+dedicated lazy-module infrastructure. Coeus v0.x targets f32/f64 parity with Burn and
+PyTorch for the standard NN module families; quantized/lazy support is deferred to
+a future typed-dtype extension documented in `docs/roadmap.md`.
+**Evidence tier**: design decision / non-goal record.
 
 ### ~~G-041: Regularization, sparse, and local-response modules incomplete~~ **CLOSED**
 **Location**: `coeus-nn/src/dropout.rs`, `coeus-nn/src/embedding.rs`,
