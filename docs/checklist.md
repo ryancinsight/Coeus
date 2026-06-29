@@ -2,7 +2,24 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-195 - LSTM benchmark matrix expansion [COMPLETE]
+### Current Sprint: MS-196 - InstanceNorm2d benchmark matrix expansion [COMPLETE]
+**Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with an InstanceNorm2d
+forward row so one additional implemented NN family is measured across Burn NdArray
+and both Coeus CPU backends.
+**Target version**: 0.5.4 (benchmark/docs [patch]).
+
+- [x] [patch] Added `bench_instancenorm2d_forward` in
+  `coeus-nn/benches/nn_bench.rs` for `[2,32,16,16]`.
+- [x] [patch] Benchmarks Burn NdArray InstanceNorm2d forward vs Coeus
+  `InstanceNorm2d::<_, SequentialBackend>` and `InstanceNorm2d::<_, MoiraiBackend>`
+  and registers the row in `criterion_group!`.
+- [x] [patch] Updated G-043 selected-row detail in `docs/gap_audit.md`.
+- [x] Evidence: `cargo check -p coeus-nn --all-targets`; `cargo clippy -p
+  coeus-nn --all-targets -- -D warnings`; `cargo bench -p coeus-nn --bench
+  nn_bench --no-run`; `cargo bench -p coeus-nn --bench nn_bench --
+  InstanceNorm2d --warm-up-time 1 --measurement-time 2 --sample-size 10`.
+
+### Previous Sprint: MS-195 - LSTM benchmark matrix expansion [COMPLETE]
 **Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with an LSTM forward
 row so one additional implemented NN family is measured across Burn NdArray and
 both Coeus CPU backends.

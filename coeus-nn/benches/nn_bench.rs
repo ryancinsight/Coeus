@@ -20,8 +20,8 @@ use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
     AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d, Embedding, GroupNorm,
-    LayerNorm, Linear, Lstm, MaxPool2d, Module, MultiHeadAttention, NullMask, RMSNorm,
-    TransformerEncoderLayer,
+    InstanceNorm2d, LayerNorm, Linear, Lstm, MaxPool2d, Module, MultiHeadAttention, NullMask,
+    RMSNorm, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -32,8 +32,8 @@ use burn::nn::conv::Conv2dConfig;
 use burn::nn::conv::Conv3dConfig;
 use burn::nn::transformer::{TransformerEncoderConfig, TransformerEncoderInput};
 use burn::nn::{
-    BatchNormConfig, GroupNormConfig, LayerNormConfig, LinearConfig, LstmConfig, PaddingConfig1d,
-    PaddingConfig2d, PaddingConfig3d, RmsNormConfig,
+    BatchNormConfig, GroupNormConfig, InstanceNormConfig, LayerNormConfig, LinearConfig, LstmConfig,
+    PaddingConfig1d, PaddingConfig2d, PaddingConfig3d, RmsNormConfig,
 };
 use burn::tensor::{Int, Tensor as BurnTensor, TensorData};
 type BurnB = NdArray<f32>;
@@ -840,6 +840,54 @@ fn bench_lstm_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_instancenorm2d_forward(c: &mut Criterion) {
+    // InstanceNorm2d forward on [N=2, C=32, H=16, W=16].
+    const IN_N: usize = 2;
+    const IN_C: usize = 32;
+    const IN_H: usize = 16;
+    const IN_W: usize = 16;
+
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(IN_N * IN_C * IN_H * IN_W))
+        .map(|i| (i as f32 * 0.0027).cos())
+        .collect();
+
+    // Burn: InstanceNormConfig(num_channels).
+    let burn_in = InstanceNormConfig::new(IN_C).init::<BurnB>(&device);
+    let x_burn: BurnTensor<BurnB, 4> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [IN_N, IN_C, IN_H, IN_W]),
+        &device,
+    );
+
+    // Coeus: InstanceNorm2d::new(num_features, eps).
+    let in_seq = InstanceNorm2d::<f32, SequentialBackend>::new(IN_C, 1e-5);
+    let in_moirai = InstanceNorm2d::<f32, MoiraiBackend>::new(IN_C, 1e-5);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(
+            vec![IN_N, IN_C, IN_H, IN_W],
+            &input_data,
+        ),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![IN_N, IN_C, IN_H, IN_W], &input_data),
+        false,
+    );
+
+    let mut group =
+        c.benchmark_group("Burn vs Coeus — InstanceNorm2d forward (2x32x16x16)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_in.forward(black_box(x_burn.clone()))))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(in_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(in_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -858,6 +906,7 @@ criterion_group!(
     bench_transformer_encoder_forward,
     bench_embedding_forward,
     bench_linear_forward_backward,
-    bench_lstm_forward
+    bench_lstm_forward,
+    bench_instancenorm2d_forward
 );
 criterion_main!(benches);
