@@ -131,6 +131,16 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     coeus_autograd::huber_loss(pred, target, delta)
 }
 
+/// L1 (mean absolute error) loss.
+/// pred: `[N]`, target: `[N]`. Computes `mean(|pred - target|)`.
+#[inline]
+pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    pred: &Var<T, B>,
+    target: &Var<T, B>,
+) -> Var<T, B> {
+    coeus_autograd::l1_loss(pred, target)
+}
+
 /// KL divergence loss.
 ///
 /// `input` is log-probabilities and `target` is probabilities. Computes

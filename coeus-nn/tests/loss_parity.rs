@@ -1,5 +1,5 @@
 //! Differential parity for loss functions:
-//!   `mse_loss`, `nll_loss`, `huber_loss`,
+//!   `mse_loss`, `nll_loss`, `huber_loss`, `l1_loss`,
 //!   `binary_cross_entropy`, `kl_divergence`, `margin_ranking_loss`,
 //!   `cosine_embedding_loss`.
 //!
@@ -22,8 +22,8 @@ use coeus_core::{
     CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, SequentialBackend,
 };
 use coeus_nn::{
-    binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence, margin_ranking_loss,
-    mse_loss, nll_loss,
+    binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence, l1_loss,
+    margin_ranking_loss, mse_loss, nll_loss,
 };
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
@@ -70,6 +70,22 @@ where
     let hzt = v(&[2], &[1.0, 2.0], backend);
     let hz = huber_loss(&hzp, &hzt, 1.0_f64);
     assert_eq!(hz.tensor.as_slice(), &[0.0_f64], "huber_loss(x,x)=0");
+
+    // L1: pred-target=[3,-1,0.5,0] over shape [2,2] → mean = 4.5/4 = 1.125.
+    let l1p = v(&[2, 2], &[3.0, -1.0, 0.5, 4.0], backend);
+    let l1t = v(&[2, 2], &[0.0, 0.0, 0.0, 4.0], backend);
+    let l1 = l1_loss(&l1p, &l1t);
+    assert_eq!(
+        l1.tensor.as_slice(),
+        &[1.125_f64],
+        "l1_loss mean abs error over all elements"
+    );
+
+    // L1 zero error → 0 exactly.
+    let l1zp = v(&[2], &[1.0, 2.0], backend);
+    let l1zt = v(&[2], &[1.0, 2.0], backend);
+    let l1z = l1_loss(&l1zp, &l1zt);
+    assert_eq!(l1z.tensor.as_slice(), &[0.0_f64], "l1_loss(x,x)=0");
 
     // BCE: pred=[0.5], target=[0.0], eps=0.
     // loss = -0*log(0.5) - 1*log(1-0.5) = -log(0.5) = log(2).
