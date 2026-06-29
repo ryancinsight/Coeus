@@ -2,13 +2,14 @@ use coeus_core::{ComputeBackend, Scalar};
 
 use super::traits::{
     AttentionOps, ConvOps, ElementwiseOps, MatmulOps, OptimizerOps, PoolOps, ReductionOps,
+    UnfoldFoldOps,
 };
 
 /// Dynamic operations supported by execution hardware backends.
 ///
 /// `BackendOps<T>` is the single dispatch surface that routes all tensor kernels
-/// (elementwise, matmul, conv, pooling, attention, optimizer steps) to the
-/// underlying device.  It is a **super-trait** composed of seven
+/// (elementwise, matmul, conv, pooling, attention, optimizer steps, unfold/fold)
+/// to the underlying device.  It is a **super-trait** composed of eight
 /// interface-segregated sub-traits (see the [`super::traits`] module).  Backends
 /// implement each sub-trait independently; the blanket impl below provides
 /// `BackendOps` automatically.
@@ -49,10 +50,11 @@ pub trait BackendOps<T: Scalar>:
     + PoolOps<T>
     + AttentionOps<T>
     + OptimizerOps<T>
+    + UnfoldFoldOps<T>
 {
 }
 
-/// Blanket impl: any backend that implements all seven sub-traits automatically
+/// Blanket impl: any backend that implements all eight sub-traits automatically
 /// satisfies `BackendOps`.  No additional methods are required — `BackendOps`
 /// is a marker super-trait.
 impl<T: Scalar, B> BackendOps<T> for B where
@@ -64,5 +66,6 @@ impl<T: Scalar, B> BackendOps<T> for B where
         + PoolOps<T>
         + AttentionOps<T>
         + OptimizerOps<T>
+        + UnfoldFoldOps<T>
 {
 }
