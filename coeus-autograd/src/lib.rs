@@ -45,6 +45,7 @@ pub use ops::{
     batchnorm1d,
     batchnorm2d,
     batchnorm3d,
+    bce_with_logits,
     binary_cross_entropy,
     // Shape ops
     broadcast_to,

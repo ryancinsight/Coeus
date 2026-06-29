@@ -1,8 +1,8 @@
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_nn::{
-    binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence, l1_loss,
-    margin_ranking_loss, nll_loss,
+    bce_with_logits, binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence,
+    l1_loss, margin_ranking_loss, nll_loss,
 };
 use coeus_tensor::Tensor;
 
@@ -182,6 +182,76 @@ fn test_l1_loss() {
             -e
         );
     }
+}
+
+#[test]
+fn test_bce_with_logits() {
+    // Oracle: BCEWithLogits(z, y) == BCE(sigmoid(z), y), computed independently in f64.
+    // logits z=[0, 2, -1], target y=[1, 0, 1].
+    let zs = [0.0_f64, 2.0, -1.0];
+    let ys = [1.0_f64, 0.0, 1.0];
+    let n = zs.len() as f64;
+
+    let logits = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &zs), true);
+    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &ys), true);
+
+    let loss = bce_with_logits(&logits, &target);
+    assert_eq!(loss.tensor.shape(), &[1]);
+
+    // Reference forward via sigmoid + BCE.
+    let sigmoid = |z: f64| 1.0 / (1.0 + (-z).exp());
+    let mut expected = 0.0;
+    for (&z, &y) in zs.iter().zip(ys.iter()) {
+        let s = sigmoid(z);
+        expected -= y * s.ln() + (1.0 - y) * (1.0 - s).ln();
+    }
+    expected /= n;
+    let loss_val = loss.tensor.as_slice()[0];
+    assert!(
+        (loss_val - expected).abs() <= 1e-12,
+        "bce_with_logits forward: got {loss_val:.17}, expected {expected:.17}"
+    );
+
+    loss.backward();
+    // d/d_logit = (sigmoid(z) - y) / n; d/d_target = -z / n.
+    let logit_grad = logits.grad().expect("logits must receive a gradient");
+    let target_grad = target.grad().expect("target must receive a gradient");
+    for (i, ((&z, &y), (&gz, &gt))) in zs
+        .iter()
+        .zip(ys.iter())
+        .zip(logit_grad.as_slice().iter().zip(target_grad.as_slice().iter()))
+        .enumerate()
+    {
+        let exp_gz = (sigmoid(z) - y) / n;
+        let exp_gt = -z / n;
+        assert!(
+            (gz - exp_gz).abs() <= 1e-12,
+            "bce_with_logits d/d_logit[{i}]: got {gz:.17}, expected {exp_gz:.17}"
+        );
+        assert!(
+            (gt - exp_gt).abs() <= 1e-12,
+            "bce_with_logits d/d_target[{i}]: got {gt:.17}, expected {exp_gt:.17}"
+        );
+    }
+}
+
+#[test]
+fn test_bce_with_logits_matches_bce_of_sigmoid() {
+    // Numerically equal to applying sigmoid then binary_cross_entropy (eps→0 regime,
+    // well inside (0,1) so clamping is inert).
+    let zs = [0.5_f64, -0.7, 1.3, -2.0];
+    let ys = [1.0_f64, 0.0, 1.0, 0.0];
+    let logits = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([4], &zs), false);
+    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([4], &ys), false);
+    let stable = bce_with_logits(&logits, &target).tensor.as_slice()[0];
+
+    let probs: Vec<f64> = zs.iter().map(|z| 1.0 / (1.0 + (-z).exp())).collect();
+    let pv = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([4], &probs), false);
+    let composed = binary_cross_entropy(&pv, &target, 1e-12).tensor.as_slice()[0];
+    assert!(
+        (stable - composed).abs() <= 1e-12,
+        "bce_with_logits {stable:.17} != bce(sigmoid) {composed:.17}"
+    );
 }
 
 #[test]

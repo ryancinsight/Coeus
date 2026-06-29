@@ -110,6 +110,17 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     coeus_autograd::binary_cross_entropy(pred, target, eps)
 }
 
+/// Binary Cross-Entropy with logits (numerically stable sigmoid + BCE).
+/// logits and target share shape; reduces with `mean`. Mirrors PyTorch
+/// `BCEWithLogitsLoss(reduction="mean")`.
+#[inline]
+pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    logits: &Var<T, B>,
+    target: &Var<T, B>,
+) -> Var<T, B> {
+    coeus_autograd::bce_with_logits(logits, target)
+}
+
 /// Negative Log-Likelihood Loss.
 /// log_probs: `[N, C]` log-probabilities, targets: `[N]` class indices.
 #[inline]

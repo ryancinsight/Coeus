@@ -1,5 +1,7 @@
 /// Binary cross-entropy loss.
 pub mod bce;
+/// Binary cross-entropy from logits (numerically stable).
+pub mod bce_with_logits;
 /// Cosine embedding loss.
 pub mod cosine;
 /// Cross-entropy loss.
@@ -16,6 +18,7 @@ pub mod margin_ranking;
 pub mod nll;
 
 pub use bce::{binary_cross_entropy, BinaryCrossEntropyNode};
+pub use bce_with_logits::{bce_with_logits, BceWithLogitsNode};
 pub use cosine::{cosine_embedding_loss, CosineEmbeddingLossNode};
 pub use cross_entropy::{cross_entropy_loss, CrossEntropyLossNode};
 pub use huber::{huber_loss, HuberLossNode};
