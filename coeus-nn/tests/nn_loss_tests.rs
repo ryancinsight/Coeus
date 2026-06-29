@@ -2,7 +2,7 @@ use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_nn::{
     bce_with_logits, binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence,
-    l1_loss, margin_ranking_loss, nll_loss, poisson_nll, soft_margin,
+    l1_loss, margin_ranking_loss, nll_loss, pairwise_distance, poisson_nll, soft_margin,
 };
 use coeus_tensor::Tensor;
 
@@ -360,6 +360,36 @@ fn test_soft_margin() {
             (gt - exp_gt).abs() <= 1e-12,
             "soft_margin d/d_target[{i}]: got {gt:.17}, expected {exp_gt:.17}"
         );
+    }
+}
+
+#[test]
+fn test_pairwise_distance() {
+    let p = 2.0_f64;
+    let eps = 1e-6_f64;
+    let x1 = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]), true);
+    let x2 = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[0.0, 0.0, 1.0, 1.0]), true);
+    let dist = pairwise_distance(&x1, &x2, p, eps);
+    assert_eq!(dist.tensor.shape(), &[2]);
+    let diffs = [[1.0_f64, 2.0], [2.0, 3.0]];
+    let s: Vec<f64> = diffs.iter().map(|r| r.iter().map(|d| d.abs().powf(p)).sum::<f64>()).collect();
+    let out = dist.tensor.as_slice();
+    for i in 0..2 {
+        let exp = (s[i] + eps).powf(1.0 / p);
+        assert!((out[i] - exp).abs() <= 1e-12, "pd fwd {}", i);
+    }
+    let total = coeus_autograd::sum(&dist);
+    total.backward();
+    let g1 = x1.grad().expect("x1 grad");
+    let g2 = x2.grad().expect("x2 grad");
+    for i in 0..2 {
+        let scale = (s[i] + eps).powf(1.0 / p - 1.0);
+        for k in 0..2 {
+            let d = diffs[i][k];
+            let eg = scale * d.abs().powf(p - 1.0) * d.signum();
+            assert!((g1.as_slice()[i * 2 + k] - eg).abs() <= 1e-12, "pd gx1 {} {}", i, k);
+            assert!((g2.as_slice()[i * 2 + k] + eg).abs() <= 1e-12, "pd gx2 {} {}", i, k);
+        }
     }
 }
 

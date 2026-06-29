@@ -35,7 +35,7 @@ pub use nn::{
     binary_cross_entropy, conv1d, conv2d, conv3d, conv_transpose1d, conv_transpose2d,
     conv_transpose3d, cosine_embedding_loss,
     cross_entropy_loss, dropout, huber_loss, kl_divergence, l1_loss, layernorm, log_softmax,
-    margin_ranking_loss, max_pool2d, max_pool3d, nll_loss, poisson_nll, rmsnorm, sdp_attention, soft_margin, softmax,
+    margin_ranking_loss, max_pool2d, max_pool3d, nll_loss, pairwise_distance, poisson_nll, rmsnorm, sdp_attention, soft_margin, softmax,
     AttentionMask, BatchNormArgs, CausalMask, NullMask,
 };
 

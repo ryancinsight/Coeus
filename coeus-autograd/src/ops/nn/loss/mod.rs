@@ -16,6 +16,8 @@ pub mod l1;
 pub mod margin_ranking;
 /// Negative log-likelihood loss.
 pub mod nll;
+/// Row-wise p-norm pairwise distance.
+pub mod pairwise_distance;
 /// Poisson negative-log-likelihood loss.
 pub mod poisson_nll;
 /// Soft-margin (logistic) loss.
@@ -30,5 +32,6 @@ pub use kl_div::{kl_divergence, KlDivLossNode};
 pub use l1::{l1_loss, L1LossNode};
 pub use margin_ranking::{margin_ranking_loss, MarginRankingLossNode};
 pub use nll::{nll_loss, NllLossNode};
+pub use pairwise_distance::{pairwise_distance, PairwiseDistanceNode};
 pub use poisson_nll::{poisson_nll, PoissonNllNode};
 pub use soft_margin::{soft_margin, SoftMarginNode};

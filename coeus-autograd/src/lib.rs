@@ -111,6 +111,7 @@ pub use ops::{
     // New unary math ops
     neg,
     nll_loss,
+    pairwise_distance,
     poisson_nll,
     soft_margin,
     norm,
