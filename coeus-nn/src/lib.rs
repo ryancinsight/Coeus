@@ -53,6 +53,8 @@ pub mod parameter;
 pub mod pool;
 /// Positional encoding layers (sinusoidal, RoPE).
 pub mod positional;
+/// Regularization layers (AlphaDropout, FeatureAlphaDropout, GaussianNoise, LocalResponseNorm).
+pub mod regularization;
 /// Recurrent layers (LSTM, GRU).
 pub mod rnn;
 /// Sequential and static-sequence module containers.
@@ -76,7 +78,7 @@ pub use attention::{
 pub use bilinear::{bilinear, Bilinear};
 pub use conv::{
     Conv, Conv1d, Conv2d, Conv3d, ConvDim, ConvTranspose1d, ConvTranspose2d, ConvTranspose3d,
-    Dim1D, Dim2D, Dim3D,
+    Dim1D, Dim2D, Dim3D, Fold1d, Fold2d, Unfold1d, Unfold2d,
 };
 pub use dropout::Dropout;
 pub use embedding::Embedding;
@@ -98,6 +100,7 @@ pub use pool::{
     GlobalMaxPool2d, GlobalMaxPool3d, MaxPool1d, MaxPool2d, MaxPool3d,
 };
 pub use positional::{RotaryEmbedding, SinusoidalEncoding};
+pub use regularization::{AlphaDropout, FeatureAlphaDropout, GaussianNoise, LocalResponseNorm};
 pub use rnn::{Bidirectional, GRUCell, Gru, LSTMCell, Lstm, RNNCell, Rnn, RnnNonlinearity};
 pub use sequential::{ModuleExt, Sequential, StaticSeq};
 pub use softmax::{softmax, Softmax};

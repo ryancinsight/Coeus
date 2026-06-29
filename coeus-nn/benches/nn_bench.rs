@@ -20,7 +20,7 @@ use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
     cross_entropy_loss, mse_loss, huber_loss, relu, gelu, sigmoid, tanh, silu, AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d,
-    Embedding, GroupNorm, InstanceNorm2d, LayerNorm, Linear, Lstm, MaxPool1d, MaxPool2d, Module,
+    Embedding, GroupNorm, InstanceNorm2d, LayerNorm, Linear, Lstm, AvgPool1d as CoeusAvgPool1d, MaxPool1d, MaxPool2d, Module,
     MultiHeadAttention, NullMask, RMSNorm, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
@@ -1139,6 +1139,26 @@ fn bench_maxpool1d_forward(c: &mut Criterion) {
     group.bench_function("Coeus Moirai", |b| { b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai)))) });
     group.finish();
 }
+
+fn bench_avgpool1d_forward(c: &mut Criterion) {
+    const AP1_N: usize = 8; const AP1_C: usize = 16; const AP1_L: usize = 128;
+    const AP1_K: usize = 2; const AP1_S: usize = 2;
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(AP1_N * AP1_C * AP1_L)).map(|i| (i as f32 * 0.0023).cos()).collect();
+    let burn_ap1 = burn::nn::pool::AvgPool1dConfig::new(AP1_K).with_stride(AP1_S).init();
+    let x_burn: BurnTensor<BurnB, 3> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [AP1_N, AP1_C, AP1_L]), &device,
+    );
+    let pool_seq = CoeusAvgPool1d::<f32, SequentialBackend>::with_params(AP1_K, AP1_S, 0, 1);
+    let pool_moirai = CoeusAvgPool1d::<f32, MoiraiBackend>::with_params(AP1_K, AP1_S, 0, 1);
+    let x_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![AP1_N, AP1_C, AP1_L], &input_data), false);
+    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![AP1_N, AP1_C, AP1_L], &input_data), false);
+    let mut group = c.benchmark_group("Burn vs Coeus — AvgPool1d forward (8x16x128, k2 s2)");
+    group.bench_function("Burn NdArray", |b| { b.iter(|| black_box(burn_ap1.forward(black_box(x_burn.clone())))) });
+    group.bench_function("Coeus Sequential", |b| { b.iter(|| black_box(pool_seq.forward(black_box(&x_seq)))) });
+    group.bench_function("Coeus Moirai", |b| { b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai)))) });
+    group.finish();
+}
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -1167,6 +1187,7 @@ criterion_group!(
     bench_sigmoid_forward,
     bench_tanh_forward,
     bench_silu_forward,
-    bench_maxpool1d_forward
+    bench_maxpool1d_forward,
+    bench_avgpool1d_forward
 );
 criterion_main!(benches);
