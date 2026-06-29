@@ -4,6 +4,26 @@
 
 ### Changed
 
+- **`Tensor::alloc_on` zero-copy allocation** — added `Tensor::alloc_on` which
+  allocates a raw buffer without zero-initializing, eliminating a redundant
+  write pass for all kernels that unconditionally overwrite their output.
+  Applied in `elementwise_unary`, `elementwise_binary`, `matmul` (2D and batched),
+  and `fuse/eval_cpu` for ~2× theoretical throughput on bandwidth-bound ops.
+  ([perf])
+- **Unary dispatch monomorphization** — fixed `coeus-leto::dispatch::elementwise::unary_n`
+  to match `CpuUnaryOp` ONCE before the per-element loop (instead of per-element
+  runtime dispatch). This allows LLVM to inline + constant-fold each concrete
+  activation variant and auto-vectorize the inner loop with SIMD. Applied
+  `#[inline(always)]` to `CpuUnaryDispatch::eval_unary` across f32/f64/int
+  types and to `unary_n` / `elementwise_unary_into` in coeus-leto.
+  Result: ReLU throughput improved from ~55 µs → ~2.7 µs on `[128,256]`
+  (~20× speedup; Coeus now ~30% faster than Burn NdArray for ReLU).
+  GeLU also improved (Moirai ~14% faster). ([perf])
+- **`PARALLEL_THRESHOLD` raised to 65536** in `leto-ops` unary, map, and
+  reduction kernels (from 32768). Thread-pool parallelism is unprofitable for
+  tensors that fit in L2 cache; the new threshold matches the L2 cache size
+  (~256 KB ÷ 4 bytes = 65536 f32 elements). ([perf])
+
 - **Embedding and GroupNorm JAX parity** — added JAX differential tests for
   `pycoeus.Embedding` forward plus weight scatter-add gradients, and
   `pycoeus.GroupNorm` forward plus input/gamma/beta gradients on a 4D tensor.

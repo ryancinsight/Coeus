@@ -262,6 +262,26 @@ impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B> {
 // ── Generic constructors & device transfers ──
 
 impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
+    /// Allocate a tensor with the given shape without initializing the elements.
+    ///
+    /// # Safety
+    /// The returned tensor's contents are unspecified. Callers **must** write
+    /// every element before reading. This is used internally by kernel dispatch
+    /// functions that unconditionally overwrite the output (e.g., `elementwise_unary`,
+    /// `elementwise_binary`) to avoid a redundant zero-fill pass.
+    #[inline]
+    pub fn alloc_on<S: Into<Shape>>(shape: S, backend: &B) -> Self {
+        let shape = shape.into();
+        let numel: usize = shape.iter().product();
+        let storage = backend.allocate(numel);
+        let layout = Layout::new(shape);
+        Self {
+            storage,
+            layout,
+            _backend: PhantomData,
+        }
+    }
+
     /// Create a new tensor filled with zeros on the given backend.
     #[inline]
     pub fn zeros_on<S: Into<Shape>>(shape: S, backend: &B) -> Self {

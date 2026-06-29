@@ -6,13 +6,16 @@ use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 
 /// Apply element-wise unary operation to `input`, returning a new tensor.
+///
+/// Uses `Tensor::alloc_on` (no zero-init) because every output element is
+/// unconditionally overwritten by the kernel.
 #[inline]
 pub fn elementwise_unary<T: Scalar, B: BackendOps<T>>(
     input: &Tensor<T, B>,
     backend: &B,
     op: UnaryOp,
 ) -> Tensor<T, B> {
-    let mut out = Tensor::zeros_on(input.shape_cloned(), backend);
+    let mut out = Tensor::alloc_on(input.shape_cloned(), backend);
 
     let (out_storage, out_layout) = out.storage_mut_and_layout();
     backend.elementwise_unary(op, input.storage(), input.layout(), out_storage, out_layout);
