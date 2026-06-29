@@ -134,18 +134,21 @@ only; add PyTorch/Burn differential tests at f64, with kink/subgradient points
 handled by documented analytical contracts.
 **Evidence tier**: source-surface audit plus external API documentation audit.
 
-### G-036: Pooling, adaptive pooling, and unfold/fold coverage incomplete
-**Location**: `coeus-nn/src/pool.rs`, `coeus-python/src/nn/pool.rs`
+### ~~G-036: Pooling, adaptive pooling, and unfold/fold coverage incomplete~~ **CLOSED**
+**Location**: `coeus-nn/src/pool.rs`, `coeus-python/src/nn/pool.rs`,
+`coeus-nn/src/conv/unfold_fold.rs`, `coeus-ops/src/backend_ops/traits/unfold_fold.rs`
 **Compared against**: Burn `Unfold4d` and PyTorch pooling/unfold/fold module
 families.
 **Gap**: Coeus exposes 2D/3D average and max pooling plus selected global
 pooling wrappers, but lacks 1D pooling modules, adaptive pooling surfaces beyond
 global wrappers, and Unfold/Fold/Unfold4d parity surfaces.
-**Acceptance**: Add canonical N-dimensional pooling kernels with shape policy
-types or const-generic rank routing, then expose 1D/adaptive/unfold/fold module
-surfaces without duplicating math. Verify forward/backward against PyTorch and
-Burn where direct APIs exist.
-**Evidence tier**: source-surface audit plus external API documentation audit.
+**Closed by**: MS-206 (pool1d) and MS-211 (unfold/fold):
+- MS-206: `MaxPool1d`/`AvgPool1d` with forward+backward, autograd, Python bindings.
+- MS-211: `UnfoldFoldOps` sub-trait added to `BackendOps` (8th concern); CPU kernels
+  for `unfold1d`/`fold1d`/`unfold2d`/`fold2d`; no-op stubs in wgpu and cuda for
+  trait completeness; `coeus_nn::{Unfold1d, Fold1d, Unfold2d, Fold2d}` NN modules;
+  9 parity tests (shape/value-semantic/roundtrip).
+**Evidence tier**: analytical/value-semantic Rust tests.
 
 ### G-035: ConvTranspose3d parity missing
 **Location**: `coeus-nn/src/conv/`, `coeus-python/src/nn/conv.rs`

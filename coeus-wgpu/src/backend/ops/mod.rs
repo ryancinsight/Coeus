@@ -1279,3 +1279,69 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         );
     }
 }
+
+#[allow(clippy::too_many_arguments)]
+impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
+    fn unfold1d(
+        &self,
+        _input: &Self::DeviceBuffer<T>,
+        _input_layout: &Layout,
+        _kernel_size: usize,
+        _stride: usize,
+        _padding: usize,
+        _dilation: usize,
+        _output: &mut Self::DeviceBuffer<T>,
+        _output_layout: &Layout,
+    ) {
+    }
+
+    fn fold1d(
+        &self,
+        _input: &Self::DeviceBuffer<T>,
+        _input_layout: &Layout,
+        _output_size: usize,
+        _kernel_size: usize,
+        _stride: usize,
+        _padding: usize,
+        _dilation: usize,
+        _output: &mut Self::DeviceBuffer<T>,
+        _output_layout: &Layout,
+    ) {
+    }
+
+    fn unfold2d(
+        &self,
+        _input: &Self::DeviceBuffer<T>,
+        _input_layout: &Layout,
+        _kernel_h: usize,
+        _kernel_w: usize,
+        _stride_h: usize,
+        _stride_w: usize,
+        _padding_h: usize,
+        _padding_w: usize,
+        _dilation_h: usize,
+        _dilation_w: usize,
+        _output: &mut Self::DeviceBuffer<T>,
+        _output_layout: &Layout,
+    ) {
+    }
+
+    fn fold2d(
+        &self,
+        _input: &Self::DeviceBuffer<T>,
+        _input_layout: &Layout,
+        _output_h: usize,
+        _output_w: usize,
+        _kernel_h: usize,
+        _kernel_w: usize,
+        _stride_h: usize,
+        _stride_w: usize,
+        _padding_h: usize,
+        _padding_w: usize,
+        _dilation_h: usize,
+        _dilation_w: usize,
+        _output: &mut Self::DeviceBuffer<T>,
+        _output_layout: &Layout,
+    ) {
+    }
+}

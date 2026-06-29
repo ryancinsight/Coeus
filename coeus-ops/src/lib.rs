@@ -19,7 +19,7 @@ pub mod backend_ops;
 pub(crate) mod ptr;
 pub use backend_ops::{
     AttentionOps, BackendOps, BinaryOp, ConvOps, CpuBackend, ElementwiseOps, MatmulOps,
-    OptimizerOps, PoolOps, ReductionOp, ReductionOps, UnaryOp,
+    OptimizerOps, PoolOps, ReductionOp, ReductionOps, UnaryOp, UnfoldFoldOps,
 };
 /// Element-wise binary operations (add, sub, mul, div).
 pub mod binary;
@@ -85,3 +85,148 @@ pub use conv_transpose::{conv_transpose1d, conv_transpose2d, conv_transpose3d};
 /// Tensor constructors (linspace, logspace, geomspace).
 pub mod constructors;
 pub use constructors::{geomspace, linspace, logspace};
+
+/// Unfold 1D: extracts sliding windows from `[N, C, L]` into `[N, C*kernel_size, L_out]`.
+///
+/// Equivalent to `torch.nn.Unfold` in 1D.  Output size:
+/// `L_out = (L + 2*padding - dilation*(kernel_size-1) - 1) / stride + 1`.
+pub fn unfold1d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
+    input: &coeus_tensor::Tensor<T, B>,
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+    backend: &B,
+) -> coeus_tensor::Tensor<T, B> {
+    let shape = input.shape();
+    let (n, c, l) = (shape[0], shape[1], shape[2]);
+    let l_out = (l + 2 * padding - dilation * (kernel_size - 1) - 1) / stride + 1;
+    let ck = c * kernel_size;
+    let mut out = coeus_tensor::Tensor::zeros_on([n, ck, l_out], backend);
+    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    backend.unfold1d(
+        input.storage(),
+        input.layout(),
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+        out_storage,
+        out_layout,
+    );
+    out
+}
+
+/// Fold 1D: accumulates `[N, C*kernel_size, L_out]` back into `[N, C, output_size]`.
+///
+/// Inverse (adjoint) of `unfold1d`; overlapping window contributions are summed.
+pub fn fold1d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
+    input: &coeus_tensor::Tensor<T, B>,
+    output_size: usize,
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+    backend: &B,
+) -> coeus_tensor::Tensor<T, B> {
+    let shape = input.shape();
+    let n = shape[0];
+    let c = shape[1] / kernel_size;
+    let mut out = coeus_tensor::Tensor::zeros_on([n, c, output_size], backend);
+    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    backend.fold1d(
+        input.storage(),
+        input.layout(),
+        output_size,
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+        out_storage,
+        out_layout,
+    );
+    out
+}
+
+/// Unfold 2D: extracts sliding windows from `[N, C, H, W]` into `[N, C*kH*kW, H_out*W_out]`.
+///
+/// Equivalent to `torch.nn.Unfold`.
+#[allow(clippy::too_many_arguments)]
+pub fn unfold2d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
+    input: &coeus_tensor::Tensor<T, B>,
+    kernel_h: usize,
+    kernel_w: usize,
+    stride_h: usize,
+    stride_w: usize,
+    padding_h: usize,
+    padding_w: usize,
+    dilation_h: usize,
+    dilation_w: usize,
+    backend: &B,
+) -> coeus_tensor::Tensor<T, B> {
+    let shape = input.shape();
+    let (n, c, h, w) = (shape[0], shape[1], shape[2], shape[3]);
+    let h_out = (h + 2 * padding_h - dilation_h * (kernel_h - 1) - 1) / stride_h + 1;
+    let w_out = (w + 2 * padding_w - dilation_w * (kernel_w - 1) - 1) / stride_w + 1;
+    let ckk = c * kernel_h * kernel_w;
+    let l_out = h_out * w_out;
+    let mut out = coeus_tensor::Tensor::zeros_on([n, ckk, l_out], backend);
+    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    backend.unfold2d(
+        input.storage(),
+        input.layout(),
+        kernel_h,
+        kernel_w,
+        stride_h,
+        stride_w,
+        padding_h,
+        padding_w,
+        dilation_h,
+        dilation_w,
+        out_storage,
+        out_layout,
+    );
+    out
+}
+
+/// Fold 2D: accumulates `[N, C*kH*kW, H_out*W_out]` back into `[N, C, output_h, output_w]`.
+///
+/// Inverse (adjoint) of `unfold2d`; overlapping window contributions are summed.
+#[allow(clippy::too_many_arguments)]
+pub fn fold2d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
+    input: &coeus_tensor::Tensor<T, B>,
+    output_h: usize,
+    output_w: usize,
+    kernel_h: usize,
+    kernel_w: usize,
+    stride_h: usize,
+    stride_w: usize,
+    padding_h: usize,
+    padding_w: usize,
+    dilation_h: usize,
+    dilation_w: usize,
+    backend: &B,
+) -> coeus_tensor::Tensor<T, B> {
+    let shape = input.shape();
+    let n = shape[0];
+    let c = shape[1] / (kernel_h * kernel_w);
+    let mut out = coeus_tensor::Tensor::zeros_on([n, c, output_h, output_w], backend);
+    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    backend.fold2d(
+        input.storage(),
+        input.layout(),
+        output_h,
+        output_w,
+        kernel_h,
+        kernel_w,
+        stride_h,
+        stride_w,
+        padding_h,
+        padding_w,
+        dilation_h,
+        dilation_w,
+        out_storage,
+        out_layout,
+    );
+    out
+}
