@@ -2174,3 +2174,127 @@ def test_conv_transpose3d_matches_pytorch() -> None:
         ct_t.bias.grad.flatten().tolist(),
         atol=1e-10,
     )
+
+
+# ---------------------------------------------------------------------------
+# G-038 loss/distance family — forward + input-gradient parity vs torch
+# ---------------------------------------------------------------------------
+
+import torch.nn.functional as _F  # noqa: E402
+
+
+def _loss_grad_parity(label, pyc_loss_fn, torch_loss_fn, x_data, t_data, shape):
+    """Compare a (input, target)->scalar loss: value + d/d_input vs torch f64."""
+    x_pyc = pycoeus.Tensor(x_data, shape, requires_grad=True)
+    t_pyc = pycoeus.Tensor(t_data, shape)
+    loss_pyc = pyc_loss_fn(x_pyc, t_pyc)
+    loss_pyc.backward()
+
+    n = 1
+    for s in shape:
+        n *= s
+    x_t = torch.tensor(x_data, dtype=torch.float64).reshape(shape).requires_grad_(True)
+    t_t = torch.tensor(t_data, dtype=torch.float64).reshape(shape)
+    loss_t = torch_loss_fn(x_t, t_t)
+    loss_t.backward()
+    assert abs(loss_pyc.data[0] - loss_t.item()) < _ATOL, (
+        f"{label}: got={loss_pyc.data[0]:.8g}, expected={loss_t.item():.8g}"
+    )
+    _allclose(f"{label}_dx", list(x_pyc.grad), x_t.grad.flatten().tolist())
+
+
+def test_l1_loss_matches_pytorch() -> None:
+    _loss_grad_parity(
+        "l1_loss",
+        lambda a, b: pycoeus.l1_loss(a, b),
+        lambda a, b: _F.l1_loss(a, b),
+        [0.5, -1.2, 3.0, 0.1, -2.0, 1.5],
+        [1.0, 0.0, 2.0, 0.0, -1.0, 1.0],
+        [2, 3],
+    )
+
+
+def test_bce_with_logits_matches_pytorch() -> None:
+    _loss_grad_parity(
+        "bce_with_logits",
+        lambda a, b: pycoeus.bce_with_logits(a, b),
+        lambda a, b: _F.binary_cross_entropy_with_logits(a, b),
+        [0.5, -1.2, 0.3, 2.0],
+        [1.0, 0.0, 1.0, 0.0],
+        [4],
+    )
+
+
+def test_poisson_nll_matches_pytorch() -> None:
+    _loss_grad_parity(
+        "poisson_nll",
+        lambda a, b: pycoeus.poisson_nll(a, b),
+        lambda a, b: _F.poisson_nll_loss(a, b, log_input=True, full=False),
+        [0.0, 1.0, -0.5, 0.7],
+        [2.0, 0.0, 3.0, 1.0],
+        [4],
+    )
+
+
+def test_soft_margin_matches_pytorch() -> None:
+    _loss_grad_parity(
+        "soft_margin",
+        lambda a, b: pycoeus.soft_margin(a, b),
+        lambda a, b: _F.soft_margin_loss(a, b),
+        [0.5, -1.2, 2.0, -0.3],
+        [1.0, -1.0, 1.0, -1.0],
+        [4],
+    )
+
+
+def test_pairwise_distance_matches_pytorch() -> None:
+    # Vector-output [N]; compare the distance vector (forward).
+    x1d = [1.0, 2.0, 3.0, 4.0]
+    x2d = [0.0, 0.0, 1.0, 1.0]
+    d_pyc = pycoeus.pairwise_distance(
+        pycoeus.Tensor(x1d, [2, 2]), pycoeus.Tensor(x2d, [2, 2]), 2.0, 1e-6
+    )
+    x1_t = torch.tensor(x1d, dtype=torch.float64).reshape(2, 2)
+    x2_t = torch.tensor(x2d, dtype=torch.float64).reshape(2, 2)
+    d_t = _F.pairwise_distance(x1_t, x2_t, p=2.0, eps=1e-6)
+    _allclose("pairwise_distance", list(d_pyc.data), d_t.flatten().tolist())
+
+
+def test_triplet_margin_matches_pytorch() -> None:
+    a = [0.0, 0.0, 1.0, 1.0]
+    p = [2.0, 0.0, 1.0, 2.0]
+    n = [0.0, 2.5, 3.0, 1.0]
+    a_pyc = pycoeus.Tensor(a, [2, 2], requires_grad=True)
+    loss_pyc = pycoeus.triplet_margin_loss(
+        a_pyc, pycoeus.Tensor(p, [2, 2]), pycoeus.Tensor(n, [2, 2]), 1.0, 2.0, 1e-6
+    )
+    loss_pyc.backward()
+    a_t = torch.tensor(a, dtype=torch.float64).reshape(2, 2).requires_grad_(True)
+    loss_t = _F.triplet_margin_loss(
+        a_t,
+        torch.tensor(p, dtype=torch.float64).reshape(2, 2),
+        torch.tensor(n, dtype=torch.float64).reshape(2, 2),
+        margin=1.0,
+        p=2.0,
+        eps=1e-6,
+    )
+    loss_t.backward()
+    assert abs(loss_pyc.data[0] - loss_t.item()) < _ATOL, (
+        f"triplet: got={loss_pyc.data[0]:.8g}, expected={loss_t.item():.8g}"
+    )
+    _allclose("triplet_da", list(a_pyc.grad), a_t.grad.flatten().tolist())
+
+
+def test_multi_margin_matches_pytorch() -> None:
+    x_data = [0.5, 0.8, -0.6, 1.0, 0.2, 0.3]
+    targets = [0, 1]
+    x_pyc = pycoeus.Tensor(x_data, [2, 3], requires_grad=True)
+    loss_pyc = pycoeus.multi_margin(x_pyc, targets, 1.0, 1.0)
+    loss_pyc.backward()
+    x_t = torch.tensor(x_data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    loss_t = _F.multi_margin_loss(x_t, torch.tensor(targets, dtype=torch.long), p=1, margin=1.0)
+    loss_t.backward()
+    assert abs(loss_pyc.data[0] - loss_t.item()) < _ATOL, (
+        f"multi_margin: got={loss_pyc.data[0]:.8g}, expected={loss_t.item():.8g}"
+    )
+    _allclose("multi_margin_dx", list(x_pyc.grad), x_t.grad.flatten().tolist())
