@@ -81,3 +81,86 @@ pub fn cosine_embedding_loss(
         .allow_threads(|| coeus_nn::loss::cosine_embedding_loss(&x1.inner, &x2.inner, &y, margin));
     PyTensor::from_var(inner)
 }
+
+/// L1 (mean absolute error) loss: `mean(|pred - target|)`.
+#[pyfunction]
+pub fn l1_loss(pred: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_nn::loss::l1_loss(&pred.inner, &target.inner));
+    PyTensor::from_var(inner)
+}
+
+/// Binary cross-entropy with logits (numerically stable). Mirrors PyTorch
+/// `BCEWithLogitsLoss(reduction="mean")`.
+#[pyfunction]
+pub fn bce_with_logits(logits: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_nn::loss::bce_with_logits(&logits.inner, &target.inner));
+    PyTensor::from_var(inner)
+}
+
+/// Poisson NLL loss (log-input): `mean(exp(input) - target * input)`.
+#[pyfunction]
+pub fn poisson_nll(input: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_nn::loss::poisson_nll(&input.inner, &target.inner));
+    PyTensor::from_var(inner)
+}
+
+/// Soft-margin (logistic) loss: `mean(log(1 + exp(-target * input)))`.
+#[pyfunction]
+pub fn soft_margin(input: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_nn::loss::soft_margin(&input.inner, &target.inner));
+    PyTensor::from_var(inner)
+}
+
+/// Row-wise p-norm pairwise distance: `[N,D] -> [N]`.
+#[pyfunction]
+#[pyo3(signature = (x1, x2, p = 2.0, eps = 1e-6))]
+pub fn pairwise_distance(
+    x1: &PyTensor,
+    x2: &PyTensor,
+    p: f64,
+    eps: f64,
+    py: Python<'_>,
+) -> PyTensor {
+    let inner =
+        py.allow_threads(|| coeus_nn::loss::pairwise_distance(&x1.inner, &x2.inner, p, eps));
+    PyTensor::from_var(inner)
+}
+
+/// Triplet-margin loss: `mean max(0, d(a,p) - d(a,n) + margin)`.
+#[pyfunction]
+#[pyo3(signature = (anchor, positive, negative, margin = 1.0, p = 2.0, eps = 1e-6))]
+pub fn triplet_margin_loss(
+    anchor: &PyTensor,
+    positive: &PyTensor,
+    negative: &PyTensor,
+    margin: f64,
+    p: f64,
+    eps: f64,
+    py: Python<'_>,
+) -> PyTensor {
+    let inner = py.allow_threads(|| {
+        coeus_nn::loss::triplet_margin_loss(
+            &anchor.inner,
+            &positive.inner,
+            &negative.inner,
+            margin,
+            p,
+            eps,
+        )
+    });
+    PyTensor::from_var(inner)
+}
+
+/// Multi-class margin loss over scores `[N, C]` with class-index targets.
+#[pyfunction]
+#[pyo3(signature = (x, targets, p = 1.0, margin = 1.0))]
+pub fn multi_margin(
+    x: &PyTensor,
+    targets: Vec<usize>,
+    p: f64,
+    margin: f64,
+    py: Python<'_>,
+) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_nn::loss::multi_margin(&x.inner, &targets, p, margin));
+    PyTensor::from_var(inner)
+}
