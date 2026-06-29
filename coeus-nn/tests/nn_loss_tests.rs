@@ -2,7 +2,8 @@ use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_nn::{
     bce_with_logits, binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence,
-    l1_loss, margin_ranking_loss, multi_margin, nll_loss, pairwise_distance, poisson_nll, soft_margin, triplet_margin_loss,
+    l1_loss, margin_ranking_loss, multi_margin, nll_loss, pairwise_distance, poisson_nll,
+    soft_margin, triplet_margin_loss,
 };
 use coeus_tensor::Tensor;
 
@@ -219,7 +220,12 @@ fn test_bce_with_logits() {
     for (i, ((&z, &y), (&gz, &gt))) in zs
         .iter()
         .zip(ys.iter())
-        .zip(logit_grad.as_slice().iter().zip(target_grad.as_slice().iter()))
+        .zip(
+            logit_grad
+                .as_slice()
+                .iter()
+                .zip(target_grad.as_slice().iter()),
+        )
         .enumerate()
     {
         let exp_gz = (sigmoid(z) - y) / n;
@@ -299,7 +305,12 @@ fn test_poisson_nll() {
     for (i, ((&z, &y), (&gz, &gt))) in zs
         .iter()
         .zip(ys.iter())
-        .zip(input_grad.as_slice().iter().zip(target_grad.as_slice().iter()))
+        .zip(
+            input_grad
+                .as_slice()
+                .iter()
+                .zip(target_grad.as_slice().iter()),
+        )
         .enumerate()
     {
         let exp_gz = (z.exp() - y) / n;
@@ -346,7 +357,12 @@ fn test_soft_margin() {
     for (i, ((&x, &y), (&gx, &gt))) in xs
         .iter()
         .zip(ys.iter())
-        .zip(input_grad.as_slice().iter().zip(target_grad.as_slice().iter()))
+        .zip(
+            input_grad
+                .as_slice()
+                .iter()
+                .zip(target_grad.as_slice().iter()),
+        )
         .enumerate()
     {
         let sig = sigmoid(-y * x);
@@ -367,12 +383,21 @@ fn test_soft_margin() {
 fn test_pairwise_distance() {
     let p = 2.0_f64;
     let eps = 1e-6_f64;
-    let x1 = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]), true);
-    let x2 = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[0.0, 0.0, 1.0, 1.0]), true);
+    let x1 = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]),
+        true,
+    );
+    let x2 = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[0.0, 0.0, 1.0, 1.0]),
+        true,
+    );
     let dist = pairwise_distance(&x1, &x2, p, eps);
     assert_eq!(dist.tensor.shape(), &[2]);
     let diffs = [[1.0_f64, 2.0], [2.0, 3.0]];
-    let s: Vec<f64> = diffs.iter().map(|r| r.iter().map(|d| d.abs().powf(p)).sum::<f64>()).collect();
+    let s: Vec<f64> = diffs
+        .iter()
+        .map(|r| r.iter().map(|d| d.abs().powf(p)).sum::<f64>())
+        .collect();
     let out = dist.tensor.as_slice();
     for i in 0..2 {
         let exp = (s[i] + eps).powf(1.0 / p);
@@ -386,8 +411,18 @@ fn test_pairwise_distance() {
         let scale = (s[i] + eps).powf(1.0 / p - 1.0);
         for (k, &d) in diffs[i].iter().enumerate() {
             let eg = scale * d.abs().powf(p - 1.0) * d.signum();
-            assert!((g1.as_slice()[i * 2 + k] - eg).abs() <= 1e-12, "pd gx1 {} {}", i, k);
-            assert!((g2.as_slice()[i * 2 + k] + eg).abs() <= 1e-12, "pd gx2 {} {}", i, k);
+            assert!(
+                (g1.as_slice()[i * 2 + k] - eg).abs() <= 1e-12,
+                "pd gx1 {} {}",
+                i,
+                k
+            );
+            assert!(
+                (g2.as_slice()[i * 2 + k] + eg).abs() <= 1e-12,
+                "pd gx2 {} {}",
+                i,
+                k
+            );
         }
     }
 }
@@ -397,9 +432,18 @@ fn test_triplet_margin_loss() {
     // anchor=[0,0], positive=[2,0], negative=[0,2.5], margin=1, p=2, eps=0.
     // d_ap=2, d_an=2.5, hinge=max(0, 2 - 2.5 + 1)=0.5 (active) → loss=0.5.
     // grads (N=1): d/anchor=[-1,1], d/positive=[1,0], d/negative=[0,-1].
-    let anchor = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]), true);
-    let positive = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[2.0, 0.0]), true);
-    let negative = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 2.5]), true);
+    let anchor = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]),
+        true,
+    );
+    let positive = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[2.0, 0.0]),
+        true,
+    );
+    let negative = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 2.5]),
+        true,
+    );
 
     let loss = triplet_margin_loss(&anchor, &positive, &negative, 1.0, 2.0, 0.0);
     assert_eq!(loss.tensor.shape(), &[1]);
@@ -431,9 +475,18 @@ fn test_triplet_margin_loss() {
 #[test]
 fn test_triplet_margin_loss_inactive() {
     // Easy triplet (d_ap << d_an by more than margin) → hinge 0, loss 0.
-    let anchor = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]), false);
-    let positive = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.5, 0.0]), false);
-    let negative = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[5.0, 0.0]), false);
+    let anchor = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]),
+        false,
+    );
+    let positive = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.5, 0.0]),
+        false,
+    );
+    let negative = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[5.0, 0.0]),
+        false,
+    );
     let loss = triplet_margin_loss(&anchor, &positive, &negative, 1.0, 2.0, 0.0);
     assert_eq!(loss.tensor.as_slice(), &[0.0_f64], "easy triplet → loss 0");
 }
@@ -476,7 +529,11 @@ fn test_multi_margin_all_inactive() {
         false,
     );
     let loss = multi_margin(&x, &[0], 1.0, 1.0);
-    assert_eq!(loss.tensor.as_slice(), &[0.0_f64], "dominant target → loss 0");
+    assert_eq!(
+        loss.tensor.as_slice(),
+        &[0.0_f64],
+        "dominant target → loss 0"
+    );
 }
 
 #[test]

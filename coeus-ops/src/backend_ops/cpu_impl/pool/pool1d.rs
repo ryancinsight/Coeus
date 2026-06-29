@@ -58,7 +58,13 @@ pub(crate) fn max_pool1d<T: Scalar, B: Backend>(
                 let val = unsafe { input_ptr.read(input_idx) };
                 max_val = Some(match max_val {
                     None => val,
-                    Some(m) => if val > m { val } else { m },
+                    Some(m) => {
+                        if val > m {
+                            val
+                        } else {
+                            m
+                        }
+                    }
                 });
             }
         }
@@ -270,7 +276,9 @@ pub(crate) fn avg_pool1d_backward<T: Scalar, B: Backend>(
                 count += 1;
             }
         }
-        if count == 0 { continue; }
+        if count == 0 {
+            continue;
+        }
 
         let g_idx = grad_out_layout.physical_index(&[ni, ci, ol]);
         let g_val = unsafe { grad_out_ptr.read(g_idx) };

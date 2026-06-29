@@ -94,7 +94,11 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         "pairwise_distance requires x1 and x2 to have identical shapes"
     );
     let shape_ref = x1.tensor.shape();
-    assert_eq!(shape_ref.len(), 2, "pairwise_distance expects 2D [N, D] inputs");
+    assert_eq!(
+        shape_ref.len(),
+        2,
+        "pairwise_distance expects 2D [N, D] inputs"
+    );
     let rows = shape_ref[0];
     let feat = shape_ref[1];
     let n = rows * feat;
@@ -163,7 +167,10 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let requires_grad =
         crate::grad_mode::should_track_var(x1) || crate::grad_mode::should_track_var(x2);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([rows], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
+            [rows],
+            &backend,
+        ))))
     } else {
         None
     };
@@ -181,5 +188,9 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    Var { tensor: out_tensor, grad, creator }
+    Var {
+        tensor: out_tensor,
+        grad,
+        creator,
+    }
 }

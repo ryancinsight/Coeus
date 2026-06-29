@@ -684,7 +684,14 @@ where
         output_layout: &Layout,
     ) {
         pool::max_pool1d(
-            self, input, input_layout, kernel_size, stride, padding, dilation, output,
+            self,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
             output_layout,
         );
     }
@@ -704,8 +711,17 @@ where
         grad_input_layout: &Layout,
     ) {
         pool::max_pool1d_backward(
-            self, grad_out, grad_out_layout, input, input_layout, kernel_size, stride, padding,
-            dilation, grad_input, grad_input_layout,
+            self,
+            grad_out,
+            grad_out_layout,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
         );
     }
 
@@ -722,7 +738,14 @@ where
         output_layout: &Layout,
     ) {
         pool::avg_pool1d(
-            self, input, input_layout, kernel_size, stride, padding, dilation, output,
+            self,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
             output_layout,
         );
     }
@@ -740,7 +763,14 @@ where
         grad_input_layout: &Layout,
     ) {
         pool::avg_pool1d_backward(
-            self, grad_out, grad_out_layout, kernel_size, stride, padding, dilation, grad_input,
+            self,
+            grad_out,
+            grad_out_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
             grad_input_layout,
         );
     }

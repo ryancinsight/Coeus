@@ -952,7 +952,14 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         output_layout: &Layout,
     ) {
         pool::dispatch_max_pool1d(
-            input, input_layout, kernel_size, stride, padding, dilation, output, output_layout,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
         );
     }
 
@@ -971,8 +978,16 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         grad_input_layout: &Layout,
     ) {
         pool::dispatch_max_pool1d_backward(
-            grad_out, grad_out_layout, input, input_layout, kernel_size, stride, padding,
-            dilation, grad_input, grad_input_layout,
+            grad_out,
+            grad_out_layout,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
         );
     }
 
@@ -989,7 +1004,14 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         output_layout: &Layout,
     ) {
         pool::dispatch_avg_pool1d(
-            input, input_layout, kernel_size, stride, padding, dilation, output, output_layout,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
         );
     }
 
@@ -1006,7 +1028,13 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
         grad_input_layout: &Layout,
     ) {
         pool::dispatch_avg_pool1d_backward(
-            grad_out, grad_out_layout, kernel_size, stride, padding, dilation, grad_input,
+            grad_out,
+            grad_out_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
             grad_input_layout,
         );
     }

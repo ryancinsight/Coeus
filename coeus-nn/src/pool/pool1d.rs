@@ -48,8 +48,17 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> MaxPool1d<T, B> {
 
     /// Create with explicit hyperparameters.
     pub fn with_params(kernel_size: usize, stride: usize, padding: usize, dilation: usize) -> Self {
-        assert!(stride >= 1 && dilation >= 1, "stride and dilation must be >= 1");
-        Self { kernel_size, stride, padding, dilation, _marker: PhantomData }
+        assert!(
+            stride >= 1 && dilation >= 1,
+            "stride and dilation must be >= 1"
+        );
+        Self {
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -64,7 +73,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool1d
         let n = input.tensor.shape()[0];
         let c = input.tensor.shape()[1];
         let l = input.tensor.shape()[2];
-        let l_out = out_dim(l, self.kernel_size, self.padding, self.stride, self.dilation);
+        let l_out = out_dim(
+            l,
+            self.kernel_size,
+            self.padding,
+            self.stride,
+            self.dilation,
+        );
 
         assert!(
             l_out > 0,
@@ -140,8 +155,17 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> AvgPool1d<T, B> {
 
     /// Create with explicit hyperparameters.
     pub fn with_params(kernel_size: usize, stride: usize, padding: usize, dilation: usize) -> Self {
-        assert!(stride >= 1 && dilation >= 1, "stride and dilation must be >= 1");
-        Self { kernel_size, stride, padding, dilation, _marker: PhantomData }
+        assert!(
+            stride >= 1 && dilation >= 1,
+            "stride and dilation must be >= 1"
+        );
+        Self {
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -156,7 +180,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool1d
         let n = input.tensor.shape()[0];
         let c = input.tensor.shape()[1];
         let l = input.tensor.shape()[2];
-        let l_out = out_dim(l, self.kernel_size, self.padding, self.stride, self.dilation);
+        let l_out = out_dim(
+            l,
+            self.kernel_size,
+            self.padding,
+            self.stride,
+            self.dilation,
+        );
 
         assert!(
             l_out > 0,

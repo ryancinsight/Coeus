@@ -37,7 +37,11 @@ impl AlphaDropout {
     /// Create a new AlphaDropout layer.
     pub fn new(p: f64) -> Self {
         assert!(p >= 0.0 && p < 1.0, "p must be in [0, 1)");
-        Self { p, is_training: true, seed: 42 }
+        Self {
+            p,
+            is_training: true,
+            seed: 42,
+        }
     }
 
     /// Set training/eval mode.
@@ -109,7 +113,11 @@ impl FeatureAlphaDropout {
     /// Create a new FeatureAlphaDropout layer.
     pub fn new(p: f64) -> Self {
         assert!(p >= 0.0 && p < 1.0, "p must be in [0, 1)");
-        Self { p, is_training: true, seed: 42 }
+        Self {
+            p,
+            is_training: true,
+            seed: 42,
+        }
     }
 
     /// Set training/eval mode.
@@ -161,7 +169,10 @@ impl GaussianNoise {
     /// Create a GaussianNoise layer with given standard deviation.
     pub fn new(std: f64) -> Self {
         assert!(std >= 0.0, "std must be non-negative");
-        Self { std, is_training: true }
+        Self {
+            std,
+            is_training: true,
+        }
     }
 
     /// Set training/eval mode.
@@ -236,19 +247,30 @@ impl LocalResponseNorm {
     ///
     /// `torch.nn.LocalResponseNorm(size)` uses `alpha=0.0001`, `beta=0.75`, `k=1.0`.
     pub fn new(size: usize) -> Self {
-        Self { size, alpha: 0.0001, beta: 0.75, k: 1.0 }
+        Self {
+            size,
+            alpha: 0.0001,
+            beta: 0.75,
+            k: 1.0,
+        }
     }
 
     /// Create with full hyperparameter control.
     pub fn with_params(size: usize, alpha: f64, beta: f64, k: f64) -> Self {
         assert!(size >= 1, "size must be >= 1");
-        Self { size, alpha, beta, k }
+        Self {
+            size,
+            alpha,
+            beta,
+            k,
+        }
     }
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LocalResponseNorm
 where
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
