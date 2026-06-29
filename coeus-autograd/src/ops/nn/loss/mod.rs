@@ -18,6 +18,8 @@ pub mod margin_ranking;
 pub mod nll;
 /// Poisson negative-log-likelihood loss.
 pub mod poisson_nll;
+/// Soft-margin (logistic) loss.
+pub mod soft_margin;
 
 pub use bce::{binary_cross_entropy, BinaryCrossEntropyNode};
 pub use bce_with_logits::{bce_with_logits, BceWithLogitsNode};
@@ -29,3 +31,4 @@ pub use l1::{l1_loss, L1LossNode};
 pub use margin_ranking::{margin_ranking_loss, MarginRankingLossNode};
 pub use nll::{nll_loss, NllLossNode};
 pub use poisson_nll::{poisson_nll, PoissonNllNode};
+pub use soft_margin::{soft_margin, SoftMarginNode};
