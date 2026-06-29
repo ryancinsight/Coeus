@@ -683,3 +683,124 @@ def test_groupnorm_matches_jax() -> None:
     _allclose("gn_dx", list(x_pyc.grad), gx.flatten().tolist())
     _allclose("gn_dgamma", list(gn.weight.grad), gg.tolist())
     _allclose("gn_dbeta", list(gn.bias.grad), gb.tolist())
+
+
+# ---------------------------------------------------------------------------
+# G-038 loss/distance family — forward + input-gradient parity vs JAX
+# (loss formulas defined directly in jnp; gradients via jax.grad; optax absent)
+# ---------------------------------------------------------------------------
+
+
+def _jax_loss_parity(label, pyc_fn, jax_fn, x_data, t_data, shape):
+    """Compare a (input, target)->scalar loss: value + d/d_input vs jax.grad."""
+    x_pyc = pycoeus.Tensor(x_data, list(shape), requires_grad=True)
+    t_pyc = pycoeus.Tensor(t_data, list(shape))
+    loss_pyc = pyc_fn(x_pyc, t_pyc)
+    loss_pyc.backward()
+
+    x_j = jnp.asarray(x_data, dtype=jnp.float64).reshape(shape)
+    t_j = jnp.asarray(t_data, dtype=jnp.float64).reshape(shape)
+    f = lambda x: jax_fn(x, t_j)  # noqa: E731
+    assert abs(loss_pyc.data[0] - float(f(x_j))) < _ATOL, (
+        f"{label}: got={loss_pyc.data[0]:.8g}, expected={float(f(x_j)):.8g}"
+    )
+    _allclose(f"{label}_dx", list(x_pyc.grad), jax.grad(f)(x_j).flatten().tolist())
+
+
+def test_l1_loss_matches_jax() -> None:
+    _jax_loss_parity(
+        "l1_loss",
+        lambda a, b: pycoeus.l1_loss(a, b),
+        lambda x, t: jnp.mean(jnp.abs(x - t)),
+        [0.5, -1.2, 3.0, 0.1, -2.0, 1.5],
+        [1.0, 0.0, 2.0, 0.0, -1.0, 1.0],
+        (2, 3),
+    )
+
+
+def test_bce_with_logits_matches_jax() -> None:
+    _jax_loss_parity(
+        "bce_with_logits",
+        lambda a, b: pycoeus.bce_with_logits(a, b),
+        lambda z, y: jnp.mean(jnp.maximum(z, 0.0) - z * y + jnp.log1p(jnp.exp(-jnp.abs(z)))),
+        [0.5, -1.2, 0.3, 2.0],
+        [1.0, 0.0, 1.0, 0.0],
+        (4,),
+    )
+
+
+def test_poisson_nll_matches_jax() -> None:
+    _jax_loss_parity(
+        "poisson_nll",
+        lambda a, b: pycoeus.poisson_nll(a, b),
+        lambda x, t: jnp.mean(jnp.exp(x) - t * x),
+        [0.0, 1.0, -0.5, 0.7],
+        [2.0, 0.0, 3.0, 1.0],
+        (4,),
+    )
+
+
+def test_soft_margin_matches_jax() -> None:
+    _jax_loss_parity(
+        "soft_margin",
+        lambda a, b: pycoeus.soft_margin(a, b),
+        lambda x, y: jnp.mean(jnp.log1p(jnp.exp(-y * x))),
+        [0.5, -1.2, 2.0, -0.3],
+        [1.0, -1.0, 1.0, -1.0],
+        (4,),
+    )
+
+
+def test_pairwise_distance_matches_jax() -> None:
+    x1d = [1.0, 2.0, 3.0, 4.0]
+    x2d = [0.0, 0.0, 1.0, 1.0]
+    d_pyc = pycoeus.pairwise_distance(
+        pycoeus.Tensor(x1d, [2, 2]), pycoeus.Tensor(x2d, [2, 2]), 2.0, 1e-6
+    )
+    x1_j = jnp.asarray(x1d, dtype=jnp.float64).reshape(2, 2)
+    x2_j = jnp.asarray(x2d, dtype=jnp.float64).reshape(2, 2)
+    d_j = jnp.sqrt(jnp.sum((x1_j - x2_j) ** 2, axis=1) + 1e-6)
+    _allclose("pairwise_distance", list(d_pyc.data), d_j.tolist())
+
+
+def test_triplet_margin_matches_jax() -> None:
+    a = [0.0, 0.0, 1.0, 1.0]
+    p = [2.0, 0.0, 1.0, 2.0]
+    n = [0.0, 2.5, 3.0, 1.0]
+    a_pyc = pycoeus.Tensor(a, [2, 2], requires_grad=True)
+    loss_pyc = pycoeus.triplet_margin_loss(
+        a_pyc, pycoeus.Tensor(p, [2, 2]), pycoeus.Tensor(n, [2, 2]), 1.0, 2.0, 1e-6
+    )
+    loss_pyc.backward()
+    p_j = jnp.asarray(p, dtype=jnp.float64).reshape(2, 2)
+    n_j = jnp.asarray(n, dtype=jnp.float64).reshape(2, 2)
+
+    def f(av):
+        d_ap = jnp.sqrt(jnp.sum((av - p_j) ** 2, axis=1) + 1e-6)
+        d_an = jnp.sqrt(jnp.sum((av - n_j) ** 2, axis=1) + 1e-6)
+        return jnp.mean(jnp.maximum(0.0, d_ap - d_an + 1.0))
+
+    a_j = jnp.asarray(a, dtype=jnp.float64).reshape(2, 2)
+    assert abs(loss_pyc.data[0] - float(f(a_j))) < _ATOL
+    _allclose("triplet_da", list(a_pyc.grad), jax.grad(f)(a_j).flatten().tolist())
+
+
+def test_multi_margin_matches_jax() -> None:
+    x_data = [0.5, 0.8, -0.6, 1.0, 0.2, 0.3]
+    targets = [0, 1]
+    x_pyc = pycoeus.Tensor(x_data, [2, 3], requires_grad=True)
+    loss_pyc = pycoeus.multi_margin(x_pyc, targets, 1.0, 1.0)
+    loss_pyc.backward()
+
+    def f(x):  # x: [2, 3]
+        rows = []
+        for i in range(2):
+            y = targets[i]
+            m = 1.0 - x[i, y] + x[i]  # [C]
+            hinge = jnp.maximum(0.0, m)
+            rows.append((jnp.sum(hinge) - hinge[y]) / 3.0)
+        return jnp.mean(jnp.stack(rows))
+
+    x_j = jnp.asarray(x_data, dtype=jnp.float64).reshape(2, 3)
+    assert abs(loss_pyc.data[0] - float(f(x_j))) < _ATOL
+    _allclose("multi_margin_dx", list(x_pyc.grad), jax.grad(f)(x_j).flatten().tolist())
