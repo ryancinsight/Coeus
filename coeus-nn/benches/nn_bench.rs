@@ -19,8 +19,8 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
-    AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d, Embedding,
-    GroupNorm, LayerNorm, Linear, MaxPool2d, Module, MultiHeadAttention, NullMask,
+    AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d, Embedding, GroupNorm,
+    LayerNorm, Linear, MaxPool2d, Module, MultiHeadAttention, NullMask, RMSNorm,
     TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
@@ -32,8 +32,8 @@ use burn::nn::conv::Conv2dConfig;
 use burn::nn::conv::Conv3dConfig;
 use burn::nn::transformer::{TransformerEncoderConfig, TransformerEncoderInput};
 use burn::nn::{
-    BatchNormConfig, GroupNormConfig, LayerNormConfig, LinearConfig, PaddingConfig1d, PaddingConfig2d,
-    PaddingConfig3d,
+    BatchNormConfig, GroupNormConfig, LayerNormConfig, LinearConfig, PaddingConfig1d,
+    PaddingConfig2d, PaddingConfig3d, RmsNormConfig,
 };
 use burn::tensor::{Int, Tensor as BurnTensor, TensorData};
 type BurnB = NdArray<f32>;
@@ -108,6 +108,44 @@ fn bench_layernorm_forward(c: &mut Criterion) {
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| black_box(ln_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_rmsnorm_forward(c: &mut Criterion) {
+    // RMSNorm forward on [BATCH=128, FEATURES=256] — same shape as LayerNorm row for direct
+    // normalization-family comparison.
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.0031).sin())
+        .collect();
+
+    let burn_rn = RmsNormConfig::new(FEATURES).init::<BurnB>(&device);
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
+
+    let rn_seq = RMSNorm::<f32, SequentialBackend>::new(FEATURES, 1e-5);
+    let rn_moirai = RMSNorm::<f32, MoiraiBackend>::new(FEATURES, 1e-5);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — RMSNorm forward (128x256)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_rn.forward(black_box(x_burn.clone()))))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(rn_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(rn_moirai.forward(black_box(&x_moirai))))
     });
     group.finish();
 }
@@ -754,6 +792,7 @@ criterion_group!(
     benches,
     bench_linear_forward,
     bench_layernorm_forward,
+    bench_rmsnorm_forward,
     bench_batchnorm1d_eval_forward,
     bench_batchnorm2d_eval_forward,
     bench_batchnorm3d_eval_forward,
