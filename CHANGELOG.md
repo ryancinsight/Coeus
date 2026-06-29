@@ -183,6 +183,12 @@
   `SequentialBackend` and `MoiraiBackend` in the same Criterion group. Short
   local run medians: Burn 1.4071–1.4791 ms, Coeus Sequential 4.2591–4.3470 ms,
   Coeus Moirai 4.1116–4.2598 ms. ([patch])
+- **NN benchmark matrix expansion (BatchNorm3d eval forward)** — extended
+  `coeus-nn/benches/nn_bench.rs` with a BatchNorm3d eval forward row
+  (`[2,32,16,16,16]`), comparing Burn NdArray against Coeus
+  `SequentialBackend` and `MoiraiBackend` in the same Criterion group. Short
+  local run medians: Burn 981.71–994.77 µs, Coeus Sequential 2.2688–2.3151 ms,
+  Coeus Moirai 2.2786–2.3658 ms. ([patch])
 - **KL divergence / MarginRanking loss coverage** — added tracked
   `coeus_autograd` and `coeus_nn` entry points for KL divergence and margin
   ranking losses, plus analytical forward/backward tests and sequential/Moirai
