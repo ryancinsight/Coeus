@@ -227,7 +227,14 @@
   Coeus `SequentialBackend` and `MoiraiBackend` in the same Criterion group.
   Short local run medians: Burn 3.44–4.17 ms, Coeus Sequential 3.39–4.14 ms,
   Coeus Moirai 2.99–3.68 ms. ([patch])
-- **NN benchmark matrix expansion (ReLU and GeLU forward)** — extended
+- **NN benchmark matrix expansion (Sigmoid, Tanh, SiLU forward)** — extended
+  `coeus-nn/benches/nn_bench.rs` with Sigmoid, Tanh, and SiLU activation rows
+  (`[128,256]`), validating the dispatch-monomorphization speedup across the
+  activation family. Medians: Sigmoid: Burn 134-137 µs, Coeus Sequential
+  45.5-46.2 µs, Coeus Moirai 45.7-46.7 µs (Coeus ~3x faster); Tanh: Burn
+  62.9-67.6 µs, Coeus Sequential 60.9-62.1 µs (parity); SiLU: Burn 140-150 µs,
+  Coeus Sequential 47.0-48.8 µs, Coeus Moirai 46.4-46.9 µs (Coeus ~3x faster).
+  ([patch])- **NN benchmark matrix expansion (ReLU and GeLU forward)** — extended
   `coeus-nn/benches/nn_bench.rs` with ReLU and GeLU activation rows
   (`[128,256]`), comparing Burn NdArray against Coeus `SequentialBackend`
   and `MoiraiBackend`. ReLU medians: Burn 4.12–4.32 µs, Coeus Sequential

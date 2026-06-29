@@ -22,6 +22,10 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-202: Sigmoid+Tanh+SiLU benchmark expansion [COMPLETE]
+
+- [x] Added `bench_sigmoid_forward`, `bench_tanh_forward`, `bench_silu_forward` rows.
+- [x] Sigma/SiLU: Coeus ~3x faster than Burn; Tanh: parity.
 ## Sprint MS-200: ReLU+GeLU activation benchmark expansion [COMPLETE]
 
 - [x] Added `bench_relu_forward` and `bench_gelu_forward` in nn_bench.rs.
