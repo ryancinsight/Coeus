@@ -19,8 +19,9 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
-    BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d, Embedding, GroupNorm,
-    LayerNorm, Linear, MaxPool2d, Module, MultiHeadAttention, NullMask, TransformerEncoderLayer,
+    AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d, Embedding,
+    GroupNorm, LayerNorm, Linear, MaxPool2d, Module, MultiHeadAttention, NullMask,
+    TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -337,6 +338,57 @@ fn bench_maxpool2d_forward(c: &mut Criterion) {
                 [MP_S, MP_S],
                 [0, 0],
                 [1, 1],
+            ))
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_avgpool2d_forward(c: &mut Criterion) {
+    // AvgPool2d forward on [N=8, C=16, H=32, W=32] with k=2, s=2.
+    const AP_N: usize = 8;
+    const AP_C: usize = 16;
+    const AP_H: usize = 32;
+    const AP_W: usize = 32;
+    const AP_K: usize = 2;
+    const AP_S: usize = 2;
+
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(AP_N * AP_C * AP_H * AP_W))
+        .map(|i| (i as f32 * 0.0018).cos())
+        .collect();
+
+    let x_burn: BurnTensor<BurnB, 4> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [AP_N, AP_C, AP_H, AP_W]),
+        &device,
+    );
+
+    let pool_seq = AvgPool2d::<f32, SequentialBackend>::with_params(AP_K, AP_S, 0, 1);
+    let pool_moirai = AvgPool2d::<f32, MoiraiBackend>::with_params(AP_K, AP_S, 0, 1);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![AP_N, AP_C, AP_H, AP_W], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![AP_N, AP_C, AP_H, AP_W], &input_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — AvgPool2d forward (8x16x32x32, k2 s2)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| {
+            black_box(burn::tensor::module::avg_pool2d(
+                black_box(x_burn.clone()),
+                [AP_K, AP_K],
+                [AP_S, AP_S],
+                [0, 0],
+                false,
             ))
         })
     });
@@ -707,6 +759,7 @@ criterion_group!(
     bench_batchnorm3d_eval_forward,
     bench_groupnorm_forward,
     bench_maxpool2d_forward,
+    bench_avgpool2d_forward,
     bench_conv1d_forward,
     bench_conv2d_forward,
     bench_conv3d_forward,
