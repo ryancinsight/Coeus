@@ -2,7 +2,18 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-197 - CrossEntropyLoss benchmark matrix expansion [COMPLETE]
+### Current Sprint: MS-198 - MSELoss benchmark matrix expansion [COMPLETE]
+**Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with an MSE loss row
+comparing Burn NdArray and both Coeus CPU backends.
+**Target version**: 0.5.4 (benchmark/docs [patch]).
+
+- [x] [patch] Added `bench_mse_loss` in `coeus-nn/benches/nn_bench.rs` for
+  predictions `[128,64]` vs same-shape targets.
+- [x] [patch] Updated G-043 selected-row detail in `docs/gap_audit.md`.
+- [x] Evidence: cargo check/clippy/bench-no-run passed; benchmark confirms
+  all three backends at parity (~2.3 us each).
+
+### Previous Sprint: MS-197 - CrossEntropyLoss benchmark matrix expansion [COMPLETE] - CrossEntropyLoss benchmark matrix expansion [COMPLETE]
 **Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with a CrossEntropyLoss
 row so the loss computation family is measured against Burn NdArray and both Coeus
 CPU backends.
