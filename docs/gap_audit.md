@@ -9,9 +9,10 @@
 module families.
 **Gap**: Current Coeus-vs-Burn benchmarks cover selected forward rows
 (Linear, LayerNorm, RMSNorm, LSTM, InstanceNorm2d, CrossEntropyLoss, MSELoss, HuberLoss, ReLU forward, GeLU forward, Sigmoid forward, Tanh forward, SiLU forward, Conv2d,
-Conv3d, MHA self-attention, Transformer encoder layer, Embedding lookup, BatchNorm1d
-eval forward, BatchNorm2d eval forward, BatchNorm3d eval forward, Conv1d forward,
-GroupNorm forward, MaxPool2d forward, AvgPool2d forward), not the full NN family
+Conv3d, MHA self-attention, Transformer encoder layer, Embedding lookup, EmbeddingBag sum,
+BatchNorm1d eval forward, BatchNorm2d eval forward, BatchNorm3d eval forward, Conv1d forward,
+GroupNorm forward, MaxPool2d forward, AvgPool2d forward, MaxPool1d forward, AvgPool1d forward),
+not the full NN family
 set needed to claim Burn-level performance parity.
 PyTorch differential coverage similarly remains module-family selective.
 **Acceptance**: Add a benchmark/parity manifest keyed by module family, then add
