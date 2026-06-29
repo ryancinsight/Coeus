@@ -110,6 +110,7 @@ pub use ops::{
     mul,
     // New unary math ops
     neg,
+    multi_margin,
     nll_loss,
     pairwise_distance,
     poisson_nll,

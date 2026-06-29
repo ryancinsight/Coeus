@@ -14,6 +14,8 @@ pub mod kl_div;
 pub mod l1;
 /// Margin ranking loss.
 pub mod margin_ranking;
+/// Multi-class margin loss.
+pub mod multi_margin;
 /// Negative log-likelihood loss.
 pub mod nll;
 /// Row-wise p-norm pairwise distance.
@@ -31,6 +33,7 @@ pub use huber::{huber_loss, HuberLossNode};
 pub use kl_div::{kl_divergence, KlDivLossNode};
 pub use l1::{l1_loss, L1LossNode};
 pub use margin_ranking::{margin_ranking_loss, MarginRankingLossNode};
+pub use multi_margin::{multi_margin, MultiMarginNode};
 pub use nll::{nll_loss, NllLossNode};
 pub use pairwise_distance::{pairwise_distance, PairwiseDistanceNode};
 pub use poisson_nll::{poisson_nll, PoissonNllNode};

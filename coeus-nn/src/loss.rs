@@ -131,6 +131,19 @@ pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     coeus_autograd::nll_loss(log_probs, targets)
 }
 
+/// Multi-class margin loss (PyTorch `MultiMarginLoss`, `reduction="mean"`).
+/// x: `[N, C]` scores, targets: `[N]` class indices, p >= 1, margin.
+/// Computes `mean_i (1/C) sum_{j != y_i} max(0, margin - x[i,y_i] + x[i,j])^p`.
+#[inline]
+pub fn multi_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    x: &Var<T, B>,
+    targets: &[usize],
+    p: T,
+    margin: T,
+) -> Var<T, B> {
+    coeus_autograd::multi_margin(x, targets, p, margin)
+}
+
 /// Huber (Smooth L1) Loss.
 /// pred: `[N]`, target: `[N]`, delta: huber threshold.
 #[inline]

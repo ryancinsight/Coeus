@@ -2,7 +2,7 @@ use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_nn::{
     bce_with_logits, binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence,
-    l1_loss, margin_ranking_loss, nll_loss, pairwise_distance, poisson_nll, soft_margin, triplet_margin_loss,
+    l1_loss, margin_ranking_loss, multi_margin, nll_loss, pairwise_distance, poisson_nll, soft_margin, triplet_margin_loss,
 };
 use coeus_tensor::Tensor;
 
@@ -437,6 +437,47 @@ fn test_triplet_margin_loss_inactive() {
     let negative = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[5.0, 0.0]), false);
     let loss = triplet_margin_loss(&anchor, &positive, &negative, 1.0, 2.0, 0.0);
     assert_eq!(loss.tensor.as_slice(), &[0.0_f64], "easy triplet → loss 0");
+}
+
+#[test]
+fn test_multi_margin() {
+    // x=[[0.5, 0.8, -0.6]], target=[0], margin=1, p=1, C=3.
+    // j=1: m=1-0.5+0.8=1.3>0 (active); j=2: m=1-0.5-0.6=-0.1<0 (inactive).
+    // loss = 1.3 / (N*C) = 1.3/3.  grads: x[0,1]=1/3, x[0,2]=0, x[0,0]=-1/3.
+    let x = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[0.5, 0.8, -0.6]),
+        true,
+    );
+    let loss = multi_margin(&x, &[0], 1.0, 1.0);
+    assert_eq!(loss.tensor.shape(), &[1]);
+    assert!(
+        (loss.tensor.as_slice()[0] - 1.3 / 3.0).abs() <= 1e-12,
+        "multi_margin forward: got {}, expected {}",
+        loss.tensor.as_slice()[0],
+        1.3 / 3.0
+    );
+
+    loss.backward();
+    let g = x.grad().expect("x must receive a gradient");
+    let third = 1.0 / 3.0;
+    let expected = [-third, third, 0.0];
+    for (k, (&got, &e)) in g.as_slice().iter().zip(expected.iter()).enumerate() {
+        assert!(
+            (got - e).abs() <= 1e-12,
+            "multi_margin grad[{k}]: got {got}, expected {e}"
+        );
+    }
+}
+
+#[test]
+fn test_multi_margin_all_inactive() {
+    // Target score dominates by > margin → all hinges inactive → loss 0.
+    let x = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[3.0, 0.5, 0.1]),
+        false,
+    );
+    let loss = multi_margin(&x, &[0], 1.0, 1.0);
+    assert_eq!(loss.tensor.as_slice(), &[0.0_f64], "dominant target → loss 0");
 }
 
 #[test]
