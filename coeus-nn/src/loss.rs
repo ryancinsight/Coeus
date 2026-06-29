@@ -174,6 +174,18 @@ pub fn soft_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     coeus_autograd::soft_margin(input, target)
 }
 
+/// Row-wise p-norm pairwise distance (PyTorch `PairwiseDistance`).
+/// x1, x2: `[N, D]`; returns `[N]` with `out_i = (sum_k |x1-x2|^p + eps)^(1/p)`.
+#[inline]
+pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    x1: &Var<T, B>,
+    x2: &Var<T, B>,
+    p: T,
+    eps: T,
+) -> Var<T, B> {
+    coeus_autograd::pairwise_distance(x1, x2, p, eps)
+}
+
 /// KL divergence loss.
 ///
 /// `input` is log-probabilities and `target` is probabilities. Computes
