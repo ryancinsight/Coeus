@@ -20,7 +20,7 @@ use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
     AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d, Embedding, GroupNorm,
-    LayerNorm, Linear, MaxPool2d, Module, MultiHeadAttention, NullMask, RMSNorm,
+    LayerNorm, Linear, Lstm, MaxPool2d, Module, MultiHeadAttention, NullMask, RMSNorm,
     TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
@@ -32,7 +32,7 @@ use burn::nn::conv::Conv2dConfig;
 use burn::nn::conv::Conv3dConfig;
 use burn::nn::transformer::{TransformerEncoderConfig, TransformerEncoderInput};
 use burn::nn::{
-    BatchNormConfig, GroupNormConfig, LayerNormConfig, LinearConfig, PaddingConfig1d,
+    BatchNormConfig, GroupNormConfig, LayerNormConfig, LinearConfig, LstmConfig, PaddingConfig1d,
     PaddingConfig2d, PaddingConfig3d, RmsNormConfig,
 };
 use burn::tensor::{Int, Tensor as BurnTensor, TensorData};
@@ -788,6 +788,58 @@ fn bench_linear_forward_backward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_lstm_forward(c: &mut Criterion) {
+    // LSTM sequence forward on [batch=4, seq=32, input=64] → hidden=128.
+    // Modest size keeps the run tractable while exercising the full unroll path.
+    const LSTM_BATCH: usize = 4;
+    const LSTM_SEQ: usize = 32;
+    const LSTM_IN: usize = 64;
+    const LSTM_H: usize = 128;
+
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(LSTM_BATCH * LSTM_SEQ * LSTM_IN))
+        .map(|i| (i as f32 * 0.0017).cos())
+        .collect();
+
+    // Burn: LstmConfig(d_input, d_hidden, bias=true).
+    let burn_lstm = LstmConfig::new(LSTM_IN, LSTM_H, true).init::<BurnB>(&device);
+    let x_burn: BurnTensor<BurnB, 3> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [LSTM_BATCH, LSTM_SEQ, LSTM_IN]),
+        &device,
+    );
+
+    // Coeus: Lstm::new(input_size, hidden_size).
+    let lstm_seq = Lstm::<f32, SequentialBackend>::new(LSTM_IN, LSTM_H);
+    let lstm_moirai = Lstm::<f32, MoiraiBackend>::new(LSTM_IN, LSTM_H);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(
+            vec![LSTM_BATCH, LSTM_SEQ, LSTM_IN],
+            &input_data,
+        ),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(
+            vec![LSTM_BATCH, LSTM_SEQ, LSTM_IN],
+            &input_data,
+        ),
+        false,
+    );
+
+    let mut group =
+        c.benchmark_group("Burn vs Coeus — LSTM forward (4x32 seq, in=64 hidden=128)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_lstm.forward(black_box(x_burn.clone()), None)))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(lstm_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(lstm_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -805,6 +857,7 @@ criterion_group!(
     bench_mha_forward,
     bench_transformer_encoder_forward,
     bench_embedding_forward,
-    bench_linear_forward_backward
+    bench_linear_forward_backward,
+    bench_lstm_forward
 );
 criterion_main!(benches);
