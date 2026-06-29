@@ -10,6 +10,7 @@ use leto_ops::{
 
 use super::MAX_DISPATCH_RANK;
 
+#[inline(always)]
 fn reduce_n<T: LetoScalar, const N: usize>(
     op: ReductionOp,
     a_layout: &CoeusLayout,
