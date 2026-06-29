@@ -12,7 +12,7 @@ pub mod log_softmax;
 pub mod loss;
 /// Normalization layers (batchnorm, layernorm, rmsnorm).
 pub mod normalization;
-/// Pooling layers (max-pool, avg-pool 2D/3D).
+/// Pooling layers (max-pool, avg-pool 1D/2D/3D).
 pub mod pool;
 /// Softmax operation.
 pub mod softmax;
@@ -26,5 +26,5 @@ pub use loss::{
     kl_divergence, l1_loss, margin_ranking_loss, multi_margin, nll_loss, pairwise_distance, poisson_nll, soft_margin,
 };
 pub use normalization::{batchnorm1d, batchnorm2d, batchnorm3d, layernorm, rmsnorm, BatchNormArgs};
-pub use pool::{avg_pool2d, avg_pool3d, max_pool2d, max_pool3d};
+pub use pool::{avg_pool1d, avg_pool2d, avg_pool3d, max_pool1d, max_pool2d, max_pool3d};
 pub use softmax::softmax;

@@ -31,11 +31,11 @@ pub use reduction::{log_sum_exp, max_axis, min_axis, norm, norm_p, norm_p_axis};
 pub use arithmetic::VarScalarExt;
 pub use linalg::{matmul, sparse_matmul, sparse_matmul_coo, transpose_2d};
 pub use nn::{
-    avg_pool2d, avg_pool3d, batchnorm1d, batchnorm2d, batchnorm3d, bce_with_logits,
+    avg_pool1d, avg_pool2d, avg_pool3d, batchnorm1d, batchnorm2d, batchnorm3d, bce_with_logits,
     binary_cross_entropy, conv1d, conv2d, conv3d, conv_transpose1d, conv_transpose2d,
     conv_transpose3d, cosine_embedding_loss,
     cross_entropy_loss, dropout, huber_loss, kl_divergence, l1_loss, layernorm, log_softmax,
-    margin_ranking_loss, max_pool2d, max_pool3d, multi_margin, nll_loss, pairwise_distance, poisson_nll, rmsnorm, sdp_attention, soft_margin, softmax,
+    margin_ranking_loss, max_pool1d, max_pool2d, max_pool3d, multi_margin, nll_loss, pairwise_distance, poisson_nll, rmsnorm, sdp_attention, soft_margin, softmax,
     AttentionMask, BatchNormArgs, CausalMask, NullMask,
 };
 

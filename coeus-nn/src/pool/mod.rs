@@ -5,12 +5,14 @@
 mod avg;
 mod global;
 mod max;
+mod pool1d;
 
 pub use avg::{AvgPool2d, AvgPool3d};
 pub use global::{
     GlobalAvgPool1d, GlobalAvgPool2d, GlobalAvgPool3d, GlobalMaxPool2d, GlobalMaxPool3d,
 };
 pub use max::{MaxPool2d, MaxPool3d};
+pub use pool1d::{AvgPool1d, MaxPool1d};
 
 // ── Shared pooling helpers ──
 

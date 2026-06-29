@@ -40,6 +40,7 @@ pub use node::BackwardNode;
 pub use ops::{
     abs,
     add,
+    avg_pool1d,
     avg_pool2d,
     avg_pool3d,
     batchnorm1d,
@@ -101,6 +102,7 @@ pub use ops::{
     matmul,
     // New axis reductions
     max_axis,
+    max_pool1d,
     max_pool2d,
     max_pool3d,
     mean,

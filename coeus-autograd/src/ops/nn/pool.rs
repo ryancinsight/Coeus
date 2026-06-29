@@ -38,6 +38,18 @@ fn dispatch_max_pool_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, c
     } = request;
 
     match DIM {
+        1 => backend.max_pool1d_backward(
+            grad_out_storage,
+            grad_out_layout,
+            input_storage,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        ),
         2 => backend.max_pool2d_backward(
             grad_out_storage,
             grad_out_layout,
@@ -83,6 +95,16 @@ fn dispatch_avg_pool_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, c
     } = request;
 
     match DIM {
+        1 => backend.avg_pool1d_backward(
+            grad_out_storage,
+            grad_out_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        ),
         2 => backend.avg_pool2d_backward(
             grad_out_storage,
             grad_out_layout,
@@ -133,6 +155,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
     #[inline]
     fn op_name(&self) -> &'static str {
         match DIM {
+            1 => "max_pool1d",
             2 => "max_pool2d",
             3 => "max_pool3d",
             _ => "max_poolNd",
@@ -221,6 +244,18 @@ fn max_pool_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM:
     }
 }
 
+/// Tracked 1D Max Pooling.
+pub fn max_pool1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    out_tensor: Tensor<T, B>,
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+) -> Var<T, B> {
+    max_pool_nd_inner::<T, B, 1>(input, out_tensor, kernel_size, stride, padding, dilation)
+}
+
 /// Tracked 2D Max Pooling.
 pub fn max_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
@@ -271,6 +306,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
     #[inline]
     fn op_name(&self) -> &'static str {
         match DIM {
+            1 => "avg_pool1d",
             2 => "avg_pool2d",
             3 => "avg_pool3d",
             _ => "avg_poolNd",
@@ -353,6 +389,18 @@ fn avg_pool_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM:
         grad,
         creator,
     }
+}
+
+/// Tracked 1D Average Pooling.
+pub fn avg_pool1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    out_tensor: Tensor<T, B>,
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+) -> Var<T, B> {
+    avg_pool_nd_inner::<T, B, 1>(input, out_tensor, kernel_size, stride, padding, dilation)
 }
 
 /// Tracked 2D Average Pooling.
