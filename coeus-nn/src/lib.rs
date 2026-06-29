@@ -85,7 +85,7 @@ pub use interpolate::{interpolate_1d, interpolate_2d, InterpolateMode};
 pub use linear::Linear;
 pub use loss::{
     bce_with_logits, binary_cross_entropy, cosine_embedding_loss, cross_entropy_loss, huber_loss,
-    kl_divergence, l1_loss, margin_ranking_loss, mse_loss, nll_loss, pairwise_distance, poisson_nll, soft_margin, triplet_margin_loss,
+    kl_divergence, l1_loss, margin_ranking_loss, mse_loss, multi_margin, nll_loss, pairwise_distance, poisson_nll, soft_margin, triplet_margin_loss,
 };
 pub use module::Module;
 pub use normalization::{
