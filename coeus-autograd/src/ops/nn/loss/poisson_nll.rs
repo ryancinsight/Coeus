@@ -21,9 +21,7 @@ pub struct PoissonNllNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub shape: coeus_core::Shape,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for PoissonNllNode<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for PoissonNllNode<T, B> {
     fn op_name(&self) -> &'static str {
         "poisson_nll"
     }
@@ -138,8 +136,8 @@ pub fn poisson_nll<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     loss_val = loss_val / T::from_f64(n as f64);
 
     let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
-    let requires_grad = crate::grad_mode::should_track_var(input)
-        || crate::grad_mode::should_track_var(target);
+    let requires_grad =
+        crate::grad_mode::should_track_var(input) || crate::grad_mode::should_track_var(target);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
     } else {

@@ -431,13 +431,17 @@ impl PyGlobalMaxPool3d {
 #[pyclass(name = "MaxPool1d")]
 pub struct PyMaxPool1d {
     /// Pooling window length.
-    #[pyo3(get)] pub kernel_size: usize,
+    #[pyo3(get)]
+    pub kernel_size: usize,
     /// Pooling stride.
-    #[pyo3(get)] pub stride: usize,
+    #[pyo3(get)]
+    pub stride: usize,
     /// Zero-padding length.
-    #[pyo3(get)] pub padding: usize,
+    #[pyo3(get)]
+    pub padding: usize,
     /// Dilation factor.
-    #[pyo3(get)] pub dilation: usize,
+    #[pyo3(get)]
+    pub dilation: usize,
 }
 
 #[pymethods]
@@ -446,7 +450,12 @@ impl PyMaxPool1d {
     #[pyo3(signature = (kernel_size, stride = None, padding = 0, dilation = 1))]
     /// Create a MaxPool1d layer.
     pub fn new(kernel_size: usize, stride: Option<usize>, padding: usize, dilation: usize) -> Self {
-        Self { kernel_size, stride: stride.unwrap_or(kernel_size), padding, dilation }
+        Self {
+            kernel_size,
+            stride: stride.unwrap_or(kernel_size),
+            padding,
+            dilation,
+        }
     }
 
     /// Forward pass: `[N, C, L]` → `[N, C, L_out]`.
@@ -454,7 +463,10 @@ impl PyMaxPool1d {
         use coeus_nn::Module;
         let input_var = input.inner.clone();
         let pool = coeus_nn::pool::MaxPool1d::<f64, coeus_core::MoiraiBackend>::with_params(
-            self.kernel_size, self.stride, self.padding, self.dilation,
+            self.kernel_size,
+            self.stride,
+            self.padding,
+            self.dilation,
         );
         let inner = py.allow_threads(move || pool.forward(&input_var));
         Ok(PyTensor::from_var(inner))
@@ -462,7 +474,9 @@ impl PyMaxPool1d {
 
     /// Return an empty state dict (no learnable parameters).
     pub fn state_dict(&self) -> crate::tensor::PyStateDict {
-        crate::tensor::PyStateDict { inner: coeus_tensor::checkpoint::StateDict::new() }
+        crate::tensor::PyStateDict {
+            inner: coeus_tensor::checkpoint::StateDict::new(),
+        }
     }
 
     /// Zero gradients (no-op for pooling layers).
@@ -475,13 +489,17 @@ impl PyMaxPool1d {
 #[pyclass(name = "AvgPool1d")]
 pub struct PyAvgPool1d {
     /// Pooling window length.
-    #[pyo3(get)] pub kernel_size: usize,
+    #[pyo3(get)]
+    pub kernel_size: usize,
     /// Pooling stride.
-    #[pyo3(get)] pub stride: usize,
+    #[pyo3(get)]
+    pub stride: usize,
     /// Zero-padding length.
-    #[pyo3(get)] pub padding: usize,
+    #[pyo3(get)]
+    pub padding: usize,
     /// Dilation factor.
-    #[pyo3(get)] pub dilation: usize,
+    #[pyo3(get)]
+    pub dilation: usize,
 }
 
 #[pymethods]
@@ -490,7 +508,12 @@ impl PyAvgPool1d {
     #[pyo3(signature = (kernel_size, stride = None, padding = 0, dilation = 1))]
     /// Create an AvgPool1d layer.
     pub fn new(kernel_size: usize, stride: Option<usize>, padding: usize, dilation: usize) -> Self {
-        Self { kernel_size, stride: stride.unwrap_or(kernel_size), padding, dilation }
+        Self {
+            kernel_size,
+            stride: stride.unwrap_or(kernel_size),
+            padding,
+            dilation,
+        }
     }
 
     /// Forward pass: `[N, C, L]` → `[N, C, L_out]`.
@@ -498,7 +521,10 @@ impl PyAvgPool1d {
         use coeus_nn::Module;
         let input_var = input.inner.clone();
         let pool = coeus_nn::pool::AvgPool1d::<f64, coeus_core::MoiraiBackend>::with_params(
-            self.kernel_size, self.stride, self.padding, self.dilation,
+            self.kernel_size,
+            self.stride,
+            self.padding,
+            self.dilation,
         );
         let inner = py.allow_threads(move || pool.forward(&input_var));
         Ok(PyTensor::from_var(inner))
@@ -506,7 +532,9 @@ impl PyAvgPool1d {
 
     /// Return an empty state dict (no learnable parameters).
     pub fn state_dict(&self) -> crate::tensor::PyStateDict {
-        crate::tensor::PyStateDict { inner: coeus_tensor::checkpoint::StateDict::new() }
+        crate::tensor::PyStateDict {
+            inner: coeus_tensor::checkpoint::StateDict::new(),
+        }
     }
 
     /// Zero gradients (no-op for pooling layers).

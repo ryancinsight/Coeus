@@ -585,10 +585,56 @@ impl<T: CudaScalar> coeus_ops::PoolOps<T> for CudaBackend {
 
     // ── Pool 1D stubs ─────────────────────────────────────────────────────────
 
-    fn max_pool1d(&self, _input: &Self::DeviceBuffer<T>, _input_layout: &coeus_core::Layout, _kernel_size: usize, _stride: usize, _padding: usize, _dilation: usize, _output: &mut Self::DeviceBuffer<T>, _output_layout: &coeus_core::Layout) {}
-    fn max_pool1d_backward(&self, _grad_out: &Self::DeviceBuffer<T>, _grad_out_layout: &coeus_core::Layout, _input: &Self::DeviceBuffer<T>, _input_layout: &coeus_core::Layout, _kernel_size: usize, _stride: usize, _padding: usize, _dilation: usize, _grad_input: &mut Self::DeviceBuffer<T>, _grad_input_layout: &coeus_core::Layout) {}
-    fn avg_pool1d(&self, _input: &Self::DeviceBuffer<T>, _input_layout: &coeus_core::Layout, _kernel_size: usize, _stride: usize, _padding: usize, _dilation: usize, _output: &mut Self::DeviceBuffer<T>, _output_layout: &coeus_core::Layout) {}
-    fn avg_pool1d_backward(&self, _grad_out: &Self::DeviceBuffer<T>, _grad_out_layout: &coeus_core::Layout, _kernel_size: usize, _stride: usize, _padding: usize, _dilation: usize, _grad_input: &mut Self::DeviceBuffer<T>, _grad_input_layout: &coeus_core::Layout) {}
+    fn max_pool1d(
+        &self,
+        _input: &Self::DeviceBuffer<T>,
+        _input_layout: &coeus_core::Layout,
+        _kernel_size: usize,
+        _stride: usize,
+        _padding: usize,
+        _dilation: usize,
+        _output: &mut Self::DeviceBuffer<T>,
+        _output_layout: &coeus_core::Layout,
+    ) {
+    }
+    fn max_pool1d_backward(
+        &self,
+        _grad_out: &Self::DeviceBuffer<T>,
+        _grad_out_layout: &coeus_core::Layout,
+        _input: &Self::DeviceBuffer<T>,
+        _input_layout: &coeus_core::Layout,
+        _kernel_size: usize,
+        _stride: usize,
+        _padding: usize,
+        _dilation: usize,
+        _grad_input: &mut Self::DeviceBuffer<T>,
+        _grad_input_layout: &coeus_core::Layout,
+    ) {
+    }
+    fn avg_pool1d(
+        &self,
+        _input: &Self::DeviceBuffer<T>,
+        _input_layout: &coeus_core::Layout,
+        _kernel_size: usize,
+        _stride: usize,
+        _padding: usize,
+        _dilation: usize,
+        _output: &mut Self::DeviceBuffer<T>,
+        _output_layout: &coeus_core::Layout,
+    ) {
+    }
+    fn avg_pool1d_backward(
+        &self,
+        _grad_out: &Self::DeviceBuffer<T>,
+        _grad_out_layout: &coeus_core::Layout,
+        _kernel_size: usize,
+        _stride: usize,
+        _padding: usize,
+        _dilation: usize,
+        _grad_input: &mut Self::DeviceBuffer<T>,
+        _grad_input_layout: &coeus_core::Layout,
+    ) {
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

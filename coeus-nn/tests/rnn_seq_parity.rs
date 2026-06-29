@@ -179,7 +179,7 @@ where
     );
     let f_s = f_out.tensor.as_slice(); // [1,2,3]
     let b_s = b_out.tensor.as_slice(); // [1,2,3]
-    // Layout per (batch, seq): [forward(3), backward(3)].
+                                       // Layout per (batch, seq): [forward(3), backward(3)].
     assert_eq!(&o_s[0..3], &f_s[0..3], "t0 forward half");
     assert_eq!(&o_s[3..6], &b_s[0..3], "t0 backward half");
     assert_eq!(&o_s[6..9], &f_s[3..6], "t1 forward half");
@@ -211,7 +211,11 @@ fn bidirectional_lstm_doubles_hidden_dim() {
         false,
     );
     let y = bi.forward(&x);
-    assert_eq!(y.tensor.shape(), &[2, 3, 8], "bidirectional hidden dim should be 2*hidden");
+    assert_eq!(
+        y.tensor.shape(),
+        &[2, 3, 8],
+        "bidirectional hidden dim should be 2*hidden"
+    );
 }
 
 #[test]

@@ -1,5 +1,7 @@
 use crate::convert::{to_leto_view, to_leto_view_mut};
-use coeus_core::{BinaryOp, CpuUnaryDispatch, CpuUnaryOp as UnaryOp, Layout as CoeusLayout, Scalar as CoeusScalar};
+use coeus_core::{
+    BinaryOp, CpuUnaryDispatch, CpuUnaryOp as UnaryOp, Layout as CoeusLayout, Scalar as CoeusScalar,
+};
 use leto::{LetoError, Result};
 use leto_ops::Scalar as LetoScalar;
 
@@ -154,56 +156,64 @@ fn unary_n<T: LetoScalar + CoeusScalar + CpuUnaryDispatch, const N: usize>(
         };
     }
     match op {
-        UnaryOp::Relu          => apply!(|x: T| T::eval_unary(UnaryOp::Relu,         x)),
-        UnaryOp::ReluGrad      => apply!(|x: T| T::eval_unary(UnaryOp::ReluGrad,     x)),
-        UnaryOp::Sigmoid       => apply!(|x: T| T::eval_unary(UnaryOp::Sigmoid,      x)),
-        UnaryOp::SigmoidGrad   => apply!(|x: T| T::eval_unary(UnaryOp::SigmoidGrad,  x)),
-        UnaryOp::Tanh          => apply!(|x: T| T::eval_unary(UnaryOp::Tanh,         x)),
-        UnaryOp::TanhGrad      => apply!(|x: T| T::eval_unary(UnaryOp::TanhGrad,     x)),
-        UnaryOp::Gelu          => apply!(|x: T| T::eval_unary(UnaryOp::Gelu,         x)),
-        UnaryOp::GeluGrad      => apply!(|x: T| T::eval_unary(UnaryOp::GeluGrad,     x)),
-        UnaryOp::Sin           => apply!(|x: T| T::eval_unary(UnaryOp::Sin,          x)),
-        UnaryOp::Cos           => apply!(|x: T| T::eval_unary(UnaryOp::Cos,          x)),
-        UnaryOp::Exp           => apply!(|x: T| T::eval_unary(UnaryOp::Exp,          x)),
-        UnaryOp::Log           => apply!(|x: T| T::eval_unary(UnaryOp::Log,          x)),
-        UnaryOp::Neg           => apply!(|x: T| T::eval_unary(UnaryOp::Neg,          x)),
-        UnaryOp::Abs           => apply!(|x: T| T::eval_unary(UnaryOp::Abs,          x)),
-        UnaryOp::Sqrt          => apply!(|x: T| T::eval_unary(UnaryOp::Sqrt,         x)),
-        UnaryOp::Silu          => apply!(|x: T| T::eval_unary(UnaryOp::Silu,         x)),
-        UnaryOp::SiluGrad      => apply!(|x: T| T::eval_unary(UnaryOp::SiluGrad,     x)),
-        UnaryOp::Mish          => apply!(|x: T| T::eval_unary(UnaryOp::Mish,         x)),
-        UnaryOp::MishGrad      => apply!(|x: T| T::eval_unary(UnaryOp::MishGrad,     x)),
-        UnaryOp::Elu           => apply!(|x: T| T::eval_unary(UnaryOp::Elu,          x)),
-        UnaryOp::EluGrad       => apply!(|x: T| T::eval_unary(UnaryOp::EluGrad,      x)),
-        UnaryOp::Softplus      => apply!(|x: T| T::eval_unary(UnaryOp::Softplus,     x)),
-        UnaryOp::SoftplusGrad  => apply!(|x: T| T::eval_unary(UnaryOp::SoftplusGrad, x)),
-        UnaryOp::GeluTanh      => apply!(|x: T| T::eval_unary(UnaryOp::GeluTanh,     x)),
-        UnaryOp::GeluTanhGrad  => apply!(|x: T| T::eval_unary(UnaryOp::GeluTanhGrad, x)),
-        UnaryOp::Hardsigmoid   => apply!(|x: T| T::eval_unary(UnaryOp::Hardsigmoid,  x)),
+        UnaryOp::Relu => apply!(|x: T| T::eval_unary(UnaryOp::Relu, x)),
+        UnaryOp::ReluGrad => apply!(|x: T| T::eval_unary(UnaryOp::ReluGrad, x)),
+        UnaryOp::Sigmoid => apply!(|x: T| T::eval_unary(UnaryOp::Sigmoid, x)),
+        UnaryOp::SigmoidGrad => apply!(|x: T| T::eval_unary(UnaryOp::SigmoidGrad, x)),
+        UnaryOp::Tanh => apply!(|x: T| T::eval_unary(UnaryOp::Tanh, x)),
+        UnaryOp::TanhGrad => apply!(|x: T| T::eval_unary(UnaryOp::TanhGrad, x)),
+        UnaryOp::Gelu => apply!(|x: T| T::eval_unary(UnaryOp::Gelu, x)),
+        UnaryOp::GeluGrad => apply!(|x: T| T::eval_unary(UnaryOp::GeluGrad, x)),
+        UnaryOp::Sin => apply!(|x: T| T::eval_unary(UnaryOp::Sin, x)),
+        UnaryOp::Cos => apply!(|x: T| T::eval_unary(UnaryOp::Cos, x)),
+        UnaryOp::Exp => apply!(|x: T| T::eval_unary(UnaryOp::Exp, x)),
+        UnaryOp::Log => apply!(|x: T| T::eval_unary(UnaryOp::Log, x)),
+        UnaryOp::Neg => apply!(|x: T| T::eval_unary(UnaryOp::Neg, x)),
+        UnaryOp::Abs => apply!(|x: T| T::eval_unary(UnaryOp::Abs, x)),
+        UnaryOp::Sqrt => apply!(|x: T| T::eval_unary(UnaryOp::Sqrt, x)),
+        UnaryOp::Silu => apply!(|x: T| T::eval_unary(UnaryOp::Silu, x)),
+        UnaryOp::SiluGrad => apply!(|x: T| T::eval_unary(UnaryOp::SiluGrad, x)),
+        UnaryOp::Mish => apply!(|x: T| T::eval_unary(UnaryOp::Mish, x)),
+        UnaryOp::MishGrad => apply!(|x: T| T::eval_unary(UnaryOp::MishGrad, x)),
+        UnaryOp::Elu => apply!(|x: T| T::eval_unary(UnaryOp::Elu, x)),
+        UnaryOp::EluGrad => apply!(|x: T| T::eval_unary(UnaryOp::EluGrad, x)),
+        UnaryOp::Softplus => apply!(|x: T| T::eval_unary(UnaryOp::Softplus, x)),
+        UnaryOp::SoftplusGrad => apply!(|x: T| T::eval_unary(UnaryOp::SoftplusGrad, x)),
+        UnaryOp::GeluTanh => apply!(|x: T| T::eval_unary(UnaryOp::GeluTanh, x)),
+        UnaryOp::GeluTanhGrad => apply!(|x: T| T::eval_unary(UnaryOp::GeluTanhGrad, x)),
+        UnaryOp::Hardsigmoid => apply!(|x: T| T::eval_unary(UnaryOp::Hardsigmoid, x)),
         UnaryOp::HardsigmoidGrad => apply!(|x: T| T::eval_unary(UnaryOp::HardsigmoidGrad, x)),
-        UnaryOp::Hardswish     => apply!(|x: T| T::eval_unary(UnaryOp::Hardswish,    x)),
+        UnaryOp::Hardswish => apply!(|x: T| T::eval_unary(UnaryOp::Hardswish, x)),
         UnaryOp::HardswishGrad => apply!(|x: T| T::eval_unary(UnaryOp::HardswishGrad, x)),
-        UnaryOp::Softsign      => apply!(|x: T| T::eval_unary(UnaryOp::Softsign,     x)),
-        UnaryOp::SoftsignGrad  => apply!(|x: T| T::eval_unary(UnaryOp::SoftsignGrad, x)),
-        UnaryOp::Recip         => apply!(|x: T| T::eval_unary(UnaryOp::Recip,        x)),
-        UnaryOp::Sign          => apply!(|x: T| T::eval_unary(UnaryOp::Sign,         x)),
-        UnaryOp::Floor         => apply!(|x: T| T::eval_unary(UnaryOp::Floor,        x)),
-        UnaryOp::Ceil          => apply!(|x: T| T::eval_unary(UnaryOp::Ceil,         x)),
-        UnaryOp::Round         => apply!(|x: T| T::eval_unary(UnaryOp::Round,        x)),
-        UnaryOp::Trunc         => apply!(|x: T| T::eval_unary(UnaryOp::Trunc,        x)),
+        UnaryOp::Softsign => apply!(|x: T| T::eval_unary(UnaryOp::Softsign, x)),
+        UnaryOp::SoftsignGrad => apply!(|x: T| T::eval_unary(UnaryOp::SoftsignGrad, x)),
+        UnaryOp::Recip => apply!(|x: T| T::eval_unary(UnaryOp::Recip, x)),
+        UnaryOp::Sign => apply!(|x: T| T::eval_unary(UnaryOp::Sign, x)),
+        UnaryOp::Floor => apply!(|x: T| T::eval_unary(UnaryOp::Floor, x)),
+        UnaryOp::Ceil => apply!(|x: T| T::eval_unary(UnaryOp::Ceil, x)),
+        UnaryOp::Round => apply!(|x: T| T::eval_unary(UnaryOp::Round, x)),
+        UnaryOp::Trunc => apply!(|x: T| T::eval_unary(UnaryOp::Trunc, x)),
         // Parametric variants: the packed value is a loop-invariant constant.
-        UnaryOp::LeakyRelu(s)        => apply!(move |x: T| T::eval_unary(UnaryOp::LeakyRelu(s),       x)),
-        UnaryOp::LeakyReluGrad(s)    => apply!(move |x: T| T::eval_unary(UnaryOp::LeakyReluGrad(s),   x)),
-        UnaryOp::Hardtanh(b)         => apply!(move |x: T| T::eval_unary(UnaryOp::Hardtanh(b),        x)),
-        UnaryOp::HardtanhGrad(b)     => apply!(move |x: T| T::eval_unary(UnaryOp::HardtanhGrad(b),    x)),
-        UnaryOp::Hardshrink(l)       => apply!(move |x: T| T::eval_unary(UnaryOp::Hardshrink(l),      x)),
-        UnaryOp::HardshrinkGrad(l)   => apply!(move |x: T| T::eval_unary(UnaryOp::HardshrinkGrad(l),  x)),
-        UnaryOp::Softshrink(l)       => apply!(move |x: T| T::eval_unary(UnaryOp::Softshrink(l),      x)),
-        UnaryOp::SoftshrinkGrad(l)   => apply!(move |x: T| T::eval_unary(UnaryOp::SoftshrinkGrad(l),  x)),
-        UnaryOp::Threshold(b)        => apply!(move |x: T| T::eval_unary(UnaryOp::Threshold(b),       x)),
-        UnaryOp::ThresholdGrad(b)    => apply!(move |x: T| T::eval_unary(UnaryOp::ThresholdGrad(b),   x)),
-        UnaryOp::Celu(a)             => apply!(move |x: T| T::eval_unary(UnaryOp::Celu(a),            x)),
-        UnaryOp::CeluGrad(a)         => apply!(move |x: T| T::eval_unary(UnaryOp::CeluGrad(a),        x)),
+        UnaryOp::LeakyRelu(s) => apply!(move |x: T| T::eval_unary(UnaryOp::LeakyRelu(s), x)),
+        UnaryOp::LeakyReluGrad(s) => {
+            apply!(move |x: T| T::eval_unary(UnaryOp::LeakyReluGrad(s), x))
+        }
+        UnaryOp::Hardtanh(b) => apply!(move |x: T| T::eval_unary(UnaryOp::Hardtanh(b), x)),
+        UnaryOp::HardtanhGrad(b) => apply!(move |x: T| T::eval_unary(UnaryOp::HardtanhGrad(b), x)),
+        UnaryOp::Hardshrink(l) => apply!(move |x: T| T::eval_unary(UnaryOp::Hardshrink(l), x)),
+        UnaryOp::HardshrinkGrad(l) => {
+            apply!(move |x: T| T::eval_unary(UnaryOp::HardshrinkGrad(l), x))
+        }
+        UnaryOp::Softshrink(l) => apply!(move |x: T| T::eval_unary(UnaryOp::Softshrink(l), x)),
+        UnaryOp::SoftshrinkGrad(l) => {
+            apply!(move |x: T| T::eval_unary(UnaryOp::SoftshrinkGrad(l), x))
+        }
+        UnaryOp::Threshold(b) => apply!(move |x: T| T::eval_unary(UnaryOp::Threshold(b), x)),
+        UnaryOp::ThresholdGrad(b) => {
+            apply!(move |x: T| T::eval_unary(UnaryOp::ThresholdGrad(b), x))
+        }
+        UnaryOp::Celu(a) => apply!(move |x: T| T::eval_unary(UnaryOp::Celu(a), x)),
+        UnaryOp::CeluGrad(a) => apply!(move |x: T| T::eval_unary(UnaryOp::CeluGrad(a), x)),
     }
 }
 

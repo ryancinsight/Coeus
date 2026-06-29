@@ -531,7 +531,8 @@ impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::PoolOps<T> for Cuda
         _dilation: usize,
         _output: &mut Self::DeviceBuffer<T>,
         _output_layout: &Layout,
-    ) { /* TODO: native CUDA 1D max-pool kernel */ }
+    ) { /* TODO: native CUDA 1D max-pool kernel */
+    }
 
     fn max_pool1d_backward(
         &self,
@@ -545,7 +546,8 @@ impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::PoolOps<T> for Cuda
         _dilation: usize,
         _grad_input: &mut Self::DeviceBuffer<T>,
         _grad_input_layout: &Layout,
-    ) { /* TODO: native CUDA 1D max-pool backward */ }
+    ) { /* TODO: native CUDA 1D max-pool backward */
+    }
 
     fn avg_pool1d(
         &self,
@@ -557,7 +559,8 @@ impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::PoolOps<T> for Cuda
         _dilation: usize,
         _output: &mut Self::DeviceBuffer<T>,
         _output_layout: &Layout,
-    ) { /* TODO: native CUDA 1D avg-pool kernel */ }
+    ) { /* TODO: native CUDA 1D avg-pool kernel */
+    }
 
     fn avg_pool1d_backward(
         &self,
@@ -569,7 +572,8 @@ impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::PoolOps<T> for Cuda
         _dilation: usize,
         _grad_input: &mut Self::DeviceBuffer<T>,
         _grad_input_layout: &Layout,
-    ) { /* TODO: native CUDA 1D avg-pool backward */ }
+    ) { /* TODO: native CUDA 1D avg-pool backward */
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
