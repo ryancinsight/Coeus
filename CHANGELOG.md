@@ -207,7 +207,12 @@
   Coeus `SequentialBackend` and `MoiraiBackend` in the same Criterion group.
   Short local run medians: Burn 3.44–4.17 ms, Coeus Sequential 3.39–4.14 ms,
   Coeus Moirai 2.99–3.68 ms. ([patch])
-- **NN benchmark matrix expansion (MSELoss)** — extended
+- **NN benchmark matrix expansion (HuberLoss, delta=1.0)** — extended
+  `coeus-nn/benches/nn_bench.rs` with a Huber loss row
+  (`predictions [128,64]` vs same-shape targets, delta=1.0), comparing Burn NdArray
+  against Coeus `SequentialBackend` and `MoiraiBackend` in the same Criterion group.
+  Short local run medians: Burn 8.24–9.01 µs, Coeus Sequential 180–202 ns,
+  Coeus Moirai 182–197 ns (Coeus ~45× faster). ([patch])- **NN benchmark matrix expansion (MSELoss)** — extended
   `coeus-nn/benches/nn_bench.rs` with an MSE loss row
   (`predictions [128,64]` vs same-shape targets), comparing Burn NdArray against
   Coeus `SequentialBackend` and `MoiraiBackend` in the same Criterion group.

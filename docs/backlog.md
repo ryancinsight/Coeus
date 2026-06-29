@@ -22,6 +22,11 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-199: HuberLoss benchmark matrix expansion [COMPLETE]
+
+- [x] [patch] Added a Burn-vs-Coeus HuberLoss benchmark row in
+  `coeus-nn/benches/nn_bench.rs` on `[128,64]` with delta=1.0.
+- [x] Key finding: Coeus ~45x faster than Burn (Burn 8.24-9.01 us vs Coeus 180-202 ns).
 ## Sprint MS-198: MSELoss benchmark matrix expansion [COMPLETE]
 
 - [x] [patch] Added a Burn-vs-Coeus MSE loss benchmark row in

@@ -19,7 +19,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
-    cross_entropy_loss, mse_loss, AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d,
+    cross_entropy_loss, mse_loss, huber_loss, AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d,
     Embedding, GroupNorm, InstanceNorm2d, LayerNorm, Linear, Lstm, MaxPool2d, Module,
     MultiHeadAttention, NullMask, RMSNorm, TransformerEncoderLayer,
 };
@@ -31,7 +31,7 @@ use burn::nn::conv::Conv1dConfig;
 use burn::nn::conv::Conv2dConfig;
 use burn::nn::conv::Conv3dConfig;
 use burn::nn::transformer::{TransformerEncoderConfig, TransformerEncoderInput};
-use burn::nn::loss::{CrossEntropyLoss, CrossEntropyLossConfig, MseLoss, Reduction};
+use burn::nn::loss::{CrossEntropyLoss, CrossEntropyLossConfig, HuberLoss, HuberLossConfig, MseLoss, Reduction};
 use burn::nn::{
     BatchNormConfig, GroupNormConfig, InstanceNormConfig, LayerNormConfig, LinearConfig, LstmConfig,
     PaddingConfig1d, PaddingConfig2d, PaddingConfig3d, RmsNormConfig,
@@ -982,6 +982,41 @@ fn bench_mse_loss(c: &mut Criterion) {
     });
     group.finish();
 }
+
+fn bench_huber_loss(c: &mut Criterion) {
+    // HuberLoss on [BATCH=128, D=64] predictions vs same-shape targets (delta=1.0).
+    const H_N: usize = 128;
+    const H_D: usize = 64;
+
+    let device = NdArrayDevice::default();
+    let pred_data: Vec<f32> = (0..(H_N * H_D)).map(|i| (i as f32 * 0.0043).sin()).collect();
+    let tgt_data: Vec<f32> = (0..(H_N * H_D)).map(|i| (i as f32 * 0.0051).cos()).collect();
+
+    let burn_hl: HuberLoss = HuberLossConfig::new(1.0).init();
+    let p_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(pred_data.clone(), [H_N, H_D]), &device,
+    );
+    let t_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(tgt_data.clone(), [H_N, H_D]), &device,
+    );
+
+    let p_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![H_N, H_D], &pred_data), false);
+    let t_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![H_N, H_D], &tgt_data), false);
+    let p_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![H_N, H_D], &pred_data), false);
+    let t_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![H_N, H_D], &tgt_data), false);
+
+    let mut group = c.benchmark_group("Burn vs Coeus — HuberLoss (128x64, delta=1.0)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_hl.forward(black_box(p_burn.clone()), black_box(t_burn.clone()), Reduction::Mean)))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(huber_loss(black_box(&p_seq), black_box(&t_seq), 1.0)))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(huber_loss(black_box(&p_moirai), black_box(&t_moirai), 1.0)))
+    });
+    group.finish();
+}
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -1003,6 +1038,7 @@ criterion_group!(
     bench_lstm_forward,
     bench_instancenorm2d_forward,
     bench_cross_entropy_loss,
-    bench_mse_loss
+    bench_mse_loss,
+    bench_huber_loss
 );
 criterion_main!(benches);
