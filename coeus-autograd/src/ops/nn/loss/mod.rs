@@ -16,6 +16,8 @@ pub mod l1;
 pub mod margin_ranking;
 /// Negative log-likelihood loss.
 pub mod nll;
+/// Poisson negative-log-likelihood loss.
+pub mod poisson_nll;
 
 pub use bce::{binary_cross_entropy, BinaryCrossEntropyNode};
 pub use bce_with_logits::{bce_with_logits, BceWithLogitsNode};
@@ -26,3 +28,4 @@ pub use kl_div::{kl_divergence, KlDivLossNode};
 pub use l1::{l1_loss, L1LossNode};
 pub use margin_ranking::{margin_ranking_loss, MarginRankingLossNode};
 pub use nll::{nll_loss, NllLossNode};
+pub use poisson_nll::{poisson_nll, PoissonNllNode};

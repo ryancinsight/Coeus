@@ -2,7 +2,7 @@ use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_nn::{
     bce_with_logits, binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence,
-    l1_loss, margin_ranking_loss, nll_loss,
+    l1_loss, margin_ranking_loss, nll_loss, poisson_nll,
 };
 use coeus_tensor::Tensor;
 
@@ -267,6 +267,52 @@ fn test_l1_loss_zero_when_equal() {
     );
     let loss = l1_loss(&pred, &target);
     assert_eq!(loss.tensor.as_slice(), &[0.0_f64], "l1_loss(x, x) = 0");
+}
+
+#[test]
+fn test_poisson_nll() {
+    // log-input form: loss = mean(exp(z) - y*z); d/dz = (exp(z)-y)/n; d/dy = -z/n.
+    let zs = [0.0_f64, 1.0, -0.5];
+    let ys = [2.0_f64, 0.0, 3.0];
+    let n = zs.len() as f64;
+
+    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &zs), true);
+    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &ys), true);
+
+    let loss = poisson_nll(&input, &target);
+    assert_eq!(loss.tensor.shape(), &[1]);
+
+    let mut expected = 0.0;
+    for (&z, &y) in zs.iter().zip(ys.iter()) {
+        expected += z.exp() - y * z;
+    }
+    expected /= n;
+    let loss_val = loss.tensor.as_slice()[0];
+    assert!(
+        (loss_val - expected).abs() <= 1e-12,
+        "poisson_nll forward: got {loss_val:.17}, expected {expected:.17}"
+    );
+
+    loss.backward();
+    let input_grad = input.grad().expect("input must receive a gradient");
+    let target_grad = target.grad().expect("target must receive a gradient");
+    for (i, ((&z, &y), (&gz, &gt))) in zs
+        .iter()
+        .zip(ys.iter())
+        .zip(input_grad.as_slice().iter().zip(target_grad.as_slice().iter()))
+        .enumerate()
+    {
+        let exp_gz = (z.exp() - y) / n;
+        let exp_gt = -z / n;
+        assert!(
+            (gz - exp_gz).abs() <= 1e-12,
+            "poisson_nll d/d_input[{i}]: got {gz:.17}, expected {exp_gz:.17}"
+        );
+        assert!(
+            (gt - exp_gt).abs() <= 1e-12,
+            "poisson_nll d/d_target[{i}]: got {gt:.17}, expected {exp_gt:.17}"
+        );
+    }
 }
 
 #[test]

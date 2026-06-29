@@ -152,6 +152,18 @@ pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     coeus_autograd::l1_loss(pred, target)
 }
 
+/// Poisson negative-log-likelihood loss (log-input form).
+/// input holds `log(λ)`, target the observed counts; both share shape.
+/// Computes `mean(exp(input) - target * input)` (PyTorch
+/// `PoissonNLLLoss(log_input=True, full=False)`).
+#[inline]
+pub fn poisson_nll<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    target: &Var<T, B>,
+) -> Var<T, B> {
+    coeus_autograd::poisson_nll(input, target)
+}
+
 /// KL divergence loss.
 ///
 /// `input` is log-probabilities and `target` is probabilities. Computes
