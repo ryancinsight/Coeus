@@ -13,7 +13,7 @@
   and cosine similarity surfaces.
 - [ ] [minor] G-040: Add vanilla and bidirectional recurrent module parity
   without duplicating GRU/LSTM cell math.
-- [ ] [minor] G-041: Add regularization, sparse, and local-response modules:
+- [x] [minor] G-041: Add regularization, sparse, and local-response modules:
   AlphaDropout, FeatureAlphaDropout, EmbeddingBag, GaussianNoise, and
   LocalResponseNorm.
 - [ ] [minor] G-042: Define and implement or explicitly scope Coeus parity for

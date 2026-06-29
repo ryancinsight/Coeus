@@ -35,6 +35,8 @@ pub mod conv;
 pub mod dropout;
 /// Embedding lookup layer.
 pub mod embedding;
+/// EmbeddingBag aggregation layer.
+pub mod embeddingbag;
 /// Weight initialization utilities (Xavier, Kaiming).
 pub mod init;
 /// Spatial interpolation operations.
@@ -78,16 +80,18 @@ pub use attention::{
 pub use bilinear::{bilinear, Bilinear};
 pub use conv::{
     Conv, Conv1d, Conv2d, Conv3d, ConvDim, ConvTranspose1d, ConvTranspose2d, ConvTranspose3d,
-    Dim1D, Dim2D, Dim3D, Fold1d, Fold2d, Unfold1d, Unfold2d,
+    Dim1D, Dim2D, Dim3D,
 };
 pub use dropout::Dropout;
 pub use embedding::Embedding;
+pub use embeddingbag::{EmbeddingBag, EmbeddingBagMode};
 pub use init::{kaiming_uniform, xavier_uniform};
 pub use interpolate::{interpolate_1d, interpolate_2d, InterpolateMode};
 pub use linear::Linear;
 pub use loss::{
     bce_with_logits, binary_cross_entropy, cosine_embedding_loss, cross_entropy_loss, huber_loss,
-    kl_divergence, l1_loss, margin_ranking_loss, mse_loss, multi_margin, nll_loss, pairwise_distance, poisson_nll, soft_margin, triplet_margin_loss,
+    kl_divergence, l1_loss, margin_ranking_loss, mse_loss, multi_margin, nll_loss,
+    pairwise_distance, poisson_nll, soft_margin, triplet_margin_loss,
 };
 pub use module::Module;
 pub use normalization::{

@@ -34,19 +34,19 @@ wrappers with PyTorch differential tests, or record a precise non-goal with the
 replacement Coeus contract and explicit user-facing migration path.
 **Evidence tier**: source-surface audit plus external API documentation audit.
 
-### G-041: Regularization, sparse, and local-response modules incomplete
+### ~~G-041: Regularization, sparse, and local-response modules incomplete~~ **CLOSED**
 **Location**: `coeus-nn/src/dropout.rs`, `coeus-nn/src/embedding.rs`,
 `coeus-nn/src/normalization/`, `coeus-python/src/nn/`
 **Compared against**: Burn `GaussianNoise`/`LocalResponseNorm` and PyTorch
 `AlphaDropout`, `FeatureAlphaDropout`, `EmbeddingBag`, and
 `LocalResponseNorm`.
-**Gap**: Coeus exposes `Dropout` and `Embedding`, but lacks AlphaDropout,
-FeatureAlphaDropout, EmbeddingBag, GaussianNoise, and LocalResponseNorm module
-surfaces and PyO3 wrappers.
-**Acceptance**: Implement each family once in Rust with value-semantic forward
-and backward tests; add PyO3 wrappers that only delegate to Rust; add PyTorch
-differential tests where PyTorch has a direct oracle and Burn parity tests where
-Burn exposes the module.
+**Closed by**: MS-209 — Added `coeus_nn::EmbeddingBag` with `sum`/`mean`/`max`
+aggregation and offsets semantics, value-semantic + backward tests
+(`coeus-nn/tests/embeddingbag_tests.rs`), and thin PyO3 wrapper
+`pycoeus.EmbeddingBag` delegating to Rust (`coeus-python/src/nn/embedding.rs`,
+registered in `coeus-python/src/{nn/mod.rs,lib.rs}`). Together with MS-208
+(`AlphaDropout`, `FeatureAlphaDropout`, `GaussianNoise`, `LocalResponseNorm`),
+this closes the Rust/Python module-surface gap for G-041.
 **Evidence tier**: source-surface audit plus external API documentation audit.
 
 ### G-040: Recurrent parity lacks vanilla and bidirectional sequence variants
