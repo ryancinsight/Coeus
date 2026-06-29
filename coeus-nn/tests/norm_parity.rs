@@ -236,9 +236,68 @@ where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
     check_batch_norm_1d(backend);
+    check_batch_norm_1d_training(backend);
     check_group_norm(backend);
     check_functional_group_norm(backend);
     check_rms_norm(backend);
+}
+
+// ── BatchNorm1d training mode ─────────────────────────────────────────────────
+
+/// BatchNorm1d training-mode analytical oracle.
+///
+/// Input `[2, 1, 2]` = `[[[1, 3]], [[5, 7]]]`, C=1 (two batches, seq=2).
+/// Training mode computes per-batch mean+variance over (N, L) = 4 elements.
+///
+/// Population mean = (1+3+5+7)/4 = 4.0
+/// Population variance (unbiased, N=4) = ((1-4)²+(3-4)²+(5-4)²+(7-4)²)/4 = (9+1+1+9)/4 = 5.0
+/// NOTE: PyTorch BatchNorm uses *population* variance in the forward pass (no Bessel correction),
+/// but stores the *unbiased* variance in running_var. Here we verify just the forward output.
+///
+/// With eps=0, weight=1, bias=0:
+/// x_hat_i = (x_i - 4) / sqrt(5)  for each element
+/// x_hat = [(-3, -1, 1, 3) / sqrt(5)]
+///        = [-1.341640..., -0.447213..., 0.447213..., 1.341640...]
+fn check_batch_norm_1d_training<B: BackendOps<f64> + Default>(backend: &B)
+where
+    B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
+{
+    let weight = Var::new(Tensor::from_slice_on(vec![1], &[1.0_f64], backend), true);
+    let bias = Var::new(Tensor::from_slice_on(vec![1], &[0.0_f64], backend), true);
+    let running_mean = Tensor::zeros_on([1], backend);
+    let running_var = Tensor::ones_on([1], backend);
+
+    let mut bn = BatchNorm1d::from_parts(1, weight, bias, 0.0, 0.0, running_mean, running_var);
+    // is_training = true by default
+
+    let inp = Var::new(
+        Tensor::from_slice_on(vec![2, 1, 2], &[1.0_f64, 3.0, 5.0, 7.0], backend),
+        true,
+    );
+    let out = Module::<f64, B>::forward(&bn, &inp);
+    assert_eq!(out.tensor.shape(), &[2, 1, 2]);
+
+    let s = out.tensor.as_slice();
+    let mean = 4.0_f64;
+    let var = 5.0_f64; // population variance of {1,3,5,7}
+    let std = var.sqrt();
+    let expected = [
+        (1.0 - mean) / std,
+        (3.0 - mean) / std,
+        (5.0 - mean) / std,
+        (7.0 - mean) / std,
+    ];
+    for (i, (&got, &exp)) in s.iter().zip(expected.iter()).enumerate() {
+        assert!(
+            (got - exp).abs() < 1e-10,
+            "BN1d training [{i}]: got {got:.10}, expected {exp:.10}"
+        );
+    }
+
+    // Verify backward propagates to weight and bias.
+    out.backward();
+    assert!(bn.weight.grad().is_some(), "weight grad must exist");
+    assert!(bn.bias.grad().is_some(), "bias grad must exist");
 }
 
 #[test]

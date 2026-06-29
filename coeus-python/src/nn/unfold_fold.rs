@@ -171,3 +171,65 @@ impl PyFold2d {
     /// Zero gradients (no-op — Fold2d has no parameters).
     pub fn zero_grad(&self) {}
 }
+
+// ── Unfold1d ──────────────────────────────────────────────────────────────────
+
+/// Python-exposed Unfold1d layer (1D sliding-window extraction).
+///
+/// Extracts `[N, C, L]` → `[N, C*kernel_size, L_out]`.
+/// The Rust equivalent does not have a direct PyTorch module API (PyTorch uses
+/// `nn.Unfold` only in 2D), so parity is verified against the manual
+/// `unfold` tensor method: `x.unfold(dim, size, step)`.
+#[pyclass(name = "Unfold1d")]
+pub struct PyUnfold1d {
+    /// Sliding window length.
+    #[pyo3(get)]
+    pub kernel_size: usize,
+    /// Window stride.
+    #[pyo3(get)]
+    pub stride: usize,
+    /// Zero-padding on each side.
+    #[pyo3(get)]
+    pub padding: usize,
+    /// Dilation factor.
+    #[pyo3(get)]
+    pub dilation: usize,
+}
+
+#[pymethods]
+impl PyUnfold1d {
+    #[new]
+    #[pyo3(signature = (kernel_size, stride = 1, padding = 0, dilation = 1))]
+    /// Create an `Unfold1d` layer.
+    pub fn new(kernel_size: usize, stride: usize, padding: usize, dilation: usize) -> Self {
+        Self {
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        }
+    }
+
+    /// Forward pass: `[N, C, L]` → `[N, C*kernel_size, L_out]`.
+    pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+        use coeus_nn::Module;
+        let input_var = input.inner.clone();
+        let k = self.kernel_size;
+        let s = self.stride;
+        let p = self.padding;
+        let d = self.dilation;
+        let m = coeus_nn::Unfold1d::<f64, coeus_core::MoiraiBackend>::new(k, s, p, d);
+        let inner = py.allow_threads(move || m.forward(&input_var));
+        Ok(PyTensor::from_var(inner))
+    }
+
+    /// Return an empty state dict (no learnable parameters).
+    pub fn state_dict(&self) -> crate::tensor::PyStateDict {
+        crate::tensor::PyStateDict {
+            inner: coeus_tensor::checkpoint::StateDict::new(),
+        }
+    }
+
+    /// Zero gradients (no-op — Unfold1d has no parameters).
+    pub fn zero_grad(&self) {}
+}

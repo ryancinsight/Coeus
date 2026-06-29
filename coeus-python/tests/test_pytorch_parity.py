@@ -2540,3 +2540,44 @@ def test_unfold2d_matches_pytorch() -> None:
         y_t.flatten().tolist(),
         atol=1e-10,
     )
+
+
+# ---------------------------------------------------------------------------
+# Unfold1d parity (MS-214)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "Unfold1d"),
+    reason="pycoeus.Unfold1d not available in this build",
+)
+def test_unfold1d_matches_pytorch() -> None:
+    """Forward parity: Unfold1d(kernel=3, stride=1) on [2, 3, 7].
+
+    PyTorch equivalent: x.unfold(dim=2, size=3, step=1) then permute + reshape.
+    """
+    n, c, l = 2, 3, 7
+    kernel, stride = 3, 1
+    data = [float(i) * 0.1 - 1.5 for i in range(n * c * l)]
+
+    m_pyc = pycoeus.Unfold1d(kernel, stride, 0, 1)
+    x_pyc = pycoeus.Tensor(data, [n, c, l])
+    y_pyc = m_pyc.forward(x_pyc)
+
+    # PyTorch: x.unfold(dim, size, step) → [N, C, L_out, kernel]
+    # Coeus output: [N, C*kernel, L_out] with layout [n, c*k+ki, lo]
+    # ki is the SLOW index: row 0..kernel covers ki for c=0,
+    # then ki for c=1, etc.
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, l)
+    y_t_raw = x_t.unfold(2, kernel, stride)  # [N, C, L_out, kernel]
+    # PyTorch stores [N, C, L_out, kernel]; Coeus stores [N, C*kernel, L_out]
+    # where the inner dimension is (ci * kernel + ki).
+    # Reshape PyTorch output to [N, C*kernel, L_out]:
+    y_t = y_t_raw.permute(0, 1, 3, 2).reshape(n, c * kernel, -1)
+
+    _allclose(
+        "unfold1d",
+        list(y_pyc.data),
+        y_t.flatten().tolist(),
+        atol=1e-10,
+    )
