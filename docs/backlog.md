@@ -22,6 +22,15 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-198: MSELoss benchmark matrix expansion [COMPLETE]
+
+- [x] [patch] Added a Burn-vs-Coeus MSE loss benchmark row in
+  `coeus-nn/benches/nn_bench.rs` on predictions `[128,64]` vs targets.
+- [x] [patch] Registered the MSELoss row in the Criterion benchmark group.
+- [x] [patch] Updated `docs/gap_audit.md` selected-row detail for G-043.
+- [x] Evidence: cargo check/clippy/bench-no-run all passed; benchmark run confirms
+  all three backends at parity: Burn 2.26-2.42 us, Coeus Sequential 2.28-2.55 us,
+  Coeus Moirai 2.20-2.38 us.
 ## Sprint MS-197: CrossEntropyLoss benchmark matrix expansion [COMPLETE]
 
 - [x] [patch] Added a Burn-vs-Coeus benchmark row for CrossEntropyLoss in
