@@ -82,6 +82,12 @@ pub use attention::{scaled_dot_product_attention, scaled_dot_product_attention_b
 pub mod conv_transpose;
 pub use conv_transpose::{conv_transpose1d, conv_transpose2d, conv_transpose3d};
 
+/// Adaptive pooling operations (avg and max in 1D/2D).
+pub mod adaptive_pool;
+pub use adaptive_pool::{
+    adaptive_avg_pool1d, adaptive_avg_pool2d, adaptive_max_pool1d, adaptive_max_pool2d,
+};
+
 /// Tensor constructors (linspace, logspace, geomspace).
 pub mod constructors;
 pub use constructors::{geomspace, linspace, logspace};

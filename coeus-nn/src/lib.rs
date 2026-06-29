@@ -100,8 +100,9 @@ pub use normalization::{
 };
 pub use parameter::Parameter;
 pub use pool::{
-    AvgPool1d, AvgPool2d, AvgPool3d, GlobalAvgPool1d, GlobalAvgPool2d, GlobalAvgPool3d,
-    GlobalMaxPool2d, GlobalMaxPool3d, MaxPool1d, MaxPool2d, MaxPool3d,
+    AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveMaxPool1d, AdaptiveMaxPool2d, AvgPool1d,
+    AvgPool2d, AvgPool3d, GlobalAvgPool1d, GlobalAvgPool2d, GlobalAvgPool3d, GlobalMaxPool2d,
+    GlobalMaxPool3d, MaxPool1d, MaxPool2d, MaxPool3d,
 };
 pub use positional::{RotaryEmbedding, SinusoidalEncoding};
 pub use regularization::{AlphaDropout, FeatureAlphaDropout, GaussianNoise, LocalResponseNorm};

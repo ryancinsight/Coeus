@@ -1,12 +1,14 @@
-// ── Pooling layer types (avg, max, global) ──
+// ── Pooling layer types (avg, max, global, adaptive) ──
 //
 // Organized into sub-modules to keep each variant-focused.
 
+mod adaptive;
 mod avg;
 mod global;
 mod max;
 mod pool1d;
 
+pub use adaptive::{AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveMaxPool1d, AdaptiveMaxPool2d};
 pub use avg::{AvgPool2d, AvgPool3d};
 pub use global::{
     GlobalAvgPool1d, GlobalAvgPool2d, GlobalAvgPool3d, GlobalMaxPool2d, GlobalMaxPool3d,
