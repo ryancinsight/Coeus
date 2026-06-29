@@ -194,3 +194,33 @@ pub(super) fn dispatch_avg_pool3d_backward<T: WgpuScalar>(
         grad_input.len(),
     );
 }
+
+
+// ── Pool 1D stubs (native WGPU kernel not yet implemented) ───────────────────
+// WgpuBackend delegates to these no-ops; the CPU backends route through
+// coeus-ops cpu_impl where the real kernels live.
+
+pub(super) fn dispatch_max_pool1d<T: WgpuScalar>(
+    _input: &crate::backend::WgpuStorage<T>, _input_layout: &Layout,
+    _kernel_size: usize, _stride: usize, _padding: usize, _dilation: usize,
+    _output: &mut crate::backend::WgpuStorage<T>, _output_layout: &Layout,
+) { /* TODO: native WGPU 1D max-pool kernel */ }
+
+pub(super) fn dispatch_max_pool1d_backward<T: WgpuScalar>(
+    _grad_out: &crate::backend::WgpuStorage<T>, _grad_out_layout: &Layout,
+    _input: &crate::backend::WgpuStorage<T>, _input_layout: &Layout,
+    _kernel_size: usize, _stride: usize, _padding: usize, _dilation: usize,
+    _grad_input: &mut crate::backend::WgpuStorage<T>, _grad_input_layout: &Layout,
+) { /* TODO: native WGPU 1D max-pool backward */ }
+
+pub(super) fn dispatch_avg_pool1d<T: WgpuScalar>(
+    _input: &crate::backend::WgpuStorage<T>, _input_layout: &Layout,
+    _kernel_size: usize, _stride: usize, _padding: usize, _dilation: usize,
+    _output: &mut crate::backend::WgpuStorage<T>, _output_layout: &Layout,
+) { /* TODO: native WGPU 1D avg-pool kernel */ }
+
+pub(super) fn dispatch_avg_pool1d_backward<T: WgpuScalar>(
+    _grad_out: &crate::backend::WgpuStorage<T>, _grad_out_layout: &Layout,
+    _kernel_size: usize, _stride: usize, _padding: usize, _dilation: usize,
+    _grad_input: &mut crate::backend::WgpuStorage<T>, _grad_input_layout: &Layout,
+) { /* TODO: native WGPU 1D avg-pool backward */ }

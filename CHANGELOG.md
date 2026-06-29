@@ -4,7 +4,11 @@
 
 ### Changed
 
-- **G-036: MaxPool1d and AvgPool1d** — implemented 1D pooling layers closing the
+- **G-036: GPU backend pool1d stubs** — added `max_pool1d` / `avg_pool1d`
+  (forward + backward) no-op stubs to `coeus-wgpu` and `coeus-cuda` to
+  satisfy the updated `PoolOps` trait after the CPU pool1d implementation
+  in PR #86.  Native GPU kernels will be added in a follow-up; the CPU
+  backends already provide fully functional 1D pooling. ([patch])- **G-036: MaxPool1d and AvgPool1d** — implemented 1D pooling layers closing the
   G-036 pool family gap. Added CPU kernels (`pool/pool1d.rs`), extended the
   `PoolOps` trait with `max_pool1d/avg_pool1d` (forward + backward), extended
   the const-generic `MaxPoolNode<DIM=1>` and `AvgPoolNode<DIM=1>` autograd
