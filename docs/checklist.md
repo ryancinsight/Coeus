@@ -2,7 +2,12 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-198 - MSELoss benchmark matrix expansion [COMPLETE]
+### Current Sprint: MS-199 - HuberLoss benchmark matrix expansion [COMPLETE]
+**Objective**: Add HuberLoss benchmark row comparing Burn vs Coeus.
+- [x] [patch] Added `bench_huber_loss` in `coeus-nn/benches/nn_bench.rs`.
+- [x] Evidence: Coeus ~45x faster than Burn (Coeus ~190 ns vs Burn ~8.7 us).
+
+ - MSELoss benchmark matrix expansion [COMPLETE]
 **Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with an MSE loss row
 comparing Burn NdArray and both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
