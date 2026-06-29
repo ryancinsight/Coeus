@@ -22,6 +22,56 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-215: BN1d training `unused_mut` clippy fixup [COMPLETE]
+
+- [x] [patch] Dropped gratuitous `mut` on `BatchNorm1d::from_parts(...)` in
+  `coeus-nn/tests/norm_parity.rs` to restore `cargo clippy --workspace
+  --all-targets -- -D warnings` after MS-214.
+
+## Sprint MS-214: Unfold1d PyO3 binding + BatchNorm1d training parity [COMPLETE]
+
+- [x] [minor] `PyUnfold1d` PyO3 binding mirroring `Unfold2d` surface;
+  registered in `pycoeus` and re-exported from `coeus_python::nn`.
+- [x] [patch] `coeus-nn/tests/norm_parity.rs`: analytical
+  `BatchNorm1d::from_parts` training-mode forward (population variance oracle)
+  plus backward to weight/bias parameters.
+- [x] [patch] `tests/test_pytorch_parity.py::test_unfold1d_matches_pytorch`
+  (kernel=3, stride=1 on `[2,3,7]`, layout reconciliation).
+- [x] [patch] `tests/test_jax_parity.py::test_adaptive_avg_pool2d_global_matches_jax`
+  (AdaptiveAvgPool2d(1) global cross-check against `jnp.mean(..., keepdims)`).
+- [x] Merged via PR #100.
+- [x] Follow-up clippy regression carried forward into MS-215.
+
+## Sprint MS-213: AdaptiveAvgPool1d/2d + Unfold2d + Fold2d Python surface [COMPLETE]
+
+- [x] [minor] `PyAdaptiveAvgPool1d`, `PyAdaptiveAvgPool2d`, `PyUnfold2d`,
+  `PyFold2d` registered in `pycoeus` + dynamic `hasattr` skipif wrappers
+  in parity tests.
+- [x] [minor] Pool/Unfold/Fold parity observations:
+  - 4 PyTorch parity tests covering both new shape and value semantics.
+  - Coeus value mapping matches PyTorch `nn.Unfold` / `nn.Fold` layouts
+    under reshape-`permute` reconciliation.
+
+## Sprint MS-212: Adaptive pooling (Avg/Max 1D/2D) and G-042 closure [COMPLETE]
+
+- [x] [minor] CPU kernels + autograd nodes + nn modules for
+  `AdaptiveAvgPool1d/2d`, `AdaptiveMaxPool1d/2d`.
+- [x] [minor] `bench_adaptive_pool_matrix` Burn-vs-Coeus benchmark row
+  registered in `coeus-nn/benches/nn_bench.rs`.
+- [x] [minor] Closed G-042 explicitly as a non-goal: Coeus v0.x targets
+  standard NN module families; quantized/lazy deferred to a future
+  typed-dtype extension documented in `docs/roadmap.md`.
+
+## Sprint MS-211: UnfoldFoldOps backend trait + Unfold1d/2d + Fold1d/2d modules [COMPLETE]
+
+- [x] [minor] `UnfoldFoldOps` 8th `BackendOps` concern; CPU kernels for
+  `unfold1d`/`fold1d`/`unfold2d`/`fold2d`; wgpu/cuda stub impls.
+- [x] [minor] `coeus_nn::{Unfold1d, Fold1d, Unfold2d, Fold2d}` stateless
+  modules delegating through `coeus_ops` kernels.
+- [x] [minor] 9 parity tests (shape/value-semantic/roundtrip) closing G-036
+  unfold/fold family.
+- [x] Merged via PR #97.
+
 ## Sprint MS-202: Sigmoid+Tanh+SiLU benchmark expansion [COMPLETE]
 
 - [x] Added `bench_sigmoid_forward`, `bench_tanh_forward`, `bench_silu_forward` rows.

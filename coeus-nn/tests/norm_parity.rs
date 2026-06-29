@@ -267,7 +267,7 @@ where
     let running_mean = Tensor::zeros_on([1], backend);
     let running_var = Tensor::ones_on([1], backend);
 
-    let mut bn = BatchNorm1d::from_parts(1, weight, bias, 0.0, 0.0, running_mean, running_var);
+    let bn = BatchNorm1d::from_parts(1, weight, bias, 0.0, 0.0, running_mean, running_var);
     // is_training = true by default
 
     let inp = Var::new(

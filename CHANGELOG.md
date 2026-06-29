@@ -50,6 +50,13 @@
   decode little-endian `f32` lanes inside the packed `u64`, matching the actual
   kernel contract. Evidence tier: analytical/value-semantic Rust tests. ([patch])
 
+### Fixed
+
+- **`unused_mut` clippy regression in BN1d training** — dropped unneeded `mut`
+  on `BatchNorm1d::from_parts(...)` in `coeus-nn/tests/norm_parity.rs` so the
+  workspace passes `cargo clippy --workspace --all-targets -- -D warnings`
+  after MS-214. ([patch])
+
 ## 0.5.4 - 2026-06-28
 
 ### Changed

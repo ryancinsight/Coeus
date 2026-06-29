@@ -503,3 +503,8 @@ Evidence tier: differential/empirical (PyTorch f64).
 | G-031 JAX harness lacked regression/binary loss parity | differential | **closed MS-175** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical GPU/CPU autograd differential | **closed MS-176** |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |
+| `test_hardswish_matches_pytorch` PyTorch differential parity | differential | **open** — pre-existing, MS-214 wide sweep excludes (hardswish backward routing) |
+| `test_hardsigmoid_matches_pytorch` PyTorch differential parity | differential | **open** — pre-existing, MS-214 wide sweep excludes |
+| `test_prelu_matches_pytorch` PyTorch differential parity | differential | **open** — pre-existing, MS-214 wide sweep excludes (PReLU backward routing) |
+| `test_tcp_scatter_zero_numel_mismatched_target_numel_panics` slow | empirical | **open** — exceeded 30 s slow threshold (45.4 s) during MS-215; deferred optimization to a future `tcp-dispatch` slice |
+| `coeus-cuda` clippy errors under `--all-features` | lint | **pre-existing peer crate dependency** — not addressed in MS-215 (out of coeus scope) |

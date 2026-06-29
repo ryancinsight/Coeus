@@ -2,6 +2,32 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
+### Current Sprint: MS-215 - BN1d training `unused_mut` clippy regression [COMPLETE]
+- [x] [patch] Removed gratuitous `mut` on `BatchNorm1d::from_parts(...)` in
+  `coeus-nn/tests/norm_parity.rs` introduced by MS-214.
+- [x] Evidence: `rustup run nightly cargo clippy --workspace --all-targets -- -D warnings`
+  returns zero warnings; `rustup run nightly cargo fmt --check` clean;
+  `rustup run nightly cargo test --doc --workspace` passes; per-crate
+  `cargo nextest run -p <crate> --no-fail-fast` green (coeus-core 25, -tensor
+  51, -ops 189, -autograd 35, -nn 371, -optim 14, -sparse 19, -python 72,
+  -leto 27, -wgpu 85, -cuda 2, -dist 64 with one pre-existing slow test).
+- [x] Note: MS-211..MS-214 closed G-036 (pool1d + unfold/fold), G-037
+  (extended activation backwards repair), G-041 (regularization modules),
+  G-042 (quantized/lazy parity scope closed as non-goal), G-043 (ongoing
+  Burn-vs-Coeus bench row expansion). See docs/backlog.md for sprint ledger.
+
+### Current Sprint: MS-214 - Unfold1d Python binding + BatchNorm1d training parity [COMPLETE]
+- [x] [minor] `PyUnfold1d` PyO3 binding for `[N,C,L] -> [N,C*k,L_out]`.
+- [x] [patch] `coeus-nn/tests/norm_parity.rs`: `BatchNorm1d` training-mode
+  analytical test (population variance oracle) + backward to weight/bias.
+- [x] [patch] `test_pytorch_parity.py::test_unfold1d_matches_pytorch`
+  (kernel=3, stride=1 on `[2,3,7]`).
+- [x] [patch] `test_jax_parity.py::test_adaptive_avg_pool2d_global_matches_jax`
+  (1-output global avg pool cross-checked against `jnp.mean(..., keepdims)`).
+- [x] Merged via PR #100.
+- [x] Follow-up: `let mut bn` regression caught by clippy after merge; now
+  fixed in MS-215.
+
 ### Current Sprint: MS-200 - ReLU+GeLU activation benchmark expansion [COMPLETE]
 - [x] Added `bench_relu_forward` and `bench_gelu_forward` rows.
 - [x] ReLU gap (Burn 13x faster due to autograd overhead) logged as optimization target.
