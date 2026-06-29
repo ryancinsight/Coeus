@@ -61,7 +61,7 @@ pub fn sum_axis<T: Scalar, B: BackendOps<T> + Default>(
     let mut out_shape = a.shape_cloned();
     out_shape[axis] = 1;
 
-    let mut out = Tensor::zeros_on(out_shape, backend);
+    let mut out = Tensor::alloc_on(out_shape, backend);
 
     let (out_storage, out_layout) = out.storage_mut_and_layout();
     backend.reduce(
@@ -88,7 +88,7 @@ pub fn max_axis<T: Scalar, B: BackendOps<T> + Default>(
     let mut out_shape = a.shape_cloned();
     out_shape[axis] = 1;
 
-    let mut out = Tensor::zeros_on(out_shape, backend);
+    let mut out = Tensor::alloc_on(out_shape, backend);
 
     let (out_storage, out_layout) = out.storage_mut_and_layout();
     backend.reduce(
@@ -115,7 +115,7 @@ pub fn min_axis<T: Scalar, B: BackendOps<T> + Default>(
     let mut out_shape = a.shape_cloned();
     out_shape[axis] = 1;
 
-    let mut out = Tensor::zeros_on(out_shape, backend);
+    let mut out = Tensor::alloc_on(out_shape, backend);
 
     let (out_storage, out_layout) = out.storage_mut_and_layout();
     backend.reduce(
