@@ -89,6 +89,7 @@ pub use ops::{
     huber_loss,
     index_select,
     kl_divergence,
+    l1_loss,
     layernorm,
     leaky_relu,
     log,

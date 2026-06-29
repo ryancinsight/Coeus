@@ -1,8 +1,8 @@
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_nn::{
-    binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence, margin_ranking_loss,
-    nll_loss,
+    binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence, l1_loss,
+    margin_ranking_loss, nll_loss,
 };
 use coeus_tensor::Tensor;
 
@@ -127,6 +127,76 @@ fn test_huber_loss() {
 
     loss.backward();
     assert!(pred.grad().is_some());
+}
+
+#[test]
+fn test_l1_loss() {
+    // pred-target over shape [2, 2] gives diffs [3,-1,0.5,0].
+    // forward: mean(|diff|) = (3 + 1 + 0.5 + 0) / 4 = 1.125 exactly.
+    // backward: d/d_pred = sign(diff)/n = [1/4, -1/4, 1/4, 0].
+    let pred = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[3.0, -1.0, 0.5, 4.0]),
+        true,
+    );
+    let target = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[0.0, 0.0, 0.0, 4.0]),
+        true,
+    );
+
+    let loss = l1_loss(&pred, &target);
+    assert_eq!(loss.tensor.shape(), &[1]);
+    let loss_val = loss.tensor.as_slice()[0];
+    let expected = (3.0 + 1.0 + 0.5) / 4.0;
+    assert!(
+        (loss_val - expected).abs() <= 4.0 * f64::EPSILON * expected,
+        "l1_loss forward: got {loss_val:.17}, expected {expected:.17}"
+    );
+
+    loss.backward();
+    let grad = pred.grad().expect("pred must receive a gradient");
+    assert_eq!(grad.shape(), &[2, 2], "pred grad preserves input shape");
+    let quarter = 1.0 / 4.0;
+    let expected_grad = [quarter, -quarter, quarter, 0.0];
+    for (i, (&g, &e)) in grad.as_slice().iter().zip(expected_grad.iter()).enumerate() {
+        assert!(
+            (g - e).abs() <= 4.0 * f64::EPSILON,
+            "l1_loss grad[{i}]: got {g:.17}, expected {e:.17} (sign(diff)/n)"
+        );
+    }
+
+    let target_grad = target.grad().expect("target must receive a gradient");
+    assert_eq!(
+        target_grad.shape(),
+        &[2, 2],
+        "target grad preserves input shape"
+    );
+    for (i, (&g, &e)) in target_grad
+        .as_slice()
+        .iter()
+        .zip(expected_grad.iter())
+        .enumerate()
+    {
+        assert!(
+            (g + e).abs() <= 4.0 * f64::EPSILON,
+            "l1_loss target grad[{i}]: got {g:.17}, expected {:.17}",
+            -e
+        );
+    }
+}
+
+#[test]
+fn test_l1_loss_zero_when_equal() {
+    // l1_loss(x, x) = 0 exactly (all diffs zero).
+    let pred = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]),
+        false,
+    );
+    let target = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]),
+        false,
+    );
+    let loss = l1_loss(&pred, &target);
+    assert_eq!(loss.tensor.as_slice(), &[0.0_f64], "l1_loss(x, x) = 0");
 }
 
 #[test]

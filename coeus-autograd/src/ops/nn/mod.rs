@@ -23,7 +23,7 @@ pub use dropout::dropout;
 pub use log_softmax::log_softmax;
 pub use loss::{
     binary_cross_entropy, cosine_embedding_loss, cross_entropy_loss, huber_loss, kl_divergence,
-    margin_ranking_loss, nll_loss,
+    l1_loss, margin_ranking_loss, nll_loss,
 };
 pub use normalization::{batchnorm1d, batchnorm2d, batchnorm3d, layernorm, rmsnorm, BatchNormArgs};
 pub use pool::{avg_pool2d, avg_pool3d, max_pool2d, max_pool3d};

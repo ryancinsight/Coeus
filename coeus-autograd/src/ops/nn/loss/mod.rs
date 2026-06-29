@@ -8,6 +8,8 @@ pub mod cross_entropy;
 pub mod huber;
 /// KL divergence loss.
 pub mod kl_div;
+/// L1 (mean absolute error) loss.
+pub mod l1;
 /// Margin ranking loss.
 pub mod margin_ranking;
 /// Negative log-likelihood loss.
@@ -18,5 +20,6 @@ pub use cosine::{cosine_embedding_loss, CosineEmbeddingLossNode};
 pub use cross_entropy::{cross_entropy_loss, CrossEntropyLossNode};
 pub use huber::{huber_loss, HuberLossNode};
 pub use kl_div::{kl_divergence, KlDivLossNode};
+pub use l1::{l1_loss, L1LossNode};
 pub use margin_ranking::{margin_ranking_loss, MarginRankingLossNode};
 pub use nll::{nll_loss, NllLossNode};
