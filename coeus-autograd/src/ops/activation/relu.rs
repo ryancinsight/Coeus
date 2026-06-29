@@ -215,7 +215,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Pre
 /// Tracked PReLU with a single scalar α slope.
 ///
 /// `y = max(0, x) + α · min(0, x)`. Gradient is `1` if `x ≥ 0`, else `α`.
-/// For per-channel α (PyTorch's [`nn.PReLU(num_parameters=N)`]), compose the
+/// For per-channel α (PyTorch's `nn.PReLU(num_parameters=N)`), compose the
 /// tracked scalar-α helper with `coeus_ops::broadcast_to` so α matches the
 /// input's channel axis.
 #[must_use]
