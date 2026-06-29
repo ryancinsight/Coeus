@@ -164,6 +164,16 @@ pub fn poisson_nll<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     coeus_autograd::poisson_nll(input, target)
 }
 
+/// Soft-margin (logistic) loss. input: `[..]`, target: `[..]` in `{-1, +1}`.
+/// Computes `mean(log(1 + exp(-target * input)))` (PyTorch `SoftMarginLoss`).
+#[inline]
+pub fn soft_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    target: &Var<T, B>,
+) -> Var<T, B> {
+    coeus_autograd::soft_margin(input, target)
+}
+
 /// KL divergence loss.
 ///
 /// `input` is log-probabilities and `target` is probabilities. Computes

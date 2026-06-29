@@ -112,6 +112,7 @@ pub use ops::{
     neg,
     nll_loss,
     poisson_nll,
+    soft_margin,
     norm,
     norm_p,
     norm_p_axis,

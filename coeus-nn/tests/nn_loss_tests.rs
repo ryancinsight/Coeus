@@ -2,7 +2,7 @@ use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_nn::{
     bce_with_logits, binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence,
-    l1_loss, margin_ranking_loss, nll_loss, poisson_nll,
+    l1_loss, margin_ranking_loss, nll_loss, poisson_nll, soft_margin,
 };
 use coeus_tensor::Tensor;
 
@@ -311,6 +311,54 @@ fn test_poisson_nll() {
         assert!(
             (gt - exp_gt).abs() <= 1e-12,
             "poisson_nll d/d_target[{i}]: got {gt:.17}, expected {exp_gt:.17}"
+        );
+    }
+}
+
+#[test]
+fn test_soft_margin() {
+    // loss = mean(log(1+exp(-y*x))); d/dx = -y*sigmoid(-y*x)/n; d/dy = -x*sigmoid(-y*x)/n.
+    let xs = [0.5_f64, -1.2, 2.0];
+    let ys = [1.0_f64, -1.0, 1.0];
+    let n = xs.len() as f64;
+
+    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &xs), true);
+    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &ys), true);
+
+    let loss = soft_margin(&input, &target);
+    assert_eq!(loss.tensor.shape(), &[1]);
+
+    let mut expected = 0.0;
+    for (&x, &y) in xs.iter().zip(ys.iter()) {
+        expected += (1.0 + (-y * x).exp()).ln();
+    }
+    expected /= n;
+    let loss_val = loss.tensor.as_slice()[0];
+    assert!(
+        (loss_val - expected).abs() <= 1e-12,
+        "soft_margin forward: got {loss_val:.17}, expected {expected:.17}"
+    );
+
+    loss.backward();
+    let sigmoid = |z: f64| 1.0 / (1.0 + (-z).exp());
+    let input_grad = input.grad().expect("input must receive a gradient");
+    let target_grad = target.grad().expect("target must receive a gradient");
+    for (i, ((&x, &y), (&gx, &gt))) in xs
+        .iter()
+        .zip(ys.iter())
+        .zip(input_grad.as_slice().iter().zip(target_grad.as_slice().iter()))
+        .enumerate()
+    {
+        let sig = sigmoid(-y * x);
+        let exp_gx = -y * sig / n;
+        let exp_gt = -x * sig / n;
+        assert!(
+            (gx - exp_gx).abs() <= 1e-12,
+            "soft_margin d/d_input[{i}]: got {gx:.17}, expected {exp_gx:.17}"
+        );
+        assert!(
+            (gt - exp_gt).abs() <= 1e-12,
+            "soft_margin d/d_target[{i}]: got {gt:.17}, expected {exp_gt:.17}"
         );
     }
 }
