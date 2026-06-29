@@ -155,7 +155,7 @@ impl_scalar_int_unsigned!(u64);
 macro_rules! impl_cpu_unary_dispatch_int {
     ($t:ty) => {
         impl $crate::dtype::CpuUnaryDispatch for $t {
-            #[inline]
+            #[inline(always)]
             fn eval_unary(op: $crate::dtype::CpuUnaryOp, x: Self) -> Self {
                 use $crate::dtype::{CpuUnaryOp, Scalar};
                 match op {

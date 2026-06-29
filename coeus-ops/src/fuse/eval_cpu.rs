@@ -241,7 +241,7 @@ pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend
         .shape()
         .expect("Fused expression must have at least one tensor input to determine shape");
     let out_layout = Layout::new(out_shape.clone());
-    let mut out = Tensor::zeros_on(out_shape, backend);
+    let mut out = Tensor::alloc_on(out_shape, backend);
 
     let out_numel = out.numel();
     let _cached_inputs = CachedInputs::<T>::new(expr, backend);
@@ -296,7 +296,7 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
     let mut out_shape = expr_shape.clone();
     out_shape[axis] = 1;
     let out_layout = Layout::new(out_shape.clone());
-    let mut out = Tensor::zeros_on(out_shape, backend);
+    let mut out = Tensor::alloc_on(out_shape, backend);
 
     let out_numel = out.numel();
     let axis_len = expr_shape[axis];

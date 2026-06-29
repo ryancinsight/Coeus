@@ -3,7 +3,7 @@ use half::{bf16, f16};
 macro_rules! impl_cpu_unary_dispatch_float {
     ($t:ty) => {
         impl $crate::dtype::CpuUnaryDispatch for $t {
-            #[inline]
+            #[inline(always)]
             fn eval_unary(op: $crate::dtype::CpuUnaryOp, x: Self) -> Self {
                 use $crate::dtype::{CpuUnaryOp, FloatOps, Scalar};
                 match op {

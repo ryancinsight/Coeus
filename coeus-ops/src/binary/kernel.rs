@@ -7,6 +7,9 @@ use coeus_tensor::broadcast::broadcast_shapes;
 use coeus_tensor::Tensor;
 
 /// Element-wise binary operation with broadcasting.
+///
+/// Uses `Tensor::alloc_on` (no zero-init) because every output element is
+/// unconditionally overwritten by the broadcast kernel.
 #[inline]
 pub fn elementwise_binary<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
@@ -17,7 +20,7 @@ pub fn elementwise_binary<T: Scalar, B: BackendOps<T>>(
     let out_shape =
         broadcast_shapes(a.shape(), b.shape()).expect("Incompatible shapes for broadcasting");
 
-    let mut out: Tensor<T, B> = Tensor::zeros_on(out_shape.clone(), backend);
+    let mut out: Tensor<T, B> = Tensor::alloc_on(out_shape.clone(), backend);
 
     let (out_storage, out_layout) = out.storage_mut_and_layout();
     backend.elementwise_binary(

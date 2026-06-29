@@ -59,7 +59,7 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
 
     // Fast path for strictly 2-D inputs — zero overhead.
     if a_ndim == 2 && b_ndim == 2 {
-        let mut out = Tensor::zeros_on([m, n], backend);
+        let mut out = Tensor::alloc_on([m, n], backend);
         let (out_storage, out_layout) = out.storage_mut_and_layout();
         backend.matmul(
             a.storage(),
@@ -93,7 +93,7 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
 
     // ── Build output shape: [batch_size, m, n] ──
     let out_shape = [batch_size, m, n];
-    let mut out = Tensor::zeros_on(out_shape.as_slice(), backend);
+    let mut out = Tensor::alloc_on(out_shape.as_slice(), backend);
 
     let a_storage = a.storage();
     let b_storage = b.storage();
