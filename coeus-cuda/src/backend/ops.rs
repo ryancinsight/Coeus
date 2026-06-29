@@ -518,6 +518,58 @@ impl<T: CudaScalar + hephaestus_cuda::CudaScalar> coeus_ops::PoolOps<T> for Cuda
             grad_input_layout,
         );
     }
+
+    // ── Pool 1D stubs (native CUDA kernels not yet implemented) ──────────────
+
+    fn max_pool1d(
+        &self,
+        _input: &Self::DeviceBuffer<T>,
+        _input_layout: &Layout,
+        _kernel_size: usize,
+        _stride: usize,
+        _padding: usize,
+        _dilation: usize,
+        _output: &mut Self::DeviceBuffer<T>,
+        _output_layout: &Layout,
+    ) { /* TODO: native CUDA 1D max-pool kernel */ }
+
+    fn max_pool1d_backward(
+        &self,
+        _grad_out: &Self::DeviceBuffer<T>,
+        _grad_out_layout: &Layout,
+        _input: &Self::DeviceBuffer<T>,
+        _input_layout: &Layout,
+        _kernel_size: usize,
+        _stride: usize,
+        _padding: usize,
+        _dilation: usize,
+        _grad_input: &mut Self::DeviceBuffer<T>,
+        _grad_input_layout: &Layout,
+    ) { /* TODO: native CUDA 1D max-pool backward */ }
+
+    fn avg_pool1d(
+        &self,
+        _input: &Self::DeviceBuffer<T>,
+        _input_layout: &Layout,
+        _kernel_size: usize,
+        _stride: usize,
+        _padding: usize,
+        _dilation: usize,
+        _output: &mut Self::DeviceBuffer<T>,
+        _output_layout: &Layout,
+    ) { /* TODO: native CUDA 1D avg-pool kernel */ }
+
+    fn avg_pool1d_backward(
+        &self,
+        _grad_out: &Self::DeviceBuffer<T>,
+        _grad_out_layout: &Layout,
+        _kernel_size: usize,
+        _stride: usize,
+        _padding: usize,
+        _dilation: usize,
+        _grad_input: &mut Self::DeviceBuffer<T>,
+        _grad_input_layout: &Layout,
+    ) { /* TODO: native CUDA 1D avg-pool backward */ }
 }
 
 #[allow(clippy::too_many_arguments)]
