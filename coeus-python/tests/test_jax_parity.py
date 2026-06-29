@@ -804,3 +804,29 @@ def test_multi_margin_matches_jax() -> None:
     x_j = jnp.asarray(x_data, dtype=jnp.float64).reshape(2, 3)
     assert abs(loss_pyc.data[0] - float(f(x_j))) < _ATOL
     _allclose("multi_margin_dx", list(x_pyc.grad), jax.grad(f)(x_j).flatten().tolist())
+
+
+# ---------------------------------------------------------------------------
+# AdaptiveAvgPool2d parity (MS-214)
+# ---------------------------------------------------------------------------
+
+
+def test_adaptive_avg_pool2d_global_matches_jax() -> None:
+    """Forward parity: AdaptiveAvgPool2d(1) (global avg) on [2, 3, 5, 5].
+
+    JAX reference: jnp.mean over last two spatial axes with keepdims.
+    """
+    n, c, h, w = 2, 3, 5, 5
+    data = [float(i) * 0.1 - 2.5 for i in range(n * c * h * w)]
+
+    if not hasattr(pycoeus, "AdaptiveAvgPool2d"):
+        pytest.skip("pycoeus.AdaptiveAvgPool2d not available")
+
+    m_pyc = pycoeus.AdaptiveAvgPool2d(1)
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w])
+    y_pyc = m_pyc.forward(x_pyc)
+
+    x_j = jnp.asarray(data, dtype=jnp.float64).reshape(n, c, h, w)
+    y_j = jnp.mean(x_j, axis=(-2, -1), keepdims=True)
+
+    _allclose("adaptive_avg_pool2d_global_jax", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-10)

@@ -53,4 +53,4 @@ pub use pool::{
 };
 pub use rnn::{PyBidirectional, PyGRUCell, PyLSTMCell, PyRNNCell};
 pub use sequential::PySequential;
-pub use unfold_fold::{PyFold2d, PyUnfold2d};
+pub use unfold_fold::{PyFold2d, PyUnfold1d, PyUnfold2d};
