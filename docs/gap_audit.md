@@ -8,7 +8,7 @@
 **Compared against**: Burn `burn::nn` module families and PyTorch `torch.nn`
 module families.
 **Gap**: Current Coeus-vs-Burn benchmarks cover selected forward rows
-(Linear, LayerNorm, RMSNorm, LSTM, InstanceNorm2d, CrossEntropyLoss, MSELoss, HuberLoss, Conv2d,
+(Linear, LayerNorm, RMSNorm, LSTM, InstanceNorm2d, CrossEntropyLoss, MSELoss, HuberLoss, ReLU forward, GeLU forward, Conv2d,
 Conv3d, MHA self-attention, Transformer encoder layer, Embedding lookup, BatchNorm1d
 eval forward, BatchNorm2d eval forward, BatchNorm3d eval forward, Conv1d forward,
 GroupNorm forward, MaxPool2d forward, AvgPool2d forward), not the full NN family
