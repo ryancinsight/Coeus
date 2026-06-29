@@ -2,7 +2,7 @@ use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_nn::{
     bce_with_logits, binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence,
-    l1_loss, margin_ranking_loss, nll_loss, pairwise_distance, poisson_nll, soft_margin,
+    l1_loss, margin_ranking_loss, nll_loss, pairwise_distance, poisson_nll, soft_margin, triplet_margin_loss,
 };
 use coeus_tensor::Tensor;
 
@@ -391,6 +391,52 @@ fn test_pairwise_distance() {
             assert!((g2.as_slice()[i * 2 + k] + eg).abs() <= 1e-12, "pd gx2 {} {}", i, k);
         }
     }
+}
+
+#[test]
+fn test_triplet_margin_loss() {
+    // anchor=[0,0], positive=[2,0], negative=[0,2.5], margin=1, p=2, eps=0.
+    // d_ap=2, d_an=2.5, hinge=max(0, 2 - 2.5 + 1)=0.5 (active) → loss=0.5.
+    // grads (N=1): d/anchor=[-1,1], d/positive=[1,0], d/negative=[0,-1].
+    let anchor = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]), true);
+    let positive = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[2.0, 0.0]), true);
+    let negative = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 2.5]), true);
+
+    let loss = triplet_margin_loss(&anchor, &positive, &negative, 1.0, 2.0, 0.0);
+    assert_eq!(loss.tensor.shape(), &[1]);
+    assert!(
+        (loss.tensor.as_slice()[0] - 0.5).abs() <= 1e-12,
+        "triplet forward: got {}, expected 0.5",
+        loss.tensor.as_slice()[0]
+    );
+
+    loss.backward();
+    let ga = anchor.grad().expect("anchor grad");
+    let gp = positive.grad().expect("positive grad");
+    let gn = negative.grad().expect("negative grad");
+    let approx = |a: &[f64], b: [f64; 2], who: &str| {
+        for k in 0..2 {
+            assert!(
+                (a[k] - b[k]).abs() <= 1e-12,
+                "triplet d/d_{who}[{k}]: got {}, expected {}",
+                a[k],
+                b[k]
+            );
+        }
+    };
+    approx(ga.as_slice(), [-1.0, 1.0], "anchor");
+    approx(gp.as_slice(), [1.0, 0.0], "positive");
+    approx(gn.as_slice(), [0.0, -1.0], "negative");
+}
+
+#[test]
+fn test_triplet_margin_loss_inactive() {
+    // Easy triplet (d_ap << d_an by more than margin) → hinge 0, loss 0.
+    let anchor = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]), false);
+    let positive = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.5, 0.0]), false);
+    let negative = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[5.0, 0.0]), false);
+    let loss = triplet_margin_loss(&anchor, &positive, &negative, 1.0, 2.0, 0.0);
+    assert_eq!(loss.tensor.as_slice(), &[0.0_f64], "easy triplet → loss 0");
 }
 
 #[test]
