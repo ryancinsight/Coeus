@@ -146,6 +146,10 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyModule>()?;
     m.add_class::<nn::PyLSTMCell>()?;
     m.add_class::<nn::PyGRUCell>()?;
+    m.add_class::<nn::PyRNNCell>()?;
+    m.add_class::<nn::PyBidirectional>()?;
+    m.add_class::<nn::PyMaxPool1d>()?;
+    m.add_class::<nn::PyAvgPool1d>()?;
     m.add_class::<PyLocalCommunicator>()?;
     m.add_class::<PyTcpMesh>()?;
     m.add_class::<PyTcpCommunicator>()?;
