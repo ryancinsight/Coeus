@@ -2,7 +2,25 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-189 - GroupNorm benchmark matrix expansion [COMPLETE]
+### Current Sprint: MS-190 - BatchNorm1d benchmark matrix expansion [COMPLETE]
+**Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with a BatchNorm1d
+eval-forward row so one additional implemented NN family is measured across Burn
+NdArray and both Coeus CPU backends.
+**Target version**: 0.5.4 (benchmark/docs [patch]).
+
+- [x] [patch] Added `bench_batchnorm1d_eval_forward` in
+  `coeus-nn/benches/nn_bench.rs` for `[16,128,256]`.
+- [x] [patch] Benchmarks Burn NdArray BatchNorm1d eval forward vs Coeus
+  `BatchNorm1d::<_, SequentialBackend>` and
+  `BatchNorm1d::<_, MoiraiBackend>` and registers the row in
+  `criterion_group!`.
+- [x] [patch] Updated G-043 selected-row detail in `docs/gap_audit.md`.
+- [x] Evidence: `cargo check -p coeus-nn --all-targets`; `cargo clippy -p
+  coeus-nn --all-targets -- -D warnings`; `cargo bench -p coeus-nn --bench
+  nn_bench --no-run`; `cargo bench -p coeus-nn --bench nn_bench -- BatchNorm1d
+  --warm-up-time 1 --measurement-time 2 --sample-size 10`.
+
+### Previous Sprint: MS-189 - GroupNorm benchmark matrix expansion [COMPLETE]
 **Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with a GroupNorm
 forward row so one additional implemented NN family is measured across Burn
 NdArray and both Coeus CPU backends.
