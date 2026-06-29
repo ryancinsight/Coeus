@@ -186,6 +186,27 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     coeus_autograd::pairwise_distance(x1, x2, p, eps)
 }
 
+/// Triplet-margin loss (PyTorch `TripletMarginLoss`, `reduction="mean"`):
+/// `mean_i max(0, d(a_i, p_i) - d(a_i, n_i) + margin)` where `d` is the
+/// row-wise p-norm [`pairwise_distance`]. anchor/positive/negative share shape
+/// `[N, D]`. Composed from the tracked pairwise-distance, subtract, shift, ReLU,
+/// and mean ops, so backward (including the anchor's two gradient paths) is the
+/// autograd graph's — no bespoke node.
+#[inline]
+pub fn triplet_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    anchor: &Var<T, B>,
+    positive: &Var<T, B>,
+    negative: &Var<T, B>,
+    margin: T,
+    p: T,
+    eps: T,
+) -> Var<T, B> {
+    let d_ap = coeus_autograd::pairwise_distance(anchor, positive, p, eps);
+    let d_an = coeus_autograd::pairwise_distance(anchor, negative, p, eps);
+    let shifted = coeus_autograd::scalar_add(&coeus_autograd::sub(&d_ap, &d_an), margin);
+    coeus_autograd::mean(&coeus_autograd::relu(&shifted))
+}
+
 /// KL divergence loss.
 ///
 /// `input` is log-probabilities and `target` is probabilities. Computes
