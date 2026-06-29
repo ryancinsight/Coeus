@@ -19,8 +19,8 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
-    BatchNorm2d, Conv1d, Conv2d, Conv3d, Embedding, LayerNorm, Linear, Module, MultiHeadAttention,
-    NullMask, TransformerEncoderLayer,
+    BatchNorm2d, Conv1d, Conv2d, Conv3d, Embedding, GroupNorm, LayerNorm, Linear, Module,
+    MultiHeadAttention, NullMask, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -31,7 +31,7 @@ use burn::nn::conv::Conv2dConfig;
 use burn::nn::conv::Conv3dConfig;
 use burn::nn::transformer::{TransformerEncoderConfig, TransformerEncoderInput};
 use burn::nn::{
-    BatchNormConfig, LayerNormConfig, LinearConfig, PaddingConfig1d, PaddingConfig2d,
+    BatchNormConfig, GroupNormConfig, LayerNormConfig, LinearConfig, PaddingConfig1d, PaddingConfig2d,
     PaddingConfig3d,
 };
 use burn::tensor::{Int, Tensor as BurnTensor, TensorData};
@@ -153,6 +153,49 @@ fn bench_batchnorm2d_eval_forward(c: &mut Criterion) {
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| black_box(bn_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_groupnorm_forward(c: &mut Criterion) {
+    // GroupNorm forward on [N=8, C=32, H=16, W=16] with 8 groups.
+    const GN_N: usize = 8;
+    const GN_C: usize = 32;
+    const GN_H: usize = 16;
+    const GN_W: usize = 16;
+    const GN_G: usize = 8;
+
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(GN_N * GN_C * GN_H * GN_W))
+        .map(|i| (i % 37) as f32 * 0.02 - 0.36)
+        .collect();
+
+    let burn_gn = GroupNormConfig::new(GN_G, GN_C).init::<BurnB>(&device);
+    let x_burn: BurnTensor<BurnB, 4> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [GN_N, GN_C, GN_H, GN_W]),
+        &device,
+    );
+
+    let gn_seq = GroupNorm::<f32, SequentialBackend, GN_G>::new(GN_C, 1e-5);
+    let gn_moirai = GroupNorm::<f32, MoiraiBackend, GN_G>::new(GN_C, 1e-5);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![GN_N, GN_C, GN_H, GN_W], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![GN_N, GN_C, GN_H, GN_W], &input_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — GroupNorm forward (8x32x16x16, g8)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_gn.forward(black_box(x_burn.clone()))))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(gn_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(gn_moirai.forward(black_box(&x_moirai))))
     });
     group.finish();
 }
@@ -511,6 +554,7 @@ criterion_group!(
     bench_linear_forward,
     bench_layernorm_forward,
     bench_batchnorm2d_eval_forward,
+    bench_groupnorm_forward,
     bench_conv1d_forward,
     bench_conv2d_forward,
     bench_conv3d_forward,

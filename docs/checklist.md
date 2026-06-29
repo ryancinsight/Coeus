@@ -2,7 +2,25 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-188 - Embedding and GroupNorm JAX parity [COMPLETE]
+### Current Sprint: MS-189 - GroupNorm benchmark matrix expansion [COMPLETE]
+**Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with a GroupNorm
+forward row so one additional implemented NN family is measured across Burn
+NdArray and both Coeus CPU backends.
+**Target version**: 0.5.4 (benchmark/docs [patch]).
+
+- [x] [patch] Added `bench_groupnorm_forward` in
+  `coeus-nn/benches/nn_bench.rs` for `[8,32,16,16]` with `g=8`.
+- [x] [patch] Benchmarks Burn NdArray GroupNorm forward vs Coeus
+  `GroupNorm::<_, SequentialBackend, 8>` and
+  `GroupNorm::<_, MoiraiBackend, 8>` and registers the row in
+  `criterion_group!`.
+- [x] [patch] Updated G-043 selected-row detail in `docs/gap_audit.md`.
+- [x] Evidence: `cargo check -p coeus-nn --all-targets`; `cargo clippy -p
+  coeus-nn --all-targets -- -D warnings`; `cargo bench -p coeus-nn --bench
+  nn_bench --no-run`; `cargo bench -p coeus-nn --bench nn_bench -- GroupNorm
+  --warm-up-time 1 --measurement-time 2 --sample-size 10`.
+
+### Previous Sprint: MS-188 - Embedding and GroupNorm JAX parity [COMPLETE]
 **Objective**: Extend the Python JAX differential suite for existing Rust-owned
 module surfaces without adding Python-side domain logic.
 **Target version**: 0.5.4 (python parity/test/docs [patch]).
