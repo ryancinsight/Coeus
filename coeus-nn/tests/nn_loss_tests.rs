@@ -384,8 +384,7 @@ fn test_pairwise_distance() {
     let g2 = x2.grad().expect("x2 grad");
     for i in 0..2 {
         let scale = (s[i] + eps).powf(1.0 / p - 1.0);
-        for k in 0..2 {
-            let d = diffs[i][k];
+        for (k, &d) in diffs[i].iter().enumerate() {
             let eg = scale * d.abs().powf(p - 1.0) * d.signum();
             assert!((g1.as_slice()[i * 2 + k] - eg).abs() <= 1e-12, "pd gx1 {} {}", i, k);
             assert!((g2.as_slice()[i * 2 + k] + eg).abs() <= 1e-12, "pd gx2 {} {}", i, k);

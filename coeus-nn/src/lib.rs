@@ -94,8 +94,8 @@ pub use normalization::{
 };
 pub use parameter::Parameter;
 pub use pool::{
-    AvgPool2d, AvgPool3d, GlobalAvgPool1d, GlobalAvgPool2d, GlobalAvgPool3d, GlobalMaxPool2d,
-    GlobalMaxPool3d, MaxPool2d, MaxPool3d,
+    AvgPool1d, AvgPool2d, AvgPool3d, GlobalAvgPool1d, GlobalAvgPool2d, GlobalAvgPool3d,
+    GlobalMaxPool2d, GlobalMaxPool3d, MaxPool1d, MaxPool2d, MaxPool3d,
 };
 pub use positional::{RotaryEmbedding, SinusoidalEncoding};
 pub use rnn::{GRUCell, Gru, LSTMCell, Lstm};

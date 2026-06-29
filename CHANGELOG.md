@@ -4,7 +4,13 @@
 
 ### Changed
 
-- **`Tensor::alloc_on` zero-copy allocation** — added `Tensor::alloc_on` which
+- **G-036: MaxPool1d and AvgPool1d** — implemented 1D pooling layers closing the
+  G-036 pool family gap. Added CPU kernels (`pool/pool1d.rs`), extended the
+  `PoolOps` trait with `max_pool1d/avg_pool1d` (forward + backward), extended
+  the const-generic `MaxPoolNode<DIM=1>` and `AvgPoolNode<DIM=1>` autograd
+  nodes, and added `MaxPool1d` / `AvgPool1d` `Module` structs in `coeus-nn`
+  with full public API re-exports. 6 parity tests pass (forward correctness
+  for no-pad, stride-1, multi-channel, and batch cases). ([minor])- **`Tensor::alloc_on` zero-copy allocation** — added `Tensor::alloc_on` which
   allocates a raw buffer without zero-initializing, eliminating a redundant
   write pass for all kernels that unconditionally overwrite their output.
   Applied in `elementwise_unary`, `elementwise_binary`, `matmul` (2D and batched),
