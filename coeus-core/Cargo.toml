@@ -11,6 +11,7 @@ path = "src/lib.rs"
 mnemosyne = { workspace = true }
 moirai    = { workspace = true }
 hermes-simd = { workspace = true }
+eunomia = { workspace = true }
 bytemuck   = { workspace = true }
 half       = { workspace = true }
 smallvec   = { workspace = true }
