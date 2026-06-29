@@ -151,6 +151,10 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyBidirectional>()?;
     m.add_class::<nn::PyMaxPool1d>()?;
     m.add_class::<nn::PyAvgPool1d>()?;
+    m.add_class::<nn::PyAdaptiveAvgPool1d>()?;
+    m.add_class::<nn::PyAdaptiveAvgPool2d>()?;
+    m.add_class::<nn::PyUnfold2d>()?;
+    m.add_class::<nn::PyFold2d>()?;
     m.add_class::<PyLocalCommunicator>()?;
     m.add_class::<PyTcpMesh>()?;
     m.add_class::<PyTcpCommunicator>()?;
