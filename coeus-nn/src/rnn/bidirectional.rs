@@ -1,0 +1,59 @@
+// ── Bidirectional recurrent wrapper ──
+
+use crate::module::Module;
+use coeus_autograd::Var;
+use coeus_core::Scalar;
+
+/// Bidirectional wrapper over any sequence [`Module`] (e.g. [`Rnn`](super::Rnn),
+/// [`Gru`](super::Gru), [`Lstm`](super::Lstm)).
+///
+/// Runs `forward_module` over the input and `backward_module` over the
+/// time-reversed input, then concatenates the two `[batch, seq, hidden]`
+/// outputs along the hidden axis to `[batch, seq, 2*hidden]` — matching PyTorch
+/// `bidirectional=True`. Generic over the cell type, so no per-cell code: the
+/// reversal and concatenation reuse the tracked `flip`/`cat` autograd ops.
+///
+/// The two sub-modules carry independent parameters (PyTorch likewise learns
+/// separate forward/backward weights).
+#[derive(Clone)]
+pub struct Bidirectional<M> {
+    /// Module applied to the sequence in forward (left-to-right) order.
+    pub forward_module: M,
+    /// Module applied to the time-reversed sequence.
+    pub backward_module: M,
+}
+
+impl<M> Bidirectional<M> {
+    /// Wrap a forward and a (time-reversed) backward sequence module.
+    pub fn new(forward_module: M, backward_module: M) -> Self {
+        Self {
+            forward_module,
+            backward_module,
+        }
+    }
+}
+
+impl<T, B, M> Module<T, B> for Bidirectional<M>
+where
+    T: Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+    M: Module<T, B>,
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
+    fn parameters(&self) -> Vec<Var<T, B>> {
+        let mut p = self.forward_module.parameters();
+        p.extend(self.backward_module.parameters());
+        p
+    }
+
+    /// `x`: `[batch, seq_len, input_size]` → `[batch, seq_len, 2*hidden_size]`.
+    fn forward(&self, x: &Var<T, B>) -> Var<T, B> {
+        let fwd = self.forward_module.forward(x);
+        // Reverse along the time axis, run the backward module, then restore order.
+        let rev_x = coeus_autograd::flip(x, 1);
+        let bwd_rev = self.backward_module.forward(&rev_x);
+        let bwd = coeus_autograd::flip(&bwd_rev, 1);
+        coeus_autograd::cat(&[&fwd, &bwd], 2)
+    }
+}
