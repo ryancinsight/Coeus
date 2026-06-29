@@ -19,9 +19,9 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
-    AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d, Embedding, GroupNorm,
-    InstanceNorm2d, LayerNorm, Linear, Lstm, MaxPool2d, Module, MultiHeadAttention, NullMask,
-    RMSNorm, TransformerEncoderLayer,
+    cross_entropy_loss, AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d,
+    Embedding, GroupNorm, InstanceNorm2d, LayerNorm, Linear, Lstm, MaxPool2d, Module,
+    MultiHeadAttention, NullMask, RMSNorm, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -31,6 +31,7 @@ use burn::nn::conv::Conv1dConfig;
 use burn::nn::conv::Conv2dConfig;
 use burn::nn::conv::Conv3dConfig;
 use burn::nn::transformer::{TransformerEncoderConfig, TransformerEncoderInput};
+use burn::nn::loss::{CrossEntropyLoss, CrossEntropyLossConfig};
 use burn::nn::{
     BatchNormConfig, GroupNormConfig, InstanceNormConfig, LayerNormConfig, LinearConfig, LstmConfig,
     PaddingConfig1d, PaddingConfig2d, PaddingConfig3d, RmsNormConfig,
@@ -888,6 +889,54 @@ fn bench_instancenorm2d_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_cross_entropy_loss(c: &mut Criterion) {
+    // Cross-entropy loss on logits [BATCH=128, num_classes=10].
+    const CE_N: usize = 128;
+    const CE_C: usize = 10;
+
+    let device = NdArrayDevice::default();
+    let logit_data: Vec<f32> = (0..(CE_N * CE_C))
+        .map(|i| (i as f32 * 0.0041).sin())
+        .collect();
+    let targets: Vec<usize> = (0..CE_N).map(|i| i % CE_C).collect();
+    let targets_i64: Vec<i64> = targets.iter().map(|&t| t as i64).collect();
+
+    // Burn: CrossEntropyLossConfig(no pad).forward(logits [N,C], targets [N, Int]).
+    let burn_ce: CrossEntropyLoss<BurnB> = CrossEntropyLossConfig::new().init(&device);
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(logit_data.clone(), [CE_N, CE_C]),
+        &device,
+    );
+    let t_burn: BurnTensor<BurnB, 1, Int> = BurnTensor::from_data(
+        TensorData::new(targets_i64, [CE_N]),
+        &device,
+    );
+
+    // Coeus: cross_entropy_loss(logits, &targets).
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![CE_N, CE_C], &logit_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![CE_N, CE_C], &logit_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — CrossEntropyLoss (128x10)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| {
+            black_box(burn_ce.forward(black_box(x_burn.clone()), black_box(t_burn.clone())))
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(cross_entropy_loss(black_box(&x_seq), black_box(&targets))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(cross_entropy_loss(black_box(&x_moirai), black_box(&targets))))
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -907,6 +956,7 @@ criterion_group!(
     bench_embedding_forward,
     bench_linear_forward_backward,
     bench_lstm_forward,
-    bench_instancenorm2d_forward
+    bench_instancenorm2d_forward,
+    bench_cross_entropy_loss
 );
 criterion_main!(benches);

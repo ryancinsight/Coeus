@@ -2,7 +2,21 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-196 - InstanceNorm2d benchmark matrix expansion [COMPLETE]
+### Current Sprint: MS-197 - CrossEntropyLoss benchmark matrix expansion [COMPLETE]
+**Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with a CrossEntropyLoss
+row so the loss computation family is measured against Burn NdArray and both Coeus
+CPU backends.
+**Target version**: 0.5.4 (benchmark/docs [patch]).
+
+- [x] [patch] Added `bench_cross_entropy_loss` in `coeus-nn/benches/nn_bench.rs`
+  for logits `[128,10]`.
+- [x] [patch] Benchmarks Burn NdArray CrossEntropyLoss vs Coeus
+  `cross_entropy_loss` on `SequentialBackend` and `MoiraiBackend`.
+- [x] [patch] Updated G-043 selected-row detail in `docs/gap_audit.md`.
+- [x] Evidence: cargo check/clippy/bench-no-run all passed; benchmark run confirms
+  Coeus ~2.6× faster than Burn NdArray (Burn 9.70–10.38 µs, Coeus ~3.7–4.1 µs).
+
+### Previous Sprint: MS-196 - InstanceNorm2d benchmark matrix expansion [COMPLETE]
 **Objective**: Expand the Burn-vs-Coeus NN benchmark matrix with an InstanceNorm2d
 forward row so one additional implemented NN family is measured across Burn NdArray
 and both Coeus CPU backends.

@@ -22,6 +22,16 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-197: CrossEntropyLoss benchmark matrix expansion [COMPLETE]
+
+- [x] [patch] Added a Burn-vs-Coeus benchmark row for CrossEntropyLoss in
+  `coeus-nn/benches/nn_bench.rs` on logits `[128,10]`, comparing Burn NdArray,
+  Coeus `SequentialBackend`, and Coeus `MoiraiBackend`.
+- [x] [patch] Registered the CrossEntropyLoss row in the Criterion benchmark group.
+- [x] [patch] Updated `docs/gap_audit.md` selected-row detail for G-043.
+- [x] Evidence: full validation gates passed. Coeus ~2.6× faster than Burn:
+  Burn 9.70–10.38 µs, Coeus Sequential 3.68–4.00 µs, Coeus Moirai 3.61–4.06 µs.
+
 ## Sprint MS-196: InstanceNorm2d benchmark matrix expansion [COMPLETE]
 
 - [x] [patch] Added a Burn-vs-Coeus forward benchmark row for InstanceNorm2d in
