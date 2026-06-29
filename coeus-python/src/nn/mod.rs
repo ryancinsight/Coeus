@@ -32,7 +32,7 @@ pub use conv::PyConvTranspose2d;
 pub use conv::PyConvTranspose3d;
 pub use conv::{PyConv1d, PyConv2d, PyConv3d};
 pub use dropout::PyDropout;
-pub use embedding::PyEmbedding;
+pub use embedding::{PyEmbedding, PyEmbeddingBag};
 pub use feedforward::{
     PyFeedForward, PySinusoidalEncoding, PyTransformer, PyTransformerDecoder,
     PyTransformerDecoderLayer, PyTransformerEncoder, PyTransformerEncoderLayer,

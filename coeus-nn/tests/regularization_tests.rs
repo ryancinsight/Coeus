@@ -6,7 +6,10 @@ use coeus_nn::{AlphaDropout, FeatureAlphaDropout, GaussianNoise, LocalResponseNo
 use coeus_tensor::Tensor;
 
 fn seq_var(shape: impl Into<coeus_core::Shape>, data: &[f32]) -> Var<f32, SequentialBackend> {
-    Var::new(Tensor::<f32, SequentialBackend>::from_slice(shape, data), false)
+    Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(shape, data),
+        false,
+    )
 }
 
 // ── AlphaDropout ──
@@ -17,7 +20,11 @@ fn alpha_dropout_eval_is_identity() {
     layer.set_training(false);
     let x = seq_var([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
     let y = layer.forward(&x);
-    assert_eq!(y.tensor.as_slice(), x.tensor.as_slice(), "eval mode must be identity");
+    assert_eq!(
+        y.tensor.as_slice(),
+        x.tensor.as_slice(),
+        "eval mode must be identity"
+    );
 }
 
 #[test]
@@ -25,7 +32,11 @@ fn alpha_dropout_p0_is_identity() {
     let layer = AlphaDropout::new(0.0);
     let x = seq_var([4], &[1.0, 2.0, 3.0, 4.0]);
     let y = layer.forward(&x);
-    assert_eq!(y.tensor.as_slice(), x.tensor.as_slice(), "p=0 must be identity");
+    assert_eq!(
+        y.tensor.as_slice(),
+        x.tensor.as_slice(),
+        "p=0 must be identity"
+    );
 }
 
 #[test]
@@ -100,8 +111,16 @@ fn lrn_unit_input_scales_correctly() {
     let y = lrn.forward(&x);
     let s = y.tensor.as_slice();
     let expected_inner = 1.0 / 2.0_f32;
-    assert!((s[1] - expected_inner).abs() < 1e-5, "inner channel: got {}", s[1]);
-    assert!((s[2] - expected_inner).abs() < 1e-5, "inner channel: got {}", s[2]);
+    assert!(
+        (s[1] - expected_inner).abs() < 1e-5,
+        "inner channel: got {}",
+        s[1]
+    );
+    assert!(
+        (s[2] - expected_inner).abs() < 1e-5,
+        "inner channel: got {}",
+        s[2]
+    );
 }
 
 #[test]
@@ -109,7 +128,7 @@ fn lrn_k1_defaults_match_pytorch() {
     // Default LRN with size=5, alpha=0.0001, beta=0.75, k=1.
     // All-zero input → all-zero output (denominator = k^beta = 1.0).
     let lrn = LocalResponseNorm::new(5);
-    let x = seq_var([1, 3, 2, 2], &vec![0.0_f32; 12]);
+    let x = seq_var([1, 3, 2, 2], &[0.0_f32; 12]);
     let y = lrn.forward(&x);
     for &v in y.tensor.as_slice() {
         assert!((v).abs() < 1e-7, "zero input should give zero output");

@@ -1,4 +1,5 @@
 use crate::tensor::{PyStateDict, PyTensor};
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 /// Python-exposed Embedding layer.
@@ -16,6 +17,23 @@ pub struct PyEmbedding {
     /// Token index whose embedding row is forced to all-zeros.
     #[pyo3(get)]
     pub padding_idx: Option<usize>,
+}
+
+/// Python-exposed EmbeddingBag layer.
+#[pyclass(name = "EmbeddingBag")]
+pub struct PyEmbeddingBag {
+    /// Learnable embedding table, shape `[num_embeddings, embedding_dim]`.
+    #[pyo3(get)]
+    pub weight: Py<PyTensor>,
+    /// Vocabulary size.
+    #[pyo3(get)]
+    pub num_embeddings: usize,
+    /// Embedding dimension.
+    #[pyo3(get)]
+    pub embedding_dim: usize,
+    /// Aggregation mode: `"sum"`, `"mean"`, or `"max"`.
+    #[pyo3(get)]
+    pub mode: String,
 }
 
 #[pymethods]
@@ -94,6 +112,93 @@ impl PyEmbedding {
     }
 
     /// Zero the gradients of all parameters.
+    pub fn zero_grad(&self, py: Python<'_>) {
+        self.weight.bind(py).borrow().zero_grad();
+    }
+}
+
+#[pymethods]
+impl PyEmbeddingBag {
+    #[new]
+    #[pyo3(signature = (num_embeddings, embedding_dim, mode = "sum"))]
+    /// Create an EmbeddingBag layer with aggregation `mode` in {"sum","mean","max"}.
+    pub fn new(
+        py: Python<'_>,
+        num_embeddings: usize,
+        embedding_dim: usize,
+        mode: &str,
+    ) -> PyResult<Self> {
+        let Some(parsed_mode) = coeus_nn::EmbeddingBagMode::parse(mode) else {
+            return Err(PyValueError::new_err(
+                "EmbeddingBag mode must be one of: sum, mean, max",
+            ));
+        };
+        let rust_emb = coeus_nn::EmbeddingBag::<f64, coeus_core::MoiraiBackend>::new(
+            num_embeddings,
+            embedding_dim,
+            parsed_mode,
+        );
+        let weight = Py::new(
+            py,
+            PyTensor {
+                inner: rust_emb.weight,
+            },
+        )?;
+        Ok(Self {
+            weight,
+            num_embeddings,
+            embedding_dim,
+            mode: mode.to_string(),
+        })
+    }
+
+    /// Forward pass from flat indices and optional bag offsets.
+    #[pyo3(signature = (indices, offsets = None))]
+    pub fn forward_with_offsets(
+        &self,
+        indices: Vec<usize>,
+        offsets: Option<Vec<usize>>,
+        py: Python<'_>,
+    ) -> PyResult<PyTensor> {
+        let Some(mode) = coeus_nn::EmbeddingBagMode::parse(&self.mode) else {
+            return Err(PyValueError::new_err(
+                "EmbeddingBag mode must be one of: sum, mean, max",
+            ));
+        };
+        let w_var = self.weight.bind(py).borrow().inner.clone();
+        let num_emb = self.num_embeddings;
+        let emb_dim = self.embedding_dim;
+        let inner = py.allow_threads(move || {
+            let emb = coeus_nn::EmbeddingBag {
+                weight: w_var,
+                num_embeddings: num_emb,
+                embedding_dim: emb_dim,
+                mode,
+            };
+            emb.forward_with_offsets(&indices, offsets.as_deref())
+        });
+        Ok(PyTensor::from_var(inner))
+    }
+
+    fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
+        let mut sd = coeus_tensor::checkpoint::StateDict::new();
+        sd.insert("weight", self.weight.bind(py).borrow().inner.tensor.clone());
+        Ok(PyStateDict { inner: sd })
+    }
+
+    fn load_state_dict(&self, state_dict: &PyStateDict, py: Python<'_>) -> PyResult<()> {
+        if let Some(w) = state_dict.inner.get("weight") {
+            self.weight.bind(py).borrow_mut().inner.tensor = w.clone();
+        }
+        Ok(())
+    }
+
+    /// Return learnable parameters.
+    pub fn parameters(&self, py: Python<'_>) -> Vec<Py<PyTensor>> {
+        vec![self.weight.clone_ref(py)]
+    }
+
+    /// Zero parameter gradients.
     pub fn zero_grad(&self, py: Python<'_>) {
         self.weight.bind(py).borrow().zero_grad();
     }
