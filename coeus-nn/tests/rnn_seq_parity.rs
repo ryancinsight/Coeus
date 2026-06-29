@@ -29,7 +29,7 @@ use coeus_autograd::Var;
 use coeus_core::{
     CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, SequentialBackend,
 };
-use coeus_nn::{Gru, Lstm, Module};
+use coeus_nn::{Bidirectional, Gru, Lstm, Module, Rnn, RnnNonlinearity};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
@@ -141,6 +141,49 @@ where
 {
     check_lstm(backend);
     check_gru(backend);
+    check_bidirectional(backend);
+}
+
+fn check_bidirectional<B: BackendOps<f64> + Default>(backend: &B)
+where
+    B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
+{
+    // Bidirectional<Rnn>: forward over x, backward over reversed x, concat on hidden.
+    let fwd = Rnn::<f64, B>::new(2, 3, RnnNonlinearity::Tanh);
+    let bwd = Rnn::<f64, B>::new(2, 3, RnnNonlinearity::Tanh);
+    let bi = Bidirectional::new(fwd.clone(), bwd.clone());
+
+    // Zero input → zeros, shape [batch, seq, 2*hidden].
+    let xz = Var::new(Tensor::zeros_on([1, 2, 2], backend), false);
+    let oz = Module::<f64, B>::forward(&bi, &xz);
+    assert_eq!(oz.tensor.shape(), &[1, 2, 6], "bidirectional output shape");
+    assert!(
+        oz.tensor.as_slice().iter().all(|&v| v == 0.0),
+        "bidirectional zero-input → zeros"
+    );
+
+    // Non-zero: the concatenation must place forward output in [0:H] and the
+    // re-reversed backward output in [H:2H] at every timestep.
+    let x = Var::new(
+        Tensor::from_slice_on([1, 2, 2], &[1.0, 2.0, 3.0, 4.0], backend),
+        false,
+    );
+    let o = Module::<f64, B>::forward(&bi, &x);
+    assert_eq!(o.tensor.shape(), &[1, 2, 6]);
+    let o_s = o.tensor.as_slice();
+
+    let f_out = Module::<f64, B>::forward(&fwd, &x);
+    let b_out = coeus_autograd::flip(
+        &Module::<f64, B>::forward(&bwd, &coeus_autograd::flip(&x, 1)),
+        1,
+    );
+    let f_s = f_out.tensor.as_slice(); // [1,2,3]
+    let b_s = b_out.tensor.as_slice(); // [1,2,3]
+    // Layout per (batch, seq): [forward(3), backward(3)].
+    assert_eq!(&o_s[0..3], &f_s[0..3], "t0 forward half");
+    assert_eq!(&o_s[3..6], &b_s[0..3], "t0 backward half");
+    assert_eq!(&o_s[6..9], &f_s[3..6], "t1 forward half");
+    assert_eq!(&o_s[9..12], &b_s[3..6], "t1 backward half");
 }
 
 #[test]
@@ -151,4 +194,42 @@ fn sequential_rnn_seq_match_reference() {
 #[test]
 fn moirai_rnn_seq_match_reference() {
     check_all(&MoiraiBackend);
+}
+
+// ── Bidirectional tests ──
+
+#[test]
+fn bidirectional_lstm_doubles_hidden_dim() {
+    // A Bidirectional<Lstm> with hidden=4 should produce [batch, seq, 8] output.
+    use coeus_nn::{Bidirectional, Lstm, Module};
+    let fwd = Lstm::<f32, SequentialBackend>::new(2, 4);
+    let bwd = Lstm::<f32, SequentialBackend>::new(2, 4);
+    let bi = Bidirectional::new(fwd, bwd);
+
+    let x = Var::new(
+        coeus_tensor::Tensor::<f32, SequentialBackend>::zeros(vec![2, 3, 2]),
+        false,
+    );
+    let y = bi.forward(&x);
+    assert_eq!(y.tensor.shape(), &[2, 3, 8], "bidirectional hidden dim should be 2*hidden");
+}
+
+#[test]
+fn bidirectional_gru_zeros_output_for_zeros_input() {
+    // Zeros input + zeros state → zeros output for any weight init.
+    use coeus_nn::{Bidirectional, Gru, Module};
+    let fwd = Gru::<f32, SequentialBackend>::new(2, 4);
+    let bwd = Gru::<f32, SequentialBackend>::new(2, 4);
+    let bi = Bidirectional::new(fwd, bwd);
+
+    let x = Var::new(
+        coeus_tensor::Tensor::<f32, SequentialBackend>::zeros(vec![1, 5, 2]),
+        false,
+    );
+    let y = bi.forward(&x);
+    assert_eq!(y.tensor.shape(), &[1, 5, 8]);
+    // Zeros input → zeros output (analytically, same as unidirectional).
+    for &v in y.tensor.as_slice() {
+        assert!((v).abs() < 1e-6, "expected zero output, got {v}");
+    }
 }
