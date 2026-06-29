@@ -21,8 +21,9 @@ use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
     cross_entropy_loss, gelu, huber_loss, mse_loss, relu, sigmoid, silu, tanh,
     AvgPool1d as CoeusAvgPool1d, AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d,
-    Conv3d, Embedding, GroupNorm, InstanceNorm2d, LayerNorm, Linear, Lstm, MaxPool1d, MaxPool2d,
-    Module, MultiHeadAttention, NullMask, RMSNorm, TransformerEncoderLayer,
+    Conv3d, Embedding, EmbeddingBag, EmbeddingBagMode, GroupNorm, InstanceNorm2d, LayerNorm,
+    Linear, Lstm, MaxPool1d, MaxPool2d, Module, MultiHeadAttention, NullMask, RMSNorm,
+    TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -1273,6 +1274,62 @@ fn bench_avgpool1d_forward(c: &mut Criterion) {
     });
     group.finish();
 }
+fn bench_embeddingbag_sum(c: &mut Criterion) {
+    // EmbeddingBag sum-mode forward: 16 bags × 100 tokens each, vocab=200, dim=64.
+    // Burn 0.16 has no dedicated EmbeddingBag; the equivalent is Embedding::forward + sum_dim.
+    const EB_VOCAB: usize = 200;
+    const EB_DIM: usize = 64;
+    const EB_BAGS: usize = 16;
+    const EB_BAG_SIZE: usize = 100;
+
+    let device = NdArrayDevice::default();
+
+    // Build deterministic indices: each bag cycles through vocab.
+    let flat_indices: Vec<usize> = (0..(EB_BAGS * EB_BAG_SIZE))
+        .map(|i| i % EB_VOCAB)
+        .collect();
+    let offsets: Vec<usize> = (0..EB_BAGS).map(|b| b * EB_BAG_SIZE).collect();
+    let idx_i64_2d: Vec<i64> = flat_indices.iter().map(|&x| x as i64).collect();
+
+    // Burn: Embedding + sum_dim (equivalent to EmbeddingBag sum).
+    let burn_emb = burn::nn::EmbeddingConfig::new(EB_VOCAB, EB_DIM).init::<BurnB>(&device);
+    let x_burn: BurnTensor<BurnB, 2, Int> = BurnTensor::from_data(
+        TensorData::new(idx_i64_2d, [EB_BAGS, EB_BAG_SIZE]),
+        &device,
+    );
+
+    // Coeus EmbeddingBag.
+    let eb_seq = EmbeddingBag::<f32, SequentialBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum);
+    let eb_moirai = EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum);
+
+    let mut group = c.benchmark_group(
+        "Burn vs Coeus — EmbeddingBag sum (16 bags × 100 tokens, vocab=200 dim=64)",
+    );
+    group.bench_function("Burn NdArray (Embedding + sum_dim)", |b| {
+        b.iter(|| {
+            let embedded = burn_emb.forward(black_box(x_burn.clone()));
+            black_box(embedded.sum_dim(1))
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            black_box(eb_seq.forward_with_offsets(
+                black_box(&flat_indices),
+                Some(black_box(&offsets)),
+            ))
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(eb_moirai.forward_with_offsets(
+                black_box(&flat_indices),
+                Some(black_box(&offsets)),
+            ))
+        })
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -1290,6 +1347,7 @@ criterion_group!(
     bench_mha_forward,
     bench_transformer_encoder_forward,
     bench_embedding_forward,
+    bench_embeddingbag_sum,
     bench_linear_forward_backward,
     bench_lstm_forward,
     bench_instancenorm2d_forward,

@@ -2298,3 +2298,132 @@ def test_multi_margin_matches_pytorch() -> None:
         f"multi_margin: got={loss_pyc.data[0]:.8g}, expected={loss_t.item():.8g}"
     )
     _allclose("multi_margin_dx", list(x_pyc.grad), x_t.grad.flatten().tolist())
+
+
+# ---------------------------------------------------------------------------
+# EmbeddingBag forward parity (G-041)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "EmbeddingBag"),
+    reason="pycoeus.EmbeddingBag not available in this build",
+)
+def test_embeddingbag_sum_matches_pytorch() -> None:
+    """Forward parity: EmbeddingBag(vocab=6, dim=4, mode='sum') with two bags.
+
+    Evidence tier: differential/empirical against ``torch.nn.EmbeddingBag`` at f64.
+    Tolerance 1e-10.
+    """
+    num_embeddings, embedding_dim = 6, 4
+    weight_data = [
+        1.0, 0.0, -1.0, 0.5,    # row 0
+        0.5, 0.5,  0.5, 0.5,    # row 1
+        0.0, 1.0,  0.0, 1.0,    # row 2
+       -1.0, 0.0,  1.0, 0.0,    # row 3
+        0.2, 0.3, -0.2, -0.3,   # row 4
+        0.7,-0.7,  0.7, -0.7,   # row 5
+    ]
+    # Two bags: bag0 = [0, 2, 4], bag1 = [1, 3, 5]
+    flat_indices = [0, 2, 4, 1, 3, 5]
+    offsets = [0, 3]
+
+    eb_pyc = pycoeus.EmbeddingBag(num_embeddings, embedding_dim, "sum")
+    eb_pyc.weight.data = weight_data
+    out_pyc = eb_pyc.forward_with_offsets(flat_indices, offsets)
+
+    # PyTorch reference
+    eb_t = torch.nn.EmbeddingBag(num_embeddings, embedding_dim, mode="sum").double()
+    with torch.no_grad():
+        eb_t.weight.copy_(
+            torch.tensor(weight_data, dtype=torch.float64).reshape(num_embeddings, embedding_dim)
+        )
+    idx_t = torch.tensor(flat_indices, dtype=torch.long)
+    off_t = torch.tensor(offsets, dtype=torch.long)
+    out_t = eb_t(idx_t, off_t)
+
+    _allclose(
+        "embeddingbag_sum_fwd",
+        list(out_pyc.data),
+        out_t.flatten().tolist(),
+        atol=1e-10,
+    )
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "EmbeddingBag"),
+    reason="pycoeus.EmbeddingBag not available in this build",
+)
+def test_embeddingbag_mean_matches_pytorch() -> None:
+    """Forward parity: EmbeddingBag(vocab=6, dim=4, mode='mean') with two bags."""
+    num_embeddings, embedding_dim = 6, 4
+    weight_data = [
+        1.0, 0.0, -1.0, 0.5,
+        0.5, 0.5,  0.5, 0.5,
+        0.0, 1.0,  0.0, 1.0,
+       -1.0, 0.0,  1.0, 0.0,
+        0.2, 0.3, -0.2, -0.3,
+        0.7,-0.7,  0.7, -0.7,
+    ]
+    flat_indices = [0, 2, 4, 1, 3, 5]
+    offsets = [0, 3]
+
+    eb_pyc = pycoeus.EmbeddingBag(num_embeddings, embedding_dim, "mean")
+    eb_pyc.weight.data = weight_data
+    out_pyc = eb_pyc.forward_with_offsets(flat_indices, offsets)
+
+    eb_t = torch.nn.EmbeddingBag(num_embeddings, embedding_dim, mode="mean").double()
+    with torch.no_grad():
+        eb_t.weight.copy_(
+            torch.tensor(weight_data, dtype=torch.float64).reshape(num_embeddings, embedding_dim)
+        )
+    idx_t = torch.tensor(flat_indices, dtype=torch.long)
+    off_t = torch.tensor(offsets, dtype=torch.long)
+    out_t = eb_t(idx_t, off_t)
+
+    _allclose(
+        "embeddingbag_mean_fwd",
+        list(out_pyc.data),
+        out_t.flatten().tolist(),
+        atol=1e-10,
+    )
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "EmbeddingBag"),
+    reason="pycoeus.EmbeddingBag not available in this build",
+)
+def test_embeddingbag_max_matches_pytorch() -> None:
+    """Forward parity: EmbeddingBag(vocab=6, dim=4, mode='max') with two bags."""
+    num_embeddings, embedding_dim = 6, 4
+    weight_data = [
+        1.0, 0.0, -1.0, 0.5,
+        0.5, 0.5,  0.5, 0.5,
+        0.0, 1.0,  0.0, 1.0,
+       -1.0, 0.0,  1.0, 0.0,
+        0.2, 0.3, -0.2, -0.3,
+        0.7,-0.7,  0.7, -0.7,
+    ]
+    flat_indices = [0, 2, 4, 1, 3, 5]
+    offsets = [0, 3]
+
+    eb_pyc = pycoeus.EmbeddingBag(num_embeddings, embedding_dim, "max")
+    eb_pyc.weight.data = weight_data
+    out_pyc = eb_pyc.forward_with_offsets(flat_indices, offsets)
+
+    eb_t = torch.nn.EmbeddingBag(num_embeddings, embedding_dim, mode="max").double()
+    with torch.no_grad():
+        eb_t.weight.copy_(
+            torch.tensor(weight_data, dtype=torch.float64).reshape(num_embeddings, embedding_dim)
+        )
+    idx_t = torch.tensor(flat_indices, dtype=torch.long)
+    off_t = torch.tensor(offsets, dtype=torch.long)
+    out_t = eb_t(idx_t, off_t)
+
+    _allclose(
+        "embeddingbag_max_fwd",
+        list(out_pyc.data),
+        out_t.flatten().tolist(),
+        atol=1e-10,
+    )
+
