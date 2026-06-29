@@ -18,12 +18,14 @@ pub mod module_base;
 pub mod module_list;
 /// Normalization layers (BatchNorm, LayerNorm, RMSNorm, GroupNorm, InstanceNorm).
 pub mod normalization;
-/// Pooling layers (AvgPool, MaxPool, GlobalAvgPool, GlobalMaxPool).
+/// Pooling layers (AvgPool, MaxPool, GlobalAvgPool, GlobalMaxPool, AdaptiveAvgPool).
 pub mod pool;
 /// Recurrent cells (LSTMCell, GRUCell) and Bidirectional wrapper.
 pub mod rnn;
 /// Sequential container that chains module forwards.
 pub mod sequential;
+/// Unfold and Fold sliding-window extraction layers.
+pub mod unfold_fold;
 
 pub use attention::{PyMultiHeadAttention, PyRotaryEmbedding, PyScaledDotProductAttention};
 pub use bilinear::PyBilinear;
@@ -45,8 +47,10 @@ pub use normalization::{
     PyInstanceNorm3d, PyLayerNorm, PyRMSNorm,
 };
 pub use pool::{
-    PyAvgPool1d, PyAvgPool2d, PyAvgPool3d, PyGlobalAvgPool1d, PyGlobalAvgPool2d, PyGlobalAvgPool3d,
-    PyGlobalMaxPool2d, PyGlobalMaxPool3d, PyMaxPool1d, PyMaxPool2d, PyMaxPool3d,
+    PyAdaptiveAvgPool1d, PyAdaptiveAvgPool2d, PyAvgPool1d, PyAvgPool2d, PyAvgPool3d,
+    PyGlobalAvgPool1d, PyGlobalAvgPool2d, PyGlobalAvgPool3d, PyGlobalMaxPool2d, PyGlobalMaxPool3d,
+    PyMaxPool1d, PyMaxPool2d, PyMaxPool3d,
 };
 pub use rnn::{PyBidirectional, PyGRUCell, PyLSTMCell, PyRNNCell};
 pub use sequential::PySequential;
+pub use unfold_fold::{PyFold2d, PyUnfold2d};

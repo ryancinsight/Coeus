@@ -2427,3 +2427,116 @@ def test_embeddingbag_max_matches_pytorch() -> None:
         atol=1e-10,
     )
 
+
+
+# ---------------------------------------------------------------------------
+# AdaptiveAvgPool1d and AdaptiveAvgPool2d parity (MS-213)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "AdaptiveAvgPool1d"),
+    reason="pycoeus.AdaptiveAvgPool1d not available in this build",
+)
+def test_adaptive_avg_pool1d_matches_pytorch() -> None:
+    """Forward parity: AdaptiveAvgPool1d(output_size=3) on [2, 4, 8]."""
+    n, c, l = 2, 4, 8
+    output_size = 3
+    data = [float(i) * 0.25 - 1.0 for i in range(n * c * l)]
+
+    m_pyc = pycoeus.AdaptiveAvgPool1d(output_size)
+    x_pyc = pycoeus.Tensor(data, [n, c, l])
+    y_pyc = m_pyc.forward(x_pyc)
+
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, l)
+    m_t = torch.nn.AdaptiveAvgPool1d(output_size)
+    y_t = m_t(x_t)
+
+    _allclose(
+        "adaptive_avg_pool1d",
+        list(y_pyc.data),
+        y_t.flatten().tolist(),
+        atol=1e-10,
+    )
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "AdaptiveAvgPool2d"),
+    reason="pycoeus.AdaptiveAvgPool2d not available in this build",
+)
+def test_adaptive_avg_pool2d_global_matches_pytorch() -> None:
+    """Forward parity: AdaptiveAvgPool2d(1) (global avg) on [2, 3, 6, 6]."""
+    n, c, h, w = 2, 3, 6, 6
+    data = [float(i) * 0.1 - 3.0 for i in range(n * c * h * w)]
+
+    m_pyc = pycoeus.AdaptiveAvgPool2d(1)
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w])
+    y_pyc = m_pyc.forward(x_pyc)
+
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    m_t = torch.nn.AdaptiveAvgPool2d(1)
+    y_t = m_t(x_t)
+
+    _allclose(
+        "adaptive_avg_pool2d_global",
+        list(y_pyc.data),
+        y_t.flatten().tolist(),
+        atol=1e-10,
+    )
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "AdaptiveAvgPool2d"),
+    reason="pycoeus.AdaptiveAvgPool2d not available in this build",
+)
+def test_adaptive_avg_pool2d_non_trivial_matches_pytorch() -> None:
+    """Forward parity: AdaptiveAvgPool2d(3, 4) on [1, 2, 6, 8] (non-square output)."""
+    n, c, h, w = 1, 2, 6, 8
+    out_h, out_w = 3, 4
+    data = [float(i) * 0.05 - 1.5 for i in range(n * c * h * w)]
+
+    m_pyc = pycoeus.AdaptiveAvgPool2d(out_h, out_w)
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w])
+    y_pyc = m_pyc.forward(x_pyc)
+
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    m_t = torch.nn.AdaptiveAvgPool2d((out_h, out_w))
+    y_t = m_t(x_t)
+
+    _allclose(
+        "adaptive_avg_pool2d_non_trivial",
+        list(y_pyc.data),
+        y_t.flatten().tolist(),
+        atol=1e-10,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Unfold2d parity (MS-213)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "Unfold2d"),
+    reason="pycoeus.Unfold2d not available in this build",
+)
+def test_unfold2d_matches_pytorch() -> None:
+    """Forward parity: Unfold2d(kernel=3, stride=1, padding=0) on [1, 2, 5, 5]."""
+    n, c, h, w = 1, 2, 5, 5
+    kernel, stride, padding = 3, 1, 0
+    data = [float(i) * 0.1 for i in range(n * c * h * w)]
+
+    m_pyc = pycoeus.Unfold2d(kernel, stride, padding, 1)
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w])
+    y_pyc = m_pyc.forward(x_pyc)
+
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    m_t = torch.nn.Unfold(kernel_size=kernel, stride=stride, padding=padding)
+    y_t = m_t(x_t)
+
+    _allclose(
+        "unfold2d",
+        list(y_pyc.data),
+        y_t.flatten().tolist(),
+        atol=1e-10,
+    )
