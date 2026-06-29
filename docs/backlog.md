@@ -22,6 +22,11 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-200: ReLU+GeLU activation benchmark expansion [COMPLETE]
+
+- [x] Added `bench_relu_forward` and `bench_gelu_forward` in nn_bench.rs.
+- [x] ReLU: Burn 4.12-4.32 us vs Coeus ~55 us (autograd overhead, optimization target).
+- [x] GeLU: Burn 95-101 us vs Coeus 97-101 us (parity).
 ## Sprint MS-199: HuberLoss benchmark matrix expansion [COMPLETE]
 
 - [x] [patch] Added a Burn-vs-Coeus HuberLoss benchmark row in

@@ -2,7 +2,12 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-199 - HuberLoss benchmark matrix expansion [COMPLETE]
+### Current Sprint: MS-200 - ReLU+GeLU activation benchmark expansion [COMPLETE]
+- [x] Added `bench_relu_forward` and `bench_gelu_forward` rows.
+- [x] ReLU gap (Burn 13x faster due to autograd overhead) logged as optimization target.
+- [x] GeLU parity confirmed.
+
+### Previous Sprint: MS-199 - HuberLoss benchmark matrix expansion [COMPLETE] - HuberLoss benchmark matrix expansion [COMPLETE]
 **Objective**: Add HuberLoss benchmark row comparing Burn vs Coeus.
 - [x] [patch] Added `bench_huber_loss` in `coeus-nn/benches/nn_bench.rs`.
 - [x] Evidence: Coeus ~45x faster than Burn (Coeus ~190 ns vs Burn ~8.7 us).
