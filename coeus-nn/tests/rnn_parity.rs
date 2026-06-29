@@ -20,7 +20,7 @@
 
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
-use coeus_nn::{GRUCell, LSTMCell, Module};
+use coeus_nn::{GRUCell, LSTMCell, Module, RNNCell, RnnNonlinearity};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
@@ -101,6 +101,55 @@ where
 {
     check_gru_cell(backend);
     check_lstm_cell(backend);
+    check_rnn_cell(backend);
+}
+
+fn check_rnn_cell<B: BackendOps<f64> + Default>(backend: &B)
+where
+    B::DeviceBuffer<f64>:
+        coeus_core::CpuAddressableStorage<f64> + coeus_core::CpuAddressableStorageMut<f64>,
+{
+    // Linear::new → all-ones weights, zero bias. RNNCell step:
+    //   h_new = f(x @ W_ih.T + h @ W_hh.T) with W all-ones.
+    let cell = RNNCell::<f64, B>::new(2, 2, RnnNonlinearity::Tanh);
+
+    // x=0, h=0 → pre=0 → tanh(0)=0 exactly.
+    let x0 = zeros_var(&[1, 2], backend);
+    let h0 = zeros_var(&[1, 2], backend);
+    let h_z = cell.step(&x0, &h0);
+    assert_eq!(h_z.tensor.shape(), &[1, 2], "RNN h_new shape");
+    assert_eq!(
+        h_z.tensor.as_slice(),
+        &[0.0_f64, 0.0],
+        "RNN zero-input → zero h_new"
+    );
+
+    // x=[1,2], h=0, all-ones W_ih → pre = [1+2, 1+2] = [3,3]; h_new = tanh(3).
+    let x = Var::new(Tensor::from_slice_on([1, 2], &[1.0, 2.0], backend), false);
+    let h_new = cell.step(&x, &h0);
+    let t3 = 3.0_f64.tanh();
+    let got = h_new.tensor.as_slice();
+    assert!(
+        (got[0] - t3).abs() <= 1e-12 && (got[1] - t3).abs() <= 1e-12,
+        "RNN tanh: got {got:?}, expected [{t3}, {t3}]"
+    );
+
+    // Relu nonlinearity: pre=[3,3] → relu(3)=3 exactly.
+    let cell_relu = RNNCell::<f64, B>::new(2, 2, RnnNonlinearity::Relu);
+    let h_relu = cell_relu.step(&x, &h0);
+    assert_eq!(
+        h_relu.tensor.as_slice(),
+        &[3.0_f64, 3.0],
+        "RNN relu: pre=3 → relu(3)=3"
+    );
+
+    // Module::forward (h_0 = zeros) == step with h=zeros.
+    let h_mod = Module::<f64, B>::forward(&cell, &x);
+    assert_eq!(
+        h_mod.tensor.as_slice(),
+        h_new.tensor.as_slice(),
+        "RNN Module::forward == step with h=zeros"
+    );
 }
 
 #[test]
