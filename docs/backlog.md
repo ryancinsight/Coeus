@@ -22,6 +22,22 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-192: MaxPool2d benchmark matrix expansion [COMPLETE]
+
+- [x] [patch] Added a Burn-vs-Coeus forward benchmark row for MaxPool2d in
+  `coeus-nn/benches/nn_bench.rs` on `[8,16,32,32]` with `k=2`, `s=2`,
+  comparing Burn NdArray, Coeus `SequentialBackend`, and Coeus
+  `MoiraiBackend`.
+- [x] [patch] Registered the MaxPool2d row in the Criterion benchmark group so
+  it executes with the existing NN benchmark matrix.
+- [x] [patch] Updated `docs/gap_audit.md` selected-row detail for G-043 and
+  added a changelog entry for the new benchmark row.
+- [x] Evidence tier: empirical benchmark harness; `cargo check -p coeus-nn
+  --all-targets`; `cargo clippy -p coeus-nn --all-targets -- -D warnings`;
+  `cargo bench -p coeus-nn --bench nn_bench --no-run`; `cargo bench -p
+  coeus-nn --bench nn_bench -- MaxPool2d --warm-up-time 1 --measurement-time 2
+  --sample-size 10`.
+
 ## Sprint MS-191: BatchNorm3d benchmark matrix expansion [COMPLETE]
 
 - [x] [patch] Added a Burn-vs-Coeus forward benchmark row for BatchNorm3d eval
