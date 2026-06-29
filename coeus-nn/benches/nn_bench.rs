@@ -20,7 +20,7 @@ use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
     BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d, Embedding, GroupNorm,
-    LayerNorm, Linear, Module, MultiHeadAttention, NullMask, TransformerEncoderLayer,
+    LayerNorm, Linear, MaxPool2d, Module, MultiHeadAttention, NullMask, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -294,6 +294,57 @@ fn bench_groupnorm_forward(c: &mut Criterion) {
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| black_box(gn_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_maxpool2d_forward(c: &mut Criterion) {
+    // MaxPool2d forward on [N=8, C=16, H=32, W=32] with k=2, s=2.
+    const MP_N: usize = 8;
+    const MP_C: usize = 16;
+    const MP_H: usize = 32;
+    const MP_W: usize = 32;
+    const MP_K: usize = 2;
+    const MP_S: usize = 2;
+
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(MP_N * MP_C * MP_H * MP_W))
+        .map(|i| (i as f32 * 0.0025).sin())
+        .collect();
+
+    let x_burn: BurnTensor<BurnB, 4> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [MP_N, MP_C, MP_H, MP_W]),
+        &device,
+    );
+
+    let pool_seq = MaxPool2d::<f32, SequentialBackend>::with_params(MP_K, MP_S, 0, 1);
+    let pool_moirai = MaxPool2d::<f32, MoiraiBackend>::with_params(MP_K, MP_S, 0, 1);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![MP_N, MP_C, MP_H, MP_W], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![MP_N, MP_C, MP_H, MP_W], &input_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — MaxPool2d forward (8x16x32x32, k2 s2)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| {
+            black_box(burn::tensor::module::max_pool2d(
+                black_box(x_burn.clone()),
+                [MP_K, MP_K],
+                [MP_S, MP_S],
+                [0, 0],
+                [1, 1],
+            ))
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
     });
     group.finish();
 }
@@ -655,6 +706,7 @@ criterion_group!(
     bench_batchnorm2d_eval_forward,
     bench_batchnorm3d_eval_forward,
     bench_groupnorm_forward,
+    bench_maxpool2d_forward,
     bench_conv1d_forward,
     bench_conv2d_forward,
     bench_conv3d_forward,
