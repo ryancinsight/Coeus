@@ -17,9 +17,9 @@ weight), matching pycoeus' ``[out_features, in_features]`` storage; weights
 are copied directly without transposition.
 """
 
+import math
 import os
 import sys
-import math
 
 import pytest
 
@@ -141,17 +141,83 @@ def test_mha_matches_jax() -> None:
     d_model, num_heads, batch, seq = 4, 2, 1, 3
     d_head = d_model // num_heads
 
-    wq = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8,
-          0.9, 1.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-    wk = [0.2, 0.1, 0.4, 0.3, 0.6, 0.5, 0.8, 0.7,
-          0.1, 0.9, 0.2, 0.8, 0.3, 0.7, 0.4, 0.6]
-    wv = [0.3, 0.3, 0.3, 0.3, 0.7, 0.7, 0.7, 0.7,
-          0.4, 0.4, 0.4, 0.4, 0.8, 0.8, 0.8, 0.8]
-    wo = [1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-          0.5, 0.5, 0.5, 0.5, 0.1, 0.2, 0.3, 0.4]
+    wq = [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.7,
+        0.8,
+        0.9,
+        1.0,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+    ]
+    wk = [
+        0.2,
+        0.1,
+        0.4,
+        0.3,
+        0.6,
+        0.5,
+        0.8,
+        0.7,
+        0.1,
+        0.9,
+        0.2,
+        0.8,
+        0.3,
+        0.7,
+        0.4,
+        0.6,
+    ]
+    wv = [
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.7,
+        0.7,
+        0.7,
+        0.7,
+        0.4,
+        0.4,
+        0.4,
+        0.4,
+        0.8,
+        0.8,
+        0.8,
+        0.8,
+    ]
+    wo = [
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        1.0,
+        0.0,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+    ]
     x_data = [0.1 * i - 0.3 for i in range(batch * seq * d_model)]
 
-    mha_pyc = pycoeus.MultiHeadAttention(d_model=d_model, num_heads=num_heads, bias=False)
+    mha_pyc = pycoeus.MultiHeadAttention(
+        d_model=d_model, num_heads=num_heads, bias=False
+    )
     mha_pyc.w_q.data = wq
     mha_pyc.w_k.data = wk
     mha_pyc.w_v.data = wv
@@ -224,7 +290,9 @@ def test_transformer_decoder_layer_matches_jax() -> None:
     batch, seq_tgt, seq_src = 1, 3, 5
     _ATOL_DEC = 2e-4
 
-    dec = pycoeus.TransformerDecoderLayer(d_model=d_model, d_ff=d_ff, num_heads=num_heads)
+    dec = pycoeus.TransformerDecoderLayer(
+        d_model=d_model, d_ff=d_ff, num_heads=num_heads
+    )
 
     tgt_data = [0.1 * i - 0.3 for i in range(batch * seq_tgt * d_model)]
     mem_data = [0.05 * i for i in range(batch * seq_src * d_model)]
@@ -235,14 +303,30 @@ def test_transformer_decoder_layer_matches_jax() -> None:
     tgt = jnp.asarray(tgt_data, dtype=jnp.float64).reshape(batch, seq_tgt, d_model)
     memory = jnp.asarray(mem_data, dtype=jnp.float64).reshape(batch, seq_src, d_model)
 
-    sa_wq = jnp.asarray(list(dec.self_attn.w_q.data), dtype=jnp.float64).reshape(d_model, d_model)
-    sa_wk = jnp.asarray(list(dec.self_attn.w_k.data), dtype=jnp.float64).reshape(d_model, d_model)
-    sa_wv = jnp.asarray(list(dec.self_attn.w_v.data), dtype=jnp.float64).reshape(d_model, d_model)
-    sa_wo = jnp.asarray(list(dec.self_attn.w_o.data), dtype=jnp.float64).reshape(d_model, d_model)
-    ca_wq = jnp.asarray(list(dec.cross_attn.w_q.data), dtype=jnp.float64).reshape(d_model, d_model)
-    ca_wk = jnp.asarray(list(dec.cross_attn.w_k.data), dtype=jnp.float64).reshape(d_model, d_model)
-    ca_wv = jnp.asarray(list(dec.cross_attn.w_v.data), dtype=jnp.float64).reshape(d_model, d_model)
-    ca_wo = jnp.asarray(list(dec.cross_attn.w_o.data), dtype=jnp.float64).reshape(d_model, d_model)
+    sa_wq = jnp.asarray(list(dec.self_attn.w_q.data), dtype=jnp.float64).reshape(
+        d_model, d_model
+    )
+    sa_wk = jnp.asarray(list(dec.self_attn.w_k.data), dtype=jnp.float64).reshape(
+        d_model, d_model
+    )
+    sa_wv = jnp.asarray(list(dec.self_attn.w_v.data), dtype=jnp.float64).reshape(
+        d_model, d_model
+    )
+    sa_wo = jnp.asarray(list(dec.self_attn.w_o.data), dtype=jnp.float64).reshape(
+        d_model, d_model
+    )
+    ca_wq = jnp.asarray(list(dec.cross_attn.w_q.data), dtype=jnp.float64).reshape(
+        d_model, d_model
+    )
+    ca_wk = jnp.asarray(list(dec.cross_attn.w_k.data), dtype=jnp.float64).reshape(
+        d_model, d_model
+    )
+    ca_wv = jnp.asarray(list(dec.cross_attn.w_v.data), dtype=jnp.float64).reshape(
+        d_model, d_model
+    )
+    ca_wo = jnp.asarray(list(dec.cross_attn.w_o.data), dtype=jnp.float64).reshape(
+        d_model, d_model
+    )
 
     n1_g = jnp.asarray(list(dec.norm1.weight.data), dtype=jnp.float64)
     n1_b = jnp.asarray(list(dec.norm1.bias.data), dtype=jnp.float64)
@@ -251,20 +335,31 @@ def test_transformer_decoder_layer_matches_jax() -> None:
     n3_g = jnp.asarray(list(dec.norm3.weight.data), dtype=jnp.float64)
     n3_b = jnp.asarray(list(dec.norm3.bias.data), dtype=jnp.float64)
 
-    ff1_w = jnp.asarray(list(dec.ffn.linear1.weight.data), dtype=jnp.float64).reshape(d_ff, d_model)
+    ff1_w = jnp.asarray(list(dec.ffn.linear1.weight.data), dtype=jnp.float64).reshape(
+        d_ff, d_model
+    )
     ff1_b = jnp.asarray(list(dec.ffn.linear1.bias.data), dtype=jnp.float64)
-    ff2_w = jnp.asarray(list(dec.ffn.linear2.weight.data), dtype=jnp.float64).reshape(d_model, d_ff)
+    ff2_w = jnp.asarray(list(dec.ffn.linear2.weight.data), dtype=jnp.float64).reshape(
+        d_model, d_ff
+    )
     ff2_b = jnp.asarray(list(dec.ffn.linear2.bias.data), dtype=jnp.float64)
 
     n1 = _jax_layer_norm(tgt, n1_g, n1_b, eps=1e-5)
     x1 = tgt + _jax_mha_forward(n1, n1, n1, sa_wq, sa_wk, sa_wv, sa_wo, num_heads)
     n2 = _jax_layer_norm(x1, n2_g, n2_b, eps=1e-5)
-    x2 = x1 + _jax_mha_forward(n2, memory, memory, ca_wq, ca_wk, ca_wv, ca_wo, num_heads)
+    x2 = x1 + _jax_mha_forward(
+        n2, memory, memory, ca_wq, ca_wk, ca_wv, ca_wo, num_heads
+    )
     n3 = _jax_layer_norm(x2, n3_g, n3_b, eps=1e-5)
     ff = jax.nn.gelu(n3 @ ff1_w.T + ff1_b)
     out_jax = x2 + (ff @ ff2_w.T + ff2_b)
 
-    _allclose("decoder_layer_fwd", list(out_pyc.data), out_jax.flatten().tolist(), atol=_ATOL_DEC)
+    _allclose(
+        "decoder_layer_fwd",
+        list(out_pyc.data),
+        out_jax.flatten().tolist(),
+        atol=_ATOL_DEC,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -299,7 +394,9 @@ _ACT_INPUT_NO_ZERO = [-2.0, -0.5, 0.3, 1.5, 3.0]
 
 
 def test_silu_matches_jax() -> None:
-    _assert_activation_matches_jax("silu", lambda x: pycoeus.silu(x), jax.nn.silu, _ACT_INPUT)
+    _assert_activation_matches_jax(
+        "silu", lambda x: pycoeus.silu(x), jax.nn.silu, _ACT_INPUT
+    )
 
 
 def test_log_sigmoid_matches_jax() -> None:
@@ -318,11 +415,15 @@ def test_tanhshrink_matches_jax() -> None:
 
 
 def test_mish_matches_jax() -> None:
-    _assert_activation_matches_jax("mish", lambda x: pycoeus.mish(x), jax.nn.mish, _ACT_INPUT)
+    _assert_activation_matches_jax(
+        "mish", lambda x: pycoeus.mish(x), jax.nn.mish, _ACT_INPUT
+    )
 
 
 def test_elu_matches_jax() -> None:
-    _assert_activation_matches_jax("elu", lambda x: pycoeus.elu(x), jax.nn.elu, _ACT_INPUT)
+    _assert_activation_matches_jax(
+        "elu", lambda x: pycoeus.elu(x), jax.nn.elu, _ACT_INPUT
+    )
 
 
 def test_softplus_matches_jax() -> None:
@@ -341,6 +442,30 @@ def test_leaky_relu_matches_jax() -> None:
     )
 
 
+def test_prelu_matches_jax() -> None:
+    """PReLU forward + input-gradient parity vs JAX.
+
+    PReLU contract: y = x if x > 0 else alpha * x; dx = 1 if x > 0 else alpha.
+    Includes x = 0.0 to exercise the kink: Coeus and JAX both return alpha
+    there (gradient convention matches PyTorch, since both PyTorch and JAX
+    evaluate the negative-side branch at x = 0).
+    """
+    alpha = 0.25
+    data = [-2.0, -1.0, 0.0, 0.5, 1.0]
+
+    x_pyc = pycoeus.Tensor(data, [len(data)], requires_grad=True)
+    out_pyc = pycoeus.prelu(x_pyc, alpha)
+    out_pyc.sum().backward()
+
+    x_jax = jnp.array(data, dtype=jnp.float64)
+    jax_prelu = lambda z: jnp.where(z > 0.0, z, alpha * z)
+    out_jax = jax_prelu(x_jax)
+    grad_jax = jax.grad(lambda z: jnp.sum(jax_prelu(z)))(x_jax)
+
+    _allclose("prelu_out", list(out_pyc.data), list(out_jax))
+    _allclose("prelu_dx", list(x_pyc.grad), list(grad_jax))
+
+
 def test_relu_matches_jax() -> None:
     # ReLU kink at 0 -> exclude 0.0 (subgradient convention).
     _assert_activation_matches_jax(
@@ -355,7 +480,9 @@ def test_sigmoid_matches_jax() -> None:
 
 
 def test_tanh_matches_jax() -> None:
-    _assert_activation_matches_jax("tanh", lambda x: pycoeus.tanh(x), jnp.tanh, _ACT_INPUT)
+    _assert_activation_matches_jax(
+        "tanh", lambda x: pycoeus.tanh(x), jnp.tanh, _ACT_INPUT
+    )
 
 
 def test_gelu_matches_jax() -> None:
@@ -497,7 +624,9 @@ def test_rmsnorm_matches_jax() -> None:
     x_jax = jnp.array(_NORM_DATA, dtype=jnp.float64).reshape(2, 4)
     g_jax = jnp.array(_NORM_GAMMA, dtype=jnp.float64)
     out_jax = _jax_rms(x_jax, g_jax)
-    gx, gg = jax.grad(lambda z, g: jnp.sum(_jax_rms(z, g)), argnums=(0, 1))(x_jax, g_jax)
+    gx, gg = jax.grad(lambda z, g: jnp.sum(_jax_rms(z, g)), argnums=(0, 1))(
+        x_jax, g_jax
+    )
 
     _allclose("rms_out", list(out_pyc.data), out_jax.flatten().tolist())
     _allclose("rms_dx", list(x_pyc.grad), gx.flatten().tolist())
@@ -585,8 +714,12 @@ def test_kl_divergence_matches_jax() -> None:
     contributing 0 (the JAX reference masks them so ``0 * log 0`` is not a NaN).
     """
     log_probs = [
-        math.log(0.7), math.log(0.2), math.log(0.1),
-        math.log(0.3), math.log(0.6), math.log(0.1),
+        math.log(0.7),
+        math.log(0.2),
+        math.log(0.1),
+        math.log(0.3),
+        math.log(0.6),
+        math.log(0.1),
     ]
     target = [0.6, 0.2, 0.2, 0.0, 0.3, 0.7]
 
@@ -603,7 +736,9 @@ def test_kl_divergence_matches_jax() -> None:
 
     i_jax = jnp.array(log_probs, dtype=jnp.float64).reshape(2, 3)
     _allclose("kl_loss", list(loss_pyc.data), [float(_jax_kl(i_jax))])
-    _allclose("kl_dinput", list(i_pyc.grad), jax.grad(_jax_kl)(i_jax).flatten().tolist())
+    _allclose(
+        "kl_dinput", list(i_pyc.grad), jax.grad(_jax_kl)(i_jax).flatten().tolist()
+    )
 
 
 def test_margin_ranking_loss_matches_jax() -> None:
@@ -649,7 +784,9 @@ def test_embedding_matches_jax() -> None:
 
     emb = pycoeus.Embedding(num_embeddings, embedding_dim)
     emb.weight.data = weight
-    idx_pyc = pycoeus.Tensor([float(i) for i in indices], [len(indices)], requires_grad=False)
+    idx_pyc = pycoeus.Tensor(
+        [float(i) for i in indices], [len(indices)], requires_grad=False
+    )
     out_pyc = emb.forward(idx_pyc)
     out_pyc.sum().backward()
 
@@ -660,7 +797,11 @@ def test_embedding_matches_jax() -> None:
         return jnp.sum(w[idx_jax])
 
     _allclose("emb_out", list(out_pyc.data), w_jax[idx_jax].flatten().tolist())
-    _allclose("emb_dweight", list(emb.weight.grad), jax.grad(_jax_emb)(w_jax).flatten().tolist())
+    _allclose(
+        "emb_dweight",
+        list(emb.weight.grad),
+        jax.grad(_jax_emb)(w_jax).flatten().tolist(),
+    )
 
 
 def test_groupnorm_matches_jax() -> None:
@@ -690,9 +831,9 @@ def test_groupnorm_matches_jax() -> None:
     ga_jax = jnp.array(gamma, dtype=jnp.float64)
     be_jax = jnp.array(beta, dtype=jnp.float64)
     out_jax = _jax_gn(x_jax, ga_jax, be_jax)
-    gx, gg, gb = jax.grad(lambda z, ga, be: jnp.sum(_jax_gn(z, ga, be)), argnums=(0, 1, 2))(
-        x_jax, ga_jax, be_jax
-    )
+    gx, gg, gb = jax.grad(
+        lambda z, ga, be: jnp.sum(_jax_gn(z, ga, be)), argnums=(0, 1, 2)
+    )(x_jax, ga_jax, be_jax)
 
     _allclose("gn_out", list(out_pyc.data), out_jax.flatten().tolist())
     _allclose("gn_dx", list(x_pyc.grad), gx.flatten().tolist())
@@ -737,7 +878,9 @@ def test_bce_with_logits_matches_jax() -> None:
     _jax_loss_parity(
         "bce_with_logits",
         lambda a, b: pycoeus.bce_with_logits(a, b),
-        lambda z, y: jnp.mean(jnp.maximum(z, 0.0) - z * y + jnp.log1p(jnp.exp(-jnp.abs(z)))),
+        lambda z, y: jnp.mean(
+            jnp.maximum(z, 0.0) - z * y + jnp.log1p(jnp.exp(-jnp.abs(z)))
+        ),
         [0.5, -1.2, 0.3, 2.0],
         [1.0, 0.0, 1.0, 0.0],
         (4,),
@@ -844,7 +987,12 @@ def test_adaptive_avg_pool2d_global_matches_jax() -> None:
     x_j = jnp.asarray(data, dtype=jnp.float64).reshape(n, c, h, w)
     y_j = jnp.mean(x_j, axis=(-2, -1), keepdims=True)
 
-    _allclose("adaptive_avg_pool2d_global_jax", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "adaptive_avg_pool2d_global_jax",
+        list(y_pyc.data),
+        y_j.flatten().tolist(),
+        atol=1e-10,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1012,7 +1160,9 @@ def test_adaptive_avg_pool_matches_jax() -> None:
     d2 = [math.cos(i * 0.07) for i in range(n * c * h * w)]
     x2p = pycoeus.Tensor(d2, [n, c, h, w], requires_grad=True)
     y2 = pycoeus.AdaptiveAvgPool2d(oh, ow).forward(x2p)
-    pycoeus.mse_loss(y2, pycoeus.Tensor([0.2] * (n * c * oh * ow), [n, c, oh, ow])).backward()
+    pycoeus.mse_loss(
+        y2, pycoeus.Tensor([0.2] * (n * c * oh * ow), [n, c, oh, ow])
+    ).backward()
 
     ph, pw = _avg_pool_matrix(h, oh), _avg_pool_matrix(w, ow)
     x2j = jnp.asarray(d2, dtype=jnp.float64).reshape(n, c, h, w)
@@ -1047,7 +1197,9 @@ def test_adaptive_max_pool_matches_jax() -> None:
 
     def fwd1(x):
         cols = [
-            jnp.max(x[:, :, o * length // out : ceil_div((o + 1) * length, out)], axis=2)
+            jnp.max(
+                x[:, :, o * length // out : ceil_div((o + 1) * length, out)], axis=2
+            )
             for o in range(out)
         ]
         return jnp.stack(cols, axis=2)
@@ -1061,7 +1213,9 @@ def test_adaptive_max_pool_matches_jax() -> None:
     d2 = [((i * 13) % 211) * 0.07 for i in range(n * c * h * w)]
     x2p = pycoeus.Tensor(d2, [n, c, h, w], requires_grad=True)
     y2 = pycoeus.AdaptiveMaxPool2d(oh, ow).forward(x2p)
-    pycoeus.mse_loss(y2, pycoeus.Tensor([0.5] * (n * c * oh * ow), [n, c, oh, ow])).backward()
+    pycoeus.mse_loss(
+        y2, pycoeus.Tensor([0.5] * (n * c * oh * ow), [n, c, oh, ow])
+    ).backward()
 
     x2j = jnp.asarray(d2, dtype=jnp.float64).reshape(n, c, h, w)
     tgt2 = jnp.full((n, c, oh, ow), 0.5, dtype=jnp.float64)

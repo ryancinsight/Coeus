@@ -100,9 +100,14 @@ macro_rules! impl_cpu_unary_dispatch_float {
                             slope * x
                         }
                     }
+                    // PReLU / LeakyReLU gradient oracle: dx = 1 if x > 0 else slope.
+                    // Matches PyTorch's `F.prelu` / `F.leaky_relu` contract which
+                    // returns `slope` (not 1) at the kink position x = 0. The
+                    // forward's `x >= 0 ? x : slope*x` is unaffected (both predicates
+                    // yield 0 at x = 0); only the gradient predicate is tightened.
                     CpuUnaryOp::LeakyReluGrad(slope_bits) => {
                         let slope = Self::from_f64(f64::from_bits(slope_bits));
-                        if x >= Self::zero() {
+                        if x > Self::zero() {
                             Self::one()
                         } else {
                             slope

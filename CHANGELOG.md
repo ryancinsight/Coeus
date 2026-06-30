@@ -15,6 +15,20 @@
   (PR #112 = `d1ad9d2`; mirrors the AdaptiveAvgPool PyO3 pattern from
   PR #109/MS-213). ([patch])
 
+- **PReLU/LeakyReLU subgradient parity fixing G-037 (MS-217)** — coerce the
+  shared `CpuUnaryOp::LeakyReluGrad` and `LeakyReluGradTag::apply`
+  predicates from `x >= 0 ? 1 : α` to `x > 0 ? 1 : α` so the derivative at
+  `x = 0` is `α`, matching `torch.nn.functional.prelu` and `F.leaky_relu`.
+  The forward expression `x >= 0 ? x : α·x` is unchanged (mathematically
+  identical at the kink); the gradient is the only oracle tightened.
+  Closes `test_prelu_matches_pytorch` and the new
+  `test_prelu_matches_jax` parity cases without affecting any other
+  activation. Also includes `act_extended_tests.rs::prelu_grad_expected`
+  oracle correction (the predicate `x >= 0 ? 1 : α` was previously tested
+  against a non-PyTorch contract) and a new Rust value-semantic test
+  `leaky_relu_kink_at_zero_returns_slope` covering the same kink on
+  LeakyReLU. ([patch])
+
 ### Changed
 
 - **G-036: GPU backend pool1d stubs** — added `max_pool1d` / `avg_pool1d`

@@ -533,6 +533,6 @@ Evidence tier: differential/empirical (PyTorch f64).
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |
 | `test_hardswish_matches_pytorch` PyTorch differential parity | differential | **open** — pre-existing, MS-214 wide sweep excludes (hardswish backward routing) |
 | `test_hardsigmoid_matches_pytorch` PyTorch differential parity | differential | **open** — pre-existing, MS-214 wide sweep excludes |
-| `test_prelu_matches_pytorch` PyTorch differential parity | differential | **open** — pre-existing, MS-214 wide sweep excludes (PReLU backward routing) |
+| `test_prelu_matches_pytorch` PyTorch differential parity | differential | **closed MS-217** — tightened shared `LeakyReluGrad` predicate from `x >= 0 ? 1 : α` to `x > 0 ? 1 : α` across `coeus-core` (float + int) and the `LeakyReluGradTag` fuse path; corrected the `act_extended_tests.rs` oracle + `nn_activation_tests.rs::test_leaky_relu_activation` expected gradient; added `test_prelu_matches_jax` and `leaky_relu_kink_at_zero_returns_slope`. Three-way Rust ↔ PyTorch ↔ JAX parity at the kink position. |
 | `test_tcp_scatter_zero_numel_mismatched_target_numel_panics` slow | empirical | **open** — exceeded 30 s slow threshold (45.4 s) during MS-215; deferred optimization to a future `tcp-dispatch` slice |
 | `coeus-cuda` clippy errors under `--all-features` | lint | **pre-existing peer crate dependency** — not addressed in MS-215 (out of coeus scope) |

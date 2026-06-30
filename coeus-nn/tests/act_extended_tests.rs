@@ -377,10 +377,16 @@ fn celu_forward_and_backward() {
     assert_close_slice("celu_backward", grad.as_slice(), &expected_grad, 1e-12);
 }
 
-// ── PReLU ────────────────────────────────────────────────────────────────
+// ── PReLU ────────────────────────────────────────────────────────────────────
+//
+// PReLU/PyTorch contract: y = x if x > 0 else α · x; dx = 1 if x > 0 else α.
+// At the kink position x = 0 the gradient equals α, matching PyTorch's
+// `F.prelu` semantics (verified empirically: PReLU(0.0).backward() -> 0.25 for
+// α = 0.25). The same convention applies to LeakyReLU since both share
+// the underlying negative-slope contract in PyTorch.
 
 fn prelu_expected(x: f64, alpha: f64) -> f64 {
-    if x >= 0.0 {
+    if x > 0.0 {
         x
     } else {
         alpha * x
@@ -388,7 +394,7 @@ fn prelu_expected(x: f64, alpha: f64) -> f64 {
 }
 
 fn prelu_grad_expected(x: f64, alpha: f64) -> f64 {
-    if x >= 0.0 {
+    if x > 0.0 {
         1.0
     } else {
         alpha
@@ -398,6 +404,8 @@ fn prelu_grad_expected(x: f64, alpha: f64) -> f64 {
 #[test]
 fn prelu_forward_and_backward() {
     let alpha = 0.25_f64;
+    // x = 0.0 is included to exercise the kink position.  Under Coeus'
+    // PReLU contract the gradient at x = 0 is α (matches PyTorch).
     let data = vec![-2.0_f64, -1.0, 0.0, 0.5, 1.0];
     let expected: Vec<f64> = data.iter().map(|&x| prelu_expected(x, alpha)).collect();
     let expected_grad: Vec<f64> = data
@@ -414,6 +422,33 @@ fn prelu_forward_and_backward() {
     output.backward();
     let grad = input.grad().expect("prelu requires grad");
     assert_close_slice("prelu_backward", grad.as_slice(), &expected_grad, 1e-12);
+}
+
+// ── LeakyReLU subgradient at x = 0 (documented contract parity vs PyTorch) ──
+
+#[test]
+fn leaky_relu_kink_at_zero_returns_slope() {
+    // PyTorch's `F.leaky_relu(x, 0.01)` returns gradient α at x = 0.
+    // Coeus' `leaky_relu` (the same LeakyReluGradTag the autograd PreluNode
+    // reuses) must agree at the kink. Both ops therefore share the
+    // `x > 0 ? 1 : α` predicate rather than `x >= 0`.
+    let data = vec![0.0_f64];
+    let slope = 0.01_f64;
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        true,
+    );
+    let output = coeus_nn::leaky_relu(&input, slope);
+    assert_close_slice(
+        "leaky_relu_kink_out",
+        output.tensor.as_slice(),
+        &data,
+        1e-12,
+    );
+    output.backward();
+    let grad = input.grad().expect("leaky_relu requires grad");
+    let expected_grad = vec![slope];
+    assert_close_slice("leaky_relu_kink_dx", grad.as_slice(), &expected_grad, 1e-12);
 }
 
 // ── Module-level forward smoke tests (no parameters) ────────────────────

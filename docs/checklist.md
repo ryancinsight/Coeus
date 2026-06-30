@@ -2,6 +2,27 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
+### Current Sprint: MS-217 - PReLU / LeakyReLU subgradient parity (G-037 closure) [COMPLETE]
+- [x] [patch] Coerced the single canonical `LeakyReluGrad` predicate from
+  `x >= 0 ? 1 : α` to `x > 0 ? 1 : α` across `coeus-core` (float + int),
+  `coeus-ops` (fuse tag), the Rust value-semantic `act_extended_tests.rs`
+  oracle, and `coeus-nn/tests/nn_activation_tests.rs::test_leaky_relu_activation`.
+  Matches `torch.nn.functional.prelu` / `F.leaky_relu.neg_slope` and
+  JAX's `jnp.where(z > 0, z, alpha * z)`; closes
+  `test_prelu_matches_pytorch` without any other activation regression.
+- [x] [patch] Added new value-semantic Rust test
+  `leaky_relu_kink_at_zero_returns_slope` and JAX parity test
+  `test_prelu_matches_jax` covering the `x = 0` kink position across
+  three frameworks (Rust core ↔ PyTorch ↔ JAX).
+- [x] Evidence: `rustup run nightly cargo clippy --workspace --all-targets -- -D warnings`
+  green in 30 s; `rustup run nightly cargo nextest run -p coeus-nn --no-fail-fast`
+  386/386 green; pytest PyTorch parity file 73 passed (+2 deselected for the
+  pre-existing hardswish/hardsigmoid gaps logged in `docs/gap_audit.md`);
+  pytest JAX parity file 40/40.
+- [x] Closed the remaining PReLU differential within G-037; only the
+  PReLU torch.hardswish / hardsigmoid subgradient gaps remain (separate
+  pre-existing items).
+
 ### Current Sprint: MS-216 - AdaptiveMaxPool PyO3 binding (G-046 closure, superseded by PR #112) [COMPLETE]
 - [x] [patch] `PyAdaptiveMaxPool1d` + `PyAdaptiveMaxPool2d` thin PyO3 wrappers
   merged via peer PR #112 (`d1ad9d2`): `feat(python): AdaptiveMaxPool1d/2d

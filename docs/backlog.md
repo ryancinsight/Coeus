@@ -22,6 +22,34 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-217: PReLU/LeakyReLU subgradient parity (G-037 closure) [COMPLETE]
+
+- [x] [patch] Coerced `CpuUnaryOp::LeakyReluGrad` (`coeus-core/src/dtype/float/cpu_unary.rs`)
+  and its `CpuUnaryOp` int mirror (`coeus-core/src/dtype/int.rs`) plus
+  `LeakyReluGradTag::apply` (`coeus-ops/src/fuse/op_tags/leaky_relu.rs`)
+  to a single, canonical `x > 0 ? 1 : α` predicate so the derivative
+  at `x = 0` equals `α` (matches PyTorch / JAX; closed the long-standing
+  test_prelu_matches_pytorch delta and the analogous LeakyReLU kink).
+- [x] [patch] Corrected `coeus-nn/tests/act_extended_tests.rs::prelu_grad_expected`
+  oracle (`x >= 0 ? 1 : α` -> `x > 0 ? 1 : α`) and added a paired Rust
+  value-semantic test `leaky_relu_kink_at_zero_returns_slope` covering
+  the kink on LeakyReLU (`x = 0` returns `α` post-`out.backward()`).
+- [x] [patch] Corrected the matching `nn_activation_tests.rs::test_leaky_relu_activation`
+  oracle comment + loop (`x >= 0 ? 1 : slope` -> `x > 0 ? 1 : slope`);
+  input vector still contains `0.0`, expected gradient `_out[2] = 0.0`,
+  expected gradient `_dx[2] = slope = 0.1`.
+- [x] [patch] `coeus-python/tests/test_jax_parity.py::test_prelu_matches_jax`
+  added: in-place JAX reference uses `jnp.where(z > 0.0, z, alpha * z)`
+  for forward and `jax.grad` of summed output for dx; data
+  `[-2.0, -1.0, 0.0, 0.5, 1.0]` includes the kink.
+- [x] Evidence: `rustup run nightly cargo nextest run -p coeus-core /
+  coeus-ops / coeus-nn --no-fail-fast` green (25 + 189 + 386 = 600 tests);
+  pytest `test_prelu_matches_pytorch` (3.97 s) and
+  `test_leaky_relu_matches_pytorch` pass; JAX test_prelu_matches_jax /
+  test_leaky_relu_matches_jax pass; PyTorch parity file 73/73
+  (excludes the two pre-existing hardswish/hardsigmoid gaps).
+- [x] Closed the residual PReLU/LeakyReLU differential within G-037.
+
 ## Sprint MS-216: AdaptiveMaxPool PyO3 binding (G-046 closure, superseded by PR #112) [COMPLETE]
 
 - [x] [patch] `PyAdaptiveMaxPool1d` + `PyAdaptiveMaxPool2d` PyO3 wrappers

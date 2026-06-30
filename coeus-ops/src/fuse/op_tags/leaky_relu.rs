@@ -64,11 +64,18 @@ impl LeakyReluGradTag {
         f64::from_bits(self.slope_bits)
     }
 
-    /// Apply LeakyReLU gradient: `x >= 0 ? 1 : slope`.
+    /// Apply LeakyReLU gradient: `x > 0 ? 1 : slope`.
+    ///
+    /// Matches PyTorch's contract for both `F.leaky_relu` and `F.prelu`:
+    /// the gradient is `slope` at every `x <= 0` (inclusive of the kink
+    /// at zero) and `1` everywhere else. This makes the leaky gradient
+    /// continuous from the left at the kink so downstream reduction
+    /// stability is preserved irrespective of whether a sample lands on
+    /// `x = 0` exactly or merely rounds into it.
     #[inline(always)]
     pub fn apply<T: Scalar>(&self, x: T) -> T {
         let slope = T::from_f64(self.slope());
-        if x >= T::zero() {
+        if x > T::zero() {
             T::one()
         } else {
             slope

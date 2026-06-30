@@ -164,9 +164,13 @@ fn test_leaky_relu_activation() {
     assert!(input.grad().is_some());
     let grad_slice = input.grad().unwrap().as_slice().to_vec();
 
-    // LeakyReLU derivative: x >= 0 ? 1 : slope
+    // LeakyReLU derivative: x > 0 ? 1 : slope
+    // (Coeus contract for both LeakyReLU and PReLU matches PyTorch: slope at
+    // the kink position x = 0, not 1. The forward predicate `x >= 0` still
+    // gives 0 at x = 0; only the gradient predicate is tightened to mirror
+    // PyTorch's `F.leaky_relu(neg_slope)` / `F.prelu` reduce-at-zero regime.)
     for (i, &x) in input_data.iter().enumerate() {
-        let expected_grad = if x >= 0.0 { 1.0 } else { slope };
+        let expected_grad = if x > 0.0 { 1.0 } else { slope };
         assert!((grad_slice[i] - expected_grad).abs() < 1e-7);
     }
 
