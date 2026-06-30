@@ -2581,3 +2581,72 @@ def test_unfold1d_matches_pytorch() -> None:
         y_t.flatten().tolist(),
         atol=1e-10,
     )
+
+
+# ---------------------------------------------------------------------------
+# SwiGLU forward + gradient parity
+# ---------------------------------------------------------------------------
+
+
+def test_swiglu_matches_pytorch() -> None:
+    """Forward + gradient parity: SwiGLU(64→128), no bias, via MSELoss.
+
+    PyTorch has no built-in SwiGLU, so the reference is composed from
+    primitives: ``silu(x @ Wi.T) * (x @ Wo.T)``. Both layers' weights are read
+    from pycoeus and injected into the torch reference so the only difference
+    measured is the implementation, not the initialisation.
+    """
+    d_in, d_out, batch = 64, 128, 32
+
+    sg_pyc = pycoeus.SwiGlu(d_in, d_out, bias=False)
+    wi_data = sg_pyc.linear_inner.weight.data  # [d_out, d_in] flat
+    wo_data = sg_pyc.linear_outer.weight.data  # [d_out, d_in] flat
+
+    x_data = [math.sin(i * 0.013) for i in range(batch * d_in)]
+    tgt_data = [0.5] * (batch * d_out)
+
+    # pycoeus forward + backward
+    x_pyc = pycoeus.Tensor(x_data, [batch, d_in], requires_grad=True)
+    out_pyc = sg_pyc.forward(x_pyc)
+    tgt_pyc = pycoeus.Tensor(tgt_data, [batch, d_out])
+    loss_pyc = pycoeus.mse_loss(out_pyc, tgt_pyc)
+    loss_pyc.backward()
+
+    # PyTorch reference (f64 to match pycoeus default precision)
+    x_t = (
+        torch.tensor(x_data, dtype=torch.float64)
+        .reshape(batch, d_in)
+        .requires_grad_(True)
+    )
+    wi_t = (
+        torch.tensor(wi_data, dtype=torch.float64)
+        .reshape(d_out, d_in)
+        .requires_grad_(True)
+    )
+    wo_t = (
+        torch.tensor(wo_data, dtype=torch.float64)
+        .reshape(d_out, d_in)
+        .requires_grad_(True)
+    )
+    inner_t = torch.nn.functional.linear(x_t, wi_t)
+    outer_t = torch.nn.functional.linear(x_t, wo_t)
+    out_t = torch.nn.functional.silu(inner_t) * outer_t
+    tgt_t = torch.tensor(tgt_data, dtype=torch.float64).reshape(batch, d_out)
+    loss_t = torch.nn.functional.mse_loss(out_t, tgt_t)
+    loss_t.backward()
+
+    _allclose("swiglu_forward", list(out_pyc.data), out_t.detach().flatten().tolist())
+    assert abs(loss_pyc.data[0] - loss_t.item()) < _ATOL, (
+        f"swiglu loss: got={loss_pyc.data[0]:.8g}, expected={loss_t.item():.8g}"
+    )
+    _allclose("swiglu_dx", list(x_pyc.grad), x_t.grad.flatten().tolist())
+    _allclose(
+        "swiglu_dWi",
+        list(sg_pyc.linear_inner.weight.grad),
+        wi_t.grad.flatten().tolist(),
+    )
+    _allclose(
+        "swiglu_dWo",
+        list(sg_pyc.linear_outer.weight.grad),
+        wo_t.grad.flatten().tolist(),
+    )
