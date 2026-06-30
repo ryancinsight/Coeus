@@ -659,3 +659,54 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for PReLU {
         prelu(input, self.alpha)
     }
 }
+
+/// Functional LogSigmoid activation: `log(sigmoid(x)) = -softplus(-x)`.
+///
+/// Uses the numerically stable `-softplus(-x)` identity (avoids `log` of a tiny
+/// sigmoid); matches `torch.nn.functional.logsigmoid`.
+#[inline]
+pub fn log_sigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+) -> Var<T, B> {
+    coeus_autograd::neg(&coeus_autograd::softplus(&coeus_autograd::neg(input)))
+}
+
+/// LogSigmoid activation module.
+#[derive(Clone, Debug, Default)]
+pub struct LogSigmoid;
+
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LogSigmoid {
+    #[inline]
+    fn parameters(&self) -> Vec<Var<T, B>> {
+        vec![]
+    }
+
+    #[inline]
+    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+        log_sigmoid(input)
+    }
+}
+
+/// Functional Tanhshrink activation: `x - tanh(x)`.
+///
+/// Matches `torch.nn.functional.tanhshrink`.
+#[inline]
+pub fn tanhshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
+    coeus_autograd::sub(input, &coeus_autograd::tanh(input))
+}
+
+/// Tanhshrink activation module.
+#[derive(Clone, Debug, Default)]
+pub struct Tanhshrink;
+
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Tanhshrink {
+    #[inline]
+    fn parameters(&self) -> Vec<Var<T, B>> {
+        vec![]
+    }
+
+    #[inline]
+    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+        tanhshrink(input)
+    }
+}
