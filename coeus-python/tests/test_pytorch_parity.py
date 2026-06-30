@@ -2642,6 +2642,83 @@ def test_unfold2d_matches_pytorch() -> None:
     )
 
 
+def test_unfold2d_backward_matches_pytorch() -> None:
+    """Forward + gradient parity vs torch.nn.Unfold (Unfold2d is now
+    differentiable: backward is the fold2d col2im transpose)."""
+    n, c, h, w = 1, 2, 5, 5
+    kernel, stride, padding = 3, 1, 0
+    h_out = (h + 2 * padding - kernel) // stride + 1
+    w_out = (w + 2 * padding - kernel) // stride + 1
+    out_ch, length = c * kernel * kernel, h_out * w_out
+    data = [math.sin(i * 0.1) for i in range(n * c * h * w)]
+
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    y_pyc = pycoeus.Unfold2d(kernel, stride, padding, 1).forward(x_pyc)
+    tgt_pyc = pycoeus.Tensor([0.1] * (n * out_ch * length), [n, out_ch, length])
+    pycoeus.mse_loss(y_pyc, tgt_pyc).backward()
+
+    x_t = (
+        torch.tensor(data, dtype=torch.float64)
+        .reshape(n, c, h, w)
+        .requires_grad_(True)
+    )
+    y_t = torch.nn.Unfold(kernel_size=kernel, stride=stride, padding=padding)(x_t)
+    tgt_t = torch.full((n, out_ch, length), 0.1, dtype=torch.float64)
+    torch.nn.functional.mse_loss(y_t, tgt_t).backward()
+
+    _allclose("unfold2d_forward", list(y_pyc.data), y_t.detach().flatten().tolist())
+    _allclose("unfold2d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist())
+
+
+def test_fold2d_backward_matches_pytorch() -> None:
+    """Forward + gradient parity vs torch.nn.Fold (Fold2d is differentiable:
+    backward is the unfold2d im2col adjoint)."""
+    n, c = 1, 2
+    oh, ow = 5, 5
+    kernel, stride, padding = 3, 1, 0
+    h_out = (oh + 2 * padding - kernel) // stride + 1
+    length = h_out * h_out
+    in_ch = c * kernel * kernel
+    data = [math.sin(i * 0.1) for i in range(n * in_ch * length)]
+
+    x_pyc = pycoeus.Tensor(data, [n, in_ch, length], requires_grad=True)
+    y_pyc = pycoeus.Fold2d(oh, ow, kernel, stride, padding, 1).forward(x_pyc)
+    tgt_pyc = pycoeus.Tensor([0.1] * (n * c * oh * ow), [n, c, oh, ow])
+    pycoeus.mse_loss(y_pyc, tgt_pyc).backward()
+
+    x_t = (
+        torch.tensor(data, dtype=torch.float64)
+        .reshape(n, in_ch, length)
+        .requires_grad_(True)
+    )
+    y_t = torch.nn.Fold(
+        output_size=(oh, ow), kernel_size=kernel, stride=stride, padding=padding
+    )(x_t)
+    tgt_t = torch.full((n, c, oh, ow), 0.1, dtype=torch.float64)
+    torch.nn.functional.mse_loss(y_t, tgt_t).backward()
+
+    _allclose("fold2d_forward", list(y_pyc.data), y_t.detach().flatten().tolist())
+    _allclose("fold2d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist())
+
+
+def test_fold1d_forward_and_backward() -> None:
+    """Fold1d binding smoke test: torch has no 1D Fold, so this verifies the
+    newly-bound layer reconstructs the non-overlapping tiling and propagates a
+    gradient, matching the Rust analytic test."""
+    # output_size=6, kernel=2, stride=2 (non-overlapping); input [1, C*k=2, blocks=3].
+    m = pycoeus.Fold1d(6, 2, 2, 0, 1)
+    data = [float(i + 1) for i in range(6)]
+    x = pycoeus.Tensor(data, [1, 2, 3], requires_grad=True)
+    y = m.forward(x)
+    # Non-overlapping fold reorders the 6 input values into [1, 1, 6].
+    assert sorted(list(y.data)) == sorted(data)
+    pycoeus.mse_loss(y, pycoeus.Tensor([0.0] * 6, [1, 1, 6])).backward()
+    grad = list(x.grad)
+    assert len(grad) == 6
+    assert all(math.isfinite(g) for g in grad)
+    assert any(abs(g) > 1e-12 for g in grad), "Fold1d gradient is all-zero"
+
+
 # ---------------------------------------------------------------------------
 # Unfold1d parity (MS-214)
 # ---------------------------------------------------------------------------

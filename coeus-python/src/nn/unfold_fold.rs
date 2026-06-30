@@ -233,3 +233,74 @@ impl PyUnfold1d {
     /// Zero gradients (no-op — Unfold1d has no parameters).
     pub fn zero_grad(&self) {}
 }
+
+/// Python-exposed Fold1d (col2im) layer — the 1D inverse of Unfold1d.
+///
+/// Accumulates `[N, C*kernel_size, L_out]` back into `[N, C, output_size]`,
+/// summing overlapping contributions. Differentiable (backward is unfold1d).
+#[pyclass(name = "Fold1d")]
+pub struct PyFold1d {
+    /// Target output length.
+    #[pyo3(get)]
+    pub output_size: usize,
+    /// Sliding window length.
+    #[pyo3(get)]
+    pub kernel_size: usize,
+    /// Window stride.
+    #[pyo3(get)]
+    pub stride: usize,
+    /// Zero-padding on each side.
+    #[pyo3(get)]
+    pub padding: usize,
+    /// Dilation factor.
+    #[pyo3(get)]
+    pub dilation: usize,
+}
+
+#[pymethods]
+impl PyFold1d {
+    #[new]
+    #[pyo3(signature = (output_size, kernel_size, stride = 1, padding = 0, dilation = 1))]
+    /// Create a `Fold1d` layer.
+    pub fn new(
+        output_size: usize,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+    ) -> Self {
+        Self {
+            output_size,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        }
+    }
+
+    /// Forward pass: `[N, C*kernel_size, L_out]` → `[N, C, output_size]`.
+    pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+        use coeus_nn::Module;
+        let input_var = input.inner.clone();
+        let (os, k, s, p, d) = (
+            self.output_size,
+            self.kernel_size,
+            self.stride,
+            self.padding,
+            self.dilation,
+        );
+        let m = coeus_nn::Fold1d::<f64, coeus_core::MoiraiBackend>::new(os, k, s, p, d);
+        let inner = py.allow_threads(move || m.forward(&input_var));
+        Ok(PyTensor::from_var(inner))
+    }
+
+    /// Return an empty state dict (no learnable parameters).
+    pub fn state_dict(&self) -> crate::tensor::PyStateDict {
+        crate::tensor::PyStateDict {
+            inner: coeus_tensor::checkpoint::StateDict::new(),
+        }
+    }
+
+    /// Zero gradients (no-op — Fold1d has no parameters).
+    pub fn zero_grad(&self) {}
+}
