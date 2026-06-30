@@ -2511,6 +2511,47 @@ def test_adaptive_avg_pool2d_non_trivial_matches_pytorch() -> None:
     )
 
 
+def test_adaptive_avg_pool_backward_matches_pytorch() -> None:
+    """Gradient parity vs torch: AdaptiveAvgPool1d/2d are now differentiable
+    (G-045). Both use overlapping adaptive regions so the gradient genuinely
+    sums region contributions."""
+    # 1d: [2, 4, 7] -> 3 (overlapping regions)
+    n, c, length = 2, 4, 7
+    d1 = [math.sin(i * 0.11) for i in range(n * c * length)]
+    x1 = pycoeus.Tensor(d1, [n, c, length], requires_grad=True)
+    y1 = pycoeus.AdaptiveAvgPool1d(3).forward(x1)
+    pycoeus.mse_loss(y1, pycoeus.Tensor([0.1] * (n * c * 3), [n, c, 3])).backward()
+    x1t = (
+        torch.tensor(d1, dtype=torch.float64)
+        .reshape(n, c, length)
+        .requires_grad_(True)
+    )
+    y1t = torch.nn.AdaptiveAvgPool1d(3)(x1t)
+    torch.nn.functional.mse_loss(
+        y1t, torch.full((n, c, 3), 0.1, dtype=torch.float64)
+    ).backward()
+    _allclose("adaptive1d_forward", list(y1.data), y1t.detach().flatten().tolist())
+    _allclose("adaptive1d_dx", list(x1.grad), x1t.grad.flatten().tolist())
+
+    # 2d: [2, 3, 5, 5] -> (2, 2) (overlapping on both axes)
+    n, c, h, w = 2, 3, 5, 5
+    d2 = [math.cos(i * 0.07) for i in range(n * c * h * w)]
+    x2 = pycoeus.Tensor(d2, [n, c, h, w], requires_grad=True)
+    y2 = pycoeus.AdaptiveAvgPool2d(2, 2).forward(x2)
+    pycoeus.mse_loss(y2, pycoeus.Tensor([0.2] * (n * c * 2 * 2), [n, c, 2, 2])).backward()
+    x2t = (
+        torch.tensor(d2, dtype=torch.float64)
+        .reshape(n, c, h, w)
+        .requires_grad_(True)
+    )
+    y2t = torch.nn.AdaptiveAvgPool2d((2, 2))(x2t)
+    torch.nn.functional.mse_loss(
+        y2t, torch.full((n, c, 2, 2), 0.2, dtype=torch.float64)
+    ).backward()
+    _allclose("adaptive2d_forward", list(y2.data), y2t.detach().flatten().tolist())
+    _allclose("adaptive2d_dx", list(x2.grad), x2t.grad.flatten().tolist())
+
+
 # ---------------------------------------------------------------------------
 # Unfold2d parity (MS-213)
 # ---------------------------------------------------------------------------
