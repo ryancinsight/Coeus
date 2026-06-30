@@ -478,6 +478,7 @@ Evidence tier: differential/empirical (PyTorch f64).
 | G-042 quantized and lazy module parity policy missing | source-surface + external docs audit | **open** |
 | G-043 Burn/PyTorch NN benchmark matrix remains partial | source-surface + external docs audit | **open** |
 | G-044 LocalResponseNorm was forward-only (non-differentiable). Fixed: forward rewritten as an autograd graph (band-matrix matmul windowed sum-of-squares + differentiable `pow`), so dx now flows. forward + dx parity with torch.nn.LocalResponseNorm verified | differential | **closed** |
+| G-045 forward-only modules sweep: forwards calling raw `coeus_ops::` then returning `Var::new(out, false)` (dx=0). AdaptiveAvgPool1d/2d FIXED (differentiable averaging-matrix matmul; backward verified vs numerical gradient). STILL forward-only: AdaptiveMaxPool1d/2d (need max-index scatter), Unfold1d/2d + Fold1d/2d (need im2col/col2im scatter autograd ops). Acceptance: dx parity with torch for each | differential | **partial** |
 | G-001 stateless PyTransformerEncoderLayer binding | structural | **closed MS-127** |
 | G-002 stateless PyTransformerEncoder binding | structural | **closed MS-128** |
 | G-003 stateless PyTransformerDecoderLayer binding | structural | **closed MS-129** |

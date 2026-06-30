@@ -165,3 +165,94 @@ fn adaptive_avg_pool2d_matches_global_avg_pool() {
         assert!((a - b).abs() < 1e-10, "adaptive={a}, global={b}");
     }
 }
+
+// ── Differentiability (G-045 fix): backward vs numerical gradient ──
+
+/// Central finite-difference check of `analytic` against `sum_forward` over
+/// `data`, asserting a non-trivial (non-zero) gradient.
+fn assert_grad_matches_numeric(
+    analytic: &[f64],
+    data: &[f64],
+    h: f64,
+    mut sum_forward: impl FnMut(&[f64]) -> f64,
+) {
+    for i in 0..data.len() {
+        let mut dp = data.to_vec();
+        dp[i] += h;
+        let mut dm = data.to_vec();
+        dm[i] -= h;
+        let numeric = (sum_forward(&dp) - sum_forward(&dm)) / (2.0 * h);
+        assert!(
+            (analytic[i] - numeric).abs() < 1e-5,
+            "grad[{i}]: analytic {} vs numeric {} (diff {:.2e})",
+            analytic[i],
+            numeric,
+            (analytic[i] - numeric).abs()
+        );
+    }
+    assert!(
+        analytic.iter().any(|g| g.abs() > 1e-6),
+        "gradient is all-zero — backward not propagating"
+    );
+}
+
+#[test]
+fn adaptive_avg_pool1d_backward_matches_numerical_gradient() {
+    // [1,1,7] -> 3: regions overlap (element 2 falls in regions 0 and 1), so the
+    // gradient genuinely sums region contributions, not a passthrough.
+    let m = AdaptiveAvgPool1d::<f64, SequentialBackend>::new(3);
+    let data = [1.0_f64, -2.0, 3.0, 0.5, -1.5, 2.5, 4.0];
+    let shape = [1, 1, 7];
+    let x = Var::new(
+        Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
+        true,
+    );
+    m.forward(&x).backward();
+    let analytic: Vec<f64> = x
+        .grad()
+        .expect("adaptive avg pool 1d gradient")
+        .as_slice()
+        .to_vec();
+    assert_grad_matches_numeric(&analytic, &data, 1e-6, |d| {
+        let xv = Var::new(
+            Tensor::<f64, SequentialBackend>::from_slice(shape, d),
+            false,
+        );
+        m.forward(&xv)
+            .tensor
+            .as_slice()
+            .iter()
+            .copied()
+            .sum::<f64>()
+    });
+}
+
+#[test]
+fn adaptive_avg_pool2d_backward_matches_numerical_gradient() {
+    // [1,1,5,5] -> (2,2): both axes have overlapping adaptive regions.
+    let m = AdaptiveAvgPool2d::<f64, SequentialBackend>::new(2, 2);
+    let data: Vec<f64> = (0..25).map(|i| ((i * 7 % 11) as f64 - 5.0) * 0.3).collect();
+    let shape = [1, 1, 5, 5];
+    let x = Var::new(
+        Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
+        true,
+    );
+    m.forward(&x).backward();
+    let analytic: Vec<f64> = x
+        .grad()
+        .expect("adaptive avg pool 2d gradient")
+        .as_slice()
+        .to_vec();
+    assert_grad_matches_numeric(&analytic, &data, 1e-6, |d| {
+        let xv = Var::new(
+            Tensor::<f64, SequentialBackend>::from_slice(shape, d),
+            false,
+        );
+        m.forward(&xv)
+            .tensor
+            .as_slice()
+            .iter()
+            .copied()
+            .sum::<f64>()
+    });
+}
