@@ -145,17 +145,15 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Fold1d<T
     }
 
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        let backend = B::default();
-        let out_tensor = coeus_ops::fold1d(
-            &input.tensor,
+        // Differentiable col2im: backward is the unfold1d im2col adjoint.
+        coeus_autograd::fold1d(
+            input,
             self.output_size,
             self.kernel_size,
             self.stride,
             self.padding,
             self.dilation,
-            &backend,
-        );
-        Var::new(out_tensor, false)
+        )
     }
 }
 
@@ -245,9 +243,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Unfold2d
     }
 
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        let backend = B::default();
-        let out_tensor = coeus_ops::unfold2d(
-            &input.tensor,
+        // Differentiable im2col: backward is the fold2d col2im transpose.
+        coeus_autograd::unfold2d(
+            input,
             self.kernel_h,
             self.kernel_w,
             self.stride_h,
@@ -256,9 +254,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Unfold2d
             self.padding_w,
             self.dilation_h,
             self.dilation_w,
-            &backend,
-        );
-        Var::new(out_tensor, false)
+        )
     }
 }
 
@@ -329,9 +325,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Fold2d<T
     }
 
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        let backend = B::default();
-        let out_tensor = coeus_ops::fold2d(
-            &input.tensor,
+        // Differentiable col2im: backward is the unfold2d im2col adjoint.
+        coeus_autograd::fold2d(
+            input,
             self.output_h,
             self.output_w,
             self.kernel_h,
@@ -342,8 +338,6 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Fold2d<T
             self.padding_w,
             self.dilation_h,
             self.dilation_w,
-            &backend,
-        );
-        Var::new(out_tensor, false)
+        )
     }
 }

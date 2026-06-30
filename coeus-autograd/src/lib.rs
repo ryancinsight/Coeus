@@ -81,6 +81,8 @@ pub use ops::{
     exp,
     flip,
     floor,
+    fold1d,
+    fold2d,
     gather,
     gelu,
     gelu_tanh,
@@ -167,6 +169,7 @@ pub use ops::{
     triu,
     trunc,
     unfold1d,
+    unfold2d,
     unsqueeze,
     // Shape ops
     where_cond,
