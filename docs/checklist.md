@@ -2,7 +2,25 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-217 - PReLU / LeakyReLU subgradient parity (G-037 closure) [COMPLETE]
+### Current Sprint: MS-218 - Apollo FFT autograd + Python parity [COMPLETE]
+- [x] [minor] Added Apollo-backed `coeus_autograd::{fft_1d, ifft_1d,
+  fft_1d_var, ifft_1d_var, fft_energy}` and wired the FFT module through
+  `coeus-autograd/src/ops/mod.rs` plus the crate-root public surface.
+- [x] [patch] Added Rust value-semantic FFT regressions for hand-DFT
+  forward values, inverse roundtrip, complex upstream-gradient propagation,
+  and Parseval-derived `fft_energy` input gradients.
+- [x] [patch] Added thin PyO3 FFT bindings: `pycoeus.ComplexTensor`,
+  `pycoeus.fft`, `pycoeus.ifft`, and `pycoeus.fft_energy`, plus PyTorch
+  `torch.fft.fft` forward + gradient parity at f64.
+- [x] Evidence tier: analytical/value-semantic plus differential empirical.
+  Evidence: `rustup run nightly cargo fmt -p coeus-autograd -p coeus-python --check`;
+  `rustup run nightly cargo check -p coeus-autograd`; `rustup run nightly cargo nextest run -p coeus-autograd fft`
+  (3/3); `rustup run nightly cargo check -p coeus-python`;
+  `D:/miniforge3/python.exe -m maturin develop -m coeus-python/Cargo.toml`;
+  `D:/miniforge3/python.exe -m pytest coeus-python/tests/test_pytorch_parity.py::test_fft_matches_pytorch -q`
+  (1/1).
+
+### Previous Sprint: MS-217 - PReLU / LeakyReLU subgradient parity (G-037 closure) [COMPLETE]
 - [x] [patch] Coerced the single canonical `LeakyReluGrad` predicate from
   `x >= 0 ? 1 : α` to `x > 0 ? 1 : α` across `coeus-core` (float + int),
   `coeus-ops` (fuse tag), the Rust value-semantic `act_extended_tests.rs`

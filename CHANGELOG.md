@@ -4,6 +4,14 @@
 
 ### Added
 
+- **Apollo-backed FFT autograd and Python parity (MS-218)** — added public
+  `coeus_autograd::{fft_1d, ifft_1d, fft_1d_var, ifft_1d_var, fft_energy}`
+  backed by Apollo FFT, with Rust value-semantic regressions for forward DFT
+  values, inverse roundtrip, complex upstream gradients, and Parseval-derived
+  input gradients. Added thin PyO3 `ComplexTensor`, `fft`, `ifft`, and
+  `fft_energy` bindings plus `torch.fft.fft` forward + gradient parity.
+  ([minor])
+
 - **AdaptiveMaxPool PyO3 binding (G-046 closure)** — added
   `pycoeus.AdaptiveMaxPool1d(output_size)` and
   `pycoeus.AdaptiveMaxPool2d(out_h, out_w)` thin PyO3 wrappers that delegate

@@ -224,6 +224,33 @@ def test_mha_matches_pytorch() -> None:
 
 
 # ---------------------------------------------------------------------------
+# FFT forward + gradient parity
+# ---------------------------------------------------------------------------
+
+
+def test_fft_matches_pytorch() -> None:
+    """Forward and gradient parity: Apollo-backed 1-D FFT energy vs torch.fft."""
+    data = [0.25, -1.0, 0.5, 2.0, -0.75, 1.25, -0.5, 0.125]
+
+    x_pyc = pycoeus.Tensor(data, [len(data)], requires_grad=True)
+    spectrum_pyc = pycoeus.fft(x_pyc)
+    loss_pyc = pycoeus.fft_energy(x_pyc)
+    loss_pyc.backward()
+
+    x_t = torch.tensor(data, dtype=torch.float64).requires_grad_(True)
+    spectrum_t = torch.fft.fft(x_t)
+    loss_t = torch.sum(torch.abs(spectrum_t) ** 2)
+    loss_t.backward()
+
+    _allclose("fft_real", list(spectrum_pyc.real), spectrum_t.real.tolist(), atol=1e-10)
+    _allclose("fft_imag", list(spectrum_pyc.imag), spectrum_t.imag.tolist(), atol=1e-10)
+    assert abs(loss_pyc.data[0] - loss_t.item()) < 1e-10, (
+        f"fft energy: got={loss_pyc.data[0]:.8g}, expected={loss_t.item():.8g}"
+    )
+    _allclose("fft_dx", list(x_pyc.grad), x_t.grad.tolist(), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
 # Conv1d forward + backward
 # ---------------------------------------------------------------------------
 

@@ -17,7 +17,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.5.4"
+version = "0.5.5"
 edition = "2021"
 authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
 license = "MIT OR Apache-2.0"
@@ -34,6 +34,7 @@ eunomia = { git = "https://github.com/ryancinsight/eunomia", default-features = 
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
 leto     = { path = "../leto/crates/leto", version = "0.35.1" }
 leto-ops = { path = "../leto/crates/leto-ops", version = "0.35.1" }
+apollo-fft = { path = "../apollo/crates/apollo-fft", default-features = false }
 
 # ── Numerical ──
 bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }

@@ -93,6 +93,7 @@ impl Drop for NoGradCtx {
 pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(shutdown, m)?)?;
     m.add_class::<PyTensor>()?;
+    m.add_class::<ops::PyComplexTensor>()?;
     m.add_class::<PyTensorIterator>()?;
     // no_grad context manager
     m.add_class::<NoGradCtx>()?;
@@ -250,6 +251,9 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Trigonometric
     m.add_function(wrap_pyfunction!(ops::sin, m)?)?;
     m.add_function(wrap_pyfunction!(ops::cos, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::fft_1d, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::ifft_1d, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::fft_energy, m)?)?;
     // Shape ops
     m.add_function(wrap_pyfunction!(ops::flip, m)?)?;
     m.add_function(wrap_pyfunction!(ops::where_cond, m)?)?;

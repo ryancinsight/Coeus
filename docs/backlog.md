@@ -22,6 +22,16 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-218: Apollo FFT autograd + Python parity [COMPLETE]
+
+- [x] [minor] Added Apollo-backed FFT to the public `coeus-autograd` surface:
+  `fft_1d`, `ifft_1d`, `fft_1d_var`, `ifft_1d_var`, and `fft_energy`.
+- [x] [patch] Added Rust FFT regressions and Python `torch.fft.fft` forward +
+  input-gradient parity through `pycoeus.fft_energy`.
+- [x] [patch] Gated Apollo's legacy Coeus adapter behind its `coeus` feature
+  so Coeus can depend on Apollo's core FFT API without creating an
+  autograd dependency cycle.
+
 ## Sprint MS-217: PReLU/LeakyReLU subgradient parity (G-037 closure) [COMPLETE]
 
 - [x] [patch] Coerced `CpuUnaryOp::LeakyReluGrad` (`coeus-core/src/dtype/float/cpu_unary.rs`)

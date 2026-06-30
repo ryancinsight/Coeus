@@ -2,6 +2,19 @@
 
 ## Known Gaps & Residual Risks
 
+### ~~G-047: Apollo-backed FFT autograd/Python parity missing~~ **CLOSED**
+**Location**: `coeus-autograd/src/ops/fft.rs`,
+`coeus-python/src/ops/fft.rs`, `coeus-python/tests/test_pytorch_parity.py`.
+**Gap**: FFT lived outside the public autograd/Python surface after the
+Burn dev-dependency migration, so Apollo-backed signal transforms had no
+value-semantic gradient parity in Coeus.
+**Resolution**: MS-218 added public autograd FFT wrappers and a thin PyO3
+complex tensor binding. The Python parity test compares `pycoeus.fft` against
+`torch.fft.fft` and verifies `fft_energy` input gradients against PyTorch
+autograd at f64.
+**Evidence tier**: analytical/value-semantic Rust tests plus differential
+PyTorch parity.
+
 ### G-046: Python-binding parity closure for AdaptiveMaxPool
 **Location**: `coeus-python/src/nn/pool.rs`, `coeus-python/src/nn/mod.rs`,
 `coeus-python/src/lib.rs`, `coeus-python/tests/test_pytorch_parity.py`,

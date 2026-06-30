@@ -1,6 +1,7 @@
 pub(crate) mod comparison;
 pub(crate) mod constructors;
 pub(crate) mod elementwise;
+pub(crate) mod fft;
 pub(crate) mod indexing;
 pub(crate) mod linalg;
 pub(crate) mod nn_functional;
@@ -11,6 +12,7 @@ pub(crate) mod statistics;
 pub(crate) use comparison::*;
 pub(crate) use constructors::*;
 pub(crate) use elementwise::*;
+pub(crate) use fft::*;
 pub(crate) use indexing::*;
 pub(crate) use linalg::*;
 pub(crate) use nn_functional::*;

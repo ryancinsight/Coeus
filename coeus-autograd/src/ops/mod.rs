@@ -6,6 +6,8 @@ pub mod activation;
 pub mod arithmetic;
 /// Embedding lookup operations.
 pub mod embedding;
+/// Fast Fourier Transform operations backed by Apollo FFT.
+pub mod fft;
 /// Linear algebra operations (matmul, sparse matmul, transpose).
 pub mod linalg;
 /// Neural network layers (conv, pooling, normalization, loss, attention).
@@ -41,6 +43,9 @@ pub use nn::{
 };
 
 pub use embedding::{embedding, embedding_with_padding_idx};
+pub use fft::{
+    fft_1d, fft_1d_var, fft_energy, ifft_1d, ifft_1d_var, Fft1DNode, FftScalar, Ifft1DNode,
+};
 pub use shape::{
     broadcast_to, cat, contiguous, cumprod, cumsum, diag, diagonal, einsum, einsum3, flip, gather,
     index_select, masked_fill, pad, permute, reshape, roll, slice, split, squeeze, stack, tile,

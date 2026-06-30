@@ -2,7 +2,7 @@
 //!
 //! # Operation families
 //! - **Elementwise** — [`unary`] and [`binary`] kernels dispatched via [`ElementwiseOps::elementwise_unary`] / [`ElementwiseOps::elementwise_binary`].
-//! - **Linear algebra** — [`matmul()`], [`sparse`] SpMM/SpMV, and FFT via Bluestein/Cooley-Tukey.
+//! - **Linear algebra** — [`matmul()`], [`sparse`] SpMM/SpMV.
 //! - **Reductions** — [`reduction`]: `sum`, `mean`, `max/min`, `argmax/argmin`, `topk`, `cumsum`, plus vector arithmetic `dot` (flat inner product) and `cross` (per-channel 3-vector cross along `dim`), plus matrix norms `frobenius_norm` / `frobenius_norm_batched` (compose on `norm` for `torch.linalg.matrix_norm(A, ord='fro')`).
 //! - **Convolution** — 1-D/2-D/3-D forward+backward routed through `BackendOps::conv1d`/`conv2d`/`conv3d`.
 //! - **Pooling** — max and average pooling (2-D/3-D) with backward gradients.

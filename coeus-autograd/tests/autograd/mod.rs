@@ -1,5 +1,6 @@
 mod embedding;
 mod exp_log;
+mod fft;
 mod float16;
 mod grad_mode;
 mod nn_conv;
