@@ -950,3 +950,63 @@ def test_local_response_norm_matches_jax() -> None:
         f"lrn loss: got={loss_pyc.data[0]:.8g}, expected={float(loss_jax):.8g}"
     )
     _allclose("lrn_dx_jax", list(x_pyc.grad), dx_jax.flatten().tolist())
+
+
+# ---------------------------------------------------------------------------
+# AdaptiveAvgPool forward + gradient parity
+# ---------------------------------------------------------------------------
+
+
+def _avg_pool_matrix(in_len: int, out_len: int):
+    """Averaging matrix ``P[out, in]`` for adaptive pooling — PyTorch's region
+    convention ``[floor(o*in/out), ceil((o+1)*in/out))``, ``1/region`` per cell."""
+    rows = []
+    for o in range(out_len):
+        start = o * in_len // out_len
+        end = -(-(o + 1) * in_len // out_len)  # ceil
+        rows.append(
+            [1.0 / (end - start) if start <= li < end else 0.0 for li in range(in_len)]
+        )
+    return jnp.asarray(rows, dtype=jnp.float64)
+
+
+def test_adaptive_avg_pool_matches_jax() -> None:
+    """Forward + gradient parity vs a composed JAX reference (averaging matmul),
+    mirroring the PyTorch dx test. AdaptiveAvgPool is differentiable (G-045)."""
+    # 1d: [2, 4, 7] -> 3
+    n, c, length, out = 2, 4, 7, 3
+    d1 = [math.sin(i * 0.11) for i in range(n * c * length)]
+    x1p = pycoeus.Tensor(d1, [n, c, length], requires_grad=True)
+    y1 = pycoeus.AdaptiveAvgPool1d(out).forward(x1p)
+    pycoeus.mse_loss(y1, pycoeus.Tensor([0.1] * (n * c * out), [n, c, out])).backward()
+
+    p1 = _avg_pool_matrix(length, out)
+    x1j = jnp.asarray(d1, dtype=jnp.float64).reshape(n, c, length)
+    tgt1 = jnp.full((n, c, out), 0.1, dtype=jnp.float64)
+
+    def loss1(x):
+        return jnp.mean((jnp.einsum("ol,ncl->nco", p1, x) - tgt1) ** 2)
+
+    _, dx1 = jax.value_and_grad(loss1)(x1j)
+    y1j = jnp.einsum("ol,ncl->nco", p1, x1j)
+    _allclose("adaptive1d_forward_jax", list(y1.data), y1j.flatten().tolist())
+    _allclose("adaptive1d_dx_jax", list(x1p.grad), dx1.flatten().tolist())
+
+    # 2d: [2, 3, 5, 5] -> (2, 2)
+    n, c, h, w, oh, ow = 2, 3, 5, 5, 2, 2
+    d2 = [math.cos(i * 0.07) for i in range(n * c * h * w)]
+    x2p = pycoeus.Tensor(d2, [n, c, h, w], requires_grad=True)
+    y2 = pycoeus.AdaptiveAvgPool2d(oh, ow).forward(x2p)
+    pycoeus.mse_loss(y2, pycoeus.Tensor([0.2] * (n * c * oh * ow), [n, c, oh, ow])).backward()
+
+    ph, pw = _avg_pool_matrix(h, oh), _avg_pool_matrix(w, ow)
+    x2j = jnp.asarray(d2, dtype=jnp.float64).reshape(n, c, h, w)
+    tgt2 = jnp.full((n, c, oh, ow), 0.2, dtype=jnp.float64)
+
+    def loss2(x):
+        return jnp.mean((jnp.einsum("ah,bw,nchw->ncab", ph, pw, x) - tgt2) ** 2)
+
+    _, dx2 = jax.value_and_grad(loss2)(x2j)
+    y2j = jnp.einsum("ah,bw,nchw->ncab", ph, pw, x2j)
+    _allclose("adaptive2d_forward_jax", list(y2.data), y2j.flatten().tolist())
+    _allclose("adaptive2d_dx_jax", list(x2p.grad), dx2.flatten().tolist())
