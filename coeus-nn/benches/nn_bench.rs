@@ -21,8 +21,8 @@ use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
     cross_entropy_loss, gelu, huber_loss, mse_loss, relu, sigmoid, silu, tanh, AdaptiveAvgPool2d,
     AvgPool1d as CoeusAvgPool1d, AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d,
-    Conv3d, Embedding, EmbeddingBag, EmbeddingBagMode, GroupNorm, InstanceNorm2d, LayerNorm,
-    Linear, Lstm, MaxPool1d, MaxPool2d, Module, MultiHeadAttention, NullMask, RMSNorm,
+    Conv3d, Embedding, EmbeddingBag, EmbeddingBagMode, GroupNorm, Gru as CoeusGru, InstanceNorm2d,
+    LayerNorm, Linear, Lstm, MaxPool1d, MaxPool2d, Module, MultiHeadAttention, NullMask, RMSNorm,
     TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
@@ -35,6 +35,9 @@ use burn::nn::conv::Conv3dConfig;
 use burn::nn::loss::{
     CrossEntropyLoss, CrossEntropyLossConfig, HuberLoss, HuberLossConfig, MseLoss, Reduction,
 };
+// Burn 0.16 re-exports `lstm::*` from `nn::rnn` but not `gru::*`, so `GruConfig`
+// is only reachable by its submodule path (unlike the flattened LSTM types).
+use burn::nn::gru::GruConfig;
 use burn::nn::pool::MaxPool1dConfig;
 use burn::nn::transformer::{TransformerEncoderConfig, TransformerEncoderInput};
 use burn::nn::{
@@ -842,6 +845,53 @@ fn bench_lstm_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_gru_forward(c: &mut Criterion) {
+    // GRU sequence forward on [batch=4, seq=32, input=64] → hidden=128.
+    // Same shape as the LSTM row so the recurrent-family comparison is direct.
+    // GRU has 3 gates vs LSTM's 4, but the same compute shape (one projection per
+    // timestep); the unroll loop + cat/reshape output stacking costs dominate.
+    const GRU_BATCH: usize = 4;
+    const GRU_SEQ: usize = 32;
+    const GRU_IN: usize = 64;
+    const GRU_H: usize = 128;
+
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(GRU_BATCH * GRU_SEQ * GRU_IN))
+        .map(|i| (i as f32 * 0.0023).sin())
+        .collect();
+
+    // Burn: GruConfig(d_input, d_hidden, bias=true).
+    let burn_gru = GruConfig::new(GRU_IN, GRU_H, true).init::<BurnB>(&device);
+    let x_burn: BurnTensor<BurnB, 3> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [GRU_BATCH, GRU_SEQ, GRU_IN]),
+        &device,
+    );
+
+    // Coeus: Gru::new(input_size, hidden_size).
+    let gru_seq = CoeusGru::<f32, SequentialBackend>::new(GRU_IN, GRU_H);
+    let gru_moirai = CoeusGru::<f32, MoiraiBackend>::new(GRU_IN, GRU_H);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![GRU_BATCH, GRU_SEQ, GRU_IN], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![GRU_BATCH, GRU_SEQ, GRU_IN], &input_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — GRU forward (4x32 seq, in=64 hidden=128)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_gru.forward(black_box(x_burn.clone()), None)))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(gru_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(gru_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
 fn bench_instancenorm2d_forward(c: &mut Criterion) {
     // InstanceNorm2d forward on [N=2, C=32, H=16, W=16].
     const IN_N: usize = 2;
@@ -1391,6 +1441,7 @@ criterion_group!(
     bench_embeddingbag_sum,
     bench_linear_forward_backward,
     bench_lstm_forward,
+    bench_gru_forward,
     bench_adaptive_avg_pool2d_forward,
     bench_instancenorm2d_forward,
     bench_cross_entropy_loss,
