@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+
+- **AdaptiveMaxPool PyO3 binding (G-046 closure)** — added
+  `pycoeus.AdaptiveMaxPool1d(output_size)` and
+  `pycoeus.AdaptiveMaxPool2d(out_h, out_w)` thin PyO3 wrappers that delegate
+  to `coeus_nn::AdaptiveMaxPool1d/2d<f64, MoiraiBackend>`. Three-way forward
+  + input-gradient parity is now demonstrated in
+  `test_adaptive_max_pool_backward_matches_pytorch` (PyTorch) and
+  `test_adaptive_max_pool_matches_jax` (JAX), closing the remaining Python
+  binding gap after `b3e993b` made the Rust core differentiable
+  (PR #112 = `d1ad9d2`; mirrors the AdaptiveAvgPool PyO3 pattern from
+  PR #109/MS-213). ([patch])
+
 ### Changed
 
 - **G-036: GPU backend pool1d stubs** — added `max_pool1d` / `avg_pool1d`

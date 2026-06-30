@@ -2,6 +2,23 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
+### Current Sprint: MS-216 - AdaptiveMaxPool PyO3 binding (G-046 closure, superseded by PR #112) [COMPLETE]
+- [x] [patch] `PyAdaptiveMaxPool1d` + `PyAdaptiveMaxPool2d` thin PyO3 wrappers
+  merged via peer PR #112 (`d1ad9d2`): `feat(python): AdaptiveMaxPool1d/2d
+  binding + dx parity (PyTorch, JAX)`. Module re-exports extended;
+  `m.add_class` calls added in `pycoeus` registration in
+  `coeus-python/src/lib.rs`.
+- [x] Evidence: `rustup run nightly cargo clippy --workspace --all-targets -- -D warnings`
+  zero warnings after 22.65s; `rustup run nightly cargo nextest run -p coeus-nn --no-fail-fast`
+  379/379 green; pytest `test_adaptive_max_pool_backward_matches_pytorch`
+  pass (PyTorch parity, 8.87 s combined with AvgPool variant);
+  `test_adaptive_max_pool_matches_jax` pass (JAX parity, 4.10 s combined).
+- [x] Closed G-046 (Python-binding parity closure for AdaptiveMaxPool).
+  Trajectory: PR #109 (AdaptiveAvgPool diff), PR #110 (AvgPool dx parity),
+  PR #111 (`b3e993b` AdaptiveMaxPool diff), PR #112 (PyO3 + dx parity).
+- [x] Three-way forward + input gradient parity established:
+  Rust core (coeus-nn::AdaptiveMaxPool1d/2d) \u2194 PyTorch \u2194 JAX.
+
 ### Current Sprint: MS-215 - BN1d training `unused_mut` clippy regression [COMPLETE]
 - [x] [patch] Removed gratuitous `mut` on `BatchNorm1d::from_parts(...)` in
   `coeus-nn/tests/norm_parity.rs` introduced by MS-214.

@@ -2,6 +2,32 @@
 
 ## Known Gaps & Residual Risks
 
+### G-046: Python-binding parity closure for AdaptiveMaxPool
+**Location**: `coeus-python/src/nn/pool.rs`, `coeus-python/src/nn/mod.rs`,
+`coeus-python/src/lib.rs`, `coeus-python/tests/test_pytorch_parity.py`,
+`coeus-python/tests/test_jax_parity.py`.
+**Compared against**: PyTorch `torch.nn.AdaptiveMaxPool1d/2d` and JAX.
+**Gap**: After PR #109 (AdaptiveAvgPool differentiable), PR #110
+(AdaptiveAvgPool dx parity in PyTorch+JAX), and PR #111
+(`b3e993b` AdaptiveMaxPool1d/2d differentiable in Rust core), the Python
+binding surface had not been extended for the Max variant. The
+`test_adaptive_max_pool_backward_matches_pytorch` JIT-imported
+`pycoeus.AdaptiveMaxPool1d/2d` from `test_pytorch_parity.py:2555`,
+which would have raised `AttributeError` against the old binding.
+**Resolution (PR #112 = `d1ad9d2`, peer merge)**: Added
+`PyAdaptiveMaxPool1d` and `PyAdaptiveMaxPool2d` thin PyO3 wrappers
+(mirroring the `PyAdaptiveAvgPool*` pattern), with `m.add_class::<>`
+registrations and `pool.rs` re-exports. PR #112 also added the JAX
+parity fixture (`test_adaptive_max_pool_matches_jax`) using a per-region
+`jnp.max` reference plus `jax.value_and_grad`. Three-way parity
+(Rust core \u2194 PyTorch \u2194 JAX) now holds for forward + input gradient.
+**Evidence tier**: differential/value-semantic pytest outcomes (PyTorch
+parity file 2/2 for the adaptive-max family) plus 379/379 passing Rust nn
+tests.
+**Acceptance**: closed. Future MS work may add a Burn benchmark row to
+match G-043 expansion (already has AvgPool families).
+
+### G-045 forward-only modules sweep:
 ### G-043: Burn/PyTorch NN benchmark matrix remains partial
 **Location**: `coeus-nn/benches/nn_bench.rs`,
 `coeus-python/tests/test_pytorch_parity.py`

@@ -22,6 +22,24 @@
   so every implemented NN family has an explicit measurement or differential
   row.
 
+## Sprint MS-216: AdaptiveMaxPool PyO3 binding (G-046 closure, superseded by PR #112) [COMPLETE]
+
+- [x] [patch] `PyAdaptiveMaxPool1d` + `PyAdaptiveMaxPool2d` PyO3 wrappers
+  landed via peer PR #112 (`d1ad9d2`): `feat(python): AdaptiveMaxPool1d/2d
+  binding + dx parity (PyTorch, JAX)`. Mirrors the existing
+  `PyAdaptiveAvgPool*` pattern; module re-exports extended;
+  `m.add_class` calls added in `pycoeus` registration.
+- [x] [patch] Forward + input-gradient parity demonstrated in
+  `tests/test_pytorch_parity.py::test_adaptive_max_pool_backward_matches_pytorch`
+  (PR #110 added the call site; PR #112 supplied the binding it required)
+  and `tests/test_jax_parity.py::test_adaptive_max_pool_matches_jax`
+  (PR #112 added the JAX fixture, exact jnp.max reference + jax.value_and_grad).
+- [x] [patch] `coeus-nn` nextest: 379/379 after PR #111 (the +2 differential
+  tests for `AdaptiveMaxPool1d/2d`).
+- [x] [patch] G-046 closed (`docs/gap_audit.md`); parity-closure trajectory
+  complete: PR #109 (AdaptiveAvgPool diff) -> PR #110 (AvgPool dx parity)
+  -> PR #111 (`b3e993b` AdaptiveMaxPool diff) -> PR #112 (PyO3 + dx parity).
+
 ## Sprint MS-215: BN1d training `unused_mut` clippy fixup [COMPLETE]
 
 - [x] [patch] Dropped gratuitous `mut` on `BatchNorm1d::from_parts(...)` in
