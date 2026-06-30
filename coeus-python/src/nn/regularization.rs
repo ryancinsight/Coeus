@@ -50,9 +50,8 @@ impl PyLocalResponseNorm {
 
     /// Forward pass: cross-channel local response normalization.
     ///
-    /// Forward-only: coeus's `LocalResponseNorm` is currently non-differentiable
-    /// (the output is not grad-tracked), so this is an inference-only layer.
-    /// Differentiable backward is tracked as gap G-044.
+    /// Differentiable (autograd-graph forward in coeus-nn), so gradients flow to
+    /// the input and the layer is trainable.
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         use coeus_nn::Module;
         let x = input.inner.clone();
