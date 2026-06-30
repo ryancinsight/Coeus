@@ -895,3 +895,58 @@ def test_swiglu_matches_jax() -> None:
         list(sg_pyc.linear_outer.weight.grad),
         dwo_jax.flatten().tolist(),
     )
+
+
+# ---------------------------------------------------------------------------
+# LocalResponseNorm forward + gradient parity
+# ---------------------------------------------------------------------------
+
+
+def test_local_response_norm_matches_jax() -> None:
+    """Forward + gradient parity: LocalResponseNorm(size=5) on [2, 8, 4, 4].
+
+    Mirrors ``test_pytorch_parity.py::test_local_response_norm_matches_pytorch``.
+    JAX has no built-in LRN, so the reference composes the same cross-channel
+    windowed sum-of-squares used by coeus — a band matrix ``M[i,j]=1 iff
+    |i-j|<=size//2`` contracted against the squared activations — then
+    ``(k + (alpha/size)*windowed)**beta`` and ``x/denom``. coeus's LRN is
+    differentiable, so ``dx`` parity is verified via ``jax.value_and_grad``.
+    """
+    n, c, h, w = 2, 8, 4, 4
+    size, alpha, beta, k = 5, 1e-4, 0.75, 1.0
+
+    lrn_pyc = pycoeus.LocalResponseNorm(size)
+    x_data = [math.sin(i * 0.05) for i in range(n * c * h * w)]
+    tgt_data = [0.3] * (n * c * h * w)
+
+    # pycoeus forward + backward
+    x_pyc = pycoeus.Tensor(x_data, [n, c, h, w], requires_grad=True)
+    out_pyc = lrn_pyc.forward(x_pyc)
+    tgt_pyc = pycoeus.Tensor(tgt_data, [n, c, h, w])
+    loss_pyc = pycoeus.mse_loss(out_pyc, tgt_pyc)
+    loss_pyc.backward()
+
+    # JAX reference (f64)
+    x_jax = jnp.asarray(x_data, dtype=jnp.float64).reshape(n, c, h, w)
+    tgt_jax = jnp.asarray(tgt_data, dtype=jnp.float64).reshape(n, c, h, w)
+    idx = jnp.arange(c)
+    band = (jnp.abs(idx[:, None] - idx[None, :]) <= size // 2).astype(jnp.float64)
+
+    def lrn_forward(x):
+        sq = (x * x).reshape(n, c, h * w)
+        windowed = jnp.einsum("cj,njs->ncs", band, sq).reshape(n, c, h, w)
+        return x / (k + (alpha / size) * windowed) ** beta
+
+    def lrn_loss(x):
+        diff = lrn_forward(x) - tgt_jax
+        return jnp.mean(diff * diff)
+
+    out_jax = lrn_forward(x_jax)
+    loss_jax, dx_jax = jax.value_and_grad(lrn_loss)(x_jax)
+    loss_jax.block_until_ready()
+
+    _allclose("lrn_forward_jax", list(out_pyc.data), out_jax.flatten().tolist())
+    assert abs(loss_pyc.data[0] - float(loss_jax)) < _ATOL, (
+        f"lrn loss: got={loss_pyc.data[0]:.8g}, expected={float(loss_jax):.8g}"
+    )
+    _allclose("lrn_dx_jax", list(x_pyc.grad), dx_jax.flatten().tolist())
