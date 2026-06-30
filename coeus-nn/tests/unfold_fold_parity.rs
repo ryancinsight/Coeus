@@ -176,3 +176,58 @@ fn unfold1d_backward_accumulates_window_overlap() {
         "unfold1d gradient is all-zero — backward not propagating"
     );
 }
+
+#[test]
+fn unfold2d_backward_accumulates_window_overlap() {
+    // 2x2 kernel, stride 1 on [1,1,3,3]: the 2D window-overlap counts are the
+    // outer product of the per-axis [1,2,1] counts → [[1,2,1],[2,4,2],[1,2,1]].
+    let m = Unfold2d::<f64, SequentialBackend>::new(2, 1, 0, 1);
+    let data: Vec<f64> = (1..=9).map(|i| i as f64).collect();
+    let x = Var::new(
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 3, 3], &data),
+        true,
+    );
+    m.forward(&x).backward();
+    let grad = x.grad().expect("unfold2d input gradient");
+    assert_eq!(
+        grad.as_slice(),
+        &[1.0, 2.0, 1.0, 2.0, 4.0, 2.0, 1.0, 2.0, 1.0]
+    );
+}
+
+#[test]
+fn fold1d_backward_is_im2col_of_ones() {
+    // Fold (col2im) is linear; with non-overlapping tiles (stride=kernel, no pad)
+    // each input column maps to exactly one output position, so
+    // d sum(fold(x))/dx = 1 everywhere (= unfold1d of the all-ones output grad).
+    let m = Fold1d::<f64, SequentialBackend>::new(6, 2, 2, 0, 1);
+    let data: Vec<f64> = (1..=6).map(|i| i as f64).collect();
+    let x = Var::new(
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 3], &data),
+        true,
+    );
+    let y = m.forward(&x);
+    assert_eq!(y.tensor.shape(), &[1, 1, 6]);
+    y.backward();
+    assert_eq!(
+        x.grad().expect("fold1d input gradient").as_slice(),
+        &[1.0; 6]
+    );
+}
+
+#[test]
+fn fold2d_backward_is_im2col_of_ones() {
+    let m = Fold2d::<f64, SequentialBackend>::new(4, 4, 2, 2, 0, 1);
+    let data: Vec<f64> = (1..=16).map(|i| i as f64).collect();
+    let x = Var::new(
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 4, 4], &data),
+        true,
+    );
+    let y = m.forward(&x);
+    assert_eq!(y.tensor.shape(), &[1, 1, 4, 4]);
+    y.backward();
+    assert_eq!(
+        x.grad().expect("fold2d input gradient").as_slice(),
+        &[1.0; 16]
+    );
+}

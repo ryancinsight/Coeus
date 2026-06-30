@@ -19,7 +19,8 @@ pub mod softmax;
 
 pub use attention::{sdp_attention, AttentionMask, CausalMask, NullMask};
 pub use conv::{
-    conv1d, conv2d, conv3d, conv_transpose1d, conv_transpose2d, conv_transpose3d, unfold1d,
+    conv1d, conv2d, conv3d, conv_transpose1d, conv_transpose2d, conv_transpose3d, fold1d, fold2d,
+    unfold1d, unfold2d,
 };
 pub use dropout::dropout;
 pub use log_softmax::log_softmax;

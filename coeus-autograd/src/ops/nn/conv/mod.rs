@@ -14,5 +14,5 @@ pub use transpose::{
     conv_transpose1d, conv_transpose2d, conv_transpose3d, ConvTranspose1dNode, ConvTranspose2dNode,
     ConvTranspose3dNode,
 };
-pub use unfold_fold::unfold1d;
+pub use unfold_fold::{fold1d, fold2d, unfold1d, unfold2d};
 pub use utils::ConvNode;
