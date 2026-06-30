@@ -6,6 +6,7 @@
 // `positional.rs`.
 
 mod positional;
+mod swiglu;
 mod transformer;
 
 use crate::nn::linear::PyLinear;
@@ -150,6 +151,7 @@ impl PyFeedForward {
 }
 
 pub use positional::PySinusoidalEncoding;
+pub use swiglu::PySwiGlu;
 pub use transformer::decoder::PyTransformerDecoder;
 pub use transformer::decoder_layer::PyTransformerDecoderLayer;
 pub use transformer::encoder::PyTransformerEncoder;

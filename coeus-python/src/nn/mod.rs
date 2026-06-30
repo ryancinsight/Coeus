@@ -36,7 +36,7 @@ pub use conv::{PyConv1d, PyConv2d, PyConv3d};
 pub use dropout::PyDropout;
 pub use embedding::{PyEmbedding, PyEmbeddingBag};
 pub use feedforward::{
-    PyFeedForward, PySinusoidalEncoding, PyTransformer, PyTransformerDecoder,
+    PyFeedForward, PySinusoidalEncoding, PySwiGlu, PyTransformer, PyTransformerDecoder,
     PyTransformerDecoderLayer, PyTransformerEncoder, PyTransformerEncoderLayer,
 };
 pub use linear::PyLinear;
