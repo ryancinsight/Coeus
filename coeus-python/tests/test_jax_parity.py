@@ -830,3 +830,68 @@ def test_adaptive_avg_pool2d_global_matches_jax() -> None:
     y_j = jnp.mean(x_j, axis=(-2, -1), keepdims=True)
 
     _allclose("adaptive_avg_pool2d_global_jax", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# SwiGLU forward + gradient parity
+# ---------------------------------------------------------------------------
+
+
+def test_swiglu_matches_jax() -> None:
+    """Forward + gradient parity: SwiGLU(64→128), no bias, via MSELoss.
+
+    Mirrors ``test_pytorch_parity.py::test_swiglu_matches_pytorch``. JAX has no
+    built-in SwiGLU, so the reference is composed from primitives:
+    ``silu(x @ Wi.T) * (x @ Wo.T)`` with silu computed as ``z * sigmoid(z)``.
+    """
+    d_in, d_out, batch = 64, 128, 32
+
+    sg_pyc = pycoeus.SwiGlu(d_in, d_out, bias=False)
+    wi_data = sg_pyc.linear_inner.weight.data  # [d_out, d_in] flat
+    wo_data = sg_pyc.linear_outer.weight.data  # [d_out, d_in] flat
+
+    x_data = [math.sin(i * 0.013) for i in range(batch * d_in)]
+    tgt_data = [0.5] * (batch * d_out)
+
+    # pycoeus forward + backward
+    x_pyc = pycoeus.Tensor(x_data, [batch, d_in], requires_grad=True)
+    out_pyc = sg_pyc.forward(x_pyc)
+    tgt_pyc = pycoeus.Tensor(tgt_data, [batch, d_out])
+    loss_pyc = pycoeus.mse_loss(out_pyc, tgt_pyc)
+    loss_pyc.backward()
+
+    # JAX reference (f64 to match pycoeus default precision)
+    x_jax = jnp.asarray(x_data, dtype=jnp.float64).reshape(batch, d_in)
+    wi_jax = jnp.asarray(wi_data, dtype=jnp.float64).reshape(d_out, d_in)
+    wo_jax = jnp.asarray(wo_data, dtype=jnp.float64).reshape(d_out, d_in)
+    tgt_jax = jnp.asarray(tgt_data, dtype=jnp.float64).reshape(batch, d_out)
+
+    def _silu(z):
+        return z / (1.0 + jnp.exp(-z))
+
+    def jax_loss(x, wi, wo):
+        out = _silu(x @ wi.T) * (x @ wo.T)
+        diff = out - tgt_jax
+        return jnp.mean(diff * diff)
+
+    grad_fn = jax.value_and_grad(jax_loss, argnums=(0, 1, 2))
+    loss_jax, (dx_jax, dwi_jax, dwo_jax) = grad_fn(x_jax, wi_jax, wo_jax)
+    loss_jax.block_until_ready()
+
+    out_jax = _silu(x_jax @ wi_jax.T) * (x_jax @ wo_jax.T)
+
+    _allclose("swiglu_forward_jax", list(out_pyc.data), out_jax.flatten().tolist())
+    assert abs(loss_pyc.data[0] - float(loss_jax)) < _ATOL, (
+        f"swiglu loss: got={loss_pyc.data[0]:.8g}, expected={float(loss_jax):.8g}"
+    )
+    _allclose("swiglu_dx_jax", list(x_pyc.grad), dx_jax.flatten().tolist())
+    _allclose(
+        "swiglu_dWi_jax",
+        list(sg_pyc.linear_inner.weight.grad),
+        dwi_jax.flatten().tolist(),
+    )
+    _allclose(
+        "swiglu_dWo_jax",
+        list(sg_pyc.linear_outer.weight.grad),
+        dwo_jax.flatten().tolist(),
+    )
