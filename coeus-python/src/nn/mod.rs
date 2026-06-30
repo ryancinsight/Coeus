@@ -56,4 +56,4 @@ pub use pool::{
 pub use regularization::PyLocalResponseNorm;
 pub use rnn::{PyBidirectional, PyGRUCell, PyLSTMCell, PyRNNCell};
 pub use sequential::PySequential;
-pub use unfold_fold::{PyFold2d, PyUnfold1d, PyUnfold2d};
+pub use unfold_fold::{PyFold1d, PyFold2d, PyUnfold1d, PyUnfold2d};

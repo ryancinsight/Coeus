@@ -160,6 +160,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyUnfold2d>()?;
     m.add_class::<nn::PyFold2d>()?;
     m.add_class::<nn::PyUnfold1d>()?;
+    m.add_class::<nn::PyFold1d>()?;
     m.add_class::<PyLocalCommunicator>()?;
     m.add_class::<PyTcpMesh>()?;
     m.add_class::<PyTcpCommunicator>()?;
