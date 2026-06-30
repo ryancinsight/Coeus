@@ -63,6 +63,8 @@ pub mod rnn;
 pub mod sequential;
 /// Softmax layer and functional softmax.
 pub mod softmax;
+/// SwiGLU gated feed-forward unit.
+pub mod swiglu;
 /// Transformer encoder, decoder, and sub-layers.
 pub mod transformer;
 
@@ -109,6 +111,7 @@ pub use regularization::{AlphaDropout, FeatureAlphaDropout, GaussianNoise, Local
 pub use rnn::{Bidirectional, GRUCell, Gru, LSTMCell, Lstm, RNNCell, Rnn, RnnNonlinearity};
 pub use sequential::{ModuleExt, Sequential, StaticSeq};
 pub use softmax::{softmax, Softmax};
+pub use swiglu::SwiGlu;
 pub use transformer::{
     feed_forward, transformer_decoder_layer, transformer_encoder_layer, FeedForward, Transformer,
     TransformerDecoder, TransformerDecoderLayer, TransformerDecoderLayerParams, TransformerEncoder,
