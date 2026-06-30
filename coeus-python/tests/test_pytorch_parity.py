@@ -2650,3 +2650,35 @@ def test_swiglu_matches_pytorch() -> None:
         list(sg_pyc.linear_outer.weight.grad),
         wo_t.grad.flatten().tolist(),
     )
+
+
+# ---------------------------------------------------------------------------
+# LocalResponseNorm forward parity (forward-only — see gap_audit G-044)
+# ---------------------------------------------------------------------------
+
+
+def test_local_response_norm_forward_matches_pytorch() -> None:
+    """Forward-value parity: LocalResponseNorm(size=5) on [2, 8, 4, 4].
+
+    Cross-channel LRN has no learnable parameters; pycoeus and torch share the
+    ``alpha/size`` convention and defaults (alpha=1e-4, beta=0.75, k=1.0), so a
+    direct comparison needs no weight injection — the forward is bit-exact.
+
+    NOTE — forward-only: coeus's LocalResponseNorm is currently NOT
+    differentiable (its forward returns a non-grad-tracked tensor; ``dx`` would
+    be 0). Backward/``dx`` parity is tracked as gap G-044 in docs/gap_audit.md,
+    blocked on differentiable autograd ``powf`` and a windowed-channel
+    sum-of-squares op. This test therefore asserts forward-value parity only.
+    """
+    n, c, h, w = 2, 8, 4, 4
+    size = 5
+
+    lrn_pyc = pycoeus.LocalResponseNorm(size)
+    x_data = [math.sin(i * 0.05) for i in range(n * c * h * w)]
+
+    out_pyc = lrn_pyc.forward(pycoeus.Tensor(x_data, [n, c, h, w]))
+
+    x_t = torch.tensor(x_data, dtype=torch.float64).reshape(n, c, h, w)
+    out_t = torch.nn.LocalResponseNorm(size)(x_t)  # alpha=1e-4, beta=0.75, k=1.0
+
+    _allclose("lrn_forward", list(out_pyc.data), out_t.flatten().tolist())
