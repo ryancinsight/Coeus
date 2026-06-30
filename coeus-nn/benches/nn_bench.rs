@@ -23,7 +23,7 @@ use coeus_nn::{
     AvgPool1d as CoeusAvgPool1d, AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d,
     Conv3d, Embedding, EmbeddingBag, EmbeddingBagMode, GroupNorm, Gru as CoeusGru, InstanceNorm2d,
     LayerNorm, Linear, Lstm, MaxPool1d, MaxPool2d, Module, MultiHeadAttention, NullMask, RMSNorm,
-    TransformerEncoderLayer,
+    SwiGlu, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -42,7 +42,7 @@ use burn::nn::pool::MaxPool1dConfig;
 use burn::nn::transformer::{TransformerEncoderConfig, TransformerEncoderInput};
 use burn::nn::{
     BatchNormConfig, GroupNormConfig, InstanceNormConfig, LayerNormConfig, LinearConfig,
-    LstmConfig, PaddingConfig1d, PaddingConfig2d, PaddingConfig3d, RmsNormConfig,
+    LstmConfig, PaddingConfig1d, PaddingConfig2d, PaddingConfig3d, RmsNormConfig, SwiGluConfig,
 };
 use burn::tensor::{Int, Tensor as BurnTensor, TensorData};
 type BurnB = NdArray<f32>;
@@ -892,6 +892,51 @@ fn bench_gru_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_swiglu_forward(c: &mut Criterion) {
+    // SwiGLU forward on [batch=32, d_input=256] → d_output=512 — the FFN-style
+    // projection shape. Two parallel d_input→d_output linear projections plus a
+    // SiLU gate and an element-wise product; the two matmuls dominate.
+    const SG_BATCH: usize = 32;
+    const SG_IN: usize = 256;
+    const SG_OUT: usize = 512;
+
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(SG_BATCH * SG_IN))
+        .map(|i| (i as f32 * 0.0017).sin())
+        .collect();
+
+    // Burn: SwiGluConfig(d_input, d_output), bias defaults to false.
+    let burn_swiglu = SwiGluConfig::new(SG_IN, SG_OUT).init::<BurnB>(&device);
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [SG_BATCH, SG_IN]),
+        &device,
+    );
+
+    // Coeus: SwiGlu::new(d_input, d_output, bias=false).
+    let sg_seq = SwiGlu::<f32, SequentialBackend>::new(SG_IN, SG_OUT, false);
+    let sg_moirai = SwiGlu::<f32, MoiraiBackend>::new(SG_IN, SG_OUT, false);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![SG_BATCH, SG_IN], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![SG_BATCH, SG_IN], &input_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — SwiGLU forward (32 batch, in=256 out=512)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_swiglu.forward(black_box(x_burn.clone()))))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(sg_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(sg_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
 fn bench_instancenorm2d_forward(c: &mut Criterion) {
     // InstanceNorm2d forward on [N=2, C=32, H=16, W=16].
     const IN_N: usize = 2;
@@ -1442,6 +1487,7 @@ criterion_group!(
     bench_linear_forward_backward,
     bench_lstm_forward,
     bench_gru_forward,
+    bench_swiglu_forward,
     bench_adaptive_avg_pool2d_forward,
     bench_instancenorm2d_forward,
     bench_cross_entropy_loss,
