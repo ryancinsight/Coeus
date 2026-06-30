@@ -2552,6 +2552,47 @@ def test_adaptive_avg_pool_backward_matches_pytorch() -> None:
     _allclose("adaptive2d_dx", list(x2.grad), x2t.grad.flatten().tolist())
 
 
+def test_adaptive_max_pool_backward_matches_pytorch() -> None:
+    """Forward + gradient parity vs torch: AdaptiveMaxPool1d/2d are differentiable
+    (G-045). Distinct values ((i*13)%211 is a permutation, gcd(13,211)=1) so each
+    region's argmax is unique and matches torch's, making dx unambiguous."""
+    # 1d: [2, 4, 7] -> 3
+    n, c, length = 2, 4, 7
+    d1 = [((i * 13) % 211) * 0.07 for i in range(n * c * length)]
+    x1 = pycoeus.Tensor(d1, [n, c, length], requires_grad=True)
+    y1 = pycoeus.AdaptiveMaxPool1d(3).forward(x1)
+    pycoeus.mse_loss(y1, pycoeus.Tensor([0.5] * (n * c * 3), [n, c, 3])).backward()
+    x1t = (
+        torch.tensor(d1, dtype=torch.float64)
+        .reshape(n, c, length)
+        .requires_grad_(True)
+    )
+    y1t = torch.nn.AdaptiveMaxPool1d(3)(x1t)
+    torch.nn.functional.mse_loss(
+        y1t, torch.full((n, c, 3), 0.5, dtype=torch.float64)
+    ).backward()
+    _allclose("adaptivemax1d_forward", list(y1.data), y1t.detach().flatten().tolist())
+    _allclose("adaptivemax1d_dx", list(x1.grad), x1t.grad.flatten().tolist())
+
+    # 2d: [2, 3, 5, 5] -> (2, 2)
+    n, c, h, w = 2, 3, 5, 5
+    d2 = [((i * 13) % 211) * 0.07 for i in range(n * c * h * w)]
+    x2 = pycoeus.Tensor(d2, [n, c, h, w], requires_grad=True)
+    y2 = pycoeus.AdaptiveMaxPool2d(2, 2).forward(x2)
+    pycoeus.mse_loss(y2, pycoeus.Tensor([0.5] * (n * c * 4), [n, c, 2, 2])).backward()
+    x2t = (
+        torch.tensor(d2, dtype=torch.float64)
+        .reshape(n, c, h, w)
+        .requires_grad_(True)
+    )
+    y2t = torch.nn.AdaptiveMaxPool2d((2, 2))(x2t)
+    torch.nn.functional.mse_loss(
+        y2t, torch.full((n, c, 2, 2), 0.5, dtype=torch.float64)
+    ).backward()
+    _allclose("adaptivemax2d_forward", list(y2.data), y2t.detach().flatten().tolist())
+    _allclose("adaptivemax2d_dx", list(x2.grad), x2t.grad.flatten().tolist())
+
+
 # ---------------------------------------------------------------------------
 # Unfold2d parity (MS-213)
 # ---------------------------------------------------------------------------

@@ -49,9 +49,9 @@ pub use normalization::{
     PyInstanceNorm3d, PyLayerNorm, PyRMSNorm,
 };
 pub use pool::{
-    PyAdaptiveAvgPool1d, PyAdaptiveAvgPool2d, PyAvgPool1d, PyAvgPool2d, PyAvgPool3d,
-    PyGlobalAvgPool1d, PyGlobalAvgPool2d, PyGlobalAvgPool3d, PyGlobalMaxPool2d, PyGlobalMaxPool3d,
-    PyMaxPool1d, PyMaxPool2d, PyMaxPool3d,
+    PyAdaptiveAvgPool1d, PyAdaptiveAvgPool2d, PyAdaptiveMaxPool1d, PyAdaptiveMaxPool2d,
+    PyAvgPool1d, PyAvgPool2d, PyAvgPool3d, PyGlobalAvgPool1d, PyGlobalAvgPool2d, PyGlobalAvgPool3d,
+    PyGlobalMaxPool2d, PyGlobalMaxPool3d, PyMaxPool1d, PyMaxPool2d, PyMaxPool3d,
 };
 pub use regularization::PyLocalResponseNorm;
 pub use rnn::{PyBidirectional, PyGRUCell, PyLSTMCell, PyRNNCell};
