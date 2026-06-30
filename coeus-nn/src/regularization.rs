@@ -276,47 +276,55 @@ where
         vec![]
     }
 
-    /// LRN forward pass.
+    /// LRN forward pass — differentiable.
     ///
     /// Supports 2D (`[N, C]`), 3D (`[N, C, L]`), and 4D (`[N, C, H, W]`) inputs.
+    /// Built entirely from autograd ops so gradients flow to the input: the
+    /// cross-channel windowed sum-of-squares is a constant band-matrix product
+    /// (differentiable through the squared activations), and the `^beta`
+    /// denominator uses the differentiable `pow` (the base `k + .. >= k > 0`,
+    /// so the `exp(beta*ln(.))` it computes is well defined).
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         let shape = input.tensor.shape_cloned();
         let n = shape[0];
         let c = shape[1];
         let spatial: usize = shape[2..].iter().product::<usize>().max(1);
-
-        let alpha_t = T::from_f64(self.alpha / self.size as f64);
-        let beta_t = T::from_f64(self.beta);
-        let k_t = T::from_f64(self.k);
-
-        let src = input.tensor.as_slice();
-        let backend = B::default();
-        let mut out_data = vec![T::zero(); n * c * spatial];
-
-        // Iterate (n, c, spatial), compute LRN over channel neighborhood.
         let half = self.size / 2;
-        for ni in 0..n {
-            for ci in 0..c {
-                let c_start = ci.saturating_sub(half);
-                let c_end = (ci + half + 1).min(c);
-                for s in 0..spatial {
-                    let mut sq_sum = T::zero();
-                    for cj in c_start..c_end {
-                        let val = src[ni * c * spatial + cj * spatial + s];
-                        sq_sum = sq_sum + val * val;
-                    }
-                    let denom_base = k_t + alpha_t * sq_sum;
-                    // denom = denom_base^beta
-                    let denom = T::from_f64(T::to_f64(denom_base).powf(T::to_f64(beta_t)));
-                    let x = src[ni * c * spatial + ci * spatial + s];
-                    out_data[ni * c * spatial + ci * spatial + s] = x / denom;
-                }
+        let backend = B::default();
+
+        // View as [N, C, spatial] (channel axis = dim 1); square it.
+        let x3 = coeus_autograd::reshape(input, [n, c, spatial]);
+        let sq = coeus_autograd::mul(&x3, &x3);
+
+        // Constant band matrix M [C, C], M[i, j] = 1 iff |i - j| <= half. Then
+        // `M @ sq` over the channel axis is each channel's squared response
+        // summed across its size-neighbourhood (with boundary clamping implicit
+        // in the band), differentiable through `sq`.
+        let mut m_data = vec![T::zero(); c * c];
+        for i in 0..c {
+            let lo = i.saturating_sub(half);
+            let hi = (i + half + 1).min(c);
+            for cell in m_data[i * c + lo..i * c + hi].iter_mut() {
+                *cell = T::one();
             }
         }
+        let m = Var::new(Tensor::from_slice_on([c, c], &m_data, &backend), false);
 
-        let out_tensor = Tensor::from_slice_on(shape, &out_data, &backend);
-        // LRN backward is not yet tracked (forward-only for inference).
-        // When grad is not needed, skip the graph.
-        Var::new(out_tensor, false)
+        // windowed = M @ sq:  [N,C,S] -> [C,N*S] -> M@ -> [C,N*S] -> [N,C,S].
+        let sq_cns = coeus_autograd::permute(&sq, &[1, 0, 2]);
+        let sq_2d = coeus_autograd::reshape(&sq_cns, [c, n * spatial]);
+        let win_2d = coeus_autograd::matmul(&m, &sq_2d);
+        let win_cns = coeus_autograd::reshape(&win_2d, [c, n, spatial]);
+        let windowed = coeus_autograd::permute(&win_cns, &[1, 0, 2]);
+
+        // denom = (k + (alpha / size) * windowed)^beta;  y = x / denom.
+        let scaled =
+            coeus_autograd::scalar_mul(&windowed, T::from_f64(self.alpha / self.size as f64));
+        let denom = coeus_autograd::pow(
+            &coeus_autograd::scalar_add(&scaled, T::from_f64(self.k)),
+            self.beta,
+        );
+        let y3 = coeus_autograd::div(&x3, &denom);
+        coeus_autograd::reshape(&y3, shape)
     }
 }

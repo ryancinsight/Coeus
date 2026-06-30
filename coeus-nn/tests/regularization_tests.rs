@@ -134,3 +134,57 @@ fn lrn_k1_defaults_match_pytorch() {
         assert!((v).abs() < 1e-7, "zero input should give zero output");
     }
 }
+
+#[test]
+fn lrn_backward_matches_numerical_gradient() {
+    // The autograd-graph forward must propagate gradients to the input. Verify
+    // the analytic input gradient of `sum(LRN(x))` against an f64 central
+    // finite-difference reference. Window crosses channels, so the gradient
+    // genuinely couples neighbouring channels (not a per-element passthrough).
+    let lrn = LocalResponseNorm::with_params(3, 1.0, 0.75, 1.0);
+    let data = [0.5_f64, -1.0, 2.0, 0.3, 1.5, -0.7];
+    let shape = [1, 6, 1, 1];
+
+    // Analytic: backward() seeds grad_output = ones, so x.grad = d sum(y) / d x.
+    let x = Var::new(
+        Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
+        true,
+    );
+    lrn.forward(&x).backward();
+    let analytic: Vec<f64> = x.grad().expect("lrn input gradient").as_slice().to_vec();
+
+    // Numerical: central differences of sum(LRN(x)). f64, h=1e-6 ⇒ error ~1e-10;
+    // a non-zero coupled gradient must match within a wide 1e-5 margin.
+    let h = 1e-6_f64;
+    let sum_forward = |d: &[f64]| -> f64 {
+        let xv = Var::new(
+            Tensor::<f64, SequentialBackend>::from_slice(shape, d),
+            false,
+        );
+        lrn.forward(&xv)
+            .tensor
+            .as_slice()
+            .iter()
+            .copied()
+            .sum::<f64>()
+    };
+    for i in 0..data.len() {
+        let mut dp = data.to_vec();
+        dp[i] += h;
+        let mut dm = data.to_vec();
+        dm[i] -= h;
+        let numeric = (sum_forward(&dp) - sum_forward(&dm)) / (2.0 * h);
+        assert!(
+            (analytic[i] - numeric).abs() < 1e-5,
+            "grad[{i}]: analytic {} vs numeric {} (diff {:.2e})",
+            analytic[i],
+            numeric,
+            (analytic[i] - numeric).abs()
+        );
+    }
+    // Gradient must be genuinely non-trivial (not the forward-only dx=0 bug).
+    assert!(
+        analytic.iter().any(|g| g.abs() > 1e-6),
+        "LRN input gradient is all-zero — backward not propagating"
+    );
+}

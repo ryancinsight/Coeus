@@ -477,7 +477,7 @@ Evidence tier: differential/empirical (PyTorch f64).
 | G-041 regularization/sparse/local-response modules incomplete | source-surface + external docs audit | **open** |
 | G-042 quantized and lazy module parity policy missing | source-surface + external docs audit | **open** |
 | G-043 Burn/PyTorch NN benchmark matrix remains partial | source-surface + external docs audit | **open** |
-| G-044 LocalResponseNorm is forward-only (non-differentiable); forward bit-exact vs torch but dx=0. Acceptance: dx parity with torch.nn.LocalResponseNorm. Blocked on differentiable autograd `powf` (d/dx xᵝ) + windowed-channel sum-of-squares (`narrow`/`cat` or dedicated op); sub-gap of G-041 | differential | **open** |
+| G-044 LocalResponseNorm was forward-only (non-differentiable). Fixed: forward rewritten as an autograd graph (band-matrix matmul windowed sum-of-squares + differentiable `pow`), so dx now flows. forward + dx parity with torch.nn.LocalResponseNorm verified | differential | **closed** |
 | G-001 stateless PyTransformerEncoderLayer binding | structural | **closed MS-127** |
 | G-002 stateless PyTransformerEncoder binding | structural | **closed MS-128** |
 | G-003 stateless PyTransformerDecoderLayer binding | structural | **closed MS-129** |
