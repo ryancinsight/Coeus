@@ -19,11 +19,11 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
-    cross_entropy_loss, gelu, huber_loss, mse_loss, relu, sigmoid, silu, tanh, AdaptiveAvgPool2d,
-    AvgPool1d as CoeusAvgPool1d, AvgPool2d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d,
-    Conv3d, Embedding, EmbeddingBag, EmbeddingBagMode, GroupNorm, Gru as CoeusGru, InstanceNorm2d,
-    LayerNorm, Linear, Lstm, MaxPool1d, MaxPool2d, Module, MultiHeadAttention, NullMask, RMSNorm,
-    SwiGlu, TransformerEncoderLayer,
+    cross_entropy_loss, gelu, huber_loss, mse_loss, prelu, relu, sigmoid, silu, tanh,
+    AdaptiveAvgPool2d, AvgPool1d as CoeusAvgPool1d, AvgPool2d, BatchNorm1d, BatchNorm2d,
+    BatchNorm3d, Conv1d, Conv2d, Conv3d, Embedding, EmbeddingBag, EmbeddingBagMode, GroupNorm,
+    Gru as CoeusGru, InstanceNorm2d, LayerNorm, Linear, Lstm, MaxPool1d, MaxPool2d, Module,
+    MultiHeadAttention, NullMask, RMSNorm, SwiGlu, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -1202,6 +1202,43 @@ fn bench_gelu_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_prelu_forward(c: &mut Criterion) {
+    // PReLU on [BATCH x FEATURES] with the shared default alpha = 0.25. Inputs
+    // are shifted negative so the parametric branch is exercised on ~half.
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.0031).sin() - 0.4)
+        .collect();
+    let device = NdArrayDevice::default();
+
+    // Burn: PReluConfig defaults num_parameters=1, alpha=0.25.
+    let burn_prelu = burn::nn::PReluConfig::new().init::<BurnB>(&device);
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
+
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — PReLU forward (128x256)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_prelu.forward(black_box(x_burn.clone()))))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(prelu(black_box(&x_seq), 0.25)))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(prelu(black_box(&x_moirai), 0.25)))
+    });
+    group.finish();
+}
+
 fn bench_sigmoid_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
         .map(|i| (i as f32 * 0.0031).sin())
@@ -1494,6 +1531,7 @@ criterion_group!(
     bench_mse_loss,
     bench_huber_loss,
     bench_relu_forward,
+    bench_prelu_forward,
     bench_gelu_forward,
     bench_sigmoid_forward,
     bench_tanh_forward,
