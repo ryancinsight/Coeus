@@ -1709,6 +1709,24 @@ def test_silu_matches_pytorch() -> None:
     )
 
 
+def test_log_sigmoid_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "log_sigmoid",
+        lambda x: pycoeus.log_sigmoid(x),
+        torch.nn.functional.logsigmoid,
+        _ACTIVATION_INPUT,
+    )
+
+
+def test_tanhshrink_matches_pytorch() -> None:
+    _assert_activation_parity(
+        "tanhshrink",
+        lambda x: pycoeus.tanhshrink(x),
+        torch.nn.functional.tanhshrink,
+        _ACTIVATION_INPUT,
+    )
+
+
 def test_mish_matches_pytorch() -> None:
     _assert_activation_parity(
         "mish", lambda x: pycoeus.mish(x), torch.nn.functional.mish, _ACTIVATION_INPUT

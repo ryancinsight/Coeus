@@ -302,6 +302,21 @@ def test_silu_matches_jax() -> None:
     _assert_activation_matches_jax("silu", lambda x: pycoeus.silu(x), jax.nn.silu, _ACT_INPUT)
 
 
+def test_log_sigmoid_matches_jax() -> None:
+    _assert_activation_matches_jax(
+        "log_sigmoid", lambda x: pycoeus.log_sigmoid(x), jax.nn.log_sigmoid, _ACT_INPUT
+    )
+
+
+def test_tanhshrink_matches_jax() -> None:
+    _assert_activation_matches_jax(
+        "tanhshrink",
+        lambda x: pycoeus.tanhshrink(x),
+        lambda x: x - jnp.tanh(x),
+        _ACT_INPUT,
+    )
+
+
 def test_mish_matches_jax() -> None:
     _assert_activation_matches_jax("mish", lambda x: pycoeus.mish(x), jax.nn.mish, _ACT_INPUT)
 

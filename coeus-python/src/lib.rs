@@ -190,6 +190,8 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(activations::threshold, m)?)?;
     m.add_function(wrap_pyfunction!(activations::celu, m)?)?;
     m.add_function(wrap_pyfunction!(activations::prelu, m)?)?;
+    m.add_function(wrap_pyfunction!(activations::log_sigmoid, m)?)?;
+    m.add_function(wrap_pyfunction!(activations::tanhshrink, m)?)?;
 
     m.add_function(wrap_pyfunction!(losses::mse_loss, m)?)?;
     m.add_function(wrap_pyfunction!(losses::cross_entropy_loss, m)?)?;
