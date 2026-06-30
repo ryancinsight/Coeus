@@ -36,7 +36,7 @@ pub use nn::{
     conv_transpose3d, cosine_embedding_loss, cross_entropy_loss, dropout, huber_loss,
     kl_divergence, l1_loss, layernorm, log_softmax, margin_ranking_loss, max_pool1d, max_pool2d,
     max_pool3d, multi_margin, nll_loss, pairwise_distance, poisson_nll, rmsnorm, sdp_attention,
-    soft_margin, softmax, AttentionMask, BatchNormArgs, CausalMask, NullMask,
+    soft_margin, softmax, unfold1d, AttentionMask, BatchNormArgs, CausalMask, NullMask,
 };
 
 pub use embedding::{embedding, embedding_with_padding_idx};

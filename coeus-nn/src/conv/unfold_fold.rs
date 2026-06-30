@@ -79,16 +79,14 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Unfold1d
     }
 
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        let backend = B::default();
-        let out_tensor = coeus_ops::unfold1d(
-            &input.tensor,
+        // Differentiable im2col: backward is the fold1d col2im transpose.
+        coeus_autograd::unfold1d(
+            input,
             self.kernel_size,
             self.stride,
             self.padding,
             self.dilation,
-            &backend,
-        );
-        Var::new(out_tensor, false)
+        )
     }
 }
 

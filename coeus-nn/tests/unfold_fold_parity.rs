@@ -153,3 +153,26 @@ fn fold2d_unfold2d_roundtrip_no_overlap() {
         assert!((*a - e).abs() < 1e-10, "roundtrip: got {a}, expected {e}");
     }
 }
+
+// ── Unfold1d differentiability (G-045) ───────────────────────────────────────
+
+#[test]
+fn unfold1d_backward_accumulates_window_overlap() {
+    // Unfold (im2col) is linear, so d sum(unfold(x)) / d x_i equals the number of
+    // windows containing position i. kernel=3, stride=1 on length 5 yields the
+    // overlap counts [1, 2, 3, 2, 1]; the col2im (fold1d) backward must produce
+    // exactly that (previously this layer was forward-only with dx=0).
+    let m = Unfold1d::<f64, SequentialBackend>::new(3, 1, 0, 1);
+    let data = [10.0_f64, 20.0, 30.0, 40.0, 50.0];
+    let x = Var::new(
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 5], &data),
+        true,
+    );
+    m.forward(&x).backward();
+    let grad = x.grad().expect("unfold1d input gradient");
+    assert_eq!(grad.as_slice(), &[1.0, 2.0, 3.0, 2.0, 1.0]);
+    assert!(
+        grad.as_slice().iter().any(|&g| g > 0.0),
+        "unfold1d gradient is all-zero — backward not propagating"
+    );
+}
