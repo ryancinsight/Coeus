@@ -256,3 +256,66 @@ fn adaptive_avg_pool2d_backward_matches_numerical_gradient() {
             .sum::<f64>()
     });
 }
+
+#[test]
+fn adaptive_max_pool1d_backward_matches_numerical_gradient() {
+    // Distinct values so each region's argmax is unique (no tie ambiguity); the
+    // gradient routes to the argmax of each output and is stable under ±1e-6.
+    let m = AdaptiveMaxPool1d::<f64, SequentialBackend>::new(3);
+    let data = [3.0_f64, 1.0, 4.0, 1.5, 5.0, 9.0, 2.0];
+    let shape = [1, 1, 7];
+    let x = Var::new(
+        Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
+        true,
+    );
+    m.forward(&x).backward();
+    let analytic: Vec<f64> = x
+        .grad()
+        .expect("adaptive max pool 1d gradient")
+        .as_slice()
+        .to_vec();
+    assert_grad_matches_numeric(&analytic, &data, 1e-6, |d| {
+        let xv = Var::new(
+            Tensor::<f64, SequentialBackend>::from_slice(shape, d),
+            false,
+        );
+        m.forward(&xv)
+            .tensor
+            .as_slice()
+            .iter()
+            .copied()
+            .sum::<f64>()
+    });
+}
+
+#[test]
+fn adaptive_max_pool2d_backward_matches_numerical_gradient() {
+    // 25 distinct values (i*13 mod 25 is a permutation since gcd(13,25)=1).
+    let m = AdaptiveMaxPool2d::<f64, SequentialBackend>::new(2, 2);
+    let data: Vec<f64> = (0..25)
+        .map(|i| ((i * 13 % 25) as f64) * 0.37 + 0.11)
+        .collect();
+    let shape = [1, 1, 5, 5];
+    let x = Var::new(
+        Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
+        true,
+    );
+    m.forward(&x).backward();
+    let analytic: Vec<f64> = x
+        .grad()
+        .expect("adaptive max pool 2d gradient")
+        .as_slice()
+        .to_vec();
+    assert_grad_matches_numeric(&analytic, &data, 1e-6, |d| {
+        let xv = Var::new(
+            Tensor::<f64, SequentialBackend>::from_slice(shape, d),
+            false,
+        );
+        m.forward(&xv)
+            .tensor
+            .as_slice()
+            .iter()
+            .copied()
+            .sum::<f64>()
+    });
+}
