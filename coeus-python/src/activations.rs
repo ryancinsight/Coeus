@@ -248,3 +248,17 @@ pub fn prelu(input: &PyTensor, alpha: f64, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::prelu(&input.inner, alpha));
     PyTensor::from_var(inner)
 }
+
+/// LogSigmoid activation: `log(sigmoid(x))`, via the stable `-softplus(-x)`.
+#[pyfunction]
+pub fn log_sigmoid(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_nn::log_sigmoid(&input.inner));
+    PyTensor::from_var(inner)
+}
+
+/// Tanhshrink activation: `x - tanh(x)`.
+#[pyfunction]
+pub fn tanhshrink(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_nn::tanhshrink(&input.inner));
+    PyTensor::from_var(inner)
+}
