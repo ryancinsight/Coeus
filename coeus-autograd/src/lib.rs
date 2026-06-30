@@ -166,6 +166,7 @@ pub use ops::{
     tril,
     triu,
     trunc,
+    unfold1d,
     unsqueeze,
     // Shape ops
     where_cond,
