@@ -20,6 +20,8 @@ pub mod module_list;
 pub mod normalization;
 /// Pooling layers (AvgPool, MaxPool, GlobalAvgPool, GlobalMaxPool, AdaptiveAvgPool).
 pub mod pool;
+/// Regularization layers (LocalResponseNorm).
+pub mod regularization;
 /// Recurrent cells (LSTMCell, GRUCell) and Bidirectional wrapper.
 pub mod rnn;
 /// Sequential container that chains module forwards.
@@ -51,6 +53,7 @@ pub use pool::{
     PyGlobalAvgPool1d, PyGlobalAvgPool2d, PyGlobalAvgPool3d, PyGlobalMaxPool2d, PyGlobalMaxPool3d,
     PyMaxPool1d, PyMaxPool2d, PyMaxPool3d,
 };
+pub use regularization::PyLocalResponseNorm;
 pub use rnn::{PyBidirectional, PyGRUCell, PyLSTMCell, PyRNNCell};
 pub use sequential::PySequential;
 pub use unfold_fold::{PyFold2d, PyUnfold1d, PyUnfold2d};

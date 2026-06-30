@@ -120,6 +120,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyEmbedding>()?;
     m.add_class::<nn::PyEmbeddingBag>()?;
     m.add_class::<nn::PyDropout>()?;
+    m.add_class::<nn::PyLocalResponseNorm>()?;
     m.add_class::<nn::PyBilinear>()?;
     m.add_class::<nn::PyBatchNorm1d>()?;
     m.add_class::<nn::PyBatchNorm2d>()?;
