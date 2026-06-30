@@ -155,6 +155,8 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<nn::PyAvgPool1d>()?;
     m.add_class::<nn::PyAdaptiveAvgPool1d>()?;
     m.add_class::<nn::PyAdaptiveAvgPool2d>()?;
+    m.add_class::<nn::PyAdaptiveMaxPool1d>()?;
+    m.add_class::<nn::PyAdaptiveMaxPool2d>()?;
     m.add_class::<nn::PyUnfold2d>()?;
     m.add_class::<nn::PyFold2d>()?;
     m.add_class::<nn::PyUnfold1d>()?;

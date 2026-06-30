@@ -1010,3 +1010,65 @@ def test_adaptive_avg_pool_matches_jax() -> None:
     y2j = jnp.einsum("ah,bw,nchw->ncab", ph, pw, x2j)
     _allclose("adaptive2d_forward_jax", list(y2.data), y2j.flatten().tolist())
     _allclose("adaptive2d_dx_jax", list(x2p.grad), dx2.flatten().tolist())
+
+
+def test_adaptive_max_pool_matches_jax() -> None:
+    """Forward + gradient parity vs a JAX per-region-max reference, mirroring the
+    PyTorch dx test. AdaptiveMaxPool is differentiable (G-045). Distinct values
+    ((i*13)%211, gcd=1) keep each region's argmax unique."""
+
+    def ceil_div(a: int, b: int) -> int:
+        return -(-a // b)
+
+    # 1d: [2, 4, 7] -> 3
+    n, c, length, out = 2, 4, 7, 3
+    d1 = [((i * 13) % 211) * 0.07 for i in range(n * c * length)]
+    x1p = pycoeus.Tensor(d1, [n, c, length], requires_grad=True)
+    y1 = pycoeus.AdaptiveMaxPool1d(out).forward(x1p)
+    pycoeus.mse_loss(y1, pycoeus.Tensor([0.5] * (n * c * out), [n, c, out])).backward()
+
+    x1j = jnp.asarray(d1, dtype=jnp.float64).reshape(n, c, length)
+    tgt1 = jnp.full((n, c, out), 0.5, dtype=jnp.float64)
+
+    def fwd1(x):
+        cols = [
+            jnp.max(x[:, :, o * length // out : ceil_div((o + 1) * length, out)], axis=2)
+            for o in range(out)
+        ]
+        return jnp.stack(cols, axis=2)
+
+    _, dx1 = jax.value_and_grad(lambda x: jnp.mean((fwd1(x) - tgt1) ** 2))(x1j)
+    _allclose("adaptivemax1d_forward_jax", list(y1.data), fwd1(x1j).flatten().tolist())
+    _allclose("adaptivemax1d_dx_jax", list(x1p.grad), dx1.flatten().tolist())
+
+    # 2d: [2, 3, 5, 5] -> (2, 2)
+    n, c, h, w, oh, ow = 2, 3, 5, 5, 2, 2
+    d2 = [((i * 13) % 211) * 0.07 for i in range(n * c * h * w)]
+    x2p = pycoeus.Tensor(d2, [n, c, h, w], requires_grad=True)
+    y2 = pycoeus.AdaptiveMaxPool2d(oh, ow).forward(x2p)
+    pycoeus.mse_loss(y2, pycoeus.Tensor([0.5] * (n * c * oh * ow), [n, c, oh, ow])).backward()
+
+    x2j = jnp.asarray(d2, dtype=jnp.float64).reshape(n, c, h, w)
+    tgt2 = jnp.full((n, c, oh, ow), 0.5, dtype=jnp.float64)
+
+    def fwd2(x):
+        rows = []
+        for oi in range(oh):
+            cols = [
+                jnp.max(
+                    x[
+                        :,
+                        :,
+                        oi * h // oh : ceil_div((oi + 1) * h, oh),
+                        oj * w // ow : ceil_div((oj + 1) * w, ow),
+                    ],
+                    axis=(2, 3),
+                )
+                for oj in range(ow)
+            ]
+            rows.append(jnp.stack(cols, axis=2))
+        return jnp.stack(rows, axis=2)
+
+    _, dx2 = jax.value_and_grad(lambda x: jnp.mean((fwd2(x) - tgt2) ** 2))(x2j)
+    _allclose("adaptivemax2d_forward_jax", list(y2.data), fwd2(x2j).flatten().tolist())
+    _allclose("adaptivemax2d_dx_jax", list(x2p.grad), dx2.flatten().tolist())
