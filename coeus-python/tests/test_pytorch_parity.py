@@ -3478,3 +3478,80 @@ def test_bidirectional_shape_and_stability() -> None:
             assert not (v != v), "Bidirectional output must not contain NaN"
     except AttributeError:
         pytest.skip("pycoeus.Bidirectional or pycoeus.Gru not available")
+
+
+# ---------------------------------------------------------------------------
+# Shape ops parity (MS-235): movedim / swapaxes / flatten
+# ---------------------------------------------------------------------------
+
+
+def test_movedim_matches_pytorch() -> None:
+    """torch.movedim parity on [2, 3, 4]: move dim 0 to dim 2."""
+    n, c, d = 2, 3, 4
+    data = [float(i) * 0.1 for i in range(n * c * d)]
+
+    x_pyc = pycoeus.Tensor(data, [n, c, d], requires_grad=True)
+    y_pyc = pycoeus.movedim(x_pyc, 0, 2)
+    y_pyc.backward()
+
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, d).requires_grad_(True)
+    y_t = torch.movedim(x_t, 0, 2)
+    y_t.sum().backward()
+
+    _allclose("movedim_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose("movedim_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+def test_swapaxes_matches_pytorch() -> None:
+    """torch.swapaxes parity on [2, 3, 4]: swap axes 0 and 2."""
+    n, c, d = 2, 3, 4
+    data = [float(i) * 0.1 for i in range(n * c * d)]
+
+    x_pyc = pycoeus.Tensor(data, [n, c, d], requires_grad=True)
+    y_pyc = pycoeus.swapaxes(x_pyc, 0, 2)
+    y_pyc.backward()
+
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, d).requires_grad_(True)
+    y_t = torch.swapaxes(x_t, 0, 2)
+    y_t.sum().backward()
+
+    _allclose("swapaxes_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose("swapaxes_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+def test_flatten_matches_pytorch() -> None:
+    """torch.flatten parity on [2, 3, 4]: flatten(1, 2) → [2, 12]."""
+    n, c, d = 2, 3, 4
+    data = [float(i) * 0.1 for i in range(n * c * d)]
+
+    x_pyc = pycoeus.Tensor(data, [n, c, d], requires_grad=True)
+    y_pyc = pycoeus.flatten(x_pyc, 1, 2)
+    y_pyc.backward()
+
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, d).requires_grad_(True)
+    y_t = torch.flatten(x_t, 1, 2)
+    y_t.sum().backward()
+
+    _allclose("flatten_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose("flatten_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# Softmin parity (MS-235)
+# ---------------------------------------------------------------------------
+
+
+def test_softmin_matches_pytorch() -> None:
+    """softmin = softmax(-x). parity on [3, 4] dim=1."""
+    data = [0.5, -1.2, 2.0, -0.3, 1.0, 0.8, -0.5, 0.3, -2.0, 0.1, 1.5, 0.6]
+
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=True)
+    y_pyc = pycoeus.softmin(x_pyc, 1)
+    y_pyc.backward()
+
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(3, 4).requires_grad_(True)
+    y_t = torch.nn.functional.softmin(x_t, dim=1)
+    y_t.sum().backward()
+
+    _allclose("softmin_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose("softmin_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
