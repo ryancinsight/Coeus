@@ -1,9 +1,9 @@
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_nn::{
-    bce_with_logits, binary_cross_entropy, cosine_embedding_loss, huber_loss, kl_divergence,
-    l1_loss, margin_ranking_loss, multi_margin, nll_loss, pairwise_distance, poisson_nll,
-    soft_margin, triplet_margin_loss,
+    bce_with_logits, binary_cross_entropy, cosine_embedding_loss, cosine_similarity, huber_loss,
+    kl_divergence, l1_loss, margin_ranking_loss, multi_margin, nll_loss, pairwise_distance,
+    poisson_nll, smooth_l1_loss, soft_margin, triplet_margin_loss,
 };
 use coeus_tensor::Tensor;
 
@@ -669,4 +669,93 @@ fn test_cosine_embedding_loss() {
     cosine_embedding_loss(&x1_g, &x2_g, &[1.0_f64], 0.0).backward();
     assert!(x1_g.grad().is_some(), "x1 grad");
     assert!(x2_g.grad().is_some(), "x2 grad");
+}
+
+// ── SmoothL1Loss (Huber-β) ──────────────────────────────────────────────────
+
+#[test]
+fn test_smooth_l1_loss() {
+    // pred - target = z = [0.5, 2.0, -3.0], beta = 1.0.
+    // |z|<β quadratic branch: 0.5·0.5²/1 = 0.125;
+    // |z|≥β linear branch:    |2|-0.5·1 = 1.5,  |−3|-0.5·1 = 2.5.
+    // mean = (0.125 + 1.5 + 2.5) / 3 = 1.375.
+    let pred_data = vec![0.5_f64, 2.0, -3.0];
+    let target_data = vec![0.0_f64, 0.0, 0.0];
+    let pred = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &pred_data),
+        true,
+    );
+    let target = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &target_data),
+        false,
+    );
+
+    let loss = smooth_l1_loss(&pred, &target, 1.0);
+    assert_eq!(loss.tensor.shape(), &[1]);
+    let expected = (0.125 + 1.5 + 2.5) / 3.0;
+    assert!(
+        (loss.tensor.as_slice()[0] - expected).abs() < 1e-12,
+        "smooth_l1 forward: got {}, want {expected}",
+        loss.tensor.as_slice()[0]
+    );
+
+    // d loss / d pred_i = (1/N)·(z/β if |z|<β else sign(z)):
+    //   z=0.5 -> 0.5/1 / 3;  z=2 -> +1 / 3;  z=-3 -> -1 / 3.
+    loss.backward();
+    let grad = pred.grad().expect("smooth_l1 pred grad");
+    let expected_grad = [0.5 / 3.0, 1.0 / 3.0, -1.0 / 3.0];
+    for (g, e) in grad.as_slice().iter().zip(expected_grad.iter()) {
+        assert!((g - e).abs() < 1e-12, "smooth_l1 grad: got {g}, want {e}");
+    }
+}
+
+// ── cosine_similarity (row-wise, dim=1) ─────────────────────────────────────
+
+#[test]
+fn test_cosine_similarity_forward_and_backward() {
+    // [N=2, D=2]; row0 = (3,4)·(4,3) / (5·5) = 24/25 = 0.96;
+    // row1 = (1,0)·(0,1) / (1·1) = 0.  eps is negligible at 1e-12.
+    let x1_data = vec![3.0_f64, 4.0, 1.0, 0.0];
+    let x2_data = vec![4.0_f64, 3.0, 0.0, 1.0];
+    let x1 = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &x1_data),
+        true,
+    );
+    let x2 = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &x2_data),
+        true,
+    );
+
+    let out = cosine_similarity(&x1, &x2, 1, 1e-12);
+    assert_eq!(out.tensor.shape(), &[2]);
+    let s = out.tensor.as_slice();
+    assert!((s[0] - 0.96).abs() < 1e-9, "row0 cos: got {}", s[0]);
+    assert!(s[1].abs() < 1e-9, "row1 cos: got {}", s[1]);
+
+    // Backward against a central finite-difference reference on sum(cos).
+    out.backward();
+    let analytic: Vec<f64> = x1.grad().expect("cosine x1 grad").as_slice().to_vec();
+    let h = 1e-6;
+    let forward_sum = |d: &[f64]| -> f64 {
+        let xv = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], d), false);
+        cosine_similarity(&xv, &x2, 1, 1e-12)
+            .tensor
+            .as_slice()
+            .iter()
+            .sum::<f64>()
+    };
+    for i in 0..x1_data.len() {
+        let mut dp = x1_data.clone();
+        dp[i] += h;
+        let mut dm = x1_data.clone();
+        dm[i] -= h;
+        let numeric = (forward_sum(&dp) - forward_sum(&dm)) / (2.0 * h);
+        assert!(
+            (analytic[i] - numeric).abs() < 1e-5,
+            "cosine dx1[{i}]: analytic {} vs numeric {}",
+            analytic[i],
+            numeric
+        );
+    }
+    assert!(x2.grad().is_some(), "cosine x2 grad");
 }
