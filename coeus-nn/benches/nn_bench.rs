@@ -20,10 +20,10 @@ use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
     cross_entropy_loss, gelu, huber_loss, mse_loss, prelu, relu, sigmoid, silu, tanh,
-    AdaptiveAvgPool2d, AvgPool1d as CoeusAvgPool1d, AvgPool2d, BatchNorm1d, BatchNorm2d,
-    BatchNorm3d, Conv1d, Conv2d, Conv3d, Embedding, EmbeddingBag, EmbeddingBagMode, GroupNorm,
-    Gru as CoeusGru, InstanceNorm2d, LayerNorm, Linear, Lstm, MaxPool1d, MaxPool2d, Module,
-    MultiHeadAttention, NullMask, RMSNorm, SwiGlu, TransformerEncoderLayer,
+    AdaptiveAvgPool2d, AdaptiveMaxPool2d, AvgPool1d as CoeusAvgPool1d, AvgPool2d, BatchNorm1d,
+    BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d, Embedding, EmbeddingBag, EmbeddingBagMode,
+    GroupNorm, Gru as CoeusGru, InstanceNorm2d, LayerNorm, Linear, Lstm, MaxPool1d, MaxPool2d,
+    Module, MultiHeadAttention, NullMask, RMSNorm, SwiGlu, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -1503,6 +1503,56 @@ fn bench_adaptive_avg_pool2d_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_adaptive_max_pool2d_forward(c: &mut Criterion) {
+    // AdaptiveMaxPool2d(1,1): global max pooling step.
+    // Input [8, 64, 7, 7] → output [8, 64, 1, 1].
+    // Burn equivalent: AdaptiveAvgPool2d output (AdaptiveMaxPool2d not in Burn 0.16 public API,
+    // so compare against the Burn MaxPool2d with kernel matching spatial dims).
+    const AMP_N: usize = 8;
+    const AMP_C: usize = 64;
+    const AMP_H: usize = 7;
+    const AMP_W: usize = 7;
+
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(AMP_N * AMP_C * AMP_H * AMP_W))
+        .map(|i| (i as f32 * 0.0017).cos())
+        .collect();
+
+    // Burn: MaxPool2d with kernel = spatial dim (approximates global max).
+    let burn_pool = burn::nn::pool::MaxPool2dConfig::new([AMP_H, AMP_W])
+        .with_strides([1, 1])
+        .with_padding(burn::nn::PaddingConfig2d::Valid)
+        .init();
+    let x_burn: BurnTensor<BurnB, 4> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [AMP_N, AMP_C, AMP_H, AMP_W]),
+        &device,
+    );
+
+    // Coeus AdaptiveMaxPool2d.
+    let pool_seq = coeus_nn::AdaptiveMaxPool2d::<f32, SequentialBackend>::square(1);
+    let pool_moirai = coeus_nn::AdaptiveMaxPool2d::<f32, MoiraiBackend>::square(1);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![AMP_N, AMP_C, AMP_H, AMP_W], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![AMP_N, AMP_C, AMP_H, AMP_W], &input_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — AdaptiveMaxPool2d(1,1) forward (8x64x7x7)");
+    group.bench_function("Burn NdArray (MaxPool2d k=7)", |b| {
+        b.iter(|| black_box(burn_pool.forward(black_box(x_burn.clone()))))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -1537,6 +1587,7 @@ criterion_group!(
     bench_tanh_forward,
     bench_silu_forward,
     bench_maxpool1d_forward,
-    bench_avgpool1d_forward
+    bench_avgpool1d_forward,
+    bench_adaptive_max_pool2d_forward
 );
 criterion_main!(benches);

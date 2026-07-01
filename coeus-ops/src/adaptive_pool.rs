@@ -9,9 +9,14 @@
 //
 // This matches PyTorch `nn.AdaptiveAvgPool1d` / `nn.AdaptiveAvgPool2d` /
 // `nn.AdaptiveMaxPool1d` / `nn.AdaptiveMaxPool2d` for integer output sizes.
+//
+// # Performance
+// The contiguous fast-path uses raw slice arithmetic (`parallel_for` across
+// (N,C) pairs) to avoid the per-element layout-index overhead of `get/set`.
+// The non-contiguous slow-path falls back to `get/set`.
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
 use coeus_tensor::Tensor;
 
 // ── Region helpers ────────────────────────────────────────────────────────────
@@ -109,7 +114,8 @@ where
 /// Adaptive average pooling for `[N, C, H, W]` → `[N, C, out_h, out_w]`.
 ///
 /// Equivalent to PyTorch `nn.AdaptiveAvgPool2d((out_h, out_w))`.
-pub fn adaptive_avg_pool2d<T: Float, B: BackendOps<T> + Default>(
+/// Uses `parallel_for` over (N×C) pairs on contiguous inputs.
+pub fn adaptive_avg_pool2d<T: Float, B: BackendOps<T> + Default + Backend>(
     input: &Tensor<T, B>,
     out_h: usize,
     out_w: usize,
@@ -124,28 +130,43 @@ where
     let h = input.shape()[2];
     let w = input.shape()[3];
 
-    let mut out = Tensor::zeros_on([n, c, out_h, out_w], backend);
+    // Contiguous fast-path: raw pointer arithmetic via parallel_for.
+    let inp_cont;
+    let inp = if input.is_contiguous() && input.layout().offset() == 0 {
+        input
+    } else {
+        inp_cont = input.to_contiguous_on(backend);
+        &inp_cont
+    };
 
-    for ni in 0..n {
-        for ci in 0..c {
-            for oh in 0..out_h {
-                let hs = region_start(oh, h, out_h);
-                let he = region_end(oh, h, out_h);
-                for ow in 0..out_w {
-                    let ws = region_start(ow, w, out_w);
-                    let we = region_end(ow, w, out_w);
-                    let count = T::from_f64(((he - hs) * (we - ws)) as f64);
-                    let mut acc = T::zero();
-                    for hi in hs..he {
-                        for wi in ws..we {
-                            acc = acc + input.get(&[ni, ci, hi, wi]);
-                        }
+    use crate::ptr::{MutPtr, Ptr};
+    let mut out = Tensor::zeros_on([n, c, out_h, out_w], backend);
+    let inp_ptr = Ptr(inp.storage().as_slice().as_ptr());
+    let out_ptr = MutPtr(out.storage_mut().as_mut_slice().as_mut_ptr());
+
+    let nc = n * c;
+    backend.parallel_for(0, nc, move |idx| {
+        let ni = idx / c;
+        let ci = idx % c;
+        let inp_nc = ni * c * h * w + ci * h * w;
+        let out_nc = ni * c * out_h * out_w + ci * out_h * out_w;
+        for oh in 0..out_h {
+            let hs = region_start(oh, h, out_h);
+            let he = region_end(oh, h, out_h);
+            for ow in 0..out_w {
+                let ws = region_start(ow, w, out_w);
+                let we = region_end(ow, w, out_w);
+                let count = T::from_f64(((he - hs) * (we - ws)) as f64);
+                let mut acc = T::zero();
+                for hi in hs..he {
+                    for wi in ws..we {
+                        acc = acc + unsafe { inp_ptr.read(inp_nc + hi * w + wi) };
                     }
-                    out.set(&[ni, ci, oh, ow], acc / count);
                 }
+                unsafe { out_ptr.write(out_nc + oh * out_w + ow, acc / count) };
             }
         }
-    }
+    });
 
     out
 }
@@ -155,7 +176,8 @@ where
 /// Adaptive max pooling for `[N, C, H, W]` → `[N, C, out_h, out_w]`.
 ///
 /// Equivalent to PyTorch `nn.AdaptiveMaxPool2d((out_h, out_w))`.
-pub fn adaptive_max_pool2d<T: Float, B: BackendOps<T> + Default>(
+/// Uses `parallel_for` over (N×C) pairs on contiguous inputs.
+pub fn adaptive_max_pool2d<T: Float, B: BackendOps<T> + Default + Backend>(
     input: &Tensor<T, B>,
     out_h: usize,
     out_w: usize,
@@ -170,28 +192,42 @@ where
     let h = input.shape()[2];
     let w = input.shape()[3];
 
-    let mut out = Tensor::zeros_on([n, c, out_h, out_w], backend);
+    let inp_cont;
+    let inp = if input.is_contiguous() && input.layout().offset() == 0 {
+        input
+    } else {
+        inp_cont = input.to_contiguous_on(backend);
+        &inp_cont
+    };
 
-    for ni in 0..n {
-        for ci in 0..c {
-            for oh in 0..out_h {
-                let hs = region_start(oh, h, out_h);
-                let he = region_end(oh, h, out_h);
-                for ow in 0..out_w {
-                    let ws = region_start(ow, w, out_w);
-                    let we = region_end(ow, w, out_w);
-                    let mut max_val: Option<T> = None;
-                    for hi in hs..he {
-                        for wi in ws..we {
-                            let v = input.get(&[ni, ci, hi, wi]);
-                            max_val = Some(max_val.map_or(v, |m| if v > m { v } else { m }));
-                        }
+    use crate::ptr::{MutPtr, Ptr};
+    let mut out = Tensor::zeros_on([n, c, out_h, out_w], backend);
+    let inp_ptr = Ptr(inp.storage().as_slice().as_ptr());
+    let out_ptr = MutPtr(out.storage_mut().as_mut_slice().as_mut_ptr());
+
+    let nc = n * c;
+    backend.parallel_for(0, nc, move |idx| {
+        let ni = idx / c;
+        let ci = idx % c;
+        let inp_nc = ni * c * h * w + ci * h * w;
+        let out_nc = ni * c * out_h * out_w + ci * out_h * out_w;
+        for oh in 0..out_h {
+            let hs = region_start(oh, h, out_h);
+            let he = region_end(oh, h, out_h);
+            for ow in 0..out_w {
+                let ws = region_start(ow, w, out_w);
+                let we = region_end(ow, w, out_w);
+                let mut max_val: Option<T> = None;
+                for hi in hs..he {
+                    for wi in ws..we {
+                        let v = unsafe { inp_ptr.read(inp_nc + hi * w + wi) };
+                        max_val = Some(max_val.map_or(v, |m| if v > m { v } else { m }));
                     }
-                    out.set(&[ni, ci, oh, ow], max_val.unwrap_or(T::zero()));
                 }
+                unsafe { out_ptr.write(out_nc + oh * out_w + ow, max_val.unwrap_or(T::zero())) };
             }
         }
-    }
+    });
 
     out
 }
