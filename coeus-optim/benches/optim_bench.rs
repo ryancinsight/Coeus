@@ -10,7 +10,7 @@ use coeus_tensor::Tensor;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
 /// Representative parameter tensor sizes: small layer, medium, large embedding.
-const SIZES: [usize; 3] = [1_024, 16_384, 262_144];
+const SIZES: [usize; 5] = [4_096, 16_384, 65_536, 262_144, 1_048_576];
 
 fn make_param(n: usize) -> Var<f32, MoiraiBackend> {
     let data: Vec<f32> = (0..n).map(|i| (i % 7) as f32 * 0.1 - 0.3).collect();
