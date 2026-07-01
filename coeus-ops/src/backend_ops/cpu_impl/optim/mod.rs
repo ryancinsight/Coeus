@@ -9,18 +9,21 @@ use coeus_core::Backend;
 /// Element count at or below which an optimizer update runs sequentially instead
 /// of dispatching across the Moirai pool.
 ///
-/// Optimizer steps are light, memory-bandwidth-bound element-wise updates (a few
-/// FLOPs per element), so for small parameter tensors a single auto-vectorized
-/// loop beats the thread dispatch/join cost. This is deliberately the op-layer's
-/// threshold: `coeus-ops` knows the per-element work is cheap, so it raises the
-/// bar above Moirai's general-purpose `Adaptive` threshold (1024) before handing
-/// off to the pool.
+/// Optimizer steps are light, memory-bandwidth-bound element-wise updates, so the
+/// parallel path's fixed thread dispatch/join cost (~20 µs, measured) dominates
+/// until the tensor is large. This is deliberately the op-layer's threshold:
+/// `coeus-ops` knows the per-element work is cheap, so it sets the bar far above
+/// Moirai's general-purpose `Adaptive` threshold (1024) before handing to the pool.
 ///
-/// Note: benchmark evidence (`coeus-optim/benches/optim_bench.rs`) indicates the
-/// parallel path stays slower than sequential well past this value for these
-/// ops; tuning `SEQUENTIAL_THRESHOLD` upward is tracked as a follow-up requiring a
-/// derived sequential-vs-parallel crossover measurement across sizes.
-const SEQUENTIAL_THRESHOLD: usize = 4096;
+/// Derived from `coeus-optim/benches/optim_bench.rs` sequential-vs-parallel
+/// crossover measurements (f32, MoiraiBackend). Per-op sequential wins hold up to
+/// roughly SGD ~425K elements, Adam ~130K (heavier per element → lower crossover).
+/// A single shared threshold must not regress the heaviest op, so it sits below the
+/// *minimum* crossover (Adam's) with margin: at 65_536 both are decisively
+/// sequential (SGD 10.7 vs 38 µs; Adam 33 vs 57 µs, non-overlapping CIs) — a 16×
+/// lift over the previous 4096 across the common small/medium range. Above it both
+/// dispatch to the pool (parallel wins for SGD by ~1M, Adam by ~260K).
+const SEQUENTIAL_THRESHOLD: usize = 65_536;
 
 /// Apply `f(i)` for every `i in 0..numel`, sequentially below
 /// [`SEQUENTIAL_THRESHOLD`] (no dispatch/join overhead) or across Moirai's pool
