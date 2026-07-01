@@ -1499,3 +1499,42 @@ def test_rotary_embedding_matches_jax() -> None:
     y_j = x_j * cos_t + x_rot * sin_t
 
     _allclose("rope", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-9)
+
+
+# ---------------------------------------------------------------------------
+# Shape ops JAX parity (MS-235): movedim / flatten
+# ---------------------------------------------------------------------------
+
+
+def test_movedim_matches_jax() -> None:
+    """jnp.moveaxis parity on [2, 3, 4]: move axis 0 to axis 2."""
+    n, c, d = 2, 3, 4
+    data = [float(i) * 0.1 for i in range(n * c * d)]
+
+    x_pyc = pycoeus.Tensor(data, [n, c, d], requires_grad=True)
+    y_pyc = pycoeus.movedim(x_pyc, 0, 2)
+    y_pyc.backward()
+
+    x_j = jnp.asarray(data, dtype=jnp.float64).reshape(n, c, d)
+    y_j = jnp.moveaxis(x_j, 0, 2)
+    dx_j = jax.grad(lambda x: jnp.sum(jnp.moveaxis(x, 0, 2)))(x_j)
+
+    _allclose("movedim_fwd_jax", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-10)
+    _allclose("movedim_dx_jax", list(x_pyc.grad), dx_j.flatten().tolist(), atol=1e-10)
+
+
+def test_flatten_matches_jax() -> None:
+    """jnp.reshape parity: flatten [2,3,4] → [2,12] (flatten(1,2))."""
+    n, c, d = 2, 3, 4
+    data = [float(i) * 0.1 for i in range(n * c * d)]
+
+    x_pyc = pycoeus.Tensor(data, [n, c, d], requires_grad=True)
+    y_pyc = pycoeus.flatten(x_pyc, 1, 2)
+    y_pyc.backward()
+
+    x_j = jnp.asarray(data, dtype=jnp.float64).reshape(n, c, d)
+    y_j = x_j.reshape(n, c * d)
+    dx_j = jax.grad(lambda x: jnp.sum(x.reshape(n, c * d)))(x_j)
+
+    _allclose("flatten_fwd_jax", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-10)
+    _allclose("flatten_dx_jax", list(x_pyc.grad), dx_j.flatten().tolist(), atol=1e-10)
