@@ -14,5 +14,13 @@ coeus-tensor   = { workspace = true }
 coeus-autograd = { workspace = true, default-features = false }
 apollo-fft     = { workspace = true }
 
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "fft_bench"
+path = "benches/fft_bench.rs"
+harness = false
+
 [features]
 default = []
