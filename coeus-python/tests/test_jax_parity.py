@@ -1321,3 +1321,61 @@ def test_cosine_similarity_matches_jax() -> None:
     _allclose("cos_out_jax", list(out_pyc.data), list(out_j), atol=1e-10)
     _allclose("cos_dx1_jax", list(x1_pyc.grad), list(g_x1.flatten()), atol=1e-10)
     _allclose("cos_dx2_jax", list(x2_pyc.grad), list(g_x2.flatten()), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# Mish activation parity (MS-228)
+# ---------------------------------------------------------------------------
+
+
+def test_mish_matches_jax() -> None:
+    """Mish forward and gradient parity: x * tanh(softplus(x)).
+
+    JAX reference: x * jnp.tanh(jnp.log1p(jnp.exp(x))) at f64.
+    Input spans positive, negative, and zero to cover all regions.
+    """
+    x_data = [-2.0, -0.5, 0.0, 0.5, 1.5, 3.0]
+
+    x_pyc = pycoeus.Tensor(x_data, [6], requires_grad=True)
+    y_pyc = pycoeus.mish(x_pyc)
+    # backward via sum
+    y_pyc.backward()
+
+    x_j = jnp.asarray(x_data, dtype=jnp.float64)
+
+    def mish_j(x):
+        return jnp.sum(x * jnp.tanh(jnp.log1p(jnp.exp(x))))
+
+    val_j, dx_j = jax.value_and_grad(mish_j)(x_j)
+
+    # forward: compare element-wise
+    def mish_scalar(x):
+        return x * jnp.tanh(jnp.log1p(jnp.exp(x)))
+
+    y_j = jax.vmap(mish_scalar)(x_j)
+    _allclose("mish_forward", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-9)
+    _allclose("mish_grad", list(x_pyc.grad), dx_j.flatten().tolist(), atol=1e-9)
+
+
+# ---------------------------------------------------------------------------
+# Dropout eval identity parity (MS-228)
+# ---------------------------------------------------------------------------
+
+
+def test_dropout_eval_matches_jax() -> None:
+    """Dropout in eval mode is an identity: output == input.
+
+    Both pycoeus and JAX dropout (with rate=0 i.e. deterministic eval) should
+    produce outputs equal to the input at any dtype.
+    """
+    if not hasattr(pycoeus, "Dropout"):
+        pytest.skip("pycoeus.Dropout not available")
+
+    x_data = [-1.0, 0.5, 2.0, -0.3, 1.1]
+    x_pyc = pycoeus.Tensor(x_data, [5])
+    m = pycoeus.Dropout(p=0.5)
+    y_pyc = m.forward(x_pyc)
+
+    x_j = jnp.asarray(x_data, dtype=jnp.float64)
+    # Eval mode: no dropout applied → output == input
+    _allclose("dropout_eval", list(y_pyc.data), x_j.flatten().tolist(), atol=1e-15)

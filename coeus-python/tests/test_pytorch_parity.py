@@ -3132,3 +3132,110 @@ def test_ctc_loss_matches_pytorch() -> None:
         f"CTC loss mismatch: pycoeus={loss_pyc.data[0]:.8g}, "
         f"pytorch={loss_t.item():.8g}, diff={diff:.3e}"
     )
+
+
+# ---------------------------------------------------------------------------
+# MS-219 loss family PyTorch parity (smooth_l1, hinge_embedding, gaussian_nll,
+# multi_label_soft_margin)
+# ---------------------------------------------------------------------------
+
+
+def test_smooth_l1_loss_beta05_matches_pytorch() -> None:
+    """Smooth L1 loss with beta=0.5 on 1D input [4].
+
+    oracle: |diff| < 0.5 → 0.5*diff^2/beta, else |diff|-0.5*beta
+    """
+    import torch.nn.functional as F_
+
+    x_data = [0.5, -1.2, 2.0, -0.3]
+    t_data = [0.0, 0.0, 1.0, 1.0]
+    beta = 0.5
+
+    x_pyc = pycoeus.Tensor(x_data, [4], requires_grad=True)
+    loss_pyc = pycoeus.smooth_l1_loss(x_pyc, pycoeus.Tensor(t_data, [4]), beta=beta)
+    loss_pyc.backward()
+
+    x_t = torch.tensor(x_data, dtype=torch.float64, requires_grad=True)
+    t_t = torch.tensor(t_data, dtype=torch.float64)
+    loss_t = F_.smooth_l1_loss(x_t, t_t, beta=beta)
+    loss_t.backward()
+
+    _allclose("smooth_l1_beta05", [loss_pyc.data[0]], [loss_t.item()], atol=1e-10)
+    _allclose("smooth_l1_beta05_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+def test_hinge_embedding_loss_matches_pytorch() -> None:
+    """HingeEmbeddingLoss on [4] with margin=1.0.
+
+    target[i] = +1: loss = x[i]; target[i] = -1: loss = max(0, margin - x[i])
+    mean reduction.
+    """
+    import torch.nn.functional as F_
+
+    x_data = [0.8, 1.5, -0.5, 0.2]
+    targets = [1.0, -1.0, 1.0, -1.0]
+
+    x_pyc = pycoeus.Tensor(x_data, [4], requires_grad=True)
+    loss_pyc = pycoeus.hinge_embedding_loss(x_pyc, targets, margin=1.0)
+    loss_pyc.backward()
+
+    x_t = torch.tensor(x_data, dtype=torch.float64, requires_grad=True)
+    t_t = torch.tensor(targets, dtype=torch.float64)
+    loss_t = F_.hinge_embedding_loss(x_t, t_t, margin=1.0)
+    loss_t.backward()
+
+    _allclose("hinge_embedding", [loss_pyc.data[0]], [loss_t.item()], atol=1e-10)
+    _allclose("hinge_embedding_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+def test_gaussian_nll_loss_matches_pytorch() -> None:
+    """GaussianNLLLoss on [2, 3] (input, target, var), full=False.
+
+    var kept > 0 to avoid log(0).
+    """
+    import torch.nn.functional as F_
+
+    inp = [0.5, -0.5, 1.0, 0.2, -0.3, 0.8]
+    tgt = [0.0, 0.0, 1.0, 0.5, -0.5, 1.0]
+    var = [0.5, 0.3, 0.8, 0.4, 0.6, 0.9]
+
+    x_pyc = pycoeus.Tensor(inp, [2, 3], requires_grad=True)
+    t_pyc = pycoeus.Tensor(tgt, [2, 3])
+    v_pyc = pycoeus.Tensor(var, [2, 3])
+    loss_pyc = pycoeus.gaussian_nll_loss(x_pyc, t_pyc, v_pyc)
+    loss_pyc.backward()
+
+    x_t = torch.tensor(inp, dtype=torch.float64, requires_grad=True)
+    t_t = torch.tensor(tgt, dtype=torch.float64)
+    v_t = torch.tensor(var, dtype=torch.float64)
+    loss_t = F_.gaussian_nll_loss(x_t, t_t, v_t)
+    loss_t.backward()
+
+    _allclose("gaussian_nll", [loss_pyc.data[0]], [loss_t.item()], atol=1e-8)
+    _allclose("gaussian_nll_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-8)
+
+
+def test_multi_label_soft_margin_matches_pytorch() -> None:
+    """MultiLabelSoftMarginLoss on [2, 4] — delegates to BCE-with-logits internally."""
+    import torch.nn.functional as F_
+
+    x_data = [0.5, -1.2, 2.0, -0.3, 1.0, 0.8, -0.5, 0.3]
+    t_data = [1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0]
+
+    x_pyc = pycoeus.Tensor(x_data, [2, 4], requires_grad=True)
+    t_pyc = pycoeus.Tensor(t_data, [2, 4])
+    loss_pyc = pycoeus.multi_label_soft_margin_loss(x_pyc, t_pyc)
+    loss_pyc.backward()
+
+    x_t = torch.tensor(x_data, dtype=torch.float64, requires_grad=True)
+    t_t = torch.tensor(t_data, dtype=torch.float64).reshape(2, 4)
+    loss_t = F_.multilabel_soft_margin_loss(x_t.reshape(2, 4), t_t)
+    loss_t.backward()
+
+    _allclose("multi_label_soft_margin", [loss_pyc.data[0]], [loss_t.item()], atol=1e-10)
+    _allclose(
+        "multi_label_soft_margin_dx",
+        list(x_pyc.grad),
+        x_t.grad.flatten().tolist(),
+        atol=1e-10,
+    )
