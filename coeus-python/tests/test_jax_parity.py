@@ -1447,3 +1447,55 @@ def test_batchnorm1d_eval_matches_jax() -> None:
 
     _allclose("bn1d_eval_jax", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-10)
 
+
+
+# ---------------------------------------------------------------------------
+# RotaryEmbedding (RoPE) JAX parity (MS-232)
+# ---------------------------------------------------------------------------
+
+
+def test_rotary_embedding_matches_jax() -> None:
+    """RotaryEmbedding forward parity against inline JAX RoPE formula.
+
+    GPT-NeoX/LLaMA-style RoPE:
+    theta_i = base^(-2i/d) for i in [0, d//2)
+    angle(pos, i) = pos * theta_i
+    cos_table[pos, i] = cos_table[pos, i + d//2] = cos(angle(pos, i))
+    sin_table[pos, i] = sin_table[pos, i + d//2] = sin(angle(pos, i))
+
+    x_rotated = x * cos + rotate_half(x) * sin
+    rotate_half([x1, x2]) = [-x2, x1] (split in halves, not alternating)
+    """
+    if not hasattr(pycoeus, "RotaryEmbedding"):
+        pytest.skip("pycoeus.RotaryEmbedding not available")
+
+    batch, seq, heads, d_head = 1, 4, 2, 8
+    max_len = 16
+    base = 10000.0
+    data = [float(i) * 0.05 - 0.5 for i in range(batch * seq * heads * d_head)]
+
+    rope_pyc = pycoeus.RotaryEmbedding(max_len=max_len, d_head=d_head, base=base)
+    x_pyc = pycoeus.Tensor(data, [batch, seq, heads, d_head])
+    y_pyc = rope_pyc.forward(x_pyc)
+
+    # JAX reference — GPT-NeoX style duplicate cos/sin
+    x_j = jnp.asarray(data, dtype=jnp.float64).reshape(batch, seq, heads, d_head)
+    half = d_head // 2
+    positions = jnp.arange(seq, dtype=jnp.float64)
+    freqs = base ** (-2.0 * jnp.arange(half, dtype=jnp.float64) / d_head)
+    angles = positions[:, None] * freqs[None, :]  # [seq, half]
+    cos_t = jnp.concatenate([jnp.cos(angles), jnp.cos(angles)], axis=-1)  # [seq, d_head]
+    sin_t = jnp.concatenate([jnp.sin(angles), jnp.sin(angles)], axis=-1)
+
+    # reshape for [batch, seq, 1, d_head] broadcast
+    cos_t = cos_t[None, :, None, :]  # [1, seq, 1, d_head]
+    sin_t = sin_t[None, :, None, :]
+
+    # rotate_half: [x[:half], x[half:]] → [-x[half:], x[:half]]
+    x_first = x_j[..., :half]
+    x_second = x_j[..., half:]
+    x_rot = jnp.concatenate([-x_second, x_first], axis=-1)
+
+    y_j = x_j * cos_t + x_rot * sin_t
+
+    _allclose("rope", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-9)
