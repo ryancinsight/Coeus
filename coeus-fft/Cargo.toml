@@ -9,9 +9,10 @@ license.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
-coeus-core   = { workspace = true }
-coeus-tensor = { workspace = true }
-apollo-fft   = { workspace = true }
+coeus-core     = { workspace = true }
+coeus-tensor   = { workspace = true }
+coeus-autograd = { workspace = true, default-features = false }
+apollo-fft     = { workspace = true }
 
 [features]
 default = []

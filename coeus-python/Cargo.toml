@@ -15,6 +15,7 @@ coeus-core     = { workspace = true }
 coeus-tensor   = { workspace = true }
 coeus-ops      = { workspace = true, default-features = false }
 coeus-autograd = { workspace = true, default-features = false }
+coeus-fft      = { workspace = true }
 coeus-nn       = { workspace = true, default-features = false }
 coeus-optim    = { workspace = true, default-features = false }
 coeus-dist     = { workspace = true, default-features = false }

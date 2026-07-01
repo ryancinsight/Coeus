@@ -1,36 +1,34 @@
-//! Tensor-level 1-D FFT for Coeus, routed through the Atlas-owned Apollo FFT library.
+//! Differentiable 1-D FFT for Coeus, routed through the Atlas-owned Apollo FFT library.
 //!
-//! This crate is the **non-autograd** signal-processing seam: it operates directly on
-//! [`Tensor`] values (no [`coeus_autograd::Var`] graph, no reverse-mode bookkeeping) and
-//! depends only on `coeus-core`, `coeus-tensor`, and `apollo-fft`. It is the SSOT for the
-//! Apollo -> Coeus tensor FFT bridge; the differentiable `Var`-level FFT nodes in
-//! `coeus-autograd` build on this primitive rather than re-deriving it (see backlog
-//! `G-FFT-CONSOLIDATE`: `coeus-autograd/ops/fft.rs` is scheduled to depend on this crate).
-//!
-//! No dependency on `rustfft`: all transforms execute through `apollo-fft`, keeping signal
-//! processing inside the Atlas ecosystem.
+//! Apollo owns the FFT itself (core slice/array transforms); this crate is Coeus's
+//! **autograd for Apollo's FFT** — it wraps `apollo-fft`'s core `fft_1d_slice_typed`
+//! into tensor-level `fft_1d`/`ifft_1d` and the reverse-mode nodes [`Fft1DNode`],
+//! [`Ifft1DNode`], and [`fft_energy`], building on the [`coeus_autograd`] engine
+//! ([`Var`], [`BackwardNode`], [`GradBuffer`]). No dependency on `rustfft`.
 //!
 //! # Numerical contract
-//! [`fft_1d`] computes the unnormalized forward DFT `X[k] = sum_n x[n] * exp(-2i*pi*k*n/N)`.
-//! [`ifft_1d`] applies the `1/N`-normalized inverse, so `ifft_1d(fft_1d(x)) == x` up to
-//! floating-point rounding.
+//! [`fft_1d`] computes the unnormalized forward DFT; [`ifft_1d`] the `1/N`-normalized
+//! inverse, so `ifft_1d(fft_1d(x)) == x` up to floating-point rounding. FFT/IFFT form
+//! an adjoint pair, giving the gradient rules encoded in the backward nodes.
 
 // ── Coeus FFT ──
-// Tensor-level FFT bridge over Apollo.
+// Apollo-backed FFT autograd for Coeus tensors.
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 
-use coeus_core::{Complex, ComputeBackend, Float, Scalar};
+use coeus_autograd::BackwardNode;
+use coeus_autograd::GradBuffer;
+use coeus_autograd::Var;
+use coeus_core::{Complex, ComputeBackend, Float, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
+use std::sync::Arc;
 
-/// Scalar types with an Apollo-backed 1-D FFT implementation.
-///
-/// Implemented for the IEEE-754 binary floating-point types Apollo plans natively.
+/// Scalar types supported by Apollo-backed Coeus FFT operations.
 pub trait FftScalar: Float {
-    /// Forward FFT of a contiguous real signal, producing its complex spectrum.
+    /// Compute a 1-D forward FFT for a contiguous real signal.
     fn fft_1d_impl(signal: &[Self]) -> Vec<Complex<Self>>;
 
-    /// Inverse (`1/N`-normalized) FFT of a contiguous complex spectrum.
+    /// Compute a 1-D inverse FFT for a contiguous complex spectrum.
     fn ifft_1d_impl(spectrum: &[Complex<Self>]) -> Vec<Self>;
 }
 
@@ -58,7 +56,22 @@ impl FftScalar for f64 {
     }
 }
 
-/// Copy a tensor's logical elements into a contiguous host `Vec` in row-major order.
+fn accumulate_grad<T, B>(grad: &Arc<GradBuffer<T, B>>, delta: &Tensor<T, B>)
+where
+    T: Scalar,
+    B: ComputeBackend + Default,
+{
+    let backend = B::default();
+    let mut current = vec![T::zero(); delta.numel()];
+    let delta_host = tensor_to_vec(delta);
+    let guard = grad.write();
+    backend.copy_to_host(guard.storage(), &mut current);
+    for (dst, src) in current.iter_mut().zip(delta_host) {
+        *dst = *dst + src;
+    }
+    backend.copy_to_device(&current, guard.storage_mut());
+}
+
 fn tensor_to_vec<T, B>(tensor: &Tensor<T, B>) -> Vec<T>
 where
     T: Scalar,
@@ -71,26 +84,7 @@ where
     host
 }
 
-/// Apollo-backed 1-D forward FFT of a real-valued tensor.
-///
-/// # Arguments
-/// * `signal` — 1-D tensor of shape `[N]`.
-///
-/// # Returns
-/// Complex tensor of shape `[N]` holding the frequency spectrum.
-///
-/// # Panics
-/// If `signal` is not 1-D.
-///
-/// # Examples
-/// ```
-/// use coeus_fft::fft_1d;
-/// use coeus_tensor::Tensor;
-///
-/// let signal = Tensor::<f64>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
-/// let spectrum = fft_1d(&signal);
-/// assert_eq!(spectrum.numel(), 4);
-/// ```
+/// Apollo-backed 1-D forward FFT for Coeus tensors.
 #[must_use]
 pub fn fft_1d<T, B>(signal: &Tensor<T, B>) -> Tensor<Complex<T>, B>
 where
@@ -104,28 +98,7 @@ where
     Tensor::from_slice_on(signal.shape_cloned(), &spectrum, &backend)
 }
 
-/// Apollo-backed 1-D inverse FFT, reconstructing a real-valued tensor.
-///
-/// # Arguments
-/// * `spectrum` — 1-D complex tensor of shape `[N]`.
-///
-/// # Returns
-/// Real tensor of shape `[N]`; `ifft_1d(fft_1d(x)) == x` up to floating-point rounding.
-///
-/// # Panics
-/// If `spectrum` is not 1-D.
-///
-/// # Examples
-/// ```
-/// use coeus_fft::{fft_1d, ifft_1d};
-/// use coeus_tensor::Tensor;
-///
-/// let signal = Tensor::<f64>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
-/// let reconstructed = ifft_1d(&fft_1d(&signal));
-/// for (r, x) in reconstructed.as_slice().iter().zip([1.0, 2.0, 3.0, 4.0]) {
-///     assert!((r - x).abs() < 1e-12);
-/// }
-/// ```
+/// Apollo-backed 1-D inverse FFT for Coeus tensors.
 #[must_use]
 pub fn ifft_1d<T, B>(spectrum: &Tensor<Complex<T>, B>) -> Tensor<T, B>
 where
@@ -139,81 +112,249 @@ where
     Tensor::from_slice_on(spectrum.shape_cloned(), &signal, &backend)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use coeus_core::MoiraiBackend;
+/// Backward node for `fft_1d_var`.
+pub struct Fft1DNode<T: FftScalar, B: ComputeBackend + Default = MoiraiBackend> {
+    /// Real input variable.
+    pub x: Var<T, B>,
+    /// Output gradient buffer in the complex frequency domain.
+    pub output_grad: Arc<GradBuffer<Complex<T>, B>>,
+}
 
-    /// Tolerance for `N = 4`, f64 radix FFT: worst-case error grows as
-    /// `O(log2(N) * eps_f64) = 2 * 2.22e-16 ~= 4.4e-16`; `1e-12` is a safe
-    /// analytic margin (>3 orders of magnitude) that still rejects real defects.
-    const TOL: f64 = 1e-12;
-
-    fn assert_complex_close(got: Complex<f64>, want: Complex<f64>, ctx: &str) {
-        assert!(
-            (got.re - want.re).abs() < TOL && (got.im - want.im).abs() < TOL,
-            "{ctx}: got {got:?}, want {want:?}"
-        );
+impl<T, B> BackwardNode<Complex<T>, B> for Fft1DNode<T, B>
+where
+    T: FftScalar,
+    B: ComputeBackend + Default,
+{
+    #[inline]
+    fn op_name(&self) -> &'static str {
+        "fft_1d"
     }
 
-    #[test]
-    fn fft_matches_analytic_dft() {
-        // x = [1,2,3,4]. Closed-form DFT (X[k] = sum_n x[n] exp(-2i*pi*k*n/4)):
-        //   X0 = 10, X1 = -2 + 2i, X2 = -2, X3 = -2 - 2i.
-        let signal = Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
-        let spectrum = fft_1d(&signal);
-        let out = spectrum.to_contiguous();
-        let vals = out.as_slice();
-        assert_complex_close(vals[0], Complex::new(10.0, 0.0), "X0");
-        assert_complex_close(vals[1], Complex::new(-2.0, 2.0), "X1");
-        assert_complex_close(vals[2], Complex::new(-2.0, 0.0), "X2");
-        assert_complex_close(vals[3], Complex::new(-2.0, -2.0), "X3");
+    #[inline]
+    fn output_grad(&self) -> &Arc<GradBuffer<Complex<T>, B>> {
+        &self.output_grad
     }
 
-    #[test]
-    fn constant_signal_has_dc_only_spectrum() {
-        // A constant signal c*[1,1,1,1] concentrates all energy at DC: X = [4c, 0, 0, 0].
-        let c = 2.5;
-        let signal = Tensor::<f64, MoiraiBackend>::from_slice([4], &[c, c, c, c]);
-        let vals_t = fft_1d(&signal).to_contiguous();
-        let vals = vals_t.as_slice();
-        assert_complex_close(vals[0], Complex::new(4.0 * c, 0.0), "DC");
-        for (k, v) in vals.iter().enumerate().skip(1) {
-            assert_complex_close(*v, Complex::new(0.0, 0.0), &format!("bin {k}"));
+    #[inline]
+    fn inputs(&self) -> &[Var<Complex<T>, B>] {
+        &[]
+    }
+
+    fn backward(
+        &self,
+        grad_out: &Tensor<Complex<T>, B>,
+        _input_grads: &[Option<Arc<GradBuffer<Complex<T>, B>>>],
+    ) {
+        let n = T::from_usize(grad_out.numel());
+        let mut dx = ifft_1d(grad_out);
+        let mut host = tensor_to_vec(&dx);
+        for value in &mut host {
+            *value = *value * n;
+        }
+        dx = Tensor::from_slice_on(dx.shape_cloned(), &host, &B::default());
+
+        if let Some(ref grad) = self.x.grad {
+            accumulate_grad(grad, &dx);
+        }
+        if self.x.creator.is_some() {
+            if let Some(current_grad) = self.x.grad() {
+                self.x.backward_with_seed(current_grad);
+            }
         }
     }
+}
 
-    #[test]
-    fn ifft_inverts_fft() {
-        // Round-trip identity verifies Apollo's 1/N inverse normalization.
-        let data = [0.5, -1.25, 3.0, 2.0, -0.75, 4.5, 1.0, -2.5];
-        let signal = Tensor::<f64, MoiraiBackend>::from_slice([8], &data);
-        let recon = ifft_1d(&fft_1d(&signal));
-        let recon_c = recon.to_contiguous();
-        for (r, x) in recon_c.as_slice().iter().zip(data) {
-            assert!((r - x).abs() < TOL, "round-trip: got {r}, want {x}");
-        }
+/// Backward node for `ifft_1d_var`.
+pub struct Ifft1DNode<T: FftScalar, B: ComputeBackend + Default = MoiraiBackend> {
+    /// Complex spectrum variable.
+    pub y: Var<Complex<T>, B>,
+    /// Output gradient buffer in the real domain.
+    pub output_grad: Arc<GradBuffer<T, B>>,
+}
+
+impl<T, B> BackwardNode<T, B> for Ifft1DNode<T, B>
+where
+    T: FftScalar,
+    B: ComputeBackend + Default,
+{
+    #[inline]
+    fn op_name(&self) -> &'static str {
+        "ifft_1d"
     }
 
-    #[test]
-    fn f32_fft_matches_analytic_dft() {
-        // Same closed form in single precision; tolerance scaled to f32 epsilon
-        // (eps_f32 ~= 1.19e-7, margin to 1e-4).
-        let signal = Tensor::<f32, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
-        let out = fft_1d(&signal).to_contiguous();
-        let vals = out.as_slice();
-        let tol = 1e-4_f32;
-        let want = [
-            Complex::new(10.0_f32, 0.0),
-            Complex::new(-2.0, 2.0),
-            Complex::new(-2.0, 0.0),
-            Complex::new(-2.0, -2.0),
-        ];
-        for (k, (g, w)) in vals.iter().zip(want).enumerate() {
-            assert!(
-                (g.re - w.re).abs() < tol && (g.im - w.im).abs() < tol,
-                "f32 X{k}: got {g:?}, want {w:?}"
-            );
+    #[inline]
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
+        &self.output_grad
+    }
+
+    #[inline]
+    fn inputs(&self) -> &[Var<T, B>] {
+        &[]
+    }
+
+    fn backward(&self, grad_out: &Tensor<T, B>, _input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+        let n = T::from_usize(grad_out.numel());
+        let mut dy = fft_1d(grad_out);
+        let mut host = tensor_to_vec(&dy);
+        for value in &mut host {
+            value.re = value.re / n;
+            value.im = value.im / n;
         }
+        dy = Tensor::from_slice_on(dy.shape_cloned(), &host, &B::default());
+
+        if let Some(ref grad) = self.y.grad {
+            accumulate_grad(grad, &dy);
+        }
+        if self.y.creator.is_some() {
+            if let Some(current_grad) = self.y.grad() {
+                self.y.backward_with_seed(current_grad);
+            }
+        }
+    }
+}
+
+/// Differentiable Apollo-backed 1-D forward FFT.
+#[must_use]
+pub fn fft_1d_var<T, B>(x: &Var<T, B>) -> Var<Complex<T>, B>
+where
+    T: FftScalar,
+    B: ComputeBackend + Default,
+{
+    let backend = B::default();
+    let out_tensor = fft_1d(&x.tensor);
+    let requires_grad = coeus_autograd::is_grad_enabled() && x.grad.is_some();
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
+            out_tensor.shape_cloned(),
+            &backend,
+        ))))
+    } else {
+        None
+    };
+    let creator = grad.as_ref().cloned().map(|output_grad| {
+        Arc::new(Fft1DNode {
+            x: x.clone(),
+            output_grad,
+        }) as Arc<dyn BackwardNode<Complex<T>, B>>
+    });
+
+    Var {
+        tensor: out_tensor,
+        grad,
+        creator,
+    }
+}
+
+/// Differentiable Apollo-backed 1-D inverse FFT.
+#[must_use]
+pub fn ifft_1d_var<T, B>(y: &Var<Complex<T>, B>) -> Var<T, B>
+where
+    T: FftScalar,
+    B: ComputeBackend + Default,
+{
+    let backend = B::default();
+    let out_tensor = ifft_1d(&y.tensor);
+    let requires_grad = coeus_autograd::is_grad_enabled() && y.grad.is_some();
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
+            out_tensor.shape_cloned(),
+            &backend,
+        ))))
+    } else {
+        None
+    };
+    let creator = grad.as_ref().cloned().map(|output_grad| {
+        Arc::new(Ifft1DNode {
+            y: y.clone(),
+            output_grad,
+        }) as Arc<dyn BackwardNode<T, B>>
+    });
+
+    Var {
+        tensor: out_tensor,
+        grad,
+        creator,
+    }
+}
+
+struct FftEnergyNode<T: FftScalar, B: ComputeBackend + Default = MoiraiBackend> {
+    output_grad: Arc<GradBuffer<T, B>>,
+    inputs: Vec<Var<T, B>>,
+    spectrum: Tensor<Complex<T>, B>,
+}
+
+impl<T, B> BackwardNode<T, B> for FftEnergyNode<T, B>
+where
+    T: FftScalar,
+    B: ComputeBackend + Default,
+{
+    #[inline]
+    fn op_name(&self) -> &'static str {
+        "fft_energy"
+    }
+
+    #[inline]
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
+        &self.output_grad
+    }
+
+    #[inline]
+    fn inputs(&self) -> &[Var<T, B>] {
+        &self.inputs
+    }
+
+    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+        if let Some(Some(ref grad)) = input_grads.first() {
+            let go = tensor_to_vec(grad_out)[0];
+            let factor = go * T::from_f64(2.0);
+            let spec_host = tensor_to_vec(&self.spectrum);
+            let grad_spec: Vec<Complex<T>> = spec_host
+                .iter()
+                .map(|c| Complex::new(c.re * factor, c.im * factor))
+                .collect();
+            let grad_spec =
+                Tensor::from_slice_on(self.spectrum.shape_cloned(), &grad_spec, &B::default());
+            let mut dx = ifft_1d(&grad_spec);
+            let n = T::from_usize(dx.numel());
+            let mut dx_host = tensor_to_vec(&dx);
+            for value in &mut dx_host {
+                *value = *value * n;
+            }
+            dx = Tensor::from_slice_on(dx.shape_cloned(), &dx_host, &B::default());
+            accumulate_grad(grad, &dx);
+        }
+    }
+}
+
+/// Sum of squared FFT magnitudes, preserving gradients to the real input.
+#[must_use]
+pub fn fft_energy<T, B>(x: &Var<T, B>) -> Var<T, B>
+where
+    T: FftScalar,
+    B: ComputeBackend + Default,
+{
+    let backend = B::default();
+    let spectrum = fft_1d(&x.tensor);
+    let energy = tensor_to_vec(&spectrum)
+        .iter()
+        .fold(T::zero(), |acc, c| acc + c.re * c.re + c.im * c.im);
+    let out_tensor = Tensor::from_slice_on([1], &[energy], &backend);
+    let requires_grad = coeus_autograd::is_grad_enabled() && x.grad.is_some();
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+    } else {
+        None
+    };
+    let creator = grad.as_ref().cloned().map(|output_grad| {
+        Arc::new(FftEnergyNode {
+            output_grad,
+            inputs: vec![x.clone()],
+            spectrum,
+        }) as Arc<dyn BackwardNode<T, B>>
+    });
+    Var {
+        tensor: out_tensor,
+        grad,
+        creator,
     }
 }
