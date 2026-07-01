@@ -1744,3 +1744,23 @@ def test_broadcast_to_matches_jax() -> None:
     t = jnp.array(data, dtype=jnp.float64).reshape(1, 3)
     exp = jnp.broadcast_to(t, (4, 3))
     _allclose("broadcast_to", list(got.data), jnp.ravel(exp).tolist())
+
+# ---------------------------------------------------------------------------
+# creation ops: arange / eye / linspace parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "arange"), reason="pycoeus.arange not available")
+def test_arange_matches_jax() -> None:
+    """jnp.arange(0, 10, 2) vs pycoeus.arange(0, 10, 2)."""
+    got = pycoeus.arange(0.0, 10.0, 2.0)
+    exp = jnp.arange(0, 10, 2, dtype=jnp.float64)
+    _allclose("arange", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "eye"), reason="pycoeus.eye not available")
+def test_eye_matches_jax() -> None:
+    """jnp.eye(4) vs pycoeus.eye(4)."""
+    got = pycoeus.eye(4)
+    exp = jnp.eye(4, dtype=jnp.float64)
+    _allclose("eye", list(got.data), jnp.ravel(exp).tolist())
