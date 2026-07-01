@@ -430,3 +430,29 @@ where
 {
     coeus_autograd::ctc_loss(log_probs, targets, input_lengths, target_lengths, blank)
 }
+
+/// Sum of all finite elements, treating NaN as zero (`torch.nansum`).
+///
+/// Returns a scalar `Var` (shape `[1]`).
+pub fn nansum<T: coeus_core::Float, B: coeus_ops::BackendOps<T> + Default>(
+    x: &coeus_autograd::Var<T, B>,
+) -> coeus_autograd::Var<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
+    coeus_autograd::nansum(x)
+}
+
+/// Mean of all finite elements, treating NaN as missing (`torch.nanmean`).
+///
+/// Returns a scalar `Var` (shape `[1]`).
+pub fn nanmean<T: coeus_core::Float, B: coeus_ops::BackendOps<T> + Default>(
+    x: &coeus_autograd::Var<T, B>,
+) -> coeus_autograd::Var<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
+    coeus_autograd::nanmean(x)
+}

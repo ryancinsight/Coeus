@@ -1538,3 +1538,40 @@ def test_flatten_matches_jax() -> None:
 
     _allclose("flatten_fwd_jax", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-10)
     _allclose("flatten_dx_jax", list(x_pyc.grad), dx_j.flatten().tolist(), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# diff / cumsum / cumprod JAX parity (MS-236)
+# ---------------------------------------------------------------------------
+
+
+def test_diff_matches_jax() -> None:
+    """jnp.diff parity: n=1 on [1,4,9,16]."""
+    data = [1.0, 4.0, 9.0, 16.0]
+
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    y_pyc = pycoeus.diff(x_pyc, n=1, dim=0)
+    y_pyc.backward()
+
+    x_j = jnp.asarray(data, dtype=jnp.float64)
+    y_j = jnp.diff(x_j, n=1, axis=0)
+    dx_j = jax.grad(lambda x: jnp.sum(jnp.diff(x, n=1, axis=0)))(x_j)
+
+    _allclose("diff_jax_fwd", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-10)
+    _allclose("diff_jax_dx", list(x_pyc.grad), dx_j.flatten().tolist(), atol=1e-10)
+
+
+def test_cumsum_matches_jax() -> None:
+    """jnp.cumsum parity on [8] along axis=0."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
+
+    x_pyc = pycoeus.Tensor(data, [8], requires_grad=True)
+    y_pyc = pycoeus.cumsum(x_pyc, 0)
+    y_pyc.backward()
+
+    x_j = jnp.asarray(data, dtype=jnp.float64)
+    y_j = jnp.cumsum(x_j, axis=0)
+    dx_j = jax.grad(lambda x: jnp.sum(jnp.cumsum(x, axis=0)))(x_j)
+
+    _allclose("cumsum_jax_fwd", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-10)
+    _allclose("cumsum_jax_dx", list(x_pyc.grad), dx_j.flatten().tolist(), atol=1e-10)

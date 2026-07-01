@@ -264,3 +264,17 @@ pub fn ctc_loss(
     });
     PyTensor::from_var(inner)
 }
+
+/// Sum of all finite elements, treating NaN as zero (`torch.nansum`).
+#[pyfunction]
+pub fn nansum(x: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_nn::nansum(&x.inner));
+    PyTensor::from_var(inner)
+}
+
+/// Mean of all finite elements, treating NaN as missing (`torch.nanmean`).
+#[pyfunction]
+pub fn nanmean(x: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_nn::nanmean(&x.inner));
+    PyTensor::from_var(inner)
+}

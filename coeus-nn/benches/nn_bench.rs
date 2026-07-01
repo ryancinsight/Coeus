@@ -2068,6 +2068,43 @@ fn bench_softmin_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_diff_forward(c: &mut Criterion) {
+    // torch.diff(x, n=1) — first-order discrete difference along last dim.
+    // Burn has no direct diff; compare against manual x[1:] - x[:-1] via slice/sub.
+    let input_data: Vec<f32> = (0..BATCH * FEATURES)
+        .map(|i| (i as f32 * 0.0023).sin())
+        .collect();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &NdArrayDevice::default(),
+    );
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let mut group = c.benchmark_group("Burn vs Coeus — diff(n=1) forward (128x256)");
+    group.bench_function("Burn NdArray (manual slice/sub)", |b| {
+        b.iter(|| {
+            let x_ = black_box(x_burn.clone());
+            let n = x_.dims()[1];
+            let a = x_.clone().slice([0..BATCH, 1..n]);
+            let b_ = x_.slice([0..BATCH, 0..n - 1]);
+            black_box(a - b_)
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(coeus_autograd::diff(black_box(&x_seq), 1, 1)))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(coeus_autograd::diff(black_box(&x_moirai), 1, 1)))
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -2096,6 +2133,7 @@ criterion_group!(
     bench_swiglu_forward,
     bench_glu_forward,
     bench_softmin_forward,
+    bench_diff_forward,
     bench_softmax_forward,
     bench_adaptive_avg_pool2d_forward,
     bench_instancenorm2d_forward,

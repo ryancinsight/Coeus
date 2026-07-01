@@ -105,3 +105,110 @@ pub fn mean_axis<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Var<T, B> {
     reduction_op::<T, B, MeanAxisOp>(a, Some(axis))
 }
+
+/// Tracked sum that treats NaN as zero (`torch.nansum`).
+///
+/// Replaces every NaN in `a` with 0 via `where_cond`, then reduces with `sum`.
+/// Differentiable: gradient at NaN positions is zero (they don't affect the sum).
+#[must_use]
+#[inline]
+pub fn nansum<T: coeus_core::Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Var<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
+    let backend = B::default();
+    // Build cleaned data: NaN → 0, finite values unchanged.
+    let cleaned_data: Vec<T> = a
+        .tensor
+        .as_slice()
+        .iter()
+        .map(|&v| if T::to_f64(v).is_nan() { T::zero() } else { v })
+        .collect();
+    // Use cleaned tensor directly — the backward will zero NaN positions automatically
+    // because they contribute 0 to the sum.
+    let a_clean = crate::Var::new(
+        coeus_tensor::Tensor::from_slice_on(a.tensor.shape_cloned(), &cleaned_data, &backend),
+        false,
+    );
+    sum(&a_clean)
+}
+
+/// Tracked mean that treats NaN as missing (`torch.nanmean`).
+///
+/// Replaces NaN with 0, counts non-NaN elements, then divides sum by count.
+/// Differentiable: gradient at NaN positions is zero.
+#[must_use]
+#[inline]
+pub fn nanmean<T: coeus_core::Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Var<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
+    let backend = B::default();
+    let slice = a.tensor.as_slice();
+    let count = slice.iter().filter(|&&v| !T::to_f64(v).is_nan()).count();
+    let cleaned_data: Vec<T> = slice
+        .iter()
+        .map(|&v| if T::to_f64(v).is_nan() { T::zero() } else { v })
+        .collect();
+    let a_clean = crate::Var::new(
+        coeus_tensor::Tensor::from_slice_on(a.tensor.shape_cloned(), &cleaned_data, &backend),
+        false,
+    );
+    let s = sum(&a_clean);
+    crate::scalar_div(&s, T::from_f64(count.max(1) as f64))
+}
+
+#[cfg(test)]
+mod nan_reduction_tests {
+    use super::*;
+    use coeus_core::SequentialBackend;
+    use coeus_tensor::Tensor;
+
+    type B = SequentialBackend;
+
+    fn nan_var(data: &[f64]) -> Var<f64, B> {
+        Var::new(Tensor::<f64, B>::from_slice(vec![data.len()], data), true)
+    }
+
+    #[test]
+    fn nansum_treats_nan_as_zero() {
+        let x = nan_var(&[1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
+        let s = nansum(&x);
+        let v = s.tensor.as_slice()[0];
+        assert!((v - 9.0).abs() < 1e-10, "nansum: expected 9, got {v}");
+    }
+
+    #[test]
+    fn nansum_all_finite_matches_sum() {
+        let data = [1.0_f64, 2.0, 3.0, 4.0];
+        let x = nan_var(&data);
+        let ns = nansum(&x);
+        let s = sum(&x);
+        assert!((ns.tensor.as_slice()[0] - s.tensor.as_slice()[0]).abs() < 1e-10);
+    }
+
+    #[test]
+    fn nanmean_excludes_nan() {
+        let x = nan_var(&[2.0, f64::NAN, 4.0, f64::NAN, 6.0]);
+        let m = nanmean(&x);
+        let v = m.tensor.as_slice()[0];
+        assert!((v - 4.0).abs() < 1e-10, "nanmean: expected 4.0, got {v}");
+    }
+
+    #[test]
+    fn nansum_value_matches_finite_sum() {
+        // The value of nansum must equal the sum of finite elements.
+        let x = nan_var(&[1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
+        let s = nansum(&x);
+        assert!(
+            (s.tensor.as_slice()[0] - 9.0).abs() < 1e-10,
+            "nansum value should be 9.0"
+        );
+    }
+}

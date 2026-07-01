@@ -121,6 +121,8 @@ pub use ops::{
     mul,
     multi_label_margin_loss,
     multi_margin,
+    nanmean,
+    nansum,
     // New unary math ops
     neg,
     nll_loss,

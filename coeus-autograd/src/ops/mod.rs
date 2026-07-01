@@ -23,8 +23,8 @@ pub use activation::{
     sigmoid, sign, silu, sin, softplus, softshrink, softsign, sqrt, tanh, threshold, trunc,
 };
 pub use arithmetic::{
-    add, div, mean, mean_axis, mul, scalar_add, scalar_div, scalar_mul, scalar_sub, sub, sum,
-    sum_axis,
+    add, div, mean, mean_axis, mul, nanmean, nansum, scalar_add, scalar_div, scalar_mul,
+    scalar_sub, sub, sum, sum_axis,
 };
 pub use reduction::{log_sum_exp, max_axis, min_axis, norm, norm_p, norm_p_axis};
 

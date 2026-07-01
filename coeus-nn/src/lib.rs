@@ -95,8 +95,8 @@ pub use loss::{
     bce_with_logits, binary_cross_entropy, cosine_embedding_loss, cosine_similarity,
     cross_entropy_loss, ctc_loss, gaussian_nll_loss, hinge_embedding_loss, huber_loss,
     kl_divergence, l1_loss, margin_ranking_loss, mse_loss, multi_label_soft_margin_loss,
-    multi_margin, nll_loss, pairwise_distance, poisson_nll, smooth_l1_loss, soft_margin,
-    triplet_margin_loss, triplet_margin_with_distance_loss,
+    multi_margin, nanmean, nansum, nll_loss, pairwise_distance, poisson_nll, smooth_l1_loss,
+    soft_margin, triplet_margin_loss, triplet_margin_with_distance_loss,
 };
 pub use module::Module;
 pub use normalization::{
