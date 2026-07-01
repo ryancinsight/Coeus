@@ -21,6 +21,13 @@
 - [ ] [patch] G-043: Expand the Coeus-vs-Burn/PyTorch benchmark/parity manifest
   so every implemented NN family has an explicit measurement or differential
   row.
+- [ ] [arch] G-FFT-CONSOLIDATE: Invert FFT tensor-bridge ownership so
+  `coeus-autograd/ops/fft.rs` depends on `coeus-fft` for the tensor-level
+  `FftScalar`/`fft_1d`/`ifft_1d` primitive (currently duplicated between the two
+  crates). Re-export names stay stable → no call-site churn. Deferred at
+  authoring time because `coeus-autograd` was under concurrent editing.
+  Acceptance: a single definition of each symbol (one grep hit in `coeus-fft`);
+  `coeus-autograd` + `coeus-nn` nextest unchanged; `cargo doc --no-deps` clean.
 
 ## Sprint MS-218: Apollo FFT autograd + Python parity [COMPLETE]
 
