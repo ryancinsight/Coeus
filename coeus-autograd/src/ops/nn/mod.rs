@@ -35,4 +35,4 @@ pub use loss::{
 };
 pub use normalization::{batchnorm1d, batchnorm2d, batchnorm3d, layernorm, rmsnorm, BatchNormArgs};
 pub use pool::{avg_pool1d, avg_pool2d, avg_pool3d, max_pool1d, max_pool2d, max_pool3d};
-pub use softmax::softmax;
+pub use softmax::{softmax, softmin};

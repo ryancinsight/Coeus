@@ -268,6 +268,13 @@ pub fn softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
     PyTensor::from_var(inner)
 }
 
+/// Softmin over `dim` (`torch.nn.functional.softmin`), i.e. `softmax(-input)`.
+#[pyfunction]
+pub fn softmin(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::softmin(&input.inner, dim as isize));
+    PyTensor::from_var(inner)
+}
+
 #[pyfunction]
 pub fn einsum(subscript: &str, operands: Vec<pyo3::Py<PyTensor>>, py: Python<'_>) -> PyTensor {
     let rust_vars: Vec<coeus_autograd::Var<f64>> = operands

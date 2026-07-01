@@ -37,7 +37,7 @@ pub use nn::{
     causal_softmax, dropout, fold1d, fold2d, huber_loss, kl_divergence, l1_loss, layernorm,
     log_softmax, margin_ranking_loss, masked_softmax, max_pool1d, max_pool2d, max_pool3d,
     multi_label_margin_loss, multi_margin, nll_loss, pairwise_distance, poisson_nll, rmsnorm,
-    sdp_attention, smooth_l1_loss, soft_margin, softmax, unfold1d, unfold2d, AttentionMask,
+    sdp_attention, smooth_l1_loss, soft_margin, softmax, softmin, unfold1d, unfold2d, AttentionMask,
     BatchNormArgs, CausalMask, NullMask,
 };
 

@@ -152,6 +152,7 @@ pub use ops::{
     smooth_l1_loss,
     soft_margin,
     softmax,
+    softmin,
     softplus,
     softshrink,
     softsign,
