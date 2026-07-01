@@ -402,3 +402,31 @@ pub fn gaussian_nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         coeus_autograd::mean(&loss)
     }
 }
+
+/// CTC (Connectionist Temporal Classification) loss.
+///
+/// Computes the negative log-likelihood of a sequence labeling task where the
+/// alignment between input frames and output labels is unknown (e.g. speech
+/// recognition). Matches `torch.nn.functional.ctc_loss` with
+/// `reduction='mean'` and `zero_infinity=False`.
+///
+/// # Arguments
+/// - `log_probs` — `[T, N, C]` log-probabilities (output of `log_softmax`).
+/// - `targets` — flat target indices `[sum(target_lengths)]` (no padding).
+/// - `input_lengths` — `[N]` valid frame count per sample (<= T).
+/// - `target_lengths` — `[N]` target sequence length per sample.
+/// - `blank` — blank class index (default 0 in PyTorch).
+///
+/// Returns a scalar `Var` (shape `[1]`) containing the mean CTC loss.
+pub fn ctc_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    log_probs: &Var<T, B>,
+    targets: &[usize],
+    input_lengths: &[usize],
+    target_lengths: &[usize],
+    blank: usize,
+) -> Var<T, B>
+where
+    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
+{
+    coeus_autograd::ctc_loss(log_probs, targets, input_lengths, target_lengths, blank)
+}

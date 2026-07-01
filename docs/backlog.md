@@ -8,8 +8,8 @@
   gaps through canonical shared pooling/window kernels.
 - [ ] [minor] G-037: Extend activation parity for PReLU, CELU, hard/shrink,
   softsign, threshold, GLU, and SwiGLU families.
-- [/] [minor] G-038: Extend loss and distance parity (22/23 implemented).
-  Remaining: CTCLoss (forward-backward DP).
+- [x] [minor] G-038: Extend loss and distance parity (23/23 implemented, fully CLOSED).
+  CTCLoss added via MS-225 (log-space DP, full backward, Python binding, PyTorch parity).
 - [x] [minor] G-040: Add vanilla and bidirectional recurrent module parity
   (RNNCell, Rnn, GRUCell, Gru, LSTMCell, Lstm, Bidirectional wrapper — all with
   Python bindings via PyBidirectional/PyGRUCell/PyLSTMCell/PyRNNCell)
