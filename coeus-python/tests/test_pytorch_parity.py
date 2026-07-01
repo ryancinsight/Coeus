@@ -3360,3 +3360,56 @@ def test_sinusoidal_encoding_matches_pytorch() -> None:
 
     _allclose("sinusoidal_encoding", list(y_pyc.data), expected, atol=1e-10)
 
+
+
+# ---------------------------------------------------------------------------
+# Interpolation parity (MS-232)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "interpolate"),
+    reason="pycoeus.interpolate not available in this build",
+)
+def test_interpolate_nearest_1d_matches_pytorch() -> None:
+    """Nearest-neighbour 1D interpolation on [2, 3, 4] → [2, 3, 8].
+
+    Uses torch.nn.functional.interpolate with mode='nearest' at f64.
+    """
+    import torch.nn.functional as F_
+
+    n, c, l = 2, 3, 4
+    new_l = 8
+    data = [float(i) * 0.1 - 0.5 for i in range(n * c * l)]
+
+    x_pyc = pycoeus.Tensor(data, [n, c, l])
+    y_pyc = pycoeus.interpolate(x_pyc, [new_l], mode="nearest")
+
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, l)
+    y_t = F_.interpolate(x_t, size=new_l, mode="nearest")
+
+    _allclose("interpolate_nearest_1d", list(y_pyc.data), y_t.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "interpolate"),
+    reason="pycoeus.interpolate not available in this build",
+)
+def test_interpolate_nearest_2d_matches_pytorch() -> None:
+    """Nearest-neighbour 2D interpolation on [1, 2, 3, 3] → [1, 2, 6, 6].
+
+    Uses torch.nn.functional.interpolate with mode='nearest' at f64.
+    """
+    import torch.nn.functional as F_
+
+    n, c, h, w = 1, 2, 3, 3
+    new_h, new_w = 6, 6
+    data = [float(i) * 0.25 - 1.0 for i in range(n * c * h * w)]
+
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w])
+    y_pyc = pycoeus.interpolate(x_pyc, [new_h, new_w], mode="nearest")
+
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    y_t = F_.interpolate(x_t, size=(new_h, new_w), mode="nearest")
+
+    _allclose("interpolate_nearest_2d", list(y_pyc.data), y_t.flatten().tolist(), atol=1e-10)
