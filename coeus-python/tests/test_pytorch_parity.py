@@ -4119,3 +4119,67 @@ def test_nonzero_matches_pytorch() -> None:
     t = torch.tensor(data, dtype=torch.float64)
     exp = torch.nonzero(t, as_tuple=False).t().squeeze(0)
     _allclose("nonzero", list(got.data), exp.float().tolist())
+
+# ---------------------------------------------------------------------------
+# creation ops: full / arange / linspace / eye / cross / dist parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "full"), reason="pycoeus.full not available")
+def test_full_matches_pytorch() -> None:
+    """torch.full(shape, fill) vs pycoeus.full(shape, fill)."""
+    got = pycoeus.full([3, 4], 7.5, False)
+    exp = torch.full((3, 4), 7.5, dtype=torch.float64)
+    _allclose("full", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "arange"), reason="pycoeus.arange not available")
+def test_arange_matches_pytorch() -> None:
+    """torch.arange(0, 10, 2) vs pycoeus.arange(start, stop, step)."""
+    got = pycoeus.arange(0.0, 10.0, 2.0)
+    exp = torch.arange(0, 10, 2, dtype=torch.float64)
+    _allclose("arange", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "eye"), reason="pycoeus.eye not available")
+def test_eye_matches_pytorch() -> None:
+    """torch.eye(4) vs pycoeus.eye(4)."""
+    got = pycoeus.eye(4)
+    exp = torch.eye(4, dtype=torch.float64)
+    _allclose("eye", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "linspace"), reason="pycoeus.linspace not available")
+def test_linspace_matches_pytorch() -> None:
+    """torch.linspace(0, 1, 11) vs pycoeus.linspace(0, 1, 11)."""
+    got = pycoeus.linspace(0.0, 1.0, 11)
+    exp = torch.linspace(0, 1, 11, dtype=torch.float64)
+    _allclose("linspace", list(got.data), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cross"), reason="pycoeus.cross not available")
+def test_cross_matches_pytorch() -> None:
+    """torch.linalg.cross(a, b) vs pycoeus.cross(a, b, dim=0)."""
+    a = [1.0, 0.0, 0.0]
+    b = [0.0, 1.0, 0.0]
+    a_pyc = pycoeus.Tensor(a, [3], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [3], requires_grad=False)
+    got = pycoeus.cross(a_pyc, b_pyc, 0)
+    a_t = torch.tensor(a, dtype=torch.float64)
+    b_t = torch.tensor(b, dtype=torch.float64)
+    exp = torch.linalg.cross(a_t, b_t)
+    _allclose("cross", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "pairwise_distance"), reason="pycoeus.pairwise_distance not available")
+def test_pairwise_distance_l2_matches_pytorch() -> None:
+    """torch.nn.functional.pairwise_distance(a, b, p=2) vs pycoeus.pairwise_distance(a, b, p=2)."""
+    a = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    b = [4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+    a_pyc = pycoeus.Tensor(a, [2, 3], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [2, 3], requires_grad=False)
+    got = pycoeus.pairwise_distance(a_pyc, b_pyc, p=2.0)
+    a_t = torch.tensor(a, dtype=torch.float64).reshape(2, 3)
+    b_t = torch.tensor(b, dtype=torch.float64).reshape(2, 3)
+    exp = torch.nn.functional.pairwise_distance(a_t, b_t, p=2)
+    _allclose("pairwise_distance", list(got.data), exp.tolist())
