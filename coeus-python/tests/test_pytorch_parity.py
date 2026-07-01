@@ -4049,3 +4049,73 @@ def test_scatter_add_matches_pytorch() -> None:
     src_t = torch.tensor(src_data, dtype=torch.float64).reshape(2, 3)
     exp = base_t.scatter_add(0, idx_t, src_t)
     _allclose("scatter_add", list(got.data), exp.flatten().tolist())
+
+# ---------------------------------------------------------------------------
+# tile / broadcast_to / index_select / index_put parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "tile"), reason="pycoeus.tile not available")
+def test_tile_matches_pytorch() -> None:
+    """torch.tile(x, reps) vs pycoeus.tile(x, reps)."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    got = pycoeus.tile(x_pyc, [2, 3])
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3)
+    exp = torch.tile(t, (2, 3))
+    _allclose("tile", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "broadcast_to"), reason="pycoeus.broadcast_to not available")
+def test_broadcast_to_matches_pytorch() -> None:
+    """torch.broadcast_to(x, shape) vs pycoeus.broadcast_to(x, shape)."""
+    data = [1.0, 2.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [1, 3], requires_grad=False)
+    got = pycoeus.broadcast_to(x_pyc, [4, 3])
+    t = torch.tensor(data, dtype=torch.float64).reshape(1, 3)
+    exp = torch.broadcast_to(t, (4, 3))
+    _allclose("broadcast_to", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "index_select"), reason="pycoeus.index_select not available")
+def test_index_select_dim1_matches_pytorch() -> None:
+    """torch.index_select(x, 1, idx) vs pycoeus.index_select(x, 1, idx)."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+    idx_data = [2.0, 0.0]
+    x_pyc = pycoeus.Tensor(data, [3, 3], requires_grad=True)
+    idx_pyc = pycoeus.Tensor(idx_data, [2], requires_grad=False)
+    got = pycoeus.index_select(x_pyc, 1, idx_pyc)
+    got.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 3).requires_grad_(True)
+    idx_t = torch.tensor([2, 0], dtype=torch.int64)
+    exp_t = torch.index_select(t, 1, idx_t)
+    exp_t.sum().backward()
+    _allclose("index_select_fwd", list(got.data), exp_t.detach().flatten().tolist())
+    _allclose("index_select_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "index_put"), reason="pycoeus.index_put not available")
+def test_index_put_matches_pytorch() -> None:
+    """x.index_put((indices,), values, accumulate=False)."""
+    data = [0.0] * 6
+    vals = [10.0, 20.0, 30.0]
+    idx = [0.0, 2.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=False)
+    idx_pyc = pycoeus.Tensor(idx, [3], requires_grad=False)
+    v_pyc = pycoeus.Tensor(vals, [3], requires_grad=False)
+    got = pycoeus.index_put(x_pyc, idx_pyc, v_pyc, accumulate=False)
+    t = torch.zeros(6, dtype=torch.float64)
+    exp = t.index_put((torch.tensor([0, 2, 4], dtype=torch.int64),),
+                      torch.tensor(vals, dtype=torch.float64), accumulate=False)
+    _allclose("index_put", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "nonzero"), reason="pycoeus.nonzero not available")
+def test_nonzero_matches_pytorch() -> None:
+    """torch.nonzero(x).T vs pycoeus.nonzero(x)."""
+    data = [0.0, 1.0, 0.0, 2.0, 0.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=False)
+    got = pycoeus.nonzero(x_pyc)
+    t = torch.tensor(data, dtype=torch.float64)
+    exp = torch.nonzero(t, as_tuple=False).t().squeeze(0)
+    _allclose("nonzero", list(got.data), exp.float().tolist())

@@ -42,8 +42,9 @@ where
     }
 
     let nnz = values_vec.len();
-    let mut indices = Tensor::<i64, B>::zeros_on([rank, nnz], backend);
-    let mut values = Tensor::<T, B>::zeros_on([nnz], backend);
+    // alloc_on: every element is written by the loops below — no zero-init needed.
+    let mut indices = Tensor::<i64, B>::alloc_on([rank, nnz], backend);
+    let mut values = Tensor::<T, B>::alloc_on([nnz], backend);
 
     let indices_slice = indices.as_mut_slice();
     for col in 0..nnz {
@@ -135,9 +136,10 @@ where
 
     triples.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
 
-    let mut csr_values = Tensor::<T, B>::zeros_on([nnz], backend);
-    let mut csr_col_indices = Tensor::<i64, B>::zeros_on([nnz], backend);
-    let mut csr_row_offsets = Tensor::<i64, B>::zeros_on([rows + 1], backend);
+    // alloc_on: all nnz elements and all rows+1 offsets are written below — no zero-init needed.
+    let mut csr_values = Tensor::<T, B>::alloc_on([nnz], backend);
+    let mut csr_col_indices = Tensor::<i64, B>::alloc_on([nnz], backend);
+    let mut csr_row_offsets = Tensor::<i64, B>::alloc_on([rows + 1], backend);
 
     let val_mut = csr_values.as_mut_slice();
     let col_mut = csr_col_indices.as_mut_slice();

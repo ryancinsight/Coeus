@@ -2372,6 +2372,122 @@ fn bench_log_sum_exp_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_sdp_attention_forward(c: &mut Criterion) {
+    // Scaled dot-product attention: [4, 8, 64] Q×K×V (4 heads, seq=8, d_k=64).
+    // The output alloc uses alloc_on: every position written by the kernel.
+    const SA_B: usize = 4;
+    const SA_S: usize = 8;
+    const SA_D: usize = 64;
+    let q_data: Vec<f32> = (0..(SA_B * SA_S * SA_D))
+        .map(|i| (i as f32 * 0.001).sin())
+        .collect();
+    let k_data = q_data.clone();
+    let v_data: Vec<f32> = (0..(SA_B * SA_S * SA_D))
+        .map(|i| (i as f32 * 0.001).cos())
+        .collect();
+
+    let backend_seq = SequentialBackend::default();
+    let q_seq = coeus_tensor::Tensor::<f32, SequentialBackend>::from_slice(
+        vec![SA_B, SA_S, SA_D],
+        &q_data,
+    );
+    let k_seq = q_seq.clone();
+    let v_seq = coeus_tensor::Tensor::<f32, SequentialBackend>::from_slice(
+        vec![SA_B, SA_S, SA_D],
+        &v_data,
+    );
+
+    let backend_moirai = MoiraiBackend::default();
+    let q_moirai =
+        coeus_tensor::Tensor::<f32, MoiraiBackend>::from_slice(vec![SA_B, SA_S, SA_D], &q_data);
+    let k_moirai = q_moirai.clone();
+    let v_moirai =
+        coeus_tensor::Tensor::<f32, MoiraiBackend>::from_slice(vec![SA_B, SA_S, SA_D], &v_data);
+
+    let scale = 1.0f32 / (SA_D as f32).sqrt();
+
+    // Burn: MultiHeadAttention with SA_B heads is a superset; use raw matmul chain
+    let device = NdArrayDevice::default();
+    let q_burn: BurnTensor<BurnB, 3> =
+        BurnTensor::from_data(TensorData::new(q_data.clone(), [SA_B, SA_S, SA_D]), &device);
+    let kt_burn: BurnTensor<BurnB, 3> =
+        BurnTensor::from_data(TensorData::new(k_data.clone(), [SA_B, SA_D, SA_S]), &device);
+    let v_burn: BurnTensor<BurnB, 3> =
+        BurnTensor::from_data(TensorData::new(v_data.clone(), [SA_B, SA_S, SA_D]), &device);
+
+    let mut group =
+        c.benchmark_group("Burn vs Coeus — sdp_attention forward (4x8x64)");
+    group.bench_function("Burn NdArray (QK^T/scale@V proxy)", |b| {
+        b.iter(|| {
+            let scores = black_box(q_burn.clone()).matmul(black_box(kt_burn.clone()))
+                * (scale as f32);
+            let weights = burn::tensor::activation::softmax(scores, 2);
+            black_box(weights.matmul(black_box(v_burn.clone())))
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            black_box(coeus_ops::scaled_dot_product_attention(
+                black_box(&q_seq),
+                black_box(&k_seq),
+                black_box(&v_seq),
+                None,
+                false,
+                scale,
+                &backend_seq,
+            ))
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(coeus_ops::scaled_dot_product_attention(
+                black_box(&q_moirai),
+                black_box(&k_moirai),
+                black_box(&v_moirai),
+                None,
+                false,
+                scale,
+                &backend_moirai,
+            ))
+        })
+    });
+    group.finish();
+}
+
+fn bench_nanmean_forward(c: &mut Criterion) {
+    // nanmean: [128, 256] with 5% NaN injection.
+    let mut input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.0029).sin())
+        .collect();
+    for i in (0..input_data.len()).step_by(20) {
+        input_data[i] = f32::NAN;
+    }
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let device = NdArrayDevice::default();
+    // Filter NaN before passing to Burn (Burn sum is the proxy).
+    let clean: Vec<f32> = input_data.iter().map(|&x| if x.is_nan() { 0.0 } else { x }).collect();
+    let x_burn: BurnTensor<BurnB, 2> =
+        BurnTensor::from_data(TensorData::new(clean, [BATCH, FEATURES]), &device);
+    let mut group = c.benchmark_group("Burn vs Coeus — nanmean forward (128x256, 5% NaN)");
+    group.bench_function("Burn NdArray (mean of pre-cleaned, no NaN guard)", |b| {
+        b.iter(|| black_box(black_box(x_burn.clone()).mean()))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(coeus_autograd::nanmean(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(coeus_autograd::nanmean(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -2427,6 +2543,8 @@ criterion_group!(
     bench_cumsum_forward,
     bench_roll_forward,
     bench_bmm_forward,
-    bench_log_sum_exp_forward
+    bench_log_sum_exp_forward,
+    bench_sdp_attention_forward,
+    bench_nanmean_forward
 );
 criterion_main!(benches);

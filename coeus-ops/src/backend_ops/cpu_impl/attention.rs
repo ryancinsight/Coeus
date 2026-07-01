@@ -17,8 +17,8 @@ fn row_max<T: Float>(row: &[T]) -> T {
 /// - `query`:  `[batch, seq_q, d_k]`
 /// - `key`:    `[batch, seq_k, d_k]`
 /// - `value`:  `[batch, seq_k, d_v]`
-/// - `output`: `[batch, seq_q, d_v]`  (pre-allocated, zeroed)
-/// - `attn_weights`: `[batch, seq_q, seq_k]` (pre-allocated, zeroed, returned for backward)
+/// - `output`: `[batch, seq_q, d_v]`  (pre-allocated; every position written by kernel)
+/// - `attn_weights`: `[batch, seq_q, seq_k]` (pre-allocated; every position written, returned for backward)
 ///
 /// All tensors must be contiguous with offset == 0.
 pub(crate) fn sdp_attention<T: Float, B: Backend>(

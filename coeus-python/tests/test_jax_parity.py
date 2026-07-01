@@ -1718,3 +1718,29 @@ def test_log_sum_exp_matches_jax() -> None:
     t = jnp.array(data, dtype=jnp.float64).reshape(3, 3)
     exp = jsp.logsumexp(t, axis=1)
     _allclose("logsumexp", list(out_pyc.data), exp.tolist())
+
+# ---------------------------------------------------------------------------
+# tile / broadcast_to / index_select parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "tile"), reason="pycoeus.tile not available")
+def test_tile_matches_jax() -> None:
+    """jnp.tile(x, reps) vs pycoeus.tile(x, reps)."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    got = pycoeus.tile(x_pyc, [2, 3])
+    t = jnp.array(data, dtype=jnp.float64).reshape(2, 3)
+    exp = jnp.tile(t, (2, 3))
+    _allclose("tile", list(got.data), jnp.ravel(exp).tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "broadcast_to"), reason="pycoeus.broadcast_to not available")
+def test_broadcast_to_matches_jax() -> None:
+    """jnp.broadcast_to(x, shape) vs pycoeus.broadcast_to(x, shape)."""
+    data = [1.0, 2.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [1, 3], requires_grad=False)
+    got = pycoeus.broadcast_to(x_pyc, [4, 3])
+    t = jnp.array(data, dtype=jnp.float64).reshape(1, 3)
+    exp = jnp.broadcast_to(t, (4, 3))
+    _allclose("broadcast_to", list(got.data), jnp.ravel(exp).tolist())
