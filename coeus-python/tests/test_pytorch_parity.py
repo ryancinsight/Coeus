@@ -4251,3 +4251,80 @@ def test_scaled_dot_product_attention_matches_pytorch() -> None:
     v_t = torch.tensor(v_data, dtype=torch.float64).reshape(1, seq, d)
     exp = torch.nn.functional.scaled_dot_product_attention(q_t, k_t, v_t)
     _allclose("sdpa_fwd", list(got.data), exp.flatten().tolist(), atol=1e-8)
+
+# ---------------------------------------------------------------------------
+# einsum dot/outer / norm_p / conv_transpose2d / avg_pool1d parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "einsum"), reason="pycoeus.einsum not available")
+def test_einsum_dot_product_matches_pytorch() -> None:
+    """torch.einsum('i,i->',a,b) dot product vs pycoeus.einsum."""
+    a = [1.0, 2.0, 3.0, 4.0]
+    b = [4.0, 3.0, 2.0, 1.0]
+    a_pyc = pycoeus.Tensor(a, [4], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [4], requires_grad=False)
+    got = pycoeus.einsum("i,i->", [a_pyc, b_pyc])
+    a_t = torch.tensor(a, dtype=torch.float64)
+    b_t = torch.tensor(b, dtype=torch.float64)
+    exp = torch.einsum("i,i->", a_t, b_t)
+    _allclose("einsum_dot", list(got.data), [exp.item()])
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "einsum"), reason="pycoeus.einsum not available")
+def test_einsum_batch_matmul_matches_pytorch() -> None:
+    """torch.einsum('bij,bjk->bik', a, b) batch matmul [2,3,4]x[2,4,5]."""
+    a = [float(i) * 0.1 for i in range(2 * 3 * 4)]
+    b = [float(i) * 0.05 for i in range(2 * 4 * 5)]
+    a_pyc = pycoeus.Tensor(a, [2, 3, 4], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [2, 4, 5], requires_grad=False)
+    got = pycoeus.einsum("bij,bjk->bik", [a_pyc, b_pyc])
+    a_t = torch.tensor(a, dtype=torch.float64).reshape(2, 3, 4)
+    b_t = torch.tensor(b, dtype=torch.float64).reshape(2, 4, 5)
+    exp = torch.einsum("bij,bjk->bik", a_t, b_t)
+    _allclose("einsum_bmm", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "norm"), reason="pycoeus.norm not available")
+def test_norm_global_l2_matches_pytorch() -> None:
+    """torch.norm(x) (global L2) vs pycoeus.norm(x)."""
+    data = [3.0, 4.0, 0.0, 5.0, 12.0, 13.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=True)
+    out_pyc = pycoeus.norm(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = t.norm()
+    out_t.backward()
+    _allclose("norm_fwd", list(out_pyc.data), [out_t.item()])
+    _allclose("norm_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "ConvTranspose2d"),
+    reason="pycoeus.ConvTranspose2d not available",
+)
+def test_conv_transpose2d_output_shape_matches_pytorch() -> None:
+    """ConvTranspose2d(1,1,k=3) output shape: [1,1,5,5] -> [1,1,7,7]."""
+    ct = pycoeus.ConvTranspose2d(in_channels=1, out_channels=1, kernel_size=3, stride=1)
+    # Zero-initialize weights so output = 0 (shape-only test avoids weight parity issue).
+    import math
+    n_params = 1 * 1 * 3 * 3
+    for p in ct.parameters():
+        if len(list(p.data)) == n_params:
+            p.data = [0.0] * n_params
+    inp = pycoeus.Tensor([1.0] * 25, [1, 1, 5, 5], requires_grad=False)
+    out = ct.forward(inp)
+    assert list(out.shape) == [1, 1, 7, 7], f"Expected [1,1,7,7] got {list(out.shape)}"
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "AvgPool1d"), reason="pycoeus.AvgPool1d not available")
+def test_avg_pool1d_matches_pytorch() -> None:
+    """torch.nn.AvgPool1d(k=3, s=1) vs pycoeus.AvgPool1d(k=3, s=1)."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [1, 1, 8], requires_grad=False)
+    pool = pycoeus.AvgPool1d(kernel_size=3, stride=1)
+    out_pyc = pool.forward(x_pyc)
+    t = torch.tensor(data, dtype=torch.float64).reshape(1, 1, 8)
+    pool_t = torch.nn.AvgPool1d(kernel_size=3, stride=1)
+    exp = pool_t(t)
+    _allclose("avg_pool1d", list(out_pyc.data), exp.flatten().tolist())

@@ -1791,3 +1791,32 @@ def test_pow_matches_jax() -> None:
     t = jnp.array(data, dtype=jnp.float64)
     exp = jnp.power(t, 3)
     _allclose("pow", list(got.data), exp.tolist())
+
+# ---------------------------------------------------------------------------
+# einsum / norm parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "einsum"), reason="pycoeus.einsum not available")
+def test_einsum_dot_matches_jax() -> None:
+    """jnp.einsum('i,i->',a,b) vs pycoeus.einsum."""
+    a = [1.0, 2.0, 3.0, 4.0]
+    b = [4.0, 3.0, 2.0, 1.0]
+    a_pyc = pycoeus.Tensor(a, [4], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [4], requires_grad=False)
+    got = pycoeus.einsum("i,i->", [a_pyc, b_pyc])
+    a_j = jnp.array(a, dtype=jnp.float64)
+    b_j = jnp.array(b, dtype=jnp.float64)
+    exp = jnp.einsum("i,i->", a_j, b_j)
+    _allclose("einsum_dot", list(got.data), [float(exp)])
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "norm"), reason="pycoeus.norm not available")
+def test_norm_global_l2_matches_jax() -> None:
+    """jnp.linalg.norm(x) global L2 vs pycoeus.norm(x)."""
+    data = [3.0, 4.0, 0.0, 5.0, 12.0, 13.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=False)
+    out_pyc = pycoeus.norm(x_pyc)
+    t = jnp.array(data, dtype=jnp.float64)
+    exp = jnp.linalg.norm(t)
+    _allclose("norm_l2", list(out_pyc.data), [float(exp)])
