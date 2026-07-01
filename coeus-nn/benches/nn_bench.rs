@@ -19,11 +19,12 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
-    cross_entropy_loss, gelu, huber_loss, mse_loss, prelu, relu, sigmoid, silu, tanh,
-    AdaptiveAvgPool2d, AdaptiveMaxPool2d, AvgPool1d as CoeusAvgPool1d, AvgPool2d, BatchNorm1d,
-    BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d, Embedding, EmbeddingBag, EmbeddingBagMode,
-    GroupNorm, Gru as CoeusGru, InstanceNorm2d, LayerNorm, Linear, Lstm, MaxPool1d, MaxPool2d,
-    Module, MultiHeadAttention, NullMask, RMSNorm, SwiGlu, TransformerEncoderLayer,
+    cross_entropy_loss, gelu, huber_loss, leaky_relu, mse_loss, prelu, relu, sigmoid, silu, tanh,
+    AdaptiveAvgPool2d, AvgPool1d as CoeusAvgPool1d, AvgPool2d, BatchNorm1d, BatchNorm2d,
+    BatchNorm3d, Conv1d, Conv2d, Conv3d, ConvTranspose1d, Dropout, Embedding, EmbeddingBag,
+    EmbeddingBagMode, GroupNorm, Gru as CoeusGru, InstanceNorm2d, LayerNorm, Linear, Lstm,
+    MaxPool1d, MaxPool2d, Module, MultiHeadAttention, NullMask, RMSNorm, SwiGlu,
+    TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -41,8 +42,9 @@ use burn::nn::gru::GruConfig;
 use burn::nn::pool::MaxPool1dConfig;
 use burn::nn::transformer::{TransformerEncoderConfig, TransformerEncoderInput};
 use burn::nn::{
-    BatchNormConfig, GroupNormConfig, InstanceNormConfig, LayerNormConfig, LinearConfig,
-    LstmConfig, PaddingConfig1d, PaddingConfig2d, PaddingConfig3d, RmsNormConfig, SwiGluConfig,
+    BatchNormConfig, DropoutConfig, GroupNormConfig, InstanceNormConfig, LayerNormConfig,
+    LinearConfig, LstmConfig, PaddingConfig1d, PaddingConfig2d, PaddingConfig3d, RmsNormConfig,
+    SwiGluConfig,
 };
 use burn::tensor::{Int, Tensor as BurnTensor, TensorData};
 type BurnB = NdArray<f32>;
@@ -1553,6 +1555,155 @@ fn bench_adaptive_max_pool2d_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_dropout_forward(c: &mut Criterion) {
+    // Dropout eval-mode forward (no masking, p=0.5): [128, 256].
+    // In eval mode both Burn and Coeus pass through unchanged (identity).
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.0023).sin())
+        .collect();
+    let device = NdArrayDevice::default();
+    let burn_do = DropoutConfig::new(0.5).init();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
+
+    // Coeus: Dropout is not generic over B; uses f32 Var with default backend.
+    let mut do_layer = Dropout::new(0.5);
+    do_layer.set_training(false);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — Dropout eval forward (128x256, p=0.5)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_do.forward(black_box(x_burn.clone()))))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(do_layer.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(do_layer.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_leaky_relu_forward(c: &mut Criterion) {
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.0031).sin())
+        .collect();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &NdArrayDevice::default(),
+    );
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+
+    let mut group =
+        c.benchmark_group("Burn vs Coeus — LeakyReLU forward (128x256, neg_slope=0.01)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| {
+            black_box(burn::tensor::activation::leaky_relu(
+                black_box(x_burn.clone()),
+                0.01,
+            ))
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(leaky_relu(black_box(&x_seq), 0.01)))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(leaky_relu(black_box(&x_moirai), 0.01)))
+    });
+    group.finish();
+}
+
+fn bench_mish_forward(c: &mut Criterion) {
+    // Mish: x * tanh(softplus(x)) — matches Burn `activation::mish`.
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.0031).sin())
+        .collect();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &NdArrayDevice::default(),
+    );
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let mut group = c.benchmark_group("Burn vs Coeus — Mish forward (128x256)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn::tensor::activation::mish(black_box(x_burn.clone()))))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(coeus_nn::mish(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(coeus_nn::mish(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_conv_transpose1d_forward(c: &mut Criterion) {
+    // ConvTranspose1d: [B=4, C_in=32, L=16] → [B=4, C_out=16, L_out=32]
+    const CT_B: usize = 4;
+    const CT_CIN: usize = 32;
+    const CT_COUT: usize = 16;
+    const CT_L: usize = 16;
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(CT_B * CT_CIN * CT_L))
+        .map(|i| (i as f32 * 0.007).sin())
+        .collect();
+    // Burn ConvTranspose1d: [CT_CIN → CT_COUT, kernel=2, stride=2]
+    let burn_ct = burn::nn::conv::ConvTranspose1dConfig::new([CT_CIN, CT_COUT], 2)
+        .with_stride(2)
+        .init::<BurnB>(&device);
+    let x_burn: BurnTensor<BurnB, 3> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [CT_B, CT_CIN, CT_L]),
+        &device,
+    );
+    let ct_seq = ConvTranspose1d::<f32, SequentialBackend>::with_params(
+        CT_CIN, CT_COUT, 2, 2, 0, 0, 1, true,
+    );
+    let ct_moirai =
+        ConvTranspose1d::<f32, MoiraiBackend>::with_params(CT_CIN, CT_COUT, 2, 2, 0, 0, 1, true);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![CT_B, CT_CIN, CT_L], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![CT_B, CT_CIN, CT_L], &input_data),
+        false,
+    );
+    let mut group =
+        c.benchmark_group("Burn vs Coeus — ConvTranspose1d forward (4x32x16, cin32→cout16 k2 s2)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_ct.forward(black_box(x_burn.clone()))))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(ct_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(ct_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -1567,6 +1718,7 @@ criterion_group!(
     bench_conv1d_forward,
     bench_conv2d_forward,
     bench_conv3d_forward,
+    bench_conv_transpose1d_forward,
     bench_mha_forward,
     bench_transformer_encoder_forward,
     bench_embedding_forward,
@@ -1586,6 +1738,9 @@ criterion_group!(
     bench_sigmoid_forward,
     bench_tanh_forward,
     bench_silu_forward,
+    bench_leaky_relu_forward,
+    bench_mish_forward,
+    bench_dropout_forward,
     bench_maxpool1d_forward,
     bench_avgpool1d_forward,
     bench_adaptive_max_pool2d_forward

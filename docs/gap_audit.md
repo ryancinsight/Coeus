@@ -47,11 +47,12 @@ match G-043 expansion (already has AvgPool families).
 **Compared against**: Burn `burn::nn` module families and PyTorch `torch.nn`
 module families.
 **Gap**: Current Coeus-vs-Burn benchmarks cover selected forward rows
-(Linear, LayerNorm, RMSNorm, LSTM, InstanceNorm2d, CrossEntropyLoss, MSELoss, HuberLoss, ReLU forward, GeLU forward, Sigmoid forward, Tanh forward, SiLU forward, Conv2d,
-Conv3d, MHA self-attention, Transformer encoder layer, Embedding lookup, EmbeddingBag sum,
-AdaptiveAvgPool2d(1,1), BatchNorm1d eval forward, BatchNorm2d eval forward, BatchNorm3d eval forward,
-Conv1d forward, GroupNorm forward, MaxPool2d forward, AvgPool2d forward, MaxPool1d forward,
-AvgPool1d forward),
+(Linear, LayerNorm, RMSNorm, LSTM, GRU, InstanceNorm2d, CrossEntropyLoss, MSELoss,
+HuberLoss, ReLU, GeLU, PReLU, Sigmoid, Tanh, SiLU, LeakyReLU, Mish, SwiGLU,
+Dropout eval, Conv1d/2d/3d, ConvTranspose1d, MHA self-attention,
+Transformer encoder layer, Embedding lookup, EmbeddingBag sum, AdaptiveAvgPool2d(1,1),
+AdaptiveMaxPool2d(1,1), BatchNorm1d/2d/3d eval forward, GroupNorm forward,
+MaxPool1d/2d forward, AvgPool1d/2d forward),
 not the full NN family set needed to claim Burn-level performance parity.
 PyTorch differential coverage similarly remains module-family selective.
 **Acceptance**: Add a benchmark/parity manifest keyed by module family, then add
