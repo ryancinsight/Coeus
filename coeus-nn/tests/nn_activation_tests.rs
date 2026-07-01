@@ -1,7 +1,7 @@
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_nn::{
-    elu, gelu_tanh, glu, leaky_relu, softplus, GeLUTanh, LeakyReLU, Module, Softplus, ELU,
+    elu, gelu_tanh, glu, leaky_relu, softplus, GeLUTanh, LeakyReLU, Module, Softplus, ELU, GLU,
 };
 use coeus_tensor::{Tensor, Transpose};
 
@@ -240,5 +240,27 @@ fn test_glu_forward_and_gradient() {
     ];
     for (i, (&got, &want)) in gs.iter().zip(expected.iter()).enumerate() {
         assert!((got - want).abs() < 1e-12, "glu grad[{i}]: {got} vs {want}");
+    }
+}
+
+#[test]
+fn test_glu_module_matches_function() {
+    // The GLU module (parameter-free) must forward identically to the `glu` function.
+    let data = [0.5f64, -1.0, 2.0, 0.25, 3.0, -0.5];
+    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([6], &data), true);
+    let module = GLU::new(0);
+    assert!(Module::<f64, MoiraiBackend>::parameters(&module).is_empty());
+
+    let via_module = module.forward(&input);
+    let via_fn = glu(&input, 0);
+    assert_eq!(via_module.tensor.shape(), via_fn.tensor.shape());
+    for (i, (&m, &f)) in via_module
+        .tensor
+        .as_slice()
+        .iter()
+        .zip(via_fn.tensor.as_slice())
+        .enumerate()
+    {
+        assert!((m - f).abs() < 1e-15, "GLU module vs fn [{i}]: {m} vs {f}");
     }
 }

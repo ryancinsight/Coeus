@@ -216,6 +216,35 @@ pub fn glu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     coeus_autograd::mul(&a, &coeus_autograd::sigmoid(&b))
 }
 
+/// Gated Linear Unit module gating along a fixed `dim` (see [`glu`]).
+///
+/// Parameter-free; the split dimension is captured at construction so `GLU` can
+/// participate in a [`Sequential`](crate::Sequential) stack like other activations.
+#[derive(Clone, Copy, Debug)]
+pub struct GLU {
+    dim: usize,
+}
+
+impl GLU {
+    /// Create a GLU module that gates along `dim`.
+    #[inline]
+    #[must_use]
+    pub fn new(dim: usize) -> Self {
+        Self { dim }
+    }
+}
+
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GLU {
+    #[inline]
+    fn parameters(&self) -> Vec<Var<T, B>> {
+        vec![]
+    }
+    #[inline]
+    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+        glu(input, self.dim)
+    }
+}
+
 /// GELU tanh approximation module.
 #[derive(Clone, Debug, Default)]
 pub struct GeLUTanh;
