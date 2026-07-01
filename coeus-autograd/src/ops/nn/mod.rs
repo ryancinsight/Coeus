@@ -10,6 +10,8 @@ pub mod dropout;
 pub mod log_softmax;
 /// Loss functions (BCE, cross-entropy, NLL, Huber, cosine embedding).
 pub mod loss;
+/// Masked and causal softmax operations.
+pub mod masked_softmax;
 /// Normalization layers (batchnorm, layernorm, rmsnorm).
 pub mod normalization;
 /// Pooling layers (max-pool, avg-pool 1D/2D/3D).
@@ -24,6 +26,7 @@ pub use conv::{
 };
 pub use dropout::dropout;
 pub use log_softmax::log_softmax;
+pub use masked_softmax::{causal_softmax, masked_softmax};
 pub use loss::{
     bce_with_logits, binary_cross_entropy, cosine_embedding_loss, cosine_similarity,
     cross_entropy_loss, ctc_loss, huber_loss, kl_divergence, l1_loss, margin_ranking_loss,

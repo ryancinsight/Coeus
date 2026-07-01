@@ -1,5 +1,4 @@
 use crate::tensor::PyTensor;
-use coeus_core::MoiraiBackend;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -99,10 +98,10 @@ pub fn glu(input: &PyTensor, dim: isize, py: Python<'_>) -> PyResult<PyTensor> {
     Ok(PyTensor::from_var(inner))
 }
 
-/// Masked softmax: replaces `mask==0` positions with `-inf` before softmax.
+/// Masked softmax over `dim`: softmax across positions where `mask != 0`; masked
+/// positions (and any fully-masked row) are zero. Differentiable in `input`.
 ///
-/// `mask` shape must match `input` shape. Equivalent to
-/// `torch.softmax(input.masked_fill(~mask, float('-inf')), dim=dim)`.
+/// `mask` shape must match `input` shape.
 #[pyfunction]
 #[pyo3(signature = (input, mask, dim = -1))]
 pub fn masked_softmax(
@@ -125,21 +124,14 @@ pub fn masked_softmax(
             mask.inner.tensor.shape()
         )));
     }
-    let x = input.inner.tensor.clone();
-    let m = mask.inner.tensor.clone();
-    let ax = axis as usize;
-    let inner = py.allow_threads(move || {
-        let backend = MoiraiBackend::new();
-        coeus_ops::masked_softmax(&x, &m, ax, &backend)
+    let inner = py.allow_threads(|| {
+        coeus_autograd::masked_softmax(&input.inner, &mask.inner.tensor, axis as isize)
     });
-    Ok(PyTensor {
-        inner: coeus_autograd::Var::new(inner, false),
-    })
+    Ok(PyTensor::from_var(inner))
 }
 
-/// Causal (lower-triangular) softmax — masks future positions before softmax.
-///
-/// Equivalent to `torch.softmax(input.masked_fill(upper_tri_mask, -inf), dim)`.
+/// Causal (lower-triangular) softmax over `dim`: future positions are masked before
+/// softmax. Differentiable in `input`.
 #[pyfunction]
 #[pyo3(signature = (input, dim = -1))]
 pub fn causal_softmax(input: &PyTensor, dim: i64, py: Python<'_>) -> PyResult<PyTensor> {
@@ -150,15 +142,8 @@ pub fn causal_softmax(input: &PyTensor, dim: i64, py: Python<'_>) -> PyResult<Py
             "causal_softmax: dim {dim} out of range for rank {ndim}"
         )));
     }
-    let x = input.inner.tensor.clone();
-    let ax = axis as usize;
-    let inner = py.allow_threads(move || {
-        let backend = MoiraiBackend::new();
-        coeus_ops::causal_softmax(&x, ax, &backend)
-    });
-    Ok(PyTensor {
-        inner: coeus_autograd::Var::new(inner, false),
-    })
+    let inner = py.allow_threads(|| coeus_autograd::causal_softmax(&input.inner, axis as isize));
+    Ok(PyTensor::from_var(inner))
 }
 
 // ── G-037 extended activation family ──
