@@ -66,6 +66,7 @@ pub use ops::{
     cosine_embedding_loss,
     cosine_similarity,
     cross_entropy_loss,
+    ctc_loss,
     cumprod,
     cumsum,
     // Diagonal ops

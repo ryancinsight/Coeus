@@ -3074,3 +3074,61 @@ def test_cosine_similarity_matches_pytorch() -> None:
     _allclose("cos_out", list(out_pyc.data), out_t.detach().tolist(), atol=1e-9)
     _allclose("cos_dx1", list(x1_pyc.grad), x1_t.grad.flatten().tolist(), atol=1e-7)
     _allclose("cos_dx2", list(x2_pyc.grad), x2_t.grad.flatten().tolist(), atol=1e-7)
+
+
+# ---------------------------------------------------------------------------
+# CTC Loss parity (MS-225, closes G-038)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "ctc_loss"),
+    reason="pycoeus.ctc_loss not available in this build",
+)
+def test_ctc_loss_matches_pytorch() -> None:
+    """CTC loss forward parity against torch.nn.functional.ctc_loss.
+
+    T=5, N=2, C=3 (3 classes, blank=0).
+    Two samples with different target lengths.
+    Compares pycoeus CTC loss (mean reduction) against PyTorch at f64.
+    Tolerance 1e-6 (log-space numerics).
+    """
+    import torch.nn.functional as F
+
+    T, N, C = 5, 2, 3
+    blank = 0
+
+    # Deterministic log-probs from uniform logits.
+    torch.manual_seed(42)
+    logits_t = torch.randn(T, N, C, dtype=torch.float64)
+    log_probs_t = F.log_softmax(logits_t, dim=2)
+
+    targets_t = torch.tensor([1, 2, 1, 2, 2], dtype=torch.long)  # flat
+    input_lengths_t = torch.tensor([5, 5], dtype=torch.long)
+    target_lengths_t = torch.tensor([2, 3], dtype=torch.long)
+
+    loss_t = F.ctc_loss(
+        log_probs_t,
+        targets_t,
+        input_lengths_t,
+        target_lengths_t,
+        blank=blank,
+        reduction="mean",
+    )
+
+    # pycoeus — pass flat log_probs as [T, N, C] list
+    lp_flat = log_probs_t.detach().flatten().tolist()
+    x_pyc = pycoeus.Tensor(lp_flat, [T, N, C])
+    targets_pyc = [1, 2, 1, 2, 2]
+    input_lengths_pyc = [5, 5]
+    target_lengths_pyc = [2, 3]
+
+    loss_pyc = pycoeus.ctc_loss(
+        x_pyc, targets_pyc, input_lengths_pyc, target_lengths_pyc, blank
+    )
+
+    diff = abs(loss_pyc.data[0] - loss_t.item())
+    assert diff < 1e-6, (
+        f"CTC loss mismatch: pycoeus={loss_pyc.data[0]:.8g}, "
+        f"pytorch={loss_t.item():.8g}, diff={diff:.3e}"
+    )

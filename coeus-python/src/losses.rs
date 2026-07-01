@@ -233,3 +233,34 @@ pub fn gaussian_nll_loss(
     });
     PyTensor::from_var(inner)
 }
+
+/// CTC (Connectionist Temporal Classification) loss.
+///
+/// `log_probs`: `[T, N, C]` log-probability tensor (output of `log_softmax`).
+/// `targets`: flat list of target class indices across all samples.
+/// `input_lengths`: list of valid frame counts per sample.
+/// `target_lengths`: list of target sequence lengths per sample.
+/// `blank`: index of the blank class (default 0).
+///
+/// Returns a scalar `Tensor` holding the mean CTC loss.
+#[pyfunction]
+#[pyo3(signature = (log_probs, targets, input_lengths, target_lengths, blank = 0))]
+pub fn ctc_loss(
+    log_probs: &PyTensor,
+    targets: Vec<usize>,
+    input_lengths: Vec<usize>,
+    target_lengths: Vec<usize>,
+    blank: usize,
+    py: Python<'_>,
+) -> PyTensor {
+    let inner = py.allow_threads(|| {
+        coeus_nn::loss::ctc_loss(
+            &log_probs.inner,
+            &targets,
+            &input_lengths,
+            &target_lengths,
+            blank,
+        )
+    });
+    PyTensor::from_var(inner)
+}

@@ -141,23 +141,19 @@ existing `_assert_activation_parity` helper). MS-187 corrected the regression
 where gradient operators evaluated on `grad_out` instead of the saved input and
 where pair-parameter decoding treated truncated halves as `f64` bit patterns.
 
-### G-038: Loss and distance surface remains below PyTorch coverage **PARTIALLY CLOSED**
+### ~~G-038: Loss and distance surface remains below PyTorch coverage~~ **CLOSED**
 **Location**: `coeus-nn/src/loss.rs`, `coeus-python/src/losses.rs`,
 `coeus-autograd/src/ops/nn/loss/`
 **Compared against**: PyTorch loss and distance families.
-**Gap**: Coeus lacked authoritative module/API parity for several PyTorch
-loss/distance families.
-**Closed items** (MS-182/MS-217 + current): L1, SmoothL1, BCEWithLogits,
-Huber, PoissonNLL, MultiMargin, KL divergence, MarginRanking, cosine embedding,
-pairwise distance, triplet margin, soft-margin, binary cross-entropy, cosine
-similarity, **HingeEmbeddingLoss**, **MultiLabelSoftMarginLoss**,
-**TripletMarginWithDistanceLoss**, **GaussianNLLLoss**, **MultiLabelMarginLoss**
-(dedicated autograd node) — all have Rust canonical functions
-(`coeus-nn::loss::*`) and Python delegates where applicable.
-**Remaining gap (1 of 23)**:
-- **CTCLoss**: requires full forward-backward dynamic programming (α/β recursion). Complex, estimated [major].
-**Evidence tier**: analytical/value-semantic Rust tests + 388/388 coeus-nn
-tests passing including the dedicated `multi_label_margin` autograd node.
+**Closed by**: MS-219 (22/23 losses) + **MS-225** (CTCLoss — final item).
+- MS-225: Added `CtcLossNode` autograd node with log-space forward-backward DP
+  (α and β tables), exposed as `coeus_nn::ctc_loss` and `pycoeus.ctc_loss`.
+  5 analytical Rust tests (single-frame oracle, two-frame oracle, batch oracle,
+  gradient propagation, nn/autograd consistency). PyTorch parity test at f64
+  atol=1e-6 against `torch.nn.functional.ctc_loss(reduction='mean')`.
+- **All 23/23 PyTorch loss/distance families now have Coeus parity.**
+**Evidence tier**: analytical/value-semantic Rust tests + differential PyTorch
+parity (1/1 CTC test at f64).
 
 ### G-037: Activation surface remains incomplete versus Burn/PyTorch
 **Location**: `coeus-nn/src/activation.rs`, `coeus-python/src/activation.rs`

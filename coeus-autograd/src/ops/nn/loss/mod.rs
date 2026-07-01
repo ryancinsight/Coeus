@@ -8,6 +8,8 @@ pub mod cosine;
 pub mod cosine_similarity;
 /// Cross-entropy loss.
 pub mod cross_entropy;
+/// CTC (Connectionist Temporal Classification) loss.
+pub mod ctc;
 /// Huber loss.
 pub mod huber;
 /// KL divergence loss.
@@ -36,6 +38,7 @@ pub use bce_with_logits::{bce_with_logits, BceWithLogitsNode};
 pub use cosine::{cosine_embedding_loss, CosineEmbeddingLossNode};
 pub use cosine_similarity::{cosine_similarity, CosineSimilarityNode};
 pub use cross_entropy::{cross_entropy_loss, CrossEntropyLossNode};
+pub use ctc::{ctc_loss, CtcLossNode};
 pub use huber::{huber_loss, HuberLossNode};
 pub use kl_div::{kl_divergence, KlDivLossNode};
 pub use l1::{l1_loss, L1LossNode};
