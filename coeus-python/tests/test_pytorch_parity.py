@@ -4003,3 +4003,49 @@ def test_gather_dim1_matches_pytorch() -> None:
 
     _allclose("gather_fwd", list(out_pyc.data), out_t.detach().flatten().tolist())
     _allclose("gather_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+# ---------------------------------------------------------------------------
+# einsum / one_hot / scatter_add parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "einsum"), reason="pycoeus.einsum not available")
+def test_einsum_matmul_matches_pytorch() -> None:
+    """torch.einsum('ij,jk->ik', a, b) matrix multiply (2x3) @ (3x2) = (2x2)."""
+    a = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    b = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+    a_pyc = pycoeus.Tensor(a, [2, 3], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [3, 2], requires_grad=False)
+    got = pycoeus.einsum("ij,jk->ik", [a_pyc, b_pyc])
+    a_t = torch.tensor(a, dtype=torch.float64).reshape(2, 3)
+    b_t = torch.tensor(b, dtype=torch.float64).reshape(3, 2)
+    exp = torch.einsum("ij,jk->ik", a_t, b_t)
+    _allclose("einsum_mm", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "one_hot"), reason="pycoeus.one_hot not available")
+def test_one_hot_matches_pytorch() -> None:
+    """torch.nn.functional.one_hot(indices, num_classes=5)."""
+    indices = [0.0, 2.0, 4.0, 1.0]
+    x_pyc = pycoeus.Tensor(indices, [4], requires_grad=False)
+    got = pycoeus.one_hot(x_pyc, 5)
+    idx_t = torch.tensor([0, 2, 4, 1], dtype=torch.int64)
+    exp = torch.nn.functional.one_hot(idx_t, num_classes=5).float()
+    _allclose("one_hot", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "scatter_add"), reason="pycoeus.scatter_add not available")
+def test_scatter_add_matches_pytorch() -> None:
+    """torch.scatter_add(input, dim=0, index, src) vs pycoeus.scatter_add."""
+    src_data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    idx_data = [0.0, 1.0, 0.0, 1.0, 0.0, 1.0]
+    base_data = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    base_pyc = pycoeus.Tensor(base_data, [2, 3], requires_grad=False)
+    idx_pyc = pycoeus.Tensor(idx_data, [2, 3], requires_grad=False)
+    src_pyc = pycoeus.Tensor(src_data, [2, 3], requires_grad=False)
+    got = pycoeus.scatter_add(base_pyc, 0, idx_pyc, src_pyc)
+    base_t = torch.zeros(2, 3, dtype=torch.float64)
+    idx_t = torch.tensor([[0, 1, 0], [1, 0, 1]], dtype=torch.int64)
+    src_t = torch.tensor(src_data, dtype=torch.float64).reshape(2, 3)
+    exp = base_t.scatter_add(0, idx_t, src_t)
+    _allclose("scatter_add", list(got.data), exp.flatten().tolist())
