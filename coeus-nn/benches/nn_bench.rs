@@ -1862,6 +1862,75 @@ fn bench_softmax_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_log_sigmoid_forward(c: &mut Criterion) {
+    // LogSigmoid = log(sigmoid(x)) = -softplus(-x).
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.0031).sin())
+        .collect();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &NdArrayDevice::default(),
+    );
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let mut group = c.benchmark_group("Burn vs Coeus — LogSigmoid forward (128x256)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| {
+            black_box(burn::tensor::activation::log_sigmoid(black_box(
+                x_burn.clone(),
+            )))
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(coeus_nn::log_sigmoid(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(coeus_nn::log_sigmoid(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_softplus_forward(c: &mut Criterion) {
+    // Softplus = log(1 + exp(x)), beta=1 (Burn's default).
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.0031).sin())
+        .collect();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &NdArrayDevice::default(),
+    );
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let mut group = c.benchmark_group("Burn vs Coeus — Softplus forward (128x256, beta=1)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| {
+            black_box(burn::tensor::activation::softplus(
+                black_box(x_burn.clone()),
+                1.0,
+            ))
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(coeus_nn::softplus(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(coeus_nn::softplus(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -1901,6 +1970,8 @@ criterion_group!(
     bench_silu_forward,
     bench_leaky_relu_forward,
     bench_mish_forward,
+    bench_log_sigmoid_forward,
+    bench_softplus_forward,
     bench_dropout_forward,
     bench_maxpool1d_forward,
     bench_avgpool1d_forward,
