@@ -1,9 +1,11 @@
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_nn::{
-    bce_with_logits, binary_cross_entropy, cosine_embedding_loss, cosine_similarity, huber_loss,
-    kl_divergence, l1_loss, margin_ranking_loss, multi_margin, nll_loss, pairwise_distance,
+    bce_with_logits, binary_cross_entropy, cosine_embedding_loss, cosine_similarity,
+    gaussian_nll_loss, hinge_embedding_loss, huber_loss, kl_divergence, l1_loss,
+    margin_ranking_loss, multi_label_soft_margin_loss, multi_margin, nll_loss, pairwise_distance,
     poisson_nll, smooth_l1_loss, soft_margin, triplet_margin_loss,
+    triplet_margin_with_distance_loss,
 };
 use coeus_tensor::Tensor;
 
@@ -758,4 +760,134 @@ fn test_cosine_similarity_forward_and_backward() {
         );
     }
     assert!(x2.grad().is_some(), "cosine x2 grad");
+}
+
+#[test]
+fn test_hinge_embedding_loss() {
+    // x = [0.5, 2, -1, 0.3], target = [+1, -1, +1, -1], margin = 1.
+    // Per element: y=+1 -> max(0, margin - x); y=-1 -> max(0, -x).
+    //   0.5, 0.0, 2.0, 0.0  =>  mean = 2.5 / 4 = 0.625.
+    let x = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[0.5, 2.0, -1.0, 0.3]),
+        true,
+    );
+    let target = [1.0f64, -1.0, 1.0, -1.0];
+
+    let loss = hinge_embedding_loss(&x, &target, 1.0);
+    assert_eq!(loss.tensor.shape(), &[1]);
+    assert!((loss.tensor.as_slice()[0] - 0.625).abs() < 1e-12);
+
+    loss.backward();
+    // Subgradient d/dx: active positive hinge (margin-x>0, y=+1) -> -1/N;
+    // active negative hinge (-x>0, y=-1) -> -1/N; inactive -> 0. N = 4.
+    //   i0: y=+1, margin-x=0.5>0 -> -0.25   i1: y=-1, -x=-2<0 -> 0
+    //   i2: y=+1, margin-x=2>0   -> -0.25   i3: y=-1, -x=-0.3<0 -> 0
+    let grad = x.grad().expect("hinge x grad");
+    let g = grad.as_slice();
+    let expected = [-0.25, 0.0, -0.25, 0.0];
+    for (i, (&got, &want)) in g.iter().zip(expected.iter()).enumerate() {
+        assert!(
+            (got - want).abs() < 1e-12,
+            "hinge grad[{i}]: {got} vs {want}"
+        );
+    }
+}
+
+#[test]
+fn test_multi_label_soft_margin_loss() {
+    // MultiLabelSoftMarginLoss(mean) == BCEWithLogits(mean). x=[0,2], y=[1,0].
+    // Per-element BCE: -[y ln σ(x) + (1-y) ln(1-σ(x))].
+    //   i0: x=0, σ=0.5, y=1 -> -ln(0.5) = ln 2
+    //   i1: x=2, y=0        -> -ln(1-σ(2))
+    let x = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.0, 2.0]),
+        true,
+    );
+    let target = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 0.0]),
+        false,
+    );
+
+    let loss = multi_label_soft_margin_loss(&x, &target);
+    assert_eq!(loss.tensor.shape(), &[1]);
+    let sig2 = 1.0 / (1.0 + (-2.0f64).exp());
+    let expected = (2.0f64.ln() + -(1.0 - sig2).ln()) / 2.0;
+    assert!((loss.tensor.as_slice()[0] - expected).abs() < 1e-10);
+
+    loss.backward();
+    // d BCEWithLogits/dx = (σ(x) - y)/N: i0 (0.5-1)/2=-0.25, i1 (σ(2)-0)/2.
+    let grad = x.grad().expect("mlsm x grad");
+    let g = grad.as_slice();
+    assert!((g[0] - (-0.25)).abs() < 1e-10, "mlsm grad0: {}", g[0]);
+    assert!((g[1] - sig2 / 2.0).abs() < 1e-10, "mlsm grad1: {}", g[1]);
+}
+
+#[test]
+fn test_gaussian_nll_loss() {
+    // input=[1,2], target=[1.5,1], var=[0.5,2], full=false.
+    // Per element 0.5*((in-t)^2/var + ln var):
+    //   i0: 0.5*(0.25/0.5 + ln 0.5) = 0.5*(0.5 - 0.6931472) = -0.0965736
+    //   i1: 0.5*(1/2     + ln 2  ) = 0.5*(0.5 + 0.6931472) =  0.5965736
+    //   mean = 0.25.
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 2.0]),
+        true,
+    );
+    let target = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.5, 1.0]),
+        false,
+    );
+    let var = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.5, 2.0]),
+        false,
+    );
+
+    let loss = gaussian_nll_loss(&input, &target, &var, false);
+    assert_eq!(loss.tensor.shape(), &[1]);
+    assert!((loss.tensor.as_slice()[0] - 0.25).abs() < 1e-12);
+
+    loss.backward();
+    // d loss/d input_i = (in_i - t_i)/(N*var_i): [-0.5/1, 1/4] = [-0.5, 0.25].
+    let grad = input.grad().expect("gnll input grad");
+    let g = grad.as_slice();
+    assert!((g[0] - (-0.5)).abs() < 1e-12, "gnll grad0: {}", g[0]);
+    assert!((g[1] - 0.25).abs() < 1e-12, "gnll grad1: {}", g[1]);
+
+    // full=true adds the constant 0.5*ln(2π) (mean of a per-element constant).
+    let input2 = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 2.0]),
+        false,
+    );
+    let loss_full = gaussian_nll_loss(&input2, &target, &var, true);
+    let expected_full = 0.25 + 0.5 * (2.0 * std::f64::consts::PI).ln();
+    assert!((loss_full.tensor.as_slice()[0] - expected_full).abs() < 1e-12);
+}
+
+#[test]
+fn test_triplet_margin_with_distance_loss() {
+    // distance(a,b) = mean(|a - b|). anchor=[0,0], positive=[2,2], negative=[1,1], margin=0.5.
+    //   d_ap = mean(|[-2,-2]|) = 2 ; d_an = mean(|[-1,-1]|) = 1
+    //   loss = mean(relu(d_ap - d_an + margin)) = relu(2 - 1 + 0.5) = 1.5.
+    let anchor = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.0, 0.0]),
+        true,
+    );
+    let positive = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[2.0, 2.0]),
+        false,
+    );
+    let negative = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 1.0]),
+        false,
+    );
+    let dist = |a: &Var<f64, MoiraiBackend>, b: &Var<f64, MoiraiBackend>| {
+        coeus_autograd::mean(&coeus_autograd::abs(&coeus_autograd::sub(a, b)))
+    };
+
+    let loss = triplet_margin_with_distance_loss(&anchor, &positive, &negative, dist, 0.5);
+    assert_eq!(loss.tensor.shape(), &[1]);
+    assert!((loss.tensor.as_slice()[0] - 1.5).abs() < 1e-12);
+
+    loss.backward();
+    assert!(anchor.grad().is_some(), "triplet anchor grad");
 }

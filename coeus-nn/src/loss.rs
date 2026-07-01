@@ -1,7 +1,7 @@
 // ── Loss functions ──
 
 use coeus_autograd::Var;
-use coeus_core::{Float, Storage};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, Storage};
 use coeus_tensor::Tensor;
 
 /// Mean Squared Error loss.
@@ -284,4 +284,121 @@ pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     eps: T,
 ) -> Var<T, B> {
     coeus_autograd::cosine_similarity(x1, x2, dim, eps)
+}
+
+/// Hinge embedding loss (PyTorch `HingeEmbeddingLoss` with `reduction="mean"`).
+///
+/// `target` contains `+1` or `-1`. For `y_i == 1`, computes `mean(max(0, margin - x_i))`;
+/// for `y_i == -1`, computes `mean(max(0, -x_i))`.
+///
+/// Composed from `where_cond`, `relu`, `neg`, and `scalar_sub` — no dedicated autograd node.
+#[inline]
+pub fn hinge_embedding_loss<T, B>(x: &Var<T, B>, target: &[T], margin: T) -> Var<T, B>
+where
+    T: Float,
+    B: ComputeBackend + Default + coeus_ops::BackendOps<T>,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
+    assert_eq!(
+        target.len(),
+        x.tensor.numel(),
+        "target length must match input length"
+    );
+    let backend = B::default();
+    let zero = T::zero();
+
+    let mask_data: Vec<T> = target
+        .iter()
+        .map(|&y| if y > zero { T::one() } else { zero })
+        .collect();
+    let mask_tensor = Tensor::from_slice_on(x.tensor.shape(), &mask_data, &backend);
+    let mask_var = Var::new(mask_tensor, false);
+
+    let candidate1 =
+        coeus_autograd::relu(&coeus_autograd::neg(&coeus_autograd::scalar_sub(x, margin)));
+    let candidate2 = coeus_autograd::relu(&coeus_autograd::neg(x));
+    let selected = coeus_autograd::where_cond(&mask_var, &candidate1, &candidate2);
+    coeus_autograd::mean(&selected)
+}
+
+/// Multi-label soft-margin loss (PyTorch `MultiLabelSoftMarginLoss` with
+/// `reduction="mean"`).
+///
+/// Computes per-label sigmoid binary cross-entropy averaged over all elements.
+/// Mathematically identical to `BCEWithLogitsLoss` when targets are binary.
+/// Delegates to `bce_with_logits` directly.
+#[inline]
+pub fn multi_label_soft_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    x: &Var<T, B>,
+    target: &Var<T, B>,
+) -> Var<T, B> {
+    coeus_autograd::bce_with_logits(x, target)
+}
+
+/// Triplet margin loss with pluggable distance function
+/// (PyTorch `TripletMarginWithDistanceLoss`, `reduction="mean"`).
+///
+/// Generalizes `triplet_margin_loss` by accepting a custom distance function.
+/// `distance(a, p)` and `distance(a, n)` are computed via the provided closure.
+/// Returns `mean(max(0, d_ap - d_an + margin))`.
+pub fn triplet_margin_with_distance_loss<T, B, F>(
+    anchor: &Var<T, B>,
+    positive: &Var<T, B>,
+    negative: &Var<T, B>,
+    distance: F,
+    margin: T,
+) -> Var<T, B>
+where
+    T: Float,
+    B: coeus_ops::BackendOps<T> + Default,
+    F: Fn(&Var<T, B>, &Var<T, B>) -> Var<T, B>,
+{
+    let d_ap = distance(anchor, positive);
+    let d_an = distance(anchor, negative);
+    let shifted = coeus_autograd::scalar_add(&coeus_autograd::sub(&d_ap, &d_an), margin);
+    coeus_autograd::mean(&coeus_autograd::relu(&shifted))
+}
+
+/// Multi-label margin loss (PyTorch `MultiLabelMarginLoss` with `reduction="mean"`).
+///
+/// `x`: shape `(N, C)` scores, `target`: shape `(N, C)` where
+/// `target[i][j] >= 0` are valid class indices and `-1` means ignore padding.
+/// Computes `mean_i sum_{t: target[i][t] >= 0} sum_{j != t} max(0, 1 - (x[i][t] - x[i][j]))`.
+#[inline]
+pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    x: &Var<T, B>,
+    target: &[isize],
+) -> Var<T, B> {
+    coeus_autograd::multi_label_margin_loss(x, target)
+}
+
+/// Gaussian negative-log-likelihood loss (PyTorch `GaussianNLLLoss` with
+/// `reduction="mean"` and `full=False`).
+///
+/// `input`, `target`, and `var` share shape. Computes:
+/// `loss = 0.5 * mean((input - target)^2 / var + log(var))`
+///
+/// Composed from existing autograd ops. When `full=true`, adds `0.5 * log(2π)`.
+#[inline]
+pub fn gaussian_nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    target: &Var<T, B>,
+    var: &Var<T, B>,
+    full: bool,
+) -> Var<T, B> {
+    let diff = coeus_autograd::sub(input, target);
+    let diff_sq = coeus_autograd::mul(&diff, &diff);
+    let var_term = coeus_autograd::div(&diff_sq, var);
+    let log_var = coeus_autograd::log(var);
+    let loss =
+        coeus_autograd::scalar_mul(&coeus_autograd::add(&var_term, &log_var), T::from_f64(0.5));
+    if full {
+        let two_pi = T::from_f64(2.0 * std::f64::consts::PI);
+        coeus_autograd::scalar_add(
+            &coeus_autograd::mean(&loss),
+            T::from_f64(0.5) * two_pi.log_op(),
+        )
+    } else {
+        coeus_autograd::mean(&loss)
+    }
 }

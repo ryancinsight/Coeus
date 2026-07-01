@@ -164,3 +164,72 @@ pub fn multi_margin(
     let inner = py.allow_threads(|| coeus_nn::loss::multi_margin(&x.inner, &targets, p, margin));
     PyTensor::from_var(inner)
 }
+
+/// Smooth L1 (Huber-β) loss: `mean(loss_smooth(pred - target, beta))`.
+#[pyfunction]
+#[pyo3(signature = (pred, target, beta = 1.0))]
+pub fn smooth_l1_loss(pred: &PyTensor, target: &PyTensor, beta: f64, py: Python<'_>) -> PyTensor {
+    let inner =
+        py.allow_threads(|| coeus_nn::loss::smooth_l1_loss(&pred.inner, &target.inner, beta));
+    PyTensor::from_var(inner)
+}
+
+/// Row-wise cosine similarity along `dim=1`.
+#[pyfunction]
+#[pyo3(signature = (x1, x2, dim = 1, eps = 1e-8))]
+pub fn cosine_similarity(
+    x1: &PyTensor,
+    x2: &PyTensor,
+    dim: usize,
+    eps: f64,
+    py: Python<'_>,
+) -> PyTensor {
+    let inner =
+        py.allow_threads(|| coeus_nn::loss::cosine_similarity(&x1.inner, &x2.inner, dim, eps));
+    PyTensor::from_var(inner)
+}
+
+/// Hinge embedding loss: targets in {-1, +1}, margin threshold.
+#[pyfunction]
+#[pyo3(signature = (x, target, margin = 1.0))]
+pub fn hinge_embedding_loss(
+    x: &PyTensor,
+    target: Vec<f64>,
+    margin: f64,
+    py: Python<'_>,
+) -> PyTensor {
+    let inner =
+        py.allow_threads(|| coeus_nn::loss::hinge_embedding_loss(&x.inner, &target, margin));
+    PyTensor::from_var(inner)
+}
+
+/// Multi-label margin loss (hinge-based multi-label ranking).
+#[pyfunction]
+pub fn multi_label_margin_loss(x: &PyTensor, target: Vec<isize>, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_nn::loss::multi_label_margin_loss(&x.inner, &target));
+    PyTensor::from_var(inner)
+}
+
+/// Multi-label soft-margin loss (sigmoid + BCE per label).
+#[pyfunction]
+pub fn multi_label_soft_margin_loss(x: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner =
+        py.allow_threads(|| coeus_nn::loss::multi_label_soft_margin_loss(&x.inner, &target.inner));
+    PyTensor::from_var(inner)
+}
+
+/// Gaussian negative-log-likelihood loss.
+#[pyfunction]
+#[pyo3(signature = (input, target, var, full = false))]
+pub fn gaussian_nll_loss(
+    input: &PyTensor,
+    target: &PyTensor,
+    var: &PyTensor,
+    full: bool,
+    py: Python<'_>,
+) -> PyTensor {
+    let inner = py.allow_threads(|| {
+        coeus_nn::loss::gaussian_nll_loss(&input.inner, &target.inner, &var.inner, full)
+    });
+    PyTensor::from_var(inner)
+}

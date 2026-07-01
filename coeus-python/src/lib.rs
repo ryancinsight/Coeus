@@ -210,6 +210,12 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(losses::pairwise_distance, m)?)?;
     m.add_function(wrap_pyfunction!(losses::triplet_margin_loss, m)?)?;
     m.add_function(wrap_pyfunction!(losses::multi_margin, m)?)?;
+    m.add_function(wrap_pyfunction!(losses::smooth_l1_loss, m)?)?;
+    m.add_function(wrap_pyfunction!(losses::cosine_similarity, m)?)?;
+    m.add_function(wrap_pyfunction!(losses::hinge_embedding_loss, m)?)?;
+    m.add_function(wrap_pyfunction!(losses::multi_label_soft_margin_loss, m)?)?;
+    m.add_function(wrap_pyfunction!(losses::gaussian_nll_loss, m)?)?;
+    m.add_function(wrap_pyfunction!(losses::multi_label_margin_loss, m)?)?;
 
     m.add_function(wrap_pyfunction!(ops::exp, m)?)?;
     m.add_function(wrap_pyfunction!(ops::log, m)?)?;
