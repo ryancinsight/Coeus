@@ -208,6 +208,13 @@ where
         let (oh, ow) = (self.out_h, self.out_w);
         let backend = B::default();
 
+        // Fast path for global (1×1) pooling: sequential mean_axis reductions
+        // avoid allocating the O(H*W) averaging matrix.
+        if oh == 1 && ow == 1 {
+            let after_h = coeus_autograd::mean_axis(input, 2); // [N, C, 1, W]
+            return coeus_autograd::mean_axis(&after_h, 3); // [N, C, 1, 1]
+        }
+
         // Pool W: [N, C, H, W] -> [N*C*H, W] @ PW_T[W, OW] -> [N, C, H, OW].
         let pw_t = avg_pool_matrix_t::<T, B>(w, ow, &backend);
         let yw = coeus_autograd::matmul(&coeus_autograd::reshape(input, [n * c * h, w]), &pw_t);
@@ -311,6 +318,12 @@ where
         let (n, c, h, w) = (shape[0], shape[1], shape[2], shape[3]);
         let (oh, ow) = (self.out_h, self.out_w);
         let backend = B::default();
+
+        // Fast path for global (1×1) max pooling: sequential max_axis reductions.
+        if oh == 1 && ow == 1 {
+            let after_h = coeus_autograd::max_axis(input, 2); // [N, C, 1, W]
+            return coeus_autograd::max_axis(&after_h, 3); // [N, C, 1, 1]
+        }
 
         // Pool W: [N, C, H, W] -> [N*C*H, W] -> [N*C*H, OW] -> [N, C, H, OW].
         let xw = coeus_autograd::reshape(input, [n * c * h, w]);
