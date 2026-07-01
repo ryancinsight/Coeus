@@ -16,4 +16,4 @@ pub use transform::{
     broadcast_to, diag, diagonal, flatten, flip, movedim, pad, permute, reshape, roll, slice,
     squeeze, swapaxes, tile, transpose, tril, triu, unsqueeze, where_cond,
 };
-pub use util::{contiguous, cumprod, cumsum, einsum, einsum3};
+pub use util::{contiguous, cumprod, cumsum, diff, einsum, einsum3};

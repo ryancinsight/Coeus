@@ -255,6 +255,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::permute, m)?)?;
     m.add_function(wrap_pyfunction!(ops::movedim, m)?)?;
     m.add_function(wrap_pyfunction!(ops::swapaxes, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::diff, m)?)?;
     m.add_function(wrap_pyfunction!(ops::t, m)?)?;
     m.add_function(wrap_pyfunction!(ops::pow, m)?)?;
     // Trigonometric
