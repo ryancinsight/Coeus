@@ -3555,3 +3555,138 @@ def test_softmin_matches_pytorch() -> None:
 
     _allclose("softmin_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
     _allclose("softmin_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# torch.diff parity (MS-236)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "diff"),
+    reason="pycoeus.diff not available in this build",
+)
+def test_diff_n1_matches_pytorch() -> None:
+    """torch.diff(x, n=1) parity on [4] and [2, 5]."""
+    # 1D case
+    data = [1.0, 4.0, 9.0, 16.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    y_pyc = pycoeus.diff(x_pyc, n=1, dim=0)
+    y_pyc.backward()
+
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    y_t = torch.diff(x_t, n=1, dim=0)
+    y_t.sum().backward()
+
+    _allclose("diff_n1_1d", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose("diff_n1_1d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+    # 2D case
+    data2 = [1.0, 3.0, 6.0, 10.0, 15.0, 2.0, 4.0, 7.0, 11.0, 16.0]
+    x_pyc2 = pycoeus.Tensor(data2, [2, 5], requires_grad=True)
+    y_pyc2 = pycoeus.diff(x_pyc2, n=1, dim=1)
+
+    x_t2 = torch.tensor(data2, dtype=torch.float64).reshape(2, 5).requires_grad_(True)
+    y_t2 = torch.diff(x_t2, n=1, dim=1)
+
+    _allclose("diff_n1_2d", list(y_pyc2.data), y_t2.detach().flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "diff"),
+    reason="pycoeus.diff not available in this build",
+)
+def test_diff_n2_matches_pytorch() -> None:
+    """torch.diff(x, n=2) second-order difference on [5]."""
+    data = [1.0, 1.0, 2.0, 4.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    y_pyc = pycoeus.diff(x_pyc, n=2, dim=0)
+    y_pyc.backward()
+
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    y_t = torch.diff(x_t, n=2, dim=0)
+    y_t.sum().backward()
+
+    _allclose("diff_n2", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose("diff_n2_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# cumsum / cumprod parity (MS-236)
+# ---------------------------------------------------------------------------
+
+
+def test_cumsum_matches_pytorch() -> None:
+    """torch.cumsum parity on [2, 4] along dim=1."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
+
+    x_pyc = pycoeus.Tensor(data, [2, 4], requires_grad=True)
+    y_pyc = pycoeus.cumsum(x_pyc, 1)
+    y_pyc.backward()
+
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(2, 4).requires_grad_(True)
+    y_t = torch.cumsum(x_t, dim=1)
+    y_t.sum().backward()
+
+    _allclose("cumsum_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose("cumsum_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+def test_cumprod_matches_pytorch() -> None:
+    """torch.cumprod parity on [2, 4] along dim=0."""
+    data = [1.0, 2.0, 3.0, 4.0, 1.0, 0.5, 2.0, 3.0]
+
+    x_pyc = pycoeus.Tensor(data, [2, 4], requires_grad=True)
+    y_pyc = pycoeus.cumprod(x_pyc, 0)
+    y_pyc.backward()
+
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(2, 4).requires_grad_(True)
+    y_t = torch.cumprod(x_t, dim=0)
+    y_t.sum().backward()
+
+    _allclose("cumprod_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose("cumprod_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# nansum / nanmean parity (MS-236)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "nansum"),
+    reason="pycoeus.nansum not available in this build",
+)
+def test_nansum_matches_pytorch() -> None:
+    """torch.nansum parity: NaN elements treated as 0."""
+    import math
+
+    data = [1.0, float("nan"), 3.0, float("nan"), 5.0]
+    # pycoeus
+    x_pyc = pycoeus.Tensor(data, [5])
+    y_pyc = pycoeus.nansum(x_pyc)
+    # Expected: 1 + 0 + 3 + 0 + 5 = 9
+    x_t = torch.tensor(data, dtype=torch.float64)
+    y_t = torch.nansum(x_t)
+    assert abs(list(y_pyc.data)[0] - y_t.item()) < 1e-10, (
+        f"nansum: got {list(y_pyc.data)[0]:.8g}, expected {y_t.item():.8g}"
+    )
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "nanmean"),
+    reason="pycoeus.nanmean not available in this build",
+)
+def test_nanmean_matches_pytorch() -> None:
+    """torch.nanmean parity: NaN elements excluded from mean."""
+    import math
+
+    data = [2.0, float("nan"), 4.0, float("nan"), 6.0]
+    # pycoeus: mean of (2, 4, 6) = 4.0
+    x_pyc = pycoeus.Tensor(data, [5])
+    y_pyc = pycoeus.nanmean(x_pyc)
+    x_t = torch.tensor(data, dtype=torch.float64)
+    y_t = torch.nanmean(x_t)
+    assert abs(list(y_pyc.data)[0] - y_t.item()) < 1e-10, (
+        f"nanmean: got {list(y_pyc.data)[0]:.8g}, expected {y_t.item():.8g}"
+    )

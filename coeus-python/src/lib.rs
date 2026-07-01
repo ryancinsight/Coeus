@@ -217,6 +217,8 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(losses::gaussian_nll_loss, m)?)?;
     m.add_function(wrap_pyfunction!(losses::ctc_loss, m)?)?;
     m.add_function(wrap_pyfunction!(losses::multi_label_margin_loss, m)?)?;
+    m.add_function(wrap_pyfunction!(losses::nansum, m)?)?;
+    m.add_function(wrap_pyfunction!(losses::nanmean, m)?)?;
 
     m.add_function(wrap_pyfunction!(ops::exp, m)?)?;
     m.add_function(wrap_pyfunction!(ops::log, m)?)?;
