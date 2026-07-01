@@ -12,6 +12,39 @@ fn assert_close(actual: f64, expected: f64, label: &str) {
 }
 
 #[test]
+fn fft_1d_prime_length_matches_dft() {
+    // Non-power-of-2 (prime N=3) exercises Apollo's mixed-radix/Bluestein path.
+    // Closed-form DFT of [1,2,3]: X0=6, X1=-1.5 + (sqrt3/2)i, X2=conj(X1).
+    let s3 = 3.0_f64.sqrt() / 2.0;
+    let signal = Tensor::<f64, MoiraiBackend>::from_slice([3], &[1.0, 2.0, 3.0]);
+    let spectrum = fft_1d(&signal);
+    let expected = [
+        Complex::new(6.0, 0.0),
+        Complex::new(-1.5, s3),
+        Complex::new(-1.5, -s3),
+    ];
+    for (i, (&got, &want)) in spectrum.as_slice().iter().zip(expected.iter()).enumerate() {
+        assert_close(got.re, want.re, &format!("N3 X{i}.re"));
+        assert_close(got.im, want.im, &format!("N3 X{i}.im"));
+    }
+}
+
+#[test]
+fn fft_1d_arbitrary_length_roundtrips() {
+    // ifft(fft(x)) == x for a range of non-power-of-2 lengths (prime, composite),
+    // confirming Apollo handles arbitrary N and that the 1/N inverse normalization
+    // holds regardless of factorization.
+    for n in [3usize, 5, 6, 7, 9, 15] {
+        let data: Vec<f64> = (0..n).map(|i| (i as f64 * 0.37).sin() - 0.2).collect();
+        let signal = Tensor::<f64, MoiraiBackend>::from_slice([n], &data);
+        let recon = ifft_1d(&fft_1d(&signal));
+        for (i, (&r, &x)) in recon.as_slice().iter().zip(data.iter()).enumerate() {
+            assert_close(r, x, &format!("N{n} roundtrip[{i}]"));
+        }
+    }
+}
+
+#[test]
 fn fft_1d_matches_hand_dft_and_roundtrips() {
     let signal = Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
     let spectrum = fft_1d(&signal);
