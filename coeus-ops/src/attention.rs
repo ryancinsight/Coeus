@@ -6,12 +6,25 @@ use coeus_tensor::Tensor;
 
 /// Compute scaled dot-product attention.
 ///
+/// Implements `Attention(Q, K, V) = softmax(Q·Kᵀ · scale) · V` with optional
+/// causal or key-padding masking.
+///
 /// # Shapes
 /// - `query`:  `[batch, seq_q, d_k]`
 /// - `key`:    `[batch, seq_k, d_k]`
 /// - `value`:  `[batch, seq_k, d_v]`
 ///
 /// Returns `(output [batch, seq_q, d_v], attn_weights [batch, seq_q, seq_k])`.
+///
+/// # Memory
+/// Both output buffers are allocated uninitialized (`alloc_on`); the CPU kernel
+/// writes every position exactly once before returning, so no zero-initialization
+/// overhead is incurred.
+///
+/// # Performance
+/// The CPU backend dispatches one task per `(batch, seq_q)` pair via
+/// `parallel_for`, enabling SIMD dot products via `Float::dot_slice` on each
+/// query–key pair and coarse-grained parallelism over the batch × query matrix.
 pub fn scaled_dot_product_attention<T: Float, B: BackendOps<T> + Default>(
     query: &Tensor<T, B>,
     key: &Tensor<T, B>,
@@ -31,8 +44,9 @@ pub fn scaled_dot_product_attention<T: Float, B: BackendOps<T> + Default>(
     let v_shape = value.shape();
     let d_v = v_shape[2];
 
-    let mut output = Tensor::zeros_on([batch, seq_q, d_v], backend);
-    let mut attn_weights = Tensor::zeros_on([batch, seq_q, seq_k], backend);
+    // alloc_on: sdp_attention writes every output/attn_weights position — no zero-init needed.
+    let mut output = Tensor::alloc_on([batch, seq_q, d_v], backend);
+    let mut attn_weights = Tensor::alloc_on([batch, seq_q, seq_k], backend);
 
     let (out_storage, out_layout) = output.storage_mut_and_layout();
     let (aw_storage, aw_layout) = attn_weights.storage_mut_and_layout();

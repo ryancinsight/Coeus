@@ -26,7 +26,8 @@ where
         "dimension mismatch: x shape must match CSR column count"
     );
 
-    let mut y = Tensor::<T, B>::zeros_on([rows], backend);
+    // alloc_on: every row r writes y[r] = sum via y_ptr.write — no zero-init needed.
+    let mut y = Tensor::<T, B>::alloc_on([rows], backend);
 
     let val_slice = a.values().as_slice();
     let col_slice = a.col_indices().as_slice();
@@ -82,7 +83,8 @@ where
         "dimension mismatch: CSR column count must match dense row count"
     );
 
-    let mut c = Tensor::<T, B>::zeros_on([m, n], backend);
+    // alloc_on: parallel_for over rows writes every c[r,j] for j in 0..n — no zero-init needed.
+    let mut c = Tensor::<T, B>::alloc_on([m, n], backend);
 
     let val_slice = a.values().as_slice();
     let col_slice = a.col_indices().as_slice();
@@ -143,7 +145,8 @@ where
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
 {
     let nnz = a_col_indices.numel();
-    let mut grad_values = Tensor::<T, B>::zeros_on([nnz], backend);
+    // alloc_on: every i in 0..nnz is written via grad_values_ptr.write(i, sum) — no zero-init needed.
+    let mut grad_values = Tensor::<T, B>::alloc_on([nnz], backend);
     let m = a_shape[0];
     let n = b.shape()[1];
 
@@ -210,7 +213,8 @@ where
     let m = a_shape[0];
     let k = a_shape[1];
     let n = grad_out.shape()[1];
-    let mut grad_b = Tensor::<T, B>::zeros_on([k, n], backend);
+    // alloc_on: parallel_for over j writes every grad_b[col,j] for col in 0..k — no zero-init needed.
+    let mut grad_b = Tensor::<T, B>::alloc_on([k, n], backend);
 
     let val_slice = a_values.as_slice();
     let col_slice = a_col_indices.as_slice();
