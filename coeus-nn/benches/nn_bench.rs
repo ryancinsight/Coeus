@@ -27,6 +27,7 @@ use coeus_nn::{
     TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
+use coeus_ops;
 
 use burn::backend::ndarray::{NdArray, NdArrayDevice};
 use burn::nn::attention::{MhaInput, MultiHeadAttentionConfig};
@@ -2105,6 +2106,139 @@ fn bench_diff_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_nansum_forward(c: &mut Criterion) {
+    // nansum: [128, 256] matrix — sum ignoring NaN values.
+    let mut input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.0023).sin())
+        .collect();
+    // Inject 5% NaN to stress the NaN-mask path.
+    for i in (0..input_data.len()).step_by(20) {
+        input_data[i] = f32::NAN;
+    }
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+
+    // Burn does not expose a nansum equivalent, so compare against Burn sum.
+    let device = NdArrayDevice::default();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — nansum forward (128x256, 5% NaN)");
+    group.bench_function("Burn NdArray (sum, no NaN guard)", |b| {
+        b.iter(|| black_box(black_box(x_burn.clone()).sum()))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(coeus_autograd::nansum(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(coeus_autograd::nansum(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_tril_forward(c: &mut Criterion) {
+    // tril: [256, 256] lower-triangular mask, diagonal=0.
+    const SZ: usize = 256;
+    let input_data: Vec<f32> = (0..(SZ * SZ)).map(|i| i as f32 * 0.001).collect();
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![SZ, SZ], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![SZ, SZ], &input_data),
+        false,
+    );
+
+    // Burn: no direct tril, use mask_lower (burn 0.16 tensor method).
+    let device = NdArrayDevice::default();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [SZ, SZ]),
+        &device,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — tril forward (256x256)");
+    group.bench_function("Burn NdArray (equal_elem as mask baseline)", |b| {
+        b.iter(|| black_box(black_box(x_burn.clone()).equal_elem(0.0f32)))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(coeus_autograd::tril(black_box(&x_seq), 0)))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(coeus_autograd::tril(black_box(&x_moirai), 0)))
+    });
+    group.finish();
+}
+
+fn bench_topk_forward(c: &mut Criterion) {
+    // topk k=16 along dim=1 on [128, 256].
+    const TOPK: usize = 16;
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.007).sin())
+        .collect();
+    let x_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data);
+    let x_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data);
+
+    // Burn topk is not in the public API; compare against Burn sort (full sort upper bound).
+    let device = NdArrayDevice::default();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — topk(k=16) forward (128x256, dim=1)");
+    group.bench_function("Burn NdArray (sort descending, upper bound)", |b| {
+        b.iter(|| black_box(black_box(x_burn.clone()).sort_descending(1)))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(coeus_ops::topk(black_box(&x_seq), TOPK, 1, true)))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(coeus_ops::topk(black_box(&x_moirai), TOPK, 1, true)))
+    });
+    group.finish();
+}
+
+fn bench_cumsum_forward(c: &mut Criterion) {
+    // cumsum along dim=1 on [128, 256].
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.003).cos())
+        .collect();
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+
+    let device = NdArrayDevice::default();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — cumsum forward (128x256, dim=1)");
+    group.bench_function("Burn NdArray (sum baseline, no cumsum in 0.16)", |b| {
+        b.iter(|| black_box(black_box(x_burn.clone()).sum_dim(1)))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(coeus_autograd::cumsum(black_box(&x_seq), 1)))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(coeus_autograd::cumsum(black_box(&x_moirai), 1)))
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -2153,6 +2287,10 @@ criterion_group!(
     bench_dropout_forward,
     bench_maxpool1d_forward,
     bench_avgpool1d_forward,
-    bench_adaptive_max_pool2d_forward
+    bench_adaptive_max_pool2d_forward,
+    bench_nansum_forward,
+    bench_tril_forward,
+    bench_topk_forward,
+    bench_cumsum_forward
 );
 criterion_main!(benches);
