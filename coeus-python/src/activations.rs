@@ -80,39 +80,22 @@ pub fn leaky_relu(input: &PyTensor, negative_slope: f64, py: Python<'_>) -> PyTe
 pub fn glu(input: &PyTensor, dim: isize, py: Python<'_>) -> PyResult<PyTensor> {
     let shape = input.inner.tensor.shape();
     let ndim = shape.len();
-    let dim = if dim < 0 {
-        let normalized = ndim as isize + dim;
-        if normalized < 0 {
-            return Err(PyValueError::new_err(format!(
-                "glu: dim {dim} out of range for rank {ndim}"
-            )));
-        }
-        normalized as usize
-    } else {
-        dim as usize
-    };
-    if dim >= ndim {
+    let normalized = if dim < 0 { ndim as isize + dim } else { dim };
+    if normalized < 0 || normalized as usize >= ndim {
         return Err(PyValueError::new_err(format!(
             "glu: dim {dim} out of range for rank {ndim}"
         )));
     }
-    let axis = shape[dim];
-    if !axis.is_multiple_of(2) {
+    let dim = normalized as usize;
+    if !shape[dim].is_multiple_of(2) {
         return Err(PyValueError::new_err(format!(
-            "glu: dim {dim} must have even size, got {axis}"
+            "glu: dim {dim} must have even size, got {}",
+            shape[dim]
         )));
     }
-    let half = axis / 2;
-    let mut first_ranges: Vec<(usize, usize)> = shape.iter().map(|&extent| (0, extent)).collect();
-    let mut second_ranges = first_ranges.clone();
-    first_ranges[dim] = (0, half);
-    second_ranges[dim] = (half, axis);
-    let inner = py.allow_threads(|| {
-        let first = coeus_autograd::slice(&input.inner, &first_ranges);
-        let second = coeus_autograd::slice(&input.inner, &second_ranges);
-        let gate = coeus_autograd::sigmoid(&second);
-        coeus_autograd::mul(&first, &gate)
-    });
+    // GLU algorithm lives in coeus-nn; the binding only normalizes the Python
+    // negative-dim convention and maps invalid arguments to a Python exception.
+    let inner = py.allow_threads(|| coeus_nn::glu(&input.inner, dim));
     Ok(PyTensor::from_var(inner))
 }
 

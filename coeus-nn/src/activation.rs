@@ -186,6 +186,36 @@ pub fn gelu_tanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T,
     coeus_autograd::gelu_tanh(input)
 }
 
+/// Functional Gated Linear Unit along `dim` (`torch.nn.functional.glu`).
+///
+/// Splits `input` into two equal halves `[a, b]` along `dim` and gates the first
+/// by the sigmoid of the second: `a * sigmoid(b)`. Differentiable — composed from
+/// tracked `slice`, `sigmoid`, and `mul`, so gradients flow to `input`.
+///
+/// # Panics
+/// If `dim` is out of range or the extent along `dim` is odd.
+pub fn glu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    dim: usize,
+) -> Var<T, B> {
+    let shape = input.tensor.shape();
+    let ndim = shape.len();
+    assert!(dim < ndim, "glu: dim {dim} out of range for rank {ndim}");
+    let axis = shape[dim];
+    assert!(
+        axis.is_multiple_of(2),
+        "glu: dim {dim} must have even extent, got {axis}"
+    );
+    let half = axis / 2;
+    let mut first: Vec<(usize, usize)> = shape.iter().map(|&extent| (0, extent)).collect();
+    let mut second = first.clone();
+    first[dim] = (0, half);
+    second[dim] = (half, axis);
+    let a = coeus_autograd::slice(input, &first);
+    let b = coeus_autograd::slice(input, &second);
+    coeus_autograd::mul(&a, &coeus_autograd::sigmoid(&b))
+}
+
 /// GELU tanh approximation module.
 #[derive(Clone, Debug, Default)]
 pub struct GeLUTanh;
