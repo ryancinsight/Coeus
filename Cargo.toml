@@ -14,6 +14,7 @@ members = [
     "coeus-cuda",
     "coeus-dist",
     "coeus-leto",
+    "coeus-fft",
 ]
 
 [workspace.package]
@@ -64,6 +65,7 @@ coeus-nn       = { path = "coeus-nn", default-features = false }
 coeus-optim    = { path = "coeus-optim", default-features = false }
 coeus-sparse   = { path = "coeus-sparse" }
 coeus-dist     = { path = "coeus-dist", default-features = false }
+coeus-fft      = { path = "coeus-fft" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne.git"]
 mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
