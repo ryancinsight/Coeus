@@ -58,7 +58,7 @@ impl PyComplexTensor {
 #[pyfunction]
 #[pyo3(name = "fft")]
 pub fn fft_1d(input: &PyTensor, py: Python<'_>) -> PyComplexTensor {
-    let inner = py.allow_threads(|| coeus_autograd::fft_1d_var(&input.inner));
+    let inner = py.allow_threads(|| coeus_fft::fft_1d_var(&input.inner));
     PyComplexTensor { inner }
 }
 
@@ -66,7 +66,7 @@ pub fn fft_1d(input: &PyTensor, py: Python<'_>) -> PyComplexTensor {
 #[pyfunction]
 #[pyo3(name = "ifft")]
 pub fn ifft_1d(input: &PyComplexTensor, py: Python<'_>) -> PyTensor {
-    let inner = py.allow_threads(|| coeus_autograd::ifft_1d_var(&input.inner));
+    let inner = py.allow_threads(|| coeus_fft::ifft_1d_var(&input.inner));
     PyTensor::from_var(inner)
 }
 
@@ -74,6 +74,6 @@ pub fn ifft_1d(input: &PyComplexTensor, py: Python<'_>) -> PyTensor {
 #[pyfunction]
 #[pyo3(name = "fft_energy")]
 pub fn fft_energy(input: &PyTensor, py: Python<'_>) -> PyTensor {
-    let inner = py.allow_threads(|| coeus_autograd::fft_energy(&input.inner));
+    let inner = py.allow_threads(|| coeus_fft::fft_energy(&input.inner));
     PyTensor::from_var(inner)
 }
