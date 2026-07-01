@@ -1,6 +1,8 @@
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
-use coeus_nn::{elu, gelu_tanh, leaky_relu, softplus, GeLUTanh, LeakyReLU, Module, Softplus, ELU};
+use coeus_nn::{
+    elu, gelu_tanh, glu, leaky_relu, softplus, GeLUTanh, LeakyReLU, Module, Softplus, ELU,
+};
 use coeus_tensor::{Tensor, Transpose};
 
 #[test]
@@ -207,4 +209,36 @@ fn test_non_contiguous_activations() {
     assert_eq!(output_leaky.tensor.shape(), &[3, 2]);
     output_leaky.backward();
     assert!(input2.grad().is_some());
+}
+
+#[test]
+fn test_glu_forward_and_gradient() {
+    // input=[1,2,3,4], dim=0 -> halves a=[1,2], b=[3,4]; glu = a * sigmoid(b).
+    // out = [1*sigma(3), 2*sigma(4)].
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]),
+        true,
+    );
+    let sig = |x: f64| 1.0 / (1.0 + (-x).exp());
+    let (s3, s4) = (sig(3.0), sig(4.0));
+
+    let out = glu(&input, 0);
+    assert_eq!(out.tensor.shape(), &[2]);
+    let o = out.tensor.as_slice();
+    assert!((o[0] - 1.0 * s3).abs() < 1e-12, "glu[0]: {}", o[0]);
+    assert!((o[1] - 2.0 * s4).abs() < 1e-12, "glu[1]: {}", o[1]);
+
+    // grad of sum(glu): d/da_i = sigma(b_i); d/db_i = a_i * sigma(b_i)(1-sigma(b_i)).
+    out.backward();
+    let g = input.grad().expect("glu input grad");
+    let gs = g.as_slice();
+    let expected = [
+        s3,                    // d/d input[0] (a0)
+        s4,                    // d/d input[1] (a1)
+        1.0 * s3 * (1.0 - s3), // d/d input[2] (b0)
+        2.0 * s4 * (1.0 - s4), // d/d input[3] (b1)
+    ];
+    for (i, (&got, &want)) in gs.iter().zip(expected.iter()).enumerate() {
+        assert!((got - want).abs() < 1e-12, "glu grad[{i}]: {got} vs {want}");
+    }
 }

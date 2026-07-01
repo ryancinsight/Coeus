@@ -69,7 +69,7 @@ pub mod swiglu;
 pub mod transformer;
 
 pub use activation::{
-    celu, elu, gelu, gelu_tanh, hardshrink, hardsigmoid, hardswish, hardtanh, leaky_relu,
+    celu, elu, gelu, gelu_tanh, glu, hardshrink, hardsigmoid, hardswish, hardtanh, leaky_relu,
     log_sigmoid, mish, prelu, relu, sigmoid, silu, softplus, softshrink, softsign, tanh,
     tanhshrink, threshold, Celu, CeluOp, GeLU, GeLUTanh, Hardshrink, HardshrinkOp, Hardsigmoid,
     HardsigmoidOp, Hardswish, HardswishOp, Hardtanh, HardtanhOp, LeakyReLU, LogSigmoid, Mish,
