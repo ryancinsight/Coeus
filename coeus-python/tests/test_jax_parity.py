@@ -1379,3 +1379,71 @@ def test_dropout_eval_matches_jax() -> None:
     x_j = jnp.asarray(x_data, dtype=jnp.float64)
     # Eval mode: no dropout applied → output == input
     _allclose("dropout_eval", list(y_pyc.data), x_j.flatten().tolist(), atol=1e-15)
+
+
+# ---------------------------------------------------------------------------
+# SinusoidalEncoding JAX parity (MS-231)
+# ---------------------------------------------------------------------------
+
+
+def test_sinusoidal_encoding_matches_jax() -> None:
+    """SinusoidalEncoding forward parity against inline JAX formula.
+
+    PE(pos, 2i) = sin(pos / 10000^(2i/d))
+    PE(pos, 2i+1) = cos(pos / 10000^(2i/d))
+
+    Input: zero tensor [1, 6, 8]; output = PE rows 0..5.
+    """
+    if not hasattr(pycoeus, "SinusoidalEncoding"):
+        pytest.skip("pycoeus.SinusoidalEncoding not available")
+
+    batch, seq, d_model = 1, 6, 8
+    max_len = 16
+    data = [0.0] * (batch * seq * d_model)
+
+    pe_pyc = pycoeus.SinusoidalEncoding(max_len=max_len, d_model=d_model)
+    x_pyc = pycoeus.Tensor(data, [batch, seq, d_model])
+    y_pyc = pe_pyc.forward(x_pyc)
+
+    # JAX reference
+    positions = jnp.arange(seq, dtype=jnp.float64)
+    dims = jnp.arange(d_model // 2, dtype=jnp.float64)
+    denom = 10000.0 ** (2.0 * dims / d_model)
+    angles = positions[:, None] / denom[None, :]  # [seq, d_model//2]
+    pe_sin = jnp.sin(angles)  # [seq, d_model//2]
+    pe_cos = jnp.cos(angles)  # [seq, d_model//2]
+    # interleave: even=sin, odd=cos
+    pe = jnp.stack([pe_sin, pe_cos], axis=-1).reshape(seq, d_model)  # [seq, d_model]
+    pe_batch = jnp.tile(pe[None, :, :], [batch, 1, 1])  # [batch, seq, d_model]
+
+    _allclose("sinusoidal_jax", list(y_pyc.data), pe_batch.flatten().tolist(), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# BatchNorm1d eval-mode JAX parity (MS-231)
+# ---------------------------------------------------------------------------
+
+
+def test_batchnorm1d_eval_matches_jax() -> None:
+    """BatchNorm1d eval-mode parity: running_mean/var normalization.
+
+    JAX reference: (x - mean) / sqrt(var + eps) * gamma + beta.
+    Uses fixed running_mean=0, running_var=1, gamma=1, beta=0.
+    """
+    if not hasattr(pycoeus, "BatchNorm1d"):
+        pytest.skip("pycoeus.BatchNorm1d not available")
+
+    n, c, length = 2, 3, 4
+    data = [float(i) * 0.1 - 0.5 for i in range(n * c * length)]
+
+    bn_pyc = pycoeus.BatchNorm1d(c, eps=1e-5, momentum=0.1)
+    # pycoeus eval_forward() uses running stats (mean=0, var=1 initially)
+    x_pyc = pycoeus.Tensor(data, [n, c, length])
+    y_pyc = bn_pyc.eval_forward(x_pyc)
+
+    # JAX: (x - 0) / sqrt(1 + 1e-5) * 1 + 0 = x / sqrt(1+eps)
+    x_j = jnp.asarray(data, dtype=jnp.float64).reshape(n, c, length)
+    y_j = x_j / jnp.sqrt(1.0 + 1e-5)
+
+    _allclose("bn1d_eval_jax", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-10)
+

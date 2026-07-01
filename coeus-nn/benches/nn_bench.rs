@@ -21,9 +21,9 @@ use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
     cross_entropy_loss, gelu, huber_loss, leaky_relu, mse_loss, prelu, relu, sigmoid, silu, tanh,
     AdaptiveAvgPool2d, AvgPool1d as CoeusAvgPool1d, AvgPool2d, BatchNorm1d, BatchNorm2d,
-    BatchNorm3d, Conv1d, Conv2d, Conv3d, ConvTranspose1d, Dropout, Embedding, EmbeddingBag,
-    EmbeddingBagMode, GroupNorm, Gru as CoeusGru, InstanceNorm2d, LayerNorm, Linear, Lstm,
-    MaxPool1d, MaxPool2d, Module, MultiHeadAttention, NullMask, RMSNorm, SwiGlu,
+    BatchNorm3d, Conv1d, Conv2d, Conv3d, ConvTranspose1d, ConvTranspose3d, Dropout, Embedding,
+    EmbeddingBag, EmbeddingBagMode, GroupNorm, Gru as CoeusGru, InstanceNorm2d, LayerNorm, Linear,
+    Lstm, MaxPool1d, MaxPool2d, Module, MultiHeadAttention, NullMask, RMSNorm, SwiGlu,
     TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
@@ -1704,6 +1704,164 @@ fn bench_conv_transpose1d_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_conv2d_forward_backward(c: &mut Criterion) {
+    // Conv2d forward + backward: [4, 32, 16, 16], k3, no bias.
+    // Measures full autograd cycle vs Burn's Autodiff backend.
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    const FB_N: usize = 4;
+    const FB_C: usize = 32;
+    const FB_HW: usize = 16;
+    const FB_K: usize = 3;
+
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(FB_N * FB_C * FB_HW * FB_HW))
+        .map(|i| (i as f32 * 0.007).sin())
+        .collect();
+
+    // Burn: Conv2d with autodiff backend.
+    let burn_conv_fwd = Conv2dConfig::new([FB_C, FB_C], [FB_K, FB_K])
+        .with_bias(false)
+        .with_padding(PaddingConfig2d::Valid)
+        .init::<AB>(&device);
+    let x_burn_ad: BurnTensor<AB, 4> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [FB_N, FB_C, FB_HW, FB_HW]),
+        &device,
+    )
+    .require_grad();
+
+    // Coeus: Conv2d with tracked Var.
+    let conv_seq = Conv2d::<f32, SequentialBackend>::new(FB_C, FB_C, FB_K, false);
+    let conv_moirai = Conv2d::<f32, MoiraiBackend>::new(FB_C, FB_C, FB_K, false);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![FB_N, FB_C, FB_HW, FB_HW], &input_data),
+        true,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![FB_N, FB_C, FB_HW, FB_HW], &input_data),
+        true,
+    );
+
+    let mut group =
+        c.benchmark_group("Burn vs Coeus — Conv2d forward+backward (4x32x16x16, k3, no bias)");
+    group.bench_function("Burn NdArray (autodiff)", |b| {
+        b.iter(|| {
+            let grads = burn_conv_fwd
+                .forward(black_box(x_burn_ad.clone()))
+                .sum()
+                .backward();
+            black_box(grads)
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            conv_seq.zero_grad();
+            x_seq.zero_grad();
+            let out = conv_seq.forward(black_box(&x_seq));
+            coeus_autograd::sum(&out).backward();
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            conv_moirai.zero_grad();
+            x_moirai.zero_grad();
+            let out = conv_moirai.forward(black_box(&x_moirai));
+            coeus_autograd::sum(&out).backward();
+        })
+    });
+    group.finish();
+}
+
+fn bench_conv_transpose3d_forward(c: &mut Criterion) {
+    // ConvTranspose3d: [B=2, C_in=8, D=4, H=4, W=4] → [B=2, C_out=4, D=8, H=8, W=8]
+    const CT3_B: usize = 2;
+    const CT3_CIN: usize = 8;
+    const CT3_COUT: usize = 4;
+    const CT3_D: usize = 4;
+    const CT3_H: usize = 4;
+    const CT3_W: usize = 4;
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(CT3_B * CT3_CIN * CT3_D * CT3_H * CT3_W))
+        .map(|i| (i as f32 * 0.013).sin())
+        .collect();
+
+    // Burn ConvTranspose3d: kernel=2, stride=2
+    let burn_ct3 = burn::nn::conv::ConvTranspose3dConfig::new([CT3_CIN, CT3_COUT], [2, 2, 2])
+        .with_stride([2, 2, 2])
+        .init::<BurnB>(&device);
+    let x_burn: BurnTensor<BurnB, 5> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [CT3_B, CT3_CIN, CT3_D, CT3_H, CT3_W]),
+        &device,
+    );
+    let ct3_seq = ConvTranspose3d::<f32, SequentialBackend>::with_params(
+        CT3_CIN, CT3_COUT, 2, 2, 0, 0, 1, true,
+    );
+    let ct3_moirai =
+        ConvTranspose3d::<f32, MoiraiBackend>::with_params(CT3_CIN, CT3_COUT, 2, 2, 0, 0, 1, true);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(
+            vec![CT3_B, CT3_CIN, CT3_D, CT3_H, CT3_W],
+            &input_data,
+        ),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(
+            vec![CT3_B, CT3_CIN, CT3_D, CT3_H, CT3_W],
+            &input_data,
+        ),
+        false,
+    );
+    let mut group =
+        c.benchmark_group("Burn vs Coeus — ConvTranspose3d forward (2x8x4x4x4, cin8→cout4 k2 s2)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_ct3.forward(black_box(x_burn.clone()))))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(ct3_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(ct3_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_softmax_forward(c: &mut Criterion) {
+    // Softmax forward (128x256, dim=1).
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.0031).sin())
+        .collect();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &NdArrayDevice::default(),
+    );
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — Softmax forward (128x256, dim=1)");
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| {
+            black_box(burn::tensor::activation::softmax(
+                black_box(x_burn.clone()),
+                1,
+            ))
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(coeus_autograd::softmax(black_box(&x_seq), 1)))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(coeus_autograd::softmax(black_box(&x_moirai), 1)))
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -1717,8 +1875,10 @@ criterion_group!(
     bench_avgpool2d_forward,
     bench_conv1d_forward,
     bench_conv2d_forward,
+    bench_conv2d_forward_backward,
     bench_conv3d_forward,
     bench_conv_transpose1d_forward,
+    bench_conv_transpose3d_forward,
     bench_mha_forward,
     bench_transformer_encoder_forward,
     bench_embedding_forward,
@@ -1727,6 +1887,7 @@ criterion_group!(
     bench_lstm_forward,
     bench_gru_forward,
     bench_swiglu_forward,
+    bench_softmax_forward,
     bench_adaptive_avg_pool2d_forward,
     bench_instancenorm2d_forward,
     bench_cross_entropy_loss,
