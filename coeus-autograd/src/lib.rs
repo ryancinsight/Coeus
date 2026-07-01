@@ -73,6 +73,7 @@ pub use ops::{
     // Diagonal ops
     diag,
     diagonal,
+    diff,
     div,
     dropout,
     // Index ops

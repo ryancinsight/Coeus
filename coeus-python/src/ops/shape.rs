@@ -51,6 +51,27 @@ pub fn swapaxes(
     Ok(PyTensor::from_var(inner))
 }
 
+/// N-th order discrete difference along `dim` (`torch.diff`; negative dim allowed).
+#[pyfunction]
+#[pyo3(signature = (input, n = 1, dim = -1))]
+pub fn diff(input: &PyTensor, n: usize, dim: isize, py: Python<'_>) -> PyResult<PyTensor> {
+    let ndim = input.inner.tensor.ndim() as isize;
+    let axis = if dim < 0 { ndim + dim } else { dim };
+    if axis < 0 || axis >= ndim {
+        return Err(PyValueError::new_err(format!(
+            "diff: dim {dim} out of range for rank {ndim}"
+        )));
+    }
+    let extent = input.inner.tensor.shape()[axis as usize];
+    if n > extent {
+        return Err(PyValueError::new_err(format!(
+            "diff: order n={n} exceeds dimension {axis} extent {extent}"
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_autograd::diff(&input.inner, n, axis as usize));
+    Ok(PyTensor::from_var(inner))
+}
+
 #[pyfunction]
 pub fn t(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::transpose_2d(&input.inner));
