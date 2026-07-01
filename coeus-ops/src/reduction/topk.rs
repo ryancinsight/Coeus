@@ -109,8 +109,9 @@ pub fn topk<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + BackendOps<i64> + D
     let mut out_shape = x.shape_cloned();
     out_shape[dim] = k;
 
-    let mut val_tensor = Tensor::zeros_on(out_shape.clone(), &backend);
-    let mut idx_tensor = Tensor::zeros_on(out_shape, &backend);
+    // alloc_on: backend.topk writes every val/idx position — no zero-init needed.
+    let mut val_tensor = Tensor::alloc_on(out_shape.clone(), &backend);
+    let mut idx_tensor = Tensor::alloc_on(out_shape, &backend);
 
     {
         let (val_storage, val_layout) = val_tensor.storage_mut_and_layout();
@@ -142,7 +143,8 @@ pub fn argmax<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + BackendOps<i64> +
     let backend = B::default();
     let mut out_shape = x.shape_cloned();
     out_shape[dim] = 1;
-    let mut out = Tensor::zeros_on(out_shape, &backend);
+    // alloc_on: backend.argmax writes every position — no zero-init needed.
+    let mut out = Tensor::alloc_on(out_shape, &backend);
     let (out_storage, out_layout) = out.storage_mut_and_layout();
     backend.argmax(x.storage(), x.layout(), dim, out_storage, out_layout);
     out
@@ -159,7 +161,8 @@ pub fn argmin<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + BackendOps<i64> +
     let backend = B::default();
     let mut out_shape = x.shape_cloned();
     out_shape[dim] = 1;
-    let mut out = Tensor::zeros_on(out_shape, &backend);
+    // alloc_on: backend.argmin writes every position — no zero-init needed.
+    let mut out = Tensor::alloc_on(out_shape, &backend);
     let (out_storage, out_layout) = out.storage_mut_and_layout();
     backend.argmin(x.storage(), x.layout(), dim, out_storage, out_layout);
     out

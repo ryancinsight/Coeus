@@ -1575,3 +1575,52 @@ def test_cumsum_matches_jax() -> None:
 
     _allclose("cumsum_jax_fwd", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-10)
     _allclose("cumsum_jax_dx", list(x_pyc.grad), dx_j.flatten().tolist(), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# tril / triu / roll / flip parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "tril"), reason="pycoeus.tril not available")
+def test_tril_matches_jax() -> None:
+    """jnp.tril(x) vs pycoeus.tril(x, 0)."""
+    data = [float(i) for i in range(16)]
+    x_pyc = pycoeus.Tensor(data, [4, 4], requires_grad=False)
+    got = pycoeus.tril(x_pyc, 0)
+    t = jnp.array(data, dtype=jnp.float64).reshape(4, 4)
+    exp = jnp.tril(t)
+    _allclose("tril", list(got.data), jnp.ravel(exp).tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "triu"), reason="pycoeus.triu not available")
+def test_triu_matches_jax() -> None:
+    """jnp.triu(x) vs pycoeus.triu(x, 0)."""
+    data = [float(i) for i in range(16)]
+    x_pyc = pycoeus.Tensor(data, [4, 4], requires_grad=False)
+    got = pycoeus.triu(x_pyc, 0)
+    t = jnp.array(data, dtype=jnp.float64).reshape(4, 4)
+    exp = jnp.triu(t)
+    _allclose("triu", list(got.data), jnp.ravel(exp).tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "roll"), reason="pycoeus.roll not available")
+def test_roll_matches_jax() -> None:
+    """jnp.roll(x, shift=1, axis=0) vs pycoeus.roll(x, [1], [0])."""
+    data = [float(i) for i in range(9)]
+    x_pyc = pycoeus.Tensor(data, [3, 3], requires_grad=False)
+    got = pycoeus.roll(x_pyc, [1], [0])
+    t = jnp.array(data, dtype=jnp.float64).reshape(3, 3)
+    exp = jnp.roll(t, 1, axis=0)
+    _allclose("roll", list(got.data), jnp.ravel(exp).tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "flip"), reason="pycoeus.flip not available")
+def test_flip_matches_jax() -> None:
+    """jnp.flip(x, axis=0) vs pycoeus.flip(x, 0)."""
+    data = [float(i) for i in range(9)]
+    x_pyc = pycoeus.Tensor(data, [3, 3], requires_grad=False)
+    got = pycoeus.flip(x_pyc, 0)
+    t = jnp.array(data, dtype=jnp.float64).reshape(3, 3)
+    exp = jnp.flip(t, axis=0)
+    _allclose("flip", list(got.data), jnp.ravel(exp).tolist())

@@ -23,7 +23,8 @@ pub fn cumsum<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
 
     let backend = B::default();
     let shape = x.shape_cloned();
-    let mut out = Tensor::zeros_on(shape, &backend);
+    // alloc_on: the cumsum kernel writes every output element in order — no zeros needed.
+    let mut out = Tensor::alloc_on(shape, &backend);
     let (out_storage, out_layout) = out.storage_mut_and_layout();
     backend.cumsum(x.storage(), x.layout(), dim, out_storage, out_layout);
     out
@@ -48,7 +49,8 @@ pub fn suffix_sum<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
 
     let backend = B::default();
     let shape = x.shape_cloned();
-    let mut out = Tensor::zeros_on(shape, &backend);
+    // alloc_on: suffix_sum writes every element — no zeros needed.
+    let mut out = Tensor::alloc_on(shape, &backend);
     let (out_storage, out_layout) = out.storage_mut_and_layout();
     backend.suffix_sum(x.storage(), x.layout(), dim, out_storage, out_layout);
     out
