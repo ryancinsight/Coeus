@@ -3779,3 +3779,51 @@ def test_flip_axis0_matches_pytorch() -> None:
     t = torch.tensor(data, dtype=torch.float64).reshape(3, 3)
     exp = torch.flip(t, dims=[0])
     _allclose("flip(axis=0)", list(got.data), exp.flatten().tolist())
+
+# ---------------------------------------------------------------------------
+# argmax / argmin / topk / sort parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "argmax"), reason="pycoeus.argmax not available")
+def test_argmax_dim0_matches_pytorch() -> None:
+    """torch.argmax(x, dim=0) vs pycoeus.argmax(x, dim=0)."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 5.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=False)
+    got = pycoeus.argmax(x_pyc, 0)
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 4)
+    exp = torch.argmax(t, dim=0, keepdim=True)
+    _allclose("argmax(dim=0)", list(got.data), exp.float().flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "argmin"), reason="pycoeus.argmin not available")
+def test_argmin_dim1_matches_pytorch() -> None:
+    """torch.argmin(x, dim=1) vs pycoeus.argmin(x, dim=1)."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 5.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=False)
+    got = pycoeus.argmin(x_pyc, 1)
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 4)
+    exp = torch.argmin(t, dim=1, keepdim=True)
+    _allclose("argmin(dim=1)", list(got.data), exp.float().flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "topk"), reason="pycoeus.topk not available")
+def test_topk_largest_matches_pytorch() -> None:
+    """torch.topk(x, 3, dim=1, largest=True) vs pycoeus.topk(x, 3, dim=1)."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 5.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=False)
+    vals_pyc, _idxs_pyc = pycoeus.topk(x_pyc, 3, dim=1, largest=True)
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 4)
+    vals_t, _ = torch.topk(t, 3, dim=1, largest=True, sorted=True)
+    _allclose("topk(k=3,dim=1,largest)", list(vals_pyc.data), vals_t.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "topk"), reason="pycoeus.topk not available")
+def test_topk_smallest_matches_pytorch() -> None:
+    """torch.topk(x, 2, dim=0, largest=False) vs pycoeus.topk(x, 2, dim=0, largest=False)."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 5.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=False)
+    vals_pyc, _idxs_pyc = pycoeus.topk(x_pyc, 2, dim=0, largest=False)
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 4)
+    vals_t, _ = torch.topk(t, 2, dim=0, largest=False, sorted=True)
+    _allclose("topk(k=2,dim=0,smallest)", list(vals_pyc.data), vals_t.flatten().tolist())

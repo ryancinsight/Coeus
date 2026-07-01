@@ -2239,6 +2239,44 @@ fn bench_cumsum_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_roll_forward(c: &mut Criterion) {
+    // roll shift=32 along dim=1 on [128, 256].
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.0031).sin())
+        .collect();
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+
+    // Burn has no roll; compare against Burn narrow+cat (upper-bound equivalent).
+    let device = NdArrayDevice::default();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — roll(shift=32,dim=1) forward (128x256)");
+    group.bench_function("Burn NdArray (narrow+cat baseline)", |b| {
+        b.iter(|| {
+            let a = black_box(x_burn.clone()).clone().narrow(1, FEATURES - 32, 32);
+            let b2 = black_box(x_burn.clone()).clone().narrow(1, 0, FEATURES - 32);
+            black_box(BurnTensor::<BurnB, 2>::cat(vec![a, b2], 1))
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(coeus_autograd::roll(black_box(&x_seq), &[32isize], &[1usize])))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(coeus_autograd::roll(black_box(&x_moirai), &[32isize], &[1usize])))
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -2291,6 +2329,7 @@ criterion_group!(
     bench_nansum_forward,
     bench_tril_forward,
     bench_topk_forward,
-    bench_cumsum_forward
+    bench_cumsum_forward,
+    bench_roll_forward
 );
 criterion_main!(benches);
