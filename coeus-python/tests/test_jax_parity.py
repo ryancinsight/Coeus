@@ -1241,3 +1241,83 @@ def test_adaptive_max_pool_matches_jax() -> None:
     _, dx2 = jax.value_and_grad(lambda x: jnp.mean((fwd2(x) - tgt2) ** 2))(x2j)
     _allclose("adaptivemax2d_forward_jax", list(y2.data), fwd2(x2j).flatten().tolist())
     _allclose("adaptivemax2d_dx_jax", list(x2p.grad), dx2.flatten().tolist())
+
+
+# ---------------------------------------------------------------------------
+# Smooth L1 (Huber-β) parity (G-038 closure)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("beta", [0.5, 1.0, 2.0])
+def test_smooth_l1_loss_matches_jax(beta: float) -> None:
+    """Forward + gradient parity for SmoothL1 on `[-2, -1, -0.5, 0.5, 1, 1.5]`.
+
+    Differential against an explicit `jnp.where` reference (the JAX
+    equivalent of PyTorch's `F.smooth_l1_loss` piecewise). `jax.grad`
+    routes through the same `jnp.where`, so the resulting seed matches
+    pycoeus at f64 with `atol=1e-10`.
+    """
+    pred = [-2.0, -1.0, -0.5, 0.5, 1.0, 1.5]
+    target = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+    p_pyc = pycoeus.Tensor(pred, [6], requires_grad=True)
+    t_pyc = pycoeus.Tensor(target, [6])
+    loss_pyc = pycoeus.smooth_l1_loss(p_pyc, t_pyc, beta)
+    loss_pyc.backward()
+
+    p_jax = jnp.asarray(pred, dtype=jnp.float64)
+    t_jax = jnp.asarray(target, dtype=jnp.float64)
+
+    def jax_smooth(x: jnp.ndarray, t: jnp.ndarray) -> jnp.ndarray:
+        z = x - t
+        return jnp.mean(
+            jnp.where(
+                jnp.abs(z) < beta,
+                0.5 * z * z / beta,
+                jnp.abs(z) - 0.5 * beta,
+            )
+        )
+
+    loss_jax = jax_smooth(p_jax, t_jax)
+    grad_x = jax.grad(jax_smooth, argnums=0)(p_jax, t_jax)
+    loss_jax.block_until_ready()
+    grad_x.block_until_ready()
+
+    _allclose("smooth_l1_out_jax", list(loss_pyc.data), [float(loss_jax)], atol=1e-10)
+    _allclose("smooth_l1_dx_jax", list(p_pyc.grad), list(grad_x), atol=1e-10)
+
+
+def test_cosine_similarity_matches_jax() -> None:
+    """Row-wise cosine similarity parity vs JAX (`dim=1`, default `eps=1e-8`).
+
+    Mirrors `test_pytorch_parity.py::test_cosine_similarity_matches_pytorch`
+    but the gradient is taken via `jax.grad` over `sum(cos)` to mirror the
+    PyTorch differential.
+    """
+    x1d = [3.0, 4.0, 1.0, 0.0]
+    x2d = [4.0, 3.0, 0.0, 1.0]
+
+    x1_pyc = pycoeus.Tensor(x1d, [2, 2], requires_grad=True)
+    x2_pyc = pycoeus.Tensor(x2d, [2, 2], requires_grad=True)
+    out_pyc = pycoeus.cosine_similarity(x1_pyc, x2_pyc, dim=1)
+    out_pyc.sum().backward()
+
+    x1_j = jnp.asarray(x1d, dtype=jnp.float64).reshape(2, 2)
+    x2_j = jnp.asarray(x2d, dtype=jnp.float64).reshape(2, 2)
+
+    def jax_cos(a: jnp.ndarray, b: jnp.ndarray) -> jnp.ndarray:
+        dot = jnp.sum(a * b, axis=1)
+        n1 = jnp.sqrt(jnp.sum(a * a, axis=1))
+        n2 = jnp.sqrt(jnp.sum(b * b, axis=1))
+        return dot / (n1 * n2 + 1e-8)
+
+    out_j = jax_cos(x1_j, x2_j)
+    grad_fn = jax.grad(lambda a, b: jnp.sum(jax_cos(a, b)), argnums=(0, 1))
+    g_x1, g_x2 = grad_fn(x1_j, x2_j)
+    out_j.block_until_ready()
+    g_x1.block_until_ready()
+    g_x2.block_until_ready()
+
+    _allclose("cos_out_jax", list(out_pyc.data), list(out_j), atol=1e-10)
+    _allclose("cos_dx1_jax", list(x1_pyc.grad), list(g_x1.flatten()), atol=1e-10)
+    _allclose("cos_dx2_jax", list(x2_pyc.grad), list(g_x2.flatten()), atol=1e-10)

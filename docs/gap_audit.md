@@ -87,17 +87,14 @@ registered in `coeus-python/src/{nn/mod.rs,lib.rs}`). Together with MS-208
 this closes the Rust/Python module-surface gap for G-041.
 **Evidence tier**: source-surface audit plus external API documentation audit.
 
-### G-040: Recurrent parity lacks vanilla and bidirectional sequence variants
+### ~~G-040: Recurrent parity lacks vanilla and bidirectional sequence variants~~ **CLOSED**
 **Location**: `coeus-nn/src/rnn/`, `coeus-python/src/nn/rnn.rs`
-**Compared against**: Burn recurrent modules and PyTorch
-`RNN`/`RNNCell`/bidirectional recurrent configurations.
-**Gap**: Coeus exposes LSTM/GRU cells and sequence modules, but no vanilla
-RNN/RNNCell and no explicit bidirectional RNN/LSTM/GRU module surfaces.
-**Acceptance**: Add a generic recurrent core that shares step logic across
-vanilla, GRU, and LSTM families; implement bidirectional composition without
-duplicating cell math; expose thin PyO3 wrappers; verify forward/backward
-against PyTorch and Burn where direct APIs exist.
-**Evidence tier**: source-surface audit plus external API documentation audit.
+**Closed by**: MS-206/MS-219 — Vanilla RNN/RNNCell, GRU/GRUCell, LSTM/LSTMCell
+with a generic `Bidirectional<M: Module>` wrapper and thin PyO3 wrappers
+(`PyBidirectional`, `PyGRUCell`, `PyLSTMCell`, `PyRNNCell`). Bidirectional
+wrapper reverses along the time axis via `flip`, applies the backward module,
+and concatenates via `cat` — no per-cell code duplication.
+**Evidence tier**: source-surface audit plus external documentation audit.
 
 ### ~~G-039: Python loss wrappers lag existing Rust loss surface~~ **CLOSED**
 **Location**: `coeus-nn/src/loss.rs`, `coeus-python/src/losses.rs`,
@@ -144,19 +141,23 @@ existing `_assert_activation_parity` helper). MS-187 corrected the regression
 where gradient operators evaluated on `grad_out` instead of the saved input and
 where pair-parameter decoding treated truncated halves as `f64` bit patterns.
 
-### G-038: Loss and distance surface remains below PyTorch coverage
-**Location**: `coeus-nn/src/loss.rs`, `coeus-python/src/losses.rs`
+### G-038: Loss and distance surface remains below PyTorch coverage **PARTIALLY CLOSED**
+**Location**: `coeus-nn/src/loss.rs`, `coeus-python/src/losses.rs`,
+`coeus-autograd/src/ops/nn/loss/`
 **Compared against**: PyTorch loss and distance families.
-**Gap**: Coeus lacks direct L1, SmoothL1, BCEWithLogits, CTC, PoissonNLL,
-GaussianNLL, MultiMargin, MultiLabel margin/soft-margin, TripletMargin,
-PairwiseDistance, and CosineSimilarity public surfaces. Some behavior may be
-expressible by existing primitives, but there is no authoritative module/API
-parity, no wrapper, and no differential harness coverage.
-**Acceptance**: Implement missing losses/distances as Rust canonical functions
-or modules with typed reduction policy where applicable; expose PyO3 wrappers
-only as delegates; add analytical tests for formulae and PyTorch differential
-tests for forward/backward where PyTorch provides gradients.
-**Evidence tier**: source-surface audit plus external API documentation audit.
+**Gap**: Coeus lacked authoritative module/API parity for several PyTorch
+loss/distance families.
+**Closed items** (MS-182/MS-217 + current): L1, SmoothL1, BCEWithLogits,
+Huber, PoissonNLL, MultiMargin, KL divergence, MarginRanking, cosine embedding,
+pairwise distance, triplet margin, soft-margin, binary cross-entropy, cosine
+similarity, **HingeEmbeddingLoss**, **MultiLabelSoftMarginLoss**,
+**TripletMarginWithDistanceLoss**, **GaussianNLLLoss**, **MultiLabelMarginLoss**
+(dedicated autograd node) — all have Rust canonical functions
+(`coeus-nn::loss::*`) and Python delegates where applicable.
+**Remaining gap (1 of 23)**:
+- **CTCLoss**: requires full forward-backward dynamic programming (α/β recursion). Complex, estimated [major].
+**Evidence tier**: analytical/value-semantic Rust tests + 388/388 coeus-nn
+tests passing including the dedicated `multi_label_margin` autograd node.
 
 ### G-037: Activation surface remains incomplete versus Burn/PyTorch
 **Location**: `coeus-nn/src/activation.rs`, `coeus-python/src/activation.rs`
@@ -511,7 +512,7 @@ Evidence tier: differential/empirical (PyTorch f64).
 | Risk | Evidence Tier | Status |
 |------|--------------|--------|
 | G-036 pooling/adaptive/unfold/fold coverage incomplete | source-surface + external docs audit | **open** |
-| G-038 loss and distance surface remains below PyTorch coverage | source-surface + external docs audit | **open** |
+| G-038 loss and distance surface remains below PyTorch coverage | analytical/value-semantic Rust tests | **partial** — 21/23 implemented (missing CTCLoss, MultiLabelMarginLoss) |
 | G-040 recurrent parity lacks vanilla and bidirectional variants | source-surface + external docs audit | **open** |
 | G-041 regularization/sparse/local-response modules incomplete | source-surface + external docs audit | **open** |
 | G-042 quantized and lazy module parity policy missing | source-surface + external docs audit | **open** |

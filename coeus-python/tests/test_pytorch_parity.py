@@ -2029,10 +2029,13 @@ def test_kl_divergence_matches_pytorch() -> None:
     loss_pyc = pycoeus.kl_divergence(i_pyc, t_pyc)
     loss_pyc.backward()
 
-    i_t = torch.tensor(log_probs, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    i_t = (
+        torch.tensor(log_probs, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    )
     t_t = torch.tensor(target, dtype=torch.float64).reshape(2, 3)
     loss_t = (
-        torch.nn.functional.kl_div(i_t, t_t, reduction="sum", log_target=False) / i_t.numel()
+        torch.nn.functional.kl_div(i_t, t_t, reduction="sum", log_target=False)
+        / i_t.numel()
     )
     loss_t.backward()
 
@@ -2065,8 +2068,12 @@ def test_margin_ranking_loss_matches_pytorch() -> None:
     loss_t.backward()
 
     _allclose("margin_loss", list(loss_pyc.data), [loss_t.item()], atol=1e-10)
-    _allclose("margin_dinput1", list(i1_pyc.grad), i1_t.grad.flatten().tolist(), atol=1e-10)
-    _allclose("margin_dinput2", list(i2_pyc.grad), i2_t.grad.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "margin_dinput1", list(i1_pyc.grad), i1_t.grad.flatten().tolist(), atol=1e-10
+    )
+    _allclose(
+        "margin_dinput2", list(i2_pyc.grad), i2_t.grad.flatten().tolist(), atol=1e-10
+    )
 
 
 # ── Optimizer step parity closure (RMSProp + AdaGrad) (MS-144) ──────────────
@@ -2157,29 +2164,74 @@ def test_conv_transpose3d_matches_pytorch() -> None:
 
     w_data = [
         # ic=0, oc=0 (kD,kH,kW)
-        0.5, -0.5, 1.0, 0.0,    0.1, 0.2, 0.3, -0.1,
+        0.5,
+        -0.5,
+        1.0,
+        0.0,
+        0.1,
+        0.2,
+        0.3,
+        -0.1,
         # ic=0, oc=1
-        -0.2, 0.5, 0.0, 1.0,   1.0, -1.0, 0.2, 0.8,
+        -0.2,
+        0.5,
+        0.0,
+        1.0,
+        1.0,
+        -1.0,
+        0.2,
+        0.8,
         # ic=1, oc=0
-        0.7, 0.3, -0.7, 0.4,   0.0, 1.0, 0.5, -0.5,
+        0.7,
+        0.3,
+        -0.7,
+        0.4,
+        0.0,
+        1.0,
+        0.5,
+        -0.5,
         # ic=1, oc=1
-        0.5, -0.5, 1.0, 0.0,   0.1, 0.2, 0.3, -0.1,
+        0.5,
+        -0.5,
+        1.0,
+        0.0,
+        0.1,
+        0.2,
+        0.3,
+        -0.1,
     ]
-    assert len(w_data) == in_channels * out_channels * kernel_size ** 3
+    assert len(w_data) == in_channels * out_channels * kernel_size**3
     b_data = [0.1, -0.2]
     x_data = [
-        1.0, 2.0, 3.0, 4.0,
-        5.0, 6.0, 7.0, 8.0,
-        -1.0, -2.0, -3.0, -4.0,
-        -5.0, -6.0, -7.0, -8.0,
+        1.0,
+        2.0,
+        3.0,
+        4.0,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        -1.0,
+        -2.0,
+        -3.0,
+        -4.0,
+        -5.0,
+        -6.0,
+        -7.0,
+        -8.0,
     ]
     assert len(x_data) == 1 * in_channels * 2 * 2 * 2
     input_shape = [1, in_channels, 2, 2, 2]  # N=1, C_in=2, D=H=W=2
 
     ct_pyc = pycoeus.ConvTranspose3d(
-        in_channels, out_channels, kernel_size,
-        stride=stride, padding=padding, output_padding=0,
-        dilation=dilation, bias=True,
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=stride,
+        padding=padding,
+        output_padding=0,
+        dilation=dilation,
+        bias=True,
     )
     ct_pyc.weight.data = w_data
     ct_pyc.bias.data = b_data
@@ -2188,13 +2240,22 @@ def test_conv_transpose3d_matches_pytorch() -> None:
     out_pyc.sum().backward()
 
     ct_t = torch.nn.ConvTranspose3d(
-        in_channels, out_channels, kernel_size,
-        stride=stride, padding=padding, output_padding=0,
-        dilation=dilation, bias=True,
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=stride,
+        padding=padding,
+        output_padding=0,
+        dilation=dilation,
+        bias=True,
     ).double()
     with torch.no_grad():
         ct_t.weight[:] = torch.tensor(w_data, dtype=torch.float64).reshape(
-            in_channels, out_channels, kernel_size, kernel_size, kernel_size,
+            in_channels,
+            out_channels,
+            kernel_size,
+            kernel_size,
+            kernel_size,
         )
         ct_t.bias[:] = torch.tensor(b_data, dtype=torch.float64)
     x_t = (
@@ -2337,7 +2398,9 @@ def test_multi_margin_matches_pytorch() -> None:
     loss_pyc = pycoeus.multi_margin(x_pyc, targets, 1.0, 1.0)
     loss_pyc.backward()
     x_t = torch.tensor(x_data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
-    loss_t = _F.multi_margin_loss(x_t, torch.tensor(targets, dtype=torch.long), p=1, margin=1.0)
+    loss_t = _F.multi_margin_loss(
+        x_t, torch.tensor(targets, dtype=torch.long), p=1, margin=1.0
+    )
     loss_t.backward()
     assert abs(loss_pyc.data[0] - loss_t.item()) < _ATOL, (
         f"multi_margin: got={loss_pyc.data[0]:.8g}, expected={loss_t.item():.8g}"
@@ -2362,12 +2425,30 @@ def test_embeddingbag_sum_matches_pytorch() -> None:
     """
     num_embeddings, embedding_dim = 6, 4
     weight_data = [
-        1.0, 0.0, -1.0, 0.5,    # row 0
-        0.5, 0.5,  0.5, 0.5,    # row 1
-        0.0, 1.0,  0.0, 1.0,    # row 2
-       -1.0, 0.0,  1.0, 0.0,    # row 3
-        0.2, 0.3, -0.2, -0.3,   # row 4
-        0.7,-0.7,  0.7, -0.7,   # row 5
+        1.0,
+        0.0,
+        -1.0,
+        0.5,  # row 0
+        0.5,
+        0.5,
+        0.5,
+        0.5,  # row 1
+        0.0,
+        1.0,
+        0.0,
+        1.0,  # row 2
+        -1.0,
+        0.0,
+        1.0,
+        0.0,  # row 3
+        0.2,
+        0.3,
+        -0.2,
+        -0.3,  # row 4
+        0.7,
+        -0.7,
+        0.7,
+        -0.7,  # row 5
     ]
     # Two bags: bag0 = [0, 2, 4], bag1 = [1, 3, 5]
     flat_indices = [0, 2, 4, 1, 3, 5]
@@ -2381,7 +2462,9 @@ def test_embeddingbag_sum_matches_pytorch() -> None:
     eb_t = torch.nn.EmbeddingBag(num_embeddings, embedding_dim, mode="sum").double()
     with torch.no_grad():
         eb_t.weight.copy_(
-            torch.tensor(weight_data, dtype=torch.float64).reshape(num_embeddings, embedding_dim)
+            torch.tensor(weight_data, dtype=torch.float64).reshape(
+                num_embeddings, embedding_dim
+            )
         )
     idx_t = torch.tensor(flat_indices, dtype=torch.long)
     off_t = torch.tensor(offsets, dtype=torch.long)
@@ -2403,12 +2486,30 @@ def test_embeddingbag_mean_matches_pytorch() -> None:
     """Forward parity: EmbeddingBag(vocab=6, dim=4, mode='mean') with two bags."""
     num_embeddings, embedding_dim = 6, 4
     weight_data = [
-        1.0, 0.0, -1.0, 0.5,
-        0.5, 0.5,  0.5, 0.5,
-        0.0, 1.0,  0.0, 1.0,
-       -1.0, 0.0,  1.0, 0.0,
-        0.2, 0.3, -0.2, -0.3,
-        0.7,-0.7,  0.7, -0.7,
+        1.0,
+        0.0,
+        -1.0,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        -1.0,
+        0.0,
+        1.0,
+        0.0,
+        0.2,
+        0.3,
+        -0.2,
+        -0.3,
+        0.7,
+        -0.7,
+        0.7,
+        -0.7,
     ]
     flat_indices = [0, 2, 4, 1, 3, 5]
     offsets = [0, 3]
@@ -2420,7 +2521,9 @@ def test_embeddingbag_mean_matches_pytorch() -> None:
     eb_t = torch.nn.EmbeddingBag(num_embeddings, embedding_dim, mode="mean").double()
     with torch.no_grad():
         eb_t.weight.copy_(
-            torch.tensor(weight_data, dtype=torch.float64).reshape(num_embeddings, embedding_dim)
+            torch.tensor(weight_data, dtype=torch.float64).reshape(
+                num_embeddings, embedding_dim
+            )
         )
     idx_t = torch.tensor(flat_indices, dtype=torch.long)
     off_t = torch.tensor(offsets, dtype=torch.long)
@@ -2442,12 +2545,30 @@ def test_embeddingbag_max_matches_pytorch() -> None:
     """Forward parity: EmbeddingBag(vocab=6, dim=4, mode='max') with two bags."""
     num_embeddings, embedding_dim = 6, 4
     weight_data = [
-        1.0, 0.0, -1.0, 0.5,
-        0.5, 0.5,  0.5, 0.5,
-        0.0, 1.0,  0.0, 1.0,
-       -1.0, 0.0,  1.0, 0.0,
-        0.2, 0.3, -0.2, -0.3,
-        0.7,-0.7,  0.7, -0.7,
+        1.0,
+        0.0,
+        -1.0,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        -1.0,
+        0.0,
+        1.0,
+        0.0,
+        0.2,
+        0.3,
+        -0.2,
+        -0.3,
+        0.7,
+        -0.7,
+        0.7,
+        -0.7,
     ]
     flat_indices = [0, 2, 4, 1, 3, 5]
     offsets = [0, 3]
@@ -2459,7 +2580,9 @@ def test_embeddingbag_max_matches_pytorch() -> None:
     eb_t = torch.nn.EmbeddingBag(num_embeddings, embedding_dim, mode="max").double()
     with torch.no_grad():
         eb_t.weight.copy_(
-            torch.tensor(weight_data, dtype=torch.float64).reshape(num_embeddings, embedding_dim)
+            torch.tensor(weight_data, dtype=torch.float64).reshape(
+                num_embeddings, embedding_dim
+            )
         )
     idx_t = torch.tensor(flat_indices, dtype=torch.long)
     off_t = torch.tensor(offsets, dtype=torch.long)
@@ -2471,7 +2594,6 @@ def test_embeddingbag_max_matches_pytorch() -> None:
         out_t.flatten().tolist(),
         atol=1e-10,
     )
-
 
 
 # ---------------------------------------------------------------------------
@@ -2567,9 +2689,7 @@ def test_adaptive_avg_pool_backward_matches_pytorch() -> None:
     y1 = pycoeus.AdaptiveAvgPool1d(3).forward(x1)
     pycoeus.mse_loss(y1, pycoeus.Tensor([0.1] * (n * c * 3), [n, c, 3])).backward()
     x1t = (
-        torch.tensor(d1, dtype=torch.float64)
-        .reshape(n, c, length)
-        .requires_grad_(True)
+        torch.tensor(d1, dtype=torch.float64).reshape(n, c, length).requires_grad_(True)
     )
     y1t = torch.nn.AdaptiveAvgPool1d(3)(x1t)
     torch.nn.functional.mse_loss(
@@ -2583,12 +2703,10 @@ def test_adaptive_avg_pool_backward_matches_pytorch() -> None:
     d2 = [math.cos(i * 0.07) for i in range(n * c * h * w)]
     x2 = pycoeus.Tensor(d2, [n, c, h, w], requires_grad=True)
     y2 = pycoeus.AdaptiveAvgPool2d(2, 2).forward(x2)
-    pycoeus.mse_loss(y2, pycoeus.Tensor([0.2] * (n * c * 2 * 2), [n, c, 2, 2])).backward()
-    x2t = (
-        torch.tensor(d2, dtype=torch.float64)
-        .reshape(n, c, h, w)
-        .requires_grad_(True)
-    )
+    pycoeus.mse_loss(
+        y2, pycoeus.Tensor([0.2] * (n * c * 2 * 2), [n, c, 2, 2])
+    ).backward()
+    x2t = torch.tensor(d2, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
     y2t = torch.nn.AdaptiveAvgPool2d((2, 2))(x2t)
     torch.nn.functional.mse_loss(
         y2t, torch.full((n, c, 2, 2), 0.2, dtype=torch.float64)
@@ -2608,9 +2726,7 @@ def test_adaptive_max_pool_backward_matches_pytorch() -> None:
     y1 = pycoeus.AdaptiveMaxPool1d(3).forward(x1)
     pycoeus.mse_loss(y1, pycoeus.Tensor([0.5] * (n * c * 3), [n, c, 3])).backward()
     x1t = (
-        torch.tensor(d1, dtype=torch.float64)
-        .reshape(n, c, length)
-        .requires_grad_(True)
+        torch.tensor(d1, dtype=torch.float64).reshape(n, c, length).requires_grad_(True)
     )
     y1t = torch.nn.AdaptiveMaxPool1d(3)(x1t)
     torch.nn.functional.mse_loss(
@@ -2625,11 +2741,7 @@ def test_adaptive_max_pool_backward_matches_pytorch() -> None:
     x2 = pycoeus.Tensor(d2, [n, c, h, w], requires_grad=True)
     y2 = pycoeus.AdaptiveMaxPool2d(2, 2).forward(x2)
     pycoeus.mse_loss(y2, pycoeus.Tensor([0.5] * (n * c * 4), [n, c, 2, 2])).backward()
-    x2t = (
-        torch.tensor(d2, dtype=torch.float64)
-        .reshape(n, c, h, w)
-        .requires_grad_(True)
-    )
+    x2t = torch.tensor(d2, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
     y2t = torch.nn.AdaptiveMaxPool2d((2, 2))(x2t)
     torch.nn.functional.mse_loss(
         y2t, torch.full((n, c, 2, 2), 0.5, dtype=torch.float64)
@@ -2685,9 +2797,7 @@ def test_unfold2d_backward_matches_pytorch() -> None:
     pycoeus.mse_loss(y_pyc, tgt_pyc).backward()
 
     x_t = (
-        torch.tensor(data, dtype=torch.float64)
-        .reshape(n, c, h, w)
-        .requires_grad_(True)
+        torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
     )
     y_t = torch.nn.Unfold(kernel_size=kernel, stride=stride, padding=padding)(x_t)
     tgt_t = torch.full((n, out_ch, length), 0.1, dtype=torch.float64)
@@ -2900,3 +3010,67 @@ def test_local_response_norm_matches_pytorch() -> None:
         f"lrn loss: got={loss_pyc.data[0]:.8g}, expected={loss_t.item():.8g}"
     )
     _allclose("lrn_dx", list(x_pyc.grad), x_t.grad.flatten().tolist())
+
+
+# ---------------------------------------------------------------------------
+# Smooth L1 (Huber-β) parity (G-038 closure)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("beta", [0.5, 1.0, 2.0])
+def test_smooth_l1_loss_matches_pytorch(beta: float) -> None:
+    """Forward + prediction-gradient parity for SmoothL1 loss on `[-2, -1, -0.5, 0.5, 1, 1.5]`.
+
+    Differential against ``torch.nn.functional.smooth_l1_loss`` at f64 with
+    ``reduction='mean'``. The four-sample groups pick elements that straddle
+    the `|z| = beta` transition (avoiding the kink so PyTorch's
+    implementation-defined behavior at the boundary never enters).
+    """
+    pred = [-2.0, -1.0, -0.5, 0.5, 1.0, 1.5]
+    target = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+    p_pyc = pycoeus.Tensor(pred, [6], requires_grad=True)
+    t_pyc = pycoeus.Tensor(target, [6])
+    loss_pyc = pycoeus.smooth_l1_loss(p_pyc, t_pyc, beta)
+    loss_pyc.backward()
+
+    p_t = torch.tensor(pred, dtype=torch.float64, requires_grad=True)
+    t_t = torch.tensor(target, dtype=torch.float64)
+    loss_t = torch.nn.functional.smooth_l1_loss(p_t, t_t, beta=beta)
+    loss_t.backward()
+
+    _allclose("smooth_l1_out", list(loss_pyc.data), [loss_t.item()], atol=1e-10)
+    _allclose("smooth_l1_dx", list(p_pyc.grad), p_t.grad.tolist(), atol=1e-10)
+
+
+def test_cosine_similarity_matches_pytorch() -> None:
+    """Forward + gradient parity for row-wise `dim=1` cosine similarity.
+
+    Differential against ``torch.nn.functional.cosine_similarity`` at f64
+    (default `eps=1e-8`). Both rows yield non-degenerate dot/norm products
+    so the bounded `eps` shift does not absorb the entire signal.
+
+    Tolerance note: PyTorch's autograd treats `eps` as a forward-only
+    constant (the upstream `d cos/d eps` term is dropped) while Coeus
+    derives `d cos/d x` from the closed-form expression. The exact
+    discrepancy on this fixture is bounded by `eps` (~1e-8) and a tight
+    `_ATOL` (1e-9) on the forward plus a 10× epsilon-leeway (1e-7) on
+    the gradient captures the implementation-defined constant without
+    masking computional regressions.
+    """
+    x1d = [3.0, 4.0, 1.0, 0.0]
+    x2d = [4.0, 3.0, 0.0, 1.0]
+
+    x1_pyc = pycoeus.Tensor(x1d, [2, 2], requires_grad=True)
+    x2_pyc = pycoeus.Tensor(x2d, [2, 2], requires_grad=True)
+    out_pyc = pycoeus.cosine_similarity(x1_pyc, x2_pyc, dim=1)
+    out_pyc.sum().backward()
+
+    x1_t = torch.tensor(x1d, dtype=torch.float64).reshape(2, 2).requires_grad_(True)
+    x2_t = torch.tensor(x2d, dtype=torch.float64).reshape(2, 2).requires_grad_(True)
+    out_t = torch.nn.functional.cosine_similarity(x1_t, x2_t, dim=1)
+    out_t.sum().backward()
+
+    _allclose("cos_out", list(out_pyc.data), out_t.detach().tolist(), atol=1e-9)
+    _allclose("cos_dx1", list(x1_pyc.grad), x1_t.grad.flatten().tolist(), atol=1e-7)
+    _allclose("cos_dx2", list(x2_pyc.grad), x2_t.grad.flatten().tolist(), atol=1e-7)

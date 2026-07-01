@@ -113,6 +113,7 @@ pub use ops::{
     min_axis,
     mish,
     mul,
+    multi_label_margin_loss,
     multi_margin,
     // New unary math ops
     neg,

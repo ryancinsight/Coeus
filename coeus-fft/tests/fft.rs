@@ -1,6 +1,6 @@
 use coeus_autograd::Var;
-use coeus_fft::{fft_1d, fft_1d_var, fft_energy, ifft_1d};
 use coeus_core::{Complex, MoiraiBackend};
+use coeus_fft::{fft_1d, fft_1d_var, fft_energy, ifft_1d};
 use coeus_tensor::Tensor;
 
 fn assert_close(actual: f64, expected: f64, label: &str) {

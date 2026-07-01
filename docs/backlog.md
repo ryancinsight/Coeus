@@ -8,10 +8,11 @@
   gaps through canonical shared pooling/window kernels.
 - [ ] [minor] G-037: Extend activation parity for PReLU, CELU, hard/shrink,
   softsign, threshold, GLU, and SwiGLU families.
-- [ ] [minor] G-038: Extend loss and distance parity for L1/SmoothL1,
-  BCEWithLogits, CTC, NLL variants, multilabel/multimargin, triplet, pairwise,
-  and cosine similarity surfaces.
-- [ ] [minor] G-040: Add vanilla and bidirectional recurrent module parity
+- [/] [minor] G-038: Extend loss and distance parity (22/23 implemented).
+  Remaining: CTCLoss (forward-backward DP).
+- [x] [minor] G-040: Add vanilla and bidirectional recurrent module parity
+  (RNNCell, Rnn, GRUCell, Gru, LSTMCell, Lstm, Bidirectional wrapper — all with
+  Python bindings via PyBidirectional/PyGRUCell/PyLSTMCell/PyRNNCell)
   without duplicating GRU/LSTM cell math.
 - [x] [minor] G-041: Add regularization, sparse, and local-response modules:
   AlphaDropout, FeatureAlphaDropout, EmbeddingBag, GaussianNoise, and
@@ -42,6 +43,24 @@
 - [x] [patch] Gated Apollo's legacy Coeus adapter behind its `coeus` feature
   so Coeus can depend on Apollo's core FFT API without creating an
   autograd dependency cycle.
+
+## Sprint MS-219: G-038 loss closure — Python bindings + 4 new losses [COMPLETE]
+
+- [x] [patch] Added Python bindings for `smooth_l1_loss` and `cosine_similarity`
+  (Rust core existed, missing from `coeus-python/src/losses.rs`).
+- [x] [patch] Added `hinge_embedding_loss` — composable via `where_cond`,
+  `relu`, `neg`, `scalar_sub`; no dedicated autograd node.
+- [x] [patch] Added `multi_label_soft_margin_loss` — delegates to
+  `bce_with_logits` (mathematically identical for binary targets).
+- [x] [patch] Added `triplet_margin_with_distance_loss` — generalizes
+  `triplet_margin_loss` with pluggable distance function `F`.
+- [x] [patch] Added `gaussian_nll_loss` — composable from `sub`, `mul`, `div`,
+  `log`, `mean`; optional `full=true` adds `0.5 * log(2π)` term.
+- [x] [patch] Python bindings for `hinge_embedding_loss`,
+  `multi_label_soft_margin_loss`, `gaussian_nll_loss`.
+- [x] Evidence: `cargo clippy` clean on coeus-nn + coeus-python; 426/426
+  nextest tests passing across coeus-autograd + coeus-nn + coeus-optim.
+- [x] G-038 status: 22/23 implemented. Remaining: CTCLoss (forward-backward DP).
 
 ## Sprint MS-217: PReLU/LeakyReLU subgradient parity (G-037 closure) [COMPLETE]
 
