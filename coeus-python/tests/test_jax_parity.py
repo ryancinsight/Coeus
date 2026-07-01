@@ -1764,3 +1764,30 @@ def test_eye_matches_jax() -> None:
     got = pycoeus.eye(4)
     exp = jnp.eye(4, dtype=jnp.float64)
     _allclose("eye", list(got.data), jnp.ravel(exp).tolist())
+
+# ---------------------------------------------------------------------------
+# gelu_tanh / pow parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "gelu_tanh"), reason="pycoeus.gelu_tanh not available")
+def test_gelu_tanh_matches_jax() -> None:
+    """jax.nn.gelu(x, approximate=True) vs pycoeus.gelu_tanh(x)."""
+    import jax.nn
+    data = [-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [7], requires_grad=False)
+    got = pycoeus.gelu_tanh(x_pyc)
+    t = jnp.array(data, dtype=jnp.float64)
+    exp = jax.nn.gelu(t, approximate=True)
+    _allclose("gelu_tanh", list(got.data), exp.tolist(), atol=1e-6)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "pow"), reason="pycoeus.pow not available")
+def test_pow_matches_jax() -> None:
+    """jnp.power(x, 3) vs pycoeus.pow(x, 3.0)."""
+    data = [1.0, 2.0, -1.0, 0.5]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=False)
+    got = pycoeus.pow(x_pyc, 3.0)
+    t = jnp.array(data, dtype=jnp.float64)
+    exp = jnp.power(t, 3)
+    _allclose("pow", list(got.data), exp.tolist())
