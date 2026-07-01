@@ -16,6 +16,41 @@ pub fn permute(input: &PyTensor, dims: Vec<usize>, py: Python<'_>) -> PyTensor {
     PyTensor::from_var(inner)
 }
 
+/// Move dimension `source` to position `dest` (`torch.movedim`; negative allowed).
+#[pyfunction]
+pub fn movedim(input: &PyTensor, source: isize, dest: isize, py: Python<'_>) -> PyResult<PyTensor> {
+    let ndim = input.inner.tensor.ndim() as isize;
+    let s = if source < 0 { ndim + source } else { source };
+    let d = if dest < 0 { ndim + dest } else { dest };
+    if s < 0 || d < 0 || s >= ndim || d >= ndim {
+        return Err(PyValueError::new_err(format!(
+            "movedim: source {source} / dest {dest} out of range for rank {ndim}"
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_autograd::movedim(&input.inner, s as usize, d as usize));
+    Ok(PyTensor::from_var(inner))
+}
+
+/// Swap two axes (`torch.swapaxes`; negative allowed).
+#[pyfunction]
+pub fn swapaxes(
+    input: &PyTensor,
+    axis0: isize,
+    axis1: isize,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
+    let ndim = input.inner.tensor.ndim() as isize;
+    let a = if axis0 < 0 { ndim + axis0 } else { axis0 };
+    let b = if axis1 < 0 { ndim + axis1 } else { axis1 };
+    if a < 0 || b < 0 || a >= ndim || b >= ndim {
+        return Err(PyValueError::new_err(format!(
+            "swapaxes: axes {axis0}, {axis1} out of range for rank {ndim}"
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_autograd::swapaxes(&input.inner, a as usize, b as usize));
+    Ok(PyTensor::from_var(inner))
+}
+
 #[pyfunction]
 pub fn t(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::transpose_2d(&input.inner));
@@ -70,33 +105,21 @@ pub fn flatten(
     end_dim: Option<usize>,
     py: Python<'_>,
 ) -> PyResult<PyTensor> {
-    let shape = input.inner.tensor.shape().to_vec();
-    let ndim = shape.len();
+    let ndim = input.inner.tensor.ndim();
     if ndim == 0 {
+        // torch: flattening a 0-D tensor yields shape [1].
         let inner = py.allow_threads(|| coeus_autograd::reshape(&input.inner, vec![1]));
         return Ok(PyTensor::from_var(inner));
     }
-    if start_dim >= ndim {
-        return Err(PyValueError::new_err(format!(
-            "flatten: start_dim {start_dim} out of range for rank {ndim}"
-        )));
-    }
     let end = end_dim.unwrap_or(ndim - 1);
-    if end >= ndim {
+    if start_dim >= ndim || end >= ndim || end < start_dim {
         return Err(PyValueError::new_err(format!(
-            "flatten: end_dim {end} out of range for rank {ndim}"
+            "flatten: dim range [{start_dim}, {end}] invalid for rank {ndim}"
         )));
     }
-    if end < start_dim {
-        return Err(PyValueError::new_err(format!(
-            "flatten: end_dim {end} precedes start_dim {start_dim}"
-        )));
-    }
-    let flat: usize = shape[start_dim..=end].iter().product();
-    let mut new_shape: Vec<usize> = shape[..start_dim].to_vec();
-    new_shape.push(flat);
-    new_shape.extend_from_slice(&shape[end + 1..]);
-    let inner = py.allow_threads(move || coeus_autograd::reshape(&input.inner, new_shape));
+    // Collapse logic lives in coeus_autograd::flatten; the binding only handles
+    // torch's 0-D edge case and argument validation.
+    let inner = py.allow_threads(|| coeus_autograd::flatten(&input.inner, start_dim, end));
     Ok(PyTensor::from_var(inner))
 }
 

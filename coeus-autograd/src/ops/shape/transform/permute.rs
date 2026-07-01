@@ -97,3 +97,84 @@ pub fn transpose<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     dims.swap(dim0, dim1);
     permute(x, &dims)
 }
+
+/// Swap two axes (`torch.swapaxes` / `np.swapaxes`) — a named alias for
+/// [`transpose`].
+#[inline]
+#[must_use]
+pub fn swapaxes<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    x: &Var<T, B>,
+    axis0: usize,
+    axis1: usize,
+) -> Var<T, B> {
+    transpose(x, axis0, axis1)
+}
+
+/// Move dimension `source` to position `dest` (`torch.movedim` / `np.moveaxis`),
+/// preserving the relative order of the remaining dimensions. Differentiable via
+/// [`permute`].
+///
+/// # Panics
+/// If `source` or `dest` is out of range.
+#[must_use]
+pub fn movedim<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    x: &Var<T, B>,
+    source: usize,
+    dest: usize,
+) -> Var<T, B> {
+    let ndim = x.tensor.ndim();
+    assert!(
+        source < ndim && dest < ndim,
+        "movedim: source {source} / dest {dest} out of range for rank {ndim}"
+    );
+    if source == dest {
+        return x.clone();
+    }
+    let mut order: Vec<usize> = (0..ndim).filter(|&d| d != source).collect();
+    order.insert(dest, source);
+    permute(x, &order)
+}
+
+#[cfg(test)]
+mod movedim_tests {
+    use super::*;
+    use coeus_core::MoiraiBackend;
+    use coeus_tensor::Tensor;
+
+    #[test]
+    fn movedim_reorders_axes_and_backprops() {
+        // [2,3,4]; movedim(0,2) -> [3,4,2] with out[i,j,k] == in[k,i,j].
+        let data: Vec<f64> = (0..24).map(|v| v as f64).collect();
+        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([2, 3, 4], &data), true);
+        let moved = movedim(&x, 0, 2);
+        assert_eq!(moved.tensor.shape(), &[3, 4, 2]);
+        let out = moved.tensor.to_contiguous();
+        let o = out.as_slice();
+        for i in 0..3 {
+            for j in 0..4 {
+                for k in 0..2 {
+                    assert_eq!(
+                        o[(i * 4 + j) * 2 + k],
+                        data[k * 12 + i * 4 + j],
+                        "[{i},{j},{k}]"
+                    );
+                }
+            }
+        }
+        moved.backward();
+        assert_eq!(x.grad().unwrap().shape(), &[2, 3, 4]);
+    }
+
+    #[test]
+    fn swapaxes_matches_transpose() {
+        let data: Vec<f64> = (0..6).map(|v| v as f64).collect();
+        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([2, 3], &data), false);
+        let s = swapaxes(&x, 0, 1);
+        let t = transpose(&x, 0, 1);
+        assert_eq!(s.tensor.shape(), t.tensor.shape());
+        assert_eq!(
+            s.tensor.to_contiguous().as_slice(),
+            t.tensor.to_contiguous().as_slice()
+        );
+    }
+}

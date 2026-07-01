@@ -82,6 +82,7 @@ pub use ops::{
     embedding,
     embedding_with_padding_idx,
     exp,
+    flatten,
     flip,
     floor,
     fold1d,
@@ -115,6 +116,7 @@ pub use ops::{
     mean_axis,
     min_axis,
     mish,
+    movedim,
     mul,
     multi_label_margin_loss,
     multi_margin,
@@ -165,6 +167,7 @@ pub use ops::{
     sub,
     sum,
     sum_axis,
+    swapaxes,
     tanh,
     threshold,
     // Tile / repeat

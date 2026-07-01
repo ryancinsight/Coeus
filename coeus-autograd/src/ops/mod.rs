@@ -43,7 +43,7 @@ pub use nn::{
 
 pub use embedding::{embedding, embedding_with_padding_idx};
 pub use shape::{
-    broadcast_to, cat, contiguous, cumprod, cumsum, diag, diagonal, einsum, einsum3, flip, gather,
-    index_select, masked_fill, pad, permute, reshape, roll, slice, split, squeeze, stack, tile,
-    transpose, tril, triu, unsqueeze, where_cond,
+    broadcast_to, cat, contiguous, cumprod, cumsum, diag, diagonal, einsum, einsum3, flatten, flip,
+    gather, index_select, masked_fill, movedim, pad, permute, reshape, roll, slice, split, squeeze,
+    stack, swapaxes, tile, transpose, tril, triu, unsqueeze, where_cond,
 };
