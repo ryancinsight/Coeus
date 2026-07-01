@@ -3930,3 +3930,76 @@ def test_masked_fill_matches_pytorch() -> None:
     mask_t = torch.tensor(mask_data, dtype=torch.bool).reshape(3, 3)
     exp = t.masked_fill(mask_t, -1e9)
     _allclose("masked_fill", list(got.data), exp.flatten().tolist(), atol=1.0)
+
+# ---------------------------------------------------------------------------
+# bmm / pad / log_sum_exp / gather / scatter_add parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "bmm"), reason="pycoeus.bmm not available")
+def test_bmm_forward_matches_pytorch() -> None:
+    """torch.bmm(a, b) vs pycoeus.bmm(a, b), [2,3,4] x [2,4,5]."""
+    import random
+    random.seed(42)
+    a_data = [float(i) * 0.1 for i in range(2 * 3 * 4)]
+    b_data = [float(i) * 0.05 for i in range(2 * 4 * 5)]
+    a_pyc = pycoeus.Tensor(a_data, [2, 3, 4], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b_data, [2, 4, 5], requires_grad=True)
+    out_pyc = pycoeus.bmm(a_pyc, b_pyc)
+    out_pyc.backward()
+
+    a_t = torch.tensor(a_data, dtype=torch.float64).reshape(2, 3, 4).requires_grad_(True)
+    b_t = torch.tensor(b_data, dtype=torch.float64).reshape(2, 4, 5).requires_grad_(True)
+    out_t = torch.bmm(a_t, b_t)
+    out_t.sum().backward()
+
+    _allclose("bmm_fwd", list(out_pyc.data), out_t.detach().flatten().tolist())
+    _allclose("bmm_bwd_a", list(a_pyc.grad), a_t.grad.flatten().tolist())
+    _allclose("bmm_bwd_b", list(b_pyc.grad), b_t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "pad"), reason="pycoeus.pad not available")
+def test_pad_constant_matches_pytorch() -> None:
+    """torch.nn.functional.pad(x, (1,1,1,1), value=0.0) vs pycoeus.pad."""
+    data = [float(i) for i in range(9)]
+    x_pyc = pycoeus.Tensor(data, [3, 3], requires_grad=False)
+    # pycoeus pad takes list of (before, after) per dim; outermost dim first
+    got = pycoeus.pad(x_pyc, [(1, 1), (1, 1)], 0.0)
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 3)
+    exp = torch.nn.functional.pad(t, (1, 1, 1, 1), value=0.0)
+    _allclose("pad_const", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log_sum_exp"), reason="pycoeus.log_sum_exp not available")
+def test_log_sum_exp_matches_pytorch() -> None:
+    """torch.logsumexp(x, dim=1) vs pycoeus.log_sum_exp(x, axis=1)."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+    x_pyc = pycoeus.Tensor(data, [3, 3], requires_grad=True)
+    out_pyc = pycoeus.log_sum_exp(x_pyc, 1)
+    out_pyc.backward()
+
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 3).requires_grad_(True)
+    out_t = torch.logsumexp(t, dim=1)
+    out_t.sum().backward()
+
+    _allclose("logsumexp_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("logsumexp_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "gather"), reason="pycoeus.gather not available")
+def test_gather_dim1_matches_pytorch() -> None:
+    """torch.gather(x, dim=1, index) vs pycoeus.gather(x, 1, index)."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    idx_data = [2.0, 0.0, 1.0, 1.0, 2.0, 0.0]  # stored as float64 in pycoeus
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    idx_pyc = pycoeus.Tensor(idx_data, [2, 3], requires_grad=False)
+    out_pyc = pycoeus.gather(x_pyc, 1, idx_pyc)
+    out_pyc.backward()
+
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    idx_t = torch.tensor([[2, 0, 1], [1, 2, 0]], dtype=torch.int64)
+    out_t = torch.gather(t, 1, idx_t)
+    out_t.sum().backward()
+
+    _allclose("gather_fwd", list(out_pyc.data), out_t.detach().flatten().tolist())
+    _allclose("gather_bwd", list(x_pyc.grad), t.grad.flatten().tolist())

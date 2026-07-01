@@ -1688,3 +1688,33 @@ def test_clamp_matches_jax() -> None:
     t = jnp.array(data, dtype=jnp.float64)
     exp = jnp.clip(t, -1.0, 2.0)
     _allclose("clamp", list(got.data), exp.tolist())
+
+# ---------------------------------------------------------------------------
+# bmm / log_sum_exp parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "bmm"), reason="pycoeus.bmm not available")
+def test_bmm_matches_jax() -> None:
+    """jnp.matmul(a, b) on batch vs pycoeus.bmm — [2,3,4] x [2,4,5]."""
+    a_data = [float(i) * 0.1 for i in range(2 * 3 * 4)]
+    b_data = [float(i) * 0.05 for i in range(2 * 4 * 5)]
+    a_pyc = pycoeus.Tensor(a_data, [2, 3, 4], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b_data, [2, 4, 5], requires_grad=False)
+    out_pyc = pycoeus.bmm(a_pyc, b_pyc)
+    a_j = jnp.array(a_data, dtype=jnp.float64).reshape(2, 3, 4)
+    b_j = jnp.array(b_data, dtype=jnp.float64).reshape(2, 4, 5)
+    exp = jnp.matmul(a_j, b_j)
+    _allclose("bmm", list(out_pyc.data), jnp.ravel(exp).tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log_sum_exp"), reason="pycoeus.log_sum_exp not available")
+def test_log_sum_exp_matches_jax() -> None:
+    """jax.scipy.special.logsumexp(x, axis=1) vs pycoeus.log_sum_exp(x, 1)."""
+    import jax.scipy.special as jsp
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+    x_pyc = pycoeus.Tensor(data, [3, 3], requires_grad=False)
+    out_pyc = pycoeus.log_sum_exp(x_pyc, 1)
+    t = jnp.array(data, dtype=jnp.float64).reshape(3, 3)
+    exp = jsp.logsumexp(t, axis=1)
+    _allclose("logsumexp", list(out_pyc.data), exp.tolist())
