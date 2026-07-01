@@ -495,6 +495,71 @@ fn bench_conv1d_forward(c: &mut Criterion) {
     );
 }
 
+fn bench_conv1d_forward_backward(c: &mut Criterion) {
+    // Conv1d forward + backward: [8, 32, 256], k3, no bias.
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    const FB1_N: usize = 8;
+    const FB1_C: usize = 32;
+    const FB1_L: usize = 256;
+    const FB1_K: usize = 3;
+
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(FB1_N * FB1_C * FB1_L))
+        .map(|i| (i as f32 * 0.003).sin())
+        .collect();
+
+    let burn_conv_fwd = Conv1dConfig::new(FB1_C, FB1_C, FB1_K)
+        .with_bias(false)
+        .with_padding(PaddingConfig1d::Valid)
+        .init::<AB>(&device);
+    let x_burn_ad: BurnTensor<AB, 3> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [FB1_N, FB1_C, FB1_L]),
+        &device,
+    )
+    .require_grad();
+
+    let conv_seq = Conv1d::<f32, SequentialBackend>::new(FB1_C, FB1_C, FB1_K, false);
+    let conv_moirai = Conv1d::<f32, MoiraiBackend>::new(FB1_C, FB1_C, FB1_K, false);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![FB1_N, FB1_C, FB1_L], &input_data),
+        true,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![FB1_N, FB1_C, FB1_L], &input_data),
+        true,
+    );
+
+    let mut group =
+        c.benchmark_group("Burn vs Coeus — Conv1d forward+backward (8x32x256, k3, no bias)");
+    group.bench_function("Burn NdArray (autodiff)", |b| {
+        b.iter(|| {
+            let grads = burn_conv_fwd
+                .forward(black_box(x_burn_ad.clone()))
+                .sum()
+                .backward();
+            black_box(grads)
+        })
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            conv_seq.zero_grad();
+            x_seq.zero_grad();
+            let out = conv_seq.forward(black_box(&x_seq));
+            coeus_autograd::sum(&out).backward();
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            conv_moirai.zero_grad();
+            x_moirai.zero_grad();
+            let out = conv_moirai.forward(black_box(&x_moirai));
+            coeus_autograd::sum(&out).backward();
+        })
+    });
+    group.finish();
+}
+
 /// One Coeus-vs-Burn Conv2d forward comparison for a square `[n, ch, hw, hw]`
 /// input through `Conv2d(ch -> ch, k, stride 1, no pad, no bias)`. Bias is
 /// disabled on both sides for a like-for-like forward; Coeus `Conv2d::new`
@@ -1943,6 +2008,7 @@ criterion_group!(
     bench_maxpool2d_forward,
     bench_avgpool2d_forward,
     bench_conv1d_forward,
+    bench_conv1d_forward_backward,
     bench_conv2d_forward,
     bench_conv2d_forward_backward,
     bench_conv3d_forward,

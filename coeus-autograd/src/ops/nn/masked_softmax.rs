@@ -25,7 +25,9 @@ pub struct MaskedSoftmaxNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub op: &'static str,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for MaskedSoftmaxNode<T, B> {
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+    for MaskedSoftmaxNode<T, B>
+{
     #[inline]
     fn op_name(&self) -> &'static str {
         self.op
@@ -58,7 +60,12 @@ fn normalize_dim(dim: isize, ndim: usize, op: &str) -> usize {
     dim_u as usize
 }
 
-fn build_var<T, B>(input: &Var<T, B>, y_t: Tensor<T, B>, dim_u: usize, op: &'static str) -> Var<T, B>
+fn build_var<T, B>(
+    input: &Var<T, B>,
+    y_t: Tensor<T, B>,
+    dim_u: usize,
+    op: &'static str,
+) -> Var<T, B>
 where
     T: Float,
     B: coeus_ops::BackendOps<T> + Default,
@@ -142,7 +149,11 @@ mod tests {
         let y = out.tensor.as_slice();
         assert!((y[0] - y0).abs() < 1e-12);
         assert!((y[1] - y1).abs() < 1e-12);
-        assert!(y[2].abs() < 1e-12, "masked position must be 0, got {}", y[2]);
+        assert!(
+            y[2].abs() < 1e-12,
+            "masked position must be 0, got {}",
+            y[2]
+        );
 
         // Seed grad_out=[1,0,0]: dx_k = y_k*(g_k - sum_j y_j g_j), sum = y0.
         out.backward_with_seed(Tensor::from_slice([1, 3], &[1.0, 0.0, 0.0]));
@@ -150,7 +161,11 @@ mod tests {
         let gs = g.as_slice();
         assert!((gs[0] - y0 * (1.0 - y0)).abs() < 1e-12, "dx0: {}", gs[0]);
         assert!((gs[1] - y1 * (-y0)).abs() < 1e-12, "dx1: {}", gs[1]);
-        assert!(gs[2].abs() < 1e-12, "masked input grad must be 0, got {}", gs[2]);
+        assert!(
+            gs[2].abs() < 1e-12,
+            "masked input grad must be 0, got {}",
+            gs[2]
+        );
     }
 
     #[test]
@@ -165,17 +180,18 @@ mod tests {
         }
         out.backward();
         for &v in input.grad().unwrap().as_slice() {
-            assert!(v.is_finite() && v == 0.0, "all-masked grad must be finite 0, got {v}");
+            assert!(
+                v.is_finite() && v == 0.0,
+                "all-masked grad must be finite 0, got {v}"
+            );
         }
     }
 
     #[test]
     fn causal_softmax_is_lower_triangular_and_differentiable() {
         // 2x2: row0 attends only to col0 (future masked); row1 to cols 0,1.
-        let input = Var::<f64, MoiraiBackend>::new(
-            Tensor::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]),
-            true,
-        );
+        let input =
+            Var::<f64, MoiraiBackend>::new(Tensor::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]), true);
         let out = causal_softmax(&input, 1);
         let y = out.tensor.as_slice();
         assert!((y[0] - 1.0).abs() < 1e-12, "causal row0 col0");

@@ -72,9 +72,9 @@ pub use activation::{
     celu, elu, gelu, gelu_tanh, glu, hardshrink, hardsigmoid, hardswish, hardtanh, leaky_relu,
     log_sigmoid, mish, prelu, relu, sigmoid, silu, softplus, softshrink, softsign, tanh,
     tanhshrink, threshold, Celu, CeluOp, GeLU, GeLUTanh, Hardshrink, HardshrinkOp, Hardsigmoid,
-    HardsigmoidOp, Hardswish, HardswishOp, Hardtanh, HardtanhOp, LeakyReLU, LogSigmoid, Mish, GLU,
+    HardsigmoidOp, Hardswish, HardswishOp, Hardtanh, HardtanhOp, LeakyReLU, LogSigmoid, Mish,
     PReLU, ReLU, SiLU, Sigmoid, Softplus, Softshrink, SoftshrinkOp, Softsign, SoftsignOp, Tanh,
-    Tanhshrink, Threshold, ThresholdNode, ELU,
+    Tanhshrink, Threshold, ThresholdNode, ELU, GLU,
 };
 pub use attention::{
     multi_head_attention_cross, AttentionMask, CausalMask, MhaProjectionParams, MultiHeadAttention,

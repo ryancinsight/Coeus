@@ -126,13 +126,31 @@ impl Backend for MoiraiBackend {
         if len == 0 {
             return;
         }
-        // Dispatch through moirai's data-parallel surface. `Adaptive` runs the
-        // SyncTask (CPU-compute) work class and auto-routes sequential below the
-        // adaptive threshold, parallel above it — the work-stealing path that
-        // beats rayon. (The umbrella `for_each_indexed` uses BlockingTask, which
-        // targets I/O-bound work, not compute.)
-        moirai::for_each_index_with::<moirai::Adaptive, _>(len, move |i| {
-            f(start + i);
-        });
+        // Dispatch through moirai's data-parallel surface.
+        //
+        // `AdaptiveWithThreshold<PARALLEL_THRESHOLD>` routes sequential for
+        // small workloads (below threshold) and parallel above it.  The
+        // threshold is tuned higher than moirai's default `Adaptive`
+        // threshold (1024) because Coeus tensor kernels are short vectorized
+        // memory-bandwidth-bound loops; the pool dispatch/join overhead
+        // dominates when element counts are below a few thousand.
+        //
+        // Evidence: the optimizer SEQUENTIAL_THRESHOLD was measured at 65 536
+        // for SGD/Adam steps (memory-only ops).  General compute kernels
+        // (relu, mul, conv accumulation) have slightly more compute per
+        // element, so 4 096 is a conservative crossover that avoids
+        // dispatching for activation layers on small tensors while still
+        // parallelising medium and large tensors.
+        //
+        // (The umbrella `for_each_indexed` uses BlockingTask, which targets
+        // I/O-bound work, not compute — we therefore always use `SyncTask`
+        // via the `AdaptiveWithThreshold` policy path.)
+        const PARALLEL_THRESHOLD: usize = 4_096;
+        moirai::for_each_index_with::<moirai::AdaptiveWithThreshold<PARALLEL_THRESHOLD>, _>(
+            len,
+            move |i| {
+                f(start + i);
+            },
+        );
     }
 }

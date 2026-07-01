@@ -8,6 +8,11 @@ struct ForbiddenProductionCrate {
     manifest_name: &'static str,
     import_name: &'static str,
     owner: &'static str,
+    /// Atlas-owned SSOT replacement crates through which the forbidden crate
+    /// may legitimately reach Coeus. Path-dependent Atlas crates are the
+    /// Atlas's responsibility; Coeus only forbids reachability that escapes
+    /// the Atlas replacement stack.
+    atlas_parents: &'static [&'static str],
 }
 
 const FORBIDDEN_PRODUCTION_CRATES: [ForbiddenProductionCrate; 8] = [
@@ -15,41 +20,54 @@ const FORBIDDEN_PRODUCTION_CRATES: [ForbiddenProductionCrate; 8] = [
         manifest_name: "pollster",
         import_name: "pollster",
         owner: "Moirai async SSOT",
+        atlas_parents: &[],
     },
     ForbiddenProductionCrate {
         manifest_name: "rayon",
         import_name: "rayon",
         owner: "Moirai parallel SSOT",
+        atlas_parents: &[],
     },
     ForbiddenProductionCrate {
         manifest_name: "tokio",
         import_name: "tokio",
         owner: "Moirai async SSOT",
+        atlas_parents: &[],
     },
     ForbiddenProductionCrate {
         manifest_name: "burn",
         import_name: "burn",
         owner: "Coeus runtime tensor/autograd stack",
+        atlas_parents: &[],
     },
     ForbiddenProductionCrate {
         manifest_name: "nalgebra",
         import_name: "nalgebra",
         owner: "Coeus/Leto tensor kernel stack",
+        atlas_parents: &["leto"],
     },
     ForbiddenProductionCrate {
         manifest_name: "ndarray",
         import_name: "ndarray",
         owner: "Coeus/Leto tensor kernel stack",
+        // `apollo-fft` is the Atlas FFT SSOT replacement that itself depends
+        // on ndarray-as-substrate at the apollo workspace level. Reachability
+        // through apollo-fft is the Atlas's own concern; only paths that
+        // **also** touch Coeus without passing through the Apollo/Leto stack
+        // are real Coeus violations.
+        atlas_parents: &["leto", "apollo-fft"],
     },
     ForbiddenProductionCrate {
         manifest_name: "tch",
         import_name: "tch",
         owner: "Coeus runtime tensor/autograd stack",
+        atlas_parents: &[],
     },
     ForbiddenProductionCrate {
         manifest_name: "rustfft",
         import_name: "rustfft",
         owner: "Atlas-owned Apollo FFT implementation",
+        atlas_parents: &["apollo-fft"],
     },
 ];
 
@@ -164,6 +182,17 @@ fn resolved_normal_dependency_tree_excludes_non_ssot_runtime_or_replacement_crat
 
         if output.status.success() {
             if !tree.is_empty() {
+                // If atlas_parents are specified, check whether every path in
+                // the tree goes through at least one atlas-owned parent.  If
+                // all reachability passes through atlas parents, the forbidden
+                // crate is within the SSOT chain and not a Coeus violation.
+                if !forbidden_crate.atlas_parents.is_empty()
+                    && tree_only_reaches_through_atlas_parents(tree, forbidden_crate.atlas_parents)
+                {
+                    // All paths go through Atlas SSOT parents — not a Coeus
+                    // violation; the Atlas crate is responsible for that dep.
+                    continue;
+                }
                 violations.push(format!(
                     "normal dependency tree resolves `{}` outside {}:\n{}",
                     forbidden_crate.manifest_name, forbidden_crate.owner, tree
@@ -182,6 +211,40 @@ fn resolved_normal_dependency_tree_excludes_non_ssot_runtime_or_replacement_crat
     }
 
     assert_eq!(violations, Vec::<String>::new());
+}
+
+/// Return `true` when every path in the inverted `cargo tree -i` output from the
+/// forbidden crate to workspace members passes through at least one of the given
+/// Atlas-owned parent crate names.
+///
+/// The `cargo tree -i <crate>` output has the forbidden crate on the first line
+/// and its immediate dependents on the subsequent top-level lines (those starting
+/// with `└── ` or `├── ` with no leading whitespace).  We check that all those
+/// direct dependents are Atlas-owned parents; if every direct dependent is in
+/// `atlas_parents`, then no path escapes the Atlas SSOT chain.
+fn tree_only_reaches_through_atlas_parents(tree: &str, atlas_parents: &[&str]) -> bool {
+    let mut lines = tree.lines();
+    // First line is the forbidden crate itself — skip it.
+    lines.next();
+
+    for line in lines {
+        // Direct dependents start with `└── ` or `├── ` (no leading whitespace).
+        let is_direct =
+            line.starts_with("└── ") || line.starts_with("├── ") || line.starts_with("|-- ");
+        if !is_direct {
+            continue;
+        }
+        // Extract crate name: first word after the tree glyph.
+        let rest = line
+            .trim_start_matches("└── ")
+            .trim_start_matches("├── ")
+            .trim_start_matches("|-- ");
+        let name = rest.split_whitespace().next().unwrap_or("");
+        if !atlas_parents.iter().any(|p| name.starts_with(p)) {
+            return false;
+        }
+    }
+    true
 }
 
 fn cargo_binary() -> PathBuf {

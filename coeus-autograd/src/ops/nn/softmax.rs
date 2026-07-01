@@ -159,7 +159,10 @@ mod tests {
 
         // Smallest input receives the largest weight; distribution sums to 1.
         let y = out.tensor.as_slice();
-        assert!(y[0] > y[1] && y[1] > y[2], "softmin must rank inversely to input");
+        assert!(
+            y[0] > y[1] && y[1] > y[2],
+            "softmin must rank inversely to input"
+        );
         assert!((y.iter().sum::<f64>() - 1.0).abs() < 1e-12);
 
         out.backward();

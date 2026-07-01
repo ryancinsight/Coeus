@@ -3413,3 +3413,68 @@ def test_interpolate_nearest_2d_matches_pytorch() -> None:
     y_t = F_.interpolate(x_t, size=(new_h, new_w), mode="nearest")
 
     _allclose("interpolate_nearest_2d", list(y_pyc.data), y_t.flatten().tolist(), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# Bilinear interpolation PyTorch parity (MS-234)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "interpolate"),
+    reason="pycoeus.interpolate not available in this build",
+)
+def test_interpolate_bilinear_2d_matches_pytorch() -> None:
+    """Bilinear 2D interpolation on [1, 2, 3, 3] -> [1, 2, 6, 6].
+
+    Uses torch.nn.functional.interpolate with mode='bilinear', align_corners=False
+    at f64, atol=1e-10.
+    """
+    import torch.nn.functional as F_
+
+    n, c, h, w = 1, 2, 3, 3
+    new_h, new_w = 6, 6
+    data = [float(i) * 0.1 for i in range(n * c * h * w)]
+
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w])
+    y_pyc = pycoeus.interpolate(x_pyc, [new_h, new_w], mode="bilinear")
+
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    y_t = F_.interpolate(x_t, size=(new_h, new_w), mode="bilinear", align_corners=False)
+
+    _allclose("interpolate_bilinear_2d", list(y_pyc.data), y_t.flatten().tolist(), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# Bidirectional RNN sequence forward parity (MS-234)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "Bidirectional"),
+    reason="pycoeus.Bidirectional not available in this build",
+)
+def test_bidirectional_shape_and_stability() -> None:
+    """Bidirectional RNN wrapper shape + output stability check.
+
+    The Coeus Bidirectional wrapper concatenates forward and backward
+    directions along the hidden dimension. Verifies shape and non-NaN
+    values for a small input.
+    """
+    batch, seq, input_size, hidden_size = 2, 4, 3, 6
+
+    data = [float(i % 7) * 0.1 - 0.3 for i in range(batch * seq * input_size)]
+
+    try:
+        # Attempt to construct Bidirectional(GRU)
+        gru = pycoeus.Gru(input_size, hidden_size)
+        bidi = pycoeus.Bidirectional(gru)
+        x_pyc = pycoeus.Tensor(data, [batch, seq, input_size])
+        y_pyc = bidi.forward(x_pyc)
+        assert y_pyc.shape == [batch, seq, hidden_size * 2], (
+            f"Bidirectional output shape: expected {[batch, seq, hidden_size * 2]}, got {y_pyc.shape}"
+        )
+        for v in y_pyc.data:
+            assert not (v != v), "Bidirectional output must not contain NaN"
+    except AttributeError:
+        pytest.skip("pycoeus.Bidirectional or pycoeus.Gru not available")
