@@ -1,3 +1,4 @@
+use super::dispatch;
 use crate::ptr::{MutPtr, Ptr};
 use coeus_core::FloatOps;
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
@@ -49,7 +50,7 @@ pub fn adam_step<T: Scalar + FloatOps, B: Backend>(
         && v_layout.is_contiguous();
 
     if is_contiguous {
-        backend.parallel_for(0, numel, move |i| unsafe {
+        dispatch(backend, numel, move |i| unsafe {
             let g = g_ptr.read(g_off + i);
             let m_val = m_ptr.read(m_off + i) * beta1 + (T::one() - beta1) * g;
             let v_val = v_ptr.read(v_off + i) * beta2 + (T::one() - beta2) * g * g;
@@ -73,7 +74,7 @@ pub fn adam_step<T: Scalar + FloatOps, B: Backend>(
         let v_shape = v_layout.shape_cloned();
         let v_strides = v_layout.strides_cloned();
 
-        backend.parallel_for(0, numel, move |i| {
+        dispatch(backend, numel, move |i| {
             let mut temp = i;
             let mut coords = smallvec::SmallVec::<[usize; 4]>::from_elem(0, ndim);
             for d in (0..ndim).rev() {
@@ -169,7 +170,7 @@ pub fn adamw_step<T: Scalar + FloatOps, B: Backend>(
         && v_layout.is_contiguous();
 
     if is_contiguous {
-        backend.parallel_for(0, numel, move |i| unsafe {
+        dispatch(backend, numel, move |i| unsafe {
             let g = g_ptr.read(g_off + i);
             let m_val = m_ptr.read(m_off + i) * beta1 + one_minus_b1 * g;
             let v_val = v_ptr.read(v_off + i) * beta2 + one_minus_b2 * g * g;
@@ -193,7 +194,7 @@ pub fn adamw_step<T: Scalar + FloatOps, B: Backend>(
         let v_shape = v_layout.shape_cloned();
         let v_strides = v_layout.strides_cloned();
 
-        backend.parallel_for(0, numel, move |i| {
+        dispatch(backend, numel, move |i| {
             let mut temp = i;
             let mut coords = smallvec::SmallVec::<[usize; 4]>::from_elem(0, ndim);
             for d in (0..ndim).rev() {

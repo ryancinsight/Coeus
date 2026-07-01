@@ -1,9 +1,6 @@
+use super::dispatch;
 use crate::ptr::{MutPtr, Ptr};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
-
-/// Size threshold below which we run the optimizer update sequentially (no
-/// thread-launch overhead) instead of distributing across the Moirai thread pool.
-const SEQUENTIAL_THRESHOLD: usize = 4096;
 
 pub fn sgd_step<T: Scalar, B: Backend>(
     backend: &B,
@@ -34,32 +31,11 @@ pub fn sgd_step<T: Scalar, B: Backend>(
         && grad_layout.is_contiguous()
         && velocity_layout.is_contiguous();
 
-    if is_contiguous && p_off == 0 && g_off == 0 && v_off == 0 {
-        if numel <= SEQUENTIAL_THRESHOLD {
-            // Small parameter tensors: avoid thread-scheduling overhead with a
-            // sequential loop that auto-vectorizes via LLVM on release builds.
-            for i in 0..numel {
-                let g = g_slice[i];
-                let v = v_slice[i] * momentum + g;
-                v_slice[i] = v;
-                p_slice[i] = p_slice[i] - lr * v;
-            }
-        } else {
-            let p_ptr = MutPtr(p_slice.as_mut_ptr());
-            let g_ptr = Ptr(g_slice.as_ptr());
-            let v_ptr = MutPtr(v_slice.as_mut_ptr());
-            backend.parallel_for(0, numel, move |i| unsafe {
-                let g = g_ptr.read(i);
-                let v = v_ptr.read(i) * momentum + g;
-                v_ptr.write(i, v);
-                p_ptr.write(i, p_ptr.read(i) - lr * v);
-            });
-        }
-    } else if is_contiguous {
+    if is_contiguous {
         let p_ptr = MutPtr(p_slice.as_mut_ptr());
         let g_ptr = Ptr(g_slice.as_ptr());
         let v_ptr = MutPtr(v_slice.as_mut_ptr());
-        backend.parallel_for(0, numel, move |i| unsafe {
+        dispatch(backend, numel, move |i| unsafe {
             let g = g_ptr.read(g_off + i);
             let v = v_ptr.read(v_off + i) * momentum + g;
             v_ptr.write(v_off + i, v);
@@ -77,7 +53,7 @@ pub fn sgd_step<T: Scalar, B: Backend>(
         let v_shape = velocity_layout.shape_cloned();
         let v_strides = velocity_layout.strides_cloned();
 
-        backend.parallel_for(0, numel, move |i| {
+        dispatch(backend, numel, move |i| {
             let mut temp = i;
             let mut coords = smallvec::SmallVec::<[usize; 4]>::from_elem(0, ndim);
             for d in (0..ndim).rev() {
@@ -145,7 +121,7 @@ pub fn rmsprop_step<T: Scalar, B: Backend>(
         param_layout.is_contiguous() && grad_layout.is_contiguous() && v_layout.is_contiguous();
 
     if is_contiguous {
-        backend.parallel_for(0, numel, move |i| unsafe {
+        dispatch(backend, numel, move |i| unsafe {
             let g = g_ptr.read(g_off + i);
             let v_val = v_ptr.read(v_off + i) * alpha + (T::one() - alpha) * g * g;
             v_ptr.write(v_off + i, v_val);
@@ -162,7 +138,7 @@ pub fn rmsprop_step<T: Scalar, B: Backend>(
         let v_shape = v_layout.shape_cloned();
         let v_strides = v_layout.strides_cloned();
 
-        backend.parallel_for(0, numel, move |i| {
+        dispatch(backend, numel, move |i| {
             let mut temp = i;
             let mut coords = smallvec::SmallVec::<[usize; 4]>::from_elem(0, ndim);
             for d in (0..ndim).rev() {
@@ -232,7 +208,7 @@ pub fn adagrad_step<T: Scalar, B: Backend>(
         && history_layout.is_contiguous();
 
     if is_contiguous {
-        backend.parallel_for(0, numel, move |i| unsafe {
+        dispatch(backend, numel, move |i| unsafe {
             let g = g_ptr.read(g_off + i);
             let h = h_ptr.read(h_off + i) + g * g;
             h_ptr.write(h_off + i, h);
@@ -250,7 +226,7 @@ pub fn adagrad_step<T: Scalar, B: Backend>(
         let h_shape = history_layout.shape_cloned();
         let h_strides = history_layout.strides_cloned();
 
-        backend.parallel_for(0, numel, move |i| {
+        dispatch(backend, numel, move |i| {
             let mut temp = i;
             let mut coords = smallvec::SmallVec::<[usize; 4]>::from_elem(0, ndim);
             for d in (0..ndim).rev() {
