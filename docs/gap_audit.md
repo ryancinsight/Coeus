@@ -49,7 +49,7 @@ module families.
 **Gap**: Current Coeus-vs-Burn benchmarks cover selected forward rows
 (Linear, LayerNorm, RMSNorm, LSTM, GRU, InstanceNorm2d, CrossEntropyLoss, MSELoss,
 HuberLoss, ReLU, GeLU, PReLU, Sigmoid, Tanh, SiLU, LeakyReLU, Mish, SwiGLU,
-Dropout eval, Conv1d/2d/3d, ConvTranspose1d, MHA self-attention,
+Softmax, Dropout eval, Conv1d/2d/2d-backward/3d, ConvTranspose1d/3d, MHA self-attention,
 Transformer encoder layer, Embedding lookup, EmbeddingBag sum, AdaptiveAvgPool2d(1,1),
 AdaptiveMaxPool2d(1,1), BatchNorm1d/2d/3d eval forward, GroupNorm forward,
 MaxPool1d/2d forward, AvgPool1d/2d forward),
