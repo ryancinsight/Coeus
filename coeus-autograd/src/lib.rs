@@ -51,6 +51,7 @@ pub use ops::{
     // Shape ops
     broadcast_to,
     cat,
+    causal_softmax,
     ceil,
     celu,
     clamp,
@@ -103,6 +104,7 @@ pub use ops::{
     log_sum_exp,
     margin_ranking_loss,
     masked_fill,
+    masked_softmax,
     matmul,
     // New axis reductions
     max_axis,

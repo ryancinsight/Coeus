@@ -35,16 +35,36 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sof
 
     #[inline]
     fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
-        let backend = B::default();
         if let Some(Some(ref g_in)) = input_grads.get(0) {
-            let gy = coeus_ops::mul(grad_out, &self.y_clone, &backend);
-            let sum_gy = coeus_ops::sum_axis(&gy, self.dim_u, &backend);
-            let mut dx = coeus_ops::sub(grad_out, &sum_gy, &backend);
-            coeus_ops::mul_assign(&mut dx, &self.y_clone, &backend);
-            let gl = g_in.write();
-            coeus_ops::add_assign(gl, &dx, &backend);
+            accumulate_softmax_grad(grad_out, &self.y_clone, self.dim_u, g_in);
         }
     }
+}
+
+/// Softmax reverse pass `dx = y * (grad_out - sum_dim(y * grad_out))`, accumulated
+/// into `g_in`.
+///
+/// Shared by [`SoftmaxNode`] and the masked/causal softmax nodes: their gradient is
+/// the same jacobian applied to their (masked) output. Because masked positions hold
+/// `y = 0`, they neither receive gradient (`dx = 0`) nor contribute to the per-row
+/// sum, and an all-masked row (`y` all zero) propagates zero — matching the forward,
+/// with no `-inf`/`NaN` ever formed.
+pub(crate) fn accumulate_softmax_grad<T, B>(
+    grad_out: &Tensor<T, B>,
+    y: &Tensor<T, B>,
+    dim_u: usize,
+    g_in: &Arc<GradBuffer<T, B>>,
+) where
+    T: Float,
+    B: coeus_ops::BackendOps<T> + Default,
+{
+    let backend = B::default();
+    let gy = coeus_ops::mul(grad_out, y, &backend);
+    let sum_gy = coeus_ops::sum_axis(&gy, dim_u, &backend);
+    let mut dx = coeus_ops::sub(grad_out, &sum_gy, &backend);
+    coeus_ops::mul_assign(&mut dx, y, &backend);
+    let gl = g_in.write();
+    coeus_ops::add_assign(gl, &dx, &backend);
 }
 
 /// Tracked Softmax.
