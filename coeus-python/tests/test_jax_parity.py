@@ -1624,3 +1624,29 @@ def test_flip_matches_jax() -> None:
     t = jnp.array(data, dtype=jnp.float64).reshape(3, 3)
     exp = jnp.flip(t, axis=0)
     _allclose("flip", list(got.data), jnp.ravel(exp).tolist())
+
+# ---------------------------------------------------------------------------
+# argmax / argmin / topk parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "argmax"), reason="pycoeus.argmax not available")
+def test_argmax_matches_jax() -> None:
+    """jnp.argmax(x, axis=0, keepdims=True) vs pycoeus.argmax(x, 0)."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 5.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=False)
+    got = pycoeus.argmax(x_pyc, 0)
+    t = jnp.array(data, dtype=jnp.float64).reshape(3, 4)
+    exp = jnp.argmax(t, axis=0, keepdims=True)
+    _allclose("argmax", list(got.data), jnp.ravel(exp.astype(jnp.float64)).tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "argmin"), reason="pycoeus.argmin not available")
+def test_argmin_matches_jax() -> None:
+    """jnp.argmin(x, axis=1, keepdims=True) vs pycoeus.argmin(x, 1)."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 5.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=False)
+    got = pycoeus.argmin(x_pyc, 1)
+    t = jnp.array(data, dtype=jnp.float64).reshape(3, 4)
+    exp = jnp.argmin(t, axis=1, keepdims=True)
+    _allclose("argmin", list(got.data), jnp.ravel(exp.astype(jnp.float64)).tolist())
