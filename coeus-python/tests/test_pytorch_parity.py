@@ -4183,3 +4183,71 @@ def test_pairwise_distance_l2_matches_pytorch() -> None:
     b_t = torch.tensor(b, dtype=torch.float64).reshape(2, 3)
     exp = torch.nn.functional.pairwise_distance(a_t, b_t, p=2)
     _allclose("pairwise_distance", list(got.data), exp.tolist())
+
+# ---------------------------------------------------------------------------
+# gelu_tanh / gaussian_nll_loss / pow / scaled_dot_product_attention parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "gelu_tanh"), reason="pycoeus.gelu_tanh not available")
+def test_gelu_tanh_matches_pytorch() -> None:
+    """torch.nn.functional.gelu(x, approximate='tanh') vs pycoeus.gelu_tanh(x)."""
+    data = [-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [7], requires_grad=True)
+    out_pyc = pycoeus.gelu_tanh(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.gelu(t, approximate="tanh")
+    out_t.sum().backward()
+    _allclose("gelu_tanh_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-6)
+    _allclose("gelu_tanh_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-6)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "gaussian_nll_loss"), reason="pycoeus.gaussian_nll_loss not available")
+def test_gaussian_nll_loss_matches_pytorch() -> None:
+    """torch.nn.functional.gaussian_nll_loss vs pycoeus.gaussian_nll_loss."""
+    inp = [0.5, 1.0, -0.5, 2.0]
+    tgt = [0.4, 0.9, -0.6, 1.8]
+    var = [1.0, 1.5, 0.5, 2.0]
+    inp_pyc = pycoeus.Tensor(inp, [4], requires_grad=True)
+    tgt_pyc = pycoeus.Tensor(tgt, [4], requires_grad=False)
+    var_pyc = pycoeus.Tensor(var, [4], requires_grad=False)
+    loss_pyc = pycoeus.gaussian_nll_loss(inp_pyc, tgt_pyc, var_pyc)
+    inp_t = torch.tensor(inp, dtype=torch.float64, requires_grad=True)
+    tgt_t = torch.tensor(tgt, dtype=torch.float64)
+    var_t = torch.tensor(var, dtype=torch.float64)
+    loss_t = torch.nn.functional.gaussian_nll_loss(inp_t, tgt_t, var_t)
+    _allclose("gaussian_nll_fwd", list(loss_pyc.data), [loss_t.item()])
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "pow"), reason="pycoeus.pow not available")
+def test_pow_matches_pytorch() -> None:
+    """x.pow(3) vs pycoeus.pow(x, 3.0) with backward."""
+    data = [1.0, 2.0, -1.0, 0.5, -2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.pow(x_pyc, 3.0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = t.pow(3)
+    out_t.sum().backward()
+    _allclose("pow_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("pow_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "scaled_dot_product_attention"), reason="pycoeus.scaled_dot_product_attention not available")
+def test_scaled_dot_product_attention_matches_pytorch() -> None:
+    """F.scaled_dot_product_attention(q,k,v) vs pycoeus.scaled_dot_product_attention(q,k,v)."""
+    import math
+    seq, d = 4, 8
+    q_data = [math.sin(i * 0.1) for i in range(seq * d)]
+    k_data = [math.cos(i * 0.1) for i in range(seq * d)]
+    v_data = [math.sin(i * 0.05 + 1.0) for i in range(seq * d)]
+    q_pyc = pycoeus.Tensor(q_data, [1, seq, d], requires_grad=False)
+    k_pyc = pycoeus.Tensor(k_data, [1, seq, d], requires_grad=False)
+    v_pyc = pycoeus.Tensor(v_data, [1, seq, d], requires_grad=False)
+    got = pycoeus.scaled_dot_product_attention(q_pyc, k_pyc, v_pyc)
+    q_t = torch.tensor(q_data, dtype=torch.float64).reshape(1, seq, d)
+    k_t = torch.tensor(k_data, dtype=torch.float64).reshape(1, seq, d)
+    v_t = torch.tensor(v_data, dtype=torch.float64).reshape(1, seq, d)
+    exp = torch.nn.functional.scaled_dot_product_attention(q_t, k_t, v_t)
+    _allclose("sdpa_fwd", list(got.data), exp.flatten().tolist(), atol=1e-8)
