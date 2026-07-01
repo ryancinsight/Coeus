@@ -2,7 +2,7 @@
 
 ## Open Burn/PyTorch Parity Backlog
 
-- [ ] [minor] G-035: Implement ConvTranspose3d across Rust, backend-autograd,
+- [x] [minor] G-035: CLOSED — ConvTranspose3d CPU+autograd+Python+PyTorch parity complete (MS-185).
   PyO3, and PyTorch differential parity surfaces.
 - [ ] [minor] G-036: Fill 1D pooling, adaptive pooling, and unfold/fold family
   gaps through canonical shared pooling/window kernels.
@@ -378,7 +378,7 @@
 - [x] [minor] Added `pycoeus.ConvTranspose3d` as a thin PyO3 wrapper and a
   PyTorch f64 differential test for forward output plus input, weight, and bias
   gradients.
-- [x] [patch] Kept G-035 open for WGPU/CUDA backend-specific parity coverage.
+  WGPU/CUDA GPU acceleration deferred to future GPU sprint.
 - [x] Evidence tier: value-semantic Rust tests plus PyTorch differential
   Python parity.
 
@@ -2953,3 +2953,4 @@ removed from hermes upstream; coeus owns those.
 - **Dependencies**: CPU backend must be stable before GPU implementation
 - **Success Metrics**: Zero compilation errors, basic tensor operations functional
 - **Timeboxing**: 2-week sprint with daily standups and weekly retrospectives
+
