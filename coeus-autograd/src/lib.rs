@@ -64,6 +64,7 @@ pub use ops::{
     // Trigonometric
     cos,
     cosine_embedding_loss,
+    cosine_similarity,
     cross_entropy_loss,
     cumprod,
     cumsum,
@@ -149,6 +150,7 @@ pub use ops::{
     // Trigonometric
     sin,
     slice,
+    smooth_l1_loss,
     soft_margin,
     softmax,
     softplus,

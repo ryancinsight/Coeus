@@ -4,6 +4,8 @@ pub mod bce;
 pub mod bce_with_logits;
 /// Cosine embedding loss.
 pub mod cosine;
+/// Row-wise cosine similarity (PyTorch `F.cosine_similarity`).
+pub mod cosine_similarity;
 /// Cross-entropy loss.
 pub mod cross_entropy;
 /// Huber loss.
@@ -22,12 +24,15 @@ pub mod nll;
 pub mod pairwise_distance;
 /// Poisson negative-log-likelihood loss.
 pub mod poisson_nll;
+/// Smooth L1 (Huber-β) loss.
+pub mod smooth_l1;
 /// Soft-margin (logistic) loss.
 pub mod soft_margin;
 
 pub use bce::{binary_cross_entropy, BinaryCrossEntropyNode};
 pub use bce_with_logits::{bce_with_logits, BceWithLogitsNode};
 pub use cosine::{cosine_embedding_loss, CosineEmbeddingLossNode};
+pub use cosine_similarity::{cosine_similarity, CosineSimilarityNode};
 pub use cross_entropy::{cross_entropy_loss, CrossEntropyLossNode};
 pub use huber::{huber_loss, HuberLossNode};
 pub use kl_div::{kl_divergence, KlDivLossNode};
@@ -37,4 +42,5 @@ pub use multi_margin::{multi_margin, MultiMarginNode};
 pub use nll::{nll_loss, NllLossNode};
 pub use pairwise_distance::{pairwise_distance, PairwiseDistanceNode};
 pub use poisson_nll::{poisson_nll, PoissonNllNode};
+pub use smooth_l1::{smooth_l1_loss, SmoothL1LossNode};
 pub use soft_margin::{soft_margin, SoftMarginNode};

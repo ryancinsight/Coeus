@@ -257,3 +257,31 @@ pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Var<T, B> {
     coeus_autograd::cosine_embedding_loss(x1, x2, y, margin)
 }
+
+/// Smooth L1 (Huber-β) loss (PyTorch
+/// `SmoothL1Loss(reduction="mean", beta=float)`). Computes
+/// `mean_i loss_smooth(pred[i] - target[i], beta)` with
+/// `loss_smooth(z, β) = 0.5 z²/β` if `|z| < β`, else `|z| - 0.5 β`.
+/// `pred` and `target` must share shape.
+#[inline]
+pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    pred: &Var<T, B>,
+    target: &Var<T, B>,
+    beta: T,
+) -> Var<T, B> {
+    coeus_autograd::smooth_l1_loss(pred, target, beta)
+}
+
+/// Row-wise cosine similarity along `dim=1`
+/// (PyTorch `F.cosine_similarity(x1, x2, dim=1, eps=...)`).
+/// `x1` and `x2` must share shape `[N, D]`; returns `[N]` where
+/// `out_i = <x1_i, x2_i> / (||x1_i|| * ||x2_i|| + eps)`.
+#[inline]
+pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    x1: &Var<T, B>,
+    x2: &Var<T, B>,
+    dim: usize,
+    eps: T,
+) -> Var<T, B> {
+    coeus_autograd::cosine_similarity(x1, x2, dim, eps)
+}
