@@ -1650,3 +1650,41 @@ def test_argmin_matches_jax() -> None:
     t = jnp.array(data, dtype=jnp.float64).reshape(3, 4)
     exp = jnp.argmin(t, axis=1, keepdims=True)
     _allclose("argmin", list(got.data), jnp.ravel(exp.astype(jnp.float64)).tolist())
+
+# ---------------------------------------------------------------------------
+# sort / norm / outer / clamp / where_cond parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sort"), reason="pycoeus.sort not available")
+def test_sort_matches_jax() -> None:
+    """jnp.sort(x, axis=1) vs pycoeus.sort(x, dim=1)."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 5.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=False)
+    vals_pyc, _ = pycoeus.sort(x_pyc, dim=1, descending=False)
+    t = jnp.array(data, dtype=jnp.float64).reshape(3, 4)
+    exp = jnp.sort(t, axis=1)
+    _allclose("sort", list(vals_pyc.data), jnp.ravel(exp).tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "outer"), reason="pycoeus.outer not available")
+def test_outer_matches_jax() -> None:
+    """jnp.outer(a, b) vs pycoeus.outer(a, b)."""
+    a = [1.0, 2.0, 3.0]
+    b = [4.0, 5.0]
+    a_pyc = pycoeus.Tensor(a, [3], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [2], requires_grad=False)
+    got = pycoeus.outer(a_pyc, b_pyc)
+    exp = jnp.outer(jnp.array(a, dtype=jnp.float64), jnp.array(b, dtype=jnp.float64))
+    _allclose("outer", list(got.data), jnp.ravel(exp).tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "clamp"), reason="pycoeus.clamp not available")
+def test_clamp_matches_jax() -> None:
+    """jnp.clip(x, -1.0, 2.0) vs pycoeus.clamp(x, -1.0, 2.0)."""
+    data = [-3.0, -1.0, 0.5, 1.5, 2.5, 4.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=False)
+    got = pycoeus.clamp(x_pyc, -1.0, 2.0)
+    t = jnp.array(data, dtype=jnp.float64)
+    exp = jnp.clip(t, -1.0, 2.0)
+    _allclose("clamp", list(got.data), exp.tolist())

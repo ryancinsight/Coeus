@@ -3827,3 +3827,106 @@ def test_topk_smallest_matches_pytorch() -> None:
     t = torch.tensor(data, dtype=torch.float64).reshape(3, 4)
     vals_t, _ = torch.topk(t, 2, dim=0, largest=False, sorted=True)
     _allclose("topk(k=2,dim=0,smallest)", list(vals_pyc.data), vals_t.flatten().tolist())
+
+# ---------------------------------------------------------------------------
+# sort / norm / outer / clamp / gather / masked_fill / where_cond / diag
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sort"), reason="pycoeus.sort not available")
+def test_sort_ascending_matches_pytorch() -> None:
+    """torch.sort(x, dim=1) vs pycoeus.sort(x, dim=1)."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 5.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=False)
+    vals_pyc, _idx_pyc = pycoeus.sort(x_pyc, dim=1, descending=False)
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 4)
+    vals_t, _ = torch.sort(t, dim=1, descending=False)
+    _allclose("sort_asc", list(vals_pyc.data), vals_t.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sort"), reason="pycoeus.sort not available")
+def test_sort_descending_matches_pytorch() -> None:
+    """torch.sort(x, dim=0, descending=True)."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 5.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=False)
+    vals_pyc, _idx_pyc = pycoeus.sort(x_pyc, dim=0, descending=True)
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 4)
+    vals_t, _ = torch.sort(t, dim=0, descending=True)
+    _allclose("sort_desc", list(vals_pyc.data), vals_t.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "vector_norm"), reason="pycoeus.vector_norm not available")
+def test_vector_norm_l2_matches_pytorch() -> None:
+    """torch.linalg.vector_norm(x, ord=2) vs pycoeus.vector_norm(x, ord=2.0)."""
+    data = [3.0, -4.0, 0.0, 5.0, -12.0, 0.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=False)
+    got = pycoeus.vector_norm(x_pyc, ord=2.0)
+    exp = float(torch.linalg.vector_norm(torch.tensor(data, dtype=torch.float64), ord=2))
+    assert abs(list(got.data)[0] - exp) < _ATOL, f"vector_norm_l2: {list(got.data)[0]} vs {exp}"
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "clamp"), reason="pycoeus.clamp not available")
+def test_clamp_matches_pytorch() -> None:
+    """torch.clamp(x, min=-1.0, max=2.0) vs pycoeus.clamp(x, -1.0, 2.0)."""
+    data = [-3.0, -1.0, 0.5, 1.5, 2.5, 4.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=True)
+    got = pycoeus.clamp(x_pyc, -1.0, 2.0)
+    got.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    exp_t = torch.clamp(t, min=-1.0, max=2.0)
+    exp_t.sum().backward()
+    _allclose("clamp_fwd", list(got.data), exp_t.detach().tolist())
+    _allclose("clamp_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "outer"), reason="pycoeus.outer not available")
+def test_outer_matches_pytorch() -> None:
+    """torch.outer(a, b) vs pycoeus.outer(a, b)."""
+    a = [1.0, 2.0, 3.0]
+    b = [4.0, 5.0]
+    a_pyc = pycoeus.Tensor(a, [3], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [2], requires_grad=False)
+    got = pycoeus.outer(a_pyc, b_pyc)
+    exp = torch.outer(torch.tensor(a, dtype=torch.float64), torch.tensor(b, dtype=torch.float64))
+    _allclose("outer", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "diag"), reason="pycoeus.diag not available")
+def test_diag_1d_to_2d_matches_pytorch() -> None:
+    """torch.diag(v) — embed 1D vector as diagonal of 2D matrix."""
+    data = [1.0, 2.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [3], requires_grad=False)
+    got = pycoeus.diag(x_pyc)
+    exp = torch.diag(torch.tensor(data, dtype=torch.float64))
+    _allclose("diag_embed", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "where_cond"), reason="pycoeus.where_cond not available")
+def test_where_cond_matches_pytorch() -> None:
+    """torch.where(cond, a, b) vs pycoeus.where_cond(cond, a, b)."""
+    cond_data = [1.0, 0.0, 1.0, 0.0, 1.0, 1.0]
+    a_data = [10.0, 20.0, 30.0, 40.0, 50.0, 60.0]
+    b_data = [-1.0, -2.0, -3.0, -4.0, -5.0, -6.0]
+    cond_pyc = pycoeus.Tensor(cond_data, [6], requires_grad=False)
+    a_pyc = pycoeus.Tensor(a_data, [6], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b_data, [6], requires_grad=False)
+    got = pycoeus.where_cond(cond_pyc, a_pyc, b_pyc)
+    cond_t = torch.tensor(cond_data, dtype=torch.float64).bool()
+    a_t = torch.tensor(a_data, dtype=torch.float64)
+    b_t = torch.tensor(b_data, dtype=torch.float64)
+    exp = torch.where(cond_t, a_t, b_t)
+    _allclose("where_cond", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "masked_fill"), reason="pycoeus.masked_fill not available")
+def test_masked_fill_matches_pytorch() -> None:
+    """x.masked_fill(mask, -1e9) for causal attention masking."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+    mask_data = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0]
+    x_pyc = pycoeus.Tensor(data, [3, 3], requires_grad=False)
+    m_pyc = pycoeus.Tensor(mask_data, [3, 3], requires_grad=False)
+    got = pycoeus.masked_fill(x_pyc, m_pyc, -1e9)
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 3)
+    mask_t = torch.tensor(mask_data, dtype=torch.bool).reshape(3, 3)
+    exp = t.masked_fill(mask_t, -1e9)
+    _allclose("masked_fill", list(got.data), exp.flatten().tolist(), atol=1.0)
