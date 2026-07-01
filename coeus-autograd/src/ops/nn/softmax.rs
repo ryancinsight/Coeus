@@ -122,3 +122,47 @@ pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         creator,
     }
 }
+
+/// Tracked Softmin over `dim` — `softmax(-input)` (`torch.nn.functional.softmin`).
+///
+/// Differentiable via composition of the tracked `neg` and [`softmax`].
+#[must_use]
+pub fn softmin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    dim: isize,
+) -> Var<T, B> {
+    softmax(&crate::ops::neg(input), dim)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::MoiraiBackend;
+
+    #[test]
+    fn softmin_equals_softmax_of_negation_and_is_differentiable() {
+        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0, 2.0, 3.0]), true);
+        let out = softmin(&x, 0);
+
+        let neg =
+            Var::<f64, MoiraiBackend>::new(Tensor::from_slice([3], &[-1.0, -2.0, -3.0]), false);
+        let reference = softmax(&neg, 0);
+        for (i, (&a, &b)) in out
+            .tensor
+            .as_slice()
+            .iter()
+            .zip(reference.tensor.as_slice())
+            .enumerate()
+        {
+            assert!((a - b).abs() < 1e-12, "softmin[{i}]: {a} vs {b}");
+        }
+
+        // Smallest input receives the largest weight; distribution sums to 1.
+        let y = out.tensor.as_slice();
+        assert!(y[0] > y[1] && y[1] > y[2], "softmin must rank inversely to input");
+        assert!((y.iter().sum::<f64>() - 1.0).abs() < 1e-12);
+
+        out.backward();
+        assert!(x.grad().is_some(), "softmin must be differentiable");
+    }
+}

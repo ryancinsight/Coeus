@@ -265,6 +265,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::flip, m)?)?;
     m.add_function(wrap_pyfunction!(ops::where_cond, m)?)?;
     m.add_function(wrap_pyfunction!(ops::softmax, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::softmin, m)?)?;
     // Constructors
     m.add_function(wrap_pyfunction!(ops::randn, m)?)?;
     m.add_function(wrap_pyfunction!(ops::zeros_like, m)?)?;
