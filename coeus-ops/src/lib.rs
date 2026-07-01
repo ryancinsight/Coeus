@@ -108,7 +108,8 @@ pub fn unfold1d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
     let (n, c, l) = (shape[0], shape[1], shape[2]);
     let l_out = (l + 2 * padding - dilation * (kernel_size - 1) - 1) / stride + 1;
     let ck = c * kernel_size;
-    let mut out = coeus_tensor::Tensor::zeros_on([n, ck, l_out], backend);
+    // alloc_on: unfold1d kernel writes every output position — no zero-init needed.
+    let mut out = coeus_tensor::Tensor::alloc_on([n, ck, l_out], backend);
     let (out_storage, out_layout) = out.storage_mut_and_layout();
     backend.unfold1d(
         input.storage(),
@@ -176,7 +177,8 @@ pub fn unfold2d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
     let w_out = (w + 2 * padding_w - dilation_w * (kernel_w - 1) - 1) / stride_w + 1;
     let ckk = c * kernel_h * kernel_w;
     let l_out = h_out * w_out;
-    let mut out = coeus_tensor::Tensor::zeros_on([n, ckk, l_out], backend);
+    // alloc_on: unfold2d kernel writes every output position — no zero-init needed.
+    let mut out = coeus_tensor::Tensor::alloc_on([n, ckk, l_out], backend);
     let (out_storage, out_layout) = out.storage_mut_and_layout();
     backend.unfold2d(
         input.storage(),

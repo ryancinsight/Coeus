@@ -51,7 +51,8 @@ where
     let c = input.shape()[1];
     let l = input.shape()[2];
 
-    let mut out = Tensor::zeros_on([n, c, output_size], backend);
+    // alloc_on: every [ni, ci, oi] is written via set — no zero-init needed.
+    let mut out = Tensor::alloc_on([n, c, output_size], backend);
 
     for ni in 0..n {
         for ci in 0..c {
@@ -89,7 +90,8 @@ where
     let c = input.shape()[1];
     let l = input.shape()[2];
 
-    let mut out = Tensor::zeros_on([n, c, output_size], backend);
+    // alloc_on: every [ni, ci, oi] is written via set — no zero-init needed.
+    let mut out = Tensor::alloc_on([n, c, output_size], backend);
 
     for ni in 0..n {
         for ci in 0..c {
@@ -130,7 +132,7 @@ where
     let h = input.shape()[2];
     let w = input.shape()[3];
 
-    // Contiguous fast-path: raw pointer arithmetic via parallel_for.
+    // alloc_on: parallel_for writes every out position — no zero-init needed.
     let inp_cont;
     let inp = if input.is_contiguous() && input.layout().offset() == 0 {
         input
@@ -140,7 +142,7 @@ where
     };
 
     use crate::ptr::{MutPtr, Ptr};
-    let mut out = Tensor::zeros_on([n, c, out_h, out_w], backend);
+    let mut out = Tensor::alloc_on([n, c, out_h, out_w], backend);
     let inp_ptr = Ptr(inp.storage().as_slice().as_ptr());
     let out_ptr = MutPtr(out.storage_mut().as_mut_slice().as_mut_ptr());
 
@@ -201,7 +203,8 @@ where
     };
 
     use crate::ptr::{MutPtr, Ptr};
-    let mut out = Tensor::zeros_on([n, c, out_h, out_w], backend);
+    // alloc_on: parallel_for writes every out position — no zero-init needed.
+    let mut out = Tensor::alloc_on([n, c, out_h, out_w], backend);
     let inp_ptr = Ptr(inp.storage().as_slice().as_ptr());
     let out_ptr = MutPtr(out.storage_mut().as_mut_slice().as_mut_ptr());
 

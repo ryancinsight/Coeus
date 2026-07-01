@@ -3690,3 +3690,92 @@ def test_nanmean_matches_pytorch() -> None:
     assert abs(list(y_pyc.data)[0] - y_t.item()) < 1e-10, (
         f"nanmean: got {list(y_pyc.data)[0]:.8g}, expected {y_t.item():.8g}"
     )
+
+
+# ---------------------------------------------------------------------------
+# tril / triu / roll / flip parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "tril"),
+    reason="pycoeus.tril not available",
+)
+def test_tril_main_diag_matches_pytorch() -> None:
+    """torch.tril(x, diagonal=0) vs pycoeus.tril(x, 0)."""
+    data = [float(i) for i in range(16)]
+    x_pyc = pycoeus.Tensor(data, [4, 4], requires_grad=False)
+    got = pycoeus.tril(x_pyc, 0)
+    t = torch.tensor(data, dtype=torch.float64).reshape(4, 4)
+    exp = torch.tril(t, diagonal=0)
+    _allclose("tril(diag=0)", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "tril"),
+    reason="pycoeus.tril not available",
+)
+def test_tril_above_diag_matches_pytorch() -> None:
+    """torch.tril(x, diagonal=1) vs pycoeus.tril(x, 1)."""
+    data = [float(i) for i in range(16)]
+    x_pyc = pycoeus.Tensor(data, [4, 4], requires_grad=False)
+    got = pycoeus.tril(x_pyc, 1)
+    t = torch.tensor(data, dtype=torch.float64).reshape(4, 4)
+    exp = torch.tril(t, diagonal=1)
+    _allclose("tril(diag=1)", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "triu"),
+    reason="pycoeus.triu not available",
+)
+def test_triu_main_diag_matches_pytorch() -> None:
+    """torch.triu(x, diagonal=0) vs pycoeus.triu(x, 0)."""
+    data = [float(i) for i in range(16)]
+    x_pyc = pycoeus.Tensor(data, [4, 4], requires_grad=False)
+    got = pycoeus.triu(x_pyc, 0)
+    t = torch.tensor(data, dtype=torch.float64).reshape(4, 4)
+    exp = torch.triu(t, diagonal=0)
+    _allclose("triu(diag=0)", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "triu"),
+    reason="pycoeus.triu not available",
+)
+def test_triu_below_diag_matches_pytorch() -> None:
+    """torch.triu(x, diagonal=-1) vs pycoeus.triu(x, -1)."""
+    data = [float(i) for i in range(16)]
+    x_pyc = pycoeus.Tensor(data, [4, 4], requires_grad=False)
+    got = pycoeus.triu(x_pyc, -1)
+    t = torch.tensor(data, dtype=torch.float64).reshape(4, 4)
+    exp = torch.triu(t, diagonal=-1)
+    _allclose("triu(diag=-1)", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "roll"),
+    reason="pycoeus.roll not available",
+)
+def test_roll_dim0_matches_pytorch() -> None:
+    """torch.roll(x, shifts=1, dims=0) vs pycoeus.roll(x, [1], [0])."""
+    data = [float(i) for i in range(9)]
+    x_pyc = pycoeus.Tensor(data, [3, 3], requires_grad=False)
+    got = pycoeus.roll(x_pyc, [1], [0])
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 3)
+    exp = torch.roll(t, 1, 0)
+    _allclose("roll(shifts=[1], dims=[0])", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "flip"),
+    reason="pycoeus.flip not available",
+)
+def test_flip_axis0_matches_pytorch() -> None:
+    """torch.flip(x, dims=[0]) vs pycoeus.flip(x, axis=0)."""
+    data = [float(i) for i in range(9)]
+    x_pyc = pycoeus.Tensor(data, [3, 3], requires_grad=False)
+    got = pycoeus.flip(x_pyc, 0)
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 3)
+    exp = torch.flip(t, dims=[0])
+    _allclose("flip(axis=0)", list(got.data), exp.flatten().tolist())
