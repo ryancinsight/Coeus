@@ -9,6 +9,11 @@ use coeus_tensor::Tensor;
 /// - `weight`: `[num_embeddings, embedding_dim]`
 /// - `indices`: `[d0, d1, ..., dk]`
 /// - Output: `[d0, d1, ..., dk, embedding_dim]`
+///
+/// # Memory
+/// Output is `zeros_on` (accumulates via row-copy; sparse indices may not cover
+/// all output rows if the index tensor is non-contiguous). Embedding backward
+/// (gradient w.r.t. `weight`) is also `zeros_on` because it scatter-adds.
 pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     weight: &Tensor<T, B>,
     indices: &Tensor<I, B>,

@@ -4,9 +4,13 @@
 
 mod max_min;
 mod norm;
+mod variance;
 
 pub use max_min::{max_axis, min_axis};
 pub use norm::{norm, norm_p, norm_p_axis};
+pub use variance::{
+    std_dev, std_dev_axis, std_mean, std_mean_axis, var, var_axis, var_mean, var_mean_axis,
+};
 
 // ── log_sum_exp ────────────────────────────────────────────────────────────
 //

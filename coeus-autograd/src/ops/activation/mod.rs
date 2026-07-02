@@ -144,8 +144,8 @@ pub use sigmoid::{sigmoid, SigmoidOp};
 pub use silu::{mish, silu, softplus, MishOp, SiluOp, SoftplusOp};
 pub use tanh_act::{tanh, TanhOp};
 pub use trig::{
-    acos, asin, atan, cos, erf, exp, log, sin, tan, AcosOp, AsinOp, AtanOp, CosOp, ErfOp, ExpOp,
-    LogOp, SinOp, TanOp,
+    acos, asin, atan, cos, erf, erfc, exp, log, sin, tan, AcosOp, AsinOp, AtanOp, CosOp, ErfOp,
+    ErfcOp, ExpOp, LogOp, SinOp, TanOp,
 };
 // Extended-family re-exports (G-037).
 pub use ext::{

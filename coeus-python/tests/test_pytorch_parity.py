@@ -2154,6 +2154,20 @@ def test_adagrad_step_matches_pytorch() -> None:
     )
 
 
+@pytest.mark.skipif(not hasattr(pycoeus, "erfc"), reason="pycoeus.erfc not available")
+def test_erfc_matches_pytorch() -> None:
+    """torch.special.erfc(x) vs pycoeus.erfc(x), fwd+bwd."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.erfc(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.special.erfc(t)
+    out_t.sum().backward()
+    _allclose("erfc_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("erfc_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
 # ── ConvTranspose3d PyTorch parity (MS-183) ─────────────────────────────────
 
 
@@ -4633,3 +4647,88 @@ def test_celu_matches_pytorch() -> None:
     out_t.sum().backward()
     _allclose("celu_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-10)
     _allclose("celu_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+# ---------------------------------------------------------------------------
+# hardsigmoid / hardswish / hardtanh / threshold / sign / recip parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "hardsigmoid"), reason="pycoeus.hardsigmoid not available")
+def test_hardsigmoid_matches_pytorch() -> None:
+    """torch.nn.functional.hardsigmoid(x) vs pycoeus.hardsigmoid(x), fwd+bwd."""
+    data = [-4.0, -1.5, 0.0, 1.5, 4.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.hardsigmoid(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.hardsigmoid(t)
+    out_t.sum().backward()
+    _allclose("hardsigmoid_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("hardsigmoid_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "hardswish"), reason="pycoeus.hardswish not available")
+def test_hardswish_matches_pytorch() -> None:
+    """torch.nn.functional.hardswish(x) vs pycoeus.hardswish(x), fwd+bwd."""
+    data = [-4.0, -1.5, 0.0, 1.5, 4.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.hardswish(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.hardswish(t)
+    out_t.sum().backward()
+    _allclose("hardswish_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("hardswish_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "hardtanh"), reason="pycoeus.hardtanh not available")
+def test_hardtanh_matches_pytorch() -> None:
+    """torch.nn.functional.hardtanh(x, min_val=-1, max_val=1) vs pycoeus.hardtanh(x, -1, 1), fwd+bwd."""
+    data = [-2.0, -0.5, 0.0, 0.5, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.hardtanh(x_pyc, -1.0, 1.0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.hardtanh(t, min_val=-1.0, max_val=1.0)
+    out_t.sum().backward()
+    _allclose("hardtanh_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("hardtanh_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "threshold"), reason="pycoeus.threshold not available")
+def test_threshold_matches_pytorch() -> None:
+    """torch.nn.functional.threshold(x, threshold=0.5, value=-1) vs pycoeus."""
+    data = [-1.0, 0.2, 0.5, 0.8, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.threshold(x_pyc, 0.5, -1.0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.threshold(t, 0.5, -1.0)
+    out_t.sum().backward()
+    _allclose("threshold_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("threshold_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sign"), reason="pycoeus.sign not available")
+def test_sign_matches_pytorch() -> None:
+    """torch.sign(x) vs pycoeus.sign(x)."""
+    data = [-2.0, -0.0, 0.0, 0.5, 3.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.sign(x_pyc)
+    t = torch.tensor(data, dtype=torch.float64)
+    exp = torch.sign(t)
+    _allclose("sign", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "recip"), reason="pycoeus.recip not available")
+def test_recip_matches_pytorch() -> None:
+    """torch.reciprocal(x) vs pycoeus.recip(x), fwd+bwd."""
+    data = [0.5, 1.0, 2.0, -1.0, -0.5]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.recip(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.reciprocal(t)
+    out_t.sum().backward()
+    _allclose("recip_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("recip_bwd", list(x_pyc.grad), t.grad.tolist())

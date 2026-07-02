@@ -84,6 +84,36 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     }
 }
 
+/// ZST tag for Complementary Error Function autograd.
+///
+/// Forward: `erfc(x) = 1 − erf(x)`.  Backward: `d/dx erfc(x) = −(2/√π)·e^(−x²)`.
+pub struct ErfcOp;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for ErfcOp {
+    const OP_NAME: &'static str = "erfc";
+
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::erfc(x, backend)
+    }
+
+    /// d/dx erfc(x) = -(2/√π)·e^(−x²)  (negation of erf gradient).
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let x_sq = coeus_ops::mul(x, x, backend);
+        let neg_x_sq = coeus_ops::neg(&x_sq, backend);
+        let gauss = coeus_ops::exp(&neg_x_sq, backend);
+        let neg_two_over_sqrt_pi =
+            Tensor::full_on(gauss.shape(), T::from_f64(-1.128_379_167_095_512_6), backend);
+        let scaled = coeus_ops::mul(&gauss, &neg_two_over_sqrt_pi, backend);
+        coeus_ops::mul(grad_out, &scaled, backend)
+    }
+}
+
 // ── Sin ─────────────────────────────────────────────────────────────────────
 
 /// ZST tag for Sine autograd.
@@ -272,6 +302,15 @@ pub fn log<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Va
 #[inline]
 pub fn erf<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
     unary_op::<T, B, ErfOp>(a)
+}
+
+/// Tracked complementary error function.
+///
+/// Backward: `d/dx erfc(x) = -(2/√π)·e^(−x²)`.
+#[must_use]
+#[inline]
+pub fn erfc<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, ErfcOp>(a)
 }
 
 /// Tracked element-wise sine.

@@ -69,6 +69,14 @@ pub fn erf<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Ten
     elementwise_unary(input, backend, UnaryOp::Erf)
 }
 
+/// Element-wise complementary error function: erfc(x) = 1 − erf(x).
+///
+/// Backward: `d/dx erfc(x) = −d/dx erf(x) = −(2/√π)·e^(−x²)`.
+#[inline]
+pub fn erfc<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Erfc)
+}
+
 /// Element-wise tangent: tan(x).
 ///
 /// Backward: `d/dx tan(x) = 1 / cos²(x)` (sec²(x)).
