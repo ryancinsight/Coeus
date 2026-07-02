@@ -455,6 +455,30 @@ fn leaky_relu_kink_at_zero_returns_slope() {
     assert_close_slice("leaky_relu_kink_dx", grad.as_slice(), &expected_grad, 1e-12);
 }
 
+// ── Clamp subgradient at x = min and x = max (documented contract parity vs PyTorch) ──
+
+/// PyTorch's `aten::clamp_backward_kernel` returns `1` at both boundaries
+/// `x == min` and `x == max` (the indicator `1_{lo <= x <= hi}` is inclusive
+/// on both ends). Coeus' `ClampNode::backward` must agree at the kink.
+#[test]
+fn clamp_kink_at_boundary_returns_one() {
+    let lo = -1.0_f64;
+    let hi = 2.0_f64;
+    let data = vec![-1.0_f64, 2.0_f64]; // exact min and exact max
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        true,
+    );
+    let output = coeus_autograd::clamp(&input, lo, hi);
+    // Forward at the boundary is unchanged (clamp(x, x, x) = x).
+    assert_close_slice("clamp_kink_out", output.tensor.as_slice(), &data, 1e-12);
+    output.backward();
+    let grad = input.grad().expect("clamp requires grad");
+    // Backward at both kink positions must be 1 per PyTorch convention.
+    let expected_grad = vec![1.0_f64, 1.0_f64];
+    assert_close_slice("clamp_kink_dx", grad.as_slice(), &expected_grad, 1e-12);
+}
+
 // ── Module-level forward smoke tests (no parameters) ────────────────────
 
 #[test]

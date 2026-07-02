@@ -286,18 +286,30 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let shape = self.input_tensor.shape();
-            // x - lo ≥ 0  ⟺  x ≥ lo
+            let one_scalar = Tensor::full_on(shape, T::one(), &backend);
+
+            // 1_{lo <= x} = 1 - 1_{x < lo} = 1 - ReluGrad(lo - x).
+            // At the kink x = lo: (lo - x) = 0, ReluGrad(0) = 0 (strict),
+            // so the indicator evaluates to 1 — matching PyTorch's
+            // `aten::clamp_backward_kernel` which is `[min, max]` inclusive.
             let lo_t = Tensor::full_on(shape, self.min_val, &backend);
-            let shifted_lo = coeus_ops::sub(&self.input_tensor, &lo_t, &backend);
-            let mask_lo =
-                coeus_ops::elementwise_unary(&shifted_lo, &backend, coeus_ops::UnaryOp::ReluGrad);
-            // hi - x ≥ 0  ⟺  x ≤ hi
+            let lo_minus_x = coeus_ops::sub(&lo_t, &self.input_tensor, &backend);
+            let mask_lt_lo =
+                coeus_ops::elementwise_unary(&lo_minus_x, &backend, coeus_ops::UnaryOp::ReluGrad);
+            let mask_lo_ge = coeus_ops::sub(&one_scalar, &mask_lt_lo, &backend);
+
+            // 1_{x <= hi} = 1 - 1_{x > hi} = 1 - ReluGrad(x - hi).
+            // At the kink x = hi: (x - hi) = 0, ReluGrad(0) = 0 (strict),
+            // so the upper indicator evaluates to 1 — same inclusive
+            // convention as the lower bound.
             let hi_t = Tensor::full_on(shape, self.max_val, &backend);
-            let shifted_hi = coeus_ops::sub(&hi_t, &self.input_tensor, &backend);
-            let mask_hi =
-                coeus_ops::elementwise_unary(&shifted_hi, &backend, coeus_ops::UnaryOp::ReluGrad);
-            // Inside mask = lo_mask AND hi_mask (product of indicators)
-            let inside = coeus_ops::mul(&mask_lo, &mask_hi, &backend);
+            let x_minus_hi = coeus_ops::sub(&self.input_tensor, &hi_t, &backend);
+            let mask_gt_hi =
+                coeus_ops::elementwise_unary(&x_minus_hi, &backend, coeus_ops::UnaryOp::ReluGrad);
+            let mask_hi_le = coeus_ops::sub(&one_scalar, &mask_gt_hi, &backend);
+
+            // Inside mask = mask_lo_ge AND mask_hi_le (product of indicators)
+            let inside = coeus_ops::mul(&mask_lo_ge, &mask_hi_le, &backend);
             let grad_in = coeus_ops::mul(grad_out, &inside, &backend);
             let lock = g.write();
             coeus_ops::add_assign(lock, &grad_in, &backend);

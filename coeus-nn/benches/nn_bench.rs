@@ -2661,9 +2661,7 @@ fn bench_erf_forward(c: &mut Criterion) {
 
 fn bench_sin_cos_forward(c: &mut Criterion) {
     // sin+cos fused: [128, 256] — typical in RoPE / positional encoding.
-    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| i as f32 * 0.0031)
-        .collect();
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES)).map(|i| i as f32 * 0.0031).collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
         false,
