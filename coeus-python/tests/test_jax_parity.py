@@ -2251,3 +2251,29 @@ def test_sum_axis_matches_jax() -> None:
     t = jnp.array(data, dtype=jnp.float64).reshape(2, 3)
     exp = jnp.sum(t, axis=1)
     _allclose("sum_axis", list(got.data), exp.tolist())
+
+# ---------------------------------------------------------------------------
+# mean_axis / reshape / permute parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "mean_axis"), reason="pycoeus.mean_axis not available")
+def test_mean_axis_matches_jax() -> None:
+    """jnp.mean(x, axis=1) vs pycoeus.mean_axis(x, 1)."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    got = pycoeus.mean_axis(x_pyc, 1)
+    t = jnp.array(data, dtype=jnp.float64).reshape(2, 3)
+    exp = jnp.mean(t, axis=1)
+    _allclose("mean_axis", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "reshape"), reason="pycoeus.reshape not available")
+def test_reshape_matches_jax() -> None:
+    """jnp.reshape(x, shape) vs pycoeus.reshape(x, shape)."""
+    data = [float(i) for i in range(12)]
+    x_pyc = pycoeus.Tensor(data, [2, 6], requires_grad=False)
+    got = pycoeus.reshape(x_pyc, [3, 4])
+    t = jnp.array(data, dtype=jnp.float64).reshape(2, 6)
+    exp = jnp.reshape(t, (3, 4))
+    _allclose("reshape", list(got.data), jnp.ravel(exp).tolist())
