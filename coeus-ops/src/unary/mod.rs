@@ -14,7 +14,7 @@ pub use activation::{
 pub use kernel::{elementwise_unary, elementwise_unary_assign, elementwise_unary_to};
 pub use math::{
     abs, abs_assign, acos, acosh, asin, asinh, atan, atanh, ceil, ceil_assign, cos, cos_assign,
-    cosh, erf, erfc, exp, exp2, exp_assign, expm1, floor, floor_assign, log, log10, log1p, log2,
-    log_assign, neg, neg_assign, recip, recip_assign, round, round_assign, sign, sign_assign, sin,
-    sin_assign, sinh, sqrt, sqrt_assign, tan, trunc, trunc_assign,
+    cosh, erf, erfc, exp, exp2, exp_assign, expm1, floor, floor_assign, lgamma, log, log10, log1p,
+    log2, log_assign, neg, neg_assign, recip, recip_assign, round, round_assign, sign, sign_assign,
+    sin, sin_assign, sinh, sqrt, sqrt_assign, tan, trunc, trunc_assign,
 };

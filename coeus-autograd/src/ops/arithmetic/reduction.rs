@@ -108,8 +108,9 @@ pub fn mean_axis<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 
 /// Tracked sum that treats NaN as zero (`torch.nansum`).
 ///
-/// Replaces every NaN in `a` with 0 via `where_cond`, then reduces with `sum`.
-/// Differentiable: gradient at NaN positions is zero (they don't affect the sum).
+/// Replaces every NaN in `a` with 0 via tracked `masked_fill`, then reduces
+/// with `sum`. Differentiable: gradient at NaN positions is zero because the
+/// mask removes those entries from the cleaned tensor.
 #[must_use]
 #[inline]
 pub fn nansum<T: coeus_core::Float, B: coeus_ops::BackendOps<T> + Default>(
@@ -120,20 +121,18 @@ where
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    // Build cleaned data: NaN → 0, finite values unchanged.
-    let cleaned_data: Vec<T> = a
+    let mask_data: Vec<T> = a
         .tensor
         .as_slice()
         .iter()
-        .map(|&v| if T::to_f64(v).is_nan() { T::zero() } else { v })
+        .map(|&v| if v.is_nan() { T::one() } else { T::zero() })
         .collect();
-    // Use cleaned tensor directly — the backward will zero NaN positions automatically
-    // because they contribute 0 to the sum.
-    let a_clean = crate::Var::new(
-        coeus_tensor::Tensor::from_slice_on(a.tensor.shape_cloned(), &cleaned_data, &backend),
+    let mask = crate::Var::new(
+        coeus_tensor::Tensor::from_slice_on(a.tensor.shape_cloned(), &mask_data, &backend),
         false,
     );
-    sum(&a_clean)
+    let cleaned = crate::ops::shape::masked_fill(a, &mask, T::zero());
+    sum(&cleaned)
 }
 
 /// Tracked mean that treats NaN as missing (`torch.nanmean`).
@@ -151,17 +150,18 @@ where
 {
     let backend = B::default();
     let slice = a.tensor.as_slice();
-    let count = slice.iter().filter(|&&v| !T::to_f64(v).is_nan()).count();
-    let cleaned_data: Vec<T> = slice
+    let count = slice.iter().filter(|&&v| !v.is_nan()).count();
+    let mask_data: Vec<T> = slice
         .iter()
-        .map(|&v| if T::to_f64(v).is_nan() { T::zero() } else { v })
+        .map(|&v| if v.is_nan() { T::one() } else { T::zero() })
         .collect();
-    let a_clean = crate::Var::new(
-        coeus_tensor::Tensor::from_slice_on(a.tensor.shape_cloned(), &cleaned_data, &backend),
+    let mask = crate::Var::new(
+        coeus_tensor::Tensor::from_slice_on(a.tensor.shape_cloned(), &mask_data, &backend),
         false,
     );
-    let s = sum(&a_clean);
-    crate::scalar_div(&s, T::from_f64(count.max(1) as f64))
+    let cleaned = crate::ops::shape::masked_fill(a, &mask, T::zero());
+    let s = sum(&cleaned);
+    crate::scalar_div(&s, T::from_f64(count as f64))
 }
 
 #[cfg(test)]
@@ -182,6 +182,12 @@ mod nan_reduction_tests {
         let s = nansum(&x);
         let v = s.tensor.as_slice()[0];
         assert!((v - 9.0).abs() < 1e-10, "nansum: expected 9, got {v}");
+        s.backward();
+        assert_eq!(
+            x.grad().unwrap().as_slice(),
+            &[1.0, 0.0, 1.0, 0.0, 1.0],
+            "nansum gradient zeros NaN positions"
+        );
     }
 
     #[test]
@@ -199,6 +205,15 @@ mod nan_reduction_tests {
         let m = nanmean(&x);
         let v = m.tensor.as_slice()[0];
         assert!((v - 4.0).abs() < 1e-10, "nanmean: expected 4.0, got {v}");
+        m.backward();
+        let grad = x.grad().unwrap();
+        let expected = [1.0 / 3.0, 0.0, 1.0 / 3.0, 0.0, 1.0 / 3.0];
+        for (i, (&actual, &expected)) in grad.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (actual - expected).abs() < 1e-12,
+                "nanmean grad[{i}]: {actual} vs {expected}"
+            );
+        }
     }
 
     #[test]

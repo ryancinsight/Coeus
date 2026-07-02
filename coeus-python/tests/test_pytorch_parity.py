@@ -2181,6 +2181,24 @@ def test_erfc_matches_pytorch() -> None:
     _allclose("erfc_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
 
 
+@pytest.mark.skipif(not hasattr(pycoeus, "gammaln"), reason="pycoeus.gammaln not available")
+def test_gammaln_forward_matches_torch_special() -> None:
+    """torch.special.gammaln(x) vs pycoeus.gammaln(x), f64 forward."""
+    data = [0.5, 1.0, 1.5, 2.0, 5.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    out_pyc = pycoeus.gammaln(x_pyc)
+    out_t = torch.special.gammaln(torch.tensor(data, dtype=torch.float64))
+    _allclose("gammaln_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "gammaln"), reason="pycoeus.gammaln not available")
+def test_gammaln_requires_digamma_for_backward() -> None:
+    """gammaln backward is rejected until digamma is available."""
+    x_pyc = pycoeus.Tensor([0.5, 1.0, 2.0], [3], requires_grad=True)
+    with pytest.raises(NotImplementedError, match="digamma"):
+        pycoeus.gammaln(x_pyc)
+
+
 # ── ConvTranspose3d PyTorch parity (MS-183) ─────────────────────────────────
 
 
@@ -3733,43 +3751,36 @@ def test_cumprod_matches_pytorch() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(
-    not hasattr(pycoeus, "nansum"),
-    reason="pycoeus.nansum not available in this build",
-)
 def test_nansum_matches_pytorch() -> None:
-    """torch.nansum parity: NaN elements treated as 0."""
-    import math
-
+    """torch.nansum parity: NaN elements treated as 0, with zero dx at NaNs."""
     data = [1.0, float("nan"), 3.0, float("nan"), 5.0]
-    # pycoeus
-    x_pyc = pycoeus.Tensor(data, [5])
+
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
     y_pyc = pycoeus.nansum(x_pyc)
-    # Expected: 1 + 0 + 3 + 0 + 5 = 9
-    x_t = torch.tensor(data, dtype=torch.float64)
+    y_pyc.backward()
+
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
     y_t = torch.nansum(x_t)
-    assert abs(list(y_pyc.data)[0] - y_t.item()) < 1e-10, (
-        f"nansum: got {list(y_pyc.data)[0]:.8g}, expected {y_t.item():.8g}"
-    )
+    y_t.backward()
+
+    _allclose("nansum_fwd", list(y_pyc.data), [y_t.item()], atol=1e-10)
+    _allclose("nansum_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
 
 
-@pytest.mark.skipif(
-    not hasattr(pycoeus, "nanmean"),
-    reason="pycoeus.nanmean not available in this build",
-)
 def test_nanmean_matches_pytorch() -> None:
-    """torch.nanmean parity: NaN elements excluded from mean."""
-    import math
-
+    """torch.nanmean parity: NaN elements excluded from mean and dx denominator."""
     data = [2.0, float("nan"), 4.0, float("nan"), 6.0]
-    # pycoeus: mean of (2, 4, 6) = 4.0
-    x_pyc = pycoeus.Tensor(data, [5])
+
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
     y_pyc = pycoeus.nanmean(x_pyc)
-    x_t = torch.tensor(data, dtype=torch.float64)
+    y_pyc.backward()
+
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
     y_t = torch.nanmean(x_t)
-    assert abs(list(y_pyc.data)[0] - y_t.item()) < 1e-10, (
-        f"nanmean: got {list(y_pyc.data)[0]:.8g}, expected {y_t.item():.8g}"
-    )
+    y_t.backward()
+
+    _allclose("nanmean_fwd", list(y_pyc.data), [y_t.item()], atol=1e-10)
+    _allclose("nanmean_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
 
 
 # ---------------------------------------------------------------------------

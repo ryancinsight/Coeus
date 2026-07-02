@@ -2,7 +2,33 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
-### Current Sprint: MS-218 - Apollo FFT autograd + Python parity [COMPLETE]
+### Current Sprint: MS-236 - scan/diff/NaN reduction parity [COMPLETE]
+- [x] [patch] Preserved the existing `pycoeus.diff`, `pycoeus.cumsum`, and
+  `pycoeus.cumprod` parity coverage while finishing `pycoeus.nansum` and
+  `pycoeus.nanmean` through the Rust autograd and PyO3 surfaces.
+- [x] [patch] Reworked `coeus_autograd::nansum` / `nanmean` to clean NaNs
+  with tracked `masked_fill` over a non-differentiable NaN mask, so forward
+  values match framework semantics and input gradients are zero at NaN
+  positions.
+- [x] [patch] Added value-semantic PyTorch and JAX forward+dx parity for
+  `nansum` and `nanmean`; added the missing JAX `cumprod` parity check.
+- [x] Evidence tier: analytical/value-semantic Rust tests plus differential
+  empirical PyTorch/JAX parity. Evidence: `rustup run nightly cargo fmt -p
+  coeus-autograd -p coeus-python --check`; `rustup run nightly cargo nextest
+  run -p coeus-autograd --no-fail-fast` (60/60); `D:/miniforge3/python.exe -m
+  maturin develop -m coeus-python/Cargo.toml`; targeted PyTorch MS-236 parity
+  (6/6); targeted JAX MS-236 parity (5/5); `rustup run nightly cargo clippy -p
+  coeus-autograd -p coeus-python --all-targets -- -D warnings`;
+  `rustup run nightly cargo test --doc -p coeus-autograd -p coeus-python`
+  (15/15 autograd doctests, 0 pycoeus doctests); `git diff --check`.
+- [ ] Residual non-MS-236 gate blockers: `rustup run nightly cargo nextest run
+  -p coeus-python --no-fail-fast` is 70/72 with `test_dot_cross_vector_ops`
+  and `test_statistical_ops` failing on `Tensor - float` Python assertions;
+  `rustup run nightly cargo doc -p coeus-autograd -p coeus-python --no-deps`
+  is blocked before Coeus docs by local `leto-ops` method-ambiguity compile
+  errors in the shared Atlas checkout.
+
+### Previous Sprint: MS-218 - Apollo FFT autograd + Python parity [COMPLETE]
 - [x] [minor] Added Apollo-backed `coeus_autograd::{fft_1d, ifft_1d,
   fft_1d_var, ifft_1d_var, fft_energy}` and wired the FFT module through
   `coeus-autograd/src/ops/mod.rs` plus the crate-root public surface.

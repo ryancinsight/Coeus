@@ -20,6 +20,9 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> String {
         coeus_ops::UnaryOp::Erfc => {
             format!("(1.0 - ({}))", coeus_ops::fuse::wgsl_erf_approx_expr("val"))
         }
+        coeus_ops::UnaryOp::Lgamma => {
+            panic!("lgamma is not supported by the WGPU unary shader path")
+        }
         coeus_ops::UnaryOp::Tan => "tan(val)".to_string(),
         coeus_ops::UnaryOp::Asin => "asin(val)".to_string(),
         coeus_ops::UnaryOp::Acos => "acos(val)".to_string(),

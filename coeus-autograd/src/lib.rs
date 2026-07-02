@@ -112,6 +112,7 @@ pub use ops::{
     l1_loss,
     layernorm,
     leaky_relu,
+    lgamma_forward,
     log,
     log10,
     log1p,

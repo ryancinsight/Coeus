@@ -77,6 +77,15 @@ pub fn erfc<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Te
     elementwise_unary(input, backend, UnaryOp::Erfc)
 }
 
+/// Element-wise natural logarithm of the absolute gamma function: `ln|Γ(x)|`.
+///
+/// Autograd for this operation requires `digamma(x)`, which is not exposed by
+/// the current datatype-law provider.
+#[inline]
+pub fn lgamma<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Lgamma)
+}
+
 /// Element-wise tangent: tan(x).
 ///
 /// Backward: `d/dx tan(x) = 1 / cos²(x)` (sec²(x)).

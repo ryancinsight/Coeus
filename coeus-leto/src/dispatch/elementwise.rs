@@ -170,6 +170,7 @@ fn unary_n<T: LetoScalar + CoeusScalar + CpuUnaryDispatch, const N: usize>(
         UnaryOp::Log => apply!(|x: T| T::eval_unary(UnaryOp::Log, x)),
         UnaryOp::Erf => apply!(|x: T| T::eval_unary(UnaryOp::Erf, x)),
         UnaryOp::Erfc => apply!(|x: T| T::eval_unary(UnaryOp::Erfc, x)),
+        UnaryOp::Lgamma => apply!(|x: T| T::eval_unary(UnaryOp::Lgamma, x)),
         UnaryOp::Tan => apply!(|x: T| T::eval_unary(UnaryOp::Tan, x)),
         UnaryOp::Asin => apply!(|x: T| T::eval_unary(UnaryOp::Asin, x)),
         UnaryOp::Acos => apply!(|x: T| T::eval_unary(UnaryOp::Acos, x)),

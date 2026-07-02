@@ -102,6 +102,34 @@ fn unary_dispatch_exp_log_sqrt_matches_scalar_reference() {
 }
 
 #[test]
+fn unary_dispatch_special_functions_match_reference_values() {
+    let input = vec![0.0f64, 0.5, 1.0, 5.0];
+    let mut out = vec![0.0f64; 4];
+    let la = layout(&[4]);
+
+    elementwise_unary_into(CpuUnaryOp::Erf, &la, &input, &la, &mut out).unwrap();
+    assert!(
+        (out[1] - 0.520_499_877_813_046_5).abs() <= 2.0e-15,
+        "erf(0.5)"
+    );
+
+    elementwise_unary_into(CpuUnaryOp::Erfc, &la, &input, &la, &mut out).unwrap();
+    assert!(
+        (out[3] - 1.537_459_794_428_034_7e-12).abs() <= 2.0e-25,
+        "erfc(5)"
+    );
+
+    elementwise_unary_into(CpuUnaryOp::Lgamma, &la, &input, &la, &mut out).unwrap();
+    assert!(out[0].is_infinite(), "lgamma(0)");
+    assert!(
+        (out[1] - 0.572_364_942_924_700_1).abs() <= 2.0e-15,
+        "lgamma(0.5)"
+    );
+    assert_eq!(out[2], 0.0);
+    assert!((out[3] - 24.0_f64.ln()).abs() <= 2.0e-15, "lgamma(5)");
+}
+
+#[test]
 fn reduction_dispatch_covers_keepdim_axis_ops() {
     let input = vec![1.0f64, 4.0, -2.0, 5.0, 3.0, 6.0];
     let input_layout = layout(&[2, 3]);

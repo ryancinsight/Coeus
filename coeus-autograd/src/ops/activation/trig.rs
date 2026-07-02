@@ -544,6 +544,20 @@ pub fn erfc<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
     unary_op::<T, B, ErfcOp>(a)
 }
 
+/// Forward-only natural logarithm of the absolute gamma function.
+///
+/// This is not exported as a differentiable autograd node because the
+/// derivative is `digamma(x)`, which is not available in the current
+/// datatype-law surface.
+#[must_use]
+#[inline]
+pub fn lgamma_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Tensor<T, B> {
+    let backend = B::default();
+    coeus_ops::lgamma(&a.tensor, &backend)
+}
+
 /// Tracked element-wise sine.
 ///
 /// Backward: `d/dx sin(x) = cos(x)`.

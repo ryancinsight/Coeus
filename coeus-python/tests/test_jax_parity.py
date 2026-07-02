@@ -1552,7 +1552,7 @@ def test_flatten_matches_jax() -> None:
 
 
 # ---------------------------------------------------------------------------
-# diff / cumsum / cumprod JAX parity (MS-236)
+# diff / cumsum / cumprod / NaN reduction JAX parity (MS-236)
 # ---------------------------------------------------------------------------
 
 
@@ -1586,6 +1586,54 @@ def test_cumsum_matches_jax() -> None:
 
     _allclose("cumsum_jax_fwd", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-10)
     _allclose("cumsum_jax_dx", list(x_pyc.grad), dx_j.flatten().tolist(), atol=1e-10)
+
+
+def test_cumprod_matches_jax() -> None:
+    """jnp.cumprod parity on [2, 4] along axis=0."""
+    data = [1.0, 2.0, 3.0, 4.0, 1.0, 0.5, 2.0, 3.0]
+
+    x_pyc = pycoeus.Tensor(data, [2, 4], requires_grad=True)
+    y_pyc = pycoeus.cumprod(x_pyc, 0)
+    y_pyc.backward()
+
+    x_j = jnp.asarray(data, dtype=jnp.float64).reshape(2, 4)
+    y_j = jnp.cumprod(x_j, axis=0)
+    dx_j = jax.grad(lambda x: jnp.sum(jnp.cumprod(x, axis=0)))(x_j)
+
+    _allclose("cumprod_jax_fwd", list(y_pyc.data), y_j.flatten().tolist(), atol=1e-10)
+    _allclose("cumprod_jax_dx", list(x_pyc.grad), dx_j.flatten().tolist(), atol=1e-10)
+
+
+def test_nansum_matches_jax() -> None:
+    """jnp.nansum parity: NaN elements are excluded from value and dx."""
+    data = [1.0, float("nan"), 3.0, float("nan"), 5.0]
+
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    y_pyc = pycoeus.nansum(x_pyc)
+    y_pyc.backward()
+
+    x_j = jnp.asarray(data, dtype=jnp.float64)
+    y_j = jnp.nansum(x_j)
+    dx_j = jax.grad(lambda x: jnp.nansum(x))(x_j)
+
+    _allclose("nansum_jax_fwd", list(y_pyc.data), [float(y_j)], atol=1e-10)
+    _allclose("nansum_jax_dx", list(x_pyc.grad), dx_j.flatten().tolist(), atol=1e-10)
+
+
+def test_nanmean_matches_jax() -> None:
+    """jnp.nanmean parity: finite-count denominator drives value and dx."""
+    data = [2.0, float("nan"), 4.0, float("nan"), 6.0]
+
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    y_pyc = pycoeus.nanmean(x_pyc)
+    y_pyc.backward()
+
+    x_j = jnp.asarray(data, dtype=jnp.float64)
+    y_j = jnp.nanmean(x_j)
+    dx_j = jax.grad(lambda x: jnp.nanmean(x))(x_j)
+
+    _allclose("nanmean_jax_fwd", list(y_pyc.data), [float(y_j)], atol=1e-10)
+    _allclose("nanmean_jax_dx", list(x_pyc.grad), dx_j.flatten().tolist(), atol=1e-10)
 
 
 # ---------------------------------------------------------------------------

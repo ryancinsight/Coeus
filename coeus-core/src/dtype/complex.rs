@@ -72,6 +72,11 @@ impl<T: Float> FloatOps for Complex<T> {
     }
 
     #[inline(always)]
+    fn lgamma_op(self) -> Self {
+        panic!("lgamma not supported on complex types")
+    }
+
+    #[inline(always)]
     fn tan_op(self) -> Self {
         Self::zero()
     }
@@ -245,6 +250,7 @@ impl<T: Float> crate::dtype::CpuUnaryDispatch for Complex<T> {
             CpuUnaryOp::Log1p => x.log1p_op(),
             CpuUnaryOp::Erf => x.erf_op(),
             CpuUnaryOp::Erfc => x.erfc_op(),
+            CpuUnaryOp::Lgamma => x.lgamma_op(),
             CpuUnaryOp::Exp => x.exp_op(),
             CpuUnaryOp::Log => x.log_op(),
             CpuUnaryOp::Neg => Self::zero() - x,

@@ -9,7 +9,7 @@ use std::sync::Arc;
 /// Autograd node for masked and causal softmax.
 ///
 /// Stores the (masked) softmax output `y`. The reverse pass is the ordinary softmax
-/// jacobian applied to `y` (see [`accumulate_softmax_grad`]): masked positions hold
+/// jacobian applied to `y` (see `accumulate_softmax_grad`): masked positions hold
 /// `y = 0`, so they receive zero gradient and do not enter the per-row sum, and an
 /// all-masked row propagates zero — no `-inf`/`NaN` is ever formed.
 pub struct MaskedSoftmaxNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {

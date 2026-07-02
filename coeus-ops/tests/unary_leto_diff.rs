@@ -30,6 +30,7 @@ const OPS: &[CpuUnaryOp] = &[
     CpuUnaryOp::Log,
     CpuUnaryOp::Erf,
     CpuUnaryOp::Erfc,
+    CpuUnaryOp::Lgamma,
     CpuUnaryOp::Neg,
     CpuUnaryOp::Abs,
     CpuUnaryOp::Sqrt,
@@ -67,7 +68,7 @@ where
 
 fn inputs_for<T: Scalar>(op: CpuUnaryOp) -> Vec<T> {
     let values: &[f64] = match op {
-        CpuUnaryOp::Log | CpuUnaryOp::Sqrt => &[0.25, 1.0, 4.0, 16.0],
+        CpuUnaryOp::Log | CpuUnaryOp::Sqrt | CpuUnaryOp::Lgamma => &[0.25, 1.0, 4.0, 16.0],
         _ => &[-2.0, -0.5, 0.0, 0.5, 2.0],
     };
     values.iter().map(|&value| T::from_f64(value)).collect()

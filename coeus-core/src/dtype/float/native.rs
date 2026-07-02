@@ -1,7 +1,8 @@
 use crate::dtype::traits::{private, Float, FloatOps, Scalar};
+use eunomia::FloatElement;
 
 macro_rules! impl_scalar_float_native {
-    ($t:ty, $erf_fn:path) => {
+    ($t:ty) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
@@ -131,11 +132,15 @@ macro_rules! impl_scalar_float_native {
             }
             #[inline(always)]
             fn erf_op(self) -> Self {
-                $erf_fn(self)
+                FloatElement::erf(self)
             }
             #[inline(always)]
             fn erfc_op(self) -> Self {
-                Self::one() - self.erf_op()
+                FloatElement::erfc(self)
+            }
+            #[inline(always)]
+            fn lgamma_op(self) -> Self {
+                FloatElement::lgamma(self)
             }
             #[inline(always)]
             fn tan_op(self) -> Self {
@@ -191,9 +196,9 @@ macro_rules! impl_scalar_float_native {
             }
             #[inline(always)]
             fn gelu_op(self) -> Self {
-                let half = Self::from_f64(0.5);
-                let one = Self::from_f64(1.0);
-                let inv_sqrt_two = Self::from_f64(core::f64::consts::FRAC_1_SQRT_2);
+                let half = <$t as Scalar>::from_f64(0.5);
+                let one = <$t as Scalar>::from_f64(1.0);
+                let inv_sqrt_two = <$t as Scalar>::from_f64(core::f64::consts::FRAC_1_SQRT_2);
                 half * self * (one + (self * inv_sqrt_two).erf_op())
             }
             #[inline(always)]
@@ -323,5 +328,5 @@ macro_rules! impl_scalar_float_native {
     };
 }
 
-impl_scalar_float_native!(f32, crate::dtype::float::erf::erf_f32);
-impl_scalar_float_native!(f64, crate::dtype::float::erf::erf_f64);
+impl_scalar_float_native!(f32);
+impl_scalar_float_native!(f64);

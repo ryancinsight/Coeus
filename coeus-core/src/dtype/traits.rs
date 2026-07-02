@@ -39,6 +39,8 @@ pub trait FloatOps: private::Sealed {
     fn erf_op(self) -> Self;
     /// Complementary Gauss error function: erfc(x) = 1 - erf(x).
     fn erfc_op(self) -> Self;
+    /// Natural logarithm of the absolute gamma function: ln|Γ(x)|.
+    fn lgamma_op(self) -> Self;
     /// Element-wise tangent: tan(x).
     fn tan_op(self) -> Self;
     /// Element-wise arc-sine: asin(x).
@@ -128,6 +130,8 @@ pub enum CpuUnaryOp {
     Erf,
     /// Complementary Gauss error function: erfc(x) = 1 - erf(x).
     Erfc,
+    /// Natural logarithm of the absolute gamma function: ln|Γ(x)|.
+    Lgamma,
     /// tan(x)
     Tan,
     /// arcsin(x)
