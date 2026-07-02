@@ -42,12 +42,11 @@
   coeus-autograd -p coeus-python --all-targets -- -D warnings`;
   `rustup run nightly cargo test --doc -p coeus-autograd -p coeus-python`
   (15/15 autograd doctests, 0 pycoeus doctests); `git diff --check`.
-- [ ] Residual non-MS-236 gate blockers: `rustup run nightly cargo nextest run
-  -p coeus-python --no-fail-fast` is 70/72 with `test_dot_cross_vector_ops`
-  and `test_statistical_ops` failing on `Tensor - float` Python assertions;
-  `rustup run nightly cargo doc -p coeus-autograd -p coeus-python --no-deps`
-  is blocked before Coeus docs by local `leto-ops` method-ambiguity compile
-  errors in the shared Atlas checkout.
+- [x] Residual non-MS-236 gate blockers rechecked and closed: `rustup run
+  nightly cargo nextest run -p coeus-python --no-fail-fast` now passes 72/72
+  after scalar-tensor assertion cleanup, and `rustup run nightly cargo doc -p
+  coeus-autograd -p coeus-python --no-deps` is warning-clean after the shared
+  Atlas `leto-ops` / `melinoe` path crates compile.
 
 ### Previous Sprint: MS-218 - Apollo FFT autograd + Python parity [COMPLETE]
 - [x] [minor] Added Apollo-backed `coeus_autograd::{fft_1d, ifft_1d,

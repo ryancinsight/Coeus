@@ -107,6 +107,11 @@
 
 ### Fixed
 
+- **MS-236 gate-tracking drift** — updated the sprint checklist to reflect the
+  reverified `coeus-python` package gate (72/72 nextest) and warning-clean
+  `coeus-autograd` / `coeus-python` rustdoc gate after the shared Atlas path
+  crates compiled successfully. ([patch])
+
 - **`unused_mut` clippy regression in BN1d training** — dropped unneeded `mut`
   on `BatchNorm1d::from_parts(...)` in `coeus-nn/tests/norm_parity.rs` so the
   workspace passes `cargo clippy --workspace --all-targets -- -D warnings`
