@@ -92,7 +92,8 @@ pub fn var_mean(
     if let Some(ax) = axis {
         validate_stat_axis("var_mean", input, ax)?;
         validate_stat_denominator("var_mean", input.inner.tensor.shape()[ax], unbiased)?;
-        let (v, mu) = py.allow_threads(|| coeus_autograd::var_mean_axis(&input.inner, ax, unbiased));
+        let (v, mu) =
+            py.allow_threads(|| coeus_autograd::var_mean_axis(&input.inner, ax, unbiased));
         return Ok((
             PyTensor {
                 inner: drop_axis_dim(v, ax, keepdim),
@@ -119,7 +120,8 @@ pub fn std_mean(
     if let Some(ax) = axis {
         validate_stat_axis("std_mean", input, ax)?;
         validate_stat_denominator("std_mean", input.inner.tensor.shape()[ax], unbiased)?;
-        let (sd, mu) = py.allow_threads(|| coeus_autograd::std_mean_axis(&input.inner, ax, unbiased));
+        let (sd, mu) =
+            py.allow_threads(|| coeus_autograd::std_mean_axis(&input.inner, ax, unbiased));
         return Ok((
             PyTensor {
                 inner: drop_axis_dim(sd, ax, keepdim),
@@ -244,7 +246,6 @@ fn validate_stat_axis(op: &str, input: &PyTensor, axis: usize) -> PyResult<()> {
     }
     Ok(())
 }
-
 
 /// Clip the global gradient norm of a list of parameters.
 ///

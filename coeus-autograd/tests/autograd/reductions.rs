@@ -325,7 +325,10 @@ fn test_var_axis_autograd_matches_analytic() {
     assert_eq!(v.tensor.shape(), &[2, 1], "keepdim shape");
     let vs = v.tensor.as_slice().to_vec();
     let ms = mu.tensor.as_slice().to_vec();
-    assert!((ms[0] - 2.0).abs() < 1e-14 && (ms[1] - 6.0).abs() < 1e-14, "means");
+    assert!(
+        (ms[0] - 2.0).abs() < 1e-14 && (ms[1] - 6.0).abs() < 1e-14,
+        "means"
+    );
     assert!((vs[0] - 1.0).abs() < 1e-14, "row0 var: {}", vs[0]);
     assert!((vs[1] - 4.0).abs() < 1e-14, "row1 var: {}", vs[1]);
 
