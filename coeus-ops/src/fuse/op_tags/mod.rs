@@ -267,6 +267,76 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Log10 {
 }
 
 #[derive(Clone, Copy)]
+/// Inverse hyperbolic tangent operation tag.
+pub struct Atanh;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Atanh {
+    const WGSL_TEMPLATE: &'static str = "atanh({})";
+    fn wgsl_expr(child: &str) -> String {
+        format!("atanh({})", child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.atanh_op()
+    }
+}
+
+#[derive(Clone, Copy)]
+/// Inverse hyperbolic sine operation tag.
+pub struct Asinh;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Asinh {
+    const WGSL_TEMPLATE: &'static str = "asinh({})";
+    fn wgsl_expr(child: &str) -> String {
+        format!("asinh({})", child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.asinh_op()
+    }
+}
+
+#[derive(Clone, Copy)]
+/// Inverse hyperbolic cosine operation tag.
+pub struct Acosh;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Acosh {
+    const WGSL_TEMPLATE: &'static str = "acosh({})";
+    fn wgsl_expr(child: &str) -> String {
+        format!("acosh({})", child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.acosh_op()
+    }
+}
+
+#[derive(Clone, Copy)]
+/// exp(x) - 1 operation tag.
+pub struct Expm1;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Expm1 {
+    const WGSL_TEMPLATE: &'static str = "(exp({}) - 1.0)";
+    fn wgsl_expr(child: &str) -> String {
+        format!("(exp({}) - 1.0)", child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.expm1_op()
+    }
+}
+
+#[derive(Clone, Copy)]
+/// ln(1 + x) operation tag.
+pub struct Log1p;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Log1p {
+    const WGSL_TEMPLATE: &'static str = "log(1.0 + ({}))";
+    fn wgsl_expr(child: &str) -> String {
+        format!("log(1.0 + ({}))", child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.log1p_op()
+    }
+}
+
+#[derive(Clone, Copy)]
 /// Natural log operation tag.
 pub struct Log;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Log {

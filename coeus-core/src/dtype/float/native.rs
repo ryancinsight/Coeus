@@ -166,6 +166,26 @@ macro_rules! impl_scalar_float_native {
                 self.log10()
             }
             #[inline(always)]
+            fn atanh_op(self) -> Self {
+                self.atanh()
+            }
+            #[inline(always)]
+            fn asinh_op(self) -> Self {
+                self.asinh()
+            }
+            #[inline(always)]
+            fn acosh_op(self) -> Self {
+                self.acosh()
+            }
+            #[inline(always)]
+            fn expm1_op(self) -> Self {
+                self.exp_m1()
+            }
+            #[inline(always)]
+            fn log1p_op(self) -> Self {
+                self.ln_1p()
+            }
+            #[inline(always)]
             fn gelu_op(self) -> Self {
                 let half = Self::from_f64(0.5);
                 let one = Self::from_f64(1.0);

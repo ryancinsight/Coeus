@@ -2142,7 +2142,9 @@ def test_stack_matches_jax() -> None:
 def test_matmul_matches_jax() -> None:
     """jnp.matmul(a, b) vs pycoeus.matmul(a, b)."""
     a = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-    b = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+    # 6 values: shape [3, 2] (the original 8-element list could not satisfy
+    # the declared [3, 2] shape on either side of the comparison).
+    b = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
     a_pyc = pycoeus.Tensor(a, [2, 3], requires_grad=False)
     b_pyc = pycoeus.Tensor(b, [3, 2], requires_grad=False)
     got = pycoeus.matmul(a_pyc, b_pyc)
@@ -2150,3 +2152,77 @@ def test_matmul_matches_jax() -> None:
     b_j = jnp.array(b, dtype=jnp.float64).reshape(3, 2)
     exp = jnp.matmul(a_j, b_j)
     _allclose("matmul", list(got.data), jnp.ravel(exp).tolist())
+
+# ---------------------------------------------------------------------------
+# relu / sigmoid / tanh / gelu parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "relu"), reason="pycoeus.relu not available")
+def test_relu_matches_jax() -> None:
+    """jax.nn.relu(x) vs pycoeus.relu(x)."""
+    import jax.nn
+    data = [-2.0, -0.5, 0.0, 0.5, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.relu(x_pyc)
+    exp = jax.nn.relu(jnp.array(data, dtype=jnp.float64))
+    _allclose("relu", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sigmoid"), reason="pycoeus.sigmoid not available")
+def test_sigmoid_matches_jax() -> None:
+    """jax.nn.sigmoid(x) vs pycoeus.sigmoid(x)."""
+    import jax.nn
+    data = [-3.0, -1.0, 0.0, 1.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.sigmoid(x_pyc)
+    exp = jax.nn.sigmoid(jnp.array(data, dtype=jnp.float64))
+    _allclose("sigmoid", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "tanh"), reason="pycoeus.tanh not available")
+def test_tanh_matches_jax() -> None:
+    """jnp.tanh(x) vs pycoeus.tanh(x)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.tanh(x_pyc)
+    exp = jnp.tanh(jnp.array(data, dtype=jnp.float64))
+    _allclose("tanh", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "gelu"), reason="pycoeus.gelu not available")
+def test_gelu_matches_jax() -> None:
+    """jax.nn.gelu(x, approximate=False) vs pycoeus.gelu(x)."""
+    import jax.nn
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.gelu(x_pyc)
+    exp = jax.nn.gelu(jnp.array(data, dtype=jnp.float64), approximate=False)
+    _allclose("gelu", list(got.data), exp.tolist(), atol=1e-8)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "atanh"), reason="pycoeus.atanh not available")
+def test_atanh_matches_jax() -> None:
+    data = [-0.9, -0.5, 0.0, 0.5, 0.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.atanh(x_pyc)
+    exp = jnp.arctanh(jnp.array(data, dtype=jnp.float64))
+    _allclose("atanh", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "expm1"), reason="pycoeus.expm1 not available")
+def test_expm1_matches_jax() -> None:
+    data = [-1.0, -0.5, 0.0, 0.5, 1.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.expm1(x_pyc)
+    exp = jnp.expm1(jnp.array(data, dtype=jnp.float64))
+    _allclose("expm1", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log1p"), reason="pycoeus.log1p not available")
+def test_log1p_matches_jax() -> None:
+    data = [-0.5, 0.0, 0.5, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.log1p(x_pyc)
+    exp = jnp.log1p(jnp.array(data, dtype=jnp.float64))
+    _allclose("log1p", list(got.data), exp.tolist(), atol=1e-12)

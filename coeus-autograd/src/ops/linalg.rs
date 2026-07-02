@@ -29,9 +29,35 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
     ) {
+        // Batched B ([…,k,n], bmm): per-batch transposes of the last two axes.
+        // The permuted view is materialized contiguous because the batched
+        // matmul kernels derive strides from shape (they do not honor view
+        // strides, unlike the 2-D fast path).
+        if b.ndim() > 2 {
+            assert_eq!(
+                a.ndim(),
+                b.ndim(),
+                "matmul backward: batched B requires equally-batched A \
+                 (broadcast batching is not differentiable yet)"
+            );
+            // ∂/∂A: grad_C @ B^T — [batch,m,n] × [batch,n,k] → [batch,m,k]
+            if let Some(Some(ref g)) = input_grads.get(0) {
+                let b_t = swap_last_two(b, backend);
+                let gl = g.write();
+                coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend);
+            }
+            // ∂/∂B: A^T @ grad_C — [batch,k,m] × [batch,m,n] → [batch,k,n]
+            if let Some(Some(ref g)) = input_grads.get(1) {
+                let a_t = swap_last_two(a, backend);
+                let gl = g.write();
+                coeus_ops::matmul_accumulate(&a_t, grad_out, gl, backend);
+            }
+            return;
+        }
+
         // ∂/∂A: grad_C @ B^T — grad_C may be batched ([batch,m,n] × [n,k] → [batch,m,k])
         if let Some(Some(ref g)) = input_grads.get(0) {
-            let b_t = b.t(); // B is always 2D (weight matrix); b.t() ✓
+            let b_t = b.t(); // B is 2-D on this path; b.t() is a stride view.
             let gl = g.write();
             coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend);
         }
@@ -58,6 +84,21 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
             coeus_ops::matmul_accumulate(&a_flat_t, &go_flat, gl, backend);
         }
     }
+}
+
+/// Materialized transpose of the last two axes of a (batched) tensor.
+///
+/// Contiguous copy rather than a stride view: the batched matmul kernels
+/// derive their layouts from shape alone, so a strided view would be read
+/// with wrong strides.
+fn swap_last_two<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    t: &Tensor<T, B>,
+    backend: &B,
+) -> Tensor<T, B> {
+    let nd = t.ndim();
+    let mut dims: Vec<usize> = (0..nd).collect();
+    dims.swap(nd - 2, nd - 1);
+    t.permute(&dims).to_contiguous_on(backend)
 }
 
 /// ZST tag for 2-D Transpose autograd.
