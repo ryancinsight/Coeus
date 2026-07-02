@@ -2226,3 +2226,28 @@ def test_log1p_matches_jax() -> None:
     got = pycoeus.log1p(x_pyc)
     exp = jnp.log1p(jnp.array(data, dtype=jnp.float64))
     _allclose("log1p", list(got.data), exp.tolist(), atol=1e-12)
+
+# ---------------------------------------------------------------------------
+# prelu / prod / sum_axis parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "prod"), reason="pycoeus.prod not available")
+def test_prod_matches_jax() -> None:
+    """jnp.prod(x) vs pycoeus.prod(x)."""
+    data = [1.0, 2.0, 3.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=False)
+    got = pycoeus.prod(x_pyc)
+    exp = float(jnp.prod(jnp.array(data, dtype=jnp.float64)))
+    _allclose("prod", list(got.data), [exp])
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sum_axis"), reason="pycoeus.sum_axis not available")
+def test_sum_axis_matches_jax() -> None:
+    """jnp.sum(x, axis=1) vs pycoeus.sum_axis(x, 1)."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    got = pycoeus.sum_axis(x_pyc, 1)
+    t = jnp.array(data, dtype=jnp.float64).reshape(2, 3)
+    exp = jnp.sum(t, axis=1)
+    _allclose("sum_axis", list(got.data), exp.tolist())

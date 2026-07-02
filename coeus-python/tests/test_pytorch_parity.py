@@ -5276,3 +5276,66 @@ def test_log1p_matches_pytorch() -> None:
     out_t.sum().backward()
     _allclose("log1p_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
     _allclose("log1p_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+# ---------------------------------------------------------------------------
+# prelu / squeeze / unsqueeze / prod / sum_axis parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "prelu"), reason="pycoeus.prelu not available")
+def test_prelu_fwd_bwd_matches_pytorch() -> None:
+    """PReLU fwd+bwd: d/dx prelu = 1 if x>0, else alpha."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    alpha = 0.25
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.prelu(x_pyc, alpha)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.prelu(t, torch.tensor([alpha], dtype=torch.float64))
+    out_t.sum().backward()
+    _allclose("prelu_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("prelu_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "squeeze"), reason="pycoeus.squeeze not available")
+def test_squeeze_unsqueeze_matches_pytorch() -> None:
+    """torch.squeeze/unsqueeze roundtrip vs pycoeus."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [1, 2, 3], requires_grad=False)
+    sq = pycoeus.squeeze(x_pyc, 0)
+    t = torch.tensor(data, dtype=torch.float64).reshape(1, 2, 3)
+    sq_t = torch.squeeze(t, 0)
+    _allclose("squeeze", list(sq.data), sq_t.flatten().tolist())
+    assert list(sq.shape) == [2, 3], f"Expected [2,3] got {list(sq.shape)}"
+
+    us = pycoeus.unsqueeze(x_pyc, 0)
+    us_t = torch.unsqueeze(t, 0)
+    assert list(us.shape) == list(us_t.shape), f"unsqueeze shape mismatch"
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "prod"), reason="pycoeus.prod not available")
+def test_prod_matches_pytorch() -> None:
+    """torch.prod(x) vs pycoeus.prod(x), fwd+bwd."""
+    data = [1.0, 2.0, 3.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    out_pyc = pycoeus.prod(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.prod(t)
+    out_t.backward()
+    _allclose("prod_fwd", list(out_pyc.data), [out_t.item()])
+    _allclose("prod_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sum_axis"), reason="pycoeus.sum_axis not available")
+def test_sum_axis_matches_pytorch() -> None:
+    """torch.sum(x, dim=1) vs pycoeus.sum_axis(x, axis=1), fwd+bwd."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    out_pyc = pycoeus.sum_axis(x_pyc, 1)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    out_t = torch.sum(t, dim=1, keepdim=False)
+    out_t.sum().backward()
+    _allclose("sum_axis_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("sum_axis_bwd", list(x_pyc.grad), t.grad.flatten().tolist())

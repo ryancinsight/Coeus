@@ -145,8 +145,8 @@ pub use silu::{mish, silu, softplus, MishOp, SiluOp, SoftplusOp};
 pub use tanh_act::{tanh, TanhOp};
 pub use trig::{
     acos, acosh, asin, asinh, atan, atanh, cos, cosh, erf, erfc, exp, expm1, log, log10, log1p,
-    log2, sin, sinh, tan, AcosOp, AcoshOp, AsinOp, AsinhOp, AtanOp, AtanhOp, CoshOp, CosOp,
-    ErfOp, ErfcOp, ExpOp, Expm1Op, Log10Op, Log1pOp, Log2Op, LogOp, SinOp, SinhOp, TanOp,
+    log2, sin, sinh, tan, AcosOp, AcoshOp, AsinOp, AsinhOp, AtanOp, AtanhOp, CosOp, CoshOp, ErfOp,
+    ErfcOp, ExpOp, Expm1Op, Log10Op, Log1pOp, Log2Op, LogOp, SinOp, SinhOp, TanOp,
 };
 // Extended-family re-exports (G-037).
 pub use ext::{
