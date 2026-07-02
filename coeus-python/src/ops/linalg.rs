@@ -21,7 +21,7 @@ use pyo3::prelude::*;
 /// `ValueError` at the binding boundary rather than panicking.
 #[pyfunction]
 #[pyo3(name = "dot", signature = (input, tensor))]
-pub fn dot(input: &PyTensor, tensor: &PyTensor, py: Python<'_>) -> PyResult<f64> {
+pub fn dot(input: &PyTensor, tensor: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let a = &input.inner.tensor;
     let b = &tensor.inner.tensor;
     if a.numel() != b.numel() {
@@ -36,11 +36,13 @@ pub fn dot(input: &PyTensor, tensor: &PyTensor, py: Python<'_>) -> PyResult<f64>
             "dot: empty tensors have no dot product",
         ));
     }
-    // Backend-aware invocation: `coeus_ops::dot` constructs its own
-    // `B::default()` internally, so no caller-side backend is needed; the
-    // job here is just to type-assert inference at the boundary.
-    let v: f64 = py.allow_threads(|| coeus_ops::dot::<f64, MoiraiBackend>(a, b));
-    Ok(v)
+    // Tracked composition sum(a ⊙ b) so gradients flow (d/da = b, d/db = a),
+    // matching torch.dot's autograd contract; returns a [1] tensor.
+    let inner = py.allow_threads(|| {
+        let prod = coeus_autograd::mul(&input.inner, &tensor.inner);
+        coeus_autograd::sum(&prod)
+    });
+    Ok(PyTensor::from_var(inner))
 }
 
 /// Per-channel 3-vector cross product along `dim`.

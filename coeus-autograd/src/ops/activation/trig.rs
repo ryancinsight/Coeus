@@ -369,6 +369,124 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     }
 }
 
+/// ZST tag for inverse hyperbolic tangent autograd.
+/// Backward: d/dx atanh(x) = 1/(1 - x²).
+pub struct AtanhOp;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for AtanhOp {
+    const OP_NAME: &'static str = "atanh";
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::atanh(x, backend)
+    }
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let x_sq = coeus_ops::mul(x, x, backend);
+        let one = Tensor::full_on(x.shape(), T::one(), backend);
+        let one_minus_xsq = coeus_ops::sub(&one, &x_sq, backend);
+        let inv = coeus_ops::recip(&one_minus_xsq, backend);
+        coeus_ops::mul(grad_out, &inv, backend)
+    }
+}
+
+/// ZST tag for inverse hyperbolic sine autograd.
+/// Backward: d/dx asinh(x) = 1/sqrt(x² + 1).
+pub struct AsinhOp;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for AsinhOp {
+    const OP_NAME: &'static str = "asinh";
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::asinh(x, backend)
+    }
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let x_sq = coeus_ops::mul(x, x, backend);
+        let one = Tensor::full_on(x.shape(), T::one(), backend);
+        let xsq_plus_one = coeus_ops::add(&x_sq, &one, backend);
+        let sqrt_val = coeus_ops::sqrt(&xsq_plus_one, backend);
+        let inv = coeus_ops::recip(&sqrt_val, backend);
+        coeus_ops::mul(grad_out, &inv, backend)
+    }
+}
+
+/// ZST tag for inverse hyperbolic cosine autograd.
+/// Backward: d/dx acosh(x) = 1/sqrt(x² - 1).
+pub struct AcoshOp;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for AcoshOp {
+    const OP_NAME: &'static str = "acosh";
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::acosh(x, backend)
+    }
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let x_sq = coeus_ops::mul(x, x, backend);
+        let one = Tensor::full_on(x.shape(), T::one(), backend);
+        let xsq_minus_one = coeus_ops::sub(&x_sq, &one, backend);
+        let sqrt_val = coeus_ops::sqrt(&xsq_minus_one, backend);
+        let inv = coeus_ops::recip(&sqrt_val, backend);
+        coeus_ops::mul(grad_out, &inv, backend)
+    }
+}
+
+/// ZST tag for expm1 autograd.
+/// Backward: d/dx expm1(x) = exp(x).
+pub struct Expm1Op;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for Expm1Op {
+    const OP_NAME: &'static str = "expm1";
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::expm1(x, backend)
+    }
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let exp_x = coeus_ops::exp(x, backend);
+        coeus_ops::mul(grad_out, &exp_x, backend)
+    }
+}
+
+/// ZST tag for log1p autograd.
+/// Backward: d/dx log1p(x) = 1/(1 + x).
+pub struct Log1pOp;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for Log1pOp {
+    const OP_NAME: &'static str = "log1p";
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::log1p(x, backend)
+    }
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let one = Tensor::full_on(x.shape(), T::one(), backend);
+        let one_plus_x = coeus_ops::add(&one, x, backend);
+        let inv = coeus_ops::recip(&one_plus_x, backend);
+        coeus_ops::mul(grad_out, &inv, backend)
+    }
+}
+
 /// Tracked Exponential function.
 #[must_use]
 #[inline]
@@ -473,4 +591,39 @@ pub fn log2<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
 #[inline]
 pub fn log10<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
     unary_op::<T, B, Log10Op>(a)
+}
+
+/// Tracked element-wise inverse hyperbolic tangent.
+#[must_use]
+#[inline]
+pub fn atanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, AtanhOp>(a)
+}
+
+/// Tracked element-wise inverse hyperbolic sine.
+#[must_use]
+#[inline]
+pub fn asinh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, AsinhOp>(a)
+}
+
+/// Tracked element-wise inverse hyperbolic cosine.
+#[must_use]
+#[inline]
+pub fn acosh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, AcoshOp>(a)
+}
+
+/// Tracked element-wise exp(x) - 1.
+#[must_use]
+#[inline]
+pub fn expm1<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, Expm1Op>(a)
+}
+
+/// Tracked element-wise ln(1 + x).
+#[must_use]
+#[inline]
+pub fn log1p<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, Log1pOp>(a)
 }

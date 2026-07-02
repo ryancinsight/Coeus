@@ -258,6 +258,31 @@ impl PyTensor {
         Ok(Self::from_var(inner))
     }
 
+    fn atanh(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::atanh(&self.inner));
+        Ok(Self::from_var(inner))
+    }
+
+    fn asinh(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::asinh(&self.inner));
+        Ok(Self::from_var(inner))
+    }
+
+    fn acosh(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::acosh(&self.inner));
+        Ok(Self::from_var(inner))
+    }
+
+    fn expm1(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::expm1(&self.inner));
+        Ok(Self::from_var(inner))
+    }
+
+    fn log1p(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::log1p(&self.inner));
+        Ok(Self::from_var(inner))
+    }
+
     fn sinh(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::sinh(&self.inner));
         Ok(Self::from_var(inner))

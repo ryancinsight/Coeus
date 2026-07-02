@@ -133,6 +133,36 @@ pub fn log2<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Te
 pub fn log10<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Log10)
 }
+/// Element-wise inverse hyperbolic tangent: atanh(x), domain |x| < 1.
+/// Backward: d/dx atanh(x) = 1/(1 - x²).
+#[inline]
+pub fn atanh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Atanh)
+}
+/// Element-wise inverse hyperbolic sine: asinh(x).
+/// Backward: d/dx asinh(x) = 1/sqrt(x² + 1).
+#[inline]
+pub fn asinh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Asinh)
+}
+/// Element-wise inverse hyperbolic cosine: acosh(x), domain x > 1.
+/// Backward: d/dx acosh(x) = 1/sqrt(x² - 1).
+#[inline]
+pub fn acosh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Acosh)
+}
+/// Element-wise exp(x) - 1.
+/// Backward: d/dx expm1(x) = exp(x).
+#[inline]
+pub fn expm1<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Expm1)
+}
+/// Element-wise ln(1 + x).
+/// Backward: d/dx log1p(x) = 1/(1 + x).
+#[inline]
+pub fn log1p<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Log1p)
+}
 
 /// Element-wise negation (works for any Scalar).
 ///

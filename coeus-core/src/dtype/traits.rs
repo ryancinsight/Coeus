@@ -53,6 +53,16 @@ pub trait FloatOps: private::Sealed {
     fn log2_op(self) -> Self;
     /// Element-wise base-10 logarithm: log10(x).
     fn log10_op(self) -> Self;
+    /// Element-wise inverse hyperbolic tangent: atanh(x).
+    fn atanh_op(self) -> Self;
+    /// Element-wise inverse hyperbolic sine: asinh(x).
+    fn asinh_op(self) -> Self;
+    /// Element-wise inverse hyperbolic cosine: acosh(x).
+    fn acosh_op(self) -> Self;
+    /// Element-wise exp(x) - 1 with improved small-x accuracy.
+    fn expm1_op(self) -> Self;
+    /// Element-wise ln(1 + x) with improved small-x accuracy.
+    fn log1p_op(self) -> Self;
     /// Gaussian Error Linear Unit: 0.5 * x * (1 + erf(x / sqrt(2))).
     fn gelu_op(self) -> Self;
     /// Logistic sigmoid: 1 / (1 + e^(-x)).
@@ -132,6 +142,16 @@ pub enum CpuUnaryOp {
     Log2,
     /// base-10 logarithm: log10(x)
     Log10,
+    /// inverse hyperbolic tangent: atanh(x)
+    Atanh,
+    /// inverse hyperbolic sine: asinh(x)
+    Asinh,
+    /// inverse hyperbolic cosine: acosh(x)
+    Acosh,
+    /// exp(x) - 1
+    Expm1,
+    /// ln(1 + x)
+    Log1p,
     /// Element-wise negation: -x.
     Neg,
     /// Element-wise absolute value: |x|.

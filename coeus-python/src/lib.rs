@@ -269,10 +269,15 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::asin, m)?)?;
     m.add_function(wrap_pyfunction!(ops::acos, m)?)?;
     m.add_function(wrap_pyfunction!(ops::atan, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::atanh, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::asinh, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::acosh, m)?)?;
     m.add_function(wrap_pyfunction!(ops::sinh, m)?)?;
     m.add_function(wrap_pyfunction!(ops::cosh, m)?)?;
     m.add_function(wrap_pyfunction!(ops::log2, m)?)?;
     m.add_function(wrap_pyfunction!(ops::log10, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::expm1, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::log1p, m)?)?;
     m.add_function(wrap_pyfunction!(ops::fft_1d, m)?)?;
     m.add_function(wrap_pyfunction!(ops::ifft_1d, m)?)?;
     m.add_function(wrap_pyfunction!(ops::fft_energy, m)?)?;
