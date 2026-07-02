@@ -5591,3 +5591,76 @@ def test_rms_norm_fwd_bwd_matches_pytorch() -> None:
 
     _allclose("rms_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-6)
     _allclose("rms_x_grad", list(x_pyc.grad), t_x.grad.flatten().tolist(), atol=1e-6)
+
+# ---------------------------------------------------------------------------
+# embedding / dropout / group_norm / instance_norm passthrough parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "Embedding"), reason="pycoeus.Embedding not available")
+def test_embedding_fwd_bwd_matches_pytorch() -> None:
+    """Embedding(10,8) fwd+backward (d/dweight = scatter_add) matches torch."""
+    vocab, dim = 10, 8
+    indices = [0.0, 3.0, 7.0, 0.0]  # pycoeus uses float indices
+    w_data = [float(i) * 0.1 for i in range(vocab * dim)]
+    emb = pycoeus.Embedding(num_embeddings=vocab, embedding_dim=dim)
+    params = emb.parameters()
+    params[0].data = w_data  # weight
+
+    idx_pyc = pycoeus.Tensor(indices, [4], requires_grad=False)
+    out_pyc = emb.forward(idx_pyc)
+    out_pyc.backward()
+
+    t_idx = torch.tensor([0, 3, 7, 0], dtype=torch.int64)
+    emb_t = torch.nn.Embedding(vocab, dim, dtype=torch.float64)
+    with torch.no_grad():
+        emb_t.weight.copy_(torch.tensor(w_data, dtype=torch.float64).reshape(vocab, dim))
+    out_t = emb_t(t_idx)
+    out_t.sum().backward()
+
+    _allclose("emb_fwd", list(out_pyc.data), out_t.detach().flatten().tolist())
+    _allclose("emb_w_grad", list(params[0].grad),
+              emb_t.weight.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "Dropout"), reason="pycoeus.Dropout not available")
+def test_dropout_eval_passthrough_matches_pytorch() -> None:
+    """Dropout(p=0.5) in eval mode passes through unchanged."""
+    data = [float(i) * 0.1 for i in range(10)]
+    x_pyc = pycoeus.Tensor(data, [10], requires_grad=False)
+    drop = pycoeus.Dropout(p=0.5)
+    drop.eval()  # eval mode — no masking
+    out_pyc = drop.forward(x_pyc)
+    _allclose("dropout_eval", list(out_pyc.data), data)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "GroupNorm"), reason="pycoeus.GroupNorm not available")
+def test_group_norm_fwd_matches_pytorch() -> None:
+    """GroupNorm(num_groups=2, num_channels=8) vs torch.nn.GroupNorm."""
+    n, c, l = 2, 8, 4
+    data = [float(i) * 0.1 - 1.6 for i in range(n * c * l)]
+    gn = pycoeus.GroupNorm(num_groups=2, num_channels=8)
+    x_pyc = pycoeus.Tensor(data, [n, c, l], requires_grad=False)
+    out_pyc = gn.forward(x_pyc)
+
+    t_x = torch.tensor(data, dtype=torch.float64).reshape(n, c, l)
+    gn_t = torch.nn.GroupNorm(2, 8, dtype=torch.float64)
+    out_t = gn_t(t_x)
+
+    _allclose("gn_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-6)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "InstanceNorm2d"), reason="pycoeus.InstanceNorm2d not available")
+def test_instance_norm_fwd_matches_pytorch() -> None:
+    """InstanceNorm2d(8) eval vs torch.nn.InstanceNorm2d."""
+    n, c, h, w = 2, 8, 4, 4
+    data = [float(i) * 0.05 - 0.8 for i in range(n * c * h * w)]
+    inn = pycoeus.InstanceNorm2d(num_features=8)
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=False)
+    out_pyc = inn.forward(x_pyc)
+
+    t_x = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    inn_t = torch.nn.InstanceNorm2d(c, dtype=torch.float64)
+    out_t = inn_t(t_x)
+
+    _allclose("in2d_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-6)
