@@ -4,7 +4,7 @@ mod wgsl;
 
 pub use binary::{Add, BinaryOpTag, Div, Mul, Sub};
 pub use leaky_relu::{LeakyReluGradTag, LeakyReluTag};
-pub use wgsl::{wgsl_gelu_expr, wgsl_gelu_grad_expr};
+pub use wgsl::{wgsl_erf_approx_expr, wgsl_gelu_expr, wgsl_gelu_grad_expr};
 
 use coeus_core::FloatOps;
 use coeus_core::Scalar;
@@ -125,6 +125,20 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Exp {
     #[inline(always)]
     fn apply(x: T) -> T {
         x.exp_op()
+    }
+}
+
+#[derive(Clone, Copy)]
+/// Gauss error function operation tag.
+pub struct Erf;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Erf {
+    const WGSL_TEMPLATE: &'static str = "erf(({}))";
+    fn wgsl_expr(child: &str) -> String {
+        wgsl_erf_approx_expr(child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.erf_op()
     }
 }
 

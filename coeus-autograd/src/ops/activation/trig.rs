@@ -46,6 +46,41 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     }
 }
 
+// ── Erf ─────────────────────────────────────────────────────────────────────
+
+/// ZST tag for Gauss-error-function autograd.
+///
+/// Forward: `erf(x) = (2/√π) ∫₀ˣ e^(−t²) dt`.  Backward: by the fundamental
+/// theorem of calculus, `d/dx erf(x) = (2/√π) · e^(−x²)`, so
+/// `grad_in = grad_out * (2/√π) * exp(-x²)` — composed from the existing
+/// mul/exp/neg/scalar primitives (no dedicated gradient kernel needed).
+pub struct ErfOp;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for ErfOp {
+    const OP_NAME: &'static str = "erf";
+
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::erf(x, backend)
+    }
+
+    /// d/dx erf(x) = (2/√π)·e^(−x²); 2/√π = 1.1283791670955126.
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let x_sq = coeus_ops::mul(x, x, backend);
+        let neg_x_sq = coeus_ops::neg(&x_sq, backend);
+        let gauss = coeus_ops::exp(&neg_x_sq, backend);
+        let two_over_sqrt_pi =
+            Tensor::full_on(gauss.shape(), T::from_f64(1.128_379_167_095_512_6), backend);
+        let scaled = coeus_ops::mul(&gauss, &two_over_sqrt_pi, backend);
+        coeus_ops::mul(grad_out, &scaled, backend)
+    }
+}
+
 // ── Sin ─────────────────────────────────────────────────────────────────────
 
 /// ZST tag for Sine autograd.
@@ -118,6 +153,15 @@ pub fn exp<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Va
 #[inline]
 pub fn log<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
     unary_op::<T, B, LogOp>(a)
+}
+
+/// Tracked Gauss error function.
+///
+/// Backward: `d/dx erf(x) = (2/√π)·e^(−x²)`.
+#[must_use]
+#[inline]
+pub fn erf<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, ErfOp>(a)
 }
 
 /// Tracked element-wise sine.

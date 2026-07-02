@@ -82,6 +82,7 @@ pub use ops::{
     elu,
     embedding,
     embedding_with_padding_idx,
+    erf,
     exp,
     flatten,
     flip,

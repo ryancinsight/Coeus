@@ -38,7 +38,7 @@ pub mod unary;
 
 pub use unary::{
     abs, abs_assign, causal_softmax, ceil, ceil_assign, cos, cos_assign, elementwise_unary,
-    elementwise_unary_assign, elementwise_unary_to, elu, elu_assign, exp, exp_assign, floor,
+    elementwise_unary_assign, elementwise_unary_to, elu, elu_assign, erf, exp, exp_assign, floor,
     floor_assign, gelu, gelu_assign, gelu_tanh, gelu_tanh_assign, glu, leaky_relu,
     leaky_relu_assign, log, log_assign, log_softmax_axis, masked_softmax, mish, mish_assign, neg,
     neg_assign, recip, recip_assign, relu, relu_assign, round, round_assign, sigmoid,

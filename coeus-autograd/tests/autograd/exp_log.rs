@@ -1,4 +1,4 @@
-use coeus_autograd::{exp, log, Var};
+use coeus_autograd::{erf, exp, log, Var};
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 
@@ -22,6 +22,54 @@ fn test_exp_autograd() {
     assert!((gx_slice[0] - 1.0).abs() < 1e-5);
     assert!((gx_slice[1] - 5.4365636).abs() < 1e-5);
     assert!((gx_slice[2] - 22.167168).abs() < 1e-5);
+}
+
+#[test]
+fn test_erf_autograd() {
+    let backend = MoiraiBackend::new();
+    // f64 to hold the reference values to full double precision.
+    let x_val = Tensor::from_slice_on(vec![4], &[0.0f64, 1.0, -1.0, 2.0], &backend);
+    let x = Var::new(x_val, true);
+
+    let y = erf(&x);
+    let y_slice = y.tensor.as_slice();
+    // Reference: erf(0) = 0; erf(1) = 0.8427007929497149 (Abramowitz & Stegun
+    // 7.1.1); erf is odd; erf(2) = 0.9953222650189527.
+    assert!(y_slice[0].abs() < 1e-15, "erf(0): {}", y_slice[0]);
+    assert!((y_slice[1] - 0.842_700_792_949_714_9).abs() < 1e-12);
+    assert!((y_slice[2] + 0.842_700_792_949_714_9).abs() < 1e-12, "odd");
+    assert!((y_slice[3] - 0.995_322_265_018_952_7).abs() < 1e-12);
+
+    let grad_out = Tensor::from_slice_on(vec![4], &[1.0f64, 1.0, 1.0, 1.0], &backend);
+    y.backward_with_seed(grad_out);
+
+    // Analytic gradient: d/dx erf(x) = (2/√π)·e^(−x²).
+    let two_over_sqrt_pi = 2.0 / std::f64::consts::PI.sqrt();
+    let gx = x.grad().unwrap();
+    let gx_slice = gx.as_slice();
+    for (i, &xi) in [0.0f64, 1.0, -1.0, 2.0].iter().enumerate() {
+        let expected = two_over_sqrt_pi * (-xi * xi).exp();
+        assert!(
+            (gx_slice[i] - expected).abs() < 1e-12,
+            "d erf/dx at {xi}: {} vs {expected}",
+            gx_slice[i]
+        );
+    }
+
+    // Numerical-gradient cross-check (central differences, h = 1e-6): the
+    // analytic backward must agree with the finite-difference slope of the
+    // forward to O(h²) ≈ 1e-12, giving an implementation-independent oracle.
+    let h = 1e-6f64;
+    for &xi in &[0.5f64, -1.5] {
+        let xp = Var::new(Tensor::from_slice_on(vec![1], &[xi + h], &backend), false);
+        let xm = Var::new(Tensor::from_slice_on(vec![1], &[xi - h], &backend), false);
+        let numeric = (erf(&xp).tensor.as_slice()[0] - erf(&xm).tensor.as_slice()[0]) / (2.0 * h);
+        let analytic = two_over_sqrt_pi * (-xi * xi).exp();
+        assert!(
+            (numeric - analytic).abs() < 1e-9,
+            "numeric {numeric} vs analytic {analytic} at {xi}"
+        );
+    }
 }
 
 #[test]
