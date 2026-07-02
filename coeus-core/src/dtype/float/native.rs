@@ -110,6 +110,10 @@ macro_rules! impl_scalar_float_native {
                 self.exp()
             }
             #[inline(always)]
+            fn exp2_op(self) -> Self {
+                self.exp2()
+            }
+            #[inline(always)]
             fn log_op(self) -> Self {
                 self.ln()
             }
@@ -294,6 +298,14 @@ macro_rules! impl_scalar_float_native {
             #[inline(always)]
             fn powf(self, n: Self) -> Self {
                 self.powf(n)
+            }
+            #[inline(always)]
+            fn powi(self, exp: i32) -> Self {
+                self.powi(exp)
+            }
+            #[inline(always)]
+            fn is_integer(self) -> bool {
+                self == self.trunc() && self.is_finite()
             }
             #[inline(always)]
             fn is_nan(self) -> bool {

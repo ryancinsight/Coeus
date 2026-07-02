@@ -426,6 +426,17 @@ def test_elu_matches_jax() -> None:
     )
 
 
+@pytest.mark.skipif(not hasattr(pycoeus, "selu"), reason="pycoeus.selu not available")
+def test_selu_matches_jax() -> None:
+    import jax.nn
+
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.selu(x_pyc)
+    exp = jax.nn.selu(jnp.array(data, dtype=jnp.float64))
+    _allclose("selu", list(got.data), exp.tolist(), atol=1e-12)
+
+
 def test_softplus_matches_jax() -> None:
     _assert_activation_matches_jax(
         "softplus", lambda x: pycoeus.softplus(x), jax.nn.softplus, _ACT_INPUT
@@ -2118,6 +2129,15 @@ def test_log10_matches_jax() -> None:
     got = pycoeus.log10(x_pyc)
     exp = jnp.log10(jnp.array(data, dtype=jnp.float64))
     _allclose("log10", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "exp2"), reason="pycoeus.exp2 not available")
+def test_exp2_matches_jax() -> None:
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.exp2(x_pyc)
+    exp = jnp.exp2(jnp.array(data, dtype=jnp.float64))
+    _allclose("exp2", list(got.data), exp.tolist(), atol=1e-12)
 
 # ---------------------------------------------------------------------------
 # stack / cat / matmul parity

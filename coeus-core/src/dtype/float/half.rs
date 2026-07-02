@@ -40,6 +40,10 @@ macro_rules! impl_scalar_float_half {
                 Self::from_f64(self.to_f64().exp())
             }
             #[inline(always)]
+            fn exp2_op(self) -> Self {
+                Self::from_f64(self.to_f64().exp2())
+            }
+            #[inline(always)]
             fn log_op(self) -> Self {
                 Self::from_f64(self.to_f64().ln())
             }
@@ -230,6 +234,15 @@ macro_rules! impl_scalar_float_half {
             #[inline(always)]
             fn powf(self, n: Self) -> Self {
                 Self::from_f64(self.to_f64().powf(n.to_f64()))
+            }
+            #[inline(always)]
+            fn powi(self, exp: i32) -> Self {
+                Self::from_f64(self.to_f64().powi(exp))
+            }
+            #[inline(always)]
+            fn is_integer(self) -> bool {
+                let f = self.to_f64();
+                f.is_finite() && f == f.trunc()
             }
             #[inline(always)]
             fn is_nan(self) -> bool {

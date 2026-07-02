@@ -372,6 +372,28 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     }
 }
 
+/// ZST tag for base-2 exponential autograd.
+/// Backward: d/dx exp2(x) = 2^x * ln(2).
+pub struct Exp2Op;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for Exp2Op {
+    const OP_NAME: &'static str = "exp2";
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::exp2(x, backend)
+    }
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        _x: &Tensor<T, B>,
+        y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let ln2 = Tensor::full_on(y.shape(), T::from_f64(core::f64::consts::LN_2), backend);
+        let y_ln2 = coeus_ops::mul(y, &ln2, backend);
+        coeus_ops::mul(grad_out, &y_ln2, backend)
+    }
+}
+
 /// ZST tag for inverse hyperbolic tangent autograd.
 /// Backward: d/dx atanh(x) = 1/(1 - x²).
 pub struct AtanhOp;
@@ -594,6 +616,13 @@ pub fn log2<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
 #[inline]
 pub fn log10<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
     unary_op::<T, B, Log10Op>(a)
+}
+
+/// Tracked element-wise base-2 exponential.
+#[must_use]
+#[inline]
+pub fn exp2<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, Exp2Op>(a)
 }
 
 /// Tracked element-wise inverse hyperbolic tangent.

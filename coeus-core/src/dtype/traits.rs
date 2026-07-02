@@ -25,6 +25,8 @@ pub(crate) mod private {
 pub trait FloatOps: private::Sealed {
     /// Element-wise exponential: e^x.
     fn exp_op(self) -> Self;
+    /// Element-wise base-2 exponential: 2^x.
+    fn exp2_op(self) -> Self;
     /// Element-wise natural logarithm: ln(x).
     fn log_op(self) -> Self;
     /// Element-wise hyperbolic tangent: tanh(x).
@@ -142,6 +144,8 @@ pub enum CpuUnaryOp {
     Log2,
     /// base-10 logarithm: log10(x)
     Log10,
+    /// base-2 exponential: exp2(x) = 2^x
+    Exp2,
     /// inverse hyperbolic tangent: atanh(x)
     Atanh,
     /// inverse hyperbolic sine: asinh(x)
@@ -516,6 +520,19 @@ pub trait Float: Scalar + FloatOps {
     fn tanh(self) -> Self;
     /// Power: self^n.
     fn powf(self, n: Self) -> Self;
+    /// Integer power: `self^exp` where `exp` is a signed integer exponent.
+    ///
+    /// Raises `self` to the integer power `exp` using repeated multiplication
+    /// with sign preservation: `(-x)^exp = -(x^exp)` for odd `exp` and
+    /// `(x^|exp|)` for even `exp`, matching
+    /// `at::pow`/`Tensor.pow(scalar)` semantics when `scalar` is integer-valued.
+    /// `exp = 0` returns `1`. Negative `exp` returns `1 / powi(|exp|)`.
+    fn powi(self, exp: i32) -> Self;
+    /// True if `self` rounds to an exact integer in `T` (i.e. truncates to itself).
+    ///
+    /// Used by `pow(x, scalar)` to dispatch between sign-preserving integer
+    /// power and the fractional-power `exp(n·ln(x))` composition.
+    fn is_integer(self) -> bool;
     /// True if self is NaN.
     fn is_nan(self) -> bool;
     /// True if self is positive or negative infinity.

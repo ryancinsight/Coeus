@@ -176,6 +176,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(activations::silu, m)?)?;
     m.add_function(wrap_pyfunction!(activations::mish, m)?)?;
     m.add_function(wrap_pyfunction!(activations::elu, m)?)?;
+    m.add_function(wrap_pyfunction!(activations::selu, m)?)?;
     m.add_function(wrap_pyfunction!(activations::softplus, m)?)?;
     m.add_function(wrap_pyfunction!(activations::gelu_tanh, m)?)?;
     m.add_function(wrap_pyfunction!(activations::leaky_relu, m)?)?;
@@ -276,6 +277,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::cosh, m)?)?;
     m.add_function(wrap_pyfunction!(ops::log2, m)?)?;
     m.add_function(wrap_pyfunction!(ops::log10, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::exp2, m)?)?;
     m.add_function(wrap_pyfunction!(ops::expm1, m)?)?;
     m.add_function(wrap_pyfunction!(ops::log1p, m)?)?;
     m.add_function(wrap_pyfunction!(ops::fft_1d, m)?)?;

@@ -49,6 +49,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
                     CpuUnaryOp::Cosh => x.cosh_op(),
                     CpuUnaryOp::Log2 => x.log2_op(),
                     CpuUnaryOp::Log10 => x.log10_op(),
+                    CpuUnaryOp::Exp2 => x.exp2_op(),
                     CpuUnaryOp::Atanh => x.atanh_op(),
                     CpuUnaryOp::Asinh => x.asinh_op(),
                     CpuUnaryOp::Acosh => x.acosh_op(),

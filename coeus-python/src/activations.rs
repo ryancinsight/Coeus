@@ -51,6 +51,13 @@ pub fn elu(input: &PyTensor, py: Python<'_>) -> PyTensor {
     PyTensor::from_var(inner)
 }
 
+/// Element-wise SELU activation.
+#[pyfunction]
+pub fn selu(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::selu(&input.inner));
+    PyTensor::from_var(inner)
+}
+
 /// Element-wise Softplus activation.
 #[pyfunction]
 pub fn softplus(input: &PyTensor, py: Python<'_>) -> PyTensor {
