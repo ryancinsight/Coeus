@@ -2627,6 +2627,82 @@ fn bench_vector_norm_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_erf_forward(c: &mut Criterion) {
+    // erf: [128, 256] — Gauss error function, used in GELU approximation.
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.003).sin() * 2.0)
+        .collect();
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let device = NdArrayDevice::default();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — erf forward (128x256)");
+    group.bench_function("Burn NdArray (tanh approx proxy)", |b| {
+        b.iter(|| black_box(black_box(x_burn.clone()).tanh()))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(coeus_autograd::erf(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(coeus_autograd::erf(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_sin_cos_forward(c: &mut Criterion) {
+    // sin+cos fused: [128, 256] — typical in RoPE / positional encoding.
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| i as f32 * 0.0031)
+        .collect();
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        false,
+    );
+    let device = NdArrayDevice::default();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
+
+    let mut group = c.benchmark_group("Burn vs Coeus — sin+cos forward (128x256)");
+    group.bench_function("Burn NdArray (sin+cos sequential)", |b| {
+        b.iter(|| {
+            let s = black_box(x_burn.clone()).sin();
+            let c2 = black_box(x_burn.clone()).cos();
+            black_box((s, c2))
+        })
+    });
+    group.bench_function("Coeus Sequential (sin+cos)", |b| {
+        b.iter(|| {
+            let s = coeus_autograd::sin(black_box(&x_seq));
+            let c2 = coeus_autograd::cos(black_box(&x_seq));
+            black_box((s, c2))
+        })
+    });
+    group.bench_function("Coeus Moirai (sin+cos)", |b| {
+        b.iter(|| {
+            let s = coeus_autograd::sin(black_box(&x_moirai));
+            let c2 = coeus_autograd::cos(black_box(&x_moirai));
+            black_box((s, c2))
+        })
+    });
+    group.finish();
+}
+
 // Reference is consumed by `criterion_group!` macro below; the macro
 // expansion does not propagate usage info, so suppress `dead_code` here.
 #[allow(dead_code, reason = "referenced by criterion_group! macro below")]
@@ -2766,6 +2842,8 @@ criterion_group!(
     bench_gather_forward,
     bench_softplus_activation,
     bench_vector_norm_forward,
+    bench_erf_forward,
+    bench_sin_cos_forward,
     bench_tan_forward,
     bench_atan_forward
 );
