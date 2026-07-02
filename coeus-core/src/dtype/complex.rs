@@ -29,6 +29,11 @@ impl<T: Float> FloatOps for Complex<T> {
     }
 
     #[inline(always)]
+    fn exp2_op(self) -> Self {
+        Self::zero()
+    }
+
+    #[inline(always)]
     fn tanh_op(self) -> Self {
         let two = T::from_f64(2.0);
         let x2 = self.re * two;
@@ -232,6 +237,7 @@ impl<T: Float> crate::dtype::CpuUnaryDispatch for Complex<T> {
             CpuUnaryOp::Cosh => x.cosh_op(),
             CpuUnaryOp::Log2 => x.log2_op(),
             CpuUnaryOp::Log10 => x.log10_op(),
+            CpuUnaryOp::Exp2 => x.exp2_op(),
             CpuUnaryOp::Atanh => x.atanh_op(),
             CpuUnaryOp::Asinh => x.asinh_op(),
             CpuUnaryOp::Acosh => x.acosh_op(),

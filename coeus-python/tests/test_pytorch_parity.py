@@ -1766,6 +1766,19 @@ def test_elu_matches_pytorch() -> None:
     )
 
 
+@pytest.mark.skipif(not hasattr(pycoeus, "selu"), reason="pycoeus.selu not available")
+def test_selu_matches_pytorch() -> None:
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.selu(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.selu(t)
+    out_t.sum().backward()
+    _allclose("selu_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("selu_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
 def test_softplus_matches_pytorch() -> None:
     _assert_activation_parity(
         "softplus",
@@ -5031,6 +5044,19 @@ def test_log10_matches_pytorch() -> None:
     _allclose("log10_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
 
 
+@pytest.mark.skipif(not hasattr(pycoeus, "exp2"), reason="pycoeus.exp2 not available")
+def test_exp2_matches_pytorch() -> None:
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.exp2(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.exp2(t)
+    out_t.sum().backward()
+    _allclose("exp2_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("exp2_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
 @pytest.mark.skipif(not hasattr(pycoeus, "dot"), reason="pycoeus.dot not available")
 def test_dot_matches_pytorch() -> None:
     """torch.dot(a, b) vs pycoeus.dot(a, b)."""
@@ -5486,3 +5512,82 @@ def test_batchnorm1d_fwd_bwd_matches_pytorch() -> None:
 
     _allclose("bn1d_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-6)
     _allclose("bn1d_bwd", list(x_pyc.grad), t_x.grad.flatten().tolist(), atol=1e-6)
+
+# ---------------------------------------------------------------------------
+# linear / layer_norm / rms_norm fwd+bwd differential parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "Linear"), reason="pycoeus.Linear not available")
+def test_linear_fwd_bwd_matches_pytorch() -> None:
+    """Linear(4,8) weight+bias grad matches torch.nn.Linear fwd+bwd."""
+    in_f, out_f = 4, 8
+    batch = 3
+    inp = [float(i) * 0.1 - 0.5 for i in range(batch * in_f)]
+    w_data = [float(i) * 0.05 - 0.2 for i in range(out_f * in_f)]
+    b_data = [0.1 * i for i in range(out_f)]
+
+    lin = pycoeus.Linear(in_features=in_f, out_features=out_f)
+    params = lin.parameters()
+    params[0].data = w_data  # weight
+    params[1].data = b_data  # bias
+
+    x_pyc = pycoeus.Tensor(inp, [batch, in_f], requires_grad=True)
+    out_pyc = lin.forward(x_pyc)
+    out_pyc.backward()
+
+    t_x = torch.tensor(inp, dtype=torch.float64).reshape(batch, in_f).requires_grad_(True)
+    lin_t = torch.nn.Linear(in_f, out_f, dtype=torch.float64)
+    with torch.no_grad():
+        lin_t.weight.copy_(torch.tensor(w_data, dtype=torch.float64).reshape(out_f, in_f))
+        lin_t.bias.copy_(torch.tensor(b_data, dtype=torch.float64))
+    out_t = lin_t(t_x)
+    out_t.sum().backward()
+
+    _allclose("linear_x_grad", list(x_pyc.grad), t_x.grad.flatten().tolist(), atol=1e-10)
+    _allclose("linear_w_grad", list(params[0].grad),
+              lin_t.weight.grad.flatten().tolist(), atol=1e-10)
+    _allclose("linear_b_grad", list(params[1].grad),
+              lin_t.bias.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "LayerNorm"), reason="pycoeus.LayerNorm not available")
+def test_layer_norm_fwd_bwd_matches_pytorch() -> None:
+    """LayerNorm(8) fwd+bwd (weight/bias grad) matches torch.nn.LayerNorm."""
+    n, feat = 4, 8
+    inp = [float(i) * 0.1 - 1.6 for i in range(n * feat)]
+    ln = pycoeus.LayerNorm(normalized_shape=[feat])
+    params = ln.parameters()
+    # Default: weight=1, bias=0
+
+    x_pyc = pycoeus.Tensor(inp, [n, feat], requires_grad=True)
+    out_pyc = ln.forward(x_pyc)
+    out_pyc.backward()
+
+    t_x = torch.tensor(inp, dtype=torch.float64).reshape(n, feat).requires_grad_(True)
+    ln_t = torch.nn.LayerNorm(feat, dtype=torch.float64)
+    out_t = ln_t(t_x)
+    out_t.sum().backward()
+
+    _allclose("ln_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-8)
+    _allclose("ln_x_grad", list(x_pyc.grad), t_x.grad.flatten().tolist(), atol=1e-8)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "RMSNorm"), reason="pycoeus.RMSNorm not available")
+def test_rms_norm_fwd_bwd_matches_pytorch() -> None:
+    """RMSNorm fwd+bwd matches torch.nn.RMSNorm (PyTorch 2.4+) or manual."""
+    n, feat = 4, 8
+    inp = [float(i) * 0.1 - 1.6 for i in range(n * feat)]
+    rn = pycoeus.RMSNorm(normalized_shape=[feat])
+    x_pyc = pycoeus.Tensor(inp, [n, feat], requires_grad=True)
+    out_pyc = rn.forward(x_pyc)
+    out_pyc.backward()
+
+    # Manual RMSNorm: y = x / rms(x) where rms = sqrt(mean(x^2) + eps)
+    t_x = torch.tensor(inp, dtype=torch.float64).reshape(n, feat).requires_grad_(True)
+    rms = torch.sqrt(torch.mean(t_x ** 2, dim=-1, keepdim=True) + 1e-8)
+    out_t = t_x / rms
+    out_t.sum().backward()
+
+    _allclose("rms_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-6)
+    _allclose("rms_x_grad", list(x_pyc.grad), t_x.grad.flatten().tolist(), atol=1e-6)

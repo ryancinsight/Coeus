@@ -267,6 +267,20 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Log10 {
 }
 
 #[derive(Clone, Copy)]
+/// Base-2 exponential operation tag.
+pub struct Exp2;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Exp2 {
+    const WGSL_TEMPLATE: &'static str = "exp2({})";
+    fn wgsl_expr(child: &str) -> String {
+        format!("exp2({})", child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.exp2_op()
+    }
+}
+
+#[derive(Clone, Copy)]
 /// Inverse hyperbolic tangent operation tag.
 pub struct Atanh;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Atanh {

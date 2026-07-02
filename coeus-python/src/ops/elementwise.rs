@@ -106,6 +106,12 @@ pub fn log10(input: &PyTensor, py: Python<'_>) -> PyTensor {
 }
 
 #[pyfunction]
+pub fn exp2(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::exp2(&input.inner));
+    PyTensor::from_var(inner)
+}
+
+#[pyfunction]
 pub fn abs(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::abs(&input.inner));
     PyTensor::from_var(inner)

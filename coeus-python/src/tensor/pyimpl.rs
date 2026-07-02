@@ -303,6 +303,16 @@ impl PyTensor {
         Ok(Self::from_var(inner))
     }
 
+    fn exp2(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::exp2(&self.inner));
+        Ok(Self::from_var(inner))
+    }
+
+    fn selu(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::selu(&self.inner));
+        Ok(Self::from_var(inner))
+    }
+
     fn log(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::log(&self.inner));
         Ok(Self::from_var(inner))

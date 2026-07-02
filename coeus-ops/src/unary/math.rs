@@ -133,6 +133,12 @@ pub fn log2<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Te
 pub fn log10<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Log10)
 }
+/// Element-wise base-2 exponential: 2^x.
+/// Backward: d/dx 2^x = 2^x * ln(2).
+#[inline]
+pub fn exp2<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Exp2)
+}
 /// Element-wise inverse hyperbolic tangent: atanh(x), domain |x| < 1.
 /// Backward: d/dx atanh(x) = 1/(1 - x²).
 #[inline]

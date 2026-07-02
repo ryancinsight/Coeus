@@ -160,6 +160,51 @@ pub fn elu<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Va
     unary_op::<T, B, EluOp>(a)
 }
 
+/// SELU ELU parameter α.
+const SELU_ALPHA: f64 = 1.673_263_242_354_377_2;
+/// SELU scale parameter λ.
+const SELU_SCALE: f64 = 1.050_700_987_355_480_5;
+
+/// ZST tag for SELU autograd.
+/// Backward: `scale` if `x > 0`, else `scale * alpha * exp(x)`.
+pub struct SeluOp;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for SeluOp {
+    const OP_NAME: &'static str = "selu";
+
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        let cond = coeus_ops::relu(x, backend);
+        let scale = Tensor::full_on(x.shape(), T::from_f64(SELU_SCALE), backend);
+        let alpha_scale = Tensor::full_on(x.shape(), T::from_f64(SELU_ALPHA * SELU_SCALE), backend);
+        let pos = coeus_ops::mul(x, &scale, backend);
+        let neg_base = coeus_ops::expm1(x, backend);
+        let neg = coeus_ops::mul(&neg_base, &alpha_scale, backend);
+        coeus_ops::where_cond(&cond, &pos, &neg, backend)
+    }
+
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let cond = coeus_ops::relu(x, backend);
+        let scale = Tensor::full_on(x.shape(), T::from_f64(SELU_SCALE), backend);
+        let alpha_scale = Tensor::full_on(x.shape(), T::from_f64(SELU_ALPHA * SELU_SCALE), backend);
+        let neg = coeus_ops::mul(&coeus_ops::exp(x, backend), &alpha_scale, backend);
+        let deriv = coeus_ops::where_cond(&cond, &scale, &neg, backend);
+        coeus_ops::mul(grad_out, &deriv, backend)
+    }
+}
+
+/// Tracked SELU activation.
+#[must_use]
+#[inline]
+pub fn selu<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, SeluOp>(a)
+}
+
 // ── PReLU: y = max(0,x) + α · min(0,x) = x · (x>0 ? 1 : α) ──
 //
 // Functional scalar-α variant. For per-channel PReLU (PyTorch-style with

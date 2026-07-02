@@ -28,6 +28,7 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> String {
         coeus_ops::UnaryOp::Cosh => "cosh(val)".to_string(),
         coeus_ops::UnaryOp::Log2 => "log2(val)".to_string(),
         coeus_ops::UnaryOp::Log10 => "log(val) * 0.43429448190325182f".to_string(),
+        coeus_ops::UnaryOp::Exp2 => "exp2(val)".to_string(),
         coeus_ops::UnaryOp::Atanh => "atanh(val)".to_string(),
         coeus_ops::UnaryOp::Asinh => "asinh(val)".to_string(),
         coeus_ops::UnaryOp::Acosh => "acosh(val)".to_string(),
