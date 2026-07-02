@@ -281,6 +281,94 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     }
 }
 
+/// ZST tag for Hyperbolic Sine autograd.
+/// Backward: d/dx sinh(x) = cosh(x).
+pub struct SinhOp;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for SinhOp {
+    const OP_NAME: &'static str = "sinh";
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::sinh(x, backend)
+    }
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let cosh_x = coeus_ops::cosh(x, backend);
+        coeus_ops::mul(grad_out, &cosh_x, backend)
+    }
+}
+
+/// ZST tag for Hyperbolic Cosine autograd.
+/// Backward: d/dx cosh(x) = sinh(x).
+pub struct CoshOp;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for CoshOp {
+    const OP_NAME: &'static str = "cosh";
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::cosh(x, backend)
+    }
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let sinh_x = coeus_ops::sinh(x, backend);
+        coeus_ops::mul(grad_out, &sinh_x, backend)
+    }
+}
+
+/// ZST tag for base-2 log autograd.
+/// Backward: d/dx log2(x) = 1/(x * ln(2)).
+pub struct Log2Op;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for Log2Op {
+    const OP_NAME: &'static str = "log2";
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::log2(x, backend)
+    }
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let ln2 = Tensor::full_on(x.shape(), T::from_f64(core::f64::consts::LN_2), backend);
+        let x_ln2 = coeus_ops::mul(x, &ln2, backend);
+        let inv = coeus_ops::recip(&x_ln2, backend);
+        coeus_ops::mul(grad_out, &inv, backend)
+    }
+}
+
+/// ZST tag for base-10 log autograd.
+/// Backward: d/dx log10(x) = 1/(x * ln(10)).
+pub struct Log10Op;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for Log10Op {
+    const OP_NAME: &'static str = "log10";
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::log10(x, backend)
+    }
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let ln10 = Tensor::full_on(x.shape(), T::from_f64(core::f64::consts::LN_10), backend);
+        let x_ln10 = coeus_ops::mul(x, &ln10, backend);
+        let inv = coeus_ops::recip(&x_ln10, backend);
+        coeus_ops::mul(grad_out, &inv, backend)
+    }
+}
+
 /// Tracked Exponential function.
 #[must_use]
 #[inline]
@@ -357,4 +445,32 @@ pub fn acos<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
 #[inline]
 pub fn atan<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
     unary_op::<T, B, AtanOp>(a)
+}
+
+/// Tracked element-wise hyperbolic sine.
+#[must_use]
+#[inline]
+pub fn sinh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, SinhOp>(a)
+}
+
+/// Tracked element-wise hyperbolic cosine.
+#[must_use]
+#[inline]
+pub fn cosh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, CoshOp>(a)
+}
+
+/// Tracked element-wise base-2 logarithm.
+#[must_use]
+#[inline]
+pub fn log2<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, Log2Op>(a)
+}
+
+/// Tracked element-wise base-10 logarithm.
+#[must_use]
+#[inline]
+pub fn log10<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, Log10Op>(a)
 }

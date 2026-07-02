@@ -87,6 +87,26 @@ impl<T: Float> FloatOps for Complex<T> {
     }
 
     #[inline(always)]
+    fn sinh_op(self) -> Self {
+        Self::zero()
+    }
+
+    #[inline(always)]
+    fn cosh_op(self) -> Self {
+        Self::zero()
+    }
+
+    #[inline(always)]
+    fn log2_op(self) -> Self {
+        Self::zero()
+    }
+
+    #[inline(always)]
+    fn log10_op(self) -> Self {
+        Self::zero()
+    }
+
+    #[inline(always)]
     fn gelu_op(self) -> Self {
         panic!("gelu not supported on complex types")
     }
@@ -183,6 +203,10 @@ impl<T: Float> crate::dtype::CpuUnaryDispatch for Complex<T> {
             CpuUnaryOp::Asin => x.asin_op(),
             CpuUnaryOp::Acos => x.acos_op(),
             CpuUnaryOp::Atan => x.atan_op(),
+            CpuUnaryOp::Sinh => x.sinh_op(),
+            CpuUnaryOp::Cosh => x.cosh_op(),
+            CpuUnaryOp::Log2 => x.log2_op(),
+            CpuUnaryOp::Log10 => x.log10_op(),
             CpuUnaryOp::Erf => x.erf_op(),
             CpuUnaryOp::Erfc => x.erfc_op(),
             CpuUnaryOp::Exp => x.exp_op(),

@@ -67,6 +67,7 @@ pub use ops::{
     conv_transpose3d,
     // Trigonometric
     cos,
+    cosh,
     cosine_embedding_loss,
     cosine_similarity,
     cross_entropy_loss,
@@ -107,6 +108,8 @@ pub use ops::{
     layernorm,
     leaky_relu,
     log,
+    log10,
+    log2,
     log_softmax,
     log_sum_exp,
     margin_ranking_loss,
@@ -158,6 +161,7 @@ pub use ops::{
     silu,
     // Trigonometric
     sin,
+    sinh,
     slice,
     smooth_l1_loss,
     soft_margin,

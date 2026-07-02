@@ -131,6 +131,10 @@ pub fn launch_contiguous_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::Asin => "asinf(a[idx])",
         coeus_ops::UnaryOp::Acos => "acosf(a[idx])",
         coeus_ops::UnaryOp::Atan => "atanf(a[idx])",
+        coeus_ops::UnaryOp::Sinh => "sinhf(a[idx])",
+        coeus_ops::UnaryOp::Cosh => "coshf(a[idx])",
+        coeus_ops::UnaryOp::Log2 => "log2f(a[idx])",
+        coeus_ops::UnaryOp::Log10 => "log10f(a[idx])",
         coeus_ops::UnaryOp::Neg => "-a[idx]",
         coeus_ops::UnaryOp::Abs => "fabsf(a[idx])",
         coeus_ops::UnaryOp::Sqrt => "sqrtf(a[idx])",
@@ -142,7 +146,8 @@ pub fn launch_contiguous_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::Sign => "(a[idx] > 0.0f) ? 1.0f : ((a[idx] < 0.0f) ? -1.0f : 0.0f)",
         coeus_ops::UnaryOp::Floor => "floorf(a[idx])",
         coeus_ops::UnaryOp::Ceil => "ceilf(a[idx])",
-        coeus_ops::UnaryOp::Round => "roundf(a[idx])",
+        // rintf = ties-to-even (matches torch.round / CPU round_ties_even).
+        coeus_ops::UnaryOp::Round => "rintf(a[idx])",
         coeus_ops::UnaryOp::Trunc => "truncf(a[idx])",
         _ => return false,
     };
@@ -385,6 +390,10 @@ pub fn launch_strided_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::Asin => "asinf(val_a)",
         coeus_ops::UnaryOp::Acos => "acosf(val_a)",
         coeus_ops::UnaryOp::Atan => "atanf(val_a)",
+        coeus_ops::UnaryOp::Sinh => "sinhf(val_a)",
+        coeus_ops::UnaryOp::Cosh => "coshf(val_a)",
+        coeus_ops::UnaryOp::Log2 => "log2f(val_a)",
+        coeus_ops::UnaryOp::Log10 => "log10f(val_a)",
         coeus_ops::UnaryOp::Neg => "-val_a",
         coeus_ops::UnaryOp::Abs => "fabsf(val_a)",
         coeus_ops::UnaryOp::Sqrt => "sqrtf(val_a)",
@@ -396,7 +405,8 @@ pub fn launch_strided_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::Sign => "(val_a > 0.0f) ? 1.0f : ((val_a < 0.0f) ? -1.0f : 0.0f)",
         coeus_ops::UnaryOp::Floor => "floorf(val_a)",
         coeus_ops::UnaryOp::Ceil => "ceilf(val_a)",
-        coeus_ops::UnaryOp::Round => "roundf(val_a)",
+        // rintf = ties-to-even (matches torch.round / CPU round_ties_even).
+        coeus_ops::UnaryOp::Round => "rintf(val_a)",
         coeus_ops::UnaryOp::Trunc => "truncf(val_a)",
         _ => return false,
     };

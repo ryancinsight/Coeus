@@ -214,6 +214,59 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Atan {
 }
 
 #[derive(Clone, Copy)]
+/// Hyperbolic sine operation tag.
+pub struct Sinh;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Sinh {
+    const WGSL_TEMPLATE: &'static str = "sinh({})";
+    fn wgsl_expr(child: &str) -> String {
+        format!("sinh({})", child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.sinh_op()
+    }
+}
+#[derive(Clone, Copy)]
+/// Hyperbolic cosine operation tag.
+pub struct Cosh;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Cosh {
+    const WGSL_TEMPLATE: &'static str = "cosh({})";
+    fn wgsl_expr(child: &str) -> String {
+        format!("cosh({})", child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.cosh_op()
+    }
+}
+#[derive(Clone, Copy)]
+/// Base-2 logarithm operation tag.
+pub struct Log2;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Log2 {
+    const WGSL_TEMPLATE: &'static str = "log2({})";
+    fn wgsl_expr(child: &str) -> String {
+        format!("log2({})", child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.log2_op()
+    }
+}
+#[derive(Clone, Copy)]
+/// Base-10 logarithm operation tag.
+pub struct Log10;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Log10 {
+    const WGSL_TEMPLATE: &'static str = "log({})*0.43429448190325182";
+    fn wgsl_expr(child: &str) -> String {
+        format!("(log({}) * 0.43429448190325182)", child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.log10_op()
+    }
+}
+
+#[derive(Clone, Copy)]
 /// Natural log operation tag.
 pub struct Log;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Log {
@@ -460,14 +513,17 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Ceil {
 
 // ── Round ───────────────────────────────────────────────────────────────────
 
-/// Element-wise round to nearest integer.
+/// Element-wise round to nearest integer, ties to even (banker's rounding).
+///
+/// Matches `torch.round` / IEEE-754 roundTiesToEven; WGSL's `round()` builtin
+/// has the same ties-to-even contract.
 #[derive(Clone, Copy)]
 pub struct Round;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Round {
     const WGSL_TEMPLATE: &'static str = "round(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        T::from_f64(T::to_f64(x).round())
+        T::from_f64(T::to_f64(x).round_ties_even())
     }
 }
 

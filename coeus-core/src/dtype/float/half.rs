@@ -80,6 +80,22 @@ macro_rules! impl_scalar_float_half {
                 Self::from_f64(self.to_f64().atan())
             }
             #[inline(always)]
+            fn sinh_op(self) -> Self {
+                Self::from_f64(self.to_f64().sinh())
+            }
+            #[inline(always)]
+            fn cosh_op(self) -> Self {
+                Self::from_f64(self.to_f64().cosh())
+            }
+            #[inline(always)]
+            fn log2_op(self) -> Self {
+                Self::from_f64(self.to_f64().log2())
+            }
+            #[inline(always)]
+            fn log10_op(self) -> Self {
+                Self::from_f64(self.to_f64().log10())
+            }
+            #[inline(always)]
             fn gelu_op(self) -> Self {
                 let x_f = self.to_f64();
                 let res = 0.5

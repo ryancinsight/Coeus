@@ -1,4 +1,4 @@
-use coeus_autograd::{erf, erfc, exp, log, Var};
+use coeus_autograd::{cosh, erf, erfc, exp, log, log10, log2, sinh, Var};
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 
@@ -120,4 +120,90 @@ fn test_log_autograd() {
     assert!((gx_slice[0] - 1.0).abs() < 1e-5);
     assert!((gx_slice[1] - 1.0).abs() < 1e-5);
     assert!((gx_slice[2] - 0.75).abs() < 1e-5);
+}
+
+#[test]
+fn test_sinh_autograd() {
+    let backend = MoiraiBackend::new();
+    let data = [-2.0f64, -1.0, 0.0, 1.0, 2.0];
+    let x = Var::new(Tensor::from_slice_on(vec![5], &data, &backend), true);
+
+    let y = sinh(&x);
+    let y_slice = y.tensor.as_slice();
+    for (i, &xi) in data.iter().enumerate() {
+        assert!((y_slice[i] - xi.sinh()).abs() < 1e-12, "sinh[{i}]");
+    }
+
+    let grad_seed = Tensor::from_slice_on(vec![5], &[1.0f64; 5], &backend);
+    y.backward_with_seed(grad_seed);
+    let gx = x.grad().unwrap();
+    let gx_slice = gx.as_slice();
+    for (i, &xi) in data.iter().enumerate() {
+        assert!((gx_slice[i] - xi.cosh()).abs() < 1e-12, "d sinh/dx[{i}]");
+    }
+}
+
+#[test]
+fn test_cosh_autograd() {
+    let backend = MoiraiBackend::new();
+    let data = [-2.0f64, -1.0, 0.0, 1.0, 2.0];
+    let x = Var::new(Tensor::from_slice_on(vec![5], &data, &backend), true);
+
+    let y = cosh(&x);
+    let y_slice = y.tensor.as_slice();
+    for (i, &xi) in data.iter().enumerate() {
+        assert!((y_slice[i] - xi.cosh()).abs() < 1e-12, "cosh[{i}]");
+    }
+
+    let grad_seed = Tensor::from_slice_on(vec![5], &[1.0f64; 5], &backend);
+    y.backward_with_seed(grad_seed);
+    let gx = x.grad().unwrap();
+    let gx_slice = gx.as_slice();
+    for (i, &xi) in data.iter().enumerate() {
+        assert!((gx_slice[i] - xi.sinh()).abs() < 1e-12, "d cosh/dx[{i}]");
+    }
+}
+
+#[test]
+fn test_log2_autograd() {
+    let backend = MoiraiBackend::new();
+    let data = [0.5f64, 1.0, 2.0, 4.0, 8.0];
+    let x = Var::new(Tensor::from_slice_on(vec![5], &data, &backend), true);
+
+    let y = log2(&x);
+    let y_slice = y.tensor.as_slice();
+    for (i, &xi) in data.iter().enumerate() {
+        assert!((y_slice[i] - xi.log2()).abs() < 1e-12, "log2[{i}]");
+    }
+
+    let grad_seed = Tensor::from_slice_on(vec![5], &[1.0f64; 5], &backend);
+    y.backward_with_seed(grad_seed);
+    let gx = x.grad().unwrap();
+    let gx_slice = gx.as_slice();
+    for (i, &xi) in data.iter().enumerate() {
+        let expected = 1.0 / (xi * core::f64::consts::LN_2);
+        assert!((gx_slice[i] - expected).abs() < 1e-12, "d log2/dx[{i}]");
+    }
+}
+
+#[test]
+fn test_log10_autograd() {
+    let backend = MoiraiBackend::new();
+    let data = [0.1f64, 1.0, 10.0, 100.0, 1000.0];
+    let x = Var::new(Tensor::from_slice_on(vec![5], &data, &backend), true);
+
+    let y = log10(&x);
+    let y_slice = y.tensor.as_slice();
+    for (i, &xi) in data.iter().enumerate() {
+        assert!((y_slice[i] - xi.log10()).abs() < 1e-12, "log10[{i}]");
+    }
+
+    let grad_seed = Tensor::from_slice_on(vec![5], &[1.0f64; 5], &backend);
+    y.backward_with_seed(grad_seed);
+    let gx = x.grad().unwrap();
+    let gx_slice = gx.as_slice();
+    for (i, &xi) in data.iter().enumerate() {
+        let expected = 1.0 / (xi * core::f64::consts::LN_10);
+        assert!((gx_slice[i] - expected).abs() < 1e-12, "d log10/dx[{i}]");
+    }
 }
