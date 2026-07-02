@@ -5675,3 +5675,63 @@ def test_instance_norm_fwd_matches_pytorch() -> None:
     out_t = inn_t(t_x)
 
     _allclose("in2d_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-6)
+
+# ---------------------------------------------------------------------------
+# max_pool1d / max_pool2d fwd parity + lgamma forward
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "MaxPool1d"), reason="pycoeus.MaxPool1d not available")
+def test_max_pool1d_fwd_matches_pytorch() -> None:
+    """MaxPool1d(k=3, s=1) vs torch.nn.MaxPool1d fwd on [2,4,16]."""
+    n, c, l = 2, 4, 16
+    data = [float(i) * 0.05 - 1.0 for i in range(n * c * l)]
+    pool = pycoeus.MaxPool1d(kernel_size=3, stride=1)
+    x_pyc = pycoeus.Tensor(data, [n, c, l], requires_grad=False)
+    out_pyc = pool.forward(x_pyc)
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, l)
+    pool_t = torch.nn.MaxPool1d(kernel_size=3, stride=1)
+    exp = pool_t(t)
+    _allclose("maxpool1d_fwd", list(out_pyc.data), exp.detach().flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "MaxPool2d"), reason="pycoeus.MaxPool2d not available")
+def test_max_pool2d_fwd_matches_pytorch() -> None:
+    """MaxPool2d(k=2, s=2) vs torch.nn.MaxPool2d fwd on [2,4,8,8]."""
+    n, c, h, w = 2, 4, 8, 8
+    data = [float(i) * 0.05 - 1.0 for i in range(n * c * h * w)]
+    pool = pycoeus.MaxPool2d(kernel_size=2, stride=2)
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=False)
+    out_pyc = pool.forward(x_pyc)
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    pool_t = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+    exp = pool_t(t)
+    _allclose("maxpool2d_fwd", list(out_pyc.data), exp.detach().flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "lgamma"), reason="pycoeus.lgamma not available")
+def test_lgamma_matches_pytorch() -> None:
+    """torch.lgamma(x) vs pycoeus.lgamma(x) forward."""
+    data = [0.5, 1.0, 2.0, 3.0, 5.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.lgamma(x_pyc)
+    t = torch.tensor(data, dtype=torch.float64)
+    exp = torch.lgamma(t)
+    _allclose("lgamma_fwd", list(got.data), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "AvgPool2d"), reason="pycoeus.AvgPool2d not available")
+def test_avg_pool2d_fwd_matches_pytorch() -> None:
+    """AvgPool2d(k=2, s=2) vs torch.nn.AvgPool2d fwd+bwd."""
+    n, c, h, w = 2, 4, 8, 8
+    data = [float(i) * 0.05 - 1.0 for i in range(n * c * h * w)]
+    pool = pycoeus.AvgPool2d(kernel_size=2, stride=2)
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    out_pyc = pool.forward(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    pool_t = torch.nn.AvgPool2d(kernel_size=2, stride=2)
+    exp = pool_t(t)
+    exp.sum().backward()
+    _allclose("avgpool2d_fwd", list(out_pyc.data), exp.detach().flatten().tolist())
+    _allclose("avgpool2d_bwd", list(x_pyc.grad), t.grad.flatten().tolist())

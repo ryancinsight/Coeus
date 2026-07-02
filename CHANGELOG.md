@@ -4,6 +4,16 @@
 
 ### Added
 
+- **Special-function unary lane (Eunomia erf/erfc/lgamma)** — routed
+  `coeus-core` float `erf`/`erfc` through Eunomia, added `CpuUnaryOp::Lgamma`
+  through Coeus/Leto CPU dispatch, exposed forward-only `coeus_ops::lgamma`
+  / `coeus_autograd::lgamma_forward`, and added thin Python
+  `pycoeus.gammaln` plus `pycoeus.lgamma` parity surfaces. `pycoeus.gelu`
+  continues to use exact GELU and now differential tests cover the Eunomia
+  special-function path at f64. `gammaln` backward is rejected until
+  `digamma` is available. Evidence tier: value-semantic Rust plus f64
+  PyTorch differential parity. ([patch])
+
 - **MS-236 scan/diff/NaN reduction parity** — preserved the existing
   `pycoeus.diff`, `pycoeus.cumsum`, and `pycoeus.cumprod` parity additions,
   finished `pycoeus.nansum` and `pycoeus.nanmean` through the Rust autograd

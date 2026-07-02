@@ -948,27 +948,33 @@ x = pycoeus.Tensor([2.0, 4.0, 6.0, 8.0], [4])
 s = pycoeus.std(x)
 # mean=5, deviations: -3,-1,1,3; sq: 9,1,1,9; sum=20; N-1=3; var=20/3; std=sqrt(20/3)
 expected_std2 = math.sqrt(20.0 / 3.0)
-assert abs(s - expected_std2) < 1e-9, f"std wrong: {s} vs {expected_std2}"
+assert s.shape == [1], f"std scalar shape: {s.shape}"
+assert abs(s.item() - expected_std2) < 1e-9, f"std wrong: {s.item()} vs {expected_std2}"
 
 # var (unbiased)
 v = pycoeus.var(x)
-assert abs(v - 20.0 / 3.0) < 1e-9, f"var wrong: {v}"
+assert v.shape == [1], f"var scalar shape: {v.shape}"
+assert abs(v.item() - 20.0 / 3.0) < 1e-9, f"var wrong: {v.item()}"
 
 # var (biased, N divisor)
 v_biased = pycoeus.var(x, unbiased=False)
-assert abs(v_biased - 5.0) < 1e-9, f"var biased wrong: {v_biased}"
+assert abs(v_biased.item() - 5.0) < 1e-9, f"var biased wrong: {v_biased.item()}"
 
 # std (biased, N divisor)
 s_biased = pycoeus.std(x, unbiased=False)
-assert abs(s_biased - math.sqrt(5.0)) < 1e-9, f"std biased wrong: {s_biased}"
+assert abs(s_biased.item() - math.sqrt(5.0)) < 1e-9, f"std biased wrong: {s_biased.item()}"
 
 # var_mean / std_mean without axis return scalar pairs.
 vm_var, vm_mean = pycoeus.var_mean(x)
-assert abs(vm_var - v) < 1e-9, f"var_mean scalar variance wrong: {vm_var}"
-assert abs(vm_mean - 5.0) < 1e-9, f"var_mean scalar mean wrong: {vm_mean}"
+assert vm_var.shape == [1], f"var_mean scalar variance shape: {vm_var.shape}"
+assert vm_mean.shape == [1], f"var_mean scalar mean shape: {vm_mean.shape}"
+assert abs(vm_var.item() - v.item()) < 1e-9, f"var_mean scalar variance wrong: {vm_var.item()}"
+assert abs(vm_mean.item() - 5.0) < 1e-9, f"var_mean scalar mean wrong: {vm_mean.item()}"
 sm_std, sm_mean = pycoeus.std_mean(x, unbiased=False)
-assert abs(sm_std - s_biased) < 1e-9, f"std_mean scalar std wrong: {sm_std}"
-assert abs(sm_mean - 5.0) < 1e-9, f"std_mean scalar mean wrong: {sm_mean}"
+assert sm_std.shape == [1], f"std_mean scalar std shape: {sm_std.shape}"
+assert sm_mean.shape == [1], f"std_mean scalar mean shape: {sm_mean.shape}"
+assert abs(sm_std.item() - s_biased.item()) < 1e-9, f"std_mean scalar std wrong: {sm_std.item()}"
+assert abs(sm_mean.item() - 5.0) < 1e-9, f"std_mean scalar mean wrong: {sm_mean.item()}"
 
 # norm (L2) returns [1] tensor
 n = pycoeus.norm(x)
@@ -2347,19 +2353,20 @@ import pycoeus
 a = pycoeus.Tensor([1.0, 2.0, 3.0], [3])
 b = pycoeus.Tensor([4.0, 5.0, 6.0], [3])
 got = pycoeus.dot(a, b)
-assert abs(got - 32.0) < 1e-9, f"1D dot: {got}"
+assert got.shape == [1], f"1D dot shape: {got.shape}"
+assert abs(got.item() - 32.0) < 1e-9, f"1D dot: {got.item()}"
 
 # 2-D inputs: torch.dot flattens.
 am = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3])
 bm = pycoeus.Tensor([7.0, 8.0, 9.0, 10.0, 11.0, 12.0], [2, 3])
 want = 7 + 16 + 27 + 40 + 55 + 72  # = 217
 got = pycoeus.dot(am, bm)
-assert abs(got - float(want)) < 1e-9, f"2D flat dot: {got}"
+assert abs(got.item() - float(want)) < 1e-9, f"2D flat dot: {got.item()}"
 
 # orthogonal: <e_x, e_y> = 0
 ex = pycoeus.Tensor([1.0, 0.0, 0.0], [3])
 ey = pycoeus.Tensor([0.0, 1.0, 0.0], [3])
-assert abs(pycoeus.dot(ex, ey)) < 1e-9
+assert abs(pycoeus.dot(ex, ey).item()) < 1e-9
 
 # error: numel mismatch
 try:
