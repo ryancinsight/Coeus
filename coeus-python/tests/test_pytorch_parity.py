@@ -5339,3 +5339,82 @@ def test_sum_axis_matches_pytorch() -> None:
     out_t.sum().backward()
     _allclose("sum_axis_fwd", list(out_pyc.data), out_t.detach().tolist())
     _allclose("sum_axis_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+# ---------------------------------------------------------------------------
+# mean_axis / max_axis / min_axis / reshape / permute parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "mean_axis"), reason="pycoeus.mean_axis not available")
+def test_mean_axis_matches_pytorch() -> None:
+    """torch.mean(x, dim=1) vs pycoeus.mean_axis(x, 1), fwd+bwd."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    out_pyc = pycoeus.mean_axis(x_pyc, 1)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    out_t = torch.mean(t, dim=1)
+    out_t.sum().backward()
+    _allclose("mean_axis_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("mean_axis_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "max_axis"), reason="pycoeus.max_axis not available")
+def test_max_axis_matches_pytorch() -> None:
+    """torch.max(x, dim=1).values vs pycoeus.max_axis(x, 1) — forward only (non-differentiable)."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    got = pycoeus.max_axis(x_pyc, 1)
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3)
+    exp = torch.max(t, dim=1, keepdim=True).values
+    _allclose("max_axis", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "min_axis"), reason="pycoeus.min_axis not available")
+def test_min_axis_matches_pytorch() -> None:
+    """torch.min(x, dim=1).values vs pycoeus.min_axis(x, 1) — forward only."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    got = pycoeus.min_axis(x_pyc, 1)
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3)
+    exp = torch.min(t, dim=1, keepdim=True).values
+    _allclose("min_axis", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "reshape"), reason="pycoeus.reshape not available")
+def test_reshape_matches_pytorch() -> None:
+    """torch.reshape(x, shape) vs pycoeus.reshape(x, shape), fwd+bwd."""
+    data = [float(i) for i in range(12)]
+    x_pyc = pycoeus.Tensor(data, [2, 6], requires_grad=True)
+    out_pyc = pycoeus.reshape(x_pyc, [3, 4])
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 6).requires_grad_(True)
+    out_t = t.reshape(3, 4)
+    out_t.sum().backward()
+    _allclose("reshape_fwd", list(out_pyc.data), out_t.detach().flatten().tolist())
+    _allclose("reshape_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "permute"), reason="pycoeus.permute not available")
+def test_permute_matches_pytorch() -> None:
+    """torch.permute(x, (1,0,2)) vs pycoeus.permute(x, [1,0,2]), fwd+bwd."""
+    data = [float(i) for i in range(24)]
+    x_pyc = pycoeus.Tensor(data, [2, 3, 4], requires_grad=True)
+    out_pyc = pycoeus.permute(x_pyc, [1, 0, 2])
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3, 4).requires_grad_(True)
+    out_t = t.permute(1, 0, 2)
+    out_t.sum().backward()
+    _allclose("permute_fwd", list(out_pyc.data), out_t.detach().flatten().tolist())
+    _allclose("permute_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "zeros"), reason="pycoeus.zeros not available")
+def test_zeros_ones_full_parity() -> None:
+    """Creation ops match torch."""
+    z = pycoeus.zeros([3, 4])
+    _allclose("zeros", list(z.data), torch.zeros(3, 4, dtype=torch.float64).flatten().tolist())
+    o = pycoeus.ones([3, 4])
+    _allclose("ones", list(o.data), torch.ones(3, 4, dtype=torch.float64).flatten().tolist())
+    f = pycoeus.full([2, 3], 5.0, False)
+    _allclose("full", list(f.data), torch.full((2, 3), 5.0, dtype=torch.float64).flatten().tolist())
