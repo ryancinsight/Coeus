@@ -94,6 +94,8 @@ pub enum CpuUnaryOp {
     Exp,
     /// Element-wise natural logarithm: ln(x).
     Log,
+    /// Gauss error function: erf(x).
+    Erf,
     /// Element-wise negation: -x.
     Neg,
     /// Element-wise absolute value: |x|.

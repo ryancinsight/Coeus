@@ -28,6 +28,7 @@ const OPS: &[CpuUnaryOp] = &[
     CpuUnaryOp::Cos,
     CpuUnaryOp::Exp,
     CpuUnaryOp::Log,
+    CpuUnaryOp::Erf,
     CpuUnaryOp::Neg,
     CpuUnaryOp::Abs,
     CpuUnaryOp::Sqrt,

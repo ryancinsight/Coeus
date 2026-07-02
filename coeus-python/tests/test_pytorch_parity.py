@@ -4203,6 +4203,20 @@ def test_gelu_tanh_matches_pytorch() -> None:
     _allclose("gelu_tanh_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-6)
 
 
+@pytest.mark.skipif(not hasattr(pycoeus, "erf"), reason="pycoeus.erf not available")
+def test_erf_matches_pytorch() -> None:
+    """torch.erf(x) vs pycoeus.erf(x), forward and backward (d/dx = 2/sqrt(pi)*exp(-x^2))."""
+    data = [-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [7], requires_grad=True)
+    out_pyc = pycoeus.erf(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.erf(t)
+    out_t.sum().backward()
+    _allclose("erf_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("erf_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
 @pytest.mark.skipif(not hasattr(pycoeus, "gaussian_nll_loss"), reason="pycoeus.gaussian_nll_loss not available")
 def test_gaussian_nll_loss_matches_pytorch() -> None:
     """torch.nn.functional.gaussian_nll_loss vs pycoeus.gaussian_nll_loss."""

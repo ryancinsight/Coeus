@@ -18,7 +18,7 @@ pub mod shape;
 pub mod var_ops;
 
 pub use activation::{
-    abs, ceil, celu, clamp, cos, elu, exp, floor, gelu, gelu_tanh, hardshrink, hardsigmoid,
+    abs, ceil, celu, clamp, cos, elu, erf, exp, floor, gelu, gelu_tanh, hardshrink, hardsigmoid,
     hardswish, hardtanh, leaky_relu, log, mish, neg, pack_pairs, pow, prelu, recip, relu, round,
     sigmoid, sign, silu, sin, softplus, softshrink, softsign, sqrt, tanh, threshold, trunc,
 };

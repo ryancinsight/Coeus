@@ -13,6 +13,13 @@ pub fn log(input: &PyTensor, py: Python<'_>) -> PyTensor {
     PyTensor::from_var(inner)
 }
 
+/// Gauss error function (`torch.erf`); differentiable, d/dx = 2/√π·e^(−x²).
+#[pyfunction]
+pub fn erf(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::erf(&input.inner));
+    PyTensor::from_var(inner)
+}
+
 #[pyfunction]
 pub fn abs(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::abs(&input.inner));

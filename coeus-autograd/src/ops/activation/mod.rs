@@ -143,7 +143,7 @@ pub use relu::{elu, leaky_relu, prelu, relu, EluOp, ReluOp};
 pub use sigmoid::{sigmoid, SigmoidOp};
 pub use silu::{mish, silu, softplus, MishOp, SiluOp, SoftplusOp};
 pub use tanh_act::{tanh, TanhOp};
-pub use trig::{cos, exp, log, sin, CosOp, ExpOp, LogOp, SinOp};
+pub use trig::{cos, erf, exp, log, sin, CosOp, ErfOp, ExpOp, LogOp, SinOp};
 // Extended-family re-exports (G-037).
 pub use ext::{
     celu, hardshrink, hardsigmoid, hardswish, hardtanh, pack_pairs, softshrink, softsign,

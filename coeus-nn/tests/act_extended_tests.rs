@@ -45,9 +45,13 @@ fn hardswish_expected(x: f64) -> f64 {
 }
 
 fn hardswish_grad_expected(x: f64) -> f64 {
-    if x < -3.0 {
+    // Match `torch.nn.functional.hardswish` CPU `hardswish_backward_kernel`
+    // branch convention: dx = 0 at `x ≤ -3` (inclusive), `(2x+3)/6` for
+    // `-3 < x < 3`, 1 at `x ≥ 3`. The previous exclusive lower bound
+    // (`x < -3.0`) missed the kink and produced -0.5 at x = -3 instead of 0.
+    if x <= -3.0 {
         0.0
-    } else if x > 3.0 {
+    } else if x >= 3.0 {
         1.0
     } else {
         (2.0 * x + 3.0) / 6.0

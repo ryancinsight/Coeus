@@ -39,6 +39,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
                     CpuUnaryOp::Cos => x.cos_op(),
                     CpuUnaryOp::Exp => x.exp_op(),
                     CpuUnaryOp::Log => x.log_op(),
+                    CpuUnaryOp::Erf => x.erf_op(),
                     CpuUnaryOp::Neg => Self::zero() - x,
                     CpuUnaryOp::Abs => x.abs_val(),
                     CpuUnaryOp::Sqrt => x.sqrt_val(),
@@ -169,13 +170,19 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         x * relu6 / six
                     }
                     CpuUnaryOp::HardswishGrad => {
+                        // Piecewise: 0 if x ≤ -3, (2x+3)/6 if -3 < x < 3,
+                        // 1 if x ≥ 3. Matches `torch.nn.functional.hardswish`'s
+                        // CPU kernel, which takes the zero branch at `x ≤ -3`
+                        // (inclusive). The previous exclusive bound
+                        // (`x < -three`) leaked the middle-branch evaluation
+                        // at the kink x = -3, producing -0.5 instead of 0.
                         let three = Self::from_f64(3.0);
                         let six = Self::from_f64(6.0);
                         let two = Self::from_f64(2.0);
                         let one = Self::one();
-                        if x < -three {
+                        if x <= -three {
                             Self::zero()
-                        } else if x <= three {
+                        } else if x < three {
                             (two * x + three) / six
                         } else {
                             one

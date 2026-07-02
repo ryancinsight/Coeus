@@ -1782,6 +1782,18 @@ def test_gelu_tanh_matches_jax() -> None:
     _allclose("gelu_tanh", list(got.data), exp.tolist(), atol=1e-6)
 
 
+@pytest.mark.skipif(not hasattr(pycoeus, "erf"), reason="pycoeus.erf not available")
+def test_erf_matches_jax() -> None:
+    """jax.scipy.special.erf(x) vs pycoeus.erf(x)."""
+    import jax.scipy.special
+    data = [-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [7], requires_grad=False)
+    got = pycoeus.erf(x_pyc)
+    t = jnp.array(data, dtype=jnp.float64)
+    exp = jax.scipy.special.erf(t)
+    _allclose("erf", list(got.data), exp.tolist(), atol=1e-12)
+
+
 @pytest.mark.skipif(not hasattr(pycoeus, "pow"), reason="pycoeus.pow not available")
 def test_pow_matches_jax() -> None:
     """jnp.power(x, 3) vs pycoeus.pow(x, 3.0)."""

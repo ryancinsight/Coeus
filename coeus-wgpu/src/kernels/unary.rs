@@ -16,6 +16,7 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> String {
         coeus_ops::UnaryOp::Cos => "cos(val)".to_string(),
         coeus_ops::UnaryOp::Exp => "exp(val)".to_string(),
         coeus_ops::UnaryOp::Log => "log(val)".to_string(),
+        coeus_ops::UnaryOp::Erf => coeus_ops::fuse::wgsl_erf_approx_expr("val"),
         coeus_ops::UnaryOp::Neg => "-val".to_string(),
         coeus_ops::UnaryOp::Abs => "abs(val)".to_string(),
         coeus_ops::UnaryOp::Sqrt => "sqrt(val)".to_string(),
@@ -57,8 +58,13 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> String {
             "val * clamp(val + 3.0, 0.0, 6.0) / 6.0".to_string()
         }
         coeus_ops::UnaryOp::HardswishGrad => {
-            // Piecewise: 0 if val < -3, (2*val + 3) / 6 if -3 <= val <= 3, 1 if val > 3.
-            "select(select(0.0, (2.0 * val + 3.0) / 6.0, val <= 3.0), 1.0, val > 3.0)"
+            // Piecewise: 0 if x ≤ -3, (2x+3)/6 if -3 < x < 3, 1 if x ≥ 3.
+            // Matches PyTorch's `hardswish_backward_kernel` CPU path
+            // (`if (self <= -3) zero; else if (self < 3) (x/3 + 0.5) else grad`).
+            // The previous WGSL string used `val <= 3` for the middle branch,
+            // which left x = -3 falling through to (2*-3+3)/6 = -0.5 instead
+            // of the boundary-correct 0.
+            "select(select(0.0, (2.0 * val + 3.0) / 6.0, (val > -3.0) && (val < 3.0)), 1.0, val >= 3.0)"
                 .to_string()
         }
         coeus_ops::UnaryOp::Hardshrink(lam_bits) => {
@@ -159,7 +165,7 @@ pub fn dispatch_unary<T: WgpuScalar>(
                 if (idx >= arrayLength(&c)) {{
                     return;
                 }}
-                
+
                 var temp = idx;
                 var off_a = a_layout.offset;
 
@@ -202,7 +208,7 @@ pub fn dispatch_unary<T: WgpuScalar>(
                 if (idx >= arrayLength(&c)) {{
                     return;
                 }}
-                
+
                 var temp = idx;
                 var off_a = a_layout.offset;
 

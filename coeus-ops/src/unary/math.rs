@@ -44,6 +44,27 @@ pub fn log<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Ten
     elementwise_unary(input, backend, UnaryOp::Log)
 }
 
+/// Element-wise Gauss error function: erf(x) = (2/√π) ∫₀ˣ e^(−t²) dt.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::erf;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<f64, SequentialBackend>::from_slice([2], &[0.0, 1.0]);
+/// let b = erf(&a, &backend);
+/// let s = b.as_slice();
+/// assert!(s[0].abs() < 1e-15);
+/// assert!((s[1] - 0.842_700_792_949_714_9).abs() < 1e-12);
+/// ```
+#[inline]
+pub fn erf<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Erf)
+}
+
 /// Element-wise negation (works for any Scalar).
 ///
 /// # Examples
