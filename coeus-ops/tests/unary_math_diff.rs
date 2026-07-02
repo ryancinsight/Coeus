@@ -86,6 +86,16 @@ where
     let ro = coeus_ops::round(&v, backend);
     assert_eq!(ro.as_slice(), v.as_slice(), "round of integers");
 
+    // Half-way ties round to even (IEEE-754 roundTiesToEven, torch.round):
+    // -2.5 -> -2, -1.5 -> -2, -0.5 -> -0, 0.5 -> 0, 1.5 -> 2, 2.5 -> 2.
+    let ties = t(&[6], &[-2.5, -1.5, -0.5, 0.5, 1.5, 2.5], backend);
+    let ro_ties = coeus_ops::round(&ties, backend);
+    assert_eq!(
+        ro_ties.as_slice(),
+        &[-2.0, -2.0, -0.0, 0.0, 2.0, 2.0],
+        "round ties-to-even"
+    );
+
     let tr = coeus_ops::trunc(&v, backend);
     assert_eq!(tr.as_slice(), v.as_slice(), "trunc of integers");
 

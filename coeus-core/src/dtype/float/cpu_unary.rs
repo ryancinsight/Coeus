@@ -45,6 +45,10 @@ macro_rules! impl_cpu_unary_dispatch_float {
                     CpuUnaryOp::Asin => x.asin_op(),
                     CpuUnaryOp::Acos => x.acos_op(),
                     CpuUnaryOp::Atan => x.atan_op(),
+                    CpuUnaryOp::Sinh => x.sinh_op(),
+                    CpuUnaryOp::Cosh => x.cosh_op(),
+                    CpuUnaryOp::Log2 => x.log2_op(),
+                    CpuUnaryOp::Log10 => x.log10_op(),
                     CpuUnaryOp::Neg => Self::zero() - x,
                     CpuUnaryOp::Abs => x.abs_val(),
                     CpuUnaryOp::Sqrt => x.sqrt_val(),
@@ -315,7 +319,9 @@ macro_rules! impl_cpu_unary_dispatch_float {
                     }
                     CpuUnaryOp::Floor => Self::from_f64(Self::to_f64(x).floor()),
                     CpuUnaryOp::Ceil => Self::from_f64(Self::to_f64(x).ceil()),
-                    CpuUnaryOp::Round => Self::from_f64(Self::to_f64(x).round()),
+                    // Ties-to-even (banker's rounding) per IEEE-754 roundTiesToEven,
+                    // matching torch.round, WGSL round(), and CUDA rintf.
+                    CpuUnaryOp::Round => Self::from_f64(Self::to_f64(x).round_ties_even()),
                     CpuUnaryOp::Trunc => Self::from_f64(Self::to_f64(x).trunc()),
                 }
             }

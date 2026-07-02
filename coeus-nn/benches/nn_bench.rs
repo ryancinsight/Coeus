@@ -2823,6 +2823,46 @@ fn bench_erfc_forward(c: &mut Criterion) {
 }
 
 
+
+fn bench_exp_forward(c: &mut Criterion) {
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES)).map(|i| (i as f32 * 0.001).sin()).collect();
+    let x_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data), false);
+    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data), false);
+    let device = NdArrayDevice::default();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(TensorData::new(input_data.clone(), [BATCH, FEATURES]), &device);
+    let mut group = c.benchmark_group("Burn vs Coeus - exp forward (128x256)");
+    group.bench_function("Burn NdArray", |b| { b.iter(|| black_box(black_box(x_burn.clone()).exp())) });
+    group.bench_function("Coeus Sequential", |b| { b.iter(|| black_box(coeus_autograd::exp(black_box(&x_seq)))) });
+    group.bench_function("Coeus Moirai", |b| { b.iter(|| black_box(coeus_autograd::exp(black_box(&x_moirai)))) });
+    group.finish();
+}
+
+fn bench_log_forward(c: &mut Criterion) {
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES)).map(|i| (i as f32 * 0.003).cos().abs() + 0.01).collect();
+    let x_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data), false);
+    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data), false);
+    let device = NdArrayDevice::default();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(TensorData::new(input_data.clone(), [BATCH, FEATURES]), &device);
+    let mut group = c.benchmark_group("Burn vs Coeus - log forward (128x256)");
+    group.bench_function("Burn NdArray", |b| { b.iter(|| black_box(black_box(x_burn.clone()).log())) });
+    group.bench_function("Coeus Sequential", |b| { b.iter(|| black_box(coeus_autograd::log(black_box(&x_seq)))) });
+    group.bench_function("Coeus Moirai", |b| { b.iter(|| black_box(coeus_autograd::log(black_box(&x_moirai)))) });
+    group.finish();
+}
+
+fn bench_neg_forward(c: &mut Criterion) {
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES)).map(|i| (i as f32 * 0.003).sin()).collect();
+    let x_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data), false);
+    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data), false);
+    let device = NdArrayDevice::default();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(TensorData::new(input_data.clone(), [BATCH, FEATURES]), &device);
+    let mut group = c.benchmark_group("Burn vs Coeus - neg forward (128x256)");
+    group.bench_function("Burn NdArray", |b| { b.iter(|| black_box(black_box(x_burn.clone()).neg())) });
+    group.bench_function("Coeus Sequential", |b| { b.iter(|| black_box(coeus_autograd::neg(black_box(&x_seq)))) });
+    group.bench_function("Coeus Moirai", |b| { b.iter(|| black_box(coeus_autograd::neg(black_box(&x_moirai)))) });
+    group.finish();
+}
+
 fn bench_std_forward(c: &mut Criterion) {
     // std (unbiased): [128, 256] — variance reduction used in normalization.
     let input_data: Vec<f32> = (0..(BATCH * FEATURES)).map(|i| (i as f32 * 0.0017).sin()).collect();
@@ -2906,7 +2946,10 @@ criterion_group!(
     bench_clamp_forward,
     bench_asin_forward,
     bench_erfc_forward,
-    bench_std_forward
+    bench_std_forward,
+    bench_exp_forward,
+    bench_log_forward,
+    bench_neg_forward
 );
 criterion_main!(benches);
 

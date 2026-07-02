@@ -45,6 +45,14 @@ pub trait FloatOps: private::Sealed {
     fn acos_op(self) -> Self;
     /// Element-wise arc-tangent: atan(x).
     fn atan_op(self) -> Self;
+    /// Element-wise hyperbolic sine: sinh(x).
+    fn sinh_op(self) -> Self;
+    /// Element-wise hyperbolic cosine: cosh(x).
+    fn cosh_op(self) -> Self;
+    /// Element-wise base-2 logarithm: log2(x).
+    fn log2_op(self) -> Self;
+    /// Element-wise base-10 logarithm: log10(x).
+    fn log10_op(self) -> Self;
     /// Gaussian Error Linear Unit: 0.5 * x * (1 + erf(x / sqrt(2))).
     fn gelu_op(self) -> Self;
     /// Logistic sigmoid: 1 / (1 + e^(-x)).
@@ -116,6 +124,14 @@ pub enum CpuUnaryOp {
     Acos,
     /// arctan(x)
     Atan,
+    /// hyperbolic sine: sinh(x)
+    Sinh,
+    /// hyperbolic cosine: cosh(x)
+    Cosh,
+    /// base-2 logarithm: log2(x)
+    Log2,
+    /// base-10 logarithm: log10(x)
+    Log10,
     /// Element-wise negation: -x.
     Neg,
     /// Element-wise absolute value: |x|.
@@ -188,7 +204,8 @@ pub enum CpuUnaryOp {
     Floor,
     /// Element-wise ceil: smallest integer ≥ x
     Ceil,
-    /// Element-wise round to nearest integer
+    /// Element-wise round to nearest integer, ties to even (IEEE-754
+    /// roundTiesToEven, matching torch.round)
     Round,
     /// Element-wise truncation toward zero
     Trunc,

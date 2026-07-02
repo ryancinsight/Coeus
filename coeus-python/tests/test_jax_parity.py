@@ -2023,3 +2023,54 @@ def test_var_matches_jax() -> None:
     t = jnp.array(data, dtype=jnp.float64)
     exp = jnp.var(t)
     _allclose("var", list(got.data), [float(exp)])
+
+# ---------------------------------------------------------------------------
+# exp / log / neg parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "exp"), reason="pycoeus.exp not available")
+def test_exp_matches_jax() -> None:
+    """jnp.exp(x) vs pycoeus.exp(x)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.exp(x_pyc)
+    exp = jnp.exp(jnp.array(data, dtype=jnp.float64))
+    _allclose("exp", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log"), reason="pycoeus.log not available")
+def test_log_matches_jax() -> None:
+    """jnp.log(x) vs pycoeus.log(x)."""
+    import math
+    data = [0.1, 0.5, 1.0, 2.0, math.e]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.log(x_pyc)
+    exp = jnp.log(jnp.array(data, dtype=jnp.float64))
+    _allclose("log", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "neg"), reason="pycoeus.neg not available")
+def test_neg_matches_jax() -> None:
+    """jnp.negative(x) vs pycoeus.neg(x)."""
+    data = [-2.0, 0.0, 1.0, 3.5]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=False)
+    got = pycoeus.neg(x_pyc)
+    exp = jnp.negative(jnp.array(data, dtype=jnp.float64))
+    _allclose("neg", list(got.data), exp.tolist())
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sinh"), reason="pycoeus.sinh not available")
+def test_sinh_matches_jax() -> None:
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.sinh(x_pyc)
+    exp = jnp.sinh(jnp.array(data, dtype=jnp.float64))
+    _allclose("sinh", list(got.data), exp.tolist(), atol=1e-12)
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log2"), reason="pycoeus.log2 not available")
+def test_log2_matches_jax() -> None:
+    data = [0.5, 1.0, 2.0, 4.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.log2(x_pyc)
+    exp = jnp.log2(jnp.array(data, dtype=jnp.float64))
+    _allclose("log2", list(got.data), exp.tolist(), atol=1e-12)

@@ -52,6 +52,30 @@ pub fn atan(input: &PyTensor, py: Python<'_>) -> PyTensor {
 }
 
 #[pyfunction]
+pub fn sinh(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::sinh(&input.inner));
+    PyTensor::from_var(inner)
+}
+
+#[pyfunction]
+pub fn cosh(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::cosh(&input.inner));
+    PyTensor::from_var(inner)
+}
+
+#[pyfunction]
+pub fn log2(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::log2(&input.inner));
+    PyTensor::from_var(inner)
+}
+
+#[pyfunction]
+pub fn log10(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::log10(&input.inner));
+    PyTensor::from_var(inner)
+}
+
+#[pyfunction]
 pub fn abs(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::abs(&input.inner));
     PyTensor::from_var(inner)

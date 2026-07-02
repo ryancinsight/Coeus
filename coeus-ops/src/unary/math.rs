@@ -109,6 +109,31 @@ pub fn atan<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Te
     elementwise_unary(input, backend, UnaryOp::Atan)
 }
 
+/// Element-wise hyperbolic sine: sinh(x).
+/// Backward: d/dx sinh(x) = cosh(x).
+#[inline]
+pub fn sinh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Sinh)
+}
+/// Element-wise hyperbolic cosine: cosh(x).
+/// Backward: d/dx cosh(x) = sinh(x).
+#[inline]
+pub fn cosh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Cosh)
+}
+/// Element-wise base-2 logarithm: log2(x).
+/// Backward: d/dx log2(x) = 1/(x * ln(2)).
+#[inline]
+pub fn log2<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Log2)
+}
+/// Element-wise base-10 logarithm: log10(x).
+/// Backward: d/dx log10(x) = 1/(x * ln(10)).
+#[inline]
+pub fn log10<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Log10)
+}
+
 /// Element-wise negation (works for any Scalar).
 ///
 /// # Examples

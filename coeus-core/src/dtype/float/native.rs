@@ -150,6 +150,22 @@ macro_rules! impl_scalar_float_native {
                 self.atan()
             }
             #[inline(always)]
+            fn sinh_op(self) -> Self {
+                self.sinh()
+            }
+            #[inline(always)]
+            fn cosh_op(self) -> Self {
+                self.cosh()
+            }
+            #[inline(always)]
+            fn log2_op(self) -> Self {
+                self.log2()
+            }
+            #[inline(always)]
+            fn log10_op(self) -> Self {
+                self.log10()
+            }
+            #[inline(always)]
             fn gelu_op(self) -> Self {
                 let half = Self::from_f64(0.5);
                 let one = Self::from_f64(1.0);
