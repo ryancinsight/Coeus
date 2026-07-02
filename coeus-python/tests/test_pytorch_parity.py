@@ -5045,3 +5045,77 @@ def test_dot_matches_pytorch() -> None:
     _allclose("dot_fwd", list(out_pyc.data), [out_t.item()])
     _allclose("dot_bwd_a", list(a_pyc.grad), a_t.grad.tolist())
     _allclose("dot_bwd_b", list(b_pyc.grad), b_t.grad.tolist())
+
+# ---------------------------------------------------------------------------
+# cosine_similarity / stack / cat / broadcast_tensors / matmul parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cosine_similarity"), reason="pycoeus.cosine_similarity not available")
+def test_cosine_similarity_fwd_bwd_matches_pytorch() -> None:
+    """F.cosine_similarity fwd+bwd vs pycoeus.cosine_similarity."""
+    a = [1.0, 2.0, 3.0, 0.5, 1.5, 2.5]
+    b = [3.0, 2.0, 1.0, 2.5, 1.5, 0.5]
+    a_pyc = pycoeus.Tensor(a, [2, 3], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b, [2, 3], requires_grad=True)
+    out_pyc = pycoeus.cosine_similarity(a_pyc, b_pyc, dim=1)
+    out_pyc.backward()
+    a_t = torch.tensor(a, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    b_t = torch.tensor(b, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    out_t = torch.nn.functional.cosine_similarity(a_t, b_t, dim=1)
+    out_t.sum().backward()
+    _allclose("cos_sim_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-10)
+    _allclose("cos_sim_bwd_a", list(a_pyc.grad), a_t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "stack"), reason="pycoeus.stack not available")
+def test_stack_matches_pytorch() -> None:
+    """torch.stack([a,b], dim=0) vs pycoeus.stack([a,b], dim=0), fwd+bwd."""
+    a = [1.0, 2.0, 3.0]
+    b = [4.0, 5.0, 6.0]
+    a_pyc = pycoeus.Tensor(a, [3], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b, [3], requires_grad=True)
+    out_pyc = pycoeus.stack([a_pyc, b_pyc], dim=0)
+    out_pyc.backward()
+    a_t = torch.tensor(a, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(b, dtype=torch.float64, requires_grad=True)
+    out_t = torch.stack([a_t, b_t], dim=0)
+    out_t.sum().backward()
+    _allclose("stack_fwd", list(out_pyc.data), out_t.detach().flatten().tolist())
+    _allclose("stack_bwd_a", list(a_pyc.grad), a_t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cat"), reason="pycoeus.cat not available")
+def test_cat_matches_pytorch() -> None:
+    """torch.cat([a,b], dim=0) vs pycoeus.cat([a,b], dim=0), fwd+bwd."""
+    a = [1.0, 2.0, 3.0]
+    b = [4.0, 5.0, 6.0, 7.0]
+    a_pyc = pycoeus.Tensor(a, [3], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b, [4], requires_grad=True)
+    out_pyc = pycoeus.cat([a_pyc, b_pyc], dim=0)
+    out_pyc.backward()
+    a_t = torch.tensor(a, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(b, dtype=torch.float64, requires_grad=True)
+    out_t = torch.cat([a_t, b_t], dim=0)
+    out_t.sum().backward()
+    _allclose("cat_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("cat_bwd_a", list(a_pyc.grad), a_t.grad.tolist())
+    _allclose("cat_bwd_b", list(b_pyc.grad), b_t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "matmul"), reason="pycoeus.matmul not available")
+def test_matmul_fwd_bwd_matches_pytorch() -> None:
+    """torch.matmul(a, b) 2D vs pycoeus.matmul(a, b), fwd+bwd."""
+    a = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    b = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+    a_pyc = pycoeus.Tensor(a, [2, 3], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b, [3, 2], requires_grad=True)
+    out_pyc = pycoeus.matmul(a_pyc, b_pyc)
+    out_pyc.backward()
+    a_t = torch.tensor(a, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    b_t = torch.tensor(b, dtype=torch.float64).reshape(3, 2).requires_grad_(True)
+    out_t = torch.matmul(a_t, b_t)
+    out_t.sum().backward()
+    _allclose("matmul_fwd", list(out_pyc.data), out_t.detach().flatten().tolist())
+    _allclose("matmul_bwd_a", list(a_pyc.grad), a_t.grad.flatten().tolist())
+    _allclose("matmul_bwd_b", list(b_pyc.grad), b_t.grad.flatten().tolist())

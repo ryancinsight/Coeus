@@ -2118,3 +2118,35 @@ def test_log10_matches_jax() -> None:
     got = pycoeus.log10(x_pyc)
     exp = jnp.log10(jnp.array(data, dtype=jnp.float64))
     _allclose("log10", list(got.data), exp.tolist(), atol=1e-12)
+
+# ---------------------------------------------------------------------------
+# stack / cat / matmul parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "stack"), reason="pycoeus.stack not available")
+def test_stack_matches_jax() -> None:
+    """jnp.stack([a,b], axis=0) vs pycoeus.stack([a,b], dim=0)."""
+    a = [1.0, 2.0, 3.0]
+    b = [4.0, 5.0, 6.0]
+    a_pyc = pycoeus.Tensor(a, [3], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [3], requires_grad=False)
+    got = pycoeus.stack([a_pyc, b_pyc], dim=0)
+    a_j = jnp.array(a, dtype=jnp.float64)
+    b_j = jnp.array(b, dtype=jnp.float64)
+    exp = jnp.stack([a_j, b_j], axis=0)
+    _allclose("stack", list(got.data), jnp.ravel(exp).tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "matmul"), reason="pycoeus.matmul not available")
+def test_matmul_matches_jax() -> None:
+    """jnp.matmul(a, b) vs pycoeus.matmul(a, b)."""
+    a = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    b = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+    a_pyc = pycoeus.Tensor(a, [2, 3], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [3, 2], requires_grad=False)
+    got = pycoeus.matmul(a_pyc, b_pyc)
+    a_j = jnp.array(a, dtype=jnp.float64).reshape(2, 3)
+    b_j = jnp.array(b, dtype=jnp.float64).reshape(3, 2)
+    exp = jnp.matmul(a_j, b_j)
+    _allclose("matmul", list(got.data), jnp.ravel(exp).tolist())
