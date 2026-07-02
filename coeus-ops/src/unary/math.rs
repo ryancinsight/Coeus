@@ -5,13 +5,17 @@ use crate::backend_ops::{BackendOps, UnaryOp};
 use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 
-/// Element-wise sine.
+/// Element-wise sine: sin(x).
+///
+/// Backward: `d/dx sin(x) = cos(x)`.
 #[inline]
 pub fn sin<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Sin)
 }
 
-/// Element-wise cosine.
+/// Element-wise cosine: cos(x).
+///
+/// Backward: `d/dx cos(x) = -sin(x)`.
 #[inline]
 pub fn cos<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Cos)
@@ -65,25 +69,33 @@ pub fn erf<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Ten
     elementwise_unary(input, backend, UnaryOp::Erf)
 }
 
-/// Element-wise tangent.
+/// Element-wise tangent: tan(x).
+///
+/// Backward: `d/dx tan(x) = 1 / cos²(x)` (sec²(x)).
 #[inline]
 pub fn tan<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Tan)
 }
 
-/// Element-wise arc-sine.
+/// Element-wise arc-sine: asin(x), domain x ∈ [-1, 1].
+///
+/// Backward: `d/dx asin(x) = 1 / sqrt(1 - x²)`.
 #[inline]
 pub fn asin<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Asin)
 }
 
-/// Element-wise arc-cosine.
+/// Element-wise arc-cosine: acos(x), domain x ∈ [-1, 1].
+///
+/// Backward: `d/dx acos(x) = -1 / sqrt(1 - x²)`.
 #[inline]
 pub fn acos<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Acos)
 }
 
-/// Element-wise arc-tangent.
+/// Element-wise arc-tangent: atan(x).
+///
+/// Backward: `d/dx atan(x) = 1 / (1 + x²)`.
 #[inline]
 pub fn atan<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Atan)
