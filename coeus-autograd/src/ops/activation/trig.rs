@@ -109,7 +109,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         let gauss = coeus_ops::exp(&neg_x_sq, backend);
         let neg_two_over_sqrt_pi = Tensor::full_on(
             gauss.shape(),
-            T::from_f64(-1.128_379_167_095_512_6),
+            T::from_f64(-core::f64::consts::FRAC_2_SQRT_PI),
             backend,
         );
         let scaled = coeus_ops::mul(&gauss, &neg_two_over_sqrt_pi, backend);
