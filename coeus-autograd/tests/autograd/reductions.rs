@@ -1,5 +1,6 @@
 use coeus_autograd::{
-    cumsum, log_sum_exp, max_axis, mean_axis, min_axis, norm_p, norm_p_axis, sum_axis, Var,
+    cumsum, log_sum_exp, max_axis, mean_axis, min_axis, norm_p, norm_p_axis, std_dev, sum_axis,
+    var, var_mean, var_mean_axis, Var,
 };
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
@@ -249,4 +250,96 @@ fn test_cumsum_autograd() {
     assert!((gx_s[1] - 9.0).abs() < 1e-10, "cumsum grad[1]: {}", gx_s[1]);
     assert!((gx_s[2] - 7.0).abs() < 1e-10, "cumsum grad[2]: {}", gx_s[2]);
     assert!((gx_s[3] - 4.0).abs() < 1e-10, "cumsum grad[3]: {}", gx_s[3]);
+}
+
+#[test]
+fn test_var_autograd_matches_analytic() {
+    let backend = MoiraiBackend::new();
+    // x = [1,2,3,4]: mean = 2.5; unbiased var = ((1.5)^2+(0.5)^2+(0.5)^2+(1.5)^2)/3
+    // = 5/3; biased divides by 4 -> 5/4.
+    let data = [1.0f64, 2.0, 3.0, 4.0];
+    let x = Var::new(Tensor::from_slice_on(vec![4], &data, &backend), true);
+
+    let (v, mu) = var_mean(&x, true);
+    assert!((mu.tensor.as_slice()[0] - 2.5).abs() < 1e-14, "mean");
+    assert!(
+        (v.tensor.as_slice()[0] - 5.0 / 3.0).abs() < 1e-14,
+        "unbiased var: {}",
+        v.tensor.as_slice()[0]
+    );
+    let vb = var(&x, false);
+    assert!((vb.tensor.as_slice()[0] - 1.25).abs() < 1e-14, "biased var");
+    let s = std_dev(&x, true);
+    assert!(
+        (s.tensor.as_slice()[0] - (5.0f64 / 3.0).sqrt()).abs() < 1e-14,
+        "std"
+    );
+
+    // Analytic gradient of the unbiased variance: dv/dx_i = 2(x_i - mean)/(n-1)
+    // (the mean-path terms cancel because sum(x_j - mean) = 0).
+    v.backward();
+    let gx = x.grad().unwrap();
+    let gx = gx.as_slice();
+    for (i, &xi) in data.iter().enumerate() {
+        let expected = 2.0 * (xi - 2.5) / 3.0;
+        assert!(
+            (gx[i] - expected).abs() < 1e-14,
+            "d var/dx[{i}]: {} vs {expected}",
+            gx[i]
+        );
+    }
+
+    // Numerical-gradient cross-check (central differences, h = 1e-6): an
+    // implementation-independent oracle for the composed backward.
+    let h = 1e-6f64;
+    for i in 0..data.len() {
+        let mut dp = data;
+        dp[i] += h;
+        let mut dm = data;
+        dm[i] -= h;
+        let vp = var(
+            &Var::new(Tensor::from_slice_on(vec![4], &dp, &backend), false),
+            true,
+        );
+        let vm = var(
+            &Var::new(Tensor::from_slice_on(vec![4], &dm, &backend), false),
+            true,
+        );
+        let numeric = (vp.tensor.as_slice()[0] - vm.tensor.as_slice()[0]) / (2.0 * h);
+        assert!(
+            (numeric - gx[i]).abs() < 1e-8,
+            "numeric {numeric} vs autograd {} at {i}",
+            gx[i]
+        );
+    }
+}
+
+#[test]
+fn test_var_axis_autograd_matches_analytic() {
+    let backend = MoiraiBackend::new();
+    // [[1,2,3],[4,6,8]] axis=1: means [2,6]; unbiased vars [1, 4].
+    let data = [1.0f64, 2.0, 3.0, 4.0, 6.0, 8.0];
+    let x = Var::new(Tensor::from_slice_on(vec![2, 3], &data, &backend), true);
+
+    let (v, mu) = var_mean_axis(&x, 1, true);
+    assert_eq!(v.tensor.shape(), &[2, 1], "keepdim shape");
+    let vs = v.tensor.as_slice().to_vec();
+    let ms = mu.tensor.as_slice().to_vec();
+    assert!((ms[0] - 2.0).abs() < 1e-14 && (ms[1] - 6.0).abs() < 1e-14, "means");
+    assert!((vs[0] - 1.0).abs() < 1e-14, "row0 var: {}", vs[0]);
+    assert!((vs[1] - 4.0).abs() < 1e-14, "row1 var: {}", vs[1]);
+
+    // Row-local gradient: dv_r/dx_ri = 2(x_ri - mean_r)/(extent-1), extent-1 = 2.
+    v.backward();
+    let gx = x.grad().unwrap();
+    let gx = gx.as_slice();
+    let means = [2.0, 2.0, 2.0, 6.0, 6.0, 6.0];
+    for i in 0..6 {
+        let expected = 2.0 * (data[i] - means[i]) / 2.0;
+        assert!(
+            (gx[i] - expected).abs() < 1e-14,
+            "d var/dx[{i}]: {} vs {expected}",
+            gx[i]
+        );
+    }
 }

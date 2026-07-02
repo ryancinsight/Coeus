@@ -2807,6 +2807,21 @@ fn bench_asin_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_erfc_forward(c: &mut Criterion) {
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES)).map(|i| (i as f32 * 0.003).sin() * 2.0).collect();
+    let x_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data), false);
+    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data), false);
+    let device = NdArrayDevice::default();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(TensorData::new(input_data.clone(), [BATCH, FEATURES]), &device);
+    let mut group = c.benchmark_group("Burn vs Coeus - erfc forward (128x256)");
+    group.bench_function("Burn NdArray (1-tanh proxy)", |b| {
+        b.iter(|| { let t = black_box(x_burn.clone()).tanh(); black_box(t.mul_scalar(-1.0f32).add_scalar(1.0f32)) })
+    });
+    group.bench_function("Coeus Sequential", |b| { b.iter(|| black_box(coeus_autograd::erfc(black_box(&x_seq)))) });
+    group.bench_function("Coeus Moirai", |b| { b.iter(|| black_box(coeus_autograd::erfc(black_box(&x_moirai)))) });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -2873,6 +2888,8 @@ criterion_group!(
     bench_tan_forward,
     bench_atan_forward,
     bench_clamp_forward,
-    bench_asin_forward
+    bench_asin_forward,
+    bench_erfc_forward
 );
 criterion_main!(benches);
+

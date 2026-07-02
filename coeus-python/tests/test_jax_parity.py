@@ -1964,3 +1964,47 @@ def test_sign_matches_jax() -> None:
     t = jnp.array(data, dtype=jnp.float64)
     exp = jnp.sign(t)
     _allclose("sign", list(got.data), exp.tolist())
+
+# ---------------------------------------------------------------------------
+# abs / sqrt / floor / ceil parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "abs"), reason="pycoeus.abs not available")
+def test_abs_matches_jax() -> None:
+    """jnp.abs(x) vs pycoeus.abs(x)."""
+    data = [-3.0, -1.0, 0.0, 1.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.abs(x_pyc)
+    exp = jnp.abs(jnp.array(data, dtype=jnp.float64))
+    _allclose("abs", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sqrt"), reason="pycoeus.sqrt not available")
+def test_sqrt_matches_jax() -> None:
+    """jnp.sqrt(x) vs pycoeus.sqrt(x)."""
+    data = [0.25, 1.0, 4.0, 9.0, 16.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.sqrt(x_pyc)
+    exp = jnp.sqrt(jnp.array(data, dtype=jnp.float64))
+    _allclose("sqrt", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "floor"), reason="pycoeus.floor not available")
+def test_floor_matches_jax() -> None:
+    """jnp.floor(x) vs pycoeus.floor(x)."""
+    data = [-1.9, -1.0, 0.5, 1.0, 1.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.floor(x_pyc)
+    exp = jnp.floor(jnp.array(data, dtype=jnp.float64))
+    _allclose("floor", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "ceil"), reason="pycoeus.ceil not available")
+def test_ceil_matches_jax() -> None:
+    """jnp.ceil(x) vs pycoeus.ceil(x)."""
+    data = [-1.9, -1.0, 0.5, 1.0, 1.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.ceil(x_pyc)
+    exp = jnp.ceil(jnp.array(data, dtype=jnp.float64))
+    _allclose("ceil", list(got.data), exp.tolist())

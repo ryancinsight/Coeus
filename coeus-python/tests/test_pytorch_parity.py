@@ -4732,3 +4732,88 @@ def test_recip_matches_pytorch() -> None:
     out_t.sum().backward()
     _allclose("recip_fwd", list(out_pyc.data), out_t.detach().tolist())
     _allclose("recip_bwd", list(x_pyc.grad), t.grad.tolist())
+
+# ---------------------------------------------------------------------------
+# abs / sqrt / floor / ceil / round / trunc / clamp boundary parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "abs"), reason="pycoeus.abs not available")
+def test_abs_matches_pytorch() -> None:
+    """torch.abs(x) vs pycoeus.abs(x), fwd+bwd."""
+    data = [-3.0, -1.0, 0.0, 1.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.abs(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.abs(t)
+    out_t.sum().backward()
+    _allclose("abs_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("abs_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sqrt"), reason="pycoeus.sqrt not available")
+def test_sqrt_matches_pytorch() -> None:
+    """torch.sqrt(x) vs pycoeus.sqrt(x), fwd+bwd."""
+    data = [0.25, 1.0, 4.0, 9.0, 16.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.sqrt(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.sqrt(t)
+    out_t.sum().backward()
+    _allclose("sqrt_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("sqrt_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "floor"), reason="pycoeus.floor not available")
+def test_floor_matches_pytorch() -> None:
+    """torch.floor(x) vs pycoeus.floor(x)."""
+    data = [-1.9, -1.0, 0.5, 1.0, 1.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.floor(x_pyc)
+    exp = torch.floor(torch.tensor(data, dtype=torch.float64))
+    _allclose("floor", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "ceil"), reason="pycoeus.ceil not available")
+def test_ceil_matches_pytorch() -> None:
+    """torch.ceil(x) vs pycoeus.ceil(x)."""
+    data = [-1.9, -1.0, 0.5, 1.0, 1.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.ceil(x_pyc)
+    exp = torch.ceil(torch.tensor(data, dtype=torch.float64))
+    _allclose("ceil", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "round"), reason="pycoeus.round not available")
+def test_round_matches_pytorch() -> None:
+    """torch.round(x) vs pycoeus.round(x)."""
+    data = [-1.5, -0.5, 0.4, 0.5, 1.5]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.round(x_pyc)
+    exp = torch.round(torch.tensor(data, dtype=torch.float64))
+    _allclose("round", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "trunc"), reason="pycoeus.trunc not available")
+def test_trunc_matches_pytorch() -> None:
+    """torch.trunc(x) vs pycoeus.trunc(x)."""
+    data = [-1.9, -1.0, 0.0, 1.4, 1.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.trunc(x_pyc)
+    exp = torch.trunc(torch.tensor(data, dtype=torch.float64))
+    _allclose("trunc", list(got.data), exp.tolist())
+
+
+def test_clamp_boundary_matches_pytorch() -> None:
+    """Gradient is 1 at x==min and x==max (inclusive boundary per PyTorch convention)."""
+    data = [-1.0, 0.5, 2.0]  # x[0]=min, x[2]=max
+    x_pyc = pycoeus.Tensor(data, [3], requires_grad=True)
+    out_pyc = pycoeus.clamp(x_pyc, -1.0, 2.0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.clamp(t, min=-1.0, max=2.0)
+    out_t.sum().backward()
+    _allclose("clamp_boundary_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("clamp_boundary_bwd", list(x_pyc.grad), t.grad.tolist())
