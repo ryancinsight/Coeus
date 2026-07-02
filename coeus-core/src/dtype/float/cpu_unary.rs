@@ -40,6 +40,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
                     CpuUnaryOp::Exp => x.exp_op(),
                     CpuUnaryOp::Log => x.log_op(),
                     CpuUnaryOp::Erf => x.erf_op(),
+                    CpuUnaryOp::Erfc => x.erfc_op(),
                     CpuUnaryOp::Tan => x.tan_op(),
                     CpuUnaryOp::Asin => x.asin_op(),
                     CpuUnaryOp::Acos => x.acos_op(),

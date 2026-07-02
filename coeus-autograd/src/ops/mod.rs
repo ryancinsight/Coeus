@@ -18,16 +18,19 @@ pub mod shape;
 pub mod var_ops;
 
 pub use activation::{
-    abs, acos, asin, atan, ceil, celu, clamp, cos, elu, erf, exp, floor, gelu, gelu_tanh,
+    abs, acos, asin, atan, ceil, celu, clamp, cos, elu, erf, erfc, exp, floor, gelu, gelu_tanh,
     hardshrink, hardsigmoid, hardswish, hardtanh, leaky_relu, log, mish, neg, pack_pairs, pow,
-    prelu, recip, relu, round, sigmoid, sign, silu, sin, softplus, softshrink, softsign, sqrt, tan,
-    tanh, threshold, trunc,
+    prelu, recip, relu, round, sigmoid, sign, silu, sin, softplus, softshrink, softsign, sqrt,
+    tan, tanh, threshold, trunc,
 };
 pub use arithmetic::{
     add, div, mean, mean_axis, mul, nanmean, nansum, scalar_add, scalar_div, scalar_mul,
     scalar_sub, sub, sum, sum_axis,
 };
-pub use reduction::{log_sum_exp, max_axis, min_axis, norm, norm_p, norm_p_axis};
+pub use reduction::{
+    log_sum_exp, max_axis, min_axis, norm, norm_p, norm_p_axis, std_dev, std_dev_axis, std_mean,
+    std_mean_axis, var, var_axis, var_mean, var_mean_axis,
+};
 
 pub use arithmetic::VarScalarExt;
 pub use linalg::{matmul, sparse_matmul, sparse_matmul_coo, transpose_2d};

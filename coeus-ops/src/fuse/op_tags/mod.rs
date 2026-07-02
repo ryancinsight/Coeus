@@ -143,6 +143,21 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Erf {
 }
 
 #[derive(Clone, Copy)]
+/// Complementary error function tag.
+pub struct Erfc;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Erfc {
+    const WGSL_TEMPLATE: &'static str = "erfc({})";
+    fn wgsl_expr(child: &str) -> String {
+        // erfc = 1 - erf(x); approximate via the existing erf polynomial
+        format!("(1.0 - ({}))", wgsl_erf_approx_expr(child))
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.erfc_op()
+    }
+}
+
+#[derive(Clone, Copy)]
 /// Tangent operation tag.
 pub struct Tan;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Tan {

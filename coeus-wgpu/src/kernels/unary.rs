@@ -17,6 +17,9 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> String {
         coeus_ops::UnaryOp::Exp => "exp(val)".to_string(),
         coeus_ops::UnaryOp::Log => "log(val)".to_string(),
         coeus_ops::UnaryOp::Erf => coeus_ops::fuse::wgsl_erf_approx_expr("val"),
+        coeus_ops::UnaryOp::Erfc => {
+            format!("(1.0 - ({}))", coeus_ops::fuse::wgsl_erf_approx_expr("val"))
+        }
         coeus_ops::UnaryOp::Tan => "tan(val)".to_string(),
         coeus_ops::UnaryOp::Asin => "asin(val)".to_string(),
         coeus_ops::UnaryOp::Acos => "acos(val)".to_string(),

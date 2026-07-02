@@ -62,6 +62,11 @@ impl<T: Float> FloatOps for Complex<T> {
     }
 
     #[inline(always)]
+    fn erfc_op(self) -> Self {
+        panic!("erfc not supported on complex types")
+    }
+
+    #[inline(always)]
     fn tan_op(self) -> Self {
         Self::zero()
     }
@@ -178,6 +183,8 @@ impl<T: Float> crate::dtype::CpuUnaryDispatch for Complex<T> {
             CpuUnaryOp::Asin => x.asin_op(),
             CpuUnaryOp::Acos => x.acos_op(),
             CpuUnaryOp::Atan => x.atan_op(),
+            CpuUnaryOp::Erf => x.erf_op(),
+            CpuUnaryOp::Erfc => x.erfc_op(),
             CpuUnaryOp::Exp => x.exp_op(),
             CpuUnaryOp::Log => x.log_op(),
             CpuUnaryOp::Neg => Self::zero() - x,

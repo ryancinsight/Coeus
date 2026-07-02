@@ -60,6 +60,10 @@ macro_rules! impl_scalar_float_half {
                 Self::from_f64(crate::dtype::float::erf::erf_f64(self.to_f64()))
             }
             #[inline(always)]
+            fn erfc_op(self) -> Self {
+                Self::from_f64(1.0 - crate::dtype::float::erf::erf_f64(self.to_f64()))
+            }
+            #[inline(always)]
             fn tan_op(self) -> Self {
                 Self::from_f64(self.to_f64().tan())
             }

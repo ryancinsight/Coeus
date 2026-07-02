@@ -1,4 +1,4 @@
-use coeus_autograd::{erf, exp, log, Var};
+use coeus_autograd::{erf, erfc, exp, log, Var};
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 
@@ -69,6 +69,34 @@ fn test_erf_autograd() {
             (numeric - analytic).abs() < 1e-9,
             "numeric {numeric} vs analytic {analytic} at {xi}"
         );
+    }
+}
+
+#[test]
+fn test_erfc_autograd() {
+    let backend = MoiraiBackend::new();
+    let data = [0.0f64, 1.0, -1.0, 2.0];
+    let x = Var::new(Tensor::from_slice_on(vec![4], &data, &backend), true);
+    let y = erfc(&x);
+    let y_slice = y.tensor.as_slice();
+    // erfc(x) = 1 - erf(x)
+    let erf_ref = [
+        0.0f64,
+        0.842_700_792_949_714_9,
+        -0.842_700_792_949_714_9,
+        0.995_322_265_018_952_7,
+    ];
+    for i in 0..4 {
+        assert!((y_slice[i] - (1.0 - erf_ref[i])).abs() < 1e-12, "erfc[{i}]");
+    }
+    let grad_seed = Tensor::from_slice_on(vec![4], &[1.0f64; 4], &backend);
+    y.backward_with_seed(grad_seed);
+    let two_over_sqrt_pi = 2.0 / std::f64::consts::PI.sqrt();
+    let gx = x.grad().unwrap();
+    let gx_slice = gx.as_slice();
+    for (i, &xi) in data.iter().enumerate() {
+        let expected = -two_over_sqrt_pi * (-xi * xi).exp();
+        assert!((gx_slice[i] - expected).abs() < 1e-12, "d erfc/dx[{i}]");
     }
 }
 

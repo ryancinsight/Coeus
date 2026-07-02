@@ -10,8 +10,8 @@ pub use expr_node::{
 };
 pub use op_tags::{
     wgsl_erf_approx_expr, wgsl_gelu_expr, wgsl_gelu_grad_expr, Abs, Acos, Add, Asin, Atan,
-    BinaryOpTag, Ceil, Cos, Div, Elu, EluGrad, Erf, Exp, Floor, Gelu, GeluGrad, GeluTanh,
+    BinaryOpTag, Ceil, Cos, Div, Elu, EluGrad, Erf, Erfc, Exp, Floor, Gelu, GeluGrad, GeluTanh,
     GeluTanhGrad, LeakyReluGradTag, LeakyReluTag, Log, Mish, MishGrad, Mul, Neg, Recip, Relu,
-    Round, Sigmoid, Sign, Silu, SiluGrad, Sin, Softplus, SoftplusGrad, Sqrt, Sub, Tan, Tanh, Trunc,
-    UnaryOpTag,
+    Round, Sigmoid, Sign, Silu, SiluGrad, Sin, Softplus, SoftplusGrad, Sqrt, Sub, Tan, Tanh,
+    Trunc, UnaryOpTag,
 };

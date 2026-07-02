@@ -130,6 +130,10 @@ macro_rules! impl_scalar_float_native {
                 $erf_fn(self)
             }
             #[inline(always)]
+            fn erfc_op(self) -> Self {
+                Self::one() - self.erf_op()
+            }
+            #[inline(always)]
             fn tan_op(self) -> Self {
                 self.tan()
             }

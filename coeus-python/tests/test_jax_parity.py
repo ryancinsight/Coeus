@@ -1794,6 +1794,19 @@ def test_erf_matches_jax() -> None:
     _allclose("erf", list(got.data), exp.tolist(), atol=1e-12)
 
 
+@pytest.mark.skipif(not hasattr(pycoeus, "erfc"), reason="pycoeus.erfc not available")
+def test_erfc_matches_jax() -> None:
+    """jax.scipy.special.erfc(x) vs pycoeus.erfc(x)."""
+    import jax.scipy.special
+
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.erfc(x_pyc)
+    t = jnp.array(data, dtype=jnp.float64)
+    exp = jax.scipy.special.erfc(t)
+    _allclose("erfc", list(got.data), exp.tolist(), atol=1e-12)
+
+
 @pytest.mark.skipif(not hasattr(pycoeus, "pow"), reason="pycoeus.pow not available")
 def test_pow_matches_jax() -> None:
     """jnp.power(x, 3) vs pycoeus.pow(x, 3.0)."""
@@ -1912,3 +1925,42 @@ def test_softsign_matches_jax() -> None:
     t = jnp.array(data, dtype=jnp.float64)
     exp = jax.nn.soft_sign(t)
     _allclose("softsign", list(got.data), exp.tolist())
+
+# ---------------------------------------------------------------------------
+# hardsigmoid / hardswish / sign / recip parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "hardsigmoid"), reason="pycoeus.hardsigmoid not available")
+def test_hardsigmoid_matches_jax() -> None:
+    """jax.nn.hard_sigmoid(x) vs pycoeus.hardsigmoid(x)."""
+    import jax.nn
+    data = [-4.0, -1.5, 0.0, 1.5, 4.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.hardsigmoid(x_pyc)
+    t = jnp.array(data, dtype=jnp.float64)
+    exp = jax.nn.hard_sigmoid(t)
+    _allclose("hardsigmoid", list(got.data), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "hardswish"), reason="pycoeus.hardswish not available")
+def test_hardswish_matches_jax() -> None:
+    """jax.nn.hard_swish(x) vs pycoeus.hardswish(x)."""
+    import jax.nn
+    data = [-4.0, -1.5, 0.0, 1.5, 4.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.hardswish(x_pyc)
+    t = jnp.array(data, dtype=jnp.float64)
+    exp = jax.nn.hard_swish(t)
+    _allclose("hardswish", list(got.data), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sign"), reason="pycoeus.sign not available")
+def test_sign_matches_jax() -> None:
+    """jnp.sign(x) vs pycoeus.sign(x)."""
+    data = [-2.0, -0.0, 0.0, 0.5, 3.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.sign(x_pyc)
+    t = jnp.array(data, dtype=jnp.float64)
+    exp = jnp.sign(t)
+    _allclose("sign", list(got.data), exp.tolist())

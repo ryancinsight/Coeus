@@ -51,6 +51,11 @@ pub fn conv_transpose2d_output_dims(
 /// - `output`: `[N, C_out, L_out]`
 ///
 /// `L_out = (L - 1) * stride - 2 * padding + dilation * (K - 1) + output_padding + 1`
+///
+/// # Memory
+/// Output is `zeros_on` (not `alloc_on`) because transposed convolution
+/// **accumulates** input contributions into overlapping output positions via
+/// scatter-add — any uninitialized position would sum garbage.
 #[allow(clippy::too_many_arguments)]
 #[inline]
 pub fn conv_transpose1d<T: Float, B: BackendOps<T> + Default>(
@@ -93,6 +98,12 @@ pub fn conv_transpose1d<T: Float, B: BackendOps<T> + Default>(
 /// - `weight`: `[C_in, C_out, KH, KW]`  (transposed weight convention)
 /// - `bias`:   optional `[C_out]`
 /// - `output`: `[N, C_out, H_out, W_out]`
+///
+/// `H_out = (H - 1) * stride - 2 * padding + dilation * (KH - 1) + output_padding + 1`
+///
+/// # Memory
+/// Output is `zeros_on` because transposed convolution accumulates overlapping
+/// scattered contributions — uninitialised output would produce incorrect sums.
 #[allow(clippy::too_many_arguments)]
 #[inline]
 pub fn conv_transpose2d<T: Float, B: BackendOps<T> + Default>(
@@ -166,6 +177,10 @@ pub fn conv_transpose3d_output_dims(
 ///
 /// `D_out = (D - 1) * stride - 2 * padding + dilation * (KD - 1) + output_padding + 1`
 /// (analogous for `H_out`, `W_out`).
+///
+/// # Memory
+/// Output is `zeros_on` because transposed convolution accumulates overlapping
+/// scattered contributions — uninitialised output would produce incorrect sums.
 #[allow(clippy::too_many_arguments)]
 #[inline]
 pub fn conv_transpose3d<T: Float, B: BackendOps<T> + Default>(

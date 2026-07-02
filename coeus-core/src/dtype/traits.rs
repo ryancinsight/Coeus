@@ -35,6 +35,8 @@ pub trait FloatOps: private::Sealed {
     fn cos_op(self) -> Self;
     /// Gauss error function: erf(x).
     fn erf_op(self) -> Self;
+    /// Complementary Gauss error function: erfc(x) = 1 - erf(x).
+    fn erfc_op(self) -> Self;
     /// Element-wise tangent: tan(x).
     fn tan_op(self) -> Self;
     /// Element-wise arc-sine: asin(x).
@@ -104,6 +106,8 @@ pub enum CpuUnaryOp {
     Log,
     /// Gauss error function: erf(x).
     Erf,
+    /// Complementary Gauss error function: erfc(x) = 1 - erf(x).
+    Erfc,
     /// tan(x)
     Tan,
     /// arcsin(x)

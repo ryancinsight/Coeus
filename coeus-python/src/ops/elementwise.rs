@@ -20,6 +20,13 @@ pub fn erf(input: &PyTensor, py: Python<'_>) -> PyTensor {
     PyTensor::from_var(inner)
 }
 
+/// Complementary error function (`torch.special.erfc`); differentiable.
+#[pyfunction]
+pub fn erfc(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::erfc(&input.inner));
+    PyTensor::from_var(inner)
+}
+
 #[pyfunction]
 pub fn tan(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::tan(&input.inner));

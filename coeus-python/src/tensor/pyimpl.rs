@@ -233,6 +233,11 @@ impl PyTensor {
         Ok(Self::from_var(inner))
     }
 
+    fn erfc(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::erfc(&self.inner));
+        Ok(Self::from_var(inner))
+    }
+
     fn tan(&self, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::tan(&self.inner));
         Ok(Self::from_var(inner))

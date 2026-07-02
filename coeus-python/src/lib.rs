@@ -222,6 +222,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_function(wrap_pyfunction!(ops::exp, m)?)?;
     m.add_function(wrap_pyfunction!(ops::erf, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::erfc, m)?)?;
     m.add_function(wrap_pyfunction!(ops::log, m)?)?;
     m.add_function(wrap_pyfunction!(ops::log_softmax, m)?)?;
     m.add_function(wrap_pyfunction!(ops::cat, m)?)?;
