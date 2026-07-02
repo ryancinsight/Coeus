@@ -5418,3 +5418,71 @@ def test_zeros_ones_full_parity() -> None:
     _allclose("ones", list(o.data), torch.ones(3, 4, dtype=torch.float64).flatten().tolist())
     f = pycoeus.full([2, 3], 5.0, False)
     _allclose("full", list(f.data), torch.full((2, 3), 5.0, dtype=torch.float64).flatten().tolist())
+
+# ---------------------------------------------------------------------------
+# conv1d fwd+bwd weight/bias gradients parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "Conv1d"), reason="pycoeus.Conv1d not available")
+def test_conv1d_weight_grad_matches_pytorch() -> None:
+    """Conv1d(4,8,k=3) weight and bias gradients match torch.nn.Conv1d."""
+    in_c, out_c, k, l = 4, 8, 3, 16
+    batch = 2
+    import random; random.seed(7)
+    inp = [float(i) * 0.01 for i in range(batch * in_c * l)]
+    conv = pycoeus.Conv1d(in_channels=in_c, out_channels=out_c, kernel_size=k)
+    # Use zero bias for clean comparison
+    params = conv.parameters()
+    w_data = [float(i) * 0.05 - 0.5 for i in range(out_c * in_c * k)]
+    params[0].data = w_data
+    for p in params[1:]:
+        p.data = [0.0] * len(list(p.data))
+
+    x_pyc = pycoeus.Tensor(inp, [batch, in_c, l], requires_grad=True)
+    out_pyc = conv.forward(x_pyc)
+    loss_pyc = pycoeus.sum(out_pyc)
+    loss_pyc.backward()
+
+    # PyTorch reference
+    t_w = torch.tensor(w_data, dtype=torch.float64).reshape(out_c, in_c, k)
+    t_x = torch.tensor(inp, dtype=torch.float64).reshape(batch, in_c, l).requires_grad_(True)
+    conv_t = torch.nn.Conv1d(in_c, out_c, k, bias=False, dtype=torch.float64)
+    with torch.no_grad():
+        conv_t.weight.copy_(t_w)
+    out_t = conv_t(t_x)
+    out_t.sum().backward()
+
+    _allclose("conv1d_x_grad", list(x_pyc.grad),
+              t_x.grad.flatten().tolist(), atol=1e-8)
+    _allclose("conv1d_w_grad", list(params[0].grad),
+              conv_t.weight.grad.flatten().tolist(), atol=1e-8)
+
+
+# ---------------------------------------------------------------------------
+# BatchNorm1d training-mode parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "BatchNorm1d"), reason="pycoeus.BatchNorm1d not available")
+def test_batchnorm1d_fwd_bwd_matches_pytorch() -> None:
+    """BatchNorm1d(8) training fwd+bwd: output and grad match torch."""
+    feat = 8
+    batch = 4
+    data = [float(i) * 0.1 - 1.6 for i in range(batch * feat)]
+    bn = pycoeus.BatchNorm1d(num_features=feat)
+    x_pyc = pycoeus.Tensor(data, [batch, feat], requires_grad=True)
+    out_pyc = bn.forward(x_pyc)
+    out_pyc.backward()
+
+    t_x = torch.tensor(data, dtype=torch.float64).reshape(batch, feat).requires_grad_(True)
+    bn_t = torch.nn.BatchNorm1d(feat, dtype=torch.float64)
+    bn_t.train()
+    with torch.no_grad():
+        bn_t.weight.fill_(1.0)
+        bn_t.bias.fill_(0.0)
+    out_t = bn_t(t_x)
+    out_t.sum().backward()
+
+    _allclose("bn1d_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-6)
+    _allclose("bn1d_bwd", list(x_pyc.grad), t_x.grad.flatten().tolist(), atol=1e-6)
