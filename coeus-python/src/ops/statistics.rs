@@ -4,6 +4,38 @@ use coeus_tensor::Tensor;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
+/// Drop the reduced axis unless `keepdim`, collapsing a fully-reduced result to `[1]`.
+fn drop_axis_dim(
+    inner: coeus_autograd::Var<f64, MoiraiBackend>,
+    axis: usize,
+    keepdim: bool,
+) -> coeus_autograd::Var<f64, MoiraiBackend> {
+    if keepdim {
+        return inner;
+    }
+    let mut shape = inner.tensor.shape().to_vec();
+    shape.remove(axis);
+    if shape.is_empty() {
+        shape = vec![1];
+    }
+    coeus_autograd::reshape(&inner, shape)
+}
+
+/// Reject reductions whose Bessel-corrected denominator would be zero.
+fn validate_stat_denominator(op: &str, count: usize, unbiased: bool) -> PyResult<()> {
+    if count == 0 {
+        return Err(PyValueError::new_err(format!(
+            "{op}: empty tensors have no variance"
+        )));
+    }
+    if unbiased && count == 1 {
+        return Err(PyValueError::new_err(format!(
+            "{op}: unbiased variance of a single element divides by zero"
+        )));
+    }
+    Ok(())
+}
+
 #[pyfunction]
 #[pyo3(name = "std", signature = (input, unbiased = true, axis = None, keepdim = false))]
 pub fn std_dev(
@@ -12,23 +44,18 @@ pub fn std_dev(
     axis: Option<usize>,
     keepdim: bool,
     py: Python<'_>,
-) -> PyResult<Py<PyAny>> {
-    let backend = MoiraiBackend::new();
-    if input.inner.tensor.numel() == 0 {
-        return Err(PyValueError::new_err(
-            "std: empty tensors have no standard deviation",
-        ));
-    }
+) -> PyResult<PyTensor> {
     if let Some(ax) = axis {
         validate_stat_axis("std", input, ax)?;
-        let reduced = py
-            .allow_threads(|| coeus_ops::std_dev_axis(&input.inner.tensor, ax, unbiased, &backend));
-        return tensor_or_scalar_reduction(py, reduced, ax, keepdim);
+        validate_stat_denominator("std", input.inner.tensor.shape()[ax], unbiased)?;
+        let inner = py.allow_threads(|| coeus_autograd::std_dev_axis(&input.inner, ax, unbiased));
+        return Ok(PyTensor {
+            inner: drop_axis_dim(inner, ax, keepdim),
+        });
     }
-    let v = py.allow_threads(|| {
-        coeus_ops::std_dev::<f64, MoiraiBackend>(&input.inner.tensor, unbiased, &backend)
-    });
-    scalar_object(py, v)
+    validate_stat_denominator("std", input.inner.tensor.numel(), unbiased)?;
+    let inner = py.allow_threads(|| coeus_autograd::std_dev(&input.inner, unbiased));
+    Ok(PyTensor::from_var(inner))
 }
 
 #[pyfunction]
@@ -39,21 +66,18 @@ pub fn tensor_var(
     axis: Option<usize>,
     keepdim: bool,
     py: Python<'_>,
-) -> PyResult<Py<PyAny>> {
-    let backend = MoiraiBackend::new();
-    if input.inner.tensor.numel() == 0 {
-        return Err(PyValueError::new_err("var: empty tensors have no variance"));
-    }
+) -> PyResult<PyTensor> {
     if let Some(ax) = axis {
         validate_stat_axis("var", input, ax)?;
-        let reduced =
-            py.allow_threads(|| coeus_ops::var_axis(&input.inner.tensor, ax, unbiased, &backend));
-        return tensor_or_scalar_reduction(py, reduced, ax, keepdim);
+        validate_stat_denominator("var", input.inner.tensor.shape()[ax], unbiased)?;
+        let inner = py.allow_threads(|| coeus_autograd::var_axis(&input.inner, ax, unbiased));
+        return Ok(PyTensor {
+            inner: drop_axis_dim(inner, ax, keepdim),
+        });
     }
-    let v = py.allow_threads(|| {
-        coeus_ops::var::<f64, MoiraiBackend>(&input.inner.tensor, unbiased, &backend)
-    });
-    scalar_object(py, v)
+    validate_stat_denominator("var", input.inner.tensor.numel(), unbiased)?;
+    let inner = py.allow_threads(|| coeus_autograd::var(&input.inner, unbiased));
+    Ok(PyTensor::from_var(inner))
 }
 
 #[pyfunction]
@@ -64,24 +88,23 @@ pub fn var_mean(
     axis: Option<usize>,
     keepdim: bool,
     py: Python<'_>,
-) -> PyResult<(Py<PyAny>, Py<PyAny>)> {
-    let backend = MoiraiBackend::new();
-    if input.inner.tensor.numel() == 0 {
-        return Err(PyValueError::new_err(
-            "var_mean: empty tensors have no variance",
-        ));
-    }
+) -> PyResult<(PyTensor, PyTensor)> {
     if let Some(ax) = axis {
         validate_stat_axis("var_mean", input, ax)?;
-        let (variance, mean) = py.allow_threads(|| {
-            coeus_ops::var_mean_axis(&input.inner.tensor, ax, unbiased, &backend)
-        });
-        return stat_pair_reduction(py, variance, mean, ax, keepdim);
+        validate_stat_denominator("var_mean", input.inner.tensor.shape()[ax], unbiased)?;
+        let (v, mu) = py.allow_threads(|| coeus_autograd::var_mean_axis(&input.inner, ax, unbiased));
+        return Ok((
+            PyTensor {
+                inner: drop_axis_dim(v, ax, keepdim),
+            },
+            PyTensor {
+                inner: drop_axis_dim(mu, ax, keepdim),
+            },
+        ));
     }
-    let (variance, mean) = py.allow_threads(|| {
-        coeus_ops::var_mean::<f64, MoiraiBackend>(&input.inner.tensor, unbiased, &backend)
-    });
-    Ok((scalar_object(py, variance)?, scalar_object(py, mean)?))
+    validate_stat_denominator("var_mean", input.inner.tensor.numel(), unbiased)?;
+    let (v, mu) = py.allow_threads(|| coeus_autograd::var_mean(&input.inner, unbiased));
+    Ok((PyTensor::from_var(v), PyTensor::from_var(mu)))
 }
 
 #[pyfunction]
@@ -92,24 +115,23 @@ pub fn std_mean(
     axis: Option<usize>,
     keepdim: bool,
     py: Python<'_>,
-) -> PyResult<(Py<PyAny>, Py<PyAny>)> {
-    let backend = MoiraiBackend::new();
-    if input.inner.tensor.numel() == 0 {
-        return Err(PyValueError::new_err(
-            "std_mean: empty tensors have no standard deviation",
-        ));
-    }
+) -> PyResult<(PyTensor, PyTensor)> {
     if let Some(ax) = axis {
         validate_stat_axis("std_mean", input, ax)?;
-        let (std, mean) = py.allow_threads(|| {
-            coeus_ops::std_mean_axis(&input.inner.tensor, ax, unbiased, &backend)
-        });
-        return stat_pair_reduction(py, std, mean, ax, keepdim);
+        validate_stat_denominator("std_mean", input.inner.tensor.shape()[ax], unbiased)?;
+        let (sd, mu) = py.allow_threads(|| coeus_autograd::std_mean_axis(&input.inner, ax, unbiased));
+        return Ok((
+            PyTensor {
+                inner: drop_axis_dim(sd, ax, keepdim),
+            },
+            PyTensor {
+                inner: drop_axis_dim(mu, ax, keepdim),
+            },
+        ));
     }
-    let (std, mean) = py.allow_threads(|| {
-        coeus_ops::std_mean::<f64, MoiraiBackend>(&input.inner.tensor, unbiased, &backend)
-    });
-    Ok((scalar_object(py, std)?, scalar_object(py, mean)?))
+    validate_stat_denominator("std_mean", input.inner.tensor.numel(), unbiased)?;
+    let (sd, mu) = py.allow_threads(|| coeus_autograd::std_mean(&input.inner, unbiased));
+    Ok((PyTensor::from_var(sd), PyTensor::from_var(mu)))
 }
 
 #[pyfunction]
@@ -223,56 +245,6 @@ fn validate_stat_axis(op: &str, input: &PyTensor, axis: usize) -> PyResult<()> {
     Ok(())
 }
 
-fn tensor_or_scalar_reduction(
-    py: Python<'_>,
-    reduced: Tensor<f64, MoiraiBackend>,
-    axis: usize,
-    keepdim: bool,
-) -> PyResult<Py<PyAny>> {
-    if keepdim {
-        return Ok(Py::new(
-            py,
-            PyTensor {
-                inner: coeus_autograd::Var::new(reduced, false),
-            },
-        )?
-        .into_any());
-    }
-
-    let mut shape = reduced.shape().to_vec();
-    shape.remove(axis);
-    if shape.is_empty() {
-        let backend = MoiraiBackend::new();
-        let value = reduced.to_contiguous_on(&backend).as_slice()[0];
-        scalar_object(py, value)
-    } else {
-        let squeezed = reduced.reshape(shape);
-        Ok(Py::new(
-            py,
-            PyTensor {
-                inner: coeus_autograd::Var::new(squeezed, false),
-            },
-        )?
-        .into_any())
-    }
-}
-
-fn stat_pair_reduction(
-    py: Python<'_>,
-    stat: Tensor<f64, MoiraiBackend>,
-    mean: Tensor<f64, MoiraiBackend>,
-    axis: usize,
-    keepdim: bool,
-) -> PyResult<(Py<PyAny>, Py<PyAny>)> {
-    Ok((
-        tensor_or_scalar_reduction(py, stat, axis, keepdim)?,
-        tensor_or_scalar_reduction(py, mean, axis, keepdim)?,
-    ))
-}
-
-fn scalar_object(py: Python<'_>, value: f64) -> PyResult<Py<PyAny>> {
-    Ok(value.into_pyobject(py)?.unbind().into_any())
-}
 
 /// Clip the global gradient norm of a list of parameters.
 ///

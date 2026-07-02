@@ -4817,3 +4817,46 @@ def test_clamp_boundary_matches_pytorch() -> None:
     out_t.sum().backward()
     _allclose("clamp_boundary_fwd", list(out_pyc.data), out_t.detach().tolist())
     _allclose("clamp_boundary_bwd", list(x_pyc.grad), t.grad.tolist())
+
+# ---------------------------------------------------------------------------
+# var / std parity (tracked autograd via composition)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "var"), reason="pycoeus.var not available")
+def test_var_unbiased_matches_pytorch() -> None:
+    """torch.var(x, unbiased=True) vs pycoeus.var(x, unbiased=True), fwd+bwd."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.var(x_pyc, unbiased=True)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.var(t, unbiased=True)
+    out_t.backward()
+    _allclose("var_fwd", list(out_pyc.data), [out_t.item()])
+    _allclose("var_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "std"), reason="pycoeus.std not available")
+def test_std_unbiased_matches_pytorch() -> None:
+    """torch.std(x, unbiased=True) vs pycoeus.std(x, unbiased=True), fwd+bwd."""
+    data = [2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]
+    x_pyc = pycoeus.Tensor(data, [8], requires_grad=True)
+    out_pyc = pycoeus.std(x_pyc, unbiased=True)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.std(t, unbiased=True)
+    out_t.backward()
+    _allclose("std_fwd", list(out_pyc.data), [out_t.item()], atol=1e-10)
+    _allclose("std_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "var"), reason="pycoeus.var not available")
+def test_var_population_matches_pytorch() -> None:
+    """torch.var(x, unbiased=False) (population variance) vs pycoeus.var(x, unbiased=False)."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.var(x_pyc, unbiased=False)
+    t = torch.tensor(data, dtype=torch.float64)
+    exp = torch.var(t, unbiased=False)
+    _allclose("var_pop", list(got.data), [exp.item()])
