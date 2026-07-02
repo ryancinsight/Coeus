@@ -2008,3 +2008,18 @@ def test_ceil_matches_jax() -> None:
     got = pycoeus.ceil(x_pyc)
     exp = jnp.ceil(jnp.array(data, dtype=jnp.float64))
     _allclose("ceil", list(got.data), exp.tolist())
+
+# ---------------------------------------------------------------------------
+# var / std parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "var"), reason="pycoeus.var not available")
+def test_var_matches_jax() -> None:
+    """jnp.var(x) (population) vs pycoeus.var(x, unbiased=False)."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.var(x_pyc, unbiased=False)
+    t = jnp.array(data, dtype=jnp.float64)
+    exp = jnp.var(t)
+    _allclose("var", list(got.data), [float(exp)])

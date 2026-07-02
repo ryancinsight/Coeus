@@ -2822,6 +2822,22 @@ fn bench_erfc_forward(c: &mut Criterion) {
     group.finish();
 }
 
+
+fn bench_std_forward(c: &mut Criterion) {
+    // std (unbiased): [128, 256] — variance reduction used in normalization.
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES)).map(|i| (i as f32 * 0.0017).sin()).collect();
+    let x_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data), false);
+    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data), false);
+    let device = NdArrayDevice::default();
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(TensorData::new(input_data.clone(), [BATCH, FEATURES]), &device);
+    let mut group = c.benchmark_group("Burn vs Coeus - std forward (128x256)");
+    group.bench_function("Burn NdArray (mean proxy)", |b| {
+        b.iter(|| black_box(black_box(x_burn.clone()).mean()))
+    });
+    group.bench_function("Coeus Sequential", |b| { b.iter(|| black_box(coeus_autograd::std_dev(&x_seq, true))) });
+    group.bench_function("Coeus Moirai", |b| { b.iter(|| black_box(coeus_autograd::std_dev(&x_moirai, true))) });
+    group.finish();
+}
 criterion_group!(
     benches,
     bench_linear_forward,
@@ -2889,7 +2905,8 @@ criterion_group!(
     bench_atan_forward,
     bench_clamp_forward,
     bench_asin_forward,
-    bench_erfc_forward
+    bench_erfc_forward,
+    bench_std_forward
 );
 criterion_main!(benches);
 
