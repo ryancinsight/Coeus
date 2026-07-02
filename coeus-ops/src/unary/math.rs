@@ -65,6 +65,30 @@ pub fn erf<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Ten
     elementwise_unary(input, backend, UnaryOp::Erf)
 }
 
+/// Element-wise tangent.
+#[inline]
+pub fn tan<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Tan)
+}
+
+/// Element-wise arc-sine.
+#[inline]
+pub fn asin<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Asin)
+}
+
+/// Element-wise arc-cosine.
+#[inline]
+pub fn acos<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Acos)
+}
+
+/// Element-wise arc-tangent.
+#[inline]
+pub fn atan<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Atan)
+}
+
 /// Element-wise negation (works for any Scalar).
 ///
 /// # Examples

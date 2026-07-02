@@ -35,6 +35,14 @@ pub trait FloatOps: private::Sealed {
     fn cos_op(self) -> Self;
     /// Gauss error function: erf(x).
     fn erf_op(self) -> Self;
+    /// Element-wise tangent: tan(x).
+    fn tan_op(self) -> Self;
+    /// Element-wise arc-sine: asin(x).
+    fn asin_op(self) -> Self;
+    /// Element-wise arc-cosine: acos(x).
+    fn acos_op(self) -> Self;
+    /// Element-wise arc-tangent: atan(x).
+    fn atan_op(self) -> Self;
     /// Gaussian Error Linear Unit: 0.5 * x * (1 + erf(x / sqrt(2))).
     fn gelu_op(self) -> Self;
     /// Logistic sigmoid: 1 / (1 + e^(-x)).
@@ -96,6 +104,14 @@ pub enum CpuUnaryOp {
     Log,
     /// Gauss error function: erf(x).
     Erf,
+    /// tan(x)
+    Tan,
+    /// arcsin(x)
+    Asin,
+    /// arccos(x)
+    Acos,
+    /// arctan(x)
+    Atan,
     /// Element-wise negation: -x.
     Neg,
     /// Element-wise absolute value: |x|.

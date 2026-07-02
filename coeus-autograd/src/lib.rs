@@ -39,7 +39,10 @@ pub use grad_mode::{
 pub use node::BackwardNode;
 pub use ops::{
     abs,
+    acos,
     add,
+    asin,
+    atan,
     avg_pool1d,
     avg_pool2d,
     avg_pool3d,
@@ -172,6 +175,7 @@ pub use ops::{
     sum,
     sum_axis,
     swapaxes,
+    tan,
     tanh,
     threshold,
     // Tile / repeat

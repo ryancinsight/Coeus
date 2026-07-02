@@ -63,7 +63,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         coeus_ops::erf(x, backend)
     }
 
-    /// d/dx erf(x) = (2/√π)·e^(−x²); 2/√π = 1.1283791670955126.
+    /// d/dx erf(x) = (2/√π)·e^(−x²).
     #[inline(always)]
     fn backward(
         grad_out: &Tensor<T, B>,
@@ -74,8 +74,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         let x_sq = coeus_ops::mul(x, x, backend);
         let neg_x_sq = coeus_ops::neg(&x_sq, backend);
         let gauss = coeus_ops::exp(&neg_x_sq, backend);
-        let two_over_sqrt_pi =
-            Tensor::full_on(gauss.shape(), T::from_f64(1.128_379_167_095_512_6), backend);
+        let two_over_sqrt_pi = Tensor::full_on(
+            gauss.shape(),
+            T::from_f64(core::f64::consts::FRAC_2_SQRT_PI),
+            backend,
+        );
         let scaled = coeus_ops::mul(&gauss, &two_over_sqrt_pi, backend);
         coeus_ops::mul(grad_out, &scaled, backend)
     }
@@ -141,6 +144,113 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     }
 }
 
+/// ZST tag for Tangent autograd.
+/// Forward: tan(x). Backward: d/dx tan(x) = 1/cos²(x) = sec²(x).
+/// grad_in = grad_out * (1 / (cos(x) * cos(x)))
+pub struct TanOp;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for TanOp {
+    const OP_NAME: &'static str = "tan";
+
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::tan(x, backend)
+    }
+
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let cos_x = coeus_ops::cos(x, backend);
+        let cos_sq = coeus_ops::mul(&cos_x, &cos_x, backend);
+        let inv_cos_sq = coeus_ops::recip(&cos_sq, backend);
+        coeus_ops::mul(grad_out, &inv_cos_sq, backend)
+    }
+}
+
+/// ZST tag for Arc-Sine autograd.
+/// Forward: asin(x). Backward: d/dx asin(x) = 1/sqrt(1 - x²).
+pub struct AsinOp;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for AsinOp {
+    const OP_NAME: &'static str = "asin";
+
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::asin(x, backend)
+    }
+
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let x_sq = coeus_ops::mul(x, x, backend);
+        let one = Tensor::full_on(x.shape(), T::one(), backend);
+        let one_minus_xsq = coeus_ops::sub(&one, &x_sq, backend);
+        let sqrt_val = coeus_ops::sqrt(&one_minus_xsq, backend);
+        let inv_sqrt = coeus_ops::recip(&sqrt_val, backend);
+        coeus_ops::mul(grad_out, &inv_sqrt, backend)
+    }
+}
+
+/// ZST tag for Arc-Cosine autograd.
+/// Forward: acos(x). Backward: d/dx acos(x) = -1/sqrt(1 - x²).
+pub struct AcosOp;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for AcosOp {
+    const OP_NAME: &'static str = "acos";
+
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::acos(x, backend)
+    }
+
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let x_sq = coeus_ops::mul(x, x, backend);
+        let one = Tensor::full_on(x.shape(), T::one(), backend);
+        let one_minus_xsq = coeus_ops::sub(&one, &x_sq, backend);
+        let sqrt_val = coeus_ops::sqrt(&one_minus_xsq, backend);
+        let inv_sqrt = coeus_ops::recip(&sqrt_val, backend);
+        let neg_inv_sqrt = coeus_ops::neg(&inv_sqrt, backend);
+        coeus_ops::mul(grad_out, &neg_inv_sqrt, backend)
+    }
+}
+
+/// ZST tag for Arc-Tangent autograd.
+/// Forward: atan(x). Backward: d/dx atan(x) = 1/(1 + x²).
+pub struct AtanOp;
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for AtanOp {
+    const OP_NAME: &'static str = "atan";
+
+    #[inline(always)]
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        coeus_ops::atan(x, backend)
+    }
+
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        x: &Tensor<T, B>,
+        _y: &Tensor<T, B>,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let x_sq = coeus_ops::mul(x, x, backend);
+        let one = Tensor::full_on(x.shape(), T::one(), backend);
+        let one_plus_xsq = coeus_ops::add(&one, &x_sq, backend);
+        let inv = coeus_ops::recip(&one_plus_xsq, backend);
+        coeus_ops::mul(grad_out, &inv, backend)
+    }
+}
+
 /// Tracked Exponential function.
 #[must_use]
 #[inline]
@@ -180,4 +290,32 @@ pub fn sin<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Va
 #[inline]
 pub fn cos<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
     unary_op::<T, B, CosOp>(a)
+}
+
+/// Tracked tan.
+#[must_use]
+#[inline]
+pub fn tan<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, TanOp>(a)
+}
+
+/// Tracked asin.
+#[must_use]
+#[inline]
+pub fn asin<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, AsinOp>(a)
+}
+
+/// Tracked acos.
+#[must_use]
+#[inline]
+pub fn acos<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, AcosOp>(a)
+}
+
+/// Tracked atan.
+#[must_use]
+#[inline]
+pub fn atan<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+    unary_op::<T, B, AtanOp>(a)
 }

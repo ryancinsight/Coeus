@@ -264,6 +264,10 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Trigonometric
     m.add_function(wrap_pyfunction!(ops::sin, m)?)?;
     m.add_function(wrap_pyfunction!(ops::cos, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::tan, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::asin, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::acos, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::atan, m)?)?;
     m.add_function(wrap_pyfunction!(ops::fft_1d, m)?)?;
     m.add_function(wrap_pyfunction!(ops::ifft_1d, m)?)?;
     m.add_function(wrap_pyfunction!(ops::fft_energy, m)?)?;

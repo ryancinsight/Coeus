@@ -143,6 +143,62 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Erf {
 }
 
 #[derive(Clone, Copy)]
+/// Tangent operation tag.
+pub struct Tan;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Tan {
+    const WGSL_TEMPLATE: &'static str = "tan({})";
+    fn wgsl_expr(child: &str) -> String {
+        format!("tan({})", child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.tan_op()
+    }
+}
+
+#[derive(Clone, Copy)]
+/// Arc-sine operation tag.
+pub struct Asin;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Asin {
+    const WGSL_TEMPLATE: &'static str = "asin({})";
+    fn wgsl_expr(child: &str) -> String {
+        format!("asin({})", child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.asin_op()
+    }
+}
+
+#[derive(Clone, Copy)]
+/// Arc-cosine operation tag.
+pub struct Acos;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Acos {
+    const WGSL_TEMPLATE: &'static str = "acos({})";
+    fn wgsl_expr(child: &str) -> String {
+        format!("acos({})", child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.acos_op()
+    }
+}
+
+#[derive(Clone, Copy)]
+/// Arc-tangent operation tag.
+pub struct Atan;
+impl<T: Scalar + FloatOps> UnaryOpTag<T> for Atan {
+    const WGSL_TEMPLATE: &'static str = "atan({})";
+    fn wgsl_expr(child: &str) -> String {
+        format!("atan({})", child)
+    }
+    #[inline(always)]
+    fn apply(x: T) -> T {
+        x.atan_op()
+    }
+}
+
+#[derive(Clone, Copy)]
 /// Natural log operation tag.
 pub struct Log;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for Log {

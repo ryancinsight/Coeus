@@ -60,6 +60,22 @@ macro_rules! impl_scalar_float_half {
                 Self::from_f64(crate::dtype::float::erf::erf_f64(self.to_f64()))
             }
             #[inline(always)]
+            fn tan_op(self) -> Self {
+                Self::from_f64(self.to_f64().tan())
+            }
+            #[inline(always)]
+            fn asin_op(self) -> Self {
+                Self::from_f64(self.to_f64().asin())
+            }
+            #[inline(always)]
+            fn acos_op(self) -> Self {
+                Self::from_f64(self.to_f64().acos())
+            }
+            #[inline(always)]
+            fn atan_op(self) -> Self {
+                Self::from_f64(self.to_f64().atan())
+            }
+            #[inline(always)]
             fn gelu_op(self) -> Self {
                 let x_f = self.to_f64();
                 let res = 0.5
