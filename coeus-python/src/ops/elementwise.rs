@@ -1,4 +1,5 @@
 use crate::tensor::PyTensor;
+use coeus_autograd::Var;
 use pyo3::prelude::*;
 
 #[pyfunction]
@@ -25,6 +26,27 @@ pub fn erf(input: &PyTensor, py: Python<'_>) -> PyTensor {
 pub fn erfc(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::erfc(&input.inner));
     PyTensor::from_var(inner)
+}
+
+/// Natural logarithm of the absolute gamma function (`torch.special.gammaln`).
+///
+/// The forward path is available for non-grad tensors. Gradients require
+/// `digamma`, which is not available in the current provider surface.
+#[pyfunction]
+pub fn gammaln(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+    if input.inner.grad.is_some() {
+        return Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "gammaln backward requires digamma support",
+        ));
+    }
+    let tensor = py.allow_threads(|| coeus_autograd::lgamma_forward(&input.inner));
+    Ok(PyTensor::from_var(Var::new(tensor, false)))
+}
+
+/// Alias matching `torch.lgamma`.
+#[pyfunction]
+pub fn lgamma(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+    gammaln(input, py)
 }
 
 #[pyfunction]

@@ -4,6 +4,16 @@
 
 ### Added
 
+- **MS-236 scan/diff/NaN reduction parity** — preserved the existing
+  `pycoeus.diff`, `pycoeus.cumsum`, and `pycoeus.cumprod` parity additions,
+  finished `pycoeus.nansum` and `pycoeus.nanmean` through the Rust autograd
+  and PyO3 surfaces, and added `.pyi` signatures. `nansum` / `nanmean` now use
+  tracked `masked_fill` with a non-differentiable NaN mask so gradients flow to
+  finite inputs and are zero at NaN positions. Added PyTorch and JAX
+  forward+dx parity for the NaN reductions plus the missing JAX `cumprod`
+  check. Evidence tier: analytical/value-semantic Rust tests plus
+  differential/empirical PyTorch and JAX parity. ([patch])
+
 - **Apollo-backed FFT autograd and Python parity (MS-218)** — added public
   `coeus_autograd::{fft_1d, ifft_1d, fft_1d_var, ifft_1d_var, fft_energy}`
   backed by Apollo FFT, with Rust value-semantic regressions for forward DFT

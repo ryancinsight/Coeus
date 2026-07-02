@@ -1,4 +1,5 @@
 use crate::dtype::traits::{private, Float, FloatOps, Scalar};
+use eunomia::FloatElement;
 use half::{bf16, f16};
 
 macro_rules! impl_scalar_float_half {
@@ -61,11 +62,15 @@ macro_rules! impl_scalar_float_half {
             }
             #[inline(always)]
             fn erf_op(self) -> Self {
-                Self::from_f64(crate::dtype::float::erf::erf_f64(self.to_f64()))
+                FloatElement::erf(self)
             }
             #[inline(always)]
             fn erfc_op(self) -> Self {
-                Self::from_f64(1.0 - crate::dtype::float::erf::erf_f64(self.to_f64()))
+                FloatElement::erfc(self)
+            }
+            #[inline(always)]
+            fn lgamma_op(self) -> Self {
+                FloatElement::lgamma(self)
             }
             #[inline(always)]
             fn tan_op(self) -> Self {
@@ -121,14 +126,10 @@ macro_rules! impl_scalar_float_half {
             }
             #[inline(always)]
             fn gelu_op(self) -> Self {
-                let x_f = self.to_f64();
-                let res = 0.5
-                    * x_f
-                    * (1.0
-                        + crate::dtype::float::erf::erf_f64(
-                            x_f * core::f64::consts::FRAC_1_SQRT_2,
-                        ));
-                Self::from_f64(res)
+                let half = Self::from_f64(0.5);
+                let one = Self::one();
+                let inv_sqrt_two = Self::from_f64(core::f64::consts::FRAC_1_SQRT_2);
+                half * self * (one + (self * inv_sqrt_two).erf_op())
             }
             #[inline(always)]
             fn sigmoid_op(self) -> Self {
