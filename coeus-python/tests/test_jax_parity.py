@@ -2074,3 +2074,47 @@ def test_log2_matches_jax() -> None:
     got = pycoeus.log2(x_pyc)
     exp = jnp.log2(jnp.array(data, dtype=jnp.float64))
     _allclose("log2", list(got.data), exp.tolist(), atol=1e-12)
+
+# ---------------------------------------------------------------------------
+# sinh / cosh / log2 / log10 parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sinh"), reason="pycoeus.sinh not available")
+def test_sinh_matches_jax() -> None:
+    """jnp.sinh(x) vs pycoeus.sinh(x)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.sinh(x_pyc)
+    exp = jnp.sinh(jnp.array(data, dtype=jnp.float64))
+    _allclose("sinh", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cosh"), reason="pycoeus.cosh not available")
+def test_cosh_matches_jax() -> None:
+    """jnp.cosh(x) vs pycoeus.cosh(x)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.cosh(x_pyc)
+    exp = jnp.cosh(jnp.array(data, dtype=jnp.float64))
+    _allclose("cosh", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log2"), reason="pycoeus.log2 not available")
+def test_log2_matches_jax() -> None:
+    """jnp.log2(x) vs pycoeus.log2(x)."""
+    data = [0.5, 1.0, 2.0, 4.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.log2(x_pyc)
+    exp = jnp.log2(jnp.array(data, dtype=jnp.float64))
+    _allclose("log2", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log10"), reason="pycoeus.log10 not available")
+def test_log10_matches_jax() -> None:
+    """jnp.log10(x) vs pycoeus.log10(x)."""
+    data = [0.1, 1.0, 10.0, 100.0, 1000.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.log10(x_pyc)
+    exp = jnp.log10(jnp.array(data, dtype=jnp.float64))
+    _allclose("log10", list(got.data), exp.tolist(), atol=1e-12)
