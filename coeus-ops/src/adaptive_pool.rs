@@ -38,6 +38,10 @@ fn region_end(i: usize, in_size: usize, out_size: usize) -> usize {
 /// Adaptive average pooling for `[N, C, L]` → `[N, C, output_size]`.
 ///
 /// Equivalent to PyTorch `nn.AdaptiveAvgPool1d(output_size)`.
+///
+/// # Memory
+/// Output is allocated uninitialized (`alloc_on`); every `[n, c, o]` position
+/// is written by the loop before the function returns.
 pub fn adaptive_avg_pool1d<T: Float, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     output_size: usize,

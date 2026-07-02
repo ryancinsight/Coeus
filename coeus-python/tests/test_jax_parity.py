@@ -1884,3 +1884,31 @@ def test_atan_matches_jax() -> None:
     exp = jnp.arctan(jnp.array(data, dtype=jnp.float64))
     _allclose("atan", list(got.data), exp.tolist(), atol=1e-12)
 
+# ---------------------------------------------------------------------------
+# hardshrink / mish / celu parity (JAX stax/nn equivalents)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "mish"), reason="pycoeus.mish not available")
+def test_mish_matches_jax() -> None:
+    """x * tanh(softplus(x)) vs pycoeus.mish(x)."""
+    import jax.nn
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.mish(x_pyc)
+    t = jnp.array(data, dtype=jnp.float64)
+    # JAX mish: x * tanh(softplus(x))
+    exp = t * jnp.tanh(jnp.log1p(jnp.exp(t)))
+    _allclose("mish", list(got.data), exp.tolist(), atol=1e-8)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "softsign"), reason="pycoeus.softsign not available")
+def test_softsign_matches_jax() -> None:
+    """jax.nn.soft_sign(x) vs pycoeus.softsign(x)."""
+    import jax.nn
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.softsign(x_pyc)
+    t = jnp.array(data, dtype=jnp.float64)
+    exp = jax.nn.soft_sign(t)
+    _allclose("softsign", list(got.data), exp.tolist())

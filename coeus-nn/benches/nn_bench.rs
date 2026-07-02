@@ -2627,10 +2627,13 @@ fn bench_vector_norm_forward(c: &mut Criterion) {
     group.finish();
 }
 
+// Reference is consumed by `criterion_group!` macro below; the macro
+// expansion does not propagate usage info, so suppress `dead_code` here.
+#[allow(dead_code, reason = "referenced by criterion_group! macro below")]
 fn bench_tan_forward(c: &mut Criterion) {
     // tan: [128, 256] — important for rotation/phase ops in signal processing.
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.0021).sin() * 1.5)  // stay in safe domain (|x| < π/2)
+        .map(|i| (i as f32 * 0.0021).sin() * 1.5) // stay in safe domain (|x| < π/2)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
@@ -2663,6 +2666,9 @@ fn bench_tan_forward(c: &mut Criterion) {
     group.finish();
 }
 
+// Reference is consumed by `criterion_group!` macro below; the macro
+// expansion does not propagate usage info, so suppress `dead_code` here.
+#[allow(dead_code, reason = "referenced by criterion_group! macro below")]
 fn bench_atan_forward(c: &mut Criterion) {
     // atan: [128, 256] — arctan is used in angle reconstruction and attention scores.
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
