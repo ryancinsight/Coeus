@@ -2,6 +2,24 @@
 
 ## Known Gaps & Residual Risks
 
+### G-049: special-function unary lane
+**Location**: `coeus-core/src/dtype/traits.rs`,
+`coeus-ops/src/unary/math.rs`, `coeus-python/src/ops/elementwise.rs`,
+`coeus-python/tests/test_pytorch_parity.py`.
+**Compared against**: PyTorch `torch.erf`, `torch.special.erfc`,
+`torch.nn.functional.gelu(approximate="none")`, and
+`torch.special.gammaln`.
+**Resolution**: MS-237 routes `erf`/`erfc` through Eunomia, adds `lgamma`
+through CPU/Leto unary dispatch, and exposes forward-only Python
+`gammaln`/`lgamma`. Exact GELU remains the default Python `gelu` surface and
+is rechecked against PyTorch at f64.
+**Residual risk**: `gammaln` backward is intentionally unavailable because
+`d/dx lgamma(x) = digamma(x)`, and Eunomia does not expose `digamma` yet.
+Python raises `NotImplementedError` for grad-tracked `gammaln` inputs instead
+of emitting a fake or zero gradient.
+**Evidence tier**: value-semantic Rust tests plus f64 differential PyTorch
+parity.
+
 ### ~~G-047: Apollo-backed FFT autograd/Python parity missing~~ **CLOSED**
 **Location**: `coeus-autograd/src/ops/fft.rs`,
 `coeus-python/src/ops/fft.rs`, `coeus-python/tests/test_pytorch_parity.py`.

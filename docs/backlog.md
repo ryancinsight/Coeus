@@ -2,6 +2,12 @@
 
 ## Open Burn/PyTorch Parity Backlog
 
+- [x] [patch] G-049: CLOSED - special-function unary lane. Eunomia now owns
+  `erf`/`erfc`/`lgamma`; Coeus routes CPU float dispatch through that surface,
+  exposes forward-only Python `gammaln`/`lgamma`, and verifies f64
+  `erf`/`erfc`/exact-GELU forward+gradient parity plus `gammaln` forward
+  parity against PyTorch. Remaining blocker: `gammaln` backward needs
+  provider-level `digamma`.
 - [x] [minor] G-035: CLOSED — ConvTranspose3d CPU+autograd+Python+PyTorch parity complete (MS-185).
   PyO3, and PyTorch differential parity surfaces.
 - [ ] [minor] G-036: Fill 1D pooling, adaptive pooling, and unfold/fold family

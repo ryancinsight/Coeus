@@ -2,6 +2,27 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
+### Current Sprint: MS-237 - special-function unary parity [COMPLETE]
+- [x] [patch] Replaced Coeus' local `erf` approximation path with Eunomia's
+  `FloatElement::{erf,erfc,lgamma}` surface for float scalars and extended
+  `CpuUnaryOp` / Coeus-Leto unary dispatch with `Lgamma`.
+- [x] [patch] Added forward-only `coeus_ops::lgamma`,
+  `coeus_autograd::lgamma_forward`, and Python `pycoeus.gammaln` /
+  `pycoeus.lgamma`. Backward requests raise `NotImplementedError` because the
+  derivative requires `digamma`, which is not exposed by the provider yet.
+- [x] [patch] Re-verified exact `pycoeus.gelu` plus `erf`/`erfc` f64 forward
+  and gradient parity against PyTorch, and `gammaln` f64 forward parity against
+  `torch.special.gammaln`.
+- [x] Evidence tier: value-semantic Rust tests plus f64 PyTorch differential
+  parity. Evidence: `rustup run nightly cargo check -p coeus-core -p
+  coeus-leto -p coeus-ops -p coeus-autograd -p coeus-python`; `rustup run
+  nightly cargo nextest run -p coeus-leto -p coeus-ops
+  unary_dispatch_special_functions_match_reference_values
+  sequential_unary_matches_scalar_reference
+  moirai_unary_matches_scalar_reference` (3/3); `rustup run nightly cargo check
+  -p coeus-wgpu`; `D:/miniforge3/python.exe -m maturin develop -m
+  coeus-python/Cargo.toml`; targeted PyTorch parity pytest (5/5).
+
 ### Current Sprint: MS-236 - scan/diff/NaN reduction parity [COMPLETE]
 - [x] [patch] Preserved the existing `pycoeus.diff`, `pycoeus.cumsum`, and
   `pycoeus.cumprod` parity coverage while finishing `pycoeus.nansum` and
