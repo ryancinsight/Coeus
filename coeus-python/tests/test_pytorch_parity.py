@@ -4560,3 +4560,76 @@ def test_atan_matches_pytorch() -> None:
     _allclose("atan_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
     _allclose("atan_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
 
+# ---------------------------------------------------------------------------
+# erfinv / hardshrink / softshrink / softsign / mish / celu / elu parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "hardshrink"), reason="pycoeus.hardshrink not available")
+def test_hardshrink_matches_pytorch() -> None:
+    """torch.hardshrink(x, lambd=0.5) vs pycoeus.hardshrink(x, lambd=0.5)."""
+    data = [-1.0, -0.3, 0.0, 0.3, 1.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.hardshrink(x_pyc, 0.5)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.hardshrink(t, lambd=0.5)
+    out_t.sum().backward()
+    _allclose("hardshrink_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("hardshrink_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "softshrink"), reason="pycoeus.softshrink not available")
+def test_softshrink_matches_pytorch() -> None:
+    """torch.softshrink(x, lambd=0.5) vs pycoeus.softshrink(x, lambd=0.5)."""
+    data = [-1.0, -0.3, 0.0, 0.3, 1.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.softshrink(x_pyc, 0.5)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.softshrink(t, lambd=0.5)
+    out_t.sum().backward()
+    _allclose("softshrink_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("softshrink_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "softsign"), reason="pycoeus.softsign not available")
+def test_softsign_matches_pytorch() -> None:
+    """torch.nn.functional.softsign(x) vs pycoeus.softsign(x)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.softsign(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.softsign(t)
+    out_t.sum().backward()
+    _allclose("softsign_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("softsign_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "mish"), reason="pycoeus.mish not available")
+def test_mish_matches_pytorch() -> None:
+    """torch.nn.functional.mish(x) vs pycoeus.mish(x), fwd+bwd."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.mish(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.mish(t)
+    out_t.sum().backward()
+    _allclose("mish_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-8)
+    _allclose("mish_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-8)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "celu"), reason="pycoeus.celu not available")
+def test_celu_matches_pytorch() -> None:
+    """torch.nn.functional.celu(x, alpha=1.0) vs pycoeus.celu(x, alpha=1.0)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.celu(x_pyc, 1.0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.celu(t, alpha=1.0)
+    out_t.sum().backward()
+    _allclose("celu_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-10)
+    _allclose("celu_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
