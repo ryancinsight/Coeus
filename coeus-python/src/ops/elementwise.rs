@@ -21,6 +21,30 @@ pub fn erf(input: &PyTensor, py: Python<'_>) -> PyTensor {
 }
 
 #[pyfunction]
+pub fn tan(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::tan(&input.inner));
+    PyTensor::from_var(inner)
+}
+
+#[pyfunction]
+pub fn asin(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::asin(&input.inner));
+    PyTensor::from_var(inner)
+}
+
+#[pyfunction]
+pub fn acos(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::acos(&input.inner));
+    PyTensor::from_var(inner)
+}
+
+#[pyfunction]
+pub fn atan(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::atan(&input.inner));
+    PyTensor::from_var(inner)
+}
+
+#[pyfunction]
 pub fn abs(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::abs(&input.inner));
     PyTensor::from_var(inner)

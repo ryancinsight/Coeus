@@ -130,6 +130,22 @@ macro_rules! impl_scalar_float_native {
                 $erf_fn(self)
             }
             #[inline(always)]
+            fn tan_op(self) -> Self {
+                self.tan()
+            }
+            #[inline(always)]
+            fn asin_op(self) -> Self {
+                self.asin()
+            }
+            #[inline(always)]
+            fn acos_op(self) -> Self {
+                self.acos()
+            }
+            #[inline(always)]
+            fn atan_op(self) -> Self {
+                self.atan()
+            }
+            #[inline(always)]
             fn gelu_op(self) -> Self {
                 let half = Self::from_f64(0.5);
                 let one = Self::from_f64(1.0);

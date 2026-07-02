@@ -1832,3 +1832,55 @@ def test_norm_global_l2_matches_jax() -> None:
     t = jnp.array(data, dtype=jnp.float64)
     exp = jnp.linalg.norm(t)
     _allclose("norm_l2", list(out_pyc.data), [float(exp)])
+
+# ---------------------------------------------------------------------------
+# sin / cos parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sin"), reason="pycoeus.sin not available")
+def test_sin_matches_jax() -> None:
+    """jnp.sin(x) vs pycoeus.sin(x)."""
+    data = [-3.14159, -1.5708, 0.0, 1.5708, 3.14159]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.sin(x_pyc)
+    exp = jnp.sin(jnp.array(data, dtype=jnp.float64))
+    _allclose("sin", list(got.data), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cos"), reason="pycoeus.cos not available")
+def test_cos_matches_jax() -> None:
+    """jnp.cos(x) vs pycoeus.cos(x)."""
+    data = [-3.14159, -1.5708, 0.0, 1.5708, 3.14159]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.cos(x_pyc)
+    exp = jnp.cos(jnp.array(data, dtype=jnp.float64))
+    _allclose("cos", list(got.data), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "asin"), reason="pycoeus.asin not available")
+def test_asin_matches_jax() -> None:
+    data = [-0.9, -0.5, 0.0, 0.5, 0.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.asin(x_pyc)
+    exp = jnp.arcsin(jnp.array(data, dtype=jnp.float64))
+    _allclose("asin", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "tan"), reason="pycoeus.tan not available")
+def test_tan_matches_jax() -> None:
+    data = [-1.0, -0.5, 0.0, 0.5, 1.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.tan(x_pyc)
+    exp = jnp.tan(jnp.array(data, dtype=jnp.float64))
+    _allclose("tan", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "atan"), reason="pycoeus.atan not available")
+def test_atan_matches_jax() -> None:
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.atan(x_pyc)
+    exp = jnp.arctan(jnp.array(data, dtype=jnp.float64))
+    _allclose("atan", list(got.data), exp.tolist(), atol=1e-12)
+

@@ -1787,12 +1787,17 @@ def test_leaky_relu_matches_pytorch() -> None:
 
 # ── G-037 extended activation family PyTorch parity ────────────────────────
 #
-# Kink/subgradient notes (PyTorch subgradient conventions):
-#   - Hardswish: gradient is (2x+3)/6 inside [-3, 3]; 0 at x<-3, 1 at x>3.
-#     At x=-3 and x=3 the function is closed-interval continuous; gradient
-#     is (2x+3)/6 which evaluates to -0.5 at x=-3 and 1.5 at x=3.
-#   - Hardsigmoid: 1/6 inside (-3, 3); 0 at the open exterior. PyTorch
-#     uses open-interval convention so x = -3, 3 are excluded.
+# Kink/subgradient notes (PyTorch subgradient conventions, sourced from
+# `aten/src/ATen/native/cpu/Activation.cpp`):
+#   - Hardswish `hardswish_backward_kernel` uses `self <= -3 → 0`,
+#     `-3 < self < 3 → grad * (self/3 + 1/2)`, `self >= 3 → grad`.
+#     Net: gradient is 0 at `x = -3` and 1 at `x = 3`.
+#   - Hardsigmoid `hardsigmoid_backward_kernel` uses
+#     `self > -3 && self < 3 → grad * 1/6` else `0`. PyTorch's `1/6`
+#     constant is a single-precision literal that is promoted to f64 in
+#     the gradient (i.e. `0x3E2AAAAB`-extended), so a Coeus f64
+#     `1.0/6.0` (true double round-to-nearest) diverges by ≤ 5e-9.
+#     Atol 1e-7 accounts for that irreducible precision carry-over.
 #   - Hardtanh: 1 inside (min, max); 0 at saturating positions. The
 #     kink endpoints (x = min, x = max) are excluded.
 #   - Hardshrink / Softshrink: 1 if |x| > λ, else 0. The boundary
@@ -1822,15 +1827,22 @@ def test_hardswish_matches_pytorch() -> None:
         lambda x: pycoeus.hardswish(x),
         torch.nn.functional.hardswish,
         _HARDSWISH_INPUT,
+        atol=1e-12,
     )
 
 
 def test_hardsigmoid_matches_pytorch() -> None:
+    # atol widened to 1e-7: PyTorch's hardsigmoid_backward returns the
+    # f32-promoted constant 1/6 (0.1666666716337204 as f64), which diverges
+    # from Coeus's pure-f64 1.0/6.0 (0.16666666666666666) by ~5e-9 - an
+    # irreducible single-precision carry-over from PyTorch's CPU kernel.
+    # See Hardsigmoid note above.
     _assert_activation_parity(
         "hardsigmoid",
         lambda x: pycoeus.hardsigmoid(x),
         torch.nn.functional.hardsigmoid,
         _HARDSIGMOID_INPUT,
+        atol=1e-7,
     )
 
 
@@ -3161,7 +3173,9 @@ def test_smooth_l1_loss_beta05_matches_pytorch() -> None:
     loss_t.backward()
 
     _allclose("smooth_l1_beta05", [loss_pyc.data[0]], [loss_t.item()], atol=1e-10)
-    _allclose("smooth_l1_beta05_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "smooth_l1_beta05_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10
+    )
 
 
 def test_hinge_embedding_loss_matches_pytorch() -> None:
@@ -3185,7 +3199,9 @@ def test_hinge_embedding_loss_matches_pytorch() -> None:
     loss_t.backward()
 
     _allclose("hinge_embedding", [loss_pyc.data[0]], [loss_t.item()], atol=1e-10)
-    _allclose("hinge_embedding_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "hinge_embedding_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10
+    )
 
 
 def test_gaussian_nll_loss_matches_pytorch() -> None:
@@ -3212,7 +3228,9 @@ def test_gaussian_nll_loss_matches_pytorch() -> None:
     loss_t.backward()
 
     _allclose("gaussian_nll", [loss_pyc.data[0]], [loss_t.item()], atol=1e-8)
-    _allclose("gaussian_nll_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-8)
+    _allclose(
+        "gaussian_nll_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-8
+    )
 
 
 def test_multi_label_soft_margin_matches_pytorch() -> None:
@@ -3232,7 +3250,9 @@ def test_multi_label_soft_margin_matches_pytorch() -> None:
     loss_t = F_.multilabel_soft_margin_loss(x_t.reshape(2, 4), t_t)
     loss_t.backward()
 
-    _allclose("multi_label_soft_margin", [loss_pyc.data[0]], [loss_t.item()], atol=1e-10)
+    _allclose(
+        "multi_label_soft_margin", [loss_pyc.data[0]], [loss_t.item()], atol=1e-10
+    )
     _allclose(
         "multi_label_soft_margin_dx",
         list(x_pyc.grad),
@@ -3270,7 +3290,12 @@ def test_batchnorm1d_training_matches_pytorch() -> None:
     with torch.no_grad():
         y_t = bn_t(x_t)
 
-    _allclose("bn1d_training_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-9)
+    _allclose(
+        "bn1d_training_fwd",
+        list(y_pyc.data),
+        y_t.detach().flatten().tolist(),
+        atol=1e-9,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -3295,7 +3320,9 @@ def test_gru_sequence_forward_matches_pytorch() -> None:
     x_pyc = pycoeus.Tensor(data, [batch, seq, input_size])
     y_pyc = gru_pyc.forward(x_pyc)
     # forward returns [batch, seq, hidden_size] — last timestep is y_pyc[-1]
-    assert y_pyc.shape == [batch, seq, hidden_size], f"GRU output shape mismatch: {y_pyc.shape}"
+    assert y_pyc.shape == [batch, seq, hidden_size], (
+        f"GRU output shape mismatch: {y_pyc.shape}"
+    )
 
     # PyTorch: need to build GRU with same weights
     gru_t = torch.nn.GRU(input_size, hidden_size, batch_first=True, dtype=torch.float64)
@@ -3307,7 +3334,9 @@ def test_gru_sequence_forward_matches_pytorch() -> None:
     with torch.no_grad():
         y_t, _ = gru_t(x_t)
 
-    assert list(y_t.shape) == [batch, seq, hidden_size], f"PyTorch GRU shape: {y_t.shape}"
+    assert list(y_t.shape) == [batch, seq, hidden_size], (
+        f"PyTorch GRU shape: {y_t.shape}"
+    )
     # GRU output values depend on weights; verify shape and non-NaN
     for v in y_pyc.data:
         assert not (v != v), "GRU output contains NaN"  # NaN check
@@ -3331,6 +3360,7 @@ def test_sinusoidal_encoding_matches_pytorch() -> None:
     Test: zero input [2, 4, 8] → output is the PE table rows 0..3.
     """
     import math
+
     batch, seq, d_model = 2, 4, 8
     max_len = 16
     data = [0.0] * (batch * seq * d_model)
@@ -3361,7 +3391,6 @@ def test_sinusoidal_encoding_matches_pytorch() -> None:
     _allclose("sinusoidal_encoding", list(y_pyc.data), expected, atol=1e-10)
 
 
-
 # ---------------------------------------------------------------------------
 # Interpolation parity (MS-232)
 # ---------------------------------------------------------------------------
@@ -3388,7 +3417,9 @@ def test_interpolate_nearest_1d_matches_pytorch() -> None:
     x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, l)
     y_t = F_.interpolate(x_t, size=new_l, mode="nearest")
 
-    _allclose("interpolate_nearest_1d", list(y_pyc.data), y_t.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "interpolate_nearest_1d", list(y_pyc.data), y_t.flatten().tolist(), atol=1e-10
+    )
 
 
 @pytest.mark.skipif(
@@ -3412,7 +3443,9 @@ def test_interpolate_nearest_2d_matches_pytorch() -> None:
     x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
     y_t = F_.interpolate(x_t, size=(new_h, new_w), mode="nearest")
 
-    _allclose("interpolate_nearest_2d", list(y_pyc.data), y_t.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "interpolate_nearest_2d", list(y_pyc.data), y_t.flatten().tolist(), atol=1e-10
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -3442,7 +3475,9 @@ def test_interpolate_bilinear_2d_matches_pytorch() -> None:
     x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
     y_t = F_.interpolate(x_t, size=(new_h, new_w), mode="bilinear", align_corners=False)
 
-    _allclose("interpolate_bilinear_2d", list(y_pyc.data), y_t.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "interpolate_bilinear_2d", list(y_pyc.data), y_t.flatten().tolist(), atol=1e-10
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -3498,7 +3533,9 @@ def test_movedim_matches_pytorch() -> None:
     y_t = torch.movedim(x_t, 0, 2)
     y_t.sum().backward()
 
-    _allclose("movedim_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose(
+        "movedim_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10
+    )
     _allclose("movedim_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
 
 
@@ -3515,7 +3552,9 @@ def test_swapaxes_matches_pytorch() -> None:
     y_t = torch.swapaxes(x_t, 0, 2)
     y_t.sum().backward()
 
-    _allclose("swapaxes_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose(
+        "swapaxes_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10
+    )
     _allclose("swapaxes_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
 
 
@@ -3532,7 +3571,9 @@ def test_flatten_matches_pytorch() -> None:
     y_t = torch.flatten(x_t, 1, 2)
     y_t.sum().backward()
 
-    _allclose("flatten_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose(
+        "flatten_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10
+    )
     _allclose("flatten_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
 
 
@@ -3553,7 +3594,9 @@ def test_softmin_matches_pytorch() -> None:
     y_t = torch.nn.functional.softmin(x_t, dim=1)
     y_t.sum().backward()
 
-    _allclose("softmin_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose(
+        "softmin_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10
+    )
     _allclose("softmin_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
 
 
@@ -3578,8 +3621,12 @@ def test_diff_n1_matches_pytorch() -> None:
     y_t = torch.diff(x_t, n=1, dim=0)
     y_t.sum().backward()
 
-    _allclose("diff_n1_1d", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
-    _allclose("diff_n1_1d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+    _allclose(
+        "diff_n1_1d", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10
+    )
+    _allclose(
+        "diff_n1_1d_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10
+    )
 
     # 2D case
     data2 = [1.0, 3.0, 6.0, 10.0, 15.0, 2.0, 4.0, 7.0, 11.0, 16.0]
@@ -3589,7 +3636,9 @@ def test_diff_n1_matches_pytorch() -> None:
     x_t2 = torch.tensor(data2, dtype=torch.float64).reshape(2, 5).requires_grad_(True)
     y_t2 = torch.diff(x_t2, n=1, dim=1)
 
-    _allclose("diff_n1_2d", list(y_pyc2.data), y_t2.detach().flatten().tolist(), atol=1e-10)
+    _allclose(
+        "diff_n1_2d", list(y_pyc2.data), y_t2.detach().flatten().tolist(), atol=1e-10
+    )
 
 
 @pytest.mark.skipif(
@@ -3628,7 +3677,9 @@ def test_cumsum_matches_pytorch() -> None:
     y_t = torch.cumsum(x_t, dim=1)
     y_t.sum().backward()
 
-    _allclose("cumsum_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose(
+        "cumsum_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10
+    )
     _allclose("cumsum_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
 
 
@@ -3644,7 +3695,9 @@ def test_cumprod_matches_pytorch() -> None:
     y_t = torch.cumprod(x_t, dim=0)
     y_t.sum().backward()
 
-    _allclose("cumprod_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose(
+        "cumprod_fwd", list(y_pyc.data), y_t.detach().flatten().tolist(), atol=1e-10
+    )
     _allclose("cumprod_dx", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
 
 
@@ -3780,12 +3833,15 @@ def test_flip_axis0_matches_pytorch() -> None:
     exp = torch.flip(t, dims=[0])
     _allclose("flip(axis=0)", list(got.data), exp.flatten().tolist())
 
+
 # ---------------------------------------------------------------------------
 # argmax / argmin / topk / sort parity
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "argmax"), reason="pycoeus.argmax not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "argmax"), reason="pycoeus.argmax not available"
+)
 def test_argmax_dim0_matches_pytorch() -> None:
     """torch.argmax(x, dim=0) vs pycoeus.argmax(x, dim=0)."""
     data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 5.0, 8.0]
@@ -3796,7 +3852,9 @@ def test_argmax_dim0_matches_pytorch() -> None:
     _allclose("argmax(dim=0)", list(got.data), exp.float().flatten().tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "argmin"), reason="pycoeus.argmin not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "argmin"), reason="pycoeus.argmin not available"
+)
 def test_argmin_dim1_matches_pytorch() -> None:
     """torch.argmin(x, dim=1) vs pycoeus.argmin(x, dim=1)."""
     data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 5.0, 8.0]
@@ -3826,7 +3884,10 @@ def test_topk_smallest_matches_pytorch() -> None:
     vals_pyc, _idxs_pyc = pycoeus.topk(x_pyc, 2, dim=0, largest=False)
     t = torch.tensor(data, dtype=torch.float64).reshape(3, 4)
     vals_t, _ = torch.topk(t, 2, dim=0, largest=False, sorted=True)
-    _allclose("topk(k=2,dim=0,smallest)", list(vals_pyc.data), vals_t.flatten().tolist())
+    _allclose(
+        "topk(k=2,dim=0,smallest)", list(vals_pyc.data), vals_t.flatten().tolist()
+    )
+
 
 # ---------------------------------------------------------------------------
 # sort / norm / outer / clamp / gather / masked_fill / where_cond / diag
@@ -3855,14 +3916,20 @@ def test_sort_descending_matches_pytorch() -> None:
     _allclose("sort_desc", list(vals_pyc.data), vals_t.flatten().tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "vector_norm"), reason="pycoeus.vector_norm not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "vector_norm"), reason="pycoeus.vector_norm not available"
+)
 def test_vector_norm_l2_matches_pytorch() -> None:
     """torch.linalg.vector_norm(x, ord=2) vs pycoeus.vector_norm(x, ord=2.0)."""
     data = [3.0, -4.0, 0.0, 5.0, -12.0, 0.0]
     x_pyc = pycoeus.Tensor(data, [6], requires_grad=False)
     got = pycoeus.vector_norm(x_pyc, ord=2.0)
-    exp = float(torch.linalg.vector_norm(torch.tensor(data, dtype=torch.float64), ord=2))
-    assert abs(list(got.data)[0] - exp) < _ATOL, f"vector_norm_l2: {list(got.data)[0]} vs {exp}"
+    exp = float(
+        torch.linalg.vector_norm(torch.tensor(data, dtype=torch.float64), ord=2)
+    )
+    assert abs(list(got.data)[0] - exp) < _ATOL, (
+        f"vector_norm_l2: {list(got.data)[0]} vs {exp}"
+    )
 
 
 @pytest.mark.skipif(not hasattr(pycoeus, "clamp"), reason="pycoeus.clamp not available")
@@ -3887,7 +3954,9 @@ def test_outer_matches_pytorch() -> None:
     a_pyc = pycoeus.Tensor(a, [3], requires_grad=False)
     b_pyc = pycoeus.Tensor(b, [2], requires_grad=False)
     got = pycoeus.outer(a_pyc, b_pyc)
-    exp = torch.outer(torch.tensor(a, dtype=torch.float64), torch.tensor(b, dtype=torch.float64))
+    exp = torch.outer(
+        torch.tensor(a, dtype=torch.float64), torch.tensor(b, dtype=torch.float64)
+    )
     _allclose("outer", list(got.data), exp.flatten().tolist())
 
 
@@ -3901,7 +3970,9 @@ def test_diag_1d_to_2d_matches_pytorch() -> None:
     _allclose("diag_embed", list(got.data), exp.flatten().tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "where_cond"), reason="pycoeus.where_cond not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "where_cond"), reason="pycoeus.where_cond not available"
+)
 def test_where_cond_matches_pytorch() -> None:
     """torch.where(cond, a, b) vs pycoeus.where_cond(cond, a, b)."""
     cond_data = [1.0, 0.0, 1.0, 0.0, 1.0, 1.0]
@@ -3918,7 +3989,9 @@ def test_where_cond_matches_pytorch() -> None:
     _allclose("where_cond", list(got.data), exp.tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "masked_fill"), reason="pycoeus.masked_fill not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "masked_fill"), reason="pycoeus.masked_fill not available"
+)
 def test_masked_fill_matches_pytorch() -> None:
     """x.masked_fill(mask, -1e9) for causal attention masking."""
     data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
@@ -3931,6 +4004,7 @@ def test_masked_fill_matches_pytorch() -> None:
     exp = t.masked_fill(mask_t, -1e9)
     _allclose("masked_fill", list(got.data), exp.flatten().tolist(), atol=1.0)
 
+
 # ---------------------------------------------------------------------------
 # bmm / pad / log_sum_exp / gather / scatter_add parity
 # ---------------------------------------------------------------------------
@@ -3940,6 +4014,7 @@ def test_masked_fill_matches_pytorch() -> None:
 def test_bmm_forward_matches_pytorch() -> None:
     """torch.bmm(a, b) vs pycoeus.bmm(a, b), [2,3,4] x [2,4,5]."""
     import random
+
     random.seed(42)
     a_data = [float(i) * 0.1 for i in range(2 * 3 * 4)]
     b_data = [float(i) * 0.05 for i in range(2 * 4 * 5)]
@@ -3948,8 +4023,12 @@ def test_bmm_forward_matches_pytorch() -> None:
     out_pyc = pycoeus.bmm(a_pyc, b_pyc)
     out_pyc.backward()
 
-    a_t = torch.tensor(a_data, dtype=torch.float64).reshape(2, 3, 4).requires_grad_(True)
-    b_t = torch.tensor(b_data, dtype=torch.float64).reshape(2, 4, 5).requires_grad_(True)
+    a_t = (
+        torch.tensor(a_data, dtype=torch.float64).reshape(2, 3, 4).requires_grad_(True)
+    )
+    b_t = (
+        torch.tensor(b_data, dtype=torch.float64).reshape(2, 4, 5).requires_grad_(True)
+    )
     out_t = torch.bmm(a_t, b_t)
     out_t.sum().backward()
 
@@ -3970,7 +4049,9 @@ def test_pad_constant_matches_pytorch() -> None:
     _allclose("pad_const", list(got.data), exp.flatten().tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "log_sum_exp"), reason="pycoeus.log_sum_exp not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "log_sum_exp"), reason="pycoeus.log_sum_exp not available"
+)
 def test_log_sum_exp_matches_pytorch() -> None:
     """torch.logsumexp(x, dim=1) vs pycoeus.log_sum_exp(x, axis=1)."""
     data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
@@ -3986,7 +4067,9 @@ def test_log_sum_exp_matches_pytorch() -> None:
     _allclose("logsumexp_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "gather"), reason="pycoeus.gather not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "gather"), reason="pycoeus.gather not available"
+)
 def test_gather_dim1_matches_pytorch() -> None:
     """torch.gather(x, dim=1, index) vs pycoeus.gather(x, 1, index)."""
     data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
@@ -4004,12 +4087,15 @@ def test_gather_dim1_matches_pytorch() -> None:
     _allclose("gather_fwd", list(out_pyc.data), out_t.detach().flatten().tolist())
     _allclose("gather_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
 
+
 # ---------------------------------------------------------------------------
 # einsum / one_hot / scatter_add parity
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "einsum"), reason="pycoeus.einsum not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "einsum"), reason="pycoeus.einsum not available"
+)
 def test_einsum_matmul_matches_pytorch() -> None:
     """torch.einsum('ij,jk->ik', a, b) matrix multiply (2x3) @ (3x2) = (2x2)."""
     a = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
@@ -4023,7 +4109,9 @@ def test_einsum_matmul_matches_pytorch() -> None:
     _allclose("einsum_mm", list(got.data), exp.flatten().tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "one_hot"), reason="pycoeus.one_hot not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "one_hot"), reason="pycoeus.one_hot not available"
+)
 def test_one_hot_matches_pytorch() -> None:
     """torch.nn.functional.one_hot(indices, num_classes=5)."""
     indices = [0.0, 2.0, 4.0, 1.0]
@@ -4034,7 +4122,9 @@ def test_one_hot_matches_pytorch() -> None:
     _allclose("one_hot", list(got.data), exp.flatten().tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "scatter_add"), reason="pycoeus.scatter_add not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "scatter_add"), reason="pycoeus.scatter_add not available"
+)
 def test_scatter_add_matches_pytorch() -> None:
     """torch.scatter_add(input, dim=0, index, src) vs pycoeus.scatter_add."""
     src_data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
@@ -4049,6 +4139,7 @@ def test_scatter_add_matches_pytorch() -> None:
     src_t = torch.tensor(src_data, dtype=torch.float64).reshape(2, 3)
     exp = base_t.scatter_add(0, idx_t, src_t)
     _allclose("scatter_add", list(got.data), exp.flatten().tolist())
+
 
 # ---------------------------------------------------------------------------
 # tile / broadcast_to / index_select / index_put parity
@@ -4066,7 +4157,9 @@ def test_tile_matches_pytorch() -> None:
     _allclose("tile", list(got.data), exp.flatten().tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "broadcast_to"), reason="pycoeus.broadcast_to not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "broadcast_to"), reason="pycoeus.broadcast_to not available"
+)
 def test_broadcast_to_matches_pytorch() -> None:
     """torch.broadcast_to(x, shape) vs pycoeus.broadcast_to(x, shape)."""
     data = [1.0, 2.0, 3.0]
@@ -4077,7 +4170,9 @@ def test_broadcast_to_matches_pytorch() -> None:
     _allclose("broadcast_to", list(got.data), exp.flatten().tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "index_select"), reason="pycoeus.index_select not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "index_select"), reason="pycoeus.index_select not available"
+)
 def test_index_select_dim1_matches_pytorch() -> None:
     """torch.index_select(x, 1, idx) vs pycoeus.index_select(x, 1, idx)."""
     data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
@@ -4094,7 +4189,9 @@ def test_index_select_dim1_matches_pytorch() -> None:
     _allclose("index_select_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "index_put"), reason="pycoeus.index_put not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "index_put"), reason="pycoeus.index_put not available"
+)
 def test_index_put_matches_pytorch() -> None:
     """x.index_put((indices,), values, accumulate=False)."""
     data = [0.0] * 6
@@ -4105,12 +4202,17 @@ def test_index_put_matches_pytorch() -> None:
     v_pyc = pycoeus.Tensor(vals, [3], requires_grad=False)
     got = pycoeus.index_put(x_pyc, idx_pyc, v_pyc, accumulate=False)
     t = torch.zeros(6, dtype=torch.float64)
-    exp = t.index_put((torch.tensor([0, 2, 4], dtype=torch.int64),),
-                      torch.tensor(vals, dtype=torch.float64), accumulate=False)
+    exp = t.index_put(
+        (torch.tensor([0, 2, 4], dtype=torch.int64),),
+        torch.tensor(vals, dtype=torch.float64),
+        accumulate=False,
+    )
     _allclose("index_put", list(got.data), exp.tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "nonzero"), reason="pycoeus.nonzero not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "nonzero"), reason="pycoeus.nonzero not available"
+)
 def test_nonzero_matches_pytorch() -> None:
     """torch.nonzero(x).T vs pycoeus.nonzero(x)."""
     data = [0.0, 1.0, 0.0, 2.0, 0.0, 3.0]
@@ -4119,6 +4221,7 @@ def test_nonzero_matches_pytorch() -> None:
     t = torch.tensor(data, dtype=torch.float64)
     exp = torch.nonzero(t, as_tuple=False).t().squeeze(0)
     _allclose("nonzero", list(got.data), exp.float().tolist())
+
 
 # ---------------------------------------------------------------------------
 # creation ops: full / arange / linspace / eye / cross / dist parity
@@ -4133,7 +4236,9 @@ def test_full_matches_pytorch() -> None:
     _allclose("full", list(got.data), exp.flatten().tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "arange"), reason="pycoeus.arange not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "arange"), reason="pycoeus.arange not available"
+)
 def test_arange_matches_pytorch() -> None:
     """torch.arange(0, 10, 2) vs pycoeus.arange(start, stop, step)."""
     got = pycoeus.arange(0.0, 10.0, 2.0)
@@ -4149,7 +4254,9 @@ def test_eye_matches_pytorch() -> None:
     _allclose("eye", list(got.data), exp.flatten().tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "linspace"), reason="pycoeus.linspace not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "linspace"), reason="pycoeus.linspace not available"
+)
 def test_linspace_matches_pytorch() -> None:
     """torch.linspace(0, 1, 11) vs pycoeus.linspace(0, 1, 11)."""
     got = pycoeus.linspace(0.0, 1.0, 11)
@@ -4171,7 +4278,10 @@ def test_cross_matches_pytorch() -> None:
     _allclose("cross", list(got.data), exp.tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "pairwise_distance"), reason="pycoeus.pairwise_distance not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "pairwise_distance"),
+    reason="pycoeus.pairwise_distance not available",
+)
 def test_pairwise_distance_l2_matches_pytorch() -> None:
     """torch.nn.functional.pairwise_distance(a, b, p=2) vs pycoeus.pairwise_distance(a, b, p=2)."""
     a = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
@@ -4184,12 +4294,15 @@ def test_pairwise_distance_l2_matches_pytorch() -> None:
     exp = torch.nn.functional.pairwise_distance(a_t, b_t, p=2)
     _allclose("pairwise_distance", list(got.data), exp.tolist())
 
+
 # ---------------------------------------------------------------------------
 # gelu_tanh / gaussian_nll_loss / pow / scaled_dot_product_attention parity
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "gelu_tanh"), reason="pycoeus.gelu_tanh not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "gelu_tanh"), reason="pycoeus.gelu_tanh not available"
+)
 def test_gelu_tanh_matches_pytorch() -> None:
     """torch.nn.functional.gelu(x, approximate='tanh') vs pycoeus.gelu_tanh(x)."""
     data = [-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0]
@@ -4217,7 +4330,10 @@ def test_erf_matches_pytorch() -> None:
     _allclose("erf_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "gaussian_nll_loss"), reason="pycoeus.gaussian_nll_loss not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "gaussian_nll_loss"),
+    reason="pycoeus.gaussian_nll_loss not available",
+)
 def test_gaussian_nll_loss_matches_pytorch() -> None:
     """torch.nn.functional.gaussian_nll_loss vs pycoeus.gaussian_nll_loss."""
     inp = [0.5, 1.0, -0.5, 2.0]
@@ -4248,10 +4364,14 @@ def test_pow_matches_pytorch() -> None:
     _allclose("pow_bwd", list(x_pyc.grad), t.grad.tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "scaled_dot_product_attention"), reason="pycoeus.scaled_dot_product_attention not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "scaled_dot_product_attention"),
+    reason="pycoeus.scaled_dot_product_attention not available",
+)
 def test_scaled_dot_product_attention_matches_pytorch() -> None:
     """F.scaled_dot_product_attention(q,k,v) vs pycoeus.scaled_dot_product_attention(q,k,v)."""
     import math
+
     seq, d = 4, 8
     q_data = [math.sin(i * 0.1) for i in range(seq * d)]
     k_data = [math.cos(i * 0.1) for i in range(seq * d)]
@@ -4266,12 +4386,15 @@ def test_scaled_dot_product_attention_matches_pytorch() -> None:
     exp = torch.nn.functional.scaled_dot_product_attention(q_t, k_t, v_t)
     _allclose("sdpa_fwd", list(got.data), exp.flatten().tolist(), atol=1e-8)
 
+
 # ---------------------------------------------------------------------------
 # einsum dot/outer / norm_p / conv_transpose2d / avg_pool1d parity
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "einsum"), reason="pycoeus.einsum not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "einsum"), reason="pycoeus.einsum not available"
+)
 def test_einsum_dot_product_matches_pytorch() -> None:
     """torch.einsum('i,i->',a,b) dot product vs pycoeus.einsum."""
     a = [1.0, 2.0, 3.0, 4.0]
@@ -4285,7 +4408,9 @@ def test_einsum_dot_product_matches_pytorch() -> None:
     _allclose("einsum_dot", list(got.data), [exp.item()])
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "einsum"), reason="pycoeus.einsum not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "einsum"), reason="pycoeus.einsum not available"
+)
 def test_einsum_batch_matmul_matches_pytorch() -> None:
     """torch.einsum('bij,bjk->bik', a, b) batch matmul [2,3,4]x[2,4,5]."""
     a = [float(i) * 0.1 for i in range(2 * 3 * 4)]
@@ -4322,6 +4447,7 @@ def test_conv_transpose2d_output_shape_matches_pytorch() -> None:
     ct = pycoeus.ConvTranspose2d(in_channels=1, out_channels=1, kernel_size=3, stride=1)
     # Zero-initialize weights so output = 0 (shape-only test avoids weight parity issue).
     import math
+
     n_params = 1 * 1 * 3 * 3
     for p in ct.parameters():
         if len(list(p.data)) == n_params:
@@ -4331,7 +4457,9 @@ def test_conv_transpose2d_output_shape_matches_pytorch() -> None:
     assert list(out.shape) == [1, 1, 7, 7], f"Expected [1,1,7,7] got {list(out.shape)}"
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "AvgPool1d"), reason="pycoeus.AvgPool1d not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "AvgPool1d"), reason="pycoeus.AvgPool1d not available"
+)
 def test_avg_pool1d_matches_pytorch() -> None:
     """torch.nn.AvgPool1d(k=3, s=1) vs pycoeus.AvgPool1d(k=3, s=1)."""
     data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
@@ -4342,3 +4470,93 @@ def test_avg_pool1d_matches_pytorch() -> None:
     pool_t = torch.nn.AvgPool1d(kernel_size=3, stride=1)
     exp = pool_t(t)
     _allclose("avg_pool1d", list(out_pyc.data), exp.flatten().tolist())
+
+
+# ---------------------------------------------------------------------------
+# sin / cos parity (tracked autograd)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sin"), reason="pycoeus.sin not available")
+def test_sin_matches_pytorch() -> None:
+    """torch.sin(x) vs pycoeus.sin(x), fwd+bwd."""
+    data = [-3.14159, -1.5708, 0.0, 1.5708, 3.14159]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.sin(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.sin(t)
+    out_t.sum().backward()
+    _allclose("sin_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-10)
+    _allclose("sin_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cos"), reason="pycoeus.cos not available")
+def test_cos_matches_pytorch() -> None:
+    """torch.cos(x) vs pycoeus.cos(x), fwd+bwd."""
+    data = [-3.14159, -1.5708, 0.0, 1.5708, 3.14159]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.cos(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.cos(t)
+    out_t.sum().backward()
+    _allclose("cos_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-10)
+    _allclose("cos_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "tan"), reason="pycoeus.tan not available")
+def test_tan_matches_pytorch() -> None:
+    """torch.tan(x) vs pycoeus.tan(x), fwd+bwd."""
+    data = [-1.0, -0.5, 0.0, 0.5, 1.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.tan(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.tan(t)
+    out_t.sum().backward()
+    _allclose("tan_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("tan_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "asin"), reason="pycoeus.asin not available")
+def test_asin_matches_pytorch() -> None:
+    """torch.asin(x) vs pycoeus.asin(x), fwd+bwd."""
+    data = [-0.9, -0.5, 0.0, 0.5, 0.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.asin(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.asin(t)
+    out_t.sum().backward()
+    _allclose("asin_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("asin_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "acos"), reason="pycoeus.acos not available")
+def test_acos_matches_pytorch() -> None:
+    """torch.acos(x) vs pycoeus.acos(x), fwd+bwd."""
+    data = [-0.9, -0.5, 0.0, 0.5, 0.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.acos(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.acos(t)
+    out_t.sum().backward()
+    _allclose("acos_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("acos_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "atan"), reason="pycoeus.atan not available")
+def test_atan_matches_pytorch() -> None:
+    """torch.atan(x) vs pycoeus.atan(x), fwd+bwd."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.atan(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.atan(t)
+    out_t.sum().backward()
+    _allclose("atan_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("atan_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
