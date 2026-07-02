@@ -4967,3 +4967,81 @@ def test_log10_matches_pytorch() -> None:
     out_t.sum().backward()
     _allclose("log10_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
     _allclose("log10_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+# ---------------------------------------------------------------------------
+# sinh / cosh / log2 / log10 parity (new trig2 ops)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sinh"), reason="pycoeus.sinh not available")
+def test_sinh_matches_pytorch() -> None:
+    """torch.sinh(x) vs pycoeus.sinh(x), fwd+bwd (d/dx sinh = cosh)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.sinh(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.sinh(t)
+    out_t.sum().backward()
+    _allclose("sinh_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("sinh_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cosh"), reason="pycoeus.cosh not available")
+def test_cosh_matches_pytorch() -> None:
+    """torch.cosh(x) vs pycoeus.cosh(x), fwd+bwd (d/dx cosh = sinh)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.cosh(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.cosh(t)
+    out_t.sum().backward()
+    _allclose("cosh_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("cosh_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log2"), reason="pycoeus.log2 not available")
+def test_log2_matches_pytorch() -> None:
+    """torch.log2(x) vs pycoeus.log2(x), fwd+bwd (d/dx log2 = 1/(x*ln2))."""
+    data = [0.5, 1.0, 2.0, 4.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.log2(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.log2(t)
+    out_t.sum().backward()
+    _allclose("log2_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("log2_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log10"), reason="pycoeus.log10 not available")
+def test_log10_matches_pytorch() -> None:
+    """torch.log10(x) vs pycoeus.log10(x), fwd+bwd (d/dx log10 = 1/(x*ln10))."""
+    data = [0.1, 1.0, 10.0, 100.0, 1000.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.log10(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.log10(t)
+    out_t.sum().backward()
+    _allclose("log10_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("log10_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "dot"), reason="pycoeus.dot not available")
+def test_dot_matches_pytorch() -> None:
+    """torch.dot(a, b) vs pycoeus.dot(a, b)."""
+    a = [1.0, 2.0, 3.0, 4.0, 5.0]
+    b = [5.0, 4.0, 3.0, 2.0, 1.0]
+    a_pyc = pycoeus.Tensor(a, [5], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b, [5], requires_grad=True)
+    out_pyc = pycoeus.dot(a_pyc, b_pyc)
+    out_pyc.backward()
+    a_t = torch.tensor(a, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(b, dtype=torch.float64, requires_grad=True)
+    out_t = torch.dot(a_t, b_t)
+    out_t.backward()
+    _allclose("dot_fwd", list(out_pyc.data), [out_t.item()])
+    _allclose("dot_bwd_a", list(a_pyc.grad), a_t.grad.tolist())
+    _allclose("dot_bwd_b", list(b_pyc.grad), b_t.grad.tolist())
