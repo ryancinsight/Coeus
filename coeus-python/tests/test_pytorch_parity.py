@@ -6030,3 +6030,85 @@ def test_asin_fwd_bwd_matches_pytorch() -> None:
     out_t.sum().backward()
     _allclose("asin_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
     _allclose("asin_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+# ---------------------------------------------------------------------------
+# mean fwd+bwd / mul_fwd+bwd / sub_fwd+bwd / softsign_bwd / celu_bwd
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "mean"), reason="pycoeus.mean not available")
+def test_mean_fwd_bwd_matches_pytorch() -> None:
+    """torch.mean(x) global fwd+bwd vs pycoeus.mean(x)."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=True)
+    out_pyc = pycoeus.mean(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.mean(t)
+    out_t.backward()
+    _allclose("mean_fwd", list(out_pyc.data), [out_t.item()])
+    _allclose("mean_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+def test_mul_fwd_bwd_matches_pytorch() -> None:
+    """torch.mul(a, b) element-wise fwd+bwd via a * b tensor operator."""
+    a = [1.0, 2.0, 3.0, 4.0]
+    b = [2.0, 0.5, -1.0, 3.0]
+    a_pyc = pycoeus.Tensor(a, [4], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b, [4], requires_grad=True)
+    out_pyc = a_pyc * b_pyc
+    out_pyc.backward()
+    a_t = torch.tensor(a, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(b, dtype=torch.float64, requires_grad=True)
+    out_t = a_t * b_t
+    out_t.sum().backward()
+    _allclose("mul_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("mul_bwd_a", list(a_pyc.grad), a_t.grad.tolist())
+
+
+def test_sub_fwd_bwd_matches_pytorch() -> None:
+    """torch.sub(a, b) fwd+bwd via a - b tensor operator."""
+    a = [3.0, 1.0, 4.0, 1.0]
+    b = [1.0, 2.0, 1.0, 3.0]
+    a_pyc = pycoeus.Tensor(a, [4], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b, [4], requires_grad=True)
+    out_pyc = a_pyc - b_pyc
+    out_pyc.backward()
+    a_t = torch.tensor(a, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(b, dtype=torch.float64, requires_grad=True)
+    out_t = a_t - b_t
+    out_t.sum().backward()
+    _allclose("sub_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("sub_bwd_a", list(a_pyc.grad), a_t.grad.tolist())
+    _allclose("sub_bwd_b", list(b_pyc.grad), b_t.grad.tolist())
+
+
+def test_div_fwd_bwd_matches_pytorch() -> None:
+    """torch.div(a, b) fwd+bwd via a / b tensor operator."""
+    a = [6.0, 4.0, 9.0, 8.0]
+    b = [2.0, 2.0, 3.0, 4.0]
+    a_pyc = pycoeus.Tensor(a, [4], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b, [4], requires_grad=True)
+    out_pyc = a_pyc / b_pyc
+    out_pyc.backward()
+    a_t = torch.tensor(a, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(b, dtype=torch.float64, requires_grad=True)
+    out_t = a_t / b_t
+    out_t.sum().backward()
+    _allclose("div_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("div_bwd_a", list(a_pyc.grad), a_t.grad.tolist(), atol=1e-10)
+    _allclose("div_bwd_b", list(b_pyc.grad), b_t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "celu"), reason="pycoeus.celu not available")
+def test_celu_bwd_alpha05_matches_pytorch() -> None:
+    """F.celu(x, alpha=0.5) backward vs pycoeus.celu(x, 0.5)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.celu(x_pyc, 0.5)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.celu(t, alpha=0.5)
+    out_t.sum().backward()
+    _allclose("celu_05_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("celu_05_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)

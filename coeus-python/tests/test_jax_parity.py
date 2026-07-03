@@ -2453,13 +2453,12 @@ def test_mean_matches_jax() -> None:
     _allclose("mean", list(got.data), [exp])
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "mul"), reason="pycoeus.mul not available")
 def test_mul_matches_jax() -> None:
-    """jnp.multiply(a, b) vs pycoeus.mul(a, b)."""
+    """jnp.multiply(a, b) vs pycoeus a * b (tensor mul operator)."""
     a = [1.0, 2.0, 3.0, 4.0]
     b = [2.0, 0.5, -1.0, 3.0]
     a_pyc = pycoeus.Tensor(a, [4], requires_grad=False)
     b_pyc = pycoeus.Tensor(b, [4], requires_grad=False)
-    got = pycoeus.mul(a_pyc, b_pyc)
+    got = a_pyc * b_pyc
     exp = jnp.multiply(jnp.array(a, dtype=jnp.float64), jnp.array(b, dtype=jnp.float64))
     _allclose("mul", list(got.data), exp.tolist())
