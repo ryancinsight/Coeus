@@ -6656,3 +6656,96 @@ def test_var_axis_bwd_matches_pytorch() -> None:
     out_t.sum().backward()
     _allclose("var_axis_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-10)
     _allclose("var_axis_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-10)
+
+# ---------------------------------------------------------------------------
+# matmul_bwd / pow_bwd / mean_bwd / cumsum_bwd / cat_bwd / stack_bwd
+# ---------------------------------------------------------------------------
+
+
+def test_matmul_bwd_matches_pytorch() -> None:
+    """matmul [3,4]@[4,5] backward — both weight grads vs PyTorch."""
+    a = [float(i) * 0.1 for i in range(12)]
+    b = [float(i) * 0.05 for i in range(20)]
+    a_pyc = pycoeus.Tensor(a, [3, 4], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b, [4, 5], requires_grad=True)
+    out_pyc = pycoeus.matmul(a_pyc, b_pyc)
+    out_pyc.backward()
+    a_t = torch.tensor(a, dtype=torch.float64).reshape(3, 4).requires_grad_(True)
+    b_t = torch.tensor(b, dtype=torch.float64).reshape(4, 5).requires_grad_(True)
+    out_t = torch.matmul(a_t, b_t)
+    out_t.sum().backward()
+    _allclose("mm_bwd_a", list(a_pyc.grad), a_t.grad.flatten().tolist())
+    _allclose("mm_bwd_b", list(b_pyc.grad), b_t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "pow"), reason="pycoeus.pow not available")
+def test_pow_bwd_arbitrary_matches_pytorch() -> None:
+    """pow(x, 0.5) backward: d/dx x^0.5 = 0.5 * x^(-0.5)."""
+    data = [1.0, 4.0, 9.0, 16.0, 25.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.pow(x_pyc, 0.5)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = t ** 0.5
+    out_t.sum().backward()
+    _allclose("pow05_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "mean"), reason="pycoeus.mean not available")
+def test_mean_bwd_matches_pytorch() -> None:
+    """mean backward: d/dx = 1/N for all elements."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=True)
+    out_pyc = pycoeus.mean(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.mean(t)
+    out_t.backward()
+    _allclose("mean_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cumsum"), reason="pycoeus.cumsum not available")
+def test_cumsum_bwd_matches_pytorch() -> None:
+    """cumsum backward: grad propagates via suffix sums."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.cumsum(x_pyc, 0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.cumsum(t, 0)
+    out_t.sum().backward()
+    _allclose("cumsum_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cat"), reason="pycoeus.cat not available")
+def test_cat_bwd_multidim_matches_pytorch() -> None:
+    """cat along dim=1 backward: grad splits correctly."""
+    a = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    b = [7.0, 8.0, 9.0]
+    a_pyc = pycoeus.Tensor(a, [2, 3], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b, [1, 3], requires_grad=True)
+    out_pyc = pycoeus.cat([a_pyc, b_pyc], dim=0)
+    out_pyc.backward()
+    a_t = torch.tensor(a, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    b_t = torch.tensor(b, dtype=torch.float64).reshape(1, 3).requires_grad_(True)
+    out_t = torch.cat([a_t, b_t], dim=0)
+    out_t.sum().backward()
+    _allclose("cat_bwd_a", list(a_pyc.grad), a_t.grad.flatten().tolist())
+    _allclose("cat_bwd_b", list(b_pyc.grad), b_t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "stack"), reason="pycoeus.stack not available")
+def test_stack_bwd_dim1_matches_pytorch() -> None:
+    """stack(dim=1) backward: grad distributes via slice."""
+    a = [1.0, 2.0, 3.0]
+    b = [4.0, 5.0, 6.0]
+    a_pyc = pycoeus.Tensor(a, [3], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b, [3], requires_grad=True)
+    out_pyc = pycoeus.stack([a_pyc, b_pyc], dim=1)
+    out_pyc.backward()
+    a_t = torch.tensor(a, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(b, dtype=torch.float64, requires_grad=True)
+    out_t = torch.stack([a_t, b_t], dim=1)
+    out_t.sum().backward()
+    _allclose("stack1_bwd_a", list(a_pyc.grad), a_t.grad.tolist())
+    _allclose("stack1_bwd_b", list(b_pyc.grad), b_t.grad.tolist())
