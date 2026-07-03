@@ -3326,3 +3326,86 @@ def test_squeeze_bwd_matches_jax() -> None:
     grad_fn = jax.grad(lambda x: jnp.sum(jnp.squeeze(x.reshape(1, 6), axis=0)))
     exp = grad_fn(jnp.array(data, dtype=jnp.float64))
     _allclose("squeeze_bwd", list(x_pyc.grad), exp.flatten().tolist())
+
+
+# ---------------------------------------------------------------------------
+# MS-396-402: JAX backward parity for min_axis, max_axis, nan ops, diagonal
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "min_axis"), reason="pycoeus.min_axis not available")
+def test_min_axis_bwd_matches_jax() -> None:
+    """jax.grad min(axis=1) vs pycoeus min_axis backward."""
+    import jax
+    data = [3.0, 1.0, 4.0, 2.0, 5.0, 0.0, 6.0, -1.0]
+    x_pyc = pycoeus.Tensor(data, [2, 4], requires_grad=True)
+    pycoeus.min_axis(x_pyc, 1).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.min(x.reshape(2, 4), axis=1, keepdims=True)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("min_axis_bwd", list(x_pyc.grad), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "max_axis"), reason="pycoeus.max_axis not available")
+def test_max_axis_bwd_matches_jax() -> None:
+    """jax.grad max(axis=0) vs pycoeus max_axis backward."""
+    import jax
+    data = [3.0, 1.0, 4.0, 2.0, 5.0, 0.0, 6.0, -1.0]
+    x_pyc = pycoeus.Tensor(data, [2, 4], requires_grad=True)
+    pycoeus.max_axis(x_pyc, 0).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.max(x.reshape(2, 4), axis=0, keepdims=True)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("max_axis_bwd", list(x_pyc.grad), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "nansum"), reason="pycoeus.nansum not available")
+def test_nansum_bwd_matches_jax() -> None:
+    """jax.grad nansum vs pycoeus nansum backward (NaN->0)."""
+    import jax, math
+    data = [1.0, float("nan"), 3.0, float("nan"), 5.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.nansum(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.nansum(x))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    # NaN positions get 0 grad; finite positions get 1
+    got = list(x_pyc.grad)
+    for i, (g, d) in enumerate(zip(got, data)):
+        if math.isnan(d):
+            assert abs(g) < 1e-12, f"nansum_bwd[{i}]: NaN pos should have 0 grad, got {g}"
+        else:
+            assert abs(g - 1.0) < 1e-10, f"nansum_bwd[{i}]: finite pos should have 1 grad, got {g}"
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "diagonal"), reason="pycoeus.diagonal not available")
+def test_diagonal_bwd_matches_jax() -> None:
+    """jax.grad diagonal() vs pycoeus diagonal backward."""
+    import jax
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+    x_pyc = pycoeus.Tensor(data, [3, 3], requires_grad=True)
+    pycoeus.diagonal(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.diagonal(x.reshape(3, 3))))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("diagonal_bwd", list(x_pyc.grad), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "mean_axis"), reason="pycoeus.mean_axis not available")
+def test_mean_axis_bwd_matches_jax() -> None:
+    """jax.grad mean(axis=0) vs pycoeus mean_axis backward."""
+    import jax
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [3, 2], requires_grad=True)
+    pycoeus.mean_axis(x_pyc, 0).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.mean(x.reshape(3, 2), axis=0, keepdims=True)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("mean_axis_bwd", list(x_pyc.grad), exp.flatten().tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "flatten"), reason="pycoeus.flatten not available")
+def test_flatten_bwd_matches_jax() -> None:
+    """jax.grad flatten vs pycoeus flatten backward."""
+    import jax
+    data = [float(i) for i in range(24)]
+    x_pyc = pycoeus.Tensor(data, [2, 3, 4], requires_grad=True)
+    pycoeus.flatten(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(x.reshape(2, 3, 4).flatten()))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("flatten_bwd", list(x_pyc.grad), exp.flatten().tolist())

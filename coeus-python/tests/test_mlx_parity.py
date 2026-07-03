@@ -561,3 +561,173 @@ def test_tile_matches_mlx() -> None:
     out_mlx = mx.tile(x_mlx, (2, 2))
     mx.eval(out_mlx)
     _allclose("tile", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+# ---------------------------------------------------------------------------
+# MS-403: MLX parity expansion toward 50 tests
+# ---------------------------------------------------------------------------
+
+
+def test_min_axis_matches_mlx() -> None:
+    """min_axis(dim=1) forward matches MLX min."""
+    _skip_if_no_mlx()
+    data = [3.0, 1.0, 4.0, 2.0, 5.0, 0.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    out_pyc = pycoeus.min_axis(x_pyc, 1)
+    x_mlx = mx.array(data).reshape(2, 3)
+    out_mlx = mx.min(x_mlx, axis=1, keepdims=True)
+    mx.eval(out_mlx)
+    _allclose("min_axis", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_sum_axis_matches_mlx() -> None:
+    """sum_axis(dim=0) forward matches MLX sum."""
+    _skip_if_no_mlx()
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    out_pyc = pycoeus.sum_axis(x_pyc, 0)
+    x_mlx = mx.array(data).reshape(2, 3)
+    out_mlx = mx.sum(x_mlx, axis=0, keepdims=False)
+    mx.eval(out_mlx)
+    _allclose("sum_axis", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_mean_axis_matches_mlx() -> None:
+    """mean_axis(dim=1) forward matches MLX mean."""
+    _skip_if_no_mlx()
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    out_pyc = pycoeus.mean_axis(x_pyc, 1)
+    x_mlx = mx.array(data).reshape(2, 3)
+    out_mlx = mx.mean(x_mlx, axis=1, keepdims=True)
+    mx.eval(out_mlx)
+    _allclose("mean_axis", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_stack_matches_mlx() -> None:
+    """stack(dim=0) forward matches MLX stack."""
+    _skip_if_no_mlx()
+    a = [1.0, 2.0, 3.0]; b = [4.0, 5.0, 6.0]
+    a_pyc = pycoeus.Tensor(a, [3], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [3], requires_grad=False)
+    out_pyc = pycoeus.stack([a_pyc, b_pyc], 0)
+    out_mlx = mx.stack([mx.array(a), mx.array(b)], axis=0)
+    mx.eval(out_mlx)
+    _allclose("stack", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_softplus_matches_mlx() -> None:
+    """softplus forward matches MLX log(1+exp(x))."""
+    _skip_if_no_mlx()
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.softplus(x_pyc)
+    out_mlx = mx.log(1.0 + mx.exp(x_mlx))
+    mx.eval(out_mlx)
+    _allclose("softplus", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_hardsigmoid_matches_mlx() -> None:
+    """hardsigmoid forward matches MLX clip((x+3)/6, 0, 1)."""
+    _skip_if_no_mlx()
+    data = [-4.0, -1.0, 0.0, 1.5, 4.0]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.hardsigmoid(x_pyc)
+    out_mlx = mx.clip((x_mlx + 3.0) / 6.0, 0.0, 1.0)
+    mx.eval(out_mlx)
+    _allclose("hardsig", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_hardswish_matches_mlx() -> None:
+    """hardswish forward matches MLX x * hardsigmoid(x)."""
+    _skip_if_no_mlx()
+    data = [-4.0, -1.0, 0.0, 1.5, 4.0]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.hardswish(x_pyc)
+    hs = mx.clip((x_mlx + 3.0) / 6.0, 0.0, 1.0)
+    out_mlx = x_mlx * hs
+    mx.eval(out_mlx)
+    _allclose("hardswish", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_leaky_relu_matches_mlx() -> None:
+    """leaky_relu(0.1) forward matches MLX where."""
+    _skip_if_no_mlx()
+    data = [-2.0, -0.5, 0.0, 0.5, 2.0]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.leaky_relu(x_pyc, 0.1)
+    out_mlx = mx.where(x_mlx > 0, x_mlx, 0.1 * x_mlx)
+    mx.eval(out_mlx)
+    _allclose("leaky_relu", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_elu_matches_mlx() -> None:
+    """elu(alpha=1) forward matches MLX where."""
+    _skip_if_no_mlx()
+    data = [-2.0, -0.5, 0.0, 0.5, 1.5]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.elu(x_pyc)
+    out_mlx = mx.where(x_mlx >= 0, x_mlx, mx.exp(x_mlx) - 1.0)
+    mx.eval(out_mlx)
+    _allclose("elu", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_prod_matches_mlx() -> None:
+    """prod() global matches MLX product."""
+    _skip_if_no_mlx()
+    data = [1.0, 2.0, 3.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=False)
+    out_pyc = pycoeus.prod(x_pyc)
+    out_mlx = mx.prod(mx.array(data))
+    mx.eval(out_mlx)
+    _allclose("prod", list(out_pyc.data), [float(out_mlx)])
+
+
+def test_norm_matches_mlx() -> None:
+    """L2 norm forward matches MLX sqrt(sum(x**2))."""
+    _skip_if_no_mlx()
+    data = [3.0, 4.0, 0.0, 12.0]
+    x_pyc, x_mlx = _f32(data, [4])
+    out_pyc = pycoeus.norm(x_pyc)
+    out_mlx = mx.sqrt(mx.sum(x_mlx ** 2))
+    mx.eval(out_mlx)
+    _allclose("norm", list(out_pyc.data), [float(out_mlx)])
+
+
+def test_floor_ceil_matches_mlx() -> None:
+    """floor/ceil forward matches MLX floor/ceil."""
+    _skip_if_no_mlx()
+    data = [0.3, 1.7, -0.5, 2.9, -1.1]
+    x_pyc, x_mlx = _f32(data, [5])
+    floor_pyc = pycoeus.floor(x_pyc)
+    ceil_pyc = pycoeus.ceil(x_pyc)
+    _allclose("floor", list(floor_pyc.data), mx.floor(x_mlx).flatten().tolist())
+    _allclose("ceil", list(ceil_pyc.data), mx.ceil(x_mlx).flatten().tolist())
+
+
+def test_arange_matches_mlx() -> None:
+    """arange(0, 5, 1) forward matches MLX arange."""
+    _skip_if_no_mlx()
+    out_pyc = pycoeus.arange(0.0, 5.0, 1.0)
+    out_mlx = mx.arange(0, 5, 1, dtype=mx.float32)
+    mx.eval(out_mlx)
+    _allclose("arange", list(out_pyc.data), out_mlx.tolist())
+
+
+def test_scatter_add_matches_mlx() -> None:
+    """scatter_add forward matches MLX scatter-accumulate."""
+    _skip_if_no_mlx()
+    src = [1.0, 2.0, 3.0]
+    inp = [0.0, 0.0, 0.0, 0.0, 0.0]
+    idx = [4.0, 1.0, 3.0]
+    src_pyc = pycoeus.Tensor(src, [3], requires_grad=False)
+    inp_pyc = pycoeus.Tensor(inp, [5], requires_grad=False)
+    idx_pyc = pycoeus.Tensor(idx, [3], requires_grad=False)
+    out_pyc = pycoeus.scatter_add(inp_pyc, 0, idx_pyc, src_pyc)
+    # MLX: scatter + add
+    out_arr = mx.array(inp)
+    idx_arr = mx.array([4, 1, 3])
+    src_arr = mx.array(src)
+    out_mlx = out_arr.at[idx_arr].add(src_arr)
+    mx.eval(out_mlx)
+    _allclose("scatter_add", list(out_pyc.data), out_mlx.tolist())
