@@ -1,19 +1,19 @@
 // ── Tracked cumprod ──
 //
-// Backward of cumprod uses the standard formula:
-//   grad_x[i] = sum_j( grad_out[j] * cumprod[j] / x[i] )  for j >= i
-//             = grad_out[i] * suffix_prod + ... (when x[i] != 0)
+// Backward: grad_x[i] = Σ_{j≥i} grad_out[j] · ∏_{k≤j, k≠i} x_k, evaluated
+// exactly (including at zeros, matching PyTorch) in O(n) per line via a
+// first-zero decomposition. With z1/z2 the first/second zero positions
+// (or n when absent):
 //
-// We implement the safe Autograd formula via the suffix-sum trick on the
-// log-space representation (which handles zeros via perturbation):
-//   dy/dx[i] = sum_{j>=i}( grad_out[j] * prod_{k>=i, k!=j}(x[k]) )
+//   i < z1 : grad_i = (Σ_{i≤j<z1} grad_out[j] · out[j]) / x_i
+//            — the standard suffix-sum form; out[j≥z1] = 0 truncates the sum.
+//   i = z1 : grad_i = Σ_{z1≤j<z2} grad_out[j] · prefix · ∏_{z1<k≤j} x_k,
+//            prefix = ∏_{k<z1} x_k — removing x_{z1} from the product leaves
+//            it non-zero until the second zero enters at j = z2.
+//   i > z1 : grad_i = 0 — every out[j] with j ≥ i keeps the x_{z1} = 0 factor.
 //
-// For the common case where no element is zero this simplifies to:
-//   dy/dx[i] = (sum_{j>=i}( grad_out[j] * out[j] )) / x[i]
-//
-// To avoid numerical issues we use the direct accumulation approach:
-//   d_in[i] = suffix_sum( grad_out * out )[i] / x[i]
-// This matches PyTorch's cumprod backward for non-zero inputs.
+// A zero-free line (z1 = n) reduces to the classic
+// suffix_sum(grad_out · out) / x_i over the whole line.
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
@@ -84,20 +84,57 @@ where
             for outer_idx in 0..outer {
                 for inner_idx in 0..inner {
                     let base = outer_idx * n * inner + inner_idx;
-                    // Compute suffix sum of grad_out * out along this line.
+                    let at = |i: usize| base + i * inner;
+
+                    // Locate the first (z1) and second (z2) zeros on this
+                    // line; `n` means "none". Also accumulate the product of
+                    // the elements before z1 (the prefix the zero position's
+                    // gradient factors through).
+                    let mut z1 = n;
+                    let mut z2 = n;
+                    let mut prefix = T::one();
+                    for i in 0..n {
+                        let xi = in_s[at(i)];
+                        if xi == T::zero() {
+                            if z1 == n {
+                                z1 = i;
+                            } else {
+                                z2 = i;
+                                break;
+                            }
+                        } else if z1 == n {
+                            prefix = prefix * xi;
+                        }
+                    }
+
+                    // Positions before the first zero: the standard
+                    // suffix-sum formula, truncated at z1 — out[j] for
+                    // j ≥ z1 is 0, and d out[j]/dx_i for j ≥ z1 (i < z1)
+                    // also vanishes only through out, so the truncation is
+                    // exactly the j < z1 restriction.
                     let mut suffix: T = T::zero();
-                    // Traverse from the end towards the start.
-                    for i in (0..n).rev() {
-                        let flat = base + i * inner;
+                    for i in (0..z1).rev() {
+                        let flat = at(i);
                         suffix = suffix + go_s[flat] * out_s[flat];
-                        // grad_in[i] = suffix / x[i]
-                        let xi = in_s[flat];
-                        // Avoid division by zero: if x[i] is zero we output 0.
-                        gi_data[flat] = if xi == T::zero() {
-                            T::zero()
-                        } else {
-                            suffix / xi
-                        };
+                        gi_data[flat] = suffix / in_s[flat];
+                    }
+
+                    // The first zero position: d out[j]/dx_{z1}
+                    // = ∏_{k≤j, k≠z1} x_k = prefix · ∏_{z1<k≤j} x_k, which is
+                    // non-zero until the second zero enters the product, so
+                    // the sum runs over z1 ≤ j < z2. Positions after z1 keep
+                    // gradient 0: every out[j] they influence (j ≥ i > z1)
+                    // retains the x_{z1} = 0 factor.
+                    if z1 < n {
+                        let mut acc = prefix; // ∏_{k≤j, k≠z1} x_k at j = z1
+                        let mut grad_z: T = T::zero();
+                        for j in z1..z2 {
+                            if j > z1 {
+                                acc = acc * in_s[at(j)];
+                            }
+                            grad_z = grad_z + go_s[at(j)] * acc;
+                        }
+                        gi_data[at(z1)] = grad_z;
                     }
                 }
             }

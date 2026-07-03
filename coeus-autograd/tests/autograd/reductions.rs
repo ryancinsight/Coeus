@@ -383,3 +383,66 @@ fn test_prod_autograd_matches_analytic() {
         );
     }
 }
+
+#[test]
+fn test_cumprod_backward_exact_at_zeros() {
+    let backend = MoiraiBackend::new();
+
+    // Zero-free regression: x = [1,2,3], out = [1,2,6], ones seed.
+    // grad_i = Σ_{j≥i} ∏_{k≤j,k≠i} x_k: [1+2+6, 1+3, 2] = [9, 4, 2].
+    let x = Var::new(
+        Tensor::from_slice_on(vec![3], &[1.0f64, 2.0, 3.0], &backend),
+        true,
+    );
+    let y = cumsum_free_cumprod(&x);
+    y.backward();
+    let g = x.grad().unwrap();
+    for (i, want) in [9.0, 4.0, 2.0].iter().enumerate() {
+        assert!(
+            (g.as_slice()[i] - want).abs() < 1e-14,
+            "zero-free dx[{i}]: {} vs {want}",
+            g.as_slice()[i]
+        );
+    }
+
+    // Single zero: x = [2,0,3], out = [2,0,0], ones seed.
+    // dx0 = d out0/dx0 = 1 (later outs carry x1 = 0);
+    // dx1 = x0 + x0·x2 = 2 + 6 = 8; dx2 = x0·x1 = 0.
+    let x = Var::new(
+        Tensor::from_slice_on(vec![3], &[2.0f64, 0.0, 3.0], &backend),
+        true,
+    );
+    let y = cumsum_free_cumprod(&x);
+    y.backward();
+    let g = x.grad().unwrap();
+    for (i, want) in [1.0, 8.0, 0.0].iter().enumerate() {
+        assert!(
+            (g.as_slice()[i] - want).abs() < 1e-14,
+            "one-zero dx[{i}]: {} vs {want}",
+            g.as_slice()[i]
+        );
+    }
+
+    // Two zeros: x = [2,0,3,0,5] — the second zero kills every gradient at
+    // and after it; the first zero's gradient sums only up to the second:
+    // dx = [1, 2 + 2·3, 0, 0, 0] = [1, 8, 0, 0, 0].
+    let x = Var::new(
+        Tensor::from_slice_on(vec![5], &[2.0f64, 0.0, 3.0, 0.0, 5.0], &backend),
+        true,
+    );
+    let y = cumsum_free_cumprod(&x);
+    y.backward();
+    let g = x.grad().unwrap();
+    for (i, want) in [1.0, 8.0, 0.0, 0.0, 0.0].iter().enumerate() {
+        assert!(
+            (g.as_slice()[i] - want).abs() < 1e-14,
+            "two-zero dx[{i}]: {} vs {want}",
+            g.as_slice()[i]
+        );
+    }
+}
+
+/// Sum the cumprod so backward seeds ones across all cumprod outputs.
+fn cumsum_free_cumprod(x: &Var<f64, MoiraiBackend>) -> Var<f64, MoiraiBackend> {
+    coeus_autograd::sum(&coeus_autograd::cumprod(x, 0))
+}
