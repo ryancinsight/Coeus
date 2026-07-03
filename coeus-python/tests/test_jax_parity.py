@@ -2788,3 +2788,47 @@ def test_cumsum_bwd_matches_jax() -> None:
     grad_fn = jax.grad(lambda x: jnp.sum(jnp.cumsum(x)))
     exp = grad_fn(jnp.array(data, dtype=jnp.float64))
     _allclose("cumsum_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+# ---------------------------------------------------------------------------
+# log_softmax_bwd / sum_axis_bwd / abs_bwd / recip_bwd parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log_softmax"), reason="pycoeus.log_softmax not available")
+def test_log_softmax_bwd_matches_jax() -> None:
+    """jax.grad log_softmax sum vs pycoeus log_softmax backward."""
+    import jax, jax.nn
+    data = [1.0, 2.0, 3.0, 0.5, 1.5, 2.5]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    out_pyc = pycoeus.log_softmax(x_pyc, 1)
+    out_pyc.backward()
+    def loss(x): return jnp.sum(jax.nn.log_softmax(x.reshape(2, 3), axis=1))
+    grad_fn = jax.grad(loss)
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("lsm_bwd", list(x_pyc.grad), exp.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "abs"), reason="pycoeus.abs not available")
+def test_abs_bwd_matches_jax() -> None:
+    """jax.grad abs vs pycoeus abs backward."""
+    import jax
+    data = [-3.0, -1.0, 0.5, 1.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.abs(x_pyc)
+    out_pyc.backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.abs(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("abs_bwd", list(x_pyc.grad), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "recip"), reason="pycoeus.recip not available")
+def test_recip_bwd_matches_jax() -> None:
+    """jax.grad recip vs pycoeus recip backward."""
+    import jax
+    data = [0.5, 1.0, 2.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    out_pyc = pycoeus.recip(x_pyc)
+    out_pyc.backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(1.0 / x))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("recip_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-12)

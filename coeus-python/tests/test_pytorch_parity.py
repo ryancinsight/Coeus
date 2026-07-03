@@ -6749,3 +6749,97 @@ def test_stack_bwd_dim1_matches_pytorch() -> None:
     out_t.sum().backward()
     _allclose("stack1_bwd_a", list(a_pyc.grad), a_t.grad.tolist())
     _allclose("stack1_bwd_b", list(b_pyc.grad), b_t.grad.tolist())
+
+# ---------------------------------------------------------------------------
+# gather_bwd / index_select_bwd / mse_loss_bwd / cross_entropy_bwd / log_softmax_bwd
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "gather"), reason="pycoeus.gather not available")
+def test_gather_bwd_matches_pytorch() -> None:
+    """gather backward: gradient scatter-adds to input positions."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    idx_data = [2.0, 0.0, 1.0, 1.0, 2.0, 0.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    idx_pyc = pycoeus.Tensor(idx_data, [2, 3], requires_grad=False)
+    out_pyc = pycoeus.gather(x_pyc, 1, idx_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    idx_t = torch.tensor([[2, 0, 1], [1, 2, 0]], dtype=torch.int64)
+    out_t = torch.gather(t, 1, idx_t)
+    out_t.sum().backward()
+    _allclose("gather_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "index_select"), reason="pycoeus.index_select not available")
+def test_index_select_bwd_matches_pytorch() -> None:
+    """index_select backward: gradient accumulates at selected positions."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+    idx_data = [2.0, 0.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [3, 3], requires_grad=True)
+    idx_pyc = pycoeus.Tensor(idx_data, [3], requires_grad=False)
+    out_pyc = pycoeus.index_select(x_pyc, 1, idx_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 3).requires_grad_(True)
+    idx_t = torch.tensor([2, 0, 2], dtype=torch.int64)
+    out_t = torch.index_select(t, 1, idx_t)
+    out_t.sum().backward()
+    _allclose("idx_sel_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "mse_loss"), reason="pycoeus.mse_loss not available")
+def test_mse_loss_bwd_matches_pytorch() -> None:
+    """MSE loss backward: d/dx = 2*(x-y)/N."""
+    pred = [1.0, 2.0, 3.0, 4.0]
+    target = [1.5, 2.5, 2.5, 3.5]
+    p_pyc = pycoeus.Tensor(pred, [4], requires_grad=True)
+    t_pyc = pycoeus.Tensor(target, [4], requires_grad=False)
+    loss_pyc = pycoeus.mse_loss(p_pyc, t_pyc)
+    loss_pyc.backward()
+    p_t = torch.tensor(pred, dtype=torch.float64, requires_grad=True)
+    t_t = torch.tensor(target, dtype=torch.float64)
+    loss_t = torch.nn.functional.mse_loss(p_t, t_t)
+    loss_t.backward()
+    _allclose("mse_bwd", list(p_pyc.grad), p_t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cross_entropy_loss"), reason="pycoeus.cross_entropy_loss not available")
+def test_cross_entropy_bwd_matches_pytorch() -> None:
+    """cross_entropy backward: NLL + log_softmax gradient."""
+    logits = [1.0, 2.0, 3.0, 0.5, 1.5, 2.5]
+    labels = [2, 0]  # class indices
+    p_pyc = pycoeus.Tensor(logits, [2, 3], requires_grad=True)
+    l_pyc = pycoeus.Tensor([float(x) for x in labels], [2], requires_grad=False)
+    loss_pyc = pycoeus.cross_entropy_loss(p_pyc, l_pyc)
+    loss_pyc.backward()
+    p_t = torch.tensor(logits, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    l_t = torch.tensor(labels, dtype=torch.int64)
+    loss_t = torch.nn.functional.cross_entropy(p_t, l_t)
+    loss_t.backward()
+    _allclose("ce_bwd", list(p_pyc.grad), p_t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log_softmax"), reason="pycoeus.log_softmax not available")
+def test_log_softmax_bwd_matches_pytorch() -> None:
+    """log_softmax dim=1 backward: d/dx = grad - softmax(x) * sum(grad)."""
+    data = [1.0, 2.0, 3.0, 0.5, 1.5, 2.5]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    out_pyc = pycoeus.log_softmax(x_pyc, 1)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    out_t = torch.nn.functional.log_softmax(t, dim=1)
+    out_t.sum().backward()
+    _allclose("lsm_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sum_axis"), reason="pycoeus.sum_axis not available")
+def test_sum_axis_bwd_matches_pytorch() -> None:
+    """sum_axis(dim=0) backward: gradient broadcasts back."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [3, 2], requires_grad=True)
+    out_pyc = pycoeus.sum_axis(x_pyc, 0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 2).requires_grad_(True)
+    out_t = torch.sum(t, dim=0, keepdim=False)
+    out_t.sum().backward()
+    _allclose("sum_axis_bwd", list(x_pyc.grad), t.grad.flatten().tolist())

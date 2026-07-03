@@ -99,6 +99,11 @@ pub fn topk_impl<T: Scalar>(
 /// Returns `(values, indices)` both with shape equal to `x.shape()` but with
 /// `shape[dim] == k`.
 ///
+/// # Memory
+/// Both output tensors are `alloc_on` (uninitialized); the kernel writes every
+/// `(outer, rank)` position exactly once using row-major output strides that
+/// account for `dim` being anywhere in the shape (not just the last axis).
+///
 /// # Panics
 /// - `k == 0` or `k > x.shape()[dim]`.
 /// - `dim` out of range.
