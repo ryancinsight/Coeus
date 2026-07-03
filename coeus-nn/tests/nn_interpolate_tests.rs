@@ -107,6 +107,24 @@ fn check_2d_bilinear_identity() {
     assert_eq!(out.as_slice(), inp.as_slice(), "2d bilinear identity");
 }
 
+fn check_2d_bilinear_upsample() {
+    // [[1,2],[3,4]] -> 4x4 bilinear, align_corners=False. Exercises the border
+    // where the source coord goes negative (yi=0/xi=0 -> src=-0.25, clamped to
+    // 0 with weight 1). These are the exact torch F.interpolate(mode=bilinear,
+    // align_corners=False) values — IEEE-exact (all terminate in binary):
+    //   row0: 1.00 1.25 1.75 2.00
+    //   row1: 1.50 1.75 2.25 2.50
+    //   row2: 2.50 2.75 3.25 3.50
+    //   row3: 3.00 3.25 3.75 4.00
+    let inp = t2d(&[1.0, 2.0, 3.0, 4.0], 2, 2);
+    let out = interpolate_2d(&inp, 4, 4, InterpolateMode::Bilinear);
+    let expected = [
+        1.0, 1.25, 1.75, 2.0, 1.5, 1.75, 2.25, 2.5, 2.5, 2.75, 3.25, 3.5, 3.0, 3.25, 3.75, 4.0,
+    ];
+    assert_eq!(out.shape(), &[1, 1, 4, 4], "bilinear upsample shape");
+    assert_eq!(out.as_slice(), &expected, "2d bilinear upsample border weights");
+}
+
 fn check_multichannel_nearest() {
     // N=1, C=2, L=2: channels are independent, verify each is handled correctly.
     // ch0=[1,2], ch1=[3,4] -> upsample to L=4 -> ch0=[1,1,2,2], ch1=[3,3,4,4]
@@ -153,6 +171,11 @@ fn interpolate_2d_nearest_downsample() {
 #[test]
 fn interpolate_2d_bilinear_identity() {
     check_2d_bilinear_identity();
+}
+
+#[test]
+fn interpolate_2d_bilinear_upsample() {
+    check_2d_bilinear_upsample();
 }
 
 #[test]

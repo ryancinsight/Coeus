@@ -107,11 +107,19 @@ where
                             in_s[bi * c * h * w + ci * h * w + sy * w + sx]
                         }
                         InterpolateMode::Bilinear => {
-                            // Align-half-pixel convention (same as PyTorch align_corners=False)
-                            let fy = (yi as f64 + 0.5) * h as f64 / new_h as f64 - 0.5;
-                            let fx = (xi as f64 + 0.5) * w as f64 / new_w as f64 - 0.5;
-                            let y0 = (fy.floor() as isize).max(0) as usize;
-                            let x0 = (fx.floor() as isize).max(0) as usize;
+                            // Half-pixel convention (PyTorch `align_corners=False`).
+                            // The source coordinate is clamped to `>= 0` BEFORE
+                            // taking the fractional weight: torch's
+                            // `area_pixel_compute_source_index` returns 0 for a
+                            // negative source, so the boundary output uses the
+                            // edge pixel with weight 1. Clamping only `y0`/`x0`
+                            // (while deriving the weight from the unclamped
+                            // coordinate) left `wy`/`wx` non-zero at the border
+                            // and blended the wrong neighbour.
+                            let fy = ((yi as f64 + 0.5) * h as f64 / new_h as f64 - 0.5).max(0.0);
+                            let fx = ((xi as f64 + 0.5) * w as f64 / new_w as f64 - 0.5).max(0.0);
+                            let y0 = fy.floor() as usize;
+                            let x0 = fx.floor() as usize;
                             let y1 = (y0 + 1).min(h - 1);
                             let x1 = (x0 + 1).min(w - 1);
                             let wy = T::from_f64(fy - fy.floor());

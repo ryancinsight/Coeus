@@ -2754,3 +2754,37 @@ def test_erf_bwd_matches_jax() -> None:
     grad_fn = jax.grad(lambda x: jnp.sum(jax.scipy.special.erf(x)))
     exp = grad_fn(jnp.array(data, dtype=jnp.float64))
     _allclose("erf_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-12)
+
+# ---------------------------------------------------------------------------
+# matmul_bwd / pow_bwd / cumsum_bwd parity
+# ---------------------------------------------------------------------------
+
+
+def test_matmul_bwd_matches_jax() -> None:
+    """jax.grad matmul vs pycoeus matmul backward."""
+    import jax
+    a = [float(i) * 0.1 for i in range(12)]
+    b = [float(i) * 0.05 for i in range(20)]
+    a_pyc = pycoeus.Tensor(a, [3, 4], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b, [4, 5], requires_grad=True)
+    out_pyc = pycoeus.matmul(a_pyc, b_pyc)
+    out_pyc.backward()
+    def loss(a, b): return jnp.sum(jnp.matmul(a, b))
+    a_j = jnp.array(a, dtype=jnp.float64).reshape(3, 4)
+    b_j = jnp.array(b, dtype=jnp.float64).reshape(4, 5)
+    ga, gb = jax.grad(loss, argnums=(0, 1))(a_j, b_j)
+    _allclose("mm_bwd_a", list(a_pyc.grad), jnp.ravel(ga).tolist())
+    _allclose("mm_bwd_b", list(b_pyc.grad), jnp.ravel(gb).tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cumsum"), reason="pycoeus.cumsum not available")
+def test_cumsum_bwd_matches_jax() -> None:
+    """jax.grad cumsum vs pycoeus cumsum backward."""
+    import jax
+    data = [1.0, 2.0, 3.0, 4.0, 5.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.cumsum(x_pyc, 0)
+    out_pyc.backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.cumsum(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("cumsum_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
