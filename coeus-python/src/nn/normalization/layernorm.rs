@@ -27,6 +27,7 @@ impl PyLayerNorm {
     /// dims — i.e. only single-dim normalization is supported by the Rust core,
     /// matching the existing `LayerNorm::new(usize, f64)` contract.  Multi-dim
     /// LayerNorm is a deferred surface.
+    #[pyo3(signature = (normalized_shape, eps=None))]
     pub fn new(
         py: Python<'_>,
         normalized_shape: &Bound<'_, PyAny>,

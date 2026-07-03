@@ -22,6 +22,7 @@ impl PyRMSNorm {
     /// `int` (`RMSNorm(8)`) or a length-1 sequence (`RMSNorm([8])`).  Multi-dim
     /// normalization is not supported by the Rust core; the binding reduces a
     /// single-element sequence and rejects longer entries with NotImplementedError.
+    #[pyo3(signature = (normalized_shape, eps=None))]
     pub fn new(
         py: Python<'_>,
         normalized_shape: &Bound<'_, PyAny>,
