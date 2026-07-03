@@ -29,6 +29,15 @@ pub fn topk_impl<T: Scalar>(
     let out_numel: usize = out_shape.iter().product();
     let outer = out_numel / k;
 
+    // Row-major strides of the output: results write back through `dim`'s
+    // output stride, so non-terminal dims (e.g. dim = 0) interleave into the
+    // output correctly instead of being laid out line-contiguously (which is
+    // only equivalent when `dim` is the last axis).
+    let mut out_strides = vec![1usize; ndim];
+    for d in (0..ndim.saturating_sub(1)).rev() {
+        out_strides[d] = out_strides[d + 1] * out_shape[d + 1];
+    }
+
     for outer_idx in 0..outer {
         // Map outer_idx to coordinates excluding dim.
         let mut coords = vec![0usize; ndim];
@@ -72,8 +81,13 @@ pub fn topk_impl<T: Scalar>(
             });
         }
 
+        let out_base: usize = coords
+            .iter()
+            .enumerate()
+            .map(|(d, &c)| if d != dim { c * out_strides[d] } else { 0 })
+            .sum();
         for (rank, (v, orig_idx)) in pairs.iter().enumerate() {
-            let flat_out = outer_idx * k + rank;
+            let flat_out = out_base + rank * out_strides[dim];
             val_slice[flat_out] = *v;
             idx_slice[flat_out] = *orig_idx as i64;
         }

@@ -82,3 +82,34 @@ fn moirai_arg_reductions_match_reference() {
     check_backend::<f32, _>(&backend);
     check_backend::<f64, _>(&backend);
 }
+
+/// topk along a non-terminal dim writes back through the output strides —
+/// regression for the line-contiguous layout bug (values were transposed for
+/// dim = 0). Reference: torch.topk(x, 2, dim=0, largest=False, sorted=True).
+#[test]
+fn topk_dim0_matches_torch_reference() {
+    use coeus_core::MoiraiBackend;
+    let backend = MoiraiBackend::new();
+    let x = coeus_tensor::Tensor::<f64, MoiraiBackend>::from_slice_on(
+        vec![3, 4],
+        &[3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 5.0, 8.0],
+        &backend,
+    );
+    let (vals, idxs) = coeus_ops::topk(&x, 2, 0, false);
+    assert_eq!(vals.shape(), &[2, 4]);
+    // Per-column two smallest, sorted ascending, laid out along dim 0:
+    // row0 = [3, 1, 2, 1], row1 = [5, 3, 4, 6].
+    let expected = [3.0, 1.0, 2.0, 1.0, 5.0, 3.0, 4.0, 6.0];
+    let got = vals.to_contiguous_on(&backend);
+    for (i, (g, w)) in got.as_slice().iter().zip(expected.iter()).enumerate() {
+        assert_eq!(g, w, "vals[{i}]");
+    }
+    // Indices are positions along dim 0 (per column, ascending-value order):
+    // col0 -> [0, 1] (3 then the row-1 five), col1 -> [0, 2] (1 then 3),
+    // col2 -> [1, 0] (2 then 4), col3 -> [0, 1] (1 then 6).
+    let expected_idx: [i64; 8] = [0, 0, 1, 0, 1, 2, 0, 1];
+    let gi = idxs.to_contiguous_on(&backend);
+    for (i, (g, w)) in gi.as_slice().iter().zip(expected_idx.iter()).enumerate() {
+        assert_eq!(g, w, "idxs[{i}]");
+    }
+}
