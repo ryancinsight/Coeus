@@ -465,7 +465,7 @@ impl PyTensor {
         } as usize;
         let shape = self.inner.tensor.shape();
         let mut new_shape: Vec<usize> = shape[..start].to_vec();
-        new_push!(new_shape, shape[start..=end].iter().product());
+        new_shape.push(shape[start..=end].iter().product());
         new_shape.extend_from_slice(&shape[end + 1..]);
         let inner = py.allow_threads(|| coeus_autograd::reshape(&self.inner, new_shape));
         Ok(Self::from_var(inner))
