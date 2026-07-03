@@ -45,9 +45,9 @@ half       = { version = "2.7", features = ["bytemuck"] }
 # than rustfft or a Coeus-local array dependency.
 smallvec   = "1.13"
 wgpu       = { version = "26.0", features = ["wgsl"] }
-hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.10.0" }
-hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.10.0" }
-hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda", version = "0.10.0" }
+hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.11.0" }
+hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.11.0" }
+hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda", version = "0.11.0" }
 themis = { path = "../themis", version = "0.9.17" }
 
 # ── Error ──

@@ -151,6 +151,7 @@ pub use ops::{
     poisson_nll,
     pow,
     prelu,
+    prod,
     recip,
     relu,
     reshape,

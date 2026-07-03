@@ -5735,3 +5735,75 @@ def test_avg_pool2d_fwd_matches_pytorch() -> None:
     exp.sum().backward()
     _allclose("avgpool2d_fwd", list(out_pyc.data), exp.detach().flatten().tolist())
     _allclose("avgpool2d_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+# ---------------------------------------------------------------------------
+# interpolate_bilinear_align_corners / conv3d / log_softmax_dim / scatter_add_bwd
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "interpolate"), reason="pycoeus.interpolate not available")
+def test_interpolate_bilinear_scale2_matches_pytorch() -> None:
+    """F.interpolate(x, scale_factor=2, mode=bilinear) vs pycoeus.interpolate."""
+    n, c, h, w = 2, 4, 4, 4
+    data = [float(i) * 0.05 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=False)
+    out_pyc = pycoeus.interpolate(x_pyc, scale_factor=2.0, mode="bilinear")
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    exp = torch.nn.functional.interpolate(t, scale_factor=2, mode="bilinear", align_corners=False)
+    _allclose("interp_bilinear", list(out_pyc.data), exp.flatten().tolist(), atol=1e-6)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "interpolate"), reason="pycoeus.interpolate not available")
+def test_interpolate_nearest_matches_pytorch() -> None:
+    """F.interpolate(x, scale_factor=2, mode=nearest) vs pycoeus.interpolate."""
+    n, c, h, w = 2, 4, 4, 4
+    data = [float(i) * 0.05 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=False)
+    out_pyc = pycoeus.interpolate(x_pyc, scale_factor=2.0, mode="nearest")
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    exp = torch.nn.functional.interpolate(t, scale_factor=2, mode="nearest")
+    _allclose("interp_nearest", list(out_pyc.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "Conv3d"), reason="pycoeus.Conv3d not available")
+def test_conv3d_output_shape_matches_pytorch() -> None:
+    """Conv3d(4,8,k=3) output shape [2,4,8,8,8] -> [2,8,6,6,6]."""
+    n, c_in, d, h, w = 2, 4, 8, 8, 8
+    c_out, k = 8, 3
+    data = [float(i) * 0.01 for i in range(n * c_in * d * h * w)]
+    conv = pycoeus.Conv3d(in_channels=c_in, out_channels=c_out, kernel_size=k)
+    x_pyc = pycoeus.Tensor(data, [n, c_in, d, h, w], requires_grad=False)
+    out = conv.forward(x_pyc)
+    assert list(out.shape) == [n, c_out, d - k + 1, h - k + 1, w - k + 1], \
+        f"Expected {[n, c_out, 6, 6, 6]}, got {list(out.shape)}"
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log_softmax"), reason="pycoeus.log_softmax not available")
+def test_log_softmax_dim0_matches_pytorch() -> None:
+    """log_softmax(dim=0) on a column dimension — different from dim=1."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    out_pyc = pycoeus.log_softmax(x_pyc, 0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    out_t = torch.nn.functional.log_softmax(t, dim=0)
+    out_t.sum().backward()
+    _allclose("lsm_dim0_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-12)
+    _allclose("lsm_dim0_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "scatter_add"), reason="pycoeus.scatter_add not available")
+def test_scatter_add_accumulate_matches_pytorch() -> None:
+    """scatter_add accumulation: base[dim=1, idx] += src."""
+    src = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    idx = [0.0, 2.0, 1.0, 0.0, 1.0, 2.0]
+    base = [0.0] * 9
+    base_pyc = pycoeus.Tensor(base, [3, 3], requires_grad=False)
+    idx_pyc = pycoeus.Tensor(idx, [2, 3], requires_grad=False)
+    src_pyc = pycoeus.Tensor(src, [2, 3], requires_grad=False)
+    out_pyc = pycoeus.scatter_add(base_pyc, 0, idx_pyc, src_pyc)
+    base_t = torch.zeros(3, 3, dtype=torch.float64)
+    idx_t = torch.tensor([[0, 2, 1], [0, 1, 2]], dtype=torch.int64)
+    src_t = torch.tensor(src, dtype=torch.float64).reshape(2, 3)
+    exp = base_t.scatter_add(0, idx_t, src_t)
+    _allclose("scatter_add_accum", list(out_pyc.data), exp.flatten().tolist())

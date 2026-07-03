@@ -146,11 +146,11 @@ pub fn amin(input: &PyTensor, py: Python<'_>) -> PyResult<f64> {
 }
 
 #[pyfunction]
-pub fn prod(input: &PyTensor, py: Python<'_>) -> f64 {
-    py.allow_threads(|| {
-        let backend = MoiraiBackend::new();
-        coeus_ops::prod::<f64, MoiraiBackend>(&input.inner.tensor, &backend)
-    })
+pub fn prod(input: &PyTensor, py: Python<'_>) -> PyTensor {
+    // Tracked composition (cumprod + slice) so gradients flow
+    // (d prod/dx_i = prod_{j != i} x_j), matching torch.prod; returns [1].
+    let inner = py.allow_threads(|| coeus_autograd::prod(&input.inner));
+    PyTensor::from_var(inner)
 }
 
 #[pyfunction]

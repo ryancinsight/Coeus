@@ -346,3 +346,36 @@ fn test_var_axis_autograd_matches_analytic() {
         );
     }
 }
+
+#[test]
+fn test_prod_autograd_matches_analytic() {
+    let backend = MoiraiBackend::new();
+    // prod([1,2,3,4]) = 24; d prod/dx_i = prod_{j != i} x_j = [24, 12, 8, 6].
+    let x = Var::new(
+        Tensor::from_slice_on(vec![4], &[1.0f64, 2.0, 3.0, 4.0], &backend),
+        true,
+    );
+    let y = coeus_autograd::prod(&x);
+    assert!((y.tensor.as_slice()[0] - 24.0).abs() < 1e-14, "fwd");
+    y.backward();
+    let g = x.grad().unwrap();
+    let g = g.as_slice();
+    for (i, want) in [24.0, 12.0, 8.0, 6.0].iter().enumerate() {
+        assert!((g[i] - want).abs() < 1e-14, "dx[{i}]: {} vs {want}", g[i]);
+    }
+
+    // Adversarial zero: prod([2,0,3]) = 0; only the zero position has a
+    // non-zero gradient (d/dx_1 = 2*3 = 6) — exact, not epsilon-fudged.
+    let z = Var::new(
+        Tensor::from_slice_on(vec![3], &[2.0f64, 0.0, 3.0], &backend),
+        true,
+    );
+    let yz = coeus_autograd::prod(&z);
+    assert_eq!(yz.tensor.as_slice()[0], 0.0, "fwd zero");
+    yz.backward();
+    let gz = z.grad().unwrap();
+    let gz = gz.as_slice();
+    for (i, want) in [0.0, 6.0, 0.0].iter().enumerate() {
+        assert!((gz[i] - want).abs() < 1e-14, "zero dx[{i}]: {} vs {want}", gz[i]);
+    }
+}
