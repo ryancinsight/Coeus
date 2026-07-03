@@ -2961,3 +2961,99 @@ def test_soft_margin_bwd_matches_jax() -> None:
     grad_fn = jax.grad(lambda x: jnp.mean(jnp.log1p(jnp.exp(-t_jnp * x))))
     exp = grad_fn(jnp.array(inp, dtype=jnp.float64))
     _allclose("soft_margin_bwd", list(i_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# MS-361-370: JAX backward parity for clamp, bmm, prod, std, cumprod, abs, neg
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "clamp"), reason="pycoeus.clamp not available")
+def test_clamp_bwd_matches_jax() -> None:
+    """jax.grad clamp(-0.5, 0.5) vs pycoeus clamp backward."""
+    import jax
+    data = [-1.0, -0.3, 0.0, 0.4, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=True)
+    pycoeus.clamp(x_pyc, -0.5, 0.5).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.clip(x, -0.5, 0.5)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("clamp_bwd", list(x_pyc.grad), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "bmm"), reason="pycoeus.bmm not available")
+def test_bmm_bwd_matches_jax() -> None:
+    """jax.grad bmm vs pycoeus bmm backward."""
+    import jax
+    batch, m, kk, n = 2, 3, 4, 3
+    a_data = [float(i) * 0.1 for i in range(batch * m * kk)]
+    b_data = [float(i) * 0.05 for i in range(batch * kk * n)]
+    a_pyc = pycoeus.Tensor(a_data, [batch, m, kk], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b_data, [batch, kk, n], requires_grad=True)
+    pycoeus.bmm(a_pyc, b_pyc).backward()
+    a_j = jnp.array(a_data, dtype=jnp.float64).reshape(batch, m, kk)
+    b_j = jnp.array(b_data, dtype=jnp.float64).reshape(batch, kk, n)
+    ga_fn = jax.grad(lambda a: jnp.sum(jnp.einsum("bik,bkj->bij", a, b_j)))
+    gb_fn = jax.grad(lambda b: jnp.sum(jnp.einsum("bik,bkj->bij", a_j, b)))
+    _allclose("bmm_a_bwd", list(a_pyc.grad), ga_fn(a_j).flatten().tolist(), atol=1e-10)
+    _allclose("bmm_b_bwd", list(b_pyc.grad), gb_fn(b_j).flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "prod"), reason="pycoeus.prod not available")
+def test_prod_bwd_matches_jax() -> None:
+    """jax.grad prod vs pycoeus prod backward."""
+    import jax
+    data = [1.0, 2.0, 3.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    pycoeus.prod(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.prod(x))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("prod_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "neg"), reason="pycoeus.neg not available")
+def test_neg_bwd_matches_jax() -> None:
+    """jax.grad neg vs pycoeus neg backward."""
+    import jax
+    data = [1.0, -2.0, 3.5, -0.5]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    pycoeus.neg(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(-x))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("neg_bwd", list(x_pyc.grad), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cumprod"), reason="pycoeus.cumprod not available")
+def test_cumprod_bwd_matches_jax() -> None:
+    """jax.grad cumprod vs pycoeus cumprod backward."""
+    import jax
+    data = [1.0, 2.0, 3.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    pycoeus.cumprod(x_pyc, 0).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.cumprod(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("cumprod_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-9)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "std"), reason="pycoeus.std not available")
+def test_std_bwd_matches_jax() -> None:
+    """jax.grad std (unbiased) vs pycoeus std backward."""
+    import jax
+    data = [1.0, 2.0, 3.0, 4.0, 5.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.std(x_pyc).backward()
+    n = len(data)
+    grad_fn = jax.grad(lambda x: jnp.sqrt(jnp.sum((x - jnp.mean(x)) ** 2) / (n - 1)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("std_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-9)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "norm"), reason="pycoeus.norm not available")
+def test_vnorm_bwd_matches_jax() -> None:
+    """jax.grad L2 norm vs pycoeus norm backward."""
+    import jax
+    data = [3.0, 4.0, 0.0, 12.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    pycoeus.norm(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sqrt(jnp.sum(x ** 2)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("vnorm_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
