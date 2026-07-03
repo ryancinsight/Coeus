@@ -3229,3 +3229,100 @@ def test_sqrt_bwd_matches_jax() -> None:
     grad_fn = jax.grad(lambda x: jnp.sum(jnp.sqrt(x)))
     exp = grad_fn(jnp.array(data, dtype=jnp.float64))
     _allclose("sqrt_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# MS-389-395: JAX parity for einsum, sign, roll, swapaxes, norm_p, var_axis
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "einsum"), reason="pycoeus.einsum not available")
+def test_einsum_bwd_matches_jax() -> None:
+    """jax.grad einsum 'ij,jk->ik' vs pycoeus einsum backward."""
+    import jax
+    a_data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    b_data = [1.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+    a_pyc = pycoeus.Tensor(a_data, [2, 3], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b_data, [3, 2], requires_grad=True)
+    pycoeus.einsum("ij,jk->ik", [a_pyc, b_pyc]).backward()
+    a_j = jnp.array(a_data, dtype=jnp.float64).reshape(2, 3)
+    b_j = jnp.array(b_data, dtype=jnp.float64).reshape(3, 2)
+    ga_fn = jax.grad(lambda a: jnp.sum(jnp.einsum("ij,jk->ik", a, b_j)))
+    gb_fn = jax.grad(lambda b: jnp.sum(jnp.einsum("ij,jk->ik", a_j, b)))
+    _allclose("einsum_a_bwd", list(a_pyc.grad), ga_fn(a_j).flatten().tolist(), atol=1e-10)
+    _allclose("einsum_b_bwd", list(b_pyc.grad), gb_fn(b_j).flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sign"), reason="pycoeus.sign not available")
+def test_sign_bwd_matches_jax() -> None:
+    """jax.grad sign vs pycoeus sign (zero gradient everywhere)."""
+    import jax
+    data = [-2.0, -0.5, 0.5, 1.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.sign(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.sign(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("sign_bwd", list(x_pyc.grad), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "roll"), reason="pycoeus.roll not available")
+def test_roll_bwd_matches_jax() -> None:
+    """jax.grad roll vs pycoeus roll backward."""
+    import jax
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    pycoeus.roll(x_pyc, [2], [1]).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.roll(x.reshape(2, 3), 2, axis=1)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("roll_bwd", list(x_pyc.grad), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "swapaxes"), reason="pycoeus.swapaxes not available")
+def test_swapaxes_bwd_matches_jax() -> None:
+    """jax.grad swapaxes(0,1) vs pycoeus swapaxes backward."""
+    import jax
+    data = [float(i) for i in range(24)]
+    x_pyc = pycoeus.Tensor(data, [2, 3, 4], requires_grad=True)
+    pycoeus.swapaxes(x_pyc, 0, 1).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.swapaxes(x.reshape(2, 3, 4), 0, 1)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("swapaxes_bwd", list(x_pyc.grad), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "norm_p"), reason="pycoeus.norm_p not available")
+def test_norm_p1_bwd_matches_jax() -> None:
+    """jax.grad L1 norm vs pycoeus norm_p(1) backward."""
+    import jax
+    data = [-3.0, 4.0, -1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    pycoeus.norm_p(x_pyc, 1.0).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.abs(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("norm_p1_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "masked_fill"), reason="pycoeus.masked_fill not available")
+def test_masked_fill_bwd_matches_jax() -> None:
+    """jax.grad masked_fill vs pycoeus masked_fill backward."""
+    import jax
+    data = [1.0, 2.0, 3.0, 4.0]
+    mask = [False, True, False, True]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    m_pyc = pycoeus.Tensor([float(m) for m in mask], [4], requires_grad=False)
+    pycoeus.masked_fill(x_pyc, m_pyc, -1e9).backward()
+    mask_j = jnp.array(mask)
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.where(mask_j, -1e9, x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("mfill_bwd", list(x_pyc.grad), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "squeeze"), reason="pycoeus.squeeze not available")
+def test_squeeze_bwd_matches_jax() -> None:
+    """jax.grad squeeze(dim=0) vs pycoeus squeeze backward."""
+    import jax
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [1, 6], requires_grad=True)
+    pycoeus.squeeze(x_pyc, 0).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.squeeze(x.reshape(1, 6), axis=0)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("squeeze_bwd", list(x_pyc.grad), exp.flatten().tolist())

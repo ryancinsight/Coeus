@@ -7517,3 +7517,144 @@ def test_movedim_bwd_matches_pytorch() -> None:
     t = torch.tensor(data, dtype=torch.float64).reshape(2, 3, 4).requires_grad_(True)
     torch.movedim(t, 0, 2).sum().backward()
     _allclose("movedim_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+# ---------------------------------------------------------------------------
+# MS-389-395: einsum/sign/roll/swapaxes/squeeze/masked_fill backward parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "einsum"), reason="pycoeus.einsum not available")
+def test_einsum_bwd_matmul_matches_pytorch() -> None:
+    """einsum 'ij,jk->ik' backward: same as matmul backward."""
+    a_data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    b_data = [1.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+    a_pyc = pycoeus.Tensor(a_data, [2, 3], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b_data, [3, 2], requires_grad=True)
+    pycoeus.einsum("ij,jk->ik", [a_pyc, b_pyc]).backward()
+    a_t = torch.tensor(a_data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    b_t = torch.tensor(b_data, dtype=torch.float64).reshape(3, 2).requires_grad_(True)
+    torch.einsum("ij,jk->ik", a_t, b_t).sum().backward()
+    _allclose("einsum_a_bwd", list(a_pyc.grad), a_t.grad.flatten().tolist(), atol=1e-10)
+    _allclose("einsum_b_bwd", list(b_pyc.grad), b_t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "einsum"), reason="pycoeus.einsum not available")
+def test_einsum_bwd_outer_matches_pytorch() -> None:
+    """einsum 'i,j->ij' (outer product) backward."""
+    a_data = [1.0, 2.0, 3.0]
+    b_data = [4.0, 5.0, 6.0, 7.0]
+    a_pyc = pycoeus.Tensor(a_data, [3], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b_data, [4], requires_grad=True)
+    pycoeus.einsum("i,j->ij", [a_pyc, b_pyc]).backward()
+    a_t = torch.tensor(a_data, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(b_data, dtype=torch.float64, requires_grad=True)
+    torch.einsum("i,j->ij", a_t, b_t).sum().backward()
+    _allclose("outer_a_bwd", list(a_pyc.grad), a_t.grad.tolist(), atol=1e-10)
+    _allclose("outer_b_bwd", list(b_pyc.grad), b_t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sign"), reason="pycoeus.sign not available")
+def test_sign_bwd_matches_pytorch() -> None:
+    """sign has zero gradient everywhere (straight-through is not applied)."""
+    data = [-2.0, -0.5, 0.5, 1.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.sign(x_pyc).backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.sign(t).sum().backward()
+    _allclose("sign_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "roll"), reason="pycoeus.roll not available")
+def test_roll_bwd_matches_pytorch() -> None:
+    """roll backward: gradient is un-rolled (inverse shift)."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    pycoeus.roll(x_pyc, [2], [1]).backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    torch.roll(t, 2, 1).sum().backward()
+    _allclose("roll_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "swapaxes"), reason="pycoeus.swapaxes not available")
+def test_swapaxes_bwd_matches_pytorch() -> None:
+    """swapaxes(0,1) backward: gradient is swapped back."""
+    data = [float(i) for i in range(24)]
+    x_pyc = pycoeus.Tensor(data, [2, 3, 4], requires_grad=True)
+    pycoeus.swapaxes(x_pyc, 0, 1).backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3, 4).requires_grad_(True)
+    t.swapaxes(0, 1).sum().backward()
+    _allclose("swapaxes_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "squeeze"), reason="pycoeus.squeeze not available")
+def test_squeeze_bwd_matches_pytorch() -> None:
+    """squeeze(dim=0) backward: gradient unsqueezes back."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [1, 6], requires_grad=True)
+    pycoeus.squeeze(x_pyc, 0).backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(1, 6).requires_grad_(True)
+    t.squeeze(0).sum().backward()
+    _allclose("squeeze_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "masked_fill"), reason="pycoeus.masked_fill not available")
+def test_masked_fill_bwd_matches_pytorch() -> None:
+    """masked_fill backward: gradient is zero where filled, passes through elsewhere."""
+    data = [1.0, 2.0, 3.0, 4.0]
+    mask_data = [0.0, 1.0, 0.0, 1.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    m_pyc = pycoeus.Tensor(mask_data, [4], requires_grad=False)
+    pycoeus.masked_fill(x_pyc, m_pyc, -1e9).backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    m_t = torch.tensor(mask_data, dtype=torch.float64).bool()
+    t.masked_fill(m_t, -1e9).sum().backward()
+    _allclose("mfill_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "var_axis"), reason="pycoeus.var_axis not available")
+def test_var_axis_bwd_dim1_matches_pytorch() -> None:
+    """var_axis(dim=1) backward: gradient along row variance."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [2, 4], requires_grad=True)
+    out_pyc = pycoeus.var_axis(x_pyc, 1)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 4).requires_grad_(True)
+    torch.var(t, dim=1, unbiased=True, keepdim=True).sum().backward()
+    _allclose("var_axis_bwd1", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-9)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "norm_p"), reason="pycoeus.norm_p not available")
+def test_norm_p_bwd_matches_pytorch() -> None:
+    """norm_p(p=1) (L1 norm) backward: grad = sign(x) / n."""
+    data = [-3.0, 4.0, -1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    out_pyc = pycoeus.norm_p(x_pyc, 1.0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.norm(t, p=1).backward()
+    _allclose("norm_p1_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "unfold1d"), reason="pycoeus.unfold1d not available")
+def test_unfold1d_bwd_matches_pytorch() -> None:
+    """unfold1d backward: gradient folds back (averages overlapping regions)."""
+    n, c, l = 2, 3, 8
+    data = [float(i) * 0.1 for i in range(n * c * l)]
+    x_pyc = pycoeus.Tensor(data, [n, c, l], requires_grad=True)
+    pycoeus.unfold1d(x_pyc, 3, 1).backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, l).requires_grad_(True)
+    t.unfold(2, 3, 1).sum().backward()
+    _allclose("unfold1d_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-9)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "contiguous"), reason="pycoeus.contiguous not available")
+def test_contiguous_bwd_matches_pytorch() -> None:
+    """contiguous() backward: pass-through gradient."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    out_pyc = pycoeus.contiguous(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    t.contiguous().sum().backward()
+    _allclose("contiguous_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
