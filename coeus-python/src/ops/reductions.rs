@@ -146,15 +146,20 @@ pub fn amin(input: &PyTensor, py: Python<'_>) -> PyResult<f64> {
 }
 
 #[pyfunction]
-pub fn prod(input: &PyTensor, py: Python<'_>) -> PyResult<f64> {
+pub fn prod(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+    // Tracked op so gradients flow (d prod/dx_i = prod_{j != i} x_j via the
+    // exact prefix/suffix ProdNode backward); returns a [1] tensor like
+    // torch.prod. Empty input follows torch's convention prod([]) = 1.0
+    // (nothing to track).
     if input.inner.tensor.numel() == 0 {
-        return Ok(1.0);
-    }
-    let v = py.allow_threads(|| {
         let backend = MoiraiBackend::new();
-        coeus_ops::prod::<f64, MoiraiBackend>(&input.inner.tensor, &backend)
-    });
-    Ok(v)
+        return Ok(PyTensor::from_var(coeus_autograd::Var::new(
+            coeus_tensor::Tensor::from_slice_on(vec![1], &[1.0f64], &backend),
+            false,
+        )));
+    }
+    let inner = py.allow_threads(|| coeus_autograd::prod(&input.inner));
+    Ok(PyTensor::from_var(inner))
 }
 
 #[pyfunction]

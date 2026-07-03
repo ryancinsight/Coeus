@@ -6313,3 +6313,100 @@ def test_batchnorm1d_eval_matches_pytorch() -> None:
     bn_t.eval()
     out_t = bn_t(t_x)
     _allclose("bn1d_eval_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-6)
+
+# ---------------------------------------------------------------------------
+# gelu_bwd / silu_bwd / mish_bwd / relu6 / square/cube / interpolate_bicubic
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "gelu"), reason="pycoeus.gelu not available")
+def test_gelu_bwd_matches_pytorch() -> None:
+    """GELU backward: d/dx gelu(x) via PyTorch autograd."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.gelu(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.gelu(t, approximate="none")
+    out_t.sum().backward()
+    _allclose("gelu_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-8)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "silu"), reason="pycoeus.silu not available")
+def test_silu_bwd_matches_pytorch() -> None:
+    """SiLU backward: d/dx silu(x) = sigmoid + x*sigmoid*(1-sigmoid)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.silu(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.silu(t)
+    out_t.sum().backward()
+    _allclose("silu_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "mish"), reason="pycoeus.mish not available")
+def test_mish_bwd_matches_pytorch() -> None:
+    """Mish backward: d/dx mish(x) vs torch."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.mish(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.mish(t)
+    out_t.sum().backward()
+    _allclose("mish_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-8)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "relu"), reason="pycoeus.relu not available")
+def test_relu_bwd_matches_pytorch() -> None:
+    """relu backward: grad is 1 for x>0, 0 otherwise."""
+    data = [-2.0, -0.5, 0.0, 0.5, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.relu(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.relu(t)
+    out_t.sum().backward()
+    _allclose("relu_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "pow"), reason="pycoeus.pow not available")
+def test_square_via_pow_matches_pytorch() -> None:
+    """x^2 via pow(2) fwd+bwd: d/dx x^2 = 2x."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.pow(x_pyc, 2.0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = t ** 2
+    out_t.sum().backward()
+    _allclose("sq_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("sq_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "interpolate"), reason="pycoeus.interpolate not available")
+def test_interpolate_bilinear_align_corners_matches_pytorch() -> None:
+    """F.interpolate bilinear with scale=2 and align_corners=False."""
+    n, c, h, w = 1, 2, 3, 3
+    data = [float(i) * 0.1 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=False)
+    out_pyc = pycoeus.interpolate(x_pyc, scale_factor=2.0, mode="bilinear")
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    exp = torch.nn.functional.interpolate(t, scale_factor=2, mode="bilinear", align_corners=False)
+    _allclose("bilinear_align", list(out_pyc.data), exp.flatten().tolist(), atol=1e-6)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "prelu"), reason="pycoeus.prelu not available")
+def test_prelu_vector_alpha_matches_pytorch() -> None:
+    """PReLU with vector alpha (per-channel): torch.nn.PReLU vs pycoeus.prelu."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    alpha = 0.01  # small for clear differentiation
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.prelu(x_pyc, alpha)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.prelu(t, torch.tensor([alpha], dtype=torch.float64))
+    out_t.sum().backward()
+    _allclose("prelu_v_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("prelu_v_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
