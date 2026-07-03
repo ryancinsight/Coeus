@@ -1385,6 +1385,9 @@ def test_dropout_eval_matches_jax() -> None:
     x_data = [-1.0, 0.5, 2.0, -0.3, 1.1]
     x_pyc = pycoeus.Tensor(x_data, [5])
     m = pycoeus.Dropout(p=0.5)
+    # eval() is required for the identity contract: modules default to
+    # training mode (matching torch), where dropout masks and rescales.
+    m.eval()
     y_pyc = m.forward(x_pyc)
 
     x_j = jnp.asarray(x_data, dtype=jnp.float64)
@@ -2399,3 +2402,38 @@ def test_selu_matches_jax() -> None:
     got = pycoeus.selu(x_pyc)
     exp = jax.nn.selu(jnp.array(data, dtype=jnp.float64))
     _allclose("selu", list(got.data), exp.tolist(), atol=1e-10)
+
+# ---------------------------------------------------------------------------
+# roll_dim1 / pad / acos / asin parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "roll"), reason="pycoeus.roll not available")
+def test_roll_dim1_matches_jax() -> None:
+    """jnp.roll(x, 3, axis=1) vs pycoeus.roll(x, [3], [1])."""
+    data = [float(i) for i in range(12)]
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=False)
+    got = pycoeus.roll(x_pyc, [3], [1])
+    t = jnp.array(data, dtype=jnp.float64).reshape(3, 4)
+    exp = jnp.roll(t, 3, axis=1)
+    _allclose("roll_dim1", list(got.data), jnp.ravel(exp).tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "acos"), reason="pycoeus.acos not available")
+def test_acos_matches_jax() -> None:
+    """jnp.arccos(x) vs pycoeus.acos(x)."""
+    data = [-0.9, -0.5, 0.0, 0.5, 0.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.acos(x_pyc)
+    exp = jnp.arccos(jnp.array(data, dtype=jnp.float64))
+    _allclose("acos", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "asin"), reason="pycoeus.asin not available")
+def test_asin_matches_jax() -> None:
+    """jnp.arcsin(x) vs pycoeus.asin(x)."""
+    data = [-0.9, -0.5, 0.0, 0.5, 0.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.asin(x_pyc)
+    exp = jnp.arcsin(jnp.array(data, dtype=jnp.float64))
+    _allclose("asin", list(got.data), exp.tolist(), atol=1e-12)

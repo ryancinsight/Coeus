@@ -28,9 +28,16 @@ impl PyDropout {
         }
     }
 
-    /// Set training mode on the Dropout layer.
+    /// Set training mode on the Dropout layer (`torch.nn.Module.train`).
+    #[pyo3(signature = (mode = true))]
     pub fn train(&mut self, mode: bool) {
         self.is_training = mode;
+    }
+
+    /// Switch to evaluation mode — dropout becomes the identity
+    /// (`torch.nn.Module.eval`, equivalent to `train(False)`).
+    pub fn eval(&mut self) {
+        self.is_training = false;
     }
 
     /// Forward pass through the Dropout layer.

@@ -4404,6 +4404,71 @@ def test_pow_matches_pytorch() -> None:
     _allclose("pow_bwd", list(x_pyc.grad), t.grad.tolist())
 
 
+@pytest.mark.skipif(not hasattr(pycoeus, "pow"), reason="pycoeus.pow not available")
+def test_pow_integer_sign_preserving_matches_pytorch() -> None:
+    """x.pow(k) (k=2, even) and x.pow(k) (k=3, odd) at negative bases vs pytorch.
+
+    Pins the sign-preserving integer-exponent PyTorch contract:
+        (-x)^k = (-1)^k * x^k
+    plus the integer-exp backward d/dx x^k = k * x^(k-1) with sign carried by
+    the (k-1)-power of sign(x).  Covers x = 0 (k > 1 → 0; k = 1 → identity).
+    """
+    data = [-2.0, -1.0, 0.0, 0.5, 1.0, 2.0]
+    for k in (2, 3, 5):
+        x_pyc = pycoeus.Tensor(data, [6], requires_grad=True)
+        out_pyc = pycoeus.pow(x_pyc, float(k))
+        out_pyc.backward()
+        t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+        out_t = t.pow(k)
+        out_t.sum().backward()
+        _allclose(f"pow_fwd[k={k}]", list(out_pyc.data), out_t.detach().tolist())
+        _allclose(
+            f"pow_bwd[k={k}]",
+            list(x_pyc.grad),
+            [g if not math.isnan(g) else float("nan") for g in t.grad.tolist()],
+        )
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "pow"), reason="pycoeus.pow not available")
+def test_pow_zero_exp_matches_pytorch() -> None:
+    """x.pow(0) == 1 with d/dx == 0, including at x = 0 and negative x."""
+    data = [-2.0, -1.0, 0.0, 0.5, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.pow(x_pyc, 0.0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = t.pow(0)
+    out_t.sum().backward()
+    _allclose("pow0_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("pow0_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "pow"), reason="pycoeus.pow not available")
+def test_pow_fractional_negative_base_nan_matches_pytorch() -> None:
+    """Fractional exponent on negative base returns NaN in both frameworks.
+
+    Pins the fractional-path composition exp(n*ln(x)) which propagates NaN
+    for x < 0 (IEEE) per PyTorch's pow convention; protects against the
+    sign-preserving integer-exponent branch accidentally being used for
+    non-integer scalars.
+    """
+    data = [-1.0, -0.5, 0.0, 1.0, 4.0, 9.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=True)
+    out_pyc = pycoeus.pow(x_pyc, 0.5)
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = t.pow(0.5)
+    py_fwd = list(out_pyc.data)
+    torch_fwd = out_t.detach().tolist()
+    assert len(py_fwd) == len(torch_fwd)
+    for i, (a, e) in enumerate(zip(py_fwd, torch_fwd)):
+        if math.isnan(e):
+            assert math.isnan(a), f"pow_fwd[{i}]: expected nan, got {a}"
+        else:
+            assert abs(a - e) <= _ATOL, (
+                f"pow_fwd[{i}]: got={a:.8g}, expected={e:.8g}, diff={abs(a - e):.3e}"
+            )
+
+
 @pytest.mark.skipif(
     not hasattr(pycoeus, "scaled_dot_product_attention"),
     reason="pycoeus.scaled_dot_product_attention not available",
@@ -5879,3 +5944,89 @@ def test_conv_transpose2d_shape_matches_pytorch() -> None:
     out = ct.forward(x_pyc)
     assert list(out.shape) == [n, c_out, h + k - 1, w + k - 1], \
         f"Expected {[n, c_out, 8, 8]}, got {list(out.shape)}"
+
+# ---------------------------------------------------------------------------
+# roll_dim1 / split / chunk / pad_fwd_bwd / tanhshrink / acos_grad / asin_grad
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "roll"), reason="pycoeus.roll not available")
+def test_roll_dim1_matches_pytorch() -> None:
+    """torch.roll(x, shifts=3, dims=1) vs pycoeus.roll(x, [3], [1])."""
+    data = [float(i) for i in range(12)]
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=False)
+    got = pycoeus.roll(x_pyc, [3], [1])
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 4)
+    exp = torch.roll(t, 3, 1)
+    _allclose("roll_dim1", list(got.data), exp.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "split"), reason="pycoeus.split not available")
+def test_split_fwd_bwd_matches_pytorch() -> None:
+    """torch.split(x, 2, dim=1) vs pycoeus.split(x, chunk_size=2, dim=1), fwd+bwd."""
+    data = [float(i) for i in range(12)]
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=True)
+    chunks_pyc = pycoeus.split(x_pyc, 2, 1)
+    s = pycoeus.sum(chunks_pyc[0]) if len(chunks_pyc) > 0 else pycoeus.sum(x_pyc)
+    s.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 4).requires_grad_(True)
+    chunks_t = torch.split(t, 2, dim=1)
+    chunks_t[0].sum().backward()
+    # Only first chunk has non-zero grad
+    _allclose("split_fwd", list(chunks_pyc[0].data), chunks_t[0].detach().flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "pad"), reason="pycoeus.pad not available")
+def test_pad_fwd_bwd_matches_pytorch() -> None:
+    """F.pad(x, (1,1,2,0)) constant-pad fwd+bwd vs pycoeus.pad."""
+    data = [float(i) for i in range(6)]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    out_pyc = pycoeus.pad(x_pyc, [(2, 0), (1, 1)], 0.0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    exp = torch.nn.functional.pad(t, (1, 1, 2, 0), value=0.0)
+    exp.sum().backward()
+    _allclose("pad_fwd", list(out_pyc.data), exp.detach().flatten().tolist())
+    _allclose("pad_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "tanhshrink"), reason="pycoeus.tanhshrink not available")
+def test_tanhshrink_fwd_bwd_matches_pytorch() -> None:
+    """F.tanhshrink(x) vs pycoeus.tanhshrink(x), fwd+bwd."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.tanhshrink(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.tanhshrink(t)
+    out_t.sum().backward()
+    _allclose("tanhshrink_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("tanhshrink_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "acos"), reason="pycoeus.acos not available")
+def test_acos_fwd_bwd_matches_pytorch() -> None:
+    """torch.acos(x) vs pycoeus.acos(x), fwd+bwd. Domain: |x| < 1."""
+    data = [-0.9, -0.5, 0.0, 0.5, 0.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.acos(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.acos(t)
+    out_t.sum().backward()
+    _allclose("acos_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("acos_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "asin"), reason="pycoeus.asin not available")
+def test_asin_fwd_bwd_matches_pytorch() -> None:
+    """torch.asin(x) vs pycoeus.asin(x), fwd+bwd. Domain: |x| < 1."""
+    data = [-0.9, -0.5, 0.0, 0.5, 0.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.asin(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.asin(t)
+    out_t.sum().backward()
+    _allclose("asin_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("asin_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
