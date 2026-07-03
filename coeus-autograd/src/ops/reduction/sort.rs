@@ -26,8 +26,8 @@ use std::sync::Arc;
 
 /// Autograd node for `sort`.
 ///
-/// Stores the argsort indices so that `backward` can scatter the output gradient
-/// back to the original unsorted positions.
+/// Stores the argsort indices so backward can use `scatter_add` to move sorted
+/// output gradients back to their original unsorted positions.
 pub struct SortNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default>
 where
     B::DeviceBuffer<T>:
@@ -37,7 +37,7 @@ where
     pub output_grad: Arc<GradBuffer<T, B>>,
     /// The single differentiable input (values to be sorted).
     pub inputs: Vec<Var<T, B>>,
-    /// Argsort indices returned by forward (encoded as `T`, same shape as input).
+    /// Argsort indices returned by forward, reused by `scatter_add` in backward.
     pub sort_indices: Tensor<T, B>,
     /// Axis along which the sort was performed.
     pub dim: usize,
@@ -83,7 +83,7 @@ where
     }
 }
 
-/// Differentiable sort along `dim`.
+/// Differentiable sort along `dim`, similar to PyTorch `torch.sort`.
 ///
 /// Returns `(sorted_values, sort_indices)`.  Only `sorted_values` tracks
 /// gradients; `sort_indices` is not differentiable and is returned as a

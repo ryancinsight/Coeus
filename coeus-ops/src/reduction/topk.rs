@@ -5,7 +5,13 @@ use crate::BackendOps;
 use coeus_core::{Layout, Scalar};
 use coeus_tensor::Tensor;
 
-/// Helper function to compute topk on contiguous CPU slices.
+/// Computes top-k values for a contiguous slice backing a tensor view.
+///
+/// This is the CPU helper behind PyTorch-style `topk`, writing both selected
+/// values and their source indices into the provided output slices.
+///
+/// # Panics
+/// Panics if `dim` is out of range, or if `k == 0` / `k > a_shape[dim]`.
 pub fn topk_impl<T: Scalar>(
     a_slice: &[T],
     a_shape: &[usize],
@@ -94,10 +100,11 @@ pub fn topk_impl<T: Scalar>(
     }
 }
 
-/// Return the `k` largest (or smallest) values and their flat indices along `dim`.
+/// Returns the `k` largest or smallest values along `dim`, like PyTorch `torch.topk`.
 ///
 /// Returns `(values, indices)` both with shape equal to `x.shape()` but with
-/// `shape[dim] == k`.
+/// `shape[dim] == k`; `indices` stores positions along `dim`, similar to NumPy
+/// `take_along_axis` consumers.
 ///
 /// # Memory
 /// Both output tensors are `alloc_on` (uninitialized); the kernel writes every
@@ -105,8 +112,8 @@ pub fn topk_impl<T: Scalar>(
 /// account for `dim` being anywhere in the shape (not just the last axis).
 ///
 /// # Panics
-/// - `k == 0` or `k > x.shape()[dim]`.
-/// - `dim` out of range.
+/// - If `k == 0` or `k > x.shape()[dim]`.
+/// - If `dim` is out of range.
 #[inline]
 pub fn topk<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + BackendOps<i64> + Default>(
     x: &Tensor<T, B>,

@@ -10,11 +10,10 @@ use crate::backend_ops::BackendOps;
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_tensor::Tensor;
 
-/// Stable sort of `input` along `axis`.
+/// Stably sorts `input` along `axis`, like PyTorch `torch.sort` or NumPy `sort`.
 ///
-/// Returns `(sorted, indices)` where `sorted` contains the values in ascending
-/// (or descending if `descending = true`) order, and `indices` contains the
-/// original axis positions encoded as `T`.
+/// Returns `(sorted, indices)`, where `indices` stores the original axis
+/// positions encoded as `T`.
 ///
 /// # Panics
 /// Panics if `axis >= input.ndim()`.

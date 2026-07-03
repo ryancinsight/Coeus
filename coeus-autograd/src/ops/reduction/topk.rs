@@ -14,8 +14,8 @@ use std::sync::Arc;
 
 /// Autograd node for `topk`.
 ///
-/// Stores the indices of the selected top-k elements so that backward can
-/// scatter the k output gradients back to their original (input) positions.
+/// Stores the selected indices so backward can use `scatter_add` to route the
+/// top-k output gradients back to their original input positions.
 pub struct TopkNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default>
 where
     B::DeviceBuffer<T>:
@@ -25,7 +25,7 @@ where
     pub output_grad: Arc<GradBuffer<T, B>>,
     /// The single differentiable input.
     pub inputs: Vec<Var<T, B>>,
-    /// Indices of the selected top-k elements (encoded as `T`, shape = topk output shape).
+    /// Indices of the selected top-k elements, reused by `scatter_add` in backward.
     pub topk_indices: Tensor<T, B>,
     /// Axis along which topk was performed.
     pub dim: usize,
@@ -68,7 +68,7 @@ where
     }
 }
 
-/// Differentiable top-k along `dim`.
+/// Differentiable top-k along `dim`, matching PyTorch `torch.topk`.
 ///
 /// Returns `(top_values, top_indices)`. Only `top_values` tracks gradients;
 /// `top_indices` is always detached (indices are not differentiable).
@@ -79,7 +79,7 @@ where
 /// receive zero gradient, matching PyTorch's `torch.topk` backward.
 ///
 /// # Panics
-/// Panics if `dim >= input.tensor.ndim()` or `k == 0`.
+/// Panics if `k == 0`, `k > input.tensor.shape()[dim]`, or `dim >= input.tensor.ndim()`.
 #[must_use]
 pub fn topk<T: Scalar + leto_ops::Scalar, B>(
     input: &Var<T, B>,

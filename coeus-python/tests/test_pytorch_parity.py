@@ -7658,3 +7658,123 @@ def test_contiguous_bwd_matches_pytorch() -> None:
     t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
     t.contiguous().sum().backward()
     _allclose("contiguous_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+# ---------------------------------------------------------------------------
+# MS-396-402: min_axis/max_axis/nansum/nanmean/diagonal/scatter_add bwd parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "min_axis"), reason="pycoeus.min_axis not available")
+def test_min_axis_bwd_matches_pytorch() -> None:
+    """min_axis(dim=1) backward: gradient goes to min positions."""
+    data = [3.0, 1.0, 4.0, 2.0, 5.0, 0.0, 6.0, -1.0]
+    x_pyc = pycoeus.Tensor(data, [2, 4], requires_grad=True)
+    out_pyc = pycoeus.min_axis(x_pyc, 1)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 4).requires_grad_(True)
+    torch.min(t, dim=1, keepdim=True).values.sum().backward()
+    _allclose("min_axis_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "max_axis"), reason="pycoeus.max_axis not available")
+def test_max_axis_bwd_matches_pytorch() -> None:
+    """max_axis(dim=0) backward: gradient goes to max positions."""
+    data = [3.0, 1.0, 4.0, 2.0, 5.0, 0.0, 6.0, -1.0]
+    x_pyc = pycoeus.Tensor(data, [2, 4], requires_grad=True)
+    out_pyc = pycoeus.max_axis(x_pyc, 0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 4).requires_grad_(True)
+    torch.max(t, dim=0, keepdim=True).values.sum().backward()
+    _allclose("max_axis_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "nansum"), reason="pycoeus.nansum not available")
+def test_nansum_bwd_matches_pytorch() -> None:
+    """nansum backward: gradient flows only through finite inputs (NaN → 0)."""
+    import math
+    data = [1.0, float("nan"), 3.0, float("nan"), 5.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.nansum(x_pyc).backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.nansum(t).backward()
+    _allclose("nansum_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "nanmean"), reason="pycoeus.nanmean not available")
+def test_nanmean_bwd_matches_pytorch() -> None:
+    """nanmean backward: gradient / count_finite flows to finite inputs."""
+    import math
+    data = [2.0, float("nan"), 4.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    pycoeus.nanmean(x_pyc).backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.nanmean(t).backward()
+    _allclose("nanmean_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "diagonal"), reason="pycoeus.diagonal not available")
+def test_diagonal_bwd_matches_pytorch() -> None:
+    """diagonal() backward: gradient scatters to diagonal positions."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+    x_pyc = pycoeus.Tensor(data, [3, 3], requires_grad=True)
+    out_pyc = pycoeus.diagonal(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 3).requires_grad_(True)
+    torch.diagonal(t).sum().backward()
+    _allclose("diagonal_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "scatter_add"), reason="pycoeus.scatter_add not available")
+def test_scatter_add_bwd_matches_pytorch() -> None:
+    """scatter_add backward: gradient gathers from output to source positions."""
+    src_data = [1.0, 2.0, 3.0]
+    inp_data = [0.0, 0.0, 0.0, 0.0, 0.0]
+    idx_data = [4.0, 1.0, 3.0]
+    src_pyc = pycoeus.Tensor(src_data, [3], requires_grad=True)
+    inp_pyc = pycoeus.Tensor(inp_data, [5], requires_grad=False)
+    idx_pyc = pycoeus.Tensor(idx_data, [3], requires_grad=False)
+    pycoeus.scatter_add(inp_pyc, 0, idx_pyc, src_pyc).backward()
+    src_t = torch.tensor(src_data, dtype=torch.float64, requires_grad=True)
+    inp_t = torch.tensor(inp_data, dtype=torch.float64)
+    idx_t = torch.tensor([4, 1, 3], dtype=torch.long)
+    inp_t.scatter_add(0, idx_t, src_t).sum().backward()
+    _allclose("scatter_add_bwd", list(src_pyc.grad), src_t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "mean_axis"), reason="pycoeus.mean_axis not available")
+def test_mean_axis_bwd_matches_pytorch() -> None:
+    """mean_axis(dim=0) backward: gradient broadcasts 1/N along reduced dim."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [3, 2], requires_grad=True)
+    out_pyc = pycoeus.mean_axis(x_pyc, 0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 2).requires_grad_(True)
+    torch.mean(t, dim=0, keepdim=True).sum().backward()
+    _allclose("mean_axis_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "flatten"), reason="pycoeus.flatten not available")
+def test_flatten_bwd_matches_pytorch() -> None:
+    """flatten backward: gradient unflatten back to original shape."""
+    data = [float(i) for i in range(24)]
+    x_pyc = pycoeus.Tensor(data, [2, 3, 4], requires_grad=True)
+    pycoeus.flatten(x_pyc).backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3, 4).requires_grad_(True)
+    t.flatten().sum().backward()
+    _allclose("flatten_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cat"), reason="pycoeus.cat not available")
+def test_cat_bwd_dim0_matches_pytorch() -> None:
+    """cat(dim=0) backward: gradient splits back to constituent tensors."""
+    a_data = [1.0, 2.0, 3.0, 4.0]
+    b_data = [5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
+    a_pyc = pycoeus.Tensor(a_data, [2, 2], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b_data, [3, 2], requires_grad=True)
+    pycoeus.cat([a_pyc, b_pyc], 0).backward()
+    a_t = torch.tensor(a_data, dtype=torch.float64).reshape(2, 2).requires_grad_(True)
+    b_t = torch.tensor(b_data, dtype=torch.float64).reshape(3, 2).requires_grad_(True)
+    torch.cat([a_t, b_t], 0).sum().backward()
+    _allclose("cat0_a_bwd", list(a_pyc.grad), a_t.grad.flatten().tolist())
+    _allclose("cat0_b_bwd", list(b_pyc.grad), b_t.grad.flatten().tolist())

@@ -1,4 +1,7 @@
-// ── Reduction module ──
+//! Reduction and selection operators over one or more tensor axes.
+//!
+//! Includes PyTorch/NumPy-style reductions such as sums, norms, moments, and
+//! selection ops like `topk`, `argmax`, and `argmin`.
 
 pub(crate) mod cumprod;
 pub(crate) mod cumsum;
