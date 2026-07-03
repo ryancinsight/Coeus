@@ -1,6 +1,6 @@
 use crate::module::Module;
 use coeus_autograd::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::Float;
 
 /// Functional ELU activation.
 #[inline]
@@ -26,9 +26,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for ELU {
 
 /// Functional GELU tanh approximation.
 #[inline]
-pub fn gelu_tanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(
-    input: &Var<T, B>,
-) -> Var<T, B> {
+pub fn gelu_tanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
     coeus_autograd::gelu_tanh(input)
 }
 

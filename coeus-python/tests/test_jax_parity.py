@@ -2710,3 +2710,47 @@ def test_log1p_bwd_matches_jax() -> None:
     grad_fn = jax.grad(lambda x: jnp.sum(jnp.log1p(x)))
     exp = grad_fn(jnp.array(data, dtype=jnp.float64))
     _allclose("log1p_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-12)
+
+# ---------------------------------------------------------------------------
+# acosh_bwd / sqrt_bwd / exp_bwd / erf_bwd parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "acosh"), reason="pycoeus.acosh not available")
+def test_acosh_bwd_matches_jax() -> None:
+    """jax.grad acosh vs pycoeus acosh backward."""
+    import jax
+    data = [1.1, 1.5, 2.0, 3.0, 5.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.acosh(x_pyc)
+    out_pyc.backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.arccosh(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("acosh_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sqrt"), reason="pycoeus.sqrt not available")
+def test_sqrt_bwd_matches_jax() -> None:
+    """jax.grad sqrt vs pycoeus sqrt backward."""
+    import jax
+    data = [0.25, 1.0, 4.0, 9.0, 16.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.sqrt(x_pyc)
+    out_pyc.backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.sqrt(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("sqrt_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "erf"), reason="pycoeus.erf not available")
+def test_erf_bwd_matches_jax() -> None:
+    """jax.grad erf vs pycoeus erf backward."""
+    import jax
+    import jax.scipy.special
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.erf(x_pyc)
+    out_pyc.backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jax.scipy.special.erf(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("erf_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-12)
