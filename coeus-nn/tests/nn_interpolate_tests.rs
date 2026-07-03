@@ -122,7 +122,11 @@ fn check_2d_bilinear_upsample() {
         1.0, 1.25, 1.75, 2.0, 1.5, 1.75, 2.25, 2.5, 2.5, 2.75, 3.25, 3.5, 3.0, 3.25, 3.75, 4.0,
     ];
     assert_eq!(out.shape(), &[1, 1, 4, 4], "bilinear upsample shape");
-    assert_eq!(out.as_slice(), &expected, "2d bilinear upsample border weights");
+    assert_eq!(
+        out.as_slice(),
+        &expected,
+        "2d bilinear upsample border weights"
+    );
 }
 
 fn check_multichannel_nearest() {

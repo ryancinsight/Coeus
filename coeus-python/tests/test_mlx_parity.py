@@ -175,3 +175,389 @@ def test_mha_matches_mlx() -> None:
     mx.eval(out_mlx)
 
     _allclose("mha_out", list(out_pyc.data), out_mlx.flatten().tolist(), atol=1e-3)
+
+
+# ---------------------------------------------------------------------------
+# MS-384: MLX parity expansion — activations, math, losses, shapes (30 tests)
+# ---------------------------------------------------------------------------
+
+
+def _skip_if_no_mlx():
+    if mx is None:
+        pytest.skip("MLX not installed")
+
+
+def _f32(data, shape):
+    """Create pycoeus Tensor at default (f64) precision and matching MLX f32 array."""
+    x_pyc = pycoeus.Tensor([float(v) for v in data], list(shape), requires_grad=False)
+    x_mlx = mx.array([float(v) for v in data]).reshape(*shape)
+    return x_pyc, x_mlx
+
+
+def test_relu_matches_mlx() -> None:
+    """relu forward matches mlx.core.maximum(x, 0)."""
+    _skip_if_no_mlx()
+    data = [-2.0, -0.5, 0.0, 0.3, 1.5]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.relu(x_pyc)
+    out_mlx = mx.maximum(x_mlx, 0.0)
+    mx.eval(out_mlx)
+    _allclose("relu", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_sigmoid_matches_mlx() -> None:
+    """sigmoid forward matches mlx.core.sigmoid."""
+    _skip_if_no_mlx()
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.sigmoid(x_pyc)
+    out_mlx = mx.sigmoid(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("sigmoid", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_tanh_matches_mlx() -> None:
+    """tanh forward matches mlx.core.tanh."""
+    _skip_if_no_mlx()
+    data = [-1.0, -0.5, 0.0, 0.5, 1.0]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.tanh(x_pyc)
+    out_mlx = mx.tanh(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("tanh", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_gelu_matches_mlx() -> None:
+    """gelu forward matches mlx.core.erf-based GELU."""
+    _skip_if_no_mlx()
+    data = [-1.5, -0.5, 0.0, 0.5, 1.5]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.gelu(x_pyc)
+    # MLX: x * 0.5 * (1 + erf(x / sqrt(2)))
+    out_mlx = x_mlx * 0.5 * (1.0 + mx.erf(x_mlx / math.sqrt(2)))
+    mx.eval(out_mlx)
+    _allclose("gelu", list(out_pyc.data), out_mlx.flatten().tolist(), atol=2e-3)
+
+
+def test_silu_matches_mlx() -> None:
+    """silu forward: x * sigmoid(x) matches MLX."""
+    _skip_if_no_mlx()
+    data = [-1.0, -0.5, 0.0, 0.5, 1.0]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.silu(x_pyc)
+    out_mlx = x_mlx * mx.sigmoid(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("silu", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_softmax_matches_mlx() -> None:
+    """softmax(dim=1) forward matches mlx.core.softmax."""
+    _skip_if_no_mlx()
+    data = [1.0, 2.0, 3.0, 0.5, 1.5, 2.5]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    x_mlx = mx.array(data).reshape(2, 3)
+    out_pyc = pycoeus.softmax(x_pyc, 1)
+    out_mlx = mx.softmax(x_mlx, axis=1)
+    mx.eval(out_mlx)
+    _allclose("softmax", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_log_softmax_matches_mlx() -> None:
+    """log_softmax(dim=1) forward matches MLX log_softmax."""
+    _skip_if_no_mlx()
+    data = [1.0, 2.0, 3.0, 0.5, 1.5, 2.5]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    x_mlx = mx.array(data).reshape(2, 3)
+    out_pyc = pycoeus.log_softmax(x_pyc, 1)
+    out_mlx = mx.log(mx.softmax(x_mlx, axis=1))
+    mx.eval(out_mlx)
+    _allclose("log_softmax", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_abs_matches_mlx() -> None:
+    """abs forward matches mlx.core.abs."""
+    _skip_if_no_mlx()
+    data = [-3.0, -1.0, 0.0, 1.5, 2.5]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.abs(x_pyc)
+    out_mlx = mx.abs(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("abs", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_sqrt_matches_mlx() -> None:
+    """sqrt forward matches mlx.core.sqrt."""
+    _skip_if_no_mlx()
+    data = [0.25, 1.0, 2.25, 4.0, 9.0]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.sqrt(x_pyc)
+    out_mlx = mx.sqrt(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("sqrt", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_exp_matches_mlx() -> None:
+    """exp forward matches mlx.core.exp."""
+    _skip_if_no_mlx()
+    data = [-1.0, 0.0, 0.5, 1.0, 2.0]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.exp(x_pyc)
+    out_mlx = mx.exp(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("exp", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_log_matches_mlx() -> None:
+    """log forward matches mlx.core.log."""
+    _skip_if_no_mlx()
+    data = [0.5, 1.0, 2.0, 4.0, 8.0]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.log(x_pyc)
+    out_mlx = mx.log(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("log", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_neg_matches_mlx() -> None:
+    """neg forward matches MLX element-wise negation."""
+    _skip_if_no_mlx()
+    data = [1.0, -2.0, 3.5, -0.5]
+    x_pyc, x_mlx = _f32(data, [4])
+    out_pyc = pycoeus.neg(x_pyc)
+    out_mlx = -x_mlx
+    mx.eval(out_mlx)
+    _allclose("neg", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_matmul_matches_mlx() -> None:
+    """matmul (2x3) @ (3x2) forward matches mlx.core.matmul."""
+    _skip_if_no_mlx()
+    a_data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    b_data = [1.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+    a_pyc = pycoeus.Tensor(a_data, [2, 3], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b_data, [3, 2], requires_grad=False)
+    out_pyc = pycoeus.matmul(a_pyc, b_pyc)
+    a_mlx = mx.array(a_data).reshape(2, 3)
+    b_mlx = mx.array(b_data).reshape(3, 2)
+    out_mlx = a_mlx @ b_mlx
+    mx.eval(out_mlx)
+    _allclose("matmul", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_add_matches_mlx() -> None:
+    """element-wise add matches MLX."""
+    _skip_if_no_mlx()
+    a = [1.0, 2.0, 3.0]; b = [4.0, 5.0, 6.0]
+    a_pyc = pycoeus.Tensor(a, [3], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [3], requires_grad=False)
+    out_pyc = a_pyc + b_pyc
+    out_mlx = mx.array(a) + mx.array(b)
+    mx.eval(out_mlx)
+    _allclose("add", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_mul_matches_mlx() -> None:
+    """element-wise mul matches MLX."""
+    _skip_if_no_mlx()
+    a = [1.0, 2.0, 3.0]; b = [4.0, 5.0, 6.0]
+    a_pyc = pycoeus.Tensor(a, [3], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [3], requires_grad=False)
+    out_pyc = a_pyc * b_pyc
+    out_mlx = mx.array(a) * mx.array(b)
+    mx.eval(out_mlx)
+    _allclose("mul", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_mse_loss_matches_mlx() -> None:
+    """mse_loss forward matches MLX mean squared error."""
+    _skip_if_no_mlx()
+    pred = [1.5, -0.5, 2.0, 0.1]
+    tgt = [1.0, 0.0, 1.5, -0.2]
+    p_pyc = pycoeus.Tensor(pred, [4], requires_grad=False)
+    t_pyc = pycoeus.Tensor(tgt, [4], requires_grad=False)
+    loss_pyc = pycoeus.mse_loss(p_pyc, t_pyc)
+    p_mlx = mx.array(pred); t_mlx = mx.array(tgt)
+    diff = p_mlx - t_mlx
+    loss_mlx = mx.mean(diff * diff)
+    mx.eval(loss_mlx)
+    _allclose("mse", [float(loss_pyc.data[0])], [float(loss_mlx)])
+
+
+def test_l1_loss_matches_mlx() -> None:
+    """l1_loss forward matches MLX mean absolute error."""
+    _skip_if_no_mlx()
+    pred = [1.5, -0.5, 2.0, 0.1]
+    tgt = [1.0, 0.0, 1.5, -0.2]
+    p_pyc = pycoeus.Tensor(pred, [4], requires_grad=False)
+    t_pyc = pycoeus.Tensor(tgt, [4], requires_grad=False)
+    loss_pyc = pycoeus.l1_loss(p_pyc, t_pyc)
+    p_mlx = mx.array(pred); t_mlx = mx.array(tgt)
+    loss_mlx = mx.mean(mx.abs(p_mlx - t_mlx))
+    mx.eval(loss_mlx)
+    _allclose("l1", [float(loss_pyc.data[0])], [float(loss_mlx)])
+
+
+def test_reshape_matches_mlx() -> None:
+    """reshape (2x6 → 3x4) matches MLX reshape."""
+    _skip_if_no_mlx()
+    data = [float(i) for i in range(12)]
+    x_pyc = pycoeus.Tensor(data, [2, 6], requires_grad=False)
+    out_pyc = pycoeus.reshape(x_pyc, [3, 4])
+    x_mlx = mx.array(data).reshape(2, 6)
+    out_mlx = x_mlx.reshape(3, 4)
+    mx.eval(out_mlx)
+    _allclose("reshape", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_permute_matches_mlx() -> None:
+    """permute (0,2,1) matches MLX transpose."""
+    _skip_if_no_mlx()
+    data = [float(i) for i in range(24)]
+    x_pyc = pycoeus.Tensor(data, [2, 3, 4], requires_grad=False)
+    out_pyc = pycoeus.permute(x_pyc, [0, 2, 1])
+    x_mlx = mx.array(data).reshape(2, 3, 4)
+    out_mlx = mx.transpose(x_mlx, (0, 2, 1))
+    mx.eval(out_mlx)
+    _allclose("permute", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_cat_matches_mlx() -> None:
+    """cat(dim=0) matches MLX concatenate."""
+    _skip_if_no_mlx()
+    a = [1.0, 2.0, 3.0]; b = [4.0, 5.0, 6.0]
+    a_pyc = pycoeus.Tensor(a, [3], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [3], requires_grad=False)
+    out_pyc = pycoeus.cat([a_pyc, b_pyc], 0)
+    out_mlx = mx.concatenate([mx.array(a), mx.array(b)], axis=0)
+    mx.eval(out_mlx)
+    _allclose("cat", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_sum_matches_mlx() -> None:
+    """sum() global matches MLX sum."""
+    _skip_if_no_mlx()
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    out_pyc = pycoeus.sum(x_pyc)
+    out_mlx = mx.sum(mx.array(data).reshape(2, 3))
+    mx.eval(out_mlx)
+    _allclose("sum", list(out_pyc.data), [float(out_mlx)])
+
+
+def test_mean_matches_mlx() -> None:
+    """mean() global matches MLX mean."""
+    _skip_if_no_mlx()
+    data = [1.0, 2.0, 3.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=False)
+    out_pyc = pycoeus.mean(x_pyc)
+    out_mlx = mx.mean(mx.array(data))
+    mx.eval(out_mlx)
+    _allclose("mean", list(out_pyc.data), [float(out_mlx)])
+
+
+def test_layer_norm_matches_mlx() -> None:
+    """LayerNorm(4) forward matches MLX layer_norm."""
+    _skip_if_no_mlx()
+    n, d = 2, 4
+    data = [1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5]
+    x_pyc = pycoeus.Tensor(data, [n, d], requires_grad=False)
+    ln = pycoeus.LayerNorm(d)
+    out_pyc = ln.forward(x_pyc)
+    x_mlx = mx.array(data).reshape(n, d)
+    # MLX layer_norm: (x - mean) / sqrt(var + eps) * weight + bias
+    # with weight=ones, bias=zeros
+    mean = mx.mean(x_mlx, axis=-1, keepdims=True)
+    var = mx.mean((x_mlx - mean) ** 2, axis=-1, keepdims=True)
+    out_mlx = (x_mlx - mean) / mx.sqrt(var + 1e-5)
+    mx.eval(out_mlx)
+    _allclose("ln", list(out_pyc.data), out_mlx.flatten().tolist(), atol=2e-3)
+
+
+def test_embedding_matches_mlx() -> None:
+    """Embedding(8, 4) forward matches MLX embedding lookup."""
+    _skip_if_no_mlx()
+    vocab, dim = 8, 4
+    indices = [0, 2, 5, 1]
+    w_data = [float(i) * 0.1 for i in range(vocab * dim)]
+    embed = pycoeus.Embedding(num_embeddings=vocab, embedding_dim=dim)
+    embed.parameters()[0].data = w_data
+    idx_pyc = pycoeus.Tensor([float(i) for i in indices], [4], requires_grad=False)
+    out_pyc = embed.forward(idx_pyc)
+    w_mlx = mx.array(w_data).reshape(vocab, dim)
+    out_mlx = w_mlx[mx.array(indices)]
+    mx.eval(out_mlx)
+    _allclose("embed", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_clamp_matches_mlx() -> None:
+    """clamp(-0.5, 0.5) forward matches MLX clip."""
+    _skip_if_no_mlx()
+    data = [-1.0, -0.3, 0.0, 0.4, 1.0]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.clamp(x_pyc, -0.5, 0.5)
+    out_mlx = mx.clip(x_mlx, -0.5, 0.5)
+    mx.eval(out_mlx)
+    _allclose("clamp", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_erf_matches_mlx() -> None:
+    """erf forward matches mlx.core.erf."""
+    _skip_if_no_mlx()
+    data = [-1.5, -0.5, 0.0, 0.5, 1.5]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.erf(x_pyc)
+    out_mlx = mx.erf(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("erf", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_cumsum_matches_mlx() -> None:
+    """cumsum(dim=0) forward matches MLX cumsum."""
+    _skip_if_no_mlx()
+    data = [1.0, 2.0, 3.0, 4.0, 5.0]
+    x_pyc, x_mlx = _f32(data, [5])
+    out_pyc = pycoeus.cumsum(x_pyc, 0)
+    out_mlx = mx.cumsum(x_mlx, axis=0)
+    mx.eval(out_mlx)
+    _allclose("cumsum", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_max_axis_matches_mlx() -> None:
+    """max_axis(dim=1) forward matches MLX max."""
+    _skip_if_no_mlx()
+    data = [3.0, 1.0, 4.0, 2.0, 5.0, 0.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    out_pyc = pycoeus.max_axis(x_pyc, 1)
+    x_mlx = mx.array(data).reshape(2, 3)
+    out_mlx = mx.max(x_mlx, axis=1, keepdims=True)
+    mx.eval(out_mlx)
+    _allclose("max_axis", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_flip_matches_mlx() -> None:
+    """flip(axis=0) forward matches MLX flip."""
+    _skip_if_no_mlx()
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    out_pyc = pycoeus.flip(x_pyc, 0)
+    x_mlx = mx.array(data).reshape(2, 3)
+    # MLX flip: mlx.core.flip(x, axis)
+    try:
+        out_mlx = mx.flip(x_mlx, axis=0)
+    except AttributeError:
+        # older MLX uses slice indexing
+        out_mlx = x_mlx[::-1]
+    mx.eval(out_mlx)
+    _allclose("flip", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+def test_tile_matches_mlx() -> None:
+    """tile([2,2]) matches MLX tile."""
+    _skip_if_no_mlx()
+    data = [1.0, 2.0, 3.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [2, 2], requires_grad=False)
+    out_pyc = pycoeus.tile(x_pyc, [2, 2])
+    x_mlx = mx.array(data).reshape(2, 2)
+    out_mlx = mx.tile(x_mlx, (2, 2))
+    mx.eval(out_mlx)
+    _allclose("tile", list(out_pyc.data), out_mlx.flatten().tolist())

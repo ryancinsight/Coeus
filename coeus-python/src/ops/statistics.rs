@@ -1,6 +1,5 @@
 use crate::tensor::PyTensor;
 use coeus_core::{ComputeBackend, MoiraiBackend};
-use coeus_tensor::Tensor;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -190,24 +189,9 @@ pub fn topk(
     largest: bool,
     py: Python<'_>,
 ) -> (PyTensor, PyTensor) {
-    let backend = MoiraiBackend::new();
-    let (vals, idxs_i64) =
-        py.allow_threads(|| coeus_ops::topk(&input.inner.tensor, k, dim, largest));
-    let idx_data: Vec<f64> = idxs_i64
-        .to_contiguous_on(&backend)
-        .as_slice()
-        .iter()
-        .map(|&x| x as f64)
-        .collect();
-    let idx_f64 = Tensor::<f64, MoiraiBackend>::from_slice(idxs_i64.shape().to_vec(), &idx_data);
-    (
-        PyTensor {
-            inner: coeus_autograd::Var::new(vals, false),
-        },
-        PyTensor {
-            inner: coeus_autograd::Var::new(idx_f64, false),
-        },
-    )
+    let (vals_var, idx_var) =
+        py.allow_threads(|| coeus_autograd::topk(&input.inner, k, dim, largest));
+    (PyTensor { inner: vals_var }, PyTensor { inner: idx_var })
 }
 
 #[pyfunction]

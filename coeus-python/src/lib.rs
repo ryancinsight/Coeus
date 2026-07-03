@@ -246,6 +246,10 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::round, m)?)?;
     m.add_function(wrap_pyfunction!(ops::trunc, m)?)?;
     m.add_function(wrap_pyfunction!(ops::clamp, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::scalar_mul, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::scalar_add, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::scalar_div, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::scalar_sub, m)?)?;
     m.add_function(wrap_pyfunction!(ops::max_axis, m)?)?;
     m.add_function(wrap_pyfunction!(ops::min_axis, m)?)?;
     m.add_function(wrap_pyfunction!(ops::log_sum_exp, m)?)?;

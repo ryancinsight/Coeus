@@ -62,7 +62,9 @@ macro_rules! coeus_to_leto_layout {
 
 /// Dispatch a binary Hephaestus strided op at the rank determined by `out.ndim()`.
 /// Returns `true` when dispatched, `false` when the rank falls outside [1, 4].
-fn try_hephaestus_strided_binary_wgpu<T: WgpuScalar + hephaestus_wgpu::WgslScalar>(
+fn try_hephaestus_strided_binary_wgpu<
+    T: WgpuScalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>,
+>(
     op: coeus_ops::BinaryOp,
     a_buf: &crate::backend::WgpuStorage<T>,
     a_layout: &Layout,
@@ -130,7 +132,9 @@ fn try_hephaestus_strided_binary_wgpu<T: WgpuScalar + hephaestus_wgpu::WgslScala
 }
 
 /// Dispatch a unary Hephaestus strided op at the rank determined by `out.ndim()`.
-fn try_hephaestus_strided_unary_wgpu<T: WgpuScalar + hephaestus_wgpu::WgslScalar>(
+fn try_hephaestus_strided_unary_wgpu<
+    T: WgpuScalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>,
+>(
     op: coeus_ops::UnaryOp,
     a_buf: &crate::backend::WgpuStorage<T>,
     a_layout: &Layout,
@@ -214,7 +218,9 @@ fn try_hephaestus_strided_unary_wgpu<T: WgpuScalar + hephaestus_wgpu::WgslScalar
     }
 }
 
-fn try_hephaestus_contiguous_binary<T: WgpuScalar + hephaestus_wgpu::WgslScalar>(
+fn try_hephaestus_contiguous_binary<
+    T: WgpuScalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>,
+>(
     op: coeus_ops::BinaryOp,
     a: &crate::storage::WgpuStorage<T>,
     b: &crate::storage::WgpuStorage<T>,
@@ -272,7 +278,9 @@ fn try_hephaestus_contiguous_binary<T: WgpuScalar + hephaestus_wgpu::WgslScalar>
     }
 }
 
-fn try_hephaestus_contiguous_unary<T: WgpuScalar + hephaestus_wgpu::WgslScalar>(
+fn try_hephaestus_contiguous_unary<
+    T: WgpuScalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>,
+>(
     op: coeus_ops::UnaryOp,
     a: &crate::storage::WgpuStorage<T>,
     c: &mut crate::storage::WgpuStorage<T>,
@@ -362,8 +370,8 @@ fn try_hephaestus_contiguous_unary<T: WgpuScalar + hephaestus_wgpu::WgslScalar>(
     }
 }
 
-impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::ElementwiseOps<T>
-    for WgpuBackend
+impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>>
+    coeus_ops::ElementwiseOps<T> for WgpuBackend
 {
     #[inline]
     fn elementwise_binary(
@@ -438,8 +446,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
     }
 }
 
-impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::MatmulOps<T>
-    for WgpuBackend
+impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>>
+    coeus_ops::MatmulOps<T> for WgpuBackend
 {
     #[inline]
     fn matmul(
@@ -455,8 +463,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
     }
 }
 
-impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::ReductionOps<T>
-    for WgpuBackend
+impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>>
+    coeus_ops::ReductionOps<T> for WgpuBackend
 {
     #[inline]
     fn reduce(
@@ -473,8 +481,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
 }
 
 #[allow(clippy::too_many_arguments)]
-impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::ConvOps<T>
-    for WgpuBackend
+impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>>
+    coeus_ops::ConvOps<T> for WgpuBackend
 {
     #[inline]
     fn conv1d(
@@ -734,8 +742,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
 }
 
 #[allow(clippy::too_many_arguments)]
-impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::PoolOps<T>
-    for WgpuBackend
+impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>>
+    coeus_ops::PoolOps<T> for WgpuBackend
 {
     #[inline]
     fn max_pool2d(
@@ -1041,8 +1049,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
 }
 
 #[allow(clippy::too_many_arguments)]
-impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::AttentionOps<T>
-    for WgpuBackend
+impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>>
+    coeus_ops::AttentionOps<T> for WgpuBackend
 {
     #[inline]
     fn sdp_attention(
@@ -1122,8 +1130,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::
 }
 
 #[allow(clippy::too_many_arguments)]
-impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::WgslScalar> coeus_ops::OptimizerOps<T>
-    for WgpuBackend
+impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>>
+    coeus_ops::OptimizerOps<T> for WgpuBackend
 {
     #[inline]
     fn sgd_step(

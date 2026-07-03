@@ -7387,3 +7387,133 @@ def test_pairwise_distance_bwd_matches_pytorch() -> None:
     _F.pairwise_distance(a_t, b_t).sum().backward()
     _allclose("pdist_a_bwd", list(a_pyc.grad), a_t.grad.flatten().tolist(), atol=1e-9)
     _allclose("pdist_b_bwd", list(b_pyc.grad), b_t.grad.flatten().tolist(), atol=1e-9)
+
+
+# ---------------------------------------------------------------------------
+# MS-381-388: pool backward + topk backward + AvgPool2d/3d + EmbeddingBag
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "AvgPool2d"), reason="pycoeus.AvgPool2d not available")
+def test_avgpool2d_bwd_matches_pytorch() -> None:
+    """AvgPool2d(k=3, s=1) backward: uniform gradient distribution."""
+    import torch.nn as _nn
+    n, c, h, w = 2, 4, 8, 8
+    data = [float(i) * 0.05 - 0.5 for i in range(n * c * h * w)]
+    pool = pycoeus.AvgPool2d(kernel_size=3, stride=1)
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    pool.forward(x_pyc).backward()
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    _nn.AvgPool2d(kernel_size=3, stride=1)(x_t).sum().backward()
+    _allclose("avgpool2d_bwd_v2", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-9)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "MaxPool3d"), reason="pycoeus.MaxPool3d not available")
+def test_maxpool3d_bwd_matches_pytorch() -> None:
+    """MaxPool3d(k=2, s=2) backward: gradient at max positions."""
+    import torch.nn as _nn
+    n, c, d, h, w = 2, 4, 4, 4, 4
+    data = [float(i) * 0.04 - 0.8 for i in range(n * c * d * h * w)]
+    pool = pycoeus.MaxPool3d(kernel_size=2, stride=2)
+    x_pyc = pycoeus.Tensor(data, [n, c, d, h, w], requires_grad=True)
+    pool.forward(x_pyc).backward()
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, d, h, w).requires_grad_(True)
+    _nn.MaxPool3d(kernel_size=2, stride=2)(x_t).sum().backward()
+    _allclose("maxpool3d_bwd", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "topk"), reason="pycoeus.topk not available")
+def test_topk_bwd_largest_matches_pytorch() -> None:
+    """topk(k=3, largest=True) backward: scatter grad to top-3 positions."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [8], requires_grad=True)
+    vals, _ = pycoeus.topk(x_pyc, 3, 0, True)
+    vals.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.topk(t, 3, dim=0, largest=True).values.sum().backward()
+    _allclose("topk_lrg_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "topk"), reason="pycoeus.topk not available")
+def test_topk_bwd_smallest_matches_pytorch() -> None:
+    """topk(k=2, largest=False) backward: scatter grad to bottom-2 positions."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=True)
+    vals, _ = pycoeus.topk(x_pyc, 2, 0, False)
+    vals.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.topk(t, 2, dim=0, largest=False).values.sum().backward()
+    _allclose("topk_sml_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "topk"), reason="pycoeus.topk not available")
+def test_topk_bwd_dim1_matches_pytorch() -> None:
+    """topk(k=2, dim=1) backward: scatter grad along dim=1."""
+    data = [3.0, 1.0, 4.0, 2.0, 5.0, 0.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    vals, _ = pycoeus.topk(x_pyc, 2, 1, True)
+    vals.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    torch.topk(t, 2, dim=1, largest=True).values.sum().backward()
+    _allclose("topk_dim1_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "EmbeddingBag"), reason="pycoeus.EmbeddingBag not available")
+def test_embedding_bag_sum_bwd_matches_pytorch() -> None:
+    """EmbeddingBag(mode='sum') backward: grad accumulates at used indices."""
+    import torch.nn as _nn
+    vocab, dim = 8, 4
+    indices = [0, 2, 3, 1, 2, 5]
+    offsets = [0, 3]
+    embed = pycoeus.EmbeddingBag(num_embeddings=vocab, embedding_dim=dim, mode="sum")
+    params = embed.parameters()
+    w_data = [float(i) * 0.1 for i in range(vocab * dim)]
+    params[0].data = w_data
+    idx_pyc = pycoeus.Tensor([float(i) for i in indices], [6], requires_grad=False)
+    off_pyc = pycoeus.Tensor([float(i) for i in offsets], [2], requires_grad=False)
+    embed.forward(idx_pyc, off_pyc).backward()
+    embed_t = _nn.EmbeddingBag(vocab, dim, mode="sum", dtype=torch.float64)
+    with torch.no_grad():
+        embed_t.weight.copy_(torch.tensor(w_data, dtype=torch.float64).reshape(vocab, dim))
+    idx_t = torch.tensor(indices, dtype=torch.long)
+    off_t = torch.tensor(offsets, dtype=torch.long)
+    embed_t(idx_t, off_t).sum().backward()
+    _allclose("embag_w_grad", list(params[0].grad), embed_t.weight.grad.flatten().tolist(), atol=1e-9)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "AvgPool3d"), reason="pycoeus.AvgPool3d not available")
+def test_avgpool3d_bwd_matches_pytorch() -> None:
+    """AvgPool3d(k=2, s=2) backward: uniform gradient distribution."""
+    import torch.nn as _nn
+    n, c, d, h, w = 2, 2, 4, 4, 4
+    data = [float(i) * 0.03 - 0.3 for i in range(n * c * d * h * w)]
+    pool = pycoeus.AvgPool3d(kernel_size=2, stride=2)
+    x_pyc = pycoeus.Tensor(data, [n, c, d, h, w], requires_grad=True)
+    pool.forward(x_pyc).backward()
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, d, h, w).requires_grad_(True)
+    _nn.AvgPool3d(kernel_size=2, stride=2)(x_t).sum().backward()
+    _allclose("avgpool3d_bwd", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-9)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "broadcast_to"), reason="pycoeus.broadcast_to not available")
+def test_broadcast_to_bwd_matches_pytorch() -> None:
+    """broadcast_to backward: sum over broadcast dimensions."""
+    data = [1.0, 2.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [1, 3], requires_grad=True)
+    out_pyc = pycoeus.broadcast_to(x_pyc, [4, 3])
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(1, 3).requires_grad_(True)
+    torch.broadcast_to(t, (4, 3)).sum().backward()
+    _allclose("bcast_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "movedim"), reason="pycoeus.movedim not available")
+def test_movedim_bwd_matches_pytorch() -> None:
+    """movedim(0->2) backward: inverse permute of grad."""
+    data = [float(i) for i in range(24)]
+    x_pyc = pycoeus.Tensor(data, [2, 3, 4], requires_grad=True)
+    out_pyc = pycoeus.movedim(x_pyc, 0, 2)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3, 4).requires_grad_(True)
+    torch.movedim(t, 0, 2).sum().backward()
+    _allclose("movedim_bwd", list(x_pyc.grad), t.grad.flatten().tolist())

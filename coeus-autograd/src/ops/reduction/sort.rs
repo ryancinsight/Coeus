@@ -106,8 +106,7 @@ where
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let (sorted_vals, sort_indices) =
-        coeus_ops::sort(&input.tensor, dim, descending, &backend);
+    let (sorted_vals, sort_indices) = coeus_ops::sort(&input.tensor, dim, descending, &backend);
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
@@ -148,10 +147,7 @@ mod tests {
     #[test]
     fn sort_forward_and_backward_1d() {
         let data = vec![3.0f64, 1.0, 4.0, 1.0, 5.0];
-        let x = Var::<f64, MoiraiBackend>::new(
-            Tensor::from_slice([5], &data),
-            true,
-        );
+        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([5], &data), true);
         let (sorted, indices) = sort(&x, 0, false);
         // sorted ascending: [1, 1, 3, 4, 5]
         let s = sorted.tensor.as_slice().to_vec();
@@ -175,19 +171,13 @@ mod tests {
     #[test]
     fn sort_backward_dim1() {
         let data = vec![3.0f64, 1.0, 4.0, 2.0, 5.0, 0.0];
-        let x = Var::<f64, MoiraiBackend>::new(
-            Tensor::from_slice([2, 3], &data),
-            true,
-        );
+        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([2, 3], &data), true);
         let (sorted, _) = sort(&x, 1, false);
         sorted.backward();
         let dx = x.grad().unwrap();
         // Each element should receive exactly 1 gradient
         for v in dx.as_slice() {
-            assert!(
-                (*v - 1.0).abs() < 1e-12,
-                "expected grad 1.0, got {v}"
-            );
+            assert!((*v - 1.0).abs() < 1e-12, "expected grad 1.0, got {v}");
         }
     }
 }

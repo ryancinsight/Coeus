@@ -194,6 +194,30 @@ pub fn clamp(input: &PyTensor, min_val: f64, max_val: f64, py: Python<'_>) -> Py
 }
 
 #[pyfunction]
+pub fn scalar_mul(input: &PyTensor, scalar: f64, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::scalar_mul(&input.inner, scalar));
+    PyTensor { inner }
+}
+
+#[pyfunction]
+pub fn scalar_add(input: &PyTensor, scalar: f64, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::scalar_add(&input.inner, scalar));
+    PyTensor { inner }
+}
+
+#[pyfunction]
+pub fn scalar_div(input: &PyTensor, scalar: f64, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::scalar_div(&input.inner, scalar));
+    PyTensor { inner }
+}
+
+#[pyfunction]
+pub fn scalar_sub(input: &PyTensor, scalar: f64, py: Python<'_>) -> PyTensor {
+    let inner = py.allow_threads(|| coeus_autograd::scalar_sub(&input.inner, scalar));
+    PyTensor { inner }
+}
+
+#[pyfunction]
 pub fn pow(input: &PyTensor, exp: f64, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::pow(&input.inner, exp));
     PyTensor::from_var(inner)

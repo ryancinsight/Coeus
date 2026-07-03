@@ -199,6 +199,7 @@ pub use ops::{
     threshold,
     // Tile / repeat
     tile,
+    topk,
     transpose,
     transpose_2d,
     // Triangular masking
