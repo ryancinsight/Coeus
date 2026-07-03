@@ -178,9 +178,7 @@ impl HardswishOp {
 
 /// Functional Hardswish activation.
 #[inline]
-pub fn hardswish<T: Float, B: coeus_ops::BackendOps<T> + Default>(
-    input: &Var<T, B>,
-) -> Var<T, B> {
+pub fn hardswish<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
     coeus_autograd::hardswish(input)
 }
 
@@ -211,9 +209,7 @@ impl SoftsignOp {
 
 /// Functional Softsign activation.
 #[inline]
-pub fn softsign<T: Float, B: coeus_ops::BackendOps<T> + Default>(
-    input: &Var<T, B>,
-) -> Var<T, B> {
+pub fn softsign<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
     coeus_autograd::softsign(input)
 }
 
@@ -235,9 +231,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softsign 
 
 /// Functional Softplus activation.
 #[inline]
-pub fn softplus<T: Float, B: coeus_ops::BackendOps<T> + Default>(
-    input: &Var<T, B>,
-) -> Var<T, B> {
+pub fn softplus<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
     coeus_autograd::softplus(input)
 }
 
@@ -288,9 +282,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LogSigmoi
 ///
 /// Matches `torch.nn.functional.tanhshrink`.
 #[inline]
-pub fn tanhshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(
-    input: &Var<T, B>,
-) -> Var<T, B> {
+pub fn tanhshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
     coeus_autograd::sub(input, &coeus_autograd::tanh(input))
 }
 
