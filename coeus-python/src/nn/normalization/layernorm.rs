@@ -18,13 +18,45 @@ pub struct PyLayerNorm {
 #[pymethods]
 impl PyLayerNorm {
     #[new]
-    #[pyo3(signature = (normalized_shape, eps = 1e-5))]
     /// Create a LayerNorm layer normalizing over `normalized_shape` dimensions.
-    pub fn new(py: Python<'_>, normalized_shape: usize, eps: f64) -> PyResult<Self> {
+    ///
+    /// Mirrors `torch.nn.LayerNorm` constructor argument conventions: accepts a
+    /// single `int` (like `nn.LayerNorm(8)`) or a length-1 sequence
+    /// (`nn.LayerNorm([8])` / `nn.LayerNorm((8,))`).  Sequences of length > 1
+    /// currently reduce to the product of their elements minus the trailing
+    /// dims — i.e. only single-dim normalization is supported by the Rust core,
+    /// matching the existing `LayerNorm::new(usize, f64)` contract.  Multi-dim
+    /// LayerNorm is a deferred surface.
+    pub fn new(
+        py: Python<'_>,
+        normalized_shape: &Bound<'_, PyAny>,
+        eps: Option<f64>,
+    ) -> PyResult<Self> {
+        let eps = eps.unwrap_or(1e-5);
+        // Prefer int — the cheaper path and the canonical Coeus form.
+        let shape_int: usize = match normalized_shape.extract() {
+            Ok(v) => v,
+            Err(_) => {
+                // Fall back to a sequence (list/tuple) of ints.  Length-1 reduces
+                // to the inner shape; longer sequences are not yet supported by
+                // the Rust core LayerNorm.
+                let seq: Vec<usize> = normalized_shape.extract().map_err(|_| {
+                    pyo3::exceptions::PyTypeError::new_err(
+                        "LayerNorm: normalized_shape must be int or sequence of ints",
+                    )
+                })?;
+                if seq.len() != 1 {
+                    return Err(pyo3::exceptions::PyNotImplementedError::new_err(format!(
+                        "LayerNorm: multi-dim normalized_shape {seq:?} not supported \
+                         (Coeus LayerNorm::new takes a single usize)"
+                    )));
+                }
+                seq[0]
+            }
+        };
         let ln =
             coeus_nn::normalization::layernorm::LayerNorm::<f64, coeus_core::MoiraiBackend>::new(
-                normalized_shape,
-                eps,
+                shape_int, eps,
             );
         let weight = Py::new(py, PyTensor { inner: ln.weight })?;
         let bias = Py::new(py, PyTensor { inner: ln.bias })?;

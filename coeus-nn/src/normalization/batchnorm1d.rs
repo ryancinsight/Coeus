@@ -124,6 +124,36 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for BatchNorm
     }
 
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+        // PyTorch `nn.BatchNorm1d` accepts both `[N, C]` and `[N, C, L]` inputs;
+        // the `[N, C]` form is the degenerate case `L = 1`.  Squeeze-unsqueeze via
+        // autograd-tracked `reshape` so the 2D path stays differentiable and the
+        // existing 3D kernel runs unchanged on the reshaped tensor.
+        let input_is_2d = input.tensor.ndim() == 2;
+        let upstream: Var<T, B> = if input_is_2d {
+            let n = input.tensor.shape()[0];
+            let c = input.tensor.shape()[1];
+            // [N, C] -> [N, C, 1]; preserve grad-creator by going through `reshape`.
+            coeus_autograd::reshape(input, vec![n, c, 1])
+        } else {
+            input.clone()
+        };
+        let out_3d = self.forward_3d(&upstream);
+        if input_is_2d {
+            let n = input.tensor.shape()[0];
+            let c = input.tensor.shape()[1];
+            // [N, C, 1] -> [N, C]; preserve grad-creator.
+            coeus_autograd::reshape(&out_3d, vec![n, c])
+        } else {
+            out_3d
+        }
+    }
+}
+
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm1d<T, B> {
+    /// 3D forward path: `[N, C, L] -> [N, C, L]`.  Separated from the `Module`
+    /// trait surface so the 2D-input adapter above can call it without going
+    /// through the trait vtable.
+    fn forward_3d(&self, input: &Var<T, B>) -> Var<T, B> {
         let n = input.tensor.shape()[0];
         let c = input.tensor.shape()[1];
         let l = input.tensor.shape()[2];

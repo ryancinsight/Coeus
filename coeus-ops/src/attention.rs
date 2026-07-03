@@ -79,6 +79,16 @@ pub fn scaled_dot_product_attention<T: Float, B: BackendOps<T> + Default>(
 /// Compute the backward pass of scaled dot-product attention.
 ///
 /// Accumulates gradients into the provided mutable tensors.
+///
+/// # Memory
+/// Each gradient buffer (`grad_q`, `grad_k`, `grad_v`) is **accumulated**
+/// (`+=`) by the backward kernel — existing values are preserved and gradient
+/// contributions are added on top. The caller is responsible for initialising
+/// the buffers to zero before the first backward pass (typically via
+/// `GradBuffer::new(Tensor::zeros_on(...))`).
+///
+/// This means the backward MUST NOT use `alloc_on` for these buffers: reading
+/// uninitialized memory before adding would produce incorrect gradients.
 #[allow(clippy::too_many_arguments)]
 pub fn scaled_dot_product_attention_backward<T: Float, B: BackendOps<T> + Default>(
     grad_out: &Tensor<T, B>,

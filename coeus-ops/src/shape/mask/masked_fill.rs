@@ -97,4 +97,3 @@ mod tests {
         assert_eq!(out.as_slice(), &[8.0, 8.0, 8.0, 8.0]);
     }
 }
-

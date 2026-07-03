@@ -6112,3 +6112,103 @@ def test_celu_bwd_alpha05_matches_pytorch() -> None:
     out_t.sum().backward()
     _allclose("celu_05_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
     _allclose("celu_05_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+# ---------------------------------------------------------------------------
+# add / mul_scalar / leaky_relu / glu / hardswish_bwd / max_pool3d shape
+# ---------------------------------------------------------------------------
+
+
+def test_add_fwd_bwd_matches_pytorch() -> None:
+    """a + b element-wise fwd+bwd via tensor + operator."""
+    a = [1.0, 2.0, 3.0, 4.0]
+    b = [0.5, 1.5, -1.0, 2.0]
+    a_pyc = pycoeus.Tensor(a, [4], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b, [4], requires_grad=True)
+    out_pyc = a_pyc + b_pyc
+    out_pyc.backward()
+    a_t = torch.tensor(a, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(b, dtype=torch.float64, requires_grad=True)
+    out_t = a_t + b_t
+    out_t.sum().backward()
+    _allclose("add_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("add_bwd_a", list(a_pyc.grad), a_t.grad.tolist())
+    _allclose("add_bwd_b", list(b_pyc.grad), b_t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "leaky_relu"), reason="pycoeus.leaky_relu not available")
+def test_leaky_relu_fwd_bwd_matches_pytorch() -> None:
+    """F.leaky_relu(x, negative_slope=0.1) fwd+bwd."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.leaky_relu(x_pyc, 0.1)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.leaky_relu(t, negative_slope=0.1)
+    out_t.sum().backward()
+    _allclose("lrelu_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("lrelu_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "glu"), reason="pycoeus.glu not available")
+def test_glu_fwd_bwd_matches_pytorch() -> None:
+    """F.glu(x, dim=-1) vs pycoeus.glu(x, dim=1), fwd+bwd."""
+    data = [float(i) * 0.5 for i in range(8)]
+    x_pyc = pycoeus.Tensor(data, [2, 4], requires_grad=True)
+    out_pyc = pycoeus.glu(x_pyc, 1)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 4).requires_grad_(True)
+    out_t = torch.nn.functional.glu(t, dim=1)
+    out_t.sum().backward()
+    _allclose("glu_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-12)
+    _allclose("glu_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "hardswish"), reason="pycoeus.hardswish not available")
+def test_hardswish_fwd_bwd_matches_pytorch() -> None:
+    """F.hardswish(x) fwd+bwd: piecewise linear-ish at boundary x=-3."""
+    data = [-4.0, -3.0, -1.5, 0.0, 1.5, 3.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [7], requires_grad=True)
+    out_pyc = pycoeus.hardswish(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.hardswish(t)
+    out_t.sum().backward()
+    _allclose("hardswish_fwd", list(out_pyc.data), out_t.detach().tolist())
+    _allclose("hardswish_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "hardsigmoid"), reason="pycoeus.hardsigmoid not available")
+def test_hardsigmoid_bwd_kink_matches_pytorch() -> None:
+    """hardsigmoid backward at kink points x=-3 and x=3 matches PyTorch."""
+    data = [-4.0, -3.0, 0.0, 3.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.hardsigmoid(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.hardsigmoid(t)
+    out_t.sum().backward()
+    _allclose("hardsig_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "MaxPool3d"), reason="pycoeus.MaxPool3d not available")
+def test_max_pool3d_output_shape_matches_pytorch() -> None:
+    """MaxPool3d(k=2,s=2) output shape [2,4,8,8,8] -> [2,4,4,4,4]."""
+    n, c, d, h, w = 2, 4, 8, 8, 8
+    data = [float(i) * 0.05 for i in range(n * c * d * h * w)]
+    pool = pycoeus.MaxPool3d(kernel_size=2, stride=2)
+    x_pyc = pycoeus.Tensor(data, [n, c, d, h, w], requires_grad=False)
+    out = pool.forward(x_pyc)
+    assert list(out.shape) == [n, c, 4, 4, 4], f"Expected [2,4,4,4,4] got {list(out.shape)}"
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "ConvTranspose1d"), reason="pycoeus.ConvTranspose1d not available")
+def test_conv_transpose1d_shape_matches_pytorch() -> None:
+    """ConvTranspose1d(4,8,k=3) output shape [2,4,10] -> [2,8,12]."""
+    n, c_in, l = 2, 4, 10
+    c_out, k = 8, 3
+    data = [float(i) * 0.01 for i in range(n * c_in * l)]
+    ct = pycoeus.ConvTranspose1d(in_channels=c_in, out_channels=c_out, kernel_size=k)
+    x_pyc = pycoeus.Tensor(data, [n, c_in, l], requires_grad=False)
+    out = ct.forward(x_pyc)
+    assert list(out.shape) == [n, c_out, l + k - 1], \
+        f"Expected {[n, c_out, 12]}, got {list(out.shape)}"

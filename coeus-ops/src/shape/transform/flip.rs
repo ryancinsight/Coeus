@@ -45,4 +45,3 @@ where
     let _ = backend;
     Tensor::from_slice(shape.to_vec(), &out_vec)
 }
-

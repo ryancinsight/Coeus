@@ -96,4 +96,3 @@ mod tests {
         let _ = broadcast_to(&input, &[3], &b);
     }
 }
-

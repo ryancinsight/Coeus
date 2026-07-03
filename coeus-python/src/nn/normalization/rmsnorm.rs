@@ -15,12 +15,37 @@ pub struct PyRMSNorm {
 #[pymethods]
 impl PyRMSNorm {
     #[new]
-    #[pyo3(signature = (normalized_shape, eps = 1e-8))]
     /// Create an RMSNorm layer normalizing over `normalized_shape` dimensions.
-    pub fn new(py: Python<'_>, normalized_shape: usize, eps: f64) -> PyResult<Self> {
+    ///
+    /// Mirrors `torch.nn.RMSNorm`-style argument conventions (Coeus parallels
+    /// PyTorch numerics even where the upstream surface differs): accepts an
+    /// `int` (`RMSNorm(8)`) or a length-1 sequence (`RMSNorm([8])`).  Multi-dim
+    /// normalization is not supported by the Rust core; the binding reduces a
+    /// single-element sequence and rejects longer entries with NotImplementedError.
+    pub fn new(
+        py: Python<'_>,
+        normalized_shape: &Bound<'_, PyAny>,
+        eps: Option<f64>,
+    ) -> PyResult<Self> {
+        let eps = eps.unwrap_or(1e-8);
+        let shape_int: usize = match normalized_shape.extract() {
+            Ok(v) => v,
+            Err(_) => {
+                let seq: Vec<usize> = normalized_shape.extract().map_err(|_| {
+                    pyo3::exceptions::PyTypeError::new_err(
+                        "RMSNorm: normalized_shape must be int or sequence of ints",
+                    )
+                })?;
+                if seq.len() != 1 {
+                    return Err(pyo3::exceptions::PyNotImplementedError::new_err(format!(
+                        "RMSNorm: multi-dim normalized_shape {seq:?} not supported"
+                    )));
+                }
+                seq[0]
+            }
+        };
         let rms = coeus_nn::normalization::rmsnorm::RMSNorm::<f64, coeus_core::MoiraiBackend>::new(
-            normalized_shape,
-            eps,
+            shape_int, eps,
         );
         let weight = Py::new(py, PyTensor { inner: rms.weight })?;
         Ok(Self { weight, eps })

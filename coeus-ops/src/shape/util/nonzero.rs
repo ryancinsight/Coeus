@@ -76,4 +76,3 @@ mod tests {
         assert_eq!(out.as_slice(), &[0.0]);
     }
 }
-
