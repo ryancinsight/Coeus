@@ -2373,3 +2373,29 @@ def test_log_softmax_dim0_matches_jax() -> None:
     t = jnp.array(data, dtype=jnp.float64).reshape(2, 3)
     exp = jax.nn.log_softmax(t, axis=0)
     _allclose("lsm_dim0", list(got.data), jnp.ravel(exp).tolist(), atol=1e-12)
+
+# ---------------------------------------------------------------------------
+# elu / selu / log_sigmoid parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "elu"), reason="pycoeus.elu not available")
+def test_elu_matches_jax() -> None:
+    """jax.nn.elu(x) vs pycoeus.elu(x) (alpha fixed at 1.0)."""
+    import jax.nn
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.elu(x_pyc)
+    exp = jax.nn.elu(jnp.array(data, dtype=jnp.float64))
+    _allclose("elu", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "selu"), reason="pycoeus.selu not available")
+def test_selu_matches_jax() -> None:
+    """jax.nn.selu(x) vs pycoeus.selu(x)."""
+    import jax.nn
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.selu(x_pyc)
+    exp = jax.nn.selu(jnp.array(data, dtype=jnp.float64))
+    _allclose("selu", list(got.data), exp.tolist(), atol=1e-10)

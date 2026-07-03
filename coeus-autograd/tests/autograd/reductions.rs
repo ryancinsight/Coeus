@@ -376,6 +376,10 @@ fn test_prod_autograd_matches_analytic() {
     let gz = z.grad().unwrap();
     let gz = gz.as_slice();
     for (i, want) in [0.0, 6.0, 0.0].iter().enumerate() {
-        assert!((gz[i] - want).abs() < 1e-14, "zero dx[{i}]: {} vs {want}", gz[i]);
+        assert!(
+            (gz[i] - want).abs() < 1e-14,
+            "zero dx[{i}]: {} vs {want}",
+            gz[i]
+        );
     }
 }

@@ -81,6 +81,10 @@ where
 /// Adaptive max pooling for `[N, C, L]` → `[N, C, output_size]`.
 ///
 /// Equivalent to PyTorch `nn.AdaptiveMaxPool1d(output_size)`.
+///
+/// # Memory
+/// Output is `alloc_on` (uninitialized); every `[n, c, oi]` position is written
+/// exactly once by the loop — no zero-initialization overhead.
 pub fn adaptive_max_pool1d<T: Float, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     output_size: usize,
@@ -121,6 +125,10 @@ where
 ///
 /// Equivalent to PyTorch `nn.AdaptiveAvgPool2d((out_h, out_w))`.
 /// Uses `parallel_for` over (N×C) pairs on contiguous inputs.
+///
+/// # Memory
+/// Output is `alloc_on` (uninitialized); parallel_for writes every `(oh, ow)`
+/// position — no zero-initialization overhead.
 pub fn adaptive_avg_pool2d<T: Float, B: BackendOps<T> + Default + Backend>(
     input: &Tensor<T, B>,
     out_h: usize,
@@ -183,6 +191,10 @@ where
 ///
 /// Equivalent to PyTorch `nn.AdaptiveMaxPool2d((out_h, out_w))`.
 /// Uses `parallel_for` over (N×C) pairs on contiguous inputs.
+///
+/// # Memory
+/// Output is `alloc_on` (uninitialized); parallel_for writes every position
+/// exactly once — no zero-initialization overhead.
 pub fn adaptive_max_pool2d<T: Float, B: BackendOps<T> + Default + Backend>(
     input: &Tensor<T, B>,
     out_h: usize,

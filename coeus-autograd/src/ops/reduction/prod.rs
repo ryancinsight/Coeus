@@ -68,8 +68,7 @@ where
                 acc = acc * xs[i];
             }
 
-            let gi_increment =
-                Tensor::from_slice(self.input_saved.shape_cloned(), &gi);
+            let gi_increment = Tensor::from_slice(self.input_saved.shape_cloned(), &gi);
             let gl = g.write();
             coeus_ops::add_assign(gl, &gi_increment, &backend);
         }
@@ -91,7 +90,10 @@ where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
-    assert!(input.tensor.numel() > 0, "prod: empty tensors have no product");
+    assert!(
+        input.tensor.numel() > 0,
+        "prod: empty tensors have no product"
+    );
     let backend = B::default();
     let value = coeus_ops::prod(&input.tensor, &backend);
     let out_tensor = Tensor::from_slice_on(vec![1], &[value], &backend);
