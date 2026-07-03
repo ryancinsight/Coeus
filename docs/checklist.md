@@ -2,6 +2,14 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
+### Current Sprint: MS-243 - cumprod backward zero decomposition fix [COMPLETE]
+- [x] [patch] Replaced naive suffix-sum cumprod backward (NaN at zeros) with
+  exact O(n) first/second-zero decomposition. Added
+  `test_cumprod_backward_exact_at_zeros` (zero-free, one-zero, two-zero) at f64.
+- [x] [patch] Fixed `clippy::default_constructed_unit_structs` in nn_bench.rs.
+- [x] Evidence: `cargo fmt --check` clean; `cargo clippy` clean; `cargo nextest
+  run` 465/465 passed; doctests 8/8; doc clean. Commit `ff2f45c` pushed to main.
+
 ### Current Sprint: MS-237 - special-function unary parity [COMPLETE]
 - [x] [patch] Replaced Coeus' local `erf` approximation path with Eunomia's
   `FloatElement::{erf,erfc,lgamma}` surface for float scalars and extended

@@ -28,6 +28,24 @@
 - [ ] [patch] G-043: Expand the Coeus-vs-Burn/PyTorch benchmark/parity manifest
   so every implemented NN family has an explicit measurement or differential
   row.
+## Sprint MS-243: cumprod backward zero decomposition fix [COMPLETE]
+
+- [x] [patch] Replaced the naive suffix-sum cumprod backward that produced NaN at
+  zero positions with an exact O(n) first/second-zero decomposition. Each line's
+  backward splits into three regimes: before first zero (standard suffix-sum),
+  at first zero (prefix product times suffix product up to second zero), and
+  after first zero (zero gradient).
+- [x] [patch] Added `test_cumprod_backward_exact_at_zeros` with analytical
+  oracles for zero-free, one-zero, and two-zero lines at f64, atol=1e-14.
+- [x] [patch] Fixed `clippy::default_constructed_unit_structs` warnings in
+  `coeus-nn/benches/nn_bench.rs` (`SequentialBackend`/`MoiraiBackend`).
+- [x] Evidence: `cargo fmt --check` clean; `cargo clippy -p coeus-autograd
+  -p coeus-nn -p coeus-python --all-targets --all-features -- -D warnings`
+  clean; `cargo nextest run -p coeus-autograd -p coeus-nn` 465/465 passed;
+  `cargo test --doc -p coeus-autograd -p coeus-nn` 8/8 passed;
+  `cargo doc --no-deps -p coeus-autograd -p coeus-nn -p coeus-python` clean.
+  Committed `ff2f45c`, pushed to main.
+
 ## Sprint MS-221: FFT ownership move to coeus-fft [COMPLETE]
 
 - [x] [arch] Moved the Apollo-backed FFT autograd out of `coeus-autograd`
