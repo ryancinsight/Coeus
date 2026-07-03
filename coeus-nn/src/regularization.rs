@@ -267,7 +267,8 @@ impl LocalResponseNorm {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LocalResponseNorm
+impl<T: Float + std::ops::Neg<Output = T>, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for LocalResponseNorm
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,

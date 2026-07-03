@@ -3,8 +3,9 @@ use super::UnaryAutogradOp;
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, FloatOps, Scalar};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatOps, Scalar};
 use coeus_tensor::Tensor;
+use std::ops::Neg;
 use std::sync::Arc;
 
 // ── NegOp ──────────────────────────────────────────────────────────────────
@@ -148,7 +149,11 @@ pub struct PowNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub exp_bits: u64,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for PowNode<T, B> {
+impl<T: Float + Neg<Output = T>, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+    for PowNode<T, B>
+where
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
     #[inline]
     fn op_name(&self) -> &'static str {
         "pow"
@@ -164,16 +169,113 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Pow
 
     fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
         let backend = B::default();
-        if let Some(Some(ref g)) = input_grads.first() {
-            let exp = f64::from_bits(self.exp_bits);
-            let exp_t = T::from_f64(exp);
+        let Some(Some(ref g)) = input_grads.first() else {
+            return;
+        };
+
+        let exp = f64::from_bits(self.exp_bits);
+        let exp_t = T::from_f64(exp);
+        let n = self.input_tensor.numel();
+        if n == 0 {
+            return;
+        }
+
+        // Host-side copy of upstream gradient.
+        let temp_grad;
+        let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
+            grad_out
+        } else {
+            temp_grad = grad_out.to_contiguous_on(&backend);
+            &temp_grad
+        };
+        let mut grad_host = vec![T::zero(); n];
+        backend.copy_to_host(grad_cont.storage(), &mut grad_host);
+
+        // Host-side copy of forward input.
+        let input_contig =
+            if self.input_tensor.is_contiguous() && self.input_tensor.layout().offset() == 0 {
+                self.input_tensor.reshape([n])
+            } else {
+                self.input_tensor.to_contiguous_on(&backend).reshape([n])
+            };
+        let mut x_host = vec![T::zero(); n];
+        backend.copy_to_host(input_contig.storage(), &mut x_host);
+
+        // Decide whether `exp` is integer-valued in T.  When it is, the
+        // PyTorch `Tensor.pow(scalar)` contract is sign-preserving integer power:
+        //   (-x)^k = (-1)^k * x^k  (odd k negates, even k preserves).
+        //   For k = 0 the result is 1 and d/dx = 0.
+        // When `exp` is fractional, PyTorch follows IEEE: pow(x, p) = NaN
+        // for x < 0; backward `n · x^(n-1)` mirrors that (NaN where x < 0).
+        let exp_is_int = exp_t.is_integer();
+        let exp_i = (exp as i64) as i32;
+
+        let mut grad_in_host = vec![T::zero(); n];
+        let one = T::one();
+
+        if exp_is_int && exp_i == 0 {
+            // x^0 = 1 → d/dx = 0; grad contribution is zero everywhere.
+        } else if exp_is_int && exp_i > 0 {
+            // d/dx x^k = k · x^(k-1).  Sign-preserving integer power:
+            //   x^(k-1) = sign(x)^(k-1) · |x|^(k-1).
+            // When k is odd, k-1 is even → sign^(k-1) = +1 (always non-negative).
+            // When k is even, k-1 is odd  → sign^(k-1) = sign(x) (local grad may
+            // change sign with x).
+            let k = exp_i;
+            let coef = exp_t;
+            let k_m1 = (k - 1) as u32;
+            let k_m1_odd = (k_m1 & 1) == 1;
+            for i in 0..n {
+                let x = x_host[i];
+                if x == T::zero() {
+                    // k = 1: d/dx x = 1; else x = 0 → grad = 0 (k > 1).
+                    if k == 1 {
+                        grad_in_host[i] = grad_host[i] * coef;
+                    }
+                    continue;
+                }
+                let abs_x = x.abs();
+                let abs_pow_m1 = int_pow_positive(abs_x, k_m1);
+                let local = if k_m1_odd {
+                    // k-1 odd → sign(x) factor: x^(k-1) carries sign(x).
+                    let sgn = if x < T::zero() { -one } else { one };
+                    coef * sgn * abs_pow_m1
+                } else {
+                    // k-1 even → x^(k-1) is always non-negative.
+                    coef * abs_pow_m1
+                };
+                grad_in_host[i] = grad_host[i] * local;
+            }
+        } else if exp_is_int && exp_i < 0 {
+            // d/dx x^(-k) = -k · x^(-k-1) = -k / x^(k+1) (sign-preserving).
+            // Denominator sign follows (k+1) parity on x.
+            let k = (-exp_i) as u32;
+            let neg_coef = -exp_t;
+            let exp_total = k + 1;
+            let exp_total_odd = (exp_total & 1) == 1;
+            for i in 0..n {
+                let x = x_host[i];
+                if x == T::zero() {
+                    // 1/0 = inf or NaN; PyTorch yields inf.  Leave as zero
+                    // since `grad_host[i] * NaN` would taint the accumulator.
+                    continue;
+                }
+                let abs_x = x.abs();
+                let denom_abs = int_pow_positive(abs_x, exp_total);
+                let denom = if exp_total_odd {
+                    let sgn = if x < T::zero() { -one } else { one };
+                    sgn * denom_abs
+                } else {
+                    denom_abs
+                };
+                let local = neg_coef / denom;
+                grad_in_host[i] = grad_host[i] * local;
+            }
+        } else {
+            // Fractional exponent path: compose with ln/exp so shape / device
+            // multiplication is preserved via the backend dispatch.  For x < 0,
+            // `ln(x)` propagates NaN (matches PyTorch IEEE).
             let exp_m1 = exp - 1.0;
-            // d/dx x^n = n · x^(n-1)
-            // Compute x^(n-1) element-wise in native precision via ln/exp:
-            //   x^(n-1) = exp((n-1) * ln(x))   for x > 0
-            // For integer exponents or small n, this is the standard path.
-            // A future optimization can use a dedicated pow kernel; for now
-            // this composes existing backend primitives at zero cost.
             let ln_x = coeus_ops::log(&self.input_tensor, &backend);
             let scaled = {
                 let scale = Tensor::full_on(ln_x.shape(), T::from_f64(exp_m1), &backend);
@@ -185,8 +287,34 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Pow
             let grad_in = coeus_ops::mul(grad_out, &local_grad, &backend);
             let lock = g.write();
             coeus_ops::add_assign(lock, &grad_in, &backend);
+            return;
         }
+
+        let grad_t = Tensor::from_slice(self.input_tensor.shape().to_vec(), &grad_in_host);
+        let lock = g.write();
+        coeus_ops::add_assign(lock, &grad_t, &backend);
     }
+}
+
+/// Repeated-squaring integer power in the native precision of `T`.
+///
+/// No widening, no `powf` fallback — straight `mul` in `T` so the integer-exponent
+/// branch stays bit-identical to a hand-rolled `x^k = x·x·…·x`.  Exponent `0`
+/// returns `T::one()`.  Used only on magnitude `|x| ≥ 0`; sign is applied by the
+/// caller per the parity convention (`(-x)^k` is sign-preserving).
+#[inline]
+fn int_pow_positive<T: Float>(x: T, k: u32) -> T {
+    let mut acc = T::one();
+    let mut base = x;
+    let mut e = k;
+    while e > 0 {
+        if (e & 1) == 1 {
+            acc = acc * base;
+        }
+        base = base * base;
+        e >>= 1;
+    }
+    acc
 }
 
 /// Tracked element-wise power: `y = x ^ exp`.
@@ -194,20 +322,98 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Pow
 /// `exp` is an `f64` scalar applied uniformly to all elements.
 /// Backward: `d/dx x^n = n · x^(n−1)`.
 ///
+/// # Parity contract
+///
+/// Matches `torch.Tensor.pow(scalar)` semantics:
+/// - When `exp` is integer-valued in `T` (i.e. `T::from_f64(exp).is_integer()`),
+///   the forward is a sign-preserving integer power `(-x)^k = (-1)^k · x^k`,
+///   with `x = 0` mapping to `1` when `k = 0`, to `0` when `k > 0`, and to
+///   `+inf` when `k < 0` (delegated to PyTorch's IEEE-compliant convention).
+/// - Otherwise forward composes `exp(n · ln(x))` (NaN for `x < 0`, IEEE).
+///
 /// # Precision
 /// Forward and backward execute in the native precision of `T` without widening.
-/// The exponent is converted once via `T::from_f64(exp)`.
+/// The exponent is converted once via `T::from_f64(exp)`; the integer-exponent
+/// branch uses repeated multiplication in `T` (no `powf` fallback).
 #[must_use]
 #[inline]
-pub fn pow<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>, exp: f64) -> Var<T, B> {
+pub fn pow<T: Float + Neg<Output = T>, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    exp: f64,
+) -> Var<T, B>
+where
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
     let backend = B::default();
     let exp_t = T::from_f64(exp);
 
-    // Forward: x^n = exp(n * ln(x))
-    let ln_x = coeus_ops::log(&a.tensor, &backend);
-    let n_tensor = Tensor::full_on(ln_x.shape(), exp_t, &backend);
-    let scaled = coeus_ops::mul(&n_tensor, &ln_x, &backend);
-    let out_tensor = coeus_ops::exp(&scaled, &backend);
+    let n = a.tensor.numel();
+    let out_tensor = if exp_t.is_integer() && n > 0 {
+        // Host-fold sign-preserving integer power.
+        let input_contig = if a.tensor.is_contiguous() && a.tensor.layout().offset() == 0 {
+            a.tensor.reshape([n])
+        } else {
+            a.tensor.to_contiguous_on(&backend).reshape([n])
+        };
+        let mut x_host = vec![T::zero(); n];
+        backend.copy_to_host(input_contig.storage(), &mut x_host);
+
+        let exp_i = (exp as i64) as i32;
+        let one = T::one();
+        let mut out_host = vec![T::zero(); n];
+        if exp_i == 0 {
+            for v in &mut out_host {
+                *v = one;
+            }
+        } else if exp_i > 0 {
+            let k = exp_i as u32;
+            for i in 0..n {
+                let x = x_host[i];
+                if x == T::zero() {
+                    // x^0 = 1 already handled above; x^k for k > 0 is 0.
+                    out_host[i] = T::zero();
+                    continue;
+                }
+                let abs_x = x.abs();
+                let abs_pow = int_pow_positive(abs_x, k);
+                out_host[i] = if (k & 1) == 1 {
+                    let sgn = if x < T::zero() { -one } else { one };
+                    sgn * abs_pow
+                } else {
+                    abs_pow
+                };
+            }
+        } else {
+            // exp_i < 0: x^(-k) = 1 / x^k with sign preservation.
+            let k = (-exp_i) as u32;
+            for i in 0..n {
+                let x = x_host[i];
+                if x == T::zero() {
+                    // 1/0 → +inf per PyTorch IEEE; emit +inf to mirror that
+                    // (avoids NaN from sign*0 division).
+                    out_host[i] = T::INFINITY;
+                    continue;
+                }
+                let abs_x = x.abs();
+                let denom_abs = int_pow_positive(abs_x, k);
+                let denom = if (k & 1) == 1 {
+                    let sgn = if x < T::zero() { -one } else { one };
+                    sgn * denom_abs
+                } else {
+                    denom_abs
+                };
+                out_host[i] = one / denom;
+            }
+        }
+        Tensor::from_slice(a.tensor.shape().to_vec(), &out_host)
+    } else {
+        // Fractional exponent path: x^n = exp(n · ln(x)).  NaN for x ≤ 0
+        // (IEEE) is preserved by `ln(x)` propagation through the backend.
+        let ln_x = coeus_ops::log(&a.tensor, &backend);
+        let n_tensor = Tensor::full_on(ln_x.shape(), exp_t, &backend);
+        let scaled = coeus_ops::mul(&n_tensor, &ln_x, &backend);
+        coeus_ops::exp(&scaled, &backend)
+    };
 
     let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = if requires_grad {

@@ -2345,3 +2345,31 @@ def test_reshape_matches_jax() -> None:
     t = jnp.array(data, dtype=jnp.float64).reshape(2, 6)
     exp = jnp.reshape(t, (3, 4))
     _allclose("reshape", list(got.data), jnp.ravel(exp).tolist())
+
+# ---------------------------------------------------------------------------
+# scatter parity (JAX scatter_add equivalent)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "lgamma"), reason="pycoeus.lgamma not available")
+def test_lgamma_matches_jax() -> None:
+    """jax.scipy.special.gammaln(x) vs pycoeus.lgamma(x)."""
+    import jax.scipy.special
+    data = [0.5, 1.0, 2.0, 3.0, 5.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.lgamma(x_pyc)
+    t = jnp.array(data, dtype=jnp.float64)
+    exp = jax.scipy.special.gammaln(t)
+    _allclose("lgamma", list(got.data), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log_softmax"), reason="pycoeus.log_softmax not available")
+def test_log_softmax_dim0_matches_jax() -> None:
+    """jax.nn.log_softmax(x, axis=0) vs pycoeus.log_softmax(x, 0)."""
+    import jax.nn
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=False)
+    got = pycoeus.log_softmax(x_pyc, 0)
+    t = jnp.array(data, dtype=jnp.float64).reshape(2, 3)
+    exp = jax.nn.log_softmax(t, axis=0)
+    _allclose("lsm_dim0", list(got.data), jnp.ravel(exp).tolist(), atol=1e-12)
