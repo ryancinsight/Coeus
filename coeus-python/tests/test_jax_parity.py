@@ -2667,3 +2667,46 @@ def test_cumprod_bwd_matches_jax() -> None:
     grad_fn = jax.grad(lambda x: jnp.sum(jnp.cumprod(x)))
     exp = grad_fn(jnp.array(data, dtype=jnp.float64))
     _allclose("cumprod_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+# ---------------------------------------------------------------------------
+# atanh_bwd / expm1_bwd / log1p_bwd / erfc_bwd parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "atanh"), reason="pycoeus.atanh not available")
+def test_atanh_bwd_matches_jax() -> None:
+    """jax.grad atanh vs pycoeus atanh backward."""
+    import jax
+    data = [-0.9, -0.5, 0.0, 0.5, 0.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.atanh(x_pyc)
+    out_pyc.backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.arctanh(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("atanh_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "expm1"), reason="pycoeus.expm1 not available")
+def test_expm1_bwd_matches_jax() -> None:
+    """jax.grad expm1 vs pycoeus expm1 backward."""
+    import jax
+    data = [-1.0, -0.5, 0.0, 0.5, 1.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.expm1(x_pyc)
+    out_pyc.backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.expm1(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("expm1_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log1p"), reason="pycoeus.log1p not available")
+def test_log1p_bwd_matches_jax() -> None:
+    """jax.grad log1p vs pycoeus log1p backward."""
+    import jax
+    data = [-0.5, 0.0, 0.5, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.log1p(x_pyc)
+    out_pyc.backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.log1p(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("log1p_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-12)

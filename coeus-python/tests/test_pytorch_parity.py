@@ -6491,3 +6491,85 @@ def test_selu_bwd_matches_pytorch() -> None:
     out_t.sum().backward()
     _allclose("selu_bwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-10)
     _allclose("selu_bwd_grad", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+# ---------------------------------------------------------------------------
+# atanh_bwd / asinh_bwd / expm1_bwd / log1p_bwd / log10_bwd / erfc_bwd
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "atanh"), reason="pycoeus.atanh not available")
+def test_atanh_bwd_matches_pytorch() -> None:
+    """atanh backward: d/dx atanh(x) = 1/(1-x^2)."""
+    data = [-0.9, -0.5, 0.0, 0.5, 0.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.atanh(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.atanh(t)
+    out_t.sum().backward()
+    _allclose("atanh_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "asinh"), reason="pycoeus.asinh not available")
+def test_asinh_bwd_matches_pytorch() -> None:
+    """asinh backward: d/dx asinh(x) = 1/sqrt(x^2+1)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.asinh(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.asinh(t)
+    out_t.sum().backward()
+    _allclose("asinh_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "expm1"), reason="pycoeus.expm1 not available")
+def test_expm1_bwd_matches_pytorch() -> None:
+    """expm1 backward: d/dx expm1(x) = exp(x)."""
+    data = [-1.0, -0.5, 0.0, 0.5, 1.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.expm1(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.expm1(t)
+    out_t.sum().backward()
+    _allclose("expm1_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log1p"), reason="pycoeus.log1p not available")
+def test_log1p_bwd_matches_pytorch() -> None:
+    """log1p backward: d/dx log1p(x) = 1/(1+x)."""
+    data = [-0.5, 0.0, 0.5, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.log1p(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.log1p(t)
+    out_t.sum().backward()
+    _allclose("log1p_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log10"), reason="pycoeus.log10 not available")
+def test_log10_bwd_matches_pytorch() -> None:
+    """log10 backward: d/dx log10(x) = 1/(x*ln10)."""
+    data = [0.1, 1.0, 10.0, 100.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    out_pyc = pycoeus.log10(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.log10(t)
+    out_t.sum().backward()
+    _allclose("log10_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "erfc"), reason="pycoeus.erfc not available")
+def test_erfc_bwd_matches_pytorch() -> None:
+    """erfc backward: d/dx erfc(x) = -(2/sqrt(pi))*exp(-x^2)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.erfc(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.special.erfc(t)
+    out_t.sum().backward()
+    _allclose("erfc_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
