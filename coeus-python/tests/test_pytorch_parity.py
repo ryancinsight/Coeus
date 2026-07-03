@@ -5442,6 +5442,19 @@ def test_sum_axis_matches_pytorch() -> None:
     _allclose("sum_axis_fwd", list(out_pyc.data), out_t.detach().tolist())
     _allclose("sum_axis_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
 
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sum_axis"), reason="pycoeus.sum_axis not available")
+def test_sum_axis_bwd_dim1_matches_pytorch() -> None:
+    """sum_axis(dim=1) backward broadcasts ones along reduced dim."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    out_pyc = pycoeus.sum_axis(x_pyc, 1)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    out_t = torch.sum(t, dim=1, keepdim=False)
+    out_t.sum().backward()
+    _allclose("sum_axis_bwd1", list(x_pyc.grad), t.grad.flatten().tolist())
+
 # ---------------------------------------------------------------------------
 # mean_axis / max_axis / min_axis / reshape / permute parity
 # ---------------------------------------------------------------------------
@@ -6843,3 +6856,190 @@ def test_sum_axis_bwd_matches_pytorch() -> None:
     out_t = torch.sum(t, dim=0, keepdim=False)
     out_t.sum().backward()
     _allclose("sum_axis_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+# ---------------------------------------------------------------------------
+# MS-354-360: backward parity for shape / loss ops
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "flip"), reason="pycoeus.flip not available")
+def test_flip_bwd_matches_pytorch() -> None:
+    """flip(axis=1) backward: gradient is flipped back along the same axis."""
+    data = [float(i + 1) for i in range(12)]
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=True)
+    out_pyc = pycoeus.flip(x_pyc, 1)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 4).requires_grad_(True)
+    out_t = torch.flip(t, dims=[1])
+    out_t.sum().backward()
+    _allclose("flip_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "permute"), reason="pycoeus.permute not available")
+def test_permute_bwd_matches_pytorch() -> None:
+    """permute (0,2,1) backward: gradient is inverse-permuted."""
+    data = [float(i) * 0.1 for i in range(24)]
+    x_pyc = pycoeus.Tensor(data, [2, 4, 3], requires_grad=True)
+    out_pyc = pycoeus.permute(x_pyc, [0, 2, 1])
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 4, 3).requires_grad_(True)
+    out_t = t.permute(0, 2, 1)
+    out_t.sum().backward()
+    _allclose("permute_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "tile"), reason="pycoeus.tile not available")
+def test_tile_bwd_matches_pytorch() -> None:
+    """tile([2,3]) backward: gradient sums over repeated tiles."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    out_pyc = pycoeus.tile(x_pyc, [2, 3])
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    out_t = torch.tile(t, (2, 3))
+    out_t.sum().backward()
+    _allclose("tile_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "where_cond"), reason="pycoeus.where_cond not available")
+def test_where_cond_bwd_matches_pytorch() -> None:
+    """where_cond backward: gradient flows only to selected branch."""
+    cond = [1.0, 0.0, 1.0, 0.0]
+    a_data = [2.0, 4.0, 6.0, 8.0]
+    b_data = [1.0, 3.0, 5.0, 7.0]
+    cond_pyc = pycoeus.Tensor(cond, [4], requires_grad=False)
+    a_pyc = pycoeus.Tensor(a_data, [4], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b_data, [4], requires_grad=True)
+    out_pyc = pycoeus.where_cond(cond_pyc, a_pyc, b_pyc)
+    out_pyc.backward()
+    cond_t = torch.tensor(cond, dtype=torch.float64).bool()
+    a_t = torch.tensor(a_data, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(b_data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.where(cond_t, a_t, b_t)
+    out_t.sum().backward()
+    _allclose("where_a_bwd", list(a_pyc.grad), a_t.grad.flatten().tolist())
+    _allclose("where_b_bwd", list(b_pyc.grad), b_t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "l1_loss"), reason="pycoeus.l1_loss not available")
+def test_l1_loss_bwd_matches_pytorch() -> None:
+    """l1_loss backward: sign(pred - target) / n."""
+    import torch.nn.functional as _F
+    pred = [1.5, -0.5, 2.0, 0.1]
+    tgt = [1.0, 0.0, 1.5, -0.2]
+    p_pyc = pycoeus.Tensor(pred, [4], requires_grad=True)
+    t_pyc = pycoeus.Tensor(tgt, [4], requires_grad=False)
+    pycoeus.l1_loss(p_pyc, t_pyc).backward()
+    p_t = torch.tensor(pred, dtype=torch.float64, requires_grad=True)
+    _F.l1_loss(p_t, torch.tensor(tgt, dtype=torch.float64)).backward()
+    _allclose("l1_bwd", list(p_pyc.grad), p_t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "bce_with_logits"), reason="pycoeus.bce_with_logits not available")
+def test_bce_with_logits_bwd_matches_pytorch() -> None:
+    """bce_with_logits backward: sigmoid(x) - target."""
+    import torch.nn.functional as _F
+    logits = [0.5, -1.0, 2.0, -0.3]
+    targets = [1.0, 0.0, 1.0, 0.0]
+    l_pyc = pycoeus.Tensor(logits, [4], requires_grad=True)
+    t_pyc = pycoeus.Tensor(targets, [4], requires_grad=False)
+    pycoeus.bce_with_logits(l_pyc, t_pyc).backward()
+    l_t = torch.tensor(logits, dtype=torch.float64, requires_grad=True)
+    _F.binary_cross_entropy_with_logits(l_t, torch.tensor(targets, dtype=torch.float64)).backward()
+    _allclose("bce_wl_bwd", list(l_pyc.grad), l_t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "huber_loss"), reason="pycoeus.huber_loss not available")
+def test_huber_loss_bwd_delta05_matches_pytorch() -> None:
+    """huber_loss(delta=0.5) backward: both quadratic and linear regions."""
+    import torch.nn.functional as _F
+    pred = [0.1, 1.0, -0.5, 2.5]
+    tgt = [0.0, 0.0, 0.0, 0.0]
+    p_pyc = pycoeus.Tensor(pred, [4], requires_grad=True)
+    t_pyc = pycoeus.Tensor(tgt, [4], requires_grad=False)
+    pycoeus.huber_loss(p_pyc, t_pyc, 0.5).backward()
+    p_t = torch.tensor(pred, dtype=torch.float64, requires_grad=True)
+    _F.huber_loss(p_t, torch.tensor(tgt, dtype=torch.float64), delta=0.5).backward()
+    _allclose("huber05_bwd", list(p_pyc.grad), p_t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "kl_divergence"), reason="pycoeus.kl_divergence not available")
+def test_kl_div_bwd_matches_pytorch() -> None:
+    """kl_divergence backward: -target / exp(input) (log-input convention)."""
+    import math
+    import torch.nn.functional as _F
+    inp = [math.log(0.3), math.log(0.4), math.log(0.3)]
+    tgt = [0.2, 0.5, 0.3]
+    i_pyc = pycoeus.Tensor(inp, [3], requires_grad=True)
+    t_pyc = pycoeus.Tensor(tgt, [3], requires_grad=False)
+    pycoeus.kl_divergence(i_pyc, t_pyc).backward()
+    i_t = torch.tensor(inp, dtype=torch.float64, requires_grad=True)
+    _F.kl_div(i_t, torch.tensor(tgt, dtype=torch.float64), reduction="sum").backward()
+    _allclose("kl_bwd", list(i_pyc.grad), i_t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "diag"), reason="pycoeus.diag not available")
+def test_diag_bwd_matches_pytorch() -> None:
+    """diag embed 1D->2D backward: gradient extracts the diagonal."""
+    data = [1.0, 2.0, 3.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    out_pyc = pycoeus.diag(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.diag(t).sum().backward()
+    _allclose("diag_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "poisson_nll"), reason="pycoeus.poisson_nll not available")
+def test_poisson_nll_bwd_matches_pytorch() -> None:
+    """poisson_nll backward: exp(input) - target (log-space mean)."""
+    import torch.nn.functional as _F
+    inp = [0.5, 1.0, 0.2, -0.3]
+    tgt = [1.0, 2.0, 0.5, 0.8]
+    i_pyc = pycoeus.Tensor(inp, [4], requires_grad=True)
+    t_pyc = pycoeus.Tensor(tgt, [4], requires_grad=False)
+    pycoeus.poisson_nll(i_pyc, t_pyc).backward()
+    i_t = torch.tensor(inp, dtype=torch.float64, requires_grad=True)
+    _F.poisson_nll_loss(i_t, torch.tensor(tgt, dtype=torch.float64),
+                        log_input=True, full=False, reduction="mean").backward()
+    _allclose("poisson_nll_bwd", list(i_pyc.grad), i_t.grad.flatten().tolist(), atol=1e-9)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "soft_margin"), reason="pycoeus.soft_margin not available")
+def test_soft_margin_bwd_matches_pytorch() -> None:
+    """soft_margin_loss backward: -target * sigmoid(-target * input) / n."""
+    import torch.nn.functional as _F
+    inp = [0.8, -0.5, 1.2, -0.3]
+    tgt = [1.0, -1.0, 1.0, -1.0]
+    i_pyc = pycoeus.Tensor(inp, [4], requires_grad=True)
+    t_pyc = pycoeus.Tensor(tgt, [4], requires_grad=False)
+    pycoeus.soft_margin(i_pyc, t_pyc).backward()
+    i_t = torch.tensor(inp, dtype=torch.float64, requires_grad=True)
+    _F.soft_margin_loss(i_t, torch.tensor(tgt, dtype=torch.float64)).backward()
+    _allclose("soft_margin_bwd", list(i_pyc.grad), i_t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "Conv2d"), reason="pycoeus.Conv2d not available")
+def test_conv2d_weight_grad_matches_pytorch() -> None:
+    """Conv2d(2,4,k=3) weight + input gradients match torch.nn.Conv2d."""
+    import torch.nn as _nn
+    in_c, out_c, k = 2, 4, 3
+    h, w, batch = 8, 8, 2
+    inp = [float(i) * 0.01 for i in range(batch * in_c * h * w)]
+    w_data = [float(i) * 0.02 - 0.5 for i in range(out_c * in_c * k * k)]
+    conv = pycoeus.Conv2d(in_channels=in_c, out_channels=out_c, kernel_size=k)
+    params = conv.parameters()
+    params[0].data = w_data
+    for p in params[1:]:
+        p.data = [0.0] * len(list(p.data))
+    x_pyc = pycoeus.Tensor(inp, [batch, in_c, h, w], requires_grad=True)
+    conv.forward(x_pyc).backward()
+    conv_t = _nn.Conv2d(in_c, out_c, k, bias=True, dtype=torch.float64)
+    with torch.no_grad():
+        conv_t.weight.copy_(torch.tensor(w_data, dtype=torch.float64).reshape(out_c, in_c, k, k))
+        conv_t.bias.zero_()
+    x_t = torch.tensor(inp, dtype=torch.float64).reshape(batch, in_c, h, w).requires_grad_(True)
+    conv_t(x_t).sum().backward()
+    _allclose("conv2d_w_grad", list(params[0].grad), conv_t.weight.grad.flatten().tolist(), atol=1e-6)
+    _allclose("conv2d_x_grad", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-6)

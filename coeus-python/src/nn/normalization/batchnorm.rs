@@ -25,6 +25,11 @@ pub struct PyBatchNorm1d {
     /// Exponential moving-average factor for running statistics.
     #[pyo3(get)]
     pub momentum: f64,
+    /// Training-mode flag: `forward` uses batch statistics and updates the
+    /// running stats when true, and normalizes with the frozen running stats
+    /// when false (PyTorch `Module.train`/`eval` contract).
+    #[pyo3(get)]
+    pub is_training: bool,
 }
 
 #[pymethods]
@@ -72,11 +77,29 @@ impl PyBatchNorm1d {
             num_features,
             eps,
             momentum,
+            is_training: true,
         })
+    }
+
+    /// Switch to training mode (batch statistics + running-stat updates).
+    #[pyo3(signature = (mode = true))]
+    pub fn train(&mut self, mode: bool) {
+        self.is_training = mode;
+    }
+
+    /// Switch to evaluation mode: `forward` uses the frozen running statistics
+    /// and stops updating them (`torch.nn.Module.eval`).
+    pub fn eval(&mut self) {
+        self.is_training = false;
     }
 
     /// Forward pass through the BatchNorm1d layer.
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+        // Eval mode normalizes with the frozen running statistics and does not
+        // update them (torch semantics); training mode uses batch statistics.
+        if !self.is_training {
+            return self.eval_forward(input, py);
+        }
         use coeus_nn::Module;
         let w_var = self.weight.bind(py).borrow().inner.clone();
         let b_var = self.bias.bind(py).borrow().inner.clone();
@@ -197,6 +220,11 @@ pub struct PyBatchNorm2d {
     /// Exponential moving-average factor for running statistics.
     #[pyo3(get)]
     pub momentum: f64,
+    /// Training-mode flag: `forward` uses batch statistics and updates the
+    /// running stats when true, and normalizes with the frozen running stats
+    /// when false (PyTorch `Module.train`/`eval` contract).
+    #[pyo3(get)]
+    pub is_training: bool,
 }
 
 #[pymethods]
@@ -244,11 +272,29 @@ impl PyBatchNorm2d {
             num_features,
             eps,
             momentum,
+            is_training: true,
         })
+    }
+
+    /// Switch to training mode (batch statistics + running-stat updates).
+    #[pyo3(signature = (mode = true))]
+    pub fn train(&mut self, mode: bool) {
+        self.is_training = mode;
+    }
+
+    /// Switch to evaluation mode: `forward` uses the frozen running statistics
+    /// and stops updating them (`torch.nn.Module.eval`).
+    pub fn eval(&mut self) {
+        self.is_training = false;
     }
 
     /// Forward pass through the BatchNorm2d layer (training mode, updates running stats).
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+        // Eval mode normalizes with the frozen running statistics and does not
+        // update them (torch semantics); training mode uses batch statistics.
+        if !self.is_training {
+            return self.eval_forward(input, py);
+        }
         use coeus_nn::Module;
         let w_var = self.weight.bind(py).borrow().inner.clone();
         let b_var = self.bias.bind(py).borrow().inner.clone();
@@ -371,6 +417,11 @@ pub struct PyBatchNorm3d {
     /// Exponential moving-average factor for running statistics.
     #[pyo3(get)]
     pub momentum: f64,
+    /// Training-mode flag: `forward` uses batch statistics and updates the
+    /// running stats when true, and normalizes with the frozen running stats
+    /// when false (PyTorch `Module.train`/`eval` contract).
+    #[pyo3(get)]
+    pub is_training: bool,
 }
 
 #[pymethods]
@@ -418,11 +469,29 @@ impl PyBatchNorm3d {
             num_features,
             eps,
             momentum,
+            is_training: true,
         })
+    }
+
+    /// Switch to training mode (batch statistics + running-stat updates).
+    #[pyo3(signature = (mode = true))]
+    pub fn train(&mut self, mode: bool) {
+        self.is_training = mode;
+    }
+
+    /// Switch to evaluation mode: `forward` uses the frozen running statistics
+    /// and stops updating them (`torch.nn.Module.eval`).
+    pub fn eval(&mut self) {
+        self.is_training = false;
     }
 
     /// Forward pass through the BatchNorm3d layer.
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
+        // Eval mode normalizes with the frozen running statistics and does not
+        // update them (torch semantics); training mode uses batch statistics.
+        if !self.is_training {
+            return self.eval_forward(input, py);
+        }
         use coeus_nn::Module;
         let w_var = self.weight.bind(py).borrow().inner.clone();
         let b_var = self.bias.bind(py).borrow().inner.clone();
