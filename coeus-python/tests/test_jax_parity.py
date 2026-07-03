@@ -2437,3 +2437,29 @@ def test_asin_matches_jax() -> None:
     got = pycoeus.asin(x_pyc)
     exp = jnp.arcsin(jnp.array(data, dtype=jnp.float64))
     _allclose("asin", list(got.data), exp.tolist(), atol=1e-12)
+
+# ---------------------------------------------------------------------------
+# mean / mul / sub / div parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "mean"), reason="pycoeus.mean not available")
+def test_mean_matches_jax() -> None:
+    """jnp.mean(x) vs pycoeus.mean(x)."""
+    data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=False)
+    got = pycoeus.mean(x_pyc)
+    exp = float(jnp.mean(jnp.array(data, dtype=jnp.float64)))
+    _allclose("mean", list(got.data), [exp])
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "mul"), reason="pycoeus.mul not available")
+def test_mul_matches_jax() -> None:
+    """jnp.multiply(a, b) vs pycoeus.mul(a, b)."""
+    a = [1.0, 2.0, 3.0, 4.0]
+    b = [2.0, 0.5, -1.0, 3.0]
+    a_pyc = pycoeus.Tensor(a, [4], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [4], requires_grad=False)
+    got = pycoeus.mul(a_pyc, b_pyc)
+    exp = jnp.multiply(jnp.array(a, dtype=jnp.float64), jnp.array(b, dtype=jnp.float64))
+    _allclose("mul", list(got.data), exp.tolist())
