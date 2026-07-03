@@ -6881,7 +6881,10 @@ fn bench_sort_backward(c: &mut Criterion) {
     );
     let mut group = c.benchmark_group("Burn vs Coeus - sort(dim=1) fwd+bwd (128x256)");
     group.bench_function("Burn NdArray", |b| {
-        b.iter(|| { let s = x_burn.clone(); black_box(burn::tensor::activation::relu(s)) })
+        b.iter(|| {
+            let s = x_burn.clone();
+            black_box(burn::tensor::activation::relu(s))
+        })
     });
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
