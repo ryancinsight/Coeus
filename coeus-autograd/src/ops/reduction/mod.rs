@@ -3,8 +3,8 @@
 // Organized into sub-modules: max_axis/min_axis in `max_min`, norm variants in `norm`.
 
 mod max_min;
-mod prod;
 mod norm;
+mod prod;
 mod variance;
 
 pub use max_min::{max_axis, min_axis};

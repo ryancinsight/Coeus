@@ -5807,3 +5807,75 @@ def test_scatter_add_accumulate_matches_pytorch() -> None:
     src_t = torch.tensor(src, dtype=torch.float64).reshape(2, 3)
     exp = base_t.scatter_add(0, idx_t, src_t)
     _allclose("scatter_add_accum", list(out_pyc.data), exp.flatten().tolist())
+
+# ---------------------------------------------------------------------------
+# elu / log_sigmoid / adaptive_avg_pool1d / conv_transpose2d_shape parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "elu"), reason="pycoeus.elu not available")
+def test_elu_fwd_bwd_matches_pytorch() -> None:
+    """F.elu(x, alpha=1.0) fwd+bwd vs pycoeus.elu(x) (alpha fixed at 1.0)."""
+    data = [-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [7], requires_grad=True)
+    out_pyc = pycoeus.elu(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.elu(t, alpha=1.0)
+    out_t.sum().backward()
+    _allclose("elu_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("elu_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log_sigmoid"), reason="pycoeus.log_sigmoid not available")
+def test_log_sigmoid_fwd_bwd_matches_pytorch() -> None:
+    """F.logsigmoid(x) fwd+bwd vs pycoeus.log_sigmoid(x)."""
+    data = [-3.0, -1.0, 0.0, 1.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.log_sigmoid(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.logsigmoid(t)
+    out_t.sum().backward()
+    _allclose("logsigmoid_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("logsigmoid_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "AdaptiveAvgPool1d"), reason="pycoeus.AdaptiveAvgPool1d not available")
+def test_adaptive_avg_pool1d_fwd_matches_pytorch() -> None:
+    """nn.AdaptiveAvgPool1d(4) on [2,8,16] vs torch."""
+    n, c, l, out_s = 2, 8, 16, 4
+    data = [float(i) * 0.05 for i in range(n * c * l)]
+    pool = pycoeus.AdaptiveAvgPool1d(output_size=out_s)
+    x_pyc = pycoeus.Tensor(data, [n, c, l], requires_grad=False)
+    out_pyc = pool.forward(x_pyc)
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, l)
+    exp = torch.nn.AdaptiveAvgPool1d(out_s)(t)
+    _allclose("adapavgpool1d", list(out_pyc.data), exp.detach().flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "selu"), reason="pycoeus.selu not available")
+def test_selu_fwd_bwd_matches_pytorch() -> None:
+    """F.selu(x) fwd+bwd vs pycoeus.selu(x) — scale=1.0507, alpha=1.6733."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.selu(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.selu(t)
+    out_t.sum().backward()
+    _allclose("selu_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-10)
+    _allclose("selu_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "ConvTranspose2d"), reason="pycoeus.ConvTranspose2d not available")
+def test_conv_transpose2d_shape_matches_pytorch() -> None:
+    """ConvTranspose2d(4,8,k=3) output shape [2,4,6,6] -> [2,8,8,8]."""
+    n, c_in, h, w = 2, 4, 6, 6
+    c_out, k = 8, 3
+    data = [float(i) * 0.01 for i in range(n * c_in * h * w)]
+    ct = pycoeus.ConvTranspose2d(in_channels=c_in, out_channels=c_out, kernel_size=k)
+    x_pyc = pycoeus.Tensor(data, [n, c_in, h, w], requires_grad=False)
+    out = ct.forward(x_pyc)
+    assert list(out.shape) == [n, c_out, h + k - 1, w + k - 1], \
+        f"Expected {[n, c_out, 8, 8]}, got {list(out.shape)}"

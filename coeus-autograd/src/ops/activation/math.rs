@@ -362,9 +362,7 @@ where
         let one = T::one();
         let mut out_host = vec![T::zero(); n];
         if exp_i == 0 {
-            for v in &mut out_host {
-                *v = one;
-            }
+            out_host.fill(one);
         } else if exp_i > 0 {
             let k = exp_i as u32;
             for i in 0..n {
