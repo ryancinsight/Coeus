@@ -2583,3 +2583,43 @@ def test_div_matches_jax() -> None:
     got = a_pyc / b_pyc
     exp = jnp.divide(jnp.array(a, dtype=jnp.float64), jnp.array(b, dtype=jnp.float64))
     _allclose("div", list(got.data), exp.tolist())
+
+# ---------------------------------------------------------------------------
+# gelu_bwd / silu_bwd / relu_bwd / softplus_bwd / square parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "gelu"), reason="pycoeus.gelu not available")
+def test_gelu_bwd_matches_jax() -> None:
+    """jax.grad of gelu sum vs pycoeus gelu backward."""
+    import jax, jax.nn
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.gelu(x_pyc)
+    out_pyc.backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jax.nn.gelu(x, approximate=False)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("gelu_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-8)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "relu"), reason="pycoeus.relu not available")
+def test_relu_bwd_matches_jax() -> None:
+    """jax.grad of relu sum vs pycoeus relu backward."""
+    import jax, jax.nn
+    data = [-2.0, -0.5, 0.0, 0.5, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.relu(x_pyc)
+    out_pyc.backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jax.nn.relu(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("relu_bwd", list(x_pyc.grad), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "pow"), reason="pycoeus.pow not available")
+def test_square_matches_jax() -> None:
+    """jnp.square(x) vs pycoeus.pow(x, 2.0)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.pow(x_pyc, 2.0)
+    exp = jnp.square(jnp.array(data, dtype=jnp.float64))
+    _allclose("square", list(got.data), exp.tolist())
