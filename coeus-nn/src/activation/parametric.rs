@@ -1,142 +1,6 @@
-// ── Activation functions (NN wrappers and modules) ──
-
 use crate::module::Module;
 use coeus_autograd::Var;
 use coeus_core::{Float, Scalar};
-
-/// Functional ReLU activation.
-#[inline]
-pub fn relu<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
-    coeus_autograd::relu(input)
-}
-
-/// Functional Sigmoid activation.
-#[inline]
-pub fn sigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
-    coeus_autograd::sigmoid(input)
-}
-
-/// Functional Tanh activation.
-#[inline]
-pub fn tanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
-    coeus_autograd::tanh(input)
-}
-
-/// Functional GELU activation.
-#[inline]
-pub fn gelu<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
-    coeus_autograd::gelu(input)
-}
-
-/// ReLU activation module.
-#[derive(Clone, Debug, Default)]
-pub struct ReLU;
-
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for ReLU {
-    #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![]
-    }
-
-    #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        relu(input)
-    }
-}
-
-/// Sigmoid activation module.
-#[derive(Clone, Debug, Default)]
-pub struct Sigmoid;
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sigmoid {
-    #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![]
-    }
-
-    #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        sigmoid(input)
-    }
-}
-
-/// Tanh activation module.
-#[derive(Clone, Debug, Default)]
-pub struct Tanh;
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Tanh {
-    #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![]
-    }
-
-    #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        tanh(input)
-    }
-}
-
-/// GeLU activation module.
-#[derive(Clone, Debug, Default)]
-pub struct GeLU;
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GeLU {
-    #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![]
-    }
-
-    #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        gelu(input)
-    }
-}
-
-/// Functional SiLU activation.
-#[inline]
-pub fn silu<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
-    coeus_autograd::silu(input)
-}
-
-/// SiLU activation module.
-#[derive(Clone, Debug, Default)]
-pub struct SiLU;
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for SiLU {
-    #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![]
-    }
-
-    #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        silu(input)
-    }
-}
-
-/// Functional Mish activation.
-#[inline]
-pub fn mish<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
-    coeus_autograd::mish(input)
-}
-
-/// Mish activation module.
-#[derive(Clone, Debug, Default)]
-pub struct Mish;
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Mish {
-    #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![]
-    }
-
-    #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        mish(input)
-    }
-}
-
-// ── Phase 7 New Activations ──
 
 /// Functional ELU activation.
 #[inline]
@@ -153,37 +17,35 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for ELU {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
+
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         elu(input)
     }
 }
 
-/// Functional Softplus activation.
+/// Functional GELU tanh approximation.
 #[inline]
-pub fn softplus<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
-    coeus_autograd::softplus(input)
+pub fn gelu_tanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+) -> Var<T, B> {
+    coeus_autograd::gelu_tanh(input)
 }
 
-/// Softplus activation module.
+/// GELU tanh approximation module.
 #[derive(Clone, Debug, Default)]
-pub struct Softplus;
+pub struct GeLUTanh;
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softplus {
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GeLUTanh {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
+
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        softplus(input)
+        gelu_tanh(input)
     }
-}
-
-/// Functional GELU tanh approximation.
-#[inline]
-pub fn gelu_tanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
-    coeus_autograd::gelu_tanh(input)
 }
 
 /// Functional Gated Linear Unit along `dim` (`torch.nn.functional.glu`).
@@ -239,24 +101,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GLU {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
+
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         glu(input, self.dim)
-    }
-}
-
-/// GELU tanh approximation module.
-#[derive(Clone, Debug, Default)]
-pub struct GeLUTanh;
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GeLUTanh {
-    #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![]
-    }
-    #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        gelu_tanh(input)
     }
 }
 
@@ -296,13 +144,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LeakyReLU
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
+
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         leaky_relu(input, self.negative_slope)
     }
 }
-
-// ── Phase 9 Extended Activations (G-037) ──
 
 /// Public descriptor for the functional Hardtanh parameter set.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -318,81 +165,6 @@ impl HardtanhOp {
     #[must_use]
     pub const fn from_bounds(min_val: f64, max_val: f64) -> Self {
         Self { min_val, max_val }
-    }
-}
-
-/// Public descriptor for the functional Hardsigmoid operation.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct HardsigmoidOp;
-
-impl HardsigmoidOp {
-    /// Operation name used by the autograd node.
-    pub const OP_NAME: &'static str = "hardsigmoid";
-}
-
-/// Public descriptor for the functional Hardswish operation.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct HardswishOp;
-
-impl HardswishOp {
-    /// Operation name used by the autograd node.
-    pub const OP_NAME: &'static str = "hardswish";
-}
-
-/// Public descriptor for the functional Hardshrink parameter set.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct HardshrinkOp(pub f64);
-
-impl HardshrinkOp {
-    /// Construct a Hardshrink descriptor from lambda.
-    #[must_use]
-    pub const fn from_lambda(lambda: f64) -> Self {
-        Self(lambda)
-    }
-}
-
-/// Public descriptor for the functional Softshrink parameter set.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SoftshrinkOp(pub f64);
-
-impl SoftshrinkOp {
-    /// Construct a Softshrink descriptor from lambda.
-    #[must_use]
-    pub const fn from_lambda(lambda: f64) -> Self {
-        Self(lambda)
-    }
-}
-
-/// Public descriptor for the functional Softsign operation.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct SoftsignOp;
-
-impl SoftsignOp {
-    /// Operation name used by the autograd node.
-    pub const OP_NAME: &'static str = "softsign";
-}
-
-/// Public descriptor for the functional Threshold operation.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ThresholdNode;
-
-impl ThresholdNode {
-    /// Operation name used by the autograd node.
-    #[must_use]
-    pub const fn op_name() -> &'static str {
-        "threshold"
-    }
-}
-
-/// Public descriptor for the functional Celu parameter set.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct CeluOp(pub f64);
-
-impl CeluOp {
-    /// Construct a Celu descriptor from alpha.
-    #[must_use]
-    pub const fn from_alpha(alpha: f64) -> Self {
-        Self(alpha)
     }
 }
 
@@ -437,53 +209,22 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Hardtanh 
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
+
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         hardtanh(input, self.min_val, self.max_val)
     }
 }
 
-/// Functional Hardsigmoid activation.
-#[inline]
-pub fn hardsigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(
-    input: &Var<T, B>,
-) -> Var<T, B> {
-    coeus_autograd::hardsigmoid(input)
-}
+/// Public descriptor for the functional Hardshrink parameter set.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct HardshrinkOp(pub f64);
 
-/// Hardsigmoid activation module.
-#[derive(Clone, Debug, Default)]
-pub struct Hardsigmoid;
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Hardsigmoid {
-    #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![]
-    }
-    #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        hardsigmoid(input)
-    }
-}
-
-/// Functional Hardswish activation.
-#[inline]
-pub fn hardswish<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
-    coeus_autograd::hardswish(input)
-}
-
-/// Hardswish activation module.
-#[derive(Clone, Debug, Default)]
-pub struct Hardswish;
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Hardswish {
-    #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![]
-    }
-    #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        hardswish(input)
+impl HardshrinkOp {
+    /// Construct a Hardshrink descriptor from lambda.
+    #[must_use]
+    pub const fn from_lambda(lambda: f64) -> Self {
+        Self(lambda)
     }
 }
 
@@ -522,9 +263,22 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Hardshrin
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
+
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         hardshrink(input, self.lambda)
+    }
+}
+
+/// Public descriptor for the functional Softshrink parameter set.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SoftshrinkOp(pub f64);
+
+impl SoftshrinkOp {
+    /// Construct a Softshrink descriptor from lambda.
+    #[must_use]
+    pub const fn from_lambda(lambda: f64) -> Self {
+        Self(lambda)
     }
 }
 
@@ -562,30 +316,22 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softshrin
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
+
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         softshrink(input, self.lambda)
     }
 }
 
-/// Functional Softsign activation.
-#[inline]
-pub fn softsign<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
-    coeus_autograd::softsign(input)
-}
+/// Public descriptor for the functional Threshold operation.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ThresholdNode;
 
-/// Softsign activation module.
-#[derive(Clone, Debug, Default)]
-pub struct Softsign;
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softsign {
-    #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![]
-    }
-    #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        softsign(input)
+impl ThresholdNode {
+    /// Operation name used by the autograd node.
+    #[must_use]
+    pub const fn op_name() -> &'static str {
+        "threshold"
     }
 }
 
@@ -629,9 +375,22 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Threshold
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
+
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         threshold(input, self.threshold, self.value)
+    }
+}
+
+/// Public descriptor for the functional Celu parameter set.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CeluOp(pub f64);
+
+impl CeluOp {
+    /// Construct a Celu descriptor from alpha.
+    #[must_use]
+    pub const fn from_alpha(alpha: f64) -> Self {
+        Self(alpha)
     }
 }
 
@@ -669,6 +428,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Celu {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
+
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         celu(input, self.alpha)
@@ -713,59 +473,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for PReLU {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
+
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         prelu(input, self.alpha)
-    }
-}
-
-/// Functional LogSigmoid activation: `log(sigmoid(x)) = -softplus(-x)`.
-///
-/// Uses the numerically stable `-softplus(-x)` identity (avoids `log` of a tiny
-/// sigmoid); matches `torch.nn.functional.logsigmoid`.
-#[inline]
-pub fn log_sigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(
-    input: &Var<T, B>,
-) -> Var<T, B> {
-    coeus_autograd::neg(&coeus_autograd::softplus(&coeus_autograd::neg(input)))
-}
-
-/// LogSigmoid activation module.
-#[derive(Clone, Debug, Default)]
-pub struct LogSigmoid;
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LogSigmoid {
-    #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![]
-    }
-
-    #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        log_sigmoid(input)
-    }
-}
-
-/// Functional Tanhshrink activation: `x - tanh(x)`.
-///
-/// Matches `torch.nn.functional.tanhshrink`.
-#[inline]
-pub fn tanhshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
-    coeus_autograd::sub(input, &coeus_autograd::tanh(input))
-}
-
-/// Tanhshrink activation module.
-#[derive(Clone, Debug, Default)]
-pub struct Tanhshrink;
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Tanhshrink {
-    #[inline]
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![]
-    }
-
-    #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        tanhshrink(input)
     }
 }
