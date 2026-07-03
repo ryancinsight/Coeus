@@ -128,6 +128,10 @@ pub fn unfold1d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
 /// Fold 1D: accumulates `[N, C*kernel_size, L_out]` back into `[N, C, output_size]`.
 ///
 /// Inverse (adjoint) of `unfold1d`; overlapping window contributions are summed.
+///
+/// # Memory
+/// Output is `zeros_on` because fold **accumulates** (scatter-adds) overlapping
+/// window contributions — uninitialised output would produce incorrect sums.
 pub fn fold1d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
     input: &coeus_tensor::Tensor<T, B>,
     output_size: usize,
@@ -159,6 +163,10 @@ pub fn fold1d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
 /// Unfold 2D: extracts sliding windows from `[N, C, H, W]` into `[N, C*kH*kW, H_out*W_out]`.
 ///
 /// Equivalent to `torch.nn.Unfold`.
+///
+/// # Memory
+/// Output is `alloc_on` (uninitialized); the unfold kernel writes every
+/// `[n, ckk, l_out]` position exactly once.
 #[allow(clippy::too_many_arguments)]
 pub fn unfold2d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
     input: &coeus_tensor::Tensor<T, B>,
@@ -201,6 +209,10 @@ pub fn unfold2d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
 /// Fold 2D: accumulates `[N, C*kH*kW, H_out*W_out]` back into `[N, C, output_h, output_w]`.
 ///
 /// Inverse (adjoint) of `unfold2d`; overlapping window contributions are summed.
+///
+/// # Memory
+/// Output is `zeros_on` because fold **accumulates** (scatter-adds) overlapping
+/// window contributions — uninitialised output would produce incorrect sums.
 #[allow(clippy::too_many_arguments)]
 pub fn fold2d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
     input: &coeus_tensor::Tensor<T, B>,
