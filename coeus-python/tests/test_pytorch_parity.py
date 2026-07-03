@@ -6410,3 +6410,84 @@ def test_prelu_vector_alpha_matches_pytorch() -> None:
     out_t.sum().backward()
     _allclose("prelu_v_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
     _allclose("prelu_v_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+# ---------------------------------------------------------------------------
+# topk_dim0 / celu_bwd / log_sigmoid_bwd / hardshrink_bwd / elu_bwd
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "topk"), reason="pycoeus.topk not available")
+def test_topk_dim0_matches_pytorch() -> None:
+    """torch.topk(x, 2, dim=0) vs pycoeus.topk(x, 2, dim=0) — non-terminal axis."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 5.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [3, 4], requires_grad=False)
+    vals_pyc, _ = pycoeus.topk(x_pyc, 2, dim=0, largest=True)
+    t = torch.tensor(data, dtype=torch.float64).reshape(3, 4)
+    vals_t, _ = torch.topk(t, 2, dim=0, largest=True, sorted=True)
+    _allclose("topk_dim0", list(vals_pyc.data), vals_t.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "celu"), reason="pycoeus.celu not available")
+def test_celu_bwd_matches_pytorch() -> None:
+    """celu(alpha=1.0) backward matches PyTorch."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.celu(x_pyc, 1.0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.celu(t, alpha=1.0)
+    out_t.sum().backward()
+    _allclose("celu_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log_sigmoid"), reason="pycoeus.log_sigmoid not available")
+def test_log_sigmoid_bwd_matches_pytorch() -> None:
+    """log_sigmoid backward: d/dx = -sigmoid(-x) = -(1 - sigmoid(x))."""
+    data = [-3.0, -1.0, 0.0, 1.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.log_sigmoid(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.logsigmoid(t)
+    out_t.sum().backward()
+    _allclose("logsig_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "hardshrink"), reason="pycoeus.hardshrink not available")
+def test_hardshrink_bwd_matches_pytorch() -> None:
+    """hardshrink backward: 1 if |x|>lambd, else 0."""
+    data = [-2.0, -0.3, 0.0, 0.3, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.hardshrink(x_pyc, 0.5)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.hardshrink(t, lambd=0.5)
+    out_t.sum().backward()
+    _allclose("hshrink_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "elu"), reason="pycoeus.elu not available")
+def test_elu_bwd_alpha1_matches_pytorch() -> None:
+    """elu backward (alpha=1): 1 if x>=0, else exp(x)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.elu(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.elu(t, alpha=1.0)
+    out_t.sum().backward()
+    _allclose("elu_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "selu"), reason="pycoeus.selu not available")
+def test_selu_bwd_matches_pytorch() -> None:
+    """selu backward matches PyTorch."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.selu(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.selu(t)
+    out_t.sum().backward()
+    _allclose("selu_bwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-10)
+    _allclose("selu_bwd_grad", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)

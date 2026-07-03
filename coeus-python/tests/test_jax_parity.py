@@ -2623,3 +2623,47 @@ def test_square_matches_jax() -> None:
     got = pycoeus.pow(x_pyc, 2.0)
     exp = jnp.square(jnp.array(data, dtype=jnp.float64))
     _allclose("square", list(got.data), exp.tolist())
+
+# ---------------------------------------------------------------------------
+# selu_bwd / elu_bwd / log_sigmoid / cumprod_bwd parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "selu"), reason="pycoeus.selu not available")
+def test_selu_bwd_matches_jax() -> None:
+    """jax.grad selu vs pycoeus selu backward."""
+    import jax, jax.nn
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.selu(x_pyc)
+    out_pyc.backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jax.nn.selu(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("selu_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "mish"), reason="pycoeus.mish not available")
+def test_mish_bwd_matches_jax() -> None:
+    """jax.grad mish vs pycoeus mish backward."""
+    import jax
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.mish(x_pyc)
+    out_pyc.backward()
+    def jax_mish(x): return x * jnp.tanh(jnp.log1p(jnp.exp(x)))
+    grad_fn = jax.grad(lambda x: jnp.sum(jax_mish(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("mish_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-8)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cumprod"), reason="pycoeus.cumprod not available")
+def test_cumprod_bwd_matches_jax() -> None:
+    """jax.grad cumprod sum vs pycoeus cumprod backward."""
+    import jax
+    data = [2.0, 3.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [3], requires_grad=True)
+    out_pyc = pycoeus.cumprod(x_pyc, 0)
+    out_pyc.backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.cumprod(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("cumprod_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
