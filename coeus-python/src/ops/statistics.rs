@@ -218,17 +218,9 @@ pub fn sort(
     descending: bool,
     py: Python<'_>,
 ) -> (PyTensor, PyTensor) {
-    let backend = MoiraiBackend::new();
-    let (vals, idxs) =
-        py.allow_threads(|| coeus_ops::sort(&input.inner.tensor, dim, descending, &backend));
-    (
-        PyTensor {
-            inner: coeus_autograd::Var::new(vals, false),
-        },
-        PyTensor {
-            inner: coeus_autograd::Var::new(idxs, false),
-        },
-    )
+    let (sorted_var, idx_var) =
+        py.allow_threads(|| coeus_autograd::sort(&input.inner, dim, descending));
+    (PyTensor { inner: sorted_var }, PyTensor { inner: idx_var })
 }
 
 fn validate_stat_axis(op: &str, input: &PyTensor, axis: usize) -> PyResult<()> {

@@ -7226,3 +7226,164 @@ def test_std_bwd_matches_pytorch() -> None:
     t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
     torch.std(t, unbiased=True).backward()
     _allclose("std_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-9)
+
+
+# ---------------------------------------------------------------------------
+# MS-371-380: sort bwd + pool backward + scalar ops bwd + log_sum_exp bwd
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sort"), reason="pycoeus.sort not available")
+def test_sort_ascending_bwd_matches_pytorch() -> None:
+    """sort ascending backward: scatter grad back to original positions."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=True)
+    vals, _ = pycoeus.sort(x_pyc, dim=0, descending=False)
+    vals.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    t_vals, _ = torch.sort(t, dim=0, descending=False)
+    t_vals.sum().backward()
+    _allclose("sort_asc_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sort"), reason="pycoeus.sort not available")
+def test_sort_descending_bwd_matches_pytorch() -> None:
+    """sort descending backward: scatter grad back to original positions."""
+    data = [3.0, 1.0, 4.0, 1.0, 5.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    vals, _ = pycoeus.sort(x_pyc, dim=0, descending=True)
+    vals.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.sort(t, descending=True).values.sum().backward()
+    _allclose("sort_desc_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sort"), reason="pycoeus.sort not available")
+def test_sort_bwd_dim1_matches_pytorch() -> None:
+    """sort dim=1 backward: scatter grad back using row-wise indices."""
+    data = [3.0, 1.0, 4.0, 2.0, 5.0, 0.0]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    vals, _ = pycoeus.sort(x_pyc, dim=1, descending=False)
+    vals.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    torch.sort(t, dim=1).values.sum().backward()
+    _allclose("sort_dim1_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "MaxPool1d"), reason="pycoeus.MaxPool1d not available")
+def test_maxpool1d_bwd_matches_pytorch() -> None:
+    """MaxPool1d(k=3, s=1) backward: grad goes to max position."""
+    import torch.nn as _nn
+    n, c, l = 2, 4, 10
+    data = [float(i) * 0.1 for i in range(n * c * l)]
+    pool = pycoeus.MaxPool1d(kernel_size=3, stride=1)
+    x_pyc = pycoeus.Tensor(data, [n, c, l], requires_grad=True)
+    pool.forward(x_pyc).backward()
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, l).requires_grad_(True)
+    _nn.MaxPool1d(kernel_size=3, stride=1)(x_t).sum().backward()
+    _allclose("maxpool1d_bwd", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "MaxPool2d"), reason="pycoeus.MaxPool2d not available")
+def test_maxpool2d_bwd_matches_pytorch() -> None:
+    """MaxPool2d(k=2, s=2) backward: grad at max positions."""
+    import torch.nn as _nn
+    n, c, h, w = 2, 4, 8, 8
+    data = [float(i) * 0.05 for i in range(n * c * h * w)]
+    pool = pycoeus.MaxPool2d(kernel_size=2, stride=2)
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    pool.forward(x_pyc).backward()
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    _nn.MaxPool2d(kernel_size=2, stride=2)(x_t).sum().backward()
+    _allclose("maxpool2d_bwd", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "AvgPool1d"), reason="pycoeus.AvgPool1d not available")
+def test_avgpool1d_bwd_matches_pytorch() -> None:
+    """AvgPool1d(k=3, s=1) backward: uniform gradient distribution."""
+    import torch.nn as _nn
+    n, c, l = 2, 4, 12
+    data = [float(i) * 0.05 - 0.5 for i in range(n * c * l)]
+    pool = pycoeus.AvgPool1d(kernel_size=3, stride=1)
+    x_pyc = pycoeus.Tensor(data, [n, c, l], requires_grad=True)
+    pool.forward(x_pyc).backward()
+    x_t = torch.tensor(data, dtype=torch.float64).reshape(n, c, l).requires_grad_(True)
+    _nn.AvgPool1d(kernel_size=3, stride=1)(x_t).sum().backward()
+    _allclose("avgpool1d_bwd", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log_sum_exp"), reason="pycoeus.log_sum_exp not available")
+def test_log_sum_exp_bwd_matches_pytorch() -> None:
+    """log_sum_exp backward: grad = softmax(x)."""
+    data = [1.0, 2.0, 3.0, 0.5, 1.5, 2.5]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    out_pyc = pycoeus.log_sum_exp(x_pyc, 1)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    torch.logsumexp(t, dim=1).sum().backward()
+    _allclose("lse_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-9)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "softmin"), reason="pycoeus.softmin not available")
+def test_softmin_bwd_matches_pytorch() -> None:
+    """softmin backward: grad = softmin * (delta - softmin), where delta = 1-hot grad."""
+    import torch.nn.functional as _F
+    data = [1.0, 2.0, 3.0, 0.5, 1.5, 2.5]
+    x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
+    out_pyc = pycoeus.softmin(x_pyc, 1)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
+    _F.softmin(t, dim=1).sum().backward()
+    _allclose("softmin_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "scalar_mul"), reason="pycoeus.scalar_mul not available")
+def test_scalar_mul_bwd_matches_pytorch() -> None:
+    """scalar_mul backward: grad = scalar."""
+    data = [1.0, 2.0, 3.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    out_pyc = pycoeus.scalar_mul(x_pyc, 3.0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    (t * 3.0).sum().backward()
+    _allclose("smul_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "scalar_add"), reason="pycoeus.scalar_add not available")
+def test_scalar_add_bwd_matches_pytorch() -> None:
+    """scalar_add backward: grad passes through unchanged."""
+    data = [1.0, 2.0, 3.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    out_pyc = pycoeus.scalar_add(x_pyc, 5.0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    (t + 5.0).sum().backward()
+    _allclose("sadd_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "scalar_div"), reason="pycoeus.scalar_div not available")
+def test_scalar_div_bwd_matches_pytorch() -> None:
+    """scalar_div backward: grad = 1/scalar."""
+    data = [1.0, 2.0, 4.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    out_pyc = pycoeus.scalar_div(x_pyc, 2.0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    (t / 2.0).sum().backward()
+    _allclose("sdiv_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "pairwise_distance"), reason="pycoeus.pairwise_distance not available")
+def test_pairwise_distance_bwd_matches_pytorch() -> None:
+    """pairwise_distance L2 backward vs torch."""
+    import torch.nn.functional as _F
+    a_data = [1.0, 2.0, 3.0, 4.0]
+    b_data = [0.0, 1.0, 1.0, 2.0]
+    a_pyc = pycoeus.Tensor(a_data, [2, 2], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b_data, [2, 2], requires_grad=True)
+    pycoeus.pairwise_distance(a_pyc, b_pyc).backward()
+    a_t = torch.tensor(a_data, dtype=torch.float64).reshape(2, 2).requires_grad_(True)
+    b_t = torch.tensor(b_data, dtype=torch.float64).reshape(2, 2).requires_grad_(True)
+    _F.pairwise_distance(a_t, b_t).sum().backward()
+    _allclose("pdist_a_bwd", list(a_pyc.grad), a_t.grad.flatten().tolist(), atol=1e-9)
+    _allclose("pdist_b_bwd", list(b_pyc.grad), b_t.grad.flatten().tolist(), atol=1e-9)

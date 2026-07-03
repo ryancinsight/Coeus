@@ -179,6 +179,7 @@ pub use ops::{
     softplus,
     softshrink,
     softsign,
+    sort,
     sparse_matmul,
     sparse_matmul_coo,
     split,

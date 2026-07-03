@@ -29,7 +29,7 @@ pub use arithmetic::{
     scalar_sub, sub, sum, sum_axis,
 };
 pub use reduction::{
-    log_sum_exp, max_axis, min_axis, norm, norm_p, norm_p_axis, prod, std_dev, std_dev_axis,
+    log_sum_exp, max_axis, min_axis, norm, norm_p, norm_p_axis, prod, sort, std_dev, std_dev_axis,
     std_mean, std_mean_axis, var, var_axis, var_mean, var_mean_axis,
 };
 
