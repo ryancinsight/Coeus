@@ -6212,3 +6212,104 @@ def test_conv_transpose1d_shape_matches_pytorch() -> None:
     out = ct.forward(x_pyc)
     assert list(out.shape) == [n, c_out, l + k - 1], \
         f"Expected {[n, c_out, 12]}, got {list(out.shape)}"
+
+# ---------------------------------------------------------------------------
+# softplus_bwd / tanh_bwd / softsign_bwd / prelu_bwd / softshrink_bwd / tril_bwd
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "softplus"), reason="pycoeus.softplus not available")
+def test_softplus_fwd_bwd_matches_pytorch() -> None:
+    """F.softplus(x) fwd+bwd vs pycoeus.softplus(x)."""
+    data = [-3.0, -1.0, 0.0, 1.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.softplus(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.softplus(t)
+    out_t.sum().backward()
+    _allclose("softplus_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("softplus_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "tanh"), reason="pycoeus.tanh not available")
+def test_tanh_bwd_matches_pytorch() -> None:
+    """tanh backward specifically: d/dx tanh(x) = 1 - tanh^2(x)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.tanh(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.tanh(t)
+    out_t.sum().backward()
+    _allclose("tanh_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "softsign"), reason="pycoeus.softsign not available")
+def test_softsign_fwd_bwd_matches_pytorch() -> None:
+    """F.softsign(x) fwd+bwd vs pycoeus.softsign(x)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.softsign(x_pyc)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.softsign(t)
+    out_t.sum().backward()
+    _allclose("softsign_fwd", list(out_pyc.data), out_t.detach().tolist(), atol=1e-12)
+    _allclose("softsign_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "softshrink"), reason="pycoeus.softshrink not available")
+def test_softshrink_bwd_matches_pytorch() -> None:
+    """F.softshrink(x, lambd=0.5) fwd+bwd - gradient is 1 where |x|>lambd, else 0."""
+    data = [-2.0, -0.3, 0.0, 0.3, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.softshrink(x_pyc, 0.5)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.nn.functional.softshrink(t, lambd=0.5)
+    out_t.sum().backward()
+    _allclose("softshrink_bwd", list(x_pyc.grad), t.grad.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "tril"), reason="pycoeus.tril not available")
+def test_tril_bwd_matches_pytorch() -> None:
+    """tril fwd+bwd: gradient only flows through lower-triangular positions."""
+    data = [float(i) for i in range(16)]
+    x_pyc = pycoeus.Tensor(data, [4, 4], requires_grad=True)
+    out_pyc = pycoeus.tril(x_pyc, 0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(4, 4).requires_grad_(True)
+    out_t = torch.tril(t, diagonal=0)
+    out_t.sum().backward()
+    _allclose("tril_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "triu"), reason="pycoeus.triu not available")
+def test_triu_bwd_matches_pytorch() -> None:
+    """triu fwd+bwd: gradient only flows through upper-triangular positions."""
+    data = [float(i) for i in range(16)]
+    x_pyc = pycoeus.Tensor(data, [4, 4], requires_grad=True)
+    out_pyc = pycoeus.triu(x_pyc, 0)
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(4, 4).requires_grad_(True)
+    out_t = torch.triu(t, diagonal=0)
+    out_t.sum().backward()
+    _allclose("triu_bwd", list(x_pyc.grad), t.grad.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "BatchNorm1d"), reason="pycoeus.BatchNorm1d not available")
+def test_batchnorm1d_eval_matches_pytorch() -> None:
+    """BatchNorm1d eval mode fwd matches torch (uses running stats)."""
+    feat, batch = 8, 4
+    data = [float(i) * 0.1 - 1.6 for i in range(batch * feat)]
+    bn = pycoeus.BatchNorm1d(num_features=feat)
+    bn.eval()
+    x_pyc = pycoeus.Tensor(data, [batch, feat], requires_grad=False)
+    out_pyc = bn.forward(x_pyc)
+    # In eval mode output is (x - 0) / sqrt(1 + eps) * 1 + 0 ≈ x (identity with fresh BN)
+    t_x = torch.tensor(data, dtype=torch.float64).reshape(batch, feat)
+    bn_t = torch.nn.BatchNorm1d(feat, dtype=torch.float64)
+    bn_t.eval()
+    out_t = bn_t(t_x)
+    _allclose("bn1d_eval_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-6)

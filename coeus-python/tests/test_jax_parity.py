@@ -2532,3 +2532,54 @@ def test_sigmoid_bwd_matches_jax() -> None:
     grad_fn = jax.grad(jax_sig_sum)
     exp_grad = grad_fn(jnp.array(data, dtype=jnp.float64))
     _allclose("sigmoid_bwd", list(x_pyc.grad), exp_grad.tolist(), atol=1e-12)
+
+# ---------------------------------------------------------------------------
+# tanh_bwd / softplus / softsign / sub / div parity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "tanh"), reason="pycoeus.tanh not available")
+def test_tanh_bwd_matches_jax() -> None:
+    """jax grad of tanh sum vs pycoeus tanh backward."""
+    import jax
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.tanh(x_pyc)
+    out_pyc.backward()
+    def tanh_sum(x): return jnp.sum(jnp.tanh(x))
+    grad_fn = jax.grad(tanh_sum)
+    exp_grad = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("tanh_bwd", list(x_pyc.grad), exp_grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "softplus"), reason="pycoeus.softplus not available")
+def test_softplus_matches_jax() -> None:
+    """jax.nn.softplus(x) vs pycoeus.softplus(x)."""
+    import jax.nn
+    data = [-3.0, -1.0, 0.0, 1.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.softplus(x_pyc)
+    exp = jax.nn.softplus(jnp.array(data, dtype=jnp.float64))
+    _allclose("softplus", list(got.data), exp.tolist(), atol=1e-12)
+
+
+def test_sub_matches_jax() -> None:
+    """jnp.subtract(a, b) vs a - b tensor operator."""
+    a = [3.0, 1.0, 4.0, 1.0]
+    b = [1.0, 2.0, 1.0, 3.0]
+    a_pyc = pycoeus.Tensor(a, [4], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [4], requires_grad=False)
+    got = a_pyc - b_pyc
+    exp = jnp.subtract(jnp.array(a, dtype=jnp.float64), jnp.array(b, dtype=jnp.float64))
+    _allclose("sub", list(got.data), exp.tolist())
+
+
+def test_div_matches_jax() -> None:
+    """jnp.divide(a, b) vs a / b tensor operator."""
+    a = [6.0, 4.0, 9.0, 8.0]
+    b = [2.0, 2.0, 3.0, 4.0]
+    a_pyc = pycoeus.Tensor(a, [4], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [4], requires_grad=False)
+    got = a_pyc / b_pyc
+    exp = jnp.divide(jnp.array(a, dtype=jnp.float64), jnp.array(b, dtype=jnp.float64))
+    _allclose("div", list(got.data), exp.tolist())
