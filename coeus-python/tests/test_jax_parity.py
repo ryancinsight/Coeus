@@ -2462,3 +2462,73 @@ def test_mul_matches_jax() -> None:
     got = a_pyc * b_pyc
     exp = jnp.multiply(jnp.array(a, dtype=jnp.float64), jnp.array(b, dtype=jnp.float64))
     _allclose("mul", list(got.data), exp.tolist())
+
+# ---------------------------------------------------------------------------
+# add / atanh / sinh / cosh / leaky_relu / relu_bwd / sigmoid_bwd parity
+# ---------------------------------------------------------------------------
+
+
+def test_add_matches_jax() -> None:
+    """jnp.add(a, b) vs a + b tensor operator."""
+    a = [1.0, 2.0, 3.0, 4.0]
+    b = [0.5, 1.5, -1.0, 2.0]
+    a_pyc = pycoeus.Tensor(a, [4], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [4], requires_grad=False)
+    got = a_pyc + b_pyc
+    exp = jnp.add(jnp.array(a, dtype=jnp.float64), jnp.array(b, dtype=jnp.float64))
+    _allclose("add", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "atanh"), reason="pycoeus.atanh not available")
+def test_atanh_matches_jax() -> None:
+    """jnp.arctanh(x) vs pycoeus.atanh(x). Domain: |x| < 1."""
+    data = [-0.9, -0.5, 0.0, 0.5, 0.9]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.atanh(x_pyc)
+    exp = jnp.arctanh(jnp.array(data, dtype=jnp.float64))
+    _allclose("atanh", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sinh"), reason="pycoeus.sinh not available")
+def test_sinh_matches_jax() -> None:
+    """jnp.sinh(x) vs pycoeus.sinh(x)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.sinh(x_pyc)
+    exp = jnp.sinh(jnp.array(data, dtype=jnp.float64))
+    _allclose("sinh", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cosh"), reason="pycoeus.cosh not available")
+def test_cosh_matches_jax() -> None:
+    """jnp.cosh(x) vs pycoeus.cosh(x)."""
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.cosh(x_pyc)
+    exp = jnp.cosh(jnp.array(data, dtype=jnp.float64))
+    _allclose("cosh", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "leaky_relu"), reason="pycoeus.leaky_relu not available")
+def test_leaky_relu_matches_jax() -> None:
+    """jax.nn.leaky_relu(x, 0.1) vs pycoeus.leaky_relu(x, 0.1)."""
+    import jax.nn
+    data = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.leaky_relu(x_pyc, 0.1)
+    exp = jax.nn.leaky_relu(jnp.array(data, dtype=jnp.float64), negative_slope=0.1)
+    _allclose("leaky_relu", list(got.data), exp.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sigmoid"), reason="pycoeus.sigmoid not available")
+def test_sigmoid_bwd_matches_jax() -> None:
+    """jax.grad sigmoid vs pycoeus sigmoid backward."""
+    import jax
+    data = [-3.0, -1.0, 0.0, 1.0, 3.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    out_pyc = pycoeus.sigmoid(x_pyc)
+    out_pyc.backward()
+    def jax_sig_sum(x): return jnp.sum(jax.nn.sigmoid(x))
+    grad_fn = jax.grad(jax_sig_sum)
+    exp_grad = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("sigmoid_bwd", list(x_pyc.grad), exp_grad.tolist(), atol=1e-12)

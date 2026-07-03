@@ -3,6 +3,10 @@ use pyo3::prelude::*;
 
 /// Python-exposed Group Normalization layer.
 ///
+/// Mirrors `torch.nn.GroupNorm(num_groups, num_channels, eps=1e-5)`.  The
+/// constructor keyword is `num_channels` (PyTorch); the attribute exposed on
+/// the bound object is `num_features` (internal Rust-core field name, kept for
+/// backward compatibility with existing checkpoint/state_dict consumers).
 /// Supported num_groups values at runtime: 1, 2, 4, 8, 16, 32, 64.
 /// `num_features` must be divisible by `num_groups`.
 #[pyclass(name = "GroupNorm")]
@@ -27,15 +31,20 @@ pub struct PyGroupNorm {
 #[pymethods]
 impl PyGroupNorm {
     #[new]
-    #[pyo3(signature = (num_groups, num_features, eps = 1e-5))]
-    /// Create a GroupNorm layer dividing `num_features` channels into `num_groups` groups.
-    pub fn new(py: Python<'_>, num_groups: usize, num_features: usize, eps: f64) -> PyResult<Self> {
+    /// Create a GroupNorm layer dividing `num_channels` channels into `num_groups` groups.
+    ///
+    /// Mirrors `torch.nn.GroupNorm(num_groups, num_channels, eps=1e-5)` keyword
+    /// argument conventions.  (`num_features` is the internal Rust-core field name
+    /// and the public attribute exposed by `pycoe3 GroupNorm`; the constructor
+    /// keyword matches PyTorch's `num_channels`.)
+    #[pyo3(signature = (num_groups, num_channels, eps = 1e-5))]
+    pub fn new(py: Python<'_>, num_groups: usize, num_channels: usize, eps: f64) -> PyResult<Self> {
         // Use G=1 to allocate canonical weight/bias tensors:
         // GroupNorm always initialises weight=ones([num_features]) and bias=zeros([num_features])
         // regardless of G; G=1 divides any positive num_features.
         let gn =
             coeus_nn::normalization::groupnorm::GroupNorm::<f64, coeus_core::MoiraiBackend, 1>::new(
-                num_features,
+                num_channels,
                 eps,
             );
         let weight = Py::new(py, PyTensor { inner: gn.weight })?;
@@ -44,7 +53,7 @@ impl PyGroupNorm {
             weight,
             bias,
             num_groups,
-            num_features,
+            num_features: num_channels,
             eps,
         })
     }

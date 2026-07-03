@@ -138,10 +138,22 @@ pub fn dropout(input: &PyTensor, p: f64, training: bool, py: Python<'_>) -> PyTe
 }
 
 #[pyfunction]
-#[pyo3(signature = (input, size, mode = "nearest"))]
+/// `F.interpolate(x, size=None, scale_factor=None, mode='nearest'|'bilinear')`.
+///
+/// Mirrors the PyTorch signature allowlist used in parity tests:
+/// - `interpolate(x, [new_L], mode=...)` — explicit `size` for 1-D outputs.
+/// - `interpolate(x, [new_H, new_W], mode=...)` — explicit `size` for 2-D
+///   outputs.
+/// - `interpolate(x, scale_factor=2.0, mode=...)` — uniform scale factor
+///   applied to every spatial dim.
+///
+/// Exactly one of `size` or `scale_factor` must be supplied; passing both or
+/// neither returns a typed `ValueError`.
+#[pyo3(signature = (input, size=None, scale_factor=None, mode="nearest"))]
 pub fn interpolate(
     input: &PyTensor,
-    size: Vec<usize>,
+    size: Option<Vec<usize>>,
+    scale_factor: Option<f64>,
     mode: &str,
     py: Python<'_>,
 ) -> PyResult<PyTensor> {
@@ -154,20 +166,63 @@ pub fn interpolate(
             )));
         }
     };
-    let ndim = input.inner.tensor.ndim();
+    let in_shape = input.inner.tensor.shape().to_vec();
+
+    // Resolve the per-spatial-dim target shape — `size` takes precedence, then
+    // `scale_factor`.  Cross-validate the option-pair so a caller passing both
+    // / neither gets a typed error.
+    let out_spatial: Vec<usize> = match (size.as_ref(), scale_factor) {
+        (Some(s), None) => s.clone(),
+        (None, Some(sf)) => {
+            if !(sf > 0.0 && sf.is_finite()) {
+                return Err(PyValueError::new_err(format!(
+                    "interpolate: scale_factor must be a positive finite number, got {sf}"
+                )));
+            }
+            in_shape[2..]
+                .iter()
+                .map(|&d| {
+                    // PyTorch uses ceil(input * scale_factor) (matching the
+                    // documented int-rounding for backward-compatible code).
+                    let scaled = d as f64 * sf;
+                    scaled.ceil() as usize
+                })
+                .collect()
+        }
+        (Some(_), Some(_)) => {
+            return Err(PyValueError::new_err(
+                "interpolate: only one of size or scale_factor may be specified",
+            ));
+        }
+        (None, None) => {
+            return Err(PyValueError::new_err(
+                "interpolate: exactly one of size or scale_factor must be specified",
+            ));
+        }
+    };
+
+    let ndim = in_shape.len();
     let t = match ndim {
         3 => {
-            assert_eq!(size.len(), 1, "interpolate: 1-D input needs size=[new_L]");
-            py.allow_threads(|| coeus_nn::interpolate_1d(&input.inner.tensor, size[0], imode))
+            if out_spatial.len() != 1 {
+                return Err(PyValueError::new_err(format!(
+                    "interpolate: 1-D (3-rank) input needs one spatial dim, got {}",
+                    out_spatial.len()
+                )));
+            }
+            py.allow_threads(|| {
+                coeus_nn::interpolate_1d(&input.inner.tensor, out_spatial[0], imode)
+            })
         }
         4 => {
-            assert_eq!(
-                size.len(),
-                2,
-                "interpolate: 2-D input needs size=[new_H, new_W]"
-            );
+            if out_spatial.len() != 2 {
+                return Err(PyValueError::new_err(format!(
+                    "interpolate: 2-D (4-rank) input needs two spatial dims, got {}",
+                    out_spatial.len()
+                )));
+            }
             py.allow_threads(|| {
-                coeus_nn::interpolate_2d(&input.inner.tensor, size[0], size[1], imode)
+                coeus_nn::interpolate_2d(&input.inner.tensor, out_spatial[0], out_spatial[1], imode)
             })
         }
         _ => {
