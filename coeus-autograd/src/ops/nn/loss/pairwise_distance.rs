@@ -80,11 +80,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 
 /// Tracked row-wise p-norm pairwise distance (PyTorch `PairwiseDistance`):
 /// for inputs `x1, x2` of shape `[N, D]`, returns a `[N]` vector with
-/// `out_i = max(sum_k |x1_ik - x2_ik|^p, eps)^(1/p)`. Matches PyTorch's
-/// `torch.nn.functional.pairwise_distance` exactly: the `eps` only enters
-/// as a `clamp_min` floor before the `(1/p)` root, so for the common case
-/// `sum > eps` the result is the pure `||diff||_p` norm (no perturbation)
-/// and the gradient factors carry no `eps`-dependent term.
+/// `out_i = (sum_k |x1_ik - x2_ik + eps|^p)^(1/p)`. Matches PyTorch's
+/// `torch.nn.functional.pairwise_distance` (`at::norm(x1 - x2 + eps, p)`)
+/// exactly: `eps` is added to the difference, keeping the summed norm
+/// strictly positive so the `s^(1/p - 1)` gradient factor stays finite.
 pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x1: &Var<T, B>,
     x2: &Var<T, B>,
@@ -145,21 +144,22 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let mut grad_unit = vec![T::zero(); n];
     for i in 0..rows {
         let base = i * feat;
+        // PyTorch computes `at::norm(x1 - x2 + eps, p)`: `eps` is added to the
+        // difference itself, not clamped onto the summed norm. Because every
+        // shifted term contributes `eps^p > 0`, the norm is strictly positive,
+        // which is exactly what keeps the `s^(1/p - 1)` gradient factor finite
+        // (the reason torch adds `eps` here). It also resolves boundary cases —
+        // e.g. an exactly-at-margin triplet — the same way torch does.
         let mut s = T::zero();
         for k in 0..feat {
-            let diff = x1_host[base + k] - x2_host[base + k];
+            let diff = x1_host[base + k] - x2_host[base + k] + eps;
             s = s + diff.abs().powf(p);
         }
-        // PyTorch's PairwiseDistance dereferences eps as a `clamp_min` on the
-        // inner sum, not a direct additive term. Using `max(s, eps)` means
-        // the gradient carries no `eps`-dependent bias on the common
-        // `s > eps` branch, bitwise-matching torch's reduction order.
-        let s_floor = if s > eps { s } else { eps };
-        let s_scaled = s_floor.powf(inv_p);
+        let s_scaled = s.powf(inv_p);
         out[i] = s_scaled;
-        let scale = s_floor.powf(inv_p - one);
+        let scale = s.powf(inv_p - one);
         for k in 0..feat {
-            let diff = x1_host[base + k] - x2_host[base + k];
+            let diff = x1_host[base + k] - x2_host[base + k] + eps;
             let mag = diff.abs().powf(p_minus_one);
             let sign = if diff > T::zero() {
                 one
