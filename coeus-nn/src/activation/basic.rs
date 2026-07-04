@@ -1,3 +1,9 @@
+//! Basic activation functions and zero-parameter activation modules.
+//!
+//! This module exposes both functional helpers, such as [`relu`] and
+//! [`sigmoid`], and corresponding [`crate::module::Module`] wrappers for
+//! building models.
+
 use crate::module::Module;
 use coeus_autograd::Var;
 use coeus_core::{Float, Scalar};
@@ -12,6 +18,7 @@ pub fn relu<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>)
 #[derive(Clone, Debug, Default)]
 pub struct ReLU;
 
+/// Implements the [`crate::module::Module`] interface for [`ReLU`].
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for ReLU {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -34,6 +41,7 @@ pub fn sigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B
 #[derive(Clone, Debug, Default)]
 pub struct Sigmoid;
 
+/// Implements the [`crate::module::Module`] interface for [`Sigmoid`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sigmoid {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -56,6 +64,7 @@ pub fn tanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) 
 #[derive(Clone, Debug, Default)]
 pub struct Tanh;
 
+/// Implements the [`crate::module::Module`] interface for [`Tanh`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Tanh {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -78,6 +87,7 @@ pub fn gelu<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) 
 #[derive(Clone, Debug, Default)]
 pub struct GeLU;
 
+/// Implements the [`crate::module::Module`] interface for [`GeLU`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GeLU {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -100,6 +110,7 @@ pub fn silu<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) 
 #[derive(Clone, Debug, Default)]
 pub struct SiLU;
 
+/// Implements the [`crate::module::Module`] interface for [`SiLU`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for SiLU {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -122,6 +133,7 @@ pub fn mish<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) 
 #[derive(Clone, Debug, Default)]
 pub struct Mish;
 
+/// Implements the [`crate::module::Module`] interface for [`Mish`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Mish {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -155,6 +167,7 @@ pub fn hardsigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 #[derive(Clone, Debug, Default)]
 pub struct Hardsigmoid;
 
+/// Implements the [`crate::module::Module`] interface for [`Hardsigmoid`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Hardsigmoid {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -186,6 +199,7 @@ pub fn hardswish<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T,
 #[derive(Clone, Debug, Default)]
 pub struct Hardswish;
 
+/// Implements the [`crate::module::Module`] interface for [`Hardswish`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Hardswish {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -217,6 +231,7 @@ pub fn softsign<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, 
 #[derive(Clone, Debug, Default)]
 pub struct Softsign;
 
+/// Implements the [`crate::module::Module`] interface for [`Softsign`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softsign {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -239,6 +254,7 @@ pub fn softplus<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, 
 #[derive(Clone, Debug, Default)]
 pub struct Softplus;
 
+/// Implements the [`crate::module::Module`] interface for [`Softplus`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softplus {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -266,6 +282,7 @@ pub fn log_sigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 #[derive(Clone, Debug, Default)]
 pub struct LogSigmoid;
 
+/// Implements the [`crate::module::Module`] interface for [`LogSigmoid`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LogSigmoid {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -290,6 +307,7 @@ pub fn tanhshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T
 #[derive(Clone, Debug, Default)]
 pub struct Tanhshrink;
 
+/// Implements the [`crate::module::Module`] interface for [`Tanhshrink`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Tanhshrink {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {

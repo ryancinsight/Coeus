@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.5.6 - 2026-07-03
+
+### Fixed
+
+- **`PyTensor` scalar-arithmetic surface** — `__add__`, `__sub__`, `__mul__`,
+  `__truediv__` now accept a Python `float` on the right-hand side and route
+  through the existing `coeus_autograd::scalar_{add,sub,mul,div}` kernels via a
+  new `PyTensor::binop_dispatch` discriminator. Mirrored operators
+  `__rsub__`, `__rtruediv__`, and `__rpow__` close `float - tensor`,
+  `float / tensor`, and `float ** tensor`; `__abs__` is now exposed directly
+  through `coeus_autograd::abs`. Brings pycoeus in line with PyTorch / JAX /
+  MLX scalar-arithmetic ergonomics without expanding the backend dispatch
+  surface. Resolves the `TypeError: unsupported operand type(s) for -:
+  'builtins.Tensor' and 'float'` failure in
+  `binding_tests_ops::test_amax_amin_prod_ops`. Evidence:
+  `cargo nextest run -p coeus-python --test binding_tests_ops
+  test_amax_amin_prod_ops test_py_tensor_scalar_arithmetic` passes, plus the
+  full workspace regression of 1024 tests. ([patch])
+
+- **`PyGroupNorm` constructor kwarg alignment** — `binding_tests_nn.rs`
+  updated from the deprecated `num_features=4` kwarg to the PyTorch-aligned
+  `num_channels=4` kwarg introduced in MS-321-323. The internal Rust-core
+  field name (`num_features`) and the public Python attribute
+  (`pycoeus.GroupNorm.num_features`) are unchanged, preserving
+  `state_dict` round-trip compatibility. Resolves the `TypeError:
+  GroupNorm.__new__() got an unexpected keyword argument 'num_features'`
+  failure in `binding_tests_nn::test_pycoeus_nn`. Evidence:
+  `cargo nextest run -p coeus-python --test binding_tests_nn
+  test_pycoeus_nn` passes. ([patch])
+
+- **`coeus-nn::hinge_embedding_loss` PyTorch parity (MS-401.**peer uncommitted
+  WIP pulled into this release**)** — the loss body now matches PyTorch's
+  `HingeEmbeddingLoss`: target=+1 selects the identity branch (`x`),
+  target=-1 selects `relu(margin - x)`. The previous body computed
+  `relu(-(x - margin))` followed by `relu(-x)` and a `where_cond`, which is
+  numerically equal to `relu(margin - x)` for target=-1 but mapped target=+1
+  through `relu(-x)` and produced 0 for all `x ≤ 0` (disagreeing with
+  PyTorch on `[0, 1]`). New value-semantic test
+  `nn_loss_tests::test_hinge_embedding_loss_matches_torch_reference` asserts
+  forward mean (`0.275`) and analytical backward gradient
+  (`[0.25, 0.0, 0.25, -0.25]`) within `1e-14`. ([patch])
+
+### Added
+
+- **Python binding test for scalar arithmetic** —
+  `binding_tests_ops::test_py_tensor_scalar_arithmetic` exercises the full
+  forward + mirrored + unary (neg/ab) operator surface on a single
+  2×3 input, mirroring how PyTorch / JAX / MLX test ergonomics for
+  scalar ops. ([patch])
+
 ## [Unreleased]
 
 ### Added

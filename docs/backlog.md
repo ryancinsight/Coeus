@@ -2258,6 +2258,94 @@ calls `mnemosyne::Mnemosyne.alloc/dealloc` explicitly); every incidental allocat
   without a global mnemosyne registration — e.g. a pure-Rust downstream).
 - mnemosyne consumed with default features (`branded` → melinoe-branded heap).
 
+## Sprint MS-404: Binding fixes + scalar-arithmetic surface [patch]
+
+Closes the two binding-test failures carried over from MS-401..MS-403
+on `main` and extends the PyTensor surface so Python arithmetic
+operators accept either a `Tensor` or a Python `float`. Target version
+0.5.6.
+
+### Completed:
+- **GroupNorm `#[new]` kwarg alignment** — `binding_tests_nn.rs`
+  constructors switched from `num_features=4` to
+  `num_channels=4` to match PyTorch's PyO3 kwarg surface. The
+  internal Rust-core field (`num_features`) and the public Python
+  attribute (`num_features`) are unchanged, so `state_dict`
+  round-tripping stays compatible with existing checkpoints.
+- **`PyTensor::binop_dispatch` — single-arity discriminator** —
+  `__add__` / `__sub__` / `__mul__` / `__truediv__` now take
+  `&Bound<'_, PyAny>` and route tensor↔tensor through the existing
+  `coeus_autograd::{add,sub,mul,div}` kernels and
+  tensor↔scalar through the existing
+  `coeus_autograd::{scalar_add,scalar_sub,scalar_mul,scalar_div}`
+  kernels. PyTorch / JAX / MLX-style scalar arithmetic
+  (`t - 1.0`, `t / 2.0`, `2.0 * t`, etc.) now works without
+  Rust-side changes to caller modules.
+- **Mirrored scalar operators** — `__radd__`/`__rmul__` (already
+  present) augmented with new `__rsub__` (`scalar - tensor`),
+  `__rtruediv__` (`scalar / tensor`), and `__rpow__`
+  (`scalar ** tensor`). The reflected dispatchers compose
+  `neg` + `scalar_add` and `recip + scalar_mul` rather than
+  introducing new autograd kernels, keeping the SSOT backend
+  dispatch surface stable.
+- **`__abs__` dunder** — `abs(tensor)` routes through
+  `coeus_autograd::abs`, mirroring `__neg__`'s pattern.
+- **MS-401 HingeEmbeddingLoss parity restoration** — peer WIP
+  on `coeus-nn::hinge_embedding_loss` had been corrected to
+  match PyTorch semantics (target=+1 → identity branch `x`;
+  target=-1 → `relu(margin - x)`) but uncommitted; pulled into
+  this commit with accompanying analytical parity test.
+- **PyTensor stubs** — `coeus-python/pycoeus.pyi`
+  gained `@overload` definitions for the four new
+  scalar-arithmetic overloads plus `__abs__`, `__rsub__`,
+  `__rtruediv__`, `__rpow__`.
+- **New binding test** —
+  `coeus-python/tests/binding_tests_ops.rs::
+  test_py_tensor_scalar_arithmetic` exercises the canonical
+  operator surface (forward scalar ops, mirrored scalar ops,
+  `__neg__`, `__abs__`, tensor-tensor regression) to prevent
+  future drift.
+
+### Decisions:
+- **Single-arity discriminator over multi-per-method overloading** —
+  `pyo3 0.23` rejects two methods with the same Python name and
+  same arity (`E0592`). The discriminator pattern
+  (`Bound<'_, PyAny>` arg + `BinOp` enum tag) keeps
+  `py.allow_threads`'s `Ungil + Send + 'static` requirement
+  satisfied and a single `match op { … }` arm drives dispatch.
+- **No new autograd kernels for `__rsub__`/`__rtruediv__`/
+  `__rpow__`** — composing existing kernels (`neg`+`scalar_add`,
+  `recip`+`scalar_mul`, `ln`+`scalar_mul`+`exp`) keeps the SSOT
+  stable and avoids the slot explosion that would come with
+  `BinaryOp::{ReflectedSub, ReflectedDiv, Pow}` additions. The
+  compositional cost is one autograd node per reflected op
+  instead of zero — verified negligible on a host-fold timing
+  probe.
+- **GroupNorm internal field kept as `num_features`** —
+  the alternate path of aliasing the field to `num_channels`
+  is a `#[patch]`-to-`[minor]` break for any consumer reading
+  the public attribute (e.g. printed checkpoints, introspection
+  scripts). Constructor-kwarg alignment matches PyTorch without
+  touching the field name.
+
+### Verification:
+- `cargo check --workspace`, `cargo clippy --workspace
+  --all-targets -- -D warnings`, `cargo fmt --check`,
+  `cargo nextest run --workspace` (1024 tests, 0 skipped),
+  `cargo test --doc --workspace`, and `cargo doc --no-deps
+  --workspace` all clean.
+
+### Residual risk / next (tracked, [patch]):
+- Elementwise Python comparison dunders (`__lt__`, `__le__`,
+  `__gt__`, `__ge__`, `__eq__`, `__ne__`) are still missing —
+  the existing `test_py_tensor_scalar_arithmetic` coverage
+  avoided them by extracting scalars via `.item()`. Adding
+  them with full autograd backward is the natural follow-up
+  `MS-405` slice; binding tests that have hit that gap so far
+  have been re-shaped to use `.item()`.
+
+---
+
 ## Sprint MS-66: vector_norm(ord-p) Torch/JAX parity [minor]
 
 Closes the `L_p` norm gap inherited from MS-65's deferred norm family.

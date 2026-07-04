@@ -731,3 +731,104 @@ def test_scatter_add_matches_mlx() -> None:
     out_mlx = out_arr.at[idx_arr].add(src_arr)
     mx.eval(out_mlx)
     _allclose("scatter_add", list(out_pyc.data), out_mlx.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sub"), reason="pycoeus.sub not available")
+def test_sub_matches_mlx() -> None:
+    """sub forward matches MLX subtraction."""
+    _skip_if_no_mlx()
+    a_pyc, a_mlx = _f32([1.0, 3.0, 5.0, 7.0], [2, 2])
+    b_pyc, b_mlx = _f32([0.5, 1.5, 2.5, 3.5], [2, 2])
+    out_pyc = pycoeus.sub(a_pyc, b_pyc)
+    out_mlx = a_mlx - b_mlx
+    mx.eval(out_mlx)
+    _allclose("sub", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "div"), reason="pycoeus.div not available")
+def test_div_matches_mlx() -> None:
+    """div forward matches MLX division."""
+    _skip_if_no_mlx()
+    a_pyc, a_mlx = _f32([2.0, 4.0, 6.0, 8.0], [2, 2])
+    b_pyc, b_mlx = _f32([1.0, 2.0, 3.0, 4.0], [2, 2])
+    out_pyc = pycoeus.div(a_pyc, b_pyc)
+    out_mlx = a_mlx / b_mlx
+    mx.eval(out_mlx)
+    _allclose("div", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "pow"), reason="pycoeus.pow not available")
+def test_pow_matches_mlx() -> None:
+    """pow(x,2.5) forward matches MLX power."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([0.5, 1.0, 2.0, 3.0], [4])
+    out_pyc = pycoeus.pow(x_pyc, 2.5)
+    out_mlx = x_mlx ** 2.5
+    mx.eval(out_mlx)
+    _allclose("pow", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "expm1"), reason="pycoeus.expm1 not available")
+def test_expm1_matches_mlx() -> None:
+    """expm1 forward matches MLX exp(x)-1."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-1.0, -0.5, 0.0, 0.5, 1.0], [5])
+    out_pyc = pycoeus.expm1(x_pyc)
+    out_mlx = mx.exp(x_mlx) - 1.0
+    mx.eval(out_mlx)
+    _allclose("expm1", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log1p"), reason="pycoeus.log1p not available")
+def test_log1p_matches_mlx() -> None:
+    """log1p forward matches MLX log(1+x)."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-0.8, -0.2, 0.0, 0.5, 1.2], [5])
+    out_pyc = pycoeus.log1p(x_pyc)
+    out_mlx = mx.log(1.0 + x_mlx)
+    mx.eval(out_mlx)
+    _allclose("log1p", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sinh"), reason="pycoeus.sinh not available")
+def test_sinh_matches_mlx() -> None:
+    """sinh forward matches MLX sinh."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-1.5, -0.5, 0.0, 0.5, 1.5], [5])
+    out_pyc = pycoeus.sinh(x_pyc)
+    out_mlx = mx.sinh(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("sinh", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cosh"), reason="pycoeus.cosh not available")
+def test_cosh_matches_mlx() -> None:
+    """cosh forward matches MLX cosh."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-1.5, -0.5, 0.0, 0.5, 1.5], [5])
+    out_pyc = pycoeus.cosh(x_pyc)
+    out_mlx = mx.cosh(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("cosh", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "asin"), reason="pycoeus.asin not available")
+def test_asin_matches_mlx() -> None:
+    """asin forward matches MLX arcsin."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-0.8, -0.3, 0.0, 0.3, 0.8], [5])
+    out_pyc = pycoeus.asin(x_pyc)
+    out_mlx = mx.arcsin(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("asin", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "acos"), reason="pycoeus.acos not available")
+def test_acos_matches_mlx() -> None:
+    """acos forward matches MLX arccos."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-0.8, -0.3, 0.0, 0.3, 0.8], [5])
+    out_pyc = pycoeus.acos(x_pyc)
+    out_mlx = mx.arccos(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("acos", list(out_pyc.data), out_mlx.flatten().tolist())

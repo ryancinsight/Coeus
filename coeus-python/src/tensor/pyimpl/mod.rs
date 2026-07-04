@@ -3,6 +3,20 @@
 use coeus_autograd::Var;
 use pyo3::prelude::*;
 
+/// Closed-set dispatch tag for Python binary operators.
+///
+/// The dispatcher in `PyTensor::binop_dispatch` walks this enum rather
+/// than carrying a kernel closure across `py.allow_threads` so the
+/// generated inner closure is `Ungil + Send` (the GIL-release point
+/// does not permit arbitrary captured closures).
+#[derive(Copy, Clone, Debug)]
+enum BinOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+}
+
 /// Python-exposed tensor class wrapping autograd variables.
 #[pyclass(name = "Tensor")]
 #[derive(Clone)]
@@ -15,6 +29,52 @@ impl PyTensor {
     pub(crate) fn from_var(inner: Var<f64>) -> Self {
         Self {
             inner: crate::grad_mode::maybe_untrack_var(inner),
+        }
+    }
+
+    /// Dispatch a Python binary-operator invocation to either the tensor
+    /// kernel or the scalar broadcast kernel, depending on whether
+    /// `other` is a Python `Tensor` or a Python number.
+    ///
+    /// Used by `__add__`, `__sub__`, `__mul__`, `__truediv__` to give
+    /// Pycoeus tensors the same scalar-arithmetic ergonomics as
+    /// PyTorch / JAX / MLX: `t - 1.0`, `t / 2.0`, etc.
+    ///
+    /// Pre-clones the `inner: Var<f64>` and the scalar value before
+    /// `py.allow_threads(...)` to carry only `Send` data across the
+    /// GIL boundary; the closure inside `allow_threads` is a small
+    /// `match` on the `op` tag rather than a captured generic kernel.
+    #[inline]
+    fn binop_dispatch<'py>(
+        &self,
+        py: Python<'py>,
+        op_label: &str,
+        other: &Bound<'py, PyAny>,
+        op: BinOp,
+    ) -> PyResult<Self> {
+        let self_inner = self.inner.clone();
+        if let Ok(t) = other.downcast::<PyTensor>() {
+            let other_inner = t.borrow().inner.clone();
+            let inner = py.allow_threads(|| match op {
+                BinOp::Add => coeus_autograd::add(&self_inner, &other_inner),
+                BinOp::Sub => coeus_autograd::sub(&self_inner, &other_inner),
+                BinOp::Mul => coeus_autograd::mul(&self_inner, &other_inner),
+                BinOp::Div => coeus_autograd::div(&self_inner, &other_inner),
+            });
+            Ok(Self::from_var(inner))
+        } else if let Ok(scalar) = other.extract::<f64>() {
+            let inner = py.allow_threads(|| match op {
+                BinOp::Add => coeus_autograd::scalar_add(&self_inner, scalar),
+                BinOp::Sub => coeus_autograd::scalar_sub(&self_inner, scalar),
+                BinOp::Mul => coeus_autograd::scalar_mul(&self_inner, scalar),
+                BinOp::Div => coeus_autograd::scalar_div(&self_inner, scalar),
+            });
+            Ok(Self::from_var(inner))
+        } else {
+            Err(pyo3::exceptions::PyTypeError::new_err(format!(
+                "{op_label}: unsupported operand type for Tensor and {}",
+                other.get_type().name()?,
+            )))
         }
     }
 }
@@ -152,25 +212,35 @@ impl PyTensor {
     }
 
     // ── Arithmetic operators ──
+    //
+    // All five binary operators (`+`, `-`, `*`, `/`, `@`) accept either a
+    // `Tensor` (elementwise) or a Python `float` scalar (broadcast via
+    // `coeus_autograd::scalar_*`). The runtime discrimination is at the
+    // PyO3 boundary (single arity per Python method), so the operator
+    // wrappers take `&Bound<'_, PyAny>` and route to the right kernel.
+    //
+    // The reflected-side (e.g. `float + Tensor`) wrappers (`__radd__`,
+    // `__rsub__`, `__rmul__`, `__rtruediv__`, `__rpow__`) receive only
+    // scalars because Python's binary-op dispatch sends a `Tensor` to
+    // both sides' reflected methods when the LHS-typed op fails; those
+    // operators only enter when the LHS has no `+`/`*` method or
+    // returned NotImplemented, so the reflected overloads are guaranteed
+    // to be invoked with a non-Tensor LHS.
 
-    fn __add__(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::add(&self.inner, &other.inner));
-        Ok(Self::from_var(inner))
+    fn __add__(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.binop_dispatch(py, "__add__", other, BinOp::Add)
     }
 
-    fn __sub__(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::sub(&self.inner, &other.inner));
-        Ok(Self::from_var(inner))
+    fn __sub__(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.binop_dispatch(py, "__sub__", other, BinOp::Sub)
     }
 
-    fn __mul__(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::mul(&self.inner, &other.inner));
-        Ok(Self::from_var(inner))
+    fn __mul__(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.binop_dispatch(py, "__mul__", other, BinOp::Mul)
     }
 
-    fn __truediv__(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::div(&self.inner, &other.inner));
-        Ok(Self::from_var(inner))
+    fn __truediv__(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.binop_dispatch(py, "__truediv__", other, BinOp::Div)
     }
 
     fn __matmul__(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
@@ -183,6 +253,11 @@ impl PyTensor {
         Ok(Self::from_var(inner))
     }
 
+    fn __abs__(&self, py: Python<'_>) -> PyResult<Self> {
+        let inner = py.allow_threads(|| coeus_autograd::abs(&self.inner));
+        Ok(Self::from_var(inner))
+    }
+
     fn __rmul__(&self, scalar: f64, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::scalar_mul(&self.inner, scalar));
         Ok(Self::from_var(inner))
@@ -190,6 +265,33 @@ impl PyTensor {
 
     fn __radd__(&self, scalar: f64, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::scalar_add(&self.inner, scalar));
+        Ok(Self::from_var(inner))
+    }
+
+    fn __rsub__(&self, scalar: f64, py: Python<'_>) -> PyResult<Self> {
+        // `scalar - self`: negate, then add the scalar.
+        let inner = py.allow_threads(|| {
+            let neg = coeus_autograd::neg(&self.inner);
+            coeus_autograd::scalar_add(&neg, scalar)
+        });
+        Ok(Self::from_var(inner))
+    }
+
+    fn __rtruediv__(&self, scalar: f64, py: Python<'_>) -> PyResult<Self> {
+        // `scalar / self`: `scalar * reciprocal(self)`.
+        let inner = py.allow_threads(|| {
+            let recip = coeus_autograd::recip(&self.inner);
+            coeus_autograd::scalar_mul(&recip, scalar)
+        });
+        Ok(Self::from_var(inner))
+    }
+
+    fn __rpow__(&self, base: f64, _modulo: Option<i64>, py: Python<'_>) -> PyResult<Self> {
+        // `base ** self`: exp(self * ln(base)).
+        let inner = py.allow_threads(|| {
+            let scaled = coeus_autograd::scalar_mul(&self.inner, base.ln());
+            coeus_autograd::exp(&scaled)
+        });
         Ok(Self::from_var(inner))
     }
 

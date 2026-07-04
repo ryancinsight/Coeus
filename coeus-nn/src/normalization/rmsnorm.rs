@@ -1,3 +1,8 @@
+//! RMS normalization layers and helpers.
+//!
+//! [`RMSNorm`] rescales activations by their root-mean-square value over the
+//! last dimension without subtracting the mean.
+
 use crate::module::Module;
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
@@ -50,6 +55,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RMSNorm<T, B> {
     }
 }
 
+/// Implements the [`crate::module::Module`] interface for [`RMSNorm`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RMSNorm<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone()]

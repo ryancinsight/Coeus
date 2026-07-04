@@ -1,11 +1,9 @@
-// ── Group Normalization ──
-//
-// GroupNorm<T, B, const G: usize> normalizes inputs by splitting channels into G groups
-// and normalizing each group independently. G is encoded as a const generic,
-// enabling compile-time loop unrolling hints and ensuring type-level correctness.
-//
-// Unlike BatchNorm, GroupNorm has no running statistics and is identical in
-// train and eval modes — correct for variable-batch or single-sample inference.
+//! Group normalization layers and helpers.
+//!
+//! [`GroupNorm`] splits the channel dimension into a fixed number of groups and
+//! normalizes each group independently. Unlike batch normalization, it does not
+//! maintain running statistics, so training and inference use the same
+//! computation.
 
 use crate::module::Module;
 use coeus_autograd::Var;
@@ -97,6 +95,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
     }
 }
 
+/// Implements the [`crate::module::Module`] interface for [`GroupNorm`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, B>
     for GroupNorm<T, B, G>
 {

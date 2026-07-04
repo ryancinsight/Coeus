@@ -2313,7 +2313,7 @@ an = pycoeus.amin(x)
 assert abs(an - (-4.0)) < 1e-9, f"amin: {an}"
 
 # prod (global product: 3 * -1 * 5 * 2 * -4 * 0.5 = 60)
-pr = pycoeus.prod(x)
+pr = pycoeus.prod(x).item()
 expected_prod = 3.0 * (-1.0) * 5.0 * 2.0 * (-4.0) * 0.5
 assert abs(pr - expected_prod) < 1e-5, f"prod: {pr} expected {expected_prod}"
 
@@ -2321,7 +2321,7 @@ assert abs(pr - expected_prod) < 1e-5, f"prod: {pr} expected {expected_prod}"
 v = pycoeus.Tensor([7.0, 3.0, 9.0, 1.0], [4])
 assert abs(pycoeus.amax(v) - 9.0) < 1e-9
 assert abs(pycoeus.amin(v) - 1.0) < 1e-9
-assert abs(pycoeus.prod(v) - 7.0*3.0*9.0*1.0) < 1e-9
+assert abs(pycoeus.prod(v).item() - 7.0*3.0*9.0*1.0) < 1e-9
 
 # empty tensor raises ValueError for amax/amin; prod returns 1.0 (identity)
 try:
@@ -2335,8 +2335,51 @@ try:
 except ValueError:
     pass
 # prod of empty tensor = 1.0 (multiplicative identity, matching numpy/PyTorch)
-pr_empty = pycoeus.prod(pycoeus.zeros([0]))
+pr_empty = pycoeus.prod(pycoeus.zeros([0])).item()
 assert abs(pr_empty - 1.0) < 1e-9, f"prod empty: {pr_empty}"
+"#,
+    );
+}
+
+#[test]
+fn test_py_tensor_scalar_arithmetic() {
+    // Every arithmetic Python operator must accept a Python `float`
+    // and route through `coeus_autograd::scalar_*` (the dispatch
+    // path `PyTensor::binop_dispatch`). Expectations match PyTorch /
+    // JAX / MLX scalar-arithmetic semantics: scalar broadcast on
+    // forward ops, negation+add composition for mirrored ops.
+    run_script(
+        r#"
+import pycoeus
+
+t = pycoeus.Tensor([3.0, -1.0, 5.0, 2.0, -4.0, 0.5], [2, 3])
+
+# --- forward ops: Tensor op float ---
+add_r = (t + 1.0).data
+sub_r = (t - 1.0).data
+mul_r = (t * 2.0).data
+div_r = (t / 2.0).data
+assert add_r == [4.0, 0.0, 6.0, 3.0, -3.0, 1.5], add_r
+assert sub_r == [2.0, -2.0, 4.0, 1.0, -5.0, -0.5], sub_r
+assert mul_r == [6.0, -2.0, 10.0, 4.0, -8.0, 1.0], mul_r
+assert div_r == [1.5, -0.5, 2.5, 1.0, -2.0, 0.25], div_r
+
+# --- mirrored ops: float op Tensor ---
+assert (1.0 + t).data == [4.0, 0.0, 6.0, 3.0, -3.0, 1.5]
+assert (1.0 - t).data == [-2.0, 2.0, -4.0, -1.0, 5.0, 0.5]
+assert (2.0 * t).data == [6.0, -2.0, 10.0, 4.0, -8.0, 1.0]
+assert (2.0 / t).data == [
+    2.0 / 3.0, -2.0, 0.4, 1.0, -0.5, 4.0,
+]
+
+# --- __neg__ and __abs__ ---
+assert (-t).data == [-3.0, 1.0, -5.0, -2.0, 4.0, -0.5]
+assert abs(t).data == [3.0, 1.0, 5.0, 2.0, 4.0, 0.5]
+
+# --- tensor-tensor arithmetic still works under the new dispatch path ---
+u = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2, 3])
+assert (t + u).data == [4.0, 1.0, 8.0, 6.0, 1.0, 6.5]
+assert (t - u).data == [2.0, -3.0, 2.0, -2.0, -9.0, -5.5]
 "#,
     );
 }

@@ -52,7 +52,7 @@ try:
     assert y_3d.shape[4] == 3
 
     # GroupNorm
-    gn = pycoeus.GroupNorm(num_groups=2, num_features=4)
+    gn = pycoeus.GroupNorm(num_groups=2, num_channels=4)
     x_gn = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], [2, 4], requires_grad=True)
     y_gn = gn.forward(x_gn)
     assert y_gn.shape == [2, 4]
@@ -213,7 +213,7 @@ try:
     assert bn2d.bias.grad is not None
 
     # Test GroupNorm
-    gn = pycoeus.GroupNorm(num_groups=2, num_features=4)
+    gn = pycoeus.GroupNorm(num_groups=2, num_channels=4)
     x_gn = pycoeus.Tensor(list(range(1, 9)), [1, 4, 2], requires_grad=True)
     out_gn = gn.forward(x_gn)
     assert out_gn.shape == [1, 4, 2], f'GroupNorm shape is {out_gn.shape}'
@@ -223,7 +223,7 @@ try:
     assert gn.bias.grad is not None, 'GroupNorm bias grad is None'
 
     # Test GroupNorm G=1
-    gn1 = pycoeus.GroupNorm(num_groups=1, num_features=4)
+    gn1 = pycoeus.GroupNorm(num_groups=1, num_channels=4)
     x_gn1 = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], [2, 4], requires_grad=True)
     out_gn1 = gn1.forward(x_gn1)
     assert out_gn1.shape == [2, 4], f'GroupNorm(G=1) shape is {out_gn1.shape}'
@@ -348,16 +348,16 @@ try:
     linear_test = pycoeus.Linear(2, 3)
     params = linear_test.parameters()
     assert len(params) == 2, f'Expected 2 parameters, got {len(params)}'
-    
+
     # Run forward/backward to populate grads
     x_test = pycoeus.Tensor([1.0, 2.0], [1, 2], requires_grad=True)
     y_test = linear_test.forward(x_test)
     loss_test = y_test.sum_axis(0).sum_axis(1)
     loss_test.backward()
-    
+
     assert linear_test.weight.grad is not None
     assert linear_test.bias.grad is not None
-    
+
     linear_test.zero_grad()
     assert all(g == 0.0 for g in linear_test.weight.grad)
     assert all(g == 0.0 for g in linear_test.bias.grad)

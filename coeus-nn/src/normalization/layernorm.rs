@@ -1,3 +1,8 @@
+//! Layer normalization layers and helpers.
+//!
+//! [`LayerNorm`] normalizes activations over their last dimension and applies
+//! optional trainable affine parameters.
+
 use crate::module::Module;
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
@@ -90,6 +95,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
     }
 }
 
+/// Implements the [`crate::module::Module`] interface for [`LayerNorm`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone(), self.bias.clone()]

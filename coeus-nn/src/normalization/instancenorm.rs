@@ -1,12 +1,8 @@
-// ── Instance Normalization ──
-//
-// InstanceNorm{1,2,3}d normalize each (sample, channel) slice over the
-// spatial dimensions independently. Equivalent to GroupNorm with G = C
-// (each group contains exactly one channel).
-//
-// All three variants share identical normalization logic; they differ only in
-// how `spatial` is computed from the input shape. The common path lives in
-// `instance_norm_forward` and `InstanceNormCache`.
+//! Instance normalization layers.
+//!
+//! [`InstanceNorm1d`], [`InstanceNorm2d`], and [`InstanceNorm3d`] normalize
+//! each sample/channel slice across its spatial dimensions independently. This
+//! is equivalent to group normalization with one channel per group.
 
 use crate::module::Module;
 use coeus_autograd::Var;
@@ -161,6 +157,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> InstanceNorm1d<T, B> {
     }
 }
 
+/// Implements the [`crate::module::Module`] interface for [`InstanceNorm1d`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceNorm1d<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone(), self.bias.clone()]
@@ -228,6 +225,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> InstanceNorm2d<T, B> {
     }
 }
 
+/// Implements the [`crate::module::Module`] interface for [`InstanceNorm2d`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceNorm2d<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone(), self.bias.clone()]
@@ -295,6 +293,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> InstanceNorm3d<T, B> {
     }
 }
 
+/// Implements the [`crate::module::Module`] interface for [`InstanceNorm3d`].
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceNorm3d<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone(), self.bias.clone()]

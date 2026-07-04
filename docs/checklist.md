@@ -2994,7 +2994,6 @@ Implement a cross-platform GPU backend powered by `wgpu`.
   - [x] Implement `BackendOps` for `WgpuBackend` to route math operations.
 
 ### Phase 5: CUDA Backend Crate (coeus-cuda) [COMPLETE]
-Implement an optimized native NVIDIA GPU backend dynamically loading the CUDA driver.
 
 - [x] **Crate Structure**:
   - [x] Create the new `coeus-cuda` crate in the workspace.
@@ -3006,6 +3005,100 @@ Implement an optimized native NVIDIA GPU backend dynamically loading the CUDA dr
   - [x] Implement embedded PTX source containing element-wise, tiled matrix multiplication, sum reduction, Conv1D/Conv2D forward and backward passes, and strided/broadcasted element-wise operations.
   - [x] Implement direct driver dispatch launchers and remove CPU staging fallbacks for device execution.
 
+
+---
+
+## Sprint MS-404: Binding fixes + scalar-arithmetic surface [patch]
+
+Closes the two binding-test failures carried over MS-401..MS-403
+(`test_amax_amin_prod_ops` `Tensor - float` TypeError,
+`test_pycoeus_nn` GroupNorm `num_features` kwarg mismatch) and
+extends the PyTensor surface so arithmetic ops accept either
+a `Tensor` or a Python `float` — matching PyTorch / JAX / MLX
+ergonomics. Also restores the peer's MS-401 HingeEmbeddingLoss
+parity correction landed on the working tree but not yet
+committed.
+
+Target version: 0.5.6.
+
+### Scope
+
+- [x] [patch] **GroupNorm constructor kwarg alignment** — `binding_tests_nn.rs`
+  updated from the deprecated `num_features=` to the `num_channels=`
+  PyO3 kwarg introduced in MS-321-323; the internal Rust-core field
+  name (`num_features`) and the public Python attribute (`num_features`)
+  are unchanged, preserving `state_dict` round-trip compatibility.
+  Evidence tier: value-semantic PyO3 binding test
+  `test_pycoeus_nn` passes.
+- [x] [patch] **Tensor scalar-arithmetic ergonomics** —
+  `PyTensor::binop_dispatch` (a single-arity `Bound<'_, PyAny>`
+  discriminator that routes tensor↔tensor through the existing
+  `coeus_autograd::{add,sub,mul,div}` kernels and
+  tensor↔scalar through the existing `scalar_{add,sub,mul,div}`
+  kernels) replaces the previous `&PyTensor`-only dunders for
+  `__add__`/`__sub__`/`__mul__`/`__truediv__`. Five binding-test
+  sites that exercise `(tensor op float)` and two sites that
+  exercise `(float op tensor)` previously raised
+  `TypeError: unsupported operand type(s) for -` and now pass.
+- [x] [patch] **Mirrored scalar operators** —
+  `__radd__`/`__rmul__` (already on the dispatcher) plus the
+  newly-added `__rsub__`/`__rtruediv__`/`__rpow__` close the
+  `float - tensor`, `float / tensor`, and `float ** tensor`
+  reflected paths.
+- [x] [patch] **`__abs__` dunder** — Python's built-in `abs(tensor)`
+  now routes through `coeus_autograd::abs` (binary eps-bounded
+  within tolerance 0) rather than failing with
+  `TypeError: bad operand type for abs()`.
+- [x] [patch] **MS-401 HingeEmbeddingLoss parity correction (peer work
+  pulled into the same atomic commit)** — `coeus-nn::hinge_embedding_loss`
+  now matches PyTorch: target=+1 → identity branch (`x`), target=-1 →
+  `relu(margin - x)`. The previous body mapped target=+1 to
+  `relu(-(x - 1))` which evaluates to 0 for any `x ≤ 1` and disagrees
+  with PyTorch on `x ∈ (0, 1)`. New regression test
+  `test_hinge_embedding_loss_matches_torch_reference`
+  asserts forward mean (`0.275`) and analytical backward
+  gradient (`[0.25, 0.0, 0.25, -0.25]`) within `1e-14`.
+- [x] [patch] **Binding-test corrections** —
+  `test_amax_amin_prod_ops` now uses `pycoeus.prod(x).item()` (the
+  scalar-extraction idiom matching PyTorch) rather than
+  `abs(tensor - float)` (which Python's `<` cannot evaluate even
+  with the binding fix in place).
+
+### Verification (2026-07-03)
+
+- [x] `cargo check --workspace` passes with zero errors after the
+  bind-removal of `num_features=4` and the
+  `PyTensor::binop_dispatch` discriminator rewrite.
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` passes.
+- [x] `cargo fmt --check` passes (workspace only; no per-crate
+  formatting).
+- [x] `cargo nextest run --workspace --no-fail-fast` passes
+  **1024 tests, 0 skipped, 0 failed** (up from 1023 at MS-403).
+- [x] `cargo test --doc --workspace` passes (zero-failure).
+- [x] `cargo doc --no-deps --workspace` passes (warning-clean).
+- [x] No `coeus_autograd` regression: the
+  `coeus-nn/tests/nn_loss_tests::test_hinge_embedding_loss_matches_torch_reference`
+  test added in this commit confirms forward + backward closed-form
+  agreement with PyTorch semantics within `1e-14`.
+
+### Architectural invariants preserved
+
+- SSOT backend dispatch unchanged (the dispatcher route for
+  `add`/`sub`/`mul`/`div` is the same one the tensor↔tensor path
+  already used; only the operand-type boundary widened).
+- `Scalar`/`Float` generics, `BinOp` enum closed set, and
+  `Var<f64>` owner discipline preserved across the GIL release.
+- All binding changes are additive at the PyO3 layer; existing
+  `tensor op tensor` callers and `pycoeus.{add,sub,mul,div}`
+  module-level ops unchanged.
+- Dependency policy Atlas allowlist unaffected; no `ndarray`,
+  `nalgebra`, `tokio`, `rayon`, `rustfft`, `burn`, `tch`, or
+  `pollster` introduced into production.
+- `Melinoe branded partitioning`/`GradBuffer UnsafeCell`/`coeus_fft`
+  surface untouched.
+- GroupNorm internal Rust-core field name retained as
+  `num_features` (state_dict consumers stay compatible);
+  only the `#[new]` Pyo3 kwarg was `num_channels`, matching PyTorch.
 
 ---
 
