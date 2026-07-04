@@ -945,15 +945,14 @@ def test_triplet_margin_matches_jax() -> None:
     n_j = jnp.asarray(n, dtype=jnp.float64).reshape(2, 2)
 
     def f(av):
-        # PyTorch `triplet_margin_loss` ultimately inherits the
-        # `clamp_min(eps)` per-row reduction from `pairwise_distance` —
-        # i.e., no `+eps` perturbation on common-magnitude rows. Mirror
-        # the corrected PyTorch/Burn contract here so JAX-PyTorch agreement
-        # holds. (The previous `(... + 1e-6)` form pushed boundary rows
-        # slightly above 0 and disagreed with torch's reduction order at
-        # the O(eps/denom) term.)
-        d_ap = jnp.sqrt(jnp.maximum(jnp.sum((av - p_j) ** 2, axis=1), 1e-6))
-        d_an = jnp.sqrt(jnp.maximum(jnp.sum((av - n_j) ** 2, axis=1), 1e-6))
+        # PyTorch `pairwise_distance` is `at::norm(x1 - x2 + eps, p)`: eps is
+        # added to the difference, not clamped onto the summed norm. This
+        # keeps the norm strictly positive (finite gradient) and nudges an
+        # exactly-at-margin row above 0, matching torch (and the pytorch
+        # parity test, which fails under the clamp_min form). Mirror the true
+        # torch formula so JAX and PyTorch agree on the boundary row.
+        d_ap = jnp.sqrt(jnp.sum((av - p_j + 1e-6) ** 2, axis=1))
+        d_an = jnp.sqrt(jnp.sum((av - n_j + 1e-6) ** 2, axis=1))
         return jnp.mean(jnp.maximum(0.0, d_ap - d_an + 1.0))
 
     a_j = jnp.asarray(a, dtype=jnp.float64).reshape(2, 2)
