@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.7 - 2026-07-03
+
+### Fixed
+
+- **Docs sync (backlog.md, gap_audit.md)** — Closed stale G-037 (activation parity, already complete) and MS-41 legacy Burn-style architectural items (`B<S<T>>` era, superseded by `Scalar`/`ComputeBackend`/`BackendOps<T>`). Verified hardswish/hardsigmoid backward routing correct (evaluates on saved input, formulas match PyTorch). All 13 workspace crates compile, clippy clean, 153/153 doctests pass. ([patch])
+
 ## 0.5.6 - 2026-07-03
 
 ### Fixed

@@ -174,7 +174,7 @@ where pair-parameter decoding treated truncated halves as `f64` bit patterns.
 **Evidence tier**: analytical/value-semantic Rust tests + differential PyTorch
 parity (1/1 CTC test at f64).
 
-### G-037: Activation surface remains incomplete versus Burn/PyTorch
+### ~~G-037: Activation surface remains incomplete versus Burn/PyTorch~~ **CLOSED**
 **Location**: `coeus-nn/src/activation.rs`, `coeus-python/src/activation.rs`
 **Compared against**: Burn activations and PyTorch activation modules/functions.
 **Gap**: Coeus covers common activations, but lacks Rust module/API parity for
@@ -186,6 +186,7 @@ family with analytical derivative tests; expose PyO3 wrappers as delegation
 only; add PyTorch/Burn differential tests at f64, with kink/subgradient points
 handled by documented analytical contracts.
 **Evidence tier**: source-surface audit plus external API documentation audit.
+**Closed by**: Cumulative work across MS-79 (GLU), MS-131 (leaky_relu/softplus/mish), MS-211 (checklist note), MS-217 (PReLU/LeakyReLU); all target families (PReLU, CELU, hardshrink, softshrink, softsign, threshold, GLU, SwiGLU) now have autograd backward, nn wrappers, Python bindings, and PyTorch/JAX differential parity. Hardswish/hardsigmoid backward routing verified correct (this session). Hardtanh covered by existing clamp/clamp_min/clamp_max path.
 
 ### ~~G-036: Pooling, adaptive pooling, and unfold/fold coverage incomplete~~ **CLOSED**
 **Location**: `coeus-nn/src/pool.rs`, `coeus-python/src/nn/pool.rs`,

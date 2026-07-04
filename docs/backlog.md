@@ -23,8 +23,9 @@
   PyO3, and PyTorch differential parity surfaces.
 - [x] [minor] G-036: CLOSED — Pool1d (Max/Avg), adaptive pool (Avg/Max 1d/2d), unfold/fold 1d/2d
   all implemented with autograd backward, Rust value-semantic tests, and Python bindings.
-- [ ] [minor] G-037: Extend activation parity for PReLU, CELU, hard/shrink,
-  softsign, threshold, GLU, and SwiGLU families.
+- [x] [minor] G-037: CLOSED — All target families (PReLU, CELU, hardshrink,
+  softshrink, softsign, threshold, GLU, SwiGLU) implemented with autograd
+  backward, nn wrappers, Python bindings, and PyTorch/JAX differential parity.
 - [x] [minor] G-038: Extend loss and distance parity (23/23 implemented, fully CLOSED).
   CTCLoss added via MS-225 (log-space DP, full backward, Python binding, PyTorch parity).
 - [x] [minor] G-040: Add vanilla and bidirectional recurrent module parity
@@ -2862,31 +2863,34 @@ removed from hermes upstream; coeus owns those.
 4. **Missing Generic Arguments**: Added `CpuBackend<Float32>` generics to test code
 5. **Incomplete Implementations**: JIT crate restored to production readiness, GpuBackend remains excluded
 
-### Epic: Backend Compilation Error Resolution [CRITICAL PRIORITY]
+### Epic: Backend Compilation Error Resolution [CRITICAL PRIORITY] — SUPERSEDED
 
-#### **Phase 1: Import/Crate Dependencies** (Estimated: 2-3 hours)
+**Superseded by the current `Scalar`/`ComputeBackend`/`BackendOps<T>` architecture.**
+All targets in this epic were achieved by switching from `B<S<T>>` generics to associated types in the `Backend` trait (see "Key Architectural Decisions" below at line 2817). The workspace compiles with zero errors across all 13 active crates.
+
+#### **Phase 1: Import/Crate Dependencies** (Estimated: 2-3 hours) — SUPERSEDED
 - [x] Add serde derives (Serialize/Deserialize) to memory_integration.rs
-- [ ] Fix alloc::string dependencies and error unification
-- [ ] Add Backend/DataType/Storage trait imports throughout backend crate
-- [ ] Resolve std::f64 vs T type conflicts in memory management
+- [-] Fix alloc::string dependencies and error unification — **superseded by associated-type Backend design**
+- [-] Add Backend/DataType/Storage trait imports throughout backend crate — **superseded**
+- [-] Resolve std::f64 vs T type conflicts in memory management — **superseded**
 
-#### **Phase 2: Backend Trait Consistency** (Estimated: 6-8 hours)
-- [ ] **Trait Method Alignment**: Audit all Backend trait methods vs implementations
-- [ ] **Remove Extra Generics**: Eliminate conflicting T parameters in CPU backend impl
-- [ ] **Add Missing Trait Methods**: Implement missing Backend trait methods in CPU backend
-- [ ] **Fix Method Signatures**: Align conv2d_dense() and other method signatures
+#### **Phase 2: Backend Trait Consistency** (Estimated: 6-8 hours) — SUPERSEDED
+- [-] **Trait Method Alignment**: Audit all Backend trait methods — **superseded by ComputeBackend trait**
+- [-] **Remove Extra Generics**: Eliminate conflicting T parameters — **superseded by associated-type design**
+- [-] **Add Missing Trait Methods**: Implement missing Backend trait methods — **superseded by BackendOps<T>**
+- [-] **Fix Method Signatures**: Align conv2d_dense() — **superseded by ConvOps**
 
-#### **Phase 3: Type System Resolution** (Estimated: 8-10 hours)
-- [ ] **Trait Bounds**: Add required B: Backend, S: Storage<T>, T: DataType bounds
-- [ ] **Borrow Checker**: Fix mutable/immutable borrow conflicts in memory integration
-- [ ] **Type Inference**: Resolve cannot infer type issues with explicit annotations
-- [ ] **Generic Patterns**: Standardize B<S<T>> usage across all backend components
+#### **Phase 3: Type System Resolution** (Estimated: 8-10 hours) — SUPERSEDED
+- [-] **Trait Bounds**: Add required B: Backend, S: Storage<T>, T: DataType — **superseded by Scalar/ComputeBackend**
+- [-] **Borrow Checker**: Fix mutable/immutable borrow conflicts — **superseded by current architecture**
+- [-] **Type Inference**: Resolve cannot infer type issues — **superseded**
+- [-] **Generic Patterns**: Standardize B<S<T>> usage — **superseded by associated types**
 
-#### **Phase 4: Core Operation Implementation** (Estimated: 4-6 hours)
-- [ ] **Missing Operations**: Implement spmm_csr, quantize, dequantize, quantized_matmul operations
-- [ ] **CPU Backend Finalization**: Complete all CPU backend method implementations
-- [ ] **Error Handling**: Add proper error propagation and BackendError integration
-- [ ] **Compilation Validation**: Achieve zero compilation errors in backend crate
+#### **Phase 4: Core Operation Implementation** (Estimated: 4-6 hours) — SUPERSEDED
+- [-] **Missing Operations**: Implement spmm_csr, quantize, dequantize, quantized_matmul — **spmm exists; quantized deferred per G-042**
+- [-] **CPU Backend Finalization**: Complete all CPU backend method implementations — **superseded by BackendOps<T>**
+- [-] **Error Handling**: Add proper error propagation — **superseded by current error types**
+- [-] **Compilation Validation**: Achieve zero compilation errors — **achieved and maintained since MS-44**
 
 ### Epic: Backend Architecture Assessment [HIGH PRIORITY]
 **Status**: Ready for Investigation
