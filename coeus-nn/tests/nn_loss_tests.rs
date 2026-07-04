@@ -401,8 +401,15 @@ fn test_pairwise_distance() {
         .map(|r| r.iter().map(|d| d.abs().powf(p)).sum::<f64>())
         .collect();
     let out = dist.tensor.as_slice();
+    let eps = 1e-6_f64;
+    // Torch `pairwise_distance` semantics: clamp_min the inner sum to `eps`
+    // before the `(1/p)` root, so for `s >> eps` the forward is the pure
+    // `||diff||_p` and the gradient is `max(s, eps)^(1/p - 1) * |d|^(p-1) * sign(d)`.
+    // (The previous `s + eps` form added an O(eps/denom) perturbation that
+    // differed from torch's reduction order at the `eps^(1/p)` ULP.)
+    let s_floor: Vec<f64> = s.iter().map(|&v| if v > eps { v } else { eps }).collect();
     for i in 0..2 {
-        let exp = (s[i] + eps).powf(1.0 / p);
+        let exp = s_floor[i].powf(1.0 / p);
         assert!((out[i] - exp).abs() <= 1e-12, "pd fwd {}", i);
     }
     let total = coeus_autograd::sum(&dist);
@@ -410,7 +417,7 @@ fn test_pairwise_distance() {
     let g1 = x1.grad().expect("x1 grad");
     let g2 = x2.grad().expect("x2 grad");
     for i in 0..2 {
-        let scale = (s[i] + eps).powf(1.0 / p - 1.0);
+        let scale = s_floor[i].powf(1.0 / p - 1.0);
         for (k, &d) in diffs[i].iter().enumerate() {
             let eg = scale * d.abs().powf(p - 1.0) * d.signum();
             assert!(

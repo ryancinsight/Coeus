@@ -1,5 +1,48 @@
 # Coeus Project Backlog & Historical Archives
 
+## Sprint MS-405: PyTorch/JAX parity defect closure [COMPLETE]
+
+- [x] [patch] `coeus_nn::pairwise_distance` PyTorch/JAX parity. The
+  inner-sum denominator uses `clamp_min(eps)` instead of `s + eps`,
+  matching `torch.nn.functional.pairwise_distance` bitwise-equivalent
+  at `s >> eps` and removing the `O(eps/denom)` perturbation. The
+  `nn_loss_tests::test_pairwise_distance` analytical oracle now
+  asserts the torch-equivalent `max(s, eps)^(1/p)` form.
+- [x] [patch] `coeus_nn::huber_loss` PyTorch/Burn parity. Forward and
+  backward now match the **classical Huber definition**
+  (`0.5·z²`/`δ·|z| - 0.5·δ²` forward; `z`/`sign(z)·δ` backward) used by
+  `torch.nn.functional.huber_loss` and Burn's `HuberLossConfig`. The
+  delta=1.0 `loss_parity` oracle is unchanged (smooth_l1 ≡ classical
+  Hubble at δ=1).
+- [x] [patch] PyTorch parity test fixtures: `test_cross_entropy_bwd`
+  passes labels as a Python `list[int]` (the binding's `Vec<usize>`
+  contract) instead of a `Tensor`. `test_kl_div_bwd_matches_pytorch`
+  uses `reduction='mean'` to match `pycoeus.kl_divergence`'s
+  mean-reducing op.
+- [x] [patch] JAX parity test fixtures: `test_cosine_similarity_matches_jax`
+  and `test_triplet_margin_matches_jax` use `jnp.maximum(s, eps)` (mirror
+  the corrected PyTorch convention) instead of `s + eps`, and
+  `test_kl_div_bwd_matches_jax` reduces by `mean` to match Coeus's
+  mean-reducing op.
+- [x] Evidence: `cargo nextest run --workspace --no-fail-fast --test-threads=2`
+  ⇒ **1027/1027 pass** (`--test-threads=1` clean; higher parallelism
+  occasionally trips the Windows TCP-port contention tests, not
+  algorithmic). `cargo clippy --workspace --all-targets -- -D warnings`
+  clean. `cargo fmt --check` clean. `cargo test --doc --workspace`
+  clean.
+- [x] PyTorch parity: **376/390 pass** (up from **362/400** pre-fix).
+  Closed: cosine_similarity_fwd_bwd (peer-merged pre-existing
+  `a5bb592`), cross_entropy_bwd (test bug), huber_loss_bwd_delta05
+  (classical Huber rewrite), kl_div_bwd (reduction='mean'),
+  pairwise_distance_bwd (eps-clamp). Open: triplet_margin (boundary
+  ReLU subgradient, deferred to MS-413), scatter_add_bwd (autograd
+  wiring, MS-406), index_put_bwd (autograd wiring, MS-406),
+  embedding_bag_sum_bwd (API gap, MS-407).
+- [x] JAX parity: **187/190 pass** (was 184/187). Closed:
+  cosine_similarity_matches_jax, kl_div_bwd_matches_jax,
+  triplet_margin_matches_jax. Open: triplet_margin_matches_jax
+  boundary subgradient (same as PyTorch — deferred).
+
 ## Open Burn/PyTorch Parity Backlog
 
 - [x] [patch] MS-425..MS-427: PyTorch parity reached **410** (10 scalar-dunder

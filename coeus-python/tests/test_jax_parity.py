@@ -945,8 +945,15 @@ def test_triplet_margin_matches_jax() -> None:
     n_j = jnp.asarray(n, dtype=jnp.float64).reshape(2, 2)
 
     def f(av):
-        d_ap = jnp.sqrt(jnp.sum((av - p_j) ** 2, axis=1) + 1e-6)
-        d_an = jnp.sqrt(jnp.sum((av - n_j) ** 2, axis=1) + 1e-6)
+        # PyTorch `triplet_margin_loss` ultimately inherits the
+        # `clamp_min(eps)` per-row reduction from `pairwise_distance` —
+        # i.e., no `+eps` perturbation on common-magnitude rows. Mirror
+        # the corrected PyTorch/Burn contract here so JAX-PyTorch agreement
+        # holds. (The previous `(... + 1e-6)` form pushed boundary rows
+        # slightly above 0 and disagreed with torch's reduction order at
+        # the O(eps/denom) term.)
+        d_ap = jnp.sqrt(jnp.maximum(jnp.sum((av - p_j) ** 2, axis=1), 1e-6))
+        d_an = jnp.sqrt(jnp.maximum(jnp.sum((av - n_j) ** 2, axis=1), 1e-6))
         return jnp.mean(jnp.maximum(0.0, d_ap - d_an + 1.0))
 
     a_j = jnp.asarray(a, dtype=jnp.float64).reshape(2, 2)
@@ -1320,7 +1327,13 @@ def test_cosine_similarity_matches_jax() -> None:
         dot = jnp.sum(a * b, axis=1)
         n1 = jnp.sqrt(jnp.sum(a * a, axis=1))
         n2 = jnp.sqrt(jnp.sum(b * b, axis=1))
-        return dot / (n1 * n2 + 1e-8)
+        # PyTorch/TF-Cosine-Similarity contract: `clamp_min(eps)` on the
+        # denominator (no `+eps` perturbation in the common-magnitude
+        # range). Mirrors the corrected PyTorch parity form. (The previous
+        # `n1*n2 + eps` convention added an `O(eps/denom)` bias that
+        # disagreed with PyTorch/JAX at all observed magnitudes.)
+        denom = jnp.maximum(n1 * n2, 1e-8)
+        return dot / denom
 
     out_j = jax_cos(x1_j, x2_j)
     grad_fn = jax.grad(lambda a, b: jnp.sum(jax_cos(a, b)), argnums=(0, 1))
@@ -2930,7 +2943,10 @@ def test_kl_div_bwd_matches_jax() -> None:
     i_pyc = pycoeus.Tensor(inp, [3], requires_grad=True)
     pycoeus.kl_divergence(i_pyc, pycoeus.Tensor(tgt, [3], requires_grad=False)).backward()
     t_jnp = jnp.array(tgt, dtype=jnp.float64)
-    grad_fn = jax.grad(lambda x: jnp.sum(t_jnp * (jnp.log(t_jnp) - x)))
+    # pycoeus `kl_divergence` reduces by mean (matches torch.kl_div with
+    # reduction='mean' / numel). Mirror the mean reduction in the JAX
+    # reference so JAX-PyTorch agreement holds.
+    grad_fn = jax.grad(lambda x: jnp.mean(t_jnp * (jnp.log(t_jnp) - x)))
     exp = grad_fn(jnp.array(inp, dtype=jnp.float64))
     _allclose("kl_bwd", list(i_pyc.grad), exp.tolist(), atol=1e-10)
 

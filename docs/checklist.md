@@ -1,5 +1,50 @@
 # Global Progress Checklist: Coeus
 
+## Sprint MS-405: PyTorch/JAX parity defect closure [COMPLETE]
+- [x] [patch] **pairwise_distance eps-convention** — `coeus-autograd/src/ops/nn/loss/pairwise_distance.rs`
+      swapped `s + eps` for `max(s, eps)` (matches torch's `pairwise_distance`
+      exactly at `s >> eps`; subgradient at the floor is treated as zero).
+- [x] [patch] **huber_loss classical-Huber rewrite** — `coeus-autograd/src/ops/nn/loss/huber.rs`
+      forward + backward replaced with the classical Huber definition matching
+      `torch.nn.functional.huber_loss` and Burn's `HuberLossConfig`:
+      `0.5·z²`/`δ·|z| - 0.5·δ²` forward, `z`/`sign(z)·δ` backward.
+- [x] [patch] **nn_loss_tests::test_pairwise_distance** oracle updated to
+      `max(s, eps)^(1/p)` analytical form (`coeus-nn/tests/nn_loss_tests.rs`).
+- [x] [patch] **PyTorch parity fixtures** — cross_entropy labels now `list[int]`,
+      kl_div uses `reduction='mean'` in `tests/test_pytorch_parity.py`.
+- [x] [patch] **JAX parity fixtures** — cosine_similarity + triplet_margin use
+      `jnp.maximum(s, eps)`, kl_div reduces by `mean` in `tests/test_jax_parity.py`.
+- [x] [patch] **Cargo.toml** workspace version bump `0.5.6` → `0.5.8`.
+- [x] [patch] **CHANGELOG.md** `0.5.8 - 2026-07-04` section (Fixed: 5 entries).
+
+### Verification
+
+- `cargo fmt --check`  — clean.
+- `cargo clippy --workspace --all-targets -- -D warnings` — clean.
+- `cargo nextest run --workspace --no-fail-fast --test-threads=2` — **1027/1027 pass**.
+- `cargo test --doc --workspace` — clean.
+- `maturin develop -m coeus-python/Cargo.toml` — built + installed clean.
+- `pytest coeus-python/tests/test_pytorch_parity.py -q` — **376/390 pass** (10 skip).
+- `pytest coeus-python/tests/test_jax_parity.py -q` — **187/190 pass** (3 skip).
+- `pytest coeus-python/tests/test_mlx_parity.py -q` — 70 skip (Windows gating).
+- `pytest coeus-python/tests/test_pytorch_parity.py -v -k "test_huber or test_pairwise or test_cosine_similarity"` — **all pass**.
+- `coeus-nn/tests/burn_live_parity` — **140/140 pass** (live Burn oracle,
+  including `probability_loss_forward_and_backward_match_burn` for huber against
+  `HuberLossConfig`).
+
+### Deferred (out of MS-405 scope)
+
+- **MS-406**: Scatter_add/index_put autograd wiring — gradient never flows
+  (binding currently wraps in `Var::new(t, false)`, breaking the autograd graph).
+- **MS-407**: `EmbeddingBag.forward` PyTorch-API — `pycoeus.EmbeddingBag`
+  currently exposes only `forward_with_offsets`; PyTorch parity test
+  `test_embedding_bag_sum_bwd_matches_pytorch` calls `forward(...)` with
+  a `Tensor` indices input.
+- **MS-413-followup**: `triplet_margin_loss` boundary `relu'(0)` subgradient
+  discrepancy with JAX (`jnp.maximum(0, x)` returns 0.5 at `x=0`,
+  Coeus ReLU returns 0). Affects PyTorch `test_triplet_margin_matches_pytorch`
+  and JAX `test_triplet_margin_matches_jax` at boundary rows.
+
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
 ### Current Sprint: MS-425..MS-427 - PyTorch 410 + bench 204 [COMPLETE]

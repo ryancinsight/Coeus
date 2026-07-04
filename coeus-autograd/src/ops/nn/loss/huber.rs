@@ -5,7 +5,16 @@ use coeus_core::{Float, Scalar, Storage};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
-/// Autograd node for Huber loss.
+/// Autograd node for Huber loss (PyTorch `F.huber_loss(reduction='mean')`).
+///
+/// The forward uses the **classical** Huber definition — which differs from
+/// `smooth_l1_loss` by omitting the `1/δ` factor in the quadratic region
+/// and rescaling the linear region by `δ`:
+///
+///   forward quadratic (`|z| < δ`): `0.5 * z²`
+///   forward linear    (`|z| ≥ δ`): `δ * |z| - 0.5 * δ²`
+///   backward quadratic: `z`
+///   backward linear:   `sign(z) * δ`
 pub struct HuberLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
@@ -50,18 +59,27 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Hub
             let mut d_pred = vec![T::zero(); self.n];
             for i in 0..self.n {
                 let diff = self.diffs[i];
-                // Huber grad: diff/delta clamped to [-1, 1]
-                let raw = diff / delta;
-                // Use T::zero() - T::one() for -1.0 since unary - not guaranteed on T
-                let neg_one = T::zero() - T::one();
-                let clamped = if raw > T::one() {
-                    T::one()
-                } else if raw < neg_one {
-                    neg_one
+                // PyTorch's huber_loss gradient: `z` in the quadratic region
+                // and `sign(z) * delta` in the linear region. (Note: this
+                // differs from smooth_l1_loss, whose quadratic grad is
+                // `z / beta` — huber_loss uses the classical definition.)
+                let abs_diff = if diff < T::zero() {
+                    T::zero() - diff
                 } else {
-                    raw
+                    diff
                 };
-                d_pred[i] = clamped * scale;
+                let gradient = if abs_diff <= delta {
+                    diff
+                } else {
+                    // Preserve the sign of `diff` (i.e. `sign(diff) * delta`).
+                    let sign = if diff < T::zero() {
+                        T::zero() - T::one()
+                    } else {
+                        T::one()
+                    };
+                    sign * delta
+                };
+                d_pred[i] = gradient * scale;
             }
             let grad_tensor = Tensor::from_slice_on([self.n], &d_pred, &backend);
             let gl = g.write();
@@ -70,8 +88,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Hub
     }
 }
 
-/// Tracked Huber (Smooth L1) Loss.
-/// pred: `[N]`, target: `[N]`, delta: threshold.
+/// Huber loss (PyTorch `F.huber_loss(reduction='mean', delta=...)`).
+///
+/// Forward per element `z = pred - target`:
+///   - quadratic branch (`|z| < delta`): `0.5 * z * z`
+///   - linear branch   (`|z| >= delta`): `delta * |z| - 0.5 * delta * delta`
+///
+/// Backward per element:
+///   - quadratic: `z`
+///   - linear:   `sign(z) * delta`
+///
+/// This matches the classical Huber definition; PyTorch's
+/// `smooth_l1_loss` is the `0.5·z²/β`-form alternative.
 pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
@@ -122,10 +150,15 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         } else {
             diff
         };
+        // Classical Huber: `0.5*z²` for |z|<δ, `δ*|z| - 0.5*δ²` otherwise.
+        // (PyTorch's huber_loss differs from smooth_l1_loss by omitting the
+        // `1/δ` factor in the quadratic region:
+        //   smooth_l1: 0.5*z²/β for |z|<β, |z|-0.5*β otherwise
+        //   huber:     0.5*z²   for |z|<δ, δ*|z|-0.5*δ² otherwise)
         let elem = if abs_diff <= delta {
-            half * diff * diff / delta
+            half * diff * diff
         } else {
-            abs_diff - half * delta
+            delta * abs_diff - half * delta * delta
         };
         loss_val = loss_val + elem;
     }

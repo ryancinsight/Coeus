@@ -1,6 +1,79 @@
 # Changelog
 
-## 0.5.7 - 2026-07-03
+## 0.5.8 - 2026-07-04
+
+### Fixed
+
+- **`coeus_nn::pairwise_distance` PyTorch/JAX parity (MS-405)** —
+  the inner-sum denominator now uses `clamp_min(eps)` (subgradient of
+  `max(s, eps)` w.r.t. `s`) instead of the previous `s + eps` form. For
+  the common `s >> eps` case the result is the pure `||diff||_p` norm
+  with no `O(eps/denom)` perturbation, matching
+  `torch.nn.functional.pairwise_distance` and JAX's `pairwise_distance`
+  bitwise up to `(1 + N) · ε_T · |result|` ULP noise. The corresponding
+  `nn_loss_tests` analytical oracle (`test_pairwise_distance` in
+  `coeus-nn`) was updated to assert the torch-equivalent
+  `max(s, eps)^(1/p)` expected value (the prior assertion encoded the
+  broken `+eps` formula at f64 precision). Confirmed by:
+  `cargo nextest run -p coeus-nn --test nn_loss_tests test_pairwise_distance test_huber_loss test_cosine_similarity_forward_and_backward`,
+  `test_pairwise_distance_bwd_matches_pytorch`,
+  `test_pairwise_distance_matches_pytorch`,
+  `test_pairwise_distance_matches_jax`, and the live Burn oracle
+  `burn_live_parity::statistical_ops_match_burn` all pass.
+  ([patch])
+
+- **`coeus_nn::huber_loss` PyTorch/Burn parity (MS-405)** — the loss
+  body now matches the **classical Huber definition** that
+  `torch.nn.functional.huber_loss` and Burn's `HuberLossConfig`
+  implement:
+
+  ```
+  forward quadratic (|z| ≤ δ):  0.5 · z²
+  forward linear    (|z| > δ):  δ · |z| - 0.5 · δ²
+  backward quadratic:            z
+  backward linear:              sign(z) · δ
+  ```
+
+  The previous body implemented `F.smooth_l1_loss` (`0.5·z²/β`
+  forward, `clamp(z/β, -1, 1)` gradient), which disagrees with
+  `huber_loss` outside the δ=1 special case. Newton's classical-Huber
+  value at δ=1.0 happens to match smooth_l1 for the existing
+  `loss_parity` oracle (`pred=[2]`, `target=[0]`, δ=1.0 → 1.5) so that
+  test continues passing under the corrected body. Confirmed by
+  `test_huber_loss_bwd_delta05_matches_pytorch`,
+  `test_huber_loss_matches_pytorch`,
+  `test_huber_loss_bwd_matches_jax`,
+  `test_huber_loss_matches_jax`, plus the live Burn oracle
+  `burn_live_parity::probability_loss_forward_and_backward_match_burn`
+  (which exercises both pieces of the loss and its gradients against
+  Burn's `HuberLossConfig`). ([patch])
+
+- **PyTorch parity test fixtures (cross_entropy, kl_div)** —
+  `test_cross_entropy_bwd_matches_pytorch` now passes the labels list
+  (`Vec<usize>`) directly to `pycoeus.cross_entropy_loss` instead of a
+  `Tensor` of floats (the binding's signature is `Vec<usize>` and
+  PyTorch parity mirrors the documented API surface).
+  `test_kl_div_bwd_matches_pytorch` uses `reduction='mean'` on the
+  torch reference to match `pycoeus`'s mean-reducing op (the previous
+  `reduction='sum'` comparison failed because `'sum'` is a 3× different
+  scale than `'mean'`, not equal). ([patch])
+
+- **JAX parity test fixtures (cosine_similarity, triplet_margin,
+  kl_div)** — `test_cosine_similarity_matches_jax` and
+  `test_triplet_margin_matches_jax` now use
+  `jnp.maximum(s, eps)` instead of `s + eps` for the inner-sum
+  denominator so the JAX reference mirrors PyTorch's `clamp_min(eps)`
+  convention exactly. `test_kl_div_bwd_matches_jax` reduces by `mean`
+  to match `pycoeus.kl_divergence`'s mean-reducing op. The first two
+  brought the JAX parity row up to 187/190 (was 184/187); the third
+  brings the JAX parity kl_div counter to parity. ([patch])
+
+- **`nn_loss_tests::test_pairwise_distance` analytical oracle** — the
+  expected forward value and gradient scale now compute
+  `s_floor = max(s, eps)` and assert the torch-matching value
+  `s_floor^(1/p)` instead of the broken `(s + eps)^(1/p)` literal.
+  ([patch])
+
 
 ### Fixed
 

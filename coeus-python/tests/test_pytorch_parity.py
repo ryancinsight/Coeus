@@ -6822,8 +6822,10 @@ def test_cross_entropy_bwd_matches_pytorch() -> None:
     logits = [1.0, 2.0, 3.0, 0.5, 1.5, 2.5]
     labels = [2, 0]  # class indices
     p_pyc = pycoeus.Tensor(logits, [2, 3], requires_grad=True)
-    l_pyc = pycoeus.Tensor([float(x) for x in labels], [2], requires_grad=False)
-    loss_pyc = pycoeus.cross_entropy_loss(p_pyc, l_pyc)
+    # pycoeus.cross_entropy_loss accepts a Python `list[int]` (cast to
+    # `Vec<usize>` at the binding boundary); passing a `Tensor` of floats
+    # is not part of the API surface.
+    loss_pyc = pycoeus.cross_entropy_loss(p_pyc, labels)
     loss_pyc.backward()
     p_t = torch.tensor(logits, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
     l_t = torch.tensor(labels, dtype=torch.int64)
@@ -6975,7 +6977,10 @@ def test_kl_div_bwd_matches_pytorch() -> None:
     t_pyc = pycoeus.Tensor(tgt, [3], requires_grad=False)
     pycoeus.kl_divergence(i_pyc, t_pyc).backward()
     i_t = torch.tensor(inp, dtype=torch.float64, requires_grad=True)
-    _F.kl_div(i_t, torch.tensor(tgt, dtype=torch.float64), reduction="sum").backward()
+    # pycoeus `kl_divergence` reduces by mean (matches torch.kl_div with
+    # reduction='mean' / numel). Use `reduction='mean'` on the torch side
+    # so that the gradient magnitudes agree without a `/numel` factor.
+    _F.kl_div(i_t, torch.tensor(tgt, dtype=torch.float64), reduction="mean").backward()
     _allclose("kl_bwd", list(i_pyc.grad), i_t.grad.flatten().tolist(), atol=1e-10)
 
 

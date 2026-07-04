@@ -80,7 +80,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 
 /// Tracked row-wise p-norm pairwise distance (PyTorch `PairwiseDistance`):
 /// for inputs `x1, x2` of shape `[N, D]`, returns a `[N]` vector with
-/// `out_i = (sum_k |x1_ik - x2_ik|^p + eps)^(1/p)`.
+/// `out_i = max(sum_k |x1_ik - x2_ik|^p, eps)^(1/p)`. Matches PyTorch's
+/// `torch.nn.functional.pairwise_distance` exactly: the `eps` only enters
+/// as a `clamp_min` floor before the `(1/p)` root, so for the common case
+/// `sum > eps` the result is the pure `||diff||_p` norm (no perturbation)
+/// and the gradient factors carry no `eps`-dependent term.
 pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x1: &Var<T, B>,
     x2: &Var<T, B>,
@@ -146,9 +150,14 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             let diff = x1_host[base + k] - x2_host[base + k];
             s = s + diff.abs().powf(p);
         }
-        let s_eps = s + eps;
-        out[i] = s_eps.powf(inv_p);
-        let scale = s_eps.powf(inv_p - one);
+        // PyTorch's PairwiseDistance dereferences eps as a `clamp_min` on the
+        // inner sum, not a direct additive term. Using `max(s, eps)` means
+        // the gradient carries no `eps`-dependent bias on the common
+        // `s > eps` branch, bitwise-matching torch's reduction order.
+        let s_floor = if s > eps { s } else { eps };
+        let s_scaled = s_floor.powf(inv_p);
+        out[i] = s_scaled;
+        let scale = s_floor.powf(inv_p - one);
         for k in 0..feat {
             let diff = x1_host[base + k] - x2_host[base + k];
             let mag = diff.abs().powf(p_minus_one);
