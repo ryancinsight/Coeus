@@ -314,10 +314,12 @@ where
     let mask_tensor = Tensor::from_slice_on(x.tensor.shape(), &mask_data, &backend);
     let mask_var = Var::new(mask_tensor, false);
 
-    let candidate1 =
-        coeus_autograd::relu(&coeus_autograd::neg(&coeus_autograd::scalar_sub(x, margin)));
-    let candidate2 = coeus_autograd::relu(&coeus_autograd::neg(x));
-    let selected = coeus_autograd::where_cond(&mask_var, &candidate1, &candidate2);
+    // PyTorch HingeEmbeddingLoss: target = +1 → loss = x (identity, no clamp);
+    // target = -1 → loss = max(0, margin - x). `mask` is 1 where target > 0, so
+    // `where_cond` selects the identity branch there and the hinge branch (the
+    // `-1` case) otherwise.
+    let hinge = coeus_autograd::relu(&coeus_autograd::neg(&coeus_autograd::scalar_sub(x, margin)));
+    let selected = coeus_autograd::where_cond(&mask_var, x, &hinge);
     coeus_autograd::mean(&selected)
 }
 
