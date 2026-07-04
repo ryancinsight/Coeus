@@ -832,3 +832,58 @@ def test_acos_matches_mlx() -> None:
     out_mlx = mx.arccos(x_mlx)
     mx.eval(out_mlx)
     _allclose("acos", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "atan"), reason="pycoeus.atan not available")
+def test_atan_matches_mlx() -> None:
+    """atan forward matches MLX arctan."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-2.0, -0.5, 0.0, 0.5, 2.0], [5])
+    out_pyc = pycoeus.atan(x_pyc)
+    out_mlx = mx.arctan(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("atan", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "asinh"), reason="pycoeus.asinh not available")
+def test_asinh_matches_mlx() -> None:
+    """asinh forward matches MLX arcsinh."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-2.0, -0.5, 0.0, 0.5, 2.0], [5])
+    out_pyc = pycoeus.asinh(x_pyc)
+    out_mlx = mx.arcsinh(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("asinh", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "atanh"), reason="pycoeus.atanh not available")
+def test_atanh_matches_mlx() -> None:
+    """atanh forward matches MLX arctanh."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-0.8, -0.3, 0.0, 0.3, 0.8], [5])
+    out_pyc = pycoeus.atanh(x_pyc)
+    out_mlx = mx.arctanh(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("atanh", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "acosh"), reason="pycoeus.acosh not available")
+def test_acosh_matches_mlx() -> None:
+    """acosh forward matches MLX arccosh."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([1.1, 1.5, 2.0, 3.0, 4.5], [5])
+    out_pyc = pycoeus.acosh(x_pyc)
+    out_mlx = mx.arccosh(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("acosh", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log2"), reason="pycoeus.log2 not available")
+def test_log2_matches_mlx() -> None:
+    """log2 forward matches MLX log2."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([0.5, 1.0, 2.0, 4.0, 8.0], [5])
+    out_pyc = pycoeus.log2(x_pyc)
+    out_mlx = mx.log2(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("log2", list(out_pyc.data), out_mlx.flatten().tolist())

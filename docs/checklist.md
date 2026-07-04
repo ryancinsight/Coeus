@@ -2,6 +2,17 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
+### Current Sprint: MS-413..MS-415 - JAX/MLX parity + zero-copy docs [COMPLETE]
+- [x] [patch] Expanded JAX backward parity from **201 -> 207** by adding:
+  `asinh`, `atanh`, `acosh`, `expm1`, `log1p`, and `topk(k=3)` gradient checks.
+- [x] [patch] Expanded MLX forward parity from **55 -> 60** by adding:
+  `atan`, `asinh`, `atanh`, `acosh`, and `log2` value checks.
+- [x] [patch] Documented the new `coeus-ops` zero-copy identity fast paths for
+  `gather`, `index_select`, and no-op `scatter_add` as the current SSOT
+  behavior for avoiding redundant allocations.
+- [x] Evidence: targeted pytest JAX tranche `6/6` pass; targeted MLX tranche
+  selected tests skip cleanly on hosts without MLX.
+
 ### Current Sprint: MS-243 - cumprod backward zero decomposition fix [COMPLETE]
 - [x] [patch] Replaced naive suffix-sum cumprod backward (NaN at zeros) with
   exact O(n) first/second-zero decomposition. Added

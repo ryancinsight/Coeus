@@ -2,6 +2,11 @@
 
 ## Open Burn/PyTorch Parity Backlog
 
+- [x] [patch] MS-413..MS-415: JAX backward parity grew to **207** (added
+  `asinh`/`atanh`/`acosh`/`expm1`/`log1p`/`topk` gradients), MLX forward parity
+  grew to **60** (added `atan`/`asinh`/`atanh`/`acosh`/`log2`), and docs now
+  capture the `coeus-ops` zero-copy identity fast paths for
+  `gather`/`index_select`/`scatter_add`.
 - [x] [patch] G-049: CLOSED - special-function unary lane. Eunomia now owns
   `erf`/`erfc`/`lgamma`; Coeus routes CPU float dispatch through that surface,
   exposes forward-only Python `gammaln`/`lgamma`, and verifies f64
@@ -3065,4 +3070,3 @@ removed from hermes upstream; coeus owns those.
 - **Dependencies**: CPU backend must be stable before GPU implementation
 - **Success Metrics**: Zero compilation errors, basic tensor operations functional
 - **Timeboxing**: 2-week sprint with daily standups and weekly retrospectives
-

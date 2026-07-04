@@ -3530,3 +3530,75 @@ def test_cumprod_2d_bwd_matches_jax() -> None:
     grad_fn = jax.grad(lambda x: jnp.sum(jnp.cumprod(x.reshape(3, 2), axis=0)))
     exp = grad_fn(jnp.array(data, dtype=jnp.float64))
     _allclose("cumprod2d_bwd", list(x_pyc.grad), exp.flatten().tolist(), atol=1e-9)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "asinh"), reason="pycoeus.asinh not available")
+def test_asinh_bwd_matches_jax() -> None:
+    """jax.grad asinh vs pycoeus asinh backward."""
+    import jax
+    data = [-2.0, -0.5, 0.0, 0.5, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.asinh(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.arcsinh(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("asinh_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "atanh"), reason="pycoeus.atanh not available")
+def test_atanh_bwd_matches_jax() -> None:
+    """jax.grad atanh vs pycoeus atanh backward."""
+    import jax
+    data = [-0.8, -0.3, 0.0, 0.3, 0.8]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.atanh(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.arctanh(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("atanh_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "acosh"), reason="pycoeus.acosh not available")
+def test_acosh_bwd_matches_jax() -> None:
+    """jax.grad acosh vs pycoeus acosh backward."""
+    import jax
+    data = [1.1, 1.5, 2.0, 3.0, 4.5]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.acosh(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.arccosh(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("acosh_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "expm1"), reason="pycoeus.expm1 not available")
+def test_expm1_bwd_matches_jax() -> None:
+    """jax.grad expm1 vs pycoeus expm1 backward."""
+    import jax
+    data = [-1.0, -0.5, 0.0, 0.5, 1.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.expm1(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.expm1(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("expm1_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log1p"), reason="pycoeus.log1p not available")
+def test_log1p_bwd_matches_jax() -> None:
+    """jax.grad log1p vs pycoeus log1p backward."""
+    import jax
+    data = [-0.8, -0.2, 0.0, 0.4, 1.2]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.log1p(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.log1p(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("log1p_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "topk"), reason="pycoeus.topk not available")
+def test_topk_bwd_matches_jax() -> None:
+    """jax.grad top-3 values sum vs pycoeus topk backward."""
+    import jax
+    data = [0.2, 1.5, -0.4, 3.0, 2.2, -1.0]
+    x_pyc = pycoeus.Tensor(data, [6], requires_grad=True)
+    pycoeus.topk(x_pyc, 3)[0].backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jax.lax.top_k(x, 3)[0]))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("topk_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
