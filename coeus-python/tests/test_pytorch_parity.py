@@ -8142,3 +8142,103 @@ def test_argmax_forward_matches_pytorch() -> None:
     got = pycoeus.argmax(x_pyc, 0).item()
     exp = int(torch.argmax(torch.tensor(data, dtype=torch.float64), dim=0).item())
     assert int(got) == exp
+
+
+def test_dunder_add_scalar_bwd_matches_pytorch() -> None:
+    """x + c backward parity via Python dunder path."""
+    data = [1.0, -2.0, 3.5, -0.5]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    (x_pyc + 1.25).backward()
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    (x_t + 1.25).sum().backward()
+    _allclose("dunder_add_scalar_bwd", list(x_pyc.grad), x_t.grad.tolist(), atol=1e-12)
+
+
+def test_dunder_sub_scalar_bwd_matches_pytorch() -> None:
+    """x - c backward parity via Python dunder path."""
+    data = [1.0, -2.0, 3.5, -0.5]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    (x_pyc - 1.25).backward()
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    (x_t - 1.25).sum().backward()
+    _allclose("dunder_sub_scalar_bwd", list(x_pyc.grad), x_t.grad.tolist(), atol=1e-12)
+
+
+def test_dunder_mul_scalar_bwd_matches_pytorch() -> None:
+    """x * c backward parity via Python dunder path."""
+    data = [1.0, -2.0, 3.5, -0.5]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    (x_pyc * 2.5).backward()
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    (x_t * 2.5).sum().backward()
+    _allclose("dunder_mul_scalar_bwd", list(x_pyc.grad), x_t.grad.tolist(), atol=1e-12)
+
+
+def test_dunder_div_scalar_bwd_matches_pytorch() -> None:
+    """x / c backward parity via Python dunder path."""
+    data = [1.0, -2.0, 3.5, -0.5]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    (x_pyc / 2.5).backward()
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    (x_t / 2.5).sum().backward()
+    _allclose("dunder_div_scalar_bwd", list(x_pyc.grad), x_t.grad.tolist(), atol=1e-12)
+
+
+def test_dunder_radd_scalar_bwd_matches_pytorch() -> None:
+    """c + x backward parity via reflected Python dunder path."""
+    data = [1.0, -2.0, 3.5, -0.5]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    (1.25 + x_pyc).backward()
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    (1.25 + x_t).sum().backward()
+    _allclose("dunder_radd_scalar_bwd", list(x_pyc.grad), x_t.grad.tolist(), atol=1e-12)
+
+
+def test_dunder_rsub_scalar_bwd_matches_pytorch() -> None:
+    """c - x backward parity via reflected Python dunder path."""
+    data = [1.0, -2.0, 3.5, -0.5]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    (1.25 - x_pyc).backward()
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    (1.25 - x_t).sum().backward()
+    _allclose("dunder_rsub_scalar_bwd", list(x_pyc.grad), x_t.grad.tolist(), atol=1e-12)
+
+
+def test_dunder_rmul_scalar_bwd_matches_pytorch() -> None:
+    """c * x backward parity via reflected Python dunder path."""
+    data = [1.0, -2.0, 3.5, -0.5]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    (2.5 * x_pyc).backward()
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    (2.5 * x_t).sum().backward()
+    _allclose("dunder_rmul_scalar_bwd", list(x_pyc.grad), x_t.grad.tolist(), atol=1e-12)
+
+
+def test_dunder_rdiv_scalar_bwd_matches_pytorch() -> None:
+    """c / x backward parity via reflected Python dunder path."""
+    data = [1.0, -2.0, 3.5, -0.5]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    (2.5 / x_pyc).backward()
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    (2.5 / x_t).sum().backward()
+    _allclose("dunder_rdiv_scalar_bwd", list(x_pyc.grad), x_t.grad.tolist(), atol=1e-12)
+
+
+def test_dunder_rpow_scalar_bwd_matches_pytorch() -> None:
+    """c ** x backward parity via reflected Python dunder path."""
+    data = [-1.0, -0.2, 0.0, 0.7]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    (2.0 ** x_pyc).backward()
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    (2.0 ** x_t).sum().backward()
+    _allclose("dunder_rpow_scalar_bwd", list(x_pyc.grad), x_t.grad.tolist(), atol=1e-10)
+
+
+def test_dunder_abs_bwd_matches_pytorch() -> None:
+    """abs(x) backward parity via Python dunder path."""
+    data = [-2.0, -0.5, 0.5, 3.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    abs(x_pyc).backward()
+    x_t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.abs(x_t).sum().backward()
+    _allclose("dunder_abs_bwd", list(x_pyc.grad), x_t.grad.tolist(), atol=1e-12)

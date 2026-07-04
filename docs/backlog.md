@@ -2,6 +2,9 @@
 
 ## Open Burn/PyTorch Parity Backlog
 
+- [x] [patch] MS-425..MS-427: PyTorch parity reached **410** (10 scalar-dunder
+  backward checks), and benchmark matrix reached **204** (`tanh4`/`sigmoid4`/
+  `relu4`/`sqrt4` forward rows), with targeted validation evidence logged.
 - [x] [patch] MS-421..MS-424: benchmark matrix reached **200** (`exp4`/`log4`/
   `sin4`/`cos4` rows), JAX parity reached **213** (`atan`/`sinh`/`log2` backward),
   and MLX parity reached **70** (`erfc`/`recip`/`softsign`/`selu`/`celu` forward).

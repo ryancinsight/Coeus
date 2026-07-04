@@ -2,6 +2,15 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
+### Current Sprint: MS-425..MS-427 - PyTorch 410 + bench 204 [COMPLETE]
+- [x] [patch] Expanded PyTorch parity from **400 -> 410** via 10 Python-dunder
+  scalar/backward checks (`+`, `-`, `*`, `/`, reflected `+`, `-`, `*`, `/`,
+  reflected `pow`, and `abs`).
+- [x] [patch] Expanded G-043 benchmark matrix from **200 -> 204** by adding four
+  forward rows: `tanh4`, `sigmoid4`, `relu4`, and `sqrt4`.
+- [x] Evidence: `cargo check -p coeus-nn --benches` pass; targeted PyTorch
+  tranche `10/10` pass.
+
 ### Current Sprint: MS-421..MS-424 - Bench 200 + parity expansion [COMPLETE]
 - [x] [patch] Expanded G-043 benchmark matrix from **196 -> 200** by adding four
   forward rows: `exp4`, `log4`, `sin4`, and `cos4`.
