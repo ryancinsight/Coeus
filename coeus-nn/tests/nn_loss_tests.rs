@@ -765,8 +765,10 @@ fn test_cosine_similarity_forward_and_backward() {
 #[test]
 fn test_hinge_embedding_loss() {
     // x = [0.5, 2, -1, 0.3], target = [+1, -1, +1, -1], margin = 1.
-    // Per element: y=+1 -> max(0, margin - x); y=-1 -> max(0, -x).
-    //   0.5, 0.0, 2.0, 0.0  =>  mean = 2.5 / 4 = 0.625.
+    // PyTorch HingeEmbeddingLoss: y=+1 -> loss = x (identity, no clamp);
+    // y=-1 -> loss = max(0, margin - x). (The prior assertions encoded a wrong
+    // formula and are corrected here to torch's documented contract.)
+    //   0.5, max(0,1-2)=0, -1.0, max(0,1-0.3)=0.7  =>  mean = 0.2 / 4 = 0.05.
     let x = Var::new(
         Tensor::<f64, MoiraiBackend>::from_slice([4], &[0.5, 2.0, -1.0, 0.3]),
         true,
@@ -775,16 +777,20 @@ fn test_hinge_embedding_loss() {
 
     let loss = hinge_embedding_loss(&x, &target, 1.0);
     assert_eq!(loss.tensor.shape(), &[1]);
-    assert!((loss.tensor.as_slice()[0] - 0.625).abs() < 1e-12);
+    assert!(
+        (loss.tensor.as_slice()[0] - 0.05).abs() < 1e-12,
+        "fwd: {} vs 0.05",
+        loss.tensor.as_slice()[0]
+    );
 
     loss.backward();
-    // Subgradient d/dx: active positive hinge (margin-x>0, y=+1) -> -1/N;
-    // active negative hinge (-x>0, y=-1) -> -1/N; inactive -> 0. N = 4.
-    //   i0: y=+1, margin-x=0.5>0 -> -0.25   i1: y=-1, -x=-2<0 -> 0
-    //   i2: y=+1, margin-x=2>0   -> -0.25   i3: y=-1, -x=-0.3<0 -> 0
+    // d/dx (seed 1/N from mean, N=4): identity branch (y=+1) -> 1/N; hinge
+    // branch (y=-1) -> -1/N when margin > x else 0.
+    //   i0: y=+1 -> 0.25            i1: y=-1, 1-2<0 -> 0
+    //   i2: y=+1 -> 0.25            i3: y=-1, 1-0.3>0 -> -0.25
     let grad = x.grad().expect("hinge x grad");
     let g = grad.as_slice();
-    let expected = [-0.25, 0.0, -0.25, 0.0];
+    let expected = [0.25, 0.0, 0.25, -0.25];
     for (i, (&got, &want)) in g.iter().zip(expected.iter()).enumerate() {
         assert!(
             (got - want).abs() < 1e-12,
