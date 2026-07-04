@@ -63,6 +63,11 @@ where
     let idx_s = idx_cont.as_slice();
     let src_s = src_cont.as_slice();
 
+    // Zero-copy fast path: if src contributes no updates, scatter_add is identity.
+    if src_s.iter().all(|v| v.to_f64() == 0.0) {
+        return input.to_contiguous();
+    }
+
     // Start from a copy of input.
     let mut out_data = in_s.to_vec();
 
@@ -106,4 +111,23 @@ where
     }
 
     Tensor::from_slice(out_shape, &out_data)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::SequentialBackend;
+    use coeus_tensor::Tensor;
+
+    #[test]
+    fn scatter_add_zero_src_returns_shared_storage() {
+        let b = SequentialBackend::new();
+        let x = Tensor::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0]);
+        let idx = Tensor::from_slice(vec![2], &[1.0f32, 3.0]);
+        let src = Tensor::from_slice(vec![2], &[0.0f32, 0.0]);
+        let out = scatter_add(&x, 0, &idx, &src, &b);
+        assert_eq!(out.shape(), &[4]);
+        assert_eq!(out.as_slice(), x.as_slice());
+        assert_eq!(out.as_slice().as_ptr(), x.as_slice().as_ptr());
+    }
 }

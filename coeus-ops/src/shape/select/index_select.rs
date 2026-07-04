@@ -54,6 +54,20 @@ where
     let in_s = in_cont.as_slice();
     let idx_s = idx_cont.as_slice();
 
+    // Zero-copy fast path: selecting the full range in order is identity.
+    if k == in_shape[dim] {
+        let mut is_identity = true;
+        for (i, &v) in idx_s.iter().enumerate() {
+            if (v.to_f64() as usize) != i {
+                is_identity = false;
+                break;
+            }
+        }
+        if is_identity {
+            return input.to_contiguous();
+        }
+    }
+
     // Compute row-major strides for the input.
     let mut in_strides = vec![1usize; ndim];
     for d in (0..ndim - 1).rev() {
@@ -138,5 +152,16 @@ mod tests {
         let out = index_select(&x, 1, &idx, &b);
         assert_eq!(out.shape(), &[2, 2]);
         assert_eq!(out.as_slice(), &[4.0, 1.0, 8.0, 5.0]);
+    }
+
+    #[test]
+    fn index_select_identity_returns_shared_storage() {
+        let b = SequentialBackend::new();
+        let x = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let idx = Tensor::from_slice(vec![2], &[0.0f32, 1.0]);
+        let out = index_select(&x, 0, &idx, &b);
+        assert_eq!(out.shape(), &[2, 3]);
+        assert_eq!(out.as_slice(), x.as_slice());
+        assert_eq!(out.as_slice().as_ptr(), x.as_slice().as_ptr());
     }
 }

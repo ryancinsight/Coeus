@@ -60,6 +60,29 @@ where
         }
     }
 
+    // Zero-copy fast path: gather with an identity index returns the input.
+    // This preserves COW semantics and avoids allocating/initializing output.
+    if idx_shape == in_shape {
+        let idx_cont = index.to_contiguous();
+        let idx_s = idx_cont.as_slice();
+        let mut idx_strides = vec![1usize; ndim];
+        for d in (0..ndim - 1).rev() {
+            idx_strides[d] = idx_strides[d + 1] * idx_shape[d + 1];
+        }
+        let idx_numel: usize = idx_shape.iter().product();
+        let mut is_identity = true;
+        for flat in 0..idx_numel {
+            let coord_dim = (flat / idx_strides[dim]) % idx_shape[dim];
+            if (idx_s[flat].to_f64() as usize) != coord_dim {
+                is_identity = false;
+                break;
+            }
+        }
+        if is_identity {
+            return input.to_contiguous();
+        }
+    }
+
     let in_cont = input.to_contiguous();
     let idx_cont = index.to_contiguous();
     let in_s = in_cont.as_slice();
@@ -108,4 +131,22 @@ where
     }
 
     Tensor::from_slice(idx_shape.to_vec(), &out_data)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::SequentialBackend;
+    use coeus_tensor::Tensor;
+
+    #[test]
+    fn gather_identity_returns_shared_storage() {
+        let b = SequentialBackend::new();
+        let x = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let idx = Tensor::from_slice(vec![2, 3], &[0.0f32, 1.0, 2.0, 0.0, 1.0, 2.0]);
+        let out = gather(&x, 1, &idx, &b);
+        assert_eq!(out.shape(), &[2, 3]);
+        assert_eq!(out.as_slice(), x.as_slice());
+        assert_eq!(out.as_slice().as_ptr(), x.as_slice().as_ptr());
+    }
 }
