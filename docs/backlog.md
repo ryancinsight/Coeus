@@ -2,6 +2,9 @@
 
 ## Open Burn/PyTorch Parity Backlog
 
+- [x] [patch] MS-421..MS-424: benchmark matrix reached **200** (`exp4`/`log4`/
+  `sin4`/`cos4` rows), JAX parity reached **213** (`atan`/`sinh`/`log2` backward),
+  and MLX parity reached **70** (`erfc`/`recip`/`softsign`/`selu`/`celu` forward).
 - [x] [patch] MS-418..MS-420: JAX parity reached **210** (`sin`/`cos`/`tan`
   backward checks), and MLX parity reached **65** (`sin`/`cos`/`tan`/`log10`/`exp2`
   forward checks), with targeted parity evidence logged.

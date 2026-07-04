@@ -2,6 +2,16 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
+### Current Sprint: MS-421..MS-424 - Bench 200 + parity expansion [COMPLETE]
+- [x] [patch] Expanded G-043 benchmark matrix from **196 -> 200** by adding four
+  forward rows: `exp4`, `log4`, `sin4`, and `cos4`.
+- [x] [patch] Expanded JAX parity from **210 -> 213** by adding backward checks
+  for `atan`, `sinh`, and `log2`.
+- [x] [patch] Expanded MLX parity from **65 -> 70** by adding forward checks for
+  `erfc`, `recip`, `softsign`, `selu`, and `celu`.
+- [x] Evidence: `cargo check -p coeus-nn --benches` pass; targeted JAX tranche
+  `3/3` pass; targeted MLX tranche skips cleanly when MLX is unavailable.
+
 ### Current Sprint: MS-418..MS-420 - JAX/MLX parity expansion [COMPLETE]
 - [x] [patch] Expanded JAX parity from **207 -> 210** by adding backward checks
   for `sin`, `cos`, and `tan`.

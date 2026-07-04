@@ -3638,3 +3638,39 @@ def test_tan_bwd_simple_matches_jax() -> None:
     grad_fn = jax.grad(lambda x: jnp.sum(jnp.tan(x)))
     exp = grad_fn(jnp.array(data, dtype=jnp.float64))
     _allclose("tan_bwd_simple", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "atan"), reason="pycoeus.atan not available")
+def test_atan_bwd_simple_matches_jax() -> None:
+    """jax.grad atan vs pycoeus atan backward."""
+    import jax
+    data = [-2.0, -0.5, 0.0, 0.5, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.atan(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.arctan(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("atan_bwd_simple", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sinh"), reason="pycoeus.sinh not available")
+def test_sinh_bwd_simple_matches_jax() -> None:
+    """jax.grad sinh vs pycoeus sinh backward."""
+    import jax
+    data = [-1.5, -0.5, 0.0, 0.5, 1.5]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.sinh(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.sinh(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("sinh_bwd_simple", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log2"), reason="pycoeus.log2 not available")
+def test_log2_bwd_simple_matches_jax() -> None:
+    """jax.grad log2 vs pycoeus log2 backward."""
+    import jax
+    data = [0.5, 1.0, 2.0, 4.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.log2(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.log2(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("log2_bwd_simple", list(x_pyc.grad), exp.tolist(), atol=1e-10)

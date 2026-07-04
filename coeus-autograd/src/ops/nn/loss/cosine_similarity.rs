@@ -1,15 +1,15 @@
 //! Row-wise cosine similarity (PyTorch `F.cosine_similarity`).
 //!
 //! For inputs `x1, x2` of shape `[N, D]`, returns a `[N]` vector with
-//!   `out_i = <x1_i, x2_i> / (||x1_i||_2 * ||x2_i||_2 + eps)`
-//! where `eps` is added inside the (positive) denominator to match PyTorch's
+//!   `out_i = <x1_i, x2_i> / max(||x1_i||_2 * ||x2_i||_2, eps)`
+//! where the denominator is floored at `eps` (PyTorch `clamp_min(eps)`),
 //! numerically stable convention used in
 //! `torch.nn.functional.cosine_similarity`.
 //!
 //! Per-row partials (analytical subgradient):
-//!   d cos_i / d x1_i  = (x2_i / (||x1_i|| * ||x2_i|| + eps))
+//!   d cos_i / d x1_i  = (x2_i / max(||x1_i|| * ||x2_i||, eps))
 //!                      - cos_i * x1_i / ||x1_i||^2
-//!   d cos_i / d x2_i  = (x1_i / (||x1_i|| * ||x2_i|| + eps))
+//!   d cos_i / d x2_i  = (x1_i / max(||x1_i|| * ||x2_i||, eps))
 //!                      - cos_i * x2_i / ||x2_i||^2
 //!
 //! The node caches the row-wise `(dot, n1_sqr, n2_sqr, cos)` tuples plus a
@@ -107,7 +107,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 
 /// Tracked row-wise cosine similarity (PyTorch `F.cosine_similarity`):
 /// for inputs `x1, x2` of shape `[N, D]`, returns a `[N]` vector with
-/// `out_i = <x1_i, x2_i> / (||x1_i||_2 * ||x2_i||_2 + eps)`.
+/// `out_i = <x1_i, x2_i> / max(||x1_i||_2 * ||x2_i||_2, eps)`.
 ///
 /// # Panics
 /// Panics when `x1` and `x2` do not share shape, when the inputs are not
@@ -193,7 +193,13 @@ pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         }
         let n1 = n1_sqr.sqrt();
         let n2 = n2_sqr.sqrt();
-        let denom = n1 * n2 + eps;
+        // PyTorch clamps the denominator: `(||x1||·||x2||).clamp_min(eps)` =
+        // max(norm_product, eps). For normal-magnitude rows this is exactly the
+        // norm product (no perturbation), so the result matches torch to full
+        // precision; eps only floors a vanishing-norm denominator. (Adding eps
+        // instead perturbed every result by an O(eps/denom) term.)
+        let norm_product = n1 * n2;
+        let denom = if norm_product > eps { norm_product } else { eps };
         let cos_i = dot / denom;
         out[i] = cos_i;
 

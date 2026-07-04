@@ -942,3 +942,60 @@ def test_exp2_matches_mlx() -> None:
     out_mlx = mx.exp2(x_mlx)
     mx.eval(out_mlx)
     _allclose("exp2", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "erfc"), reason="pycoeus.erfc not available")
+def test_erfc_matches_mlx() -> None:
+    """erfc forward matches MLX 1-erf identity."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-1.0, -0.5, 0.0, 0.5, 1.0], [5])
+    out_pyc = pycoeus.erfc(x_pyc)
+    out_mlx = 1.0 - mx.erf(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("erfc", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "recip"), reason="pycoeus.recip not available")
+def test_recip_matches_mlx() -> None:
+    """recip forward matches MLX reciprocal."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([0.5, -2.0, 4.0, -0.25, 1.0], [5])
+    out_pyc = pycoeus.recip(x_pyc)
+    out_mlx = 1.0 / x_mlx
+    mx.eval(out_mlx)
+    _allclose("recip", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "softsign"), reason="pycoeus.softsign not available")
+def test_softsign_matches_mlx() -> None:
+    """softsign forward matches MLX x/(1+|x|)."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-2.0, -0.5, 0.0, 0.5, 2.0], [5])
+    out_pyc = pycoeus.softsign(x_pyc)
+    out_mlx = x_mlx / (1.0 + mx.abs(x_mlx))
+    mx.eval(out_mlx)
+    _allclose("softsign", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "selu"), reason="pycoeus.selu not available")
+def test_selu_matches_mlx() -> None:
+    """selu forward matches MLX piecewise definition."""
+    _skip_if_no_mlx()
+    alpha = 1.6732632423543772
+    scale = 1.0507009873554805
+    x_pyc, x_mlx = _f32([-2.0, -0.5, 0.0, 0.5, 2.0], [5])
+    out_pyc = pycoeus.selu(x_pyc)
+    out_mlx = scale * mx.where(x_mlx > 0, x_mlx, alpha * (mx.exp(x_mlx) - 1.0))
+    mx.eval(out_mlx)
+    _allclose("selu", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "celu"), reason="pycoeus.celu not available")
+def test_celu_matches_mlx() -> None:
+    """celu(alpha=1) forward matches MLX piecewise definition."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-2.0, -0.5, 0.0, 0.5, 2.0], [5])
+    out_pyc = pycoeus.celu(x_pyc)
+    out_mlx = mx.where(x_mlx > 0, x_mlx, mx.exp(x_mlx) - 1.0)
+    mx.eval(out_mlx)
+    _allclose("celu", list(out_pyc.data), out_mlx.flatten().tolist())
