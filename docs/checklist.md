@@ -2,6 +2,13 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
+### Current Sprint: MS-416 - PyTorch parity to 400 [COMPLETE]
+- [x] [patch] Expanded PyTorch parity from **390 -> 400** by adding 10 targeted
+  tests:
+  `sin`, `cos`, `tan`, `atan`, `sinh`, `cosh`, `log2`, `exp2`,
+  `scalar_sub` backward checks, plus `argmax(dim=0)` forward parity.
+- [x] Evidence: targeted pytest tranche for MS-416 (`10/10` pass).
+
 ### Current Sprint: MS-413..MS-415 - JAX/MLX parity + zero-copy docs [COMPLETE]
 - [x] [patch] Expanded JAX backward parity from **201 -> 207** by adding:
   `asinh`, `atanh`, `acosh`, `expm1`, `log1p`, and `topk(k=3)` gradient checks.

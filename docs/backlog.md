@@ -2,6 +2,9 @@
 
 ## Open Burn/PyTorch Parity Backlog
 
+- [x] [patch] MS-416: PyTorch parity reached **400** by adding focused
+  `sin`/`cos`/`tan`/`atan`/`sinh`/`cosh`/`log2`/`exp2` backward checks, a
+  `scalar_sub` backward check, and `argmax(dim=0)` forward parity.
 - [x] [patch] MS-413..MS-415: JAX backward parity grew to **207** (added
   `asinh`/`atanh`/`acosh`/`expm1`/`log1p`/`topk` gradients), MLX forward parity
   grew to **60** (added `atan`/`asinh`/`atanh`/`acosh`/`log2`), and docs now

@@ -8033,3 +8033,112 @@ def test_sort_bwd_matches_pytorch() -> None:
     t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
     torch.sort(t).values.sum().backward()
     _allclose("sort_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sin"), reason="pycoeus.sin not available")
+def test_sin_bwd_simple_matches_pytorch() -> None:
+    """sin backward parity on 1D input."""
+    data = [-2.0, -0.5, 0.0, 0.5, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.sin(x_pyc).backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.sin(t).sum().backward()
+    _allclose("sin_bwd_simple", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cos"), reason="pycoeus.cos not available")
+def test_cos_bwd_simple_matches_pytorch() -> None:
+    """cos backward parity on 1D input."""
+    data = [-2.0, -0.5, 0.0, 0.5, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.cos(x_pyc).backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.cos(t).sum().backward()
+    _allclose("cos_bwd_simple", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "tan"), reason="pycoeus.tan not available")
+def test_tan_bwd_simple_matches_pytorch() -> None:
+    """tan backward parity on 1D input."""
+    data = [-1.0, -0.4, 0.0, 0.4, 1.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.tan(x_pyc).backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.tan(t).sum().backward()
+    _allclose("tan_bwd_simple", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "atan"), reason="pycoeus.atan not available")
+def test_atan_bwd_simple_matches_pytorch() -> None:
+    """atan backward parity on 1D input."""
+    data = [-2.0, -0.5, 0.0, 0.5, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.atan(x_pyc).backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.atan(t).sum().backward()
+    _allclose("atan_bwd_simple", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sinh"), reason="pycoeus.sinh not available")
+def test_sinh_bwd_simple_matches_pytorch() -> None:
+    """sinh backward parity on 1D input."""
+    data = [-1.5, -0.5, 0.0, 0.5, 1.5]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.sinh(x_pyc).backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.sinh(t).sum().backward()
+    _allclose("sinh_bwd_simple", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cosh"), reason="pycoeus.cosh not available")
+def test_cosh_bwd_simple_matches_pytorch() -> None:
+    """cosh backward parity on 1D input."""
+    data = [-1.5, -0.5, 0.0, 0.5, 1.5]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.cosh(x_pyc).backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.cosh(t).sum().backward()
+    _allclose("cosh_bwd_simple", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log2"), reason="pycoeus.log2 not available")
+def test_log2_bwd_simple_matches_pytorch() -> None:
+    """log2 backward parity on positive 1D input."""
+    data = [0.5, 1.0, 2.0, 4.0, 8.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.log2(x_pyc).backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.log2(t).sum().backward()
+    _allclose("log2_bwd_simple", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "exp2"), reason="pycoeus.exp2 not available")
+def test_exp2_bwd_simple_matches_pytorch() -> None:
+    """exp2 backward parity on 1D input."""
+    data = [-2.0, -0.5, 0.0, 0.5, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.exp2(x_pyc).backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    torch.exp2(t).sum().backward()
+    _allclose("exp2_bwd_simple", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "scalar_sub"), reason="pycoeus.scalar_sub not available")
+def test_scalar_sub_bwd_matches_pytorch() -> None:
+    """scalar_sub backward parity: d(x-c)/dx = 1."""
+    data = [1.0, 2.0, 3.0, 4.0]
+    x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
+    pycoeus.scalar_sub(x_pyc, 2.5).backward()
+    t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
+    (t - 2.5).sum().backward()
+    _allclose("scalar_sub_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "argmax"), reason="pycoeus.argmax not available")
+def test_argmax_forward_matches_pytorch() -> None:
+    """argmax forward parity on 1D input."""
+    data = [1.0, 5.0, 3.0, 9.0, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=False)
+    got = pycoeus.argmax(x_pyc, 0).item()
+    exp = int(torch.argmax(torch.tensor(data, dtype=torch.float64), dim=0).item())
+    assert int(got) == exp
