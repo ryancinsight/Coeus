@@ -7006,10 +7006,14 @@ fn bench_exp3_forward(c: &mut Criterion) {
         false,
     );
     let device = NdArrayDevice::default();
-    let x_burn: BurnTensor<BurnB, 2> =
-        BurnTensor::from_data(TensorData::new(input_data.clone(), [BATCH, FEATURES]), &device);
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
     let mut group = c.benchmark_group("Burn vs Coeus - exp3 forward (128x256)");
-    group.bench_function("Burn NdArray", |b| b.iter(|| black_box(x_burn.clone().exp())));
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(x_burn.clone().exp()))
+    });
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| black_box(coeus_autograd::exp(black_box(&x_seq))))
     });
@@ -7032,10 +7036,14 @@ fn bench_log3_forward(c: &mut Criterion) {
         false,
     );
     let device = NdArrayDevice::default();
-    let x_burn: BurnTensor<BurnB, 2> =
-        BurnTensor::from_data(TensorData::new(input_data.clone(), [BATCH, FEATURES]), &device);
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
     let mut group = c.benchmark_group("Burn vs Coeus - log3 forward (128x256)");
-    group.bench_function("Burn NdArray", |b| b.iter(|| black_box(x_burn.clone().log())));
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(x_burn.clone().log()))
+    });
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| black_box(coeus_autograd::log(black_box(&x_seq))))
     });
@@ -7058,10 +7066,14 @@ fn bench_tanh3_forward(c: &mut Criterion) {
         false,
     );
     let device = NdArrayDevice::default();
-    let x_burn: BurnTensor<BurnB, 2> =
-        BurnTensor::from_data(TensorData::new(input_data.clone(), [BATCH, FEATURES]), &device);
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
     let mut group = c.benchmark_group("Burn vs Coeus - tanh3 forward (128x256)");
-    group.bench_function("Burn NdArray", |b| b.iter(|| black_box(x_burn.clone().tanh())));
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(x_burn.clone().tanh()))
+    });
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| black_box(coeus_autograd::tanh(black_box(&x_seq))))
     });
@@ -7084,8 +7096,10 @@ fn bench_sigmoid3_forward(c: &mut Criterion) {
         false,
     );
     let device = NdArrayDevice::default();
-    let x_burn: BurnTensor<BurnB, 2> =
-        BurnTensor::from_data(TensorData::new(input_data.clone(), [BATCH, FEATURES]), &device);
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
     let mut group = c.benchmark_group("Burn vs Coeus - sigmoid3 forward (128x256)");
     group.bench_function("Burn NdArray", |b| {
         b.iter(|| black_box(burn::tensor::activation::sigmoid(black_box(x_burn.clone()))))
@@ -7112,8 +7126,10 @@ fn bench_relu3_forward(c: &mut Criterion) {
         false,
     );
     let device = NdArrayDevice::default();
-    let x_burn: BurnTensor<BurnB, 2> =
-        BurnTensor::from_data(TensorData::new(input_data.clone(), [BATCH, FEATURES]), &device);
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
     let mut group = c.benchmark_group("Burn vs Coeus - relu3 forward (128x256)");
     group.bench_function("Burn NdArray", |b| {
         b.iter(|| black_box(burn::tensor::activation::relu(black_box(x_burn.clone()))))
@@ -7140,10 +7156,14 @@ fn bench_sqrt3_forward(c: &mut Criterion) {
         false,
     );
     let device = NdArrayDevice::default();
-    let x_burn: BurnTensor<BurnB, 2> =
-        BurnTensor::from_data(TensorData::new(input_data.clone(), [BATCH, FEATURES]), &device);
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
     let mut group = c.benchmark_group("Burn vs Coeus - sqrt3 forward (128x256)");
-    group.bench_function("Burn NdArray", |b| b.iter(|| black_box(x_burn.clone().sqrt())));
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(x_burn.clone().sqrt()))
+    });
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| black_box(coeus_autograd::sqrt(black_box(&x_seq))))
     });
@@ -7166,10 +7186,14 @@ fn bench_abs3_forward(c: &mut Criterion) {
         false,
     );
     let device = NdArrayDevice::default();
-    let x_burn: BurnTensor<BurnB, 2> =
-        BurnTensor::from_data(TensorData::new(input_data.clone(), [BATCH, FEATURES]), &device);
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
     let mut group = c.benchmark_group("Burn vs Coeus - abs3 forward (128x256)");
-    group.bench_function("Burn NdArray", |b| b.iter(|| black_box(x_burn.clone().abs())));
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(x_burn.clone().abs()))
+    });
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| black_box(coeus_autograd::abs(black_box(&x_seq))))
     });
@@ -7192,10 +7216,14 @@ fn bench_sin3_forward(c: &mut Criterion) {
         false,
     );
     let device = NdArrayDevice::default();
-    let x_burn: BurnTensor<BurnB, 2> =
-        BurnTensor::from_data(TensorData::new(input_data.clone(), [BATCH, FEATURES]), &device);
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
     let mut group = c.benchmark_group("Burn vs Coeus - sin3 forward (128x256)");
-    group.bench_function("Burn NdArray", |b| b.iter(|| black_box(x_burn.clone().sin())));
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(x_burn.clone().sin()))
+    });
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| black_box(coeus_autograd::sin(black_box(&x_seq))))
     });
@@ -7218,10 +7246,14 @@ fn bench_cos3_forward(c: &mut Criterion) {
         false,
     );
     let device = NdArrayDevice::default();
-    let x_burn: BurnTensor<BurnB, 2> =
-        BurnTensor::from_data(TensorData::new(input_data.clone(), [BATCH, FEATURES]), &device);
+    let x_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [BATCH, FEATURES]),
+        &device,
+    );
     let mut group = c.benchmark_group("Burn vs Coeus - cos3 forward (128x256)");
-    group.bench_function("Burn NdArray", |b| b.iter(|| black_box(x_burn.clone().cos())));
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(x_burn.clone().cos()))
+    });
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| black_box(coeus_autograd::cos(black_box(&x_seq))))
     });

@@ -135,9 +135,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Ctc
                 for ki in 0..c {
                     let idx = ti * n * c + ni * c + ki;
                     let lp = self.log_probs_host[ti * n * c + ni * c + ki];
-                    // grad = -(1/N) * (sum_s / p(t,k)) * g_upstream
-                    // in log-space: sum_s accumulated is already in linear space
-                    dx[idx] = (-dx[idx] / lp.exp()) * g_upstream / n as f64;
+                    // grad = -(1 / (N · L_n)) · (sum_s / p(t,k)) · g_upstream.
+                    // The 1/L_n matches the forward reduction='mean', which
+                    // normalizes each sample's NLL by its target length before
+                    // the batch mean; sum_s is already in linear space.
+                    dx[idx] = (-dx[idx] / lp.exp()) * g_upstream / (n as f64 * s_n as f64);
                 }
             }
         }
@@ -378,7 +380,9 @@ where
             (vec![NEG_INF; ls.max(1)], vec![NEG_INF; ls.max(1)], 0.0)
         };
 
-        total_loss += loss;
+        // reduction='mean' (torch default): each sample's negative log-
+        // likelihood is divided by its target length before the batch mean.
+        total_loss += if s_n > 0 { loss / s_n as f64 } else { 0.0 };
         log_alphas.push(alpha);
         log_betas.push(beta);
         ext_targets_all.push(ext);
