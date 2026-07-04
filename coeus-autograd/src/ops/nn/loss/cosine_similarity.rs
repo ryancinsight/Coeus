@@ -199,7 +199,11 @@ pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         // precision; eps only floors a vanishing-norm denominator. (Adding eps
         // instead perturbed every result by an O(eps/denom) term.)
         let norm_product = n1 * n2;
-        let denom = if norm_product > eps { norm_product } else { eps };
+        let denom = if norm_product > eps {
+            norm_product
+        } else {
+            eps
+        };
         let cos_i = dot / denom;
         out[i] = cos_i;
 
