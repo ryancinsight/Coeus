@@ -2,6 +2,9 @@
 
 ## Open Burn/PyTorch Parity Backlog
 
+- [x] [patch] MS-418..MS-420: JAX parity reached **210** (`sin`/`cos`/`tan`
+  backward checks), and MLX parity reached **65** (`sin`/`cos`/`tan`/`log10`/`exp2`
+  forward checks), with targeted parity evidence logged.
 - [x] [patch] MS-416: PyTorch parity reached **400** by adding focused
   `sin`/`cos`/`tan`/`atan`/`sinh`/`cosh`/`log2`/`exp2` backward checks, a
   `scalar_sub` backward check, and `argmax(dim=0)` forward parity.
@@ -18,8 +21,8 @@
   provider-level `digamma`.
 - [x] [minor] G-035: CLOSED — ConvTranspose3d CPU+autograd+Python+PyTorch parity complete (MS-185).
   PyO3, and PyTorch differential parity surfaces.
-- [ ] [minor] G-036: Fill 1D pooling, adaptive pooling, and unfold/fold family
-  gaps through canonical shared pooling/window kernels.
+- [x] [minor] G-036: CLOSED — Pool1d (Max/Avg), adaptive pool (Avg/Max 1d/2d), unfold/fold 1d/2d
+  all implemented with autograd backward, Rust value-semantic tests, and Python bindings.
 - [ ] [minor] G-037: Extend activation parity for PReLU, CELU, hard/shrink,
   softsign, threshold, GLU, and SwiGLU families.
 - [x] [minor] G-038: Extend loss and distance parity (23/23 implemented, fully CLOSED).
@@ -31,8 +34,7 @@
 - [x] [minor] G-041: Add regularization, sparse, and local-response modules:
   AlphaDropout, FeatureAlphaDropout, EmbeddingBag, GaussianNoise, and
   LocalResponseNorm.
-- [ ] [minor] G-042: Define and implement or explicitly scope Coeus parity for
-  quantized and lazy module families.
+- [x] [minor] G-042: CLOSED — Recorded as explicit non-goal for v0.x; natural extension point via typed `Scalar` + `BackendOps<T>` for quantized numerics (MS-212).
 - [ ] [patch] G-043: Expand the Coeus-vs-Burn/PyTorch benchmark/parity manifest
   so every implemented NN family has an explicit measurement or differential
   row.

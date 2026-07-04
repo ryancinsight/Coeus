@@ -887,3 +887,58 @@ def test_log2_matches_mlx() -> None:
     out_mlx = mx.log2(x_mlx)
     mx.eval(out_mlx)
     _allclose("log2", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sin"), reason="pycoeus.sin not available")
+def test_sin_matches_mlx() -> None:
+    """sin forward matches MLX sin."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-2.0, -0.5, 0.0, 0.5, 2.0], [5])
+    out_pyc = pycoeus.sin(x_pyc)
+    out_mlx = mx.sin(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("sin", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cos"), reason="pycoeus.cos not available")
+def test_cos_matches_mlx() -> None:
+    """cos forward matches MLX cos."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-2.0, -0.5, 0.0, 0.5, 2.0], [5])
+    out_pyc = pycoeus.cos(x_pyc)
+    out_mlx = mx.cos(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("cos", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "tan"), reason="pycoeus.tan not available")
+def test_tan_matches_mlx() -> None:
+    """tan forward matches MLX tan."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-1.0, -0.4, 0.0, 0.4, 1.0], [5])
+    out_pyc = pycoeus.tan(x_pyc)
+    out_mlx = mx.tan(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("tan", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "log10"), reason="pycoeus.log10 not available")
+def test_log10_matches_mlx() -> None:
+    """log10 forward matches MLX log10."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([0.1, 1.0, 2.0, 10.0, 100.0], [5])
+    out_pyc = pycoeus.log10(x_pyc)
+    out_mlx = mx.log10(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("log10", list(out_pyc.data), out_mlx.flatten().tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "exp2"), reason="pycoeus.exp2 not available")
+def test_exp2_matches_mlx() -> None:
+    """exp2 forward matches MLX exp2."""
+    _skip_if_no_mlx()
+    x_pyc, x_mlx = _f32([-2.0, -0.5, 0.0, 0.5, 2.0], [5])
+    out_pyc = pycoeus.exp2(x_pyc)
+    out_mlx = mx.exp2(x_mlx)
+    mx.eval(out_mlx)
+    _allclose("exp2", list(out_pyc.data), out_mlx.flatten().tolist())

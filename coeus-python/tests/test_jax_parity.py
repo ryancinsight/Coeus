@@ -3602,3 +3602,39 @@ def test_topk_bwd_matches_jax() -> None:
     grad_fn = jax.grad(lambda x: jnp.sum(jax.lax.top_k(x, 3)[0]))
     exp = grad_fn(jnp.array(data, dtype=jnp.float64))
     _allclose("topk_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "sin"), reason="pycoeus.sin not available")
+def test_sin_bwd_simple_matches_jax() -> None:
+    """jax.grad sin vs pycoeus sin backward."""
+    import jax
+    data = [-2.0, -0.5, 0.0, 0.5, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.sin(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.sin(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("sin_bwd_simple", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "cos"), reason="pycoeus.cos not available")
+def test_cos_bwd_simple_matches_jax() -> None:
+    """jax.grad cos vs pycoeus cos backward."""
+    import jax
+    data = [-2.0, -0.5, 0.0, 0.5, 2.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.cos(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.cos(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("cos_bwd_simple", list(x_pyc.grad), exp.tolist(), atol=1e-10)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "tan"), reason="pycoeus.tan not available")
+def test_tan_bwd_simple_matches_jax() -> None:
+    """jax.grad tan vs pycoeus tan backward."""
+    import jax
+    data = [-1.0, -0.4, 0.0, 0.4, 1.0]
+    x_pyc = pycoeus.Tensor(data, [5], requires_grad=True)
+    pycoeus.tan(x_pyc).backward()
+    grad_fn = jax.grad(lambda x: jnp.sum(jnp.tan(x)))
+    exp = grad_fn(jnp.array(data, dtype=jnp.float64))
+    _allclose("tan_bwd_simple", list(x_pyc.grad), exp.tolist(), atol=1e-10)

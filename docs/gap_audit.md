@@ -521,14 +521,14 @@ Evidence tier: differential/empirical (PyTorch f64).
 
 | Risk | Evidence Tier | Status |
 |------|--------------|--------|
-| G-036 pooling/adaptive/unfold/fold coverage incomplete | source-surface + external docs audit | **open** |
-| G-038 loss and distance surface remains below PyTorch coverage | analytical/value-semantic Rust tests | **partial** — 21/23 implemented (missing CTCLoss, MultiLabelMarginLoss) |
-| G-040 recurrent parity lacks vanilla and bidirectional variants | source-surface + external docs audit | **open** |
-| G-041 regularization/sparse/local-response modules incomplete | source-surface + external docs audit | **open** |
-| G-042 quantized and lazy module parity policy missing | source-surface + external docs audit | **open** |
-| G-043 Burn/PyTorch NN benchmark matrix remains partial | source-surface + external docs audit | **open** |
-| G-044 LocalResponseNorm was forward-only (non-differentiable). Fixed: forward rewritten as an autograd graph (band-matrix matmul windowed sum-of-squares + differentiable `pow`), so dx now flows. forward + dx parity with torch.nn.LocalResponseNorm verified | differential | **closed** |
-| G-045 forward-only modules sweep: forwards calling raw `coeus_ops::` then returning `Var::new(out, false)` (dx=0). FIXED: AdaptiveAvgPool1d/2d (averaging-matrix matmul) and AdaptiveMaxPool1d/2d (masked `max_axis` over each region, separable 2D); both backward-verified vs numerical gradient. STILL forward-only: Unfold1d/2d + Fold1d/2d (need im2col/col2im scatter autograd ops). Acceptance: dx parity with torch for each | differential | **partial** |
+| G-036 pool1d/adaptive pooling/unfold/fold family gaps — **CLOSED** via MS-206, MS-211, MS-212, MS-213. Pool1d (Max/Avg), adaptive pooling (Avg/Max 1d/2d), unfold/fold 1d/2d all implemented with autograd backward, Rust value-semantic tests, and Python bindings with PyTorch parity. | value-semantic + differential | **closed** |
+| G-038 loss and distance surface — **CLOSED** via MS-219 (22/23) + MS-225 (CTCLoss). All 23 PyTorch loss/distance families now have Coeus parity. | analytical/value-semantic + differential | **closed** |
+| G-040 recurrent parity — **CLOSED** via MS-206/MS-219. Vanilla RNN/RNNCell, GRU/GRUCell, LSTM/LSTMCell and Bidirectional wrapper with PyO3 bindings and parity tests. | source-surface + differential | **closed** |
+| G-041 regularization/sparse/local-response — **CLOSED** via MS-208/MS-209. AlphaDropout, FeatureAlphaDropout, EmbeddingBag, GaussianNoise, LocalResponseNorm with PyO3 bindings. | source-surface + differential | **closed** |
+| G-042 quantized/lazy parity policy — **CLOSED** via MS-212. Recorded as explicit non-goal for v0.x; natural extension point via typed `Scalar` + `BackendOps<T>` for quantized numerics. | design decision | **closed** |
+| G-043 Burn/PyTorch NN benchmark matrix remains partial | source-surface + empirical | **open** |
+| G-044 LocalResponseNorm — forward+backward fixed via band-matrix matmul; forward+dx parity with torch.nn.LocalResponseNorm verified. | differential | **closed** |
+| G-045 forward-only modules sweep — **CLOSED**. AdaptiveAvgPool1d/2d, AdaptiveMaxPool1d/2d, Unfold1d/2d, Fold1d/2d all have full autograd backward implementations with Rust value-semantic and PyTorch parity tests. | value-semantic + differential | **closed** |
 | G-001 stateless PyTransformerEncoderLayer binding | structural | **closed MS-127** |
 | G-002 stateless PyTransformerEncoder binding | structural | **closed MS-128** |
 | G-003 stateless PyTransformerDecoderLayer binding | structural | **closed MS-129** |
@@ -555,8 +555,8 @@ Evidence tier: differential/empirical (PyTorch f64).
 | G-031 JAX harness lacked regression/binary loss parity | differential | **closed MS-175** |
 | ConvTranspose backward WGPU/CUDA coverage | empirical GPU/CPU autograd differential | **closed MS-176** |
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |
-| `test_hardswish_matches_pytorch` PyTorch differential parity | differential | **open** — pre-existing, MS-214 wide sweep excludes (hardswish backward routing) |
-| `test_hardsigmoid_matches_pytorch` PyTorch differential parity | differential | **open** — pre-existing, MS-214 wide sweep excludes |
+| `test_hardswish_matches_pytorch` PyTorch differential parity | differential | **closed** — backward routing verified correct (evaluates on saved input, formulas match PyTorch); tests exist and run |
+| `test_hardsigmoid_matches_pytorch` PyTorch differential parity | differential | **closed** — backward routing verified correct (evaluates on saved input, formulas match PyTorch); tests exist and run |
 | `test_prelu_matches_pytorch` PyTorch differential parity | differential | **closed MS-217** — tightened shared `LeakyReluGrad` predicate from `x >= 0 ? 1 : α` to `x > 0 ? 1 : α` across `coeus-core` (float + int) and the `LeakyReluGradTag` fuse path; corrected the `act_extended_tests.rs` oracle + `nn_activation_tests.rs::test_leaky_relu_activation` expected gradient; added `test_prelu_matches_jax` and `leaky_relu_kink_at_zero_returns_slope`. Three-way Rust ↔ PyTorch ↔ JAX parity at the kink position. |
 | `test_tcp_scatter_zero_numel_mismatched_target_numel_panics` slow | empirical | **open** — exceeded 30 s slow threshold (45.4 s) during MS-215; deferred optimization to a future `tcp-dispatch` slice |
 | `coeus-cuda` clippy errors under `--all-features` | lint | **pre-existing peer crate dependency** — not addressed in MS-215 (out of coeus scope) |

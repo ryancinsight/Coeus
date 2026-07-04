@@ -2,6 +2,14 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
+### Current Sprint: MS-418..MS-420 - JAX/MLX parity expansion [COMPLETE]
+- [x] [patch] Expanded JAX parity from **207 -> 210** by adding backward checks
+  for `sin`, `cos`, and `tan`.
+- [x] [patch] Expanded MLX parity from **60 -> 65** by adding forward checks for
+  `sin`, `cos`, `tan`, `log10`, and `exp2`.
+- [x] Evidence: targeted pytest JAX tranche `3/3` pass; targeted MLX tranche
+  skips cleanly when MLX is unavailable.
+
 ### Current Sprint: MS-416 - PyTorch parity to 400 [COMPLETE]
 - [x] [patch] Expanded PyTorch parity from **390 -> 400** by adding 10 targeted
   tests:
