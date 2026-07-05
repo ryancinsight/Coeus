@@ -1,5 +1,13 @@
 # Coeus Project Backlog & Historical Archives
 
+## CR-4 SSOT rebind: `coeus_core::Scalar` over `eunomia::NumericElement` (CLOSED 2026-07-05)
+
+[minor] Coeus `coeus_core::Scalar` now binds as `pub trait Scalar: NumericElement + CpuUnaryDispatch + Pod + Rem<Output=Self> + Clone` rather than redeclaring the redundant 7-method vocabulary inline. The slice-kernel SIMD-effect surface (`add_slice`/`sub_slice`/`mul_slice`/`div_slice`/`dot_slice`/`scale_slice`/`axpy_slice`/`sum_slice`/`min_slice`/`max_slice`) stays as default-bodied on `Scalar` because they encode backend-specific dispatch that doesn't belong on `NumericElement`. Callsite disambiguation landed across `coeus-{autograd, ops, nn, fft, optim, tensor, dist, cuda, wgpu}` (64 files) because at the bridged surface `T::to_f64` / `T::abs` / `T::sqrt` / `T::is_finite` resolve to multiple candidates through the SSOT path. Adjacent clippy `assign_op_pattern` (`acc = acc + x` → `acc += x`) fixed in the same atomic commit so local pre-merge gate passes.
+
+- Commit: `2b3f820` (`feat(scalar)!:`) on `coeus` main, pushed 2026-07-05.
+- Evidence: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo nextest run` (1031 tests), `cargo test --doc`, `cargo doc --no-deps` all green.
+- Migration guide: `atlas/docs/adr/0005-eunomia-scalar-ssot.md`. Downstreams `kwavers-math` / `cfd-math` / `ritk-registration` are unblocked per the file's consumer-land-unlocked column.
+
 ## Sprint MS-405: PyTorch/JAX parity defect closure [COMPLETE]
 
 - [x] [patch] `coeus_nn::pairwise_distance` PyTorch/JAX parity. The
