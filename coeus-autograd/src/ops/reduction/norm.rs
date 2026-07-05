@@ -146,7 +146,7 @@ where
         if y != T::zero() {
             let scale = y.powf(T::one() - p) * grad_val;
             for i in 0..n {
-                let abs_x = host[i].abs();
+                let abs_x = <T as Float>::abs(host[i]);
                 if abs_x != T::zero() {
                     let sign = if host[i] > T::zero() {
                         T::one()
@@ -297,7 +297,7 @@ where
                 for k in 0..axis_dim {
                     let linear = base + k * post_count;
                     let val = host[linear];
-                    let abs_x = val.abs();
+                    let abs_x = <T as Float>::abs(val);
                     if abs_x == T::zero() {
                         continue;
                     }

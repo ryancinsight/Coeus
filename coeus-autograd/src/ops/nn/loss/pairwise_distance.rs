@@ -153,14 +153,14 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let mut s = T::zero();
         for k in 0..feat {
             let diff = x1_host[base + k] - x2_host[base + k] + eps;
-            s = s + diff.abs().powf(p);
+            s += <T as Float>::powf(<T as Float>::abs(diff), p);
         }
         let s_scaled = s.powf(inv_p);
         out[i] = s_scaled;
         let scale = s.powf(inv_p - one);
         for k in 0..feat {
             let diff = x1_host[base + k] - x2_host[base + k] + eps;
-            let mag = diff.abs().powf(p_minus_one);
+            let mag = <T as Float>::powf(<T as Float>::abs(diff), p_minus_one);
             let sign = if diff > T::zero() {
                 one
             } else if diff < T::zero() {

@@ -74,10 +74,10 @@ pub(crate) fn conv1d<T: Scalar, B: Backend>(
                     // SAFETY: row-major contiguous weights store each
                     // `(out_channel, in_channel)` kernel as one `k`-element run.
                     let weight_window = &weight_slice[weight_start..weight_start + k];
-                    sum = sum + T::dot_slice(input_window, weight_window);
+                    sum += T::dot_slice(input_window, weight_window);
                 }
                 if let Some(bs) = bias_slice {
-                    sum = sum + bs[oc];
+                    sum += bs[oc];
                 }
                 *slot = sum;
             }
@@ -150,13 +150,13 @@ pub(crate) fn conv1d<T: Scalar, B: Backend>(
                     let weight_idx = weight_layout.physical_index(&[oc, ic, ik]);
                     let ival = unsafe { input_ptr.read(input_idx) };
                     let wval = unsafe { weight_ptr.read(weight_idx) };
-                    sum = sum + ival * wval;
+                    sum += ival * wval;
                 }
             }
         }
         if let Some(ref bp) = bias_ptr {
             let bias_idx = bias_layout.as_ref().unwrap().physical_index(&[oc]);
-            sum = sum + unsafe { bp.read(bias_idx) };
+            sum += unsafe { bp.read(bias_idx) };
         }
         let output_idx = output_layout.physical_index(&[ni, oc, ol]);
         unsafe {
@@ -228,7 +228,7 @@ pub(crate) fn conv1d_backward<T: Scalar, B: Backend>(
                             let w_idx = w_layout.physical_index(&[oc, ic, ik]);
                             let gval = unsafe { go_ptr.read(go_idx) };
                             let wval = unsafe { w_ptr.read(w_idx) };
-                            sum = sum + gval * wval;
+                            sum += gval * wval;
                         }
                     }
                 }
@@ -280,7 +280,7 @@ pub(crate) fn conv1d_backward<T: Scalar, B: Backend>(
                     // windows have length `l_out` and remain inside storage.
                     let go_window = unsafe { go_ptr.slice(go_start, l_out) };
                     let input_window = unsafe { input_ptr.slice(input_start, l_out) };
-                    sum = sum + T::dot_slice(go_window, input_window);
+                    sum += T::dot_slice(go_window, input_window);
                 }
                 let gw_idx = gw_offset + (oc * c_in + ic) * k + ik;
                 unsafe {
@@ -304,7 +304,7 @@ pub(crate) fn conv1d_backward<T: Scalar, B: Backend>(
                             let input_idx = input_layout.physical_index(&[ni, ic, l_in as usize]);
                             let gval = unsafe { go_ptr.read(go_idx) };
                             let ival = unsafe { input_ptr.read(input_idx) };
-                            sum = sum + gval * ival;
+                            sum += gval * ival;
                         }
                     }
                 }
@@ -329,7 +329,7 @@ pub(crate) fn conv1d_backward<T: Scalar, B: Backend>(
                 for ol in 0..l_out {
                     let go_idx = go_layout.physical_index(&[ni, oc, ol]);
                     let gval = unsafe { go_ptr.read(go_idx) };
-                    sum = sum + gval;
+                    sum += gval;
                 }
             }
             let gb_idx = gb_layout.physical_index(&[oc]);

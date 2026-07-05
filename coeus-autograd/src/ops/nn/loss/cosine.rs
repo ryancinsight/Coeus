@@ -74,12 +74,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
             for j in 0..self.d {
                 let val1 = self.x1_host[offset + j];
                 let val2 = self.x2_host[offset + j];
-                dot = dot + val1 * val2;
-                norm1_sq = norm1_sq + val1 * val1;
-                norm2_sq = norm2_sq + val2 * val2;
+                dot += val1 * val2;
+                norm1_sq += val1 * val1;
+                norm2_sq += val2 * val2;
             }
-            let norm1 = norm1_sq.sqrt();
-            let norm2 = norm2_sq.sqrt();
+            let norm1 = <T as Float>::sqrt(norm1_sq);
+            let norm2 = <T as Float>::sqrt(norm2_sq);
             let den = if norm1 * norm2 > eps {
                 norm1 * norm2
             } else {
@@ -191,12 +191,12 @@ pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         for j in 0..d {
             let val1 = x1_host[offset + j];
             let val2 = x2_host[offset + j];
-            dot = dot + val1 * val2;
-            norm1_sq = norm1_sq + val1 * val1;
-            norm2_sq = norm2_sq + val2 * val2;
+            dot += val1 * val2;
+            norm1_sq += val1 * val1;
+            norm2_sq += val2 * val2;
         }
-        let norm1 = norm1_sq.sqrt();
-        let norm2 = norm2_sq.sqrt();
+        let norm1 = <T as Float>::sqrt(norm1_sq);
+        let norm2 = <T as Float>::sqrt(norm2_sq);
         let den = if norm1 * norm2 > eps {
             norm1 * norm2
         } else {
@@ -215,7 +215,7 @@ pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
                 T::zero()
             }
         };
-        loss_val = loss_val + item_loss;
+        loss_val += item_loss;
     }
     loss_val = loss_val / T::from_f64(n as f64);
 

@@ -57,7 +57,7 @@ pub(crate) fn avg_pool2d<T: Scalar, B: Backend>(
                         let input_idx =
                             input_layout.physical_index(&[ni, ci, h_in as usize, w_in as usize]);
                         let val = unsafe { input_ptr.read(input_idx) };
-                        sum = sum + val;
+                        sum += val;
                         count += 1;
                     }
                 }
@@ -151,7 +151,7 @@ pub(crate) fn avg_pool2d_backward<T: Scalar, B: Backend>(
                                 if count > 0 {
                                     let go_idx = go_layout.physical_index(&[ni, ci, oh, ow]);
                                     let gval = unsafe { go_ptr.read(go_idx) };
-                                    sum = sum + gval / T::from_f64(count as f64);
+                                    sum += gval / T::from_f64(count as f64);
                                 }
                             }
                         }
@@ -236,7 +236,7 @@ pub(crate) fn avg_pool3d<T: Scalar, B: Backend>(
                                     w_in as usize,
                                 ]);
                                 let val = unsafe { input_ptr.read(input_idx) };
-                                sum = sum + val;
+                                sum += val;
                                 count += 1;
                             }
                         }
@@ -351,7 +351,7 @@ pub(crate) fn avg_pool3d_backward<T: Scalar, B: Backend>(
                                                 let go_idx =
                                                     go_layout.physical_index(&[ni, ci, od, oh, ow]);
                                                 let gval = unsafe { go_ptr.read(go_idx) };
-                                                sum = sum + gval / T::from_f64(count as f64);
+                                                sum += gval / T::from_f64(count as f64);
                                             }
                                         }
                                     }

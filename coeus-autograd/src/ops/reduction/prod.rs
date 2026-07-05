@@ -60,12 +60,12 @@ where
             let mut acc = T::one();
             for i in 0..n {
                 gi[i] = acc;
-                acc = acc * xs[i];
+                acc *= xs[i];
             }
             let mut acc = T::one();
             for i in (0..n).rev() {
                 gi[i] = seed * gi[i] * acc;
-                acc = acc * xs[i];
+                acc *= xs[i];
             }
 
             let gi_increment = Tensor::from_slice(self.input_saved.shape_cloned(), &gi);

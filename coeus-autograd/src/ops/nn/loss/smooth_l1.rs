@@ -170,7 +170,7 @@ pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         } else {
             abs_z - half * beta
         };
-        loss_val = loss_val + elem;
+        loss_val += elem;
         // Pre-stage the per-element d/d_pred factor (sans the outer
         // (g_out / n) scale; the node applies the scale at backward time).
         let unit_grad = if abs_z < beta {

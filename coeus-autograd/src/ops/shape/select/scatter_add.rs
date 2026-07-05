@@ -93,13 +93,8 @@ where
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::scatter_add(
-        &input.tensor,
-        dim,
-        &index.tensor,
-        &src.tensor,
-        &backend,
-    );
+    let out_tensor =
+        coeus_ops::scatter_add(&input.tensor, dim, &index.tensor, &src.tensor, &backend);
 
     let requires_grad =
         crate::grad_mode::should_track_var(input) || crate::grad_mode::should_track_var(src);

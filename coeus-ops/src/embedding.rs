@@ -57,7 +57,7 @@ pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
         for i in 0..num_indices {
             let physical_idx = idx_layout.physical_index(&idx_coords);
             let token_val = idx_slice[physical_idx];
-            let token_idx = token_val.to_f64() as isize;
+            let token_idx = <I as Scalar>::to_f64(token_val) as isize;
 
             assert!(
                 token_idx >= 0 && token_idx < num_embeddings as isize,
@@ -175,7 +175,7 @@ fn embedding_backward_impl<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
         for i in 0..num_indices {
             let physical_idx = idx_layout.physical_index(&idx_coords);
             let token_val = idx_slice[physical_idx];
-            let token_idx = token_val.to_f64() as isize;
+            let token_idx = <I as Scalar>::to_f64(token_val) as isize;
 
             if token_idx >= 0
                 && token_idx < num_embeddings as isize
@@ -192,7 +192,7 @@ fn embedding_backward_impl<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
                 for j in 0..embedding_dim {
                     let go_idx = go_row_start + j * go_strides[ndim_idx];
                     let gw_idx = gw_row_start + j * gw_strides[1];
-                    gw_slice[gw_idx] = gw_slice[gw_idx] + go_slice[go_idx];
+                    gw_slice[gw_idx] += go_slice[go_idx];
                 }
             }
 

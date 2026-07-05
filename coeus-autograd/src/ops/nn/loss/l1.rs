@@ -135,7 +135,7 @@ pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         } else {
             diff
         };
-        loss_val = loss_val + abs_diff;
+        loss_val += abs_diff;
     }
     loss_val = loss_val / T::from_f64(n as f64);
 

@@ -76,7 +76,7 @@ pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             let diff = host_data[offset + j] - max_val;
             let val_exp = diff.exp_op();
             probs[offset + j] = val_exp;
-            sum_exp = sum_exp + val_exp;
+            sum_exp += val_exp;
         }
 
         // Compute sample loss: log(sum(exp(x_j))) - x_y, in T precision
@@ -84,7 +84,7 @@ pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let target_idx = targets[i];
         assert!(target_idx < c, "target index out of bounds");
         let target_logit = host_data[offset + target_idx];
-        loss_val = loss_val + (log_sum_exp - target_logit);
+        loss_val += log_sum_exp - target_logit;
 
         // Compute softmax probabilities for backward pass
         for j in 0..c {

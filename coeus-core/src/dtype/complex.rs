@@ -6,9 +6,9 @@
 use crate::dtype::traits::{private, Float, FloatOps, Scalar};
 use eunomia::Complex;
 
-impl<T: Float> private::Sealed for Complex<T> {}
+impl<T: Float + core::ops::Neg<Output = T>> private::Sealed for Complex<T> {}
 
-impl<T: Float> FloatOps for Complex<T> {
+impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
     #[inline(always)]
     fn exp_op(self) -> Self {
         let r = self.re.exp();
@@ -20,8 +20,11 @@ impl<T: Float> FloatOps for Complex<T> {
 
     #[inline(always)]
     fn log_op(self) -> Self {
-        let r = (self.re * self.re + self.im * self.im).sqrt();
-        let theta = T::from_f64(self.im.to_f64().atan2(self.re.to_f64()));
+        let r = <T as Float>::sqrt(self.re * self.re + self.im * self.im);
+        let theta = T::from_f64(
+            <T as eunomia::NumericElement>::to_f64(self.im)
+                .atan2(<T as eunomia::NumericElement>::to_f64(self.re)),
+        );
         Self {
             re: r.ln(),
             im: theta,
@@ -158,7 +161,7 @@ impl<T: Float> FloatOps for Complex<T> {
     }
 }
 
-impl<T: Float> Scalar for Complex<T> {
+impl<T: Float + core::ops::Neg<Output = T>> Scalar for Complex<T> {
     #[inline(always)]
     fn zero() -> Self {
         Self {
@@ -177,7 +180,7 @@ impl<T: Float> Scalar for Complex<T> {
 
     #[inline(always)]
     fn to_f64(self) -> f64 {
-        self.re.to_f64()
+        <T as eunomia::NumericElement>::to_f64(self.re)
     }
 
     #[inline(always)]
@@ -198,10 +201,10 @@ impl<T: Float> Scalar for Complex<T> {
 
     #[inline(always)]
     fn sqrt_val(self) -> Self {
-        let r = (self.re * self.re + self.im * self.im).sqrt();
-        let u = ((r + self.re) / T::from_f64(2.0)).sqrt();
-        let v = ((r - self.re) / T::from_f64(2.0)).sqrt();
-        let v = if self.im.to_f64() < 0.0 {
+        let r = <T as Float>::sqrt(self.re * self.re + self.im * self.im);
+        let u = <T as Float>::sqrt((r + self.re) / T::from_f64(2.0));
+        let v = <T as Float>::sqrt((r - self.re) / T::from_f64(2.0));
+        let v = if <T as eunomia::NumericElement>::to_f64(self.im) < 0.0 {
             T::zero() - v
         } else {
             v
@@ -211,7 +214,7 @@ impl<T: Float> Scalar for Complex<T> {
 
     #[inline(always)]
     fn abs_val(self) -> Self {
-        let mag = (self.re * self.re + self.im * self.im).sqrt();
+        let mag = <T as Float>::sqrt(self.re * self.re + self.im * self.im);
         Self {
             re: mag,
             im: T::zero(),
@@ -219,7 +222,7 @@ impl<T: Float> Scalar for Complex<T> {
     }
 }
 
-impl<T: Float> crate::dtype::CpuUnaryDispatch for Complex<T> {
+impl<T: Float + core::ops::Neg<Output = T>> crate::dtype::CpuUnaryDispatch for Complex<T> {
     #[inline]
     fn eval_unary(op: crate::dtype::CpuUnaryOp, x: Self) -> Self {
         use crate::dtype::{CpuUnaryOp, FloatOps, Scalar};
@@ -253,7 +256,10 @@ impl<T: Float> crate::dtype::CpuUnaryDispatch for Complex<T> {
             CpuUnaryOp::Lgamma => x.lgamma_op(),
             CpuUnaryOp::Exp => x.exp_op(),
             CpuUnaryOp::Log => x.log_op(),
-            CpuUnaryOp::Neg => Self::zero() - x,
+            CpuUnaryOp::Neg => Self {
+                re: T::zero() - x.re,
+                im: T::zero() - x.im,
+            },
             CpuUnaryOp::Abs => x.abs_val(),
             CpuUnaryOp::Sqrt => x.sqrt_val(),
             CpuUnaryOp::Recip => {
@@ -265,7 +271,7 @@ impl<T: Float> crate::dtype::CpuUnaryDispatch for Complex<T> {
                 }
             }
             CpuUnaryOp::Sign => {
-                let mag = (x.re * x.re + x.im * x.im).sqrt();
+                let mag = <T as Float>::sqrt(x.re * x.re + x.im * x.im);
                 if mag == T::zero() {
                     Self::zero()
                 } else {

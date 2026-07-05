@@ -53,9 +53,9 @@ use std::sync::Arc;
 ///             let gx_s = gx.as_mut_slice();
 ///             for i in 0..gx_s.len() {
 ///                 // Real accumulation: grad_x[i] += c * grad_out[i]
-///                 let c_val = T::from_f64(self.c.to_f64());
-///                 let go_val = T::from_f64(go[i].to_f64());
-///                 let acc = T::from_f64(gx_s[i].to_f64() + c_val.to_f64() * go_val.to_f64());
+///                 let c_val = T::from_f64(<T as Scalar>::to_f64(self.c));
+///                 let go_val = T::from_f64(<T as Scalar>::to_f64(go[i]));
+///                 let acc = T::from_f64(<T as Scalar>::to_f64(gx_s[i]) + <T as Scalar>::to_f64(c_val) * <T as Scalar>::to_f64(go_val));
 ///                 gx_s[i] = acc;
 ///             }
 ///         }

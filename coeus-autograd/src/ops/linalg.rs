@@ -297,7 +297,7 @@ where
             let grad_coo_slice = grad_coo.as_mut_slice();
             for i in 0..nnz {
                 let orig = sorted_to_orig[i] as usize;
-                grad_coo_slice[orig] = grad_coo_slice[orig] + grad_sorted_slice[i];
+                grad_coo_slice[orig] += grad_sorted_slice[i];
             }
             let gl = g.write();
             coeus_ops::add_assign(gl, &grad_coo, &backend);

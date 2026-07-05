@@ -135,7 +135,7 @@ pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         if hinge > zero {
             mask[i] = T::one();
         }
-        loss_val = loss_val + hinge;
+        loss_val += hinge;
     }
     loss_val = loss_val / T::from_f64(n as f64);
 

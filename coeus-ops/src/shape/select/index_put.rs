@@ -64,7 +64,7 @@ where
 
     let n_rows = input.shape()[0];
     for (src_row, &idx_val) in idx_s.iter().enumerate() {
-        let row = idx_val.to_f64() as usize;
+        let row = <T as Scalar>::to_f64(idx_val) as usize;
         assert!(
             row < n_rows,
             "index_put: index {row} out of range for dim 0 size {n_rows}"
@@ -73,7 +73,7 @@ where
         let src_start = src_row * row_size;
         for k in 0..row_size {
             if accumulate {
-                host[dst_start + k] = host[dst_start + k] + val_s[src_start + k];
+                host[dst_start + k] += val_s[src_start + k];
             } else {
                 host[dst_start + k] = val_s[src_start + k];
             }

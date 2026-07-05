@@ -187,12 +187,12 @@ pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let mut n1_sqr = T::zero();
         let mut n2_sqr = T::zero();
         for k in 0..feat {
-            dot = dot + x1_host[base + k] * x2_host[base + k];
-            n1_sqr = n1_sqr + x1_host[base + k] * x1_host[base + k];
-            n2_sqr = n2_sqr + x2_host[base + k] * x2_host[base + k];
+            dot += x1_host[base + k] * x2_host[base + k];
+            n1_sqr += x1_host[base + k] * x1_host[base + k];
+            n2_sqr += x2_host[base + k] * x2_host[base + k];
         }
-        let n1 = n1_sqr.sqrt();
-        let n2 = n2_sqr.sqrt();
+        let n1 = <T as Float>::sqrt(n1_sqr);
+        let n2 = <T as Float>::sqrt(n2_sqr);
         // PyTorch clamps the denominator: `(||x1||·||x2||).clamp_min(eps)` =
         // max(norm_product, eps). For normal-magnitude rows this is exactly the
         // norm product (no perturbation), so the result matches torch to full

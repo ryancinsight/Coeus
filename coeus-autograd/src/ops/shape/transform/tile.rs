@@ -44,7 +44,7 @@ where
             // Reconstruct the effective input shape after padding.
             let in_ndim = self.in_shape.len();
             let n = in_ndim.max(self.reps.len());
-            let pad_in = n - in_ndim;
+            let pad_in: usize = n - in_ndim;
             let pad_reps = n - self.reps.len();
             let eff_in: Vec<usize> = (0..n)
                 .map(|d| {
@@ -93,7 +93,7 @@ where
                     let in_coord = out_coord % eff_in[d];
                     in_flat += in_coord * in_strides[d];
                 }
-                gi_data[in_flat] = gi_data[in_flat] + go_s[out_flat];
+                gi_data[in_flat] += go_s[out_flat];
             }
 
             // Reshape from eff_in back to original in_shape.

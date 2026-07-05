@@ -98,7 +98,7 @@ pub fn std_mean<T: Float, B: BackendOps<T> + Default>(
     backend: &B,
 ) -> (T, T) {
     let (v, mu) = var_mean(a, unbiased, backend);
-    (v.sqrt(), mu)
+    (<T as Float>::sqrt(v), mu)
 }
 
 /// Standard deviation along a specific axis, reducing it to size 1.

@@ -127,8 +127,7 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         probs[i] = p;
         targets_t[i] = t;
         // -(t * log(p) + (1-t) * log(1-p)) using T::zero()-x for negation
-        loss_val =
-            loss_val + (T::zero() - (t * p.log_op() + (T::one() - t) * (T::one() - p).log_op()));
+        loss_val += T::zero() - (t * p.log_op() + (T::one() - t) * (T::one() - p).log_op());
     }
     loss_val = loss_val / n_t;
 

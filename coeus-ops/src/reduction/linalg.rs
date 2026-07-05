@@ -46,7 +46,7 @@ pub fn dot<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, b: &Tensor<T
     backend.copy_to_host(b_c.storage(), &mut b_host);
     let mut acc = T::zero();
     for (&ai, &bi) in a_host.iter().zip(b_host.iter()) {
-        acc = acc + ai * bi;
+        acc += ai * bi;
     }
     acc
 }

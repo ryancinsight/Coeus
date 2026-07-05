@@ -183,7 +183,7 @@ pub(crate) fn max_pool2d_backward<T: Scalar, B: Backend>(
                                 {
                                     let go_idx = go_layout.physical_index(&[ni, ci, oh, ow]);
                                     let gval = unsafe { go_ptr.read(go_idx) };
-                                    sum = sum + gval;
+                                    sum += gval;
                                 }
                             }
                         }
@@ -422,7 +422,7 @@ pub(crate) fn max_pool3d_backward<T: Scalar, B: Backend>(
                                                 let go_idx =
                                                     go_layout.physical_index(&[ni, ci, od, oh, ow]);
                                                 let gval = unsafe { go_ptr.read(go_idx) };
-                                                sum = sum + gval;
+                                                sum += gval;
                                             }
                                         }
                                     }

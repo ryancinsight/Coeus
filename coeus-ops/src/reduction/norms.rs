@@ -34,7 +34,7 @@ pub fn norm<T: Float, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B)
         a.to_contiguous_on(backend).reshape([n])
     };
     let sq = binary::mul(&flattened, &flattened, backend);
-    super::sum(&sq, backend).sqrt()
+    <T as Float>::sqrt(super::sum(&sq, backend))
 }
 
 /// `L_p` norm over all elements: `(Σ|xᵢ|^p)^(1/p)` for finite `p > 0`.
@@ -54,7 +54,7 @@ pub fn norm_p<T: Float, B: BackendOps<T> + Default>(a: &Tensor<T, B>, p: T, back
     let n = a.numel();
     assert!(n > 0, "norm_p: empty tensor has no norm");
     assert!(
-        p > T::zero() && p.is_finite(),
+        p > T::zero() && <T as Float>::is_finite(p),
         "norm_p: ord must be a finite positive number, got {p:?}"
     );
     let flattened = if a.is_contiguous() && a.layout().offset() == 0 {
@@ -66,9 +66,9 @@ pub fn norm_p<T: Float, B: BackendOps<T> + Default>(a: &Tensor<T, B>, p: T, back
     backend.copy_to_host(flattened.storage(), &mut host);
     let mut acc = T::zero();
     for &v in &host {
-        acc = acc + v.abs().powf(p);
+        acc += <T as Float>::powf(<T as Float>::abs(v), p);
     }
-    acc.powf(T::one() / p)
+    <T as Float>::powf(acc, T::one() / p)
 }
 
 /// Per-axis `L_p` norm: tensor reduced along `axis` to size 1, with each
@@ -96,7 +96,7 @@ pub fn norm_p_axis<T: Float, B: BackendOps<T> + Default>(
     let n_axis = a.shape()[axis];
     assert!(n_axis > 0, "norm_p_axis: axis {axis} has zero elements");
     assert!(
-        p > T::zero() && p.is_finite(),
+        p > T::zero() && <T as Float>::is_finite(p),
         "norm_p_axis: ord must be a finite positive number, got {p:?}"
     );
 
@@ -132,10 +132,10 @@ pub fn norm_p_axis<T: Float, B: BackendOps<T> + Default>(
             let mut acc = T::zero();
             for k in 0..axis_dim {
                 let linear = base + k * post_count;
-                acc = acc + host[linear].abs().powf(p);
+                acc += <T as Float>::powf(<T as Float>::abs(host[linear]), p);
             }
             let out_idx = pre_idx * post_count + post_idx;
-            out_host[out_idx] = acc.powf(inv_p);
+            out_host[out_idx] = <T as Float>::powf(acc, inv_p);
         }
     }
 
@@ -200,9 +200,9 @@ pub fn frobenius_norm_batched<T: Float, B: BackendOps<T> + Default>(
         let mut acc = T::zero();
         for j in 0..last_two {
             let v = host[batch_idx * last_two + j];
-            acc = acc + v * v;
+            acc += v * v;
         }
-        out_host.push(acc.sqrt());
+        out_host.push(<T as Float>::sqrt(acc));
     }
 
     let out_shape: Vec<usize> = contiguous.shape()[..ndim - 2].to_vec();

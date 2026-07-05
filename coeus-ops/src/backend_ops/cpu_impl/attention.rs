@@ -130,7 +130,7 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
             unsafe {
                 aw_ptr.write(aw_idx, v);
             }
-            sum_exp = sum_exp + v;
+            sum_exp += v;
         }
 
         // normalize
@@ -146,7 +146,7 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
                 let v_idx = idx3(b, j, l, seq_k, d_v);
                 let aw_val = unsafe { aw_ptr.read(aw_idx) };
                 let v_val = unsafe { v_ptr.read(v_idx) };
-                acc = acc + aw_val * v_val;
+                acc += aw_val * v_val;
             }
             unsafe {
                 out_ptr.write(idx3(b, i, l, seq_q, d_v), acc);
@@ -268,7 +268,7 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
                     let k_idx = idx3(b, j, dk, seq_k, d_k);
                     let ds_val = unsafe { d_scores_ptr.read(ds_idx) };
                     let k_val = unsafe { k_ptr.read(k_idx) };
-                    acc = acc + ds_val * k_val;
+                    acc += ds_val * k_val;
                 }
                 let gq_idx = idx3(b, i, dk, seq_q, d_k);
                 unsafe {
@@ -296,7 +296,7 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
                     let q_idx = idx3(b, i, dk, seq_q, d_k);
                     let ds_val = unsafe { d_scores_const_ptr.read(ds_idx) };
                     let q_val = unsafe { q_ptr.read(q_idx) };
-                    acc = acc + ds_val * q_val;
+                    acc += ds_val * q_val;
                 }
                 let gk_idx = idx3(b, j, dk, seq_k, d_k);
                 unsafe {
@@ -316,7 +316,7 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
                     let go_idx = idx3(b, i, l, seq_q, d_v);
                     let aw_val = unsafe { aw_ptr.read(aw_idx) };
                     let go_val = unsafe { go_ptr.read(go_idx) };
-                    acc = acc + aw_val * go_val;
+                    acc += aw_val * go_val;
                 }
                 let gv_idx = idx3(b, j, l, seq_k, d_v);
                 unsafe {

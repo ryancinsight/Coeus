@@ -58,7 +58,7 @@ where
     if k == in_shape[dim] {
         let mut is_identity = true;
         for (i, &v) in idx_s.iter().enumerate() {
-            if (v.to_f64() as usize) != i {
+            if (<T as Scalar>::to_f64(v) as usize) != i {
                 is_identity = false;
                 break;
             }
@@ -94,7 +94,7 @@ where
 
         // The `dim`-th coordinate indexes into `index`, giving us the
         // source position in the input along `dim`.
-        let sel = idx_s[coords[dim]].to_f64() as usize;
+        let sel = <T as Scalar>::to_f64(idx_s[coords[dim]]) as usize;
         assert!(
             sel < in_shape[dim],
             "index_select: index value {sel} out of bounds for dim {dim} size {}",

@@ -89,7 +89,7 @@ pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let mut loss_val = T::zero();
     for i in 0..n {
         // T::zero() - x for negation
-        loss_val = loss_val + (T::zero() - host[i * c + targets[i]]);
+        loss_val += T::zero() - host[i * c + targets[i]];
     }
     loss_val = loss_val / T::from_f64(n as f64);
 

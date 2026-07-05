@@ -145,8 +145,8 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         logits_v[i] = z;
         // Stable: max(z,0) - z*y + log(1 + exp(-|z|)).
         let max_z0 = if z > T::zero() { z } else { T::zero() };
-        let elem = max_z0 - z * y + (one + (T::zero() - z.abs()).exp_op()).log_op();
-        loss_val = loss_val + elem;
+        let elem = max_z0 - z * y + (one + (T::zero() - <T as Float>::abs(z)).exp_op()).log_op();
+        loss_val += elem;
         sig_minus_target[i] = stable_sigmoid(z) - y;
     }
     loss_val = loss_val / T::from_f64(n as f64);

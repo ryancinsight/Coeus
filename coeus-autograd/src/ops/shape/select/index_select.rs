@@ -83,13 +83,13 @@ where
                     coords[d] = rem / out_strides[d];
                     rem %= out_strides[d];
                 }
-                let sel = idx_s[coords[dim]].to_f64() as usize;
+                let sel = <T as Scalar>::to_f64(idx_s[coords[dim]]) as usize;
                 let mut in_flat = 0usize;
                 for d in 0..ndim {
                     let c = if d == dim { sel } else { coords[d] };
                     in_flat += c * in_strides[d];
                 }
-                gi_data[in_flat] = gi_data[in_flat] + go_s[out_flat];
+                gi_data[in_flat] += go_s[out_flat];
             }
 
             // Accumulate increment into the gradient buffer.

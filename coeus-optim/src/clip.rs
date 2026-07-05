@@ -56,7 +56,7 @@ where
         // grad tensors are always contiguous (constructed via zeros_on).
         let slice: &[T] = grad.as_slice();
         for &v in slice {
-            total_sq = total_sq + v * v;
+            total_sq += v * v;
         }
     }
     // sqrt in native T precision (Scalar::sqrt_val).
@@ -74,7 +74,7 @@ where
             let grad = grad_arc.write();
             let slice: &mut [T] = grad.as_mut_slice();
             for v in slice {
-                *v = *v * clip_coef;
+                *v *= clip_coef;
             }
         }
         let _ = (one, backend); // suppress unused warnings when no params have grad

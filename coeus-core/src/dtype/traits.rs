@@ -9,8 +9,9 @@
 // - bytemuck::Pod guarantees safe transmutation to/from [u8]
 
 use bytemuck::Pod;
+use eunomia::NumericElement;
 use std::fmt::Debug;
-use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::ops::Rem;
 
 // ── Sealed pattern ──
 pub(crate) mod private {
@@ -251,8 +252,13 @@ pub trait CpuUnaryDispatch: private::Sealed {
 ///
 /// # Safety / Design
 /// - `Pod` enables zero-copy byte transmutation (bytemuck).
-/// - `Num` gives arithmetic ops (Add, Sub, Mul, Div, Rem).
-/// - Sealed prevents downstream impls, guaranteeing monomorphization.
+/// - `NumericElement` is the eunomia SSOT element vocabulary (constants
+///   `ZERO`/`ONE`/etc., `abs`/`sqrt`/`is_finite`/`is_nan`/`to_f64`/`from_f64`/
+///   `from_usize`, plus `Add`/`Sub`/`Mul`/`Div`/`Assigns`/`Copy`/`Send`/`Sync`/
+///   `'static`/`Debug`/`PartialOrd`). Backend `Scalar` traits must extend—
+///   not redeclare—`NumericElement`.
+/// - `Rem<Output=Self>` is per-Scalar (not on `NumericElement`).
+/// - Sealed via `eunomia::private::Sealed`.
 ///
 /// # Examples
 ///
@@ -274,46 +280,35 @@ pub trait CpuUnaryDispatch: private::Sealed {
 /// f32::axpy_slice(2.0, &a, &mut acc);
 /// assert_eq!(acc, [12.0, 14.0, 16.0]); // 10 + 2*[1,2,3]
 /// ```
-pub trait Scalar:
-    private::Sealed
-    + Copy
-    + Clone
-    + Send
-    + Sync
-    + Debug
-    + Pod
-    + PartialOrd
-    + CpuUnaryDispatch
-    + Add<Output = Self>
-    + Sub<Output = Self>
-    + Mul<Output = Self>
-    + Div<Output = Self>
-    + Rem<Output = Self>
-    + 'static
-{
-    /// Additive identity (0).
+pub trait Scalar: NumericElement + CpuUnaryDispatch + Pod + Rem<Output = Self> + Clone {
+    /// Additive identity.
     fn zero() -> Self;
 
-    /// Multiplicative identity (1).
+    /// Multiplicative identity.
     fn one() -> Self;
-    /// Convert to f64 (for mixed-precision checkpoints).
+
+    /// Convert this scalar to `f64`.
     fn to_f64(self) -> f64;
 
-    /// Convert from f64 (for initialization, etc.).
+    /// Construct a scalar from `f64`.
     fn from_f64(v: f64) -> Self;
 
-    /// Convert from a structural index or dimension count.
-    ///
-    /// This is the native-precision path for index-derived tensor values such
-    /// as `arange`; it avoids routing exact non-negative integer coordinates
-    /// through `f64`.
+    /// Construct a scalar from `usize`.
     fn from_usize(v: usize) -> Self;
 
-    /// Calculate square root of the value natively.
+    /// Scalar square root.
     fn sqrt_val(self) -> Self;
 
-    /// Calculate absolute value of the value natively.
+    /// Scalar absolute value.
     fn abs_val(self) -> Self;
+
+    // The slice-kernel default methods below are the backend
+    // extension surface — the per-type seam onto `hermes-simd`'s
+    // SIMD-effect SSOT. They are mode-stable across the rebase (`hermes-simd`
+    // override routes the floating-point slice-bytes-vectorisation at the
+    // type-monomorphization site). They MUST stay on `Scalar`, not
+    // `NumericElement`, because the kernel surface is backend-agnostic but
+    // the SIMD dispatch is backend-specific.
 
     /// Elementwise `a + b` into `out` over equal-length contiguous slices.
     ///
@@ -367,7 +362,7 @@ pub trait Scalar:
 
         let mut acc = Self::zero();
         for (&x, &y) in a.iter().zip(b.iter()) {
-            acc = acc + x * y;
+            acc += x * y;
         }
         acc
     }
@@ -380,7 +375,7 @@ pub trait Scalar:
     #[inline]
     fn scale_slice(data: &mut [Self], scalar: Self) {
         for value in data {
-            *value = *value * scalar;
+            *value *= scalar;
         }
     }
 
@@ -395,8 +390,7 @@ pub trait Scalar:
     fn axpy_slice(alpha: Self, x: &[Self], out: &mut [Self]) {
         assert_eq!(x.len(), out.len(), "axpy_slice: length mismatch");
         for (o, &xi) in out.iter_mut().zip(x.iter()) {
-            let next = *o + alpha * xi;
-            *o = next;
+            *o += alpha * xi;
         }
     }
 
@@ -413,7 +407,7 @@ pub trait Scalar:
             Some((&first, rest)) => {
                 let mut acc = first;
                 for &v in rest {
-                    acc = acc + v;
+                    acc += v;
                 }
                 acc
             }

@@ -6,7 +6,7 @@
 // all other `coeus-ops` free functions (`matmul`, `dot`, `topk`, …).
 
 use crate::BackendOps;
-use coeus_core::{CpuAddressableStorageMut, Float};
+use coeus_core::{CpuAddressableStorageMut, Float, Scalar};
 use coeus_tensor::Tensor;
 
 /// `n` evenly-spaced values from `start` to `end` (inclusive) on `backend`.
@@ -27,15 +27,15 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     assert!(n > 0, "linspace: n must be > 0");
-    let start_f = start.to_f64();
-    let end_f = end.to_f64();
+    let start_f = <T as Scalar>::to_f64(start);
+    let end_f = <T as Scalar>::to_f64(end);
     let step = if n > 1 {
         (end_f - start_f) / (n - 1) as f64
     } else {
         0.0
     };
     let values: Vec<T> = (0..n)
-        .map(|i| T::from_f64(start_f + step * i as f64))
+        .map(|i| <T as Scalar>::from_f64(start_f + step * i as f64))
         .collect();
     Tensor::from_slice_on(vec![n], &values, backend)
 }
@@ -59,9 +59,9 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     assert!(n > 0, "logspace: n must be > 0");
-    let start_f = start.to_f64();
-    let end_f = end.to_f64();
-    let base_f = base.to_f64();
+    let start_f = <T as Scalar>::to_f64(start);
+    let end_f = <T as Scalar>::to_f64(end);
+    let base_f = <T as Scalar>::to_f64(base);
     let values: Vec<T> = (0..n)
         .map(|i| {
             let exp = if n > 1 {
@@ -69,7 +69,7 @@ where
             } else {
                 start_f
             };
-            T::from_f64(base_f.powf(exp))
+            <T as Scalar>::from_f64(base_f.powf(exp))
         })
         .collect();
     Tensor::from_slice_on(vec![n], &values, backend)
@@ -92,8 +92,8 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     assert!(n > 0, "geomspace: n must be > 0");
-    let start_f = start.to_f64();
-    let end_f = end.to_f64();
+    let start_f = <T as Scalar>::to_f64(start);
+    let end_f = <T as Scalar>::to_f64(end);
     assert!(
         start_f != 0.0 && end_f != 0.0,
         "geomspace: start and end must be non-zero"
@@ -115,7 +115,7 @@ where
             if n == 1 {
                 start
             } else {
-                T::from_f64(sign * start_abs * ratio.powf(i as f64))
+                <T as Scalar>::from_f64(sign * start_abs * ratio.powf(i as f64))
             }
         })
         .collect();

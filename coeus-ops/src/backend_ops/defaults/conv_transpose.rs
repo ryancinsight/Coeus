@@ -50,8 +50,7 @@ pub fn conv_transpose1d<T: Float, B: ComputeBackend>(
                             continue;
                         }
                         let w_val = w_h[ic * c_out * k + oc * k + ki];
-                        out_h[ni * c_out * l_out + oc * l_out + t_out] =
-                            out_h[ni * c_out * l_out + oc * l_out + t_out] + in_val * w_val;
+                        out_h[ni * c_out * l_out + oc * l_out + t_out] += in_val * w_val;
                     }
                 }
             }
@@ -64,8 +63,7 @@ pub fn conv_transpose1d<T: Float, B: ComputeBackend>(
         for ni in 0..n {
             for oc in 0..c_out {
                 for t in 0..l_out {
-                    out_h[ni * c_out * l_out + oc * l_out + t] =
-                        out_h[ni * c_out * l_out + oc * l_out + t] + b_h[oc];
+                    out_h[ni * c_out * l_out + oc * l_out + t] += b_h[oc];
                 }
             }
         }
@@ -135,7 +133,7 @@ pub fn conv_transpose2d<T: Float, B: ComputeBackend>(
                                     + oc * h_out * w_out
                                     + h_out_idx * w_out
                                     + w_out_idx;
-                                out_h[out_idx] = out_h[out_idx] + in_val * wt_val;
+                                out_h[out_idx] += in_val * wt_val;
                             }
                         }
                     }
@@ -152,7 +150,7 @@ pub fn conv_transpose2d<T: Float, B: ComputeBackend>(
                 for hi in 0..h_out {
                     for wi in 0..w_out {
                         let idx = ni * c_out * h_out * w_out + oc * h_out * w_out + hi * w_out + wi;
-                        out_h[idx] = out_h[idx] + b_h[oc];
+                        out_h[idx] += b_h[oc];
                     }
                 }
             }
@@ -253,7 +251,7 @@ pub fn conv_transpose3d<T: Float, B: ComputeBackend>(
                                             + d_out_idx * h_out * w_out
                                             + h_out_idx * w_out
                                             + w_out_idx;
-                                        out_h[out_idx] = out_h[out_idx] + in_val * wt_val;
+                                        out_h[out_idx] += in_val * wt_val;
                                     }
                                 }
                             }
@@ -277,7 +275,7 @@ pub fn conv_transpose3d<T: Float, B: ComputeBackend>(
                                 + di * h_out * w_out
                                 + hi * w_out
                                 + wi;
-                            out_h[idx] = out_h[idx] + b_h[oc];
+                            out_h[idx] += b_h[oc];
                         }
                     }
                 }

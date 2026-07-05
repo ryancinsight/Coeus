@@ -103,7 +103,7 @@ where
                                 break;
                             }
                         } else if z1 == n {
-                            prefix = prefix * xi;
+                            prefix *= xi;
                         }
                     }
 
@@ -115,7 +115,7 @@ where
                     let mut suffix: T = T::zero();
                     for i in (0..z1).rev() {
                         let flat = at(i);
-                        suffix = suffix + go_s[flat] * out_s[flat];
+                        suffix += go_s[flat] * out_s[flat];
                         gi_data[flat] = suffix / in_s[flat];
                     }
 
@@ -130,9 +130,9 @@ where
                         let mut grad_z: T = T::zero();
                         for j in z1..z2 {
                             if j > z1 {
-                                acc = acc * in_s[at(j)];
+                                acc *= in_s[at(j)];
                             }
-                            grad_z = grad_z + go_s[at(j)] * acc;
+                            grad_z += go_s[at(j)] * acc;
                         }
                         gi_data[at(z1)] = grad_z;
                     }

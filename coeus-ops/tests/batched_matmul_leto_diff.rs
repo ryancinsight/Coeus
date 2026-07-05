@@ -25,7 +25,7 @@ fn batched_reference<T: Scalar>(
             for col in 0..n {
                 let mut acc = T::zero();
                 for inner in 0..k {
-                    acc = acc + a[a_base + row * k + inner] * b[b_base + inner * n + col];
+                    acc += a[a_base + row * k + inner] * b[b_base + inner * n + col];
                 }
                 out[c_base + row * n + col] = acc;
             }

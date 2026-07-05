@@ -70,9 +70,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                         let diff = self.x_host[base + t] - self.x_host[base + j];
                         if diff < T::one() {
                             // d/d x[t] (1 - (x[t] - x[j])) = -1
-                            dx[base + t] = dx[base + t] - scale;
+                            dx[base + t] -= scale;
                             // d/d x[j] (1 - (x[t] - x[j])) = +1
-                            dx[base + j] = dx[base + j] + scale;
+                            dx[base + j] += scale;
                         }
                     }
                 }
@@ -135,7 +135,7 @@ pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
                 }
                 let diff = x_host[base + t] - x_host[base + j];
                 let hinge = if one - diff > zero { one - diff } else { zero };
-                loss_val = loss_val + hinge;
+                loss_val += hinge;
             }
         }
     }

@@ -81,15 +81,15 @@ where
     /// Linspace: n evenly spaced values from start to end (inclusive) on the given backend.
     #[inline]
     pub fn linspace_on(start: T, end: T, n: usize, backend: &B) -> Self {
-        let start_f = start.to_f64();
-        let end_f = end.to_f64();
+        let start_f = <T as Scalar>::to_f64(start);
+        let end_f = <T as Scalar>::to_f64(end);
         let step = if n > 1 {
             (end_f - start_f) / (n - 1) as f64
         } else {
             0.0
         };
         let values = coeus_leto::from_shape_fn_values(&[n], |index| {
-            T::from_f64(start_f + step * index[0] as f64)
+            <T as Scalar>::from_f64(start_f + step * index[0] as f64)
         })
         .expect("coeus-leto linspace generation failed");
         Self::from_slice_on([n], &values, backend)
@@ -107,16 +107,16 @@ where
     /// on the given backend.
     #[inline]
     pub fn logspace_on(start: T, end: T, n: usize, base: T, backend: &B) -> Self {
-        let start_f = start.to_f64();
-        let end_f = end.to_f64();
-        let base_f = base.to_f64();
+        let start_f = <T as Scalar>::to_f64(start);
+        let end_f = <T as Scalar>::to_f64(end);
+        let base_f = <T as Scalar>::to_f64(base);
         let values = coeus_leto::from_shape_fn_values(&[n], |index| {
             let exp = if n > 1 {
                 start_f + (end_f - start_f) * index[0] as f64 / (n - 1) as f64
             } else {
                 start_f
             };
-            T::from_f64(base_f.powf(exp))
+            <T as Scalar>::from_f64(base_f.powf(exp))
         })
         .expect("coeus-leto logspace generation failed");
         Self::from_slice_on([n], &values, backend)
@@ -128,8 +128,8 @@ where
     /// Requires non-zero endpoints with the same sign.
     #[inline]
     pub fn geomspace_on(start: T, end: T, n: usize, backend: &B) -> Self {
-        let start_f = start.to_f64();
-        let end_f = end.to_f64();
+        let start_f = <T as Scalar>::to_f64(start);
+        let end_f = <T as Scalar>::to_f64(end);
         assert!(
             start_f != 0.0 && end_f != 0.0,
             "geomspace requires non-zero start/end"
@@ -152,7 +152,7 @@ where
             } else {
                 start_f
             };
-            T::from_f64(value)
+            <T as Scalar>::from_f64(value)
         })
         .expect("coeus-leto geomspace generation failed");
         Self::from_slice_on([n], &values, backend)

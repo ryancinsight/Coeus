@@ -22,7 +22,11 @@ fn test_scatter_add_backward_src_and_input() {
         true,
     );
     let out = scatter_add(&input, 0, &idx, &src);
-    assert_eq!(out.tensor.as_slice(), &[0.0, 2.0, 0.0, 3.0, 1.0], "fwd scatter_add");
+    assert_eq!(
+        out.tensor.as_slice(),
+        &[0.0, 2.0, 0.0, 3.0, 1.0],
+        "fwd scatter_add"
+    );
     out.backward();
     assert_eq!(
         input.grad().unwrap().as_slice(),
@@ -54,6 +58,14 @@ fn test_scatter_add_backward_duplicate_indices() {
     // out[1] = 20 + 1 + 2 = 23, out[2] = 30 + 3 = 33.
     assert_eq!(out.tensor.as_slice(), &[10.0, 23.0, 33.0, 40.0], "fwd dup");
     out.backward();
-    assert_eq!(input.grad().unwrap().as_slice(), &[1.0, 1.0, 1.0, 1.0], "grad_input dup");
-    assert_eq!(src.grad().unwrap().as_slice(), &[1.0, 1.0, 1.0], "grad_src dup");
+    assert_eq!(
+        input.grad().unwrap().as_slice(),
+        &[1.0, 1.0, 1.0, 1.0],
+        "grad_input dup"
+    );
+    assert_eq!(
+        src.grad().unwrap().as_slice(),
+        &[1.0, 1.0, 1.0],
+        "grad_src dup"
+    );
 }

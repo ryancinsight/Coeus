@@ -299,7 +299,7 @@ where
                 if mask_values[idx] != T::zero() {
                     let value = (input_values[idx] - row_max).exp();
                     output[idx] = value;
-                    row_sum = row_sum + value;
+                    row_sum += value;
                 }
             }
 

@@ -128,7 +128,7 @@ pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         } else {
             p * (p.log_op() - log_q)
         };
-        loss_val = loss_val + term;
+        loss_val += term;
     }
     loss_val = loss_val / T::from_f64(n as f64);
 

@@ -144,7 +144,8 @@ pub fn soft_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         // softplus(-m) = max(-m, 0) + log(1 + exp(-|m|)).
         let neg_m = T::zero() - m;
         let max_part = if neg_m > T::zero() { neg_m } else { T::zero() };
-        loss_val = loss_val + max_part + (one + (T::zero() - m.abs()).exp_op()).log_op();
+        loss_val =
+            loss_val + max_part + (one + (T::zero() - <T as Float>::abs(m)).exp_op()).log_op();
         // sigmoid(-m); grads: d/dx = -y*sig, d/dy = -x*sig.
         let sig = stable_sigmoid(neg_m);
         d_input[i] = (T::zero() - y) * sig;

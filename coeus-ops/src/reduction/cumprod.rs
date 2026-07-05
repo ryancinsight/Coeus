@@ -53,7 +53,7 @@ where
             let mut acc = T::one();
             for i in 0..n {
                 let flat = base + i * inner;
-                acc = acc * x_s[flat];
+                acc *= x_s[flat];
                 out[flat] = acc;
             }
         }

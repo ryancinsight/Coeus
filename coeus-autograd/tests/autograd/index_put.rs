@@ -22,9 +22,17 @@ fn test_index_put_backward_overwrite() {
         true,
     );
     let out = index_put(&x, &idx, &v, false);
-    assert_eq!(out.tensor.as_slice(), &[1.0, 10.0, 3.0, 20.0, 5.0], "fwd overwrite");
+    assert_eq!(
+        out.tensor.as_slice(),
+        &[1.0, 10.0, 3.0, 20.0, 5.0],
+        "fwd overwrite"
+    );
     out.backward();
-    assert_eq!(x.grad().unwrap().as_slice(), &[1.0, 0.0, 1.0, 0.0, 1.0], "grad_x");
+    assert_eq!(
+        x.grad().unwrap().as_slice(),
+        &[1.0, 0.0, 1.0, 0.0, 1.0],
+        "grad_x"
+    );
     assert_eq!(v.grad().unwrap().as_slice(), &[1.0, 1.0], "grad_v");
 }
 
@@ -46,8 +54,16 @@ fn test_index_put_backward_accumulate() {
         true,
     );
     let out = index_put(&x, &idx, &v, true);
-    assert_eq!(out.tensor.as_slice(), &[1.0, 12.0, 3.0, 24.0, 5.0], "fwd accumulate");
+    assert_eq!(
+        out.tensor.as_slice(),
+        &[1.0, 12.0, 3.0, 24.0, 5.0],
+        "fwd accumulate"
+    );
     out.backward();
-    assert_eq!(x.grad().unwrap().as_slice(), &[1.0, 1.0, 1.0, 1.0, 1.0], "grad_x accum");
+    assert_eq!(
+        x.grad().unwrap().as_slice(),
+        &[1.0, 1.0, 1.0, 1.0, 1.0],
+        "grad_x accum"
+    );
     assert_eq!(v.grad().unwrap().as_slice(), &[1.0, 1.0], "grad_v accum");
 }

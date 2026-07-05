@@ -21,10 +21,11 @@ use coeus_autograd::GradBuffer;
 use coeus_autograd::Var;
 use coeus_core::{Complex, ComputeBackend, Float, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
+use std::ops::Neg;
 use std::sync::Arc;
 
 /// Scalar types supported by Apollo-backed Coeus FFT operations.
-pub trait FftScalar: Float {
+pub trait FftScalar: Float + Neg<Output = Self> {
     /// Compute a 1-D forward FFT for a contiguous real signal.
     fn fft_1d_impl(signal: &[Self]) -> Vec<Complex<Self>>;
 
@@ -67,7 +68,7 @@ where
     let guard = grad.write();
     backend.copy_to_host(guard.storage(), &mut current);
     for (dst, src) in current.iter_mut().zip(delta_host) {
-        *dst = *dst + src;
+        *dst += src;
     }
     backend.copy_to_device(&current, guard.storage_mut());
 }
@@ -149,7 +150,7 @@ where
         let mut dx = ifft_1d(grad_out);
         let mut host = tensor_to_vec(&dx);
         for value in &mut host {
-            *value = *value * n;
+            *value *= n;
         }
         dx = Tensor::from_slice_on(dx.shape_cloned(), &host, &B::default());
 
@@ -318,7 +319,7 @@ where
             let n = T::from_usize(dx.numel());
             let mut dx_host = tensor_to_vec(&dx);
             for value in &mut dx_host {
-                *value = *value * n;
+                *value *= n;
             }
             dx = Tensor::from_slice_on(dx.shape_cloned(), &dx_host, &B::default());
             accumulate_grad(grad, &dx);

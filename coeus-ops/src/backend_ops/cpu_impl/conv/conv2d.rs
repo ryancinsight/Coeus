@@ -109,7 +109,7 @@ pub(crate) fn conv2d<T: Scalar, B: Backend>(
                                 // SAFETY: `output_layout` constrains
                                 // `ow * stride + ikw < w` for every `ow < w_out`.
                                 let iv = unsafe { input_ptr.read(in_row_base + ow * stride + ikw) };
-                                *slot = *slot + wv * iv;
+                                *slot += wv * iv;
                             }
                         }
                     }
@@ -195,7 +195,7 @@ pub(crate) fn conv2d<T: Scalar, B: Backend>(
                             let weight_idx = weight_layout.physical_index(&[oc, ic, ikh, ikw]);
                             let ival = unsafe { input_ptr.read(input_idx) };
                             let wval = unsafe { weight_ptr.read(weight_idx) };
-                            sum = sum + ival * wval;
+                            sum += ival * wval;
                         }
                     }
                 }
@@ -203,7 +203,7 @@ pub(crate) fn conv2d<T: Scalar, B: Backend>(
         }
         if let Some(ref bp) = bias_ptr {
             let bias_idx = bias_layout.as_ref().unwrap().physical_index(&[oc]);
-            sum = sum + unsafe { bp.read(bias_idx) };
+            sum += unsafe { bp.read(bias_idx) };
         }
         let output_idx = output_layout.physical_index(&[ni, oc, oh, ow]);
         unsafe {
@@ -285,7 +285,7 @@ pub(crate) fn conv2d_backward<T: Scalar, B: Backend>(
                                         let w_idx = w_layout.physical_index(&[oc, ic, ikh, ikw]);
                                         let gval = unsafe { go_ptr.read(go_idx) };
                                         let wval = unsafe { w_ptr.read(w_idx) };
-                                        sum = sum + gval * wval;
+                                        sum += gval * wval;
                                     }
                                 }
                             }
@@ -346,7 +346,7 @@ pub(crate) fn conv2d_backward<T: Scalar, B: Backend>(
                         // width-row windows have length `w_out` and remain inside storage.
                         let go_window = unsafe { go_ptr.slice(go_start, w_out) };
                         let input_window = unsafe { input_ptr.slice(input_start, w_out) };
-                        sum = sum + T::dot_slice(go_window, input_window);
+                        sum += T::dot_slice(go_window, input_window);
                     }
                 }
                 let gw_idx = gw_offset + ((oc * c_in + ic) * kh + ikh) * kw + ikw;
@@ -381,7 +381,7 @@ pub(crate) fn conv2d_backward<T: Scalar, B: Backend>(
                                     ]);
                                     let gval = unsafe { go_ptr.read(go_idx) };
                                     let ival = unsafe { input_ptr.read(input_idx) };
-                                    sum = sum + gval * ival;
+                                    sum += gval * ival;
                                 }
                             }
                         }
@@ -409,7 +409,7 @@ pub(crate) fn conv2d_backward<T: Scalar, B: Backend>(
                     for ow in 0..w_out {
                         let go_idx = go_layout.physical_index(&[ni, oc, oh, ow]);
                         let gval = unsafe { go_ptr.read(go_idx) };
-                        sum = sum + gval;
+                        sum += gval;
                     }
                 }
             }

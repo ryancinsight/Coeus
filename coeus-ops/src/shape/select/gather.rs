@@ -73,7 +73,7 @@ where
         let mut is_identity = true;
         for flat in 0..idx_numel {
             let coord_dim = (flat / idx_strides[dim]) % idx_shape[dim];
-            if (idx_s[flat].to_f64() as usize) != coord_dim {
+            if (<T as Scalar>::to_f64(idx_s[flat]) as usize) != coord_dim {
                 is_identity = false;
                 break;
             }
@@ -113,7 +113,7 @@ where
         }
 
         // Look up the gather index (stored as T, cast to usize).
-        let gather_idx = idx_s[flat].to_f64() as usize;
+        let gather_idx = <T as Scalar>::to_f64(idx_s[flat]) as usize;
         assert!(
             gather_idx < in_shape[dim],
             "gather: index {gather_idx} out of bounds for dim {dim} size {}",

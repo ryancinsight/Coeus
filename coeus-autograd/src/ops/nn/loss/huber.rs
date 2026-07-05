@@ -160,7 +160,7 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         } else {
             delta * abs_diff - half * delta * delta
         };
-        loss_val = loss_val + elem;
+        loss_val += elem;
     }
     loss_val = loss_val / T::from_f64(n as f64);
 

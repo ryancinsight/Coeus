@@ -207,7 +207,7 @@ pub(crate) fn avg_pool1d<T: Scalar, B: Backend>(
             if l_in >= 0 && (l_in as usize) < l {
                 let input_idx = input_layout.physical_index(&[ni, ci, l_in as usize]);
                 let val = unsafe { input_ptr.read(input_idx) };
-                sum = sum + val;
+                sum += val;
                 count += 1;
             }
         }

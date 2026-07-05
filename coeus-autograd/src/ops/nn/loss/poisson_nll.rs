@@ -131,7 +131,7 @@ pub fn poisson_nll<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let ez = z.exp_op();
         input_vals[i] = z;
         exp_minus_target[i] = ez - y;
-        loss_val = loss_val + (ez - y * z);
+        loss_val += ez - y * z;
     }
     loss_val = loss_val / T::from_f64(n as f64);
 

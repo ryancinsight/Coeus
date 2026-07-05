@@ -1,6 +1,6 @@
 use super::traits::{reduction_op, ReductionAutogradOp};
 use crate::var::Var;
-use coeus_core::Scalar;
+use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 
 /// ZST tag for sum reduction autograd.
@@ -125,7 +125,13 @@ where
         .tensor
         .as_slice()
         .iter()
-        .map(|&v| if v.is_nan() { T::one() } else { T::zero() })
+        .map(|&v| {
+            if <T as Float>::is_nan(v) {
+                T::one()
+            } else {
+                T::zero()
+            }
+        })
         .collect();
     let mask = crate::Var::new(
         coeus_tensor::Tensor::from_slice_on(a.tensor.shape_cloned(), &mask_data, &backend),
@@ -150,10 +156,16 @@ where
 {
     let backend = B::default();
     let slice = a.tensor.as_slice();
-    let count = slice.iter().filter(|&&v| !v.is_nan()).count();
+    let count = slice.iter().filter(|&&v| !<T as Float>::is_nan(v)).count();
     let mask_data: Vec<T> = slice
         .iter()
-        .map(|&v| if v.is_nan() { T::one() } else { T::zero() })
+        .map(|&v| {
+            if <T as Float>::is_nan(v) {
+                T::one()
+            } else {
+                T::zero()
+            }
+        })
         .collect();
     let mask = crate::Var::new(
         coeus_tensor::Tensor::from_slice_on(a.tensor.shape_cloned(), &mask_data, &backend),

@@ -51,7 +51,7 @@ where
             let col = col_ptr.read(i) as usize;
             let val = val_ptr.read(i);
             let xv = x_ptr.read(x_offset + col * x_stride);
-            sum = sum + val * xv;
+            sum += val * xv;
         }
         y_ptr.write(r, sum);
     });
@@ -115,7 +115,7 @@ where
             let b_col_offset = b_offset + col * b_stride_row;
             for j in 0..n {
                 let bv = b_ptr.read(b_col_offset + j * b_stride_col);
-                row_accumulator[j] = row_accumulator[j] + val * bv;
+                row_accumulator[j] += val * bv;
             }
         }
         for j in 0..n {
@@ -185,7 +185,7 @@ where
                 for j in 0..n {
                     let go_v = grad_out_ptr.read(go_row_offset + j * go_stride_col);
                     let b_v = b_ptr.read(b_col_offset + j * b_stride_col);
-                    sum = sum + go_v * b_v;
+                    sum += go_v * b_v;
                 }
                 grad_values_ptr.write(i, sum);
             }
@@ -253,7 +253,7 @@ where
                 for i in start..end {
                     let col = col_ptr.read(i) as usize;
                     let val = val_ptr.read(i);
-                    col_accumulator[col] = col_accumulator[col] + val * go_v;
+                    col_accumulator[col] += val * go_v;
                 }
             }
             for col in 0..k {

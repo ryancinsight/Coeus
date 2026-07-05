@@ -108,10 +108,10 @@ pub fn multi_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             let m = margin - xy + host[base + j];
             if m > T::zero() {
                 // loss contribution m^p; derivative coef p*m^(p-1).
-                total = total + m.powf(p);
+                total += m.powf(p);
                 let coef = p * m.powf(p_minus_one);
                 grad_unit[base + j] = coef * inv_nc;
-                diag_coef = diag_coef + coef;
+                diag_coef += coef;
             }
         }
         grad_unit[base + y] = (T::zero() - diag_coef) * inv_nc;

@@ -28,7 +28,7 @@ where
     let idx_slice = idx_cont.as_slice();
     let mut data = vec![T::zero(); n * num_classes];
     for (row, &v) in idx_slice.iter().enumerate() {
-        let idx = v.to_f64();
+        let idx = <T as Scalar>::to_f64(v);
         assert!(
             idx.is_finite() && idx >= 0.0 && idx.fract() == 0.0,
             "one_hot: index value {idx} is not a non-negative integer"

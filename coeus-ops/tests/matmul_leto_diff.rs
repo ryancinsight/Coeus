@@ -25,7 +25,7 @@ fn matmul_reference<T: Scalar>(a: &[T], m: usize, k: usize, b: &[T], n: usize) -
         for col in 0..n {
             let mut acc = T::zero();
             for inner in 0..k {
-                acc = acc + a[row * k + inner] * b[inner * n + col];
+                acc += a[row * k + inner] * b[inner * n + col];
             }
             out[row * n + col] = acc;
         }

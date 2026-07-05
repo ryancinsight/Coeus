@@ -66,7 +66,7 @@ where
                 let count = T::from_f64((end - start) as f64);
                 let mut acc = T::zero();
                 for li in start..end {
-                    acc = acc + input.get(&[ni, ci, li]);
+                    acc += input.get(&[ni, ci, li]);
                 }
                 out.set(&[ni, ci, oi], acc / count);
             }
@@ -174,7 +174,7 @@ where
                 let mut acc = T::zero();
                 for hi in hs..he {
                     for wi in ws..we {
-                        acc = acc + unsafe { inp_ptr.read(inp_nc + hi * w + wi) };
+                        acc += unsafe { inp_ptr.read(inp_nc + hi * w + wi) };
                     }
                 }
                 unsafe { out_ptr.write(out_nc + oh * out_w + ow, acc / count) };

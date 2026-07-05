@@ -119,7 +119,7 @@ pub(crate) fn fold1d<T: Scalar, B: Backend>(
                     if l_in >= 0 && (l_in as usize) < output_size {
                         let src_idx = input_layout.physical_index(&[ni, ck_idx, lo]);
                         let dst_idx = output_layout.physical_index(&[ni, ci, l_in as usize]);
-                        output_slice[dst_idx] = output_slice[dst_idx] + input_slice[src_idx];
+                        output_slice[dst_idx] += input_slice[src_idx];
                     }
                 }
             }
@@ -274,7 +274,7 @@ pub(crate) fn fold2d<T: Scalar, B: Backend>(
                                     h_in as usize,
                                     w_in as usize,
                                 ]);
-                                output_slice[dst] = output_slice[dst] + input_slice[src];
+                                output_slice[dst] += input_slice[src];
                             }
                         }
                     }

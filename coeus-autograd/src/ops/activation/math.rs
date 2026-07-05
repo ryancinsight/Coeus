@@ -234,7 +234,7 @@ where
                     }
                     continue;
                 }
-                let abs_x = x.abs();
+                let abs_x = <T as Float>::abs(x);
                 let abs_pow_m1 = int_pow_positive(abs_x, k_m1);
                 let local = if k_m1_odd {
                     // k-1 odd → sign(x) factor: x^(k-1) carries sign(x).
@@ -260,7 +260,7 @@ where
                     // since `grad_host[i] * NaN` would taint the accumulator.
                     continue;
                 }
-                let abs_x = x.abs();
+                let abs_x = <T as Float>::abs(x);
                 let denom_abs = int_pow_positive(abs_x, exp_total);
                 let denom = if exp_total_odd {
                     let sgn = if x < T::zero() { -one } else { one };
@@ -309,9 +309,9 @@ fn int_pow_positive<T: Float>(x: T, k: u32) -> T {
     let mut e = k;
     while e > 0 {
         if (e & 1) == 1 {
-            acc = acc * base;
+            acc *= base;
         }
-        base = base * base;
+        base *= base;
         e >>= 1;
     }
     acc
@@ -372,7 +372,7 @@ where
                     out_host[i] = T::zero();
                     continue;
                 }
-                let abs_x = x.abs();
+                let abs_x = <T as Float>::abs(x);
                 let abs_pow = int_pow_positive(abs_x, k);
                 out_host[i] = if (k & 1) == 1 {
                     let sgn = if x < T::zero() { -one } else { one };
@@ -389,10 +389,10 @@ where
                 if x == T::zero() {
                     // 1/0 → +inf per PyTorch IEEE; emit +inf to mirror that
                     // (avoids NaN from sign*0 division).
-                    out_host[i] = T::INFINITY;
+                    out_host[i] = <T as Float>::INFINITY;
                     continue;
                 }
-                let abs_x = x.abs();
+                let abs_x = <T as Float>::abs(x);
                 let denom_abs = int_pow_positive(abs_x, k);
                 let denom = if (k & 1) == 1 {
                     let sgn = if x < T::zero() { -one } else { one };

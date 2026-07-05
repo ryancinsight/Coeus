@@ -150,7 +150,7 @@ where
             .tensor
             .as_slice()
             .iter()
-            .map(|&v| T::to_f64(v) as usize)
+            .map(|&v| <T as Scalar>::to_f64(v) as usize)
             .collect();
         self.forward_with_offsets(&indices, None)
     }

@@ -21,7 +21,7 @@ pub(super) fn scatter_accumulate_into<T: Scalar, B: coeus_ops::BackendOps<T> + D
     backend.copy_to_host(target.storage(), &mut host);
     // Fused host-side accumulate — no second allocation, single round-trip.
     for (h, &v) in host.iter_mut().zip(values.iter()) {
-        *h = *h + v;
+        *h += v;
     }
     backend.copy_to_device(&host, target.storage_mut());
 }

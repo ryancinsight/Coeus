@@ -89,7 +89,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Ctc
             &temp
         };
         backend.copy_to_host(g_cont.storage(), &mut host_grad);
-        let g_upstream = T::to_f64(host_grad[0]);
+        let g_upstream = <T as Scalar>::to_f64(host_grad[0]);
 
         // Compute gradient for log_probs [T, N, C].
         let mut dx = vec![0.0f64; t * n * c];
@@ -340,7 +340,7 @@ where
     let lp_host: Vec<f64> = {
         let mut v = vec![T::zero(); total];
         backend.copy_to_host(lp_raw.storage(), &mut v);
-        v.iter().map(|&x| T::to_f64(x)).collect()
+        v.iter().map(|&x| <T as Scalar>::to_f64(x)).collect()
     };
 
     // Per-sample DP.

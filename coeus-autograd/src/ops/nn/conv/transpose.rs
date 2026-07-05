@@ -91,7 +91,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                                     [batch * c_out * l_out + output_channel * l_out + output_index];
                                 let weight_value = weight_host
                                     [input_channel * c_out * k + output_channel * k + kernel_index];
-                                acc = acc + grad_out_value * weight_value;
+                                acc += grad_out_value * weight_value;
                             }
                         }
                         grad_input[batch * c_in * l_in + input_channel * l_in + input_index] = acc;
@@ -128,8 +128,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                                     [batch * c_out * l_out + output_channel * l_out + output_index];
                                 let weight_offset =
                                     input_channel * c_out * k + output_channel * k + kernel_index;
-                                grad_weight[weight_offset] =
-                                    grad_weight[weight_offset] + input_value * grad_out_value;
+                                grad_weight[weight_offset] += input_value * grad_out_value;
                             }
                         }
                     }
@@ -147,9 +146,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
             for batch in 0..n {
                 for output_channel in 0..c_out {
                     for output_index in 0..l_out {
-                        grad_bias[output_channel] = grad_bias[output_channel]
-                            + grad_out_host
-                                [batch * c_out * l_out + output_channel * l_out + output_index];
+                        grad_bias[output_channel] += grad_out_host
+                            [batch * c_out * l_out + output_channel * l_out + output_index];
                     }
                 }
             }
@@ -336,9 +334,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                                         if ho >= h_out || wo >= w_out {
                                             continue;
                                         }
-                                        acc = acc
-                                            + go_host[go_idx(ni, co, ho, wo)]
-                                                * w_host[w_idx(ci, co, ki, kj)];
+                                        acc += go_host[go_idx(ni, co, ho, wo)]
+                                            * w_host[w_idx(ci, co, ki, kj)];
                                     }
                                 }
                             }
@@ -372,7 +369,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                                             continue;
                                         }
                                         let widx = w_idx(ci, co, ki, kj);
-                                        gw[widx] = gw[widx] + iv * go_host[go_idx(ni, co, ho, wo)];
+                                        gw[widx] += iv * go_host[go_idx(ni, co, ho, wo)];
                                     }
                                 }
                             }
@@ -389,7 +386,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                 for co in 0..c_out {
                     for ho in 0..h_out {
                         for wo in 0..w_out {
-                            gb[co] = gb[co] + go_host[go_idx(ni, co, ho, wo)];
+                            gb[co] += go_host[go_idx(ni, co, ho, wo)];
                         }
                     }
                 }
@@ -588,9 +585,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                                                 if do_ >= d_out || ho >= h_out || wo >= w_out {
                                                     continue;
                                                 }
-                                                acc = acc
-                                                    + go_host[go_idx(ni, co, do_, ho, wo)]
-                                                        * w_host[w_idx(ci, co, ki, kj, kk)];
+                                                acc += go_host[go_idx(ni, co, do_, ho, wo)]
+                                                    * w_host[w_idx(ci, co, ki, kj, kk)];
                                             }
                                         }
                                     }
@@ -640,8 +636,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                                                     continue;
                                                 }
                                                 let widx = w_idx(ci, co, ki, kj, kk);
-                                                gw[widx] = gw[widx]
-                                                    + iv * go_host[go_idx(ni, co, do_, ho, wo)];
+                                                gw[widx] +=
+                                                    iv * go_host[go_idx(ni, co, do_, ho, wo)];
                                             }
                                         }
                                     }
@@ -661,7 +657,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                     for do_ in 0..d_out {
                         for ho in 0..h_out {
                             for wo in 0..w_out {
-                                gb[co] = gb[co] + go_host[go_idx(ni, co, do_, ho, wo)];
+                                gb[co] += go_host[go_idx(ni, co, do_, ho, wo)];
                             }
                         }
                     }
