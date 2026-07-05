@@ -289,10 +289,8 @@ pub fn index_put(
     let x = input.inner.clone();
     let idx = indices.inner.clone();
     let vals = values.inner.clone();
-    let inner = py.allow_threads(move || {
-        let backend = MoiraiBackend::new();
-        let t = coeus_ops::index_put(&x.tensor, &idx.tensor, &vals.tensor, accumulate, &backend);
-        coeus_autograd::Var::new(t, false)
-    });
+    // Tracked so gradients flow to both the destination and the inserted
+    // values (torch index_put autograd contract).
+    let inner = py.allow_threads(move || coeus_autograd::index_put(&x, &idx, &vals, accumulate));
     Ok(PyTensor::from_var(inner))
 }

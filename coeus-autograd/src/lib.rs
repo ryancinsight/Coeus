@@ -107,6 +107,7 @@ pub use ops::{
     hardswish,
     hardtanh,
     huber_loss,
+    index_put,
     index_select,
     kl_divergence,
     l1_loss,

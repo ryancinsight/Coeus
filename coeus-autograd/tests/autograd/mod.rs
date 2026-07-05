@@ -2,6 +2,7 @@ mod embedding;
 mod exp_log;
 mod float16;
 mod grad_mode;
+mod index_put;
 mod linalg;
 mod nn_conv;
 mod ops_overloads;
