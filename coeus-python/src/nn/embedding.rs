@@ -152,6 +152,28 @@ impl PyEmbeddingBag {
         })
     }
 
+    /// Forward pass from index and optional offset tensors (torch
+    /// `EmbeddingBag(input, offsets)` API). The integer indices are carried as
+    /// the elements of a float tensor; they are read back and truncated to
+    /// `usize`, then routed through the same tracked core as
+    /// [`Self::forward_with_offsets`].
+    #[pyo3(signature = (indices, offsets = None))]
+    pub fn forward(
+        &self,
+        indices: &PyTensor,
+        offsets: Option<&PyTensor>,
+        py: Python<'_>,
+    ) -> PyResult<PyTensor> {
+        let backend = coeus_core::MoiraiBackend::new();
+        let idx_c = indices.inner.tensor.to_contiguous_on(&backend);
+        let idx: Vec<usize> = idx_c.as_slice().iter().map(|&v| v as usize).collect();
+        let off: Option<Vec<usize>> = offsets.map(|o| {
+            let o_c = o.inner.tensor.to_contiguous_on(&backend);
+            o_c.as_slice().iter().map(|&v| v as usize).collect()
+        });
+        self.forward_with_offsets(idx, off, py)
+    }
+
     /// Forward pass from flat indices and optional bag offsets.
     #[pyo3(signature = (indices, offsets = None))]
     pub fn forward_with_offsets(
