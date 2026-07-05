@@ -7819,8 +7819,12 @@ def test_index_put_bwd_matches_pytorch() -> None:
     t = torch.tensor(inp, dtype=torch.float64, requires_grad=True)
     idx_t = torch.tensor([1, 3], dtype=torch.long)
     v_t = torch.tensor(values, dtype=torch.float64)
-    t[idx_t] = v_t
-    t.sum().backward()
+    # Functional (out-of-place) index_put: an in-place `t[idx] = v` on a leaf
+    # that requires grad raises "a leaf Variable ... in-place operation". The
+    # functional form is the autograd-compatible equivalent and yields the
+    # same gradient (1 at kept positions, 0 at overwritten ones).
+    out_t = t.index_put((idx_t,), v_t, accumulate=False)
+    out_t.sum().backward()
     _allclose("iput_bwd", list(x_pyc.grad), t.grad.tolist())
 
 
