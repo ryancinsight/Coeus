@@ -164,6 +164,7 @@ pub use ops::{
     // New scalar arithmetic
     scalar_mul,
     scalar_sub,
+    scatter_add,
     sdp_attention,
     selu,
     sigmoid,

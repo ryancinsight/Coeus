@@ -17,19 +17,13 @@ pub fn scatter_add(
     src: &PyTensor,
     py: Python<'_>,
 ) -> PyTensor {
-    let backend = MoiraiBackend::new();
-    let t = py.allow_threads(|| {
-        coeus_ops::scatter_add(
-            &input.inner.tensor,
-            dim,
-            &index.inner.tensor,
-            &src.inner.tensor,
-            &backend,
-        )
-    });
-    PyTensor {
-        inner: coeus_autograd::Var::new(t, false),
-    }
+    let x = input.inner.clone();
+    let idx = index.inner.clone();
+    let s = src.inner.clone();
+    // Tracked so gradients flow to both the destination and the scattered
+    // source (torch scatter_add autograd contract).
+    let inner = py.allow_threads(move || coeus_autograd::scatter_add(&x, dim, &idx, &s));
+    PyTensor::from_var(inner)
 }
 
 #[pyfunction]
