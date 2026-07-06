@@ -53,4 +53,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Linear<T
             out
         }
     }
+
+    fn load_parameters(&mut self, params: &[Var<T, B>]) {
+        self.weight = params[0].clone();
+        if self.bias.is_some() {
+            self.bias = Some(params[1].clone());
+        }
+    }
 }

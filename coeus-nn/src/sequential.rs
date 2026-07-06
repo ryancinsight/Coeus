@@ -73,6 +73,15 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sequenti
             m.train(mode);
         }
     }
+
+    fn load_parameters(&mut self, params: &[Var<T, B>]) {
+        let mut offset = 0;
+        for m in &mut self.layers {
+            let n = m.parameters().len();
+            m.load_parameters(&params[offset..offset + n]);
+            offset += n;
+        }
+    }
 }
 
 /// A compile-time static sequential container that chains modules.
@@ -115,6 +124,13 @@ impl<
     fn train(&mut self, mode: bool) {
         self.0.train(mode);
         self.1.train(mode);
+    }
+
+    #[inline]
+    fn load_parameters(&mut self, params: &[Var<ScalarType, B>]) {
+        let n0 = self.0.parameters().len();
+        self.0.load_parameters(&params[..n0]);
+        self.1.load_parameters(&params[n0..]);
     }
 }
 
