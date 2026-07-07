@@ -397,6 +397,22 @@ fn exp_log_sqrt_neg_abs_match_burn() {
 }
 
 #[test]
+fn sign_matches_burn() {
+    // Includes zero to pin the sign(0) = 0 convention shared with Burn/torch
+    // (rather than +1), alongside the ±1 cases.
+    let backend = SequentialBackend::new();
+    let data = vec![-2.0f32, 0.0, 3.0, -0.5, 0.0, 1.5];
+    let xc = CoeusTensor::from_slice(vec![2, 3], &data);
+    let xb: BurnTensor<BurnBackend, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &dev());
+    assert_close(
+        "sign",
+        coeus_ops::sign(&xc, &backend).as_slice(),
+        &bvec(xb.sign()),
+    );
+}
+
+#[test]
 fn sin_cos_match_burn() {
     let backend = SequentialBackend::new();
     let data = vec![0.0f32, 0.5, 1.0, 1.5, 2.0, core::f32::consts::PI];
