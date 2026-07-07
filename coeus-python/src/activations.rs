@@ -216,11 +216,27 @@ pub fn celu(input: &PyTensor, alpha: f64, py: Python<'_>) -> PyTensor {
     PyTensor::from_var(inner)
 }
 
-/// PReLU activation (single scalar α).
+/// PReLU activation (single scalar α, non-learnable through this functional
+/// entry point).
+///
+/// `coeus_autograd::prelu` now takes a learnable weight `Var` (matching
+/// PyTorch/Burn `nn.PReLU`'s per-channel learnable slope); this binding
+/// constructs a fixed (`requires_grad = false`) scalar weight internally so
+/// the existing `prelu(input, alpha: float)` Python surface keeps working
+/// unchanged. A `PReLU` module class exposing the learnable weight as a
+/// registered parameter is deferred to the Python binding pass (blocked on
+/// the coeus-python wheel build).
 #[pyfunction]
 #[pyo3(signature = (input, alpha = 0.25))]
 pub fn prelu(input: &PyTensor, alpha: f64, py: Python<'_>) -> PyTensor {
-    let inner = py.allow_threads(|| coeus_autograd::prelu(&input.inner, alpha));
+    let inner = py.allow_threads(|| {
+        let backend = coeus_core::MoiraiBackend::new();
+        let weight = coeus_autograd::Var::new(
+            coeus_tensor::Tensor::full_on([1], alpha, &backend),
+            false,
+        );
+        coeus_autograd::prelu(&input.inner, &weight)
+    });
     PyTensor::from_var(inner)
 }
 

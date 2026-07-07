@@ -13,8 +13,9 @@ use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_nn::{
     celu, hardshrink, hardsigmoid, hardswish, hardtanh, log_sigmoid, prelu, softshrink, softsign,
-    tanhshrink, threshold, Hardsigmoid, Hardswish, Module, Softsign,
+    tanhshrink, threshold, Hardsigmoid, Hardswish, Module, PReLU, Softsign,
 };
+use coeus_optim::{Optimizer, SGD};
 use coeus_tensor::Tensor;
 
 fn close(a: f64, b: f64, tol: f64) {
@@ -421,11 +422,57 @@ fn prelu_forward_and_backward() {
         Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
         true,
     );
-    let output = prelu(&input, alpha);
+    let weight = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1], &[alpha]),
+        true,
+    );
+    let output = prelu(&input, &weight);
     assert_close_slice("prelu_forward", output.tensor.as_slice(), &expected, 1e-12);
     output.backward();
     let grad = input.grad().expect("prelu requires grad");
     assert_close_slice("prelu_backward", grad.as_slice(), &expected_grad, 1e-12);
+    // grad_weight = sum of x over the x<=0 region: -2 + -1 + 0 = -3.0.
+    let grad_w = weight.grad().expect("prelu weight requires grad");
+    close(grad_w.as_slice()[0], -3.0, 1e-12);
+}
+
+#[test]
+fn prelu_module_weight_learns_via_optimizer_round_trip() {
+    // Regression pin (mirrors `test_load_parameters_applies_optimizer_step_to_
+    // the_module` for Linear): SGD::step mutates its own owned Vec<Var> in
+    // place, detached (copy-on-write) from the clone taken via parameters(),
+    // so without PReLU::load_parameters writing the update back into
+    // module.weight, the module's own field would silently stay unchanged.
+    let mut module = PReLU::<f64, MoiraiBackend>::new(1, 0.25);
+    let x = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[-2.0, 3.0]),
+        false,
+    );
+    let output = module.forward(&x); // prelu([-2,3], w=0.25) = [-0.5, 3.0]
+    coeus_autograd::sum(&output).backward();
+
+    let lr = 0.1;
+    let mut opt = SGD::new(module.parameters(), lr, 0.0);
+    opt.step();
+    module.load_parameters(&opt.params);
+
+    // grad_w = sum over x<=0 of x = -2.0 (only the first element).
+    // w' = w - lr * grad_w = 0.25 - 0.1*(-2.0) = 0.45.
+    close(module.weight.tensor.as_slice()[0], 0.45, 1e-12);
+
+    // The updated weight must actually be used on the next forward pass:
+    // prelu([-2,3], w=0.45) = [-0.9, 3.0].
+    let x2 = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[-2.0, 3.0]),
+        false,
+    );
+    let output2 = module.forward(&x2);
+    assert_close_slice(
+        "prelu_after_sgd_step",
+        output2.tensor.as_slice(),
+        &[-0.9, 3.0],
+        1e-12,
+    );
 }
 
 // ── LeakyReLU subgradient at x = 0 (documented contract parity vs PyTorch) ──
