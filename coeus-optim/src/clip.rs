@@ -63,10 +63,8 @@ where
     let total_norm = total_sq.sqrt_val();
 
     // Pass 2: scale if over the limit.
-    let one = T::one();
     if total_norm > max_norm {
         let clip_coef = max_norm / total_norm;
-        let backend = B::default();
         for param in params {
             let Some(ref grad_arc) = param.grad else {
                 continue;
@@ -77,7 +75,6 @@ where
                 *v *= clip_coef;
             }
         }
-        let _ = (one, backend); // suppress unused warnings when no params have grad
     }
 
     total_norm
