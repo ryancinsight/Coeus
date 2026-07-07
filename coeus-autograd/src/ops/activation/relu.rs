@@ -3,6 +3,7 @@ use super::UnaryAutogradOp;
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
+use crate::{mul, reshape, where_cond};
 use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
@@ -205,26 +206,58 @@ pub fn selu<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
     unary_op::<T, B, SeluOp>(a)
 }
 
-// ── PReLU (scalar α) ──
+// ── PReLU (learnable weight) ──
 //
-// The single-scalar-α PReLU is mathematically identical to LeakyReLU with the
-// same negative slope (`y = max(0,x) + α·min(0,x)`, `dy/dx = 1` where `x ≥ 0`
-// else `α`), so it delegates to the tracked `leaky_relu` rather than carrying a
-// byte-identical duplicate backward node. A learnable per-channel PReLU (a
-// differentiable weight `Var`, PyTorch/Burn semantics) is tracked separately as
-// a [major] item.
+// `y = x` where `x > 0`, else `weight · x` (PyTorch/Burn `PReLU` semantics —
+// note the *kink at x = 0 lands on the negative branch*: PyTorch's `F.prelu`
+// backward returns `weight`, not `1`, at x = 0). Expressed via the tracked
+// `where_cond(cond, on_true, on_false)` — itself an existing composition of
+// relu/mul/add with no custom `BackwardNode` of its own — selecting on
+// `cond = relu(x)`, which is nonzero exactly where `x > 0`:
+//   y = where_cond(relu(x), x, weight · x)
+// `where_cond`'s own backward routes `grad_out` entirely to `on_true` where
+// `cond ≠ 0` and entirely to `on_false` elsewhere (INCLUDING x = 0, since
+// `relu(0) = 0`), so both PReLU gradients fall out correctly:
+//   ∂y/∂x      = 1 where x > 0, else weight   (weight at the kink, matching
+//                PyTorch — a plain `relu(x) - weight·relu(-x)` composition
+//                would give 0 at the kink instead, since relu's own
+//                subgradient there is 0, not a routed selection)
+//   ∂y/∂weight = Σ_{x≤0} x   (broadcast-reduced to weight's shape; the x > 0
+//                region contributes 0 since on_true doesn't depend on weight)
+//
+// `weight` has shape `[1]` (one shared slope) or `[C]` (per-channel,
+// PyTorch/Burn `num_parameters=C`). For rank > 2 inputs a `[C]` weight must
+// broadcast against the CHANNEL axis (dim 1), not NumPy's default
+// right-aligned trailing axis — e.g. `[N,C,H,W]` needs the weight reshaped to
+// `[1,C,1,1]`. Burn's `activation::prelu` does the identical reshape; see
+// `burn-tensor-0.16.1/src/tensor/activation/base.rs`.
 
-/// Tracked PReLU with a single scalar α slope.
+/// Tracked PReLU with a learnable per-channel (or shared-scalar) weight.
 ///
-/// `y = max(0, x) + α · min(0, x)`; the gradient is `1` where `x ≥ 0`, else
-/// `α`. This is identical to [`leaky_relu`] with `negative_slope = α`, to which
-/// it delegates so the scalar negative-slope kernel has a single source of
-/// truth.
+/// `y = x` where `x > 0`, else `weight · x`. Gradient flows to both `x` (`1`
+/// where `x > 0`, else `weight` — including at the kink `x = 0`, matching
+/// PyTorch) and `weight` (`Σ_{x≤0} x`, broadcast-reduced).
+///
+/// # Panics
+/// Panics (via the underlying broadcast) if `weight`'s channel count is
+/// neither `1` nor `x`'s size along dim `1`.
 #[must_use]
-#[inline]
 pub fn prelu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
-    a: &Var<T, B>,
-    alpha: f64,
-) -> Var<T, B> {
-    leaky_relu(a, alpha)
+    x: &Var<T, B>,
+    weight: &Var<T, B>,
+) -> Var<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
+    let input_rank = x.tensor.ndim();
+    let channels = weight.tensor.shape()[0];
+    let w = if channels > 1 && input_rank > 2 {
+        let mut shape = vec![1usize; input_rank];
+        shape[1] = channels;
+        reshape(weight, shape)
+    } else {
+        weight.clone()
+    };
+    where_cond(&relu(x), x, &mul(&w, x))
 }

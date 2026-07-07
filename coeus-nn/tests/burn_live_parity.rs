@@ -249,6 +249,66 @@ fn relu_matches_burn() {
 }
 
 #[test]
+fn prelu_learnable_weight_matches_burn() {
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    // Per-channel weight on a rank-4 [N,C,H,W] input, so this also verifies
+    // the channel-axis (dim 1) broadcast reshape against Burn's own.
+    let x_data = vec![-1.0f32, -2.0, 3.0, -4.0, -5.0, 6.0, -7.0, -8.0];
+    let w_data = vec![0.1f32, 0.9];
+    let shape = [1usize, 2, 2, 2];
+
+    // ── Forward parity ──
+    let x_pyc = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(shape.to_vec(), &x_data),
+        false,
+    );
+    let w_pyc = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &w_data),
+        false,
+    );
+    let xb: BurnTensor<BurnBackend, 4> =
+        BurnTensor::from_data(TensorData::new(x_data.clone(), shape), &dev());
+    let wb: BurnTensor<BurnBackend, 1> =
+        BurnTensor::from_data(TensorData::new(w_data.clone(), [2]), &dev());
+    assert_close(
+        "prelu_fwd",
+        coeus_nn::prelu(&x_pyc, &w_pyc).tensor.as_slice(),
+        &bvec(burn_act::prelu(xb, wb)),
+    );
+
+    // ── Backward parity vs burn autodiff (both x and weight) ──
+    let x_g = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(shape.to_vec(), &x_data),
+        true,
+    );
+    let w_g = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2], &w_data),
+        true,
+    );
+    coeus_autograd::sum(&coeus_nn::prelu(&x_g, &w_g)).backward();
+
+    let xb_ad: BurnTensor<AB, 4> =
+        BurnTensor::from_data(TensorData::new(x_data.clone(), shape), &device).require_grad();
+    let wb_ad: BurnTensor<AB, 1> =
+        BurnTensor::from_data(TensorData::new(w_data.clone(), [2]), &device).require_grad();
+    let grads = burn_act::prelu(xb_ad.clone(), wb_ad.clone()).sum().backward();
+
+    assert_close(
+        "prelu_bwd dx",
+        x_g.grad().unwrap().as_slice(),
+        &xb_ad.grad(&grads).unwrap().into_data().to_vec::<f32>().unwrap(),
+    );
+    assert_close(
+        "prelu_bwd dweight",
+        w_g.grad().unwrap().as_slice(),
+        &wb_ad.grad(&grads).unwrap().into_data().to_vec::<f32>().unwrap(),
+    );
+}
+
+#[test]
 fn sigmoid_tanh_match_burn() {
     let backend = SequentialBackend::new();
     let data = vec![-2.0f32, 0.0, 1.0, -1.0, 2.0, -3.0];

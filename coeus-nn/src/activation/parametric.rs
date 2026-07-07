@@ -433,47 +433,68 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Celu {
     }
 }
 
-/// Functional PReLU activation (single scalar α per tensor).
+/// Functional PReLU activation with a learnable per-channel (or
+/// shared-scalar) weight — see [`coeus_autograd::prelu`] for the composition
+/// and gradient derivation.
 #[inline]
 pub fn prelu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
-    alpha: f64,
-) -> Var<T, B> {
-    coeus_autograd::prelu(input, alpha)
+    weight: &Var<T, B>,
+) -> Var<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
+    coeus_autograd::prelu(input, weight)
 }
 
-/// PReLU activation module with a single scalar α.
-///
-/// PyTorch's channel-wise PReLU (with a learnable `[num_parameters]` α
-/// parameter) can be composed via `coeus_ops::broadcast_to` so the channel
-/// axis matches `input`.
-#[derive(Clone, Debug)]
-pub struct PReLU {
-    /// Scalar α slope shared across the tensor.
-    pub alpha: f64,
+/// PReLU activation module with a learnable weight (PyTorch/Burn semantics:
+/// `num_parameters = 1` for one shared slope, or the channel count for a
+/// per-channel slope broadcasting against dim 1 of the input).
+#[derive(Clone)]
+pub struct PReLU<T: Float, B: coeus_ops::BackendOps<T> + Default = coeus_core::MoiraiBackend> {
+    /// Learnable slope(s); shape `[1]` (shared) or `[num_parameters]`
+    /// (per-channel).
+    pub weight: Var<T, B>,
 }
 
-impl PReLU {
-    /// Create a PReLU module with custom α.
-    pub fn new(alpha: f64) -> Self {
-        Self { alpha }
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> PReLU<T, B> {
+    /// Create a PReLU module with `num_parameters` learnable slopes (`1` for
+    /// a shared scalar, or the channel count for per-channel slopes), each
+    /// initialized to `init` (PyTorch/Burn default: `0.25`).
+    pub fn new(num_parameters: usize, init: f64) -> Self {
+        let backend = B::default();
+        let weight = Var::new(
+            coeus_tensor::Tensor::full_on([num_parameters], T::from_f64(init), &backend),
+            true,
+        );
+        Self { weight }
     }
 }
 
-impl Default for PReLU {
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Default for PReLU<T, B> {
     fn default() -> Self {
-        Self { alpha: 0.25 }
+        Self::new(1, 0.25)
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for PReLU {
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for PReLU<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![]
+        vec![self.weight.clone()]
+    }
+
+    #[inline]
+    fn load_parameters(&mut self, params: &[Var<T, B>]) {
+        self.weight = params[0].clone();
     }
 
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        prelu(input, self.alpha)
+        prelu(input, &self.weight)
     }
 }

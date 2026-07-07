@@ -1292,16 +1292,19 @@ fn bench_prelu_forward(c: &mut Criterion) {
         Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
         false,
     );
+    // Matches Burn's PReluConfig default: num_parameters=1, alpha=0.25.
+    let w_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[0.25]), false);
+    let w_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![1], &[0.25]), false);
 
     let mut group = c.benchmark_group("Burn vs Coeus — PReLU forward (128x256)");
     group.bench_function("Burn NdArray", |b| {
         b.iter(|| black_box(burn_prelu.forward(black_box(x_burn.clone()))))
     });
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(prelu(black_box(&x_seq), 0.25)))
+        b.iter(|| black_box(prelu(black_box(&x_seq), black_box(&w_seq))))
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(prelu(black_box(&x_moirai), 0.25)))
+        b.iter(|| black_box(prelu(black_box(&x_moirai), black_box(&w_moirai))))
     });
     group.finish();
 }
@@ -4915,15 +4918,17 @@ fn bench_prelu2_forward(c: &mut Criterion) {
         TensorData::new(input_data.clone(), [BATCH, FEATURES]),
         &device,
     );
+    let w_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[0.01]), false);
+    let w_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![1], &[0.01]), false);
     let mut group = c.benchmark_group("Burn vs Coeus - prelu2(0.01) forward (128x256)");
     group.bench_function("Burn NdArray (leaky_relu proxy)", |b| {
         b.iter(|| black_box(burn::tensor::activation::relu(black_box(x_burn.clone()))))
     });
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(coeus_autograd::prelu(&x_seq, 0.01)))
+        b.iter(|| black_box(coeus_autograd::prelu(&x_seq, &w_seq)))
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(coeus_autograd::prelu(&x_moirai, 0.01)))
+        b.iter(|| black_box(coeus_autograd::prelu(&x_moirai, &w_moirai)))
     });
     group.finish();
 }
