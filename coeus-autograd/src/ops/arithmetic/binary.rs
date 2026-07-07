@@ -175,6 +175,62 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
     }
 }
 
+/// ZST tag for element-wise remainder (Python/torch modulo) autograd.
+///
+/// `remainder(a, b) = a - floor(a / b) * b` (result carries the sign of the
+/// divisor `b`, matching `torch.remainder` and NumPy `remainder`, in contrast
+/// to the C-style `fmod` which carries the sign of the dividend).
+///
+/// The quotient `q = floor(a / b)` is piecewise-constant in both operands, so
+/// its own derivative is zero almost everywhere and the gradient reduces to
+/// that of `a - q * b` with `q` held constant:
+///   ∂/∂a = 1        (identity)
+///   ∂/∂b = −q       (matches PyTorch `-grad * self.div(other, floor)`)
+pub struct RemainderOp;
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> for RemainderOp {
+    const OP_NAME: &'static str = "remainder";
+
+    #[inline(always)]
+    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        let q = coeus_ops::floor(&coeus_ops::div(a, b, backend), backend);
+        coeus_ops::sub(a, &coeus_ops::mul(&q, b, backend), backend)
+    }
+
+    #[inline(always)]
+    fn backward(
+        grad_out: &Tensor<T, B>,
+        a: &Tensor<T, B>,
+        b: &Tensor<T, B>,
+        _a_shape: &Shape,
+        _b_shape: &Shape,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+        backend: &B,
+    ) {
+        // ∂/∂a = 1: identity passthrough (broadcast-reduced to a's shape).
+        if let Some(Some(ref g)) = input_grads.get(0) {
+            let gl = g.write();
+            if grad_out.shape() == a.shape() {
+                coeus_ops::add_assign(gl, grad_out, backend);
+            } else {
+                let reduced = reduce_broadcast(grad_out.clone(), a.shape());
+                coeus_ops::add_assign(gl, &reduced, backend);
+            }
+        }
+        // ∂/∂b = −floor(a / b): subtract grad_out · q (broadcast-reduced to b).
+        if let Some(Some(ref g)) = input_grads.get(1) {
+            let q = coeus_ops::floor(&coeus_ops::div(a, b, backend), backend);
+            let prod = coeus_ops::mul(grad_out, &q, backend);
+            let gl = g.write();
+            if prod.shape() == b.shape() {
+                coeus_ops::sub_assign(gl, &prod, backend);
+            } else {
+                let reduced = reduce_broadcast(prod, b.shape());
+                coeus_ops::sub_assign(gl, &reduced, backend);
+            }
+        }
+    }
+}
+
 /// Tracked element-wise addition.
 ///
 /// # Examples
@@ -258,4 +314,36 @@ pub fn div<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     b: &Var<T, B>,
 ) -> Var<T, B> {
     binary_op::<T, B, DivOp>(a, b)
+}
+
+/// Tracked element-wise remainder (`torch.remainder` / NumPy `remainder`):
+/// `a - floor(a / b) * b`, carrying the sign of the divisor `b`.
+///
+/// Gradient flows to `a` as the identity and to `b` as `-floor(a / b)`
+/// (the floor quotient is held constant, matching PyTorch).
+///
+/// # Examples
+///
+/// `7 % -3 = -2` (sign of the divisor); `d/da = 1`, `d/db = -floor(7/-3) = 3`.
+///
+/// ```
+/// use coeus_autograd::{remainder, sum, Var};
+/// use coeus_core::MoiraiBackend;
+/// use coeus_tensor::Tensor;
+///
+/// let a = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([1], &[7.0]), true);
+/// let b = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([1], &[-3.0]), true);
+/// let r = remainder(&a, &b);
+/// assert!((r.tensor.as_slice()[0] - (-2.0)).abs() < 1e-12);
+/// sum(&r).backward();
+/// assert!((a.grad().unwrap().as_slice()[0] - 1.0).abs() < 1e-12);
+/// assert!((b.grad().unwrap().as_slice()[0] - 3.0).abs() < 1e-12);
+/// ```
+#[must_use]
+#[inline]
+pub fn remainder<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
+    binary_op::<T, B, RemainderOp>(a, b)
 }

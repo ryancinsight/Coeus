@@ -1,5 +1,6 @@
 use coeus_autograd::Var;
 use coeus_nn::{cross_entropy_loss, gelu, init, mse_loss, relu, sigmoid, tanh, Linear, Module};
+use coeus_optim::{Optimizer, SGD};
 use coeus_tensor::Tensor;
 
 fn assert_slice_close(label: &str, actual: &[f64], expected: &[f64], tolerance: f64) {
@@ -94,6 +95,55 @@ fn test_linear_layer() {
             &[1.0, 1.0]
         );
     }
+}
+
+#[test]
+fn test_load_parameters_applies_optimizer_step_to_the_module() {
+    // Regression pin for `Module::load_parameters`: `SGD::step` mutates its own
+    // owned `Vec<Var>` in place (copy-on-write detaches it from any clone taken
+    // via `parameters()`), so without `load_parameters` writing the updated
+    // values back into the layer's own fields, this would silently leave
+    // `layer.weight`/`layer.bias` unchanged after training.
+    let mut layer = Linear::<f64>::new(2, 1, true);
+    init::constant(&mut layer.weight, 1.0);
+    if let Some(ref mut b) = layer.bias {
+        init::constant(b, 0.0);
+    }
+
+    let x = Var::new(Tensor::from_slice(vec![1, 2], &[3.0f64, 4.0]), false);
+    let output = layer.forward(&x); // w . x + b = 1*3 + 1*4 + 0 = 7
+    output.backward(); // d(output)/d(weight) = x = [3, 4]; d(output)/d(bias) = 1
+
+    let lr = 0.1;
+    let mut opt = SGD::new(layer.parameters(), lr, 0.0);
+    opt.step();
+    layer.load_parameters(&opt.params);
+
+    // w' = w - lr * grad = [1,1] - 0.1*[3,4] = [0.7, 0.6]
+    assert_slice_close(
+        "weight_after_sgd_step",
+        layer.weight.tensor.as_slice(),
+        &[0.7, 0.6],
+        1e-12,
+    );
+    // b' = b - lr * grad = 0 - 0.1*1 = -0.1
+    assert_slice_close(
+        "bias_after_sgd_step",
+        layer.bias.as_ref().unwrap().tensor.as_slice(),
+        &[-0.1],
+        1e-12,
+    );
+
+    // The updated layer must actually be used on the next forward pass:
+    // w' . x + b' = 0.7*3 + 0.6*4 - 0.1 = 2.1 + 2.4 - 0.1 = 4.4
+    let x2 = Var::new(Tensor::from_slice(vec![1, 2], &[3.0f64, 4.0]), false);
+    let output2 = layer.forward(&x2);
+    assert_slice_close(
+        "forward_after_load_parameters",
+        output2.tensor.as_slice(),
+        &[4.4],
+        1e-12,
+    );
 }
 
 #[test]

@@ -101,6 +101,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
         vec![self.weight.clone(), self.bias.clone()]
     }
 
+    /// Write updated `(weight, bias)` values back. Overrides the
+    /// default no-op: `coeus_tensor::Tensor`'s copy-on-write storage
+    /// means a clone taken via `parameters()` detaches from this
+    /// module on first mutation, so an optimizer that mutates its own
+    /// owned copy needs this round-trip to propagate updates back.
+    fn load_parameters(&mut self, params: &[Var<T, B>]) {
+        self.weight = params[0].clone();
+        self.bias = params[1].clone();
+    }
+
     /// Forward pass for 2-D input `[N, D]`.
     ///
     /// For inputs with rank ≥ 3 (e.g. `[batch, seq, D]`) use

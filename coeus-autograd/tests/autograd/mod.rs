@@ -7,6 +7,7 @@ mod linalg;
 mod nn_conv;
 mod ops_overloads;
 mod reductions;
+mod remainder;
 mod scatter_add;
 mod shape_ops;
 mod sparse;

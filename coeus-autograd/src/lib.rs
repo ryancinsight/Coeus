@@ -155,6 +155,7 @@ pub use ops::{
     prod,
     recip,
     relu,
+    remainder,
     reshape,
     rmsnorm,
     roll,
