@@ -427,3 +427,72 @@ fn test_adamw_weight_decay_shrinkage_50steps() {
         "AdamW weight-decay 50-step: got {p_n}, expected {expected}"
     );
 }
+
+/// RMSProp on f(x) = x² (lr=0.1, α=0.99, ε=1e-8) from x₀=4.
+///
+/// On this smooth strongly-convex objective RMSProp descends monotonically to
+/// the minimum; by step 300 the f32 parameter has collapsed to machine-zero
+/// (observed ≈3e-45). The final value must be below 1e-4 (a threshold ~40 orders
+/// of magnitude above the observed limit, so it catches any failure-to-converge
+/// regression while staying robust to f32 near-zero rounding), and the objective
+/// must never increase across the run.
+#[test]
+fn test_rmsprop_convergence_quadratic_300steps() {
+    let x = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[4.0f32]),
+        true,
+    );
+    let mut optimizer = RMSProp::new(vec![x.clone()], 0.1f32, 0.99f32, 1e-8f32);
+
+    let mut prev = 4.0f32.powi(2);
+    for _ in 0..300 {
+        let current = optimizer.params[0].tensor.as_slice()[0];
+        // Monotone descent: f32 rounding may leave the objective flat but never
+        // materially increasing on this convex problem.
+        let obj = current * current;
+        assert!(obj <= prev + 1e-6, "RMSProp objective increased: {obj} > {prev}");
+        prev = obj;
+        let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current]);
+        optimizer.params[0].set_grad(grad);
+        optimizer.step();
+    }
+
+    let x_n = optimizer.params[0].tensor.as_slice()[0];
+    assert!(
+        x_n.abs() < 1e-4,
+        "RMSProp failed to converge after 300 steps: {x_n}"
+    );
+}
+
+/// AdaGrad on f(x) = x² (lr=0.5, ε=1e-6) from x₀=4.
+///
+/// AdaGrad accumulates Σgⁱ² monotonically, so the per-coordinate step shrinks
+/// like O(1/√t) — it converges but decelerates. After 400 steps it reaches the
+/// deceleration-limited neighbourhood ≈1.2e-8 (matching an independent f64
+/// reference), so the final value must be below 1e-5 (a meaningful bound with
+/// ~3 orders of margin), with the objective monotonically non-increasing.
+#[test]
+fn test_adagrad_convergence_quadratic_400steps() {
+    let x = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[4.0f32]),
+        true,
+    );
+    let mut optimizer = coeus_optim::AdaGrad::new(vec![x.clone()], 0.5f32, 1e-6f32);
+
+    let mut prev = 4.0f32.powi(2);
+    for _ in 0..400 {
+        let current = optimizer.params[0].tensor.as_slice()[0];
+        let obj = current * current;
+        assert!(obj <= prev + 1e-6, "AdaGrad objective increased: {obj} > {prev}");
+        prev = obj;
+        let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current]);
+        optimizer.params[0].set_grad(grad);
+        optimizer.step();
+    }
+
+    let x_n = optimizer.params[0].tensor.as_slice()[0];
+    assert!(
+        x_n.abs() < 1e-5,
+        "AdaGrad failed to converge after 400 steps: {x_n}"
+    );
+}
