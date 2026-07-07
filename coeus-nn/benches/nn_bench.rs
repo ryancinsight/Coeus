@@ -7503,8 +7503,84 @@ fn bench_sqrt4_forward(c: &mut Criterion) {
     group.finish();
 }
 
+/// Binary elementwise op: Burn NdArray vs Coeus Sequential/Moirai on identical
+/// `[BATCH, FEATURES]` inputs. The two Coeus closures are separate because the
+/// two backends are distinct types; the Burn op is a method call. This shared
+/// harness keeps each binary-op benchmark to a single line.
+fn bench_binary_vs_burn(
+    c: &mut Criterion,
+    name: &str,
+    burn_op: impl Fn(BurnTensor<BurnB, 2>, BurnTensor<BurnB, 2>) -> BurnTensor<BurnB, 2>,
+    coeus_seq: impl Fn(
+        &Var<f32, SequentialBackend>,
+        &Var<f32, SequentialBackend>,
+    ) -> Var<f32, SequentialBackend>,
+    coeus_moirai: impl Fn(
+        &Var<f32, MoiraiBackend>,
+        &Var<f32, MoiraiBackend>,
+    ) -> Var<f32, MoiraiBackend>,
+) {
+    let a: Vec<f32> = (0..(BATCH * FEATURES)).map(|i| (i as f32 * 0.0031).sin()).collect();
+    // `+ 1.5` keeps the second operand strictly positive so `remainder`'s
+    // divisor never hits zero.
+    let b: Vec<f32> = (0..(BATCH * FEATURES)).map(|i| (i as f32 * 0.0027).cos() + 1.5).collect();
+    let a_burn: BurnTensor<BurnB, 2> =
+        BurnTensor::from_data(TensorData::new(a.clone(), [BATCH, FEATURES]), &NdArrayDevice::default());
+    let b_burn: BurnTensor<BurnB, 2> =
+        BurnTensor::from_data(TensorData::new(b.clone(), [BATCH, FEATURES]), &NdArrayDevice::default());
+    let a_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a), false);
+    let b_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b), false);
+    let a_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a), false);
+    let b_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b), false);
+
+    let mut group = c.benchmark_group(format!("Burn vs Coeus — {name} forward (128x256)"));
+    group.bench_function("Burn NdArray", |bn| {
+        bn.iter(|| black_box(burn_op(black_box(a_burn.clone()), black_box(b_burn.clone()))))
+    });
+    group.bench_function("Coeus Sequential", |bn| {
+        bn.iter(|| black_box(coeus_seq(black_box(&a_seq), black_box(&b_seq))))
+    });
+    group.bench_function("Coeus Moirai", |bn| {
+        bn.iter(|| black_box(coeus_moirai(black_box(&a_moirai), black_box(&b_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_maximum_forward(c: &mut Criterion) {
+    bench_binary_vs_burn(
+        c,
+        "maximum",
+        |a, b| a.max_pair(b),
+        coeus_autograd::maximum,
+        coeus_autograd::maximum,
+    );
+}
+
+fn bench_minimum_forward(c: &mut Criterion) {
+    bench_binary_vs_burn(
+        c,
+        "minimum",
+        |a, b| a.min_pair(b),
+        coeus_autograd::minimum,
+        coeus_autograd::minimum,
+    );
+}
+
+fn bench_remainder_forward(c: &mut Criterion) {
+    bench_binary_vs_burn(
+        c,
+        "remainder",
+        |a, b| a.remainder(b),
+        coeus_autograd::remainder,
+        coeus_autograd::remainder,
+    );
+}
+
 criterion_group!(
     benches,
+    bench_maximum_forward,
+    bench_minimum_forward,
+    bench_remainder_forward,
     bench_linear_forward,
     bench_layernorm_forward,
     bench_rmsnorm_forward,
