@@ -2,7 +2,7 @@ use burn::backend::ndarray::{NdArray, NdArrayDevice};
 use burn::tensor::{activation as burn_act, Tensor as BurnTensor, TensorData};
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
-use coeus_nn::{cross_entropy_loss, softmax, Module};
+use coeus_nn::{cross_entropy_loss, log_sigmoid, softmax, Module};
 use coeus_ops::{leaky_relu, log_softmax_axis, mish, sigmoid, silu, softplus, tanh};
 use coeus_tensor::Tensor as CoeusTensor;
 
@@ -311,6 +311,50 @@ fn mish_softplus_leaky_relu_match_burn() {
         "leaky_relu",
         coeus_ops::leaky_relu(&xc, &backend, 0.01).as_slice(),
         &bvec(burn::tensor::activation::leaky_relu(xb, 0.01)),
+    );
+}
+
+#[test]
+fn hardsigmoid_softmin_logsigmoid_match_burn() {
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+    let data = vec![-4.0f32, -1.0, -0.5, 0.5, 1.0, 4.0];
+
+    let xv = || Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data), false);
+    let xb: BurnTensor<BurnBackend, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &dev());
+
+    // hardsigmoid: coeus is the parameter-free clamp((x+3)/6, 0, 1); Burn's
+    // parameterised form with (alpha, beta) = (1/6, 1/2) is identical.
+    assert_close(
+        "hardsigmoid",
+        coeus_autograd::hardsigmoid(&xv()).tensor.as_slice(),
+        &bvec(burn_act::hard_sigmoid(xb.clone(), 1.0 / 6.0, 0.5)),
+    );
+    // softmin(x, dim) = softmax(-x, dim).
+    assert_close(
+        "softmin",
+        coeus_autograd::softmin(&xv(), 1).tensor.as_slice(),
+        &bvec(burn_act::softmin(xb.clone(), 1)),
+    );
+    // log_sigmoid(x) = log(sigmoid(x)) = -softplus(-x).
+    assert_close(
+        "log_sigmoid",
+        log_sigmoid(&xv()).tensor.as_slice(),
+        &bvec(burn_act::log_sigmoid(xb)),
+    );
+
+    // Backward parity for log_sigmoid vs burn autodiff: d/dx log σ(x) = σ(-x).
+    let xg = Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data), true);
+    coeus_autograd::sum(&log_sigmoid(&xg)).backward();
+    let xb_ad: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &device).require_grad();
+    let grads = burn_act::log_sigmoid(xb_ad.clone()).sum().backward();
+    assert_close(
+        "log_sigmoid_bwd",
+        xg.grad().unwrap().as_slice(),
+        &xb_ad.grad(&grads).unwrap().into_data().to_vec::<f32>().unwrap(),
     );
 }
 
