@@ -205,96 +205,26 @@ pub fn selu<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
     unary_op::<T, B, SeluOp>(a)
 }
 
-// ── PReLU: y = max(0,x) + α · min(0,x) = x · (x>0 ? 1 : α) ──
+// ── PReLU (scalar α) ──
 //
-// Functional scalar-α variant. For per-channel PReLU (PyTorch-style with
-// a learnable `[num_parameters]` alpha tensor), compose via:
-//     let y = prelu_scalar(&x, &alpha_scalar);                  // single-scalar α
-// or via autograd:
-//     let neg_part = scalar_mul(&min_zero(&x), &alpha_scalar);
-//     let y = relu(&x) + neg_part;
-// (the latter is the standard PyTorch-equivalent construction; the closed-form
-// scalar helper here is for the common single-scalar-α case.)
-
-/// Manual autograd node for PReLU (parameterized scalar α).
-struct PreluNode<T: Float, B: coeus_ops::BackendOps<T> + Default> {
-    output_grad: Arc<GradBuffer<T, B>>,
-    inputs: Vec<Var<T, B>>,
-    input_tensor: Tensor<T, B>,
-    bits: u64,
-}
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for PreluNode<T, B> {
-    #[inline]
-    fn op_name(&self) -> &'static str {
-        "prelu"
-    }
-    #[inline]
-    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
-        &self.output_grad
-    }
-    #[inline]
-    fn inputs(&self) -> &[Var<T, B>] {
-        &self.inputs
-    }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
-        let backend = B::default();
-        if let Some(Some(ref g)) = input_grads.first() {
-            // Reuse `coeus_ops::UnaryOp::LeakyReluGrad(alpha_bits)` since PReLU
-            // is mathematically LeakyReLU with the same per-side slope: dy/dx
-            // = 1 if x ≥ 0, else α. The negative-side slope α is bit-packed
-            // via `f64::to_bits` to stay `Copy`-compatible.
-            let alpha_bits = self.bits;
-            let local = coeus_ops::elementwise_unary(
-                &self.input_tensor,
-                &backend,
-                coeus_ops::UnaryOp::LeakyReluGrad(alpha_bits),
-            );
-            let grad_in = coeus_ops::mul(grad_out, &local, &backend);
-            let lock = g.write();
-            coeus_ops::add_assign(lock, &grad_in, &backend);
-        }
-    }
-}
+// The single-scalar-α PReLU is mathematically identical to LeakyReLU with the
+// same negative slope (`y = max(0,x) + α·min(0,x)`, `dy/dx = 1` where `x ≥ 0`
+// else `α`), so it delegates to the tracked `leaky_relu` rather than carrying a
+// byte-identical duplicate backward node. A learnable per-channel PReLU (a
+// differentiable weight `Var`, PyTorch/Burn semantics) is tracked separately as
+// a [major] item.
 
 /// Tracked PReLU with a single scalar α slope.
 ///
-/// `y = max(0, x) + α · min(0, x)`. Gradient is `1` if `x ≥ 0`, else `α`.
-/// For per-channel α (PyTorch's `nn.PReLU(num_parameters=N)`), compose the
-/// tracked scalar-α helper with `coeus_ops::broadcast_to` so α matches the
-/// input's channel axis.
+/// `y = max(0, x) + α · min(0, x)`; the gradient is `1` where `x ≥ 0`, else
+/// `α`. This is identical to [`leaky_relu`] with `negative_slope = α`, to which
+/// it delegates so the scalar negative-slope kernel has a single source of
+/// truth.
 #[must_use]
 #[inline]
 pub fn prelu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     alpha: f64,
 ) -> Var<T, B> {
-    let backend = B::default();
-    let bits = alpha.to_bits();
-    let out_tensor = coeus_ops::leaky_relu(&a.tensor, &backend, alpha);
-    let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
-            out_tensor.shape_cloned(),
-            &backend,
-        ))))
-    } else {
-        None
-    };
-    let creator = if requires_grad {
-        let node = PreluNode {
-            output_grad: grad.as_ref().unwrap().clone(),
-            inputs: vec![a.clone()],
-            input_tensor: a.tensor.clone(),
-            bits,
-        };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
-    Var {
-        tensor: out_tensor,
-        grad,
-        creator,
-    }
+    leaky_relu(a, alpha)
 }
