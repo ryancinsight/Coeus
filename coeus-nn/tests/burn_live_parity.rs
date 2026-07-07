@@ -158,6 +158,81 @@ fn add_sub_mul_div_match_burn() {
     );
 }
 
+#[test]
+fn remainder_maximum_minimum_match_burn() {
+    use burn::backend::autodiff::Autodiff;
+    type AB = Autodiff<NdArray<f32>>;
+    let device: NdArrayDevice = Default::default();
+
+    // Distinct pairs (no ties) so max/min gradient routing is unambiguous; a
+    // negative divisor exercises remainder's sign-of-divisor convention.
+    let a = vec![5.0f32, 7.0, 8.0, -4.0, 9.0, 2.0];
+    let b = vec![3.0f32, 4.0, 3.0, 3.0, -2.0, 5.0];
+    let av = Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a), true);
+    let bv = Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &b), true);
+    let ab: BurnTensor<BurnBackend, 2> =
+        BurnTensor::from_data(TensorData::new(a.clone(), [2, 3]), &dev());
+    let bb: BurnTensor<BurnBackend, 2> =
+        BurnTensor::from_data(TensorData::new(b.clone(), [2, 3]), &dev());
+
+    // ── Forward parity ──
+    assert_close(
+        "remainder",
+        coeus_autograd::remainder(&av, &bv).tensor.as_slice(),
+        &bvec(ab.clone().remainder(bb.clone())),
+    );
+    assert_close(
+        "maximum",
+        coeus_autograd::maximum(&av, &bv).tensor.as_slice(),
+        &bvec(ab.clone().max_pair(bb.clone())),
+    );
+    assert_close(
+        "minimum",
+        coeus_autograd::minimum(&av, &bv).tensor.as_slice(),
+        &bvec(ab.clone().min_pair(bb.clone())),
+    );
+
+    // ── Backward parity vs burn autodiff (maximum) ──
+    let am = Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a), true);
+    let bm = Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &b), true);
+    coeus_autograd::sum(&coeus_autograd::maximum(&am, &bm)).backward();
+    let ab_ad: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(a.clone(), [2, 3]), &device).require_grad();
+    let bb_ad: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(b.clone(), [2, 3]), &device).require_grad();
+    let grads = ab_ad.clone().max_pair(bb_ad.clone()).sum().backward();
+    assert_close(
+        "maximum_bwd da",
+        am.grad().unwrap().as_slice(),
+        &ab_ad.grad(&grads).unwrap().into_data().to_vec::<f32>().unwrap(),
+    );
+    assert_close(
+        "maximum_bwd db",
+        bm.grad().unwrap().as_slice(),
+        &bb_ad.grad(&grads).unwrap().into_data().to_vec::<f32>().unwrap(),
+    );
+
+    // ── Backward parity vs burn autodiff (minimum) ──
+    let an = Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a), true);
+    let bn = Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &b), true);
+    coeus_autograd::sum(&coeus_autograd::minimum(&an, &bn)).backward();
+    let ab_ad2: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(a.clone(), [2, 3]), &device).require_grad();
+    let bb_ad2: BurnTensor<AB, 2> =
+        BurnTensor::from_data(TensorData::new(b.clone(), [2, 3]), &device).require_grad();
+    let grads_min = ab_ad2.clone().min_pair(bb_ad2.clone()).sum().backward();
+    assert_close(
+        "minimum_bwd da",
+        an.grad().unwrap().as_slice(),
+        &ab_ad2.grad(&grads_min).unwrap().into_data().to_vec::<f32>().unwrap(),
+    );
+    assert_close(
+        "minimum_bwd db",
+        bn.grad().unwrap().as_slice(),
+        &bb_ad2.grad(&grads_min).unwrap().into_data().to_vec::<f32>().unwrap(),
+    );
+}
+
 // ── Activations ───────────────────────────────────────────────────────────────
 
 #[test]

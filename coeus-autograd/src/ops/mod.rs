@@ -25,8 +25,8 @@ pub use activation::{
     threshold, trunc,
 };
 pub use arithmetic::{
-    add, div, mean, mean_axis, mul, nanmean, nansum, remainder, scalar_add, scalar_div, scalar_mul,
-    scalar_sub, sub, sum, sum_axis,
+    add, div, maximum, mean, mean_axis, minimum, mul, nanmean, nansum, remainder, scalar_add,
+    scalar_div, scalar_mul, scalar_sub, sub, sum, sum_axis,
 };
 pub use reduction::{
     log_sum_exp, max_axis, min_axis, norm, norm_p, norm_p_axis, prod, sort, std_dev, std_dev_axis,
