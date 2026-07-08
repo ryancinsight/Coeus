@@ -19,10 +19,11 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
-    cross_entropy_loss, gelu, huber_loss, leaky_relu, mse_loss, prelu, relu, sigmoid, silu, tanh,
-    AdaptiveAvgPool2d, AvgPool1d as CoeusAvgPool1d, AvgPool2d, AvgPool3d, BatchNorm1d, BatchNorm2d,
-    BatchNorm3d, Conv1d, Conv2d, Conv3d, ConvTranspose1d, ConvTranspose3d, Dropout, Embedding,
-    EmbeddingBag, EmbeddingBagMode, GroupNorm, Gru as CoeusGru, InstanceNorm2d, LayerNorm, Linear,
+    cross_entropy_loss, gelu, huber_loss, interpolate_2d, leaky_relu, mse_loss, prelu, relu,
+    sigmoid, silu, tanh, AdaptiveAvgPool2d, AvgPool1d as CoeusAvgPool1d, AvgPool2d, AvgPool3d,
+    BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d, ConvTranspose1d,
+    ConvTranspose3d, Dropout, Embedding, EmbeddingBag, EmbeddingBagMode, GroupNorm,
+    Gru as CoeusGru, InstanceNorm2d, InterpolateMode as CoeusInterpolateMode, LayerNorm, Linear,
     Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, MultiHeadAttention, NullMask, RMSNorm, SwiGlu,
     TransformerEncoderLayer,
 };
@@ -39,6 +40,7 @@ use burn::nn::loss::{
 // Burn 0.16 re-exports `lstm::*` from `nn::rnn` but not `gru::*`, so `GruConfig`
 // is only reachable by its submodule path (unlike the flattened LSTM types).
 use burn::nn::gru::GruConfig;
+use burn::nn::interpolate::{Interpolate2dConfig, InterpolateMode as BurnInterpolateMode};
 use burn::nn::pool::MaxPool1dConfig;
 use burn::nn::transformer::{TransformerEncoderConfig, TransformerEncoderInput};
 use burn::nn::{
@@ -538,6 +540,79 @@ fn bench_avgpool3d_forward(c: &mut Criterion) {
         b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
     });
     group.finish();
+}
+
+/// One Coeus-vs-Burn `interpolate_2d` forward comparison on `[N,C,H,W]`
+/// upsampling to `2H x 2W`, parameterized by mode so nearest/bilinear share
+/// one body.
+fn bench_interpolate2d_forward(
+    c: &mut Criterion,
+    label: &str,
+    coeus_mode: CoeusInterpolateMode,
+    burn_mode: BurnInterpolateMode,
+) {
+    const IN_N: usize = 8;
+    const IN_C: usize = 16;
+    const IN_H: usize = 32;
+    const IN_W: usize = 32;
+    const OUT_H: usize = 64;
+    const OUT_W: usize = 64;
+
+    let device = NdArrayDevice::default();
+    let input_data: Vec<f32> = (0..(IN_N * IN_C * IN_H * IN_W))
+        .map(|i| (i as f32 * 0.0021).sin())
+        .collect();
+
+    let x_burn: BurnTensor<BurnB, 4> = BurnTensor::from_data(
+        TensorData::new(input_data.clone(), [IN_N, IN_C, IN_H, IN_W]),
+        &device,
+    );
+    let burn_interp = Interpolate2dConfig::new()
+        .with_output_size(Some([OUT_H, OUT_W]))
+        .with_mode(burn_mode)
+        .init();
+
+    let x_seq =
+        Tensor::<f32, SequentialBackend>::from_slice(vec![IN_N, IN_C, IN_H, IN_W], &input_data);
+    let x_moirai =
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![IN_N, IN_C, IN_H, IN_W], &input_data);
+
+    let mut group = c.benchmark_group(label);
+    group.bench_function("Burn NdArray", |b| {
+        b.iter(|| black_box(burn_interp.forward(black_box(x_burn.clone()))))
+    });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(interpolate_2d(black_box(&x_seq), OUT_H, OUT_W, coeus_mode)))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(interpolate_2d(
+                black_box(&x_moirai),
+                OUT_H,
+                OUT_W,
+                coeus_mode,
+            ))
+        })
+    });
+    group.finish();
+}
+
+fn bench_interpolate2d_nearest_forward(c: &mut Criterion) {
+    bench_interpolate2d_forward(
+        c,
+        "Burn vs Coeus — interpolate_2d nearest forward (8x16x32x32 -> 64x64)",
+        CoeusInterpolateMode::Nearest,
+        BurnInterpolateMode::Nearest,
+    );
+}
+
+fn bench_interpolate2d_bilinear_forward(c: &mut Criterion) {
+    bench_interpolate2d_forward(
+        c,
+        "Burn vs Coeus — interpolate_2d bilinear forward (8x16x32x32 -> 64x64)",
+        CoeusInterpolateMode::Bilinear,
+        BurnInterpolateMode::Linear,
+    );
 }
 
 /// One Coeus-vs-Burn Conv1d forward comparison for `[n, ch, len]` input through
@@ -7721,6 +7796,8 @@ criterion_group!(
     bench_avgpool2d_forward,
     bench_maxpool3d_forward,
     bench_avgpool3d_forward,
+    bench_interpolate2d_nearest_forward,
+    bench_interpolate2d_bilinear_forward,
     bench_conv1d_forward,
     bench_conv1d_forward_backward,
     bench_conv2d_forward,

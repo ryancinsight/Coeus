@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.10 - 2026-07-08
+
+### Added
+
+- **G-043: interpolate_2d nearest/bilinear benchmark rows** —
+  `coeus-nn/benches/nn_bench.rs` gains `bench_interpolate2d_nearest_forward`/
+  `bench_interpolate2d_bilinear_forward` (Burn NdArray vs Coeus Sequential vs
+  Coeus Moirai, `[8,16,32,32] -> [64,64]`). Burn 0.16's
+  `nn::interpolate::Interpolate2d` exists for this family (unlike the 3D
+  pooling gap in 0.5.9), so this closes with a full 3-way comparison.
+
 ## 0.5.9 - 2026-07-08
 
 ### Added

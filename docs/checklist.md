@@ -52,6 +52,18 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
+### Current Sprint: MS-429 - bench 208 (interpolate_2d nearest/bilinear) [COMPLETE]
+- [x] [patch] Expanded G-043 benchmark matrix from **206 -> 208** by adding
+  `bench_interpolate2d_nearest_forward`/`bench_interpolate2d_bilinear_forward`
+  (full 3-way: Burn NdArray vs Coeus Sequential vs Coeus Moirai,
+  `[8,16,32,32] -> [64,64]`). Burn 0.16's `nn::interpolate::Interpolate2d`
+  exists for this family.
+- [x] [patch] Cargo.toml `0.5.9` -> `0.5.10`; CHANGELOG.md `0.5.10` section added.
+- [x] Evidence: `cargo check -p coeus-nn --benches` pass; `cargo fmt --check
+  -p coeus-nn` clean; `cargo clippy -p coeus-nn --benches -- -D warnings`
+  clean; `cargo bench -p coeus-nn --bench nn_bench -- interpolate_2d`
+  executes and reports timings for both new 3-way groups.
+
 ### Current Sprint: MS-428 - bench 206 (MaxPool3d/AvgPool3d) + coeus-dist test-harness fix [COMPLETE]
 - [x] [patch] Expanded G-043 benchmark matrix from **204 -> 206** by adding
   `bench_maxpool3d_forward`/`bench_avgpool3d_forward` (Coeus Sequential vs
