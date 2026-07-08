@@ -20,10 +20,10 @@ use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
     cross_entropy_loss, gelu, huber_loss, leaky_relu, mse_loss, prelu, relu, sigmoid, silu, tanh,
-    AdaptiveAvgPool2d, AvgPool1d as CoeusAvgPool1d, AvgPool2d, BatchNorm1d, BatchNorm2d,
+    AdaptiveAvgPool2d, AvgPool1d as CoeusAvgPool1d, AvgPool2d, AvgPool3d, BatchNorm1d, BatchNorm2d,
     BatchNorm3d, Conv1d, Conv2d, Conv3d, ConvTranspose1d, ConvTranspose3d, Dropout, Embedding,
     EmbeddingBag, EmbeddingBagMode, GroupNorm, Gru as CoeusGru, InstanceNorm2d, LayerNorm, Linear,
-    Lstm, MaxPool1d, MaxPool2d, Module, MultiHeadAttention, NullMask, RMSNorm, SwiGlu,
+    Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, MultiHeadAttention, NullMask, RMSNorm, SwiGlu,
     TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
@@ -441,6 +441,96 @@ fn bench_avgpool2d_forward(c: &mut Criterion) {
             ))
         })
     });
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+/// Coeus-only MaxPool3d forward (Sequential vs Moirai). Burn 0.16's
+/// `tensor::module` surface exposes only 1D/2D pooling
+/// (`max_pool1d`/`max_pool2d`/`avg_pool1d`/`avg_pool2d`; verified against the
+/// pinned `burn-tensor` source), so there is no Burn oracle row for the 3D
+/// case — the gap is structural to the pinned Burn version, not an omission.
+fn bench_maxpool3d_forward(c: &mut Criterion) {
+    // MaxPool3d forward on [N=4, C=8, D=16, H=16, W=16] with k=2, s=2.
+    const MP3_N: usize = 4;
+    const MP3_C: usize = 8;
+    const MP3_D: usize = 16;
+    const MP3_H: usize = 16;
+    const MP3_W: usize = 16;
+    const MP3_K: usize = 2;
+    const MP3_S: usize = 2;
+
+    let input_data: Vec<f32> = (0..(MP3_N * MP3_C * MP3_D * MP3_H * MP3_W))
+        .map(|i| (i as f32 * 0.0013).sin())
+        .collect();
+
+    let pool_seq = MaxPool3d::<f32, SequentialBackend>::with_params(MP3_K, MP3_S, 0, 1);
+    let pool_moirai = MaxPool3d::<f32, MoiraiBackend>::with_params(MP3_K, MP3_S, 0, 1);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(
+            vec![MP3_N, MP3_C, MP3_D, MP3_H, MP3_W],
+            &input_data,
+        ),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(
+            vec![MP3_N, MP3_C, MP3_D, MP3_H, MP3_W],
+            &input_data,
+        ),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Coeus — MaxPool3d forward (4x8x16x16x16, k2 s2)");
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+/// Coeus-only AvgPool3d forward (Sequential vs Moirai). Same Burn-gap
+/// rationale as [`bench_maxpool3d_forward`] — no `avg_pool3d` in the pinned
+/// Burn's `tensor::module` surface.
+fn bench_avgpool3d_forward(c: &mut Criterion) {
+    // AvgPool3d forward on [N=4, C=8, D=16, H=16, W=16] with k=2, s=2.
+    const AP3_N: usize = 4;
+    const AP3_C: usize = 8;
+    const AP3_D: usize = 16;
+    const AP3_H: usize = 16;
+    const AP3_W: usize = 16;
+    const AP3_K: usize = 2;
+    const AP3_S: usize = 2;
+
+    let input_data: Vec<f32> = (0..(AP3_N * AP3_C * AP3_D * AP3_H * AP3_W))
+        .map(|i| (i as f32 * 0.0011).cos())
+        .collect();
+
+    let pool_seq = AvgPool3d::<f32, SequentialBackend>::with_params(AP3_K, AP3_S, 0, 1);
+    let pool_moirai = AvgPool3d::<f32, MoiraiBackend>::with_params(AP3_K, AP3_S, 0, 1);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(
+            vec![AP3_N, AP3_C, AP3_D, AP3_H, AP3_W],
+            &input_data,
+        ),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(
+            vec![AP3_N, AP3_C, AP3_D, AP3_H, AP3_W],
+            &input_data,
+        ),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Coeus — AvgPool3d forward (4x8x16x16x16, k2 s2)");
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
     });
@@ -1293,8 +1383,14 @@ fn bench_prelu_forward(c: &mut Criterion) {
         false,
     );
     // Matches Burn's PReluConfig default: num_parameters=1, alpha=0.25.
-    let w_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[0.25]), false);
-    let w_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![1], &[0.25]), false);
+    let w_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[0.25]),
+        false,
+    );
+    let w_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![1], &[0.25]),
+        false,
+    );
 
     let mut group = c.benchmark_group("Burn vs Coeus — PReLU forward (128x256)");
     group.bench_function("Burn NdArray", |b| {
@@ -4918,8 +5014,14 @@ fn bench_prelu2_forward(c: &mut Criterion) {
         TensorData::new(input_data.clone(), [BATCH, FEATURES]),
         &device,
     );
-    let w_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[0.01]), false);
-    let w_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![1], &[0.01]), false);
+    let w_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[0.01]),
+        false,
+    );
+    let w_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![1], &[0.01]),
+        false,
+    );
     let mut group = c.benchmark_group("Burn vs Coeus - prelu2(0.01) forward (128x256)");
     group.bench_function("Burn NdArray (leaky_relu proxy)", |b| {
         b.iter(|| black_box(burn::tensor::activation::relu(black_box(x_burn.clone()))))
@@ -7520,27 +7622,49 @@ fn bench_binary_vs_burn(
         &Var<f32, SequentialBackend>,
         &Var<f32, SequentialBackend>,
     ) -> Var<f32, SequentialBackend>,
-    coeus_moirai: impl Fn(
-        &Var<f32, MoiraiBackend>,
-        &Var<f32, MoiraiBackend>,
-    ) -> Var<f32, MoiraiBackend>,
+    coeus_moirai: impl Fn(&Var<f32, MoiraiBackend>, &Var<f32, MoiraiBackend>) -> Var<f32, MoiraiBackend>,
 ) {
-    let a: Vec<f32> = (0..(BATCH * FEATURES)).map(|i| (i as f32 * 0.0031).sin()).collect();
+    let a: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.0031).sin())
+        .collect();
     // `+ 1.5` keeps the second operand strictly positive so `remainder`'s
     // divisor never hits zero.
-    let b: Vec<f32> = (0..(BATCH * FEATURES)).map(|i| (i as f32 * 0.0027).cos() + 1.5).collect();
-    let a_burn: BurnTensor<BurnB, 2> =
-        BurnTensor::from_data(TensorData::new(a.clone(), [BATCH, FEATURES]), &NdArrayDevice::default());
-    let b_burn: BurnTensor<BurnB, 2> =
-        BurnTensor::from_data(TensorData::new(b.clone(), [BATCH, FEATURES]), &NdArrayDevice::default());
-    let a_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a), false);
-    let b_seq = Var::new(Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b), false);
-    let a_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a), false);
-    let b_moirai = Var::new(Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b), false);
+    let b: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.0027).cos() + 1.5)
+        .collect();
+    let a_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(a.clone(), [BATCH, FEATURES]),
+        &NdArrayDevice::default(),
+    );
+    let b_burn: BurnTensor<BurnB, 2> = BurnTensor::from_data(
+        TensorData::new(b.clone(), [BATCH, FEATURES]),
+        &NdArrayDevice::default(),
+    );
+    let a_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a),
+        false,
+    );
+    let b_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b),
+        false,
+    );
+    let a_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a),
+        false,
+    );
+    let b_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b),
+        false,
+    );
 
     let mut group = c.benchmark_group(format!("Burn vs Coeus — {name} forward (128x256)"));
     group.bench_function("Burn NdArray", |bn| {
-        bn.iter(|| black_box(burn_op(black_box(a_burn.clone()), black_box(b_burn.clone()))))
+        bn.iter(|| {
+            black_box(burn_op(
+                black_box(a_burn.clone()),
+                black_box(b_burn.clone()),
+            ))
+        })
     });
     group.bench_function("Coeus Sequential", |bn| {
         bn.iter(|| black_box(coeus_seq(black_box(&a_seq), black_box(&b_seq))))
@@ -7595,6 +7719,8 @@ criterion_group!(
     bench_groupnorm_forward,
     bench_maxpool2d_forward,
     bench_avgpool2d_forward,
+    bench_maxpool3d_forward,
+    bench_avgpool3d_forward,
     bench_conv1d_forward,
     bench_conv1d_forward_backward,
     bench_conv2d_forward,

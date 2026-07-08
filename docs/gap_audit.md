@@ -70,7 +70,7 @@ HuberLoss, ReLU, GeLU, PReLU, Sigmoid, Tanh, SiLU, LeakyReLU, Mish, SwiGLU,
 Softmax, Dropout eval, Conv1d/2d/2d-backward/3d, ConvTranspose1d/3d, MHA self-attention,
 Transformer encoder layer, Embedding lookup, EmbeddingBag sum, AdaptiveAvgPool2d(1,1),
 AdaptiveMaxPool2d(1,1), BatchNorm1d/2d/3d eval forward, GroupNorm forward,
-MaxPool1d/2d forward, AvgPool1d/2d forward),
+MaxPool1d/2d/3d forward, AvgPool1d/2d/3d forward),
 not the full NN family set needed to claim Burn-level performance parity.
 PyTorch differential coverage similarly remains module-family selective.
 **Acceptance**: Add a benchmark/parity manifest keyed by module family, then add
@@ -79,6 +79,11 @@ Moirai, WGPU/CUDA where applicable, Burn NdArray where comparable, and PyTorch
 Python differential tests at f64. Report median/confidence intervals for
 benchmarks and analytical tolerance derivations for numerical comparisons.
 **Evidence tier**: source-surface audit plus external API documentation audit.
+**2026-07-08 update**: added `bench_maxpool3d_forward`/`bench_avgpool3d_forward`
+(Coeus Sequential vs Moirai only — no Burn 0.16.1 `max_pool3d`/`avg_pool3d` op
+exists to compare against, confirmed against the pinned `burn-tensor` source).
+Remaining open surface: MHA cross-attention, vanilla RNN/RNNCell,
+`Bidirectional` wrapper, Bilinear, Interpolate, positional-encoding modules.
 
 ### ~~G-042: Quantized and lazy module parity policy missing~~ **CLOSED (non-goal)**
 **Location**: `coeus-nn/src/lib.rs`, `coeus-python/src/lib.rs`

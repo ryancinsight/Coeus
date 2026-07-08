@@ -52,6 +52,20 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
+### Current Sprint: MS-428 - bench 206 (MaxPool3d/AvgPool3d) + coeus-dist test-harness fix [COMPLETE]
+- [x] [patch] Expanded G-043 benchmark matrix from **204 -> 206** by adding
+  `bench_maxpool3d_forward`/`bench_avgpool3d_forward` (Coeus Sequential vs
+  Moirai, `[4,8,16,16,16]` k2/s2). No Burn oracle row: confirmed against the
+  pinned `burn-tensor` 0.16.1 source that `tensor::module` has no
+  `max_pool3d`/`avg_pool3d` — the 3D pooling gap is structural to the pinned
+  Burn version.
+- [x] [patch] `coeus-dist` TCP test-harness TOCTOU fix (root-caused a
+  full-workspace-run flake in `test_tcp_broadcast`; see gap_audit.md/CHANGELOG).
+- [x] [patch] Cargo.toml `0.5.8` -> `0.5.9`; CHANGELOG.md `0.5.9` section added.
+- [x] Evidence: `cargo check -p coeus-nn --benches` pass; `cargo bench -p
+  coeus-nn --bench nn_bench -- "MaxPool3d|AvgPool3d"` executes and reports
+  timings for both new groups.
+
 ### Current Sprint: MS-425..MS-427 - PyTorch 410 + bench 204 [COMPLETE]
 - [x] [patch] Expanded PyTorch parity from **400 -> 410** via 10 Python-dunder
   scalar/backward checks (`+`, `-`, `*`, `/`, reflected `+`, `-`, `*`, `/`,

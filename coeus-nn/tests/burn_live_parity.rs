@@ -168,8 +168,14 @@ fn remainder_maximum_minimum_match_burn() {
     // negative divisor exercises remainder's sign-of-divisor convention.
     let a = vec![5.0f32, 7.0, 8.0, -4.0, 9.0, 2.0];
     let b = vec![3.0f32, 4.0, 3.0, 3.0, -2.0, 5.0];
-    let av = Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a), true);
-    let bv = Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &b), true);
+    let av = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a),
+        true,
+    );
+    let bv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &b),
+        true,
+    );
     let ab: BurnTensor<BurnBackend, 2> =
         BurnTensor::from_data(TensorData::new(a.clone(), [2, 3]), &dev());
     let bb: BurnTensor<BurnBackend, 2> =
@@ -193,8 +199,14 @@ fn remainder_maximum_minimum_match_burn() {
     );
 
     // ── Backward parity vs burn autodiff (maximum) ──
-    let am = Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a), true);
-    let bm = Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &b), true);
+    let am = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a),
+        true,
+    );
+    let bm = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &b),
+        true,
+    );
     coeus_autograd::sum(&coeus_autograd::maximum(&am, &bm)).backward();
     let ab_ad: BurnTensor<AB, 2> =
         BurnTensor::from_data(TensorData::new(a.clone(), [2, 3]), &device).require_grad();
@@ -204,17 +216,33 @@ fn remainder_maximum_minimum_match_burn() {
     assert_close(
         "maximum_bwd da",
         am.grad().unwrap().as_slice(),
-        &ab_ad.grad(&grads).unwrap().into_data().to_vec::<f32>().unwrap(),
+        &ab_ad
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
     );
     assert_close(
         "maximum_bwd db",
         bm.grad().unwrap().as_slice(),
-        &bb_ad.grad(&grads).unwrap().into_data().to_vec::<f32>().unwrap(),
+        &bb_ad
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
     );
 
     // ── Backward parity vs burn autodiff (minimum) ──
-    let an = Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a), true);
-    let bn = Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &b), true);
+    let an = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a),
+        true,
+    );
+    let bn = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &b),
+        true,
+    );
     coeus_autograd::sum(&coeus_autograd::minimum(&an, &bn)).backward();
     let ab_ad2: BurnTensor<AB, 2> =
         BurnTensor::from_data(TensorData::new(a.clone(), [2, 3]), &device).require_grad();
@@ -224,12 +252,22 @@ fn remainder_maximum_minimum_match_burn() {
     assert_close(
         "minimum_bwd da",
         an.grad().unwrap().as_slice(),
-        &ab_ad2.grad(&grads_min).unwrap().into_data().to_vec::<f32>().unwrap(),
+        &ab_ad2
+            .grad(&grads_min)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
     );
     assert_close(
         "minimum_bwd db",
         bn.grad().unwrap().as_slice(),
-        &bb_ad2.grad(&grads_min).unwrap().into_data().to_vec::<f32>().unwrap(),
+        &bb_ad2
+            .grad(&grads_min)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
     );
 }
 
@@ -294,17 +332,29 @@ fn prelu_learnable_weight_matches_burn() {
         BurnTensor::from_data(TensorData::new(x_data.clone(), shape), &device).require_grad();
     let wb_ad: BurnTensor<AB, 1> =
         BurnTensor::from_data(TensorData::new(w_data.clone(), [2]), &device).require_grad();
-    let grads = burn_act::prelu(xb_ad.clone(), wb_ad.clone()).sum().backward();
+    let grads = burn_act::prelu(xb_ad.clone(), wb_ad.clone())
+        .sum()
+        .backward();
 
     assert_close(
         "prelu_bwd dx",
         x_g.grad().unwrap().as_slice(),
-        &xb_ad.grad(&grads).unwrap().into_data().to_vec::<f32>().unwrap(),
+        &xb_ad
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
     );
     assert_close(
         "prelu_bwd dweight",
         w_g.grad().unwrap().as_slice(),
-        &wb_ad.grad(&grads).unwrap().into_data().to_vec::<f32>().unwrap(),
+        &wb_ad
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
     );
 }
 
@@ -381,7 +431,12 @@ fn hardsigmoid_softmin_logsigmoid_match_burn() {
     let device: NdArrayDevice = Default::default();
     let data = vec![-4.0f32, -1.0, -0.5, 0.5, 1.0, 4.0];
 
-    let xv = || Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data), false);
+    let xv = || {
+        Var::new(
+            CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data),
+            false,
+        )
+    };
     let xb: BurnTensor<BurnBackend, 2> =
         BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &dev());
 
@@ -406,7 +461,10 @@ fn hardsigmoid_softmin_logsigmoid_match_burn() {
     );
 
     // Backward parity for log_sigmoid vs burn autodiff: d/dx log σ(x) = σ(-x).
-    let xg = Var::new(CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data), true);
+    let xg = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data),
+        true,
+    );
     coeus_autograd::sum(&log_sigmoid(&xg)).backward();
     let xb_ad: BurnTensor<AB, 2> =
         BurnTensor::from_data(TensorData::new(data.clone(), [2, 3]), &device).require_grad();
@@ -414,7 +472,12 @@ fn hardsigmoid_softmin_logsigmoid_match_burn() {
     assert_close(
         "log_sigmoid_bwd",
         xg.grad().unwrap().as_slice(),
-        &xb_ad.grad(&grads).unwrap().into_data().to_vec::<f32>().unwrap(),
+        &xb_ad
+            .grad(&grads)
+            .unwrap()
+            .into_data()
+            .to_vec::<f32>()
+            .unwrap(),
     );
 }
 

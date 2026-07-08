@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.9 - 2026-07-08
+
+### Added
+
+- **G-043: MaxPool3d/AvgPool3d benchmark rows** — `coeus-nn/benches/nn_bench.rs`
+  gains `bench_maxpool3d_forward`/`bench_avgpool3d_forward` (Coeus Sequential
+  vs Moirai, `[4,8,16,16,16]` k2/s2). No Burn oracle row: verified against the
+  pinned `burn-tensor` 0.16.1 source that `tensor::module` exposes only
+  `max_pool1d`/`max_pool2d`/`avg_pool1d`/`avg_pool2d` — 3D pooling is absent
+  from the pinned Burn version, not an omitted comparison.
+- **coeus-dist test-harness fix** — closed a TOCTOU race in the TCP
+  integration test port allocator (`coeus-dist/tests/dist_tests.rs`) that
+  could flake under heavy parallel-process contention; the cross-process
+  allocator lock now spans probe through actual `TcpMesh` bind/connect
+  instead of being released after the port probe.
+
 ## 0.5.8 - 2026-07-04
 
 ### Fixed
