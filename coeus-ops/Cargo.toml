@@ -15,4 +15,4 @@ smallvec     = { workspace = true }
 thiserror    = { workspace = true }
 half         = { workspace = true }
 bytemuck     = { workspace = true }
-melinoe      = { path = "../../melinoe", version = "0.7.0" }
+melinoe      = { path = "../../melinoe", version = "0.8.0" }

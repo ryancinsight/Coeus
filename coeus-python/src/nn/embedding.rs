@@ -36,6 +36,36 @@ pub struct PyEmbeddingBag {
     pub mode: String,
 }
 
+fn tensor_to_indices(name: &str, tensor: &PyTensor) -> PyResult<Vec<usize>> {
+    let backend = coeus_core::MoiraiBackend::new();
+    let contiguous = tensor.inner.tensor.to_contiguous_on(&backend);
+    contiguous
+        .as_slice()
+        .iter()
+        .enumerate()
+        .map(|(position, &value)| {
+            if !value.is_finite() || value < 0.0 || value.fract() != 0.0 {
+                return Err(PyValueError::new_err(format!(
+                    "EmbeddingBag.forward: {name}[{position}] must be a non-negative integer, got {value}"
+                )));
+            }
+            Ok(value as usize)
+        })
+        .collect()
+}
+
+fn no_offset_bag_starts(indices: &PyTensor) -> PyResult<Option<Vec<usize>>> {
+    let shape = indices.inner.tensor.shape();
+    match shape {
+        [_] => Ok(None),
+        [num_bags, bag_size] => Ok(Some((0..*num_bags).map(|bag| bag * *bag_size).collect())),
+        _ => Err(PyValueError::new_err(format!(
+            "EmbeddingBag.forward: expected 1-D input with offsets or 2-D input without offsets, got {}-D input",
+            shape.len()
+        ))),
+    }
+}
+
 #[pymethods]
 impl PyEmbedding {
     #[new]
@@ -164,13 +194,11 @@ impl PyEmbeddingBag {
         offsets: Option<&PyTensor>,
         py: Python<'_>,
     ) -> PyResult<PyTensor> {
-        let backend = coeus_core::MoiraiBackend::new();
-        let idx_c = indices.inner.tensor.to_contiguous_on(&backend);
-        let idx: Vec<usize> = idx_c.as_slice().iter().map(|&v| v as usize).collect();
-        let off: Option<Vec<usize>> = offsets.map(|o| {
-            let o_c = o.inner.tensor.to_contiguous_on(&backend);
-            o_c.as_slice().iter().map(|&v| v as usize).collect()
-        });
+        let idx = tensor_to_indices("indices", indices)?;
+        let off = match offsets {
+            Some(offset_tensor) => Some(tensor_to_indices("offsets", offset_tensor)?),
+            None => no_offset_bag_starts(indices)?,
+        };
         self.forward_with_offsets(idx, off, py)
     }
 

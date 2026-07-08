@@ -223,6 +223,37 @@ pub fn pow(input: &PyTensor, exp: f64, py: Python<'_>) -> PyTensor {
     PyTensor::from_var(inner)
 }
 
+/// Element-wise remainder (`torch.remainder`): `a - floor(a / b) * b`,
+/// carrying the sign of the divisor. Gradient flows to `a` (identity) and
+/// `b` (`-floor(a / b)`).
+#[pyfunction]
+pub fn remainder(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
+    let x = a.inner.clone();
+    let y = b.inner.clone();
+    let inner = py.allow_threads(move || coeus_autograd::remainder(&x, &y));
+    PyTensor::from_var(inner)
+}
+
+/// Element-wise maximum (`torch.maximum`, Burn `Tensor::max_pair`). Gradient
+/// routes to the larger operand; ties resolve to `a`.
+#[pyfunction]
+pub fn maximum(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
+    let x = a.inner.clone();
+    let y = b.inner.clone();
+    let inner = py.allow_threads(move || coeus_autograd::maximum(&x, &y));
+    PyTensor::from_var(inner)
+}
+
+/// Element-wise minimum (`torch.minimum`, Burn `Tensor::min_pair`). Gradient
+/// routes to the smaller operand; ties resolve to `a`.
+#[pyfunction]
+pub fn minimum(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
+    let x = a.inner.clone();
+    let y = b.inner.clone();
+    let inner = py.allow_threads(move || coeus_autograd::minimum(&x, &y));
+    PyTensor::from_var(inner)
+}
+
 #[pyfunction]
 pub fn sin(input: &PyTensor, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_autograd::sin(&input.inner));

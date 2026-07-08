@@ -269,6 +269,9 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::diff, m)?)?;
     m.add_function(wrap_pyfunction!(ops::t, m)?)?;
     m.add_function(wrap_pyfunction!(ops::pow, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::remainder, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::maximum, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::minimum, m)?)?;
     // Trigonometric
     m.add_function(wrap_pyfunction!(ops::sin, m)?)?;
     m.add_function(wrap_pyfunction!(ops::cos, m)?)?;

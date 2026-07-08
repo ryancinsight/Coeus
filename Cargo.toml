@@ -33,8 +33,8 @@ mnemosyne  = { path = "../mnemosyne/crates/mnemosyne", version = "0.2.0" }
 hermes-simd = { path = "../hermes/crates/hermes-simd", version = "0.3.0" }
 eunomia = { git = "https://github.com/ryancinsight/eunomia", default-features = false }
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
-leto     = { path = "../leto/crates/leto", version = "0.35.1" }
-leto-ops = { path = "../leto/crates/leto-ops", version = "0.35.1" }
+leto     = { path = "../leto/crates/leto", version = "0.36.0" }
+leto-ops = { path = "../leto/crates/leto-ops", version = "0.36.0" }
 apollo-fft = { path = "../apollo/crates/apollo-fft", default-features = false }
 
 # ── Numerical ──

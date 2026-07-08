@@ -2539,6 +2539,79 @@ def test_embeddingbag_sum_matches_pytorch() -> None:
     not hasattr(pycoeus, "EmbeddingBag"),
     reason="pycoeus.EmbeddingBag not available in this build",
 )
+def test_embeddingbag_sum_no_offsets_matches_pytorch() -> None:
+    """No-offset 2-D EmbeddingBag parity at f64.
+
+    Evidence tier: differential/empirical against ``torch.nn.EmbeddingBag`` at f64.
+    The tolerance is 1e-10, matching the neighboring f64 EmbeddingBag parity rows.
+    """
+    num_embeddings, embedding_dim = 6, 4
+    weight_data = [
+        1.0,
+        0.0,
+        -1.0,
+        0.5,  # row 0
+        0.5,
+        0.5,
+        0.5,
+        0.5,  # row 1
+        0.0,
+        1.0,
+        0.0,
+        1.0,  # row 2
+        -1.0,
+        0.0,
+        1.0,
+        0.0,  # row 3
+        0.2,
+        0.3,
+        -0.2,
+        -0.3,  # row 4
+        0.7,
+        -0.7,
+        0.7,
+        -0.7,  # row 5
+    ]
+    indices = [0, 2, 4, 1, 3, 5]
+
+    eb_pyc = pycoeus.EmbeddingBag(num_embeddings, embedding_dim, "sum")
+    params = eb_pyc.parameters()
+    params[0].data = weight_data
+    idx_pyc = pycoeus.Tensor([float(i) for i in indices], [2, 3])
+    out_pyc = eb_pyc.forward(idx_pyc)
+    out_pyc.backward()
+
+    eb_t = torch.nn.EmbeddingBag(
+        num_embeddings, embedding_dim, mode="sum", dtype=torch.float64
+    )
+    with torch.no_grad():
+        eb_t.weight.copy_(
+            torch.tensor(weight_data, dtype=torch.float64).reshape(
+                num_embeddings, embedding_dim
+            )
+        )
+    idx_t = torch.tensor(indices, dtype=torch.long).reshape(2, 3)
+    out_t = eb_t(idx_t)
+    out_t.sum().backward()
+
+    _allclose(
+        "embeddingbag_sum_no_offsets_fwd",
+        list(out_pyc.data),
+        out_t.flatten().tolist(),
+        atol=1e-10,
+    )
+    _allclose(
+        "embeddingbag_sum_no_offsets_dw",
+        list(params[0].grad),
+        eb_t.weight.grad.flatten().tolist(),
+        atol=1e-10,
+    )
+
+
+@pytest.mark.skipif(
+    not hasattr(pycoeus, "EmbeddingBag"),
+    reason="pycoeus.EmbeddingBag not available in this build",
+)
 def test_embeddingbag_mean_matches_pytorch() -> None:
     """Forward parity: EmbeddingBag(vocab=6, dim=4, mode='mean') with two bags."""
     num_embeddings, embedding_dim = 6, 4
@@ -6704,6 +6777,55 @@ def test_pow_bwd_arbitrary_matches_pytorch() -> None:
     _allclose("pow05_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
 
 
+@pytest.mark.skipif(not hasattr(pycoeus, "remainder"), reason="pycoeus.remainder not available")
+def test_remainder_fwd_bwd_matches_pytorch() -> None:
+    """remainder(a, b) = a - floor(a/b)*b (sign of divisor); da=1, db=-floor(a/b)."""
+    a_data = [5.0, 7.0, 8.0, 7.0, -4.0]
+    b_data = [3.0, 4.0, 3.0, -3.0, 3.0]
+    a_pyc = pycoeus.Tensor(a_data, [5], requires_grad=True)
+    b_pyc = pycoeus.Tensor(b_data, [5], requires_grad=True)
+    out_pyc = pycoeus.remainder(a_pyc, b_pyc)
+    out_pyc.backward()
+    a_t = torch.tensor(a_data, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(b_data, dtype=torch.float64, requires_grad=True)
+    out_t = torch.remainder(a_t, b_t)
+    out_t.sum().backward()
+    _allclose("remainder_fwd", list(out_pyc.data), out_t.tolist(), atol=1e-12)
+    _allclose("remainder_da", list(a_pyc.grad), a_t.grad.tolist(), atol=1e-12)
+    _allclose("remainder_db", list(b_pyc.grad), b_t.grad.tolist(), atol=1e-12)
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "maximum"), reason="pycoeus.maximum not available")
+def test_maximum_minimum_fwd_bwd_matches_pytorch() -> None:
+    """maximum/minimum(a, b): gradient routes to the selected operand (distinct values, no ties)."""
+    a_data = [1.0, 5.0, 3.0, -2.0]
+    b_data = [4.0, 2.0, -3.0, 7.0]
+    a_max = pycoeus.Tensor(a_data, [4], requires_grad=True)
+    b_max = pycoeus.Tensor(b_data, [4], requires_grad=True)
+    out_max = pycoeus.maximum(a_max, b_max)
+    out_max.backward()
+    a_min = pycoeus.Tensor(a_data, [4], requires_grad=True)
+    b_min = pycoeus.Tensor(b_data, [4], requires_grad=True)
+    out_min = pycoeus.minimum(a_min, b_min)
+    out_min.backward()
+
+    a_t = torch.tensor(a_data, dtype=torch.float64, requires_grad=True)
+    b_t = torch.tensor(b_data, dtype=torch.float64, requires_grad=True)
+    out_max_t = torch.maximum(a_t, b_t)
+    out_max_t.sum().backward()
+    a_t2 = torch.tensor(a_data, dtype=torch.float64, requires_grad=True)
+    b_t2 = torch.tensor(b_data, dtype=torch.float64, requires_grad=True)
+    out_min_t = torch.minimum(a_t2, b_t2)
+    out_min_t.sum().backward()
+
+    _allclose("maximum_fwd", list(out_max.data), out_max_t.tolist(), atol=1e-12)
+    _allclose("maximum_da", list(a_max.grad), a_t.grad.tolist(), atol=1e-12)
+    _allclose("maximum_db", list(b_max.grad), b_t.grad.tolist(), atol=1e-12)
+    _allclose("minimum_fwd", list(out_min.data), out_min_t.tolist(), atol=1e-12)
+    _allclose("minimum_da", list(a_min.grad), a_t2.grad.tolist(), atol=1e-12)
+    _allclose("minimum_db", list(b_min.grad), b_t2.grad.tolist(), atol=1e-12)
+
+
 @pytest.mark.skipif(not hasattr(pycoeus, "mean"), reason="pycoeus.mean not available")
 def test_mean_bwd_matches_pytorch() -> None:
     """mean backward: d/dx = 1/N for all elements."""
@@ -7732,18 +7854,19 @@ def test_diagonal_bwd_matches_pytorch() -> None:
 
 @pytest.mark.skipif(not hasattr(pycoeus, "scatter_add"), reason="pycoeus.scatter_add not available")
 def test_scatter_add_bwd_matches_pytorch() -> None:
-    """scatter_add backward: gradient gathers from output to source positions."""
+    """scatter_add backward: destination gets identity grad; source gathers."""
     src_data = [1.0, 2.0, 3.0]
     inp_data = [0.0, 0.0, 0.0, 0.0, 0.0]
     idx_data = [4.0, 1.0, 3.0]
     src_pyc = pycoeus.Tensor(src_data, [3], requires_grad=True)
-    inp_pyc = pycoeus.Tensor(inp_data, [5], requires_grad=False)
+    inp_pyc = pycoeus.Tensor(inp_data, [5], requires_grad=True)
     idx_pyc = pycoeus.Tensor(idx_data, [3], requires_grad=False)
     pycoeus.scatter_add(inp_pyc, 0, idx_pyc, src_pyc).backward()
     src_t = torch.tensor(src_data, dtype=torch.float64, requires_grad=True)
-    inp_t = torch.tensor(inp_data, dtype=torch.float64)
+    inp_t = torch.tensor(inp_data, dtype=torch.float64, requires_grad=True)
     idx_t = torch.tensor([4, 1, 3], dtype=torch.long)
     inp_t.scatter_add(0, idx_t, src_t).sum().backward()
+    _allclose("scatter_add_input_bwd", list(inp_pyc.grad), inp_t.grad.tolist())
     _allclose("scatter_add_bwd", list(src_pyc.grad), src_t.grad.tolist())
 
 
@@ -7807,18 +7930,18 @@ def test_hinge_embedding_loss_matches_pytorch() -> None:
 
 @pytest.mark.skipif(not hasattr(pycoeus, "index_put"), reason="pycoeus.index_put not available")
 def test_index_put_bwd_matches_pytorch() -> None:
-    """index_put backward: gradient flows to source, zeros at destination."""
+    """index_put backward: overwritten input zeroes; values gather output grad."""
     inp = [1.0, 2.0, 3.0, 4.0, 5.0]
     values = [10.0, 20.0]
     idx = [1.0, 3.0]
     x_pyc = pycoeus.Tensor(inp, [5], requires_grad=True)
     idx_pyc = pycoeus.Tensor(idx, [2], requires_grad=False)
-    v_pyc = pycoeus.Tensor(values, [2], requires_grad=False)
+    v_pyc = pycoeus.Tensor(values, [2], requires_grad=True)
     out_pyc = pycoeus.index_put(x_pyc, idx_pyc, v_pyc, accumulate=False)
     out_pyc.backward()
     t = torch.tensor(inp, dtype=torch.float64, requires_grad=True)
     idx_t = torch.tensor([1, 3], dtype=torch.long)
-    v_t = torch.tensor(values, dtype=torch.float64)
+    v_t = torch.tensor(values, dtype=torch.float64, requires_grad=True)
     # Functional (out-of-place) index_put: an in-place `t[idx] = v` on a leaf
     # that requires grad raises "a leaf Variable ... in-place operation". The
     # functional form is the autograd-compatible equivalent and yields the
@@ -7826,6 +7949,7 @@ def test_index_put_bwd_matches_pytorch() -> None:
     out_t = t.index_put((idx_t,), v_t, accumulate=False)
     out_t.sum().backward()
     _allclose("iput_bwd", list(x_pyc.grad), t.grad.tolist())
+    _allclose("iput_values_bwd", list(v_pyc.grad), v_t.grad.tolist())
 
 
 @pytest.mark.skipif(not hasattr(pycoeus, "std_dev"), reason="pycoeus.std not available")

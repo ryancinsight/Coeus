@@ -1891,6 +1891,33 @@ def test_pow_matches_jax() -> None:
     exp = jnp.power(t, 3)
     _allclose("pow", list(got.data), exp.tolist())
 
+
+@pytest.mark.skipif(not hasattr(pycoeus, "remainder"), reason="pycoeus.remainder not available")
+def test_remainder_matches_jax() -> None:
+    """jnp.remainder(a, b) vs pycoeus.remainder (sign of the divisor)."""
+    a = [5.0, 7.0, 8.0, 7.0, -4.0]
+    b = [3.0, 4.0, 3.0, -3.0, 3.0]
+    a_pyc = pycoeus.Tensor(a, [5], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [5], requires_grad=False)
+    got = pycoeus.remainder(a_pyc, b_pyc)
+    exp = jnp.remainder(jnp.array(a, dtype=jnp.float64), jnp.array(b, dtype=jnp.float64))
+    _allclose("remainder", list(got.data), exp.tolist())
+
+
+@pytest.mark.skipif(not hasattr(pycoeus, "maximum"), reason="pycoeus.maximum not available")
+def test_maximum_minimum_matches_jax() -> None:
+    """jnp.maximum/minimum(a, b) vs pycoeus.maximum/minimum."""
+    a = [1.0, 5.0, 3.0, -2.0]
+    b = [4.0, 2.0, -3.0, 7.0]
+    a_pyc = pycoeus.Tensor(a, [4], requires_grad=False)
+    b_pyc = pycoeus.Tensor(b, [4], requires_grad=False)
+    got_max = pycoeus.maximum(a_pyc, b_pyc)
+    got_min = pycoeus.minimum(a_pyc, b_pyc)
+    ja = jnp.array(a, dtype=jnp.float64)
+    jb = jnp.array(b, dtype=jnp.float64)
+    _allclose("maximum", list(got_max.data), jnp.maximum(ja, jb).tolist())
+    _allclose("minimum", list(got_min.data), jnp.minimum(ja, jb).tolist())
+
 # ---------------------------------------------------------------------------
 # einsum / norm parity
 # ---------------------------------------------------------------------------
