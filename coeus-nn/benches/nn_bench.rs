@@ -21,7 +21,7 @@ use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
     cross_entropy_loss, gelu, huber_loss, interpolate_2d, leaky_relu, mse_loss, prelu, relu,
     sigmoid, silu, tanh, AdaptiveAvgPool2d, AvgPool1d as CoeusAvgPool1d, AvgPool2d, AvgPool3d,
-    BatchNorm1d, BatchNorm2d, BatchNorm3d, Conv1d, Conv2d, Conv3d, ConvTranspose1d,
+    BatchNorm1d, BatchNorm2d, BatchNorm3d, Bilinear, Conv1d, Conv2d, Conv3d, ConvTranspose1d,
     ConvTranspose3d, Dropout, Embedding, EmbeddingBag, EmbeddingBagMode, GroupNorm,
     Gru as CoeusGru, InstanceNorm2d, InterpolateMode as CoeusInterpolateMode, LayerNorm, Linear,
     Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, MultiHeadAttention, NullMask, RMSNorm, SwiGlu,
@@ -613,6 +613,56 @@ fn bench_interpolate2d_bilinear_forward(c: &mut Criterion) {
         CoeusInterpolateMode::Bilinear,
         BurnInterpolateMode::Linear,
     );
+}
+
+/// Coeus-only Bilinear forward (Sequential vs Moirai). No Burn oracle row:
+/// `burn-core` 0.16.0 has no `nn::Bilinear`/`BilinearConfig` — confirmed
+/// against the pinned source (torch's `nn.Bilinear` feature-interaction layer
+/// has no Burn equivalent at the pinned version).
+fn bench_bilinear_forward(c: &mut Criterion) {
+    // Bilinear(in1=64, in2=64, out=32) forward on batch=128 two-input feature
+    // interaction: out[n,k] = x1[n,:] @ W[k,:,:] @ x2[n,:].T + b[k].
+    const BL_BATCH: usize = 128;
+    const BL_IN1: usize = 64;
+    const BL_IN2: usize = 64;
+    const BL_OUT: usize = 32;
+
+    let x1_data: Vec<f32> = (0..(BL_BATCH * BL_IN1))
+        .map(|i| (i as f32 * 0.003).sin())
+        .collect();
+    let x2_data: Vec<f32> = (0..(BL_BATCH * BL_IN2))
+        .map(|i| (i as f32 * 0.0027).cos())
+        .collect();
+
+    let bl_seq = Bilinear::<f32, SequentialBackend>::new(BL_IN1, BL_IN2, BL_OUT, true);
+    let bl_moirai = Bilinear::<f32, MoiraiBackend>::new(BL_IN1, BL_IN2, BL_OUT, true);
+    let x1_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BL_BATCH, BL_IN1], &x1_data),
+        false,
+    );
+    let x2_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BL_BATCH, BL_IN2], &x2_data),
+        false,
+    );
+    let x1_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BL_BATCH, BL_IN1], &x1_data),
+        false,
+    );
+    let x2_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BL_BATCH, BL_IN2], &x2_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Coeus — Bilinear forward (batch128, in1=64 in2=64 out=32)");
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(bl_seq.bilinear_forward(black_box(&x1_seq), black_box(&x2_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(bl_moirai.bilinear_forward(black_box(&x1_moirai), black_box(&x2_moirai)))
+        })
+    });
+    group.finish();
 }
 
 /// One Coeus-vs-Burn Conv1d forward comparison for `[n, ch, len]` input through
@@ -7798,6 +7848,7 @@ criterion_group!(
     bench_avgpool3d_forward,
     bench_interpolate2d_nearest_forward,
     bench_interpolate2d_bilinear_forward,
+    bench_bilinear_forward,
     bench_conv1d_forward,
     bench_conv1d_forward_backward,
     bench_conv2d_forward,

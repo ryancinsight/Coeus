@@ -52,6 +52,18 @@
 
 ## Active Epic: Burn Parity, GPU Audit & Python Surface Expansion
 
+### Current Sprint: MS-430 - bench 209 (Bilinear, Coeus-only) [COMPLETE]
+- [x] [patch] Expanded G-043 benchmark matrix from **208 -> 209** by adding
+  `bench_bilinear_forward` (Coeus Sequential vs Moirai,
+  `Bilinear(in1=64, in2=64, out=32)` batch 128, two distinct inputs). No Burn
+  oracle row: confirmed against the pinned `burn-core` 0.16.0 source that
+  there is no `nn::Bilinear`/`BilinearConfig`.
+- [x] [patch] Cargo.toml `0.5.10` -> `0.5.11`; CHANGELOG.md `0.5.11` section added.
+- [x] Evidence: `cargo check -p coeus-nn --benches` pass; `cargo fmt --check
+  -p coeus-nn` clean; `cargo clippy -p coeus-nn --benches -- -D warnings`
+  clean; `cargo bench -p coeus-nn --bench nn_bench -- "Bilinear forward"`
+  executes both rows (Sequential 3.69ms, Moirai 3.54ms median).
+
 ### Current Sprint: MS-429 - bench 208 (interpolate_2d nearest/bilinear) [COMPLETE]
 - [x] [patch] Expanded G-043 benchmark matrix from **206 -> 208** by adding
   `bench_interpolate2d_nearest_forward`/`bench_interpolate2d_bilinear_forward`

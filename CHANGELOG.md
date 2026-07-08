@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.11 - 2026-07-08
+
+### Added
+
+- **G-043: Bilinear benchmark row** — `coeus-nn/benches/nn_bench.rs` gains
+  `bench_bilinear_forward` (Coeus Sequential vs Moirai,
+  `Bilinear(in1=64, in2=64, out=32)` on batch 128, two distinct inputs via
+  `bilinear_forward`). No Burn oracle row: confirmed against the pinned
+  `burn-core` 0.16.0 source that there is no `nn::Bilinear`/`BilinearConfig`
+  — torch's two-input feature-interaction layer has no Burn 0.16 equivalent.
+
 ## 0.5.10 - 2026-07-08
 
 ### Added

@@ -86,11 +86,14 @@ exists to compare against, confirmed against the pinned `burn-tensor` source).
 `bench_interpolate2d_bilinear_forward` (full 3-way: Burn's
 `nn::interpolate::Interpolate2d` exists at the pinned version, unlike 3D
 pooling). Remaining open surface: MHA cross-attention, vanilla RNN/RNNCell,
-`Bidirectional` wrapper, Bilinear — all confirmed to have no Burn 0.16
-equivalent (Bilinear: no `nn::Bilinear`/`BilinearConfig` in `burn-core`
-0.16.0; vanilla RNN: `nn::rnn` has only `lstm.rs`/`gru.rs`/
-`gate_controller.rs`, no plain-RNN or bidirectional wrapper) — these would be
-Coeus-only benches (Sequential vs Moirai), same pattern as MaxPool3d/AvgPool3d.
+`Bidirectional` wrapper — all confirmed to have no Burn 0.16 equivalent
+(vanilla RNN: `nn::rnn` has only `lstm.rs`/`gru.rs`/`gate_controller.rs`, no
+plain-RNN or bidirectional wrapper) — these would be Coeus-only benches
+(Sequential vs Moirai), same pattern as MaxPool3d/AvgPool3d.
+**2026-07-08 update 3**: added `bench_bilinear_forward` (Coeus Sequential vs
+Moirai only, two distinct inputs via `bilinear_forward`; confirmed no
+`nn::Bilinear`/`BilinearConfig` in `burn-core` 0.16.0). Remaining open
+surface: MHA cross-attention, vanilla RNN/RNNCell, `Bidirectional` wrapper.
 
 ### ~~G-042: Quantized and lazy module parity policy missing~~ **CLOSED (non-goal)**
 **Location**: `coeus-nn/src/lib.rs`, `coeus-python/src/lib.rs`
