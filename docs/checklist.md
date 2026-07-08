@@ -34,12 +34,17 @@
 
 ### Deferred (out of MS-405 scope)
 
-- **MS-406**: Scatter_add/index_put autograd wiring — gradient never flows
-  (binding currently wraps in `Var::new(t, false)`, breaking the autograd graph).
-- **MS-407**: `EmbeddingBag.forward` PyTorch-API — `pycoeus.EmbeddingBag`
-  currently exposes only `forward_with_offsets`; PyTorch parity test
-  `test_embedding_bag_sum_bwd_matches_pytorch` calls `forward(...)` with
-  a `Tensor` indices input.
+- ~~**MS-406**: Scatter_add/index_put autograd wiring~~ **CLOSED** — reconciled
+  2026-07-08: `coeus-python/src/ops/indexing.rs` `scatter_add`/`index_put`
+  already route through `coeus_autograd::{scatter_add,index_put}` (tracked,
+  not `Var::new(t, false)`), with value-semantic backward parity tests
+  `test_scatter_add_bwd_matches_pytorch` / `test_index_put_bwd_matches_pytorch`
+  in `test_pytorch_parity.py`. Entry was stale relative to the tree.
+- ~~**MS-407**: `EmbeddingBag.forward` PyTorch-API~~ **CLOSED** — reconciled
+  2026-07-08: `pycoeus.EmbeddingBag.forward(indices: Tensor, offsets:
+  Optional[Tensor] = None)` already matches the PyTorch-style no-offset
+  signature (`coeus-python/pycoeus.pyi:710`); landed alongside the
+  remainder/maximum/minimum binding extraction (`e36f95f`). Entry was stale.
 - **MS-413-followup**: `triplet_margin_loss` boundary `relu'(0)` subgradient
   discrepancy with JAX (`jnp.maximum(0, x)` returns 0.5 at `x=0`,
   Coeus ReLU returns 0). Affects PyTorch `test_triplet_margin_matches_pytorch`
