@@ -6,6 +6,8 @@
 
 - G-043 benchmark coverage now includes the vanilla RNN sequence path through
   Coeus Sequential and Moirai rows; Burn has no comparable pinned module.
+- G-043 benchmark coverage now also isolates vanilla `RNNCell::step` through
+  Coeus Sequential and Moirai rows; Burn has no comparable pinned module.
 
 ### Breaking
 

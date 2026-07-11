@@ -9,6 +9,15 @@
 - [x] Verification: `cargo check -p coeus-nn --bench nn_bench --offline` and
   `cargo clippy -p coeus-nn --benches --offline -- -D warnings` pass.
 
+## Sprint MS-441: bench 211 (vanilla RNNCell) [COMPLETE]
+
+- [x] [patch] Expanded G-043 with `bench_rnn_cell_forward`, measuring one
+  `RNNCell::step` on Coeus Sequential and Moirai independently of unrolling.
+- [x] [patch] Omitted a Burn row because the pinned Burn RNN surface lacks
+  vanilla recurrent cells.
+- [x] Verification: `cargo check -p coeus-nn --bench nn_bench --offline` and
+  `cargo clippy -p coeus-nn --benches --offline -- -D warnings` pass.
+
 ## Sprint MS-439: Named optimizer ownership [COMPLETE]
 
 **Target version**: 0.8.0

@@ -24,8 +24,8 @@ use coeus_nn::{
     BatchNorm1d, BatchNorm2d, BatchNorm3d, Bilinear, Conv1d, Conv2d, Conv3d, ConvTranspose1d,
     ConvTranspose3d, Dropout, Embedding, EmbeddingBag, EmbeddingBagMode, GroupNorm,
     Gru as CoeusGru, InstanceNorm2d, InterpolateMode as CoeusInterpolateMode, LayerNorm, Linear,
-    Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, MultiHeadAttention, NullMask, RMSNorm, Rnn,
-    RnnNonlinearity, SwiGlu, TransformerEncoderLayer,
+    Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, MultiHeadAttention, NullMask, RMSNorm, RNNCell,
+    Rnn, RnnNonlinearity, SwiGlu, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -1202,6 +1202,49 @@ fn bench_rnn_forward(c: &mut Criterion) {
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| black_box(rnn_moirai.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_rnn_cell_forward(c: &mut Criterion) {
+    // RNNCell has the same missing-Burn constraint as the sequence RNN, but
+    // isolates one recurrent step from sequence unrolling and output stacking.
+    const RNN_BATCH: usize = 4;
+    const RNN_IN: usize = 64;
+    const RNN_H: usize = 128;
+
+    let input_data: Vec<f32> = (0..(RNN_BATCH * RNN_IN))
+        .map(|index| (index as f32 * 0.0029).cos())
+        .collect();
+    let hidden_data: Vec<f32> = (0..(RNN_BATCH * RNN_H))
+        .map(|index| (index as f32 * 0.0017).sin())
+        .collect();
+    let cell_seq = RNNCell::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh);
+    let cell_moirai = RNNCell::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_IN], &input_data),
+        false,
+    );
+    let h_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_H], &hidden_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_IN], &input_data),
+        false,
+    );
+    let h_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_H], &hidden_data),
+        false,
+    );
+
+    let mut group =
+        c.benchmark_group("Coeus — vanilla RNNCell forward (batch=4, in=64 hidden=128)");
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(cell_seq.step(black_box(&x_seq), black_box(&h_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(cell_moirai.step(black_box(&x_moirai), black_box(&h_moirai))))
     });
     group.finish();
 }
@@ -7896,6 +7939,7 @@ criterion_group!(
     bench_lstm_forward,
     bench_gru_forward,
     bench_rnn_forward,
+    bench_rnn_cell_forward,
     bench_swiglu_forward,
     bench_glu_forward,
     bench_softmin_forward,

@@ -200,6 +200,9 @@ surface: MHA cross-attention, vanilla RNN/RNNCell, `Bidirectional` wrapper.
 **2026-07-11 update**: added `bench_rnn_forward` for the vanilla RNN sequence
 path (Sequential vs Moirai, `[4, 32, 64] -> hidden 128`). The pinned Burn 0.16
 `nn::rnn` source has LSTM and GRU only, so no Burn baseline is fabricated.
+**2026-07-11 update 2**: added `bench_rnn_cell_forward` for one vanilla RNN
+transition (Sequential vs Moirai, batch 4, input 64, hidden 128), separating
+cell cost from sequence unrolling. Burn remains inapplicable for this family.
 
 ### ~~G-042: Quantized and lazy module parity policy missing~~ **CLOSED (non-goal)**
 **Location**: `coeus-nn/src/lib.rs`, `coeus-python/src/lib.rs`
