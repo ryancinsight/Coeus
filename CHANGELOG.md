@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Coordinate-grid trilinear interpolation** — `coeus-ops` now samples
+  `[batch, channel, depth, height, width]` images from `(z, y, x)` voxel grids
+  with border replication, typed contract errors, and Sequential/Moirai
+  analytical verification. This is the provider operation required to remove
+  RITK's Burn tensor bridge.
+
 ## 0.5.11 - 2026-07-08
 
 ### Added

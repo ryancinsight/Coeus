@@ -25,6 +25,8 @@ pub use backend_ops::{
 pub mod binary;
 /// Embedding lookup and backward pass.
 pub mod embedding;
+/// Coordinate-grid interpolation operations.
+pub mod interpolation;
 /// Matrix multiplication kernels (matmul, bmm, outer).
 pub mod matmul;
 /// Reduction operations (sum, mean, max, min, norms, variance).
@@ -52,6 +54,7 @@ pub use binary::{
     lt, mul, mul_assign, ne, sub, sub_assign,
 };
 pub use embedding::{embedding, embedding_backward, embedding_backward_with_padding_idx};
+pub use interpolation::{trilinear_interpolation, InterpolationError};
 pub use matmul::{bmm, matmul, matmul_accumulate, outer};
 pub use reduction::{
     amax, amin, argmax, argmin, cross, cumprod, cumsum, dot, frobenius_norm,

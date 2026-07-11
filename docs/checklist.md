@@ -1,5 +1,15 @@
 # Global Progress Checklist: Coeus
 
+## Sprint MS-431: Native coordinate-grid trilinear provider [COMPLETE]
+
+- [x] [minor] Added `coeus_ops::trilinear_interpolation` as the canonical
+  rank-5 voxel-grid operation required by RITK's Burn removal.
+- [x] [minor] Encoded malformed rank, batch, coordinate-channel, empty-axis,
+  and size-overflow failures as `InterpolationError`.
+- [x] [minor] Verified analytical center and border values plus invalid-grid
+  rejection on Sequential and Moirai backends: nextest 2/2; targeted clippy
+  clean.
+
 ## Sprint MS-405: PyTorch/JAX parity defect closure [COMPLETE]
 - [x] [patch] **pairwise_distance eps-convention** — `coeus-autograd/src/ops/nn/loss/pairwise_distance.rs`
       swapped `s + eps` for `max(s, eps)` (matches torch's `pairwise_distance`
