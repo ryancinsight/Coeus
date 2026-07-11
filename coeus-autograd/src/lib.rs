@@ -106,6 +106,7 @@ pub use ops::{
     ge,
     gelu,
     gelu_tanh,
+    grid_sample_3d,
     gt,
     hardshrink,
     hardsigmoid,
