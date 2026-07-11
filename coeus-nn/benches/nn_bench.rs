@@ -21,11 +21,11 @@ use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
     cross_entropy_loss, gelu, huber_loss, interpolate_2d, leaky_relu, mse_loss, prelu, relu,
     sigmoid, silu, tanh, AdaptiveAvgPool2d, AvgPool1d as CoeusAvgPool1d, AvgPool2d, AvgPool3d,
-    BatchNorm1d, BatchNorm2d, BatchNorm3d, Bilinear, Conv1d, Conv2d, Conv3d, ConvTranspose1d,
-    ConvTranspose3d, Dropout, Embedding, EmbeddingBag, EmbeddingBagMode, GroupNorm,
-    Gru as CoeusGru, InstanceNorm2d, InterpolateMode as CoeusInterpolateMode, LayerNorm, Linear,
-    Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, MultiHeadAttention, NullMask, RMSNorm, RNNCell,
-    Rnn, RnnNonlinearity, SwiGlu, TransformerEncoderLayer,
+    BatchNorm1d, BatchNorm2d, BatchNorm3d, Bidirectional, Bilinear, Conv1d, Conv2d, Conv3d,
+    ConvTranspose1d, ConvTranspose3d, Dropout, Embedding, EmbeddingBag, EmbeddingBagMode,
+    GroupNorm, Gru as CoeusGru, InstanceNorm2d, InterpolateMode as CoeusInterpolateMode, LayerNorm,
+    Linear, Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, MultiHeadAttention, NullMask, RMSNorm,
+    RNNCell, Rnn, RnnNonlinearity, SwiGlu, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -1245,6 +1245,45 @@ fn bench_rnn_cell_forward(c: &mut Criterion) {
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| black_box(cell_moirai.step(black_box(&x_moirai), black_box(&h_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_bidirectional_rnn_forward(c: &mut Criterion) {
+    // Burn 0.16 lacks both vanilla RNN and its bidirectional wrapper; this
+    // records only the real Coeus CPU policy comparison.
+    const RNN_BATCH: usize = 4;
+    const RNN_SEQ: usize = 32;
+    const RNN_IN: usize = 64;
+    const RNN_H: usize = 128;
+
+    let input_data: Vec<f32> = (0..(RNN_BATCH * RNN_SEQ * RNN_IN))
+        .map(|index| (index as f32 * 0.0009).cos())
+        .collect();
+    let bi_seq = Bidirectional::new(
+        Rnn::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh),
+        Rnn::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh),
+    );
+    let bi_moirai = Bidirectional::new(
+        Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh),
+        Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh),
+    );
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data),
+        false,
+    );
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data),
+        false,
+    );
+
+    let mut group =
+        c.benchmark_group("Coeus — bidirectional RNN forward (4x32 seq, in=64 hidden=128)");
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| black_box(bi_seq.forward(black_box(&x_seq))))
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| black_box(bi_moirai.forward(black_box(&x_moirai))))
     });
     group.finish();
 }
@@ -7940,6 +7979,7 @@ criterion_group!(
     bench_gru_forward,
     bench_rnn_forward,
     bench_rnn_cell_forward,
+    bench_bidirectional_rnn_forward,
     bench_swiglu_forward,
     bench_glu_forward,
     bench_softmin_forward,
