@@ -179,6 +179,7 @@ pub use ops::{
     scalar_sub,
     scatter_add,
     sdp_attention,
+    selective_scan,
     selu,
     sigmoid,
     sign,

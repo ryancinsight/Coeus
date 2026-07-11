@@ -14,6 +14,8 @@ pub mod linalg;
 pub mod nn;
 /// Reduction operations (norm, log-sum-exp, min/max over axes).
 pub mod reduction;
+/// Differentiable selective scan (Mamba/S6 linear state-space recurrence).
+pub mod scan;
 /// Shape manipulation operations (reshape, permute, cat, split, etc.).
 pub mod shape;
 /// Variable-level operation helpers.
@@ -50,6 +52,7 @@ pub use nn::{
 
 pub use embedding::{embedding, embedding_with_padding_idx};
 pub use interpolation::{grid_sample_3d, linear_interpolation};
+pub use scan::selective_scan;
 pub use shape::{
     broadcast_to, cat, contiguous, cumprod, cumsum, diag, diagonal, diff, einsum, einsum3, flatten,
     flip, gather, index_put, index_select, masked_fill, movedim, pad, permute, reshape, roll,
