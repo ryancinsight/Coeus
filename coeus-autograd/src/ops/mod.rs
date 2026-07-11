@@ -49,7 +49,7 @@ pub use nn::{
 };
 
 pub use embedding::{embedding, embedding_with_padding_idx};
-pub use interpolation::trilinear_interpolation;
+pub use interpolation::linear_interpolation;
 pub use shape::{
     broadcast_to, cat, contiguous, cumprod, cumsum, diag, diagonal, diff, einsum, einsum3, flatten,
     flip, gather, index_put, index_select, masked_fill, movedim, pad, permute, reshape, roll,

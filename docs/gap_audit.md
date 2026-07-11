@@ -1,5 +1,31 @@
 # Coeus Gap Audit
 
+## MS-437: Dimension-complete interpolation closed
+
+**Location**: `coeus-ops/src/interpolation.rs` and
+`coeus-autograd/src/ops/interpolation.rs`.
+**Consumer driver**: RITK ADR 0004 requires one differentiable 2-D/3-D field
+sampling contract before Burn displacement-field deletion.
+**Resolution**: one const-dimension operation family implements both forward
+and reverse mode, with sealed compile-time dimension evidence, sealed ZST
+border policy selection, and no allocation in the per-point corner traversal.
+The dimension-specific API is deleted.
+**Evidence tier**: exact analytical values and gradients, independent central
+differences across all 2-D/3-D coordinate axes with an epsilon/step-derived
+bound, typed negative contracts, Sequential/Moirai differential agreement,
+and affected nextest 282/282.
+
+`cargo-semver-checks` could not construct the historical baseline: the cloned
+Coeus revision loses sibling path dependencies, and its remote Mnemosyne pin
+requires Themis `^0.8.0` while the tracked repository exposes 0.9.17. The
+breaking surface is therefore classified explicitly by source inspection and
+the workspace version is advanced to 0.6.0; no semver-clean claim is made.
+
+The first affected-suite build exhausted the 584.73 GiB shared debug target,
+including 276.64 GiB of inactive incremental artifacts. With no active Rust
+processes, only `D:/atlas/target/debug/incremental` was removed and recreated,
+recovering approximately 280 GB. The unchanged full suite then passed 282/282.
+
 ## MS-436: Bounded archived tensor state closed
 
 **Location**: `coeus-tensor/src/checkpoint.rs`.

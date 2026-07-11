@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Breaking
+
+- Removed the dimension-specific interpolation functions and gradient type.
+  Call `linear_interpolation::<2, _, _>(image, grid, Replicate)` or
+  `linear_interpolation::<3, _, _>(image, grid, Replicate)`; reverse mode uses
+  `linear_interpolation_backward` with the same const dimension and policy.
+
+### Migration
+
+- Replace the old 3-D call with `linear_interpolation::<3, _, _>` and pass
+  `Replicate`. The returned `InterpolationGradients` retains the `image` and
+  `grid` fields. No compatibility alias is provided.
+
 ### Fixed
 
 - **Rank-generic batched matmul** — logical batch axes are preserved in
@@ -9,6 +22,11 @@
   layout. This fixes rank-4 attention gradients in RITK TransMorph training.
 
 ### Added
+
+- **Dimension-complete linear interpolation** — one const-dimension operation
+  family provides 2-D/3-D forward and reverse mode with a sealed replicated-
+  border ZST policy, allocation-free point traversal, and typed rejection of
+  non-finite coordinates.
 
 - **Bounded archived tensor state** — `StateDict` now uses deterministic,
   validated rkyv archives with borrowed name/shape/payload inspection,
@@ -26,13 +44,9 @@
   preserving leading dimensions and all reverse-mode gradient paths. This is
   the provider operation required by RITK TransMorph attention and MLPs.
 
-- **Trilinear reverse mode** — `coeus-ops` provides analytical image/grid
-  derivatives and `coeus-autograd` tracks both inputs, including border
-  replication semantics and malformed-gradient validation.
-
-- **Coordinate-grid trilinear interpolation** — `coeus-ops` now samples
-  `[batch, channel, depth, height, width]` images from `(z, y, x)` voxel grids
-  with border replication, typed contract errors, and Sequential/Moirai
+- **Coordinate-grid linear interpolation** — `coeus-ops` samples 2-D and 3-D
+  images from axis-ordered voxel grids with replicated borders, typed contract
+  errors, analytical reverse mode, and Sequential/Moirai
   analytical verification. This is the provider operation required to remove
   RITK's Burn tensor bridge.
 

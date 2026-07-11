@@ -6,6 +6,13 @@ This document tracks the high-level roadmap and feature validation checklist for
 
 ---
 
+## RITK Dimension-Complete Interpolation [minor]
+- [x] Replace dimension-specific entry points with one const-dimension linear interpolation family.
+- [x] Encode replicated-border behavior as a sealed zero-sized policy.
+- [x] Provide shared 2-D/3-D forward and reverse-mode kernels without hot-loop allocation.
+- [x] Verify analytical values/gradients, every coordinate by central difference,
+      malformed contracts, Sequential/Moirai agreement, and affected nextest 282/282.
+
 ## RITK Bounded Archived State Support [minor]
 - [x] Replace the eager bespoke `StateDict` format with validated rkyv archives.
 - [x] Expose zero-copy borrowed tensor names, shapes, and payload bytes before materialization.

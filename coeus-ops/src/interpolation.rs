@@ -1,49 +1,113 @@
-//! Coordinate-grid interpolation operations.
+//! Dimension-generic coordinate-grid interpolation operations.
 
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_tensor::Tensor;
 
-/// Gradients produced by trilinear interpolation reverse mode.
-pub struct TrilinearGradients<B: Backend> {
-    /// Gradient with respect to image voxel values.
+mod private {
+    pub trait Sealed {}
+}
+
+/// Static boundary behavior for linear interpolation.
+pub trait BoundaryPolicy: private::Sealed + Copy + Default {
+    /// Returns lower/upper indices and their interpolation weights.
+    fn neighbours(coordinate: f32, extent: usize) -> (usize, usize, f32, f32);
+}
+
+/// Replicate the nearest border value outside the image extent.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Replicate;
+
+impl private::Sealed for Replicate {}
+
+impl BoundaryPolicy for Replicate {
+    fn neighbours(coordinate: f32, extent: usize) -> (usize, usize, f32, f32) {
+        let lower_value = coordinate.floor();
+        let upper_weight = coordinate - lower_value;
+        let upper_bound = (extent - 1) as f32;
+        let lower = lower_value.clamp(0.0, upper_bound) as usize;
+        let upper = (lower_value + 1.0).clamp(0.0, upper_bound) as usize;
+        (lower, upper, 1.0 - upper_weight, upper_weight)
+    }
+}
+
+/// Const-dimension marker restricting interpolation monomorphizations.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Dimension<const D: usize>;
+
+/// Compile-time evidence that an interpolation dimension is implemented.
+pub trait SupportedDimension: private::Sealed {}
+
+impl private::Sealed for Dimension<2> {}
+impl private::Sealed for Dimension<3> {}
+impl SupportedDimension for Dimension<2> {}
+impl SupportedDimension for Dimension<3> {}
+
+/// Gradients produced by dimension-generic linear interpolation reverse mode.
+pub struct InterpolationGradients<B: Backend> {
+    /// Gradient with respect to image values.
     pub image: Tensor<f32, B>,
-    /// Gradient with respect to `(z, y, x)` sampling coordinates.
+    /// Gradient with respect to sampling coordinates.
     pub grid: Tensor<f32, B>,
 }
 
-/// Contract failures for [`trilinear_interpolation`].
+/// Contract failures for [`linear_interpolation`].
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum InterpolationError {
-    /// The image does not have `[batch, channel, depth, height, width]` shape.
-    #[error("trilinear interpolation requires a rank-5 image, got rank {0}")]
-    ImageRank(usize),
-    /// The grid does not have `[batch, 3, depth, height, width]` shape.
-    #[error("trilinear interpolation requires a rank-5 grid, got rank {0}")]
-    GridRank(usize),
+    /// The image rank differs from `[batch, channel, spatial...]`.
+    #[error("{dimension}-D interpolation requires image rank {expected}, got {actual}")]
+    ImageRank {
+        /// Spatial dimension.
+        dimension: usize,
+        /// Required rank.
+        expected: usize,
+        /// Supplied rank.
+        actual: usize,
+    },
+    /// The grid rank differs from `[batch, coordinate, spatial...]`.
+    #[error("{dimension}-D interpolation requires grid rank {expected}, got {actual}")]
+    GridRank {
+        /// Spatial dimension.
+        dimension: usize,
+        /// Required rank.
+        expected: usize,
+        /// Supplied rank.
+        actual: usize,
+    },
     /// The grid batch does not match the image batch.
-    #[error("trilinear interpolation batch mismatch: image {image}, grid {grid}")]
+    #[error("linear interpolation batch mismatch: image {image}, grid {grid}")]
     BatchMismatch {
         /// Image batch extent.
         image: usize,
         /// Grid batch extent.
         grid: usize,
     },
-    /// The grid coordinate axis is not `(z, y, x)`.
-    #[error("trilinear interpolation grid must have 3 coordinate channels, got {0}")]
-    GridChannels(usize),
-    /// An input spatial axis is empty.
-    #[error("trilinear interpolation image spatial axis {axis} is empty")]
-    EmptySpatialAxis {
-        /// Name of the empty image axis.
-        axis: &'static str,
+    /// The grid coordinate-channel count differs from the spatial dimension.
+    #[error("linear interpolation grid requires {expected} coordinate channels, got {actual}")]
+    GridChannels {
+        /// Spatial dimension.
+        expected: usize,
+        /// Supplied channel count.
+        actual: usize,
     },
-    /// An output element count overflowed `usize`.
-    #[error("trilinear interpolation output element count overflow")]
-    OutputSizeOverflow,
+    /// An input spatial axis is empty.
+    #[error("linear interpolation image spatial axis {axis} is empty")]
+    EmptySpatialAxis {
+        /// Zero-based spatial axis.
+        axis: usize,
+    },
+    /// A sampling coordinate is NaN or infinite.
+    #[error("linear interpolation coordinate axis {axis} at output point {point} is not finite")]
+    NonFiniteCoordinate {
+        /// Coordinate axis.
+        axis: usize,
+        /// Flattened output point.
+        point: usize,
+    },
+    /// A shape product overflowed `usize`.
+    #[error("linear interpolation element count overflow")]
+    SizeOverflow,
     /// The upstream gradient shape does not match the interpolation output.
-    #[error(
-        "trilinear interpolation gradient shape mismatch: expected {expected:?}, got {actual:?}"
-    )]
+    #[error("linear interpolation gradient shape mismatch: expected {expected:?}, got {actual:?}")]
     GradientShape {
         /// Shape implied by the image and sampling grid.
         expected: Vec<usize>,
@@ -52,246 +116,267 @@ pub enum InterpolationError {
     },
 }
 
-/// Backpropagate through [`trilinear_interpolation`].
-///
-/// Returns gradients for `(image, grid)`. Image gradients scatter each output
-/// contribution to its eight neighbours. Grid gradients differentiate the
-/// native-precision trilinear polynomial with respect to `(z, y, x)`; border
-/// replication therefore has zero coordinate derivative when both neighbours
-/// clamp to the same voxel.
-///
-/// # Errors
-///
-/// Returns [`InterpolationError`] under the forward contract failures or when
-/// `grad_output` does not have the implied output shape.
-pub fn trilinear_interpolation_backward<B>(
-    image: &Tensor<f32, B>,
-    grid: &Tensor<f32, B>,
-    grad_output: &Tensor<f32, B>,
-) -> Result<TrilinearGradients<B>, InterpolationError>
+struct Contract {
+    batch: usize,
+    channels: usize,
+    input_spatial: Vec<usize>,
+    output_spatial: Vec<usize>,
+    input_points: usize,
+    output_points: usize,
+    output_shape: Vec<usize>,
+}
+
+fn checked_product(extents: &[usize]) -> Result<usize, InterpolationError> {
+    extents
+        .iter()
+        .copied()
+        .try_fold(1usize, usize::checked_mul)
+        .ok_or(InterpolationError::SizeOverflow)
+}
+
+fn validate<const D: usize>(image: &[usize], grid: &[usize]) -> Result<Contract, InterpolationError>
 where
-    B: Backend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    Dimension<D>: SupportedDimension,
 {
-    let image_shape = image.shape();
-    let grid_shape = grid.shape();
-    if image_shape.len() != 5 {
-        return Err(InterpolationError::ImageRank(image_shape.len()));
-    }
-    if grid_shape.len() != 5 {
-        return Err(InterpolationError::GridRank(grid_shape.len()));
-    }
-    if image_shape[0] != grid_shape[0] {
-        return Err(InterpolationError::BatchMismatch {
-            image: image_shape[0],
-            grid: grid_shape[0],
+    let rank = D + 2;
+    if image.len() != rank {
+        return Err(InterpolationError::ImageRank {
+            dimension: D,
+            expected: rank,
+            actual: image.len(),
         });
     }
-    if grid_shape[1] != 3 {
-        return Err(InterpolationError::GridChannels(grid_shape[1]));
+    if grid.len() != rank {
+        return Err(InterpolationError::GridRank {
+            dimension: D,
+            expected: rank,
+            actual: grid.len(),
+        });
     }
-    for (axis, extent) in [
-        ("depth", image_shape[2]),
-        ("height", image_shape[3]),
-        ("width", image_shape[4]),
-    ] {
+    if image[0] != grid[0] {
+        return Err(InterpolationError::BatchMismatch {
+            image: image[0],
+            grid: grid[0],
+        });
+    }
+    if grid[1] != D {
+        return Err(InterpolationError::GridChannels {
+            expected: D,
+            actual: grid[1],
+        });
+    }
+    for (axis, &extent) in image[2..].iter().enumerate() {
         if extent == 0 {
             return Err(InterpolationError::EmptySpatialAxis { axis });
         }
     }
+    let input_spatial = image[2..].to_vec();
+    let output_spatial = grid[2..].to_vec();
+    let input_points = checked_product(&input_spatial)?;
+    let output_points = checked_product(&output_spatial)?;
+    let output_shape = [image[0], image[1]]
+        .into_iter()
+        .chain(output_spatial.iter().copied())
+        .collect::<Vec<_>>();
+    checked_product(&output_shape)?;
+    Ok(Contract {
+        batch: image[0],
+        channels: image[1],
+        input_spatial,
+        output_spatial,
+        input_points,
+        output_points,
+        output_shape,
+    })
+}
 
-    let [batch, channels, depth, height, width] = image_shape.try_into().expect("rank checked");
-    let [_, _, out_depth, out_height, out_width] = grid_shape.try_into().expect("rank checked");
-    let expected = vec![batch, channels, out_depth, out_height, out_width];
-    if grad_output.shape() != expected {
+fn spatial_offset(indices: &[usize], extents: &[usize]) -> usize {
+    indices
+        .iter()
+        .zip(extents)
+        .fold(0, |offset, (&index, &extent)| offset * extent + index)
+}
+
+/// Sample a 2-D or 3-D image at a voxel-coordinate grid.
+///
+/// `image` has shape `[batch, channel, spatial...]`; `grid` has shape
+/// `[batch, D, output_spatial...]`. Coordinate channels follow image spatial
+/// axis order. `D` is restricted to 2 or 3, while `P` selects boundary
+/// behavior at compile time with zero runtime storage.
+///
+/// # Errors
+///
+/// Returns [`InterpolationError`] when ranks, batches, coordinate channels,
+/// spatial extents, finite-coordinate requirement, or shape products violate
+/// the contract.
+pub fn linear_interpolation<const D: usize, B, P>(
+    image: &Tensor<f32, B>,
+    grid: &Tensor<f32, B>,
+    _policy: P,
+) -> Result<Tensor<f32, B>, InterpolationError>
+where
+    B: Backend + Default,
+    P: BoundaryPolicy,
+    Dimension<D>: SupportedDimension,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    let contract = validate::<D>(image.shape(), grid.shape())?;
+    let image = image.to_contiguous();
+    let grid = grid.to_contiguous();
+    let image_values = image.as_slice();
+    let grid_values = grid.as_slice();
+    let output_len = checked_product(&contract.output_shape)?;
+    let mut output = vec![0.0; output_len];
+    let corner_count = 1usize << D;
+
+    for batch in 0..contract.batch {
+        for point in 0..contract.output_points {
+            let mut neighbours = [(0, 0, 0.0, 0.0); D];
+            for (axis, entry) in neighbours.iter_mut().enumerate() {
+                let coordinate = grid_values[(batch * D + axis) * contract.output_points + point];
+                if !coordinate.is_finite() {
+                    return Err(InterpolationError::NonFiniteCoordinate { axis, point });
+                }
+                *entry = P::neighbours(coordinate, contract.input_spatial[axis]);
+            }
+            for channel in 0..contract.channels {
+                let base = (batch * contract.channels + channel) * contract.input_points;
+                let mut value = 0.0;
+                for corner in 0..corner_count {
+                    let mut indices = [0; D];
+                    let mut weight = 1.0;
+                    for (axis, &(lower, upper, lower_weight, upper_weight)) in
+                        neighbours.iter().enumerate()
+                    {
+                        let upper_side = corner & (1 << axis) != 0;
+                        indices[axis] = if upper_side { upper } else { lower };
+                        weight *= if upper_side {
+                            upper_weight
+                        } else {
+                            lower_weight
+                        };
+                    }
+                    value += image_values[base + spatial_offset(&indices, &contract.input_spatial)]
+                        * weight;
+                }
+                output[(batch * contract.channels + channel) * contract.output_points + point] =
+                    value;
+            }
+        }
+    }
+
+    Ok(Tensor::from_slice_on(
+        contract.output_shape,
+        &output,
+        &B::default(),
+    ))
+}
+
+/// Backpropagate through [`linear_interpolation`].
+///
+/// Returns gradients for `(image, grid)`. The image derivative scatters to
+/// `2^D` neighbours. Each coordinate derivative differentiates the same
+/// multilinear polynomial; replicated axes have zero derivative when both
+/// neighbours resolve to one border element.
+///
+/// # Errors
+///
+/// Returns [`InterpolationError`] under the forward contract failures or when
+/// `grad_output` does not have the implied output shape. Non-finite sampling
+/// coordinates are rejected before derivative arithmetic.
+pub fn linear_interpolation_backward<const D: usize, B, P>(
+    image: &Tensor<f32, B>,
+    grid: &Tensor<f32, B>,
+    grad_output: &Tensor<f32, B>,
+    _policy: P,
+) -> Result<InterpolationGradients<B>, InterpolationError>
+where
+    B: Backend + Default,
+    P: BoundaryPolicy,
+    Dimension<D>: SupportedDimension,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    let contract = validate::<D>(image.shape(), grid.shape())?;
+    if grad_output.shape() != contract.output_shape {
         return Err(InterpolationError::GradientShape {
-            expected,
+            expected: contract.output_shape,
             actual: grad_output.shape().to_vec(),
         });
     }
-
     let image = image.to_contiguous();
     let grid = grid.to_contiguous();
     let grad_output = grad_output.to_contiguous();
     let image_values = image.as_slice();
     let grid_values = grid.as_slice();
     let upstream = grad_output.as_slice();
-    let output_points = out_depth
-        .checked_mul(out_height)
-        .and_then(|n| n.checked_mul(out_width))
-        .ok_or(InterpolationError::OutputSizeOverflow)?;
-    let input_points = depth * height * width;
     let mut image_gradient = vec![0.0; image_values.len()];
     let mut grid_gradient = vec![0.0; grid_values.len()];
+    let corner_count = 1usize << D;
 
-    for b in 0..batch {
-        for point in 0..output_points {
-            let coordinate = |axis| grid_values[(b * 3 + axis) * output_points + point];
-            let neighbours = |value: f32, extent: usize| {
-                let lower_value = value.floor();
-                let weight = value - lower_value;
-                let lower = lower_value.clamp(0.0, (extent - 1) as f32) as usize;
-                let upper = (lower_value + 1.0).clamp(0.0, (extent - 1) as f32) as usize;
-                (lower, upper, 1.0 - weight, weight)
-            };
-            let (z0, z1, wz0, wz1) = neighbours(coordinate(0), depth);
-            let (y0, y1, wy0, wy1) = neighbours(coordinate(1), height);
-            let (x0, x1, wx0, wx1) = neighbours(coordinate(2), width);
-            let corners = [
-                (z0, y0, x0, wz0 * wy0 * wx0),
-                (z0, y0, x1, wz0 * wy0 * wx1),
-                (z0, y1, x0, wz0 * wy1 * wx0),
-                (z0, y1, x1, wz0 * wy1 * wx1),
-                (z1, y0, x0, wz1 * wy0 * wx0),
-                (z1, y0, x1, wz1 * wy0 * wx1),
-                (z1, y1, x0, wz1 * wy1 * wx0),
-                (z1, y1, x1, wz1 * wy1 * wx1),
-            ];
-
-            let mut dz = 0.0;
-            let mut dy = 0.0;
-            let mut dx = 0.0;
-            for channel in 0..channels {
-                let base = (b * channels + channel) * input_points;
-                let at = |z, y, x| image_values[base + (z * height + y) * width + x];
-                let output_index = (b * channels + channel) * output_points + point;
-                let grad = upstream[output_index];
-                for &(z, y, x, weight) in &corners {
-                    image_gradient[base + (z * height + y) * width + x] += grad * weight;
+    for batch in 0..contract.batch {
+        for point in 0..contract.output_points {
+            let mut neighbours = [(0, 0, 0.0, 0.0); D];
+            for (axis, entry) in neighbours.iter_mut().enumerate() {
+                let coordinate = grid_values[(batch * D + axis) * contract.output_points + point];
+                if !coordinate.is_finite() {
+                    return Err(InterpolationError::NonFiniteCoordinate { axis, point });
                 }
-
-                let x00 = at(z0, y0, x1) - at(z0, y0, x0);
-                let x01 = at(z0, y1, x1) - at(z0, y1, x0);
-                let x10 = at(z1, y0, x1) - at(z1, y0, x0);
-                let x11 = at(z1, y1, x1) - at(z1, y1, x0);
-                dx += grad * ((x00 * wy0 + x01 * wy1) * wz0 + (x10 * wy0 + x11 * wy1) * wz1);
-
-                let y0_delta = (at(z0, y1, x0) - at(z0, y0, x0)) * wx0
-                    + (at(z0, y1, x1) - at(z0, y0, x1)) * wx1;
-                let y1_delta = (at(z1, y1, x0) - at(z1, y0, x0)) * wx0
-                    + (at(z1, y1, x1) - at(z1, y0, x1)) * wx1;
-                dy += grad * (y0_delta * wz0 + y1_delta * wz1);
-
-                let z_delta_0 = (at(z1, y0, x0) - at(z0, y0, x0)) * wx0
-                    + (at(z1, y0, x1) - at(z0, y0, x1)) * wx1;
-                let z_delta_1 = (at(z1, y1, x0) - at(z0, y1, x0)) * wx0
-                    + (at(z1, y1, x1) - at(z0, y1, x1)) * wx1;
-                dz += grad * (z_delta_0 * wy0 + z_delta_1 * wy1);
+                *entry = P::neighbours(coordinate, contract.input_spatial[axis]);
             }
-            grid_gradient[b * 3 * output_points + point] = dz;
-            grid_gradient[(b * 3 + 1) * output_points + point] = dy;
-            grid_gradient[(b * 3 + 2) * output_points + point] = dx;
+            for channel in 0..contract.channels {
+                let base = (batch * contract.channels + channel) * contract.input_points;
+                let output_index =
+                    (batch * contract.channels + channel) * contract.output_points + point;
+                let grad = upstream[output_index];
+                for corner in 0..corner_count {
+                    let mut indices = [0; D];
+                    let mut weights = [0.0; D];
+                    for (axis, &(lower, upper, lower_weight, upper_weight)) in
+                        neighbours.iter().enumerate()
+                    {
+                        let upper_side = corner & (1 << axis) != 0;
+                        indices[axis] = if upper_side { upper } else { lower };
+                        weights[axis] = if upper_side {
+                            upper_weight
+                        } else {
+                            lower_weight
+                        };
+                    }
+                    let input_index = base + spatial_offset(&indices, &contract.input_spatial);
+                    let value = image_values[input_index];
+                    let weight = weights.iter().product::<f32>();
+                    image_gradient[input_index] += grad * weight;
+                    for axis in 0..D {
+                        let (lower, upper, _, _) = neighbours[axis];
+                        if lower == upper {
+                            continue;
+                        }
+                        let sign = if corner & (1 << axis) != 0 { 1.0 } else { -1.0 };
+                        let other_weight = weights
+                            .iter()
+                            .enumerate()
+                            .filter(|(candidate, _)| *candidate != axis)
+                            .map(|(_, weight)| *weight)
+                            .product::<f32>();
+                        grid_gradient[(batch * D + axis) * contract.output_points + point] +=
+                            grad * value * sign * other_weight;
+                    }
+                }
+            }
         }
     }
 
     let backend = B::default();
-    Ok(TrilinearGradients {
-        image: Tensor::from_slice_on(
-            [batch, channels, depth, height, width],
-            &image_gradient,
-            &backend,
-        ),
-        grid: Tensor::from_slice_on(
-            [batch, 3, out_depth, out_height, out_width],
-            &grid_gradient,
-            &backend,
-        ),
-    })
-}
-
-/// Sample a 3-D image at a voxel-coordinate grid using trilinear interpolation.
-///
-/// `image` has shape `[batch, channel, depth, height, width]`. `grid` has shape
-/// `[batch, 3, output_depth, output_height, output_width]`; its coordinate
-/// channels are ordered `(z, y, x)`. Coordinates outside the input extent use
-/// border replication. Arithmetic and accumulation use the public `f32`
-/// coordinate contract without hidden precision widening.
-///
-/// # Errors
-///
-/// Returns [`InterpolationError`] when ranks, batches, coordinate channels, or
-/// spatial extents violate the contract, or when the output size overflows.
-pub fn trilinear_interpolation<B>(
-    image: &Tensor<f32, B>,
-    grid: &Tensor<f32, B>,
-) -> Result<Tensor<f32, B>, InterpolationError>
-where
-    B: Backend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
-{
-    let image_shape = image.shape();
-    let grid_shape = grid.shape();
-    if image_shape.len() != 5 {
-        return Err(InterpolationError::ImageRank(image_shape.len()));
-    }
-    if grid_shape.len() != 5 {
-        return Err(InterpolationError::GridRank(grid_shape.len()));
-    }
-    if image_shape[0] != grid_shape[0] {
-        return Err(InterpolationError::BatchMismatch {
-            image: image_shape[0],
-            grid: grid_shape[0],
-        });
-    }
-    if grid_shape[1] != 3 {
-        return Err(InterpolationError::GridChannels(grid_shape[1]));
-    }
-    for (axis, extent) in [
-        ("depth", image_shape[2]),
-        ("height", image_shape[3]),
-        ("width", image_shape[4]),
-    ] {
-        if extent == 0 {
-            return Err(InterpolationError::EmptySpatialAxis { axis });
-        }
-    }
-
-    let [batch, channels, depth, height, width] = image_shape.try_into().expect("rank checked");
-    let [_, _, out_depth, out_height, out_width] = grid_shape.try_into().expect("rank checked");
-    let output_len = [batch, channels, out_depth, out_height, out_width]
+    let image_shape = [contract.batch, contract.channels]
         .into_iter()
-        .try_fold(1usize, usize::checked_mul)
-        .ok_or(InterpolationError::OutputSizeOverflow)?;
-    let image = image.to_contiguous();
-    let grid = grid.to_contiguous();
-    let image_values = image.as_slice();
-    let grid_values = grid.as_slice();
-    let output_points = out_depth * out_height * out_width;
-    let input_points = depth * height * width;
-    let mut output = vec![0.0; output_len];
-
-    for b in 0..batch {
-        for point in 0..output_points {
-            let coordinate = |axis| grid_values[(b * 3 + axis) * output_points + point];
-            let neighbours = |value: f32, extent: usize| {
-                let lower_value = value.floor();
-                let weight = value - lower_value;
-                let lower = lower_value.clamp(0.0, (extent - 1) as f32) as usize;
-                let upper = (lower_value + 1.0).clamp(0.0, (extent - 1) as f32) as usize;
-                (lower, upper, 1.0 - weight, weight)
-            };
-            let (z0, z1, wz0, wz1) = neighbours(coordinate(0), depth);
-            let (y0, y1, wy0, wy1) = neighbours(coordinate(1), height);
-            let (x0, x1, wx0, wx1) = neighbours(coordinate(2), width);
-
-            for channel in 0..channels {
-                let base = (b * channels + channel) * input_points;
-                let at = |z, y, x| image_values[base + (z * height + y) * width + x];
-                let xy00 = at(z0, y0, x0) * wx0 + at(z0, y0, x1) * wx1;
-                let xy01 = at(z0, y1, x0) * wx0 + at(z0, y1, x1) * wx1;
-                let xy10 = at(z1, y0, x0) * wx0 + at(z1, y0, x1) * wx1;
-                let xy11 = at(z1, y1, x0) * wx0 + at(z1, y1, x1) * wx1;
-                let z0_value = xy00 * wy0 + xy01 * wy1;
-                let z1_value = xy10 * wy0 + xy11 * wy1;
-                output[(b * channels + channel) * output_points + point] =
-                    z0_value * wz0 + z1_value * wz1;
-            }
-        }
-    }
-
-    Ok(Tensor::from_slice_on(
-        [batch, channels, out_depth, out_height, out_width],
-        &output,
-        &B::default(),
-    ))
+        .chain(contract.input_spatial)
+        .collect::<Vec<_>>();
+    let grid_shape = [contract.batch, D]
+        .into_iter()
+        .chain(contract.output_spatial)
+        .collect::<Vec<_>>();
+    Ok(InterpolationGradients {
+        image: Tensor::from_slice_on(image_shape, &image_gradient, &backend),
+        grid: Tensor::from_slice_on(grid_shape, &grid_gradient, &backend),
+    })
 }

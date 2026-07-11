@@ -1,5 +1,16 @@
 # Coeus Project Backlog & Historical Archives
 
+## MS-437 RITK dimension-complete interpolation provider (CLOSED 2026-07-11)
+
+[major] One `linear_interpolation::<D, _, _>` family now owns 2-D and 3-D
+forward and reverse-mode sampling. A sealed `Replicate` ZST selects border
+semantics without runtime dispatch, and const-sized neighbour/index/weight
+storage keeps point traversal allocation-free. The dimension-specific public
+API was deleted rather than retained as an alias. Evidence: exact values and
+image/grid gradients, central differences for all five coordinate axes,
+typed malformed-contract rejection, Sequential/Moirai agreement, and affected
+nextest 282/282.
+
 ## MS-436 RITK bounded archived state provider (CLOSED 2026-07-11)
 
 [minor] `StateDict` now writes deterministic, validated rkyv archives and
@@ -37,19 +48,21 @@ attention and MLP tensors without consumer-owned reshaping wrappers. Exact
 rank-3/rank-5 forward values and all three rank-3 gradient paths pass, as do
 all 409 `coeus-nn` tests, warning-denied Clippy, and rustdoc.
 
-## MS-432 RITK trilinear autograd provider (CLOSED 2026-07-10)
+## MS-432 RITK 3-D autograd provider (SUPERSEDED BY MS-437)
 
 [minor] `coeus-ops` now computes image and sampling-grid derivatives for
-rank-5 trilinear interpolation, and `coeus-autograd` preserves both paths in
+rank-5 linear interpolation; MS-437 generalizes and replaces this API, while
+`coeus-autograd` preserves both paths in
 reverse mode. This closes the gradient-semantics prerequisite for migrating
 RITK affine and TransMorph spatial transformers off Burn.
 
-## MS-431 RITK trilinear provider (CLOSED 2026-07-10)
+## MS-431 RITK 3-D interpolation provider (SUPERSEDED BY MS-437)
 
-[minor] `coeus-ops` now owns rank-5 voxel-coordinate trilinear interpolation,
-including typed shape validation and native-precision `f32` arithmetic. This
-unblocks deletion of RITK's native-to-Burn-to-native interpolation bridge.
-Analytical value and failure-contract tests pass on Sequential and Moirai.
+[minor] This introduced rank-5 voxel-coordinate linear interpolation; MS-437
+replaced its dimension-specific public name with the generic operation family.
+Typed shape validation and native-precision `f32` arithmetic remain in the
+generic family, unblocking deletion of RITK's interpolation bridge. Analytical
+value and failure-contract tests pass on Sequential and Moirai.
 
 ## CR-4 SSOT rebind: `coeus_core::Scalar` over `eunomia::NumericElement` (CLOSED 2026-07-05)
 

@@ -118,6 +118,7 @@ pub use ops::{
     le,
     leaky_relu,
     lgamma_forward,
+    linear_interpolation,
     log,
     log10,
     log1p,
@@ -215,7 +216,6 @@ pub use ops::{
     transpose_2d,
     // Triangular masking
     tril,
-    trilinear_interpolation,
     triu,
     trunc,
     unfold1d,

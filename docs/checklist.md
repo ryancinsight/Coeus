@@ -1,5 +1,18 @@
 # Global Progress Checklist: Coeus
 
+## Sprint MS-437: Dimension-complete interpolation [COMPLETE]
+
+**Target version**: 0.6.0
+
+- [x] [major] Replace the dimension-specific public surface with one
+  `linear_interpolation::<D, _, _>` operation family for 2-D and 3-D images.
+- [x] [minor] Encode replicated borders as a sealed ZST policy and share the
+  allocation-free corner traversal between both dimensions.
+- [x] [minor] Verify exact forward/image/grid derivatives, every coordinate by
+  central difference, malformed dimension/shape rejection, autograd, and
+  Sequential/Moirai agreement; affected nextest 282/282 clean.
+- [x] [major] Bump the workspace to 0.6.0 and document the public migration.
+
 ## Sprint MS-436: Bounded archived tensor state [COMPLETE]
 
 - [x] [minor] Replace the eager bespoke `StateDict` encoding with validated rkyv archives.
@@ -25,20 +38,21 @@
   input/weight/bias gradients, full `coeus-nn` nextest 409/409,
   warning-denied Clippy, and rustdoc.
 
-## Sprint MS-432: Trilinear reverse-mode provider [COMPLETE]
+## Sprint MS-432: Three-dimensional reverse-mode provider [SUPERSEDED BY MS-437]
 
 - [x] [minor] Added native-precision image and `(z, y, x)` grid derivatives
-  for rank-5 trilinear sampling.
+  for rank-5 linear sampling. The dimension-specific API was removed by MS-437.
 - [x] [minor] Added a tracked autograd operation that accumulates both input
   gradients without detaching the model graph.
 - [x] [minor] Verified analytical ramp derivatives, constant-field coordinate
   invariance, malformed-gradient rejection, and Sequential/Moirai execution:
   nextest 4/4; targeted Clippy and rustdoc clean.
 
-## Sprint MS-431: Native coordinate-grid trilinear provider [COMPLETE]
+## Sprint MS-431: Native 3-D coordinate-grid provider [SUPERSEDED BY MS-437]
 
-- [x] [minor] Added `coeus_ops::trilinear_interpolation` as the canonical
-  rank-5 voxel-grid operation required by RITK's Burn removal.
+- [x] [minor] Originally added the dimension-specific operation; MS-437
+  removed that name in favor of the canonical const-dimension family required
+  by RITK's Burn removal.
 - [x] [minor] Encoded malformed rank, batch, coordinate-channel, empty-axis,
   and size-overflow failures as `InterpolationError`.
 - [x] [minor] Verified analytical center and border values plus invalid-grid
