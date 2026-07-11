@@ -36,7 +36,7 @@ where
     assert!(empty.is_contiguous());
     assert_eq!(empty.shape(), &[0]);
     assert_eq!(empty.as_slice(), expected_empty.as_slice());
-    assert_eq!(empty.as_slice(), &[]);
+    assert_eq!(empty.as_slice(), &[] as &[i32]);
 }
 
 #[test]

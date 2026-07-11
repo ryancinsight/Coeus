@@ -13,6 +13,7 @@ coeus-leto  = { path = "../coeus-leto" }
 smallvec    = { workspace = true }
 thiserror   = { workspace = true }
 bytemuck    = { workspace = true }
+rkyv        = { workspace = true }
 
 
 [dev-dependencies]

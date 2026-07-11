@@ -1,5 +1,11 @@
 # Global Progress Checklist: Coeus
 
+## Sprint MS-436: Bounded archived tensor state [COMPLETE]
+
+- [x] [minor] Replace the eager bespoke `StateDict` encoding with validated rkyv archives.
+- [x] [minor] Provide borrowed archived name/shape/payload inspection and bounded materialization.
+- [x] [minor] Verify deterministic encoding, pointer-range provenance, round trips, truncation, scalar mismatch, duplicate names, and resource limits; package nextest 56/56, Clippy, Rustdoc, and doctests clean.
+
 ## Sprint MS-434: Rank-preserving batched matmul [COMPLETE]
 
 - [x] [patch] Preserve logical batch axes for rank-generic matmul outputs

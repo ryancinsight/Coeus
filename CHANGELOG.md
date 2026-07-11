@@ -10,6 +10,12 @@
 
 ### Added
 
+- **Bounded archived tensor state** — `StateDict` now uses deterministic,
+  validated rkyv archives with borrowed name/shape/payload inspection,
+  explicit hostile-input limits, scalar and byte-order validation, and typed
+  materialization onto a selected backend. This supplies RITK's trainable
+  displacement-field persistence prerequisite.
+
 - **Depthwise 3-D convolution** — `coeus_nn::DepthwiseConv3d` applies one
   learned volumetric kernel per channel while retaining reverse-mode gradients
   for inputs, kernels, and bias. This is the provider operation required by

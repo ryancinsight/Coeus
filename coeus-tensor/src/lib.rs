@@ -23,6 +23,6 @@ pub mod views;
 /// StateDict checkpointing for model parameter serialization.
 pub mod checkpoint;
 
-pub use checkpoint::StateDict;
+pub use checkpoint::{ArchivedTensor, StateArchive, StateDict, StateLimits};
 pub use tensor::Tensor;
 pub use views::Transpose;

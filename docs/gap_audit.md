@@ -1,5 +1,16 @@
 # Coeus Gap Audit
 
+## MS-436: Bounded archived tensor state closed
+
+**Location**: `coeus-tensor/src/checkpoint.rs`.
+**Consumer driver**: RITK ADR 0004 requires named, bounded persistence for
+trainable displacement fields without retaining Burn records.
+**Resolution**: `StateDict` owns a deterministic validated rkyv archive with a
+zero-copy borrowed inspection view and explicit bounded materialization.
+**Evidence tier**: exact tensor round trips, pointer-range proof for borrowed
+payloads, deterministic insertion-order invariance, typed truncation/scalar/
+limit/duplicate failures, package nextest 56/56, Clippy, Rustdoc, and doctests.
+
 ## MS-435: Depthwise 3-D convolution closed
 
 **Location**: `coeus-nn/src/conv/depthwise3d.rs`.

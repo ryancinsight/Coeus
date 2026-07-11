@@ -6,6 +6,12 @@ This document tracks the high-level roadmap and feature validation checklist for
 
 ---
 
+## RITK Bounded Archived State Support [minor]
+- [x] Replace the eager bespoke `StateDict` format with validated rkyv archives.
+- [x] Expose zero-copy borrowed tensor names, shapes, and payload bytes before materialization.
+- [x] Enforce archive/tensor/name/rank/payload limits, scalar identity, byte order, duplicate-name rejection, and deterministic ordering.
+- [x] Verify package nextest 56/56, warning-denied Clippy, Rustdoc, and doctests.
+
 ## RITK VMamba Depthwise Convolution Support [minor]
 - [x] Add a canonical Coeus depthwise 3-D convolution module with one learned kernel per channel.
 - [x] Preserve input, kernel, and bias reverse-mode paths without a consumer-owned grouped-convolution adapter.

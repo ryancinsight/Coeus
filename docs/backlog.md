@@ -1,5 +1,15 @@
 # Coeus Project Backlog & Historical Archives
 
+## MS-436 RITK bounded archived state provider (CLOSED 2026-07-11)
+
+[minor] `StateDict` now writes deterministic, validated rkyv archives and
+exposes borrowed tensor names, dimensions, and payload bytes before explicit
+backend materialization. Archive size, tensor count, name length, rank,
+per-tensor bytes, aggregate bytes, scalar identity, host byte order, and
+duplicate names are enforced at the trust boundary. This supplies ADR 0004's
+trainable RITK displacement-field persistence prerequisite. Evidence: package
+nextest 56/56, warning-denied Clippy, Rustdoc, and doctests.
+
 ## MS-435 RITK VMamba depthwise convolution provider (CLOSED 2026-07-10)
 
 [minor] `DepthwiseConv3d` owns channel-independent 3-D convolution in Coeus.

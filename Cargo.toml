@@ -44,6 +44,7 @@ half       = { version = "2.7", features = ["bytemuck"] }
 # (coeus-tensor). FFT integration routes through Atlas-owned Apollo APIs rather
 # than rustfft or a Coeus-local array dependency.
 smallvec   = "1.13"
+rkyv       = { version = "0.8.17", features = ["bytecheck", "std"] }
 wgpu       = { version = "26.0", features = ["wgsl"] }
 hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.11.0" }
 hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.11.0" }
