@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Added
+
+- G-043 benchmark coverage now includes the vanilla RNN sequence path through
+  Coeus Sequential and Moirai rows; Burn has no comparable pinned module.
+
 ### Breaking
 
 - Optimizer constructors now require `Vec<coeus_autograd::Parameter>` instead

@@ -197,6 +197,9 @@ plain-RNN or bidirectional wrapper) — these would be Coeus-only benches
 Moirai only, two distinct inputs via `bilinear_forward`; confirmed no
 `nn::Bilinear`/`BilinearConfig` in `burn-core` 0.16.0). Remaining open
 surface: MHA cross-attention, vanilla RNN/RNNCell, `Bidirectional` wrapper.
+**2026-07-11 update**: added `bench_rnn_forward` for the vanilla RNN sequence
+path (Sequential vs Moirai, `[4, 32, 64] -> hidden 128`). The pinned Burn 0.16
+`nn::rnn` source has LSTM and GRU only, so no Burn baseline is fabricated.
 
 ### ~~G-042: Quantized and lazy module parity policy missing~~ **CLOSED (non-goal)**
 **Location**: `coeus-nn/src/lib.rs`, `coeus-python/src/lib.rs`
