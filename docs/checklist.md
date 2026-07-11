@@ -1,5 +1,14 @@
 # Global Progress Checklist: Coeus
 
+## Sprint MS-434: Rank-preserving batched matmul [COMPLETE]
+
+- [x] [patch] Preserve logical batch axes for rank-generic matmul outputs
+  while retaining flattened kernel dispatch.
+- [x] [patch] Give accumulating backward kernels an explicit rank-3 dispatch
+  layout instead of passing the logical rank-N destination layout.
+- [x] [patch] Verify exact rank-4 forward values and both operand gradients;
+  affected Coeus nextest 689/689 and warning-denied Clippy clean.
+
 ## Sprint MS-433: Rank-generic linear projection [COMPLETE]
 
 - [x] [minor] Generalized `Linear::forward` from rank-2 matrices to a

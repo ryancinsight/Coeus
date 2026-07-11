@@ -6,6 +6,12 @@ This document tracks the high-level roadmap and feature validation checklist for
 
 ---
 
+## RITK Attention Matmul Support [patch]
+- [x] Preserve rank-N logical batch axes across batched matmul.
+- [x] Dispatch backward accumulation through an explicit rank-3 kernel layout.
+- [x] Verify exact rank-4 values and both operand gradients, affected nextest
+      689/689, and warning-denied Clippy.
+
 ## RITK TransMorph Provider Support [minor]
 - [x] Generalized `coeus_nn::Linear` to project the final feature axis of
       rank-2 and higher-rank inputs through one autograd-preserving path.

@@ -1,5 +1,18 @@
 # Coeus Gap Audit
 
+## MS-434: Rank-preserving batched matmul closed
+
+**Location**: `coeus-ops/src/matmul/kernel.rs` and
+`coeus-autograd/tests/autograd/linalg.rs`.
+**Gap**: rank-N matmul flattened logical batch axes into one output axis, and
+backward accumulation passed the restored rank-N gradient destination directly
+to a rank-3 Leto kernel. Rank-4 Swin attention therefore panicked during real
+backward execution.
+**Resolution**: output tensors retain their logical batch shape, while forward
+and accumulating backward construct explicit flattened dispatch layouts.
+**Evidence tier**: exact rank-4 forward values and analytical gradients for
+both operands; affected Coeus nextest 689/689; warning-denied Clippy clean.
+
 ## MS-433: Rank-generic linear projection closed
 
 **Location**: `coeus-nn/src/linear.rs`.

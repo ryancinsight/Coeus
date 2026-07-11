@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- **Rank-generic batched matmul** — logical batch axes are preserved in
+  outputs, and backward accumulation uses an explicit flattened dispatch
+  layout. This fixes rank-4 attention gradients in RITK TransMorph training.
+
 ### Added
 
 - **Rank-generic linear projection** — `coeus_nn::Linear` now applies its

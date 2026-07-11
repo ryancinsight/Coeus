@@ -90,10 +90,27 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
         b_slices
     );
     let batch_size = a_slices.max(b_slices);
+    let a_batch = &a_shape[..a_ndim.saturating_sub(2)];
+    let b_batch = &b_shape[..b_ndim.saturating_sub(2)];
+    let batch_shape = match (a_slices, b_slices) {
+        (1, 1) if a_ndim == 2 && b_ndim > 2 => b_batch.to_vec(),
+        (1, 1) if b_ndim == 2 && a_ndim > 2 => a_batch.to_vec(),
+        (1, _) => b_batch.to_vec(),
+        (_, 1) => a_batch.to_vec(),
+        _ => {
+            assert_eq!(
+                a_batch, b_batch,
+                "matmul: non-singleton batch dimensions must match exactly"
+            );
+            a_batch.to_vec()
+        }
+    };
 
-    // ── Build output shape: [batch_size, m, n] ──
-    let out_shape = [batch_size, m, n];
-    let mut out = Tensor::alloc_on(out_shape.as_slice(), backend);
+    // Preserve logical batch axes while dispatching one flattened batch index
+    // to the backend kernel.
+    let mut out_shape = batch_shape;
+    out_shape.extend([m, n]);
+    let mut out = Tensor::alloc_on(out_shape, backend);
 
     let a_storage = a.storage();
     let b_storage = b.storage();
@@ -218,7 +235,17 @@ pub fn matmul_accumulate<T: Scalar, B: BackendOps<T> + Default>(
 
     let a_layout = batch_layout(a.layout(), a_slices, m, k, a_ndim == 2);
     let b_layout = batch_layout(b.layout(), b_slices, k, n, b_ndim == 2);
+    assert_eq!(
+        out.numel(),
+        a_slices.max(b_slices) * m * n,
+        "matmul_accumulate: output element count must match batched product"
+    );
     let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let c_layout = Layout::from_shape_strides(
+        Shape::from([a_slices.max(b_slices), m, n].as_slice()),
+        Strides::from([m * n, n, 1].as_slice()),
+        out_layout.offset(),
+    );
 
     backend.batched_matmul_accumulate(
         a.storage(),
@@ -226,6 +253,6 @@ pub fn matmul_accumulate<T: Scalar, B: BackendOps<T> + Default>(
         b.storage(),
         &b_layout,
         out_storage,
-        out_layout,
+        &c_layout,
     );
 }

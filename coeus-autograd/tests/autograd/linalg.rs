@@ -60,3 +60,45 @@ fn test_bmm_backward_accumulates_exact_gradients() {
         assert!((got - want).abs() < 1e-14, "grad_b[{i}] {got} vs {want}");
     }
 }
+
+#[test]
+fn rank_four_batched_matmul_preserves_axes_and_exact_gradients() {
+    let backend = MoiraiBackend::new();
+    let a = Var::new(
+        Tensor::from_slice_on(
+            [1, 2, 2, 3],
+            &[
+                1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 0.0, 1.0, 0.0, 2.0, 0.0, 2.0,
+            ],
+            &backend,
+        ),
+        true,
+    );
+    let b = Var::new(
+        Tensor::from_slice_on(
+            [1, 2, 3, 2],
+            &[
+                1.0f64, 0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 0.0, 3.0,
+            ],
+            &backend,
+        ),
+        true,
+    );
+
+    let output = matmul(&a, &b);
+    assert_eq!(output.tensor.shape(), &[1, 2, 2, 2]);
+    assert_eq!(
+        output.tensor.as_slice(),
+        &[4.0, 5.0, 10.0, 11.0, 1.0, 2.0, 4.0, 8.0]
+    );
+
+    output.backward();
+    assert_eq!(
+        a.grad().expect("A gradient must be populated").as_slice(),
+        &[1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
+    );
+    assert_eq!(
+        b.grad().expect("B gradient must be populated").as_slice(),
+        &[5.0, 5.0, 7.0, 7.0, 9.0, 9.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0]
+    );
+}

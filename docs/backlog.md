@@ -1,5 +1,14 @@
 # Coeus Project Backlog & Historical Archives
 
+## MS-434 RITK attention matmul provider repair (CLOSED 2026-07-10)
+
+[patch] Rank-generic matmul now preserves all logical batch axes while
+flattening them only for backend dispatch. Accumulating backward dispatch uses
+an explicit `[batch, rows, columns]` layout, fixing the rank-4 attention
+gradient failure exposed by RITK TransMorph training. Exact rank-4 values and
+both operand gradients pass; affected Coeus nextest is 689/689 and
+warning-denied Clippy is clean.
+
 ## MS-433 RITK Swin linear provider (CLOSED 2026-07-10)
 
 [minor] `coeus_nn::Linear` now projects the last axis of rank-2 and
