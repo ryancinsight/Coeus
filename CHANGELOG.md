@@ -10,6 +10,8 @@
   Coeus Sequential and Moirai rows; Burn has no comparable pinned module.
 - G-043 benchmark coverage now includes the bidirectional vanilla-RNN wrapper
   through Coeus Sequential and Moirai rows; Burn has no comparable pinned module.
+- G-043 benchmark coverage now includes cross-attention with distinct query and
+  memory sequences through Coeus Sequential and Moirai rows.
 
 ### Breaking
 

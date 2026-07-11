@@ -925,6 +925,66 @@ fn bench_mha_forward(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_mha_cross_attention_forward(c: &mut Criterion) {
+    // Cross-attention has separate query and memory sequence lengths. Burn
+    // 0.16 exposes only the self-attention MhaInput benchmark surface, so this
+    // remains a Coeus policy comparison rather than a synthetic Burn baseline.
+    const B: usize = 8;
+    const QUERY_SEQ: usize = 32;
+    const MEMORY_SEQ: usize = 64;
+    const D: usize = 256;
+    const H: usize = 8;
+    let query_data: Vec<f32> = (0..(B * QUERY_SEQ * D))
+        .map(|index| (index as f32 * 0.0013).sin())
+        .collect();
+    let memory_data: Vec<f32> = (0..(B * MEMORY_SEQ * D))
+        .map(|index| (index as f32 * 0.0007).cos())
+        .collect();
+    let mha_seq = MultiHeadAttention::<f32, SequentialBackend, H, NullMask>::new(D, true);
+    let mha_moirai = MultiHeadAttention::<f32, MoiraiBackend, H, NullMask>::new(D, true);
+    let query_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![B, QUERY_SEQ, D], &query_data),
+        false,
+    );
+    let memory_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![B, MEMORY_SEQ, D], &memory_data),
+        false,
+    );
+    let query_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![B, QUERY_SEQ, D], &query_data),
+        false,
+    );
+    let memory_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![B, MEMORY_SEQ, D], &memory_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group(
+        "Coeus — MHA cross-attn forward (query 8x32x256, memory 8x64x256, 8 heads)",
+    );
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            black_box(mha_seq.forward_cross(
+                black_box(&query_seq),
+                black_box(&memory_seq),
+                black_box(&memory_seq),
+                None,
+            ))
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(mha_moirai.forward_cross(
+                black_box(&query_moirai),
+                black_box(&memory_moirai),
+                black_box(&memory_moirai),
+                None,
+            ))
+        })
+    });
+    group.finish();
+}
+
 fn bench_transformer_encoder_forward(c: &mut Criterion) {
     // One Pre-LN transformer encoder layer (self-attn + FFN + 2 LayerNorms +
     // residuals) on [batch=8, seq=64, d_model=256], d_ff=1024, 8 heads. Burn uses
@@ -7971,6 +8031,7 @@ criterion_group!(
     bench_conv_transpose1d_forward,
     bench_conv_transpose3d_forward,
     bench_mha_forward,
+    bench_mha_cross_attention_forward,
     bench_transformer_encoder_forward,
     bench_embedding_forward,
     bench_embeddingbag_sum,
