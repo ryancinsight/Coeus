@@ -1,5 +1,14 @@
 # Global Progress Checklist: Coeus
 
+## Sprint MS-444: bench 214 (LocalResponseNorm) [COMPLETE]
+
+- [x] [patch] Expanded G-043 with `bench_local_response_norm_forward` on
+  `[8, 32, 16, 16]`, size 5, comparing Coeus Sequential and Moirai.
+- [x] [patch] Omitted a Burn row because pinned Burn 0.16 exposes no
+  `LocalResponseNorm` module family.
+- [x] Verification: `cargo check -p coeus-nn --bench nn_bench --offline` and
+  `cargo clippy -p coeus-nn --benches --offline -- -D warnings` pass.
+
 ## Sprint MS-440: bench 210 (vanilla RNN) [COMPLETE]
 
 - [x] [patch] Expanded G-043 with `bench_rnn_forward`: Coeus Sequential vs

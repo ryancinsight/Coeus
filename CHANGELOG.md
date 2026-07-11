@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Added a LocalResponseNorm forward benchmark for Sequential and Moirai backends.
+
 ## Unreleased
 
 ### Added
