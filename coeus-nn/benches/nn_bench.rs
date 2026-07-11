@@ -1872,7 +1872,7 @@ fn bench_avgpool1d_forward(c: &mut Criterion) {
     group.finish();
 }
 fn bench_embeddingbag_sum(c: &mut Criterion) {
-    // EmbeddingBag sum-mode forward: 16 bags × 100 tokens each, vocab=200, dim=64.
+    // EmbeddingBag sum/mean-mode forward: 16 bags × 100 tokens each, vocab=200, dim=64.
     // Burn 0.16 has no dedicated EmbeddingBag; the equivalent is Embedding::forward + sum_dim.
     const EB_VOCAB: usize = 200;
     const EB_DIM: usize = 64;
@@ -1896,9 +1896,13 @@ fn bench_embeddingbag_sum(c: &mut Criterion) {
         EmbeddingBag::<f32, SequentialBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum);
     let eb_moirai =
         EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum);
+    let eb_mean_seq =
+        EmbeddingBag::<f32, SequentialBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Mean);
+    let eb_mean_moirai =
+        EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Mean);
 
     let mut group = c.benchmark_group(
-        "Burn vs Coeus — EmbeddingBag sum (16 bags × 100 tokens, vocab=200 dim=64)",
+        "Burn vs Coeus — EmbeddingBag reductions (16 bags × 100 tokens, vocab=200 dim=64)",
     );
     group.bench_function("Burn NdArray (Embedding + sum_dim)", |b| {
         b.iter(|| {
@@ -1917,6 +1921,28 @@ fn bench_embeddingbag_sum(c: &mut Criterion) {
         b.iter(|| {
             black_box(
                 eb_moirai.forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))),
+            )
+        })
+    });
+    group.bench_function("Burn NdArray (Embedding + mean_dim)", |b| {
+        b.iter(|| {
+            let embedded = burn_emb.forward(black_box(x_burn.clone()));
+            black_box(embedded.mean_dim(1))
+        })
+    });
+    group.bench_function("Coeus Sequential mean", |b| {
+        b.iter(|| {
+            black_box(
+                eb_mean_seq
+                    .forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))),
+            )
+        })
+    });
+    group.bench_function("Coeus Moirai mean", |b| {
+        b.iter(|| {
+            black_box(
+                eb_mean_moirai
+                    .forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))),
             )
         })
     });

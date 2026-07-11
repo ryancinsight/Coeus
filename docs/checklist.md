@@ -1,5 +1,12 @@
 # Global Progress Checklist: Coeus
 
+## Sprint MS-445: bench 215 (EmbeddingBag mean) [COMPLETE]
+
+- [x] [patch] Expanded the existing EmbeddingBag benchmark workload with mean
+  reduction rows: Burn Embedding plus `mean_dim`, Coeus Sequential, and Moirai.
+- [x] Verification: `cargo check -p coeus-nn --bench nn_bench --offline` and
+  `cargo clippy -p coeus-nn --benches --offline -- -D warnings` pass.
+
 ## Sprint MS-444: bench 214 (LocalResponseNorm) [COMPLETE]
 
 - [x] [patch] Expanded G-043 with `bench_local_response_norm_forward` on
