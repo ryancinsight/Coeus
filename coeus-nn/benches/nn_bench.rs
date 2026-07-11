@@ -24,8 +24,8 @@ use coeus_nn::{
     BatchNorm1d, BatchNorm2d, BatchNorm3d, Bidirectional, Bilinear, Conv1d, Conv2d, Conv3d,
     ConvTranspose1d, ConvTranspose3d, Dropout, Embedding, EmbeddingBag, EmbeddingBagMode,
     GroupNorm, Gru as CoeusGru, InstanceNorm2d, InterpolateMode as CoeusInterpolateMode, LayerNorm,
-    Linear, Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, MultiHeadAttention, NullMask, RMSNorm,
-    RNNCell, Rnn, RnnNonlinearity, SwiGlu, TransformerEncoderLayer,
+    Linear, LocalResponseNorm, Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, MultiHeadAttention,
+    NullMask, RMSNorm, RNNCell, Rnn, RnnNonlinearity, SwiGlu, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -2052,6 +2052,37 @@ fn bench_dropout_forward(c: &mut Criterion) {
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| black_box(do_layer.forward(black_box(&x_moirai))))
+    });
+    group.finish();
+}
+
+fn bench_local_response_norm_forward(c: &mut Criterion) {
+    // LRN on [N=8, C=32, H=16, W=16]. Burn 0.16 has no LRN module surface,
+    // so this is the same Sequential/Moirai-only comparison used for Coeus-only
+    // recurrent and 3-D pooling families.
+    const LRN_N: usize = 8;
+    const LRN_C: usize = 32;
+    const LRN_H: usize = 16;
+    const LRN_W: usize = 16;
+    let input_data: Vec<f32> = (0..(LRN_N * LRN_C * LRN_H * LRN_W))
+        .map(|index| (index as f32 * 0.0019).sin())
+        .collect();
+    let lrn = LocalResponseNorm::new(5);
+    let input_sequential = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![LRN_N, LRN_C, LRN_H, LRN_W], &input_data),
+        false,
+    );
+    let input_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![LRN_N, LRN_C, LRN_H, LRN_W], &input_data),
+        false,
+    );
+
+    let mut group = c.benchmark_group("Coeus — LocalResponseNorm forward (8x32x16x16, size=5)");
+    group.bench_function("Coeus Sequential", |bench| {
+        bench.iter(|| black_box(lrn.forward(black_box(&input_sequential))))
+    });
+    group.bench_function("Coeus Moirai", |bench| {
+        bench.iter(|| black_box(lrn.forward(black_box(&input_moirai))))
     });
     group.finish();
 }
@@ -8062,6 +8093,7 @@ criterion_group!(
     bench_log_sigmoid_forward,
     bench_softplus_forward,
     bench_dropout_forward,
+    bench_local_response_norm_forward,
     bench_maxpool1d_forward,
     bench_avgpool1d_forward,
     bench_adaptive_max_pool2d_forward,
