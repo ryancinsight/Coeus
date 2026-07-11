@@ -316,6 +316,72 @@ pub fn div<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     binary_op::<T, B, DivOp>(a, b)
 }
 
+/// Non-differentiable element-wise equality comparison mask.
+#[must_use]
+#[inline]
+pub fn eq<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
+    let backend = B::default();
+    Var::new(coeus_ops::eq(&a.tensor, &b.tensor, &backend), false)
+}
+
+/// Non-differentiable element-wise inequality comparison mask.
+#[must_use]
+#[inline]
+pub fn ne<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
+    let backend = B::default();
+    Var::new(coeus_ops::ne(&a.tensor, &b.tensor, &backend), false)
+}
+
+/// Non-differentiable element-wise less-than comparison mask.
+#[must_use]
+#[inline]
+pub fn lt<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
+    let backend = B::default();
+    Var::new(coeus_ops::lt(&a.tensor, &b.tensor, &backend), false)
+}
+
+/// Non-differentiable element-wise greater-than comparison mask.
+#[must_use]
+#[inline]
+pub fn gt<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
+    let backend = B::default();
+    Var::new(coeus_ops::gt(&a.tensor, &b.tensor, &backend), false)
+}
+
+/// Non-differentiable element-wise less-than-or-equal comparison mask.
+#[must_use]
+#[inline]
+pub fn le<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
+    let backend = B::default();
+    Var::new(coeus_ops::le(&a.tensor, &b.tensor, &backend), false)
+}
+
+/// Non-differentiable element-wise greater-than-or-equal comparison mask.
+#[must_use]
+#[inline]
+pub fn ge<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+    b: &Var<T, B>,
+) -> Var<T, B> {
+    let backend = B::default();
+    Var::new(coeus_ops::ge(&a.tensor, &b.tensor, &backend), false)
+}
+
 /// Tracked element-wise remainder (`torch.remainder` / NumPy `remainder`):
 /// `a - floor(a / b) * b`, carrying the sign of the divisor `b`.
 ///

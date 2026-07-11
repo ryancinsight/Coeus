@@ -30,6 +30,7 @@ pub fn launch_contiguous_binary<T: CudaScalar>(
         coeus_ops::BinaryOp::Sub => "a[idx] - b[idx]",
         coeus_ops::BinaryOp::Mul => "a[idx] * b[idx]",
         coeus_ops::BinaryOp::Div => "a[idx] / b[idx]",
+        _ => return false,
     };
 
     let cuda_src = format!(
@@ -241,6 +242,7 @@ pub fn launch_strided_binary<T: CudaScalar>(
         coeus_ops::BinaryOp::Sub => "val_a - val_b",
         coeus_ops::BinaryOp::Mul => "val_a * val_b",
         coeus_ops::BinaryOp::Div => "val_a / val_b",
+        _ => return false,
     };
 
     let cuda_src = format!(

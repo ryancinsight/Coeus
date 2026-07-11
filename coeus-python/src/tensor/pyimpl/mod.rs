@@ -770,94 +770,34 @@ impl PyTensor {
 
     // ── Comparison ops ──
 
-    fn eq(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        let inner_t = py.allow_threads(|| {
-            crate::ops::tensor_cmp(&self.inner.tensor, &other.inner.tensor, |a, b| {
-                if (a - b).abs() < f64::EPSILON * 8.0 {
-                    1.0
-                } else {
-                    0.0
-                }
-            })
-        })?;
-        Ok(Self {
-            inner: Var::new(inner_t, false),
-        })
+    fn eq(&self, other: &PyTensor, py: Python<'_>) -> Self {
+        let inner = py.allow_threads(|| coeus_autograd::eq(&self.inner, &other.inner));
+        Self { inner }
     }
 
-    fn lt(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        let inner_t = py.allow_threads(|| {
-            crate::ops::tensor_cmp(&self.inner.tensor, &other.inner.tensor, |a, b| {
-                if a < b {
-                    1.0
-                } else {
-                    0.0
-                }
-            })
-        })?;
-        Ok(Self {
-            inner: Var::new(inner_t, false),
-        })
+    fn lt(&self, other: &PyTensor, py: Python<'_>) -> Self {
+        let inner = py.allow_threads(|| coeus_autograd::lt(&self.inner, &other.inner));
+        Self { inner }
     }
 
-    fn gt(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        let inner_t = py.allow_threads(|| {
-            crate::ops::tensor_cmp(&self.inner.tensor, &other.inner.tensor, |a, b| {
-                if a > b {
-                    1.0
-                } else {
-                    0.0
-                }
-            })
-        })?;
-        Ok(Self {
-            inner: Var::new(inner_t, false),
-        })
+    fn gt(&self, other: &PyTensor, py: Python<'_>) -> Self {
+        let inner = py.allow_threads(|| coeus_autograd::gt(&self.inner, &other.inner));
+        Self { inner }
     }
 
-    fn ne(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        let inner_t = py.allow_threads(|| {
-            crate::ops::tensor_cmp(&self.inner.tensor, &other.inner.tensor, |a, b| {
-                if (a - b).abs() < f64::EPSILON * 8.0 {
-                    0.0
-                } else {
-                    1.0
-                }
-            })
-        })?;
-        Ok(Self {
-            inner: Var::new(inner_t, false),
-        })
+    fn ne(&self, other: &PyTensor, py: Python<'_>) -> Self {
+        let inner = py.allow_threads(|| coeus_autograd::ne(&self.inner, &other.inner));
+        Self { inner }
     }
 
-    fn ge(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        let inner_t = py.allow_threads(|| {
-            crate::ops::tensor_cmp(&self.inner.tensor, &other.inner.tensor, |a, b| {
-                if a >= b {
-                    1.0
-                } else {
-                    0.0
-                }
-            })
-        })?;
-        Ok(Self {
-            inner: Var::new(inner_t, false),
-        })
+    fn ge(&self, other: &PyTensor, py: Python<'_>) -> Self {
+        let inner = py.allow_threads(|| coeus_autograd::ge(&self.inner, &other.inner));
+        Self { inner }
     }
 
-    fn le(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        let inner_t = py.allow_threads(|| {
-            crate::ops::tensor_cmp(&self.inner.tensor, &other.inner.tensor, |a, b| {
-                if a <= b {
-                    1.0
-                } else {
-                    0.0
-                }
-            })
-        })?;
-        Ok(Self {
-            inner: Var::new(inner_t, false),
-        })
+    fn le(&self, other: &PyTensor, py: Python<'_>) -> Self {
+        let inner = py.allow_threads(|| coeus_autograd::le(&self.inner, &other.inner));
+        Self { inner }
     }
 
     // ── Grad utilities ──

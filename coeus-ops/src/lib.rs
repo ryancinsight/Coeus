@@ -48,8 +48,8 @@ pub use unary::{
 };
 
 pub use binary::{
-    add, add_assign, div, div_assign, elementwise_binary, elementwise_binary_to, mul, mul_assign,
-    sub, sub_assign,
+    add, add_assign, div, div_assign, elementwise_binary, elementwise_binary_to, eq, ge, gt, le,
+    lt, mul, mul_assign, ne, sub, sub_assign,
 };
 pub use embedding::{embedding, embedding_backward, embedding_backward_with_padding_idx};
 pub use matmul::{bmm, matmul, matmul_accumulate, outer};

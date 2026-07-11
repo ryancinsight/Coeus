@@ -1,6 +1,32 @@
 use super::super::cache::PIPELINE_CACHE;
 use crate::backend::WgpuScalar;
 
+fn wgsl_cmp_literals(wgsl_type: &str) -> (&'static str, &'static str) {
+    match wgsl_type {
+        "f32" | "f16" => ("0.0", "1.0"),
+        "i32" => ("0", "1"),
+        "u32" => ("0u", "1u"),
+        _ => ("0", "1"),
+    }
+}
+
+fn wgsl_rhs_expr(op: coeus_ops::BinaryOp, wgsl_type: &str, a: &str, b: &str) -> String {
+    use coeus_ops::BinaryOp;
+    let (z, o) = wgsl_cmp_literals(wgsl_type);
+    match op {
+        BinaryOp::Add => format!("{a} + {b}"),
+        BinaryOp::Sub => format!("{a} - {b}"),
+        BinaryOp::Mul => format!("{a} * {b}"),
+        BinaryOp::Div => format!("{a} / {b}"),
+        BinaryOp::Eq => format!("select({z}, {o}, {a} == {b})"),
+        BinaryOp::Ne => format!("select({z}, {o}, {a} != {b})"),
+        BinaryOp::Lt => format!("select({z}, {o}, {a} < {b})"),
+        BinaryOp::Gt => format!("select({z}, {o}, {a} > {b})"),
+        BinaryOp::Le => format!("select({z}, {o}, {a} <= {b})"),
+        BinaryOp::Ge => format!("select({z}, {o}, {a} >= {b})"),
+    }
+}
+
 /// Dispatch a WGSL shader for flat contiguous elementwise binary operations: c = a op b.
 pub fn dispatch_contiguous_binary<T: WgpuScalar>(
     op: coeus_ops::BinaryOp,
@@ -15,12 +41,16 @@ pub fn dispatch_contiguous_binary<T: WgpuScalar>(
     let is_a_c = std::ptr::eq(a, c);
     let is_b_c = std::ptr::eq(b, c);
 
-    let op_symbol = match op {
-        coeus_ops::BinaryOp::Add => "+",
-        coeus_ops::BinaryOp::Sub => "-",
-        coeus_ops::BinaryOp::Mul => "*",
-        coeus_ops::BinaryOp::Div => "/",
+    let (a_ref, b_ref) = if is_a_c && is_b_c {
+        ("c[idx]", "c[idx]")
+    } else if is_a_c {
+        ("c[idx]", "b[idx]")
+    } else if is_b_c {
+        ("a[idx]", "c[idx]")
+    } else {
+        ("a[idx]", "b[idx]")
     };
+    let rhs = wgsl_rhs_expr(op, wgsl_type, a_ref, b_ref);
 
     let key = format!(
         "contiguous_binary_{:?}_{}_ac_{}_bc_{}",
@@ -38,16 +68,16 @@ pub fn dispatch_contiguous_binary<T: WgpuScalar>(
                 if (idx >= arrayLength(&c)) {{
                     return;
                 }}
-                c[idx] = c[idx] {} c[idx];
+                c[idx] = {1};
             }}
             "#,
-            wgsl_type, op_symbol
+            wgsl_type, rhs
         )
     } else if is_a_c {
         format!(
             r#"
-            @group(0) @binding(0) var<storage, read> b: array<{}>;
-            @group(0) @binding(1) var<storage, read_write> c: array<{}>;
+            @group(0) @binding(0) var<storage, read> b: array<{0}>;
+            @group(0) @binding(1) var<storage, read_write> c: array<{0}>;
 
             @compute @workgroup_size(256)
             fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {{
@@ -55,16 +85,16 @@ pub fn dispatch_contiguous_binary<T: WgpuScalar>(
                 if (idx >= arrayLength(&c)) {{
                     return;
                 }}
-                c[idx] = c[idx] {} b[idx];
+                c[idx] = {1};
             }}
             "#,
-            wgsl_type, wgsl_type, op_symbol
+            wgsl_type, rhs
         )
     } else if is_b_c {
         format!(
             r#"
-            @group(0) @binding(0) var<storage, read> a: array<{}>;
-            @group(0) @binding(1) var<storage, read_write> c: array<{}>;
+            @group(0) @binding(0) var<storage, read> a: array<{0}>;
+            @group(0) @binding(1) var<storage, read_write> c: array<{0}>;
 
             @compute @workgroup_size(256)
             fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {{
@@ -72,17 +102,17 @@ pub fn dispatch_contiguous_binary<T: WgpuScalar>(
                 if (idx >= arrayLength(&c)) {{
                     return;
                 }}
-                c[idx] = a[idx] {} c[idx];
+                c[idx] = {1};
             }}
             "#,
-            wgsl_type, wgsl_type, op_symbol
+            wgsl_type, rhs
         )
     } else {
         format!(
             r#"
-            @group(0) @binding(0) var<storage, read> a: array<{}>;
-            @group(0) @binding(1) var<storage, read> b: array<{}>;
-            @group(0) @binding(2) var<storage, read_write> c: array<{}>;
+            @group(0) @binding(0) var<storage, read> a: array<{0}>;
+            @group(0) @binding(1) var<storage, read> b: array<{0}>;
+            @group(0) @binding(2) var<storage, read_write> c: array<{0}>;
 
             @compute @workgroup_size(256)
             fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {{
@@ -90,10 +120,10 @@ pub fn dispatch_contiguous_binary<T: WgpuScalar>(
                 if (idx >= arrayLength(&c)) {{
                     return;
                 }}
-                c[idx] = a[idx] {} b[idx];
+                c[idx] = {1};
             }}
             "#,
-            wgsl_type, wgsl_type, wgsl_type, op_symbol
+            wgsl_type, rhs
         )
     };
 

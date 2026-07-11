@@ -118,6 +118,7 @@ fn try_hephaestus_strided_binary_wgpu<
                     T,
                     $n,
                 >(dev, a_op, b_op, c_op, BlockWidth::DEFAULT)),
+                _ => false,
             }
         }};
     }
@@ -275,6 +276,7 @@ fn try_hephaestus_contiguous_binary<
             c.buffer.as_ref(),
             BlockWidth::DEFAULT,
         )),
+        _ => false,
     }
 }
 

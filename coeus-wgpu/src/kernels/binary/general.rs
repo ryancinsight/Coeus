@@ -2,6 +2,32 @@ use super::super::cache::PIPELINE_CACHE;
 use super::super::layout::GpuLayoutInfo;
 use crate::backend::WgpuScalar;
 
+fn wgsl_cmp_literals(wgsl_type: &str) -> (&'static str, &'static str) {
+    match wgsl_type {
+        "f32" | "f16" => ("0.0", "1.0"),
+        "i32" => ("0", "1"),
+        "u32" => ("0u", "1u"),
+        _ => ("0", "1"),
+    }
+}
+
+fn wgsl_rhs_expr(op: coeus_ops::BinaryOp, wgsl_type: &str, a: &str, b: &str) -> String {
+    use coeus_ops::BinaryOp;
+    let (z, o) = wgsl_cmp_literals(wgsl_type);
+    match op {
+        BinaryOp::Add => format!("{a} + {b}"),
+        BinaryOp::Sub => format!("{a} - {b}"),
+        BinaryOp::Mul => format!("{a} * {b}"),
+        BinaryOp::Div => format!("{a} / {b}"),
+        BinaryOp::Eq => format!("select({z}, {o}, {a} == {b})"),
+        BinaryOp::Ne => format!("select({z}, {o}, {a} != {b})"),
+        BinaryOp::Lt => format!("select({z}, {o}, {a} < {b})"),
+        BinaryOp::Gt => format!("select({z}, {o}, {a} > {b})"),
+        BinaryOp::Le => format!("select({z}, {o}, {a} <= {b})"),
+        BinaryOp::Ge => format!("select({z}, {o}, {a} >= {b})"),
+    }
+}
+
 /// Dispatch a WGSL shader for general elementwise binary operations with layout traversal and broadcasting.
 #[allow(clippy::too_many_arguments)]
 pub fn dispatch_binary<T: WgpuScalar>(
@@ -32,20 +58,21 @@ pub fn dispatch_binary<T: WgpuScalar>(
     ctx.queue
         .write_buffer(&c_layout_buf, 0, bytemuck::bytes_of(&c_layout_gpu));
 
-    let op_symbol = match op {
-        coeus_ops::BinaryOp::Add => "+",
-        coeus_ops::BinaryOp::Sub => "-",
-        coeus_ops::BinaryOp::Mul => "*",
-        coeus_ops::BinaryOp::Div => "/",
-    };
-
     let is_a_c = std::ptr::eq(a, c);
     let is_b_c = std::ptr::eq(b, c);
 
-    let key = format!(
-        "binary_{}_{}_ac_{}_bc_{}",
-        op_symbol, wgsl_type, is_a_c, is_b_c
-    );
+    let (a_ref, b_ref) = if is_a_c && is_b_c {
+        ("c[off_a]", "c[off_b]")
+    } else if is_a_c {
+        ("c[off_a]", "b[off_b]")
+    } else if is_b_c {
+        ("a[off_a]", "c[off_b]")
+    } else {
+        ("a[off_a]", "b[off_b]")
+    };
+    let rhs = wgsl_rhs_expr(op, wgsl_type, a_ref, b_ref);
+
+    let key = format!("binary_{:?}_{}_ac_{}_bc_{}", op, wgsl_type, is_a_c, is_b_c);
 
     let shader_src = if is_a_c && is_b_c {
         format!(
@@ -68,7 +95,7 @@ pub fn dispatch_binary<T: WgpuScalar>(
                 if (idx >= arrayLength(&c)) {{
                     return;
                 }}
-                
+
                 var temp = idx;
                 var off_a = a_layout.offset;
                 var off_b = b_layout.offset;
@@ -91,10 +118,10 @@ pub fn dispatch_binary<T: WgpuScalar>(
                     }}
                 }}
 
-                c[idx] = c[off_a] {} c[off_b];
+                c[idx] = {};
             }}
             "#,
-            wgsl_type, op_symbol
+            wgsl_type, rhs
         )
     } else if is_a_c {
         format!(
@@ -106,8 +133,8 @@ pub fn dispatch_binary<T: WgpuScalar>(
                 strides: array<u32, 8>,
             }}
 
-            @group(0) @binding(0) var<storage, read> b: array<{}>;
-            @group(0) @binding(1) var<storage, read_write> c: array<{}>;
+            @group(0) @binding(0) var<storage, read> b: array<{0}>;
+            @group(0) @binding(1) var<storage, read_write> c: array<{0}>;
             @group(0) @binding(2) var<storage, read> a_layout: LayoutInfo;
             @group(0) @binding(3) var<storage, read> b_layout: LayoutInfo;
             @group(0) @binding(4) var<storage, read> c_layout: LayoutInfo;
@@ -118,7 +145,7 @@ pub fn dispatch_binary<T: WgpuScalar>(
                 if (idx >= arrayLength(&c)) {{
                     return;
                 }}
-                
+
                 var temp = idx;
                 var off_a = a_layout.offset;
                 var off_b = b_layout.offset;
@@ -141,10 +168,10 @@ pub fn dispatch_binary<T: WgpuScalar>(
                     }}
                 }}
 
-                c[idx] = c[off_a] {} b[off_b];
+                c[idx] = {1};
             }}
             "#,
-            wgsl_type, wgsl_type, op_symbol
+            wgsl_type, rhs
         )
     } else if is_b_c {
         format!(
@@ -156,8 +183,8 @@ pub fn dispatch_binary<T: WgpuScalar>(
                 strides: array<u32, 8>,
             }}
 
-            @group(0) @binding(0) var<storage, read> a: array<{}>;
-            @group(0) @binding(1) var<storage, read_write> c: array<{}>;
+            @group(0) @binding(0) var<storage, read> a: array<{0}>;
+            @group(0) @binding(1) var<storage, read_write> c: array<{0}>;
             @group(0) @binding(2) var<storage, read> a_layout: LayoutInfo;
             @group(0) @binding(3) var<storage, read> b_layout: LayoutInfo;
             @group(0) @binding(4) var<storage, read> c_layout: LayoutInfo;
@@ -168,7 +195,7 @@ pub fn dispatch_binary<T: WgpuScalar>(
                 if (idx >= arrayLength(&c)) {{
                     return;
                 }}
-                
+
                 var temp = idx;
                 var off_a = a_layout.offset;
                 var off_b = b_layout.offset;
@@ -191,10 +218,10 @@ pub fn dispatch_binary<T: WgpuScalar>(
                     }}
                 }}
 
-                c[idx] = a[off_a] {} c[off_b];
+                c[idx] = {1};
             }}
             "#,
-            wgsl_type, wgsl_type, op_symbol
+            wgsl_type, rhs
         )
     } else {
         format!(
@@ -206,9 +233,9 @@ pub fn dispatch_binary<T: WgpuScalar>(
                 strides: array<u32, 8>,
             }}
 
-            @group(0) @binding(0) var<storage, read> a: array<{}>;
-            @group(0) @binding(1) var<storage, read> b: array<{}>;
-            @group(0) @binding(2) var<storage, read_write> c: array<{}>;
+            @group(0) @binding(0) var<storage, read> a: array<{0}>;
+            @group(0) @binding(1) var<storage, read> b: array<{0}>;
+            @group(0) @binding(2) var<storage, read_write> c: array<{0}>;
             @group(0) @binding(3) var<storage, read> a_layout: LayoutInfo;
             @group(0) @binding(4) var<storage, read> b_layout: LayoutInfo;
             @group(0) @binding(5) var<storage, read> c_layout: LayoutInfo;
@@ -219,7 +246,7 @@ pub fn dispatch_binary<T: WgpuScalar>(
                 if (idx >= arrayLength(&c)) {{
                     return;
                 }}
-                
+
                 var temp = idx;
                 var off_a = a_layout.offset;
                 var off_b = b_layout.offset;
@@ -242,10 +269,10 @@ pub fn dispatch_binary<T: WgpuScalar>(
                     }}
                 }}
 
-                c[idx] = a[off_a] {} b[off_b];
+                c[idx] = {1};
             }}
             "#,
-            wgsl_type, wgsl_type, wgsl_type, op_symbol
+            wgsl_type, rhs
         )
     };
 

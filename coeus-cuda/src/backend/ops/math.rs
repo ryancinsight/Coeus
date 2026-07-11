@@ -57,6 +57,7 @@ where
             ),
             c,
         ),
+        _ => false,
     }
 }
 
@@ -228,6 +229,7 @@ where
             hephaestus_operand(c, c_layout),
             hephaestus_cuda::BlockWidth::DEFAULT,
         )),
+        _ => false,
     }
 }
 

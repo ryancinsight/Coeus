@@ -24,6 +24,12 @@ fn reference<T: Scalar>(op: BinaryOp, x: T, y: T) -> T {
         BinaryOp::Sub => x - y,
         BinaryOp::Mul => x * y,
         BinaryOp::Div => x / y,
+        BinaryOp::Eq => T::from_f64(if x == y { 1.0 } else { 0.0 }),
+        BinaryOp::Ne => T::from_f64(if x != y { 1.0 } else { 0.0 }),
+        BinaryOp::Lt => T::from_f64(if x < y { 1.0 } else { 0.0 }),
+        BinaryOp::Gt => T::from_f64(if x > y { 1.0 } else { 0.0 }),
+        BinaryOp::Le => T::from_f64(if x <= y { 1.0 } else { 0.0 }),
+        BinaryOp::Ge => T::from_f64(if x >= y { 1.0 } else { 0.0 }),
     }
 }
 

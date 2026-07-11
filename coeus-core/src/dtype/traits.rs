@@ -85,6 +85,18 @@ pub enum BinaryOp {
     Mul,
     /// Division: a / b.
     Div,
+    /// Element-wise equality: 1 if a == b, else 0.
+    Eq,
+    /// Element-wise inequality: 1 if a != b, else 0.
+    Ne,
+    /// Element-wise less-than: 1 if a < b, else 0.
+    Lt,
+    /// Element-wise greater-than: 1 if a > b, else 0.
+    Gt,
+    /// Element-wise less-than-or-equal: 1 if a <= b, else 0.
+    Le,
+    /// Element-wise greater-than-or-equal: 1 if a >= b, else 0.
+    Ge,
 }
 
 /// Reduction operation tag.
