@@ -93,7 +93,7 @@ impl<
         p
     }
 
-    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
         let mut parameters = prefixed_parameters("encoder", &self.encoder);
         parameters.extend(prefixed_parameters("decoder", &self.decoder));
         parameters

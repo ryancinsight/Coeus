@@ -47,7 +47,7 @@ where
         p
     }
 
-    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
         let mut parameters = prefixed_parameters("forward", &self.forward_module);
         parameters.extend(prefixed_parameters("backward", &self.backward_module));
         parameters

@@ -171,7 +171,7 @@ fn linear_projects_last_axis_for_rank_five() {
 #[test]
 fn test_load_parameters_applies_optimizer_step_to_the_module() {
     // Regression pin for `Module::load_parameters`: `SGD::step` mutates its own
-    // owned `Vec<Var>` in place (copy-on-write detaches it from any clone taken
+    // owned named parameters in place (copy-on-write detaches them from clones taken
     // via `parameters()`), so without `load_parameters` writing the updated
     // values back into the layer's own fields, this would silently leave
     // `layer.weight`/`layer.bias` unchanged after training.
@@ -186,9 +186,11 @@ fn test_load_parameters_applies_optimizer_step_to_the_module() {
     output.backward(); // d(output)/d(weight) = x = [3, 4]; d(output)/d(bias) = 1
 
     let lr = 0.1;
-    let mut opt = SGD::new(layer.parameters(), lr, 0.0);
+    let mut opt = SGD::new(layer.named_parameters(), lr, 0.0);
     opt.step();
-    layer.load_parameters(&opt.params);
+    layer
+        .load_named_parameters(&opt.params)
+        .expect("optimizer inventory must match module paths");
 
     // w' = w - lr * grad = [1,1] - 0.1*[3,4] = [0.7, 0.6]
     assert_slice_close(

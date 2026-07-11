@@ -1,4 +1,4 @@
-use coeus_autograd::Var;
+use coeus_autograd::{Parameter, Var};
 use coeus_core::SequentialBackend;
 use coeus_optim::{clip_grad_norm, Adam, AdamW, Optimizer, RMSProp, SGD};
 use coeus_tensor::Tensor;
@@ -14,8 +14,9 @@ fn test_sgd_optimizer() {
     x.set_grad(grad_val);
 
     // Test SGD step without momentum (momentum = 0.0, lr = 0.1)
-    let mut optimizer = SGD::new(vec![x.clone()], 0.1f32, 0.0f32);
+    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32);
     optimizer.step();
+    assert_eq!(optimizer.params[0].name, "x");
 
     // After one step, param = param - lr * grad
     // x[0] = 2.0 - 0.1 * 1.0 = 1.9
@@ -37,7 +38,7 @@ fn test_sgd_with_momentum() {
     let x = Var::new(x_val, true);
 
     // Let's perform two steps of SGD with momentum = 0.9, lr = 0.1
-    let mut optimizer = SGD::new(vec![x.clone()], 0.1f32, 0.9f32);
+    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.9f32);
 
     // Step 1
     // grad = [1.0, -2.0]
@@ -46,6 +47,7 @@ fn test_sgd_with_momentum() {
     let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]);
     optimizer.params[0].set_grad(grad_val);
     optimizer.step();
+    assert_eq!(optimizer.params[0].name, "x");
 
     let updated_x = optimizer.params[0].tensor.as_slice();
     assert!((updated_x[0] - 1.9).abs() < 1e-5);
@@ -59,6 +61,7 @@ fn test_sgd_with_momentum() {
     let grad_val2 = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[0.5f32, 0.5]);
     optimizer.params[0].set_grad(grad_val2);
     optimizer.step();
+    assert_eq!(optimizer.params[0].name, "x");
 
     let updated_x = optimizer.params[0].tensor.as_slice();
     assert!((updated_x[0] - 1.76).abs() < 1e-5);
@@ -76,8 +79,15 @@ fn test_adam_optimizer() {
     x.set_grad(grad_val);
 
     // Test Adam (lr = 0.1, beta1 = 0.9, beta2 = 0.999, eps = 1e-8)
-    let mut optimizer = Adam::new(vec![x.clone()], 0.1f32, 0.9f32, 0.999f32, 1e-8f32);
+    let mut optimizer = Adam::new(
+        vec![Parameter::new(x.clone(), "x")],
+        0.1f32,
+        0.9f32,
+        0.999f32,
+        1e-8f32,
+    );
     optimizer.step();
+    assert_eq!(optimizer.params[0].name, "x");
 
     // After step 1:
     // t = 1
@@ -106,8 +116,14 @@ fn test_rmsprop_optimizer() {
     x.set_grad(grad_val);
 
     // Test RMSProp (lr = 0.1, alpha = 0.99, eps = 1e-8)
-    let mut optimizer = RMSProp::new(vec![x.clone()], 0.1f32, 0.99f32, 1e-8f32);
+    let mut optimizer = RMSProp::new(
+        vec![Parameter::new(x.clone(), "x")],
+        0.1f32,
+        0.99f32,
+        1e-8f32,
+    );
     optimizer.step();
+    assert_eq!(optimizer.params[0].name, "x");
 
     // After step 1:
     // v = alpha * 0 + (1 - alpha) * grad^2 = 0.01 * [1.0, 4.0] = [0.01, 0.04]
@@ -130,7 +146,14 @@ fn test_adamw_optimizer() {
     x.set_grad(grad_val);
 
     // Test AdamW (lr = 0.1, beta1 = 0.9, beta2 = 0.999, eps = 1e-8, weight_decay = 0.01)
-    let mut optimizer = AdamW::new(vec![x.clone()], 0.1f32, 0.9f32, 0.999f32, 1e-8f32, 0.01f32);
+    let mut optimizer = AdamW::new(
+        vec![Parameter::new(x.clone(), "x")],
+        0.1f32,
+        0.9f32,
+        0.999f32,
+        1e-8f32,
+        0.01f32,
+    );
     optimizer.step();
 
     // After step 1:
@@ -180,7 +203,7 @@ fn test_lr_schedulers() {
 
     {
         use coeus_optim::scheduler::{LrScheduler, StepDecay};
-        let optimizer = SGD::new(vec![x.clone()], 1e-3f32, 0.0f32);
+        let optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 1e-3f32, 0.0f32);
         let strategy = StepDecay {
             step_size: 2,
             gamma: 0.5,
@@ -208,7 +231,8 @@ fn test_adagrad_optimizer() {
     x.set_grad(grad_val);
 
     // Test AdaGrad (lr = 0.1, eps = 1e-6)
-    let mut optimizer = coeus_optim::AdaGrad::new(vec![x.clone()], 0.1f32, 1e-6f32);
+    let mut optimizer =
+        coeus_optim::AdaGrad::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 1e-6f32);
     optimizer.step();
 
     // After step 1:
@@ -274,7 +298,7 @@ fn test_linear_warmup_drives_optimizer_lr() {
         Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[1.0]),
         true,
     );
-    let opt = SGD::new(vec![x], 0.0, 0.0);
+    let opt = SGD::new(vec![Parameter::new(x, "x")], 0.0, 0.0);
     let mut sched = LrScheduler::new(opt, LinearWarmup { warmup_steps: 2 }, 0.2);
 
     assert!((sched.current_lr() - 0.0).abs() < 1e-7); // step 0
@@ -304,7 +328,7 @@ fn test_sgd_convergence_quadratic_50steps() {
         Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[4.0f32]),
         true,
     );
-    let mut optimizer = SGD::new(vec![x.clone()], 0.1f32, 0.0f32);
+    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32);
 
     for _ in 0..50 {
         let current = optimizer.params[0].tensor.as_slice()[0];
@@ -339,7 +363,7 @@ fn test_sgd_momentum_convergence_100steps() {
         Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[5.0f32]),
         true,
     );
-    let mut optimizer = SGD::new(vec![x.clone()], 0.05f32, 0.9f32);
+    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.05f32, 0.9f32);
 
     for _ in 0..100 {
         let current = optimizer.params[0].tensor.as_slice()[0];
@@ -368,7 +392,13 @@ fn test_adam_convergence_quadratic_200steps() {
         Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[3.0f32, -4.0]),
         true,
     );
-    let mut optimizer = Adam::new(vec![p.clone()], 0.1f32, 0.9f32, 0.999f32, 1e-8f32);
+    let mut optimizer = Adam::new(
+        vec![Parameter::new(p.clone(), "p")],
+        0.1f32,
+        0.9f32,
+        0.999f32,
+        1e-8f32,
+    );
 
     for _ in 0..200 {
         let vals = optimizer.params[0].tensor.as_slice().to_vec();
@@ -406,7 +436,14 @@ fn test_adamw_weight_decay_shrinkage_50steps() {
         Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32]),
         true,
     );
-    let mut optimizer = AdamW::new(vec![p.clone()], 0.1f32, 0.9f32, 0.999f32, 1e-8f32, 0.1f32);
+    let mut optimizer = AdamW::new(
+        vec![Parameter::new(p.clone(), "p")],
+        0.1f32,
+        0.9f32,
+        0.999f32,
+        1e-8f32,
+        0.1f32,
+    );
 
     for _ in 0..50 {
         // Zero gradient → only weight-decay acts.
@@ -442,7 +479,12 @@ fn test_rmsprop_convergence_quadratic_300steps() {
         Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[4.0f32]),
         true,
     );
-    let mut optimizer = RMSProp::new(vec![x.clone()], 0.1f32, 0.99f32, 1e-8f32);
+    let mut optimizer = RMSProp::new(
+        vec![Parameter::new(x.clone(), "x")],
+        0.1f32,
+        0.99f32,
+        1e-8f32,
+    );
 
     let mut prev = 4.0f32.powi(2);
     for _ in 0..300 {
@@ -450,7 +492,10 @@ fn test_rmsprop_convergence_quadratic_300steps() {
         // Monotone descent: f32 rounding may leave the objective flat but never
         // materially increasing on this convex problem.
         let obj = current * current;
-        assert!(obj <= prev + 1e-6, "RMSProp objective increased: {obj} > {prev}");
+        assert!(
+            obj <= prev + 1e-6,
+            "RMSProp objective increased: {obj} > {prev}"
+        );
         prev = obj;
         let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current]);
         optimizer.params[0].set_grad(grad);
@@ -477,13 +522,17 @@ fn test_adagrad_convergence_quadratic_400steps() {
         Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[4.0f32]),
         true,
     );
-    let mut optimizer = coeus_optim::AdaGrad::new(vec![x.clone()], 0.5f32, 1e-6f32);
+    let mut optimizer =
+        coeus_optim::AdaGrad::new(vec![Parameter::new(x.clone(), "x")], 0.5f32, 1e-6f32);
 
     let mut prev = 4.0f32.powi(2);
     for _ in 0..400 {
         let current = optimizer.params[0].tensor.as_slice()[0];
         let obj = current * current;
-        assert!(obj <= prev + 1e-6, "AdaGrad objective increased: {obj} > {prev}");
+        assert!(
+            obj <= prev + 1e-6,
+            "AdaGrad objective increased: {obj} > {prev}"
+        );
         prev = obj;
         let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current]);
         optimizer.params[0].set_grad(grad);
@@ -514,7 +563,10 @@ fn test_clip_grad_norm_is_global_across_parameters() {
         Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[10.0f32, 20.0]),
         true,
     );
-    a.set_grad(Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[3.0f32, 4.0]));
+    a.set_grad(Tensor::<f32, SequentialBackend>::from_slice(
+        vec![2],
+        &[3.0f32, 4.0],
+    ));
     let b = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0f32, 2.0, 3.0]),
         true,
@@ -544,14 +596,25 @@ fn test_clip_grad_norm_below_threshold_is_noop() {
         Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, 1.0]),
         true,
     );
-    x.set_grad(Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[3.0f32, 4.0]));
+    x.set_grad(Tensor::<f32, SequentialBackend>::from_slice(
+        vec![2],
+        &[3.0f32, 4.0],
+    ));
 
     let pre_norm = clip_grad_norm(std::slice::from_ref(&x), 10.0f32);
     assert!((pre_norm - 5.0).abs() < 1e-5);
 
     let g = x.grad().unwrap();
-    assert!((g.as_slice()[0] - 3.0).abs() < 1e-6, "unscaled: {}", g.as_slice()[0]);
-    assert!((g.as_slice()[1] - 4.0).abs() < 1e-6, "unscaled: {}", g.as_slice()[1]);
+    assert!(
+        (g.as_slice()[0] - 3.0).abs() < 1e-6,
+        "unscaled: {}",
+        g.as_slice()[0]
+    );
+    assert!(
+        (g.as_slice()[1] - 4.0).abs() < 1e-6,
+        "unscaled: {}",
+        g.as_slice()[1]
+    );
 }
 
 /// At exactly `max_norm` the strict `>` comparison must not trigger scaling
@@ -562,14 +625,23 @@ fn test_clip_grad_norm_exact_boundary_is_noop() {
         Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, 1.0]),
         true,
     );
-    x.set_grad(Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[3.0f32, 4.0]));
+    x.set_grad(Tensor::<f32, SequentialBackend>::from_slice(
+        vec![2],
+        &[3.0f32, 4.0],
+    ));
 
     let pre_norm = clip_grad_norm(std::slice::from_ref(&x), 5.0f32);
     assert!((pre_norm - 5.0).abs() < 1e-5);
 
     let g = x.grad().unwrap();
-    assert!((g.as_slice()[0] - 3.0).abs() < 1e-6, "boundary: no scaling expected");
-    assert!((g.as_slice()[1] - 4.0).abs() < 1e-6, "boundary: no scaling expected");
+    assert!(
+        (g.as_slice()[0] - 3.0).abs() < 1e-6,
+        "boundary: no scaling expected"
+    );
+    assert!(
+        (g.as_slice()[1] - 4.0).abs() < 1e-6,
+        "boundary: no scaling expected"
+    );
 }
 
 /// A parameter with no gradient is skipped (neither contributes to the norm
@@ -580,7 +652,10 @@ fn test_clip_grad_norm_skips_params_without_grad() {
         Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, 1.0]),
         true,
     );
-    with_grad.set_grad(Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[3.0f32, 4.0]));
+    with_grad.set_grad(Tensor::<f32, SequentialBackend>::from_slice(
+        vec![2],
+        &[3.0f32, 4.0],
+    ));
     // requires_grad = false: no grad buffer at all.
     let without_grad = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[9.0f32, 9.0]),
@@ -590,7 +665,10 @@ fn test_clip_grad_norm_skips_params_without_grad() {
     let pre_norm = clip_grad_norm(&[with_grad.clone(), without_grad.clone()], 2.5f32);
     // Norm should reflect only `with_grad`'s [3,4] -> 5.0, not be perturbed by
     // (or panic on) the grad-less parameter.
-    assert!((pre_norm - 5.0).abs() < 1e-5, "got {pre_norm}, expected 5.0");
+    assert!(
+        (pre_norm - 5.0).abs() < 1e-5,
+        "got {pre_norm}, expected 5.0"
+    );
 
     let g = with_grad.grad().unwrap();
     assert!((g.as_slice()[0] - 1.5).abs() < 1e-4);

@@ -1,6 +1,6 @@
 use burn::backend::ndarray::{NdArray, NdArrayDevice};
 use burn::tensor::{activation as burn_act, Tensor as BurnTensor, TensorData};
-use coeus_autograd::Var;
+use coeus_autograd::{Parameter, Var};
 use coeus_core::SequentialBackend;
 use coeus_nn::{cross_entropy_loss, log_sigmoid, softmax, Module};
 use coeus_ops::{leaky_relu, log_softmax_axis, mish, sigmoid, silu, softplus, tanh};
@@ -3018,7 +3018,7 @@ fn sgd_step_matches_analytical_reference() {
         *g.write() = CoeusTensor::from_slice(vec![4], &grads_data);
     }
 
-    let mut opt = SGD::new(vec![p.clone()], lr, momentum);
+    let mut opt = SGD::new(vec![Parameter::new(p.clone(), "p")], lr, momentum);
     opt.step();
     opt.zero_grad();
 
@@ -3065,7 +3065,7 @@ fn adam_step_matches_analytical_reference() {
         *g.write() = CoeusTensor::from_slice(vec![4], &grads_data);
     }
 
-    let mut opt = Adam::new(vec![p.clone()], lr, beta1, beta2, eps);
+    let mut opt = Adam::new(vec![Parameter::new(p.clone(), "p")], lr, beta1, beta2, eps);
     opt.step(); // step t=1
 
     // Closed-form expected for t=1:
@@ -4252,7 +4252,7 @@ fn rmsprop_step_matches_analytical_reference() {
         *g.write() = CoeusTensor::from_slice(vec![4], &grads_data);
     }
 
-    let mut opt = RMSProp::new(vec![p.clone()], lr, alpha, eps);
+    let mut opt = RMSProp::new(vec![Parameter::new(p.clone(), "p")], lr, alpha, eps);
     opt.step();
 
     // Closed-form expected for t=1 (v_0 = 0):
@@ -4298,7 +4298,7 @@ fn adagrad_step_matches_analytical_reference() {
         *g.write() = CoeusTensor::from_slice(vec![4], &grads_data);
     }
 
-    let mut opt = AdaGrad::new(vec![p.clone()], lr, eps);
+    let mut opt = AdaGrad::new(vec![Parameter::new(p.clone(), "p")], lr, eps);
     opt.step();
 
     // Closed-form expected for t=1 (G_0 = 0):
@@ -4350,7 +4350,14 @@ fn adamw_step_matches_analytical_reference() {
         *g.write() = CoeusTensor::from_slice(vec![4], &grads_data);
     }
 
-    let mut opt = AdamW::new(vec![p.clone()], lr, beta1, beta2, eps, wd);
+    let mut opt = AdamW::new(
+        vec![Parameter::new(p.clone(), "p")],
+        lr,
+        beta1,
+        beta2,
+        eps,
+        wd,
+    );
     opt.step();
 
     let expected: Vec<f64> = params_data
@@ -5884,7 +5891,11 @@ fn sgd_vanilla_step_analytical() {
         vec![2],
         &[1.0_f32, -2.0],
     ));
-    let mut opt = SGD::<f32, SequentialBackend>::new(vec![w.clone()], 0.1_f32, 0.0_f32);
+    let mut opt = SGD::<f32, SequentialBackend>::new(
+        vec![Parameter::new(w.clone(), "weight")],
+        0.1_f32,
+        0.0_f32,
+    );
     opt.step();
     assert_close_rel(
         "sgd_vanilla_step",
@@ -5915,7 +5926,13 @@ fn adam_first_step_analytical() {
         vec![2],
         &g,
     ));
-    let mut opt = Adam::<f32, SequentialBackend>::new(vec![w.clone()], lr, 0.9_f32, 0.999_f32, eps);
+    let mut opt = Adam::<f32, SequentialBackend>::new(
+        vec![Parameter::new(w.clone(), "weight")],
+        lr,
+        0.9_f32,
+        0.999_f32,
+        eps,
+    );
     opt.step();
     // m_hat = g, v_hat = g^2 -> step[i] = lr*g[i]/(|g[i]|+eps)
     let expected: Vec<f32> = p_init
@@ -5953,8 +5970,14 @@ fn adamw_first_step_analytical() {
         vec![2],
         &g,
     ));
-    let mut opt =
-        AdamW::<f32, SequentialBackend>::new(vec![w.clone()], lr, 0.9_f32, 0.999_f32, eps, wd);
+    let mut opt = AdamW::<f32, SequentialBackend>::new(
+        vec![Parameter::new(w.clone(), "weight")],
+        lr,
+        0.9_f32,
+        0.999_f32,
+        eps,
+        wd,
+    );
     opt.step();
     // Formula: p_new = p - lr*(m_hat/(sqrt(v_hat)+eps) + lambda*p)
     //                = p - lr*g/|g| - lr*lambda*p

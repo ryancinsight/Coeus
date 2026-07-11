@@ -143,7 +143,7 @@ def run_pytorch_comparison():
     # 4. Multi-step Optimizer Step checks (SGD & AdamW)
     # SGD with momentum
     sgd_param_pyc = pycoeus.Tensor([10.0, 5.0], [2], requires_grad=True)
-    sgd_pyc = pycoeus.SGD([sgd_param_pyc], lr=0.1, momentum=0.9)
+    sgd_pyc = pycoeus.SGD([("weight", sgd_param_pyc)], lr=0.1, momentum=0.9)
 
     sgd_param_torch = torch.tensor([10.0, 5.0], dtype=torch.float64).requires_grad_(True)
     sgd_torch = torch.optim.SGD([sgd_param_torch], lr=0.1, momentum=0.9)
@@ -164,7 +164,7 @@ def run_pytorch_comparison():
 
     # AdamW
     adamw_param_pyc = pycoeus.Tensor([1.0, -2.0], [2], requires_grad=True)
-    adamw_pyc = pycoeus.AdamW([adamw_param_pyc], lr=0.01, weight_decay=0.01)
+    adamw_pyc = pycoeus.AdamW([("weight", adamw_param_pyc)], lr=0.01, weight_decay=0.01)
 
     adamw_param_torch = torch.tensor([1.0, -2.0], dtype=torch.float64).requires_grad_(True)
     adamw_torch = torch.optim.AdamW([adamw_param_torch], lr=0.01, weight_decay=0.01)

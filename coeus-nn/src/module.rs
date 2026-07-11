@@ -1,7 +1,30 @@
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, Scalar};
 
-use crate::Parameter;
+use coeus_autograd::Parameter;
+
+/// Contract failures when loading optimizer-owned named parameters.
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum ParameterLoadError {
+    /// The incoming inventory has a different parameter count.
+    #[error("named parameter count mismatch: expected {expected}, got {actual}")]
+    Count {
+        /// Module inventory length.
+        expected: usize,
+        /// Incoming inventory length.
+        actual: usize,
+    },
+    /// A hierarchical name differs at a stable inventory position.
+    #[error("named parameter mismatch at index {index}: expected {expected}, got {actual}")]
+    Name {
+        /// Inventory position.
+        index: usize,
+        /// Module-owned path.
+        expected: String,
+        /// Incoming path.
+        actual: String,
+    },
+}
 
 pub(crate) fn prefixed_parameters<T, B, M>(prefix: &str, module: &M) -> Vec<Parameter<T, B>>
 where
@@ -66,6 +89,41 @@ pub trait Module<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBacken
     /// whose `parameters()` returns a non-empty `Vec` must override this.
     #[inline]
     fn load_parameters(&mut self, _params: &[Var<T, B>]) {}
+
+    /// Load optimizer-updated named parameters after validating the complete
+    /// stable path inventory.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParameterLoadError`] when count or path ordering differs from
+    /// this module's canonical named inventory.
+    fn load_named_parameters(
+        &mut self,
+        parameters: &[Parameter<T, B>],
+    ) -> Result<(), ParameterLoadError> {
+        let expected = self.named_parameters();
+        if expected.len() != parameters.len() {
+            return Err(ParameterLoadError::Count {
+                expected: expected.len(),
+                actual: parameters.len(),
+            });
+        }
+        for (index, (expected, actual)) in expected.iter().zip(parameters).enumerate() {
+            if expected.name != actual.name {
+                return Err(ParameterLoadError::Name {
+                    index,
+                    expected: expected.name.clone(),
+                    actual: actual.name.clone(),
+                });
+            }
+        }
+        let variables = parameters
+            .iter()
+            .map(|parameter| parameter.var.clone())
+            .collect::<Vec<_>>();
+        self.load_parameters(&variables);
+        Ok(())
+    }
 
     /// Zero all parameter gradients.
     #[inline]

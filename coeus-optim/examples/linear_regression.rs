@@ -5,14 +5,14 @@
 //! parameters with the fused `SGD` optimizer — recovering a known
 //! `y = X·w + b` from synthetic data.
 //!
-//! The forward pass is built from the optimizer's owned parameter `Var`s
+//! The forward pass is built from the optimizer's owned named parameters
 //! (`opt.params[..]`), which `SGD::step` updates in place; their gradient
 //! buffers are `Arc`-shared into the graph, so `backward()` populates exactly
 //! the gradients the optimizer reads.
 //!
 //! Run with:  `cargo run -p coeus-optim --example linear_regression`
 
-use coeus_autograd::{add, matmul, mean, mul, sub, Var};
+use coeus_autograd::{add, matmul, mean, mul, sub, Parameter, Var};
 use coeus_core::SequentialBackend;
 use coeus_optim::{Optimizer, SGD};
 use coeus_tensor::Tensor;
@@ -52,7 +52,11 @@ fn main() {
     let w = Var::new(Tensor::<f32, B>::zeros(vec![D, 1]), true);
     let b = Var::new(Tensor::<f32, B>::zeros(vec![1, 1]), true); // broadcasts over [N, 1]
 
-    let mut opt = SGD::new(vec![w, b], 0.1f32, 0.9f32);
+    let mut opt = SGD::new(
+        vec![Parameter::new(w, "weight"), Parameter::new(b, "bias")],
+        0.1f32,
+        0.9f32,
+    );
 
     let mut first_loss = 0.0f32;
     let mut last_loss = 0.0f32;

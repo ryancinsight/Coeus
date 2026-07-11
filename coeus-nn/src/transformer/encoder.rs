@@ -82,7 +82,7 @@ impl<
         self.layers.iter().flat_map(|l| l.parameters()).collect()
     }
 
-    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
         self.layers
             .iter()
             .enumerate()

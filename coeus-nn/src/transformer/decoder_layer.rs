@@ -282,7 +282,7 @@ impl<
         p
     }
 
-    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
         let mut parameters = prefixed_parameters("norm1", &self.norm1);
         parameters.extend(prefixed_parameters("self_attention", &self.self_attn));
         parameters.extend(prefixed_parameters("norm2", &self.norm2));

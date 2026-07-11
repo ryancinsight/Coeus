@@ -21,7 +21,7 @@ import traceback
 try:
     # 5. Optimizers
     param = pycoeus.Tensor([10.0], requires_grad=True)
-    sgd = pycoeus.SGD([param], lr=0.1)
+    sgd = pycoeus.SGD([('weight', param)], lr=0.1)
     loss = param * pycoeus.Tensor([2.0])
     loss.backward()
     sgd.step()
@@ -29,7 +29,7 @@ try:
 
     # Adam
     param_adam = pycoeus.Tensor([10.0], requires_grad=True)
-    adam = pycoeus.Adam([param_adam], lr=0.1)
+    adam = pycoeus.Adam([('weight', param_adam)], lr=0.1)
     loss_adam = param_adam * pycoeus.Tensor([2.0])
     loss_adam.backward()
     adam.step()
@@ -37,7 +37,7 @@ try:
 
     # AdamW
     param_adamw = pycoeus.Tensor([10.0], requires_grad=True)
-    adamw = pycoeus.AdamW([param_adamw], lr=0.1, weight_decay=0.01)
+    adamw = pycoeus.AdamW([('weight', param_adamw)], lr=0.1, weight_decay=0.01)
     loss_adamw = param_adamw * pycoeus.Tensor([2.0])
     loss_adamw.backward()
     adamw.step()
@@ -45,7 +45,7 @@ try:
 
     # RMSProp
     param_rmsprop = pycoeus.Tensor([10.0], requires_grad=True)
-    rmsprop = pycoeus.RMSProp([param_rmsprop], lr=0.1)
+    rmsprop = pycoeus.RMSProp([('weight', param_rmsprop)], lr=0.1)
     loss_rmsprop = param_rmsprop * pycoeus.Tensor([2.0])
     loss_rmsprop.backward()
     rmsprop.step()
@@ -53,7 +53,7 @@ try:
 
     # AdaGrad Optimizer
     param_adagrad = pycoeus.Tensor([10.0], requires_grad=True)
-    adagrad = pycoeus.AdaGrad([param_adagrad], lr=0.1)
+    adagrad = pycoeus.AdaGrad([('weight', param_adagrad)], lr=0.1)
     loss_adagrad = param_adagrad * pycoeus.Tensor([2.0])
     loss_adagrad.backward()
     adagrad.step()

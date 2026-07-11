@@ -1,5 +1,21 @@
 # Coeus Gap Audit
 
+## MS-439: Named optimizer ownership closed
+
+**Location**: `coeus-autograd/src/parameter.rs`, `coeus-optim`,
+`coeus-nn/src/module.rs`, and `coeus-python/src/optim.rs`.
+**Gap**: optimizer construction flattened named module inventories into
+`Vec<Var>`, severing persistence identity and forcing Burn-like positional
+reload behavior.
+**Resolution**: the parameter carrier moved to the deepest common owner;
+optimizers retain names, module reload validates the complete inventory, and
+the Python boundary requires names from the caller. No unnamed constructor or
+compatibility re-export remains.
+**Evidence tier**: type-level optimizer storage, typed count/name failures,
+analytical and convergence tests across all five algorithms (20/20), and real
+NN/PyO3 update integration (21/21), affected NN parity 144/144, Clippy,
+Rustdoc, and doctests.
+
 ## MS-438: Stable hierarchical module parameters closed
 
 **Location**: `coeus-nn/src/{module,parameter}.rs` and composite module impls.

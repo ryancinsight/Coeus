@@ -29,6 +29,8 @@ pub mod grad_mode;
 pub mod node;
 /// Differentiable operations that build the autograd graph.
 pub mod ops;
+/// Named trainable parameter carrier.
+pub mod parameter;
 /// The differentiable variable type.
 pub mod var;
 
@@ -233,5 +235,6 @@ pub use ops::{
     NullMask,
     VarScalarExt,
 };
+pub use parameter::Parameter;
 
 pub use var::Var;

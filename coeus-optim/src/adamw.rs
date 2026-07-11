@@ -6,7 +6,7 @@
 // L2 regularization and adaptive learning rates that occurs in Adam+L2.
 
 use crate::traits::Optimizer;
-use coeus_autograd::Var;
+use coeus_autograd::Parameter;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
 
@@ -24,24 +24,24 @@ use coeus_tensor::Tensor;
 /// # Examples
 ///
 /// ```
-/// use coeus_autograd::Var;
+/// use coeus_autograd::{Parameter, Var};
 /// use coeus_optim::{AdamW, Optimizer};
 /// use coeus_tensor::Tensor;
 ///
 /// let x: Var<f32> = Var::new(Tensor::from_slice(vec![2], &[2.0f32, 3.0]), true);
 /// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
 ///
-/// let mut opt = AdamW::new(vec![x.clone()], 0.1f32, 0.9f32, 0.999f32, 1e-8f32, 0.01f32);
+/// let mut opt = AdamW::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.9f32, 0.999f32, 1e-8f32, 0.01f32);
 /// opt.step();
 /// // adam_update ≈ lr * [1.0, -1.0] = [0.1, -0.1]; wd_update = lr * wd * p = [0.002, 0.003]
 /// // p' = [2.0, 3.0] - [0.1, -0.1] - [0.002, 0.003] = [1.898, 3.097]
-/// let updated = opt.params[0].tensor.as_slice();
+/// let updated = opt.params[0].var.tensor.as_slice();
 /// assert!((updated[0] - 1.898).abs() < 1e-4);
 /// assert!((updated[1] - 3.097).abs() < 1e-4);
 /// ```
 pub struct AdamW<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Tracked parameter variables.
-    pub params: Vec<Var<T, B>>,
+    pub params: Vec<Parameter<T, B>>,
     /// Learning rate.
     pub lr: T,
     /// First-moment decay coefficient (β₁).
@@ -70,15 +70,22 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> AdamW<T, B> {
     /// - `beta2`:        second-moment decay (default `0.999`).
     /// - `eps`:          stability constant (default `1e-8`).
     /// - `weight_decay`: decoupled L2 penalty coefficient (e.g. `0.01`).
-    pub fn new(params: Vec<Var<T, B>>, lr: T, beta1: T, beta2: T, eps: T, weight_decay: T) -> Self {
+    pub fn new(
+        params: Vec<Parameter<T, B>>,
+        lr: T,
+        beta1: T,
+        beta2: T,
+        eps: T,
+        weight_decay: T,
+    ) -> Self {
         let backend = B::default();
         let m = params
             .iter()
-            .map(|p| Tensor::zeros_on(p.tensor.shape(), &backend))
+            .map(|p| Tensor::zeros_on(p.var.tensor.shape(), &backend))
             .collect();
         let v = params
             .iter()
-            .map(|p| Tensor::zeros_on(p.tensor.shape(), &backend))
+            .map(|p| Tensor::zeros_on(p.var.tensor.shape(), &backend))
             .collect();
         Self {
             params,
@@ -95,7 +102,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> AdamW<T, B> {
 
     /// Construct with standard defaults: β₁=0.9, β₂=0.999, ε=1e-8.
     #[inline]
-    pub fn with_defaults(params: Vec<Var<T, B>>, lr: T, weight_decay: T) -> Self {
+    pub fn with_defaults(params: Vec<Parameter<T, B>>, lr: T, weight_decay: T) -> Self {
         Self::new(
             params,
             lr,
@@ -113,12 +120,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for AdamW<
         let backend = B::default();
 
         for (i, param) in self.params.iter_mut().enumerate() {
-            if let Some(ref g) = param.grad {
+            if let Some(ref g) = param.var.grad {
                 let grad_tensor = g.read();
                 let m_tensor = &mut self.m[i];
                 let v_tensor = &mut self.v[i];
 
-                let (param_storage, param_layout) = param.tensor.storage_mut_and_layout();
+                let (param_storage, param_layout) = param.var.tensor.storage_mut_and_layout();
                 let (m_storage, m_layout) = m_tensor.storage_mut_and_layout();
                 let (v_storage, v_layout) = v_tensor.storage_mut_and_layout();
 
@@ -144,7 +151,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for AdamW<
 
     fn zero_grad(&mut self) {
         for p in &self.params {
-            p.zero_grad();
+            p.var.zero_grad();
         }
     }
 
@@ -157,6 +164,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for AdamW<
         B::DeviceBuffer<T>:
             coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
     {
-        crate::clip::clip_grad_norm(&self.params, max_norm)
+        crate::clip::clip_grad_norm_iter(
+            self.params.iter().map(|parameter| &parameter.var),
+            max_norm,
+        )
     }
 }

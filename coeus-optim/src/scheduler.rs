@@ -156,7 +156,7 @@ impl SchedulerStrategy for WarmupCosine {
 /// use coeus_tensor::Tensor;
 ///
 /// let p: Var<f32> = Var::new(Tensor::from_slice(vec![1], &[1.0f32]), true);
-/// let opt = SGD::new(vec![p], 1e-3f32, 0.0f32);
+/// let opt = SGD::new(vec![coeus_autograd::Parameter::new(p, "weight")], 1e-3f32, 0.0f32);
 /// let mut scheduler = LrScheduler::new(opt, StepDecay { step_size: 2, gamma: 0.5 }, 1e-3);
 ///
 /// assert!((scheduler.current_lr() - 1e-3).abs() < 1e-7); // step 0

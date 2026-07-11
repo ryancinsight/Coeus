@@ -77,7 +77,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for FeedForwa
         p
     }
 
-    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
         let mut parameters = prefixed_parameters("input", &self.linear1);
         parameters.extend(prefixed_parameters("output", &self.linear2));
         parameters

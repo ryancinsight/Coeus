@@ -7,14 +7,14 @@ use coeus_core::{MoiraiBackend, Scalar};
 /// # Examples
 ///
 /// ```
-/// use coeus_autograd::Var;
+/// use coeus_autograd::{Parameter, Var};
 /// use coeus_optim::{Optimizer, SGD};
 /// use coeus_tensor::Tensor;
 ///
 /// let x: Var<f32> = Var::new(Tensor::from_slice(vec![1], &[1.0f32]), true);
 /// x.set_grad(Tensor::from_slice(vec![1], &[-2.0f32]));
 ///
-/// let mut opt: SGD<f32> = SGD::new(vec![x.clone()], 0.1f32, 0.0f32);
+/// let mut opt: SGD<f32> = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32);
 /// // `step`, `zero_grad`, and `set_lr` come from the `Optimizer` trait.
 /// opt.step();
 /// // x' = x - lr * grad = 1.0 - 0.1 * (-2.0) = 1.2

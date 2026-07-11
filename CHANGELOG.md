@@ -4,6 +4,21 @@
 
 ### Breaking
 
+- Optimizer constructors now require `Vec<coeus_autograd::Parameter>` instead
+  of unnamed `Vec<Var>`; optimizer `params` retain names and expose the variable
+  through `.var` (or dereference).
+- `Parameter` moved from `coeus-nn` to `coeus-autograd`; the old re-export was
+  removed.
+- Python optimizers now require `(name, tensor)` pairs instead of bare tensors.
+
+### Migration
+
+- Construct optimizers from `module.named_parameters()` and return updated
+  state with `module.load_named_parameters(&optimizer.params)?`. Standalone
+  variables use `Parameter::new(var, stable_name)`.
+
+### Breaking
+
 - Removed the dimension-specific interpolation functions and gradient type.
   Call `linear_interpolation::<2, _, _>(image, grid, Replicate)` or
   `linear_interpolation::<3, _, _>(image, grid, Replicate)`; reverse mode uses
@@ -22,6 +37,9 @@
   layout. This fixes rank-4 attention gradients in RITK TransMorph training.
 
 ### Added
+
+- **Checked named optimizer reload** — modules reject count or path drift before
+  accepting optimizer-updated variables.
 
 - **Stable hierarchical module parameters** — `Module::named_parameters`
   exposes semantic parameter paths across leaves, sequences, recurrent models,

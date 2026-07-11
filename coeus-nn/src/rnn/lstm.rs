@@ -83,7 +83,7 @@ impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default>
         p
     }
 
-    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
         let mut parameters = prefixed_parameters("input", &self.w_ih);
         parameters.extend(prefixed_parameters("hidden", &self.w_hh));
         parameters
@@ -182,7 +182,7 @@ where
         self.cell.parameters()
     }
 
-    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
         prefixed_parameters("cell", &self.cell)
     }
 

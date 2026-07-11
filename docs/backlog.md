@@ -1,5 +1,17 @@
 # Coeus Project Backlog & Historical Archives
 
+## MS-439 named optimizer ownership (CLOSED 2026-07-11)
+
+[arch] The canonical `Parameter` carrier now lives in `coeus-autograd`, below
+both NN reflection and optimizer state. All five optimizers own
+`Vec<Parameter>` and update the contained variable without discarding its stable
+path. `Module::load_named_parameters` validates count and every path before
+loading updated values. PyO3 accepts explicit `(name, tensor)` pairs and never
+fabricates ordinal names. Evidence: analytical/convergence optimizer nextest
+20/20, NN/PyO3 integration nextest 21/21, exact path persistence, reordered-name
+rejection, affected NN parity 144/144, Clippy, Rustdoc, doctests, and
+compile-clean examples/benches.
+
 ## MS-438 RITK stable named parameter provider (CLOSED 2026-07-11)
 
 [minor] `Module::named_parameters` now returns the existing `Parameter` carrier

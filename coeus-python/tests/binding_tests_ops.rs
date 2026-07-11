@@ -2830,7 +2830,7 @@ assert abs(cosine_lr(100) - eta_min) < 1e-9, "beyond T_max should be eta_min"
 # ── Test using pycoeus.LrScheduler.cosine_anneal ─────────────────────
 p1 = pycoeus.Tensor([1.0, 2.0], [2], requires_grad=True)
 pycoeus.sum(p1 * p1).backward()
-optimizer = pycoeus.Adam([p1], lr=base_lr)
+optimizer = pycoeus.Adam([('weight', p1)], lr=base_lr)
 scheduler = pycoeus.LrScheduler.cosine_anneal(optimizer, base_lr, T, eta_min)
 
 # Step once

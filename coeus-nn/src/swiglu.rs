@@ -43,7 +43,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for SwiGlu<T,
         params
     }
 
-    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
         let mut parameters = prefixed_parameters("inner", &self.linear_inner);
         parameters.extend(prefixed_parameters("outer", &self.linear_outer));
         parameters

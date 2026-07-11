@@ -3,7 +3,7 @@
 //! track regressions in the parameter-update path (allocation, moment buffers,
 //! backend dispatch) as tensor size grows.
 
-use coeus_autograd::Var;
+use coeus_autograd::{Parameter, Var};
 use coeus_core::MoiraiBackend;
 use coeus_optim::{Adam, AdamW, Optimizer, SGD};
 use coeus_tensor::Tensor;
@@ -25,7 +25,7 @@ fn grad_of(n: usize) -> Tensor<f32, MoiraiBackend> {
 fn bench_sgd_step(c: &mut Criterion) {
     let mut group = c.benchmark_group("coeus-optim SGD step (momentum=0.9)");
     for &n in &SIZES {
-        let mut opt = SGD::new(vec![make_param(n)], 0.01, 0.9);
+        let mut opt = SGD::new(vec![Parameter::new(make_param(n), "weight")], 0.01, 0.9);
         opt.params[0].set_grad(grad_of(n));
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| {
@@ -40,7 +40,13 @@ fn bench_sgd_step(c: &mut Criterion) {
 fn bench_adam_step(c: &mut Criterion) {
     let mut group = c.benchmark_group("coeus-optim Adam step");
     for &n in &SIZES {
-        let mut opt = Adam::new(vec![make_param(n)], 0.001, 0.9, 0.999, 1e-8);
+        let mut opt = Adam::new(
+            vec![Parameter::new(make_param(n), "weight")],
+            0.001,
+            0.9,
+            0.999,
+            1e-8,
+        );
         opt.params[0].set_grad(grad_of(n));
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| {
@@ -55,7 +61,14 @@ fn bench_adam_step(c: &mut Criterion) {
 fn bench_adamw_step(c: &mut Criterion) {
     let mut group = c.benchmark_group("coeus-optim AdamW step (weight_decay=0.01)");
     for &n in &SIZES {
-        let mut opt = AdamW::new(vec![make_param(n)], 0.001, 0.9, 0.999, 1e-8, 0.01);
+        let mut opt = AdamW::new(
+            vec![Parameter::new(make_param(n), "weight")],
+            0.001,
+            0.9,
+            0.999,
+            1e-8,
+            0.01,
+        );
         opt.params[0].set_grad(grad_of(n));
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| {

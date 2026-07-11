@@ -13,7 +13,7 @@ fn test_transformer_decoder_layer() {
     let d_ff = 16;
     let backend = MoiraiBackend;
 
-    let layer = TransformerDecoderLayer::<f64, MoiraiBackend, H, CausalMask, NullMask>::new(
+    let mut layer = TransformerDecoderLayer::<f64, MoiraiBackend, H, CausalMask, NullMask>::new(
         d_model, d_ff, 0.0,
     );
 
@@ -70,6 +70,12 @@ fn test_transformer_decoder_layer() {
                 .expect("named parameter gradient buffer")
         ));
     }
+    let mut reordered = named.clone();
+    reordered.swap(0, 1);
+    assert!(matches!(
+        layer.load_named_parameters(&reordered),
+        Err(coeus_nn::ParameterLoadError::Name { index: 0, .. })
+    ));
 
     let batch = 2;
     let seq_tgt = 4;

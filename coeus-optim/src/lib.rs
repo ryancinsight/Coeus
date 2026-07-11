@@ -2,8 +2,8 @@
 //!
 //! # Optimizer trait
 //! [`Optimizer<T, B>`](traits::Optimizer) requires `step`, `zero_grad`, `set_lr`,
-//! and `clip_grad_norm`. Concrete optimizers own their parameter `Var`s
-//! (constructed from a `Vec<Var>`, e.g. `SGD::new`) and update them in place
+//! and `clip_grad_norm`. Concrete optimizers own named [`coeus_autograd::Parameter`]s
+//! (constructed from a module's named inventory) and update their variables in place
 //! on `step()` via fused [`BackendOps`](coeus_ops::BackendOps) kernel calls;
 //! gradient buffers are `Arc`-shared with the autograd graph, so `backward()`
 //! populates exactly the gradients the optimizer reads.

@@ -439,7 +439,7 @@ fn prelu_forward_and_backward() {
 #[test]
 fn prelu_module_weight_learns_via_optimizer_round_trip() {
     // Regression pin (mirrors `test_load_parameters_applies_optimizer_step_to_
-    // the_module` for Linear): SGD::step mutates its own owned Vec<Var> in
+    // the_module` for Linear): SGD::step mutates its owned named parameters in
     // place, detached (copy-on-write) from the clone taken via parameters(),
     // so without PReLU::load_parameters writing the update back into
     // module.weight, the module's own field would silently stay unchanged.
@@ -452,9 +452,11 @@ fn prelu_module_weight_learns_via_optimizer_round_trip() {
     coeus_autograd::sum(&output).backward();
 
     let lr = 0.1;
-    let mut opt = SGD::new(module.parameters(), lr, 0.0);
+    let mut opt = SGD::new(module.named_parameters(), lr, 0.0);
     opt.step();
-    module.load_parameters(&opt.params);
+    module
+        .load_named_parameters(&opt.params)
+        .expect("optimizer inventory must match module paths");
 
     // grad_w = sum over x<=0 of x = -2.0 (only the first element).
     // w' = w - lr * grad_w = 0.25 - 0.1*(-2.0) = 0.45.

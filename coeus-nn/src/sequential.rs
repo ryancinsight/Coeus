@@ -64,7 +64,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sequenti
         self.layers.iter().flat_map(|m| m.parameters()).collect()
     }
 
-    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
         self.layers
             .iter()
             .enumerate()
@@ -124,7 +124,7 @@ impl<
         params
     }
 
-    fn named_parameters(&self) -> Vec<crate::Parameter<ScalarType, B>> {
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<ScalarType, B>> {
         let mut parameters = prefixed_parameters("head", &self.0);
         parameters.extend(prefixed_parameters("tail", &self.1));
         parameters

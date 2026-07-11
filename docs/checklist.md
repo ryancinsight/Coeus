@@ -1,5 +1,19 @@
 # Global Progress Checklist: Coeus
 
+## Sprint MS-439: Named optimizer ownership [COMPLETE]
+
+**Target version**: 0.8.0
+
+- [x] [arch] Move `Parameter` from `coeus-nn` to `coeus-autograd`, the deepest
+  common owner of module and optimizer parameter identity.
+- [x] [major] Make SGD, Adam, AdamW, RMSProp, and AdaGrad own named parameters
+  directly and preserve names through updates and clipping.
+- [x] [major] Add checked module reload by complete hierarchical inventory and
+  require explicit Python `(name, tensor)` pairs.
+- [x] [major] Verify optimizer nextest 20/20, cross-boundary nextest 21/21,
+  affected NN parity 144/144, reordered-name rejection, exact update semantics,
+  Clippy, Rustdoc, and doctests.
+
 ## Sprint MS-438: Stable hierarchical module parameters [COMPLETE]
 
 **Target version**: 0.7.0

@@ -50,7 +50,6 @@ pub mod module;
 /// Normalization layers (LayerNorm, BatchNorm, GroupNorm, etc.).
 pub mod normalization;
 /// Learnable parameter wrapper.
-pub mod parameter;
 /// Pooling layers (max, average, global).
 pub mod pool;
 /// Positional encoding layers (sinusoidal, RoPE).
@@ -98,12 +97,11 @@ pub use loss::{
     multi_margin, nanmean, nansum, nll_loss, pairwise_distance, poisson_nll, smooth_l1_loss,
     soft_margin, triplet_margin_loss, triplet_margin_with_distance_loss,
 };
-pub use module::Module;
+pub use module::{Module, ParameterLoadError};
 pub use normalization::{
     group_norm, layer_norm, rms_norm, BatchNorm1d, BatchNorm2d, BatchNorm3d, GroupNorm,
     InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, LayerNorm, RMSNorm,
 };
-pub use parameter::Parameter;
 pub use pool::{
     AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveMaxPool1d, AdaptiveMaxPool2d, AvgPool1d,
     AvgPool2d, AvgPool3d, GlobalAvgPool1d, GlobalAvgPool2d, GlobalAvgPool3d, GlobalMaxPool2d,

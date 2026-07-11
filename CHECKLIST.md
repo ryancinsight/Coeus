@@ -6,6 +6,14 @@ This document tracks the high-level roadmap and feature validation checklist for
 
 ---
 
+## Named Optimizer Ownership [major]
+- [x] Move the canonical `Parameter` carrier below NN and optimizer consumers.
+- [x] Make every optimizer retain stable names through steps and gradient clipping.
+- [x] Validate complete path inventories before loading updated values into modules.
+- [x] Require explicit `(name, tensor)` pairs at the PyO3 boundary.
+- [x] Verify optimizer nextest 20/20, cross-boundary nextest 21/21,
+      affected NN parity 144/144, Clippy, Rustdoc, and doctests.
+
 ## RITK Stable Named Parameters [minor]
 - [x] Add canonical named parameter collection to the `Module` seam.
 - [x] Preserve optimizer ordering while assigning semantic leaf names.

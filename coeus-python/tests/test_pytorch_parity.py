@@ -1076,7 +1076,7 @@ def test_sgd_step_matches_pytorch() -> None:
     target_pyc = pycoeus.Tensor([0.0], [1])
     loss_pyc = pycoeus.mse_loss(w_pyc, target_pyc)
     loss_pyc.backward()  # grad = 2 * 1.0 / 1 = 2.0
-    opt_pyc = pycoeus.SGD([w_pyc], lr=lr, momentum=0.0)
+    opt_pyc = pycoeus.SGD([("weight", w_pyc)], lr=lr, momentum=0.0)
     opt_pyc.step()
 
     w_t = torch.tensor([1.0], dtype=torch.float64, requires_grad=True)
@@ -1101,7 +1101,7 @@ def test_adam_step_matches_pytorch() -> None:
     target_pyc = pycoeus.Tensor([0.0], [1])
     loss_pyc = pycoeus.mse_loss(w_pyc, target_pyc)
     loss_pyc.backward()  # grad = 2.0
-    opt_pyc = pycoeus.Adam([w_pyc], lr=lr, beta1=0.9, beta2=0.999, eps=1e-8)
+    opt_pyc = pycoeus.Adam([("weight", w_pyc)], lr=lr, beta1=0.9, beta2=0.999, eps=1e-8)
     opt_pyc.step()
 
     w_t = torch.tensor([1.0], dtype=torch.float64, requires_grad=True)
@@ -1127,7 +1127,7 @@ def test_adamw_step_matches_pytorch() -> None:
     target_pyc = pycoeus.Tensor([0.0], [1])
     loss_pyc = pycoeus.mse_loss(w_pyc, target_pyc)
     loss_pyc.backward()  # grad = 2.0
-    opt_pyc = pycoeus.AdamW([w_pyc], lr=lr, weight_decay=wd)
+    opt_pyc = pycoeus.AdamW([("weight", w_pyc)], lr=lr, weight_decay=wd)
     opt_pyc.step()
 
     w_t = torch.tensor([1.0], dtype=torch.float64, requires_grad=True)
@@ -2121,7 +2121,7 @@ def test_rmsprop_step_matches_pytorch() -> None:
     target_pyc = pycoeus.Tensor([0.0], [1])
     loss_pyc = pycoeus.mse_loss(w_pyc, target_pyc)
     loss_pyc.backward()  # grad = 2.0
-    opt_pyc = pycoeus.RMSProp([w_pyc], lr=lr, alpha=alpha, eps=eps)
+    opt_pyc = pycoeus.RMSProp([("weight", w_pyc)], lr=lr, alpha=alpha, eps=eps)
     opt_pyc.step()
 
     w_t = torch.tensor([1.0], dtype=torch.float64, requires_grad=True)
@@ -2153,7 +2153,7 @@ def test_adagrad_step_matches_pytorch() -> None:
     target_pyc = pycoeus.Tensor([0.0], [1])
     loss_pyc = pycoeus.mse_loss(w_pyc, target_pyc)
     loss_pyc.backward()  # grad = 2.0
-    opt_pyc = pycoeus.AdaGrad([w_pyc], lr=lr, eps=eps)
+    opt_pyc = pycoeus.AdaGrad([("weight", w_pyc)], lr=lr, eps=eps)
     opt_pyc.step()
 
     w_t = torch.tensor([1.0], dtype=torch.float64, requires_grad=True)

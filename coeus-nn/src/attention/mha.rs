@@ -264,7 +264,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
         p
     }
 
-    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
         let names = [
             "query.weight",
             "key.weight",
@@ -278,7 +278,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
         self.parameters()
             .into_iter()
             .zip(names)
-            .map(|(parameter, name)| crate::Parameter::new(parameter, name))
+            .map(|(parameter, name)| coeus_autograd::Parameter::new(parameter, name))
             .collect()
     }
 

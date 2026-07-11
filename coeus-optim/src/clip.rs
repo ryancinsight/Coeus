@@ -46,9 +46,19 @@ where
     B: coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
+    clip_grad_norm_iter(params.iter(), max_norm)
+}
+
+pub(crate) fn clip_grad_norm_iter<'a, T, B, I>(params: I, max_norm: T) -> T
+where
+    T: Float + 'a,
+    B: coeus_ops::BackendOps<T> + Default + 'a,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+    I: Iterator<Item = &'a Var<T, B>> + Clone,
+{
     // Pass 1: sum of squared gradient elements (native T precision).
     let mut total_sq = T::zero();
-    for param in params {
+    for param in params.clone() {
         let Some(ref grad_arc) = param.grad else {
             continue;
         };

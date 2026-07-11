@@ -5,13 +5,13 @@
 //! and the `Adam` optimizer — classifying three 2-D Gaussian blobs.
 //!
 //! As in `linear_regression`, the forward graph is built from the optimizer's
-//! owned parameter `Var`s (`opt.params[..]`), whose `Arc`-shared gradient
+//! owned named parameters (`opt.params[..]`), whose `Arc`-shared gradient
 //! buffers connect `backward()` to the `Adam` update. Weights use small random
 //! initialization (LCG) to break hidden-unit symmetry; biases start at zero.
 //!
 //! Run with:  `cargo run -p coeus-optim --example mlp_classifier`
 
-use coeus_autograd::{add, log_softmax, matmul, nll_loss, relu, Var};
+use coeus_autograd::{add, log_softmax, matmul, nll_loss, relu, Parameter, Var};
 use coeus_core::SequentialBackend;
 use coeus_optim::{Adam, Optimizer};
 use coeus_tensor::Tensor;
@@ -58,7 +58,18 @@ fn main() {
     );
     let b2 = Var::new(Tensor::<f32, B>::zeros(vec![1, CLASSES]), true);
 
-    let mut opt = Adam::new(vec![w1, b1, w2, b2], 0.05f32, 0.9, 0.999, 1e-8);
+    let mut opt = Adam::new(
+        vec![
+            Parameter::new(w1, "layer1.weight"),
+            Parameter::new(b1, "layer1.bias"),
+            Parameter::new(w2, "layer2.weight"),
+            Parameter::new(b2, "layer2.bias"),
+        ],
+        0.05f32,
+        0.9,
+        0.999,
+        1e-8,
+    );
 
     let mut first_loss = 0.0f32;
     let mut last_loss = 0.0f32;

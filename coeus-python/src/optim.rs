@@ -1,6 +1,24 @@
 use crate::tensor::PyTensor;
-use coeus_autograd::Var;
+use coeus_autograd::Parameter;
 use pyo3::prelude::*;
+
+type NamedPyParameter = (String, Py<PyTensor>);
+
+fn split_parameters(
+    py: Python<'_>,
+    parameters: Vec<NamedPyParameter>,
+) -> (
+    Vec<Py<PyTensor>>,
+    Vec<Parameter<f64, coeus_core::MoiraiBackend>>,
+) {
+    let mut python = Vec::with_capacity(parameters.len());
+    let mut rust = Vec::with_capacity(parameters.len());
+    for (name, parameter) in parameters {
+        rust.push(Parameter::new(parameter.borrow(py).inner.clone(), name));
+        python.push(parameter);
+    }
+    (python, rust)
+}
 
 /// Python-exposed SGD optimizer.
 #[pyclass(name = "SGD")]
@@ -16,12 +34,11 @@ impl PySGD {
     #[new]
     #[pyo3(signature = (params, lr, momentum = 0.0))]
     /// Create an SGD optimizer over `params` with learning rate `lr` and optional `momentum`.
-    pub fn new(py: Python<'_>, params: Vec<Py<PyTensor>>, lr: f64, momentum: f64) -> Self {
-        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> =
-            params.iter().map(|p| p.borrow(py).inner.clone()).collect();
+    pub fn new(py: Python<'_>, params: Vec<NamedPyParameter>, lr: f64, momentum: f64) -> Self {
+        let (params, named) = split_parameters(py, params);
         Self {
             params,
-            inner: coeus_optim::SGD::new(vars, lr, momentum),
+            inner: coeus_optim::SGD::new(named, lr, momentum),
         }
     }
 
@@ -31,7 +48,7 @@ impl PySGD {
         py.allow_threads(|| self.inner.step());
         for (i, p) in self.params.iter().enumerate() {
             let mut p_borrow = p.borrow_mut(py);
-            p_borrow.inner.tensor = self.inner.params[i].tensor.clone();
+            p_borrow.inner.tensor = self.inner.params[i].var.tensor.clone();
         }
     }
 
@@ -64,17 +81,16 @@ impl PyAdam {
     /// Create an Adam optimizer over `params`.
     pub fn new(
         py: Python<'_>,
-        params: Vec<Py<PyTensor>>,
+        params: Vec<NamedPyParameter>,
         lr: f64,
         beta1: f64,
         beta2: f64,
         eps: f64,
     ) -> Self {
-        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> =
-            params.iter().map(|p| p.borrow(py).inner.clone()).collect();
+        let (params, named) = split_parameters(py, params);
         Self {
             params,
-            inner: coeus_optim::Adam::new(vars, lr, beta1, beta2, eps),
+            inner: coeus_optim::Adam::new(named, lr, beta1, beta2, eps),
         }
     }
 
@@ -84,7 +100,7 @@ impl PyAdam {
         py.allow_threads(|| self.inner.step());
         for (i, p) in self.params.iter().enumerate() {
             let mut p_borrow = p.borrow_mut(py);
-            p_borrow.inner.tensor = self.inner.params[i].tensor.clone();
+            p_borrow.inner.tensor = self.inner.params[i].var.tensor.clone();
         }
     }
 
@@ -115,12 +131,17 @@ impl PyRMSProp {
     #[new]
     #[pyo3(signature = (params, lr = 1e-2, alpha = 0.99, eps = 1e-8))]
     /// Create an RMSProp optimizer over `params`.
-    pub fn new(py: Python<'_>, params: Vec<Py<PyTensor>>, lr: f64, alpha: f64, eps: f64) -> Self {
-        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> =
-            params.iter().map(|p| p.borrow(py).inner.clone()).collect();
+    pub fn new(
+        py: Python<'_>,
+        params: Vec<NamedPyParameter>,
+        lr: f64,
+        alpha: f64,
+        eps: f64,
+    ) -> Self {
+        let (params, named) = split_parameters(py, params);
         Self {
             params,
-            inner: coeus_optim::RMSProp::new(vars, lr, alpha, eps),
+            inner: coeus_optim::RMSProp::new(named, lr, alpha, eps),
         }
     }
 
@@ -130,7 +151,7 @@ impl PyRMSProp {
         py.allow_threads(|| self.inner.step());
         for (i, p) in self.params.iter().enumerate() {
             let mut p_borrow = p.borrow_mut(py);
-            p_borrow.inner.tensor = self.inner.params[i].tensor.clone();
+            p_borrow.inner.tensor = self.inner.params[i].var.tensor.clone();
         }
     }
 
@@ -161,12 +182,11 @@ impl PyAdaGrad {
     #[new]
     #[pyo3(signature = (params, lr = 1e-2, eps = 1e-10))]
     /// Create an AdaGrad optimizer over `params`.
-    pub fn new(py: Python<'_>, params: Vec<Py<PyTensor>>, lr: f64, eps: f64) -> Self {
-        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> =
-            params.iter().map(|p| p.borrow(py).inner.clone()).collect();
+    pub fn new(py: Python<'_>, params: Vec<NamedPyParameter>, lr: f64, eps: f64) -> Self {
+        let (params, named) = split_parameters(py, params);
         Self {
             params,
-            inner: coeus_optim::AdaGrad::new(vars, lr, eps),
+            inner: coeus_optim::AdaGrad::new(named, lr, eps),
         }
     }
 
@@ -176,7 +196,7 @@ impl PyAdaGrad {
         py.allow_threads(|| self.inner.step());
         for (i, p) in self.params.iter().enumerate() {
             let mut p_borrow = p.borrow_mut(py);
-            p_borrow.inner.tensor = self.inner.params[i].tensor.clone();
+            p_borrow.inner.tensor = self.inner.params[i].var.tensor.clone();
         }
     }
 
@@ -209,18 +229,17 @@ impl PyAdamW {
     /// Create an AdamW optimizer over `params`.
     pub fn new(
         py: Python<'_>,
-        params: Vec<Py<PyTensor>>,
+        params: Vec<NamedPyParameter>,
         lr: f64,
         beta1: f64,
         beta2: f64,
         eps: f64,
         weight_decay: f64,
     ) -> Self {
-        let vars: Vec<Var<f64, coeus_core::MoiraiBackend>> =
-            params.iter().map(|p| p.borrow(py).inner.clone()).collect();
+        let (params, named) = split_parameters(py, params);
         Self {
             params,
-            inner: coeus_optim::AdamW::new(vars, lr, beta1, beta2, eps, weight_decay),
+            inner: coeus_optim::AdamW::new(named, lr, beta1, beta2, eps, weight_decay),
         }
     }
 
@@ -230,7 +249,7 @@ impl PyAdamW {
         py.allow_threads(|| self.inner.step());
         for (i, p) in self.params.iter().enumerate() {
             let mut p_borrow = p.borrow_mut(py);
-            p_borrow.inner.tensor = self.inner.params[i].tensor.clone();
+            p_borrow.inner.tensor = self.inner.params[i].var.tensor.clone();
         }
     }
 
