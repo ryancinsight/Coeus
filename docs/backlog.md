@@ -1,5 +1,12 @@
 # Coeus Project Backlog & Historical Archives
 
+## MS-432 RITK trilinear autograd provider (CLOSED 2026-07-10)
+
+[minor] `coeus-ops` now computes image and sampling-grid derivatives for
+rank-5 trilinear interpolation, and `coeus-autograd` preserves both paths in
+reverse mode. This closes the gradient-semantics prerequisite for migrating
+RITK affine and TransMorph spatial transformers off Burn.
+
 ## MS-431 RITK trilinear provider (CLOSED 2026-07-10)
 
 [minor] `coeus-ops` now owns rank-5 voxel-coordinate trilinear interpolation,

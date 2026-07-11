@@ -6,6 +6,8 @@ pub mod activation;
 pub mod arithmetic;
 /// Embedding lookup operations.
 pub mod embedding;
+/// Differentiable coordinate-grid interpolation.
+pub mod interpolation;
 /// Linear algebra operations (matmul, sparse matmul, transpose).
 pub mod linalg;
 /// Neural network layers (conv, pooling, normalization, loss, attention).
@@ -47,6 +49,7 @@ pub use nn::{
 };
 
 pub use embedding::{embedding, embedding_with_padding_idx};
+pub use interpolation::trilinear_interpolation;
 pub use shape::{
     broadcast_to, cat, contiguous, cumprod, cumsum, diag, diagonal, diff, einsum, einsum3, flatten,
     flip, gather, index_put, index_select, masked_fill, movedim, pad, permute, reshape, roll,

@@ -1,5 +1,15 @@
 # Global Progress Checklist: Coeus
 
+## Sprint MS-432: Trilinear reverse-mode provider [COMPLETE]
+
+- [x] [minor] Added native-precision image and `(z, y, x)` grid derivatives
+  for rank-5 trilinear sampling.
+- [x] [minor] Added a tracked autograd operation that accumulates both input
+  gradients without detaching the model graph.
+- [x] [minor] Verified analytical ramp derivatives, constant-field coordinate
+  invariance, malformed-gradient rejection, and Sequential/Moirai execution:
+  nextest 4/4; targeted Clippy and rustdoc clean.
+
 ## Sprint MS-431: Native coordinate-grid trilinear provider [COMPLETE]
 
 - [x] [minor] Added `coeus_ops::trilinear_interpolation` as the canonical

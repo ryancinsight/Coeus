@@ -54,7 +54,10 @@ pub use binary::{
     lt, mul, mul_assign, ne, sub, sub_assign,
 };
 pub use embedding::{embedding, embedding_backward, embedding_backward_with_padding_idx};
-pub use interpolation::{trilinear_interpolation, InterpolationError};
+pub use interpolation::{
+    trilinear_interpolation, trilinear_interpolation_backward, InterpolationError,
+    TrilinearGradients,
+};
 pub use matmul::{bmm, matmul, matmul_accumulate, outer};
 pub use reduction::{
     amax, amin, argmax, argmin, cross, cumprod, cumsum, dot, frobenius_norm,

@@ -215,6 +215,7 @@ pub use ops::{
     transpose_2d,
     // Triangular masking
     tril,
+    trilinear_interpolation,
     triu,
     trunc,
     unfold1d,

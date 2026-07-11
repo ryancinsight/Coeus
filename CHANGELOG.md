@@ -4,6 +4,10 @@
 
 ### Added
 
+- **Trilinear reverse mode** — `coeus-ops` provides analytical image/grid
+  derivatives and `coeus-autograd` tracks both inputs, including border
+  replication semantics and malformed-gradient validation.
+
 - **Coordinate-grid trilinear interpolation** — `coeus-ops` now samples
   `[batch, channel, depth, height, width]` images from `(z, y, x)` voxel grids
   with border replication, typed contract errors, and Sequential/Moirai
