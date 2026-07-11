@@ -1,5 +1,14 @@
 # Coeus Project Backlog & Historical Archives
 
+## MS-433 RITK Swin linear provider (CLOSED 2026-07-10)
+
+[minor] `coeus_nn::Linear` now projects the last axis of rank-2 and
+higher-rank variables through one flatten/project/restore implementation.
+This supplies the canonical learned projection required by RITK TransMorph
+attention and MLP tensors without consumer-owned reshaping wrappers. Exact
+rank-3/rank-5 forward values and all three rank-3 gradient paths pass, as do
+all 409 `coeus-nn` tests, warning-denied Clippy, and rustdoc.
+
 ## MS-432 RITK trilinear autograd provider (CLOSED 2026-07-10)
 
 [minor] `coeus-ops` now computes image and sampling-grid derivatives for

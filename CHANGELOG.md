@@ -4,6 +4,11 @@
 
 ### Added
 
+- **Rank-generic linear projection** — `coeus_nn::Linear` now applies its
+  learned projection to the final axis of any rank-two-or-higher input while
+  preserving leading dimensions and all reverse-mode gradient paths. This is
+  the provider operation required by RITK TransMorph attention and MLPs.
+
 - **Trilinear reverse mode** — `coeus-ops` provides analytical image/grid
   derivatives and `coeus-autograd` tracks both inputs, including border
   replication semantics and malformed-gradient validation.

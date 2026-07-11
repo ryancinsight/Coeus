@@ -1,5 +1,15 @@
 # Global Progress Checklist: Coeus
 
+## Sprint MS-433: Rank-generic linear projection [COMPLETE]
+
+- [x] [minor] Generalized `Linear::forward` from rank-2 matrices to a
+  canonical last-axis projection for every rank of at least two.
+- [x] [minor] Preserved autograd through the flatten/project/restore path and
+  retained the rank-2 fast path without an intermediate reshape.
+- [x] [minor] Verified exact rank-3/rank-5 values and rank-3
+  input/weight/bias gradients, full `coeus-nn` nextest 409/409,
+  warning-denied Clippy, and rustdoc.
+
 ## Sprint MS-432: Trilinear reverse-mode provider [COMPLETE]
 
 - [x] [minor] Added native-precision image and `(z, y, x)` grid derivatives

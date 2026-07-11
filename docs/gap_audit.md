@@ -1,5 +1,18 @@
 # Coeus Gap Audit
 
+## MS-433: Rank-generic linear projection closed
+
+**Location**: `coeus-nn/src/linear.rs`.
+**Consumer driver**: RITK TransMorph window attention and MLP operate on
+rank-3 and rank-5 tensors whose feature width is the last axis.
+**Resolution**: `Linear::forward` validates the last-axis contract, flattens
+all leading axes, applies the single canonical matrix projection, and restores
+the leading shape. Rank-2 inputs retain the direct path. No consumer adapter
+or parallel linear implementation is required.
+**Evidence tier**: exact analytical rank-3/rank-5 forward values and
+reverse-mode rank-3 input/weight/bias gradients; full package nextest 409/409;
+warning-denied Clippy and rustdoc clean.
+
 ## Known Gaps & Residual Risks
 
 ### G-049: special-function unary lane

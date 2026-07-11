@@ -45,12 +45,44 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Linear<T
     }
 
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        let w_t = coeus_autograd::transpose_2d(&self.weight);
-        let out = coeus_autograd::matmul(input, &w_t);
-        if let Some(ref bias) = self.bias {
-            coeus_autograd::add(&out, bias)
+        let input_shape = input.tensor.shape();
+        assert!(
+            input_shape.len() >= 2,
+            "Linear input must have rank >= 2, got shape {input_shape:?}"
+        );
+        let in_features = self.weight.tensor.shape()[1];
+        assert_eq!(
+            input_shape[input_shape.len() - 1],
+            in_features,
+            "Linear input last dimension must equal in_features"
+        );
+
+        let rows = input_shape[..input_shape.len() - 1]
+            .iter()
+            .copied()
+            .product::<usize>();
+        let flattened = if input_shape.len() == 2 {
+            input.clone()
         } else {
-            out
+            coeus_autograd::reshape(input, [rows, in_features])
+        };
+        let w_t = coeus_autograd::transpose_2d(&self.weight);
+        let projected = coeus_autograd::matmul(&flattened, &w_t);
+        let projected = if let Some(ref bias) = self.bias {
+            coeus_autograd::add(&projected, bias)
+        } else {
+            projected
+        };
+
+        if input_shape.len() == 2 {
+            projected
+        } else {
+            let mut output_shape = input_shape.to_vec();
+            *output_shape
+                .last_mut()
+                .expect("invariant: rank was validated as at least two") =
+                self.weight.tensor.shape()[0];
+            coeus_autograd::reshape(&projected, output_shape)
         }
     }
 

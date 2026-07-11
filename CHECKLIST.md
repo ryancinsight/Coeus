@@ -6,6 +6,13 @@ This document tracks the high-level roadmap and feature validation checklist for
 
 ---
 
+## RITK TransMorph Provider Support [minor]
+- [x] Generalized `coeus_nn::Linear` to project the final feature axis of
+      rank-2 and higher-rank inputs through one autograd-preserving path.
+- [x] Verified exact rank-3/rank-5 forward values and rank-3
+      input/weight/bias gradients, all 409 `coeus-nn` tests,
+      warning-denied Clippy, and rustdoc.
+
 ## Default Parallel Memory Features [patch]
 - [x] Restored Moirai default features for workspace consumers so parallel execution, Mnemosyne-backed memory surfaces, and Mellinoe branding are active by default.
 - [x] Restored Leto and Leto Ops defaults so Coeus consumes Mnemosyne-backed Leto storage and default parallel ops without local feature suppression.

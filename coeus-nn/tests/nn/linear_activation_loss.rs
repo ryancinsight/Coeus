@@ -98,6 +98,77 @@ fn test_linear_layer() {
 }
 
 #[test]
+fn linear_projects_last_axis_for_rank_three_and_preserves_gradients() {
+    let mut layer = Linear::<f64>::new(3, 2, true);
+    layer.weight.tensor = Tensor::from_slice(vec![2, 3], &[1.0, 0.0, -1.0, 0.5, 2.0, 1.5]);
+    if let Some(ref mut bias) = layer.bias {
+        bias.tensor = Tensor::from_slice(vec![2], &[0.25, -0.5]);
+    }
+
+    let input = Var::new(
+        Tensor::from_slice(
+            vec![2, 2, 3],
+            &[
+                1.0, 2.0, 3.0, // -1.75, 8.5
+                4.0, 5.0, 6.0, // -1.75, 20.5
+                -1.0, 0.0, 1.0, // -1.75, 0.5
+                2.0, -2.0, 0.5, // 1.75, -2.75
+            ],
+        ),
+        true,
+    );
+    let output = layer.forward(&input);
+
+    assert_eq!(output.tensor.shape(), &[2, 2, 2]);
+    assert_eq!(
+        output.tensor.as_slice(),
+        &[-1.75, 8.5, -1.75, 20.5, -1.75, 0.5, 1.75, -2.75]
+    );
+
+    output.backward();
+    assert_eq!(
+        input
+            .grad()
+            .expect("rank-three linear input gradient must be populated")
+            .as_slice(),
+        &[1.5, 2.0, 0.5, 1.5, 2.0, 0.5, 1.5, 2.0, 0.5, 1.5, 2.0, 0.5]
+    );
+    assert_eq!(
+        layer
+            .weight
+            .grad()
+            .expect("rank-three linear weight gradient must be populated")
+            .as_slice(),
+        &[6.0, 5.0, 10.5, 6.0, 5.0, 10.5]
+    );
+    assert_eq!(
+        layer
+            .bias
+            .as_ref()
+            .expect("test layer has bias")
+            .grad()
+            .expect("rank-three linear bias gradient must be populated")
+            .as_slice(),
+        &[4.0, 4.0]
+    );
+}
+
+#[test]
+fn linear_projects_last_axis_for_rank_five() {
+    let mut layer = Linear::<f64>::new(3, 2, false);
+    layer.weight.tensor = Tensor::from_slice(vec![2, 3], &[1.0, 0.0, -1.0, 0.5, 2.0, 1.5]);
+    let input = Var::new(
+        Tensor::from_slice(vec![1, 1, 1, 2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+        false,
+    );
+
+    let output = layer.forward(&input);
+
+    assert_eq!(output.tensor.shape(), &[1, 1, 1, 2, 2]);
+    assert_eq!(output.tensor.as_slice(), &[-2.0, 9.0, -2.0, 21.0]);
+}
+
+#[test]
 fn test_load_parameters_applies_optimizer_step_to_the_module() {
     // Regression pin for `Module::load_parameters`: `SGD::step` mutates its own
     // owned `Vec<Var>` in place (copy-on-write detaches it from any clone taken
