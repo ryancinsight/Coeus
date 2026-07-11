@@ -1,5 +1,16 @@
 # Coeus Gap Audit
 
+## MS-435: Depthwise 3-D convolution closed
+
+**Location**: `coeus-nn/src/conv/depthwise3d.rs`.
+**Consumer driver**: RITK VMamba requires `groups == channels` for its local
+volumetric feature kernel.
+**Resolution**: Coeus now owns a depthwise 3-D module with a single
+`[channels, 1, kernel, kernel, kernel]` parameter tensor and differentiable
+channel slicing, canonical convolution, bias broadcast, and concatenation.
+**Evidence tier**: exact two-channel output values, analytical input gradient,
+and non-empty weight/bias gradients under nextest.
+
 ## MS-434: Rank-preserving batched matmul closed
 
 **Location**: `coeus-ops/src/matmul/kernel.rs` and

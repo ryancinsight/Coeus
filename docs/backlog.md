@@ -1,5 +1,14 @@
 # Coeus Project Backlog & Historical Archives
 
+## MS-435 RITK VMamba depthwise convolution provider (CLOSED 2026-07-10)
+
+[minor] `DepthwiseConv3d` owns channel-independent 3-D convolution in Coeus.
+It stores one kernel per channel, routes each channel through the canonical
+autograd convolution, concatenates outputs in channel order, and preserves
+input, weight, and bias gradients. This supplies RITK VMamba without a local
+grouped-convolution adapter. Exact two-channel values and analytical input
+gradients pass under nextest.
+
 ## MS-434 RITK attention matmul provider repair (CLOSED 2026-07-10)
 
 [patch] Rank-generic matmul now preserves all logical batch axes while

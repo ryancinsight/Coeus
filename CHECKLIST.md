@@ -6,6 +6,11 @@ This document tracks the high-level roadmap and feature validation checklist for
 
 ---
 
+## RITK VMamba Depthwise Convolution Support [minor]
+- [x] Add a canonical Coeus depthwise 3-D convolution module with one learned kernel per channel.
+- [x] Preserve input, kernel, and bias reverse-mode paths without a consumer-owned grouped-convolution adapter.
+- [x] Verify exact two-channel values and analytical input gradients under nextest.
+
 ## RITK Attention Matmul Support [patch]
 - [x] Preserve rank-N logical batch axes across batched matmul.
 - [x] Dispatch backward accumulation through an explicit rank-3 kernel layout.

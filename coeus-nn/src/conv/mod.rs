@@ -2,12 +2,14 @@
 pub mod dim;
 
 mod conv_nd;
+mod depthwise3d;
 mod conv_transpose1d;
 mod conv_transpose2d;
 mod conv_transpose3d;
 mod unfold_fold;
 
 pub use conv_nd::{Conv, ConvParams};
+pub use depthwise3d::DepthwiseConv3d;
 pub use dim::{ConvDim, Dim1D, Dim2D, Dim3D};
 
 /// 1D convolution layer; alias for `Conv<T, B, Dim1D>`.

@@ -10,6 +10,11 @@
 
 ### Added
 
+- **Depthwise 3-D convolution** — `coeus_nn::DepthwiseConv3d` applies one
+  learned volumetric kernel per channel while retaining reverse-mode gradients
+  for inputs, kernels, and bias. This is the provider operation required by
+  RITK VMamba blocks.
+
 - **Rank-generic linear projection** — `coeus_nn::Linear` now applies its
   learned projection to the final axis of any rank-two-or-higher input while
   preserving leading dimensions and all reverse-mode gradient paths. This is
