@@ -27,6 +27,15 @@
 - [x] Verification: `cargo check -p coeus-nn --bench nn_bench --offline` and
   `cargo clippy -p coeus-nn --benches --offline -- -D warnings` pass.
 
+## Sprint MS-443: bench 213 (cross attention) [COMPLETE]
+
+- [x] [patch] Expanded G-043 with `bench_mha_cross_attention_forward`, using
+  distinct query and memory sequence lengths through `forward_cross`.
+- [x] [patch] Omitted Burn because the pinned MHA benchmark surface exposes
+  self-attention input only, not separate query/key/value tensors.
+- [x] Verification: `cargo check -p coeus-nn --bench nn_bench --offline` and
+  `cargo clippy -p coeus-nn --benches --offline -- -D warnings` pass.
+
 ## Sprint MS-439: Named optimizer ownership [COMPLETE]
 
 **Target version**: 0.8.0

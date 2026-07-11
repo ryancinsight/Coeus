@@ -206,6 +206,10 @@ cell cost from sequence unrolling. Burn remains inapplicable for this family.
 **2026-07-11 update 3**: added `bench_bidirectional_rnn_forward` (Sequential
 vs Moirai, `[4, 32, 64] -> 2×hidden 128`), measuring the wrapper's real
 reverse-and-concatenate path. Burn has neither required vanilla-RNN primitive.
+**2026-07-11 update 4**: added `bench_mha_cross_attention_forward` (Sequential
+vs Moirai, query `[8, 32, 256]`, memory `[8, 64, 256]`, 8 heads). This closes
+the identified no-Burn MHA cross-attention row; G-043 remains open only for the
+broader every-family manifest audit.
 
 ### ~~G-042: Quantized and lazy module parity policy missing~~ **CLOSED (non-goal)**
 **Location**: `coeus-nn/src/lib.rs`, `coeus-python/src/lib.rs`
