@@ -18,6 +18,15 @@
 - [x] Verification: `cargo check -p coeus-nn --bench nn_bench --offline` and
   `cargo clippy -p coeus-nn --benches --offline -- -D warnings` pass.
 
+## Sprint MS-442: bench 212 (Bidirectional RNN) [COMPLETE]
+
+- [x] [patch] Expanded G-043 with `bench_bidirectional_rnn_forward`, measuring
+  two independent RNNs plus the tracked reverse-and-concatenate wrapper path.
+- [x] [patch] Omitted Burn because its pinned RNN surface has neither vanilla
+  RNN nor the bidirectional wrapper.
+- [x] Verification: `cargo check -p coeus-nn --bench nn_bench --offline` and
+  `cargo clippy -p coeus-nn --benches --offline -- -D warnings` pass.
+
 ## Sprint MS-439: Named optimizer ownership [COMPLETE]
 
 **Target version**: 0.8.0
