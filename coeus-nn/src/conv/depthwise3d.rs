@@ -8,10 +8,7 @@ use coeus_tensor::Tensor;
 
 /// Channel-independent 3-D convolution with one learned kernel per channel.
 #[derive(Clone)]
-pub struct DepthwiseConv3d<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default = MoiraiBackend,
-> {
+pub struct DepthwiseConv3d<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Kernels with shape `[channels, 1, kernel, kernel, kernel]`.
     pub weight: Var<T, B>,
     /// Optional channel bias with shape `[channels]`.
@@ -55,7 +52,10 @@ where
         let backend = B::default();
         Self {
             weight: Var::new(
-                Tensor::ones_on([channels, 1, kernel_size, kernel_size, kernel_size], &backend),
+                Tensor::ones_on(
+                    [channels, 1, kernel_size, kernel_size, kernel_size],
+                    &backend,
+                ),
                 true,
             ),
             bias: bias.then(|| Var::new(Tensor::zeros_on([channels], &backend), true)),
@@ -84,7 +84,14 @@ where
         let shape = input.tensor.shape();
         assert_eq!(shape.len(), 5, "DepthwiseConv3d: input must have rank 5");
         assert_eq!(shape[1], self.channels, "DepthwiseConv3d: channel mismatch");
-        let params = ConvParams::new(1, 1, self.kernel_size, self.stride, self.padding, self.dilation);
+        let params = ConvParams::new(
+            1,
+            1,
+            self.kernel_size,
+            self.stride,
+            self.padding,
+            self.dilation,
+        );
         let outputs: Vec<_> = (0..self.channels)
             .map(|channel| {
                 let channel_input = slice(
@@ -107,12 +114,11 @@ where
                         (0, self.kernel_size),
                     ],
                 );
-                let output = Conv3d::from_vars(channel_weight, None, params).forward(&channel_input);
+                let output =
+                    Conv3d::from_vars(channel_weight, None, params).forward(&channel_input);
                 self.bias.as_ref().map_or(output.clone(), |bias| {
-                    let channel_bias = reshape(
-                        &slice(bias, &[(channel, channel + 1)]),
-                        [1, 1, 1, 1, 1],
-                    );
+                    let channel_bias =
+                        reshape(&slice(bias, &[(channel, channel + 1)]), [1, 1, 1, 1, 1]);
                     add(&output, &channel_bias)
                 })
             })
@@ -155,8 +161,16 @@ mod tests {
         assert_eq!(output.tensor.shape(), &[1, 2, 1, 1, 2]);
         assert_eq!(output.tensor.as_slice(), &[9.0, 11.0, 17.0, 20.0]);
         output.backward();
-        assert_eq!(input.grad().expect("input gradient").as_slice(), &[2.0, 2.0, 3.0, 3.0]);
+        assert_eq!(
+            input.grad().expect("input gradient").as_slice(),
+            &[2.0, 2.0, 3.0, 3.0]
+        );
         assert!(convolution.weight.grad().is_some());
-        assert!(convolution.bias.as_ref().expect("bias enabled").grad().is_some());
+        assert!(convolution
+            .bias
+            .as_ref()
+            .expect("bias enabled")
+            .grad()
+            .is_some());
     }
 }

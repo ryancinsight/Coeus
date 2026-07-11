@@ -2,10 +2,10 @@
 pub mod dim;
 
 mod conv_nd;
-mod depthwise3d;
 mod conv_transpose1d;
 mod conv_transpose2d;
 mod conv_transpose3d;
+mod depthwise3d;
 mod unfold_fold;
 
 pub use conv_nd::{Conv, ConvParams};

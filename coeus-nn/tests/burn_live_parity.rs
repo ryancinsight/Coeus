@@ -6159,6 +6159,95 @@ fn margin_ranking_loss_forward_and_backward_match_analytical() {
     assert_close_rel("margin_ranking_grad2", g2.as_slice(), &[0.0_f32, 0.5], 1e-5);
 }
 
+// ── MaxPool1d forward matches Burn NdArray ─────────────────────────────────
+
+#[test]
+fn max_pool1d_forward_matches_burn() {
+    use burn::nn::pool::MaxPool1dConfig;
+    use coeus_nn::MaxPool1d;
+
+    let (n, c, w, k, s) = (1usize, 2, 8, 2, 2);
+    let data: Vec<f32> = (0..n * c * w).map(|x| x as f32 * 0.5 - 2.0).collect();
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, w], &data),
+        false,
+    );
+    let pool_c = MaxPool1d::<f32, SequentialBackend>::with_params(k, s, 0, 1);
+    let out_c = pool_c.forward(&xv);
+
+    let xb: BurnTensor<BurnBackend, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, w]), &dev());
+    let pool_b = MaxPool1dConfig::new(k)
+        .with_stride(s)
+        .init::<BurnBackend>(&dev());
+    let out_b = bvec(pool_b.forward(xb));
+
+    assert_eq!(out_c.tensor.shape(), &[n, c, w / k]);
+    assert_close("maxpool1d_vs_burn", out_c.tensor.as_slice(), &out_b);
+}
+
+// ── AvgPool1d forward matches Burn NdArray ──────────────────────────────────
+
+#[test]
+fn avg_pool1d_forward_matches_burn() {
+    use burn::nn::pool::AvgPool1dConfig;
+    use coeus_nn::AvgPool1d;
+
+    let (n, c, w, k, s) = (1usize, 2, 8, 2, 2);
+    let data: Vec<f32> = (0..n * c * w).map(|x| x as f32 * 0.5 - 2.0).collect();
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, w], &data),
+        false,
+    );
+    let pool_c = AvgPool1d::<f32, SequentialBackend>::with_params(k, s, 0, 1);
+    let out_c = pool_c.forward(&xv);
+
+    let xb: BurnTensor<BurnBackend, 3> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, w]), &dev());
+    let pool_b = AvgPool1dConfig::new(k)
+        .with_stride(s)
+        .init::<BurnBackend>(&dev());
+    let out_b = bvec(pool_b.forward(xb));
+
+    assert_eq!(out_c.tensor.shape(), &[n, c, w / k]);
+    assert_close("avgpool1d_vs_burn", out_c.tensor.as_slice(), &out_b);
+}
+
+// ── MaxPool3d forward matches Burn NdArray ─────────────────────────────────
+
+#[test]
+fn max_pool3d_forward_matches_burn() {
+    use burn::nn::pool::MaxPool3dConfig;
+    use coeus_nn::MaxPool3d;
+
+    let (n, c, d, h, w, k, s) = (1usize, 1, 4, 4, 4, 2, 2);
+    let data: Vec<f32> = (0..n * c * d * h * w)
+        .map(|x| x as f32 * 0.25 - 2.0)
+        .collect();
+    let od = d / k;
+    let oh = h / k;
+    let ow = w / k;
+
+    let xv = Var::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![n, c, d, h, w], &data),
+        false,
+    );
+    let pool_c = MaxPool3d::<f32, SequentialBackend>::with_params(k, s, 0, 1);
+    let out_c = pool_c.forward(&xv);
+
+    let xb: BurnTensor<BurnBackend, 5> =
+        BurnTensor::from_data(TensorData::new(data.clone(), [n, c, d, h, w]), &dev());
+    let pool_b = MaxPool3dConfig::new([k, k, k])
+        .with_stride([s, s, s])
+        .init::<BurnBackend>(&dev());
+    let out_b = bvec(pool_b.forward(xb));
+
+    assert_eq!(out_c.tensor.shape(), &[n, c, od, oh, ow]);
+    assert_close("maxpool3d_vs_burn", out_c.tensor.as_slice(), &out_b);
+}
+
 #[test]
 fn margin_ranking_loss_target_minus_one_flips_gradient_sign() {
     // target = -1 flips the sign: hinge = max(0, (input1 - input2) + margin)

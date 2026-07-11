@@ -70,7 +70,11 @@ fn test_prelu_per_channel_weight_broadcasts_on_channel_axis() {
     sum(&out).backward();
     // dw[0] = sum over channel 0's elements (both negative): -1 + -2 = -3.
     // dw[1] = sum over channel 1's elements: -3 + -4 = -7.
-    assert_eq!(w.grad().unwrap().as_slice(), &[-3.0, -7.0], "grad_w per-channel");
+    assert_eq!(
+        w.grad().unwrap().as_slice(),
+        &[-3.0, -7.0],
+        "grad_w per-channel"
+    );
 }
 
 /// A scalar weight `[1]` on a rank-4 input broadcasts trivially against every
@@ -91,8 +95,16 @@ fn test_prelu_scalar_weight_broadcasts_over_rank4_input() {
         true,
     );
     let out = prelu(&x, &w);
-    assert_eq!(out.tensor.as_slice(), &[-0.5, -1.0, 3.0, -2.0], "scalar weight fwd");
+    assert_eq!(
+        out.tensor.as_slice(),
+        &[-0.5, -1.0, 3.0, -2.0],
+        "scalar weight fwd"
+    );
     sum(&out).backward();
     // dw = sum of x over x<=0 elements: -1 + -2 + -4 = -7.
-    assert_eq!(w.grad().unwrap().as_slice(), &[-7.0], "grad_w scalar over rank4");
+    assert_eq!(
+        w.grad().unwrap().as_slice(),
+        &[-7.0],
+        "grad_w scalar over rank4"
+    );
 }
