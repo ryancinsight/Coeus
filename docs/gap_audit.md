@@ -213,6 +213,9 @@ broader every-family manifest audit.
 **2026-07-11 update 5**: added `bench_local_response_norm_forward`
 (Sequential vs Moirai, `[8, 32, 16, 16]`, size 5). The pinned Burn 0.16 source
 has no `LocalResponseNorm` module surface, so no synthetic Burn row is used.
+**2026-07-11 update 6**: extended the EmbeddingBag workload with mean-mode
+rows, comparing Burn `Embedding::forward + mean_dim` to Coeus Sequential and
+Moirai on the same indexed bags.
 
 ### ~~G-042: Quantized and lazy module parity policy missing~~ **CLOSED (non-goal)**
 **Location**: `coeus-nn/src/lib.rs`, `coeus-python/src/lib.rs`

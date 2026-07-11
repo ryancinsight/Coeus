@@ -5,6 +5,7 @@
 ### Added
 
 - Added a LocalResponseNorm forward benchmark for Sequential and Moirai backends.
+- Added EmbeddingBag mean-mode benchmark rows against the Burn equivalent.
 
 ## Unreleased
 
