@@ -21,6 +21,55 @@ fn test_transformer_decoder_layer() {
     let params = layer.parameters();
     // norm1 (2), self_attn (8), norm2 (2), cross_attn (8), norm3 (2), ffn (4) = 26 parameters
     assert_eq!(params.len(), 26);
+    let named = layer.named_parameters();
+    let expected_names = [
+        "norm1.weight",
+        "norm1.bias",
+        "self_attention.query.weight",
+        "self_attention.key.weight",
+        "self_attention.value.weight",
+        "self_attention.output.weight",
+        "self_attention.query.bias",
+        "self_attention.key.bias",
+        "self_attention.value.bias",
+        "self_attention.output.bias",
+        "norm2.weight",
+        "norm2.bias",
+        "cross_attention.query.weight",
+        "cross_attention.key.weight",
+        "cross_attention.value.weight",
+        "cross_attention.output.weight",
+        "cross_attention.query.bias",
+        "cross_attention.key.bias",
+        "cross_attention.value.bias",
+        "cross_attention.output.bias",
+        "norm3.weight",
+        "norm3.bias",
+        "feed_forward.input.weight",
+        "feed_forward.input.bias",
+        "feed_forward.output.weight",
+        "feed_forward.output.bias",
+    ];
+    assert_eq!(
+        named
+            .iter()
+            .map(|parameter| parameter.name.as_str())
+            .collect::<Vec<_>>(),
+        expected_names
+    );
+    for (plain, named) in params.iter().zip(&named) {
+        assert!(std::sync::Arc::ptr_eq(
+            plain
+                .grad
+                .as_ref()
+                .expect("trainable parameter gradient buffer"),
+            named
+                .var
+                .grad
+                .as_ref()
+                .expect("named parameter gradient buffer")
+        ));
+    }
 
     let batch = 2;
     let seq_tgt = 4;
@@ -177,6 +226,18 @@ fn test_transformer_seq2seq() {
     // Decoder: 26 * NUM_DEC = 52 parameters
     // Total = 84 parameters
     assert_eq!(params.len(), 84);
+    let named = transformer.named_parameters();
+    assert_eq!(named.len(), params.len());
+    let unique = named
+        .iter()
+        .map(|parameter| parameter.name.as_str())
+        .collect::<std::collections::HashSet<_>>();
+    assert_eq!(unique.len(), named.len());
+    assert_eq!(named[0].name, "encoder.layers.0.norm1.weight");
+    assert_eq!(
+        named.last().expect("non-empty transformer parameters").name,
+        "decoder.layers.1.feed_forward.output.bias"
+    );
 
     let batch = 2;
     let seq_src = 5;

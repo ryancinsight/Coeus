@@ -1,5 +1,17 @@
 # Global Progress Checklist: Coeus
 
+## Sprint MS-438: Stable hierarchical module parameters [COMPLETE]
+
+**Target version**: 0.7.0
+
+- [x] [minor] Add `Module::named_parameters` as the canonical reflection seam.
+- [x] [minor] Assign semantic leaf names and hierarchical child prefixes
+  without changing optimizer parameter order or gradient-buffer identity.
+- [x] [minor] Cover dynamic/static sequences, recurrent compositions,
+  attention, and transformer trees without flattened ordinal fallbacks.
+- [x] [minor] Verify exact 26-entry decoder paths, 84-entry transformer
+  uniqueness, shared gradient identity, nextest 410/410, and Clippy.
+
 ## Sprint MS-437: Dimension-complete interpolation [COMPLETE]
 
 **Target version**: 0.6.0

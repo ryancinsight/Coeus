@@ -1,7 +1,7 @@
 // ── LSTMCell ──
 
 use crate::linear::Linear;
-use crate::module::Module;
+use crate::module::{prefixed_parameters, Module};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
@@ -81,6 +81,12 @@ impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default>
         let mut p = self.w_ih.parameters();
         p.extend(self.w_hh.parameters());
         p
+    }
+
+    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+        let mut parameters = prefixed_parameters("input", &self.w_ih);
+        parameters.extend(prefixed_parameters("hidden", &self.w_hh));
+        parameters
     }
 
     fn forward(&self, x: &Var<T, B>) -> Var<T, B> {
@@ -174,6 +180,10 @@ where
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         self.cell.parameters()
+    }
+
+    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+        prefixed_parameters("cell", &self.cell)
     }
 
     /// Returns `output` of shape `[batch, seq_len, hidden_size]`.

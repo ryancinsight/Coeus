@@ -1,12 +1,50 @@
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, Scalar};
 
+use crate::Parameter;
+
+pub(crate) fn prefixed_parameters<T, B, M>(prefix: &str, module: &M) -> Vec<Parameter<T, B>>
+where
+    T: Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+    M: Module<T, B> + ?Sized,
+{
+    module
+        .named_parameters()
+        .into_iter()
+        .map(|parameter| parameter.with_prefix(prefix))
+        .collect()
+}
+
 /// Trait for neural network modules.
 ///
 /// Each module owns `Parameter`s, can contain sub-modules, and can support train/eval modes.
 pub trait Module<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Collect all trainable parameters (including from sub-modules).
     fn parameters(&self) -> Vec<Var<T, B>>;
+
+    /// Collect trainable parameters with stable hierarchical names.
+    ///
+    /// Leaf modules with the canonical zero-, one-, or two-parameter layout
+    /// inherit `[]`, `[weight]`, or `[weight, bias]`. Modules with a wider
+    /// layout or child modules must override this method so names express the
+    /// owned field hierarchy instead of depending on flattened ordinals.
+    fn named_parameters(&self) -> Vec<Parameter<T, B>> {
+        let parameters = self.parameters();
+        let names: &[&str] = match parameters.len() {
+            0 => &[],
+            1 => &["weight"],
+            2 => &["weight", "bias"],
+            count => panic!(
+                "invariant: module with {count} parameters must define stable hierarchical names"
+            ),
+        };
+        parameters
+            .into_iter()
+            .zip(names)
+            .map(|(parameter, name)| Parameter::new(parameter, *name))
+            .collect()
+    }
 
     /// Forward pass.
     fn forward(&self, input: &Var<T, B>) -> Var<T, B>;

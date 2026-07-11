@@ -6,7 +6,7 @@ use crate::attention::{
 };
 use crate::dropout::Dropout;
 use crate::linear::Linear;
-use crate::module::Module;
+use crate::module::{prefixed_parameters, Module};
 use crate::normalization::LayerNorm;
 use coeus_autograd::{AttentionMask, Var};
 use coeus_core::{Float, MoiraiBackend};
@@ -222,6 +222,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
         p.extend(self.norm2.parameters());
         p.extend(self.ffn.parameters());
         p
+    }
+
+    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+        let mut parameters = prefixed_parameters("norm1", &self.norm1);
+        parameters.extend(prefixed_parameters("self_attention", &self.self_attn));
+        parameters.extend(prefixed_parameters("norm2", &self.norm2));
+        parameters.extend(prefixed_parameters("feed_forward", &self.ffn));
+        parameters
     }
 
     /// Pre-LayerNorm forward. Input/output: `[batch, seq, d_model]`.

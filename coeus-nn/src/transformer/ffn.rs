@@ -2,7 +2,7 @@
 
 use crate::dropout::Dropout;
 use crate::linear::Linear;
-use crate::module::Module;
+use crate::module::{prefixed_parameters, Module};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use std::marker::PhantomData;
@@ -75,6 +75,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for FeedForwa
         let mut p = self.linear1.parameters();
         p.extend(self.linear2.parameters());
         p
+    }
+
+    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+        let mut parameters = prefixed_parameters("input", &self.linear1);
+        parameters.extend(prefixed_parameters("output", &self.linear2));
+        parameters
     }
 
     /// Forward pass: `Linear1 → GELU → Dropout → Linear2`.

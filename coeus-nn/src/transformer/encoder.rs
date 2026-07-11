@@ -6,7 +6,7 @@
 // per `(T, B, H, N, M)`.
 
 use super::encoder_layer::TransformerEncoderLayer;
-use crate::module::Module;
+use crate::module::{prefixed_parameters, Module};
 use coeus_autograd::{AttentionMask, Var};
 use coeus_core::{Float, MoiraiBackend};
 
@@ -80,6 +80,14 @@ impl<
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         self.layers.iter().flat_map(|l| l.parameters()).collect()
+    }
+
+    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+        self.layers
+            .iter()
+            .enumerate()
+            .flat_map(|(index, layer)| prefixed_parameters(&format!("layers.{index}"), layer))
+            .collect()
     }
 
     /// Forward through all N layers sequentially.

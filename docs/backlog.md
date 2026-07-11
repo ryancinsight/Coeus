@@ -1,5 +1,16 @@
 # Coeus Project Backlog & Historical Archives
 
+## MS-438 RITK stable named parameter provider (CLOSED 2026-07-11)
+
+[minor] `Module::named_parameters` now returns the existing `Parameter` carrier
+with stable semantic paths. Canonical leaves derive `weight`/`bias`; wide
+layouts must name fields explicitly; dynamic/static sequences, recurrent
+modules, attention, and transformer trees prefix child ownership. Enumeration
+preserves `parameters()` order and the same gradient-buffer identity, so
+optimizers and persistence address one parameter inventory. Evidence: exact
+26-entry decoder path oracle, 84-entry transformer uniqueness, pointer identity
+for every decoder gradient buffer, full nextest 410/410, and Clippy.
+
 ## MS-437 RITK dimension-complete interpolation provider (CLOSED 2026-07-11)
 
 [major] One `linear_interpolation::<D, _, _>` family now owns 2-D and 3-D

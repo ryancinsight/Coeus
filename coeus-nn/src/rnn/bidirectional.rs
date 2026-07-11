@@ -1,6 +1,6 @@
 // ── Bidirectional recurrent wrapper ──
 
-use crate::module::Module;
+use crate::module::{prefixed_parameters, Module};
 use coeus_autograd::Var;
 use coeus_core::Scalar;
 
@@ -45,6 +45,12 @@ where
         let mut p = self.forward_module.parameters();
         p.extend(self.backward_module.parameters());
         p
+    }
+
+    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+        let mut parameters = prefixed_parameters("forward", &self.forward_module);
+        parameters.extend(prefixed_parameters("backward", &self.backward_module));
+        parameters
     }
 
     /// `x`: `[batch, seq_len, input_size]` → `[batch, seq_len, 2*hidden_size]`.

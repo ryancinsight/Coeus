@@ -2,7 +2,7 @@
 
 use super::decoder::TransformerDecoder;
 use super::encoder::TransformerEncoder;
-use crate::module::Module;
+use crate::module::{prefixed_parameters, Module};
 use coeus_autograd::{AttentionMask, CausalMask, NullMask, Var};
 use coeus_core::{Float, MoiraiBackend};
 
@@ -91,6 +91,12 @@ impl<
         let mut p = self.encoder.parameters();
         p.extend(self.decoder.parameters());
         p
+    }
+
+    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+        let mut parameters = prefixed_parameters("encoder", &self.encoder);
+        parameters.extend(prefixed_parameters("decoder", &self.decoder));
+        parameters
     }
 
     /// Fallback forward routing to `forward_seq2seq(input, input)`.

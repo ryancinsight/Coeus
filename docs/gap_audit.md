@@ -1,5 +1,18 @@
 # Coeus Gap Audit
 
+## MS-438: Stable hierarchical module parameters closed
+
+**Location**: `coeus-nn/src/{module,parameter}.rs` and composite module impls.
+**Consumer driver**: RITK ADR 0004 requires stable parameter names for archived
+displacement components and native optimizer updates without Burn visitors.
+**Resolution**: the canonical `Module` seam owns named reflection. Leaf
+weight/bias conventions are semantic, wider layouts must override rather than
+falling back to ordinals, and composite paths encode child ownership. Plain and
+named inventories retain identical ordering and shared gradient buffers.
+**Evidence tier**: exact hierarchical name oracle, uniqueness over a two-layer
+encoder/two-layer decoder, Arc pointer identity for gradient storage, full
+nextest 410/410, and warning-denied Clippy.
+
 ## MS-437: Dimension-complete interpolation closed
 
 **Location**: `coeus-ops/src/interpolation.rs` and

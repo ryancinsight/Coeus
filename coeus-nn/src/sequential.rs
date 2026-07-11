@@ -5,7 +5,7 @@
 // the concrete layer types are genuinely unknown at compile time and type erasure
 // is the domain requirement for a user-constructable heterogeneous module stack.
 
-use crate::module::Module;
+use crate::module::{prefixed_parameters, Module};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, Scalar};
 
@@ -64,6 +64,16 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sequenti
         self.layers.iter().flat_map(|m| m.parameters()).collect()
     }
 
+    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+        self.layers
+            .iter()
+            .enumerate()
+            .flat_map(|(index, module)| {
+                prefixed_parameters(&format!("layers.{index}"), module.as_ref())
+            })
+            .collect()
+    }
+
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         self.layers.iter().fold(input.clone(), |x, m| m.forward(&x))
     }
@@ -112,6 +122,12 @@ impl<
         let mut params = self.0.parameters();
         params.extend(self.1.parameters());
         params
+    }
+
+    fn named_parameters(&self) -> Vec<crate::Parameter<ScalarType, B>> {
+        let mut parameters = prefixed_parameters("head", &self.0);
+        parameters.extend(prefixed_parameters("tail", &self.1));
+        parameters
     }
 
     #[inline]

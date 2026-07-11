@@ -19,4 +19,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Parameter<T, B> {
             name: name.into(),
         }
     }
+
+    /// Prepend a hierarchical module path to this parameter name.
+    #[must_use]
+    pub fn with_prefix(mut self, prefix: &str) -> Self {
+        self.name = format!("{prefix}.{}", self.name);
+        self
+    }
 }

@@ -4,7 +4,7 @@ use super::ffn::FeedForward;
 use crate::attention::{multi_head_attention_cross, MhaProjectionParams, MultiHeadAttention};
 use crate::dropout::Dropout;
 use crate::linear::Linear;
-use crate::module::Module;
+use crate::module::{prefixed_parameters, Module};
 use crate::normalization::LayerNorm;
 use coeus_autograd::{AttentionMask, CausalMask, NullMask, Var};
 use coeus_core::{Float, MoiraiBackend};
@@ -280,6 +280,16 @@ impl<
         p.extend(self.norm3.parameters());
         p.extend(self.ffn.parameters());
         p
+    }
+
+    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+        let mut parameters = prefixed_parameters("norm1", &self.norm1);
+        parameters.extend(prefixed_parameters("self_attention", &self.self_attn));
+        parameters.extend(prefixed_parameters("norm2", &self.norm2));
+        parameters.extend(prefixed_parameters("cross_attention", &self.cross_attn));
+        parameters.extend(prefixed_parameters("norm3", &self.norm3));
+        parameters.extend(prefixed_parameters("feed_forward", &self.ffn));
+        parameters
     }
 
     /// Fallback forward without cross-attention: `memory = tgt`.

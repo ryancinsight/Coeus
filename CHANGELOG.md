@@ -23,6 +23,11 @@
 
 ### Added
 
+- **Stable hierarchical module parameters** — `Module::named_parameters`
+  exposes semantic parameter paths across leaves, sequences, recurrent models,
+  attention, and transformer trees while retaining optimizer ordering and
+  gradient-buffer identity.
+
 - **Dimension-complete linear interpolation** — one const-dimension operation
   family provides 2-D/3-D forward and reverse mode with a sealed replicated-
   border ZST policy, allocation-free point traversal, and typed rejection of

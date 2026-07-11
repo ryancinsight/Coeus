@@ -264,6 +264,24 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
         p
     }
 
+    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+        let names = [
+            "query.weight",
+            "key.weight",
+            "value.weight",
+            "output.weight",
+            "query.bias",
+            "key.bias",
+            "value.bias",
+            "output.bias",
+        ];
+        self.parameters()
+            .into_iter()
+            .zip(names)
+            .map(|(parameter, name)| crate::Parameter::new(parameter, name))
+            .collect()
+    }
+
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
         self.forward_cross(input, input, input, None)
     }

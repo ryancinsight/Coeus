@@ -6,6 +6,12 @@ This document tracks the high-level roadmap and feature validation checklist for
 
 ---
 
+## RITK Stable Named Parameters [minor]
+- [x] Add canonical named parameter collection to the `Module` seam.
+- [x] Preserve optimizer ordering while assigning semantic leaf names.
+- [x] Prefix dynamic/static containers, recurrent modules, and transformer trees hierarchically.
+- [x] Verify exact decoder paths, full-transformer uniqueness, shared gradient identity, nextest 410/410, and warning-denied Clippy.
+
 ## RITK Dimension-Complete Interpolation [minor]
 - [x] Replace dimension-specific entry points with one const-dimension linear interpolation family.
 - [x] Encode replicated-border behavior as a sealed zero-sized policy.

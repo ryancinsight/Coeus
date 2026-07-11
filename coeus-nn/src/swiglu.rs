@@ -8,7 +8,7 @@
 
 use crate::activation::silu;
 use crate::linear::Linear;
-use crate::module::Module;
+use crate::module::{prefixed_parameters, Module};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 
@@ -41,6 +41,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for SwiGlu<T,
         let mut params = self.linear_inner.parameters();
         params.extend(self.linear_outer.parameters());
         params
+    }
+
+    fn named_parameters(&self) -> Vec<crate::Parameter<T, B>> {
+        let mut parameters = prefixed_parameters("inner", &self.linear_inner);
+        parameters.extend(prefixed_parameters("outer", &self.linear_outer));
+        parameters
     }
 
     fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
