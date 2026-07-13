@@ -16,6 +16,25 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
 
     #[inline(always)]
     fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+        // The batched matmul kernels derive their layouts from shape alone and
+        // do not honor view strides (see `swap_last_two`), so a non-contiguous
+        // input (e.g. a `transpose`/`permute` view fed straight into `matmul`,
+        // as attention's `Q Kᵀ` does) would be read with wrong strides and
+        // produce a wrong product. Materialize such inputs contiguous first.
+        let a_owned;
+        let a = if a.is_contiguous() {
+            a
+        } else {
+            a_owned = a.to_contiguous_on(backend);
+            &a_owned
+        };
+        let b_owned;
+        let b = if b.is_contiguous() {
+            b
+        } else {
+            b_owned = b.to_contiguous_on(backend);
+            &b_owned
+        };
         coeus_ops::matmul(a, b, backend)
     }
 

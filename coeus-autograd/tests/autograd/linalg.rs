@@ -102,3 +102,47 @@ fn rank_four_batched_matmul_preserves_axes_and_exact_gradients() {
         &[5.0, 5.0, 7.0, 7.0, 9.0, 9.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0]
     );
 }
+
+/// A non-contiguous input (a `transpose` view fed straight into `matmul`, as
+/// attention's `Q Kᵀ` does) must produce the same forward product and the same
+/// gradients as the explicitly-materialized-contiguous path. Regression test
+/// for the batched matmul kernel reading view inputs with shape-derived strides
+/// and thus computing a wrong product (and a gradient inconsistent with it).
+#[test]
+fn matmul_view_input_matches_contiguous_forward_and_grad() {
+    use coeus_autograd::{contiguous, sum, transpose};
+
+    let backend = MoiraiBackend::new();
+    let shape = [1usize, 2, 3, 4];
+    let n: usize = shape.iter().product();
+    let qd: Vec<f32> = (0..n).map(|i| (i as f32) * 0.1 - 1.0).collect();
+    let kd: Vec<f32> = (0..n).map(|i| 0.5 - (i as f32) * 0.07).collect();
+
+    // View path: transpose fed straight into matmul.
+    let q1 = Var::new(Tensor::from_slice_on(shape, &qd, &backend), true);
+    let k1 = Var::new(Tensor::from_slice_on(shape, &kd, &backend), true);
+    let out_view = matmul(&q1, &transpose(&k1, 2, 3));
+    sum(&out_view).backward();
+
+    // Reference path: materialize the transpose contiguous first.
+    let q2 = Var::new(Tensor::from_slice_on(shape, &qd, &backend), true);
+    let k2 = Var::new(Tensor::from_slice_on(shape, &kd, &backend), true);
+    let out_ref = matmul(&q2, &contiguous(&transpose(&k2, 2, 3)));
+    sum(&out_ref).backward();
+
+    assert_eq!(
+        out_view.tensor.as_slice(),
+        out_ref.tensor.as_slice(),
+        "forward product must match the contiguous reference"
+    );
+    assert_eq!(
+        q1.grad().expect("q grad").as_slice(),
+        q2.grad().expect("q grad ref").as_slice(),
+        "grad wrt q must match the contiguous reference"
+    );
+    assert_eq!(
+        k1.grad().expect("k grad").as_slice(),
+        k2.grad().expect("k grad ref").as_slice(),
+        "grad wrt k must match the contiguous reference"
+    );
+}
