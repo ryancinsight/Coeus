@@ -1,5 +1,13 @@
 # Global Progress Checklist: Coeus
 
+## Sprint MEL-SCOPE-001: Melinoe 0.9 provider refresh [COMPLETE]
+
+- [x] [patch] Raise `coeus-ops`' local Melinoe contract to 0.9.0.
+- [x] Verify locked metadata, local Mnemosyne backend type unification,
+  `coeus-ops` Clippy, and 196/196 nextest. The root manifest's existing
+  Mnemosyne 0.3/Moirai integration edits are preserved and completed with the
+  missing transitive Mnemosyne patches and Hephaestus 0.12 constraints.
+
 ## Sprint MS-445: bench 215 (EmbeddingBag mean) [COMPLETE]
 
 - [x] [patch] Expanded the existing EmbeddingBag benchmark workload with mean
