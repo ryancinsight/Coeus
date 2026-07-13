@@ -1,5 +1,12 @@
 # Coeus Project Backlog & Historical Archives
 
+## MEL-SCOPE-001 Melinoe 0.9 provider refresh (CLOSED)
+
+[patch] Update the local `coeus-ops` Melinoe constraint and verify operation
+semantics against the validated executor-capability provider generation.
+Evidence: locked metadata, one local Mnemosyne backend identity, Clippy, and
+196/196 `coeus-ops` nextest.
+
 ## MS-439 named optimizer ownership (CLOSED 2026-07-11)
 
 [arch] The canonical `Parameter` carrier now lives in `coeus-autograd`, below

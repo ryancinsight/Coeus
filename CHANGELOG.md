@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `coeus-ops` now accepts Melinoe 0.9.0, keeping the local Atlas graph on the
+  validated parallel-executor capability generation. Coeus does not consume the
+  changed registration API.
+- The WGPU/CUDA substrate constraints now accept Hephaestus 0.12.0, including
+  the immutable staging-callback pair required by the integrated local graph.
+- The Mnemosyne Git override now covers every transitive crate, preventing
+  duplicate 0.1/0.2 `mnemosyne-backend` type identities in decay and device
+  paths.
+
 ### Added
 
 - Added a LocalResponseNorm forward benchmark for Sequential and Moirai backends.
