@@ -231,10 +231,8 @@ pub fn celu(input: &PyTensor, alpha: f64, py: Python<'_>) -> PyTensor {
 pub fn prelu(input: &PyTensor, alpha: f64, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| {
         let backend = coeus_core::MoiraiBackend::new();
-        let weight = coeus_autograd::Var::new(
-            coeus_tensor::Tensor::full_on([1], alpha, &backend),
-            false,
-        );
+        let weight =
+            coeus_autograd::Var::new(coeus_tensor::Tensor::full_on([1], alpha, &backend), false);
         coeus_autograd::prelu(&input.inner, &weight)
     });
     PyTensor::from_var(inner)
