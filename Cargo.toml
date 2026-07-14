@@ -49,7 +49,7 @@ wgpu       = { version = "30.0", default-features = false, features = ["wgsl", "
 hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.13.0" }
 hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.13.0" }
 hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda", version = "0.13.0" }
-themis = { path = "../themis", version = "0.9.17" }
+themis = { path = "../themis", version = "0.10" }
 
 # ── Error ──
 thiserror = "2"
