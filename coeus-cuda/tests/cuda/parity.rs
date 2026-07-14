@@ -7,8 +7,9 @@
 // both GPU backends are held to the same CPU reference contract.
 //
 // The CUDA backend routes each op family to an on-device kernel where one is
-// implemented and to a CPU fallback otherwise; either way the observable result
-// must match the CPU reference. Every test is skipped unless a live CUDA
+// implemented; unavailable device kernels are dispatch failures rather than
+// host-side substitutions, and the observable result must match the CPU
+// reference. Every test is skipped unless a live CUDA
 // device, driver, and context are all present.
 
 use coeus_autograd::Var;
@@ -63,6 +64,30 @@ fn assert_parity_tol(label: &str, cpu: &[f32], gpu: &[f32], tol: f32) {
             "{label}[{i}]: cpu={c:.6} gpu={g:.6} diff={diff:.2e} tol={tol:.0e}"
         );
     }
+}
+
+#[test]
+fn test_cuda_unfold_fold_matches_cpu_reference() {
+    let Some((sequential, cuda)) = backends() else {
+        return;
+    };
+    let host = Tensor::<f32, SequentialBackend>::from_slice(
+        [1, 1, 3, 3],
+        &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
+    );
+    let device = to_gpu(&host, &sequential, &cuda);
+    let cpu_unfold = coeus_ops::unfold2d(&host, 2, 2, 1, 1, 0, 0, 1, 1, &sequential);
+    let cuda_unfold = coeus_ops::unfold2d(&device, 2, 2, 1, 1, 0, 0, 1, 1, &cuda);
+    assert_eq!(
+        to_cpu(&cuda_unfold, &cuda, &sequential).as_slice(),
+        cpu_unfold.as_slice()
+    );
+    let cpu_fold = coeus_ops::fold2d(&cpu_unfold, 3, 3, 2, 2, 1, 1, 0, 0, 1, 1, &sequential);
+    let cuda_fold = coeus_ops::fold2d(&cuda_unfold, 3, 3, 2, 2, 1, 1, 0, 0, 1, 1, &cuda);
+    assert_eq!(
+        to_cpu(&cuda_fold, &cuda, &sequential).as_slice(),
+        cpu_fold.as_slice()
+    );
 }
 
 // Elementwise binary.
@@ -727,6 +752,157 @@ fn test_cuda_parity_conv3d_backward() {
 }
 
 // Pooling.
+
+#[test]
+fn test_cuda_parity_max_pool1d_forward_and_backward() {
+    let Some((sequential, cuda)) = backends() else {
+        return;
+    };
+    let input = Tensor::from_slice([1, 1, 5], &[1.0, 4.0, 2.0, 5.0, 3.0]);
+    let grad_out = Tensor::from_slice([1, 1, 5], &[1.0, 2.0, 3.0, 4.0, 5.0]);
+    let mut expected = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5]);
+    let expected_layout = expected.layout().clone();
+    sequential.max_pool1d(
+        input.storage(),
+        input.layout(),
+        3,
+        1,
+        1,
+        1,
+        expected.storage_mut(),
+        &expected_layout,
+    );
+    let mut expected_gradient = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5]);
+    let expected_gradient_layout = expected_gradient.layout().clone();
+    sequential.max_pool1d_backward(
+        grad_out.storage(),
+        grad_out.layout(),
+        input.storage(),
+        input.layout(),
+        3,
+        1,
+        1,
+        1,
+        expected_gradient.storage_mut(),
+        &expected_gradient_layout,
+    );
+
+    let device_input = to_gpu(&input, &sequential, &cuda);
+    let device_grad_out = to_gpu(&grad_out, &sequential, &cuda);
+    let mut actual = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda);
+    let actual_layout = actual.layout().clone();
+    cuda.max_pool1d(
+        device_input.storage(),
+        device_input.layout(),
+        3,
+        1,
+        1,
+        1,
+        actual.storage_mut(),
+        &actual_layout,
+    );
+    let mut actual_gradient = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda);
+    let actual_gradient_layout = actual_gradient.layout().clone();
+    cuda.max_pool1d_backward(
+        device_grad_out.storage(),
+        device_grad_out.layout(),
+        device_input.storage(),
+        device_input.layout(),
+        3,
+        1,
+        1,
+        1,
+        actual_gradient.storage_mut(),
+        &actual_gradient_layout,
+    );
+
+    assert_eq!(expected.as_slice(), &[4.0, 4.0, 5.0, 5.0, 5.0]);
+    assert_parity_tol(
+        "max_pool1d",
+        expected.as_slice(),
+        to_cpu(&actual, &cuda, &sequential).as_slice(),
+        CUDA_TOL,
+    );
+    assert_parity_tol(
+        "max_pool1d_backward",
+        expected_gradient.as_slice(),
+        to_cpu(&actual_gradient, &cuda, &sequential).as_slice(),
+        CUDA_TOL,
+    );
+}
+
+#[test]
+fn test_cuda_parity_avg_pool1d_forward_and_backward() {
+    let Some((sequential, cuda)) = backends() else {
+        return;
+    };
+    let input = Tensor::from_slice([1, 1, 5], &[1.0, 4.0, 2.0, 5.0, 3.0]);
+    let grad_out = Tensor::from_slice([1, 1, 5], &[1.0, 2.0, 3.0, 4.0, 5.0]);
+    let mut expected = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5]);
+    let expected_layout = expected.layout().clone();
+    sequential.avg_pool1d(
+        input.storage(),
+        input.layout(),
+        3,
+        1,
+        1,
+        1,
+        expected.storage_mut(),
+        &expected_layout,
+    );
+    let mut expected_gradient = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5]);
+    let expected_gradient_layout = expected_gradient.layout().clone();
+    sequential.avg_pool1d_backward(
+        grad_out.storage(),
+        grad_out.layout(),
+        3,
+        1,
+        1,
+        1,
+        expected_gradient.storage_mut(),
+        &expected_gradient_layout,
+    );
+
+    let device_input = to_gpu(&input, &sequential, &cuda);
+    let device_grad_out = to_gpu(&grad_out, &sequential, &cuda);
+    let mut actual = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda);
+    let actual_layout = actual.layout().clone();
+    cuda.avg_pool1d(
+        device_input.storage(),
+        device_input.layout(),
+        3,
+        1,
+        1,
+        1,
+        actual.storage_mut(),
+        &actual_layout,
+    );
+    let mut actual_gradient = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda);
+    let actual_gradient_layout = actual_gradient.layout().clone();
+    cuda.avg_pool1d_backward(
+        device_grad_out.storage(),
+        device_grad_out.layout(),
+        3,
+        1,
+        1,
+        1,
+        actual_gradient.storage_mut(),
+        &actual_gradient_layout,
+    );
+
+    assert_parity_tol(
+        "avg_pool1d",
+        expected.as_slice(),
+        to_cpu(&actual, &cuda, &sequential).as_slice(),
+        CUDA_TOL,
+    );
+    assert_parity_tol(
+        "avg_pool1d_backward",
+        expected_gradient.as_slice(),
+        to_cpu(&actual_gradient, &cuda, &sequential).as_slice(),
+        CUDA_TOL,
+    );
+}
 
 #[test]
 fn test_cuda_parity_max_pool2d() {

@@ -6,6 +6,118 @@ use coeus_core::Layout;
 
 impl CudaBackend {
     #[allow(clippy::too_many_arguments)]
+    pub(crate) fn cuda_max_pool1d<T: CudaScalar>(
+        &self,
+        input: &CudaStorage<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut CudaStorage<T>,
+        output_layout: &Layout,
+    ) {
+        assert!(
+            kernels::dispatch_max_pool1d(
+                input,
+                input_layout,
+                kernel_size,
+                stride,
+                padding,
+                dilation,
+                output,
+                output_layout
+            ),
+            "CUDA max_pool1d kernel compilation or launch failed"
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn cuda_max_pool1d_backward<T: CudaScalar>(
+        &self,
+        grad_out: &CudaStorage<T>,
+        grad_out_layout: &Layout,
+        input: &CudaStorage<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        grad_input: &mut CudaStorage<T>,
+        grad_input_layout: &Layout,
+    ) {
+        assert!(
+            kernels::dispatch_max_pool1d_backward(
+                grad_out,
+                grad_out_layout,
+                input,
+                input_layout,
+                kernel_size,
+                stride,
+                padding,
+                dilation,
+                grad_input,
+                grad_input_layout
+            ),
+            "CUDA max_pool1d backward kernel compilation or launch failed"
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn cuda_avg_pool1d<T: CudaScalar>(
+        &self,
+        input: &CudaStorage<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut CudaStorage<T>,
+        output_layout: &Layout,
+    ) {
+        assert!(
+            kernels::dispatch_avg_pool1d(
+                input,
+                input_layout,
+                kernel_size,
+                stride,
+                padding,
+                dilation,
+                output,
+                output_layout
+            ),
+            "CUDA avg_pool1d kernel compilation or launch failed"
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn cuda_avg_pool1d_backward<T: CudaScalar>(
+        &self,
+        grad_out: &CudaStorage<T>,
+        grad_out_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        grad_input: &mut CudaStorage<T>,
+        grad_input_layout: &Layout,
+    ) {
+        assert!(
+            kernels::dispatch_avg_pool1d_backward(
+                grad_out,
+                grad_out_layout,
+                kernel_size,
+                stride,
+                padding,
+                dilation,
+                grad_input,
+                grad_input_layout
+            ),
+            "CUDA avg_pool1d backward kernel compilation or launch failed"
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn cuda_max_pool2d<T: CudaScalar>(
         &self,
         input: &CudaStorage<T>,

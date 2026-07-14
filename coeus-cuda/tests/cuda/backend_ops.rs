@@ -3,7 +3,7 @@ use coeus_cuda::CudaBackend;
 use coeus_tensor::Tensor;
 
 #[test]
-fn test_cuda_backend_compilation_and_fallback() {
+fn test_cuda_backend_transfer_roundtrip() {
     if hephaestus_cuda::CudaDevice::try_default().is_err() {
         return;
     }

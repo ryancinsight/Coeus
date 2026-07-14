@@ -1,6 +1,8 @@
 use libloading::Library;
 use std::sync::{Arc, OnceLock};
 
+use crate::backend::get_cuda_device;
+
 /// CUDA device ordinal type alias matching the C API.
 pub type CUdevice = i32;
 /// CUDA context handle type alias matching the C API.
@@ -84,7 +86,6 @@ unsafe impl Send for CUcontextWrapper {}
 unsafe impl Sync for CUcontextWrapper {}
 
 static DRIVER: OnceLock<Option<CudaDriver>> = OnceLock::new();
-static CONTEXT: OnceLock<Option<CUcontextWrapper>> = OnceLock::new();
 
 unsafe extern "C" fn local_cu_init(flags: u32) -> CUresult {
     cuda_core::sys::cuInit(flags) as CUresult
@@ -220,63 +221,16 @@ impl CudaDriver {
     }
 }
 
-fn stagger_nextest_init() {
-    static STAGGERED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-    if !STAGGERED.load(std::sync::atomic::Ordering::Acquire)
-        && STAGGERED
-            .compare_exchange(
-                false,
-                true,
-                std::sync::atomic::Ordering::AcqRel,
-                std::sync::atomic::Ordering::Acquire,
-            )
-            .is_ok()
-    {
-        if let Ok(thread_id_str) = std::env::var("NEXTEST_THREAD_ID") {
-            if let Ok(thread_id) = thread_id_str.parse::<u64>() {
-                std::thread::sleep(std::time::Duration::from_millis(thread_id * 100));
-            }
-        }
-    }
-}
-
-fn get_device_ordinal() -> usize {
-    if let Ok(thread_id_str) = std::env::var("NEXTEST_THREAD_ID") {
-        if let Ok(thread_id) = thread_id_str.parse::<usize>() {
-            let mut count: core::ffi::c_int = 0;
-            if unsafe { cuda_core::sys::cuDeviceGetCount(&mut count) } == 0 && count > 0 {
-                return thread_id % (count as usize);
-            }
-        }
-    }
-    0
-}
-
 /// Retrieve a reference to the active CUDA driver context.
 pub fn get_cuda_context() -> Option<CUcontext> {
-    stagger_nextest_init();
-    let ctx = CONTEXT
-        .get_or_init(|| {
-            let ordinal = get_device_ordinal();
-            cuda_async::device_context::with_device(ordinal, |device| {
-                CUcontextWrapper(device.cu_ctx() as CUcontext)
-            })
-            .ok()
-        })
-        .as_ref()?
-        .0;
+    get_cuda_device().bind().ok()?;
 
-    if let Some(device) = get_borrowed_device() {
-        let cu_ctx = device.cu_ctx();
-        if cu_ctx.is_null() {
-            panic!("device.cu_ctx() is NULL!");
-        }
-        if let Err(e) = device.bind_to_thread() {
-            panic!("device.bind_to_thread() failed: {:?}", e);
-        }
-    }
-
-    Some(ctx)
+    let mut context = std::ptr::null_mut();
+    // SAFETY: `context` is a valid out-pointer. `CudaDevice::bind` above made
+    // the Hephaestus-owned context current on this host thread, so the driver
+    // returns that live context handle without transferring ownership.
+    let result = unsafe { cuda_core::sys::cuCtxGetCurrent(&mut context) };
+    (result == 0 && !context.is_null()).then_some(context.cast())
 }
 
 static BORROWED_DEVICE: OnceLock<Option<Arc<cuda_core::Device>>> = OnceLock::new();
@@ -284,26 +238,18 @@ static BORROWED_STREAM: OnceLock<Option<Arc<cuda_core::Stream>>> = OnceLock::new
 
 /// Retrieve the borrowed cutile Device wrapper.
 pub fn get_borrowed_device() -> Option<Arc<cuda_core::Device>> {
-    stagger_nextest_init();
     BORROWED_DEVICE
-        .get_or_init(|| {
-            let ordinal = get_device_ordinal();
-            cuda_async::device_context::with_device(ordinal, |device| device.clone()).ok()
-        })
+        .get_or_init(|| cuda_async::device_context::with_device(0, |device| device.clone()).ok())
         .clone()
 }
 
 /// Retrieve the borrowed cutile Stream wrapper.
 pub fn get_borrowed_stream() -> Option<Arc<cuda_core::Stream>> {
-    stagger_nextest_init();
     BORROWED_STREAM
         .get_or_init(|| {
-            let ordinal = get_device_ordinal();
-            cuda_async::device_context::with_device_policy(ordinal, |policy| {
-                policy.next_stream().ok()
-            })
-            .ok()
-            .flatten()
+            cuda_async::device_context::with_device_policy(0, |policy| policy.next_stream().ok())
+                .ok()
+                .flatten()
         })
         .clone()
 }

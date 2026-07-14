@@ -105,13 +105,16 @@ mod tests {
     }
 
     #[test]
-    fn host_pinned_staging_roundtrip_preserves_values() {
+    fn host_pinned_hint_uses_truthful_device_tier() {
         let device = crate::backend::get_cuda_device();
         let input = vec![1.0f32, -2.5, 3.25, 8.0];
         let staging = device
             .upload_with_hint(&input, PlacementHint::Tier(MemoryTier::HostPinned))
             .expect("failed to upload into host-pinned tier");
-        assert_eq!(staging.tier(), MemoryTier::HostPinned);
+        // CUDA's ComputeDevice buffer contract represents device allocations;
+        // host-pinned transfer memory is transient and is not exposed as this
+        // persistent buffer type. The provider therefore reports Device.
+        assert_eq!(staging.tier(), MemoryTier::Device);
         let mut roundtrip = vec![0.0f32; input.len()];
         device
             .download(&staging, &mut roundtrip)
