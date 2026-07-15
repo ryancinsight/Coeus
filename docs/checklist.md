@@ -1,5 +1,25 @@
 # Global Progress Checklist: Coeus
 
+## Sprint ATLAS-PROVIDER-002: Atlas provider alignment [COMPLETE]
+
+- [x] [patch] Raise Coeus' local Mnemosyne contract to 0.4 after Moirai's
+  provider update removed the mixed allocator generation.
+- [x] [patch] Raise Hephaestus to 0.13 and align its WGPU 30 ABI to the
+  provider-owned Vulkan/Metal backend set.
+- [x] Verify `coeus-core`, `coeus-wgpu`, and the `coeus-cuda` library against
+  the aligned provider graph.
+- [x] Implement native CUDA 1-D/2-D unfold and adjoint fold kernels; verify
+  exact device/CPU agreement, including overlap multiplicities.
+- [x] Replace the four empty CUDA 1-D pooling methods with native max/average
+  forward and input-adjoint kernels and exact sequential differential tests.
+- [x] Bind every Coeus driver launch to the Hephaestus-owned CUDA context,
+  eliminating invalid cross-context module handles.
+- [x] Correct the WGPU/CUDA persistent-buffer placement contracts: WGPU rejects
+  unsupported host-pinned persistence and CUDA reports its persistent device
+  tier while retaining exact transfer round-trips.
+- [x] Verify warning-denied provider Clippy, 88/88 default provider tests, and
+  75/75 real-CUDA all-feature tests on an NVIDIA device.
+
 ## Sprint MEL-SCOPE-001: Melinoe 0.9 provider refresh [COMPLETE]
 
 - [x] [patch] Raise `coeus-ops`' local Melinoe contract to 0.9.0.

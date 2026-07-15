@@ -297,8 +297,7 @@ where
                             if weight == 0.0 {
                                 continue;
                             }
-                            value += weight
-                                * sample_zeros(image, &vol, n, c, zi[a], yi[b], xi[e]);
+                            value += weight * sample_zeros(image, &vol, n, c, zi[a], yi[b], xi[e]);
                         }
                     }
                 }
@@ -394,28 +393,22 @@ where
                 let mut d_pixel_z = 0.0f32;
                 for a in 0..2 {
                     for b in 0..2 {
-                        let upper =
-                            sample_zeros(image, &vol, n, c, zi[a], yi[b], nx.upper);
-                        let lower =
-                            sample_zeros(image, &vol, n, c, zi[a], yi[b], nx.lower);
+                        let upper = sample_zeros(image, &vol, n, c, zi[a], yi[b], nx.upper);
+                        let lower = sample_zeros(image, &vol, n, c, zi[a], yi[b], nx.lower);
                         d_pixel_x += zw[a] * yw[b] * (upper - lower);
                     }
                 }
                 for a in 0..2 {
                     for e in 0..2 {
-                        let upper =
-                            sample_zeros(image, &vol, n, c, zi[a], ny.upper, xi[e]);
-                        let lower =
-                            sample_zeros(image, &vol, n, c, zi[a], ny.lower, xi[e]);
+                        let upper = sample_zeros(image, &vol, n, c, zi[a], ny.upper, xi[e]);
+                        let lower = sample_zeros(image, &vol, n, c, zi[a], ny.lower, xi[e]);
                         d_pixel_y += zw[a] * xw[e] * (upper - lower);
                     }
                 }
                 for b in 0..2 {
                     for e in 0..2 {
-                        let upper =
-                            sample_zeros(image, &vol, n, c, nz.upper, yi[b], xi[e]);
-                        let lower =
-                            sample_zeros(image, &vol, n, c, nz.lower, yi[b], xi[e]);
+                        let upper = sample_zeros(image, &vol, n, c, nz.upper, yi[b], xi[e]);
+                        let lower = sample_zeros(image, &vol, n, c, nz.lower, yi[b], xi[e]);
                         d_pixel_z += yw[b] * xw[e] * (upper - lower);
                     }
                 }

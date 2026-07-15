@@ -14,12 +14,6 @@ mod pool;
 mod reduction;
 mod unfold_fold;
 
-mod sealed {
-    pub trait Sealed {}
-    impl Sealed for coeus_core::SequentialBackend {}
-    impl Sealed for coeus_core::MoiraiBackend {}
-}
-
 /// CPU execution backend marker trait.
 ///
 /// Implemented by [`MoiraiBackend`] and [`SequentialBackend`] from `coeus_core`.
@@ -39,7 +33,12 @@ mod sealed {
 /// let backend = SequentialBackend::new();
 /// accept_cpu(&backend);
 /// ```
-pub trait CpuBackend: Backend + sealed::Sealed {
+///
+/// The parent [`ComputeBackend`](coeus_core::ComputeBackend) trait is sealed,
+/// so this marker remains restricted to first-party backends without a second
+/// private sealing layer. CPU-addressable emulation backends can therefore use
+/// the same canonical operation implementations instead of cloning them.
+pub trait CpuBackend: Backend {
     /// Borrow an `i64` device buffer as a mutable slice.
     fn as_mut_slice_i64<'a>(&self, buf: &'a mut Self::DeviceBuffer<i64>) -> &'a mut [i64];
 }

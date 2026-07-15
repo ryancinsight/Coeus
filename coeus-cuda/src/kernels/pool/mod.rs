@@ -6,11 +6,17 @@ pub mod avg3d;
 pub mod max;
 /// Kernel module for 3-D max pooling.
 pub mod max3d;
+/// Kernel module for 1-D pooling.
+pub mod pool1d;
 
 pub use avg::{dispatch_avg_pool2d, dispatch_avg_pool2d_backward};
 pub use avg3d::{dispatch_avg_pool3d, dispatch_avg_pool3d_backward};
 pub use max::{dispatch_max_pool2d, dispatch_max_pool2d_backward};
 pub use max3d::{dispatch_max_pool3d, dispatch_max_pool3d_backward};
+pub use pool1d::{
+    dispatch_avg_pool1d, dispatch_avg_pool1d_backward, dispatch_max_pool1d,
+    dispatch_max_pool1d_backward,
+};
 
 pub(crate) const POOL_COMMON_SRC: &str = r#"
 struct GpuLayoutInfo {
@@ -19,6 +25,10 @@ struct GpuLayoutInfo {
     unsigned int shape[8];
     unsigned int strides[8];
 };
+
+__device__ unsigned int get_physical_index_1d(const GpuLayoutInfo& layout, unsigned int n, unsigned int c, unsigned int l) {
+    return layout.offset + n * layout.strides[0] + c * layout.strides[1] + l * layout.strides[2];
+}
 
 __device__ unsigned int get_physical_index(const GpuLayoutInfo& layout, unsigned int n, unsigned int c, unsigned int h, unsigned int w) {
     unsigned int idx = layout.offset;

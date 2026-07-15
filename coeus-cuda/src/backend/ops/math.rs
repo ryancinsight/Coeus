@@ -13,7 +13,7 @@ fn try_hephaestus_contiguous_binary<T>(
     c: &mut CudaStorage<T>,
 ) -> bool
 where
-    T: CudaScalar + hephaestus_cuda::CudaScalar,
+    T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
 {
     if Arc::ptr_eq(&a.buffer, &c.buffer) || Arc::ptr_eq(&b.buffer, &c.buffer) {
         return false;
@@ -67,7 +67,7 @@ fn try_hephaestus_contiguous_unary<T>(
     c: &mut CudaStorage<T>,
 ) -> bool
 where
-    T: CudaScalar + hephaestus_cuda::CudaScalar,
+    T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
 {
     if Arc::ptr_eq(&a.buffer, &c.buffer) {
         return false;
@@ -178,7 +178,7 @@ fn try_hephaestus_strided_binary<T>(
     c_layout: &Layout,
 ) -> bool
 where
-    T: CudaScalar + hephaestus_cuda::CudaScalar,
+    T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
 {
     if !can_route_dynamic_strided(&[a_layout, b_layout], c_layout) {
         return false;
@@ -241,7 +241,7 @@ fn try_hephaestus_strided_unary<T>(
     c_layout: &Layout,
 ) -> bool
 where
-    T: CudaScalar + hephaestus_cuda::CudaScalar,
+    T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
 {
     if !can_route_dynamic_strided(&[a_layout], c_layout) {
         return false;
@@ -340,7 +340,7 @@ impl CudaBackend {
         c: &mut CudaStorage<T>,
         c_layout: &Layout,
     ) where
-        T: CudaScalar + hephaestus_cuda::CudaScalar,
+        T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
     {
         if get_cuda_context().is_some() {
             let n = c_layout.shape().iter().product();
@@ -379,7 +379,7 @@ impl CudaBackend {
         c: &mut CudaStorage<T>,
         c_layout: &Layout,
     ) where
-        T: CudaScalar + hephaestus_cuda::CudaScalar,
+        T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
     {
         if get_cuda_context().is_some() {
             let n = c_layout.shape().iter().product();

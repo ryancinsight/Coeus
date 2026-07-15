@@ -84,7 +84,7 @@ impl ComputeBackend for CudaBackend {
         device.bind().expect("fill: failed to bind CUDA device");
 
         // Fast path: if the value is bitwise zero, use cuMemsetD8_v2
-        let is_zero = val.to_f64() == 0.0;
+        let is_zero = Scalar::to_f64(val) == 0.0;
         if is_zero {
             unsafe {
                 let res = cuda_core::sys::cuMemsetD8_v2(dst.cu_deviceptr(), 0, bytes);

@@ -18,6 +18,8 @@ pub mod pool;
 pub mod ptx;
 /// Kernel module for reduction operations.
 pub mod reduce;
+/// Kernel module for sliding-window unfold and adjoint fold operations.
+pub mod unfold_fold;
 
 pub use attention::{launch_sdp_attention, launch_sdp_attention_backward};
 pub use conv_transpose::{launch_conv_transpose1d, launch_conv_transpose2d};
@@ -34,11 +36,13 @@ pub use optim::{
     launch_adagrad_step, launch_adam_step, launch_adamw_step, launch_rmsprop_step, launch_sgd_step,
 };
 pub use pool::{
-    dispatch_avg_pool2d, dispatch_avg_pool2d_backward, dispatch_avg_pool3d,
-    dispatch_avg_pool3d_backward, dispatch_max_pool2d, dispatch_max_pool2d_backward,
-    dispatch_max_pool3d, dispatch_max_pool3d_backward,
+    dispatch_avg_pool1d, dispatch_avg_pool1d_backward, dispatch_avg_pool2d,
+    dispatch_avg_pool2d_backward, dispatch_avg_pool3d, dispatch_avg_pool3d_backward,
+    dispatch_max_pool1d, dispatch_max_pool1d_backward, dispatch_max_pool2d,
+    dispatch_max_pool2d_backward, dispatch_max_pool3d, dispatch_max_pool3d_backward,
 };
 pub use reduce::{dispatch_fused_reduce, dispatch_reduce};
+pub use unfold_fold::{dispatch_fold1d, dispatch_fold2d, dispatch_unfold1d, dispatch_unfold2d};
 
 use crate::backend::CudaBackend;
 use crate::driver::{get_cuda_context, CUfunction, CUmodule, CudaDriver};
@@ -159,7 +163,7 @@ pub fn get_cuda_function(name: &str) -> Option<CUfunction> {
 ///
 /// Shared by the NVRTC-compiled kernels (attention, conv_transpose) that map
 /// one thread to one output element. Returns `false` if the driver is absent or
-/// the launch fails, so callers can fall back.
+/// the launch fails so the operation boundary can report the dispatch failure.
 pub(crate) fn launch_1d(
     func: CUfunction,
     total: usize,

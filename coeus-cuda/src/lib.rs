@@ -44,6 +44,7 @@ pub mod driver;
 /// Stub CUDA driver surface used when the `cuda` feature is disabled.
 pub mod driver;
 
+#[cfg(feature = "cuda")]
 mod fallback;
 #[cfg(feature = "cuda")]
 /// CUDA kernel modules and launch helpers for on-device computation.
