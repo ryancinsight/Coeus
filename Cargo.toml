@@ -27,7 +27,7 @@ license = "MIT OR Apache-2.0"
 # ── Remote System Dependencies ──
 # Parallelization/async SSOT. Moirai defaults carry parallel execution,
 # Mnemosyne-backed allocation surfaces, and Mellinoe branding.
-moirai     = { path = "../moirai/moirai", version = "0.2.0", features = ["melinoe"] }
+moirai     = { path = "../moirai/moirai", version = "0.3.0", features = ["melinoe"] }
 mnemosyne  = { path = "../mnemosyne/crates/mnemosyne", version = "^0.4.0" }
 # SIMD-effect SSOT. Tracks hermes `main`.
 hermes-simd = { path = "../hermes/crates/hermes-simd", version = "0.3.0" }
