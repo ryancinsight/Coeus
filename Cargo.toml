@@ -28,7 +28,7 @@ license = "MIT OR Apache-2.0"
 # Parallelization/async SSOT. Moirai defaults carry parallel execution,
 # Mnemosyne-backed allocation surfaces, and Mellinoe branding.
 moirai     = { path = "../moirai/moirai", version = "0.2.0", features = ["melinoe"] }
-mnemosyne  = { path = "../mnemosyne/crates/mnemosyne", version = "^0.3.0" }
+mnemosyne  = { path = "../mnemosyne/crates/mnemosyne", version = "^0.4.0" }
 # SIMD-effect SSOT. Tracks hermes `main`.
 hermes-simd = { path = "../hermes/crates/hermes-simd", version = "0.3.0" }
 eunomia = { git = "https://github.com/ryancinsight/eunomia", default-features = false }
@@ -45,11 +45,11 @@ half       = { version = "2.7", features = ["bytemuck"] }
 # than rustfft or a Coeus-local array dependency.
 smallvec   = "1.13"
 rkyv       = { version = "0.8.17", features = ["bytecheck", "std"] }
-wgpu       = { version = "26.0", features = ["wgsl"] }
-hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.12.0" }
-hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.12.0" }
-hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda", version = "0.12.0" }
-themis = { path = "../themis", version = "0.9.17" }
+wgpu       = { version = "30.0", default-features = false, features = ["wgsl", "vulkan", "metal"] }
+hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.13.0" }
+hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.13.0" }
+hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda", version = "0.13.0" }
+themis = { path = "../themis", version = "0.10" }
 
 # ── Error ──
 thiserror = "2"

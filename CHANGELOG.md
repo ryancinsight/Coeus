@@ -4,17 +4,31 @@
 
 ### Changed
 
+- Coeus now requires Mnemosyne 0.4, matching Moirai and the local Atlas
+  allocator provider generation.
 - `coeus-ops` now accepts Melinoe 0.9.0, keeping the local Atlas graph on the
   validated parallel-executor capability generation. Coeus does not consume the
   changed registration API.
-- The WGPU/CUDA substrate constraints now accept Hephaestus 0.12.0, including
-  the immutable staging-callback pair required by the integrated local graph.
+- The WGPU/CUDA substrate constraints now accept Hephaestus 0.13.0 and its
+  WGPU 30 Vulkan/Metal ABI, including the immutable staging-callback pair
+  required by the integrated local graph.
+- CUDA scalar bounds now use Hephaestus 0.13's dialect-owned scalar contract
+  directly instead of the removed substrate-wide marker trait.
 - The Mnemosyne Git override now covers every transitive crate, preventing
   duplicate 0.1/0.2 `mnemosyne-backend` type identities in decay and device
   paths.
+- CUDA module loading and launch now bind the Hephaestus-owned device context,
+  preventing context-invalid function handles.
+- Persistent placement reporting now distinguishes CUDA device allocation from
+  transient pinned transfers, while WGPU rejects a host-pinned tier it cannot
+  guarantee.
 
 ### Added
 
+- Native CUDA kernels for 1-D/2-D unfold and adjoint fold, with exact
+  differential coverage against the sequential reference.
+- Native CUDA max/average 1-D pooling forward and input-adjoint kernels replace
+  the former empty backend methods.
 - Added a LocalResponseNorm forward benchmark for Sequential and Moirai backends.
 - Added EmbeddingBag mean-mode benchmark rows against the Burn equivalent.
 

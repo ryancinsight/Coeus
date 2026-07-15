@@ -63,3 +63,41 @@ fn fallback_fused_ops_match_expression_values() {
         .to_backend_on(&cuda, &seq);
     assert_eq!(mean.as_slice(), &[2.0]);
 }
+
+#[test]
+fn cpu_backed_cuda_unfold_fold_preserves_adjoint_values() {
+    let backend = CudaBackend::new();
+    let input =
+        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 5], &[1.0, 2.0, 3.0, 4.0, 5.0], &backend);
+    let columns = coeus_ops::unfold1d(&input, 3, 1, 1, 1, &backend);
+    let sequential = SequentialBackend::new();
+    assert_eq!(
+        columns.to_backend_on(&backend, &sequential).as_slice(),
+        &[0.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 5.0, 2.0, 3.0, 4.0, 5.0, 0.0,]
+    );
+    let reconstructed = coeus_ops::fold1d(&columns, 5, 3, 1, 1, 1, &backend);
+    assert_eq!(
+        reconstructed
+            .to_backend_on(&backend, &sequential)
+            .as_slice(),
+        &[2.0, 6.0, 9.0, 12.0, 10.0]
+    );
+
+    let image = Tensor::<f32, CudaBackend>::from_slice_on(
+        [1, 1, 3, 3],
+        &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
+        &backend,
+    );
+    let patches = coeus_ops::unfold2d(&image, 2, 2, 1, 1, 0, 0, 1, 1, &backend);
+    assert_eq!(
+        patches.to_backend_on(&backend, &sequential).as_slice(),
+        &[1.0, 2.0, 4.0, 5.0, 2.0, 3.0, 5.0, 6.0, 4.0, 5.0, 7.0, 8.0, 5.0, 6.0, 8.0, 9.0,]
+    );
+    let image_reconstructed = coeus_ops::fold2d(&patches, 3, 3, 2, 2, 1, 1, 0, 0, 1, 1, &backend);
+    assert_eq!(
+        image_reconstructed
+            .to_backend_on(&backend, &sequential)
+            .as_slice(),
+        &[1.0, 4.0, 3.0, 8.0, 20.0, 12.0, 7.0, 16.0, 9.0]
+    );
+}

@@ -1,5 +1,17 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-PROVIDER-002 Atlas provider alignment (CLOSED 2026-07-13)
+
+[patch] Accept the current local Mnemosyne, Moirai, and Hephaestus provider
+generations as one coherent graph. Acceptance requires one resolved identity
+per provider, clean provider-facing Clippy, and value-semantic nextest coverage.
+The resolved graph, CUDA library, and provider contracts are verified. CUDA now
+owns real 1-D/2-D unfold, adjoint fold, and 1-D pooling forward/backward
+kernels; all driver launches bind the Hephaestus-owned context; and WGPU/CUDA
+placement tests assert the persistent tiers each provider can guarantee.
+Evidence: warning-denied provider Clippy, 88/88 default tests, and 75/75
+real-CUDA all-feature tests.
+
 ## MEL-SCOPE-001 Melinoe 0.9 provider refresh (CLOSED)
 
 [patch] Update the local `coeus-ops` Melinoe constraint and verify operation

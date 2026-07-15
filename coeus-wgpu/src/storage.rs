@@ -113,13 +113,19 @@ mod tests {
     }
 
     #[test]
-    fn host_pinned_upload_uses_staging_tier() {
+    fn host_pinned_upload_is_rejected_without_false_tier() {
         let ctx = get_wgpu_context();
         let input = vec![1.0f32, -2.5, 3.25, 8.0];
-        let staging = ctx
+        let error = ctx
             .hephaestus_device
             .upload_with_hint(&input, PlacementHint::Tier(MemoryTier::HostPinned))
-            .expect("failed to upload into host-pinned staging tier");
-        assert_eq!(staging.tier(), MemoryTier::HostPinned);
+            .expect_err("WGPU cannot guarantee persistent host-pinned placement");
+        match error {
+            hephaestus_core::HephaestusError::AllocationFailed { message } => assert_eq!(
+                message,
+                "WGPU cannot guarantee requested memory tier HostPinned; use Device placement"
+            ),
+            other => panic!("expected allocation failure, got {other:?}"),
+        }
     }
 }

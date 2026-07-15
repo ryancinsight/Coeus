@@ -46,6 +46,24 @@ pub fn compile_cuda_to_ptx(src: &str) -> Result<String, String> {
 
     let src_c = std::ffi::CString::new(src).map_err(|e| e.to_string())?;
     let name_c = std::ffi::CString::new("fused_kernel.cu").map_err(|e| e.to_string())?;
+    let mut option_text = vec!["--std=c++11".to_string()];
+    if let Some(toolkit) =
+        std::env::var_os("CUDA_TOOLKIT_PATH").or_else(|| std::env::var_os("CUDA_PATH"))
+    {
+        option_text.push(format!(
+            "--include-path={}",
+            std::path::Path::new(&toolkit).join("include").display()
+        ));
+    }
+    let options: Result<Vec<_>, _> = option_text
+        .iter()
+        .map(|option| std::ffi::CString::new(option.as_str()))
+        .collect();
+    let options = options.map_err(|error| format!("invalid NVRTC option: {error}"))?;
+    let options_ptr: Vec<*const std::ffi::c_char> =
+        options.iter().map(|option| option.as_ptr()).collect();
+    let option_count = std::ffi::c_int::try_from(options_ptr.len())
+        .map_err(|_| "too many NVRTC compiler options".to_string())?;
 
     let mut prog: crate::driver::nvrtcProgram = std::ptr::null_mut();
     unsafe {
@@ -61,15 +79,7 @@ pub fn compile_cuda_to_ptx(src: &str) -> Result<String, String> {
             return Err(format!("nvrtcCreateProgram failed: {}", res));
         }
 
-        let options = [std::ffi::CString::new("--std=c++11").unwrap()];
-        let options_ptr: Vec<*const std::ffi::c_char> =
-            options.iter().map(|o| o.as_ptr()).collect();
-
-        let compile_res = (nvrtc.nvrtcCompileProgram)(
-            prog,
-            options_ptr.len() as std::ffi::c_int,
-            options_ptr.as_ptr(),
-        );
+        let compile_res = (nvrtc.nvrtcCompileProgram)(prog, option_count, options_ptr.as_ptr());
 
         if compile_res != 0 {
             let mut log_size: usize = 0;
