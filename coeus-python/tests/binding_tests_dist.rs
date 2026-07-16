@@ -146,37 +146,54 @@ for rank in range(world_size):
     );
 }
 
+#[test]
+fn test_pycoeus_tcp_mesh_single_rank() {
+    run_pycoeus_script(
+        r#"
+mesh = pycoeus.TcpMesh(0, 1, ["127.0.0.1:0"])
+comm = pycoeus.TcpCommunicator(mesh)
+assert comm.rank() == 0
+assert comm.size() == 1
+"#,
+    );
+}
+
+#[test]
+fn test_pycoeus_tcp_loopback_cluster_rejects_zero_world_size() {
+    run_pycoeus_script(
+        r#"
+try:
+    pycoeus.create_tcp_loopback_cluster(0)
+except ValueError as error:
+    assert str(error) == "world_size must be greater than zero"
+else:
+    raise AssertionError("zero-sized TCP loopback cluster was accepted")
+"#,
+    );
+}
+
 fn run_pycoeus_tcp_script(body: &str) {
     let mut script = String::from(
         r#"
 import pycoeus
-import socket
 import threading
 
-def get_free_ports(count):
-    ports = []
-    sockets = []
-    for _ in range(count):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind(('127.0.0.1', 0))
-        ports.append(f'127.0.0.1:{sock.getsockname()[1]}')
-        sockets.append(sock)
-    for sock in sockets:
-        sock.close()
-    return ports
-
-def run_tcp(addresses, call):
+def run_tcp(call):
+    comms = pycoeus.create_tcp_loopback_cluster(2)
     results = [None] * 2
+    failures = []
     def run(rank):
-        mesh = pycoeus.TcpMesh(rank, 2, addresses)
-        comm = pycoeus.TcpCommunicator(mesh)
-        results[rank] = call(rank, comm)
+        try:
+            results[rank] = call(rank, comms[rank])
+        except BaseException as error:
+            failures.append((rank, error))
 
     threads = [threading.Thread(target=run, args=(rank,)) for rank in range(2)]
     for thread in threads:
         thread.start()
     for thread in threads:
         thread.join()
+    assert not failures, f'tcp rank failures: {failures}'
     return results
 
 "#,
@@ -194,7 +211,7 @@ def all_reduce(rank, comm):
     comm.all_reduce(tensor)
     return tensor.data
 
-all_reduce_results = run_tcp(get_free_ports(2), all_reduce)
+all_reduce_results = run_tcp(all_reduce)
 for rank in range(2):
     assert all_reduce_results[rank] == [3.0, 5.0], f'tcp all_reduce rank {rank} {all_reduce_results[rank]}'
 "#,
@@ -210,7 +227,7 @@ def broadcast(rank, comm):
     comm.broadcast(tensor, 0)
     return tensor.data
 
-broadcast_results = run_tcp(get_free_ports(2), broadcast)
+broadcast_results = run_tcp(broadcast)
 for rank in range(2):
     assert broadcast_results[rank] == [10.0, 20.0], f'tcp broadcast rank {rank} {broadcast_results[rank]}'
 "#,
@@ -227,7 +244,7 @@ def all_gather(rank, comm):
     comm.all_gather(tensor, out)
     return [item.data[0] for item in out]
 
-all_gather_results = run_tcp(get_free_ports(2), all_gather)
+all_gather_results = run_tcp(all_gather)
 for rank in range(2):
     assert all_gather_results[rank] == [0.0, 100.0], f'tcp all_gather rank {rank} {all_gather_results[rank]}'
 "#,
@@ -243,7 +260,7 @@ def reduce(rank, comm):
     comm.reduce(tensor, 1)
     return tensor.data
 
-reduce_results = run_tcp(get_free_ports(2), reduce)
+reduce_results = run_tcp(reduce)
 assert reduce_results[1] == [3.0, 5.0], f'tcp reduce root {reduce_results[1]}'
 "#,
     );
@@ -259,7 +276,7 @@ def gather(rank, comm):
     comm.gather(tensor, out, 1)
     return [item.data[0] for item in out] if rank == 1 else None
 
-gather_results = run_tcp(get_free_ports(2), gather)
+gather_results = run_tcp(gather)
 assert gather_results[1] == [0.0, 100.0], f'tcp gather root {gather_results[1]}'
 "#,
     );
@@ -275,7 +292,7 @@ def scatter(rank, comm):
     comm.scatter(tensor, inputs, 0)
     return tensor.data
 
-scatter_results = run_tcp(get_free_ports(2), scatter)
+scatter_results = run_tcp(scatter)
 for rank in range(2):
     assert scatter_results[rank] == [(rank + 1.0) * 100.0], f'tcp scatter rank {rank} {scatter_results[rank]}'
 "#,

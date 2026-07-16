@@ -3,8 +3,11 @@
 // Verifies MaxPool1d and AvgPool1d forward outputs against hand-computed values.
 
 use coeus_autograd::Var;
-use coeus_core::SequentialBackend;
+use coeus_core::{
+    CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, SequentialBackend,
+};
 use coeus_nn::{AvgPool1d, MaxPool1d, Module};
+use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
 fn seq_var(shape: impl Into<coeus_core::Shape>, data: &[f32]) -> Var<f32, SequentialBackend> {
@@ -98,4 +101,58 @@ fn avgpool1d_batch() {
     // batch1: 3.0, 7.0
     assert!((s[2] - 3.0).abs() < 1e-6);
     assert!((s[3] - 7.0).abs() < 1e-6);
+}
+
+fn provider_var<B: BackendOps<f64> + Default>(
+    shape: &[usize],
+    data: &[f64],
+    backend: &B,
+) -> Var<f64, B>
+where
+    B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
+{
+    Var::new(Tensor::from_slice_on(shape.to_vec(), data, backend), false)
+}
+
+fn assert_pool1d_provider_contract<B: BackendOps<f64> + Default>(backend: &B)
+where
+    B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
+{
+    // [N=1, C=2, L=8], kernel=2, stride=2. Every average is integral, so the
+    // exact outputs also rule out provider-specific reduction-order drift.
+    let input = provider_var(
+        &[1, 2, 8],
+        &[
+            1.0, 3.0, 2.0, 4.0, 1.0, 5.0, 0.0, 6.0, 7.0, 9.0, 8.0, 10.0, 7.0, 11.0, 6.0, 12.0,
+        ],
+        backend,
+    );
+
+    let max_pool = MaxPool1d::<f64, B>::with_params(2, 2, 0, 1);
+    let max_output = Module::<f64, B>::forward(&max_pool, &input);
+    assert_eq!(max_output.tensor.shape(), &[1, 2, 4], "MaxPool1d shape");
+    assert_eq!(
+        max_output.tensor.as_slice(),
+        &[3.0, 4.0, 5.0, 6.0, 9.0, 10.0, 11.0, 12.0],
+        "MaxPool1d value oracle"
+    );
+
+    let average_pool = AvgPool1d::<f64, B>::with_params(2, 2, 0, 1);
+    let average_output = Module::<f64, B>::forward(&average_pool, &input);
+    assert_eq!(average_output.tensor.shape(), &[1, 2, 4], "AvgPool1d shape");
+    assert_eq!(
+        average_output.tensor.as_slice(),
+        &[2.0, 3.0, 3.0, 3.0, 8.0, 9.0, 9.0, 9.0],
+        "AvgPool1d value oracle"
+    );
+}
+
+#[test]
+fn sequential_pool1d_matches_analytical_contract() {
+    assert_pool1d_provider_contract(&SequentialBackend);
+}
+
+#[test]
+fn moirai_pool1d_matches_analytical_contract() {
+    assert_pool1d_provider_contract(&MoiraiBackend);
 }

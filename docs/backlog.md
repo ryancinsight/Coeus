@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-PROVIDER-004 Current provider consumer refresh (CLOSED 2026-07-16)
+
+[major] Raise Coeus to 0.9.0 for its Rust 1.95 MSRV and current Atlas provider
+floors: Leto 0.38 and Hephaestus 0.15, alongside the existing Mnemosyne 0.5
+and Moirai 0.4 requirements. The stale Burn live-parity target is removed in
+favour of native analytical/provider-conformance coverage. Completion requires
+workspace compilation, warning-denied Clippy, timed nextest, doctests, and a
+resolved graph containing only the declared provider generations. TCP test and
+PyO3 cluster setup retain real loopback listeners through rank connection, so
+no test probes and later rebinds a released port.
+Evidence: `cargo fmt --check`; warning-denied workspace Clippy; 1008/1008
+all-feature nextest, including real CUDA; 153 passing doctests with 2
+intentionally ignored; and warning-clean workspace Rustdoc.
+
 ## ATLAS-PROVIDER-003 Current provider consumer alignment (CLOSED 2026-07-15)
 
 [major] Coeus follows Mnemosyne's published 0.5 provider default after its Rust

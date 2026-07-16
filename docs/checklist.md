@@ -1,5 +1,19 @@
 # Global Progress Checklist: Coeus
 
+## Sprint ATLAS-PROVIDER-004: Current provider consumer refresh [COMPLETE]
+
+- [x] [major] Raise the workspace release line to 0.9.0 for the Rust 1.95 and
+  provider-floor contract.
+- [x] [major] Raise Leto and Leto Ops to 0.38.0 and the Hephaestus GPU crates
+  to 0.15.0.
+- [x] Replace the stale Burn live-parity target with native analytical pooling
+  contracts instantiated for the Sequential and Moirai providers.
+- [x] Replace probe-and-rebind TCP test setup with listener-owned loopback
+  clusters for the Rust and PyO3 distributed-collective boundaries.
+- [x] Verify `cargo fmt --check`, warning-denied workspace Clippy, the
+  1008/1008 all-feature nextest suite (including real CUDA), 153 doctests
+  passing with 2 intentionally ignored, and warning-clean workspace Rustdoc.
+
 ## Sprint ATLAS-PROVIDER-003: Current provider consumer alignment [COMPLETE]
 
 - [x] [major] Raise Coeus' local Mnemosyne contract to 0.5.0 and declare the

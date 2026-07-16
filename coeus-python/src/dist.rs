@@ -202,6 +202,29 @@ pub fn create_local_cluster(world_size: usize) -> PyResult<Vec<PyLocalCommunicat
         .collect())
 }
 
+/// Create an in-process cluster backed by real loopback TCP sockets.
+#[pyfunction]
+pub fn create_tcp_loopback_cluster(
+    world_size: usize,
+    py: Python<'_>,
+) -> PyResult<Vec<PyTcpCommunicator>> {
+    let world_size = std::num::NonZeroUsize::new(world_size).ok_or_else(|| {
+        pyo3::exceptions::PyValueError::new_err("world_size must be greater than zero")
+    })?;
+    let communicators = py.allow_threads(move || {
+        coeus_dist::TcpMesh::create_loopback_cluster(world_size)
+            .into_iter()
+            .map(coeus_dist::TcpCommunicator::new)
+            .collect::<Vec<_>>()
+    });
+    Ok(communicators
+        .into_iter()
+        .map(|comm| PyTcpCommunicator {
+            inner: std::sync::Arc::new(comm),
+        })
+        .collect())
+}
+
 /// Synchronize and average gradients across all ranks in a process group (releasing GIL).
 #[pyfunction]
 pub fn synchronize_gradients(
