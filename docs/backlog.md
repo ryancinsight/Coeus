@@ -1,5 +1,14 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-PROVIDER-003 Current provider consumer alignment (CLOSED 2026-07-15)
+
+[major] Coeus follows Mnemosyne's published 0.5 provider default after its Rust
+1.95 MSRV release, Moirai's 0.4 provider default, and Hephaestus' 0.14 GPU
+device contract. The workspace now resolves one local Mnemosyne identity and
+declares the provider-imposed Rust floor. Evidence: `coeus-core` check,
+warning-denied Clippy, and 21/21 nextest; `coeus-wgpu` check; `cargo fmt
+--check`; and a dependency-tree query that rejects Mnemosyne 0.4.
+
 ## ATLAS-PROVIDER-002 Atlas provider alignment (CLOSED 2026-07-13)
 
 [patch] Accept the current local Mnemosyne, Moirai, and Hephaestus provider

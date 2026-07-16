@@ -1,5 +1,17 @@
 # Global Progress Checklist: Coeus
 
+## Sprint ATLAS-PROVIDER-003: Current provider consumer alignment [COMPLETE]
+
+- [x] [major] Raise Coeus' local Mnemosyne contract to 0.5.0 and declare the
+  provider-imposed Rust 1.95 floor to downstream consumers.
+- [x] [major] Raise Coeus' local Moirai contract to 0.4.0 and retain its
+  Melinoe-backed parallel execution provider contract.
+- [x] [major] Raise the Coeus WGPU/CUDA substrate contracts to Hephaestus
+  0.14.0 and its required device-feature contract.
+- [x] Verify `coeus-core` check, warning-denied Clippy, and 21/21 nextest;
+  `coeus-wgpu` check; `cargo fmt --check`; and one local Mnemosyne 0.5 identity
+  with no Mnemosyne 0.4 package in the resolved dependency tree.
+
 ## Sprint ATLAS-PROVIDER-002: Atlas provider alignment [COMPLETE]
 
 - [x] [patch] Raise Coeus' local Mnemosyne contract to 0.4 after Moirai's

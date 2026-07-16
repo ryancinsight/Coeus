@@ -4,8 +4,12 @@
 
 ### Changed
 
-- Coeus now requires Mnemosyne 0.4, matching Moirai and the local Atlas
-  allocator provider generation.
+- Coeus now requires Mnemosyne 0.5 and therefore Rust 1.95, matching the local
+  Atlas allocator provider generation.
+- Coeus now requires Moirai 0.4, retaining the provider's Melinoe-backed
+  parallel execution contract.
+- The WGPU/CUDA substrate constraints now require Hephaestus 0.14.0, including
+  its device-feature contract.
 - `coeus-ops` now accepts Melinoe 0.9.0, keeping the local Atlas graph on the
   validated parallel-executor capability generation. Coeus does not consume the
   changed registration API.
