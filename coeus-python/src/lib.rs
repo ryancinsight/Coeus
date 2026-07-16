@@ -167,6 +167,7 @@ pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyTcpCommunicator>()?;
 
     m.add_function(wrap_pyfunction!(dist::create_local_cluster, m)?)?;
+    m.add_function(wrap_pyfunction!(dist::create_tcp_loopback_cluster, m)?)?;
     m.add_function(wrap_pyfunction!(dist::synchronize_gradients, m)?)?;
 
     m.add_function(wrap_pyfunction!(activations::relu, m)?)?;

@@ -1,5 +1,31 @@
 # Global Progress Checklist: Coeus
 
+## Sprint ATLAS-PROVIDER-004: Current provider consumer refresh [COMPLETE]
+
+- [x] [major] Raise the workspace release line to 0.9.0 for the Rust 1.95 and
+  provider-floor contract.
+- [x] [major] Raise Leto and Leto Ops to 0.38.0 and the Hephaestus GPU crates
+  to 0.15.0.
+- [x] Replace the stale Burn live-parity target with native analytical pooling
+  contracts instantiated for the Sequential and Moirai providers.
+- [x] Replace probe-and-rebind TCP test setup with listener-owned loopback
+  clusters for the Rust and PyO3 distributed-collective boundaries.
+- [x] Verify `cargo fmt --check`, warning-denied workspace Clippy, the
+  1008/1008 all-feature nextest suite (including real CUDA), 153 doctests
+  passing with 2 intentionally ignored, and warning-clean workspace Rustdoc.
+
+## Sprint ATLAS-PROVIDER-003: Current provider consumer alignment [COMPLETE]
+
+- [x] [major] Raise Coeus' local Mnemosyne contract to 0.5.0 and declare the
+  provider-imposed Rust 1.95 floor to downstream consumers.
+- [x] [major] Raise Coeus' local Moirai contract to 0.4.0 and retain its
+  Melinoe-backed parallel execution provider contract.
+- [x] [major] Raise the Coeus WGPU/CUDA substrate contracts to Hephaestus
+  0.14.0 and its required device-feature contract.
+- [x] Verify `coeus-core` check, warning-denied Clippy, and 21/21 nextest;
+  `coeus-wgpu` check; `cargo fmt --check`; and one local Mnemosyne 0.5 identity
+  with no Mnemosyne 0.4 package in the resolved dependency tree.
+
 ## Sprint ATLAS-PROVIDER-002: Atlas provider alignment [COMPLETE]
 
 - [x] [patch] Raise Coeus' local Mnemosyne contract to 0.4 after Moirai's

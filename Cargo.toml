@@ -18,8 +18,9 @@ members = [
 ]
 
 [workspace.package]
-version = "0.8.0"
+version = "0.9.0"
 edition = "2021"
+rust-version = "1.95"
 authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
 license = "MIT OR Apache-2.0"
 
@@ -27,14 +28,14 @@ license = "MIT OR Apache-2.0"
 # ── Remote System Dependencies ──
 # Parallelization/async SSOT. Moirai defaults carry parallel execution,
 # Mnemosyne-backed allocation surfaces, and Mellinoe branding.
-moirai     = { path = "../moirai/moirai", version = "0.3.0", features = ["melinoe"] }
-mnemosyne  = { path = "../mnemosyne/crates/mnemosyne", version = "^0.4.0" }
+moirai     = { path = "../moirai/moirai", version = "0.4.0", features = ["melinoe"] }
+mnemosyne  = { path = "../mnemosyne/crates/mnemosyne", version = "^0.5.0" }
 # SIMD-effect SSOT. Tracks hermes `main`.
 hermes-simd = { path = "../hermes/crates/hermes-simd", version = "0.3.0" }
 eunomia = { git = "https://github.com/ryancinsight/eunomia", default-features = false }
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
-leto     = { path = "../leto/crates/leto", version = "0.36.0" }
-leto-ops = { path = "../leto/crates/leto-ops", version = "0.36.0" }
+leto     = { path = "../leto/crates/leto", version = "0.38.0" }
+leto-ops = { path = "../leto/crates/leto-ops", version = "0.38.0" }
 apollo-fft = { path = "../apollo/crates/apollo-fft", default-features = false }
 
 # ── Numerical ──
@@ -46,9 +47,9 @@ half       = { version = "2.7", features = ["bytemuck"] }
 smallvec   = "1.13"
 rkyv       = { version = "0.8.17", features = ["bytecheck", "std"] }
 wgpu       = { version = "30.0", default-features = false, features = ["wgsl", "vulkan", "metal"] }
-hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.13.0" }
-hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.13.0" }
-hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda", version = "0.13.0" }
+hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.15.0" }
+hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.15.0" }
+hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda", version = "0.15.0" }
 themis = { path = "../themis", version = "0.10" }
 
 # ── Error ──
@@ -83,10 +84,17 @@ mnemosyne-prof = { path = "../mnemosyne/crates/mnemosyne-prof" }
 [patch."https://github.com/ryancinsight/Moirai.git"]
 moirai = { path = "../moirai/moirai" }
 moirai-core = { path = "../moirai/moirai-core" }
+moirai-executor = { path = "../moirai/moirai-executor" }
 moirai-scheduler = { path = "../moirai/moirai-scheduler" }
 moirai-parallel = { path = "../moirai/moirai-parallel" }
 moirai-async = { path = "../moirai/moirai-async" }
+moirai-async-macros = { path = "../moirai/moirai-async-macros" }
 moirai-transport = { path = "../moirai/moirai-transport" }
+moirai-sync = { path = "../moirai/moirai-sync" }
+moirai-pal = { path = "../moirai/moirai-pal" }
+moirai-iter = { path = "../moirai/moirai-iter" }
+moirai-utils = { path = "../moirai/moirai-utils" }
+moirai-gpu = { path = "../moirai/moirai-gpu" }
 
 [patch."https://github.com/ryancinsight/leto.git"]
 leto = { path = "../leto/crates/leto" }

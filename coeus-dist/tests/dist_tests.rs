@@ -5,12 +5,9 @@ use coeus_dist::{
     TcpCommunicator, TcpMesh,
 };
 use coeus_tensor::Tensor;
-use std::fs::{self, OpenOptions};
+use std::num::NonZeroUsize;
 use std::panic::{self, AssertUnwindSafe};
-use std::path::PathBuf;
-use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::thread;
-use std::time::{Duration, Instant};
 
 fn assert_any_thread_panicked(handles: Vec<thread::JoinHandle<bool>>, message: &str) {
     let panicked = handles
@@ -20,20 +17,24 @@ fn assert_any_thread_panicked(handles: Vec<thread::JoinHandle<bool>>, message: &
     assert!(panicked.iter().any(|&p| p), "{}", message);
 }
 
-static TCP_TEST_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
-
-fn tcp_test_lock() -> MutexGuard<'static, ()> {
-    TCP_TEST_MUTEX
-        .get_or_init(|| Mutex::new(()))
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-}
-
 fn spawn_maybe_panicking<F>(f: F) -> thread::JoinHandle<bool>
 where
     F: FnOnce() + Send + 'static,
 {
     thread::spawn(move || panic::catch_unwind(AssertUnwindSafe(f)).is_err())
+}
+
+fn loopback_meshes(world_size: usize) -> Vec<TcpMesh> {
+    let world_size =
+        NonZeroUsize::new(world_size).expect("TCP test cluster requires a non-zero world size");
+    TcpMesh::create_loopback_cluster(world_size)
+}
+
+fn single_rank_tcp_mesh() -> TcpMesh {
+    loopback_meshes(1)
+        .into_iter()
+        .next()
+        .expect("one-rank loopback cluster must contain its rank")
 }
 
 #[test]
@@ -449,140 +450,15 @@ fn test_local_broadcast_sliced() {
     }
 }
 
-struct PortAllocatorLock {
-    path: PathBuf,
-}
-
-impl Drop for PortAllocatorLock {
-    fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
-    }
-}
-
-fn port_allocator_lock() -> PortAllocatorLock {
-    let path = std::env::temp_dir().join("coeus-dist-tcp-port-counter.lock");
-    let start = Instant::now();
-
-    loop {
-        match OpenOptions::new().write(true).create_new(true).open(&path) {
-            Ok(_) => return PortAllocatorLock { path },
-            Err(error)
-                if matches!(
-                    error.kind(),
-                    std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::PermissionDenied
-                ) =>
-            {
-                if start.elapsed() > Duration::from_secs(20) {
-                    let metadata = fs::metadata(&path)
-                        .expect("TCP port allocator lock exists but metadata could not be read");
-                    let modified = metadata
-                        .modified()
-                        .expect("TCP port allocator lock modified time could not be read");
-                    if modified.elapsed().unwrap_or(Duration::ZERO) > Duration::from_secs(120) {
-                        let _ = fs::remove_file(&path);
-                        continue;
-                    }
-                    panic!(
-                        "timed out waiting for TCP port allocator lock at {}",
-                        path.display()
-                    );
-                }
-                thread::sleep(Duration::from_millis(10));
-            }
-            Err(error) => panic!(
-                "failed to acquire TCP port allocator lock at {}: {error}",
-                path.display()
-            ),
-        }
-    }
-}
-
-/// Reserves `count` free loopback TCP ports and returns them alongside the
-/// cross-process allocator lock that must stay held until every rank's
-/// [`TcpMesh`] has finished binding/connecting.
-///
-/// The probe binds and immediately releases each [`TcpListener`] to confirm
-/// the port is free, then the real `TcpMesh` construction re-binds the same
-/// port later in a spawned thread — a time-of-check-to-time-of-use gap. Under
-/// light load the gap is sub-millisecond and invisible; under heavy parallel
-/// test-process contention (e.g. a full-workspace `nextest` run competing
-/// with concurrent unrelated builds for CPU) thread-spawn scheduling delay
-/// can widen that gap enough for a concurrent test process — which follows
-/// the same probe-then-bind protocol — to claim the same port first. Holding
-/// this lock across the caller's full mesh-construction span (not just the
-/// probe) closes the gap: no other caller can be mid-probe-or-bind while it
-/// is held, since every caller acquires the same cross-process file lock
-/// before probing.
-fn get_free_ports(count: usize) -> (Vec<std::net::SocketAddr>, PortAllocatorLock) {
-    use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener};
-
-    assert!(count > 0, "port count must be positive");
-
-    let lock = port_allocator_lock();
-    let counter_path = std::env::temp_dir().join("coeus-dist-tcp-port-counter.txt");
-    let mut start = fs::read_to_string(&counter_path)
-        .ok()
-        .and_then(|raw| raw.trim().parse::<usize>().ok())
-        .unwrap_or(30_000);
-
-    for _ in 0..4096 {
-        if start < 30_000 || start + count >= u16::MAX as usize {
-            start = 30_000;
-            continue;
-        }
-
-        let mut addrs = Vec::with_capacity(count);
-        let mut listeners = Vec::with_capacity(count);
-        let mut all_bound = true;
-
-        for offset in 0..count {
-            let port = (start + offset) as u16;
-            let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, port));
-            match TcpListener::bind(addr) {
-                Ok(listener) => {
-                    addrs.push(addr);
-                    listeners.push(listener);
-                }
-                Err(_) => {
-                    all_bound = false;
-                    break;
-                }
-            }
-        }
-
-        if all_bound {
-            let next = start + count + 1;
-            fs::write(
-                &counter_path,
-                if next + count < u16::MAX as usize {
-                    next.to_string()
-                } else {
-                    "30000".to_string()
-                },
-            )
-            .expect("failed to persist TCP test port counter");
-            drop(listeners);
-            return (addrs, lock);
-        }
-
-        start += count + 1;
-    }
-
-    panic!("failed to reserve {count} local TCP test ports after multiple attempts");
-}
-
 #[test]
 fn test_tcp_all_reduce() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
 
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         let handle = thread::spawn(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
@@ -604,15 +480,12 @@ fn test_tcp_all_reduce() {
 
 #[test]
 fn test_tcp_all_reduce_mismatched_numel_panics() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         handles.push(spawn_maybe_panicking(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
@@ -633,15 +506,12 @@ fn test_tcp_all_reduce_mismatched_numel_panics() {
 
 #[test]
 fn test_tcp_all_reduce_zero_numel_mismatched_numel_panics() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         handles.push(spawn_maybe_panicking(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
@@ -662,16 +532,13 @@ fn test_tcp_all_reduce_zero_numel_mismatched_numel_panics() {
 
 #[test]
 fn test_tcp_broadcast() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
 
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         let handle = thread::spawn(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
@@ -697,16 +564,13 @@ fn test_tcp_broadcast() {
 
 #[test]
 fn test_tcp_broadcast_mismatched_numel_panics() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
 
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         handles.push(spawn_maybe_panicking(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
@@ -728,16 +592,13 @@ fn test_tcp_broadcast_mismatched_numel_panics() {
 
 #[test]
 fn test_tcp_all_gather() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
 
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         let handle = thread::spawn(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
@@ -762,15 +623,12 @@ fn test_tcp_all_gather() {
 
 #[test]
 fn test_tcp_all_gather_mismatched_peer_numel_panics() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         handles.push(spawn_maybe_panicking(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
@@ -803,15 +661,12 @@ fn test_tcp_all_gather_mismatched_peer_numel_panics() {
 
 #[test]
 fn test_tcp_all_gather_zero_numel_mismatched_peer_numel_panics() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         handles.push(spawn_maybe_panicking(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
@@ -844,16 +699,13 @@ fn test_tcp_all_gather_zero_numel_mismatched_peer_numel_panics() {
 
 #[test]
 fn test_tcp_barrier() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
 
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for mesh in meshes {
         let handle = thread::spawn(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
 
             comm.barrier();
@@ -868,16 +720,13 @@ fn test_tcp_barrier() {
 
 #[test]
 fn test_tcp_reduce() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
 
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         let handle = thread::spawn(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
@@ -901,16 +750,13 @@ fn test_tcp_reduce() {
 
 #[test]
 fn test_tcp_reduce_mismatched_numel_panics() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
 
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         handles.push(spawn_maybe_panicking(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
@@ -932,16 +778,13 @@ fn test_tcp_reduce_mismatched_numel_panics() {
 
 #[test]
 fn test_tcp_gather() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
 
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         let handle = thread::spawn(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
@@ -972,15 +815,12 @@ fn test_tcp_gather() {
 
 #[test]
 fn test_tcp_gather_mismatched_peer_numel_panics() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         handles.push(spawn_maybe_panicking(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
             let tensor = if rank == 1 {
@@ -1009,15 +849,12 @@ fn test_tcp_gather_mismatched_peer_numel_panics() {
 
 #[test]
 fn test_tcp_gather_zero_numel_mismatched_peer_numel_panics() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         handles.push(spawn_maybe_panicking(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
             let tensor = if rank == 1 {
@@ -1046,16 +883,13 @@ fn test_tcp_gather_zero_numel_mismatched_peer_numel_panics() {
 
 #[test]
 fn test_tcp_scatter() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
 
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         let handle = thread::spawn(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
@@ -1083,15 +917,12 @@ fn test_tcp_scatter() {
 
 #[test]
 fn test_tcp_scatter_mismatched_target_numel_panics() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         handles.push(spawn_maybe_panicking(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
@@ -1121,15 +952,12 @@ fn test_tcp_scatter_mismatched_target_numel_panics() {
 
 #[test]
 fn test_tcp_scatter_zero_numel_mismatched_target_numel_panics() {
-    let _tcp_lock = tcp_test_lock();
     let world_size = 2;
-    let (addresses, _port_lock) = get_free_ports(world_size);
+    let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
 
-    for rank in 0..world_size {
-        let addrs = addresses.clone();
+    for (rank, mesh) in meshes.into_iter().enumerate() {
         handles.push(spawn_maybe_panicking(move || {
-            let mesh = TcpMesh::new(rank, world_size, &addrs);
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
@@ -1160,9 +988,7 @@ fn test_tcp_scatter_zero_numel_mismatched_target_numel_panics() {
 #[test]
 #[should_panic(expected = "all_gather output numel mismatch")]
 fn test_tcp_all_gather_mismatched_output_numel_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
 
@@ -1174,9 +1000,7 @@ fn test_tcp_all_gather_mismatched_output_numel_panics() {
 #[test]
 #[should_panic(expected = "all_gather output length mismatch")]
 fn test_tcp_all_gather_zero_numel_output_len_mismatch_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
 
@@ -1188,9 +1012,7 @@ fn test_tcp_all_gather_zero_numel_output_len_mismatch_panics() {
 #[test]
 #[should_panic(expected = "all_gather output numel mismatch")]
 fn test_tcp_all_gather_zero_numel_output_numel_mismatch_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
 
@@ -1202,9 +1024,7 @@ fn test_tcp_all_gather_zero_numel_output_numel_mismatch_panics() {
 #[test]
 #[should_panic(expected = "scatter input numel mismatch")]
 fn test_tcp_scatter_mismatched_input_numel_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
 
@@ -1216,9 +1036,7 @@ fn test_tcp_scatter_mismatched_input_numel_panics() {
 #[test]
 #[should_panic(expected = "collective root out of bounds")]
 fn test_tcp_broadcast_root_out_of_bounds_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
     let mut tensor = Tensor::from_slice_on([1], &[1.0f32], &backend);
@@ -1228,9 +1046,7 @@ fn test_tcp_broadcast_root_out_of_bounds_panics() {
 #[test]
 #[should_panic(expected = "collective root out of bounds")]
 fn test_tcp_reduce_root_out_of_bounds_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
     let mut tensor = Tensor::from_slice_on([1], &[1.0f32], &backend);
@@ -1240,9 +1056,7 @@ fn test_tcp_reduce_root_out_of_bounds_panics() {
 #[test]
 #[should_panic(expected = "collective root out of bounds")]
 fn test_tcp_gather_root_out_of_bounds_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
     let tensor = Tensor::from_slice_on([1], &[1.0f32], &backend);
@@ -1253,9 +1067,7 @@ fn test_tcp_gather_root_out_of_bounds_panics() {
 #[test]
 #[should_panic(expected = "collective root out of bounds")]
 fn test_tcp_scatter_root_out_of_bounds_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
     let mut tensor = Tensor::zeros_on([1], &backend);
@@ -1266,9 +1078,7 @@ fn test_tcp_scatter_root_out_of_bounds_panics() {
 #[test]
 #[should_panic(expected = "gather output length mismatch on root")]
 fn test_tcp_gather_zero_numel_output_len_mismatch_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
     let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
@@ -1279,9 +1089,7 @@ fn test_tcp_gather_zero_numel_output_len_mismatch_panics() {
 #[test]
 #[should_panic(expected = "gather output numel mismatch")]
 fn test_tcp_gather_mismatched_output_numel_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
     let tensor = Tensor::from_slice_on([2], &[1.0f32, 2.0], &backend);
@@ -1292,9 +1100,7 @@ fn test_tcp_gather_mismatched_output_numel_panics() {
 #[test]
 #[should_panic(expected = "gather output numel mismatch")]
 fn test_tcp_gather_zero_numel_output_numel_mismatch_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
     let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
@@ -1305,9 +1111,7 @@ fn test_tcp_gather_zero_numel_output_numel_mismatch_panics() {
 #[test]
 #[should_panic(expected = "scatter input length mismatch on root")]
 fn test_tcp_scatter_zero_numel_input_len_mismatch_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
     let mut tensor = Tensor::<f32, _>::zeros_on([0], &backend);
@@ -1318,9 +1122,7 @@ fn test_tcp_scatter_zero_numel_input_len_mismatch_panics() {
 #[test]
 #[should_panic(expected = "scatter input numel mismatch")]
 fn test_tcp_scatter_zero_numel_input_numel_mismatch_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
     let mut tensor = Tensor::<f32, _>::zeros_on([0], &backend);
@@ -1331,18 +1133,14 @@ fn test_tcp_scatter_zero_numel_input_numel_mismatch_panics() {
 #[test]
 #[should_panic(expected = "send peer must differ from local rank")]
 fn test_tcp_mesh_send_self_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     mesh.send(0, &[1u8]);
 }
 
 #[test]
 #[should_panic(expected = "recv peer must differ from local rank")]
 fn test_tcp_mesh_recv_self_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let mut byte = [0u8; 1];
     mesh.recv(0, &mut byte);
 }
@@ -1350,18 +1148,14 @@ fn test_tcp_mesh_recv_self_panics() {
 #[test]
 #[should_panic(expected = "send peer out of bounds")]
 fn test_tcp_mesh_send_out_of_bounds_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     mesh.send(1, &[1u8]);
 }
 
 #[test]
 #[should_panic(expected = "recv peer out of bounds")]
 fn test_tcp_mesh_recv_out_of_bounds_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let mesh = TcpMesh::new(0, 1, &addresses);
+    let mesh = single_rank_tcp_mesh();
     let mut byte = [0u8; 1];
     mesh.recv(1, &mut byte);
 }
@@ -1369,15 +1163,12 @@ fn test_tcp_mesh_recv_out_of_bounds_panics() {
 #[test]
 #[should_panic(expected = "rank must be less than world size")]
 fn test_tcp_mesh_new_rank_out_of_bounds_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let _mesh = TcpMesh::new(1, 1, &addresses);
+    let _mesh = TcpMesh::new(1, 1, &[]);
 }
 
 #[test]
 #[should_panic(expected = "world size must be > 0")]
 fn test_tcp_mesh_new_zero_world_size_panics() {
-    let _tcp_lock = tcp_test_lock();
     let addresses: Vec<std::net::SocketAddr> = vec![];
     let _mesh = TcpMesh::new(0, 0, &addresses);
 }
@@ -1385,9 +1176,7 @@ fn test_tcp_mesh_new_zero_world_size_panics() {
 #[test]
 #[should_panic(expected = "addresses list length must match world size")]
 fn test_tcp_mesh_new_addresses_len_mismatch_panics() {
-    let _tcp_lock = tcp_test_lock();
-    let (addresses, _port_lock) = get_free_ports(1);
-    let _mesh = TcpMesh::new(0, 2, &addresses);
+    let _mesh = TcpMesh::new(0, 2, &[]);
 }
 
 // ── all_reduce with Max / Min / Product reduce ops ──

@@ -4,8 +4,14 @@
 
 ### Changed
 
-- Coeus now requires Mnemosyne 0.4, matching Moirai and the local Atlas
-  allocator provider generation.
+- Coeus now requires Leto 0.38 and Hephaestus 0.15, matching the current
+  shared array and GPU-provider contracts.
+- Coeus now requires Mnemosyne 0.5 and therefore Rust 1.95, matching the local
+  Atlas allocator provider generation.
+- Coeus now requires Moirai 0.4, retaining the provider's Melinoe-backed
+  parallel execution contract.
+- The WGPU/CUDA substrate constraints now require Hephaestus 0.15.0, including
+  its device-feature contract.
 - `coeus-ops` now accepts Melinoe 0.9.0, keeping the local Atlas graph on the
   validated parallel-executor capability generation. Coeus does not consume the
   changed registration API.
@@ -22,6 +28,26 @@
 - Persistent placement reporting now distinguishes CUDA device allocation from
   transient pinned transfers, while WGPU rejects a host-pinned tier it cannot
   guarantee.
+- TCP distributed tests and the PyO3 loopback-cluster constructor retain their
+  real listeners until every rank connects, removing released-port races; the
+  Rust/Python boundaries reject zero-sized clusters before socket creation.
+
+### Removed
+
+- Removed the obsolete `burn_live_parity` target. Native analytical and
+  provider-conformance tests now own NN correctness evidence; Burn remains
+  confined to dev-only Criterion comparison rows.
+
+### Breaking
+
+- Coeus releases as 0.9.0 because its public MSRV is Rust 1.95 and its Atlas
+  provider floors are Mnemosyne 0.5, Moirai 0.4, Leto 0.38, and Hephaestus
+  0.15.
+
+### Migration
+
+- Build downstream code with Rust 1.95 or newer and resolve against the listed
+  provider floors.
 
 ### Added
 

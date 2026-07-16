@@ -1,5 +1,35 @@
 # Coeus Gap Audit
 
+## ATLAS-PROVIDER-004: TCP loopback cluster isolation
+
+**Location**: `coeus-dist/src/tcp/mesh.rs`, `coeus-dist/tests/dist_tests.rs`,
+and `coeus-python/{src/dist.rs,tests/binding_tests_dist.rs}`.
+**Gap**: distributed tests selected an ephemeral port, released it, then asked
+each rank to bind it. Concurrent nextest processes could claim that address in
+the intervening interval and make a peer receive time out.
+**Resolution**: `TcpMesh::create_loopback_cluster` keeps every OS-selected
+loopback listener bound until the complete mesh is connected. Rust and PyO3
+collective tests use that cluster directly; no shared temp-file lock, port
+counter, or timing retry remains. Its `NonZeroUsize` Rust boundary and PyO3
+`ValueError` conversion reject an invalid zero-sized cluster before socket
+creation.
+**Evidence tier**: real-socket Rust/PyO3 integration; 1008/1008 all-feature
+nextest (real CUDA enabled); warning-denied workspace Clippy; 153 passing
+doctests with 2 intentionally ignored; and warning-clean workspace Rustdoc.
+
+## MS-440: Burn live-parity target removed
+
+**Location**: `coeus-nn/Cargo.toml`,
+`coeus-nn/tests/burn_live_parity.rs`, and `coeus-nn/tests/pool1d_parity.rs`.
+**Gap**: the Burn 0.16-only target stopped compiling while the workspace still
+claimed it as a current oracle.
+**Resolution**: removed the obsolete test target. Native pooling contracts now
+instantiate the exact multi-channel 1-D oracle for Sequential and Moirai; the
+existing 3-D contract already covers both providers. Burn remains limited to
+dev-only Criterion comparisons, never a runtime or test compatibility path.
+**Evidence tier**: analytical value oracles, provider-conformance nextest, and
+the 1008/1008 all-feature workspace nextest gate with real CUDA enabled.
+
 ## MS-439: Named optimizer ownership closed
 
 **Location**: `coeus-autograd/src/parameter.rs`, `coeus-optim`,

@@ -2,6 +2,7 @@
 name = "coeus-nn"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 
@@ -19,13 +20,9 @@ coeus-autograd = { workspace = true, default-features = false }
 coeus-ops      = { workspace = true, default-features = false }
 coeus-optim    = { path = "../coeus-optim" }
 criterion      = "0.5"
-# Burn NdArray backend — dev/bench only (production policy enforced by dependency_policy test).
-# `autodiff` enables Autodiff<NdArray> for gradient comparison tests.
+# Burn remains confined to external Criterion baselines; NN correctness tests
+# use native analytical and provider-conformance contracts.
 burn           = { version = "0.16", features = ["ndarray", "autodiff"], default-features = false }
-
-[[test]]
-name = "burn_live_parity"
-path = "tests/burn_live_parity.rs"
 
 [[bench]]
 name = "nn_bench"
