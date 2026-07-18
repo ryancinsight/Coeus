@@ -4,18 +4,22 @@
 
 ### Changed
 
+- [patch] Removes Burn comparison rows and the benchmark-only dependency from
+  `coeus-nn` while retaining all 211 NN operation groups and their 424 native
+  Sequential/Moirai measurements. The committed lock graph contains no Burn.
+
 - [patch] Removes the obsolete legacy NdArray benchmark dependency and
   comparison path from `coeus-tensor`; the benchmark remains provider-owned
   through Coeus Sequential/Moirai and Leto dispatch. The workspace now commits
-  its lock graph and aligns Hephaestus to merged `0.16.1`.
+  its lock graph and aligns Hephaestus to merged `0.17.0`.
 
-- Coeus now requires Leto 0.38 and Hephaestus 0.16.1, matching the current
+- Coeus now requires Leto 0.38 and Hephaestus 0.17.0, matching the current
   shared array and GPU-provider contracts.
 - Coeus now requires Mnemosyne 0.5 and therefore Rust 1.95, matching the local
   Atlas allocator provider generation.
 - Coeus now requires Moirai 0.4, retaining the provider's Melinoe-backed
   parallel execution contract.
-- The WGPU/CUDA substrate constraints now require Hephaestus 0.16.1, including
+- The WGPU/CUDA substrate constraints now require Hephaestus 0.17.0, including
   its device-feature contract.
 - `coeus-ops` now accepts Melinoe 0.9.0, keeping the local Atlas graph on the
   validated parallel-executor capability generation. Coeus does not consume the

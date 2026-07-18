@@ -18,6 +18,9 @@ use coeus_tensor::Tensor;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use leto::Array;
 
+#[path = "tensor_bench/provider/mod.rs"]
+mod provider;
+
 fn bench_elementwise_add(c: &mut Criterion) {
     let size = 1024;
     let shape = vec![size, size];
@@ -142,5 +145,22 @@ fn bench_matmul(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_elementwise_add, bench_matmul);
+criterion_group!(
+    benches,
+    bench_elementwise_add,
+    bench_matmul,
+    provider::activation::bench_relu,
+    provider::activation::bench_gelu,
+    provider::activation::bench_sigmoid,
+    provider::activation::bench_tanh,
+    provider::activation::bench_silu,
+    provider::reduction::bench_sum,
+    provider::convolution::bench_conv1d,
+    provider::convolution::bench_conv2d,
+    provider::convolution::bench_conv_transpose2d,
+    provider::pooling::bench_max_pool2d,
+    provider::neural::bench_softmax,
+    provider::neural::bench_attention,
+    provider::neural::bench_layernorm,
+);
 criterion_main!(benches);

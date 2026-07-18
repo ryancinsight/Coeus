@@ -15,11 +15,19 @@ locked metadata pass.
 
 ## MS-442 remove NN legacy benchmark [patch]
 
-- [ ] Delete the remaining NN benchmark-only legacy dependency and comparison
-      rows, preserving Coeus provider-owned measurements.
-- [ ] Run the workspace residue scan and package gates after the NN cutover.
-- [ ] Run package format, locked check, warning-denied Clippy, Nextest,
-      doctests, rustdoc, and dependency-policy verification.
+- [x] Delete the remaining NN benchmark-only legacy dependency and comparison
+      rows while preserving all native Sequential/Moirai measurements.
+- [x] Run the workspace residue scan plus package format, locked check, and
+      warning-denied Clippy after the NN cutover.
+- [x] Complete full Nextest, doctests, rustdoc, and dependency-policy
+      verification against merged Hephaestus 0.17.0.
+
+**Evidence:** `coeus-nn` retains its Criterion target with 211 operation groups
+and 424 native Sequential/Moirai rows while declaring no Burn dependency; the
+committed lock graph has no Burn package. Format, locked package check, and
+warning-denied all-targets Clippy pass; configured Nextest is 268/268,
+doctests are 8/8 with two intentionally ignored, rustdoc is warning-clean, and
+locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
 
 ## Sprint ATLAS-PROVIDER-004: Current provider consumer refresh [COMPLETE]
 

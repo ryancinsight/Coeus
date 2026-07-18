@@ -27,6 +27,28 @@ selects Hephaestus `0.16.1` and Apollo `0.25.0` from local provider heads.
 and comparison suite; MS-442 is the next bounded deletion. This residual is
 outside MS-441's tensor package scope and remains visible in the lock graph.
 
+## MS-442: NN benchmark-only legacy path closed
+
+**Location**: `coeus-nn/Cargo.toml`, `coeus-nn/benches/nn_bench.rs`, and the
+committed workspace lock graph.
+**Gap**: the NN Criterion target mixed 424 native provider measurements with
+Burn comparison rows, keeping the obsolete provider in the development graph.
+Deleting the target would also delete the canonical performance instrument and
+is prohibited benchmark contraction.
+**Resolution**: deleted only Burn setup, comparison rows, and the dependency;
+retained all 211 operation groups and their Sequential/Moirai measurements.
+No wrapper or compatibility path recreates the removed provider.
+**Theorem**: removing one provider dimension preserves each native operation
+scenario and shape exactly when the operation-group set and native rows remain
+invariant. Mechanical census before and after establishes 211 groups and 424
+native rows; the lock graph loses the benchmark-owned Burn packages.
+**Evidence tier**: type-checked package boundary,
+value-semantic native tests, and warning-denied diagnostics. Configured
+Nextest is 268/268, doctests are 8/8 with two intentionally ignored, rustdoc is
+warning-clean, and locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and
+Hephaestus 0.17.0. Historical Burn references in CHANGELOG entries remain
+archival records and are not dependency or runtime paths.
+
 ## ATLAS-PROVIDER-004: TCP loopback cluster isolation
 
 **Location**: `coeus-dist/src/tcp/mesh.rs`, `coeus-dist/tests/dist_tests.rs`,

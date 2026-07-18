@@ -15,7 +15,7 @@
 - Closure: the legacy comparison dependency and duplicate benchmark bodies are
   deleted; the provider-owned Sequential/Moirai/Leto rows remain.
 
-## MS-442 remove NN legacy benchmark [patch] — todo
+## MS-442 remove NN legacy benchmark [patch] — done
 
 - Scope: `coeus-nn/Cargo.toml`, `coeus-nn/benches/nn_bench.rs`, and any
   benchmark-only documentation that still declares the legacy tensor backend.
@@ -23,6 +23,15 @@
   the remaining legacy dependency is deleted and the workspace lock graph has
   no benchmark-owned legacy edge. Preserve independent semantic references in
   correctness docs only where they state a mathematical contract.
+- Evidence: removed the Burn dependency, setup, and comparison rows while
+  retaining the Criterion target's 211 operation groups and 424 native
+  Sequential/Moirai measurements. The committed lock graph contains no Burn
+  package. Format, locked package check, and warning-denied all-targets
+  Clippy pass; configured Nextest is 268/268, doctests are 8/8 with two
+  intentionally ignored, rustdoc is warning-clean, and locked metadata resolves
+  Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
+- Closure: the benchmark remains the canonical NN provider-performance
+  instrument; only the obsolete external-provider dimension is deleted.
 
 ## ATLAS-PROVIDER-004 Current provider consumer refresh (CLOSED 2026-07-16)
 
