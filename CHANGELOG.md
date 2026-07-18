@@ -4,6 +4,11 @@
 
 ### Changed
 
+- [patch] Removes the obsolete `coeus-nn` legacy-provider benchmark target,
+  source, and benchmark-only dependency. The committed lock graph no longer
+  contains Burn; NN correctness remains covered by native analytical and
+  provider-conformance tests.
+
 - [patch] Removes the obsolete legacy NdArray benchmark dependency and
   comparison path from `coeus-tensor`; the benchmark remains provider-owned
   through Coeus Sequential/Moirai and Leto dispatch. The workspace now commits

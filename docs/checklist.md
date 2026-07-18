@@ -15,11 +15,20 @@ locked metadata pass.
 
 ## MS-442 remove NN legacy benchmark [patch]
 
-- [ ] Delete the remaining NN benchmark-only legacy dependency and comparison
-      rows, preserving Coeus provider-owned measurements.
-- [ ] Run the workspace residue scan and package gates after the NN cutover.
-- [ ] Run package format, locked check, warning-denied Clippy, Nextest,
+- [x] Delete the remaining NN benchmark-only legacy dependency and comparison
+      target; native analytical/provider-conformance tests remain the semantic
+      evidence.
+- [x] Run the workspace residue scan and package gates after the NN cutover.
+- [x] Run package format, locked check, warning-denied Clippy, Nextest,
       doctests, rustdoc, and dependency-policy verification.
+
+**Evidence:** `coeus-nn` no longer declares a benchmark target or legacy
+provider dependency; the committed lock graph has no Burn package. The package
+check, warning-denied Clippy, timed Nextest, doctests, warning-clean Rustdoc,
+and locked metadata gates pass. The theorem is structural: removing a
+benchmark-only comparator cannot change production NN execution because the
+target is not in any library dependency path; native tests continue to assert
+the analytical contracts at the provider boundary.
 
 ## Sprint ATLAS-PROVIDER-004: Current provider consumer refresh [COMPLETE]
 
