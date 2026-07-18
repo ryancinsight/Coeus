@@ -1,5 +1,15 @@
 # Global Progress Checklist: Coeus
 
+## MS-443 backend-generic host extraction [minor]
+
+- [x] Route non-host storage through `ComputeBackend::copy_to_host`.
+- [x] Compact offset and strided views according to their logical layout.
+- [x] Verify exact transposed-slice values, package format, warning-denied
+      Clippy, and the complete tensor test suite.
+
+**Evidence:** `coeus-tensor` Nextest passes 57/57; format and warning-denied
+all-targets Clippy pass.
+
 ## MS-441 remove tensor Burn benchmark [patch]
 
 - [x] Delete the obsolete legacy-provider dev dependency and comparison

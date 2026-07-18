@@ -1,5 +1,16 @@
 # Coeus Project Backlog & Historical Archives
 
+## MS-443 backend-generic host extraction [minor] — done
+
+- Owner: Codex `/root`; scope: `coeus-tensor` host materialization and
+  synchronized Coeus PM records.
+- Acceptance: any `ComputeBackend` can materialize a tensor through its
+  provider-owned device-to-host contract; offset and strided views preserve
+  logical row-major value order without a consumer-owned adapter.
+- Evidence: exact transposed-slice values pass with the complete 57/57
+  `coeus-tensor` Nextest suite; package format and warning-denied all-targets
+  Clippy pass.
+
 ## MS-441 remove tensor legacy benchmark [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-tensor/Cargo.toml`,

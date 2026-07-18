@@ -4,6 +4,12 @@
 
 ### Changed
 
+- [minor] Adds backend-generic tensor host materialization through
+  `Tensor::to_vec_on` and `Tensor::to_vec`. Device backends use their canonical
+  `ComputeBackend::copy_to_host` contract, while host-addressable storage keeps
+  the direct path; strided and offset views materialize in logical row-major
+  order.
+
 - [patch] Removes Burn comparison rows and the benchmark-only dependency from
   `coeus-nn` while retaining all 211 NN operation groups and their 424 native
   Sequential/Moirai measurements. The committed lock graph contains no Burn.
