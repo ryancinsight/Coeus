@@ -1,7 +1,7 @@
 // On-device (WGPU) vs CPU (SequentialBackend) baselines for the core compute
 // kernels: matmul and transposed convolution. Complements `attention_bench`.
 //
-// `tensor_bench` (coeus-tensor) covers matmul on the CPU backends and Burn;
+// `tensor_bench` (coeus-tensor) covers matmul on the CPU backends and Leto;
 // this adds the WGPU on-device angle so the device crossover (where the GPU
 // overtakes the CPU as size grows) is visible and a profiling baseline exists
 // for future kernel tiling per the profile-first discipline.

@@ -93,11 +93,9 @@ pub(crate) fn conv1d<T: Scalar, B: Backend>(
             // worker pool; for tiny regions (e.g. conv1d on `2×8×128` with
             // ~2 K output cells split across ~16 threads → ~128 cells per
             // worker), the work-stealing-deque setup cost dominates the actual
-            // compute. The bench `Burn vs Coeus — Conv1d (2×8×128, k=3)`
-            // measured the parallel canonical path ~6.6× slower than the
-            // sequential path on this workload (criterion `Median` ~1.14ms vs
-            // ~172µs). Bypass the partition driver when the per-thread share
-            // would be too small to amortise scheduling.
+            // compute. Bypass the partition driver when the per-thread share
+            // would be too small to amortise scheduling; the provider-owned
+            // benchmark records the resulting Sequential/Moirai behavior.
             //
             // Calibration: a single f32 conv-row kernel on `l_out` elements is
             // ~12·l_out flops / ~4·c_in·l_out + ~4·l_out bytes — a row of

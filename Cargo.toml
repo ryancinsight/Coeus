@@ -47,9 +47,9 @@ half       = { version = "2.7", features = ["bytemuck"] }
 smallvec   = "1.13"
 rkyv       = { version = "0.8.17", features = ["bytecheck", "std"] }
 wgpu       = { version = "30.0", default-features = false, features = ["wgsl", "vulkan", "metal"] }
-hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.15.0" }
-hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.15.0" }
-hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda", version = "0.15.0" }
+hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.16.1" }
+hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.16.1" }
+hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda", version = "0.16.1" }
 themis = { path = "../themis", version = "0.10" }
 
 # ── Error ──
