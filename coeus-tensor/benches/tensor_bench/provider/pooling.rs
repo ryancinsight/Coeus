@@ -27,8 +27,8 @@ pub(crate) fn bench_max_pool2d(c: &mut Criterion) {
     group.bench_function("Coeus Sequential", |bencher| {
         let mut output =
             Tensor::<f32, SequentialBackend>::zeros([BATCH, CHANNELS, OUTPUT_SIDE, OUTPUT_SIDE]);
+        let output_layout = output.layout().clone();
         bencher.iter(|| {
-            let output_layout = output.layout().clone();
             sequential_backend.max_pool2d(
                 black_box(sequential_input.storage()),
                 black_box(sequential_input.layout()),
@@ -45,8 +45,8 @@ pub(crate) fn bench_max_pool2d(c: &mut Criterion) {
     group.bench_function("Coeus Moirai", |bencher| {
         let mut output =
             Tensor::<f32, MoiraiBackend>::zeros([BATCH, CHANNELS, OUTPUT_SIDE, OUTPUT_SIDE]);
+        let output_layout = output.layout().clone();
         bencher.iter(|| {
-            let output_layout = output.layout().clone();
             moirai_backend.max_pool2d(
                 black_box(moirai_input.storage()),
                 black_box(moirai_input.layout()),

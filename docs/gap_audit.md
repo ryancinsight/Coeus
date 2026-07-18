@@ -31,22 +31,22 @@ outside MS-441's tensor package scope and remains visible in the lock graph.
 
 **Location**: `coeus-nn/Cargo.toml`, `coeus-nn/benches/nn_bench.rs`, and the
 committed workspace lock graph.
-**Gap**: the NN package retained a Criterion target whose only implementation
-was a legacy-provider comparator. Keeping that target duplicated benchmark
-vocabulary after the tensor provider cutover and kept the obsolete provider in
-the development graph.
-**Resolution**: deleted the benchmark target, source, and dependency. NN
-correctness remains in the native analytical and provider-conformance tests;
-no wrapper or compatibility path recreates the removed benchmark API.
-**Theorem**: let `L` be the `coeus-nn` library dependency closure and `B` the
-deleted benchmark target. Since `B` is a dev-only target and `B ∉ L`, removing
-`B` preserves every production path in `L`; the lock graph therefore loses only
-benchmark-owned packages. The remaining tests evaluate the same NN contracts
-through Coeus providers, so the deletion is behavior-preserving for the
-library surface.
-**Evidence tier**: type-checked package boundary, locked dependency metadata,
-value-semantic native tests, warning-denied diagnostics, doctests, and
-warning-clean Rustdoc. Historical Burn references in CHANGELOG entries remain
+**Gap**: the NN Criterion target mixed 424 native provider measurements with
+Burn comparison rows, keeping the obsolete provider in the development graph.
+Deleting the target would also delete the canonical performance instrument and
+is prohibited benchmark contraction.
+**Resolution**: deleted only Burn setup, comparison rows, and the dependency;
+retained all 211 operation groups and their Sequential/Moirai measurements.
+No wrapper or compatibility path recreates the removed provider.
+**Theorem**: removing one provider dimension preserves each native operation
+scenario and shape exactly when the operation-group set and native rows remain
+invariant. Mechanical census before and after establishes 211 groups and 424
+native rows; the lock graph loses the benchmark-owned Burn packages.
+**Evidence tier**: type-checked package boundary,
+value-semantic native tests, and warning-denied diagnostics. Configured
+Nextest is 268/268, doctests are 8/8 with two intentionally ignored, rustdoc is
+warning-clean, and locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and
+Hephaestus 0.17.0. Historical Burn references in CHANGELOG entries remain
 archival records and are not dependency or runtime paths.
 
 ## ATLAS-PROVIDER-004: TCP loopback cluster isolation

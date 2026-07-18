@@ -18,7 +18,7 @@ rkyv        = { workspace = true }
 
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = { workspace = true }
 coeus-ops = { workspace = true }
 coeus-nn = { path = "../coeus-nn" }
 coeus-autograd = { workspace = true, default-features = false }

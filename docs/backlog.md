@@ -23,14 +23,15 @@
   the remaining legacy dependency is deleted and the workspace lock graph has
   no benchmark-owned legacy edge. Preserve independent semantic references in
   correctness docs only where they state a mathematical contract.
-- Evidence: deleted the legacy Criterion benchmark target and its Burn-only
-  dependency; the committed lock graph contains no Burn package. The NN
-  package compiles under the locked workspace graph, and native analytical
-  and provider-conformance tests remain the correctness evidence.
-- Closure: `coeus-nn/benches/nn_bench.rs` was a legacy comparator with no
-  provider-owned implementation left after the tensor cutover, so the target
-  and its duplicate benchmark surface are deleted rather than retained as a
-  second vocabulary.
+- Evidence: removed the Burn dependency, setup, and comparison rows while
+  retaining the Criterion target's 211 operation groups and 424 native
+  Sequential/Moirai measurements. The committed lock graph contains no Burn
+  package. Format, locked package check, and warning-denied all-targets
+  Clippy pass; configured Nextest is 268/268, doctests are 8/8 with two
+  intentionally ignored, rustdoc is warning-clean, and locked metadata resolves
+  Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
+- Closure: the benchmark remains the canonical NN provider-performance
+  instrument; only the obsolete external-provider dimension is deleted.
 
 ## ATLAS-PROVIDER-004 Current provider consumer refresh (CLOSED 2026-07-16)
 

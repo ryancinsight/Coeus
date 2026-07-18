@@ -38,8 +38,8 @@ pub(crate) fn bench_conv1d(c: &mut Criterion) {
     group.bench_function("Coeus Sequential", |bencher| {
         let mut output =
             Tensor::<f32, SequentialBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_LENGTH]);
+        let output_layout = output.layout().clone();
         bencher.iter(|| {
-            let output_layout = output.layout().clone();
             sequential_backend.conv1d(
                 black_box(sequential_input.storage()),
                 black_box(sequential_input.layout()),
@@ -58,8 +58,8 @@ pub(crate) fn bench_conv1d(c: &mut Criterion) {
     group.bench_function("Coeus Moirai", |bencher| {
         let mut output =
             Tensor::<f32, MoiraiBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_LENGTH]);
+        let output_layout = output.layout().clone();
         bencher.iter(|| {
-            let output_layout = output.layout().clone();
             moirai_backend.conv1d(
                 black_box(moirai_input.storage()),
                 black_box(moirai_input.layout()),
@@ -115,8 +115,8 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
             OUTPUT_SIDE,
             OUTPUT_SIDE,
         ]);
+        let output_layout = output.layout().clone();
         bencher.iter(|| {
-            let output_layout = output.layout().clone();
             sequential_backend.conv2d(
                 black_box(sequential_input.storage()),
                 black_box(sequential_input.layout()),
@@ -135,8 +135,8 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
     group.bench_function("Coeus Moirai", |bencher| {
         let mut output =
             Tensor::<f32, MoiraiBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_SIDE, OUTPUT_SIDE]);
+        let output_layout = output.layout().clone();
         bencher.iter(|| {
-            let output_layout = output.layout().clone();
             moirai_backend.conv2d(
                 black_box(moirai_input.storage()),
                 black_box(moirai_input.layout()),

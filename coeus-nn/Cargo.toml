@@ -19,4 +19,9 @@ thiserror      = { workspace = true }
 coeus-autograd = { workspace = true, default-features = false }
 coeus-ops      = { workspace = true, default-features = false }
 coeus-optim    = { path = "../coeus-optim" }
+criterion      = { workspace = true }
 
+[[bench]]
+name = "nn_bench"
+path = "benches/nn_bench.rs"
+harness = false
