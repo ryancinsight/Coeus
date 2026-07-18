@@ -1,5 +1,23 @@
 # Coeus Gap Audit
 
+## MS-441: tensor benchmark still owns a Burn path
+
+**Location**: `coeus-tensor/Cargo.toml` and
+`coeus-tensor/benches/tensor_bench.rs`.
+**Gap**: the production tensor provider is Coeus/Leto, but the benchmark still
+declares Burn NdArray and duplicates every comparison through a legacy backend.
+This keeps an obsolete dependency in the reproducible development graph and
+creates a second benchmark vocabulary.
+**Resolution target**: delete the Burn dependency and comparison functions;
+retain provider-owned Coeus Sequential/Moirai and Leto dispatch measurements.
+**Theorem**: for each retained benchmark input `x` and operation `f`, every
+timed row evaluates a provider-owned path `P_f(x)`; removing the legacy row
+does not alter the measured Coeus/Leto computation, and the benchmark has one
+shape/layout/input SSOT per operation group.
+**Evidence target**: manifest residue scan, locked package compilation,
+value-semantic Nextest, warning-denied diagnostics, doctests, rustdoc, and the
+dependency-policy contract.
+
 ## ATLAS-PROVIDER-004: TCP loopback cluster isolation
 
 **Location**: `coeus-dist/src/tcp/mesh.rs`, `coeus-dist/tests/dist_tests.rs`,

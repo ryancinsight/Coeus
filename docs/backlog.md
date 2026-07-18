@@ -1,5 +1,15 @@
 # Coeus Project Backlog & Historical Archives
 
+## MS-441 remove tensor Burn benchmark [patch] — in-progress
+
+- Owner: Codex `/root`; scope: `coeus-tensor/Cargo.toml`,
+  `coeus-tensor/benches/tensor_bench.rs`, and synchronized Coeus PM records.
+- Acceptance: the tensor benchmark has no Burn dependency or comparison path;
+  its real measurements cover Coeus Sequential/Moirai and Leto dispatch, with
+  locked package gates and dependency-policy tests green.
+- Last update: 2026-07-17; branch `codex/coeus-remove-burn-tensor-bench` is
+  claimed before source edits.
+
 ## ATLAS-PROVIDER-004 Current provider consumer refresh (CLOSED 2026-07-16)
 
 [major] Raise Coeus to 0.9.0 for its Rust 1.95 MSRV and current Atlas provider

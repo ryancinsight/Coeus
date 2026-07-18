@@ -1,5 +1,13 @@
 # Global Progress Checklist: Coeus
 
+## MS-441 remove tensor Burn benchmark [patch]
+
+- [ ] Delete the obsolete Burn dev dependency and Burn-only benchmark bodies.
+- [ ] Preserve real Coeus Sequential/Moirai and Leto dispatch measurements in
+      the tensor benchmark and update its theorem-facing documentation.
+- [ ] Run package format, locked check, warning-denied Clippy, Nextest,
+      doctests, rustdoc, and dependency-policy verification.
+
 ## Sprint ATLAS-PROVIDER-004: Current provider consumer refresh [COMPLETE]
 
 - [x] [major] Raise the workspace release line to 0.9.0 for the Rust 1.95 and

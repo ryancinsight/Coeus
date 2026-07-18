@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Removes the obsolete Burn NdArray benchmark dependency and comparison
+  path from `coeus-tensor`; the benchmark remains provider-owned through Coeus
+  Sequential/Moirai and Leto dispatch.
+
 - Coeus now requires Leto 0.38 and Hephaestus 0.15, matching the current
   shared array and GPU-provider contracts.
 - Coeus now requires Mnemosyne 0.5 and therefore Rust 1.95, matching the local
