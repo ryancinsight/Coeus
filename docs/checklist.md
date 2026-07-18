@@ -2,9 +2,22 @@
 
 ## MS-441 remove tensor Burn benchmark [patch]
 
-- [ ] Delete the obsolete Burn dev dependency and Burn-only benchmark bodies.
-- [ ] Preserve real Coeus Sequential/Moirai and Leto dispatch measurements in
+- [x] Delete the obsolete legacy-provider dev dependency and comparison
+      benchmark bodies.
+- [x] Preserve real Coeus Sequential/Moirai and Leto dispatch measurements in
       the tensor benchmark and update its theorem-facing documentation.
+- [x] Commit the lock graph after aligning the Hephaestus provider floor to
+      merged `0.16.1`.
+
+**Evidence:** targeted residue scan is clean; locked package check, 56/56
+Nextest, warning-denied Clippy, five doctests, warning-clean rustdoc, and
+locked metadata pass.
+
+## MS-442 remove NN legacy benchmark [patch]
+
+- [ ] Delete the remaining NN benchmark-only legacy dependency and comparison
+      rows, preserving Coeus provider-owned measurements.
+- [ ] Run the workspace residue scan and package gates after the NN cutover.
 - [ ] Run package format, locked check, warning-denied Clippy, Nextest,
       doctests, rustdoc, and dependency-policy verification.
 
@@ -13,7 +26,7 @@
 - [x] [major] Raise the workspace release line to 0.9.0 for the Rust 1.95 and
   provider-floor contract.
 - [x] [major] Raise Leto and Leto Ops to 0.38.0 and the Hephaestus GPU crates
-  to 0.15.0.
+  to 0.16.1.
 - [x] Replace the stale Burn live-parity target with native analytical pooling
   contracts instantiated for the Sequential and Moirai providers.
 - [x] Replace probe-and-rebind TCP test setup with listener-owned loopback

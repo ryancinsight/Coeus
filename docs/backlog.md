@@ -1,19 +1,33 @@
 # Coeus Project Backlog & Historical Archives
 
-## MS-441 remove tensor Burn benchmark [patch] — in-progress
+## MS-441 remove tensor legacy benchmark [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-tensor/Cargo.toml`,
   `coeus-tensor/benches/tensor_bench.rs`, and synchronized Coeus PM records.
-- Acceptance: the tensor benchmark has no Burn dependency or comparison path;
-  its real measurements cover Coeus Sequential/Moirai and Leto dispatch, with
-  locked package gates and dependency-policy tests green.
-- Last update: 2026-07-17; branch `codex/coeus-remove-burn-tensor-bench` is
-  claimed before source edits.
+- Acceptance: the tensor benchmark has no legacy provider dependency or
+  comparison path; its real measurements cover Coeus Sequential/Moirai and
+  Leto dispatch, with the committed lock graph, package gates, and
+  dependency-policy tests green.
+- Evidence: the benchmark and tensor parity tests contain no legacy provider
+  residue; the lock graph resolves Hephaestus `0.16.1` and Apollo `0.25.0`.
+  Locked package check, 56/56 Nextest, warning-denied Clippy, five doctests,
+  warning-clean rustdoc, and locked metadata pass.
+- Closure: the legacy comparison dependency and duplicate benchmark bodies are
+  deleted; the provider-owned Sequential/Moirai/Leto rows remain.
+
+## MS-442 remove NN legacy benchmark [patch] — todo
+
+- Scope: `coeus-nn/Cargo.toml`, `coeus-nn/benches/nn_bench.rs`, and any
+  benchmark-only documentation that still declares the legacy tensor backend.
+- Acceptance: Coeus NN benchmarks use only Coeus/Moirai/Leto/Hephaestus paths;
+  the remaining legacy dependency is deleted and the workspace lock graph has
+  no benchmark-owned legacy edge. Preserve independent semantic references in
+  correctness docs only where they state a mathematical contract.
 
 ## ATLAS-PROVIDER-004 Current provider consumer refresh (CLOSED 2026-07-16)
 
 [major] Raise Coeus to 0.9.0 for its Rust 1.95 MSRV and current Atlas provider
-floors: Leto 0.38 and Hephaestus 0.15, alongside the existing Mnemosyne 0.5
+floors: Leto 0.38 and Hephaestus 0.16, alongside the existing Mnemosyne 0.5
 and Moirai 0.4 requirements. The stale Burn live-parity target is removed in
 favour of native analytical/provider-conformance coverage. Completion requires
 workspace compilation, warning-denied Clippy, timed nextest, doctests, and a

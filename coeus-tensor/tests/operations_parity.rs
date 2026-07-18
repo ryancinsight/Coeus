@@ -28,7 +28,7 @@ fn assert_tensor_eq<B: coeus_core::ComputeBackend>(
 }
 
 #[test]
-fn test_burn_parity_elementwise_arithmetic() {
+fn test_provider_parity_elementwise_arithmetic() {
     let backend = SequentialBackend::new();
 
     let shape = vec![3, 4];
@@ -83,7 +83,7 @@ fn test_burn_parity_elementwise_arithmetic() {
 }
 
 #[test]
-fn test_burn_parity_activations() {
+fn test_provider_parity_activations() {
     let backend = MoiraiBackend::new();
 
     let shape = vec![2, 3];
@@ -139,7 +139,7 @@ fn test_burn_parity_activations() {
 }
 
 #[test]
-fn test_burn_parity_reductions() {
+fn test_provider_parity_reductions() {
     let backend = SequentialBackend::new();
 
     let shape = vec![2, 3];
@@ -169,7 +169,7 @@ fn test_burn_parity_reductions() {
 }
 
 #[test]
-fn test_burn_parity_matmul() {
+fn test_provider_parity_matmul() {
     let backend = MoiraiBackend::new();
 
     // 2D Matmul
@@ -185,7 +185,7 @@ fn test_burn_parity_matmul() {
 }
 
 #[test]
-fn test_burn_parity_batched_matmul() {
+fn test_provider_parity_batched_matmul() {
     let backend = MoiraiBackend::new();
 
     // 3D Matmul: [2, 2, 3] x [2, 3, 2] -> [2, 2, 2]

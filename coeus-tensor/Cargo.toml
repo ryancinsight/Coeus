@@ -27,8 +27,6 @@ leto-ops = { workspace = true }
 bincode = { version = "=2.0.0-rc.3", features = ["serde"] }
 proptest  = "1.5"
 mnemosyne = { workspace = true }
-# Burn NdArray backend — dev/bench only (production policy enforced by dependency_policy test).
-burn = { version = "0.16", features = ["ndarray"], default-features = false }
 
 
 [[bench]]
