@@ -15,7 +15,7 @@
 - Closure: the legacy comparison dependency and duplicate benchmark bodies are
   deleted; the provider-owned Sequential/Moirai/Leto rows remain.
 
-## MS-442 remove NN legacy benchmark [patch] — todo
+## MS-442 remove NN legacy benchmark [patch] — in-progress
 
 - Scope: `coeus-nn/Cargo.toml`, `coeus-nn/benches/nn_bench.rs`, and any
   benchmark-only documentation that still declares the legacy tensor backend.
@@ -23,6 +23,8 @@
   the remaining legacy dependency is deleted and the workspace lock graph has
   no benchmark-owned legacy edge. Preserve independent semantic references in
   correctness docs only where they state a mathematical contract.
+- Owner: Codex `/root`; branch `codex/coeus-remove-burn-nn-bench` owns
+  `coeus-nn/Cargo.toml` and `coeus-nn/benches/nn_bench.rs` plus synchronized PM.
 
 ## ATLAS-PROVIDER-004 Current provider consumer refresh (CLOSED 2026-07-16)
 
