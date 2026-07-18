@@ -309,3 +309,15 @@ fn test_sliced_tensor_reshape_and_reduction() {
     let sum_val = coeus_ops::sum(&slice_a, &backend);
     assert_eq!(sum_val, 18.0); // 3 + 4 + 5 + 6 = 18
 }
+
+#[test]
+fn host_materialization_respects_view_layout() {
+    let values = (0..12).map(|value| value as f32).collect::<Vec<_>>();
+    let tensor = Tensor::<f32, SequentialBackend>::from_slice([3, 4], &values);
+    let view = tensor.slice(&[(0, 3), (1, 4)]).transpose();
+
+    assert_eq!(
+        view.to_vec(),
+        vec![1.0, 5.0, 9.0, 2.0, 6.0, 10.0, 3.0, 7.0, 11.0]
+    );
+}

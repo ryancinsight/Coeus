@@ -158,6 +158,24 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     pub fn is_contiguous(&self) -> bool {
         self.layout.is_contiguous()
     }
+
+    /// Materialize logical tensor values in row-major order on the host.
+    ///
+    /// The backend performs the device-to-host transfer when its storage is
+    /// not directly CPU-addressable. Views are compacted according to their
+    /// layout, so offsets and strides do not leak into the returned buffer.
+    #[must_use]
+    pub fn to_vec_on(&self, backend: &B) -> Vec<T> {
+        if let Some(host_slice) = self.storage.try_as_slice() {
+            return coeus_leto::contiguous_values(&self.layout, host_slice)
+                .expect("tensor host materialization requires a valid layout");
+        }
+
+        let mut physical = vec![T::zero(); Storage::len(&self.storage)];
+        backend.copy_to_host(&self.storage, &mut physical);
+        coeus_leto::contiguous_values(&self.layout, &physical)
+            .expect("tensor host materialization requires a valid layout")
+    }
 }
 
 impl<T: Scalar, B: ComputeBackend> Tensor<T, B>
@@ -219,6 +237,13 @@ where
 }
 
 impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B> {
+    /// Materialize logical tensor values in row-major order on the host.
+    #[must_use]
+    #[inline]
+    pub fn to_vec(&self) -> Vec<T> {
+        self.to_vec_on(&B::default())
+    }
+
     /// Make this tensor contiguous in-place on the given backend.
     #[inline]
     pub fn make_contiguous_on(&mut self, backend: &B) {

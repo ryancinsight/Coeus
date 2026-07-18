@@ -1,5 +1,10 @@
 # Coeus Development Roadmap Checklist
 
+## Backend-generic host extraction [minor]
+- [x] Materialize tensor views through the selected backend's host-copy seam.
+- [x] Preserve logical row-major values for offset and strided layouts.
+- [x] Verify 57/57 tensor tests and warning-denied Clippy.
+
 This document tracks the high-level roadmap and feature validation checklist for the Coeus tensor library. For detailed task lists, sprint archives, and progress tracking, see:
 - [docs/checklist.md](file:///d:/coeus/docs/checklist.md)
 - [docs/backlog.md](file:///d:/coeus/docs/backlog.md)
