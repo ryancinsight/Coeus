@@ -321,3 +321,25 @@ fn host_materialization_respects_view_layout() {
         vec![1.0, 5.0, 9.0, 2.0, 6.0, 10.0, 3.0, 7.0, 11.0]
     );
 }
+
+#[test]
+fn host_cow_borrows_contiguous_and_materializes_strided_storage() {
+    let values = (0..12).map(|value| value as f32).collect::<Vec<_>>();
+    let tensor = Tensor::<f32, SequentialBackend>::from_slice([3, 4], &values);
+    let contiguous = tensor.slice(&[(1, 3), (0, 4)]);
+    let strided = tensor.slice(&[(0, 3), (1, 4)]).transpose();
+
+    assert!(matches!(
+        contiguous.host_cow(),
+        std::borrow::Cow::Borrowed(_)
+    ));
+    assert_eq!(
+        contiguous.host_cow().as_ref(),
+        &[4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
+    );
+    assert!(matches!(strided.host_cow(), std::borrow::Cow::Owned(_)));
+    assert_eq!(
+        strided.host_cow().as_ref(),
+        &[1.0, 5.0, 9.0, 2.0, 6.0, 10.0, 3.0, 7.0, 11.0]
+    );
+}
