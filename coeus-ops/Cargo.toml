@@ -14,6 +14,6 @@ coeus-leto   = { path = "../coeus-leto" }
 leto-ops     = { workspace = true }
 smallvec     = { workspace = true }
 thiserror    = { workspace = true }
-half         = { workspace = true }
+eunomia      = { workspace = true }
 bytemuck     = { workspace = true }
 melinoe      = { path = "../../melinoe", version = "0.9.0" }

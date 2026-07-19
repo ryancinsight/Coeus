@@ -17,4 +17,4 @@ smallvec     = { workspace = true }
 thiserror    = { workspace = true }
 
 [dev-dependencies]
-half = { workspace = true }
+eunomia = { workspace = true }
