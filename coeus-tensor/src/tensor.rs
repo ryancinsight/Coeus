@@ -176,6 +176,21 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
         coeus_leto::contiguous_values(&self.layout, &physical)
             .expect("tensor host materialization requires a valid layout")
     }
+
+    /// Expose logical row-major host values, borrowing when storage permits.
+    ///
+    /// Contiguous CPU-addressable tensors borrow their storage. Offset,
+    /// strided, and device-backed tensors materialize through the backend.
+    #[must_use]
+    pub fn host_cow_on<'a>(&'a self, backend: &B) -> std::borrow::Cow<'a, [T]> {
+        if self.is_contiguous() {
+            if let Some(host_slice) = self.storage.try_as_slice() {
+                let start = self.layout.offset();
+                return std::borrow::Cow::Borrowed(&host_slice[start..start + self.numel()]);
+            }
+        }
+        std::borrow::Cow::Owned(self.to_vec_on(backend))
+    }
 }
 
 impl<T: Scalar, B: ComputeBackend> Tensor<T, B>
@@ -237,6 +252,13 @@ where
 }
 
 impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B> {
+    /// Expose logical row-major host values on `B::default()`.
+    #[must_use]
+    #[inline]
+    pub fn host_cow(&self) -> std::borrow::Cow<'_, [T]> {
+        self.host_cow_on(&B::default())
+    }
+
     /// Materialize logical tensor values in row-major order on the host.
     #[must_use]
     #[inline]
