@@ -1,5 +1,5 @@
 use coeus_core::{Complex, Scalar};
-use half::{bf16, f16};
+use eunomia::{Bf16, F16};
 
 #[test]
 fn primitive_scalars_convert_indices_without_f64_detour() {
@@ -11,8 +11,8 @@ fn primitive_scalars_convert_indices_without_f64_detour() {
 
 #[test]
 fn reduced_precision_scalars_convert_indices_to_native_values() {
-    assert_eq!(f16::from_usize(5), f16::from_f32(5.0));
-    assert_eq!(bf16::from_usize(9), bf16::from_f32(9.0));
+    assert_eq!(F16::from_usize(5), F16::from_f32(5.0));
+    assert_eq!(Bf16::from_usize(9), Bf16::from_f32(9.0));
 }
 
 #[test]

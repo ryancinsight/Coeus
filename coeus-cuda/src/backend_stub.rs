@@ -25,11 +25,11 @@ impl CudaScalar for f64 {
     const CUDA_TYPE: &'static str = "double";
 }
 
-impl CudaScalar for half::f16 {
+impl CudaScalar for eunomia::F16 {
     const CUDA_TYPE: &'static str = "__half";
 }
 
-impl CudaScalar for half::bf16 {
+impl CudaScalar for eunomia::Bf16 {
     const CUDA_TYPE: &'static str = "__nv_bfloat16";
 }
 

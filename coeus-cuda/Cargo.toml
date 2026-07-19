@@ -14,7 +14,7 @@ leto-ops     = { workspace = true }
 libloading   = "0.8"
 bytemuck     = { workspace = true }
 thiserror    = { workspace = true }
-half         = { workspace = true }
+eunomia     = { workspace = true }
 hephaestus-cuda = { workspace = true }
 themis = { workspace = true, optional = true }
 cutile       = { git = "https://github.com/NVlabs/cutile-rs", optional = true }

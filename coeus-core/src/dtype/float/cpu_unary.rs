@@ -1,4 +1,4 @@
-use half::{bf16, f16};
+use eunomia::{Bf16, F16};
 
 macro_rules! impl_cpu_unary_dispatch_float {
     ($t:ty) => {
@@ -338,5 +338,5 @@ macro_rules! impl_cpu_unary_dispatch_float {
 
 impl_cpu_unary_dispatch_float!(f32);
 impl_cpu_unary_dispatch_float!(f64);
-impl_cpu_unary_dispatch_float!(f16);
-impl_cpu_unary_dispatch_float!(bf16);
+impl_cpu_unary_dispatch_float!(F16);
+impl_cpu_unary_dispatch_float!(Bf16);
