@@ -1,5 +1,20 @@
 # Global Progress Checklist: Coeus
 
+## MS-444 standalone Git dependency graph [patch]
+
+- [x] Replace external sibling paths with remote provider identities and retain
+      the repository lockfile as the revision SSOT.
+- [x] Remove repository-owned local patch tables; synchronized consumers own
+      any local checkout substitution at their workspace root.
+- [x] Regenerate the lockfile and verify focused Coeus package gates.
+- [x] Resolve the selected packages from a clean external Git consumer.
+
+**Evidence:** locked autograd compilation and warning-denied all-targets
+Clippy pass; 94/94 autograd Nextest cases pass; locked metadata reports one
+identity per Atlas provider. The full format gate exposes only the existing
+`coeus-ops/tests/half_precision_diff.rs` line-wrap drift. Asclepius compiles
+`coeus-{autograd,core,ops,tensor}` from pushed commit `99920888`.
+
 ## MS-443 backend-generic host extraction [minor]
 
 - [x] Route non-host storage through `ComputeBackend::copy_to_host`.

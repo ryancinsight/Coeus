@@ -26,17 +26,17 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 # ── Remote System Dependencies ──
-# Parallelization/async SSOT. Moirai defaults carry parallel execution,
-# Mnemosyne-backed allocation surfaces, and Mellinoe branding.
-moirai     = { path = "../moirai/moirai", version = "0.4.0", features = ["melinoe"] }
-mnemosyne  = { path = "../mnemosyne/crates/mnemosyne", version = "^0.5.0" }
-# SIMD-effect SSOT. Tracks hermes `main`.
-hermes-simd = { path = "../hermes/crates/hermes-simd", version = "0.4.0" }
+# Parallelization/async SSOT. Cargo.lock pins the coherent provider revisions;
+# the meta-workspace may patch these sources to synchronized local checkouts.
+moirai = { version = "0.4.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
+mnemosyne = { version = "^0.5.0", git = "https://github.com/ryancinsight/Mnemosyne.git" }
+# SIMD-effect SSOT.
+hermes-simd = { version = "0.4.0", git = "https://github.com/ryancinsight/hermes.git" }
 eunomia = { git = "https://github.com/ryancinsight/eunomia", default-features = false }
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
-leto     = { path = "../leto/crates/leto", version = "0.39.0" }
-leto-ops = { path = "../leto/crates/leto-ops", version = "0.39.0" }
-apollo-fft = { path = "../apollo/crates/apollo-fft", default-features = false }
+leto = { version = "0.39.0", git = "https://github.com/ryancinsight/leto.git" }
+leto-ops = { version = "0.39.0", git = "https://github.com/ryancinsight/leto.git" }
+apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", default-features = false }
 
 # ── Numerical ──
 bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }
@@ -47,10 +47,11 @@ half       = { version = "2.7", features = ["bytemuck"] }
 smallvec   = "1.13"
 rkyv       = { version = "0.8.17", features = ["bytecheck", "std"] }
 wgpu       = { version = "30.0", default-features = false, features = ["wgsl", "vulkan", "metal"] }
-hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.18.0" }
-hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.18.0" }
-hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda", version = "0.18.0" }
-themis = { path = "../themis", version = "0.10" }
+hephaestus-wgpu = { version = "0.18.0", git = "https://github.com/ryancinsight/hephaestus.git" }
+hephaestus-core = { version = "0.18.0", git = "https://github.com/ryancinsight/hephaestus.git" }
+hephaestus-cuda = { version = "0.18.0", git = "https://github.com/ryancinsight/hephaestus.git" }
+themis = { version = "0.10", git = "https://github.com/ryancinsight/themis" }
+melinoe = { version = "0.9.0", git = "https://github.com/ryancinsight/melinoe.git" }
 
 # ── Error ──
 thiserror = "2"
@@ -71,58 +72,6 @@ coeus-optim    = { path = "coeus-optim", default-features = false }
 coeus-sparse   = { path = "coeus-sparse" }
 coeus-dist     = { path = "coeus-dist", default-features = false }
 coeus-fft      = { path = "coeus-fft" }
-
-[patch."https://github.com/ryancinsight/Mnemosyne.git"]
-mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
-mnemosyne-core = { path = "../mnemosyne/crates/mnemosyne-core" }
-mnemosyne-arena = { path = "../mnemosyne/crates/mnemosyne-arena" }
-mnemosyne-local = { path = "../mnemosyne/crates/mnemosyne-local" }
-mnemosyne-heap = { path = "../mnemosyne/crates/mnemosyne-heap" }
-mnemosyne-backend = { path = "../mnemosyne/crates/mnemosyne-backend" }
-mnemosyne-build-util = { path = "../mnemosyne/crates/mnemosyne-build-util" }
-mnemosyne-decay = { path = "../mnemosyne/crates/mnemosyne-decay" }
-mnemosyne-hardened = { path = "../mnemosyne/crates/mnemosyne-hardened" }
-mnemosyne-prof = { path = "../mnemosyne/crates/mnemosyne-prof" }
-
-[patch."https://github.com/ryancinsight/Moirai.git"]
-moirai = { path = "../moirai/moirai" }
-moirai-core = { path = "../moirai/moirai-core" }
-moirai-executor = { path = "../moirai/moirai-executor" }
-moirai-scheduler = { path = "../moirai/moirai-scheduler" }
-moirai-parallel = { path = "../moirai/moirai-parallel" }
-moirai-async = { path = "../moirai/moirai-async" }
-moirai-async-macros = { path = "../moirai/moirai-async-macros" }
-moirai-transport = { path = "../moirai/moirai-transport" }
-moirai-sync = { path = "../moirai/moirai-sync" }
-moirai-pal = { path = "../moirai/moirai-pal" }
-moirai-iter = { path = "../moirai/moirai-iter" }
-moirai-utils = { path = "../moirai/moirai-utils" }
-moirai-gpu = { path = "../moirai/moirai-gpu" }
-
-[patch."https://github.com/ryancinsight/leto.git"]
-leto = { path = "../leto/crates/leto" }
-leto-ops = { path = "../leto/crates/leto-ops" }
-
-[patch."https://github.com/ryancinsight/hephaestus.git"]
-hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu" }
-hephaestus-core = { path = "../hephaestus/crates/hephaestus-core" }
-hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda" }
-
-[patch."https://github.com/ryancinsight/hermes.git"]
-hermes-simd = { path = "../hermes/crates/hermes-simd" }
-hermes-simd-core = { path = "../hermes/crates/hermes-simd-core" }
-hermes-simd-intrinsics = { path = "../hermes/crates/hermes-simd-intrinsics" }
-hermes-simd-macros = { path = "../hermes/crates/hermes-simd-macros" }
-hermes-simd-types = { path = "../hermes/crates/hermes-simd-types" }
-
-[patch."https://github.com/ryancinsight/eunomia"]
-eunomia = { path = "../eunomia/crates/eunomia" }
-
-[patch."https://github.com/ryancinsight/melinoe.git"]
-melinoe = { path = "../melinoe" }
-
-[patch."https://github.com/ryancinsight/themis"]
-themis = { path = "../themis" }
 
 [profile.bench]
 codegen-units = 1
