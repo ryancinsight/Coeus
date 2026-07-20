@@ -90,7 +90,12 @@ where
     // sum over a vector: [1,2,3,4,5,6] → 21  (coeus_ops::sum returns T)
     let v = t_f16(&[6], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], backend);
     let s: F16 = coeus_ops::sum(&v, backend);
-    assert_eq!(s, F16::from_f32(21.0), "F16 sum: got {}, expected 21", s.to_f32());
+    assert_eq!(
+        s,
+        F16::from_f32(21.0),
+        "F16 sum: got {}, expected 21",
+        s.to_f32()
+    );
 
     // relu: [-3,-1,0,2,4] → [0,0,0,2,4]
     let x = t_f16(&[5], &[-3.0, -1.0, 0.0, 2.0, 4.0], backend);
@@ -121,7 +126,12 @@ where
     // sum: [1,2,3,4,5,6] → 21  (within Bf16's 7-bit mantissa; 21 < 128)
     let v = t_bf16(&[6], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], backend);
     let s: Bf16 = coeus_ops::sum(&v, backend);
-    assert_eq!(s, Bf16::from_f32(21.0), "Bf16 sum: got {}, expected 21", s.to_f32());
+    assert_eq!(
+        s,
+        Bf16::from_f32(21.0),
+        "Bf16 sum: got {}, expected 21",
+        s.to_f32()
+    );
 
     // relu: [-3,-1,0,2,4] → [0,0,0,2,4]
     let x = t_bf16(&[5], &[-3.0, -1.0, 0.0, 2.0, 4.0], backend);
