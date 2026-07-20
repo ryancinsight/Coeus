@@ -1,6 +1,6 @@
 # Coeus Project Backlog & Historical Archives
 
-## MS-444 standalone Git dependency graph [patch] — in progress
+## MS-444 standalone Git dependency graph [patch] — done
 
 - Owner: Codex `/root`; scope: workspace dependency declarations,
   `coeus-ops` Melinoe ownership, lockfile, and synchronized Coeus PM records.
@@ -15,6 +15,8 @@
   metadata resolves one identity for each Atlas provider. The repository-wide
   format check remains blocked by two pre-existing line-wrap diffs in
   `coeus-ops/tests/half_precision_diff.rs`, outside this manifest-only scope.
+  Asclepius resolves and compiles the four selected packages directly from
+  commit `99920888` without local patches or sibling directories.
 
 ## MS-443 backend-generic host extraction [minor] — done
 
