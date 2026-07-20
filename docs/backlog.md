@@ -1,5 +1,21 @@
 # Coeus Project Backlog & Historical Archives
 
+## MS-444 standalone Git dependency graph [patch] — in progress
+
+- Owner: Codex `/root`; scope: workspace dependency declarations,
+  `coeus-ops` Melinoe ownership, lockfile, and synchronized Coeus PM records.
+- Acceptance: an external crate can resolve `coeus-autograd`, `coeus-core`,
+  `coeus-ops`, and `coeus-tensor` from the Coeus Git revision without sibling
+  directories or repository-owned local patch tables; metadata, focused
+  package gates, and an external-consumer probe pass.
+- Consumer driver: Asclepius requires a Coeus autodiff adapter for the shared
+  gEUD response law.
+- Evidence: the selected autograd closure compiles and passes warning-denied
+  all-targets Clippy; 94/94 `coeus-autograd` Nextest cases pass; locked
+  metadata resolves one identity for each Atlas provider. The repository-wide
+  format check remains blocked by two pre-existing line-wrap diffs in
+  `coeus-ops/tests/half_precision_diff.rs`, outside this manifest-only scope.
+
 ## MS-443 backend-generic host extraction [minor] — done
 
 - Owner: Codex `/root`; scope: `coeus-tensor` host materialization and

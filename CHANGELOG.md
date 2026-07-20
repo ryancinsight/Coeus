@@ -4,6 +4,11 @@
 
 ### Changed
 
+- [patch] Replaces external sibling paths and repository-owned local patches
+  with Git-addressable Atlas provider dependencies, allowing Coeus packages to
+  resolve from a standalone Git consumer while the lockfile pins one coherent
+  provider identity.
+
 - [minor] Adds backend-generic tensor host materialization through
   `Tensor::to_vec_on`, `Tensor::to_vec`, `Tensor::host_cow_on`, and
   `Tensor::host_cow`. Device backends use their canonical
