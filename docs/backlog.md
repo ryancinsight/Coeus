@@ -1,5 +1,21 @@
 # Coeus Project Backlog & Historical Archives
 
+## MS-445 Python release wheels [patch] — in-progress
+
+- Owner: Codex `/root`; scope: the `coeus-python` release workflow, protected
+  GitHub environment, distribution documentation, and PyPI trusted publisher.
+  Python binding behavior is a non-goal.
+- Acceptance: a GitHub Release tagged `coeus-python-v<version>` builds locked
+  Linux, Windows, and universal macOS wheels for CPython 3.9–3.13, installs and
+  imports each wheel as `pycoeus`, validates Cargo-owned distribution identity,
+  attests and attaches the exact artifacts, then publishes the same wheels to
+  the `coeus-python` PyPI project through OIDC.
+- Current evidence: the release workflow and synchronized distribution contract
+  are implemented, and GitHub environment `pypi` accepts only
+  `coeus-python-v*` tags. A locked CPython 3.13 wheel builds as `coeus-python`
+  0.9.0, installs into an isolated target, and imports as `pycoeus`. Hosted CI
+  and pending-publisher registration remain open.
+
 ## MS-444 standalone Git dependency graph [patch] — done
 
 - Owner: Codex `/root`; scope: workspace dependency declarations,

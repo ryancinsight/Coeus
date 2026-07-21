@@ -1,5 +1,17 @@
 # Global Progress Checklist: Coeus
 
+## MS-445 Python release wheels [patch]
+
+- [x] Add the pinned build-once GitHub Release and PyPI workflow.
+- [x] Document the `coeus-python` distribution, `pycoeus` import, Cargo version
+      source, supported CPython range, and OIDC publication contract.
+- [x] Build, install, import, and inspect a production CPython 3.13 wheel
+      locally as `coeus-python` 0.9.0 / `pycoeus`.
+- [x] Create the protected `pypi` environment restricted to
+      `coeus-python-v*` tags.
+- [ ] Pass hosted CI on the exact release-automation head.
+- [ ] Register the PyPI pending trusted publisher.
+
 ## MS-444 standalone Git dependency graph [patch]
 
 - [x] Replace external sibling paths with remote provider identities and retain

@@ -64,6 +64,15 @@ Run doctests separately because nextest does not execute them:
 cargo test --doc --workspace
 ```
 
+## Python Releases
+
+GitHub Releases tagged `coeus-python-v<version>` build locked CPython 3.9–3.13
+wheels for Linux, Windows, and macOS. The workflow installs and imports each
+wheel as `pycoeus`, verifies that its `coeus-python` metadata version matches
+the release tag, attests and attaches the exact wheel set to the GitHub
+Release, then publishes those same artifacts to PyPI through OIDC Trusted
+Publishing. The tag version must equal the workspace Cargo version.
+
 ### Run Clippy Lints
 ```bash
 cargo clippy --all-targets --all-features -- -D warnings
