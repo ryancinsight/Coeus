@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] GitHub Releases tagged `coeus-python-v<version>` now build, install,
+  attest, and attach locked CPython 3.9–3.13 wheels for Linux, Windows, and
+  macOS, then publish the exact wheel set to PyPI through OIDC.
+
 - [patch] Replaces external sibling paths and repository-owned local patches
   with Git-addressable Atlas provider dependencies, allowing Coeus packages to
   resolve from a standalone Git consumer while the lockfile pins one coherent
