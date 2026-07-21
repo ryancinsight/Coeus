@@ -6,8 +6,6 @@
 //     SwiGLU(row)[j] = silu(S) * S   for every output column j,
 // which we assert exactly (analytic oracle), plus the parameter inventory and
 // gradient flow through the composed silu/mul/matmul graph.
-//
-// Burn parity: burn::nn::SwiGlu (silu(linear_inner(x)) ⊙ linear_outer(x)).
 
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;

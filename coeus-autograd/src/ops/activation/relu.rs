@@ -226,11 +226,9 @@ pub fn selu<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
 //                region contributes 0 since on_true doesn't depend on weight)
 //
 // `weight` has shape `[1]` (one shared slope) or `[C]` (per-channel,
-// PyTorch/Burn `num_parameters=C`). For rank > 2 inputs a `[C]` weight must
-// broadcast against the CHANNEL axis (dim 1), not NumPy's default
-// right-aligned trailing axis — e.g. `[N,C,H,W]` needs the weight reshaped to
-// `[1,C,1,1]`. Burn's `activation::prelu` does the identical reshape; see
-// `burn-tensor-0.16.1/src/tensor/activation/base.rs`.
+// `num_parameters=C`). For rank > 2 inputs a `[C]` weight must broadcast
+// against the CHANNEL axis (dim 1), not NumPy's default right-aligned trailing
+// axis — e.g. `[N,C,H,W]` needs the weight reshaped to `[1,C,1,1]`.
 
 /// Tracked PReLU with a learnable per-channel (or shared-scalar) weight.
 ///

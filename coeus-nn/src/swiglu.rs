@@ -1,10 +1,10 @@
 //! SwiGLU gated feed-forward unit.
 //!
-//! `SwiGLU(x) = silu(W_inner · x) ⊙ (W_outer · x)` — the Swish/SiLU-gated linear
-//! unit used in modern transformer feed-forward blocks (PaLM, LLaMA). Two
-//! parallel linear projections of the same input share the input tensor; the
-//! inner projection is SiLU-gated and multiplied element-wise by the outer
-//! projection. Burn parity: `burn::nn::SwiGlu`.
+//! `SwiGLU(x) = silu(W_inner · x) * (W_outer · x)` — the Swish/SiLU-gated
+//! linear unit used in modern transformer feed-forward blocks (PaLM, LLaMA).
+//! Two parallel linear projections of the same input share the input tensor;
+//! the inner projection is SiLU-gated and multiplied element-wise by the outer
+//! projection.
 
 use crate::activation::silu;
 use crate::linear::Linear;
