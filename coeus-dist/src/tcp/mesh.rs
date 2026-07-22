@@ -10,11 +10,22 @@ use std::time::Duration;
 pub struct TcpMesh {
     rank: usize,
     size: usize,
+    // Field order is lifecycle order: sockets close before their reactor runtime.
     streams: Vec<Option<Mutex<TcpStream>>>,
     runtime: Moirai,
 }
 
 impl TcpMesh {
+    fn runtime() -> Moirai {
+        // Mesh I/O is serialized per peer, so one scheduler and reactor worker
+        // provide all execution capacity this synchronous facade can consume.
+        Moirai::builder()
+            .worker_threads(1)
+            .async_threads(1)
+            .build()
+            .expect("failed to initialize dedicated TCP mesh runtime")
+    }
+
     #[inline]
     fn debug_timeout() -> Option<Duration> {
         cfg!(debug_assertions).then_some(Duration::from_secs(45))
@@ -34,7 +45,7 @@ impl TcpMesh {
     /// Create a new TCP mesh connecting all ranks.
     pub fn new(rank: usize, size: usize, addresses: &[SocketAddr]) -> Self {
         Self::assert_configuration(rank, size, addresses);
-        let runtime = Moirai::new().expect("failed to initialize dedicated TCP mesh runtime");
+        let runtime = Self::runtime();
         let local_addr = addresses[rank].to_string();
         let listener = runtime.block_on(async {
             TcpListener::bind(&local_addr)
@@ -58,7 +69,7 @@ impl TcpMesh {
         let mut endpoints = Vec::with_capacity(size);
         let mut addresses = Vec::with_capacity(size);
         for _ in 0..size {
-            let runtime = Moirai::new().expect("failed to initialize dedicated TCP mesh runtime");
+            let runtime = Self::runtime();
             let listener = runtime.block_on(async {
                 TcpListener::bind("127.0.0.1:0")
                     .await
@@ -257,11 +268,5 @@ impl TcpMesh {
                     .expect("failed to receive bytes over TCP");
             }
         });
-    }
-}
-
-impl Drop for TcpMesh {
-    fn drop(&mut self) {
-        self.runtime.shutdown();
     }
 }

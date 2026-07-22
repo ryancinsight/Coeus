@@ -1,5 +1,20 @@
 # Coeus Project Backlog & Historical Archives
 
+## MS-446 provider identity and TCP teardown [patch] — done
+
+- Owner: Codex `/root`; scope: workspace provider declarations and lockfile,
+  `coeus-dist` TCP runtime ownership, and synchronized PM records. Public API
+  behavior and release metadata are non-goals.
+- Acceptance: Cargo resolves one source identity for Hermes, Eunomia, Leto,
+  and each Hephaestus package; version requirements state the contract while
+  `Cargo.lock` is the reproducible commit pin; `TcpMesh` drops reactor-backed
+  sockets before its runtime; configured Nextest completes without a
+  test crossing the 30-second budget.
+- Current evidence: locked metadata resolves one identity for every affected
+  provider. The complete 64-test `coeus-dist` Nextest gate passes in 0.385 s;
+  the formerly slow mismatch case completes in 0.124 s. The full workspace
+  Nextest gate passes 938/938 in 82.449 s with no slow tests.
+
 ## MS-445 Python release wheels [patch] — in-progress
 
 - Owner: Codex `/root`; scope: the `coeus-python` release workflow, protected

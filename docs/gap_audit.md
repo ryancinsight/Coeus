@@ -1,5 +1,27 @@
 # Coeus Gap Audit
 
+## MS-446: provider identity and TCP teardown
+
+**Location**: workspace `Cargo.toml`/`Cargo.lock` and
+`coeus-dist/src/tcp/mesh.rs`.
+**Gap**: stale provider requirements allowed Cargo to retain parallel Git
+source identities for the same Atlas contracts. `TcpMesh` also constructed a
+default host-sized runtime per rank and stopped that runtime before dropping
+its reactor-backed sockets; under concurrent Nextest processes, teardown could
+wait for the 45-second debug I/O timeout.
+**Resolution**: declare the current versioned Git contracts once and let the
+lockfile own their exact commits. Construct the serialized mesh I/O runtime
+with one worker in each pool, consolidate both construction sites on that
+factory, and declare streams before the runtime so Rust's field-order drop
+semantics close sockets before runtime destruction.
+**Invariant**: one provider role resolves to one Cargo source identity, so
+trait and type ownership cannot split across duplicate package instances.
+Each mesh owns only the execution capacity its serial `block_on` contract can
+use, and teardown reverses construction order.
+**Evidence tier**: locked dependency metadata plus value-semantic real-socket
+integration. The complete 64-test `coeus-dist` Nextest gate passes in 0.385 s;
+the full workspace gate passes 938/938 in 82.449 s with no slow tests.
+
 ## MS-441: tensor benchmark still owns a Burn path
 
 **Location**: `coeus-tensor/Cargo.toml` and
@@ -775,5 +797,5 @@ Evidence tier: differential/empirical (PyTorch f64).
 | `test_hardswish_matches_pytorch` PyTorch differential parity | differential | **closed** — backward routing verified correct (evaluates on saved input, formulas match PyTorch); tests exist and run |
 | `test_hardsigmoid_matches_pytorch` PyTorch differential parity | differential | **closed** — backward routing verified correct (evaluates on saved input, formulas match PyTorch); tests exist and run |
 | `test_prelu_matches_pytorch` PyTorch differential parity | differential | **closed MS-217** — tightened shared `LeakyReluGrad` predicate from `x >= 0 ? 1 : α` to `x > 0 ? 1 : α` across `coeus-core` (float + int) and the `LeakyReluGradTag` fuse path; corrected the `act_extended_tests.rs` oracle + `nn_activation_tests.rs::test_leaky_relu_activation` expected gradient; added `test_prelu_matches_jax` and `leaky_relu_kink_at_zero_returns_slope`. Three-way Rust ↔ PyTorch ↔ JAX parity at the kink position. |
-| `test_tcp_scatter_zero_numel_mismatched_target_numel_panics` slow | empirical | **open** — exceeded 30 s slow threshold (45.4 s) during MS-215; deferred optimization to a future `tcp-dispatch` slice |
+| `test_tcp_scatter_zero_numel_mismatched_target_numel_panics` slow | empirical | **closed MS-446** — socket-first `TcpMesh` teardown and bounded dedicated runtimes remove the 45 s wait; the test passes in 0.124 s, the 64-test `coeus-dist` lane in 0.385 s, and the 938-test workspace lane in 82.449 s with no slow tests |
 | `coeus-cuda` clippy errors under `--all-features` | lint | **pre-existing peer crate dependency** — not addressed in MS-215 (out of coeus scope) |

@@ -4,6 +4,12 @@
 
 ### Changed
 
+- [patch] Consolidates Hermes, Eunomia, Leto, and Hephaestus on one versioned
+  Git source identity per provider contract, with exact commits owned only by
+  `Cargo.lock`. `TcpMesh` now uses a bounded dedicated runtime whose field
+  order closes reactor-backed sockets before runtime destruction, eliminating
+  45-second teardown stalls in concurrent distributed tests.
+
 - [patch] GitHub Releases tagged `coeus-python-v<version>` now build, install,
   attest, and attach locked CPython 3.9–3.13 wheels for Linux, Windows, and
   macOS, then publish the exact wheel set to PyPI through OIDC.

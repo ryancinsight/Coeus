@@ -162,6 +162,6 @@ impl std::iter::FromIterator<usize> for Shape {
 
 impl std::fmt::Debug for Shape {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Shape({:?})", &self.0)
+        write!(f, "Shape({:?})", self.0)
     }
 }
