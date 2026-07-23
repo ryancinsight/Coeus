@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Splits the CPU backend operation trait implementations into
+  operation-family leaves under `backend_ops/cpu_impl/impls/`, keeping backend
+  ownership and execution-policy marker implementations in the manifest.
+
 - [patch] Splits WGPU backend trait implementations into operation-family
   leaves under `backend/ops/impls/`, keeping shared routing helpers and
   elementwise dispatch in the manifest.

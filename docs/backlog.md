@@ -1,5 +1,18 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-004 — CPU backend operation impl hierarchy [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-ops/src/backend_ops/cpu_impl*` only.
+- Outcome: the 56-line CPU backend manifest retains backend ownership and
+  marker-policy impls; eight operation trait impl blocks now live under
+  `backend_ops/cpu_impl/impls/`, with leaves from 37 to 324 lines.
+- Evidence: locked metadata retains one `ops` integration target; package
+  check, warning-denied Clippy, format, and diff checks pass. Exact package
+  Nextest passes 196/196 with zero skipped in 4.325 seconds across two
+  binaries. Operation bodies and test assertions are unchanged.
+- Limit: this is a module-topology and maintainability change only; no
+  runtime, memory, or performance delta is claimed.
+
 ## ATLAS-BUILD-STRUCTURE-003 — WGPU operation impl hierarchy [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-wgpu/src/backend/ops/` only.

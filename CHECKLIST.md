@@ -1,5 +1,22 @@
 # Coeus Development Roadmap Checklist
 
+## CPU backend operation impl hierarchy [patch]
+- [x] Move the eight generic CPU operation trait impl blocks out of the
+      1,151-line backend implementation file into `backend_ops/cpu_impl/impls/`
+      leaves for elementwise, matmul, reduction, convolution, pooling,
+      optimizer, attention, and unfold/fold.
+- [x] Retain `CpuBackend` and its execution-policy marker impls in the
+      manifest; do not duplicate or alter provider dispatch logic.
+- [x] Keep the manifest at 56 lines and every operation-family leaf below 325
+      lines; verify format, diff, package check, warning-denied Clippy,
+      metadata, and exact package Nextest.
+
+Evidence: locked metadata retains one `ops` integration target. Package check
+and warning-denied Clippy pass. Exact CPU package Nextest passes 196/196 with
+zero skipped in 4.325 seconds across two binaries. This is a module-topology
+and maintainability change only; no runtime, memory, or performance delta is
+claimed.
+
 ## WGPU backend operation impl hierarchy [patch]
 - [x] Move the seven non-elementwise WGPU trait impl blocks out of the
       1,357-line operation manifest into `backend/ops/impls/` leaves for
