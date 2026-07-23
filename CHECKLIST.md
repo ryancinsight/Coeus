@@ -91,6 +91,19 @@ cases and seven unchanged library unit tests. Production core code is unchanged.
 This is a test topology and build-artifact change only; it does not claim a
 whole-workspace debug-tree size reduction.
 
+## Coeus-CUDA feature-aware integration harness [patch]
+- [x] Move the three flat CUDA test files into device and fallback directories
+      under `coeus-cuda/tests/cuda_ops/` and add one `cuda_ops.rs` harness.
+- [x] Preserve the `cuda` and `not(feature = "cuda")` gates, including the
+      existing nested `tests/cuda/` module tree used by `cuda_tests.rs`.
+- [x] Verify metadata reports one integration target; default Nextest passes
+      3/3, and all-features check plus warning-denied Clippy pass.
+
+Evidence: exact default package Nextest passes 3/3 with 0 skipped in 0.053
+seconds. All-features execution is not claimable on this host: the linker
+fails to find `/usr/local/cuda-11.3/lib64/libcuda`; this is an environment
+linker dependency, not a test assertion failure.
+
 This document tracks the high-level roadmap and feature validation checklist for the Coeus tensor library. For detailed task lists, sprint archives, and progress tracking, see:
 - [docs/checklist.md](file:///d:/coeus/docs/checklist.md)
 - [docs/backlog.md](file:///d:/coeus/docs/backlog.md)

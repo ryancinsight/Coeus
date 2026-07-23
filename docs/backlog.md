@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-CUDA integration harness [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/tests/**` only.
+- Outcome: the three feature-gated Rust integration-test files now sit under
+  device and fallback directories behind one `cuda_ops` target. The existing
+  nested `tests/cuda/` module tree remains intact through an explicit path in
+  the moved `cuda_tests` leaf; no production CUDA code moved.
+- Evidence: locked metadata now reports one `coeus-cuda` integration target;
+  default package Nextest passes 3/3 with zero skipped in 0.053 seconds.
+  Default and all-features warning-denied Clippy plus package checks pass.
+- Limit: all-features executable Nextest remains unverified because the GNU
+  linker cannot find `/usr/local/cuda-11.3/lib64/libcuda` on this host. The
+  failure is an external CUDA installation/linker dependency.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-core integration harness [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-core/tests/**` only.
