@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-WGPU parity-family split [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity/**`.
+- Outcome: the 808-line multi-family parity leaf is now a shared oracle
+  manifest plus seven operation-family modules: elementwise, reduction,
+  matmul, convolution/pooling, optimizer, and strided.
+- Evidence: pre/post source-name census remains 47 unique parity identifiers;
+  exact package Nextest passes 85/85 with zero skipped in 80.113 seconds.
+  Every new parity leaf is below 500 lines (largest: 287); package check,
+  warning-denied Clippy, format, and diff checks pass.
+- Limit: this is a test-topology and maintainability change only; it does not
+  claim a production-kernel speedup, memory reduction, or whole-workspace
+  debug-tree delta.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-WGPU integration harness [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-wgpu/tests/**` target topology only.

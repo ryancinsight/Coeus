@@ -136,6 +136,22 @@ and diff checks pass. The remaining `backend/wgpu/parity.rs` file is 808 lines
 and spans multiple operation families; its family split is a separate claimed
 follow-up, not part of this target-count relocation.
 
+## Coeus-WGPU parity-family split [patch]
+- [x] Split the 808-line parity leaf into a shared oracle manifest plus
+      elementwise, reduction, matmul, convolution/pooling, optimizer, and
+      strided operation-family modules.
+- [x] Preserve every parity test name, generated unary test, tolerance, and
+      CPU/GPU differential assertion; production kernels and fixtures remain
+      unchanged.
+- [x] Keep each parity leaf below 500 lines and rerun format, check, Clippy,
+      and package Nextest.
+
+Evidence: the pre/post source-name census remains 47 unique parity identifiers;
+locked package Nextest passes 85/85 with zero skipped in 80.113 seconds. The
+largest new parity leaf is `elementwise.rs` at 287 lines; all seven leaves are
+below 500 lines. Package check and warning-denied Clippy pass after removing two
+unused imports exposed by the split.
+
 This document tracks the high-level roadmap and feature validation checklist for the Coeus tensor library. For detailed task lists, sprint archives, and progress tracking, see:
 - [docs/checklist.md](file:///d:/coeus/docs/checklist.md)
 - [docs/backlog.md](file:///d:/coeus/docs/backlog.md)
