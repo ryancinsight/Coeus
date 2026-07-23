@@ -4,6 +4,11 @@
 
 ### Changed
 
+- [patch] Validates CUDA convolution launch layouts, parameters, element
+  counts, and grid sizes before narrowing them to the device `u32` ABI, with
+  validation, forward, and per-dimensional backward launch families under
+  `kernels/launch_conv/`.
+
 - [patch] Propagates CUDA 1D convolution grad-input launch failures through
   the existing fallback result instead of panicking.
 

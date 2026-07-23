@@ -1,22 +1,21 @@
 # Coeus Gap Audit
 
-## ATLAS-CUDA-SAFETY-002: CUDA launch-parameter narrowing remains
+## ATLAS-CUDA-SAFETY-002: Shared CUDA layout narrowing remains
 
-**Location**: `coeus-cuda/src/kernels/launch_conv.rs` and
-`coeus-cuda/src/kernels/mod.rs`.
-**Gap**: convolution launchers and the shared GPU-layout serializer narrow
-`usize` dimensions, strides, offsets, and element counts to CUDA `u32` values
-with unchecked casts. Inputs beyond the CUDA representation range can wrap;
-the layout serializer also asserts on rank instead of returning a typed
-boundary error. The convolution grad-input launch panic is closed separately
-by `ATLAS-CUDA-SAFETY-001`.
+**Location**: `coeus-cuda/src/kernels/mod.rs` and
+`coeus-cuda/src/backend/ops/conv.rs`.
+**Gap**: the shared GPU-layout serializer still narrows layout dimensions,
+strides, offsets, and rank with unchecked casts and an input-dependent rank
+assertion. The CUDA backend's forward convolution callers also compute output
+element counts with an unchecked shape product before entering the validated
+launcher. `ATLAS-CUDA-SAFETY-002` closes the launcher's own ABI boundary.
 **Resolution target**: introduce one checked, allocation-free conversion
-boundary with typed failure propagation through the CUDA dispatch seam, then
-cover overflow, empty, and maximum-representable dimensions without changing
-the native kernel data path.
+boundary for `GpuLayoutInfo` and one checked layout element-count seam, with
+typed failure propagation through the CUDA dispatch boundary. Preserve the
+native kernel data path and avoid host copies.
 **Evidence target**: feature-enabled check, warning-denied Clippy, CUDA
-hardware differential tests where available, and a no-device value-semantic
-regression for the rejected boundary values.
+hardware differential tests where available, and no-device value-semantic
+regressions for rejected rank, overflow, and maximum-representable values.
 **Status**: open; the current environment cannot execute the CUDA-feature
 Nextest because its Windows GNU linker cannot resolve `-lcuda` from
 `/usr/local/cuda-11.3/lib64/`.

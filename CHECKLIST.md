@@ -1,5 +1,26 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA convolution launch-boundary validation [patch]
+- [x] Reject convolution layouts, stride/padding/dilation values, element
+      counts, channel counts, and derived grid sizes that cannot be represented
+      by the CUDA `u32` launch ABI.
+- [x] Replace unchecked backward shape products and rank-0 channel indexing
+      with checked conversion and failure-result paths while preserving the
+      native device dispatch and allocation behavior.
+- [x] Keep `launch_conv.rs` as an eight-line manifest and place validation,
+      forward, and per-dimensional backward launch families in leaves from 32
+      to 268 lines under `kernels/launch_conv/`.
+- [x] Verify format, diff, CUDA-feature all-targets check, warning-denied
+      Clippy, and the default package Nextest gate.
+
+Evidence: the launch boundary contains no input-dependent `as u32` casts,
+unchecked shape products, or input-dependent indexing/panics. CUDA-feature
+all-targets check and warning-denied Clippy pass; the default package Nextest
+passes 3/3 with zero skipped in 0.072 seconds. CUDA-feature Nextest remains
+blocked before execution because the Windows GNU linker cannot find `-lcuda`
+at `/usr/local/cuda-11.3/lib64/`. Shared `GpuLayoutInfo` serialization and
+the caller-side forward element-count product remain separate residuals.
+
 ## CUDA convolution launch failure propagation [patch]
 - [x] Replace the CUDA 1D convolution grad-input launch panic with the
       established `false` failure result so the operation boundary can take

@@ -1,5 +1,23 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-002 — Validate convolution launch ABI values [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/launch_conv*` only.
+- Outcome: convolution launchers now reject layouts, launch parameters,
+  element counts, channel counts, and derived grid sizes that do not fit the
+  CUDA `u32` ABI; checked products replace backward-path overflow and channel
+  indexing hazards. The 8-line `launch_conv.rs` manifest delegates to
+  validation, forward, and per-dimensional backward leaves from 32 to 268
+  lines.
+- Evidence: CUDA-feature all-targets check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped in 0.072 seconds. A
+  source audit finds no input-dependent `as u32`, unchecked shape product,
+  input-dependent indexing, or panic in this launcher.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`. Shared
+  `GpuLayoutInfo` serialization and caller-side forward element-count
+  calculation remain separate residuals in `docs/gap_audit.md`.
+
 ## ATLAS-CUDA-SAFETY-001 — Propagate convolution launch failures [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/launch_conv.rs` only.
