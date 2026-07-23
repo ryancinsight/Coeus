@@ -16,6 +16,23 @@
   `x86_64-w64-mingw32-gcc` cannot find `-lcuda` while searching
   `/usr/local/cuda-11.3/lib64/`; no live CUDA parity execution is claimed.
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-Python operation binding-family split [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-python/tests/binding_ops/operations/**`.
+- Outcome: the live 3,160-line `binding_tests_ops.rs` leaf is now fourteen
+  operation-family leaves with nested NN functional and module directories.
+  Python interpreter setup has one shared support module; production PyO3,
+  Python parity scripts, generated artifacts, and embedded test assertions are
+  unchanged.
+- Evidence: pre/post source census remains 61 unique test functions and all 61
+  extracted Rust function bodies compare equal. The largest test-family leaf is
+  `reductions.rs` at 391 lines; every leaf is below 400 lines. Exact package
+  Nextest passes 75/75 with zero skipped in 8.079 seconds. Package check,
+  warning-denied Clippy, format, and diff checks pass.
+- Limit: this is a Rust test-topology and maintainability change; it does not
+  claim Python-wheel, production-kernel, memory, or runtime-performance
+  coverage.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN tensor parity-family split [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-nn/tests/nn_ops/tensor/nn_parity*` only.

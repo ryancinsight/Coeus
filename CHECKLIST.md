@@ -161,6 +161,25 @@ the exact all-features package run reports 75/75 tests with 0 skipped in
 test topology and build-artifact change only; it does not claim Python wheel or
 external-interpreter coverage.
 
+## Coeus-Python operation binding-family split [patch]
+- [x] Split the live 3,160-line `binding_ops/operations/binding_tests_ops.rs`
+      leaf into fourteen operation-family leaves plus nested NN module
+      manifests under `binding_ops/operations/`.
+- [x] Move the Python interpreter setup into one shared support module and
+      preserve all 61 test functions, embedded scripts, assertions, and the
+      thin PyO3 boundary.
+- [x] Verify exact function-body parity, format, package check, warning-denied
+      Clippy, diff checks, and the exact package Nextest gate.
+
+Evidence: the pre/post source census remains 61 unique test functions and all
+61 extracted Rust function bodies compare equal. The largest new leaf is
+`reductions.rs` at 391 lines; every test-family leaf is below 400 lines. Exact
+package Nextest passes 75/75 with zero skipped in 8.079 seconds. Package check,
+warning-denied Clippy, format, and diff checks pass. Production PyO3 code,
+Python parity scripts, and generated artifacts are unchanged. This is a test
+topology and maintainability change only; it does not claim a Python-wheel,
+production-kernel, memory, or runtime-performance delta.
+
 ## Coeus-WGPU hierarchical integration harness [patch]
 - [x] Move the two flat `coeus-wgpu/tests/*.rs` integration targets under one
       `tests/wgpu_ops.rs` harness with `fusion` and `backend/wgpu` ownership.
