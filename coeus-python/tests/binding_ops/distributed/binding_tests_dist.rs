@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::ffi::CString;
 
-mod common;
+use crate::common;
 
 fn run_pycoeus_script(script: &str) {
     let _guard = common::python_test_lock()

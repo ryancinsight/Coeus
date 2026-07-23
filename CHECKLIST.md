@@ -104,6 +104,22 @@ seconds. All-features execution is not claimable on this host: the linker
 fails to find `/usr/local/cuda-11.3/lib64/libcuda`; this is an environment
 linker dependency, not a test assertion failure.
 
+## Coeus-Python hierarchical integration harness [patch]
+- [x] Move the six flat `coeus-python/tests/*.rs` leaf files into activation,
+      distributed, NN, operation, optimizer, and autodiff directories under
+      `tests/binding_ops/`.
+- [x] Add one `coeus-python/tests/binding_ops.rs` target with a single shared
+      `tests/common` lock module; preserve every binding assertion and Python
+      parity file.
+- [x] Verify the target census reduced from 6 to 1 and the exact package
+      Nextest run passes 75/75 with warning-denied Clippy and package check.
+
+Evidence: locked Cargo metadata reports one `binding_ops` integration target;
+the exact all-features package run reports 75/75 tests with 0 skipped in
+6.585 seconds. Production PyO3 and Python parity code is unchanged. This is a
+test topology and build-artifact change only; it does not claim Python wheel or
+external-interpreter coverage.
+
 This document tracks the high-level roadmap and feature validation checklist for the Coeus tensor library. For detailed task lists, sprint archives, and progress tracking, see:
 - [docs/checklist.md](file:///d:/coeus/docs/checklist.md)
 - [docs/backlog.md](file:///d:/coeus/docs/backlog.md)

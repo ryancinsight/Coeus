@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-Python integration harness [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-python/tests/*.rs` only.
+- Outcome: the six flat Rust integration-test files now sit under activation,
+  distributed, NN, operation, optimizer, and autodiff directories behind one
+  `binding_ops` target. The shared `tests/common` lock module is owned once at
+  the harness root; Python parity scripts and generated artifacts are unchanged.
+- Evidence: locked Cargo metadata now reports one `coeus-python` integration
+  target; the exact all-features package Nextest run passes 75/75 with zero
+  skipped in 6.585 seconds. Warning-denied Clippy, package check, format, and
+  diff checks pass.
+- Limit: this proves Rust integration-test topology and count preservation,
+  not Python wheel or external-interpreter coverage.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-CUDA integration harness [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/tests/**` only.
