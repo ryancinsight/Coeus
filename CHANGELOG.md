@@ -4,6 +4,12 @@
 
 ### Changed
 
+- [patch] Promotes CUDA launch validation to one `kernels::validation` SSOT
+  and applies checked layout, axis, element-count, parameter, and grid
+  boundaries to standard and fused reduction dispatch. Fused reduction no
+  longer panics on missing or over-rank expression shapes and uses safe POD
+  layout serialization.
+
 - [major] Makes the CUDA layout descriptor crate-private and replaces its
   truncating conversion with one checked `TryFrom<&Layout>` seam. Invalid
   rank, shape/stride rank, offset, shape, and stride values now return the

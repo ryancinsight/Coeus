@@ -1,5 +1,21 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-004 — Harden reduction launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/validation.rs`,
+  `coeus-cuda/src/kernels/reduce.rs`, and convolution validator imports.
+- Outcome: one shared validation SSOT now owns CUDA `u32` conversion, checked
+  element counts, layout-fit, and grid-size rules. Standard and fused
+  reduction reject invalid axes, ranks, layouts, counts, and grids before
+  dispatch; fused reduction no longer panics on absent or over-rank shapes and
+  uses safe POD layout serialization.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped; overflow regressions
+  compile; source audit is clean for reduction casts/products/indexing/panics.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`. Other
+  non-reduction CUDA launch families remain in the next gap item.
+
 ## ATLAS-CUDA-SAFETY-003 — Enforce shared CUDA layout ABI [major] [arch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/kernels` layout consumers and

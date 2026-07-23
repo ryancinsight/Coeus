@@ -1,5 +1,21 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA reduction launch-boundary validation [patch] [arch]
+- [x] Promote shared `u32`, checked element-count, layout-fit, and grid-size
+      helpers to `kernels/validation.rs`; delete the convolution-local copy.
+- [x] Validate standard and fused reduction axis, expression rank, layout,
+      output count, and launch grid before kernel dispatch.
+- [x] Replace fused reduction's input-shape panic, unchecked casts/products,
+      and raw layout serialization while preserving the native kernel path.
+- [x] Add overflow regressions and the co-located ADR; verify format, diff,
+      feature-enabled check, warning-denied Clippy, and default Nextest.
+
+Evidence: reduction source contains no input-dependent `as u32`, unchecked
+output product, expression-shape indexing, or panic. Feature-enabled package
+check and warning-denied Clippy pass; default package Nextest passes 3/3 with
+zero skipped. CUDA-feature Nextest remains blocked before execution because
+the Windows GNU linker cannot find `-lcuda` at `/usr/local/cuda-11.3/lib64/`.
+
 ## CUDA layout ABI boundary [major] [arch]
 - [x] Replace the public truncating `GpuLayoutInfo` conversion with one
       crate-private `TryFrom<&Layout>` seam that rejects rank mismatch, rank

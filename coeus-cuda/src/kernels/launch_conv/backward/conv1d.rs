@@ -5,7 +5,7 @@ use crate::kernels::{create_layout_buffer, get_cuda_function};
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
-use super::super::validation::{
+use crate::kernels::validation::{
     checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda, CUDA_BLOCK_SIZE,
 };
 /// Launch the 1-D convolution backward kernel on the GPU.

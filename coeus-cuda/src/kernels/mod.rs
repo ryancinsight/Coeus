@@ -20,6 +20,7 @@ pub mod ptx;
 pub mod reduce;
 /// Kernel module for sliding-window unfold and adjoint fold operations.
 pub mod unfold_fold;
+mod validation;
 
 pub use attention::{launch_sdp_attention, launch_sdp_attention_backward};
 pub use conv_transpose::{launch_conv_transpose1d, launch_conv_transpose2d};

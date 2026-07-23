@@ -1,6 +1,9 @@
 use super::fuse::get_or_create_kernel;
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
+use crate::kernels::validation::{
+    checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda, CUDA_BLOCK_SIZE,
+};
 use crate::storage::CudaStorage;
 use coeus_core::{ComputeBackend, Layout};
 use coeus_ops::fuse::ExprNode;
@@ -20,6 +23,27 @@ pub fn dispatch_reduce<T: CudaScalar>(
         return false;
     };
     let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
+    if a_layout.shape().get(axis).is_none() || !layouts_fit_cuda(&[a_layout, c_layout]) {
+        return false;
+    }
+    let Some(out_numel) = checked_numel(c_layout) else {
+        return false;
+    };
+    let Some(axis_value) = cuda_u32(axis) else {
+        return false;
+    };
+    let Some(out_numel_value) = cuda_u32(out_numel) else {
+        return false;
+    };
+    let Some(grid_size) = launch_grid_size(out_numel) else {
+        return false;
+    };
+    let Ok(gpu_a_layout) = crate::kernels::GpuLayoutInfo::try_from(a_layout) else {
+        return false;
+    };
+    let Ok(gpu_c_layout) = crate::kernels::GpuLayoutInfo::try_from(c_layout) else {
         return false;
     };
     let cuda_type = T::CUDA_TYPE;
@@ -96,18 +120,10 @@ extern "C" __global__ void reduce_kernel(
         return false;
     };
 
-    let Ok(gpu_a_layout) = crate::kernels::GpuLayoutInfo::try_from(a_layout) else {
-        return false;
-    };
-    let Ok(gpu_c_layout) = crate::kernels::GpuLayoutInfo::try_from(c_layout) else {
-        return false;
-    };
-
     let mut a_ptr = a.cu_deviceptr();
     let mut c_ptr = c.cu_deviceptr();
-    let mut axis_val = axis as u32;
-    let out_numel = c_layout.shape().iter().product::<usize>();
-    let mut out_n = out_numel as u32;
+    let mut axis_val = axis_value;
+    let mut out_n = out_numel_value;
 
     let mut args: [*mut std::ffi::c_void; 6] = [
         &mut a_ptr as *mut CUdeviceptr as *mut std::ffi::c_void,
@@ -118,16 +134,13 @@ extern "C" __global__ void reduce_kernel(
         &mut out_n as *mut u32 as *mut std::ffi::c_void,
     ];
 
-    let block_size = 256;
-    let grid_size = out_numel.div_ceil(block_size);
-
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_size as u32,
+            grid_size,
             1,
             1,
-            block_size as u32,
+            CUDA_BLOCK_SIZE,
             1,
             1,
             0,
@@ -153,13 +166,38 @@ pub fn dispatch_fused_reduce<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     let Some(_ctx) = get_cuda_context() else {
         return false;
     };
-    let cuda_type = T::CUDA_TYPE;
-
-    let expr_shape = expr
-        .shape()
-        .expect("Fused expression must have at least one tensor input");
+    let Some(expr_shape) = expr.shape() else {
+        return false;
+    };
     let expr_ndim = expr_shape.len();
-    let axis_len = expr_shape[axis] as u32;
+    if expr_ndim > 8 {
+        return false;
+    }
+    let Some(&axis_len) = expr_shape.get(axis) else {
+        return false;
+    };
+    let Some(axis_value) = cuda_u32(axis) else {
+        return false;
+    };
+    let Some(axis_len_value) = cuda_u32(axis_len) else {
+        return false;
+    };
+    if !layouts_fit_cuda(&[c_layout]) {
+        return false;
+    }
+    let Some(out_numel) = checked_numel(c_layout) else {
+        return false;
+    };
+    let Some(out_numel_value) = cuda_u32(out_numel) else {
+        return false;
+    };
+    let Some(grid_size) = launch_grid_size(out_numel) else {
+        return false;
+    };
+    let Ok(c_layout_gpu) = crate::kernels::GpuLayoutInfo::try_from(c_layout) else {
+        return false;
+    };
+    let cuda_type = T::CUDA_TYPE;
 
     // 1. Collect unique input tensors
     let mut input_ptrs = Vec::new();
@@ -180,20 +218,20 @@ pub fn dispatch_fused_reduce<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     // 4. Create layouts buffer
     let mut layouts_gpu = Vec::with_capacity(num_inputs + 1);
     for input in &inputs {
+        if !layouts_fit_cuda(&[input.layout()]) {
+            return false;
+        }
         let Ok(layout) = crate::kernels::GpuLayoutInfo::try_from(input.layout()) else {
             return false;
         };
         layouts_gpu.push(layout);
     }
     // We add c_layout as the last one to decode output coordinates
-    let Ok(c_layout_gpu) = crate::kernels::GpuLayoutInfo::try_from(c_layout) else {
-        return false;
-    };
     layouts_gpu.push(c_layout_gpu);
 
-    let size_u32 = layouts_gpu.len() * (std::mem::size_of::<crate::kernels::GpuLayoutInfo>() / 4);
+    let slice: &[u32] = bytemuck::cast_slice(&layouts_gpu);
+    let size_u32 = slice.len();
     let mut layout_buf = CudaStorage::<u32>::new(size_u32);
-    let slice = unsafe { std::slice::from_raw_parts(layouts_gpu.as_ptr() as *const u32, size_u32) };
     CudaBackend::new().copy_to_device(slice, &mut layout_buf);
 
     // 5. Generate C++ CUDA kernel source code
@@ -296,10 +334,9 @@ extern "C" __global__ void fused_reduce_kernel(
     // 7. Launch
     let mut out_ptr = c.cu_deviceptr();
     let mut layouts_ptr = layout_buf.cu_deviceptr();
-    let mut axis_val = axis as u32;
-    let mut axis_len_val = axis_len;
-    let out_numel = c_layout.shape().iter().product::<usize>();
-    let mut out_n = out_numel as u32;
+    let mut axis_val = axis_value;
+    let mut axis_len_val = axis_len_value;
+    let mut out_n = out_numel_value;
 
     let mut in_ptrs: Vec<CUdeviceptr> = inputs
         .iter()
@@ -317,16 +354,13 @@ extern "C" __global__ void fused_reduce_kernel(
         args.push(ptr as *mut CUdeviceptr as *mut std::ffi::c_void);
     }
 
-    let block_size = 256;
-    let grid_size = out_numel.div_ceil(block_size);
-
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_size as u32,
+            grid_size,
             1,
             1,
-            block_size as u32,
+            CUDA_BLOCK_SIZE,
             1,
             1,
             0,
