@@ -1,5 +1,18 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-002 — Coeus-NN attention parity oracle split [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-nn/tests/nn_ops/tensor/nn_parity/attention*`.
+- Outcome: the attention parity test remains an operational leaf while its
+  repeated numerical oracle data and transpose helper live in the nested
+  `attention/expected.rs` support leaf.
+- Evidence: the 11-test source census is unchanged; the attention test leaf is
+  182 lines and the oracle leaf is 91 lines. Exact package Nextest passes
+  268/268 with zero skipped in 2.405 seconds. Package check, warning-denied
+  Clippy, format, and diff checks pass.
+- Limit: this is a test-topology and maintainability change only; no
+  production runtime, memory, or performance delta is claimed.
+
 ## ATLAS-WGPU-CORRECTNESS-001 — Native WGPU unfold/fold and pool1d closure [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-wgpu/src/kernels/`, WGPU operation
@@ -144,10 +157,10 @@
   losses, and regularization operation-family modules. Production NN code,
   fixtures, and tolerances are unchanged.
 - Evidence: pre/post source-name census remains 11 unique parity test
-  functions; exact package Nextest passes 268/268 with zero skipped in 2.816
-  seconds. The largest new leaf is `attention.rs` at 664 lines; the other five
-  leaves are below 250 lines. Package check, warning-denied Clippy, format, and
-  diff checks pass.
+  functions; exact package Nextest passes 268/268 with zero skipped in 2.405
+  seconds. The attention operation leaf is 182 lines and its expected-value
+  oracle leaf is 91 lines; all six operation-family leaves remain below 250
+  lines. Package check, warning-denied Clippy, format, and diff checks pass.
 - Limit: this is a test-topology and maintainability change only; it does not
   claim a production-kernel speedup, memory reduction, or whole-workspace
   debug-tree delta.

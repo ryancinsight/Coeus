@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Moves the Coeus-NN attention parity numerical oracle into a nested
+  support leaf, keeping the operational test at 182 lines and preserving all
+  11 parity assertions and values.
+
 - [patch] Implements native WGPU WGSL kernels for unfold/fold and 1D
   max/average pooling forward/backward paths, removes the previous no-op
   backend methods, and adds Sequential differential coverage. Device buffers

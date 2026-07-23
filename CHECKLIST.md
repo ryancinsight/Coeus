@@ -1,5 +1,21 @@
 # Coeus Development Roadmap Checklist
 
+## Coeus-NN attention parity oracle split [patch]
+- [x] Move the large attention parity oracle out of the operation test leaf
+      into `tensor/nn_parity/attention/expected.rs`.
+- [x] Preserve all 11 parity test attributes, numerical values, tolerances,
+      transposition logic, and assertion sites.
+- [x] Keep the operational attention test at 182 lines and the expected-value
+      leaf at 91 lines; verify format, diff, package check, warning-denied
+      Clippy, focused parity, and exact package Nextest.
+
+Evidence: the exact package Nextest run passes 268/268 with zero skipped in
+2.405 seconds; focused `test_mha_parity` passes 1/1. Locked metadata reports
+one `nn_ops` integration target and the `nn_bench` benchmark target. The
+11-test source census is unchanged. This is a test-topology and oracle
+maintainability change only; no production runtime, memory, or performance
+delta is claimed.
+
 ## WGPU native unfold/fold and pool1d closure [patch]
 - [x] Replace the four no-op WGPU `UnfoldFoldOps` methods with native WGSL
       unfold/fold dispatches and add 1D max/average pooling forward/backward
@@ -137,12 +153,13 @@ whole-workspace debug-tree size delta.
       warning-denied Clippy, diff checks, and the exact package Nextest gate.
 
 Evidence: the pre/post source-name census remains 11 unique parity test
-functions; exact package Nextest passes 268/268 with zero skipped in 2.816
-seconds. The largest new leaf is `attention.rs` at 664 lines; the other five
-leaves are below 250 lines. Package check, warning-denied Clippy, format, and
-diff checks pass. This is a test-topology and maintainability change only; it
-does not claim a production-kernel speedup, memory reduction, or whole-
-workspace debug-tree delta.
+functions; exact package Nextest passes 268/268 with zero skipped in 2.405
+seconds. The attention operation leaf is 182 lines and its expected-value
+oracle leaf is 91 lines; all six operation-family leaves remain below 250
+lines. Package check, warning-denied Clippy, format, and diff checks pass.
+This is a test-topology and maintainability change only; it does not claim a
+production-kernel speedup, memory reduction, or whole-workspace debug-tree
+delta.
 
 ## Coeus-autograd hierarchical integration harness [patch]
 - [x] Move `grid_sample_3d.rs`, `linear_interpolation.rs`, and
