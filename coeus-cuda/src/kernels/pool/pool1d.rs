@@ -166,10 +166,13 @@ fn launch<T: CudaScalar>(
     let Some(kernel) = get_or_create_kernel(&key, &kernel_source, operation) else {
         return false;
     };
-    let mut gpu_layouts: Vec<_> = layouts
+    let Ok(mut gpu_layouts) = layouts
         .iter()
-        .map(|layout| crate::kernels::GpuLayoutInfo::from_layout(layout))
-        .collect();
+        .map(|layout| crate::kernels::GpuLayoutInfo::try_from(*layout))
+        .collect::<Result<Vec<_>, _>>()
+    else {
+        return false;
+    };
     let mut kernel_size = kernel_size as u32;
     let mut stride = stride as u32;
     let mut padding = padding as u32;

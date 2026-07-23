@@ -105,9 +105,15 @@ extern "C" __global__ void matmul_kernel(
         return false;
     };
 
-    let gpu_a_layout = GpuLayoutInfo::from_layout(a_layout);
-    let gpu_b_layout = GpuLayoutInfo::from_layout(b_layout);
-    let gpu_c_layout = GpuLayoutInfo::from_layout(c_layout);
+    let Ok(gpu_a_layout) = GpuLayoutInfo::try_from(a_layout) else {
+        return false;
+    };
+    let Ok(gpu_b_layout) = GpuLayoutInfo::try_from(b_layout) else {
+        return false;
+    };
+    let Ok(gpu_c_layout) = GpuLayoutInfo::try_from(c_layout) else {
+        return false;
+    };
 
     let mut a_ptr = a.cu_deviceptr();
     let mut b_ptr = b.cu_deviceptr();

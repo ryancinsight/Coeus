@@ -4,6 +4,12 @@
 
 ### Changed
 
+- [major] Makes the CUDA layout descriptor crate-private and replaces its
+  truncating conversion with one checked `TryFrom<&Layout>` seam. Invalid
+  rank, shape/stride rank, offset, shape, and stride values now return the
+  existing dispatch failure result; descriptor serialization remains
+  allocation-free through `bytemuck::cast_slice`.
+
 - [patch] Validates CUDA convolution launch layouts, parameters, element
   counts, and grid sizes before narrowing them to the device `u32` ABI, with
   validation, forward, and per-dimensional backward launch families under

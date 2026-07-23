@@ -167,9 +167,15 @@ extern "C" __global__ void rmsprop_strided_kernel(
             return false;
         };
 
-        let gpu_param_layout = GpuLayoutInfo::from_layout(param_layout);
-        let gpu_grad_layout = GpuLayoutInfo::from_layout(grad_layout);
-        let gpu_v_layout = GpuLayoutInfo::from_layout(v_layout);
+        let Ok(gpu_param_layout) = GpuLayoutInfo::try_from(param_layout) else {
+            return false;
+        };
+        let Ok(gpu_grad_layout) = GpuLayoutInfo::try_from(grad_layout) else {
+            return false;
+        };
+        let Ok(gpu_v_layout) = GpuLayoutInfo::try_from(v_layout) else {
+            return false;
+        };
 
         let mut lr_val = lr;
         let mut alpha_val = alpha;

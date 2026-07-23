@@ -51,50 +51,98 @@ use crate::storage::CudaStorage;
 use coeus_core::{ComputeBackend, Layout};
 use std::sync::OnceLock;
 
+/// Maximum rank representable by the CUDA layout descriptor.
+pub(crate) const CUDA_LAYOUT_MAX_DIMS: usize = 8;
+
+/// Failure while converting a host layout to the CUDA `u32` ABI.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub(crate) enum CudaLayoutError {
+    /// The layout has more dimensions than the CUDA descriptor can encode.
+    #[error("layout rank {0} exceeds the CUDA limit of {CUDA_LAYOUT_MAX_DIMS}")]
+    RankTooLarge(usize),
+    /// The layout shape and stride vectors have different lengths.
+    #[error("layout shape rank {shape} differs from stride rank {strides}")]
+    RankMismatch { shape: usize, strides: usize },
+    /// A layout value does not fit in the CUDA descriptor's `u32` field.
+    #[error("layout {field} value {value} exceeds the CUDA u32 ABI")]
+    ValueTooLarge {
+        /// Name of the descriptor field.
+        field: &'static str,
+        /// Host-side value that failed conversion.
+        value: usize,
+    },
+}
+
 /// GPU-side layout descriptor passed to CUDA kernels as a POD struct.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct GpuLayoutInfo {
+pub(crate) struct GpuLayoutInfo {
     /// Element offset into the underlying buffer.
-    pub offset: u32,
+    pub(crate) offset: u32,
     /// Number of dimensions in the layout.
-    pub ndim: u32,
+    pub(crate) ndim: u32,
     /// Per-dimension shape, padded to 8 entries.
-    pub shape: [u32; 8],
+    pub(crate) shape: [u32; CUDA_LAYOUT_MAX_DIMS],
     /// Per-dimension strides, padded to 8 entries.
-    pub strides: [u32; 8],
+    pub(crate) strides: [u32; CUDA_LAYOUT_MAX_DIMS],
 }
 
-impl GpuLayoutInfo {
-    /// Convert a CPU [`Layout`] into a GPU-compatible layout descriptor.
-    pub fn from_layout(layout: &Layout) -> Self {
-        let mut shape = [0u32; 8];
-        let mut strides = [0u32; 8];
-        let ndim = layout.ndim();
-        assert!(ndim <= 8, "CUDA backend supports up to 8 dimensions");
-        for i in 0..ndim {
-            shape[i] = layout.shape()[i] as u32;
-            strides[i] = layout.strides()[i] as u32;
+impl TryFrom<&Layout> for GpuLayoutInfo {
+    type Error = CudaLayoutError;
+
+    fn try_from(layout: &Layout) -> Result<Self, Self::Error> {
+        let shape = layout.shape();
+        let strides = layout.strides();
+        if shape.len() != strides.len() {
+            return Err(CudaLayoutError::RankMismatch {
+                shape: shape.len(),
+                strides: strides.len(),
+            });
         }
-        Self {
-            offset: layout.offset() as u32,
-            ndim: ndim as u32,
-            shape,
-            strides,
+        if shape.len() > CUDA_LAYOUT_MAX_DIMS {
+            return Err(CudaLayoutError::RankTooLarge(shape.len()));
         }
+
+        let mut gpu_shape = [0u32; CUDA_LAYOUT_MAX_DIMS];
+        let mut gpu_strides = [0u32; CUDA_LAYOUT_MAX_DIMS];
+        for ((gpu_shape, &shape), (gpu_stride, &stride)) in gpu_shape
+            .iter_mut()
+            .zip(shape)
+            .zip(gpu_strides.iter_mut().zip(strides))
+        {
+            *gpu_shape = u32::try_from(shape).map_err(|_| CudaLayoutError::ValueTooLarge {
+                field: "shape",
+                value: shape,
+            })?;
+            *gpu_stride = u32::try_from(stride).map_err(|_| CudaLayoutError::ValueTooLarge {
+                field: "stride",
+                value: stride,
+            })?;
+        }
+
+        Ok(Self {
+            offset: u32::try_from(layout.offset()).map_err(|_| CudaLayoutError::ValueTooLarge {
+                field: "offset",
+                value: layout.offset(),
+            })?,
+            ndim: u32::try_from(shape.len()).map_err(|_| CudaLayoutError::ValueTooLarge {
+                field: "rank",
+                value: shape.len(),
+            })?,
+            shape: gpu_shape,
+            strides: gpu_strides,
+        })
     }
 }
 
 /// Create a device buffer containing the serialized GPU layout descriptor.
-pub fn create_layout_buffer(layout: &Layout) -> CudaStorage<u32> {
-    let gpu_layout = GpuLayoutInfo::from_layout(layout);
-    let size_u32 = std::mem::size_of::<GpuLayoutInfo>() / 4;
+pub(crate) fn create_layout_buffer(layout: &Layout) -> Result<CudaStorage<u32>, CudaLayoutError> {
+    let gpu_layout = GpuLayoutInfo::try_from(layout)?;
+    let words = bytemuck::cast_slice(std::slice::from_ref(&gpu_layout));
+    let size_u32 = words.len();
     let mut storage = CudaStorage::<u32>::new(size_u32);
-    let slice = unsafe {
-        std::slice::from_raw_parts(&gpu_layout as *const GpuLayoutInfo as *const u32, size_u32)
-    };
-    CudaBackend::new().copy_to_device(slice, &mut storage);
-    storage
+    CudaBackend::new().copy_to_device(words, &mut storage);
+    Ok(storage)
 }
 
 struct CudaModuleWrapper {
@@ -189,5 +237,62 @@ pub(crate) fn launch_1d(
             std::ptr::null_mut(),
         );
         res == 0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CudaLayoutError, GpuLayoutInfo, CUDA_LAYOUT_MAX_DIMS};
+    use coeus_core::Layout;
+
+    #[test]
+    fn converts_representable_layout_without_changing_values() {
+        let layout = Layout::from_shape_strides(vec![2, 3].into(), vec![3, 1].into(), 4);
+
+        let gpu_layout = GpuLayoutInfo::try_from(&layout).expect("representable layout");
+
+        assert_eq!(gpu_layout.offset, 4);
+        assert_eq!(gpu_layout.ndim, 2);
+        assert_eq!(&gpu_layout.shape[..2], &[2, 3]);
+        assert_eq!(&gpu_layout.strides[..2], &[3, 1]);
+    }
+
+    #[test]
+    fn rejects_layouts_with_unsupported_rank() {
+        let layout = Layout::new(vec![1; CUDA_LAYOUT_MAX_DIMS + 1].into());
+
+        assert!(matches!(
+            GpuLayoutInfo::try_from(&layout),
+            Err(CudaLayoutError::RankTooLarge(rank))
+                if rank == CUDA_LAYOUT_MAX_DIMS + 1
+        ));
+    }
+
+    #[test]
+    fn rejects_layouts_with_mismatched_shape_and_stride_rank() {
+        let layout = Layout::from_shape_strides(vec![2, 3].into(), vec![3].into(), 0);
+
+        assert!(matches!(
+            GpuLayoutInfo::try_from(&layout),
+            Err(CudaLayoutError::RankMismatch {
+                shape: 2,
+                strides: 1,
+            })
+        ));
+    }
+
+    #[test]
+    fn rejects_layout_values_outside_the_cuda_abi() {
+        let oversized = usize::try_from(u64::from(u32::MAX) + 1)
+            .expect("CUDA ABI boundary test requires a 64-bit host");
+        let layout = Layout::from_shape_strides(vec![1].into(), vec![1].into(), oversized);
+
+        assert!(matches!(
+            GpuLayoutInfo::try_from(&layout),
+            Err(CudaLayoutError::ValueTooLarge {
+                field: "offset",
+                value,
+            }) if value == oversized
+        ));
     }
 }

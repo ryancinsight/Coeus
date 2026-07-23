@@ -1,5 +1,26 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA layout ABI boundary [major] [arch]
+- [x] Replace the public truncating `GpuLayoutInfo` conversion with one
+      crate-private `TryFrom<&Layout>` seam that rejects rank mismatch, rank
+      overflow, and values outside the CUDA `u32` ABI.
+- [x] Serialize the `Pod` descriptor with `bytemuck::cast_slice` and migrate
+      every CUDA layout consumer without retaining a compatibility wrapper.
+- [x] Replace forward convolution shape products with one checked element
+      count seam and retain native dispatch plus the established failure
+      result.
+- [x] Add boundary tests and the co-located ADR; verify format, diff,
+      feature-enabled check, warning-denied Clippy, and default Nextest.
+
+Evidence: feature-enabled package check and warning-denied Clippy pass. The
+boundary tests compile and cover representable layouts, unsupported rank,
+shape/stride rank mismatch, and an offset above `u32::MAX`. Default package
+Nextest passes 3/3 with zero skipped in 0.053 seconds. CUDA-feature Nextest
+remains blocked before execution because the Windows GNU linker cannot find
+`-lcuda` in `/usr/local/cuda-11.3/lib64/`. `cargo semver-checks` against the
+pre-change `HEAD` reports the two intentional removed public items and
+classifies the change as major.
+
 ## CUDA convolution launch-boundary validation [patch]
 - [x] Reject convolution layouts, stride/padding/dilation values, element
       counts, channel counts, and derived grid sizes that cannot be represented

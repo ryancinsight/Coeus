@@ -1,5 +1,24 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-003 — Enforce shared CUDA layout ABI [major] [arch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/kernels` layout consumers and
+  `coeus-cuda/src/backend/ops/conv.rs`.
+- Outcome: the crate-private `GpuLayoutInfo` seam now uses one checked
+  `TryFrom<&Layout>` conversion for rank, offset, shape, and stride values;
+  all CUDA callers propagate conversion failure through their existing
+  dispatch result. `bytemuck::cast_slice` replaces the raw serializer cast,
+  and forward convolution output counts use checked multiplication.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped in 0.053 seconds.
+  Boundary tests compile for valid, rank, mismatch, and overflow cases.
+  `cargo semver-checks` against the pre-change `HEAD` reports the two
+  intentional removed public items and classifies the change as major.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed. Remaining unchecked CUDA launch conversions in
+  non-convolution kernel families stay recorded in `docs/gap_audit.md`.
+
 ## ATLAS-CUDA-SAFETY-002 — Validate convolution launch ABI values [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/launch_conv*` only.

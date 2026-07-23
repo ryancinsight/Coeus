@@ -96,8 +96,12 @@ extern "C" __global__ void reduce_kernel(
         return false;
     };
 
-    let gpu_a_layout = crate::kernels::GpuLayoutInfo::from_layout(a_layout);
-    let gpu_c_layout = crate::kernels::GpuLayoutInfo::from_layout(c_layout);
+    let Ok(gpu_a_layout) = crate::kernels::GpuLayoutInfo::try_from(a_layout) else {
+        return false;
+    };
+    let Ok(gpu_c_layout) = crate::kernels::GpuLayoutInfo::try_from(c_layout) else {
+        return false;
+    };
 
     let mut a_ptr = a.cu_deviceptr();
     let mut c_ptr = c.cu_deviceptr();
@@ -176,10 +180,16 @@ pub fn dispatch_fused_reduce<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     // 4. Create layouts buffer
     let mut layouts_gpu = Vec::with_capacity(num_inputs + 1);
     for input in &inputs {
-        layouts_gpu.push(crate::kernels::GpuLayoutInfo::from_layout(input.layout()));
+        let Ok(layout) = crate::kernels::GpuLayoutInfo::try_from(input.layout()) else {
+            return false;
+        };
+        layouts_gpu.push(layout);
     }
     // We add c_layout as the last one to decode output coordinates
-    layouts_gpu.push(crate::kernels::GpuLayoutInfo::from_layout(c_layout));
+    let Ok(c_layout_gpu) = crate::kernels::GpuLayoutInfo::try_from(c_layout) else {
+        return false;
+    };
+    layouts_gpu.push(c_layout_gpu);
 
     let size_u32 = layouts_gpu.len() * (std::mem::size_of::<crate::kernels::GpuLayoutInfo>() / 4);
     let mut layout_buf = CudaStorage::<u32>::new(size_u32);

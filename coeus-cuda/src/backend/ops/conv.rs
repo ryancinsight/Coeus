@@ -5,6 +5,14 @@ use crate::kernels;
 use crate::storage::CudaStorage;
 use coeus_core::{ComputeBackend, Layout, Storage};
 
+fn checked_numel(layout: &Layout) -> Option<usize> {
+    layout
+        .shape()
+        .iter()
+        .copied()
+        .try_fold(1usize, |numel, dimension| numel.checked_mul(dimension))
+}
+
 impl CudaBackend {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn cuda_conv1d<T: CudaScalar>(
@@ -20,29 +28,36 @@ impl CudaBackend {
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
     ) {
-        if get_cuda_context().is_some()
+        let launched = if get_cuda_context().is_some()
             && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
         {
-            let input_f32 = cast_storage::<T, f32>(input);
-            let weight_f32 = cast_storage::<T, f32>(weight);
-            let bias_f32 = bias.map(|b| cast_storage::<T, f32>(b));
-            let mut output_f32 = cast_storage_mut::<T, f32>(output);
-            let out_numel = output_layout.shape().iter().product::<usize>();
-            if kernels::launch_conv1d(
-                &input_f32,
-                &weight_f32,
-                bias_f32.as_ref(),
-                &mut output_f32,
-                input_layout,
-                weight_layout,
-                output_layout,
-                stride,
-                padding,
-                dilation,
-                out_numel,
-            ) {
-                return;
+            match checked_numel(output_layout) {
+                Some(out_numel) => {
+                    let input_f32 = cast_storage::<T, f32>(input);
+                    let weight_f32 = cast_storage::<T, f32>(weight);
+                    let bias_f32 = bias.map(|b| cast_storage::<T, f32>(b));
+                    let mut output_f32 = cast_storage_mut::<T, f32>(output);
+                    kernels::launch_conv1d(
+                        &input_f32,
+                        &weight_f32,
+                        bias_f32.as_ref(),
+                        &mut output_f32,
+                        input_layout,
+                        weight_layout,
+                        output_layout,
+                        stride,
+                        padding,
+                        dilation,
+                        out_numel,
+                    )
+                }
+                None => false,
             }
+        } else {
+            false
+        };
+        if launched {
+            return;
         }
         self.fallback_conv1d(
             input,
@@ -148,29 +163,36 @@ impl CudaBackend {
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
     ) {
-        if get_cuda_context().is_some()
+        let launched = if get_cuda_context().is_some()
             && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
         {
-            let input_f32 = cast_storage::<T, f32>(input);
-            let weight_f32 = cast_storage::<T, f32>(weight);
-            let bias_f32 = bias.map(|b| cast_storage::<T, f32>(b));
-            let mut output_f32 = cast_storage_mut::<T, f32>(output);
-            let out_numel = output_layout.shape().iter().product::<usize>();
-            if kernels::launch_conv2d(
-                &input_f32,
-                &weight_f32,
-                bias_f32.as_ref(),
-                &mut output_f32,
-                input_layout,
-                weight_layout,
-                output_layout,
-                stride,
-                padding,
-                dilation,
-                out_numel,
-            ) {
-                return;
+            match checked_numel(output_layout) {
+                Some(out_numel) => {
+                    let input_f32 = cast_storage::<T, f32>(input);
+                    let weight_f32 = cast_storage::<T, f32>(weight);
+                    let bias_f32 = bias.map(|b| cast_storage::<T, f32>(b));
+                    let mut output_f32 = cast_storage_mut::<T, f32>(output);
+                    kernels::launch_conv2d(
+                        &input_f32,
+                        &weight_f32,
+                        bias_f32.as_ref(),
+                        &mut output_f32,
+                        input_layout,
+                        weight_layout,
+                        output_layout,
+                        stride,
+                        padding,
+                        dilation,
+                        out_numel,
+                    )
+                }
+                None => false,
             }
+        } else {
+            false
+        };
+        if launched {
+            return;
         }
         self.fallback_conv2d(
             input,
@@ -276,29 +298,36 @@ impl CudaBackend {
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
     ) {
-        if get_cuda_context().is_some()
+        let launched = if get_cuda_context().is_some()
             && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
         {
-            let input_f32 = cast_storage::<T, f32>(input);
-            let weight_f32 = cast_storage::<T, f32>(weight);
-            let bias_f32 = bias.map(|b| cast_storage::<T, f32>(b));
-            let mut output_f32 = cast_storage_mut::<T, f32>(output);
-            let out_numel = output_layout.shape().iter().product::<usize>();
-            if kernels::launch_conv3d(
-                &input_f32,
-                &weight_f32,
-                bias_f32.as_ref(),
-                &mut output_f32,
-                input_layout,
-                weight_layout,
-                output_layout,
-                stride,
-                padding,
-                dilation,
-                out_numel,
-            ) {
-                return;
+            match checked_numel(output_layout) {
+                Some(out_numel) => {
+                    let input_f32 = cast_storage::<T, f32>(input);
+                    let weight_f32 = cast_storage::<T, f32>(weight);
+                    let bias_f32 = bias.map(|b| cast_storage::<T, f32>(b));
+                    let mut output_f32 = cast_storage_mut::<T, f32>(output);
+                    kernels::launch_conv3d(
+                        &input_f32,
+                        &weight_f32,
+                        bias_f32.as_ref(),
+                        &mut output_f32,
+                        input_layout,
+                        weight_layout,
+                        output_layout,
+                        stride,
+                        padding,
+                        dilation,
+                        out_numel,
+                    )
+                }
+                None => false,
             }
+        } else {
+            false
+        };
+        if launched {
+            return;
         }
         self.fallback_conv3d(
             input,

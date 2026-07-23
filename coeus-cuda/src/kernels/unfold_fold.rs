@@ -228,8 +228,12 @@ pub fn dispatch_unfold1d<T: CudaScalar>(
     };
     let mut input_ptr = input.cu_deviceptr();
     let mut output_ptr = output.cu_deviceptr();
-    let input_gpu = GpuLayoutInfo::from_layout(input_layout);
-    let output_gpu = GpuLayoutInfo::from_layout(output_layout);
+    let Ok(input_gpu) = GpuLayoutInfo::try_from(input_layout) else {
+        return false;
+    };
+    let Ok(output_gpu) = GpuLayoutInfo::try_from(output_layout) else {
+        return false;
+    };
     let mut kernel_size = scalar(kernel_size, "kernel_size");
     let mut stride = scalar(stride, "stride");
     let mut padding = scalar(padding, "padding");
@@ -292,8 +296,12 @@ fn dispatch_unfold_or_fold1d<T: CudaScalar>(
     };
     let mut input_ptr = input.cu_deviceptr();
     let mut output_ptr = output.cu_deviceptr();
-    let input_gpu = GpuLayoutInfo::from_layout(input_layout);
-    let output_gpu = GpuLayoutInfo::from_layout(output_layout);
+    let Ok(input_gpu) = GpuLayoutInfo::try_from(input_layout) else {
+        return false;
+    };
+    let Ok(output_gpu) = GpuLayoutInfo::try_from(output_layout) else {
+        return false;
+    };
     let mut kernel_size = scalar(kernel_size, "kernel_size");
     let mut stride = scalar(stride, "stride");
     let mut padding = scalar(padding, "padding");
@@ -415,8 +423,12 @@ fn dispatch_unfold_or_fold2d<T: CudaScalar>(
     };
     let mut input_ptr = input.cu_deviceptr();
     let mut output_ptr = output.cu_deviceptr();
-    let input_gpu = GpuLayoutInfo::from_layout(input_layout);
-    let output_gpu = GpuLayoutInfo::from_layout(output_layout);
+    let Ok(input_gpu) = GpuLayoutInfo::try_from(input_layout) else {
+        return false;
+    };
+    let Ok(output_gpu) = GpuLayoutInfo::try_from(output_layout) else {
+        return false;
+    };
     let mut values = [
         kernel_h, kernel_w, stride_h, stride_w, padding_h, padding_w, dilation_h, dilation_w, width,
     ]

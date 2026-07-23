@@ -124,8 +124,12 @@ extern "C" __global__ void max_pool3d_kernel(
         return false;
     };
 
-    let gpu_input_layout = crate::kernels::GpuLayoutInfo::from_layout(input_layout);
-    let gpu_output_layout = crate::kernels::GpuLayoutInfo::from_layout(output_layout);
+    let Ok(gpu_input_layout) = crate::kernels::GpuLayoutInfo::try_from(input_layout) else {
+        return false;
+    };
+    let Ok(gpu_output_layout) = crate::kernels::GpuLayoutInfo::try_from(output_layout) else {
+        return false;
+    };
 
     let out_numel = output_layout.shape().iter().product::<usize>();
     let mut input_ptr = input.cu_deviceptr();
@@ -328,9 +332,15 @@ extern "C" __global__ void max_pool3d_backward_kernel(
         return false;
     };
 
-    let gpu_go_layout = crate::kernels::GpuLayoutInfo::from_layout(grad_out_layout);
-    let gpu_inp_layout = crate::kernels::GpuLayoutInfo::from_layout(input_layout);
-    let gpu_gi_layout = crate::kernels::GpuLayoutInfo::from_layout(grad_input_layout);
+    let Ok(gpu_go_layout) = crate::kernels::GpuLayoutInfo::try_from(grad_out_layout) else {
+        return false;
+    };
+    let Ok(gpu_inp_layout) = crate::kernels::GpuLayoutInfo::try_from(input_layout) else {
+        return false;
+    };
+    let Ok(gpu_gi_layout) = crate::kernels::GpuLayoutInfo::try_from(grad_input_layout) else {
+        return false;
+    };
 
     let in_numel = grad_input_layout.shape().iter().product::<usize>();
     let mut go_ptr = grad_out.cu_deviceptr();

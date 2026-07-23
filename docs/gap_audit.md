@@ -1,22 +1,21 @@
 # Coeus Gap Audit
 
-## ATLAS-CUDA-SAFETY-002: Shared CUDA layout narrowing remains
+## ATLAS-CUDA-SAFETY-004: Remaining CUDA launch-parameter narrowing
 
-**Location**: `coeus-cuda/src/kernels/mod.rs` and
-`coeus-cuda/src/backend/ops/conv.rs`.
-**Gap**: the shared GPU-layout serializer still narrows layout dimensions,
-strides, offsets, and rank with unchecked casts and an input-dependent rank
-assertion. The CUDA backend's forward convolution callers also compute output
-element counts with an unchecked shape product before entering the validated
-launcher. `ATLAS-CUDA-SAFETY-002` closes the launcher's own ABI boundary.
-**Resolution target**: introduce one checked, allocation-free conversion
-boundary for `GpuLayoutInfo` and one checked layout element-count seam, with
-typed failure propagation through the CUDA dispatch boundary. Preserve the
-native kernel data path and avoid host copies.
-**Evidence target**: feature-enabled check, warning-denied Clippy, CUDA
-hardware differential tests where available, and no-device value-semantic
-regressions for rejected rank, overflow, and maximum-representable values.
-**Status**: open; the current environment cannot execute the CUDA-feature
+**Location**: `coeus-cuda/src/kernels` non-convolution launchers and
+`coeus-cuda/src/backend/ops/conv_transpose.rs`.
+**Gap**: the shared `GpuLayoutInfo` conversion and convolution forward output
+count seam are closed by `ATLAS-CUDA-SAFETY-003`, but other CUDA kernel
+families still narrow launch dimensions and derived counts with unchecked
+casts or products. These are separate operation-family boundaries and were
+not silently folded into the layout migration.
+**Resolution target**: migrate each operation family to checked, allocation-
+free `u32` conversion and checked element counts, deleting local narrowing
+paths while preserving native device dispatch and explicit failure results.
+**Evidence target**: per-family feature-enabled check and Clippy, value-
+semantic no-device regressions, and CUDA differential tests when the linker
+and device environment are available.
+**Status**: open; the current environment cannot execute CUDA-feature
 Nextest because its Windows GNU linker cannot resolve `-lcuda` from
 `/usr/local/cuda-11.3/lib64/`.
 

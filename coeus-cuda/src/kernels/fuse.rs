@@ -209,9 +209,15 @@ pub fn dispatch_fused<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     // 4. Create layouts buffer
     let mut layouts_gpu = Vec::with_capacity(num_inputs + 1);
     for input in &inputs {
-        layouts_gpu.push(GpuLayoutInfo::from_layout(input.layout()));
+        let Ok(layout) = GpuLayoutInfo::try_from(input.layout()) else {
+            return false;
+        };
+        layouts_gpu.push(layout);
     }
-    layouts_gpu.push(GpuLayoutInfo::from_layout(out_layout));
+    let Ok(out_layout_gpu) = GpuLayoutInfo::try_from(out_layout) else {
+        return false;
+    };
+    layouts_gpu.push(out_layout_gpu);
 
     let size_u32 = layouts_gpu.len() * (std::mem::size_of::<GpuLayoutInfo>() / 4);
     let mut layout_buf = CudaStorage::<u32>::new(size_u32);

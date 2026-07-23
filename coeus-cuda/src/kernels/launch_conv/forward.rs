@@ -45,9 +45,15 @@ pub fn launch_conv1d(
         return false;
     };
 
-    let in_layout_buf = create_layout_buffer(input_layout);
-    let w_layout_buf = create_layout_buffer(weight_layout);
-    let out_layout_buf = create_layout_buffer(output_layout);
+    let Ok(in_layout_buf) = create_layout_buffer(input_layout) else {
+        return false;
+    };
+    let Ok(w_layout_buf) = create_layout_buffer(weight_layout) else {
+        return false;
+    };
+    let Ok(out_layout_buf) = create_layout_buffer(output_layout) else {
+        return false;
+    };
 
     let mut in_ptr = input.cu_deviceptr();
     let mut w_ptr = weight.cu_deviceptr();
@@ -132,9 +138,15 @@ pub fn launch_conv2d(
         return false;
     };
 
-    let in_layout_buf = create_layout_buffer(input_layout);
-    let w_layout_buf = create_layout_buffer(weight_layout);
-    let out_layout_buf = create_layout_buffer(output_layout);
+    let Ok(in_layout_buf) = create_layout_buffer(input_layout) else {
+        return false;
+    };
+    let Ok(w_layout_buf) = create_layout_buffer(weight_layout) else {
+        return false;
+    };
+    let Ok(out_layout_buf) = create_layout_buffer(output_layout) else {
+        return false;
+    };
 
     let mut in_ptr = input.cu_deviceptr();
     let mut w_ptr = weight.cu_deviceptr();
@@ -219,9 +231,15 @@ pub fn launch_conv3d(
         return false;
     };
 
-    let in_layout_buf = create_layout_buffer(input_layout);
-    let w_layout_buf = create_layout_buffer(weight_layout);
-    let out_layout_buf = create_layout_buffer(output_layout);
+    let Ok(in_layout_buf) = create_layout_buffer(input_layout) else {
+        return false;
+    };
+    let Ok(w_layout_buf) = create_layout_buffer(weight_layout) else {
+        return false;
+    };
+    let Ok(out_layout_buf) = create_layout_buffer(output_layout) else {
+        return false;
+    };
 
     let mut in_ptr = input.cu_deviceptr();
     let mut w_ptr = weight.cu_deviceptr();

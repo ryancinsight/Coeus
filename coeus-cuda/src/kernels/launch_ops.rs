@@ -308,11 +308,16 @@ extern "C" __global__ void binary_strided_kernel(
         return false;
     };
 
-    let layouts = [
-        GpuLayoutInfo::from_layout(a_layout),
-        GpuLayoutInfo::from_layout(b_layout),
-        GpuLayoutInfo::from_layout(c_layout),
-    ];
+    let Ok(a_layout_gpu) = GpuLayoutInfo::try_from(a_layout) else {
+        return false;
+    };
+    let Ok(b_layout_gpu) = GpuLayoutInfo::try_from(b_layout) else {
+        return false;
+    };
+    let Ok(c_layout_gpu) = GpuLayoutInfo::try_from(c_layout) else {
+        return false;
+    };
+    let layouts = [a_layout_gpu, b_layout_gpu, c_layout_gpu];
     let layout_words = layouts.len() * (std::mem::size_of::<GpuLayoutInfo>() / 4);
     let mut layout_buf = CudaStorage::<u32>::new(layout_words);
     let layout_slice =
@@ -478,10 +483,13 @@ extern "C" __global__ void unary_strided_kernel(
         return false;
     };
 
-    let layouts = [
-        GpuLayoutInfo::from_layout(a_layout),
-        GpuLayoutInfo::from_layout(c_layout),
-    ];
+    let Ok(a_layout_gpu) = GpuLayoutInfo::try_from(a_layout) else {
+        return false;
+    };
+    let Ok(c_layout_gpu) = GpuLayoutInfo::try_from(c_layout) else {
+        return false;
+    };
+    let layouts = [a_layout_gpu, c_layout_gpu];
     let layout_words = layouts.len() * (std::mem::size_of::<GpuLayoutInfo>() / 4);
     let mut layout_buf = CudaStorage::<u32>::new(layout_words);
     let layout_slice =

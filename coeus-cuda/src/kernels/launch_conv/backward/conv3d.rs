@@ -51,7 +51,9 @@ pub fn launch_conv3d_backward(
         None => return false,
     };
 
-    let go_layout_buf = create_layout_buffer(grad_out_layout);
+    let Ok(go_layout_buf) = create_layout_buffer(grad_out_layout) else {
+        return false;
+    };
     let mut go_ptr = grad_out.cu_deviceptr();
     let mut gol_ptr = go_layout_buf.cu_deviceptr();
 
@@ -59,8 +61,12 @@ pub fn launch_conv3d_backward(
         let Some(func) = get_cuda_function("conv3d_grad_input_f32") else {
             return false;
         };
-        let w_layout_buf = create_layout_buffer(weight_layout);
-        let gi_layout_buf = create_layout_buffer(grad_input_layout);
+        let Ok(w_layout_buf) = create_layout_buffer(weight_layout) else {
+            return false;
+        };
+        let Ok(gi_layout_buf) = create_layout_buffer(grad_input_layout) else {
+            return false;
+        };
 
         let mut w_ptr = weight.cu_deviceptr();
         let mut gi_ptr = gi.cu_deviceptr();
@@ -113,8 +119,12 @@ pub fn launch_conv3d_backward(
         let Some(func) = get_cuda_function("conv3d_grad_weight_f32") else {
             return false;
         };
-        let in_layout_buf = create_layout_buffer(input_layout);
-        let gw_layout_buf = create_layout_buffer(grad_weight_layout);
+        let Ok(in_layout_buf) = create_layout_buffer(input_layout) else {
+            return false;
+        };
+        let Ok(gw_layout_buf) = create_layout_buffer(grad_weight_layout) else {
+            return false;
+        };
 
         let mut in_ptr = input.cu_deviceptr();
         let mut gw_ptr = gw.cu_deviceptr();
