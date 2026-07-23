@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-tensor integration harness [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-tensor/tests/**` only.
+- Outcome: the 13 flat Rust integration-test files now sit under six
+  operation-family directories behind one `tensor_ops` target. The leaf test
+  bodies and value-semantic/property assertions are unchanged; no production
+  tensor code moved.
+- Evidence: locked Cargo metadata now reports one `coeus-tensor` integration
+  target; the source census remains 53 annotated integration tests and the
+  exact package Nextest run passes 58/58 with zero skipped. Warning-denied
+  Clippy, package check, format, and diff checks pass.
+- Limit: this proves test-topology and source-census preservation, not a
+  complete workspace debug-tree size reduction.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness [patch] — done
 
 - Owner: Codex `/root`; scope: three standalone files under

@@ -3,7 +3,7 @@
 ## Backend-generic host extraction [minor]
 - [x] Materialize tensor views through the selected backend's host-copy seam.
 - [x] Preserve logical row-major values for offset and strided layouts.
-- [x] Verify 57/57 tensor tests and warning-denied Clippy.
+- [x] Verify 58/58 tensor tests and warning-denied Clippy.
 
 ## Coeus-ops hierarchical integration harness [patch]
 - [x] Move the 36 flat `coeus-ops` integration-test files into ten
@@ -46,6 +46,21 @@ unchanged.
 Evidence: locked Cargo metadata reports `autograd_ops` and `autograd_tests`;
 the exact package run reports 94/94 tests with 0 skipped. Production autograd
 code and all moved test bodies are unchanged.
+
+## Coeus-tensor hierarchical integration harness [patch]
+- [x] Move the 13 flat `coeus-tensor/tests/*.rs` leaf files into six
+      operation-family directories under `coeus-tensor/tests/tensor_ops/`.
+- [x] Add one `coeus-tensor/tests/tensor_ops.rs` integration target with
+      explicit backend, checkpoint, constructor, layout, operation, and
+      property manifests; preserve every leaf test body and assertion.
+- [x] Verify the target census reduced from 13 to 1 and the exact package
+      Nextest run passes 58/58 with warning-denied Clippy and package check.
+
+Evidence: locked Cargo metadata reports one `tensor_ops` integration target;
+the source census remains 53 annotated integration tests and the exact package
+run reports 58/58 tests with 0 skipped, including five library unit tests.
+Production tensor code is unchanged. This is a test topology and build-artifact
+change only; it does not claim a whole-workspace debug-tree size reduction.
 
 This document tracks the high-level roadmap and feature validation checklist for the Coeus tensor library. For detailed task lists, sprint archives, and progress tracking, see:
 - [docs/checklist.md](file:///d:/coeus/docs/checklist.md)
