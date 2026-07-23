@@ -36,6 +36,23 @@ bodies remain unchanged. This is a test topology and build-artifact change
 only; it does not claim a production NN speedup, memory reduction, or
 whole-workspace debug-tree size delta.
 
+## Coeus-NN tensor parity-family split [patch]
+- [x] Split the 1,317-line `tensor/nn_parity.rs` leaf into a manifest plus
+      attention, convolution, embedding, linear/normalization, losses, and
+      regularization operation-family modules.
+- [x] Preserve every live parity test, expected value, tolerance, and
+      CPU/autograd assertion; production NN code and fixtures remain unchanged.
+- [x] Keep the new operation-family leaves cohesive and verify format, check,
+      warning-denied Clippy, diff checks, and the exact package Nextest gate.
+
+Evidence: the pre/post source-name census remains 11 unique parity test
+functions; exact package Nextest passes 268/268 with zero skipped in 2.816
+seconds. The largest new leaf is `attention.rs` at 664 lines; the other five
+leaves are below 250 lines. Package check, warning-denied Clippy, format, and
+diff checks pass. This is a test-topology and maintainability change only; it
+does not claim a production-kernel speedup, memory reduction, or whole-
+workspace debug-tree delta.
+
 ## Coeus-autograd hierarchical integration harness [patch]
 - [x] Move `grid_sample_3d.rs`, `linear_interpolation.rs`, and
       `selective_scan.rs` into three operation-family directories under
