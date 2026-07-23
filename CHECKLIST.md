@@ -5,6 +5,21 @@
 - [x] Preserve logical row-major values for offset and strided layouts.
 - [x] Verify 57/57 tensor tests and warning-denied Clippy.
 
+## Coeus-ops hierarchical integration harness [patch]
+- [x] Move the 36 flat `coeus-ops` integration-test files into ten
+      operation-family directories under `coeus-ops/tests/ops/`.
+- [x] Add one `coeus-ops/tests/ops.rs` integration target with explicit module
+      manifests; preserve every leaf test body and assertion.
+- [x] Verify the target census reduced from 36 integration binaries to 1,
+      the harness exposes 87 integration tests, and package Nextest passes
+      196/196 with warning-denied Clippy.
+
+Evidence: `cargo metadata --locked --no-deps` reports one `coeus-ops` test
+target (`ops`); `cargo nextest list --locked -p coeus-ops --all-features`
+reports 87 `ops` tests; the exact package run passes 196/196. This is a test
+topology and build-artifact change only; production operation code is
+unchanged.
+
 This document tracks the high-level roadmap and feature validation checklist for the Coeus tensor library. For detailed task lists, sprint archives, and progress tracking, see:
 - [docs/checklist.md](file:///d:/coeus/docs/checklist.md)
 - [docs/backlog.md](file:///d:/coeus/docs/backlog.md)

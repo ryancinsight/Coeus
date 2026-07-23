@@ -1,5 +1,21 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-ops integration harness [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-ops/tests/**` only.
+- Outcome: the 36 flat Rust integration-test binaries are now one `ops`
+  integration target with ten operation-family manifests and nested leaf
+  modules. The source files retain their test bodies and value-semantic
+  assertions; no production code or Cargo dependency changes were made.
+- Evidence: the pre-change `HEAD` tree contained 36 test files; locked Cargo
+  metadata now reports one `coeus-ops` integration target; `cargo nextest
+  list --locked -p coeus-ops --all-features` reports 87 harness tests; the
+  exact package run passes 196/196; warning-denied Clippy and package check
+  pass.
+- Limit: this slice proves target-count and test-count preservation. It does
+  not claim a whole-workspace debug-tree size reduction; that requires a
+  clean before/after workspace measurement in a later bounded slice.
+
 ## MS-446 provider identity and TCP teardown [patch] — done
 
 - Owner: Codex `/root`; scope: workspace provider declarations and lockfile,
