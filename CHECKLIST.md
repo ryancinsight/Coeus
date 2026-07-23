@@ -34,6 +34,19 @@ The moved leaf tests contribute 218 cases, the existing `nn_tests` target 49,
 and one library unit test completes the package total. Production NN code is
 unchanged.
 
+## Coeus-autograd hierarchical integration harness [patch]
+- [x] Move `grid_sample_3d.rs`, `linear_interpolation.rs`, and
+      `selective_scan.rs` into three operation-family directories under
+      `coeus-autograd/tests/autograd_ops/`.
+- [x] Add one `coeus-autograd/tests/autograd_ops.rs` target while preserving
+      the existing `autograd_tests.rs` target and `tests/autograd/` tree.
+- [x] Verify the target census reduced from 4 to 2 and the exact package
+      Nextest run passes 94/94 with warning-denied Clippy and package check.
+
+Evidence: locked Cargo metadata reports `autograd_ops` and `autograd_tests`;
+the exact package run reports 94/94 tests with 0 skipped. Production autograd
+code and all moved test bodies are unchanged.
+
 This document tracks the high-level roadmap and feature validation checklist for the Coeus tensor library. For detailed task lists, sprint archives, and progress tracking, see:
 - [docs/checklist.md](file:///d:/coeus/docs/checklist.md)
 - [docs/backlog.md](file:///d:/coeus/docs/backlog.md)

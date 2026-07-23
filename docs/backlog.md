@@ -1,5 +1,20 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness [patch] — done
+
+- Owner: Codex `/root`; scope: three standalone files under
+  `coeus-autograd/tests/**`.
+- Outcome: `grid_sample_3d`, `linear_interpolation`, and `selective_scan` now
+  share one `autograd_ops` target with nested operation-family manifests. The
+  existing `autograd_tests` target and `tests/autograd/` module tree remain
+  unchanged; no production autograd code moved.
+- Evidence: the pre-change tree contained four integration targets; locked
+  metadata now reports two. The exact package Nextest run passes 94/94 with
+  zero skipped; warning-denied Clippy, package check, format, and diff checks
+  pass.
+- Limit: this proves target-count and test-count preservation, not a complete
+  workspace debug-tree size reduction.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN integration harness [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-nn/tests` top-level leaf files only.
