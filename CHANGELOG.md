@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Splits WGPU backend trait implementations into operation-family
+  leaves under `backend/ops/impls/`, keeping shared routing helpers and
+  elementwise dispatch in the manifest.
+
 - [patch] Moves the Coeus-NN attention parity numerical oracle into a nested
   support leaf, keeping the operational test at 182 lines and preserving all
   11 parity assertions and values.

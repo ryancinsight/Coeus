@@ -1,5 +1,21 @@
 # Coeus Development Roadmap Checklist
 
+## WGPU backend operation impl hierarchy [patch]
+- [x] Move the seven non-elementwise WGPU trait impl blocks out of the
+      1,357-line operation manifest into `backend/ops/impls/` leaves for
+      matmul, reduction, convolution, pooling, attention, optimizer, and
+      unfold/fold.
+- [x] Retain shared routing helpers and elementwise dispatch in the manifest;
+      do not duplicate or alter provider dispatch logic.
+- [x] Keep the manifest at 450 lines and every impl leaf below 315 lines;
+      verify format, diff, package check, warning-denied Clippy, metadata, and
+      exact package Nextest.
+
+Evidence: locked metadata remains unchanged; package check and warning-denied
+Clippy pass. Exact WGPU package Nextest passes 89/89 with zero skipped in
+90.167 seconds. This is a module-topology and maintainability change only; no
+runtime, memory, or performance delta is claimed.
+
 ## Coeus-NN attention parity oracle split [patch]
 - [x] Move the large attention parity oracle out of the operation test leaf
       into `tensor/nn_parity/attention/expected.rs`.

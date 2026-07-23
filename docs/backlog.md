@@ -1,5 +1,18 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-003 — WGPU operation impl hierarchy [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-wgpu/src/backend/ops/` only.
+- Outcome: the shared WGPU operation manifest is 450 lines; seven trait impl
+  blocks now live under `backend/ops/impls/`, with operation-family leaves from
+  20 to 310 lines. Shared routing helpers and elementwise dispatch remain in
+  the manifest as their canonical home.
+- Evidence: package check, warning-denied Clippy, format, diff, and locked
+  metadata pass. Exact package Nextest passes 89/89 with zero skipped in
+  90.167 seconds; operation behavior and test count are unchanged.
+- Limit: this is a module-topology and maintainability change only; no
+  runtime, memory, or performance delta is claimed.
+
 ## ATLAS-BUILD-STRUCTURE-002 — Coeus-NN attention parity oracle split [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-nn/tests/nn_ops/tensor/nn_parity/attention*`.
