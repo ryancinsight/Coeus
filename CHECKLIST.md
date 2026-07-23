@@ -152,6 +152,24 @@ largest new parity leaf is `elementwise.rs` at 287 lines; all seven leaves are
 below 500 lines. Package check and warning-denied Clippy pass after removing two
 unused imports exposed by the split.
 
+## Coeus-Leto hierarchical integration harness [patch]
+- [x] Move `contract.rs` and `sparse_dispatch.rs` under one
+      `coeus-leto/tests/leto_ops.rs` harness with contract and sparse-dispatch
+      operation-family modules.
+- [x] Preserve all 28 listed integration tests and their cross-provider
+      contract assertions; production APIs, fixtures, and tolerances remain
+      unchanged.
+- [x] Verify locked metadata reports one integration target and exact package
+      Nextest preserves the full test count with warning-denied Clippy.
+
+Evidence: locked metadata reports one `leto_ops` integration target instead of
+two. The exact package Nextest run passes 28/28 with zero skipped in 1.064
+seconds. Package check, warning-denied Clippy, format, and diff checks pass.
+The live census corrected the prior 26-test tracking claim: `contract` contains
+26 tests and `sparse_dispatch` contains 2. This is a test topology and
+maintainability change only; it does not claim a production-kernel speedup,
+memory reduction, or whole-workspace debug-tree delta.
+
 This document tracks the high-level roadmap and feature validation checklist for the Coeus tensor library. For detailed task lists, sprint archives, and progress tracking, see:
 - [docs/checklist.md](file:///d:/coeus/docs/checklist.md)
 - [docs/backlog.md](file:///d:/coeus/docs/backlog.md)

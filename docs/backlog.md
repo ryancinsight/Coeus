@@ -1,5 +1,20 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-Leto integration harness [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-leto/tests/**` target topology only.
+- Outcome: the two flat integration targets now share one `leto_ops` harness;
+  contract and sparse-dispatch tests live under explicit operation-family
+  modules. Production APIs, fixtures, tolerances, and assertions are unchanged.
+- Evidence: locked Cargo metadata reports one `leto_ops` integration target;
+  exact package Nextest passes 28/28 with zero skipped in 1.064 seconds.
+  Package check, warning-denied Clippy, format, and diff checks pass. The live
+  census is 26 contract tests plus 2 sparse-dispatch tests; this corrects the
+  prior 26-test tracking claim.
+- Limit: this is a test-topology and maintainability change only; it does not
+  claim a production-kernel speedup, memory reduction, or whole-workspace
+  debug-tree delta.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-WGPU parity-family split [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity/**`.
