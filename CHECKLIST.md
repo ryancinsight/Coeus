@@ -127,6 +127,24 @@ seconds. All-features execution is not claimable on this host: the linker
 fails to find `/usr/local/cuda-11.3/lib64/libcuda`; this is an environment
 linker dependency, not a test assertion failure.
 
+## Coeus-CUDA parity-family split [patch]
+- [x] Split the live 1,672-line `coeus-cuda/tests/cuda/parity.rs` leaf into
+      seven operation-family modules under `tests/cuda/parity/`.
+- [x] Preserve all 29 parity test functions, shared CPU/CUDA oracle helpers,
+      production CUDA code, fixtures, and tolerance contracts.
+- [x] Verify format, default and CUDA-feature checks, warning-denied Clippy,
+      diff checks, and the default Nextest gate.
+
+Evidence: the pre/post source-name census remains 29 unique parity test
+functions; every new parity leaf is below 500 lines, with `convolution.rs` the
+largest at 365 lines. Default package Nextest passes 3/3 with zero skipped;
+default and `--features cuda` package Clippy pass with `-D warnings`. The
+feature-enabled Nextest target cannot link on this host because
+`x86_64-w64-mingw32-gcc` cannot find `-lcuda` while searching
+`/usr/local/cuda-11.3/lib64/`. This is an external CUDA linker limitation, so
+no live CUDA parity execution is claimed. The slice changes test topology and
+maintainability only; production kernels are unchanged.
+
 ## Coeus-Python hierarchical integration harness [patch]
 - [x] Move the six flat `coeus-python/tests/*.rs` leaf files into activation,
       distributed, NN, operation, optimizer, and autodiff directories under

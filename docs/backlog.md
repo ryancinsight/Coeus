@@ -1,5 +1,21 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-CUDA parity-family split [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/tests/cuda/parity*` only.
+- Outcome: the live 1,672-line multi-family parity leaf is now a shared oracle
+  manifest plus seven operation-family modules: convolution,
+  convolution-transpose, matmul, optimizer, pooling, reduction, and
+  unfold/fold. Production CUDA code, fixtures, and tolerances are unchanged.
+- Evidence: pre/post source-name census remains 29 unique parity test
+  functions; every new parity leaf is below 500 lines, with `convolution.rs`
+  the largest at 365 lines. Default package Nextest passes 3/3 with zero
+  skipped. Default and `--features cuda` package Clippy pass with `-D
+  warnings`; package checks and format/diff checks pass.
+- Limit: feature-enabled Nextest cannot link on this host because
+  `x86_64-w64-mingw32-gcc` cannot find `-lcuda` while searching
+  `/usr/local/cuda-11.3/lib64/`; no live CUDA parity execution is claimed.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN tensor parity-family split [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-nn/tests/nn_ops/tensor/nn_parity*` only.
