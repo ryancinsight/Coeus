@@ -266,7 +266,7 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
       `torch.nn.functional.huber_loss` and Burn's `HuberLossConfig`:
       `0.5·z²`/`δ·|z| - 0.5·δ²` forward, `z`/`sign(z)·δ` backward.
 - [x] [patch] **nn_loss_tests::test_pairwise_distance** oracle updated to
-      `max(s, eps)^(1/p)` analytical form (`coeus-nn/tests/nn_loss_tests.rs`).
+      `max(s, eps)^(1/p)` analytical form (`coeus-nn/tests/nn_ops/losses/nn_loss/`).
 - [x] [patch] **PyTorch parity fixtures** — cross_entropy labels now `list[int]`,
       kl_div uses `reduction='mean'` in `tests/test_pytorch_parity.py`.
 - [x] [patch] **JAX parity fixtures** — cosine_similarity + triplet_margin use
@@ -2466,7 +2466,7 @@ loss test (5 cases + backward); workspace at 626/626.
   einsum patterns (matmul, transpose, trace, dot, outer, mat-vec) and einsum3 triple
   chain on both backends. Integer inputs → bitwise-exact assertions.
   Evidence: `b9f0a28`, 4/4 passed.
-- [x] [patch] `coeus-nn/tests/nn_loss_tests.rs`: `test_cosine_embedding_loss` with
+- [x] [patch] `coeus-nn/tests/nn_ops/losses/nn_loss/`: `test_cosine_embedding_loss` with
   identical/orthogonal/opposite/batch/backward cases. All assertions value-semantic
   against closed-form definition with eps=1e-10.
   Evidence: `b9f0a28`, 1/1 passed.

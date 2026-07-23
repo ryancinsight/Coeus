@@ -1,5 +1,20 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN loss-contract family split [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-nn/tests/nn_ops/losses/nn_loss*`.
+- Outcome: the live 902-line loss-contract leaf is now a nested `nn_loss`
+  manifest with binary, classification, distance, and distribution families.
+  Production NN code, fixtures, tolerances, and sibling loss files are
+  unchanged.
+- Evidence: pre/post source census remains 24 unique test functions and all 24
+  extracted Rust function bodies compare equal. The largest new leaf is
+  `distance.rs` at 315 lines; every new leaf is below 500. Exact package
+  Nextest passes 268/268 with zero skipped in 2.270 seconds. Package check,
+  warning-denied Clippy, format, and diff checks pass.
+- Limit: this is a test-topology and maintainability change only; no
+  production-kernel, memory, or runtime-performance delta is claimed.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-CUDA parity-family split [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/tests/cuda/parity*` only.
@@ -2036,7 +2051,7 @@ value and failure-contract tests pass on Sequential and Moirai.
   6 einsum subscript patterns (matmul, transpose, trace, dot, outer, mat-vec) and
   2 einsum3 chain patterns against bitwise-exact analytical references (integer inputs).
   SequentialBackend + MoiraiBackend. Evidence: `b9f0a28`, 4/4 passed.
-- [x] [patch] `coeus-nn/tests/nn_loss_tests.rs`: added `test_cosine_embedding_loss`
+- [x] [patch] `coeus-nn/tests/nn_ops/losses/nn_loss/`: added `test_cosine_embedding_loss`
   with 5 cases (identical/orthogonal/opposite unit vectors, batch mean, backward
   existence). Analytical reference: y=1→1−cos_sim; y=−1→max(0,cos_sim−margin); mean.
   Evidence: `b9f0a28`, 1/1 passed.
