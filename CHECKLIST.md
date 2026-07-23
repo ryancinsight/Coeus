@@ -120,6 +120,22 @@ the exact all-features package run reports 75/75 tests with 0 skipped in
 test topology and build-artifact change only; it does not claim Python wheel or
 external-interpreter coverage.
 
+## Coeus-WGPU hierarchical integration harness [patch]
+- [x] Move the two flat `coeus-wgpu/tests/*.rs` integration targets under one
+      `tests/wgpu_ops.rs` harness with `fusion` and `backend/wgpu` ownership.
+- [x] Preserve the existing backend operation modules and every WGPU/fused
+      assertion; no production kernel, fixture, or tolerance changed.
+- [x] Verify locked metadata reports one integration target and the exact
+      package Nextest run remains 85/85 with zero skipped.
+
+Evidence: the moved source files are content-identical renames; locked Cargo
+metadata reports one `wgpu_ops` integration target instead of two. The exact
+package Nextest run passes 85/85 with zero skipped in 84.155 seconds, including
+the three unchanged library tests. Package check, warning-denied Clippy, format,
+and diff checks pass. The remaining `backend/wgpu/parity.rs` file is 808 lines
+and spans multiple operation families; its family split is a separate claimed
+follow-up, not part of this target-count relocation.
+
 This document tracks the high-level roadmap and feature validation checklist for the Coeus tensor library. For detailed task lists, sprint archives, and progress tracking, see:
 - [docs/checklist.md](file:///d:/coeus/docs/checklist.md)
 - [docs/backlog.md](file:///d:/coeus/docs/backlog.md)

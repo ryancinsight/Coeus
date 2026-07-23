@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-WGPU integration harness [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-wgpu/tests/**` target topology only.
+- Outcome: the two flat integration targets now share one `wgpu_ops` harness;
+  fused operations live under `fusion.rs`, and the existing WGPU operation
+  tree lives under `backend/wgpu/`. All moved source files are content-
+  identical renames; production kernels and test assertions are unchanged.
+- Evidence: locked Cargo metadata reports one `wgpu_ops` integration target;
+  the exact package Nextest run passes 85/85 with zero skipped in 84.155 seconds.
+  Package check, warning-denied Clippy, format, and diff checks pass.
+- Limit: the 808-line `backend/wgpu/parity.rs` multi-family leaf remains a
+  separate follow-up for operation-family splitting; this slice claims no
+  whole-workspace debug-tree size delta.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-Python integration harness [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-python/tests/*.rs` only.
