@@ -3114,7 +3114,8 @@ GPU backends over Hephaestus; dependency policy hardening.
   batched_matmul_leto_diff` passes.
 - [x] [patch] Routed `coeus_ops::cumsum` and `suffix_sum` through
   `coeus-leto` scan dispatch and added value-semantic coverage in
-  `coeus-leto/tests/contract.rs` plus `coeus-ops/tests/scan_leto_diff.rs`.
+  `coeus-leto/tests/leto_ops/contract/` plus
+  `coeus-ops/tests/scan_leto_diff.rs`.
   Evidence: focused scan tests pass.
 - [x] [patch] Added public CPU reduction differential coverage for
   `sum`/`mean`/`sum_axis`/`mean_axis`/`max_axis`/`min_axis` on

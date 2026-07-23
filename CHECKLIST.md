@@ -301,6 +301,24 @@ The live census corrected the prior 26-test tracking claim: `contract` contains
 maintainability change only; it does not claim a production-kernel speedup,
 memory reduction, or whole-workspace debug-tree delta.
 
+## Coeus-Leto cross-provider contract-family split [patch]
+- [x] Split the live 505-line `leto_ops/contract.rs` leaf into arithmetic,
+      reductions, matmul, layout, and accumulation modules under
+      `coeus-leto/tests/leto_ops/contract/`.
+- [x] Preserve all 26 contract tests, 26 `#[test]` attributes, shared layout
+      oracle behavior, and extracted Rust test function bodies.
+- [x] Keep one `leto_ops` integration target and verify package check, format,
+      diff checks, warning-denied Clippy, and exact package Nextest.
+
+Evidence: the pre/post source census remains 26 unique contract tests and all
+26 extracted Rust test function bodies compare equal. The largest new leaf is
+`layout.rs` at 197 lines; every new leaf is below 200 lines. Exact package
+Nextest passes 28/28 with 0 skipped in 0.325 seconds. Locked metadata reports
+one `leto_ops` integration target. Production Leto dispatch code, APIs,
+fixtures, formulas, and tolerances are unchanged. This is a test-topology and
+maintainability change only; no production runtime, memory, or zero-copy delta
+is claimed.
+
 This document tracks the high-level roadmap and feature validation checklist for the Coeus tensor library. For detailed task lists, sprint archives, and progress tracking, see:
 - [docs/checklist.md](file:///d:/coeus/docs/checklist.md)
 - [docs/backlog.md](file:///d:/coeus/docs/backlog.md)

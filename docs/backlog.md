@@ -1,5 +1,23 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-Leto contract-family split [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-leto/tests/leto_ops/contract*` and active
+  references to the contract harness.
+- Outcome: the live 505-line contract leaf is now a manifest with arithmetic,
+  reductions, matmul, layout, and accumulation families under
+  `coeus-leto/tests/leto_ops/contract/`. The shared layout oracle remains in a
+  single support owner; production Leto dispatch code and contract assertions
+  are unchanged.
+- Evidence: pre/post source census remains 26 unique contract tests and all 26
+  extracted Rust test function bodies compare equal. The largest new leaf is
+  `layout.rs` at 197 lines; every new leaf is below 200 lines. Locked metadata
+  reports one `leto_ops` integration target. Exact package Nextest passes 28/28
+  with zero skipped in 0.325 seconds. Package check, warning-denied Clippy,
+  format, and diff checks pass.
+- Limit: this is a test-topology and maintainability change only; no
+  production Leto runtime, memory, or zero-copy behavior delta is claimed.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN extended activation contract split [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-nn/tests/nn_ops/activations/act_extended*`.
