@@ -5,6 +5,23 @@
 - [x] Preserve logical row-major values for offset and strided layouts.
 - [x] Verify 58/58 tensor tests and warning-denied Clippy.
 
+## Coeus-dist hierarchical integration harness [patch]
+- [x] Replace the 1,262-line `coeus-dist/tests/dist_tests.rs` leaf with one
+      `dist_ops` manifest and local/TCP transport subtrees under
+      `coeus-dist/tests/distributed/`.
+- [x] Preserve all 64 test functions, 64 `#[test]` attributes, panic contracts,
+      collective assertions, and extracted Rust function bodies.
+- [x] Verify one integration target, warning-denied Clippy, package check,
+      format, diff checks, and the exact package Nextest gate.
+
+Evidence: locked metadata reports one `dist_ops` integration target; the
+pre/post source census remains 64 unique test functions and all 64 extracted
+Rust function bodies compare equal. The largest test-family leaf is
+`distributed/tcp/errors/collective.rs` at 464 lines; every leaf is below 500
+lines. Exact package Nextest passes 64/64 with zero skipped in 0.444 seconds,
+with no slow tests. Production distributed code and test assertions are
+unchanged; active documentation now references the `dist_ops` manifest.
+
 ## Coeus-ops hierarchical integration harness [patch]
 - [x] Move the 36 flat `coeus-ops` integration-test files into ten
       operation-family directories under `coeus-ops/tests/ops/`.

@@ -73,7 +73,7 @@ archival records and are not dependency or runtime paths.
 
 ## ATLAS-PROVIDER-004: TCP loopback cluster isolation
 
-**Location**: `coeus-dist/src/tcp/mesh.rs`, `coeus-dist/tests/dist_tests.rs`,
+**Location**: `coeus-dist/src/tcp/mesh.rs`, `coeus-dist/tests/dist_ops.rs`,
 and `coeus-python/{src/dist.rs,tests/binding_tests_dist.rs}`.
 **Gap**: distributed tests selected an ephemeral port, released it, then asked
 each rank to bind it. Concurrent nextest processes could claim that address in
@@ -475,7 +475,7 @@ tests.
 
 ### ~~G-032: TCP collectives could hang past nextest timeout~~ **CLOSED**
 **Location**: `coeus-dist/src/tcp/mesh.rs`,
-`coeus-dist/tests/dist_tests.rs`
+`coeus-dist/tests/dist_ops.rs`
 **Closed by**: MS-177 — Added deterministic TCP test port reservation through a
 file-backed cross-process port allocator lock, and debug-mode mesh timeouts around
 connect, accept, peer-rank read, send, and recv paths. Connect retry backoff

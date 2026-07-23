@@ -33,6 +33,27 @@
   claim Python-wheel, production-kernel, memory, or runtime-performance
   coverage.
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-dist distributed-contract harness [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-dist/tests/**` and active references to
+  the former `dist_tests` target.
+- Outcome: the live 1,262-line `dist_tests.rs` leaf is now one `dist_ops`
+  manifest with local and TCP transport subtrees, separated into collective,
+  reduction, invalid-input, and mesh-boundary families. Shared thread and
+  loopback-mesh helpers have one support owner; production distributed code is
+  unchanged.
+- Evidence: locked metadata reports one `dist_ops` integration target; the
+  pre/post source census remains 64 unique test functions, all 64 `#[test]`
+  attributes remain present, and all 64 extracted Rust function bodies compare
+  equal. The largest test-family leaf is
+  `distributed/tcp/errors/collective.rs` at 464 lines; every leaf is below 500
+  lines. Exact package Nextest passes 64/64 with zero skipped in 0.444 seconds,
+  with no slow tests. Package check, warning-denied Clippy, format, and diff
+  checks pass.
+- Limit: this is a test-topology and maintainability change only; no
+  production distributed-kernel, memory, or runtime-performance delta is
+  claimed.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN tensor parity-family split [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-nn/tests/nn_ops/tensor/nn_parity*` only.
@@ -1055,7 +1076,7 @@ value and failure-contract tests pass on Sequential and Moirai.
   `assert_numel` after status fanout.
 - [x] Validation attempt was blocked by existing unrelated workspace state in
   `mnemosyne-prof` compile errors while running
-  `cargo test -p coeus-dist --test dist_tests test_tcp_broadcast_mismatched_numel_panics -- --nocapture`.
+  `cargo test -p coeus-dist --test dist_ops test_tcp_broadcast_mismatched_numel_panics -- --nocapture`.
 
 ## Sprint MS-174: LayerNorm/RMSNorm JAX parity [COMPLETE]
 
@@ -1118,7 +1139,7 @@ value and failure-contract tests pass on Sequential and Moirai.
   repeated per-collective control-flow branches (SRP/SSOT/DRY cleanup).
 - [x] Validation attempt was blocked by existing unrelated workspace changes in
   `coeus-ops` producing conflicting `BackendOps` impl errors during
-  `cargo test -p coeus-dist --test dist_tests test_tcp_all_gather -- --nocapture`.
+  `cargo test -p coeus-dist --test dist_ops test_tcp_all_gather -- --nocapture`.
 
 ## Sprint MS-168: TCP all_gather peer numel handshake [COMPLETE]
 
@@ -1443,7 +1464,7 @@ value and failure-contract tests pass on Sequential and Moirai.
   and `scatter` to remove duplicated staging-clear logic.
 - [x] [patch] Added root-side `scatter` input `numel` validation and a focused
   panic contract test:
-  `coeus-dist/tests/dist_tests.rs::test_local_scatter_mismatched_input_numel_panics`.
+  `coeus-dist/tests/dist_ops.rs::test_local_scatter_mismatched_input_numel_panics`.
 - [x] Evidence: `cargo test -p coeus-dist test_local_ -- --nocapture`
   (13/13 pass); `cargo clippy -p coeus-dist --all-targets -- -D warnings`.
 
