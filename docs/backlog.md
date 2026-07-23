@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-core integration harness [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-core/tests/**` only.
+- Outcome: the four flat Rust integration-test files now sit under storage,
+  dependency-policy, and scalar directories behind one `core_ops` target. The
+  existing library unit-test modules remain in `src`; no production core code
+  moved.
+- Evidence: locked Cargo metadata now reports one `coeus-core` integration
+  target; the exact package Nextest run passes 21/21 with zero skipped,
+  comprising 14 integration cases and seven unchanged library unit tests.
+  Warning-denied Clippy, package check, format, and diff checks pass.
+- Limit: this proves test-topology and test-count preservation, not a complete
+  workspace debug-tree size reduction.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-sparse integration harness [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-sparse/tests/**` only.
