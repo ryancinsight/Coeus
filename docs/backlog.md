@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-sparse integration harness [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-sparse/tests/**` only.
+- Outcome: the three flat Rust integration-test files now sit under conversion,
+  differential, and invariant directories behind one `sparse_ops` target. The
+  sparse-format value-semantic and dense-oracle assertions are unchanged; no
+  production sparse code moved.
+- Evidence: locked Cargo metadata now reports one `coeus-sparse` integration
+  target; the exact package Nextest run passes 19/19 with zero skipped in
+  0.713 seconds. Warning-denied Clippy, package check, format, and diff checks
+  pass.
+- Limit: this proves test-topology and test-count preservation, not a complete
+  workspace debug-tree size reduction.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-tensor integration harness [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-tensor/tests/**` only.

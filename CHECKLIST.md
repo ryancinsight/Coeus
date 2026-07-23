@@ -62,6 +62,20 @@ run reports 58/58 tests with 0 skipped, including five library unit tests.
 Production tensor code is unchanged. This is a test topology and build-artifact
 change only; it does not claim a whole-workspace debug-tree size reduction.
 
+## Coeus-sparse hierarchical integration harness [patch]
+- [x] Move the three flat `coeus-sparse/tests/*.rs` leaf files into conversion,
+      differential, and invariant directories under `tests/sparse_ops/`.
+- [x] Add one `coeus-sparse/tests/sparse_ops.rs` integration target with
+      explicit operation-family manifests; preserve every leaf test body and
+      value-semantic assertion.
+- [x] Verify the target census reduced from 3 to 1 and the exact package
+      Nextest run passes 19/19 with warning-denied Clippy and package check.
+
+Evidence: locked Cargo metadata reports one `sparse_ops` integration target;
+the exact package run reports 19/19 tests with 0 skipped in 0.713 seconds.
+Production sparse code is unchanged. This is a test topology and build-artifact
+change only; it does not claim a whole-workspace debug-tree size reduction.
+
 This document tracks the high-level roadmap and feature validation checklist for the Coeus tensor library. For detailed task lists, sprint archives, and progress tracking, see:
 - [docs/checklist.md](file:///d:/coeus/docs/checklist.md)
 - [docs/backlog.md](file:///d:/coeus/docs/backlog.md)
