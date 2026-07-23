@@ -73,6 +73,15 @@ the release tag, attests and attaches the exact wheel set to the GitHub
 Release, then publishes those same artifacts to PyPI through OIDC Trusted
 Publishing. The tag version must equal the workspace Cargo version.
 
+## Rust Crate Releases
+
+The `Crates.io Release` workflow validates a named workspace package on manual
+dispatch. After that package's required first release is published locally and
+its crates.io Trusted Publisher is registered, a GitHub Release tagged
+`crate-<package>-v<version>` packages, verifies, and publishes the matching
+Cargo version with a short-lived OIDC token. The PyO3 package remains a
+wheel-only artifact and is marked `publish = false` for crates.io.
+
 ### Run Clippy Lints
 ```bash
 cargo clippy --all-targets --all-features -- -D warnings
