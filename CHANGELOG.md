@@ -4,6 +4,11 @@
 
 ### Changed
 
+- [patch] Implements native WGPU WGSL kernels for unfold/fold and 1D
+  max/average pooling forward/backward paths, removes the previous no-op
+  backend methods, and adds Sequential differential coverage. Device buffers
+  remain on the WGPU path; no host fallback is introduced.
+
 - [patch] Consolidates Hermes, Eunomia, Leto, and Hephaestus on one versioned
   Git source identity per provider contract, with exact commits owned only by
   `Cargo.lock`. `TcpMesh` now uses a bounded dedicated runtime whose field

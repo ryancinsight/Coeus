@@ -1,5 +1,20 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-WGPU-CORRECTNESS-001 — Native WGPU unfold/fold and pool1d closure [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-wgpu/src/kernels/`, WGPU operation
+  dispatch, and the WGPU integration harness.
+- Outcome: replaced four empty `UnfoldFoldOps` methods and four 1D pooling
+  stubs with native WGSL kernels. The pool1d family is organized under a
+  manifest with separate shader, forward, and backward leaves. No host-copy or
+  CPU fallback path was added.
+- Evidence: padded/dilated max and average pool1d forward/backward tests pass
+  against Sequential; exact package Nextest passes 89/89 with zero skipped in
+  79.311 seconds. Package check, warning-denied Clippy, format, and diff checks
+  pass.
+- Limit: this closes correctness and device-path coverage; no performance or
+  allocation improvement is claimed without a controlled benchmark baseline.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-Leto contract-family split [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-leto/tests/leto_ops/contract*` and active
@@ -786,8 +801,10 @@ value and failure-contract tests pass on Sequential and Moirai.
 
 ## Sprint MS-211: UnfoldFoldOps backend trait + Unfold1d/2d + Fold1d/2d modules [COMPLETE]
 
-- [x] [minor] `UnfoldFoldOps` 8th `BackendOps` concern; CPU kernels for
-  `unfold1d`/`fold1d`/`unfold2d`/`fold2d`; wgpu/cuda stub impls.
+- [x] [minor] Initial `UnfoldFoldOps` 8th `BackendOps` concern; CPU kernels
+  for `unfold1d`/`fold1d`/`unfold2d`/`fold2d`; GPU implementations were
+  initially recorded as stubs and are now closed by
+  `ATLAS-WGPU-CORRECTNESS-001` (WGPU) and the existing CUDA kernels.
 - [x] [minor] `coeus_nn::{Unfold1d, Fold1d, Unfold2d, Fold2d}` stateless
   modules delegating through `coeus_ops` kernels.
 - [x] [minor] 9 parity tests (shape/value-semantic/roundtrip) closing G-036

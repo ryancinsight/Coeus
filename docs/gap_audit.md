@@ -436,10 +436,12 @@ pooling wrappers, but lacks 1D pooling modules, adaptive pooling surfaces beyond
 global wrappers, and Unfold/Fold/Unfold4d parity surfaces.
 **Closed by**: MS-206 (pool1d) and MS-211 (unfold/fold):
 - MS-206: `MaxPool1d`/`AvgPool1d` with forward+backward, autograd, Python bindings.
-- MS-211: `UnfoldFoldOps` sub-trait added to `BackendOps` (8th concern); CPU kernels
-  for `unfold1d`/`fold1d`/`unfold2d`/`fold2d`; no-op stubs in wgpu and cuda for
-  trait completeness; `coeus_nn::{Unfold1d, Fold1d, Unfold2d, Fold2d}` NN modules;
-  9 parity tests (shape/value-semantic/roundtrip).
+- MS-211: `UnfoldFoldOps` sub-trait added to `BackendOps` (8th concern); CPU,
+  CUDA, and WGPU kernels for `unfold1d`/`fold1d`/`unfold2d`/`fold2d`;
+  `coeus_nn::{Unfold1d, Fold1d, Unfold2d, Fold2d}` NN modules; and parity tests
+  covering shape, value semantics, and round trips. ATLAS-WGPU-CORRECTNESS-001
+  removed the WGPU no-op methods and added native device coverage for the
+  unfold/fold family plus padded/dilated 1D pooling forward/backward paths.
 **Evidence tier**: analytical/value-semantic Rust tests.
 
 ### ~~G-035: ConvTranspose3d parity missing~~ **CLOSED**

@@ -947,7 +947,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         );
     }
 
-    // ── Pool 1D: fallback to CPU via coeus-ops cpu_impl ────────────────────────
+    // ── Pool 1D: native WGPU kernels ─────────────────────────────────────────
 
     #[inline]
     fn max_pool1d(
@@ -1294,64 +1294,114 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
 impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
     fn unfold1d(
         &self,
-        _input: &Self::DeviceBuffer<T>,
-        _input_layout: &Layout,
-        _kernel_size: usize,
-        _stride: usize,
-        _padding: usize,
-        _dilation: usize,
-        _output: &mut Self::DeviceBuffer<T>,
-        _output_layout: &Layout,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
     ) {
+        kernels::dispatch_unfold1d::<T>(
+            input.buffer.as_ref(),
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output.buffer.as_ref(),
+            output_layout,
+        );
     }
 
     fn fold1d(
         &self,
-        _input: &Self::DeviceBuffer<T>,
-        _input_layout: &Layout,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
         _output_size: usize,
-        _kernel_size: usize,
-        _stride: usize,
-        _padding: usize,
-        _dilation: usize,
-        _output: &mut Self::DeviceBuffer<T>,
-        _output_layout: &Layout,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
     ) {
+        kernels::dispatch_fold1d::<T>(
+            input.buffer.as_ref(),
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output.buffer.as_ref(),
+            output_layout,
+        );
     }
 
     fn unfold2d(
         &self,
-        _input: &Self::DeviceBuffer<T>,
-        _input_layout: &Layout,
-        _kernel_h: usize,
-        _kernel_w: usize,
-        _stride_h: usize,
-        _stride_w: usize,
-        _padding_h: usize,
-        _padding_w: usize,
-        _dilation_h: usize,
-        _dilation_w: usize,
-        _output: &mut Self::DeviceBuffer<T>,
-        _output_layout: &Layout,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        kernel_h: usize,
+        kernel_w: usize,
+        stride_h: usize,
+        stride_w: usize,
+        padding_h: usize,
+        padding_w: usize,
+        dilation_h: usize,
+        dilation_w: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
     ) {
+        kernels::dispatch_unfold2d::<T>(
+            input.buffer.as_ref(),
+            input_layout,
+            kernel_h,
+            kernel_w,
+            stride_h,
+            stride_w,
+            padding_h,
+            padding_w,
+            dilation_h,
+            dilation_w,
+            output.buffer.as_ref(),
+            output_layout,
+        );
     }
 
     fn fold2d(
         &self,
-        _input: &Self::DeviceBuffer<T>,
-        _input_layout: &Layout,
-        _output_h: usize,
-        _output_w: usize,
-        _kernel_h: usize,
-        _kernel_w: usize,
-        _stride_h: usize,
-        _stride_w: usize,
-        _padding_h: usize,
-        _padding_w: usize,
-        _dilation_h: usize,
-        _dilation_w: usize,
-        _output: &mut Self::DeviceBuffer<T>,
-        _output_layout: &Layout,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        output_h: usize,
+        output_w: usize,
+        kernel_h: usize,
+        kernel_w: usize,
+        stride_h: usize,
+        stride_w: usize,
+        padding_h: usize,
+        padding_w: usize,
+        dilation_h: usize,
+        dilation_w: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
     ) {
+        kernels::dispatch_fold2d::<T>(
+            input.buffer.as_ref(),
+            input_layout,
+            output_h,
+            output_w,
+            kernel_h,
+            kernel_w,
+            stride_h,
+            stride_w,
+            padding_h,
+            padding_w,
+            dilation_h,
+            dilation_w,
+            output.buffer.as_ref(),
+            output_layout,
+        );
     }
 }

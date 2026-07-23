@@ -1,5 +1,25 @@
 # Coeus Development Roadmap Checklist
 
+## WGPU native unfold/fold and pool1d closure [patch]
+- [x] Replace the four no-op WGPU `UnfoldFoldOps` methods with native WGSL
+      unfold/fold dispatches and add 1D max/average pooling forward/backward
+      kernels.
+- [x] Keep device buffers on the WGPU path; upload only bounded layout and
+      parameter metadata, with no host fallback or silent CPU degradation.
+- [x] Split the pool1d kernel family into manifest, shader, forward, and
+      backward leaves, each below 250 lines, and add Sequential differential
+      tests for padded/dilated forward and backward behavior.
+- [x] Verify format, diff, package check, warning-denied Clippy, and the exact
+      package Nextest gate.
+
+Evidence: the WGPU package check and `cargo clippy --locked -p coeus-wgpu
+--tests -- -D warnings` pass. Focused pool1d Nextest passes 2/2 with zero
+skipped. Exact package Nextest passes 89/89 with zero skipped in 79.311
+seconds; the two new pool1d tests and the two unfold/fold tests pass. The
+previous no-op paths now perform input-sensitive device computation. No
+latency, throughput, or allocation reduction claim is made without a benchmark
+baseline.
+
 ## Backend-generic host extraction [minor]
 - [x] Materialize tensor views through the selected backend's host-copy seam.
 - [x] Preserve logical row-major values for offset and strided layouts.

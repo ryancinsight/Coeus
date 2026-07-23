@@ -5,5 +5,7 @@ mod conv3d;
 mod conv_transpose;
 mod optimizer;
 mod parity;
+mod pool1d;
 mod pooling;
 mod transfers_and_matmul;
+mod unfold_fold;
