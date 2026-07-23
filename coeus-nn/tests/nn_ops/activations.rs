@@ -1,6 +1,6 @@
 //! Activation and gated-unit tests.
 
-#[path = "activations/act_extended_tests.rs"]
+#[path = "activations/act_extended/mod.rs"]
 mod act_extended_tests;
 #[path = "activations/nn_activation_tests.rs"]
 mod nn_activation_tests;

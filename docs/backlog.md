@@ -1,5 +1,21 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN extended activation contract split [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-nn/tests/nn_ops/activations/act_extended*`.
+- Outcome: the live 648-line extended activation leaf is now an
+  `act_extended` manifest with piecewise, parameterized, module-smoke, and
+  smooth families. Shared close/slice assertion helpers have one support
+  owner; production NN code, fixtures, formulas, and tolerances are unchanged.
+- Evidence: pre/post source census remains 17 unique test functions and all 17
+  extracted Rust test function bodies compare equal. The largest new leaf is
+  `piecewise.rs` at 354 lines; every new leaf is below 360. Exact package
+  Nextest passes 268/268 with zero skipped in 3.155 seconds. Package check,
+  warning-denied Clippy, format, and diff checks pass.
+- Limit: this is a test-topology and maintainability change only; no
+  production activation runtime, memory, or numerical behavior delta is
+  claimed.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-optim contract-family harness split [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-optim/tests/optim_tests.rs` and active
@@ -672,7 +688,7 @@ value and failure-contract tests pass on Sequential and Moirai.
   to a single, canonical `x > 0 ? 1 : α` predicate so the derivative
   at `x = 0` equals `α` (matches PyTorch / JAX; closed the long-standing
   test_prelu_matches_pytorch delta and the analogous LeakyReLU kink).
-- [x] [patch] Corrected `coeus-nn/tests/act_extended_tests.rs::prelu_grad_expected`
+- [x] [patch] Corrected `coeus-nn/tests/nn_ops/activations/act_extended/parameterized.rs::prelu_grad_expected`
   oracle (`x >= 0 ? 1 : α` -> `x > 0 ? 1 : α`) and added a paired Rust
   value-semantic test `leaky_relu_kink_at_zero_returns_slope` covering
   the kink on LeakyReLU (`x = 0` returns `α` post-`out.backward()`).

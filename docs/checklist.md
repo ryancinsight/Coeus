@@ -467,7 +467,8 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
 ### Previous Sprint: MS-217 - PReLU / LeakyReLU subgradient parity (G-037 closure) [COMPLETE]
 - [x] [patch] Coerced the single canonical `LeakyReluGrad` predicate from
   `x >= 0 ? 1 : α` to `x > 0 ? 1 : α` across `coeus-core` (float + int),
-  `coeus-ops` (fuse tag), the Rust value-semantic `act_extended_tests.rs`
+  `coeus-ops` (fuse tag), the Rust value-semantic `act_extended/` activation
+  contract tree
   oracle, and `coeus-nn/tests/nn_activation_tests.rs::test_leaky_relu_activation`.
   Matches `torch.nn.functional.prelu` / `F.leaky_relu.neg_slope` and
   JAX's `jnp.where(z > 0, z, alpha * z)`; closes

@@ -58,6 +58,24 @@ diff checks pass. Production optimizer code and all test oracles are unchanged.
 This is a test-topology and maintainability change only; no production
 optimizer runtime or memory delta is claimed.
 
+## Coeus-NN extended activation contract-family split [patch]
+- [x] Split the live 648-line `nn_ops/activations/act_extended_tests.rs` leaf
+      into piecewise, parameterized, module-smoke, and smooth leaves under
+      `nn_ops/activations/act_extended/`.
+- [x] Preserve all 17 test functions, 17 `#[test]` attributes, analytical
+      derivatives, tolerances, and extracted Rust test function bodies.
+- [x] Keep the `close`/slice assertion helpers single-sourced and verify
+      format, package check, warning-denied Clippy, diff checks, and exact
+      package Nextest.
+
+Evidence: the pre/post source census remains 17 unique test functions and all
+17 extracted Rust function bodies compare equal. The largest new leaf is
+`piecewise.rs` at 354 lines; every new leaf is below 360. Exact package Nextest
+passes 268/268 with 0 skipped in 3.155 seconds. Package check, warning-denied
+Clippy, format, and diff checks pass. Production NN code, fixtures, formulas,
+and tolerances are unchanged. This is a test-topology and maintainability
+change only; no production activation runtime or memory delta is claimed.
+
 ## Coeus-ops hierarchical integration harness [patch]
 - [x] Move the 36 flat `coeus-ops` integration-test files into ten
       operation-family directories under `coeus-ops/tests/ops/`.

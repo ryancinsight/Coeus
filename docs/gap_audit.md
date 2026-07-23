@@ -370,7 +370,7 @@ gradients at f64. Evidence tier: differential/empirical.
 `coeus-autograd/src/ops/activation/{ext.rs,relu.rs,mod.rs}`,
 `coeus-nn/src/{activation.rs,lib.rs}`,
 `coeus-python/src/{activations.rs,lib.rs}`,
-`coeus-nn/tests/act_extended_tests.rs`,
+`coeus-nn/tests/nn_ops/activations/act_extended/`,
 `coeus-python/tests/test_pytorch_parity.py`
 **Closed by**: MS-186 — Added nine new activation functions end-to-end:
 **Hardtanh** (`coeus_nn::hardtanh` / `Hardtanh` Module, default `[-1, 1]`),
@@ -391,7 +391,7 @@ PReLU's α is exposed as a single scalar α in the tracked functional
 the PyTorch differential tests per PyTorch's convention (e.g. Hardtanh at
 x=±min/max → 0, Hardsigmoid at x=±3 → 0, Hardshrink/Softshrink at |x|=λ → 0,
 Threshold at x=threshold → 0). Evidence tier: value-semantic Rust analytical
-backward tests (`coeus-nn/tests/act_extended_tests.rs` covering 9 ops at f64
+backward tests (`coeus-nn/tests/nn_ops/activations/act_extended/` covering 9 ops at f64
 with closed-form formula oracles) plus PyTorch f64 differential tests
 (`coeus-python/tests/test_pytorch_parity.py` adds 9 new tests using the
 existing `_assert_activation_parity` helper). MS-187 corrected the regression
@@ -796,6 +796,6 @@ Evidence tier: differential/empirical (PyTorch f64).
 | mnemosyne-backend lib.rs docstring stale | documentation | **closed 87da068** |
 | `test_hardswish_matches_pytorch` PyTorch differential parity | differential | **closed** — backward routing verified correct (evaluates on saved input, formulas match PyTorch); tests exist and run |
 | `test_hardsigmoid_matches_pytorch` PyTorch differential parity | differential | **closed** — backward routing verified correct (evaluates on saved input, formulas match PyTorch); tests exist and run |
-| `test_prelu_matches_pytorch` PyTorch differential parity | differential | **closed MS-217** — tightened shared `LeakyReluGrad` predicate from `x >= 0 ? 1 : α` to `x > 0 ? 1 : α` across `coeus-core` (float + int) and the `LeakyReluGradTag` fuse path; corrected the `act_extended_tests.rs` oracle + `nn_activation_tests.rs::test_leaky_relu_activation` expected gradient; added `test_prelu_matches_jax` and `leaky_relu_kink_at_zero_returns_slope`. Three-way Rust ↔ PyTorch ↔ JAX parity at the kink position. |
+| `test_prelu_matches_pytorch` PyTorch differential parity | differential | **closed MS-217** — tightened shared `LeakyReluGrad` predicate from `x >= 0 ? 1 : α` to `x > 0 ? 1 : α` across `coeus-core` (float + int) and the `LeakyReluGradTag` fuse path; corrected the `act_extended/parameterized.rs` oracle + `nn_activation_tests.rs::test_leaky_relu_activation` expected gradient; added `test_prelu_matches_jax` and `leaky_relu_kink_at_zero_returns_slope`. Three-way Rust ↔ PyTorch ↔ JAX parity at the kink position. |
 | `test_tcp_scatter_zero_numel_mismatched_target_numel_panics` slow | empirical | **closed MS-446** — socket-first `TcpMesh` teardown and bounded dedicated runtimes remove the 45 s wait; the test passes in 0.124 s, the 64-test `coeus-dist` lane in 0.385 s, and the 938-test workspace lane in 82.449 s with no slow tests |
 | `coeus-cuda` clippy errors under `--all-features` | lint | **pre-existing peer crate dependency** — not addressed in MS-215 (out of coeus scope) |
