@@ -40,6 +40,24 @@ and sibling loss test files are unchanged. This is a test-topology and
 maintainability change only; no production kernel or runtime/memory delta is
 claimed.
 
+## Coeus-optim contract-family harness split [patch]
+- [x] Split the live 676-line `coeus-optim/tests/optim_tests.rs` leaf into
+      optimizer, scheduler, convergence, and gradient-clipping modules under
+      `coeus-optim/tests/optim_ops/`.
+- [x] Preserve all 20 test functions, 20 `#[test]` attributes, analytical
+      comments, tolerances, and extracted Rust function bodies.
+- [x] Verify one integration target, format, package check, warning-denied
+      Clippy, diff checks, and the exact package Nextest gate.
+
+Evidence: the pre/post source census remains 20 unique test functions and all
+20 extracted Rust function bodies compare equal. Locked metadata reports one
+`optim_ops` integration target. The largest new leaf is `convergence.rs` at
+239 lines; every new leaf is below 250. Exact package Nextest passes 20/20 with
+0 skipped in 0.188 seconds. Package check, warning-denied Clippy, format, and
+diff checks pass. Production optimizer code and all test oracles are unchanged.
+This is a test-topology and maintainability change only; no production
+optimizer runtime or memory delta is claimed.
+
 ## Coeus-ops hierarchical integration harness [patch]
 - [x] Move the 36 flat `coeus-ops` integration-test files into ten
       operation-family directories under `coeus-ops/tests/ops/`.

@@ -2483,7 +2483,7 @@ tests; workspace at 621/621.
   (rank-3, rank-4, row-vector batch) against analytical reference ‖A‖_F=sqrt(Σaᵢⱼ²).
   SequentialBackend + MoiraiBackend each. Tolerances derived from f32 ε × element count.
   Evidence: `cargo nextest run -p coeus-ops --test norm_diff` — 4/4 passed.
-- [x] [patch] `coeus-optim/tests/optim_tests.rs`: 4 new multi-step tests —
+- [x] [patch] `coeus-optim/tests/optim_ops/convergence.rs`: 4 new multi-step tests —
   `test_sgd_convergence_quadratic_50steps` (closed-form: x_n = x₀·0.8ⁿ),
   `test_sgd_momentum_convergence_100steps` (derived bound via spectral radius √0.9 ≈ 0.9487),
   `test_adam_convergence_quadratic_200steps` (200-step convex convergence to |p|<0.05),

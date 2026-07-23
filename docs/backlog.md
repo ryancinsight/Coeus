@@ -1,5 +1,23 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-optim contract-family harness split [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-optim/tests/optim_tests.rs` and active
+  references to that test target.
+- Outcome: the live 676-line leaf is now one `optim_ops` manifest with
+  optimizer, scheduler, convergence, and gradient-clipping family modules
+  under `coeus-optim/tests/optim_ops/`. Production optimizer code and all
+  analytical oracles are unchanged.
+- Evidence: pre/post source census remains 20 unique test functions and all 20
+  extracted Rust function bodies compare equal. Locked metadata reports one
+  `optim_ops` integration target. The largest new leaf is `convergence.rs` at
+  239 lines; every new leaf is below 250. Exact package Nextest passes 20/20
+  with zero skipped in 0.188 seconds. Package check, warning-denied Clippy,
+  format, and diff checks pass.
+- Limit: this is a test-topology and maintainability change only; no
+  production optimizer runtime, memory, or numerical behavior delta is
+  claimed.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN loss-contract family split [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-nn/tests/nn_ops/losses/nn_loss*`.
@@ -2064,7 +2082,7 @@ value and failure-contract tests pass on Sequential and Moirai.
   backend differential tests). Analytical reference: ‖A‖_F = sqrt(Σaᵢⱼ²). Cases:
   3–4–5 exact, rectangular [2,3], identity [2,2], zeros [3,3]; batched rank-3 [2,2,2],
   [3,1,2]; rank-4 [2,2,2,2]. Tolerances derived from f32 ε × max additions.
-- [x] [patch] `coeus-optim/tests/optim_tests.rs`: 4 multi-step convergence tests
+- [x] [patch] `coeus-optim/tests/optim_ops/convergence.rs`: 4 multi-step convergence tests
   covering compounding optimizer state correctness that 1-step tests cannot reach:
   SGD 50-step closed-form, SGD+momentum 100-step spectral-radius bound,
   Adam 200-step quadratic convergence, AdamW 50-step weight-decay separability.
