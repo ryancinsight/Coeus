@@ -1,5 +1,22 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-005 — CUDA backend operation impl hierarchy [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/backend/ops*` only.
+- Outcome: the 11-line CUDA backend operation manifest retains public helper
+  module ownership; eight trait impl blocks now live under
+  `backend/ops/impls/`, with leaves from 20 to 300 lines.
+- Evidence: locked metadata remains one library, one `cuda_ops` integration
+  target, and two benchmark targets. Default package check, warning-denied
+  Clippy, format, diff, and exact Nextest pass; Nextest passes 3/3 with zero
+  skipped in 0.059 seconds. The `cuda` feature check and warning-denied
+  Clippy pass.
+- Limit: `cargo nextest run --locked -p coeus-cuda --features cuda` cannot link
+  on this Windows GNU environment because `-lcuda` is absent from the
+  configured `/usr/local/cuda-11.3/lib64/` path. This is a test-environment
+  blocker, not a source failure; no feature-test pass is claimed. No runtime,
+  memory, or performance delta is claimed.
+
 ## ATLAS-BUILD-STRUCTURE-004 — CPU backend operation impl hierarchy [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-ops/src/backend_ops/cpu_impl*` only.

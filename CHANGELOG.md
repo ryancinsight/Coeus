@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Splits the CUDA backend operation trait implementations into
+  operation-family leaves under `backend/ops/impls/`, keeping public helper
+  module ownership in the manifest.
+
 - [patch] Splits the CPU backend operation trait implementations into
   operation-family leaves under `backend_ops/cpu_impl/impls/`, keeping backend
   ownership and execution-policy marker implementations in the manifest.

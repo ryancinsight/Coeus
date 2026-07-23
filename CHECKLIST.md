@@ -1,5 +1,26 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA backend operation impl hierarchy [patch]
+- [x] Move the eight generic CUDA operation trait impl blocks out of the
+      993-line backend operation manifest into
+      `backend/ops/impls/` leaves for elementwise, matmul, reduction,
+      convolution, pooling, attention, optimizer, and unfold/fold.
+- [x] Retain the public CUDA operation helper modules in the manifest and
+      keep each moved impl leaf responsible only for its operation-family
+      trait forwarding.
+- [x] Keep the manifest at 11 lines and every impl leaf below 301 lines;
+      verify format, diff, default and CUDA-feature checks, warning-denied
+      Clippy, locked metadata, and the default package Nextest gate.
+
+Evidence: locked metadata remains one library, one `cuda_ops` integration
+target, and two benchmark targets. Default package Nextest passes 3/3 with
+zero skipped in 0.059 seconds. Default and `--features cuda` package checks
+and warning-denied Clippy pass. The CUDA-feature Nextest link step is blocked
+by the environment's missing `-lcuda` linker library at
+`/usr/local/cuda-11.3/lib64/`; no feature-test result is claimed. This is a
+module-topology and maintainability change only; no runtime, memory, or
+performance delta is claimed.
+
 ## CPU backend operation impl hierarchy [patch]
 - [x] Move the eight generic CPU operation trait impl blocks out of the
       1,151-line backend implementation file into `backend_ops/cpu_impl/impls/`
