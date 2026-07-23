@@ -23,16 +23,18 @@ unchanged.
 ## Coeus-NN hierarchical integration harness [patch]
 - [x] Move the 33 flat `coeus-nn/tests/*.rs` leaf files into ten
       operation-family directories under `coeus-nn/tests/nn_ops/`.
-- [x] Add one `coeus-nn/tests/nn_ops.rs` integration target and preserve the
-      existing `nn_tests.rs` target plus `tests/nn/` module tree.
-- [x] Verify the target census reduced from 34 to 2 and the exact package
+- [x] Use one `coeus-nn/tests/nn_ops.rs` integration target for the established
+      `tests/nn/` module tree and the operation-family modules.
+- [x] Verify the target census reduced from 2 to 1 and the exact package
       Nextest run passes 268/268 with warning-denied Clippy and package check.
 
-Evidence: locked Cargo metadata reports the two integration targets `nn_ops`
-and `nn_tests`; the exact package run reports 268/268 tests with 0 skipped.
-The moved leaf tests contribute 218 cases, the existing `nn_tests` target 49,
-and one library unit test completes the package total. Production NN code is
-unchanged.
+Evidence: locked Cargo metadata reports one `nn_ops` integration target and the
+`nn_bench` benchmark target; the exact package run reports 268/268 tests with
+0 skipped in 4.463 seconds. Package check, warning-denied Clippy, format, and
+diff checks pass. The established NN module tree and all operation-family test
+bodies remain unchanged. This is a test topology and build-artifact change
+only; it does not claim a production NN speedup, memory reduction, or
+whole-workspace debug-tree size delta.
 
 ## Coeus-autograd hierarchical integration harness [patch]
 - [x] Move `grid_sample_3d.rs`, `linear_interpolation.rs`, and

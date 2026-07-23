@@ -1,8 +1,11 @@
 //! Hierarchical integration harness for the flat Coeus-NN operation tests.
 //!
-//! The existing `nn_tests` target remains a separate harness for its legacy
-//! module tree. These operation-family modules preserve the moved test bodies
-//! while reducing the 33 flat binaries to one Cargo target.
+//! The established NN module tree and the operation-family modules share one
+//! Cargo integration target so the package has one canonical test binary and
+//! one ownership boundary.
+
+#[path = "nn/mod.rs"]
+mod nn;
 
 #[path = "nn_ops/activations.rs"]
 mod activations;

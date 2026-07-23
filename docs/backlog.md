@@ -1,5 +1,18 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN integration harness [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-nn/tests/**` target topology only.
+- Outcome: the established NN module tree and the operation-family modules now
+  share one hierarchical `nn_ops` harness; the redundant `nn_tests.rs` target
+  manifest is removed. Test bodies and production code are unchanged.
+- Evidence: locked Cargo metadata reports one `nn_ops` integration target;
+  exact package Nextest passes 268/268 with zero skipped in 4.463 seconds.
+  Package check, warning-denied Clippy, format, and diff checks pass.
+- Limit: this is a test-topology and build-artifact change only; it does not
+  claim a production NN speedup, memory reduction, or whole-workspace
+  debug-tree delta.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-autograd/tests/**` target topology only.
