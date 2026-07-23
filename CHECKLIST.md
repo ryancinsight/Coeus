@@ -38,14 +38,18 @@ unchanged.
 - [x] Move `grid_sample_3d.rs`, `linear_interpolation.rs`, and
       `selective_scan.rs` into three operation-family directories under
       `coeus-autograd/tests/autograd_ops/`.
-- [x] Add one `coeus-autograd/tests/autograd_ops.rs` target while preserving
-      the existing `autograd_tests.rs` target and `tests/autograd/` tree.
-- [x] Verify the target census reduced from 4 to 2 and the exact package
+- [x] Use one `coeus-autograd/tests/autograd_ops.rs` target for the established
+      `tests/autograd/` tree and the standalone operation-family modules.
+- [x] Verify the target census reduced from 2 to 1 and the exact package
       Nextest run passes 94/94 with warning-denied Clippy and package check.
 
-Evidence: locked Cargo metadata reports `autograd_ops` and `autograd_tests`;
-the exact package run reports 94/94 tests with 0 skipped. Production autograd
-code and all moved test bodies are unchanged.
+Evidence: locked Cargo metadata reports one `autograd_ops` integration target;
+the exact package run reports 94/94 tests with 0 skipped in 1.535 seconds.
+Package check, warning-denied Clippy, format, and diff checks pass. The existing
+autograd module tree and all standalone operation-family test bodies are
+unchanged. This is a test topology and build-artifact change only; it does not
+claim a production autograd speedup, memory reduction, or whole-workspace
+debug-tree size delta.
 
 ## Coeus-tensor hierarchical integration harness [patch]
 - [x] Move the 13 flat `coeus-tensor/tests/*.rs` leaf files into six

@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-autograd/tests/**` target topology only.
+- Outcome: the established autograd module tree and the standalone operation
+  families now share one hierarchical `autograd_ops` harness; the redundant
+  `autograd_tests` target manifest is removed. Test bodies and production code
+  are unchanged.
+- Evidence: locked Cargo metadata reports one `autograd_ops` integration target
+  instead of two; exact package Nextest passes 94/94 with zero skipped in 1.535
+  seconds. Package check, warning-denied Clippy, format, and diff checks pass.
+- Limit: this is a test-topology and build-artifact change only; it does not
+  claim a production autograd speedup, memory reduction, or whole-workspace
+  debug-tree delta.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-Leto integration harness [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-leto/tests/**` target topology only.
