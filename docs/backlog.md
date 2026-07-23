@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN integration harness [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-nn/tests` top-level leaf files only.
+- Outcome: 33 flat integration-test files now sit under ten operation-family
+  directories behind one `nn_ops` target. The existing `nn_tests` target and
+  its `tests/nn/` module tree remain unchanged; no production NN code moved.
+- Evidence: the pre-change tree contained 34 direct test files/targets; locked
+  metadata now reports two integration targets, `nn_ops` and `nn_tests`.
+  The exact package Nextest run passes 268/268 with 0 skipped; 218 tests run
+  from `nn_ops`, 49 from `nn_tests`, and one library unit test completes the
+  package total.
+- Limit: this proves target-count and test-count preservation. It does not
+  claim a whole-workspace debug-tree size reduction.
+
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-ops integration harness [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-ops/tests/**` only.

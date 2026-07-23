@@ -20,6 +20,20 @@ reports 87 `ops` tests; the exact package run passes 196/196. This is a test
 topology and build-artifact change only; production operation code is
 unchanged.
 
+## Coeus-NN hierarchical integration harness [patch]
+- [x] Move the 33 flat `coeus-nn/tests/*.rs` leaf files into ten
+      operation-family directories under `coeus-nn/tests/nn_ops/`.
+- [x] Add one `coeus-nn/tests/nn_ops.rs` integration target and preserve the
+      existing `nn_tests.rs` target plus `tests/nn/` module tree.
+- [x] Verify the target census reduced from 34 to 2 and the exact package
+      Nextest run passes 268/268 with warning-denied Clippy and package check.
+
+Evidence: locked Cargo metadata reports the two integration targets `nn_ops`
+and `nn_tests`; the exact package run reports 268/268 tests with 0 skipped.
+The moved leaf tests contribute 218 cases, the existing `nn_tests` target 49,
+and one library unit test completes the package total. Production NN code is
+unchanged.
+
 This document tracks the high-level roadmap and feature validation checklist for the Coeus tensor library. For detailed task lists, sprint archives, and progress tracking, see:
 - [docs/checklist.md](file:///d:/coeus/docs/checklist.md)
 - [docs/backlog.md](file:///d:/coeus/docs/backlog.md)
