@@ -1,5 +1,26 @@
 # Coeus Gap Audit
 
+## ATLAS-CUDA-SAFETY-002: CUDA launch-parameter narrowing remains
+
+**Location**: `coeus-cuda/src/kernels/launch_conv.rs` and
+`coeus-cuda/src/kernels/mod.rs`.
+**Gap**: convolution launchers and the shared GPU-layout serializer narrow
+`usize` dimensions, strides, offsets, and element counts to CUDA `u32` values
+with unchecked casts. Inputs beyond the CUDA representation range can wrap;
+the layout serializer also asserts on rank instead of returning a typed
+boundary error. The convolution grad-input launch panic is closed separately
+by `ATLAS-CUDA-SAFETY-001`.
+**Resolution target**: introduce one checked, allocation-free conversion
+boundary with typed failure propagation through the CUDA dispatch seam, then
+cover overflow, empty, and maximum-representable dimensions without changing
+the native kernel data path.
+**Evidence target**: feature-enabled check, warning-denied Clippy, CUDA
+hardware differential tests where available, and a no-device value-semantic
+regression for the rejected boundary values.
+**Status**: open; the current environment cannot execute the CUDA-feature
+Nextest because its Windows GNU linker cannot resolve `-lcuda` from
+`/usr/local/cuda-11.3/lib64/`.
+
 ## MS-446: provider identity and TCP teardown
 
 **Location**: workspace `Cargo.toml`/`Cargo.lock` and

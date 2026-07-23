@@ -4,6 +4,9 @@
 
 ### Changed
 
+- [patch] Propagates CUDA 1D convolution grad-input launch failures through
+  the existing fallback result instead of panicking.
+
 - [patch] Splits the CUDA backend operation trait implementations into
   operation-family leaves under `backend/ops/impls/`, keeping public helper
   module ownership in the manifest.

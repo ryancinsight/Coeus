@@ -1,5 +1,20 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA convolution launch failure propagation [patch]
+- [x] Replace the CUDA 1D convolution grad-input launch panic with the
+      established `false` failure result so the operation boundary can take
+      its fallback path.
+- [x] Synchronize the launcher's Rustdoc with the error contract and verify
+      format, diff, CUDA-feature all-targets check, warning-denied Clippy, and
+      the default package Nextest gate.
+
+Evidence: CUDA-feature all-targets check and warning-denied Clippy pass;
+default package Nextest passes 3/3 with zero skipped in 0.072 seconds. The
+CUDA-feature Nextest remains blocked at link time because the Windows GNU
+linker cannot find `-lcuda` at `/usr/local/cuda-11.3/lib64/`. The remaining
+unchecked `usize` to CUDA `u32` launch-parameter conversions are recorded in
+`docs/gap_audit.md` and are outside this narrow panic-propagation fix.
+
 ## CUDA backend operation impl hierarchy [patch]
 - [x] Move the eight generic CUDA operation trait impl blocks out of the
       993-line backend operation manifest into

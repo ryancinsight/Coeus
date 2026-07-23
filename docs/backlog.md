@@ -1,5 +1,17 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-001 — Propagate convolution launch failures [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/launch_conv.rs` only.
+- Outcome: a nonzero CUDA grad-input launch result now returns `false` instead
+  of panicking, preserving the operation boundary's fallback contract.
+- Evidence: CUDA-feature all-targets check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped in 0.072 seconds.
+  The CUDA-feature Nextest is blocked before execution by the Windows GNU
+  linker: `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`.
+- Residual: unchecked `usize` to CUDA `u32` launch-parameter conversions and
+  layout narrowing remain a separate safety item in `docs/gap_audit.md`.
+
 ## ATLAS-BUILD-STRUCTURE-005 — CUDA backend operation impl hierarchy [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/backend/ops*` only.

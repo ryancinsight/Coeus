@@ -158,7 +158,8 @@ pub fn launch_conv2d(
 /// Launch the 1-D convolution backward kernel on the GPU.
 ///
 /// Computes gradients for input and weight from the 1-D convolution backward pass.
-/// Returns `true` if the kernel launched successfully, `false` if the driver or context is unavailable.
+/// Returns `true` if all requested kernels launch successfully, `false` if the
+/// driver, context, kernel, or launch is unavailable.
 pub fn launch_conv1d_backward(
     grad_out: &CudaStorage<f32>,
     grad_out_layout: &Layout,
@@ -232,7 +233,7 @@ pub fn launch_conv1d_backward(
                 std::ptr::null_mut(),
             );
             if res != 0 {
-                panic!("cu_launch_kernel failed with error code: {}", res);
+                return false;
             }
         }
     }
