@@ -52,13 +52,13 @@ fn test_wgpu_strided_exp_transposed_matches_cpu() {
     let data: Vec<f32> = (0..12).map(|x| (x as f32 - 5.5) * 0.1).collect();
     let a = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 4], &data);
     let at = a.t();
-    let cpu_out = coeus_ops::elementwise_unary(&at, &s, coeus_ops::UnaryOp::Exp);
+    let cpu_out = coeus_ops::elementwise_unary(&at, &s, coeus_ops::UnaryOp::Exp)
+        .expect("valid CPU strided exponential input");
     let a_gpu = to_gpu(&a).t();
-    let gpu_out = to_cpu(&coeus_ops::elementwise_unary(
-        &a_gpu,
-        &w,
-        coeus_ops::UnaryOp::Exp,
-    ));
+    let gpu_out = to_cpu(
+        &coeus_ops::elementwise_unary(&a_gpu, &w, coeus_ops::UnaryOp::Exp)
+            .expect("valid WGPU strided exponential input"),
+    );
     assert_parity(
         "strided_exp_transposed",
         cpu_out.as_slice(),
@@ -73,13 +73,13 @@ fn test_wgpu_strided_neg_transposed_matches_cpu() {
     let data: Vec<f32> = (0..12).map(|x| x as f32 - 6.0).collect();
     let a = Tensor::<f32, SequentialBackend>::from_slice(vec![4, 3], &data);
     let at = a.t();
-    let cpu_out = coeus_ops::elementwise_unary(&at, &s, coeus_ops::UnaryOp::Neg);
+    let cpu_out = coeus_ops::elementwise_unary(&at, &s, coeus_ops::UnaryOp::Neg)
+        .expect("valid CPU strided negation input");
     let a_gpu = to_gpu(&a).t();
-    let gpu_out = to_cpu(&coeus_ops::elementwise_unary(
-        &a_gpu,
-        &w,
-        coeus_ops::UnaryOp::Neg,
-    ));
+    let gpu_out = to_cpu(
+        &coeus_ops::elementwise_unary(&a_gpu, &w, coeus_ops::UnaryOp::Neg)
+            .expect("valid WGPU strided negation input"),
+    );
     assert_parity(
         "strided_neg_transposed",
         cpu_out.as_slice(),
@@ -94,13 +94,13 @@ fn test_wgpu_strided_sqrt_transposed_matches_cpu() {
     let data: Vec<f32> = (1..=12).map(|x| x as f32).collect();
     let a = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 4], &data);
     let at = a.t();
-    let cpu_out = coeus_ops::elementwise_unary(&at, &s, coeus_ops::UnaryOp::Sqrt);
+    let cpu_out = coeus_ops::elementwise_unary(&at, &s, coeus_ops::UnaryOp::Sqrt)
+        .expect("valid CPU strided square-root input");
     let a_gpu = to_gpu(&a).t();
-    let gpu_out = to_cpu(&coeus_ops::elementwise_unary(
-        &a_gpu,
-        &w,
-        coeus_ops::UnaryOp::Sqrt,
-    ));
+    let gpu_out = to_cpu(
+        &coeus_ops::elementwise_unary(&a_gpu, &w, coeus_ops::UnaryOp::Sqrt)
+            .expect("valid WGPU strided square-root input"),
+    );
     assert_parity(
         "strided_sqrt_transposed",
         cpu_out.as_slice(),

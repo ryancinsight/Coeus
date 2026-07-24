@@ -87,7 +87,8 @@ fn test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer() {
         b_gpu.layout(),
         out_gpu.storage_mut(),
         &out_layout,
-    );
+    )
+    .expect("valid WGPU addition output buffer");
 
     let after = Arc::as_ptr(&out_gpu.storage().buffer);
     assert_eq!(
@@ -122,7 +123,8 @@ fn test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer() {
         x_gpu.layout(),
         out_gpu.storage_mut(),
         &out_layout,
-    );
+    )
+    .expect("valid WGPU reciprocal output buffer");
 
     let after = Arc::as_ptr(&out_gpu.storage().buffer);
     assert_eq!(
@@ -156,7 +158,8 @@ fn test_wgpu_aliasing_unary_neg_matches_cpu() {
         x_gpu.layout(),
         out_gpu.storage_mut(),
         &out_layout,
-    );
+    )
+    .expect("valid WGPU negation output buffer");
 
     let expected = coeus_ops::neg(&x_cpu, &s);
     let got = to_cpu(&out_gpu);
@@ -186,7 +189,8 @@ fn test_wgpu_aliasing_binary_add_matches_cpu() {
         b_gpu.layout(),
         out_gpu.storage_mut(),
         &out_layout,
-    );
+    )
+    .expect("valid WGPU aliased addition output buffer");
 
     let expected = coeus_ops::add(&a_cpu, &b_cpu, &s);
     let got = to_cpu(&out_gpu);

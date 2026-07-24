@@ -93,6 +93,14 @@ validates ranks and inner dimensions, and checks output element-count
 overflow; the public WGPU add wrapper now returns a typed shape error instead
 of panicking. No local/Git Leto dependency-resolution blocker remains.
 
+Test-target increment: WGPU layout tests now construct `Shape`/`SmallVec`
+values through their supported conversions and assert typed error fields with
+guarded `matches!` patterns; WGPU parity tests handle fallible unary and direct
+backend calls explicitly, and tensor parity tests handle fallible assign
+operations. Direct nightly rustfmt and diff checks pass. Cargo compilation and
+execution remain pending the shared-target slot and the peer Hephaestus
+`/tmp/cutile-rs` path dependency; no test result is claimed.
+
 ## WGPU pool1d dispatch mode ownership [patch]
 - [x] Replace the forward dispatcher’s mixed forward/backward mode enum with
       a forward-only mode type.

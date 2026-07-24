@@ -241,7 +241,7 @@ fn test_sliced_tensor_offset_ops() {
     let mut slice_target = target_1d.slice(&[(2, 6)]); // shape [4], offset 2
     assert!(slice_target.is_contiguous());
 
-    coeus_ops::add_assign(&mut slice_target, &b_1d, &backend);
+    coeus_ops::add_assign(&mut slice_target, &b_1d, &backend).expect("same-shape sliced addition");
     // Value semantics / COW: mutating slice_target triggers COW and detaches from target_1d
     assert_eq!(slice_target.as_slice(), &[2.0, 3.0, 4.0, 5.0]);
     assert_eq!(target_1d.as_slice(), &[0.0; 8]);
@@ -277,10 +277,10 @@ fn test_integer_abs_and_sqrt() {
     assert_eq!(c.as_slice(), &[2, 2, 4, 3]);
 
     let mut d = a.clone();
-    coeus_ops::abs_assign(&mut d, &backend);
+    coeus_ops::abs_assign(&mut d, &backend).expect("integer absolute value");
     assert_eq!(d.as_slice(), &[5, 4, 16, 9]);
 
-    coeus_ops::sqrt_assign(&mut d, &backend);
+    coeus_ops::sqrt_assign(&mut d, &backend).expect("integer square root");
     assert_eq!(d.as_slice(), &[2, 2, 4, 3]);
 }
 

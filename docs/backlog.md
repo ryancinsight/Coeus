@@ -84,7 +84,7 @@
 
 ## ATLAS-WGPU-SAFETY-002 — Establish fallible WGPU layout/dispatch boundary [arch] — in-progress
 
-- Owner: Codex `/coeus`; last-update: 2026-07-23; scope:
+- Owner: Codex `/coeus`; last-update: 2026-07-24; scope:
   `crates/coeus-wgpu/src/kernels/layout.rs`, its 23 consumers, and the `coeus-ops`
   backend-operation return contract.
 - Outcome: replace unchecked `usize`→WGSL `u32` layout metadata narrowing and
@@ -115,6 +115,13 @@
   and output element-count failures; the public add wrapper now returns a
   typed shape error instead of panicking. ADR-0020 records the selected
   error-boundary design and dependency-ordered implementation slices.
+- Test-target increment: WGPU layout tests now construct `Shape`/`SmallVec`
+  values through their supported conversions and assert typed error fields with
+  guarded `matches!` patterns; WGPU parity tests handle fallible unary and
+  direct backend calls explicitly, and tensor parity tests handle fallible
+  assign operations. Direct nightly rustfmt and diff checks pass. Cargo
+  compilation and execution remain pending the shared-target slot and the
+  peer Hephaestus `/tmp/cutile-rs` path dependency; no test result is claimed.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

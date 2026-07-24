@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn converts_representable_layout_without_narrowing_loss() {
-        let layout = Layout::from_shape_strides([2, 3].into(), [3usize, 1].into(), 4);
+        let layout = Layout::from_shape_strides(vec![2, 3].into(), vec![3usize, 1].into(), 4);
 
         let gpu = GpuLayoutInfo::try_from_layout(&layout).expect("representable layout");
 
@@ -94,42 +94,38 @@ mod tests {
 
     #[test]
     fn rejects_layouts_above_the_fixed_rank_abi() {
-        let layout = Layout::new([1; MAX_WGSL_RANK + 1].into());
+        let layout = Layout::new(vec![1; MAX_WGSL_RANK + 1].into());
 
-        assert_eq!(
+        assert!(matches!(
             GpuLayoutInfo::try_from_layout(&layout),
-            Err(GpuLayoutError::UnsupportedRank {
-                rank: MAX_WGSL_RANK + 1,
-                max: MAX_WGSL_RANK,
-            })
-        );
+            Err(GpuLayoutError::UnsupportedRank { rank, max })
+                if rank == MAX_WGSL_RANK + 1 && max == MAX_WGSL_RANK
+        ));
     }
 
     #[test]
     fn rejects_shape_and_stride_rank_mismatch() {
-        let layout = Layout::from_shape_strides([2, 3].into(), [1usize].into(), 0);
+        let layout = Layout::from_shape_strides(vec![2, 3].into(), vec![1usize].into(), 0);
 
-        assert_eq!(
+        assert!(matches!(
             GpuLayoutInfo::try_from_layout(&layout),
             Err(GpuLayoutError::RankMismatch {
                 shape_rank: 2,
                 stride_rank: 1,
             })
-        );
+        ));
     }
 
     #[cfg(target_pointer_width = "64")]
     #[test]
     fn rejects_dimension_values_outside_the_u32_abi() {
         let dimension = usize::try_from(u32::MAX).expect("u32 fits usize") + 1;
-        let layout = Layout::new([dimension].into());
+        let layout = Layout::new(vec![dimension].into());
 
-        assert_eq!(
+        assert!(matches!(
             GpuLayoutInfo::try_from_layout(&layout),
-            Err(GpuLayoutError::ShapeOutOfRange {
-                axis: 0,
-                value: dimension
-            })
-        );
+            Err(GpuLayoutError::ShapeOutOfRange { axis: 0, value })
+                if value == dimension
+        ));
     }
 }
