@@ -35,6 +35,7 @@ impl From<BackendError> for CudaBackendError {
 }
 
 impl CudaBackendError {
+    #[cfg(feature = "cuda")]
     pub(crate) fn dispatch(
         operation: &'static str,
         source: hephaestus_cuda::HephaestusError,
