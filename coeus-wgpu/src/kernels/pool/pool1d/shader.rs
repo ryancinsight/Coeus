@@ -10,6 +10,23 @@ pub(super) enum PoolKind {
     AvgBackward,
 }
 
+/// Forward dispatch cannot select a backward shader.
+#[derive(Clone, Copy)]
+pub(super) enum ForwardPoolKind {
+    Max,
+    Avg,
+}
+
+impl From<ForwardPoolKind> for PoolKind {
+    #[inline]
+    fn from(kind: ForwardPoolKind) -> Self {
+        match kind {
+            ForwardPoolKind::Max => Self::MaxForward,
+            ForwardPoolKind::Avg => Self::AvgForward,
+        }
+    }
+}
+
 pub(super) fn parameter(value: usize, name: &str) -> u32 {
     u32::try_from(value)
         .unwrap_or_else(|_| panic!("{name} exceeds the WGSL u32 index range: {value}"))

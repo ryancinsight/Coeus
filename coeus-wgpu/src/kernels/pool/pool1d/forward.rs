@@ -1,11 +1,11 @@
-use super::shader::{parameter, shader_source, PoolKind, WORKGROUP_SIZE};
+use super::shader::{parameter, shader_source, ForwardPoolKind, WORKGROUP_SIZE};
 use crate::backend::WgpuScalar;
 use crate::kernels::cache::PIPELINE_CACHE;
 use crate::kernels::layout::GpuLayoutInfo;
 use coeus_core::Layout;
 
 fn dispatch_forward<T: WgpuScalar>(
-    kind: PoolKind,
+    kind: ForwardPoolKind,
     input: &wgpu::Buffer,
     input_layout: &Layout,
     output: &wgpu::Buffer,
@@ -31,13 +31,10 @@ fn dispatch_forward<T: WgpuScalar>(
     );
     ctx.queue
         .write_buffer(&params_buf, 0, bytemuck::cast_slice(&params));
-    let shader_src = shader_source::<T>(kind);
+    let shader_src = shader_source::<T>(kind.into());
     let kind_name = match kind {
-        PoolKind::MaxForward => "max_pool1d",
-        PoolKind::AvgForward => "avg_pool1d",
-        PoolKind::MaxBackward | PoolKind::AvgBackward => {
-            unreachable!("backward pool kinds do not use the forward dispatcher")
-        }
+        ForwardPoolKind::Max => "max_pool1d",
+        ForwardPoolKind::Avg => "avg_pool1d",
     };
     let key = format!("{kind_name}_{}", T::WGSL_TYPE);
     let pipeline = PIPELINE_CACHE.get_or_create(&key, &ctx.device, &shader_src, "main");
@@ -102,7 +99,7 @@ pub fn dispatch_max_pool1d<T: WgpuScalar>(
     output_layout: &Layout,
 ) {
     dispatch_forward::<T>(
-        PoolKind::MaxForward,
+        ForwardPoolKind::Max,
         input,
         input_layout,
         output,
@@ -128,7 +125,7 @@ pub fn dispatch_avg_pool1d<T: WgpuScalar>(
     output_layout: &Layout,
 ) {
     dispatch_forward::<T>(
-        PoolKind::AvgForward,
+        ForwardPoolKind::Avg,
         input,
         input_layout,
         output,

@@ -1,5 +1,40 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-WGPU-SAFETY-001 — Encode pool1d dispatch mode ownership [patch] — done
+
+- Owner: Codex `/coeus`; scope: `coeus-wgpu/src/kernels/pool/pool1d/` and
+  this item’s ADR only.
+- Outcome: the forward dispatcher accepts only forward shader modes, so a
+  backward mode cannot reach it and no `unreachable!` is required to justify
+  the state.
+- Acceptance: the forward path has a forward-only mode type, shader source
+  generation remains unchanged, and format/diff/static checks pass. The
+  broader WGPU layout `usize`→`u32` error-propagation seam is non-goal for
+  this item and remains a separate API migration finding.
+- Risk/change class: `[patch]`; no public operation signature changes.
+- Verification: the pool1d source residual scan is clean; format and diff
+  checks pass. `cargo check --locked -p coeus-wgpu --all-targets` remains
+  blocked before compilation because the preserved peer manifest requests
+  `mnemosyne ^0.6.0` while locked Moirai requires `mnemosyne ^0.5.0`.
+
+## ATLAS-WGPU-SAFETY-002 — Establish fallible WGPU layout/dispatch boundary [arch] — todo
+
+- Owner: unassigned; scope: `coeus-wgpu/src/kernels/layout.rs`, its 23
+  consumers, and the `coeus-ops` backend-operation return contract.
+- Outcome: replace unchecked `usize`→WGSL `u32` layout metadata narrowing and
+  input-dependent dispatch panics with one typed validation/error boundary.
+- Acceptance: every WGPU kernel consumes the validated metadata type; failure
+  reaches the caller through a typed result; no silent no-op, fallback, or
+  compatibility adapter remains; generic CPU/CUDA/WGPU operation contracts
+  remain value-semantic and compile-time-dispatched.
+- Risk/change class: `[arch]`; this is a public trait/API migration and needs
+  an ADR plus synchronized CPU/CUDA/WGPU implementations.
+- Evidence: `GpuLayoutInfo::from_layout` currently uses `assert!` and `as u32`
+  for rank, offset, shapes, and strides. The operation traits return `()` so
+  the failure cannot currently propagate without changing the shared seam.
+- Dependency: resolve the preserved peer `Cargo.toml` manifest drift before
+  compiled verification.
+
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 
 - Owner: Codex `/coeus`; scope: `coeus-ops/src/fuse/op_tags/`.

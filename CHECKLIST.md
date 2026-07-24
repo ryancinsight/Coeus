@@ -1,5 +1,20 @@
 # Coeus Development Roadmap Checklist
 
+## WGPU pool1d dispatch mode ownership [patch]
+- [x] Replace the forward dispatcher’s mixed forward/backward mode enum with
+      a forward-only mode type.
+- [x] Preserve shader source selection and public pool1d launch functions
+      without adapters or duplicate shader bodies.
+- [x] Run format, diff, static residual, and package gates; record the
+      preserved peer dependency-resolution blocker if it remains.
+
+Evidence: `ForwardPoolKind` removes the forward dispatcher’s backward-only
+states without changing shader source generation or public pool1d launch
+functions. The pool1d residual scan is clean; format and diff checks pass.
+Package checking is blocked before compilation because the preserved peer
+manifest requests `mnemosyne ^0.6.0` while locked Moirai requires
+`mnemosyne ^0.5.0`.
+
 ## Fused operation-tag tree [arch]
 - [x] Split the 625-line operation-tag module into an op-tags manifest and a
       unary trait subtree with elementary, transcendental, and activation leaves.
