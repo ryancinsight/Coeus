@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [arch] Splits the CUDA convolution backend into forward, backward, and
+  transposed-convolution leaves under a manifest; each implementation file is
+  below the 500-line hierarchy target.
+
 - [patch] Hardens CUDA elementwise backend dispatch against output-count
   overflow and converts Hephaestus dispatch errors into the explicit CPU
   fallback path instead of panicking.

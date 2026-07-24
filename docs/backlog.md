@@ -1,5 +1,18 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-TREE-001 — Split convolution backend tree [arch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/backend/ops/conv/`.
+- Outcome: the former 614-line convolution backend is now a manifest plus
+  forward, backward, and transposed-convolution leaves. The split preserves
+  existing APIs, checked validation, CPU recovery, and device-buffer ownership.
+- Evidence: leaves are 36, 186, 236, and 181 lines; feature check, warning-
+  denied Clippy, feature rustdoc, and default Nextest 3/3 with zero skipped in
+  0.054 seconds pass.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-015 — Harden elementwise backend count/failure boundary [patch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/backend/ops/math.rs` and the

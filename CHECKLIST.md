@@ -1,5 +1,20 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA convolution backend tree [arch]
+- [x] Split the former 614-line convolution backend into a manifest and
+      forward, backward, and transposed-convolution leaves.
+- [x] Preserve the existing checked-count, layout, fallback, and storage
+      ownership paths without compatibility modules or duplicate implementations.
+- [x] Verify every leaf remains below 500 lines and run format, diff,
+      feature-enabled check/Clippy, default Nextest, feature rustdoc, and the
+      CUDA-feature linker boundary.
+
+Evidence: convolution leaves are 36, 186, 236, and 181 lines. Feature check,
+warning-denied Clippy, and rustdoc pass; default package Nextest passes 3/3
+with zero skipped in 0.054 seconds. CUDA-feature Nextest reaches the Windows
+GNU linker but cannot link because `-lcuda` is absent from
+`/usr/local/cuda-11.3/lib64/`; no feature test execution is claimed.
+
 ## CUDA elementwise backend count and failure boundary [patch]
 - [x] Replace unary/binary output `Iterator::product()` with the shared
       checked-count SSOT before native dispatch or fallback.
