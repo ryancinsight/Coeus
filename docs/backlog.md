@@ -26,6 +26,23 @@
   WGPU test-compilation, and existing formatting residuals remain recorded in
   the task closeout.
 
+## ATLAS-ATTENTION-PERF-001 — Reuse backward attention scratch rows [perf] — in-progress
+
+- Owner: Codex `/coeus`; scope: `crates/coeus-ops/src/backend_ops/cpu_impl/attention.rs`
+  and its focused attention regression coverage.
+- Outcome: remove the per-query `Vec<T>` allocation in CPU attention backward by
+  reusing the already allocated, row-partitioned `d_scores` scratch buffer.
+- Non-goals: no attention formula, accumulation order, public API, backend
+  dispatch, or benchmark-instrument changes.
+- Acceptance: every query task computes its intermediate attention-gradient row
+  in its disjoint `d_scores` slice; value-semantic attention backward tests remain
+  green; the diff contains no per-query heap allocation; no allocation or
+  performance delta is claimed without a controlled benchmark run.
+- Risk/change class: `[perf]` allocation-path optimization with unchanged
+  numerical contract.
+- Status: claimed for the current Coeus task; peer-owned CUDA/config/lockfile
+  changes remain outside the scope.
+
 ## ATLAS-WGPU-SAFETY-001 — Encode pool1d dispatch mode ownership [patch] — done
 
 - Owner: Codex `/coeus`; scope: `crates/coeus-wgpu/src/kernels/pool/pool1d/` and

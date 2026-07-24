@@ -25,6 +25,20 @@ errors. The peer `.cargo/config.toml`, `Cargo.lock`,
 `crates/coeus-cuda/Cargo.toml`, and `crates/coeus-cuda/build.rs` changes remain
 outside this relocation.
 
+## ATLAS-ATTENTION-PERF-001 CPU attention scratch reuse [perf]
+
+- [ ] Replace the per-query `d_attn_row` allocation with the corresponding
+      disjoint row of the existing `d_scores` scratch buffer.
+- [ ] Preserve the analytical backward formula and existing value-semantic
+      differential coverage without changing the public API.
+- [ ] Run the focused package gates or record the peer dependency blocker; do
+      not claim a measured speedup without a controlled benchmark baseline.
+
+Evidence: the current backward kernel allocates `Vec<T>` once per query task;
+the existing `d_scores` buffer already owns one disjoint row per task and can
+hold the intermediate dot products before the softmax derivative overwrites
+them. Implementation and verification are pending.
+
 ## WGPU layout and dispatch failure boundary [arch]
 - [x] Add the checked `GpuLayoutInfo` SSOT constructor with typed rank,
       stride-rank, offset, shape, and stride overflow errors.
