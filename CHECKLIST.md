@@ -1,5 +1,27 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA attention launch ABI [patch] [arch]
+- [x] Validate positive attention dimensions, checked element counts, mask
+      contracts, and device-buffer lengths before native compilation or
+      transient backward allocation.
+- [x] Restrict native dispatch to contiguous offset-zero rank-three tensors
+      with compatible shapes and supported contiguous rank-one/rank-two masks;
+      route unsupported layouts through the explicit CPU capability path.
+- [x] Reuse checked shared 1-D grid launch validation and add pure boundary
+      tests for zero, overflow, and mask-shape cases.
+- [x] Add the co-located ADR and verify format, diff, feature-enabled check,
+      warning-denied Clippy, and default Nextest.
+
+Evidence: attention launch dimensions and buffer lengths are checked before
+kernel compilation or transient allocation; the shared `launch_1d` path has no
+input-dependent grid narrowing. Pure boundary tests cover valid rank-two mask
+counts, zero dimensions, mask-rank inconsistency, non-divisible heads, and
+product overflow. Feature-enabled package check and warning-denied Clippy
+pass; default package Nextest passes 3/3 with zero skipped in 0.171 seconds;
+default doctests pass 4/4 in 14.21 seconds. CUDA-feature Nextest reaches the
+Windows GNU linker and fails before execution because `-lcuda` is absent from
+`/usr/local/cuda-11.3/lib64/`.
+
 ## CUDA matmul launch ABI [patch] [arch]
 - [x] Reject non-rank-two, zero-sized, incompatible, or output-mismatched
       matmul layouts before native kernel compilation.

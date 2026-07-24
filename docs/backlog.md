@@ -1,5 +1,22 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-011 — Harden attention launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/attention.rs`, the
+  shared `kernels::launch_1d` seam, and CUDA attention dispatch.
+- Outcome: attention now validates positive representable dimensions, checked
+  element counts, mask/head relationships, and device-buffer lengths before
+  native compilation or transient allocation. Native dispatch is restricted
+  to compatible contiguous tensors and supported mask layouts.
+- Evidence: pure boundary tests cover valid rank-two mask counts, zero and
+  overflowing dimensions, inconsistent mask rank, and non-divisible heads;
+  feature-enabled package check and warning-denied Clippy pass. Default
+  package Nextest passes 3/3 with zero skipped in 0.171 seconds; default
+  doctests pass 4/4 in 14.21 seconds. CUDA-feature linker status is recorded
+  in the checklist.
+- Limit: CUDA-feature Nextest cannot be claimed when the Windows GNU linker
+  cannot resolve `-lcuda` from `/usr/local/cuda-11.3/lib64/`.
+
 ## ATLAS-CUDA-SAFETY-010 — Harden matmul launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/launch_matmul.rs` and

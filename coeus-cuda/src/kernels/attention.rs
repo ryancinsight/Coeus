@@ -7,13 +7,107 @@
 // `attn_weights` (standard attention, not flash), matching the CPU contract and
 // the `attn_weights` output buffer the backward pass consumes.
 //
-// Scope: the causal and unmasked cases run on-device. The `key_padding_mask`
-// case routes to the CPU reference path (see `backend/ops/attention.rs`); this
-// is an explicit capability boundary, not a silent fallback.
+// Scope: causal, unmasked, and supported contiguous key-padding-mask cases run
+// on-device. Other layouts route to the CPU reference path (see
+// `backend/ops/attention.rs`); this is an explicit capability boundary, not a
+// silent fallback.
 
 use super::launch_1d;
 use crate::driver::get_cuda_context;
+use crate::kernels::validation::cuda_u32;
 use crate::storage::CudaStorage;
+use coeus_core::Storage;
+
+#[derive(Clone, Copy)]
+struct AttentionShape {
+    batch: usize,
+    seq_q: usize,
+    seq_k: usize,
+    d_k: usize,
+    d_v: usize,
+}
+
+#[derive(Clone, Copy)]
+struct AttentionMask {
+    has_mask: bool,
+    ndim: usize,
+    num_heads: usize,
+}
+
+#[derive(Clone, Copy)]
+struct AttentionLaunchDimensions {
+    seq_q: u32,
+    seq_k: u32,
+    d_k: u32,
+    d_v: u32,
+    total_q: u32,
+    total_k: u32,
+    mask_ndim: u32,
+    num_heads: u32,
+    total_q_elements: usize,
+    total_k_elements: usize,
+    query_elements: usize,
+    key_elements: usize,
+    value_elements: usize,
+    output_elements: usize,
+    attention_elements: usize,
+    mask_elements: usize,
+}
+
+fn checked_attention_dimensions(
+    shape: AttentionShape,
+    mask: AttentionMask,
+) -> Option<AttentionLaunchDimensions> {
+    if [
+        shape.batch,
+        shape.seq_q,
+        shape.seq_k,
+        shape.d_k,
+        shape.d_v,
+        mask.num_heads,
+    ]
+    .into_iter()
+    .any(|dimension| dimension == 0)
+        || (mask.has_mask && !matches!(mask.ndim, 1 | 2))
+        || (!mask.has_mask && mask.ndim != 0)
+        || (mask.ndim == 2 && !shape.batch.is_multiple_of(mask.num_heads))
+    {
+        return None;
+    }
+
+    let total_q = shape.batch.checked_mul(shape.seq_q)?;
+    let total_k = shape.batch.checked_mul(shape.seq_k)?;
+    let attention_elements = total_q.checked_mul(shape.seq_k)?;
+    let query_elements = total_q.checked_mul(shape.d_k)?;
+    let key_elements = total_k.checked_mul(shape.d_k)?;
+    let value_elements = total_k.checked_mul(shape.d_v)?;
+    let output_elements = total_q.checked_mul(shape.d_v)?;
+    let mask_elements = match mask.ndim {
+        0 => 0,
+        1 => shape.seq_k,
+        2 => (shape.batch / mask.num_heads).checked_mul(shape.seq_k)?,
+        _ => return None,
+    };
+
+    Some(AttentionLaunchDimensions {
+        seq_q: cuda_u32(shape.seq_q)?,
+        seq_k: cuda_u32(shape.seq_k)?,
+        d_k: cuda_u32(shape.d_k)?,
+        d_v: cuda_u32(shape.d_v)?,
+        total_q: cuda_u32(total_q)?,
+        total_k: cuda_u32(total_k)?,
+        mask_ndim: cuda_u32(mask.ndim)?,
+        num_heads: cuda_u32(mask.num_heads)?,
+        total_q_elements: total_q,
+        total_k_elements: total_k,
+        query_elements,
+        key_elements,
+        value_elements,
+        output_elements,
+        attention_elements,
+        mask_elements,
+    })
+}
 
 const FWD_SRC: &str = r#"
 extern "C" __global__ void sdp_attn_fwd_kernel(
@@ -173,6 +267,31 @@ pub fn launch_sdp_attention(
     mask_ndim: usize,
     num_heads: usize,
 ) -> bool {
+    let Some(dimensions) = checked_attention_dimensions(
+        AttentionShape {
+            batch,
+            seq_q,
+            seq_k,
+            d_k,
+            d_v,
+        },
+        AttentionMask {
+            has_mask: mask.is_some(),
+            ndim: mask_ndim,
+            num_heads,
+        },
+    ) else {
+        return false;
+    };
+    if query.len() < dimensions.query_elements
+        || key.len() < dimensions.key_elements
+        || value.len() < dimensions.value_elements
+        || output.len() < dimensions.output_elements
+        || attn_weights.len() < dimensions.attention_elements
+        || mask.is_some_and(|storage| storage.len() < dimensions.mask_elements)
+    {
+        return false;
+    }
     if get_cuda_context().is_none() {
         return false;
     }
@@ -188,17 +307,17 @@ pub fn launch_sdp_attention(
     let mut mask_ptr = mask.map(|m| m.cu_deviceptr()).unwrap_or(0);
     let mut out_ptr = output.cu_deviceptr();
     let mut aw_ptr = attn_weights.cu_deviceptr();
-    let mut seq_q_v = seq_q as u32;
-    let mut seq_k_v = seq_k as u32;
-    let mut d_k_v = d_k as u32;
-    let mut d_v_v = d_v as u32;
+    let mut seq_q_v = dimensions.seq_q;
+    let mut seq_k_v = dimensions.seq_k;
+    let mut d_k_v = dimensions.d_k;
+    let mut d_v_v = dimensions.d_v;
     let mut causal_v = u32::from(is_causal);
     let mut scale_v = scale;
-    let total = batch * seq_q;
-    let mut total_v = total as u32;
+    let total = dimensions.total_q_elements;
+    let mut total_v = dimensions.total_q;
     let mut has_mask_v = u32::from(mask.is_some());
-    let mut mask_ndim_v = mask_ndim as u32;
-    let mut num_heads_v = num_heads.max(1) as u32;
+    let mut mask_ndim_v = dimensions.mask_ndim;
+    let mut num_heads_v = dimensions.num_heads;
 
     let mut args: [*mut std::ffi::c_void; 16] = [
         &mut q_ptr as *mut u64 as *mut std::ffi::c_void,
@@ -241,6 +360,39 @@ pub fn launch_sdp_attention_backward(
     d_v: usize,
     scale: f32,
 ) -> bool {
+    let Some(dimensions) = checked_attention_dimensions(
+        AttentionShape {
+            batch,
+            seq_q,
+            seq_k,
+            d_k,
+            d_v,
+        },
+        AttentionMask {
+            has_mask: false,
+            ndim: 0,
+            num_heads: 1,
+        },
+    ) else {
+        return false;
+    };
+    if grad_out.len() < dimensions.output_elements
+        || query.len() < dimensions.query_elements
+        || key.len() < dimensions.key_elements
+        || value.len() < dimensions.value_elements
+        || attn_weights.len() < dimensions.attention_elements
+        || grad_q
+            .as_ref()
+            .is_some_and(|storage| storage.len() < dimensions.query_elements)
+        || grad_k
+            .as_ref()
+            .is_some_and(|storage| storage.len() < dimensions.key_elements)
+        || grad_v
+            .as_ref()
+            .is_some_and(|storage| storage.len() < dimensions.value_elements)
+    {
+        return false;
+    }
     if get_cuda_context().is_none() {
         return false;
     }
@@ -257,7 +409,7 @@ pub fn launch_sdp_attention_backward(
         return false;
     };
 
-    let d_scores = CudaStorage::<f32>::new(batch * seq_q * seq_k);
+    let d_scores = CudaStorage::<f32>::new(dimensions.attention_elements);
 
     let mut go_ptr = grad_out.cu_deviceptr();
     let mut q_ptr = query.cu_deviceptr();
@@ -266,18 +418,18 @@ pub fn launch_sdp_attention_backward(
     let mut aw_ptr = attn_weights.cu_deviceptr();
     let mut ds_ptr = d_scores.cu_deviceptr();
 
-    let mut seq_q_v = seq_q as u32;
-    let mut seq_k_v = seq_k as u32;
-    let mut d_k_v = d_k as u32;
-    let mut d_v_v = d_v as u32;
+    let mut seq_q_v = dimensions.seq_q;
+    let mut seq_k_v = dimensions.seq_k;
+    let mut d_k_v = dimensions.d_k;
+    let mut d_v_v = dimensions.d_v;
     let mut scale_v = scale;
 
     // ── Pass 1: fill d_scores, accumulate dQ. One thread per (b, i). ──
     let mut grad_q = grad_q;
     let mut gq_ptr = grad_q.as_mut().map(|g| g.cu_deviceptr()).unwrap_or(0);
     let mut has_gq = u32::from(grad_q.is_some());
-    let total_q = batch * seq_q;
-    let mut total_q_v = total_q as u32;
+    let total_q = dimensions.total_q_elements;
+    let mut total_q_v = dimensions.total_q;
     {
         let mut args: [*mut std::ffi::c_void; 13] = [
             &mut go_ptr as *mut u64 as *mut std::ffi::c_void,
@@ -306,8 +458,8 @@ pub fn launch_sdp_attention_backward(
     let mut gv_ptr = grad_v.as_mut().map(|g| g.cu_deviceptr()).unwrap_or(0);
     let mut has_gk = u32::from(grad_k.is_some());
     let mut has_gv = u32::from(grad_v.is_some());
-    let total_k = batch * seq_k;
-    let mut total_k_v = total_k as u32;
+    let total_k = dimensions.total_k_elements;
+    let mut total_k_v = dimensions.total_k;
     {
         let mut args: [*mut std::ffi::c_void; 14] = [
             &mut go_ptr as *mut u64 as *mut std::ffi::c_void,
@@ -326,5 +478,90 @@ pub fn launch_sdp_attention_backward(
             &mut total_k_v as *mut u32 as *mut std::ffi::c_void,
         ];
         launch_1d(dkv_kernel.func, total_k, &mut args)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{checked_attention_dimensions, AttentionMask, AttentionShape};
+
+    fn shape() -> AttentionShape {
+        AttentionShape {
+            batch: 2,
+            seq_q: 3,
+            seq_k: 4,
+            d_k: 5,
+            d_v: 6,
+        }
+    }
+
+    #[test]
+    fn accepts_contiguous_rank_two_mask_dimensions() {
+        let dimensions = checked_attention_dimensions(
+            shape(),
+            AttentionMask {
+                has_mask: true,
+                ndim: 2,
+                num_heads: 1,
+            },
+        )
+        .expect("valid attention dimensions");
+
+        assert_eq!(dimensions.mask_elements, 8);
+        assert_eq!(dimensions.attention_elements, 24);
+        assert_eq!(dimensions.total_q, 6);
+        assert_eq!(dimensions.total_k, 8);
+    }
+
+    #[test]
+    fn rejects_zero_dimensions_and_inconsistent_mask_rank() {
+        let mut zero_shape = shape();
+        zero_shape.seq_q = 0;
+        assert!(checked_attention_dimensions(
+            zero_shape,
+            AttentionMask {
+                has_mask: false,
+                ndim: 0,
+                num_heads: 1,
+            },
+        )
+        .is_none());
+
+        assert!(checked_attention_dimensions(
+            shape(),
+            AttentionMask {
+                has_mask: false,
+                ndim: 1,
+                num_heads: 1,
+            },
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn rejects_non_divisible_mask_heads_and_product_overflow() {
+        assert!(checked_attention_dimensions(
+            shape(),
+            AttentionMask {
+                has_mask: true,
+                ndim: 2,
+                num_heads: 3,
+            },
+        )
+        .is_none());
+
+        let overflow_shape = AttentionShape {
+            batch: usize::MAX,
+            ..shape()
+        };
+        assert!(checked_attention_dimensions(
+            overflow_shape,
+            AttentionMask {
+                has_mask: false,
+                ndim: 0,
+                num_heads: 1,
+            },
+        )
+        .is_none());
     }
 }

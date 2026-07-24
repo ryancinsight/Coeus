@@ -221,15 +221,16 @@ pub(crate) fn launch_1d(
     let Some(drv) = CudaDriver::get() else {
         return false;
     };
-    let block_size = 256usize;
-    let grid_size = total.div_ceil(block_size);
+    let Some(grid_size) = crate::kernels::validation::launch_grid_size(total) else {
+        return false;
+    };
     unsafe {
         let res = (drv.cu_launch_kernel)(
             func,
-            grid_size as u32,
+            grid_size,
             1,
             1,
-            block_size as u32,
+            crate::kernels::validation::CUDA_BLOCK_SIZE,
             1,
             1,
             0,

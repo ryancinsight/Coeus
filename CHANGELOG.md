@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Hardens CUDA attention dispatch with checked dimensions, element
+  counts, device-buffer lengths, mask contracts, and shared 1-D grid
+  validation; unsupported layouts remain on the explicit CPU capability path.
+
 - [patch] Hardens the CUDA tiled matmul boundary with checked rank-two shape
   compatibility, representable layout metadata, and both 16-wide grid axes.
 

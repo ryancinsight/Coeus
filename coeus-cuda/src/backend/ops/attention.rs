@@ -1,10 +1,10 @@
 // ── CUDA SDP attention dispatch ──
 //
 // Routes scaled dot-product attention to the on-device NVRTC kernels
-// (`kernels::attention`) for the f32 causal/unmasked case, and to the verified
-// CPU reference (`fallback_sdp_attention`) otherwise. The masked case
-// (`key_padding_mask.is_some()`) is an explicit capability boundary handled by
-// the CPU path until a masked on-device kernel is added — not a silent fallback.
+// (`kernels::attention`) for contiguous f32 tensors, including rank-1 and
+// rank-2 key-padding masks. Unsupported layouts and mask shapes use the
+// verified CPU reference (`fallback_sdp_attention`) as an explicit capability
+// boundary.
 
 use super::cast::{cast_storage, cast_storage_mut};
 use crate::backend::{CudaBackend, CudaScalar};
@@ -32,10 +32,16 @@ impl CudaBackend {
         attn_weights: &mut CudaStorage<T>,
         attn_weights_layout: &Layout,
     ) {
-        // A contiguous key-padding mask is handled on-device; a strided mask
-        // (rare) routes to the CPU reference, an explicit capability boundary.
-        let mask_on_device = key_padding_mask_layout.is_none_or(Layout::is_contiguous);
-        let on_device = mask_on_device
+        let layouts_on_device = [
+            query_layout,
+            key_layout,
+            value_layout,
+            output_layout,
+            attn_weights_layout,
+        ]
+        .into_iter()
+        .all(|layout| layout.ndim() == 3 && layout.is_contiguous() && layout.offset() == 0);
+        let on_device = layouts_on_device
             && get_cuda_context().is_some()
             && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>();
         if on_device {
@@ -45,16 +51,69 @@ impl CudaBackend {
             let d_k = q_shape[2];
             let seq_k = key_layout.shape()[1];
             let d_v = value_layout.shape()[2];
+            let shapes_match = key_layout.shape()[0] == batch
+                && key_layout.shape()[2] == d_k
+                && value_layout.shape()[0] == batch
+                && value_layout.shape()[1] == seq_k
+                && output_layout.shape() == [batch, seq_q, d_v]
+                && attn_weights_layout.shape() == [batch, seq_q, seq_k];
+            if !shapes_match {
+                return self.fallback_sdp_attention(
+                    query,
+                    query_layout,
+                    key,
+                    key_layout,
+                    value,
+                    value_layout,
+                    key_padding_mask,
+                    key_padding_mask_layout,
+                    is_causal,
+                    scale,
+                    output,
+                    output_layout,
+                    attn_weights,
+                    attn_weights_layout,
+                );
+            }
             // T is TypeId-confirmed f32 here; f32->f64->f32 round-trips exactly.
             let scale_f32 = coeus_core::Scalar::to_f64(scale) as f32;
 
-            let (mask_ndim, num_heads) = match key_padding_mask_layout {
-                Some(ml) => {
-                    let nd = ml.ndim();
-                    let batch_mask = if nd == 2 { ml.shape()[0] } else { 1 };
-                    (nd, batch / batch_mask.max(1))
+            let mask_info = match (key_padding_mask, key_padding_mask_layout) {
+                (None, None) => Some((0, 1)),
+                (Some(_), Some(mask_layout))
+                    if mask_layout.is_contiguous() && mask_layout.offset() == 0 =>
+                {
+                    match mask_layout.shape() {
+                        [mask_seq] if *mask_seq == seq_k => Some((1, 1)),
+                        [mask_batch, mask_seq]
+                            if *mask_batch != 0
+                                && *mask_seq == seq_k
+                                && batch.is_multiple_of(*mask_batch) =>
+                        {
+                            Some((2, batch / *mask_batch))
+                        }
+                        _ => None,
+                    }
                 }
-                None => (0, 1),
+                _ => None,
+            };
+            let Some((mask_ndim, num_heads)) = mask_info else {
+                return self.fallback_sdp_attention(
+                    query,
+                    query_layout,
+                    key,
+                    key_layout,
+                    value,
+                    value_layout,
+                    key_padding_mask,
+                    key_padding_mask_layout,
+                    is_causal,
+                    scale,
+                    output,
+                    output_layout,
+                    attn_weights,
+                    attn_weights_layout,
+                );
             };
 
             let q32 = cast_storage::<T, f32>(query);
