@@ -1,5 +1,6 @@
 use super::GpuLayoutInfo;
 use crate::driver::{get_cuda_context, CudaDriver};
+use crate::kernels::validation::{launch_grid_size_for_block, layouts_fit_cuda};
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
@@ -19,6 +20,36 @@ pub fn launch_matmul_tiled(
         return false;
     };
     let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
+    if !layouts_fit_cuda(&[a_layout, b_layout, c_layout]) {
+        return false;
+    }
+    let [m, k] = a_layout.shape() else {
+        return false;
+    };
+    let [b_k, n] = b_layout.shape() else {
+        return false;
+    };
+    let [c_m, c_n] = c_layout.shape() else {
+        return false;
+    };
+    if *m == 0
+        || *k == 0
+        || *b_k == 0
+        || *n == 0
+        || *c_m == 0
+        || *c_n == 0
+        || *k != *b_k
+        || *m != *c_m
+        || *n != *c_n
+    {
+        return false;
+    }
+    let Some(grid_x) = launch_grid_size_for_block(*n, 16) else {
+        return false;
+    };
+    let Some(grid_y) = launch_grid_size_for_block(*m, 16) else {
         return false;
     };
 
@@ -128,16 +159,11 @@ extern "C" __global__ void matmul_kernel(
         &gpu_c_layout as *const GpuLayoutInfo as *mut std::ffi::c_void,
     ];
 
-    let m = a_layout.shape()[0];
-    let n = b_layout.shape()[1];
-    let grid_x = n.div_ceil(16);
-    let grid_y = m.div_ceil(16);
-
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_x as u32,
-            grid_y as u32,
+            grid_x,
+            grid_y,
             1,
             16,
             16,

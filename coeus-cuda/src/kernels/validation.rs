@@ -38,17 +38,21 @@ pub(crate) fn layout_supports_cuda_output_indexing(layout: &Layout) -> bool {
 }
 
 pub(crate) fn launch_grid_size(total: usize) -> Option<u32> {
-    if total == 0 {
+    launch_grid_size_for_block(total, usize::try_from(CUDA_BLOCK_SIZE).ok()?)
+}
+
+pub(crate) fn launch_grid_size_for_block(total: usize, block_size: usize) -> Option<u32> {
+    if total == 0 || block_size == 0 {
         return None;
     }
-    let block_size = usize::try_from(CUDA_BLOCK_SIZE).ok()?;
     cuda_u32(total.div_ceil(block_size))
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        checked_numel, launch_grid_size, layout_supports_cuda_output_indexing, layouts_share_shape,
+        checked_numel, launch_grid_size, launch_grid_size_for_block,
+        layout_supports_cuda_output_indexing, layouts_share_shape,
     };
     use coeus_core::Layout;
 
@@ -65,6 +69,13 @@ mod tests {
 
         assert_eq!(launch_grid_size(total), None);
         assert_eq!(launch_grid_size(0), None);
+    }
+
+    #[test]
+    fn launch_grid_size_supports_nonstandard_block_widths() {
+        assert_eq!(launch_grid_size_for_block(17, 16), Some(2));
+        assert_eq!(launch_grid_size_for_block(0, 16), None);
+        assert_eq!(launch_grid_size_for_block(17, 0), None);
     }
 
     #[test]

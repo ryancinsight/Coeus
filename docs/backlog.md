@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-010 — Harden matmul launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/launch_matmul.rs` and
+  the shared launch-grid validation seam.
+- Outcome: tiled matmul now checks rank-two nonempty layout metadata,
+  `A.cols == B.rows`, output shape compatibility, and both 16-wide grid axes
+  before native dispatch.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped; validation tests cover
+  custom block widths and matmul source scans are clean for rank/grid issues.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-009 — Harden pool3d launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/pool/{avg3d,max3d}.rs`

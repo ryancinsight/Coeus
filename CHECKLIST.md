@@ -1,5 +1,20 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA matmul launch ABI [patch] [arch]
+- [x] Reject non-rank-two, zero-sized, incompatible, or output-mismatched
+      matmul layouts before native kernel compilation.
+- [x] Replace both unchecked 16-wide grid conversions with the shared checked
+      arbitrary-block grid helper; retain the tiled f32 kernel and buffers.
+- [x] Add the co-located ADR and verify format, diff, feature-enabled check,
+      warning-denied Clippy, and default Nextest.
+
+Evidence: `launch_matmul.rs` contains no input-dependent grid narrowing or
+unchecked rank indexing. Shared validation tests cover custom block widths;
+feature-enabled package check and warning-denied Clippy pass; default package
+Nextest passes 3/3 with zero skipped. CUDA-feature Nextest remains blocked
+before execution because the Windows GNU linker cannot find `-lcuda` at
+`/usr/local/cuda-11.3/lib64/`.
+
 ## CUDA pool3d launch ABI [patch] [arch]
 - [x] Apply the pool-owned validation seam to 3-D average/max forward and
       backward dispatch with rank-five nonempty layouts and shape contracts.

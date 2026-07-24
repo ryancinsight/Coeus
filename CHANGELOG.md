@@ -4,6 +4,9 @@
 
 ### Changed
 
+- [patch] Hardens the CUDA tiled matmul boundary with checked rank-two shape
+  compatibility, representable layout metadata, and both 16-wide grid axes.
+
 - [patch] Extends the pool-owned CUDA launch validation SSOT to 3-D
   average/max forward and backward dispatch with checked rank-five layout,
   parameter, work-count, grid, and shape contracts.
