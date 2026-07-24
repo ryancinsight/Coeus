@@ -105,7 +105,7 @@ unsafe extern "C" fn local_cu_ctx_create(
     flags: u32,
     dev: CUdevice,
 ) -> CUresult {
-    cuda_core::sys::cuCtxCreate_v4(pctx as *mut *mut _, std::ptr::null_mut(), flags, dev)
+    cuda_core::sys::cuCtxCreate_v2(pctx as *mut *mut _, flags, dev)
         as CUresult
 }
 
