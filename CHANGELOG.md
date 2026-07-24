@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Hardens fused CUDA dispatch with checked output counts and grids,
+  broadcast/layout contracts, input/output storage bounds, and canonical block
+  sizing before dynamic kernel launch.
+
 - [patch] Hardens CUDA transposed-convolution 1-D/2-D dispatch with checked
   ABI dimensions, input/weight/bias/output storage capacities, work products,
   and shared grid validation before native kernel compilation.

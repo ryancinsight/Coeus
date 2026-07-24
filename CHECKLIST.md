@@ -1,5 +1,23 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA fused-dispatch ABI [patch] [arch]
+- [x] Validate checked output counts/grids, contiguous output indexing,
+      broadcast contracts, input/output storage bounds, and null inputs before
+      dynamic CUDA source compilation and launch.
+- [x] Move layout storage-length validation into the shared kernel-validation
+      SSOT and retain zero-copy layout serialization with explicit safety proof.
+- [x] Replace local block/grid narrowing with the canonical checked grid seam;
+      remove the input-dependent `CString` unwrap at kernel lookup.
+- [x] Add overflow and layout-storage boundary regressions; verify format,
+      diff, feature-enabled check, warning-denied Clippy, default Nextest, and
+      feature rustdoc.
+
+Evidence: feature-enabled check and warning-denied Clippy pass; default
+package Nextest passes 3/3 with zero skipped in 0.055 seconds; feature
+rustdoc passes in 3.09 seconds. CUDA-feature Nextest reaches the Windows GNU
+linker but cannot link because `-lcuda` is absent from
+`/usr/local/cuda-11.3/lib64/`; no feature test execution is claimed.
+
 ## CUDA transposed-convolution launch ABI [patch] [arch]
 - [x] Validate 1-D and 2-D transposed-convolution dimensions, checked input/
       weight/output products, optional bias capacity, and `u32` ABI values

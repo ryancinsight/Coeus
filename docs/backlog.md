@@ -1,5 +1,21 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-014 — Harden fused-dispatch launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/fuse.rs` and the
+  shared `kernels::validation` storage-bound seam.
+- Outcome: fused CUDA dispatch now rejects overflowed output counts and grids,
+  non-contiguous or offset output layouts, incompatible broadcasts, null input
+  pointers, and input/output storage layouts that exceed their allocations.
+  Dynamic launch uses the canonical checked grid and block constants. The
+  shared physical-storage bound is reused by unfold/fold.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default Nextest passes 3/3 with zero skipped in 0.055 seconds; feature
+  rustdoc passes in 3.09 seconds.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-013 — Harden transposed-convolution launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/conv_transpose.rs` and

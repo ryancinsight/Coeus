@@ -1,9 +1,14 @@
 use super::GpuLayoutInfo;
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::{get_cuda_context, CUdeviceptr, CUfunction, CUmodule, CudaDriver, NvrtcDriver};
+use crate::kernels::validation::{
+    checked_layout_storage_len, checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda,
+    CUDA_BLOCK_SIZE,
+};
 use crate::storage::CudaStorage;
-use coeus_core::{ComputeBackend, Layout};
+use coeus_core::{ComputeBackend, Layout, Storage};
 use coeus_ops::fuse::ExprNode;
+use coeus_tensor::broadcast::broadcast_shapes;
 use coeus_tensor::Tensor;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
@@ -155,7 +160,7 @@ pub(crate) fn get_or_create_kernel(
         }
 
         let mut func = std::ptr::null_mut();
-        let func_name_c = std::ffi::CString::new(func_name).unwrap();
+        let func_name_c = std::ffi::CString::new(func_name).ok()?;
         let res = (drv.cu_module_get_function)(&mut func, module, func_name_c.as_ptr());
         if res != 0 {
             (drv.cu_module_unload)(module);
@@ -188,14 +193,54 @@ pub fn dispatch_fused<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     let Some(_ctx) = get_cuda_context() else {
         return false;
     };
+    let Some(total) = checked_numel(out_layout) else {
+        return false;
+    };
+    let Some(grid_size) = launch_grid_size(total) else {
+        return false;
+    };
+    if out_layout.offset() != 0 || !out_layout.is_contiguous() || output.len() < total {
+        return false;
+    }
     let cuda_type = T::CUDA_TYPE;
 
     // 1. Collect unique input tensors
     let mut input_ptrs = Vec::new();
     expr.collect_inputs(&mut input_ptrs);
     let num_inputs = input_ptrs.len();
+    let Some(layout_count) = num_inputs.checked_add(1) else {
+        return false;
+    };
+    if input_ptrs.iter().any(|ptr| ptr.is_null()) {
+        return false;
+    }
 
-    let inputs: Vec<&Tensor<T, CudaBackend>> = input_ptrs.iter().map(|&p| unsafe { &*p }).collect();
+    let inputs: Vec<&Tensor<T, CudaBackend>> = input_ptrs
+        .iter()
+        .map(|&p| {
+            // SAFETY: ExprNode input collection returns pointers to the tensors
+            // captured by the expression; null pointers were rejected above.
+            unsafe { &*p }
+        })
+        .collect();
+
+    for input in &inputs {
+        let input_layout = input.layout();
+        let Some(broadcast_shape) = broadcast_shapes(input_layout.shape(), out_layout.shape())
+        else {
+            return false;
+        };
+        let Some(required) = checked_layout_storage_len(input_layout) else {
+            return false;
+        };
+        if broadcast_shape.as_ref() != out_layout.shape()
+            || !layouts_fit_cuda(&[input_layout])
+            || required.checked_sub(1).and_then(cuda_u32).is_none()
+            || input.storage().len() < required
+        {
+            return false;
+        }
+    }
 
     // 2. Build input pointer to index map
     let mut input_map = HashMap::new();
@@ -207,7 +252,10 @@ pub fn dispatch_fused<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     let expr_str = expr.to_shader_expr(&input_map);
 
     // 4. Create layouts buffer
-    let mut layouts_gpu = Vec::with_capacity(num_inputs + 1);
+    let mut layouts_gpu = Vec::new();
+    if layouts_gpu.try_reserve_exact(layout_count).is_err() {
+        return false;
+    }
     for input in &inputs {
         let Ok(layout) = GpuLayoutInfo::try_from(input.layout()) else {
             return false;
@@ -219,8 +267,15 @@ pub fn dispatch_fused<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     };
     layouts_gpu.push(out_layout_gpu);
 
-    let size_u32 = layouts_gpu.len() * (std::mem::size_of::<GpuLayoutInfo>() / 4);
+    let Some(size_u32) = layouts_gpu
+        .len()
+        .checked_mul(std::mem::size_of::<GpuLayoutInfo>() / 4)
+    else {
+        return false;
+    };
     let mut layout_buf = CudaStorage::<u32>::new(size_u32);
+    // SAFETY: `GpuLayoutInfo` is `#[repr(C)]` and derives `bytemuck::Pod`, so
+    // its initialized contiguous storage can be viewed as `u32` words.
     let slice = unsafe { std::slice::from_raw_parts(layouts_gpu.as_ptr() as *const u32, size_u32) };
     CudaBackend::new().copy_to_device(slice, &mut layout_buf);
 
@@ -298,7 +353,9 @@ extern "C" __global__ void fused_kernel(
     // 7. Marshal arguments and launch
     let mut out_ptr = output.cu_deviceptr();
     let mut layouts_ptr = layout_buf.cu_deviceptr();
-    let mut n_val = out_layout.numel() as u32;
+    let Some(mut n_val) = cuda_u32(total) else {
+        return false;
+    };
 
     let mut in_ptrs: Vec<CUdeviceptr> = inputs
         .iter()
@@ -313,16 +370,13 @@ extern "C" __global__ void fused_kernel(
         args.push(ptr as *mut CUdeviceptr as *mut std::ffi::c_void);
     }
 
-    let block_size = 256;
-    let grid_size = out_layout.numel().div_ceil(block_size);
-
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_size as u32,
+            grid_size,
             1,
             1,
-            block_size as u32,
+            CUDA_BLOCK_SIZE,
             1,
             1,
             0,

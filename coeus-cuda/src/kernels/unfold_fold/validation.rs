@@ -1,6 +1,7 @@
 use crate::backend::CudaScalar;
 use crate::kernels::validation::{
-    checked_numel, cuda_u32, layout_supports_cuda_output_indexing, layouts_fit_cuda,
+    checked_layout_storage_len, checked_numel, cuda_u32, layout_supports_cuda_output_indexing,
+    layouts_fit_cuda,
 };
 use crate::storage::CudaStorage;
 use coeus_core::{Layout, Storage};
@@ -36,19 +37,6 @@ pub(super) struct Parameters2d {
     pub(super) output_rank: usize,
     pub(super) values: [usize; 9],
     pub(super) width: usize,
-}
-
-fn checked_layout_storage_len(layout: &Layout) -> Option<usize> {
-    if layout.shape().contains(&0) {
-        return Some(0);
-    }
-    let max_offset = layout.shape().iter().zip(layout.strides()).try_fold(
-        layout.offset(),
-        |max_offset, (&dimension, &stride)| {
-            max_offset.checked_add((dimension - 1).checked_mul(stride)?)
-        },
-    )?;
-    max_offset.checked_add(1)
 }
 
 fn layout_storage_is_valid<T: coeus_core::Scalar>(

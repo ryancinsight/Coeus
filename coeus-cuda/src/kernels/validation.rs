@@ -14,6 +14,19 @@ pub(crate) fn checked_numel(layout: &Layout) -> Option<usize> {
         .try_fold(1usize, |numel, dimension| numel.checked_mul(dimension))
 }
 
+pub(crate) fn checked_layout_storage_len(layout: &Layout) -> Option<usize> {
+    if layout.shape().contains(&0) {
+        return Some(0);
+    }
+    let max_offset = layout.shape().iter().zip(layout.strides()).try_fold(
+        layout.offset(),
+        |max_offset, (&dimension, &stride)| {
+            max_offset.checked_add((dimension - 1).checked_mul(stride)?)
+        },
+    )?;
+    max_offset.checked_add(1)
+}
+
 pub(crate) fn layouts_fit_cuda(layouts: &[&Layout]) -> bool {
     layouts.iter().all(|layout| {
         layout.ndim() <= 8
@@ -51,7 +64,7 @@ pub(crate) fn launch_grid_size_for_block(total: usize, block_size: usize) -> Opt
 #[cfg(test)]
 mod tests {
     use super::{
-        checked_numel, launch_grid_size, launch_grid_size_for_block,
+        checked_layout_storage_len, checked_numel, launch_grid_size, launch_grid_size_for_block,
         layout_supports_cuda_output_indexing, layouts_share_shape,
     };
     use coeus_core::Layout;
@@ -91,5 +104,19 @@ mod tests {
         let second = Layout::new(vec![3, 2].into());
 
         assert!(!layouts_share_shape(&[&first, &second]));
+    }
+
+    #[test]
+    fn layout_storage_len_accounts_for_offset_and_strides() {
+        let layout = Layout::from_shape_strides(vec![2, 3].into(), vec![4, 1].into(), 2);
+
+        assert_eq!(checked_layout_storage_len(&layout), Some(9));
+    }
+
+    #[test]
+    fn layout_storage_len_rejects_offset_overflow() {
+        let layout = Layout::from_shape_strides(vec![2].into(), vec![1].into(), usize::MAX);
+
+        assert_eq!(checked_layout_storage_len(&layout), None);
     }
 }
