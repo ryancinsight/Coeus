@@ -26,7 +26,7 @@
   WGPU test-compilation, and existing formatting residuals remain recorded in
   the task closeout.
 
-## ATLAS-ATTENTION-PERF-001 — Reuse backward attention scratch rows [perf] — in-progress
+## ATLAS-ATTENTION-PERF-001 — Reuse backward attention scratch rows [perf] — done
 
 - Owner: Codex `/coeus`; scope: `crates/coeus-ops/src/backend_ops/cpu_impl/attention.rs`
   and its focused attention regression coverage.
@@ -40,8 +40,12 @@
   performance delta is claimed without a controlled benchmark run.
 - Risk/change class: `[perf]` allocation-path optimization with unchanged
   numerical contract.
-- Status: claimed for the current Coeus task; peer-owned CUDA/config/lockfile
-  changes remain outside the scope.
+- Status: implementation is complete. Direct rustfmt and staged diff checks
+  pass. The focused Cargo check is blocked before compilation by the peer
+  `crates/coeus-cuda/Cargo.toml` cutover to absent `/tmp/cutile-rs` paths;
+  existing attention backward differential coverage remains the required
+  behavioral gate once dependency resolution is restored. No measured
+  performance delta is claimed.
 
 ## ATLAS-WGPU-SAFETY-001 — Encode pool1d dispatch mode ownership [patch] — done
 

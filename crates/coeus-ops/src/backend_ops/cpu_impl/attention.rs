@@ -233,29 +233,29 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
         let b = index / seq_q;
         let i = index % seq_q;
 
-        // a. Compute d_attn_row of size seq_k.
-        let mut d_attn_row = vec![T::zero(); seq_k];
-        for j in 0..seq_k {
+        // a. Compute d_attn_row into this task's disjoint d_scores row. Reusing
+        // the scratch row removes one heap allocation per query task without
+        // changing the reduction order or the stored derivative values.
+        let d_scores_start = idx3(b, i, 0, seq_q, seq_k);
+        // SAFETY: each task owns a unique `(b, i)` row, and the validated
+        // scratch allocation contains `batch * seq_q * seq_k` elements.
+        let d_scores_row = unsafe { d_scores_ptr.slice_mut(d_scores_start, seq_k) };
+        for (j, d_attn) in d_scores_row.iter_mut().enumerate() {
             let go_start = idx3(b, i, 0, seq_q, d_v);
             let value_start = idx3(b, j, 0, seq_k, d_v);
             let go_window = unsafe { go_ptr.slice(go_start, d_v) };
             let v_window = unsafe { v_ptr.slice(value_start, d_v) };
-            d_attn_row[j] = T::dot_slice(go_window, v_window);
+            *d_attn = T::dot_slice(go_window, v_window);
         }
 
         // b. Compute rs = dot_slice(A[b, i, :], d_attn_row)
         let aw_start = idx3(b, i, 0, seq_q, seq_k);
         let aw_window = unsafe { aw_ptr.slice(aw_start, seq_k) };
-        let rs = T::dot_slice(aw_window, &d_attn_row);
+        let rs = T::dot_slice(aw_window, d_scores_row);
 
         // c. Fill d_scores for this row.
-        for j in 0..seq_k {
-            let aw_idx = idx3(b, i, j, seq_q, seq_k);
-            let aw_val = unsafe { aw_ptr.read(aw_idx) };
-            let val = aw_val * (d_attn_row[j] - rs);
-            unsafe {
-                d_scores_ptr.write(aw_idx, val);
-            }
+        for (d_score, &aw_val) in d_scores_row.iter_mut().zip(aw_window) {
+            *d_score = aw_val * (*d_score - rs);
         }
 
         // d. Accumulate into dQ if present:
