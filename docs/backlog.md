@@ -47,6 +47,21 @@
   behavioral gate once dependency resolution is restored. No measured
   performance delta is claimed.
 
+## ATLAS-CORE-SAFETY-001 — Bound parallel pointer auto-traits [patch] — in-progress
+
+- Owner: Codex `/coeus`; scope: `crates/coeus-core/src/ptr.rs` and its
+  safety-contract documentation.
+- Outcome: public `SendPtr` and `SendPtrMut` wrappers expose `Send`/`Sync` only
+  when the pointee capabilities support cross-thread value movement and access.
+- Non-goals: no pointer representation, kernel algorithm, or allocation-path
+  change; Coeus scalar dispatch remains monomorphized.
+- Acceptance: unsafe auto-trait implementations carry conservative pointee
+  bounds, the existing `coeus-ops` scalar users remain admitted by those bounds,
+  and the exact source diff passes formatting and diff checks.
+- Risk/change class: `[patch]` unsafe-boundary hardening.
+- Status: claimed for the current Coeus task; peer-owned CUDA/config/lockfile
+  changes remain outside the scope.
+
 ## ATLAS-WGPU-SAFETY-001 — Encode pool1d dispatch mode ownership [patch] — done
 
 - Owner: Codex `/coeus`; scope: `crates/coeus-wgpu/src/kernels/pool/pool1d/` and
