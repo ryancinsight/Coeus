@@ -37,11 +37,22 @@ use coeus_ops::fuse::ExprNode;
 use coeus_tensor::Tensor;
 
 /// Element-wise addition of two WebGPU tensors.
+///
+/// # Errors
+///
+/// Returns [`WgpuBackendError`] when the input shapes differ.
 pub fn add<T: WgpuScalar>(
     a: &Tensor<T, WgpuBackend>,
     b: &Tensor<T, WgpuBackend>,
-) -> Tensor<T, WgpuBackend> {
-    assert_eq!(a.shape(), b.shape(), "Shape mismatch in wgpu add");
+) -> Result<Tensor<T, WgpuBackend>, WgpuBackendError> {
+    if a.shape() != b.shape() {
+        return Err(BackendError::ShapeMismatch {
+            operation: "add",
+            lhs: a.shape().to_vec(),
+            rhs: b.shape().to_vec(),
+        }
+        .into());
+    }
     let len = a.numel();
 
     let c_storage = WgpuStorage::new(len);
@@ -54,7 +65,10 @@ pub fn add<T: WgpuScalar>(
         len,
     );
 
-    Tensor::from_raw_parts(c_storage, Layout::new(a.shape_cloned()))
+    Ok(Tensor::from_raw_parts(
+        c_storage,
+        Layout::new(a.shape_cloned()),
+    ))
 }
 
 /// Matrix multiplication of two WebGPU tensors: c = a x b.

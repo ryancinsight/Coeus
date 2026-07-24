@@ -19,7 +19,7 @@ fn test_wgpu_transfers_and_addition() {
     assert_eq!(a_wgpu.shape(), &[2, 3]);
     assert_eq!(b_wgpu.shape(), &[2, 3]);
 
-    let c_wgpu = add(&a_wgpu, &b_wgpu);
+    let c_wgpu = add(&a_wgpu, &b_wgpu).expect("valid addition test shapes");
     let c_seq = c_wgpu.to_backend_on(&wgpu_b, &seq);
 
     let expected = vec![11.0f32, 22.0, 33.0, 44.0, 55.0, 66.0];

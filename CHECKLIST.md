@@ -30,7 +30,8 @@ blocked by the peer `coeus-nn` fallible-operation migration: 70 errors remain
 at normalization callers, and peer `coeus-autograd` emits 143 unused-`Result`
 warnings. The public WGPU matmul wrapper now returns the typed result,
 validates ranks and inner dimensions, and checks output element-count
-overflow. No local/Git Leto dependency-resolution blocker remains.
+overflow; the public WGPU add wrapper now returns a typed shape error instead
+of panicking. No local/Git Leto dependency-resolution blocker remains.
 
 ## WGPU pool1d dispatch mode ownership [patch]
 - [x] Replace the forward dispatcher’s mixed forward/backward mode enum with
