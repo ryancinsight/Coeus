@@ -32,7 +32,7 @@ mod storage;
 pub use backend::{LayoutError, WgpuBackend, WgpuBackendError, WgpuScalar};
 pub use storage::WgpuStorage;
 
-use coeus_core::Layout;
+use coeus_core::{BackendError, Layout};
 use coeus_ops::fuse::ExprNode;
 use coeus_tensor::Tensor;
 
@@ -58,20 +58,48 @@ pub fn add<T: WgpuScalar>(
 }
 
 /// Matrix multiplication of two WebGPU tensors: c = a x b.
+///
+/// # Errors
+///
+/// Returns [`WgpuBackendError`] when the input ranks, inner dimensions, output
+/// element count, or WGSL layout metadata violate the backend contract.
 pub fn matmul<T: WgpuScalar>(
     a: &Tensor<T, WgpuBackend>,
     b: &Tensor<T, WgpuBackend>,
-) -> Tensor<T, WgpuBackend> {
-    assert_eq!(a.ndim(), 2, "matmul requires 2D input A");
-    assert_eq!(b.ndim(), 2, "matmul requires 2D input B");
-    let m = a.shape()[0];
-    let k = a.shape()[1];
-    let k2 = b.shape()[0];
-    let n = b.shape()[1];
-    assert_eq!(k, k2, "matmul inner dimension mismatch: {} vs {}", k, k2);
+) -> Result<Tensor<T, WgpuBackend>, WgpuBackendError> {
+    let a_shape = a.shape();
+    let [m, k] = a_shape else {
+        return Err(BackendError::UnsupportedRank {
+            operation: "matmul",
+            rank: a_shape.len(),
+            max_rank: 2,
+        }
+        .into());
+    };
+    let b_shape = b.shape();
+    let [k2, n] = b_shape else {
+        return Err(BackendError::UnsupportedRank {
+            operation: "matmul",
+            rank: b_shape.len(),
+            max_rank: 2,
+        }
+        .into());
+    };
+    if k != k2 {
+        return Err(BackendError::ShapeMismatch {
+            operation: "matmul",
+            lhs: a_shape.to_vec(),
+            rhs: b_shape.to_vec(),
+        }
+        .into());
+    }
 
-    let c_storage = WgpuStorage::new(m * n);
-    let c_layout = Layout::new([m, n].into());
+    let element_count = m.checked_mul(*n).ok_or(BackendError::Overflow {
+        operation: "matmul",
+        reason: "output element count overflow",
+    })?;
+    let c_storage = WgpuStorage::new(element_count);
+    let c_layout = Layout::new([*m, *n].into());
 
     kernels::dispatch_matmul::<T>(
         a.storage().buffer.raw(),
@@ -80,9 +108,10 @@ pub fn matmul<T: WgpuScalar>(
         b.layout(),
         c_storage.buffer.raw(),
         &c_layout,
-    );
+    )
+    .map_err(|error| WgpuBackendError::Layout(error.into()))?;
 
-    Tensor::from_raw_parts(c_storage, c_layout)
+    Ok(Tensor::from_raw_parts(c_storage, c_layout))
 }
 
 /// Evaluate a fused element-wise expression on the WebGPU device.

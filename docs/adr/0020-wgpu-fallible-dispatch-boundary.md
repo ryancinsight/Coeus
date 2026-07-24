@@ -74,9 +74,11 @@ dispatch failures. High-level arithmetic, unary, reduction, shape, and matmul
 callers propagate the result contract; no compatibility adapter or silent
 fallback was retained. The focused `coeus-ops` gate passes 87/87 nextest
 tests, 22/22 doctests, warning-denied Clippy, and package-local formatting.
-The WGPU library check and warning-denied Clippy pass. The locked WGPU
-all-targets check reaches compilation but remains blocked by 70 peer
-`coeus-nn` normalization errors from the incomplete fallible-operation
-migration; peer `coeus-autograd` also emits 143 unused-`Result` warnings. The
-prior local/Git Leto dependency-resolution blocker is resolved. No runtime
-performance or memory claim is made without profile and benchmark evidence.
+The WGPU library check and warning-denied Clippy pass. The public WGPU matmul
+wrapper now returns the typed result and checks rank, inner-dimension, output
+element-count, and layout-conversion failures. The locked WGPU all-targets
+check reaches compilation but remains blocked by 70 peer `coeus-nn`
+normalization errors from the incomplete fallible-operation migration; peer
+`coeus-autograd` also emits 143 unused-`Result` warnings. The prior local/Git
+Leto dependency-resolution blocker is resolved. No runtime performance or
+memory claim is made without profile and benchmark evidence.

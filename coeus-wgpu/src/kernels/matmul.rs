@@ -1,5 +1,5 @@
 use super::cache::PIPELINE_CACHE;
-use super::layout::GpuLayoutInfo;
+use super::layout::{GpuLayoutError, GpuLayoutInfo};
 use crate::backend::WgpuScalar;
 
 /// Dispatch a WGSL shader for matrix multiplication.
@@ -10,13 +10,12 @@ pub fn dispatch_matmul<T: WgpuScalar>(
     b_layout: &coeus_core::Layout,
     c: &wgpu::Buffer,
     c_layout: &coeus_core::Layout,
-) {
+) -> Result<(), GpuLayoutError> {
+    let a_layout_gpu = GpuLayoutInfo::try_from_layout(a_layout)?;
+    let b_layout_gpu = GpuLayoutInfo::try_from_layout(b_layout)?;
+    let c_layout_gpu = GpuLayoutInfo::try_from_layout(c_layout)?;
     let ctx = crate::backend::get_wgpu_context();
     let wgsl_type = T::WGSL_TYPE;
-
-    let a_layout_gpu = GpuLayoutInfo::from_layout(a_layout);
-    let b_layout_gpu = GpuLayoutInfo::from_layout(b_layout);
-    let c_layout_gpu = GpuLayoutInfo::from_layout(c_layout);
 
     let a_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let b_layout_buf = crate::backend::PooledMetadataBuffer::new();
@@ -169,4 +168,5 @@ pub fn dispatch_matmul<T: WgpuScalar>(
     }
 
     ctx.queue.submit(Some(encoder.finish()));
+    Ok(())
 }

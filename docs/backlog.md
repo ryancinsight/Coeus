@@ -46,9 +46,10 @@
   check reaches compilation but remains blocked by 70 peer `coeus-nn`
   normalization errors from the incomplete fallible-operation migration;
   peer `coeus-autograd` also emits 143 unused-`Result` warnings. The prior
-  local/Git Leto dependency-resolution blocker is resolved. ADR-0020 records
-  the selected error-boundary design and dependency-ordered implementation
-  slices.
+  local/Git Leto dependency-resolution blocker is resolved. The public WGPU
+  matmul wrapper now returns the typed result and checks rank, inner-dimension,
+  and output element-count failures. ADR-0020 records the selected
+  error-boundary design and dependency-ordered implementation slices.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

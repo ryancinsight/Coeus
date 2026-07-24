@@ -28,7 +28,9 @@ package-local formatting. The WGPU library check and warning-denied Clippy
 also pass. The locked WGPU all-targets check now reaches compilation but is
 blocked by the peer `coeus-nn` fallible-operation migration: 70 errors remain
 at normalization callers, and peer `coeus-autograd` emits 143 unused-`Result`
-warnings. No local/Git Leto dependency-resolution blocker remains.
+warnings. The public WGPU matmul wrapper now returns the typed result,
+validates ranks and inner dimensions, and checks output element-count
+overflow. No local/Git Leto dependency-resolution blocker remains.
 
 ## WGPU pool1d dispatch mode ownership [patch]
 - [x] Replace the forward dispatcher’s mixed forward/backward mode enum with

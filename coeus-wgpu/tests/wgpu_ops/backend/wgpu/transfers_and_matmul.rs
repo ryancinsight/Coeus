@@ -79,7 +79,7 @@ fn test_wgpu_tiled_matmul() {
     let a_wgpu = a_seq.to_backend_on(&seq, &wgpu_b);
     let b_wgpu = b_seq.to_backend_on(&seq, &wgpu_b);
 
-    let c_wgpu = coeus_wgpu::matmul(&a_wgpu, &b_wgpu);
+    let c_wgpu = coeus_wgpu::matmul(&a_wgpu, &b_wgpu).expect("valid matmul test shapes");
     let c_seq_res = c_wgpu.to_backend_on(&wgpu_b, &seq);
 
     let c_seq_expected = coeus_ops::matmul(&a_seq, &b_seq, &seq);

@@ -7,8 +7,9 @@ pub(super) fn dispatch_matmul<T: WgpuScalar>(
     b_layout: &Layout,
     c: &mut crate::backend::WgpuStorage<T>,
     c_layout: &Layout,
-) {
+) -> Result<(), WgpuBackendError> {
     kernels::dispatch_matmul::<T>(
         &a.buffer, a_layout, &b.buffer, b_layout, &c.buffer, c_layout,
-    );
+    )
+    .map_err(|error| WgpuBackendError::Layout(error.into()))
 }
