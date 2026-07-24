@@ -13,6 +13,6 @@ coeus-ops = { workspace = true, default-features = false }
 coeus-autograd = { workspace = true, default-features = false }
 smallvec = { workspace = true }
 moirai = { workspace = true }
-moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", package = "moirai-async" }
+moirai-async = { workspace = true }
 
 

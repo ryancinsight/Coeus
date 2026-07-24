@@ -1,5 +1,5 @@
 use super::UnaryOpTag;
-use crate::fuse::op_tags::{wgsl_erf_approx_expr, wgsl_gelu_expr, wgsl_gelu_grad_expr};
+use crate::fuse::op_tags::wgsl_erf_approx_expr;
 use coeus_core::{FloatOps, Scalar};
 
 #[derive(Clone, Copy)]
