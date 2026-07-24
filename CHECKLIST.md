@@ -1,6 +1,8 @@
 # Coeus Development Roadmap Checklist
 
 ## WGPU layout and dispatch failure boundary [arch]
+- [x] Add the checked `GpuLayoutInfo` SSOT constructor with typed rank,
+      stride-rank, offset, shape, and stride overflow errors.
 - [ ] Add one backend error associated type and make operation dispatch
       return `Result` through the shared trait seam.
 - [ ] Convert `GpuLayoutInfo` and the WGPU dispatch-grid/ABI conversions to
@@ -15,6 +17,11 @@ Decision: ADR-0020 selects a backend-associated typed error plus fallible
 operation traits. An operation-local `Option`/early return is rejected because
 it can leave output storage uninitialized or stale while hiding the violated
 WGSL ABI contract.
+
+Increment evidence: `coeus-wgpu/src/kernels/layout.rs` now checks all fixed
+WGSL ABI bounds and has representable, rank, rank-mismatch, and dimension
+overflow regressions. Format and diff checks pass; package compilation remains
+blocked by the preserved peer manifest drift.
 
 ## WGPU pool1d dispatch mode ownership [patch]
 - [x] Replace the forward dispatcher’s mixed forward/backward mode enum with

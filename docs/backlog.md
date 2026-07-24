@@ -30,9 +30,14 @@
   remain value-semantic and compile-time-dispatched.
 - Risk/change class: `[arch]`; this is a public trait/API migration and needs
   an ADR plus synchronized CPU/CUDA/WGPU implementations.
-- Evidence: `GpuLayoutInfo::from_layout` currently uses `assert!` and `as u32`
-  for rank, offset, shapes, and strides. The operation traits return `()` so
-  the failure cannot currently propagate without changing the shared seam.
+- Evidence: before this increment `GpuLayoutInfo::from_layout` used `assert!`
+  and `as u32` for rank, offset, shapes, and strides. The checked constructor
+  now owns those validations. The operation traits still return `()` so a
+  validation failure cannot yet propagate without changing the shared seam.
+- Increment: the canonical layout conversion now has typed rank, stride-rank,
+  offset, shape, and stride validation with focused boundary regressions;
+  operation callers still use the existing infallible wrapper pending the
+  shared trait migration.
 - Dependency: resolve the preserved peer `Cargo.toml` manifest drift before
   compiled verification. ADR-0020 records the selected error-boundary design
   and the dependency-ordered implementation slices.
