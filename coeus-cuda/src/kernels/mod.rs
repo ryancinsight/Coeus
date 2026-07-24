@@ -22,6 +22,8 @@ pub mod reduce;
 pub mod unfold_fold;
 mod validation;
 
+pub(crate) use validation::checked_numel;
+
 pub use attention::{launch_sdp_attention, launch_sdp_attention_backward};
 pub use conv_transpose::{launch_conv_transpose1d, launch_conv_transpose2d};
 pub use fuse::dispatch_fused;

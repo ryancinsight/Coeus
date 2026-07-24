@@ -21,7 +21,10 @@ where
     let device = crate::backend::get_cuda_device();
     let run = |result: hephaestus_cuda::Result<hephaestus_cuda::CudaBuffer<T>>,
                c: &mut CudaStorage<T>| {
-        c.buffer = Arc::new(result.expect("hephaestus-cuda contiguous binary dispatch failed"));
+        let Ok(buffer) = result else {
+            return false;
+        };
+        c.buffer = Arc::new(buffer);
         true
     };
     match op {
@@ -75,7 +78,10 @@ where
     let device = crate::backend::get_cuda_device();
     let run = |result: hephaestus_cuda::Result<hephaestus_cuda::CudaBuffer<T>>,
                c: &mut CudaStorage<T>| {
-        c.buffer = Arc::new(result.expect("hephaestus-cuda contiguous unary dispatch failed"));
+        let Ok(buffer) = result else {
+            return false;
+        };
+        c.buffer = Arc::new(buffer);
         true
     };
     match op {
@@ -184,10 +190,7 @@ where
         return false;
     }
     let device = crate::backend::get_cuda_device();
-    let run = |result: hephaestus_cuda::Result<()>| {
-        result.expect("hephaestus-cuda dynamic strided binary dispatch failed");
-        true
-    };
+    let run = |result: hephaestus_cuda::Result<()>| result.is_ok();
     match op {
         coeus_ops::BinaryOp::Add => run(hephaestus_cuda::binary_elementwise_strided_dyn_into::<
             hephaestus_cuda::AddOp,
@@ -247,10 +250,7 @@ where
         return false;
     }
     let device = crate::backend::get_cuda_device();
-    let run = |result: hephaestus_cuda::Result<()>| {
-        result.expect("hephaestus-cuda dynamic strided unary dispatch failed");
-        true
-    };
+    let run = |result: hephaestus_cuda::Result<()>| result.is_ok();
     match op {
         coeus_ops::UnaryOp::Sin => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
             hephaestus_cuda::SinOp,
@@ -343,7 +343,10 @@ impl CudaBackend {
         T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
     {
         if get_cuda_context().is_some() {
-            let n = c_layout.shape().iter().product();
+            let Some(n) = kernels::checked_numel(c_layout) else {
+                self.fallback_binary(op, a, a_layout, b, b_layout, c, c_layout);
+                return;
+            };
             // The contiguous kernel computes `c[i] = a[i] op b[i]` with no
             // broadcasting, so it is only valid when both operands already share
             // the output shape. A broadcast operand (e.g. `[3,1]` against
@@ -382,7 +385,10 @@ impl CudaBackend {
         T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
     {
         if get_cuda_context().is_some() {
-            let n = c_layout.shape().iter().product();
+            let Some(n) = kernels::checked_numel(c_layout) else {
+                self.fallback_unary(op, a, a_layout, c, c_layout);
+                return;
+            };
             if a_layout.is_contiguous() && c_layout.is_contiguous() {
                 if try_hephaestus_contiguous_unary(op, a, c) {
                     return;

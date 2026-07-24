@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-015 — Harden elementwise backend count/failure boundary [patch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/backend/ops/math.rs` and the
+  curated `kernels::checked_numel` manifest re-export.
+- Outcome: CUDA unary and binary backend dispatch now rejects overflowed output
+  work products before native launch and converts Hephaestus contiguous/strided
+  errors into the existing explicit CPU fallback instead of panicking.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default Nextest passes 3/3 with zero skipped in 0.114 seconds; feature
+  rustdoc passes in 3.55 seconds.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-014 — Harden fused-dispatch launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/fuse.rs` and the

@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Hardens CUDA elementwise backend dispatch against output-count
+  overflow and converts Hephaestus dispatch errors into the explicit CPU
+  fallback path instead of panicking.
+
 - [patch] Hardens fused CUDA dispatch with checked output counts and grids,
   broadcast/layout contracts, input/output storage bounds, and canonical block
   sizing before dynamic kernel launch.

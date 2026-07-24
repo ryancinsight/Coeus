@@ -1,5 +1,19 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA elementwise backend count and failure boundary [patch]
+- [x] Replace unary/binary output `Iterator::product()` with the shared
+      checked-count SSOT before native dispatch or fallback.
+- [x] Convert Hephaestus contiguous and strided `Result` failures into the
+      existing explicit CPU capability path; remove provider-side panics.
+- [x] Verify format, diff, feature-enabled check, warning-denied Clippy,
+      default Nextest, feature rustdoc, and the feature-linker boundary.
+
+Evidence: feature-enabled check and warning-denied Clippy pass; default
+package Nextest passes 3/3 with zero skipped in 0.114 seconds; feature
+rustdoc passes in 3.55 seconds. CUDA-feature Nextest reaches the Windows GNU
+linker but cannot link because `-lcuda` is absent from
+`/usr/local/cuda-11.3/lib64/`; no feature test execution is claimed.
+
 ## CUDA fused-dispatch ABI [patch] [arch]
 - [x] Validate checked output counts/grids, contiguous output indexing,
       broadcast contracts, input/output storage bounds, and null inputs before

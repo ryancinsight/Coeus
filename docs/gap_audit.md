@@ -1,6 +1,6 @@
 # Coeus Gap Audit
 
-## ATLAS-CUDA-SAFETY-015: Remaining CUDA launch-parameter narrowing
+## ATLAS-CUDA-SAFETY-016: Remaining CUDA launch-parameter narrowing
 
 **Location**: remaining non-convolution launchers under
 `coeus-cuda/src/kernels` and CUDA backend math dispatch.
@@ -13,7 +13,8 @@ launches are closed by `ATLAS-CUDA-SAFETY-003`, `ATLAS-CUDA-SAFETY-004`, and
 `ATLAS-CUDA-SAFETY-008`, `ATLAS-CUDA-SAFETY-009`, and
 `ATLAS-CUDA-SAFETY-010`; unfold/fold is closed by
 `ATLAS-CUDA-SAFETY-012`, and fused dispatch is closed by
-`ATLAS-CUDA-SAFETY-014`, but other CUDA kernel families still narrow launch
+`ATLAS-CUDA-SAFETY-014`, and the elementwise backend count/failure boundary is
+closed by `ATLAS-CUDA-SAFETY-015`, but other CUDA kernel families still narrow
 dimensions and derived counts with unchecked casts or products. These are
 separate operation-family boundaries and were not silently folded into the
 layout, reduction, elementwise, optimizer, pooling, matmul, attention,
@@ -27,7 +28,8 @@ and device environment are available.
 **Status**: open; attention is closed by ATLAS-CUDA-SAFETY-011, unfold/fold
 by ATLAS-CUDA-SAFETY-012, and transposed convolution by
 ATLAS-CUDA-SAFETY-013; fused dispatch is closed by
-ATLAS-CUDA-SAFETY-014. The current environment cannot execute CUDA-feature
+ATLAS-CUDA-SAFETY-014 and elementwise backend counts/failures by
+ATLAS-CUDA-SAFETY-015. The current environment cannot execute CUDA-feature
 Nextest because its Windows GNU linker cannot resolve `-lcuda` from
 `/usr/local/cuda-11.3/lib64/`.
 
