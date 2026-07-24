@@ -64,3 +64,16 @@ where the backend is available. Format, warning-denied Clippy, doctests,
 `cargo nextest run`, and release-sensitive checks run against the exact
 revision once dependency resolution is restored. No runtime performance claim
 is made by the API migration without a benchmark baseline.
+
+## Implementation status
+
+The elementwise and matmul families now use the associated backend error and
+fallible operation seams. CPU Leto failures map to the shared validation
+error, CUDA preserves provider failures, and WGPU preserves typed layout and
+dispatch failures. High-level arithmetic, unary, reduction, shape, and matmul
+callers propagate the result contract; no compatibility adapter or silent
+fallback was retained. The focused `coeus-ops` gate passes 87/87 nextest
+tests, 22/22 doctests, warning-denied Clippy, and package-local formatting.
+The full WGPU matrix remains blocked by the peer Hephaestus local/Git Leto
+type graph, and no runtime performance or memory claim is made without
+profile and benchmark evidence.

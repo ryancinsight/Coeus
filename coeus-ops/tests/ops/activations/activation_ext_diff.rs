@@ -51,7 +51,7 @@ where
     // sigmoid(3.0) ≈ 0.9525741, sigmoid(4.0) ≈ 0.9820138
     // result = [1.0 * 0.9525741, 2.0 * 0.9820138] ≈ [0.9525741, 1.9640276]
     let x = from_slice_f32(&[1, 4], &[1.0f32, 2.0, 3.0, 4.0], backend);
-    let out = coeus_ops::glu(&x, 1, backend);
+    let out = coeus_ops::glu(&x, 1, backend).expect("valid GLU test input");
     assert_eq!(out.shape(), &[1, 2]);
     assert_close(
         out.as_slice(),
@@ -70,7 +70,7 @@ where
         &[1.0f32, 2.0, 0.0, 0.0, 4.0, 4.0, 10.0, 10.0],
         backend,
     );
-    let out2 = coeus_ops::glu(&x2, 1, backend);
+    let out2 = coeus_ops::glu(&x2, 1, backend).expect("valid GLU test input");
     assert_eq!(out2.shape(), &[2, 2]);
     assert_close(
         out2.as_slice(),
@@ -106,7 +106,7 @@ where
     //     row_max=3.0; e^(2-3)=e^-1≈0.36787944, e^0=1.0; sum≈1.36787944
     //     → [0.26894142, 0.73105858]
     let x = from_slice_f32(&[2, 2], &[0.0f32, 1.0, 2.0, 3.0], backend);
-    let out = coeus_ops::causal_softmax(&x, 1, backend);
+    let out = coeus_ops::causal_softmax(&x, 1, backend).expect("valid causal softmax test input");
     assert_eq!(out.shape(), &[2, 2]);
     assert_close(
         out.as_slice(),
@@ -121,7 +121,7 @@ where
     //   Row 1: [0.5, 0.5, 0.0]
     //   Row 2: [1/3, 1/3, 1/3]
     let x3 = from_slice_f32(&[3, 3], &[1.0f32; 9], backend);
-    let out3 = coeus_ops::causal_softmax(&x3, 1, backend);
+    let out3 = coeus_ops::causal_softmax(&x3, 1, backend).expect("valid causal softmax test input");
     assert_eq!(out3.shape(), &[3, 3]);
     let third = 1.0f32 / 3.0;
     assert_close(

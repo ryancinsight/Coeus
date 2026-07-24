@@ -57,7 +57,7 @@ pub fn einsum<T: Scalar, B: BackendOps<T> + Default>(
     subscript: &str,
     operands: &[&Tensor<T, B>],
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -78,7 +78,7 @@ where
         // "ij->ji" — 2-D transpose
         if lhs == "ij" && rhs == "ji" {
             assert_eq!(a.ndim(), 2, "einsum ij->ji: requires 2-D input");
-            return a.to_contiguous().permute(&[1, 0]).to_contiguous_on(backend);
+            return Ok(a.to_contiguous().permute(&[1, 0]).to_contiguous_on(backend));
         }
 
         // "...ij->...ji" / generic last-two-dims swap (e.g. "bij->bji")
@@ -93,7 +93,7 @@ where
                 if rhs_chars == expected_rhs {
                     let mut perm: Vec<usize> = (0..a.ndim()).collect();
                     perm.swap(a.ndim() - 2, a.ndim() - 1);
-                    return a.to_contiguous().permute(&perm).to_contiguous_on(backend);
+                    return Ok(a.to_contiguous().permute(&perm).to_contiguous_on(backend));
                 }
             }
         }
@@ -108,7 +108,7 @@ where
             let trace = (0..n)
                 .map(|i| a_s[i * stride + i])
                 .fold(T::zero(), |acc, x| acc + x);
-            return Tensor::from_slice(vec![1], &[trace]);
+            return Ok(Tensor::from_slice(vec![1], &[trace]));
         }
 
         panic!("einsum: unsupported single-operand pattern '{subscript}'");
@@ -133,7 +133,7 @@ where
             .zip(b_cont.as_slice().iter())
             .map(|(&x, &y)| x * y)
             .fold(T::zero(), |acc, v| acc + v);
-        return Tensor::from_slice(vec![1], &[dot]);
+        return Ok(Tensor::from_slice(vec![1], &[dot]));
     }
 
     // "i,j->ij" — outer product
@@ -149,7 +149,7 @@ where
         let data: Vec<T> = (0..m)
             .flat_map(|i| (0..n).map(move |j| a_s[i] * b_s[j]))
             .collect();
-        return Tensor::from_slice(vec![m, n], &data);
+        return Ok(Tensor::from_slice(vec![m, n], &data));
     }
 
     // "ij,j->i" — matrix-vector multiply (right)
@@ -170,7 +170,7 @@ where
                     .fold(T::zero(), |acc, v| acc + v)
             })
             .collect();
-        return Tensor::from_slice(vec![m], &data);
+        return Ok(Tensor::from_slice(vec![m], &data));
     }
 
     // "ij,kj->ik" — a @ b.T (inner dot on last dim)
@@ -194,7 +194,7 @@ where
                 })
             })
             .collect();
-        return Tensor::from_slice(vec![m, n], &data);
+        return Ok(Tensor::from_slice(vec![m, n], &data));
     }
 
     // "ij,jk->ik" — 2-D matrix multiply
@@ -229,7 +229,7 @@ where
                 })
             })
             .collect();
-        return Tensor::from_slice(vec![batch, m, n], &data);
+        return Ok(Tensor::from_slice(vec![batch, m, n], &data));
     }
 
     // "bik,bk->bi" — batched matrix-vector multiply
@@ -254,7 +254,7 @@ where
                 })
             })
             .collect();
-        return Tensor::from_slice(vec![batch, m], &data);
+        return Ok(Tensor::from_slice(vec![batch, m], &data));
     }
 
     // "bi,bj->bij" — batched outer product
@@ -274,7 +274,7 @@ where
                 (0..m).flat_map(move |i| (0..n).map(move |j| a_s[bi * m + i] * b_s[bi * n + j]))
             })
             .collect();
-        return Tensor::from_slice(vec![batch, m, n], &data);
+        return Ok(Tensor::from_slice(vec![batch, m, n], &data));
     }
 
     panic!("einsum: unsupported pattern '{subscript}'");
@@ -296,7 +296,7 @@ pub fn einsum3<T: Scalar, B: BackendOps<T> + Default>(
     b: &Tensor<T, B>,
     c: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -304,12 +304,12 @@ where
     match sub {
         // "ij,jk,kl->il" — triple matmul chain
         "ij,jk,kl->il" => {
-            let ab = einsum("ij,jk->ik", &[a, b], backend);
+            let ab = einsum("ij,jk->ik", &[a, b], backend)?;
             einsum("ij,jk->ik", &[&ab, c], backend)
         }
         // "bij,bjk,bkl->bil" — batched triple matmul chain
         "bij,bjk,bkl->bil" => {
-            let ab = einsum("bij,bjk->bik", &[a, b], backend);
+            let ab = einsum("bij,bjk->bik", &[a, b], backend)?;
             einsum("bij,bjk->bik", &[&ab, c], backend)
         }
         _ => panic!("einsum3: unsupported 3-operand pattern '{subscript}'"),
@@ -330,7 +330,7 @@ mod tests {
     fn einsum_matmul() {
         let a = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
         let bt = Tensor::from_slice(vec![3, 2], &[7.0f32, 8.0, 9.0, 10.0, 11.0, 12.0]);
-        let out = einsum("ij,jk->ik", &[&a, &bt], &b());
+        let out = einsum("ij,jk->ik", &[&a, &bt], &b()).expect("valid einsum test shapes");
         assert_eq!(out.shape(), &[2, 2]);
         // row0: [1*7+2*9+3*11, 1*8+2*10+3*12] = [58, 64]
         // row1: [4*7+5*9+6*11, 4*8+5*10+6*12] = [139, 154]
@@ -340,7 +340,7 @@ mod tests {
     #[test]
     fn einsum_transpose() {
         let a = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        let out = einsum("ij->ji", &[&a], &b());
+        let out = einsum("ij->ji", &[&a], &b()).expect("valid einsum test shapes");
         assert_eq!(out.shape(), &[3, 2]);
         assert_eq!(out.as_slice(), &[1.0, 4.0, 2.0, 5.0, 3.0, 6.0]);
     }
@@ -349,7 +349,7 @@ mod tests {
     fn einsum_dot_product() {
         let a = Tensor::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0]);
         let bt = Tensor::from_slice(vec![4], &[5.0f32, 6.0, 7.0, 8.0]);
-        let out = einsum("i,i->", &[&a, &bt], &b());
+        let out = einsum("i,i->", &[&a, &bt], &b()).expect("valid einsum test shapes");
         assert_eq!(out.shape(), &[1]);
         assert_eq!(
             out.as_slice(),
@@ -363,7 +363,7 @@ mod tests {
             vec![3, 3],
             &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
         );
-        let out = einsum("ii->", &[&a], &b());
+        let out = einsum("ii->", &[&a], &b()).expect("valid einsum test shapes");
         assert_eq!(out.as_slice(), &[1.0 + 5.0 + 9.0]);
     }
 
@@ -371,7 +371,7 @@ mod tests {
     fn einsum_outer_product() {
         let a = Tensor::from_slice(vec![2], &[1.0f32, 2.0]);
         let bt = Tensor::from_slice(vec![3], &[3.0f32, 4.0, 5.0]);
-        let out = einsum("i,j->ij", &[&a, &bt], &b());
+        let out = einsum("i,j->ij", &[&a, &bt], &b()).expect("valid einsum test shapes");
         assert_eq!(out.shape(), &[2, 3]);
         assert_eq!(out.as_slice(), &[3.0, 4.0, 5.0, 6.0, 8.0, 10.0]);
     }
@@ -380,7 +380,7 @@ mod tests {
     fn einsum_matvec() {
         let a = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
         let v = Tensor::from_slice(vec![3], &[1.0f32, 0.0, 1.0]);
-        let out = einsum("ij,j->i", &[&a, &v], &b());
+        let out = einsum("ij,j->i", &[&a, &v], &b()).expect("valid einsum test shapes");
         assert_eq!(out.shape(), &[2]);
         assert_eq!(out.as_slice(), &[4.0, 10.0]);
     }
@@ -390,7 +390,7 @@ mod tests {
         // batch=1, m=2, k=2, n=2
         let a = Tensor::from_slice(vec![1, 2, 2], &[1.0f32, 2.0, 3.0, 4.0]);
         let bt = Tensor::from_slice(vec![1, 2, 2], &[5.0f32, 6.0, 7.0, 8.0]);
-        let out = einsum("bij,bjk->bik", &[&a, &bt], &b());
+        let out = einsum("bij,bjk->bik", &[&a, &bt], &b()).expect("valid einsum test shapes");
         assert_eq!(out.shape(), &[1, 2, 2]);
         // [[1,2],[3,4]] @ [[5,6],[7,8]] = [[19,22],[43,50]]
         assert_eq!(out.as_slice(), &[19.0, 22.0, 43.0, 50.0]);
@@ -401,7 +401,8 @@ mod tests {
         let a = Tensor::from_slice(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0]);
         let bt = Tensor::from_slice(vec![2, 2], &[5.0f32, 6.0, 7.0, 8.0]);
         let c = Tensor::from_slice(vec![2, 2], &[9.0f32, 10.0, 11.0, 12.0]);
-        let out = einsum3("ij,jk,kl->il", &a, &bt, &c, &b());
+        let out = einsum3("ij,jk,kl->il", &a, &bt, &c, &b())
+            .expect("valid three-operand einsum test shapes");
         assert_eq!(out.shape(), &[2, 2]);
         assert_eq!(out.as_slice(), &[413.0, 454.0, 937.0, 1030.0]);
     }

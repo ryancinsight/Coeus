@@ -37,15 +37,15 @@ where
     let v = t(&[4], &[-3.0, -1.0, 0.0, 2.0], backend);
 
     // abs: |-3|=3, |-1|=1, |0|=0, |2|=2
-    let a = coeus_ops::abs(&v, backend);
+    let a = coeus_ops::abs(&v, backend).expect("valid abs test input");
     assert_eq!(a.as_slice(), &[3.0_f64, 1.0, 0.0, 2.0], "abs");
 
     // neg: 3, 1, 0, -2
-    let n = coeus_ops::neg(&v, backend);
+    let n = coeus_ops::neg(&v, backend).expect("valid negation test input");
     assert_eq!(n.as_slice(), &[3.0_f64, 1.0, 0.0, -2.0], "neg");
 
     // sign: -1, -1, 0, 1
-    let s = coeus_ops::sign(&v, backend);
+    let s = coeus_ops::sign(&v, backend).expect("valid sign test input");
     assert_eq!(s.as_slice(), &[-1.0_f64, -1.0, 0.0, 1.0], "sign");
 }
 
@@ -58,12 +58,12 @@ where
 {
     // recip: 1/1=1.0, 1/2=0.5, 1/4=0.25 - all exact powers of 2.
     let r = t(&[3], &[1.0, 2.0, 4.0], backend);
-    let rec = coeus_ops::recip(&r, backend);
+    let rec = coeus_ops::recip(&r, backend).expect("valid reciprocal test input");
     assert_eq!(rec.as_slice(), &[1.0_f64, 0.5, 0.25], "recip");
 
     // sqrt: sqrt(1)=1, sqrt(4)=2, sqrt(9)=3, sqrt(16)=4 - exact.
     let s = t(&[4], &[1.0, 4.0, 9.0, 16.0], backend);
-    let sq = coeus_ops::sqrt(&s, backend);
+    let sq = coeus_ops::sqrt(&s, backend).expect("valid square-root test input");
     assert_eq!(sq.as_slice(), &[1.0_f64, 2.0, 3.0, 4.0], "sqrt");
 }
 
@@ -77,39 +77,39 @@ where
     // All inputs are exact integers -> floor/ceil/round/trunc all identity.
     let v = t(&[4], &[-3.0, -1.0, 0.0, 4.0], backend);
 
-    let fl = coeus_ops::floor(&v, backend);
+    let fl = coeus_ops::floor(&v, backend).expect("valid floor test input");
     assert_eq!(fl.as_slice(), v.as_slice(), "floor of integers");
 
-    let ce = coeus_ops::ceil(&v, backend);
+    let ce = coeus_ops::ceil(&v, backend).expect("valid ceiling test input");
     assert_eq!(ce.as_slice(), v.as_slice(), "ceil of integers");
 
-    let ro = coeus_ops::round(&v, backend);
+    let ro = coeus_ops::round(&v, backend).expect("valid round test input");
     assert_eq!(ro.as_slice(), v.as_slice(), "round of integers");
 
     // Half-way ties round to even (IEEE-754 roundTiesToEven, torch.round):
     // -2.5 -> -2, -1.5 -> -2, -0.5 -> -0, 0.5 -> 0, 1.5 -> 2, 2.5 -> 2.
     let ties = t(&[6], &[-2.5, -1.5, -0.5, 0.5, 1.5, 2.5], backend);
-    let ro_ties = coeus_ops::round(&ties, backend);
+    let ro_ties = coeus_ops::round(&ties, backend).expect("valid tie-rounding test input");
     assert_eq!(
         ro_ties.as_slice(),
         &[-2.0, -2.0, -0.0, 0.0, 2.0, 2.0],
         "round ties-to-even"
     );
 
-    let tr = coeus_ops::trunc(&v, backend);
+    let tr = coeus_ops::trunc(&v, backend).expect("valid truncation test input");
     assert_eq!(tr.as_slice(), v.as_slice(), "trunc of integers");
 
     // Fractional inputs: floor rounds down, ceil rounds up, trunc truncates toward 0.
     // 1.5: floor=1, ceil=2, trunc=1
     // -1.5: floor=-2, ceil=-1, trunc=-1
     let frac = t(&[2], &[1.5, -1.5], backend);
-    let fl2 = coeus_ops::floor(&frac, backend);
+    let fl2 = coeus_ops::floor(&frac, backend).expect("valid fractional floor test input");
     assert_eq!(fl2.as_slice(), &[1.0_f64, -2.0], "floor fractions");
 
-    let ce2 = coeus_ops::ceil(&frac, backend);
+    let ce2 = coeus_ops::ceil(&frac, backend).expect("valid fractional ceiling test input");
     assert_eq!(ce2.as_slice(), &[2.0_f64, -1.0], "ceil fractions");
 
-    let tr2 = coeus_ops::trunc(&frac, backend);
+    let tr2 = coeus_ops::trunc(&frac, backend).expect("valid fractional truncation test input");
     assert_eq!(tr2.as_slice(), &[1.0_f64, -1.0], "trunc fractions");
 }
 
@@ -122,12 +122,12 @@ where
 {
     // exp(0.0) = 1.0 (exact IEEE-754 identity)
     let z = t(&[1], &[0.0], backend);
-    let ez = coeus_ops::exp(&z, backend);
+    let ez = coeus_ops::exp(&z, backend).expect("valid exponential test input");
     assert_eq!(ez.as_slice(), &[1.0_f64], "exp(0)=1");
 
     // log(1.0) = 0.0 (exact IEEE-754 identity)
     let o = t(&[1], &[1.0], backend);
-    let lo = coeus_ops::log(&o, backend);
+    let lo = coeus_ops::log(&o, backend).expect("valid logarithm test input");
     assert_eq!(lo.as_slice(), &[0.0_f64], "log(1)=0");
 }
 
@@ -140,15 +140,15 @@ where
 {
     // sin(0.0) = 0.0 (exact)
     let z = t(&[1], &[0.0], backend);
-    let s = coeus_ops::sin(&z, backend);
+    let s = coeus_ops::sin(&z, backend).expect("valid sine test input");
     assert_eq!(s.as_slice(), &[0.0_f64], "sin(0)=0");
 
     // cos(0.0) = 1.0 (exact)
-    let c = coeus_ops::cos(&z, backend);
+    let c = coeus_ops::cos(&z, backend).expect("valid cosine test input");
     assert_eq!(c.as_slice(), &[1.0_f64], "cos(0)=1");
 
     // tanh(0.0) = 0.0 (exact)
-    let t0 = coeus_ops::tanh(&z, backend);
+    let t0 = coeus_ops::tanh(&z, backend).expect("valid hyperbolic tangent test input");
     assert_eq!(t0.as_slice(), &[0.0_f64], "tanh(0)=0");
 }
 

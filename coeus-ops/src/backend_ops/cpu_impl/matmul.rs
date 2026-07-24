@@ -3,6 +3,7 @@
 
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 
+use super::error::map_leto_error;
 use super::CpuBackend;
 
 #[inline]
@@ -14,7 +15,8 @@ pub(super) fn matmul<T, B>(
     b_layout: &Layout,
     c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
@@ -27,7 +29,7 @@ pub(super) fn matmul<T, B>(
         c_layout,
         c.as_mut_slice(),
     )
-    .expect("coeus-leto matmul failed");
+    .map_err(|error| map_leto_error("matmul", error))
 }
 
 #[inline]
@@ -39,7 +41,8 @@ pub(super) fn batched_matmul<T, B>(
     b_layout: &Layout,
     c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
@@ -52,7 +55,7 @@ pub(super) fn batched_matmul<T, B>(
         c_layout,
         c.as_mut_slice(),
     )
-    .expect("coeus-leto batched matmul failed");
+    .map_err(|error| map_leto_error("batched matmul", error))
 }
 
 #[inline]
@@ -64,7 +67,8 @@ pub(super) fn matmul_accumulate<T, B>(
     b_layout: &Layout,
     c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
@@ -77,7 +81,7 @@ pub(super) fn matmul_accumulate<T, B>(
         c_layout,
         c.as_mut_slice(),
     )
-    .expect("coeus-leto matmul_accumulate failed");
+    .map_err(|error| map_leto_error("matmul accumulate", error))
 }
 
 #[inline]
@@ -89,7 +93,8 @@ pub(super) fn batched_matmul_accumulate<T, B>(
     b_layout: &Layout,
     c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
@@ -102,5 +107,5 @@ pub(super) fn batched_matmul_accumulate<T, B>(
         c_layout,
         c.as_mut_slice(),
     )
-    .expect("coeus-leto batched_matmul_accumulate failed");
+    .map_err(|error| map_leto_error("batched matmul accumulate", error))
 }

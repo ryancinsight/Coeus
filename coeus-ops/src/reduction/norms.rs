@@ -23,20 +23,22 @@ use coeus_tensor::Tensor;
 /// critical short-circuit when only L2 is needed — the ord-p variant
 /// uses a host-side fold with `T::powf` and a final per-element `^(1/p)`.
 #[inline]
-pub fn norm<T: Float, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B) -> T {
+pub fn norm<T: Float, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    backend: &B,
+) -> Result<T, B::Error> {
     let n = a.numel();
     if n == 0 {
-        return T::from_usize(0);
+        return Ok(T::from_usize(0));
     }
     let flattened = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape([n])
     } else {
         a.to_contiguous_on(backend).reshape([n])
     };
-    let sq = binary::mul(&flattened, &flattened, backend);
-    <T as Float>::sqrt(super::sum(&sq, backend))
+    let sq = binary::mul(&flattened, &flattened, backend)?;
+    Ok(<T as Float>::sqrt(super::sum(&sq, backend)))
 }
-
 /// `L_p` norm over all elements: `(Σ|xᵢ|^p)^(1/p)` for finite `p > 0`.
 ///
 /// Matches `torch.linalg.vector_norm(x, ord=p)` over a flattened view for
@@ -150,7 +152,10 @@ pub fn norm_p_axis<T: Float, B: BackendOps<T> + Default>(
 /// For ≥3-D tensors see [`frobenius_norm_batched`], which reduces over the
 /// last two dimensions per batch.
 #[inline]
-pub fn frobenius_norm<T: Float, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B) -> T {
+pub fn frobenius_norm<T: Float, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    backend: &B,
+) -> Result<T, B::Error> {
     norm(a, backend)
 }
 
@@ -173,15 +178,15 @@ pub fn frobenius_norm<T: Float, B: BackendOps<T> + Default>(a: &Tensor<T, B>, ba
 pub fn frobenius_norm_batched<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     let ndim = a.ndim();
     assert!(
         ndim >= 2,
         "frobenius_norm_batched: tensor must have rank >= 2, got ndim={ndim}"
     );
     if ndim == 2 {
-        let v = norm(a, backend);
-        return Tensor::from_slice_on([], &[v], backend);
+        let v = norm(a, backend)?;
+        return Ok(Tensor::from_slice_on([], &[v], backend));
     }
 
     let contiguous = if a.is_contiguous() && a.layout().offset() == 0 {
@@ -206,7 +211,7 @@ pub fn frobenius_norm_batched<T: Float, B: BackendOps<T> + Default>(
     }
 
     let out_shape: Vec<usize> = contiguous.shape()[..ndim - 2].to_vec();
-    Tensor::from_slice_on(out_shape, &out_host, backend)
+    Ok(Tensor::from_slice_on(out_shape, &out_host, backend))
 }
 
 #[cfg(test)]
@@ -263,7 +268,7 @@ mod tests {
     fn norm_p_is_identical_to_norm_at_p2() {
         let b = SequentialBackend::new();
         let x = v3();
-        let n = norm(&x, &b);
+        let n = norm(&x, &b).expect("valid norm test input");
         let n_p = norm_p(&x, 2.0_f64, &b);
         assert_eq!(n.to_bits(), n_p.to_bits());
     }
@@ -406,7 +411,7 @@ mod tests {
     fn frobenius_norm_2d_matches_torch_oracle() {
         let b = SequentialBackend::new();
         let a = mat3x3(&[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
-        let got = frobenius_norm(&a, &b);
+        let got = frobenius_norm(&a, &b).expect("valid Frobenius norm test input");
         let want = (204.0_f64).sqrt();
         assert!(
             (got - want).abs() < 1e-12,
@@ -418,7 +423,7 @@ mod tests {
     fn frobenius_norm_2d_identity_matrix_is_sqrt_3() {
         let b = SequentialBackend::new();
         let id = mat3x3(&[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
-        let got = frobenius_norm(&id, &b);
+        let got = frobenius_norm(&id, &b).expect("valid Frobenius norm test input");
         let want = 3.0_f64.sqrt();
         assert!(
             (got - want).abs() < 1e-12,
@@ -437,13 +442,14 @@ mod tests {
                 7.0, 8.0,
             ],
         );
-        let got = frobenius_norm_batched(&stacked, &b);
+        let got =
+            frobenius_norm_batched(&stacked, &b).expect("valid batched Frobenius norm test input");
         assert_eq!(got.shape(), &[2]);
         let want = (204.0_f64).sqrt();
         for g in got.as_slice() {
             assert!((*g - want).abs() < 1e-12, "got {g}, want {want}");
         }
-        let ref_scalar = frobenius_norm(&a, &b);
+        let ref_scalar = frobenius_norm(&a, &b).expect("valid Frobenius norm test input");
         assert!(
             (ref_scalar - want).abs() < 1e-12,
             "2-D refr scalar = {ref_scalar}, want {want}"
@@ -461,7 +467,8 @@ mod tests {
                 0.0, 0.0, 0.0, 1.0,
             ],
         );
-        let got = frobenius_norm_batched(&batch, &b);
+        let got =
+            frobenius_norm_batched(&batch, &b).expect("valid batched Frobenius norm test input");
         assert_eq!(got.shape(), &[2, 2]);
         let want = 3.0_f64.sqrt();
         for g in got.as_slice() {
@@ -473,7 +480,7 @@ mod tests {
     fn frobenius_norm_batched_2d_returns_zero_dim_scalar_tensor() {
         let b = SequentialBackend::new();
         let a = mat3x3(&[3.0, 0.0, 0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 5.0]);
-        let got = frobenius_norm_batched(&a, &b);
+        let got = frobenius_norm_batched(&a, &b).expect("valid batched Frobenius norm test input");
         assert_eq!(got.shape(), &[]);
         let want = 50.0_f64.sqrt();
         let v = got.as_slice()[0];

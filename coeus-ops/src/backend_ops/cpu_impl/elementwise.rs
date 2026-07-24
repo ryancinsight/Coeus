@@ -3,8 +3,9 @@
 
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 
+use super::error::map_leto_error;
 use super::CpuBackend;
-use crate::backend_ops::{BinaryOp, UnaryOp};
+use crate::backend_ops::ops::{BinaryOp, UnaryOp};
 
 #[inline]
 pub(super) fn elementwise_binary<T, B>(
@@ -16,7 +17,8 @@ pub(super) fn elementwise_binary<T, B>(
     b_layout: &Layout,
     c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
@@ -30,7 +32,7 @@ pub(super) fn elementwise_binary<T, B>(
         c_layout,
         c.as_mut_slice(),
     )
-    .expect("coeus-leto elementwise_binary failed");
+    .map_err(|error| map_leto_error("elementwise binary", error))
 }
 
 #[inline]
@@ -41,11 +43,12 @@ pub(super) fn elementwise_unary<T, B>(
     a_layout: &Layout,
     c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     coeus_leto::elementwise_unary_into(op, a_layout, a.as_slice(), c_layout, c.as_mut_slice())
-        .expect("coeus-leto elementwise_unary failed");
+        .map_err(|error| map_leto_error("elementwise unary", error))
 }

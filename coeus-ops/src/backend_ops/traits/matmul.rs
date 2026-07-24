@@ -26,7 +26,7 @@ pub trait MatmulOps<T: Scalar>: ComputeBackend {
         b_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// Matrix multiplication with accumulation: `c += a * b`.
     ///
@@ -41,7 +41,8 @@ pub trait MatmulOps<T: Scalar>: ComputeBackend {
         b_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         Self: ElementwiseOps<T>,
     {
         defaults::matmul::matmul_accumulate(self, a, a_layout, b, b_layout, c, c_layout)
@@ -56,7 +57,7 @@ pub trait MatmulOps<T: Scalar>: ComputeBackend {
         b_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         defaults::matmul::batched_matmul(self, a, a_layout, b, b_layout, c, c_layout)
     }
 
@@ -73,7 +74,8 @@ pub trait MatmulOps<T: Scalar>: ComputeBackend {
         b_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         Self: ElementwiseOps<T>,
     {
         defaults::matmul::batched_matmul_accumulate(self, a, a_layout, b, b_layout, c, c_layout)

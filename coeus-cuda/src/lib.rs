@@ -30,6 +30,9 @@
 //! differential parity tests in `tests/cuda/`.
 #![deny(missing_docs)]
 
+mod error;
+pub use error::CudaBackendError;
+
 #[cfg(feature = "cuda")]
 mod backend;
 #[cfg(not(feature = "cuda"))]

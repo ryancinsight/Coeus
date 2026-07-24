@@ -11,7 +11,7 @@ pub fn eq<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     elementwise_binary(a, b, backend, BinaryOp::Eq)
 }
 
@@ -21,7 +21,7 @@ pub fn ne<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     elementwise_binary(a, b, backend, BinaryOp::Ne)
 }
 
@@ -31,7 +31,7 @@ pub fn lt<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     elementwise_binary(a, b, backend, BinaryOp::Lt)
 }
 
@@ -41,7 +41,7 @@ pub fn gt<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     elementwise_binary(a, b, backend, BinaryOp::Gt)
 }
 
@@ -51,7 +51,7 @@ pub fn le<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     elementwise_binary(a, b, backend, BinaryOp::Le)
 }
 
@@ -61,6 +61,6 @@ pub fn ge<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     elementwise_binary(a, b, backend, BinaryOp::Ge)
 }

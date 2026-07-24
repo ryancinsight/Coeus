@@ -66,20 +66,20 @@ where
     // sample std = sqrt(32/7)
     let x = t(&[8], &[2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0], backend);
 
-    let pop_var = coeus_ops::var(&x, false, backend);
+    let pop_var = coeus_ops::var(&x, false, backend).expect("valid variance test input");
     assert_eq!(pop_var, 4.0_f64, "var pop: got {pop_var}");
 
-    let sample_var = coeus_ops::var(&x, true, backend);
+    let sample_var = coeus_ops::var(&x, true, backend).expect("valid variance test input");
     let expected_sample_var = 32.0_f64 / 7.0;
     assert!(
         (sample_var - expected_sample_var).abs() <= VAR_STD_EPS,
         "var sample: got {sample_var:.12}, expected {expected_sample_var:.12}"
     );
 
-    let pop_std = coeus_ops::std_dev(&x, false, backend);
+    let pop_std = coeus_ops::std_dev(&x, false, backend).expect("valid standard deviation input");
     assert_eq!(pop_std, 2.0_f64, "std_dev pop: got {pop_std}");
 
-    let sample_std = coeus_ops::std_dev(&x, true, backend);
+    let sample_std = coeus_ops::std_dev(&x, true, backend).expect("valid standard deviation input");
     let expected_sample_std = (32.0_f64 / 7.0_f64).sqrt();
     assert!(
         (sample_std - expected_sample_std).abs() <= VAR_STD_EPS,
@@ -89,12 +89,12 @@ where
     // Constant tensor: all zeros -> var=0, std=0
     let zeros = t(&[4], &[3.0, 3.0, 3.0, 3.0], backend);
     assert_eq!(
-        coeus_ops::var(&zeros, false, backend),
+        coeus_ops::var(&zeros, false, backend).expect("valid zero variance input"),
         0.0_f64,
         "var const=0"
     );
     assert_eq!(
-        coeus_ops::std_dev(&zeros, false, backend),
+        coeus_ops::std_dev(&zeros, false, backend).expect("valid zero standard deviation input"),
         0.0_f64,
         "std const=0"
     );
@@ -120,15 +120,16 @@ where
     //   output shape [2,1]
     let m = t(&[2, 2], &[0.0, 4.0, 4.0, 4.0], backend);
 
-    let v0 = coeus_ops::var_axis(&m, 0, false, backend);
+    let v0 = coeus_ops::var_axis(&m, 0, false, backend).expect("valid axis variance input");
     assert_eq!(v0.shape(), &[1, 2], "var_axis=0 shape");
     assert_close(v0.as_slice(), &[4.0, 0.0], VAR_STD_EPS, "var_axis=0 pop");
 
-    let v1 = coeus_ops::var_axis(&m, 1, false, backend);
+    let v1 = coeus_ops::var_axis(&m, 1, false, backend).expect("valid axis variance input");
     assert_eq!(v1.shape(), &[2, 1], "var_axis=1 shape");
     assert_close(v1.as_slice(), &[4.0, 0.0], VAR_STD_EPS, "var_axis=1 pop");
 
-    let sd0 = coeus_ops::std_dev_axis(&m, 0, false, backend);
+    let sd0 = coeus_ops::std_dev_axis(&m, 0, false, backend)
+        .expect("valid axis standard deviation input");
     assert_eq!(sd0.shape(), &[1, 2], "std_dev_axis=0 shape");
     assert_close(
         sd0.as_slice(),
@@ -137,7 +138,8 @@ where
         "std_dev_axis=0 pop",
     );
 
-    let sd1 = coeus_ops::std_dev_axis(&m, 1, false, backend);
+    let sd1 = coeus_ops::std_dev_axis(&m, 1, false, backend)
+        .expect("valid axis standard deviation input");
     assert_eq!(sd1.shape(), &[2, 1], "std_dev_axis=1 shape");
     assert_close(
         sd1.as_slice(),
@@ -148,7 +150,7 @@ where
 
     // sample (Bessel correction, N-1=1): same squared-deviation sum, divide by 1 instead of 2
     // col0 unbiased_var = 8/1 = 8.0, col1 = 0.0
-    let vs0 = coeus_ops::var_axis(&m, 0, true, backend);
+    let vs0 = coeus_ops::var_axis(&m, 0, true, backend).expect("valid sample variance input");
     assert_close(
         vs0.as_slice(),
         &[8.0, 0.0],
@@ -166,7 +168,7 @@ where
         &[1.0, 3.0, 5.0, 7.0, 2.0, 4.0, 6.0, 8.0, 3.0, 5.0, 7.0, 9.0],
         backend,
     );
-    let vr = coeus_ops::var_axis(&r, 2, false, backend);
+    let vr = coeus_ops::var_axis(&r, 2, false, backend).expect("valid rank-3 variance input");
     assert_eq!(vr.shape(), &[2, 3, 1], "var_axis rank-3 shape");
     assert_close(
         vr.as_slice(),
@@ -185,19 +187,20 @@ where
 {
     // Global x = [2,4,4,4,5,5,7,9], mean=5, pop_var=4, pop_std=2.
     let x = t(&[8], &[2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0], backend);
-    let (v, mu) = coeus_ops::var_mean(&x, false, backend);
+    let (v, mu) = coeus_ops::var_mean(&x, false, backend).expect("valid variance-mean input");
     assert_eq!(mu, 5.0_f64, "var_mean global mean");
     assert_eq!(
         v,
-        coeus_ops::var(&x, false, backend),
+        coeus_ops::var(&x, false, backend).expect("valid variance input"),
         "var_mean global variance"
     );
 
-    let (s, s_mu) = coeus_ops::std_mean(&x, false, backend);
+    let (s, s_mu) =
+        coeus_ops::std_mean(&x, false, backend).expect("valid standard deviation-mean input");
     assert_eq!(s_mu, 5.0_f64, "std_mean global mean");
     assert_eq!(
         s,
-        coeus_ops::std_dev(&x, false, backend),
+        coeus_ops::std_dev(&x, false, backend).expect("valid standard deviation input"),
         "std_mean global std"
     );
 
@@ -205,7 +208,8 @@ where
     // axis=0 means [2,4], population variance [4,0], std [2,0].
     // axis=1 means [2,4], population variance [4,0], std [2,0].
     let m = t(&[2, 2], &[0.0, 4.0, 4.0, 4.0], backend);
-    let (v0, mu0) = coeus_ops::var_mean_axis(&m, 0, false, backend);
+    let (v0, mu0) =
+        coeus_ops::var_mean_axis(&m, 0, false, backend).expect("valid axis variance-mean input");
     assert_eq!(v0.shape(), &[1, 2], "var_mean_axis=0 variance shape");
     assert_eq!(mu0.shape(), &[1, 2], "var_mean_axis=0 mean shape");
     assert_close(
@@ -222,7 +226,9 @@ where
     );
     assert_eq!(
         v0.as_slice(),
-        coeus_ops::var_axis(&m, 0, false, backend).as_slice(),
+        coeus_ops::var_axis(&m, 0, false, backend)
+            .expect("valid axis variance input")
+            .as_slice(),
         "var_mean_axis=0 variance matches var_axis"
     );
     assert_eq!(
@@ -231,7 +237,8 @@ where
         "var_mean_axis=0 mean matches mean_axis"
     );
 
-    let (s1, smu1) = coeus_ops::std_mean_axis(&m, 1, false, backend);
+    let (s1, smu1) = coeus_ops::std_mean_axis(&m, 1, false, backend)
+        .expect("valid axis standard deviation-mean input");
     assert_eq!(s1.shape(), &[2, 1], "std_mean_axis=1 std shape");
     assert_eq!(smu1.shape(), &[2, 1], "std_mean_axis=1 mean shape");
     assert_close(
@@ -248,7 +255,9 @@ where
     );
     assert_eq!(
         s1.as_slice(),
-        coeus_ops::std_dev_axis(&m, 1, false, backend).as_slice(),
+        coeus_ops::std_dev_axis(&m, 1, false, backend)
+            .expect("valid axis standard deviation input")
+            .as_slice(),
         "std_mean_axis=1 std matches std_dev_axis"
     );
     assert_eq!(

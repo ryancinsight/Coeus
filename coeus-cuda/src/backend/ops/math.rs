@@ -3,6 +3,7 @@ use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::get_cuda_context;
 use crate::kernels;
 use crate::storage::CudaStorage;
+use crate::CudaBackendError;
 use coeus_core::Layout;
 use std::sync::Arc;
 
@@ -11,21 +12,20 @@ fn try_hephaestus_contiguous_binary<T>(
     a: &CudaStorage<T>,
     b: &CudaStorage<T>,
     c: &mut CudaStorage<T>,
-) -> bool
+) -> Result<bool, CudaBackendError>
 where
     T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
 {
     if Arc::ptr_eq(&a.buffer, &c.buffer) || Arc::ptr_eq(&b.buffer, &c.buffer) {
-        return false;
+        return Ok(false);
     }
     let device = crate::backend::get_cuda_device();
     let run = |result: hephaestus_cuda::Result<hephaestus_cuda::CudaBuffer<T>>,
                c: &mut CudaStorage<T>| {
-        let Ok(buffer) = result else {
-            return false;
-        };
+        let buffer =
+            result.map_err(|source| CudaBackendError::dispatch("elementwise binary", source))?;
         c.buffer = Arc::new(buffer);
-        true
+        Ok(true)
     };
     match op {
         coeus_ops::BinaryOp::Add => run(
@@ -60,7 +60,7 @@ where
             ),
             c,
         ),
-        _ => false,
+        _ => Ok(false),
     }
 }
 
@@ -68,21 +68,20 @@ fn try_hephaestus_contiguous_unary<T>(
     op: coeus_ops::UnaryOp,
     a: &CudaStorage<T>,
     c: &mut CudaStorage<T>,
-) -> bool
+) -> Result<bool, CudaBackendError>
 where
     T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
 {
     if Arc::ptr_eq(&a.buffer, &c.buffer) {
-        return false;
+        return Ok(false);
     }
     let device = crate::backend::get_cuda_device();
     let run = |result: hephaestus_cuda::Result<hephaestus_cuda::CudaBuffer<T>>,
                c: &mut CudaStorage<T>| {
-        let Ok(buffer) = result else {
-            return false;
-        };
+        let buffer =
+            result.map_err(|source| CudaBackendError::dispatch("elementwise unary", source))?;
         c.buffer = Arc::new(buffer);
-        true
+        Ok(true)
     };
     match op {
         coeus_ops::UnaryOp::Sin => run(
@@ -141,7 +140,7 @@ where
             ),
             c,
         ),
-        _ => false,
+        _ => Ok(false),
     }
 }
 
@@ -182,15 +181,19 @@ fn try_hephaestus_strided_binary<T>(
     b_layout: &Layout,
     c: &mut CudaStorage<T>,
     c_layout: &Layout,
-) -> bool
+) -> Result<bool, CudaBackendError>
 where
     T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
 {
     if !can_route_dynamic_strided(&[a_layout, b_layout], c_layout) {
-        return false;
+        return Ok(false);
     }
     let device = crate::backend::get_cuda_device();
-    let run = |result: hephaestus_cuda::Result<()>| result.is_ok();
+    let run = |result: hephaestus_cuda::Result<()>| {
+        result
+            .map(|_| true)
+            .map_err(|source| CudaBackendError::dispatch("elementwise binary", source))
+    };
     match op {
         coeus_ops::BinaryOp::Add => run(hephaestus_cuda::binary_elementwise_strided_dyn_into::<
             hephaestus_cuda::AddOp,
@@ -232,7 +235,7 @@ where
             hephaestus_operand(c, c_layout),
             hephaestus_cuda::BlockWidth::DEFAULT,
         )),
-        _ => false,
+        _ => Ok(false),
     }
 }
 
@@ -242,15 +245,19 @@ fn try_hephaestus_strided_unary<T>(
     a_layout: &Layout,
     c: &mut CudaStorage<T>,
     c_layout: &Layout,
-) -> bool
+) -> Result<bool, CudaBackendError>
 where
     T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
 {
     if !can_route_dynamic_strided(&[a_layout], c_layout) {
-        return false;
+        return Ok(false);
     }
     let device = crate::backend::get_cuda_device();
-    let run = |result: hephaestus_cuda::Result<()>| result.is_ok();
+    let run = |result: hephaestus_cuda::Result<()>| {
+        result
+            .map(|_| true)
+            .map_err(|source| CudaBackendError::dispatch("elementwise unary", source))
+    };
     match op {
         coeus_ops::UnaryOp::Sin => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
             hephaestus_cuda::SinOp,
@@ -324,7 +331,7 @@ where
             hephaestus_operand(c, c_layout),
             hephaestus_cuda::BlockWidth::DEFAULT,
         )),
-        _ => false,
+        _ => Ok(false),
     }
 }
 
@@ -339,13 +346,14 @@ impl CudaBackend {
         b_layout: &Layout,
         c: &mut CudaStorage<T>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), CudaBackendError>
+    where
         T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
     {
         if get_cuda_context().is_some() {
             let Some(n) = kernels::checked_numel(c_layout) else {
-                self.fallback_binary(op, a, a_layout, b, b_layout, c, c_layout);
-                return;
+                self.fallback_binary(op, a, a_layout, b, b_layout, c, c_layout)?;
+                return Ok(());
             };
             // The contiguous kernel computes `c[i] = a[i] op b[i]` with no
             // broadcasting, so it is only valid when both operands already share
@@ -359,19 +367,20 @@ impl CudaBackend {
                 && b_layout.is_contiguous()
                 && c_layout.is_contiguous()
             {
-                if try_hephaestus_contiguous_binary(op, a, b, c) {
-                    return;
+                if try_hephaestus_contiguous_binary(op, a, b, c)? {
+                    return Ok(());
                 }
                 if kernels::launch_contiguous_binary(op, a, b, c, n) {
-                    return;
+                    return Ok(());
                 }
-            } else if try_hephaestus_strided_binary(op, a, a_layout, b, b_layout, c, c_layout)
+            } else if try_hephaestus_strided_binary(op, a, a_layout, b, b_layout, c, c_layout)?
                 || kernels::launch_strided_binary(op, a, a_layout, b, b_layout, c, c_layout, n)
             {
-                return;
+                return Ok(());
             }
         }
-        self.fallback_binary(op, a, a_layout, b, b_layout, c, c_layout);
+        self.fallback_binary(op, a, a_layout, b, b_layout, c, c_layout)?;
+        Ok(())
     }
 
     pub(crate) fn cuda_elementwise_unary<T>(
@@ -381,30 +390,32 @@ impl CudaBackend {
         a_layout: &Layout,
         c: &mut CudaStorage<T>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), CudaBackendError>
+    where
         T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
     {
         if get_cuda_context().is_some() {
             let Some(n) = kernels::checked_numel(c_layout) else {
-                self.fallback_unary(op, a, a_layout, c, c_layout);
-                return;
+                self.fallback_unary(op, a, a_layout, c, c_layout)?;
+                return Ok(());
             };
             if a_layout.is_contiguous() && c_layout.is_contiguous() {
-                if try_hephaestus_contiguous_unary(op, a, c) {
-                    return;
+                if try_hephaestus_contiguous_unary(op, a, c)? {
+                    return Ok(());
                 }
                 if kernels::launch_contiguous_unary(op, a, c, n) {
-                    return;
+                    return Ok(());
                 }
             } else {
-                if try_hephaestus_strided_unary(op, a, a_layout, c, c_layout)
+                if try_hephaestus_strided_unary(op, a, a_layout, c, c_layout)?
                     || kernels::launch_strided_unary(op, a, a_layout, c, c_layout, n)
                 {
-                    return;
+                    return Ok(());
                 }
             }
         }
-        self.fallback_unary(op, a, a_layout, c, c_layout);
+        self.fallback_unary(op, a, a_layout, c, c_layout)?;
+        Ok(())
     }
 
     pub(crate) fn cuda_matmul<T: CudaScalar>(
@@ -415,7 +426,7 @@ impl CudaBackend {
         b_layout: &Layout,
         c: &mut CudaStorage<T>,
         c_layout: &Layout,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         if get_cuda_context().is_some()
             && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
         {
@@ -425,10 +436,10 @@ impl CudaBackend {
             if kernels::launch_matmul_tiled(
                 &a_f32, &b_f32, &mut c_f32, a_layout, b_layout, c_layout,
             ) {
-                return;
+                return Ok(());
             }
         }
-        self.fallback_matmul(a, a_layout, b, b_layout, c, c_layout);
+        self.fallback_matmul(a, a_layout, b, b_layout, c, c_layout)
     }
 
     pub(crate) fn cuda_reduce<T: CudaScalar>(

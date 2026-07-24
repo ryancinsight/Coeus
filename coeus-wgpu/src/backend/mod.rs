@@ -3,7 +3,10 @@ use coeus_core::{ComputeBackend, Scalar, Storage};
 use hephaestus_wgpu::ComputeDevice;
 use std::sync::OnceLock;
 
+mod error;
 pub mod ops;
+
+pub use error::{LayoutError, WgpuBackendError};
 
 const METADATA_BUFFER_SIZE: u64 = 1024;
 const METADATA_POOL_CAPACITY: usize = 64;
@@ -189,6 +192,7 @@ impl WgpuBackend {
 }
 
 impl ComputeBackend for WgpuBackend {
+    type Error = WgpuBackendError;
     type DeviceBuffer<T: Scalar> = WgpuStorage<T>;
     type KernelDescriptor = ();
     type DispatchFuture<T: Scalar> = std::future::Ready<T>;

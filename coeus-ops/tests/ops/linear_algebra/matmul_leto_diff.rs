@@ -52,14 +52,16 @@ where
 
     backend.copy_to_device(a, &mut a_buffer);
     backend.copy_to_device(b, &mut b_buffer);
-    backend.matmul(
-        &a_buffer,
-        a_layout,
-        &b_buffer,
-        b_layout,
-        &mut c_buffer,
-        c_layout,
-    );
+    backend
+        .matmul(
+            &a_buffer,
+            a_layout,
+            &b_buffer,
+            b_layout,
+            &mut c_buffer,
+            c_layout,
+        )
+        .expect("valid matmul test layouts");
 
     let mut out = vec![T::zero(); c_layout.numel()];
     backend.copy_to_host(&c_buffer, &mut out);

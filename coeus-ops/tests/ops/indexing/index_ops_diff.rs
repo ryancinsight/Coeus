@@ -208,7 +208,7 @@ where
         &[1.0, 0.0, 0.0, 1.0, 2.0, 0.0, 0.0, 2.0],
         backend,
     );
-    let out = coeus_ops::bmm(&a, &b, backend);
+    let out = coeus_ops::bmm(&a, &b, backend).expect("valid batched matmul input");
     assert_eq!(out.shape(), &[2, 2, 2], "bmm shape");
     assert_eq!(
         out.as_slice(),
@@ -219,7 +219,7 @@ where
     // batch=1 single matmul: use A=I[1,2,2], B=scaling[1,2,2].
     let a2 = t(&[1, 2, 2], &[1.0, 0.0, 0.0, 1.0], backend);
     let b2 = t(&[1, 2, 2], &[3.0, 0.0, 0.0, 5.0], backend);
-    let out2 = coeus_ops::bmm(&a2, &b2, backend);
+    let out2 = coeus_ops::bmm(&a2, &b2, backend).expect("valid batched matmul input");
     assert_eq!(out2.shape(), &[1, 2, 2], "bmm batch=1 shape");
     assert_eq!(
         out2.as_slice(),

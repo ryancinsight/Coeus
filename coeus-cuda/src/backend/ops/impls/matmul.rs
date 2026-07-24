@@ -13,7 +13,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         b_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) {
-        self.cuda_matmul(a, a_layout, b, b_layout, c, c_layout);
+    ) -> Result<(), Self::Error> {
+        self.cuda_matmul(a, a_layout, b, b_layout, c, c_layout)
     }
 }

@@ -77,13 +77,13 @@ where
     // add: [1,2,3,4] + [4,3,2,1] = [5,5,5,5]
     let a = t_f16(&[4], &[1.0, 2.0, 3.0, 4.0], backend);
     let b = t_f16(&[4], &[4.0, 3.0, 2.0, 1.0], backend);
-    let sum = coeus_ops::add(&a, &b, backend);
+    let sum = coeus_ops::add(&a, &b, backend).expect("valid F16 add input");
     assert_f16_exact(sum.as_slice(), &[5.0, 5.0, 5.0, 5.0], "F16 add");
 
     // matmul: A=[[1,2],[3,4]] @ I₂ = A — identity matmul, exact.
     let mat = t_f16(&[2, 2], &[1.0, 2.0, 3.0, 4.0], backend);
     let eye = t_f16(&[2, 2], &[1.0, 0.0, 0.0, 1.0], backend);
-    let prod = coeus_ops::matmul(&mat, &eye, backend);
+    let prod = coeus_ops::matmul(&mat, &eye, backend).expect("valid F16 matmul input");
     assert_eq!(prod.shape(), &[2, 2], "F16 matmul shape");
     assert_f16_exact(prod.as_slice(), &[1.0, 2.0, 3.0, 4.0], "F16 matmul A@I=A");
 
@@ -99,7 +99,7 @@ where
 
     // relu: [-3,-1,0,2,4] → [0,0,0,2,4]
     let x = t_f16(&[5], &[-3.0, -1.0, 0.0, 2.0, 4.0], backend);
-    let r = coeus_ops::relu(&x, backend);
+    let r = coeus_ops::relu(&x, backend).expect("valid F16 ReLU input");
     assert_f16_exact(r.as_slice(), &[0.0, 0.0, 0.0, 2.0, 4.0], "F16 relu");
 }
 
@@ -113,13 +113,13 @@ where
     // add: [1,2,3,4] + [4,3,2,1] = [5,5,5,5]
     let a = t_bf16(&[4], &[1.0, 2.0, 3.0, 4.0], backend);
     let b = t_bf16(&[4], &[4.0, 3.0, 2.0, 1.0], backend);
-    let sum = coeus_ops::add(&a, &b, backend);
+    let sum = coeus_ops::add(&a, &b, backend).expect("valid Bf16 add input");
     assert_bf16_exact(sum.as_slice(), &[5.0, 5.0, 5.0, 5.0], "Bf16 add");
 
     // matmul: A @ I = A
     let mat = t_bf16(&[2, 2], &[1.0, 2.0, 3.0, 4.0], backend);
     let eye = t_bf16(&[2, 2], &[1.0, 0.0, 0.0, 1.0], backend);
-    let prod = coeus_ops::matmul(&mat, &eye, backend);
+    let prod = coeus_ops::matmul(&mat, &eye, backend).expect("valid Bf16 matmul input");
     assert_eq!(prod.shape(), &[2, 2], "Bf16 matmul shape");
     assert_bf16_exact(prod.as_slice(), &[1.0, 2.0, 3.0, 4.0], "Bf16 matmul A@I=A");
 
@@ -135,7 +135,7 @@ where
 
     // relu: [-3,-1,0,2,4] → [0,0,0,2,4]
     let x = t_bf16(&[5], &[-3.0, -1.0, 0.0, 2.0, 4.0], backend);
-    let r = coeus_ops::relu(&x, backend);
+    let r = coeus_ops::relu(&x, backend).expect("valid Bf16 ReLU input");
     assert_bf16_exact(r.as_slice(), &[0.0, 0.0, 0.0, 2.0, 4.0], "Bf16 relu");
 }
 

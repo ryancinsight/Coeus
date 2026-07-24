@@ -17,8 +17,8 @@ where
         b_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) {
-        matmul::matmul(self, a, a_layout, b, b_layout, c, c_layout);
+    ) -> Result<(), Self::Error> {
+        matmul::matmul(self, a, a_layout, b, b_layout, c, c_layout)
     }
 
     #[inline]
@@ -30,8 +30,8 @@ where
         b_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) {
-        matmul::batched_matmul(self, a, a_layout, b, b_layout, c, c_layout);
+    ) -> Result<(), Self::Error> {
+        matmul::batched_matmul(self, a, a_layout, b, b_layout, c, c_layout)
     }
 
     #[inline]
@@ -43,8 +43,8 @@ where
         b_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) {
-        matmul::matmul_accumulate(self, a, a_layout, b, b_layout, c, c_layout);
+    ) -> Result<(), Self::Error> {
+        matmul::matmul_accumulate(self, a, a_layout, b, b_layout, c, c_layout)
     }
 
     #[inline]
@@ -56,7 +56,7 @@ where
         b_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) {
-        matmul::batched_matmul_accumulate(self, a, a_layout, b, b_layout, c, c_layout);
+    ) -> Result<(), Self::Error> {
+        matmul::batched_matmul_accumulate(self, a, a_layout, b, b_layout, c, c_layout)
     }
 }

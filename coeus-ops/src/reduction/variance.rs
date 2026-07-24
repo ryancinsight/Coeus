@@ -23,7 +23,6 @@ use coeus_tensor::Tensor;
 fn axis_count(shape: &[usize], axis: usize) -> usize {
     shape[axis]
 }
-
 /// Variance over all elements with optional Bessel correction.
 ///
 /// `unbiased = true` divides by `(N − 1)` (PyTorch/JAX default);
@@ -33,8 +32,8 @@ pub fn var<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     unbiased: bool,
     backend: &B,
-) -> T {
-    var_mean(a, unbiased, backend).0
+) -> Result<T, B::Error> {
+    Ok(var_mean(a, unbiased, backend)?.0)
 }
 
 /// Variance over all elements together with the scalar mean.
@@ -48,7 +47,7 @@ pub fn var_mean<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     unbiased: bool,
     backend: &B,
-) -> (T, T) {
+) -> Result<(T, T), B::Error> {
     let n = a.numel();
     assert!(n > 0, "var_mean: empty tensor has no variance");
 
@@ -59,11 +58,11 @@ pub fn var_mean<T: Float, B: BackendOps<T> + Default>(
         a.to_contiguous_on(backend).reshape([n])
     };
     let mu_full = Tensor::full_on([n], mu, backend);
-    let dev = binary::sub(&flattened, &mu_full, backend);
-    let sq = binary::mul(&dev, &dev, backend);
+    let dev = binary::sub(&flattened, &mu_full, backend)?;
+    let sq = binary::mul(&dev, &dev, backend)?;
     let s = super::sum(&sq, backend);
     let denom = if unbiased && n > 1 { n - 1 } else { n };
-    (s / T::from_usize(denom), mu)
+    Ok((s / T::from_usize(denom), mu))
 }
 
 /// Variance along a specific axis, reducing it to size 1.
@@ -73,8 +72,8 @@ pub fn var_axis<T: Float, B: BackendOps<T> + Default>(
     axis: usize,
     unbiased: bool,
     backend: &B,
-) -> Tensor<T, B> {
-    var_mean_axis(a, axis, unbiased, backend).0
+) -> Result<Tensor<T, B>, B::Error> {
+    Ok(var_mean_axis(a, axis, unbiased, backend)?.0)
 }
 
 /// Standard deviation over all elements with optional Bessel correction.
@@ -83,8 +82,8 @@ pub fn std_dev<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     unbiased: bool,
     backend: &B,
-) -> T {
-    std_mean(a, unbiased, backend).0
+) -> Result<T, B::Error> {
+    Ok(std_mean(a, unbiased, backend)?.0)
 }
 
 /// Standard deviation over all elements together with the scalar mean.
@@ -96,9 +95,9 @@ pub fn std_mean<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     unbiased: bool,
     backend: &B,
-) -> (T, T) {
-    let (v, mu) = var_mean(a, unbiased, backend);
-    (<T as Float>::sqrt(v), mu)
+) -> Result<(T, T), B::Error> {
+    let (v, mu) = var_mean(a, unbiased, backend)?;
+    Ok((<T as Float>::sqrt(v), mu))
 }
 
 /// Standard deviation along a specific axis, reducing it to size 1.
@@ -108,8 +107,8 @@ pub fn std_dev_axis<T: Float, B: BackendOps<T> + Default>(
     axis: usize,
     unbiased: bool,
     backend: &B,
-) -> Tensor<T, B> {
-    std_mean_axis(a, axis, unbiased, backend).0
+) -> Result<Tensor<T, B>, B::Error> {
+    Ok(std_mean_axis(a, axis, unbiased, backend)?.0)
 }
 
 /// Variance along `axis` together with the per-slice mean, computed in a single
@@ -121,24 +120,28 @@ pub fn std_dev_axis<T: Float, B: BackendOps<T> + Default>(
 /// `n − 1`, matching `torch.var_mean(input, dim, correction=1)`;
 /// `unbiased=false` → divide by `n`, matching `correction=0`).
 #[inline]
+#[expect(
+    clippy::type_complexity,
+    reason = "The paired tensor return preserves the established variance/mean API."
+)]
 pub fn var_mean_axis<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     axis: usize,
     unbiased: bool,
     backend: &B,
-) -> (Tensor<T, B>, Tensor<T, B>) {
+) -> Result<(Tensor<T, B>, Tensor<T, B>), B::Error> {
     assert!(axis < a.ndim(), "var_mean_axis: axis {axis} out of bounds");
     let n = axis_count(a.shape(), axis);
     assert!(n > 0, "var_mean_axis: axis {axis} has zero elements");
 
     let mu = super::mean_axis(a, axis, backend);
-    let dev = binary::sub(a, &mu, backend);
-    let sq = binary::mul(&dev, &dev, backend);
+    let dev = binary::sub(a, &mu, backend)?;
+    let sq = binary::mul(&dev, &dev, backend)?;
     let s = super::sum_axis(&sq, axis, backend);
     let denom = if unbiased && n > 1 { n - 1 } else { n };
     let denom_full = Tensor::full_on(s.shape_cloned(), T::from_usize(denom), backend);
-    let v = binary::div(&s, &denom_full, backend);
-    (v, mu)
+    let v = binary::div(&s, &denom_full, backend)?;
+    Ok((v, mu))
 }
 
 /// Standard deviation along `axis` together with the per-slice mean.
@@ -146,13 +149,17 @@ pub fn var_mean_axis<T: Float, B: BackendOps<T> + Default>(
 /// Returns `(std_dev, mean)`. Composed on [`var_mean_axis`] and native
 /// `T::sqrt`; matches `torch.std_mean(input, dim, correction=...)`.
 #[inline]
+#[expect(
+    clippy::type_complexity,
+    reason = "The paired tensor return preserves the established standard-deviation/mean API."
+)]
 pub fn std_mean_axis<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     axis: usize,
     unbiased: bool,
     backend: &B,
-) -> (Tensor<T, B>, Tensor<T, B>) {
-    let (v, mu) = var_mean_axis(a, axis, unbiased, backend);
-    let std = crate::unary::sqrt(&v, backend);
-    (std, mu)
+) -> Result<(Tensor<T, B>, Tensor<T, B>), B::Error> {
+    let (v, mu) = var_mean_axis(a, axis, unbiased, backend)?;
+    let std = crate::unary::sqrt(&v, backend)?;
+    Ok((std, mu))
 }

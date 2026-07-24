@@ -190,7 +190,8 @@ where
     let cond = t(&[4], &[1.0, 0.0, 1.0, 0.0], backend);
     let on_true = t(&[4], &[10.0, 20.0, 30.0, 40.0], backend);
     let on_false = t(&[4], &[1.0, 2.0, 3.0, 4.0], backend);
-    let out = coeus_ops::where_cond(&cond, &on_true, &on_false, backend);
+    let out = coeus_ops::where_cond(&cond, &on_true, &on_false, backend)
+        .expect("valid where_cond test input");
     assert_eq!(out.shape(), &[4], "where_cond shape");
     assert_eq!(
         out.as_slice(),
@@ -203,7 +204,8 @@ where
     let cond_neg = t(&[2], &[-1.0, 0.0], backend);
     let ot2 = t(&[2], &[100.0, 200.0], backend);
     let of2 = t(&[2], &[0.0, 0.0], backend);
-    let out2 = coeus_ops::where_cond(&cond_neg, &ot2, &of2, backend);
+    let out2 =
+        coeus_ops::where_cond(&cond_neg, &ot2, &of2, backend).expect("valid where_cond test input");
     assert_eq!(
         out2.as_slice(),
         &[100.0_f64, 0.0],
@@ -214,7 +216,8 @@ where
     let all_true = t(&[3], &[1.0, 2.0, 3.0], backend);
     let vt = t(&[3], &[7.0, 8.0, 9.0], backend);
     let vf = t(&[3], &[0.0, 0.0, 0.0], backend);
-    let all_t = coeus_ops::where_cond(&all_true, &vt, &vf, backend);
+    let all_t =
+        coeus_ops::where_cond(&all_true, &vt, &vf, backend).expect("valid where_cond test input");
     assert_eq!(all_t.as_slice(), vt.as_slice(), "where_cond all-true");
 
     // 2-D shape: [[1,0],[0,1]] selects from [[10,20],[30,40]] vs [[1,2],[3,4]].
@@ -222,7 +225,7 @@ where
     let c2 = t(&[2, 2], &[1.0, 0.0, 0.0, 1.0], backend);
     let t2 = t(&[2, 2], &[10.0, 20.0, 30.0, 40.0], backend);
     let f2 = t(&[2, 2], &[1.0, 2.0, 3.0, 4.0], backend);
-    let out2d = coeus_ops::where_cond(&c2, &t2, &f2, backend);
+    let out2d = coeus_ops::where_cond(&c2, &t2, &f2, backend).expect("valid where_cond test input");
     assert_eq!(out2d.shape(), &[2, 2], "where_cond 2-D shape");
     assert_eq!(
         out2d.as_slice(),

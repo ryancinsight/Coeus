@@ -32,15 +32,18 @@
   an ADR plus synchronized CPU/CUDA/WGPU implementations.
 - Evidence: before this increment `GpuLayoutInfo::from_layout` used `assert!`
   and `as u32` for rank, offset, shapes, and strides. The checked constructor
-  now owns those validations. The operation traits still return `()` so a
-  validation failure cannot yet propagate without changing the shared seam.
-- Increment: the canonical layout conversion now has typed rank, stride-rank,
-  offset, shape, and stride validation with focused boundary regressions;
-  operation callers still use the existing infallible wrapper pending the
-  shared trait migration.
-- Dependency: resolve the preserved peer `Cargo.toml` manifest drift before
-  compiled verification. ADR-0020 records the selected error-boundary design
-  and the dependency-ordered implementation slices.
+  now owns those validations, and the operation traits carry typed `Result`
+  failures through the shared backend seam.
+- Increment: elementwise and matmul operations now propagate CPU Leto errors,
+  CUDA provider errors, and WGPU layout/dispatch errors without adapters or
+  silent fallback. High-level arithmetic, unary, reduction, shape, and
+  matmul callers propagate the same result contract. Focused verification is
+  87/87 nextest tests, 22/22 doctests, warning-denied Clippy, and package-local
+  format check; the typed incompatible-broadcast regression is value-asserted.
+- Dependency: the focused `coeus-ops` package is verified. Full WGPU
+  verification remains blocked by the peer Hephaestus local/Git Leto type
+  graph; ADR-0020 records the selected error-boundary design and the
+  dependency-ordered implementation slices.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

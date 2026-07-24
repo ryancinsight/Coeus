@@ -67,6 +67,7 @@ impl CudaBackend {
 }
 
 impl ComputeBackend for CudaBackend {
+    type Error = crate::CudaBackendError;
     type DeviceBuffer<T: Scalar> = CudaStorage<T>;
     type KernelDescriptor = ();
     type DispatchFuture<T: Scalar> = std::future::Ready<T>;

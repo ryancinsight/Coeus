@@ -46,6 +46,7 @@ impl SequentialBackend {
 }
 
 impl ComputeBackend for SequentialBackend {
+    type Error = crate::backend::BackendError;
     type DeviceBuffer<T: Scalar> = CpuStorage<T>;
     type KernelDescriptor = ();
     type DispatchFuture<T: Scalar> = std::future::Ready<T>;

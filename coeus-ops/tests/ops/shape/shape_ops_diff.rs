@@ -261,7 +261,7 @@ where
     // [[1*4,1*5],[2*4,2*5],[3*4,3*5]] = [[4,5],[8,10],[12,15]]
     let a = t(&[3], &[1.0, 2.0, 3.0], backend);
     let b = t(&[2], &[4.0, 5.0], backend);
-    let o = coeus_ops::outer(&a, &b, backend);
+    let o = coeus_ops::outer(&a, &b, backend).expect("valid outer-product input");
     assert_eq!(o.shape(), &[3, 2], "outer shape");
     assert_eq!(
         o.as_slice(),
@@ -272,7 +272,7 @@ where
     // outer([1,0], [0,1]) = [[0,1],[0,0]] (unit vectors)
     let e0 = t(&[2], &[1.0, 0.0], backend);
     let e1 = t(&[2], &[0.0, 1.0], backend);
-    let oe = coeus_ops::outer(&e0, &e1, backend);
+    let oe = coeus_ops::outer(&e0, &e1, backend).expect("valid outer-product input");
     assert_eq!(
         oe.as_slice(),
         &[0.0_f64, 1.0, 0.0, 0.0],

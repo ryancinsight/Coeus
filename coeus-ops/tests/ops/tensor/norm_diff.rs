@@ -46,24 +46,24 @@ where
 {
     // 3–4–5 right-triangle entries: ‖[[3,4],[0,0]]‖_F = sqrt(9+16) = 5.0 exactly.
     let a = from_slice_f32(&[2, 2], &[3.0f32, 4.0, 0.0, 0.0], backend);
-    let got = coeus_ops::frobenius_norm(&a, backend);
+    let got = coeus_ops::frobenius_norm(&a, backend).expect("valid Frobenius norm input");
     assert_scalar_close(got, 5.0f32, 1e-6, "frobenius_norm 3-4-5");
 
     // Rectangular [2,3]: ‖[[1,2,3],[4,5,6]]‖_F = sqrt(1+4+9+16+25+36) = sqrt(91).
     let b = from_slice_f32(&[2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], backend);
     let expected_b = 91.0f32.sqrt();
-    let got_b = coeus_ops::frobenius_norm(&b, backend);
+    let got_b = coeus_ops::frobenius_norm(&b, backend).expect("valid Frobenius norm input");
     assert_scalar_close(got_b, expected_b, 1e-5, "frobenius_norm [2,3]");
 
     // Identity [2,2]: ‖I₂‖_F = sqrt(1+0+0+1) = sqrt(2) ≈ 1.414_213_6.
     let c = from_slice_f32(&[2, 2], &[1.0f32, 0.0, 0.0, 1.0], backend);
     let expected_c = 2.0f32.sqrt();
-    let got_c = coeus_ops::frobenius_norm(&c, backend);
+    let got_c = coeus_ops::frobenius_norm(&c, backend).expect("valid Frobenius norm input");
     assert_scalar_close(got_c, expected_c, 1e-6, "frobenius_norm identity [2,2]");
 
     // All-zeros [3,3]: ‖0‖_F = 0.0.
     let d = from_slice_f32(&[3, 3], &[0.0f32; 9], backend);
-    let got_d = coeus_ops::frobenius_norm(&d, backend);
+    let got_d = coeus_ops::frobenius_norm(&d, backend).expect("valid Frobenius norm input");
     assert_scalar_close(got_d, 0.0f32, 0.0, "frobenius_norm zeros [3,3]");
 }
 
@@ -94,7 +94,8 @@ where
         &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
         backend,
     );
-    let out = coeus_ops::frobenius_norm_batched(&a, backend);
+    let out =
+        coeus_ops::frobenius_norm_batched(&a, backend).expect("valid batched Frobenius norm input");
     assert_eq!(out.shape(), &[2], "frobenius_norm_batched [2,2,2] shape");
     assert_slice_close(
         out.as_slice(),
@@ -108,7 +109,8 @@ where
     //   batch 1: [[3,4]]    → sqrt(9+16)= 5.0
     //   batch 2: [[0,0]]    → 0.0
     let b = from_slice_f32(&[3, 1, 2], &[1.0f32, 0.0, 3.0, 4.0, 0.0, 0.0], backend);
-    let out_b = coeus_ops::frobenius_norm_batched(&b, backend);
+    let out_b =
+        coeus_ops::frobenius_norm_batched(&b, backend).expect("valid batched Frobenius norm input");
     assert_eq!(out_b.shape(), &[3], "frobenius_norm_batched [3,1,2] shape");
     assert_slice_close(
         out_b.as_slice(),
@@ -120,7 +122,8 @@ where
     // Rank-4 shape [2,2,2,2]: four [2×2] matrices grouped in a [2×2] batch.
     //   All entries are 1.0 → each slice‖[[1,1],[1,1]]‖_F = sqrt(4) = 2.0.
     let c = from_slice_f32(&[2, 2, 2, 2], &[1.0f32; 16], backend);
-    let out_c = coeus_ops::frobenius_norm_batched(&c, backend);
+    let out_c =
+        coeus_ops::frobenius_norm_batched(&c, backend).expect("valid batched Frobenius norm input");
     assert_eq!(
         out_c.shape(),
         &[2, 2],

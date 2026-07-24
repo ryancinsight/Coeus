@@ -20,13 +20,13 @@ pub fn matmul_accumulate<T: Scalar, B: MatmulOps<T> + ElementwiseOps<T>>(
     b_layout: &Layout,
     c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
-) {
+) -> Result<(), B::Error> {
     let temp_len = c_layout.shape().iter().product();
     let mut temp = backend.allocate::<T>(temp_len);
     let temp_layout =
         Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
     backend.fill(&mut temp, T::zero());
-    backend.matmul(a, a_layout, b, b_layout, &mut temp, &temp_layout);
+    backend.matmul(a, a_layout, b, b_layout, &mut temp, &temp_layout)?;
     let c_ptr = c as *mut B::DeviceBuffer<T>;
     unsafe {
         backend.elementwise_binary(
@@ -37,8 +37,9 @@ pub fn matmul_accumulate<T: Scalar, B: MatmulOps<T> + ElementwiseOps<T>>(
             &temp_layout,
             &mut *c_ptr,
             c_layout,
-        );
+        )?;
     }
+    Ok(())
 }
 
 /// Default: rank-3 batched matmul via per-slice rank-2 dispatch.
@@ -50,7 +51,7 @@ pub fn batched_matmul<T: Scalar, B: MatmulOps<T>>(
     b_layout: &Layout,
     c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
-) {
+) -> Result<(), B::Error> {
     assert_eq!(a_layout.ndim(), 3, "batched_matmul: lhs must be rank 3");
     assert_eq!(b_layout.ndim(), 3, "batched_matmul: rhs must be rank 3");
     assert_eq!(c_layout.ndim(), 3, "batched_matmul: out must be rank 3");
@@ -105,8 +106,9 @@ pub fn batched_matmul<T: Scalar, B: MatmulOps<T>>(
             out_strides.clone(),
             c_layout.offset() + batch * out_batch_stride,
         );
-        backend.matmul(a, &lhs_layout, b, &rhs_layout, c, &out_layout);
+        backend.matmul(a, &lhs_layout, b, &rhs_layout, c, &out_layout)?;
     }
+    Ok(())
 }
 
 /// Default: `c += batched a @ b` via temp + add.
@@ -118,13 +120,13 @@ pub fn batched_matmul_accumulate<T: Scalar, B: MatmulOps<T> + ElementwiseOps<T>>
     b_layout: &Layout,
     c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
-) {
+) -> Result<(), B::Error> {
     let temp_len = c_layout.shape().iter().product();
     let mut temp = backend.allocate::<T>(temp_len);
     let temp_layout =
         Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
     backend.fill(&mut temp, T::zero());
-    batched_matmul(backend, a, a_layout, b, b_layout, &mut temp, &temp_layout);
+    batched_matmul(backend, a, a_layout, b, b_layout, &mut temp, &temp_layout)?;
     let c_ptr = c as *mut B::DeviceBuffer<T>;
     unsafe {
         backend.elementwise_binary(
@@ -135,6 +137,7 @@ pub fn batched_matmul_accumulate<T: Scalar, B: MatmulOps<T> + ElementwiseOps<T>>
             &temp_layout,
             &mut *c_ptr,
             c_layout,
-        );
+        )?;
     }
+    Ok(())
 }

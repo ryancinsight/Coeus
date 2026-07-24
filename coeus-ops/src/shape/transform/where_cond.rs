@@ -16,7 +16,7 @@
 
 use crate::backend_ops::BackendOps;
 use crate::backend_ops::UnaryOp;
-use coeus_core::Float;
+use coeus_core::{BackendError, Float};
 use coeus_tensor::Tensor;
 
 /// Element-wise conditional select: `out[i] = if cond[i] != 0 { on_true[i] } else { on_false[i] }`.
@@ -26,41 +26,42 @@ use coeus_tensor::Tensor;
 ///
 /// Composed purely from the existing backend primitives — no new GPU kernel required.
 ///
-/// # Panics
-/// Panics if shapes do not match.
+/// # Errors
+/// Returns a typed shape-mismatch error if the three inputs do not have the
+/// same shape, or propagates a backend dispatch failure.
 #[inline]
 pub fn where_cond<T: Float, B: BackendOps<T> + Default>(
     cond: &Tensor<T, B>,
     on_true: &Tensor<T, B>,
     on_false: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
-    assert_eq!(
-        cond.shape(),
-        on_true.shape(),
-        "where_cond: cond and on_true shape mismatch: {:?} vs {:?}",
-        cond.shape(),
-        on_true.shape(),
-    );
-    assert_eq!(
-        cond.shape(),
-        on_false.shape(),
-        "where_cond: cond and on_false shape mismatch: {:?} vs {:?}",
-        cond.shape(),
-        on_false.shape(),
-    );
+) -> Result<Tensor<T, B>, B::Error> {
+    if cond.shape() != on_true.shape() {
+        return Err(B::Error::from(BackendError::ShapeMismatch {
+            operation: "where_cond",
+            lhs: cond.shape().to_vec(),
+            rhs: on_true.shape().to_vec(),
+        }));
+    }
+    if cond.shape() != on_false.shape() {
+        return Err(B::Error::from(BackendError::ShapeMismatch {
+            operation: "where_cond",
+            lhs: cond.shape().to_vec(),
+            rhs: on_false.shape().to_vec(),
+        }));
+    }
 
     // 1 where cond > 0, 0 elsewhere
-    let mask_pos = crate::unary::elementwise_unary(cond, backend, UnaryOp::ReluGrad);
+    let mask_pos = crate::unary::elementwise_unary(cond, backend, UnaryOp::ReluGrad)?;
     // 1 where cond < 0, 0 elsewhere
-    let cond_neg = crate::unary::elementwise_unary(cond, backend, UnaryOp::Neg);
-    let mask_neg = crate::unary::elementwise_unary(&cond_neg, backend, UnaryOp::ReluGrad);
+    let cond_neg = crate::unary::elementwise_unary(cond, backend, UnaryOp::Neg)?;
+    let mask_neg = crate::unary::elementwise_unary(&cond_neg, backend, UnaryOp::ReluGrad)?;
     // combined: 1 where cond != 0
-    let any_mask = crate::binary::add(&mask_pos, &mask_neg, backend);
+    let any_mask = crate::binary::add(&mask_pos, &mask_neg, backend)?;
 
     let one = Tensor::full_on(any_mask.shape(), T::from_f64(1.0), backend);
-    let inv_mask = crate::binary::sub(&one, &any_mask, backend);
-    let true_part = crate::binary::mul(on_true, &any_mask, backend);
-    let false_part = crate::binary::mul(on_false, &inv_mask, backend);
+    let inv_mask = crate::binary::sub(&one, &any_mask, backend)?;
+    let true_part = crate::binary::mul(on_true, &any_mask, backend)?;
+    let false_part = crate::binary::mul(on_false, &inv_mask, backend)?;
     crate::binary::add(&true_part, &false_part, backend)
 }

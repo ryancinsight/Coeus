@@ -59,7 +59,9 @@ where
     let mut output_buffer = ComputeBackend::allocate::<T>(backend, input.len());
 
     backend.copy_to_device(input, &mut input_buffer);
-    backend.elementwise_unary(op, &input_buffer, &layout, &mut output_buffer, &layout);
+    backend
+        .elementwise_unary(op, &input_buffer, &layout, &mut output_buffer, &layout)
+        .expect("valid unary test layouts");
 
     let mut output = vec![T::zero(); input.len()];
     backend.copy_to_host(&output_buffer, &mut output);

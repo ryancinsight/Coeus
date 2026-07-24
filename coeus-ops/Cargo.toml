@@ -12,6 +12,7 @@ coeus-tensor = { workspace = true }
 coeus-sparse = { workspace = true }
 coeus-leto   = { path = "../coeus-leto" }
 leto-ops     = { workspace = true }
+leto         = { workspace = true }
 smallvec     = { workspace = true }
 thiserror    = { workspace = true }
 eunomia      = { workspace = true }

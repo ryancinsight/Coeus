@@ -29,7 +29,7 @@ mod backend;
 mod kernels;
 mod storage;
 
-pub use backend::{WgpuBackend, WgpuScalar};
+pub use backend::{LayoutError, WgpuBackend, WgpuBackendError, WgpuScalar};
 pub use storage::WgpuStorage;
 
 use coeus_core::Layout;

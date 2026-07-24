@@ -19,8 +19,8 @@ where
         b_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) {
-        elementwise::elementwise_binary(self, op, a, a_layout, b, b_layout, c, c_layout);
+    ) -> Result<(), Self::Error> {
+        elementwise::elementwise_binary(self, op, a, a_layout, b, b_layout, c, c_layout)
     }
 
     #[inline]
@@ -31,7 +31,7 @@ where
         a_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) {
-        elementwise::elementwise_unary(self, op, a, a_layout, c, c_layout);
+    ) -> Result<(), Self::Error> {
+        elementwise::elementwise_unary(self, op, a, a_layout, c, c_layout)
     }
 }

@@ -27,7 +27,7 @@ pub trait ElementwiseOps<T: Scalar>: ComputeBackend {
         b_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// Element-wise unary operations.
     fn elementwise_unary(
@@ -37,5 +37,5 @@ pub trait ElementwiseOps<T: Scalar>: ComputeBackend {
         a_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 }

@@ -3,13 +3,13 @@
 ## WGPU layout and dispatch failure boundary [arch]
 - [x] Add the checked `GpuLayoutInfo` SSOT constructor with typed rank,
       stride-rank, offset, shape, and stride overflow errors.
-- [ ] Add one backend error associated type and make operation dispatch
+- [x] Add one backend error associated type and make operation dispatch
       return `Result` through the shared trait seam.
-- [ ] Convert `GpuLayoutInfo` and the WGPU dispatch-grid/ABI conversions to
-      typed checked constructors; migrate one complete operation family at a
-      time without adapters or silent no-ops.
-- [ ] Update CPU, CUDA, WGPU, and high-level callers together; verify value
-      semantics, negative overflow cases, and public API documentation.
+- [x] Convert `GpuLayoutInfo` and the WGPU dispatch-grid/ABI conversions to
+      typed checked constructors; migrate elementwise and matmul operation
+      families without adapters or silent no-ops.
+- [x] Update CPU, CUDA, WGPU, and high-level callers together; verify value
+      semantics, typed negative broadcast failure, and public API documentation.
 - [ ] Run the full affected package matrix after the preserved peer manifest
       resolves; no package result is claimed while resolution is blocked.
 
@@ -18,10 +18,13 @@ operation traits. An operation-local `Option`/early return is rejected because
 it can leave output storage uninitialized or stale while hiding the violated
 WGSL ABI contract.
 
-Increment evidence: `coeus-wgpu/src/kernels/layout.rs` now checks all fixed
-WGSL ABI bounds and has representable, rank, rank-mismatch, and dimension
-overflow regressions. Format and diff checks pass; package compilation remains
-blocked by the preserved peer manifest drift.
+Increment evidence: `ComputeBackend::Error` now carries the shared typed
+validation conversion; elementwise and matmul traits return `Result`; CPU
+maps Leto failures, CUDA and WGPU preserve provider-specific errors, and
+high-level `coeus-ops` callers propagate them. The focused `coeus-ops` gate
+passes 87/87 nextest tests, 22/22 doctests, warning-denied Clippy, and
+package-local formatting. The full affected matrix remains blocked by the
+preserved peer Hephaestus local/Git Leto type graph.
 
 ## WGPU pool1d dispatch mode ownership [patch]
 - [x] Replace the forward dispatcher’s mixed forward/backward mode enum with

@@ -1,4 +1,4 @@
-use crate::backend::{WgpuBackend, WgpuScalar};
+use crate::backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
 use crate::kernels;
 use coeus_core::{Layout, Storage};
 use hephaestus_core::BlockWidth;
@@ -62,7 +62,7 @@ macro_rules! coeus_to_leto_layout {
 }
 
 /// Dispatch a binary Hephaestus strided op at the rank determined by `out.ndim()`.
-/// Returns `true` when dispatched, `false` when the rank falls outside [1, 4].
+/// Returns `Ok(true)` when dispatched, `Ok(false)` when unsupported.
 fn try_hephaestus_strided_binary_wgpu<
     T: WgpuScalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>,
 >(
@@ -73,7 +73,7 @@ fn try_hephaestus_strided_binary_wgpu<
     b_layout: &Layout,
     c_buf: &crate::backend::WgpuStorage<T>,
     c_layout: &Layout,
-) -> bool {
+) -> Result<bool, WgpuBackendError> {
     use coeus_ops::BinaryOp;
 
     macro_rules! dispatch_n {
@@ -94,8 +94,8 @@ fn try_hephaestus_strided_binary_wgpu<
                 layout: &lc,
             };
             let ok = |r: hephaestus_wgpu::Result<()>| {
-                r.expect("hephaestus-wgpu strided binary dispatch failed");
-                true
+                r.map(|_| true)
+                    .map_err(|source| WgpuBackendError::dispatch("elementwise binary", source))
             };
             let dev = &crate::backend::get_wgpu_context().hephaestus_device;
             match op {
@@ -119,7 +119,7 @@ fn try_hephaestus_strided_binary_wgpu<
                     T,
                     $n,
                 >(dev, a_op, b_op, c_op, BlockWidth::DEFAULT)),
-                _ => false,
+                _ => Ok(false),
             }
         }};
     }
@@ -129,7 +129,7 @@ fn try_hephaestus_strided_binary_wgpu<
         2 => dispatch_n!(2),
         3 => dispatch_n!(3),
         4 => dispatch_n!(4),
-        _ => false,
+        _ => Ok(false),
     }
 }
 
@@ -142,7 +142,7 @@ fn try_hephaestus_strided_unary_wgpu<
     a_layout: &Layout,
     c_buf: &crate::backend::WgpuStorage<T>,
     c_layout: &Layout,
-) -> bool {
+) -> Result<bool, WgpuBackendError> {
     use coeus_ops::UnaryOp;
 
     macro_rules! dispatch_n {
@@ -158,8 +158,8 @@ fn try_hephaestus_strided_unary_wgpu<
                 layout: &lc,
             };
             let ok = |r: hephaestus_wgpu::Result<()>| {
-                r.expect("hephaestus-wgpu strided unary dispatch failed");
-                true
+                r.map(|_| true)
+                    .map_err(|source| WgpuBackendError::dispatch("elementwise unary", source))
             };
             let dev = &crate::backend::get_wgpu_context().hephaestus_device;
             match op {
@@ -206,7 +206,7 @@ fn try_hephaestus_strided_unary_wgpu<
                     T,
                     $n,
                 >(dev, a_op, c_op, BlockWidth::DEFAULT)),
-                _ => false,
+                _ => Ok(false),
             }
         }};
     }
@@ -216,7 +216,7 @@ fn try_hephaestus_strided_unary_wgpu<
         2 => dispatch_n!(2),
         3 => dispatch_n!(3),
         4 => dispatch_n!(4),
-        _ => false,
+        _ => Ok(false),
     }
 }
 
@@ -227,14 +227,15 @@ fn try_hephaestus_contiguous_binary<
     a: &crate::storage::WgpuStorage<T>,
     b: &crate::storage::WgpuStorage<T>,
     c: &mut crate::storage::WgpuStorage<T>,
-) -> bool {
+) -> Result<bool, WgpuBackendError> {
     if Arc::ptr_eq(&a.buffer, &c.buffer) || Arc::ptr_eq(&b.buffer, &c.buffer) {
-        return false;
+        return Ok(false);
     }
     let ctx = crate::backend::get_wgpu_context();
     let run = |result: hephaestus_wgpu::Result<()>| {
-        result.expect("hephaestus-wgpu contiguous binary dispatch failed");
-        true
+        result
+            .map(|_| true)
+            .map_err(|source| WgpuBackendError::dispatch("elementwise binary", source))
     };
     match op {
         coeus_ops::BinaryOp::Add => run(hephaestus_wgpu::binary_elementwise_into::<
@@ -277,7 +278,7 @@ fn try_hephaestus_contiguous_binary<
             c.buffer.as_ref(),
             BlockWidth::DEFAULT,
         )),
-        _ => false,
+        _ => Ok(false),
     }
 }
 
@@ -287,14 +288,15 @@ fn try_hephaestus_contiguous_unary<
     op: coeus_ops::UnaryOp,
     a: &crate::storage::WgpuStorage<T>,
     c: &mut crate::storage::WgpuStorage<T>,
-) -> bool {
+) -> Result<bool, WgpuBackendError> {
     if Arc::ptr_eq(&a.buffer, &c.buffer) {
-        return false;
+        return Ok(false);
     }
     let ctx = crate::backend::get_wgpu_context();
     let run = |result: hephaestus_wgpu::Result<()>| {
-        result.expect("hephaestus-wgpu contiguous unary dispatch failed");
-        true
+        result
+            .map(|_| true)
+            .map_err(|source| WgpuBackendError::dispatch("elementwise unary", source))
     };
     match op {
         coeus_ops::UnaryOp::Sin => run(hephaestus_wgpu::unary_elementwise_into::<
@@ -369,7 +371,7 @@ fn try_hephaestus_contiguous_unary<
             c.buffer.as_ref(),
             BlockWidth::DEFAULT,
         )),
-        _ => false,
+        _ => Ok(false),
     }
 }
 
@@ -386,7 +388,10 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         b_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) {
+    ) -> Result<(), WgpuBackendError> {
+        WgpuBackendError::validate_layout(a_layout)?;
+        WgpuBackendError::validate_layout(b_layout)?;
+        WgpuBackendError::validate_layout(c_layout)?;
         if a.len() == c.len()
             && b.len() == c.len()
             && a_layout.is_contiguous()
@@ -396,7 +401,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             && c_layout.is_contiguous()
             && c_layout.offset() == 0
         {
-            if !try_hephaestus_contiguous_binary(op, a, b, c) {
+            if !try_hephaestus_contiguous_binary(op, a, b, c)? {
                 kernels::dispatch_contiguous_binary::<T>(
                     op,
                     &a.buffer,
@@ -406,7 +411,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
                 );
             }
         } else if can_route_strided_wgpu(&[a_layout, b_layout], c_layout)
-            && try_hephaestus_strided_binary_wgpu(op, a, a_layout, b, b_layout, c, c_layout)
+            && try_hephaestus_strided_binary_wgpu(op, a, a_layout, b, b_layout, c, c_layout)?
         {
         } else {
             kernels::dispatch_binary::<T>(
@@ -420,6 +425,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
                 c.len(),
             );
         }
+        Ok(())
     }
 
     #[inline]
@@ -430,21 +436,24 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         a_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) {
+    ) -> Result<(), WgpuBackendError> {
+        WgpuBackendError::validate_layout(a_layout)?;
+        WgpuBackendError::validate_layout(c_layout)?;
         if a.len() == c.len()
             && a_layout.is_contiguous()
             && a_layout.offset() == 0
             && c_layout.is_contiguous()
             && c_layout.offset() == 0
         {
-            if !try_hephaestus_contiguous_unary(op, a, c) {
+            if !try_hephaestus_contiguous_unary(op, a, c)? {
                 kernels::dispatch_contiguous_unary::<T>(op, &a.buffer, &c.buffer, c.len());
             }
         } else if can_route_strided_wgpu(&[a_layout], c_layout)
-            && try_hephaestus_strided_unary_wgpu(op, a, a_layout, c, c_layout)
+            && try_hephaestus_strided_unary_wgpu(op, a, a_layout, c, c_layout)?
         {
         } else {
             kernels::dispatch_unary::<T>(op, &a.buffer, a_layout, &c.buffer, c_layout, c.len());
         }
+        Ok(())
     }
 }

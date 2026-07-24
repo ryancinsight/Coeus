@@ -14,7 +14,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         b_layout: &Layout,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         matmul::dispatch_matmul(a, a_layout, b, b_layout, c, c_layout);
+        Ok(())
     }
 }

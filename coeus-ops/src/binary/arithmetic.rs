@@ -2,7 +2,7 @@
 
 use super::kernel::elementwise_binary;
 use crate::backend_ops::{BackendOps, BinaryOp};
-use coeus_core::Scalar;
+use coeus_core::{BackendError, Scalar};
 use coeus_tensor::Tensor;
 
 /// Element-wise addition.
@@ -17,7 +17,7 @@ use coeus_tensor::Tensor;
 /// let backend = SequentialBackend::new();
 /// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[1.0, 2.0]);
 /// let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0]);
-/// let c = add(&a, &b, &backend);
+/// let c = add(&a, &b, &backend).expect("valid addition doctest inputs");
 /// assert_eq!(c.as_slice(), &[4.0, 6.0]);
 /// ```
 #[inline]
@@ -25,7 +25,7 @@ pub fn add<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     elementwise_binary(a, b, backend, BinaryOp::Add)
 }
 
@@ -41,7 +41,7 @@ pub fn add<T: Scalar, B: BackendOps<T>>(
 /// let backend = SequentialBackend::new();
 /// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[5.0, 6.0, 7.0, 8.0]);
 /// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
-/// let c = sub(&a, &b, &backend);
+/// let c = sub(&a, &b, &backend).expect("valid subtraction doctest inputs");
 /// assert_eq!(c.as_slice(), &[4.0, 4.0, 4.0, 4.0]);
 /// ```
 #[inline]
@@ -49,7 +49,7 @@ pub fn sub<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     elementwise_binary(a, b, backend, BinaryOp::Sub)
 }
 
@@ -65,7 +65,7 @@ pub fn sub<T: Scalar, B: BackendOps<T>>(
 /// let backend = SequentialBackend::new();
 /// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
 /// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[5.0, 6.0, 7.0, 8.0]);
-/// let c = mul(&a, &b, &backend);
+/// let c = mul(&a, &b, &backend).expect("valid multiplication doctest inputs");
 /// assert_eq!(c.as_slice(), &[5.0, 12.0, 21.0, 32.0]);
 /// ```
 #[inline]
@@ -73,7 +73,7 @@ pub fn mul<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     elementwise_binary(a, b, backend, BinaryOp::Mul)
 }
 
@@ -89,7 +89,7 @@ pub fn mul<T: Scalar, B: BackendOps<T>>(
 /// let backend = SequentialBackend::new();
 /// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[6.0, 8.0, 10.0, 12.0]);
 /// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[2.0, 4.0, 5.0, 6.0]);
-/// let c = div(&a, &b, &backend);
+/// let c = div(&a, &b, &backend).expect("valid division doctest inputs");
 /// let s = c.as_slice();
 /// assert!((s[0] - 3.0).abs() < 1e-5);
 /// assert!((s[1] - 2.0).abs() < 1e-5);
@@ -101,7 +101,7 @@ pub fn div<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     elementwise_binary(a, b, backend, BinaryOp::Div)
 }
 
@@ -113,16 +113,23 @@ macro_rules! binary_assign_op {
             a: &mut Tensor<T, B>,
             b: &Tensor<T, B>,
             backend: &B,
-        ) {
+        ) -> Result<(), B::Error> {
             use coeus_tensor::broadcast::broadcast_shapes;
             if a.shape() != b.shape() {
-                let out_shape = broadcast_shapes(a.shape(), b.shape())
-                    .expect("Incompatible shapes for in-place operation");
-                assert_eq!(
-                    &out_shape[..],
-                    a.shape(),
-                    "In-place operation cannot expand the shape of the target tensor"
-                );
+                let out_shape = broadcast_shapes(a.shape(), b.shape()).ok_or_else(|| {
+                    B::Error::from(BackendError::IncompatibleBroadcast {
+                        operation: "elementwise_binary_assign",
+                        from: b.shape().to_vec(),
+                        to: a.shape().to_vec(),
+                    })
+                })?;
+                if &out_shape[..] != a.shape() {
+                    return Err(B::Error::from(BackendError::IncompatibleBroadcast {
+                        operation: "elementwise_binary_assign",
+                        from: b.shape().to_vec(),
+                        to: a.shape().to_vec(),
+                    }));
+                }
             }
             let (a_dest, a_layout) = a.storage_mut_and_layout();
             // SAFETY: We cast the mutable reference `a_dest` to an immutable reference `a_src`
@@ -139,7 +146,8 @@ macro_rules! binary_assign_op {
                 b.layout(),
                 a_dest,
                 a_layout,
-            );
+            )?;
+            Ok(())
         }
     };
 }
@@ -156,3 +164,29 @@ binary_assign_op!(
     "In-place element-wise multiplication."
 );
 binary_assign_op!(div_assign, BinaryOp::Div, "In-place element-wise division.");
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::{BackendError, SequentialBackend};
+
+    #[test]
+    fn incompatible_broadcast_returns_typed_error() {
+        let backend = SequentialBackend::new();
+        let lhs = Tensor::from_slice([2], &[1.0_f32, 2.0]);
+        let rhs = Tensor::from_slice([3], &[3.0_f32, 4.0, 5.0]);
+
+        let error = match add(&lhs, &rhs, &backend) {
+            Ok(_) => panic!("incompatible shapes must fail"),
+            Err(error) => error,
+        };
+
+        assert!(matches!(
+            error,
+            BackendError::IncompatibleBroadcast {
+                operation: "elementwise_binary",
+                ..
+            }
+        ));
+    }
+}

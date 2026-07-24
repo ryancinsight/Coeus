@@ -1,8 +1,9 @@
-use coeus_core::Backend;
+use coeus_core::{Backend, BackendError};
 
 mod attention;
 mod conv;
 mod elementwise;
+mod error;
 mod impls;
 mod matmul;
 mod optim;
@@ -34,7 +35,7 @@ mod unfold_fold;
 /// so this marker remains restricted to first-party backends without a second
 /// private sealing layer. CPU-addressable emulation backends can therefore use
 /// the same canonical operation implementations instead of cloning them.
-pub trait CpuBackend: Backend {
+pub trait CpuBackend: Backend<Error = BackendError> {
     /// Borrow an `i64` device buffer as a mutable slice.
     fn as_mut_slice_i64<'a>(&self, buf: &'a mut Self::DeviceBuffer<i64>) -> &'a mut [i64];
 }

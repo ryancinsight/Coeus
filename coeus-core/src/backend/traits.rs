@@ -5,6 +5,7 @@ use crate::storage::StorageMut;
 // ── Backend trait ──
 // Abstract execution backend for parallel and sequential dispatch.
 
+use crate::backend::BackendError;
 use crate::dtype::Scalar;
 
 /// Private module for sealing compute backend.
@@ -29,6 +30,9 @@ pub mod private {
 /// assert_eq!(host, [42.0; 3]);
 /// ```
 pub trait ComputeBackend: private::Sealed + Send + Sync + Clone + 'static {
+    /// Typed failure returned by fallible backend operation traits.
+    type Error: std::error::Error + From<BackendError> + Send + Sync + 'static;
+
     /// Memory handle type representing device-allocated storage.
     type DeviceBuffer<T: Scalar>: StorageMut<T>;
 
