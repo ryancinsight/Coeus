@@ -10,8 +10,9 @@
       families without adapters or silent no-ops.
 - [x] Update CPU, CUDA, WGPU, and high-level callers together; verify value
       semantics, typed negative broadcast failure, and public API documentation.
-- [ ] Run the full affected package matrix after the preserved peer manifest
-      resolves; no package result is claimed while resolution is blocked.
+- [ ] Run the full affected package matrix after the peer fallible-operation
+      migration completes; no green matrix result is claimed while peer callers
+      remain incomplete.
 
 Decision: ADR-0020 selects a backend-associated typed error plus fallible
 operation traits. An operation-local `Option`/early return is rejected because
@@ -23,8 +24,11 @@ validation conversion; elementwise and matmul traits return `Result`; CPU
 maps Leto failures, CUDA and WGPU preserve provider-specific errors, and
 high-level `coeus-ops` callers propagate them. The focused `coeus-ops` gate
 passes 87/87 nextest tests, 22/22 doctests, warning-denied Clippy, and
-package-local formatting. The full affected matrix remains blocked by the
-preserved peer Hephaestus local/Git Leto type graph.
+package-local formatting. The WGPU library check and warning-denied Clippy
+also pass. The locked WGPU all-targets check now reaches compilation but is
+blocked by the peer `coeus-nn` fallible-operation migration: 70 errors remain
+at normalization callers, and peer `coeus-autograd` emits 143 unused-`Result`
+warnings. No local/Git Leto dependency-resolution blocker remains.
 
 ## WGPU pool1d dispatch mode ownership [patch]
 - [x] Replace the forward dispatcher’s mixed forward/backward mode enum with
@@ -37,9 +41,10 @@ preserved peer Hephaestus local/Git Leto type graph.
 Evidence: `ForwardPoolKind` removes the forward dispatcher’s backward-only
 states without changing shader source generation or public pool1d launch
 functions. The pool1d residual scan is clean; format and diff checks pass.
-Package checking is blocked before compilation because the preserved peer
-manifest requests `mnemosyne ^0.6.0` while locked Moirai requires
-`mnemosyne ^0.5.0`.
+The current locked WGPU library check and warning-denied Clippy pass. The
+all-targets check reaches compilation and is blocked later by the peer
+`coeus-nn` fallible-operation migration; that residual is tracked in the
+WGPU layout and dispatch failure boundary item above.
 
 ## Fused operation-tag tree [arch]
 - [x] Split the 625-line operation-tag module into an op-tags manifest and a
@@ -63,9 +68,9 @@ is claimed for this slice.
       record the package-gate blocker without claiming compiled or test output.
 
 Evidence: leaves are 12, 81, 92, 101, 135, and 149 lines. Format and diff
-checks pass. Package gates are blocked by unrelated dirty `Cargo.toml` state:
-the manifest requests `mnemosyne ^0.6.0` while locked Moirai requires
-`mnemosyne ^0.5.0`; no compiled or test result is claimed for this slice.
+checks pass. The prior package-gate dependency-resolution blocker is resolved
+in the current locked graph; no new CUDA feature-test result is claimed by
+this topology slice.
 
 ## CUDA convolution backend tree [arch]
 - [x] Split the former 614-line convolution backend into a manifest and

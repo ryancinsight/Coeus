@@ -13,9 +13,10 @@
   this item and remains a separate API migration finding.
 - Risk/change class: `[patch]`; no public operation signature changes.
 - Verification: the pool1d source residual scan is clean; format and diff
-  checks pass. `cargo check --locked -p coeus-wgpu --all-targets` remains
-  blocked before compilation because the preserved peer manifest requests
-  `mnemosyne ^0.6.0` while locked Moirai requires `mnemosyne ^0.5.0`.
+  checks pass. The current locked WGPU library check and warning-denied Clippy
+  pass. The all-targets check reaches compilation and is blocked later by the
+  peer `coeus-nn` fallible-operation migration; that residual is tracked by
+  ATLAS-WGPU-SAFETY-002.
 
 ## ATLAS-WGPU-SAFETY-002 — Establish fallible WGPU layout/dispatch boundary [arch] — in-progress
 
@@ -40,10 +41,14 @@
   matmul callers propagate the same result contract. Focused verification is
   87/87 nextest tests, 22/22 doctests, warning-denied Clippy, and package-local
   format check; the typed incompatible-broadcast regression is value-asserted.
-- Dependency: the focused `coeus-ops` package is verified. Full WGPU
-  verification remains blocked by the peer Hephaestus local/Git Leto type
-  graph; ADR-0020 records the selected error-boundary design and the
-  dependency-ordered implementation slices.
+- Dependency: the focused `coeus-ops` package is verified, and the WGPU
+  library check plus warning-denied Clippy pass. The locked WGPU all-targets
+  check reaches compilation but remains blocked by 70 peer `coeus-nn`
+  normalization errors from the incomplete fallible-operation migration;
+  peer `coeus-autograd` also emits 143 unused-`Result` warnings. The prior
+  local/Git Leto dependency-resolution blocker is resolved. ADR-0020 records
+  the selected error-boundary design and dependency-ordered implementation
+  slices.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

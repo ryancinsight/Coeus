@@ -30,7 +30,12 @@ pub enum WgpuBackendError {
 pub enum LayoutError {
     /// The layout rank exceeds the fixed WGSL descriptor.
     #[error("rank {rank} exceeds the WGSL limit {max}")]
-    UnsupportedRank { rank: usize, max: usize },
+    UnsupportedRank {
+        /// Requested layout rank.
+        rank: usize,
+        /// Maximum rank representable by the WGSL descriptor.
+        max: usize,
+    },
     /// Shape and stride metadata have different ranks.
     #[error("shape rank {shape_rank} differs from stride rank {stride_rank}")]
     RankMismatch {
@@ -41,13 +46,26 @@ pub enum LayoutError {
     },
     /// The base offset exceeds the WGSL `u32` ABI.
     #[error("offset {value} exceeds the WGSL u32 range")]
-    OffsetOutOfRange { value: usize },
+    OffsetOutOfRange {
+        /// Unrepresentable layout offset.
+        value: usize,
+    },
     /// A shape dimension exceeds the WGSL `u32` ABI.
     #[error("shape axis {axis} value {value} exceeds the WGSL u32 range")]
-    ShapeOutOfRange { axis: usize, value: usize },
+    ShapeOutOfRange {
+        /// Axis containing the unrepresentable dimension.
+        axis: usize,
+        /// Unrepresentable shape dimension.
+        value: usize,
+    },
     /// A stride exceeds the WGSL `u32` ABI.
     #[error("stride axis {axis} value {value} exceeds the WGSL u32 range")]
-    StrideOutOfRange { axis: usize, value: usize },
+    StrideOutOfRange {
+        /// Axis containing the unrepresentable stride.
+        axis: usize,
+        /// Unrepresentable stride value.
+        value: usize,
+    },
 }
 
 impl From<GpuLayoutError> for LayoutError {
