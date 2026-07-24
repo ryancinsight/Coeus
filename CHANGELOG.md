@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Extends the pool-owned CUDA launch validation SSOT to 3-D
+  average/max forward and backward dispatch with checked rank-five layout,
+  parameter, work-count, grid, and shape contracts.
+
 - [patch] Consolidates pooling launch validation into a dedicated SSOT and
   hardens 2-D average/max forward and backward dispatch for checked parameters,
   work counts, grids, fixed-rank layouts, and shape relationships.

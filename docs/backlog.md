@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-009 — Harden pool3d launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/pool/{avg3d,max3d}.rs`
+  and the pool validation seam.
+- Outcome: 3-D average/max forward and backward dispatch now checks positive
+  representable parameters, checked rank-five work counts and grids, nonempty
+  layouts, batch/channel prefixes, and max-backward input/state shapes.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped; all pooling source
+  scans are clean for narrowing, unchecked products, and local grid derivation.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-008 — Harden pool2d launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/pool/{validation,avg,max}.rs`
