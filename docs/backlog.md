@@ -1,5 +1,23 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-013 — Harden transposed-convolution launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/conv_transpose.rs` and
+  the shared `kernels::launch_1d` seam.
+- Outcome: 1-D and 2-D transposed-convolution launchers now validate positive
+  dimensions, checked input/weight/output products, optional bias capacity,
+  and every native `u32` argument before compilation or launch. The backend
+  restricts native dispatch to rank-correct contiguous offset-zero layouts
+  with matching batch/channel contracts, and the device gather formulas use
+  overflow-safe intermediates.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  pure checked-product tests cover representable and overflowing sizes.
+  Default Nextest, feature rustdoc, and the CUDA-feature linker status are
+  recorded in the checklist.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-012 — Harden unfold/fold launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/unfold_fold/` and the

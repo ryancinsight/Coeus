@@ -1,5 +1,24 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA transposed-convolution launch ABI [patch] [arch]
+- [x] Validate 1-D and 2-D transposed-convolution dimensions, checked input/
+      weight/output products, optional bias capacity, and `u32` ABI values
+      before native compilation or dispatch.
+- [x] Reuse the shared checked 1-D grid launcher while preserving native
+      gather kernels, output-shape ownership, and device-buffer ownership.
+- [x] Restrict native dispatch to rank-correct, contiguous, offset-zero
+      layouts with matching batch/channel contracts; use overflow-safe device
+      arithmetic for dilation products and coordinate subtraction.
+- [x] Add pure checked-product regressions and the co-located ADR.
+- [x] Verify format, diff, feature-enabled check, warning-denied Clippy,
+      default Nextest, and feature rustdoc.
+
+Evidence: the transposed-convolution launchers contain no input-dependent
+dimension or work-count narrowing and no unchecked storage product. Feature
+check and warning-denied Clippy pass; pure product tests compile with the
+feature build. CUDA-feature Nextest remains subject to the Windows GNU linker
+environment and is not claimed unless it executes.
+
 ## CUDA unfold/fold launch ABI [patch] [arch]
 - [x] Split the launcher into manifest, shared dispatch/source, validation,
       and 1-D/2-D leaves; move the CUDA source into a co-located asset.

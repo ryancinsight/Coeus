@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Hardens CUDA transposed-convolution 1-D/2-D dispatch with checked
+  ABI dimensions, input/weight/bias/output storage capacities, work products,
+  and shared grid validation before native kernel compilation.
+
 - [patch] Splits the CUDA unfold/fold launcher into a deep source, dispatch,
   validation, and dimensional tree; removes panic-based narrowing and checks
   sliding-window formulas, layout storage bounds, shapes, counts, and grids.

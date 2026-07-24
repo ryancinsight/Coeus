@@ -1,9 +1,9 @@
 # Coeus Gap Audit
 
-## ATLAS-CUDA-SAFETY-013: Remaining CUDA launch-parameter narrowing
+## ATLAS-CUDA-SAFETY-014: Remaining CUDA launch-parameter narrowing
 
-**Location**: `coeus-cuda/src/kernels` non-convolution launchers and
-`coeus-cuda/src/backend/ops/conv_transpose.rs`.
+**Location**: remaining non-convolution launchers under
+`coeus-cuda/src/kernels`.
 **Gap**: the shared `GpuLayoutInfo` conversion, convolution forward output
 count seam, standard/fused reduction launch boundaries, and elementwise
 launches are closed by `ATLAS-CUDA-SAFETY-003`, `ATLAS-CUDA-SAFETY-004`, and
@@ -15,16 +15,18 @@ launches are closed by `ATLAS-CUDA-SAFETY-003`, `ATLAS-CUDA-SAFETY-004`, and
 `ATLAS-CUDA-SAFETY-012`, but other CUDA kernel families still narrow launch
 dimensions and derived counts with unchecked casts or products. These are
 separate operation-family boundaries and were not silently folded into the
-layout, reduction, elementwise, optimizer, pooling, matmul, attention, or
-unfold/fold migrations.
+layout, reduction, elementwise, optimizer, pooling, matmul, attention,
+unfold/fold, or transposed-convolution migrations.
 **Resolution target**: migrate each operation family to checked, allocation-
 free `u32` conversion and checked element counts, deleting local narrowing
 paths while preserving native device dispatch and explicit failure results.
 **Evidence target**: per-family feature-enabled check and Clippy, value-
 semantic no-device regressions, and CUDA differential tests when the linker
 and device environment are available.
-**Status**: open; attention is closed by ATLAS-CUDA-SAFETY-011 and unfold/fold
-by ATLAS-CUDA-SAFETY-012. The current environment cannot execute CUDA-feature
+**Status**: open; attention is closed by ATLAS-CUDA-SAFETY-011, unfold/fold
+by ATLAS-CUDA-SAFETY-012, and transposed convolution by
+ATLAS-CUDA-SAFETY-013, including the native layout and device-arithmetic
+guards. The current environment cannot execute CUDA-feature
 Nextest because its Windows GNU linker cannot resolve `-lcuda` from
 `/usr/local/cuda-11.3/lib64/`.
 
