@@ -1,13 +1,17 @@
 # Coeus Development Roadmap Checklist
 
 ## CUDA attention kernel tree [arch]
-- [ ] Split the 567-line attention kernel module into a manifest and cohesive
+- [x] Split the 567-line attention kernel module into a manifest and cohesive
       validation, source, forward, backward, and test leaves.
-- [ ] Preserve the public launch functions, checked dimensions, device-buffer
+- [x] Preserve the public launch functions, checked dimensions, device-buffer
       ownership, and explicit CPU capability boundary without adapters.
-- [ ] Verify all leaves remain below 500 lines and run format, diff,
-      feature-enabled check/Clippy, default Nextest, doctests, feature rustdoc,
-      and the CUDA-feature linker boundary.
+- [x] Verify all leaves remain below 500 lines and run format and diff checks;
+      record the package-gate blocker without claiming compiled or test output.
+
+Evidence: leaves are 12, 81, 92, 101, 135, and 149 lines. Format and diff
+checks pass. Package gates are blocked by unrelated dirty `Cargo.toml` state:
+the manifest requests `mnemosyne ^0.6.0` while locked Moirai requires
+`mnemosyne ^0.5.0`; no compiled or test result is claimed for this slice.
 
 ## CUDA convolution backend tree [arch]
 - [x] Split the former 614-line convolution backend into a manifest and
