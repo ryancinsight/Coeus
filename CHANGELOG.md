@@ -4,6 +4,11 @@
 
 ### Changed
 
+- [patch] Hardens all five CUDA optimizer launch families with shared checked
+  element counts, grids, layout ABI, and same-shape validation; reuses the
+  canonical block size and rejects Adam step counts outside the kernel's
+  `i32` exponent contract.
+
 - [patch] Splits the CUDA elementwise launch manifest into contiguous and
   strided leaves, applies shared checked count/grid validation to all four
   paths, rejects unsafe broadcast-rank underflow and zero-stride output

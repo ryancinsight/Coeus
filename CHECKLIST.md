@@ -1,5 +1,20 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA optimizer launch ABI [patch] [arch]
+- [x] Apply shared checked element-count, `u32`, grid, layout, and same-shape
+      validation to AdaGrad, Adam, AdamW, RMSprop, and SGD.
+- [x] Remove optimizer-local block-size and narrowing casts from contiguous
+      and strided launches; reject unrepresentable Adam step exponents.
+- [x] Add the co-located ADR and verify format, diff, feature-enabled check,
+      warning-denied Clippy, and default Nextest.
+
+Evidence: all five optimizer leaves contain no input-dependent `as u32`,
+`as i32`, unchecked `numel`, or local grid/block derivation. Shared
+validation tests cover shape mismatch; feature-enabled package check and
+warning-denied Clippy pass; default package Nextest passes 3/3 with zero
+skipped. CUDA-feature Nextest remains blocked before execution because the
+Windows GNU linker cannot find `-lcuda` at `/usr/local/cuda-11.3/lib64/`.
+
 ## CUDA elementwise launch tree and ABI [patch] [arch]
 - [x] Split the 530-line `launch_ops.rs` into a manifest plus contiguous and
       strided leaves, preserving all four public helper names.

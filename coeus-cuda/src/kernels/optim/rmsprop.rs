@@ -1,4 +1,8 @@
 use crate::driver::{get_cuda_context, CudaDriver};
+use crate::kernels::validation::{
+    checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda, layouts_share_shape,
+    CUDA_BLOCK_SIZE,
+};
 use crate::kernels::GpuLayoutInfo;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
@@ -26,7 +30,20 @@ pub fn launch_rmsprop_step(
         return false;
     };
 
-    let n = param_layout.numel();
+    let Some(n) = checked_numel(param_layout) else {
+        return false;
+    };
+    let Some(n_value) = cuda_u32(n) else {
+        return false;
+    };
+    let Some(grid_size) = launch_grid_size(n) else {
+        return false;
+    };
+    if !layouts_fit_cuda(&[param_layout, grad_layout, v_layout])
+        || !layouts_share_shape(&[param_layout, grad_layout, v_layout])
+    {
+        return false;
+    }
     let is_contiguous =
         param_layout.is_contiguous() && grad_layout.is_contiguous() && v_layout.is_contiguous();
 
@@ -65,7 +82,7 @@ extern "C" __global__ void rmsprop_contiguous_kernel(
         let mut lr_val = lr;
         let mut alpha_val = alpha;
         let mut eps_val = eps;
-        let mut n_val = n as u32;
+        let mut n_val = n_value;
 
         let mut args: [*mut std::ffi::c_void; 7] = [
             &mut param_ptr as *mut u64 as *mut std::ffi::c_void,
@@ -77,16 +94,13 @@ extern "C" __global__ void rmsprop_contiguous_kernel(
             &mut n_val as *mut u32 as *mut std::ffi::c_void,
         ];
 
-        let block_size = 256;
-        let grid_size = n.div_ceil(block_size);
-
         unsafe {
             let res = (drv.cu_launch_kernel)(
                 kernel.func,
-                grid_size as u32,
+                grid_size,
                 1,
                 1,
-                block_size as u32,
+                CUDA_BLOCK_SIZE,
                 1,
                 1,
                 0,
@@ -180,7 +194,7 @@ extern "C" __global__ void rmsprop_strided_kernel(
         let mut lr_val = lr;
         let mut alpha_val = alpha;
         let mut eps_val = eps;
-        let mut n_val = n as u32;
+        let mut n_val = n_value;
 
         let mut args: [*mut std::ffi::c_void; 10] = [
             &mut param_ptr as *mut u64 as *mut std::ffi::c_void,
@@ -195,16 +209,13 @@ extern "C" __global__ void rmsprop_strided_kernel(
             &mut n_val as *mut u32 as *mut std::ffi::c_void,
         ];
 
-        let block_size = 256;
-        let grid_size = n.div_ceil(block_size);
-
         unsafe {
             let res = (drv.cu_launch_kernel)(
                 kernel.func,
-                grid_size as u32,
+                grid_size,
                 1,
                 1,
-                block_size as u32,
+                CUDA_BLOCK_SIZE,
                 1,
                 1,
                 0,

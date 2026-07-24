@@ -26,6 +26,13 @@ pub(crate) fn layouts_fit_cuda(layouts: &[&Layout]) -> bool {
     })
 }
 
+pub(crate) fn layouts_share_shape(layouts: &[&Layout]) -> bool {
+    let Some((first, rest)) = layouts.split_first() else {
+        return true;
+    };
+    rest.iter().all(|layout| layout.shape() == first.shape())
+}
+
 pub(crate) fn layout_supports_cuda_output_indexing(layout: &Layout) -> bool {
     layouts_fit_cuda(&[layout]) && layout.strides().iter().all(|&stride| stride != 0)
 }
@@ -40,7 +47,9 @@ pub(crate) fn launch_grid_size(total: usize) -> Option<u32> {
 
 #[cfg(test)]
 mod tests {
-    use super::{checked_numel, launch_grid_size, layout_supports_cuda_output_indexing};
+    use super::{
+        checked_numel, launch_grid_size, layout_supports_cuda_output_indexing, layouts_share_shape,
+    };
     use coeus_core::Layout;
 
     #[test]
@@ -63,5 +72,13 @@ mod tests {
         let layout = Layout::from_shape_strides(vec![2].into(), vec![0].into(), 0);
 
         assert!(!layout_supports_cuda_output_indexing(&layout));
+    }
+
+    #[test]
+    fn shape_validation_rejects_mismatched_layouts() {
+        let first = Layout::new(vec![2, 3].into());
+        let second = Layout::new(vec![3, 2].into());
+
+        assert!(!layouts_share_shape(&[&first, &second]));
     }
 }

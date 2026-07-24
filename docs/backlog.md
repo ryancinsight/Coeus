@@ -1,5 +1,20 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-006 — Harden optimizer launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/optim` and the shared
+  `kernels::validation` seam.
+- Outcome: AdaGrad, Adam, AdamW, RMSprop, and SGD now use checked counts and
+  grids, shared layout and same-shape validation, and the canonical block
+  size. Adam-family step exponents reject values outside `i32`.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped; validation tests cover
+  shape mismatch and the existing overflow/zero-work cases; optimizer source
+  scans are clean for input-dependent narrowing.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-005 — Harden elementwise launch ABI and tree [patch] [arch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/launch_ops*` and the
