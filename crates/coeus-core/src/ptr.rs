@@ -4,11 +4,14 @@
 // so they can't be captured by parallel loop closures. These newtypes
 // assert the safety invariants needed for parallel dispatch.
 
-/// Const pointer wrapper: `Send + Sync` (read-only access is safe).
+/// Const pointer wrapper with conditional `Send`/`Sync` capability.
 #[repr(transparent)]
 pub struct SendPtr<T>(pub *const T);
-unsafe impl<T> Send for SendPtr<T> {}
-unsafe impl<T> Sync for SendPtr<T> {}
+// SAFETY: moving the wrapper transfers only the address; values read through
+// it must be safe to move to the receiving thread.
+unsafe impl<T: Send> Send for SendPtr<T> {}
+// SAFETY: shared reads require the pointee to support concurrent access.
+unsafe impl<T: Sync> Sync for SendPtr<T> {}
 
 impl<T> Clone for SendPtr<T> {
     #[inline]
@@ -44,11 +47,15 @@ impl<T: Copy> SendPtr<T> {
     }
 }
 
-/// Mutable pointer wrapper: `Send + Sync`.
+/// Mutable pointer wrapper with conditional `Send`/`Sync` capability.
 #[repr(transparent)]
 pub struct SendPtrMut<T>(pub *mut T);
-unsafe impl<T> Send for SendPtrMut<T> {}
-unsafe impl<T> Sync for SendPtrMut<T> {}
+// SAFETY: values written through the wrapper cross the thread boundary and
+// the caller must still prove that mutable accesses are disjoint.
+unsafe impl<T: Send> Send for SendPtrMut<T> {}
+// SAFETY: sharing the wrapper is sound only when callers uphold the disjoint
+// mutable-access contract; written values must be thread-sendable.
+unsafe impl<T: Send> Sync for SendPtrMut<T> {}
 
 impl<T> Clone for SendPtrMut<T> {
     #[inline]

@@ -47,7 +47,7 @@
   behavioral gate once dependency resolution is restored. No measured
   performance delta is claimed.
 
-## ATLAS-CORE-SAFETY-001 — Bound parallel pointer auto-traits [patch] — in-progress
+## ATLAS-CORE-SAFETY-001 — Bound parallel pointer auto-traits [patch] — done
 
 - Owner: Codex `/coeus`; scope: `crates/coeus-core/src/ptr.rs` and its
   safety-contract documentation.
@@ -59,8 +59,10 @@
   bounds, the existing `coeus-ops` scalar users remain admitted by those bounds,
   and the exact source diff passes formatting and diff checks.
 - Risk/change class: `[patch]` unsafe-boundary hardening.
-- Status: claimed for the current Coeus task; peer-owned CUDA/config/lockfile
-  changes remain outside the scope.
+- Status: conservative bounds and safety documentation are complete. Direct
+  rustfmt and diff checks pass. `cargo check --locked -p coeus-core` is blocked
+  before compilation by the peer CUDA manifest's absent
+  `/tmp/cutile-rs/cuda-async/Cargo.toml`; no package compile result is claimed.
 
 ## ATLAS-WGPU-SAFETY-001 — Encode pool1d dispatch mode ownership [patch] — done
 

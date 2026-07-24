@@ -45,17 +45,20 @@ claimed.
 
 ## ATLAS-CORE-SAFETY-001 Parallel pointer auto-trait bounds [patch]
 
-- [ ] Constrain `SendPtr` and `SendPtrMut` unsafe `Send`/`Sync` impls to the
+- [x] Constrain `SendPtr` and `SendPtrMut` unsafe `Send`/`Sync` impls to the
       pointee capabilities required by cross-thread use.
-- [ ] Preserve existing Coeus scalar pointer users and document the remaining
+- [x] Preserve existing Coeus scalar pointer users and document the remaining
       disjoint-access safety obligation.
-- [ ] Run direct formatting and diff checks; record the peer Cargo blocker if
+- [x] Run direct formatting and diff checks; record the peer Cargo blocker if
       package compilation remains unavailable.
 
 Evidence: `crates/coeus-core/src/ptr.rs` currently marks both public raw-pointer
 wrappers `Send + Sync` for every `T`, which overstates the thread-safety
-contract for non-thread-safe pointee types. Implementation and verification are
-pending.
+contract for non-thread-safe pointee types. `SendPtr<T>` now requires `T: Send`
+for movement and `T: Sync` for shared reads; `SendPtrMut<T>` requires `T: Send`
+for movement and shared disjoint writes. Direct rustfmt and diff checks pass.
+The focused Cargo check is blocked before compilation by the peer CUDA manifest's
+absent `/tmp/cutile-rs/cuda-async/Cargo.toml`.
 
 ## WGPU layout and dispatch failure boundary [arch]
 - [x] Add the checked `GpuLayoutInfo` SSOT constructor with typed rank,
