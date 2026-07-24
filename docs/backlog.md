@@ -1,5 +1,20 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-008 — Harden pool2d launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/pool/{validation,avg,max}.rs`
+  and the pool module manifest.
+- Outcome: pooling validation is one SSOT; 2-D average/max forward and
+  backward dispatch now checks positive representable parameters, work counts,
+  grids, rank-four nonempty layouts, batch/channel prefixes, and backward
+  shape relationships. Pool1d consumes the same seam.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped; pool source scans are
+  clean for narrowing, unchecked products, and local grid derivation.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed. Pool3d remains in the next gap.
+
 ## ATLAS-CUDA-SAFETY-007 — Harden pool1d launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/pool/pool1d.rs` and

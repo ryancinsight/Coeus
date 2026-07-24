@@ -1,5 +1,9 @@
 #![allow(clippy::too_many_arguments)]
 
+use super::validation::{
+    checked_pool_parameters, checked_pool_work, pool_layouts_are_valid, pool_prefix_matches,
+    POOL_BLOCK_SIZE,
+};
 use super::POOL_COMMON_SRC;
 use crate::backend::CudaScalar;
 use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
@@ -25,6 +29,19 @@ pub fn dispatch_avg_pool2d<T: CudaScalar>(
         return false;
     };
     let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
+    let Some([kernel_size_value, stride_value, padding_value, dilation_value]) =
+        checked_pool_parameters(kernel_size, stride, padding, dilation)
+    else {
+        return false;
+    };
+    if !pool_layouts_are_valid(&[input_layout, output_layout], 4)
+        || !pool_prefix_matches(input_layout, output_layout)
+    {
+        return false;
+    }
+    let Some((out_numel_value, grid_size)) = checked_pool_work(output_layout) else {
         return false;
     };
 
@@ -106,14 +123,13 @@ extern "C" __global__ void avg_pool2d_kernel(
         return false;
     };
 
-    let out_numel = output_layout.shape().iter().product::<usize>();
     let mut input_ptr = input.cu_deviceptr();
     let mut output_ptr = output.cu_deviceptr();
-    let mut k_size = kernel_size as u32;
-    let mut s_size = stride as u32;
-    let mut p_size = padding as u32;
-    let mut d_size = dilation as u32;
-    let mut out_n = out_numel as u32;
+    let mut k_size = kernel_size_value;
+    let mut s_size = stride_value;
+    let mut p_size = padding_value;
+    let mut d_size = dilation_value;
+    let mut out_n = out_numel_value;
 
     let mut args: [*mut std::ffi::c_void; 9] = [
         &mut input_ptr as *mut CUdeviceptr as *mut std::ffi::c_void,
@@ -127,16 +143,13 @@ extern "C" __global__ void avg_pool2d_kernel(
         &mut out_n as *mut u32 as *mut std::ffi::c_void,
     ];
 
-    let block_size = 256;
-    let grid_size = out_numel.div_ceil(block_size);
-
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_size as u32,
+            grid_size,
             1,
             1,
-            block_size as u32,
+            POOL_BLOCK_SIZE,
             1,
             1,
             0,
@@ -166,6 +179,19 @@ pub fn dispatch_avg_pool2d_backward<T: CudaScalar>(
         return false;
     };
     let Some(_ctx) = get_cuda_context() else {
+        return false;
+    };
+    let Some([kernel_size_value, stride_value, padding_value, dilation_value]) =
+        checked_pool_parameters(kernel_size, stride, padding, dilation)
+    else {
+        return false;
+    };
+    if !pool_layouts_are_valid(&[grad_out_layout, grad_input_layout], 4)
+        || !pool_prefix_matches(grad_out_layout, grad_input_layout)
+    {
+        return false;
+    }
+    let Some((in_numel_value, grid_size)) = checked_pool_work(grad_input_layout) else {
         return false;
     };
 
@@ -264,14 +290,13 @@ extern "C" __global__ void avg_pool2d_backward_kernel(
         return false;
     };
 
-    let in_numel = grad_input_layout.shape().iter().product::<usize>();
     let mut go_ptr = grad_out.cu_deviceptr();
     let mut gi_ptr = grad_input.cu_deviceptr();
-    let mut k_size = kernel_size as u32;
-    let mut s_size = stride as u32;
-    let mut p_size = padding as u32;
-    let mut d_size = dilation as u32;
-    let mut in_n = in_numel as u32;
+    let mut k_size = kernel_size_value;
+    let mut s_size = stride_value;
+    let mut p_size = padding_value;
+    let mut d_size = dilation_value;
+    let mut in_n = in_numel_value;
 
     let mut args: [*mut std::ffi::c_void; 9] = [
         &mut go_ptr as *mut CUdeviceptr as *mut std::ffi::c_void,
@@ -285,16 +310,13 @@ extern "C" __global__ void avg_pool2d_backward_kernel(
         &mut in_n as *mut u32 as *mut std::ffi::c_void,
     ];
 
-    let block_size = 256;
-    let grid_size = in_numel.div_ceil(block_size);
-
     unsafe {
         let res = (drv.cu_launch_kernel)(
             kernel.func,
-            grid_size as u32,
+            grid_size,
             1,
             1,
-            block_size as u32,
+            POOL_BLOCK_SIZE,
             1,
             1,
             0,

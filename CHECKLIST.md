@@ -1,5 +1,20 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA pool2d launch ABI [patch] [arch]
+- [x] Promote pooling parameter, work, layout, prefix, shape, and block-size
+      validation into `coeus-cuda/src/kernels/pool/validation.rs`.
+- [x] Apply the shared seam to 2-D average/max forward and backward leaves and
+      migrate pool1d without retaining duplicate helpers.
+- [x] Add the co-located ADR and verify format, diff, feature-enabled check,
+      warning-denied Clippy, and default Nextest.
+
+Evidence: 1-D and 2-D pooling sources contain no input-dependent parameter,
+count, grid, or block narrowing and no unchecked shape product. Feature-
+enabled package check and warning-denied Clippy pass; default package Nextest
+passes 3/3 with zero skipped. CUDA-feature Nextest remains blocked before
+execution because the Windows GNU linker cannot find `-lcuda` at
+`/usr/local/cuda-11.3/lib64/`.
+
 ## CUDA pool1d launch ABI [patch] [arch]
 - [x] Validate positive representable pooling parameters, checked work counts
       and grids, rank-three nonempty layouts, and operation shape contracts.

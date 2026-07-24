@@ -1,3 +1,5 @@
+mod validation;
+
 /// Kernel module for 2-D average pooling.
 pub mod avg;
 /// Kernel module for 3-D average pooling.

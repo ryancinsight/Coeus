@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Consolidates pooling launch validation into a dedicated SSOT and
+  hardens 2-D average/max forward and backward dispatch for checked parameters,
+  work counts, grids, fixed-rank layouts, and shape relationships.
+
 - [patch] Hardens the CUDA 1-D pooling dispatcher with checked parameters,
   element counts, grids, rank-three layout validation, and forward/backward
   shape contracts while preserving the native kernel path.
