@@ -63,13 +63,13 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
             if let Some(Some(ref g)) = input_grads.get(0) {
                 let b_t = swap_last_two(b, backend);
                 let gl = g.write();
-                coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend);
+                coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend).expect("matmul_accumulate");
             }
             // ∂/∂B: A^T @ grad_C — [batch,k,m] × [batch,m,n] → [batch,k,n]
             if let Some(Some(ref g)) = input_grads.get(1) {
                 let a_t = swap_last_two(a, backend);
                 let gl = g.write();
-                coeus_ops::matmul_accumulate(&a_t, grad_out, gl, backend);
+                coeus_ops::matmul_accumulate(&a_t, grad_out, gl, backend).expect("matmul_accumulate");
             }
             return;
         }
@@ -78,7 +78,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         if let Some(Some(ref g)) = input_grads.get(0) {
             let b_t = b.t(); // B is 2-D on this path; b.t() is a stride view.
             let gl = g.write();
-            coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend);
+            coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend).expect("matmul_accumulate");
         }
         // ∂/∂B: A^T @ grad_C
         // When A is batched ([…,m,k]), flatten to [batch*m, k] to perform 2D matmul.
@@ -100,7 +100,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
             };
             let a_flat_t = a_flat.t();
             let gl = g.write();
-            coeus_ops::matmul_accumulate(&a_flat_t, &go_flat, gl, backend);
+            coeus_ops::matmul_accumulate(&a_flat_t, &go_flat, gl, backend).expect("matmul_accumulate");
         }
     }
 }

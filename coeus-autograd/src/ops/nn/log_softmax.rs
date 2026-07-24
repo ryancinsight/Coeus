@@ -90,7 +90,7 @@ pub fn log_softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     );
 
     // Forward: log-softmax values
-    let log_prob_tensor = coeus_ops::log_softmax_axis(&input.tensor, axis, &backend);
+    let log_prob_tensor = coeus_ops::log_softmax_axis(&input.tensor, axis, &backend).expect("log_softmax_axis");
 
     // softmax probs = exp(log_probs), stored for backward
     let probs = coeus_ops::exp(&log_prob_tensor, &backend);

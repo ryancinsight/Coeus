@@ -129,18 +129,15 @@ pub fn matrix_norm(input: &PyTensor, ord: &str, py: Python<'_>) -> PyResult<Py<P
     }
 
     if ndim == 2 {
-        // 2-D → plain Python `float` (torch coerces a 0-D Tensor to a
-        // scalar at the binding boundary, same as `scalar_object` in
-        // `statistics.rs`).
         let v: f64 = py.allow_threads(|| {
             coeus_ops::frobenius_norm::<f64, MoiraiBackend>(a, &MoiraiBackend::new())
+                .expect("frobenius_norm")
         });
         Ok(v.into_pyobject(py)?.into_any().unbind())
     } else {
-        // N-D → PyTensor with shape `a.shape[..-2]`. Matches the rank≥1
-        // branch of `coeus_python::ops::statistics::sum_axis`.
         let out: Tensor<f64, MoiraiBackend> = py.allow_threads(|| {
             coeus_ops::frobenius_norm_batched::<f64, MoiraiBackend>(a, &MoiraiBackend::new())
+                .expect("frobenius_norm_batched")
         });
         Ok(Py::new(
             py,

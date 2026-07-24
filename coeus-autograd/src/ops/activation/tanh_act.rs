@@ -21,7 +21,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         y: &Tensor<T, B>,
         backend: &B,
     ) -> Tensor<T, B> {
-        let deriv = coeus_ops::elementwise_unary(y, backend, coeus_ops::UnaryOp::TanhGrad);
+        let deriv = coeus_ops::elementwise_unary(y, backend, coeus_ops::UnaryOp::TanhGrad).expect("elementwise_unary");
         coeus_ops::mul(grad_out, &deriv, backend)
     }
 }

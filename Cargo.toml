@@ -92,3 +92,30 @@ opt-level = 1
 
 [profile.test]
 opt-level = 1
+
+# ── Patches: force all git dep sources to resolve to the same local checkout ──
+# Without these, hephaestus-wgpu (path dep) brings in local leto while
+# transitive git deps pull in the remote git leto → two VecStorage types.
+
+[patch."https://github.com/ryancinsight/leto.git"]
+leto = { path = "../leto/crates/leto" }
+leto-ops = { path = "../leto/crates/leto-ops" }
+
+[patch."https://github.com/ryancinsight/Mnemosyne.git"]
+mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
+mnemosyne-core = { path = "../mnemosyne/crates/mnemosyne-core" }
+mnemosyne-arena = { path = "../mnemosyne/crates/mnemosyne-arena" }
+mnemosyne-local = { path = "../mnemosyne/crates/mnemosyne-local" }
+mnemosyne-heap = { path = "../mnemosyne/crates/mnemosyne-heap" }
+
+[patch."https://github.com/ryancinsight/Moirai.git"]
+moirai = { path = "../moirai/moirai" }
+moirai-core = { path = "../moirai/moirai-core" }
+moirai-parallel = { path = "../moirai/moirai-parallel" }
+
+[patch."https://github.com/ryancinsight/hephaestus.git"]
+hephaestus-core = { path = "../hephaestus/crates/hephaestus-core" }
+hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu" }
+
+[patch."https://github.com/ryancinsight/apollo.git"]
+apollo-fft = { path = "../apollo/crates/apollo-fft" }

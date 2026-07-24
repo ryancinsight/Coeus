@@ -110,7 +110,7 @@ where
 {
     let dim_u = normalize_dim(dim, input.tensor.ndim(), "masked_softmax");
     let backend = B::default();
-    let y_t = coeus_ops::masked_softmax(&input.tensor, mask, dim_u, &backend);
+    let y_t = coeus_ops::masked_softmax(&input.tensor, mask, dim_u, &backend).expect("masked_softmax");
     build_var(input, y_t, dim_u, "masked_softmax")
 }
 
@@ -128,7 +128,7 @@ where
 {
     let dim_u = normalize_dim(dim, input.tensor.ndim(), "causal_softmax");
     let backend = B::default();
-    let y_t = coeus_ops::causal_softmax(&input.tensor, dim_u, &backend);
+    let y_t = coeus_ops::causal_softmax(&input.tensor, dim_u, &backend).expect("causal_softmax");
     build_var(input, y_t, dim_u, "causal_softmax")
 }
 

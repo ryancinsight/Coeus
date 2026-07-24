@@ -29,7 +29,7 @@ use coeus_tensor::Tensor;
 /// let backend = SequentialBackend::new();
 /// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 /// let b = Tensor::<f32, SequentialBackend>::from_slice([3, 2], &[7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
-/// let c = matmul(&a, &b, &backend).expect("valid matmul doctest inputs");
+/// let c = matmul(&a, &b, &backend);
 /// assert_eq!(c.shape(), &[2, 2]);
 /// let expected = [58.0, 64.0, 139.0, 154.0];
 /// for (got, want) in c.as_slice().iter().zip(expected.iter()) {
@@ -41,7 +41,7 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
+) -> Tensor<T, B> {
     let a_ndim = a.ndim();
     let b_ndim = b.ndim();
 
@@ -61,15 +61,17 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
     if a_ndim == 2 && b_ndim == 2 {
         let mut out = Tensor::alloc_on([m, n], backend);
         let (out_storage, out_layout) = out.storage_mut_and_layout();
-        backend.matmul(
-            a.storage(),
-            a.layout(),
-            b.storage(),
-            b.layout(),
-            out_storage,
-            out_layout,
-        )?;
-        return Ok(out);
+        backend
+            .matmul(
+                a.storage(),
+                a.layout(),
+                b.storage(),
+                b.layout(),
+                out_storage,
+                out_layout,
+            )
+            .expect("matmul");
+        return out;
     }
 
     // ── Batch dimension resolution ──
@@ -124,16 +126,18 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
         out_layout.offset(),
     );
 
-    backend.batched_matmul(
-        a_storage,
-        &a_layout,
-        b_storage,
-        &b_layout,
-        out_storage,
-        &c_layout,
-    )?;
+    backend
+        .batched_matmul(
+            a_storage,
+            &a_layout,
+            b_storage,
+            &b_layout,
+            out_storage,
+            &c_layout,
+        )
+        .expect("matmul");
 
-    Ok(out)
+    out
 }
 
 fn batch_layout(

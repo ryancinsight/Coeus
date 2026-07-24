@@ -80,7 +80,7 @@ where
         if lhs == "ii" && rhs.is_empty() {
             assert_eq!(a.tensor.ndim(), 2, "einsum ii->: requires 2-D input");
             let backend = B::default();
-            let t = coeus_ops::einsum("ii->", &[&a.tensor], &backend);
+            let t = coeus_ops::einsum("ii->", &[&a.tensor], &backend).expect("einsum");
             return Var::new(t, false);
         }
 
@@ -173,7 +173,7 @@ where
     let backend = B::default();
     let raw_operands: Vec<&coeus_tensor::Tensor<T, B>> =
         operands.iter().map(|v| &v.tensor).collect();
-    let out = coeus_ops::einsum(subscript, &raw_operands, &backend);
+    let out = coeus_ops::einsum(subscript, &raw_operands, &backend).expect("einsum");
     Var::new(out, false)
 }
 

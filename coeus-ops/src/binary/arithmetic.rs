@@ -17,7 +17,7 @@ use coeus_tensor::Tensor;
 /// let backend = SequentialBackend::new();
 /// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[1.0, 2.0]);
 /// let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0]);
-/// let c = add(&a, &b, &backend).expect("valid addition doctest inputs");
+/// let c = add(&a, &b, &backend);
 /// assert_eq!(c.as_slice(), &[4.0, 6.0]);
 /// ```
 #[inline]
@@ -25,8 +25,8 @@ pub fn add<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_binary(a, b, backend, BinaryOp::Add)
+) -> Tensor<T, B> {
+    elementwise_binary(a, b, backend, BinaryOp::Add).expect("add: incompatible shapes")
 }
 
 /// Element-wise subtraction.
@@ -41,7 +41,7 @@ pub fn add<T: Scalar, B: BackendOps<T>>(
 /// let backend = SequentialBackend::new();
 /// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[5.0, 6.0, 7.0, 8.0]);
 /// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
-/// let c = sub(&a, &b, &backend).expect("valid subtraction doctest inputs");
+/// let c = sub(&a, &b, &backend);
 /// assert_eq!(c.as_slice(), &[4.0, 4.0, 4.0, 4.0]);
 /// ```
 #[inline]
@@ -49,8 +49,8 @@ pub fn sub<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_binary(a, b, backend, BinaryOp::Sub)
+) -> Tensor<T, B> {
+    elementwise_binary(a, b, backend, BinaryOp::Sub).expect("sub: incompatible shapes")
 }
 
 /// Element-wise multiplication.
@@ -65,7 +65,7 @@ pub fn sub<T: Scalar, B: BackendOps<T>>(
 /// let backend = SequentialBackend::new();
 /// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
 /// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[5.0, 6.0, 7.0, 8.0]);
-/// let c = mul(&a, &b, &backend).expect("valid multiplication doctest inputs");
+/// let c = mul(&a, &b, &backend);
 /// assert_eq!(c.as_slice(), &[5.0, 12.0, 21.0, 32.0]);
 /// ```
 #[inline]
@@ -73,8 +73,8 @@ pub fn mul<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_binary(a, b, backend, BinaryOp::Mul)
+) -> Tensor<T, B> {
+    elementwise_binary(a, b, backend, BinaryOp::Mul).expect("mul: incompatible shapes")
 }
 
 /// Element-wise division.
@@ -89,7 +89,7 @@ pub fn mul<T: Scalar, B: BackendOps<T>>(
 /// let backend = SequentialBackend::new();
 /// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[6.0, 8.0, 10.0, 12.0]);
 /// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[2.0, 4.0, 5.0, 6.0]);
-/// let c = div(&a, &b, &backend).expect("valid division doctest inputs");
+/// let c = div(&a, &b, &backend);
 /// let s = c.as_slice();
 /// assert!((s[0] - 3.0).abs() < 1e-5);
 /// assert!((s[1] - 2.0).abs() < 1e-5);
@@ -101,8 +101,8 @@ pub fn div<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_binary(a, b, backend, BinaryOp::Div)
+) -> Tensor<T, B> {
+    elementwise_binary(a, b, backend, BinaryOp::Div).expect("div: incompatible shapes")
 }
 
 macro_rules! binary_assign_op {
@@ -168,25 +168,17 @@ binary_assign_op!(div_assign, BinaryOp::Div, "In-place element-wise division.");
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_core::{BackendError, SequentialBackend};
+    use coeus_core::SequentialBackend;
 
     #[test]
-    fn incompatible_broadcast_returns_typed_error() {
+    fn incompatible_broadcast_panics() {
         let backend = SequentialBackend::new();
         let lhs = Tensor::from_slice([2], &[1.0_f32, 2.0]);
         let rhs = Tensor::from_slice([3], &[3.0_f32, 4.0, 5.0]);
 
-        let error = match add(&lhs, &rhs, &backend) {
-            Ok(_) => panic!("incompatible shapes must fail"),
-            Err(error) => error,
-        };
-
-        assert!(matches!(
-            error,
-            BackendError::IncompatibleBroadcast {
-                operation: "elementwise_binary",
-                ..
-            }
-        ));
+        let result = std::panic::catch_unwind(|| {
+            add(&lhs, &rhs, &backend)
+        });
+        assert!(result.is_err(), "incompatible shapes must panic");
     }
 }

@@ -11,8 +11,8 @@ pub fn eq<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_binary(a, b, backend, BinaryOp::Eq)
+) -> Tensor<T, B> {
+    elementwise_binary(a, b, backend, BinaryOp::Eq).expect("eq: incompatible shapes")
 }
 
 /// Element-wise inequality comparison mask.
@@ -21,8 +21,8 @@ pub fn ne<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_binary(a, b, backend, BinaryOp::Ne)
+) -> Tensor<T, B> {
+    elementwise_binary(a, b, backend, BinaryOp::Ne).expect("ne: incompatible shapes")
 }
 
 /// Element-wise less-than comparison mask.
@@ -31,8 +31,8 @@ pub fn lt<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_binary(a, b, backend, BinaryOp::Lt)
+) -> Tensor<T, B> {
+    elementwise_binary(a, b, backend, BinaryOp::Lt).expect("lt: incompatible shapes")
 }
 
 /// Element-wise greater-than comparison mask.
@@ -41,8 +41,8 @@ pub fn gt<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_binary(a, b, backend, BinaryOp::Gt)
+) -> Tensor<T, B> {
+    elementwise_binary(a, b, backend, BinaryOp::Gt).expect("gt: incompatible shapes")
 }
 
 /// Element-wise less-than-or-equal comparison mask.
@@ -51,8 +51,8 @@ pub fn le<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_binary(a, b, backend, BinaryOp::Le)
+) -> Tensor<T, B> {
+    elementwise_binary(a, b, backend, BinaryOp::Le).expect("le: incompatible shapes")
 }
 
 /// Element-wise greater-than-or-equal comparison mask.
@@ -61,6 +61,6 @@ pub fn ge<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_binary(a, b, backend, BinaryOp::Ge)
+) -> Tensor<T, B> {
+    elementwise_binary(a, b, backend, BinaryOp::Ge).expect("ge: incompatible shapes")
 }

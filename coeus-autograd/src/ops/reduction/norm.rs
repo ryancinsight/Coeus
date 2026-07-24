@@ -1,4 +1,4 @@
-// ── Autograd nodes: norm reductions (norm, norm_p, norm_p_axis) ──
+﻿// ── Autograd nodes: norm reductions (norm, norm_p, norm_p_axis) ──
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
@@ -60,7 +60,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nor
 #[inline]
 pub fn norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
     let backend = B::default();
-    let norm_val = coeus_ops::norm(&a.tensor, &backend);
+    let norm_val = coeus_ops::norm(&a.tensor, &backend).expect("norm");
     let out_tensor = Tensor::full_on([1], norm_val, &backend);
 
     let requires_grad = crate::grad_mode::should_track_var(a);

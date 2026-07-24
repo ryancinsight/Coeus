@@ -36,7 +36,7 @@ pub fn norm<T: Float, B: BackendOps<T> + Default>(
     } else {
         a.to_contiguous_on(backend).reshape([n])
     };
-    let sq = binary::mul(&flattened, &flattened, backend)?;
+    let sq = binary::mul(&flattened, &flattened, backend);
     Ok(<T as Float>::sqrt(super::sum(&sq, backend)))
 }
 /// `L_p` norm over all elements: `(Σ|xᵢ|^p)^(1/p)` for finite `p > 0`.

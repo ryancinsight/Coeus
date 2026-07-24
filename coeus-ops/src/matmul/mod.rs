@@ -39,7 +39,7 @@ pub fn bmm<T: Scalar, B: BackendOps<T> + Default>(
     let (_b2, _k2, _n) = (b.shape()[0], b.shape()[1], b.shape()[2]);
     assert_eq!(batch, b.shape()[0], "bmm: batch mismatch");
     assert_eq!(a.shape()[2], b.shape()[1], "bmm: inner dim mismatch");
-    kernel::matmul(a, b, backend)
+    Ok(kernel::matmul(a, b, backend))
 }
 
 /// Outer product: `[M] x [N] -> [M, N]`.
@@ -70,7 +70,7 @@ pub fn outer<T: Scalar, B: BackendOps<T> + Default>(
     let n = b.shape()[0];
     let a_col = a.clone().reshape([m, 1]);
     let b_row = b.clone().reshape([1, n]);
-    kernel::matmul(&a_col, &b_row, backend)
+    Ok(kernel::matmul(&a_col, &b_row, backend))
 }
 
 #[cfg(test)]

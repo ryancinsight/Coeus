@@ -1,5 +1,5 @@
 use crate::storage::CudaStorage;
-use coeus_core::{Backend, ComputeBackend, Scalar, Storage, StorageMut};
+use coeus_core::{Backend, BackendError, ComputeBackend, Scalar, Storage, StorageMut};
 
 /// Trait mapping CPU scalar types to their CUDA type representation.
 ///
@@ -67,7 +67,7 @@ impl CudaBackend {
 }
 
 impl ComputeBackend for CudaBackend {
-    type Error = crate::CudaBackendError;
+    type Error = BackendError;
     type DeviceBuffer<T: Scalar> = CudaStorage<T>;
     type KernelDescriptor = ();
     type DispatchFuture<T: Scalar> = std::future::Ready<T>;

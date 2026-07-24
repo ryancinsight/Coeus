@@ -25,7 +25,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for
         _y: &Tensor<T, B>,
         backend: &B,
     ) -> Tensor<T, B> {
-        let mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::ReluGrad);
+        let mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::ReluGrad).expect("elementwise_unary");
         coeus_ops::mul(grad_out, &mask, backend)
     }
 }
@@ -84,7 +84,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lea
                 &self.input_tensor,
                 &backend,
                 coeus_ops::UnaryOp::LeakyReluGrad(self.negative_slope),
-            );
+            )
+            .expect("elementwise_unary");
             let mask = coeus_ops::mul(grad_out, &deriv, &backend);
             let lock = g.write();
             coeus_ops::add_assign(lock, &mask, &backend);
@@ -149,7 +150,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         backend: &B,
     ) -> Tensor<T, B> {
         // EluGrad takes the original input x and returns exp(x) or 1
-        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::EluGrad);
+        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::EluGrad).expect("elementwise_unary");
         coeus_ops::mul(grad_out, &deriv, backend)
     }
 }
@@ -180,7 +181,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         let pos = coeus_ops::mul(x, &scale, backend);
         let neg_base = coeus_ops::expm1(x, backend);
         let neg = coeus_ops::mul(&neg_base, &alpha_scale, backend);
-        coeus_ops::where_cond(&cond, &pos, &neg, backend)
+        coeus_ops::where_cond(&cond, &pos, &neg, backend).expect("where_cond")
     }
 
     #[inline(always)]
@@ -194,7 +195,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         let scale = Tensor::full_on(x.shape(), T::from_f64(SELU_SCALE), backend);
         let alpha_scale = Tensor::full_on(x.shape(), T::from_f64(SELU_ALPHA * SELU_SCALE), backend);
         let neg = coeus_ops::mul(&coeus_ops::exp(x, backend), &alpha_scale, backend);
-        let deriv = coeus_ops::where_cond(&cond, &scale, &neg, backend);
+        let deriv = coeus_ops::where_cond(&cond, &scale, &neg, backend).expect("where_cond");
         coeus_ops::mul(grad_out, &deriv, backend)
     }
 }

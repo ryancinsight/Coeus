@@ -17,15 +17,15 @@ use coeus_tensor::Tensor;
 ///
 /// let backend = SequentialBackend::new();
 /// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[-1.0, 0.0, 1.0]);
-/// let b = relu(&a, &backend).expect("valid ReLU doctest inputs");
+/// let b = relu(&a, &backend);
 /// assert_eq!(b.as_slice(), &[0.0, 0.0, 1.0]);
 /// ```
 #[inline]
 pub fn relu<T: Scalar, B: BackendOps<T>>(
     input: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_unary(input, backend, UnaryOp::Relu)
+) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Relu).expect("relu")
 }
 /// Sigmoid: 1 / (1 + exp(-x)).
 ///
@@ -38,7 +38,7 @@ pub fn relu<T: Scalar, B: BackendOps<T>>(
 ///
 /// let backend = SequentialBackend::new();
 /// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[0.0, 1.0, -1.0]);
-/// let b = sigmoid(&a, &backend).expect("valid sigmoid doctest inputs");
+/// let b = sigmoid(&a, &backend);
 /// let s = b.as_slice();
 /// assert!((s[0] - 0.5).abs() < 1e-5);
 /// assert!((s[1] - 0.73105858_f32).abs() < 1e-5);
@@ -48,8 +48,8 @@ pub fn relu<T: Scalar, B: BackendOps<T>>(
 pub fn sigmoid<T: Float, B: BackendOps<T>>(
     input: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_unary(input, backend, UnaryOp::Sigmoid)
+) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Sigmoid).expect("sigmoid")
 }
 
 /// Hyperbolic tangent.
@@ -57,8 +57,8 @@ pub fn sigmoid<T: Float, B: BackendOps<T>>(
 pub fn tanh<T: Float, B: BackendOps<T>>(
     input: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_unary(input, backend, UnaryOp::Tanh)
+) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Tanh).expect("tanh")
 }
 
 /// Exact GELU (Gaussian Error Linear Unit).
@@ -75,7 +75,7 @@ pub fn tanh<T: Float, B: BackendOps<T>>(
 ///
 /// let backend = SequentialBackend::new();
 /// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[0.0, 1.0]);
-/// let b = gelu(&a, &backend).expect("valid GELU doctest inputs");
+/// let b = gelu(&a, &backend);
 /// let s = b.as_slice();
 /// assert!((s[0] - 0.0).abs() < 1e-5);
 /// assert!((s[1] - 0.8413447_f32).abs() < 1e-5);
@@ -84,8 +84,8 @@ pub fn tanh<T: Float, B: BackendOps<T>>(
 pub fn gelu<T: Float, B: BackendOps<T>>(
     input: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_unary(input, backend, UnaryOp::Gelu)
+) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Gelu).expect("gelu")
 }
 
 /// In-place Rectified Linear Unit: max(0, x).
@@ -135,7 +135,7 @@ pub fn gelu_assign<T: Float, B: BackendOps<T>>(
 ///
 /// let backend = SequentialBackend::new();
 /// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[0.0, 1.0]);
-/// let b = silu(&a, &backend).expect("valid SiLU doctest inputs");
+/// let b = silu(&a, &backend);
 /// let s = b.as_slice();
 /// assert!((s[0] - 0.0).abs() < 1e-5);
 /// assert!((s[1] - 0.73105858_f32).abs() < 1e-5);
@@ -144,8 +144,8 @@ pub fn gelu_assign<T: Float, B: BackendOps<T>>(
 pub fn silu<T: Float, B: BackendOps<T>>(
     input: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_unary(input, backend, UnaryOp::Silu)
+) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Silu).expect("silu")
 }
 
 /// In-place SiLU.
@@ -162,8 +162,8 @@ pub fn silu_assign<T: Float, B: BackendOps<T>>(
 pub fn mish<T: Float, B: BackendOps<T>>(
     input: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_unary(input, backend, UnaryOp::Mish)
+) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Mish).expect("mish")
 }
 
 /// In-place Mish.
@@ -180,8 +180,8 @@ pub fn mish_assign<T: Float, B: BackendOps<T>>(
 pub fn elu<T: Float, B: BackendOps<T>>(
     input: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_unary(input, backend, UnaryOp::Elu)
+) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Elu).expect("elu")
 }
 
 /// In-place ELU.
@@ -198,8 +198,8 @@ pub fn elu_assign<T: Float, B: BackendOps<T>>(
 pub fn softplus<T: Float, B: BackendOps<T>>(
     input: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_unary(input, backend, UnaryOp::Softplus)
+) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::Softplus).expect("softplus")
 }
 
 /// In-place Softplus.
@@ -216,8 +216,8 @@ pub fn softplus_assign<T: Float, B: BackendOps<T>>(
 pub fn gelu_tanh<T: Float, B: BackendOps<T>>(
     input: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, B::Error> {
-    elementwise_unary(input, backend, UnaryOp::GeluTanh)
+) -> Tensor<T, B> {
+    elementwise_unary(input, backend, UnaryOp::GeluTanh).expect("gelu_tanh")
 }
 
 /// In-place GELU tanh approximation.
@@ -235,12 +235,13 @@ pub fn leaky_relu<T: Float, B: BackendOps<T>>(
     input: &Tensor<T, B>,
     backend: &B,
     negative_slope: f64,
-) -> Result<Tensor<T, B>, B::Error> {
+) -> Tensor<T, B> {
     elementwise_unary(
         input,
         backend,
         UnaryOp::LeakyRelu(f64::to_bits(negative_slope)),
     )
+    .expect("leaky_relu")
 }
 
 /// In-place LeakyReLU.
@@ -276,7 +277,7 @@ pub fn log_softmax_axis<T: Float, B: BackendOps<T> + Default>(
     );
     // Shift by max for numerical stability: shifted = x - max(x, axis)
     let max_vals = super::super::reduction::max_axis(input, axis, backend);
-    let shifted = super::super::binary::sub(input, &max_vals, backend)?;
+    let shifted = super::super::binary::sub(input, &max_vals, backend);
     // exp(shifted)
     let exp_shifted = elementwise_unary(&shifted, backend, UnaryOp::Exp)?;
     // sum(exp(shifted), axis)
@@ -284,7 +285,7 @@ pub fn log_softmax_axis<T: Float, B: BackendOps<T> + Default>(
     // log(sum_exp)
     let log_sum_exp = elementwise_unary(&sum_exp, backend, UnaryOp::Log)?;
     // out = shifted - log_sum_exp  (broadcasts log_sum_exp along axis)
-    super::super::binary::sub(&shifted, &log_sum_exp, backend)
+    Ok(super::super::binary::sub(&shifted, &log_sum_exp, backend))
 }
 
 /// Masked Softmax: excludes masked positions while computing softmax.
@@ -448,7 +449,7 @@ where
     let b_part = parts.pop().unwrap();
     let a_part = parts.pop().unwrap();
     let gate = elementwise_unary(&b_part, backend, UnaryOp::Sigmoid)?;
-    super::super::binary::mul(&a_part, &gate, backend)
+    Ok(super::super::binary::mul(&a_part, &gate, backend))
 }
 
 #[cfg(test)]

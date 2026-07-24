@@ -57,11 +57,11 @@ pub fn where_cond<T: Float, B: BackendOps<T> + Default>(
     let cond_neg = crate::unary::elementwise_unary(cond, backend, UnaryOp::Neg)?;
     let mask_neg = crate::unary::elementwise_unary(&cond_neg, backend, UnaryOp::ReluGrad)?;
     // combined: 1 where cond != 0
-    let any_mask = crate::binary::add(&mask_pos, &mask_neg, backend)?;
+    let any_mask = crate::binary::add(&mask_pos, &mask_neg, backend);
 
     let one = Tensor::full_on(any_mask.shape(), T::from_f64(1.0), backend);
-    let inv_mask = crate::binary::sub(&one, &any_mask, backend)?;
-    let true_part = crate::binary::mul(on_true, &any_mask, backend)?;
-    let false_part = crate::binary::mul(on_false, &inv_mask, backend)?;
-    crate::binary::add(&true_part, &false_part, backend)
+    let inv_mask = crate::binary::sub(&one, &any_mask, backend);
+    let true_part = crate::binary::mul(on_true, &any_mask, backend);
+    let false_part = crate::binary::mul(on_false, &inv_mask, backend);
+    Ok(crate::binary::add(&true_part, &false_part, backend))
 }

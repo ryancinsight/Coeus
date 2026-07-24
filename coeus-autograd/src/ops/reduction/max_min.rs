@@ -62,7 +62,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         let abs_diff = coeus_ops::abs(&diff, &backend);
         let shifted = coeus_ops::sub(&eps, &abs_diff, &backend);
         let mask_raw =
-            coeus_ops::elementwise_unary(&shifted, &backend, coeus_ops::UnaryOp::ReluGrad);
+            coeus_ops::elementwise_unary(&shifted, &backend, coeus_ops::UnaryOp::ReluGrad).expect("elementwise_unary");
 
         let tie_count = coeus_ops::sum_axis(&mask_raw, self.axis, &backend);
         let tie_broad = tie_count.broadcast(self.input_tensor.shape_cloned());
@@ -151,7 +151,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         let abs_diff = coeus_ops::abs(&diff, &backend);
         let shifted = coeus_ops::sub(&eps, &abs_diff, &backend);
         let mask_raw =
-            coeus_ops::elementwise_unary(&shifted, &backend, coeus_ops::UnaryOp::ReluGrad);
+            coeus_ops::elementwise_unary(&shifted, &backend, coeus_ops::UnaryOp::ReluGrad).expect("elementwise_unary");
         let tie_count = coeus_ops::sum_axis(&mask_raw, self.axis, &backend);
         let tie_broad = tie_count.broadcast(self.input_tensor.shape_cloned());
         let mask = coeus_ops::div(&mask_raw, &tie_broad, &backend);

@@ -21,7 +21,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         _y: &Tensor<T, B>,
         backend: &B,
     ) -> Tensor<T, B> {
-        let mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::SiluGrad);
+        let mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::SiluGrad).expect("elementwise_unary");
         coeus_ops::mul(grad_out, &mask, backend)
     }
 }
@@ -43,7 +43,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         _y: &Tensor<T, B>,
         backend: &B,
     ) -> Tensor<T, B> {
-        let mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::MishGrad);
+        let mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::MishGrad).expect("elementwise_unary");
         coeus_ops::mul(grad_out, &mask, backend)
     }
 }
@@ -66,7 +66,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         backend: &B,
     ) -> Tensor<T, B> {
         // SoftplusGrad = sigmoid(x)
-        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::SoftplusGrad);
+        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::SoftplusGrad).expect("elementwise_unary");
         coeus_ops::mul(grad_out, &deriv, backend)
     }
 }

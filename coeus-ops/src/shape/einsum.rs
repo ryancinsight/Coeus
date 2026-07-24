@@ -201,7 +201,7 @@ where
     if a_lhs == "ij" && b_lhs == "jk" && rhs == "ik" {
         assert_eq!(a.ndim(), 2, "einsum ij,jk->ik: a must be 2-D");
         assert_eq!(b_t.ndim(), 2, "einsum ij,jk->ik: b must be 2-D");
-        return crate::matmul::matmul(a, b_t, backend);
+        return Ok(crate::matmul::matmul(a, b_t, backend));
     }
 
     // "bij,bjk->bik" — batched 3-D matrix multiply
