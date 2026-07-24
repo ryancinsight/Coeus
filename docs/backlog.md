@@ -17,10 +17,11 @@
   blocked before compilation because the preserved peer manifest requests
   `mnemosyne ^0.6.0` while locked Moirai requires `mnemosyne ^0.5.0`.
 
-## ATLAS-WGPU-SAFETY-002 — Establish fallible WGPU layout/dispatch boundary [arch] — todo
+## ATLAS-WGPU-SAFETY-002 — Establish fallible WGPU layout/dispatch boundary [arch] — in-progress
 
-- Owner: unassigned; scope: `coeus-wgpu/src/kernels/layout.rs`, its 23
-  consumers, and the `coeus-ops` backend-operation return contract.
+- Owner: Codex `/coeus`; last-update: 2026-07-23; scope:
+  `coeus-wgpu/src/kernels/layout.rs`, its 23 consumers, and the `coeus-ops`
+  backend-operation return contract.
 - Outcome: replace unchecked `usize`→WGSL `u32` layout metadata narrowing and
   input-dependent dispatch panics with one typed validation/error boundary.
 - Acceptance: every WGPU kernel consumes the validated metadata type; failure
@@ -33,7 +34,8 @@
   for rank, offset, shapes, and strides. The operation traits return `()` so
   the failure cannot currently propagate without changing the shared seam.
 - Dependency: resolve the preserved peer `Cargo.toml` manifest drift before
-  compiled verification.
+  compiled verification. ADR-0020 records the selected error-boundary design
+  and the dependency-ordered implementation slices.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

@@ -1,5 +1,21 @@
 # Coeus Development Roadmap Checklist
 
+## WGPU layout and dispatch failure boundary [arch]
+- [ ] Add one backend error associated type and make operation dispatch
+      return `Result` through the shared trait seam.
+- [ ] Convert `GpuLayoutInfo` and the WGPU dispatch-grid/ABI conversions to
+      typed checked constructors; migrate one complete operation family at a
+      time without adapters or silent no-ops.
+- [ ] Update CPU, CUDA, WGPU, and high-level callers together; verify value
+      semantics, negative overflow cases, and public API documentation.
+- [ ] Run the full affected package matrix after the preserved peer manifest
+      resolves; no package result is claimed while resolution is blocked.
+
+Decision: ADR-0020 selects a backend-associated typed error plus fallible
+operation traits. An operation-local `Option`/early return is rejected because
+it can leave output storage uninitialized or stale while hiding the violated
+WGSL ABI contract.
+
 ## WGPU pool1d dispatch mode ownership [patch]
 - [x] Replace the forward dispatcher’s mixed forward/backward mode enum with
       a forward-only mode type.
