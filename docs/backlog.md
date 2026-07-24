@@ -1,5 +1,25 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-STRUCTURE-001 — Normalize workspace crates directory [arch] — in-progress
+
+- Owner: Codex `/coeus`; scope: the 13 workspace crate directories, root
+  `Cargo.toml`, release workflow manifest paths, and path-bearing Coeus
+  documentation. Excludes the peer `.cargo/config.toml` edit and untracked
+  `coeus-cuda/build.rs`.
+- Outcome: place all workspace crates under `crates/` while preserving Cargo
+  package names, versions, public APIs, dependency direction, and behavior.
+- Non-goals: crate renames, source changes, dependency upgrades, resolver or
+  edition changes, and release publication.
+- Acceptance: every workspace manifest resolves under `crates/`; no stale
+  repository-local crate path remains; `cargo metadata --locked --no-deps`,
+  formatting, affected checks/tests/docs, and package validation pass or their
+  exact blockers are recorded; excluded peer files remain byte-for-byte
+  untouched.
+- Risk/change class: `[arch]` mechanical repository-layout migration; no Rust
+  or published package contract change.
+- Status: claimed for the current Coeus task; implementation and verification
+  are serialized because the workspace manifest is the single path authority.
+
 ## ATLAS-WGPU-SAFETY-001 — Encode pool1d dispatch mode ownership [patch] — done
 
 - Owner: Codex `/coeus`; scope: `coeus-wgpu/src/kernels/pool/pool1d/` and
