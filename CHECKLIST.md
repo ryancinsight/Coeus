@@ -1,5 +1,19 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA pool1d launch ABI [patch] [arch]
+- [x] Validate positive representable pooling parameters, checked work counts
+      and grids, rank-three nonempty layouts, and operation shape contracts.
+- [x] Remove pool1d-local narrowing and grid/block derivation; reuse the
+      shared CUDA validation seam and canonical block size.
+- [x] Add the co-located ADR and verify format, diff, feature-enabled check,
+      warning-denied Clippy, and default Nextest.
+
+Evidence: `pool1d.rs` contains no input-dependent parameter/count/grid
+narrowing or unchecked shape product. Feature-enabled package check and
+warning-denied Clippy pass; default package Nextest passes 3/3 with zero
+skipped. CUDA-feature Nextest remains blocked before execution because the
+Windows GNU linker cannot find `-lcuda` at `/usr/local/cuda-11.3/lib64/`.
+
 ## CUDA optimizer launch ABI [patch] [arch]
 - [x] Apply shared checked element-count, `u32`, grid, layout, and same-shape
       validation to AdaGrad, Adam, AdamW, RMSprop, and SGD.

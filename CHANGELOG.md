@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Hardens the CUDA 1-D pooling dispatcher with checked parameters,
+  element counts, grids, rank-three layout validation, and forward/backward
+  shape contracts while preserving the native kernel path.
+
 - [patch] Hardens all five CUDA optimizer launch families with shared checked
   element counts, grids, layout ABI, and same-shape validation; reuses the
   canonical block size and rejects Adam step counts outside the kernel's

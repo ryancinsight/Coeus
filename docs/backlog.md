@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-007 — Harden pool1d launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/pool/pool1d.rs` and
+  the shared `kernels::validation` seam.
+- Outcome: the canonical max/average 1-D pooling dispatcher now checks
+  positive representable parameters, checked element counts and grids,
+  rank-three nonempty layouts, and operation-specific shape relationships.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped; pool1d source scans
+  are clean for narrowing, unchecked products, and local grid derivation.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed. Other pooling dimensions remain in the next gap.
+
 ## ATLAS-CUDA-SAFETY-006 — Harden optimizer launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/optim` and the shared

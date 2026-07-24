@@ -4,8 +4,43 @@ use super::POOL_COMMON_SRC;
 use crate::backend::CudaScalar;
 use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
 use crate::kernels::fuse::get_or_create_kernel;
+use crate::kernels::validation::{
+    checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda, CUDA_BLOCK_SIZE,
+};
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
+
+fn pool1d_layouts_are_valid(layouts: &[&Layout]) -> bool {
+    layouts_fit_cuda(layouts)
+        && layouts.iter().all(|layout| {
+            layout.ndim() == 3 && layout.shape().iter().all(|&dimension| dimension != 0)
+        })
+}
+
+fn pool1d_prefix_matches(lhs: &Layout, rhs: &Layout) -> bool {
+    lhs.shape().get(..2) == rhs.shape().get(..2)
+}
+
+fn pool1d_shapes_match(lhs: &Layout, rhs: &Layout) -> bool {
+    lhs.shape() == rhs.shape()
+}
+
+fn checked_pool_parameters(
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+) -> Option<[u32; 4]> {
+    if kernel_size == 0 || stride == 0 || dilation == 0 {
+        return None;
+    }
+    Some([
+        cuda_u32(kernel_size)?,
+        cuda_u32(stride)?,
+        cuda_u32(padding)?,
+        cuda_u32(dilation)?,
+    ])
+}
 
 fn source<T: CudaScalar>() -> String {
     let scalar = T::CUDA_TYPE;
@@ -153,13 +188,30 @@ fn launch<T: CudaScalar>(
     stride: usize,
     padding: usize,
     dilation: usize,
-    thread_count: usize,
+    thread_count: Option<usize>,
 ) -> bool {
     let Some(driver) = CudaDriver::get() else {
         return false;
     };
     let Some(_context) = get_cuda_context() else {
         return false;
+    };
+    let Some([kernel_size_value, stride_value, padding_value, dilation_value]) =
+        checked_pool_parameters(kernel_size, stride, padding, dilation)
+    else {
+        return false;
+    };
+    let Some(thread_count) = thread_count else {
+        return false;
+    };
+    let Some(thread_count_value) = cuda_u32(thread_count) else {
+        return false;
+    };
+    if !pool1d_layouts_are_valid(layouts) {
+        return false;
+    }
+    let Some(grid_size) = launch_grid_size(thread_count) else {
+        return thread_count == 0;
     };
     let key = format!("pool1d_{operation}_{}", T::CUDA_TYPE);
     let kernel_source = source::<T>();
@@ -173,11 +225,11 @@ fn launch<T: CudaScalar>(
     else {
         return false;
     };
-    let mut kernel_size = kernel_size as u32;
-    let mut stride = stride as u32;
-    let mut padding = padding as u32;
-    let mut dilation = dilation as u32;
-    let mut thread_count_u32 = thread_count as u32;
+    let mut kernel_size = kernel_size_value;
+    let mut stride = stride_value;
+    let mut padding = padding_value;
+    let mut dilation = dilation_value;
+    let mut thread_count_u32 = thread_count_value;
     let mut args: Vec<*mut std::ffi::c_void> = buffers
         .iter_mut()
         .map(|pointer| pointer as *mut CUdeviceptr as *mut std::ffi::c_void)
@@ -194,20 +246,16 @@ fn launch<T: CudaScalar>(
         &mut dilation as *mut u32 as *mut std::ffi::c_void,
         &mut thread_count_u32 as *mut u32 as *mut std::ffi::c_void,
     ]);
-    if thread_count == 0 {
-        return true;
-    }
-    let block_size = 256usize;
     // SAFETY: `kernel` belongs to the current Hephaestus context; every
     // pointer references a live device allocation or stack argument through
     // the synchronous launch call, and the grid covers exactly `thread_count`.
     unsafe {
         (driver.cu_launch_kernel)(
             kernel.func,
-            thread_count.div_ceil(block_size) as u32,
+            grid_size,
             1,
             1,
-            block_size as u32,
+            CUDA_BLOCK_SIZE,
             1,
             1,
             0,
@@ -229,6 +277,12 @@ pub fn dispatch_max_pool1d<T: CudaScalar>(
     output: &mut CudaStorage<T>,
     output_layout: &Layout,
 ) -> bool {
+    if !pool1d_prefix_matches(input_layout, output_layout) {
+        return false;
+    }
+    let Some(thread_count) = checked_numel(output_layout) else {
+        return false;
+    };
     launch::<T>(
         "max_pool_forward",
         &mut [input.cu_deviceptr(), output.cu_deviceptr()],
@@ -237,7 +291,7 @@ pub fn dispatch_max_pool1d<T: CudaScalar>(
         stride,
         padding,
         dilation,
-        output_layout.shape().iter().product(),
+        Some(thread_count),
     )
 }
 
@@ -254,6 +308,14 @@ pub fn dispatch_max_pool1d_backward<T: CudaScalar>(
     grad_input: &mut CudaStorage<T>,
     grad_input_layout: &Layout,
 ) -> bool {
+    if !pool1d_prefix_matches(grad_out_layout, grad_input_layout)
+        || !pool1d_shapes_match(input_layout, grad_input_layout)
+    {
+        return false;
+    }
+    let Some(thread_count) = checked_numel(grad_input_layout) else {
+        return false;
+    };
     launch::<T>(
         "max_pool_backward",
         &mut [
@@ -266,7 +328,7 @@ pub fn dispatch_max_pool1d_backward<T: CudaScalar>(
         stride,
         padding,
         dilation,
-        grad_input_layout.shape().iter().product(),
+        Some(thread_count),
     )
 }
 
@@ -281,6 +343,12 @@ pub fn dispatch_avg_pool1d<T: CudaScalar>(
     output: &mut CudaStorage<T>,
     output_layout: &Layout,
 ) -> bool {
+    if !pool1d_prefix_matches(input_layout, output_layout) {
+        return false;
+    }
+    let Some(thread_count) = checked_numel(output_layout) else {
+        return false;
+    };
     launch::<T>(
         "avg_pool_forward",
         &mut [input.cu_deviceptr(), output.cu_deviceptr()],
@@ -289,7 +357,7 @@ pub fn dispatch_avg_pool1d<T: CudaScalar>(
         stride,
         padding,
         dilation,
-        output_layout.shape().iter().product(),
+        Some(thread_count),
     )
 }
 
@@ -304,6 +372,12 @@ pub fn dispatch_avg_pool1d_backward<T: CudaScalar>(
     grad_input: &mut CudaStorage<T>,
     grad_input_layout: &Layout,
 ) -> bool {
+    if !pool1d_prefix_matches(grad_out_layout, grad_input_layout) {
+        return false;
+    }
+    let Some(thread_count) = checked_numel(grad_input_layout) else {
+        return false;
+    };
     launch::<T>(
         "avg_pool_backward",
         &mut [grad_out.cu_deviceptr(), grad_input.cu_deviceptr()],
@@ -312,6 +386,6 @@ pub fn dispatch_avg_pool1d_backward<T: CudaScalar>(
         stride,
         padding,
         dilation,
-        grad_input_layout.shape().iter().product(),
+        Some(thread_count),
     )
 }
