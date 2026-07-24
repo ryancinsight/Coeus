@@ -4,6 +4,11 @@
 
 ### Changed
 
+- [patch] Splits the CUDA elementwise launch manifest into contiguous and
+  strided leaves, applies shared checked count/grid validation to all four
+  paths, rejects unsafe broadcast-rank underflow and zero-stride output
+  layouts, and serializes strided layouts through safe POD views.
+
 - [patch] Promotes CUDA launch validation to one `kernels::validation` SSOT
   and applies checked layout, axis, element-count, parameter, and grid
   boundaries to standard and fused reduction dispatch. Fused reduction no

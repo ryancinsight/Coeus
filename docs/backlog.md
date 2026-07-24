@@ -1,5 +1,21 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-005 — Harden elementwise launch ABI and tree [patch] [arch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/launch_ops*` and the
+  shared `kernels::validation` seam.
+- Outcome: the 530-line elementwise launch file is a manifest with contiguous
+  and strided leaves. All four launchers reject counts/grids outside CUDA's
+  `u32` ABI; strided paths validate layouts and broadcast rank, reject
+  zero-stride output layouts, and layout buffers use safe POD views.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped; source audit is clean
+  for elementwise casts, raw layout slices, unchecked grids, and local
+  validators.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`. Other CUDA
+  launch families remain in the next gap item.
+
 ## ATLAS-CUDA-SAFETY-004 — Harden reduction launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/validation.rs`,

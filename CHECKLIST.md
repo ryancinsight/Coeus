@@ -1,5 +1,25 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA elementwise launch tree and ABI [patch] [arch]
+- [x] Split the 530-line `launch_ops.rs` into a manifest plus contiguous and
+      strided leaves, preserving all four public helper names.
+- [x] Validate element counts, launch grids, layouts, and broadcast rank at
+      the shared boundary; replace raw strided layout serialization with
+      `bytemuck::cast_slice`; reject zero-stride output layouts before the
+      generated kernel can divide by zero or alias writes.
+- [x] Add the co-located ADR and verify format, diff, feature-enabled check,
+      warning-denied Clippy, and default Nextest.
+
+Evidence: `launch_ops.rs` is a manifest; contiguous and strided leaves are
+219 and 327 lines. Shared validation tests cover zero-stride output layouts,
+zero work, and overflow. The affected source contains no input-dependent
+`as u32`, raw layout slice, unchecked elementwise grid, or family-local
+validator.
+Feature-enabled package check and warning-denied Clippy pass; default package
+Nextest passes 3/3 with zero skipped. CUDA-feature Nextest remains blocked
+before execution because the Windows GNU linker cannot find `-lcuda` at
+`/usr/local/cuda-11.3/lib64/`.
+
 ## CUDA reduction launch-boundary validation [patch] [arch]
 - [x] Promote shared `u32`, checked element-count, layout-fit, and grid-size
       helpers to `kernels/validation.rs`; delete the convolution-local copy.

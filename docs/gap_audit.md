@@ -1,12 +1,13 @@
 # Coeus Gap Audit
 
-## ATLAS-CUDA-SAFETY-005: Remaining CUDA launch-parameter narrowing
+## ATLAS-CUDA-SAFETY-006: Remaining CUDA launch-parameter narrowing
 
 **Location**: `coeus-cuda/src/kernels` non-convolution launchers and
 `coeus-cuda/src/backend/ops/conv_transpose.rs`.
 **Gap**: the shared `GpuLayoutInfo` conversion, convolution forward output
-count seam, and standard/fused reduction launch boundaries are closed by
-`ATLAS-CUDA-SAFETY-003` and `ATLAS-CUDA-SAFETY-004`, but other CUDA kernel
+count seam, standard/fused reduction launch boundaries, and elementwise
+launches are closed by `ATLAS-CUDA-SAFETY-003`, `ATLAS-CUDA-SAFETY-004`, and
+`ATLAS-CUDA-SAFETY-005`, but other CUDA kernel
 families still narrow launch dimensions and derived counts with unchecked
 casts or products. These are separate operation-family boundaries and were
 not silently folded into the layout or reduction migrations.
