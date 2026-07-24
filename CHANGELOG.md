@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Splits the CUDA unfold/fold launcher into a deep source, dispatch,
+  validation, and dimensional tree; removes panic-based narrowing and checks
+  sliding-window formulas, layout storage bounds, shapes, counts, and grids.
+
 - [patch] Hardens CUDA attention dispatch with checked dimensions, element
   counts, device-buffer lengths, mask contracts, and shared 1-D grid
   validation; unsupported layouts remain on the explicit CPU capability path.

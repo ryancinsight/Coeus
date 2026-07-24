@@ -1,6 +1,6 @@
 # Coeus Gap Audit
 
-## ATLAS-CUDA-SAFETY-012: Remaining CUDA launch-parameter narrowing
+## ATLAS-CUDA-SAFETY-013: Remaining CUDA launch-parameter narrowing
 
 **Location**: `coeus-cuda/src/kernels` non-convolution launchers and
 `coeus-cuda/src/backend/ops/conv_transpose.rs`.
@@ -11,19 +11,20 @@ launches are closed by `ATLAS-CUDA-SAFETY-003`, `ATLAS-CUDA-SAFETY-004`, and
 `ATLAS-CUDA-SAFETY-006`; the canonical 1-D pooling dispatcher is closed by
 `ATLAS-CUDA-SAFETY-007`; 2-D pooling and the shared pooling seam are closed by
 `ATLAS-CUDA-SAFETY-008`, `ATLAS-CUDA-SAFETY-009`, and
-`ATLAS-CUDA-SAFETY-010`, but other CUDA kernel families still narrow launch
+`ATLAS-CUDA-SAFETY-010`; unfold/fold is closed by
+`ATLAS-CUDA-SAFETY-012`, but other CUDA kernel families still narrow launch
 dimensions and derived counts with unchecked casts or products. These are
 separate operation-family boundaries and were not silently folded into the
-layout, reduction, elementwise, optimizer, pooling, matmul, or attention
-migrations.
+layout, reduction, elementwise, optimizer, pooling, matmul, attention, or
+unfold/fold migrations.
 **Resolution target**: migrate each operation family to checked, allocation-
 free `u32` conversion and checked element counts, deleting local narrowing
 paths while preserving native device dispatch and explicit failure results.
 **Evidence target**: per-family feature-enabled check and Clippy, value-
 semantic no-device regressions, and CUDA differential tests when the linker
 and device environment are available.
-**Status**: open; attention is closed by ATLAS-CUDA-SAFETY-011. The current
-environment cannot execute CUDA-feature
+**Status**: open; attention is closed by ATLAS-CUDA-SAFETY-011 and unfold/fold
+by ATLAS-CUDA-SAFETY-012. The current environment cannot execute CUDA-feature
 Nextest because its Windows GNU linker cannot resolve `-lcuda` from
 `/usr/local/cuda-11.3/lib64/`.
 

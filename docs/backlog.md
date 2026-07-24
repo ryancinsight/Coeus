@@ -1,5 +1,19 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-012 — Harden unfold/fold launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/unfold_fold/` and the
+  shared 1-D launch seam.
+- Outcome: the former monolith is a deep source/dispatch/validation/1-D/2-D
+  tree. Dispatch now checks positive representable parameters, checked
+  sliding-window formulas, exact shapes, physical layout/storage bounds,
+  output aliasing, element counts, and shared grids before native launch.
+- Evidence: feature-enabled package check, warning-denied Clippy, and feature
+  rustdoc pass; default package Nextest passes 3/3 with zero skipped in 0.193
+  seconds. Pure validation tests cover formula and overflow boundaries.
+- Limit: CUDA-feature Nextest reaches the Windows GNU linker but cannot
+  resolve `-lcuda` from `/usr/local/cuda-11.3/lib64/`; no feature test executes.
+
 ## ATLAS-CUDA-SAFETY-011 — Harden attention launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/kernels/attention.rs`, the

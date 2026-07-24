@@ -1,5 +1,24 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA unfold/fold launch ABI [patch] [arch]
+- [x] Split the launcher into manifest, shared dispatch/source, validation,
+      and 1-D/2-D leaves; move the CUDA source into a co-located asset.
+- [x] Replace panic-based parameter narrowing and unchecked products with
+      checked formulas, exact shape contracts, layout/storage bounds, output
+      alias checks, and the shared 1-D grid seam.
+- [x] Add pure validation coverage for sliding-window formulas and invalid or
+      overflowing parameters; preserve native kernels and device ownership.
+- [x] Add the co-located ADR and verify format, diff, feature-enabled check,
+      warning-denied Clippy, default Nextest, and feature rustdoc.
+
+Evidence: all unfold/fold Rust leaves are below the 500-line target; no local
+`as u32`, unchecked output product, panic-based parameter conversion, or
+unchecked output-width derivation remains in the dispatch tree. Feature
+check, warning-denied Clippy, and rustdoc pass; default package Nextest passes
+3/3 with zero skipped in 0.193 seconds. CUDA-feature Nextest reaches the
+Windows GNU linker and fails before execution because `-lcuda` is absent from
+`/usr/local/cuda-11.3/lib64/`.
+
 ## CUDA attention launch ABI [patch] [arch]
 - [x] Validate positive attention dimensions, checked element counts, mask
       contracts, and device-buffer lengths before native compilation or
