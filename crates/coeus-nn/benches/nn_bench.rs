@@ -1,6 +1,6 @@
 //! Layer-level forward-pass benchmarks across Coeus providers.
 //!
-//! Complements `coeus-tensor/benches/tensor_bench.rs` (tensor primitives) by
+//! Complements `crates/coeus-tensor/benches/tensor_bench.rs` (tensor primitives) by
 //! timing whole `nn` layer forward passes through `SequentialBackend` and
 //! `MoiraiBackend` on identical shapes. These benchmarks measure the real
 //! production layer code; the harness body is never tuned to move the number.

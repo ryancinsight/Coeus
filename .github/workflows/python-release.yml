@@ -24,7 +24,7 @@ jobs:
     with:
       distribution: coeus-python
       import-name: pycoeus
-      manifest-path: coeus-python/Cargo.toml
+      manifest-path: crates/coeus-python/Cargo.toml
       atlas-ref: b20a1b494672759c39503daf5687b1de2062f9a0
       tag-prefix: coeus-python-v
       abi3: false

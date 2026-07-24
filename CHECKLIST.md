@@ -1,5 +1,30 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-STRUCTURE-001 Workspace crate hierarchy [arch]
+
+- [x] Move all 13 workspace crates from the repository root into `crates/`
+      with `git mv`, preserving package names and source contents.
+- [x] Update the root workspace members, local dependency paths, release
+      workflow manifest path, documentation, PM paths, and source references.
+- [x] Confirm `cargo metadata --locked --no-deps` resolves every workspace
+      manifest under `crates/` and the stale-path scan is empty.
+- [x] Confirm the staged diff contains only content-preserving crate renames,
+      path consumers, and synchronized architecture records.
+- [x] Run the applicable structural, formatting, compilation, and test
+      discovery gates; record exact peer-owned blockers for the remaining
+      full matrix.
+
+Evidence: all 13 packages resolved under `crates/`, the locked workspace check
+finished successfully before the peer CUDA dependency cutover, and no root
+crate directories or stale repository-local crate paths remain. The earlier
+format run reached existing peer formatting drift; the current format,
+metadata, and nextest discovery attempts stop at the peer `coeus-cuda` manifest
+because its optional `cutile-rs` paths are absent. The earlier broad nextest
+attempt also recorded the missing CUDA linker and existing WGPU test-compilation
+errors. The peer `.cargo/config.toml`, `Cargo.lock`,
+`crates/coeus-cuda/Cargo.toml`, and `crates/coeus-cuda/build.rs` changes remain
+outside this relocation.
+
 ## WGPU layout and dispatch failure boundary [arch]
 - [x] Add the checked `GpuLayoutInfo` SSOT constructor with typed rank,
       stride-rank, offset, shape, and stride overflow errors.
@@ -214,7 +239,7 @@ execution because the Windows GNU linker cannot find `-lcuda` at
 
 ## CUDA pool2d launch ABI [patch] [arch]
 - [x] Promote pooling parameter, work, layout, prefix, shape, and block-size
-      validation into `coeus-cuda/src/kernels/pool/validation.rs`.
+      validation into `crates/coeus-cuda/src/kernels/pool/validation.rs`.
 - [x] Apply the shared seam to 2-D average/max forward and backward leaves and
       migrate pool1d without retaining duplicate helpers.
 - [x] Add the co-located ADR and verify format, diff, feature-enabled check,
@@ -445,9 +470,9 @@ baseline.
 - [x] Verify 58/58 tensor tests and warning-denied Clippy.
 
 ## Coeus-dist hierarchical integration harness [patch]
-- [x] Replace the 1,262-line `coeus-dist/tests/dist_tests.rs` leaf with one
+- [x] Replace the 1,262-line `crates/coeus-dist/tests/dist_tests.rs` leaf with one
       `dist_ops` manifest and local/TCP transport subtrees under
-      `coeus-dist/tests/distributed/`.
+      `crates/coeus-dist/tests/distributed/`.
 - [x] Preserve all 64 test functions, 64 `#[test]` attributes, panic contracts,
       collective assertions, and extracted Rust function bodies.
 - [x] Verify one integration target, warning-denied Clippy, package check,
@@ -480,9 +505,9 @@ maintainability change only; no production kernel or runtime/memory delta is
 claimed.
 
 ## Coeus-optim contract-family harness split [patch]
-- [x] Split the live 676-line `coeus-optim/tests/optim_tests.rs` leaf into
+- [x] Split the live 676-line `crates/coeus-optim/tests/optim_tests.rs` leaf into
       optimizer, scheduler, convergence, and gradient-clipping modules under
-      `coeus-optim/tests/optim_ops/`.
+      `crates/coeus-optim/tests/optim_ops/`.
 - [x] Preserve all 20 test functions, 20 `#[test]` attributes, analytical
       comments, tolerances, and extracted Rust function bodies.
 - [x] Verify one integration target, format, package check, warning-denied
@@ -517,8 +542,8 @@ change only; no production activation runtime or memory delta is claimed.
 
 ## Coeus-ops hierarchical integration harness [patch]
 - [x] Move the 36 flat `coeus-ops` integration-test files into ten
-      operation-family directories under `coeus-ops/tests/ops/`.
-- [x] Add one `coeus-ops/tests/ops.rs` integration target with explicit module
+      operation-family directories under `crates/coeus-ops/tests/ops/`.
+- [x] Add one `crates/coeus-ops/tests/ops.rs` integration target with explicit module
       manifests; preserve every leaf test body and assertion.
 - [x] Verify the target census reduced from 36 integration binaries to 1,
       the harness exposes 87 integration tests, and package Nextest passes
@@ -531,9 +556,9 @@ topology and build-artifact change only; production operation code is
 unchanged.
 
 ## Coeus-NN hierarchical integration harness [patch]
-- [x] Move the 33 flat `coeus-nn/tests/*.rs` leaf files into ten
-      operation-family directories under `coeus-nn/tests/nn_ops/`.
-- [x] Use one `coeus-nn/tests/nn_ops.rs` integration target for the established
+- [x] Move the 33 flat `crates/coeus-nn/tests/*.rs` leaf files into ten
+      operation-family directories under `crates/coeus-nn/tests/nn_ops/`.
+- [x] Use one `crates/coeus-nn/tests/nn_ops.rs` integration target for the established
       `tests/nn/` module tree and the operation-family modules.
 - [x] Verify the target census reduced from 2 to 1 and the exact package
       Nextest run passes 268/268 with warning-denied Clippy and package check.
@@ -567,8 +592,8 @@ delta.
 ## Coeus-autograd hierarchical integration harness [patch]
 - [x] Move `grid_sample_3d.rs`, `linear_interpolation.rs`, and
       `selective_scan.rs` into three operation-family directories under
-      `coeus-autograd/tests/autograd_ops/`.
-- [x] Use one `coeus-autograd/tests/autograd_ops.rs` target for the established
+      `crates/coeus-autograd/tests/autograd_ops/`.
+- [x] Use one `crates/coeus-autograd/tests/autograd_ops.rs` target for the established
       `tests/autograd/` tree and the standalone operation-family modules.
 - [x] Verify the target census reduced from 2 to 1 and the exact package
       Nextest run passes 94/94 with warning-denied Clippy and package check.
@@ -582,9 +607,9 @@ claim a production autograd speedup, memory reduction, or whole-workspace
 debug-tree size delta.
 
 ## Coeus-tensor hierarchical integration harness [patch]
-- [x] Move the 13 flat `coeus-tensor/tests/*.rs` leaf files into six
-      operation-family directories under `coeus-tensor/tests/tensor_ops/`.
-- [x] Add one `coeus-tensor/tests/tensor_ops.rs` integration target with
+- [x] Move the 13 flat `crates/coeus-tensor/tests/*.rs` leaf files into six
+      operation-family directories under `crates/coeus-tensor/tests/tensor_ops/`.
+- [x] Add one `crates/coeus-tensor/tests/tensor_ops.rs` integration target with
       explicit backend, checkpoint, constructor, layout, operation, and
       property manifests; preserve every leaf test body and assertion.
 - [x] Verify the target census reduced from 13 to 1 and the exact package
@@ -597,9 +622,9 @@ Production tensor code is unchanged. This is a test topology and build-artifact
 change only; it does not claim a whole-workspace debug-tree size reduction.
 
 ## Coeus-sparse hierarchical integration harness [patch]
-- [x] Move the three flat `coeus-sparse/tests/*.rs` leaf files into conversion,
+- [x] Move the three flat `crates/coeus-sparse/tests/*.rs` leaf files into conversion,
       differential, and invariant directories under `tests/sparse_ops/`.
-- [x] Add one `coeus-sparse/tests/sparse_ops.rs` integration target with
+- [x] Add one `crates/coeus-sparse/tests/sparse_ops.rs` integration target with
       explicit operation-family manifests; preserve every leaf test body and
       value-semantic assertion.
 - [x] Verify the target census reduced from 3 to 1 and the exact package
@@ -611,9 +636,9 @@ Production sparse code is unchanged. This is a test topology and build-artifact
 change only; it does not claim a whole-workspace debug-tree size reduction.
 
 ## Coeus-core hierarchical integration harness [patch]
-- [x] Move the four flat `coeus-core/tests/*.rs` leaf files into storage,
+- [x] Move the four flat `crates/coeus-core/tests/*.rs` leaf files into storage,
       dependency-policy, and scalar directories under `tests/core_ops/`.
-- [x] Add one `coeus-core/tests/core_ops.rs` integration target with explicit
+- [x] Add one `crates/coeus-core/tests/core_ops.rs` integration target with explicit
       operation-family manifests; preserve every leaf assertion and retain the
       seven existing library unit tests in `src`.
 - [x] Verify the target census reduced from 4 to 1 and the exact package
@@ -627,7 +652,7 @@ whole-workspace debug-tree size reduction.
 
 ## Coeus-CUDA feature-aware integration harness [patch]
 - [x] Move the three flat CUDA test files into device and fallback directories
-      under `coeus-cuda/tests/cuda_ops/` and add one `cuda_ops.rs` harness.
+      under `crates/coeus-cuda/tests/cuda_ops/` and add one `cuda_ops.rs` harness.
 - [x] Preserve the `cuda` and `not(feature = "cuda")` gates, including the
       existing nested `tests/cuda/` module tree used by `cuda_tests.rs`.
 - [x] Verify metadata reports one integration target; default Nextest passes
@@ -639,7 +664,7 @@ fails to find `/usr/local/cuda-11.3/lib64/libcuda`; this is an environment
 linker dependency, not a test assertion failure.
 
 ## Coeus-CUDA parity-family split [patch]
-- [x] Split the live 1,672-line `coeus-cuda/tests/cuda/parity.rs` leaf into
+- [x] Split the live 1,672-line `crates/coeus-cuda/tests/cuda/parity.rs` leaf into
       seven operation-family modules under `tests/cuda/parity/`.
 - [x] Preserve all 29 parity test functions, shared CPU/CUDA oracle helpers,
       production CUDA code, fixtures, and tolerance contracts.
@@ -657,10 +682,10 @@ no live CUDA parity execution is claimed. The slice changes test topology and
 maintainability only; production kernels are unchanged.
 
 ## Coeus-Python hierarchical integration harness [patch]
-- [x] Move the six flat `coeus-python/tests/*.rs` leaf files into activation,
+- [x] Move the six flat `crates/coeus-python/tests/*.rs` leaf files into activation,
       distributed, NN, operation, optimizer, and autodiff directories under
       `tests/binding_ops/`.
-- [x] Add one `coeus-python/tests/binding_ops.rs` target with a single shared
+- [x] Add one `crates/coeus-python/tests/binding_ops.rs` target with a single shared
       `tests/common` lock module; preserve every binding assertion and Python
       parity file.
 - [x] Verify the target census reduced from 6 to 1 and the exact package
@@ -692,7 +717,7 @@ topology and maintainability change only; it does not claim a Python-wheel,
 production-kernel, memory, or runtime-performance delta.
 
 ## Coeus-WGPU hierarchical integration harness [patch]
-- [x] Move the two flat `coeus-wgpu/tests/*.rs` integration targets under one
+- [x] Move the two flat `crates/coeus-wgpu/tests/*.rs` integration targets under one
       `tests/wgpu_ops.rs` harness with `fusion` and `backend/wgpu` ownership.
 - [x] Preserve the existing backend operation modules and every WGPU/fused
       assertion; no production kernel, fixture, or tolerance changed.
@@ -725,7 +750,7 @@ unused imports exposed by the split.
 
 ## Coeus-Leto hierarchical integration harness [patch]
 - [x] Move `contract.rs` and `sparse_dispatch.rs` under one
-      `coeus-leto/tests/leto_ops.rs` harness with contract and sparse-dispatch
+      `crates/coeus-leto/tests/leto_ops.rs` harness with contract and sparse-dispatch
       operation-family modules.
 - [x] Preserve all 28 listed integration tests and their cross-provider
       contract assertions; production APIs, fixtures, and tolerances remain
@@ -744,7 +769,7 @@ memory reduction, or whole-workspace debug-tree delta.
 ## Coeus-Leto cross-provider contract-family split [patch]
 - [x] Split the live 505-line `leto_ops/contract.rs` leaf into arithmetic,
       reductions, matmul, layout, and accumulation modules under
-      `coeus-leto/tests/leto_ops/contract/`.
+      `crates/coeus-leto/tests/leto_ops/contract/`.
 - [x] Preserve all 26 contract tests, 26 `#[test]` attributes, shared layout
       oracle behavior, and extracted Rust test function bodies.
 - [x] Keep one `leto_ops` integration target and verify package check, format,
@@ -819,11 +844,11 @@ This document tracks the high-level roadmap and feature validation checklist for
 Established a clean, warning-free compiler baseline and resolved lifetime and borrow checker conflicts across all workspace crates.
 
 - [x] **Zero-Copy Layout Traversal**: Refactored `coeus-ops` kernels (unary, binary, matmul, sum/mean reductions, SpMV, SpMM) to perform direct strided index math without calling `to_contiguous()`.
-- [x] **Thread-Safe Pointers**: Created `SendPtr` and `SendPtrMut` raw pointer wrappers in `coeus-ops/src/ptr.rs` to allow safe, thread-safe capture of raw pointers in `Moirai` parallel closures.
+- [x] **Thread-Safe Pointers**: Created `SendPtr` and `SendPtrMut` raw pointer wrappers in `crates/coeus-ops/src/ptr.rs` to allow safe, thread-safe capture of raw pointers in `Moirai` parallel closures.
 - [x] **Apollo FFT Integration**: Decoupled FFT operations from coeus crates, supporting them directly inside the `apollo-fft` crate in the `apollo` workspace.
 - [x] **Autograd & Optimizers**: Resolved lifetime and borrow checker errors (SGD, Adam, RMSProp step loops, and LayerNorm/BatchNorm backward closures).
-- [x] **Numerical Parity Validation**: Verified mathematical outputs (relu, matmul, reductions, FFT, sparse operations) against `ndarray` and PyTorch references inside `coeus-tensor/tests/parity_tests.rs`.
-- [x] **Autodiff PyTorch Comparison**: Implemented integration benchmarks in `coeus-python/tests/autodiff_comparison.rs` verifying 100% mathematical gradient parity (X, weight, and bias gradients) and measuring step time comparison.
+- [x] **Numerical Parity Validation**: Verified mathematical outputs (relu, matmul, reductions, FFT, sparse operations) against `ndarray` and PyTorch references inside `crates/coeus-tensor/tests/parity_tests.rs`.
+- [x] **Autodiff PyTorch Comparison**: Implemented integration benchmarks in `crates/coeus-python/tests/autodiff_comparison.rs` verifying 100% mathematical gradient parity (X, weight, and bias gradients) and measuring step time comparison.
 
 ---
 

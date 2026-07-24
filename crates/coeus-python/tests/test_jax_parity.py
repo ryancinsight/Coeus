@@ -9,7 +9,7 @@ pycoeus' f64 default precision).
 
 Run via::
 
-    pytest coeus-python/tests/test_jax_parity.py -v
+    pytest crates/coeus-python/tests/test_jax_parity.py -v
 
 Weight-convention note:
 JAX computes ``x @ w.T`` for the linear projection (transposes the

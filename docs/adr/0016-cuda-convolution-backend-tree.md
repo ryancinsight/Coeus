@@ -7,7 +7,7 @@
 
 ## Context
 
-`coeus-cuda/src/backend/ops/conv.rs` combined 1-D, 2-D, and 3-D forward and
+`crates/coeus-cuda/src/backend/ops/conv.rs` combined 1-D, 2-D, and 3-D forward and
 backward dispatch with transposed-convolution dispatch in one 614-line file.
 The shared file crossed operation families and exceeded the repository's
 500-line leaf target, increasing review and ownership coupling.

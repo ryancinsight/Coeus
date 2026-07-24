@@ -6,7 +6,7 @@ weight values.  Tests are skipped automatically when PyTorch is absent.
 
 Run via::
 
-    pytest coeus-python/tests/test_pytorch_parity.py -v
+    pytest crates/coeus-python/tests/test_pytorch_parity.py -v
 
 Weight-convention note:
 Both pycoeus and PyTorch Linear/MHA store projection weights in

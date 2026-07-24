@@ -9,14 +9,14 @@ Coeus is an experimental, high-performance, N-dimensional strided tensor library
 Coeus is partitioned into a deep vertical hierarchy of workspace crates, enforcing absolute Separation of Concerns (SoC) and the Dependency Inversion Principle (DIP).
 
 ### Crate Structure
-- **[coeus-core](file:///d:/coeus/coeus-core)**: Core primitives. Defines `Scalar` and `Float` traits, strided `Layout`, the `Storage` and `StorageMut` allocation interface, and the `Backend` execution trait.
-- **[coeus-tensor](file:///d:/coeus/coeus-tensor)**: The fundamental `Tensor<T, B, S>` type with Copy-on-Write (COW) semantics and layout views (slicing, transposing, broadcasting).
-- **[coeus-ops](file:///d:/coeus/coeus-ops)**: Optimized mathematical kernels (unary, binary, matmul, reductions) and signal processing routines.
-- **[coeus-autograd](file:///d:/coeus/coeus-autograd)**: A tape-based automatic differentiation engine supporting reverse-mode autodiff.
-- **[coeus-nn](file:///d:/coeus/coeus-nn)**: Neural network modules (Linear, Conv2d, LayerNorm, RMSNorm, BatchNorm2d) and activation functions.
-- **[coeus-optim](file:///d:/coeus/coeus-optim)**: Parameter optimizers (SGD, Adam, RMSProp).
-- **[coeus-sparse](file:///d:/coeus/coeus-sparse)**: Sparse storage representations (COO, CSR).
-- **[coeus-python](file:///d:/coeus/coeus-python)**: Lightweight PyO3 bindings exposing the Rust core to Python.
+- **[coeus-core](file:///d:/coeus/crates/coeus-core)**: Core primitives. Defines `Scalar` and `Float` traits, strided `Layout`, the `Storage` and `StorageMut` allocation interface, and the `Backend` execution trait.
+- **[coeus-tensor](file:///d:/coeus/crates/coeus-tensor)**: The fundamental `Tensor<T, B, S>` type with Copy-on-Write (COW) semantics and layout views (slicing, transposing, broadcasting).
+- **[coeus-ops](file:///d:/coeus/crates/coeus-ops)**: Optimized mathematical kernels (unary, binary, matmul, reductions) and signal processing routines.
+- **[coeus-autograd](file:///d:/coeus/crates/coeus-autograd)**: A tape-based automatic differentiation engine supporting reverse-mode autodiff.
+- **[coeus-nn](file:///d:/coeus/crates/coeus-nn)**: Neural network modules (Linear, Conv2d, LayerNorm, RMSNorm, BatchNorm2d) and activation functions.
+- **[coeus-optim](file:///d:/coeus/crates/coeus-optim)**: Parameter optimizers (SGD, Adam, RMSProp).
+- **[coeus-sparse](file:///d:/coeus/crates/coeus-sparse)**: Sparse storage representations (COO, CSR).
+- **[coeus-python](file:///d:/coeus/crates/coeus-python)**: Lightweight PyO3 bindings exposing the Rust core to Python.
 
 ### Architectural Invariants
 

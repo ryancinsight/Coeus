@@ -7,7 +7,7 @@
 
 ## Context
 
-`coeus-wgpu/src/kernels/layout.rs` serializes `coeus_core::Layout` into a
+`crates/coeus-wgpu/src/kernels/layout.rs` serializes `coeus_core::Layout` into a
 fixed WGSL `u32` descriptor. It currently asserts the rank limit and narrows
 rank, offset, shape, and stride values with `as u32`. The same conversion is
 used by 23 WGPU kernel sites. Dispatch-grid and kernel-parameter conversions

@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-07-23
-- Scope: `coeus-wgpu/src/kernels/pool/pool1d/`
+- Scope: `crates/coeus-wgpu/src/kernels/pool/pool1d/`
 
 ## Context
 

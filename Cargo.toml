@@ -2,19 +2,19 @@
 resolver = "2"
 
 members = [
-    "coeus-core",
-    "coeus-tensor",
-    "coeus-ops",
-    "coeus-autograd",
-    "coeus-nn",
-    "coeus-optim",
-    "coeus-python",
-    "coeus-sparse",
-    "coeus-wgpu",
-    "coeus-cuda",
-    "coeus-dist",
-    "coeus-leto",
-    "coeus-fft",
+    "crates/coeus-core",
+    "crates/coeus-tensor",
+    "crates/coeus-ops",
+    "crates/coeus-autograd",
+    "crates/coeus-nn",
+    "crates/coeus-optim",
+    "crates/coeus-python",
+    "crates/coeus-sparse",
+    "crates/coeus-wgpu",
+    "crates/coeus-cuda",
+    "crates/coeus-dist",
+    "crates/coeus-leto",
+    "crates/coeus-fft",
 ]
 
 [workspace.package]
@@ -67,15 +67,15 @@ criterion = "0.5"
 pyo3 = { version = "0.23", features = ["extension-module"] }
 
 # ── Local ──
-coeus-core     = { path = "coeus-core" }
-coeus-tensor   = { path = "coeus-tensor" }
-coeus-ops      = { path = "coeus-ops", default-features = false }
-coeus-autograd = { path = "coeus-autograd", default-features = false }
-coeus-nn       = { path = "coeus-nn", default-features = false }
-coeus-optim    = { path = "coeus-optim", default-features = false }
-coeus-sparse   = { path = "coeus-sparse" }
-coeus-dist     = { path = "coeus-dist", default-features = false }
-coeus-fft      = { path = "coeus-fft" }
+coeus-core     = { path = "crates/coeus-core" }
+coeus-tensor   = { path = "crates/coeus-tensor" }
+coeus-ops      = { path = "crates/coeus-ops", default-features = false }
+coeus-autograd = { path = "crates/coeus-autograd", default-features = false }
+coeus-nn       = { path = "crates/coeus-nn", default-features = false }
+coeus-optim    = { path = "crates/coeus-optim", default-features = false }
+coeus-sparse   = { path = "crates/coeus-sparse" }
+coeus-dist     = { path = "crates/coeus-dist", default-features = false }
+coeus-fft      = { path = "crates/coeus-fft" }
 
 [profile.bench]
 codegen-units = 1

@@ -75,7 +75,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 }
 
 /// Tracked Cross-Entropy Loss.
-/// Called from coeus-nn/src/loss.rs after host-side log-sum-exp computation.
+/// Called from crates/coeus-nn/src/loss.rs after host-side log-sum-exp computation.
 /// `probs` must be `Vec<T>`, computed in T precision.
 pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     logits: &Var<T, B>,

@@ -15,7 +15,7 @@ use coeus_core::Backend;
 /// `coeus-ops` knows the per-element work is cheap, so it sets the bar far above
 /// Moirai's general-purpose `Adaptive` threshold (1024) before handing to the pool.
 ///
-/// Derived from `coeus-optim/benches/optim_bench.rs` sequential-vs-parallel
+/// Derived from `crates/coeus-optim/benches/optim_bench.rs` sequential-vs-parallel
 /// crossover measurements (f32, MoiraiBackend). Per-op sequential wins hold up to
 /// roughly SGD ~425K elements, Adam ~130K (heavier per element → lower crossover).
 /// A single shared threshold must not regress the heaviest op, so it sits below the

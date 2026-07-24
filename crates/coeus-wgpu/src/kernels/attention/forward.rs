@@ -1,7 +1,7 @@
 // ── On-device WGPU scaled dot-product attention (forward) ──
 //
 // One invocation per `(batch, query)` row. Mirrors the verified CPU reference
-// in `coeus-ops/src/backend_ops/cpu_impl/attention.rs`: per-row scores ->
+// in `crates/coeus-ops/src/backend_ops/cpu_impl/attention.rs`: per-row scores ->
 // numerically stable softmax -> attn·V. Tensors are contiguous `[batch, seq,
 // dim]` with offset 0 (heads folded into batch). The attention matrix is
 // materialized into `aw`, matching the CPU contract.

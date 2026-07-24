@@ -6,7 +6,7 @@ automatically when MLX is absent.
 
 Run via::
 
-    pytest coeus-python/tests/test_mlx_parity.py -v
+    pytest crates/coeus-python/tests/test_mlx_parity.py -v
 
 Forward-only note:
 MLX currently does not expose f64 arrays on any platform (CPU/CPU only

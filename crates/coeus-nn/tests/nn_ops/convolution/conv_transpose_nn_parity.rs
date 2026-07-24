@@ -2,7 +2,7 @@
 //! structs in `coeus-nn`.
 //!
 //! The corresponding free-function ops are already covered in
-//! `coeus-ops/tests/conv_transpose_diff.rs`.  This file verifies that the
+//! `crates/coeus-ops/tests/conv_transpose_diff.rs`.  This file verifies that the
 //! Module wrapper routes the same computation on both backends and that the
 //! `output_len` / `output_size` helpers agree with the observed output shape.
 //!
