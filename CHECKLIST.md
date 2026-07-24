@@ -1,5 +1,14 @@
 # Coeus Development Roadmap Checklist
 
+## CUDA attention kernel tree [arch]
+- [ ] Split the 567-line attention kernel module into a manifest and cohesive
+      validation, source, forward, backward, and test leaves.
+- [ ] Preserve the public launch functions, checked dimensions, device-buffer
+      ownership, and explicit CPU capability boundary without adapters.
+- [ ] Verify all leaves remain below 500 lines and run format, diff,
+      feature-enabled check/Clippy, default Nextest, doctests, feature rustdoc,
+      and the CUDA-feature linker boundary.
+
 ## CUDA convolution backend tree [arch]
 - [x] Split the former 614-line convolution backend into a manifest and
       forward, backward, and transposed-convolution leaves.

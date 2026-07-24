@@ -1,5 +1,16 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-TREE-002 — Split attention kernel tree [arch] — in progress
+
+- Owner: Codex `/coeus`; scope: `coeus-cuda/src/kernels/attention/` and its
+  module declaration.
+- Outcome: replace the 567-line attention kernel module with a manifest and
+  cohesive validation, source, forward, backward, and test leaves while
+  preserving the public launch functions and the checked ABI boundary.
+- Acceptance: all leaves stay below the 500-line target; no duplicated launch
+  or validation logic; feature check/Clippy, default Nextest, doctests,
+  feature rustdoc, and the CUDA-feature linker boundary are recorded.
+
 ## ATLAS-CUDA-TREE-001 — Split convolution backend tree [arch] — done
 
 - Owner: Codex `/root`; scope: `coeus-cuda/src/backend/ops/conv/`.
