@@ -30,7 +30,7 @@ license = "MIT OR Apache-2.0"
 # the coherent provider revisions.
 moirai = { path = "../moirai/moirai", features = ["melinoe"] }
 moirai-async = { path = "../moirai/moirai-async" }
-mnemosyne = { path = "../mnemosyne/crates/mnemosyne", version = "^0.6.0" }
+mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
 # SIMD-effect SSOT.
 hermes-simd = { path = "../hermes/crates/hermes-simd" }
 eunomia = { version = "0.7.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }
