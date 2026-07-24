@@ -1,5 +1,17 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
+
+- Owner: Codex `/coeus`; scope: `coeus-ops/src/fuse/op_tags/`.
+- Outcome: replace the 625-line operation-tag module with a manifest and a
+  unary trait subtree whose leaves own elementary, transcendental, and
+  activation tags; preserve tag names, generic scalar dispatch, and WGSL
+  helpers.
+- Evidence: the operation-tag manifest is 9 lines and unary leaves are 27,
+  125, 180, and 294 lines; format and diff checks pass. Package gates remain
+  blocked by the unrelated dirty provider dependency manifest; no compiled or
+  test result is claimed for this slice.
+
 ## ATLAS-CUDA-TREE-002 — Split attention kernel tree [arch] — done
 
 - Owner: Codex `/coeus`; scope: `coeus-cuda/src/kernels/attention/` and its

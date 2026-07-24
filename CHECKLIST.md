@@ -1,5 +1,18 @@
 # Coeus Development Roadmap Checklist
 
+## Fused operation-tag tree [arch]
+- [x] Split the 625-line operation-tag module into an op-tags manifest and a
+      unary trait subtree with elementary, transcendental, and activation leaves.
+- [x] Preserve all public tag names, `UnaryOpTag` generic dispatch, WGSL
+      rendering, and existing binary/leaky-relu ownership without adapters.
+- [x] Verify all leaves remain below 500 lines and run format and diff checks;
+      record package-gate limitations without claiming compiled or test output.
+
+Evidence: the operation-tag manifest is 9 lines and unary leaves are 27, 125,
+180, and 294 lines. Format and diff checks pass. Package gates remain blocked
+by the unrelated dirty provider dependency manifest; no compiled or test result
+is claimed for this slice.
+
 ## CUDA attention kernel tree [arch]
 - [x] Split the 567-line attention kernel module into a manifest and cohesive
       validation, source, forward, backward, and test leaves.
