@@ -1,5 +1,21 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-BUILD-001 Locked provider source graph [patch]
+
+- [ ] Verify the current manifest graph and active peer provider declarations.
+- [ ] Regenerate or retain only the lockfile entries produced by those
+      declarations; remove transient path-source identity if present.
+- [ ] Run locked metadata and the affected package gates after the shared Cargo
+      target is available.
+- [ ] Record exact resolver, build, test, and documentation coverage limits.
+
+Evidence: the current Coeus manifest declares Cutile from the NVlabs Git
+source, while the checked-in lock previously lacked the corresponding source
+identity. The live lock delta records that Git source and current local Hermes
+provider versions. Hephaestus currently declares the same Cutile Git source in
+its clean peer worktree; the previous `/tmp/cutile-rs` path blocker is no
+longer present. Cargo verification remains pending active shared-target jobs.
+
 ## ATLAS-STRUCTURE-001 Workspace crate hierarchy [arch]
 
 - [x] Move all 13 workspace crates from the repository root into `crates/`
