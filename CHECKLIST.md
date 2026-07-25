@@ -119,8 +119,8 @@ Test-target increment: WGPU layout tests now construct `Shape`/`SmallVec`
 values through their supported conversions and assert typed error fields with
 guarded `matches!` patterns; WGPU parity tests handle fallible unary and direct
 backend calls explicitly, and tensor parity tests handle fallible assign
-operations. Direct nightly rustfmt and diff checks pass. The current queued
-Cargo check stops before Coeus compilation at the peer Leto
+operations. Direct nightly rustfmt and diff checks pass. The latest Cargo
+check stops before Coeus compilation at the peer Leto
 `Quantity<T>::in_unit` bound failure in `crates/leto/src/application/stencil.rs`
 lines 121-122; no test result is claimed.
 

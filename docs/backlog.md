@@ -143,7 +143,7 @@
   direct backend calls explicitly, and tensor parity tests handle fallible
   assign operations. Direct nightly rustfmt and diff checks pass. Cargo
   compilation and execution remain pending the provider graph's peer Leto
-  trait-bound failure. The current queued Coeus check stops before Coeus
+  trait-bound failure. The latest Coeus check stops before Coeus
   compilation at `crates/leto/src/application/stencil.rs:121-122`, where
   `Quantity<T>::in_unit` lacks `eunomia::traits::float::FloatElement`; no test
   result is claimed.
