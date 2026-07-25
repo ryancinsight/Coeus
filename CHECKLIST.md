@@ -130,6 +130,13 @@ and unsupported-operation behavior without a device. Direct nightly rustfmt
 and `git diff --check` pass; Cargo verification is blocked by the same peer
 Leto failure.
 
+Binary dispatch increment: contiguous and broadcasting paths now return typed
+results, validate all three layout descriptors before device initialization,
+and use the checked workgroup-count helper. The public WGPU `add` wrapper and
+the shared elementwise backend seam propagate the failure. Direct nightly
+rustfmt and `git diff --check` pass; Cargo verification remains blocked by the
+peer Leto failure.
+
 ## WGPU pool1d dispatch mode ownership [patch]
 - [x] Replace the forward dispatcher’s mixed forward/backward mode enum with
       a forward-only mode type.

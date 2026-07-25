@@ -153,6 +153,12 @@
   unsupported operation and workgroup boundaries. Direct nightly rustfmt and
   `git diff --check` pass; Cargo verification is blocked by the peer Leto error
   above.
+- Binary dispatch increment: contiguous and general/broadcasting binary kernels
+  now return the backend `Result`, consume checked layout metadata, and use the
+  same checked workgroup-count helper. The public WGPU `add` wrapper and the
+  `ElementwiseOps` implementation propagate the result without adapters.
+  Direct nightly rustfmt and `git diff --check` pass; Cargo verification is
+  blocked by the peer Leto error above.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

@@ -408,7 +408,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
                     &b.buffer,
                     &c.buffer,
                     c.len(),
-                );
+                )?;
             }
         } else if can_route_strided_wgpu(&[a_layout, b_layout], c_layout)
             && try_hephaestus_strided_binary_wgpu(op, a, a_layout, b, b_layout, c, c_layout)?
@@ -423,7 +423,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
                 &c.buffer,
                 c_layout,
                 c.len(),
-            );
+            )?;
         }
         Ok(())
     }

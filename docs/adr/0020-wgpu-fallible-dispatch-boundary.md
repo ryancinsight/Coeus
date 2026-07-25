@@ -94,3 +94,9 @@ affected Cargo check remains unverified because the current shared-target run
 stops in peer-owned Leto at `crates/leto/src/application/stencil.rs:121-122`:
 `Quantity<T>::in_unit` lacks the required `eunomia::traits::float::FloatElement`
 bound. No Coeus compilation or test result is claimed for this increment.
+
+The binary WGPU kernel family now uses the same checked layout and workgroup
+boundary for contiguous and general broadcasting dispatch. Its `Result` is
+propagated through `ElementwiseOps` and the public `add` wrapper. Direct
+nightly rustfmt and `git diff --check` pass; the same peer Leto bound failure
+prevents Coeus compilation and tests from running.

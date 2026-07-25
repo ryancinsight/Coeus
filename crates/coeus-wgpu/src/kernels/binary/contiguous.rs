@@ -1,5 +1,5 @@
 use super::super::cache::PIPELINE_CACHE;
-use crate::backend::WgpuScalar;
+use crate::backend::{checked_workgroup_count, WgpuBackendError, WgpuScalar};
 
 fn wgsl_cmp_literals(wgsl_type: &str) -> (&'static str, &'static str) {
     match wgsl_type {
@@ -34,7 +34,8 @@ pub fn dispatch_contiguous_binary<T: WgpuScalar>(
     b: &wgpu::Buffer,
     c: &wgpu::Buffer,
     len: usize,
-) {
+) -> Result<(), WgpuBackendError> {
+    let workgroups = checked_workgroup_count("contiguous binary", len)?;
     let ctx = crate::backend::get_wgpu_context();
     let wgsl_type = T::WGSL_TYPE;
 
@@ -203,9 +204,9 @@ pub fn dispatch_contiguous_binary<T: WgpuScalar>(
         });
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        let workgroups = len.div_ceil(256);
-        compute_pass.dispatch_workgroups(workgroups as u32, 1, 1);
+        compute_pass.dispatch_workgroups(workgroups, 1, 1);
     }
 
     ctx.queue.submit(Some(encoder.finish()));
+    Ok(())
 }

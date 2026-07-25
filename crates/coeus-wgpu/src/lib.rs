@@ -63,7 +63,7 @@ pub fn add<T: WgpuScalar>(
         b.storage().buffer.raw(),
         c_storage.buffer.raw(),
         len,
-    );
+    )?;
 
     Ok(Tensor::from_raw_parts(
         c_storage,

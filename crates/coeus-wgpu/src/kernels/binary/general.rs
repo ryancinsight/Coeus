@@ -1,6 +1,6 @@
 use super::super::cache::PIPELINE_CACHE;
 use super::super::layout::GpuLayoutInfo;
-use crate::backend::WgpuScalar;
+use crate::backend::{checked_workgroup_count, WgpuBackendError, WgpuScalar};
 
 fn wgsl_cmp_literals(wgsl_type: &str) -> (&'static str, &'static str) {
     match wgsl_type {
@@ -39,13 +39,16 @@ pub fn dispatch_binary<T: WgpuScalar>(
     c: &wgpu::Buffer,
     c_layout: &coeus_core::Layout,
     len: usize,
-) {
+) -> Result<(), WgpuBackendError> {
+    let workgroups = checked_workgroup_count("binary", len)?;
+    let a_layout_gpu = GpuLayoutInfo::try_from_layout(a_layout)
+        .map_err(|error| WgpuBackendError::Layout(error.into()))?;
+    let b_layout_gpu = GpuLayoutInfo::try_from_layout(b_layout)
+        .map_err(|error| WgpuBackendError::Layout(error.into()))?;
+    let c_layout_gpu = GpuLayoutInfo::try_from_layout(c_layout)
+        .map_err(|error| WgpuBackendError::Layout(error.into()))?;
     let ctx = crate::backend::get_wgpu_context();
     let wgsl_type = T::WGSL_TYPE;
-
-    let a_layout_gpu = GpuLayoutInfo::from_layout(a_layout);
-    let b_layout_gpu = GpuLayoutInfo::from_layout(b_layout);
-    let c_layout_gpu = GpuLayoutInfo::from_layout(c_layout);
 
     let a_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let b_layout_buf = crate::backend::PooledMetadataBuffer::new();
@@ -402,9 +405,9 @@ pub fn dispatch_binary<T: WgpuScalar>(
         });
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        let workgroups = len.div_ceil(256);
-        compute_pass.dispatch_workgroups(workgroups as u32, 1, 1);
+        compute_pass.dispatch_workgroups(workgroups, 1, 1);
     }
 
     ctx.queue.submit(Some(encoder.finish()));
+    Ok(())
 }
