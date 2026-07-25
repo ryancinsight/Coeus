@@ -70,8 +70,9 @@ is made by the API migration without a benchmark baseline.
 The elementwise and matmul families now use the associated backend error and
 fallible operation seams. CPU Leto failures map to the shared validation
 error, CUDA preserves provider failures, and WGPU preserves typed layout and
-dispatch failures. High-level arithmetic, unary, reduction, shape, and matmul
-callers propagate the result contract; no compatibility adapter or silent
+dispatch failures. High-level arithmetic, unary, shape, and matmul callers
+propagate the result contract; reduction remains an infallible trait seam and
+is not yet covered by this migration. No compatibility adapter or silent
 fallback was retained. The focused `coeus-ops` gate passes 87/87 nextest
 tests, 22/22 doctests, warning-denied Clippy, and package-local formatting.
 The WGPU library check and warning-denied Clippy pass. The public WGPU matmul

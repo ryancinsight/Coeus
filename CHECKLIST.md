@@ -102,7 +102,9 @@ WGSL ABI contract.
 Increment evidence: `ComputeBackend::Error` now carries the shared typed
 validation conversion; elementwise and matmul traits return `Result`; CPU
 maps Leto failures, CUDA and WGPU preserve provider-specific errors, and
-high-level `coeus-ops` callers propagate them. The focused `coeus-ops` gate
+high-level arithmetic, unary, shape, and matmul callers propagate them.
+`ReductionOps::reduce` remains an infallible seam and is a pending migration
+slice. The focused `coeus-ops` gate
 passes 87/87 nextest tests, 22/22 doctests, warning-denied Clippy, and
 package-local formatting. The WGPU library check and warning-denied Clippy
 also pass. The locked WGPU all-targets check now reaches compilation but is

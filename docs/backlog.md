@@ -122,8 +122,9 @@
   failures through the shared backend seam.
 - Increment: elementwise and matmul operations now propagate CPU Leto errors,
   CUDA provider errors, and WGPU layout/dispatch errors without adapters or
-  silent fallback. High-level arithmetic, unary, reduction, shape, and
-  matmul callers propagate the same result contract. Focused verification is
+  silent fallback. High-level arithmetic, unary, shape, and matmul callers
+  propagate the same result contract; the `ReductionOps::reduce` trait seam
+  remains infallible and is a pending migration slice. Focused verification is
   87/87 nextest tests, 22/22 doctests, warning-denied Clippy, and package-local
   format check; the typed incompatible-broadcast regression is value-asserted.
 - Dependency: the focused `coeus-ops` package is verified, and the WGPU
@@ -159,6 +160,11 @@
   `ElementwiseOps` implementation propagate the result without adapters.
   Direct nightly rustfmt and `git diff --check` pass; Cargo verification is
   blocked by the peer Leto error above.
+- Reduction residual: `ReductionOps::reduce` still returns `()` across the
+  shared trait and CPU/CUDA/WGPU implementations. WGPU reduction also retains
+  unchecked layout, axis, binding, and dispatch conversions. This is the next
+  dependency-ordered API slice; no compatibility adapter or silent fallback is
+  introduced to mask it.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 
