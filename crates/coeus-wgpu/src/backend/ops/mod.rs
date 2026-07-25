@@ -446,13 +446,13 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             && c_layout.offset() == 0
         {
             if !try_hephaestus_contiguous_unary(op, a, c)? {
-                kernels::dispatch_contiguous_unary::<T>(op, &a.buffer, &c.buffer, c.len());
+                kernels::dispatch_contiguous_unary::<T>(op, &a.buffer, &c.buffer, c.len())?;
             }
         } else if can_route_strided_wgpu(&[a_layout], c_layout)
             && try_hephaestus_strided_unary_wgpu(op, a, a_layout, c, c_layout)?
         {
         } else {
-            kernels::dispatch_unary::<T>(op, &a.buffer, a_layout, &c.buffer, c_layout, c.len());
+            kernels::dispatch_unary::<T>(op, &a.buffer, a_layout, &c.buffer, c_layout, c.len())?;
         }
         Ok(())
     }

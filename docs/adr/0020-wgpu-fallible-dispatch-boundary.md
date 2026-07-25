@@ -83,3 +83,14 @@ normalization errors from the incomplete fallible-operation migration; peer
 `coeus-autograd` also emits 143 unused-`Result` warnings. The prior local/Git
 Leto dependency-resolution blocker is resolved. No runtime performance or
 memory claim is made without profile and benchmark evidence.
+
+The unary WGPU kernel family now consumes `GpuLayoutInfo::try_from_layout`,
+returns `Result` through both contiguous and strided dispatch paths, rejects
+the unsupported `lgamma` operation with a typed backend error, and validates
+the rounded workgroup count before the WGPU ABI boundary. Unit tests cover
+rounding, overflow, out-of-range counts, and the unsupported operation without
+initializing a device. Direct nightly rustfmt and `git diff --check` pass. The
+affected Cargo check remains unverified because the current shared-target run
+stops in peer-owned Leto at `crates/leto/src/application/stencil.rs:121-122`:
+`Quantity<T>::in_unit` lacks the required `eunomia::traits::float::FloatElement`
+bound. No Coeus compilation or test result is claimed for this increment.

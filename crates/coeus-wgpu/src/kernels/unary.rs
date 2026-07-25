@@ -1,9 +1,9 @@
 use super::cache::PIPELINE_CACHE;
 use super::layout::GpuLayoutInfo;
-use crate::backend::WgpuScalar;
+use crate::backend::{WgpuBackendError, WgpuScalar};
 
-fn unary_expr(op: coeus_ops::UnaryOp) -> String {
-    match op {
+fn unary_expr(op: coeus_ops::UnaryOp) -> Result<String, WgpuBackendError> {
+    let expression = match op {
         coeus_ops::UnaryOp::Relu => "max(val, 0.0)".to_string(),
         coeus_ops::UnaryOp::ReluGrad => "select(0.0, 1.0, val > 0.0)".to_string(),
         coeus_ops::UnaryOp::Sigmoid => "1.0 / (1.0 + exp(-val))".to_string(),
@@ -21,7 +21,7 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> String {
             format!("(1.0 - ({}))", coeus_ops::fuse::wgsl_erf_approx_expr("val"))
         }
         coeus_ops::UnaryOp::Lgamma => {
-            panic!("lgamma is not supported by the WGPU unary shader path")
+            return Err(WgpuBackendError::UnsupportedOperation { operation: "lgamma" });
         }
         coeus_ops::UnaryOp::Tan => "tan(val)".to_string(),
         coeus_ops::UnaryOp::Asin => "asin(val)".to_string(),
@@ -134,7 +134,8 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> String {
         coeus_ops::UnaryOp::Ceil => "ceil(val)".to_string(),
         coeus_ops::UnaryOp::Round => "round(val)".to_string(),
         coeus_ops::UnaryOp::Trunc => "trunc(val)".to_string(),
-    }
+    };
+    Ok(expression)
 }
 
 /// Dispatch a WGSL shader for general elementwise unary operations with layout traversal.
@@ -145,12 +146,15 @@ pub fn dispatch_unary<T: WgpuScalar>(
     c: &wgpu::Buffer,
     c_layout: &coeus_core::Layout,
     len: usize,
-) {
+) -> Result<(), WgpuBackendError> {
+    let expr = unary_expr(op)?;
+    let workgroups = crate::backend::checked_workgroup_count("unary", len)?;
+    let a_layout_gpu = GpuLayoutInfo::try_from_layout(a_layout)
+        .map_err(|error| WgpuBackendError::Layout(error.into()))?;
+    let c_layout_gpu = GpuLayoutInfo::try_from_layout(c_layout)
+        .map_err(|error| WgpuBackendError::Layout(error.into()))?;
     let ctx = crate::backend::get_wgpu_context();
     let wgsl_type = T::WGSL_TYPE;
-
-    let a_layout_gpu = GpuLayoutInfo::from_layout(a_layout);
-    let c_layout_gpu = GpuLayoutInfo::from_layout(c_layout);
 
     let a_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let c_layout_buf = crate::backend::PooledMetadataBuffer::new();
@@ -159,8 +163,6 @@ pub fn dispatch_unary<T: WgpuScalar>(
         .write_buffer(&a_layout_buf, 0, bytemuck::bytes_of(&a_layout_gpu));
     ctx.queue
         .write_buffer(&c_layout_buf, 0, bytemuck::bytes_of(&c_layout_gpu));
-
-    let expr = unary_expr(op);
 
     let is_inplace = std::ptr::eq(a, c);
     let key = format!("unary_{:?}_{}_inplace_{}", op, wgsl_type, is_inplace);
@@ -312,11 +314,11 @@ pub fn dispatch_unary<T: WgpuScalar>(
         });
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        let workgroups = len.div_ceil(256);
-        compute_pass.dispatch_workgroups(workgroups as u32, 1, 1);
+        compute_pass.dispatch_workgroups(workgroups, 1, 1);
     }
 
     ctx.queue.submit(Some(encoder.finish()));
+    Ok(())
 }
 
 /// Dispatch a WGSL shader for flat contiguous elementwise unary operations without layout traversal.
@@ -325,11 +327,11 @@ pub fn dispatch_contiguous_unary<T: WgpuScalar>(
     a: &wgpu::Buffer,
     c: &wgpu::Buffer,
     len: usize,
-) {
+) -> Result<(), WgpuBackendError> {
+    let expr = unary_expr(op)?;
+    let workgroups = crate::backend::checked_workgroup_count("contiguous unary", len)?;
     let ctx = crate::backend::get_wgpu_context();
     let wgsl_type = T::WGSL_TYPE;
-
-    let expr = unary_expr(op);
 
     let is_inplace = std::ptr::eq(a, c);
     let key = format!(
@@ -416,9 +418,25 @@ pub fn dispatch_contiguous_unary<T: WgpuScalar>(
         });
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        let workgroups = len.div_ceil(256);
-        compute_pass.dispatch_workgroups(workgroups as u32, 1, 1);
+        compute_pass.dispatch_workgroups(workgroups, 1, 1);
     }
 
     ctx.queue.submit(Some(encoder.finish()));
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::unary_expr;
+    use crate::backend::WgpuBackendError;
+
+    #[test]
+    fn rejects_unsupported_lgamma_without_panicking() {
+        assert!(matches!(
+            unary_expr(coeus_ops::UnaryOp::Lgamma),
+            Err(WgpuBackendError::UnsupportedOperation {
+                operation: "lgamma"
+            })
+        ));
+    }
 }

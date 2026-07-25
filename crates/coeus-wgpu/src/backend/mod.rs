@@ -6,6 +6,7 @@ use std::sync::OnceLock;
 mod error;
 pub mod ops;
 
+pub(crate) use error::checked_workgroup_count;
 pub use error::{LayoutError, WgpuBackendError};
 
 const METADATA_BUFFER_SIZE: u64 = 1024;

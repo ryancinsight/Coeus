@@ -117,9 +117,18 @@ Test-target increment: WGPU layout tests now construct `Shape`/`SmallVec`
 values through their supported conversions and assert typed error fields with
 guarded `matches!` patterns; WGPU parity tests handle fallible unary and direct
 backend calls explicitly, and tensor parity tests handle fallible assign
-operations. Direct nightly rustfmt and diff checks pass. Cargo compilation and
-execution remain pending the shared-target slot and the peer Hephaestus
-`/tmp/cutile-rs` path dependency; no test result is claimed.
+operations. Direct nightly rustfmt and diff checks pass. The current queued
+Cargo check stops before Coeus compilation at the peer Leto
+`Quantity<T>::in_unit` bound failure in `crates/leto/src/application/stencil.rs`
+lines 121-122; no test result is claimed.
+
+Unary dispatch increment: both unary kernel entry points now return typed
+backend errors, use checked layout conversion, reject unsupported `lgamma`, and
+validate workgroup rounding before converting to the WGPU `u32` dispatch ABI.
+The new unit tests cover supported rounding, arithmetic overflow, ABI range,
+and unsupported-operation behavior without a device. Direct nightly rustfmt
+and `git diff --check` pass; Cargo verification is blocked by the same peer
+Leto failure.
 
 ## WGPU pool1d dispatch mode ownership [patch]
 - [x] Replace the forward dispatcher’s mixed forward/backward mode enum with

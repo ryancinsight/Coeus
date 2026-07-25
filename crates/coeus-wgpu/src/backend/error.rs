@@ -22,6 +22,28 @@ pub enum WgpuBackendError {
         #[source]
         source: HephaestusError,
     },
+    /// The selected operation has no implementation in this backend path.
+    #[error("WGPU operation {operation} is unsupported")]
+    UnsupportedOperation {
+        /// Operation name at the backend boundary.
+        operation: &'static str,
+    },
+    /// The requested dispatch count overflowed while being rounded to a workgroup.
+    #[error("WGPU {operation} length {length} overflows workgroup-count arithmetic")]
+    WorkgroupCountOverflow {
+        /// Operation family being dispatched.
+        operation: &'static str,
+        /// Logical element count that overflowed the rounding calculation.
+        length: usize,
+    },
+    /// The rounded workgroup count cannot be represented by the WGPU ABI.
+    #[error("WGPU {operation} workgroup count {count} exceeds the u32 dispatch ABI")]
+    WorkgroupCountOutOfRange {
+        /// Operation family being dispatched.
+        operation: &'static str,
+        /// Unrepresentable workgroup count.
+        count: usize,
+    },
 }
 
 /// WGPU layout validation failure retained at the backend boundary.
@@ -99,5 +121,65 @@ impl WgpuBackendError {
         crate::kernels::layout::GpuLayoutInfo::try_from_layout(layout)
             .map(|_| ())
             .map_err(|error| Self::Layout(error.into()))
+    }
+
+    pub(crate) fn checked_workgroup_count(
+        operation: &'static str,
+        length: usize,
+    ) -> Result<u32, Self> {
+        let workgroups = length
+            .checked_add(255)
+            .ok_or(Self::WorkgroupCountOverflow { operation, length })?
+            / 256;
+        u32::try_from(workgroups).map_err(|_| Self::WorkgroupCountOutOfRange {
+            operation,
+            count: workgroups,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::WgpuBackendError;
+
+    #[test]
+    fn rounds_lengths_without_narrowing_loss() {
+        assert!(matches!(
+            WgpuBackendError::checked_workgroup_count("test", 0),
+            Ok(0)
+        ));
+        assert!(matches!(
+            WgpuBackendError::checked_workgroup_count("test", 256),
+            Ok(1)
+        ));
+        assert!(matches!(
+            WgpuBackendError::checked_workgroup_count("test", 257),
+            Ok(2)
+        ));
+    }
+
+    #[test]
+    fn rejects_rounding_overflow() {
+        assert!(matches!(
+            WgpuBackendError::checked_workgroup_count("test", usize::MAX),
+            Err(WgpuBackendError::WorkgroupCountOverflow {
+                operation: "test",
+                length,
+            }) if length == usize::MAX
+        ));
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn rejects_counts_outside_the_dispatch_abi() {
+        let length = usize::try_from(u64::from(u32::MAX) * 256 + 1)
+            .expect("u64 dispatch test value fits usize");
+        assert!(matches!(
+            WgpuBackendError::checked_workgroup_count("test", length),
+            Err(WgpuBackendError::WorkgroupCountOutOfRange {
+                operation: "test",
+                count,
+            }) if count == usize::from(u32::MAX) + 1
+        ));
     }
 }

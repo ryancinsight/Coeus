@@ -105,7 +105,7 @@
 
 ## ATLAS-WGPU-SAFETY-002 — Establish fallible WGPU layout/dispatch boundary [arch] — in-progress
 
-- Owner: Codex `/coeus`; last-update: 2026-07-24; scope:
+- Owner: Codex `/coeus`; last-update: 2026-07-25; scope:
   `crates/coeus-wgpu/src/kernels/layout.rs`, its 23 consumers, and the `coeus-ops`
   backend-operation return contract.
 - Outcome: replace unchecked `usize`→WGSL `u32` layout metadata narrowing and
@@ -141,8 +141,18 @@
   guarded `matches!` patterns; WGPU parity tests handle fallible unary and
   direct backend calls explicitly, and tensor parity tests handle fallible
   assign operations. Direct nightly rustfmt and diff checks pass. Cargo
-  compilation and execution remain pending the shared-target slot and the
-  peer Hephaestus `/tmp/cutile-rs` path dependency; no test result is claimed.
+  compilation and execution remain pending the provider graph's peer Leto
+  trait-bound failure. The current queued Coeus check stops before Coeus
+  compilation at `crates/leto/src/application/stencil.rs:121-122`, where
+  `Quantity<T>::in_unit` lacks `eunomia::traits::float::FloatElement`; no test
+  result is claimed.
+- Unary dispatch increment: `dispatch_unary` and
+  `dispatch_contiguous_unary` now return the backend `Result`, consume checked
+  layout metadata, reject unsupported `lgamma` with a typed error, and route
+  workgroup rounding through one checked `u32` ABI helper. Unit tests cover the
+  unsupported operation and workgroup boundaries. Direct nightly rustfmt and
+  `git diff --check` pass; Cargo verification is blocked by the peer Leto error
+  above.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 
