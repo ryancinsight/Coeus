@@ -5,17 +5,22 @@
 - Owner: Codex `/coeus`; scope: `Cargo.lock` and the provider-graph evidence for
   the current workspace manifests. Peer manifests remain out of scope.
 - Outcome: make the committed lockfile agree with the current Git/path provider
-  declarations without retaining transient local mounts or duplicate source
-  identities.
+  declarations without retaining transient local mounts or duplicate Cutile
+  source identities.
 - Non-goals: no provider source edits, crate renames, API migration, or CUDA
   implementation changes.
 - Acceptance: locked metadata resolves from the current checkout, the Cutile
   packages have one authoritative Git source, path-provider versions match the
-  live workspace manifests, and the lock diff passes format/diff checks.
+  live workspace manifests, and the lock diff passes diff checks.
 - Risk/change class: `[patch]` reproducibility and migration-graph repair.
 - Status: claimed for the current increment; Cargo execution is serialized
   behind active shared-target jobs. The peer Hephaestus Cutile declaration is
   currently Git-backed and its worktree is clean; no peer file is modified.
+  Locked offline metadata now resolves 373 packages and 13 workspace members;
+  package compilation and tests remain a separate pending gate. Full metadata
+  still contains registry/Git duplicates inherited by external provider
+  consumers (`eunomia`, `melinoe`, `mnemosyne`, and `themis`); those source
+  identities are outside this Coeus-only lock increment.
 
 ## ATLAS-STRUCTURE-001 — Normalize workspace crates directory [arch] — done
 

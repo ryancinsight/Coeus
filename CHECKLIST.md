@@ -2,19 +2,23 @@
 
 ## ATLAS-COEUS-BUILD-001 Locked provider source graph [patch]
 
-- [ ] Verify the current manifest graph and active peer provider declarations.
-- [ ] Regenerate or retain only the lockfile entries produced by those
+- [x] Verify the current manifest graph and active peer provider declarations.
+- [x] Regenerate or retain only the lockfile entries produced by those
       declarations; remove transient path-source identity if present.
 - [ ] Run locked metadata and the affected package gates after the shared Cargo
       target is available.
-- [ ] Record exact resolver, build, test, and documentation coverage limits.
+- [x] Record exact resolver, build, test, and documentation coverage limits.
 
 Evidence: the current Coeus manifest declares Cutile from the NVlabs Git
 source, while the checked-in lock previously lacked the corresponding source
 identity. The live lock delta records that Git source and current local Hermes
 provider versions. Hephaestus currently declares the same Cutile Git source in
 its clean peer worktree; the previous `/tmp/cutile-rs` path blocker is no
-longer present. Cargo verification remains pending active shared-target jobs.
+longer present. `cargo metadata --locked --offline --no-deps` resolves 13
+workspace members and full `cargo metadata --locked --offline` resolves 373
+packages. The broad `cargo fmt --all -- --check` remains red on existing
+formatting drift in Coeus and sibling path workspaces; affected package build,
+test, and documentation gates remain pending.
 
 ## ATLAS-STRUCTURE-001 Workspace crate hierarchy [arch]
 
