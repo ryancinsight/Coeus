@@ -145,8 +145,17 @@
   compilation and execution remain pending the provider graph's peer Leto
   trait-bound failure. The latest Coeus check stops before Coeus
   compilation at `crates/leto/src/application/stencil.rs:121-122`, where
-  `Quantity<T>::in_unit` lacks `eunomia::traits::float::FloatElement`; no test
-  result is claimed.
+ `Quantity<T>::in_unit` lacks `eunomia::traits::float::FloatElement`; no test
+ result is claimed.
+- Active reduction increment: claim the `ReductionOps::reduce` axis-reduction
+  family across the shared trait, CPU, CUDA, WGPU, and public `sum`/`mean`/
+  `max`/`min` callers. The increment deletes the unit-returning seam and CPU
+  `expect`, propagates typed failures, and validates WGPU layout, axis, output
+  count, and dispatch conversions. Fused reduction and the default
+  `argmax`/`argmin`/`cumsum` paths are non-goals for this increment. The latest
+  locked check remains blocked before Coeus compilation by the peer Leto
+  `Quantity<T>::in_unit` bound failure; no compile or test result is claimed
+  until the provider graph permits it.
 - Unary dispatch increment: `dispatch_unary` and
   `dispatch_contiguous_unary` now return the backend `Result`, consume checked
   layout metadata, reject unsupported `lgamma` with a typed error, and route

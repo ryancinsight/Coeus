@@ -121,8 +121,28 @@ guarded `matches!` patterns; WGPU parity tests handle fallible unary and direct
 backend calls explicitly, and tensor parity tests handle fallible assign
 operations. Direct nightly rustfmt and diff checks pass. The latest Cargo
 check stops before Coeus compilation at the peer Leto
-`Quantity<T>::in_unit` bound failure in `crates/leto/src/application/stencil.rs`
-lines 121-122; no test result is claimed.
+ `Quantity<T>::in_unit` bound failure in `crates/leto/src/application/stencil.rs`
+ lines 121-122; no test result is claimed.
+
+## Axis-reduction error propagation [major] [arch]
+- [ ] Change `ReductionOps::reduce` to return the backend-associated typed
+      `Result`, then migrate CPU, CUDA, and WGPU implementations without a
+      unit-returning adapter or silent fallback.
+- [ ] Replace the CPU reduction `expect` with the existing Leto-to-backend
+      error mapping and validate WGPU layout, axis, output count, and dispatch
+      conversions before queue submission.
+- [ ] Migrate public `sum`, `mean`, `sum_axis`, `mean_axis`, `max_axis`, and
+      `min_axis` callers and value-semantic tests together; fused reduction and
+      default index/cumulative reductions remain separate follow-up items.
+- [ ] Run direct format/diff checks and the affected package gates when the
+      peer Leto provider graph permits compilation; record the exact blocker
+      otherwise.
+
+Claim: Codex `/coeus`; scope is the shared axis-reduction seam and its direct
+CPU/CUDA/WGPU/public callers. The current locked check stops in peer-owned Leto
+at `crates/leto/src/application/stencil.rs:121-122` because
+`Quantity<T>::in_unit` lacks the required `FloatElement` bound. No compilation,
+test, or performance result is claimed while that blocker remains.
 
 Unary dispatch increment: both unary kernel entry points now return typed
 backend errors, use checked layout conversion, reject unsupported `lgamma`, and
