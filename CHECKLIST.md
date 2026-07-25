@@ -5,8 +5,8 @@
 - [x] Verify the current manifest graph and active peer provider declarations.
 - [x] Regenerate or retain only the lockfile entries produced by those
       declarations; remove transient path-source identity if present.
-- [ ] Run locked metadata and the affected package gates after the shared Cargo
-      target is available.
+- [x] Run locked metadata against the current provider graph; the affected
+      package gates remain owned by the source items below.
 - [x] Record exact resolver, build, test, and documentation coverage limits.
 
 Evidence: the current Coeus manifest declares Cutile from the NVlabs Git

@@ -1,6 +1,6 @@
 # Coeus Project Backlog & Historical Archives
 
-## ATLAS-COEUS-BUILD-001 — Reconcile locked provider source graph [patch] — in-progress
+## ATLAS-COEUS-BUILD-001 — Reconcile locked provider source graph [patch] — done
 
 - Owner: Codex `/coeus`; scope: `Cargo.lock` and the provider-graph evidence for
   the current workspace manifests. Peer manifests remain out of scope.
@@ -13,14 +13,13 @@
   packages have one authoritative Git source, path-provider versions match the
   live workspace manifests, and the lock diff passes diff checks.
 - Risk/change class: `[patch]` reproducibility and migration-graph repair.
-- Status: claimed for the current increment; Cargo execution is serialized
-  behind active shared-target jobs. The peer Hephaestus Cutile declaration is
-  currently Git-backed and its worktree is clean; no peer file is modified.
-  Locked offline metadata now resolves 373 packages and 13 workspace members;
-  package compilation and tests remain a separate pending gate. Full metadata
-  still contains registry/Git duplicates inherited by external provider
-  consumers (`eunomia`, `melinoe`, `mnemosyne`, and `themis`); those source
-  identities are outside this Coeus-only lock increment.
+- Status: complete. The peer Hephaestus Cutile declaration is Git-backed and
+  its worktree is clean; no peer file was modified. Locked offline metadata
+  resolves 373 packages and 13 workspace members. Full metadata still contains
+  registry/Git duplicates inherited by external provider consumers (`eunomia`,
+  `melinoe`, `mnemosyne`, and `themis`); those source identities are outside
+  this Coeus-only lock increment. Package compilation and tests remain tracked
+  by the affected source items below.
 
 ## ATLAS-STRUCTURE-001 — Normalize workspace crates directory [arch] — done
 
