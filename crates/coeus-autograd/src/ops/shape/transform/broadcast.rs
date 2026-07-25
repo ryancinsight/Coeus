@@ -40,7 +40,8 @@ where
         if let Some(Some(ref g)) = input_grads.first() {
             let mut grad_input = grad_out.clone();
             for &axis in &self.broadcast_dims {
-                grad_input = coeus_ops::sum_axis(&grad_input, axis, &backend);
+                grad_input = coeus_ops::sum_axis(&grad_input, axis, &backend)
+                    .expect("invariant: broadcast gradient axis is derived from the input shape");
             }
             let lock = g.write();
             coeus_ops::add_assign(lock, &grad_input, &backend);

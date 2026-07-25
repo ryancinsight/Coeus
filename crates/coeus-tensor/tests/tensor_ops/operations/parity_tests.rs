@@ -120,21 +120,21 @@ fn test_reductions_parity() {
     let a = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data);
 
     // Test sum all
-    let total = coeus_ops::sum(&a, &backend);
+    let total = coeus_ops::sum(&a, &backend).expect("valid sum");
     assert_eq!(total, 21.0);
 
     // Test sum along axis 0 (reduces row dimension) -> [1, 3]
-    let sum_r = coeus_ops::sum_axis(&a, 0, &backend);
+    let sum_r = coeus_ops::sum_axis(&a, 0, &backend).expect("valid sum axis");
     assert_eq!(sum_r.shape(), &[1, 3]);
     assert_eq!(sum_r.as_slice(), &[5.0, 7.0, 9.0]);
 
     // Test sum along axis 1 (reduces col dimension) -> [2, 1]
-    let sum_c = coeus_ops::sum_axis(&a, 1, &backend);
+    let sum_c = coeus_ops::sum_axis(&a, 1, &backend).expect("valid sum axis");
     assert_eq!(sum_c.shape(), &[2, 1]);
     assert_eq!(sum_c.as_slice(), &[6.0, 15.0]);
 
     // Test mean along axis 1 -> [2, 1]
-    let mean_c = coeus_ops::mean_axis(&a, 1, &backend);
+    let mean_c = coeus_ops::mean_axis(&a, 1, &backend).expect("valid mean axis");
     assert_eq!(mean_c.shape(), &[2, 1]);
     assert_eq!(mean_c.as_slice(), &[2.0, 5.0]);
 }
@@ -306,7 +306,7 @@ fn test_sliced_tensor_reshape_and_reduction() {
     assert_eq!(reshaped_a.as_slice(), &[3.0, 4.0, 5.0, 6.0]);
 
     // Sum reduction on offset contiguous view
-    let sum_val = coeus_ops::sum(&slice_a, &backend);
+    let sum_val = coeus_ops::sum(&slice_a, &backend).expect("valid sum");
     assert_eq!(sum_val, 18.0); // 3 + 4 + 5 + 6 = 18
 }
 

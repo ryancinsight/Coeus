@@ -15,20 +15,22 @@ pub(crate) fn bench_sum(c: &mut Criterion) {
     let mut group = c.benchmark_group("Sum axis=1 (1024x1024)");
     group.bench_function("Coeus Sequential", |bencher| {
         bencher.iter(|| {
-            black_box(coeus_ops::sum_axis(
-                black_box(&sequential_input),
-                1,
-                black_box(&sequential_backend),
-            ))
+            black_box(
+                coeus_ops::sum_axis(
+                    black_box(&sequential_input),
+                    1,
+                    black_box(&sequential_backend),
+                )
+                .expect("valid benchmark reduction"),
+            )
         })
     });
     group.bench_function("Coeus Moirai", |bencher| {
         bencher.iter(|| {
-            black_box(coeus_ops::sum_axis(
-                black_box(&moirai_input),
-                1,
-                black_box(&moirai_backend),
-            ))
+            black_box(
+                coeus_ops::sum_axis(black_box(&moirai_input), 1, black_box(&moirai_backend))
+                    .expect("valid benchmark reduction"),
+            )
         })
     });
     group.finish();

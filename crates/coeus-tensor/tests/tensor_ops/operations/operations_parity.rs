@@ -148,22 +148,22 @@ fn test_provider_parity_reductions() {
     let x_coeus = Tensor::from_slice(shape, &data);
 
     // 1. Sum along axis 0
-    let out_coeus = coeus_ops::sum_axis(&x_coeus, 0, &backend);
+    let out_coeus = coeus_ops::sum_axis(&x_coeus, 0, &backend).expect("valid sum axis");
     let expected_sum0 = vec![5.0, 7.0, 9.0];
     assert_tensor_eq(&out_coeus, &expected_sum0, 1e-4);
 
     // 2. Sum along axis 1
-    let out_coeus = coeus_ops::sum_axis(&x_coeus, 1, &backend);
+    let out_coeus = coeus_ops::sum_axis(&x_coeus, 1, &backend).expect("valid sum axis");
     let expected_sum1 = vec![6.0, 15.0];
     assert_tensor_eq(&out_coeus, &expected_sum1, 1e-4);
 
     // 3. Mean along axis 0
-    let out_coeus = coeus_ops::mean_axis(&x_coeus, 0, &backend);
+    let out_coeus = coeus_ops::mean_axis(&x_coeus, 0, &backend).expect("valid mean axis");
     let expected_mean0 = vec![2.5, 3.5, 4.5];
     assert_tensor_eq(&out_coeus, &expected_mean0, 1e-4);
 
     // 4. Mean along axis 1
-    let out_coeus = coeus_ops::mean_axis(&x_coeus, 1, &backend);
+    let out_coeus = coeus_ops::mean_axis(&x_coeus, 1, &backend).expect("valid mean axis");
     let expected_mean1 = vec![2.0, 5.0];
     assert_tensor_eq(&out_coeus, &expected_mean1, 1e-4);
 }

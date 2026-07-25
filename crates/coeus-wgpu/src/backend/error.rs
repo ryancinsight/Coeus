@@ -122,46 +122,52 @@ impl WgpuBackendError {
             .map(|_| ())
             .map_err(|error| Self::Layout(error.into()))
     }
+}
 
-    pub(crate) fn checked_workgroup_count(
-        operation: &'static str,
-        length: usize,
-    ) -> Result<u32, Self> {
-        let workgroups = length
-            .checked_add(255)
-            .ok_or(Self::WorkgroupCountOverflow { operation, length })?
-            / 256;
-        u32::try_from(workgroups).map_err(|_| Self::WorkgroupCountOutOfRange {
-            operation,
-            count: workgroups,
+pub(crate) fn checked_workgroup_count(
+    operation: &'static str,
+    length: usize,
+) -> Result<u32, WgpuBackendError> {
+    let workgroups = length
+        .checked_add(255)
+        .ok_or(WgpuBackendError::WorkgroupCountOverflow { operation, length })?
+        / 256;
+    u32::try_from(workgroups).map_err(|_| WgpuBackendError::WorkgroupCountOutOfRange {
+        operation,
+        count: workgroups,
+    })
+}
+
+pub(crate) fn checked_numel(
+    operation: &'static str,
+    shape: &[usize],
+) -> Result<usize, WgpuBackendError> {
+    shape.iter().try_fold(1usize, |numel, &dimension| {
+        numel.checked_mul(dimension).ok_or_else(|| {
+            WgpuBackendError::Validation(BackendError::Overflow {
+                operation,
+                reason: "output element-count arithmetic overflow",
+            })
         })
-    }
+    })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::WgpuBackendError;
+    use super::{checked_numel, checked_workgroup_count, WgpuBackendError};
+    use coeus_core::BackendError;
 
     #[test]
     fn rounds_lengths_without_narrowing_loss() {
-        assert!(matches!(
-            WgpuBackendError::checked_workgroup_count("test", 0),
-            Ok(0)
-        ));
-        assert!(matches!(
-            WgpuBackendError::checked_workgroup_count("test", 256),
-            Ok(1)
-        ));
-        assert!(matches!(
-            WgpuBackendError::checked_workgroup_count("test", 257),
-            Ok(2)
-        ));
+        assert!(matches!(checked_workgroup_count("test", 0), Ok(0)));
+        assert!(matches!(checked_workgroup_count("test", 256), Ok(1)));
+        assert!(matches!(checked_workgroup_count("test", 257), Ok(2)));
     }
 
     #[test]
     fn rejects_rounding_overflow() {
         assert!(matches!(
-            WgpuBackendError::checked_workgroup_count("test", usize::MAX),
+            checked_workgroup_count("test", usize::MAX),
             Err(WgpuBackendError::WorkgroupCountOverflow {
                 operation: "test",
                 length,
@@ -175,11 +181,22 @@ mod tests {
         let length = usize::try_from(u64::from(u32::MAX) * 256 + 1)
             .expect("u64 dispatch test value fits usize");
         assert!(matches!(
-            WgpuBackendError::checked_workgroup_count("test", length),
+            checked_workgroup_count("test", length),
             Err(WgpuBackendError::WorkgroupCountOutOfRange {
                 operation: "test",
                 count,
             }) if count == usize::from(u32::MAX) + 1
+        ));
+    }
+
+    #[test]
+    fn rejects_output_element_count_overflow() {
+        assert!(matches!(
+            checked_numel("reduction", &[usize::MAX, 2]),
+            Err(WgpuBackendError::Validation(BackendError::Overflow {
+                operation: "reduction",
+                reason: "output element-count arithmetic overflow",
+            }))
         ));
     }
 }

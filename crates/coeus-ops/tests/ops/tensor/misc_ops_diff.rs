@@ -36,18 +36,42 @@ where
 {
     // 1-D: amax([1,5,3,2,4]) = 5, amin = 1
     let v = t(&[5], &[1.0, 5.0, 3.0, 2.0, 4.0], backend);
-    assert_eq!(coeus_ops::amax(&v, backend), 5.0_f64, "amax 1-D");
-    assert_eq!(coeus_ops::amin(&v, backend), 1.0_f64, "amin 1-D");
+    assert_eq!(
+        coeus_ops::amax(&v, backend).expect("valid amax"),
+        5.0_f64,
+        "amax 1-D"
+    );
+    assert_eq!(
+        coeus_ops::amin(&v, backend).expect("valid amin"),
+        1.0_f64,
+        "amin 1-D"
+    );
 
     // 2-D: amax([[3,1],[2,4]]) = 4, amin = 1
     let m = t(&[2, 2], &[3.0, 1.0, 2.0, 4.0], backend);
-    assert_eq!(coeus_ops::amax(&m, backend), 4.0_f64, "amax 2-D");
-    assert_eq!(coeus_ops::amin(&m, backend), 1.0_f64, "amin 2-D");
+    assert_eq!(
+        coeus_ops::amax(&m, backend).expect("valid amax"),
+        4.0_f64,
+        "amax 2-D"
+    );
+    assert_eq!(
+        coeus_ops::amin(&m, backend).expect("valid amin"),
+        1.0_f64,
+        "amin 2-D"
+    );
 
     // Single element: amax/amin both equal that element.
     let s = t(&[1], &[7.0], backend);
-    assert_eq!(coeus_ops::amax(&s, backend), 7.0_f64, "amax scalar");
-    assert_eq!(coeus_ops::amin(&s, backend), 7.0_f64, "amin scalar");
+    assert_eq!(
+        coeus_ops::amax(&s, backend).expect("valid amax"),
+        7.0_f64,
+        "amax scalar"
+    );
+    assert_eq!(
+        coeus_ops::amin(&s, backend).expect("valid amin"),
+        7.0_f64,
+        "amin scalar"
+    );
 }
 
 // DOT

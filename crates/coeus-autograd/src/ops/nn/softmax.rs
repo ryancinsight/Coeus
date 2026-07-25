@@ -60,7 +60,8 @@ pub(crate) fn accumulate_softmax_grad<T, B>(
 {
     let backend = B::default();
     let gy = coeus_ops::mul(grad_out, y, &backend);
-    let sum_gy = coeus_ops::sum_axis(&gy, dim_u, &backend);
+    let sum_gy = coeus_ops::sum_axis(&gy, dim_u, &backend)
+        .expect("invariant: softmax backward axis matches the input rank");
     let mut dx = coeus_ops::sub(grad_out, &sum_gy, &backend);
     coeus_ops::mul_assign(&mut dx, y, &backend);
     let gl = g_in.write();
@@ -84,10 +85,12 @@ pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     );
     let backend = B::default();
 
-    let max_t = coeus_ops::max_axis(&input.tensor, dim_u, &backend);
+    let max_t = coeus_ops::max_axis(&input.tensor, dim_u, &backend)
+        .expect("invariant: softmax axis is validated");
     let shift_x = coeus_ops::sub(&input.tensor, &max_t, &backend);
     let exp_x_t = coeus_ops::exp(&shift_x, &backend);
-    let sum_t = coeus_ops::sum_axis(&exp_x_t, dim_u, &backend);
+    let sum_t = coeus_ops::sum_axis(&exp_x_t, dim_u, &backend)
+        .expect("invariant: softmax axis is validated");
     let y_t = coeus_ops::div(&exp_x_t, &sum_t, &backend);
 
     let requires_grad = crate::grad_mode::should_track_var(input);

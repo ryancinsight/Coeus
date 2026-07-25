@@ -137,14 +137,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
         let backend = B::default();
 
         // ── Mean over last dimension ──
-        let mean_t = coeus_ops::mean_axis(&flat.tensor, 1, &backend); // [N*G, 1]
+        let mean_t = coeus_ops::mean_axis(&flat.tensor, 1, &backend)
+            .expect("invariant: groupnorm feature axis is valid"); // [N*G, 1]
 
         // ── Centered: x - mu ──
         let xmu = coeus_ops::sub(&flat.tensor, &mean_t, &backend); // [N*G, group_size]
 
         // ── Variance ──
         let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend);
-        let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend); // [N*G, 1]
+        let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend)
+            .expect("invariant: groupnorm feature axis is valid"); // [N*G, 1]
 
         // ── 1/sqrt(var + eps) ──
         coeus_ops::add_assign(&mut stdev, &cache.eps_t, &backend);
@@ -269,14 +271,16 @@ where
     let flat = input.reshape([n * num_groups, group_size]);
 
     // Mean over last dim: [N*G, 1]
-    let mean = mean_axis(&flat, 1, &backend);
+    let mean =
+        mean_axis(&flat, 1, &backend).expect("invariant: groupnorm test feature axis is valid");
 
     // Centre: x − μ  (broadcasts [N*G, 1] → [N*G, group_size])
     let xmu = sub(&flat, &mean, &backend);
 
     // Variance = mean(xmu²) over last dim: [N*G, 1]
     let xmu_sq = mul(&xmu, &xmu, &backend);
-    let mut var = mean_axis(&xmu_sq, 1, &backend);
+    let mut var =
+        mean_axis(&xmu_sq, 1, &backend).expect("invariant: groupnorm test feature axis is valid");
 
     // stdev = sqrt(var + eps): reuse var buffer
     let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);

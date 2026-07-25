@@ -18,8 +18,8 @@ where
         axis: usize,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) {
-        reduction::reduce(self, op, a, a_layout, axis, c, c_layout);
+    ) -> Result<(), Self::Error> {
+        reduction::reduce(self, op, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]

@@ -74,7 +74,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RMSNorm<T
 
         // ── Mean square ──
         let x_sq = coeus_ops::mul(&input.tensor, &input.tensor, &backend);
-        let mut rms = coeus_ops::mean_axis(&x_sq, 1, &backend); // [N, 1]
+        let mut rms = coeus_ops::mean_axis(&x_sq, 1, &backend)
+            .expect("invariant: rmsnorm feature axis is valid"); // [N, 1]
 
         // ── RMS ──
         coeus_ops::add_assign(&mut rms, &self.eps_t, &backend);

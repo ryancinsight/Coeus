@@ -101,13 +101,13 @@ fn test_cuda_jit_reductions() {
     let a_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a_data);
     let a_cuda = a_seq.to_backend_on(&seq, &cuda_b);
 
-    let sum_cuda = coeus_ops::sum_axis(&a_cuda, 1, &cuda_b);
+    let sum_cuda = coeus_ops::sum_axis(&a_cuda, 1, &cuda_b).expect("valid CUDA sum axis");
     let sum_seq = sum_cuda.to_backend_on(&cuda_b, &seq);
 
-    let max_cuda = coeus_ops::max_axis(&a_cuda, 1, &cuda_b);
+    let max_cuda = coeus_ops::max_axis(&a_cuda, 1, &cuda_b).expect("valid CUDA max axis");
     let max_seq = max_cuda.to_backend_on(&cuda_b, &seq);
 
-    let min_cuda = coeus_ops::min_axis(&a_cuda, 1, &cuda_b);
+    let min_cuda = coeus_ops::min_axis(&a_cuda, 1, &cuda_b).expect("valid CUDA min axis");
     let min_seq = min_cuda.to_backend_on(&cuda_b, &seq);
 
     if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {

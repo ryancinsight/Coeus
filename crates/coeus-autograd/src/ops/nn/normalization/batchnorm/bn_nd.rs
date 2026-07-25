@@ -127,7 +127,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
 
         // ── dL/dbeta = sum(dy, dim=0) [C] ──
         if let Some(Some(ref gb)) = input_grads.get(2) {
-            let db_t = coeus_ops::sum_axis(&go_flat, 0, &backend); // [1, C]
+            let db_t = coeus_ops::sum_axis(&go_flat, 0, &backend)
+                .expect("invariant: batchnorm beta gradient axis is valid"); // [1, C]
             let db = db_t.reshape([self.c]);
             let gl = gb.write();
             coeus_ops::add_assign(gl, &db, &backend);
@@ -136,7 +137,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
         // ── dL/dgamma = sum(dy * x_hat, dim=0) [C] ──
         if let Some(Some(ref gw_var)) = input_grads.get(1) {
             let dy_xhat = coeus_ops::mul(&go_flat, &self.x_hat_clone, &backend);
-            let dg_t = coeus_ops::sum_axis(&dy_xhat, 0, &backend); // [1, C]
+            let dg_t = coeus_ops::sum_axis(&dy_xhat, 0, &backend)
+                .expect("invariant: batchnorm gamma gradient axis is valid"); // [1, C]
             let dg = dg_t.reshape([self.c]);
             let gl = gw_var.write();
             coeus_ops::add_assign(gl, &dg, &backend);
@@ -145,9 +147,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
         // ── dL/dx ──
         if let Some(Some(ref gx)) = input_grads.get(0) {
             let dxhat = coeus_ops::mul(&go_flat, &self.w_reshaped_captured, &backend); // [M, C]
-            let sum_dxhat = coeus_ops::sum_axis(&dxhat, 0, &backend); // [1, C]
+            let sum_dxhat = coeus_ops::sum_axis(&dxhat, 0, &backend)
+                .expect("invariant: batchnorm backward axis is valid"); // [1, C]
             let dxhat_xmu = coeus_ops::mul(&dxhat, &self.xmu_clone, &backend);
-            let sum_dxhat_xmu = coeus_ops::sum_axis(&dxhat_xmu, 0, &backend); // [1, C]
+            let sum_dxhat_xmu = coeus_ops::sum_axis(&dxhat_xmu, 0, &backend)
+                .expect("invariant: batchnorm backward axis is valid"); // [1, C]
 
             let mut istdev_cube = coeus_ops::mul(&self.istdev_clone, &self.istdev_clone, &backend);
             coeus_ops::mul_assign(&mut istdev_cube, &self.istdev_clone, &backend);

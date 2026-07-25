@@ -40,19 +40,19 @@ where
     let data: Vec<T> = (1..=6).map(|value| T::from_f64(value as f64)).collect();
     let tensor = tensor_from_slice::<T, B>(&[2, 3], &data, backend);
 
-    let total = coeus_ops::sum(&tensor, backend);
+    let total = coeus_ops::sum(&tensor, backend).expect("valid sum");
     assert_eq!(
         Scalar::to_f64(total).to_bits(),
         Scalar::to_f64(T::from_f64(21.0)).to_bits()
     );
 
-    let mean = coeus_ops::mean(&tensor, backend);
+    let mean = coeus_ops::mean(&tensor, backend).expect("valid mean");
     assert_eq!(
         Scalar::to_f64(mean).to_bits(),
         Scalar::to_f64(T::from_f64(3.5)).to_bits()
     );
 
-    let sum_axis = coeus_ops::sum_axis(&tensor, 0, backend);
+    let sum_axis = coeus_ops::sum_axis(&tensor, 0, backend).expect("valid sum axis");
     assert_eq!(sum_axis.shape(), &[1, 3]);
     assert_same_bits(
         sum_axis.as_slice(),
@@ -60,7 +60,7 @@ where
         "axis-0 sum",
     );
 
-    let mean_axis = coeus_ops::mean_axis(&tensor, 1, backend);
+    let mean_axis = coeus_ops::mean_axis(&tensor, 1, backend).expect("valid mean axis");
     assert_eq!(mean_axis.shape(), &[2, 1]);
     assert_same_bits(
         mean_axis.as_slice(),
@@ -68,7 +68,7 @@ where
         "axis-1 mean",
     );
 
-    let max_axis = coeus_ops::max_axis(&tensor, 1, backend);
+    let max_axis = coeus_ops::max_axis(&tensor, 1, backend).expect("valid max axis");
     assert_eq!(max_axis.shape(), &[2, 1]);
     assert_same_bits(
         max_axis.as_slice(),
@@ -76,7 +76,7 @@ where
         "axis-1 max",
     );
 
-    let min_axis = coeus_ops::min_axis(&tensor, 0, backend);
+    let min_axis = coeus_ops::min_axis(&tensor, 0, backend).expect("valid min axis");
     assert_eq!(min_axis.shape(), &[1, 3]);
     assert_same_bits(
         min_axis.as_slice(),
@@ -85,13 +85,14 @@ where
     );
 
     let transposed = tensor.transpose();
-    let transposed_mean_scalar = coeus_ops::mean(&transposed, backend);
+    let transposed_mean_scalar = coeus_ops::mean(&transposed, backend).expect("valid mean");
     assert_eq!(
         Scalar::to_f64(transposed_mean_scalar).to_bits(),
         Scalar::to_f64(T::from_f64(3.5)).to_bits()
     );
 
-    let transposed_sum = coeus_ops::sum_axis(&transposed, 1, backend);
+    let transposed_sum =
+        coeus_ops::sum_axis(&transposed, 1, backend).expect("valid transposed sum axis");
     assert_eq!(transposed_sum.shape(), &[3, 1]);
     assert_same_bits(
         transposed_sum.as_slice(),
@@ -99,7 +100,8 @@ where
         "transposed axis-1 sum",
     );
 
-    let transposed_mean = coeus_ops::mean_axis(&transposed, 1, backend);
+    let transposed_mean =
+        coeus_ops::mean_axis(&transposed, 1, backend).expect("valid transposed mean axis");
     assert_eq!(transposed_mean.shape(), &[3, 1]);
     assert_same_bits(
         transposed_mean.as_slice(),
@@ -114,7 +116,9 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     let empty = Tensor::<f32, B>::zeros_on([0usize], backend);
-    assert!(coeus_ops::mean(&empty, backend).is_nan());
+    assert!(coeus_ops::mean(&empty, backend)
+        .expect("empty mean is a defined NaN result")
+        .is_nan());
 }
 
 #[test]

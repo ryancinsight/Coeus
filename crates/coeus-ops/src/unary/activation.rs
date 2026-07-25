@@ -21,10 +21,7 @@ use coeus_tensor::Tensor;
 /// assert_eq!(b.as_slice(), &[0.0, 0.0, 1.0]);
 /// ```
 #[inline]
-pub fn relu<T: Scalar, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
+pub fn relu<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Relu).expect("relu")
 }
 /// Sigmoid: 1 / (1 + exp(-x)).
@@ -45,19 +42,13 @@ pub fn relu<T: Scalar, B: BackendOps<T>>(
 /// assert!((s[2] - 0.26894142_f32).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn sigmoid<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
+pub fn sigmoid<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Sigmoid).expect("sigmoid")
 }
 
 /// Hyperbolic tangent.
 #[inline]
-pub fn tanh<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
+pub fn tanh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Tanh).expect("tanh")
 }
 
@@ -81,10 +72,7 @@ pub fn tanh<T: Float, B: BackendOps<T>>(
 /// assert!((s[1] - 0.8413447_f32).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn gelu<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
+pub fn gelu<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Gelu).expect("gelu")
 }
 
@@ -141,10 +129,7 @@ pub fn gelu_assign<T: Float, B: BackendOps<T>>(
 /// assert!((s[1] - 0.73105858_f32).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn silu<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
+pub fn silu<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Silu).expect("silu")
 }
 
@@ -159,10 +144,7 @@ pub fn silu_assign<T: Float, B: BackendOps<T>>(
 
 /// Mish (Self-Regularized Non-Monotonic Activation Function): x * tanh(softplus(x)).
 #[inline]
-pub fn mish<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
+pub fn mish<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Mish).expect("mish")
 }
 
@@ -177,10 +159,7 @@ pub fn mish_assign<T: Float, B: BackendOps<T>>(
 
 /// ELU (Exponential Linear Unit): x >= 0 ? x : exp(x) - 1.
 #[inline]
-pub fn elu<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
+pub fn elu<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Elu).expect("elu")
 }
 
@@ -195,10 +174,7 @@ pub fn elu_assign<T: Float, B: BackendOps<T>>(
 
 /// Softplus: log(1 + exp(x)).
 #[inline]
-pub fn softplus<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
+pub fn softplus<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Softplus).expect("softplus")
 }
 
@@ -213,10 +189,7 @@ pub fn softplus_assign<T: Float, B: BackendOps<T>>(
 
 /// GELU tanh approximation.
 #[inline]
-pub fn gelu_tanh<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
+pub fn gelu_tanh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::GeluTanh).expect("gelu_tanh")
 }
 
@@ -276,12 +249,12 @@ pub fn log_softmax_axis<T: Float, B: BackendOps<T> + Default>(
         "log_softmax_axis: axis {axis} out of bounds for ndim {ndim}"
     );
     // Shift by max for numerical stability: shifted = x - max(x, axis)
-    let max_vals = super::super::reduction::max_axis(input, axis, backend);
+    let max_vals = super::super::reduction::max_axis(input, axis, backend)?;
     let shifted = super::super::binary::sub(input, &max_vals, backend);
     // exp(shifted)
     let exp_shifted = elementwise_unary(&shifted, backend, UnaryOp::Exp)?;
     // sum(exp(shifted), axis)
-    let sum_exp = super::super::reduction::sum_axis(&exp_shifted, axis, backend);
+    let sum_exp = super::super::reduction::sum_axis(&exp_shifted, axis, backend)?;
     // log(sum_exp)
     let log_sum_exp = elementwise_unary(&sum_exp, backend, UnaryOp::Log)?;
     // out = shifted - log_sum_exp  (broadcasts log_sum_exp along axis)

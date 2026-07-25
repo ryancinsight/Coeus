@@ -222,14 +222,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm1d<T, B> {
         let flat = nlc.reshape([m, c]); // [M, C]
 
         // ── Per-channel mean [1, C] ──
-        let mean_t = coeus_ops::mean_axis(&flat, 0, &backend); // [1, C]
+        let mean_t = coeus_ops::mean_axis(&flat, 0, &backend)
+            .expect("invariant: batchnorm1d channel axis is valid"); // [1, C]
 
         // ── Centered: x - mu [M, C] ──
         let xmu = coeus_ops::sub(&flat, &mean_t, &backend);
 
         // ── Per-channel variance [1, C] ──
         let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend);
-        let var_t = coeus_ops::mean_axis(&xmu_sq, 0, &backend); // [1, C]
+        let var_t = coeus_ops::mean_axis(&xmu_sq, 0, &backend)
+            .expect("invariant: batchnorm1d channel axis is valid"); // [1, C]
 
         // ── 1/sqrt(var + eps) [1, C] ──
         let mut stdev = var_t.clone();

@@ -33,10 +33,14 @@ fn fallback_backend_ops_match_sequential_values() {
     let matmul_out = coeus_ops::matmul(&lhs_cuda, &rhs_cuda, &cuda).to_backend_on(&cuda, &seq);
     assert_eq!(matmul_out.as_slice(), &[58.0, 64.0, 139.0, 154.0]);
 
-    let reduced = coeus_ops::sum_axis(&a_cuda, 1, &cuda).to_backend_on(&cuda, &seq);
+    let reduced = coeus_ops::sum_axis(&a_cuda, 1, &cuda)
+        .expect("valid fallback sum axis")
+        .to_backend_on(&cuda, &seq);
     assert_eq!(reduced.as_slice(), &[6.0, 15.0]);
 
-    let mean = coeus_ops::mean_axis(&a_cuda, 1, &cuda).to_backend_on(&cuda, &seq);
+    let mean = coeus_ops::mean_axis(&a_cuda, 1, &cuda)
+        .expect("valid fallback mean axis")
+        .to_backend_on(&cuda, &seq);
     assert_eq!(mean.as_slice(), &[2.0, 5.0]);
 }
 

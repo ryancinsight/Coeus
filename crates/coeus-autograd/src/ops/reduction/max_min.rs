@@ -62,9 +62,11 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         let abs_diff = coeus_ops::abs(&diff, &backend);
         let shifted = coeus_ops::sub(&eps, &abs_diff, &backend);
         let mask_raw =
-            coeus_ops::elementwise_unary(&shifted, &backend, coeus_ops::UnaryOp::ReluGrad).expect("elementwise_unary");
+            coeus_ops::elementwise_unary(&shifted, &backend, coeus_ops::UnaryOp::ReluGrad)
+                .expect("elementwise_unary");
 
-        let tie_count = coeus_ops::sum_axis(&mask_raw, self.axis, &backend);
+        let tie_count = coeus_ops::sum_axis(&mask_raw, self.axis, &backend)
+            .expect("invariant: max backward axis matches the saved input rank");
         let tie_broad = tie_count.broadcast(self.input_tensor.shape_cloned());
         let mask = coeus_ops::div(&mask_raw, &tie_broad, &backend);
 
@@ -85,7 +87,8 @@ pub fn max_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
     axis: usize,
 ) -> Var<T, B> {
     let backend = B::default();
-    let out_tensor = coeus_ops::max_axis(&a.tensor, axis, &backend);
+    let out_tensor = coeus_ops::max_axis(&a.tensor, axis, &backend)
+        .expect("invariant: max_axis input axis is validated");
 
     let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = requires_grad.then(|| {
@@ -151,8 +154,10 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         let abs_diff = coeus_ops::abs(&diff, &backend);
         let shifted = coeus_ops::sub(&eps, &abs_diff, &backend);
         let mask_raw =
-            coeus_ops::elementwise_unary(&shifted, &backend, coeus_ops::UnaryOp::ReluGrad).expect("elementwise_unary");
-        let tie_count = coeus_ops::sum_axis(&mask_raw, self.axis, &backend);
+            coeus_ops::elementwise_unary(&shifted, &backend, coeus_ops::UnaryOp::ReluGrad)
+                .expect("elementwise_unary");
+        let tie_count = coeus_ops::sum_axis(&mask_raw, self.axis, &backend)
+            .expect("invariant: min backward axis matches the saved input rank");
         let tie_broad = tie_count.broadcast(self.input_tensor.shape_cloned());
         let mask = coeus_ops::div(&mask_raw, &tie_broad, &backend);
         let grad_broad = grad_out.broadcast(self.input_tensor.shape_cloned());
@@ -172,7 +177,8 @@ pub fn min_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
     axis: usize,
 ) -> Var<T, B> {
     let backend = B::default();
-    let out_tensor = coeus_ops::min_axis(&a.tensor, axis, &backend);
+    let out_tensor = coeus_ops::min_axis(&a.tensor, axis, &backend)
+        .expect("invariant: min_axis input axis is validated");
 
     let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = requires_grad.then(|| {

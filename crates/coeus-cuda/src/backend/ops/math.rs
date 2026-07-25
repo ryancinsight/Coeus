@@ -450,12 +450,12 @@ impl CudaBackend {
         axis: usize,
         c: &mut CudaStorage<T>,
         c_layout: &Layout,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         if get_cuda_context().is_some()
             && kernels::dispatch_reduce(op, a, a_layout, axis, c, c_layout)
         {
-            return;
+            return Ok(());
         }
-        self.fallback_reduce(op, a, a_layout, axis, c, c_layout);
+        self.fallback_reduce(op, a, a_layout, axis, c, c_layout)
     }
 }

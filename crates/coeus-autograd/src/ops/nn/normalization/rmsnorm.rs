@@ -48,7 +48,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for RMS
                 &coeus_ops::mul(dy, &self.x_hat_clone, &backend),
                 0,
                 &backend,
-            );
+            )
+            .expect("invariant: rmsnorm gamma gradient axis is valid");
             let dg = dg_t.reshape([self.d]);
             let gl = gw.write();
             coeus_ops::add_assign(gl, &dg, &backend);
@@ -58,7 +59,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for RMS
         if let Some(Some(ref gx)) = input_grads.get(0) {
             let mut dy_w = coeus_ops::mul(dy, &self.w_reshaped_captured, &backend); // [N, D]
             let dy_w_xhat = coeus_ops::mul(&dy_w, &self.x_hat_clone, &backend); // [N, D]
-            let scaled_sum = coeus_ops::mean_axis(&dy_w_xhat, 1, &backend); // [N, 1]
+            let scaled_sum = coeus_ops::mean_axis(&dy_w_xhat, 1, &backend)
+                .expect("invariant: rmsnorm backward axis is valid"); // [N, 1]
 
             let term_prod = coeus_ops::mul(&self.x_hat_clone, &scaled_sum, &backend); // [N, D]
             coeus_ops::sub_assign(&mut dy_w, &term_prod, &backend); // [N, D]

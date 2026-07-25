@@ -64,10 +64,12 @@ fn instance_norm_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     let n_channels = n * c;
 
-    let mean_t = coeus_ops::mean_axis(&flat.tensor, 1, &backend); // [N*C, 1]
+    let mean_t = coeus_ops::mean_axis(&flat.tensor, 1, &backend)
+        .expect("invariant: instancenorm feature axis is valid"); // [N*C, 1]
     let xmu = coeus_ops::sub(&flat.tensor, &mean_t, &backend);
     let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend);
-    let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend); // population var
+    let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend)
+        .expect("invariant: instancenorm feature axis is valid"); // population var
     coeus_ops::add_assign(&mut stdev, &cache.eps_t, &backend);
     coeus_ops::sqrt_assign(&mut stdev, &backend);
 

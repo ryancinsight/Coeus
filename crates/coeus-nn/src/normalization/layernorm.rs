@@ -127,14 +127,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
         let backend = B::default();
 
         // ── Mean over last dimension ──
-        let mean_t = coeus_ops::mean_axis(&input.tensor, 1, &backend); // [N, 1]
+        let mean_t = coeus_ops::mean_axis(&input.tensor, 1, &backend)
+            .expect("invariant: layernorm feature axis is valid"); // [N, 1]
 
         // ── Centered: x - mu ──
         let xmu = coeus_ops::sub(&input.tensor, &mean_t, &backend); // [N, D]
 
         // ── Variance ──
         let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend);
-        let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend); // [N, 1]
+        let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend)
+            .expect("invariant: layernorm feature axis is valid"); // [N, 1]
 
         // ── 1/sqrt(var + eps) ──
         coeus_ops::add_assign(&mut stdev, &self.eps_t, &backend);

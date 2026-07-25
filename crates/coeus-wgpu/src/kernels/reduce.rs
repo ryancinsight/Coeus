@@ -1,10 +1,101 @@
 use super::cache::PIPELINE_CACHE;
 use super::layout::GpuLayoutInfo;
-use crate::backend::{WgpuBackend, WgpuScalar};
+use crate::backend::{
+    checked_numel, checked_workgroup_count, WgpuBackend, WgpuBackendError, WgpuScalar,
+};
 use crate::storage::WgpuStorage;
+use coeus_core::BackendError;
 use coeus_ops::fuse::ExprNode;
 use coeus_tensor::Tensor;
 use std::collections::HashMap;
+
+fn validate_reduction_dispatch(
+    a_layout: &coeus_core::Layout,
+    axis: usize,
+    c_layout: &coeus_core::Layout,
+) -> Result<(GpuLayoutInfo, GpuLayoutInfo, u32, u32), WgpuBackendError> {
+    let a_layout_gpu = GpuLayoutInfo::try_from_layout(a_layout)
+        .map_err(|error| WgpuBackendError::Layout(error.into()))?;
+    let c_layout_gpu = GpuLayoutInfo::try_from_layout(c_layout)
+        .map_err(|error| WgpuBackendError::Layout(error.into()))?;
+    if axis >= a_layout.ndim() {
+        return Err(WgpuBackendError::Validation(BackendError::AxisOutOfRange {
+            operation: "reduction",
+            axis,
+            rank: a_layout.ndim(),
+        }));
+    }
+    if a_layout.ndim() != c_layout.ndim() {
+        return Err(WgpuBackendError::Validation(
+            BackendError::LayoutRankMismatch {
+                operation: "reduction",
+                lhs: a_layout.ndim(),
+                rhs: c_layout.ndim(),
+            },
+        ));
+    }
+    if c_layout.shape()[axis] != 1 {
+        return Err(WgpuBackendError::Validation(BackendError::Storage {
+            operation: "reduction",
+            reason: "output reduction axis must have size one".to_owned(),
+        }));
+    }
+    let axis_gpu = u32::try_from(axis).map_err(|_| {
+        WgpuBackendError::Validation(BackendError::Overflow {
+            operation: "reduction",
+            reason: "axis conversion exceeded the WGSL ABI",
+        })
+    })?;
+    let out_numel = checked_numel("reduction", c_layout.shape())?;
+    let workgroups = checked_workgroup_count("reduction", out_numel)?;
+    Ok((a_layout_gpu, c_layout_gpu, axis_gpu, workgroups))
+}
+
+#[cfg(test)]
+mod validation_tests {
+    use super::*;
+
+    #[test]
+    fn accepts_singleton_output_axis_without_initializing_a_device() {
+        let input = coeus_core::Layout::new(vec![2, 3].into());
+        let output = coeus_core::Layout::new(vec![2, 1].into());
+
+        let (_, _, axis, workgroups) =
+            validate_reduction_dispatch(&input, 1, &output).expect("valid reduction layouts");
+
+        assert_eq!(axis, 1);
+        assert_eq!(workgroups, 1);
+    }
+
+    #[test]
+    fn rejects_an_axis_outside_the_input_rank() {
+        let input = coeus_core::Layout::new(vec![2, 3].into());
+        let output = coeus_core::Layout::new(vec![2, 1].into());
+
+        assert!(matches!(
+            validate_reduction_dispatch(&input, 2, &output),
+            Err(WgpuBackendError::Validation(BackendError::AxisOutOfRange {
+                operation: "reduction",
+                axis: 2,
+                rank: 2,
+            }))
+        ));
+    }
+
+    #[test]
+    fn rejects_a_non_singleton_output_axis() {
+        let input = coeus_core::Layout::new(vec![2, 3].into());
+        let output = coeus_core::Layout::new(vec![2, 3].into());
+
+        assert!(matches!(
+            validate_reduction_dispatch(&input, 1, &output),
+            Err(WgpuBackendError::Validation(BackendError::Storage {
+                operation: "reduction",
+                reason,
+            })) if reason == "output reduction axis must have size one"
+        ));
+    }
+}
 
 /// Dispatch a WGSL shader for reduction operations along an axis.
 pub fn dispatch_reduce<T: WgpuScalar>(
@@ -14,13 +105,11 @@ pub fn dispatch_reduce<T: WgpuScalar>(
     axis: usize,
     c: &wgpu::Buffer,
     c_layout: &coeus_core::Layout,
-) {
-    let ctx = crate::backend::get_wgpu_context();
+) -> Result<(), WgpuBackendError> {
     let wgsl_type = T::WGSL_TYPE;
-
-    let a_layout_gpu = GpuLayoutInfo::from_layout(a_layout);
-    let c_layout_gpu = GpuLayoutInfo::from_layout(c_layout);
-    let axis_gpu = axis as u32;
+    let (a_layout_gpu, c_layout_gpu, axis_gpu, workgroups) =
+        validate_reduction_dispatch(a_layout, axis, c_layout)?;
+    let ctx = crate::backend::get_wgpu_context();
 
     let a_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let c_layout_buf = crate::backend::PooledMetadataBuffer::new();
@@ -140,12 +229,11 @@ pub fn dispatch_reduce<T: WgpuScalar>(
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
 
-        let out_numel = c_layout.shape().iter().product::<usize>();
-        let workgroups = out_numel.div_ceil(256);
-        compute_pass.dispatch_workgroups(workgroups as u32, 1, 1);
+        compute_pass.dispatch_workgroups(workgroups, 1, 1);
     }
 
     ctx.queue.submit(Some(encoder.finish()));
+    Ok(())
 }
 
 /// Dispatch a WGSL shader for fused element-wise and reduction along an axis.

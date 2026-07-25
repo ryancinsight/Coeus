@@ -10,7 +10,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
 
     #[inline(always)]
     fn forward(a: &Tensor<T, B>, _param: Option<usize>, backend: &B) -> Tensor<T, B> {
-        let total = coeus_ops::sum(a, backend);
+        let total = coeus_ops::sum(a, backend).expect("invariant: sum input is valid");
         Tensor::from_slice_on([1], &[total], backend)
     }
 
@@ -28,6 +28,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
     #[inline(always)]
     fn forward(a: &Tensor<T, B>, param: Option<usize>, backend: &B) -> Tensor<T, B> {
         coeus_ops::sum_axis(a, param.unwrap(), backend)
+            .expect("invariant: sum axis is validated by the autograd caller")
     }
 
     #[inline(always)]
@@ -43,7 +44,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
 
     #[inline(always)]
     fn forward(a: &Tensor<T, B>, _param: Option<usize>, backend: &B) -> Tensor<T, B> {
-        let total = coeus_ops::sum(a, backend);
+        let total = coeus_ops::sum(a, backend).expect("invariant: mean input is valid");
         let n = a.numel() as f64;
         Tensor::from_slice_on([1], &[total / T::from_f64(n)], backend)
     }
@@ -63,6 +64,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
     #[inline(always)]
     fn forward(a: &Tensor<T, B>, param: Option<usize>, backend: &B) -> Tensor<T, B> {
         coeus_ops::mean_axis(a, param.unwrap(), backend)
+            .expect("invariant: mean axis is validated by the autograd caller")
     }
 
     #[inline(always)]

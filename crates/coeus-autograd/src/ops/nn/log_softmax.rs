@@ -58,7 +58,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Log
         };
         let backend = B::default();
         // Σ_j g_j along axis; result shape has axis dimension reduced (broadcast-compatible)
-        let sum_g = coeus_ops::sum_axis(grad_out, self.axis, &backend);
+        let sum_g = coeus_ops::sum_axis(grad_out, self.axis, &backend)
+            .expect("invariant: log_softmax backward axis matches the saved input rank");
         // p_i · Σ_j g_j
         let scaled = coeus_ops::mul(&self.probs, &sum_g, &backend);
         // g_i − p_i · Σ_j g_j
@@ -90,7 +91,8 @@ pub fn log_softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     );
 
     // Forward: log-softmax values
-    let log_prob_tensor = coeus_ops::log_softmax_axis(&input.tensor, axis, &backend).expect("log_softmax_axis");
+    let log_prob_tensor =
+        coeus_ops::log_softmax_axis(&input.tensor, axis, &backend).expect("log_softmax_axis");
 
     // softmax probs = exp(log_probs), stored for backward
     let probs = coeus_ops::exp(&log_prob_tensor, &backend);

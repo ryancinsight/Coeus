@@ -13,7 +13,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
         axis: usize,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) {
-        self.cuda_reduce(op, a, a_layout, axis, c, c_layout);
+    ) -> Result<(), Self::Error> {
+        self.cuda_reduce(op, a, a_layout, axis, c, c_layout)
     }
 }

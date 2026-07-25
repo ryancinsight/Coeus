@@ -14,7 +14,7 @@ fn test_cuda_backend_conv_and_reduce() {
     let a_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &a_data);
     let a_cuda = a_seq.to_backend_on(&seq, &cuda_b);
 
-    let r_cuda = coeus_ops::sum_axis(&a_cuda, 1, &cuda_b);
+    let r_cuda = coeus_ops::sum_axis(&a_cuda, 1, &cuda_b).expect("valid CUDA sum axis");
     let r_seq = r_cuda.to_backend_on(&cuda_b, &seq);
 
     if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {

@@ -44,7 +44,8 @@ pub fn reduce_broadcast<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     // while there are extra dims left (each sum reduces current ndim by 0 since
     // keep-dim is active; we reshape away the size-1 dim manually).
     for _ in 0..extra_dims {
-        current = coeus_ops::sum_axis(&current, 0, &backend);
+        current = coeus_ops::sum_axis(&current, 0, &backend)
+            .expect("invariant: broadcast reduction axis is validated");
         let new_shape = &current.shape()[1..];
         if new_shape.is_empty() {
             break;
@@ -60,7 +61,8 @@ pub fn reduce_broadcast<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
             break;
         }
         if needs_reduce {
-            current = coeus_ops::sum_axis(&current, axis, &backend);
+            current = coeus_ops::sum_axis(&current, axis, &backend)
+                .expect("invariant: broadcast reduction axis is validated");
         }
     }
 

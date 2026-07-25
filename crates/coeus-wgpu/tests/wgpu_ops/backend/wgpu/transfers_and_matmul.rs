@@ -56,7 +56,7 @@ fn test_wgpu_backend_ops_unified() {
     let mr_cpu = mr.to_backend_on(&wgpu_b, &seq);
     assert_eq!(mr_cpu.as_slice(), &[19.0, 22.0, 43.0, 50.0]);
 
-    let s0 = coeus_ops::sum_axis(&a, 0, &wgpu_b);
+    let s0 = coeus_ops::sum_axis(&a, 0, &wgpu_b).expect("valid WGPU sum axis");
     let s0_cpu = s0.to_backend_on(&wgpu_b, &seq);
     assert_eq!(s0_cpu.as_slice(), &[-3.0, 3.0, -3.0]);
 }

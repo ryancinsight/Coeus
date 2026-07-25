@@ -233,7 +233,9 @@ where
     );
     assert_eq!(
         mu0.as_slice(),
-        coeus_ops::mean_axis(&m, 0, backend).as_slice(),
+        coeus_ops::mean_axis(&m, 0, backend)
+            .expect("valid mean axis")
+            .as_slice(),
         "var_mean_axis=0 mean matches mean_axis"
     );
 
@@ -262,7 +264,9 @@ where
     );
     assert_eq!(
         smu1.as_slice(),
-        coeus_ops::mean_axis(&m, 1, backend).as_slice(),
+        coeus_ops::mean_axis(&m, 1, backend)
+            .expect("valid mean axis")
+            .as_slice(),
         "std_mean_axis=1 mean matches mean_axis"
     );
 }

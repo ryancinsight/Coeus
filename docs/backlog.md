@@ -123,8 +123,12 @@
 - Increment: elementwise and matmul operations now propagate CPU Leto errors,
   CUDA provider errors, and WGPU layout/dispatch errors without adapters or
   silent fallback. High-level arithmetic, unary, shape, and matmul callers
-  propagate the same result contract; the `ReductionOps::reduce` trait seam
-  remains infallible and is a pending migration slice. Focused verification is
+  propagate the same result contract; the `ReductionOps::reduce` trait seam,
+  CPU/CUDA/WGPU implementations, and public reduction callers now use the
+  backend-associated result. The existing infallible autograd/NN boundary
+  consumes only validated reduction results with explicit invariant messages;
+  an error-valued graph/module API remains a separate breaking migration.
+  Focused verification is
   87/87 nextest tests, 22/22 doctests, warning-denied Clippy, and package-local
   format check; the typed incompatible-broadcast regression is value-asserted.
 - Dependency: the focused `coeus-ops` package is verified, and the WGPU
@@ -132,7 +136,9 @@
   check reaches compilation but remains blocked by 70 peer `coeus-nn`
   normalization errors from the incomplete fallible-operation migration;
   peer `coeus-autograd` also emits 143 unused-`Result` warnings. The prior
-  local/Git Leto dependency-resolution blocker is resolved. The public WGPU
+  local/Git Leto dependency-resolution blocker was resolved in the prior lock
+  increment; the current provider manifests now cause `--locked` to request a
+  fresh lock resolution. The public WGPU
   matmul wrapper now returns the typed result and checks rank, inner-dimension,
   and output element-count failures; the public add wrapper now returns a
   typed shape error instead of panicking. ADR-0020 records the selected
@@ -145,17 +151,21 @@
   compilation and execution remain pending the provider graph's peer Leto
   trait-bound failure. The latest Coeus check stops before Coeus
   compilation at `crates/leto/src/application/stencil.rs:121-122`, where
- `Quantity<T>::in_unit` lacks `eunomia::traits::float::FloatElement`; no test
- result is claimed.
-- Active reduction increment: claim the `ReductionOps::reduce` axis-reduction
-  family across the shared trait, CPU, CUDA, WGPU, and public `sum`/`mean`/
-  `max`/`min` callers. The increment deletes the unit-returning seam and CPU
-  `expect`, propagates typed failures, and validates WGPU layout, axis, output
-  count, and dispatch conversions. Fused reduction and the default
-  `argmax`/`argmin`/`cumsum` paths are non-goals for this increment. The latest
-  locked check remains blocked before Coeus compilation by the peer Leto
-  `Quantity<T>::in_unit` bound failure; no compile or test result is claimed
-  until the provider graph permits it.
+  `Quantity<T>::in_unit` lacks `eunomia::traits::float::FloatElement`; the
+  independent `coeus-core` check, 7/7 nextest tests, and no-deps rustdoc pass,
+  but no affected `coeus-ops`/WGPU test result is claimed.
+- Active reduction increment: the `ReductionOps::reduce` axis-reduction family
+  now spans the shared trait, CPU, CUDA, WGPU, public reductions, and direct
+  autograd/NN callers. The increment deletes the unit-returning seam and CPU
+  `expect`, propagates typed failures through the core API, and validates WGPU
+  layout, axis, output count, and dispatch conversions. The infallible
+  autograd/NN public boundary retains explicit invariant checks; an
+  error-valued graph/module API is separate breaking work. Fused reduction and
+  the default `argmax`/`argmin`/`cumsum` paths are non-goals. The latest locked
+  check remains blocked before Coeus compilation by the peer Leto
+  `Quantity<T>::in_unit` bound failure; the independent `coeus-core` check,
+  7/7 nextest tests, and no-deps rustdoc pass, but no affected `coeus-ops`/
+  WGPU result is claimed until the provider graph permits it.
 - Unary dispatch increment: `dispatch_unary` and
   `dispatch_contiguous_unary` now return the backend `Result`, consume checked
   layout metadata, reject unsupported `lgamma` with a typed error, and route
@@ -169,11 +179,12 @@
   `ElementwiseOps` implementation propagate the result without adapters.
   Direct nightly rustfmt and `git diff --check` pass; Cargo verification is
   blocked by the peer Leto error above.
-- Reduction residual: `ReductionOps::reduce` still returns `()` across the
-  shared trait and CPU/CUDA/WGPU implementations. WGPU reduction also retains
-  unchecked layout, axis, binding, and dispatch conversions. This is the next
-  dependency-ordered API slice; no compatibility adapter or silent fallback is
-  introduced to mask it.
+- Reduction residual: the current autograd/NN public contracts remain
+  infallible and therefore terminate validated reduction failures at explicit
+  invariant boundaries. Migrating those public contracts to typed `Result`
+  values requires a separate breaking graph/module migration. Fused reduction
+  and default index/cumulative reductions remain outside this increment; no
+  compatibility adapter or silent fallback is introduced to mask the residual.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

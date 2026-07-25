@@ -14,7 +14,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         axis: usize,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) {
-        reduction::dispatch_reduce(op, a, a_layout, axis, c, c_layout);
+    ) -> Result<(), Self::Error> {
+        reduction::dispatch_reduce(op, a, a_layout, axis, c, c_layout)
     }
 }

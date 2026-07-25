@@ -27,14 +27,15 @@ pub enum CudaBackendError {
 
 impl From<BackendError> for CudaBackendError {
     fn from(source: BackendError) -> Self {
-        Self::CpuCapability {
-            operation: "elementwise",
-            source,
-        }
+        Self::cpu_capability("elementwise", source)
     }
 }
 
 impl CudaBackendError {
+    pub(crate) fn cpu_capability(operation: &'static str, source: BackendError) -> Self {
+        Self::CpuCapability { operation, source }
+    }
+
     #[cfg(feature = "cuda")]
     pub(crate) fn dispatch(
         operation: &'static str,

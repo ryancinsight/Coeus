@@ -38,6 +38,16 @@ pub enum BackendError {
         /// Right-hand shape.
         rhs: Vec<usize>,
     },
+    /// The operation received an axis outside the layout rank.
+    #[error("{operation} axis {axis} is out of bounds for rank {rank}")]
+    AxisOutOfRange {
+        /// Operation family that rejected the axis.
+        operation: &'static str,
+        /// Requested axis.
+        axis: usize,
+        /// Number of dimensions in the input layout.
+        rank: usize,
+    },
     /// The operation received shapes that cannot be broadcast.
     #[error("{operation} incompatible broadcast: {from:?} to {to:?}")]
     IncompatibleBroadcast {

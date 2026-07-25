@@ -19,6 +19,11 @@ use super::super::ops::ReductionOp;
 /// [`BackendOps`]: super::super::BackendOps
 pub trait ReductionOps<T: Scalar>: ComputeBackend {
     /// Reduction operations along an axis.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when layout validation, provider
+    /// execution, or output dispatch fails.
     fn reduce(
         &self,
         op: ReductionOp,
@@ -27,7 +32,7 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         axis: usize,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// Compute the indices of the maximum values along `axis`.
     fn argmax(

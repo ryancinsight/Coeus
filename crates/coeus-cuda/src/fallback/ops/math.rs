@@ -103,7 +103,7 @@ impl CudaBackend {
         axis: usize,
         c: &mut CudaStorage<T>,
         c_layout: &Layout,
-    ) {
+    ) -> Result<(), crate::CudaBackendError> {
         let mut host_a = vec![T::zero(); a.len()];
         self.copy_to_host(a, &mut host_a);
         let mut host_c = vec![T::zero(); c.len()];
@@ -113,9 +113,11 @@ impl CudaBackend {
         let seq_a = coeus_core::CpuStorage::from_slice(&host_a);
         let mut seq_c = coeus_core::CpuStorage::from_slice(&host_c);
 
-        coeus_ops::ReductionOps::reduce(&seq, op, &seq_a, a_layout, axis, &mut seq_c, c_layout);
+        coeus_ops::ReductionOps::reduce(&seq, op, &seq_a, a_layout, axis, &mut seq_c, c_layout)
+            .map_err(|source| crate::CudaBackendError::cpu_capability("reduction", source))?;
 
         use coeus_core::CpuAddressableStorage;
         self.copy_to_device(seq_c.as_slice(), c);
+        Ok(())
     }
 }
