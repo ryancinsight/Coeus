@@ -127,6 +127,8 @@ jobs:
             crates/coeus-ops/src/reduction/cumsum.rs \
             crates/coeus-wgpu/src/backend/ops/impls/reduction.rs \
             crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/reduction.rs
+          cargo "+$RUST_TOOLCHAIN" update \
+            --manifest-path "$GITHUB_WORKSPACE/coeus/Cargo.toml" --workspace
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
@@ -253,6 +255,8 @@ jobs:
                 crates/coeus-ops/src/reduction/cumsum.rs \
                 crates/coeus-cuda/src/backend/ops/impls/reduction.rs \
                 crates/coeus-cuda/tests/cuda/parity/reduction.rs
+              cargo "+$RUST_TOOLCHAIN" update \
+                --manifest-path /workspace/coeus/Cargo.toml --workspace
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
