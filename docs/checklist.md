@@ -10,8 +10,12 @@
       oracle, including product identity and suffix direction.
 - [x] Fix the owning Hephaestus ROCm device cache so the Coeus backend device
       satisfies `Send + Sync`; Hephaestus PR #109 merged as `95eeaa5`.
-- [ ] Run exact-head hosted ROCm feature and macOS Metal CI, plus the optional
-      required-device ROCm lane; record the final run IDs here.
+- [x] Run exact-head hosted ROCm feature and macOS Metal CI with the WGPU/CUDA
+      matrix. Run `30221620203` passed at `f8bb4c7e`:
+      ROCm `89844922811`, Metal `89844922775`, WGPU `89844922827`, and CUDA
+      `89844922774`. The optional required-device ROCm lane
+      (`89844923036`) was skipped because this pull request did not request a
+      hardware dispatch.
 
 
 ## ATLAS-HEPHAESTUS-SCAN-001 — Native cumulative scans

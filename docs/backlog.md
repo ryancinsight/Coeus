@@ -11,10 +11,12 @@
 - Acceptance: all five reductions and forward/reverse sum/product scans match
   `coeus-leto`; unsupported ranks return typed errors; ROCm feature CI and
   macOS Metal CI pass; no CPU fallback or vendor algorithm clone is added.
-- Status: in-progress; local package checks pass and the first exact-head run
-  exposed the upstream ROCm device thread-safety contract. Hephaestus PR #109
-  merged as `95eeaa5`; the Coeus exact-head matrix is being rerun against that
-  merged substrate.
+- Status: complete for the rank-2 reduction and scan scope. Local package
+  checks pass, Hephaestus PR #109 merged as `95eeaa5`, and exact-head hosted
+  run `30221620203` passed at `f8bb4c7e`: ROCm job `89844922811`, Metal job
+  `89844922775`, WGPU job `89844922827`, and CUDA job `89844922774`. The
+  required-device ROCm hardware job `89844923036` was skipped on this pull
+  request because it requires manual dispatch.
 - Decision: ADR-0022 selects the shared generic provider layer over duplicated
   vendor operation trees.
 
