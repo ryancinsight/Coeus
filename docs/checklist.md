@@ -15,8 +15,9 @@
 - [x] Add one shared `ReductionOp::Prod` contract through CPU/Leto, WGPU, and
       CUDA, including fused CPU reduction evaluation.
 - [x] Add rank-2 `prod_axis` value-parity tests for CPU/Leto, WGPU, and CUDA.
-- [ ] Run exact-head WGPU/CUDA provider CI with the product-reduction filters;
-      record the resulting run and job IDs here before merge.
+- [x] Run exact-head WGPU/CUDA provider CI with the product-reduction filters
+      after Leto product API merge `524e780`: run `30218187376` passes at
+      `b31cf448` (WGPU job `89835879122`, CUDA job `89835879151`).
 
 ## MS-445 Python release wheels [patch]
 

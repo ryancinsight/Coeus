@@ -3148,10 +3148,11 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     generic Hephaestus scan operation with CPU differential tests covering
     forward and reverse products; exact-head provider CI remains the closure
     gate for this increment.
-  - [ ] [minor] Add native product-axis reduction parity. `ReductionOp::Prod`
+  - [x] [minor] Add native product-axis reduction parity. `ReductionOp::Prod`
     now dispatches through CPU/Leto, WGPU, and CUDA, with fused CPU evaluation
-    and provider differential tests. The exact-head WGPU/CUDA CI run is the
-    remaining closure gate for this increment.
+    and provider differential tests. Exact-head provider CI run `30218187376`
+    passes at `b31cf448` (WGPU job `89835879122`, CUDA job `89835879151`)
+    after Leto product API merge `524e780`.
   - [x] [patch] Added public CPU reduction differential coverage for
     `sum`/`mean`/`sum_axis`/`mean_axis`/`max_axis`/`min_axis` on
     `SequentialBackend` and `MoiraiBackend`, including transposed input views.
