@@ -30,7 +30,9 @@ where
     let mut c_buf = ComputeBackend::allocate::<T>(backend, rows);
     backend.copy_to_device(data, &mut a_buf);
 
-    backend.reduce(op, &a_buf, &a_layout, 1, &mut c_buf, &c_layout);
+    backend
+        .reduce(op, &a_buf, &a_layout, 1, &mut c_buf, &c_layout)
+        .expect("CPU reduction dispatch");
 
     let mut out = vec![T::zero(); rows];
     backend.copy_to_host(&c_buf, &mut out);
