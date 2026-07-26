@@ -540,11 +540,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "coeus-hephaestus"
+version = "0.9.0"
+dependencies = [
+ "bytemuck",
+ "coeus-core",
+ "coeus-ops",
+ "hephaestus-core",
+ "leto",
+ "leto-ops",
+ "themis",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "coeus-leto"
 version = "0.9.0"
 dependencies = [
  "coeus-core",
  "leto",
+ "leto-ops",
+]
+
+[[package]]
+name = "coeus-metal"
+version = "0.9.0"
+dependencies = [
+ "coeus-core",
+ "coeus-hephaestus",
+ "coeus-leto",
+ "coeus-ops",
+ "hephaestus-core",
+ "hephaestus-metal",
  "leto-ops",
 ]
 
@@ -609,6 +636,19 @@ dependencies = [
  "moirai",
  "pyo3",
  "smallvec",
+]
+
+[[package]]
+name = "coeus-rocm"
+version = "0.9.0"
+dependencies = [
+ "coeus-core",
+ "coeus-hephaestus",
+ "coeus-leto",
+ "coeus-ops",
+ "hephaestus-core",
+ "hephaestus-rocm",
+ "leto-ops",
 ]
 
 [[package]]
@@ -766,6 +806,16 @@ checksum = "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a"
 dependencies = [
  "generic-array",
  "typenum",
+]
+
+[[package]]
+name = "cubecl-hip-sys"
+version = "7.2.5321100"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58887c6d217859c2261a868a3a6b66aa8f44ea2f4bfa51d0dbe4dcb0d1f5768d"
+dependencies = [
+ "libc",
+ "regex",
 ]
 
 [[package]]
@@ -1222,6 +1272,38 @@ dependencies = [
  "mnemosyne-core",
  "moirai-gpu",
  "moirai-sync",
+ "themis",
+]
+
+[[package]]
+name = "hephaestus-metal"
+version = "0.18.0"
+dependencies = [
+ "aequitas",
+ "bytemuck",
+ "eunomia",
+ "hephaestus-core",
+ "hephaestus-wgpu",
+ "leto",
+ "leto-ops",
+ "mnemosyne-core",
+ "moirai-gpu",
+ "moirai-sync",
+ "themis",
+ "wgpu",
+]
+
+[[package]]
+name = "hephaestus-rocm"
+version = "0.18.0"
+dependencies = [
+ "aequitas",
+ "bytemuck",
+ "cubecl-hip-sys",
+ "eunomia",
+ "hephaestus-core",
+ "leto",
+ "leto-ops",
  "themis",
 ]
 
