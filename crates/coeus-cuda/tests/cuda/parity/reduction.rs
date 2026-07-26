@@ -84,4 +84,32 @@ fn test_cuda_parity_min_axis() {
     assert_parity_tol("min_axis0", cpu.as_slice(), gpu.as_slice(), CUDA_TOL);
 }
 
+#[test]
+fn test_cuda_parity_cumulative_scans() {
+    let Some((s, c)) = backends() else {
+        return;
+    };
+    let data = (1..=6).map(|value| value as f32).collect::<Vec<_>>();
+    let x = Tensor::from_slice(vec![2, 3], &data);
+    let gpu_input = to_gpu(&x, &s, &c);
+
+    let cpu_prefix = coeus_ops::cumsum(&x, 1);
+    let gpu_prefix = to_cpu(&coeus_ops::cumsum(&gpu_input, 1), &c, &s);
+    assert_parity_tol(
+        "cumsum-axis1",
+        cpu_prefix.as_slice(),
+        gpu_prefix.as_slice(),
+        CUDA_TOL,
+    );
+
+    let cpu_suffix = coeus_ops::suffix_sum(&x, 0);
+    let gpu_suffix = to_cpu(&coeus_ops::suffix_sum(&gpu_input, 0), &c, &s);
+    assert_parity_tol(
+        "suffix-sum-axis0",
+        cpu_suffix.as_slice(),
+        gpu_suffix.as_slice(),
+        CUDA_TOL,
+    );
+}
+
 // Matmul.

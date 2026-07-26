@@ -21,9 +21,11 @@
 //!    honest without a fake-generic widen/narrow);
 //! 2. launches the on-device kernel (hand-written PTX in the `kernels` module for
 //!    conv/attention, NVRTC CUDA C for fused/elementwise/optimizer paths);
-//! 3. falls back to the CPU reference (`fallback::*`, a host round-trip) only
-//!    when the on-device path is unavailable or for an explicitly documented
-//!    capability boundary (e.g. a strided key-padding mask in attention).
+//! 3. uses an explicit capability boundary for operations without a native
+//!    kernel. Cumulative scans are native for rank-two layouts and return
+//!    typed provider errors for unsupported ranks; they do not copy through
+//!    the host. Other documented capability boundaries retain their existing
+//!    CPU reference path where the public contract still requires one.
 //!
 //! The fallback is a capability boundary, never a silent defect mask: the
 //! observable result matches the CPU reference either way, verified by the

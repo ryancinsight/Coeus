@@ -87,10 +87,12 @@ where
         axis: usize,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
     {
         reduction::cumsum(self, a, a_layout, axis, c, c_layout);
+        Ok(())
     }
 
     #[inline]
@@ -101,9 +103,11 @@ where
         axis: usize,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
     {
         reduction::suffix_sum(self, a, a_layout, axis, c, c_layout);
+        Ok(())
     }
 }

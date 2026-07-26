@@ -93,6 +93,11 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
     }
 
     /// Inclusive cumulative sum along an axis.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when the layout or provider
+    /// dispatch is rejected.
     fn cumsum(
         &self,
         a: &Self::DeviceBuffer<T>,
@@ -100,13 +105,20 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         axis: usize,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
     {
-        defaults::reductions::cumsum(self, a, a_layout, axis, c, c_layout)
+        defaults::reductions::cumsum(self, a, a_layout, axis, c, c_layout);
+        Ok(())
     }
 
     /// Inclusive cumulative suffix sum (reverse cumulative sum) along an axis.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when the layout or provider
+    /// dispatch is rejected.
     fn suffix_sum(
         &self,
         a: &Self::DeviceBuffer<T>,
@@ -114,9 +126,11 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         axis: usize,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
     {
-        defaults::reductions::suffix_sum(self, a, a_layout, axis, c, c_layout)
+        defaults::reductions::suffix_sum(self, a, a_layout, axis, c, c_layout);
+        Ok(())
     }
 }

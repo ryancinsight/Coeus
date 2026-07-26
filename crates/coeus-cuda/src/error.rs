@@ -5,6 +5,24 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CudaBackendError {
+    /// The CUDA provider only has a native scan kernel for rank-two layouts.
+    #[error("CUDA {operation} does not support layout rank {rank}; maximum rank is {max_rank}")]
+    UnsupportedRank {
+        /// Operation family that rejected the layout.
+        operation: &'static str,
+        /// Requested layout rank.
+        rank: usize,
+        /// Largest rank implemented by the native provider path.
+        max_rank: usize,
+    },
+    /// The scan layouts do not satisfy the same-shape backend contract.
+    #[error("CUDA {operation} rejected its layouts: {reason}")]
+    InvalidLayout {
+        /// Operation family that rejected the layout.
+        operation: &'static str,
+        /// Backend-independent layout invariant that failed.
+        reason: &'static str,
+    },
     /// The CUDA provider rejected a submitted kernel.
     #[error("CUDA {operation} dispatch failed: {source}")]
     Dispatch {

@@ -508,6 +508,7 @@ dependencies = [
  "cutile",
  "eunomia",
  "hephaestus-cuda",
+ "leto",
  "leto-ops",
  "libloading",
  "themis",
