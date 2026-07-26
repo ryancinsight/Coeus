@@ -283,8 +283,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::reject_broadcast_output;
-    use coeus_core::Layout;
+    use super::{ranked, reject_broadcast_output};
+    use coeus_core::{BackendError, Layout};
 
     #[test]
     fn output_broadcast_is_rejected_before_provider_dispatch() {
@@ -292,5 +292,22 @@ mod tests {
         let error = reject_broadcast_output("elementwise_binary", &layout)
             .expect_err("broadcast output must be rejected");
         assert!(error.to_string().contains("output layout"));
+    }
+
+    #[test]
+    fn rank_above_four_is_rejected_as_typed_backend_error() {
+        let layout = Layout::new([1, 1, 1, 1, 1].into());
+        let error = match ranked::<4>("elementwise_binary", &layout) {
+            Ok(_) => panic!("rank five must be rejected"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error,
+            BackendError::UnsupportedRank {
+                operation: "elementwise_binary",
+                rank: 5,
+                max_rank: 4,
+            }
+        );
     }
 }

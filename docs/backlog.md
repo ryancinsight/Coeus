@@ -16,10 +16,15 @@
   passes.
 - Risk/change class: `[arch]` provider-boundary extension with additive
   consumer capability.
-- Status: in-progress; claimed files are the shared Hephaestus adapter,
-  provider crates, focused tests, and synchronized CI/docs.
+- Status: complete. The shared adapter, provider crates, focused tests, CI,
+  and ADR are delivered in `a3e586c3`. Exact-head run `30223618665` passed
+  WGPU `89850168729`, CUDA `89850168726`, ROCm `89850168739`, and Metal
+  `89850168706`; the required-device ROCm lane `89850168954` was skipped
+  because the workflow was not manually dispatched.
 - Decision: extend the existing generic provider layer with a ranked
   elementwise seam; vendor crates map operation tags to Hephaestus kernels.
+  ADR-0023 records the boundary and the intentional `RankTwoOperand` to
+  `RankedOperand` public-name migration.
 
 ## ATLAS-COEUS-HEPHAESTUS-001 — Native ROCm and Metal reduction providers [arch]
 

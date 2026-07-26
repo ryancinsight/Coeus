@@ -24,6 +24,22 @@ unsafe impl HephaestusProvider for MetalProvider {
     }
 }
 
+fn unsupported_binary_operation(operation: BinaryOp) -> HephaestusError {
+    HephaestusError::DispatchFailed {
+        message: format!(
+            "binary elementwise operation {operation:?} is not implemented by Metal provider"
+        ),
+    }
+}
+
+fn unsupported_unary_operation(operation: UnaryOp) -> HephaestusError {
+    HephaestusError::DispatchFailed {
+        message: format!(
+            "unary elementwise operation {operation:?} is not implemented by Metal provider"
+        ),
+    }
+}
+
 macro_rules! impl_reduction_provider {
     ($scalar:ty) => {
         impl ReductionProvider<$scalar> for MetalProvider {
@@ -195,11 +211,7 @@ macro_rules! impl_elementwise_provider {
                         output,
                         hephaestus_core::BlockWidth::DEFAULT,
                     ),
-                    _ => Err(HephaestusError::DispatchFailed {
-                        message:
-                            "binary elementwise operation is not implemented by Metal provider"
-                                .to_owned(),
-                    }),
+                    _ => Err(unsupported_binary_operation(operation)),
                 }
             }
 
@@ -274,10 +286,7 @@ macro_rules! impl_elementwise_provider {
                     >(
                         device, input, output, hephaestus_core::BlockWidth::DEFAULT
                     ),
-                    _ => Err(HephaestusError::DispatchFailed {
-                        message: "unary elementwise operation is not implemented by Metal provider"
-                            .to_owned(),
-                    }),
+                    _ => Err(unsupported_unary_operation(operation)),
                 }
             }
         }
@@ -431,5 +440,24 @@ where
     ) -> Result<(), Self::Error> {
         self.0
             .elementwise_unary(operation, input, input_layout, output, output_layout)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{unsupported_binary_operation, unsupported_unary_operation};
+    use coeus_ops::{BinaryOp, UnaryOp};
+    use hephaestus_core::HephaestusError;
+
+    #[test]
+    fn unsupported_operations_are_reported_as_typed_provider_errors() {
+        assert!(matches!(
+            unsupported_binary_operation(BinaryOp::Eq),
+            HephaestusError::DispatchFailed { .. }
+        ));
+        assert!(matches!(
+            unsupported_unary_operation(UnaryOp::Gelu),
+            HephaestusError::DispatchFailed { .. }
+        ));
     }
 }
