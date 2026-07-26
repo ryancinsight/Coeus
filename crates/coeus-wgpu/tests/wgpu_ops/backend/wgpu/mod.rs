@@ -1,0 +1,12 @@
+mod activations;
+mod attention;
+mod conv;
+mod conv3d;
+mod conv_transpose;
+mod optimizer;
+mod parity;
+mod pool1d;
+mod pooling;
+mod reduction;
+mod transfers_and_matmul;
+mod unfold_fold;

@@ -1,0 +1,24 @@
+//! Reduction and selection operators over one or more tensor axes.
+//!
+//! Includes PyTorch/NumPy-style reductions such as sums, norms, moments, and
+//! selection ops like `topk`, `argmax`, and `argmin`.
+
+pub(crate) mod cumprod;
+pub(crate) mod cumsum;
+pub(crate) mod linalg;
+pub(crate) mod mean;
+pub(crate) mod norms;
+pub(crate) mod sum;
+pub(crate) mod topk;
+pub(crate) mod variance;
+
+pub use cumprod::{cumprod, suffix_prod};
+pub use cumsum::{cumsum, suffix_sum};
+pub use linalg::{cross, dot};
+pub use mean::{mean, mean_axis};
+pub use norms::{frobenius_norm, frobenius_norm_batched, norm, norm_p, norm_p_axis};
+pub use sum::{amax, amin, max_axis, min_axis, prod, prod_axis, sum, sum_axis};
+pub use topk::{argmax, argmin, topk};
+pub use variance::{
+    std_dev, std_dev_axis, std_mean, std_mean_axis, var, var_axis, var_mean, var_mean_axis,
+};

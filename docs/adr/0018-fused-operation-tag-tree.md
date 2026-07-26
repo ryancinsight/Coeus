@@ -7,7 +7,7 @@
 
 ## Context
 
-`coeus-ops/src/fuse/op_tags/mod.rs` combined the public operation-tag manifest,
+`crates/coeus-ops/src/fuse/op_tags/mod.rs` combined the public operation-tag manifest,
 the `UnaryOpTag` trait, and 30 unary tag implementations in one 625-line
 module. Binary tags, runtime-parameterized leaky-ReLU tags, and WGSL helpers
 already had separate canonical leaves.

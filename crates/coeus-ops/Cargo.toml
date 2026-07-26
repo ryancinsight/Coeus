@@ -1,0 +1,20 @@
+[package]
+name = "coeus-ops"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+coeus-core   = { workspace = true }
+coeus-tensor = { workspace = true }
+coeus-sparse = { workspace = true }
+coeus-leto   = { path = "../coeus-leto" }
+leto-ops     = { workspace = true }
+leto         = { workspace = true }
+smallvec     = { workspace = true }
+thiserror    = { workspace = true }
+eunomia      = { workspace = true }
+bytemuck     = { workspace = true }
+melinoe      = { workspace = true }

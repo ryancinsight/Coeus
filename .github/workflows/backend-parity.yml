@@ -1,0 +1,269 @@
+name: Backend parity
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-parity-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_TOOLCHAIN: 1.95.0
+
+jobs:
+  wgpu:
+    name: WGPU Coeus provider contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out Coeus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: coeus
+          persist-credentials: false
+
+      - name: Check out Apollo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/apollo
+          path: apollo
+          persist-credentials: false
+
+      - name: Check out Aequitas
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/aequitas
+          path: aequitas
+          persist-credentials: false
+
+      - name: Check out Hephaestus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/hephaestus
+          path: hephaestus
+          persist-credentials: false
+
+      - name: Check out Hermes
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/hermes
+          path: hermes
+          persist-credentials: false
+
+      - name: Check out Leto
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/leto
+          path: leto
+          persist-credentials: false
+
+      - name: Check out Melinoe
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/melinoe
+          path: melinoe
+          persist-credentials: false
+
+      - name: Check out Mnemosyne
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/Mnemosyne
+          path: mnemosyne
+          persist-credentials: false
+
+      - name: Check out Moirai
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/Moirai
+          path: moirai
+          persist-credentials: false
+
+      - name: Check out Eunomia
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/eunomia
+          path: eunomia
+          persist-credentials: false
+
+      - name: Check out Themis
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/themis
+          path: themis
+          persist-credentials: false
+
+      - name: Install Vulkan software support
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libvulkan1 mesa-vulkan-drivers
+
+      - name: Install the pinned Rust toolchain and nextest
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+
+      - name: Install nextest
+        shell: bash
+        run: cargo install cargo-nextest --locked
+
+      - name: Run WGPU and CPU provider contracts
+        working-directory: coeus
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustfmt --check --edition 2024 \
+            crates/coeus-ops/src/backend_ops/traits/reduction.rs \
+            crates/coeus-ops/src/backend_ops/cpu_impl/impls/reduction.rs \
+            crates/coeus-ops/src/backend_ops/defaults/reductions.rs \
+            crates/coeus-ops/src/reduction/cumsum.rs \
+            crates/coeus-wgpu/src/backend/ops/impls/reduction.rs \
+            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/reduction.rs
+          cargo "+$RUST_TOOLCHAIN" update \
+            --manifest-path "$GITHUB_WORKSPACE/coeus/Cargo.toml" --workspace
+          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
+          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
+          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
+          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-ops --doc
+          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-wgpu --all-targets
+          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-wgpu --all-targets --no-deps -- -D warnings
+          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-wgpu \
+            -E "test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors)"
+          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-wgpu --doc
+
+  cuda:
+    name: CUDA Coeus provider contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CUDA_IMAGE: nvidia/cuda:13.2.1-devel-ubuntu24.04
+    steps:
+      - name: Check out Coeus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: coeus
+          persist-credentials: false
+
+      - name: Check out Apollo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/apollo
+          path: apollo
+          persist-credentials: false
+
+      - name: Check out Aequitas
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/aequitas
+          path: aequitas
+          persist-credentials: false
+
+      - name: Check out Hephaestus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/hephaestus
+          path: hephaestus
+          persist-credentials: false
+
+      - name: Check out Hermes
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/hermes
+          path: hermes
+          persist-credentials: false
+
+      - name: Check out Leto
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/leto
+          path: leto
+          persist-credentials: false
+
+      - name: Check out Melinoe
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/melinoe
+          path: melinoe
+          persist-credentials: false
+
+      - name: Check out Mnemosyne
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/Mnemosyne
+          path: mnemosyne
+          persist-credentials: false
+
+      - name: Check out Moirai
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/Moirai
+          path: moirai
+          persist-credentials: false
+
+      - name: Check out Eunomia
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/eunomia
+          path: eunomia
+          persist-credentials: false
+
+      - name: Check out Themis
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/themis
+          path: themis
+          persist-credentials: false
+
+      - name: Build and test in the NVIDIA CUDA development image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull "$CUDA_IMAGE"
+          docker run --rm --network host \
+            --env "RUST_TOOLCHAIN=$RUST_TOOLCHAIN" \
+            --env CUDA_TOOLKIT_PATH=/usr/local/cuda \
+            --volume "$GITHUB_WORKSPACE:/workspace" \
+            --workdir /workspace/coeus \
+            "$CUDA_IMAGE" \
+            bash -c '
+              set -euo pipefail
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update
+              apt-get install --yes --no-install-recommends ca-certificates curl git build-essential pkg-config libclang-dev
+              curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
+              . "$HOME/.cargo/env"
+              rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+              rustup component add rustfmt clippy --toolchain "$RUST_TOOLCHAIN"
+              rustup toolchain install stable --profile minimal
+              cargo +stable install cargo-nextest --locked
+              if [ -f /usr/local/cuda/lib64/stubs/libcuda.so ] && [ ! -e /usr/local/cuda/lib64/stubs/libcuda.so.1 ]; then
+                ln -s libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
+              fi
+              export LD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs:/usr/local/cuda/compat:/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}
+              rustfmt --check --edition 2024 \
+                crates/coeus-ops/src/backend_ops/traits/reduction.rs \
+                crates/coeus-ops/src/backend_ops/cpu_impl/impls/reduction.rs \
+                crates/coeus-ops/src/backend_ops/defaults/reductions.rs \
+                crates/coeus-ops/src/reduction/cumsum.rs \
+                crates/coeus-cuda/src/backend/ops/impls/reduction.rs \
+                crates/coeus-cuda/tests/cuda/parity/reduction.rs
+              cargo "+$RUST_TOOLCHAIN" update \
+                --manifest-path /workspace/coeus/Cargo.toml --workspace
+              cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
+              cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
+              cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
+              cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-ops --doc
+              cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cuda --features cuda --all-targets
+              cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cuda --features cuda --all-targets --no-deps -- -D warnings
+              cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --features cuda \
+                -E "test(test_cuda_parity_cumulative_scans) or test(test_cuda_parity_prod_axis)"
+              cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-cuda --features cuda --doc
+            '

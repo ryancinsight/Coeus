@@ -1,0 +1,18 @@
+[package]
+name = "coeus-dist"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+coeus-core = { workspace = true }
+coeus-tensor = { workspace = true }
+coeus-ops = { workspace = true, default-features = false }
+coeus-autograd = { workspace = true, default-features = false }
+smallvec = { workspace = true }
+moirai = { workspace = true }
+moirai-async = { workspace = true }
+
+

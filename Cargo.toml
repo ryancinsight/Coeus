@@ -2,19 +2,19 @@
 resolver = "2"
 
 members = [
-    "coeus-core",
-    "coeus-tensor",
-    "coeus-ops",
-    "coeus-autograd",
-    "coeus-nn",
-    "coeus-optim",
-    "coeus-python",
-    "coeus-sparse",
-    "coeus-wgpu",
-    "coeus-cuda",
-    "coeus-dist",
-    "coeus-leto",
-    "coeus-fft",
+    "crates/coeus-core",
+    "crates/coeus-tensor",
+    "crates/coeus-ops",
+    "crates/coeus-autograd",
+    "crates/coeus-nn",
+    "crates/coeus-optim",
+    "crates/coeus-python",
+    "crates/coeus-sparse",
+    "crates/coeus-wgpu",
+    "crates/coeus-cuda",
+    "crates/coeus-dist",
+    "crates/coeus-leto",
+    "crates/coeus-fft",
 ]
 
 [workspace.package]
@@ -25,18 +25,21 @@ authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-# ── Remote System Dependencies ──
-# Parallelization/async SSOT. Cargo.lock pins the coherent provider revisions;
-# the meta-workspace may patch these sources to synchronized local checkouts.
-moirai = { version = "0.4.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
-mnemosyne = { version = "^0.5.0", git = "https://github.com/ryancinsight/Mnemosyne.git" }
+# ── Local System Dependencies (Atlas monorepo path deps) ──
+# Parallelization/async SSOT. Synchronized via local path; Cargo.lock pins
+# the coherent provider revisions.
+moirai = { path = "../moirai/moirai", features = ["melinoe"] }
+moirai-async = { path = "../moirai/moirai-async" }
+mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
 # SIMD-effect SSOT.
-hermes-simd = { version = "0.4.1", git = "https://github.com/ryancinsight/hermes.git" }
-eunomia = { version = "0.7.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }
+hermes-simd = { path = "../hermes/crates/hermes-simd" }
+eunomia = { path = "../eunomia/crates/eunomia", default-features = false }
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
-leto = { version = "0.40.0", git = "https://github.com/ryancinsight/leto.git" }
-leto-ops = { version = "0.40.0", git = "https://github.com/ryancinsight/leto.git" }
-apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", default-features = false }
+# Path deps for migration (remote leto 0.40.0 predates moirai path dep).
+leto = { path = "../leto/crates/leto" }
+leto-ops = { path = "../leto/crates/leto-ops" }
+# Path dep for migration (remote apollo-fft predates moirai ^0.6.0)
+apollo-fft = { path = "../apollo/crates/apollo-fft", default-features = false }
 
 # ── Numerical ──
 bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }
@@ -47,11 +50,12 @@ half       = { version = "2.7", features = ["bytemuck"] }
 smallvec   = "1.13"
 rkyv       = { version = "0.8.17", features = ["bytecheck", "std"] }
 wgpu       = { version = "30.0", default-features = false, features = ["wgsl", "vulkan", "metal"] }
-hephaestus-wgpu = { version = "0.18.0", git = "https://github.com/ryancinsight/hephaestus.git" }
-hephaestus-core = { version = "0.18.0", git = "https://github.com/ryancinsight/hephaestus.git" }
-hephaestus-cuda = { version = "0.18.0", git = "https://github.com/ryancinsight/hephaestus.git" }
-themis = { version = "0.10", git = "https://github.com/ryancinsight/themis" }
-melinoe = { version = "0.9.0", git = "https://github.com/ryancinsight/melinoe.git" }
+# Path deps for migration (remote hephaestus predates mnemosyne ^0.6.0)
+hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu" }
+hephaestus-core = { path = "../hephaestus/crates/hephaestus-core" }
+hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda" }
+themis = { path = "../themis", version = "0.10.1" }
+melinoe = { path = "../melinoe", version = "0.9.0" }
 
 # ── Error ──
 thiserror = "2"
@@ -63,15 +67,67 @@ criterion = "0.5"
 pyo3 = { version = "0.23", features = ["extension-module"] }
 
 # ── Local ──
-coeus-core     = { path = "coeus-core" }
-coeus-tensor   = { path = "coeus-tensor" }
-coeus-ops      = { path = "coeus-ops", default-features = false }
-coeus-autograd = { path = "coeus-autograd", default-features = false }
-coeus-nn       = { path = "coeus-nn", default-features = false }
-coeus-optim    = { path = "coeus-optim", default-features = false }
-coeus-sparse   = { path = "coeus-sparse" }
-coeus-dist     = { path = "coeus-dist", default-features = false }
-coeus-fft      = { path = "coeus-fft" }
+coeus-core     = { path = "crates/coeus-core" }
+coeus-tensor   = { path = "crates/coeus-tensor" }
+coeus-ops      = { path = "crates/coeus-ops", default-features = false }
+coeus-autograd = { path = "crates/coeus-autograd", default-features = false }
+coeus-nn       = { path = "crates/coeus-nn", default-features = false }
+coeus-optim    = { path = "crates/coeus-optim", default-features = false }
+coeus-sparse   = { path = "crates/coeus-sparse" }
+coeus-dist     = { path = "crates/coeus-dist", default-features = false }
+coeus-fft      = { path = "crates/coeus-fft" }
+
+# Keep Git-sourced provider manifests on the same local Atlas instances as the
+# workspace dependencies. Without these patches, Aequitas and Hephaestus can
+# introduce duplicate provider identities and split shared traits.
+[patch."https://github.com/ryancinsight/eunomia"]
+eunomia = { path = "../eunomia/crates/eunomia" }
+
+[patch."https://github.com/ryancinsight/aequitas"]
+aequitas = { path = "../aequitas" }
+
+[patch."https://github.com/ryancinsight/themis"]
+themis = { path = "../themis" }
+
+[patch."https://github.com/ryancinsight/leto.git"]
+leto = { path = "../leto/crates/leto" }
+leto-ops = { path = "../leto/crates/leto-ops" }
+
+[patch."https://github.com/ryancinsight/Mnemosyne.git"]
+mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
+mnemosyne-arena = { path = "../mnemosyne/crates/mnemosyne-arena" }
+mnemosyne-backend = { path = "../mnemosyne/crates/mnemosyne-backend" }
+mnemosyne-build-util = { path = "../mnemosyne/crates/mnemosyne-build-util" }
+mnemosyne-core = { path = "../mnemosyne/crates/mnemosyne-core" }
+mnemosyne-decay = { path = "../mnemosyne/crates/mnemosyne-decay" }
+mnemosyne-hardened = { path = "../mnemosyne/crates/mnemosyne-hardened" }
+mnemosyne-heap = { path = "../mnemosyne/crates/mnemosyne-heap" }
+mnemosyne-local = { path = "../mnemosyne/crates/mnemosyne-local" }
+mnemosyne-prof = { path = "../mnemosyne/crates/mnemosyne-prof" }
+
+[patch."https://github.com/ryancinsight/Moirai.git"]
+moirai = { path = "../moirai/moirai" }
+moirai-async = { path = "../moirai/moirai-async" }
+moirai-async-macros = { path = "../moirai/moirai-async-macros" }
+moirai-core = { path = "../moirai/moirai-core" }
+moirai-executor = { path = "../moirai/moirai-executor" }
+moirai-iter = { path = "../moirai/moirai-iter" }
+moirai-pal = { path = "../moirai/moirai-pal" }
+moirai-parallel = { path = "../moirai/moirai-parallel" }
+moirai-scheduler = { path = "../moirai/moirai-scheduler" }
+moirai-sync = { path = "../moirai/moirai-sync" }
+moirai-transport = { path = "../moirai/moirai-transport" }
+moirai-utils = { path = "../moirai/moirai-utils" }
+
+[patch."https://github.com/ryancinsight/melinoe.git"]
+melinoe = { path = "../melinoe" }
+
+[patch."https://github.com/ryancinsight/hermes.git"]
+hermes-simd = { path = "../hermes/crates/hermes-simd" }
+hermes-simd-core = { path = "../hermes/crates/hermes-simd-core" }
+hermes-simd-intrinsics = { path = "../hermes/crates/hermes-simd-intrinsics" }
+hermes-simd-macros = { path = "../hermes/crates/hermes-simd-macros" }
+hermes-simd-types = { path = "../hermes/crates/hermes-simd-types" }
 
 [profile.bench]
 codegen-units = 1

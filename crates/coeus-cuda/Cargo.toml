@@ -1,0 +1,38 @@
+[package]
+name = "coeus-cuda"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+coeus-core   = { workspace = true }
+coeus-tensor = { workspace = true }
+coeus-ops    = { workspace = true, default-features = false }
+leto         = { workspace = true }
+leto-ops     = { workspace = true }
+libloading   = "0.8"
+bytemuck     = { workspace = true }
+thiserror    = { workspace = true }
+eunomia     = { workspace = true }
+hephaestus-cuda = { workspace = true }
+themis = { workspace = true, optional = true }
+cutile       = { git = "https://github.com/NVlabs/cutile-rs", optional = true }
+cuda-core    = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-core", optional = true }
+cuda-async   = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-async", optional = true }
+
+[features]
+cuda = ["dep:cutile", "dep:cuda-core", "dep:cuda-async", "dep:themis", "hephaestus-cuda/cuda"]
+
+[dev-dependencies]
+coeus-autograd = { workspace = true, default-features = false }
+criterion = "0.5"
+
+[[bench]]
+name = "ops_bench"
+harness = false
+
+[[bench]]
+name = "attention_bench"
+harness = false

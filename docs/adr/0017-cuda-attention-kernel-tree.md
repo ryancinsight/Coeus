@@ -7,7 +7,7 @@
 
 ## Context
 
-`coeus-cuda/src/kernels/attention.rs` combined validation metadata, three
+`crates/coeus-cuda/src/kernels/attention.rs` combined validation metadata, three
 embedded NVRTC sources, forward dispatch, backward dispatch, and boundary tests
 in one 567-line file. The mixed concerns crossed ownership boundaries and
 exceeded the repository's 500-line leaf target.

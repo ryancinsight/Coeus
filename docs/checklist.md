@@ -1,5 +1,24 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-HEPHAESTUS-SCAN-001 — Native cumulative scans
+
+- [x] `ReductionOps::cumsum` and `suffix_sum` expose typed backend results.
+- [x] Route WGPU and CUDA rank-2 sum and product scans to Hephaestus provider
+      kernels.
+- [x] Reject unsupported rank/layout cases instead of copying through host.
+- [x] Add CPU/Leto, WGPU, and CUDA differential tests. Exact-head provider CI
+      run `30214708599` passes at `695c2890` (WGPU job `89826735353`, CUDA job
+      `89826735351`).
+
+## ATLAS-HEPHAESTUS-PRODUCT-001 — Native product reductions
+
+- [x] Add one shared `ReductionOp::Prod` contract through CPU/Leto, WGPU, and
+      CUDA, including fused CPU reduction evaluation.
+- [x] Add rank-2 `prod_axis` value-parity tests for CPU/Leto, WGPU, and CUDA.
+- [x] Run exact-head WGPU/CUDA provider CI with the product-reduction filters
+      after Leto product API merge `524e780`: run `30218187376` passes at
+      `b31cf448` (WGPU job `89835879122`, CUDA job `89835879151`).
+
 ## MS-445 Python release wheels [patch]
 
 - [x] Add the pinned build-once GitHub Release and PyPI workflow.
@@ -24,7 +43,7 @@
 **Evidence:** locked autograd compilation and warning-denied all-targets
 Clippy pass; 94/94 autograd Nextest cases pass; locked metadata reports one
 identity per Atlas provider. The full format gate exposes only the existing
-`coeus-ops/tests/half_precision_diff.rs` line-wrap drift. Asclepius compiles
+`crates/coeus-ops/tests/half_precision_diff.rs` line-wrap drift. Asclepius compiles
 `coeus-{autograd,core,ops,tensor}` from pushed commit `99920888`.
 
 ## MS-443 backend-generic host extraction [minor]
@@ -258,15 +277,15 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
   clean.
 
 ## Sprint MS-405: PyTorch/JAX parity defect closure [COMPLETE]
-- [x] [patch] **pairwise_distance eps-convention** — `coeus-autograd/src/ops/nn/loss/pairwise_distance.rs`
+- [x] [patch] **pairwise_distance eps-convention** — `crates/coeus-autograd/src/ops/nn/loss/pairwise_distance.rs`
       swapped `s + eps` for `max(s, eps)` (matches torch's `pairwise_distance`
       exactly at `s >> eps`; subgradient at the floor is treated as zero).
-- [x] [patch] **huber_loss classical-Huber rewrite** — `coeus-autograd/src/ops/nn/loss/huber.rs`
+- [x] [patch] **huber_loss classical-Huber rewrite** — `crates/coeus-autograd/src/ops/nn/loss/huber.rs`
       forward + backward replaced with the classical Huber definition matching
       `torch.nn.functional.huber_loss` and Burn's `HuberLossConfig`:
       `0.5·z²`/`δ·|z| - 0.5·δ²` forward, `z`/`sign(z)·δ` backward.
 - [x] [patch] **nn_loss_tests::test_pairwise_distance** oracle updated to
-      `max(s, eps)^(1/p)` analytical form (`coeus-nn/tests/nn_ops/losses/nn_loss/`).
+      `max(s, eps)^(1/p)` analytical form (`crates/coeus-nn/tests/nn_ops/losses/nn_loss/`).
 - [x] [patch] **PyTorch parity fixtures** — cross_entropy labels now `list[int]`,
       kl_div uses `reduction='mean'` in `tests/test_pytorch_parity.py`.
 - [x] [patch] **JAX parity fixtures** — cosine_similarity + triplet_margin use
@@ -280,19 +299,19 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
 - `cargo clippy --workspace --all-targets -- -D warnings` — clean.
 - `cargo nextest run --workspace --no-fail-fast --test-threads=2` — **1027/1027 pass**.
 - `cargo test --doc --workspace` — clean.
-- `maturin develop -m coeus-python/Cargo.toml` — built + installed clean.
-- `pytest coeus-python/tests/test_pytorch_parity.py -q` — **376/390 pass** (10 skip).
-- `pytest coeus-python/tests/test_jax_parity.py -q` — **187/190 pass** (3 skip).
-- `pytest coeus-python/tests/test_mlx_parity.py -q` — 70 skip (Windows gating).
-- `pytest coeus-python/tests/test_pytorch_parity.py -v -k "test_huber or test_pairwise or test_cosine_similarity"` — **all pass**.
-- `coeus-nn/tests/burn_live_parity` — **140/140 pass** (live Burn oracle,
+- `maturin develop -m crates/coeus-python/Cargo.toml` — built + installed clean.
+- `pytest crates/coeus-python/tests/test_pytorch_parity.py -q` — **376/390 pass** (10 skip).
+- `pytest crates/coeus-python/tests/test_jax_parity.py -q` — **187/190 pass** (3 skip).
+- `pytest crates/coeus-python/tests/test_mlx_parity.py -q` — 70 skip (Windows gating).
+- `pytest crates/coeus-python/tests/test_pytorch_parity.py -v -k "test_huber or test_pairwise or test_cosine_similarity"` — **all pass**.
+- `crates/coeus-nn/tests/burn_live_parity` — **140/140 pass** (live Burn oracle,
   including `probability_loss_forward_and_backward_match_burn` for huber against
   `HuberLossConfig`).
 
 ### Deferred (out of MS-405 scope)
 
 - ~~**MS-406**: Scatter_add/index_put autograd wiring~~ **CLOSED** — reconciled
-  2026-07-08: `coeus-python/src/ops/indexing.rs` `scatter_add`/`index_put`
+  2026-07-08: `crates/coeus-python/src/ops/indexing.rs` `scatter_add`/`index_put`
   already route through `coeus_autograd::{scatter_add,index_put}` (tracked,
   not `Var::new(t, false)`), with value-semantic backward parity tests
   `test_scatter_add_bwd_matches_pytorch` / `test_index_put_bwd_matches_pytorch`
@@ -300,7 +319,7 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
 - ~~**MS-407**: `EmbeddingBag.forward` PyTorch-API~~ **CLOSED** — reconciled
   2026-07-08: `pycoeus.EmbeddingBag.forward(indices: Tensor, offsets:
   Optional[Tensor] = None)` already matches the PyTorch-style no-offset
-  signature (`coeus-python/pycoeus.pyi:710`); landed alongside the
+  signature (`crates/coeus-python/pycoeus.pyi:710`); landed alongside the
   remainder/maximum/minimum binding extraction (`e36f95f`). Entry was stale.
 - **MS-413-followup**: `triplet_margin_loss` boundary `relu'(0)` subgradient
   discrepancy with JAX (`jnp.maximum(0, x)` returns 0.5 at `x=0`,
@@ -419,7 +438,7 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
   sequential_unary_matches_scalar_reference
   moirai_unary_matches_scalar_reference` (3/3); `rustup run nightly cargo check
   -p coeus-wgpu`; `D:/miniforge3/python.exe -m maturin develop -m
-  coeus-python/Cargo.toml`; targeted PyTorch parity pytest (5/5).
+  crates/coeus-python/Cargo.toml`; targeted PyTorch parity pytest (5/5).
 
 ### Current Sprint: MS-236 - scan/diff/NaN reduction parity [COMPLETE]
 - [x] [patch] Preserved the existing `pycoeus.diff`, `pycoeus.cumsum`, and
@@ -435,7 +454,7 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
   empirical PyTorch/JAX parity. Evidence: `rustup run nightly cargo fmt -p
   coeus-autograd -p coeus-python --check`; `rustup run nightly cargo nextest
   run -p coeus-autograd --no-fail-fast` (60/60); `D:/miniforge3/python.exe -m
-  maturin develop -m coeus-python/Cargo.toml`; targeted PyTorch MS-236 parity
+  maturin develop -m crates/coeus-python/Cargo.toml`; targeted PyTorch MS-236 parity
   (6/6); targeted JAX MS-236 parity (5/5); `rustup run nightly cargo clippy -p
   coeus-autograd -p coeus-python --all-targets -- -D warnings`;
   `rustup run nightly cargo test --doc -p coeus-autograd -p coeus-python`
@@ -449,7 +468,7 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
 ### Previous Sprint: MS-218 - Apollo FFT autograd + Python parity [COMPLETE]
 - [x] [minor] Added Apollo-backed `coeus_autograd::{fft_1d, ifft_1d,
   fft_1d_var, ifft_1d_var, fft_energy}` and wired the FFT module through
-  `coeus-autograd/src/ops/mod.rs` plus the crate-root public surface.
+  `crates/coeus-autograd/src/ops/mod.rs` plus the crate-root public surface.
 - [x] [patch] Added Rust value-semantic FFT regressions for hand-DFT
   forward values, inverse roundtrip, complex upstream-gradient propagation,
   and Parseval-derived `fft_energy` input gradients.
@@ -460,8 +479,8 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
   Evidence: `rustup run nightly cargo fmt -p coeus-autograd -p coeus-python --check`;
   `rustup run nightly cargo check -p coeus-autograd`; `rustup run nightly cargo nextest run -p coeus-autograd fft`
   (3/3); `rustup run nightly cargo check -p coeus-python`;
-  `D:/miniforge3/python.exe -m maturin develop -m coeus-python/Cargo.toml`;
-  `D:/miniforge3/python.exe -m pytest coeus-python/tests/test_pytorch_parity.py::test_fft_matches_pytorch -q`
+  `D:/miniforge3/python.exe -m maturin develop -m crates/coeus-python/Cargo.toml`;
+  `D:/miniforge3/python.exe -m pytest crates/coeus-python/tests/test_pytorch_parity.py::test_fft_matches_pytorch -q`
   (1/1).
 
 ### Previous Sprint: MS-217 - PReLU / LeakyReLU subgradient parity (G-037 closure) [COMPLETE]
@@ -469,7 +488,7 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
   `x >= 0 ? 1 : α` to `x > 0 ? 1 : α` across `coeus-core` (float + int),
   `coeus-ops` (fuse tag), the Rust value-semantic `act_extended/` activation
   contract tree
-  oracle, and `coeus-nn/tests/nn_activation_tests.rs::test_leaky_relu_activation`.
+  oracle, and `crates/coeus-nn/tests/nn_activation_tests.rs::test_leaky_relu_activation`.
   Matches `torch.nn.functional.prelu` / `F.leaky_relu.neg_slope` and
   JAX's `jnp.where(z > 0, z, alpha * z)`; closes
   `test_prelu_matches_pytorch` without any other activation regression.
@@ -491,7 +510,7 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
   merged via peer PR #112 (`d1ad9d2`): `feat(python): AdaptiveMaxPool1d/2d
   binding + dx parity (PyTorch, JAX)`. Module re-exports extended;
   `m.add_class` calls added in `pycoeus` registration in
-  `coeus-python/src/lib.rs`.
+  `crates/coeus-python/src/lib.rs`.
 - [x] Evidence: `rustup run nightly cargo clippy --workspace --all-targets -- -D warnings`
   zero warnings after 22.65s; `rustup run nightly cargo nextest run -p coeus-nn --no-fail-fast`
   379/379 green; pytest `test_adaptive_max_pool_backward_matches_pytorch`
@@ -505,7 +524,7 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
 
 ### Current Sprint: MS-215 - BN1d training `unused_mut` clippy regression [COMPLETE]
 - [x] [patch] Removed gratuitous `mut` on `BatchNorm1d::from_parts(...)` in
-  `coeus-nn/tests/norm_parity.rs` introduced by MS-214.
+  `crates/coeus-nn/tests/norm_parity.rs` introduced by MS-214.
 - [x] Evidence: `rustup run nightly cargo clippy --workspace --all-targets -- -D warnings`
   returns zero warnings; `rustup run nightly cargo fmt --check` clean;
   `rustup run nightly cargo test --doc --workspace` passes; per-crate
@@ -519,7 +538,7 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
 
 ### Current Sprint: MS-214 - Unfold1d Python binding + BatchNorm1d training parity [COMPLETE]
 - [x] [minor] `PyUnfold1d` PyO3 binding for `[N,C,L] -> [N,C*k,L_out]`.
-- [x] [patch] `coeus-nn/tests/norm_parity.rs`: `BatchNorm1d` training-mode
+- [x] [patch] `crates/coeus-nn/tests/norm_parity.rs`: `BatchNorm1d` training-mode
   analytical test (population variance oracle) + backward to weight/bias.
 - [x] [patch] `test_pytorch_parity.py::test_unfold1d_matches_pytorch`
   (kernel=3, stride=1 on `[2,3,7]`).
@@ -536,7 +555,7 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
 
 ### Previous Sprint: MS-199 - HuberLoss benchmark matrix expansion [COMPLETE] - HuberLoss benchmark matrix expansion [COMPLETE]
 **Objective**: Add HuberLoss benchmark row comparing Burn vs Coeus.
-- [x] [patch] Added `bench_huber_loss` in `coeus-nn/benches/nn_bench.rs`.
+- [x] [patch] Added `bench_huber_loss` in `crates/coeus-nn/benches/nn_bench.rs`.
 - [x] Evidence: Coeus ~45x faster than Burn (Coeus ~190 ns vs Burn ~8.7 us).
 
  - MSELoss benchmark matrix expansion [COMPLETE]
@@ -544,7 +563,7 @@ locked metadata resolves Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
 comparing Burn NdArray and both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
-- [x] [patch] Added `bench_mse_loss` in `coeus-nn/benches/nn_bench.rs` for
+- [x] [patch] Added `bench_mse_loss` in `crates/coeus-nn/benches/nn_bench.rs` for
   predictions `[128,64]` vs same-shape targets.
 - [x] [patch] Updated G-043 selected-row detail in `docs/gap_audit.md`.
 - [x] Evidence: cargo check/clippy/bench-no-run passed; benchmark confirms
@@ -556,7 +575,7 @@ row so the loss computation family is measured against Burn NdArray and both Coe
 CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
-- [x] [patch] Added `bench_cross_entropy_loss` in `coeus-nn/benches/nn_bench.rs`
+- [x] [patch] Added `bench_cross_entropy_loss` in `crates/coeus-nn/benches/nn_bench.rs`
   for logits `[128,10]`.
 - [x] [patch] Benchmarks Burn NdArray CrossEntropyLoss vs Coeus
   `cross_entropy_loss` on `SequentialBackend` and `MoiraiBackend`.
@@ -571,7 +590,7 @@ and both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
 - [x] [patch] Added `bench_instancenorm2d_forward` in
-  `coeus-nn/benches/nn_bench.rs` for `[2,32,16,16]`.
+  `crates/coeus-nn/benches/nn_bench.rs` for `[2,32,16,16]`.
 - [x] [patch] Benchmarks Burn NdArray InstanceNorm2d forward vs Coeus
   `InstanceNorm2d::<_, SequentialBackend>` and `InstanceNorm2d::<_, MoiraiBackend>`
   and registers the row in `criterion_group!`.
@@ -587,7 +606,7 @@ row so one additional implemented NN family is measured across Burn NdArray and
 both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
-- [x] [patch] Added `bench_lstm_forward` in `coeus-nn/benches/nn_bench.rs`
+- [x] [patch] Added `bench_lstm_forward` in `crates/coeus-nn/benches/nn_bench.rs`
   with `batch=4, seq=32, input=64, hidden=128`.
 - [x] [patch] Benchmarks Burn NdArray LSTM forward vs Coeus
   `Lstm::<_, SequentialBackend>` and `Lstm::<_, MoiraiBackend>` and
@@ -605,7 +624,7 @@ NdArray and both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
 - [x] [patch] Added `bench_rmsnorm_forward` in
-  `coeus-nn/benches/nn_bench.rs` for `[128,256]`.
+  `crates/coeus-nn/benches/nn_bench.rs` for `[128,256]`.
 - [x] [patch] Benchmarks Burn NdArray RMSNorm forward vs Coeus
   `RMSNorm::<_, SequentialBackend>` and `RMSNorm::<_, MoiraiBackend>` and
   registers the row in `criterion_group!`.
@@ -622,7 +641,7 @@ NdArray and both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
 - [x] [patch] Added `bench_avgpool2d_forward` in
-  `coeus-nn/benches/nn_bench.rs` for `[8,16,32,32]` with `k=2`, `s=2`.
+  `crates/coeus-nn/benches/nn_bench.rs` for `[8,16,32,32]` with `k=2`, `s=2`.
 - [x] [patch] Benchmarks Burn NdArray AvgPool2d forward vs Coeus
   `AvgPool2d::<_, SequentialBackend>` and `AvgPool2d::<_, MoiraiBackend>` and
   registers the row in `criterion_group!`.
@@ -639,7 +658,7 @@ NdArray and both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
 - [x] [patch] Added `bench_maxpool2d_forward` in
-  `coeus-nn/benches/nn_bench.rs` for `[8,16,32,32]` with `k=2`, `s=2`.
+  `crates/coeus-nn/benches/nn_bench.rs` for `[8,16,32,32]` with `k=2`, `s=2`.
 - [x] [patch] Benchmarks Burn NdArray MaxPool2d forward vs Coeus
   `MaxPool2d::<_, SequentialBackend>` and
   `MaxPool2d::<_, MoiraiBackend>` and registers the row in
@@ -657,7 +676,7 @@ NdArray and both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
 - [x] [patch] Added `bench_batchnorm3d_eval_forward` in
-  `coeus-nn/benches/nn_bench.rs` for `[2,32,16,16,16]`.
+  `crates/coeus-nn/benches/nn_bench.rs` for `[2,32,16,16,16]`.
 - [x] [patch] Benchmarks Burn NdArray BatchNorm3d eval forward vs Coeus
   `BatchNorm3d::<_, SequentialBackend>` and
   `BatchNorm3d::<_, MoiraiBackend>` and registers the row in
@@ -675,7 +694,7 @@ NdArray and both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
 - [x] [patch] Added `bench_batchnorm1d_eval_forward` in
-  `coeus-nn/benches/nn_bench.rs` for `[16,128,256]`.
+  `crates/coeus-nn/benches/nn_bench.rs` for `[16,128,256]`.
 - [x] [patch] Benchmarks Burn NdArray BatchNorm1d eval forward vs Coeus
   `BatchNorm1d::<_, SequentialBackend>` and
   `BatchNorm1d::<_, MoiraiBackend>` and registers the row in
@@ -693,7 +712,7 @@ NdArray and both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
 - [x] [patch] Added `bench_groupnorm_forward` in
-  `coeus-nn/benches/nn_bench.rs` for `[8,32,16,16]` with `g=8`.
+  `crates/coeus-nn/benches/nn_bench.rs` for `[8,32,16,16]` with `g=8`.
 - [x] [patch] Benchmarks Burn NdArray GroupNorm forward vs Coeus
   `GroupNorm::<_, SequentialBackend, 8>` and
   `GroupNorm::<_, MoiraiBackend, 8>` and registers the row in
@@ -727,7 +746,7 @@ forward row so one additional implemented NN family is measured across Burn
 NdArray and both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
-- [x] [patch] Added `bench_conv3d_forward` in `coeus-nn/benches/nn_bench.rs`
+- [x] [patch] Added `bench_conv3d_forward` in `crates/coeus-nn/benches/nn_bench.rs`
   for `[2,8,16,16,16]`, `k=3`.
 - [x] [patch] Benchmarks Burn NdArray Conv3d forward vs Coeus
   `Conv3d::<_, SequentialBackend>` and `Conv3d::<_, MoiraiBackend>` and
@@ -754,7 +773,7 @@ forward row so one additional implemented NN family is measured across Burn
 NdArray and both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
-- [x] [patch] Added `bench_conv1d_forward` in `coeus-nn/benches/nn_bench.rs`
+- [x] [patch] Added `bench_conv1d_forward` in `crates/coeus-nn/benches/nn_bench.rs`
   for `[8,32,256]`, `k=3`.
 - [x] [patch] Benchmarks Burn NdArray Conv1d forward vs Coeus
   `Conv1d::<_, SequentialBackend>` and `Conv1d::<_, MoiraiBackend>` and
@@ -801,7 +820,7 @@ NdArray and both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
 - [x] [patch] Added `bench_batchnorm2d_eval_forward` in
-  `coeus-nn/benches/nn_bench.rs` for `[2,64,32,32]`.
+  `crates/coeus-nn/benches/nn_bench.rs` for `[2,64,32,32]`.
 - [x] [patch] Benchmarks Burn NdArray BatchNorm2d eval forward vs Coeus
   `BatchNorm2d::<_, SequentialBackend>` and
   `BatchNorm2d::<_, MoiraiBackend>` and registers the row in
@@ -819,7 +838,7 @@ NdArray and both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
 - [x] [patch] Added `bench_embedding_forward` in
-  `coeus-nn/benches/nn_bench.rs` for `[batch=2, seq=16]`,
+  `crates/coeus-nn/benches/nn_bench.rs` for `[batch=2, seq=16]`,
   `[vocab=4096, d_model=256]`.
 - [x] [patch] Benchmarks Burn NdArray embedding lookup vs Coeus
   `Embedding::<_, SequentialBackend>` and `Embedding::<_, MoiraiBackend>` and
@@ -837,17 +856,17 @@ and pinning forward/backward parity against PyTorch.
 **Target version**: 0.5.4 (python binding/test/docs [patch]).
 
 - [x] [patch] Added `pycoeus.kl_divergence` and
-  `pycoeus.margin_ranking_loss` wrappers in `coeus-python/src/losses.rs` that
+  `pycoeus.margin_ranking_loss` wrappers in `crates/coeus-python/src/losses.rs` that
   delegate directly to `coeus_nn::loss` with no Python-side math.
-- [x] [patch] Exported both wrappers in `coeus-python/src/lib.rs` and updated
-  `coeus-python/pycoeus.pyi` to keep the Python stub/API surface aligned.
+- [x] [patch] Exported both wrappers in `crates/coeus-python/src/lib.rs` and updated
+  `crates/coeus-python/pycoeus.pyi` to keep the Python stub/API surface aligned.
 - [x] [patch] Added PyTorch differential tests
   `test_kl_divergence_matches_pytorch` and
   `test_margin_ranking_loss_matches_pytorch`, asserting scalar forward value and
   input gradients at f64.
 - [x] Evidence: `D:\miniforge3\python.exe -m maturin develop -m
-  coeus-python/Cargo.toml`; `D:\miniforge3\python.exe -m pytest
-  coeus-python/tests/test_pytorch_parity.py -k
+  crates/coeus-python/Cargo.toml`; `D:\miniforge3\python.exe -m pytest
+  crates/coeus-python/tests/test_pytorch_parity.py -k
   "kl_divergence_matches_pytorch or margin_ranking_loss_matches_pytorch" -q`;
   `cargo check -p coeus-python --all-targets`; `cargo clippy -p coeus-python
   --all-targets -- -D warnings`.
@@ -859,7 +878,7 @@ measured across Burn NdArray and both Coeus CPU backends.
 **Target version**: 0.5.4 (benchmark/docs [patch]).
 
 - [x] [patch] Added `bench_transformer_encoder_forward` in
-  `coeus-nn/benches/nn_bench.rs` using shape `[8,64,256]`, `d_ff=1024`,
+  `crates/coeus-nn/benches/nn_bench.rs` using shape `[8,64,256]`, `d_ff=1024`,
   `heads=8`, and dropout disabled.
 - [x] [patch] Benchmarks Burn NdArray vs Coeus `SequentialBackend` vs Coeus
   `MoiraiBackend` for the same encoder-layer forward contract and registers the
@@ -874,8 +893,8 @@ PyTorch module families, then file remaining parity work as concrete backlog
 items.
 **Target version**: 0.5.4 (audit/docs-only [patch]).
 
-- [x] [patch] Audited `coeus-nn/src/lib.rs`, `coeus-nn/src/loss.rs`,
-  `coeus-python/src/lib.rs`, and `coeus-python/src/losses.rs` public surfaces
+- [x] [patch] Audited `crates/coeus-nn/src/lib.rs`, `crates/coeus-nn/src/loss.rs`,
+  `crates/coeus-python/src/lib.rs`, and `crates/coeus-python/src/losses.rs` public surfaces
   against Burn/PyTorch NN categories and the current parity harness scope.
 - [x] [patch] Added G-035..G-043 to `docs/gap_audit.md`, covering
   ConvTranspose3d, pooling/adaptive/unfold/fold, activations, losses/distances,
@@ -934,7 +953,7 @@ surface as explicit panic diagnostics instead of 60s hangs.
 **Target version**: 0.5.4 (test/runtime diagnostics [patch]).
 
 - [x] [patch] Added a file-backed cross-process TCP port allocator lock and
-  deterministic local port reservation for `coeus-dist/tests/dist_ops.rs`,
+  deterministic local port reservation for `crates/coeus-dist/tests/dist_ops.rs`,
   covering multi-rank and single-rank TCP panic-contract tests.
 - [x] [patch] Treated Windows `PermissionDenied` during TCP lock-file creation
   as an already-held lock, preserving stale-lock diagnostics for nextest
@@ -956,12 +975,12 @@ interaction layer's autograd-tracked composition.
 **Target version**: 0.5.4 (test-only [patch]).
 
 - [x] [patch] Added
-  `coeus-python/tests/test_pytorch_parity.py::test_bilinear_backward_matches_pytorch`
+  `crates/coeus-python/tests/test_pytorch_parity.py::test_bilinear_backward_matches_pytorch`
   asserting `pycoeus.Bilinear(3,4,2, bias=True)` differentiated via
   `out.sum().backward()` against `torch.nn.Bilinear.double()` at f64, atol=1e-10.
   Covers dweight (`[out, in1, in2]` flat), dbias, dx1, dx2.
 - [x] Evidence: `JAX_ENABLE_X64=1 JAX_PLATFORMS=cpu D:\miniforge3\python.exe -m
-  pytest coeus-python/tests/test_pytorch_parity.py::test_bilinear_backward_matches_pytorch
+  pytest crates/coeus-python/tests/test_pytorch_parity.py::test_bilinear_backward_matches_pytorch
   -v` (1/1 PASS); full Python parity suite 55 passed + 2 MLX-skipped.
 
 ### Previous Sprint: MS-176 - ConvTranspose backward GPU coverage [COMPLETE]
@@ -1001,7 +1020,7 @@ covered by PyTorch parity.
 - [x] [patch] Added `test_rmsnorm_matches_jax`, asserting forward output and
   input/gamma gradients against an inline JAX RMSNorm reference at f64.
 - [x] Evidence: `D:\miniforge3\python.exe -m pytest
-  coeus-python/tests/test_jax_parity.py -q` (13/13).
+  crates/coeus-python/tests/test_jax_parity.py -q` (13/13).
 
 ### Previous Sprint: MS-173 - Softmax/log-softmax/cross-entropy JAX parity [COMPLETE]
 **Objective**: Extend the JAX parity harness to the classification softmax path
@@ -1014,7 +1033,7 @@ covered by PyTorch parity.
 - [x] [patch] Added `test_cross_entropy_loss_matches_jax`, asserting scalar
   mean loss and logit gradient against a fused log-softmax + NLL JAX reference.
 - [x] Evidence: `D:\miniforge3\python.exe -m pytest
-  coeus-python/tests/test_jax_parity.py -q` (11/11).
+  crates/coeus-python/tests/test_jax_parity.py -q` (11/11).
 
 ### Previous Sprint: MS-172 - Deterministic local/TCP numel contract tests [COMPLETE]
 **Objective**: Replace thread-join panic detection with deterministic direct
@@ -1042,7 +1061,7 @@ bound and CPU kernel delegation.
 
 - [x] [patch] Added `ElementwiseOps`, `MatmulOps`, `ReductionOps`, `ConvOps`,
   `PoolOps`, `AttentionOps`, and `OptimizerOps` under
-  `coeus-ops/src/backend_ops/traits/`.
+  `crates/coeus-ops/src/backend_ops/traits/`.
 - [x] [patch] Reduced `BackendOps` to a super-trait with a blanket impl so
   backends compose the aggregate bound from single-concern trait impls.
 - [x] [patch] Split the CPU backend implementation into one impl block per
@@ -1146,7 +1165,7 @@ Burn/Coeus NN benchmark harness with Conv2d forward coverage.
 - [x] [patch] Moved root `scatter` host extraction ahead of staging-board
   publication so tensor host copies do not run under the shared mutex.
 - [x] [patch] Added a Conv2d forward group to
-  `coeus-nn/benches/nn_bench.rs` comparing Burn NdArray, Coeus Sequential, and
+  `crates/coeus-nn/benches/nn_bench.rs` comparing Burn NdArray, Coeus Sequential, and
   Coeus Moirai on the same `8x16x32x32`, `16 -> 16`, `k=3` workload.
 - [x] Evidence: `rustup run nightly cargo nextest run -p coeus-dist local_`
   (21/21); `rustup run nightly cargo bench -p coeus-nn --bench nn_bench
@@ -1166,7 +1185,7 @@ value-semantic Rust tests.
   (`mean(target * (log(target) - input))`) and margin ranking
   (`mean(max(0, -target * (input1 - input2) + margin))`).
 - [x] [patch] Added sequential and Moirai loss-parity assertions for both
-  losses in `coeus-nn/tests/loss_parity.rs`.
+  losses in `crates/coeus-nn/tests/loss_parity.rs`.
 - [x] Evidence: `rustup run nightly cargo nextest run -p coeus-autograd`
   (35/35); `rustup run nightly cargo nextest run -p coeus-nn` (305/305).
 
@@ -1226,8 +1245,8 @@ previously absent from the PyTorch parity suite.
 vertical module tree while preserving the public PyO3 export surface.
 **Target version**: 0.5.4 (internal topology [patch]).
 
-- [x] [patch] Promoted `coeus-python/src/nn/feedforward.rs` to
-  `coeus-python/src/nn/feedforward/mod.rs`.
+- [x] [patch] Promoted `crates/coeus-python/src/nn/feedforward.rs` to
+  `crates/coeus-python/src/nn/feedforward/mod.rs`.
 - [x] [patch] Moved positional encoding and transformer layer/stack/seq2seq
   bindings into `feedforward/positional.rs` and
   `feedforward/transformer/*` leaf modules.
@@ -1239,8 +1258,8 @@ vertical module tree while preserving the public PyO3 export surface.
   `rustup run nightly cargo clippy -p coeus-python --all-targets -- -D warnings`;
   `rustup run nightly cargo nextest run -p coeus-python` (72/72);
   `rustup run nightly cargo test --doc -p coeus-python` (0/0);
-  `D:\miniforge3\python.exe -m maturin develop -m coeus-python/Cargo.toml`;
-  `D:\miniforge3\python.exe -m pytest coeus-python/tests/test_pytorch_parity.py -q`
+  `D:\miniforge3\python.exe -m maturin develop -m crates/coeus-python/Cargo.toml`;
+  `D:\miniforge3\python.exe -m pytest crates/coeus-python/tests/test_pytorch_parity.py -q`
   (27/27).
 
 ### Previous Sprint: MS-150 - TCP collective root contract completion [COMPLETE]
@@ -1321,15 +1340,15 @@ matching the InstanceNorm parity established in MS-145.
 - [x] [patch] Added `test_groupnorm_matches_pytorch`: GroupNorm(2, 4) on `[2,4,2,2]`;
   forward + dx + dγ + dβ vs `torch.nn.functional.group_norm` at f64, atol=1e-10.
 - [x] Evidence: `D:\miniforge3\python.exe -m pytest
-  coeus-python/tests/test_pytorch_parity.py -q` (25/25 pass).
+  crates/coeus-python/tests/test_pytorch_parity.py -q` (25/25 pass).
 
 ### Previous Sprint: MS-148 - Shape einsum SSOT cleanup [COMPLETE]
 **Objective**: Remove the duplicate einsum implementation under
 `coeus-ops::shape::util` while preserving both public re-export surfaces.
 **Target version**: 0.5.4 (patch-class; internal topology cleanup).
 
-- [x] [patch] Deleted `coeus-ops/src/shape/util/einsum.rs`; it was
-  byte-identical to `coeus-ops/src/shape/einsum.rs`.
+- [x] [patch] Deleted `crates/coeus-ops/src/shape/util/einsum.rs`; it was
+  byte-identical to `crates/coeus-ops/src/shape/einsum.rs`.
 - [x] [patch] Routed `coeus_ops::shape::util::{einsum,einsum3}` through the
   canonical parent `shape::einsum` implementation, preserving call sites and
   removing duplicated tests/logic.
@@ -1348,12 +1367,12 @@ idiomatic `loss.backward()`, and land differential PyTorch parity for InstanceNo
 **Target version**: 0.5.4 (`PyTensor.sum`/`.mean` are additive [minor]; tests [patch]).
 
 - [x] [minor] Added `PyTensor::sum`/`PyTensor::mean` full-reduction methods
-  (`coeus-python/src/tensor/pyimpl.rs`) delegating to `coeus_autograd::{sum,mean}`,
+  (`crates/coeus-python/src/tensor/pyimpl.rs`) delegating to `coeus_autograd::{sum,mean}`,
   GIL released; synced `pycoeus.pyi` stub.
 - [x] [patch] InstanceNorm{1,2,3}d PyTorch parity (forward + dx + dγ + dβ, atol=1e-10).
 - [x] [patch] RMSProp/AdaGrad step PyTorch parity (atol=1e-10).
 - [x] [patch] Corrected InstanceNorm parity oracle: affine weight/bias `requires_grad=True`.
-- [x] Removed stale `coeus-python/tests/pycoeus*.pyd` shadowing artifacts.
+- [x] Removed stale `crates/coeus-python/tests/pycoeus*.pyd` shadowing artifacts.
 - [x] Evidence: `pytest test_pytorch_parity.py` 24/24; `clippy -D warnings` + `fmt` clean.
 
 ### Previous Sprint: MS-147 - TcpCommunicator staging contract hardening [COMPLETE]
@@ -1389,7 +1408,7 @@ shape contracts.
 `all_reduce` work across ranks, hardening staged payload validation, and
 cutting avoidable temporary allocations in local collectives.
 
-- [x] [patch] Refactored `coeus-dist/src/local.rs::all_reduce` to compute the
+- [x] [patch] Refactored `crates/coeus-dist/src/local.rs::all_reduce` to compute the
   reduction once on rank 0 and publish the reduced payload for all ranks.
 - [x] [patch] Added explicit staged-payload validation helpers
   (`slot_vec_ref`, `assert_numel`) for type/shape guardrails.
@@ -1404,7 +1423,7 @@ binary fused-expression tags a real vertical module under `coeus-ops` while
 preserving the existing public re-export surface.
 
 - [x] [patch] Moved binary ZST tags (`BinaryOpTag`, `Add`, `Sub`, `Mul`,
-  `Div`) into `coeus-ops/src/fuse/op_tags/binary.rs`.
+  `Div`) into `crates/coeus-ops/src/fuse/op_tags/binary.rs`.
 - [x] [patch] Converted `op_tags.rs` into `op_tags/mod.rs` and re-exported the
   binary tags from the module root so existing call sites remain unchanged.
 - [x] Evidence: `cargo fmt -p coeus-ops --check`; `cargo clippy -p coeus-ops
@@ -1417,10 +1436,10 @@ transformer decoder block using exported pycoeus layer weights and a JAX
 pre-layernorm decoder reference.
 
 - [x] [patch] Added `test_transformer_decoder_layer_matches_jax` in
-  `coeus-python/tests/test_jax_parity.py`.
+  `crates/coeus-python/tests/test_jax_parity.py`.
 - [x] [patch] Added JAX decoder reference helpers (`_jax_layer_norm`,
   `_jax_mha_forward`) used by the parity oracle.
-- [x] Evidence: `pytest coeus-python/tests/test_jax_parity.py -k "decoder_layer
+- [x] Evidence: `pytest crates/coeus-python/tests/test_jax_parity.py -k "decoder_layer
   or mha or linear" -q` passes 3/3.
 
 ### Previous Sprint: MS-141 - RMSNorm and Embedding PyTorch parity [COMPLETE]
@@ -1428,7 +1447,7 @@ pre-layernorm decoder reference.
 modules that exposed binding classes but no differential PyTorch tests.
 
 - [x] [patch] Added `test_rmsnorm_matches_pytorch` to
-  `coeus-python/tests/test_pytorch_parity.py`: forward `y`, `dx`, `dgamma`
+  `crates/coeus-python/tests/test_pytorch_parity.py`: forward `y`, `dx`, `dgamma`
   against PyTorch's canonical RMSNorm formula
   `y = (x / sqrt(mean(x**2, dim=-1, keepdim=True) + eps)) * gamma`
   at `atol=1e-10`. PyTorch 2.12 does not yet ship `torch.nn.RMSNorm` as
@@ -1437,10 +1456,10 @@ modules that exposed binding classes but no differential PyTorch tests.
 - [x] [patch] Added `test_embedding_matches_pytorch` asserting forward output
   and gathered-rows weight gradient against `torch.nn.Embedding` with
   sparse-index backward at `atol=1e-10`.
-- [x] Evidence: `pytest coeus-python/tests/test_pytorch_parity.py -k
+- [x] Evidence: `pytest crates/coeus-python/tests/test_pytorch_parity.py -k
   "rmsnorm or embedding" -v` passes 2/2; full parity ensemble
-  `pytest coeus-python/tests/test_pytorch_parity.py
-  coeus-python/tests/test_jax_parity.py coeus-python/tests/test_mlx_parity.py
+  `pytest crates/coeus-python/tests/test_pytorch_parity.py
+  crates/coeus-python/tests/test_jax_parity.py crates/coeus-python/tests/test_mlx_parity.py
   -v` passes 21/23 with 2 MLX skips on this Windows host
   (19 PyTorch + 2 JAX + 2 MLX collected).
 
@@ -1457,7 +1476,7 @@ and Python PyTorch differential parity harness.
   weight injection against `torch.nn.Bilinear`; layout `[out,in1,in2]` matches
   directly.
 - [x] Evidence: `cargo nextest run -p coeus-nn --test bilinear_parity` passes
-  2/2; `pytest coeus-python/tests/test_pytorch_parity.py -k bilinear -v`
+  2/2; `pytest crates/coeus-python/tests/test_pytorch_parity.py -k bilinear -v`
   passes 1/1; `cargo clippy -p coeus-nn --test bilinear_parity -- -D warnings`
   is clean.
 
@@ -1475,8 +1494,8 @@ inside Rust/PyO3 bindings.
   against torch.optim.AdamW; decoupled weight decay verified; atol=1e-10.
 - [x] [patch] Extended JAX and MLX parity harnesses with `MultiHeadAttention`
   self-attention forward references.
-- [x] Evidence: `pytest coeus-python/tests/test_pytorch_parity.py
-  coeus-python/tests/test_jax_parity.py coeus-python/tests/test_mlx_parity.py
+- [x] Evidence: `pytest crates/coeus-python/tests/test_pytorch_parity.py
+  crates/coeus-python/tests/test_jax_parity.py crates/coeus-python/tests/test_mlx_parity.py
   -v` passes 15/17 with 2 MLX skips on this Windows host.
 
 ### Previous Sprint: MS-138 - JAX and MLX Python parity harnesses [COMPLETE]
@@ -1493,8 +1512,8 @@ Rust/PyO3 bindings.
   `MultiHeadAttention` forward parity against MLX at f32 when MLX is installed.
 - [x] [patch] MLX absence now produces one collected skipped test rather than a
   no-tests-collected failure.
-- [x] Evidence: `pytest coeus-python/tests/test_jax_parity.py -k "linear or
-  mha" -q` (2/2 pass); `pytest coeus-python/tests/test_mlx_parity.py -k
+- [x] Evidence: `pytest crates/coeus-python/tests/test_jax_parity.py -k "linear or
+  mha" -q` (2/2 pass); `pytest crates/coeus-python/tests/test_mlx_parity.py -k
   "linear or mha" -q` (2 collected skips: MLX not installed).
 
 ### Previous Sprint: MS-137 - TransformerDecoderLayer functional SSOT routing [COMPLETE]
@@ -1585,7 +1604,7 @@ add SinusoidalEncoding and RotaryEmbedding structural tests; PyTransformer compo
 parity test.
 **Target version**: 0.5.2 (minor-class; new `PyTransformer` public binding).
 
-- [x] [minor] Added `PyTransformer` to `coeus-python/src/nn/feedforward.rs`: stores
+- [x] [minor] Added `PyTransformer` to `crates/coeus-python/src/nn/feedforward.rs`: stores
   `encoder: Py<PyTransformerEncoder>`, `decoder: Py<PyTransformerDecoder>` sub-modules;
   `new(d_model, d_ff, num_heads, num_enc_layers, num_dec_layers, dropout_p)` delegates
   to existing constructors (no dispatch macro needed — already handled by sub-modules);
@@ -1607,7 +1626,7 @@ parity test.
 - [x] Fixed pre-existing stale mnemosyne-backend artifact in coeus workspace cache
   (`cargo clean -p mnemosyne-backend`; mnemosyne-backend compiles correctly in isolation).
 - [x] Evidence: `rustup run nightly cargo clippy -p coeus-python --tests -- -D
-  warnings`; `pytest coeus-python/tests/test_pytorch_parity.py -k
+  warnings`; `pytest crates/coeus-python/tests/test_pytorch_parity.py -k
   test_transformer_seq2seq_composition -v`.
 
 ### Previous Sprint: MS-128 - Fix G-002: Stateful PyTransformerEncoder binding [COMPLETE]
@@ -1637,7 +1656,7 @@ instead of scalars; extract shared `build_from_layer`/`from_rust_layer` inherent
   PyTorch: 2-layer encoder, 32 parameters, output at 2e-4 atol).
 - [x] [patch] Closed G-002 in `docs/gap_audit.md`.
 - [x] Evidence: `cargo nextest run -p coeus-nn` 111/111 passed;
-  `pytest coeus-python/tests/test_pytorch_parity.py -v` 8/8 passed.
+  `pytest crates/coeus-python/tests/test_pytorch_parity.py -v` 8/8 passed.
 
 ### Previous Sprint: MS-131 - Extended activation backward parity [COMPLETE]
 **Objective**: Extend Burn-backed scalar activation backward coverage for
@@ -1693,18 +1712,18 @@ surface introduced in MS-129.
   default construction, incompatible default-head rejection, and the stateful
   26-parameter decoder layer surface.
 - [x] [patch] Rebuilt the CPython 3.13 test wheel used by
-  `coeus-python/tests/test_pytorch_parity.py`.
+  `crates/coeus-python/tests/test_pytorch_parity.py`.
 - [x] Evidence: `rustup run nightly cargo fmt -p coeus-nn -p coeus-python
   --check`; `rustup run nightly cargo clippy -p coeus-python --tests -- -D
   warnings`; `rustup run nightly cargo doc -p coeus-python --no-deps`;
   `rustup run nightly cargo nextest run -p coeus-python` (72/72);
   `rustup run nightly cargo nextest run -p coeus-nn --test burn_live_parity
-  transformer_decoder` (3/3); `pytest coeus-python/tests/test_pytorch_parity.py
+  transformer_decoder` (3/3); `pytest crates/coeus-python/tests/test_pytorch_parity.py
   -v` (10/10).
 
 ### Previous Sprint: MS-127 - Fix G-001: Stateful PyTransformerEncoderLayer binding [COMPLETE]
 **Objective**: Refactor `PyFeedForward` and `PyTransformerEncoderLayer` in
-`coeus-python/src/nn/feedforward.rs` to be stateful — storing `norm1`, `self_attn`,
+`crates/coeus-python/src/nn/feedforward.rs` to be stateful — storing `norm1`, `self_attn`,
 `norm2`, and `ffn` as `Py<>` sub-module fields — and promote the pytest encoder test
 from shape-contract-only to full weight-parity verification.
 **Target version**: 0.5.2 (minor-class; new parameter-accessible binding surface).
@@ -1724,7 +1743,7 @@ from shape-contract-only to full weight-parity verification.
   sub-modules, copies to assembled PyTorch Pre-LN components, verifies output at 2e-4 atol.
 - [x] [patch] Closed G-001 in `docs/gap_audit.md`.
 - [x] Evidence: `cargo nextest run -p coeus-nn` 272/272 passed;
-  `pytest coeus-python/tests/test_pytorch_parity.py -v` 7/7 passed.
+  `pytest crates/coeus-python/tests/test_pytorch_parity.py -v` 7/7 passed.
 
 ### Previous Sprint: MS-126 - Extend pytest PyTorch parity surface [COMPLETE]
 **Objective**: Expand `test_pytorch_parity.py` to cover Conv1d/2d, LayerNorm,
@@ -1741,7 +1760,7 @@ MHA backward (dx + dW), and TransformerEncoderLayer shape contract.
 - [x] [patch] `test_transformer_encoder_layer_shape_contract`: shape [B,S,D]
   preserved; weight-parity test blocked by G-001 (stateless binding). Gap filed
   in `docs/gap_audit.md` as G-001.
-- [x] Evidence: `pytest coeus-python/tests/test_pytorch_parity.py -v` 7/7 passed;
+- [x] Evidence: `pytest crates/coeus-python/tests/test_pytorch_parity.py -v` 7/7 passed;
   rebuilt wheel with maturin to get current `TransformerEncoderLayer` binding.
 
 ### Previous Sprint: MS-125 - TransformerEncoderLayer Burn parity + pytest PyTorch scaffold [COMPLETE]
@@ -1755,13 +1774,13 @@ scaffold the coeus-python pytest harness for PyTorch/JAX/MLX output parity.
   assembled Burn Pre-LN components (LN×2 + MHA + PWFF), transposing Linear
   weights for the [out,in] vs [in,out] convention difference. Verifies forward
   context and input gradient (dx) at 2e-4 tolerance.
-- [x] [patch] Created `coeus-python/tests/test_pytorch_parity.py` pytest module
+- [x] [patch] Created `crates/coeus-python/tests/test_pytorch_parity.py` pytest module
   with `test_linear_matches_pytorch` (Linear(256→64) + ReLU + MSELoss: loss, dx,
   dW, db at 1e-5 atol, f64) and `test_mha_matches_pytorch` (MHA d_model=4, H=2,
   no bias, forward at 1e-10 atol). No transposition required: pycoeus and PyTorch
   both use [out, in] Linear convention. 2/2 pass.
 - [x] Evidence: `cargo nextest run -p coeus-nn` 272/272 passed;
-  `pytest coeus-python/tests/test_pytorch_parity.py -v` 2/2 passed.
+  `pytest crates/coeus-python/tests/test_pytorch_parity.py -v` 2/2 passed.
 
 ### Previous Sprint: MS-124 - coeus-python documented binding surface [COMPLETE]
 **Objective**: Document the remaining public PyO3 binding crate surface before
@@ -1771,7 +1790,7 @@ enabling crate-wide `#![deny(missing_docs)]` in `coeus-python`.
 - [x] [patch] Added Rustdoc to all 293 previously-undocumented public PyO3 items
   across 25 files: crate root, all module declarations, pyclass constructors,
   fields, and all `#[pymethods]` methods. (commit 684ce02)
-- [x] [patch] Enabled `#![deny(missing_docs)]` in `coeus-python/src/lib.rs`.
+- [x] [patch] Enabled `#![deny(missing_docs)]` in `crates/coeus-python/src/lib.rs`.
 - [x] Evidence: `cargo check -p coeus-python` clean; `cargo nextest run -p coeus-python` 72/72 passed.
 
 ### Previous Sprint: MS-123 - MHA backward + Conv generic consolidation [COMPLETE]
@@ -1785,9 +1804,9 @@ enabling crate-wide `#![deny(missing_docs)]` in `coeus-python`.
 - [x] [minor] Consolidated Conv1d/2d/3d in `coeus-nn` into the generic
   `Conv<T, B, D: ConvDim>` layer with sealed ZST dimension strategies and
   `Conv1d`/`Conv2d`/`Conv3d` type aliases.
-- [x] [patch] Split `coeus-ops/src/backend_ops/cpu_impl.rs` into SRP family
+- [x] [patch] Split `crates/coeus-ops/src/backend_ops/cpu_impl.rs` into SRP family
   submodules.
-- [x] [patch] Split `coeus-autograd/src/ops/nn/conv.rs` into conv1d/2d/3d and
+- [x] [patch] Split `crates/coeus-autograd/src/ops/nn/conv.rs` into conv1d/2d/3d and
   transpose leaf modules.
 - [x] [patch] Enforced and fixed `coeus-nn` missing docs and added documented
   public surfaces across touched core/tensor/ops/cuda/wgpu items.
@@ -1821,7 +1840,7 @@ wgpu ops/mod.rs (1182→7 SRP files), fix coeus-ops missing_docs.
 - [x] [minor] PyTransformerEncoderLayer: dispatches const H ∈ {1,2,4,8,16,32}
 - [x] [minor] PyTransformerEncoder: dispatches 36 (H,N) specializations
 - [x] [minor] PySinusoidalEncoding: stateless PE wrapper
-- [x] [patch] Split coeus-wgpu/src/backend/ops/mod.rs → conv.rs, pool.rs, optim.rs, matmul.rs, reduction.rs
+- [x] [patch] Split crates/coeus-wgpu/src/backend/ops/mod.rs → conv.rs, pool.rs, optim.rs, matmul.rs, reduction.rs
 - [x] [patch] Fix coeus-ops fuse module missing_docs (87 items)
 - [x] Evidence: `cargo nextest run --workspace --exclude coeus-cuda`: 797/797 passed.
 
@@ -1897,8 +1916,8 @@ wrapper cleanup).
   those helpers.
 - [x] [patch] Added PyO3 input validation (rank/shape/epsilon) for both
   wrappers with clear `ValueError` messages.
-- [x] [patch] Added functional parity checks in `coeus-nn/tests/nn_norm_tests.rs`
-  and Python functional checks in `coeus-python/tests/binding_tests_ops.rs`.
+- [x] [patch] Added functional parity checks in `crates/coeus-nn/tests/nn_norm_tests.rs`
+  and Python functional checks in `crates/coeus-python/tests/binding_tests_ops.rs`.
 - [x] Evidence: `rustup run nightly cargo check -p coeus-nn --lib`; `rustup
   run nightly cargo check -p coeus-python --lib`; `rustup run nightly cargo
   nextest run -p coeus-nn --test nn_norm_tests test_layernorm test_rmsnorm`
@@ -1911,7 +1930,7 @@ wrapper cleanup).
 strided dispatch path (MS-117) via transposed and permuted non-contiguous views.
 **Target version**: 0.5.1 (patch-class; test coverage).
 
-- [x] [patch] Added 6 tests in `coeus-wgpu/tests/wgpu/parity.rs`:
+- [x] [patch] Added 6 tests in `crates/coeus-wgpu/tests/wgpu/parity.rs`:
   `test_wgpu_strided_add_transposed_matches_cpu`,
   `test_wgpu_strided_mul_transposed_matches_cpu`,
   `test_wgpu_strided_exp_transposed_matches_cpu`,
@@ -1926,7 +1945,7 @@ strided dispatch path (MS-117) via transposed and permuted non-contiguous views.
 Hephaestus `*_elementwise_strided_into` for rank ≤ 4, with a CPU fallback.
 **Target version**: 0.5.1 (patch-class; no API change).
 
-- [x] [patch] Add `leto` as a direct dep in `coeus-wgpu/Cargo.toml` for
+- [x] [patch] Add `leto` as a direct dep in `crates/coeus-wgpu/Cargo.toml` for
   `LetoLayout::new`.
 - [x] [patch] Implement `coeus_to_leto_layout!` macro: pads Coeus dynamic
   layout to const-rank `[usize; N]`/`[isize; N]` arrays.
@@ -2068,12 +2087,12 @@ Hephaestus contiguous routes in caller-owned output buffers.
 **Tests delivered**: delegated contiguous unary/binary parity and output-buffer
 identity assertions, plus aliasing fallback parity.
 
-- [x] [patch] `coeus-wgpu/src/backend/ops/mod.rs`: replaced allocating
+- [x] [patch] `crates/coeus-wgpu/src/backend/ops/mod.rs`: replaced allocating
   `binary_elementwise`/`unary_elementwise` calls with `*_into` variants for
   contiguous non-aliased Hephaestus dispatch.
 - [x] [patch] Kept alias-guard contract unchanged so aliased output continues to
   use Coeus-local kernels.
-- [x] [patch] `coeus-wgpu/tests/wgpu/parity.rs`: added delegated contiguous
+- [x] [patch] `crates/coeus-wgpu/tests/wgpu/parity.rs`: added delegated contiguous
   unary/binary tests asserting output Arc identity is preserved and values match
   CPU reference.
 - [x] Evidence: `cargo fmt --check`; `cargo test -p coeus-wgpu
@@ -2125,7 +2144,7 @@ covers 1D and 2D convolution modules.
 **Target version**: 0.5.1 (patch-class; additive test coverage only).
 
 - [x] [patch] Added `conv1d_backward_matches_burn` and `conv2d_backward_matches_burn`
-  in `coeus-nn/tests/burn_live_parity.rs` against Burn `Autodiff<NdArray<f32>>`.
+  in `crates/coeus-nn/tests/burn_live_parity.rs` against Burn `Autodiff<NdArray<f32>>`.
 - [x] [patch] Both tests compare `dx` (input gradient) and `dw` (weight gradient)
   using exact same data shapes and weight values as the corresponding forward
   Burn parity cases.
@@ -2145,8 +2164,8 @@ conversion (read-mostly swap with double-checked write-lock insert).
   `adagrad_step_matches_analytical_reference`,
   `adamw_step_matches_analytical_reference` in `burn_live_parity::optimizer_*`.
 - [x] [patch] Added `conv3d_forward_matches_burn` and transpose-backward
-  autodiff parity in `coeus-nn/tests/burn_live_parity.rs`.
-- [x] [patch] Converted `coeus-cuda/src/kernels/fuse.rs::KERNEL_CACHE` from
+  autodiff parity in `crates/coeus-nn/tests/burn_live_parity.rs`.
+- [x] [patch] Converted `crates/coeus-cuda/src/kernels/fuse.rs::KERNEL_CACHE` from
   `Mutex<HashMap<…>>` to `RwLock<HashMap<…>>` with read-lock fast-path and
   double-checked write-lock insert path.
 - [x] Evidence: `cargo nextest run -p coeus-nn --test burn_live_parity` →
@@ -2212,7 +2231,7 @@ Conv1d/Conv2d differential parity against Burn NdArray.
 forward vs Burn with explicit ones-kernel initialization.
 
 - [x] [patch] Added `batchnorm3d_eval_forward_matches_burn` in
-  `coeus-nn/tests/burn_live_parity.rs` — same eval-mode pattern as 1d/2d.
+  `crates/coeus-nn/tests/burn_live_parity.rs` — same eval-mode pattern as 1d/2d.
 - [x] [patch] Added `conv1d_forward_matches_burn` — explicit ones-weight coeus
   Conv1d vs Burn `Conv1dConfig` with matching weight; asserts shape and values.
 - [x] [patch] Added `conv2d_forward_matches_burn` — same for 2D.
@@ -2231,9 +2250,9 @@ NdArray.
   `coeus_nn::group_norm`, with GIL release around Rust computation.
 - [x] [patch] Added Python-boundary validation for rank, group count, epsilon,
   and optional affine tensor shape before delegating to Rust core.
-- [x] [patch] Extended `coeus-python/tests/binding_tests_ops.rs` with exact
+- [x] [patch] Extended `crates/coeus-python/tests/binding_tests_ops.rs` with exact
   functional GroupNorm output assertions and zero-group rejection.
-- [x] [patch] Added `coeus-nn/tests/burn_live_parity.rs` BatchNorm2d eval-mode
+- [x] [patch] Added `crates/coeus-nn/tests/burn_live_parity.rs` BatchNorm2d eval-mode
   forward parity against Burn NdArray.
 - [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-python --test
   binding_tests_ops test_nn_functional_ops`; `cargo nextest run -p coeus-nn
@@ -2250,7 +2269,7 @@ Burn/PyTorch-style stateless normalization.
 **Tests delivered**: WGPU package nextest plus analytical normalization parity
 for module and functional GroupNorm on SequentialBackend and MoiraiBackend.
 
-- [x] [patch] `coeus-wgpu/src/kernels/cache.rs`: made cache entries
+- [x] [patch] `crates/coeus-wgpu/src/kernels/cache.rs`: made cache entries
   device-scoped and source-sensitive (`device_addr`, shader key, entry point,
   WGSL source hash) to prevent cross-device or stale-key collisions.
 - [x] [patch] Replaced global `Mutex<HashMap<...>>` with
@@ -2262,7 +2281,7 @@ for module and functional GroupNorm on SequentialBackend and MoiraiBackend.
   while retaining Coeus-local kernels for aliasing and unsupported unary ops.
 - [x] [minor] Added and exported stateless `coeus_nn::group_norm`, backed by
   tensor-level Rust-core ops and explicit rank/group/affine/epsilon validation.
-- [x] [patch] Extended `coeus-nn/tests/norm_parity.rs` with exact analytical
+- [x] [patch] Extended `crates/coeus-nn/tests/norm_parity.rs` with exact analytical
   functional GroupNorm assertions, including affine output and zero-group
   rejection.
 - [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-nn --test
@@ -2285,16 +2304,16 @@ ConvTranspose, and sequence-level RNNs.
 - [x] [minor] `coeus-python`: exposed `var_mean` and `std_mean` as thin PyO3
   wrappers with optional `axis` and `keepdim`, preserving Rust-core ownership
   of statistics logic.
-- [x] [patch] `coeus-ops/tests/stats_diff.rs`: added analytical global and
+- [x] [patch] `crates/coeus-ops/tests/stats_diff.rs`: added analytical global and
   per-axis assertions comparing pair outputs against standalone reductions and
   `mean_axis`.
-- [x] [patch] `coeus-python/tests/binding_tests_ops.rs`: added scalar,
+- [x] [patch] `crates/coeus-python/tests/binding_tests_ops.rs`: added scalar,
   per-axis, keepdim, and error-path checks for `pycoeus.var_mean` and
   `pycoeus.std_mean`.
-- [x] [minor] `coeus-nn/src/rnn/{gru,lstm}.rs`: added and exported
+- [x] [minor] `crates/coeus-nn/src/rnn/{gru,lstm}.rs`: added and exported
   sequence-level `Gru` and `Lstm` modules with `forward_seq`, including the
   `CpuAddressableStorageMut` bounds required by output concatenation.
-- [x] [patch] `coeus-nn/tests/{bilinear,conv_transpose_nn,rnn_seq}_parity.rs`:
+- [x] [patch] `crates/coeus-nn/tests/{bilinear,conv_transpose_nn,rnn_seq}_parity.rs`:
   added analytical module parity checks on SequentialBackend and MoiraiBackend.
 - [x] Evidence: `cargo fmt --check`;
   `cargo nextest run -p coeus-ops --test stats_diff` (2/2);
@@ -2313,19 +2332,19 @@ MoiraiBackend.
 **Target version**: 0.2.34 (patch-class).
 **Tests delivered**: 12 differential tests across 6 `coeus-nn` parity binaries.
 
-- [x] [patch] `coeus-nn/tests/rnn_parity.rs`: covers `GRUCell` and `LSTMCell`
+- [x] [patch] `crates/coeus-nn/tests/rnn_parity.rs`: covers `GRUCell` and `LSTMCell`
   zero-input analytical oracles plus `Module::forward` equivalence.
-- [x] [patch] `coeus-nn/tests/interpolate_parity.rs`: covers
+- [x] [patch] `crates/coeus-nn/tests/interpolate_parity.rs`: covers
   `interpolate_1d` and `interpolate_2d` exact references on SequentialBackend
   and MoiraiBackend.
-- [x] [patch] `coeus-nn/tests/loss_parity.rs`: covers `mse_loss`,
+- [x] [patch] `crates/coeus-nn/tests/loss_parity.rs`: covers `mse_loss`,
   `nll_loss`, `huber_loss`, `binary_cross_entropy`, and
   `cosine_embedding_loss` against closed-form scalar references.
-- [x] [patch] `coeus-nn/tests/positional_parity.rs`: covers
+- [x] [patch] `crates/coeus-nn/tests/positional_parity.rs`: covers
   `SinusoidalEncoding` and `RotaryEmbedding` analytical positional references.
-- [x] [patch] `coeus-nn/tests/global_pool_parity.rs`: covers
+- [x] [patch] `crates/coeus-nn/tests/global_pool_parity.rs`: covers
   `GlobalAvgPool1d`, `GlobalAvgPool3d`, and `GlobalMaxPool3d` references.
-- [x] [patch] `coeus-nn/tests/pool3d_parity.rs`: covers `AvgPool3d` and
+- [x] [patch] `crates/coeus-nn/tests/pool3d_parity.rs`: covers `AvgPool3d` and
   `MaxPool3d` analytical references.
 - [x] Evidence: `cargo nextest run -p coeus-nn` (236/236);
   `cargo fmt --check`;
@@ -2340,22 +2359,22 @@ Leto APIs.
 **Tests delivered**: 16 differential tests across 8 `coeus-ops` binaries plus
 25 `coeus-leto` dispatch contract tests.
 
-- [x] [patch] `coeus-ops/tests/embedding_diff.rs`: covers `embedding`,
+- [x] [patch] `crates/coeus-ops/tests/embedding_diff.rs`: covers `embedding`,
   `embedding_backward`, and `embedding_backward_with_padding_idx` with repeated
   indices and padding suppression.
-- [x] [patch] `coeus-ops/tests/unary_math_diff.rs`: covers exact unary math
+- [x] [patch] `crates/coeus-ops/tests/unary_math_diff.rs`: covers exact unary math
   identities on SequentialBackend and MoiraiBackend.
-- [x] [patch] `coeus-ops/tests/shape_ops_diff.rs`: covers `flip`, `roll`,
+- [x] [patch] `crates/coeus-ops/tests/shape_ops_diff.rs`: covers `flip`, `roll`,
   `tril`, `triu`, `sort`, `one_hot`, `repeat_interleave`, `outer`, and `cross`.
-- [x] [patch] `coeus-ops/tests/activation_diff.rs`: covers sigmoid, GELU,
+- [x] [patch] `crates/coeus-ops/tests/activation_diff.rs`: covers sigmoid, GELU,
   tanh-GELU, SiLU, Mish, ELU, Softplus, and LeakyReLU.
-- [x] [patch] `coeus-ops/tests/conv_transpose_diff.rs`: covers
+- [x] [patch] `crates/coeus-ops/tests/conv_transpose_diff.rs`: covers
   `conv_transpose1d` and `conv_transpose2d`.
-- [x] [patch] `coeus-ops/tests/misc_ops_diff.rs`: covers `amax`, `amin`, `dot`,
+- [x] [patch] `crates/coeus-ops/tests/misc_ops_diff.rs`: covers `amax`, `amin`, `dot`,
   `cumprod`, `broadcast_to`, `chunk`, `diag`, and `diagonal`.
-- [x] [patch] `coeus-ops/tests/prod_tile_maskfill_diff.rs`: covers `prod`,
+- [x] [patch] `crates/coeus-ops/tests/prod_tile_maskfill_diff.rs`: covers `prod`,
   `tile`, and `masked_fill`.
-- [x] [patch] `coeus-ops/tests/sparse_conv_diff.rs`: covers `dense_to_coo`,
+- [x] [patch] `crates/coeus-ops/tests/sparse_conv_diff.rs`: covers `dense_to_coo`,
   `coo_to_dense`, `dense_to_csr`, `csr_to_dense`, and `coo_to_csr` roundtrips.
 - [x] [patch] `coeus-leto`: added exact `Exp`/`Log`/`Sqrt` dispatch contract
   coverage while preserving public Leto API routing.
@@ -2375,7 +2394,7 @@ references.
 **Tests delivered**: 2 sparse-operation differential tests; package gate covers
 173 ops tests.
 
-- [x] [patch] `coeus-ops/tests/sparse_ops_diff.rs`: SequentialBackend and
+- [x] [patch] `crates/coeus-ops/tests/sparse_ops_diff.rs`: SequentialBackend and
   MoiraiBackend differential coverage for `spmv`, `spmm`,
   `spmm_backward_values`, and `spmm_backward_dense`.
 - [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-ops`
@@ -2393,17 +2412,17 @@ initializer dispatch parity on SequentialBackend and MoiraiBackend, and 8
 interpolation analytical-reference tests. Package gates cover 171 ops tests and
 224 nn tests.
 
-- [x] [patch] `coeus-ops/tests/constructors_diff.rs`: SequentialBackend and
+- [x] [patch] `crates/coeus-ops/tests/constructors_diff.rs`: SequentialBackend and
   MoiraiBackend differential coverage for `linspace`, `logspace`, `geomspace`,
   `meshgrid`, `nonzero`, and `where_cond` using bitwise-exact integer-valued
   or power-valued references.
-- [x] [patch] `coeus-ops/tests/index_ops_diff.rs`: SequentialBackend and
+- [x] [patch] `crates/coeus-ops/tests/index_ops_diff.rs`: SequentialBackend and
   MoiraiBackend differential coverage for `gather`, `index_select`,
   `index_put`, `scatter_add`, `masked_select`, and `bmm`.
-- [x] [patch] `coeus-nn/tests/init_leto_diff.rs`: initializer parity verifies
+- [x] [patch] `crates/coeus-nn/tests/init_leto_diff.rs`: initializer parity verifies
   seeded uniform/normal, Xavier, and Kaiming paths against direct
   `coeus-leto` dispatch for the same shape, scalar type, and seed.
-- [x] [patch] `coeus-nn/tests/nn_interpolate_tests.rs`: analytical-reference
+- [x] [patch] `crates/coeus-nn/tests/nn_interpolate_tests.rs`: analytical-reference
   coverage for `interpolate_1d` and `interpolate_2d` nearest/bilinear paths
   under the align-half-pixel contract.
 - [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-ops` (171/171);
@@ -2425,16 +2444,16 @@ ops tests, and 70 Python binding tests.
   reuses `coeus_ops::spmm`, `spmm_backward_values`, and
   `spmm_backward_dense`, and validates COO row/column bounds before CSR
   construction.
-- [x] [patch] `coeus-autograd/tests/autograd/sparse.rs`: forward and backward
+- [x] [patch] `crates/coeus-autograd/tests/autograd/sparse.rs`: forward and backward
   COO parity against dense `matmul`, with value-semantic checks for COO-value
   gradients and dense RHS gradients.
-- [x] [patch] `coeus-ops/tests/stats_diff.rs`: SequentialBackend and
+- [x] [patch] `crates/coeus-ops/tests/stats_diff.rs`: SequentialBackend and
   MoiraiBackend differential coverage for variance, standard deviation, and
   Lp-norm reductions against analytical references.
-- [x] [patch] `coeus-python/src/tensor/`: split `PyTensor`, iterator, and
+- [x] [patch] `crates/coeus-python/src/tensor/`: split `PyTensor`, iterator, and
   state-dict bindings into concern-specific modules while retaining Rust-core
   ownership of tensor behavior.
-- [x] [patch] `coeus-ops/Cargo.toml`: removed unused direct `num-traits`
+- [x] [patch] `crates/coeus-ops/Cargo.toml`: removed unused direct `num-traits`
   dependency from `coeus-ops`; `coeus-core` remains the numeric-trait owner.
 - [x] Evidence: `cargo fmt --check`; `cargo nextest run -p coeus-autograd`;
   `cargo nextest run -p coeus-ops`; `cargo nextest run -p coeus-python`;
@@ -2449,7 +2468,7 @@ identically to SequentialBackend.
 **Target version**: 0.2.29 (patch-class).
 **Tests delivered**: 4 differential tests (f16+bf16 × Sequential+Moirai); 630/630.
 
-- [x] [patch] `coeus-ops/tests/half_precision_diff.rs` (NEW): 4 tests covering
+- [x] [patch] `crates/coeus-ops/tests/half_precision_diff.rs` (NEW): 4 tests covering
   add, matmul, sum, relu for f16 and bf16 on both backends. Integer inputs within
   each type's mantissa (≤2^11 f16, ≤2^7 bf16) → bitwise-exact assertions via
   `T::from_f32` round-trip. Evidence: `a844606`, 4/4 passed.
@@ -2463,11 +2482,11 @@ shipped but never tested against closed-form reference).
 **Tests delivered**: 4 einsum differential tests (6 subscript patterns) + 1 cosine
 loss test (5 cases + backward); workspace at 626/626.
 
-- [x] [patch] `coeus-ops/tests/einsum_diff.rs` (NEW): 4 differential tests verifying
+- [x] [patch] `crates/coeus-ops/tests/einsum_diff.rs` (NEW): 4 differential tests verifying
   einsum patterns (matmul, transpose, trace, dot, outer, mat-vec) and einsum3 triple
   chain on both backends. Integer inputs → bitwise-exact assertions.
   Evidence: `b9f0a28`, 4/4 passed.
-- [x] [patch] `coeus-nn/tests/nn_ops/losses/nn_loss/`: `test_cosine_embedding_loss` with
+- [x] [patch] `crates/coeus-nn/tests/nn_ops/losses/nn_loss/`: `test_cosine_embedding_loss` with
   identical/orthogonal/opposite/batch/backward cases. All assertions value-semantic
   against closed-form definition with eps=1e-10.
   Evidence: `b9f0a28`, 1/1 passed.
@@ -2479,12 +2498,12 @@ loss test (5 cases + backward); workspace at 626/626.
 **Tests delivered**: 8 frobenius norm differential tests + 4 optimizer convergence
 tests; workspace at 621/621.
 
-- [x] [patch] `coeus-ops/tests/norm_diff.rs` (NEW): 8 differential tests for
+- [x] [patch] `crates/coeus-ops/tests/norm_diff.rs` (NEW): 8 differential tests for
   `frobenius_norm` (2-D, rectangular, identity, zeros) and `frobenius_norm_batched`
   (rank-3, rank-4, row-vector batch) against analytical reference ‖A‖_F=sqrt(Σaᵢⱼ²).
   SequentialBackend + MoiraiBackend each. Tolerances derived from f32 ε × element count.
   Evidence: `cargo nextest run -p coeus-ops --test norm_diff` — 4/4 passed.
-- [x] [patch] `coeus-optim/tests/optim_ops/convergence.rs`: 4 new multi-step tests —
+- [x] [patch] `crates/coeus-optim/tests/optim_ops/convergence.rs`: 4 new multi-step tests —
   `test_sgd_convergence_quadratic_50steps` (closed-form: x_n = x₀·0.8ⁿ),
   `test_sgd_momentum_convergence_100steps` (derived bound via spectral radius √0.9 ≈ 0.9487),
   `test_adam_convergence_quadratic_200steps` (200-step convex convergence to |p|<0.05),
@@ -2642,7 +2661,7 @@ tests; workspace at 621/621.
   single-pass fold), `coeus_ops::cross` (per-channel 3-vector cross along `dim`
   with size-3 axis assertion), Python `pycoeus.dot` (returns float) and
   `pycoeus.cross` (returns PyTensor with shape preservation) wrappers in
-  `coeus-python/src/ops/linalg.rs`. 14 unit tests in
+  `crates/coeus-python/src/ops/linalg.rs`. 14 unit tests in
   `coeus_ops::reduction::linalg::tests` and 1 Python binding test
   `binding_tests_ops::test_dot_cross_vector_ops` verify value semantics
   against the documented manual right-handed cross oracle. Evidence tier:
@@ -2657,8 +2676,8 @@ tests; workspace at 621/621.
   const-generic `BatchNormNode<T, B, DIM>` and `BatchNormArgs<T, B, DIM>`,
   replacing the old per-rank argument/node names as a documented pre-1.0 minor
   break.
-- [x] [patch] Split the monolithic `coeus-leto/src/dispatch.rs` into
-  operation-family leaf modules under `coeus-leto/src/dispatch/`, preserving
+- [x] [patch] Split the monolithic `crates/coeus-leto/src/dispatch.rs` into
+  operation-family leaf modules under `crates/coeus-leto/src/dispatch/`, preserving
   the public `coeus_leto::dispatch::*` re-export surface.
 - [x] [minor] MS-73 (0.2.13 commit message, Cargo.toml at 0.2.12) shipped
   PyTensor dtype casts (`.float()`, `.double()`, `.long()`, `.int()`, `.half()`,
@@ -2676,7 +2695,7 @@ tests; workspace at 621/621.
   backward formula var.sqrt().add_scalar(eps)→var.add_scalar(eps).sqrt() to
   match Coeus's convention; added Embedding forward + backward Burn parity tests;
   69 Burn parity tests all pass.
-- [x] [patch] Added `coeus-sparse/tests/sparse_conversions.rs` to cover
+- [x] [patch] Added `crates/coeus-sparse/tests/sparse_conversions.rs` to cover
   dense/COO/CSR round-trip identity and direct-vs-COO CSR structural equality
   on a fixed 3x4 oracle. Evidence tier: empirical value-semantic validation.
   Evidence: `cargo nextest run -p coeus-sparse --test sparse_conversions`
@@ -2692,18 +2711,18 @@ tests; workspace at 621/621.
 - [x] [minor] Added `burn 0.16` as dev-dep to `coeus-nn` and `coeus-tensor`; production
   dependency policy test unaffected (burn forbidden in `[dependencies]`, allowed in
   `[dev-dependencies]`).
-- [x] [patch] Added `coeus-nn/tests/burn_live_parity.rs` with live Burn NdArray
+- [x] [patch] Added `crates/coeus-nn/tests/burn_live_parity.rs` with live Burn NdArray
   reference checks for softmax and cross-entropy loss.
 - [x] [minor] Added four Burn benchmark groups to `tensor_bench.rs`: elementwise add,
   matmul (256×256), ReLU (1024×1024), and sum_dim (1024×1024).  Each group shows Burn
   NdArray, Coeus Sequential, and Coeus Moirai side-by-side under Criterion.
-- [x] [minor] Created `coeus-wgpu/tests/wgpu/parity.rs` with 20+ differential tests:
+- [x] [minor] Created `crates/coeus-wgpu/tests/wgpu/parity.rs` with 20+ differential tests:
   binary ops, 14 unary activations (macro), reductions, matmul 2D + batched,
   conv1d/conv2d forward, max_pool2d/avg_pool2d, adamw step, round-trip identity.
 - [x] [patch] Added `coeus_autograd::stack` (`shape/stack.rs`) with correct backward
-  via split+squeeze; exported from `coeus-autograd/src/lib.rs`.
-- [x] [minor] Expanded `coeus-python/src/ops.rs` with 20 new free functions and added
-  `coeus-python/tests/binding_tests_ops.rs` with 9 test functions including backward.
+  via split+squeeze; exported from `crates/coeus-autograd/src/lib.rs`.
+- [x] [minor] Expanded `crates/coeus-python/src/ops.rs` with 20 new free functions and added
+  `crates/coeus-python/tests/binding_tests_ops.rs` with 9 test functions including backward.
 - [x] [patch] `cargo check --workspace` passes: 0 errors.
 - [x] [patch] `cargo clippy --workspace --all-targets -- -D warnings` passes: 0
   errors, 0 warnings.
@@ -2716,7 +2735,7 @@ tests; workspace at 621/621.
   exact GELU, SiLU, sin/cos forward/backward, matmul/linear backward, layernorm,
   RMSNorm, clamp, stack/cat/reshape/transpose, flip, sort, and where-cond.
 - [x] [patch] Extended live Burn activation parity to Mish, Softplus, and
-  LeakyReLU in `coeus-nn/tests/burn_live_parity.rs`, using the derived
+  LeakyReLU in `crates/coeus-nn/tests/burn_live_parity.rs`, using the derived
   epsilon helper for value-semantic comparisons against Burn NdArray.
   Evidence tier: empirical differential validation. Evidence:
   `cargo nextest run -p coeus-nn --test burn_live_parity` passes with 36 tests.
@@ -2848,7 +2867,7 @@ tests; workspace at 621/621.
   Rayon-free harness surface: Coeus Sequential, Coeus Moirai, direct Leto,
   Coeus-Leto dispatch, and dev-only Burn NdArray oracle rows. Evidence tier:
   documentation/dependency-surface consistency.
-- [x] [patch] Extended `coeus-core/tests/dependency_policy.rs` to reject direct
+- [x] [patch] Extended `crates/coeus-core/tests/dependency_policy.rs` to reject direct
   production `rustfft` imports and manifest dependencies, keeping Apollo's
   Atlas-owned FFT implementation as the Coeus FFT path. Evidence tier:
   compile-time dependency audit.
@@ -2945,7 +2964,7 @@ tests; workspace at 621/621.
 - [x] [patch] Added a root-scoped `/prog` ignore entry for transient checkpoint
   transcript artifacts so generated session state is not staged as project
   source. Evidence tier: repository hygiene.
-- [x] [minor] Added `coeus-ops/src/reduction/stats.rs` with `var`, `var_axis`,
+- [x] [minor] Added `crates/coeus-ops/src/reduction/stats.rs` with `var`, `var_axis`,
   `std_dev`, `std_dev_axis`, and `norm` as two-pass analytical compositions over
   existing `BackendOps` primitives; exported from `coeus-ops`. Added Python
   wrappers `pycoeus.std`, `pycoeus.var`, `pycoeus.norm` with axis/keepdim support.
@@ -2965,7 +2984,7 @@ tests; workspace at 621/621.
   Evidence tier: analytical closed-form oracle.
 - [x] [minor] Added `bench_burn_conv2d` (1×4×16×16, k=3) and
   `bench_burn_layernorm` (4×64×128) Criterion benchmark groups to
-  `coeus-tensor/benches/tensor_bench.rs` comparing Burn NdArray, Coeus
+  `crates/coeus-tensor/benches/tensor_bench.rs` comparing Burn NdArray, Coeus
   Sequential, and Coeus Moirai. Added `coeus-nn` and `coeus-autograd` as
   dev-dependencies of `coeus-tensor`.
 - [x] [patch] Verification (2026-06-24):
@@ -2977,7 +2996,7 @@ tests; workspace at 621/621.
   `conv3d_grad_input_f32`, `conv3d_grad_weight_f32`, `conv3d_grad_bias_f32`)
   extending the existing conv1d/conv2d pattern to 5-D [N,C,D,H,W] tensors.
   Wired dispatch through `cuda_conv3d`/`cuda_conv3d_backward` in
-  `coeus-cuda/src/backend/ops/conv.rs`, replacing the CPU fallback path.
+  `crates/coeus-cuda/src/backend/ops/conv.rs`, replacing the CPU fallback path.
   Added `test_cuda_parity_conv3d_forward` and `test_cuda_parity_conv3d_backward`
   differential tests verifying on-device output agrees with `SequentialBackend`
   within CUDA_ACC_TOL (1e-3). Evidence tier: empirical differential validation.
@@ -3003,7 +3022,7 @@ tests; workspace at 621/621.
   Evidence tier: empirical differential validation (Burn 0.16 oracle).
   Eight unit tests in `reduction/stats.rs::tests` and three new Burn
   parity assertions covering p ∈ {1, 2, 3} in
-  `coeus-nn/tests/burn_live_parity.rs::statistical_ops_match_burn`.
+  `crates/coeus-nn/tests/burn_live_parity.rs::statistical_ops_match_burn`.
 
 - [x] [minor] Added thin PyO3 wrapper `pycoeus.vector_norm(input,
   ord=2.0, axis=None, keepdim=False)` mirroring
@@ -3011,7 +3030,7 @@ tests; workspace at 621/621.
   preserved as the L2 default. Empty tensors and `ord` outside the
   finite-positive range surface as `ValueError` rather than panicking
   at the boundary. `axis`/`keepdim` now route through `coeus_ops::norm_p_axis`.
-  `coeus-python/tests/binding_tests_ops.rs::test_vector_norm_p_orders`
+  `crates/coeus-python/tests/binding_tests_ops.rs::test_vector_norm_p_orders`
   covers p ∈ {0.5, 1, 2, 3}, ord error paths, and empty-tensor errors.
 
 - [x] [patch] Verification (2026-06-24):
@@ -3062,7 +3081,7 @@ GPU backends over Hephaestus; dependency policy hardening.
   CUDA integration is retained behind the explicit `cuda` feature.
 - [x] [patch] The default no-CUDA `CudaBackend` implements the full
   `BackendOps` surface by delegating to the existing CPU fallback path, with
-  value-semantic coverage in `coeus-cuda/tests/no_cuda_fallback.rs`.
+  value-semantic coverage in `crates/coeus-cuda/tests/no_cuda_fallback.rs`.
 - [x] [patch] Replaced high-arity `coeus-wgpu` attention and convolution helper
   calls with typed request structs; verified by clippy and wgpu nextest.
 - [x] [patch] `cargo clippy --workspace --exclude coeus-cuda --all-targets
@@ -3076,14 +3095,14 @@ GPU backends over Hephaestus; dependency policy hardening.
   require `CUDA_TOOLKIT_PATH` and a working CUDA driver.
 - [x] [patch] `cargo test --doc --workspace` passes; four doctests are
   intentionally ignored.
-- [x] [patch] Added `coeus-core/tests/dependency_policy.rs` to enforce the
+- [x] [patch] Added `crates/coeus-core/tests/dependency_policy.rs` to enforce the
   Moirai parallel/async SSOT: production sources and production manifest
   dependency sections may not import or depend on `rayon` or `tokio`. Evidence:
   `cargo nextest run -p coeus-core --test dependency_policy` passes; normal
   dependency tree checks show no production `rayon` edge and no resolved
   `tokio` package.
 - [x] [patch] Removed Coeus' direct `pollster` dependency from `coeus-wgpu` and
-  extended `coeus-core/tests/dependency_policy.rs` to reject Coeus production
+  extended `crates/coeus-core/tests/dependency_policy.rs` to reject Coeus production
   `pollster` imports/dependencies. Evidence:
   `cargo nextest run -p coeus-core --test dependency_policy` and
   `cargo tree -p coeus-wgpu --edges normal -i pollster` pass; the remaining
@@ -3098,24 +3117,24 @@ GPU backends over Hephaestus; dependency policy hardening.
   `Relu`/`Abs`/`Neg`, and keep-dim reductions cover `Sum`/`Max`/`Min`. Evidence:
   `cargo nextest run -p coeus-leto` passes; the current contract suite contains
   14 tests.
-- [x] [patch] Added `coeus-ops/tests/unary_leto_diff.rs` to prove
+- [x] [patch] Added `crates/coeus-ops/tests/unary_leto_diff.rs` to prove
   `SequentialBackend` and `MoiraiBackend` unary `BackendOps` dispatch matches
   direct scalar `CpuUnaryDispatch::eval_unary` for the full `CpuUnaryOp` surface.
   Evidence: `cargo nextest run -p coeus-ops --test unary_leto_diff` passes.
-- [x] [patch] Added `coeus-ops/tests/matmul_leto_diff.rs` to prove
+- [x] [patch] Added `crates/coeus-ops/tests/matmul_leto_diff.rs` to prove
   `SequentialBackend` and `MoiraiBackend` `BackendOps::matmul` dispatch matches
   an independent row-major triple-loop reference for contiguous and strided
   transposed input layouts. Evidence: `cargo nextest run -p coeus-ops --test
   matmul_leto_diff` passes.
-- [x] [patch] Added `coeus-ops/tests/batched_matmul_leto_diff.rs` to prove the
+- [x] [patch] Added `crates/coeus-ops/tests/batched_matmul_leto_diff.rs` to prove the
   public `coeus_ops::matmul` batching layer matches an independent reference on
   `SequentialBackend` and `MoiraiBackend` for equal batch counts and RHS 2-D
   broadcast. Evidence: `cargo nextest run -p coeus-ops --test
   batched_matmul_leto_diff` passes.
 - [x] [patch] Routed `coeus_ops::cumsum` and `suffix_sum` through
   `coeus-leto` scan dispatch and added value-semantic coverage in
-  `coeus-leto/tests/leto_ops/contract/` plus
-  `coeus-ops/tests/scan_leto_diff.rs`.
+  `crates/coeus-leto/tests/leto_ops/contract/` plus
+  `crates/coeus-ops/tests/scan_leto_diff.rs`.
   Evidence: focused scan tests pass.
 - [x] [patch] Added public CPU reduction differential coverage for
   `sum`/`mean`/`sum_axis`/`mean_axis`/`max_axis`/`min_axis` on
@@ -3254,7 +3273,7 @@ GPU backends over Hephaestus; dependency policy hardening.
   --all-targets -- -D warnings`, `cargo nextest run --workspace` (307 passed,
   0 skipped), `cargo test --doc --workspace`, and `cargo doc --workspace
   --no-deps` pass.
-- [x] [minor] Added Criterion baselines in `coeus-tensor/benches/tensor_bench.rs`
+- [x] [minor] Added Criterion baselines in `crates/coeus-tensor/benches/tensor_bench.rs`
   for direct Leto and Coeus-Leto dispatch alongside Coeus Sequential, Coeus
   Moirai, and later dev-only Burn NdArray oracle rows.
 - [x] [patch] Consolidated duplicated fused CPU value/reduction traversal in
@@ -3335,8 +3354,8 @@ Resolve the remaining compiler and thread-safety blockers in `coeus-ops` and `co
   - [x] Resolve `E0502` borrow conflicts in RMSProp step loop.
 - [x] **coeus-ops Thread-Safety Fixes**:
   - [x] Implement `SendPtr<T>` and `SendPtrMut<T>` wrapper types in `coeus-ops` implementing `Send + Sync` to wrap raw pointers (`*const T` / `*mut T`).
-  - [x] Refactor `coeus-ops/src/matmul/kernel.rs` to pass `SendPtr`/`SendPtrMut` into the `parallel_for` closure.
-  - [x] Refactor `coeus-ops/src/reduction/sum.rs` to pass `SendPtr`/`SendPtrMut` into the `parallel_for` closure.
+  - [x] Refactor `crates/coeus-ops/src/matmul/kernel.rs` to pass `SendPtr`/`SendPtrMut` into the `parallel_for` closure.
+  - [x] Refactor `crates/coeus-ops/src/reduction/sum.rs` to pass `SendPtr`/`SendPtrMut` into the `parallel_for` closure.
 - [x] **Workspace Verification**:
   - [x] Run `cargo check --workspace` to verify zero compilation errors.
   - [x] Run `cargo nextest run --workspace` to verify that all existing CPU tests pass.
@@ -3345,14 +3364,14 @@ Resolve the remaining compiler and thread-safety blockers in `coeus-ops` and `co
 Establish numerical validation, autograd equivalence, and performance measurements against baseline libraries.
 
 - [x] **Numerical Parity Validation**:
-  - [x] Implement `coeus-tensor/tests/parity_tests.rs` comparing Coeus tensor
+  - [x] Implement `crates/coeus-tensor/tests/parity_tests.rs` comparing Coeus tensor
     operations against self-contained row-major references.
   - [x] Verify exact parity across various strides, shapes, and layouts.
 - [x] **Autograd Parity & Design Equivalence**:
   - [x] Implement autograd validation tests and verify gradient correctness.
 - [x] **Performance Benchmarks**:
   - [x] Configure `criterion` benchmarks in
-    `coeus-tensor/benches/tensor_bench.rs` comparing Sequential/Moirai backends
+    `crates/coeus-tensor/benches/tensor_bench.rs` comparing Sequential/Moirai backends
     against direct Leto, Coeus-Leto dispatch, and dev-only Burn NdArray oracle
     rows.
 
@@ -3375,7 +3394,7 @@ Implement a cross-platform GPU backend powered by `wgpu`.
 
 - [x] **Crate Structure**:
   - [x] Create the new `coeus-wgpu` crate and add it to the workspace members.
-  - [x] Add `wgpu` and `bytemuck` dependencies in `coeus-wgpu/Cargo.toml`.
+  - [x] Add `wgpu` and `bytemuck` dependencies in `crates/coeus-wgpu/Cargo.toml`.
 - [x] **Storage & Memory Management**:
   - [x] Implement `WgpuStorage<T>` wrapping a `wgpu::Buffer` handle with unified allocation and staging logic.
 - [x] **Compute Pipelines**:
@@ -3469,7 +3488,7 @@ Target version: 0.5.6.
 - [x] `cargo test --doc --workspace` passes (zero-failure).
 - [x] `cargo doc --no-deps --workspace` passes (warning-clean).
 - [x] No `coeus_autograd` regression: the
-  `coeus-nn/tests/nn_loss_tests::test_hinge_embedding_loss_matches_torch_reference`
+  `crates/coeus-nn/tests/nn_loss_tests::test_hinge_embedding_loss_matches_torch_reference`
   test added in this commit confirms forward + backward closed-form
   agreement with PyTorch semantics within `1e-14`.
 

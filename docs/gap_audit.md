@@ -3,7 +3,7 @@
 ## ATLAS-CUDA-SAFETY-016: Remaining CUDA launch-parameter narrowing
 
 **Location**: remaining non-convolution launchers under
-`coeus-cuda/src/kernels` and CUDA backend math dispatch.
+`crates/coeus-cuda/src/kernels` and CUDA backend math dispatch.
 **Gap**: the shared `GpuLayoutInfo` conversion, convolution forward output
 count seam, standard/fused reduction launch boundaries, and elementwise
 launches are closed by `ATLAS-CUDA-SAFETY-003`, `ATLAS-CUDA-SAFETY-004`, and
@@ -36,7 +36,7 @@ Nextest because its Windows GNU linker cannot resolve `-lcuda` from
 ## MS-446: provider identity and TCP teardown
 
 **Location**: workspace `Cargo.toml`/`Cargo.lock` and
-`coeus-dist/src/tcp/mesh.rs`.
+`crates/coeus-dist/src/tcp/mesh.rs`.
 **Gap**: stale provider requirements allowed Cargo to retain parallel Git
 source identities for the same Atlas contracts. `TcpMesh` also constructed a
 default host-sized runtime per rank and stopped that runtime before dropping
@@ -57,8 +57,8 @@ the full workspace gate passes 938/938 in 82.449 s with no slow tests.
 
 ## MS-441: tensor benchmark still owns a Burn path
 
-**Location**: `coeus-tensor/Cargo.toml` and
-`coeus-tensor/benches/tensor_bench.rs`.
+**Location**: `crates/coeus-tensor/Cargo.toml` and
+`crates/coeus-tensor/benches/tensor_bench.rs`.
 **Gap**: the production tensor provider is Coeus/Leto, but the benchmark still
 declares a legacy NdArray dependency and duplicates every comparison through a
 second backend. This keeps an obsolete dependency in the development graph and
@@ -84,7 +84,7 @@ outside MS-441's tensor package scope and remains visible in the lock graph.
 
 ## MS-442: NN benchmark-only legacy path closed
 
-**Location**: `coeus-nn/Cargo.toml`, `coeus-nn/benches/nn_bench.rs`, and the
+**Location**: `crates/coeus-nn/Cargo.toml`, `crates/coeus-nn/benches/nn_bench.rs`, and the
 committed workspace lock graph.
 **Gap**: the NN Criterion target mixed 424 native provider measurements with
 Burn comparison rows, keeping the obsolete provider in the development graph.
@@ -106,8 +106,8 @@ archival records and are not dependency or runtime paths.
 
 ## ATLAS-PROVIDER-004: TCP loopback cluster isolation
 
-**Location**: `coeus-dist/src/tcp/mesh.rs`, `coeus-dist/tests/dist_ops.rs`,
-and `coeus-python/{src/dist.rs,tests/binding_tests_dist.rs}`.
+**Location**: `crates/coeus-dist/src/tcp/mesh.rs`, `crates/coeus-dist/tests/dist_ops.rs`,
+and `crates/coeus-python/{src/dist.rs,tests/binding_tests_dist.rs}`.
 **Gap**: distributed tests selected an ephemeral port, released it, then asked
 each rank to bind it. Concurrent nextest processes could claim that address in
 the intervening interval and make a peer receive time out.
@@ -123,8 +123,8 @@ doctests with 2 intentionally ignored; and warning-clean workspace Rustdoc.
 
 ## MS-440: Burn live-parity target removed
 
-**Location**: `coeus-nn/Cargo.toml`,
-`coeus-nn/tests/burn_live_parity.rs`, and `coeus-nn/tests/pool1d_parity.rs`.
+**Location**: `crates/coeus-nn/Cargo.toml`,
+`crates/coeus-nn/tests/burn_live_parity.rs`, and `crates/coeus-nn/tests/pool1d_parity.rs`.
 **Gap**: the Burn 0.16-only target stopped compiling while the workspace still
 claimed it as a current oracle.
 **Resolution**: removed the obsolete test target. Native pooling contracts now
@@ -136,8 +136,8 @@ the 1008/1008 all-feature workspace nextest gate with real CUDA enabled.
 
 ## MS-439: Named optimizer ownership closed
 
-**Location**: `coeus-autograd/src/parameter.rs`, `coeus-optim`,
-`coeus-nn/src/module.rs`, and `coeus-python/src/optim.rs`.
+**Location**: `crates/coeus-autograd/src/parameter.rs`, `coeus-optim`,
+`crates/coeus-nn/src/module.rs`, and `crates/coeus-python/src/optim.rs`.
 **Gap**: optimizer construction flattened named module inventories into
 `Vec<Var>`, severing persistence identity and forcing Burn-like positional
 reload behavior.
@@ -152,7 +152,7 @@ Rustdoc, and doctests.
 
 ## MS-438: Stable hierarchical module parameters closed
 
-**Location**: `coeus-nn/src/{module,parameter}.rs` and composite module impls.
+**Location**: `crates/coeus-nn/src/{module,parameter}.rs` and composite module impls.
 **Consumer driver**: RITK ADR 0004 requires stable parameter names for archived
 displacement components and native optimizer updates without Burn visitors.
 **Resolution**: the canonical `Module` seam owns named reflection. Leaf
@@ -165,8 +165,8 @@ nextest 410/410, and warning-denied Clippy.
 
 ## MS-437: Dimension-complete interpolation closed
 
-**Location**: `coeus-ops/src/interpolation.rs` and
-`coeus-autograd/src/ops/interpolation.rs`.
+**Location**: `crates/coeus-ops/src/interpolation.rs` and
+`crates/coeus-autograd/src/ops/interpolation.rs`.
 **Consumer driver**: RITK ADR 0004 requires one differentiable 2-D/3-D field
 sampling contract before Burn displacement-field deletion.
 **Resolution**: one const-dimension operation family implements both forward
@@ -191,7 +191,7 @@ recovering approximately 280 GB. The unchanged full suite then passed 282/282.
 
 ## MS-436: Bounded archived tensor state closed
 
-**Location**: `coeus-tensor/src/checkpoint.rs`.
+**Location**: `crates/coeus-tensor/src/checkpoint.rs`.
 **Consumer driver**: RITK ADR 0004 requires named, bounded persistence for
 trainable displacement fields without retaining Burn records.
 **Resolution**: `StateDict` owns a deterministic validated rkyv archive with a
@@ -202,7 +202,7 @@ limit/duplicate failures, package nextest 56/56, Clippy, Rustdoc, and doctests.
 
 ## MS-435: Depthwise 3-D convolution closed
 
-**Location**: `coeus-nn/src/conv/depthwise3d.rs`.
+**Location**: `crates/coeus-nn/src/conv/depthwise3d.rs`.
 **Consumer driver**: RITK VMamba requires `groups == channels` for its local
 volumetric feature kernel.
 **Resolution**: Coeus now owns a depthwise 3-D module with a single
@@ -213,8 +213,8 @@ and non-empty weight/bias gradients under nextest.
 
 ## MS-434: Rank-preserving batched matmul closed
 
-**Location**: `coeus-ops/src/matmul/kernel.rs` and
-`coeus-autograd/tests/autograd/linalg.rs`.
+**Location**: `crates/coeus-ops/src/matmul/kernel.rs` and
+`crates/coeus-autograd/tests/autograd/linalg.rs`.
 **Gap**: rank-N matmul flattened logical batch axes into one output axis, and
 backward accumulation passed the restored rank-N gradient destination directly
 to a rank-3 Leto kernel. Rank-4 Swin attention therefore panicked during real
@@ -226,7 +226,7 @@ both operands; affected Coeus nextest 689/689; warning-denied Clippy clean.
 
 ## MS-433: Rank-generic linear projection closed
 
-**Location**: `coeus-nn/src/linear.rs`.
+**Location**: `crates/coeus-nn/src/linear.rs`.
 **Consumer driver**: RITK TransMorph window attention and MLP operate on
 rank-3 and rank-5 tensors whose feature width is the last axis.
 **Resolution**: `Linear::forward` validates the last-axis contract, flattens
@@ -240,9 +240,9 @@ warning-denied Clippy and rustdoc clean.
 ## Known Gaps & Residual Risks
 
 ### G-049: special-function unary lane
-**Location**: `coeus-core/src/dtype/traits.rs`,
-`coeus-ops/src/unary/math.rs`, `coeus-python/src/ops/elementwise.rs`,
-`coeus-python/tests/test_pytorch_parity.py`.
+**Location**: `crates/coeus-core/src/dtype/traits.rs`,
+`crates/coeus-ops/src/unary/math.rs`, `crates/coeus-python/src/ops/elementwise.rs`,
+`crates/coeus-python/tests/test_pytorch_parity.py`.
 **Compared against**: PyTorch `torch.erf`, `torch.special.erfc`,
 `torch.nn.functional.gelu(approximate="none")`, and
 `torch.special.gammaln`.
@@ -258,8 +258,8 @@ of emitting a fake or zero gradient.
 parity.
 
 ### ~~G-047: Apollo-backed FFT autograd/Python parity missing~~ **CLOSED**
-**Location**: `coeus-autograd/src/ops/fft.rs`,
-`coeus-python/src/ops/fft.rs`, `coeus-python/tests/test_pytorch_parity.py`.
+**Location**: `crates/coeus-autograd/src/ops/fft.rs`,
+`crates/coeus-python/src/ops/fft.rs`, `crates/coeus-python/tests/test_pytorch_parity.py`.
 **Gap**: FFT lived outside the public autograd/Python surface after the
 Burn dev-dependency migration, so Apollo-backed signal transforms had no
 value-semantic gradient parity in Coeus.
@@ -271,9 +271,9 @@ autograd at f64.
 PyTorch parity.
 
 ### G-046: Python-binding parity closure for AdaptiveMaxPool
-**Location**: `coeus-python/src/nn/pool.rs`, `coeus-python/src/nn/mod.rs`,
-`coeus-python/src/lib.rs`, `coeus-python/tests/test_pytorch_parity.py`,
-`coeus-python/tests/test_jax_parity.py`.
+**Location**: `crates/coeus-python/src/nn/pool.rs`, `crates/coeus-python/src/nn/mod.rs`,
+`crates/coeus-python/src/lib.rs`, `crates/coeus-python/tests/test_pytorch_parity.py`,
+`crates/coeus-python/tests/test_jax_parity.py`.
 **Compared against**: PyTorch `torch.nn.AdaptiveMaxPool1d/2d` and JAX.
 **Gap**: After PR #109 (AdaptiveAvgPool differentiable), PR #110
 (AdaptiveAvgPool dx parity in PyTorch+JAX), and PR #111
@@ -297,8 +297,8 @@ match G-043 expansion (already has AvgPool families).
 
 ### G-045 forward-only modules sweep:
 ### G-043: Burn/PyTorch NN benchmark matrix remains partial
-**Location**: `coeus-nn/benches/nn_bench.rs`,
-`coeus-python/tests/test_pytorch_parity.py`
+**Location**: `crates/coeus-nn/benches/nn_bench.rs`,
+`crates/coeus-python/tests/test_pytorch_parity.py`
 **Compared against**: Burn `burn::nn` module families and PyTorch `torch.nn`
 module families.
 **Gap**: Current Coeus-vs-Burn benchmarks cover selected forward rows
@@ -352,7 +352,7 @@ rows, comparing Burn `Embedding::forward + mean_dim` to Coeus Sequential and
 Moirai on the same indexed bags.
 
 ### ~~G-042: Quantized and lazy module parity policy missing~~ **CLOSED (non-goal)**
-**Location**: `coeus-nn/src/lib.rs`, `coeus-python/src/lib.rs`
+**Location**: `crates/coeus-nn/src/lib.rs`, `crates/coeus-python/src/lib.rs`
 **Compared against**: PyTorch quantized/lazy NN module families.
 **Closed by**: MS-212 — Recorded as an explicit non-goal for Coeus v0.x.
 The typed `Scalar` + `BackendOps<T>` design provides a natural extension point for
@@ -363,22 +363,22 @@ a future typed-dtype extension documented in `docs/roadmap.md`.
 **Evidence tier**: design decision / non-goal record.
 
 ### ~~G-041: Regularization, sparse, and local-response modules incomplete~~ **CLOSED**
-**Location**: `coeus-nn/src/dropout.rs`, `coeus-nn/src/embedding.rs`,
-`coeus-nn/src/normalization/`, `coeus-python/src/nn/`
+**Location**: `crates/coeus-nn/src/dropout.rs`, `crates/coeus-nn/src/embedding.rs`,
+`crates/coeus-nn/src/normalization/`, `crates/coeus-python/src/nn/`
 **Compared against**: Burn `GaussianNoise`/`LocalResponseNorm` and PyTorch
 `AlphaDropout`, `FeatureAlphaDropout`, `EmbeddingBag`, and
 `LocalResponseNorm`.
 **Closed by**: MS-209 — Added `coeus_nn::EmbeddingBag` with `sum`/`mean`/`max`
 aggregation and offsets semantics, value-semantic + backward tests
-(`coeus-nn/tests/embeddingbag_tests.rs`), and thin PyO3 wrapper
-`pycoeus.EmbeddingBag` delegating to Rust (`coeus-python/src/nn/embedding.rs`,
-registered in `coeus-python/src/{nn/mod.rs,lib.rs}`). Together with MS-208
+(`crates/coeus-nn/tests/embeddingbag_tests.rs`), and thin PyO3 wrapper
+`pycoeus.EmbeddingBag` delegating to Rust (`crates/coeus-python/src/nn/embedding.rs`,
+registered in `crates/coeus-python/src/{nn/mod.rs,lib.rs}`). Together with MS-208
 (`AlphaDropout`, `FeatureAlphaDropout`, `GaussianNoise`, `LocalResponseNorm`),
 this closes the Rust/Python module-surface gap for G-041.
 **Evidence tier**: source-surface audit plus external API documentation audit.
 
 ### ~~G-040: Recurrent parity lacks vanilla and bidirectional sequence variants~~ **CLOSED**
-**Location**: `coeus-nn/src/rnn/`, `coeus-python/src/nn/rnn.rs`
+**Location**: `crates/coeus-nn/src/rnn/`, `crates/coeus-python/src/nn/rnn.rs`
 **Closed by**: MS-206/MS-219 — Vanilla RNN/RNNCell, GRU/GRUCell, LSTM/LSTMCell
 with a generic `Bidirectional<M: Module>` wrapper and thin PyO3 wrappers
 (`PyBidirectional`, `PyGRUCell`, `PyLSTMCell`, `PyRNNCell`). Bidirectional
@@ -387,8 +387,8 @@ and concatenates via `cat` — no per-cell code duplication.
 **Evidence tier**: source-surface audit plus external documentation audit.
 
 ### ~~G-039: Python loss wrappers lag existing Rust loss surface~~ **CLOSED**
-**Location**: `coeus-nn/src/loss.rs`, `coeus-python/src/losses.rs`,
-`coeus-python/src/lib.rs`, `coeus-python/tests/test_pytorch_parity.py`
+**Location**: `crates/coeus-nn/src/loss.rs`, `crates/coeus-python/src/losses.rs`,
+`crates/coeus-python/src/lib.rs`, `crates/coeus-python/tests/test_pytorch_parity.py`
 **Closed by**: MS-182 — Added thin PyO3 wrappers
 `pycoeus.{kl_divergence,margin_ranking_loss}` delegating directly to
 `coeus_nn::loss::{kl_divergence,margin_ranking_loss}`, exported both in the
@@ -398,13 +398,13 @@ module registration/stub surface, and added PyTorch differential tests
 gradients at f64. Evidence tier: differential/empirical.
 
 ### ~~G-037: Activation surface remains incomplete versus Burn/PyTorch~~ **CLOSED**
-**Location**: `coeus-core/src/dtype/{traits.rs,float/cpu_unary.rs,int.rs}`,
-`coeus-wgpu/src/kernels/unary.rs`,
-`coeus-autograd/src/ops/activation/{ext.rs,relu.rs,mod.rs}`,
-`coeus-nn/src/{activation.rs,lib.rs}`,
-`coeus-python/src/{activations.rs,lib.rs}`,
-`coeus-nn/tests/nn_ops/activations/act_extended/`,
-`coeus-python/tests/test_pytorch_parity.py`
+**Location**: `crates/coeus-core/src/dtype/{traits.rs,float/cpu_unary.rs,int.rs}`,
+`crates/coeus-wgpu/src/kernels/unary.rs`,
+`crates/coeus-autograd/src/ops/activation/{ext.rs,relu.rs,mod.rs}`,
+`crates/coeus-nn/src/{activation.rs,lib.rs}`,
+`crates/coeus-python/src/{activations.rs,lib.rs}`,
+`crates/coeus-nn/tests/nn_ops/activations/act_extended/`,
+`crates/coeus-python/tests/test_pytorch_parity.py`
 **Closed by**: MS-186 — Added nine new activation functions end-to-end:
 **Hardtanh** (`coeus_nn::hardtanh` / `Hardtanh` Module, default `[-1, 1]`),
 **Hardsigmoid**, **Hardswish**, **Hardshrink** (default λ=0.5),
@@ -424,16 +424,16 @@ PReLU's α is exposed as a single scalar α in the tracked functional
 the PyTorch differential tests per PyTorch's convention (e.g. Hardtanh at
 x=±min/max → 0, Hardsigmoid at x=±3 → 0, Hardshrink/Softshrink at |x|=λ → 0,
 Threshold at x=threshold → 0). Evidence tier: value-semantic Rust analytical
-backward tests (`coeus-nn/tests/nn_ops/activations/act_extended/` covering 9 ops at f64
+backward tests (`crates/coeus-nn/tests/nn_ops/activations/act_extended/` covering 9 ops at f64
 with closed-form formula oracles) plus PyTorch f64 differential tests
-(`coeus-python/tests/test_pytorch_parity.py` adds 9 new tests using the
+(`crates/coeus-python/tests/test_pytorch_parity.py` adds 9 new tests using the
 existing `_assert_activation_parity` helper). MS-187 corrected the regression
 where gradient operators evaluated on `grad_out` instead of the saved input and
 where pair-parameter decoding treated truncated halves as `f64` bit patterns.
 
 ### ~~G-038: Loss and distance surface remains below PyTorch coverage~~ **CLOSED**
-**Location**: `coeus-nn/src/loss.rs`, `coeus-python/src/losses.rs`,
-`coeus-autograd/src/ops/nn/loss/`
+**Location**: `crates/coeus-nn/src/loss.rs`, `crates/coeus-python/src/losses.rs`,
+`crates/coeus-autograd/src/ops/nn/loss/`
 **Compared against**: PyTorch loss and distance families.
 **Closed by**: MS-219 (22/23 losses) + **MS-225** (CTCLoss — final item).
 - MS-225: Added `CtcLossNode` autograd node with log-space forward-backward DP
@@ -446,7 +446,7 @@ where pair-parameter decoding treated truncated halves as `f64` bit patterns.
 parity (1/1 CTC test at f64).
 
 ### ~~G-037: Activation surface remains incomplete versus Burn/PyTorch~~ **CLOSED**
-**Location**: `coeus-nn/src/activation.rs`, `coeus-python/src/activation.rs`
+**Location**: `crates/coeus-nn/src/activation.rs`, `crates/coeus-python/src/activation.rs`
 **Compared against**: Burn activations and PyTorch activation modules/functions.
 **Gap**: Coeus covers common activations, but lacks Rust module/API parity for
 PReLU, CELU, Hardshrink, Hardsigmoid, Hardtanh, Hardswish, Softshrink,
@@ -460,8 +460,8 @@ handled by documented analytical contracts.
 **Closed by**: Cumulative work across MS-79 (GLU), MS-131 (leaky_relu/softplus/mish), MS-211 (checklist note), MS-217 (PReLU/LeakyReLU); all target families (PReLU, CELU, hardshrink, softshrink, softsign, threshold, GLU, SwiGLU) now have autograd backward, nn wrappers, Python bindings, and PyTorch/JAX differential parity. Hardswish/hardsigmoid backward routing verified correct (this session). Hardtanh covered by existing clamp/clamp_min/clamp_max path.
 
 ### ~~G-036: Pooling, adaptive pooling, and unfold/fold coverage incomplete~~ **CLOSED**
-**Location**: `coeus-nn/src/pool.rs`, `coeus-python/src/nn/pool.rs`,
-`coeus-nn/src/conv/unfold_fold.rs`, `coeus-ops/src/backend_ops/traits/unfold_fold.rs`
+**Location**: `crates/coeus-nn/src/pool.rs`, `crates/coeus-python/src/nn/pool.rs`,
+`crates/coeus-nn/src/conv/unfold_fold.rs`, `crates/coeus-ops/src/backend_ops/traits/unfold_fold.rs`
 **Compared against**: Burn `Unfold4d` and PyTorch pooling/unfold/fold module
 families.
 **Gap**: Coeus exposes 2D/3D average and max pooling plus selected global
@@ -478,7 +478,7 @@ global wrappers, and Unfold/Fold/Unfold4d parity surfaces.
 **Evidence tier**: analytical/value-semantic Rust tests.
 
 ### ~~G-035: ConvTranspose3d parity missing~~ **CLOSED**
-**Location**: `coeus-nn/src/conv/`, `coeus-python/src/nn/conv.rs`
+**Location**: `crates/coeus-nn/src/conv/`, `crates/coeus-python/src/nn/conv.rs`
 **Compared against**: PyTorch `ConvTranspose3d` and the existing Coeus
 ConvTranspose1d/2d family.
 **Closed by**: MS-185 — Added `coeus-ops` forward operation, backend default
@@ -491,7 +491,7 @@ the CPU parity surface is complete and matches PyTorch at f64.
 differential PyTorch parity (`test_conv_transpose3d_matches_pytorch` at f64).
 
 ### ~~G-034: Linear/loss tests only checked gradient existence~~ **CLOSED**
-**Location**: `coeus-nn/tests/nn/linear_activation_loss.rs`
+**Location**: `crates/coeus-nn/tests/nn/linear_activation_loss.rs`
 **Closed by**: MS-179 — Replaced Linear, MSE, and CrossEntropy
 gradient-existence checks with value-semantic assertions. Linear now pins
 input, weight, and bias gradients for a deterministic all-ones layer; MSE pins
@@ -500,17 +500,17 @@ softmax-minus-onehot mean-reduction gradient. Evidence tier:
 analytical/value-semantic Rust tests.
 
 ### ~~G-033: Conv module tests only checked gradient existence~~ **CLOSED**
-**Location**: `coeus-nn/tests/nn/conv1d.rs`,
-`coeus-nn/tests/nn/conv2d.rs`,
-`coeus-nn/tests/nn/conv3d_pool3d.rs`
+**Location**: `crates/coeus-nn/tests/nn/conv1d.rs`,
+`crates/coeus-nn/tests/nn/conv2d.rs`,
+`crates/coeus-nn/tests/nn/conv3d_pool3d.rs`
 **Closed by**: MS-178 — Replaced Conv1d/Conv2d/Conv3d module backward smoke checks with
 exact analytical assertions for input, weight, and bias gradients under
 deterministic all-ones kernels. Evidence tier: analytical/value-semantic Rust
 tests.
 
 ### ~~G-032: TCP collectives could hang past nextest timeout~~ **CLOSED**
-**Location**: `coeus-dist/src/tcp/mesh.rs`,
-`coeus-dist/tests/dist_ops.rs`
+**Location**: `crates/coeus-dist/src/tcp/mesh.rs`,
+`crates/coeus-dist/tests/dist_ops.rs`
 **Closed by**: MS-177 — Added deterministic TCP test port reservation through a
 file-backed cross-process port allocator lock, and debug-mode mesh timeouts around
 connect, accept, peer-rank read, send, and recv paths. Connect retry backoff
@@ -521,7 +521,7 @@ preserving the stale-lock timeout diagnostic under nextest process contention.
 Evidence tier: empirical/value-semantic through the `coeus-dist` package gate.
 
 ### ~~G-031: JAX harness lacked regression/binary loss parity~~ **CLOSED**
-**Location**: `coeus-python/tests/test_jax_parity.py`
+**Location**: `crates/coeus-python/tests/test_jax_parity.py`
 **Closed by**: MS-175 — Added `test_{mse_loss,binary_cross_entropy,huber_loss}_matches_jax`,
 asserting forward loss and prediction gradient against inline JAX references at f64
 (Huber δ=1.0 spans both regions; BCE probabilities in (0,1)). Completes the
@@ -529,14 +529,14 @@ regression/binary loss parity against JAX, symmetric with PyTorch. Evidence tier
 differential/empirical.
 
 ### ~~G-030: JAX harness lacked LayerNorm/RMSNorm parity~~ **CLOSED**
-**Location**: `coeus-python/tests/test_jax_parity.py`
+**Location**: `crates/coeus-python/tests/test_jax_parity.py`
 **Closed by**: MS-174 — Added `test_{layernorm,rmsnorm}_matches_jax`,
 asserting forward output and gradients against inline f64 JAX references.
 LayerNorm covers input/gamma/beta gradients; RMSNorm covers input/gamma
 gradients. Evidence tier: differential/empirical.
 
 ### ~~G-029: JAX harness lacked softmax/log-softmax/cross-entropy parity~~ **CLOSED**
-**Location**: `coeus-python/tests/test_jax_parity.py`
+**Location**: `crates/coeus-python/tests/test_jax_parity.py`
 **Closed by**: MS-173 — Added `test_{softmax,log_softmax,cross_entropy_loss}_matches_jax`,
 asserting forward output and gradient against `jax.nn.{softmax,log_softmax}` and a
 fused log-softmax+NLL mean reference at f64. Extends the JAX harness to the
@@ -544,8 +544,8 @@ classification/softmax path, symmetric with the PyTorch coverage. Evidence tier:
 differential/empirical.
 
 ### ~~G-028: `BackendOps` mixed every operation concern in one trait~~ **CLOSED**
-**Location**: `coeus-ops/src/backend_ops/trait_def.rs`,
-`coeus-ops/src/backend_ops/cpu_impl.rs`
+**Location**: `crates/coeus-ops/src/backend_ops/trait_def.rs`,
+`crates/coeus-ops/src/backend_ops/cpu_impl.rs`
 **Closed by**: MS-171 — Added single-concern operation traits and made
 `BackendOps` an aggregate super-trait with a blanket impl. CPU dispatch now
 implements one operation trait per concern, preserving the existing kernel leaf
@@ -553,7 +553,7 @@ modules while eliminating duplicate blanket-impl coherence failures. Evidence
 tier: compile/lint/docs plus value-semantic `coeus-ops` nextest coverage.
 
 ### ~~G-027: JAX harness lacked elementwise activation parity~~ **CLOSED**
-**Location**: `coeus-python/tests/test_jax_parity.py`
+**Location**: `crates/coeus-python/tests/test_jax_parity.py`
 **Closed by**: MS-168 — Added `_assert_activation_matches_jax` (`jax.grad` for
 backward) and `test_{silu,mish,elu,softplus,leaky_relu}_matches_jax`, asserting
 forward output and input gradient against `jax.nn.*` at f64. Extends the JAX
@@ -561,7 +561,7 @@ harness beyond Linear/MHA/decoder to the elementwise activations, symmetric with
 the PyTorch coverage of MS-167. Evidence tier: differential/empirical.
 
 ### ~~G-026: Elementwise activation differential parity missing (only GELU covered)~~ **CLOSED**
-**Location**: `coeus-python/tests/test_pytorch_parity.py`
+**Location**: `crates/coeus-python/tests/test_pytorch_parity.py`
 **Closed by**: MS-167 — Added a shared `_assert_activation_parity` helper and
 `test_{silu,mish,elu,softplus,leaky_relu}_matches_pytorch`, asserting forward
 output and input gradient against `torch.nn.functional.*` at f64 on mixed-sign
@@ -569,7 +569,7 @@ inputs. LeakyReLU excludes the `x=0` kink (implementation-defined subgradient);
 the C1 activations include it. Evidence tier: differential/empirical.
 
 ### ~~G-025: GlobalAvg/MaxPool2d differential parity missing~~ **CLOSED**
-**Location**: `coeus-python/tests/test_pytorch_parity.py`
+**Location**: `crates/coeus-python/tests/test_pytorch_parity.py`
 **Closed by**: MS-166 — Added `test_global_avg_pool2d_matches_pytorch` and
 `test_global_max_pool2d_matches_pytorch` (input `[2,3,4,4]` → `[N,C,1,1]`),
 asserting forward output and input gradient against
@@ -578,37 +578,37 @@ Covers the uniform-distribution (avg) and argmax-routing (max) backward paths,
 replacing prior existence-only binding coverage. Evidence tier: differential/empirical.
 
 ### ~~G-024: Zero-numel collectives skipped per-rank numel validation~~ **CLOSED**
-**Location**: `coeus-dist/src/local.rs`,
-`coeus-dist/src/tcp/collectives.rs`
+**Location**: `crates/coeus-dist/src/local.rs`,
+`crates/coeus-dist/src/tcp/collectives.rs`
 **Closed by**: MS-165 — Local and TCP `all_gather`, rooted `gather`, and rooted
 `scatter` now validate per-rank output/input tensor element counts before
 zero-numel early returns. Evidence tier: panic-contract nextest coverage.
 
 ### ~~G-023: Conv2d canonical CPU path retained dot-per-output overhead~~ **CLOSED**
-**Location**: `coeus-ops/src/backend_ops/cpu_impl/conv/conv2d.rs`,
-`coeus-core/src/dtype/traits.rs`
+**Location**: `crates/coeus-ops/src/backend_ops/cpu_impl/conv/conv2d.rs`,
+`crates/coeus-core/src/dtype/traits.rs`
 **Closed by**: MS-164 — Added the `Scalar::axpy_slice` seam and rewrote the
 canonical contiguous Conv2d forward path as an output-stationary AXPY row
 kernel, with coarser row-block partitioning for Moirai execution. Evidence
 tier: value-semantic scalar/Conv2d tests plus Criterion Conv2d row.
 
 ### ~~G-022: Local collective staging mutex covered payload work~~ **CLOSED**
-**Location**: `coeus-dist/src/local.rs`
+**Location**: `crates/coeus-dist/src/local.rs`
 **Closed by**: MS-163 — Local collectives now snapshot staged rank payloads
 under the shared staging mutex and perform reductions/output copies after the
 lock is released; root scatter extracts tensor host data before publishing
 payloads. Evidence tier: value-semantic local communicator tests.
 
 ### ~~G-021: KL/MarginRanking tracked loss coverage missing~~ **CLOSED**
-**Location**: `coeus-autograd/src/ops/nn/loss`,
-`coeus-nn/tests/burn_live_parity.rs`, `coeus-nn/tests/loss_parity.rs`
+**Location**: `crates/coeus-autograd/src/ops/nn/loss`,
+`crates/coeus-nn/tests/burn_live_parity.rs`, `crates/coeus-nn/tests/loss_parity.rs`
 **Closed by**: MS-161 — Added tracked KL divergence and margin ranking loss
 entry points, NN wrappers, analytical forward/backward tests, and
 sequential/Moirai loss parity checks. Evidence tier: analytical Rust tests plus
 package nextest.
 
 ### ~~G-020: BCE/Huber Python differential parity missing~~ **CLOSED**
-**Location**: `coeus-python/tests/test_pytorch_parity.py`
+**Location**: `crates/coeus-python/tests/test_pytorch_parity.py`
 **Closed by**: MS-156 — Added `test_binary_cross_entropy_matches_pytorch`
 and `test_huber_loss_matches_pytorch`, asserting scalar losses and prediction
 gradients against `torch.nn.functional.binary_cross_entropy` and
@@ -616,14 +616,14 @@ gradients against `torch.nn.functional.binary_cross_entropy` and
 differential/empirical.
 
 ### ~~G-019: SiLU/Mish tests still had existence-only gradient checks~~ **CLOSED**
-**Location**: `coeus-nn/tests/nn_silu_tests.rs`,
-`coeus-nn/tests/nn_mish_tests.rs`
+**Location**: `crates/coeus-nn/tests/nn_silu_tests.rs`,
+`crates/coeus-nn/tests/nn_mish_tests.rs`
 **Closed by**: MS-154 — Module and non-contiguous SiLU/Mish paths now assert
 analytical forward and backward values instead of only checking that gradients
 exist. Evidence tier: analytical value-semantic Rust tests.
 
 ### ~~G-018: CrossEntropy/NLL loss differential parity missing~~ **CLOSED**
-**Location**: `coeus-python/tests/test_pytorch_parity.py`
+**Location**: `crates/coeus-python/tests/test_pytorch_parity.py`
 **Closed by**: MS-153 — Added `test_cross_entropy_loss_matches_pytorch` and
 `test_nll_loss_matches_pytorch` (logits `[3,4]`, class-index targets), asserting
 the scalar loss and logit gradient against `torch.nn.functional.cross_entropy`
@@ -632,15 +632,15 @@ the fused log-softmax+NLL forward and the softmax-minus-onehot backward — the
 classification training signal. Evidence tier: differential/empirical.
 
 ### ~~G-017: FeedForward binding monolith~~ **CLOSED**
-**Location**: `coeus-python/src/nn/feedforward.rs`
+**Location**: `crates/coeus-python/src/nn/feedforward.rs`
 **Closed by**: MS-152 — Replaced the flat binding file with
-`coeus-python/src/nn/feedforward/mod.rs`, `feedforward/positional.rs`, and
+`crates/coeus-python/src/nn/feedforward/mod.rs`, `feedforward/positional.rs`, and
 `feedforward/transformer/*` leaf modules while preserving `pycoeus` `nn`
 registration exports. Evidence tier: compile/lint/docs plus Rust and Python
 binding tests.
 
 ### ~~G-016: MaxPool2d/AvgPool2d differential parity missing~~ **CLOSED**
-**Location**: `coeus-python/tests/test_pytorch_parity.py`
+**Location**: `crates/coeus-python/tests/test_pytorch_parity.py`
 **Closed by**: MS-151 — Added `test_maxpool2d_matches_pytorch` and
 `test_avgpool2d_matches_pytorch` (kernel=2, stride=2 on `[1,2,4,4]`), asserting
 forward output and input gradient against `torch.nn.functional.{max,avg}_pool2d`
@@ -649,36 +649,36 @@ average-distribution (uniform 1/window) backward paths, previously covered only
 by binding smoke tests. Evidence tier: differential/empirical.
 
 ### ~~G-015: Scalar identity still depended on num-traits/libm~~ **CLOSED**
-**Location**: `Cargo.toml`, `coeus-core/src/dtype/traits.rs`,
-`coeus-core/src/dtype/float/erf.rs`, `coeus-ops/src/sparse/ops.rs`
+**Location**: `Cargo.toml`, `crates/coeus-core/src/dtype/traits.rs`,
+`crates/coeus-core/src/dtype/float/erf.rs`, `crates/coeus-ops/src/sparse/ops.rs`
 **Closed by**: MS-150 — Removed Coeus' direct `num-traits`/`libm` dependency
 path from the scalar contract, added canonical `Scalar::zero()`/`one()`, and
 routed GELU/erf through a Coeus-owned piecewise rational implementation.
 Evidence tier: compile/lint/docs plus value-semantic Rust tests.
 
 ### ~~G-014: GroupNorm Python differential parity missing~~ **CLOSED**
-**Location**: `coeus-python/tests/test_pytorch_parity.py`
+**Location**: `crates/coeus-python/tests/test_pytorch_parity.py`
 **Closed by**: MS-149 — Added `test_groupnorm_matches_pytorch`, asserting
 GroupNorm forward output plus input, weight, and bias gradients against
 `torch.nn.functional.group_norm` at f64, `atol=1e-10`.
 Evidence tier: differential/empirical.
 
 ### ~~G-013: Duplicate einsum implementation under shape::util~~ **CLOSED**
-**Location**: `coeus-ops/src/shape/einsum.rs`,
-`coeus-ops/src/shape/util/einsum.rs`
+**Location**: `crates/coeus-ops/src/shape/einsum.rs`,
+`crates/coeus-ops/src/shape/util/einsum.rs`
 **Closed by**: MS-148 — Deleted the byte-identical utility copy and routed
 `shape::util::{einsum,einsum3}` through the canonical parent implementation.
 Evidence tier: compile/lint/docs plus value-semantic tests (`coeus-ops` full
 nextest 189/189, focused einsum nextest 12/12).
 
 ### ~~G-001: PyTransformerEncoderLayer stateless binding~~ **CLOSED**
-**Location**: `coeus-python/src/nn/feedforward.rs` — `PyTransformerEncoderLayer`  
+**Location**: `crates/coeus-python/src/nn/feedforward.rs` — `PyTransformerEncoderLayer`
 **Closed by**: MS-127 — Refactored to stateful `Py<PyLayerNorm>` + `Py<PyMultiHeadAttention>` +
 `Py<PyFeedForward>` sub-module fields; `parameters()` returns 16 params; forward replaces
 dummy weights from Python sub-objects; `test_transformer_encoder_layer_matches_pytorch` PASSES.
 
 ### ~~G-002: PyTransformerEncoder stateless binding~~ **CLOSED**
-**Location**: `coeus-python/src/nn/feedforward.rs` — `PyTransformerEncoder`  
+**Location**: `crates/coeus-python/src/nn/feedforward.rs` — `PyTransformerEncoder`
 **Closed by**: MS-128 — Refactored to stateful `Vec<Py<PyTransformerEncoderLayer>>` field;
 `parameters()` returns `16 × N` params; `forward()` chains layer-wise Pre-LN forwards without
 re-creating Rust encoder; `build_from_layer`/`from_rust_layer` inherent methods eliminate code
@@ -688,14 +688,14 @@ duplication with `PyTransformerEncoderLayer::new()`. Tests:
 `test_transformer_encoder_stack_matches_pytorch` (differential, PyTorch, 8/8 Python).
 
 ### ~~G-003: PyTransformerDecoderLayer stateless binding~~ **CLOSED**
-**Location**: `coeus-python/src/nn/feedforward.rs` — `PyTransformerDecoderLayer`  
+**Location**: `crates/coeus-python/src/nn/feedforward.rs` — `PyTransformerDecoderLayer`
 **Closed by**: MS-129 — Refactored to stateful `Py<PyLayerNorm>×3` + `Py<PyMultiHeadAttention>×2`
 (self_attn + cross_attn) + `Py<PyFeedForward>` sub-module fields; `parameters()` returns 26 params;
 `forward(tgt, memory)` injects stored weights into Rust forward; `build_from_layer<H>` /
 `from_rust_layer<H>` inherent methods (SSOT, shared with `PyTransformerDecoder`).
 
 ### ~~G-004: PyTransformerDecoder missing~~ **CLOSED**
-**Location**: `coeus-python/src/nn/feedforward.rs` — class did not exist  
+**Location**: `crates/coeus-python/src/nn/feedforward.rs` — class did not exist
 **Closed by**: MS-129 — Added `PyTransformerDecoder` with `Vec<Py<PyTransformerDecoderLayer>>`
 layers; `parameters()` returns `26 × N`; `forward(tgt, memory)` chains layer-wise Pre-LN
 cross-attention forwards; `num_layers` getter; `zero_grad()`. Tests:
@@ -706,7 +706,7 @@ cross-attention forwards; `num_layers` getter; `zero_grad()`. Tests:
 `test_transformer_decoder_stack_matches_pytorch` (differential, PyTorch, 10/10 Python).
 
 ### ~~G-005: PyTransformer (full seq2seq) missing~~ **CLOSED**
-**Location**: `coeus-python/src/nn/feedforward.rs` — class did not exist  
+**Location**: `crates/coeus-python/src/nn/feedforward.rs` — class did not exist
 **Closed by**: MS-131 — Added `PyTransformer` wrapping `Py<PyTransformerEncoder>` +
 `Py<PyTransformerDecoder>`; `forward(src, tgt)` chains encoder→decoder; `parameters()`
 returns `16×N_enc + 26×N_dec`; `num_enc_layers`/`num_dec_layers` getters; validation
@@ -714,7 +714,7 @@ returns `16×N_enc + 26×N_dec`; `num_enc_layers`/`num_dec_layers` getters; vali
 `test_transformer_seq2seq_composition` (structural composition identity, atol=1e-12).
 
 ### ~~G-006: RNN and positional-encoding Burn parity tests missing~~ **CLOSED**
-**Location**: `coeus-nn/tests/burn_live_parity.rs` — 0 tests for LSTM, GRU, RoPE, Sinusoidal  
+**Location**: `crates/coeus-nn/tests/burn_live_parity.rs` — 0 tests for LSTM, GRU, RoPE, Sinusoidal
 **Closed by**: MS-131 — Added 8 tests: `lstm_zero_input_zero_output_analytical` (analytical,
 zero-bias+zero-input→zero; evidence tier: compile-time proof via docstring invariant),
 `lstm_output_shape_contract`, `lstm_forward_seq_matches_module_forward`,
@@ -724,7 +724,7 @@ zero-bias+zero-input→zero; evidence tier: compile-time proof via docstring inv
 `rope_zero_input_zero_output`, `rope_output_shape_matches_input`. 292/292 Rust tests pass.
 
 ### ~~G-007: Transformer seq2seq structural parity tests missing~~ **CLOSED**
-**Location**: `coeus-nn/tests/burn_live_parity.rs` — no `forward_seq2seq` structural tests  
+**Location**: `crates/coeus-nn/tests/burn_live_parity.rs` — no `forward_seq2seq` structural tests
 **Closed by**: MS-136 — Added `transformer_seq2seq_self_consistent` (proves `forward_seq2seq`
 == manual encoder+decoder chain; f32::EPSILON*4 tolerance) and
 `transformer_module_forward_routes_to_seq2seq_self` (proves `Module::forward(x)` ==
@@ -732,7 +732,7 @@ zero-bias+zero-input→zero; evidence tier: compile-time proof via docstring inv
 dropout_p=0. Evidence tier: structural/deterministic. 294/294 Rust tests pass.
 
 ### ~~G-008: LSTM/GRU PyTorch parity tests missing~~ **CLOSED**
-**Location**: `coeus-python/tests/test_pytorch_parity.py` — 0 tests for LSTMCell/GRUCell step  
+**Location**: `crates/coeus-python/tests/test_pytorch_parity.py` — 0 tests for LSTMCell/GRUCell step
 **Closed by**: MS-136 — Added `test_lstm_cell_step_matches_pytorch`: copies w_ih/b_ih/w_hh/b_hh
 from pycoeus LSTMCell(4,6) into torch.nn.LSTMCell.double(); verifies h_new and c_new at
 atol=1e-10 after one step on zero-init hidden state. Gate order [i,f,g,o] matches between coeus
@@ -741,7 +741,7 @@ GRUCell, verifying h_new; n=tanh(ih_n+r*hh_n) formula is consistent between impl
 Evidence tier: differential/empirical.
 
 ### ~~G-009: JAX and MLX Python parity harnesses missing~~ **CLOSED**
-**Location**: `coeus-python/tests/` — no JAX or MLX parity harness existed
+**Location**: `crates/coeus-python/tests/` — no JAX or MLX parity harness existed
 **Closed by**: MS-138 — Added `test_jax_parity.py` for f64
 `Linear + ReLU + MSELoss` forward/backward parity against JAX, and
 `test_mlx_parity.py` for MLX-native f32 forward-loss parity when MLX is
@@ -750,7 +750,7 @@ collection behavior verified on this Windows environment (1 collected skip,
 MLX not installed).
 
 ### ~~G-010: Optimizer step correctness unverified~~ **CLOSED**
-**Location**: `coeus-optim/src/{sgd,adam,adamw}.rs` — SGD, Adam, AdamW step implementations
+**Location**: `crates/coeus-optim/src/{sgd,adam,adamw}.rs` — SGD, Adam, AdamW step implementations
 had zero tests (no analytical derivation, no differential parity).
 **Closed by**: MS-139 — Existing Rust analytical tests cover first-step SGD,
 Adam, and AdamW formulas in `burn_live_parity.rs`; MS-139 added 3 Python
@@ -760,8 +760,8 @@ PyTorch differential tests:
 against torch.optim at atol=1e-10. Evidence tier: analytical (Rust) + differential/empirical (Python).
 
 ### ~~G-011: Bilinear per-output indexing parity gap~~ **CLOSED**
-**Location**: `coeus-nn/tests/bilinear_parity.rs`,
-`coeus-python/tests/test_pytorch_parity.py` — Bilinear had all-ones analytical
+**Location**: `crates/coeus-nn/tests/bilinear_parity.rs`,
+`crates/coeus-python/tests/test_pytorch_parity.py` — Bilinear had all-ones analytical
 coverage but lacked a per-output weight-indexing oracle and direct PyTorch
 parity check.
 **Closed by**: MS-140 — Added a Rust analytical identity/swap weight oracle
@@ -770,7 +770,7 @@ added `test_bilinear_forward_matches_pytorch` against `torch.nn.Bilinear`.
 Evidence tier: analytical (Rust) + differential/empirical (Python).
 
 ### ~~G-012: Python `Tensor.sum`/`.mean` reduction + InstanceNorm parity missing~~ **CLOSED**
-**Location**: `coeus-python/src/tensor/pyimpl.rs` — the Python `Tensor` exposed only
+**Location**: `crates/coeus-python/src/tensor/pyimpl.rs` — the Python `Tensor` exposed only
 axis reductions (`sum_axis`/`mean_axis`), no full-reduction `sum()`/`mean()`, so the
 idiomatic scalar-loss path `out.sum().backward()` was inexpressible and InstanceNorm
 {1,2,3}d had no PyTorch parity coverage.
@@ -785,7 +785,7 @@ Evidence tier: differential/empirical (PyTorch f64).
 ## Slop Pattern Library
 
 - **Stale local `*.pyd` shadowing the installed extension**: pytest prepends the
-  test directory to `sys.path`, so a leftover `coeus-python/tests/pycoeus*.pyd`
+  test directory to `sys.path`, so a leftover `crates/coeus-python/tests/pycoeus*.pyd`
   build artifact silently overrides the freshly `maturin develop`-installed module,
   pinning an out-of-date binary and producing spurious `AttributeError`s for
   newly-added bindings. Mitigation: keep built extensions out of `tests/`; the
