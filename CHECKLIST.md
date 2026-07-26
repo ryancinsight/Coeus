@@ -107,28 +107,25 @@ high-level arithmetic, unary, shape, and matmul callers propagate them.
 and WGPU implementations plus public core callers use it. The existing
 infallible autograd/NN boundary consumes validated results with explicit
 invariant messages; an error-valued graph/module API is separate breaking
-work. The focused `coeus-ops` gate
-passes 87/87 nextest tests, 22/22 doctests, warning-denied Clippy, and
-package-local formatting. The WGPU library check and warning-denied Clippy
-also pass. The locked WGPU all-targets check now reaches compilation but is
-blocked by the peer `coeus-nn` fallible-operation migration: 70 errors remain
-at normalization callers, and peer `coeus-autograd` emits 143 unused-`Result`
-warnings. The public WGPU matmul wrapper now returns the typed result,
-validates ranks and inner dimensions, and checks output element-count
-overflow; the public WGPU add wrapper now returns a typed shape error instead
- of panicking. The current provider manifests now cause `--locked` to request
- a fresh lock resolution before compilation; the exact Leto type-bound failure
- remains recorded below.
+work. The focused `coeus-ops` gate passes 110/110 nextest tests, 22/22
+doctests, warning-denied Clippy, locked compilation, and no-deps Rustdoc. The
+public WGPU matmul wrapper now returns the typed result, validates ranks and
+inner dimensions, and checks output element-count overflow; the public WGPU
+add wrapper now returns a typed shape error instead of panicking. Coeus root
+patches now collapse Git-sourced Aequitas/Eunomia identities onto the local
+Atlas providers, so the locked provider graph compiles. The full WGPU
+all-target matrix remains gated by the incomplete peer `coeus-nn`/
+`coeus-autograd` fallible-operation migration.
 
 Test-target increment: WGPU layout tests now construct `Shape`/`SmallVec`
 values through their supported conversions and assert typed error fields with
 guarded `matches!` patterns; WGPU parity tests handle fallible unary and direct
 backend calls explicitly, and tensor parity tests handle fallible assign
-operations. Direct nightly rustfmt and diff checks pass. The latest Cargo
-check stops before Coeus compilation at the peer Leto
- `Quantity<T>::in_unit` bound failure in `crates/leto/src/application/stencil.rs`
- lines 121-122; the independent `coeus-core` check, 7/7 nextest tests, and
- no-deps rustdoc pass, but no affected `coeus-ops`/WGPU test result is claimed.
+operations. Direct nightly rustfmt and diff checks pass. The Coeus provider
+graph no longer stops at the peer Leto bound failure; the locked `coeus-ops`
+check, 110-test nextest run, 22 doctests, warning-denied Clippy, and no-deps
+Rustdoc pass. WGPU all-target verification remains outside this manifest/lock
+integration increment.
 
 ## Axis-reduction error propagation [major] [arch]
 - [x] Change `ReductionOps::reduce` to return the backend-associated typed
@@ -143,31 +140,31 @@ check stops before Coeus compilation at the peer Leto
       separate breaking work. Fused reduction and default index/cumulative
       reductions remain separate follow-up items.
 - [x] Run direct format/diff checks and the affected package gates; direct
-      checks, locked metadata, the independent `coeus-core` check/tests/docs
-      pass, while the affected package gate records the exact peer Leto
-      blocker above.
+      checks, locked metadata, `coeus-ops` compilation/tests/docs, and
+      warning-denied Clippy pass after the provider-identity cutover.
 
 Claim: Codex `/coeus`; scope is the shared axis-reduction seam and its direct
-CPU/CUDA/WGPU/public callers. The current locked check stops in peer-owned Leto
-at `crates/leto/src/application/stencil.rs:121-122` because
-`Quantity<T>::in_unit` lacks the required `FloatElement` bound. The independent
-`coeus-core` check, 7/7 nextest tests, and no-deps rustdoc pass; no affected
-`coeus-ops`/WGPU result is claimed while that blocker remains.
+CPU/CUDA/WGPU/public callers. The Coeus root provider patches unify the local
+Aequitas/Eunomia identities that previously caused the Leto
+`Quantity<T>::in_unit` trait-bound failure. The locked `coeus-ops` check,
+110/110 nextest tests, 22/22 doctests, warning-denied Clippy, and no-deps
+Rustdoc now pass; the remaining WGPU all-target and infallible autograd/NN
+residuals are separate migration work.
 
 Unary dispatch increment: both unary kernel entry points now return typed
 backend errors, use checked layout conversion, reject unsupported `lgamma`, and
 validate workgroup rounding before converting to the WGPU `u32` dispatch ABI.
 The new unit tests cover supported rounding, arithmetic overflow, ABI range,
 and unsupported-operation behavior without a device. Direct nightly rustfmt
-and `git diff --check` pass; Cargo verification is blocked by the same peer
-Leto failure.
+and `git diff --check` pass; the locked `coeus-ops` check and focused tests pass
+after the provider-identity cutover.
 
 Binary dispatch increment: contiguous and broadcasting paths now return typed
 results, validate all three layout descriptors before device initialization,
 and use the checked workgroup-count helper. The public WGPU `add` wrapper and
 the shared elementwise backend seam propagate the failure. Direct nightly
-rustfmt and `git diff --check` pass; Cargo verification remains blocked by the
-peer Leto failure.
+rustfmt and `git diff --check` pass; the locked `coeus-ops` check and focused
+tests pass after the provider-identity cutover.
 
 ## WGPU pool1d dispatch mode ownership [patch]
 - [x] Replace the forward dispatcher’s mixed forward/backward mode enum with

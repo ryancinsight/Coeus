@@ -128,17 +128,16 @@
   backend-associated result. The existing infallible autograd/NN boundary
   consumes only validated reduction results with explicit invariant messages;
   an error-valued graph/module API remains a separate breaking migration.
-  Focused verification is
-  87/87 nextest tests, 22/22 doctests, warning-denied Clippy, and package-local
-  format check; the typed incompatible-broadcast regression is value-asserted.
+  Focused verification is 110/110 nextest tests, 22/22 doctests,
+  warning-denied Clippy, locked `coeus-ops` compilation, and no-deps Rustdoc;
+  the typed incompatible-broadcast regression is value-asserted. Workspace
+  format remains red only on pre-existing unrelated Rust formatting drift.
 - Dependency: the focused `coeus-ops` package is verified, and the WGPU
-  library check plus warning-denied Clippy pass. The locked WGPU all-targets
-  check reaches compilation but remains blocked by 70 peer `coeus-nn`
-  normalization errors from the incomplete fallible-operation migration;
-  peer `coeus-autograd` also emits 143 unused-`Result` warnings. The prior
-  local/Git Leto dependency-resolution blocker was resolved in the prior lock
-  increment; the current provider manifests now cause `--locked` to request a
-  fresh lock resolution. The public WGPU
+  library check plus warning-denied Clippy pass. The Coeus root provider patches
+  now collapse Git-sourced Aequitas/Eunomia identities onto the local Atlas
+  instances; locked metadata, `coeus-ops` compilation, nextest, Clippy, and
+  Rustdoc pass. The full WGPU all-target matrix remains a separate gate for the
+  incomplete peer `coeus-nn`/`coeus-autograd` fallible-operation migration. The public WGPU
   matmul wrapper now returns the typed result and checks rank, inner-dimension,
   and output element-count failures; the public add wrapper now returns a
   typed shape error instead of panicking. ADR-0020 records the selected
@@ -147,13 +146,11 @@
   values through their supported conversions and assert typed error fields with
   guarded `matches!` patterns; WGPU parity tests handle fallible unary and
   direct backend calls explicitly, and tensor parity tests handle fallible
-  assign operations. Direct nightly rustfmt and diff checks pass. Cargo
-  compilation and execution remain pending the provider graph's peer Leto
-  trait-bound failure. The latest Coeus check stops before Coeus
-  compilation at `crates/leto/src/application/stencil.rs:121-122`, where
-  `Quantity<T>::in_unit` lacks `eunomia::traits::float::FloatElement`; the
-  independent `coeus-core` check, 7/7 nextest tests, and no-deps rustdoc pass,
-  but no affected `coeus-ops`/WGPU test result is claimed.
+  assign operations. Direct nightly rustfmt and diff checks pass. The provider
+  graph no longer stops compilation at Leto: the locked `coeus-ops` check,
+  110-test nextest run, 22 doctests, warning-denied Clippy, and no-deps Rustdoc
+  pass. WGPU all-target verification remains outside this manifest/lock
+  integration increment.
 - Active reduction increment: the `ReductionOps::reduce` axis-reduction family
   now spans the shared trait, CPU, CUDA, WGPU, public reductions, and direct
   autograd/NN callers. The increment deletes the unit-returning seam and CPU
@@ -161,24 +158,23 @@
   layout, axis, output count, and dispatch conversions. The infallible
   autograd/NN public boundary retains explicit invariant checks; an
   error-valued graph/module API is separate breaking work. Fused reduction and
-  the default `argmax`/`argmin`/`cumsum` paths are non-goals. The latest locked
-  check remains blocked before Coeus compilation by the peer Leto
-  `Quantity<T>::in_unit` bound failure; the independent `coeus-core` check,
-  7/7 nextest tests, and no-deps rustdoc pass, but no affected `coeus-ops`/
-  WGPU result is claimed until the provider graph permits it.
+  the default `argmax`/`argmin`/`cumsum` paths are non-goals. The provider graph
+  blocker is resolved by the Coeus root patches; the affected `coeus-ops`
+  package gates now pass. Remaining WGPU operation-family migration and the
+  infallible autograd/NN boundary stay tracked as separate residuals.
 - Unary dispatch increment: `dispatch_unary` and
   `dispatch_contiguous_unary` now return the backend `Result`, consume checked
   layout metadata, reject unsupported `lgamma` with a typed error, and route
   workgroup rounding through one checked `u32` ABI helper. Unit tests cover the
   unsupported operation and workgroup boundaries. Direct nightly rustfmt and
-  `git diff --check` pass; Cargo verification is blocked by the peer Leto error
-  above.
+  `git diff --check` pass; the locked `coeus-ops` check and focused tests pass
+  after the provider-identity cutover.
 - Binary dispatch increment: contiguous and general/broadcasting binary kernels
   now return the backend `Result`, consume checked layout metadata, and use the
   same checked workgroup-count helper. The public WGPU `add` wrapper and the
   `ElementwiseOps` implementation propagate the result without adapters.
-  Direct nightly rustfmt and `git diff --check` pass; Cargo verification is
-  blocked by the peer Leto error above.
+  Direct nightly rustfmt and `git diff --check` pass; the locked `coeus-ops`
+  check and focused tests pass after the provider-identity cutover.
 - Reduction residual: the current autograd/NN public contracts remain
   infallible and therefore terminate validated reduction failures at explicit
   invariant boundaries. Migrating those public contracts to typed `Result`

@@ -75,17 +75,16 @@ matmul, and direct reduction callers use the result contract. The existing
 autograd/NN boundary remains infallible and uses explicit invariant checks;
 converting those public contracts to typed results is separate breaking work.
 No compatibility adapter or silent fallback was retained. The focused
-`coeus-ops` gate passes 87/87 nextest
-tests, 22/22 doctests, warning-denied Clippy, and package-local formatting.
-The WGPU library check and warning-denied Clippy pass. The public WGPU matmul
-wrapper now returns the typed result and checks rank, inner-dimension, output
-element-count, and layout-conversion failures; the public add wrapper now
-returns a typed shape error instead of panicking. The locked WGPU all-targets
-check is currently blocked before Coeus compilation by the peer-owned Leto
-`Quantity<T>::in_unit` bound failure at
-`crates/leto/src/application/stencil.rs:121-122`. The current provider
-manifests also require a lock refresh for `--locked` builds. No runtime
-performance or memory claim is made without profile and benchmark evidence.
+`coeus-ops` gate passes 110/110 nextest tests, 22/22 doctests, warning-denied
+Clippy, locked compilation, and no-deps Rustdoc. Coeus root patches collapse
+Git-sourced Aequitas/Eunomia identities onto the local Atlas providers, which
+removes the Leto `Quantity<T>::in_unit` trait-identity failure from the Coeus
+locked graph. The public WGPU matmul wrapper returns the typed result and
+checks rank, inner-dimension, output element-count, and layout-conversion
+failures; the public add wrapper returns a typed shape error instead of
+panicking. Full WGPU all-target verification remains gated by the incomplete
+peer fallible-operation migration. No runtime performance or memory claim is
+made without profile and benchmark evidence.
 
 The unary WGPU kernel family now consumes `GpuLayoutInfo::try_from_layout`,
 returns `Result` through both contiguous and strided dispatch paths, rejects
@@ -93,18 +92,15 @@ the unsupported `lgamma` operation with a typed backend error, and validates
 the rounded workgroup count before the WGPU ABI boundary. Unit tests cover
 rounding, overflow, out-of-range counts, and the unsupported operation without
 initializing a device. Direct nightly rustfmt and `git diff --check` pass. The
-affected Cargo check remains unverified because the latest shared-target run
-stops in peer-owned Leto at `crates/leto/src/application/stencil.rs:121-122`:
-`Quantity<T>::in_unit` lacks the required `eunomia::traits::float::FloatElement`
-bound. The independent `coeus-core` check, 7/7 nextest tests, and no-deps
-rustdoc pass; no affected `coeus-ops`/WGPU result is claimed for this
-increment.
+locked `coeus-ops` check, 110/110 nextest tests, 22/22 doctests, warning-denied
+Clippy, and no-deps Rustdoc now pass; WGPU all-target verification remains
+outside this provider-identity integration increment.
 
 The binary WGPU kernel family now uses the same checked layout and workgroup
 boundary for contiguous and general broadcasting dispatch. Its `Result` is
 propagated through `ElementwiseOps` and the public `add` wrapper. Direct
-nightly rustfmt and `git diff --check` pass; the same peer Leto bound failure
-prevents Coeus compilation and tests from running.
+nightly rustfmt and `git diff --check` pass; the locked `coeus-ops` check and
+focused tests pass after the provider-identity cutover.
 
 The axis-reduction family now uses the same typed result boundary. CPU maps
 Leto failures, CUDA propagates fallback errors, and WGPU validates layout rank,
@@ -113,7 +109,7 @@ workgroup count before device initialization. Public core reduction functions,
 direct Coeus tests/benches, and the existing infallible autograd/NN callers use
 explicit result handling. The autograd graph and NN module traits remain
 infallible; converting those public contracts to typed results is separate
-breaking work rather than a local adapter. The independent `coeus-core` check,
-7/7 nextest tests, and no-deps rustdoc pass. No affected `coeus-ops`/WGPU
-compilation, test, or performance result is claimed because the locked check
-stops in peer-owned Leto at `crates/leto/src/application/stencil.rs:121-122`.
+breaking work rather than a local adapter. The locked `coeus-ops` check,
+110/110 nextest tests, 22/22 doctests, warning-denied Clippy, and no-deps
+Rustdoc pass. No WGPU all-target performance result is claimed because that
+matrix remains outside this provider-identity integration increment.

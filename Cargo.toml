@@ -77,6 +77,15 @@ coeus-sparse   = { path = "crates/coeus-sparse" }
 coeus-dist     = { path = "crates/coeus-dist", default-features = false }
 coeus-fft      = { path = "crates/coeus-fft" }
 
+# Keep Git-sourced provider manifests on the same local Atlas instances as the
+# workspace dependencies. Without these patches, Aequitas and Hephaestus can
+# introduce a second Eunomia/Aequitas package identity and split shared traits.
+[patch."https://github.com/ryancinsight/eunomia"]
+eunomia = { path = "../eunomia/crates/eunomia" }
+
+[patch."https://github.com/ryancinsight/aequitas"]
+aequitas = { path = "../aequitas" }
+
 [profile.bench]
 codegen-units = 1
 lto = "thin"
@@ -92,4 +101,3 @@ opt-level = 1
 
 [profile.test]
 opt-level = 1
-

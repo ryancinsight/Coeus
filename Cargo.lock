@@ -21,16 +21,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 name = "aequitas"
 version = "0.1.0"
 dependencies = [
- "eunomia 0.7.0 (git+https://github.com/ryancinsight/eunomia)",
- "typenum",
-]
-
-[[package]]
-name = "aequitas"
-version = "0.1.0"
-source = "git+https://github.com/ryancinsight/aequitas#ce3ef7a6ea26a025b91df99034cadbbcf9b01330"
-dependencies = [
- "eunomia 0.7.0 (git+https://github.com/ryancinsight/eunomia)",
+ "eunomia",
  "typenum",
 ]
 
@@ -94,7 +85,7 @@ dependencies = [
  "apollo-fft-macros",
  "apollo-leto-interop",
  "bytemuck",
- "eunomia 0.7.0",
+ "eunomia",
  "half",
  "hermes-simd",
  "leto",
@@ -483,7 +474,7 @@ dependencies = [
  "coeus-ops",
  "coeus-sparse",
  "coeus-tensor",
- "eunomia 0.7.0",
+ "eunomia",
  "leto-ops",
  "smallvec",
  "thiserror 2.0.19",
@@ -494,7 +485,7 @@ name = "coeus-core"
 version = "0.9.0"
 dependencies = [
  "bytemuck",
- "eunomia 0.7.0",
+ "eunomia",
  "hermes-simd",
  "mnemosyne 0.6.0",
  "moirai",
@@ -515,7 +506,7 @@ dependencies = [
  "cuda-async",
  "cuda-core",
  "cutile",
- "eunomia 0.7.0",
+ "eunomia",
  "hephaestus-cuda",
  "leto-ops",
  "libloading",
@@ -580,7 +571,7 @@ dependencies = [
  "coeus-leto",
  "coeus-sparse",
  "coeus-tensor",
- "eunomia 0.7.0",
+ "eunomia",
  "leto",
  "leto-ops",
  "melinoe 0.9.0",
@@ -961,15 +952,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "eunomia"
-version = "0.7.0"
-source = "git+https://github.com/ryancinsight/eunomia#f6cd644b5a6cc1e462ff3e19ae8d182851b8edc2"
-dependencies = [
- "bytemuck",
- "libm",
-]
-
-[[package]]
 name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1216,7 +1198,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 name = "hephaestus-core"
 version = "0.18.0"
 dependencies = [
- "aequitas 0.1.0 (git+https://github.com/ryancinsight/aequitas)",
+ "aequitas",
  "bytemuck",
  "leto",
  "themis 0.10.1 (git+https://github.com/ryancinsight/themis)",
@@ -1227,11 +1209,11 @@ dependencies = [
 name = "hephaestus-cuda"
 version = "0.18.0"
 dependencies = [
- "aequitas 0.1.0 (git+https://github.com/ryancinsight/aequitas)",
+ "aequitas",
  "bytemuck",
  "cuda-oxide",
  "cutile",
- "eunomia 0.7.0 (git+https://github.com/ryancinsight/eunomia)",
+ "eunomia",
  "hephaestus-core",
  "leto",
  "leto-ops",
@@ -1246,9 +1228,9 @@ dependencies = [
 name = "hephaestus-wgpu"
 version = "0.18.0"
 dependencies = [
- "aequitas 0.1.0 (git+https://github.com/ryancinsight/aequitas)",
+ "aequitas",
  "bytemuck",
- "eunomia 0.7.0 (git+https://github.com/ryancinsight/eunomia)",
+ "eunomia",
  "hephaestus-core",
  "leto",
  "leto-ops",
@@ -1265,7 +1247,7 @@ dependencies = [
 name = "hermes-simd"
 version = "0.5.0"
 dependencies = [
- "eunomia 0.7.0",
+ "eunomia",
  "hermes-simd-core",
  "hermes-simd-intrinsics",
  "hermes-simd-macros",
@@ -1278,7 +1260,7 @@ name = "hermes-simd-core"
 version = "0.5.0"
 dependencies = [
  "bytemuck",
- "eunomia 0.7.0",
+ "eunomia",
  "mnemosyne 0.6.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
  "rkyv 0.7.46",
  "themis 0.10.1 (git+https://github.com/ryancinsight/themis)",
@@ -1288,7 +1270,7 @@ dependencies = [
 name = "hermes-simd-intrinsics"
 version = "0.5.0"
 dependencies = [
- "eunomia 0.7.0",
+ "eunomia",
  "hermes-simd-core",
 ]
 
@@ -1414,9 +1396,9 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 name = "leto"
 version = "0.40.0"
 dependencies = [
- "aequitas 0.1.0",
+ "aequitas",
  "bytemuck",
- "eunomia 0.7.0",
+ "eunomia",
  "mnemosyne 0.6.0",
  "serde",
  "thiserror 2.0.19",
@@ -1427,7 +1409,7 @@ name = "leto-ops"
 version = "0.40.0"
 dependencies = [
  "bytemuck",
- "eunomia 0.7.0",
+ "eunomia",
  "hermes-simd",
  "leto",
  "moirai",
@@ -1554,7 +1536,7 @@ dependencies = [
 name = "mnemosyne"
 version = "0.6.0"
 dependencies = [
- "eunomia 0.7.0",
+ "eunomia",
  "mnemosyne-arena 0.3.0",
  "mnemosyne-backend 0.5.0",
  "mnemosyne-core 0.2.0",
@@ -1583,7 +1565,7 @@ dependencies = [
 name = "mnemosyne-arena"
 version = "0.3.0"
 dependencies = [
- "eunomia 0.7.0",
+ "eunomia",
  "mnemosyne-backend 0.5.0",
  "mnemosyne-core 0.2.0",
  "themis 0.10.1",
