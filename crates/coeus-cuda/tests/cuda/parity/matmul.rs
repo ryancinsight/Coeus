@@ -15,7 +15,7 @@ fn test_cuda_parity_matmul_2d() {
         &coeus_ops::matmul(&to_gpu(&at, &s, &c), &to_gpu(&bt, &s, &c), &c),
         &c,
         &s,
-    ).expect("matmul");
+    );
     assert_parity_tol("matmul_2d", cpu.as_slice(), gpu.as_slice(), CUDA_ACC_TOL);
 }
 
@@ -34,7 +34,7 @@ fn test_cuda_parity_batched_matmul() {
         &coeus_ops::matmul(&to_gpu(&at, &s, &c), &to_gpu(&bt, &s, &c), &c),
         &c,
         &s,
-    ).expect("matmul");
+    );
     assert_parity_tol(
         "batched_matmul",
         cpu.as_slice(),
