@@ -1,5 +1,5 @@
-use crate::backend::{CudaBackend, CudaScalar};
 use crate::CudaBackendError;
+use crate::backend::{CudaBackend, CudaScalar};
 use coeus_core::Layout;
 use hephaestus_cuda::StridedOperand;
 use hephaestus_cuda::{IdentityToken, OpIdentity};
@@ -87,11 +87,11 @@ where
 }
 
 impl<
-        T: CudaScalar
-            + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>
-            + OpIdentity<hephaestus_cuda::CumSumOp>
-            + IdentityToken<hephaestus_cuda::CumSumOp, hephaestus_cuda::CudaC>,
-    > coeus_ops::ReductionOps<T> for CudaBackend
+    T: CudaScalar
+        + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>
+        + OpIdentity<hephaestus_cuda::CumSumOp>
+        + IdentityToken<hephaestus_cuda::CumSumOp, hephaestus_cuda::CudaC>,
+> coeus_ops::ReductionOps<T> for CudaBackend
 {
     #[inline]
     fn reduce(
