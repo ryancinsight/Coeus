@@ -142,7 +142,7 @@ jobs:
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-wgpu --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-wgpu --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-wgpu \
-            -E "test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors)"
+            -E "test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors) or test(test_wgpu_parity_add) or test(test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer)"
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-wgpu --doc
 
   cuda:
@@ -270,7 +270,7 @@ jobs:
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cuda --features cuda --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cuda --features cuda --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --features cuda \
-                -E "test(test_cuda_parity_cumulative_scans) or test(test_cuda_parity_prod_axis)"
+                -E "test(test_cuda_parity_cumulative_scans) or test(test_cuda_parity_prod_axis) or test(test_cuda_backend_ops)"
               cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-cuda --features cuda --doc
             '
 
@@ -383,19 +383,21 @@ jobs:
               rustfmt --check --edition 2024 \
                 crates/coeus-hephaestus/src/lib.rs \
                 crates/coeus-hephaestus/src/error.rs \
+                crates/coeus-hephaestus/src/elementwise.rs \
                 crates/coeus-hephaestus/src/layout.rs \
                 crates/coeus-hephaestus/src/reduction.rs \
                 crates/coeus-hephaestus/src/storage.rs \
                 crates/coeus-rocm/src/lib.rs \
                 crates/coeus-rocm/src/backend.rs \
-                crates/coeus-rocm/tests/reduction.rs
+                crates/coeus-rocm/tests/reduction.rs \
+                crates/coeus-rocm/tests/elementwise.rs
               cargo "+$RUST_TOOLCHAIN" update --manifest-path /workspace/coeus/Cargo.toml --workspace
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-hephaestus --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-rocm --features rocm --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-rocm --features rocm --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-rocm --features rocm \
-                -E "test(native_reductions_and_scans_match_leto)"
+                -E "test(native_reductions_and_scans_match_leto) or test(native_elementwise_operations_match_leto_with_broadcasting)"
               cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-rocm --features rocm --doc
             '
 
@@ -504,19 +506,21 @@ jobs:
           rustfmt --check --edition 2024 \
             crates/coeus-hephaestus/src/lib.rs \
             crates/coeus-hephaestus/src/error.rs \
+            crates/coeus-hephaestus/src/elementwise.rs \
             crates/coeus-hephaestus/src/layout.rs \
             crates/coeus-hephaestus/src/reduction.rs \
             crates/coeus-hephaestus/src/storage.rs \
             crates/coeus-metal/src/lib.rs \
             crates/coeus-metal/src/backend.rs \
-            crates/coeus-metal/tests/reduction.rs
+            crates/coeus-metal/tests/reduction.rs \
+            crates/coeus-metal/tests/elementwise.rs
           cargo "+$RUST_TOOLCHAIN" update --manifest-path "$GITHUB_WORKSPACE/coeus/Cargo.toml" --workspace
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-hephaestus --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-metal --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-metal --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-metal \
-            -E "test(native_reductions_and_scans_match_leto)"
+            -E "test(native_reductions_and_scans_match_leto) or test(native_elementwise_operations_match_leto_with_broadcasting)"
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-metal --doc
 
   rocm-hardware:
@@ -612,4 +616,4 @@ jobs:
         env:
           HEPHAESTUS_ROCM_REQUIRE_DEVICE: "1"
         run: cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-rocm --features rocm \
-          -E "test(native_reductions_and_scans_match_leto)"
+          -E "test(native_reductions_and_scans_match_leto) or test(native_elementwise_operations_match_leto_with_broadcasting)"

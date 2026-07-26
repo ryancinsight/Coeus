@@ -1,0 +1,160 @@
+use coeus_core::{BinaryOp, ComputeBackend, CpuUnaryOp, Layout};
+use coeus_metal::MetalBackend;
+use coeus_ops::ElementwiseOps;
+
+fn require_device() -> bool {
+    let available = hephaestus_metal::MetalDevice::try_default().is_ok();
+    if !available {
+        assert_ne!(
+            std::env::var("HEPHAESTUS_METAL_REQUIRE_DEVICE").as_deref(),
+            Ok("1"),
+            "Metal CI requires an acquired device"
+        );
+    }
+    available
+}
+
+fn assert_close(actual: &[f32], expected: &[f32], operation: &str) {
+    for (index, (&actual, &expected)) in actual.iter().zip(expected).enumerate() {
+        let tolerance = f32::EPSILON * 512.0 * expected.abs().max(1.0);
+        assert!(
+            (actual - expected).abs() <= tolerance,
+            "Metal {operation} mismatch at {index}: actual {actual}, expected {expected}, tolerance {tolerance}"
+        );
+    }
+}
+
+#[test]
+fn native_elementwise_operations_match_leto_with_broadcasting() {
+    if !require_device() {
+        return;
+    }
+
+    let backend = MetalBackend::new();
+    assert_eq!(backend.name(), "metal");
+    let lhs_layout = Layout::new([2, 3].into());
+    let rhs_layout = Layout::new([1, 3].into());
+    let output_layout = Layout::new([2, 3].into());
+    let lhs = [1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0];
+    let rhs = [2.0_f32, 4.0, 6.0];
+    let mut device_lhs = backend.allocate::<f32>(lhs.len());
+    let mut device_rhs = backend.allocate::<f32>(rhs.len());
+    backend.copy_to_device(&lhs, &mut device_lhs);
+    backend.copy_to_device(&rhs, &mut device_rhs);
+
+    for operation in [BinaryOp::Add, BinaryOp::Sub, BinaryOp::Mul, BinaryOp::Div] {
+        let mut expected = [0.0_f32; 6];
+        coeus_leto::elementwise_binary_into(
+            operation,
+            &lhs_layout,
+            &lhs,
+            &rhs_layout,
+            &rhs,
+            &output_layout,
+            &mut expected,
+        )
+        .expect("Leto binary elementwise oracle failed");
+        let mut actual = backend.allocate::<f32>(lhs.len());
+        backend
+            .elementwise_binary(
+                operation,
+                &device_lhs,
+                &lhs_layout,
+                &device_rhs,
+                &rhs_layout,
+                &mut actual,
+                &output_layout,
+            )
+            .expect("Metal binary elementwise dispatch failed");
+        let mut actual_values = [0.0_f32; 6];
+        backend.copy_to_host(&actual, &mut actual_values);
+        assert_close(&actual_values, &expected, "binary");
+    }
+
+    for (shape, lhs, rhs) in [
+        (
+            vec![6],
+            vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0],
+            vec![6.0_f32; 6],
+        ),
+        (
+            vec![2, 2, 2],
+            vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+            vec![2.0_f32; 8],
+        ),
+        (
+            vec![1, 2, 2, 2],
+            vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+            vec![2.0_f32; 8],
+        ),
+    ] {
+        let layout = Layout::new(shape.into());
+        let mut device_lhs = backend.allocate::<f32>(lhs.len());
+        let mut device_rhs = backend.allocate::<f32>(rhs.len());
+        backend.copy_to_device(&lhs, &mut device_lhs);
+        backend.copy_to_device(&rhs, &mut device_rhs);
+        let mut expected = vec![0.0_f32; lhs.len()];
+        coeus_leto::elementwise_binary_into(
+            BinaryOp::Add,
+            &layout,
+            &lhs,
+            &layout,
+            &rhs,
+            &layout,
+            &mut expected,
+        )
+        .expect("Leto ranked elementwise oracle failed");
+        let mut actual = backend.allocate::<f32>(lhs.len());
+        backend
+            .elementwise_binary(
+                BinaryOp::Add,
+                &device_lhs,
+                &layout,
+                &device_rhs,
+                &layout,
+                &mut actual,
+                &layout,
+            )
+            .expect("Metal ranked elementwise dispatch failed");
+        let mut actual_values = vec![0.0_f32; lhs.len()];
+        backend.copy_to_host(&actual, &mut actual_values);
+        assert_close(&actual_values, &expected, "ranked binary");
+    }
+
+    let unary_input = [0.25_f32, 0.5, 1.0, 2.0, 3.0, 4.0];
+    let mut device_unary_input = backend.allocate::<f32>(unary_input.len());
+    backend.copy_to_device(&unary_input, &mut device_unary_input);
+    for operation in [
+        CpuUnaryOp::Sin,
+        CpuUnaryOp::Cos,
+        CpuUnaryOp::Exp,
+        CpuUnaryOp::Log,
+        CpuUnaryOp::Neg,
+        CpuUnaryOp::Abs,
+        CpuUnaryOp::Sqrt,
+        CpuUnaryOp::Recip,
+    ] {
+        let mut expected = [0.0_f32; 6];
+        coeus_leto::elementwise_unary_into(
+            operation,
+            &lhs_layout,
+            &unary_input,
+            &output_layout,
+            &mut expected,
+        )
+        .expect("Leto unary elementwise oracle failed");
+        let mut actual = backend.allocate::<f32>(unary_input.len());
+        backend
+            .elementwise_unary(
+                operation,
+                &device_unary_input,
+                &lhs_layout,
+                &mut actual,
+                &output_layout,
+            )
+            .expect("Metal unary elementwise dispatch failed");
+        let mut actual_values = [0.0_f32; 6];
+        backend.copy_to_host(&actual, &mut actual_values);
+        assert_close(&actual_values, &expected, "unary");
+    }
+}
