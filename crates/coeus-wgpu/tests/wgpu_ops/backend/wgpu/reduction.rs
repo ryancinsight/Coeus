@@ -40,3 +40,24 @@ fn cumulative_scans_match_cpu_on_rank_two_device_tensors() {
         expected_suffix_product.as_slice()
     );
 }
+
+#[test]
+fn product_axis_matches_cpu_on_rank_two_device_tensors() {
+    if hephaestus_wgpu::WgpuDevice::try_default("coeus-wgpu-product-axis-test").is_err() {
+        return;
+    }
+
+    let sequential = SequentialBackend::new();
+    let wgpu = WgpuBackend::new();
+    let input =
+        Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, -2.0, 3.0, 4.0, 0.5, 6.0]);
+    let device_input = input.to_backend_on(&sequential, &wgpu);
+
+    let expected = coeus_ops::prod_axis(&input, 1, &sequential).expect("valid CPU product axis");
+    let actual = coeus_ops::prod_axis(&device_input, 1, &wgpu)
+        .expect("valid WGPU product axis")
+        .to_backend_on(&wgpu, &sequential);
+
+    assert_eq!(actual.shape(), &[2, 1]);
+    assert_eq!(actual.as_slice(), expected.as_slice());
+}

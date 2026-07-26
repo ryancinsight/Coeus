@@ -50,6 +50,7 @@ pub fn dispatch_reduce<T: CudaScalar>(
 
     let (init_expr, loop_start, update_expr) = match op {
         coeus_ops::ReductionOp::Sum => ("0.0f", "0", "acc = acc + val;"),
+        coeus_ops::ReductionOp::Prod => ("1.0f", "0", "acc = acc * val;"),
         coeus_ops::ReductionOp::Mean => ("0.0f", "0", "acc = acc + val;"),
         coeus_ops::ReductionOp::Max => ("a[base_off_a]", "1", "acc = max(acc, val);"),
         coeus_ops::ReductionOp::Min => ("a[base_off_a]", "1", "acc = min(acc, val);"),
@@ -266,6 +267,7 @@ pub fn dispatch_fused_reduce<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
 
     let (init_val, update_expr) = match op {
         coeus_ops::ReductionOp::Sum => ("0.0f", "acc = acc + val;"),
+        coeus_ops::ReductionOp::Prod => ("1.0f", "acc = acc * val;"),
         coeus_ops::ReductionOp::Mean => ("0.0f", "acc = acc + val;"),
         coeus_ops::ReductionOp::Max => ("-3.40282347e+38f", "acc = max(acc, val);"),
         coeus_ops::ReductionOp::Min => ("3.40282347e+38f", "acc = min(acc, val);"),

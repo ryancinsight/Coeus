@@ -104,6 +104,8 @@ pub enum BinaryOp {
 pub enum ReductionOp {
     /// Sum of all elements.
     Sum,
+    /// Product of all elements.
+    Prod,
     /// Arithmetic mean of all elements.
     Mean,
     /// Maximum element.

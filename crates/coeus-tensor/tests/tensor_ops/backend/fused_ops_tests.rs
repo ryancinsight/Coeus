@@ -147,6 +147,10 @@ fn test_cpu_fusion_reduce_ops() {
     assert_eq!(sum.shape(), &[2, 1]);
     assert_eq!(sum.as_slice(), &[2.0, 3.0]);
 
+    let product = evaluate_fused_reduce_cpu(&expr, ReductionOp::Prod, 1, &backend);
+    assert_eq!(product.shape(), &[2, 1]);
+    assert_eq!(product.as_slice(), &[-5346.0, -90.75]);
+
     let mean = evaluate_fused_reduce_cpu(&expr, ReductionOp::Mean, 1, &backend);
     assert_eq!(mean.shape(), &[2, 1]);
     assert_eq!(mean.as_slice(), &[2.0 / 3.0, 1.0]);

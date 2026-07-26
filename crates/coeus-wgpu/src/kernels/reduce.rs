@@ -78,6 +78,7 @@ pub fn dispatch_reduce<T: WgpuScalar>(
 
     let (init_expr, loop_start, update_expr) = match op {
         coeus_ops::ReductionOp::Sum => ("0.0", "0u", "acc = acc + val;"),
+        coeus_ops::ReductionOp::Prod => ("1.0", "0u", "acc = acc * val;"),
         coeus_ops::ReductionOp::Mean => ("0.0", "0u", "acc = acc + val;"),
         coeus_ops::ReductionOp::Max => ("a[base_off_a]", "1u", "acc = max(acc, val);"),
         coeus_ops::ReductionOp::Min => ("a[base_off_a]", "1u", "acc = min(acc, val);"),
@@ -266,6 +267,7 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
 
     let (init_expr, update_expr) = match op {
         coeus_ops::ReductionOp::Sum => ("0.0", "acc = acc + val;"),
+        coeus_ops::ReductionOp::Prod => ("1.0", "acc = acc * val;"),
         coeus_ops::ReductionOp::Mean => ("0.0", "acc = acc + val;"),
         coeus_ops::ReductionOp::Max => ("-3.40282347e+38", "acc = max(acc, val);"),
         coeus_ops::ReductionOp::Min => ("3.40282347e+38", "acc = min(acc, val);"),

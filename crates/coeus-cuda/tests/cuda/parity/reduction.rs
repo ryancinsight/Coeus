@@ -85,6 +85,22 @@ fn test_cuda_parity_min_axis() {
 }
 
 #[test]
+fn test_cuda_parity_prod_axis() {
+    let Some((s, c)) = backends() else {
+        return;
+    };
+    let data = vec![1.0f32, -2.0, 3.0, 4.0, 0.5, 6.0];
+    let x = Tensor::from_slice(vec![2, 3], &data);
+    let cpu = coeus_ops::prod_axis(&x, 1, &s).expect("valid CPU product axis");
+    let gpu = to_cpu(
+        &coeus_ops::prod_axis(&to_gpu(&x, &s, &c), 1, &c).expect("valid CUDA product axis"),
+        &c,
+        &s,
+    );
+    assert_parity_tol("prod_axis1", cpu.as_slice(), gpu.as_slice(), CUDA_TOL);
+}
+
+#[test]
 fn test_cuda_parity_cumulative_scans() {
     let Some((s, c)) = backends() else {
         return;

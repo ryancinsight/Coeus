@@ -10,6 +10,14 @@
       run `30214708599` passes at `695c2890` (WGPU job `89826735353`, CUDA job
       `89826735351`).
 
+## ATLAS-HEPHAESTUS-PRODUCT-001 — Native product reductions
+
+- [x] Add one shared `ReductionOp::Prod` contract through CPU/Leto, WGPU, and
+      CUDA, including fused CPU reduction evaluation.
+- [x] Add rank-2 `prod_axis` value-parity tests for CPU/Leto, WGPU, and CUDA.
+- [ ] Run exact-head WGPU/CUDA provider CI with the product-reduction filters;
+      record the resulting run and job IDs here before merge.
+
 ## MS-445 Python release wheels [patch]
 
 - [x] Add the pinned build-once GitHub Release and PyPI workflow.

@@ -136,7 +136,7 @@ jobs:
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-wgpu --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-wgpu --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-wgpu \
-            cumulative_scans_match_cpu_on_rank_two_device_tensors
+            -E 'test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors)'
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-wgpu --doc
 
   cuda:
@@ -264,6 +264,6 @@ jobs:
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cuda --features cuda --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cuda --features cuda --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --features cuda \
-                test_cuda_parity_cumulative_scans
+                -E 'test(test_cuda_parity_cumulative_scans) or test(test_cuda_parity_prod_axis)'
               cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-cuda --features cuda --doc
             '

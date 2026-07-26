@@ -145,6 +145,7 @@ fn write_fused_values<E, T, B>(
 fn reduce_pair<T: Scalar>(op: crate::ReductionOp, acc: T, val: T) -> T {
     match op {
         crate::ReductionOp::Sum | crate::ReductionOp::Mean => acc + val,
+        crate::ReductionOp::Prod => acc * val,
         crate::ReductionOp::Max => {
             if val > acc {
                 val

@@ -5,8 +5,8 @@ use leto::{
     Array, LetoError, RankMarker, RemoveAxis, Result, SliceStorage, Storage,
 };
 use leto_ops::{
-    CumProdOp, CumSumOp, MaxAxis, MeanAxis, MinAxis, Scalar as LetoScalar, ScanDirection, ScanOp,
-    SumAxis,
+    CumProdOp, CumSumOp, MaxAxis, MeanAxis, MinAxis, ProductAxis, Scalar as LetoScalar,
+    ScanDirection, ScanOp, SumAxis,
 };
 
 use super::MAX_DISPATCH_RANK;
@@ -26,6 +26,9 @@ fn reduce_n<T: LetoScalar, const N: usize>(
         ReductionOp::Sum => {
             leto_ops::reduce_axis_into::<SumAxis, T, N>(&a_view, axis, &mut out_view)
         }
+        ReductionOp::Prod => {
+            leto_ops::reduce_axis_into::<ProductAxis, T, N>(&a_view, axis, &mut out_view)
+        }
         ReductionOp::Mean => {
             leto_ops::reduce_axis_into::<MeanAxis, T, N>(&a_view, axis, &mut out_view)
         }
@@ -44,7 +47,7 @@ fn reduce_n<T: LetoScalar, const N: usize>(
 /// # Examples
 ///
 /// Reduce a `[2,3]` matrix along axis 1 into a `[2,1]` keep-dim output, for the
-/// `sum`, `mean`, `max`, and `min` operators:
+/// `sum`, `product`, `mean`, `max`, and `min` operators:
 ///
 /// ```
 /// use coeus_core::{Layout, ReductionOp};
@@ -57,6 +60,9 @@ fn reduce_n<T: LetoScalar, const N: usize>(
 ///
 /// reduce_into(ReductionOp::Sum, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [3.0, 14.0]);
+///
+/// reduce_into(ReductionOp::Prod, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// assert_eq!(out, [-8.0, 90.0]);
 ///
 /// reduce_into(ReductionOp::Mean, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [1.0, 14.0 / 3.0]);

@@ -46,6 +46,14 @@ where
         Scalar::to_f64(T::from_f64(21.0)).to_bits()
     );
 
+    let product_axis = coeus_ops::prod_axis(&tensor, 1, backend).expect("valid product axis");
+    assert_eq!(product_axis.shape(), &[2, 1]);
+    assert_same_bits(
+        product_axis.as_slice(),
+        [6.0, 120.0].map(T::from_f64),
+        "axis-1 product",
+    );
+
     let mean = coeus_ops::mean(&tensor, backend).expect("valid mean");
     assert_eq!(
         Scalar::to_f64(mean).to_bits(),
@@ -116,6 +124,9 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     let empty = Tensor::<f32, B>::zeros_on([0usize], backend);
+    let empty_product = coeus_ops::prod_axis(&empty, 0, backend).expect("empty product identity");
+    assert_eq!(empty_product.shape(), &[1]);
+    assert_eq!(empty_product.as_slice(), &[1.0]);
     assert!(coeus_ops::mean(&empty, backend)
         .expect("empty mean is a defined NaN result")
         .is_nan());
