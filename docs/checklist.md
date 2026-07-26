@@ -1,5 +1,12 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-HEPHAESTUS-SCAN-001 — Native cumulative scans
+
+- [ ] Change `ReductionOps::cumsum` and `suffix_sum` to return typed results.
+- [ ] Route WGPU and CUDA rank-2 layouts to Hephaestus provider kernels.
+- [ ] Reject unsupported rank/layout cases instead of copying through host.
+- [ ] Add provider differential tests and record exact-head CI evidence.
+
 ## MS-445 Python release wheels [patch]
 
 - [x] Add the pinned build-once GitHub Release and PyPI workflow.
