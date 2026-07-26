@@ -12,6 +12,9 @@ members = [
     "crates/coeus-sparse",
     "crates/coeus-wgpu",
     "crates/coeus-cuda",
+    "crates/coeus-hephaestus",
+    "crates/coeus-rocm",
+    "crates/coeus-metal",
     "crates/coeus-dist",
     "crates/coeus-leto",
     "crates/coeus-fft",
@@ -54,6 +57,8 @@ wgpu       = { version = "30.0", default-features = false, features = ["wgsl", "
 hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu" }
 hephaestus-core = { path = "../hephaestus/crates/hephaestus-core" }
 hephaestus-cuda = { path = "../hephaestus/crates/hephaestus-cuda" }
+hephaestus-rocm = { path = "../hephaestus/crates/hephaestus-rocm" }
+hephaestus-metal = { path = "../hephaestus/crates/hephaestus-metal" }
 themis = { path = "../themis", version = "0.10.1" }
 melinoe = { path = "../melinoe", version = "0.9.0" }
 

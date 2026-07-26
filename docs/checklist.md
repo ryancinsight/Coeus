@@ -1,5 +1,23 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-COEUS-HEPHAESTUS-001 — Native ROCm and Metal reduction providers
+
+- [x] Add one generic `coeus-hephaestus` storage and reduction/scan dispatch
+      layer shared by vendor backends.
+- [x] Add native Coeus ROCm and Metal backends for rank-2 reductions and
+      forward/reverse cumulative sum/product scans.
+- [x] Compare every provider reduction and scan result with the Leto CPU
+      oracle, including product identity and suffix direction.
+- [x] Fix the owning Hephaestus ROCm device cache so the Coeus backend device
+      satisfies `Send + Sync`; Hephaestus PR #109 merged as `95eeaa5`.
+- [x] Run exact-head hosted ROCm feature and macOS Metal CI with the WGPU/CUDA
+      matrix. Run `30221620203` passed at `f8bb4c7e`:
+      ROCm `89844922811`, Metal `89844922775`, WGPU `89844922827`, and CUDA
+      `89844922774`. The optional required-device ROCm lane
+      (`89844923036`) was skipped because this pull request did not request a
+      hardware dispatch.
+
+
 ## ATLAS-HEPHAESTUS-SCAN-001 — Native cumulative scans
 
 - [x] `ReductionOps::cumsum` and `suffix_sum` expose typed backend results.

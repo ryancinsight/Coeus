@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      run_rocm_hardware:
+        description: Run the ROCm Coeus contracts on the registered AMD runner
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -267,3 +273,343 @@ jobs:
                 -E "test(test_cuda_parity_cumulative_scans) or test(test_cuda_parity_prod_axis)"
               cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-cuda --features cuda --doc
             '
+
+  rocm:
+    name: ROCm Coeus provider contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      ROCM_IMAGE: rocm/dev-ubuntu-24.04:7.2.4
+    steps:
+      - name: Check out Coeus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: coeus
+          persist-credentials: false
+
+      - name: Check out Apollo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/apollo
+          path: apollo
+          persist-credentials: false
+
+      - name: Check out Aequitas
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/aequitas
+          path: aequitas
+          persist-credentials: false
+
+      - name: Check out Hephaestus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/hephaestus
+          path: hephaestus
+          persist-credentials: false
+
+      - name: Check out Hermes
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/hermes
+          path: hermes
+          persist-credentials: false
+
+      - name: Check out Leto
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/leto
+          path: leto
+          persist-credentials: false
+
+      - name: Check out Melinoe
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/melinoe
+          path: melinoe
+          persist-credentials: false
+
+      - name: Check out Mnemosyne
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/Mnemosyne
+          path: mnemosyne
+          persist-credentials: false
+
+      - name: Check out Moirai
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/Moirai
+          path: moirai
+          persist-credentials: false
+
+      - name: Check out Eunomia
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/eunomia
+          path: eunomia
+          persist-credentials: false
+
+      - name: Check out Themis
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/themis
+          path: themis
+          persist-credentials: false
+
+      - name: Build and test in the AMD ROCm development image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull "$ROCM_IMAGE"
+          docker run --rm --network host \
+            --env "RUST_TOOLCHAIN=$RUST_TOOLCHAIN" \
+            --volume "$GITHUB_WORKSPACE:/workspace" \
+            --workdir /workspace/coeus \
+            "$ROCM_IMAGE" \
+            bash -c '
+              set -euo pipefail
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update
+              apt-get install --yes --no-install-recommends ca-certificates curl git build-essential pkg-config rocm-hip-runtime-dev
+              curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
+              . "$HOME/.cargo/env"
+              rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+              rustup component add rustfmt clippy --toolchain "$RUST_TOOLCHAIN"
+              rustup toolchain install stable --profile minimal
+              cargo +stable install cargo-nextest --locked
+              mkdir -p /workspace/.cargo
+              cp /workspace/hephaestus/.github/rocm-cargo-config.toml /workspace/.cargo/config.toml
+              rustfmt --check --edition 2024 \
+                crates/coeus-hephaestus/src/lib.rs \
+                crates/coeus-hephaestus/src/error.rs \
+                crates/coeus-hephaestus/src/layout.rs \
+                crates/coeus-hephaestus/src/reduction.rs \
+                crates/coeus-hephaestus/src/storage.rs \
+                crates/coeus-rocm/src/lib.rs \
+                crates/coeus-rocm/src/backend.rs \
+                crates/coeus-rocm/tests/reduction.rs
+              cargo "+$RUST_TOOLCHAIN" update --manifest-path /workspace/coeus/Cargo.toml --workspace
+              cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
+              cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-hephaestus --all-targets --no-deps -- -D warnings
+              cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-rocm --features rocm --all-targets
+              cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-rocm --features rocm --all-targets --no-deps -- -D warnings
+              cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-rocm --features rocm \
+                -E "test(native_reductions_and_scans_match_leto)"
+              cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-rocm --features rocm --doc
+            '
+
+  metal:
+    name: Metal Coeus provider contracts
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Check out Coeus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: coeus
+          persist-credentials: false
+
+      - name: Check out Apollo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/apollo
+          path: apollo
+          persist-credentials: false
+
+      - name: Check out Aequitas
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/aequitas
+          path: aequitas
+          persist-credentials: false
+
+      - name: Check out Hephaestus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/hephaestus
+          path: hephaestus
+          persist-credentials: false
+
+      - name: Check out Hermes
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/hermes
+          path: hermes
+          persist-credentials: false
+
+      - name: Check out Leto
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/leto
+          path: leto
+          persist-credentials: false
+
+      - name: Check out Melinoe
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/melinoe
+          path: melinoe
+          persist-credentials: false
+
+      - name: Check out Mnemosyne
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/Mnemosyne
+          path: mnemosyne
+          persist-credentials: false
+
+      - name: Check out Moirai
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/Moirai
+          path: moirai
+          persist-credentials: false
+
+      - name: Check out Eunomia
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/eunomia
+          path: eunomia
+          persist-credentials: false
+
+      - name: Check out Themis
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/themis
+          path: themis
+          persist-credentials: false
+
+      - name: Install the pinned Rust toolchain and nextest
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+
+      - name: Install nextest
+        shell: bash
+        run: cargo install cargo-nextest --locked
+
+      - name: Run Metal and Leto provider contracts
+        working-directory: coeus
+        env:
+          HEPHAESTUS_METAL_REQUIRE_DEVICE: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/.cargo"
+          sed "s|/workspace|$GITHUB_WORKSPACE|g" \
+            "$GITHUB_WORKSPACE/hephaestus/.github/rocm-cargo-config.toml" \
+            > "$GITHUB_WORKSPACE/.cargo/config.toml"
+          rustfmt --check --edition 2024 \
+            crates/coeus-hephaestus/src/lib.rs \
+            crates/coeus-hephaestus/src/error.rs \
+            crates/coeus-hephaestus/src/layout.rs \
+            crates/coeus-hephaestus/src/reduction.rs \
+            crates/coeus-hephaestus/src/storage.rs \
+            crates/coeus-metal/src/lib.rs \
+            crates/coeus-metal/src/backend.rs \
+            crates/coeus-metal/tests/reduction.rs
+          cargo "+$RUST_TOOLCHAIN" update --manifest-path "$GITHUB_WORKSPACE/coeus/Cargo.toml" --workspace
+          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
+          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-hephaestus --all-targets --no-deps -- -D warnings
+          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-metal --all-targets
+          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-metal --all-targets --no-deps -- -D warnings
+          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-metal \
+            -E "test(native_reductions_and_scans_match_leto)"
+          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-metal --doc
+
+  rocm-hardware:
+    name: ROCm Coeus required-device contracts
+    if: github.event_name == 'workflow_dispatch' && inputs.run_rocm_hardware
+    runs-on: [self-hosted, linux, x64, rocm]
+    timeout-minutes: 30
+    steps:
+      - name: Check out Coeus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: coeus
+          persist-credentials: false
+      - name: Check out Apollo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/apollo
+          path: apollo
+          persist-credentials: false
+      - name: Check out Hephaestus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/hephaestus
+          path: hephaestus
+          persist-credentials: false
+      - name: Check out Leto
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/leto
+          path: leto
+          persist-credentials: false
+      - name: Check out Melinoe
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/melinoe
+          path: melinoe
+          persist-credentials: false
+      - name: Check out Hermes
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/hermes
+          path: hermes
+          persist-credentials: false
+      - name: Check out Eunomia
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/eunomia
+          path: eunomia
+          persist-credentials: false
+      - name: Check out Aequitas
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/aequitas
+          path: aequitas
+          persist-credentials: false
+      - name: Check out Themis
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/themis
+          path: themis
+          persist-credentials: false
+      - name: Check out Mnemosyne
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/Mnemosyne
+          path: mnemosyne
+          persist-credentials: false
+      - name: Check out Moirai
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/Moirai
+          path: moirai
+          persist-credentials: false
+      - name: Install the pinned Rust toolchain and nextest
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+      - name: Install nextest
+        shell: bash
+        run: cargo install cargo-nextest --locked
+      - name: Configure the checkout-local Cargo graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/.cargo"
+          sed "s|/workspace|$GITHUB_WORKSPACE|g" \
+            "$GITHUB_WORKSPACE/hephaestus/.github/rocm-cargo-config.toml" \
+            > "$GITHUB_WORKSPACE/.cargo/config.toml"
+          cargo "+$RUST_TOOLCHAIN" update --manifest-path "$GITHUB_WORKSPACE/coeus/Cargo.toml" --workspace
+      - name: Run required-device ROCm provider contracts
+        working-directory: coeus
+        env:
+          HEPHAESTUS_ROCM_REQUIRE_DEVICE: "1"
+        run: cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-rocm --features rocm \
+          -E "test(native_reductions_and_scans_match_leto)"

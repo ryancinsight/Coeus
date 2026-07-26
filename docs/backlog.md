@@ -1,5 +1,25 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-COEUS-HEPHAESTUS-001 — Native ROCm and Metal reduction providers [arch]
+
+- Owner: Codex; scope: `coeus-hephaestus`, `coeus-rocm`, `coeus-metal`, their
+  Leto differential tests, workspace manifests, and backend-parity CI.
+- Outcome: integrate real Hephaestus ROCm and Metal storage plus rank-2
+  reduction/scan kernels into Coeus through one generic consumer-facing layer.
+- Non-goals: higher-rank dispatch and non-reduction operation families remain
+  separate vertical increments.
+- Acceptance: all five reductions and forward/reverse sum/product scans match
+  `coeus-leto`; unsupported ranks return typed errors; ROCm feature CI and
+  macOS Metal CI pass; no CPU fallback or vendor algorithm clone is added.
+- Status: complete for the rank-2 reduction and scan scope. Local package
+  checks pass, Hephaestus PR #109 merged as `95eeaa5`, and exact-head hosted
+  run `30221620203` passed at `f8bb4c7e`: ROCm job `89844922811`, Metal job
+  `89844922775`, WGPU job `89844922827`, and CUDA job `89844922774`. The
+  required-device ROCm hardware job `89844923036` was skipped on this pull
+  request because it requires manual dispatch.
+- Decision: ADR-0022 selects the shared generic provider layer over duplicated
+  vendor operation trees.
+
 ## ATLAS-COEUS-BUILD-001 — Reconcile locked provider source graph [patch] — done
 
 - Owner: Codex `/coeus`; scope: `Cargo.lock` and the provider-graph evidence for

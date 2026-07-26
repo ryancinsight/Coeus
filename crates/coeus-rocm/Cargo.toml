@@ -1,0 +1,23 @@
+[package]
+name = "coeus-rocm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "ROCm backend integration for Coeus through Hephaestus."
+
+[features]
+default = []
+rocm = ["hephaestus-rocm/rocm"]
+
+[dependencies]
+coeus-core = { workspace = true }
+coeus-hephaestus = { path = "../coeus-hephaestus" }
+coeus-ops = { workspace = true, default-features = false }
+hephaestus-core = { workspace = true }
+hephaestus-rocm = { workspace = true }
+leto-ops = { workspace = true }
+
+[dev-dependencies]
+coeus-leto = { path = "../coeus-leto" }
