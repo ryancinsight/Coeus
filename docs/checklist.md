@@ -8,6 +8,8 @@
       forward/reverse cumulative sum/product scans.
 - [x] Compare every provider reduction and scan result with the Leto CPU
       oracle, including product identity and suffix direction.
+- [x] Fix the owning Hephaestus ROCm device cache so the Coeus backend device
+      satisfies `Send + Sync`; Hephaestus PR #109 merged as `95eeaa5`.
 - [ ] Run exact-head hosted ROCm feature and macOS Metal CI, plus the optional
       required-device ROCm lane; record the final run IDs here.
 

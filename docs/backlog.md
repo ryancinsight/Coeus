@@ -11,8 +11,10 @@
 - Acceptance: all five reductions and forward/reverse sum/product scans match
   `coeus-leto`; unsupported ranks return typed errors; ROCm feature CI and
   macOS Metal CI pass; no CPU fallback or vendor algorithm clone is added.
-- Status: in-progress; local package checks pass, hosted exact-head CI remains
-  to be run after the workflow increment.
+- Status: in-progress; local package checks pass and the first exact-head run
+  exposed the upstream ROCm device thread-safety contract. Hephaestus PR #109
+  merged as `95eeaa5`; the Coeus exact-head matrix is being rerun against that
+  merged substrate.
 - Decision: ADR-0022 selects the shared generic provider layer over duplicated
   vendor operation trees.
 
