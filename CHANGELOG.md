@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Routes Coeus cumulative sum and product scans through the shared
+  Leto CPU contract and native Hephaestus WGPU/CUDA scan dispatch, with CPU,
+  WGPU, and CUDA differential coverage for forward and reverse scans.
+
 - [arch] Splits the CUDA convolution backend into forward, backward, and
   transposed-convolution leaves under a manifest; each implementation file is
   below the 500-line hierarchy target.

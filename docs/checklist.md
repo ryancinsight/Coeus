@@ -2,10 +2,12 @@
 
 ## ATLAS-HEPHAESTUS-SCAN-001 — Native cumulative scans
 
-- [ ] Change `ReductionOps::cumsum` and `suffix_sum` to return typed results.
-- [ ] Route WGPU and CUDA rank-2 layouts to Hephaestus provider kernels.
-- [ ] Reject unsupported rank/layout cases instead of copying through host.
-- [ ] Add provider differential tests and record exact-head CI evidence.
+- [x] `ReductionOps::cumsum` and `suffix_sum` expose typed backend results.
+- [x] Route WGPU and CUDA rank-2 sum and product scans to Hephaestus provider
+      kernels.
+- [x] Reject unsupported rank/layout cases instead of copying through host.
+- [x] Add CPU/Leto, WGPU, and CUDA differential tests. Exact-head CI evidence
+      remains attached to the current provider-parity change before closure.
 
 ## MS-445 Python release wheels [patch]
 

@@ -1,9 +1,9 @@
 //! Reduction sub-trait.
 //!
 //! [`ReductionOps`] is the interface-segregated sub-trait for all reduction
-//! kernel dispatch (reduce, argmax, argmin, topk, cumsum, suffix_sum).
-//! The default implementations for argmax/argmin/topk/cumsum/suffix_sum use
-//! only [`ComputeBackend`] host-copy methods.
+//! kernel dispatch (reduce, argmax, argmin, topk, cumsum, suffix_sum, cumprod,
+//! suffix_prod). The default implementations for argmax/argmin/topk and host
+//! scans use only [`ComputeBackend`] copy methods.
 
 use coeus_core::{ComputeBackend, Layout, Scalar};
 
@@ -131,6 +131,49 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         T: leto_ops::Scalar,
     {
         defaults::reductions::suffix_sum(self, a, a_layout, axis, c, c_layout);
+        Ok(())
+    }
+
+    /// Inclusive cumulative product along an axis.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when the layout or provider
+    /// dispatch is rejected.
+    fn cumprod(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: leto_ops::Scalar,
+    {
+        defaults::reductions::cumprod(self, a, a_layout, axis, c, c_layout);
+        Ok(())
+    }
+
+    /// Inclusive cumulative suffix product (reverse cumulative product) along
+    /// an axis.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when the layout or provider
+    /// dispatch is rejected.
+    fn suffix_prod(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: leto_ops::Scalar,
+    {
+        defaults::reductions::suffix_prod(self, a, a_layout, axis, c, c_layout);
         Ok(())
     }
 }

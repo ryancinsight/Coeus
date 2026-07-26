@@ -110,6 +110,24 @@ fn test_cuda_parity_cumulative_scans() {
         gpu_suffix.as_slice(),
         CUDA_TOL,
     );
+
+    let cpu_prefix_product = coeus_ops::cumprod(&x, 1, &s);
+    let gpu_prefix_product = to_cpu(&coeus_ops::cumprod(&gpu_input, 1, &c), &c, &s);
+    assert_parity_tol(
+        "cumprod-axis1",
+        cpu_prefix_product.as_slice(),
+        gpu_prefix_product.as_slice(),
+        CUDA_TOL,
+    );
+
+    let cpu_suffix_product = coeus_ops::suffix_prod(&x, 0, &s);
+    let gpu_suffix_product = to_cpu(&coeus_ops::suffix_prod(&gpu_input, 0, &c), &c, &s);
+    assert_parity_tol(
+        "suffix-prod-axis0",
+        cpu_suffix_product.as_slice(),
+        gpu_suffix_product.as_slice(),
+        CUDA_TOL,
+    );
 }
 
 // Matmul.

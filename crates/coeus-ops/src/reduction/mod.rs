@@ -12,7 +12,7 @@ pub(crate) mod sum;
 pub(crate) mod topk;
 pub(crate) mod variance;
 
-pub use cumprod::cumprod;
+pub use cumprod::{cumprod, suffix_prod};
 pub use cumsum::{cumsum, suffix_sum};
 pub use linalg::{cross, dot};
 pub use mean::{mean, mean_axis};

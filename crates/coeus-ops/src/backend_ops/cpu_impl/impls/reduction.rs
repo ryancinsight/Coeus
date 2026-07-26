@@ -1,5 +1,5 @@
-use super::super::CpuBackend;
 use super::super::reduction;
+use super::super::CpuBackend;
 use crate::backend_ops::ops::ReductionOp;
 use crate::backend_ops::traits::ReductionOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
@@ -108,6 +108,38 @@ where
         T: leto_ops::Scalar,
     {
         reduction::suffix_sum(self, a, a_layout, axis, c, c_layout);
+        Ok(())
+    }
+
+    #[inline]
+    fn cumprod(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: leto_ops::Scalar,
+    {
+        reduction::cumprod(self, a, a_layout, axis, c, c_layout);
+        Ok(())
+    }
+
+    #[inline]
+    fn suffix_prod(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: leto_ops::Scalar,
+    {
+        reduction::suffix_prod(self, a, a_layout, axis, c, c_layout);
         Ok(())
     }
 }

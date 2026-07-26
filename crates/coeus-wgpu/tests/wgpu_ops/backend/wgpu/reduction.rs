@@ -23,4 +23,20 @@ fn cumulative_scans_match_cpu_on_rank_two_device_tensors() {
     let actual_suffix = coeus_ops::suffix_sum(&device_input, 0);
     let actual_suffix = actual_suffix.to_backend_on(&wgpu, &sequential);
     assert_eq!(actual_suffix.as_slice(), expected_suffix.as_slice());
+
+    let expected_prefix_product = coeus_ops::cumprod(&input, 1, &sequential);
+    let actual_prefix_product = coeus_ops::cumprod(&device_input, 1, &wgpu);
+    let actual_prefix_product = actual_prefix_product.to_backend_on(&wgpu, &sequential);
+    assert_eq!(
+        actual_prefix_product.as_slice(),
+        expected_prefix_product.as_slice()
+    );
+
+    let expected_suffix_product = coeus_ops::suffix_prod(&input, 0, &sequential);
+    let actual_suffix_product = coeus_ops::suffix_prod(&device_input, 0, &wgpu);
+    let actual_suffix_product = actual_suffix_product.to_backend_on(&wgpu, &sequential);
+    assert_eq!(
+        actual_suffix_product.as_slice(),
+        expected_suffix_product.as_slice()
+    );
 }

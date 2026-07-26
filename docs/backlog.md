@@ -3116,7 +3116,7 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
 - [x] [arch] Route `MoiraiBackend`/`SequentialBackend` `BackendOps<T>` CPU kernels
   through `coeus-leto`: elementwise unary (compose the 17 activation/grad variants
   in coeus from leto `RealScalar` ops), broadcast binary, reductions (sum/mean/min/
-  max/argmax/argmin/cumsum), matmul + batched matmul, reshape/permute/to_contiguous,
+  max/argmax/argmin/cumsum/cumprod), matmul + batched matmul, reshape/permute/to_contiguous,
   concat/stack/pad/split, seeded init (uniform/normal). Extend coeus-leto dispatch
   per op behind `MAX_DISPATCH_RANK`. All sub-items complete.
   - [x] [patch] Added cross-repo value-semantic contract coverage for
@@ -3143,6 +3143,11 @@ kernel provider (the burn-ndarray analogue), NOT a replacement for coeus-tensor.
     traversal. Evidence: `cargo nextest run -p coeus-leto
     scan_dispatch_covers_forward_and_reverse_axis_ops` and `cargo nextest run -p
     coeus-ops --test scan_leto_diff` pass.
+  - [x] [patch] Routed public `coeus_ops::cumprod` and `suffix_prod` through
+    the same dynamic-rank `coeus-leto` scan contract. WGPU and CUDA use the
+    generic Hephaestus scan operation with CPU differential tests covering
+    forward and reverse products; exact-head provider CI remains the closure
+    gate for this increment.
   - [x] [patch] Added public CPU reduction differential coverage for
     `sum`/`mean`/`sum_axis`/`mean_axis`/`max_axis`/`min_axis` on
     `SequentialBackend` and `MoiraiBackend`, including transposed input views.

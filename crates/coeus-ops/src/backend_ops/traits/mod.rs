@@ -10,7 +10,7 @@
 //! Sub-traits and their concerns:
 //! - [`ElementwiseOps`] — binary and unary element-wise ops
 //! - [`MatmulOps`] — matmul, batched matmul, accumulate variants
-//! - [`ReductionOps`] — reduce, argmax/argmin, topk, cumsum, suffix_sum
+//! - [`ReductionOps`] — reduce, argmax/argmin, topk, cumulative sum/product scans
 //! - [`ConvOps`] — 1D/2D/3D conv forward+backward, transposed conv defaults
 //! - [`PoolOps`] — max/avg pool 1D/2D/3D forward+backward
 //! - [`AttentionOps`] — scaled dot-product attention forward+backward

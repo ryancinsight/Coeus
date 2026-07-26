@@ -1,4 +1,5 @@
-//! Reduction CPU kernel delegations: reduce, argmax/argmin, topk, cumsum, suffix_sum.
+//! Reduction CPU kernel delegations: reduce, argmax/argmin, topk, cumulative
+//! sum/product scans.
 #![allow(clippy::too_many_arguments)]
 
 use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
@@ -132,4 +133,38 @@ pub(super) fn suffix_sum<T, B>(
 {
     coeus_leto::suffix_sum_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
         .expect("coeus-leto suffix_sum failed");
+}
+
+#[inline]
+pub(super) fn cumprod<T, B>(
+    _backend: &B,
+    a: &B::DeviceBuffer<T>,
+    a_layout: &Layout,
+    axis: usize,
+    c: &mut B::DeviceBuffer<T>,
+    c_layout: &Layout,
+) where
+    T: Scalar + leto_ops::Scalar,
+    B: CpuBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
+    coeus_leto::cumprod_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
+        .expect("coeus-leto cumprod failed");
+}
+
+#[inline]
+pub(super) fn suffix_prod<T, B>(
+    _backend: &B,
+    a: &B::DeviceBuffer<T>,
+    a_layout: &Layout,
+    axis: usize,
+    c: &mut B::DeviceBuffer<T>,
+    c_layout: &Layout,
+) where
+    T: Scalar + leto_ops::Scalar,
+    B: CpuBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
+    coeus_leto::suffix_prod_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
+        .expect("coeus-leto suffix_prod failed");
 }

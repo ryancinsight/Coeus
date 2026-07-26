@@ -22,7 +22,7 @@ use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
-pub struct CumprodNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default>
+pub struct CumprodNode<T: Scalar + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -36,7 +36,8 @@ where
     pub dim: usize,
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for CumprodNode<T, B>
+impl<T: Scalar + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+    for CumprodNode<T, B>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -149,7 +150,7 @@ where
 /// Tracked cumulative product along `dim`.
 #[must_use]
 #[inline]
-pub fn cumprod<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn cumprod<T: Scalar + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: usize,
 ) -> Var<T, B>

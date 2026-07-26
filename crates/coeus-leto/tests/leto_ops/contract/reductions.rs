@@ -1,5 +1,8 @@
 use super::support::layout;
-use super::{argmax_into, argmin_into, cumsum_into, reduce_into, suffix_sum_into, ReductionOp};
+use super::{
+    argmax_into, argmin_into, cumprod_into, cumsum_into, reduce_into, suffix_prod_into,
+    suffix_sum_into, ReductionOp,
+};
 
 #[test]
 fn reduction_dispatch_covers_keepdim_axis_ops() {
@@ -78,4 +81,10 @@ fn scan_dispatch_covers_forward_and_reverse_axis_ops() {
 
     suffix_sum_into(&input_layout, &input, 1, &input_layout, &mut out).unwrap();
     assert_eq!(out, vec![6.0, 5.0, 3.0, 15.0, 11.0, 6.0]);
+
+    cumprod_into(&input_layout, &input, 1, &input_layout, &mut out).unwrap();
+    assert_eq!(out, vec![1.0, 2.0, 6.0, 4.0, 20.0, 120.0]);
+
+    suffix_prod_into(&input_layout, &input, 1, &input_layout, &mut out).unwrap();
+    assert_eq!(out, vec![6.0, 6.0, 3.0, 120.0, 30.0, 6.0]);
 }

@@ -131,6 +131,13 @@ where
         &[1.0_f64, 2.0, 3.0, 12.0],
         "cumprod dim=1"
     );
+
+    let suffix = coeus_ops::suffix_prod(&m, 1, backend);
+    assert_eq!(
+        suffix.as_slice(),
+        &[2.0_f64, 2.0, 12.0, 4.0],
+        "suffix_prod dim=1"
+    );
 }
 
 // BROADCAST_TO

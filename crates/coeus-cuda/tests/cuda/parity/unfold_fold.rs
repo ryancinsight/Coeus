@@ -166,9 +166,10 @@ macro_rules! unary_grad_parity {
             };
             let data: Vec<f32> = $data;
             let x = Tensor::from_slice(vec![data.len()], &data);
-            let cpu = coeus_ops::elementwise_unary(&x, &s, $op);
+            let cpu = coeus_ops::elementwise_unary(&x, &s, $op).expect("valid CPU unary dispatch");
             let gpu = to_cpu(
-                &coeus_ops::elementwise_unary(&to_gpu(&x, &s, &c), &c, $op),
+                &coeus_ops::elementwise_unary(&to_gpu(&x, &s, &c), &c, $op)
+                    .expect("valid CUDA unary dispatch"),
                 &c,
                 &s,
             );

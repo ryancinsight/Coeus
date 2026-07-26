@@ -5,7 +5,8 @@ use leto::{
     Array, LetoError, RankMarker, RemoveAxis, Result, SliceStorage, Storage,
 };
 use leto_ops::{
-    CumSumOp, MaxAxis, MeanAxis, MinAxis, Scalar as LetoScalar, ScanDirection, SumAxis,
+    CumProdOp, CumSumOp, MaxAxis, MeanAxis, MinAxis, Scalar as LetoScalar, ScanDirection, ScanOp,
+    SumAxis,
 };
 
 use super::MAX_DISPATCH_RANK;
@@ -87,17 +88,45 @@ pub fn reduce_into<T: LetoScalar>(
     }
 }
 
-fn scan_sum_n<T: LetoScalar, const N: usize>(
+fn scan_n<Op, T, const N: usize>(
     a_layout: &CoeusLayout,
     a: &[T],
     axis: usize,
     direction: ScanDirection,
     out_layout: &CoeusLayout,
     out: &mut [T],
-) -> Result<()> {
+) -> Result<()>
+where
+    Op: ScanOp<T>,
+    T: LetoScalar,
+{
     let a_view = to_leto_view::<T, N>(a_layout, a)?;
     let mut out_view = to_leto_view_mut::<T, N>(out_layout, out)?;
-    leto_ops::scan_axis_into::<CumSumOp, T, N>(&a_view, axis, direction, &mut out_view)
+    leto_ops::scan_axis_into::<Op, T, N>(&a_view, axis, direction, &mut out_view)
+}
+
+fn scan_into<Op, T: LetoScalar>(
+    a_layout: &CoeusLayout,
+    a: &[T],
+    axis: usize,
+    direction: ScanDirection,
+    out_layout: &CoeusLayout,
+    out: &mut [T],
+) -> Result<()>
+where
+    Op: ScanOp<T>,
+{
+    match a_layout.ndim() {
+        1 => scan_n::<Op, T, 1>(a_layout, a, axis, direction, out_layout, out),
+        2 => scan_n::<Op, T, 2>(a_layout, a, axis, direction, out_layout, out),
+        3 => scan_n::<Op, T, 3>(a_layout, a, axis, direction, out_layout, out),
+        4 => scan_n::<Op, T, 4>(a_layout, a, axis, direction, out_layout, out),
+        5 => scan_n::<Op, T, 5>(a_layout, a, axis, direction, out_layout, out),
+        6 => scan_n::<Op, T, 6>(a_layout, a, axis, direction, out_layout, out),
+        n => Err(LetoError::StorageError {
+            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
 }
 
 /// Forward inclusive cumulative sum of a coeus CPU tensor into caller-owned
@@ -124,17 +153,7 @@ pub fn cumsum_into<T: LetoScalar>(
     out_layout: &CoeusLayout,
     out: &mut [T],
 ) -> Result<()> {
-    match a_layout.ndim() {
-        1 => scan_sum_n::<T, 1>(a_layout, a, axis, ScanDirection::Forward, out_layout, out),
-        2 => scan_sum_n::<T, 2>(a_layout, a, axis, ScanDirection::Forward, out_layout, out),
-        3 => scan_sum_n::<T, 3>(a_layout, a, axis, ScanDirection::Forward, out_layout, out),
-        4 => scan_sum_n::<T, 4>(a_layout, a, axis, ScanDirection::Forward, out_layout, out),
-        5 => scan_sum_n::<T, 5>(a_layout, a, axis, ScanDirection::Forward, out_layout, out),
-        6 => scan_sum_n::<T, 6>(a_layout, a, axis, ScanDirection::Forward, out_layout, out),
-        n => Err(LetoError::StorageError {
-            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
-        }),
-    }
+    scan_into::<CumSumOp, T>(a_layout, a, axis, ScanDirection::Forward, out_layout, out)
 }
 
 /// Reverse inclusive cumulative sum of a coeus CPU tensor into caller-owned
@@ -161,17 +180,33 @@ pub fn suffix_sum_into<T: LetoScalar>(
     out_layout: &CoeusLayout,
     out: &mut [T],
 ) -> Result<()> {
-    match a_layout.ndim() {
-        1 => scan_sum_n::<T, 1>(a_layout, a, axis, ScanDirection::Reverse, out_layout, out),
-        2 => scan_sum_n::<T, 2>(a_layout, a, axis, ScanDirection::Reverse, out_layout, out),
-        3 => scan_sum_n::<T, 3>(a_layout, a, axis, ScanDirection::Reverse, out_layout, out),
-        4 => scan_sum_n::<T, 4>(a_layout, a, axis, ScanDirection::Reverse, out_layout, out),
-        5 => scan_sum_n::<T, 5>(a_layout, a, axis, ScanDirection::Reverse, out_layout, out),
-        6 => scan_sum_n::<T, 6>(a_layout, a, axis, ScanDirection::Reverse, out_layout, out),
-        n => Err(LetoError::StorageError {
-            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
-        }),
-    }
+    scan_into::<CumSumOp, T>(a_layout, a, axis, ScanDirection::Reverse, out_layout, out)
+}
+
+/// Forward inclusive cumulative product of a coeus CPU tensor into
+/// caller-owned output, dispatched to the matching monomorphized leto scan
+/// kernel.
+pub fn cumprod_into<T: LetoScalar>(
+    a_layout: &CoeusLayout,
+    a: &[T],
+    axis: usize,
+    out_layout: &CoeusLayout,
+    out: &mut [T],
+) -> Result<()> {
+    scan_into::<CumProdOp, T>(a_layout, a, axis, ScanDirection::Forward, out_layout, out)
+}
+
+/// Reverse inclusive cumulative product of a coeus CPU tensor into
+/// caller-owned output, dispatched to the matching monomorphized leto scan
+/// kernel.
+pub fn suffix_prod_into<T: LetoScalar>(
+    a_layout: &CoeusLayout,
+    a: &[T],
+    axis: usize,
+    out_layout: &CoeusLayout,
+    out: &mut [T],
+) -> Result<()> {
+    scan_into::<CumProdOp, T>(a_layout, a, axis, ScanDirection::Reverse, out_layout, out)
 }
 
 fn arg_reduce_n<T: LetoScalar, const N: usize, const M: usize>(

@@ -40,7 +40,8 @@ pub mod init;
 pub mod layout;
 /// Linear algebra dispatch (matmul, batched_matmul, accumulate variants).
 pub mod linalg;
-/// Reduction and scan dispatch (sum, mean, max, min, cumsum, argmax, argmin).
+/// Reduction and scan dispatch (sum, mean, max, min, cumulative sum/product,
+/// argmax, argmin).
 pub mod reductions;
 /// Sparse matrix dispatch (CSR mat-vec and mat-mat).
 pub mod sparse;
@@ -55,6 +56,9 @@ pub use layout::{
 pub use linalg::{
     batched_matmul_accumulate_into, batched_matmul_into, matmul_accumulate_into, matmul_into,
 };
-pub use reductions::{argmax_into, argmin_into, cumsum_into, reduce_into, suffix_sum_into};
+pub use reductions::{
+    argmax_into, argmin_into, cumprod_into, cumsum_into, reduce_into, suffix_prod_into,
+    suffix_sum_into,
+};
 pub use sparse::{spmm_into, spmv_into, CsrDispatch};
 pub use structural::{concat_values, pad_values, split_values, stack_values};
