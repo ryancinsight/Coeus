@@ -1,4 +1,4 @@
-use crate::{error::HephaestusBackendError, layout::rank_two, storage::HephaestusStorage};
+use crate::{error::HephaestusBackendError, layout::ranked, storage::HephaestusStorage};
 use coeus_core::{ComputeBackend, Layout, Scalar};
 use coeus_ops::ReductionOp;
 use hephaestus_core::{ComputeDevice, DeviceBuffer, ScanDirection};
@@ -33,13 +33,13 @@ pub enum ScanOperation {
     Product,
 }
 
-/// A rank-2 Hephaestus buffer paired with its logical Leto layout.
+/// A fixed-rank Hephaestus buffer paired with its logical Leto layout.
 #[derive(Clone, Copy)]
-pub struct RankTwoOperand<'a, B> {
+pub struct RankedOperand<'a, B, const N: usize> {
     /// Typed device buffer handle.
     pub buffer: &'a B,
     /// Logical shape, strides, and offset.
-    pub layout: &'a LetoLayout<2>,
+    pub layout: &'a LetoLayout<N>,
 }
 
 /// Provider implementation of scalar-specific rank-2 reduction and scan
@@ -52,19 +52,19 @@ where
     fn reduce(
         device: &Self::Device,
         op: ReductionOp,
-        input: RankTwoOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>>,
+        input: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
         axis: usize,
-        output: RankTwoOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>>,
+        output: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
     ) -> hephaestus_core::Result<()>;
 
     /// Execute an inclusive prefix or suffix scan over a rank-2 strided input.
     fn scan(
         device: &Self::Device,
-        input: RankTwoOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>>,
+        input: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
         axis: usize,
         operation: ScanOperation,
         direction: ScanDirection,
-        output: RankTwoOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>>,
+        output: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
     ) -> hephaestus_core::Result<()>;
 }
 
@@ -166,17 +166,17 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        let input_layout = rank_two("reduce", a_layout)?;
-        let output_layout = rank_two("reduce", c_layout)?;
+        let input_layout = ranked::<2>("reduce", a_layout)?;
+        let output_layout = ranked::<2>("reduce", c_layout)?;
         P::reduce(
             P::device(),
             op,
-            RankTwoOperand {
+            RankedOperand {
                 buffer: a.buffer(),
                 layout: &input_layout,
             },
             axis,
-            RankTwoOperand {
+            RankedOperand {
                 buffer: c.buffer(),
                 layout: &output_layout,
             },
@@ -274,18 +274,18 @@ where
         P: ReductionProvider<T>,
         T: Scalar + leto_ops::Scalar,
     {
-        let input_layout = rank_two(request.operation, request.input_layout)?;
-        let output_layout = rank_two(request.operation, request.output_layout)?;
+        let input_layout = ranked::<2>(request.operation, request.input_layout)?;
+        let output_layout = ranked::<2>(request.operation, request.output_layout)?;
         P::scan(
             P::device(),
-            RankTwoOperand {
+            RankedOperand {
                 buffer: request.input.buffer(),
                 layout: &input_layout,
             },
             request.axis,
             request.operation_kind,
             request.direction,
-            RankTwoOperand {
+            RankedOperand {
                 buffer: request.output.buffer(),
                 layout: &output_layout,
             },

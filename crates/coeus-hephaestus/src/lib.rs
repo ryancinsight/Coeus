@@ -6,12 +6,14 @@
 //! they do not copy the consumer-side operation orchestration.
 #![deny(missing_docs)]
 
+mod elementwise;
 mod error;
 mod layout;
 mod reduction;
 mod storage;
 
+pub use elementwise::ElementwiseProvider;
 pub use error::HephaestusBackendError;
 pub use reduction::HephaestusBackend;
-pub use reduction::{HephaestusProvider, RankTwoOperand, ReductionProvider, ScanOperation};
+pub use reduction::{HephaestusProvider, RankedOperand, ReductionProvider, ScanOperation};
 pub use storage::HephaestusStorage;
