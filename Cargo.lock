@@ -1686,6 +1686,7 @@ dependencies = [
 [[package]]
 name = "moirai-gpu"
 version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#97d5c32777ad4ad3d8df43a1846c55c936f69dc4"
 dependencies = [
  "mnemosyne-core",
  "moirai-core",
