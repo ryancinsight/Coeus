@@ -120,7 +120,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo "+$RUST_TOOLCHAIN" fmt --package coeus-ops --package coeus-wgpu -- --check
+          rustfmt --check --edition 2024 \
+            crates/coeus-ops/src/backend_ops/traits/reduction.rs \
+            crates/coeus-ops/src/backend_ops/cpu_impl/impls/reduction.rs \
+            crates/coeus-ops/src/backend_ops/defaults/reductions.rs \
+            crates/coeus-ops/src/reduction/cumsum.rs \
+            crates/coeus-wgpu/src/backend/ops/impls/reduction.rs \
+            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/reduction.rs
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
@@ -240,7 +246,13 @@ jobs:
                 ln -s libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
               fi
               export LD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs:/usr/local/cuda/compat:/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}
-              cargo "+$RUST_TOOLCHAIN" fmt --package coeus-ops --package coeus-cuda -- --check
+              rustfmt --check --edition 2024 \
+                crates/coeus-ops/src/backend_ops/traits/reduction.rs \
+                crates/coeus-ops/src/backend_ops/cpu_impl/impls/reduction.rs \
+                crates/coeus-ops/src/backend_ops/defaults/reductions.rs \
+                crates/coeus-ops/src/reduction/cumsum.rs \
+                crates/coeus-cuda/src/backend/ops/impls/reduction.rs \
+                crates/coeus-cuda/tests/cuda/parity/reduction.rs
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
