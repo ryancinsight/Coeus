@@ -1,5 +1,16 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-COEUS-HEPHAESTUS-002 — Native elementwise providers
+
+- [ ] Add the generic ranked Hephaestus elementwise provider seam for
+      contiguous and broadcast rank-1 through rank-4 layouts.
+- [ ] Add native ROCm and Metal implementations for the common arithmetic and
+      unary math operation set.
+- [ ] Compare provider results with Leto for contiguous and broadcast inputs;
+      cover unsupported operation/rank errors.
+- [ ] Run exact-head ROCm, Metal, WGPU, and CUDA backend-parity CI and record
+      the terminal run and job IDs.
+
 ## ATLAS-COEUS-HEPHAESTUS-001 — Native ROCm and Metal reduction providers
 
 - [x] Add one generic `coeus-hephaestus` storage and reduction/scan dispatch

@@ -1,5 +1,26 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-COEUS-HEPHAESTUS-002 — Native elementwise providers [arch]
+
+- Owner: Codex; scope: `coeus-hephaestus`, `coeus-rocm`, `coeus-metal`, their
+  Leto differential tests, and backend-parity CI.
+- Outcome: route the common binary arithmetic and unary math elementwise
+  contract through Hephaestus for ROCm and Metal using one rank-generic
+  provider layer.
+- Non-goals: comparisons, parameterized activations, higher-rank-than-four
+  layouts, and unrelated matmul/convolution families remain separate slices.
+- Acceptance: Add/Sub/Mul/Div and Sin/Cos/Exp/Log/Neg/Abs/Sqrt/Recip match the
+  Leto CPU oracle on contiguous and broadcast rank-1 through rank-4 inputs for
+  ROCm and Metal; unsupported operations and ranks return typed errors; no CPU
+  fallback or vendor algorithm clone is added; the full provider CI matrix
+  passes.
+- Risk/change class: `[arch]` provider-boundary extension with additive
+  consumer capability.
+- Status: in-progress; claimed files are the shared Hephaestus adapter,
+  provider crates, focused tests, and synchronized CI/docs.
+- Decision: extend the existing generic provider layer with a ranked
+  elementwise seam; vendor crates map operation tags to Hephaestus kernels.
+
 ## ATLAS-COEUS-HEPHAESTUS-001 — Native ROCm and Metal reduction providers [arch]
 
 - Owner: Codex; scope: `coeus-hephaestus`, `coeus-rocm`, `coeus-metal`, their
