@@ -6,8 +6,9 @@
 - [x] Route WGPU and CUDA rank-2 sum and product scans to Hephaestus provider
       kernels.
 - [x] Reject unsupported rank/layout cases instead of copying through host.
-- [x] Add CPU/Leto, WGPU, and CUDA differential tests. Exact-head CI evidence
-      remains attached to the current provider-parity change before closure.
+- [x] Add CPU/Leto, WGPU, and CUDA differential tests. Exact-head provider CI
+      run `30214708599` passes at `695c2890` (WGPU job `89826735353`, CUDA job
+      `89826735351`).
 
 ## MS-445 Python release wheels [patch]
 
