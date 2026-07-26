@@ -51,52 +51,6 @@ fn validate_reduction_dispatch(
     Ok((a_layout_gpu, c_layout_gpu, axis_gpu, workgroups))
 }
 
-#[cfg(test)]
-mod validation_tests {
-    use super::*;
-
-    #[test]
-    fn accepts_singleton_output_axis_without_initializing_a_device() {
-        let input = coeus_core::Layout::new(vec![2, 3].into());
-        let output = coeus_core::Layout::new(vec![2, 1].into());
-
-        let (_, _, axis, workgroups) =
-            validate_reduction_dispatch(&input, 1, &output).expect("valid reduction layouts");
-
-        assert_eq!(axis, 1);
-        assert_eq!(workgroups, 1);
-    }
-
-    #[test]
-    fn rejects_an_axis_outside_the_input_rank() {
-        let input = coeus_core::Layout::new(vec![2, 3].into());
-        let output = coeus_core::Layout::new(vec![2, 1].into());
-
-        assert!(matches!(
-            validate_reduction_dispatch(&input, 2, &output),
-            Err(WgpuBackendError::Validation(BackendError::AxisOutOfRange {
-                operation: "reduction",
-                axis: 2,
-                rank: 2,
-            }))
-        ));
-    }
-
-    #[test]
-    fn rejects_a_non_singleton_output_axis() {
-        let input = coeus_core::Layout::new(vec![2, 3].into());
-        let output = coeus_core::Layout::new(vec![2, 3].into());
-
-        assert!(matches!(
-            validate_reduction_dispatch(&input, 1, &output),
-            Err(WgpuBackendError::Validation(BackendError::Storage {
-                operation: "reduction",
-                reason,
-            })) if reason == "output reduction axis must have size one"
-        ));
-    }
-}
-
 /// Dispatch a WGSL shader for reduction operations along an axis.
 pub fn dispatch_reduce<T: WgpuScalar>(
     op: coeus_ops::ReductionOp,
@@ -435,4 +389,50 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     }
 
     ctx.queue.submit(Some(encoder.finish()));
+}
+
+#[cfg(test)]
+mod validation_tests {
+    use super::*;
+
+    #[test]
+    fn accepts_singleton_output_axis_without_initializing_a_device() {
+        let input = coeus_core::Layout::new(vec![2, 3].into());
+        let output = coeus_core::Layout::new(vec![2, 1].into());
+
+        let (_, _, axis, workgroups) =
+            validate_reduction_dispatch(&input, 1, &output).expect("valid reduction layouts");
+
+        assert_eq!(axis, 1);
+        assert_eq!(workgroups, 1);
+    }
+
+    #[test]
+    fn rejects_an_axis_outside_the_input_rank() {
+        let input = coeus_core::Layout::new(vec![2, 3].into());
+        let output = coeus_core::Layout::new(vec![2, 1].into());
+
+        assert!(matches!(
+            validate_reduction_dispatch(&input, 2, &output),
+            Err(WgpuBackendError::Validation(BackendError::AxisOutOfRange {
+                operation: "reduction",
+                axis: 2,
+                rank: 2,
+            }))
+        ));
+    }
+
+    #[test]
+    fn rejects_a_non_singleton_output_axis() {
+        let input = coeus_core::Layout::new(vec![2, 3].into());
+        let output = coeus_core::Layout::new(vec![2, 3].into());
+
+        assert!(matches!(
+            validate_reduction_dispatch(&input, 1, &output),
+            Err(WgpuBackendError::Validation(BackendError::Storage {
+                operation: "reduction",
+                reason,
+            })) if reason == "output reduction axis must have size one"
+        ));
+    }
 }
