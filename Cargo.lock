@@ -510,7 +510,7 @@ dependencies = [
  "hephaestus-cuda",
  "leto-ops",
  "libloading",
- "themis 0.10.1",
+ "themis",
  "thiserror 2.0.19",
 ]
 
@@ -658,7 +658,7 @@ dependencies = [
  "hephaestus-wgpu",
  "leto",
  "leto-ops",
- "themis 0.10.1",
+ "themis",
  "thiserror 2.0.19",
  "wgpu",
 ]
@@ -1201,7 +1201,7 @@ dependencies = [
  "aequitas",
  "bytemuck",
  "leto",
- "themis 0.10.1 (git+https://github.com/ryancinsight/themis)",
+ "themis",
  "thiserror 2.0.19",
 ]
 
@@ -1221,7 +1221,7 @@ dependencies = [
  "mnemosyne-core 0.2.0",
  "moirai-gpu",
  "moirai-sync",
- "themis 0.10.1 (git+https://github.com/ryancinsight/themis)",
+ "themis",
 ]
 
 [[package]]
@@ -1238,7 +1238,7 @@ dependencies = [
  "moirai",
  "moirai-gpu",
  "moirai-sync",
- "themis 0.10.1 (git+https://github.com/ryancinsight/themis)",
+ "themis",
  "wgpu",
  "windows 0.62.2",
 ]
@@ -1252,7 +1252,7 @@ dependencies = [
  "hermes-simd-intrinsics",
  "hermes-simd-macros",
  "hermes-simd-types",
- "themis 0.10.1 (git+https://github.com/ryancinsight/themis)",
+ "themis",
 ]
 
 [[package]]
@@ -1263,7 +1263,7 @@ dependencies = [
  "eunomia",
  "mnemosyne 0.6.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
  "rkyv 0.7.46",
- "themis 0.10.1 (git+https://github.com/ryancinsight/themis)",
+ "themis",
 ]
 
 [[package]]
@@ -1414,7 +1414,7 @@ dependencies = [
  "leto",
  "moirai",
  "serde",
- "themis 0.10.1 (git+https://github.com/ryancinsight/themis)",
+ "themis",
  "thiserror 2.0.19",
 ]
 
@@ -1568,7 +1568,7 @@ dependencies = [
  "eunomia",
  "mnemosyne-backend 0.5.0",
  "mnemosyne-core 0.2.0",
- "themis 0.10.1",
+ "themis",
 ]
 
 [[package]]
@@ -1578,7 +1578,7 @@ source = "git+https://github.com/ryancinsight/Mnemosyne.git#c10e510dc7645ca75d50
 dependencies = [
  "mnemosyne-backend 0.5.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
  "mnemosyne-core 0.2.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
- "themis 0.10.1 (git+https://github.com/ryancinsight/themis)",
+ "themis",
 ]
 
 [[package]]
@@ -1658,7 +1658,7 @@ dependencies = [
  "mnemosyne-core 0.2.0",
  "mnemosyne-local 0.3.0",
  "mnemosyne-prof 0.2.0",
- "themis 0.10.1",
+ "themis",
 ]
 
 [[package]]
@@ -1672,7 +1672,7 @@ dependencies = [
  "mnemosyne-core 0.2.0",
  "mnemosyne-decay 0.2.0",
  "mnemosyne-prof 0.2.0",
- "themis 0.10.1",
+ "themis",
 ]
 
 [[package]]
@@ -1687,7 +1687,7 @@ dependencies = [
  "mnemosyne-core 0.2.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
  "mnemosyne-decay 0.2.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
  "mnemosyne-prof 0.2.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
- "themis 0.10.1 (git+https://github.com/ryancinsight/themis)",
+ "themis",
 ]
 
 [[package]]
@@ -1779,7 +1779,7 @@ dependencies = [
  "mnemosyne-core 0.2.0",
  "moirai-core",
  "moirai-utils",
- "themis 0.10.1 (git+https://github.com/ryancinsight/themis)",
+ "themis",
 ]
 
 [[package]]
@@ -1793,7 +1793,7 @@ dependencies = [
  "moirai-scheduler",
  "moirai-utils",
  "num_cpus",
- "themis 0.10.1 (git+https://github.com/ryancinsight/themis)",
+ "themis",
  "thiserror 1.0.69",
 ]
 
@@ -1828,7 +1828,7 @@ dependencies = [
  "moirai-core",
  "moirai-utils",
  "num_cpus",
- "themis 0.10.1 (git+https://github.com/ryancinsight/themis)",
+ "themis",
 ]
 
 [[package]]
@@ -2918,14 +2918,6 @@ dependencies = [
 [[package]]
 name = "themis"
 version = "0.10.1"
-dependencies = [
- "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git)",
-]
-
-[[package]]
-name = "themis"
-version = "0.10.1"
-source = "git+https://github.com/ryancinsight/themis#0ad45de04cf515e4726d4efcc35e9d038943caef"
 dependencies = [
  "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git)",
 ]

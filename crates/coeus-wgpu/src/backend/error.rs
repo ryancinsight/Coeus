@@ -143,12 +143,12 @@ pub(crate) fn checked_numel(
     shape: &[usize],
 ) -> Result<usize, WgpuBackendError> {
     shape.iter().try_fold(1usize, |numel, &dimension| {
-        numel.checked_mul(dimension).ok_or_else(|| {
+        numel.checked_mul(dimension).ok_or(
             WgpuBackendError::Validation(BackendError::Overflow {
                 operation,
                 reason: "output element-count arithmetic overflow",
             })
-        })
+        )
     })
 }
 
@@ -180,12 +180,14 @@ mod tests {
     fn rejects_counts_outside_the_dispatch_abi() {
         let length = usize::try_from(u64::from(u32::MAX) * 256 + 1)
             .expect("u64 dispatch test value fits usize");
+        let expected_count = usize::try_from(u64::from(u32::MAX) + 1)
+            .expect("u64 dispatch count fits usize");
         assert!(matches!(
             checked_workgroup_count("test", length),
             Err(WgpuBackendError::WorkgroupCountOutOfRange {
                 operation: "test",
                 count,
-            }) if count == usize::from(u32::MAX) + 1
+            }) if count == expected_count
         ));
     }
 

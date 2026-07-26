@@ -79,12 +79,22 @@ coeus-fft      = { path = "crates/coeus-fft" }
 
 # Keep Git-sourced provider manifests on the same local Atlas instances as the
 # workspace dependencies. Without these patches, Aequitas and Hephaestus can
-# introduce a second Eunomia/Aequitas package identity and split shared traits.
+# introduce duplicate provider identities and split shared traits.
 [patch."https://github.com/ryancinsight/eunomia"]
 eunomia = { path = "../eunomia/crates/eunomia" }
 
 [patch."https://github.com/ryancinsight/aequitas"]
 aequitas = { path = "../aequitas" }
+
+[patch."https://github.com/ryancinsight/themis"]
+themis = { path = "../themis" }
+
+[patch."https://github.com/ryancinsight/hermes.git"]
+hermes-simd = { path = "../hermes/crates/hermes-simd" }
+hermes-simd-core = { path = "../hermes/crates/hermes-simd-core" }
+hermes-simd-intrinsics = { path = "../hermes/crates/hermes-simd-intrinsics" }
+hermes-simd-macros = { path = "../hermes/crates/hermes-simd-macros" }
+hermes-simd-types = { path = "../hermes/crates/hermes-simd-types" }
 
 [profile.bench]
 codegen-units = 1

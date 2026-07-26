@@ -134,10 +134,14 @@
   format remains red only on pre-existing unrelated Rust formatting drift.
 - Dependency: the focused `coeus-ops` package is verified, and the WGPU
   library check plus warning-denied Clippy pass. The Coeus root provider patches
-  now collapse Git-sourced Aequitas/Eunomia identities onto the local Atlas
-  instances; locked metadata, `coeus-ops` compilation, nextest, Clippy, and
-  Rustdoc pass. The full WGPU all-target matrix remains a separate gate for the
-  incomplete peer `coeus-nn`/`coeus-autograd` fallible-operation migration. The public WGPU
+  now collapse Git-sourced Aequitas/Eunomia/Themis/Hermes identities onto the
+  local Atlas instances; locked metadata, `coeus-ops` compilation, nextest,
+  Clippy, Rustdoc, and the `coeus-wgpu` library check pass. Full offline
+  metadata resolves the workspace graph, but the all-target compile remains
+  unverified while concurrent MSYS2 jobs mix stable and nightly artifacts in
+  the shared target directory. The full WGPU all-target matrix remains a
+  separate gate for the incomplete peer
+  `coeus-nn`/`coeus-autograd` fallible-operation migration. The public WGPU
   matmul wrapper now returns the typed result and checks rank, inner-dimension,
   and output element-count failures; the public add wrapper now returns a
   typed shape error instead of panicking. ADR-0020 records the selected
@@ -160,7 +164,8 @@
   error-valued graph/module API is separate breaking work. Fused reduction and
   the default `argmax`/`argmin`/`cumsum` paths are non-goals. The provider graph
   blocker is resolved by the Coeus root patches; the affected `coeus-ops`
-  package gates now pass. Remaining WGPU operation-family migration and the
+  package gates and the WGPU library check now pass. Remaining WGPU
+  operation-family migration and the
   infallible autograd/NN boundary stay tracked as separate residuals.
 - Unary dispatch increment: `dispatch_unary` and
   `dispatch_contiguous_unary` now return the backend `Result`, consume checked

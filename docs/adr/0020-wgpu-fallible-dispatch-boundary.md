@@ -77,9 +77,11 @@ converting those public contracts to typed results is separate breaking work.
 No compatibility adapter or silent fallback was retained. The focused
 `coeus-ops` gate passes 110/110 nextest tests, 22/22 doctests, warning-denied
 Clippy, locked compilation, and no-deps Rustdoc. Coeus root patches collapse
-Git-sourced Aequitas/Eunomia identities onto the local Atlas providers, which
-removes the Leto `Quantity<T>::in_unit` trait-identity failure from the Coeus
-locked graph. The public WGPU matmul wrapper returns the typed result and
+Git-sourced Aequitas/Eunomia/Themis/Hermes identities onto the local Atlas
+providers,
+which removes the Leto `Quantity<T>::in_unit` trait-identity failure and the
+WGPU `PlacementHint` type split from the Coeus locked graph. The locked WGPU
+library check passes. The public WGPU matmul wrapper returns the typed result and
 checks rank, inner-dimension, output element-count, and layout-conversion
 failures; the public add wrapper returns a typed shape error instead of
 panicking. Full WGPU all-target verification remains gated by the incomplete

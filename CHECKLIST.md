@@ -17,8 +17,13 @@ its clean peer worktree; the previous `/tmp/cutile-rs` path blocker is no
 longer present. `cargo metadata --locked --offline --no-deps` resolves 13
 workspace members and full `cargo metadata --locked --offline` resolves 373
 packages. The broad `cargo fmt --all -- --check` remains red on existing
-formatting drift in Coeus and sibling path workspaces; affected package build,
-test, and documentation gates remain pending.
+formatting drift in Coeus and sibling path workspaces. Root patches now force
+ Git-sourced Eunomia, Aequitas, Themis, and Hermes dependencies onto the local
+ Atlas instances; the locked `coeus-wgpu` library check passes after removing
+ the duplicate Themis identity. Full offline metadata now resolves the
+ workspace graph with the Hermes patch; the all-target compile remains
+ unverified while concurrent MSYS2 jobs mix stable and nightly artifacts in
+ the shared target directory.
 
 ## ATLAS-STRUCTURE-001 Workspace crate hierarchy [arch]
 
@@ -112,8 +117,9 @@ doctests, warning-denied Clippy, locked compilation, and no-deps Rustdoc. The
 public WGPU matmul wrapper now returns the typed result, validates ranks and
 inner dimensions, and checks output element-count overflow; the public WGPU
 add wrapper now returns a typed shape error instead of panicking. Coeus root
-patches now collapse Git-sourced Aequitas/Eunomia identities onto the local
-Atlas providers, so the locked provider graph compiles. The full WGPU
+patches now collapse Git-sourced Aequitas/Eunomia/Themis/Hermes identities onto
+the local Atlas providers, so the locked provider graph compiles. The locked
+WGPU library check passes. The full WGPU
 all-target matrix remains gated by the incomplete peer `coeus-nn`/
 `coeus-autograd` fallible-operation migration.
 
