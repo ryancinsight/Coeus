@@ -88,14 +88,14 @@ where
 }
 
 impl<
-        T: WgpuScalar
-            + leto_ops::Scalar
-            + hephaestus_wgpu::DialectScalar<Wgsl>
-            + OpIdentity<CumSumOp>
-            + IdentityToken<CumSumOp, Wgsl>
-            + OpIdentity<CumProdOp>
-            + IdentityToken<CumProdOp, Wgsl>,
-    > coeus_ops::ReductionOps<T> for WgpuBackend
+    T: WgpuScalar
+        + leto_ops::Scalar
+        + hephaestus_wgpu::DialectScalar<Wgsl>
+        + OpIdentity<CumSumOp>
+        + IdentityToken<CumSumOp, Wgsl>
+        + OpIdentity<CumProdOp>
+        + IdentityToken<CumProdOp, Wgsl>,
+> coeus_ops::ReductionOps<T> for WgpuBackend
 {
     #[inline]
     fn reduce(
