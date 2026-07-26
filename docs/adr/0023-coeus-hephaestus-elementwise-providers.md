@@ -37,6 +37,6 @@ The ROCm and Metal tests compare the native binary and unary operations with
 the Leto CPU oracle over contiguous and broadcast inputs at ranks 1 through 4.
 The backend-parity workflow runs the existing WGPU and CUDA elementwise
 contracts together with the new ROCm and Metal contracts. Exact-head run
-`30223618665` passed WGPU `89850168729`, CUDA `89850168726`, ROCm
-`89850168739`, and Metal `89850168706`; the required-device ROCm lane
-`89850168954` was skipped because the workflow was not manually dispatched.
+`30224422963` passed WGPU `89852207720`, CUDA `89852207699`, ROCm
+`89852207677`, and Metal `89852207739`; the required-device ROCm lane
+`89852208025` was skipped because the workflow was not manually dispatched.

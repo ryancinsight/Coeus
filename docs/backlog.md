@@ -17,9 +17,9 @@
 - Risk/change class: `[arch]` provider-boundary extension with additive
   consumer capability.
 - Status: complete. The shared adapter, provider crates, focused tests, CI,
-  and ADR are delivered in `a3e586c3`. Exact-head run `30223618665` passed
-  WGPU `89850168729`, CUDA `89850168726`, ROCm `89850168739`, and Metal
-  `89850168706`; the required-device ROCm lane `89850168954` was skipped
+  and ADR are delivered in `df78aba2`. Exact-head run `30224422963` passed
+  WGPU `89852207720`, CUDA `89852207699`, ROCm `89852207677`, and Metal
+  `89852207739`; the required-device ROCm lane `89852208025` was skipped
   because the workflow was not manually dispatched.
 - Decision: extend the existing generic provider layer with a ranked
   elementwise seam; vendor crates map operation tags to Hephaestus kernels.
