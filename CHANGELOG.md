@@ -4,6 +4,15 @@
 
 ### Changed
 
+- [arch] Routes Coeus exact `Gelu` and `GeluGrad` through the Hephaestus ROCm
+  and Metal f32 providers with Leto CPU differential coverage. Exact-head
+  provider and consumer CI remains open for this increment.
+
+- [arch] Routes Coeus `erf` and `erfc` through the Hephaestus ROCm and Metal
+  f32 providers with Leto CPU differential coverage. Exact-head WGPU, CUDA,
+  ROCm, and Metal provider CI passed; hardware-device execution is not claimed
+  because the required-device ROCm lane skipped.
+
 - [arch] Routes the 19 unparameterized unary math operations already defined by
   Coeus/Leto through native Hephaestus ROCm and Metal strided providers for
   f32, with valid-domain Leto differential coverage and explicit integer

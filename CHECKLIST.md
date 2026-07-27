@@ -1,5 +1,35 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-HEPHAESTUS-GELU-PARITY-001 [arch]
+
+- [x] Route `UnaryOp::Gelu` and `UnaryOp::GeluGrad` through the shared
+      Hephaestus ROCm and Metal f32 dispatch arms.
+- [x] Extend both backend elementwise suites with Leto CPU differential cases
+      over the existing activation input domain.
+- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
+      Hephaestus expression seam and the Coeus consumer head.
+
+Status: provider and consumer source changes are complete; exact-head CI and
+merge remain open. ADR 0028 owns the exact GELU contract.
+
+## ATLAS-COEUS-HEPHAESTUS-ERROR-FUNCTION-PARITY-001 [arch]
+
+- [x] Route `UnaryOp::Erf` and `UnaryOp::Erfc` through the provider-owned
+      Hephaestus ROCm and Metal f32 dispatch arms.
+- [x] Extend both backend elementwise suites with Leto CPU differential cases
+      over the existing bounded real-valued input domain.
+- [x] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
+      Hephaestus expression seam and the Coeus consumer head.
+
+Evidence: local Coeus test-target compilation and `cargo nextest run -p
+coeus-rocm -p coeus-metal` pass 6/6 with the Hephaestus error-function branch
+and the merged Leto comparison-marker revision temporarily overlaid. The
+temporary manifest and lock overlays are restored. Coeus run `30282267102`
+passed CUDA job `90031346303`, Metal job `90031346354`, ROCm job `90031346411`,
+and WGPU job `90031346421`; required-device ROCm job `90031346992` skipped.
+Hardware-device execution remains a separate evidence tier and is not claimed
+when the required-device lane skips.
+
 ## ATLAS-COEUS-BUILD-001 Locked provider source graph [patch]
 
 - [x] Verify the current manifest graph and active peer provider declarations.
