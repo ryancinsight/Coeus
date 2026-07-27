@@ -1,16 +1,36 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001 [arch]
+
+- [x] Route `UnaryOp::Lgamma` through the provider-owned Hephaestus WGPU,
+      CUDA, ROCm, and Metal f32 implementations.
+- [x] Extend CUDA, ROCm, and Metal backend suites with Leto CPU differential
+      cases covering positive inputs, reflection, and gamma poles.
+- [x] Replace the WGPU unsupported-operation assertion with a provider
+      expression contract assertion.
+- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
+      Hephaestus expression seam and the Coeus consumer head.
+
+Status: source integration and local contract coverage are complete; exact-head
+provider and consumer CI is required before this item closes. The WGPU and
+Metal paths use the provider-owned Lanczos/reflection expression; CUDA and ROCm
+use their native `lgammaf`/`lgamma` device functions. No digamma gradient or
+non-f32 contract is implied.
+
 ## ATLAS-COEUS-HEPHAESTUS-GELU-PARITY-001 [arch]
 
 - [x] Route `UnaryOp::Gelu` and `UnaryOp::GeluGrad` through the shared
       Hephaestus ROCm and Metal f32 dispatch arms.
 - [x] Extend both backend elementwise suites with Leto CPU differential cases
       over the existing activation input domain.
-- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
+- [x] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
       Hephaestus expression seam and the Coeus consumer head.
 
-Status: provider and consumer source changes are complete; exact-head CI and
-merge remain open. ADR 0028 owns the exact GELU contract.
+Evidence: Hephaestus provider jobs CUDA `90048504061`, ROCm `90048505968`,
+WGPU `90048506717`, and Metal `90048504635` passed; Coeus consumer jobs CUDA
+`90061390565`, ROCm `90061390546`, WGPU `90061390522`, and Metal `90061390499`
+passed. Hardware-device jobs skipped because no registered runner was
+available. ADR 0028 owns the exact GELU contract.
 
 ## ATLAS-COEUS-HEPHAESTUS-ERROR-FUNCTION-PARITY-001 [arch]
 
@@ -188,8 +208,9 @@ Rustdoc now pass; the remaining WGPU all-target and infallible autograd/NN
 residuals are separate migration work.
 
 Unary dispatch increment: both unary kernel entry points now return typed
-backend errors, use checked layout conversion, reject unsupported `lgamma`, and
-validate workgroup rounding before converting to the WGPU `u32` dispatch ABI.
+backend errors, use checked layout conversion, route `lgamma` through the
+provider-owned Hephaestus marker, and validate workgroup rounding before
+converting to the WGPU `u32` dispatch ABI.
 The new unit tests cover supported rounding, arithmetic overflow, ABI range,
 and unsupported-operation behavior without a device. Direct nightly rustfmt
 and `git diff --check` pass; the locked `coeus-ops` check and focused tests pass

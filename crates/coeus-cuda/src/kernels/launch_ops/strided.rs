@@ -212,6 +212,7 @@ pub fn launch_strided_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::Log => "logf(val_a)",
         coeus_ops::UnaryOp::Erf => "erff(val_a)",
         coeus_ops::UnaryOp::Erfc => "erfcf(val_a)",
+        coeus_ops::UnaryOp::Lgamma => "lgammaf(val_a)",
         coeus_ops::UnaryOp::Tan => "tanf(val_a)",
         coeus_ops::UnaryOp::Asin => "asinf(val_a)",
         coeus_ops::UnaryOp::Acos => "acosf(val_a)",

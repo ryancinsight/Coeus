@@ -189,6 +189,11 @@ macro_rules! activation_unary_dispatch {
             f32,
             N,
         >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Lgamma => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::LgammaOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
             _ => Err(unsupported_unary_operation($operation)),
         }
     };

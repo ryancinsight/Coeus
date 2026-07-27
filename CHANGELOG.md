@@ -4,9 +4,16 @@
 
 ### Changed
 
+- [arch] Routes Coeus `lgamma` through the provider-owned Hephaestus WGPU,
+  CUDA, ROCm, and Metal f32 implementations. CUDA/ROCm use native device
+  functions; WGPU/Metal use the shared Lanczos/reflection expression. Leto
+  differential coverage includes positive values, reflection, and poles;
+  exact-head CI remains open for this increment.
+
 - [arch] Routes Coeus exact `Gelu` and `GeluGrad` through the Hephaestus ROCm
   and Metal f32 providers with Leto CPU differential coverage. Exact-head
-  provider and consumer CI remains open for this increment.
+  provider and consumer CI passed; hardware-device execution is not claimed
+  because the required-device lanes skipped.
 
 - [arch] Routes Coeus `erf` and `erfc` through the Hephaestus ROCm and Metal
   f32 providers with Leto CPU differential coverage. Exact-head WGPU, CUDA,

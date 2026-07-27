@@ -20,9 +20,9 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> Result<String, WgpuBackendError> {
         coeus_ops::UnaryOp::Erfc => {
             format!("(1.0 - ({}))", coeus_ops::fuse::wgsl_erf_approx_expr("val"))
         }
-        coeus_ops::UnaryOp::Lgamma => {
-            return Err(WgpuBackendError::UnsupportedOperation { operation: "lgamma" });
-        }
+        coeus_ops::UnaryOp::Lgamma => <hephaestus_core::LgammaOp as
+            hephaestus_core::UnaryExpr<hephaestus_core::Wgsl>>::EXPR
+            .replace("x", "val"),
         coeus_ops::UnaryOp::Tan => "tan(val)".to_string(),
         coeus_ops::UnaryOp::Asin => "asin(val)".to_string(),
         coeus_ops::UnaryOp::Acos => "acos(val)".to_string(),
@@ -428,15 +428,12 @@ pub fn dispatch_contiguous_unary<T: WgpuScalar>(
 #[cfg(test)]
 mod tests {
     use super::unary_expr;
-    use crate::backend::WgpuBackendError;
 
     #[test]
-    fn rejects_unsupported_lgamma_without_panicking() {
-        assert!(matches!(
-            unary_expr(coeus_ops::UnaryOp::Lgamma),
-            Err(WgpuBackendError::UnsupportedOperation {
-                operation: "lgamma"
-            })
-        ));
+    fn uses_provider_lgamma_expression() {
+        let expression = unary_expr(coeus_ops::UnaryOp::Lgamma).expect("provider expression");
+        assert!(expression.contains("676.5203681218851"));
+        assert!(expression.contains("isInf(val)"));
+        assert!(expression.contains("trunc(val)"));
     }
 }

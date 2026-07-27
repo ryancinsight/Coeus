@@ -206,6 +206,11 @@ fn try_hephaestus_strided_unary_wgpu<
                     T,
                     $n,
                 >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Lgamma => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::LgammaOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
                 _ => Ok(false),
             }
         }};
@@ -364,6 +369,15 @@ fn try_hephaestus_contiguous_unary<
         )),
         coeus_ops::UnaryOp::Recip => run(hephaestus_wgpu::unary_elementwise_into::<
             hephaestus_wgpu::RecipOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Lgamma => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::LgammaOp,
             T,
         >(
             &ctx.hephaestus_device,

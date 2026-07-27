@@ -56,6 +56,17 @@ pub(super) fn to_cpu(
 pub(super) fn assert_parity_tol(label: &str, cpu: &[f32], gpu: &[f32], tol: f32) {
     assert_eq!(cpu.len(), gpu.len(), "{label}: length mismatch");
     for (i, (&c, &g)) in cpu.iter().zip(gpu.iter()).enumerate() {
+        if c.is_nan() {
+            assert!(g.is_nan(), "{label}[{i}]: expected NaN, got {g}");
+            continue;
+        }
+        if c.is_infinite() {
+            assert!(
+                g.is_infinite() && g.is_sign_positive() == c.is_sign_positive(),
+                "{label}[{i}]: cpu={c} gpu={g}"
+            );
+            continue;
+        }
         let diff = (c - g).abs();
         assert!(
             diff < tol,
