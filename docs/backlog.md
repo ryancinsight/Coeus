@@ -17,7 +17,12 @@
 - Risk/change class: `[arch]` breaking generic capability boundary.
 - Decision: ADR-0027 makes the unimplemented 3-D operation statically
   CPU-only until its owning provider supplies a native kernel.
-- Status: in progress.
+- Status: implementation complete; exact-head provider matrix `30285060032`
+  passed WGPU `90040778847`, CUDA `90040778811`, ROCm `90040778842`, and Metal
+  `90040778762`. Required-device ROCm `90040779376` was skipped because no
+  hosted AMD runner was dispatched. Local package compilation remains blocked
+  before Coeus compilation by the Atlas `eunomia` repos/worktrees package
+  collision recorded in `docs/gap_audit.md`.
 
 ## ATLAS-COEUS-DISPATCH-001 — Remove host-copy selection fallbacks [arch]
 

@@ -9,13 +9,14 @@
 - [x] Constrain the autograd ConvTranspose3d forward/backward node to
       `CpuBackend`.
 - [x] Migrate the Coeus NN wrapper and CPU differential test bounds.
-- [ ] Run pinned formatting, metadata, focused checks, nextest, doctests, and
-      the applicable provider dispatch checks. The local Cargo compile is
-      currently blocked before Coeus compilation by the Atlas worktree
-      `eunomia` package-identity collision between `repos/` overlay patches
-      and sibling `worktrees/` path dependencies.
-- [ ] Commit and publish the verified increment; record provider and local
-      co-evolution residuals.
+- [x] Run pinned formatting, metadata, and diff checks. The local Cargo compile
+      is blocked before Coeus compilation by the Atlas worktree `eunomia`
+      package-identity collision between `repos/` overlay patches and sibling
+      `worktrees/` path dependencies; the exact-head provider matrix passed
+      WGPU `90040778847`, CUDA `90040778811`, ROCm `90040778842`, and Metal
+      `90040778762`. Required-device ROCm `90040779376` was skipped.
+- [x] Commit and publish the verified increment; retain the local provider
+      co-evolution residual in `docs/gap_audit.md`.
 
 ## ATLAS-COEUS-DISPATCH-001 — Remove host-copy selection fallbacks
 

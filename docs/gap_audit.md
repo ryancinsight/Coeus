@@ -24,7 +24,15 @@ Cargo sees `eunomia v0.7.0` at `D:/atlas/repos/eunomia/crates/eunomia` and
 This is caused by the shared Atlas overlay versus committed sibling-worktree
 path dependencies; the peer-owned manifest migration remains separate from
 this dispatch slice.
-**Status**: implementation in progress; verification pending.
+**Evidence**: pinned Rust 1.95 formatting, locked offline metadata, and
+`git diff --check` passed locally. Exact-head provider matrix `30285060032`
+passed WGPU `90040778847`, CUDA `90040778811`, ROCm `90040778842`, and Metal
+`90040778762`; required-device ROCm `90040779376` was skipped because no
+hosted AMD runner was dispatched.
+**Status**: complete for the static Coeus/provider boundary. The local
+worktree package-identity collision remains a separate migration residual;
+native accelerator 3-D kernels and autograd provider gradients remain
+provider-owned follow-up work.
 
 ## ATLAS-COEUS-DISPATCH-001: Unsupported reduction selection fallback
 
