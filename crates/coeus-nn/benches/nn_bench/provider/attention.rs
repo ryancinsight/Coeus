@@ -29,7 +29,10 @@ pub(crate) fn bench_mha_forward(c: &mut Criterion) {
 }
 
 pub(crate) fn bench_mha_cross_attention_forward(c: &mut Criterion) {
-    // 0.16 exposes only the self-attention MhaInput benchmark surface, so this
+    // Cross-attention forward with deliberately unequal query/memory lengths
+    // ([batch=8, q_seq=32, d_model=256] attending over memory seq=64, 8 heads):
+    // the resulting non-square q_seq x memory_seq score matrix is the path
+    // self-attention cannot exercise, so the two rows are not redundant.
     const B: usize = 8;
     const QUERY_SEQ: usize = 32;
     const MEMORY_SEQ: usize = 64;
