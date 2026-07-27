@@ -157,4 +157,46 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         backend.copy_to_host(&actual, &mut actual_values);
         assert_close(&actual_values, &expected, "unary");
     }
+
+    let activation_input = [-3.0_f32, -1.0, 0.0, 0.25, 1.0, 3.0];
+    let activation_layout = Layout::new([6].into());
+    let mut device_activation_input = backend.allocate::<f32>(activation_input.len());
+    backend.copy_to_device(&activation_input, &mut device_activation_input);
+    for operation in [
+        CpuUnaryOp::Relu,
+        CpuUnaryOp::Sigmoid,
+        CpuUnaryOp::Tanh,
+        CpuUnaryOp::GeluTanh,
+        CpuUnaryOp::Silu,
+        CpuUnaryOp::Softplus,
+        CpuUnaryOp::ReluGrad,
+        CpuUnaryOp::SigmoidGrad,
+        CpuUnaryOp::TanhGrad,
+        CpuUnaryOp::GeluTanhGrad,
+        CpuUnaryOp::SiluGrad,
+        CpuUnaryOp::SoftplusGrad,
+    ] {
+        let mut expected = [0.0_f32; 6];
+        coeus_leto::elementwise_unary_into(
+            operation,
+            &activation_layout,
+            &activation_input,
+            &activation_layout,
+            &mut expected,
+        )
+        .expect("Leto activation elementwise oracle failed");
+        let mut actual = backend.allocate::<f32>(activation_input.len());
+        backend
+            .elementwise_unary(
+                operation,
+                &device_activation_input,
+                &activation_layout,
+                &mut actual,
+                &activation_layout,
+            )
+            .expect("ROCm activation elementwise dispatch failed");
+        let mut actual_values = [0.0_f32; 6];
+        backend.copy_to_host(&actual, &mut actual_values);
+        assert_close(&actual_values, &expected, "activation");
+    }
 }
