@@ -148,7 +148,7 @@ fn moirai_causal_softmax_matches_reference() {
 
 fn check_topk<B>(backend: &B)
 where
-    B: coeus_ops::BackendOps<f32> + coeus_ops::BackendOps<i64> + Default,
+    B: coeus_ops::BackendOps<f32> + coeus_ops::BackendOps<i64> + coeus_ops::CpuBackend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64> + CpuAddressableStorageMut<i64>,
 {
