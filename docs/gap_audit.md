@@ -1,5 +1,83 @@
 # Coeus Gap Audit
 
+## ATLAS-COEUS-DISPATCH-002: Unsupported ConvTranspose3d fallback
+
+**Location**: `crates/coeus-ops/src/backend_ops/traits/conv.rs`,
+`crates/coeus-ops/src/backend_ops/defaults/conv_transpose.rs`,
+`crates/coeus-autograd/src/ops/nn/conv/transpose.rs`, and the public Coeus/NN
+ConvTranspose3d callers.
+**Gap**: the generic 3-D transposed-convolution default copied accelerator
+storage to host memory and executed the CPU scatter kernel because no native
+provider method existed. WGPU/CUDA native 1-D and 2-D methods did not cover
+the 3-D default.
+**Resolution**: ADR-0027 and the implementation now place 3-D dispatch behind
+`ConvTranspose3dOps`; only the default, autograd, and NN paths require
+`CpuBackend`. CPU backends retain the canonical scatter kernel and gradient
+loops; native accelerator 3-D work remains provider-owned and can implement
+the capability seam without inheriting a host fallback.
+**Evidence target**: CPU value-semantic differential tests, pinned warning-free
+provider checks, and static absence of an accelerator 3-D call path.
+**Local gate blocker**: `cargo check --locked --offline -p coeus-ops
+-p coeus-autograd -p coeus-nn --all-targets` stops before compilation because
+Cargo sees `eunomia v0.7.0` at `D:/atlas/repos/eunomia/crates/eunomia` and
+`D:/atlas/worktrees/eunomia/crates/eunomia` as distinct lockfile identities.
+This is caused by the shared Atlas overlay versus committed sibling-worktree
+path dependencies; the peer-owned manifest migration remains separate from
+this dispatch slice.
+**Evidence**: pinned Rust 1.95 formatting, locked offline metadata, and
+`git diff --check` passed locally. Exact-head provider matrix `30285060032`
+passed WGPU `90040778847`, CUDA `90040778811`, ROCm `90040778842`, and Metal
+`90040778762`; required-device ROCm `90040779376` was skipped because no
+hosted AMD runner was dispatched.
+**Status**: complete for the static Coeus/provider boundary. The local
+worktree package-identity collision remains a separate migration residual;
+native accelerator 3-D kernels and autograd provider gradients remain
+provider-owned follow-up work.
+
+## ATLAS-COEUS-DISPATCH-001: Unsupported reduction selection fallback
+
+**Location**: `crates/coeus-ops/src/backend_ops/traits/reduction.rs`,
+`crates/coeus-ops/src/backend_ops/defaults/reductions.rs`, and the public
+selection callers under `crates/coeus-ops/src/reduction`.
+**Gap**: generic `argmax`, `argmin`, and `topk` defaults copied device buffers
+to host memory and executed the Leto CPU path when an accelerator did not
+provide a native operation. This made unsupported ROCm, Metal, WGPU, CUDA,
+and generic Hephaestus calls look available while violating provider ownership
+and zero-copy dispatch.
+**Resolution**: the defaults and public/autograd selection entry points now
+require `CpuBackend`. CPU backends retain direct Leto dispatch; accelerator
+reduction and scan methods remain provider-owned. Native selection kernels are
+not added downstream and remain a separate Hephaestus/provider item.
+**Evidence**: pinned formatting, metadata, and staged-diff checks passed
+locally. The local package compile, Nextest, and doctest gates remain blocked
+before Coeus compilation because the peer-owned Leto path lacks
+`EqOp`/`GeOp`/`GtOp`/`LeOp`/`LtOp`/`NeOp`. Exact-head provider matrix
+`30278852605` passed WGPU `90019911397`, CUDA `90019911331`, ROCm `90019911264`,
+and Metal `90019911476`; required-device ROCm `90019912082` was skipped because
+no hosted AMD runner was dispatched.
+**Status**: complete for the CPU/provider capability boundary; native
+accelerator arg-reduction and top-k kernels remain a separate provider item.
+
+## ATLAS-COEUS-HEPHAESTUS-005: Unary math provider parity
+
+**Location**: `crates/coeus-rocm/src/backend/elementwise.rs`,
+`crates/coeus-metal/src/backend/elementwise.rs`, and their elementwise
+contracts.
+**Gap**: Coeus/Leto defined 19 unparameterized f32 unary math operations that
+were available to the WGPU/CUDA shader paths but were rejected by the native
+ROCm and Metal provider matches.
+**Resolution**: route each operation through the shared Hephaestus marker and
+strided kernel, with valid-domain Leto differential coverage. Keep integer
+providers on their typed arithmetic-only rejection path.
+**Residual**: `erf`, `erfc`, `lgamma`, parameterized activations, and f64/vector
+contracts remain separate capability slices.
+**Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal CI; hardware lanes
+are reported independently from adapterless provider compilation.
+**Status**: complete for the 19-operation f32 scope. Hephaestus PR #112 merged
+as `e6ba1c14`. Coeus exact-head run `30273987046` passed WGPU `90003264732`,
+CUDA `90003264777`, ROCm `90003265014`, and Metal `90003264805`; required-device
+ROCm `90003265412` was skipped because no registered AMD runner was available.
+
 ## ATLAS-COEUS-SAFETY-001: Hephaestus provider failure boundary
 
 **Location**: `crates/coeus-hephaestus/src/reduction.rs` and the ROCm/Metal

@@ -1,5 +1,49 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback
+
+- [x] Record the static CPU/provider boundary in ADR-0027.
+- [x] Split ConvTranspose3d into the `ConvTranspose3dOps` capability seam and
+      keep its default implementation `CpuBackend`-only.
+- [x] Constrain the public NN/autograd ConvTranspose3d path to `CpuBackend`.
+- [x] Constrain the autograd ConvTranspose3d forward/backward node to
+      `CpuBackend`.
+- [x] Migrate the Coeus NN wrapper and CPU differential test bounds.
+- [x] Run pinned formatting, metadata, and diff checks. The local Cargo compile
+      is blocked before Coeus compilation by the Atlas worktree `eunomia`
+      package-identity collision between `repos/` overlay patches and sibling
+      `worktrees/` path dependencies; the exact-head provider matrix passed
+      WGPU `90040778847`, CUDA `90040778811`, ROCm `90040778842`, and Metal
+      `90040778762`. Required-device ROCm `90040779376` was skipped.
+- [x] Commit and publish the verified increment; retain the local provider
+      co-evolution residual in `docs/gap_audit.md`.
+
+## ATLAS-COEUS-DISPATCH-001 — Remove host-copy selection fallbacks
+
+- [x] Record the CPU/provider capability boundary in ADR-0026.
+- [x] Constrain `ReductionOps` selection defaults to `CpuBackend`.
+- [x] Migrate Coeus and autograd selection entry points to the bound.
+- [x] Run pinned formatting, metadata, focused checks, and the applicable
+      provider dispatch checks. Local package compile/Nextest/doctest execution
+      remains blocked by the stale peer-owned Leto path.
+- [x] Commit and publish the verified increment; exact-head provider matrix
+      `30278852605` passed WGPU `90019911397`, CUDA `90019911331`, ROCm
+      `90019911264`, and Metal `90019911476`; required-device ROCm
+      `90019912082` was skipped because no hosted AMD runner was dispatched.
+
+## ATLAS-COEUS-HEPHAESTUS-005 — Native unary math providers
+
+- [x] Add the shared 19-operation Hephaestus unary math vocabulary and export
+      it through WGPU, CUDA, ROCm, and Metal.
+- [x] Route all 19 f32 operations through native ROCm and Metal strided
+      providers; keep integer capability boundaries typed and explicit.
+- [x] Compare valid-domain ROCm and Metal outputs with the Leto CPU oracle.
+- [x] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
+      the terminal run and job IDs. Run `30273987046` passed WGPU
+      `90003264732`, CUDA `90003264777`, ROCm `90003265014`, and Metal
+      `90003264805`; required-device ROCm `90003265412` was skipped because no
+      registered AMD runner was available.
+
 ## ATLAS-COEUS-HEPHAESTUS-004 — Native comparison providers
 
 - [x] Add scalar-aware Hephaestus comparison markers and contiguous/strided
@@ -10,10 +54,13 @@
       oracle, including f32 broadcast inputs.
 - [x] Split vendor backend identity, operation families, and runtime integration
       into vertical leaves while preserving the public backend surface.
-- [ ] Complete the local provider co-evolution: make the active Leto path
-      expose the six comparison markers before running Coeus native gates.
-- [ ] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
-      the terminal run and job IDs.
+ - [x] Complete provider co-evolution in the merged Leto unit
+       `d94e3ba`/`df14311`; the active local `codex/leto-real-sparse-lu` path
+       remains a peer-owned branch predating those markers.
+ - [x] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
+       the terminal evidence: workflow `30268824209` passed WGPU `89986119972`,
+       CUDA `89986119939`, ROCm `89986120026`, and Metal `89986119988`; PR #224
+       merged as `84b5bccd`, and required AMD hardware remained skipped.
 
 ## ATLAS-COEUS-HEPHAESTUS-003 — Native activation providers
 
@@ -27,8 +74,8 @@
       signed inputs and test unsupported integer requests.
 - [x] Run exact code-head WGPU, CUDA, ROCm, and Metal backend-parity CI:
       run `30226854005`, WGPU `89858362274`, CUDA `89858362266`, ROCm
-      `89858362239`, and Metal `89858362247` passed; the documentation-head
-      rerun remains required before merge.
+      `89858362239`, and Metal `89858362247` passed; Coeus PR #223 merged at
+      `4b807ddd`.
 
 ## ATLAS-COEUS-HEPHAESTUS-002 — Native elementwise providers
 

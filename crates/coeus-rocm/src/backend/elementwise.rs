@@ -74,6 +74,101 @@ macro_rules! activation_unary_dispatch {
             f32,
             N,
         >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Tan => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::TanOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Asin => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::AsinOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Acos => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::AcosOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Atan => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::AtanOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Sinh => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::SinhOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Cosh => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::CoshOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Log2 => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::Log2Op,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Log10 => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::Log10Op,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Exp2 => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::Exp2Op,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Atanh => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::AtanhOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Asinh => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::AsinhOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Acosh => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::AcoshOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Expm1 => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::Expm1Op,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Log1p => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::Log1pOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Sign => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::SignOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Floor => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::FloorOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Ceil => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::CeilOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Round => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::RoundOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Trunc => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::TruncOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
             _ => Err(unsupported_unary_operation($operation)),
         }
     };

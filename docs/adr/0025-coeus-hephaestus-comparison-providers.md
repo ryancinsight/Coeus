@@ -2,8 +2,7 @@
 
 ## Status
 
-Accepted; implementation is complete locally and hosted backend-parity
-verification remains open.
+Accepted; implementation and hosted backend-parity verification are complete.
 
 ## Decision
 
@@ -37,9 +36,10 @@ re-exports while keeping each operation family in one canonical home.
 The Hephaestus core tests pin scalar-correct comparison expressions. Coeus
 ROCm and Metal tests compare all six f32, i32, and u32 operations with
 `coeus_leto::elementwise_binary_into`; the f32 cases include broadcasted
-inputs. Package-scoped rustfmt and locked offline checks remain required after
-the topology split. The active local Leto path currently predates the merged
-comparison-marker commit (`d94e3ba`/`df14311`), so the Coeus dispatcher’s
-native gate cannot compile until that upstream unit is present; adding local
-comparison adapters would violate upstream ownership. The exact-head WGPU,
-CUDA, ROCm, and Metal workflow is required before closure.
+inputs. Package-scoped rustfmt and locked offline checks passed before the
+final provider co-evolution. Exact-head workflow `30268824209` passed WGPU,
+CUDA, ROCm, and Metal, and PR #224 merged as `84b5bccd`. The required-device
+ROCm lane was skipped because the workflow was not manually dispatched. The
+active local Leto path still predates `d94e3ba`/`df14311`, so a local offline
+Coeus gate cannot compile there; adding local comparison adapters would
+violate upstream ownership.

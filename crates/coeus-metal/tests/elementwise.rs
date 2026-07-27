@@ -224,6 +224,70 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         assert_close(&actual_values, &expected, "unary");
     }
 
+    macro_rules! assert_unary_math {
+        ($operation:expr, $input:expr, $label:expr) => {{
+            let math_input: &[f32] = $input;
+            let math_layout = Layout::new([math_input.len()].into());
+            let mut device_math_input = backend.allocate::<f32>(math_input.len());
+            backend.copy_to_device(math_input, &mut device_math_input);
+            let mut expected = vec![0.0_f32; math_input.len()];
+            coeus_leto::elementwise_unary_into(
+                $operation,
+                &math_layout,
+                math_input,
+                &math_layout,
+                &mut expected,
+            )
+            .expect("Leto unary math elementwise oracle failed");
+            let mut actual = backend.allocate::<f32>(math_input.len());
+            backend
+                .elementwise_unary(
+                    $operation,
+                    &device_math_input,
+                    &math_layout,
+                    &mut actual,
+                    &math_layout,
+                )
+                .expect("Metal unary math elementwise dispatch failed");
+            let mut actual_values = vec![0.0_f32; math_input.len()];
+            backend.copy_to_host(&actual, &mut actual_values);
+            assert_close(&actual_values, &expected, $label);
+        }};
+    }
+
+    let bounded_math_input = [-0.75_f32, -0.25, 0.0, 0.25, 0.75];
+    for operation in [
+        CpuUnaryOp::Tan,
+        CpuUnaryOp::Asin,
+        CpuUnaryOp::Acos,
+        CpuUnaryOp::Atan,
+        CpuUnaryOp::Sinh,
+        CpuUnaryOp::Atanh,
+        CpuUnaryOp::Asinh,
+        CpuUnaryOp::Expm1,
+        CpuUnaryOp::Log1p,
+        CpuUnaryOp::Sign,
+        CpuUnaryOp::Floor,
+        CpuUnaryOp::Ceil,
+        CpuUnaryOp::Round,
+        CpuUnaryOp::Trunc,
+    ] {
+        assert_unary_math!(operation, &bounded_math_input, "bounded unary math");
+    }
+
+    let positive_math_input = [0.25_f32, 0.5, 1.0, 2.0, 4.0];
+    for operation in [
+        CpuUnaryOp::Cosh,
+        CpuUnaryOp::Log2,
+        CpuUnaryOp::Log10,
+        CpuUnaryOp::Exp2,
+    ] {
+        assert_unary_math!(operation, &positive_math_input, "positive unary math");
+    }
+
+    let acosh_input = [1.0_f32, 1.25, 2.0, 4.0, 8.0];
+    assert_unary_math!(CpuUnaryOp::Acosh, &acosh_input, "acosh");
+
     let activation_input = [-3.0_f32, -1.0, 0.0, 0.25, 1.0, 3.0];
     let activation_layout = Layout::new([6].into());
     let mut device_activation_input = backend.allocate::<f32>(activation_input.len());

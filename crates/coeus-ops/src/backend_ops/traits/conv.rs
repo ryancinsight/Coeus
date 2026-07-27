@@ -1,9 +1,9 @@
 //! Convolution sub-trait.
 //!
-//! [`ConvOps`] is the interface-segregated sub-trait for all convolution
-//! kernel dispatch.  The default `conv_transpose1d`/`conv_transpose2d`/
-//! `conv_transpose3d` implementations use only [`ComputeBackend`] host-copy
-//! methods.
+//! [`ConvOps`] is the interface-segregated sub-trait for regular convolution
+//! and 1-D/2-D transposed-convolution dispatch.  The 3-D transposed operation
+//! lives in [`super::ConvTranspose3dOps`] so providers can own that capability
+//! independently.
 
 use coeus_core::{ComputeBackend, Float, Layout, Scalar};
 
@@ -172,45 +172,6 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
         T: Float,
     {
         defaults::conv_transpose::conv_transpose2d(
-            self,
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            bias,
-            stride,
-            padding,
-            output_padding,
-            dilation,
-            output,
-            output_layout,
-        )
-    }
-
-    /// 3-D Transposed Convolution default (host-side fallback).
-    ///
-    /// Mirrors [`conv_transpose1d`](Self::conv_transpose1d) and
-    /// [`conv_transpose2d`](Self::conv_transpose2d) but lifts the reductions
-    /// from `L` / `H,W` to `D,H,W`. Custom backends (gpu/cuda) may
-    /// override for on-device gather.
-    #[allow(clippy::too_many_arguments)]
-    fn conv_transpose3d(
-        &self,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        weight: &Self::DeviceBuffer<T>,
-        weight_layout: &Layout,
-        bias: Option<&Self::DeviceBuffer<T>>,
-        stride: usize,
-        padding: usize,
-        output_padding: usize,
-        dilation: usize,
-        output: &mut Self::DeviceBuffer<T>,
-        output_layout: &Layout,
-    ) where
-        T: Float,
-    {
-        defaults::conv_transpose::conv_transpose3d(
             self,
             input,
             input_layout,

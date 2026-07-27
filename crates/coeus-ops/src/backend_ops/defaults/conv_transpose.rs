@@ -1,3 +1,4 @@
+use crate::backend_ops::CpuBackend;
 use coeus_core::{ComputeBackend, Float, Layout};
 
 /// Default host-side 1-D transposed convolution.
@@ -161,7 +162,7 @@ pub fn conv_transpose2d<T: Float, B: ComputeBackend>(
     backend.copy_to_device(&out_h, output);
 }
 
-/// Default host-side 3-D transposed convolution.
+/// Default CPU-side 3-D transposed convolution.
 ///
 /// Inputs are copied to host, scattered via the canonical transposed-conv
 /// 5-D loop (`out[ni, oc, do, ho, wo] += in[ni, ic, di, hi, wi] *
@@ -174,7 +175,7 @@ pub fn conv_transpose2d<T: Float, B: ComputeBackend>(
 /// forward kernel does not need to consult it once the output layout is
 /// supplied.
 #[allow(clippy::too_many_arguments)]
-pub fn conv_transpose3d<T: Float, B: ComputeBackend>(
+pub fn conv_transpose3d<T: Float, B: CpuBackend>(
     backend: &B,
     input: &B::DeviceBuffer<T>,
     input_layout: &Layout,

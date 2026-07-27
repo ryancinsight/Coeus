@@ -178,7 +178,7 @@ where
     );
 }
 
-fn check_all<B: BackendOps<f64> + Default>(backend: &B)
+fn check_all<B: BackendOps<f64> + coeus_ops::CpuBackend + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
@@ -187,7 +187,7 @@ where
     check_conv_transpose3d(backend);
 }
 
-fn check_conv_transpose3d<B: BackendOps<f64> + Default>(backend: &B)
+fn check_conv_transpose3d<B: BackendOps<f64> + coeus_ops::CpuBackend + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {

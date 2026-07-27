@@ -15,6 +15,6 @@ pub use cpu_impl::CpuBackend;
 pub use ops::{BinaryOp, ReductionOp, UnaryOp};
 pub use trait_def::BackendOps;
 pub use traits::{
-    AttentionOps, ConvOps, ElementwiseOps, MatmulOps, OptimizerOps, PoolOps, ReductionOps,
-    UnfoldFoldOps,
+    AttentionOps, ConvOps, ConvTranspose3dOps, ElementwiseOps, MatmulOps, OptimizerOps, PoolOps,
+    ReductionOps, UnfoldFoldOps,
 };
