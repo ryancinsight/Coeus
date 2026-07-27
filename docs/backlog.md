@@ -1,5 +1,31 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-COEUS-SAFETY-001 — Make provider acquisition and transfers fallible [arch]
+
+- Owner: Codex; scope: `coeus-core` `ComputeBackend` and storage contracts,
+  `coeus-hephaestus`, ROCm/Metal provider leaves, all in-repo backend transfer
+  callers, and the provider-dispatch ADR.
+- Outcome: device acquisition, allocation, COW uniqueness, fill, and host/device
+  transfers return typed failures instead of panicking or silently degrading.
+- Non-goals: no CPU fallback for an unavailable accelerator, no provider-local
+  duplicate kernels, no change to Leto/Hephaestus mathematical operation
+  semantics, and no dynamic-dispatch escape from the generic backend seam.
+- Acceptance: `ComputeBackend` and the storage mutation boundary are fallible;
+  every implementor and caller is migrated in dependency order; cached provider
+  initialization retains and returns its typed error; no production
+  `expect`/`unwrap` remains on this path; negative no-device, allocation,
+  transfer, and COW-uniqueness tests assert error identity; the full provider
+  matrix passes.
+- Risk/change class: `[arch]` breaking public backend/storage contract.
+- Decision: ADR-0028 selects typed `Result` propagation at the deepest common
+  consumer boundary. The branch is the migration isolation layer; compatibility
+  wrappers and CPU fallbacks are prohibited.
+- Status: specified; implementation claim is active on
+  `codex/coeus-comparison-parity-comparisons`. Local Cargo compilation remains
+  blocked by the recorded Atlas `eunomia` repos/worktrees package-identity
+  collision until the migration can be checked against the exact workspace
+  graph.
+
 ## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback [arch]
 
 - Owner: Codex; scope: `coeus-ops` and `coeus-autograd` ConvTranspose3d

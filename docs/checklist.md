@@ -1,5 +1,20 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-COEUS-SAFETY-001 — Make provider acquisition and transfers fallible
+
+- [ ] Record the breaking `ComputeBackend`/storage migration and its
+      dependency order in ADR-0028.
+- [ ] Change allocation, fill, host-to-device, device-to-host, and COW
+      uniqueness boundaries to return the backend's typed error.
+- [ ] Migrate CPU, WGPU, CUDA, Hephaestus, ROCm, and Metal implementors plus
+      all direct callers without compatibility wrappers or fallback branches.
+- [ ] Cache provider initialization as a typed `Result` and assert no-device,
+      allocation, transfer, and COW failure identity.
+- [ ] Run pinned formatting, warning-denied checks, nextest, doctests, and the
+      exact-head WGPU/CUDA/ROCm/Metal provider matrix.
+- [ ] Commit and publish each verified migration increment; close only after
+      the full contract and caller graph is green.
+
 ## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback
 
 - [x] Record the static CPU/provider boundary in ADR-0027.
