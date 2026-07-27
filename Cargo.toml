@@ -85,55 +85,6 @@ coeus-fft      = { path = "crates/coeus-fft" }
 # Keep Git-sourced provider manifests on the same local Atlas instances as the
 # workspace dependencies. Without these patches, Aequitas and Hephaestus can
 # introduce duplicate provider identities and split shared traits.
-[patch."https://github.com/ryancinsight/eunomia"]
-eunomia = { path = "../eunomia/crates/eunomia" }
-
-[patch."https://github.com/ryancinsight/aequitas"]
-aequitas = { path = "../aequitas" }
-
-[patch."https://github.com/ryancinsight/themis"]
-themis = { path = "../themis" }
-
-[patch."https://github.com/ryancinsight/leto.git"]
-leto = { path = "../leto/crates/leto" }
-leto-ops = { path = "../leto/crates/leto-ops" }
-
-[patch."https://github.com/ryancinsight/Mnemosyne.git"]
-mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
-mnemosyne-arena = { path = "../mnemosyne/crates/mnemosyne-arena" }
-mnemosyne-backend = { path = "../mnemosyne/crates/mnemosyne-backend" }
-mnemosyne-build-util = { path = "../mnemosyne/crates/mnemosyne-build-util" }
-mnemosyne-core = { path = "../mnemosyne/crates/mnemosyne-core" }
-mnemosyne-decay = { path = "../mnemosyne/crates/mnemosyne-decay" }
-mnemosyne-hardened = { path = "../mnemosyne/crates/mnemosyne-hardened" }
-mnemosyne-heap = { path = "../mnemosyne/crates/mnemosyne-heap" }
-mnemosyne-local = { path = "../mnemosyne/crates/mnemosyne-local" }
-mnemosyne-prof = { path = "../mnemosyne/crates/mnemosyne-prof" }
-
-[patch."https://github.com/ryancinsight/Moirai.git"]
-moirai = { path = "../moirai/moirai" }
-moirai-async = { path = "../moirai/moirai-async" }
-moirai-async-macros = { path = "../moirai/moirai-async-macros" }
-moirai-core = { path = "../moirai/moirai-core" }
-moirai-executor = { path = "../moirai/moirai-executor" }
-moirai-iter = { path = "../moirai/moirai-iter" }
-moirai-pal = { path = "../moirai/moirai-pal" }
-moirai-parallel = { path = "../moirai/moirai-parallel" }
-moirai-scheduler = { path = "../moirai/moirai-scheduler" }
-moirai-sync = { path = "../moirai/moirai-sync" }
-moirai-transport = { path = "../moirai/moirai-transport" }
-moirai-utils = { path = "../moirai/moirai-utils" }
-
-[patch."https://github.com/ryancinsight/melinoe.git"]
-melinoe = { path = "../melinoe" }
-
-[patch."https://github.com/ryancinsight/hermes.git"]
-hermes-simd = { path = "../hermes/crates/hermes-simd" }
-hermes-simd-core = { path = "../hermes/crates/hermes-simd-core" }
-hermes-simd-intrinsics = { path = "../hermes/crates/hermes-simd-intrinsics" }
-hermes-simd-macros = { path = "../hermes/crates/hermes-simd-macros" }
-hermes-simd-types = { path = "../hermes/crates/hermes-simd-types" }
-
 [profile.bench]
 codegen-units = 1
 lto = "thin"
@@ -149,3 +100,5 @@ opt-level = 1
 
 [profile.test]
 opt-level = 1
+
+# ATLAS-PATH-DEP-AUDIT-2 round-4 closure
