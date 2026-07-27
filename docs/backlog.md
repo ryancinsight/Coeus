@@ -1,5 +1,24 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback [arch]
+
+- Owner: Codex; scope: `coeus-ops` and `coeus-autograd` ConvTranspose3d
+  dispatch, the Coeus NN wrapper, CPU differential tests, and the
+  backend-dispatch ADR.
+- Outcome: prevent an accelerator from silently copying ConvTranspose3d inputs
+  to host memory when no native provider kernel exists.
+- Non-goals: native accelerator ConvTranspose3d kernels, existing WGPU/CUDA
+  ConvTranspose1d/2d paths, and the fallible `ComputeBackend` migration.
+- Acceptance: the default 3-D implementation is `CpuBackend`-only, the public
+  operation dispatches through `ConvTranspose3dOps`, and the current NN/
+  autograd path remains `CpuBackend`-only; CPU scatter and gradient value
+  semantics remain green; provider CI remains green; no generic accelerator
+  host fallback remains for this operation.
+- Risk/change class: `[arch]` breaking generic capability boundary.
+- Decision: ADR-0027 makes the unimplemented 3-D operation statically
+  CPU-only until its owning provider supplies a native kernel.
+- Status: in progress.
+
 ## ATLAS-COEUS-DISPATCH-001 — Remove host-copy selection fallbacks [arch]
 
 - Owner: Codex; scope: `coeus-ops` reduction dispatch and its direct Coeus and

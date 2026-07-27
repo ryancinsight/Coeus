@@ -1,5 +1,6 @@
 mod attention;
 mod conv;
+mod conv_transpose3d;
 mod elementwise;
 mod matmul;
 mod optim;

@@ -6,14 +6,16 @@
 use crate::module::Module;
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend, Scalar};
+use coeus_ops::backend_ops::ConvTranspose3dOps;
 use coeus_tensor::Tensor;
 
 /// 3-D Transposed Convolution layer.
 ///
 /// Weight convention: `[C_in, C_out, KD, KH, KW]` (groups=1; the in/out
 /// channel order is reversed relative to the regular Conv3d).
-/// The forward pass delegates to `coeus_ops::conv_transpose3d` which
-/// calls `BackendOps::conv_transpose3d` (default host-side implementation).
+/// The forward pass uses the CPU-only default scatter kernel. Accelerator
+/// backends require a native 3-D provider implementation before this layer
+/// can be exposed for them.
 #[derive(Clone)]
 pub struct ConvTranspose3d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Transposed convolution weight: `[in_channels, out_channels, kD, kH, kW]`.
@@ -107,7 +109,10 @@ impl<T: Scalar + coeus_core::Float, B: coeus_ops::BackendOps<T> + Default> ConvT
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for ConvTranspose3d<T, B>
+impl<
+    T: Float,
+    B: coeus_ops::BackendOps<T> + ConvTranspose3dOps<T> + coeus_ops::CpuBackend + Default,
+> Module<T, B> for ConvTranspose3d<T, B>
 where
     T: coeus_leto::RandomScalar,
 {

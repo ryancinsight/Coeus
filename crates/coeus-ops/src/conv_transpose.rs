@@ -4,7 +4,7 @@
 // default implementations.  These forward-only functions are the analogue
 // of `conv1d` / `conv2d` in this crate.
 
-use crate::backend_ops::BackendOps;
+use crate::backend_ops::{BackendOps, ConvTranspose3dOps};
 use coeus_core::Float;
 use coeus_tensor::Tensor;
 
@@ -183,7 +183,7 @@ pub fn conv_transpose3d_output_dims(
 /// scattered contributions — uninitialised output would produce incorrect sums.
 #[allow(clippy::too_many_arguments)]
 #[inline]
-pub fn conv_transpose3d<T: Float, B: BackendOps<T> + Default>(
+pub fn conv_transpose3d<T: Float, B: BackendOps<T> + ConvTranspose3dOps<T> + Default>(
     input: &Tensor<T, B>,
     weight: &Tensor<T, B>,
     bias: Option<&Tensor<T, B>>,

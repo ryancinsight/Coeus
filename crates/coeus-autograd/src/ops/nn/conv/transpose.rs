@@ -476,7 +476,10 @@ pub fn conv_transpose2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 ///
 /// grad_bias[cout] = Σ_{n, dout, hout, wout} grad_out[n, cout, dout, hout, wout]
 /// ```
-pub struct ConvTranspose3dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+pub struct ConvTranspose3dNode<
+    T: Scalar,
+    B: coeus_ops::BackendOps<T> + coeus_ops::CpuBackend + Default,
+> {
     /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
     /// Input variables tracked for backward propagation.
@@ -495,7 +498,7 @@ pub struct ConvTranspose3dNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default>
     pub dilation: usize,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::CpuBackend + Default> BackwardNode<T, B>
     for ConvTranspose3dNode<T, B>
 {
     #[inline]
@@ -668,9 +671,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     }
 }
 
-/// Tracked 3-D transposed convolution.
+/// Tracked CPU 3-D transposed convolution.
+///
+/// The backward implementation uses the canonical CPU scatter loops and
+/// therefore does not accept accelerator-only backends without a provider
+/// implementation for the complete forward and backward operation family.
 #[allow(clippy::too_many_arguments)]
-pub fn conv_transpose3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn conv_transpose3d<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::CpuBackend + Default>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
     bias: &Option<Var<T, B>>,

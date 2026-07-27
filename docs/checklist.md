@@ -1,5 +1,22 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback
+
+- [x] Record the static CPU/provider boundary in ADR-0027.
+- [x] Split ConvTranspose3d into the `ConvTranspose3dOps` capability seam and
+      keep its default implementation `CpuBackend`-only.
+- [x] Constrain the public NN/autograd ConvTranspose3d path to `CpuBackend`.
+- [x] Constrain the autograd ConvTranspose3d forward/backward node to
+      `CpuBackend`.
+- [x] Migrate the Coeus NN wrapper and CPU differential test bounds.
+- [ ] Run pinned formatting, metadata, focused checks, nextest, doctests, and
+      the applicable provider dispatch checks. The local Cargo compile is
+      currently blocked before Coeus compilation by the Atlas worktree
+      `eunomia` package-identity collision between `repos/` overlay patches
+      and sibling `worktrees/` path dependencies.
+- [ ] Commit and publish the verified increment; record provider and local
+      co-evolution residuals.
+
 ## ATLAS-COEUS-DISPATCH-001 — Remove host-copy selection fallbacks
 
 - [x] Record the CPU/provider capability boundary in ADR-0026.

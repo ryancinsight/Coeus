@@ -793,7 +793,7 @@ impl PyConvTranspose3d {
             let mut out_tensor =
                 coeus_tensor::Tensor::zeros_on([n, c_out, d_out, h_out, w_out], &bk);
             let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
-            use coeus_ops::ConvOps;
+            use coeus_ops::backend_ops::ConvTranspose3dOps;
             bk.conv_transpose3d(
                 x_var.tensor.storage(),
                 x_var.tensor.layout(),

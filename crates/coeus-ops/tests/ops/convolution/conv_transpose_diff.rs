@@ -85,7 +85,7 @@ where
 
 fn check_conv_transpose3d<B>(backend: &B)
 where
-    B: coeus_ops::BackendOps<f64> + Default,
+    B: coeus_ops::BackendOps<f64> + coeus_ops::CpuBackend + Default,
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
     let inp = t(
@@ -116,7 +116,7 @@ where
 
 fn check_all<B>(backend: &B)
 where
-    B: coeus_ops::BackendOps<f64> + Default,
+    B: coeus_ops::BackendOps<f64> + coeus_ops::CpuBackend + Default,
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
     check_conv_transpose1d(backend);

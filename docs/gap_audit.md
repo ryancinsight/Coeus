@@ -1,5 +1,31 @@
 # Coeus Gap Audit
 
+## ATLAS-COEUS-DISPATCH-002: Unsupported ConvTranspose3d fallback
+
+**Location**: `crates/coeus-ops/src/backend_ops/traits/conv.rs`,
+`crates/coeus-ops/src/backend_ops/defaults/conv_transpose.rs`,
+`crates/coeus-autograd/src/ops/nn/conv/transpose.rs`, and the public Coeus/NN
+ConvTranspose3d callers.
+**Gap**: the generic 3-D transposed-convolution default copied accelerator
+storage to host memory and executed the CPU scatter kernel because no native
+provider method existed. WGPU/CUDA native 1-D and 2-D methods did not cover
+the 3-D default.
+**Resolution**: ADR-0027 and the implementation now place 3-D dispatch behind
+`ConvTranspose3dOps`; only the default, autograd, and NN paths require
+`CpuBackend`. CPU backends retain the canonical scatter kernel and gradient
+loops; native accelerator 3-D work remains provider-owned and can implement
+the capability seam without inheriting a host fallback.
+**Evidence target**: CPU value-semantic differential tests, pinned warning-free
+provider checks, and static absence of an accelerator 3-D call path.
+**Local gate blocker**: `cargo check --locked --offline -p coeus-ops
+-p coeus-autograd -p coeus-nn --all-targets` stops before compilation because
+Cargo sees `eunomia v0.7.0` at `D:/atlas/repos/eunomia/crates/eunomia` and
+`D:/atlas/worktrees/eunomia/crates/eunomia` as distinct lockfile identities.
+This is caused by the shared Atlas overlay versus committed sibling-worktree
+path dependencies; the peer-owned manifest migration remains separate from
+this dispatch slice.
+**Status**: implementation in progress; verification pending.
+
 ## ATLAS-COEUS-DISPATCH-001: Unsupported reduction selection fallback
 
 **Location**: `crates/coeus-ops/src/backend_ops/traits/reduction.rs`,
