@@ -13,6 +13,8 @@
   head WGPU, CUDA, ROCm, and Metal CI passes.
 - Risk/change class: `[arch]` additive shared operation-vocabulary and
   provider-boundary extension.
+- Topology: each vendor backend is a manifest over dedicated provider,
+  reduction, elementwise, and runtime leaves; public re-exports are unchanged.
 - Status: implementation and local checks pass; hosted verification remains
   open.
 - Decision: ADR-0025 selects the shared typed Hephaestus expression seam over

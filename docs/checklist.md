@@ -8,6 +8,8 @@
       matches without CPU fallback or duplicated vendor kernels.
 - [x] Compare ROCm and Metal f32, i32, and u32 results with the Leto CPU
       oracle, including f32 broadcast inputs.
+- [x] Split vendor backend identity, operation families, and runtime integration
+      into vertical leaves while preserving the public backend surface.
 - [ ] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
       the terminal run and job IDs.
 

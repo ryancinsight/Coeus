@@ -18,6 +18,11 @@ WGPU and CUDA retain their existing direct comparison kernels in the common
 Coeus operation path; their capability and Leto contracts remain in the same
 CI matrix. No host fallback or vendor-local comparison kernel is added.
 
+Each vendor backend keeps `backend.rs` as a module manifest. Provider identity,
+reduction/scan dispatch, elementwise dispatch, and the public backend runtime
+implementation live in separate `backend/` leaves, preserving the public
+re-exports while keeping each operation family in one canonical home.
+
 ## Alternatives rejected
 
 - Keep ROCm and Metal comparisons unsupported: rejected because the Coeus
@@ -32,5 +37,6 @@ CI matrix. No host fallback or vendor-local comparison kernel is added.
 The Hephaestus core tests pin scalar-correct comparison expressions. Coeus
 ROCm and Metal tests compare all six f32, i32, and u32 operations with
 `coeus_leto::elementwise_binary_into`; the f32 cases include broadcasted
-inputs. The exact-head WGPU, CUDA, ROCm, and Metal workflow is required before
-closure.
+inputs. Package-scoped rustfmt and locked offline checks remain required after
+the topology split. The exact-head WGPU, CUDA, ROCm, and Metal workflow is
+required before closure.
