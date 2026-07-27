@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted; implementation is in progress pending exact-head provider CI.
+Accepted; implementation and exact-head provider CI are complete.
 
 ## Context
 
@@ -37,9 +37,10 @@ success.
 
 Local compilation and nextest pass for the ROCm and Metal packages with the
 Hephaestus error-function branch and merged Leto comparison-marker revision
-overlaid temporarily. Exact-head WGPU, CUDA, ROCm, and Metal CI is required
-before closure; physical-device execution is reported separately from
-adapterless/provider compilation.
+overlaid temporarily. Coeus run `30282267102` passed CUDA job `90031346303`,
+Metal job `90031346354`, ROCm job `90031346411`, and WGPU job `90031346421`.
+Required-device ROCm job `90031346992` skipped; physical-device execution is
+reported separately from adapterless/provider compilation.
 
 ## Residual scope
 
