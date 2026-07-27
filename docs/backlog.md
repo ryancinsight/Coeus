@@ -1,5 +1,22 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-COEUS-DISPATCH-001 — Remove host-copy selection fallbacks [arch]
+
+- Owner: Codex; scope: `coeus-ops` reduction dispatch and its direct Coeus and
+  autograd callers.
+- Outcome: prevent unsupported accelerator argmax/argmin/topk calls from
+  silently copying through host memory and Leto.
+- Non-goals: native accelerator selection kernels, the fallible
+  `ComputeBackend` migration, and unrelated matmul/convolution defaults.
+- Acceptance: the selection defaults require `CpuBackend`; CPU calls retain
+  direct Leto dispatch; accelerator provider reduction/scan dispatch remains
+  available; focused checks and tests pass.
+- Risk/change class: `[arch]` breaking generic capability boundary.
+- Decision: ADR-0026 makes selection defaults statically CPU-only until the
+  owning Hephaestus/provider operation families provide native kernels.
+- Status: implementation complete; local compile and Nextest remain blocked by
+  the peer-owned Leto path missing the merged comparison marker unit.
+
 ## ATLAS-COEUS-HEPHAESTUS-004 — Native comparison providers [arch]
 
 - Owner: Codex; scope: typed Hephaestus comparison expressions,

@@ -1,7 +1,7 @@
 // ── TopK and ArgMax/ArgMin ──
 // Returns the k largest (or smallest) values and their indices along a dimension.
 
-use crate::BackendOps;
+use crate::{BackendOps, CpuBackend};
 use coeus_core::{Layout, Scalar};
 use coeus_tensor::Tensor;
 
@@ -115,7 +115,10 @@ pub fn topk_impl<T: Scalar>(
 /// - If `k == 0` or `k > x.shape()[dim]`.
 /// - If `dim` is out of range.
 #[inline]
-pub fn topk<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + BackendOps<i64> + Default>(
+pub fn topk<
+    T: Scalar + leto_ops::Scalar,
+    B: BackendOps<T> + BackendOps<i64> + CpuBackend + Default,
+>(
     x: &Tensor<T, B>,
     k: usize,
     dim: usize,
@@ -160,7 +163,10 @@ pub fn topk<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + BackendOps<i64> + D
 
 /// Argmax along `dim`: returns indices of maximum values, shape `x.shape()[dim] = 1`.
 #[inline]
-pub fn argmax<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + BackendOps<i64> + Default>(
+pub fn argmax<
+    T: Scalar + leto_ops::Scalar,
+    B: BackendOps<T> + BackendOps<i64> + CpuBackend + Default,
+>(
     x: &Tensor<T, B>,
     dim: usize,
 ) -> Tensor<i64, B> {
@@ -178,7 +184,10 @@ pub fn argmax<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + BackendOps<i64> +
 
 /// Argmin along `dim`: returns indices of minimum values, shape `x.shape()[dim] = 1`.
 #[inline]
-pub fn argmin<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + BackendOps<i64> + Default>(
+pub fn argmin<
+    T: Scalar + leto_ops::Scalar,
+    B: BackendOps<T> + BackendOps<i64> + CpuBackend + Default,
+>(
     x: &Tensor<T, B>,
     dim: usize,
 ) -> Tensor<i64, B> {

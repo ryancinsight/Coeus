@@ -1,5 +1,25 @@
 # Coeus Gap Audit
 
+## ATLAS-COEUS-DISPATCH-001: Unsupported reduction selection fallback
+
+**Location**: `crates/coeus-ops/src/backend_ops/traits/reduction.rs`,
+`crates/coeus-ops/src/backend_ops/defaults/reductions.rs`, and the public
+selection callers under `crates/coeus-ops/src/reduction`.
+**Gap**: generic `argmax`, `argmin`, and `topk` defaults copied device buffers
+to host memory and executed the Leto CPU path when an accelerator did not
+provide a native operation. This made unsupported ROCm, Metal, WGPU, CUDA,
+and generic Hephaestus calls look available while violating provider ownership
+and zero-copy dispatch.
+**Resolution**: the defaults and public/autograd selection entry points now
+require `CpuBackend`. CPU backends retain direct Leto dispatch; accelerator
+reduction and scan methods remain provider-owned. Native selection kernels are
+not added downstream and remain a separate Hephaestus/provider item.
+**Evidence target**: package compile, CPU/Leto value-semantic selection tests,
+and the provider matrix. The local gate is currently blocked before Coeus
+compilation because the peer-owned Leto path lacks `EqOp`/`GeOp`/`GtOp`/`LeOp`/
+`LtOp`/`NeOp`; merged provider CI is the authoritative clean-graph evidence.
+**Status**: implementation complete; hosted verification pending.
+
 ## ATLAS-COEUS-SAFETY-001: Hephaestus provider failure boundary
 
 **Location**: `crates/coeus-hephaestus/src/reduction.rs` and the ROCm/Metal

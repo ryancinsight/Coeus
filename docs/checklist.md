@@ -1,5 +1,15 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-COEUS-DISPATCH-001 — Remove host-copy selection fallbacks
+
+- [x] Record the CPU/provider capability boundary in ADR-0026.
+- [x] Constrain `ReductionOps` selection defaults to `CpuBackend`.
+- [x] Migrate Coeus and autograd selection entry points to the bound.
+- [ ] Run formatting, metadata, focused checks, nextest, doctests, and the
+      applicable provider dispatch checks.
+- [ ] Commit and publish the verified increment; record residual provider
+      coverage and the local Leto co-evolution blocker.
+
 ## ATLAS-COEUS-HEPHAESTUS-004 — Native comparison providers
 
 - [x] Add scalar-aware Hephaestus comparison markers and contiguous/strided

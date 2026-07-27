@@ -88,7 +88,7 @@ pub fn topk<T: Scalar + leto_ops::Scalar, B>(
     largest: bool,
 ) -> (Var<T, B>, Var<T, B>)
 where
-    B: coeus_ops::BackendOps<T> + coeus_ops::BackendOps<i64> + Default,
+    B: coeus_ops::BackendOps<T> + coeus_ops::BackendOps<i64> + coeus_ops::CpuBackend + Default,
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>:
