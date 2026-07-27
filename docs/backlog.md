@@ -7,6 +7,9 @@
   callers, and the provider-dispatch ADR.
 - Outcome: device acquisition, allocation, COW uniqueness, fill, and host/device
   transfers return typed failures instead of panicking or silently degrading.
+- Build prerequisite: first-party provider dependencies use Git-plus-version
+  sources and the committed lockfile has one source identity per provider; the
+  Atlas overlay remains the sole local-resolution owner.
 - Non-goals: no CPU fallback for an unavailable accelerator, no provider-local
   duplicate kernels, no change to Leto/Hephaestus mathematical operation
   semantics, and no dynamic-dispatch escape from the generic backend seam.
@@ -20,11 +23,12 @@
 - Decision: ADR-0028 selects typed `Result` propagation at the deepest common
   consumer boundary. The branch is the migration isolation layer; compatibility
   wrappers and CPU fallbacks are prohibited.
-- Status: specified; implementation claim is active on
+- Status: specified; the source-graph prerequisite is implemented and verified;
+  fallible provider implementation remains active on
   `codex/coeus-comparison-parity-comparisons`. Local Cargo compilation remains
-  blocked by the recorded Atlas `eunomia` repos/worktrees package-identity
-  collision until the migration can be checked against the exact workspace
-  graph.
+  valid from the standalone Git graph; builds rooted beneath the Atlas stack
+  overlay still require its generated patch set to exclude the current Coeus
+  worktree entries.
 
 ## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback [arch]
 

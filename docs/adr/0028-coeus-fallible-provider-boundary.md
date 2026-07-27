@@ -16,6 +16,12 @@ the provider boundary: a missing accelerator or rejected transfer must reach
 the caller as a typed backend error, not be hidden by a CPU path or a default
 buffer.
 
+The workspace also declared first-party providers as sibling path dependencies
+while the Atlas development overlay patched the same Git sources to `repos/*`.
+That created two local package identities in a worktree, with the collision
+surfacing before Coeus compilation. The member manifest must remain standalone;
+the stack overlay is the only local-resolution mechanism.
+
 ## Decision
 
 Make the deepest common backend and storage mutation boundaries fallible. The
@@ -24,6 +30,11 @@ operations return the backend's associated error; provider initialization uses
 a cached `Result` so the first typed acquisition failure is retained and
 returned on later calls. `HephaestusBackendError` preserves the original
 Hephaestus error category and adds only the Coeus operation context.
+
+First-party provider dependencies remain Git-plus-version declarations in the
+member manifest. The committed lockfile is regenerated from that standalone
+graph; local Atlas development may apply the generated stack overlay, but no
+member-local `[patch]` table or path dependency is retained.
 
 Migrate implementors and callers in dependency order: core traits and CPU
 implementors, Hephaestus storage/provider seams, accelerator backend

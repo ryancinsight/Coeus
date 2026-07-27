@@ -2,8 +2,12 @@
 
 ## ATLAS-COEUS-SAFETY-001 — Make provider acquisition and transfers fallible
 
-- [ ] Record the breaking `ComputeBackend`/storage migration and its
-      dependency order in ADR-0028.
+- [x] Record the breaking `ComputeBackend`/storage migration and its
+      dependency order in ADR-0028, including the provider source-graph
+      prerequisite.
+- [x] Replace member-local provider path dependencies and patch tables with
+      Git-plus-version declarations; regenerate `Cargo.lock` from the
+      standalone graph so provider identities remain single-source.
 - [ ] Change allocation, fill, host-to-device, device-to-host, and COW
       uniqueness boundaries to return the backend's typed error.
 - [ ] Migrate CPU, WGPU, CUDA, Hephaestus, ROCm, and Metal implementors plus

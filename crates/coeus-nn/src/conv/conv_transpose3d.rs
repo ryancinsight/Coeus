@@ -110,9 +110,9 @@ impl<T: Scalar + coeus_core::Float, B: coeus_ops::BackendOps<T> + Default> ConvT
 }
 
 impl<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + ConvTranspose3dOps<T> + coeus_ops::CpuBackend + Default,
-> Module<T, B> for ConvTranspose3d<T, B>
+        T: Float,
+        B: coeus_ops::BackendOps<T> + ConvTranspose3dOps<T> + coeus_ops::CpuBackend + Default,
+    > Module<T, B> for ConvTranspose3d<T, B>
 where
     T: coeus_leto::RandomScalar,
 {
