@@ -10,6 +10,8 @@
       oracle, including f32 broadcast inputs.
 - [x] Split vendor backend identity, operation families, and runtime integration
       into vertical leaves while preserving the public backend surface.
+- [ ] Complete the local provider co-evolution: make the active Leto path
+      expose the six comparison markers before running Coeus native gates.
 - [ ] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
       the terminal run and job IDs.
 

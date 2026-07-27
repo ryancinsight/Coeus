@@ -15,8 +15,12 @@
   provider-boundary extension.
 - Topology: each vendor backend is a manifest over dedicated provider,
   reduction, elementwise, and runtime leaves; public re-exports are unchanged.
-- Status: implementation and local checks pass; hosted verification remains
-  open.
+- Status: implementation and the exact post-commit ROCm/Metal library check
+  pass. Full verification remains open because the active local `coeus-leto`
+  migration imports comparison markers that are absent from the checked-out
+  Leto branch; the markers exist in merged Leto comparison-parity commit
+  `d94e3ba`/`df14311`. The native gate also remains blocked by the active
+  Mnemosyne page-tree migration.
 - Decision: ADR-0025 selects the shared typed Hephaestus expression seam over
   provider-local kernels or CPU fallback.
 

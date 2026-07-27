@@ -38,5 +38,8 @@ The Hephaestus core tests pin scalar-correct comparison expressions. Coeus
 ROCm and Metal tests compare all six f32, i32, and u32 operations with
 `coeus_leto::elementwise_binary_into`; the f32 cases include broadcasted
 inputs. Package-scoped rustfmt and locked offline checks remain required after
-the topology split. The exact-head WGPU, CUDA, ROCm, and Metal workflow is
-required before closure.
+the topology split. The active local Leto path currently predates the merged
+comparison-marker commit (`d94e3ba`/`df14311`), so the Coeus dispatcher’s
+native gate cannot compile until that upstream unit is present; adding local
+comparison adapters would violate upstream ownership. The exact-head WGPU,
+CUDA, ROCm, and Metal workflow is required before closure.
