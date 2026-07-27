@@ -44,6 +44,16 @@ macro_rules! activation_unary_dispatch {
             f32,
             N,
         >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Gelu => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::GeluOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::GeluGrad => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::GeluGradOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
             UnaryOp::GeluTanh => hephaestus_rocm::unary_elementwise_strided_into::<
             hephaestus_rocm::GeluTanhOp,
             f32,
@@ -166,6 +176,16 @@ macro_rules! activation_unary_dispatch {
         >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
             UnaryOp::Trunc => hephaestus_rocm::unary_elementwise_strided_into::<
             hephaestus_rocm::TruncOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Erf => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::ErfOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Erfc => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::ErfcOp,
             f32,
             N,
         >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),

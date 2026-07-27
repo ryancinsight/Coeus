@@ -271,6 +271,8 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         CpuUnaryOp::Ceil,
         CpuUnaryOp::Round,
         CpuUnaryOp::Trunc,
+        CpuUnaryOp::Erf,
+        CpuUnaryOp::Erfc,
     ] {
         assert_unary_math!(operation, &bounded_math_input, "bounded unary math");
     }
@@ -296,6 +298,8 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         CpuUnaryOp::Relu,
         CpuUnaryOp::Sigmoid,
         CpuUnaryOp::Tanh,
+        CpuUnaryOp::Gelu,
+        CpuUnaryOp::GeluGrad,
         CpuUnaryOp::GeluTanh,
         CpuUnaryOp::Silu,
         CpuUnaryOp::Softplus,
