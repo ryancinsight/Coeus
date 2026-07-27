@@ -1,5 +1,21 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-HEPHAESTUS-ERROR-FUNCTION-PARITY-001 [arch]
+
+- [x] Route `UnaryOp::Erf` and `UnaryOp::Erfc` through the provider-owned
+      Hephaestus ROCm and Metal f32 dispatch arms.
+- [x] Extend both backend elementwise suites with Leto CPU differential cases
+      over the existing bounded real-valued input domain.
+- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
+      Hephaestus expression seam and the Coeus consumer head.
+
+Evidence: local Coeus test-target compilation and `cargo nextest run -p
+coeus-rocm -p coeus-metal` pass 6/6 with the Hephaestus error-function branch
+and the merged Leto comparison-marker revision temporarily overlaid. The
+temporary manifest and lock overlays are restored; the remaining acceptance
+item is hosted exact-head CI. Hardware-device execution remains a separate
+evidence tier and is not claimed when the required-device lane skips.
+
 ## ATLAS-COEUS-BUILD-001 Locked provider source graph [patch]
 
 - [x] Verify the current manifest graph and active peer provider declarations.
