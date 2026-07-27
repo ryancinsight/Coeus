@@ -19,8 +19,9 @@
   pass. Full verification remains open because the active local `coeus-leto`
   migration imports comparison markers that are absent from the checked-out
   Leto branch; the markers exist in merged Leto comparison-parity commit
-  `d94e3ba`/`df14311`. The native gate also remains blocked by the active
-  Mnemosyne page-tree migration.
+  `d94e3ba`/`df14311`. The earlier Mnemosyne page-tree blocker is now
+  coherent; the Leto provider co-evolution is the remaining local gate
+  blocker.
 - Decision: ADR-0025 selects the shared typed Hephaestus expression seam over
   provider-local kernels or CPU fallback.
 
