@@ -14,8 +14,33 @@
 - Risk/change class: `[arch]` breaking generic capability boundary.
 - Decision: ADR-0026 makes selection defaults statically CPU-only until the
   owning Hephaestus/provider operation families provide native kernels.
-- Status: implementation complete; local compile and Nextest remain blocked by
+- Status: implementation complete; exact-head provider matrix `30278852605`
+  passed WGPU `90019911397`, CUDA `90019911331`, ROCm `90019911264`, and Metal
+  `90019911476`. Required-device ROCm `90019912082` was skipped because no
+  hosted AMD runner was dispatched. Local compile and Nextest remain blocked by
   the peer-owned Leto path missing the merged comparison marker unit.
+
+## ATLAS-COEUS-HEPHAESTUS-005 — Native unary math providers [arch]
+
+- Owner: Codex on `codex/coeus-unary-math-parity`; scope: shared Hephaestus
+  unary math markers, `coeus-rocm`, `coeus-metal`, Leto differential tests,
+  and backend-parity CI.
+- Outcome: route the 19 unparameterized unary math operations already present
+  in Coeus/Leto through native ROCm and Metal Hephaestus strided kernels:
+  tangent, inverse and hyperbolic functions, logarithm/exponential bases,
+  `expm1`, `log1p`, sign, and rounding.
+- Non-goals: `erf`, `erfc`, `lgamma`, parameterized activations, f64/vector
+  contracts, higher ranks, and unrelated operation families.
+- Acceptance: every operation matches the Leto f32 oracle on valid input
+  domains; integer requests remain typed unsupported operations; no CPU
+  fallback or provider-local shader expressions are added; exact-head WGPU,
+  CUDA, ROCm, and Metal CI passes.
+- Risk/change class: `[arch]` additive shared operation vocabulary and native
+  provider integration; ADR 0026 records the boundary and residuals.
+- Status: complete. Hephaestus PR #112 merged as `e6ba1c14`; Coeus PR #226
+  exact-head run `30273987046` passed WGPU `90003264732`, CUDA `90003264777`,
+  ROCm `90003265014`, and Metal `90003264805`. Required-device ROCm
+  `90003265412` was skipped because no registered AMD runner was available.
 
 ## ATLAS-COEUS-HEPHAESTUS-004 — Native comparison providers [arch]
 
@@ -32,13 +57,14 @@
   provider-boundary extension.
 - Topology: each vendor backend is a manifest over dedicated provider,
   reduction, elementwise, and runtime leaves; public re-exports are unchanged.
-- Status: complete. The exact-head backend-parity workflow `30268824209`
-  passed WGPU, CUDA, ROCm, and Metal and PR #224 merged as `84b5bccd`.
-  The required-device ROCm lane was skipped because the workflow was not
-  manually dispatched. The active local `coeus-leto` path still points at the
-  peer branch `codex/leto-real-sparse-lu`, which predates the merged
-  comparison-marker unit (`d94e3ba`/`df14311`); this is a local co-evolution
-  environment residual, not an unresolved defect in the merged Coeus change.
+ - Status: complete. Coeus PR #224 merged as `84b5bccd`; exact-head workflow
+   `30268824209` passed WGPU `89986119972`, CUDA `89986119939`, ROCm
+   `89986120026`, and Metal `89986119988`. The required-device ROCm lane was
+   skipped because no hosted AMD runner was available. The active local
+   `coeus-leto` path still points at the peer branch `codex/leto-real-sparse-lu`,
+   which predates the merged comparison-marker unit (`d94e3ba`/`df14311`); this
+   is a local co-evolution environment residual, not an unresolved defect in
+   the merged Coeus change.
 - Decision: ADR-0025 selects the shared typed Hephaestus expression seam over
   provider-local kernels or CPU fallback.
 
@@ -58,9 +84,9 @@
   CUDA, ROCm, and Metal CI passes.
 - Risk/change class: `[arch]` shared accelerator operation-vocabulary
   extension with additive Coeus provider capability.
-- Status: implementation complete; code-head CI passed in run `30226854005`
-  (ROCm `89858362239`, Metal `89858362247`, CUDA `89858362266`, WGPU
-  `89858362274`); documentation-head rerun remains required before merge.
+- Status: merged in Coeus PR #223 at `4b807ddd`; code-head run `30226854005`
+  passed ROCm `89858362239`, Metal `89858362247`, CUDA `89858362266`, and WGPU
+  `89858362274`. Required-device ROCm remained skipped without hardware.
 - Decision: use one `UnaryExpr` marker per activation operation with
   dialect-specific WGSL/CUDA/HIP expressions; ADR-0024 records the boundary.
 

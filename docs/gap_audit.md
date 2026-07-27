@@ -14,11 +14,35 @@ and zero-copy dispatch.
 require `CpuBackend`. CPU backends retain direct Leto dispatch; accelerator
 reduction and scan methods remain provider-owned. Native selection kernels are
 not added downstream and remain a separate Hephaestus/provider item.
-**Evidence target**: package compile, CPU/Leto value-semantic selection tests,
-and the provider matrix. The local gate is currently blocked before Coeus
-compilation because the peer-owned Leto path lacks `EqOp`/`GeOp`/`GtOp`/`LeOp`/
-`LtOp`/`NeOp`; merged provider CI is the authoritative clean-graph evidence.
-**Status**: implementation complete; hosted verification pending.
+**Evidence**: pinned formatting, metadata, and staged-diff checks passed
+locally. The local package compile, Nextest, and doctest gates remain blocked
+before Coeus compilation because the peer-owned Leto path lacks
+`EqOp`/`GeOp`/`GtOp`/`LeOp`/`LtOp`/`NeOp`. Exact-head provider matrix
+`30278852605` passed WGPU `90019911397`, CUDA `90019911331`, ROCm `90019911264`,
+and Metal `90019911476`; required-device ROCm `90019912082` was skipped because
+no hosted AMD runner was dispatched.
+**Status**: complete for the CPU/provider capability boundary; native
+accelerator arg-reduction and top-k kernels remain a separate provider item.
+
+## ATLAS-COEUS-HEPHAESTUS-005: Unary math provider parity
+
+**Location**: `crates/coeus-rocm/src/backend/elementwise.rs`,
+`crates/coeus-metal/src/backend/elementwise.rs`, and their elementwise
+contracts.
+**Gap**: Coeus/Leto defined 19 unparameterized f32 unary math operations that
+were available to the WGPU/CUDA shader paths but were rejected by the native
+ROCm and Metal provider matches.
+**Resolution**: route each operation through the shared Hephaestus marker and
+strided kernel, with valid-domain Leto differential coverage. Keep integer
+providers on their typed arithmetic-only rejection path.
+**Residual**: `erf`, `erfc`, `lgamma`, parameterized activations, and f64/vector
+contracts remain separate capability slices.
+**Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal CI; hardware lanes
+are reported independently from adapterless provider compilation.
+**Status**: complete for the 19-operation f32 scope. Hephaestus PR #112 merged
+as `e6ba1c14`. Coeus exact-head run `30273987046` passed WGPU `90003264732`,
+CUDA `90003264777`, ROCm `90003265014`, and Metal `90003264805`; required-device
+ROCm `90003265412` was skipped because no registered AMD runner was available.
 
 ## ATLAS-COEUS-SAFETY-001: Hephaestus provider failure boundary
 

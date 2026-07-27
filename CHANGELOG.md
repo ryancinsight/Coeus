@@ -4,6 +4,13 @@
 
 ### Changed
 
+- [arch] Routes the 19 unparameterized unary math operations already defined by
+  Coeus/Leto through native Hephaestus ROCm and Metal strided providers for
+  f32, with valid-domain Leto differential coverage and explicit integer
+  capability rejection. Exact-head provider CI passed WGPU, CUDA, ROCm, and
+  Metal; the required-device ROCm lane was skipped without a registered AMD
+  runner.
+
 - [arch] Routes Coeus equality, inequality, and ordering binary operations
   through typed Hephaestus ROCm and Metal providers for f32, i32, and u32;
   Leto differential coverage now exercises all six comparisons.
