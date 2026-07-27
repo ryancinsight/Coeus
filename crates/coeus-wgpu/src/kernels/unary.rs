@@ -433,7 +433,7 @@ mod tests {
     fn uses_provider_lgamma_expression() {
         let expression = unary_expr(coeus_ops::UnaryOp::Lgamma).expect("provider expression");
         assert!(expression.contains("676.5203681218851"));
-        assert!(expression.contains("isInf(val)"));
+        assert!(expression.contains("abs(val) > 3.402823466e+38"));
         assert!(expression.contains("trunc(val)"));
     }
 }
