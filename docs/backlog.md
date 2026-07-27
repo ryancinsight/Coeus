@@ -1,5 +1,25 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-COEUS-HEPHAESTUS-003 — Native activation providers [arch]
+
+- Owner: Codex; scope: Hephaestus activation expressions and exports,
+  `coeus-hephaestus`, `coeus-rocm`, `coeus-metal`, Leto differential tests,
+  and backend-parity CI.
+- Outcome: route the common activation forward and gradient operation set
+  through native Hephaestus strided kernels for ROCm and Metal while keeping
+  WGPU and CUDA in the same tested capability matrix.
+- Non-goals: parameterized activations, exact-erf GELU, comparisons, higher
+  ranks, and unrelated matrix or convolution families remain separate slices.
+- Acceptance: ReLU, sigmoid, tanh, tanh-GELU, SiLU, and softplus forward and
+  gradient operations match Leto for signed `f32` inputs on ROCm and Metal;
+  integer requests remain typed unsupported operations; exact-head WGPU,
+  CUDA, ROCm, and Metal CI passes.
+- Risk/change class: `[arch]` shared accelerator operation-vocabulary
+  extension with additive Coeus provider capability.
+- Status: in progress.
+- Decision: use one `UnaryExpr` marker per activation operation with
+  dialect-specific WGSL/CUDA/HIP expressions; ADR-0024 records the boundary.
+
 ## ATLAS-COEUS-HEPHAESTUS-002 — Native elementwise providers [arch]
 
 - Owner: Codex; scope: `coeus-hephaestus`, `coeus-rocm`, `coeus-metal`, their

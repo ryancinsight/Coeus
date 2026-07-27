@@ -1,5 +1,16 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-COEUS-HEPHAESTUS-003 — Native activation providers
+
+- [ ] Add dialect-specific Hephaestus activation and gradient expression
+      markers and export them through the backend crates.
+- [ ] Dispatch the common activation set through native ROCm and Metal
+      strided providers with an explicit `f32` capability boundary.
+- [ ] Compare ROCm and Metal forward/gradient activation results with Leto on
+      signed inputs and test unsupported integer requests.
+- [ ] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
+      the terminal run and job IDs.
+
 ## ATLAS-COEUS-HEPHAESTUS-002 — Native elementwise providers
 
 - [x] Add the generic ranked Hephaestus elementwise provider seam for

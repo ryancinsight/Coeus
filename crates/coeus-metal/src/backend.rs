@@ -144,8 +144,79 @@ impl_reduction_provider!(f32);
 impl_reduction_provider!(u32);
 impl_reduction_provider!(i32);
 
+macro_rules! activation_unary_dispatch {
+    (activations, $operation:expr, $device:expr, $input:expr, $output:expr) => {
+        match $operation {
+            UnaryOp::Relu => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::ReluOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::ReluGrad => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::ReluGradOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Sigmoid => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::SigmoidOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::SigmoidGrad => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::SigmoidGradOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Tanh => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::TanhOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::TanhGrad => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::TanhGradOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::GeluTanh => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::GeluTanhOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::GeluTanhGrad => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::GeluTanhGradOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Silu => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::SiluOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::SiluGrad => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::SiluGradOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Softplus => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::SoftplusOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::SoftplusGrad => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::SoftplusGradOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            _ => Err(unsupported_unary_operation($operation)),
+        }
+    };
+    (arithmetic_only, $operation:expr, $device:expr, $input:expr, $output:expr) => {
+        Err(unsupported_unary_operation($operation))
+    };
+}
+
 macro_rules! impl_elementwise_provider {
-    ($scalar:ty) => {
+    ($scalar:ty, $activation_mode:ident) => {
         impl ElementwiseProvider<$scalar> for MetalProvider {
             fn binary<const N: usize>(
                 device: &Self::Device,
@@ -286,16 +357,22 @@ macro_rules! impl_elementwise_provider {
                     >(
                         device, input, output, hephaestus_core::BlockWidth::DEFAULT
                     ),
-                    _ => Err(unsupported_unary_operation(operation)),
+                    _ => activation_unary_dispatch!(
+                        $activation_mode,
+                        operation,
+                        device,
+                        input,
+                        output
+                    ),
                 }
             }
         }
     };
 }
 
-impl_elementwise_provider!(f32);
-impl_elementwise_provider!(u32);
-impl_elementwise_provider!(i32);
+impl_elementwise_provider!(f32, activations);
+impl_elementwise_provider!(u32, arithmetic_only);
+impl_elementwise_provider!(i32, arithmetic_only);
 
 /// Coeus Metal backend with native Hephaestus storage and rank-2 reductions.
 #[derive(Debug, Clone, Copy, Default)]
