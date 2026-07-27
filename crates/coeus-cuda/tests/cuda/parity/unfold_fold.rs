@@ -128,6 +128,16 @@ unary_parity!(
     vec![0.1, 0.5, 1.0, 2.0, 4.0, 8.0, 0.25, 16.0]
 );
 unary_parity!(
+    test_cuda_parity_lgamma,
+    coeus_ops::lgamma,
+    vec![-0.25, -1.5, 0.25, 0.5, 1.0, 2.0, 4.0, 16.0]
+);
+unary_parity!(
+    test_cuda_parity_lgamma_poles,
+    coeus_ops::lgamma,
+    vec![0.0, -1.0, -2.0]
+);
+unary_parity!(
     test_cuda_parity_sqrt,
     coeus_ops::sqrt,
     vec![0.25, 1.0, 2.0, 4.0, 9.0, 16.0, 0.5, 25.0]

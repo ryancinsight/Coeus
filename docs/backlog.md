@@ -329,11 +329,11 @@
   infallible autograd/NN boundary stay tracked as separate residuals.
 - Unary dispatch increment: `dispatch_unary` and
   `dispatch_contiguous_unary` now return the backend `Result`, consume checked
-  layout metadata, reject unsupported `lgamma` with a typed error, and route
-  workgroup rounding through one checked `u32` ABI helper. Unit tests cover the
-  unsupported operation and workgroup boundaries. Direct nightly rustfmt and
-  `git diff --check` pass; the locked `coeus-ops` check and focused tests pass
-  after the provider-identity cutover.
+  layout metadata, route `lgamma` through the provider-owned Hephaestus
+  expression, and route workgroup rounding through one checked `u32` ABI
+  helper. Unit tests cover the provider expression and workgroup boundaries.
+  Direct nightly rustfmt and `git diff --check` pass; the locked `coeus-ops`
+  check and focused tests pass after the provider-identity cutover.
 - Binary dispatch increment: contiguous and general/broadcasting binary kernels
   now return the backend `Result`, consume checked layout metadata, and use the
   same checked workgroup-count helper. The public WGPU `add` wrapper and the

@@ -17,6 +17,17 @@ fn require_device() -> bool {
 
 fn assert_close(actual: &[f32], expected: &[f32], operation: &str) {
     for (index, (&actual, &expected)) in actual.iter().zip(expected).enumerate() {
+        if expected.is_nan() {
+            assert!(actual.is_nan(), "Metal {operation} expected NaN at {index}");
+            continue;
+        }
+        if expected.is_infinite() {
+            assert!(
+                actual.is_infinite() && actual.is_sign_positive() == expected.is_sign_positive(),
+                "Metal {operation} expected {expected} at {index}, got {actual}"
+            );
+            continue;
+        }
         let tolerance = f32::EPSILON * 512.0 * expected.abs().max(1.0);
         assert!(
             (actual - expected).abs() <= tolerance,
@@ -286,6 +297,15 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
     ] {
         assert_unary_math!(operation, &positive_math_input, "positive unary math");
     }
+
+    let lgamma_reflection_input = [-0.25_f32, -1.5, 0.25, 0.5, 1.0, 4.0];
+    assert_unary_math!(
+        CpuUnaryOp::Lgamma,
+        &lgamma_reflection_input,
+        "lgamma reflection"
+    );
+    let lgamma_pole_input = [0.0_f32, -1.0, -2.0];
+    assert_unary_math!(CpuUnaryOp::Lgamma, &lgamma_pole_input, "lgamma poles");
 
     let acosh_input = [1.0_f32, 1.25, 2.0, 4.0, 8.0];
     assert_unary_math!(CpuUnaryOp::Acosh, &acosh_input, "acosh");

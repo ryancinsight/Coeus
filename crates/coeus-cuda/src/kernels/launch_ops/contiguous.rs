@@ -135,6 +135,7 @@ pub fn launch_contiguous_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::Log => "logf(a[idx])",
         coeus_ops::UnaryOp::Erf => "erff(a[idx])",
         coeus_ops::UnaryOp::Erfc => "erfcf(a[idx])",
+        coeus_ops::UnaryOp::Lgamma => "lgammaf(a[idx])",
         coeus_ops::UnaryOp::Tan => "tanf(a[idx])",
         coeus_ops::UnaryOp::Asin => "asinf(a[idx])",
         coeus_ops::UnaryOp::Acos => "acosf(a[idx])",
