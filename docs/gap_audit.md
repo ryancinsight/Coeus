@@ -15,8 +15,10 @@ providers on their typed arithmetic-only rejection path.
 contracts remain separate capability slices.
 **Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal CI; hardware lanes
 are reported independently from adapterless provider compilation.
-**Status**: implementation in progress; native dispatch and tests are present,
-with hosted verification pending.
+**Status**: complete for the 19-operation f32 scope. Hephaestus PR #112 merged
+as `e6ba1c14`. Coeus exact-head run `30273987046` passed WGPU `90003264732`,
+CUDA `90003264777`, ROCm `90003265014`, and Metal `90003264805`; required-device
+ROCm `90003265412` was skipped because no registered AMD runner was available.
 
 ## ATLAS-COEUS-SAFETY-001: Hephaestus provider failure boundary
 

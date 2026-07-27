@@ -7,8 +7,11 @@
 - [x] Route all 19 f32 operations through native ROCm and Metal strided
       providers; keep integer capability boundaries typed and explicit.
 - [x] Compare valid-domain ROCm and Metal outputs with the Leto CPU oracle.
-- [ ] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
-      the terminal run and job IDs.
+- [x] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
+      the terminal run and job IDs. Run `30273987046` passed WGPU
+      `90003264732`, CUDA `90003264777`, ROCm `90003265014`, and Metal
+      `90003264805`; required-device ROCm `90003265412` was skipped because no
+      registered AMD runner was available.
 
 ## ATLAS-COEUS-HEPHAESTUS-004 — Native comparison providers
 

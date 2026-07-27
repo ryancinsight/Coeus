@@ -17,8 +17,10 @@
   CUDA, ROCm, and Metal CI passes.
 - Risk/change class: `[arch]` additive shared operation vocabulary and native
   provider integration; ADR 0026 records the boundary and residuals.
-- Status: Hephaestus API dependency is merged upstream; Coeus dispatch and
-  differential tests are in progress.
+- Status: complete. Hephaestus PR #112 merged as `e6ba1c14`; Coeus PR #226
+  exact-head run `30273987046` passed WGPU `90003264732`, CUDA `90003264777`,
+  ROCm `90003265014`, and Metal `90003264805`. Required-device ROCm
+  `90003265412` was skipped because no registered AMD runner was available.
 
 ## ATLAS-COEUS-HEPHAESTUS-004 — Native comparison providers [arch]
 
