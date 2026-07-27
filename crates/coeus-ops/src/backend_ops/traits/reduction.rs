@@ -8,9 +8,9 @@
 
 use coeus_core::{ComputeBackend, Layout, Scalar};
 
+use super::super::CpuBackend;
 use super::super::defaults;
 use super::super::ops::ReductionOp;
-use super::super::CpuBackend;
 
 /// Reduction operations along an axis.
 ///
