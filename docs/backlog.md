@@ -15,13 +15,13 @@
   provider-boundary extension.
 - Topology: each vendor backend is a manifest over dedicated provider,
   reduction, elementwise, and runtime leaves; public re-exports are unchanged.
-- Status: implementation and the exact post-commit ROCm/Metal library check
-  pass. Full verification remains open because the active local `coeus-leto`
-  migration imports comparison markers that are absent from the checked-out
-  Leto branch; the markers exist in merged Leto comparison-parity commit
-  `d94e3ba`/`df14311`. The earlier Mnemosyne page-tree blocker is now
-  coherent; the Leto provider co-evolution is the remaining local gate
-  blocker.
+- Status: complete. The exact-head backend-parity workflow `30268824209`
+  passed WGPU, CUDA, ROCm, and Metal and PR #224 merged as `84b5bccd`.
+  The required-device ROCm lane was skipped because the workflow was not
+  manually dispatched. The active local `coeus-leto` path still points at the
+  peer branch `codex/leto-real-sparse-lu`, which predates the merged
+  comparison-marker unit (`d94e3ba`/`df14311`); this is a local co-evolution
+  environment residual, not an unresolved defect in the merged Coeus change.
 - Decision: ADR-0025 selects the shared typed Hephaestus expression seam over
   provider-local kernels or CPU fallback.
 
