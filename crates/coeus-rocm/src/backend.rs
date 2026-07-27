@@ -24,14 +24,6 @@ unsafe impl HephaestusProvider for RocmProvider {
     }
 }
 
-fn unsupported_binary_operation(operation: BinaryOp) -> HephaestusError {
-    HephaestusError::DispatchFailed {
-        message: format!(
-            "binary elementwise operation {operation:?} is not implemented by ROCm provider"
-        ),
-    }
-}
-
 fn unsupported_unary_operation(operation: UnaryOp) -> HephaestusError {
     HephaestusError::DispatchFailed {
         message: format!(
@@ -282,7 +274,72 @@ macro_rules! impl_elementwise_provider {
                         output,
                         hephaestus_core::BlockWidth::DEFAULT,
                     ),
-                    _ => Err(unsupported_binary_operation(operation)),
+                    BinaryOp::Eq => hephaestus_rocm::binary_elementwise_strided_typed_into::<
+                        hephaestus_rocm::EqOp,
+                        $scalar,
+                        N,
+                    >(
+                        device,
+                        lhs,
+                        rhs,
+                        output,
+                        hephaestus_core::BlockWidth::DEFAULT,
+                    ),
+                    BinaryOp::Ne => hephaestus_rocm::binary_elementwise_strided_typed_into::<
+                        hephaestus_rocm::NeOp,
+                        $scalar,
+                        N,
+                    >(
+                        device,
+                        lhs,
+                        rhs,
+                        output,
+                        hephaestus_core::BlockWidth::DEFAULT,
+                    ),
+                    BinaryOp::Lt => hephaestus_rocm::binary_elementwise_strided_typed_into::<
+                        hephaestus_rocm::LtOp,
+                        $scalar,
+                        N,
+                    >(
+                        device,
+                        lhs,
+                        rhs,
+                        output,
+                        hephaestus_core::BlockWidth::DEFAULT,
+                    ),
+                    BinaryOp::Gt => hephaestus_rocm::binary_elementwise_strided_typed_into::<
+                        hephaestus_rocm::GtOp,
+                        $scalar,
+                        N,
+                    >(
+                        device,
+                        lhs,
+                        rhs,
+                        output,
+                        hephaestus_core::BlockWidth::DEFAULT,
+                    ),
+                    BinaryOp::Le => hephaestus_rocm::binary_elementwise_strided_typed_into::<
+                        hephaestus_rocm::LeOp,
+                        $scalar,
+                        N,
+                    >(
+                        device,
+                        lhs,
+                        rhs,
+                        output,
+                        hephaestus_core::BlockWidth::DEFAULT,
+                    ),
+                    BinaryOp::Ge => hephaestus_rocm::binary_elementwise_strided_typed_into::<
+                        hephaestus_rocm::GeOp,
+                        $scalar,
+                        N,
+                    >(
+                        device,
+                        lhs,
+                        rhs,
+                        output,
+                        hephaestus_core::BlockWidth::DEFAULT,
+                    ),
                 }
             }
 
@@ -522,16 +579,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{unsupported_binary_operation, unsupported_unary_operation};
-    use coeus_ops::{BinaryOp, UnaryOp};
+    use super::unsupported_unary_operation;
+    use coeus_ops::UnaryOp;
     use hephaestus_core::HephaestusError;
 
     #[test]
     fn unsupported_operations_are_reported_as_typed_provider_errors() {
-        assert!(matches!(
-            unsupported_binary_operation(BinaryOp::Eq),
-            HephaestusError::DispatchFailed { .. }
-        ));
         assert!(matches!(
             unsupported_unary_operation(UnaryOp::Gelu),
             HephaestusError::DispatchFailed { .. }

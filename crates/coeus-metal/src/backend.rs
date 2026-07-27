@@ -24,14 +24,6 @@ unsafe impl HephaestusProvider for MetalProvider {
     }
 }
 
-fn unsupported_binary_operation(operation: BinaryOp) -> HephaestusError {
-    HephaestusError::DispatchFailed {
-        message: format!(
-            "binary elementwise operation {operation:?} is not implemented by Metal provider"
-        ),
-    }
-}
-
 fn unsupported_unary_operation(operation: UnaryOp) -> HephaestusError {
     HephaestusError::DispatchFailed {
         message: format!(
@@ -282,7 +274,72 @@ macro_rules! impl_elementwise_provider {
                         output,
                         hephaestus_core::BlockWidth::DEFAULT,
                     ),
-                    _ => Err(unsupported_binary_operation(operation)),
+                    BinaryOp::Eq => hephaestus_metal::binary_elementwise_strided_typed_into::<
+                        hephaestus_metal::EqOp,
+                        $scalar,
+                        N,
+                    >(
+                        device,
+                        lhs,
+                        rhs,
+                        output,
+                        hephaestus_core::BlockWidth::DEFAULT,
+                    ),
+                    BinaryOp::Ne => hephaestus_metal::binary_elementwise_strided_typed_into::<
+                        hephaestus_metal::NeOp,
+                        $scalar,
+                        N,
+                    >(
+                        device,
+                        lhs,
+                        rhs,
+                        output,
+                        hephaestus_core::BlockWidth::DEFAULT,
+                    ),
+                    BinaryOp::Lt => hephaestus_metal::binary_elementwise_strided_typed_into::<
+                        hephaestus_metal::LtOp,
+                        $scalar,
+                        N,
+                    >(
+                        device,
+                        lhs,
+                        rhs,
+                        output,
+                        hephaestus_core::BlockWidth::DEFAULT,
+                    ),
+                    BinaryOp::Gt => hephaestus_metal::binary_elementwise_strided_typed_into::<
+                        hephaestus_metal::GtOp,
+                        $scalar,
+                        N,
+                    >(
+                        device,
+                        lhs,
+                        rhs,
+                        output,
+                        hephaestus_core::BlockWidth::DEFAULT,
+                    ),
+                    BinaryOp::Le => hephaestus_metal::binary_elementwise_strided_typed_into::<
+                        hephaestus_metal::LeOp,
+                        $scalar,
+                        N,
+                    >(
+                        device,
+                        lhs,
+                        rhs,
+                        output,
+                        hephaestus_core::BlockWidth::DEFAULT,
+                    ),
+                    BinaryOp::Ge => hephaestus_metal::binary_elementwise_strided_typed_into::<
+                        hephaestus_metal::GeOp,
+                        $scalar,
+                        N,
+                    >(
+                        device,
+                        lhs,
+                        rhs,
+                        output,
+                        hephaestus_core::BlockWidth::DEFAULT,
+                    ),
                 }
             }
 
@@ -522,16 +579,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{unsupported_binary_operation, unsupported_unary_operation};
-    use coeus_ops::{BinaryOp, UnaryOp};
+    use super::unsupported_unary_operation;
+    use coeus_ops::UnaryOp;
     use hephaestus_core::HephaestusError;
 
     #[test]
     fn unsupported_operations_are_reported_as_typed_provider_errors() {
-        assert!(matches!(
-            unsupported_binary_operation(BinaryOp::Eq),
-            HephaestusError::DispatchFailed { .. }
-        ));
         assert!(matches!(
             unsupported_unary_operation(UnaryOp::Gelu),
             HephaestusError::DispatchFailed { .. }
