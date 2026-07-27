@@ -1,5 +1,5 @@
 use crate::backend_ops::CpuBackend;
-use coeus_core::{Float, Layout};
+use coeus_core::{ComputeBackend, Float, Layout};
 
 /// Default host-side 1-D transposed convolution.
 ///
