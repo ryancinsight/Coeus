@@ -37,10 +37,14 @@
   provider-boundary extension.
 - Topology: each vendor backend is a manifest over dedicated provider,
   reduction, elementwise, and runtime leaves; public re-exports are unchanged.
-- Status: merged in Coeus PR #224 at `84b5bcc`; exact-head run `30268824209`
-  passed WGPU `89986119972`, CUDA `89986119939`, ROCm `89986120026`, and Metal
-  `89986119988`. Required-device ROCm remained skipped because no hosted AMD
-  runner was available.
+ - Status: complete. Coeus PR #224 merged as `84b5bccd`; exact-head workflow
+   `30268824209` passed WGPU `89986119972`, CUDA `89986119939`, ROCm
+   `89986120026`, and Metal `89986119988`. The required-device ROCm lane was
+   skipped because no hosted AMD runner was available. The active local
+   `coeus-leto` path still points at the peer branch `codex/leto-real-sparse-lu`,
+   which predates the merged comparison-marker unit (`d94e3ba`/`df14311`); this
+   is a local co-evolution environment residual, not an unresolved defect in
+   the merged Coeus change.
 - Decision: ADR-0025 selects the shared typed Hephaestus expression seam over
   provider-local kernels or CPU fallback.
 

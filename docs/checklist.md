@@ -23,12 +23,13 @@
       oracle, including f32 broadcast inputs.
 - [x] Split vendor backend identity, operation families, and runtime integration
       into vertical leaves while preserving the public backend surface.
-- [x] Complete the local provider co-evolution: Leto comparison markers land in
-      merged provider commit `d94e3ba`.
-- [x] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
-      the terminal run and job IDs: run `30268824209` passed WGPU `89986119972`,
-      CUDA `89986119939`, ROCm `89986120026`, and Metal `89986119988`; required
-      AMD hardware remained skipped.
+ - [x] Complete provider co-evolution in the merged Leto unit
+       `d94e3ba`/`df14311`; the active local `codex/leto-real-sparse-lu` path
+       remains a peer-owned branch predating those markers.
+ - [x] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
+       the terminal evidence: workflow `30268824209` passed WGPU `89986119972`,
+       CUDA `89986119939`, ROCm `89986120026`, and Metal `89986119988`; PR #224
+       merged as `84b5bccd`, and required AMD hardware remained skipped.
 
 ## ATLAS-COEUS-HEPHAESTUS-003 — Native activation providers
 
