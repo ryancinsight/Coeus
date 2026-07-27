@@ -1,5 +1,15 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-COEUS-HEPHAESTUS-005 — Native unary math providers
+
+- [x] Add the shared 19-operation Hephaestus unary math vocabulary and export
+      it through WGPU, CUDA, ROCm, and Metal.
+- [x] Route all 19 f32 operations through native ROCm and Metal strided
+      providers; keep integer capability boundaries typed and explicit.
+- [x] Compare valid-domain ROCm and Metal outputs with the Leto CPU oracle.
+- [ ] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
+      the terminal run and job IDs.
+
 ## ATLAS-COEUS-HEPHAESTUS-004 — Native comparison providers
 
 - [x] Add scalar-aware Hephaestus comparison markers and contiguous/strided
@@ -10,10 +20,12 @@
       oracle, including f32 broadcast inputs.
 - [x] Split vendor backend identity, operation families, and runtime integration
       into vertical leaves while preserving the public backend surface.
-- [ ] Complete the local provider co-evolution: make the active Leto path
-      expose the six comparison markers before running Coeus native gates.
-- [ ] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
-      the terminal run and job IDs.
+- [x] Complete the local provider co-evolution: Leto comparison markers land in
+      merged provider commit `d94e3ba`.
+- [x] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
+      the terminal run and job IDs: run `30268824209` passed WGPU `89986119972`,
+      CUDA `89986119939`, ROCm `89986120026`, and Metal `89986119988`; required
+      AMD hardware remained skipped.
 
 ## ATLAS-COEUS-HEPHAESTUS-003 — Native activation providers
 
@@ -27,8 +39,8 @@
       signed inputs and test unsupported integer requests.
 - [x] Run exact code-head WGPU, CUDA, ROCm, and Metal backend-parity CI:
       run `30226854005`, WGPU `89858362274`, CUDA `89858362266`, ROCm
-      `89858362239`, and Metal `89858362247` passed; the documentation-head
-      rerun remains required before merge.
+      `89858362239`, and Metal `89858362247` passed; Coeus PR #223 merged at
+      `4b807ddd`.
 
 ## ATLAS-COEUS-HEPHAESTUS-002 — Native elementwise providers
 

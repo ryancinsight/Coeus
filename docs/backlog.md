@@ -1,5 +1,25 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-COEUS-HEPHAESTUS-005 — Native unary math providers [arch]
+
+- Owner: Codex on `codex/coeus-unary-math-parity`; scope: shared Hephaestus
+  unary math markers, `coeus-rocm`, `coeus-metal`, Leto differential tests,
+  and backend-parity CI.
+- Outcome: route the 19 unparameterized unary math operations already present
+  in Coeus/Leto through native ROCm and Metal Hephaestus strided kernels:
+  tangent, inverse and hyperbolic functions, logarithm/exponential bases,
+  `expm1`, `log1p`, sign, and rounding.
+- Non-goals: `erf`, `erfc`, `lgamma`, parameterized activations, f64/vector
+  contracts, higher ranks, and unrelated operation families.
+- Acceptance: every operation matches the Leto f32 oracle on valid input
+  domains; integer requests remain typed unsupported operations; no CPU
+  fallback or provider-local shader expressions are added; exact-head WGPU,
+  CUDA, ROCm, and Metal CI passes.
+- Risk/change class: `[arch]` additive shared operation vocabulary and native
+  provider integration; ADR 0026 records the boundary and residuals.
+- Status: Hephaestus API dependency is merged upstream; Coeus dispatch and
+  differential tests are in progress.
+
 ## ATLAS-COEUS-HEPHAESTUS-004 — Native comparison providers [arch]
 
 - Owner: Codex; scope: typed Hephaestus comparison expressions,
@@ -15,13 +35,10 @@
   provider-boundary extension.
 - Topology: each vendor backend is a manifest over dedicated provider,
   reduction, elementwise, and runtime leaves; public re-exports are unchanged.
-- Status: implementation and the exact post-commit ROCm/Metal library check
-  pass. Full verification remains open because the active local `coeus-leto`
-  migration imports comparison markers that are absent from the checked-out
-  Leto branch; the markers exist in merged Leto comparison-parity commit
-  `d94e3ba`/`df14311`. The earlier Mnemosyne page-tree blocker is now
-  coherent; the Leto provider co-evolution is the remaining local gate
-  blocker.
+- Status: merged in Coeus PR #224 at `84b5bcc`; exact-head run `30268824209`
+  passed WGPU `89986119972`, CUDA `89986119939`, ROCm `89986120026`, and Metal
+  `89986119988`. Required-device ROCm remained skipped because no hosted AMD
+  runner was available.
 - Decision: ADR-0025 selects the shared typed Hephaestus expression seam over
   provider-local kernels or CPU fallback.
 
@@ -41,9 +58,9 @@
   CUDA, ROCm, and Metal CI passes.
 - Risk/change class: `[arch]` shared accelerator operation-vocabulary
   extension with additive Coeus provider capability.
-- Status: implementation complete; code-head CI passed in run `30226854005`
-  (ROCm `89858362239`, Metal `89858362247`, CUDA `89858362266`, WGPU
-  `89858362274`); documentation-head rerun remains required before merge.
+- Status: merged in Coeus PR #223 at `4b807ddd`; code-head run `30226854005`
+  passed ROCm `89858362239`, Metal `89858362247`, CUDA `89858362266`, and WGPU
+  `89858362274`. Required-device ROCm remained skipped without hardware.
 - Decision: use one `UnaryExpr` marker per activation operation with
   dialect-specific WGSL/CUDA/HIP expressions; ADR-0024 records the boundary.
 

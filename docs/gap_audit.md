@@ -1,5 +1,23 @@
 # Coeus Gap Audit
 
+## ATLAS-COEUS-HEPHAESTUS-005: Unary math provider parity
+
+**Location**: `crates/coeus-rocm/src/backend/elementwise.rs`,
+`crates/coeus-metal/src/backend/elementwise.rs`, and their elementwise
+contracts.
+**Gap**: Coeus/Leto defined 19 unparameterized f32 unary math operations that
+were available to the WGPU/CUDA shader paths but were rejected by the native
+ROCm and Metal provider matches.
+**Resolution**: route each operation through the shared Hephaestus marker and
+strided kernel, with valid-domain Leto differential coverage. Keep integer
+providers on their typed arithmetic-only rejection path.
+**Residual**: `erf`, `erfc`, `lgamma`, parameterized activations, and f64/vector
+contracts remain separate capability slices.
+**Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal CI; hardware lanes
+are reported independently from adapterless provider compilation.
+**Status**: implementation in progress; native dispatch and tests are present,
+with hosted verification pending.
+
 ## ATLAS-COEUS-SAFETY-001: Hephaestus provider failure boundary
 
 **Location**: `crates/coeus-hephaestus/src/reduction.rs` and the ROCm/Metal

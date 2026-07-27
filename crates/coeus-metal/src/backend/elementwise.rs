@@ -74,6 +74,101 @@ macro_rules! activation_unary_dispatch {
             f32,
             N,
         >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Tan => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::TanOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Asin => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::AsinOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Acos => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::AcosOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Atan => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::AtanOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Sinh => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::SinhOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Cosh => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::CoshOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Log2 => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::Log2Op,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Log10 => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::Log10Op,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Exp2 => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::Exp2Op,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Atanh => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::AtanhOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Asinh => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::AsinhOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Acosh => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::AcoshOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Expm1 => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::Expm1Op,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Log1p => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::Log1pOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Sign => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::SignOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Floor => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::FloorOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Ceil => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::CeilOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Round => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::RoundOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Trunc => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::TruncOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
             _ => Err(unsupported_unary_operation($operation)),
         }
     };
