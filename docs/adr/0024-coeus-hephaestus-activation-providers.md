@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted; implementation is in progress across Hephaestus and Coeus.
+Accepted; implementation is complete locally and code-head CI passed. The
+documentation-only head requires one final matrix rerun before merge.
 
 ## Decision
 
@@ -13,6 +14,9 @@ ROCm and Metal dispatch these expressions through their native Hephaestus
 strided elementwise kernels. The provider implementations are restricted to
 `f32`; integer storage keeps the existing typed unsupported-operation result
 instead of compiling floating-point formulas for integer shaders.
+
+Hephaestus provides the shared vocabulary at merged master commit `7ac5359`;
+Coeus consumes it in commit `28c3cbf`.
 
 The expressions remain dialect-specific constants on the existing
 `UnaryExpr<L>` seam. This keeps one operation vocabulary while preserving the
@@ -37,4 +41,6 @@ Coeus ROCm and Metal tests compare the native forward and gradient activation
 results against the Leto CPU oracle on signed `f32` inputs. The backend-parity
 workflow keeps the existing WGPU and CUDA activation contracts in the same
 matrix and adds the native ROCm/Metal activation cases to their focused test
-filters.
+filters. Code-head run `30226854005` passed WGPU job `89858362274`, CUDA job
+`89858362266`, ROCm job `89858362239`, and Metal job `89858362247`; the
+required-device ROCm job `89858362563` skipped without hardware.

@@ -2,14 +2,16 @@
 
 ## ATLAS-COEUS-HEPHAESTUS-003 — Native activation providers
 
-- [ ] Add dialect-specific Hephaestus activation and gradient expression
+- [x] Add dialect-specific Hephaestus activation and gradient expression
       markers and export them through the backend crates.
-- [ ] Dispatch the common activation set through native ROCm and Metal
+- [x] Dispatch the common activation set through native ROCm and Metal
       strided providers with an explicit `f32` capability boundary.
-- [ ] Compare ROCm and Metal forward/gradient activation results with Leto on
+- [x] Compare ROCm and Metal forward/gradient activation results with Leto on
       signed inputs and test unsupported integer requests.
-- [ ] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
-      the terminal run and job IDs.
+- [x] Run exact code-head WGPU, CUDA, ROCm, and Metal backend-parity CI:
+      run `30226854005`, WGPU `89858362274`, CUDA `89858362266`, ROCm
+      `89858362239`, and Metal `89858362247` passed; the documentation-head
+      rerun remains required before merge.
 
 ## ATLAS-COEUS-HEPHAESTUS-002 — Native elementwise providers
 

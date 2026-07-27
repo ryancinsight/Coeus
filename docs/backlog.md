@@ -16,7 +16,9 @@
   CUDA, ROCm, and Metal CI passes.
 - Risk/change class: `[arch]` shared accelerator operation-vocabulary
   extension with additive Coeus provider capability.
-- Status: in progress.
+- Status: implementation complete; code-head CI passed in run `30226854005`
+  (ROCm `89858362239`, Metal `89858362247`, CUDA `89858362266`, WGPU
+  `89858362274`); documentation-head rerun remains required before merge.
 - Decision: use one `UnaryExpr` marker per activation operation with
   dialect-specific WGSL/CUDA/HIP expressions; ADR-0024 records the boundary.
 
