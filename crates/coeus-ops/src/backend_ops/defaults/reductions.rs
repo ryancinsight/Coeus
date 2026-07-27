@@ -1,5 +1,5 @@
 use crate::backend_ops::CpuBackend;
-use coeus_core::{Layout, Scalar};
+use coeus_core::{ComputeBackend, Layout, Scalar};
 
 /// Default: copy to host, run `coeus_leto::argmax_into`, copy back.
 pub fn argmax<T, B>(
