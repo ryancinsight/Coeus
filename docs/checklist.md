@@ -1,5 +1,22 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-COEUS-HEPHAESTUS-004 — Native comparison providers
+
+- [x] Add scalar-aware Hephaestus comparison markers and contiguous/strided
+      provider entry points for f32, i32, and u32.
+- [x] Route all six comparisons through the native ROCm and Metal provider
+      matches without CPU fallback or duplicated vendor kernels.
+- [x] Compare ROCm and Metal f32, i32, and u32 results with the Leto CPU
+      oracle, including f32 broadcast inputs.
+- [x] Split vendor backend identity, operation families, and runtime integration
+      into vertical leaves while preserving the public backend surface.
+- [ ] Complete the local provider co-evolution: make the active Leto path
+      expose the six comparison markers before running Coeus native gates.
+- [ ] Run exact-head WGPU, CUDA, ROCm, and Metal backend-parity CI and record
+      the terminal run and job IDs.
+
+## ATLAS-COEUS-HEPHAESTUS-003 — Native activation providers
+
 ## ATLAS-COEUS-HEPHAESTUS-003 — Native activation providers
 
 - [x] Add dialect-specific Hephaestus activation and gradient expression

@@ -1,5 +1,30 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-COEUS-HEPHAESTUS-004 — Native comparison providers [arch]
+
+- Owner: Codex; scope: typed Hephaestus comparison expressions,
+  `coeus-rocm`, `coeus-metal`, Leto differential tests, and backend-parity CI.
+- Outcome: close the six-operation comparison gap between Coeus WGPU/CUDA and
+  the native ROCm/Metal providers for f32, i32, and u32.
+- Non-goals: f64/vector comparison result contracts, parameterized activations,
+  exact-erf GELU, and unrelated higher-rank or matrix operation families.
+- Acceptance: ROCm and Metal route Eq/Ne/Lt/Gt/Le/Ge through typed Hephaestus
+  strided kernels; all three scalar families match the Leto CPU oracle; exact
+  head WGPU, CUDA, ROCm, and Metal CI passes.
+- Risk/change class: `[arch]` additive shared operation-vocabulary and
+  provider-boundary extension.
+- Topology: each vendor backend is a manifest over dedicated provider,
+  reduction, elementwise, and runtime leaves; public re-exports are unchanged.
+- Status: implementation and the exact post-commit ROCm/Metal library check
+  pass. Full verification remains open because the active local `coeus-leto`
+  migration imports comparison markers that are absent from the checked-out
+  Leto branch; the markers exist in merged Leto comparison-parity commit
+  `d94e3ba`/`df14311`. The earlier Mnemosyne page-tree blocker is now
+  coherent; the Leto provider co-evolution is the remaining local gate
+  blocker.
+- Decision: ADR-0025 selects the shared typed Hephaestus expression seam over
+  provider-local kernels or CPU fallback.
+
 ## ATLAS-COEUS-HEPHAESTUS-003 — Native activation providers [arch]
 
 - Owner: Codex; scope: Hephaestus activation expressions and exports,

@@ -1,5 +1,28 @@
 # Coeus Gap Audit
 
+## ATLAS-COEUS-SAFETY-001: Hephaestus provider failure boundary
+
+**Location**: `crates/coeus-hephaestus/src/reduction.rs` and the ROCm/Metal
+provider leaves under `crates/coeus-{rocm,metal}/src/backend/provider.rs`.
+**Gap**: `HephaestusProvider::device()` returns a shared device reference, so
+ROCm and Metal acquire devices through `OnceLock::get_or_init(...expect(...))`.
+The generic Hephaestus `ComputeBackend` also uses `expect` for fill and host/
+device transfers. Device absence and provider transfer failures therefore
+panic inside a library boundary instead of reaching callers as typed errors.
+This is independent of comparison-kernel correctness and is not repaired by
+the backend topology split.
+**Resolution target**: introduce a fallible provider-initialization and
+transfer contract, migrate every implementor and caller in dependency order,
+and preserve native dispatch without a CPU fallback or silent degradation.
+Because the public backend contract changes, the migration requires an ADR,
+in-repo caller conversion, negative no-device/transfer tests, and a full
+backend matrix before closure.
+**Evidence target**: warning-denied compilation, value-semantic typed-error
+tests for unavailable devices and transfer failures, a production panic scan,
+and provider feature gates on hosts with and without the required hardware.
+**Status**: open; deliberately outside the native comparison-provider item
+because it is a separate public failure-boundary migration.
+
 ## ATLAS-CUDA-SAFETY-016: Remaining CUDA launch-parameter narrowing
 
 **Location**: remaining non-convolution launchers under

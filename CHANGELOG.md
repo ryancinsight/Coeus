@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [arch] Routes Coeus equality, inequality, and ordering binary operations
+  through typed Hephaestus ROCm and Metal providers for f32, i32, and u32;
+  Leto differential coverage now exercises all six comparisons.
+
 - [patch] Routes Coeus cumulative sum and product scans through the shared
   Leto CPU contract and native Hephaestus WGPU/CUDA scan dispatch, with CPU,
   WGPU, and CUDA differential coverage for forward and reverse scans.

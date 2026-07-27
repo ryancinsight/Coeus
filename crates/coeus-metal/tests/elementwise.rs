@@ -1,6 +1,7 @@
-use coeus_core::{BinaryOp, ComputeBackend, CpuUnaryOp, Layout};
+use coeus_core::{BinaryOp, ComputeBackend, CpuUnaryOp, Layout, Scalar};
 use coeus_metal::MetalBackend;
 use coeus_ops::ElementwiseOps;
+use std::fmt::Debug;
 
 fn require_device() -> bool {
     let available = hephaestus_metal::MetalDevice::try_default().is_ok();
@@ -24,6 +25,57 @@ fn assert_close(actual: &[f32], expected: &[f32], operation: &str) {
     }
 }
 
+fn assert_integer_comparisons<T>(backend: &MetalBackend, lhs: &[T], rhs: &[T])
+where
+    T: Scalar + leto_ops::Scalar + Debug + PartialEq,
+    coeus_metal::MetalProvider: coeus_hephaestus::ElementwiseProvider<T>,
+{
+    let layout = Layout::new([lhs.len()].into());
+    let mut device_lhs = backend.allocate::<T>(lhs.len());
+    let mut device_rhs = backend.allocate::<T>(rhs.len());
+    backend.copy_to_device(lhs, &mut device_lhs);
+    backend.copy_to_device(rhs, &mut device_rhs);
+
+    for operation in [
+        BinaryOp::Eq,
+        BinaryOp::Ne,
+        BinaryOp::Lt,
+        BinaryOp::Gt,
+        BinaryOp::Le,
+        BinaryOp::Ge,
+    ] {
+        let mut expected = vec![T::zero(); lhs.len()];
+        coeus_leto::elementwise_binary_into(
+            operation,
+            &layout,
+            lhs,
+            &layout,
+            rhs,
+            &layout,
+            &mut expected,
+        )
+        .expect("Leto integer comparison oracle failed");
+        let mut actual = backend.allocate::<T>(lhs.len());
+        backend
+            .elementwise_binary(
+                operation,
+                &device_lhs,
+                &layout,
+                &device_rhs,
+                &layout,
+                &mut actual,
+                &layout,
+            )
+            .expect("Metal integer comparison dispatch failed");
+        let mut actual_values = vec![T::zero(); lhs.len()];
+        backend.copy_to_host(&actual, &mut actual_values);
+        assert_eq!(
+            actual_values, expected,
+            "Metal integer {operation:?} mismatch"
+        );
+    }
+}
+
 #[test]
 fn native_elementwise_operations_match_leto_with_broadcasting() {
     if !require_device() {
@@ -42,7 +94,18 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
     backend.copy_to_device(&lhs, &mut device_lhs);
     backend.copy_to_device(&rhs, &mut device_rhs);
 
-    for operation in [BinaryOp::Add, BinaryOp::Sub, BinaryOp::Mul, BinaryOp::Div] {
+    for operation in [
+        BinaryOp::Add,
+        BinaryOp::Sub,
+        BinaryOp::Mul,
+        BinaryOp::Div,
+        BinaryOp::Eq,
+        BinaryOp::Ne,
+        BinaryOp::Lt,
+        BinaryOp::Gt,
+        BinaryOp::Le,
+        BinaryOp::Ge,
+    ] {
         let mut expected = [0.0_f32; 6];
         coeus_leto::elementwise_binary_into(
             operation,
@@ -70,6 +133,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         backend.copy_to_host(&actual, &mut actual_values);
         assert_close(&actual_values, &expected, "binary");
     }
+
+    assert_integer_comparisons(&backend, &[1_i32, -2, 3, 3, 7, 0], &[1, 0, 4, 3, 2, 9]);
+    assert_integer_comparisons(&backend, &[1_u32, 2, 3, 3, 7, 0], &[1, 0, 4, 3, 2, 9]);
 
     for (shape, lhs, rhs) in [
         (
