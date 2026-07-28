@@ -108,6 +108,11 @@ unary_parity!(
     vec![-3.0, -2.3, -1.5, -0.5, 0.5, 1.5, 2.3, 3.0]
 );
 unary_parity!(
+    test_cuda_parity_gelu_tanh,
+    coeus_ops::gelu_tanh,
+    vec![-3.0, -2.3, -1.5, -0.5, 0.5, 1.5, 2.3, 3.0]
+);
+unary_parity!(
     test_cuda_parity_silu,
     coeus_ops::silu,
     vec![-2.0, -1.0, 0.0, 0.5, 1.0, 2.0, -0.5, 1.5]
@@ -121,6 +126,11 @@ unary_parity!(
     test_cuda_parity_elu,
     coeus_ops::elu,
     vec![-2.0, -1.0, 0.0, 0.5, 1.0, 2.0, -0.5, 1.5]
+);
+unary_parity!(
+    test_cuda_parity_softplus,
+    coeus_ops::softplus,
+    vec![-3.0, -1.0, 0.0, 0.5, 1.0, 2.0, 3.0, 4.0]
 );
 unary_parity!(
     test_cuda_parity_exp,
@@ -216,6 +226,11 @@ unary_grad_parity!(
     vec![-3.0, -2.3, -1.5, -0.5, 0.5, 1.5, 2.3, 3.0]
 );
 unary_grad_parity!(
+    test_cuda_parity_gelu_tanh_grad,
+    coeus_ops::UnaryOp::GeluTanhGrad,
+    vec![-3.0, -2.3, -1.5, -0.5, 0.5, 1.5, 2.3, 3.0]
+);
+unary_grad_parity!(
     test_cuda_parity_silu_grad,
     coeus_ops::UnaryOp::SiluGrad,
     vec![-2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 1.5]
@@ -229,6 +244,11 @@ unary_grad_parity!(
     test_cuda_parity_elu_grad,
     coeus_ops::UnaryOp::EluGrad,
     vec![-2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 1.5]
+);
+unary_grad_parity!(
+    test_cuda_parity_softplus_grad,
+    coeus_ops::UnaryOp::SoftplusGrad,
+    vec![-3.0, -1.0, -0.25, 0.0, 0.25, 1.0, 3.0, 4.0]
 );
 
 // Reductions.

@@ -71,6 +71,32 @@ physical-device execution claim is made. The external `recurseml/analysis`
 status returned its recurring analyzer error and is not repository-owned
 verification.
 
+## ATLAS-COEUS-HEPHAESTUS-CUDA-ACTIVATION-PARITY-001 [minor]
+
+- [x] Route CUDA `GeluTanh`, `GeluTanhGrad`, `Softplus`, and `SoftplusGrad`
+      through the existing Hephaestus marker kernels for contiguous and
+      runtime-shaped strided layouts.
+- [x] Add CUDA/Leto value-semantic forward and gradient parity coverage and
+      select the tests in the CUDA CI contract job.
+- [x] Record exact-head CUDA, WGPU, ROCm, and Metal CI evidence and preserve
+      the existing typed unsupported-operation behavior for operations outside
+      the common marker seam.
+
+Owner: Codex on `codex/coeus-cuda-common-activation-parity`; completed at
+`8a38f392`. Claimed scope:
+`crates/coeus-cuda/src/backend/ops/math.rs`,
+`crates/coeus-cuda/tests/cuda/parity/unfold_fold.rs`,
+`.github/workflows/backend-parity.yml`, `CHECKLIST.md`, and
+`docs/gap_audit.md`. Peer-owned reduction and backend-error files remain
+outside this claim.
+
+Evidence: docs-head run `30359324025` passed CUDA job `90274888940`, WGPU job
+`90274889041`, ROCm job `90274889047`, and Metal job `90274888991`.
+Required-device ROCm job `90274889835` was skipped because no hosted AMD
+runner was dispatched. The CUDA selector executed the four new forward and
+gradient tests; WGPU selected the GELU-tanh contract. No runtime speedup or
+resident-memory delta is claimed without a matched benchmark.
+
 ## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001 [arch]
 
 - [x] Route `UnaryOp::Lgamma` through the provider-owned Hephaestus WGPU,

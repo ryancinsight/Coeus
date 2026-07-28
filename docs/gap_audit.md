@@ -135,6 +135,30 @@ external `recurseml/analysis` status returned its recurring analyzer error and
 is not repository-owned verification. ADR 0038 owns the provider and consumer
 contract.
 
+## ATLAS-COEUS-HEPHAESTUS-CUDA-ACTIVATION-PARITY-001: GELU-tanh and Softplus
+
+**Location**: `crates/coeus-cuda/src/backend/ops/math.rs`, the CUDA parity
+suite, and the WGPU/CUDA backend-parity selectors.
+**Gap**: Coeus ROCm and Metal already routed `GeluTanh`, `GeluTanhGrad`,
+`Softplus`, and `SoftplusGrad` through Hephaestus strided markers, while CUDA
+had no shared-provider arms for these operations. Contiguous and runtime-shaped
+strided CUDA tensors could therefore reach the legacy capability boundary.
+**Resolution**: route the four operations through Hephaestus's existing CUDA
+marker kernels for both allocation-returning contiguous dispatch and caller-
+owned dynamic-rank strided dispatch. Add CUDA/Leto forward and gradient
+differential cases and a WGPU GELU-tanh contract selection.
+**Residual**: parameterized activations, f64/reduced/vector contracts, and
+physical-device execution remain separate evidence scopes. No runtime
+performance or resident-memory delta is claimed without a controlled benchmark.
+**Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal provider/consumer
+CI; required-device ROCm is reported independently from adapterless provider
+compilation.
+**Status**: docs head `8a38f392` passed run `30359324025`: CUDA
+`90274888940`, WGPU `90274889041`, ROCm `90274889047`, and Metal `90274888991`.
+Required-device ROCm `90274889835` was skipped because no hosted AMD runner was
+dispatched. The external `recurseml/analysis` status returned its recurring
+analyzer error and is not repository-owned verification.
+
 ## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001: f32 forward log-gamma
 
 **Location**: the WGPU unary expression, CUDA/ROCm/Metal provider elementwise
