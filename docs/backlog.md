@@ -1,5 +1,24 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 — Route exact GELU through Hephaestus [minor] — in-progress
+
+- Owner: Codex on `codex/coeus-cuda-common-activation-parity`; scope:
+  `crates/coeus-cuda/src/backend/ops/math.rs`, the CUDA unary parity tests,
+  the backend-parity selector, and owner-local PM evidence.
+- Outcome: route CUDA f32 `Gelu` and `GeluGrad` through the existing
+  Hephaestus exact-erf marker kernels for contiguous and runtime-shaped
+  strided layouts, matching the already-native ROCm and Metal paths.
+- Non-goals: parameterized activations, reduced or vector scalar contracts,
+  pooling, and the peer-owned WGPU fallible-dispatch slice.
+- Acceptance: CUDA contiguous and strided exact GELU forward/gradient paths
+  use the Hephaestus marker seam; CUDA/Leto value-semantic parity tests are
+  selected in CI; exact-head WGPU, CUDA, ROCm, and Metal provider contracts
+  pass; no runtime or resident-memory delta is claimed without a benchmark.
+- Risk/change class: `[minor]` provider-capability routing with additive CI
+  coverage.
+- Status: claimed on 2026-07-28; implementation and final exact-head evidence
+  remain pending.
+
 ## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback [arch]
 
 - Owner: Codex; scope: `coeus-ops` and `coeus-autograd` ConvTranspose3d

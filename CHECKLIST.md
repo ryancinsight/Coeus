@@ -1,5 +1,21 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 [minor]
+
+- [ ] Route CUDA `Gelu` and `GeluGrad` through the existing Hephaestus exact-
+      erf marker kernels for contiguous and runtime-shaped strided layouts.
+- [ ] Select the existing CUDA/Leto forward and gradient parity tests in the
+      backend-parity workflow.
+- [ ] Record exact-head WGPU, CUDA, ROCm, and Metal CI evidence without making
+      an unmeasured runtime or resident-memory claim.
+
+Owner: Codex on `codex/coeus-cuda-common-activation-parity`; claimed scope:
+`crates/coeus-cuda/src/backend/ops/math.rs`,
+`crates/coeus-cuda/tests/cuda/parity/unfold_fold.rs`,
+`.github/workflows/backend-parity.yml`, `docs/backlog.md`, `CHECKLIST.md`,
+`docs/gap_audit.md`, and `CHANGELOG.md`. Peer-owned WGPU pool and reduction /
+backend-error files remain outside this claim.
+
 ## ATLAS-COEUS-SAFETY-003 Uninitialized COW replacement [arch][minor][perf]
 
 - [x] Keep ordinary WGPU, CUDA, and generic Hephaestus storage construction
