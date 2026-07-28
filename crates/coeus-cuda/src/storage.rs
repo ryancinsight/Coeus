@@ -33,6 +33,14 @@ impl<T: Scalar> CudaStorage<T> {
             .expect("CudaStorage::new failed to allocate GPU buffer in device tier")
     }
 
+    #[inline]
+    fn alloc_device_uninitialized(len: usize) -> CudaBuffer<T> {
+        let device = crate::backend::get_cuda_device();
+        device
+            .alloc_uninitialized_with_hint(len, PlacementHint::Tier(MemoryTier::Device))
+            .expect("CudaStorage::make_unique failed to allocate GPU buffer in device tier")
+    }
+
     /// Allocate a new GPU device buffer.
     pub fn new(len: usize) -> Self {
         let buffer = Self::alloc_device_zeroed(len);
@@ -74,7 +82,7 @@ impl<T: Scalar> StorageMut<T> for CudaStorage<T> {
     fn make_unique(&mut self) {
         if Arc::strong_count(&self.buffer) > 1 {
             let device = crate::backend::get_cuda_device();
-            let new_buffer = Self::alloc_device_zeroed(self.buffer.len());
+            let new_buffer = Self::alloc_device_uninitialized(self.buffer.len());
             device
                 .copy_buffer(self.buffer.as_ref(), &new_buffer)
                 .expect("CudaStorage::make_unique failed to copy the device buffer");

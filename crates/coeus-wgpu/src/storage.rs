@@ -33,6 +33,14 @@ impl<T: Scalar> WgpuStorage<T> {
             .expect("Failed to allocate GPU buffer in device tier")
     }
 
+    #[inline]
+    fn alloc_device_uninitialized(len: usize) -> hephaestus_wgpu::WgpuBuffer<T> {
+        let ctx = get_wgpu_context();
+        ctx.hephaestus_device
+            .alloc_uninitialized_with_hint(len, PlacementHint::Tier(MemoryTier::Device))
+            .expect("Failed to allocate GPU buffer in device tier")
+    }
+
     /// Allocate a new GPU buffer for `len` elements.
     pub fn new(len: usize) -> Self {
         let buffer = Self::alloc_device_zeroed(len);
@@ -68,7 +76,7 @@ impl<T: Scalar> StorageMut<T> for WgpuStorage<T> {
     fn make_unique(&mut self) {
         if Arc::strong_count(&self.buffer) > 1 {
             let ctx = get_wgpu_context();
-            let new_buffer = Self::alloc_device_zeroed(self.buffer.len());
+            let new_buffer = Self::alloc_device_uninitialized(self.buffer.len());
             ctx.hephaestus_device
                 .copy_buffer(self.buffer.as_ref(), &new_buffer)
                 .expect("WgpuStorage::make_unique failed to copy the device buffer");

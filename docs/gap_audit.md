@@ -1,5 +1,33 @@
 # Coeus Gap Audit
 
+## ATLAS-COEUS-SAFETY-003: Uninitialized COW replacement allocation
+
+**Location**: `crates/coeus-hephaestus/src/storage.rs`,
+`crates/coeus-wgpu/src/storage.rs`, and `crates/coeus-cuda/src/storage.rs`.
+**Gap**: device-local COW allocates a replacement and immediately overwrites
+every element through `ComputeDevice::copy_buffer`, but the previous consumer
+path requested zero-initialized storage. CUDA and ROCm therefore paid a full
+initialization pass before the full device-to-device copy.
+**Resolution**: keep public storage construction on the zeroed allocation
+contract and route only COW replacements through the explicit Hephaestus
+overwrite-before-read allocation seam. The generic Hephaestus test device
+implements the seam without changing the value-semantic copy regression.
+**Residual**: the Hephaestus provider seam prerequisite is satisfied by PR #136
+merged at `da785b53`. Hosted exact-head Coeus run `30345002409` passed CUDA job
+`90229046185`, WGPU job `90229046271`, ROCm job `90229046258`, and Metal job
+`90229046242`; required-device ROCm job `90229047328` was skipped because no
+hosted AMD runner was dispatched. No runtime bandwidth, latency, or
+resident-memory delta is claimed without a controlled benchmark. The
+infallible `StorageMut::make_unique` failure boundary remains the separate
+`ATLAS-COEUS-SAFETY-001` item.
+**Local evidence**: Coeus WGPU and generic Hephaestus all-target checks pass
+against the provider branch; the CUDA feature all-target check also passes.
+The focused generic Hephaestus Nextest storage contract passes. Temporary
+provider path overlays were restored after verification.
+**Status**: complete for the consumer allocation path and hosted provider
+matrix; physical-device execution and runtime performance measurement remain
+explicit residuals.
+
 ## ATLAS-COEUS-DISPATCH-002: Unsupported ConvTranspose3d fallback
 
 **Location**: `crates/coeus-ops/src/backend_ops/traits/conv.rs`,
