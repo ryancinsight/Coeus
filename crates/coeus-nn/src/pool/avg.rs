@@ -81,16 +81,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool2d
         let mut out_tensor = Tensor::zeros_on([n, c, h_out, w_out], &backend);
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
 
-        backend.avg_pool2d(
-            input.tensor.storage(),
-            input.tensor.layout(),
-            self.kernel_size,
-            self.stride,
-            self.padding,
-            self.dilation,
-            out_storage,
-            out_layout,
-        );
+        backend
+            .avg_pool2d(
+                input.tensor.storage(),
+                input.tensor.layout(),
+                self.kernel_size,
+                self.stride,
+                self.padding,
+                self.dilation,
+                out_storage,
+                out_layout,
+            )
+            .expect("invariant: validated avg_pool2d dispatch must succeed");
 
         coeus_autograd::avg_pool2d(
             input,
@@ -187,16 +189,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool3d
         let mut out_tensor = Tensor::zeros_on([n, c, d_out, h_out, w_out], &backend);
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
 
-        backend.avg_pool3d(
-            input.tensor.storage(),
-            input.tensor.layout(),
-            self.kernel_size,
-            self.stride,
-            self.padding,
-            self.dilation,
-            out_storage,
-            out_layout,
-        );
+        backend
+            .avg_pool3d(
+                input.tensor.storage(),
+                input.tensor.layout(),
+                self.kernel_size,
+                self.stride,
+                self.padding,
+                self.dilation,
+                out_storage,
+                out_layout,
+            )
+            .expect("invariant: validated avg_pool3d dispatch must succeed");
 
         coeus_autograd::avg_pool3d(
             input,

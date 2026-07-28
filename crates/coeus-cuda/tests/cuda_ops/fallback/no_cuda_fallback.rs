@@ -55,15 +55,19 @@ fn fallback_fused_ops_match_expression_values() {
     let b_cuda = b_seq.to_backend_on(&seq, &cuda);
 
     let expr = (a_cuda.expr() * b_cuda.expr() + 1.0).relu();
-    let out = coeus_cuda::evaluate_fused(&expr).to_backend_on(&cuda, &seq);
+    let out = coeus_cuda::evaluate_fused(&expr)
+        .expect("CPU-backed CUDA fused expression")
+        .to_backend_on(&cuda, &seq);
     assert_eq!(out.as_slice(), &[3.0, 0.0, 0.0, 21.0]);
 
     let reduce_expr = (a_cuda.expr() * 2.0).relu();
     let reduced = coeus_cuda::evaluate_fused_reduce(&reduce_expr, coeus_ops::ReductionOp::Sum, 0)
+        .expect("CPU-backed CUDA fused sum")
         .to_backend_on(&cuda, &seq);
     assert_eq!(reduced.as_slice(), &[8.0]);
 
     let mean = coeus_cuda::evaluate_fused_reduce(&reduce_expr, coeus_ops::ReductionOp::Mean, 0)
+        .expect("CPU-backed CUDA fused mean")
         .to_backend_on(&cuda, &seq);
     assert_eq!(mean.as_slice(), &[2.0]);
 }

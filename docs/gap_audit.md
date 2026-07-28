@@ -159,6 +159,26 @@ Required-device ROCm `90274889835` was skipped because no hosted AMD runner was
 dispatched. The external `recurseml/analysis` status returned its recurring
 analyzer error and is not repository-owned verification.
 
+## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001: exact GELU forward and gradient
+
+**Location**: `crates/coeus-cuda/src/backend/ops/math.rs`, the CUDA unary
+parity tests, and the backend-parity CUDA selector.
+**Gap**: Hephaestus already exposes exact-erf `GeluOp` and `GeluGradOp`, and
+ROCm/Metal route both operations through the shared strided provider seam, but
+CUDA's generic math dispatch left them to the legacy kernel table. The CUDA
+selector also omitted the existing forward and gradient parity tests.
+**Resolution**: route contiguous and runtime-shaped strided CUDA dispatch
+through the Hephaestus exact-erf markers and select
+`test_cuda_parity_gelu`/`test_cuda_parity_gelu_grad` in backend CI.
+**Residual**: parameterized activations, reduced/vector scalar contracts, and
+physical-device execution remain separate evidence scopes. No runtime
+performance or resident-memory delta is claimed without a controlled
+benchmark.
+**Status**: implementation head `a8dcc51c` is complete; exact-head WGPU,
+CUDA, ROCm, and Metal CI remains pending. Local locked CUDA package checking is
+blocked before compilation by the pre-existing dual-local Eunomia lockfile
+collision.
+
 ## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001: f32 forward log-gamma
 
 **Location**: the WGPU unary expression, CUDA/ROCm/Metal provider elementwise
@@ -231,6 +251,32 @@ outside this increment. Hosted exact-head run `30339683483` passed CUDA
 (`90212208770`), WGPU (`90212208755`), ROCm (`90212208702`), and Metal
 (`90212208797`) provider contracts. Required-device ROCm (`90212209211`) was
 skipped because no hosted AMD runner was dispatched.
+
+## ATLAS-COEUS-DISPATCH-003: CUDA fused dispatch failure boundary
+
+**Location**: coeus-cuda/src/lib.rs, coeus-cuda/src/kernels/{fuse,reduce}.rs,
+and coeus-cuda/src/error.rs.
+**Gap**: CUDA fused elementwise and fused-reduction helpers represented driver,
+context, layout, compilation, cache, transfer, and launch failures as false.
+The public entry points then evaluated the expression through the CPU path,
+which silently changed the selected backend and discarded provider diagnostics.
+**Resolution target**: return typed CudaBackendError values from the native
+helpers and public fused entry points. The CUDA-feature path must either finish
+on CUDA or return an error; the explicitly CPU-backed no-CUDA feature remains a
+separate construction-time backend choice.
+**Invariant**: selecting CudaBackend with the CUDA feature never silently
+executes the Leto CPU evaluator after a native dispatch failure. Fused layout
+metadata remains copied directly into device storage.
+**Evidence target**: no boolean fused-dispatch residual, no CUDA-feature CPU
+fallback residual, updated no-CUDA and CUDA-feature callers, warning-denied
+package checks, focused Nextest, and CUDA differential tests when a device and
+linker are available.
+**Status**: implementation complete for the claimed files. Rustfmt, locked
+metadata, diff hygiene, and residual scans pass. The locked package check,
+clippy, doctest, and Nextest gates stop before compilation because the
+peer-owned lockfile contains a local overlay change that requires regeneration;
+the peer-owned lockfile/reduction work remains outside this increment. No CUDA
+runtime or performance claim is made.
 
 ## ATLAS-CUDA-SAFETY-016: Remaining CUDA launch-parameter narrowing
 

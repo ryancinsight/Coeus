@@ -1,10 +1,25 @@
 use coeus_core::BackendError;
 use thiserror::Error;
 
-/// Failure returned by CUDA elementwise dispatch.
+/// Failure returned by CUDA backend operation and provider dispatch.
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CudaBackendError {
+    /// The fused CUDA operation rejected its expression or launch contract.
+    #[error("CUDA {operation} fusion failed: {reason}")]
+    Fusion {
+        /// Operation family being fused.
+        operation: &'static str,
+        /// Validation, compilation, or launch detail.
+        reason: String,
+    },
+    /// The operation rejected a backend-independent contract before dispatch.
+    #[error("CUDA operation validation failed: {source}")]
+    Validation {
+        /// Backend-independent validation failure.
+        #[source]
+        source: BackendError,
+    },
     /// The CUDA provider only has a native scan kernel for rank-two layouts.
     #[error("CUDA {operation} does not support layout rank {rank}; maximum rank is {max_rank}")]
     UnsupportedRank {
@@ -32,6 +47,14 @@ pub enum CudaBackendError {
         #[source]
         source: hephaestus_cuda::HephaestusError,
     },
+    /// A native CUDA kernel could not be validated or launched.
+    #[error("CUDA {operation} kernel failed: {reason}")]
+    Kernel {
+        /// Operation family being dispatched.
+        operation: &'static str,
+        /// Stable reason for the rejected launch.
+        reason: &'static str,
+    },
     /// The explicit CPU capability boundary failed.
     #[error("CUDA {operation} CPU capability path failed: {source}")]
     CpuCapability {
@@ -50,6 +73,21 @@ impl From<BackendError> for CudaBackendError {
 }
 
 impl CudaBackendError {
+    pub(crate) fn fusion(operation: &'static str, reason: impl Into<String>) -> Self {
+        Self::Fusion {
+            operation,
+            reason: reason.into(),
+        }
+    }
+
+    pub(crate) fn validation(source: BackendError) -> Self {
+        Self::Validation { source }
+    }
+
+    pub(crate) fn kernel(operation: &'static str, reason: &'static str) -> Self {
+        Self::Kernel { operation, reason }
+    }
+
     pub(crate) fn cpu_capability(operation: &'static str, source: BackendError) -> Self {
         Self::CpuCapability { operation, source }
     }

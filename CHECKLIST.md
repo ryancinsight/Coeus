@@ -1,5 +1,37 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 [minor]
+
+- [x] Route CUDA `Gelu` and `GeluGrad` through the existing Hephaestus exact-
+      erf marker kernels for contiguous and runtime-shaped strided layouts.
+- [x] Select the existing CUDA/Leto forward and gradient parity tests in the
+      backend-parity workflow.
+- [x] Repair the stale CUDA/WGPU fallible pool wrapper return contracts that
+      block the exact-head provider matrix.
+- [x] Split the mixed CUDA math dispatcher into elementwise, matmul, and
+      reduction leaves without changing the backend method surface.
+- [ ] Record exact-head WGPU, CUDA, ROCm, and Metal CI evidence without making
+      an unmeasured runtime or resident-memory claim.
+
+Owner: Codex on `codex/coeus-cuda-common-activation-parity`; claimed scope:
+`crates/coeus-cuda/src/backend/ops/math.rs`,
+`crates/coeus-cuda/tests/cuda/parity/unfold_fold.rs`,
+`.github/workflows/backend-parity.yml`, `docs/backlog.md`, `CHECKLIST.md`, and
+`docs/gap_audit.md`. The stale pool-wrapper repair additionally claims only
+`crates/coeus-cuda/src/backend/ops/pool.rs`,
+`crates/coeus-cuda/src/fallback/ops/{mod,pool}.rs`, and
+`crates/coeus-wgpu/src/backend/ops/{pool,impls/pool}.rs`, plus the migrated
+WGPU pooling contract tests under
+`crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/pooling.rs`. The live peer owns
+the dirty reduction, backend-error, and lockfile files; they remain outside
+this increment.
+
+Implementation head `a8dcc51c` is complete. The pool repair propagates WGPU
+kernel errors, removes the CUDA 2-D/3-D host fallback module, and returns typed
+CUDA context or launch failures. Hosted exact-head evidence is pending. The
+local locked package check is blocked before compilation because the live
+peer's provider-overlay lockfile requires regeneration.
+
 ## ATLAS-COEUS-SAFETY-003 Uninitialized COW replacement [arch][minor][perf]
 
 - [x] Keep ordinary WGPU, CUDA, and generic Hephaestus storage construction

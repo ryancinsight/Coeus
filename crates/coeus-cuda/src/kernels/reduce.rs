@@ -1,13 +1,15 @@
-use super::fuse::get_or_create_kernel;
+use super::fuse::{get_or_create_kernel, try_get_or_create_kernel};
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
 use crate::kernels::validation::{
     checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda, CUDA_BLOCK_SIZE,
 };
 use crate::storage::CudaStorage;
-use coeus_core::{ComputeBackend, Layout};
+use crate::CudaBackendError;
+use coeus_core::Layout;
 use coeus_ops::fuse::ExprNode;
 use coeus_tensor::Tensor;
+use hephaestus_cuda::ComputeDevice;
 use std::collections::HashMap;
 
 /// Compile and dispatch a dynamically generated CUDA reduction kernel for Sum, Max, and Min.
@@ -160,52 +162,78 @@ pub fn dispatch_fused_reduce<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     axis: usize,
     c: &mut CudaStorage<T>,
     c_layout: &Layout,
-) -> bool {
-    let Some(drv) = CudaDriver::get() else {
-        return false;
-    };
-    let Some(_ctx) = get_cuda_context() else {
-        return false;
-    };
-    let Some(expr_shape) = expr.shape() else {
-        return false;
-    };
+) -> Result<(), CudaBackendError> {
+    const OPERATION: &str = "fused reduction";
+
+    let drv = CudaDriver::get()
+        .ok_or_else(|| CudaBackendError::fusion(OPERATION, "CUDA driver unavailable"))?;
+    get_cuda_context().ok_or_else(|| {
+        CudaBackendError::fusion(OPERATION, "CUDA context is unavailable or cannot be bound")
+    })?;
+    let expr_shape = expr.shape().ok_or_else(|| {
+        CudaBackendError::fusion(
+            OPERATION,
+            "expression has no tensor input from which to derive its shape",
+        )
+    })?;
     let expr_ndim = expr_shape.len();
     if expr_ndim > 8 {
-        return false;
+        return Err(CudaBackendError::fusion(
+            OPERATION,
+            "expression rank exceeds the CUDA layout limit",
+        ));
     }
-    let Some(&axis_len) = expr_shape.get(axis) else {
-        return false;
-    };
-    let Some(axis_value) = cuda_u32(axis) else {
-        return false;
-    };
-    let Some(axis_len_value) = cuda_u32(axis_len) else {
-        return false;
-    };
+    let &axis_len = expr_shape.get(axis).ok_or_else(|| {
+        CudaBackendError::validation(coeus_core::BackendError::AxisOutOfRange {
+            operation: OPERATION,
+            axis,
+            rank: expr_ndim,
+        })
+    })?;
+    let axis_value = cuda_u32(axis)
+        .ok_or_else(|| CudaBackendError::fusion(OPERATION, "axis exceeds the CUDA u32 ABI"))?;
+    let axis_len_value = cuda_u32(axis_len).ok_or_else(|| {
+        CudaBackendError::fusion(OPERATION, "reduction-axis length exceeds the CUDA u32 ABI")
+    })?;
     if !layouts_fit_cuda(&[c_layout]) {
-        return false;
+        return Err(CudaBackendError::fusion(
+            OPERATION,
+            "output layout exceeds the CUDA launch contract",
+        ));
     }
-    let Some(out_numel) = checked_numel(c_layout) else {
-        return false;
-    };
-    let Some(out_numel_value) = cuda_u32(out_numel) else {
-        return false;
-    };
-    let Some(grid_size) = launch_grid_size(out_numel) else {
-        return false;
-    };
-    let Ok(c_layout_gpu) = crate::kernels::GpuLayoutInfo::try_from(c_layout) else {
-        return false;
-    };
+    let out_numel = checked_numel(c_layout).ok_or_else(|| {
+        CudaBackendError::fusion(OPERATION, "output element-count arithmetic overflow")
+    })?;
+    let out_numel_value = cuda_u32(out_numel).ok_or_else(|| {
+        CudaBackendError::fusion(OPERATION, "output count exceeds the CUDA u32 ABI")
+    })?;
+    let grid_size = launch_grid_size(out_numel).ok_or_else(|| {
+        CudaBackendError::fusion(OPERATION, "output element count cannot be dispatched")
+    })?;
+    let c_layout_gpu = crate::kernels::GpuLayoutInfo::try_from(c_layout).map_err(|error| {
+        CudaBackendError::fusion(OPERATION, format!("output layout rejected: {error}"))
+    })?;
     let cuda_type = T::CUDA_TYPE;
 
     // 1. Collect unique input tensors
     let mut input_ptrs = Vec::new();
     expr.collect_inputs(&mut input_ptrs);
     let num_inputs = input_ptrs.len();
+    if input_ptrs.iter().any(|ptr| ptr.is_null()) {
+        return Err(CudaBackendError::fusion(
+            OPERATION,
+            "expression contains a null tensor input",
+        ));
+    }
 
-    let inputs: Vec<&Tensor<T, CudaBackend>> = input_ptrs.iter().map(|&p| unsafe { &*p }).collect();
+    let inputs: Vec<&Tensor<T, CudaBackend>> = input_ptrs
+        .iter()
+        .map(|&p| {
+            // SAFETY: ExprNode input collection returns pointers to the tensors
+            // captured by the expression; null pointers were rejected above.
+            unsafe { &*p }
+        })
+        .collect();
 
     // 2. Build input pointer to index map
     let mut input_map = HashMap::new();
@@ -220,11 +248,14 @@ pub fn dispatch_fused_reduce<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     let mut layouts_gpu = Vec::with_capacity(num_inputs + 1);
     for input in &inputs {
         if !layouts_fit_cuda(&[input.layout()]) {
-            return false;
+            return Err(CudaBackendError::fusion(
+                OPERATION,
+                "input layout exceeds the CUDA launch contract",
+            ));
         }
-        let Ok(layout) = crate::kernels::GpuLayoutInfo::try_from(input.layout()) else {
-            return false;
-        };
+        let layout = crate::kernels::GpuLayoutInfo::try_from(input.layout()).map_err(|error| {
+            CudaBackendError::fusion(OPERATION, format!("input layout rejected: {error}"))
+        })?;
         layouts_gpu.push(layout);
     }
     // We add c_layout as the last one to decode output coordinates
@@ -232,8 +263,11 @@ pub fn dispatch_fused_reduce<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
 
     let slice: &[u32] = bytemuck::cast_slice(&layouts_gpu);
     let size_u32 = slice.len();
-    let mut layout_buf = CudaStorage::<u32>::new(size_u32);
-    CudaBackend::new().copy_to_device(slice, &mut layout_buf);
+    let layout_buf = CudaStorage::<u32>::new(size_u32);
+    let device = crate::backend::get_cuda_device();
+    device
+        .write_buffer(&layout_buf.buffer, slice)
+        .map_err(|source| CudaBackendError::dispatch(OPERATION, source))?;
 
     // 5. Generate C++ CUDA kernel source code
     let mut offset_calcs = String::new();
@@ -329,9 +363,8 @@ extern "C" __global__ void fused_reduce_kernel(
 
     // 6. Get or create kernel module
     let key = format!("fused_reduce_{:?}_{}_{}", op, expr_str, cuda_type);
-    let Some(kernel) = get_or_create_kernel(&key, &cuda_src, "fused_reduce_kernel") else {
-        return false;
-    };
+    let kernel = try_get_or_create_kernel(&key, &cuda_src, "fused_reduce_kernel")
+        .map_err(|reason| CudaBackendError::fusion(OPERATION, reason))?;
 
     // 7. Launch
     let mut out_ptr = c.cu_deviceptr();
@@ -370,6 +403,13 @@ extern "C" __global__ void fused_reduce_kernel(
             args.as_mut_ptr(),
             std::ptr::null_mut(),
         );
-        res == 0
+        if res == 0 {
+            Ok(())
+        } else {
+            Err(CudaBackendError::fusion(
+                OPERATION,
+                format!("cuLaunchKernel returned {res}"),
+            ))
+        }
     }
 }

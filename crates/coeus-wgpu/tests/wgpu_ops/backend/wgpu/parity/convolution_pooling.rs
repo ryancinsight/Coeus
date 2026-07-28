@@ -154,7 +154,8 @@ fn test_wgpu_parity_max_pool2d() {
         1,
         cpu_out.storage_mut(),
         &cpu_out_layout,
-    );
+    )
+    .expect("invariant: validated CPU max_pool2d dispatch must succeed");
 
     let xg = to_gpu(&x);
     let mut gpu_out = Tensor::<f32, WgpuBackend>::zeros_on(vec![2, 2, 2, 2], &w);
@@ -168,7 +169,8 @@ fn test_wgpu_parity_max_pool2d() {
         1,
         gpu_out.storage_mut(),
         &gpu_out_layout,
-    );
+    )
+    .expect("invariant: validated WGPU max_pool2d dispatch must succeed");
 
     assert_parity(
         "max_pool2d",
@@ -195,7 +197,8 @@ fn test_wgpu_parity_avg_pool2d() {
         1,
         cpu_out.storage_mut(),
         &cpu_out_layout,
-    );
+    )
+    .expect("invariant: validated CPU avg_pool2d dispatch must succeed");
 
     let xg = to_gpu(&x);
     let mut gpu_out = Tensor::<f32, WgpuBackend>::zeros_on(vec![2, 2, 2, 2], &w);
@@ -209,7 +212,8 @@ fn test_wgpu_parity_avg_pool2d() {
         1,
         gpu_out.storage_mut(),
         &gpu_out_layout,
-    );
+    )
+    .expect("invariant: validated WGPU avg_pool2d dispatch must succeed");
 
     assert_parity(
         "avg_pool2d",

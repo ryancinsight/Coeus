@@ -4,6 +4,38 @@
 
 ### Changed
 
+- [major] Make CUDA fused elementwise and fused-reduction entry points return
+  typed provider failures instead of silently evaluating through the CPU path
+  after a native dispatch failure. Native fused dispatch preserves direct
+  device metadata transfer and reports validation, compilation, cache, transfer,
+  and launch errors. The feature-disabled CPU-backed CUDA backend remains
+  explicitly CPU-backed; no runtime or memory delta is claimed.
+
+- [major] Make Coeus 1D pooling dispatch return the backend-associated
+  `Result`. CPU remains directly Leto-backed, WGPU rejects invalid rank/layout/
+  parameter/workgroup metadata before native WGSL submission, and CUDA
+  propagates native kernel validation and launch failures. The 2D/3D pooling
+  seam remains unchanged in this increment; no performance or memory delta is
+  claimed without controlled measurements.
+
+- [major] Make Coeus 2D pooling dispatch return the backend-associated `Result`
+  and derive WGPU element/workgroup counts from canonical layouts. CPU remains
+  directly Leto-backed, while WGPU validates its WGSL ABI boundary and CUDA
+  preserves native dispatch plus its existing capability boundary. No runtime
+  performance or memory delta is claimed without controlled measurements.
+
+- [arch] Restore Coeus's first-party provider declarations to Git+version
+  identities for Leto, Hephaestus, Moirai, Mnemosyne, Eunomia, Hermes, Apollo,
+  Themis, and Melinoe. The generated Atlas root overlay remains the sole local
+  checkout substitution, so Coeus resolves directly to provider-owned APIs
+  without requiring sibling worktrees or repository-owned patch tables.
+
+- [major] Make Coeus 3D pooling dispatch return the backend-associated `Result`
+  and apply the same canonical WGPU layout/count validation as 1D and 2D.
+  CPU, WGPU, CUDA, autograd, NN, and CUDA parity callers now consume one typed
+  dispatch contract. No runtime performance or memory delta is claimed without
+  controlled measurements.
+
 - [minor] Route Coeus CUDA `GeluTanh`, `GeluTanhGrad`, `Softplus`, and
   `SoftplusGrad` through the existing Hephaestus marker kernels for contiguous
   and runtime-shaped strided layouts. Add CUDA/Leto forward and gradient

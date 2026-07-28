@@ -1,5 +1,49 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 — Route exact GELU through Hephaestus [minor] — in-progress
+
+- Owner: Codex on `codex/coeus-cuda-common-activation-parity`; scope:
+  `crates/coeus-cuda/src/backend/ops/math.rs`, the CUDA unary parity tests,
+  the backend-parity selector, and owner-local PM evidence.
+- Outcome: route CUDA f32 `Gelu` and `GeluGrad` through the existing
+  Hephaestus exact-erf marker kernels for contiguous and runtime-shaped
+  strided layouts, matching the already-native ROCm and Metal paths.
+- Non-goals: parameterized activations, reduced or vector scalar contracts,
+  pooling, and the peer-owned WGPU fallible-dispatch slice.
+- Acceptance: CUDA contiguous and strided exact GELU forward/gradient paths
+  use the Hephaestus marker seam; CUDA/Leto value-semantic parity tests are
+  selected in CI; exact-head WGPU, CUDA, ROCm, and Metal provider contracts
+  pass; no runtime or resident-memory delta is claimed without a benchmark.
+- Risk/change class: `[minor]` provider-capability routing with additive CI
+  coverage.
+- Status: implementation complete at `a8dcc51c`; final exact-head evidence
+  remains pending.
+- Structural note: the touched CUDA math dispatcher is now vertically split
+  into elementwise, matmul, and reduction leaves under
+  `crates/coeus-cuda/src/backend/ops/math/`; ADR-0040 records the boundary.
+
+## ATLAS-COEUS-DISPATCH-003 — Remove CUDA fused CPU fallback [arch] — complete
+
+- Owner: Codex on `codex/coeus-cuda-common-activation-parity`; scope:
+  `crates/coeus-cuda/src/error.rs`, `crates/coeus-cuda/src/kernels/{fuse,reduce}.rs`,
+  the fused public callers/tests, and synchronized ADR/audit artifacts.
+- Outcome: preserve CUDA provider selection for fused elementwise and fused
+  reduction operations by returning typed provider failures instead of routing
+  failed launches through the CPU evaluator.
+- Non-goals: the feature-disabled CPU-backed `CudaBackend`, provider device
+  initialization/COW failure-boundary migration, and unrelated CUDA operation
+  families.
+- Acceptance: native fused helpers return `Result`; public fused entry points
+  return `Result<Tensor<...>, CudaBackendError>`; no CUDA-feature CPU fallback
+  remains; no host round trip is introduced for layout metadata; callers and
+  value-semantic tests consume the typed result.
+- Risk/change class: `[arch]` public failure-contract migration.
+- Status: implementation complete at `b5491ef8`; rustfmt, metadata, diff
+  hygiene, and residual scans pass. The locked package check, clippy, doctest,
+  and Nextest gates stop before compilation because the peer-owned `Cargo.lock`
+  contains a local overlay change that requires regeneration; the lockfile and
+  peer reduction/error files remain outside this claim.
+
 ## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback [arch]
 
 - Owner: Codex; scope: `coeus-ops` and `coeus-autograd` ConvTranspose3d
@@ -265,9 +309,12 @@
 
 ## ATLAS-WGPU-SAFETY-002 — Establish fallible WGPU layout/dispatch boundary [arch] — in-progress
 
-- Owner: Codex `/coeus`; last-update: 2026-07-25; scope:
+- Owner: Codex `/coeus`; last-update: 2026-07-28; scope:
   `crates/coeus-wgpu/src/kernels/layout.rs`, its 23 consumers, and the `coeus-ops`
   backend-operation return contract.
+- Current claim: shared-tree slice owned by this session; scope is the native
+  WGPU PoolOps 3D forward/backward dispatch and its CPU/WGPU/CUDA callers.
+  Peer reduction/error edits and the dirty lockfile remain outside this claim.
 - Outcome: replace unchecked `usize`→WGSL `u32` layout metadata narrowing and
   input-dependent dispatch panics with one typed validation/error boundary.
 - Acceptance: every WGPU kernel consumes the validated metadata type; failure
@@ -346,6 +393,36 @@
   values requires a separate breaking graph/module migration. Fused reduction
   and default index/cumulative reductions remain outside this increment; no
   compatibility adapter or silent fallback is introduced to mask the residual.
+- Pool1d increment: the `PoolOps` 1D forward/backward methods now return the
+  backend-associated result. CPU preserves direct Leto execution, WGPU
+  validates rank, layout ABI conversion, parameter narrowing, element-count
+  arithmetic, and workgroup bounds before native WGSL submission, and CUDA
+  propagates native kernel validation and launch failures. The 2D/3D pooling
+  families and the infallible autograd/NN public contract remain separate
+  increments. Focused compilation is currently blocked before package
+  compilation by the shared-tree Eunomia lockfile package collision.
+- Pool2d increment: the four 2D `PoolOps` methods now return the
+  backend-associated result across CPU, WGPU, and CUDA. WGPU derives output and
+  gradient counts from canonical layouts, removes stale storage-length/count
+  arguments, and checks rank, layout ABI values, parameter narrowing, checked
+  element counts, and workgroup bounds before native WGSL submission. Direct
+  WGPU/CUDA parity callers and the infallible autograd/NN boundary use explicit
+  invariant diagnostics. The 3D family remains the next separate slice. The
+  same Eunomia lockfile collision still blocks package compilation and tests.
+- Provider graph repair increment: restored Git+version declarations for the
+  first-party Leto, Hephaestus, Moirai, Mnemosyne, Eunomia, Hermes, Apollo,
+  Themis, and Melinoe packages and removed the committed sibling-path patch
+  tables. The generated Atlas root overlay now supplies local provider
+  checkouts without changing Coeus's standalone dependency identity. Locked
+  no-deps metadata passes from this worktree; the dirty lockfile and peer
+  reduction/error edits remain outside this claim.
+- Pool3d increment: all four 3D `PoolOps` methods now return the
+  backend-associated result across CPU, WGPU, and CUDA. WGPU derives output and
+  gradient counts from canonical layouts, validates rank-five layout metadata,
+  parameter narrowing, checked element counts, and workgroup bounds before
+  native WGSL submission. Autograd, NN, and CUDA parity callers use explicit
+  invariant diagnostics. Package compilation remains blocked by the peer-owned
+  dirty lockfile requiring regeneration after the provider graph repair.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

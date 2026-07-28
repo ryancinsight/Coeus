@@ -210,7 +210,8 @@ fn test_cuda_max_pool3d_forward_backward() {
         1,
         out_seq.storage_mut(),
         &out_seq_layout,
-    );
+    )
+    .expect("invariant: validated CPU max_pool3d dispatch must succeed");
 
     cuda_b.max_pool3d(
         input_cuda.storage(),
@@ -221,7 +222,8 @@ fn test_cuda_max_pool3d_forward_backward() {
         1,
         out_cuda.storage_mut(),
         &out_cuda_layout,
-    );
+    )
+    .expect("invariant: validated CUDA max_pool3d dispatch must succeed");
 
     let out_cuda_on_cpu = out_cuda.to_backend_on(&cuda_b, &seq);
 
@@ -253,20 +255,23 @@ fn test_cuda_max_pool3d_forward_backward() {
         1,
         grad_input_seq.storage_mut(),
         &grad_input_seq_layout,
-    );
+    )
+    .expect("invariant: validated CPU max_pool3d backward dispatch must succeed");
 
-    cuda_b.max_pool3d_backward(
-        grad_out_cuda.storage(),
-        &grad_out_cuda_layout,
-        input_cuda.storage(),
-        &input_cuda_layout,
-        2,
-        1,
-        0,
-        1,
-        grad_input_cuda.storage_mut(),
-        &grad_input_cuda_layout,
-    );
+    cuda_b
+        .max_pool3d_backward(
+            grad_out_cuda.storage(),
+            &grad_out_cuda_layout,
+            input_cuda.storage(),
+            &input_cuda_layout,
+            2,
+            1,
+            0,
+            1,
+            grad_input_cuda.storage_mut(),
+            &grad_input_cuda_layout,
+        )
+        .expect("invariant: validated CUDA max_pool3d backward dispatch must succeed");
 
     let grad_input_cuda_on_cpu = grad_input_cuda.to_backend_on(&cuda_b, &seq);
 
@@ -305,18 +310,21 @@ fn test_cuda_avg_pool3d_forward_backward() {
         1,
         out_seq.storage_mut(),
         &out_seq_layout,
-    );
+    )
+    .expect("invariant: validated CPU avg_pool3d dispatch must succeed");
 
-    cuda_b.avg_pool3d(
-        input_cuda.storage(),
-        &input_cuda_layout,
-        2,
-        1,
-        0,
-        1,
-        out_cuda.storage_mut(),
-        &out_cuda_layout,
-    );
+    cuda_b
+        .avg_pool3d(
+            input_cuda.storage(),
+            &input_cuda_layout,
+            2,
+            1,
+            0,
+            1,
+            out_cuda.storage_mut(),
+            &out_cuda_layout,
+        )
+        .expect("invariant: validated CUDA avg_pool3d dispatch must succeed");
 
     let out_cuda_on_cpu = out_cuda.to_backend_on(&cuda_b, &seq);
 
@@ -346,18 +354,21 @@ fn test_cuda_avg_pool3d_forward_backward() {
         1,
         grad_input_seq.storage_mut(),
         &grad_input_seq_layout,
-    );
+    )
+    .expect("invariant: validated CPU avg_pool3d backward dispatch must succeed");
 
-    cuda_b.avg_pool3d_backward(
-        grad_out_cuda.storage(),
-        &grad_out_cuda_layout,
-        2,
-        1,
-        0,
-        1,
-        grad_input_cuda.storage_mut(),
-        &grad_input_cuda_layout,
-    );
+    cuda_b
+        .avg_pool3d_backward(
+            grad_out_cuda.storage(),
+            &grad_out_cuda_layout,
+            2,
+            1,
+            0,
+            1,
+            grad_input_cuda.storage_mut(),
+            &grad_input_cuda_layout,
+        )
+        .expect("invariant: validated CUDA avg_pool3d backward dispatch must succeed");
 
     let grad_input_cuda_on_cpu = grad_input_cuda.to_backend_on(&cuda_b, &seq);
 
