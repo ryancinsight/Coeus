@@ -51,7 +51,8 @@ fn embeddingbag_empty_bag_emits_zeros() {
 fn embeddingbag_sum_backward_accumulates_weight_grads() {
     let bag = seeded_embedding_bag(EmbeddingBagMode::Sum);
     let out = bag.forward_with_offsets(&[0, 1, 1, 2], Some(&[0, 2]));
-    out.backward();
+    out.backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     let grad = bag.weight.grad().expect("weight grad must exist");
     assert_eq!(grad.shape(), &[4, 2]);

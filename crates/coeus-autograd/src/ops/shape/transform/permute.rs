@@ -28,13 +28,18 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Pe
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let permuted_grad = grad_out.permute(&self.inv_dims);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &permuted_grad, &backend);
+            coeus_ops::add_assign(gl, &permuted_grad, &backend)?;
         }
+        Ok(())
     }
 }
 
@@ -161,7 +166,9 @@ mod movedim_tests {
                 }
             }
         }
-        moved.backward();
+        moved
+            .backward()
+            .expect("invariant: valid autograd fixture completes backward");
         assert_eq!(x.grad().unwrap().shape(), &[2, 3, 4]);
     }
 

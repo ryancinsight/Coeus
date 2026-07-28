@@ -44,7 +44,9 @@ fn test_conv3d_comprehensive() {
     assert!((out_slice[0] - 204.5).abs() < 1e-7);
 
     // Backward pass
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients
     // dy/dx_i = w_i
@@ -98,7 +100,9 @@ fn test_max_pool3d_comprehensive() {
     assert_eq!(output.tensor.as_slice(), &[8.0]);
 
     // Backward pass
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients
     // dy/dx should be 1.0 at index 7 (where element is 8.0) and 0.0 elsewhere
@@ -137,7 +141,9 @@ fn test_avg_pool3d_comprehensive() {
     assert_eq!(output.tensor.as_slice(), &[4.5]);
 
     // Backward pass
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients
     // dy/dx_i should be 1/8 = 0.125 for all i
@@ -199,7 +205,9 @@ fn test_batchnorm3d_comprehensive() {
     }
 
     // Backward pass
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients exist on inputs, weight, and bias
     assert!(input.grad().is_some());

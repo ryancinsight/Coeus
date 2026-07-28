@@ -22,7 +22,7 @@ use std::sync::Arc;
 ///
 /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[3.0, 4.0]), true);
 /// let y = coeus_autograd::mul(&x, &x); // y = x * x
-/// y.backward();
+/// y.backward().expect("invariant: valid autograd fixture completes backward");
 /// let grad = x.grad().unwrap();
 /// assert!((grad.as_slice()[0] - 6.0).abs() < 1e-5); // 2 * 3
 /// assert!((grad.as_slice()[1] - 8.0).abs() < 1e-5); // 2 * 4
@@ -57,7 +57,7 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[1.0, 2.0]), true);
     /// let c = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[10.0, 20.0]), false);
     /// let y = coeus_autograd::add(&x, &c);
-    /// y.backward();
+    /// y.backward().expect("invariant: valid autograd fixture completes backward");
     /// assert!(x.grad().is_some()); // tracked leaf: gradient present
     /// assert!(c.grad().is_none()); // constant leaf: no gradient state
     /// ```
@@ -111,7 +111,7 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// let one = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0; 3]), false);
     /// let y = coeus_autograd::add(&x, &one);
     /// let loss = coeus_autograd::sum(&y);
-    /// loss.backward();
+    /// loss.backward().expect("invariant: valid autograd fixture completes backward");
     /// let grad = x.grad().unwrap();
     /// assert!((grad.as_slice()[0] - 1.0).abs() < 1e-5);
     /// assert!((grad.as_slice()[1] - 1.0).abs() < 1e-5);
@@ -149,7 +149,7 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[2.0, 3.0]), true);
     /// let y = coeus_autograd::sum(&x);
     ///
-    /// y.backward();
+    /// y.backward().expect("invariant: valid autograd fixture completes backward");
     /// let g1 = x.grad().unwrap();
     /// assert!((g1.as_slice()[0] - 1.0).abs() < 1e-5);
     ///
@@ -181,15 +181,20 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[3.0, 4.0]), true);
     /// let y = coeus_autograd::mul(&x, &x);
     /// let loss = coeus_autograd::sum(&y); // scalar: y_0 + y_1
-    /// loss.backward();
+    /// loss.backward().expect("invariant: valid autograd fixture completes backward");
     /// let grad = x.grad().unwrap();
     /// assert!((grad.as_slice()[0] - 6.0).abs() < 1e-5); // 2 * 3
     /// assert!((grad.as_slice()[1] - 8.0).abs() < 1e-5); // 2 * 4
     /// ```
     #[inline]
-    pub fn backward(&self) {
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when gradient computation or accumulation
+    /// cannot complete.
+    pub fn backward(&self) -> Result<(), B::Error> {
         let seed = Tensor::ones_on(self.tensor.shape(), &B::default());
-        self.backward_with_seed(seed);
+        self.backward_with_seed(seed)
     }
 
     /// Run reverse-mode autodiff from this variable, seeding with the given gradient.
@@ -198,10 +203,15 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// This enables testing with non-uniform upstream gradients (e.g. for softmax,
     /// where a uniform seed produces zero input gradient due to Jacobian row-sums).
     ///
+    /// # Errors
+    ///
+    /// Returns the backend error when gradient computation or accumulation
+    /// cannot complete.
+    ///
     /// # Panics
     /// If `seed.shape()` does not match `self.tensor.shape()`.
     #[inline]
-    pub fn backward_with_seed(&self, seed: Tensor<T, B>) {
+    pub fn backward_with_seed(&self, seed: Tensor<T, B>) -> Result<(), B::Error> {
         assert_eq!(
             seed.shape(),
             self.tensor.shape(),
@@ -246,7 +256,66 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
             let out_grad = node.output_grad().read().clone();
             let input_grads: Vec<Option<Arc<GradBuffer<T, B>>>> =
                 node.inputs().iter().map(|v| v.grad.clone()).collect();
-            node.backward(&out_grad, &input_grads);
+            node.backward(&out_grad, &input_grads)?;
         }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Var;
+    use crate::{BackwardNode, GradBuffer};
+    use coeus_core::{BackendError, MoiraiBackend};
+    use coeus_tensor::Tensor;
+    use std::sync::Arc;
+
+    struct FailingNode {
+        output_grad: Arc<GradBuffer<f32, MoiraiBackend>>,
+        inputs: Vec<Var<f32, MoiraiBackend>>,
+    }
+
+    impl BackwardNode<f32, MoiraiBackend> for FailingNode {
+        fn op_name(&self) -> &'static str {
+            "failing_test_node"
+        }
+
+        fn output_grad(&self) -> &Arc<GradBuffer<f32, MoiraiBackend>> {
+            &self.output_grad
+        }
+
+        fn inputs(&self) -> &[Var<f32, MoiraiBackend>] {
+            &self.inputs
+        }
+
+        fn backward(
+            &self,
+            _grad_out: &Tensor<f32, MoiraiBackend>,
+            _input_grads: &[Option<Arc<GradBuffer<f32, MoiraiBackend>>>],
+        ) -> Result<(), BackendError> {
+            Err(BackendError::Storage {
+                operation: "failing_test_node",
+                reason: "injected gradient accumulation failure".to_owned(),
+            })
+        }
+    }
+
+    #[test]
+    fn backward_returns_the_exact_node_error() {
+        let tensor = Tensor::from_slice([1], &[1.0]);
+        let output_grad = Arc::new(GradBuffer::new(Tensor::zeros([1])));
+        let node = Arc::new(FailingNode {
+            output_grad: Arc::clone(&output_grad),
+            inputs: Vec::new(),
+        });
+        let output = Var::with_creator(tensor, Some(output_grad), node);
+
+        assert_eq!(
+            output.backward(),
+            Err(BackendError::Storage {
+                operation: "failing_test_node",
+                reason: "injected gradient accumulation failure".to_owned(),
+            })
+        );
     }
 }

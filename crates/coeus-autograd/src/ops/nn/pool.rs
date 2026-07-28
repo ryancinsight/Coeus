@@ -24,7 +24,7 @@ fn dispatch_max_pool_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, c
     request: PoolBackwardInputs<'_, T, B>,
     input_storage: &B::DeviceBuffer<T>,
     input_layout: &coeus_core::Layout,
-) {
+) -> Result<(), B::Error> {
     let PoolBackwardInputs {
         backend,
         grad_out_storage,
@@ -38,56 +38,51 @@ fn dispatch_max_pool_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, c
     } = request;
 
     match DIM {
-        1 => backend
-            .max_pool1d_backward(
-                grad_out_storage,
-                grad_out_layout,
-                input_storage,
-                input_layout,
-                kernel_size,
-                stride,
-                padding,
-                dilation,
-                grad_input,
-                grad_input_layout,
-            )
-            .expect("invariant: validated max_pool1d backward dispatch must succeed"),
-        2 => backend
-            .max_pool2d_backward(
-                grad_out_storage,
-                grad_out_layout,
-                input_storage,
-                input_layout,
-                kernel_size,
-                stride,
-                padding,
-                dilation,
-                grad_input,
-                grad_input_layout,
-            )
-            .expect("invariant: validated max_pool2d backward dispatch must succeed"),
-        3 => backend
-            .max_pool3d_backward(
-                grad_out_storage,
-                grad_out_layout,
-                input_storage,
-                input_layout,
-                kernel_size,
-                stride,
-                padding,
-                dilation,
-                grad_input,
-                grad_input_layout,
-            )
-            .expect("invariant: validated max_pool3d backward dispatch must succeed"),
+        1 => backend.max_pool1d_backward(
+            grad_out_storage,
+            grad_out_layout,
+            input_storage,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        ),
+        2 => backend.max_pool2d_backward(
+            grad_out_storage,
+            grad_out_layout,
+            input_storage,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        ),
+        3 => backend.max_pool3d_backward(
+            grad_out_storage,
+            grad_out_layout,
+            input_storage,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        ),
         _ => panic!("max_pool_backward: unsupported dimension {DIM}"),
-    }
+    }?;
+    Ok(())
 }
 
 #[inline]
 fn dispatch_avg_pool_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize>(
     request: PoolBackwardInputs<'_, T, B>,
-) {
+) -> Result<(), B::Error> {
     let PoolBackwardInputs {
         backend,
         grad_out_storage,
@@ -101,44 +96,39 @@ fn dispatch_avg_pool_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, c
     } = request;
 
     match DIM {
-        1 => backend
-            .avg_pool1d_backward(
-                grad_out_storage,
-                grad_out_layout,
-                kernel_size,
-                stride,
-                padding,
-                dilation,
-                grad_input,
-                grad_input_layout,
-            )
-            .expect("invariant: validated avg_pool1d backward dispatch must succeed"),
-        2 => backend
-            .avg_pool2d_backward(
-                grad_out_storage,
-                grad_out_layout,
-                kernel_size,
-                stride,
-                padding,
-                dilation,
-                grad_input,
-                grad_input_layout,
-            )
-            .expect("invariant: validated avg_pool2d backward dispatch must succeed"),
-        3 => backend
-            .avg_pool3d_backward(
-                grad_out_storage,
-                grad_out_layout,
-                kernel_size,
-                stride,
-                padding,
-                dilation,
-                grad_input,
-                grad_input_layout,
-            )
-            .expect("invariant: validated avg_pool3d backward dispatch must succeed"),
+        1 => backend.avg_pool1d_backward(
+            grad_out_storage,
+            grad_out_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        ),
+        2 => backend.avg_pool2d_backward(
+            grad_out_storage,
+            grad_out_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        ),
+        3 => backend.avg_pool3d_backward(
+            grad_out_storage,
+            grad_out_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        ),
         _ => panic!("avg_pool_backward: unsupported dimension {DIM}"),
-    }
+    }?;
+    Ok(())
 }
 
 // ── Max Pool ──
@@ -185,7 +175,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g_in)) = input_grads.get(0) {
             let mut grad_input = Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend);
@@ -204,10 +198,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
                 },
                 self.inp_clone.storage(),
                 self.inp_clone.layout(),
-            );
+            )?;
             let gl = g_in.write();
-            coeus_ops::add_assign(gl, &grad_input, &backend);
+            coeus_ops::add_assign(gl, &grad_input, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -336,7 +332,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g_in)) = input_grads.get(0) {
             let mut grad_input = Tensor::zeros_on(self.inp_shape.clone(), &backend);
@@ -351,10 +351,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
                 dilation: self.dilation,
                 grad_input: gi_storage,
                 grad_input_layout: gi_layout,
-            });
+            })?;
             let gl = g_in.write();
-            coeus_ops::add_assign(gl, &grad_input, &backend);
+            coeus_ops::add_assign(gl, &grad_input, &backend)?;
         }
+
+        Ok(())
     }
 }
 

@@ -72,7 +72,8 @@ mod tests {
         assert_eq!(diff(&x, 0, 0).tensor.as_slice(), x.tensor.as_slice());
 
         // Gradient of sum(diff): dx = [-1, 0, 0, 1] (telescoping cancellation).
-        d1.backward();
+        d1.backward()
+            .expect("invariant: valid autograd fixture completes backward");
         assert_eq!(x.grad().unwrap().as_slice(), &[-1.0, 0.0, 0.0, 1.0]);
     }
 

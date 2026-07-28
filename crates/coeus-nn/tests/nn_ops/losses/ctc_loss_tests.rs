@@ -107,7 +107,8 @@ fn ctc_loss_backward_runs() {
     let logits = t3(&[1.0, 2.0, 0.5, 0.8, 1.5, 0.3], [2, 1, 3]);
     let log_probs = log_softmax(&logits, 2);
     let loss = ctc_loss(&log_probs, &[1usize], &[2], &[1], 0);
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(
         logits.grad().is_some(),
         "gradient must propagate through ctc_loss"

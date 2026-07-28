@@ -45,21 +45,31 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<f32, B>, input_grads: &[Option<Arc<GradBuffer<f32, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<f32, B>,
+        input_grads: &[Option<Arc<GradBuffer<f32, B>>>],
+    ) -> Result<(), B::Error> {
         let updates = linear_interpolation_backward::<D, _, P>(
             &self.image,
             &self.grid,
             grad_out,
             P::default(),
         )
-        .expect("invariant: forward validation fixes backward shapes");
+        .map_err(|error| {
+            B::Error::from(coeus_core::BackendError::Storage {
+                operation: "linear_interpolation_backward",
+                reason: error.to_string(),
+            })
+        })?;
         let backend = B::default();
         if let Some(Some(gradient)) = input_grads.first() {
-            coeus_ops::add_assign(gradient.write(), &updates.image, &backend);
+            coeus_ops::add_assign(gradient.write(), &updates.image, &backend)?;
         }
         if let Some(Some(gradient)) = input_grads.get(1) {
-            coeus_ops::add_assign(gradient.write(), &updates.grid, &backend);
+            coeus_ops::add_assign(gradient.write(), &updates.grid, &backend)?;
         }
+        Ok(())
     }
 }
 
@@ -454,15 +464,20 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<f32, B>, input_grads: &[Option<Arc<GradBuffer<f32, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<f32, B>,
+        input_grads: &[Option<Arc<GradBuffer<f32, B>>>],
+    ) -> Result<(), B::Error> {
         let (input_grad, grid_grad) = grid_sample_3d_backward(&self.input, &self.grid, grad_out);
         let backend = B::default();
         if let Some(Some(gradient)) = input_grads.first() {
-            coeus_ops::add_assign(gradient.write(), &input_grad, &backend);
+            coeus_ops::add_assign(gradient.write(), &input_grad, &backend)?;
         }
         if let Some(Some(gradient)) = input_grads.get(1) {
-            coeus_ops::add_assign(gradient.write(), &grid_grad, &backend);
+            coeus_ops::add_assign(gradient.write(), &grid_grad, &backend)?;
         }
+        Ok(())
     }
 }
 

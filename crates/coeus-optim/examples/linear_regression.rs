@@ -66,7 +66,8 @@ fn main() {
         let pred = add(&matmul(&x, &opt.params[0]), &opt.params[1]);
         let diff = sub(&pred, &y);
         let loss = mean(&mul(&diff, &diff)); // MSE
-        loss.backward();
+        loss.backward()
+            .expect("invariant: valid autograd fixture completes backward");
         opt.step();
 
         last_loss = loss.tensor.as_slice()[0];

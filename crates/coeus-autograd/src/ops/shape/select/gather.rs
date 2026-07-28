@@ -43,15 +43,20 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         // Gradient flows through `input` only (index is non-differentiable).
         if let Some(Some(ref g)) = input_grads.first() {
             // d_input = scatter_add(zeros_like(input), dim, index, grad_out)
             let zeros = Tensor::zeros_on(self.input_shape.clone(), &backend);
             let d_input = coeus_ops::scatter_add(&zeros, self.dim, &self.index, grad_out, &backend);
-            coeus_ops::add_assign(g.write(), &d_input, &backend);
+            coeus_ops::add_assign(g.write(), &d_input, &backend)?;
         }
+        Ok(())
     }
 }
 

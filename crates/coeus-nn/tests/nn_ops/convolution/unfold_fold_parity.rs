@@ -168,7 +168,9 @@ fn unfold1d_backward_accumulates_window_overlap() {
         Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 5], &data),
         true,
     );
-    m.forward(&x).backward();
+    m.forward(&x)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = x.grad().expect("unfold1d input gradient");
     assert_eq!(grad.as_slice(), &[1.0, 2.0, 3.0, 2.0, 1.0]);
     assert!(
@@ -187,7 +189,9 @@ fn unfold2d_backward_accumulates_window_overlap() {
         Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 3, 3], &data),
         true,
     );
-    m.forward(&x).backward();
+    m.forward(&x)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = x.grad().expect("unfold2d input gradient");
     assert_eq!(
         grad.as_slice(),
@@ -208,7 +212,8 @@ fn fold1d_backward_is_im2col_of_ones() {
     );
     let y = m.forward(&x);
     assert_eq!(y.tensor.shape(), &[1, 1, 6]);
-    y.backward();
+    y.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         x.grad().expect("fold1d input gradient").as_slice(),
         &[1.0; 6]
@@ -225,7 +230,8 @@ fn fold2d_backward_is_im2col_of_ones() {
     );
     let y = m.forward(&x);
     assert_eq!(y.tensor.shape(), &[1, 1, 4, 4]);
-    y.backward();
+    y.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         x.grad().expect("fold2d input gradient").as_slice(),
         &[1.0; 16]

@@ -127,7 +127,9 @@ fn input_gradient_matches_central_difference() {
     );
     let grid = Var::new(Tensor::from_slice_on(GRID_SHAPE, &GRID, &backend), true);
     let out = grid_sample_3d(&input, &grid);
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let analytic = input.grad().expect("tracked input gradient");
     let analytic = analytic.as_slice();
 
@@ -156,7 +158,9 @@ fn grid_gradient_matches_central_difference() {
     );
     let grid = Var::new(Tensor::from_slice_on(GRID_SHAPE, &GRID, &backend), true);
     let out = grid_sample_3d(&input, &grid);
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let analytic = grid.grad().expect("tracked grid gradient");
     let analytic = analytic.as_slice();
 

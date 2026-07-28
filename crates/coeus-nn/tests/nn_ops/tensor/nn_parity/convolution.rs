@@ -40,7 +40,9 @@ fn test_conv1d_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_conv1d_out, 1e-4);
 
     // Coeus backward
-    out_coeus.backward();
+    out_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients
     let dx_coeus = x_coeus.grad().unwrap();
@@ -123,7 +125,9 @@ fn test_conv2d_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_conv2d_out, 1e-4);
 
     // Coeus backward
-    out_coeus.backward();
+    out_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients
     let dx_coeus = x_coeus.grad().unwrap();
@@ -199,7 +203,9 @@ fn test_conv3d_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_conv3d_out, 1e-4);
 
     // Coeus backward
-    out_coeus.backward();
+    out_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients
     let dx_coeus = x_coeus.grad().unwrap();

@@ -28,7 +28,9 @@ fn test_linear_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_linear_out, 1e-4);
 
     // Coeus backward
-    out_coeus.backward();
+    out_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients
     let dx_coeus = x_coeus.grad().unwrap();
@@ -89,7 +91,9 @@ fn test_layernorm_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_layernorm_out, 1e-3);
 
     // Coeus backward
-    out_coeus.backward();
+    out_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients
     let dx_coeus = x_coeus.grad().unwrap();

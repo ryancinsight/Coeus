@@ -127,7 +127,8 @@ mod tests {
 
         // Sum-reduce to scalar loss and backprop
         let loss = coeus_autograd::sum(&out);
-        loss.backward();
+        loss.backward()
+            .expect("invariant: valid autograd fixture completes backward");
 
         // All three inputs must have non-None gradients
         for (label, var) in [("q", &q), ("k", &k), ("v", &v)] {
@@ -185,7 +186,8 @@ mod tests {
 
         let out = mha.forward(&x_var);
         let loss = coeus_autograd::sum(&out);
-        loss.backward();
+        loss.backward()
+            .expect("invariant: valid autograd fixture completes backward");
 
         let params = mha.parameters();
         assert!(!params.is_empty(), "MHA must have parameters");
@@ -343,7 +345,8 @@ mod tests {
 
         let out = layer.forward(&x_var);
         let loss = coeus_autograd::sum(&out);
-        loss.backward();
+        loss.backward()
+            .expect("invariant: valid autograd fixture completes backward");
 
         let params = layer.parameters();
         for (i, p) in params.iter().enumerate() {
@@ -380,7 +383,8 @@ mod tests {
         );
 
         let loss = coeus_autograd::sum(&out);
-        loss.backward();
+        loss.backward()
+            .expect("invariant: valid autograd fixture completes backward");
 
         let params = layer.parameters();
         for (i, p) in params.iter().enumerate() {
@@ -469,7 +473,8 @@ mod tests {
         println!("aw_data: {:?}", aw_data);
 
         let loss = coeus_autograd::sum(&out);
-        loss.backward();
+        loss.backward()
+            .expect("invariant: valid autograd fixture completes backward");
 
         let k_grad = k_var.grad.as_ref().unwrap().read();
         let k_grad_slice = k_grad.storage().try_as_slice().unwrap();

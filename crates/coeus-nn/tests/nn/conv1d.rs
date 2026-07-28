@@ -78,7 +78,9 @@ fn test_conv1d_backward_gradients_match_reference() {
     );
 
     let output = conv.forward(&input);
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     let input_grad = input.grad().expect("input gradient must be set");
     assert_eq!(input_grad.shape(), &[1, 1, 4]);
@@ -169,7 +171,9 @@ fn test_non_contiguous_cross_entropy() {
     let loss_ce_cont = cross_entropy_loss(&logits_cont, &targets);
     assert!((loss_ce.tensor.as_slice()[0] - loss_ce_cont.tensor.as_slice()[0]).abs() < 1e-7);
 
-    loss_ce.backward();
+    loss_ce
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(logits.grad().is_some());
 }
 
@@ -203,11 +207,15 @@ fn test_sliced_offset_cross_entropy() {
     let loss_ce_cont = cross_entropy_loss(&logits_cont, &targets);
     assert!((loss_ce.tensor.as_slice()[0] - loss_ce_cont.tensor.as_slice()[0]).abs() < 1e-7);
 
-    loss_ce.backward();
+    loss_ce
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(logits.grad().is_some());
     let grad = logits.grad().unwrap();
 
-    loss_ce_cont.backward();
+    loss_ce_cont
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad_cont = logits_cont.grad().unwrap();
     assert_eq!(grad.shape(), &[2, 3]);
     for i in 0..6 {

@@ -26,7 +26,9 @@ fn test_prelu_scalar_weight_forward_and_backward() {
         &[-0.5, -0.25, 0.0, 0.5, 1.0],
         "fwd prelu"
     );
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     // dx = w at x<=0 (INCLUDING the kink x=0), 1 at x>0.
     assert_eq!(
         x.grad().unwrap().as_slice(),
@@ -67,7 +69,9 @@ fn test_prelu_per_channel_weight_broadcasts_on_channel_axis() {
         &[-0.1, -0.2, -2.7, -3.6],
         "channel 0 scaled by 0.1, channel 1 by 0.9"
     );
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     // dw[0] = sum over channel 0's elements (both negative): -1 + -2 = -3.
     // dw[1] = sum over channel 1's elements: -3 + -4 = -7.
     assert_eq!(
@@ -100,7 +104,9 @@ fn test_prelu_scalar_weight_broadcasts_over_rank4_input() {
         &[-0.5, -1.0, 3.0, -2.0],
         "scalar weight fwd"
     );
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     // dw = sum of x over x<=0 elements: -1 + -2 + -4 = -7.
     assert_eq!(
         w.grad().unwrap().as_slice(),

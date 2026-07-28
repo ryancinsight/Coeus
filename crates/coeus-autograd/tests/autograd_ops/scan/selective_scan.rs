@@ -68,7 +68,9 @@ fn a_bar_gradient_matches_central_difference() {
     let a_bar = Var::new(Tensor::from_slice_on(SHAPE, &A_DATA, &backend), true);
     let u = Var::new(Tensor::from_slice_on(SHAPE, &U_DATA, &backend), true);
     let h = selective_scan(&a_bar, &u);
-    sum(&h).backward();
+    sum(&h)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let analytic = a_bar.grad().expect("tracked a_bar gradient");
     let analytic = analytic.as_slice();
 
@@ -93,7 +95,9 @@ fn u_gradient_matches_central_difference() {
     let a_bar = Var::new(Tensor::from_slice_on(SHAPE, &A_DATA, &backend), true);
     let u = Var::new(Tensor::from_slice_on(SHAPE, &U_DATA, &backend), true);
     let h = selective_scan(&a_bar, &u);
-    sum(&h).backward();
+    sum(&h)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let analytic = u.grad().expect("tracked u gradient");
     let analytic = analytic.as_slice();
 

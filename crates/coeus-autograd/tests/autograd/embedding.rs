@@ -22,7 +22,8 @@ fn test_embedding_autograd() {
 
     let grad_out_data = vec![1.0f32, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0];
     let grad_out = Tensor::from_slice_on(vec![2, 2, 2], &grad_out_data, &backend);
-    y.backward_with_seed(grad_out);
+    y.backward_with_seed(grad_out)
+        .expect("invariant: valid autograd fixture completes backward");
 
     let gw = weight.grad().unwrap();
     let gw_slice = gw.as_slice();

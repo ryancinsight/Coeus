@@ -27,7 +27,8 @@ fn test_scatter_add_backward_src_and_input() {
         &[0.0, 2.0, 0.0, 3.0, 1.0],
         "fwd scatter_add"
     );
-    out.backward();
+    out.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         input.grad().unwrap().as_slice(),
         &[1.0, 1.0, 1.0, 1.0, 1.0],
@@ -57,7 +58,8 @@ fn test_scatter_add_backward_duplicate_indices() {
     let out = scatter_add(&input, 0, &idx, &src);
     // out[1] = 20 + 1 + 2 = 23, out[2] = 30 + 3 = 33.
     assert_eq!(out.tensor.as_slice(), &[10.0, 23.0, 33.0, 40.0], "fwd dup");
-    out.backward();
+    out.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         input.grad().unwrap().as_slice(),
         &[1.0, 1.0, 1.0, 1.0],

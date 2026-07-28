@@ -150,7 +150,9 @@ fn lrn_backward_matches_numerical_gradient() {
         Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
         true,
     );
-    lrn.forward(&x).backward();
+    lrn.forward(&x)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let analytic: Vec<f64> = x.grad().expect("lrn input gradient").as_slice().to_vec();
 
     // Numerical: central differences of sum(LRN(x)). f64, h=1e-6 ⇒ error ~1e-10;

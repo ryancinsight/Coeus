@@ -26,7 +26,9 @@ fn test_sparse_matmul_backward() {
     // Seed output gradient
     let grad_out_data = vec![1.0f32, -1.0, 2.0, -2.0, 3.0, -3.0];
     let grad_out = Tensor::from_slice_on(vec![3, 2], &grad_out_data, &backend);
-    c_dense_var.backward_with_seed(grad_out.clone());
+    c_dense_var
+        .backward_with_seed(grad_out.clone())
+        .expect("invariant: valid autograd fixture completes backward");
 
     let expected_grad_a = a_var.grad().unwrap();
     let expected_grad_b = b_var.grad().unwrap();
@@ -53,7 +55,9 @@ fn test_sparse_matmul_backward() {
         c_dense_var.tensor.as_slice()
     );
 
-    c_sparse_var.backward_with_seed(grad_out);
+    c_sparse_var
+        .backward_with_seed(grad_out)
+        .expect("invariant: valid autograd fixture completes backward");
 
     let grad_a_vals = a_values_var.grad().unwrap();
     let grad_b_sparse = b_var_sparse.grad().unwrap();
@@ -117,7 +121,9 @@ fn test_sparse_coo_matmul_backward() {
     // Seed output gradient
     let grad_out_data = vec![1.0f32, -1.0, 2.0, -2.0, 3.0, -3.0];
     let grad_out = Tensor::from_slice_on(vec![3, 2], &grad_out_data, &backend);
-    c_dense_var.backward_with_seed(grad_out.clone());
+    c_dense_var
+        .backward_with_seed(grad_out.clone())
+        .expect("invariant: valid autograd fixture completes backward");
 
     let expected_grad_a = a_var.grad().unwrap();
     let expected_grad_b = b_var.grad().unwrap();
@@ -139,7 +145,9 @@ fn test_sparse_coo_matmul_backward() {
         c_dense_var.tensor.as_slice()
     );
 
-    c_sparse_var.backward_with_seed(grad_out);
+    c_sparse_var
+        .backward_with_seed(grad_out)
+        .expect("invariant: valid autograd fixture completes backward");
 
     let grad_a_vals = a_values_var.grad().unwrap();
     let grad_b_sparse = b_var_sparse.grad().unwrap();

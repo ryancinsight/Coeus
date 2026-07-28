@@ -1,5 +1,24 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-AUTOGRAD-SAFETY-018 — Propagate backward failures [major] [arch] — in progress
+
+- Owner: Codex; scope: `coeus-autograd` graph traversal, every
+  `BackwardNode` implementation, and in-repository callers.
+- Outcome: return the backend's typed error from every failed gradient
+  computation or accumulation without partial-success reporting.
+- Non-goals: gradient formula changes, backend fallback, boxed error erasure,
+  compatibility wrappers, or performance claims.
+- Acceptance: warning-denied all-target Clippy reports no ignored `Result`;
+  a failure-injecting backend regression observes the exact error; existing
+  value-semantic gradients and doctests pass.
+- Risk/change class: `[major] [arch]`; `backward` and `backward_with_seed`
+  change from infallible public methods to typed `Result`.
+- Status: implementation and in-repository caller migration complete. Local
+  warning-denied `coeus-autograd` Clippy passes; Nextest passes 102
+  autograd/FFT and 268 NN tests; 24 executable doctests pass. SemVer checks
+  against `origin/main` classify the public trait-return changes as major.
+  Hosted provider CI remains pending.
+
 ## ATLAS-CUDA-SAFETY-017 — Bound pooling physical indices [patch] [arch] — complete
 
 - Owner: Codex; scope: shared CUDA layout/storage validation and the canonical

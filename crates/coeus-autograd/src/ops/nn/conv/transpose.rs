@@ -45,14 +45,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let needs_grad_input = input_grads.get(0).and_then(|g| g.as_ref()).is_some();
         let needs_grad_weight = input_grads.get(1).and_then(|g| g.as_ref()).is_some();
         let needs_grad_bias =
             self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some();
 
         if !needs_grad_input && !needs_grad_weight && !needs_grad_bias {
-            return;
+            return Ok(());
         }
 
         let backend = B::default();
@@ -157,6 +161,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                 &backend,
             );
         }
+
+        Ok(())
     }
 }
 
@@ -275,14 +281,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let needs_grad_input = input_grads.get(0).and_then(|g| g.as_ref()).is_some();
         let needs_grad_weight = input_grads.get(1).and_then(|g| g.as_ref()).is_some();
         let needs_grad_bias =
             self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some();
 
         if !needs_grad_input && !needs_grad_weight && !needs_grad_bias {
-            return;
+            return Ok(());
         }
 
         let backend = B::default();
@@ -393,6 +403,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
             }
             scatter_accumulate_into(input_grads[2].as_ref().unwrap().write(), &gb, &backend);
         }
+
+        Ok(())
     }
 }
 
@@ -516,14 +528,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::CpuBackend + Default> Ba
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let needs_grad_input = input_grads.get(0).and_then(|g| g.as_ref()).is_some();
         let needs_grad_weight = input_grads.get(1).and_then(|g| g.as_ref()).is_some();
         let needs_grad_bias =
             self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some();
 
         if !needs_grad_input && !needs_grad_weight && !needs_grad_bias {
-            return;
+            return Ok(());
         }
 
         let backend = B::default();
@@ -668,6 +684,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::CpuBackend + Default> Ba
             }
             scatter_accumulate_into(input_grads[2].as_ref().unwrap().write(), &gb, &backend);
         }
+
+        Ok(())
     }
 }
 

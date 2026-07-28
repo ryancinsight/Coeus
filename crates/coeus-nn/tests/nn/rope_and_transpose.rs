@@ -21,7 +21,9 @@ fn test_rope_backward() {
         true,
     );
     let output = rope.forward(&input);
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     let g = input.grad().unwrap();
     assert_eq!(g.shape(), &[1, 2, 1, 4]);
@@ -81,7 +83,8 @@ fn test_general_transpose_autograd() {
     assert_eq!(transposed.tensor.shape(), &[4, 3, 2]);
 
     let sum = coeus_autograd::sum(&transposed);
-    sum.backward();
+    sum.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     let g = input.grad().unwrap();
     assert_eq!(g.shape(), &[2, 3, 4]);

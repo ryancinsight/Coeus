@@ -83,7 +83,8 @@ fn fft_1d_var_accumulates_input_gradient_from_complex_seed() {
             Complex::new(0.0, -1.0),
         ],
     );
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = x.grad().unwrap();
     let expected = [1.5, -1.5, 1.5, 2.5];
     for (index, (&actual, &want)) in grad.as_slice().iter().zip(expected.iter()).enumerate() {
@@ -150,7 +151,8 @@ fn fft_energy_gradient_matches_parseval_oracle() {
     let expected_energy = data.iter().map(|v| v * v).sum::<f64>() * data.len() as f64;
     assert_close(loss.tensor.as_slice()[0], expected_energy, "fft_energy");
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = x.grad().unwrap();
     for (index, (&actual, &value)) in grad.as_slice().iter().zip(data.iter()).enumerate() {
         let expected = 2.0 * data.len() as f64 * value;

@@ -41,7 +41,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         // Split the stacked output-gradient back into `n` slices along `dim`,
         // each of size 1; then squeeze `dim` to recover the original rank.
@@ -53,8 +57,9 @@ where
             // Remove the stacked dimension to match the input rank
             let squeezed = chunk.squeeze(self.dim);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &squeezed, &backend);
+            coeus_ops::add_assign(lock, &squeezed, &backend)?;
         }
+        Ok(())
     }
 }
 

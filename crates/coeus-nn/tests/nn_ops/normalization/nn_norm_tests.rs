@@ -45,7 +45,9 @@ fn test_layernorm() {
     }
 
     // Test backward pass
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     assert!(ln.weight.grad().is_some());
     assert!(ln.bias.grad().is_some());
@@ -74,7 +76,9 @@ fn test_rmsnorm() {
         );
     }
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     assert!(rms.weight.grad().is_some());
 }
@@ -102,7 +106,9 @@ fn test_dropout() {
     assert_eq!(zero_count + scale_count, 100);
 
     // Backward pass should propagate through non-zeroed masks
-    out_train.backward();
+    out_train
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
 }
 
@@ -132,7 +138,9 @@ fn test_batchnorm1d_backward_gradients_exist() {
     );
 
     let output = bn.forward(&input);
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert!(input.grad().is_some());
     assert!(bn.weight.grad().is_some());
@@ -180,7 +188,9 @@ fn test_batchnorm2d_backward_gradients_exist() {
     );
 
     let output = bn.forward(&input);
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert!(input.grad().is_some());
     assert!(bn.weight.grad().is_some());
@@ -227,7 +237,9 @@ fn test_batchnorm2d_multi_channel_forward() {
     let ch1_mean: f64 = out_slice[4..8].iter().sum::<f64>() / 4.0;
     assert!(ch1_mean.abs() < 1e-5);
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
 }
 
@@ -259,7 +271,9 @@ fn test_softmax_backward_uniform_seed() {
     let input: Var<f64> = Var::new(Tensor::from_slice(vec![1, 3], &[1.0, 2.0, 3.0]), true);
     let output = softmax(&input, -1);
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
 
     let g = input.grad().unwrap();
@@ -275,7 +289,9 @@ fn test_softmax_backward_nonuniform_seed() {
     let output = softmax(&input, -1);
 
     let seed = Tensor::from_slice(vec![1, 3], &[1.0, 0.0, 0.0]);
-    output.backward_with_seed(seed);
+    output
+        .backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
 
     let g = input.grad().unwrap();
     assert_eq!(g.shape(), &[1, 3]);
@@ -363,7 +379,9 @@ fn test_layernorm_various_shapes() {
             assert!(mean.abs() < 1e-5);
         }
 
-        output.backward();
+        output
+            .backward()
+            .expect("invariant: valid autograd fixture completes backward");
         assert!(input.grad().is_some());
         assert!(ln.weight.grad().is_some());
         assert!(ln.bias.grad().is_some());
@@ -385,7 +403,9 @@ fn test_layernorm_single_element() {
     assert!((s[0] - 1.0).abs() < 1e-3);
     assert!((s[1] - 1.0).abs() < 1e-3);
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
 }
 
@@ -400,7 +420,9 @@ fn test_avg_pool2d_forward_backward() {
     let out_slice = output.tensor.as_slice();
     assert_eq!(out_slice, &[3.5, 5.5, 11.5, 13.5]);
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().unwrap();
     assert_eq!(grad.shape(), &[1, 1, 4, 4]);
     for &val in grad.as_slice() {
@@ -419,7 +441,9 @@ fn test_max_pool2d_forward_backward() {
     let out_slice = output.tensor.as_slice();
     assert_eq!(out_slice, &[6.0, 8.0, 14.0, 16.0]);
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().unwrap();
     assert_eq!(grad.shape(), &[1, 1, 4, 4]);
     let grad_slice = grad.as_slice();

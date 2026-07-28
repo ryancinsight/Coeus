@@ -150,7 +150,8 @@ fn test_transformer_decoder_layer() {
 
     // Backward pass
     let loss = coeus_autograd::sum(&output);
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert!(tgt.grad().is_some());
     assert!(memory.grad().is_some());
@@ -194,7 +195,8 @@ fn test_transformer_decoder() {
     assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
 
     let loss = coeus_autograd::sum(&output);
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert!(tgt.grad().is_some());
     assert!(memory.grad().is_some());
@@ -262,7 +264,8 @@ fn test_transformer_seq2seq() {
     assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
 
     let loss = coeus_autograd::sum(&output);
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert!(src.grad().is_some());
     assert!(tgt.grad().is_some());

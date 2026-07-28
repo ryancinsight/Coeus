@@ -52,7 +52,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // grad_in[i] = suffix_sum( grad_out * out )[i] / x[i]
@@ -142,8 +146,9 @@ where
 
             let gi_increment = Tensor::from_slice(shape.to_vec(), &gi_data);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &gi_increment, &backend);
+            coeus_ops::add_assign(gl, &gi_increment, &backend)?;
         }
+        Ok(())
     }
 }
 

@@ -38,7 +38,8 @@ fn test_binary_cross_entropy() {
     assert!((loss_val - expected_loss).abs() < 1e-7);
 
     // Backward
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(pred.grad().is_some());
 }
 
@@ -63,7 +64,8 @@ fn test_binary_cross_entropy_clamping() {
     assert!(!loss_val.is_nan());
     assert!(!loss_val.is_infinite());
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(!pred.grad().unwrap().as_slice()[0].is_nan());
 }
 
@@ -95,7 +97,8 @@ fn test_huber_loss() {
     let expected = (0.125 + 1.5 + 0.5) / 3.0;
     assert!((loss_val - expected).abs() < 1e-7);
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(pred.grad().is_some());
 }
 
@@ -122,7 +125,8 @@ fn test_l1_loss() {
         "l1_loss forward: got {loss_val:.17}, expected {expected:.17}"
     );
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = pred.grad().expect("pred must receive a gradient");
     assert_eq!(grad.shape(), &[2, 2], "pred grad preserves input shape");
     let quarter = 1.0 / 4.0;
@@ -182,7 +186,8 @@ fn test_bce_with_logits() {
         "bce_with_logits forward: got {loss_val:.17}, expected {expected:.17}"
     );
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     // d/d_logit = (sigmoid(z) - y) / n; d/d_target = -z / n.
     let logit_grad = logits.grad().expect("logits must receive a gradient");
     let target_grad = target.grad().expect("target must receive a gradient");
@@ -272,7 +277,8 @@ fn test_smooth_l1_loss() {
 
     // d loss / d pred_i = (1/N)·(z/β if |z|<β else sign(z)):
     //   z=0.5 -> 0.5/1 / 3;  z=2 -> +1 / 3;  z=-3 -> -1 / 3.
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = pred.grad().expect("smooth_l1 pred grad");
     let expected_grad = [0.5 / 3.0, 1.0 / 3.0, -1.0 / 3.0];
     for (g, e) in grad.as_slice().iter().zip(expected_grad.iter()) {

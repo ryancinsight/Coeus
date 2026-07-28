@@ -35,7 +35,8 @@ fn bench_fft_autograd_roundtrip(c: &mut Criterion) {
                 let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([d.len()], d), true);
                 let y = fft_1d_var(black_box(&x));
                 let seed = Tensor::from_slice([d.len()], &vec![Complex::new(1.0, 0.0); d.len()]);
-                y.backward_with_seed(seed);
+                y.backward_with_seed(seed)
+                    .expect("invariant: valid autograd fixture completes backward");
                 black_box(x.grad());
             });
         });

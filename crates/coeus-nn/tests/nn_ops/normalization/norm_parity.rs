@@ -295,7 +295,8 @@ where
     }
 
     // Verify backward propagates to weight and bias.
-    out.backward();
+    out.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(bn.weight.grad().is_some(), "weight grad must exist");
     assert!(bn.bias.grad().is_some(), "bias grad must exist");
 }

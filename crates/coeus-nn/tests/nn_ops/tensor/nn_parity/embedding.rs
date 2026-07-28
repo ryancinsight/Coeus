@@ -52,7 +52,9 @@ fn test_embedding_parity() {
 
     // Backward pass
     let loss_coeus = coeus_autograd::sum(&out_coeus);
-    loss_coeus.backward();
+    loss_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     let dw_coeus = emb_coeus.weight.grad().unwrap();
     let expected_embedding_dw = vec![

@@ -35,10 +35,14 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let Some(Some(ref acc)) = input_grads.first() else {
-            return;
+            return Ok(());
         };
 
         let ndim = grad_out.ndim();
@@ -57,7 +61,8 @@ where
         let sliced_grad = grad_out.slice(&ranges);
 
         let lock = acc.write();
-        coeus_ops::add_assign(lock, &sliced_grad, &backend);
+        coeus_ops::add_assign(lock, &sliced_grad, &backend)?;
+        Ok(())
     }
 }
 

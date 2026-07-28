@@ -34,10 +34,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sof
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         if let Some(Some(ref g_in)) = input_grads.get(0) {
-            accumulate_softmax_grad(grad_out, &self.y_clone, self.dim_u, g_in);
+            accumulate_softmax_grad(grad_out, &self.y_clone, self.dim_u, g_in)?;
         }
+
+        Ok(())
     }
 }
 
@@ -54,18 +60,19 @@ pub(crate) fn accumulate_softmax_grad<T, B>(
     y: &Tensor<T, B>,
     dim_u: usize,
     g_in: &Arc<GradBuffer<T, B>>,
-) where
+) -> Result<(), B::Error>
+where
     T: Float,
     B: coeus_ops::BackendOps<T> + Default,
 {
     let backend = B::default();
     let gy = coeus_ops::mul(grad_out, y, &backend);
-    let sum_gy = coeus_ops::sum_axis(&gy, dim_u, &backend)
-        .expect("invariant: softmax backward axis matches the input rank");
+    let sum_gy = coeus_ops::sum_axis(&gy, dim_u, &backend)?;
     let mut dx = coeus_ops::sub(grad_out, &sum_gy, &backend);
-    coeus_ops::mul_assign(&mut dx, y, &backend);
+    coeus_ops::mul_assign(&mut dx, y, &backend)?;
     let gl = g_in.write();
-    coeus_ops::add_assign(gl, &dx, &backend);
+    coeus_ops::add_assign(gl, &dx, &backend)?;
+    Ok(())
 }
 
 /// Tracked Softmax.
@@ -168,7 +175,8 @@ mod tests {
         );
         assert!((y.iter().sum::<f64>() - 1.0).abs() < 1e-12);
 
-        out.backward();
+        out.backward()
+            .expect("invariant: valid autograd fixture completes backward");
         assert!(x.grad().is_some(), "softmin must be differentiable");
     }
 }

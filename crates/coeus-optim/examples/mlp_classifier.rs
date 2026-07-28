@@ -79,7 +79,8 @@ fn main() {
         let h = relu(&add(&matmul(&x, &opt.params[0]), &opt.params[1]));
         let logits = add(&matmul(&h, &opt.params[2]), &opt.params[3]);
         let loss = nll_loss(&log_softmax(&logits, 1), &targets);
-        loss.backward();
+        loss.backward()
+            .expect("invariant: valid autograd fixture completes backward");
         opt.step();
 
         last_loss = loss.tensor.as_slice()[0];

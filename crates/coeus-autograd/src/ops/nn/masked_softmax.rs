@@ -44,10 +44,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         if let Some(Some(ref g_in)) = input_grads.get(0) {
-            accumulate_softmax_grad(grad_out, &self.y_clone, self.dim_u, g_in);
+            accumulate_softmax_grad(grad_out, &self.y_clone, self.dim_u, g_in)?;
         }
+
+        Ok(())
     }
 }
 
@@ -110,7 +116,8 @@ where
 {
     let dim_u = normalize_dim(dim, input.tensor.ndim(), "masked_softmax");
     let backend = B::default();
-    let y_t = coeus_ops::masked_softmax(&input.tensor, mask, dim_u, &backend).expect("masked_softmax");
+    let y_t =
+        coeus_ops::masked_softmax(&input.tensor, mask, dim_u, &backend).expect("masked_softmax");
     build_var(input, y_t, dim_u, "masked_softmax")
 }
 
@@ -156,7 +163,8 @@ mod tests {
         );
 
         // Seed grad_out=[1,0,0]: dx_k = y_k*(g_k - sum_j y_j g_j), sum = y0.
-        out.backward_with_seed(Tensor::from_slice([1, 3], &[1.0, 0.0, 0.0]));
+        out.backward_with_seed(Tensor::from_slice([1, 3], &[1.0, 0.0, 0.0]))
+            .expect("invariant: valid autograd fixture completes backward");
         let g = input.grad().unwrap();
         let gs = g.as_slice();
         assert!((gs[0] - y0 * (1.0 - y0)).abs() < 1e-12, "dx0: {}", gs[0]);
@@ -178,7 +186,8 @@ mod tests {
         for &v in out.tensor.as_slice() {
             assert_eq!(v, 0.0, "all-masked output must be 0");
         }
-        out.backward();
+        out.backward()
+            .expect("invariant: valid autograd fixture completes backward");
         for &v in input.grad().unwrap().as_slice() {
             assert!(
                 v.is_finite() && v == 0.0,
@@ -200,7 +209,8 @@ mod tests {
         assert!((y[2] - e3 / (e3 + e4)).abs() < 1e-12, "causal row1 col0");
         assert!((y[3] - e4 / (e3 + e4)).abs() < 1e-12, "causal row1 col1");
 
-        out.backward();
+        out.backward()
+            .expect("invariant: valid autograd fixture completes backward");
         assert!(input
             .grad()
             .unwrap()

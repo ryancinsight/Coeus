@@ -1,5 +1,26 @@
 # Coeus Gap Audit
 
+## ATLAS-AUTOGRAD-SAFETY-018: Infallible backward traversal
+
+**Location**: `crates/coeus-autograd/src/node.rs`, `var.rs`, and operation
+node implementations.
+**Gap**: 143 fallible backend mutation or direct-dispatch calls discarded
+their `Result` because the autograd graph contract returned `()`. A backend
+failure could leave partial gradients while the caller observed success.
+**Resolution**: ADR-0042 makes the graph traversal and every node return the
+backend's typed error, with no compatibility or fallback path.
+**Evidence**: warning-denied `coeus-autograd` all-target Clippy passes. The
+failure-injection regression observes the exact `BackendError::Storage`.
+Nextest passes 102 autograd/FFT and 268 NN tests. All 24 executable doctests
+pass; two pre-existing NN doctests remain ignored. SemVer checks against
+`origin/main` report the `BackwardNode` and `BinaryAutogradOp` return changes
+as requiring a major release. Hosted provider CI remains pending.
+**Residual**: compilation exposes 54 ignored fallible normalization mutations
+in `coeus-nn` and one ignored distributed mutation outside this increment;
+they remain separate typed-propagation work. No runtime, allocation, or
+binary-size improvement is claimed.
+**Status**: in progress.
+
 ## ATLAS-CUDA-SAFETY-017: Pooling physical-index contract
 
 **Location**: `crates/coeus-cuda/src/kernels/validation.rs` and

@@ -67,7 +67,9 @@ fn test_mha_backward_gradients_exist() {
         true,
     );
     let output = mha.forward(&input);
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     assert!(mha.w_q.grad().is_some());
     assert!(mha.w_k.grad().is_some());

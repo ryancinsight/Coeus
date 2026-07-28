@@ -38,7 +38,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // Reconstruct the effective input shape after padding.
@@ -107,8 +111,9 @@ where
             };
 
             let gl = g.write();
-            coeus_ops::add_assign(gl, &gi_inc, &backend);
+            coeus_ops::add_assign(gl, &gi_inc, &backend)?;
         }
+        Ok(())
     }
 }
 
