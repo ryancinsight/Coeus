@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::backend::CudaScalar;
-use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
+use crate::driver::{CUdeviceptr, CudaDriver, get_cuda_context};
 use crate::storage::CudaStorage;
 
 /// Launch a contiguous binary element-wise kernel on the GPU.
@@ -128,7 +128,9 @@ pub fn launch_contiguous_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::Gelu => "0.5f * a[idx] * (1.0f + erff(a[idx] * 0.70710678f))",
         // d/dx of exact GELU: 0.5(1 + erf(x/sqrt(2))) + x/sqrt(2pi) exp(-x^2/2).
         // 0.3989422804f = 1/sqrt(2pi).
-        coeus_ops::UnaryOp::GeluGrad => "0.5f * (1.0f + erff(a[idx] * 0.70710678f)) + a[idx] * 0.3989422804f * expf(-0.5f * a[idx] * a[idx])",
+        coeus_ops::UnaryOp::GeluGrad => {
+            "0.5f * (1.0f + erff(a[idx] * 0.70710678f)) + a[idx] * 0.3989422804f * expf(-0.5f * a[idx] * a[idx])"
+        }
         coeus_ops::UnaryOp::Sin => "sinf(a[idx])",
         coeus_ops::UnaryOp::Cos => "cosf(a[idx])",
         coeus_ops::UnaryOp::Exp => "expf(a[idx])",
@@ -154,11 +156,13 @@ pub fn launch_contiguous_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::Abs => "fabsf(a[idx])",
         coeus_ops::UnaryOp::Sqrt => "sqrtf(a[idx])",
         coeus_ops::UnaryOp::Silu => "a[idx] / (1.0f + expf(-a[idx]))",
-        coeus_ops::UnaryOp::SiluGrad => "(1.0f / (1.0f + expf(-a[idx]))) * (1.0f + a[idx] * (1.0f - (1.0f / (1.0f + expf(-a[idx])))))",
+        coeus_ops::UnaryOp::SiluGrad => {
+            "(1.0f / (1.0f + expf(-a[idx]))) * (1.0f + a[idx] * (1.0f - (1.0f / (1.0f + expf(-a[idx])))))"
+        }
         coeus_ops::UnaryOp::Mish => "a[idx] * tanhf(logf(1.0f + expf(a[idx])))",
-        coeus_ops::UnaryOp::MishGrad => "tanhf(logf(1.0f + expf(a[idx]))) + a[idx] * (1.0f - tanhf(logf(1.0f + expf(a[idx]))) * tanhf(logf(1.0f + expf(a[idx])))) * (1.0f / (1.0f + expf(-a[idx])))",
-        coeus_ops::UnaryOp::Elu => "(a[idx] >= 0.0f) ? a[idx] : (expf(a[idx]) - 1.0f)",
-        coeus_ops::UnaryOp::EluGrad => "(a[idx] >= 0.0f) ? 1.0f : expf(a[idx])",
+        coeus_ops::UnaryOp::MishGrad => {
+            "tanhf(logf(1.0f + expf(a[idx]))) + a[idx] * (1.0f - tanhf(logf(1.0f + expf(a[idx]))) * tanhf(logf(1.0f + expf(a[idx])))) * (1.0f / (1.0f + expf(-a[idx])))"
+        }
         coeus_ops::UnaryOp::Recip => "1.0f / a[idx]",
         coeus_ops::UnaryOp::Sign => "(a[idx] > 0.0f) ? 1.0f : ((a[idx] < 0.0f) ? -1.0f : 0.0f)",
         coeus_ops::UnaryOp::Floor => "floorf(a[idx])",

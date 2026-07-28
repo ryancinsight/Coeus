@@ -142,7 +142,7 @@ jobs:
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-wgpu --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-wgpu --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-wgpu \
-            -E "test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors) or test(test_wgpu_parity_add) or test(test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer) or test(test_wgpu_elu_parity) or test(test_wgpu_parity_elu) or test(test_wgpu_parity_gelu_tanh) or test(test_wgpu_parity_softplus)"
+            -E "test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors) or test(test_wgpu_parity_add) or test(test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer) or test(test_wgpu_elu_parity) or test(test_wgpu_parity_elu) or test(test_wgpu_strided_elu_transposed_matches_cpu) or test(test_wgpu_strided_elu_gradient_transposed_matches_cpu) or test(test_wgpu_aliasing_elu_rejects_provider_bypass) or test(test_wgpu_parity_gelu_tanh) or test(test_wgpu_parity_softplus)"
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-wgpu --doc
 
   cuda:
@@ -270,7 +270,7 @@ jobs:
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cuda --features cuda --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cuda --features cuda --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --features cuda \
-                -E "test(test_cuda_parity_cumulative_scans) or test(test_cuda_parity_prod_axis) or test(test_cuda_backend_ops) or test(test_cuda_parity_elu) or test(test_cuda_parity_elu_grad) or test(test_cuda_parity_gelu) or test(test_cuda_parity_gelu_grad) or test(test_cuda_parity_gelu_tanh) or test(test_cuda_parity_gelu_tanh_grad) or test(test_cuda_parity_softplus) or test(test_cuda_parity_softplus_grad)"
+                -E "test(test_cuda_parity_cumulative_scans) or test(test_cuda_parity_prod_axis) or test(test_cuda_backend_ops) or test(test_cuda_parity_elu) or test(test_cuda_parity_elu_grad) or test(test_cuda_strided_elu_matches_cpu) or test(test_cuda_strided_elu_gradient_matches_cpu) or test(test_cuda_parity_gelu) or test(test_cuda_parity_gelu_grad) or test(test_cuda_parity_gelu_tanh) or test(test_cuda_parity_gelu_tanh_grad) or test(test_cuda_parity_softplus) or test(test_cuda_parity_softplus_grad)"
               cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-cuda --features cuda --doc
             '
 

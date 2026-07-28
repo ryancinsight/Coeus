@@ -251,4 +251,32 @@ unary_grad_parity!(
     vec![-3.0, -1.0, -0.25, 0.0, 0.25, 1.0, 3.0, 4.0]
 );
 
+fn assert_strided_elu_parity(op: coeus_ops::UnaryOp, operation: &'static str) {
+    let Some((sequential, cuda)) = backends() else {
+        return;
+    };
+    let data = [
+        -3.0f32, -2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 3.0, -0.5, 0.5, 1.5,
+    ];
+    let host = Tensor::<f32, SequentialBackend>::from_slice([3, 4], &data);
+    let host_transposed = host.t();
+    let cpu = coeus_ops::elementwise_unary(&host_transposed, &sequential, op)
+        .expect("valid CPU strided ELU dispatch");
+    let device_transposed = to_gpu(&host, &sequential, &cuda).t();
+    let gpu = coeus_ops::elementwise_unary(&device_transposed, &cuda, op)
+        .expect("valid CUDA Hephaestus strided ELU dispatch");
+    let gpu = to_cpu(&gpu, &cuda, &sequential);
+    assert_parity_tol(operation, cpu.as_slice(), gpu.as_slice(), CUDA_TOL);
+}
+
+#[test]
+fn test_cuda_strided_elu_matches_cpu() {
+    assert_strided_elu_parity(coeus_ops::UnaryOp::Elu, "strided_elu");
+}
+
+#[test]
+fn test_cuda_strided_elu_gradient_matches_cpu() {
+    assert_strided_elu_parity(coeus_ops::UnaryOp::EluGrad, "strided_elu_gradient");
+}
+
 // Reductions.

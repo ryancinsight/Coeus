@@ -44,8 +44,11 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> Result<String, WgpuBackendError> {
         coeus_ops::UnaryOp::SiluGrad => "(1.0 / (1.0 + exp(-val))) * (1.0 + val * (1.0 - (1.0 / (1.0 + exp(-val)))))".to_string(),
         coeus_ops::UnaryOp::Mish => "val * tanh(log(1.0 + exp(val)))".to_string(),
         coeus_ops::UnaryOp::MishGrad => "tanh(log(1.0 + exp(val))) + val * (1.0 - tanh(log(1.0 + exp(val))) * tanh(log(1.0 + exp(val)))) * (1.0 / (1.0 + exp(-val)))".to_string(),
-        coeus_ops::UnaryOp::Elu => "select(exp(val) - 1.0, val, val >= 0.0)".to_string(),
-        coeus_ops::UnaryOp::EluGrad => "select(exp(val), 1.0, val >= 0.0)".to_string(),
+        coeus_ops::UnaryOp::Elu | coeus_ops::UnaryOp::EluGrad => {
+            return Err(WgpuBackendError::UnsupportedOperation {
+                operation: "ELU must dispatch through Hephaestus",
+            });
+        }
         coeus_ops::UnaryOp::Softplus => "log(1.0 + exp(val))".to_string(),
         coeus_ops::UnaryOp::SoftplusGrad => "1.0 / (1.0 + exp(-val))".to_string(),
         coeus_ops::UnaryOp::GeluTanh => "0.5 * val * (1.0 + tanh(0.7978845608 * (val + 0.044715 * val * val * val)))".to_string(),

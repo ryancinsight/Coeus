@@ -109,31 +109,27 @@ ROCm `90003265412` was skipped because no registered AMD runner was available.
 
 ## ATLAS-COEUS-HEPHAESTUS-ACTIVATION-TAIL-PARITY-001: Mish and ELU
 
-**Location**: the Coeus ROCm and Metal activation dispatch macros, CUDA
-contiguous and strided unary launch expressions, and the four backend contract
-suites.
+**Location**: the Coeus accelerator activation dispatch tables and the four
+backend contract suites.
 **Gap**: Hephaestus already exports native f32 `Mish`, `MishGrad`, `Elu`, and
-`EluGrad` markers for ROCm and Metal, and WGPU already emits all four
-expressions. Coeus ROCm and Metal rejected all four operations, while CUDA
-implemented Mish but rejected ELU in both launch paths.
+`EluGrad` markers for every accelerator provider. Coeus ROCm and Metal
+originally rejected all four operations, while CUDA and WGPU later computed
+ELU through consumer-owned expressions instead of the Hephaestus markers.
 **Resolution**: dispatch ROCm and Metal through the existing Hephaestus
-strided marker seam; add the canonical ELU expressions to CUDA's contiguous and
-strided launch tables; retain WGPU's existing provider expression path. Extend
-the backend suites with Leto CPU differential checks for forward and gradient
-operations.
+strided marker seam; dispatch CUDA and WGPU ELU forward and gradient through
+Hephaestus contiguous and strided markers; delete the superseded consumer
+expressions. Extend the backend suites with Leto CPU differential checks for
+contiguous and transposed-strided forward and gradient operations.
 **Residual**: parameterized activations, f64/reduced/vector contracts, and
 physical-device execution remain separate evidence scopes.
 **Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal provider/consumer
 CI; required-device ROCm is reported independently from adapterless provider
 compilation.
-**Status**: complete for the unparameterized f32 scope. Targeted exact-head
-Coeus run `30353984154` passed CUDA job `90257861209`, WGPU job `90257861154`,
-ROCm job `90257861218`, and Metal job `90257861119`; required-device ROCm job
-`90257861858` was skipped because no hosted AMD runner was dispatched. The WGPU
-and CUDA selectors execute the new ELU forward and gradient contracts. The
-external `recurseml/analysis` status returned its recurring analyzer error and
-is not repository-owned verification. ADR 0038 owns the provider and consumer
-contract.
+**Status**: provider-ownership correction in progress. The previous exact-head
+run `30353984154` established value parity but could not distinguish the
+consumer-local expressions from the Hephaestus routes. CUDA and WGPU now reject
+ELU fallthrough rather than entering local-kernel or CPU paths. Exact-head
+provider CI remains the closure gate. ADR 0038 owns the provider contract.
 
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-ACTIVATION-PARITY-001: GELU-tanh and Softplus
 
