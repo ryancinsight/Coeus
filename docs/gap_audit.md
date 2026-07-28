@@ -107,6 +107,28 @@ as `e6ba1c14`. Coeus exact-head run `30273987046` passed WGPU `90003264732`,
 CUDA `90003264777`, ROCm `90003265014`, and Metal `90003264805`; required-device
 ROCm `90003265412` was skipped because no registered AMD runner was available.
 
+## ATLAS-COEUS-HEPHAESTUS-ACTIVATION-TAIL-PARITY-001: Mish and ELU
+
+**Location**: the Coeus ROCm and Metal activation dispatch macros, CUDA
+contiguous and strided unary launch expressions, and the four backend contract
+suites.
+**Gap**: Hephaestus already exports native f32 `Mish`, `MishGrad`, `Elu`, and
+`EluGrad` markers for ROCm and Metal, and WGPU already emits all four
+expressions. Coeus ROCm and Metal rejected all four operations, while CUDA
+implemented Mish but rejected ELU in both launch paths.
+**Resolution**: dispatch ROCm and Metal through the existing Hephaestus
+strided marker seam; add the canonical ELU expressions to CUDA's contiguous and
+strided launch tables; retain WGPU's existing provider expression path. Extend
+the backend suites with Leto CPU differential checks for forward and gradient
+operations.
+**Residual**: parameterized activations, f64/reduced/vector contracts, and
+physical-device execution remain separate evidence scopes.
+**Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal provider/consumer
+CI; required-device ROCm is reported independently from adapterless provider
+compilation.
+**Status**: implementation is pending exact-head CI. ADR 0038 owns the
+provider and consumer contract.
+
 ## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001: f32 forward log-gamma
 
 **Location**: the WGPU unary expression, CUDA/ROCm/Metal provider elementwise

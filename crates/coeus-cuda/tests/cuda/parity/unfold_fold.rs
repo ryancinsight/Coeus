@@ -118,6 +118,11 @@ unary_parity!(
     vec![-2.0, -1.0, 0.0, 0.5, 1.0, 2.0, -0.5, 1.5]
 );
 unary_parity!(
+    test_cuda_parity_elu,
+    coeus_ops::elu,
+    vec![-2.0, -1.0, 0.0, 0.5, 1.0, 2.0, -0.5, 1.5]
+);
+unary_parity!(
     test_cuda_parity_exp,
     coeus_ops::exp,
     vec![-1.0, -0.5, 0.0, 0.5, 1.0, 1.5, -2.0, 2.0]
@@ -218,6 +223,11 @@ unary_grad_parity!(
 unary_grad_parity!(
     test_cuda_parity_mish_grad,
     coeus_ops::UnaryOp::MishGrad,
+    vec![-2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 1.5]
+);
+unary_grad_parity!(
+    test_cuda_parity_elu_grad,
+    coeus_ops::UnaryOp::EluGrad,
     vec![-2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 1.5]
 );
 

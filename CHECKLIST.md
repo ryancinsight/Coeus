@@ -107,6 +107,24 @@ WGPU `90048506717`, and Metal `90048504635` passed; Coeus consumer jobs CUDA
 passed. Hardware-device jobs skipped because no registered runner was
 available. ADR 0028 owns the exact GELU contract.
 
+## ATLAS-COEUS-HEPHAESTUS-ACTIVATION-TAIL-PARITY-001 [arch][minor]
+
+- [ ] Route `UnaryOp::Mish`, `MishGrad`, `Elu`, and `EluGrad` through the
+      provider-owned Hephaestus ROCm and Metal f32 strided kernels.
+- [ ] Extend the CUDA contiguous and strided launch expressions with ELU and
+      its gradient, preserving the existing Mish expressions.
+- [ ] Extend WGPU, CUDA, ROCm, and Metal contracts with Leto CPU differential
+      coverage for forward and gradient activation paths.
+- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for
+      the provider and consumer revisions.
+
+Acceptance: all four backends expose the same unparameterized f32 Mish and ELU
+forward/gradient operations; integer providers retain typed unsupported
+operation errors; backend values match the Leto CPU oracle over signed inputs
+including the zero branch boundary. The existing strided/device-resident
+kernel paths remain in use; no runtime performance or resident-memory delta is
+claimed without a controlled benchmark. ADR 0038 owns the contract.
+
 ## ATLAS-COEUS-HEPHAESTUS-ERROR-FUNCTION-PARITY-001 [arch]
 
 - [x] Route `UnaryOp::Erf` and `UnaryOp::Erfc` through the provider-owned

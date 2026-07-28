@@ -322,12 +322,16 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         CpuUnaryOp::GeluGrad,
         CpuUnaryOp::GeluTanh,
         CpuUnaryOp::Silu,
+        CpuUnaryOp::Mish,
+        CpuUnaryOp::Elu,
         CpuUnaryOp::Softplus,
         CpuUnaryOp::ReluGrad,
         CpuUnaryOp::SigmoidGrad,
         CpuUnaryOp::TanhGrad,
         CpuUnaryOp::GeluTanhGrad,
         CpuUnaryOp::SiluGrad,
+        CpuUnaryOp::MishGrad,
+        CpuUnaryOp::EluGrad,
         CpuUnaryOp::SoftplusGrad,
     ] {
         let mut expected = [0.0_f32; 6];
