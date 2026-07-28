@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted; implementation is complete for the unparameterized f32 scope and
-the targeted workflow rerun is pending.
+Accepted; implementation and targeted provider CI are complete for the
+unparameterized f32 scope.
 
 ## Context
 
@@ -47,14 +47,13 @@ the increment adds no host staging or temporary backend buffer.
 ## Verification
 
 Local format, package compilation, lint, and focused provider contracts cover
-the changed dispatch and expression tables. Baseline exact-head Coeus run
-`30351530489` passed CUDA job `90249902958`, WGPU job `90249903429`, ROCm job
-`90249902939`, and Metal job `90249903016`. Its required-device ROCm job
-`90249904831` was skipped because no hosted AMD runner was dispatched; no
-physical-device result is inferred. The WGPU and CUDA workflow selectors now
-include the new ELU contracts; the targeted exact-head rerun is required before
-closure. The external `recurseml/analysis` status returned its recurring
-analyzer error and is not repository-owned verification.
+the changed dispatch and expression tables. Targeted exact-head Coeus run
+`30353984154` passed CUDA job `90257861209`, WGPU job `90257861154`, ROCm job
+`90257861218`, and Metal job `90257861119`. Required-device ROCm job
+`90257861858` was skipped because no hosted AMD runner was dispatched; no
+physical-device result is inferred. The WGPU and CUDA selectors execute the new
+ELU forward and gradient contracts. The external `recurseml/analysis` status
+returned its recurring analyzer error and is not repository-owned verification.
 
 ## Residual scope
 

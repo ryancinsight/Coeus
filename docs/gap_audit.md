@@ -126,12 +126,11 @@ physical-device execution remain separate evidence scopes.
 **Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal provider/consumer
 CI; required-device ROCm is reported independently from adapterless provider
 compilation.
-**Status**: implementation is complete for the unparameterized f32 scope.
-Baseline exact-head Coeus run `30351530489` passed CUDA job `90249902958`, WGPU
-job `90249903429`, ROCm job `90249902939`, and Metal job `90249903016`;
-required-device ROCm job `90249904831` was skipped because no hosted AMD runner
-was dispatched. The WGPU and CUDA workflow selectors now include the new ELU
-contracts; the exact-head targeted rerun remains required before closure. The
+**Status**: complete for the unparameterized f32 scope. Targeted exact-head
+Coeus run `30353984154` passed CUDA job `90257861209`, WGPU job `90257861154`,
+ROCm job `90257861218`, and Metal job `90257861119`; required-device ROCm job
+`90257861858` was skipped because no hosted AMD runner was dispatched. The WGPU
+and CUDA selectors execute the new ELU forward and gradient contracts. The
 external `recurseml/analysis` status returned its recurring analyzer error and
 is not repository-owned verification. ADR 0038 owns the provider and consumer
 contract.
