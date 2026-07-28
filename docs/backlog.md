@@ -16,8 +16,8 @@
   pass; no runtime or resident-memory delta is claimed without a benchmark.
 - Risk/change class: `[minor]` provider-capability routing with additive CI
   coverage.
-- Status: claimed on 2026-07-28; implementation and final exact-head evidence
-  remain pending.
+- Status: implementation complete at `a8dcc51c`; final exact-head evidence
+  remains pending.
 
 ## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback [arch]
 
@@ -368,6 +368,14 @@
   values requires a separate breaking graph/module migration. Fused reduction
   and default index/cumulative reductions remain outside this increment; no
   compatibility adapter or silent fallback is introduced to mask the residual.
+- Pool1d increment: the `PoolOps` 1D forward/backward methods now return the
+  backend-associated result. CPU preserves direct Leto execution, WGPU
+  validates rank, layout ABI conversion, parameter narrowing, element-count
+  arithmetic, and workgroup bounds before native WGSL submission, and CUDA
+  propagates native kernel validation and launch failures. The 2D/3D pooling
+  families and the infallible autograd/NN public contract remain separate
+  increments. Focused compilation is currently blocked before package
+  compilation by the shared-tree Eunomia lockfile package collision.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

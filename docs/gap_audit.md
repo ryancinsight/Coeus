@@ -159,6 +159,26 @@ Required-device ROCm `90274889835` was skipped because no hosted AMD runner was
 dispatched. The external `recurseml/analysis` status returned its recurring
 analyzer error and is not repository-owned verification.
 
+## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001: exact GELU forward and gradient
+
+**Location**: `crates/coeus-cuda/src/backend/ops/math.rs`, the CUDA unary
+parity tests, and the backend-parity CUDA selector.
+**Gap**: Hephaestus already exposes exact-erf `GeluOp` and `GeluGradOp`, and
+ROCm/Metal route both operations through the shared strided provider seam, but
+CUDA's generic math dispatch left them to the legacy kernel table. The CUDA
+selector also omitted the existing forward and gradient parity tests.
+**Resolution**: route contiguous and runtime-shaped strided CUDA dispatch
+through the Hephaestus exact-erf markers and select
+`test_cuda_parity_gelu`/`test_cuda_parity_gelu_grad` in backend CI.
+**Residual**: parameterized activations, reduced/vector scalar contracts, and
+physical-device execution remain separate evidence scopes. No runtime
+performance or resident-memory delta is claimed without a controlled
+benchmark.
+**Status**: implementation head `a8dcc51c` is complete; exact-head WGPU,
+CUDA, ROCm, and Metal CI remains pending. Local locked CUDA package checking is
+blocked before compilation by the pre-existing dual-local Eunomia lockfile
+collision.
+
 ## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001: f32 forward log-gamma
 
 **Location**: the WGPU unary expression, CUDA/ROCm/Metal provider elementwise

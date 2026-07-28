@@ -2,9 +2,9 @@
 
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 [minor]
 
-- [ ] Route CUDA `Gelu` and `GeluGrad` through the existing Hephaestus exact-
+- [x] Route CUDA `Gelu` and `GeluGrad` through the existing Hephaestus exact-
       erf marker kernels for contiguous and runtime-shaped strided layouts.
-- [ ] Select the existing CUDA/Leto forward and gradient parity tests in the
+- [x] Select the existing CUDA/Leto forward and gradient parity tests in the
       backend-parity workflow.
 - [ ] Record exact-head WGPU, CUDA, ROCm, and Metal CI evidence without making
       an unmeasured runtime or resident-memory claim.
@@ -12,9 +12,14 @@
 Owner: Codex on `codex/coeus-cuda-common-activation-parity`; claimed scope:
 `crates/coeus-cuda/src/backend/ops/math.rs`,
 `crates/coeus-cuda/tests/cuda/parity/unfold_fold.rs`,
-`.github/workflows/backend-parity.yml`, `docs/backlog.md`, `CHECKLIST.md`,
-`docs/gap_audit.md`, and `CHANGELOG.md`. Peer-owned WGPU pool and reduction /
-backend-error files remain outside this claim.
+`.github/workflows/backend-parity.yml`, `docs/backlog.md`, `CHECKLIST.md`, and
+`docs/gap_audit.md`. The peer-owned WGPU pool change currently owns the dirty
+`CHANGELOG.md`; it remains outside this increment. Peer reduction /
+backend-error files also remain outside this claim.
+
+Implementation head `a8dcc51c` is complete; hosted exact-head evidence is
+pending. The local locked CUDA package check is blocked before compilation by
+the pre-existing Atlas Eunomia repository/worktree package collision.
 
 ## ATLAS-COEUS-SAFETY-003 Uninitialized COW replacement [arch][minor][perf]
 
