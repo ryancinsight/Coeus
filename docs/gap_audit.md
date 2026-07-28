@@ -97,14 +97,34 @@ ROCm and Metal provider matches.
 **Resolution**: route each operation through the shared Hephaestus marker and
 strided kernel, with valid-domain Leto differential coverage. Keep integer
 providers on their typed arithmetic-only rejection path.
-**Residual**: `erf`, `erfc`, `lgamma`, parameterized activations, and f64/vector
-contracts remain separate capability slices.
+**Residual**: `erf`, `erfc`, parameterized activations, and f64/vector contracts
+remain separate capability slices; `lgamma` is closed by the dedicated item
+below.
 **Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal CI; hardware lanes
 are reported independently from adapterless provider compilation.
 **Status**: complete for the 19-operation f32 scope. Hephaestus PR #112 merged
 as `e6ba1c14`. Coeus exact-head run `30273987046` passed WGPU `90003264732`,
 CUDA `90003264777`, ROCm `90003265014`, and Metal `90003264805`; required-device
 ROCm `90003265412` was skipped because no registered AMD runner was available.
+
+## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001: f32 forward log-gamma
+
+**Location**: the WGPU unary expression, CUDA/ROCm/Metal provider elementwise
+dispatch, and their backend contract suites.
+**Resolution**: route `UnaryOp::Lgamma` through the Hephaestus provider marker
+on all four backends. WGPU and Metal use the shared Lanczos/reflection
+expression; CUDA and ROCm use native device functions. Backend tests compare
+positive, reflected non-integer, and non-positive integer pole inputs with the
+Leto CPU oracle, requiring positive infinity at poles.
+**Evidence**: Hephaestus PR #118 passed WGPU `90086428952`, CUDA `90086430178`,
+ROCm `90086430143`, and Metal `90086428160`. Coeus PR #231 merged at
+`971fab9614b97bd708a716d01684da58fd1331ba`; its consumer jobs passed WGPU
+`90088836682`, CUDA `90088836688`, ROCm `90088836731`, and Metal `90088836675`.
+Required-device ROCm `90088837591` was skipped because no hosted AMD runner was
+dispatched; physical-device execution is not claimed.
+**Residual**: digamma gradients, f64/reduced/vector contracts, and complete
+non-elementwise Leto parity remain outside this item.
+**Status**: complete for the f32 forward provider/consumer boundary.
 
 ## ATLAS-COEUS-SAFETY-001: Hephaestus provider failure boundary
 
