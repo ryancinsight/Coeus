@@ -1,5 +1,29 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-CUDA-SAFETY-017 Pooling physical-index contract [arch][patch]
+
+- [x] Promote physical layout/allocation validation into the shared CUDA
+      validation leaf and remove the fused and unfold/fold duplicates.
+- [x] Validate complete 1-D/2-D/3-D pooling forward and backward signed
+      coordinate extrema before kernel compilation.
+- [x] Reject undersized storage, unrepresentable physical offsets, and
+      writable zero-stride output aliasing across every pooling dispatcher.
+- [x] Add pure boundary regressions, select them in hosted CUDA CI, and record
+      ADR-0041.
+
+Acceptance: pooling cannot launch when its maximum physical address exceeds
+the storage allocation or CUDA layout ABI, or when any signed window
+coordinate can overflow. The validation is allocation-free and executes once
+at dispatch; native kernels and scalar monomorphization remain unchanged.
+Feature-enabled all-target check and warning-denied package Clippy pass. Local
+Nextest reaches the Windows GNU linker and fails before execution because
+`-lcuda` is unavailable; hosted CUDA provider CI remains the device evidence
+gate. The broader Clippy graph also exposes 143 pre-existing ignored `Result`
+errors in `coeus-autograd`; package `--no-deps` Clippy isolates this increment.
+A subsequent live-overlay rerun stops in Leto `application/stencil.rs` because
+`T: UnitScalar` is missing; the earlier Git-sourced Coeus check and Clippy
+results remain the local compiled evidence for this diff.
+
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 [minor]
 
 - [x] Route CUDA `Gelu` and `GeluGrad` through the existing Hephaestus exact-

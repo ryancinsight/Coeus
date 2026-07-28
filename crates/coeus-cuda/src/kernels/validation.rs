@@ -50,6 +50,18 @@ pub(crate) fn layout_supports_cuda_output_indexing(layout: &Layout) -> bool {
     layouts_fit_cuda(&[layout]) && layout.strides().iter().all(|&stride| stride != 0)
 }
 
+pub(crate) fn layout_fits_cuda_storage(
+    layout: &Layout,
+    storage_len: usize,
+    writable: bool,
+) -> bool {
+    layouts_fit_cuda(&[layout])
+        && (!writable || layout_supports_cuda_output_indexing(layout))
+        && checked_layout_storage_len(layout).is_some_and(|required| {
+            required.checked_sub(1).and_then(cuda_u32).is_some() && storage_len >= required
+        })
+}
+
 pub(crate) fn launch_grid_size(total: usize) -> Option<u32> {
     launch_grid_size_for_block(total, usize::try_from(CUDA_BLOCK_SIZE).ok()?)
 }
@@ -65,7 +77,7 @@ pub(crate) fn launch_grid_size_for_block(total: usize, block_size: usize) -> Opt
 mod tests {
     use super::{
         checked_layout_storage_len, checked_numel, launch_grid_size, launch_grid_size_for_block,
-        layout_supports_cuda_output_indexing, layouts_share_shape,
+        layout_fits_cuda_storage, layout_supports_cuda_output_indexing, layouts_share_shape,
     };
     use coeus_core::Layout;
 
@@ -118,5 +130,16 @@ mod tests {
         let layout = Layout::from_shape_strides(vec![2].into(), vec![1].into(), usize::MAX);
 
         assert_eq!(checked_layout_storage_len(&layout), None);
+    }
+
+    #[test]
+    fn cuda_storage_validation_checks_physical_bound_and_writable_aliasing() {
+        let strided = Layout::from_shape_strides(vec![2, 3].into(), vec![4, 1].into(), 2);
+        let aliased = Layout::from_shape_strides(vec![2, 3].into(), vec![0, 1].into(), 0);
+
+        assert!(layout_fits_cuda_storage(&strided, 9, false));
+        assert!(!layout_fits_cuda_storage(&strided, 8, false));
+        assert!(layout_fits_cuda_storage(&aliased, 3, false));
+        assert!(!layout_fits_cuda_storage(&aliased, 3, true));
     }
 }

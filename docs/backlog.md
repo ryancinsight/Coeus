@@ -1,5 +1,26 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-CUDA-SAFETY-017 — Bound pooling physical indices [patch] [arch] — in progress
+
+- Owner: Codex; scope: shared CUDA layout/storage validation and the canonical
+  1-D/2-D/3-D pooling dispatch leaves.
+- Outcome: prove complete physical layout offsets, allocation capacity,
+  writable non-aliasing, and signed CUDA window-coordinate extrema before any
+  pooling kernel compilation or launch.
+- Non-goals: pooling algorithm changes, implicit contiguous copies, provider
+  fallback, scalar specialization changes, or unmeasured performance claims.
+- Acceptance: pure tests reject undersized, physical-offset-overflowing,
+  writable-aliased, and signed-coordinate-overflowing contracts; feature
+  check and warning-denied package Clippy pass; hosted CUDA provider CI passes.
+- Risk/change class: `[arch]` validation-ownership consolidation with a
+  backward-compatible rejection of previously unsafe launch contracts.
+- Status: implementation and local static gates complete. Local Nextest is
+  blocked before execution by the missing MinGW `-lcuda` link library; hosted
+  CUDA execution, including all three new boundary regressions, is pending.
+  The live Atlas overlay later switched to a Leto tree missing the
+  `T: UnitScalar` stencil bound, so repeat compilation currently stops
+  upstream before Coeus.
+
 ## ATLAS-COEUS-HEPHAESTUS-ELU-DISPATCH-001 — Own ELU in Hephaestus [arch] — complete
 
 - Owner: Codex; scope: CUDA/WGPU contiguous and strided ELU forward/gradient
