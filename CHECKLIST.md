@@ -177,7 +177,7 @@ available. ADR 0028 owns the exact GELU contract.
       Hephaestus `EluOp` and `EluGradOp` contiguous and strided dispatch.
 - [x] Extend WGPU, CUDA, ROCm, and Metal contracts with Leto CPU differential
       coverage for forward and gradient activation paths.
-- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for
+- [x] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for
       the provider and consumer revisions.
 
 Acceptance: all four backends expose the same unparameterized f32 Mish and ELU
@@ -187,11 +187,12 @@ including the zero branch boundary. The existing strided/device-resident
 kernel paths remain in use; no runtime performance or resident-memory delta is
 claimed without a controlled benchmark. ADR 0038 owns the contract.
 
-Status: provider-ownership correction in progress. The previous value-parity
-run `30353984154` did not distinguish the consumer-local expressions from the
-Hephaestus markers. CUDA and WGPU now have no local ELU expression; contiguous
-and transposed-strided forward/gradient contracts exercise the marker routes.
-Exact-head provider CI remains required before closure.
+Status: complete for the unparameterized f32 scope. Exact-head Coeus run
+`30387168252` passed CUDA job `90369248008`, WGPU job `90369248023`, ROCm job
+`90369247910`, and Metal job `90369248013`; required-device ROCm job
+`90369248641` was skipped because no hosted AMD runner was dispatched. The
+external `recurseml/analysis` status returned its recurring analyzer error and
+is not repository-owned verification.
 
 ## ATLAS-COEUS-HEPHAESTUS-ERROR-FUNCTION-PARITY-001 [arch]
 

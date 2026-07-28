@@ -125,11 +125,13 @@ physical-device execution remain separate evidence scopes.
 **Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal provider/consumer
 CI; required-device ROCm is reported independently from adapterless provider
 compilation.
-**Status**: provider-ownership correction in progress. The previous exact-head
-run `30353984154` established value parity but could not distinguish the
-consumer-local expressions from the Hephaestus routes. CUDA and WGPU now reject
-ELU fallthrough rather than entering local-kernel or CPU paths. Exact-head
-provider CI remains the closure gate. ADR 0038 owns the provider contract.
+**Status**: complete for the unparameterized f32 scope. CUDA and WGPU reject
+ELU fallthrough rather than entering local-kernel or CPU paths. Exact-head run
+`30387168252` passed CUDA job `90369248008`, WGPU job `90369248023`, ROCm job
+`90369247910`, and Metal job `90369248013`; required-device ROCm job
+`90369248641` was skipped because no hosted AMD runner was dispatched. The
+external `recurseml/analysis` status returned its recurring analyzer error and
+is not repository-owned verification. ADR 0038 owns the provider contract.
 
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-ACTIVATION-PARITY-001: GELU-tanh and Softplus
 
