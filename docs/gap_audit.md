@@ -153,9 +153,9 @@ performance or resident-memory delta is claimed without a controlled benchmark.
 **Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal provider/consumer
 CI; required-device ROCm is reported independently from adapterless provider
 compilation.
-**Status**: implementation head `dc5dbd5a` passed run `30358001986`: CUDA
-`90270630628`, WGPU `90270630619`, ROCm `90270630584`, and Metal `90270630599`.
-Required-device ROCm `90270631213` was skipped because no hosted AMD runner was
+**Status**: docs head `8a38f392` passed run `30359324025`: CUDA
+`90274888940`, WGPU `90274889041`, ROCm `90274889047`, and Metal `90274888991`.
+Required-device ROCm `90274889835` was skipped because no hosted AMD runner was
 dispatched. The external `recurseml/analysis` status returned its recurring
 analyzer error and is not repository-owned verification.
 

@@ -83,16 +83,16 @@ verification.
       the common marker seam.
 
 Owner: Codex on `codex/coeus-cuda-common-activation-parity`; completed at
-`dc5dbd5a` pending docs-head rerun. Claimed scope:
+`8a38f392`. Claimed scope:
 `crates/coeus-cuda/src/backend/ops/math.rs`,
 `crates/coeus-cuda/tests/cuda/parity/unfold_fold.rs`,
 `.github/workflows/backend-parity.yml`, `CHECKLIST.md`, and
 `docs/gap_audit.md`. Peer-owned reduction and backend-error files remain
 outside this claim.
 
-Evidence: implementation-head run `30358001986` passed CUDA job `90270630628`,
-WGPU job `90270630619`, ROCm job `90270630584`, and Metal job `90270630599`.
-Required-device ROCm job `90270631213` was skipped because no hosted AMD
+Evidence: docs-head run `30359324025` passed CUDA job `90274888940`, WGPU job
+`90274889041`, ROCm job `90274889047`, and Metal job `90274888991`.
+Required-device ROCm job `90274889835` was skipped because no hosted AMD
 runner was dispatched. The CUDA selector executed the four new forward and
 gradient tests; WGPU selected the GELU-tanh contract. No runtime speedup or
 resident-memory delta is claimed without a matched benchmark.
