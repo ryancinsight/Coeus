@@ -6,6 +6,8 @@
       erf marker kernels for contiguous and runtime-shaped strided layouts.
 - [x] Select the existing CUDA/Leto forward and gradient parity tests in the
       backend-parity workflow.
+- [ ] Repair the stale CUDA/WGPU fallible pool wrapper return contracts that
+      block the exact-head provider matrix.
 - [ ] Record exact-head WGPU, CUDA, ROCm, and Metal CI evidence without making
       an unmeasured runtime or resident-memory claim.
 
@@ -13,9 +15,11 @@ Owner: Codex on `codex/coeus-cuda-common-activation-parity`; claimed scope:
 `crates/coeus-cuda/src/backend/ops/math.rs`,
 `crates/coeus-cuda/tests/cuda/parity/unfold_fold.rs`,
 `.github/workflows/backend-parity.yml`, `docs/backlog.md`, `CHECKLIST.md`, and
-`docs/gap_audit.md`. The peer-owned WGPU pool change currently owns the dirty
-`CHANGELOG.md`; it remains outside this increment. Peer reduction /
-backend-error files also remain outside this claim.
+`docs/gap_audit.md`. The stale pool-wrapper repair additionally claims only
+`crates/coeus-cuda/src/backend/ops/pool.rs` and
+`crates/coeus-wgpu/src/backend/ops/impls/pool.rs`. The live peer owns the
+dirty fused-dispatch, reduction, backend-error, lockfile, ADR, and changelog
+files; they remain outside this increment.
 
 Implementation head `a8dcc51c` is complete; hosted exact-head evidence is
 pending. The local locked CUDA package check is blocked before compilation by
