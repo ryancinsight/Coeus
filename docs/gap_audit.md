@@ -110,7 +110,14 @@ upload round trip are removed. A generic storage contract verifies copied
 values, tier preservation, one device copy, and no COW-triggered download.
 The `StorageMut::make_unique` method is still infallible, so allocation and
 copy failures remain the explicit residual of this broader failure-boundary
-migration rather than being reclassified as closed here.
+migration rather than being reclassified as closed here. Hosted exact-head run
+`30336317894` passed the CUDA provider contracts job `90201872163`, WGPU
+provider contracts job `90201872262`, ROCm provider contracts job `90201872299`,
+and Metal provider contracts job `90201872213`. The required-device ROCm job
+`90201873084` was skipped because no hosted AMD runner was dispatched; no
+physical-device execution claim is made. The external `recurseml/analysis`
+status returned its recurring analyzer error and is not repository-owned
+verification.
 
 ## ATLAS-CUDA-SAFETY-016: Remaining CUDA launch-parameter narrowing
 
