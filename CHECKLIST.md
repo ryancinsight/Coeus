@@ -1,5 +1,26 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-SAFETY-001 Device-local COW increment [patch]
+
+- [x] Replace Hephaestus storage COW host staging with one source-tier device
+      allocation and the shared completed device-local copy seam.
+- [x] Add a generic storage regression proving copied values, retained memory
+      tier, one device copy, and zero COW downloads.
+- [x] Synchronize the changelog, gap audit, and ADR 0036.
+
+Evidence: `cargo check` and the focused `coeus-hephaestus` Nextest storage
+contract pass under the local Atlas overlay. This is a static allocation-path
+and value-semantic result; no runtime speedup claim is made without a matched
+device benchmark. The infallible `StorageMut::make_unique` boundary remains a
+separate typed-error migration item. Hosted exact-head run `30336317894`
+passed the CUDA provider contracts job `90201872163`, WGPU provider contracts
+job `90201872262`, ROCm provider contracts job `90201872299`, and Metal
+provider contracts job `90201872213`. The required-device ROCm job
+`90201873084` was skipped because no hosted AMD runner was dispatched; no
+physical-device execution claim is made. The external `recurseml/analysis`
+status returned its recurring analyzer error and is not repository-owned
+verification.
+
 ## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001 [arch]
 
 - [x] Route `UnaryOp::Lgamma` through the provider-owned Hephaestus WGPU,
