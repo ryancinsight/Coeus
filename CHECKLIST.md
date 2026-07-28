@@ -1,5 +1,26 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-SAFETY-003 Uninitialized COW replacement [arch][minor][perf]
+
+- [x] Keep ordinary WGPU, CUDA, and generic Hephaestus storage construction
+      zero-initialized.
+- [x] Allocate only COW replacement buffers through
+      `ComputeDevice::alloc_uninitialized_with_hint` before the complete
+      device-local copy.
+- [x] Extend the generic Hephaestus test device and preserve detached and
+      retained value semantics.
+- [ ] Run exact-head WGPU, CUDA, ROCm, and Metal Coeus provider/consumer CI
+      after the Hephaestus provider seam merges.
+
+Acceptance: every changed COW path fully overwrites the replacement through
+`ComputeDevice::copy_buffer` before it can be read; ordinary defined-content
+allocation remains zero-initialized; focused value-semantic tests pass. This is
+static allocation-path and structural memory-bandwidth evidence, not a runtime
+speed or resident-memory claim. The local CUDA feature check passes; hosted
+provider CI is required for device execution.
+
+Implementation owner: Codex on `codex/coeus-uninitialized-cow-copy`; ADR 0037.
+
 ## ATLAS-COEUS-SAFETY-002 Native COW seam consolidation [arch][patch]
 
 - [x] Route native Coeus WGPU and CUDA COW detachment through

@@ -108,13 +108,18 @@ where
             return;
         }
         // COW detachment is a storage operation, so preserve the provider's
-        // allocation tier and keep the full payload on-device. The
-        // `StorageMut` contract is infallible; provider failures therefore
+        // allocation tier and keep the full payload on-device. The device
+        // copy overwrites every element before the detached buffer is exposed,
+        // so the replacement does not require a redundant initialization pass.
+        // The `StorageMut` contract is infallible; provider failures therefore
         // remain explicit invariant failures until that upstream contract is
         // made fallible.
         let device = P::device();
         let replacement = device
-            .alloc_zeroed_with_hint(self.buffer.len(), PlacementHint::Tier(self.buffer.tier()))
+            .alloc_uninitialized_with_hint(
+                self.buffer.len(),
+                PlacementHint::Tier(self.buffer.tier()),
+            )
             .expect("Hephaestus storage uniqueness allocation failed");
         device
             .copy_buffer(self.buffer.as_ref(), &replacement)
@@ -202,6 +207,20 @@ mod tests {
         }
 
         fn alloc_zeroed_with_hint<T: bytemuck::Pod>(
+            &self,
+            len: usize,
+            hint: PlacementHint,
+        ) -> hephaestus_core::Result<Self::Buffer<T>> {
+            empty_buffer(
+                len,
+                match hint {
+                    PlacementHint::Tier(tier) => tier,
+                    _ => MemoryTier::Device,
+                },
+            )
+        }
+
+        fn alloc_uninitialized_with_hint<T: bytemuck::Pod>(
             &self,
             len: usize,
             hint: PlacementHint,

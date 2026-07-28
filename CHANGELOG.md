@@ -4,6 +4,13 @@
 
 ### Changed
 
+- [minor] Route Coeus WGPU, CUDA, and generic Hephaestus COW replacement
+  allocations through Hephaestus's overwrite-before-read device allocation
+  seam while keeping ordinary storage construction zero-initialized. The
+  complete device-local copy remains the value-semantic initialization step;
+  runtime performance and resident-memory changes are not claimed without a
+  controlled benchmark.
+
 - [patch] Routes native Coeus WGPU and CUDA copy-on-write detachment through
   the shared Hephaestus `ComputeDevice::copy_buffer` contract. This removes
   duplicated encoder and CUDA-driver copy logic while preserving device-local
