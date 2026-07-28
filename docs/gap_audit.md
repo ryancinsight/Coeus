@@ -1,5 +1,32 @@
 # Coeus Gap Audit
 
+## ATLAS-CUDA-SAFETY-017: Pooling physical-index contract
+
+**Location**: `crates/coeus-cuda/src/kernels/validation.rs` and
+`crates/coeus-cuda/src/kernels/pool/`.
+**Gap**: pooling checked layout fields and parameters independently against
+the CUDA unsigned ABI, but did not prove the derived physical offset or the
+signed window-coordinate expressions representable. Storage capacity and
+writable aliasing were also unchecked at the pooling boundary.
+**Resolution**: ADR-0041 centralizes the physical layout/storage proof shared
+by fusion, unfold/fold, and pooling. Every pooling dimension now validates
+allocation bounds, writable non-aliasing, and complete forward/backward signed
+coordinate extrema before compilation.
+**Evidence**: pure boundary regressions cover exact and undersized strided
+storage, physical-offset overflow, writable zero-stride aliasing, and signed
+coordinate overflow. Feature-enabled all-target check and warning-denied
+package Clippy pass. Local native test linking remains blocked by MinGW
+`cannot find -lcuda`. Exact-head run `30391721824` passes CUDA
+(`90384681039`), WGPU (`90384681127`), Metal (`90384681124`), and ROCm
+(`90384681137`); required-device ROCm (`90384681768`) is intentionally
+skipped.
+**Residual**: the broader warning-denied graph exposes 143 pre-existing
+ignored `Result` errors in `coeus-autograd`. The live Atlas overlay later
+resolved Leto with missing `T: UnitScalar` bounds in
+`application/stencil.rs`, blocking repeat Coeus compilation before the
+touched crate. No runtime, bandwidth, or resident-memory delta is claimed.
+**Status**: complete at `8fe4da78`; merge delivery pending.
+
 ## ATLAS-COEUS-SAFETY-003: Uninitialized COW replacement allocation
 
 **Location**: `crates/coeus-hephaestus/src/storage.rs`,

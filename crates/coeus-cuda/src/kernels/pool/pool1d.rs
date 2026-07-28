@@ -1,17 +1,19 @@
 #![allow(clippy::too_many_arguments)]
 
-use super::validation::{
-    checked_pool_parameters, pool_layouts_are_valid, pool_prefix_matches, pool_shapes_match,
-    POOL_BLOCK_SIZE,
-};
 use super::POOL_COMMON_SRC;
-use crate::backend::CudaScalar;
-use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
-use crate::kernels::fuse::get_or_create_kernel;
-use crate::kernels::validation::{checked_numel, cuda_u32, launch_grid_size};
-use crate::storage::CudaStorage;
+use super::validation::{
+    POOL_BLOCK_SIZE, checked_pool_parameters, pool_index_arithmetic_is_valid,
+    pool_layouts_are_valid, pool_prefix_matches, pool_shapes_match,
+};
 use crate::CudaBackendError;
-use coeus_core::Layout;
+use crate::backend::CudaScalar;
+use crate::driver::{CUdeviceptr, CudaDriver, get_cuda_context};
+use crate::kernels::fuse::get_or_create_kernel;
+use crate::kernels::validation::{
+    checked_numel, cuda_u32, launch_grid_size, layout_fits_cuda_storage,
+};
+use crate::storage::CudaStorage;
+use coeus_core::{Layout, Storage};
 
 fn source<T: CudaScalar>() -> String {
     let scalar = T::CUDA_TYPE;
@@ -151,6 +153,25 @@ extern "C" __global__ void avg_pool_backward(
     )
 }
 
+fn pool1d_contract_is_valid(
+    input_layout: &Layout,
+    input_len: usize,
+    input_writable: bool,
+    output_layout: &Layout,
+    output_len: usize,
+    output_writable: bool,
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+) -> bool {
+    checked_pool_parameters(kernel_size, stride, padding, dilation).is_some_and(|parameters| {
+        pool_index_arithmetic_is_valid(input_layout, output_layout, parameters, 1)
+            && layout_fits_cuda_storage(input_layout, input_len, input_writable)
+            && layout_fits_cuda_storage(output_layout, output_len, output_writable)
+    })
+}
+
 fn launch<T: CudaScalar>(
     operation: &'static str,
     buffers: &mut [CUdeviceptr],
@@ -173,8 +194,14 @@ fn launch<T: CudaScalar>(
             "CUDA context unavailable",
         ));
     };
-    let Some([kernel_size_value, stride_value, padding_value, dilation_value]) =
-        checked_pool_parameters(kernel_size, stride, padding, dilation)
+    let Some(
+        [
+            kernel_size_value,
+            stride_value,
+            padding_value,
+            dilation_value,
+        ],
+    ) = checked_pool_parameters(kernel_size, stride, padding, dilation)
     else {
         return Err(CudaBackendError::kernel(
             operation,
@@ -287,10 +314,23 @@ pub fn dispatch_max_pool1d<T: CudaScalar>(
     output: &mut CudaStorage<T>,
     output_layout: &Layout,
 ) -> Result<(), CudaBackendError> {
-    if !pool_prefix_matches(input_layout, output_layout) {
+    if !pool_prefix_matches(input_layout, output_layout)
+        || !pool1d_contract_is_valid(
+            input_layout,
+            input.len(),
+            false,
+            output_layout,
+            output.len(),
+            true,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        )
+    {
         return Err(CudaBackendError::kernel(
             "max_pool_forward",
-            "input and output layouts do not share the batch/channel prefix",
+            "input, output, or signed index range violates the pool contract",
         ));
     }
     let Some(thread_count) = checked_numel(output_layout) else {
@@ -326,10 +366,23 @@ pub fn dispatch_max_pool1d_backward<T: CudaScalar>(
 ) -> Result<(), CudaBackendError> {
     if !pool_prefix_matches(grad_out_layout, grad_input_layout)
         || !pool_shapes_match(input_layout, grad_input_layout)
+        || !pool1d_contract_is_valid(
+            input_layout,
+            input.len(),
+            false,
+            grad_out_layout,
+            grad_out.len(),
+            false,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        )
+        || !layout_fits_cuda_storage(grad_input_layout, grad_input.len(), true)
     {
         return Err(CudaBackendError::kernel(
             "max_pool_backward",
-            "pool layouts do not satisfy the shape contract",
+            "pool layouts, storage, or signed index range violate the backward contract",
         ));
     }
     let Some(thread_count) = checked_numel(grad_input_layout) else {
@@ -365,10 +418,23 @@ pub fn dispatch_avg_pool1d<T: CudaScalar>(
     output: &mut CudaStorage<T>,
     output_layout: &Layout,
 ) -> Result<(), CudaBackendError> {
-    if !pool_prefix_matches(input_layout, output_layout) {
+    if !pool_prefix_matches(input_layout, output_layout)
+        || !pool1d_contract_is_valid(
+            input_layout,
+            input.len(),
+            false,
+            output_layout,
+            output.len(),
+            true,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        )
+    {
         return Err(CudaBackendError::kernel(
             "avg_pool_forward",
-            "input and output layouts do not share the batch/channel prefix",
+            "input, output, or signed index range violates the pool contract",
         ));
     }
     let Some(thread_count) = checked_numel(output_layout) else {
@@ -400,10 +466,23 @@ pub fn dispatch_avg_pool1d_backward<T: CudaScalar>(
     grad_input: &mut CudaStorage<T>,
     grad_input_layout: &Layout,
 ) -> Result<(), CudaBackendError> {
-    if !pool_prefix_matches(grad_out_layout, grad_input_layout) {
+    if !pool_prefix_matches(grad_out_layout, grad_input_layout)
+        || !pool1d_contract_is_valid(
+            grad_input_layout,
+            grad_input.len(),
+            true,
+            grad_out_layout,
+            grad_out.len(),
+            false,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        )
+    {
         return Err(CudaBackendError::kernel(
             "avg_pool_backward",
-            "gradient layouts do not share the batch/channel prefix",
+            "gradient layouts, storage, or signed index range violate the pool contract",
         ));
     }
     let Some(thread_count) = checked_numel(grad_input_layout) else {

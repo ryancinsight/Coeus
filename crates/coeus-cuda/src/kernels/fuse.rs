@@ -1,16 +1,15 @@
 use super::GpuLayoutInfo;
+use crate::CudaBackendError;
 use crate::backend::{CudaBackend, CudaScalar};
-use crate::driver::{get_cuda_context, CUdeviceptr, CUfunction, CUmodule, CudaDriver, NvrtcDriver};
+use crate::driver::{CUdeviceptr, CUfunction, CUmodule, CudaDriver, NvrtcDriver, get_cuda_context};
 use crate::kernels::validation::{
-    checked_layout_storage_len, checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda,
-    CUDA_BLOCK_SIZE,
+    CUDA_BLOCK_SIZE, checked_numel, cuda_u32, launch_grid_size, layout_fits_cuda_storage,
 };
 use crate::storage::CudaStorage;
-use crate::CudaBackendError;
 use coeus_core::{Layout, Storage};
 use coeus_ops::fuse::ExprNode;
-use coeus_tensor::broadcast::broadcast_shapes;
 use coeus_tensor::Tensor;
+use coeus_tensor::broadcast::broadcast_shapes;
 use hephaestus_cuda::ComputeDevice;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
@@ -254,13 +253,8 @@ pub fn dispatch_fused<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
                 "input and output layouts are not broadcast-compatible",
             ));
         };
-        let required = checked_layout_storage_len(input_layout).ok_or_else(|| {
-            CudaBackendError::fusion(OPERATION, "input storage-bound arithmetic overflow")
-        })?;
         if broadcast_shape.as_ref() != out_layout.shape()
-            || !layouts_fit_cuda(&[input_layout])
-            || required.checked_sub(1).and_then(cuda_u32).is_none()
-            || input.storage().len() < required
+            || !layout_fits_cuda_storage(input_layout, input.storage().len(), false)
         {
             return Err(CudaBackendError::fusion(
                 OPERATION,

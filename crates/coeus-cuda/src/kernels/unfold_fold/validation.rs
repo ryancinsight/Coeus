@@ -1,8 +1,5 @@
 use crate::backend::CudaScalar;
-use crate::kernels::validation::{
-    checked_layout_storage_len, checked_numel, cuda_u32, layout_supports_cuda_output_indexing,
-    layouts_fit_cuda,
-};
+use crate::kernels::validation::{checked_numel, cuda_u32, layout_fits_cuda_storage};
 use crate::storage::CudaStorage;
 use coeus_core::{Layout, Storage};
 
@@ -44,11 +41,7 @@ fn layout_storage_is_valid<T: coeus_core::Scalar>(
     layout: &Layout,
     output: bool,
 ) -> bool {
-    layouts_fit_cuda(&[layout])
-        && (!output || layout_supports_cuda_output_indexing(layout))
-        && checked_layout_storage_len(layout).is_some_and(|required| {
-            required.checked_sub(1).and_then(cuda_u32).is_some() && storage.len() >= required
-        })
+    layout_fits_cuda_storage(layout, storage.len(), output)
 }
 
 pub(super) fn checked_output_dim(
@@ -132,8 +125,17 @@ pub(super) fn checked_2d_launch<T: CudaScalar>(
     {
         return None;
     }
-    let [kernel_h, kernel_w, stride_h, stride_w, _, _, dilation_h, dilation_w, _] =
-        parameters.values;
+    let [
+        kernel_h,
+        kernel_w,
+        stride_h,
+        stride_w,
+        _,
+        _,
+        dilation_h,
+        dilation_w,
+        _,
+    ] = parameters.values;
     if [
         kernel_h, kernel_w, stride_h, stride_w, dilation_h, dilation_w,
     ]
@@ -142,8 +144,17 @@ pub(super) fn checked_2d_launch<T: CudaScalar>(
     {
         return None;
     }
-    let [Some(kernel_h), Some(kernel_w), Some(stride_h), Some(stride_w), Some(padding_h), Some(padding_w), Some(dilation_h), Some(dilation_w), Some(width)] =
-        parameters.values.map(cuda_u32)
+    let [
+        Some(kernel_h),
+        Some(kernel_w),
+        Some(stride_h),
+        Some(stride_w),
+        Some(padding_h),
+        Some(padding_w),
+        Some(dilation_h),
+        Some(dilation_w),
+        Some(width),
+    ] = parameters.values.map(cuda_u32)
     else {
         return None;
     };
