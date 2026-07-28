@@ -4,6 +4,11 @@
 
 ### Changed
 
+- [patch] Keeps Coeus Hephaestus storage COW detachment on the provider
+  device. Replacement buffers retain the source memory tier and use the
+  shared device-local copy contract, removing the full-size host staging
+  allocation and two host/device transfers.
+
 - [arch] Routes Coeus `lgamma` through the provider-owned Hephaestus WGPU,
   CUDA, ROCm, and Metal f32 implementations. CUDA/ROCm use native device
   functions; WGPU/Metal use the shared Lanczos/reflection expression. Leto

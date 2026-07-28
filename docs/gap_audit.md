@@ -101,6 +101,17 @@ and provider feature gates on hosts with and without the required hardware.
 **Status**: open; deliberately outside the native comparison-provider item
 because it is a separate public failure-boundary migration.
 
+### Device-local COW increment
+
+`crates/coeus-hephaestus/src/storage.rs` now acquires the provider once,
+allocates the replacement with the source buffer's `MemoryTier`, and invokes
+`ComputeDevice::copy_buffer`. The old full-size host allocation and download /
+upload round trip are removed. A generic storage contract verifies copied
+values, tier preservation, one device copy, and no COW-triggered download.
+The `StorageMut::make_unique` method is still infallible, so allocation and
+copy failures remain the explicit residual of this broader failure-boundary
+migration rather than being reclassified as closed here.
+
 ## ATLAS-CUDA-SAFETY-016: Remaining CUDA launch-parameter narrowing
 
 **Location**: remaining non-convolution launchers under
