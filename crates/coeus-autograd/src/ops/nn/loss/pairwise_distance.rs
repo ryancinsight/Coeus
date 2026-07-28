@@ -34,22 +34,26 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let temp_grad;
         let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
             grad_out
         } else {
-            temp_grad = grad_out.to_contiguous_on(&backend);
+            temp_grad = grad_out.to_contiguous_on(&backend)?;
             &temp_grad
         };
         let mut g_rows = vec![T::zero(); self.rows];
-        backend.copy_to_host(grad_cont.storage(), &mut g_rows);
+        backend.copy_to_host(grad_cont.storage(), &mut g_rows)?;
 
         let want_x1 = matches!(input_grads.first(), Some(Some(_)));
         let want_x2 = matches!(input_grads.get(1), Some(Some(_)));
         if !want_x1 && !want_x2 {
-            return;
+            return Ok(());
         }
 
         let mut dx1 = vec![T::zero(); self.rows * self.feat];
@@ -62,19 +66,21 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         }
 
         if let Some(Some(ref g)) = input_grads.first() {
-            let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &dx1, &backend);
+            let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &dx1, &backend)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
             let mut dx2 = dx1;
             for v in &mut dx2 {
                 *v = T::zero() - *v;
             }
-            let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &dx2, &backend);
+            let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &dx2, &backend)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -89,7 +95,7 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x2: &Var<T, B>,
     p: T,
     eps: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     assert_eq!(
         x1.tensor.shape(),
@@ -111,14 +117,14 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let x1_raw = if x1.tensor.is_contiguous() && x1.tensor.layout().offset() == 0 {
         &x1.tensor
     } else {
-        x1_cont = x1.tensor.to_contiguous_on(&backend);
+        x1_cont = x1.tensor.to_contiguous_on(&backend)?;
         &x1_cont
     };
     let x2_cont;
     let x2_raw = if x2.tensor.is_contiguous() && x2.tensor.layout().offset() == 0 {
         &x2.tensor
     } else {
-        x2_cont = x2.tensor.to_contiguous_on(&backend);
+        x2_cont = x2.tensor.to_contiguous_on(&backend)?;
         &x2_cont
     };
 
@@ -126,14 +132,14 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         std::borrow::Cow::Borrowed(&s[..n])
     } else {
         let mut v = vec![T::zero(); n];
-        backend.copy_to_host(x1_raw.storage(), &mut v);
+        backend.copy_to_host(x1_raw.storage(), &mut v)?;
         std::borrow::Cow::Owned(v)
     };
     let x2_host: std::borrow::Cow<[T]> = if let Some(s) = x2_raw.storage().try_as_slice() {
         std::borrow::Cow::Borrowed(&s[..n])
     } else {
         let mut v = vec![T::zero(); n];
-        backend.copy_to_host(x2_raw.storage(), &mut v);
+        backend.copy_to_host(x2_raw.storage(), &mut v)?;
         std::borrow::Cow::Owned(v)
     };
 
@@ -172,21 +178,20 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         }
     }
 
-    let out_tensor = Tensor::from_slice_on([rows], &out, &backend);
+    let out_tensor = Tensor::from_slice_on([rows], &out, &backend)?;
     let requires_grad =
         crate::grad_mode::should_track_var(x1) || crate::grad_mode::should_track_var(x2);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             [rows],
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let node = PairwiseDistanceNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs: vec![x1.clone(), x2.clone()],
             grad_unit,
             rows,
@@ -197,9 +202,9 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

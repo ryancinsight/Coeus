@@ -39,12 +39,15 @@ fn bench_attention_forward(c: &mut Criterion) {
     let mut group = c.benchmark_group("CUDA SDP Attention Forward");
     for &(b, sq, sk, dk, dv) in SHAPES {
         let id = format!("{b}x{sq}x{sk}x{dk}x{dv}");
-        let q = Tensor::<f32, SequentialBackend>::from_slice([b, sq, dk], &fill(b * sq * dk, 1.0));
-        let k = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dk], &fill(b * sk * dk, 3.0));
-        let v = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dv], &fill(b * sk * dv, 5.0));
-        let q_g = q.to_backend_on(&seq, &cuda);
-        let k_g = k.to_backend_on(&seq, &cuda);
-        let v_g = v.to_backend_on(&seq, &cuda);
+        let q = Tensor::<f32, SequentialBackend>::from_slice([b, sq, dk], &fill(b * sq * dk, 1.0))
+            .expect("construct tensor");
+        let k = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dk], &fill(b * sk * dk, 3.0))
+            .expect("construct tensor");
+        let v = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dv], &fill(b * sk * dv, 5.0))
+            .expect("construct tensor");
+        let q_g = q.to_backend_on(&seq, &cuda).expect("transfer tensor");
+        let k_g = k.to_backend_on(&seq, &cuda).expect("transfer tensor");
+        let v_g = v.to_backend_on(&seq, &cuda).expect("transfer tensor");
 
         group.bench_with_input(BenchmarkId::new("Coeus CPU", &id), &id, |bn, _| {
             bn.iter(|| {
@@ -87,23 +90,31 @@ fn bench_attention_backward(c: &mut Criterion) {
     let mut group = c.benchmark_group("CUDA SDP Attention Backward");
     for &(b, sq, sk, dk, dv) in SHAPES {
         let id = format!("{b}x{sq}x{sk}x{dk}x{dv}");
-        let q = Tensor::<f32, SequentialBackend>::from_slice([b, sq, dk], &fill(b * sq * dk, 1.0));
-        let k = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dk], &fill(b * sk * dk, 3.0));
-        let v = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dv], &fill(b * sk * dv, 5.0));
-        let go = Tensor::<f32, SequentialBackend>::from_slice([b, sq, dv], &fill(b * sq * dv, 7.0));
-        let (_, aw) = scaled_dot_product_attention(&q, &k, &v, None, false, scale, &seq);
+        let q = Tensor::<f32, SequentialBackend>::from_slice([b, sq, dk], &fill(b * sq * dk, 1.0))
+            .expect("construct tensor");
+        let k = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dk], &fill(b * sk * dk, 3.0))
+            .expect("construct tensor");
+        let v = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dv], &fill(b * sk * dv, 5.0))
+            .expect("construct tensor");
+        let go = Tensor::<f32, SequentialBackend>::from_slice([b, sq, dv], &fill(b * sq * dv, 7.0))
+            .expect("construct tensor");
+        let (_, aw) = scaled_dot_product_attention(&q, &k, &v, None, false, scale, &seq)
+            .expect("evaluate attention");
 
-        let q_g = q.to_backend_on(&seq, &cuda);
-        let k_g = k.to_backend_on(&seq, &cuda);
-        let v_g = v.to_backend_on(&seq, &cuda);
-        let go_g = go.to_backend_on(&seq, &cuda);
-        let aw_g = aw.to_backend_on(&seq, &cuda);
+        let q_g = q.to_backend_on(&seq, &cuda).expect("transfer tensor");
+        let k_g = k.to_backend_on(&seq, &cuda).expect("transfer tensor");
+        let v_g = v.to_backend_on(&seq, &cuda).expect("transfer tensor");
+        let go_g = go.to_backend_on(&seq, &cuda).expect("transfer tensor");
+        let aw_g = aw.to_backend_on(&seq, &cuda).expect("transfer tensor");
 
         group.bench_with_input(BenchmarkId::new("Coeus CPU", &id), &id, |bn, _| {
             bn.iter(|| {
-                let mut gq = Tensor::<f32, SequentialBackend>::zeros_on([b, sq, dk], &seq);
-                let mut gk = Tensor::<f32, SequentialBackend>::zeros_on([b, sk, dk], &seq);
-                let mut gv = Tensor::<f32, SequentialBackend>::zeros_on([b, sk, dv], &seq);
+                let mut gq = Tensor::<f32, SequentialBackend>::zeros_on([b, sq, dk], &seq)
+                    .expect("construct tensor");
+                let mut gk = Tensor::<f32, SequentialBackend>::zeros_on([b, sk, dk], &seq)
+                    .expect("construct tensor");
+                let mut gv = Tensor::<f32, SequentialBackend>::zeros_on([b, sk, dv], &seq)
+                    .expect("construct tensor");
                 scaled_dot_product_attention_backward(
                     black_box(&go),
                     black_box(&q),
@@ -115,15 +126,19 @@ fn bench_attention_backward(c: &mut Criterion) {
                     Some(&mut gk),
                     Some(&mut gv),
                     &seq,
-                );
+                )
+                .expect("evaluate attention backward");
                 black_box((gq, gk, gv));
             })
         });
         group.bench_with_input(BenchmarkId::new("Coeus CUDA", &id), &id, |bn, _| {
             bn.iter(|| {
-                let mut gq = Tensor::<f32, CudaBackend>::zeros_on([b, sq, dk], &cuda);
-                let mut gk = Tensor::<f32, CudaBackend>::zeros_on([b, sk, dk], &cuda);
-                let mut gv = Tensor::<f32, CudaBackend>::zeros_on([b, sk, dv], &cuda);
+                let mut gq = Tensor::<f32, CudaBackend>::zeros_on([b, sq, dk], &cuda)
+                    .expect("construct tensor");
+                let mut gk = Tensor::<f32, CudaBackend>::zeros_on([b, sk, dk], &cuda)
+                    .expect("construct tensor");
+                let mut gv = Tensor::<f32, CudaBackend>::zeros_on([b, sk, dv], &cuda)
+                    .expect("construct tensor");
                 scaled_dot_product_attention_backward(
                     black_box(&go_g),
                     black_box(&q_g),
@@ -135,7 +150,8 @@ fn bench_attention_backward(c: &mut Criterion) {
                     Some(&mut gk),
                     Some(&mut gv),
                     &cuda,
-                );
+                )
+                .expect("evaluate attention backward");
                 black_box((gq, gk, gv));
             })
         });

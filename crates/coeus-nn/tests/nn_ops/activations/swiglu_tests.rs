@@ -35,12 +35,12 @@ fn swiglu_forward_matches_analytic() {
     let (d_input, d_output) = (3usize, 2usize);
     let data = vec![1.0_f64, 2.0, 3.0, 0.0, 1.0, 0.0]; // [2 × 3], row sums 6, 1
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, d_input], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, d_input], &data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let swiglu = SwiGlu::<f64, MoiraiBackend>::new(d_input, d_output, false);
-    let output = swiglu.forward(&input);
+    let swiglu = SwiGlu::<f64, MoiraiBackend>::new(d_input, d_output, false).expect("construct module");
+    let output = swiglu.forward(&input).expect("run forward");
 
     // Tolerance: the only transcendental is silu's sigmoid (~1 ulp); the result
     // magnitude is ~36, so the analytic error is O(1e-14). 1e-10 is a safe
@@ -54,23 +54,23 @@ fn swiglu_forward_matches_analytic() {
 #[test]
 fn swiglu_parameter_inventory() {
     // No bias: two weight matrices. With bias: two weights + two bias vectors.
-    let no_bias = SwiGlu::<f64, MoiraiBackend>::new(4, 8, false);
+    let no_bias = SwiGlu::<f64, MoiraiBackend>::new(4, 8, false).expect("construct module");
     assert_eq!(no_bias.parameters().len(), 2);
-    let with_bias = SwiGlu::<f64, MoiraiBackend>::new(4, 8, true);
+    let with_bias = SwiGlu::<f64, MoiraiBackend>::new(4, 8, true).expect("construct module");
     assert_eq!(with_bias.parameters().len(), 4);
 }
 
 #[test]
 fn swiglu_backward_populates_parameter_grads() {
-    let swiglu = SwiGlu::<f64, MoiraiBackend>::new(3, 2, true);
+    let swiglu = SwiGlu::<f64, MoiraiBackend>::new(3, 2, true).expect("construct module");
     let data = vec![0.5_f64, -1.0, 2.0];
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let output = swiglu.forward(&input);
-    output.backward();
+    let output = swiglu.forward(&input).expect("run forward");
+    output.backward().expect("run backward");
 
     for (i, p) in swiglu.parameters().iter().enumerate() {
         let grad = p

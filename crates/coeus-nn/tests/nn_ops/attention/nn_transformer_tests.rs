@@ -15,7 +15,7 @@ fn test_transformer_decoder_layer() {
 
     let mut layer = TransformerDecoderLayer::<f64, MoiraiBackend, H, CausalMask, NullMask>::new(
         d_model, d_ff, 0.0,
-    );
+    ).expect("construct module");
 
     // parameters check
     let params = layer.parameters();
@@ -82,15 +82,15 @@ fn test_transformer_decoder_layer() {
     let seq_src = 5;
 
     let tgt = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let memory = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let output = layer.forward_decoder(&tgt, &memory);
+    let output = layer.forward_decoder(&tgt, &memory).expect("run forward");
     assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
     let output_fn = transformer_decoder_layer::<f64, MoiraiBackend, H, CausalMask, NullMask>(
         &tgt,
@@ -135,7 +135,7 @@ fn test_transformer_decoder_layer() {
             ffn_residual_dropout_p: 0.0,
             ffn_residual_training: false,
         },
-    );
+    ).expect("run operation");
     for (a, b) in output
         .tensor
         .as_slice()
@@ -149,8 +149,8 @@ fn test_transformer_decoder_layer() {
     }
 
     // Backward pass
-    let loss = coeus_autograd::sum(&output);
-    loss.backward();
+    let loss = coeus_autograd::sum(&output).expect("run operation");
+    loss.backward().expect("run backward");
 
     assert!(tgt.grad().is_some());
     assert!(memory.grad().is_some());
@@ -172,7 +172,7 @@ fn test_transformer_decoder() {
 
     let decoder = TransformerDecoder::<f64, MoiraiBackend, H, N, CausalMask, NullMask>::new(
         d_model, d_ff, 0.0,
-    );
+    ).expect("construct module");
 
     let params = decoder.parameters();
     assert_eq!(params.len(), 26 * N);
@@ -182,19 +182,19 @@ fn test_transformer_decoder() {
     let seq_src = 5;
 
     let tgt = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let memory = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let output = decoder.forward_decoder(&tgt, &memory);
+    let output = decoder.forward_decoder(&tgt, &memory).expect("run forward");
     assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
 
-    let loss = coeus_autograd::sum(&output);
-    loss.backward();
+    let loss = coeus_autograd::sum(&output).expect("run operation");
+    loss.backward().expect("run backward");
 
     assert!(tgt.grad().is_some());
     assert!(memory.grad().is_some());
@@ -224,7 +224,7 @@ fn test_transformer_seq2seq() {
         NullMask,
         CausalMask,
         NullMask,
-    >::new(d_model, d_ff, 0.0);
+    >::new(d_model, d_ff, 0.0).expect("construct module");
 
     let params = transformer.parameters();
     // Encoder layer: norm1 (2), self_attn (8), norm2 (2), ffn (4) = 16 parameters
@@ -250,19 +250,19 @@ fn test_transformer_seq2seq() {
     let seq_tgt = 4;
 
     let src = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let tgt = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let output = transformer.forward_seq2seq(&src, &tgt);
+    let output = transformer.forward_seq2seq(&src, &tgt).expect("run operation");
     assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
 
-    let loss = coeus_autograd::sum(&output);
-    loss.backward();
+    let loss = coeus_autograd::sum(&output).expect("run operation");
+    loss.backward().expect("run backward");
 
     assert!(src.grad().is_some());
     assert!(tgt.grad().is_some());

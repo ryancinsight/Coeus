@@ -1,14 +1,16 @@
 use crate::backend_ops::ops::BinaryOp;
 use crate::backend_ops::traits::{ElementwiseOps, MatmulOps};
-use coeus_core::{Layout, Scalar, Shape, Strides};
+use coeus_core::{BackendError, Layout, Scalar, Shape, Strides};
 
-fn shape3(shape: &[usize], name: &str) -> [usize; 3] {
-    assert_eq!(
-        shape.len(),
-        3,
-        "batched_matmul: {name} shape must have rank 3"
-    );
-    [shape[0], shape[1], shape[2]]
+fn shape3<B: MatmulOps<T>, T: Scalar>(shape: &[usize]) -> Result<[usize; 3], B::Error> {
+    let [a, b, c] = shape else {
+        return Err(B::Error::from(BackendError::UnsupportedRank {
+            operation: "batched_matmul",
+            rank: shape.len(),
+            max_rank: 3,
+        }));
+    };
+    Ok([*a, *b, *c])
 }
 
 /// Default: `c += a @ b` via temp + add.
@@ -22,12 +24,15 @@ pub fn matmul_accumulate<T: Scalar, B: MatmulOps<T> + ElementwiseOps<T>>(
     c_layout: &Layout,
 ) -> Result<(), B::Error> {
     let temp_len = c_layout.shape().iter().product();
-    let mut temp = backend.allocate::<T>(temp_len);
+    let mut temp = backend.allocate::<T>(temp_len)?;
     let temp_layout =
         Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
-    backend.fill(&mut temp, T::zero());
+    backend.fill(&mut temp, T::zero())?;
     backend.matmul(a, a_layout, b, b_layout, &mut temp, &temp_layout)?;
     let c_ptr = c as *mut B::DeviceBuffer<T>;
+    // SAFETY: `c_ptr` originates from the unique `&mut c` argument. The
+    // temporary buffer is distinct, so the two storage references do not
+    // alias during the backend elementwise update.
     unsafe {
         backend.elementwise_binary(
             BinaryOp::Add,
@@ -52,24 +57,21 @@ pub fn batched_matmul<T: Scalar, B: MatmulOps<T>>(
     c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
 ) -> Result<(), B::Error> {
-    assert_eq!(a_layout.ndim(), 3, "batched_matmul: lhs must be rank 3");
-    assert_eq!(b_layout.ndim(), 3, "batched_matmul: rhs must be rank 3");
-    assert_eq!(c_layout.ndim(), 3, "batched_matmul: out must be rank 3");
-
-    let [lhs_batch, m, lhs_k] = shape3(a_layout.shape(), "lhs");
-    let [rhs_batch, rhs_k, n] = shape3(b_layout.shape(), "rhs");
-    let [out_batch, out_m, out_n] = shape3(c_layout.shape(), "out");
-    assert!(
-        (lhs_batch == out_batch || lhs_batch == 1)
-            && (rhs_batch == out_batch || rhs_batch == 1)
-            && lhs_k == rhs_k
-            && m == out_m
-            && n == out_n,
-        "batched_matmul: incompatible shapes {:?}, {:?}, {:?}",
-        a_layout.shape(),
-        b_layout.shape(),
-        c_layout.shape(),
-    );
+    let [lhs_batch, m, lhs_k] = shape3::<B, T>(a_layout.shape())?;
+    let [rhs_batch, rhs_k, n] = shape3::<B, T>(b_layout.shape())?;
+    let [out_batch, out_m, out_n] = shape3::<B, T>(c_layout.shape())?;
+    if !((lhs_batch == out_batch || lhs_batch == 1)
+        && (rhs_batch == out_batch || rhs_batch == 1)
+        && lhs_k == rhs_k
+        && m == out_m
+        && n == out_n)
+    {
+        return Err(B::Error::from(BackendError::ShapeMismatch {
+            operation: "batched_matmul",
+            lhs: a_layout.shape().to_vec(),
+            rhs: b_layout.shape().to_vec(),
+        }));
+    }
 
     let lhs_batch_stride = if lhs_batch == 1 {
         0
@@ -122,12 +124,15 @@ pub fn batched_matmul_accumulate<T: Scalar, B: MatmulOps<T> + ElementwiseOps<T>>
     c_layout: &Layout,
 ) -> Result<(), B::Error> {
     let temp_len = c_layout.shape().iter().product();
-    let mut temp = backend.allocate::<T>(temp_len);
+    let mut temp = backend.allocate::<T>(temp_len)?;
     let temp_layout =
         Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
-    backend.fill(&mut temp, T::zero());
+    backend.fill(&mut temp, T::zero())?;
     batched_matmul(backend, a, a_layout, b, b_layout, &mut temp, &temp_layout)?;
     let c_ptr = c as *mut B::DeviceBuffer<T>;
+    // SAFETY: `c_ptr` originates from the unique `&mut c` argument. The
+    // temporary buffer is distinct, so the two storage references do not
+    // alias during the backend elementwise update.
     unsafe {
         backend.elementwise_binary(
             BinaryOp::Add,

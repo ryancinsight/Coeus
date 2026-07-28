@@ -36,8 +36,8 @@ pub struct LocalClusterShared {
 ///         let rank = comm.rank() as f32;
 ///         // rank r contributes [r+1, r+2] -> [1,2], [2,3], [3,4]
 ///         let mut tensor =
-///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend);
-///         comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
+///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend).expect("construct tensor");
+///         comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend).expect("all-reduce succeeds");
 ///         // sum across 3 ranks: [1+2+3, 2+3+4] = [6, 9]
 ///         let data = tensor.as_slice();
 ///         assert_eq!(data[0], 6.0);
@@ -158,13 +158,13 @@ impl Communicator for LocalCommunicator {
         &self,
         tensor: &mut Tensor<T, B>,
         backend: &B,
-    ) {
+    ) -> Result<(), B::Error> {
         let numel = tensor.numel();
         if numel == 0 {
-            return;
+            return Ok(());
         }
 
-        let host_data = get_tensor_host_data(tensor, backend).into_owned();
+        let host_data = get_tensor_host_data(tensor, backend)?.into_owned();
 
         // 1. Publish local staging data
         {
@@ -215,7 +215,7 @@ impl Communicator for LocalCommunicator {
         self.barrier();
 
         // 9. Transfer to device
-        copy_host_slice_to_tensor(&reduced, tensor, backend);
+        copy_host_slice_to_tensor(&reduced, tensor, backend)
     }
 
     fn broadcast<T: Scalar, B: ComputeBackend>(
@@ -223,18 +223,18 @@ impl Communicator for LocalCommunicator {
         tensor: &mut Tensor<T, B>,
         root: usize,
         backend: &B,
-    ) {
+    ) -> Result<(), B::Error> {
         assert!(
             root < self.size,
             "LocalCommunicator broadcast root out of bounds"
         );
         let numel = tensor.numel();
         if numel == 0 {
-            return;
+            return Ok(());
         }
 
         if self.rank == root {
-            let host_data = get_tensor_host_data(tensor, backend).into_owned();
+            let host_data = get_tensor_host_data(tensor, backend)?.into_owned();
             let mut bufs = self.shared.buffers.lock().unwrap();
             bufs[root] = Some(Box::new(host_data));
         }
@@ -258,8 +258,9 @@ impl Communicator for LocalCommunicator {
         self.barrier();
 
         if self.rank != root {
-            copy_host_slice_to_tensor(&broadcasted, tensor, backend);
+            copy_host_slice_to_tensor(&broadcasted, tensor, backend)?;
         }
+        Ok(())
     }
 
     fn all_gather<T: Scalar, B: ComputeBackend>(
@@ -267,7 +268,7 @@ impl Communicator for LocalCommunicator {
         tensor: &Tensor<T, B>,
         output: &mut [Tensor<T, B>],
         backend: &B,
-    ) {
+    ) -> Result<(), B::Error> {
         assert_eq!(
             output.len(),
             self.size,
@@ -283,10 +284,10 @@ impl Communicator for LocalCommunicator {
             );
         }
         if numel == 0 {
-            return;
+            return Ok(());
         }
 
-        let host_data = get_tensor_host_data(tensor, backend).into_owned();
+        let host_data = get_tensor_host_data(tensor, backend)?.into_owned();
 
         {
             let mut bufs = self.shared.buffers.lock().unwrap();
@@ -300,16 +301,16 @@ impl Communicator for LocalCommunicator {
             Self::snapshot_payloads::<T>(&bufs, self.size, numel, "all_gather")
         };
         for r in 0..self.size {
-            copy_host_slice_to_tensor(&staged[r], &mut output[r], backend);
+            copy_host_slice_to_tensor(&staged[r], &mut output[r], backend)?;
         }
 
         self.barrier();
-
         if self.rank == 0 {
             self.clear_staging();
         }
 
         self.barrier();
+        Ok(())
     }
 
     fn reduce<T: Scalar, B: ComputeBackend, Op: ReduceOpTag>(
@@ -317,17 +318,17 @@ impl Communicator for LocalCommunicator {
         tensor: &mut Tensor<T, B>,
         root: usize,
         backend: &B,
-    ) {
+    ) -> Result<(), B::Error> {
         assert!(
             root < self.size,
             "LocalCommunicator reduce root out of bounds"
         );
         let numel = tensor.numel();
         if numel == 0 {
-            return;
+            return Ok(());
         }
 
-        let host_data = get_tensor_host_data(tensor, backend).into_owned();
+        let host_data = get_tensor_host_data(tensor, backend)?.into_owned();
 
         // 1. Publish local staging data
         {
@@ -366,8 +367,9 @@ impl Communicator for LocalCommunicator {
 
         // 7. Transfer to device on root
         if self.rank == root {
-            copy_host_slice_to_tensor(&reduced, tensor, backend);
+            copy_host_slice_to_tensor(&reduced, tensor, backend)?;
         }
+        Ok(())
     }
 
     fn gather<T: Scalar, B: ComputeBackend>(
@@ -376,7 +378,7 @@ impl Communicator for LocalCommunicator {
         output: &mut [Tensor<T, B>],
         root: usize,
         backend: &B,
-    ) {
+    ) -> Result<(), B::Error> {
         assert!(
             root < self.size,
             "LocalCommunicator gather root out of bounds"
@@ -398,10 +400,10 @@ impl Communicator for LocalCommunicator {
             }
         }
         if numel == 0 {
-            return;
+            return Ok(());
         }
 
-        let host_data = get_tensor_host_data(tensor, backend).into_owned();
+        let host_data = get_tensor_host_data(tensor, backend)?.into_owned();
 
         {
             let mut bufs = self.shared.buffers.lock().unwrap();
@@ -416,17 +418,17 @@ impl Communicator for LocalCommunicator {
                 Self::snapshot_payloads::<T>(&bufs, self.size, numel, "gather")
             };
             for r in 0..self.size {
-                copy_host_slice_to_tensor(&staged[r], &mut output[r], backend);
+                copy_host_slice_to_tensor(&staged[r], &mut output[r], backend)?;
             }
         }
 
         self.barrier();
-
         if self.rank == root {
             self.clear_staging();
         }
 
         self.barrier();
+        Ok(())
     }
 
     fn scatter<T: Scalar, B: ComputeBackend>(
@@ -435,7 +437,7 @@ impl Communicator for LocalCommunicator {
         input: &[Tensor<T, B>],
         root: usize,
         backend: &B,
-    ) {
+    ) -> Result<(), B::Error> {
         assert!(
             root < self.size,
             "LocalCommunicator scatter root out of bounds"
@@ -457,7 +459,7 @@ impl Communicator for LocalCommunicator {
             }
         }
         if numel == 0 {
-            return;
+            return Ok(());
         }
 
         if self.rank == root {
@@ -465,8 +467,10 @@ impl Communicator for LocalCommunicator {
                 .iter()
                 .enumerate()
                 .take(self.size)
-                .map(|(_, in_tensor)| get_tensor_host_data(in_tensor, backend).into_owned())
-                .collect::<Vec<Vec<T>>>();
+                .map(|(_, in_tensor)| {
+                    get_tensor_host_data(in_tensor, backend).map(|data| data.into_owned())
+                })
+                .collect::<Result<Vec<Vec<T>>, B::Error>>()?;
 
             let mut bufs = self.shared.buffers.lock().unwrap();
             for (r, host_data) in staged_inputs.into_iter().enumerate() {
@@ -492,6 +496,6 @@ impl Communicator for LocalCommunicator {
 
         self.barrier();
 
-        copy_host_slice_to_tensor(&scattered, tensor, backend);
+        copy_host_slice_to_tensor(&scattered, tensor, backend)
     }
 }

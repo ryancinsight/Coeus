@@ -4,8 +4,8 @@
 use crate::backend::{Backend, ComputeBackend};
 use crate::dtype::Scalar;
 use crate::storage::{CpuStorage, Storage};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Cached `available_parallelism()` snapshot.
 ///
@@ -94,26 +94,69 @@ impl ComputeBackend for MoiraiBackend {
     }
 
     #[inline]
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        CpuStorage::allocate(len)
+    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        CpuStorage::try_new(len)
     }
 
     #[inline]
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
-        use crate::storage::CpuAddressableStorageMut;
-        dst.as_mut_slice().fill(val);
+    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) -> Result<(), Self::Error> {
+        use crate::storage::StorageMut;
+        let Some(dst) = dst.try_as_mut_slice()? else {
+            return Err(crate::backend::BackendError::Storage {
+                operation: "fill",
+                reason: "Moirai storage is not CPU-addressable".to_owned(),
+            });
+        };
+        dst.fill(val);
+        Ok(())
     }
 
     #[inline]
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
-        use crate::storage::CpuAddressableStorageMut;
-        dst.as_mut_slice().copy_from_slice(src);
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error> {
+        if src.len() != dst.len() {
+            return Err(crate::backend::BackendError::Storage {
+                operation: "copy_to_device",
+                reason: format!(
+                    "source length {} differs from destination length {}",
+                    src.len(),
+                    dst.len()
+                ),
+            });
+        }
+        use crate::storage::StorageMut;
+        let Some(dst) = dst.try_as_mut_slice()? else {
+            return Err(crate::backend::BackendError::Storage {
+                operation: "copy_to_device",
+                reason: "Moirai storage is not CPU-addressable".to_owned(),
+            });
+        };
+        dst.copy_from_slice(src);
+        Ok(())
     }
 
     #[inline]
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error> {
         use crate::storage::CpuAddressableStorage;
+        if src.len() != dst.len() {
+            return Err(crate::backend::BackendError::Storage {
+                operation: "copy_to_host",
+                reason: format!(
+                    "source length {} differs from destination length {}",
+                    src.len(),
+                    dst.len()
+                ),
+            });
+        }
         dst.copy_from_slice(src.as_slice());
+        Ok(())
     }
 }
 

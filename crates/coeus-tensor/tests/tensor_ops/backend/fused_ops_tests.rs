@@ -13,23 +13,23 @@ fn test_cpu_fusion_basic() {
         &[
             1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
         ],
-    );
+    ).expect("construct tensor");
     let b = Tensor::<f32, SequentialBackend>::from_slice(
         shape.clone(),
         &[2.0, 0.5, 1.5, 2.5, 3.0, 1.0, -1.0, 0.0, 0.5, 2.0, -3.0, 4.0],
-    );
+    ).expect("construct tensor");
     let c = Tensor::<f32, SequentialBackend>::from_slice(
         shape.clone(),
         &[
             -5.0, 1.0, 2.0, 3.0, 1.5, 2.5, 0.5, 10.0, 1.0, -1.0, 5.0, 6.0,
         ],
-    );
+    ).expect("construct tensor");
 
     // Expression: (a.expr() * b.expr() + c.expr()).relu()
     let expr = (a.expr() * b.expr() + c.expr()).relu();
 
     // Evaluate CPU fused
-    let fused_out = evaluate_fused_cpu(&expr, &backend);
+    let fused_out = evaluate_fused_cpu(&expr, &backend).expect("evaluate fused expression");
 
     // Evaluate CPU sequential manually to compare
     let mut expected = vec![0.0f32; 12];
@@ -49,12 +49,12 @@ fn test_cpu_fusion_broadcasting() {
     let backend = SequentialBackend::new();
 
     let a =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-    let b = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 3], &[10.0, 20.0, 30.0]);
+        Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("construct tensor");
+    let b = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 3], &[10.0, 20.0, 30.0]).expect("construct tensor");
 
     // Expression: a + b
     let expr = a.expr() + b.expr();
-    let fused_out = evaluate_fused_cpu(&expr, &backend);
+    let fused_out = evaluate_fused_cpu(&expr, &backend).expect("evaluate fused expression");
 
     assert_eq!(fused_out.shape(), &[2, 3]);
     let expected = vec![11.0, 22.0, 33.0, 14.0, 25.0, 36.0];
@@ -66,11 +66,11 @@ fn test_cpu_fusion_silu() {
     let backend = SequentialBackend::new();
     let shape = vec![5];
     let a =
-        Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[-2.0, -1.0, 0.0, 1.0, 2.0]);
+        Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[-2.0, -1.0, 0.0, 1.0, 2.0]).expect("construct tensor");
 
     // Expression: a.expr().silu()
     let expr = a.expr().silu();
-    let fused_out = evaluate_fused_cpu(&expr, &backend);
+    let fused_out = evaluate_fused_cpu(&expr, &backend).expect("evaluate fused expression");
 
     assert_eq!(fused_out.shape(), &[5]);
 
@@ -90,10 +90,10 @@ fn test_cpu_fusion_gelu() {
     let backend = SequentialBackend::new();
     let shape = vec![5];
     let a =
-        Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[-2.0, -1.0, 0.0, 1.0, 2.0]);
+        Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[-2.0, -1.0, 0.0, 1.0, 2.0]).expect("construct tensor");
 
     let expr = a.expr().gelu();
-    let fused_out = evaluate_fused_cpu(&expr, &backend);
+    let fused_out = evaluate_fused_cpu(&expr, &backend).expect("evaluate fused expression");
 
     assert_eq!(fused_out.shape(), &[5]);
 
@@ -110,10 +110,10 @@ fn test_cpu_fusion_gelu_grad() {
     let backend = SequentialBackend::new();
     let shape = vec![5];
     let a =
-        Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[-2.0, -1.0, 0.0, 1.0, 2.0]);
+        Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[-2.0, -1.0, 0.0, 1.0, 2.0]).expect("construct tensor");
 
     let expr = a.expr().gelu_grad();
-    let fused_out = evaluate_fused_cpu(&expr, &backend);
+    let fused_out = evaluate_fused_cpu(&expr, &backend).expect("evaluate fused expression");
 
     assert_eq!(fused_out.shape(), &[5]);
 
@@ -135,31 +135,36 @@ fn test_cpu_fusion_gelu_grad() {
 fn test_cpu_fusion_reduce_ops() {
     let backend = SequentialBackend::new();
     let a =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[1.0, -2.0, 3.0, 4.0, 5.0, -6.0]);
+        Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[1.0, -2.0, 3.0, 4.0, 5.0, -6.0]).expect("construct tensor");
     let b = Tensor::<f32, SequentialBackend>::from_slice(
         vec![2, 3],
         &[10.0, 20.0, -30.0, 1.5, -2.0, 0.5],
-    );
+    ).expect("construct tensor");
 
     let expr = a.expr() + b.expr();
 
-    let sum = evaluate_fused_reduce_cpu(&expr, ReductionOp::Sum, 1, &backend);
+    let sum = evaluate_fused_reduce_cpu(&expr, ReductionOp::Sum, 1, &backend)
+        .expect("evaluate fused sum");
     assert_eq!(sum.shape(), &[2, 1]);
     assert_eq!(sum.as_slice(), &[2.0, 3.0]);
 
-    let product = evaluate_fused_reduce_cpu(&expr, ReductionOp::Prod, 1, &backend);
+    let product = evaluate_fused_reduce_cpu(&expr, ReductionOp::Prod, 1, &backend)
+        .expect("evaluate fused product");
     assert_eq!(product.shape(), &[2, 1]);
     assert_eq!(product.as_slice(), &[-5346.0, -90.75]);
 
-    let mean = evaluate_fused_reduce_cpu(&expr, ReductionOp::Mean, 1, &backend);
+    let mean = evaluate_fused_reduce_cpu(&expr, ReductionOp::Mean, 1, &backend)
+        .expect("evaluate fused mean");
     assert_eq!(mean.shape(), &[2, 1]);
     assert_eq!(mean.as_slice(), &[2.0 / 3.0, 1.0]);
 
-    let max = evaluate_fused_reduce_cpu(&expr, ReductionOp::Max, 1, &backend);
+    let max = evaluate_fused_reduce_cpu(&expr, ReductionOp::Max, 1, &backend)
+        .expect("evaluate fused maximum");
     assert_eq!(max.shape(), &[2, 1]);
     assert_eq!(max.as_slice(), &[18.0, 5.5]);
 
-    let min = evaluate_fused_reduce_cpu(&expr, ReductionOp::Min, 1, &backend);
+    let min = evaluate_fused_reduce_cpu(&expr, ReductionOp::Min, 1, &backend)
+        .expect("evaluate fused minimum");
     assert_eq!(min.shape(), &[2, 1]);
     assert_eq!(min.as_slice(), &[-27.0, -5.5]);
 }

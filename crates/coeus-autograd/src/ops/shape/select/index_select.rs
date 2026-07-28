@@ -40,7 +40,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // Scatter-add the output gradient back to input positions.
@@ -50,9 +54,9 @@ where
             let ndim = in_shape.len();
             let dim = self.dim;
 
-            let idx_cont = self.index_tensor.to_contiguous();
+            let idx_cont = self.index_tensor.to_contiguous()?;
             let idx_s = idx_cont.as_slice();
-            let go_cont = grad_out.to_contiguous();
+            let go_cont = grad_out.to_contiguous()?;
             let go_s = go_cont.as_slice();
 
             // Build output shape from input_shape with dim replaced by k.
@@ -93,9 +97,11 @@ where
             }
 
             // Accumulate increment into the gradient buffer.
-            let gi_increment = Tensor::from_slice(in_shape.clone(), &gi_data);
-            coeus_ops::add_assign(gl, &gi_increment, &backend);
+            let gi_increment = Tensor::from_slice_on(in_shape.clone(), &gi_data, &backend)?;
+            coeus_ops::add_assign(gl, &gi_increment, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -109,26 +115,26 @@ pub fn index_select<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: usize,
     index: &Var<T, B>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::index_select(&input.tensor, dim, &index.tensor, &backend);
+    let out_tensor = coeus_ops::index_select(&input.tensor, dim, &index.tensor, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = IndexSelectNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: vec![input.clone()],
             index_tensor: index.tensor.clone(),
             dim,
@@ -138,9 +144,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

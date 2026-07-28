@@ -1,6 +1,7 @@
-use super::super::conv;
 use super::super::CpuBackend;
+use super::super::conv;
 use crate::backend_ops::traits::ConvOps;
+use crate::backend_ops::defaults::conv_transpose;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
 
 #[allow(clippy::too_many_arguments)]
@@ -21,7 +22,7 @@ where
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         conv::conv1d(
             self,
             input,
@@ -34,7 +35,8 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -54,7 +56,7 @@ where
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) {
+    ) -> Result<(), Self::Error> {
         conv::conv1d_backward(
             self,
             grad_out,
@@ -71,7 +73,8 @@ where
             stride,
             padding,
             dilation,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -87,7 +90,7 @@ where
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         conv::conv2d(
             self,
             input,
@@ -100,7 +103,8 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -120,7 +124,7 @@ where
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) {
+    ) -> Result<(), Self::Error> {
         conv::conv2d_backward(
             self,
             grad_out,
@@ -137,7 +141,8 @@ where
             stride,
             padding,
             dilation,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -153,7 +158,7 @@ where
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         conv::conv3d(
             self,
             input,
@@ -166,7 +171,8 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -186,7 +192,7 @@ where
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) {
+    ) -> Result<(), Self::Error> {
         conv::conv3d_backward(
             self,
             grad_out,
@@ -203,6 +209,75 @@ where
             stride,
             padding,
             dilation,
-        );
+        )?;
+        Ok(())
+    }
+
+    #[inline]
+    fn conv_transpose1d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        output_padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: coeus_core::Float,
+    {
+        conv_transpose::conv_transpose1d(
+            self,
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            output_padding,
+            dilation,
+            output,
+            output_layout,
+        )
+    }
+
+    #[inline]
+    fn conv_transpose2d(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        weight: &Self::DeviceBuffer<T>,
+        weight_layout: &Layout,
+        bias: Option<&Self::DeviceBuffer<T>>,
+        stride: usize,
+        padding: usize,
+        output_padding: usize,
+        dilation: usize,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: coeus_core::Float,
+    {
+        conv_transpose::conv_transpose2d(
+            self,
+            input,
+            input_layout,
+            weight,
+            weight_layout,
+            bias,
+            stride,
+            padding,
+            output_padding,
+            dilation,
+            output,
+            output_layout,
+        )
     }
 }

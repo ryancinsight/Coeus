@@ -44,10 +44,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         if let Some(Some(ref g_in)) = input_grads.get(0) {
-            accumulate_softmax_grad(grad_out, &self.y_clone, self.dim_u, g_in);
+            accumulate_softmax_grad(grad_out, &self.y_clone, self.dim_u, g_in)?;
         }
+
+        Ok(())
     }
 }
 
@@ -65,19 +71,21 @@ fn build_var<T, B>(
     y_t: Tensor<T, B>,
     dim_u: usize,
     op: &'static str,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     T: Float,
     B: coeus_ops::BackendOps<T> + Default,
 {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             y_t.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
     let creator = grad.as_ref().map(|g| {
         Arc::new(MaskedSoftmaxNode {
             output_grad: g.clone(),
@@ -87,11 +95,11 @@ where
             op,
         }) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: y_t,
         grad,
         creator,
-    }
+    })
 }
 
 /// Tracked masked softmax over `dim`.
@@ -102,7 +110,11 @@ where
 /// # Panics
 /// If `dim` is out of range or `input`/`mask` shapes differ.
 #[must_use]
-pub fn masked_softmax<T, B>(input: &Var<T, B>, mask: &Tensor<T, B>, dim: isize) -> Var<T, B>
+pub fn masked_softmax<T, B>(
+    input: &Var<T, B>,
+    mask: &Tensor<T, B>,
+    dim: isize,
+) -> Result<Var<T, B>, B::Error>
 where
     T: Float,
     B: coeus_ops::BackendOps<T> + Default,
@@ -110,7 +122,7 @@ where
 {
     let dim_u = normalize_dim(dim, input.tensor.ndim(), "masked_softmax");
     let backend = B::default();
-    let y_t = coeus_ops::masked_softmax(&input.tensor, mask, dim_u, &backend).expect("masked_softmax");
+    let y_t = coeus_ops::masked_softmax(&input.tensor, mask, dim_u, &backend)?;
     build_var(input, y_t, dim_u, "masked_softmax")
 }
 
@@ -120,7 +132,7 @@ where
 /// # Panics
 /// If `dim` is out of range.
 #[must_use]
-pub fn causal_softmax<T, B>(input: &Var<T, B>, dim: isize) -> Var<T, B>
+pub fn causal_softmax<T, B>(input: &Var<T, B>, dim: isize) -> Result<Var<T, B>, B::Error>
 where
     T: Float,
     B: coeus_ops::BackendOps<T> + Default,
@@ -128,7 +140,7 @@ where
 {
     let dim_u = normalize_dim(dim, input.tensor.ndim(), "causal_softmax");
     let backend = B::default();
-    let y_t = coeus_ops::causal_softmax(&input.tensor, dim_u, &backend).expect("causal_softmax");
+    let y_t = coeus_ops::causal_softmax(&input.tensor, dim_u, &backend)?;
     build_var(input, y_t, dim_u, "causal_softmax")
 }
 
@@ -141,9 +153,9 @@ mod tests {
     fn masked_softmax_forward_and_gradient() {
         // input=[[1,2,3]], mask=[[1,1,0]], dim=1: softmax over cols 0,1; col 2 -> 0.
         let input =
-            Var::<f64, MoiraiBackend>::new(Tensor::from_slice([1, 3], &[1.0, 2.0, 3.0]), true);
-        let mask = Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[1.0, 1.0, 0.0]);
-        let out = masked_softmax(&input, &mask, 1);
+            Var::<f64, MoiraiBackend>::new(Tensor::from_slice([1, 3], &[1.0, 2.0, 3.0]).expect("valid tensor construction"), true).expect("valid variable construction");
+        let mask = Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[1.0, 1.0, 0.0]).expect("valid tensor construction");
+        let out = masked_softmax(&input, &mask, 1).expect("valid autograd operation");
         let (e1, e2) = (1.0_f64.exp(), 2.0_f64.exp());
         let (y0, y1) = (e1 / (e1 + e2), e2 / (e1 + e2));
         let y = out.tensor.as_slice();
@@ -156,7 +168,7 @@ mod tests {
         );
 
         // Seed grad_out=[1,0,0]: dx_k = y_k*(g_k - sum_j y_j g_j), sum = y0.
-        out.backward_with_seed(Tensor::from_slice([1, 3], &[1.0, 0.0, 0.0]));
+        out.backward_with_seed(Tensor::from_slice([1, 3], &[1.0, 0.0, 0.0]).expect("valid tensor construction")).expect("valid backward propagation");
         let g = input.grad().unwrap();
         let gs = g.as_slice();
         assert!((gs[0] - y0 * (1.0 - y0)).abs() < 1e-12, "dx0: {}", gs[0]);
@@ -172,13 +184,13 @@ mod tests {
     fn masked_softmax_all_masked_row_is_zero_no_nan() {
         // A fully-masked row must yield all-zero output and a finite all-zero gradient.
         let input =
-            Var::<f64, MoiraiBackend>::new(Tensor::from_slice([1, 3], &[1.0, 2.0, 3.0]), true);
-        let mask = Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[0.0, 0.0, 0.0]);
-        let out = masked_softmax(&input, &mask, 1);
+            Var::<f64, MoiraiBackend>::new(Tensor::from_slice([1, 3], &[1.0, 2.0, 3.0]).expect("valid tensor construction"), true).expect("valid variable construction");
+        let mask = Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[0.0, 0.0, 0.0]).expect("valid tensor construction");
+        let out = masked_softmax(&input, &mask, 1).expect("valid autograd operation");
         for &v in out.tensor.as_slice() {
             assert_eq!(v, 0.0, "all-masked output must be 0");
         }
-        out.backward();
+        out.backward().expect("valid backward propagation");
         for &v in input.grad().unwrap().as_slice() {
             assert!(
                 v.is_finite() && v == 0.0,
@@ -191,8 +203,8 @@ mod tests {
     fn causal_softmax_is_lower_triangular_and_differentiable() {
         // 2x2: row0 attends only to col0 (future masked); row1 to cols 0,1.
         let input =
-            Var::<f64, MoiraiBackend>::new(Tensor::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]), true);
-        let out = causal_softmax(&input, 1);
+            Var::<f64, MoiraiBackend>::new(Tensor::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]).expect("valid tensor construction"), true).expect("valid variable construction");
+        let out = causal_softmax(&input, 1).expect("valid autograd operation");
         let y = out.tensor.as_slice();
         assert!((y[0] - 1.0).abs() < 1e-12, "causal row0 col0");
         assert!(y[1].abs() < 1e-12, "causal row0 col1 must be masked (0)");
@@ -200,12 +212,14 @@ mod tests {
         assert!((y[2] - e3 / (e3 + e4)).abs() < 1e-12, "causal row1 col0");
         assert!((y[3] - e4 / (e3 + e4)).abs() < 1e-12, "causal row1 col1");
 
-        out.backward();
-        assert!(input
-            .grad()
-            .unwrap()
-            .as_slice()
-            .iter()
-            .all(|v| v.is_finite()));
+        out.backward().expect("valid backward propagation");
+        assert!(
+            input
+                .grad()
+                .unwrap()
+                .as_slice()
+                .iter()
+                .all(|v| v.is_finite())
+        );
     }
 }

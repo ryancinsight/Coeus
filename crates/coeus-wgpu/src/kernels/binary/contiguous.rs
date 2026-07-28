@@ -1,5 +1,5 @@
 use super::super::cache::PIPELINE_CACHE;
-use crate::backend::{checked_workgroup_count, WgpuBackendError, WgpuScalar};
+use crate::backend::{WgpuBackendError, WgpuScalar, checked_workgroup_count};
 
 fn wgsl_cmp_literals(wgsl_type: &str) -> (&'static str, &'static str) {
     match wgsl_type {

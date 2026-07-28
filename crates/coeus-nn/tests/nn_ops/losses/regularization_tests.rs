@@ -7,9 +7,9 @@ use coeus_tensor::Tensor;
 
 fn seq_var(shape: impl Into<coeus_core::Shape>, data: &[f32]) -> Var<f32, SequentialBackend> {
     Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(shape, data),
+        Tensor::<f32, SequentialBackend>::from_slice(shape, data).expect("construct tensor"),
         false,
-    )
+    ).expect("construct variable")
 }
 
 // ── AlphaDropout ──
@@ -19,7 +19,7 @@ fn alpha_dropout_eval_is_identity() {
     let mut layer = AlphaDropout::new(0.5);
     layer.set_training(false);
     let x = seq_var([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-    let y = layer.forward(&x);
+    let y = layer.forward(&x).expect("run forward");
     assert_eq!(
         y.tensor.as_slice(),
         x.tensor.as_slice(),
@@ -31,7 +31,7 @@ fn alpha_dropout_eval_is_identity() {
 fn alpha_dropout_p0_is_identity() {
     let layer = AlphaDropout::new(0.0);
     let x = seq_var([4], &[1.0, 2.0, 3.0, 4.0]);
-    let y = layer.forward(&x);
+    let y = layer.forward(&x).expect("run forward");
     assert_eq!(
         y.tensor.as_slice(),
         x.tensor.as_slice(),
@@ -43,7 +43,7 @@ fn alpha_dropout_p0_is_identity() {
 fn alpha_dropout_shape_preserved() {
     let layer = AlphaDropout::new(0.3);
     let x = seq_var([2, 4, 8], &vec![1.0_f32; 64]);
-    let y = layer.forward(&x);
+    let y = layer.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[2, 4, 8], "shape must be preserved");
 }
 
@@ -54,8 +54,31 @@ fn feature_alpha_dropout_eval_is_identity() {
     let mut layer = FeatureAlphaDropout::new(0.5);
     layer.set_training(false);
     let x = seq_var([2, 4], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
-    let y = layer.forward(&x);
+    let y = layer.forward(&x).expect("run forward");
     assert_eq!(y.tensor.as_slice(), x.tensor.as_slice());
+}
+
+#[test]
+fn feature_alpha_dropout_masks_each_channel_across_spatial_positions() {
+    let layer = FeatureAlphaDropout::new(0.5);
+    let x = seq_var(
+        [1, 4, 2],
+        &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+    );
+    let y = layer.forward(&x).expect("run forward");
+    let values = y.tensor.as_slice();
+
+    let channel_differences = (0..4)
+        .map(|channel| (values[channel * 2] - values[channel * 2 + 1]).abs())
+        .collect::<Vec<_>>();
+    assert!(
+        channel_differences.iter().any(|difference| *difference < 1e-6),
+        "at least one channel must be fully dropped"
+    );
+    assert!(
+        channel_differences.iter().any(|difference| *difference > 1e-3),
+        "at least one channel must remain active"
+    );
 }
 
 // ── GaussianNoise ──
@@ -66,7 +89,7 @@ fn gaussian_noise_eval_is_identity() {
     layer.set_training(false);
     let data = vec![1.0_f32, 2.0, 3.0, 4.0];
     let x = seq_var([4], &data);
-    let y = layer.forward(&x);
+    let y = layer.forward(&x).expect("run forward");
     assert_eq!(y.tensor.as_slice(), x.tensor.as_slice());
 }
 
@@ -75,7 +98,7 @@ fn gaussian_noise_std0_is_identity() {
     let layer = GaussianNoise::new(0.0);
     let data = vec![5.0_f32, 6.0, 7.0];
     let x = seq_var([3], &data);
-    let y = layer.forward(&x);
+    let y = layer.forward(&x).expect("run forward");
     assert_eq!(y.tensor.as_slice(), x.tensor.as_slice());
 }
 
@@ -83,7 +106,7 @@ fn gaussian_noise_std0_is_identity() {
 fn gaussian_noise_adds_noise_in_training() {
     let layer = GaussianNoise::new(1.0);
     let x = seq_var([100], &vec![0.0_f32; 100]);
-    let y = layer.forward(&x);
+    let y = layer.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[100]);
     // With std=1 and 100 elements, at least some should be non-zero.
     let has_nonzero = y.tensor.as_slice().iter().any(|&v| v.abs() > 1e-7);
@@ -96,7 +119,7 @@ fn gaussian_noise_adds_noise_in_training() {
 fn lrn_shape_preserved() {
     let lrn = LocalResponseNorm::new(5);
     let x = seq_var([1, 8, 4, 4], &vec![1.0_f32; 128]);
-    let y = lrn.forward(&x);
+    let y = lrn.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 8, 4, 4]);
 }
 
@@ -108,7 +131,7 @@ fn lrn_unit_input_scales_correctly() {
     // Inner channels (1,2) cover 3 neighbours: sum_sq = 3, denom = (1+3/3)^1 = 2.
     let lrn = LocalResponseNorm::with_params(3, 1.0, 1.0, 1.0);
     let x = seq_var([1, 4, 1, 1], &[1.0, 1.0, 1.0, 1.0]);
-    let y = lrn.forward(&x);
+    let y = lrn.forward(&x).expect("run forward");
     let s = y.tensor.as_slice();
     let expected_inner = 1.0 / 2.0_f32;
     assert!(
@@ -129,7 +152,7 @@ fn lrn_k1_defaults_match_pytorch() {
     // All-zero input → all-zero output (denominator = k^beta = 1.0).
     let lrn = LocalResponseNorm::new(5);
     let x = seq_var([1, 3, 2, 2], &[0.0_f32; 12]);
-    let y = lrn.forward(&x);
+    let y = lrn.forward(&x).expect("run forward");
     for &v in y.tensor.as_slice() {
         assert!((v).abs() < 1e-7, "zero input should give zero output");
     }
@@ -147,10 +170,10 @@ fn lrn_backward_matches_numerical_gradient() {
 
     // Analytic: backward() seeds grad_output = ones, so x.grad = d sum(y) / d x.
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
+        Tensor::<f64, SequentialBackend>::from_slice(shape, &data).expect("construct tensor"),
         true,
-    );
-    lrn.forward(&x).backward();
+    ).expect("construct variable");
+    lrn.forward(&x).expect("run forward").backward().expect("run backward");
     let analytic: Vec<f64> = x.grad().expect("lrn input gradient").as_slice().to_vec();
 
     // Numerical: central differences of sum(LRN(x)). f64, h=1e-6 ⇒ error ~1e-10;
@@ -158,10 +181,10 @@ fn lrn_backward_matches_numerical_gradient() {
     let h = 1e-6_f64;
     let sum_forward = |d: &[f64]| -> f64 {
         let xv = Var::new(
-            Tensor::<f64, SequentialBackend>::from_slice(shape, d),
+            Tensor::<f64, SequentialBackend>::from_slice(shape, d).expect("construct tensor"),
             false,
-        );
-        lrn.forward(&xv)
+        ).expect("construct variable");
+        lrn.forward(&xv).expect("run forward")
             .tensor
             .as_slice()
             .iter()

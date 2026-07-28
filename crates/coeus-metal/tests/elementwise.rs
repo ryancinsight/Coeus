@@ -31,10 +31,18 @@ where
     coeus_metal::MetalProvider: coeus_hephaestus::ElementwiseProvider<T>,
 {
     let layout = Layout::new([lhs.len()].into());
-    let mut device_lhs = backend.allocate::<T>(lhs.len());
-    let mut device_rhs = backend.allocate::<T>(rhs.len());
-    backend.copy_to_device(lhs, &mut device_lhs);
-    backend.copy_to_device(rhs, &mut device_rhs);
+    let mut device_lhs = backend
+        .allocate::<T>(lhs.len())
+        .expect("allocate Metal integer-comparison lhs");
+    let mut device_rhs = backend
+        .allocate::<T>(rhs.len())
+        .expect("allocate Metal integer-comparison rhs");
+    backend
+        .copy_to_device(lhs, &mut device_lhs)
+        .expect("upload Metal integer-comparison lhs");
+    backend
+        .copy_to_device(rhs, &mut device_rhs)
+        .expect("upload Metal integer-comparison rhs");
 
     for operation in [
         BinaryOp::Eq,
@@ -55,7 +63,9 @@ where
             &mut expected,
         )
         .expect("Leto integer comparison oracle failed");
-        let mut actual = backend.allocate::<T>(lhs.len());
+        let mut actual = backend
+            .allocate::<T>(lhs.len())
+            .expect("allocate Metal integer-comparison output");
         backend
             .elementwise_binary(
                 operation,
@@ -68,7 +78,9 @@ where
             )
             .expect("Metal integer comparison dispatch failed");
         let mut actual_values = vec![T::zero(); lhs.len()];
-        backend.copy_to_host(&actual, &mut actual_values);
+        backend
+            .copy_to_host(&actual, &mut actual_values)
+            .expect("download Metal integer-comparison output");
         assert_eq!(
             actual_values, expected,
             "Metal integer {operation:?} mismatch"
@@ -89,10 +101,18 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
     let output_layout = Layout::new([2, 3].into());
     let lhs = [1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0];
     let rhs = [2.0_f32, 4.0, 6.0];
-    let mut device_lhs = backend.allocate::<f32>(lhs.len());
-    let mut device_rhs = backend.allocate::<f32>(rhs.len());
-    backend.copy_to_device(&lhs, &mut device_lhs);
-    backend.copy_to_device(&rhs, &mut device_rhs);
+    let mut device_lhs = backend
+        .allocate::<f32>(lhs.len())
+        .expect("allocate Metal binary lhs");
+    let mut device_rhs = backend
+        .allocate::<f32>(rhs.len())
+        .expect("allocate Metal binary rhs");
+    backend
+        .copy_to_device(&lhs, &mut device_lhs)
+        .expect("upload Metal binary lhs");
+    backend
+        .copy_to_device(&rhs, &mut device_rhs)
+        .expect("upload Metal binary rhs");
 
     for operation in [
         BinaryOp::Add,
@@ -117,7 +137,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             &mut expected,
         )
         .expect("Leto binary elementwise oracle failed");
-        let mut actual = backend.allocate::<f32>(lhs.len());
+        let mut actual = backend
+            .allocate::<f32>(lhs.len())
+            .expect("allocate Metal binary output");
         backend
             .elementwise_binary(
                 operation,
@@ -130,7 +152,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             )
             .expect("Metal binary elementwise dispatch failed");
         let mut actual_values = [0.0_f32; 6];
-        backend.copy_to_host(&actual, &mut actual_values);
+        backend
+            .copy_to_host(&actual, &mut actual_values)
+            .expect("download Metal binary output");
         assert_close(&actual_values, &expected, "binary");
     }
 
@@ -155,10 +179,18 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         ),
     ] {
         let layout = Layout::new(shape.into());
-        let mut device_lhs = backend.allocate::<f32>(lhs.len());
-        let mut device_rhs = backend.allocate::<f32>(rhs.len());
-        backend.copy_to_device(&lhs, &mut device_lhs);
-        backend.copy_to_device(&rhs, &mut device_rhs);
+        let mut device_lhs = backend
+            .allocate::<f32>(lhs.len())
+            .expect("allocate Metal ranked binary lhs");
+        let mut device_rhs = backend
+            .allocate::<f32>(rhs.len())
+            .expect("allocate Metal ranked binary rhs");
+        backend
+            .copy_to_device(&lhs, &mut device_lhs)
+            .expect("upload Metal ranked binary lhs");
+        backend
+            .copy_to_device(&rhs, &mut device_rhs)
+            .expect("upload Metal ranked binary rhs");
         let mut expected = vec![0.0_f32; lhs.len()];
         coeus_leto::elementwise_binary_into(
             BinaryOp::Add,
@@ -170,7 +202,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             &mut expected,
         )
         .expect("Leto ranked elementwise oracle failed");
-        let mut actual = backend.allocate::<f32>(lhs.len());
+        let mut actual = backend
+            .allocate::<f32>(lhs.len())
+            .expect("allocate Metal ranked binary output");
         backend
             .elementwise_binary(
                 BinaryOp::Add,
@@ -183,13 +217,19 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             )
             .expect("Metal ranked elementwise dispatch failed");
         let mut actual_values = vec![0.0_f32; lhs.len()];
-        backend.copy_to_host(&actual, &mut actual_values);
+        backend
+            .copy_to_host(&actual, &mut actual_values)
+            .expect("download Metal ranked binary output");
         assert_close(&actual_values, &expected, "ranked binary");
     }
 
     let unary_input = [0.25_f32, 0.5, 1.0, 2.0, 3.0, 4.0];
-    let mut device_unary_input = backend.allocate::<f32>(unary_input.len());
-    backend.copy_to_device(&unary_input, &mut device_unary_input);
+    let mut device_unary_input = backend
+        .allocate::<f32>(unary_input.len())
+        .expect("allocate Metal unary input");
+    backend
+        .copy_to_device(&unary_input, &mut device_unary_input)
+        .expect("upload Metal unary input");
     for operation in [
         CpuUnaryOp::Sin,
         CpuUnaryOp::Cos,
@@ -209,7 +249,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             &mut expected,
         )
         .expect("Leto unary elementwise oracle failed");
-        let mut actual = backend.allocate::<f32>(unary_input.len());
+        let mut actual = backend
+            .allocate::<f32>(unary_input.len())
+            .expect("allocate Metal unary output");
         backend
             .elementwise_unary(
                 operation,
@@ -220,7 +262,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             )
             .expect("Metal unary elementwise dispatch failed");
         let mut actual_values = [0.0_f32; 6];
-        backend.copy_to_host(&actual, &mut actual_values);
+        backend
+            .copy_to_host(&actual, &mut actual_values)
+            .expect("download Metal unary output");
         assert_close(&actual_values, &expected, "unary");
     }
 
@@ -228,8 +272,12 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         ($operation:expr, $input:expr, $label:expr) => {{
             let math_input: &[f32] = $input;
             let math_layout = Layout::new([math_input.len()].into());
-            let mut device_math_input = backend.allocate::<f32>(math_input.len());
-            backend.copy_to_device(math_input, &mut device_math_input);
+            let mut device_math_input = backend
+                .allocate::<f32>(math_input.len())
+                .expect("allocate Metal math input");
+            backend
+                .copy_to_device(math_input, &mut device_math_input)
+                .expect("upload Metal math input");
             let mut expected = vec![0.0_f32; math_input.len()];
             coeus_leto::elementwise_unary_into(
                 $operation,
@@ -239,7 +287,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
                 &mut expected,
             )
             .expect("Leto unary math elementwise oracle failed");
-            let mut actual = backend.allocate::<f32>(math_input.len());
+            let mut actual = backend
+                .allocate::<f32>(math_input.len())
+                .expect("allocate Metal math output");
             backend
                 .elementwise_unary(
                     $operation,
@@ -250,7 +300,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
                 )
                 .expect("Metal unary math elementwise dispatch failed");
             let mut actual_values = vec![0.0_f32; math_input.len()];
-            backend.copy_to_host(&actual, &mut actual_values);
+            backend
+                .copy_to_host(&actual, &mut actual_values)
+                .expect("download Metal math output");
             assert_close(&actual_values, &expected, $label);
         }};
     }
@@ -290,8 +342,12 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
 
     let activation_input = [-3.0_f32, -1.0, 0.0, 0.25, 1.0, 3.0];
     let activation_layout = Layout::new([6].into());
-    let mut device_activation_input = backend.allocate::<f32>(activation_input.len());
-    backend.copy_to_device(&activation_input, &mut device_activation_input);
+    let mut device_activation_input = backend
+        .allocate::<f32>(activation_input.len())
+        .expect("allocate Metal activation input");
+    backend
+        .copy_to_device(&activation_input, &mut device_activation_input)
+        .expect("upload Metal activation input");
     for operation in [
         CpuUnaryOp::Relu,
         CpuUnaryOp::Sigmoid,
@@ -315,7 +371,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             &mut expected,
         )
         .expect("Leto activation elementwise oracle failed");
-        let mut actual = backend.allocate::<f32>(activation_input.len());
+        let mut actual = backend
+            .allocate::<f32>(activation_input.len())
+            .expect("allocate Metal activation output");
         backend
             .elementwise_unary(
                 operation,
@@ -326,7 +384,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             )
             .expect("Metal activation elementwise dispatch failed");
         let mut actual_values = [0.0_f32; 6];
-        backend.copy_to_host(&actual, &mut actual_values);
+        backend
+            .copy_to_host(&actual, &mut actual_values)
+            .expect("download Metal activation output");
         assert_close(&actual_values, &expected, "activation");
     }
 }

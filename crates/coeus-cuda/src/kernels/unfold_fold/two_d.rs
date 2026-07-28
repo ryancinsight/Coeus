@@ -1,5 +1,5 @@
 use super::dispatch::{kernel, launch};
-use super::validation::{checked_2d_launch, checked_output_dim, Launch2d, Parameters2d};
+use super::validation::{Launch2d, Parameters2d, checked_2d_launch, checked_output_dim};
 use crate::backend::CudaScalar;
 use crate::driver::CUdeviceptr;
 use crate::kernels::GpuLayoutInfo;

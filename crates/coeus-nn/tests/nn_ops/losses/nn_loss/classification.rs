@@ -16,10 +16,10 @@ fn test_nll_loss() {
     let targets = vec![0, 1, 2];
 
     let log_probs = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([3, 3], &log_probs_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([3, 3], &log_probs_data).expect("construct tensor"),
         true,
-    );
-    let loss = nll_loss(&log_probs, &targets);
+    ).expect("construct variable");
+    let loss = nll_loss(&log_probs, &targets).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
 
     let loss_val = loss.tensor.as_slice()[0];
@@ -27,7 +27,7 @@ fn test_nll_loss() {
     let expected = -(-0.1 - 0.25 - 0.4) / 3.0;
     assert!((loss_val - expected).abs() < 1e-7);
 
-    loss.backward();
+    loss.backward().expect("run backward");
     assert!(log_probs.grad().is_some());
 
     // Check gradients: -1 / N at target index, 0 elsewhere
@@ -49,10 +49,10 @@ fn test_soft_margin() {
     let ys = [1.0_f64, -1.0, 1.0];
     let n = xs.len() as f64;
 
-    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &xs), true);
-    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &ys), true);
+    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &xs).expect("construct tensor"), true).expect("construct variable");
+    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &ys).expect("construct tensor"), true).expect("construct variable");
 
-    let loss = soft_margin(&input, &target);
+    let loss = soft_margin(&input, &target).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
 
     let mut expected = 0.0;
@@ -66,7 +66,7 @@ fn test_soft_margin() {
         "soft_margin forward: got {loss_val:.17}, expected {expected:.17}"
     );
 
-    loss.backward();
+    loss.backward().expect("run backward");
     let sigmoid = |z: f64| 1.0 / (1.0 + (-z).exp());
     let input_grad = input.grad().expect("input must receive a gradient");
     let target_grad = target.grad().expect("target must receive a gradient");
@@ -101,10 +101,10 @@ fn test_multi_margin() {
     // j=1: m=1-0.5+0.8=1.3>0 (active); j=2: m=1-0.5-0.6=-0.1<0 (inactive).
     // loss = 1.3 / (N*C) = 1.3/3.  grads: x[0,1]=1/3, x[0,2]=0, x[0,0]=-1/3.
     let x = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[0.5, 0.8, -0.6]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[0.5, 0.8, -0.6]).expect("construct tensor"),
         true,
-    );
-    let loss = multi_margin(&x, &[0], 1.0, 1.0);
+    ).expect("construct variable");
+    let loss = multi_margin(&x, &[0], 1.0, 1.0).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
     assert!(
         (loss.tensor.as_slice()[0] - 1.3 / 3.0).abs() <= 1e-12,
@@ -113,7 +113,7 @@ fn test_multi_margin() {
         1.3 / 3.0
     );
 
-    loss.backward();
+    loss.backward().expect("run backward");
     let g = x.grad().expect("x must receive a gradient");
     let third = 1.0 / 3.0;
     let expected = [-third, third, 0.0];
@@ -129,10 +129,10 @@ fn test_multi_margin() {
 fn test_multi_margin_all_inactive() {
     // Target score dominates by > margin → all hinges inactive → loss 0.
     let x = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[3.0, 0.5, 0.1]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[3.0, 0.5, 0.1]).expect("construct tensor"),
         false,
-    );
-    let loss = multi_margin(&x, &[0], 1.0, 1.0);
+    ).expect("construct variable");
+    let loss = multi_margin(&x, &[0], 1.0, 1.0).expect("run operation");
     assert_eq!(
         loss.tensor.as_slice(),
         &[0.0_f64],
@@ -148,12 +148,12 @@ fn test_hinge_embedding_loss() {
     // formula and are corrected here to torch's documented contract.)
     //   0.5, max(0,1-2)=0, -1.0, max(0,1-0.3)=0.7  =>  mean = 0.2 / 4 = 0.05.
     let x = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([4], &[0.5, 2.0, -1.0, 0.3]),
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[0.5, 2.0, -1.0, 0.3]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let target = [1.0f64, -1.0, 1.0, -1.0];
 
-    let loss = hinge_embedding_loss(&x, &target, 1.0);
+    let loss = hinge_embedding_loss(&x, &target, 1.0).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
     assert!(
         (loss.tensor.as_slice()[0] - 0.05).abs() < 1e-12,
@@ -161,7 +161,7 @@ fn test_hinge_embedding_loss() {
         loss.tensor.as_slice()[0]
     );
 
-    loss.backward();
+    loss.backward().expect("run backward");
     // d/dx (seed 1/N from mean, N=4): identity branch (y=+1) -> 1/N; hinge
     // branch (y=-1) -> -1/N when margin > x else 0.
     //   i0: y=+1 -> 0.25            i1: y=-1, 1-2<0 -> 0
@@ -184,21 +184,21 @@ fn test_multi_label_soft_margin_loss() {
     //   i0: x=0, σ=0.5, y=1 -> -ln(0.5) = ln 2
     //   i1: x=2, y=0        -> -ln(1-σ(2))
     let x = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.0, 2.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.0, 2.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 0.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 0.0]).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
-    let loss = multi_label_soft_margin_loss(&x, &target);
+    let loss = multi_label_soft_margin_loss(&x, &target).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
     let sig2 = 1.0 / (1.0 + (-2.0f64).exp());
     let expected = (2.0f64.ln() + -(1.0 - sig2).ln()) / 2.0;
     assert!((loss.tensor.as_slice()[0] - expected).abs() < 1e-10);
 
-    loss.backward();
+    loss.backward().expect("run backward");
     // d BCEWithLogits/dx = (σ(x) - y)/N: i0 (0.5-1)/2=-0.25, i1 (σ(2)-0)/2.
     let grad = x.grad().expect("mlsm x grad");
     let g = grad.as_slice();

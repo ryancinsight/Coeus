@@ -26,16 +26,16 @@ where
     let a_layout = Layout::new(Shape::from(vec![rows, cols]));
     let c_layout = Layout::new(Shape::from(vec![rows, 1]));
 
-    let mut a_buf = ComputeBackend::allocate::<T>(backend, rows * cols);
-    let mut c_buf = ComputeBackend::allocate::<T>(backend, rows);
-    backend.copy_to_device(data, &mut a_buf);
+    let mut a_buf = ComputeBackend::allocate::<T>(backend, rows * cols).expect("backend fixture operation");
+    let mut c_buf = ComputeBackend::allocate::<T>(backend, rows).expect("backend fixture operation");
+    backend.copy_to_device(data, &mut a_buf).expect("backend fixture operation");
 
     backend
         .reduce(op, &a_buf, &a_layout, 1, &mut c_buf, &c_layout)
         .expect("CPU reduction dispatch");
 
     let mut out = vec![T::zero(); rows];
-    backend.copy_to_host(&c_buf, &mut out);
+    backend.copy_to_host(&c_buf, &mut out).expect("backend fixture operation");
     out
 }
 

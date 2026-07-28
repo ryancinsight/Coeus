@@ -29,37 +29,37 @@ use std::ops::{Add, Div, Mul, Neg, Sub};
 // ── &Var op &Var ──────────────────────────────────────────────────────────
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Add<&Var<T, B>> for &Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn add(self, rhs: &Var<T, B>) -> Var<T, B> {
+    fn add(self, rhs: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         add(self, rhs)
     }
 }
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Sub<&Var<T, B>> for &Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn sub(self, rhs: &Var<T, B>) -> Var<T, B> {
+    fn sub(self, rhs: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         sub(self, rhs)
     }
 }
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Mul<&Var<T, B>> for &Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn mul(self, rhs: &Var<T, B>) -> Var<T, B> {
+    fn mul(self, rhs: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         mul(self, rhs)
     }
 }
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Div<&Var<T, B>> for &Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn div(self, rhs: &Var<T, B>) -> Var<T, B> {
+    fn div(self, rhs: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         div(self, rhs)
     }
 }
@@ -67,10 +67,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Div<&Var<T, B>> for &Var<
 // ── Neg for &Var ──────────────────────────────────────────────────────────
 
 impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> Neg for &Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn neg(self) -> Var<T, B> {
+    fn neg(self) -> Result<Var<T, B>, B::Error> {
         tracked_neg(self)
     }
 }
@@ -87,37 +87,37 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> Neg for &Var<T
 // `VarScalarExt::scalar_mul/add/sub/div` (callable on any backend).
 
 impl<T: Scalar + leto_ops::Scalar> Mul<T> for &Var<T, MoiraiBackend> {
-    type Output = Var<T, MoiraiBackend>;
+    type Output = Result<Var<T, MoiraiBackend>, coeus_core::BackendError>;
 
     #[inline]
-    fn mul(self, rhs: T) -> Var<T, MoiraiBackend> {
+    fn mul(self, rhs: T) -> Result<Var<T, MoiraiBackend>, coeus_core::BackendError> {
         scalar_mul(self, rhs)
     }
 }
 
 impl<T: Scalar + leto_ops::Scalar> Add<T> for &Var<T, MoiraiBackend> {
-    type Output = Var<T, MoiraiBackend>;
+    type Output = Result<Var<T, MoiraiBackend>, coeus_core::BackendError>;
 
     #[inline]
-    fn add(self, rhs: T) -> Var<T, MoiraiBackend> {
+    fn add(self, rhs: T) -> Result<Var<T, MoiraiBackend>, coeus_core::BackendError> {
         scalar_add(self, rhs)
     }
 }
 
 impl<T: Scalar + leto_ops::Scalar> Sub<T> for &Var<T, MoiraiBackend> {
-    type Output = Var<T, MoiraiBackend>;
+    type Output = Result<Var<T, MoiraiBackend>, coeus_core::BackendError>;
 
     #[inline]
-    fn sub(self, rhs: T) -> Var<T, MoiraiBackend> {
+    fn sub(self, rhs: T) -> Result<Var<T, MoiraiBackend>, coeus_core::BackendError> {
         scalar_sub(self, rhs)
     }
 }
 
 impl<T: Scalar + leto_ops::Scalar> Div<T> for &Var<T, MoiraiBackend> {
-    type Output = Var<T, MoiraiBackend>;
+    type Output = Result<Var<T, MoiraiBackend>, coeus_core::BackendError>;
 
     #[inline]
-    fn div(self, rhs: T) -> Var<T, MoiraiBackend> {
+    fn div(self, rhs: T) -> Result<Var<T, MoiraiBackend>, coeus_core::BackendError> {
         scalar_div(self, rhs)
     }
 }
@@ -129,46 +129,46 @@ impl<T: Scalar + leto_ops::Scalar> Div<T> for &Var<T, MoiraiBackend> {
 // is a shallow `Arc` clone of the tensor's storage block — O(1) overhead.
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Add<&Var<T, B>> for Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn add(self, rhs: &Var<T, B>) -> Var<T, B> {
+    fn add(self, rhs: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         add(&self, rhs)
     }
 }
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Sub<&Var<T, B>> for Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn sub(self, rhs: &Var<T, B>) -> Var<T, B> {
+    fn sub(self, rhs: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         sub(&self, rhs)
     }
 }
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Mul<&Var<T, B>> for Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn mul(self, rhs: &Var<T, B>) -> Var<T, B> {
+    fn mul(self, rhs: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         mul(&self, rhs)
     }
 }
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Div<&Var<T, B>> for Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn div(self, rhs: &Var<T, B>) -> Var<T, B> {
+    fn div(self, rhs: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         div(&self, rhs)
     }
 }
 
 impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> Neg for Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn neg(self) -> Var<T, B> {
+    fn neg(self) -> Result<Var<T, B>, B::Error> {
         tracked_neg(&self)
     }
 }
@@ -176,37 +176,37 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> Neg for Var<T,
 // ── Owned Var op Owned Var ────────────────────────────────────────────────
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Add<Var<T, B>> for Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn add(self, rhs: Var<T, B>) -> Var<T, B> {
+    fn add(self, rhs: Var<T, B>) -> Result<Var<T, B>, B::Error> {
         add(&self, &rhs)
     }
 }
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Sub<Var<T, B>> for Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn sub(self, rhs: Var<T, B>) -> Var<T, B> {
+    fn sub(self, rhs: Var<T, B>) -> Result<Var<T, B>, B::Error> {
         sub(&self, &rhs)
     }
 }
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Mul<Var<T, B>> for Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn mul(self, rhs: Var<T, B>) -> Var<T, B> {
+    fn mul(self, rhs: Var<T, B>) -> Result<Var<T, B>, B::Error> {
         mul(&self, &rhs)
     }
 }
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Div<Var<T, B>> for Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn div(self, rhs: Var<T, B>) -> Var<T, B> {
+    fn div(self, rhs: Var<T, B>) -> Result<Var<T, B>, B::Error> {
         div(&self, &rhs)
     }
 }
@@ -215,37 +215,37 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Div<Var<T, B>> for Var<T,
 // See comment above for the generic alternative (`VarScalarExt`).
 
 impl<T: Scalar + leto_ops::Scalar> Mul<T> for Var<T, MoiraiBackend> {
-    type Output = Var<T, MoiraiBackend>;
+    type Output = Result<Var<T, MoiraiBackend>, coeus_core::BackendError>;
 
     #[inline]
-    fn mul(self, rhs: T) -> Var<T, MoiraiBackend> {
+    fn mul(self, rhs: T) -> Result<Var<T, MoiraiBackend>, coeus_core::BackendError> {
         scalar_mul(&self, rhs)
     }
 }
 
 impl<T: Scalar + leto_ops::Scalar> Add<T> for Var<T, MoiraiBackend> {
-    type Output = Var<T, MoiraiBackend>;
+    type Output = Result<Var<T, MoiraiBackend>, coeus_core::BackendError>;
 
     #[inline]
-    fn add(self, rhs: T) -> Var<T, MoiraiBackend> {
+    fn add(self, rhs: T) -> Result<Var<T, MoiraiBackend>, coeus_core::BackendError> {
         scalar_add(&self, rhs)
     }
 }
 
 impl<T: Scalar + leto_ops::Scalar> Sub<T> for Var<T, MoiraiBackend> {
-    type Output = Var<T, MoiraiBackend>;
+    type Output = Result<Var<T, MoiraiBackend>, coeus_core::BackendError>;
 
     #[inline]
-    fn sub(self, rhs: T) -> Var<T, MoiraiBackend> {
+    fn sub(self, rhs: T) -> Result<Var<T, MoiraiBackend>, coeus_core::BackendError> {
         scalar_sub(&self, rhs)
     }
 }
 
 impl<T: Scalar + leto_ops::Scalar> Div<T> for Var<T, MoiraiBackend> {
-    type Output = Var<T, MoiraiBackend>;
+    type Output = Result<Var<T, MoiraiBackend>, coeus_core::BackendError>;
 
     #[inline]
-    fn div(self, rhs: T) -> Var<T, MoiraiBackend> {
+    fn div(self, rhs: T) -> Result<Var<T, MoiraiBackend>, coeus_core::BackendError> {
         scalar_div(&self, rhs)
     }
 }

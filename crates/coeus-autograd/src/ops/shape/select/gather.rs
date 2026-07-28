@@ -43,15 +43,21 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         // Gradient flows through `input` only (index is non-differentiable).
         if let Some(Some(ref g)) = input_grads.first() {
             // d_input = scatter_add(zeros_like(input), dim, index, grad_out)
-            let zeros = Tensor::zeros_on(self.input_shape.clone(), &backend);
-            let d_input = coeus_ops::scatter_add(&zeros, self.dim, &self.index, grad_out, &backend);
-            coeus_ops::add_assign(g.write(), &d_input, &backend);
+            let zeros = Tensor::zeros_on(self.input_shape.clone(), &backend)?;
+            let d_input = coeus_ops::scatter_add(&zeros, self.dim, &self.index, grad_out, &backend)?;
+            coeus_ops::add_assign(g.write(), &d_input, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -74,26 +80,26 @@ pub fn gather<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: usize,
     index: &Var<T, B>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::gather(&input.tensor, dim, &index.tensor, &backend);
+    let out_tensor = coeus_ops::gather(&input.tensor, dim, &index.tensor, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = GatherNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: vec![input.clone()],
             index: index.tensor.clone(),
             dim,
@@ -103,9 +109,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

@@ -38,7 +38,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // Reconstruct the effective input shape after padding.
@@ -66,7 +70,7 @@ where
                 .collect();
             let out_shape: Vec<usize> = (0..n).map(|d| eff_in[d] * eff_reps[d]).collect();
 
-            let go_cont = grad_out.to_contiguous();
+            let go_cont = grad_out.to_contiguous()?;
             let go_s = go_cont.as_slice();
 
             let in_numel: usize = eff_in.iter().product();
@@ -98,17 +102,20 @@ where
 
             // Reshape from eff_in back to original in_shape.
             let gi_inc = if pad_in > 0 {
-                Tensor::from_slice(
+                Tensor::from_slice_on(
                     self.in_shape.clone(),
                     &gi_data[..self.in_shape.iter().product::<usize>()],
-                )
+                    &backend,
+                )?
             } else {
-                Tensor::from_slice(eff_in, &gi_data)
+                Tensor::from_slice_on(eff_in, &gi_data, &backend)?
             };
 
             let gl = g.write();
-            coeus_ops::add_assign(gl, &gi_inc, &backend);
+            coeus_ops::add_assign(gl, &gi_inc, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -118,26 +125,26 @@ where
 pub fn tile<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     reps: &[usize],
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::tile(&input.tensor, reps, &backend);
+    let out_tensor = coeus_ops::tile(&input.tensor, reps, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = TileNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: vec![input.clone()],
             reps: reps.to_vec(),
             in_shape: input.tensor.shape().to_vec(),
@@ -146,9 +153,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

@@ -1,7 +1,7 @@
 //! Neural network layer module system built on [`coeus_autograd`].
 //!
 //! # Module trait
-//! [`Module<T, B>`](module::Module) is the core abstraction: `forward(&self, input: &Var<T, B>) -> Var<T, B>`.
+//! [`Module<T, B>`](module::Module) is the core abstraction: `forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error>`.
 //!
 //! # Layer families
 //! - **Linear** — [`Linear`], weight + optional bias, Xavier/Kaiming init via [`init`].

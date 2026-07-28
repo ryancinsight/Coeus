@@ -14,24 +14,24 @@ pub(crate) fn bench_cross_entropy_loss(c: &mut Criterion) {
 
     // Coeus: cross_entropy_loss(logits, &targets).
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![CE_N, CE_C], &logit_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![CE_N, CE_C], &logit_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![CE_N, CE_C], &logit_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![CE_N, CE_C], &logit_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
     let mut group = c.benchmark_group("Coeus — CrossEntropyLoss (128x10)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(cross_entropy_loss(black_box(&x_seq), black_box(&targets))))
+        b.iter(|| black_box(cross_entropy_loss(black_box(&x_seq), black_box(&targets)).expect("run operation")))
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
             black_box(cross_entropy_loss(
                 black_box(&x_moirai),
                 black_box(&targets),
-            ))
+            ).expect("run operation"))
         })
     });
     group.finish();
@@ -49,28 +49,28 @@ pub(crate) fn bench_mse_loss(c: &mut Criterion) {
         .collect();
 
     let p_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![MSE_N, MSE_D], &pred_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![MSE_N, MSE_D], &pred_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let t_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![MSE_N, MSE_D], &target_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![MSE_N, MSE_D], &target_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let p_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![MSE_N, MSE_D], &pred_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![MSE_N, MSE_D], &pred_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let t_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![MSE_N, MSE_D], &target_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![MSE_N, MSE_D], &target_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
     let mut group = c.benchmark_group("Coeus — MSELoss (128x64)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(mse_loss(black_box(&p_seq), black_box(&t_seq))))
+        b.iter(|| black_box(mse_loss(black_box(&p_seq), black_box(&t_seq)).expect("run operation")))
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(mse_loss(black_box(&p_moirai), black_box(&t_moirai))))
+        b.iter(|| black_box(mse_loss(black_box(&p_moirai), black_box(&t_moirai)).expect("run operation")))
     });
     group.finish();
 }
@@ -88,28 +88,28 @@ pub(crate) fn bench_huber_loss(c: &mut Criterion) {
         .collect();
 
     let p_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![H_N, H_D], &pred_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![H_N, H_D], &pred_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let t_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![H_N, H_D], &tgt_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![H_N, H_D], &tgt_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let p_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![H_N, H_D], &pred_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![H_N, H_D], &pred_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let t_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![H_N, H_D], &tgt_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![H_N, H_D], &tgt_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
     let mut group = c.benchmark_group("Coeus — HuberLoss (128x64, delta=1.0)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(huber_loss(black_box(&p_seq), black_box(&t_seq), 1.0)))
+        b.iter(|| black_box(huber_loss(black_box(&p_seq), black_box(&t_seq), 1.0).expect("run operation")))
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(huber_loss(black_box(&p_moirai), black_box(&t_moirai), 1.0)))
+        b.iter(|| black_box(huber_loss(black_box(&p_moirai), black_box(&t_moirai), 1.0).expect("run operation")))
     });
     group.finish();
 }

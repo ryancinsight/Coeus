@@ -23,8 +23,13 @@ use std::marker::PhantomData;
 /// use coeus_core::SequentialBackend;
 ///
 /// let pool = MaxPool1d::<f32, SequentialBackend>::new(2);
-/// let x = Var::new(Tensor::from_slice([1, 1, 4], &[1.0_f32, 3.0, 2.0, 4.0]), false);
-/// let y = pool.forward(&x);
+/// let x = Var::new(
+///     Tensor::from_slice([1, 1, 4], &[1.0_f32, 3.0, 2.0, 4.0])
+///         .expect("construct tensor"),
+///     false,
+/// )
+/// .expect("construct variable");
+/// let y = pool.forward(&x).expect("run forward");
 /// assert_eq!(y.tensor.shape(), &[1, 1, 2]);
 /// ```
 #[derive(Clone)]
@@ -67,7 +72,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool1d
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let backend = B::default();
 
         let n = input.tensor.shape()[0];
@@ -90,8 +95,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool1d
             self.padding,
         );
 
-        let mut out_tensor = Tensor::alloc_on([n, c, l_out], &backend);
-        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+        let mut out_tensor = Tensor::alloc_on([n, c, l_out], &backend)?;
+        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
 
         backend.max_pool1d(
             input.tensor.storage(),
@@ -102,7 +107,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool1d
             self.dilation,
             out_storage,
             out_layout,
-        );
+        )?;
 
         coeus_autograd::max_pool1d(
             input,
@@ -130,8 +135,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool1d
 /// use coeus_core::SequentialBackend;
 ///
 /// let pool = AvgPool1d::<f32, SequentialBackend>::new(2);
-/// let x = Var::new(Tensor::from_slice([1, 1, 4], &[1.0_f32, 3.0, 2.0, 4.0]), false);
-/// let y = pool.forward(&x);
+/// let x = Var::new(
+///     Tensor::from_slice([1, 1, 4], &[1.0_f32, 3.0, 2.0, 4.0])
+///         .expect("construct tensor"),
+///     false,
+/// )
+/// .expect("construct variable");
+/// let y = pool.forward(&x).expect("run forward");
 /// assert_eq!(y.tensor.shape(), &[1, 1, 2]);
 /// ```
 #[derive(Clone)]
@@ -174,7 +184,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool1d
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let backend = B::default();
 
         let n = input.tensor.shape()[0];
@@ -197,8 +207,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool1d
             self.padding,
         );
 
-        let mut out_tensor = Tensor::alloc_on([n, c, l_out], &backend);
-        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+        let mut out_tensor = Tensor::alloc_on([n, c, l_out], &backend)?;
+        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
 
         backend.avg_pool1d(
             input.tensor.storage(),
@@ -209,7 +219,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool1d
             self.dilation,
             out_storage,
             out_layout,
-        );
+        )?;
 
         coeus_autograd::avg_pool1d(
             input,

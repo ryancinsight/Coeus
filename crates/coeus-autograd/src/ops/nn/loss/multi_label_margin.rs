@@ -39,17 +39,21 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let mut host_grad = [T::zero()];
         let temp_grad;
         let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
             grad_out
         } else {
-            temp_grad = grad_out.to_contiguous_on(&backend);
+            temp_grad = grad_out.to_contiguous_on(&backend)?;
             &temp_grad
         };
-        backend.copy_to_host(grad_cont.storage(), &mut host_grad);
+        backend.copy_to_host(grad_cont.storage(), &mut host_grad)?;
         let g_out = host_grad[0];
         let scale = g_out / T::from_f64((self.n * self.c) as f64);
 
@@ -77,10 +81,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                     }
                 }
             }
-            let grad_tensor = Tensor::from_slice_on([self.n, self.c], &dx, &backend);
+            let grad_tensor = Tensor::from_slice_on([self.n, self.c], &dx, &backend)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -92,7 +98,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     target: &[isize],
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let shape = x.tensor.shape();
     assert_eq!(shape.len(), 2, "x must be 2D [batch_size, num_classes]");
     let n = shape[0];
@@ -105,7 +111,7 @@ pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let x_raw = if x.tensor.is_contiguous() && x.tensor.layout().offset() == 0 {
         &x.tensor
     } else {
-        x_cont = x.tensor.to_contiguous_on(&backend);
+        x_cont = x.tensor.to_contiguous_on(&backend)?;
         &x_cont
     };
 
@@ -113,7 +119,7 @@ pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         s[..n * c].to_vec()
     } else {
         let mut v = vec![T::zero(); n * c];
-        backend.copy_to_host(x_raw.storage(), &mut v);
+        backend.copy_to_host(x_raw.storage(), &mut v)?;
         v
     };
 
@@ -141,20 +147,19 @@ pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     }
     loss_val = loss_val / T::from_f64((n * c) as f64);
 
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
+    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend)?;
     let requires_grad = crate::grad_mode::should_track_var(x);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             x.tensor.shape(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let node = MultiLabelMarginLossNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs: vec![x.clone()],
             x_host,
             target: target.to_vec(),
@@ -165,9 +170,9 @@ pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

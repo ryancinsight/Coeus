@@ -1,6 +1,6 @@
-use crate::fuse::expr_node::{CachedTensor, ExprNode, CPU_EVAL_CACHE};
+use crate::fuse::expr_node::{CPU_EVAL_CACHE, CachedTensor, ExprNode};
 use crate::ptr::MutPtr;
-use coeus_core::{Backend, Layout, Scalar, Storage, StorageMut};
+use coeus_core::{Backend, BackendError, Layout, Scalar, Storage, StorageMut};
 use coeus_tensor::Tensor;
 use std::marker::PhantomData;
 
@@ -52,7 +52,7 @@ struct CachedInputs<T> {
 }
 
 impl<T> CachedInputs<T> {
-    fn new<E, B>(expr: &E, backend: &B) -> Self
+    fn new<E, B>(expr: &E, backend: &B) -> Result<Self, B::Error>
     where
         E: ExprNode<T, B>,
         T: Scalar,
@@ -66,9 +66,9 @@ impl<T> CachedInputs<T> {
             unsafe {
                 let tensor = &*input_ptr;
                 if tensor.storage().try_as_slice().is_none() {
-                    let contiguous = tensor.to_contiguous_on(backend);
+                    let contiguous = tensor.to_contiguous_on(backend)?;
                     let mut host_data = vec![T::zero(); contiguous.numel()];
-                    backend.copy_to_host(contiguous.storage(), &mut host_data);
+                    backend.copy_to_host(contiguous.storage(), &mut host_data)?;
                     let cached_tensor = CachedTensor {
                         data: host_data,
                         layout: contiguous.layout().clone(),
@@ -83,10 +83,10 @@ impl<T> CachedInputs<T> {
             }
         }
 
-        Self {
+        Ok(Self {
             addresses,
             _marker: PhantomData,
-        }
+        })
     }
 }
 
@@ -237,19 +237,22 @@ fn write_fused_reductions<E, T, B>(
 pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend>(
     expr: &E,
     backend: &B,
-) -> Tensor<T, B> {
-    let out_shape = expr
-        .shape()
-        .expect("Fused expression must have at least one tensor input to determine shape");
+) -> Result<Tensor<T, B>, B::Error> {
+    let out_shape = expr.shape().ok_or_else(|| {
+        B::Error::from(BackendError::Storage {
+            operation: "evaluate_fused_cpu",
+            reason: "expression has no tensor input to determine shape".to_owned(),
+        })
+    })?;
     let out_layout = Layout::new(out_shape.clone());
-    let mut out = Tensor::alloc_on(out_shape, backend);
+    let mut out = Tensor::alloc_on(out_shape, backend)?;
 
     let out_numel = out.numel();
-    let _cached_inputs = CachedInputs::<T>::new(expr, backend);
+    let _cached_inputs = CachedInputs::<T>::new(expr, backend)?;
 
     // 2. Perform parallel evaluation
     let contiguous_fast_path = expr.is_contiguous_and_same_shape(out_layout.shape());
-    let slice_result = out.storage_mut().try_as_mut_slice();
+    let slice_result = out.storage_mut()?.try_as_mut_slice()?;
     if let Some(slice) = slice_result {
         // CPU output fast path
         let out_ptr = MutPtr(slice.as_mut_ptr());
@@ -273,10 +276,10 @@ pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend
             contiguous_fast_path,
             backend,
         );
-        backend.copy_to_device(&host_out, out.storage_mut());
+        backend.copy_to_device(&host_out, out.storage_mut()?)?;
     }
 
-    out
+    Ok(out)
 }
 
 /// Evaluate a fused expression DAG with a reduction along `axis` on the CPU.
@@ -285,27 +288,33 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
     op: crate::ReductionOp,
     axis: usize,
     backend: &B,
-) -> Tensor<T, B> {
-    let expr_shape = expr
-        .shape()
-        .expect("Fused expression must have at least one tensor input to determine shape");
-    assert!(
-        axis < expr_shape.len(),
-        "Axis out of bounds in evaluate_fused_reduce_cpu"
-    );
+) -> Result<Tensor<T, B>, B::Error> {
+    let expr_shape = expr.shape().ok_or_else(|| {
+        B::Error::from(BackendError::Storage {
+            operation: "evaluate_fused_reduce_cpu",
+            reason: "expression has no tensor input to determine shape".to_owned(),
+        })
+    })?;
+    if axis >= expr_shape.len() {
+        return Err(B::Error::from(BackendError::AxisOutOfRange {
+            operation: "evaluate_fused_reduce_cpu",
+            axis,
+            rank: expr_shape.len(),
+        }));
+    }
 
     let mut out_shape = expr_shape.clone();
     out_shape[axis] = 1;
     let out_layout = Layout::new(out_shape.clone());
-    let mut out = Tensor::alloc_on(out_shape, backend);
+    let mut out = Tensor::alloc_on(out_shape, backend)?;
 
     let out_numel = out.numel();
     let axis_len = expr_shape[axis];
 
-    let _cached_inputs = CachedInputs::<T>::new(expr, backend);
+    let _cached_inputs = CachedInputs::<T>::new(expr, backend)?;
 
     if axis_len == 0 {
-        let slice_result = out.storage_mut().try_as_mut_slice();
+        let slice_result = out.storage_mut()?.try_as_mut_slice()?;
         if let Some(slice) = slice_result {
             let out_ptr = MutPtr(slice.as_mut_ptr());
             backend.parallel_for(0, out_numel, move |i| unsafe {
@@ -313,9 +322,9 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
             });
         } else {
             let host_out = vec![T::zero(); out_numel];
-            backend.copy_to_device(&host_out, out.storage_mut());
+            backend.copy_to_device(&host_out, out.storage_mut()?)?;
         }
-        return out;
+        return Ok(out);
     }
 
     // 2. Perform parallel evaluation with reduction
@@ -325,7 +334,7 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
         axis_len,
         op,
     };
-    let slice_result = out.storage_mut().try_as_mut_slice();
+    let slice_result = out.storage_mut()?.try_as_mut_slice()?;
     if let Some(slice) = slice_result {
         let out_ptr = MutPtr(slice.as_mut_ptr());
         write_fused_reductions(*expr, out_ptr, out_numel, plan, backend);
@@ -334,8 +343,8 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
         let mut host_out = vec![T::zero(); out_numel];
         let out_ptr = MutPtr(host_out.as_mut_ptr());
         write_fused_reductions(*expr, out_ptr, out_numel, plan, backend);
-        backend.copy_to_device(&host_out, out.storage_mut());
+        backend.copy_to_device(&host_out, out.storage_mut()?)?;
     }
 
-    out
+    Ok(out)
 }

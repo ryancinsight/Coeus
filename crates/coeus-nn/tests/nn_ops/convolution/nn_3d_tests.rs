@@ -4,15 +4,15 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_conv3d_comprehensive() {
-    let mut conv = Conv3d::<f64>::with_params(1, 1, 2, 1, 0, 1, true);
+    let mut conv = Conv3d::<f64>::with_params(1, 1, 2, 1, 0, 1, true).expect("construct module");
 
     // Set custom weight values to verify lookup values
     // Weight shape: [1, 1, 2, 2, 2]
     let w_data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-    conv.weight.tensor = Tensor::from_slice(vec![1, 1, 2, 2, 2], &w_data);
+    conv.weight.tensor = Tensor::from_slice(vec![1, 1, 2, 2, 2], &w_data).expect("construct tensor");
 
     if let Some(ref mut bias) = conv.bias {
-        bias.tensor = Tensor::from_slice(vec![1], &[0.5]);
+        bias.tensor = Tensor::from_slice(vec![1], &[0.5]).expect("construct tensor");
     }
 
     // Construct a non-contiguous input tensor of shape [1, 1, 2, 2, 2]
@@ -22,14 +22,14 @@ fn test_conv3d_comprehensive() {
         &[
             1.0, 2.0, 999.0, 3.0, 4.0, 999.0, 5.0, 6.0, 999.0, 7.0, 8.0, 999.0,
         ],
-    );
+    ).expect("construct tensor");
     let sliced_input = raw_input.slice(&[(0, 1), (0, 1), (0, 2), (0, 2), (0, 2)]);
     assert!(!sliced_input.is_contiguous());
 
-    let input = Var::new(sliced_input, true);
+    let input = Var::new(sliced_input, true).expect("construct variable");
 
     // Forward pass
-    let output = conv.forward(&input);
+    let output = conv.forward(&input).expect("run forward");
 
     // Expected output shape: [1, 1, 1, 1, 1]
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
@@ -44,7 +44,7 @@ fn test_conv3d_comprehensive() {
     assert!((out_slice[0] - 204.5).abs() < 1e-7);
 
     // Backward pass
-    output.backward();
+    output.backward().expect("run backward");
 
     // Verify gradients
     // dy/dx_i = w_i
@@ -83,14 +83,14 @@ fn test_max_pool3d_comprehensive() {
         &[
             1.0, 2.0, -999.0, 3.0, 4.0, -999.0, 5.0, 6.0, -999.0, 7.0, 8.0, -999.0,
         ],
-    );
+    ).expect("construct tensor");
     let sliced_input = raw_input.slice(&[(0, 1), (0, 1), (0, 2), (0, 2), (0, 2)]);
     assert!(!sliced_input.is_contiguous());
 
-    let input = Var::new(sliced_input, true);
+    let input = Var::new(sliced_input, true).expect("construct variable");
 
     // Forward pass
-    let output = pool.forward(&input);
+    let output = pool.forward(&input).expect("run forward");
 
     // Expected output shape: [1, 1, 1, 1, 1]
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
@@ -98,7 +98,7 @@ fn test_max_pool3d_comprehensive() {
     assert_eq!(output.tensor.as_slice(), &[8.0]);
 
     // Backward pass
-    output.backward();
+    output.backward().expect("run backward");
 
     // Verify gradients
     // dy/dx should be 1.0 at index 7 (where element is 8.0) and 0.0 elsewhere
@@ -122,14 +122,14 @@ fn test_avg_pool3d_comprehensive() {
         &[
             1.0, 2.0, -999.0, 3.0, 4.0, -999.0, 5.0, 6.0, -999.0, 7.0, 8.0, -999.0,
         ],
-    );
+    ).expect("construct tensor");
     let sliced_input = raw_input.slice(&[(0, 1), (0, 1), (0, 2), (0, 2), (0, 2)]);
     assert!(!sliced_input.is_contiguous());
 
-    let input = Var::new(sliced_input, true);
+    let input = Var::new(sliced_input, true).expect("construct variable");
 
     // Forward pass
-    let output = pool.forward(&input);
+    let output = pool.forward(&input).expect("run forward");
 
     // Expected output shape: [1, 1, 1, 1, 1]
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
@@ -137,7 +137,7 @@ fn test_avg_pool3d_comprehensive() {
     assert_eq!(output.tensor.as_slice(), &[4.5]);
 
     // Backward pass
-    output.backward();
+    output.backward().expect("run backward");
 
     // Verify gradients
     // dy/dx_i should be 1/8 = 0.125 for all i
@@ -151,7 +151,7 @@ fn test_avg_pool3d_comprehensive() {
 
 #[test]
 fn test_batchnorm3d_comprehensive() {
-    let bn = BatchNorm3d::<f64>::new(2, 1e-5, 0.1);
+    let bn = BatchNorm3d::<f64>::new(2, 1e-5, 0.1).expect("construct module");
 
     // Construct a non-contiguous input tensor of shape [1, 2, 2, 2, 2]
     // Channel 0 has all 1.0s, Channel 1 has all 2.0s
@@ -163,14 +163,14 @@ fn test_batchnorm3d_comprehensive() {
             // channel 1
             2.0, 2.0, 999.0, 2.0, 2.0, 999.0, 2.0, 2.0, 999.0, 2.0, 2.0, 999.0,
         ],
-    );
+    ).expect("construct tensor");
     let sliced_input = raw_input.slice(&[(0, 1), (0, 2), (0, 2), (0, 2), (0, 2)]);
     assert!(!sliced_input.is_contiguous());
 
-    let input = Var::new(sliced_input, true);
+    let input = Var::new(sliced_input, true).expect("construct variable");
 
     // Forward pass
-    let output = bn.forward(&input);
+    let output = bn.forward(&input).expect("run forward");
 
     // Expected output shape: [1, 2, 2, 2, 2]
     assert_eq!(output.tensor.shape(), &[1, 2, 2, 2, 2]);
@@ -199,7 +199,7 @@ fn test_batchnorm3d_comprehensive() {
     }
 
     // Backward pass
-    output.backward();
+    output.backward().expect("run backward");
 
     // Verify gradients exist on inputs, weight, and bias
     assert!(input.grad().is_some());

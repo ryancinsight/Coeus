@@ -9,37 +9,50 @@
 // This matches `torch.repeat_interleave(input, repeats, dim)`.
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_tensor::Tensor;
 
 /// Repeat each slice of `input` along `dim` exactly `repeats` times,
 /// interleaving the copies.
 ///
-/// # Panics
-/// - `dim` must be < `input.ndim()`.
-/// - `repeats` must be > 0.
+/// # Errors
+/// Returns a backend error for invalid axis/repetition values or
+/// materialization failure.
 #[inline]
 pub fn repeat_interleave<T: Scalar, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     repeats: usize,
     dim: usize,
-    _backend: &B,
-) -> Tensor<T, B>
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    assert!(repeats > 0, "repeat_interleave: repeats must be > 0");
+    if repeats == 0 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "repeat_interleave",
+            reason: "repeats must be greater than zero".to_owned(),
+        }));
+    }
     let ndim = input.ndim();
-    assert!(
-        dim < ndim,
-        "repeat_interleave: dim {dim} out of range for {ndim}-D tensor"
-    );
+    if dim >= ndim {
+        return Err(B::Error::from(BackendError::AxisOutOfRange {
+            operation: "repeat_interleave",
+            axis: dim,
+            rank: ndim,
+        }));
+    }
 
     let in_shape = input.shape();
     let mut out_shape = in_shape.to_vec();
-    out_shape[dim] *= repeats;
+    out_shape[dim] = out_shape[dim].checked_mul(repeats).ok_or_else(|| {
+        B::Error::from(BackendError::Overflow {
+            operation: "repeat_interleave",
+            reason: "output dimension",
+        })
+    })?;
 
-    let in_cont = input.to_contiguous();
+    let in_cont = input.to_contiguous()?;
     let in_s = in_cont.as_slice();
 
     // Compute strides for input (row-major).
@@ -79,5 +92,5 @@ where
         out_data[flat_out] = in_s[in_flat];
     }
 
-    Tensor::from_slice(out_shape, &out_data)
+    Tensor::from_slice_on(out_shape, &out_data, backend)
 }

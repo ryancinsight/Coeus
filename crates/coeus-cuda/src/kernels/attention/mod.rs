@@ -9,4 +9,4 @@ mod tests;
 pub use backward::launch_sdp_attention_backward;
 pub use forward::launch_sdp_attention;
 
-pub(crate) use validation::{checked_attention_dimensions, AttentionMask, AttentionShape};
+pub(crate) use validation::{AttentionMask, AttentionShape, checked_attention_dimensions};

@@ -132,8 +132,17 @@ pub(super) fn checked_2d_launch<T: CudaScalar>(
     {
         return None;
     }
-    let [kernel_h, kernel_w, stride_h, stride_w, _, _, dilation_h, dilation_w, _] =
-        parameters.values;
+    let [
+        kernel_h,
+        kernel_w,
+        stride_h,
+        stride_w,
+        _,
+        _,
+        dilation_h,
+        dilation_w,
+        _,
+    ] = parameters.values;
     if [
         kernel_h, kernel_w, stride_h, stride_w, dilation_h, dilation_w,
     ]
@@ -142,8 +151,17 @@ pub(super) fn checked_2d_launch<T: CudaScalar>(
     {
         return None;
     }
-    let [Some(kernel_h), Some(kernel_w), Some(stride_h), Some(stride_w), Some(padding_h), Some(padding_w), Some(dilation_h), Some(dilation_w), Some(width)] =
-        parameters.values.map(cuda_u32)
+    let [
+        Some(kernel_h),
+        Some(kernel_w),
+        Some(stride_h),
+        Some(stride_w),
+        Some(padding_h),
+        Some(padding_w),
+        Some(dilation_h),
+        Some(dilation_w),
+        Some(width),
+    ] = parameters.values.map(cuda_u32)
     else {
         return None;
     };

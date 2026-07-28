@@ -4,9 +4,14 @@ use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_tensor::Tensor;
 use criterion::{black_box, Criterion};
 
-type SequentialUnary =
-    fn(&Tensor<f32, SequentialBackend>, &SequentialBackend) -> Tensor<f32, SequentialBackend>;
-type MoiraiUnary = fn(&Tensor<f32, MoiraiBackend>, &MoiraiBackend) -> Tensor<f32, MoiraiBackend>;
+type SequentialUnary = fn(
+    &Tensor<f32, SequentialBackend>,
+    &SequentialBackend,
+) -> Result<Tensor<f32, SequentialBackend>, coeus_core::BackendError>;
+type MoiraiUnary = fn(
+    &Tensor<f32, MoiraiBackend>,
+    &MoiraiBackend,
+) -> Result<Tensor<f32, MoiraiBackend>, coeus_core::BackendError>;
 
 fn bench_unary(
     c: &mut Criterion,
@@ -20,8 +25,8 @@ fn bench_unary(
         .collect();
     let sequential_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
-    let sequential_input = Tensor::<f32, SequentialBackend>::from_slice([SIDE, SIDE], &data);
-    let moirai_input = Tensor::<f32, MoiraiBackend>::from_slice([SIDE, SIDE], &data);
+    let sequential_input = Tensor::<f32, SequentialBackend>::from_slice([SIDE, SIDE], &data).expect("construct tensor");
+    let moirai_input = Tensor::<f32, MoiraiBackend>::from_slice([SIDE, SIDE], &data).expect("construct tensor");
 
     let mut group = c.benchmark_group(group_name);
     group.bench_function("Coeus Sequential", |bencher| {

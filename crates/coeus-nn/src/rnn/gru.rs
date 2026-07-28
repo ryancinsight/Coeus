@@ -32,15 +32,15 @@ pub struct GRUCell<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBacke
 
 impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default> GRUCell<T, B> {
     /// Create with Xavier-initialized weights and zero biases.
-    pub fn new(input_size: usize, hidden_size: usize) -> Self {
-        let w_ih = Linear::new(input_size, 3 * hidden_size, true);
-        let w_hh = Linear::new(hidden_size, 3 * hidden_size, true);
-        Self {
+    pub fn new(input_size: usize, hidden_size: usize) -> Result<Self, B::Error> {
+        let w_ih = Linear::<T, B>::new(input_size, 3 * hidden_size, true)?;
+        let w_hh = Linear::<T, B>::new(hidden_size, 3 * hidden_size, true)?;
+        Ok(Self {
             w_ih,
             w_hh,
             input_size,
             hidden_size,
-        }
+        })
     }
 
     /// Forward step.
@@ -49,42 +49,46 @@ impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default>
     /// - `h`: `[batch, hidden_size]`
     ///
     /// Returns `h_new` of shape `[batch, hidden_size]`.
-    pub fn step(&self, x: &Var<T, B>, h: &Var<T, B>) -> Var<T, B> {
+    pub fn step(
+        &self,
+        x: &Var<T, B>,
+        h: &Var<T, B>,
+    ) -> Result<Var<T, B>, B::Error> {
         let hs = self.hidden_size;
-        let ih = self.w_ih.forward(x);
-        let hh = self.w_hh.forward(h);
+        let ih = self.w_ih.forward(x)?;
+        let hh = self.w_hh.forward(h)?;
 
-        let slice_ih = |start: usize, end: usize| -> Var<T, B> {
+        let slice_ih = |start: usize, end: usize| -> Result<Var<T, B>, B::Error> {
             let batch = ih.tensor.shape()[0];
             coeus_autograd::slice(&ih, &[(0, batch), (start, end)])
         };
-        let slice_hh = |start: usize, end: usize| -> Var<T, B> {
+        let slice_hh = |start: usize, end: usize| -> Result<Var<T, B>, B::Error> {
             let batch = hh.tensor.shape()[0];
             coeus_autograd::slice(&hh, &[(0, batch), (start, end)])
         };
 
-        let r = coeus_autograd::sigmoid(&coeus_autograd::add(&slice_ih(0, hs), &slice_hh(0, hs)));
-        let z = coeus_autograd::sigmoid(&coeus_autograd::add(
-            &slice_ih(hs, 2 * hs),
-            &slice_hh(hs, 2 * hs),
-        ));
+        let r_ih = slice_ih(0, hs)?;
+        let r_hh = slice_hh(0, hs)?;
+        let r = coeus_autograd::sigmoid(&coeus_autograd::add(&r_ih, &r_hh)?)?;
+        let z_ih = slice_ih(hs, 2 * hs)?;
+        let z_hh = slice_hh(hs, 2 * hs)?;
+        let z = coeus_autograd::sigmoid(&coeus_autograd::add(&z_ih, &z_hh)?)?;
         // n = tanh(ih_n + r * hh_n)
-        let n = coeus_autograd::tanh(&coeus_autograd::add(
-            &slice_ih(2 * hs, 3 * hs),
-            &coeus_autograd::mul(&r, &slice_hh(2 * hs, 3 * hs)),
-        ));
+        let n_ih = slice_ih(2 * hs, 3 * hs)?;
+        let n_hh = slice_hh(2 * hs, 3 * hs)?;
+        let reset_hidden = coeus_autograd::mul(&r, &n_hh)?;
+        let n = coeus_autograd::tanh(&coeus_autograd::add(&n_ih, &reset_hidden)?)?;
 
         // h_new = (1 - z) * n + z * h
         let backend = B::default();
         let ones = Var::new(
-            coeus_tensor::Tensor::ones_on(z.tensor.shape_cloned(), &backend),
+            coeus_tensor::Tensor::ones_on(z.tensor.shape_cloned(), &backend)?,
             false,
-        );
-        let one_minus_z = coeus_autograd::sub(&ones, &z);
-        coeus_autograd::add(
-            &coeus_autograd::mul(&one_minus_z, &n),
-            &coeus_autograd::mul(&z, h),
-        )
+        )?;
+        let one_minus_z = coeus_autograd::sub(&ones, &z)?;
+        let candidate = coeus_autograd::mul(&one_minus_z, &n)?;
+        let retained = coeus_autograd::mul(&z, h)?;
+        coeus_autograd::add(&candidate, &retained)
     }
 }
 
@@ -103,10 +107,10 @@ impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default>
         parameters
     }
 
-    fn forward(&self, x: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, x: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let batch = x.tensor.shape()[0];
         let backend = B::default();
-        let h = Var::new(Tensor::zeros_on([batch, self.hidden_size], &backend), false);
+        let h = Var::new(Tensor::zeros_on([batch, self.hidden_size], &backend)?, false)?;
         self.step(x, &h)
     }
 }
@@ -145,12 +149,12 @@ where
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     /// Create with Xavier-initialized weights and zero biases.
-    pub fn new(input_size: usize, hidden_size: usize) -> Self {
-        Self {
-            cell: GRUCell::new(input_size, hidden_size),
+    pub fn new(input_size: usize, hidden_size: usize) -> Result<Self, B::Error> {
+        Ok(Self {
+            cell: GRUCell::<T, B>::new(input_size, hidden_size)?,
             input_size,
             hidden_size,
-        }
+        })
     }
 
     /// Unroll over the sequence dimension with zero initial hidden state.
@@ -158,28 +162,31 @@ where
     /// Returns `(output, h_n)`:
     /// - `output`: `[batch, seq_len, hidden_size]` — all hidden states stacked.
     /// - `h_n`: `[batch, hidden_size]` — final hidden state.
-    pub fn forward_seq(&self, x: &Var<T, B>) -> (Var<T, B>, Var<T, B>) {
+    pub fn forward_seq(
+        &self,
+        x: &Var<T, B>,
+    ) -> Result<(Var<T, B>, Var<T, B>), B::Error> {
         let batch = x.tensor.shape()[0];
         let seq_len = x.tensor.shape()[1];
         let backend = B::default();
 
-        let mut h = Var::new(Tensor::zeros_on([batch, self.hidden_size], &backend), false);
+        let mut h = Var::new(Tensor::zeros_on([batch, self.hidden_size], &backend)?, false)?;
 
         let mut outputs: Vec<Var<T, B>> = Vec::with_capacity(seq_len);
         for t in 0..seq_len {
-            let x_t_3d = coeus_autograd::slice(x, &[(0, batch), (t, t + 1), (0, self.input_size)]);
-            let x_t = coeus_autograd::reshape(&x_t_3d, vec![batch, self.input_size]);
-            let h_new = self.cell.step(&x_t, &h);
+            let x_t_3d = coeus_autograd::slice(x, &[(0, batch), (t, t + 1), (0, self.input_size)])?;
+            let x_t = coeus_autograd::reshape(&x_t_3d, vec![batch, self.input_size])?;
+            let h_new = self.cell.step(&x_t, &h)?;
             outputs.push(coeus_autograd::reshape(
                 &h_new,
                 vec![batch, 1, self.hidden_size],
-            ));
+            )?);
             h = h_new;
         }
 
         let refs: Vec<&Var<T, B>> = outputs.iter().collect();
-        let output = coeus_autograd::cat(&refs, 1);
-        (output, h)
+        let output = coeus_autograd::cat(&refs, 1)?;
+        Ok((output, h))
     }
 }
 
@@ -198,7 +205,7 @@ where
     }
 
     /// Returns `output` of shape `[batch, seq_len, hidden_size]`.
-    fn forward(&self, x: &Var<T, B>) -> Var<T, B> {
-        self.forward_seq(x).0
+    fn forward(&self, x: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
+        Ok(self.forward_seq(x)?.0)
     }
 }

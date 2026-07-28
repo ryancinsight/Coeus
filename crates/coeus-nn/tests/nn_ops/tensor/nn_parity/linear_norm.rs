@@ -12,23 +12,23 @@ fn test_linear_parity() {
     let b_data = vec![0.2f32, -0.1];
 
     // Coeus setup
-    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![2, 3], &x_data), true);
-    let mut linear_coeus = CoeusLinear::<f32, SequentialBackend>::new(3, 2, true);
-    linear_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![2, 3], &w_data), true);
+    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![2, 3], &x_data).expect("construct tensor"), true).expect("construct variable");
+    let mut linear_coeus = CoeusLinear::<f32, SequentialBackend>::new(3, 2, true).expect("construct module");
+    linear_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![2, 3], &w_data).expect("construct tensor"), true).expect("construct variable");
     linear_coeus.bias = Some(CoeusVar::new(
-        CoeusTensor::from_slice(vec![2], &b_data),
+        CoeusTensor::from_slice(vec![2], &b_data).expect("construct tensor"),
         true,
-    ));
+    ).expect("construct variable"));
 
     // Coeus forward
-    let out_coeus = linear_coeus.forward(&x_coeus);
+    let out_coeus = linear_coeus.forward(&x_coeus).expect("run forward");
 
     // Verify forward
     let expected_linear_out = vec![2.700000f32, 0.900000f32, 1.950000f32, -1.600000f32];
     assert_tensor_eq_data(&out_coeus.tensor, &expected_linear_out, 1e-4);
 
     // Coeus backward
-    out_coeus.backward();
+    out_coeus.backward().expect("run backward");
 
     // Verify gradients
     let dx_coeus = x_coeus.grad().unwrap();
@@ -67,13 +67,13 @@ fn test_layernorm_parity() {
     let eps = 1e-5f64;
 
     // Coeus setup
-    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![2, 4], &x_data), true);
-    let mut ln_coeus = CoeusLayerNorm::<f32, SequentialBackend>::new(4, eps);
-    ln_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![4], &w_data), true);
-    ln_coeus.bias = CoeusVar::new(CoeusTensor::from_slice(vec![4], &b_data), true);
+    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![2, 4], &x_data).expect("construct tensor"), true).expect("construct variable");
+    let mut ln_coeus = CoeusLayerNorm::<f32, SequentialBackend>::new(4, eps).expect("construct module");
+    ln_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![4], &w_data).expect("construct tensor"), true).expect("construct variable");
+    ln_coeus.bias = CoeusVar::new(CoeusTensor::from_slice(vec![4], &b_data).expect("construct tensor"), true).expect("construct variable");
 
     // Coeus forward
-    let out_coeus = ln_coeus.forward(&x_coeus);
+    let out_coeus = ln_coeus.forward(&x_coeus).expect("run forward");
 
     // Verify forward
     let expected_layernorm_out = vec![
@@ -89,7 +89,7 @@ fn test_layernorm_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_layernorm_out, 1e-3);
 
     // Coeus backward
-    out_coeus.backward();
+    out_coeus.backward().expect("run backward");
 
     // Verify gradients
     let dx_coeus = x_coeus.grad().unwrap();

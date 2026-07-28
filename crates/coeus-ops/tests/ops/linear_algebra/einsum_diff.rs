@@ -26,7 +26,7 @@ where
     B: coeus_core::ComputeBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
-    Tensor::from_slice_on(shape.to_vec(), data, backend)
+    Tensor::from_slice_on(shape.to_vec(), data, backend).expect("construct tensor")
 }
 
 fn assert_exact(got: &[f32], expected: &[f32], context: &str) {

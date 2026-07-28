@@ -15,21 +15,21 @@ pub(crate) fn bench_bmm_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.001).cos())
         .collect();
     let a_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BMM_B, BMM_M, BMM_K], &a_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BMM_B, BMM_M, BMM_K], &a_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let b_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BMM_B, BMM_K, BMM_N], &b_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BMM_B, BMM_K, BMM_N], &b_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let a_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BMM_B, BMM_M, BMM_K], &a_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BMM_B, BMM_M, BMM_K], &a_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let b_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BMM_B, BMM_K, BMM_N], &b_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BMM_B, BMM_K, BMM_N], &b_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
     let mut group = c.benchmark_group("Coeus — bmm forward (32x64x128 @ 32x128x64)");
     group.bench_function("Coeus Sequential", |b| {
@@ -51,13 +51,13 @@ pub(crate) fn bench_pow_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.002).sin() * 2.0)
         .collect();
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let mut group = c.benchmark_group("Coeus - pow(3) forward (128x256)");
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| black_box(coeus_autograd::pow(black_box(&x_seq), 3.0)))
@@ -76,21 +76,21 @@ pub(crate) fn bench_mul_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.005).cos())
         .collect();
     let a_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let b_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let a_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let b_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let mut group = c.benchmark_group("Coeus - mul forward (128x256)");
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| black_box(coeus_autograd::mul(&a_seq, &b_seq)))
@@ -109,21 +109,21 @@ pub(crate) fn bench_div_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.005).cos().abs() + 0.5)
         .collect();
     let a_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let b_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let a_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let b_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let mut group = c.benchmark_group("Coeus - div forward (128x256)");
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| black_box(coeus_autograd::div(&a_seq, &b_seq)))
@@ -142,21 +142,21 @@ pub(crate) fn bench_add_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.005).cos())
         .collect();
     let a_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let b_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let a_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let b_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let mut group = c.benchmark_group("Coeus - add forward (128x256)");
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| black_box(coeus_autograd::add(&a_seq, &b_seq)))
@@ -175,21 +175,21 @@ pub(crate) fn bench_sub_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.005).cos())
         .collect();
     let a_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let b_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let a_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let b_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let mut group = c.benchmark_group("Coeus - sub forward (128x256)");
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| black_box(coeus_autograd::sub(&a_seq, &b_seq)))
@@ -205,13 +205,13 @@ pub(crate) fn bench_pow2_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.001).sin() * 2.0)
         .collect();
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let mut group = c.benchmark_group("Coeus - pow2(2.0) forward (128x256)");
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| black_box(coeus_autograd::pow(&x_seq, 2.0)))
@@ -229,8 +229,11 @@ pub(crate) fn bench_binary(
     coeus_seq: impl Fn(
         &Var<f32, SequentialBackend>,
         &Var<f32, SequentialBackend>,
-    ) -> Var<f32, SequentialBackend>,
-    coeus_moirai: impl Fn(&Var<f32, MoiraiBackend>, &Var<f32, MoiraiBackend>) -> Var<f32, MoiraiBackend>,
+    ) -> Result<Var<f32, SequentialBackend>, coeus_core::BackendError>,
+    coeus_moirai: impl Fn(
+        &Var<f32, MoiraiBackend>,
+        &Var<f32, MoiraiBackend>,
+    ) -> Result<Var<f32, MoiraiBackend>, coeus_core::BackendError>,
 ) {
     let a: Vec<f32> = (0..(BATCH * FEATURES))
         .map(|i| (i as f32 * 0.0031).sin())
@@ -241,21 +244,21 @@ pub(crate) fn bench_binary(
         .map(|i| (i as f32 * 0.0027).cos() + 1.5)
         .collect();
     let a_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let b_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let a_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let b_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
     let mut group = c.benchmark_group(format!("Coeus — {name} forward (128x256)"));
     group.bench_function("Coeus Sequential", |bn| {

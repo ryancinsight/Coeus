@@ -28,17 +28,17 @@ fn t<B: BackendOps<f64> + Default>(shape: &[usize], vals: &[f64], backend: &B) -
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Tensor::from_slice_on(shape.to_vec(), vals, backend)
+    Tensor::from_slice_on(shape.to_vec(), vals, backend).expect("construct tensor")
 }
 
 fn v<B: BackendOps<f64> + Default>(shape: &[usize], vals: &[f64], backend: &B) -> Var<f64, B>
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Var::new(t(shape, vals, backend), false)
+    Var::new(t(shape, vals, backend), false).expect("construct variable")
 }
 
-fn check_conv_transpose1d<B: BackendOps<f64> + Default>(backend: &B)
+fn check_conv_transpose1d<B: BackendOps<f64> + coeus_ops::CpuBackend + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
@@ -52,7 +52,7 @@ where
     //   ti=2 → out[2]+=3, out[3]+=3
     // Expected: [1,3,5,3]
     let ct1 = ConvTranspose1d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 2], &[1.0, 1.0], backend), false),
+        weight: Var::new(t(&[1, 1, 2], &[1.0, 1.0], backend), false).expect("construct variable"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -66,7 +66,7 @@ where
     let inp = v(&[1, 1, 3], &[1.0, 2.0, 3.0], backend);
     assert_eq!(ct1.output_len(3), 4, "ConvTranspose1d output_len");
 
-    let out = Module::<f64, B>::forward(&ct1, &inp);
+    let out = Module::<f64, B>::forward(&ct1, &inp).expect("run forward");
     assert_eq!(
         out.tensor.shape(),
         &[1, 1, 4],
@@ -80,7 +80,7 @@ where
 
     // Identity kernel K=1: output equals input.
     let ct_id = ConvTranspose1d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 1], &[1.0], backend), false),
+        weight: Var::new(t(&[1, 1, 1], &[1.0], backend), false).expect("construct variable"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -90,7 +90,7 @@ where
         output_padding: 0,
         dilation: 1,
     };
-    let out_id = Module::<f64, B>::forward(&ct_id, &inp);
+    let out_id = Module::<f64, B>::forward(&ct_id, &inp).expect("run forward");
     assert_eq!(
         out_id.tensor.as_slice(),
         inp.tensor.as_slice(),
@@ -101,7 +101,7 @@ where
     // Each input is separated by a stride gap; weight=[1,1]:
     // out = [1,1, 2,2, 3,3]
     let ct_s2 = ConvTranspose1d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 2], &[1.0, 1.0], backend), false),
+        weight: Var::new(t(&[1, 1, 2], &[1.0, 1.0], backend), false).expect("construct variable"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -116,7 +116,7 @@ where
         6,
         "ConvTranspose1d stride=2 output_len"
     );
-    let out_s2 = Module::<f64, B>::forward(&ct_s2, &inp);
+    let out_s2 = Module::<f64, B>::forward(&ct_s2, &inp).expect("run forward");
     assert_eq!(
         out_s2.tensor.shape(),
         &[1, 1, 6],
@@ -129,7 +129,7 @@ where
     );
 }
 
-fn check_conv_transpose2d<B: BackendOps<f64> + Default>(backend: &B)
+fn check_conv_transpose2d<B: BackendOps<f64> + coeus_ops::CpuBackend + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
@@ -138,7 +138,7 @@ where
     // Expected [3,3] (row-major): [1,2,0, 3,5,2, 0,3,4]
     // (same oracle as conv_transpose_diff.rs)
     let ct2 = ConvTranspose2d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 2, 2], &[1.0, 0.0, 0.0, 1.0], backend), false),
+        weight: Var::new(t(&[1, 1, 2, 2], &[1.0, 0.0, 0.0, 1.0], backend), false).expect("construct variable"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -150,7 +150,7 @@ where
     };
 
     let inp = v(&[1, 1, 2, 2], &[1.0, 2.0, 3.0, 4.0], backend);
-    let out = Module::<f64, B>::forward(&ct2, &inp);
+    let out = Module::<f64, B>::forward(&ct2, &inp).expect("run forward");
     assert_eq!(out.tensor.shape(), &[1, 1, 3, 3], "ConvTranspose2d shape");
     assert_eq!(
         out.tensor.as_slice(),
@@ -160,7 +160,7 @@ where
 
     // Identity K=1×1: output equals input.
     let ct2_id = ConvTranspose2d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 1, 1], &[1.0], backend), false),
+        weight: Var::new(t(&[1, 1, 1, 1], &[1.0], backend), false).expect("construct variable"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -170,7 +170,7 @@ where
         output_padding: 0,
         dilation: 1,
     };
-    let out_id = Module::<f64, B>::forward(&ct2_id, &inp);
+    let out_id = Module::<f64, B>::forward(&ct2_id, &inp).expect("run forward");
     assert_eq!(
         out_id.tensor.as_slice(),
         inp.tensor.as_slice(),
@@ -195,7 +195,7 @@ where
     // D=H=W=2 → D_out=H_out=W_out=2 (stride=1, padding=0).
     // output_dims() agrees with the public formula: 2 = (2-1)*1 + 1*(1-1) + 0 + 1.
     let ct3 = ConvTranspose3d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 1, 1, 1], &[1.0], backend), false),
+        weight: Var::new(t(&[1, 1, 1, 1, 1], &[1.0], backend), false).expect("construct variable"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -215,7 +215,7 @@ where
         &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
         backend,
     );
-    let out = Module::<f64, B>::forward(&ct3, &inp);
+    let out = Module::<f64, B>::forward(&ct3, &inp).expect("run forward");
     assert_eq!(
         out.tensor.shape(),
         &[1, 1, 2, 2, 2],
@@ -229,7 +229,7 @@ where
 
     // Scale K=1, weight=[2.0]: output = 2 × input. output_dims unchanged.
     let ct3_scale = ConvTranspose3d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 1, 1, 1], &[2.0], backend), false),
+        weight: Var::new(t(&[1, 1, 1, 1, 1], &[2.0], backend), false).expect("construct variable"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -239,7 +239,7 @@ where
         output_padding: 0,
         dilation: 1,
     };
-    let out_s = Module::<f64, B>::forward(&ct3_scale, &inp);
+    let out_s = Module::<f64, B>::forward(&ct3_scale, &inp).expect("run forward");
     assert_eq!(
         out_s.tensor.as_slice(),
         &[2.0_f64, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0],
@@ -249,7 +249,7 @@ where
     // Stride=2 K=1 identity: each axis doubles.
     // D_out = (2-1)*2 + 1*(1-1) + 0 + 1 = 3.
     let ct3_s2 = ConvTranspose3d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 1, 1, 1], &[1.0], backend), false),
+        weight: Var::new(t(&[1, 1, 1, 1, 1], &[1.0], backend), false).expect("construct variable"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -260,7 +260,7 @@ where
         dilation: 1,
     };
     assert_eq!(ct3_s2.output_dims(2, 2, 2), (3, 3, 3), "stride=2 D_out");
-    let out_s2 = Module::<f64, B>::forward(&ct3_s2, &inp);
+    let out_s2 = Module::<f64, B>::forward(&ct3_s2, &inp).expect("run forward");
     assert_eq!(
         out_s2.tensor.shape(),
         &[1, 1, 3, 3, 3],

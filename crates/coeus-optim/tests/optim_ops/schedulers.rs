@@ -1,10 +1,10 @@
-use super::{Parameter, SequentialBackend, Tensor, Var, SGD};
+use super::{Parameter, SGD, SequentialBackend, Tensor, Var};
 
 #[test]
 fn test_lr_schedulers() {
     let _backend = SequentialBackend::new();
-    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]).expect("construct tensor");
+    let x = Var::new(x_val, true).expect("construct variable");
 
     {
         use coeus_optim::scheduler::{CosineAnneal, SchedulerStrategy};
@@ -30,7 +30,8 @@ fn test_lr_schedulers() {
 
     {
         use coeus_optim::scheduler::{LrScheduler, StepDecay};
-        let optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 1e-3f32, 0.0f32);
+        let optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 1e-3f32, 0.0f32)
+            .expect("construct SGD optimizer");
         let strategy = StepDecay {
             step_size: 2,
             gamma: 0.5,
@@ -38,10 +39,10 @@ fn test_lr_schedulers() {
         let mut scheduler = LrScheduler::new(optimizer, strategy, 1e-3);
 
         assert!((scheduler.current_lr() - 1e-3).abs() < 1e-7);
-        scheduler.step();
+        scheduler.step().expect("run scheduler step");
 
         assert!((scheduler.current_lr() - 1e-3).abs() < 1e-7);
-        scheduler.step();
+        scheduler.step().expect("run scheduler step");
 
         assert!((scheduler.current_lr() - 5e-4).abs() < 1e-7);
     }
@@ -97,15 +98,15 @@ fn test_linear_warmup_drives_optimizer_lr() {
     // as steps advance, confirming the strategy reaches the optimizer.
     use coeus_optim::scheduler::{LinearWarmup, LrScheduler};
     let x = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[1.0]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[1.0]).expect("construct tensor"),
         true,
-    );
-    let opt = SGD::new(vec![Parameter::new(x, "x")], 0.0, 0.0);
+    ).expect("construct variable");
+    let opt = SGD::new(vec![Parameter::new(x, "x")], 0.0, 0.0).expect("construct SGD optimizer");
     let mut sched = LrScheduler::new(opt, LinearWarmup { warmup_steps: 2 }, 0.2);
 
     assert!((sched.current_lr() - 0.0).abs() < 1e-7); // step 0
-    sched.step();
+    sched.step().expect("run scheduler step");
     assert!((sched.current_lr() - 0.1).abs() < 1e-7); // step 1: 0.2 * 1/2
-    sched.step();
+    sched.step().expect("run scheduler step");
     assert!((sched.current_lr() - 0.2).abs() < 1e-7); // step 2: full
 }

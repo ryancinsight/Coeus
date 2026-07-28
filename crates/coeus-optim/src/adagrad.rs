@@ -12,11 +12,15 @@ use coeus_tensor::Tensor;
 /// use coeus_optim::{AdaGrad, Optimizer};
 /// use coeus_tensor::Tensor;
 ///
-/// let x: Var<f32> = Var::new(Tensor::from_slice(vec![2], &[2.0f32, 3.0]), true);
-/// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
+/// let x: Var<f32> = Var::new(
+///     Tensor::from_slice(vec![2], &[2.0f32, 3.0]).expect("construct tensor"),
+///     true,
+/// ).expect("construct variable");
+/// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]).expect("construct tensor"));
 ///
-/// let mut opt = AdaGrad::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 1e-6f32);
-/// opt.step();
+/// let mut opt = AdaGrad::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 1e-6f32)
+///     .expect("construct AdaGrad optimizer");
+/// opt.step().expect("run optimizer step");
 /// // history = grad^2 = [1.0, 4.0]; denom = sqrt(history) + eps ≈ [1.0, 2.0]
 /// // update = lr * grad / denom ≈ 0.1 * [1.0, -1.0] = [0.1, -0.1]
 /// // p' = [2.0, 3.0] - [0.1, -0.1] = [1.9, 3.1]
@@ -37,23 +41,23 @@ pub struct AdaGrad<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBacke
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> AdaGrad<T, B> {
     /// Create AdaGrad optimizer.
-    pub fn new(params: Vec<Parameter<T, B>>, lr: T, eps: T) -> Self {
+    pub fn new(params: Vec<Parameter<T, B>>, lr: T, eps: T) -> Result<Self, B::Error> {
         let backend = B::default();
         let history = params
             .iter()
             .map(|p| Tensor::zeros_on(p.var.tensor.shape(), &backend))
-            .collect();
-        Self {
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self {
             params,
             lr,
             eps,
             history,
-        }
+        })
     }
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for AdaGrad<T, B> {
-    fn step(&mut self) {
+    fn step(&mut self) -> Result<(), B::Error> {
         let backend = B::default();
 
         for (i, param) in self.params.iter_mut().enumerate() {
@@ -61,8 +65,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for AdaGra
                 let grad_tensor = g.read();
                 let history_tensor = &mut self.history[i];
 
-                let (param_storage, param_layout) = param.var.tensor.storage_mut_and_layout();
-                let (history_storage, history_layout) = history_tensor.storage_mut_and_layout();
+                let (param_storage, param_layout) = param.var.tensor.storage_mut_and_layout()?;
+                let (history_storage, history_layout) = history_tensor.storage_mut_and_layout()?;
 
                 backend.adagrad_step(
                     param_storage,
@@ -73,22 +77,24 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for AdaGra
                     history_layout,
                     self.lr,
                     self.eps,
-                );
+                )?;
             }
         }
+        Ok(())
     }
 
-    fn zero_grad(&mut self) {
+    fn zero_grad(&mut self) -> Result<(), B::Error> {
         for p in &self.params {
-            p.var.zero_grad();
+            p.var.zero_grad()?;
         }
+        Ok(())
     }
 
     fn set_lr(&mut self, lr: T) {
         self.lr = lr;
     }
 
-    fn clip_grad_norm(&mut self, max_norm: T) -> T
+    fn clip_grad_norm(&mut self, max_norm: T) -> Result<T, B::Error>
     where
         B::DeviceBuffer<T>:
             coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,

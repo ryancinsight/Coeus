@@ -1,4 +1,4 @@
-﻿// ── Autograd nodes: norm reductions (norm, norm_p, norm_p_axis) ──
+// ── Autograd nodes: norm reductions (norm, norm_p, norm_p_axis) ──
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
@@ -38,18 +38,24 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nor
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let Some(Some(ref g)) = input_grads.first() else {
-            return;
+            return Ok(());
         };
 
         let norm_broad = self.norm_tensor.broadcast(self.input_tensor.shape_cloned());
-        let scale = coeus_ops::div(grad_out, &norm_broad, &backend);
-        let grad_in = coeus_ops::mul(&scale, &self.input_tensor, &backend);
+        let scale = coeus_ops::div(grad_out, &norm_broad, &backend)?;
+        let grad_in = coeus_ops::mul(&scale, &self.input_tensor, &backend)?;
 
         let lock = g.write();
-        coeus_ops::add_assign(lock, &grad_in, &backend);
+        coeus_ops::add_assign(lock, &grad_in, &backend)?;
+
+        Ok(())
     }
 }
 
@@ -58,33 +64,36 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nor
 /// Forward uses the efficient `mul` + `sum` + `sqrt` backend path (no
 /// host-side fold). Backward: `∂y/∂x_i = x_i / y`.
 #[inline]
-pub fn norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let norm_val = coeus_ops::norm(&a.tensor, &backend).expect("norm");
-    let out_tensor = Tensor::full_on([1], norm_val, &backend);
+    let norm_val = coeus_ops::norm(&a.tensor, &backend)?;
+    let out_tensor = Tensor::full_on([1], norm_val, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
 
-    let creator = requires_grad.then(|| {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = grad.as_ref().map(|output_grad| {
         Arc::new(NormNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs: vec![a.clone()],
             input_tensor: a.tensor.clone(),
             norm_tensor: out_tensor.clone(),
         }) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 // ── NormPNode (general Lp norm, scalar output) ─────────────────────────────
@@ -121,23 +130,27 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let Some(Some(ref g)) = input_grads.first() else {
-            return;
+            return Ok(());
         };
 
         let n = self.input_tensor.numel();
-        let grad_val = grad_out.to_contiguous_on(&backend).as_slice()[0];
+        let grad_val = grad_out.to_contiguous_on(&backend)?.as_slice()[0];
 
         let input_contig =
             if self.input_tensor.is_contiguous() && self.input_tensor.layout().offset() == 0 {
                 self.input_tensor.reshape([n])
             } else {
-                self.input_tensor.to_contiguous_on(&backend).reshape([n])
+                self.input_tensor.to_contiguous_on(&backend)?.reshape([n])
             };
         let mut host = vec![T::zero(); n];
-        backend.copy_to_host(input_contig.storage(), &mut host);
+        backend.copy_to_host(input_contig.storage(), &mut host)?;
 
         let y = self.norm_value;
         let p = self.p;
@@ -158,9 +171,15 @@ where
             }
         }
 
-        let grad_t = Tensor::from_slice(self.input_tensor.shape().to_vec(), &grad_host);
+        let grad_t = Tensor::from_slice_on(
+            self.input_tensor.shape().to_vec(),
+            &grad_host,
+            &backend,
+        )?;
         let lock = g.write();
-        coeus_ops::add_assign(lock, &grad_t, &backend);
+        coeus_ops::add_assign(lock, &grad_t, &backend)?;
+
+        Ok(())
     }
 }
 
@@ -171,37 +190,38 @@ where
 pub fn norm_p<T: Float + Neg<Output = T>, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     p: T,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let norm_val = coeus_ops::norm_p(&a.tensor, p, &backend);
-    let out_tensor = Tensor::full_on([1], norm_val, &backend);
+    let norm_val = coeus_ops::norm_p(&a.tensor, p, &backend)?;
+    let out_tensor = Tensor::full_on([1], norm_val, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
 
-    let creator = requires_grad.then(|| {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = grad.as_ref().map(|output_grad| {
         Arc::new(NormPNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs: vec![a.clone()],
             input_tensor: a.tensor.clone(),
             p,
             norm_value: norm_val,
         }) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 // ── NormPAxisNode (per-axis Lp norm) ───────────────────────────────────────
@@ -239,10 +259,14 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let Some(Some(ref g)) = input_grads.first() else {
-            return;
+            return Ok(());
         };
 
         let n = self.input_tensor.numel();
@@ -251,29 +275,29 @@ where
                 self.input_tensor
                     .reshape(self.input_tensor.shape().to_vec())
             } else {
-                self.input_tensor.to_contiguous_on(&backend)
+                self.input_tensor.to_contiguous_on(&backend)?
             };
         let mut host = vec![T::zero(); n];
-        backend.copy_to_host(input_contig.storage(), &mut host);
+        backend.copy_to_host(input_contig.storage(), &mut host)?;
 
         let norm_n = self.norm_tensor.numel();
         let norm_contig =
             if self.norm_tensor.is_contiguous() && self.norm_tensor.layout().offset() == 0 {
                 self.norm_tensor.reshape(self.norm_tensor.shape().to_vec())
             } else {
-                self.norm_tensor.to_contiguous_on(&backend)
+                self.norm_tensor.to_contiguous_on(&backend)?
             };
         let mut norm_host = vec![T::zero(); norm_n];
-        backend.copy_to_host(norm_contig.storage(), &mut norm_host);
+        backend.copy_to_host(norm_contig.storage(), &mut norm_host)?;
 
         let mut grad_host_vec = vec![T::zero(); norm_n];
         backend.copy_to_host(
             grad_out
-                .to_contiguous_on(&backend)
+                .to_contiguous_on(&backend)?
                 .reshape(norm_contig.shape().to_vec())
                 .storage(),
             &mut grad_host_vec,
-        );
+        )?;
 
         let p = self.p;
         let axis = self.axis;
@@ -307,9 +331,15 @@ where
             }
         }
 
-        let grad_t = Tensor::from_slice(self.input_tensor.shape().to_vec(), &grad_in_host);
+        let grad_t = Tensor::from_slice_on(
+            self.input_tensor.shape().to_vec(),
+            &grad_in_host,
+            &backend,
+        )?;
         let lock = g.write();
-        coeus_ops::add_assign(lock, &grad_t, &backend);
+        coeus_ops::add_assign(lock, &grad_t, &backend)?;
+
+        Ok(())
     }
 }
 
@@ -319,25 +349,26 @@ pub fn norm_p_axis<T: Float + Neg<Output = T>, B: coeus_ops::BackendOps<T> + Def
     a: &Var<T, B>,
     p: T,
     axis: usize,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::norm_p_axis(&a.tensor, p, axis, &backend);
+    let out_tensor = coeus_ops::norm_p_axis(&a.tensor, p, axis, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
 
-    let creator = requires_grad.then(|| {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = grad.as_ref().map(|output_grad| {
         Arc::new(NormPAxisNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs: vec![a.clone()],
             input_tensor: a.tensor.clone(),
             p,
@@ -345,9 +376,9 @@ where
             norm_tensor: out_tensor.clone(),
         }) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

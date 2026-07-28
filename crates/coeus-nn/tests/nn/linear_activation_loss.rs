@@ -59,19 +59,19 @@ fn expected_cross_entropy_gradients(
 
 #[test]
 fn test_linear_layer() {
-    let mut layer = Linear::<f64>::new(3, 2, true);
-    init::constant(&mut layer.weight, 1.0);
+    let mut layer = Linear::<f64>::new(3, 2, true).expect("construct module");
+    init::constant(&mut layer.weight, 1.0).expect("initialize parameters");
     if let Some(ref mut b) = layer.bias {
-        init::constant(b, 0.5);
+        init::constant(b, 0.5).expect("initialize parameters");
     }
 
-    let input = Var::new(Tensor::from_slice(vec![1, 3], &[1.0f64, 2.0, 3.0]), true);
-    let output = layer.forward(&input);
+    let input = Var::new(Tensor::from_slice(vec![1, 3], &[1.0f64, 2.0, 3.0]).expect("construct tensor"), true).expect("construct variable");
+    let output = layer.forward(&input).expect("run forward");
 
     assert_eq!(output.tensor.shape(), &[1, 2]);
     assert_eq!(output.tensor.as_slice(), &[6.5, 6.5]);
 
-    output.backward();
+    output.backward().expect("run backward");
     assert_eq!(
         input
             .grad()
@@ -99,10 +99,10 @@ fn test_linear_layer() {
 
 #[test]
 fn linear_projects_last_axis_for_rank_three_and_preserves_gradients() {
-    let mut layer = Linear::<f64>::new(3, 2, true);
-    layer.weight.tensor = Tensor::from_slice(vec![2, 3], &[1.0, 0.0, -1.0, 0.5, 2.0, 1.5]);
+    let mut layer = Linear::<f64>::new(3, 2, true).expect("construct module");
+    layer.weight.tensor = Tensor::from_slice(vec![2, 3], &[1.0, 0.0, -1.0, 0.5, 2.0, 1.5]).expect("construct tensor");
     if let Some(ref mut bias) = layer.bias {
-        bias.tensor = Tensor::from_slice(vec![2], &[0.25, -0.5]);
+        bias.tensor = Tensor::from_slice(vec![2], &[0.25, -0.5]).expect("construct tensor");
     }
 
     let input = Var::new(
@@ -114,10 +114,10 @@ fn linear_projects_last_axis_for_rank_three_and_preserves_gradients() {
                 -1.0, 0.0, 1.0, // -1.75, 0.5
                 2.0, -2.0, 0.5, // 1.75, -2.75
             ],
-        ),
+        ).expect("construct tensor"),
         true,
-    );
-    let output = layer.forward(&input);
+    ).expect("construct variable");
+    let output = layer.forward(&input).expect("run forward");
 
     assert_eq!(output.tensor.shape(), &[2, 2, 2]);
     assert_eq!(
@@ -125,7 +125,7 @@ fn linear_projects_last_axis_for_rank_three_and_preserves_gradients() {
         &[-1.75, 8.5, -1.75, 20.5, -1.75, 0.5, 1.75, -2.75]
     );
 
-    output.backward();
+    output.backward().expect("run backward");
     assert_eq!(
         input
             .grad()
@@ -155,14 +155,14 @@ fn linear_projects_last_axis_for_rank_three_and_preserves_gradients() {
 
 #[test]
 fn linear_projects_last_axis_for_rank_five() {
-    let mut layer = Linear::<f64>::new(3, 2, false);
-    layer.weight.tensor = Tensor::from_slice(vec![2, 3], &[1.0, 0.0, -1.0, 0.5, 2.0, 1.5]);
+    let mut layer = Linear::<f64>::new(3, 2, false).expect("construct module");
+    layer.weight.tensor = Tensor::from_slice(vec![2, 3], &[1.0, 0.0, -1.0, 0.5, 2.0, 1.5]).expect("construct tensor");
     let input = Var::new(
-        Tensor::from_slice(vec![1, 1, 1, 2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+        Tensor::from_slice(vec![1, 1, 1, 2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
-    let output = layer.forward(&input);
+    let output = layer.forward(&input).expect("run forward");
 
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 2, 2]);
     assert_eq!(output.tensor.as_slice(), &[-2.0, 9.0, -2.0, 21.0]);
@@ -175,19 +175,20 @@ fn test_load_parameters_applies_optimizer_step_to_the_module() {
     // via `parameters()`), so without `load_parameters` writing the updated
     // values back into the layer's own fields, this would silently leave
     // `layer.weight`/`layer.bias` unchanged after training.
-    let mut layer = Linear::<f64>::new(2, 1, true);
-    init::constant(&mut layer.weight, 1.0);
+    let mut layer = Linear::<f64>::new(2, 1, true).expect("construct module");
+    init::constant(&mut layer.weight, 1.0).expect("initialize parameters");
     if let Some(ref mut b) = layer.bias {
-        init::constant(b, 0.0);
+        init::constant(b, 0.0).expect("initialize parameters");
     }
 
-    let x = Var::new(Tensor::from_slice(vec![1, 2], &[3.0f64, 4.0]), false);
-    let output = layer.forward(&x); // w . x + b = 1*3 + 1*4 + 0 = 7
-    output.backward(); // d(output)/d(weight) = x = [3, 4]; d(output)/d(bias) = 1
+    let x = Var::new(Tensor::from_slice(vec![1, 2], &[3.0f64, 4.0]).expect("construct tensor"), false).expect("construct variable");
+    let output = layer.forward(&x).expect("run forward"); // w . x + b = 1*3 + 1*4 + 0 = 7
+    output.backward().expect("run backward"); // d(output)/d(weight) = x = [3, 4]; d(output)/d(bias) = 1
 
     let lr = 0.1;
-    let mut opt = SGD::new(layer.named_parameters(), lr, 0.0);
-    opt.step();
+    let mut opt = SGD::new(layer.named_parameters(), lr, 0.0)
+        .expect("construct SGD optimizer");
+    opt.step().expect("run SGD step");
     layer
         .load_named_parameters(&opt.params)
         .expect("optimizer inventory must match module paths");
@@ -209,8 +210,8 @@ fn test_load_parameters_applies_optimizer_step_to_the_module() {
 
     // The updated layer must actually be used on the next forward pass:
     // w' . x + b' = 0.7*3 + 0.6*4 - 0.1 = 2.1 + 2.4 - 0.1 = 4.4
-    let x2 = Var::new(Tensor::from_slice(vec![1, 2], &[3.0f64, 4.0]), false);
-    let output2 = layer.forward(&x2);
+    let x2 = Var::new(Tensor::from_slice(vec![1, 2], &[3.0f64, 4.0]).expect("construct tensor"), false).expect("construct variable");
+    let output2 = layer.forward(&x2).expect("run forward");
     assert_slice_close(
         "forward_after_load_parameters",
         output2.tensor.as_slice(),
@@ -222,41 +223,41 @@ fn test_load_parameters_applies_optimizer_step_to_the_module() {
 #[test]
 fn test_activations() {
     let input: Var<f64> = Var::new(
-        Tensor::from_slice(vec![4], &[-2.0f64, -0.5, 0.5, 2.0]),
+        Tensor::from_slice(vec![4], &[-2.0f64, -0.5, 0.5, 2.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
     // ReLU
-    let out_relu = relu(&input);
+    let out_relu = relu(&input).expect("run operation");
     assert_eq!(out_relu.tensor.as_slice(), &[0.0, 0.0, 0.5, 2.0]);
-    out_relu.backward();
+    out_relu.backward().expect("run backward");
     assert_eq!(input.grad().unwrap().as_slice(), &[0.0, 0.0, 1.0, 1.0]);
 
     // Sigmoid
-    input.zero_grad();
-    let out_sig = sigmoid(&input);
+    input.zero_grad().expect("clear gradients");
+    let out_sig = sigmoid(&input).expect("run operation");
     assert!((out_sig.tensor.as_slice()[2] - 0.622459f64).abs() < 1e-4);
 
     // Tanh
-    input.zero_grad();
-    let out_tanh = tanh(&input);
+    input.zero_grad().expect("clear gradients");
+    let out_tanh = tanh(&input).expect("run operation");
     assert!((out_tanh.tensor.as_slice()[2] - 0.462117f64).abs() < 1e-4);
 
     // GeLU
-    input.zero_grad();
-    let out_gelu = gelu(&input);
+    input.zero_grad().expect("clear gradients");
+    let out_gelu = gelu(&input).expect("run operation");
     assert!(out_gelu.tensor.as_slice()[0] < 0.1);
 }
 
 #[test]
 fn test_losses() {
-    let pred: Var<f64> = Var::new(Tensor::from_slice(vec![2], &[0.5f64, 1.5]), true);
-    let target = Var::new(Tensor::from_slice(vec![2], &[1.0f64, 1.0]), false);
+    let pred: Var<f64> = Var::new(Tensor::from_slice(vec![2], &[0.5f64, 1.5]).expect("construct tensor"), true).expect("construct variable");
+    let target = Var::new(Tensor::from_slice(vec![2], &[1.0f64, 1.0]).expect("construct tensor"), false).expect("construct variable");
 
     // MSE
-    let loss_mse = mse_loss(&pred, &target);
+    let loss_mse = mse_loss(&pred, &target).expect("run operation");
     assert_eq!(loss_mse.tensor.as_slice(), &[0.25]);
-    loss_mse.backward();
+    loss_mse.backward().expect("run backward");
     assert_eq!(
         pred.grad()
             .expect("mse prediction gradient must be populated")
@@ -266,11 +267,11 @@ fn test_losses() {
 
     // Cross entropy
     let logits_values = &[1.0f64, 2.0, 0.0, 0.0, 2.0, 1.0];
-    let logits: Var<f64> = Var::new(Tensor::from_slice(vec![2, 3], logits_values), true);
+    let logits: Var<f64> = Var::new(Tensor::from_slice(vec![2, 3], logits_values).expect("construct tensor"), true).expect("construct variable");
     let targets = vec![1, 2];
-    let loss_ce = cross_entropy_loss(&logits, &targets);
+    let loss_ce = cross_entropy_loss(&logits, &targets).expect("run operation");
     assert_eq!(loss_ce.tensor.shape(), &[1]);
-    loss_ce.backward();
+    loss_ce.backward().expect("run backward");
     let expected_ce_gradients = expected_cross_entropy_gradients(logits_values, 2, 3, &targets);
     assert_slice_close(
         "cross_entropy_logits_grad",
@@ -285,15 +286,15 @@ fn test_losses() {
 
 #[test]
 fn test_initializers() {
-    let mut weight = Var::<f64>::new(Tensor::zeros(vec![1000]), true);
+    let mut weight = Var::<f64>::new(Tensor::zeros(vec![1000]).expect("construct tensor"), true).expect("construct variable");
 
-    init::normal(&mut weight, 5.0, 2.0);
+    init::normal(&mut weight, 5.0, 2.0).expect("initialize parameters");
     let w_slice = weight.tensor.as_slice();
     let sum: f64 = w_slice.iter().sum();
     let mean = sum / w_slice.len() as f64;
     assert!((mean - 5.0).abs() < 0.2);
 
-    init::xavier_uniform(&mut weight, 100, 100);
+    init::xavier_uniform(&mut weight, 100, 100).expect("initialize parameters");
     let limit = (6.0f64 / 200.0).sqrt();
     for &val in weight.tensor.as_slice() {
         assert!(val >= -limit && val <= limit);

@@ -38,16 +38,16 @@ fn prelu_forward_and_backward() {
         .collect();
 
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let weight = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1], &[alpha]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1], &[alpha]).expect("construct tensor"),
         true,
-    );
-    let output = prelu(&input, &weight);
+    ).expect("construct variable");
+    let output = prelu(&input, &weight).expect("run operation");
     assert_close_slice("prelu_forward", output.tensor.as_slice(), &expected, 1e-12);
-    output.backward();
+    output.backward().expect("run backward");
     let grad = input.grad().expect("prelu requires grad");
     assert_close_slice("prelu_backward", grad.as_slice(), &expected_grad, 1e-12);
     // grad_weight = sum of x over the x<=0 region: -2 + -1 + 0 = -3.0.
@@ -62,17 +62,18 @@ fn prelu_module_weight_learns_via_optimizer_round_trip() {
     // place, detached (copy-on-write) from the clone taken via parameters(),
     // so without PReLU::load_parameters writing the update back into
     // module.weight, the module's own field would silently stay unchanged.
-    let mut module = PReLU::<f64, MoiraiBackend>::new(1, 0.25);
+    let mut module = PReLU::<f64, MoiraiBackend>::new(1, 0.25).expect("construct module");
     let x = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[-2.0, 3.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[-2.0, 3.0]).expect("construct tensor"),
         false,
-    );
-    let output = module.forward(&x); // prelu([-2,3], w=0.25) = [-0.5, 3.0]
-    coeus_autograd::sum(&output).backward();
+    ).expect("construct variable");
+    let output = module.forward(&x).expect("run forward"); // prelu([-2,3], w=0.25).expect("run operation") = [-0.5, 3.0]
+    coeus_autograd::sum(&output).expect("run operation").backward().expect("run backward");
 
     let lr = 0.1;
-    let mut opt = SGD::new(module.named_parameters(), lr, 0.0);
-    opt.step();
+    let mut opt = SGD::new(module.named_parameters(), lr, 0.0)
+        .expect("construct SGD optimizer");
+    opt.step().expect("run SGD step");
     module
         .load_named_parameters(&opt.params)
         .expect("optimizer inventory must match module paths");
@@ -84,10 +85,10 @@ fn prelu_module_weight_learns_via_optimizer_round_trip() {
     // The updated weight must actually be used on the next forward pass:
     // prelu([-2,3], w=0.45) = [-0.9, 3.0].
     let x2 = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[-2.0, 3.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[-2.0, 3.0]).expect("construct tensor"),
         false,
-    );
-    let output2 = module.forward(&x2);
+    ).expect("construct variable");
+    let output2 = module.forward(&x2).expect("run forward");
     assert_close_slice(
         "prelu_after_sgd_step",
         output2.tensor.as_slice(),
@@ -107,17 +108,17 @@ fn leaky_relu_kink_at_zero_returns_slope() {
     let data = vec![0.0_f64];
     let slope = 0.01_f64;
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data).expect("construct tensor"),
         true,
-    );
-    let output = coeus_nn::leaky_relu(&input, slope);
+    ).expect("construct variable");
+    let output = coeus_nn::leaky_relu(&input, slope).expect("run operation");
     assert_close_slice(
         "leaky_relu_kink_out",
         output.tensor.as_slice(),
         &data,
         1e-12,
     );
-    output.backward();
+    output.backward().expect("run backward");
     let grad = input.grad().expect("leaky_relu requires grad");
     let expected_grad = vec![slope];
     assert_close_slice("leaky_relu_kink_dx", grad.as_slice(), &expected_grad, 1e-12);
@@ -134,13 +135,13 @@ fn clamp_kink_at_boundary_returns_one() {
     let hi = 2.0_f64;
     let data = vec![-1.0_f64, 2.0_f64]; // exact min and exact max
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data).expect("construct tensor"),
         true,
-    );
-    let output = coeus_autograd::clamp(&input, lo, hi);
+    ).expect("construct variable");
+    let output = coeus_autograd::clamp(&input, lo, hi).expect("run operation");
     // Forward at the boundary is unchanged (clamp(x, x, x) = x).
     assert_close_slice("clamp_kink_out", output.tensor.as_slice(), &data, 1e-12);
-    output.backward();
+    output.backward().expect("run backward");
     let grad = input.grad().expect("clamp requires grad");
     // Backward at both kink positions must be 1 per PyTorch convention.
     let expected_grad = vec![1.0_f64, 1.0_f64];

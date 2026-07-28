@@ -46,12 +46,12 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let mut a_buffer = ComputeBackend::allocate::<T>(backend, a.len());
-    let mut b_buffer = ComputeBackend::allocate::<T>(backend, b.len());
-    let mut c_buffer = ComputeBackend::allocate::<T>(backend, c_layout.numel());
+    let mut a_buffer = ComputeBackend::allocate::<T>(backend, a.len()).expect("backend fixture operation");
+    let mut b_buffer = ComputeBackend::allocate::<T>(backend, b.len()).expect("backend fixture operation");
+    let mut c_buffer = ComputeBackend::allocate::<T>(backend, c_layout.numel()).expect("backend fixture operation");
 
-    backend.copy_to_device(a, &mut a_buffer);
-    backend.copy_to_device(b, &mut b_buffer);
+    backend.copy_to_device(a, &mut a_buffer).expect("backend fixture operation");
+    backend.copy_to_device(b, &mut b_buffer).expect("backend fixture operation");
     backend
         .matmul(
             &a_buffer,
@@ -64,7 +64,7 @@ where
         .expect("valid matmul test layouts");
 
     let mut out = vec![T::zero(); c_layout.numel()];
-    backend.copy_to_host(&c_buffer, &mut out);
+    backend.copy_to_host(&c_buffer, &mut out).expect("backend fixture operation");
     out
 }
 

@@ -58,14 +58,14 @@ fn layernorm_3d_from_parts<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     weight: &Var<T, B>,
     bias: &Var<T, B>,
     eps: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let shape = x.tensor.shape_cloned();
     let batch = shape[0];
     let seq = shape[1];
     let d = shape[2];
-    let flat = coeus_autograd::reshape(x, [batch * seq, d]);
-    let norm = LayerNorm::from_parts(weight.clone(), bias.clone(), eps);
-    let normed = norm.forward(&flat);
+    let flat = coeus_autograd::reshape(x, [batch * seq, d])?;
+    let norm = LayerNorm::from_parts(weight.clone(), bias.clone(), eps)?;
+    let normed = norm.forward(&flat)?;
     coeus_autograd::reshape(&normed, [batch, seq, d])
 }
 
@@ -73,7 +73,7 @@ fn apply_dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     p: f64,
     is_training: bool,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let mut dropout = Dropout::new(p);
     dropout.set_training(is_training);
     dropout.forward(x)
@@ -95,38 +95,38 @@ pub fn transformer_decoder_layer<
     tgt: &Var<T, B>,
     memory: &Var<T, B>,
     params: TransformerDecoderLayerParams<'_, T, B>,
-) -> Var<T, B> {
-    let normed1 = layernorm_3d_from_parts(tgt, params.norm1_weight, params.norm1_bias, 1e-5);
+) -> Result<Var<T, B>, B::Error> {
+    let normed1 = layernorm_3d_from_parts(tgt, params.norm1_weight, params.norm1_bias, 1e-5)?;
     let self_attn_out = multi_head_attention_cross::<T, B, H, SelfM>(
         &normed1,
         &normed1,
         &normed1,
         params.self_attn,
         None,
-    );
+    )?;
     let dropped1 = apply_dropout(
         &self_attn_out,
         params.self_attn_residual_dropout_p,
         params.self_attn_residual_training,
-    );
-    let x = coeus_autograd::add(tgt, &dropped1);
+    )?;
+    let x = coeus_autograd::add(tgt, &dropped1)?;
 
-    let normed2 = layernorm_3d_from_parts(&x, params.norm2_weight, params.norm2_bias, 1e-5);
+    let normed2 = layernorm_3d_from_parts(&x, params.norm2_weight, params.norm2_bias, 1e-5)?;
     let cross_attn_out = multi_head_attention_cross::<T, B, H, CrossM>(
         &normed2,
         memory,
         memory,
         params.cross_attn,
         None,
-    );
+    )?;
     let dropped2 = apply_dropout(
         &cross_attn_out,
         params.cross_attn_residual_dropout_p,
         params.cross_attn_residual_training,
-    );
-    let x = coeus_autograd::add(&x, &dropped2);
+    )?;
+    let x = coeus_autograd::add(&x, &dropped2)?;
 
-    let normed3 = layernorm_3d_from_parts(&x, params.norm3_weight, params.norm3_bias, 1e-5);
+    let normed3 = layernorm_3d_from_parts(&x, params.norm3_weight, params.norm3_bias, 1e-5)?;
     let linear1 = Linear {
         weight: params.ffn_w1.clone(),
         bias: params.ffn_b1.cloned(),
@@ -135,19 +135,19 @@ pub fn transformer_decoder_layer<
         weight: params.ffn_w2.clone(),
         bias: params.ffn_b2.cloned(),
     };
-    let ff_hidden = linear1.forward(&normed3);
-    let ff_hidden = coeus_autograd::gelu(&ff_hidden);
+    let ff_hidden = linear1.forward(&normed3)?;
+    let ff_hidden = coeus_autograd::gelu(&ff_hidden)?;
     let ff_hidden = apply_dropout(
         &ff_hidden,
         params.ffn_hidden_dropout_p,
         params.ffn_hidden_training,
-    );
-    let ff_out = linear2.forward(&ff_hidden);
+    )?;
+    let ff_out = linear2.forward(&ff_hidden)?;
     let dropped3 = apply_dropout(
         &ff_out,
         params.ffn_residual_dropout_p,
         params.ffn_residual_training,
-    );
+    )?;
     coeus_autograd::add(&x, &dropped3)
 }
 
@@ -195,28 +195,32 @@ impl<
     > TransformerDecoderLayer<T, B, H, SelfM, CrossM>
 {
     /// Construct a decoder layer.
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self
+    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Result<Self, B::Error>
     where
         T: coeus_leto::RandomScalar,
     {
-        Self {
-            norm1: LayerNorm::new(d_model, 1e-5),
-            self_attn: MultiHeadAttention::new(d_model, true),
+        Ok(Self {
+            norm1: LayerNorm::<T, B>::new(d_model, 1e-5)?,
+            self_attn: MultiHeadAttention::<T, B, H, SelfM>::new(d_model, true)?,
             dropout1: Dropout::new(dropout_p),
-            norm2: LayerNorm::new(d_model, 1e-5),
-            cross_attn: MultiHeadAttention::new(d_model, true),
+            norm2: LayerNorm::<T, B>::new(d_model, 1e-5)?,
+            cross_attn: MultiHeadAttention::<T, B, H, CrossM>::new(d_model, true)?,
             dropout2: Dropout::new(dropout_p),
-            norm3: LayerNorm::new(d_model, 1e-5),
-            ffn: FeedForward::new(d_model, d_ff, dropout_p),
+            norm3: LayerNorm::<T, B>::new(d_model, 1e-5)?,
+            ffn: FeedForward::<T, B>::new(d_model, d_ff, dropout_p)?,
             dropout3: Dropout::new(dropout_p),
-        }
+        })
     }
 
     /// Decode forward pass with cross-attention.
     ///
     /// - `tgt`:    target inputs `[batch, seq_tgt, d_model]`
     /// - `memory`: encoder outputs `[batch, seq_src, d_model]`
-    pub fn forward_decoder(&self, tgt: &Var<T, B>, memory: &Var<T, B>) -> Var<T, B> {
+    pub fn forward_decoder(
+        &self,
+        tgt: &Var<T, B>,
+        memory: &Var<T, B>,
+    ) -> Result<Var<T, B>, B::Error> {
         transformer_decoder_layer::<T, B, H, SelfM, CrossM>(
             tgt,
             memory,
@@ -293,7 +297,7 @@ impl<
     }
 
     /// Fallback forward without cross-attention: `memory = tgt`.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         self.forward_decoder(input, input)
     }
 }

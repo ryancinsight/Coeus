@@ -14,7 +14,7 @@ where
 {
     let backend = B::default();
 
-    let tensor = Tensor::<i32, B>::arange_on(8, &backend);
+    let tensor = Tensor::<i32, B>::arange_on(8, &backend).expect("construct tensor");
     let expected =
         coeus_leto::from_shape_fn_values(&[8usize], |index| i32::from_usize(index[0])).unwrap();
 
@@ -23,7 +23,7 @@ where
     assert_eq!(tensor.as_slice(), expected.as_slice());
     assert_eq!(tensor.as_slice(), &[0, 1, 2, 3, 4, 5, 6, 7]);
 
-    let empty = Tensor::<i32, B>::arange_on(0, &backend);
+    let empty = Tensor::<i32, B>::arange_on(0, &backend).expect("construct tensor");
     let expected_empty =
         coeus_leto::from_shape_fn_values(&[0usize], |index| i32::from_usize(index[0])).unwrap();
 

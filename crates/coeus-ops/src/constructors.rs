@@ -6,7 +6,7 @@
 // all other `coeus-ops` free functions (`matmul`, `dot`, `topk`, …).
 
 use crate::BackendOps;
-use coeus_core::{CpuAddressableStorageMut, Float, Scalar};
+use coeus_core::{BackendError, CpuAddressableStorageMut, Float, Scalar};
 use coeus_tensor::Tensor;
 
 /// `n` evenly-spaced values from `start` to `end` (inclusive) on `backend`.
@@ -22,11 +22,16 @@ pub fn linspace<T: Float, B: BackendOps<T> + Default>(
     end: T,
     n: usize,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    assert!(n > 0, "linspace: n must be > 0");
+    if n == 0 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "linspace",
+            reason: "number of samples must be greater than zero".to_owned(),
+        }));
+    }
     let start_f = <T as Scalar>::to_f64(start);
     let end_f = <T as Scalar>::to_f64(end);
     let step = if n > 1 {
@@ -54,11 +59,16 @@ pub fn logspace<T: Float, B: BackendOps<T> + Default>(
     n: usize,
     base: T,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    assert!(n > 0, "logspace: n must be > 0");
+    if n == 0 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "logspace",
+            reason: "number of samples must be greater than zero".to_owned(),
+        }));
+    }
     let start_f = <T as Scalar>::to_f64(start);
     let end_f = <T as Scalar>::to_f64(end);
     let base_f = <T as Scalar>::to_f64(base);
@@ -87,21 +97,30 @@ pub fn geomspace<T: Float, B: BackendOps<T> + Default>(
     end: T,
     n: usize,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    assert!(n > 0, "geomspace: n must be > 0");
+    if n == 0 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "geomspace",
+            reason: "number of samples must be greater than zero".to_owned(),
+        }));
+    }
     let start_f = <T as Scalar>::to_f64(start);
     let end_f = <T as Scalar>::to_f64(end);
-    assert!(
-        start_f != 0.0 && end_f != 0.0,
-        "geomspace: start and end must be non-zero"
-    );
-    assert!(
-        start_f.signum() == end_f.signum(),
-        "geomspace: start and end must have the same sign"
-    );
+    if start_f == 0.0 || end_f == 0.0 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "geomspace",
+            reason: "start and end must be non-zero".to_owned(),
+        }));
+    }
+    if start_f.signum() != end_f.signum() {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "geomspace",
+            reason: "start and end must have the same sign".to_owned(),
+        }));
+    }
     let sign = start_f.signum();
     let start_abs = start_f.abs();
     let end_abs = end_f.abs();
@@ -130,7 +149,7 @@ mod tests {
     #[test]
     fn linspace_endpoints_inclusive() {
         let b = SequentialBackend::new();
-        let t = linspace(0.0f32, 1.0, 5, &b);
+        let t = linspace(0.0f32, 1.0, 5, &b).expect("run operation");
         let s = t.as_slice();
         assert!((s[0] - 0.0).abs() < 1e-6);
         assert!((s[4] - 1.0).abs() < 1e-6);
@@ -140,7 +159,7 @@ mod tests {
     #[test]
     fn logspace_base10() {
         let b = SequentialBackend::new();
-        let t = logspace(0.0f32, 2.0, 3, 10.0, &b);
+        let t = logspace(0.0f32, 2.0, 3, 10.0, &b).expect("run operation");
         let s = t.as_slice();
         assert!((s[0] - 1.0).abs() < 1e-4);
         assert!((s[1] - 10.0).abs() < 1e-4);
@@ -150,7 +169,7 @@ mod tests {
     #[test]
     fn geomspace_doubling() {
         let b = SequentialBackend::new();
-        let t = geomspace(1.0f32, 16.0, 5, &b);
+        let t = geomspace(1.0f32, 16.0, 5, &b).expect("run operation");
         let s = t.as_slice();
         for (i, &v) in s.iter().enumerate() {
             let expected = 2.0f32.powi(i as i32);
@@ -165,7 +184,7 @@ mod tests {
     fn linspace_n1_returns_start() {
         let b = SequentialBackend::new();
         // Use 3.5 (exactly representable in f32) to avoid PI-approximation lint.
-        let t = linspace(3.5f32, 99.0, 1, &b);
+        let t = linspace(3.5f32, 99.0, 1, &b).expect("run operation");
         assert!((t.as_slice()[0] - 3.5_f32).abs() < 1e-5);
     }
 }

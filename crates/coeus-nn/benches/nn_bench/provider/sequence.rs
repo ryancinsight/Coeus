@@ -20,17 +20,17 @@ pub(crate) fn bench_embedding_forward(c: &mut Criterion) {
         .map(|&v| v as f32)
         .collect();
 
-    let emb_seq = Embedding::<f32, SequentialBackend>::new(EMB_VOCAB, EMB_DIM);
-    let emb_moirai = Embedding::<f32, MoiraiBackend>::new(EMB_VOCAB, EMB_DIM);
-    let idx_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![EMB_BATCH, EMB_SEQ], &idx_data);
-    let idx_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![EMB_BATCH, EMB_SEQ], &idx_data);
+    let emb_seq = Embedding::<f32, SequentialBackend>::new(EMB_VOCAB, EMB_DIM).expect("construct module");
+    let emb_moirai = Embedding::<f32, MoiraiBackend>::new(EMB_VOCAB, EMB_DIM).expect("construct module");
+    let idx_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![EMB_BATCH, EMB_SEQ], &idx_data).expect("construct tensor");
+    let idx_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![EMB_BATCH, EMB_SEQ], &idx_data).expect("construct tensor");
 
     let mut group = c.benchmark_group("Coeus — Embedding lookup forward (2x16, vocab=4096, d=256)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(emb_seq.forward_indices(black_box(&idx_seq))))
+        b.iter(|| black_box(emb_seq.forward_indices(black_box(&idx_seq)).expect("run forward")))
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(emb_moirai.forward_indices(black_box(&idx_moirai))))
+        b.iter(|| black_box(emb_moirai.forward_indices(black_box(&idx_moirai)).expect("run forward")))
     });
     group.finish();
 }
@@ -48,26 +48,26 @@ pub(crate) fn bench_lstm_forward(c: &mut Criterion) {
         .collect();
 
     // Coeus: Lstm::new(input_size, hidden_size).
-    let lstm_seq = Lstm::<f32, SequentialBackend>::new(LSTM_IN, LSTM_H);
-    let lstm_moirai = Lstm::<f32, MoiraiBackend>::new(LSTM_IN, LSTM_H);
+    let lstm_seq = Lstm::<f32, SequentialBackend>::new(LSTM_IN, LSTM_H).expect("construct module");
+    let lstm_moirai = Lstm::<f32, MoiraiBackend>::new(LSTM_IN, LSTM_H).expect("construct module");
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(
             vec![LSTM_BATCH, LSTM_SEQ, LSTM_IN],
             &input_data,
-        ),
+        ).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![LSTM_BATCH, LSTM_SEQ, LSTM_IN], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![LSTM_BATCH, LSTM_SEQ, LSTM_IN], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
     let mut group = c.benchmark_group("Coeus — LSTM forward (4x32 seq, in=64 hidden=128)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(lstm_seq.forward(black_box(&x_seq))))
+        b.iter(|| black_box(lstm_seq.forward(black_box(&x_seq)).expect("run forward")))
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(lstm_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| black_box(lstm_moirai.forward(black_box(&x_moirai)).expect("run forward")))
     });
     group.finish();
 }
@@ -87,23 +87,23 @@ pub(crate) fn bench_gru_forward(c: &mut Criterion) {
         .collect();
 
     // Coeus: Gru::new(input_size, hidden_size).
-    let gru_seq = CoeusGru::<f32, SequentialBackend>::new(GRU_IN, GRU_H);
-    let gru_moirai = CoeusGru::<f32, MoiraiBackend>::new(GRU_IN, GRU_H);
+    let gru_seq = CoeusGru::<f32, SequentialBackend>::new(GRU_IN, GRU_H).expect("construct module");
+    let gru_moirai = CoeusGru::<f32, MoiraiBackend>::new(GRU_IN, GRU_H).expect("construct module");
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![GRU_BATCH, GRU_SEQ, GRU_IN], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![GRU_BATCH, GRU_SEQ, GRU_IN], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![GRU_BATCH, GRU_SEQ, GRU_IN], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![GRU_BATCH, GRU_SEQ, GRU_IN], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
     let mut group = c.benchmark_group("Coeus — GRU forward (4x32 seq, in=64 hidden=128)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(gru_seq.forward(black_box(&x_seq))))
+        b.iter(|| black_box(gru_seq.forward(black_box(&x_seq)).expect("run forward")))
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(gru_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| black_box(gru_moirai.forward(black_box(&x_moirai)).expect("run forward")))
     });
     group.finish();
 }
@@ -118,23 +118,23 @@ pub(crate) fn bench_rnn_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(RNN_BATCH * RNN_SEQ * RNN_IN))
         .map(|index| (index as f32 * 0.0011).sin())
         .collect();
-    let rnn_seq = Rnn::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh);
-    let rnn_moirai = Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh);
+    let rnn_seq = Rnn::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh).expect("construct module");
+    let rnn_moirai = Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh).expect("construct module");
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
     let mut group = c.benchmark_group("Coeus — vanilla RNN forward (4x32 seq, in=64 hidden=128)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(rnn_seq.forward(black_box(&x_seq))))
+        b.iter(|| black_box(rnn_seq.forward(black_box(&x_seq)).expect("run forward")))
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(rnn_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| black_box(rnn_moirai.forward(black_box(&x_moirai)).expect("run forward")))
     });
     group.finish();
 }
@@ -151,32 +151,32 @@ pub(crate) fn bench_rnn_cell_forward(c: &mut Criterion) {
     let hidden_data: Vec<f32> = (0..(RNN_BATCH * RNN_H))
         .map(|index| (index as f32 * 0.0017).sin())
         .collect();
-    let cell_seq = RNNCell::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh);
-    let cell_moirai = RNNCell::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh);
+    let cell_seq = RNNCell::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh).expect("construct module");
+    let cell_moirai = RNNCell::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh).expect("construct module");
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_IN], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_IN], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let h_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_H], &hidden_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_H], &hidden_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_IN], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_IN], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let h_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_H], &hidden_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_H], &hidden_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
     let mut group =
         c.benchmark_group("Coeus — vanilla RNNCell forward (batch=4, in=64 hidden=128)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(cell_seq.step(black_box(&x_seq), black_box(&h_seq))))
+        b.iter(|| black_box(cell_seq.step(black_box(&x_seq), black_box(&h_seq)).expect("run operation")))
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(cell_moirai.step(black_box(&x_moirai), black_box(&h_moirai))))
+        b.iter(|| black_box(cell_moirai.step(black_box(&x_moirai), black_box(&h_moirai)).expect("run operation")))
     });
     group.finish();
 }
@@ -191,29 +191,29 @@ pub(crate) fn bench_bidirectional_rnn_forward(c: &mut Criterion) {
         .map(|index| (index as f32 * 0.0009).cos())
         .collect();
     let bi_seq = Bidirectional::new(
-        Rnn::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh),
-        Rnn::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh),
+        Rnn::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh).expect("construct module"),
+        Rnn::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh).expect("construct module"),
     );
     let bi_moirai = Bidirectional::new(
-        Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh),
-        Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh),
+        Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh).expect("construct module"),
+        Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh).expect("construct module"),
     );
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
     let mut group =
         c.benchmark_group("Coeus — bidirectional RNN forward (4x32 seq, in=64 hidden=128)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(bi_seq.forward(black_box(&x_seq))))
+        b.iter(|| black_box(bi_seq.forward(black_box(&x_seq)).expect("run forward")))
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(bi_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| black_box(bi_moirai.forward(black_box(&x_moirai)).expect("run forward")))
     });
     group.finish();
 }
@@ -231,23 +231,23 @@ pub(crate) fn bench_swiglu_forward(c: &mut Criterion) {
         .collect();
 
     // Coeus: SwiGlu::new(d_input, d_output, bias=false).
-    let sg_seq = SwiGlu::<f32, SequentialBackend>::new(SG_IN, SG_OUT, false);
-    let sg_moirai = SwiGlu::<f32, MoiraiBackend>::new(SG_IN, SG_OUT, false);
+    let sg_seq = SwiGlu::<f32, SequentialBackend>::new(SG_IN, SG_OUT, false).expect("construct module");
+    let sg_moirai = SwiGlu::<f32, MoiraiBackend>::new(SG_IN, SG_OUT, false).expect("construct module");
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![SG_BATCH, SG_IN], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![SG_BATCH, SG_IN], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![SG_BATCH, SG_IN], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![SG_BATCH, SG_IN], &input_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
     let mut group = c.benchmark_group("Coeus — SwiGLU forward (32 batch, in=256 out=512)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(sg_seq.forward(black_box(&x_seq))))
+        b.iter(|| black_box(sg_seq.forward(black_box(&x_seq)).expect("run forward")))
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(sg_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| black_box(sg_moirai.forward(black_box(&x_moirai)).expect("run forward")))
     });
     group.finish();
 }
@@ -265,13 +265,13 @@ pub(crate) fn bench_embeddingbag_sum(c: &mut Criterion) {
 
     // Coeus EmbeddingBag.
     let eb_seq =
-        EmbeddingBag::<f32, SequentialBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum);
+        EmbeddingBag::<f32, SequentialBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum).expect("construct module");
     let eb_moirai =
-        EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum);
+        EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum).expect("construct module");
     let eb_mean_seq =
-        EmbeddingBag::<f32, SequentialBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Mean);
+        EmbeddingBag::<f32, SequentialBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Mean).expect("construct module");
     let eb_mean_moirai =
-        EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Mean);
+        EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Mean).expect("construct module");
 
     let mut group = c.benchmark_group(
         "Coeus — EmbeddingBag reductions (16 bags × 100 tokens, vocab=200 dim=64)",
@@ -279,14 +279,14 @@ pub(crate) fn bench_embeddingbag_sum(c: &mut Criterion) {
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
             black_box(
-                eb_seq.forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))),
+                eb_seq.forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))).expect("run forward"),
             )
         })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
             black_box(
-                eb_moirai.forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))),
+                eb_moirai.forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))).expect("run forward"),
             )
         })
     });
@@ -294,7 +294,7 @@ pub(crate) fn bench_embeddingbag_sum(c: &mut Criterion) {
         b.iter(|| {
             black_box(
                 eb_mean_seq
-                    .forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))),
+                    .forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))).expect("run forward"),
             )
         })
     });
@@ -302,7 +302,7 @@ pub(crate) fn bench_embeddingbag_sum(c: &mut Criterion) {
         b.iter(|| {
             black_box(
                 eb_mean_moirai
-                    .forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))),
+                    .forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))).expect("run forward"),
             )
         })
     });

@@ -1,4 +1,4 @@
-﻿use super::traits::{binary_op, BinaryAutogradOp};
+use super::traits::{BinaryAutogradOp, binary_op};
 use crate::backward::reduce_broadcast;
 use crate::grad_buffer::GradBuffer;
 use crate::var::Var;
@@ -12,7 +12,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
     const OP_NAME: &'static str = "add";
 
     #[inline(always)]
-    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::add(a, b, backend)
     }
 
@@ -25,25 +25,26 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         b_shape: &Shape,
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
-    ) {
+    ) -> Result<(), B::Error> {
         if let Some(Some(ref g)) = input_grads.get(0) {
             let gl = g.write();
             if grad_out.shape() == &a_shape[..] {
-                coeus_ops::add_assign(gl, grad_out, backend);
+                coeus_ops::add_assign(gl, grad_out, backend)?;
             } else {
                 let reduced = reduce_broadcast(grad_out.clone(), a_shape);
-                coeus_ops::add_assign(gl, &reduced, backend);
+                coeus_ops::add_assign(gl, &reduced, backend)?;
             }
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
             let gl = g.write();
             if grad_out.shape() == &b_shape[..] {
-                coeus_ops::add_assign(gl, grad_out, backend);
+                coeus_ops::add_assign(gl, grad_out, backend)?;
             } else {
                 let reduced = reduce_broadcast(grad_out.clone(), b_shape);
-                coeus_ops::add_assign(gl, &reduced, backend);
+                coeus_ops::add_assign(gl, &reduced, backend)?;
             }
         }
+        Ok(())
     }
 }
 
@@ -53,7 +54,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
     const OP_NAME: &'static str = "sub";
 
     #[inline(always)]
-    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::sub(a, b, backend)
     }
 
@@ -66,25 +67,26 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         b_shape: &Shape,
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
-    ) {
+    ) -> Result<(), B::Error> {
         if let Some(Some(ref g)) = input_grads.get(0) {
             let gl = g.write();
             if grad_out.shape() == &a_shape[..] {
-                coeus_ops::add_assign(gl, grad_out, backend);
+                coeus_ops::add_assign(gl, grad_out, backend)?;
             } else {
                 let reduced = reduce_broadcast(grad_out.clone(), a_shape);
-                coeus_ops::add_assign(gl, &reduced, backend);
+                coeus_ops::add_assign(gl, &reduced, backend)?;
             }
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
             let gl = g.write();
             if grad_out.shape() == &b_shape[..] {
-                coeus_ops::sub_assign(gl, grad_out, backend);
+                coeus_ops::sub_assign(gl, grad_out, backend)?;
             } else {
                 let reduced = reduce_broadcast(grad_out.clone(), b_shape);
-                coeus_ops::sub_assign(gl, &reduced, backend);
+                coeus_ops::sub_assign(gl, &reduced, backend)?;
             }
         }
+        Ok(())
     }
 }
 
@@ -94,7 +96,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
     const OP_NAME: &'static str = "mul";
 
     #[inline(always)]
-    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::mul(a, b, backend)
     }
 
@@ -107,27 +109,28 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         _b_shape: &Shape,
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
-    ) {
+    ) -> Result<(), B::Error> {
         if let Some(Some(ref g)) = input_grads.get(0) {
-            let prod = coeus_ops::mul(grad_out, b, backend);
+            let prod = coeus_ops::mul(grad_out, b, backend)?;
             let gl = g.write();
             if prod.shape() == a.shape() {
-                coeus_ops::add_assign(gl, &prod, backend);
+                coeus_ops::add_assign(gl, &prod, backend)?;
             } else {
                 let reduced = reduce_broadcast(prod, a.shape());
-                coeus_ops::add_assign(gl, &reduced, backend);
+                coeus_ops::add_assign(gl, &reduced, backend)?;
             }
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
-            let prod = coeus_ops::mul(grad_out, a, backend);
+            let prod = coeus_ops::mul(grad_out, a, backend)?;
             let gl = g.write();
             if prod.shape() == b.shape() {
-                coeus_ops::add_assign(gl, &prod, backend);
+                coeus_ops::add_assign(gl, &prod, backend)?;
             } else {
                 let reduced = reduce_broadcast(prod, b.shape());
-                coeus_ops::add_assign(gl, &reduced, backend);
+                coeus_ops::add_assign(gl, &reduced, backend)?;
             }
         }
+        Ok(())
     }
 }
 
@@ -137,7 +140,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
     const OP_NAME: &'static str = "div";
 
     #[inline(always)]
-    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::div(a, b, backend)
     }
 
@@ -150,28 +153,30 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         _b_shape: &Shape,
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
-    ) {
+    ) -> Result<(), B::Error> {
         if let Some(Some(ref g)) = input_grads.get(0) {
-            let grad_a = coeus_ops::div(grad_out, b, backend);
+            let grad_a = coeus_ops::div(grad_out, b, backend)?;
             let gl = g.write();
             if grad_a.shape() == a.shape() {
-                coeus_ops::add_assign(gl, &grad_a, backend);
+                coeus_ops::add_assign(gl, &grad_a, backend)?;
             } else {
                 let reduced = reduce_broadcast(grad_a, a.shape());
-                coeus_ops::add_assign(gl, &reduced, backend);
+                coeus_ops::add_assign(gl, &reduced, backend)?;
             }
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
-            let b_sq = coeus_ops::mul(b, b, backend);
-            let grad_b_pos = coeus_ops::div(&coeus_ops::mul(grad_out, a, backend), &b_sq, backend);
+            let b_sq = coeus_ops::mul(b, b, backend)?;
+            let grad_b_num = coeus_ops::mul(grad_out, a, backend)?;
+            let grad_b_pos = coeus_ops::div(&grad_b_num, &b_sq, backend)?;
             let gl = g.write();
             if grad_b_pos.shape() == b.shape() {
-                coeus_ops::sub_assign(gl, &grad_b_pos, backend);
+                coeus_ops::sub_assign(gl, &grad_b_pos, backend)?;
             } else {
                 let reduced = reduce_broadcast(grad_b_pos, b.shape());
-                coeus_ops::sub_assign(gl, &reduced, backend);
+                coeus_ops::sub_assign(gl, &reduced, backend)?;
             }
         }
+        Ok(())
     }
 }
 
@@ -191,9 +196,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
     const OP_NAME: &'static str = "remainder";
 
     #[inline(always)]
-    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-        let q = coeus_ops::floor(&coeus_ops::div(a, b, backend), backend);
-        coeus_ops::sub(a, &coeus_ops::mul(&q, b, backend), backend)
+    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+        let quotient = coeus_ops::div(a, b, backend)?;
+        let q = coeus_ops::floor(&quotient, backend)?;
+        let product = coeus_ops::mul(&q, b, backend)?;
+        coeus_ops::sub(a, &product, backend)
     }
 
     #[inline(always)]
@@ -205,29 +212,31 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         _b_shape: &Shape,
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
-    ) {
+    ) -> Result<(), B::Error> {
         // ∂/∂a = 1: identity passthrough (broadcast-reduced to a's shape).
         if let Some(Some(ref g)) = input_grads.get(0) {
             let gl = g.write();
             if grad_out.shape() == a.shape() {
-                coeus_ops::add_assign(gl, grad_out, backend);
+                coeus_ops::add_assign(gl, grad_out, backend)?;
             } else {
                 let reduced = reduce_broadcast(grad_out.clone(), a.shape());
-                coeus_ops::add_assign(gl, &reduced, backend);
+                coeus_ops::add_assign(gl, &reduced, backend)?;
             }
         }
         // ∂/∂b = −floor(a / b): subtract grad_out · q (broadcast-reduced to b).
         if let Some(Some(ref g)) = input_grads.get(1) {
-            let q = coeus_ops::floor(&coeus_ops::div(a, b, backend), backend);
-            let prod = coeus_ops::mul(grad_out, &q, backend);
+            let quotient = coeus_ops::div(a, b, backend)?;
+            let q = coeus_ops::floor(&quotient, backend)?;
+            let prod = coeus_ops::mul(grad_out, &q, backend)?;
             let gl = g.write();
             if prod.shape() == b.shape() {
-                coeus_ops::sub_assign(gl, &prod, backend);
+                coeus_ops::sub_assign(gl, &prod, backend)?;
             } else {
                 let reduced = reduce_broadcast(prod, b.shape());
-                coeus_ops::sub_assign(gl, &reduced, backend);
+                coeus_ops::sub_assign(gl, &reduced, backend)?;
             }
         }
+        Ok(())
     }
 }
 
@@ -243,12 +252,18 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
 /// use coeus_core::MoiraiBackend;
 /// use coeus_tensor::Tensor;
 ///
-/// let a = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0, 2.0, 3.0]), true);
-/// let b = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[4.0, 5.0, 6.0]), true);
-/// let y = coeus_autograd::add(&a, &b);
+/// let a = Var::<f32, MoiraiBackend>::new(
+///     Tensor::from_slice([3], &[1.0, 2.0, 3.0]).expect("construct tensor"),
+///     true,
+/// ).expect("construct variable");
+/// let b = Var::<f32, MoiraiBackend>::new(
+///     Tensor::from_slice([3], &[4.0, 5.0, 6.0]).expect("construct tensor"),
+///     true,
+/// ).expect("construct variable");
+/// let y = coeus_autograd::add(&a, &b).expect("add variables");
 /// assert!((y.tensor.as_slice()[0] - 5.0).abs() < 1e-5);
-/// let loss = coeus_autograd::sum(&y);
-/// loss.backward();
+/// let loss = coeus_autograd::sum(&y).expect("sum variables");
+/// loss.backward().expect("backward propagation");
 /// let ga = a.grad().unwrap();
 /// assert!((ga.as_slice()[0] - 1.0).abs() < 1e-5);
 /// assert!((ga.as_slice()[1] - 1.0).abs() < 1e-5);
@@ -259,7 +274,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
 pub fn add<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     binary_op::<T, B, AddOp>(a, b)
 }
 
@@ -269,7 +284,7 @@ pub fn add<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 pub fn sub<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     binary_op::<T, B, SubOp>(a, b)
 }
 
@@ -284,12 +299,18 @@ pub fn sub<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 /// use coeus_core::MoiraiBackend;
 /// use coeus_tensor::Tensor;
 ///
-/// let a = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0, 2.0, 3.0]), true);
-/// let b = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[4.0, 5.0, 6.0]), true);
-/// let y = coeus_autograd::mul(&a, &b);
+/// let a = Var::<f32, MoiraiBackend>::new(
+///     Tensor::from_slice([3], &[1.0, 2.0, 3.0]).expect("construct tensor"),
+///     true,
+/// ).expect("construct variable");
+/// let b = Var::<f32, MoiraiBackend>::new(
+///     Tensor::from_slice([3], &[4.0, 5.0, 6.0]).expect("construct tensor"),
+///     true,
+/// ).expect("construct variable");
+/// let y = coeus_autograd::mul(&a, &b).expect("multiply variables");
 /// assert!((y.tensor.as_slice()[0] - 4.0).abs() < 1e-5);
-/// let loss = coeus_autograd::sum(&y);
-/// loss.backward();
+/// let loss = coeus_autograd::sum(&y).expect("sum variables");
+/// loss.backward().expect("backward propagation");
 /// let ga = a.grad().unwrap();
 /// assert!((ga.as_slice()[0] - 4.0).abs() < 1e-5); // da = b
 /// assert!((ga.as_slice()[1] - 5.0).abs() < 1e-5);
@@ -302,7 +323,7 @@ pub fn sub<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 pub fn mul<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     binary_op::<T, B, MulOp>(a, b)
 }
 
@@ -312,7 +333,7 @@ pub fn mul<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 pub fn div<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     binary_op::<T, B, DivOp>(a, b)
 }
 
@@ -322,9 +343,9 @@ pub fn div<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 pub fn eq<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    Var::new(coeus_ops::eq(&a.tensor, &b.tensor, &backend), false)
+    Var::new(coeus_ops::eq(&a.tensor, &b.tensor, &backend)?, false)
 }
 
 /// Non-differentiable element-wise inequality comparison mask.
@@ -333,9 +354,9 @@ pub fn eq<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 pub fn ne<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    Var::new(coeus_ops::ne(&a.tensor, &b.tensor, &backend), false)
+    Var::new(coeus_ops::ne(&a.tensor, &b.tensor, &backend)?, false)
 }
 
 /// Non-differentiable element-wise less-than comparison mask.
@@ -344,9 +365,9 @@ pub fn ne<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 pub fn lt<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    Var::new(coeus_ops::lt(&a.tensor, &b.tensor, &backend), false)
+    Var::new(coeus_ops::lt(&a.tensor, &b.tensor, &backend)?, false)
 }
 
 /// Non-differentiable element-wise greater-than comparison mask.
@@ -355,9 +376,9 @@ pub fn lt<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 pub fn gt<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    Var::new(coeus_ops::gt(&a.tensor, &b.tensor, &backend), false)
+    Var::new(coeus_ops::gt(&a.tensor, &b.tensor, &backend)?, false)
 }
 
 /// Non-differentiable element-wise less-than-or-equal comparison mask.
@@ -366,9 +387,9 @@ pub fn gt<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 pub fn le<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    Var::new(coeus_ops::le(&a.tensor, &b.tensor, &backend), false)
+    Var::new(coeus_ops::le(&a.tensor, &b.tensor, &backend)?, false)
 }
 
 /// Non-differentiable element-wise greater-than-or-equal comparison mask.
@@ -377,9 +398,9 @@ pub fn le<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 pub fn ge<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    Var::new(coeus_ops::ge(&a.tensor, &b.tensor, &backend), false)
+    Var::new(coeus_ops::ge(&a.tensor, &b.tensor, &backend)?, false)
 }
 
 /// Tracked element-wise remainder (`torch.remainder` / NumPy `remainder`):
@@ -397,11 +418,17 @@ pub fn ge<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 /// use coeus_core::MoiraiBackend;
 /// use coeus_tensor::Tensor;
 ///
-/// let a = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([1], &[7.0]), true);
-/// let b = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([1], &[-3.0]), true);
-/// let r = remainder(&a, &b);
+/// let a = Var::<f64, MoiraiBackend>::new(
+///     Tensor::from_slice([1], &[7.0]).expect("construct tensor"),
+///     true,
+/// ).expect("construct variable");
+/// let b = Var::<f64, MoiraiBackend>::new(
+///     Tensor::from_slice([1], &[-3.0]).expect("construct tensor"),
+///     true,
+/// ).expect("construct variable");
+/// let r = remainder(&a, &b).expect("compute remainder");
 /// assert!((r.tensor.as_slice()[0] - (-2.0)).abs() < 1e-12);
-/// sum(&r).backward();
+/// sum(&r).expect("sum remainder").backward().expect("backward propagation");
 /// assert!((a.grad().unwrap().as_slice()[0] - 1.0).abs() < 1e-12);
 /// assert!((b.grad().unwrap().as_slice()[0] - 3.0).abs() < 1e-12);
 /// ```
@@ -410,6 +437,6 @@ pub fn ge<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 pub fn remainder<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     binary_op::<T, B, RemainderOp>(a, b)
 }

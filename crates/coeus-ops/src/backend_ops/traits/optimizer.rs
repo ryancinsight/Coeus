@@ -24,7 +24,8 @@ pub trait OptimizerOps<T: Scalar>: ComputeBackend {
         velocity_layout: &Layout,
         lr: T,
         momentum: T,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: Float;
 
     /// Fused Adam step update.
@@ -43,7 +44,8 @@ pub trait OptimizerOps<T: Scalar>: ComputeBackend {
         beta2: T,
         eps: T,
         t: usize,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: Float;
 
     /// Fused RMSProp step update.
@@ -58,7 +60,8 @@ pub trait OptimizerOps<T: Scalar>: ComputeBackend {
         lr: T,
         alpha: T,
         eps: T,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: Float;
 
     /// Fused AdamW step update (decoupled weight decay).
@@ -78,7 +81,8 @@ pub trait OptimizerOps<T: Scalar>: ComputeBackend {
         eps: T,
         weight_decay: T,
         t: usize,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: Float;
 
     /// Fused AdaGrad step update.
@@ -92,6 +96,7 @@ pub trait OptimizerOps<T: Scalar>: ComputeBackend {
         history_layout: &Layout,
         lr: T,
         eps: T,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: Float;
 }

@@ -38,10 +38,14 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let Some(Some(ref acc)) = input_grads.first() else {
-            return;
+            return Ok(());
         };
 
         let ndim = self.input_shape.len();
@@ -57,7 +61,7 @@ where
             .collect();
 
         let lock = acc.write();
-        let (parent_storage, parent_layout) = lock.storage_mut_and_layout();
+        let (parent_storage, parent_layout) = lock.storage_mut_and_layout()?;
         let sliced_layout = parent_layout.slice(&ranges);
 
         let parent_storage_imm: &B::DeviceBuffer<T> =
@@ -70,7 +74,9 @@ where
             grad_out.layout(),
             parent_storage,
             &sliced_layout,
-        );
+        )?;
+
+        Ok(())
     }
 }
 
@@ -86,7 +92,7 @@ pub fn split<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     chunk_size: usize,
     dim: usize,
-) -> Vec<Var<T, B>>
+) -> Result<Vec<Var<T, B>>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -95,7 +101,7 @@ where
     let backend = B::default();
     let input_shape = x.tensor.shape_cloned();
 
-    let chunks = coeus_ops::split(&x.tensor, chunk_size, dim);
+    let chunks = coeus_ops::split(&x.tensor, chunk_size, dim)?;
     let requires_grad = crate::grad_mode::should_track_var(x);
 
     let mut results = Vec::with_capacity(chunks.len());
@@ -105,7 +111,7 @@ where
         let this_size = chunk_tensor.shape()[dim];
 
         if !requires_grad {
-            results.push(Var::new(chunk_tensor, false));
+            results.push(Var::new(chunk_tensor, false)?);
             offset += this_size;
             continue;
         }
@@ -113,7 +119,7 @@ where
         let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
             chunk_tensor.shape_cloned(),
             &backend,
-        )));
+        )?));
         let grad = Some(output_grad.clone());
 
         let node = SplitNode {
@@ -133,5 +139,5 @@ where
         });
         offset += this_size;
     }
-    results
+    Ok(results)
 }

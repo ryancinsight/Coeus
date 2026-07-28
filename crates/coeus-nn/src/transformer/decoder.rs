@@ -39,26 +39,39 @@ where
     ///
     /// # Panics
     /// Panics if `N == 0`.
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self
+    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Result<Self, B::Error>
     where
         T: coeus_leto::RandomScalar,
     {
-        assert!(N > 0, "TransformerDecoder: N must be > 0");
-        let layers = core::array::from_fn(|_| {
-            TransformerDecoderLayer::<T, B, H, SelfM, CrossM>::new(d_model, d_ff, dropout_p)
-        });
-        Self { layers }
+        let layers = (0..N)
+            .map(|_| {
+                TransformerDecoderLayer::<T, B, H, SelfM, CrossM>::new(
+                    d_model,
+                    d_ff,
+                    dropout_p,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let layers = layers.try_into().map_err(|_| {
+            B::Error::from(coeus_core::BackendError::Storage {
+                operation: "transformer decoder layer array",
+                reason: "layer count changed during fixed-array construction".to_owned(),
+            })
+        })?;
+        Ok(Self { layers })
     }
 
     /// Forward decoder sequentially through the stack.
     ///
     /// Input/output shape: `[batch, seq_tgt, d_model]`.
-    pub fn forward_decoder(&self, tgt: &Var<T, B>, memory: &Var<T, B>) -> Var<T, B> {
-        let mut x = tgt.clone();
-        for layer in &self.layers {
-            x = layer.forward_decoder(&x, memory);
-        }
-        x
+    pub fn forward_decoder(
+        &self,
+        tgt: &Var<T, B>,
+        memory: &Var<T, B>,
+    ) -> Result<Var<T, B>, B::Error> {
+        self.layers.iter().try_fold(tgt.clone(), |x, layer| {
+            layer.forward_decoder(&x, memory)
+        })
     }
 }
 
@@ -84,7 +97,7 @@ impl<
     }
 
     /// Fallback forward without cross-attention.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         self.forward_decoder(input, input)
     }
 }

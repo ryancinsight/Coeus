@@ -22,22 +22,22 @@ pub(crate) fn bench_conv1d(c: &mut Criterion) {
     let sequential_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
     let sequential_input =
-        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT_CHANNELS, LENGTH], &input);
+        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT_CHANNELS, LENGTH], &input).expect("construct tensor");
     let sequential_weights = Tensor::<f32, SequentialBackend>::from_slice(
         [OUTPUT_CHANNELS, INPUT_CHANNELS, KERNEL],
         &weights,
-    );
+    ).expect("construct tensor");
     let moirai_input =
-        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT_CHANNELS, LENGTH], &input);
+        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT_CHANNELS, LENGTH], &input).expect("construct tensor");
     let moirai_weights = Tensor::<f32, MoiraiBackend>::from_slice(
         [OUTPUT_CHANNELS, INPUT_CHANNELS, KERNEL],
         &weights,
-    );
+    ).expect("construct tensor");
 
     let mut group = c.benchmark_group("Conv1d (2x8x128, kernel=3)");
     group.bench_function("Coeus Sequential", |bencher| {
         let mut output =
-            Tensor::<f32, SequentialBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_LENGTH]);
+            Tensor::<f32, SequentialBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_LENGTH]).expect("construct tensor");
         let output_layout = output.layout().clone();
         bencher.iter(|| {
             sequential_backend.conv1d(
@@ -49,15 +49,15 @@ pub(crate) fn bench_conv1d(c: &mut Criterion) {
                 1,
                 0,
                 1,
-                output.storage_mut(),
+                output.storage_mut().expect("access mutable tensor storage"),
                 &output_layout,
-            );
+            ).expect("benchmark convolution");
             black_box(output.storage());
         })
     });
     group.bench_function("Coeus Moirai", |bencher| {
         let mut output =
-            Tensor::<f32, MoiraiBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_LENGTH]);
+            Tensor::<f32, MoiraiBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_LENGTH]).expect("construct tensor");
         let output_layout = output.layout().clone();
         bencher.iter(|| {
             moirai_backend.conv1d(
@@ -69,9 +69,9 @@ pub(crate) fn bench_conv1d(c: &mut Criterion) {
                 1,
                 0,
                 1,
-                output.storage_mut(),
+                output.storage_mut().expect("access mutable tensor storage"),
                 &output_layout,
-            );
+            ).expect("benchmark convolution");
             black_box(output.storage());
         })
     });
@@ -95,17 +95,17 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
     let sequential_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
     let sequential_input =
-        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input);
+        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input).expect("construct tensor");
     let sequential_weights = Tensor::<f32, SequentialBackend>::from_slice(
         [OUTPUT_CHANNELS, INPUT_CHANNELS, KERNEL, KERNEL],
         &weights,
-    );
+    ).expect("construct tensor");
     let moirai_input =
-        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input);
+        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input).expect("construct tensor");
     let moirai_weights = Tensor::<f32, MoiraiBackend>::from_slice(
         [OUTPUT_CHANNELS, INPUT_CHANNELS, KERNEL, KERNEL],
         &weights,
-    );
+    ).expect("construct tensor");
 
     let mut group = c.benchmark_group("Conv2d (1x4x16x16, kernel=3)");
     group.bench_function("Coeus Sequential", |bencher| {
@@ -114,7 +114,7 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
             OUTPUT_CHANNELS,
             OUTPUT_SIDE,
             OUTPUT_SIDE,
-        ]);
+        ]).expect("construct tensor");
         let output_layout = output.layout().clone();
         bencher.iter(|| {
             sequential_backend.conv2d(
@@ -126,15 +126,15 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
                 1,
                 0,
                 1,
-                output.storage_mut(),
+                output.storage_mut().expect("access mutable tensor storage"),
                 &output_layout,
-            );
+            ).expect("benchmark convolution");
             black_box(output.storage());
         })
     });
     group.bench_function("Coeus Moirai", |bencher| {
         let mut output =
-            Tensor::<f32, MoiraiBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_SIDE, OUTPUT_SIDE]);
+            Tensor::<f32, MoiraiBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_SIDE, OUTPUT_SIDE]).expect("construct tensor");
         let output_layout = output.layout().clone();
         bencher.iter(|| {
             moirai_backend.conv2d(
@@ -146,9 +146,9 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
                 1,
                 0,
                 1,
-                output.storage_mut(),
+                output.storage_mut().expect("access mutable tensor storage"),
                 &output_layout,
-            );
+            ).expect("benchmark convolution");
             black_box(output.storage());
         })
     });
@@ -175,17 +175,17 @@ pub(crate) fn bench_conv_transpose2d(c: &mut Criterion) {
     let sequential_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
     let sequential_input =
-        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input);
+        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input).expect("construct tensor");
     let sequential_weights = Tensor::<f32, SequentialBackend>::from_slice(
         [INPUT_CHANNELS, OUTPUT_CHANNELS, KERNEL, KERNEL],
         &weights,
-    );
+    ).expect("construct tensor");
     let moirai_input =
-        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input);
+        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input).expect("construct tensor");
     let moirai_weights = Tensor::<f32, MoiraiBackend>::from_slice(
         [INPUT_CHANNELS, OUTPUT_CHANNELS, KERNEL, KERNEL],
         &weights,
-    );
+    ).expect("construct tensor");
 
     let mut group = c.benchmark_group("ConvTranspose2d (1x4x16x16, kernel=3, stride=2)");
     group.bench_function("Coeus Sequential", |bencher| {

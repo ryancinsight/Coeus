@@ -3,8 +3,8 @@
 
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 
-use super::error::map_leto_error;
 use super::CpuBackend;
+use super::error::map_leto_error;
 
 #[inline]
 pub(super) fn matmul<T, B>(
@@ -27,7 +27,7 @@ where
         b_layout,
         b.as_slice(),
         c_layout,
-        c.as_mut_slice(),
+        c.as_mut_slice()?,
     )
     .map_err(|error| map_leto_error("matmul", error))
 }
@@ -53,7 +53,7 @@ where
         b_layout,
         b.as_slice(),
         c_layout,
-        c.as_mut_slice(),
+        c.as_mut_slice()?,
     )
     .map_err(|error| map_leto_error("batched matmul", error))
 }
@@ -79,7 +79,7 @@ where
         b_layout,
         b.as_slice(),
         c_layout,
-        c.as_mut_slice(),
+        c.as_mut_slice()?,
     )
     .map_err(|error| map_leto_error("matmul accumulate", error))
 }
@@ -105,7 +105,7 @@ where
         b_layout,
         b.as_slice(),
         c_layout,
-        c.as_mut_slice(),
+        c.as_mut_slice()?,
     )
     .map_err(|error| map_leto_error("batched matmul accumulate", error))
 }

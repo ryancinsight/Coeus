@@ -31,11 +31,7 @@ impl LeakyReluTag {
     #[inline(always)]
     pub fn apply<T: Scalar>(&self, x: T) -> T {
         let slope = T::from_f64(self.slope());
-        if x >= T::zero() {
-            x
-        } else {
-            slope * x
-        }
+        if x >= T::zero() { x } else { slope * x }
     }
 }
 
@@ -75,10 +71,6 @@ impl LeakyReluGradTag {
     #[inline(always)]
     pub fn apply<T: Scalar>(&self, x: T) -> T {
         let slope = T::from_f64(self.slope());
-        if x > T::zero() {
-            T::one()
-        } else {
-            slope
-        }
+        if x > T::zero() { T::one() } else { slope }
     }
 }

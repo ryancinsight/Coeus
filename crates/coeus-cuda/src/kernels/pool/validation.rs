@@ -1,5 +1,5 @@
 use crate::kernels::validation::{
-    checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda, CUDA_BLOCK_SIZE,
+    CUDA_BLOCK_SIZE, checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda,
 };
 use coeus_core::Layout;
 

@@ -23,11 +23,11 @@ fn test_elementwise_add_parity() {
     let shape = vec![3, 4];
 
     // Coeus tensors
-    let mut a = Tensor::<f32, SequentialBackend>::zeros(shape.clone());
-    let mut b = Tensor::<f32, SequentialBackend>::zeros(shape.clone());
+    let mut a = Tensor::<f32, SequentialBackend>::zeros(shape.clone()).expect("construct tensor");
+    let mut b = Tensor::<f32, SequentialBackend>::zeros(shape.clone()).expect("construct tensor");
     {
-        let a_slice = a.as_mut_slice();
-        let b_slice = b.as_mut_slice();
+        let a_slice = a.as_mut_slice().expect("mutable tensor slice");
+        let b_slice = b.as_mut_slice().expect("mutable tensor slice");
         for i in 0..12 {
             a_slice[i] = i as f32;
             b_slice[i] = (i * 2) as f32;
@@ -35,7 +35,7 @@ fn test_elementwise_add_parity() {
     }
 
     // Run Coeus addition
-    let c = coeus_ops::add(&a, &b, &backend);
+    let c = coeus_ops::add(&a, &b, &backend).expect("run addition");
 
     // Self-contained reference: a[i] = i, b[i] = 2i  =>  c[i] = 3i.
     for (i, &got) in c.as_slice().iter().enumerate() {
@@ -48,9 +48,9 @@ fn test_elementwise_add_parity() {
 fn test_relu_parity() {
     let backend = SequentialBackend::new();
     let shape = vec![2, 3];
-    let mut a = Tensor::<f32, SequentialBackend>::zeros(shape);
+    let mut a = Tensor::<f32, SequentialBackend>::zeros(shape).expect("construct tensor");
     {
-        let slice = a.as_mut_slice();
+        let slice = a.as_mut_slice().expect("mutable tensor slice");
         slice[0] = -1.5;
         slice[1] = 2.0;
         slice[2] = -0.5;
@@ -59,7 +59,7 @@ fn test_relu_parity() {
         slice[5] = -3.0;
     }
 
-    let b = coeus_ops::relu(&a, &backend);
+    let b = coeus_ops::relu(&a, &backend).expect("run ReLU");
     let slice = b.as_slice();
 
     assert_eq!(slice[0], 0.0);
@@ -76,14 +76,14 @@ fn test_non_contiguous_matmul_parity() {
 
     // 2x3 matrix (row-major)
     let a_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
-    let a = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a_data);
+    let a = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a_data).expect("construct tensor");
 
     // 3x2 matrix (row-major)
     let b_data = vec![7.0f32, 8.0, 9.0, 10.0, 11.0, 12.0];
-    let b = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 2], &b_data);
+    let b = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 2], &b_data).expect("construct tensor");
 
     // Standard matmul: [2, 3] x [3, 2] -> [2, 2]
-    let c = coeus_ops::matmul(&a, &b, &backend);
+    let c = coeus_ops::matmul(&a, &b, &backend).expect("run matrix multiplication");
 
     // Self-contained reference (row-major triple loop).
     let ref_c = matmul_ref(&a_data, 2, 3, &b_data, 2);
@@ -93,7 +93,7 @@ fn test_non_contiguous_matmul_parity() {
     // a_t shape: [3, 2], strides: [1, 3]
     let a_t = a.transpose();
     // matmul(a_t, a) -> [3, 2] x [2, 3] -> [3, 3]
-    let c_t = coeus_ops::matmul(&a_t, &a, &backend);
+    let c_t = coeus_ops::matmul(&a_t, &a, &backend).expect("run transposed matrix multiplication");
 
     // Reference: build a_t in row-major ([3,2], a_t[i][j] = a[j][i]) then matmul.
     let mut a_t_data = vec![0.0f32; 6];
@@ -117,7 +117,7 @@ fn test_non_contiguous_matmul_parity() {
 fn test_reductions_parity() {
     let backend = SequentialBackend::new();
     let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
-    let a = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data);
+    let a = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data).expect("construct tensor");
 
     // Test sum all
     let total = coeus_ops::sum(&a, &backend).expect("valid sum");
@@ -148,30 +148,30 @@ fn test_sparse_spmv_spmm_parity() {
     //     [ 1.0  0.0  3.0 ]
     //     [ 0.0  4.0  5.0 ]
     let dense_data = vec![0.0f32, 2.0, 0.0, 1.0, 0.0, 3.0, 0.0, 4.0, 5.0];
-    let a = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 3], &dense_data);
+    let a = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 3], &dense_data).expect("construct tensor");
 
     // Convert to CSR
-    let csr = coeus_ops::dense_to_csr(&a, &backend);
+    let csr = coeus_ops::dense_to_csr(&a, &backend).expect("convert dense tensor to CSR");
     assert_eq!(csr.nnz(), 5);
 
     // 1. SpMV parity test: y = A x
     let x_data = vec![2.0f32, 1.0, 3.0];
-    let x = Tensor::<f32, SequentialBackend>::from_vec(x_data.clone());
+    let x = Tensor::<f32, SequentialBackend>::from_vec(x_data.clone()).expect("construct tensor");
 
-    let y_sparse = coeus_ops::spmv(&csr, &x, &backend);
+    let y_sparse = coeus_ops::spmv(&csr, &x, &backend).expect("run sparse matrix-vector multiplication");
 
     // Dense equivalent matmul: requires 2D column vector
-    let x_dense = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 1], &x_data);
-    let y_dense = coeus_ops::matmul(&a, &x_dense, &backend);
+    let x_dense = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 1], &x_data).expect("construct tensor");
+    let y_dense = coeus_ops::matmul(&a, &x_dense, &backend).expect("run dense matrix-vector multiplication");
 
     assert_eq!(y_sparse.as_slice(), y_dense.as_slice());
 
     // 2. SpMM parity test: C = A B
     let b_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
-    let b = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 2], &b_data);
+    let b = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 2], &b_data).expect("construct tensor");
 
-    let c_sparse = coeus_ops::spmm(&csr, &b, &backend);
-    let c_dense = coeus_ops::matmul(&a, &b, &backend);
+    let c_sparse = coeus_ops::spmm(&csr, &b, &backend).expect("run sparse matrix multiplication");
+    let c_dense = coeus_ops::matmul(&a, &b, &backend).expect("run dense matrix multiplication");
 
     assert_eq!(c_sparse.as_slice(), c_dense.as_slice());
 }
@@ -183,21 +183,27 @@ fn test_to_backend_transfers() {
 
     // 1. Contiguous tensor transfer
     let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
-    let a_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data);
-    let a_moirai = a_seq.to_backend_on(&seq_backend, &moirai_backend);
+    let a_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &data).expect("construct tensor");
+    let a_moirai = a_seq
+        .to_backend_on(&seq_backend, &moirai_backend)
+        .expect("transfer tensor to Moirai");
 
     assert_eq!(a_moirai.shape(), &[2, 3]);
     assert!(a_moirai.is_contiguous());
     assert_eq!(a_moirai.as_slice(), &data);
 
     // Transfer back
-    let a_seq_back = a_moirai.to_backend_on(&moirai_backend, &seq_backend);
+    let a_seq_back = a_moirai
+        .to_backend_on(&moirai_backend, &seq_backend)
+        .expect("transfer tensor to sequential backend");
     assert_eq!(a_seq_back.as_slice(), &data);
 
     // 2. Non-contiguous (transposed) tensor transfer
     let a_t_seq = a_seq.transpose(); // shape [3, 2]
     assert!(!a_t_seq.is_contiguous());
-    let a_t_moirai = a_t_seq.to_backend_on(&seq_backend, &moirai_backend);
+    let a_t_moirai = a_t_seq
+        .to_backend_on(&seq_backend, &moirai_backend)
+        .expect("transfer transposed tensor to Moirai");
 
     // The transferred tensor is contiguous on the new backend
     assert_eq!(a_t_moirai.shape(), &[3, 2]);
@@ -216,7 +222,7 @@ fn test_sliced_tensor_offset_ops() {
     let data = vec![
         1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
     ];
-    let a = Tensor::<f32, MoiraiBackend>::from_slice(vec![3, 4], &data);
+    let a = Tensor::<f32, MoiraiBackend>::from_slice(vec![3, 4], &data).expect("construct tensor");
 
     // Slice [1..3, 1..3] -> shape [2, 2], starts at index 5 (which is row 1, col 1)
     let slice_a = a.slice(&[(1, 3), (1, 3)]);
@@ -224,20 +230,20 @@ fn test_sliced_tensor_offset_ops() {
     assert_eq!(slice_a.layout().offset(), 5);
 
     // 1D contiguous sliced view
-    let a_1d = Tensor::<f32, MoiraiBackend>::from_slice(vec![12], &data);
+    let a_1d = Tensor::<f32, MoiraiBackend>::from_slice(vec![12], &data).expect("construct tensor");
     let slice_a_1d = a_1d.slice(&[(4, 8)]);
     assert_eq!(slice_a_1d.shape(), &[4]);
     assert_eq!(slice_a_1d.layout().offset(), 4);
     assert!(slice_a_1d.is_contiguous());
 
-    let b_1d = Tensor::<f32, MoiraiBackend>::from_slice(vec![4], &[2.0, 3.0, 4.0, 5.0]);
+    let b_1d = Tensor::<f32, MoiraiBackend>::from_slice(vec![4], &[2.0, 3.0, 4.0, 5.0]).expect("construct tensor");
 
     // Test binary addition: contiguous fast path with non-zero offset on input A
-    let sum_1d = coeus_ops::add(&slice_a_1d, &b_1d, &backend);
+    let sum_1d = coeus_ops::add(&slice_a_1d, &b_1d, &backend).expect("run sliced addition");
     assert_eq!(sum_1d.as_slice(), &[7.0, 9.0, 11.0, 13.0]);
 
     // Test in-place assign on a contiguous sliced tensor: contiguous fast path with non-zero offset on target
-    let target_1d = Tensor::<f32, MoiraiBackend>::zeros_on(vec![8], &backend);
+    let target_1d = Tensor::<f32, MoiraiBackend>::zeros_on(vec![8], &backend).expect("construct tensor");
     let mut slice_target = target_1d.slice(&[(2, 6)]); // shape [4], offset 2
     assert!(slice_target.is_contiguous());
 
@@ -247,15 +253,15 @@ fn test_sliced_tensor_offset_ops() {
     assert_eq!(target_1d.as_slice(), &[0.0; 8]);
 
     // Test strided broadcasting path with offsets
-    let b_2d = Tensor::<f32, MoiraiBackend>::from_slice(vec![2, 2], &[1.0, 2.0, 3.0, 4.0]);
-    let sum_2d = coeus_ops::add(&slice_a, &b_2d, &backend);
+    let b_2d = Tensor::<f32, MoiraiBackend>::from_slice(vec![2, 2], &[1.0, 2.0, 3.0, 4.0]).expect("construct tensor");
+    let sum_2d = coeus_ops::add(&slice_a, &b_2d, &backend).expect("run broadcast addition");
     assert_eq!(sum_2d.as_slice(), &[7.0, 9.0, 13.0, 15.0]);
 
     // Test unary operations on sliced contiguous/non-contiguous
-    let relu_1d = coeus_ops::relu(&slice_a_1d, &backend);
+    let relu_1d = coeus_ops::relu(&slice_a_1d, &backend).expect("run sliced ReLU");
     assert_eq!(relu_1d.as_slice(), &[5.0, 6.0, 7.0, 8.0]);
 
-    let relu_2d = coeus_ops::relu(&slice_a, &backend);
+    let relu_2d = coeus_ops::relu(&slice_a, &backend).expect("run strided ReLU");
     assert_eq!(relu_2d.as_slice(), &[6.0, 7.0, 10.0, 11.0]);
 }
 
@@ -263,12 +269,12 @@ fn test_sliced_tensor_offset_ops() {
 fn test_integer_abs_and_sqrt() {
     let backend = MoiraiBackend::new();
     let data = vec![-5i32, 4, -16, 9];
-    let a = Tensor::<i32, MoiraiBackend>::from_slice(vec![4], &data);
+    let a = Tensor::<i32, MoiraiBackend>::from_slice(vec![4], &data).expect("construct tensor");
 
-    let b = coeus_ops::abs(&a, &backend);
+    let b = coeus_ops::abs(&a, &backend).expect("run integer absolute value");
     assert_eq!(b.as_slice(), &[5, 4, 16, 9]);
 
-    let c = coeus_ops::sqrt(&b, &backend);
+    let c = coeus_ops::sqrt(&b, &backend).expect("run integer square root");
     // sqrt of [5, 4, 16, 9] as integer types:
     // sqrt(5) -> 2.236... cast to i32 -> 2
     // sqrt(4) -> 2
@@ -290,7 +296,7 @@ fn test_sliced_tensor_reshape_and_reduction() {
 
     // Reshape offset contiguous view
     let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-    let a = Tensor::<f32, MoiraiBackend>::from_slice(vec![8], &data);
+    let a = Tensor::<f32, MoiraiBackend>::from_slice(vec![8], &data).expect("construct tensor");
     let slice_a = a.slice(&[(2, 6)]); // shape [4], offset 2, elements [3, 4, 5, 6]
     assert_eq!(slice_a.layout().offset(), 2);
     assert!(slice_a.is_contiguous());
@@ -313,11 +319,11 @@ fn test_sliced_tensor_reshape_and_reduction() {
 #[test]
 fn host_materialization_respects_view_layout() {
     let values = (0..12).map(|value| value as f32).collect::<Vec<_>>();
-    let tensor = Tensor::<f32, SequentialBackend>::from_slice([3, 4], &values);
+    let tensor = Tensor::<f32, SequentialBackend>::from_slice([3, 4], &values).expect("construct tensor");
     let view = tensor.slice(&[(0, 3), (1, 4)]).transpose();
 
     assert_eq!(
-        view.to_vec(),
+        view.to_vec().expect("materialize tensor values"),
         vec![1.0, 5.0, 9.0, 2.0, 6.0, 10.0, 3.0, 7.0, 11.0]
     );
 }
@@ -325,21 +331,24 @@ fn host_materialization_respects_view_layout() {
 #[test]
 fn host_cow_borrows_contiguous_and_materializes_strided_storage() {
     let values = (0..12).map(|value| value as f32).collect::<Vec<_>>();
-    let tensor = Tensor::<f32, SequentialBackend>::from_slice([3, 4], &values);
+    let tensor = Tensor::<f32, SequentialBackend>::from_slice([3, 4], &values).expect("construct tensor");
     let contiguous = tensor.slice(&[(1, 3), (0, 4)]);
     let strided = tensor.slice(&[(0, 3), (1, 4)]).transpose();
 
     assert!(matches!(
-        contiguous.host_cow(),
+        contiguous.host_cow().expect("materialize host view"),
         std::borrow::Cow::Borrowed(_)
     ));
     assert_eq!(
-        contiguous.host_cow().as_ref(),
+        contiguous.host_cow().expect("materialize host view").as_ref(),
         &[4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
     );
-    assert!(matches!(strided.host_cow(), std::borrow::Cow::Owned(_)));
+    assert!(matches!(
+        strided.host_cow().expect("materialize host view"),
+        std::borrow::Cow::Owned(_)
+    ));
     assert_eq!(
-        strided.host_cow().as_ref(),
+        strided.host_cow().expect("materialize host view").as_ref(),
         &[1.0, 5.0, 9.0, 2.0, 6.0, 10.0, 3.0, 7.0, 11.0]
     );
 }

@@ -39,7 +39,7 @@ pub trait UnfoldFoldOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// Fold 1D: accumulate `[N, C*kernel, L_out]` back into `[N, C, L]`.
     fn fold1d(
@@ -53,7 +53,7 @@ pub trait UnfoldFoldOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// Unfold 2D: extract sliding windows from `[N, C, H, W]` into `[N, C*kH*kW, H_out*W_out]`.
     fn unfold2d(
@@ -70,7 +70,7 @@ pub trait UnfoldFoldOps<T: Scalar>: ComputeBackend {
         dilation_w: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// Fold 2D: accumulate `[N, C*kH*kW, L]` back into `[N, C, H, W]`.
     fn fold2d(
@@ -89,5 +89,5 @@ pub trait UnfoldFoldOps<T: Scalar>: ComputeBackend {
         dilation_w: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 }

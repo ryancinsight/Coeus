@@ -29,7 +29,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvg
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         assert_eq!(input.tensor.ndim(), 3, "GlobalAvgPool1d expects [N,C,L]");
         coeus_autograd::mean_axis(input, 2)
     }
@@ -55,9 +55,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvg
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         assert_eq!(input.tensor.ndim(), 4, "GlobalAvgPool2d expects [N,C,H,W]");
-        let after_h = coeus_autograd::mean_axis(input, 2);
+        let after_h = coeus_autograd::mean_axis(input, 2)?;
         coeus_autograd::mean_axis(&after_h, 3)
     }
 }
@@ -82,14 +82,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvg
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         assert_eq!(
             input.tensor.ndim(),
             5,
             "GlobalAvgPool3d expects [N,C,D,H,W]"
         );
-        let after_d = coeus_autograd::mean_axis(input, 2);
-        let after_h = coeus_autograd::mean_axis(&after_d, 3);
+        let after_d = coeus_autograd::mean_axis(input, 2)?;
+        let after_h = coeus_autograd::mean_axis(&after_d, 3)?;
         coeus_autograd::mean_axis(&after_h, 4)
     }
 }
@@ -114,9 +114,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalMax
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         assert_eq!(input.tensor.ndim(), 4, "GlobalMaxPool2d expects [N,C,H,W]");
-        let after_h = coeus_autograd::max_axis(input, 2);
+        let after_h = coeus_autograd::max_axis(input, 2)?;
         coeus_autograd::max_axis(&after_h, 3)
     }
 }
@@ -139,14 +139,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalMax
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         assert_eq!(
             input.tensor.ndim(),
             5,
             "GlobalMaxPool3d expects [N,C,D,H,W]"
         );
-        let after_d = coeus_autograd::max_axis(input, 2);
-        let after_h = coeus_autograd::max_axis(&after_d, 3);
+        let after_d = coeus_autograd::max_axis(input, 2)?;
+        let after_h = coeus_autograd::max_axis(&after_d, 3)?;
         coeus_autograd::max_axis(&after_h, 4)
     }
 }

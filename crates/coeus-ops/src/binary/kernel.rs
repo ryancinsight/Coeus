@@ -3,8 +3,8 @@
 
 use crate::backend_ops::{BackendOps, BinaryOp};
 use coeus_core::{BackendError, Scalar};
-use coeus_tensor::broadcast::broadcast_shapes;
 use coeus_tensor::Tensor;
+use coeus_tensor::broadcast::broadcast_shapes;
 
 /// Element-wise binary operation with broadcasting.
 ///
@@ -25,9 +25,9 @@ pub fn elementwise_binary<T: Scalar, B: BackendOps<T>>(
         })
     })?;
 
-    let mut out: Tensor<T, B> = Tensor::alloc_on(out_shape.clone(), backend);
+    let mut out: Tensor<T, B> = Tensor::alloc_on(out_shape.clone(), backend)?;
 
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.elementwise_binary(
         op,
         a.storage(),
@@ -50,7 +50,7 @@ pub fn elementwise_binary_to<T: Scalar, B: BackendOps<T>>(
     backend: &B,
     op: BinaryOp,
 ) -> Result<(), B::Error> {
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.elementwise_binary(
         op,
         a.storage(),

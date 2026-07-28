@@ -1,5 +1,5 @@
 pub mod backward;
 pub mod forward;
 
-pub use backward::{dispatch_conv2d_backward, Conv2dBackwardDispatch};
-pub use forward::{dispatch_conv2d, Conv2dDispatch};
+pub use backward::{Conv2dBackwardDispatch, dispatch_conv2d_backward};
+pub use forward::{Conv2dDispatch, dispatch_conv2d};

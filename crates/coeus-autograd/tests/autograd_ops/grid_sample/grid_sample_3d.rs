@@ -47,15 +47,15 @@ fn image_data() -> Vec<f32> {
 fn samples_exact_voxel_center() {
     let backend = MoiraiBackend;
     let image = Var::new(
-        Tensor::from_slice_on([1, C, D, H, W], &image_data(), &backend),
+        Tensor::from_slice_on([1, C, D, H, W], &image_data(), &backend).expect("valid tensor construction"),
         false,
-    );
+    ).expect("valid variable construction");
     // align_corners: pixel = (coord+1)/2*(extent-1); coord 0 -> pixel 1 (center).
     let grid = Var::new(
-        Tensor::from_slice_on([1, 1, 1, 1, 3], &[0.0, 0.0, 0.0], &backend),
+        Tensor::from_slice_on([1, 1, 1, 1, 3], &[0.0, 0.0, 0.0], &backend).expect("valid tensor construction"),
         false,
-    );
-    let out = grid_sample_3d(&image, &grid);
+    ).expect("valid variable construction");
+    let out = grid_sample_3d(&image, &grid).expect("valid autograd operation");
     // Output (N, C, 1, 1, 1): each channel returns image[c, 1, 1, 1] exactly.
     let got = out.tensor.as_slice();
     for (c, &value) in got.iter().take(C).enumerate() {
@@ -71,15 +71,15 @@ fn samples_exact_voxel_center() {
 fn samples_corner_block_midpoint_as_mean() {
     let backend = MoiraiBackend;
     let image = Var::new(
-        Tensor::from_slice_on([1, C, D, H, W], &image_data(), &backend),
+        Tensor::from_slice_on([1, C, D, H, W], &image_data(), &backend).expect("valid tensor construction"),
         false,
-    );
+    ).expect("valid variable construction");
     // coord -0.5 -> pixel 0.5 in each axis: midpoint of the {0,1}^3 voxel block.
     let grid = Var::new(
-        Tensor::from_slice_on([1, 1, 1, 1, 3], &[-0.5, -0.5, -0.5], &backend),
+        Tensor::from_slice_on([1, 1, 1, 1, 3], &[-0.5, -0.5, -0.5], &backend).expect("valid tensor construction"),
         false,
-    );
-    let out = grid_sample_3d(&image, &grid);
+    ).expect("valid variable construction");
+    let out = grid_sample_3d(&image, &grid).expect("valid autograd operation");
     let got = out.tensor.as_slice();
     for (c, &value) in got.iter().take(C).enumerate() {
         let mut mean = 0.0f32;
@@ -109,12 +109,16 @@ const GRID_SHAPE: [usize; 5] = [1, 1, 1, 2, 3];
 fn loss(image: &[f32], grid: &[f32]) -> f64 {
     let backend = MoiraiBackend;
     let input = Var::new(
-        Tensor::from_slice_on([1, C, D, H, W], image, &backend),
+        Tensor::from_slice_on([1, C, D, H, W], image, &backend).expect("valid tensor construction"),
         false,
-    );
-    let g = Var::new(Tensor::from_slice_on(GRID_SHAPE, grid, &backend), false);
-    let out = grid_sample_3d(&input, &g);
-    out.tensor.as_slice().iter().map(|&v| f64::from(v)).sum()
+    ).expect("valid variable construction");
+    let g = Var::new(Tensor::from_slice_on(GRID_SHAPE, grid, &backend).expect("valid tensor construction"), false).expect("valid variable construction");
+    let out = grid_sample_3d(&input, &g).expect("valid autograd operation");
+    out.tensor
+        .as_slice()
+        .iter()
+        .map(|&v| f64::from(v))
+        .sum()
 }
 
 #[test]
@@ -122,12 +126,15 @@ fn input_gradient_matches_central_difference() {
     let backend = MoiraiBackend;
     let image_vec = image_data();
     let input = Var::new(
-        Tensor::from_slice_on([1, C, D, H, W], &image_vec, &backend),
+        Tensor::from_slice_on([1, C, D, H, W], &image_vec, &backend).expect("valid tensor construction"),
         true,
-    );
-    let grid = Var::new(Tensor::from_slice_on(GRID_SHAPE, &GRID, &backend), true);
-    let out = grid_sample_3d(&input, &grid);
-    sum(&out).backward();
+    ).expect("valid variable construction");
+    let grid = Var::new(Tensor::from_slice_on(GRID_SHAPE, &GRID, &backend).expect("valid tensor construction"), true).expect("valid variable construction");
+    let out = grid_sample_3d(&input, &grid).expect("valid autograd operation");
+    sum(&out)
+        .expect("valid autograd operation")
+        .backward()
+        .expect("valid backward propagation");
     let analytic = input.grad().expect("tracked input gradient");
     let analytic = analytic.as_slice();
 
@@ -151,12 +158,15 @@ fn grid_gradient_matches_central_difference() {
     let backend = MoiraiBackend;
     let image_vec = image_data();
     let input = Var::new(
-        Tensor::from_slice_on([1, C, D, H, W], &image_vec, &backend),
+        Tensor::from_slice_on([1, C, D, H, W], &image_vec, &backend).expect("valid tensor construction"),
         true,
-    );
-    let grid = Var::new(Tensor::from_slice_on(GRID_SHAPE, &GRID, &backend), true);
-    let out = grid_sample_3d(&input, &grid);
-    sum(&out).backward();
+    ).expect("valid variable construction");
+    let grid = Var::new(Tensor::from_slice_on(GRID_SHAPE, &GRID, &backend).expect("valid tensor construction"), true).expect("valid variable construction");
+    let out = grid_sample_3d(&input, &grid).expect("valid autograd operation");
+    sum(&out)
+        .expect("valid autograd operation")
+        .backward()
+        .expect("valid backward propagation");
     let analytic = grid.grad().expect("tracked grid gradient");
     let analytic = analytic.as_slice();
 

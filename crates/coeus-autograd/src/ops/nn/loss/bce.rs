@@ -32,7 +32,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
             let mut host_grad = [T::zero()];
@@ -40,10 +44,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
             let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
                 grad_out
             } else {
-                temp_grad = grad_out.to_contiguous_on(&backend);
+                temp_grad = grad_out.to_contiguous_on(&backend)?;
                 &temp_grad
             };
-            backend.copy_to_host(grad_cont.storage(), &mut host_grad);
+            backend.copy_to_host(grad_cont.storage(), &mut host_grad)?;
             let g_out = host_grad[0];
             let n_t = T::from_f64(self.n as f64);
             let scale = g_out / n_t;
@@ -57,10 +61,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                 // Use T::zero() - x idiom since unary - may not be in scope for T
                 d_pred[i] = (T::zero() - (t / p) + (one - t) / (one - p)) * scale;
             }
-            let grad_tensor = Tensor::from_slice_on([self.n], &d_pred, &backend);
+            let grad_tensor = Tensor::from_slice_on([self.n], &d_pred, &backend)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -71,7 +77,7 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     eps: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let shape = pred.tensor.shape();
     let n = shape[0];
@@ -81,14 +87,14 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let pred_raw = if pred.tensor.is_contiguous() && pred.tensor.layout().offset() == 0 {
         &pred.tensor
     } else {
-        pred_cont = pred.tensor.to_contiguous_on(&backend);
+        pred_cont = pred.tensor.to_contiguous_on(&backend)?;
         &pred_cont
     };
     let target_cont;
     let target_raw = if target.tensor.is_contiguous() && target.tensor.layout().offset() == 0 {
         &target.tensor
     } else {
-        target_cont = target.tensor.to_contiguous_on(&backend);
+        target_cont = target.tensor.to_contiguous_on(&backend)?;
         &target_cont
     };
 
@@ -96,14 +102,14 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         std::borrow::Cow::Borrowed(&s[..n])
     } else {
         let mut v = vec![T::zero(); n];
-        backend.copy_to_host(pred_raw.storage(), &mut v);
+        backend.copy_to_host(pred_raw.storage(), &mut v)?;
         std::borrow::Cow::Owned(v)
     };
     let target_host: std::borrow::Cow<[T]> = if let Some(s) = target_raw.storage().try_as_slice() {
         std::borrow::Cow::Borrowed(&s[..n])
     } else {
         let mut v = vec![T::zero(); n];
-        backend.copy_to_host(target_raw.storage(), &mut v);
+        backend.copy_to_host(target_raw.storage(), &mut v)?;
         std::borrow::Cow::Owned(v)
     };
 
@@ -131,17 +137,16 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     }
     loss_val = loss_val / n_t;
 
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
+    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend)?;
     let requires_grad = crate::grad_mode::should_track_var(pred);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let node = BinaryCrossEntropyNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs: vec![pred.clone()],
             probs,
             targets: targets_t,
@@ -151,9 +156,9 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

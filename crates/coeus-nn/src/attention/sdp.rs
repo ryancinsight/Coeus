@@ -48,10 +48,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask>
         value: &Var<T, B>,
         key_padding_mask: Option<&Var<T, B>>,
         scale: T,
-    ) -> Var<T, B> {
+    ) -> Result<Var<T, B>, B::Error> {
         let (out, _attn_weights) =
-            coeus_autograd::sdp_attention::<T, B, M>(query, key, value, key_padding_mask, scale);
-        out
+            coeus_autograd::sdp_attention::<T, B, M>(query, key, value, key_padding_mask, scale)?;
+        Ok(out)
     }
 }
 
@@ -63,7 +63,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Module<T
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let d_k = input.tensor.shape()[2];
         let scale = T::one() / T::from_f64((d_k as f64).sqrt());
         self.forward(input, input, input, None, scale)

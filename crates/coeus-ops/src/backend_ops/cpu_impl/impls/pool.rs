@@ -1,5 +1,5 @@
-use super::super::pool;
 use super::super::CpuBackend;
+use super::super::pool;
 use crate::backend_ops::traits::PoolOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
 
@@ -19,7 +19,7 @@ where
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::max_pool2d(
             self,
             input,
@@ -30,7 +30,8 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -46,7 +47,7 @@ where
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::max_pool2d_backward(
             self,
             grad_out,
@@ -59,7 +60,8 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -73,7 +75,7 @@ where
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::avg_pool2d(
             self,
             input,
@@ -84,7 +86,8 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -98,7 +101,7 @@ where
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::avg_pool2d_backward(
             self,
             grad_out,
@@ -109,7 +112,8 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -123,7 +127,7 @@ where
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::max_pool3d(
             self,
             input,
@@ -134,7 +138,8 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -150,7 +155,7 @@ where
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::max_pool3d_backward(
             self,
             grad_out,
@@ -163,7 +168,8 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -177,7 +183,7 @@ where
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::avg_pool3d(
             self,
             input,
@@ -188,7 +194,8 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -202,7 +209,7 @@ where
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::avg_pool3d_backward(
             self,
             grad_out,
@@ -213,7 +220,8 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )?;
+        Ok(())
     }
 
     // ── Pool 1D ──────────────────────────────────────────────────────────────
@@ -229,7 +237,7 @@ where
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::max_pool1d(
             self,
             input,
@@ -240,7 +248,8 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -256,7 +265,7 @@ where
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::max_pool1d_backward(
             self,
             grad_out,
@@ -269,7 +278,8 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -283,7 +293,7 @@ where
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::avg_pool1d(
             self,
             input,
@@ -294,7 +304,8 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -308,7 +319,7 @@ where
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::avg_pool1d_backward(
             self,
             grad_out,
@@ -319,6 +330,7 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )?;
+        Ok(())
     }
 }

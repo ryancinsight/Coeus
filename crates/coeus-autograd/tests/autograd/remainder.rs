@@ -13,16 +13,19 @@ fn test_remainder_forward_and_backward_positive() {
     //   out = a - q*b = [5-3, 7-4, 8-6] = [2, 3, 2]
     //   grad_a = [1,1,1], grad_b = -q = [-1,-1,-2]
     let a = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![3], &[5.0, 7.0, 8.0], &backend),
+        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![3], &[5.0, 7.0, 8.0], &backend).expect("valid tensor construction"),
         true,
-    );
+    ).expect("valid variable construction");
     let b = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![3], &[3.0, 4.0, 3.0], &backend),
+        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![3], &[3.0, 4.0, 3.0], &backend).expect("valid tensor construction"),
         true,
-    );
-    let out = remainder(&a, &b);
+    ).expect("valid variable construction");
+    let out = remainder(&a, &b).expect("valid autograd operation");
     assert_eq!(out.tensor.as_slice(), &[2.0, 3.0, 2.0], "fwd remainder");
-    sum(&out).backward();
+    sum(&out)
+        .expect("valid autograd operation")
+        .backward()
+        .expect("valid backward propagation");
     assert_eq!(a.grad().unwrap().as_slice(), &[1.0, 1.0, 1.0], "grad_a");
     assert_eq!(b.grad().unwrap().as_slice(), &[-1.0, -1.0, -2.0], "grad_b");
 }
@@ -34,16 +37,19 @@ fn test_remainder_sign_of_divisor() {
     //   7 % -3 = -2  (q = floor(7/-3) = floor(-2.333) = -3; 7 - (-3)*(-3) = -2)
     //   grad_a = 1, grad_b = -q = 3
     let a = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![1], &[7.0], &backend),
+        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![1], &[7.0], &backend).expect("valid tensor construction"),
         true,
-    );
+    ).expect("valid variable construction");
     let b = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![1], &[-3.0], &backend),
+        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![1], &[-3.0], &backend).expect("valid tensor construction"),
         true,
-    );
-    let out = remainder(&a, &b);
+    ).expect("valid variable construction");
+    let out = remainder(&a, &b).expect("valid autograd operation");
     assert_eq!(out.tensor.as_slice(), &[-2.0], "fwd sign-of-divisor");
-    sum(&out).backward();
+    sum(&out)
+        .expect("valid autograd operation")
+        .backward()
+        .expect("valid backward propagation");
     assert_eq!(a.grad().unwrap().as_slice(), &[1.0], "grad_a");
     assert_eq!(b.grad().unwrap().as_slice(), &[3.0], "grad_b");
 }
@@ -56,20 +62,23 @@ fn test_remainder_broadcast_scalar_divisor() {
     //   a=[1,2,3,4], b=[3]: q=floor([1,2,3,4]/3)=[0,0,1,1]
     //   out=[1,2,0,1]; grad_a=[1,1,1,1]; grad_b = -sum(q) = -(0+0+1+1) = -2
     let a = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![4], &[1.0, 2.0, 3.0, 4.0], &backend),
+        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![4], &[1.0, 2.0, 3.0, 4.0], &backend).expect("valid tensor construction"),
         true,
-    );
+    ).expect("valid variable construction");
     let b = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![1], &[3.0], &backend),
+        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![1], &[3.0], &backend).expect("valid tensor construction"),
         true,
-    );
-    let out = remainder(&a, &b);
+    ).expect("valid variable construction");
+    let out = remainder(&a, &b).expect("valid autograd operation");
     assert_eq!(
         out.tensor.as_slice(),
         &[1.0, 2.0, 0.0, 1.0],
         "fwd broadcast"
     );
-    sum(&out).backward();
+    sum(&out)
+        .expect("valid autograd operation")
+        .backward()
+        .expect("valid backward propagation");
     assert_eq!(
         a.grad().unwrap().as_slice(),
         &[1.0, 1.0, 1.0, 1.0],

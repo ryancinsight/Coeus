@@ -1,4 +1,4 @@
-use crate::backend::get_wgpu_context;
+use crate::backend::{get_wgpu_context, try_get_wgpu_context, WgpuBackendError};
 use coeus_core::{Scalar, Storage, StorageMut};
 use hephaestus_wgpu::{ComputeDevice, DeviceBuffer};
 use std::sync::Arc;
@@ -25,32 +25,30 @@ unsafe impl<T: Send> Send for WgpuStorage<T> {}
 unsafe impl<T: Sync> Sync for WgpuStorage<T> {}
 
 impl<T: Scalar> WgpuStorage<T> {
-    #[inline]
-    fn alloc_device_zeroed(len: usize) -> hephaestus_wgpu::WgpuBuffer<T> {
-        let ctx = get_wgpu_context();
-        ctx.hephaestus_device
+    /// Allocate a device buffer while preserving provider allocation errors.
+    pub fn try_new(len: usize) -> Result<Self, WgpuBackendError> {
+        let ctx = try_get_wgpu_context()?;
+        let buffer = ctx
+            .hephaestus_device
             .alloc_zeroed_with_hint(len, PlacementHint::Tier(MemoryTier::Device))
-            .expect("Failed to allocate GPU buffer in device tier")
-    }
-
-    /// Allocate a new GPU buffer for `len` elements.
-    pub fn new(len: usize) -> Self {
-        let buffer = Self::alloc_device_zeroed(len);
-        Self {
+            .map_err(|source| WgpuBackendError::dispatch("allocate", source))?;
+        Ok(Self {
             buffer: Arc::new(buffer),
-        }
+        })
     }
 }
 
 impl<T: Scalar> Storage<T> for WgpuStorage<T> {
+    type Error = WgpuBackendError;
+
     #[inline]
     fn len(&self) -> usize {
         self.buffer.len()
     }
 
     #[inline]
-    fn allocate(len: usize) -> Self {
-        Self::new(len)
+    fn try_allocate(len: usize) -> Result<Self, Self::Error> {
+        Self::try_new(len)
     }
 
     #[inline]
@@ -61,17 +59,25 @@ impl<T: Scalar> Storage<T> for WgpuStorage<T> {
 
 impl<T: Scalar> StorageMut<T> for WgpuStorage<T> {
     #[inline]
-    fn try_as_mut_slice(&mut self) -> Option<&mut [T]> {
-        None
+    fn try_as_mut_slice(&mut self) -> Result<Option<&mut [T]>, Self::Error> {
+        Ok(None)
     }
 
-    fn make_unique(&mut self) {
+    fn make_unique(&mut self) -> Result<(), Self::Error> {
         if Arc::strong_count(&self.buffer) > 1 {
             let len = self.buffer.len();
             let ctx = get_wgpu_context();
-            let new_buffer = Self::alloc_device_zeroed(len);
+            let new_buffer = Self::try_new(len)?.buffer;
 
-            let size_in_bytes = (len * std::mem::size_of::<T>()).max(4) as u64;
+            let size_in_bytes = len
+                .checked_mul(std::mem::size_of::<T>())
+                .ok_or_else(|| {
+                    WgpuBackendError::Validation(coeus_core::BackendError::Overflow {
+                        operation: "cow copy",
+                        reason: "element-count to byte-size arithmetic overflow",
+                    })
+                })?
+                .max(4) as u64;
 
             let mut encoder = ctx
                 .device
@@ -81,8 +87,9 @@ impl<T: Scalar> StorageMut<T> for WgpuStorage<T> {
             encoder.copy_buffer_to_buffer(self.buffer.raw(), 0, new_buffer.raw(), 0, size_in_bytes);
             ctx.queue.submit(std::iter::once(encoder.finish()));
 
-            self.buffer = Arc::new(new_buffer);
+            self.buffer = new_buffer;
         }
+        Ok(())
     }
 }
 
@@ -92,7 +99,7 @@ mod tests {
 
     #[test]
     fn storage_allocates_device_tier() {
-        let storage = WgpuStorage::<f32>::new(16);
+        let storage = WgpuStorage::<f32>::try_new(16).expect("allocation succeeds");
         assert_eq!(storage.buffer.tier(), MemoryTier::Device);
     }
 

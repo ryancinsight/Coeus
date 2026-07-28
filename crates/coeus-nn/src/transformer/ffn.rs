@@ -17,7 +17,7 @@ pub fn feed_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     w2: &Var<T, B>,
     b2: Option<&Var<T, B>>,
     dropout_p: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let linear1 = Linear {
         weight: w1.clone(),
         bias: b1.cloned(),
@@ -26,11 +26,11 @@ pub fn feed_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         weight: w2.clone(),
         bias: b2.cloned(),
     };
-    let x = linear1.forward(input);
-    let x = coeus_autograd::gelu(&x);
+    let x = linear1.forward(input)?;
+    let x = coeus_autograd::gelu(&x)?;
     let mut dropout = Dropout::new(dropout_p);
     dropout.set_training(dropout_p > 0.0);
-    let x = dropout.forward(&x);
+    let x = dropout.forward(&x)?;
     linear2.forward(&x)
 }
 
@@ -60,13 +60,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> FeedForward<T, B> {
     /// - `d_model`: input and output feature dimension
     /// - `d_ff`:    hidden (inner) feature dimension
     /// - `dropout_p`: dropout probability
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self {
-        Self {
-            linear1: Linear::new(d_model, d_ff, true),
-            linear2: Linear::new(d_ff, d_model, true),
+    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Result<Self, B::Error> {
+        Ok(Self {
+            linear1: Linear::<T, B>::new(d_model, d_ff, true)?,
+            linear2: Linear::<T, B>::new(d_ff, d_model, true)?,
             dropout: Dropout::new(dropout_p),
             _marker: PhantomData,
-        }
+        })
     }
 }
 
@@ -87,7 +87,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for FeedForwa
     ///
     /// Works for any input rank (`[batch, seq, d_model]`, `[batch, d_model]`, etc.)
     /// because `Linear::forward` dispatches to the batched matmul kernel.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         feed_forward(
             input,
             &self.linear1.weight,

@@ -223,7 +223,8 @@ impl CudaDriver {
 
 /// Retrieve a reference to the active CUDA driver context.
 pub fn get_cuda_context() -> Option<CUcontext> {
-    get_cuda_device().bind().ok()?;
+    let device = get_cuda_device().ok()?;
+    device.bind().ok()?;
 
     let mut context = std::ptr::null_mut();
     // SAFETY: `context` is a valid out-pointer. `CudaDevice::bind` above made

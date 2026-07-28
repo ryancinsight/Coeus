@@ -33,13 +33,19 @@ where
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let suffix_grad = coeus_ops::suffix_sum(grad_out, self.dim);
+            let suffix_grad = coeus_ops::suffix_sum(grad_out, self.dim)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &suffix_grad, &backend);
+            coeus_ops::add_assign(gl, &suffix_grad, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -51,13 +57,13 @@ where
 pub fn cumsum<T: Scalar + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     dim: usize,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::cumsum(&x.tensor, dim);
+    let out_tensor = coeus_ops::cumsum(&x.tensor, dim)?;
 
     let requires_grad = crate::grad_mode::should_track_var(x);
     if !requires_grad {
@@ -67,7 +73,7 @@ where
     let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_tensor.shape_cloned(),
         &backend,
-    )));
+    )?));
     let grad = Some(output_grad.clone());
 
     let node = CumSumNode {
@@ -77,9 +83,9 @@ where
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

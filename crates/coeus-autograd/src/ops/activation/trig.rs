@@ -1,5 +1,5 @@
-use super::unary_op;
 use super::UnaryAutogradOp;
+use super::unary_op;
 use crate::var::Var;
 use coeus_core::Float;
 use coeus_tensor::Tensor;
@@ -10,7 +10,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "exp";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::exp(x, backend)
     }
 
@@ -20,7 +20,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         _x: &Tensor<T, B>,
         y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
+    ) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::mul(grad_out, y, backend)
     }
 }
@@ -31,7 +31,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "log";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::log(x, backend)
     }
 
@@ -41,7 +41,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
+    ) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::div(grad_out, x, backend)
     }
 }
@@ -59,7 +59,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "erf";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::erf(x, backend)
     }
 
@@ -70,16 +70,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let x_sq = coeus_ops::mul(x, x, backend);
-        let neg_x_sq = coeus_ops::neg(&x_sq, backend);
-        let gauss = coeus_ops::exp(&neg_x_sq, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let x_sq = coeus_ops::mul(x, x, backend)?;
+        let neg_x_sq = coeus_ops::neg(&x_sq, backend)?;
+        let gauss = coeus_ops::exp(&neg_x_sq, backend)?;
         let two_over_sqrt_pi = Tensor::full_on(
             gauss.shape(),
             T::from_f64(core::f64::consts::FRAC_2_SQRT_PI),
             backend,
-        );
-        let scaled = coeus_ops::mul(&gauss, &two_over_sqrt_pi, backend);
+        )?;
+        let scaled = coeus_ops::mul(&gauss, &two_over_sqrt_pi, backend)?;
         coeus_ops::mul(grad_out, &scaled, backend)
     }
 }
@@ -92,7 +92,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "erfc";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::erfc(x, backend)
     }
 
@@ -103,16 +103,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let x_sq = coeus_ops::mul(x, x, backend);
-        let neg_x_sq = coeus_ops::neg(&x_sq, backend);
-        let gauss = coeus_ops::exp(&neg_x_sq, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let x_sq = coeus_ops::mul(x, x, backend)?;
+        let neg_x_sq = coeus_ops::neg(&x_sq, backend)?;
+        let gauss = coeus_ops::exp(&neg_x_sq, backend)?;
         let neg_two_over_sqrt_pi = Tensor::full_on(
             gauss.shape(),
             T::from_f64(-core::f64::consts::FRAC_2_SQRT_PI),
             backend,
-        );
-        let scaled = coeus_ops::mul(&gauss, &neg_two_over_sqrt_pi, backend);
+        )?;
+        let scaled = coeus_ops::mul(&gauss, &neg_two_over_sqrt_pi, backend)?;
         coeus_ops::mul(grad_out, &scaled, backend)
     }
 }
@@ -131,7 +131,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "sin";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::sin(x, backend)
     }
 
@@ -142,8 +142,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let cos_x = coeus_ops::cos(x, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let cos_x = coeus_ops::cos(x, backend)?;
         coeus_ops::mul(grad_out, &cos_x, backend)
     }
 }
@@ -159,7 +159,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "cos";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::cos(x, backend)
     }
 
@@ -170,9 +170,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let sin_x = coeus_ops::sin(x, backend);
-        let neg_sin_x = coeus_ops::neg(&sin_x, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let sin_x = coeus_ops::sin(x, backend)?;
+        let neg_sin_x = coeus_ops::neg(&sin_x, backend)?;
         coeus_ops::mul(grad_out, &neg_sin_x, backend)
     }
 }
@@ -185,7 +185,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "tan";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::tan(x, backend)
     }
 
@@ -195,10 +195,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let cos_x = coeus_ops::cos(x, backend);
-        let cos_sq = coeus_ops::mul(&cos_x, &cos_x, backend);
-        let inv_cos_sq = coeus_ops::recip(&cos_sq, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let cos_x = coeus_ops::cos(x, backend)?;
+        let cos_sq = coeus_ops::mul(&cos_x, &cos_x, backend)?;
+        let inv_cos_sq = coeus_ops::recip(&cos_sq, backend)?;
         coeus_ops::mul(grad_out, &inv_cos_sq, backend)
     }
 }
@@ -210,7 +210,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "asin";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::asin(x, backend)
     }
 
@@ -220,12 +220,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let x_sq = coeus_ops::mul(x, x, backend);
-        let one = Tensor::full_on(x.shape(), T::one(), backend);
-        let one_minus_xsq = coeus_ops::sub(&one, &x_sq, backend);
-        let sqrt_val = coeus_ops::sqrt(&one_minus_xsq, backend);
-        let inv_sqrt = coeus_ops::recip(&sqrt_val, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let x_sq = coeus_ops::mul(x, x, backend)?;
+        let one = Tensor::full_on(x.shape(), T::one(), backend)?;
+        let one_minus_xsq = coeus_ops::sub(&one, &x_sq, backend)?;
+        let sqrt_val = coeus_ops::sqrt(&one_minus_xsq, backend)?;
+        let inv_sqrt = coeus_ops::recip(&sqrt_val, backend)?;
         coeus_ops::mul(grad_out, &inv_sqrt, backend)
     }
 }
@@ -237,7 +237,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "acos";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::acos(x, backend)
     }
 
@@ -247,13 +247,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let x_sq = coeus_ops::mul(x, x, backend);
-        let one = Tensor::full_on(x.shape(), T::one(), backend);
-        let one_minus_xsq = coeus_ops::sub(&one, &x_sq, backend);
-        let sqrt_val = coeus_ops::sqrt(&one_minus_xsq, backend);
-        let inv_sqrt = coeus_ops::recip(&sqrt_val, backend);
-        let neg_inv_sqrt = coeus_ops::neg(&inv_sqrt, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let x_sq = coeus_ops::mul(x, x, backend)?;
+        let one = Tensor::full_on(x.shape(), T::one(), backend)?;
+        let one_minus_xsq = coeus_ops::sub(&one, &x_sq, backend)?;
+        let sqrt_val = coeus_ops::sqrt(&one_minus_xsq, backend)?;
+        let inv_sqrt = coeus_ops::recip(&sqrt_val, backend)?;
+        let neg_inv_sqrt = coeus_ops::neg(&inv_sqrt, backend)?;
         coeus_ops::mul(grad_out, &neg_inv_sqrt, backend)
     }
 }
@@ -265,7 +265,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "atan";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::atan(x, backend)
     }
 
@@ -275,11 +275,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let x_sq = coeus_ops::mul(x, x, backend);
-        let one = Tensor::full_on(x.shape(), T::one(), backend);
-        let one_plus_xsq = coeus_ops::add(&one, &x_sq, backend);
-        let inv = coeus_ops::recip(&one_plus_xsq, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let x_sq = coeus_ops::mul(x, x, backend)?;
+        let one = Tensor::full_on(x.shape(), T::one(), backend)?;
+        let one_plus_xsq = coeus_ops::add(&one, &x_sq, backend)?;
+        let inv = coeus_ops::recip(&one_plus_xsq, backend)?;
         coeus_ops::mul(grad_out, &inv, backend)
     }
 }
@@ -290,7 +290,7 @@ pub struct SinhOp;
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for SinhOp {
     const OP_NAME: &'static str = "sinh";
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::sinh(x, backend)
     }
     #[inline(always)]
@@ -299,8 +299,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let cosh_x = coeus_ops::cosh(x, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let cosh_x = coeus_ops::cosh(x, backend)?;
         coeus_ops::mul(grad_out, &cosh_x, backend)
     }
 }
@@ -311,7 +311,7 @@ pub struct CoshOp;
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for CoshOp {
     const OP_NAME: &'static str = "cosh";
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::cosh(x, backend)
     }
     #[inline(always)]
@@ -320,8 +320,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let sinh_x = coeus_ops::sinh(x, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let sinh_x = coeus_ops::sinh(x, backend)?;
         coeus_ops::mul(grad_out, &sinh_x, backend)
     }
 }
@@ -332,7 +332,7 @@ pub struct Log2Op;
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for Log2Op {
     const OP_NAME: &'static str = "log2";
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::log2(x, backend)
     }
     #[inline(always)]
@@ -341,10 +341,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let ln2 = Tensor::full_on(x.shape(), T::from_f64(core::f64::consts::LN_2), backend);
-        let x_ln2 = coeus_ops::mul(x, &ln2, backend);
-        let inv = coeus_ops::recip(&x_ln2, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let ln2 = Tensor::full_on(x.shape(), T::from_f64(core::f64::consts::LN_2), backend)?;
+        let x_ln2 = coeus_ops::mul(x, &ln2, backend)?;
+        let inv = coeus_ops::recip(&x_ln2, backend)?;
         coeus_ops::mul(grad_out, &inv, backend)
     }
 }
@@ -355,7 +355,7 @@ pub struct Log10Op;
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for Log10Op {
     const OP_NAME: &'static str = "log10";
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::log10(x, backend)
     }
     #[inline(always)]
@@ -364,10 +364,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let ln10 = Tensor::full_on(x.shape(), T::from_f64(core::f64::consts::LN_10), backend);
-        let x_ln10 = coeus_ops::mul(x, &ln10, backend);
-        let inv = coeus_ops::recip(&x_ln10, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let ln10 = Tensor::full_on(x.shape(), T::from_f64(core::f64::consts::LN_10), backend)?;
+        let x_ln10 = coeus_ops::mul(x, &ln10, backend)?;
+        let inv = coeus_ops::recip(&x_ln10, backend)?;
         coeus_ops::mul(grad_out, &inv, backend)
     }
 }
@@ -378,7 +378,7 @@ pub struct Exp2Op;
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for Exp2Op {
     const OP_NAME: &'static str = "exp2";
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::exp2(x, backend)
     }
     #[inline(always)]
@@ -387,9 +387,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         _x: &Tensor<T, B>,
         y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let ln2 = Tensor::full_on(y.shape(), T::from_f64(core::f64::consts::LN_2), backend);
-        let y_ln2 = coeus_ops::mul(y, &ln2, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let ln2 = Tensor::full_on(y.shape(), T::from_f64(core::f64::consts::LN_2), backend)?;
+        let y_ln2 = coeus_ops::mul(y, &ln2, backend)?;
         coeus_ops::mul(grad_out, &y_ln2, backend)
     }
 }
@@ -400,7 +400,7 @@ pub struct AtanhOp;
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for AtanhOp {
     const OP_NAME: &'static str = "atanh";
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::atanh(x, backend)
     }
     #[inline(always)]
@@ -409,11 +409,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let x_sq = coeus_ops::mul(x, x, backend);
-        let one = Tensor::full_on(x.shape(), T::one(), backend);
-        let one_minus_xsq = coeus_ops::sub(&one, &x_sq, backend);
-        let inv = coeus_ops::recip(&one_minus_xsq, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let x_sq = coeus_ops::mul(x, x, backend)?;
+        let one = Tensor::full_on(x.shape(), T::one(), backend)?;
+        let one_minus_xsq = coeus_ops::sub(&one, &x_sq, backend)?;
+        let inv = coeus_ops::recip(&one_minus_xsq, backend)?;
         coeus_ops::mul(grad_out, &inv, backend)
     }
 }
@@ -424,7 +424,7 @@ pub struct AsinhOp;
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for AsinhOp {
     const OP_NAME: &'static str = "asinh";
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::asinh(x, backend)
     }
     #[inline(always)]
@@ -433,12 +433,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let x_sq = coeus_ops::mul(x, x, backend);
-        let one = Tensor::full_on(x.shape(), T::one(), backend);
-        let xsq_plus_one = coeus_ops::add(&x_sq, &one, backend);
-        let sqrt_val = coeus_ops::sqrt(&xsq_plus_one, backend);
-        let inv = coeus_ops::recip(&sqrt_val, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let x_sq = coeus_ops::mul(x, x, backend)?;
+        let one = Tensor::full_on(x.shape(), T::one(), backend)?;
+        let xsq_plus_one = coeus_ops::add(&x_sq, &one, backend)?;
+        let sqrt_val = coeus_ops::sqrt(&xsq_plus_one, backend)?;
+        let inv = coeus_ops::recip(&sqrt_val, backend)?;
         coeus_ops::mul(grad_out, &inv, backend)
     }
 }
@@ -449,7 +449,7 @@ pub struct AcoshOp;
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for AcoshOp {
     const OP_NAME: &'static str = "acosh";
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::acosh(x, backend)
     }
     #[inline(always)]
@@ -458,12 +458,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let x_sq = coeus_ops::mul(x, x, backend);
-        let one = Tensor::full_on(x.shape(), T::one(), backend);
-        let xsq_minus_one = coeus_ops::sub(&x_sq, &one, backend);
-        let sqrt_val = coeus_ops::sqrt(&xsq_minus_one, backend);
-        let inv = coeus_ops::recip(&sqrt_val, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let x_sq = coeus_ops::mul(x, x, backend)?;
+        let one = Tensor::full_on(x.shape(), T::one(), backend)?;
+        let xsq_minus_one = coeus_ops::sub(&x_sq, &one, backend)?;
+        let sqrt_val = coeus_ops::sqrt(&xsq_minus_one, backend)?;
+        let inv = coeus_ops::recip(&sqrt_val, backend)?;
         coeus_ops::mul(grad_out, &inv, backend)
     }
 }
@@ -474,7 +474,7 @@ pub struct Expm1Op;
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for Expm1Op {
     const OP_NAME: &'static str = "expm1";
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::expm1(x, backend)
     }
     #[inline(always)]
@@ -483,8 +483,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let exp_x = coeus_ops::exp(x, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let exp_x = coeus_ops::exp(x, backend)?;
         coeus_ops::mul(grad_out, &exp_x, backend)
     }
 }
@@ -495,7 +495,7 @@ pub struct Log1pOp;
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for Log1pOp {
     const OP_NAME: &'static str = "log1p";
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::log1p(x, backend)
     }
     #[inline(always)]
@@ -504,10 +504,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let one = Tensor::full_on(x.shape(), T::one(), backend);
-        let one_plus_x = coeus_ops::add(&one, x, backend);
-        let inv = coeus_ops::recip(&one_plus_x, backend);
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let one = Tensor::full_on(x.shape(), T::one(), backend)?;
+        let one_plus_x = coeus_ops::add(&one, x, backend)?;
+        let inv = coeus_ops::recip(&one_plus_x, backend)?;
         coeus_ops::mul(grad_out, &inv, backend)
     }
 }
@@ -515,14 +515,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
 /// Tracked Exponential function.
 #[must_use]
 #[inline]
-pub fn exp<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn exp<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, ExpOp>(a)
 }
 
 /// Tracked Natural Logarithm.
 #[must_use]
 #[inline]
-pub fn log<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn log<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, LogOp>(a)
 }
 
@@ -531,7 +535,9 @@ pub fn log<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Va
 /// Backward: `d/dx erf(x) = (2/√π)·e^(−x²)`.
 #[must_use]
 #[inline]
-pub fn erf<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn erf<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, ErfOp>(a)
 }
 
@@ -540,7 +546,9 @@ pub fn erf<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Va
 /// Backward: `d/dx erfc(x) = -(2/√π)·e^(−x²)`.
 #[must_use]
 #[inline]
-pub fn erfc<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn erfc<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, ErfcOp>(a)
 }
 
@@ -553,7 +561,7 @@ pub fn erfc<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
 #[inline]
 pub fn lgamma_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     let backend = B::default();
     coeus_ops::lgamma(&a.tensor, &backend)
 }
@@ -563,7 +571,9 @@ pub fn lgamma_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Backward: `d/dx sin(x) = cos(x)`.
 #[must_use]
 #[inline]
-pub fn sin<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn sin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, SinOp>(a)
 }
 
@@ -572,104 +582,134 @@ pub fn sin<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Va
 /// Backward: `d/dx cos(x) = -sin(x)`.
 #[must_use]
 #[inline]
-pub fn cos<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn cos<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, CosOp>(a)
 }
 
 /// Tracked tan.
 #[must_use]
 #[inline]
-pub fn tan<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn tan<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, TanOp>(a)
 }
 
 /// Tracked asin.
 #[must_use]
 #[inline]
-pub fn asin<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn asin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, AsinOp>(a)
 }
 
 /// Tracked acos.
 #[must_use]
 #[inline]
-pub fn acos<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn acos<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, AcosOp>(a)
 }
 
 /// Tracked atan.
 #[must_use]
 #[inline]
-pub fn atan<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn atan<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, AtanOp>(a)
 }
 
 /// Tracked element-wise hyperbolic sine.
 #[must_use]
 #[inline]
-pub fn sinh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn sinh<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, SinhOp>(a)
 }
 
 /// Tracked element-wise hyperbolic cosine.
 #[must_use]
 #[inline]
-pub fn cosh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn cosh<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, CoshOp>(a)
 }
 
 /// Tracked element-wise base-2 logarithm.
 #[must_use]
 #[inline]
-pub fn log2<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn log2<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, Log2Op>(a)
 }
 
 /// Tracked element-wise base-10 logarithm.
 #[must_use]
 #[inline]
-pub fn log10<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn log10<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, Log10Op>(a)
 }
 
 /// Tracked element-wise base-2 exponential.
 #[must_use]
 #[inline]
-pub fn exp2<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn exp2<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, Exp2Op>(a)
 }
 
 /// Tracked element-wise inverse hyperbolic tangent.
 #[must_use]
 #[inline]
-pub fn atanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn atanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, AtanhOp>(a)
 }
 
 /// Tracked element-wise inverse hyperbolic sine.
 #[must_use]
 #[inline]
-pub fn asinh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn asinh<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, AsinhOp>(a)
 }
 
 /// Tracked element-wise inverse hyperbolic cosine.
 #[must_use]
 #[inline]
-pub fn acosh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn acosh<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, AcoshOp>(a)
 }
 
 /// Tracked element-wise exp(x) - 1.
 #[must_use]
 #[inline]
-pub fn expm1<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn expm1<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, Expm1Op>(a)
 }
 
 /// Tracked element-wise ln(1 + x).
 #[must_use]
 #[inline]
-pub fn log1p<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn log1p<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, Log1pOp>(a)
 }

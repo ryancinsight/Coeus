@@ -49,22 +49,28 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
 
         // ∂/∂input: input is copied into the output unchanged, so its gradient
         // is the output gradient verbatim.
         if let Some(Some(ref g)) = input_grads.first() {
-            let grad_input = grad_out.to_contiguous_on(&backend);
-            coeus_ops::add_assign(g.write(), &grad_input, &backend);
+            let grad_input = grad_out.to_contiguous_on(&backend)?;
+            coeus_ops::add_assign(g.write(), &grad_input, &backend)?;
         }
 
         // ∂/∂src: each source element lands at `index`, so its gradient gathers
         // the output gradient from that position.
         if let Some(Some(ref g)) = input_grads.get(1) {
-            let grad_src = coeus_ops::gather(grad_out, self.dim, &self.index, &backend);
-            coeus_ops::add_assign(g.write(), &grad_src, &backend);
+            let grad_src = coeus_ops::gather(grad_out, self.dim, &self.index, &backend)?;
+            coeus_ops::add_assign(g.write(), &grad_src, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -87,14 +93,14 @@ pub fn scatter_add<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     dim: usize,
     index: &Var<T, B>,
     src: &Var<T, B>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
     let out_tensor =
-        coeus_ops::scatter_add(&input.tensor, dim, &index.tensor, &src.tensor, &backend);
+        coeus_ops::scatter_add(&input.tensor, dim, &index.tensor, &src.tensor, &backend)?;
 
     let requires_grad =
         crate::grad_mode::should_track_var(input) || crate::grad_mode::should_track_var(src);
@@ -102,13 +108,13 @@ where
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = ScatterAddNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: vec![input.clone(), src.clone()],
             index: index.tensor.clone(),
             dim,
@@ -117,9 +123,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

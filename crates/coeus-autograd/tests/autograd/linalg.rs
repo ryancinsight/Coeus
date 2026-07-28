@@ -19,9 +19,9 @@ fn test_bmm_backward_accumulates_exact_gradients() {
                 1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 0.0, 1.0, 0.0, 2.0, 0.0, 2.0,
             ],
             &backend,
-        ),
+        ).expect("valid tensor construction"),
         true,
-    );
+    ).expect("valid variable construction");
     let b = Var::new(
         Tensor::from_slice_on(
             vec![2, 3, 2],
@@ -29,11 +29,11 @@ fn test_bmm_backward_accumulates_exact_gradients() {
                 1.0f64, 0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 0.0, 3.0,
             ],
             &backend,
-        ),
+        ).expect("valid tensor construction"),
         true,
-    );
+    ).expect("valid variable construction");
 
-    let c = matmul(&a, &b);
+    let c = matmul(&a, &b).expect("valid autograd operation");
     assert_eq!(c.tensor.shape(), &[2, 2, 2]);
     // C0 = [[4,5],[10,11]]; C1 = [[1,2],[4,8]].
     let cs = c.tensor.as_slice();
@@ -42,7 +42,7 @@ fn test_bmm_backward_accumulates_exact_gradients() {
         assert!((got - want).abs() < 1e-14, "fwd {got} vs {want}");
     }
 
-    c.backward();
+    c.backward().expect("valid backward propagation");
 
     // grad_A[b] rows = row sums of B[b]: B0 rows sum to [1,1,2]; B1 to [3,3,3].
     let ga = a.grad().unwrap();
@@ -71,9 +71,9 @@ fn rank_four_batched_matmul_preserves_axes_and_exact_gradients() {
                 1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 0.0, 1.0, 0.0, 2.0, 0.0, 2.0,
             ],
             &backend,
-        ),
+        ).expect("valid tensor construction"),
         true,
-    );
+    ).expect("valid variable construction");
     let b = Var::new(
         Tensor::from_slice_on(
             [1, 2, 3, 2],
@@ -81,18 +81,18 @@ fn rank_four_batched_matmul_preserves_axes_and_exact_gradients() {
                 1.0f64, 0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 0.0, 3.0,
             ],
             &backend,
-        ),
+        ).expect("valid tensor construction"),
         true,
-    );
+    ).expect("valid variable construction");
 
-    let output = matmul(&a, &b);
+    let output = matmul(&a, &b).expect("valid autograd operation");
     assert_eq!(output.tensor.shape(), &[1, 2, 2, 2]);
     assert_eq!(
         output.tensor.as_slice(),
         &[4.0, 5.0, 10.0, 11.0, 1.0, 2.0, 4.0, 8.0]
     );
 
-    output.backward();
+    output.backward().expect("valid backward propagation");
     assert_eq!(
         a.grad().expect("A gradient must be populated").as_slice(),
         &[1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
@@ -119,16 +119,22 @@ fn matmul_view_input_matches_contiguous_forward_and_grad() {
     let kd: Vec<f32> = (0..n).map(|i| 0.5 - (i as f32) * 0.07).collect();
 
     // View path: transpose fed straight into matmul.
-    let q1 = Var::new(Tensor::from_slice_on(shape, &qd, &backend), true);
-    let k1 = Var::new(Tensor::from_slice_on(shape, &kd, &backend), true);
-    let out_view = matmul(&q1, &transpose(&k1, 2, 3));
-    sum(&out_view).backward();
+    let q1 = Var::new(Tensor::from_slice_on(shape, &qd, &backend).expect("valid tensor construction"), true).expect("valid variable construction");
+    let k1 = Var::new(Tensor::from_slice_on(shape, &kd, &backend).expect("valid tensor construction"), true).expect("valid variable construction");
+    let out_view = matmul(&q1, &transpose(&k1, 2, 3).expect("valid autograd operation")).expect("valid autograd operation");
+    sum(&out_view)
+        .expect("valid autograd operation")
+        .backward()
+        .expect("valid backward propagation");
 
     // Reference path: materialize the transpose contiguous first.
-    let q2 = Var::new(Tensor::from_slice_on(shape, &qd, &backend), true);
-    let k2 = Var::new(Tensor::from_slice_on(shape, &kd, &backend), true);
-    let out_ref = matmul(&q2, &contiguous(&transpose(&k2, 2, 3)));
-    sum(&out_ref).backward();
+    let q2 = Var::new(Tensor::from_slice_on(shape, &qd, &backend).expect("valid tensor construction"), true).expect("valid variable construction");
+    let k2 = Var::new(Tensor::from_slice_on(shape, &kd, &backend).expect("valid tensor construction"), true).expect("valid variable construction");
+    let out_ref = matmul(&q2, &contiguous(&transpose(&k2, 2, 3).expect("valid autograd operation")).expect("valid autograd operation")).expect("valid autograd operation");
+    sum(&out_ref)
+        .expect("valid autograd operation")
+        .backward()
+        .expect("valid backward propagation");
 
     assert_eq!(
         out_view.tensor.as_slice(),

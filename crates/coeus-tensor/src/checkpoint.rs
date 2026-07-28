@@ -157,7 +157,7 @@ impl StateArchive<'_> {
             let values = bytemuck::pod_collect_to_vec::<u8, T>(archived.bytes.as_slice());
             tensors.insert(
                 name.to_owned(),
-                Tensor::from_slice_on(shape, &values, &backend),
+                Tensor::from_slice_on(shape, &values, &backend).map_err(Error::other)?,
             );
         }
         Ok(StateDict { tensors })
@@ -250,7 +250,7 @@ impl<T: Scalar, B: ComputeBackend + Default> StateDict<T, B> {
                 .tensors
                 .get(name)
                 .expect("invariant: name originates from this map");
-            let contiguous = tensor.to_contiguous_on(&backend);
+            let contiguous = tensor.to_contiguous_on(&backend).map_err(Error::other)?;
             let shape = contiguous
                 .shape()
                 .iter()
@@ -262,7 +262,9 @@ impl<T: Scalar, B: ComputeBackend + Default> StateDict<T, B> {
                 bytemuck::cast_slice(&slice[offset..offset + contiguous.numel()]).to_vec()
             } else {
                 let mut host = vec![T::zero(); contiguous.numel()];
-                backend.copy_to_host(contiguous.storage(), &mut host);
+                backend
+                    .copy_to_host(contiguous.storage(), &mut host)
+                    .map_err(Error::other)?;
                 bytemuck::cast_slice(&host).to_vec()
             };
             let elements = validate_tensor(name, contiguous.shape(), payload.len(), limits)?;

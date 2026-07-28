@@ -10,20 +10,20 @@ pub(crate) fn bench_mha_forward(c: &mut Criterion) {
     const D: usize = 256;
     const H: usize = 8;
 
-    let mha_seq = MultiHeadAttention::<f32, SequentialBackend, H, NullMask>::new(D, true);
-    let mha_moirai = MultiHeadAttention::<f32, MoiraiBackend, H, NullMask>::new(D, true);
+    let mha_seq = MultiHeadAttention::<f32, SequentialBackend, H, NullMask>::new(D, true).expect("construct module");
+    let mha_moirai = MultiHeadAttention::<f32, MoiraiBackend, H, NullMask>::new(D, true).expect("construct module");
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::ones(vec![B, SEQ, D]),
+        Tensor::<f32, SequentialBackend>::ones(vec![B, SEQ, D]).expect("construct tensor"),
         false,
-    );
-    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::ones(vec![B, SEQ, D]), false);
+    ).expect("construct variable");
+    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::ones(vec![B, SEQ, D]).expect("construct tensor"), false).expect("construct variable");
 
     let mut group = c.benchmark_group("Coeus — MHA self-attn forward (8x64x256, 8 heads)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(mha_seq.forward(black_box(&x_seq))))
+        b.iter(|| black_box(mha_seq.forward(black_box(&x_seq)).expect("run forward")))
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(mha_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| black_box(mha_moirai.forward(black_box(&x_moirai)).expect("run forward")))
     });
     group.finish();
 }
@@ -44,24 +44,24 @@ pub(crate) fn bench_mha_cross_attention_forward(c: &mut Criterion) {
     let memory_data: Vec<f32> = (0..(B * MEMORY_SEQ * D))
         .map(|index| (index as f32 * 0.0007).cos())
         .collect();
-    let mha_seq = MultiHeadAttention::<f32, SequentialBackend, H, NullMask>::new(D, true);
-    let mha_moirai = MultiHeadAttention::<f32, MoiraiBackend, H, NullMask>::new(D, true);
+    let mha_seq = MultiHeadAttention::<f32, SequentialBackend, H, NullMask>::new(D, true).expect("construct module");
+    let mha_moirai = MultiHeadAttention::<f32, MoiraiBackend, H, NullMask>::new(D, true).expect("construct module");
     let query_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![B, QUERY_SEQ, D], &query_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![B, QUERY_SEQ, D], &query_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let memory_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![B, MEMORY_SEQ, D], &memory_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![B, MEMORY_SEQ, D], &memory_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let query_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![B, QUERY_SEQ, D], &query_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![B, QUERY_SEQ, D], &query_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let memory_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![B, MEMORY_SEQ, D], &memory_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![B, MEMORY_SEQ, D], &memory_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
     let mut group = c.benchmark_group(
         "Coeus — MHA cross-attn forward (query 8x32x256, memory 8x64x256, 8 heads)",
@@ -73,7 +73,7 @@ pub(crate) fn bench_mha_cross_attention_forward(c: &mut Criterion) {
                 black_box(&memory_seq),
                 black_box(&memory_seq),
                 None,
-            ))
+            ).expect("run forward"))
         })
     });
     group.bench_function("Coeus Moirai", |b| {
@@ -83,7 +83,7 @@ pub(crate) fn bench_mha_cross_attention_forward(c: &mut Criterion) {
                 black_box(&memory_moirai),
                 black_box(&memory_moirai),
                 None,
-            ))
+            ).expect("run forward"))
         })
     });
     group.finish();
@@ -98,21 +98,21 @@ pub(crate) fn bench_transformer_encoder_forward(c: &mut Criterion) {
     const D_FF: usize = 1024;
     const H: usize = 8;
 
-    let enc_seq = TransformerEncoderLayer::<f32, SequentialBackend, H, NullMask>::new(D, D_FF, 0.0);
-    let enc_moirai = TransformerEncoderLayer::<f32, MoiraiBackend, H, NullMask>::new(D, D_FF, 0.0);
+    let enc_seq = TransformerEncoderLayer::<f32, SequentialBackend, H, NullMask>::new(D, D_FF, 0.0).expect("construct module");
+    let enc_moirai = TransformerEncoderLayer::<f32, MoiraiBackend, H, NullMask>::new(D, D_FF, 0.0).expect("construct module");
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::ones(vec![B, SEQ, D]),
+        Tensor::<f32, SequentialBackend>::ones(vec![B, SEQ, D]).expect("construct tensor"),
         false,
-    );
-    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::ones(vec![B, SEQ, D]), false);
+    ).expect("construct variable");
+    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::ones(vec![B, SEQ, D]).expect("construct tensor"), false).expect("construct variable");
 
     let mut group =
         c.benchmark_group("Coeus — Transformer encoder layer forward (8x64x256, d_ff=1024)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(enc_seq.forward(black_box(&x_seq))))
+        b.iter(|| black_box(enc_seq.forward(black_box(&x_seq)).expect("run forward")))
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(enc_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| black_box(enc_moirai.forward(black_box(&x_moirai)).expect("run forward")))
     });
     group.finish();
 }
@@ -132,17 +132,17 @@ pub(crate) fn bench_sdp_attention_forward(c: &mut Criterion) {
 
     let backend_seq = SequentialBackend;
     let q_seq =
-        coeus_tensor::Tensor::<f32, SequentialBackend>::from_slice(vec![SA_B, SA_S, SA_D], &q_data);
+        coeus_tensor::Tensor::<f32, SequentialBackend>::from_slice(vec![SA_B, SA_S, SA_D], &q_data).expect("construct tensor");
     let k_seq = q_seq.clone();
     let v_seq =
-        coeus_tensor::Tensor::<f32, SequentialBackend>::from_slice(vec![SA_B, SA_S, SA_D], &v_data);
+        coeus_tensor::Tensor::<f32, SequentialBackend>::from_slice(vec![SA_B, SA_S, SA_D], &v_data).expect("construct tensor");
 
     let backend_moirai = MoiraiBackend;
     let q_moirai =
-        coeus_tensor::Tensor::<f32, MoiraiBackend>::from_slice(vec![SA_B, SA_S, SA_D], &q_data);
+        coeus_tensor::Tensor::<f32, MoiraiBackend>::from_slice(vec![SA_B, SA_S, SA_D], &q_data).expect("construct tensor");
     let k_moirai = q_moirai.clone();
     let v_moirai =
-        coeus_tensor::Tensor::<f32, MoiraiBackend>::from_slice(vec![SA_B, SA_S, SA_D], &v_data);
+        coeus_tensor::Tensor::<f32, MoiraiBackend>::from_slice(vec![SA_B, SA_S, SA_D], &v_data).expect("construct tensor");
 
     let scale = 1.0f32 / (SA_D as f32).sqrt();
 
@@ -157,7 +157,7 @@ pub(crate) fn bench_sdp_attention_forward(c: &mut Criterion) {
                 false,
                 scale,
                 &backend_seq,
-            ))
+            ).expect("run operation"))
         })
     });
     group.bench_function("Coeus Moirai", |b| {
@@ -170,7 +170,7 @@ pub(crate) fn bench_sdp_attention_forward(c: &mut Criterion) {
                 false,
                 scale,
                 &backend_moirai,
-            ))
+            ).expect("run operation"))
         })
     });
     group.finish();

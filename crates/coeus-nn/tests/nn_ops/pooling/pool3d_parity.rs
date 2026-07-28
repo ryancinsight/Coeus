@@ -22,7 +22,7 @@ fn v<B: BackendOps<f64> + Default>(shape: &[usize], vals: &[f64], backend: &B) -
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Var::new(Tensor::from_slice_on(shape.to_vec(), vals, backend), false)
+    Var::new(Tensor::from_slice_on(shape.to_vec(), vals, backend).expect("construct tensor"), false).expect("construct variable")
 }
 
 fn check_pool3d<B: BackendOps<f64> + Default>(backend: &B)
@@ -35,7 +35,7 @@ where
     // mean([1..8]) = 36/8 = 4.5 exactly.
     let avg = AvgPool3d::<f64, B>::with_params(2, 2, 0, 1);
     let inp = v(&[1, 1, 2, 2, 2], &data, backend);
-    let out_avg = Module::<f64, B>::forward(&avg, &inp);
+    let out_avg = Module::<f64, B>::forward(&avg, &inp).expect("run forward");
     assert_eq!(out_avg.tensor.shape(), &[1, 1, 1, 1, 1], "AvgPool3d shape");
     assert_eq!(
         out_avg.tensor.as_slice(),
@@ -45,7 +45,7 @@ where
 
     // MaxPool3d kernel=2, stride=2: max of the 2×2×2 block = 8.0.
     let maxp = MaxPool3d::<f64, B>::with_params(2, 2, 0, 1);
-    let out_max = Module::<f64, B>::forward(&maxp, &inp);
+    let out_max = Module::<f64, B>::forward(&maxp, &inp).expect("run forward");
     assert_eq!(out_max.tensor.shape(), &[1, 1, 1, 1, 1], "MaxPool3d shape");
     assert_eq!(
         out_max.tensor.as_slice(),
@@ -55,7 +55,7 @@ where
 
     // AvgPool3d kernel=1, stride=1: identity (each element passed through unchanged).
     let avg1 = AvgPool3d::<f64, B>::new(1);
-    let out_id = Module::<f64, B>::forward(&avg1, &inp);
+    let out_id = Module::<f64, B>::forward(&avg1, &inp).expect("run forward");
     assert_eq!(
         out_id.tensor.shape(),
         &[1, 1, 2, 2, 2],

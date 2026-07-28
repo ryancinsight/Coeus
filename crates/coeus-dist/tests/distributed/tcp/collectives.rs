@@ -21,8 +21,8 @@ fn test_tcp_all_reduce() {
             let backend = SequentialBackend::new();
 
             let mut tensor =
-                Tensor::from_slice_on([2], &[(rank + 1) as f32, (rank + 2) as f32], &backend);
-            comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
+                Tensor::from_slice_on([2], &[(rank + 1) as f32, (rank + 2) as f32], &backend).expect("construct tensor");
+            comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend).expect("collective operation");
 
             let data = tensor.as_slice();
             assert_eq!(data[0], 3.0);
@@ -49,12 +49,12 @@ fn test_tcp_broadcast() {
             let backend = SequentialBackend::new();
 
             let mut tensor = if rank == 0 {
-                Tensor::from_slice_on([2], &[10.0f32, 20.0], &backend)
+                Tensor::from_slice_on([2], &[10.0f32, 20.0], &backend).expect("construct tensor")
             } else {
-                Tensor::zeros_on([2], &backend)
+                Tensor::zeros_on([2], &backend).expect("construct tensor")
             };
 
-            comm.broadcast(&mut tensor, 0, &backend);
+            comm.broadcast(&mut tensor, 0, &backend).expect("collective operation");
 
             let data = tensor.as_slice();
             assert_eq!(data[0], 10.0);
@@ -80,13 +80,13 @@ fn test_tcp_all_gather() {
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
-            let tensor = Tensor::from_slice_on([1], &[(rank * 100) as f32], &backend);
+            let tensor = Tensor::from_slice_on([1], &[(rank * 100) as f32], &backend).expect("construct tensor");
             let mut output = vec![
-                Tensor::zeros_on([1], &backend),
-                Tensor::zeros_on([1], &backend),
+                Tensor::zeros_on([1], &backend).expect("construct tensor"),
+                Tensor::zeros_on([1], &backend).expect("construct tensor"),
             ];
 
-            comm.all_gather(&tensor, &mut output, &backend);
+            comm.all_gather(&tensor, &mut output, &backend).expect("collective operation");
 
             assert_eq!(output[0].as_slice()[0], 0.0);
             assert_eq!(output[1].as_slice()[0], 100.0);
@@ -133,8 +133,8 @@ fn test_tcp_reduce() {
             let backend = SequentialBackend::new();
 
             let mut tensor =
-                Tensor::from_slice_on([2], &[(rank + 1) as f32, (rank + 2) as f32], &backend);
-            comm.reduce::<f32, _, Sum>(&mut tensor, 1, &backend);
+                Tensor::from_slice_on([2], &[(rank + 1) as f32, (rank + 2) as f32], &backend).expect("construct tensor");
+            comm.reduce::<f32, _, Sum>(&mut tensor, 1, &backend).expect("collective operation");
 
             if rank == 1 {
                 let data = tensor.as_slice();
@@ -162,17 +162,17 @@ fn test_tcp_gather() {
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
-            let tensor = Tensor::from_slice_on([1], &[(rank * 100) as f32], &backend);
+            let tensor = Tensor::from_slice_on([1], &[(rank * 100) as f32], &backend).expect("construct tensor");
             let mut output = if rank == 1 {
                 vec![
-                    Tensor::zeros_on([1], &backend),
-                    Tensor::zeros_on([1], &backend),
+                    Tensor::zeros_on([1], &backend).expect("construct tensor"),
+                    Tensor::zeros_on([1], &backend).expect("construct tensor"),
                 ]
             } else {
                 vec![]
             };
 
-            comm.gather(&tensor, &mut output, 1, &backend);
+            comm.gather(&tensor, &mut output, 1, &backend).expect("collective operation");
 
             if rank == 1 {
                 assert_eq!(output[0].as_slice()[0], 0.0);
@@ -199,17 +199,17 @@ fn test_tcp_scatter() {
             let comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
-            let mut tensor = Tensor::zeros_on([1], &backend);
+            let mut tensor = Tensor::zeros_on([1], &backend).expect("construct tensor");
             let input = if rank == 0 {
                 vec![
-                    Tensor::from_slice_on([1], &[100.0], &backend),
-                    Tensor::from_slice_on([1], &[200.0], &backend),
+                    Tensor::from_slice_on([1], &[100.0], &backend).expect("construct tensor"),
+                    Tensor::from_slice_on([1], &[200.0], &backend).expect("construct tensor"),
                 ]
             } else {
                 vec![]
             };
 
-            comm.scatter(&mut tensor, &input, 0, &backend);
+            comm.scatter(&mut tensor, &input, 0, &backend).expect("collective operation");
 
             assert_eq!(tensor.as_slice()[0], (rank + 1) as f32 * 100.0);
         });

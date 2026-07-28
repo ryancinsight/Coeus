@@ -15,7 +15,8 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
         velocity_layout: &Layout,
         lr: T,
         momentum: T,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         self.cuda_sgd_step(
@@ -27,7 +28,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
             velocity_layout,
             lr,
             momentum,
-        );
+        )
     }
 
     #[inline]
@@ -46,7 +47,8 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
         beta2: T,
         eps: T,
         t: usize,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         self.cuda_adam_step(
@@ -63,7 +65,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
             beta2,
             eps,
             t,
-        );
+        )
     }
 
     #[inline]
@@ -78,7 +80,8 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
         lr: T,
         alpha: T,
         eps: T,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         self.cuda_rmsprop_step(
@@ -91,7 +94,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
             lr,
             alpha,
             eps,
-        );
+        )
     }
 
     #[inline]
@@ -105,7 +108,8 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
         history_layout: &Layout,
         lr: T,
         eps: T,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         self.cuda_adagrad_step(
@@ -117,7 +121,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
             history_layout,
             lr,
             eps,
-        );
+        )
     }
 
     fn adamw_step(
@@ -136,7 +140,8 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
         eps: T,
         weight_decay: T,
         t: usize,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         self.cuda_adamw_step(
@@ -154,6 +159,6 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
             eps,
             weight_decay,
             t,
-        );
+        )
     }
 }

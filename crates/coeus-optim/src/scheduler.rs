@@ -155,14 +155,18 @@ impl SchedulerStrategy for WarmupCosine {
 /// use coeus_optim::{Optimizer, SGD};
 /// use coeus_tensor::Tensor;
 ///
-/// let p: Var<f32> = Var::new(Tensor::from_slice(vec![1], &[1.0f32]), true);
-/// let opt = SGD::new(vec![coeus_autograd::Parameter::new(p, "weight")], 1e-3f32, 0.0f32);
+/// let p: Var<f32> = Var::new(
+///     Tensor::from_slice(vec![1], &[1.0f32]).expect("construct tensor"),
+///     true,
+/// ).expect("construct variable");
+/// let opt = SGD::new(vec![coeus_autograd::Parameter::new(p, "weight")], 1e-3f32, 0.0f32)
+///     .expect("construct SGD optimizer");
 /// let mut scheduler = LrScheduler::new(opt, StepDecay { step_size: 2, gamma: 0.5 }, 1e-3);
 ///
 /// assert!((scheduler.current_lr() - 1e-3).abs() < 1e-7); // step 0
-/// scheduler.step();
+/// scheduler.step().expect("run scheduler step");
 /// assert!((scheduler.current_lr() - 1e-3).abs() < 1e-7); // step 1
-/// scheduler.step();
+/// scheduler.step().expect("run scheduler step");
 /// assert!((scheduler.current_lr() - 5e-4).abs() < 1e-7); // step 2: gamma^1
 /// ```
 pub struct LrScheduler<T, B, O, S>
@@ -209,17 +213,18 @@ where
     /// 3. Call `optimizer.step()`.
     /// 4. Increment `self.step`.
     #[inline]
-    pub fn step(&mut self) {
+    pub fn step(&mut self) -> Result<(), B::Error> {
         let new_lr = self.strategy.lr(self.base_lr, self.step);
         self.optimizer.set_lr(T::from_f64(new_lr));
-        self.optimizer.step();
+        self.optimizer.step()?;
         self.step += 1;
+        Ok(())
     }
 
     /// Zero gradients on the underlying optimizer.
     #[inline]
-    pub fn zero_grad(&mut self) {
-        self.optimizer.zero_grad();
+    pub fn zero_grad(&mut self) -> Result<(), B::Error> {
+        self.optimizer.zero_grad()
     }
 
     /// Current learning rate as `f64` (before any optimizer step).

@@ -39,7 +39,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Hub
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
             let mut host_grad = [T::zero()];
@@ -47,10 +51,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Hub
             let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
                 grad_out
             } else {
-                temp_grad = grad_out.to_contiguous_on(&backend);
+                temp_grad = grad_out.to_contiguous_on(&backend)?;
                 &temp_grad
             };
-            backend.copy_to_host(grad_cont.storage(), &mut host_grad);
+            backend.copy_to_host(grad_cont.storage(), &mut host_grad)?;
             let g_out = host_grad[0];
             let n_t = T::from_f64(self.n as f64);
             let scale = g_out / n_t;
@@ -81,10 +85,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Hub
                 };
                 d_pred[i] = gradient * scale;
             }
-            let grad_tensor = Tensor::from_slice_on([self.n], &d_pred, &backend);
+            let grad_tensor = Tensor::from_slice_on([self.n], &d_pred, &backend)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -104,7 +110,7 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     delta: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let n = pred.tensor.shape()[0];
 
@@ -112,14 +118,14 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let p_raw = if pred.tensor.is_contiguous() && pred.tensor.layout().offset() == 0 {
         &pred.tensor
     } else {
-        p_cont = pred.tensor.to_contiguous_on(&backend);
+        p_cont = pred.tensor.to_contiguous_on(&backend)?;
         &p_cont
     };
     let t_cont;
     let t_raw = if target.tensor.is_contiguous() && target.tensor.layout().offset() == 0 {
         &target.tensor
     } else {
-        t_cont = target.tensor.to_contiguous_on(&backend);
+        t_cont = target.tensor.to_contiguous_on(&backend)?;
         &t_cont
     };
 
@@ -127,14 +133,14 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         std::borrow::Cow::Borrowed(&s[..n])
     } else {
         let mut v = vec![T::zero(); n];
-        backend.copy_to_host(p_raw.storage(), &mut v);
+        backend.copy_to_host(p_raw.storage(), &mut v)?;
         std::borrow::Cow::Owned(v)
     };
     let t_host: std::borrow::Cow<[T]> = if let Some(s) = t_raw.storage().try_as_slice() {
         std::borrow::Cow::Borrowed(&s[..n])
     } else {
         let mut v = vec![T::zero(); n];
-        backend.copy_to_host(t_raw.storage(), &mut v);
+        backend.copy_to_host(t_raw.storage(), &mut v)?;
         std::borrow::Cow::Owned(v)
     };
 
@@ -164,17 +170,16 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     }
     loss_val = loss_val / T::from_f64(n as f64);
 
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
+    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend)?;
     let requires_grad = crate::grad_mode::should_track_var(pred);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let node = HuberLossNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs: vec![pred.clone()],
             diffs,
             delta,
@@ -184,9 +189,9 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

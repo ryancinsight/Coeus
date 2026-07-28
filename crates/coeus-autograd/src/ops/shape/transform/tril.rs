@@ -36,15 +36,21 @@ where
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // Gradient of tril(x, k) is tril(grad_out, k): zeroed positions
             // have zero gradient since they contributed nothing to the output.
-            let masked = coeus_ops::tril(grad_out, self.k, &backend);
+            let masked = coeus_ops::tril(grad_out, self.k, &backend)?;
             let lock = g.write();
-            coeus_ops::add_assign(lock, &masked, &backend);
+            coeus_ops::add_assign(lock, &masked, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -60,26 +66,26 @@ where
 pub fn tril<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     k: isize,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::tril(&input.tensor, k, &backend);
+    let out_tensor = coeus_ops::tril(&input.tensor, k, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = TrilNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: vec![input.clone()],
             k,
         };
@@ -87,11 +93,11 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 // ── triu ────────────────────────────────────────────────────────────────────
@@ -120,13 +126,19 @@ where
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let masked = coeus_ops::triu(grad_out, self.k, &backend);
+            let masked = coeus_ops::triu(grad_out, self.k, &backend)?;
             let lock = g.write();
-            coeus_ops::add_assign(lock, &masked, &backend);
+            coeus_ops::add_assign(lock, &masked, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -139,26 +151,26 @@ where
 pub fn triu<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     k: isize,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::triu(&input.tensor, k, &backend);
+    let out_tensor = coeus_ops::triu(&input.tensor, k, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = TriuNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: vec![input.clone()],
             k,
         };
@@ -166,9 +178,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

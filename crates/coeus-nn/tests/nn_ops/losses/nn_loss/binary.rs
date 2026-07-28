@@ -15,15 +15,15 @@ fn test_binary_cross_entropy() {
     let target_data = vec![0.0f64, 1.0, 1.0, 0.0];
 
     let pred = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([4], &pred_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &pred_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([4], &target_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &target_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
-    let loss = binary_cross_entropy(&pred, &target, 1e-7);
+    let loss = binary_cross_entropy(&pred, &target, 1e-7).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
 
     let loss_val = loss.tensor.as_slice()[0];
@@ -38,7 +38,7 @@ fn test_binary_cross_entropy() {
     assert!((loss_val - expected_loss).abs() < 1e-7);
 
     // Backward
-    loss.backward();
+    loss.backward().expect("run backward");
     assert!(pred.grad().is_some());
 }
 
@@ -49,21 +49,21 @@ fn test_binary_cross_entropy_clamping() {
     let target_data = vec![0.0f64, 1.0];
 
     let pred = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &pred_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &pred_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &target_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &target_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
-    let loss = binary_cross_entropy(&pred, &target, 1e-7);
+    let loss = binary_cross_entropy(&pred, &target, 1e-7).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
     let loss_val = loss.tensor.as_slice()[0];
     assert!(!loss_val.is_nan());
     assert!(!loss_val.is_infinite());
 
-    loss.backward();
+    loss.backward().expect("run backward");
     assert!(!pred.grad().unwrap().as_slice()[0].is_nan());
 }
 
@@ -73,16 +73,16 @@ fn test_huber_loss() {
     let target_data = vec![1.5f64, 2.0, -1.0];
 
     let pred = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([3], &pred_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &pred_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([3], &target_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &target_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
     let delta = 1.0;
-    let loss = huber_loss(&pred, &target, delta);
+    let loss = huber_loss(&pred, &target, delta).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
 
     let loss_val = loss.tensor.as_slice()[0];
@@ -95,7 +95,7 @@ fn test_huber_loss() {
     let expected = (0.125 + 1.5 + 0.5) / 3.0;
     assert!((loss_val - expected).abs() < 1e-7);
 
-    loss.backward();
+    loss.backward().expect("run backward");
     assert!(pred.grad().is_some());
 }
 
@@ -105,15 +105,15 @@ fn test_l1_loss() {
     // forward: mean(|diff|) = (3 + 1 + 0.5 + 0) / 4 = 1.125 exactly.
     // backward: d/d_pred = sign(diff)/n = [1/4, -1/4, 1/4, 0].
     let pred = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[3.0, -1.0, 0.5, 4.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[3.0, -1.0, 0.5, 4.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[0.0, 0.0, 0.0, 4.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[0.0, 0.0, 0.0, 4.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let loss = l1_loss(&pred, &target);
+    let loss = l1_loss(&pred, &target).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
     let loss_val = loss.tensor.as_slice()[0];
     let expected = (3.0 + 1.0 + 0.5) / 4.0;
@@ -122,7 +122,7 @@ fn test_l1_loss() {
         "l1_loss forward: got {loss_val:.17}, expected {expected:.17}"
     );
 
-    loss.backward();
+    loss.backward().expect("run backward");
     let grad = pred.grad().expect("pred must receive a gradient");
     assert_eq!(grad.shape(), &[2, 2], "pred grad preserves input shape");
     let quarter = 1.0 / 4.0;
@@ -162,10 +162,10 @@ fn test_bce_with_logits() {
     let ys = [1.0_f64, 0.0, 1.0];
     let n = zs.len() as f64;
 
-    let logits = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &zs), true);
-    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &ys), true);
+    let logits = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &zs).expect("construct tensor"), true).expect("construct variable");
+    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &ys).expect("construct tensor"), true).expect("construct variable");
 
-    let loss = bce_with_logits(&logits, &target);
+    let loss = bce_with_logits(&logits, &target).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
 
     // Reference forward via sigmoid + BCE.
@@ -182,7 +182,7 @@ fn test_bce_with_logits() {
         "bce_with_logits forward: got {loss_val:.17}, expected {expected:.17}"
     );
 
-    loss.backward();
+    loss.backward().expect("run backward");
     // d/d_logit = (sigmoid(z) - y) / n; d/d_target = -z / n.
     let logit_grad = logits.grad().expect("logits must receive a gradient");
     let target_grad = target.grad().expect("target must receive a gradient");
@@ -216,13 +216,13 @@ fn test_bce_with_logits_matches_bce_of_sigmoid() {
     // well inside (0,1) so clamping is inert).
     let zs = [0.5_f64, -0.7, 1.3, -2.0];
     let ys = [1.0_f64, 0.0, 1.0, 0.0];
-    let logits = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([4], &zs), false);
-    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([4], &ys), false);
-    let stable = bce_with_logits(&logits, &target).tensor.as_slice()[0];
+    let logits = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([4], &zs).expect("construct tensor"), false).expect("construct variable");
+    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([4], &ys).expect("construct tensor"), false).expect("construct variable");
+    let stable = bce_with_logits(&logits, &target).expect("run operation").tensor.as_slice()[0];
 
     let probs: Vec<f64> = zs.iter().map(|z| 1.0 / (1.0 + (-z).exp())).collect();
-    let pv = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([4], &probs), false);
-    let composed = binary_cross_entropy(&pv, &target, 1e-12).tensor.as_slice()[0];
+    let pv = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([4], &probs).expect("construct tensor"), false).expect("construct variable");
+    let composed = binary_cross_entropy(&pv, &target, 1e-12).expect("run operation").tensor.as_slice()[0];
     assert!(
         (stable - composed).abs() <= 1e-12,
         "bce_with_logits {stable:.17} != bce(sigmoid) {composed:.17}"
@@ -233,14 +233,14 @@ fn test_bce_with_logits_matches_bce_of_sigmoid() {
 fn test_l1_loss_zero_when_equal() {
     // l1_loss(x, x) = 0 exactly (all diffs zero).
     let pred = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]).expect("construct tensor"),
         false,
-    );
-    let loss = l1_loss(&pred, &target);
+    ).expect("construct variable");
+    let loss = l1_loss(&pred, &target).expect("run operation");
     assert_eq!(loss.tensor.as_slice(), &[0.0_f64], "l1_loss(x, x) = 0");
 }
 
@@ -253,15 +253,15 @@ fn test_smooth_l1_loss() {
     let pred_data = vec![0.5_f64, 2.0, -3.0];
     let target_data = vec![0.0_f64, 0.0, 0.0];
     let pred = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([3], &pred_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &pred_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([3], &target_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &target_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
-    let loss = smooth_l1_loss(&pred, &target, 1.0);
+    let loss = smooth_l1_loss(&pred, &target, 1.0).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
     let expected = (0.125 + 1.5 + 2.5) / 3.0;
     assert!(
@@ -272,7 +272,7 @@ fn test_smooth_l1_loss() {
 
     // d loss / d pred_i = (1/N)·(z/β if |z|<β else sign(z)):
     //   z=0.5 -> 0.5/1 / 3;  z=2 -> +1 / 3;  z=-3 -> -1 / 3.
-    loss.backward();
+    loss.backward().expect("run backward");
     let grad = pred.grad().expect("smooth_l1 pred grad");
     let expected_grad = [0.5 / 3.0, 1.0 / 3.0, -1.0 / 3.0];
     for (g, e) in grad.as_slice().iter().zip(expected_grad.iter()) {

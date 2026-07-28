@@ -1,7 +1,7 @@
 // ── Coeus Ops — free function for scaled dot-product attention ──
 
 use crate::BackendOps;
-use coeus_core::Float;
+use coeus_core::{BackendError, Float};
 use coeus_tensor::Tensor;
 
 /// Compute scaled dot-product attention.
@@ -33,7 +33,13 @@ pub fn scaled_dot_product_attention<T: Float, B: BackendOps<T> + Default>(
     is_causal: bool,
     scale: T,
     backend: &B,
-) -> (Tensor<T, B>, Tensor<T, B>) {
+) -> Result<(Tensor<T, B>, Tensor<T, B>), B::Error> {
+    if query.ndim() != 3 || key.ndim() != 3 || value.ndim() != 3 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "scaled_dot_product_attention",
+            reason: "query, key, and value must be rank-3 tensors".to_owned(),
+        }));
+    }
     let q_shape = query.shape();
     let batch = q_shape[0];
     let seq_q = q_shape[1];
@@ -43,13 +49,20 @@ pub fn scaled_dot_product_attention<T: Float, B: BackendOps<T> + Default>(
 
     let v_shape = value.shape();
     let d_v = v_shape[2];
+    if k_shape[0] != batch || v_shape[0] != batch || k_shape[2] != q_shape[2] || v_shape[1] != seq_k
+    {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "scaled_dot_product_attention",
+            reason: "query, key, and value dimensions are incompatible".to_owned(),
+        }));
+    }
 
     // alloc_on: sdp_attention writes every output/attn_weights position — no zero-init needed.
-    let mut output = Tensor::alloc_on([batch, seq_q, d_v], backend);
-    let mut attn_weights = Tensor::alloc_on([batch, seq_q, seq_k], backend);
+    let mut output = Tensor::alloc_on([batch, seq_q, d_v], backend)?;
+    let mut attn_weights = Tensor::alloc_on([batch, seq_q, seq_k], backend)?;
 
-    let (out_storage, out_layout) = output.storage_mut_and_layout();
-    let (aw_storage, aw_layout) = attn_weights.storage_mut_and_layout();
+    let (out_storage, out_layout) = output.storage_mut_and_layout()?;
+    let (aw_storage, aw_layout) = attn_weights.storage_mut_and_layout()?;
 
     let (mask_storage, mask_layout) = match key_padding_mask {
         Some(m) => (Some(m.storage()), Some(m.layout())),
@@ -71,9 +84,9 @@ pub fn scaled_dot_product_attention<T: Float, B: BackendOps<T> + Default>(
         out_layout,
         aw_storage,
         aw_layout,
-    );
+    )?;
 
-    (output, attn_weights)
+    Ok((output, attn_weights))
 }
 
 /// Compute the backward pass of scaled dot-product attention.
@@ -101,7 +114,7 @@ pub fn scaled_dot_product_attention_backward<T: Float, B: BackendOps<T> + Defaul
     grad_k: Option<&mut Tensor<T, B>>,
     grad_v: Option<&mut Tensor<T, B>>,
     backend: &B,
-) {
+) -> Result<(), B::Error> {
     // We need to pass mutable references into BackendOps, but only for the storage of
     // each gradient tensor. Extract them separately to avoid borrow conflicts.
     let go_storage = grad_out.storage();
@@ -117,9 +130,9 @@ pub fn scaled_dot_product_attention_backward<T: Float, B: BackendOps<T> + Defaul
 
     match (grad_q, grad_k, grad_v) {
         (Some(gq), Some(gk), Some(gv)) => {
-            let (gq_s, _gq_l) = gq.storage_mut_and_layout();
-            let (gk_s, _gk_l) = gk.storage_mut_and_layout();
-            let (gv_s, _gv_l) = gv.storage_mut_and_layout();
+            let (gq_s, _gq_l) = gq.storage_mut_and_layout()?;
+            let (gk_s, _gk_l) = gk.storage_mut_and_layout()?;
+            let (gv_s, _gv_l) = gv.storage_mut_and_layout()?;
             backend.sdp_attention_backward(
                 go_storage,
                 go_layout,
@@ -135,11 +148,11 @@ pub fn scaled_dot_product_attention_backward<T: Float, B: BackendOps<T> + Defaul
                 Some(gq_s),
                 Some(gk_s),
                 Some(gv_s),
-            );
+            )?;
         }
         (Some(gq), Some(gk), None) => {
-            let (gq_s, _) = gq.storage_mut_and_layout();
-            let (gk_s, _) = gk.storage_mut_and_layout();
+            let (gq_s, _) = gq.storage_mut_and_layout()?;
+            let (gk_s, _) = gk.storage_mut_and_layout()?;
             backend.sdp_attention_backward(
                 go_storage,
                 go_layout,
@@ -155,11 +168,11 @@ pub fn scaled_dot_product_attention_backward<T: Float, B: BackendOps<T> + Defaul
                 Some(gq_s),
                 Some(gk_s),
                 None,
-            );
+            )?;
         }
         (Some(gq), None, Some(gv)) => {
-            let (gq_s, _) = gq.storage_mut_and_layout();
-            let (gv_s, _) = gv.storage_mut_and_layout();
+            let (gq_s, _) = gq.storage_mut_and_layout()?;
+            let (gv_s, _) = gv.storage_mut_and_layout()?;
             backend.sdp_attention_backward(
                 go_storage,
                 go_layout,
@@ -175,11 +188,11 @@ pub fn scaled_dot_product_attention_backward<T: Float, B: BackendOps<T> + Defaul
                 Some(gq_s),
                 None,
                 Some(gv_s),
-            );
+            )?;
         }
         (None, Some(gk), Some(gv)) => {
-            let (gk_s, _) = gk.storage_mut_and_layout();
-            let (gv_s, _) = gv.storage_mut_and_layout();
+            let (gk_s, _) = gk.storage_mut_and_layout()?;
+            let (gv_s, _) = gv.storage_mut_and_layout()?;
             backend.sdp_attention_backward(
                 go_storage,
                 go_layout,
@@ -195,10 +208,10 @@ pub fn scaled_dot_product_attention_backward<T: Float, B: BackendOps<T> + Defaul
                 None,
                 Some(gk_s),
                 Some(gv_s),
-            );
+            )?;
         }
         (Some(gq), None, None) => {
-            let (gq_s, _) = gq.storage_mut_and_layout();
+            let (gq_s, _) = gq.storage_mut_and_layout()?;
             backend.sdp_attention_backward(
                 go_storage,
                 go_layout,
@@ -214,10 +227,10 @@ pub fn scaled_dot_product_attention_backward<T: Float, B: BackendOps<T> + Defaul
                 Some(gq_s),
                 None,
                 None,
-            );
+            )?;
         }
         (None, Some(gk), None) => {
-            let (gk_s, _) = gk.storage_mut_and_layout();
+            let (gk_s, _) = gk.storage_mut_and_layout()?;
             backend.sdp_attention_backward(
                 go_storage,
                 go_layout,
@@ -233,10 +246,10 @@ pub fn scaled_dot_product_attention_backward<T: Float, B: BackendOps<T> + Defaul
                 None,
                 Some(gk_s),
                 None,
-            );
+            )?;
         }
         (None, None, Some(gv)) => {
-            let (gv_s, _) = gv.storage_mut_and_layout();
+            let (gv_s, _) = gv.storage_mut_and_layout()?;
             backend.sdp_attention_backward(
                 go_storage,
                 go_layout,
@@ -252,8 +265,9 @@ pub fn scaled_dot_product_attention_backward<T: Float, B: BackendOps<T> + Defaul
                 None,
                 None,
                 Some(gv_s),
-            );
+            )?;
         }
         (None, None, None) => {}
     }
+    Ok(())
 }

@@ -45,12 +45,12 @@ use std::sync::Arc;
 ///         &self,
 ///         grad_out: &Tensor<T, B>,
 ///         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
-///     ) {
+///     ) -> Result<(), B::Error> {
 ///         // d/dx (c * x) = c, so grad_x += c * grad_out
 ///         if let Some(Some(ref g)) = input_grads.get(0) {
 ///             let go = grad_out.as_slice();
 ///             let gx = g.write();
-///             let gx_s = gx.as_mut_slice();
+///             let gx_s = gx.as_mut_slice()?;
 ///             for i in 0..gx_s.len() {
 ///                 // Real accumulation: grad_x[i] += c * grad_out[i]
 ///                 let c_val = T::from_f64(<T as Scalar>::to_f64(self.c));
@@ -59,6 +59,7 @@ use std::sync::Arc;
 ///                 gx_s[i] = acc;
 ///             }
 ///         }
+///         Ok(())
 ///     }
 /// }
 /// ```
@@ -75,5 +76,9 @@ pub trait BackwardNode<T: Scalar, B: ComputeBackend + Default = MoiraiBackend>:
     fn inputs(&self) -> &[Var<T, B>];
 
     /// Backward function: given the output gradient, push gradients to inputs.
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]);
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error>;
 }

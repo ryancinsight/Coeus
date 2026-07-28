@@ -35,7 +35,7 @@ where
     B: coeus_core::ComputeBackend,
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Tensor::from_slice_on(shape.to_vec(), vals, backend)
+    Tensor::from_slice_on(shape.to_vec(), vals, backend).expect("construct tensor")
 }
 
 // assertion helper
@@ -281,7 +281,7 @@ where
     // L1: [3,-4,12] -> |3|+|-4|+|12| = 19.0
     let v1 = t(&[3], &[3.0, -4.0, 12.0], backend);
     assert_eq!(
-        coeus_ops::norm_p(&v1, 1.0_f64, backend),
+        coeus_ops::norm_p(&v1, 1.0_f64, backend).expect("run operation"),
         19.0_f64,
         "norm_p L1"
     );
@@ -289,7 +289,7 @@ where
     // L2: [3,4] -> sqrt(9+16) = 5.0  (3-4-5 Pythagorean triple)
     let v2 = t(&[2], &[3.0, 4.0], backend);
     assert_eq!(
-        coeus_ops::norm_p(&v2, 2.0_f64, backend),
+        coeus_ops::norm_p(&v2, 2.0_f64, backend).expect("run operation"),
         5.0_f64,
         "norm_p L2"
     );
@@ -297,14 +297,14 @@ where
     // L3: [1,1,1,1,1,1,1,1] (8 ones) -> 8^(1/3) ~= 2.0
     let v3 = t(&[8], &[1.0; 8], backend);
     assert!(
-        (coeus_ops::norm_p(&v3, 3.0_f64, backend) - 2.0).abs() <= NORM_EPS,
+        (coeus_ops::norm_p(&v3, 3.0_f64, backend).expect("run operation") - 2.0).abs() <= NORM_EPS,
         "norm_p L3 ones"
     );
 
     // L1 of 2-D matrix (flattened): [[1,2],[3,4]] -> 1+2+3+4=10.0
     let m = t(&[2, 2], &[1.0, 2.0, 3.0, 4.0], backend);
     assert_eq!(
-        coeus_ops::norm_p(&m, 1.0_f64, backend),
+        coeus_ops::norm_p(&m, 1.0_f64, backend).expect("run operation"),
         10.0_f64,
         "norm_p L1 matrix"
     );
@@ -330,7 +330,7 @@ where
     //   output shape [1,2]: [3.0, 9.0]
     let m = t(&[2, 2], &[3.0, 4.0, 0.0, 5.0], backend);
 
-    let r2_1 = coeus_ops::norm_p_axis(&m, 2.0_f64, 1, backend);
+    let r2_1 = coeus_ops::norm_p_axis(&m, 2.0_f64, 1, backend).expect("run operation");
     assert_eq!(r2_1.shape(), &[2, 1], "norm_p_axis p=2 axis=1 shape");
     assert_close(
         r2_1.as_slice(),
@@ -339,7 +339,7 @@ where
         "norm_p_axis p=2 axis=1",
     );
 
-    let r1_0 = coeus_ops::norm_p_axis(&m, 1.0_f64, 0, backend);
+    let r1_0 = coeus_ops::norm_p_axis(&m, 1.0_f64, 0, backend).expect("run operation");
     assert_eq!(r1_0.shape(), &[1, 2], "norm_p_axis p=1 axis=0 shape");
     assert_close(
         r1_0.as_slice(),
@@ -360,7 +360,7 @@ where
         &[1.0, 2.0, 2.0, 0.0, 0.0, 1.0, 3.0, 4.0, 0.0, 0.0, 0.0, 5.0],
         backend,
     );
-    let rr = coeus_ops::norm_p_axis(&r3, 2.0_f64, 2, backend);
+    let rr = coeus_ops::norm_p_axis(&r3, 2.0_f64, 2, backend).expect("run operation");
     assert_eq!(rr.shape(), &[2, 2, 1], "norm_p_axis rank-3 shape");
     assert_close(
         rr.as_slice(),

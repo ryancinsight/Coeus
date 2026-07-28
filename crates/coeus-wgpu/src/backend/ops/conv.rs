@@ -200,7 +200,7 @@ pub(super) fn dispatch_conv_transpose1d<T: WgpuScalar + coeus_core::Float>(
     dilation: usize,
     output: &mut crate::backend::WgpuStorage<T>,
     output_layout: &Layout,
-) {
+) -> Result<(), WgpuBackendError> {
     let _ = output_padding; // encoded in output_layout shape, not the kernel loop
                             // input [n, c_in, l] / weight [c_in, c_out, k] / output [n, c_out, l_out]
     kernels::dispatch_conv_transpose1d(kernels::ConvTranspose1dDispatch {
@@ -218,6 +218,7 @@ pub(super) fn dispatch_conv_transpose1d<T: WgpuScalar + coeus_core::Float>(
         padding,
         dilation,
     });
+    Ok(())
 }
 
 pub(super) fn dispatch_conv_transpose2d<T: WgpuScalar + coeus_core::Float>(
@@ -232,7 +233,7 @@ pub(super) fn dispatch_conv_transpose2d<T: WgpuScalar + coeus_core::Float>(
     dilation: usize,
     output: &mut crate::backend::WgpuStorage<T>,
     output_layout: &Layout,
-) {
+) -> Result<(), WgpuBackendError> {
     let _ = output_padding; // encoded in output_layout shape, not the kernel loop
                             // input [n, c_in, h, w] / weight [c_in, c_out, kh, kw] / output [n, c_out, h_out, w_out]
     kernels::dispatch_conv_transpose2d(kernels::ConvTranspose2dDispatch {
@@ -253,4 +254,5 @@ pub(super) fn dispatch_conv_transpose2d<T: WgpuScalar + coeus_core::Float>(
         padding,
         dilation,
     });
+    Ok(())
 }

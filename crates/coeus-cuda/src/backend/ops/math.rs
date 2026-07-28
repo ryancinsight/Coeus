@@ -19,7 +19,7 @@ where
     if Arc::ptr_eq(&a.buffer, &c.buffer) || Arc::ptr_eq(&b.buffer, &c.buffer) {
         return Ok(false);
     }
-    let device = crate::backend::get_cuda_device();
+    let device = crate::backend::get_cuda_device()?;
     let run = |result: hephaestus_cuda::Result<hephaestus_cuda::CudaBuffer<T>>,
                c: &mut CudaStorage<T>| {
         let buffer =
@@ -75,7 +75,7 @@ where
     if Arc::ptr_eq(&a.buffer, &c.buffer) {
         return Ok(false);
     }
-    let device = crate::backend::get_cuda_device();
+    let device = crate::backend::get_cuda_device()?;
     let run = |result: hephaestus_cuda::Result<hephaestus_cuda::CudaBuffer<T>>,
                c: &mut CudaStorage<T>| {
         let buffer =
@@ -188,7 +188,7 @@ where
     if !can_route_dynamic_strided(&[a_layout, b_layout], c_layout) {
         return Ok(false);
     }
-    let device = crate::backend::get_cuda_device();
+    let device = crate::backend::get_cuda_device()?;
     let run = |result: hephaestus_cuda::Result<()>| {
         result
             .map(|_| true)
@@ -252,7 +252,7 @@ where
     if !can_route_dynamic_strided(&[a_layout], c_layout) {
         return Ok(false);
     }
-    let device = crate::backend::get_cuda_device();
+    let device = crate::backend::get_cuda_device()?;
     let run = |result: hephaestus_cuda::Result<()>| {
         result
             .map(|_| true)
@@ -352,8 +352,10 @@ impl CudaBackend {
     {
         if get_cuda_context().is_some() {
             let Some(n) = kernels::checked_numel(c_layout) else {
-                self.fallback_binary(op, a, a_layout, b, b_layout, c, c_layout)?;
-                return Ok(());
+                return Err(CudaBackendError::dispatch_unavailable(
+                    "elementwise_binary",
+                    "output element-count arithmetic overflowed",
+                ));
             };
             // The contiguous kernel computes `c[i] = a[i] op b[i]` with no
             // broadcasting, so it is only valid when both operands already share
@@ -379,8 +381,10 @@ impl CudaBackend {
                 return Ok(());
             }
         }
-        self.fallback_binary(op, a, a_layout, b, b_layout, c, c_layout)?;
-        Ok(())
+        Err(CudaBackendError::dispatch_unavailable(
+            "elementwise_binary",
+            "no native CUDA or Hephaestus dispatch accepted the requested layouts",
+        ))
     }
 
     pub(crate) fn cuda_elementwise_unary<T>(
@@ -396,8 +400,10 @@ impl CudaBackend {
     {
         if get_cuda_context().is_some() {
             let Some(n) = kernels::checked_numel(c_layout) else {
-                self.fallback_unary(op, a, a_layout, c, c_layout)?;
-                return Ok(());
+                return Err(CudaBackendError::dispatch_unavailable(
+                    "elementwise_unary",
+                    "output element-count arithmetic overflowed",
+                ));
             };
             if a_layout.is_contiguous() && c_layout.is_contiguous() {
                 if try_hephaestus_contiguous_unary(op, a, c)? {
@@ -414,8 +420,10 @@ impl CudaBackend {
                 }
             }
         }
-        self.fallback_unary(op, a, a_layout, c, c_layout)?;
-        Ok(())
+        Err(CudaBackendError::dispatch_unavailable(
+            "elementwise_unary",
+            "no native CUDA or Hephaestus dispatch accepted the requested layouts",
+        ))
     }
 
     pub(crate) fn cuda_matmul<T: CudaScalar>(
@@ -439,7 +447,10 @@ impl CudaBackend {
                 return Ok(());
             }
         }
-        self.fallback_matmul(a, a_layout, b, b_layout, c, c_layout)
+        Err(CudaBackendError::dispatch_unavailable(
+            "matmul",
+            "native CUDA dispatch requires an initialized context and supported f32 layouts",
+        ))
     }
 
     pub(crate) fn cuda_reduce<T: CudaScalar>(
@@ -456,6 +467,9 @@ impl CudaBackend {
         {
             return Ok(());
         }
-        self.fallback_reduce(op, a, a_layout, axis, c, c_layout)
+        Err(CudaBackendError::dispatch_unavailable(
+            "reduce",
+            "native CUDA dispatch rejected the requested reduction layout or operation",
+        ))
     }
 }

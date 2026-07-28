@@ -8,16 +8,17 @@ fn test_wgpu_silu_parity() {
     let wgpu_b = WgpuBackend::new();
 
     let input_data = vec![-2.0f32, -1.0, 0.0, 1.0, 2.0];
-    let input_cpu = Tensor::<f32, SequentialBackend>::from_slice([5], &input_data);
-    let input_gpu = input_cpu.to_backend_on(&seq, &wgpu_b);
+    let input_cpu = Tensor::<f32, SequentialBackend>::from_slice([5], &input_data)
+        .expect("construct tensor");
+    let input_gpu = input_cpu.to_backend_on(&seq, &wgpu_b).expect("transfer tensor");
 
-    let var_cpu = coeus_autograd::Var::new(input_cpu, true);
-    let var_gpu = coeus_autograd::Var::new(input_gpu, true);
+    let var_cpu = coeus_autograd::Var::new(input_cpu, true).expect("construct variable");
+    let var_gpu = coeus_autograd::Var::new(input_gpu, true).expect("construct variable");
 
-    let out_cpu = coeus_nn::silu(&var_cpu);
-    let out_gpu = coeus_nn::silu(&var_gpu);
+    let out_cpu = coeus_nn::silu(&var_cpu).expect("evaluate activation");
+    let out_gpu = coeus_nn::silu(&var_gpu).expect("evaluate activation");
 
-    let out_gpu_cpu = out_gpu.tensor.to_backend_on(&wgpu_b, &seq);
+    let out_gpu_cpu = out_gpu.tensor.to_backend_on(&wgpu_b, &seq).expect("transfer tensor");
     let out_cpu_slice = out_cpu.tensor.as_slice();
     let out_gpu_slice = out_gpu_cpu.as_slice();
 
@@ -25,12 +26,12 @@ fn test_wgpu_silu_parity() {
         assert!((out_cpu_slice[i] - out_gpu_slice[i]).abs() < 1e-5);
     }
 
-    out_cpu.backward();
-    out_gpu.backward();
+    out_cpu.backward().expect("backward activation");
+    out_gpu.backward().expect("backward activation");
 
     let grad_cpu = var_cpu.grad().unwrap();
     let grad_gpu = var_gpu.grad().unwrap();
-    let grad_gpu_cpu = grad_gpu.to_backend_on(&wgpu_b, &seq);
+    let grad_gpu_cpu = grad_gpu.to_backend_on(&wgpu_b, &seq).expect("transfer tensor");
 
     let grad_cpu_slice = grad_cpu.as_slice();
     let grad_gpu_slice = grad_gpu_cpu.as_slice();
@@ -46,16 +47,17 @@ fn test_wgpu_mish_parity() {
     let wgpu_b = WgpuBackend::new();
 
     let input_data = vec![-2.0f32, -1.0, 0.0, 1.0, 2.0];
-    let input_cpu = Tensor::<f32, SequentialBackend>::from_slice([5], &input_data);
-    let input_gpu = input_cpu.to_backend_on(&seq, &wgpu_b);
+    let input_cpu = Tensor::<f32, SequentialBackend>::from_slice([5], &input_data)
+        .expect("construct tensor");
+    let input_gpu = input_cpu.to_backend_on(&seq, &wgpu_b).expect("transfer tensor");
 
-    let var_cpu = coeus_autograd::Var::new(input_cpu, true);
-    let var_gpu = coeus_autograd::Var::new(input_gpu, true);
+    let var_cpu = coeus_autograd::Var::new(input_cpu, true).expect("construct variable");
+    let var_gpu = coeus_autograd::Var::new(input_gpu, true).expect("construct variable");
 
-    let out_cpu = coeus_nn::mish(&var_cpu);
-    let out_gpu = coeus_nn::mish(&var_gpu);
+    let out_cpu = coeus_nn::mish(&var_cpu).expect("evaluate activation");
+    let out_gpu = coeus_nn::mish(&var_gpu).expect("evaluate activation");
 
-    let out_gpu_cpu = out_gpu.tensor.to_backend_on(&wgpu_b, &seq);
+    let out_gpu_cpu = out_gpu.tensor.to_backend_on(&wgpu_b, &seq).expect("transfer tensor");
     let out_cpu_slice = out_cpu.tensor.as_slice();
     let out_gpu_slice = out_gpu_cpu.as_slice();
 
@@ -63,12 +65,12 @@ fn test_wgpu_mish_parity() {
         assert!((out_cpu_slice[i] - out_gpu_slice[i]).abs() < 1e-5);
     }
 
-    out_cpu.backward();
-    out_gpu.backward();
+    out_cpu.backward().expect("backward activation");
+    out_gpu.backward().expect("backward activation");
 
     let grad_cpu = var_cpu.grad().unwrap();
     let grad_gpu = var_gpu.grad().unwrap();
-    let grad_gpu_cpu = grad_gpu.to_backend_on(&wgpu_b, &seq);
+    let grad_gpu_cpu = grad_gpu.to_backend_on(&wgpu_b, &seq).expect("transfer tensor");
 
     let grad_cpu_slice = grad_cpu.as_slice();
     let grad_gpu_slice = grad_gpu_cpu.as_slice();

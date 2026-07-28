@@ -45,12 +45,16 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let go = grad_out.to_contiguous();
+            let go = grad_out.to_contiguous()?;
             let seed = go.as_slice()[0];
-            let in_cont = self.input_saved.to_contiguous();
+            let in_cont = self.input_saved.to_contiguous()?;
             let xs = in_cont.as_slice();
             let n = xs.len();
 
@@ -68,10 +72,16 @@ where
                 acc *= xs[i];
             }
 
-            let gi_increment = Tensor::from_slice(self.input_saved.shape_cloned(), &gi);
+            let gi_increment = Tensor::from_slice_on(
+                self.input_saved.shape_cloned(),
+                &gi,
+                &backend,
+            )?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &gi_increment, &backend);
+            coeus_ops::add_assign(gl, &gi_increment, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -85,7 +95,9 @@ where
 /// Panics if `input` is empty.
 #[must_use]
 #[inline]
-pub fn prod<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B>
+pub fn prod<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -95,21 +107,21 @@ where
         "prod: empty tensors have no product"
     );
     let backend = B::default();
-    let value = coeus_ops::prod(&input.tensor, &backend);
-    let out_tensor = Tensor::from_slice_on(vec![1], &[value], &backend);
+    let value = coeus_ops::prod(&input.tensor, &backend)?;
+    let out_tensor = Tensor::from_slice_on(vec![1], &[value], &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = ProdNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: vec![input.clone()],
             input_saved: input.tensor.clone(),
         };
@@ -117,9 +129,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

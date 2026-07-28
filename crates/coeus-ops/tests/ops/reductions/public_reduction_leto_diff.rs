@@ -17,7 +17,7 @@ where
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    Tensor::from_slice_on(shape.to_vec(), data, backend)
+    Tensor::from_slice_on(shape.to_vec(), data, backend).expect("construct tensor")
 }
 
 fn assert_same_bits<T: Scalar, const N: usize>(got: &[T], expected: [T; N], context: &str) {
@@ -123,7 +123,7 @@ where
     B: BackendOps<f32> + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
-    let empty = Tensor::<f32, B>::zeros_on([0usize], backend);
+    let empty = Tensor::<f32, B>::zeros_on([0usize], backend).expect("construct tensor");
     let empty_product = coeus_ops::prod_axis(&empty, 0, backend).expect("empty product identity");
     assert_eq!(empty_product.shape(), &[1]);
     assert_eq!(empty_product.as_slice(), &[1.0]);

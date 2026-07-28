@@ -37,7 +37,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // col2im: fold the windowed gradient back onto the input positions.
@@ -49,9 +53,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
                 self.padding,
                 self.dilation,
                 &backend,
-            );
-            coeus_ops::add_assign(g.write(), &d_input, &backend);
+            )?;
+            coeus_ops::add_assign(g.write(), &d_input, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -66,7 +72,7 @@ pub fn unfold1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let out_tensor = coeus_ops::unfold1d(
         &input.tensor,
@@ -75,20 +81,20 @@ pub fn unfold1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
         padding,
         dilation,
         &backend,
-    );
+    )?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = Unfold1dNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: vec![input.clone()],
             output_size: input.tensor.shape()[2],
             kernel_size,
@@ -100,11 +106,11 @@ pub fn unfold1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 // ── unfold2d (im2col), backward = fold2d (col2im) ──
@@ -135,7 +141,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let d_input = coeus_ops::fold2d(
@@ -151,9 +161,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
                 self.dilation_h,
                 self.dilation_w,
                 &backend,
-            );
-            coeus_ops::add_assign(g.write(), &d_input, &backend);
+            )?;
+            coeus_ops::add_assign(g.write(), &d_input, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -172,7 +184,7 @@ pub fn unfold2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     padding_w: usize,
     dilation_h: usize,
     dilation_w: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let out_tensor = coeus_ops::unfold2d(
         &input.tensor,
@@ -185,14 +197,16 @@ pub fn unfold2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
         dilation_h,
         dilation_w,
         &backend,
-    );
+    )?;
     let requires_grad = crate::grad_mode::should_track_var(input);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
     let creator = grad.as_ref().map(|grad| {
         let shape = input.tensor.shape();
         Arc::new(Unfold2dNode {
@@ -210,11 +224,11 @@ pub fn unfold2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
             dilation_w,
         }) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 // ── fold1d (col2im), backward = unfold1d (im2col) ──
@@ -239,7 +253,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Fo
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // Adjoint of col2im is im2col over the output-shaped gradient.
@@ -250,9 +268,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Fo
                 self.padding,
                 self.dilation,
                 &backend,
-            );
-            coeus_ops::add_assign(g.write(), &d_input, &backend);
+            )?;
+            coeus_ops::add_assign(g.write(), &d_input, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -267,7 +287,7 @@ pub fn fold1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let out_tensor = coeus_ops::fold1d(
         &input.tensor,
@@ -277,14 +297,16 @@ pub fn fold1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
         padding,
         dilation,
         &backend,
-    );
+    )?;
     let requires_grad = crate::grad_mode::should_track_var(input);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
     let creator = grad.as_ref().map(|grad| {
         Arc::new(Fold1dNode {
             output_grad: grad.clone(),
@@ -295,11 +317,11 @@ pub fn fold1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
             dilation,
         }) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 // ── fold2d (col2im), backward = unfold2d (im2col) ──
@@ -328,7 +350,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Fo
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let d_input = coeus_ops::unfold2d(
@@ -342,9 +368,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Fo
                 self.dilation_h,
                 self.dilation_w,
                 &backend,
-            );
-            coeus_ops::add_assign(g.write(), &d_input, &backend);
+            )?;
+            coeus_ops::add_assign(g.write(), &d_input, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -365,7 +393,7 @@ pub fn fold2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     padding_w: usize,
     dilation_h: usize,
     dilation_w: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let out_tensor = coeus_ops::fold2d(
         &input.tensor,
@@ -380,14 +408,16 @@ pub fn fold2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
         dilation_h,
         dilation_w,
         &backend,
-    );
+    )?;
     let requires_grad = crate::grad_mode::should_track_var(input);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
     let creator = grad.as_ref().map(|grad| {
         Arc::new(Fold2dNode {
             output_grad: grad.clone(),
@@ -402,9 +432,9 @@ pub fn fold2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
             dilation_w,
         }) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

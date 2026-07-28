@@ -46,18 +46,18 @@ where
     let n = a.len();
     let layout = Layout::new(Shape::from(vec![n]));
 
-    let mut a_buf = ComputeBackend::allocate::<T>(backend, n);
-    let mut b_buf = ComputeBackend::allocate::<T>(backend, n);
-    let mut c_buf = ComputeBackend::allocate::<T>(backend, n);
-    backend.copy_to_device(a, &mut a_buf);
-    backend.copy_to_device(b, &mut b_buf);
+    let mut a_buf = ComputeBackend::allocate::<T>(backend, n).expect("backend fixture operation");
+    let mut b_buf = ComputeBackend::allocate::<T>(backend, n).expect("backend fixture operation");
+    let mut c_buf = ComputeBackend::allocate::<T>(backend, n).expect("backend fixture operation");
+    backend.copy_to_device(a, &mut a_buf).expect("backend fixture operation");
+    backend.copy_to_device(b, &mut b_buf).expect("backend fixture operation");
 
     backend
         .elementwise_binary(op, &a_buf, &layout, &b_buf, &layout, &mut c_buf, &layout)
         .expect("valid binary test layouts");
 
     let mut out = vec![T::zero(); n];
-    backend.copy_to_host(&c_buf, &mut out);
+    backend.copy_to_host(&c_buf, &mut out).expect("backend fixture operation");
     out
 }
 

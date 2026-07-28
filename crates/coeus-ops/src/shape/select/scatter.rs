@@ -16,48 +16,63 @@
 // then `dx = scatter_add(zeros_like(x), dim, idx, grad_out)`.
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_tensor::Tensor;
 
 /// Scatter-accumulate: `out = input` then `out[…, index[…,k,…], …] += src[…,k,…]`.
 ///
 /// Returns a new tensor (does not mutate `input`).
 ///
-/// # Panics
-/// - ndim mismatch between `input`, `index`, `src`.
-/// - `index` and `src` shapes must match.
-/// - `dim` out of range.
-/// - Any index value ≥ `input.shape()[dim]`.
+/// # Errors
+/// Returns a backend error when the shape, axis, or index contract is invalid,
+/// or when materialization fails.
 #[inline]
 pub fn scatter_add<T: Scalar, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     dim: usize,
     index: &Tensor<T, B>,
     src: &Tensor<T, B>,
-    _backend: &B,
-) -> Tensor<T, B>
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let ndim = input.ndim();
-    assert_eq!(ndim, index.ndim(), "scatter_add: input/index ndim mismatch");
-    assert_eq!(ndim, src.ndim(), "scatter_add: input/src ndim mismatch");
-    assert_eq!(
-        index.shape(),
-        src.shape(),
-        "scatter_add: index and src shapes must match"
-    );
-    assert!(
-        dim < ndim,
-        "scatter_add: dim {dim} out of range for {ndim}-D tensor"
-    );
+    if ndim != index.ndim() {
+        return Err(B::Error::from(BackendError::LayoutRankMismatch {
+            operation: "scatter_add",
+            lhs: ndim,
+            rhs: index.ndim(),
+        }));
+    }
+    if ndim != src.ndim() {
+        return Err(B::Error::from(BackendError::LayoutRankMismatch {
+            operation: "scatter_add",
+            lhs: ndim,
+            rhs: src.ndim(),
+        }));
+    }
+    if index.shape() != src.shape() {
+        return Err(B::Error::from(BackendError::ShapeMismatch {
+            operation: "scatter_add",
+            lhs: index.shape().to_vec(),
+            rhs: src.shape().to_vec(),
+        }));
+    }
+    if dim >= ndim {
+        return Err(B::Error::from(BackendError::AxisOutOfRange {
+            operation: "scatter_add",
+            axis: dim,
+            rank: ndim,
+        }));
+    }
 
     let out_shape = input.shape().to_vec();
     let idx_shape = index.shape().to_vec();
 
-    let in_cont = input.to_contiguous();
-    let idx_cont = index.to_contiguous();
-    let src_cont = src.to_contiguous();
+    let in_cont = input.to_contiguous()?;
+    let idx_cont = index.to_contiguous()?;
+    let src_cont = src.to_contiguous()?;
 
     let in_s = in_cont.as_slice();
     let idx_s = idx_cont.as_slice();
@@ -93,12 +108,23 @@ where
             rem %= idx_strides[d];
         }
 
-        let scatter_idx = <T as Scalar>::to_f64(idx_s[flat]) as usize;
-        assert!(
-            scatter_idx < out_shape[dim],
-            "scatter_add: index {scatter_idx} out of bounds for dim {dim} size {}",
-            out_shape[dim]
-        );
+        let raw_index = <T as Scalar>::to_f64(idx_s[flat]);
+        if !raw_index.is_finite() || raw_index < 0.0 || raw_index.fract() != 0.0 {
+            return Err(B::Error::from(BackendError::Storage {
+                operation: "scatter_add",
+                reason: format!("index {raw_index} is not a non-negative integer"),
+            }));
+        }
+        let scatter_idx = raw_index as usize;
+        if scatter_idx >= out_shape[dim] {
+            return Err(B::Error::from(BackendError::Storage {
+                operation: "scatter_add",
+                reason: format!(
+                    "index {scatter_idx} out of bounds for axis {dim} of size {}",
+                    out_shape[dim]
+                ),
+            }));
+        }
 
         // Compute the output flat offset.
         let mut out_flat = 0usize;
@@ -110,7 +136,7 @@ where
         out_data[out_flat] = out_data[out_flat].add(src_s[flat]);
     }
 
-    Tensor::from_slice(out_shape, &out_data)
+    Tensor::from_slice_on(out_shape, &out_data, backend)
 }
 
 #[cfg(test)]
@@ -122,10 +148,10 @@ mod tests {
     #[test]
     fn scatter_add_zero_src_returns_shared_storage() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0]);
-        let idx = Tensor::from_slice(vec![2], &[1.0f32, 3.0]);
-        let src = Tensor::from_slice(vec![2], &[0.0f32, 0.0]);
-        let out = scatter_add(&x, 0, &idx, &src, &b);
+        let x = Tensor::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0]).expect("construct tensor");
+        let idx = Tensor::from_slice(vec![2], &[1.0f32, 3.0]).expect("construct tensor");
+        let src = Tensor::from_slice(vec![2], &[0.0f32, 0.0]).expect("construct tensor");
+        let out = scatter_add(&x, 0, &idx, &src, &b).expect("run operation");
         assert_eq!(out.shape(), &[4]);
         assert_eq!(out.as_slice(), x.as_slice());
         assert_eq!(out.as_slice().as_ptr(), x.as_slice().as_ptr());

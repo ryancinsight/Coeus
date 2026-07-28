@@ -1,5 +1,5 @@
-use super::super::matmul;
 use super::super::CpuBackend;
+use super::super::matmul;
 use crate::backend_ops::traits::MatmulOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
 

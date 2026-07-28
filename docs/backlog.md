@@ -23,12 +23,18 @@
 - Decision: ADR-0028 selects typed `Result` propagation at the deepest common
   consumer boundary. The branch is the migration isolation layer; compatibility
   wrappers and CPU fallbacks are prohibited.
-- Status: specified; the source-graph prerequisite is implemented and verified;
-  fallible provider implementation remains active on
-  `codex/coeus-comparison-parity-comparisons`. Local Cargo compilation remains
-  valid from the standalone Git graph; builds rooted beneath the Atlas stack
-  overlay still require its generated patch set to exclude the current Coeus
-  worktree entries.
+- Status: implementation is active on
+  `codex/coeus-comparison-parity-comparisons`; the source-graph prerequisite,
+  fallible core/storage contracts, provider caches, and Coeus-owned caller
+  migrations are implemented. The generated Atlas overlay now includes the
+  active Coeus worktree and `cargo metadata --locked --no-deps` passes. Metal
+  nextest is green (3/3) and WGPU all-target compilation plus nextest (103/103)
+  pass. CUDA and ROCm checks remain blocked before Coeus compilation by the
+  peer-owned Hephaestus branch: missing
+  `prepare_map_reduction_with_layouts`, private `PreparedDot`/
+  `PreparedL2Norm` imports on CUDA, and device-reference type mismatches in the
+  CUDA/ROCm prepared reduction paths. The full provider matrix and commit gate
+  remain open until that branch is repaired.
 
 ## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback [arch]
 

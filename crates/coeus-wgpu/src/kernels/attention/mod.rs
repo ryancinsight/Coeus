@@ -1,5 +1,5 @@
 pub mod backward;
 pub mod forward;
 
-pub use backward::{dispatch_sdp_attention_backward, AttnBackwardDispatch};
-pub use forward::{dispatch_sdp_attention, AttnForwardDispatch};
+pub use backward::{AttnBackwardDispatch, dispatch_sdp_attention_backward};
+pub use forward::{AttnForwardDispatch, dispatch_sdp_attention};

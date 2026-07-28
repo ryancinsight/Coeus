@@ -27,7 +27,7 @@ pub fn bilinear<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x2: &Var<T, B>,
     weight: &Var<T, B>,
     bias: Option<&Var<T, B>>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -73,19 +73,19 @@ where
 
     let mut out_rows: Vec<Var<T, B>> = Vec::with_capacity(out_features);
     for k in 0..out_features {
-        let w_k_var = coeus_autograd::slice(weight, &[(k, k + 1), (0, in1), (0, in2)]);
-        let w_k = coeus_autograd::reshape(&w_k_var, vec![in1, in2]);
-        let x1w = coeus_autograd::matmul(x1, &w_k);
-        let prod = coeus_autograd::mul(&x1w, x2);
-        let row = coeus_autograd::sum_axis(&prod, 1);
+        let w_k_var = coeus_autograd::slice(weight, &[(k, k + 1), (0, in1), (0, in2)])?;
+        let w_k = coeus_autograd::reshape(&w_k_var, vec![in1, in2])?;
+        let x1w = coeus_autograd::matmul(x1, &w_k)?;
+        let prod = coeus_autograd::mul(&x1w, x2)?;
+        let row = coeus_autograd::sum_axis(&prod, 1)?;
         out_rows.push(row);
     }
     let refs: Vec<&Var<T, B>> = out_rows.iter().collect();
-    let out = coeus_autograd::cat(&refs, 1);
+    let out = coeus_autograd::cat(&refs, 1)?;
     if let Some(b) = bias {
         coeus_autograd::add(&out, b)
     } else {
-        out
+        Ok(out)
     }
 }
 
@@ -115,29 +115,37 @@ pub struct Bilinear<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBack
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Bilinear<T, B> {
     /// Create with Xavier-initialized weight and zero bias.
-    pub fn new(in1_features: usize, in2_features: usize, out_features: usize, bias: bool) -> Self
+    pub fn new(
+        in1_features: usize,
+        in2_features: usize,
+        out_features: usize,
+        bias: bool,
+    ) -> Result<Self, B::Error>
     where
         T: coeus_leto::RandomScalar,
     {
         let _backend = B::default();
         let fan_in = in1_features * in2_features;
         let mut w = Var::new(
-            Tensor::zeros_on([out_features, in1_features, in2_features], &_backend),
+            Tensor::zeros_on([out_features, in1_features, in2_features], &_backend)?,
             true,
-        );
-        crate::init::xavier_uniform(&mut w, fan_in, out_features);
+        )?;
+        crate::init::xavier_uniform(&mut w, fan_in, out_features)?;
         let b = if bias {
-            Some(Var::new(Tensor::zeros_on([out_features], &_backend), true))
+            Some(Var::new(
+                Tensor::zeros_on([out_features], &_backend)?,
+                true,
+            )?)
         } else {
             None
         };
-        Self {
+        Ok(Self {
             weight: w,
             bias: b,
             in1_features,
             in2_features,
             out_features,
-        }
+        })
     }
 
     /// Forward pass.
@@ -145,7 +153,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Bilinear<T, B> {
     /// Computed as: for each output feature k:
     ///   `out[n,k] = x1[n,:] @ W[k,:,:] @ x2[n,:].T`
     /// then optionally adds `b[k]`.
-    pub fn bilinear_forward(&self, x1: &Var<T, B>, x2: &Var<T, B>) -> Var<T, B>
+    pub fn bilinear_forward(
+        &self,
+        x1: &Var<T, B>,
+        x2: &Var<T, B>,
+    ) -> Result<Var<T, B>, B::Error>
     where
         B::DeviceBuffer<T>:
             coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -168,7 +180,7 @@ where
         p
     }
 
-    fn forward(&self, x1: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, x1: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         self.bilinear_forward(x1, x1)
     }
 }

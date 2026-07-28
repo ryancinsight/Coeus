@@ -16,13 +16,16 @@ use coeus_tensor::Tensor;
 /// use coeus_ops::relu;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[-1.0, 0.0, 1.0]);
-/// let b = relu(&a, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[-1.0, 0.0, 1.0]).expect("construct tensor");
+/// let b = relu(&a, &backend).expect("evaluate operation");
 /// assert_eq!(b.as_slice(), &[0.0, 0.0, 1.0]);
 /// ```
 #[inline]
-pub fn relu<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Relu).expect("relu")
+pub fn relu<T: Scalar, B: BackendOps<T>>(
+    input: &Tensor<T, B>,
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Relu)
 }
 /// Sigmoid: 1 / (1 + exp(-x)).
 ///
@@ -34,22 +37,28 @@ pub fn relu<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> T
 /// use coeus_ops::sigmoid;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[0.0, 1.0, -1.0]);
-/// let b = sigmoid(&a, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[0.0, 1.0, -1.0]).expect("construct tensor");
+/// let b = sigmoid(&a, &backend).expect("evaluate operation");
 /// let s = b.as_slice();
 /// assert!((s[0] - 0.5).abs() < 1e-5);
 /// assert!((s[1] - 0.73105858_f32).abs() < 1e-5);
 /// assert!((s[2] - 0.26894142_f32).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn sigmoid<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Sigmoid).expect("sigmoid")
+pub fn sigmoid<T: Float, B: BackendOps<T>>(
+    input: &Tensor<T, B>,
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Sigmoid)
 }
 
 /// Hyperbolic tangent.
 #[inline]
-pub fn tanh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Tanh).expect("tanh")
+pub fn tanh<T: Float, B: BackendOps<T>>(
+    input: &Tensor<T, B>,
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Tanh)
 }
 
 /// Exact GELU (Gaussian Error Linear Unit).
@@ -65,15 +74,18 @@ pub fn tanh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Te
 /// use coeus_ops::gelu;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[0.0, 1.0]);
-/// let b = gelu(&a, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[0.0, 1.0]).expect("construct tensor");
+/// let b = gelu(&a, &backend).expect("evaluate operation");
 /// let s = b.as_slice();
 /// assert!((s[0] - 0.0).abs() < 1e-5);
 /// assert!((s[1] - 0.8413447_f32).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn gelu<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Gelu).expect("gelu")
+pub fn gelu<T: Float, B: BackendOps<T>>(
+    input: &Tensor<T, B>,
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Gelu)
 }
 
 /// In-place Rectified Linear Unit: max(0, x).
@@ -122,15 +134,18 @@ pub fn gelu_assign<T: Float, B: BackendOps<T>>(
 /// use coeus_ops::silu;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[0.0, 1.0]);
-/// let b = silu(&a, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[0.0, 1.0]).expect("construct tensor");
+/// let b = silu(&a, &backend).expect("evaluate operation");
 /// let s = b.as_slice();
 /// assert!((s[0] - 0.0).abs() < 1e-5);
 /// assert!((s[1] - 0.73105858_f32).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn silu<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Silu).expect("silu")
+pub fn silu<T: Float, B: BackendOps<T>>(
+    input: &Tensor<T, B>,
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Silu)
 }
 
 /// In-place SiLU.
@@ -144,8 +159,11 @@ pub fn silu_assign<T: Float, B: BackendOps<T>>(
 
 /// Mish (Self-Regularized Non-Monotonic Activation Function): x * tanh(softplus(x)).
 #[inline]
-pub fn mish<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Mish).expect("mish")
+pub fn mish<T: Float, B: BackendOps<T>>(
+    input: &Tensor<T, B>,
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Mish)
 }
 
 /// In-place Mish.
@@ -159,8 +177,11 @@ pub fn mish_assign<T: Float, B: BackendOps<T>>(
 
 /// ELU (Exponential Linear Unit): x >= 0 ? x : exp(x) - 1.
 #[inline]
-pub fn elu<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Elu).expect("elu")
+pub fn elu<T: Float, B: BackendOps<T>>(
+    input: &Tensor<T, B>,
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Elu)
 }
 
 /// In-place ELU.
@@ -174,8 +195,11 @@ pub fn elu_assign<T: Float, B: BackendOps<T>>(
 
 /// Softplus: log(1 + exp(x)).
 #[inline]
-pub fn softplus<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Softplus).expect("softplus")
+pub fn softplus<T: Float, B: BackendOps<T>>(
+    input: &Tensor<T, B>,
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Softplus)
 }
 
 /// In-place Softplus.
@@ -189,8 +213,11 @@ pub fn softplus_assign<T: Float, B: BackendOps<T>>(
 
 /// GELU tanh approximation.
 #[inline]
-pub fn gelu_tanh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::GeluTanh).expect("gelu_tanh")
+pub fn gelu_tanh<T: Float, B: BackendOps<T>>(
+    input: &Tensor<T, B>,
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::GeluTanh)
 }
 
 /// In-place GELU tanh approximation.
@@ -208,13 +235,12 @@ pub fn leaky_relu<T: Float, B: BackendOps<T>>(
     input: &Tensor<T, B>,
     backend: &B,
     negative_slope: f64,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     elementwise_unary(
         input,
         backend,
         UnaryOp::LeakyRelu(f64::to_bits(negative_slope)),
     )
-    .expect("leaky_relu")
 }
 
 /// In-place LeakyReLU.
@@ -256,9 +282,9 @@ mod tests {
     fn masked_softmax_excludes_masked_lanes() {
         let backend = SequentialBackend::new();
         let input =
-            Tensor::<f64, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+            Tensor::<f64, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("construct tensor");
         let mask =
-            Tensor::<f64, SequentialBackend>::from_slice([2, 3], &[1.0, 0.0, 1.0, 0.0, 1.0, 1.0]);
+            Tensor::<f64, SequentialBackend>::from_slice([2, 3], &[1.0, 0.0, 1.0, 0.0, 1.0, 1.0]).expect("construct tensor");
         let out =
             masked_softmax(&input, &mask, 1, &backend).expect("valid masked softmax test input");
         let exp_1 = 1.0f64.exp();
@@ -280,8 +306,8 @@ mod tests {
     #[test]
     fn masked_softmax_all_masked_row_is_zero() {
         let backend = SequentialBackend::new();
-        let input = Tensor::<f64, SequentialBackend>::from_slice([1, 3], &[1.0, 2.0, 3.0]);
-        let mask = Tensor::<f64, SequentialBackend>::zeros([1, 3]);
+        let input = Tensor::<f64, SequentialBackend>::from_slice([1, 3], &[1.0, 2.0, 3.0]).expect("construct tensor");
+        let mask = Tensor::<f64, SequentialBackend>::zeros([1, 3]).expect("construct tensor");
         let out =
             masked_softmax(&input, &mask, 1, &backend).expect("valid masked softmax test input");
         assert_eq!(out.as_slice(), &[0.0, 0.0, 0.0]);
@@ -293,7 +319,7 @@ mod tests {
         let input = Tensor::<f64, SequentialBackend>::from_slice(
             [1, 3, 3],
             &[1.0, 9.0, 9.0, 1.0, 2.0, 9.0, 1.0, 2.0, 3.0],
-        );
+        ).expect("construct tensor");
         let out = causal_softmax(&input, 2, &backend).expect("valid causal softmax test input");
         let exp_1 = 1.0f64.exp();
         let exp_2 = 2.0f64.exp();
@@ -315,7 +341,7 @@ mod tests {
     #[test]
     fn glu_splits_axis_and_gates_first_half() {
         let backend = SequentialBackend::new();
-        let input = Tensor::<f64, SequentialBackend>::from_slice([2], &[2.0, 4.0]);
+        let input = Tensor::<f64, SequentialBackend>::from_slice([2], &[2.0, 4.0]).expect("construct tensor");
         let out = glu(&input, 0, &backend).expect("valid GLU test input");
         let expected = 2.0 / (1.0 + (-4.0f64).exp());
         assert_eq!(out.shape(), &[1]);

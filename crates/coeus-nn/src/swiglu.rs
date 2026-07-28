@@ -28,11 +28,11 @@ pub struct SwiGlu<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBacken
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> SwiGlu<T, B> {
     /// Create a SwiGLU unit projecting `d_input -> d_output`, with optional bias
     /// on both linear layers.
-    pub fn new(d_input: usize, d_output: usize, bias: bool) -> Self {
-        Self {
-            linear_inner: Linear::new(d_input, d_output, bias),
-            linear_outer: Linear::new(d_input, d_output, bias),
-        }
+    pub fn new(d_input: usize, d_output: usize, bias: bool) -> Result<Self, B::Error> {
+        Ok(Self {
+            linear_inner: Linear::<T, B>::new(d_input, d_output, bias)?,
+            linear_outer: Linear::<T, B>::new(d_input, d_output, bias)?,
+        })
     }
 }
 
@@ -49,9 +49,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for SwiGlu<T,
         parameters
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        let gated = silu(&self.linear_inner.forward(input));
-        let outer = self.linear_outer.forward(input);
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
+        let inner = self.linear_inner.forward(input)?;
+        let gated = silu(&inner)?;
+        let outer = self.linear_outer.forward(input)?;
         coeus_autograd::mul(&gated, &outer)
     }
 }

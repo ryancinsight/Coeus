@@ -1,7 +1,7 @@
 use super::cache::PIPELINE_CACHE;
 use super::layout::GpuLayoutInfo;
 use crate::backend::{
-    checked_numel, checked_workgroup_count, WgpuBackend, WgpuBackendError, WgpuScalar,
+    WgpuBackend, WgpuBackendError, WgpuScalar, checked_numel, checked_workgroup_count,
 };
 use crate::storage::WgpuStorage;
 use coeus_core::BackendError;

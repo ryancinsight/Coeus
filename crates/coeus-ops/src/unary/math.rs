@@ -9,21 +9,15 @@ use coeus_tensor::Tensor;
 ///
 /// Backward: `d/dx sin(x) = cos(x)`.
 #[inline]
-pub fn sin<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Sin).expect("sin")
+pub fn sin<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Sin)
 }
 /// Element-wise cosine: cos(x).
 ///
 /// Backward: `d/dx cos(x) = -sin(x)`.
 #[inline]
-pub fn cos<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Cos).expect("cos")
+pub fn cos<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Cos)
 }
 
 /// Element-wise exponential.
@@ -36,27 +30,21 @@ pub fn cos<T: Float, B: BackendOps<T>>(
 /// use coeus_ops::exp;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[0.0, 1.0]);
-/// let b = exp(&a, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[0.0, 1.0]).expect("construct tensor");
+/// let b = exp(&a, &backend).expect("evaluate operation");
 /// let s = b.as_slice();
 /// assert!((s[0] - 1.0).abs() < 1e-5);
 /// assert!((s[1] - std::f32::consts::E).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn exp<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Exp).expect("exp")
+pub fn exp<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Exp)
 }
 
 /// Element-wise natural log.
 #[inline]
-pub fn log<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Log).expect("log")
+pub fn log<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Log)
 }
 
 /// Element-wise Gauss error function: erf(x) = (2/√π) ∫₀ˣ e^(−t²) dt.
@@ -69,29 +57,23 @@ pub fn log<T: Float, B: BackendOps<T>>(
 /// use coeus_ops::erf;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f64, SequentialBackend>::from_slice([2], &[0.0, 1.0]);
-/// let b = erf(&a, &backend);
+/// let a = Tensor::<f64, SequentialBackend>::from_slice([2], &[0.0, 1.0]).expect("construct tensor");
+/// let b = erf(&a, &backend).expect("evaluate operation");
 /// let s = b.as_slice();
 /// assert!(s[0].abs() < 1e-15);
 /// assert!((s[1] - 0.842_700_792_949_714_9).abs() < 1e-12);
 /// ```
 #[inline]
-pub fn erf<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Erf).expect("erf")
+pub fn erf<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Erf)
 }
 
 /// Element-wise complementary error function: erfc(x) = 1 − erf(x).
 ///
 /// Backward: `d/dx erfc(x) = −d/dx erf(x) = −(2/√π)·e^(−x²)`.
 #[inline]
-pub fn erfc<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Erfc).expect("erfc")
+pub fn erfc<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Erfc)
 }
 
 /// Element-wise natural logarithm of the absolute gamma function: `ln|Γ(x)|`.
@@ -99,146 +81,101 @@ pub fn erfc<T: Float, B: BackendOps<T>>(
 /// Autograd for this operation requires `digamma(x)`, which is not exposed by
 /// the current datatype-law provider.
 #[inline]
-pub fn lgamma<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Lgamma).expect("lgamma")
+pub fn lgamma<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Lgamma)
 }
 
 /// Element-wise tangent: tan(x).
 ///
 /// Backward: `d/dx tan(x) = 1 / cos²(x)` (sec²(x)).
 #[inline]
-pub fn tan<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Tan).expect("tan")
+pub fn tan<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Tan)
 }
 
 /// Element-wise arc-sine: asin(x), domain x ∈ [-1, 1].
 ///
 /// Backward: `d/dx asin(x) = 1 / sqrt(1 - x²)`.
 #[inline]
-pub fn asin<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Asin).expect("asin")
+pub fn asin<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Asin)
 }
 
 /// Element-wise arc-cosine: acos(x), domain x ∈ [-1, 1].
 ///
 /// Backward: `d/dx acos(x) = -1 / sqrt(1 - x²)`.
 #[inline]
-pub fn acos<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Acos).expect("acos")
+pub fn acos<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Acos)
 }
 
 /// Element-wise arc-tangent: atan(x).
 ///
 /// Backward: `d/dx atan(x) = 1 / (1 + x²)`.
 #[inline]
-pub fn atan<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Atan).expect("atan")
+pub fn atan<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Atan)
 }
 
 /// Element-wise hyperbolic sine: sinh(x).
 /// Backward: d/dx sinh(x) = cosh(x).
 #[inline]
-pub fn sinh<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Sinh).expect("sinh")
+pub fn sinh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Sinh)
 }
 /// Element-wise hyperbolic cosine: cosh(x).
 /// Backward: d/dx cosh(x) = sinh(x).
 #[inline]
-pub fn cosh<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Cosh).expect("cosh")
+pub fn cosh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Cosh)
 }
 /// Element-wise base-2 logarithm: log2(x).
 /// Backward: d/dx log2(x) = 1/(x * ln(2)).
 #[inline]
-pub fn log2<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Log2).expect("log2")
+pub fn log2<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Log2)
 }
 /// Element-wise base-10 logarithm: log10(x).
 /// Backward: d/dx log10(x) = 1/(x * ln(10)).
 #[inline]
-pub fn log10<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Log10).expect("log10")
+pub fn log10<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Log10)
 }
 /// Element-wise base-2 exponential: 2^x.
 /// Backward: d/dx 2^x = 2^x * ln(2).
 #[inline]
-pub fn exp2<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Exp2).expect("exp2")
+pub fn exp2<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Exp2)
 }
 /// Element-wise inverse hyperbolic tangent: atanh(x), domain |x| < 1.
 /// Backward: d/dx atanh(x) = 1/(1 - x²).
 #[inline]
-pub fn atanh<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Atanh).expect("atanh")
+pub fn atanh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Atanh)
 }
 /// Element-wise inverse hyperbolic sine: asinh(x).
 /// Backward: d/dx asinh(x) = 1/sqrt(x² + 1).
 #[inline]
-pub fn asinh<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Asinh).expect("asinh")
+pub fn asinh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Asinh)
 }
 /// Element-wise inverse hyperbolic cosine: acosh(x), domain x > 1.
 /// Backward: d/dx acosh(x) = 1/sqrt(x² - 1).
 #[inline]
-pub fn acosh<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Acosh).expect("acosh")
+pub fn acosh<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Acosh)
 }
 /// Element-wise exp(x) - 1.
 /// Backward: d/dx expm1(x) = exp(x).
 #[inline]
-pub fn expm1<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Expm1).expect("expm1")
+pub fn expm1<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Expm1)
 }
 /// Element-wise ln(1 + x).
 /// Backward: d/dx log1p(x) = 1/(1 + x).
 #[inline]
-pub fn log1p<T: Float, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Log1p).expect("log1p")
+pub fn log1p<T: Float, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Log1p)
 }
 
 /// Element-wise negation (works for any Scalar).
@@ -251,25 +188,19 @@ pub fn log1p<T: Float, B: BackendOps<T>>(
 /// use coeus_ops::neg;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[1.0, -2.0, 3.0]);
-/// let b = neg(&a, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[1.0, -2.0, 3.0]).expect("construct tensor");
+/// let b = neg(&a, &backend).expect("evaluate operation");
 /// assert_eq!(b.as_slice(), &[-1.0, 2.0, -3.0]);
 /// ```
 #[inline]
-pub fn neg<T: Scalar, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Neg).expect("neg")
+pub fn neg<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Neg)
 }
 
 /// Element-wise absolute value.
 #[inline]
-pub fn abs<T: Scalar, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Abs).expect("abs")
+pub fn abs<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Abs)
 }
 
 /// Element-wise square root.
@@ -282,19 +213,16 @@ pub fn abs<T: Scalar, B: BackendOps<T>>(
 /// use coeus_ops::sqrt;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[1.0, 4.0, 9.0]);
-/// let b = sqrt(&a, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[1.0, 4.0, 9.0]).expect("construct tensor");
+/// let b = sqrt(&a, &backend).expect("evaluate operation");
 /// let s = b.as_slice();
 /// assert!((s[0] - 1.0).abs() < 1e-5);
 /// assert!((s[1] - 2.0).abs() < 1e-5);
 /// assert!((s[2] - 3.0).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn sqrt<T: Scalar, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Sqrt).expect("sqrt")
+pub fn sqrt<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Sqrt)
 }
 
 /// In-place element-wise sine.
@@ -369,56 +297,38 @@ pub fn sqrt_assign<T: Scalar, B: BackendOps<T>>(
 
 /// Element-wise reciprocal: 1/x.
 #[inline]
-pub fn recip<T: Scalar, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Recip).expect("recip")
+pub fn recip<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Recip)
 }
 
 /// Element-wise signum: -1, 0, or 1.
 #[inline]
-pub fn sign<T: Scalar, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Sign).expect("sign")
+pub fn sign<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Sign)
 }
 
 /// Element-wise floor.
 #[inline]
-pub fn floor<T: Scalar, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Floor).expect("floor")
+pub fn floor<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Floor)
 }
 
 /// Element-wise ceil.
 #[inline]
-pub fn ceil<T: Scalar, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Ceil).expect("ceil")
+pub fn ceil<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Ceil)
 }
 
 /// Element-wise round to nearest integer.
 #[inline]
-pub fn round<T: Scalar, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Round).expect("round")
+pub fn round<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Round)
 }
 
 /// Element-wise truncation toward zero.
 #[inline]
-pub fn trunc<T: Scalar, B: BackendOps<T>>(
-    input: &Tensor<T, B>,
-    backend: &B,
-) -> Tensor<T, B> {
-    elementwise_unary(input, backend, UnaryOp::Trunc).expect("trunc")
+pub fn trunc<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_unary(input, backend, UnaryOp::Trunc)
 }
 
 /// In-place element-wise reciprocal.

@@ -24,7 +24,7 @@ where
     B: coeus_core::ComputeBackend,
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Tensor::from_slice_on(shape.to_vec(), vals, backend)
+    Tensor::from_slice_on(shape.to_vec(), vals, backend).expect("construct tensor")
 }
 
 // FLIP
@@ -36,22 +36,22 @@ where
 {
     // 1-D reverse: [1,2,3,4] -> [4,3,2,1]
     let v = t(&[4], &[1.0, 2.0, 3.0, 4.0], backend);
-    let f = coeus_ops::flip(&v, 0, backend);
+    let f = coeus_ops::flip(&v, 0, backend).expect("run operation");
     assert_eq!(f.as_slice(), &[4.0_f64, 3.0, 2.0, 1.0], "flip 1-D");
 
     // 2-D flip along axis=0 (row order reversed):
     // [[1,2],[3,4]] -> [[3,4],[1,2]]
     let m = t(&[2, 2], &[1.0, 2.0, 3.0, 4.0], backend);
-    let f0 = coeus_ops::flip(&m, 0, backend);
+    let f0 = coeus_ops::flip(&m, 0, backend).expect("run operation");
     assert_eq!(f0.as_slice(), &[3.0_f64, 4.0, 1.0, 2.0], "flip axis=0");
 
     // 2-D flip along axis=1 (column order reversed):
     // [[1,2],[3,4]] -> [[2,1],[4,3]]
-    let f1 = coeus_ops::flip(&m, 1, backend);
+    let f1 = coeus_ops::flip(&m, 1, backend).expect("run operation");
     assert_eq!(f1.as_slice(), &[2.0_f64, 1.0, 4.0, 3.0], "flip axis=1");
 
     // Double-flip is identity.
-    let ff = coeus_ops::flip(&f1, 1, backend);
+    let ff = coeus_ops::flip(&f1, 1, backend).expect("run operation");
     assert_eq!(ff.as_slice(), m.as_slice(), "flip double identity");
 }
 
@@ -64,21 +64,21 @@ where
 {
     // roll([0,1,2,3], shift=1, dim=0): [3,0,1,2]
     let v = t(&[4], &[0.0, 1.0, 2.0, 3.0], backend);
-    let r1 = coeus_ops::roll(&v, &[1], &[0], backend);
+    let r1 = coeus_ops::roll(&v, &[1], &[0], backend).expect("run operation");
     assert_eq!(r1.as_slice(), &[3.0_f64, 0.0, 1.0, 2.0], "roll +1");
 
     // roll shift=-1: [1,2,3,0]
-    let rm = coeus_ops::roll(&v, &[-1], &[0], backend);
+    let rm = coeus_ops::roll(&v, &[-1], &[0], backend).expect("run operation");
     assert_eq!(rm.as_slice(), &[1.0_f64, 2.0, 3.0, 0.0], "roll -1");
 
     // roll shift=4 (full period) -> identity
-    let r4 = coeus_ops::roll(&v, &[4], &[0], backend);
+    let r4 = coeus_ops::roll(&v, &[4], &[0], backend).expect("run operation");
     assert_eq!(r4.as_slice(), v.as_slice(), "roll full period = identity");
 
     // 2-D roll along axis=1 by shift=1:
     // [[1,2,3],[4,5,6]] -> [[3,1,2],[6,4,5]]
     let m = t(&[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], backend);
-    let rm2 = coeus_ops::roll(&m, &[1], &[1], backend);
+    let rm2 = coeus_ops::roll(&m, &[1], &[1], backend).expect("run operation");
     assert_eq!(
         rm2.as_slice(),
         &[3.0_f64, 1.0, 2.0, 6.0, 4.0, 5.0],
@@ -102,7 +102,7 @@ where
 
     // tril(k=0): keep j <= i
     // [[1,0,0],[4,5,0],[7,8,9]]
-    let l = coeus_ops::tril(&m, 0, backend);
+    let l = coeus_ops::tril(&m, 0, backend).expect("run operation");
     assert_eq!(
         l.as_slice(),
         &[1.0_f64, 0.0, 0.0, 4.0, 5.0, 0.0, 7.0, 8.0, 9.0],
@@ -111,7 +111,7 @@ where
 
     // triu(k=0): keep j >= i
     // [[1,2,3],[0,5,6],[0,0,9]]
-    let u = coeus_ops::triu(&m, 0, backend);
+    let u = coeus_ops::triu(&m, 0, backend).expect("run operation");
     assert_eq!(
         u.as_slice(),
         &[1.0_f64, 2.0, 3.0, 0.0, 5.0, 6.0, 0.0, 0.0, 9.0],
@@ -120,7 +120,7 @@ where
 
     // tril(k=1): keep j <= i+1 (includes one super-diagonal)
     // [[1,2,0],[4,5,6],[7,8,9]]
-    let l1 = coeus_ops::tril(&m, 1, backend);
+    let l1 = coeus_ops::tril(&m, 1, backend).expect("run operation");
     assert_eq!(
         l1.as_slice(),
         &[1.0_f64, 2.0, 0.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
@@ -129,7 +129,7 @@ where
 
     // triu(k=1): keep j >= i+1 (strict super-diagonal)
     // [[0,2,3],[0,0,6],[0,0,0]]
-    let u1 = coeus_ops::triu(&m, 1, backend);
+    let u1 = coeus_ops::triu(&m, 1, backend).expect("run operation");
     assert_eq!(
         u1.as_slice(),
         &[0.0_f64, 2.0, 3.0, 0.0, 0.0, 6.0, 0.0, 0.0, 0.0],
@@ -156,7 +156,7 @@ where
 {
     // 1-D ascending: [3,1,4,1,5] -> values=[1,1,3,4,5], indices=[1,3,0,2,4]
     let v = t(&[5], &[3.0, 1.0, 4.0, 1.0, 5.0], backend);
-    let (sv, si) = coeus_ops::sort(&v, 0, false, backend);
+    let (sv, si) = coeus_ops::sort(&v, 0, false, backend).expect("run operation");
     assert_eq!(sv.shape(), &[5], "sort shape");
     assert_eq!(
         sv.as_slice(),
@@ -170,7 +170,7 @@ where
     );
 
     // 1-D descending: values=[5,4,3,1,1], indices=[4,2,0,1,3]
-    let (sv_d, si_d) = coeus_ops::sort(&v, 0, true, backend);
+    let (sv_d, si_d) = coeus_ops::sort(&v, 0, true, backend).expect("run operation");
     assert_eq!(
         sv_d.as_slice(),
         &[5.0_f64, 4.0, 3.0, 1.0, 1.0],
@@ -184,7 +184,7 @@ where
 
     // Already-sorted input: indices are 0,1,2,...
     let sorted = t(&[3], &[1.0, 2.0, 3.0], backend);
-    let (ss, si_s) = coeus_ops::sort(&sorted, 0, false, backend);
+    let (ss, si_s) = coeus_ops::sort(&sorted, 0, false, backend).expect("run operation");
     assert_eq!(
         ss.as_slice(),
         sorted.as_slice(),
@@ -207,7 +207,7 @@ where
     // indices=[0,2,1], num_classes=3:
     // row 0: [1,0,0], row 1: [0,0,1], row 2: [0,1,0]
     let idx = t(&[3], &[0.0, 2.0, 1.0], backend);
-    let oh = coeus_ops::one_hot(&idx, 3, backend);
+    let oh = coeus_ops::one_hot(&idx, 3, backend).expect("run operation");
     assert_eq!(oh.shape(), &[3, 3], "one_hot shape");
     assert_eq!(
         oh.as_slice(),
@@ -217,7 +217,7 @@ where
 
     // Single index [0], 4 classes -> [1,0,0,0]
     let i0 = t(&[1], &[0.0], backend);
-    let oh0 = coeus_ops::one_hot(&i0, 4, backend);
+    let oh0 = coeus_ops::one_hot(&i0, 4, backend).expect("run operation");
     assert_eq!(oh0.shape(), &[1, 4], "one_hot single shape");
     assert_eq!(oh0.as_slice(), &[1.0_f64, 0.0, 0.0, 0.0], "one_hot single");
 }
@@ -231,7 +231,7 @@ where
 {
     // [1,2,3] repeat=2 along dim 0: [1,1,2,2,3,3]
     let v = t(&[3], &[1.0, 2.0, 3.0], backend);
-    let ri = coeus_ops::repeat_interleave(&v, 2, 0, backend);
+    let ri = coeus_ops::repeat_interleave(&v, 2, 0, backend).expect("run operation");
     assert_eq!(ri.shape(), &[6], "repeat_interleave shape");
     assert_eq!(
         ri.as_slice(),
@@ -241,7 +241,7 @@ where
 
     // [[1,2],[3,4]] repeat=2 along dim=0: [[1,2],[1,2],[3,4],[3,4]] shape [4,2]
     let m = t(&[2, 2], &[1.0, 2.0, 3.0, 4.0], backend);
-    let ri2 = coeus_ops::repeat_interleave(&m, 2, 0, backend);
+    let ri2 = coeus_ops::repeat_interleave(&m, 2, 0, backend).expect("run operation");
     assert_eq!(ri2.shape(), &[4, 2], "repeat_interleave 2-D dim=0 shape");
     assert_eq!(
         ri2.as_slice(),
@@ -290,17 +290,17 @@ where
     // [1,0,0] x [0,1,0] = [0,0,1] (e1 x e2 = e3)
     let a = t(&[3], &[1.0, 0.0, 0.0], backend);
     let b = t(&[3], &[0.0, 1.0, 0.0], backend);
-    let c = coeus_ops::cross(&a, &b, 0);
+    let c = coeus_ops::cross(&a, &b, 0).expect("run operation");
     assert_eq!(c.as_slice(), &[0.0_f64, 0.0, 1.0], "cross e1xe2=e3");
 
     // [0,1,0] x [0,0,1] = [1,0,0] (e2 x e3 = e1)
     let e2 = t(&[3], &[0.0, 1.0, 0.0], backend);
     let e3 = t(&[3], &[0.0, 0.0, 1.0], backend);
-    let c2 = coeus_ops::cross(&e2, &e3, 0);
+    let c2 = coeus_ops::cross(&e2, &e3, 0).expect("run operation");
     assert_eq!(c2.as_slice(), &[1.0_f64, 0.0, 0.0], "cross e2xe3=e1");
 
     // Anti-commutativity: a x b = -(b x a)
-    let ba = coeus_ops::cross(&b, &a, 0);
+    let ba = coeus_ops::cross(&b, &a, 0).expect("run operation");
     for (x, y) in c.as_slice().iter().zip(ba.as_slice().iter()) {
         assert_eq!(*x, -*y, "cross anti-commutativity");
     }
@@ -308,7 +308,7 @@ where
     // Batch: [1,3] shape with 1 batch
     let av = t(&[1, 3], &[1.0, 0.0, 0.0], backend);
     let bv = t(&[1, 3], &[0.0, 1.0, 0.0], backend);
-    let cv = coeus_ops::cross(&av, &bv, 1);
+    let cv = coeus_ops::cross(&av, &bv, 1).expect("run operation");
     assert_eq!(cv.shape(), &[1, 3], "cross batch shape");
     assert_eq!(cv.as_slice(), &[0.0_f64, 0.0, 1.0], "cross batch");
 }

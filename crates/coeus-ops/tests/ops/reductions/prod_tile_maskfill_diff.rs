@@ -18,7 +18,7 @@ where
     B: coeus_core::ComputeBackend,
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Tensor::from_slice_on(shape.to_vec(), vals, backend)
+    Tensor::from_slice_on(shape.to_vec(), vals, backend).expect("construct tensor")
 }
 
 // PROD
@@ -30,19 +30,19 @@ where
 {
     // prod([1,2,3,4]) = 24
     let v = t(&[4], &[1.0, 2.0, 3.0, 4.0], backend);
-    assert_eq!(coeus_ops::prod(&v, backend), 24.0_f64, "prod 1-D");
+    assert_eq!(coeus_ops::prod(&v, backend).expect("run operation"), 24.0_f64, "prod 1-D");
 
     // prod([5]) = 5 (single element)
     let s = t(&[1], &[5.0], backend);
-    assert_eq!(coeus_ops::prod(&s, backend), 5.0_f64, "prod single");
+    assert_eq!(coeus_ops::prod(&s, backend).expect("run operation"), 5.0_f64, "prod single");
 
     // prod containing zero: any product with 0 = 0
     let z = t(&[3], &[2.0, 0.0, 7.0], backend);
-    assert_eq!(coeus_ops::prod(&z, backend), 0.0_f64, "prod with zero");
+    assert_eq!(coeus_ops::prod(&z, backend).expect("run operation"), 0.0_f64, "prod with zero");
 
     // 2-D [[1,2],[3,4]]: global prod = 1*2*3*4 = 24
     let m = t(&[2, 2], &[1.0, 2.0, 3.0, 4.0], backend);
-    assert_eq!(coeus_ops::prod(&m, backend), 24.0_f64, "prod 2-D");
+    assert_eq!(coeus_ops::prod(&m, backend).expect("run operation"), 24.0_f64, "prod 2-D");
 }
 
 // TILE
@@ -54,7 +54,7 @@ where
 {
     // 1-D [1,2,3], reps=[3]: repeat 3x -> [1,2,3,1,2,3,1,2,3]
     let v = t(&[3], &[1.0, 2.0, 3.0], backend);
-    let r1 = coeus_ops::tile(&v, &[3], backend);
+    let r1 = coeus_ops::tile(&v, &[3], backend).expect("run operation");
     assert_eq!(r1.shape(), &[9], "tile 1-D reps=3 shape");
     assert_eq!(
         r1.as_slice(),
@@ -67,7 +67,7 @@ where
     // row0_tiled: [1,2,1,2,1,2]  row1_tiled: [3,4,3,4,3,4]
     // result: [row0_tiled, row1_tiled, row0_tiled, row1_tiled]
     let m = t(&[2, 2], &[1.0, 2.0, 3.0, 4.0], backend);
-    let r2 = coeus_ops::tile(&m, &[2, 3], backend);
+    let r2 = coeus_ops::tile(&m, &[2, 3], backend).expect("run operation");
     assert_eq!(r2.shape(), &[4, 6], "tile 2-D shape");
     assert_eq!(
         r2.as_slice(),
@@ -79,7 +79,7 @@ where
     );
 
     // reps=[1] on a 1-D tensor is identity.
-    let id = coeus_ops::tile(&v, &[1], backend);
+    let id = coeus_ops::tile(&v, &[1], backend).expect("run operation");
     assert_eq!(id.as_slice(), v.as_slice(), "tile reps=[1] identity");
 }
 
@@ -94,7 +94,7 @@ where
     // positions where mask != 0 become 99 -> [1,99,3,99]
     let inp = t(&[4], &[1.0, 2.0, 3.0, 4.0], backend);
     let mask = t(&[4], &[0.0, 1.0, 0.0, 1.0], backend);
-    let out = coeus_ops::masked_fill(&inp, &mask, 99.0, backend);
+    let out = coeus_ops::masked_fill(&inp, &mask, 99.0, backend).expect("run operation");
     assert_eq!(out.shape(), &[4], "masked_fill 1-D shape");
     assert_eq!(
         out.as_slice(),
@@ -104,7 +104,7 @@ where
 
     // All-false mask: output equals input.
     let all_false = t(&[4], &[0.0; 4], backend);
-    let id = coeus_ops::masked_fill(&inp, &all_false, 99.0, backend);
+    let id = coeus_ops::masked_fill(&inp, &all_false, 99.0, backend).expect("run operation");
     assert_eq!(
         id.as_slice(),
         inp.as_slice(),
@@ -113,7 +113,7 @@ where
 
     // All-true mask: output is constant fill.
     let all_true = t(&[4], &[1.0; 4], backend);
-    let fill = coeus_ops::masked_fill(&inp, &all_true, -7.0, backend);
+    let fill = coeus_ops::masked_fill(&inp, &all_true, -7.0, backend).expect("run operation");
     assert_eq!(
         fill.as_slice(),
         &[-7.0_f64; 4],
@@ -125,7 +125,7 @@ where
     // -> [[0,2,3],[4,0,6]]
     let m = t(&[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], backend);
     let mask2 = t(&[2, 3], &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0], backend);
-    let out2 = coeus_ops::masked_fill(&m, &mask2, 0.0, backend);
+    let out2 = coeus_ops::masked_fill(&m, &mask2, 0.0, backend).expect("run operation");
     assert_eq!(out2.shape(), &[2, 3], "masked_fill 2-D shape");
     assert_eq!(
         out2.as_slice(),

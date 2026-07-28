@@ -17,7 +17,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         velocity_layout: &Layout,
         lr: T,
         momentum: T,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         optim::dispatch_sgd_step(
@@ -30,6 +31,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             lr,
             momentum,
         );
+        Ok(())
     }
 
     #[inline]
@@ -48,7 +50,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         beta2: T,
         eps: T,
         t: usize,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         optim::dispatch_adam_step(
@@ -66,6 +69,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             eps,
             t,
         );
+        Ok(())
     }
 
     #[inline]
@@ -80,7 +84,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         lr: T,
         alpha: T,
         eps: T,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         optim::dispatch_rmsprop_step(
@@ -94,6 +99,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             alpha,
             eps,
         );
+        Ok(())
     }
 
     #[inline]
@@ -113,7 +119,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         eps: T,
         weight_decay: T,
         t: usize,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         optim::dispatch_adamw_step(
@@ -132,6 +139,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             weight_decay,
             t,
         );
+        Ok(())
     }
 
     #[inline]
@@ -145,7 +153,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         history_layout: &Layout,
         lr: T,
         eps: T,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         optim::dispatch_adagrad_step(
@@ -158,5 +167,6 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             lr,
             eps,
         );
+        Ok(())
     }
 }

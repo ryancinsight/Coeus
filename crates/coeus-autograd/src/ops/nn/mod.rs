@@ -19,9 +19,9 @@ pub mod pool;
 /// Softmax operation.
 pub mod softmax;
 
-pub use attention::{sdp_attention, AttentionMask, CausalMask, NullMask};
+pub use attention::{AttentionMask, CausalMask, NullMask, sdp_attention};
 pub use conv::{
-    conv1d, conv2d, conv3d, conv_transpose1d, conv_transpose2d, conv_transpose3d, fold1d, fold2d,
+    conv_transpose1d, conv_transpose2d, conv_transpose3d, conv1d, conv2d, conv3d, fold1d, fold2d,
     unfold1d, unfold2d,
 };
 pub use dropout::dropout;
@@ -33,6 +33,6 @@ pub use loss::{
     smooth_l1_loss, soft_margin,
 };
 pub use masked_softmax::{causal_softmax, masked_softmax};
-pub use normalization::{batchnorm1d, batchnorm2d, batchnorm3d, layernorm, rmsnorm, BatchNormArgs};
+pub use normalization::{BatchNormArgs, batchnorm1d, batchnorm2d, batchnorm3d, layernorm, rmsnorm};
 pub use pool::{avg_pool1d, avg_pool2d, avg_pool3d, max_pool1d, max_pool2d, max_pool3d};
 pub use softmax::{softmax, softmin};

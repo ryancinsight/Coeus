@@ -9,8 +9,8 @@ pub(crate) fn bench_sum(c: &mut Criterion) {
     let data = vec![1.0f32; SIDE * SIDE];
     let sequential_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
-    let sequential_input = Tensor::<f32, SequentialBackend>::from_slice([SIDE, SIDE], &data);
-    let moirai_input = Tensor::<f32, MoiraiBackend>::from_slice([SIDE, SIDE], &data);
+    let sequential_input = Tensor::<f32, SequentialBackend>::from_slice([SIDE, SIDE], &data).expect("construct tensor");
+    let moirai_input = Tensor::<f32, MoiraiBackend>::from_slice([SIDE, SIDE], &data).expect("construct tensor");
 
     let mut group = c.benchmark_group("Sum axis=1 (1024x1024)");
     group.bench_function("Coeus Sequential", |bencher| {

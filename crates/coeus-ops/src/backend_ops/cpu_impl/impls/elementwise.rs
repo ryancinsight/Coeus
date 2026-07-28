@@ -1,5 +1,5 @@
-use super::super::elementwise;
 use super::super::CpuBackend;
+use super::super::elementwise;
 use crate::backend_ops::ops::{BinaryOp, UnaryOp};
 use crate::backend_ops::traits::ElementwiseOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};

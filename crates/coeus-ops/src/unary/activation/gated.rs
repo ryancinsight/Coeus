@@ -2,7 +2,7 @@
 
 use super::super::kernel::elementwise_unary;
 use crate::backend_ops::{BackendOps, UnaryOp};
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Float};
 use coeus_tensor::Tensor;
 
 /// Gated Linear Unit (GLU): splits `input` in half along `dim`, returns
@@ -20,20 +20,28 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let ndim = input.ndim();
-    assert!(
-        dim < ndim,
-        "glu: dim {dim} out of bounds for {ndim}D tensor"
-    );
+    if dim >= ndim {
+        return Err(B::Error::from(BackendError::AxisOutOfRange {
+            operation: "glu",
+            axis: dim,
+            rank: ndim,
+        }));
+    }
     let dim_size = input.shape()[dim];
-    assert!(
-        dim_size.is_multiple_of(2),
-        "glu: dim {dim} size {dim_size} must be even"
-    );
+    if !dim_size.is_multiple_of(2) {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "glu",
+            reason: format!("axis {dim} size {dim_size} must be even"),
+        }));
+    }
     let half = dim_size / 2;
-    let mut parts = crate::shape::split(input, half, dim);
-    assert_eq!(parts.len(), 2);
-    let b_part = parts.pop().unwrap();
-    let a_part = parts.pop().unwrap();
-    let gate = elementwise_unary(&b_part, backend, UnaryOp::Sigmoid)?;
-    Ok(crate::binary::mul(&a_part, &gate, backend))
+    let parts = crate::shape::split(input, half, dim)?;
+    let [a_part, b_part] = parts.as_slice() else {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "glu",
+            reason: "split did not produce two halves".to_owned(),
+        }));
+    };
+    let gate = elementwise_unary(b_part, backend, UnaryOp::Sigmoid)?;
+    Ok(crate::binary::mul(a_part, &gate, backend)?)
 }

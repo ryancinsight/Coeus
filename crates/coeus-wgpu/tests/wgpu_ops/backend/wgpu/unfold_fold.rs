@@ -6,17 +6,25 @@ use coeus_wgpu::WgpuBackend;
 fn wgpu_unfold_fold_1d_matches_sequential() {
     let sequential = SequentialBackend::new();
     let wgpu = WgpuBackend::new();
-    let input = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4], &[1.0, 2.0, 3.0, 4.0]);
-    let input_wgpu = input.to_backend_on(&sequential, &wgpu);
+    let input = Tensor::<f32, SequentialBackend>::from_slice(
+        vec![1, 1, 4],
+        &[1.0, 2.0, 3.0, 4.0],
+    )
+    .expect("construct tensor");
+    let input_wgpu = input.to_backend_on(&sequential, &wgpu).expect("transfer tensor");
 
-    let expected_unfold = coeus_ops::unfold1d(&input, 3, 1, 1, 1, &sequential);
-    let actual_unfold = coeus_ops::unfold1d(&input_wgpu, 3, 1, 1, 1, &wgpu);
-    let actual_unfold_cpu = actual_unfold.to_backend_on(&wgpu, &sequential);
+    let expected_unfold = coeus_ops::unfold1d(&input, 3, 1, 1, 1, &sequential)
+        .expect("execute CPU unfold");
+    let actual_unfold = coeus_ops::unfold1d(&input_wgpu, 3, 1, 1, 1, &wgpu)
+        .expect("execute WGPU unfold");
+    let actual_unfold_cpu = actual_unfold.to_backend_on(&wgpu, &sequential).expect("transfer tensor");
     assert_eq!(actual_unfold_cpu.as_slice(), expected_unfold.as_slice());
 
-    let expected_fold = coeus_ops::fold1d(&expected_unfold, 4, 3, 1, 1, 1, &sequential);
-    let actual_fold = coeus_ops::fold1d(&actual_unfold, 4, 3, 1, 1, 1, &wgpu);
-    let actual_fold_cpu = actual_fold.to_backend_on(&wgpu, &sequential);
+    let expected_fold = coeus_ops::fold1d(&expected_unfold, 4, 3, 1, 1, 1, &sequential)
+        .expect("execute CPU fold");
+    let actual_fold = coeus_ops::fold1d(&actual_unfold, 4, 3, 1, 1, 1, &wgpu)
+        .expect("execute WGPU fold");
+    let actual_fold_cpu = actual_fold.to_backend_on(&wgpu, &sequential).expect("transfer tensor");
     assert_eq!(actual_fold_cpu.as_slice(), expected_fold.as_slice());
 }
 
@@ -27,17 +35,58 @@ fn wgpu_unfold_fold_2d_matches_sequential() {
     let input = Tensor::<f32, SequentialBackend>::from_slice(
         vec![1, 1, 3, 3],
         &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
-    );
-    let input_wgpu = input.to_backend_on(&sequential, &wgpu);
+    )
+    .expect("construct tensor");
+    let input_wgpu = input.to_backend_on(&sequential, &wgpu).expect("transfer tensor");
 
-    let expected_unfold = coeus_ops::unfold2d(&input, 2, 2, 1, 1, 1, 1, 1, 1, &sequential);
-    let actual_unfold = coeus_ops::unfold2d(&input_wgpu, 2, 2, 1, 1, 1, 1, 1, 1, &wgpu);
-    let actual_unfold_cpu = actual_unfold.to_backend_on(&wgpu, &sequential);
+    let expected_unfold = coeus_ops::unfold2d(&input, 2, 2, 1, 1, 1, 1, 1, 1, &sequential)
+        .expect("execute CPU unfold");
+    let actual_unfold = coeus_ops::unfold2d(
+        &input_wgpu,
+        2,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        &wgpu,
+    )
+    .expect("execute WGPU unfold");
+    let actual_unfold_cpu = actual_unfold.to_backend_on(&wgpu, &sequential).expect("transfer tensor");
     assert_eq!(actual_unfold_cpu.as_slice(), expected_unfold.as_slice());
 
-    let expected_fold =
-        coeus_ops::fold2d(&expected_unfold, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, &sequential);
-    let actual_fold = coeus_ops::fold2d(&actual_unfold, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, &wgpu);
-    let actual_fold_cpu = actual_fold.to_backend_on(&wgpu, &sequential);
+    let expected_fold = coeus_ops::fold2d(
+        &expected_unfold,
+        3,
+        3,
+        2,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        &sequential,
+    )
+    .expect("execute CPU fold");
+    let actual_fold = coeus_ops::fold2d(
+        &actual_unfold,
+        3,
+        3,
+        2,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        &wgpu,
+    )
+    .expect("execute WGPU fold");
+    let actual_fold_cpu = actual_fold.to_backend_on(&wgpu, &sequential).expect("transfer tensor");
     assert_eq!(actual_fold_cpu.as_slice(), expected_fold.as_slice());
 }

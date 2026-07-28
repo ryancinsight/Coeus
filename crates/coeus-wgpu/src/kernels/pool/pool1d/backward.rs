@@ -1,4 +1,4 @@
-use super::shader::{parameter, shader_source, PoolKind, WORKGROUP_SIZE};
+use super::shader::{PoolKind, WORKGROUP_SIZE, parameter, shader_source};
 use crate::backend::WgpuScalar;
 use crate::kernels::cache::PIPELINE_CACHE;
 use crate::kernels::layout::GpuLayoutInfo;

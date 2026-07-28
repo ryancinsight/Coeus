@@ -6,7 +6,7 @@ use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
 use crate::kernels::validation::{
-    checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda, CUDA_BLOCK_SIZE,
+    CUDA_BLOCK_SIZE, checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda,
 };
 /// Launch the 3-D convolution backward kernel on the GPU.
 ///

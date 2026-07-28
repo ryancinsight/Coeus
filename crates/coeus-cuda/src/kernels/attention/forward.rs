@@ -1,6 +1,6 @@
 use super::super::launch_1d;
 use super::source::FWD_SRC;
-use super::{checked_attention_dimensions, AttentionMask, AttentionShape};
+use super::{AttentionMask, AttentionShape, checked_attention_dimensions};
 use crate::driver::get_cuda_context;
 use crate::storage::CudaStorage;
 use coeus_core::Storage;

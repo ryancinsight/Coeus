@@ -53,24 +53,27 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
     ///
     /// # Panics
     /// Panics if `num_features % G != 0`.
-    pub fn new(num_features: usize, eps: f64) -> Self {
+    pub fn new(num_features: usize, eps: f64) -> Result<Self, B::Error> {
         assert!(
             G > 0 && num_features.is_multiple_of(G),
             "GroupNorm: num_features ({num_features}) must be divisible by G ({G})"
         );
         let backend = B::default();
-        let weight = Var::new(Tensor::ones_on([num_features], &backend), true);
-        let bias = Var::new(Tensor::zeros_on([num_features], &backend), true);
-        Self {
+        let weight = Var::new(Tensor::ones_on([num_features], &backend)?, true)?;
+        let bias = Var::new(Tensor::zeros_on([num_features], &backend)?, true)?;
+        Ok(Self {
             weight,
             bias,
             num_features,
             eps,
             cache: RefCell::new(None),
-        }
+        })
     }
 
-    fn get_cache(&self, group_size: usize) -> std::cell::RefMut<'_, Option<GroupNormCache<T, B>>> {
+    fn get_cache(
+        &self,
+        group_size: usize,
+    ) -> Result<std::cell::RefMut<'_, Option<GroupNormCache<T, B>>>, B::Error> {
         let mut cache = self.cache.borrow_mut();
         let need_recreate = match &*cache {
             Some(c) => c.group_size != group_size,
@@ -78,10 +81,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
         };
         if need_recreate {
             let backend = B::default();
-            let ln_weight = Var::new(Tensor::ones_on([group_size], &backend), false);
-            let ln_bias = Var::new(Tensor::zeros_on([group_size], &backend), false);
-            let eps_t = Tensor::full_on([1], T::from_f64(self.eps), &backend);
-            let d_const = Tensor::full_on([1], T::from_f64(group_size as f64), &backend);
+            let ln_weight = Var::new(Tensor::ones_on([group_size], &backend)?, false)?;
+            let ln_bias = Var::new(Tensor::zeros_on([group_size], &backend)?, false)?;
+            let eps_t = Tensor::full_on([1], T::from_f64(self.eps), &backend)?;
+            let d_const = Tensor::full_on([1], T::from_f64(group_size as f64), &backend)?;
             *cache = Some(GroupNormCache {
                 group_size,
                 ln_weight,
@@ -91,7 +94,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
                 ones_cache: RefCell::new(None),
             });
         }
-        cache
+        Ok(cache)
     }
 }
 
@@ -108,7 +111,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
     /// Input shape: `[N, C]` or `[N, C, L]` or `[N, C, H, W]`.
     /// The implementation flattens to `[N*G, C/G * spatial]`, applies LayerNorm over the last dim,
     /// then reshapes back and applies per-channel weight/bias.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let shape = input.tensor.shape_cloned();
         assert!(shape.len() >= 2, "GroupNorm: input must be at least 2D");
         let n = shape[0];
@@ -128,29 +131,32 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
         let group_size = c_per_g * spatial;
 
         // Flatten input to [N*G, group_size] via tracked reshape
-        let flat = coeus_autograd::reshape(input, [n * G, group_size]);
+        let flat = coeus_autograd::reshape(input, [n * G, group_size])?;
 
         // Get cache
-        let cache_borrow = self.get_cache(group_size);
-        let cache = cache_borrow.as_ref().unwrap();
+        let cache_borrow = self.get_cache(group_size)?;
+        let cache = cache_borrow.as_ref().ok_or_else(|| {
+            B::Error::from(coeus_core::BackendError::Storage {
+                operation: "groupnorm cache",
+                reason: "cache initialization did not produce a value".to_owned(),
+            })
+        })?;
 
         let backend = B::default();
 
         // ── Mean over last dimension ──
-        let mean_t = coeus_ops::mean_axis(&flat.tensor, 1, &backend)
-            .expect("invariant: groupnorm feature axis is valid"); // [N*G, 1]
+        let mean_t = coeus_ops::mean_axis(&flat.tensor, 1, &backend)?; // [N*G, 1]
 
         // ── Centered: x - mu ──
-        let xmu = coeus_ops::sub(&flat.tensor, &mean_t, &backend); // [N*G, group_size]
+        let xmu = coeus_ops::sub(&flat.tensor, &mean_t, &backend)?; // [N*G, group_size]
 
         // ── Variance ──
-        let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend);
-        let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend)
-            .expect("invariant: groupnorm feature axis is valid"); // [N*G, 1]
+        let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend)?;
+        let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend)?; // [N*G, 1]
 
         // ── 1/sqrt(var + eps) ──
-        coeus_ops::add_assign(&mut stdev, &cache.eps_t, &backend);
-        coeus_ops::sqrt_assign(&mut stdev, &backend);
+        coeus_ops::add_assign(&mut stdev, &cache.eps_t, &backend)?;
+        coeus_ops::sqrt_assign(&mut stdev, &backend)?;
 
         let ones = {
             let mut o_cache = cache.ones_cache.borrow_mut();
@@ -159,27 +165,27 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
                 if cached_n == n_groups {
                     cached_ones.clone()
                 } else {
-                    let ones = Tensor::ones_on([n_groups, 1], &backend);
+                    let ones = Tensor::ones_on([n_groups, 1], &backend)?;
                     *o_cache = Some((n_groups, ones.clone()));
                     ones
                 }
             } else {
-                let ones = Tensor::ones_on([n_groups, 1], &backend);
+                let ones = Tensor::ones_on([n_groups, 1], &backend)?;
                 *o_cache = Some((n_groups, ones.clone()));
                 ones
             }
         };
         let mut istdev = ones;
-        coeus_ops::div_assign(&mut istdev, &stdev, &backend); // [N*G, 1]
+        coeus_ops::div_assign(&mut istdev, &stdev, &backend)?; // [N*G, 1]
 
         // ── Normalize ──
-        let x_hat = coeus_ops::mul(&xmu, &istdev, &backend); // [N*G, group_size]
+        let x_hat = coeus_ops::mul(&xmu, &istdev, &backend)?; // [N*G, group_size]
 
         // ── Scale and bias ──
         let w_reshaped = cache.ln_weight.tensor.reshape([1, group_size]);
         let b_reshaped = cache.ln_bias.tensor.reshape([1, group_size]);
-        let mut out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
-        coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend);
+        let mut out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend)?;
+        coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend)?;
 
         let normed_flat = coeus_autograd::layernorm(
             &flat,
@@ -189,19 +195,19 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
             x_hat,
             istdev,
             cache.d_const.clone(),
-        );
+        )?;
 
         // Reshape back to original shape via tracked reshape
-        let normed = coeus_autograd::reshape(&normed_flat, shape.clone());
+        let normed = coeus_autograd::reshape(&normed_flat, shape.clone())?;
 
         // Apply per-channel affine transform:
         // weight/bias are [C]; reshape to [1, C, 1, ...] and broadcast-multiply
         let mut broadcast_shape = vec![1usize; shape.len()];
         broadcast_shape[1] = c;
-        let w_reshaped = coeus_autograd::reshape(&self.weight, broadcast_shape.as_slice());
-        let b_reshaped = coeus_autograd::reshape(&self.bias, broadcast_shape.as_slice());
+        let w_reshaped = coeus_autograd::reshape(&self.weight, broadcast_shape.as_slice())?;
+        let b_reshaped = coeus_autograd::reshape(&self.bias, broadcast_shape.as_slice())?;
 
-        let scaled = coeus_autograd::mul(&normed, &w_reshaped);
+        let scaled = coeus_autograd::mul(&normed, &w_reshaped)?;
         coeus_autograd::add(&scaled, &b_reshaped)
     }
 }
@@ -227,7 +233,7 @@ pub fn group_norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     weight: Option<&Tensor<T, B>>,
     bias: Option<&Tensor<T, B>>,
     eps: f64,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -271,29 +277,27 @@ where
     let flat = input.reshape([n * num_groups, group_size]);
 
     // Mean over last dim: [N*G, 1]
-    let mean =
-        mean_axis(&flat, 1, &backend).expect("invariant: groupnorm test feature axis is valid");
+    let mean = mean_axis(&flat, 1, &backend)?;
 
     // Centre: x − μ  (broadcasts [N*G, 1] → [N*G, group_size])
-    let xmu = sub(&flat, &mean, &backend);
+    let xmu = sub(&flat, &mean, &backend)?;
 
     // Variance = mean(xmu²) over last dim: [N*G, 1]
-    let xmu_sq = mul(&xmu, &xmu, &backend);
-    let mut var =
-        mean_axis(&xmu_sq, 1, &backend).expect("invariant: groupnorm test feature axis is valid");
+    let xmu_sq = mul(&xmu, &xmu, &backend)?;
+    let mut var = mean_axis(&xmu_sq, 1, &backend)?;
 
     // stdev = sqrt(var + eps): reuse var buffer
-    let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
-    add_assign(&mut var, &eps_t, &backend);
-    sqrt_assign(&mut var, &backend); // now holds stdev
+    let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend)?;
+    add_assign(&mut var, &eps_t, &backend)?;
+    sqrt_assign(&mut var, &backend)?; // now holds stdev
 
     // istdev = 1 / stdev
-    let ones = Tensor::ones_on([n * num_groups, 1], &backend);
+    let ones = Tensor::ones_on([n * num_groups, 1], &backend)?;
     let mut istdev = ones;
-    div_assign(&mut istdev, &var, &backend);
+    div_assign(&mut istdev, &var, &backend)?;
 
     // x_hat = xmu * istdev (broadcasts [N*G, 1] → [N*G, group_size])
-    let x_hat = mul(&xmu, &istdev, &backend);
+    let x_hat = mul(&xmu, &istdev, &backend)?;
 
     // Reshape back to original layout
     let mut out = x_hat.reshape(shape.clone());
@@ -304,12 +308,12 @@ where
 
     if let Some(w) = weight {
         let w_bc = w.reshape(broadcast_shape.clone());
-        out = mul(&out, &w_bc, &backend);
+        out = mul(&out, &w_bc, &backend)?;
     }
     if let Some(b) = bias {
         let b_bc = b.reshape(broadcast_shape.clone());
-        add_assign(&mut out, &b_bc, &backend);
+        add_assign(&mut out, &b_bc, &backend)?;
     }
 
-    out
+    Ok(out)
 }

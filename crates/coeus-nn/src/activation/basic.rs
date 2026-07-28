@@ -10,7 +10,7 @@ use coeus_core::{Float, Scalar};
 
 /// Functional ReLU activation.
 #[inline]
-pub fn relu<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
+pub fn relu<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::relu(input)
 }
 
@@ -26,14 +26,14 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for ReLU {
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         relu(input)
     }
 }
 
 /// Functional Sigmoid activation.
 #[inline]
-pub fn sigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
+pub fn sigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::sigmoid(input)
 }
 
@@ -49,14 +49,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sigmoid {
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         sigmoid(input)
     }
 }
 
 /// Functional Tanh activation.
 #[inline]
-pub fn tanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
+pub fn tanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::tanh(input)
 }
 
@@ -72,14 +72,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Tanh {
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         tanh(input)
     }
 }
 
 /// Functional GELU activation.
 #[inline]
-pub fn gelu<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
+pub fn gelu<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::gelu(input)
 }
 
@@ -95,14 +95,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GeLU {
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         gelu(input)
     }
 }
 
 /// Functional SiLU activation.
 #[inline]
-pub fn silu<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
+pub fn silu<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::silu(input)
 }
 
@@ -118,14 +118,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for SiLU {
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         silu(input)
     }
 }
 
 /// Functional Mish activation.
 #[inline]
-pub fn mish<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
+pub fn mish<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::mish(input)
 }
 
@@ -141,7 +141,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Mish {
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         mish(input)
     }
 }
@@ -159,7 +159,7 @@ impl HardsigmoidOp {
 #[inline]
 pub fn hardsigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::hardsigmoid(input)
 }
 
@@ -175,7 +175,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Hardsigmo
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         hardsigmoid(input)
     }
 }
@@ -191,7 +191,7 @@ impl HardswishOp {
 
 /// Functional Hardswish activation.
 #[inline]
-pub fn hardswish<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
+pub fn hardswish<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::hardswish(input)
 }
 
@@ -207,7 +207,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Hardswish
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         hardswish(input)
     }
 }
@@ -223,7 +223,7 @@ impl SoftsignOp {
 
 /// Functional Softsign activation.
 #[inline]
-pub fn softsign<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
+pub fn softsign<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::softsign(input)
 }
 
@@ -239,14 +239,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softsign 
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         softsign(input)
     }
 }
 
 /// Functional Softplus activation.
 #[inline]
-pub fn softplus<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
+pub fn softplus<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::softplus(input)
 }
 
@@ -262,7 +262,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softplus 
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         softplus(input)
     }
 }
@@ -274,8 +274,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softplus 
 #[inline]
 pub fn log_sigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
-) -> Var<T, B> {
-    coeus_autograd::neg(&coeus_autograd::softplus(&coeus_autograd::neg(input)))
+) -> Result<Var<T, B>, B::Error> {
+    let negated = coeus_autograd::neg(input)?;
+    let softplus = coeus_autograd::softplus(&negated)?;
+    coeus_autograd::neg(&softplus)
 }
 
 /// LogSigmoid activation module.
@@ -290,7 +292,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LogSigmoi
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         log_sigmoid(input)
     }
 }
@@ -299,8 +301,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LogSigmoi
 ///
 /// Matches `torch.nn.functional.tanhshrink`.
 #[inline]
-pub fn tanhshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
-    coeus_autograd::sub(input, &coeus_autograd::tanh(input))
+pub fn tanhshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
+    let tangent = coeus_autograd::tanh(input)?;
+    coeus_autograd::sub(input, &tangent)
 }
 
 /// Tanhshrink activation module.
@@ -315,7 +318,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Tanhshrin
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         tanhshrink(input)
     }
 }

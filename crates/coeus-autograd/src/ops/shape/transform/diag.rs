@@ -36,40 +36,49 @@ where
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // backward of diag(v, k) is diagonal(grad_out, k).
-            let gi = coeus_ops::diagonal(grad_out, self.k, &backend);
+            let gi = coeus_ops::diagonal(grad_out, self.k, &backend)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &gi, &backend);
+            coeus_ops::add_assign(gl, &gi, &backend)?;
         }
+
+        Ok(())
     }
 }
 
 /// Tracked `diag(v, k)` — create diagonal matrix from 1-D vector.
 #[must_use]
 #[inline]
-pub fn diag<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(v: &Var<T, B>, k: isize) -> Var<T, B>
+pub fn diag<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    v: &Var<T, B>,
+    k: isize,
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::diag(&v.tensor, k, &backend);
+    let out_tensor = coeus_ops::diag(&v.tensor, k, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(v);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = DiagNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: vec![v.clone()],
             k,
         };
@@ -77,11 +86,11 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 // ── DiagonalNode ─────────────────────────────────────────────────────────────
@@ -112,12 +121,16 @@ where
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // backward of diagonal(M, k) is a matrix with grad_out on diagonal k.
             // We build this as diag(grad_out, k) then zero-pad to match input_shape.
-            let gi_diag = coeus_ops::diag(grad_out, self.k, &backend);
+            let gi_diag = coeus_ops::diag(grad_out, self.k, &backend)?;
             // gi_diag may be smaller than input_shape; zero-pad if necessary.
             let [rows, cols] = [self.input_shape[0], self.input_shape[1]];
             let (gi_rows, gi_cols) = (gi_diag.shape()[0], gi_diag.shape()[1]);
@@ -125,7 +138,7 @@ where
                 gi_diag
             } else {
                 // Embed gi_diag into zeros of input_shape.
-                let gi_cont = gi_diag.to_contiguous();
+                let gi_cont = gi_diag.to_contiguous()?;
                 let gi_s = gi_cont.as_slice();
                 let mut data = vec![T::zero(); rows * cols];
                 for r in 0..gi_rows.min(rows) {
@@ -133,11 +146,13 @@ where
                         data[r * cols + c] = gi_s[r * gi_cols + c];
                     }
                 }
-                Tensor::from_slice(vec![rows, cols], &data)
+                Tensor::from_slice_on(vec![rows, cols], &data, &backend)?
             };
             let gl = g.write();
-            coeus_ops::add_assign(gl, &gi, &backend);
+            coeus_ops::add_assign(gl, &gi, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -147,26 +162,26 @@ where
 pub fn diagonal<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     m: &Var<T, B>,
     k: isize,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::diagonal(&m.tensor, k, &backend);
+    let out_tensor = coeus_ops::diagonal(&m.tensor, k, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(m);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = DiagonalNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: vec![m.clone()],
             k,
             input_shape: m.tensor.shape().to_vec(),
@@ -175,9 +190,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

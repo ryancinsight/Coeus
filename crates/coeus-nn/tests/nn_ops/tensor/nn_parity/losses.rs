@@ -9,10 +9,10 @@ fn test_softmax_parity() {
 
     // Coeus setup
     let x_coeus = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &x_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &x_data).expect("construct tensor"),
         true,
-    );
-    let out_coeus = coeus_nn::softmax(&x_coeus, 1);
+    ).expect("construct variable");
+    let out_coeus = coeus_nn::softmax(&x_coeus, 1).expect("run operation");
 
     // Verify forward
     let expected_softmax_out = vec![
@@ -26,8 +26,8 @@ fn test_softmax_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_softmax_out, 1e-4);
 
     // Backward
-    let loss_coeus = coeus_autograd::sum(&out_coeus);
-    loss_coeus.backward();
+    let loss_coeus = coeus_autograd::sum(&out_coeus).expect("run operation");
+    loss_coeus.backward().expect("run backward");
 
     let dx_coeus = x_coeus.grad().unwrap();
     let expected_softmax_dx = vec![
@@ -49,10 +49,10 @@ fn test_cross_entropy_loss_parity() {
 
     // Coeus setup
     let logits_coeus = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &logits_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &logits_data).expect("construct tensor"),
         true,
-    );
-    let loss_coeus = coeus_nn::cross_entropy_loss(&logits_coeus, &targets_data);
+    ).expect("construct variable");
+    let loss_coeus = coeus_nn::cross_entropy_loss(&logits_coeus, &targets_data).expect("run operation");
 
     // Verify forward (Mean Cross Entropy: mean(-log(softmax(logits)[target])))
     let expected_cross_entropy_out = vec![0.288726f32];
@@ -63,7 +63,7 @@ fn test_cross_entropy_loss_parity() {
     );
 
     // Backward
-    loss_coeus.backward();
+    loss_coeus.backward().expect("run backward");
 
     let dlogits_coeus = logits_coeus.grad().unwrap();
     let expected_cross_entropy_dlogits = vec![

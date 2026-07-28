@@ -49,7 +49,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
 
         // ∂/∂x: overwrite zeroes the replaced positions (they no longer depend
@@ -57,23 +61,25 @@ where
         // through unchanged.
         if let Some(Some(ref g)) = input_grads.first() {
             let grad_x = if self.accumulate {
-                grad_out.to_contiguous_on(&backend)
+                grad_out.to_contiguous_on(&backend)?
             } else {
                 let k = self.index_tensor.numel();
-                let zeros = Tensor::zeros_on([k], &backend);
-                coeus_ops::index_put(grad_out, &self.index_tensor, &zeros, false, &backend)
+                let zeros = Tensor::zeros_on([k], &backend)?;
+                coeus_ops::index_put(grad_out, &self.index_tensor, &zeros, false, &backend)?
             };
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_x, &backend);
+            coeus_ops::add_assign(gl, &grad_x, &backend)?;
         }
 
         // ∂/∂v: each value lands at its `idx` position, so its gradient is the
         // output gradient gathered there.
         if let Some(Some(ref g)) = input_grads.get(1) {
-            let grad_v = coeus_ops::index_select(grad_out, 0, &self.index_tensor, &backend);
+            let grad_v = coeus_ops::index_select(grad_out, 0, &self.index_tensor, &backend)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_v, &backend);
+            coeus_ops::add_assign(gl, &grad_v, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -89,7 +95,7 @@ pub fn index_put<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     indices: &Var<T, B>,
     values: &Var<T, B>,
     accumulate: bool,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -101,7 +107,7 @@ where
         &values.tensor,
         accumulate,
         &backend,
-    );
+    )?;
 
     let requires_grad =
         crate::grad_mode::should_track_var(input) || crate::grad_mode::should_track_var(values);
@@ -109,13 +115,13 @@ where
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = IndexPutNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: vec![input.clone(), values.clone()],
             index_tensor: indices.tensor.clone(),
             accumulate,
@@ -124,9 +130,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

@@ -29,9 +29,9 @@ where
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64> + CpuAddressableStorageMut<i64>,
 {
     // A = [[2,0,1],[0,3,0],[1,0,4]], shape [3,3], nnz=5
-    let values = Tensor::<f64, B>::from_slice_on(vec![5], &[2.0, 1.0, 3.0, 1.0, 4.0], backend);
-    let col_indices = Tensor::<i64, B>::from_slice_on(vec![5], &[0i64, 2, 1, 0, 2], backend);
-    let row_offsets = Tensor::<i64, B>::from_slice_on(vec![4], &[0i64, 2, 3, 5], backend);
+    let values = Tensor::<f64, B>::from_slice_on(vec![5], &[2.0, 1.0, 3.0, 1.0, 4.0], backend).expect("construct tensor");
+    let col_indices = Tensor::<i64, B>::from_slice_on(vec![5], &[0i64, 2, 1, 0, 2], backend).expect("construct tensor");
+    let row_offsets = Tensor::<i64, B>::from_slice_on(vec![4], &[0i64, 2, 3, 5], backend).expect("construct tensor");
     CsrTensor::new(vec![3, 3].into(), values, col_indices, row_offsets)
 }
 
@@ -40,7 +40,7 @@ where
     B: coeus_core::ComputeBackend,
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Tensor::from_slice_on(shape.to_vec(), vals, backend)
+    Tensor::from_slice_on(shape.to_vec(), vals, backend).expect("construct tensor")
 }
 
 // SPMV
@@ -57,17 +57,17 @@ where
     // y[2] = 1*1 + 4*3 = 13
     let a = make_csr(backend);
     let x = t(&[3], &[1.0, 2.0, 3.0], backend);
-    let y = coeus_ops::spmv(&a, &x, backend);
+    let y = coeus_ops::spmv(&a, &x, backend).expect("run operation");
     assert_eq!(y.shape(), &[3], "spmv shape");
     assert_eq!(y.as_slice(), &[5.0_f64, 6.0, 13.0], "spmv");
 
     // Identity sparse matrix x x = x (nnz = 3, diagonal only).
     // I = [[1,0,0],[0,1,0],[0,0,1]]
-    let i_vals = Tensor::<f64, B>::from_slice_on(vec![3], &[1.0, 1.0, 1.0], backend);
-    let i_cols = Tensor::<i64, B>::from_slice_on(vec![3], &[0i64, 1, 2], backend);
-    let i_rows = Tensor::<i64, B>::from_slice_on(vec![4], &[0i64, 1, 2, 3], backend);
+    let i_vals = Tensor::<f64, B>::from_slice_on(vec![3], &[1.0, 1.0, 1.0], backend).expect("construct tensor");
+    let i_cols = Tensor::<i64, B>::from_slice_on(vec![3], &[0i64, 1, 2], backend).expect("construct tensor");
+    let i_rows = Tensor::<i64, B>::from_slice_on(vec![4], &[0i64, 1, 2, 3], backend).expect("construct tensor");
     let eye = CsrTensor::new(vec![3, 3].into(), i_vals, i_cols, i_rows);
-    let yi = coeus_ops::spmv(&eye, &x, backend);
+    let yi = coeus_ops::spmv(&eye, &x, backend).expect("run operation");
     assert_eq!(yi.as_slice(), x.as_slice(), "spmv identity");
 }
 
@@ -86,7 +86,7 @@ where
     // -> C = [[3,0],[0,3],[5,0]]
     let a = make_csr(backend);
     let b = t(&[3, 2], &[1.0, 0.0, 0.0, 1.0, 1.0, 0.0], backend);
-    let c = coeus_ops::spmm(&a, &b, backend);
+    let c = coeus_ops::spmm(&a, &b, backend).expect("run operation");
     assert_eq!(c.shape(), &[3, 2], "spmm shape");
     assert_eq!(c.as_slice(), &[3.0_f64, 0.0, 0.0, 3.0, 5.0, 0.0], "spmm");
 }
@@ -107,8 +107,8 @@ where
     // nz2 (r=1,c=1): sum_j=0*0+1*1=1
     // nz3 (r=2,c=0): sum_j=0*1+0*0=0
     // nz4 (r=2,c=2): sum_j=0*1+0*0=0
-    let col_indices = Tensor::<i64, B>::from_slice_on(vec![5], &[0i64, 2, 1, 0, 2], backend);
-    let row_offsets = Tensor::<i64, B>::from_slice_on(vec![4], &[0i64, 2, 3, 5], backend);
+    let col_indices = Tensor::<i64, B>::from_slice_on(vec![5], &[0i64, 2, 1, 0, 2], backend).expect("construct tensor");
+    let row_offsets = Tensor::<i64, B>::from_slice_on(vec![4], &[0i64, 2, 3, 5], backend).expect("construct tensor");
     let b = t(&[3, 2], &[1.0, 0.0, 0.0, 1.0, 1.0, 0.0], backend);
     let grad_out = t(&[3, 2], &[1.0, 0.0, 0.0, 1.0, 0.0, 0.0], backend);
     let gv = coeus_ops::spmm_backward_values(
@@ -118,7 +118,7 @@ where
         &b,
         &grad_out,
         backend,
-    );
+    ).expect("run operation");
     assert_eq!(gv.shape(), &[5], "spmm_backward_values shape");
     assert_eq!(
         gv.as_slice(),
@@ -142,8 +142,8 @@ where
     // grad_B[2,0]=1*1+4*0=1   grad_B[2,1]=1*0+4*0=0
     // -> [[2,0],[0,3],[1,0]]
     let values = t(&[5], &[2.0, 1.0, 3.0, 1.0, 4.0], backend);
-    let col_indices = Tensor::<i64, B>::from_slice_on(vec![5], &[0i64, 2, 1, 0, 2], backend);
-    let row_offsets = Tensor::<i64, B>::from_slice_on(vec![4], &[0i64, 2, 3, 5], backend);
+    let col_indices = Tensor::<i64, B>::from_slice_on(vec![5], &[0i64, 2, 1, 0, 2], backend).expect("construct tensor");
+    let row_offsets = Tensor::<i64, B>::from_slice_on(vec![4], &[0i64, 2, 3, 5], backend).expect("construct tensor");
     let grad_out = t(&[3, 2], &[1.0, 0.0, 0.0, 1.0, 0.0, 0.0], backend);
     let gb = coeus_ops::spmm_backward_dense(
         &values,
@@ -152,7 +152,7 @@ where
         &[3, 3],
         &grad_out,
         backend,
-    );
+    ).expect("run operation");
     assert_eq!(gb.shape(), &[3, 2], "spmm_backward_dense shape");
     assert_eq!(
         gb.as_slice(),

@@ -2,7 +2,7 @@
 //!
 //! This trait is separate from [`super::ConvOps`] so a provider can add a
 //! native 3-D transposed-convolution kernel without inheriting the CPU
-//! implementation or a host-copy fallback.
+//! implementation; accelerator providers must implement native dispatch.
 
 use coeus_core::{ComputeBackend, Float, Layout, Scalar};
 
@@ -27,6 +27,7 @@ pub trait ConvTranspose3dOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: Float;
 }

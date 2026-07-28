@@ -12,7 +12,7 @@ use coeus_core::Scalar;
 /// If `dim` is out of range, or the extent along `dim` is exhausted before `n`
 /// differences complete.
 #[must_use]
-pub fn diff<T, B>(x: &Var<T, B>, n: usize, dim: usize) -> Var<T, B>
+pub fn diff<T, B>(x: &Var<T, B>, n: usize, dim: usize) -> Result<Var<T, B>, B::Error>
 where
     T: Scalar,
     B: coeus_ops::BackendOps<T> + Default,
@@ -41,11 +41,11 @@ where
                 })
                 .collect()
         };
-        let front = crate::ops::slice(&result, &ranges(true));
-        let back = crate::ops::slice(&result, &ranges(false));
-        result = crate::ops::sub(&front, &back);
+        let front = crate::ops::slice(&result, &ranges(true))?;
+        let back = crate::ops::slice(&result, &ranges(false))?;
+        result = crate::ops::sub(&front, &back)?;
     }
-    result
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -57,22 +57,28 @@ mod tests {
     #[test]
     fn diff_first_and_second_order_and_gradient() {
         let x =
-            Var::<f64, MoiraiBackend>::new(Tensor::from_slice([4], &[1.0, 3.0, 6.0, 10.0]), true);
+            Var::<f64, MoiraiBackend>::new(Tensor::from_slice([4], &[1.0, 3.0, 6.0, 10.0]).expect("valid tensor construction"), true).expect("valid variable construction");
 
         // n=1: [3-1, 6-3, 10-6] = [2, 3, 4].
-        let d1 = diff(&x, 1, 0);
+        let d1 = diff(&x, 1, 0).expect("valid autograd operation");
         assert_eq!(d1.tensor.shape(), &[3]);
         assert_eq!(d1.tensor.as_slice(), &[2.0, 3.0, 4.0]);
 
         // n=2: diff([2,3,4]) = [1, 1].
-        let d2 = diff(&x, 2, 0);
+        let d2 = diff(&x, 2, 0).expect("valid autograd operation");
         assert_eq!(d2.tensor.as_slice(), &[1.0, 1.0]);
 
         // n=0 is the identity.
-        assert_eq!(diff(&x, 0, 0).tensor.as_slice(), x.tensor.as_slice());
+        assert_eq!(
+            diff(&x, 0, 0)
+                .expect("valid autograd operation")
+                .tensor
+                .as_slice(),
+            x.tensor.as_slice()
+        );
 
         // Gradient of sum(diff): dx = [-1, 0, 0, 1] (telescoping cancellation).
-        d1.backward();
+        d1.backward().expect("valid backward propagation");
         assert_eq!(x.grad().unwrap().as_slice(), &[-1.0, 0.0, 0.0, 1.0]);
     }
 
@@ -80,11 +86,17 @@ mod tests {
     fn diff_along_inner_dim() {
         // [2,3] rows [1,2,4] and [0,10,30]; diff dim=1 -> [[1,2],[10,20]].
         let x = Var::<f64, MoiraiBackend>::new(
-            Tensor::from_slice([2, 3], &[1.0, 2.0, 4.0, 0.0, 10.0, 30.0]),
+            Tensor::from_slice([2, 3], &[1.0, 2.0, 4.0, 0.0, 10.0, 30.0]).expect("valid tensor construction"),
             false,
-        );
-        let d = diff(&x, 1, 1);
+        ).expect("valid variable construction");
+        let d = diff(&x, 1, 1).expect("valid autograd operation");
         assert_eq!(d.tensor.shape(), &[2, 2]);
-        assert_eq!(d.tensor.to_contiguous().as_slice(), &[1.0, 2.0, 10.0, 20.0]);
+        assert_eq!(
+            d.tensor
+                .to_contiguous()
+                .expect("valid contiguous conversion")
+                .as_slice(),
+            &[1.0, 2.0, 10.0, 20.0]
+        );
     }
 }

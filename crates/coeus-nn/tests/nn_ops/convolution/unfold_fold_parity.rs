@@ -12,8 +12,8 @@ use coeus_tensor::Tensor;
 fn unfold1d_output_shape() {
     // [1, 2, 6], kernel=3, stride=1, padding=0, dilation=1 → [1, 6, 4]
     let m = Unfold1d::<f32, SequentialBackend>::new(3, 1, 0, 1);
-    let x = Var::new(Tensor::<f32, SequentialBackend>::ones(vec![1, 2, 6]), false);
-    let y = m.forward(&x);
+    let x = Var::new(Tensor::<f32, SequentialBackend>::ones(vec![1, 2, 6]).expect("construct tensor"), false).expect("construct variable");
+    let y = m.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 6, 4]);
 }
 
@@ -24,10 +24,10 @@ fn unfold1d_identity_kernel1_stride1() {
     let m = Unfold1d::<f64, SequentialBackend>::new(1, 1, 0, 1);
     let data: Vec<f64> = (0..8).map(|i| i as f64).collect();
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 4], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 4], &data).expect("construct tensor"),
         false,
-    );
-    let y = m.forward(&x);
+    ).expect("construct variable");
+    let y = m.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 2, 4]);
     // Each C*k slot is a single element — data should pass through unchanged.
     assert_eq!(y.tensor.as_slice(), data.as_slice());
@@ -41,10 +41,10 @@ fn unfold1d_values_kernel3() {
     let data = [10.0_f64, 20.0, 30.0, 40.0, 50.0];
     let m = Unfold1d::<f64, SequentialBackend>::new(3, 1, 0, 1);
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 5], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 5], &data).expect("construct tensor"),
         false,
-    );
-    let y = m.forward(&x);
+    ).expect("construct variable");
+    let y = m.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 3, 3]);
     let s = y.tensor.as_slice();
     // channel 0, kernel 0: [10,20,30]
@@ -67,8 +67,8 @@ fn unfold1d_values_kernel3() {
 fn fold1d_output_shape() {
     // Reverse of unfold1d_output_shape: [1, 6, 4] → [1, 2, 6]
     let m = Fold1d::<f32, SequentialBackend>::new(6, 3, 1, 0, 1);
-    let x = Var::new(Tensor::<f32, SequentialBackend>::ones(vec![1, 6, 4]), false);
-    let y = m.forward(&x);
+    let x = Var::new(Tensor::<f32, SequentialBackend>::ones(vec![1, 6, 4]).expect("construct tensor"), false).expect("construct variable");
+    let y = m.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 2, 6]);
 }
 
@@ -77,15 +77,15 @@ fn fold1d_unfold1d_roundtrip_no_overlap() {
     // Stride = kernel_size means no overlap, so fold(unfold(x)) == count * x
     // (count = 1 for no overlap).
     let data: Vec<f64> = (0..8).map(|i| i as f64).collect();
-    let x_orig = Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 4], &data);
-    let x = Var::new(x_orig.clone(), false);
+    let x_orig = Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 4], &data).expect("construct tensor");
+    let x = Var::new(x_orig.clone(), false).expect("construct variable");
 
     let unfold = Unfold1d::<f64, SequentialBackend>::new(2, 2, 0, 1);
     let fold = Fold1d::<f64, SequentialBackend>::new(4, 2, 2, 0, 1);
 
-    let unfolded = unfold.forward(&x);
+    let unfolded = unfold.forward(&x).expect("run forward");
     assert_eq!(unfolded.tensor.shape(), &[1, 4, 2]); // C*k=4, L_out=2
-    let refolded = fold.forward(&unfolded);
+    let refolded = fold.forward(&unfolded).expect("run forward");
     assert_eq!(refolded.tensor.shape(), &[1, 2, 4]);
 
     for (a, &e) in refolded.tensor.as_slice().iter().zip(data.iter()) {
@@ -100,10 +100,10 @@ fn unfold2d_output_shape() {
     // [1, 2, 4, 4], kernel=2, stride=2, no padding, no dilation → [1, 8, 4]
     let m = Unfold2d::<f32, SequentialBackend>::new(2, 2, 0, 1);
     let x = Var::new(
-        Tensor::<f32, SequentialBackend>::ones(vec![1, 2, 4, 4]),
+        Tensor::<f32, SequentialBackend>::ones(vec![1, 2, 4, 4]).expect("construct tensor"),
         false,
-    );
-    let y = m.forward(&x);
+    ).expect("construct variable");
+    let y = m.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 8, 4]); // C*kH*kW=2*4=8, H_out*W_out=2*2=4
 }
 
@@ -113,10 +113,10 @@ fn unfold2d_values_single_window() {
     let data = [1.0_f64, 2.0, 3.0, 4.0];
     let m = Unfold2d::<f64, SequentialBackend>::new(2, 1, 0, 1);
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &data).expect("construct tensor"),
         false,
-    );
-    let y = m.forward(&x);
+    ).expect("construct variable");
+    let y = m.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 4, 1]); // C*kH*kW=4, L_out=1
     let s = y.tensor.as_slice();
     assert_eq!(s, &[1.0, 2.0, 3.0, 4.0]);
@@ -128,8 +128,8 @@ fn unfold2d_values_single_window() {
 fn fold2d_output_shape() {
     // Reverse: [1, 8, 4] → [1, 2, 4, 4]
     let m = Fold2d::<f32, SequentialBackend>::new(4, 4, 2, 2, 0, 1);
-    let x = Var::new(Tensor::<f32, SequentialBackend>::ones(vec![1, 8, 4]), false);
-    let y = m.forward(&x);
+    let x = Var::new(Tensor::<f32, SequentialBackend>::ones(vec![1, 8, 4]).expect("construct tensor"), false).expect("construct variable");
+    let y = m.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 2, 4, 4]);
 }
 
@@ -138,15 +138,15 @@ fn fold2d_unfold2d_roundtrip_no_overlap() {
     // Stride = kernel_size, no overlap → fold(unfold(x)) == x.
     let data: Vec<f64> = (0..16).map(|i| i as f64).collect();
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
     let unfold = Unfold2d::<f64, SequentialBackend>::new(2, 2, 0, 1);
     let fold = Fold2d::<f64, SequentialBackend>::new(4, 4, 2, 2, 0, 1);
 
-    let unfolded = unfold.forward(&x);
-    let refolded = fold.forward(&unfolded);
+    let unfolded = unfold.forward(&x).expect("run forward");
+    let refolded = fold.forward(&unfolded).expect("run forward");
     assert_eq!(refolded.tensor.shape(), &[1, 1, 4, 4]);
 
     for (a, &e) in refolded.tensor.as_slice().iter().zip(data.iter()) {
@@ -165,10 +165,10 @@ fn unfold1d_backward_accumulates_window_overlap() {
     let m = Unfold1d::<f64, SequentialBackend>::new(3, 1, 0, 1);
     let data = [10.0_f64, 20.0, 30.0, 40.0, 50.0];
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 5], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 5], &data).expect("construct tensor"),
         true,
-    );
-    m.forward(&x).backward();
+    ).expect("construct variable");
+    m.forward(&x).expect("run forward").backward().expect("run backward");
     let grad = x.grad().expect("unfold1d input gradient");
     assert_eq!(grad.as_slice(), &[1.0, 2.0, 3.0, 2.0, 1.0]);
     assert!(
@@ -184,10 +184,10 @@ fn unfold2d_backward_accumulates_window_overlap() {
     let m = Unfold2d::<f64, SequentialBackend>::new(2, 1, 0, 1);
     let data: Vec<f64> = (1..=9).map(|i| i as f64).collect();
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 3, 3], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 3, 3], &data).expect("construct tensor"),
         true,
-    );
-    m.forward(&x).backward();
+    ).expect("construct variable");
+    m.forward(&x).expect("run forward").backward().expect("run backward");
     let grad = x.grad().expect("unfold2d input gradient");
     assert_eq!(
         grad.as_slice(),
@@ -203,12 +203,12 @@ fn fold1d_backward_is_im2col_of_ones() {
     let m = Fold1d::<f64, SequentialBackend>::new(6, 2, 2, 0, 1);
     let data: Vec<f64> = (1..=6).map(|i| i as f64).collect();
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 3], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 3], &data).expect("construct tensor"),
         true,
-    );
-    let y = m.forward(&x);
+    ).expect("construct variable");
+    let y = m.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 1, 6]);
-    y.backward();
+    y.backward().expect("run backward");
     assert_eq!(
         x.grad().expect("fold1d input gradient").as_slice(),
         &[1.0; 6]
@@ -220,12 +220,12 @@ fn fold2d_backward_is_im2col_of_ones() {
     let m = Fold2d::<f64, SequentialBackend>::new(4, 4, 2, 2, 0, 1);
     let data: Vec<f64> = (1..=16).map(|i| i as f64).collect();
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 4, 4], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 4, 4], &data).expect("construct tensor"),
         true,
-    );
-    let y = m.forward(&x);
+    ).expect("construct variable");
+    let y = m.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 1, 4, 4]);
-    y.backward();
+    y.backward().expect("run backward");
     assert_eq!(
         x.grad().expect("fold2d input gradient").as_slice(),
         &[1.0; 16]

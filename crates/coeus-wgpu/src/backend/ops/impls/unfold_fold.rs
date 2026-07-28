@@ -14,7 +14,7 @@ impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         kernels::dispatch_unfold1d::<T>(
             input.buffer.as_ref(),
             input_layout,
@@ -25,6 +25,7 @@ impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
             output.buffer.as_ref(),
             output_layout,
         );
+        Ok(())
     }
 
     fn fold1d(
@@ -38,7 +39,7 @@ impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         kernels::dispatch_fold1d::<T>(
             input.buffer.as_ref(),
             input_layout,
@@ -49,6 +50,7 @@ impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
             output.buffer.as_ref(),
             output_layout,
         );
+        Ok(())
     }
 
     fn unfold2d(
@@ -65,7 +67,7 @@ impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
         dilation_w: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         kernels::dispatch_unfold2d::<T>(
             input.buffer.as_ref(),
             input_layout,
@@ -80,6 +82,7 @@ impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
             output.buffer.as_ref(),
             output_layout,
         );
+        Ok(())
     }
 
     fn fold2d(
@@ -98,7 +101,7 @@ impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
         dilation_w: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         kernels::dispatch_fold2d::<T>(
             input.buffer.as_ref(),
             input_layout,
@@ -115,5 +118,6 @@ impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
             output.buffer.as_ref(),
             output_layout,
         );
+        Ok(())
     }
 }

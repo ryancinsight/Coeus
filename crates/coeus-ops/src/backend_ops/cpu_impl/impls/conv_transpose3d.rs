@@ -22,7 +22,8 @@ where
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         defaults::conv_transpose::conv_transpose3d(
@@ -38,6 +39,6 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )
     }
 }

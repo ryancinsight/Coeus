@@ -26,7 +26,7 @@ use coeus_core::Scalar;
 pub fn einsum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     subscript: &str,
     operands: &[&Var<T, B>],
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -80,7 +80,7 @@ where
         if lhs == "ii" && rhs.is_empty() {
             assert_eq!(a.tensor.ndim(), 2, "einsum ii->: requires 2-D input");
             let backend = B::default();
-            let t = coeus_ops::einsum("ii->", &[&a.tensor], &backend).expect("einsum");
+            let t = coeus_ops::einsum("ii->", &[&a.tensor], &backend)?;
             return Var::new(t, false);
         }
 
@@ -96,7 +96,7 @@ where
 
     // "i,i->" — dot product (element-wise mul then sum)
     if a_lhs == "i" && b_lhs == "i" && rhs.is_empty() {
-        let product = crate::ops::mul(a, b);
+        let product = crate::ops::mul(a, b)?;
         return crate::ops::sum(&product);
     }
 
@@ -104,10 +104,10 @@ where
     if a_lhs == "i" && b_lhs == "j" && rhs == "ij" {
         let m = a.tensor.shape()[0];
         let n = b.tensor.shape()[0];
-        let a_col = crate::ops::unsqueeze(a, 1); // [m, 1]
-        let b_row = crate::ops::unsqueeze(b, 0); // [1, n]
-        let a_bcast = crate::ops::broadcast_to(&a_col, vec![m, n]);
-        let b_bcast = crate::ops::broadcast_to(&b_row, vec![m, n]);
+        let a_col = crate::ops::unsqueeze(a, 1)?; // [m, 1]
+        let b_row = crate::ops::unsqueeze(b, 0)?; // [1, n]
+        let a_bcast = crate::ops::broadcast_to(&a_col, vec![m, n])?;
+        let b_bcast = crate::ops::broadcast_to(&b_row, vec![m, n])?;
         return crate::ops::mul(&a_bcast, &b_bcast);
     }
 
@@ -136,8 +136,8 @@ where
                             }
                         })
                         .collect::<Vec<_>>(),
-                );
-                let a_2d = crate::ops::squeeze(&a_i, Some(0));
+                )?;
+                let a_2d = crate::ops::squeeze(&a_i, Some(0))?;
                 let b_i = crate::ops::slice(
                     b,
                     &(0..b.tensor.ndim())
@@ -149,12 +149,12 @@ where
                             }
                         })
                         .collect::<Vec<_>>(),
-                );
-                let b_2d = crate::ops::squeeze(&b_i, Some(0));
-                let mm = crate::ops::matmul(&a_2d, &b_2d);
+                )?;
+                let b_2d = crate::ops::squeeze(&b_i, Some(0))?;
+                let mm = crate::ops::matmul(&a_2d, &b_2d)?;
                 crate::ops::unsqueeze(&mm, 0)
             })
-            .collect();
+            .collect::<Result<_, _>>()?;
         let refs: Vec<&Var<T, B>> = batch_results.iter().collect();
         return crate::ops::cat(&refs, 0);
     }
@@ -164,8 +164,8 @@ where
         assert_eq!(a.tensor.ndim(), 2, "einsum ij,j->i: a must be 2-D");
         assert_eq!(b.tensor.ndim(), 1, "einsum ij,j->i: b must be 1-D");
         let k = b.tensor.shape()[0];
-        let b_col = crate::ops::reshape(b, vec![k, 1]);
-        let mm = crate::ops::matmul(a, &b_col);
+        let b_col = crate::ops::reshape(b, vec![k, 1])?;
+        let mm = crate::ops::matmul(a, &b_col)?;
         return crate::ops::squeeze(&mm, Some(1));
     }
 
@@ -173,7 +173,7 @@ where
     let backend = B::default();
     let raw_operands: Vec<&coeus_tensor::Tensor<T, B>> =
         operands.iter().map(|v| &v.tensor).collect();
-    let out = coeus_ops::einsum(subscript, &raw_operands, &backend).expect("einsum");
+    let out = coeus_ops::einsum(subscript, &raw_operands, &backend)?;
     Var::new(out, false)
 }
 
@@ -189,7 +189,7 @@ pub fn einsum3<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
     c: &Var<T, B>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -197,11 +197,11 @@ where
     let sub = subscript.trim();
     match sub {
         "ij,jk,kl->il" => {
-            let ab = einsum("ij,jk->ik", &[a, b]);
+            let ab = einsum("ij,jk->ik", &[a, b])?;
             einsum("ij,jk->ik", &[&ab, c])
         }
         "bij,bjk,bkl->bil" => {
-            let ab = einsum("bij,bjk->bik", &[a, b]);
+            let ab = einsum("bij,bjk->bik", &[a, b])?;
             einsum("bij,bjk->bik", &[&ab, c])
         }
         _ => panic!("einsum3: unsupported 3-operand pattern '{subscript}'"),

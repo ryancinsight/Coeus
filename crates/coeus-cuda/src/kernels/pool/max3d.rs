@@ -1,12 +1,12 @@
 #![allow(clippy::too_many_arguments)]
 
-use super::validation::{
-    checked_pool_parameters, checked_pool_work, pool_layouts_are_valid, pool_prefix_matches,
-    pool_shapes_match, POOL_BLOCK_SIZE,
-};
 use super::POOL_COMMON_SRC;
+use super::validation::{
+    POOL_BLOCK_SIZE, checked_pool_parameters, checked_pool_work, pool_layouts_are_valid,
+    pool_prefix_matches, pool_shapes_match,
+};
 use crate::backend::CudaScalar;
-use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
+use crate::driver::{CUdeviceptr, CudaDriver, get_cuda_context};
 use crate::kernels::fuse::get_or_create_kernel;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
@@ -31,8 +31,14 @@ pub fn dispatch_max_pool3d<T: CudaScalar>(
     let Some(_ctx) = get_cuda_context() else {
         return false;
     };
-    let Some([kernel_size_value, stride_value, padding_value, dilation_value]) =
-        checked_pool_parameters(kernel_size, stride, padding, dilation)
+    let Some(
+        [
+            kernel_size_value,
+            stride_value,
+            padding_value,
+            dilation_value,
+        ],
+    ) = checked_pool_parameters(kernel_size, stride, padding, dilation)
     else {
         return false;
     };
@@ -208,8 +214,14 @@ pub fn dispatch_max_pool3d_backward<T: CudaScalar>(
     let Some(_ctx) = get_cuda_context() else {
         return false;
     };
-    let Some([kernel_size_value, stride_value, padding_value, dilation_value]) =
-        checked_pool_parameters(kernel_size, stride, padding, dilation)
+    let Some(
+        [
+            kernel_size_value,
+            stride_value,
+            padding_value,
+            dilation_value,
+        ],
+    ) = checked_pool_parameters(kernel_size, stride, padding, dilation)
     else {
         return false;
     };

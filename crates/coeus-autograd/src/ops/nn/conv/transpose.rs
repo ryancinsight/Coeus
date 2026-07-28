@@ -45,14 +45,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let needs_grad_input = input_grads.get(0).and_then(|g| g.as_ref()).is_some();
         let needs_grad_weight = input_grads.get(1).and_then(|g| g.as_ref()).is_some();
         let needs_grad_bias =
             self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some();
 
         if !needs_grad_input && !needs_grad_weight && !needs_grad_bias {
-            return;
+            return Ok(());
         }
 
         let backend = B::default();
@@ -66,9 +70,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         let mut input_host = vec![T::zero(); self.inp_clone.numel()];
         let mut weight_host = vec![T::zero(); self.w_clone.numel()];
         let mut grad_out_host = vec![T::zero(); grad_out.numel()];
-        backend.copy_to_host(self.inp_clone.storage(), &mut input_host);
-        backend.copy_to_host(self.w_clone.storage(), &mut weight_host);
-        backend.copy_to_host(grad_out.storage(), &mut grad_out_host);
+        backend.copy_to_host(self.inp_clone.storage(), &mut input_host)?;
+        backend.copy_to_host(self.w_clone.storage(), &mut weight_host)?;
+        backend.copy_to_host(grad_out.storage(), &mut grad_out_host)?;
 
         if needs_grad_input {
             let mut grad_input = vec![T::zero(); self.inp_clone.numel()];
@@ -103,7 +107,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                 input_grads[0].as_ref().unwrap().write(),
                 &grad_input,
                 &backend,
-            );
+            )?;
         }
 
         if needs_grad_weight {
@@ -138,7 +142,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                 input_grads[1].as_ref().unwrap().write(),
                 &grad_weight,
                 &backend,
-            );
+            )?;
         }
 
         if needs_grad_bias {
@@ -155,8 +159,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                 input_grads[2].as_ref().unwrap().write(),
                 &grad_bias,
                 &backend,
-            );
+            )?;
         }
+
+
+        Ok(())
     }
 }
 
@@ -171,7 +178,7 @@ pub fn conv_transpose1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     padding: usize,
     _output_padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input)
         || crate::grad_mode::should_track_var(weight)
@@ -184,13 +191,12 @@ pub fn conv_transpose1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
 
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let inputs = {
             let mut values = vec![input.clone(), weight.clone()];
             if let Some(bias_var) = bias {
@@ -199,7 +205,7 @@ pub fn conv_transpose1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             values
         };
         let node = ConvTranspose1dNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs,
             w_clone: weight.tensor.clone(),
             inp_clone: input.tensor.clone(),
@@ -213,11 +219,11 @@ pub fn conv_transpose1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 // ── ConvTranspose2d backward node ─────────────────────────────────────────────
@@ -275,14 +281,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let needs_grad_input = input_grads.get(0).and_then(|g| g.as_ref()).is_some();
         let needs_grad_weight = input_grads.get(1).and_then(|g| g.as_ref()).is_some();
         let needs_grad_bias =
             self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some();
 
         if !needs_grad_input && !needs_grad_weight && !needs_grad_bias {
-            return;
+            return Ok(());
         }
 
         let backend = B::default();
@@ -302,9 +312,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         let mut inp_host = vec![T::zero(); self.inp_clone.numel()];
         let mut w_host = vec![T::zero(); self.w_clone.numel()];
         let mut go_host = vec![T::zero(); grad_out.numel()];
-        backend.copy_to_host(self.inp_clone.storage(), &mut inp_host);
-        backend.copy_to_host(self.w_clone.storage(), &mut w_host);
-        backend.copy_to_host(grad_out.storage(), &mut go_host);
+        backend.copy_to_host(self.inp_clone.storage(), &mut inp_host)?;
+        backend.copy_to_host(self.w_clone.storage(), &mut w_host)?;
+        backend.copy_to_host(grad_out.storage(), &mut go_host)?;
 
         // Helper index closures.
         let go_idx = |ni: usize, co: usize, ho: usize, wo: usize| {
@@ -344,7 +354,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                     }
                 }
             }
-            scatter_accumulate_into(input_grads[0].as_ref().unwrap().write(), &gi, &backend);
+            scatter_accumulate_into(input_grads[0].as_ref().unwrap().write(), &gi, &backend)?;
         }
 
         if needs_grad_weight {
@@ -377,7 +387,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                     }
                 }
             }
-            scatter_accumulate_into(input_grads[1].as_ref().unwrap().write(), &gw, &backend);
+            scatter_accumulate_into(input_grads[1].as_ref().unwrap().write(), &gw, &backend)?;
         }
 
         if needs_grad_bias {
@@ -391,8 +401,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                     }
                 }
             }
-            scatter_accumulate_into(input_grads[2].as_ref().unwrap().write(), &gb, &backend);
+            scatter_accumulate_into(input_grads[2].as_ref().unwrap().write(), &gb, &backend)?;
         }
+
+
+        Ok(())
     }
 }
 
@@ -407,7 +420,7 @@ pub fn conv_transpose2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     padding: usize,
     _output_padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input)
         || crate::grad_mode::should_track_var(weight)
@@ -420,13 +433,12 @@ pub fn conv_transpose2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
 
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let inputs = {
             let mut values = vec![input.clone(), weight.clone()];
             if let Some(bias_var) = bias {
@@ -435,7 +447,7 @@ pub fn conv_transpose2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             values
         };
         let node = ConvTranspose2dNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs,
             w_clone: weight.tensor.clone(),
             inp_clone: input.tensor.clone(),
@@ -449,11 +461,11 @@ pub fn conv_transpose2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 // ── ConvTranspose3d backward node ─────────────────────────────────────────────
@@ -516,14 +528,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::CpuBackend + Default> Ba
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let needs_grad_input = input_grads.get(0).and_then(|g| g.as_ref()).is_some();
         let needs_grad_weight = input_grads.get(1).and_then(|g| g.as_ref()).is_some();
         let needs_grad_bias =
             self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some();
 
         if !needs_grad_input && !needs_grad_weight && !needs_grad_bias {
-            return;
+            return Ok(());
         }
 
         let backend = B::default();
@@ -546,9 +562,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::CpuBackend + Default> Ba
         let mut inp_host = vec![T::zero(); self.inp_clone.numel()];
         let mut w_host = vec![T::zero(); self.w_clone.numel()];
         let mut go_host = vec![T::zero(); grad_out.numel()];
-        backend.copy_to_host(self.inp_clone.storage(), &mut inp_host);
-        backend.copy_to_host(self.w_clone.storage(), &mut w_host);
-        backend.copy_to_host(grad_out.storage(), &mut go_host);
+        backend.copy_to_host(self.inp_clone.storage(), &mut inp_host)?;
+        backend.copy_to_host(self.w_clone.storage(), &mut w_host)?;
+        backend.copy_to_host(grad_out.storage(), &mut go_host)?;
 
         let go_idx = |ni: usize, co: usize, do_: usize, ho: usize, wo: usize| {
             ni * c_out * d_out * h_out * w_out
@@ -604,7 +620,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::CpuBackend + Default> Ba
                     }
                 }
             }
-            scatter_accumulate_into(input_grads[0].as_ref().unwrap().write(), &gi, &backend);
+            scatter_accumulate_into(input_grads[0].as_ref().unwrap().write(), &gi, &backend)?;
         }
 
         if needs_grad_weight {
@@ -650,7 +666,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::CpuBackend + Default> Ba
                     }
                 }
             }
-            scatter_accumulate_into(input_grads[1].as_ref().unwrap().write(), &gw, &backend);
+            scatter_accumulate_into(input_grads[1].as_ref().unwrap().write(), &gw, &backend)?;
         }
 
         if needs_grad_bias {
@@ -666,8 +682,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::CpuBackend + Default> Ba
                     }
                 }
             }
-            scatter_accumulate_into(input_grads[2].as_ref().unwrap().write(), &gb, &backend);
+            scatter_accumulate_into(input_grads[2].as_ref().unwrap().write(), &gb, &backend)?;
         }
+
+
+        Ok(())
     }
 }
 
@@ -686,7 +705,7 @@ pub fn conv_transpose3d<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::CpuBa
     padding: usize,
     _output_padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input)
         || crate::grad_mode::should_track_var(weight)
@@ -699,13 +718,12 @@ pub fn conv_transpose3d<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::CpuBa
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
 
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let inputs = {
             let mut values = vec![input.clone(), weight.clone()];
             if let Some(bias_var) = bias {
@@ -714,7 +732,7 @@ pub fn conv_transpose3d<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::CpuBa
             values
         };
         let node = ConvTranspose3dNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs,
             w_clone: weight.tensor.clone(),
             inp_clone: input.tensor.clone(),
@@ -728,9 +746,9 @@ pub fn conv_transpose3d<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::CpuBa
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

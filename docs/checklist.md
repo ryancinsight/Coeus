@@ -8,14 +8,19 @@
 - [x] Replace member-local provider path dependencies and patch tables with
       Git-plus-version declarations; regenerate `Cargo.lock` from the
       standalone graph so provider identities remain single-source.
-- [ ] Change allocation, fill, host-to-device, device-to-host, and COW
+- [x] Change allocation, fill, host-to-device, device-to-host, and COW
       uniqueness boundaries to return the backend's typed error.
-- [ ] Migrate CPU, WGPU, CUDA, Hephaestus, ROCm, and Metal implementors plus
+- [x] Migrate CPU, WGPU, CUDA, Hephaestus, ROCm, and Metal implementors plus
       all direct callers without compatibility wrappers or fallback branches.
-- [ ] Cache provider initialization as a typed `Result` and assert no-device,
-      allocation, transfer, and COW failure identity.
+- [x] Cache WGPU, CUDA, ROCm, Metal, and generic Hephaestus provider
+      initialization as typed results; preserve no-device, allocation,
+      transfer, and COW failure identity at each boundary.
 - [ ] Run pinned formatting, warning-denied checks, nextest, doctests, and the
       exact-head WGPU/CUDA/ROCm/Metal provider matrix.
+      Coeus-owned Metal nextest is green (3/3), WGPU all-target compilation is
+      green, and the remaining CUDA/ROCm matrix lanes are blocked before Coeus
+      compilation by the peer-owned Hephaestus branch errors recorded in the
+      task closeout.
 - [ ] Commit and publish each verified migration increment; close only after
       the full contract and caller graph is green.
 

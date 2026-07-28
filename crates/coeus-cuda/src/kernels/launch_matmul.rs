@@ -1,5 +1,5 @@
 use super::GpuLayoutInfo;
-use crate::driver::{get_cuda_context, CudaDriver};
+use crate::driver::{CudaDriver, get_cuda_context};
 use crate::kernels::validation::{launch_grid_size_for_block, layouts_fit_cuda};
 use crate::storage::CudaStorage;
 use coeus_core::Layout;

@@ -18,7 +18,7 @@
 // element-wise loop implementation.
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_tensor::Tensor;
 
 /// Parse and strip whitespace from an einsum subscript string.
@@ -45,13 +45,11 @@ fn parse_subscript(subscript: &str) -> (Vec<&str>, &str) {
 /// - `"ij,j->i"` — matrix-vector multiply
 /// - `"bik,bk->bi"` — batched matrix-vector multiply
 ///
-/// Unrecognised patterns that have the correct number of operands
-/// will trigger a panic.
+/// Unrecognised patterns return a typed backend error.
 ///
-/// # Panics
-/// - Panics if `operands.len()` does not match the number of comma-separated
-///   subscript groups in `subscript`.
-/// - Panics for unsupported patterns.
+/// # Errors
+/// Returns a backend error when the operand count, rank, shape, or pattern is
+/// invalid, or when a delegated kernel cannot materialize its result.
 #[inline]
 pub fn einsum<T: Scalar, B: BackendOps<T> + Default>(
     subscript: &str,
@@ -62,13 +60,16 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let (lhs_parts, rhs) = parse_subscript(subscript);
-    assert_eq!(
-        lhs_parts.len(),
-        operands.len(),
-        "einsum: subscript has {} operand(s) but {} tensor(s) provided",
-        lhs_parts.len(),
-        operands.len()
-    );
+    if lhs_parts.len() != operands.len() {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "einsum",
+            reason: format!(
+                "subscript has {} operands but {} tensors were provided",
+                lhs_parts.len(),
+                operands.len()
+            ),
+        }));
+    }
 
     // ── Single-operand patterns ────────────────────────────────────────────
     if operands.len() == 1 {
@@ -77,8 +78,17 @@ where
 
         // "ij->ji" — 2-D transpose
         if lhs == "ij" && rhs == "ji" {
-            assert_eq!(a.ndim(), 2, "einsum ij->ji: requires 2-D input");
-            return Ok(a.to_contiguous().permute(&[1, 0]).to_contiguous_on(backend));
+            if a.ndim() != 2 {
+                return Err(B::Error::from(BackendError::UnsupportedRank {
+                    operation: "einsum ij->ji",
+                    rank: a.ndim(),
+                    max_rank: 2,
+                }));
+            }
+            return a
+                .to_contiguous()?
+                .permute(&[1, 0])
+                .to_contiguous_on(backend);
         }
 
         // "...ij->...ji" / generic last-two-dims swap (e.g. "bij->bji")
@@ -93,29 +103,43 @@ where
                 if rhs_chars == expected_rhs {
                     let mut perm: Vec<usize> = (0..a.ndim()).collect();
                     perm.swap(a.ndim() - 2, a.ndim() - 1);
-                    return Ok(a.to_contiguous().permute(&perm).to_contiguous_on(backend));
+                    return a.to_contiguous()?.permute(&perm).to_contiguous_on(backend);
                 }
             }
         }
 
         // "ii->" — trace (sum of diagonal)
         if lhs == "ii" && rhs.is_empty() {
-            assert_eq!(a.ndim(), 2, "einsum ii->: requires 2-D input");
+            if a.ndim() != 2 {
+                return Err(B::Error::from(BackendError::UnsupportedRank {
+                    operation: "einsum ii->",
+                    rank: a.ndim(),
+                    max_rank: 2,
+                }));
+            }
             let n = a.shape()[0].min(a.shape()[1]);
-            let a_cont = a.to_contiguous();
+            let a_cont = a.to_contiguous()?;
             let a_s = a_cont.as_slice();
             let stride = a.shape()[1];
             let trace = (0..n)
                 .map(|i| a_s[i * stride + i])
                 .fold(T::zero(), |acc, x| acc + x);
-            return Ok(Tensor::from_slice(vec![1], &[trace]));
+            return Tensor::from_slice_on(vec![1], &[trace], backend);
         }
 
-        panic!("einsum: unsupported single-operand pattern '{subscript}'");
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "einsum",
+            reason: format!("unsupported single-operand pattern {subscript:?}"),
+        }));
     }
 
     // ── Two-operand patterns ───────────────────────────────────────────────
-    assert_eq!(operands.len(), 2, "einsum: expected 1 or 2 operands");
+    if operands.len() != 2 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "einsum",
+            reason: "expected one or two operands".to_owned(),
+        }));
+    }
     let a = operands[0];
     let b_t = operands[1];
     let a_lhs = lhs_parts[0];
@@ -123,44 +147,64 @@ where
 
     // "i,i->" — dot product
     if a_lhs == "i" && b_lhs == "i" && rhs.is_empty() {
-        assert_eq!(a.ndim(), 1, "einsum i,i->: a must be 1-D");
-        assert_eq!(b_t.ndim(), 1, "einsum i,i->: b must be 1-D");
-        let a_cont = a.to_contiguous();
-        let b_cont = b_t.to_contiguous();
+        if a.ndim() != 1 || b_t.ndim() != 1 || a.shape() != b_t.shape() {
+            return Err(B::Error::from(BackendError::ShapeMismatch {
+                operation: "einsum i,i->",
+                lhs: a.shape().to_vec(),
+                rhs: b_t.shape().to_vec(),
+            }));
+        }
+        let a_cont = a.to_contiguous()?;
+        let b_cont = b_t.to_contiguous()?;
         let dot = a_cont
             .as_slice()
             .iter()
             .zip(b_cont.as_slice().iter())
             .map(|(&x, &y)| x * y)
             .fold(T::zero(), |acc, v| acc + v);
-        return Ok(Tensor::from_slice(vec![1], &[dot]));
+        return Tensor::from_slice_on(vec![1], &[dot], backend);
     }
 
     // "i,j->ij" — outer product
     if a_lhs == "i" && b_lhs == "j" && rhs == "ij" {
-        assert_eq!(a.ndim(), 1, "einsum i,j->ij: a must be 1-D");
-        assert_eq!(b_t.ndim(), 1, "einsum i,j->ij: b must be 1-D");
+        if a.ndim() != 1 || b_t.ndim() != 1 {
+            return Err(B::Error::from(BackendError::UnsupportedRank {
+                operation: "einsum i,j->ij",
+                rank: a.ndim().max(b_t.ndim()),
+                max_rank: 1,
+            }));
+        }
         let m = a.shape()[0];
         let n = b_t.shape()[0];
-        let a_cont = a.to_contiguous();
-        let b_cont = b_t.to_contiguous();
+        let a_cont = a.to_contiguous()?;
+        let b_cont = b_t.to_contiguous()?;
         let a_s = a_cont.as_slice();
         let b_s = b_cont.as_slice();
         let data: Vec<T> = (0..m)
             .flat_map(|i| (0..n).map(move |j| a_s[i] * b_s[j]))
             .collect();
-        return Ok(Tensor::from_slice(vec![m, n], &data));
+        return Tensor::from_slice_on(vec![m, n], &data, backend);
     }
 
     // "ij,j->i" — matrix-vector multiply (right)
     if a_lhs == "ij" && b_lhs == "j" && rhs == "i" {
-        assert_eq!(a.ndim(), 2, "einsum ij,j->i: a must be 2-D");
-        assert_eq!(b_t.ndim(), 1, "einsum ij,j->i: b must be 1-D");
+        if a.ndim() != 2 || b_t.ndim() != 1 {
+            return Err(B::Error::from(BackendError::Storage {
+                operation: "einsum ij,j->i",
+                reason: "expected a rank-2 matrix and rank-1 vector".to_owned(),
+            }));
+        }
         let m = a.shape()[0];
         let k = a.shape()[1];
-        assert_eq!(k, b_t.shape()[0], "einsum ij,j->i: k-dim mismatch");
-        let a_cont = a.to_contiguous();
-        let b_cont = b_t.to_contiguous();
+        if k != b_t.shape()[0] {
+            return Err(B::Error::from(BackendError::ShapeMismatch {
+                operation: "einsum ij,j->i",
+                lhs: a.shape().to_vec(),
+                rhs: b_t.shape().to_vec(),
+            }));
+        }
+        let a_cont = a.to_contiguous()?;
+        let b_cont = b_t.to_contiguous()?;
         let a_s = a_cont.as_slice();
         let b_s = b_cont.as_slice();
         let data: Vec<T> = (0..m)
@@ -170,19 +214,29 @@ where
                     .fold(T::zero(), |acc, v| acc + v)
             })
             .collect();
-        return Ok(Tensor::from_slice(vec![m], &data));
+        return Tensor::from_slice_on(vec![m], &data, backend);
     }
 
     // "ij,kj->ik" — a @ b.T (inner dot on last dim)
     if a_lhs == "ij" && b_lhs == "kj" && rhs == "ik" {
-        assert_eq!(a.ndim(), 2, "einsum ij,kj->ik: a must be 2-D");
-        assert_eq!(b_t.ndim(), 2, "einsum ij,kj->ik: b must be 2-D");
+        if a.ndim() != 2 || b_t.ndim() != 2 {
+            return Err(B::Error::from(BackendError::Storage {
+                operation: "einsum ij,kj->ik",
+                reason: "expected two rank-2 matrices".to_owned(),
+            }));
+        }
         let m = a.shape()[0];
         let k = a.shape()[1];
         let n = b_t.shape()[0];
-        assert_eq!(k, b_t.shape()[1], "einsum ij,kj->ik: k-dim mismatch");
-        let a_cont = a.to_contiguous();
-        let b_cont = b_t.to_contiguous();
+        if k != b_t.shape()[1] {
+            return Err(B::Error::from(BackendError::ShapeMismatch {
+                operation: "einsum ij,kj->ik",
+                lhs: a.shape().to_vec(),
+                rhs: b_t.shape().to_vec(),
+            }));
+        }
+        let a_cont = a.to_contiguous()?;
+        let b_cont = b_t.to_contiguous()?;
         let a_s = a_cont.as_slice();
         let b_s = b_cont.as_slice();
         let data: Vec<T> = (0..m)
@@ -194,28 +248,41 @@ where
                 })
             })
             .collect();
-        return Ok(Tensor::from_slice(vec![m, n], &data));
+        return Tensor::from_slice_on(vec![m, n], &data, backend);
     }
 
     // "ij,jk->ik" — 2-D matrix multiply
     if a_lhs == "ij" && b_lhs == "jk" && rhs == "ik" {
-        assert_eq!(a.ndim(), 2, "einsum ij,jk->ik: a must be 2-D");
-        assert_eq!(b_t.ndim(), 2, "einsum ij,jk->ik: b must be 2-D");
-        return Ok(crate::matmul::matmul(a, b_t, backend));
+        if a.ndim() != 2 || b_t.ndim() != 2 {
+            return Err(B::Error::from(BackendError::Storage {
+                operation: "einsum ij,jk->ik",
+                reason: "expected two rank-2 matrices".to_owned(),
+            }));
+        }
+        return crate::matmul::matmul(a, b_t, backend);
     }
 
     // "bij,bjk->bik" — batched 3-D matrix multiply
     if a_lhs == "bij" && b_lhs == "bjk" && rhs == "bik" {
-        assert_eq!(a.ndim(), 3, "einsum bij,bjk->bik: a must be 3-D");
-        assert_eq!(b_t.ndim(), 3, "einsum bij,bjk->bik: b must be 3-D");
+        if a.ndim() != 3 || b_t.ndim() != 3 {
+            return Err(B::Error::from(BackendError::Storage {
+                operation: "einsum bij,bjk->bik",
+                reason: "expected two rank-3 tensors".to_owned(),
+            }));
+        }
         let batch = a.shape()[0];
         let m = a.shape()[1];
         let k = a.shape()[2];
         let n = b_t.shape()[2];
-        assert_eq!(b_t.shape()[0], batch);
-        assert_eq!(b_t.shape()[1], k);
-        let a_cont = a.to_contiguous();
-        let b_cont = b_t.to_contiguous();
+        if b_t.shape()[0] != batch || b_t.shape()[1] != k {
+            return Err(B::Error::from(BackendError::ShapeMismatch {
+                operation: "einsum bij,bjk->bik",
+                lhs: a.shape().to_vec(),
+                rhs: b_t.shape().to_vec(),
+            }));
+        }
+        let a_cont = a.to_contiguous()?;
+        let b_cont = b_t.to_contiguous()?;
         let a_s = a_cont.as_slice();
         let b_s = b_cont.as_slice();
         let data: Vec<T> = (0..batch)
@@ -229,20 +296,29 @@ where
                 })
             })
             .collect();
-        return Ok(Tensor::from_slice(vec![batch, m, n], &data));
+        return Tensor::from_slice_on(vec![batch, m, n], &data, backend);
     }
 
     // "bik,bk->bi" — batched matrix-vector multiply
     if a_lhs == "bik" && b_lhs == "bk" && rhs == "bi" {
-        assert_eq!(a.ndim(), 3, "einsum bik,bk->bi: a must be 3-D");
-        assert_eq!(b_t.ndim(), 2, "einsum bik,bk->bi: b must be 2-D");
+        if a.ndim() != 3 || b_t.ndim() != 2 {
+            return Err(B::Error::from(BackendError::Storage {
+                operation: "einsum bik,bk->bi",
+                reason: "expected a rank-3 tensor and rank-2 tensor".to_owned(),
+            }));
+        }
         let batch = a.shape()[0];
         let m = a.shape()[1];
         let k = a.shape()[2];
-        assert_eq!(b_t.shape()[0], batch);
-        assert_eq!(b_t.shape()[1], k);
-        let a_cont = a.to_contiguous();
-        let b_cont = b_t.to_contiguous();
+        if b_t.shape()[0] != batch || b_t.shape()[1] != k {
+            return Err(B::Error::from(BackendError::ShapeMismatch {
+                operation: "einsum bik,bk->bi",
+                lhs: a.shape().to_vec(),
+                rhs: b_t.shape().to_vec(),
+            }));
+        }
+        let a_cont = a.to_contiguous()?;
+        let b_cont = b_t.to_contiguous()?;
         let a_s = a_cont.as_slice();
         let b_s = b_cont.as_slice();
         let data: Vec<T> = (0..batch)
@@ -254,19 +330,29 @@ where
                 })
             })
             .collect();
-        return Ok(Tensor::from_slice(vec![batch, m], &data));
+        return Tensor::from_slice_on(vec![batch, m], &data, backend);
     }
 
     // "bi,bj->bij" — batched outer product
     if a_lhs == "bi" && b_lhs == "bj" && rhs == "bij" {
-        assert_eq!(a.ndim(), 2, "einsum bi,bj->bij: a must be 2-D");
-        assert_eq!(b_t.ndim(), 2, "einsum bi,bj->bij: b must be 2-D");
+        if a.ndim() != 2 || b_t.ndim() != 2 {
+            return Err(B::Error::from(BackendError::Storage {
+                operation: "einsum bi,bj->bij",
+                reason: "expected two rank-2 tensors".to_owned(),
+            }));
+        }
         let batch = a.shape()[0];
         let m = a.shape()[1];
         let n = b_t.shape()[1];
-        assert_eq!(b_t.shape()[0], batch);
-        let a_cont = a.to_contiguous();
-        let b_cont = b_t.to_contiguous();
+        if b_t.shape()[0] != batch {
+            return Err(B::Error::from(BackendError::ShapeMismatch {
+                operation: "einsum bi,bj->bij",
+                lhs: a.shape().to_vec(),
+                rhs: b_t.shape().to_vec(),
+            }));
+        }
+        let a_cont = a.to_contiguous()?;
+        let b_cont = b_t.to_contiguous()?;
         let a_s = a_cont.as_slice();
         let b_s = b_cont.as_slice();
         let data: Vec<T> = (0..batch)
@@ -274,10 +360,13 @@ where
                 (0..m).flat_map(move |i| (0..n).map(move |j| a_s[bi * m + i] * b_s[bi * n + j]))
             })
             .collect();
-        return Ok(Tensor::from_slice(vec![batch, m, n], &data));
+        return Tensor::from_slice_on(vec![batch, m, n], &data, backend);
     }
 
-    panic!("einsum: unsupported pattern '{subscript}'");
+    Err(B::Error::from(BackendError::Storage {
+        operation: "einsum",
+        reason: format!("unsupported pattern {subscript:?}"),
+    }))
 }
 
 /// Evaluate a 3-operand einsum by pairwise contraction.
@@ -312,7 +401,10 @@ where
             let ab = einsum("bij,bjk->bik", &[a, b], backend)?;
             einsum("bij,bjk->bik", &[&ab, c], backend)
         }
-        _ => panic!("einsum3: unsupported 3-operand pattern '{subscript}'"),
+        _ => Err(B::Error::from(BackendError::Storage {
+            operation: "einsum3",
+            reason: format!("unsupported pattern {subscript:?}"),
+        })),
     }
 }
 
@@ -328,8 +420,8 @@ mod tests {
 
     #[test]
     fn einsum_matmul() {
-        let a = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        let bt = Tensor::from_slice(vec![3, 2], &[7.0f32, 8.0, 9.0, 10.0, 11.0, 12.0]);
+        let a = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("construct tensor");
+        let bt = Tensor::from_slice(vec![3, 2], &[7.0f32, 8.0, 9.0, 10.0, 11.0, 12.0]).expect("construct tensor");
         let out = einsum("ij,jk->ik", &[&a, &bt], &b()).expect("valid einsum test shapes");
         assert_eq!(out.shape(), &[2, 2]);
         // row0: [1*7+2*9+3*11, 1*8+2*10+3*12] = [58, 64]
@@ -339,7 +431,7 @@ mod tests {
 
     #[test]
     fn einsum_transpose() {
-        let a = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let a = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("construct tensor");
         let out = einsum("ij->ji", &[&a], &b()).expect("valid einsum test shapes");
         assert_eq!(out.shape(), &[3, 2]);
         assert_eq!(out.as_slice(), &[1.0, 4.0, 2.0, 5.0, 3.0, 6.0]);
@@ -347,8 +439,8 @@ mod tests {
 
     #[test]
     fn einsum_dot_product() {
-        let a = Tensor::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0]);
-        let bt = Tensor::from_slice(vec![4], &[5.0f32, 6.0, 7.0, 8.0]);
+        let a = Tensor::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0]).expect("construct tensor");
+        let bt = Tensor::from_slice(vec![4], &[5.0f32, 6.0, 7.0, 8.0]).expect("construct tensor");
         let out = einsum("i,i->", &[&a, &bt], &b()).expect("valid einsum test shapes");
         assert_eq!(out.shape(), &[1]);
         assert_eq!(
@@ -362,15 +454,15 @@ mod tests {
         let a = Tensor::from_slice(
             vec![3, 3],
             &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
-        );
+        ).expect("construct tensor");
         let out = einsum("ii->", &[&a], &b()).expect("valid einsum test shapes");
         assert_eq!(out.as_slice(), &[1.0 + 5.0 + 9.0]);
     }
 
     #[test]
     fn einsum_outer_product() {
-        let a = Tensor::from_slice(vec![2], &[1.0f32, 2.0]);
-        let bt = Tensor::from_slice(vec![3], &[3.0f32, 4.0, 5.0]);
+        let a = Tensor::from_slice(vec![2], &[1.0f32, 2.0]).expect("construct tensor");
+        let bt = Tensor::from_slice(vec![3], &[3.0f32, 4.0, 5.0]).expect("construct tensor");
         let out = einsum("i,j->ij", &[&a, &bt], &b()).expect("valid einsum test shapes");
         assert_eq!(out.shape(), &[2, 3]);
         assert_eq!(out.as_slice(), &[3.0, 4.0, 5.0, 6.0, 8.0, 10.0]);
@@ -378,8 +470,8 @@ mod tests {
 
     #[test]
     fn einsum_matvec() {
-        let a = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        let v = Tensor::from_slice(vec![3], &[1.0f32, 0.0, 1.0]);
+        let a = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("construct tensor");
+        let v = Tensor::from_slice(vec![3], &[1.0f32, 0.0, 1.0]).expect("construct tensor");
         let out = einsum("ij,j->i", &[&a, &v], &b()).expect("valid einsum test shapes");
         assert_eq!(out.shape(), &[2]);
         assert_eq!(out.as_slice(), &[4.0, 10.0]);
@@ -388,8 +480,8 @@ mod tests {
     #[test]
     fn einsum_batched_matmul() {
         // batch=1, m=2, k=2, n=2
-        let a = Tensor::from_slice(vec![1, 2, 2], &[1.0f32, 2.0, 3.0, 4.0]);
-        let bt = Tensor::from_slice(vec![1, 2, 2], &[5.0f32, 6.0, 7.0, 8.0]);
+        let a = Tensor::from_slice(vec![1, 2, 2], &[1.0f32, 2.0, 3.0, 4.0]).expect("construct tensor");
+        let bt = Tensor::from_slice(vec![1, 2, 2], &[5.0f32, 6.0, 7.0, 8.0]).expect("construct tensor");
         let out = einsum("bij,bjk->bik", &[&a, &bt], &b()).expect("valid einsum test shapes");
         assert_eq!(out.shape(), &[1, 2, 2]);
         // [[1,2],[3,4]] @ [[5,6],[7,8]] = [[19,22],[43,50]]
@@ -398,9 +490,9 @@ mod tests {
 
     #[test]
     fn einsum_three_operand_matmul_chain() {
-        let a = Tensor::from_slice(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0]);
-        let bt = Tensor::from_slice(vec![2, 2], &[5.0f32, 6.0, 7.0, 8.0]);
-        let c = Tensor::from_slice(vec![2, 2], &[9.0f32, 10.0, 11.0, 12.0]);
+        let a = Tensor::from_slice(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0]).expect("construct tensor");
+        let bt = Tensor::from_slice(vec![2, 2], &[5.0f32, 6.0, 7.0, 8.0]).expect("construct tensor");
+        let c = Tensor::from_slice(vec![2, 2], &[9.0f32, 10.0, 11.0, 12.0]).expect("construct tensor");
         let out = einsum3("ij,jk,kl->il", &a, &bt, &c, &b())
             .expect("valid three-operand einsum test shapes");
         assert_eq!(out.shape(), &[2, 2]);

@@ -28,7 +28,7 @@ fn zeros_var<B: BackendOps<f64> + Default>(shape: &[usize], backend: &B) -> Var<
 where
     B::DeviceBuffer<f64>: coeus_core::CpuAddressableStorageMut<f64>,
 {
-    Var::new(Tensor::zeros_on(shape.to_vec(), backend), false)
+    Var::new(Tensor::zeros_on(shape.to_vec(), backend).expect("construct tensor"), false).expect("construct variable")
 }
 
 fn check_gru_cell<B: BackendOps<f64> + Default>(backend: &B)
@@ -37,12 +37,12 @@ where
         coeus_core::CpuAddressableStorage<f64> + coeus_core::CpuAddressableStorageMut<f64>,
 {
     // input_size=2, hidden_size=2 — small but non-trivial.
-    let cell = GRUCell::<f64, B>::new(2, 2);
+    let cell = GRUCell::<f64, B>::new(2, 2).expect("construct module");
 
     // x=zeros, h=zeros → h_new = zeros exactly (proven above).
     let x = zeros_var(&[1, 2], backend);
     let h = zeros_var(&[1, 2], backend);
-    let h_new = cell.step(&x, &h);
+    let h_new = cell.step(&x, &h).expect("run operation");
     assert_eq!(h_new.tensor.shape(), &[1, 2], "GRU output shape");
     assert_eq!(
         h_new.tensor.as_slice(),
@@ -51,7 +51,7 @@ where
     );
 
     // Module::forward (h_0 = zeros internally) must equal step with h=zeros.
-    let h_new2 = Module::<f64, B>::forward(&cell, &x);
+    let h_new2 = Module::<f64, B>::forward(&cell, &x).expect("run forward");
     assert_eq!(
         h_new2.tensor.as_slice(),
         h_new.tensor.as_slice(),
@@ -65,13 +65,13 @@ where
         coeus_core::CpuAddressableStorage<f64> + coeus_core::CpuAddressableStorageMut<f64>,
 {
     // input_size=2, hidden_size=2.
-    let cell = LSTMCell::<f64, B>::new(2, 2);
+    let cell = LSTMCell::<f64, B>::new(2, 2).expect("construct module");
 
     // x=zeros, h=zeros, c=zeros → h_new=zeros, c_new=zeros exactly.
     let x = zeros_var(&[1, 2], backend);
     let h = zeros_var(&[1, 2], backend);
     let c = zeros_var(&[1, 2], backend);
-    let (h_new, c_new) = cell.step(&x, &h, &c);
+    let (h_new, c_new) = cell.step(&x, &h, &c).expect("run operation");
     assert_eq!(h_new.tensor.shape(), &[1, 2], "LSTM h_new shape");
     assert_eq!(c_new.tensor.shape(), &[1, 2], "LSTM c_new shape");
     assert_eq!(
@@ -86,7 +86,7 @@ where
     );
 
     // Module::forward must equal step with h=zeros, c=zeros.
-    let h_new2 = Module::<f64, B>::forward(&cell, &x);
+    let h_new2 = Module::<f64, B>::forward(&cell, &x).expect("run forward");
     assert_eq!(
         h_new2.tensor.as_slice(),
         h_new.tensor.as_slice(),
@@ -111,12 +111,12 @@ where
 {
     // Linear::new → all-ones weights, zero bias. RNNCell step:
     //   h_new = f(x @ W_ih.T + h @ W_hh.T) with W all-ones.
-    let cell = RNNCell::<f64, B>::new(2, 2, RnnNonlinearity::Tanh);
+    let cell = RNNCell::<f64, B>::new(2, 2, RnnNonlinearity::Tanh).expect("construct module");
 
     // x=0, h=0 → pre=0 → tanh(0)=0 exactly.
     let x0 = zeros_var(&[1, 2], backend);
     let h0 = zeros_var(&[1, 2], backend);
-    let h_z = cell.step(&x0, &h0);
+    let h_z = cell.step(&x0, &h0).expect("run operation");
     assert_eq!(h_z.tensor.shape(), &[1, 2], "RNN h_new shape");
     assert_eq!(
         h_z.tensor.as_slice(),
@@ -125,8 +125,8 @@ where
     );
 
     // x=[1,2], h=0, all-ones W_ih → pre = [1+2, 1+2] = [3,3]; h_new = tanh(3).
-    let x = Var::new(Tensor::from_slice_on([1, 2], &[1.0, 2.0], backend), false);
-    let h_new = cell.step(&x, &h0);
+    let x = Var::new(Tensor::from_slice_on([1, 2], &[1.0, 2.0], backend).expect("construct tensor"), false).expect("construct variable");
+    let h_new = cell.step(&x, &h0).expect("run operation");
     let t3 = 3.0_f64.tanh();
     let got = h_new.tensor.as_slice();
     assert!(
@@ -135,8 +135,8 @@ where
     );
 
     // Relu nonlinearity: pre=[3,3] → relu(3)=3 exactly.
-    let cell_relu = RNNCell::<f64, B>::new(2, 2, RnnNonlinearity::Relu);
-    let h_relu = cell_relu.step(&x, &h0);
+    let cell_relu = RNNCell::<f64, B>::new(2, 2, RnnNonlinearity::Relu).expect("construct module");
+    let h_relu = cell_relu.step(&x, &h0).expect("run operation");
     assert_eq!(
         h_relu.tensor.as_slice(),
         &[3.0_f64, 3.0],
@@ -144,7 +144,7 @@ where
     );
 
     // Module::forward (h_0 = zeros) == step with h=zeros.
-    let h_mod = Module::<f64, B>::forward(&cell, &x);
+    let h_mod = Module::<f64, B>::forward(&cell, &x).expect("run forward");
     assert_eq!(
         h_mod.tensor.as_slice(),
         h_new.tensor.as_slice(),

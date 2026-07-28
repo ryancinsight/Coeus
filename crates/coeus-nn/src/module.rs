@@ -70,7 +70,7 @@ pub trait Module<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBacken
     }
 
     /// Forward pass.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B>;
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error>;
 
     /// Write optimizer-updated parameter values back into this module's own
     /// fields, consuming `params` in the same order `parameters()` enumerates
@@ -127,10 +127,11 @@ pub trait Module<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBacken
 
     /// Zero all parameter gradients.
     #[inline]
-    fn zero_grad(&self) {
+    fn zero_grad(&self) -> Result<(), B::Error> {
         for p in self.parameters() {
-            p.zero_grad();
+            p.zero_grad()?;
         }
+        Ok(())
     }
 
     /// Set the training mode of the module and its sub-modules.

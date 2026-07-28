@@ -17,8 +17,10 @@ use coeus_core::Scalar;
 /// use coeus_core::SequentialBackend;
 /// use coeus_tensor::Tensor;
 /// let v = Var::<f64, SequentialBackend>::new(
-///     Tensor::from_slice(vec![3], &[3.0_f64, 4.0, 5.0]), false);
-/// let scaled = v.scalar_mul(2.0);
+///     Tensor::from_slice(vec![3], &[3.0_f64, 4.0, 5.0]).expect("construct tensor"),
+///     false,
+/// ).expect("construct variable");
+/// let scaled = v.scalar_mul(2.0).expect("scale variable");
 /// assert_eq!(scaled.tensor.as_slice(), &[6.0_f64, 8.0, 10.0]);
 /// ```
 ///
@@ -42,49 +44,49 @@ pub trait VarScalarExt<T: Scalar>: Sized {
 }
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> VarScalarExt<T> for Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn scalar_mul(self, s: T) -> Var<T, B> {
+    fn scalar_mul(self, s: T) -> Result<Var<T, B>, B::Error> {
         free_scalar_mul(&self, s)
     }
 
     #[inline]
-    fn scalar_add(self, s: T) -> Var<T, B> {
+    fn scalar_add(self, s: T) -> Result<Var<T, B>, B::Error> {
         free_scalar_add(&self, s)
     }
 
     #[inline]
-    fn scalar_sub(self, s: T) -> Var<T, B> {
+    fn scalar_sub(self, s: T) -> Result<Var<T, B>, B::Error> {
         free_scalar_sub(&self, s)
     }
 
     #[inline]
-    fn scalar_div(self, s: T) -> Var<T, B> {
+    fn scalar_div(self, s: T) -> Result<Var<T, B>, B::Error> {
         free_scalar_div(&self, s)
     }
 }
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> VarScalarExt<T> for &Var<T, B> {
-    type Output = Var<T, B>;
+    type Output = Result<Var<T, B>, B::Error>;
 
     #[inline]
-    fn scalar_mul(self, s: T) -> Var<T, B> {
+    fn scalar_mul(self, s: T) -> Result<Var<T, B>, B::Error> {
         free_scalar_mul(self, s)
     }
 
     #[inline]
-    fn scalar_add(self, s: T) -> Var<T, B> {
+    fn scalar_add(self, s: T) -> Result<Var<T, B>, B::Error> {
         free_scalar_add(self, s)
     }
 
     #[inline]
-    fn scalar_sub(self, s: T) -> Var<T, B> {
+    fn scalar_sub(self, s: T) -> Result<Var<T, B>, B::Error> {
         free_scalar_sub(self, s)
     }
 
     #[inline]
-    fn scalar_div(self, s: T) -> Var<T, B> {
+    fn scalar_div(self, s: T) -> Result<Var<T, B>, B::Error> {
         free_scalar_div(self, s)
     }
 }

@@ -19,7 +19,7 @@ proptest! {
     fn test_transpose_invariant((m, n) in shape2d_strategy()) {
         let size = m * n;
         let data: Vec<f64> = (0..size).map(|i| i as f64).collect();
-        let a = Tensor::<f64, SequentialBackend>::from_slice(vec![m, n], &data);
+        let a = Tensor::<f64, SequentialBackend>::from_slice(vec![m, n], &data).expect("construct tensor");
 
         let a_t = a.transpose();
 
@@ -35,7 +35,7 @@ proptest! {
     fn test_reshape_invariant((m, n) in shape2d_strategy()) {
         let size = m * n;
         let data: Vec<f64> = (0..size).map(|i| i as f64).collect();
-        let a = Tensor::<f64, SequentialBackend>::from_slice(vec![m, n], &data);
+        let a = Tensor::<f64, SequentialBackend>::from_slice(vec![m, n], &data).expect("construct tensor");
 
         let a_reshaped = a.reshape(vec![size]);
 
@@ -52,10 +52,10 @@ proptest! {
         let data_a: Vec<f64> = (0..m).map(|i| i as f64).collect();
         let data_b: Vec<f64> = (0..n).map(|i| (i * 2) as f64).collect();
 
-        let a = Tensor::<f64, SequentialBackend>::from_slice(vec![m, 1], &data_a);
-        let b = Tensor::<f64, SequentialBackend>::from_slice(vec![1, n], &data_b);
+        let a = Tensor::<f64, SequentialBackend>::from_slice(vec![m, 1], &data_a).expect("construct tensor");
+        let b = Tensor::<f64, SequentialBackend>::from_slice(vec![1, n], &data_b).expect("construct tensor");
 
-        let c = coeus_ops::add(&a, &b, &backend);
+        let c = coeus_ops::add(&a, &b, &backend).expect("run broadcast addition");
 
         prop_assert_eq!(c.shape(), &[m, n]);
         for r in 0..m {
@@ -72,15 +72,15 @@ proptest! {
         let data_a: Vec<f64> = (0..size).map(|i| i as f64).collect();
         let data_b: Vec<f64> = (0..size).map(|i| (i * 3) as f64).collect();
 
-        let a_seq = Tensor::<f64, SequentialBackend>::from_slice(shape.clone(), &data_a);
-        let b_seq = Tensor::<f64, SequentialBackend>::from_slice(shape.clone(), &data_b);
+        let a_seq = Tensor::<f64, SequentialBackend>::from_slice(shape.clone(), &data_a).expect("construct tensor");
+        let b_seq = Tensor::<f64, SequentialBackend>::from_slice(shape.clone(), &data_b).expect("construct tensor");
         let seq_backend = SequentialBackend::new();
-        let c_seq = coeus_ops::add(&a_seq, &b_seq, &seq_backend);
+        let c_seq = coeus_ops::add(&a_seq, &b_seq, &seq_backend).expect("run sequential addition");
 
-        let a_moirai = Tensor::<f64, MoiraiBackend>::from_slice(shape.clone(), &data_a);
-        let b_moirai = Tensor::<f64, MoiraiBackend>::from_slice(shape.clone(), &data_b);
+        let a_moirai = Tensor::<f64, MoiraiBackend>::from_slice(shape.clone(), &data_a).expect("construct tensor");
+        let b_moirai = Tensor::<f64, MoiraiBackend>::from_slice(shape.clone(), &data_b).expect("construct tensor");
         let moirai_backend = MoiraiBackend::new();
-        let c_moirai = coeus_ops::add(&a_moirai, &b_moirai, &moirai_backend);
+        let c_moirai = coeus_ops::add(&a_moirai, &b_moirai, &moirai_backend).expect("run Moirai addition");
 
         prop_assert_eq!(c_moirai.shape(), c_seq.shape());
         let seq_slice = c_seq.as_slice();

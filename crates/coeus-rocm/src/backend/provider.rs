@@ -1,4 +1,4 @@
-use coeus_hephaestus::HephaestusProvider;
+use coeus_hephaestus::{HephaestusBackendError, HephaestusProvider, SharedHephaestusError};
 use hephaestus_rocm::RocmDevice;
 use std::sync::OnceLock;
 
@@ -12,8 +12,11 @@ unsafe impl HephaestusProvider for RocmProvider {
     type Device = RocmDevice;
     const NAME: &'static str = "rocm";
 
-    fn device() -> &'static Self::Device {
-        static DEVICE: OnceLock<RocmDevice> = OnceLock::new();
-        DEVICE.get_or_init(|| RocmDevice::try_default().expect("ROCm device acquisition failed"))
+    fn try_device() -> Result<&'static Self::Device, HephaestusBackendError> {
+        static DEVICE: OnceLock<Result<RocmDevice, SharedHephaestusError>> = OnceLock::new();
+        DEVICE
+            .get_or_init(|| RocmDevice::try_default().map_err(SharedHephaestusError::new))
+            .as_ref()
+            .map_err(|source| HephaestusBackendError::initialization(Self::NAME, source.clone()))
     }
 }

@@ -14,7 +14,7 @@
 
 use crate::backend_ops::BackendOps;
 use crate::binary;
-use coeus_core::Float;
+use coeus_core::{BackendError, Float};
 use coeus_tensor::Tensor;
 
 /// Euclidean (L2) norm over all elements: `sqrt(sum(x²))`.
@@ -34,9 +34,9 @@ pub fn norm<T: Float, B: BackendOps<T> + Default>(
     let flattened = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape([n])
     } else {
-        a.to_contiguous_on(backend).reshape([n])
+        a.to_contiguous_on(backend)?.reshape([n])
     };
-    let sq = binary::mul(&flattened, &flattened, backend);
+    let sq = binary::mul(&flattened, &flattened, backend)?;
     Ok(<T as Float>::sqrt(super::sum(&sq, backend)?))
 }
 /// `L_p` norm over all elements: `(Σ|xᵢ|^p)^(1/p)` for finite `p > 0`.
@@ -49,28 +49,40 @@ pub fn norm<T: Float, B: BackendOps<T> + Default>(
 /// is needed. Per-element `T::powf` runs at hardware-mapped precision of
 /// `T`, matching the `Scalar`/native-precision execution rule.
 ///
-/// # Panics
-/// Panics if `p <= 0`, `p` is not finite, or the input is empty.
+/// # Errors
+/// Returns a typed storage error if `p <= 0`, `p` is not finite, or the input
+/// is empty.
 #[inline]
-pub fn norm_p<T: Float, B: BackendOps<T> + Default>(a: &Tensor<T, B>, p: T, backend: &B) -> T {
+pub fn norm_p<T: Float, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    p: T,
+    backend: &B,
+) -> Result<T, B::Error> {
     let n = a.numel();
-    assert!(n > 0, "norm_p: empty tensor has no norm");
-    assert!(
-        p > T::zero() && <T as Float>::is_finite(p),
-        "norm_p: ord must be a finite positive number, got {p:?}"
-    );
+    if n == 0 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "norm_p",
+            reason: "empty tensor has no norm".to_owned(),
+        }));
+    }
+    if !(p > T::zero() && <T as Float>::is_finite(p)) {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "norm_p",
+            reason: "ord must be finite and positive".to_owned(),
+        }));
+    }
     let flattened = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape([n])
     } else {
-        a.to_contiguous_on(backend).reshape([n])
+        a.to_contiguous_on(backend)?.reshape([n])
     };
     let mut host = vec![T::zero(); n];
-    backend.copy_to_host(flattened.storage(), &mut host);
+    backend.copy_to_host(flattened.storage(), &mut host)?;
     let mut acc = T::zero();
     for &v in &host {
         acc += <T as Float>::powf(<T as Float>::abs(v), p);
     }
-    <T as Float>::powf(acc, T::one() / p)
+    Ok(<T as Float>::powf(acc, T::one() / p))
 }
 
 /// Per-axis `L_p` norm: tensor reduced along `axis` to size 1, with each
@@ -84,32 +96,45 @@ pub fn norm_p<T: Float, B: BackendOps<T> + Default>(a: &Tensor<T, B>, p: T, back
 ///
 /// Output shape is `input.shape` with `axis` reduced to size 1.
 ///
-/// # Panics
-/// Panics if `axis` is out of range, the axis has zero elements, `p <= 0`,
-/// or `p` is not finite.
+/// # Errors
+/// Returns a typed axis or storage error if `axis` is out of range, the axis
+/// has zero elements, `p <= 0`, or `p` is not finite.
 #[inline]
 pub fn norm_p_axis<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     p: T,
     axis: usize,
     backend: &B,
-) -> Tensor<T, B> {
-    assert!(axis < a.ndim(), "norm_p_axis: axis {axis} out of bounds");
+) -> Result<Tensor<T, B>, B::Error> {
+    if axis >= a.ndim() {
+        return Err(B::Error::from(BackendError::AxisOutOfRange {
+            operation: "norm_p_axis",
+            axis,
+            rank: a.ndim(),
+        }));
+    }
     let n_axis = a.shape()[axis];
-    assert!(n_axis > 0, "norm_p_axis: axis {axis} has zero elements");
-    assert!(
-        p > T::zero() && <T as Float>::is_finite(p),
-        "norm_p_axis: ord must be a finite positive number, got {p:?}"
-    );
+    if n_axis == 0 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "norm_p_axis",
+            reason: format!("axis {axis} has zero elements"),
+        }));
+    }
+    if !(p > T::zero() && <T as Float>::is_finite(p)) {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "norm_p_axis",
+            reason: "ord must be finite and positive".to_owned(),
+        }));
+    }
 
     let n = a.numel();
     let contiguous = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape(a.shape().to_vec())
     } else {
-        a.to_contiguous_on(backend)
+        a.to_contiguous_on(backend)?
     };
     let mut host = vec![T::zero(); n];
-    backend.copy_to_host(contiguous.storage(), &mut host);
+    backend.copy_to_host(contiguous.storage(), &mut host)?;
 
     let out_shape: Vec<usize> = {
         let mut s = contiguous.shape().to_vec();
@@ -180,23 +205,25 @@ pub fn frobenius_norm_batched<T: Float, B: BackendOps<T> + Default>(
     backend: &B,
 ) -> Result<Tensor<T, B>, B::Error> {
     let ndim = a.ndim();
-    assert!(
-        ndim >= 2,
-        "frobenius_norm_batched: tensor must have rank >= 2, got ndim={ndim}"
-    );
+    if ndim < 2 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "frobenius_norm_batched",
+            reason: format!("tensor must have rank >= 2, got ndim={ndim}"),
+        }));
+    }
     if ndim == 2 {
         let v = norm(a, backend)?;
-        return Ok(Tensor::from_slice_on([], &[v], backend));
+        return Tensor::from_slice_on([], &[v], backend);
     }
 
     let contiguous = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape(a.shape().to_vec())
     } else {
-        a.to_contiguous_on(backend)
+        a.to_contiguous_on(backend)?
     };
     let n = contiguous.numel();
     let mut host = vec![T::zero(); n];
-    backend.copy_to_host(contiguous.storage(), &mut host);
+    backend.copy_to_host(contiguous.storage(), &mut host)?;
 
     let last_two: usize = contiguous.shape()[ndim - 1] * contiguous.shape()[ndim - 2];
     let pre: usize = n / last_two;
@@ -211,7 +238,7 @@ pub fn frobenius_norm_batched<T: Float, B: BackendOps<T> + Default>(
     }
 
     let out_shape: Vec<usize> = contiguous.shape()[..ndim - 2].to_vec();
-    Ok(Tensor::from_slice_on(out_shape, &out_host, backend))
+    Tensor::from_slice_on(out_shape, &out_host, backend)
 }
 
 #[cfg(test)]
@@ -219,8 +246,43 @@ mod tests {
     use super::*;
     use coeus_core::SequentialBackend;
 
+    fn take_error<T>(result: Result<T, BackendError>) -> BackendError {
+        match result {
+            Ok(_) => panic!("expected operation to return an error"),
+            Err(error) => error,
+        }
+    }
+
+    fn assert_storage_error(error: BackendError, operation: &'static str, reason: &str) {
+        match error {
+            BackendError::Storage {
+                operation: actual_operation,
+                reason: actual_reason,
+            } => {
+                assert_eq!(actual_operation, operation);
+                assert_eq!(actual_reason, reason);
+            }
+            other => panic!("expected storage error, got {other:?}"),
+        }
+    }
+
+    fn assert_axis_error(error: BackendError, operation: &'static str, axis: usize, rank: usize) {
+        match error {
+            BackendError::AxisOutOfRange {
+                operation: actual_operation,
+                axis: actual_axis,
+                rank: actual_rank,
+            } => {
+                assert_eq!(actual_operation, operation);
+                assert_eq!(actual_axis, axis);
+                assert_eq!(actual_rank, rank);
+            }
+            other => panic!("expected axis error, got {other:?}"),
+        }
+    }
+
     fn v3() -> Tensor<f64, SequentialBackend> {
-        Tensor::from_slice(vec![5], &[1.0f64, -2.0, 3.0, -4.0, 5.0])
+        Tensor::from_slice(vec![5], &[1.0f64, -2.0, 3.0, -4.0, 5.0]).expect("construct tensor")
     }
 
     fn ref_p(x: &[f64], p: f64) -> f64 {
@@ -232,7 +294,7 @@ mod tests {
     fn norm_p_p2_matches_classical_l2() {
         let b = SequentialBackend::new();
         let x = v3();
-        let got = norm_p(&x, 2.0_f64, &b);
+        let got = norm_p(&x, 2.0_f64, &b).expect("run operation");
         let want = (55.0_f64).sqrt();
         assert!(
             (got - want).abs() < 1e-12,
@@ -244,7 +306,7 @@ mod tests {
     fn norm_p_p1_matches_manhattan_distance() {
         let b = SequentialBackend::new();
         let x = v3();
-        let got = norm_p(&x, 1.0_f64, &b);
+        let got = norm_p(&x, 1.0_f64, &b).expect("run operation");
         let want = 15.0_f64;
         assert!(
             (got - want).abs() < 1e-12,
@@ -256,7 +318,7 @@ mod tests {
     fn norm_p_p3_matches_cubic_reference() {
         let b = SequentialBackend::new();
         let x = v3();
-        let got = norm_p(&x, 3.0_f64, &b);
+        let got = norm_p(&x, 3.0_f64, &b).expect("run operation");
         let want = ref_p(&[1.0, -2.0, 3.0, -4.0, 5.0], 3.0);
         assert!(
             (got - want).abs() < 1e-10,
@@ -269,40 +331,40 @@ mod tests {
         let b = SequentialBackend::new();
         let x = v3();
         let n = norm(&x, &b).expect("valid norm test input");
-        let n_p = norm_p(&x, 2.0_f64, &b);
+        let n_p = norm_p(&x, 2.0_f64, &b).expect("run operation");
         assert_eq!(n.to_bits(), n_p.to_bits());
     }
 
     #[test]
-    #[should_panic(expected = "empty tensor has no norm")]
-    fn norm_p_empty_panics() {
+    fn norm_p_empty_returns_error() {
         let b = SequentialBackend::new();
-        let x = Tensor::<f64, SequentialBackend>::from_slice(vec![0], &[0.0f64; 0]);
-        let _ = norm_p(&x, 2.0_f64, &b);
+        let x = Tensor::<f64, SequentialBackend>::from_slice(vec![0], &[0.0f64; 0]).expect("construct tensor");
+        let error = take_error(norm_p(&x, 2.0_f64, &b));
+        assert_storage_error(error, "norm_p", "empty tensor has no norm");
     }
 
     #[test]
-    #[should_panic(expected = "ord must be a finite positive number")]
-    fn norm_p_negative_ord_panics() {
+    fn norm_p_negative_ord_returns_error() {
         let b = SequentialBackend::new();
         let x = v3();
-        let _ = norm_p(&x, -1.0_f64, &b);
+        let error = take_error(norm_p(&x, -1.0_f64, &b));
+        assert_storage_error(error, "norm_p", "ord must be finite and positive");
     }
 
     #[test]
-    #[should_panic(expected = "ord must be a finite positive number")]
-    fn norm_p_zero_ord_panics() {
+    fn norm_p_zero_ord_returns_error() {
         let b = SequentialBackend::new();
         let x = v3();
-        let _ = norm_p(&x, 0.0_f64, &b);
+        let error = take_error(norm_p(&x, 0.0_f64, &b));
+        assert_storage_error(error, "norm_p", "ord must be finite and positive");
     }
 
     #[test]
-    #[should_panic(expected = "ord must be a finite positive number")]
-    fn norm_p_infinite_ord_panics() {
+    fn norm_p_infinite_ord_returns_error() {
         let b = SequentialBackend::new();
         let x = v3();
-        let _ = norm_p(&x, f64::INFINITY, &b);
+        let error = take_error(norm_p(&x, f64::INFINITY, &b));
+        assert_storage_error(error, "norm_p", "ord must be finite and positive");
     }
 
     #[test]
@@ -311,8 +373,8 @@ mod tests {
         let x = Tensor::<f64, SequentialBackend>::from_slice(
             vec![2, 3],
             &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0],
-        );
-        let got = norm_p_axis(&x, 2.0, 1, &b);
+        ).expect("construct tensor");
+        let got = norm_p_axis(&x, 2.0, 1, &b).expect("run operation");
         let want = [
             (1.0_f64 + 4.0 + 9.0).sqrt(),
             (16.0_f64 + 25.0 + 36.0).sqrt(),
@@ -335,8 +397,8 @@ mod tests {
         let x = Tensor::<f64, SequentialBackend>::from_slice(
             vec![2, 3],
             &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0],
-        );
-        let got = norm_p_axis(&x, 1.0, 0, &b);
+        ).expect("construct tensor");
+        let got = norm_p_axis(&x, 1.0, 0, &b).expect("run operation");
         let want = [5.0, 7.0, 9.0];
         assert_eq!(got.shape(), &[1, 3]);
         assert_eq!(got.as_slice(), &want);
@@ -346,8 +408,8 @@ mod tests {
     fn norm_p_axis_rank1_reduces_to_scalar_tensor() {
         let b = SequentialBackend::new();
         let x = v3();
-        let got = norm_p_axis(&x, 2.0, 0, &b);
-        let n_global = norm_p(&x, 2.0, &b);
+        let got = norm_p_axis(&x, 2.0, 0, &b).expect("run operation");
+        let n_global = norm_p(&x, 2.0, &b).expect("run operation");
         assert_eq!(got.shape(), &[1]);
         assert_eq!(got.as_slice()[0].to_bits(), n_global.to_bits());
     }
@@ -360,8 +422,8 @@ mod tests {
             &[
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, -1.0, 2.0, -3.0, 4.0, -5.0, 6.0,
             ],
-        );
-        let got = norm_p_axis(&x, 3.0, 1, &b);
+        ).expect("construct tensor");
+        let got = norm_p_axis(&x, 3.0, 1, &b).expect("run operation");
         assert_eq!(got.shape(), &[2, 1, 2]);
         let want = [
             (1.0_f64 + 27.0 + 125.0).cbrt(),
@@ -378,33 +440,33 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "axis 2 out of bounds")]
-    fn norm_p_axis_out_of_range_axis_panics() {
+    fn norm_p_axis_out_of_range_axis_returns_error() {
         let b = SequentialBackend::new();
-        let x = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 3], &[1.0; 6]);
-        let _ = norm_p_axis(&x, 2.0, 2, &b);
+        let x = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 3], &[1.0; 6]).expect("construct tensor");
+        let error = take_error(norm_p_axis(&x, 2.0, 2, &b));
+        assert_axis_error(error, "norm_p_axis", 2, 2);
     }
 
     #[test]
-    #[should_panic(expected = "axis 1 has zero elements")]
-    fn norm_p_axis_zero_size_axis_panics() {
+    fn norm_p_axis_zero_size_axis_returns_error() {
         let b = SequentialBackend::new();
-        let x = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 0, 3], &[]);
-        let _ = norm_p_axis(&x, 2.0, 1, &b);
+        let x = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 0, 3], &[]).expect("construct tensor");
+        let error = take_error(norm_p_axis(&x, 2.0, 1, &b));
+        assert_storage_error(error, "norm_p_axis", "axis 1 has zero elements");
     }
 
     #[test]
-    #[should_panic(expected = "ord must be a finite positive number")]
-    fn norm_p_axis_non_positive_ord_panics() {
+    fn norm_p_axis_non_positive_ord_returns_error() {
         let b = SequentialBackend::new();
         let x = v3();
-        let _ = norm_p_axis(&x, 0.0, 0, &b);
+        let error = take_error(norm_p_axis(&x, 0.0, 0, &b));
+        assert_storage_error(error, "norm_p_axis", "ord must be finite and positive");
     }
 
     // ── frobenius_norm / frobenius_norm_batched ─────────────────────────────
 
     fn mat3x3(data: &[f64; 9]) -> Tensor<f64, SequentialBackend> {
-        Tensor::<f64, SequentialBackend>::from_slice(vec![3, 3], data)
+        Tensor::<f64, SequentialBackend>::from_slice(vec![3, 3], data).expect("construct tensor")
     }
 
     #[test]
@@ -441,7 +503,7 @@ mod tests {
                 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
                 7.0, 8.0,
             ],
-        );
+        ).expect("construct tensor");
         let got =
             frobenius_norm_batched(&stacked, &b).expect("valid batched Frobenius norm test input");
         assert_eq!(got.shape(), &[2]);
@@ -466,7 +528,7 @@ mod tests {
                 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0,
                 0.0, 0.0, 0.0, 1.0,
             ],
-        );
+        ).expect("construct tensor");
         let got =
             frobenius_norm_batched(&batch, &b).expect("valid batched Frobenius norm test input");
         assert_eq!(got.shape(), &[2, 2]);
@@ -492,6 +554,6 @@ mod tests {
     fn frobenius_norm_batched_1d_panics() {
         let b = SequentialBackend::new();
         let x = v3();
-        let _ = frobenius_norm_batched(&x, &b);
+        let _ = frobenius_norm_batched(&x, &b).expect("run operation");
     }
 }

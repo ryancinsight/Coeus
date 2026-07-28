@@ -28,11 +28,11 @@ fn bench_elementwise_add(c: &mut Criterion) {
     let seq_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
 
-    let a_seq = Tensor::<f32, SequentialBackend>::ones(shape.clone());
-    let b_seq = Tensor::<f32, SequentialBackend>::ones(shape.clone());
+    let a_seq = Tensor::<f32, SequentialBackend>::ones(shape.clone()).expect("construct tensor");
+    let b_seq = Tensor::<f32, SequentialBackend>::ones(shape.clone()).expect("construct tensor");
 
-    let a_moirai = Tensor::<f32, MoiraiBackend>::ones(shape.clone());
-    let b_moirai = Tensor::<f32, MoiraiBackend>::ones(shape.clone());
+    let a_moirai = Tensor::<f32, MoiraiBackend>::ones(shape.clone()).expect("construct tensor");
+    let b_moirai = Tensor::<f32, MoiraiBackend>::ones(shape.clone()).expect("construct tensor");
 
     let mut group = c.benchmark_group("Elementwise Add (1024x1024)");
 
@@ -42,7 +42,7 @@ fn bench_elementwise_add(c: &mut Criterion) {
                 black_box(&a_seq),
                 black_box(&b_seq),
                 black_box(&seq_backend),
-            ));
+            ).expect("benchmark addition"));
         })
     });
 
@@ -52,7 +52,7 @@ fn bench_elementwise_add(c: &mut Criterion) {
                 black_box(&a_moirai),
                 black_box(&b_moirai),
                 black_box(&moirai_backend),
-            ));
+            ).expect("benchmark addition"));
         })
     });
 
@@ -68,11 +68,11 @@ fn bench_matmul(c: &mut Criterion) {
     let seq_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
 
-    let a_seq = Tensor::<f32, SequentialBackend>::ones(vec![m, k]);
-    let b_seq = Tensor::<f32, SequentialBackend>::ones(vec![k, n]);
+    let a_seq = Tensor::<f32, SequentialBackend>::ones(vec![m, k]).expect("construct tensor");
+    let b_seq = Tensor::<f32, SequentialBackend>::ones(vec![k, n]).expect("construct tensor");
 
-    let a_moirai = Tensor::<f32, MoiraiBackend>::ones(vec![m, k]);
-    let b_moirai = Tensor::<f32, MoiraiBackend>::ones(vec![k, n]);
+    let a_moirai = Tensor::<f32, MoiraiBackend>::ones(vec![m, k]).expect("construct tensor");
+    let b_moirai = Tensor::<f32, MoiraiBackend>::ones(vec![k, n]).expect("construct tensor");
 
     let a_leto =
         Array::from_shape_vec([m, k], vec![1.0f32; m * k]).expect("benchmark input shape is valid");
@@ -93,7 +93,7 @@ fn bench_matmul(c: &mut Criterion) {
                 black_box(&a_seq),
                 black_box(&b_seq),
                 black_box(&seq_backend),
-            ));
+            ).expect("benchmark matrix multiplication"));
         })
     });
 
@@ -103,7 +103,7 @@ fn bench_matmul(c: &mut Criterion) {
                 black_box(&a_moirai),
                 black_box(&b_moirai),
                 black_box(&moirai_backend),
-            ));
+            ).expect("benchmark matrix multiplication"));
         })
     });
 

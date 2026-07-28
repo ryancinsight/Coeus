@@ -46,7 +46,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Dropout {
         self.set_training(mode);
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         coeus_autograd::dropout(input, self.p, self.is_training, self.seed)
     }
 }

@@ -23,11 +23,11 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         output_layout: &Layout,
         attn_weights: &mut Self::DeviceBuffer<T>,
         attn_weights_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         attention::sdp_attention(attention::AttentionForward {
-            backend: self,
             query,
             query_layout,
             key,
@@ -42,7 +42,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             output_layout,
             attn_weights,
             attn_weights_layout,
-        });
+        })
     }
 
     #[inline]
@@ -63,7 +63,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         grad_q: Option<&mut Self::DeviceBuffer<T>>,
         grad_k: Option<&mut Self::DeviceBuffer<T>>,
         grad_v: Option<&mut Self::DeviceBuffer<T>>,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         attention::sdp_attention_backward(attention::AttentionBackward {
@@ -79,6 +80,6 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             grad_q,
             grad_k,
             grad_v,
-        });
+        })
     }
 }

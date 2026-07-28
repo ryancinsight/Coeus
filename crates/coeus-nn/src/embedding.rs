@@ -20,23 +20,27 @@ pub struct Embedding<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBa
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Embedding<T, B> {
     /// Create an Embedding layer with weights initialized to ones.
-    pub fn new(num_embeddings: usize, embedding_dim: usize) -> Self {
+    pub fn new(num_embeddings: usize, embedding_dim: usize) -> Result<Self, B::Error> {
         let backend = B::default();
         let w_tensor = Tensor::ones_on([num_embeddings, embedding_dim], &backend);
-        let weight = Var::new(w_tensor, true);
-        Self {
+        let weight = Var::new(w_tensor?, true)?;
+        Ok(Self {
             weight,
             num_embeddings,
             embedding_dim,
             padding_idx: None,
-        }
+        })
     }
 
     /// Create with explicit `padding_idx`.
     ///
     /// Row `padding_idx` in the weight matrix is zeroed on construction and
     /// its gradient is zeroed by the autograd embedding backward node.
-    pub fn with_padding_idx(num_embeddings: usize, embedding_dim: usize, padding_idx: usize) -> Self
+    pub fn with_padding_idx(
+        num_embeddings: usize,
+        embedding_dim: usize,
+        padding_idx: usize,
+    ) -> Result<Self, B::Error>
     where
         B::DeviceBuffer<T>:
             coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -52,18 +56,21 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Embedding<T, B> {
             *v = T::zero();
         }
         let w_tensor =
-            Tensor::from_slice_on(vec![num_embeddings, embedding_dim], &w_data, &backend);
-        let weight = Var::new(w_tensor, true);
-        Self {
+            Tensor::from_slice_on(vec![num_embeddings, embedding_dim], &w_data, &backend)?;
+        let weight = Var::new(w_tensor, true)?;
+        Ok(Self {
             weight,
             num_embeddings,
             embedding_dim,
             padding_idx: Some(padding_idx),
-        }
+        })
     }
 
     /// Forward pass using explicit integer index tensor.
-    pub fn forward_indices<I: Scalar + 'static>(&self, indices: &Tensor<I, B>) -> Var<T, B> {
+    pub fn forward_indices<I: Scalar + 'static>(
+        &self,
+        indices: &Tensor<I, B>,
+    ) -> Result<Var<T, B>, B::Error> {
         coeus_autograd::embedding_with_padding_idx(&self.weight, indices, self.padding_idx)
     }
 }
@@ -73,7 +80,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Embeddin
         vec![self.weight.clone()]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         coeus_autograd::embedding_with_padding_idx(&self.weight, &input.tensor, self.padding_idx)
     }
 }

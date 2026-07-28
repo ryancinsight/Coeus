@@ -46,17 +46,21 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let mut host_grad = [T::zero()];
         let temp_grad;
         let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
             grad_out
         } else {
-            temp_grad = grad_out.to_contiguous_on(&backend);
+            temp_grad = grad_out.to_contiguous_on(&backend)?;
             &temp_grad
         };
-        backend.copy_to_host(grad_cont.storage(), &mut host_grad);
+        backend.copy_to_host(grad_cont.storage(), &mut host_grad)?;
         let g_out = host_grad[0];
         let n_t = T::from_f64(self.n as f64);
         let scale = g_out / n_t;
@@ -67,9 +71,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
             for (i, grad) in d_logit.iter_mut().enumerate() {
                 *grad = self.sig_minus_target[i] * scale;
             }
-            let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &d_logit, &backend);
+            let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &d_logit, &backend)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
 
         // d/d_target = -z / n.
@@ -78,10 +82,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
             for (i, grad) in d_target.iter_mut().enumerate() {
                 *grad = (T::zero() - self.logits[i]) * scale;
             }
-            let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &d_target, &backend);
+            let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &d_target, &backend)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -94,7 +100,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     logits: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     assert_eq!(
         logits.tensor.shape(),
@@ -109,14 +115,14 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let z_raw = if logits.tensor.is_contiguous() && logits.tensor.layout().offset() == 0 {
         &logits.tensor
     } else {
-        z_cont = logits.tensor.to_contiguous_on(&backend);
+        z_cont = logits.tensor.to_contiguous_on(&backend)?;
         &z_cont
     };
     let t_cont;
     let t_raw = if target.tensor.is_contiguous() && target.tensor.layout().offset() == 0 {
         &target.tensor
     } else {
-        t_cont = target.tensor.to_contiguous_on(&backend);
+        t_cont = target.tensor.to_contiguous_on(&backend)?;
         &t_cont
     };
 
@@ -124,14 +130,14 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         std::borrow::Cow::Borrowed(&s[..n])
     } else {
         let mut v = vec![T::zero(); n];
-        backend.copy_to_host(z_raw.storage(), &mut v);
+        backend.copy_to_host(z_raw.storage(), &mut v)?;
         std::borrow::Cow::Owned(v)
     };
     let t_host: std::borrow::Cow<[T]> = if let Some(s) = t_raw.storage().try_as_slice() {
         std::borrow::Cow::Borrowed(&s[..n])
     } else {
         let mut v = vec![T::zero(); n];
-        backend.copy_to_host(t_raw.storage(), &mut v);
+        backend.copy_to_host(t_raw.storage(), &mut v)?;
         std::borrow::Cow::Owned(v)
     };
 
@@ -151,18 +157,17 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     }
     loss_val = loss_val / T::from_f64(n as f64);
 
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
+    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend)?;
     let requires_grad =
         crate::grad_mode::should_track_var(logits) || crate::grad_mode::should_track_var(target);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let node = BceWithLogitsNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs: vec![logits.clone(), target.clone()],
             sig_minus_target,
             logits: logits_v,
@@ -173,9 +178,9 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

@@ -8,6 +8,35 @@ use coeus_autograd::Var;
 use coeus_core::Float;
 use coeus_tensor::Tensor;
 
+fn alpha_dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    mask_shape: coeus_core::Shape,
+    p: f64,
+    seed: u64,
+) -> Result<Var<T, B>, B::Error> {
+    let backend = B::default();
+    let q = 1.0 - p;
+    let mask_source = Var::new(Tensor::<T, B>::ones_on(mask_shape, &backend)?, false)?;
+    let scaled_mask = coeus_autograd::dropout(&mask_source, p, true, seed)?;
+    let keep = coeus_autograd::scalar_mul(&scaled_mask, T::from_f64(q))?;
+    let keep = Var::new(keep.tensor.broadcast(input.tensor.shape_cloned()), false)?;
+
+    let alpha_prime = -(AlphaDropout::SELU_ALPHA * AlphaDropout::SELU_LAMBDA);
+    let variance = q * (1.0 + p * alpha_prime * alpha_prime);
+    let scale = T::from_f64(1.0 / variance.sqrt());
+    let shift = T::from_f64(-p * alpha_prime / variance.sqrt());
+
+    let kept_input = coeus_autograd::mul(input, &keep)?;
+    let dropped_mask = coeus_autograd::scalar_add(
+        &coeus_autograd::scalar_mul(&keep, T::from_f64(-1.0))?,
+        T::one(),
+    )?;
+    let dropped_input = coeus_autograd::scalar_mul(&dropped_mask, T::from_f64(alpha_prime))?;
+    let masked = coeus_autograd::add(&kept_input, &dropped_input)?;
+    let scaled = coeus_autograd::scalar_mul(&masked, scale)?;
+    coeus_autograd::scalar_add(&scaled, shift)
+}
+
 // ── AlphaDropout ──────────────────────────────────────────────────────────────
 
 /// Alpha-dropout: a dropout variant designed for SELU activation networks.
@@ -66,30 +95,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AlphaDrop
     /// `α' = -λ·α ≈ -1.7581`.  A single affine shift `(a, b)` is then applied
     /// element-wise so that the output has the same mean and variance as the
     /// input: `a = 1/sqrt(1 - p*(1-α'^2*(1-p^2)))`, `b = -a*(p*α' + 0)`.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         if !self.is_training || self.p == 0.0 {
-            return input.clone();
+            return Ok(input.clone());
         }
-        // Delegate to standard dropout then apply affine correction.
-        // Note: full SELU-corrected alpha-dropout requires per-element masking
-        // with the SELU saturation value; we approximate via scaled dropout
-        // matching PyTorch's self-normalizing property to first order.
-        let dropped = coeus_autograd::dropout(input, self.p, true, self.seed);
-        // Scale so variance matches input: alpha_dropout keeps q=1-p fraction,
-        // substitutes -alpha*lambda for dropped elements, then normalizes.
-        // The simple rescaling below matches the expected output scale.
-        let alpha_prime = -(Self::SELU_ALPHA * Self::SELU_LAMBDA);
-        let q = 1.0 - self.p;
-        let mean_shift = alpha_prime * self.p;
-        let var_scale = q * (1.0 + alpha_prime.powi(2) * self.p);
-        let a = T::from_f64(1.0 / var_scale.sqrt());
-        let b = T::from_f64(-mean_shift / var_scale.sqrt());
-        let scaled = coeus_autograd::scalar_mul(&dropped, a);
-        let backend = B::default();
-        let shape = scaled.tensor.shape_cloned();
-        let bias_tensor = Tensor::full_on(shape, b, &backend);
-        let bias_var = Var::new(bias_tensor, false);
-        coeus_autograd::add(&scaled, &bias_var)
+        alpha_dropout(input, input.tensor.shape_cloned(), self.p, self.seed)
     }
 }
 
@@ -136,18 +146,23 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for FeatureAl
     }
 
     /// Feature alpha-dropout forward: same as AlphaDropout but applied channel-wise.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         if !self.is_training || self.p == 0.0 {
-            return input.clone();
+            return Ok(input.clone());
         }
-        // Delegate to standard alpha-dropout (element-wise for now).
-        // Full feature-wise masking (same mask for all spatial positions in a
-        // channel) would require a reshape + broadcast. The per-element path
-        // is the correct eval-mode behaviour; training mode uses the same
-        // alpha correction as AlphaDropout.
-        let mut alpha_drop = AlphaDropout::new(self.p);
-        alpha_drop.seed = self.seed;
-        alpha_drop.forward(input)
+        let shape = input.tensor.shape_cloned();
+        if shape.len() < 2 {
+            return Err(coeus_core::BackendError::ShapeMismatch {
+                operation: "feature_alpha_dropout",
+                lhs: shape.to_vec(),
+                rhs: vec![2],
+            }
+            .into());
+        }
+        let mut mask_shape = vec![1; shape.len()];
+        mask_shape[0] = shape[0];
+        mask_shape[1] = shape[1];
+        alpha_dropout(input, mask_shape.into(), self.p, self.seed)
     }
 }
 
@@ -191,9 +206,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GaussianN
     }
 
     /// Add Gaussian noise during training; identity during evaluation.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         if !self.is_training || self.std == 0.0 {
-            return input.clone();
+            return Ok(input.clone());
         }
         let backend = B::default();
         let shape = input.tensor.shape_cloned();
@@ -215,8 +230,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GaussianN
             i += 2;
         }
 
-        let noise_tensor = Tensor::from_slice_on(shape, &noise, &backend);
-        let noise_var = Var::new(noise_tensor, false);
+        let noise_tensor = Tensor::from_slice_on(shape, &noise, &backend)?;
+        let noise_var = Var::new(noise_tensor, false)?;
         coeus_autograd::add(input, &noise_var)
     }
 }
@@ -285,7 +300,7 @@ where
     /// (differentiable through the squared activations), and the `^beta`
     /// denominator uses the differentiable `pow` (the base `k + .. >= k > 0`,
     /// so the `exp(beta*ln(.))` it computes is well defined).
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let shape = input.tensor.shape_cloned();
         let n = shape[0];
         let c = shape[1];
@@ -294,8 +309,8 @@ where
         let backend = B::default();
 
         // View as [N, C, spatial] (channel axis = dim 1); square it.
-        let x3 = coeus_autograd::reshape(input, [n, c, spatial]);
-        let sq = coeus_autograd::mul(&x3, &x3);
+        let x3 = coeus_autograd::reshape(input, [n, c, spatial])?;
+        let sq = coeus_autograd::mul(&x3, &x3)?;
 
         // Constant band matrix M [C, C], M[i, j] = 1 iff |i - j| <= half. Then
         // `M @ sq` over the channel axis is each channel's squared response
@@ -309,23 +324,23 @@ where
                 *cell = T::one();
             }
         }
-        let m = Var::new(Tensor::from_slice_on([c, c], &m_data, &backend), false);
+        let m = Var::new(Tensor::from_slice_on([c, c], &m_data, &backend)?, false)?;
 
         // windowed = M @ sq:  [N,C,S] -> [C,N*S] -> M@ -> [C,N*S] -> [N,C,S].
-        let sq_cns = coeus_autograd::permute(&sq, &[1, 0, 2]);
-        let sq_2d = coeus_autograd::reshape(&sq_cns, [c, n * spatial]);
-        let win_2d = coeus_autograd::matmul(&m, &sq_2d);
-        let win_cns = coeus_autograd::reshape(&win_2d, [c, n, spatial]);
-        let windowed = coeus_autograd::permute(&win_cns, &[1, 0, 2]);
+        let sq_cns = coeus_autograd::permute(&sq, &[1, 0, 2])?;
+        let sq_2d = coeus_autograd::reshape(&sq_cns, [c, n * spatial])?;
+        let win_2d = coeus_autograd::matmul(&m, &sq_2d)?;
+        let win_cns = coeus_autograd::reshape(&win_2d, [c, n, spatial])?;
+        let windowed = coeus_autograd::permute(&win_cns, &[1, 0, 2])?;
 
         // denom = (k + (alpha / size) * windowed)^beta;  y = x / denom.
-        let scaled =
-            coeus_autograd::scalar_mul(&windowed, T::from_f64(self.alpha / self.size as f64));
-        let denom = coeus_autograd::pow(
-            &coeus_autograd::scalar_add(&scaled, T::from_f64(self.k)),
-            self.beta,
-        );
-        let y3 = coeus_autograd::div(&x3, &denom);
+        let scaled = coeus_autograd::scalar_mul(
+            &windowed,
+            T::from_f64(self.alpha / self.size as f64),
+        )?;
+        let shifted = coeus_autograd::scalar_add(&scaled, T::from_f64(self.k))?;
+        let denom = coeus_autograd::pow(&shifted, self.beta)?;
+        let y3 = coeus_autograd::div(&x3, &denom)?;
         coeus_autograd::reshape(&y3, shape)
     }
 }

@@ -15,14 +15,14 @@ fn test_pairwise_distance() {
     let p = 2.0_f64;
     let eps = 1e-6_f64;
     let x1 = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let x2 = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[0.0, 0.0, 1.0, 1.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[0.0, 0.0, 1.0, 1.0]).expect("construct tensor"),
         true,
-    );
-    let dist = pairwise_distance(&x1, &x2, p, eps);
+    ).expect("construct variable");
+    let dist = pairwise_distance(&x1, &x2, p, eps).expect("run operation");
     assert_eq!(dist.tensor.shape(), &[2]);
     // Torch `pairwise_distance` = `at::norm(x1 - x2 + eps, p)`: eps is added to
     // the difference itself (not clamped onto the summed norm), which keeps the
@@ -37,8 +37,8 @@ fn test_pairwise_distance() {
         let exp = s[i].powf(1.0 / p);
         assert!((out[i] - exp).abs() <= 1e-12, "pd fwd {}", i);
     }
-    let total = coeus_autograd::sum(&dist);
-    total.backward();
+    let total = coeus_autograd::sum(&dist).expect("run operation");
+    total.backward().expect("run backward");
     let g1 = x1.grad().expect("x1 grad");
     let g2 = x2.grad().expect("x2 grad");
     for i in 0..2 {
@@ -67,19 +67,19 @@ fn test_triplet_margin_loss() {
     // d_ap=2, d_an=2.5, hinge=max(0, 2 - 2.5 + 1)=0.5 (active) → loss=0.5.
     // grads (N=1): d/anchor=[-1,1], d/positive=[1,0], d/negative=[0,-1].
     let anchor = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let positive = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[2.0, 0.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[2.0, 0.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let negative = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 2.5]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 2.5]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let loss = triplet_margin_loss(&anchor, &positive, &negative, 1.0, 2.0, 0.0);
+    let loss = triplet_margin_loss(&anchor, &positive, &negative, 1.0, 2.0, 0.0).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
     assert!(
         (loss.tensor.as_slice()[0] - 0.5).abs() <= 1e-12,
@@ -87,7 +87,7 @@ fn test_triplet_margin_loss() {
         loss.tensor.as_slice()[0]
     );
 
-    loss.backward();
+    loss.backward().expect("run backward");
     let ga = anchor.grad().expect("anchor grad");
     let gp = positive.grad().expect("positive grad");
     let gn = negative.grad().expect("negative grad");
@@ -110,38 +110,38 @@ fn test_triplet_margin_loss() {
 fn test_triplet_margin_loss_inactive() {
     // Easy triplet (d_ap << d_an by more than margin) → hinge 0, loss 0.
     let anchor = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let positive = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.5, 0.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.5, 0.0]).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let negative = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[5.0, 0.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[5.0, 0.0]).expect("construct tensor"),
         false,
-    );
-    let loss = triplet_margin_loss(&anchor, &positive, &negative, 1.0, 2.0, 0.0);
+    ).expect("construct variable");
+    let loss = triplet_margin_loss(&anchor, &positive, &negative, 1.0, 2.0, 0.0).expect("run operation");
     assert_eq!(loss.tensor.as_slice(), &[0.0_f64], "easy triplet → loss 0");
 }
 
 #[test]
 fn test_margin_ranking_loss() {
     let input1 = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([4], &[2.0, 0.0, 1.0, 2.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[2.0, 0.0, 1.0, 2.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let input2 = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 1.0, 1.0, 1.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 1.0, 1.0, 1.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let target = [1.0_f64, -1.0, 1.0, -1.0];
 
-    let loss = margin_ranking_loss(&input1, &input2, &target, 0.5);
+    let loss = margin_ranking_loss(&input1, &input2, &target, 0.5).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
     assert_eq!(loss.tensor.as_slice(), &[0.5_f64]);
 
-    loss.backward();
+    loss.backward().expect("run backward");
     let g1 = input1
         .grad()
         .expect("invariant: margin ranking input1 requires grad");
@@ -163,14 +163,14 @@ fn test_cosine_embedding_loss() {
 
     // ── Case 1: identical unit vectors, y=1 → loss = 1−1 = 0.0 ──────────
     let x1 = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[1.0_f64, 0.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[1.0_f64, 0.0]).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let x2 = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[1.0_f64, 0.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[1.0_f64, 0.0]).expect("construct tensor"),
         false,
-    );
-    let loss_0 = cosine_embedding_loss(&x1, &x2, &[1.0_f64], 0.0);
+    ).expect("construct variable");
+    let loss_0 = cosine_embedding_loss(&x1, &x2, &[1.0_f64], 0.0).expect("run operation");
     assert!(
         (loss_0.tensor.as_slice()[0] - 0.0).abs() < 1e-10,
         "identical y=1"
@@ -178,10 +178,10 @@ fn test_cosine_embedding_loss() {
 
     // ── Case 2: orthogonal unit vectors, y=1 → loss = 1−0 = 1.0 ─────────
     let x2_orth = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0_f64, 1.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0_f64, 1.0]).expect("construct tensor"),
         false,
-    );
-    let loss_1 = cosine_embedding_loss(&x1, &x2_orth, &[1.0_f64], 0.0);
+    ).expect("construct variable");
+    let loss_1 = cosine_embedding_loss(&x1, &x2_orth, &[1.0_f64], 0.0).expect("run operation");
     assert!(
         (loss_1.tensor.as_slice()[0] - 1.0).abs() < 1e-10,
         "orthogonal y=1"
@@ -189,17 +189,17 @@ fn test_cosine_embedding_loss() {
 
     // ── Case 3: opposite vectors, y=−1, margin=0 → max(0,−1−0)=0.0 ───────
     let x2_opp = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[-1.0_f64, 0.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[-1.0_f64, 0.0]).expect("construct tensor"),
         false,
-    );
-    let loss_2 = cosine_embedding_loss(&x1, &x2_opp, &[-1.0_f64], 0.0);
+    ).expect("construct variable");
+    let loss_2 = cosine_embedding_loss(&x1, &x2_opp, &[-1.0_f64], 0.0).expect("run operation");
     assert!(
         (loss_2.tensor.as_slice()[0] - 0.0).abs() < 1e-10,
         "opposite y=-1 margin=0"
     );
 
     // ── Case 4: identical vectors, y=−1, margin=0 → max(0, 1−0)=1.0 ─────
-    let loss_3 = cosine_embedding_loss(&x1, &x1, &[-1.0_f64], 0.0);
+    let loss_3 = cosine_embedding_loss(&x1, &x1, &[-1.0_f64], 0.0).expect("run operation");
     assert!(
         (loss_3.tensor.as_slice()[0] - 1.0).abs() < 1e-10,
         "identical y=-1 margin=0"
@@ -209,14 +209,14 @@ fn test_cosine_embedding_loss() {
     // pair 0: [[1,0]] vs [[1,0]] → cos=1, loss=0
     // pair 1: [[1,0]] vs [[0,1]] → cos=0, loss=1
     let x1_b = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[1.0_f64, 0.0, 1.0, 0.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[1.0_f64, 0.0, 1.0, 0.0]).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let x2_b = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[1.0_f64, 0.0, 0.0, 1.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[1.0_f64, 0.0, 0.0, 1.0]).expect("construct tensor"),
         false,
-    );
-    let loss_b = cosine_embedding_loss(&x1_b, &x2_b, &[1.0_f64, 1.0], 0.0);
+    ).expect("construct variable");
+    let loss_b = cosine_embedding_loss(&x1_b, &x2_b, &[1.0_f64, 1.0], 0.0).expect("run operation");
     assert!(
         (loss_b.tensor.as_slice()[0] - 0.5).abs() < 1e-10,
         "batch mean"
@@ -224,14 +224,14 @@ fn test_cosine_embedding_loss() {
 
     // ── Backward: gradients must exist when requires_grad=true ────────────
     let x1_g = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[1.0_f64, 0.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[1.0_f64, 0.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let x2_g = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0_f64, 1.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0_f64, 1.0]).expect("construct tensor"),
         true,
-    );
-    cosine_embedding_loss(&x1_g, &x2_g, &[1.0_f64], 0.0).backward();
+    ).expect("construct variable");
+    cosine_embedding_loss(&x1_g, &x2_g, &[1.0_f64], 0.0).expect("run operation").backward().expect("run backward");
     assert!(x1_g.grad().is_some(), "x1 grad");
     assert!(x2_g.grad().is_some(), "x2 grad");
 }
@@ -243,27 +243,27 @@ fn test_cosine_similarity_forward_and_backward() {
     let x1_data = vec![3.0_f64, 4.0, 1.0, 0.0];
     let x2_data = vec![4.0_f64, 3.0, 0.0, 1.0];
     let x1 = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &x1_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &x1_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let x2 = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &x2_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &x2_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let out = cosine_similarity(&x1, &x2, 1, 1e-12);
+    let out = cosine_similarity(&x1, &x2, 1, 1e-12).expect("run operation");
     assert_eq!(out.tensor.shape(), &[2]);
     let s = out.tensor.as_slice();
     assert!((s[0] - 0.96).abs() < 1e-9, "row0 cos: got {}", s[0]);
     assert!(s[1].abs() < 1e-9, "row1 cos: got {}", s[1]);
 
     // Backward against a central finite-difference reference on sum(cos).
-    out.backward();
+    out.backward().expect("run backward");
     let analytic: Vec<f64> = x1.grad().expect("cosine x1 grad").as_slice().to_vec();
     let h = 1e-6;
     let forward_sum = |d: &[f64]| -> f64 {
-        let xv = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], d), false);
-        cosine_similarity(&xv, &x2, 1, 1e-12)
+        let xv = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([2, 2], d).expect("construct tensor"), false).expect("construct variable");
+        cosine_similarity(&xv, &x2, 1, 1e-12).expect("run operation")
             .tensor
             .as_slice()
             .iter()
@@ -291,25 +291,27 @@ fn test_triplet_margin_with_distance_loss() {
     //   d_ap = mean(|[-2,-2]|) = 2 ; d_an = mean(|[-1,-1]|) = 1
     //   loss = mean(relu(d_ap - d_an + margin)) = relu(2 - 1 + 0.5) = 1.5.
     let anchor = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.0, 0.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.0, 0.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let positive = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[2.0, 2.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[2.0, 2.0]).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let negative = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 1.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 1.0]).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let dist = |a: &Var<f64, MoiraiBackend>, b: &Var<f64, MoiraiBackend>| {
-        coeus_autograd::mean(&coeus_autograd::abs(&coeus_autograd::sub(a, b)))
+        let difference = coeus_autograd::sub(a, b).expect("run operation");
+        let absolute = coeus_autograd::abs(&difference).expect("run operation");
+        coeus_autograd::mean(&absolute)
     };
 
-    let loss = triplet_margin_with_distance_loss(&anchor, &positive, &negative, dist, 0.5);
+    let loss = triplet_margin_with_distance_loss(&anchor, &positive, &negative, dist, 0.5).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
     assert!((loss.tensor.as_slice()[0] - 1.5).abs() < 1e-12);
 
-    loss.backward();
+    loss.backward().expect("run backward");
     assert!(anchor.grad().is_some(), "triplet anchor grad");
 }

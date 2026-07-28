@@ -4,9 +4,9 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_conv3d_forward_shape() {
-    let conv = Conv3d::<f64>::new(2, 4, 3, true);
-    let input = Var::new(Tensor::zeros(vec![2, 2, 8, 8, 8]), true);
-    let output = conv.forward(&input);
+    let conv = Conv3d::<f64>::new(2, 4, 3, true).expect("construct module");
+    let input = Var::new(Tensor::zeros(vec![2, 2, 8, 8, 8]).expect("construct tensor"), true).expect("construct variable");
+    let output = conv.forward(&input).expect("run forward");
 
     assert_eq!(output.tensor.shape(), &[2, 4, 6, 6, 6]);
 
@@ -16,21 +16,21 @@ fn test_conv3d_forward_shape() {
 
 #[test]
 fn test_conv3d_forward_computation() {
-    let mut conv = Conv3d::<f64>::new(1, 1, 2, true);
-    init::constant(&mut conv.weight, 1.0);
+    let mut conv = Conv3d::<f64>::new(1, 1, 2, true).expect("construct module");
+    init::constant(&mut conv.weight, 1.0).expect("initialize parameters");
     if let Some(ref mut b) = conv.bias {
-        init::constant(b, 0.0);
+        init::constant(b, 0.0).expect("initialize parameters");
     }
 
     let input = Var::new(
         Tensor::from_slice(
             vec![1, 1, 2, 2, 2],
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-        ),
+        ).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let output = conv.forward(&input);
+    let output = conv.forward(&input).expect("run forward");
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
 
     let out_slice = output.tensor.as_slice();
@@ -39,22 +39,22 @@ fn test_conv3d_forward_computation() {
 
 #[test]
 fn test_conv3d_backward_gradients_match_reference() {
-    let mut conv = Conv3d::<f64>::new(1, 1, 2, true);
-    init::constant(&mut conv.weight, 1.0);
+    let mut conv = Conv3d::<f64>::new(1, 1, 2, true).expect("construct module");
+    init::constant(&mut conv.weight, 1.0).expect("initialize parameters");
     if let Some(ref mut b) = conv.bias {
-        init::constant(b, 0.5);
+        init::constant(b, 0.5).expect("initialize parameters");
     }
 
     let input = Var::new(
         Tensor::from_slice(
             vec![1, 1, 2, 2, 2],
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-        ),
+        ).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let output = conv.forward(&input);
-    output.backward();
+    let output = conv.forward(&input).expect("run forward");
+    output.backward().expect("run backward");
 
     let input_grad = input.grad().expect("input gradient must be set");
     assert_eq!(input_grad.shape(), &[1, 1, 2, 2, 2]);
@@ -76,7 +76,7 @@ fn test_conv3d_backward_gradients_match_reference() {
 
 #[test]
 fn test_batchnorm3d_forward_and_backward() {
-    let bn = BatchNorm3d::<f64>::new(2, 1e-5, 0.1);
+    let bn = BatchNorm3d::<f64>::new(2, 1e-5, 0.1).expect("construct module");
     let input = Var::new(
         Tensor::from_slice(
             vec![1, 2, 2, 2, 2],
@@ -84,11 +84,11 @@ fn test_batchnorm3d_forward_and_backward() {
                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, // channel 0
                 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, // channel 1
             ],
-        ),
+        ).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let output = bn.forward(&input);
+    let output = bn.forward(&input).expect("run forward");
     assert_eq!(output.tensor.shape(), &[1, 2, 2, 2, 2]);
 
     // Identical values per channel → normalized to 0 → output = gamma*0 + beta = 0.
@@ -96,7 +96,7 @@ fn test_batchnorm3d_forward_and_backward() {
         assert!(val.abs() < 1e-7);
     }
 
-    output.backward();
+    output.backward().expect("run backward");
     assert!(input.grad().is_some());
     assert!(bn.weight.grad().is_some());
     assert!(bn.bias.grad().is_some());
@@ -109,15 +109,15 @@ fn test_max_pool3d_forward_and_backward() {
         Tensor::from_slice(
             vec![1, 1, 2, 2, 2],
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-        ),
+        ).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let output = pool.forward(&input);
+    let output = pool.forward(&input).expect("run forward");
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
     assert_eq!(output.tensor.as_slice(), &[8.0]);
 
-    output.backward();
+    output.backward().expect("run backward");
     assert_eq!(
         input.grad().unwrap().as_slice(),
         &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
@@ -131,15 +131,15 @@ fn test_avg_pool3d_forward_and_backward() {
         Tensor::from_slice(
             vec![1, 1, 2, 2, 2],
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-        ),
+        ).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let output = pool.forward(&input);
+    let output = pool.forward(&input).expect("run forward");
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
     assert_eq!(output.tensor.as_slice(), &[4.5]);
 
-    output.backward();
+    output.backward().expect("run backward");
     let grad = input.grad().unwrap();
     for &g in grad.as_slice() {
         assert!((g - 0.125).abs() < 1e-7);

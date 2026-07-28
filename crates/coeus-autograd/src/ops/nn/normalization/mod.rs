@@ -5,6 +5,6 @@ pub mod layernorm;
 /// RMS normalization.
 pub mod rmsnorm;
 
-pub use batchnorm::{batchnorm1d, batchnorm2d, batchnorm3d, BatchNormArgs, BatchNormNode};
-pub use layernorm::{layernorm, LayerNormNode};
-pub use rmsnorm::{rmsnorm, RMSNormNode};
+pub use batchnorm::{BatchNormArgs, BatchNormNode, batchnorm1d, batchnorm2d, batchnorm3d};
+pub use layernorm::{LayerNormNode, layernorm};
+pub use rmsnorm::{RMSNormNode, rmsnorm};

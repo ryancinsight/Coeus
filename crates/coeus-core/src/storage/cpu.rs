@@ -5,6 +5,7 @@ use std::alloc::{GlobalAlloc, Layout as AllocLayout};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+use crate::BackendError;
 use crate::storage::{CpuAddressableStorage, CpuAddressableStorageMut, Storage, StorageMut};
 
 // ── Aligned raw block ──
@@ -74,7 +75,7 @@ unsafe impl Sync for RawBlock {}
 /// use coeus_core::CpuStorage;
 /// use coeus_core::storage::CpuAddressableStorage;
 ///
-/// let mut s = CpuStorage::<f32>::new(4);
+/// let mut s = CpuStorage::<f32>::try_new(4).expect("allocation succeeds");
 /// let slice = s.as_slice();
 /// assert_eq!(slice.len(), 4);
 /// ```
@@ -85,12 +86,12 @@ unsafe impl Sync for RawBlock {}
 /// use coeus_core::CpuStorage;
 /// use coeus_core::storage::{CpuAddressableStorage, CpuAddressableStorageMut};
 ///
-/// let a = CpuStorage::<f32>::from_slice(&[1.0, 2.0, 3.0]);
+/// let a = CpuStorage::<f32>::try_from_slice(&[1.0, 2.0, 3.0]).expect("allocation succeeds");
 /// let b = a.clone();       // Arc clone — no data copy
 /// assert!(!a.is_unique());  // shared
 ///
 /// let mut c = a.clone();
-/// c.as_mut_slice()[0] = 99.0; // COW: deep copy happens here
+/// c.as_mut_slice().expect("COW allocation succeeds")[0] = 99.0; // COW: deep copy happens here
 /// assert!(c.is_unique());     // now unique after mutation
 /// assert_eq!(b.as_slice()[0], 1.0); // original unchanged
 /// ```
@@ -107,10 +108,28 @@ unsafe impl<T: Send> Send for CpuStorage<T> {}
 unsafe impl<T: Sync> Sync for CpuStorage<T> {}
 
 impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
+    /// Try to allocate a new buffer without converting allocation failure into
+    /// a process abort.
+    pub fn try_new(len: usize) -> Result<Self, BackendError> {
+        let byte_size = len
+            .checked_mul(std::mem::size_of::<T>())
+            .ok_or(BackendError::Storage {
+                operation: "CpuStorage::try_new",
+                reason: "element-count to byte-size arithmetic overflow".to_owned(),
+            })?;
+        let align = std::mem::align_of::<T>();
+        let block = RawBlock::new(byte_size, align).ok_or_else(|| BackendError::Storage {
+            operation: "CpuStorage::try_new",
+            reason: format!("Mnemosyne rejected allocation of {byte_size} bytes"),
+        })?;
+        Ok(Self {
+            block: Arc::new(block),
+            len,
+            _marker: PhantomData,
+        })
+    }
+
     /// Allocate a new buffer for `len` elements of type `T`.
-    ///
-    /// # Panics
-    /// If Mnemosyne allocation fails.
     ///
     /// # Examples
     ///
@@ -118,22 +137,9 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     /// use coeus_core::CpuStorage;
     /// use coeus_core::storage::{CpuAddressableStorage, Storage};
     ///
-    /// let s = CpuStorage::<f64>::new(8);
+    /// let s = CpuStorage::<f64>::try_new(8).expect("allocation succeeds");
     /// assert_eq!(s.len(), 8);
     /// ```
-    #[inline]
-    pub fn new(len: usize) -> Self {
-        let byte_size = len * std::mem::size_of::<T>();
-        let align = std::mem::align_of::<T>();
-        let block =
-            RawBlock::new(byte_size, align).expect("Mnemosyne allocation failed in CpuStorage");
-        Self {
-            block: Arc::new(block),
-            len,
-            _marker: PhantomData,
-        }
-    }
-
     /// Create from existing slice (copies data).
     ///
     /// # Examples
@@ -142,14 +148,16 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     /// use coeus_core::CpuStorage;
     /// use coeus_core::storage::CpuAddressableStorage;
     ///
-    /// let s = CpuStorage::from_slice(&[1.0_f32, 2.0, 3.0]);
+    /// let s = CpuStorage::try_from_slice(&[1.0_f32, 2.0, 3.0]).expect("allocation succeeds");
     /// assert_eq!(s.as_slice(), &[1.0, 2.0, 3.0]);
     /// ```
     #[inline]
-    pub fn from_slice(data: &[T]) -> Self {
-        let mut s = Self::new(data.len());
-        s.raw_slice_mut_cow().copy_from_slice(data);
-        s
+    pub fn try_from_slice(data: &[T]) -> Result<Self, BackendError> {
+        let mut storage = Self::try_new(data.len())?;
+        // SAFETY: `storage` owns a newly allocated block and no other reference
+        // exists, so the mutable slice is unique for this initialization.
+        unsafe { storage.raw_slice_mut() }.copy_from_slice(data);
+        Ok(storage)
     }
 
     /// Consume and return the underlying raw block.
@@ -183,10 +191,10 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
 
     /// Mutable raw slice with COW handling.
     #[inline]
-    pub fn raw_slice_mut_cow(&mut self) -> &mut [T] {
+    pub fn raw_slice_mut_cow(&mut self) -> Result<&mut [T], BackendError> {
         if Arc::strong_count(&self.block) > 1 {
             let old_slice = self.raw_slice();
-            let mut new_storage = Self::new(self.len);
+            let mut new_storage = Self::try_new(self.len)?;
             // SAFETY: `new_storage` is a newly allocated, unique storage block, so writing to it is safe, and `old_slice` points to a valid memory block.
             unsafe {
                 new_storage.raw_slice_mut().copy_from_slice(old_slice);
@@ -194,14 +202,16 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
             *self = new_storage;
         }
         // SAFETY: The strong count check and potential copy-on-write reallocation guarantee that we hold the unique reference to the memory block, making mutable slicing safe.
-        unsafe { self.raw_slice_mut() }
+        Ok(unsafe { self.raw_slice_mut() })
     }
 }
 
 impl<T: Copy + Send + Sync + 'static> Storage<T> for CpuStorage<T> {
+    type Error = BackendError;
+
     #[inline]
-    fn allocate(len: usize) -> Self {
-        Self::new(len)
+    fn try_allocate(len: usize) -> Result<Self, Self::Error> {
+        Self::try_new(len)
     }
 
     #[inline]
@@ -217,13 +227,13 @@ impl<T: Copy + Send + Sync + 'static> Storage<T> for CpuStorage<T> {
 
 impl<T: Copy + Send + Sync + 'static> StorageMut<T> for CpuStorage<T> {
     #[inline]
-    fn try_as_mut_slice(&mut self) -> Option<&mut [T]> {
-        Some(self.raw_slice_mut_cow())
+    fn try_as_mut_slice(&mut self) -> Result<Option<&mut [T]>, Self::Error> {
+        Ok(Some(self.raw_slice_mut_cow()?))
     }
 
     #[inline]
-    fn make_unique(&mut self) {
-        self.raw_slice_mut_cow();
+    fn make_unique(&mut self) -> Result<(), Self::Error> {
+        self.raw_slice_mut_cow().map(|_| ())
     }
 }
 
@@ -236,7 +246,7 @@ impl<T: Copy + Send + Sync + 'static> CpuAddressableStorage<T> for CpuStorage<T>
 
 impl<T: Copy + Send + Sync + 'static> CpuAddressableStorageMut<T> for CpuStorage<T> {
     #[inline]
-    fn as_mut_slice(&mut self) -> &mut [T] {
+    fn as_mut_slice(&mut self) -> Result<&mut [T], Self::Error> {
         self.raw_slice_mut_cow()
     }
 }

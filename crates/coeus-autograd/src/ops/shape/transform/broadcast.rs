@@ -35,17 +35,22 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let mut grad_input = grad_out.clone();
             for &axis in &self.broadcast_dims {
-                grad_input = coeus_ops::sum_axis(&grad_input, axis, &backend)
-                    .expect("invariant: broadcast gradient axis is derived from the input shape");
+                grad_input = coeus_ops::sum_axis(&grad_input, axis, &backend)?;
             }
             let lock = g.write();
-            coeus_ops::add_assign(lock, &grad_input, &backend);
+            coeus_ops::add_assign(lock, &grad_input, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -59,7 +64,7 @@ where
 pub fn broadcast_to<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target_shape: impl Into<Vec<usize>>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -94,20 +99,20 @@ where
         })
         .collect();
 
-    let out_tensor = coeus_ops::broadcast_to(&input.tensor, &target_shape, &backend);
+    let out_tensor = coeus_ops::broadcast_to(&input.tensor, &target_shape, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = BroadcastNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: vec![input.clone()],
             broadcast_dims,
         };
@@ -115,9 +120,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

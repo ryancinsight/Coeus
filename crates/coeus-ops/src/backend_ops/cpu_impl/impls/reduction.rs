@@ -30,10 +30,11 @@ where
         axis: usize,
         c: &mut Self::DeviceBuffer<i64>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
     {
-        reduction::argmax(self, a, a_layout, axis, c, c_layout);
+        reduction::argmax(self, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -44,10 +45,11 @@ where
         axis: usize,
         c: &mut Self::DeviceBuffer<i64>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
     {
-        reduction::argmin(self, a, a_layout, axis, c, c_layout);
+        reduction::argmin(self, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -62,7 +64,8 @@ where
         values_layout: &Layout,
         indices: &mut Self::DeviceBuffer<i64>,
         indices_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
     {
         reduction::topk(
@@ -76,7 +79,7 @@ where
             values_layout,
             indices,
             indices_layout,
-        );
+        )
     }
 
     #[inline]
@@ -91,8 +94,7 @@ where
     where
         T: leto_ops::Scalar,
     {
-        reduction::cumsum(self, a, a_layout, axis, c, c_layout);
-        Ok(())
+        reduction::cumsum(self, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -107,8 +109,7 @@ where
     where
         T: leto_ops::Scalar,
     {
-        reduction::suffix_sum(self, a, a_layout, axis, c, c_layout);
-        Ok(())
+        reduction::suffix_sum(self, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -123,8 +124,7 @@ where
     where
         T: leto_ops::Scalar,
     {
-        reduction::cumprod(self, a, a_layout, axis, c, c_layout);
-        Ok(())
+        reduction::cumprod(self, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -139,7 +139,6 @@ where
     where
         T: leto_ops::Scalar,
     {
-        reduction::suffix_prod(self, a, a_layout, axis, c, c_layout);
-        Ok(())
+        reduction::suffix_prod(self, a, a_layout, axis, c, c_layout)
     }
 }

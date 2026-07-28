@@ -74,4 +74,10 @@ pub enum BackendError {
         /// Provider-reported storage detail.
         reason: String,
     },
+    /// The selected backend does not implement an operation.
+    #[error("{operation} is not implemented by the selected backend")]
+    UnsupportedOperation {
+        /// Operation family that has no implementation on the selected backend.
+        operation: &'static str,
+    },
 }

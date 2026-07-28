@@ -153,7 +153,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 }
 "#;
 
-pub fn dispatch_sdp_attention_backward(request: AttnBackwardDispatch<'_>) {
+pub fn dispatch_sdp_attention_backward(
+    request: AttnBackwardDispatch<'_>,
+) -> Result<(), crate::backend::WgpuBackendError> {
     let ctx = crate::backend::get_wgpu_context();
     let scale = request.scale;
     let (batch, seq_q, seq_k, d_k, d_v) = (
@@ -165,7 +167,7 @@ pub fn dispatch_sdp_attention_backward(request: AttnBackwardDispatch<'_>) {
     );
 
     // Transient scratch for d_scores (also doubles as the dummy grad binding).
-    let d_scores = WgpuStorage::<f32>::new(batch * seq_q * seq_k);
+    let d_scores = WgpuStorage::<f32>::try_new(batch * seq_q * seq_k)?;
     let dummy = crate::backend::PooledMetadataBuffer::new();
 
     // ── Pass 1: fill d_scores, accumulate dQ (one invocation per query row). ──
@@ -312,4 +314,5 @@ pub fn dispatch_sdp_attention_backward(request: AttnBackwardDispatch<'_>) {
         }
         ctx.queue.submit(Some(encoder.finish()));
     }
+    Ok(())
 }

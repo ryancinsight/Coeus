@@ -10,13 +10,15 @@ fn test_wgpu_conv() {
     // 1D Convolution
     let input_data = vec![1.0f32, 1.0, 1.0, 1.0, 1.0, 1.0];
     let weight_data = vec![1.0f32, 2.0, 3.0, 4.0];
-    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &input_data);
-    let weight_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 2, 1], &weight_data);
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &input_data)
+        .expect("construct tensor");
+    let weight_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 2, 1], &weight_data)
+        .expect("construct tensor");
 
-    let input_wgpu = input_seq.to_backend_on(&seq, &wgpu_b);
-    let weight_wgpu = weight_seq.to_backend_on(&seq, &wgpu_b);
+    let input_wgpu = input_seq.to_backend_on(&seq, &wgpu_b).expect("transfer tensor");
+    let weight_wgpu = weight_seq.to_backend_on(&seq, &wgpu_b).expect("transfer tensor");
 
-    let mut out_wgpu_storage = wgpu_b.allocate::<f32>(6);
+    let mut out_wgpu_storage = wgpu_b.allocate::<f32>(6).expect("allocate tensor storage");
     let out_layout = coeus_core::Layout::new(vec![1, 2, 3].into());
 
     coeus_ops::ConvOps::conv1d(
@@ -31,13 +33,14 @@ fn test_wgpu_conv() {
         1,
         &mut out_wgpu_storage,
         &out_layout,
-    );
+    )
+    .expect("execute WGPU convolution");
 
     let out_tensor_wgpu: Tensor<f32, WgpuBackend> =
         Tensor::from_raw_parts(out_wgpu_storage, out_layout.clone());
-    let out_seq = out_tensor_wgpu.to_backend_on(&wgpu_b, &seq);
+    let out_seq = out_tensor_wgpu.to_backend_on(&wgpu_b, &seq).expect("transfer tensor");
 
-    let mut out_expected_storage = seq.allocate::<f32>(6);
+    let mut out_expected_storage = seq.allocate::<f32>(6).expect("allocate tensor storage");
     coeus_ops::ConvOps::conv1d(
         &seq,
         input_seq.storage(),
@@ -50,7 +53,8 @@ fn test_wgpu_conv() {
         1,
         &mut out_expected_storage,
         &out_layout,
-    );
+    )
+    .expect("execute CPU convolution");
     let out_expected: Tensor<f32, SequentialBackend> =
         Tensor::from_raw_parts(out_expected_storage, out_layout);
 
@@ -74,15 +78,15 @@ fn test_wgpu_conv() {
         1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
     ];
     let weight_2d_data = vec![1.0f32, 0.0, -1.0, 1.0, 0.0, -1.0, 1.0, 0.0, -1.0];
-    let input_2d_seq =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &input_2d_data);
-    let weight_2d_seq =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3, 3], &weight_2d_data);
+    let input_2d_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &input_2d_data)
+        .expect("construct tensor");
+    let weight_2d_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3, 3], &weight_2d_data)
+        .expect("construct tensor");
 
-    let input_2d_wgpu = input_2d_seq.to_backend_on(&seq, &wgpu_b);
-    let weight_2d_wgpu = weight_2d_seq.to_backend_on(&seq, &wgpu_b);
+    let input_2d_wgpu = input_2d_seq.to_backend_on(&seq, &wgpu_b).expect("transfer tensor");
+    let weight_2d_wgpu = weight_2d_seq.to_backend_on(&seq, &wgpu_b).expect("transfer tensor");
 
-    let mut out_2d_wgpu_storage = wgpu_b.allocate::<f32>(4);
+    let mut out_2d_wgpu_storage = wgpu_b.allocate::<f32>(4).expect("allocate tensor storage");
     let out_2d_layout = coeus_core::Layout::new(vec![1, 1, 2, 2].into());
 
     coeus_ops::ConvOps::conv2d(
@@ -97,13 +101,14 @@ fn test_wgpu_conv() {
         1,
         &mut out_2d_wgpu_storage,
         &out_2d_layout,
-    );
+    )
+    .expect("execute WGPU convolution");
 
     let out_2d_tensor_wgpu: Tensor<f32, WgpuBackend> =
         Tensor::from_raw_parts(out_2d_wgpu_storage, out_2d_layout.clone());
-    let out_2d_seq = out_2d_tensor_wgpu.to_backend_on(&wgpu_b, &seq);
+    let out_2d_seq = out_2d_tensor_wgpu.to_backend_on(&wgpu_b, &seq).expect("transfer tensor");
 
-    let mut out_2d_expected_storage = seq.allocate::<f32>(4);
+    let mut out_2d_expected_storage = seq.allocate::<f32>(4).expect("allocate tensor storage");
     coeus_ops::ConvOps::conv2d(
         &seq,
         input_2d_seq.storage(),
@@ -116,7 +121,8 @@ fn test_wgpu_conv() {
         1,
         &mut out_2d_expected_storage,
         &out_2d_layout,
-    );
+    )
+    .expect("execute CPU convolution");
     let out_2d_expected: Tensor<f32, SequentialBackend> =
         Tensor::from_raw_parts(out_2d_expected_storage, out_2d_layout);
 
@@ -146,20 +152,29 @@ fn test_wgpu_conv_backward() {
     let input_data = vec![1.0f32, 1.0, 1.0, 1.0, 1.0, 1.0];
     let weight_data = vec![1.0f32, 2.0, 3.0, 4.0];
 
-    let grad_out_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &grad_out_data);
-    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &input_data);
-    let weight_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 2, 1], &weight_data);
+    let grad_out_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &grad_out_data)
+        .expect("construct tensor");
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &input_data)
+        .expect("construct tensor");
+    let weight_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 2, 1], &weight_data)
+        .expect("construct tensor");
 
-    let grad_out_wgpu = grad_out_seq.to_backend_on(&seq, &wgpu_b);
-    let input_wgpu = input_seq.to_backend_on(&seq, &wgpu_b);
-    let weight_wgpu = weight_seq.to_backend_on(&seq, &wgpu_b);
+    let grad_out_wgpu = grad_out_seq.to_backend_on(&seq, &wgpu_b).expect("transfer tensor");
+    let input_wgpu = input_seq.to_backend_on(&seq, &wgpu_b).expect("transfer tensor");
+    let weight_wgpu = weight_seq.to_backend_on(&seq, &wgpu_b).expect("transfer tensor");
 
-    let mut gi_wgpu = wgpu_b.allocate::<f32>(6);
-    wgpu_b.fill(&mut gi_wgpu, 0.0);
-    let mut gw_wgpu = wgpu_b.allocate::<f32>(4);
-    wgpu_b.fill(&mut gw_wgpu, 0.0);
-    let mut gb_wgpu = wgpu_b.allocate::<f32>(2);
-    wgpu_b.fill(&mut gb_wgpu, 0.0);
+    let mut gi_wgpu = wgpu_b.allocate::<f32>(6).expect("allocate tensor storage");
+    wgpu_b
+        .fill(&mut gi_wgpu, 0.0)
+        .expect("fill gradient storage");
+    let mut gw_wgpu = wgpu_b.allocate::<f32>(4).expect("allocate tensor storage");
+    wgpu_b
+        .fill(&mut gw_wgpu, 0.0)
+        .expect("fill gradient storage");
+    let mut gb_wgpu = wgpu_b.allocate::<f32>(2).expect("allocate tensor storage");
+    wgpu_b
+        .fill(&mut gb_wgpu, 0.0)
+        .expect("fill gradient storage");
 
     let gi_layout = coeus_core::Layout::new(vec![1, 2, 3].into());
     let gw_layout = coeus_core::Layout::new(vec![2, 2, 1].into());
@@ -180,14 +195,18 @@ fn test_wgpu_conv_backward() {
         1,
         0,
         1,
-    );
+    )
+    .expect("execute WGPU convolution backward");
 
-    let mut gi_expected = seq.allocate::<f32>(6);
-    seq.fill(&mut gi_expected, 0.0);
-    let mut gw_expected = seq.allocate::<f32>(4);
-    seq.fill(&mut gw_expected, 0.0);
-    let mut gb_expected = seq.allocate::<f32>(2);
-    seq.fill(&mut gb_expected, 0.0);
+    let mut gi_expected = seq.allocate::<f32>(6).expect("allocate tensor storage");
+    seq.fill(&mut gi_expected, 0.0)
+        .expect("fill gradient storage");
+    let mut gw_expected = seq.allocate::<f32>(4).expect("allocate tensor storage");
+    seq.fill(&mut gw_expected, 0.0)
+        .expect("fill gradient storage");
+    let mut gb_expected = seq.allocate::<f32>(2).expect("allocate tensor storage");
+    seq.fill(&mut gb_expected, 0.0)
+        .expect("fill gradient storage");
 
     coeus_ops::ConvOps::conv1d_backward(
         &seq,
@@ -205,10 +224,11 @@ fn test_wgpu_conv_backward() {
         1,
         0,
         1,
-    );
+    )
+    .expect("execute CPU convolution backward");
 
     let gi_wgpu_tensor: Tensor<f32, WgpuBackend> = Tensor::from_raw_parts(gi_wgpu, gi_layout);
-    let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
+    let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq).expect("transfer tensor");
     for (i, (&res, &exp)) in gi_wgpu_cpu
         .as_slice()
         .iter()
@@ -225,7 +245,7 @@ fn test_wgpu_conv_backward() {
     }
 
     let gw_wgpu_tensor: Tensor<f32, WgpuBackend> = Tensor::from_raw_parts(gw_wgpu, gw_layout);
-    let gw_wgpu_cpu = gw_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
+    let gw_wgpu_cpu = gw_wgpu_tensor.to_backend_on(&wgpu_b, &seq).expect("transfer tensor");
     for (i, (&res, &exp)) in gw_wgpu_cpu
         .as_slice()
         .iter()
@@ -243,7 +263,7 @@ fn test_wgpu_conv_backward() {
 
     let gb_wgpu_tensor: Tensor<f32, WgpuBackend> =
         Tensor::from_raw_parts(gb_wgpu, coeus_core::Layout::new(vec![2].into()));
-    let gb_wgpu_cpu = gb_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
+    let gb_wgpu_cpu = gb_wgpu_tensor.to_backend_on(&wgpu_b, &seq).expect("transfer tensor");
     for (i, (&res, &exp)) in gb_wgpu_cpu
         .as_slice()
         .iter()

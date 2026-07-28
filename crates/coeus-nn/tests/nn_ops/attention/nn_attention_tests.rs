@@ -33,17 +33,17 @@ mod tests {
         let d_k = 8;
         let d_v = 8;
 
-        let q = Tensor::<f32, B>::ones_on([batch, seq_q, d_k], &backend);
-        let k = Tensor::<f32, B>::ones_on([batch, seq_k, d_k], &backend);
-        let v = Tensor::<f32, B>::ones_on([batch, seq_k, d_v], &backend);
+        let q = Tensor::<f32, B>::ones_on([batch, seq_q, d_k], &backend).expect("construct tensor");
+        let k = Tensor::<f32, B>::ones_on([batch, seq_k, d_k], &backend).expect("construct tensor");
+        let v = Tensor::<f32, B>::ones_on([batch, seq_k, d_v], &backend).expect("construct tensor");
 
-        let q_var = Var::new(q, true);
-        let k_var = Var::new(k, true);
-        let v_var = Var::new(v, true);
+        let q_var = Var::new(q, true).expect("construct variable");
+        let k_var = Var::new(k, true).expect("construct variable");
+        let v_var = Var::new(v, true).expect("construct variable");
 
         let scale = 1.0_f32 / (d_k as f32).sqrt();
         let (out, _aw) =
-            coeus_autograd::sdp_attention::<f32, B, NullMask>(&q_var, &k_var, &v_var, None, scale);
+            coeus_autograd::sdp_attention::<f32, B, NullMask>(&q_var, &k_var, &v_var, None, scale).expect("run operation");
 
         assert_eq!(out.tensor.shape(), &[batch, seq_q, d_v]);
     }
@@ -59,9 +59,9 @@ mod tests {
         let seq = 4;
         let d = 4;
 
-        let q = Tensor::<f32, B>::ones_on([batch, seq, d], &backend);
-        let k = Tensor::<f32, B>::ones_on([batch, seq, d], &backend);
-        let v = Tensor::<f32, B>::ones_on([batch, seq, d], &backend);
+        let q = Tensor::<f32, B>::ones_on([batch, seq, d], &backend).expect("construct tensor");
+        let k = Tensor::<f32, B>::ones_on([batch, seq, d], &backend).expect("construct tensor");
+        let v = Tensor::<f32, B>::ones_on([batch, seq, d], &backend).expect("construct tensor");
 
         let (attn_out, attn_weights) = coeus_ops::scaled_dot_product_attention(
             &q,
@@ -71,7 +71,7 @@ mod tests {
             true,
             1.0_f32 / (d as f32).sqrt(),
             &backend,
-        );
+        ).expect("run operation");
 
         // attn_weights: [1, seq, seq]
         let aw_data = attn_weights
@@ -114,20 +114,20 @@ mod tests {
             .map(|x| x as f32 * 0.05)
             .collect();
 
-        let q_t = Tensor::<f32, B>::from_slice_on([batch, seq, d], &q_data, &backend);
-        let k_t = Tensor::<f32, B>::from_slice_on([batch, seq, d], &k_data, &backend);
-        let v_t = Tensor::<f32, B>::from_slice_on([batch, seq, d], &v_data, &backend);
+        let q_t = Tensor::<f32, B>::from_slice_on([batch, seq, d], &q_data, &backend).expect("construct tensor");
+        let k_t = Tensor::<f32, B>::from_slice_on([batch, seq, d], &k_data, &backend).expect("construct tensor");
+        let v_t = Tensor::<f32, B>::from_slice_on([batch, seq, d], &v_data, &backend).expect("construct tensor");
 
-        let q = Var::new(q_t, true);
-        let k = Var::new(k_t, true);
-        let v = Var::new(v_t, true);
+        let q = Var::new(q_t, true).expect("construct variable");
+        let k = Var::new(k_t, true).expect("construct variable");
+        let v = Var::new(v_t, true).expect("construct variable");
 
         let scale = 1.0_f32 / (d as f32).sqrt();
-        let (out, _) = coeus_autograd::sdp_attention::<f32, B, NullMask>(&q, &k, &v, None, scale);
+        let (out, _) = coeus_autograd::sdp_attention::<f32, B, NullMask>(&q, &k, &v, None, scale).expect("run operation");
 
         // Sum-reduce to scalar loss and backprop
-        let loss = coeus_autograd::sum(&out);
-        loss.backward();
+        let loss = coeus_autograd::sum(&out).expect("run operation");
+        loss.backward().expect("run backward");
 
         // All three inputs must have non-None gradients
         for (label, var) in [("q", &q), ("k", &k), ("v", &v)] {
@@ -156,12 +156,12 @@ mod tests {
         let batch = 2;
         let seq = 5;
 
-        let mha = MultiHeadAttention::<f32, B, H, NullMask>::new(d_model, true);
+        let mha = MultiHeadAttention::<f32, B, H, NullMask>::new(d_model, true).expect("construct module");
         let backend = B::default();
-        let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
-        let x_var = Var::new(x, false);
+        let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend).expect("construct tensor");
+        let x_var = Var::new(x, false).expect("construct variable");
 
-        let out = mha.forward(&x_var);
+        let out = mha.forward(&x_var).expect("run forward");
         assert_eq!(
             out.tensor.shape(),
             &[batch, seq, d_model],
@@ -178,14 +178,14 @@ mod tests {
         let batch = 1;
         let seq = 3;
 
-        let mha = MultiHeadAttention::<f32, B, H, NullMask>::new(d_model, true);
+        let mha = MultiHeadAttention::<f32, B, H, NullMask>::new(d_model, true).expect("construct module");
         let backend = B::default();
-        let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
-        let x_var = Var::new(x, false);
+        let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend).expect("construct tensor");
+        let x_var = Var::new(x, false).expect("construct variable");
 
-        let out = mha.forward(&x_var);
-        let loss = coeus_autograd::sum(&out);
-        loss.backward();
+        let out = mha.forward(&x_var).expect("run forward");
+        let loss = coeus_autograd::sum(&out).expect("run operation");
+        loss.backward().expect("run backward");
 
         let params = mha.parameters();
         assert!(!params.is_empty(), "MHA must have parameters");
@@ -203,7 +203,7 @@ mod tests {
     fn sinusoidal_encoding_shape_and_values() {
         let max_len = 16;
         let d_model = 8;
-        let pe = SinusoidalEncoding::<f32, B>::new(max_len, d_model);
+        let pe = SinusoidalEncoding::<f32, B>::new(max_len, d_model).expect("construct module");
 
         assert_eq!(pe.table.shape(), &[max_len, d_model]);
 
@@ -221,15 +221,15 @@ mod tests {
     fn sinusoidal_encoding_forward_shape() {
         let max_len = 16;
         let d_model = 8;
-        let pe = SinusoidalEncoding::<f32, B>::new(max_len, d_model);
+        let pe = SinusoidalEncoding::<f32, B>::new(max_len, d_model).expect("construct module");
 
         let backend = B::default();
         let batch = 2;
         let seq = 6;
-        let x = Tensor::<f32, B>::zeros_on([batch, seq, d_model], &backend);
-        let x_var = Var::new(x, false);
+        let x = Tensor::<f32, B>::zeros_on([batch, seq, d_model], &backend).expect("construct tensor");
+        let x_var = Var::new(x, false).expect("construct variable");
 
-        let out = pe.forward(&x_var);
+        let out = pe.forward(&x_var).expect("run forward");
         assert_eq!(out.tensor.shape(), &[batch, seq, d_model]);
     }
 
@@ -239,15 +239,15 @@ mod tests {
     fn ffn_forward_shape() {
         let d_model = 16;
         let d_ff = 64;
-        let ffn = FeedForward::<f32, B>::new(d_model, d_ff, 0.0);
+        let ffn = FeedForward::<f32, B>::new(d_model, d_ff, 0.0).expect("construct module");
 
         let backend = B::default();
         let batch = 2;
         let seq = 5;
-        let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
-        let x_var = Var::new(x, false);
+        let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend).expect("construct tensor");
+        let x_var = Var::new(x, false).expect("construct variable");
 
-        let out = ffn.forward(&x_var);
+        let out = ffn.forward(&x_var).expect("run forward");
         assert_eq!(out.tensor.shape(), &[batch, seq, d_model]);
 
         let out_fn = feed_forward(
@@ -257,7 +257,7 @@ mod tests {
             &ffn.linear2.weight,
             ffn.linear2.bias.as_ref(),
             0.0,
-        );
+        ).expect("run operation");
         assert_eq!(out_fn.tensor.shape(), &[batch, seq, d_model]);
         for (a, b) in out.tensor.as_slice().iter().zip(out_fn.tensor.as_slice()) {
             assert!(
@@ -275,14 +275,14 @@ mod tests {
         let d_model = 8;
         let d_ff = 32;
 
-        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0);
+        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0).expect("construct module");
         let backend = B::default();
         let batch = 1;
         let seq = 4;
-        let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
-        let x_var = Var::new(x, false);
+        let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend).expect("construct tensor");
+        let x_var = Var::new(x, false).expect("construct variable");
 
-        let out = layer.forward(&x_var);
+        let out = layer.forward(&x_var).expect("run forward");
         assert_eq!(
             out.tensor.shape(),
             &[batch, seq, d_model],
@@ -318,7 +318,7 @@ mod tests {
                 ffn_residual_dropout_p: 0.0,
                 ffn_residual_training: false,
             },
-        );
+        ).expect("run operation");
         assert_eq!(out_fn.tensor.shape(), &[batch, seq, d_model]);
         for (a, b) in out.tensor.as_slice().iter().zip(out_fn.tensor.as_slice()) {
             assert!(
@@ -334,16 +334,16 @@ mod tests {
         let d_model = 8;
         let d_ff = 32;
 
-        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0);
+        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0).expect("construct module");
         let backend = B::default();
         let batch = 1;
         let seq = 4;
-        let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
-        let x_var = Var::new(x, true);
+        let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend).expect("construct tensor");
+        let x_var = Var::new(x, true).expect("construct variable");
 
-        let out = layer.forward(&x_var);
-        let loss = coeus_autograd::sum(&out);
-        loss.backward();
+        let out = layer.forward(&x_var).expect("run forward");
+        let loss = coeus_autograd::sum(&out).expect("run operation");
+        loss.backward().expect("run backward");
 
         let params = layer.parameters();
         for (i, p) in params.iter().enumerate() {
@@ -360,27 +360,27 @@ mod tests {
         let d_model = 8;
         let d_ff = 32;
 
-        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0);
+        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0).expect("construct module");
         let backend = B::default();
         let batch = 1;
         let seq = 4;
 
-        let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
-        let x_var = Var::new(x, true);
+        let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend).expect("construct tensor");
+        let x_var = Var::new(x, true).expect("construct variable");
 
         // Keep first two tokens, mask the last two.
-        let mask = Tensor::<f32, B>::from_slice_on([batch, seq], &[1.0, 1.0, 0.0, 0.0], &backend);
-        let mask_var = Var::new(mask, false);
+        let mask = Tensor::<f32, B>::from_slice_on([batch, seq], &[1.0, 1.0, 0.0, 0.0], &backend).expect("construct tensor");
+        let mask_var = Var::new(mask, false).expect("construct variable");
 
-        let out = layer.forward_with_mask(&x_var, Some(&mask_var));
+        let out = layer.forward_with_mask(&x_var, Some(&mask_var)).expect("run forward");
         assert_eq!(
             out.tensor.shape(),
             &[batch, seq, d_model],
             "EncoderLayer(masked) output shape mismatch"
         );
 
-        let loss = coeus_autograd::sum(&out);
-        loss.backward();
+        let loss = coeus_autograd::sum(&out).expect("run operation");
+        loss.backward().expect("run backward");
 
         let params = layer.parameters();
         for (i, p) in params.iter().enumerate() {
@@ -397,7 +397,7 @@ mod tests {
         let d_model = 8;
         let d_ff = 32;
 
-        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0);
+        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0).expect("construct module");
         let backend = B::default();
         let batch = 1;
         let seq = 4;
@@ -405,14 +405,14 @@ mod tests {
         let data: Vec<f32> = (1..=(batch * seq * d_model))
             .map(|x| x as f32 * 0.01)
             .collect();
-        let x = Tensor::<f32, B>::from_slice_on([batch, seq, d_model], &data, &backend);
-        let x_var = Var::new(x, false);
+        let x = Tensor::<f32, B>::from_slice_on([batch, seq, d_model], &data, &backend).expect("construct tensor");
+        let x_var = Var::new(x, false).expect("construct variable");
 
-        let mask = Tensor::<f32, B>::ones_on([batch, seq], &backend);
-        let mask_var = Var::new(mask, false);
+        let mask = Tensor::<f32, B>::ones_on([batch, seq], &backend).expect("construct tensor");
+        let mask_var = Var::new(mask, false).expect("construct variable");
 
-        let unmasked = layer.forward(&x_var);
-        let masked = layer.forward_with_mask(&x_var, Some(&mask_var));
+        let unmasked = layer.forward(&x_var).expect("run forward");
+        let masked = layer.forward_with_mask(&x_var, Some(&mask_var)).expect("run forward");
         let unmasked_data = unmasked
             .tensor
             .storage()
@@ -442,19 +442,19 @@ mod tests {
         let seq_k = 4;
         let backend = B::default();
 
-        let q = Tensor::<f32, B>::ones_on([batch * H, seq_q, d_model / H], &backend);
-        let k = Tensor::<f32, B>::ones_on([batch * H, seq_k, d_model / H], &backend);
-        let v = Tensor::<f32, B>::ones_on([batch * H, seq_k, d_model / H], &backend);
+        let q = Tensor::<f32, B>::ones_on([batch * H, seq_q, d_model / H], &backend).expect("construct tensor");
+        let k = Tensor::<f32, B>::ones_on([batch * H, seq_k, d_model / H], &backend).expect("construct tensor");
+        let v = Tensor::<f32, B>::ones_on([batch * H, seq_k, d_model / H], &backend).expect("construct tensor");
 
-        let q_var = Var::new(q, true);
-        let k_var = Var::new(k, true);
-        let v_var = Var::new(v, true);
+        let q_var = Var::new(q, true).expect("construct variable");
+        let k_var = Var::new(k, true).expect("construct variable");
+        let v_var = Var::new(v, true).expect("construct variable");
 
         // Mask out the last two key/value elements (indices 2 and 3)
         // 1.0 means keep, 0.0 means pad
         let mask_data = vec![1.0_f32, 1.0_f32, 0.0_f32, 0.0_f32];
-        let mask = Tensor::<f32, B>::from_slice_on([batch, seq_k], &mask_data, &backend);
-        let mask_var = Var::new(mask, false);
+        let mask = Tensor::<f32, B>::from_slice_on([batch, seq_k], &mask_data, &backend).expect("construct tensor");
+        let mask_var = Var::new(mask, false).expect("construct variable");
 
         let scale = 1.0_f32;
         let (out, aw) = coeus_autograd::sdp_attention::<f32, B, NullMask>(
@@ -463,13 +463,13 @@ mod tests {
             &v_var,
             Some(&mask_var),
             scale,
-        );
+        ).expect("run operation");
 
         let aw_data = aw.storage().try_as_slice().unwrap();
         println!("aw_data: {:?}", aw_data);
 
-        let loss = coeus_autograd::sum(&out);
-        loss.backward();
+        let loss = coeus_autograd::sum(&out).expect("run operation");
+        loss.backward().expect("run backward");
 
         let k_grad = k_var.grad.as_ref().unwrap().read();
         let k_grad_slice = k_grad.storage().try_as_slice().unwrap();

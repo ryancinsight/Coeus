@@ -1,4 +1,4 @@
-use super::{checked_attention_dimensions, AttentionMask, AttentionShape};
+use super::{AttentionMask, AttentionShape, checked_attention_dimensions};
 
 fn shape() -> AttentionShape {
     AttentionShape {
@@ -32,50 +32,58 @@ fn accepts_contiguous_rank_two_mask_dimensions() {
 fn rejects_zero_dimensions_and_inconsistent_mask_rank() {
     let mut zero_shape = shape();
     zero_shape.seq_q = 0;
-    assert!(checked_attention_dimensions(
-        zero_shape,
-        AttentionMask {
-            has_mask: false,
-            ndim: 0,
-            num_heads: 1,
-        },
-    )
-    .is_none());
+    assert!(
+        checked_attention_dimensions(
+            zero_shape,
+            AttentionMask {
+                has_mask: false,
+                ndim: 0,
+                num_heads: 1,
+            },
+        )
+        .is_none()
+    );
 
-    assert!(checked_attention_dimensions(
-        shape(),
-        AttentionMask {
-            has_mask: false,
-            ndim: 1,
-            num_heads: 1,
-        },
-    )
-    .is_none());
+    assert!(
+        checked_attention_dimensions(
+            shape(),
+            AttentionMask {
+                has_mask: false,
+                ndim: 1,
+                num_heads: 1,
+            },
+        )
+        .is_none()
+    );
 }
 
 #[test]
 fn rejects_non_divisible_mask_heads_and_product_overflow() {
-    assert!(checked_attention_dimensions(
-        shape(),
-        AttentionMask {
-            has_mask: true,
-            ndim: 2,
-            num_heads: 3,
-        },
-    )
-    .is_none());
+    assert!(
+        checked_attention_dimensions(
+            shape(),
+            AttentionMask {
+                has_mask: true,
+                ndim: 2,
+                num_heads: 3,
+            },
+        )
+        .is_none()
+    );
 
     let overflow_shape = AttentionShape {
         batch: usize::MAX,
         ..shape()
     };
-    assert!(checked_attention_dimensions(
-        overflow_shape,
-        AttentionMask {
-            has_mask: false,
-            ndim: 0,
-            num_heads: 1,
-        },
-    )
-    .is_none());
+    assert!(
+        checked_attention_dimensions(
+            overflow_shape,
+            AttentionMask {
+                has_mask: false,
+                ndim: 0,
+                num_heads: 1,
+            },
+        )
+        .is_none()
+    );
 }

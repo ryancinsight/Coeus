@@ -41,11 +41,15 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         // Split the stacked output-gradient back into `n` slices along `dim`,
         // each of size 1; then squeeze `dim` to recover the original rank.
-        let chunks = coeus_ops::split(grad_out, 1, self.dim);
+        let chunks = coeus_ops::split(grad_out, 1, self.dim)?;
         for (chunk, acc) in chunks.into_iter().zip(input_grads.iter()) {
             let Some(ref g) = *acc else {
                 continue;
@@ -53,8 +57,10 @@ where
             // Remove the stacked dimension to match the input rank
             let squeezed = chunk.squeeze(self.dim);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &squeezed, &backend);
+            coeus_ops::add_assign(lock, &squeezed, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -71,7 +77,7 @@ where
 pub fn stack<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     inputs: &[&Var<T, B>],
     dim: usize,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -79,20 +85,20 @@ where
     assert!(!inputs.is_empty(), "stack: inputs must be non-empty");
     let backend = B::default();
     let tensors: Vec<&Tensor<T, B>> = inputs.iter().map(|v| &v.tensor).collect();
-    let out_tensor = coeus_ops::stack(&tensors, dim);
+    let out_tensor = coeus_ops::stack(&tensors, dim)?;
 
     let requires_grad = inputs.iter().any(|v| crate::grad_mode::should_track_var(v));
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = StackNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: inputs.iter().map(|v| (*v).clone()).collect(),
             dim,
         };
@@ -100,9 +106,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

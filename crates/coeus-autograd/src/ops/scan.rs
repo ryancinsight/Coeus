@@ -46,13 +46,16 @@ fn scan_dims(shape: &[usize]) -> (usize, usize, usize) {
 }
 
 /// Sequential forward recurrence `h_t = a_bar_t ⊙ h_{t-1} + u_t`, `h_0 = u_0`.
-fn selective_scan_forward<B>(a_bar: &Tensor<f32, B>, u: &Tensor<f32, B>) -> Tensor<f32, B>
+fn selective_scan_forward<B>(
+    a_bar: &Tensor<f32, B>,
+    u: &Tensor<f32, B>,
+) -> Result<Tensor<f32, B>, B::Error>
 where
     B: Backend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
-    let a_bar = a_bar.to_contiguous();
-    let u = u.to_contiguous();
+    let a_bar = a_bar.to_contiguous()?;
+    let u = u.to_contiguous()?;
     let a = a_bar.as_slice();
     let u = u.as_slice();
     let (outer, length, inner) = scan_dims(a_bar.shape());
@@ -80,14 +83,14 @@ fn selective_scan_backward<B>(
     a_bar: &Tensor<f32, B>,
     h: &Tensor<f32, B>,
     grad_output: &Tensor<f32, B>,
-) -> (Tensor<f32, B>, Tensor<f32, B>)
+) -> Result<(Tensor<f32, B>, Tensor<f32, B>), B::Error>
 where
     B: Backend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
-    let a_bar = a_bar.to_contiguous();
-    let h = h.to_contiguous();
-    let grad_output = grad_output.to_contiguous();
+    let a_bar = a_bar.to_contiguous()?;
+    let h = h.to_contiguous()?;
+    let grad_output = grad_output.to_contiguous()?;
     let a = a_bar.as_slice();
     let h = h.as_slice();
     let go = grad_output.as_slice();
@@ -115,10 +118,10 @@ where
     }
 
     let backend = B::default();
-    (
-        Tensor::from_slice_on(a_bar.shape().to_vec(), &grad_a, &backend),
-        Tensor::from_slice_on(a_bar.shape().to_vec(), &grad_u, &backend),
-    )
+    Ok((
+        Tensor::from_slice_on(a_bar.shape().to_vec(), &grad_a, &backend)?,
+        Tensor::from_slice_on(a_bar.shape().to_vec(), &grad_u, &backend)?,
+    ))
 }
 
 /// Reverse-mode node for [`selective_scan`].
@@ -150,15 +153,21 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<f32, B>, input_grads: &[Option<Arc<GradBuffer<f32, B>>>]) {
-        let (grad_a, grad_u) = selective_scan_backward(&self.a_bar, &self.h, grad_out);
+    fn backward(
+        &self,
+        grad_out: &Tensor<f32, B>,
+        input_grads: &[Option<Arc<GradBuffer<f32, B>>>],
+    ) -> Result<(), B::Error> {
+        let (grad_a, grad_u) = selective_scan_backward(&self.a_bar, &self.h, grad_out)?;
         let backend = B::default();
         if let Some(Some(gradient)) = input_grads.first() {
-            coeus_ops::add_assign(gradient.write(), &grad_a, &backend);
+            coeus_ops::add_assign(gradient.write(), &grad_a, &backend)?;
         }
         if let Some(Some(gradient)) = input_grads.get(1) {
-            coeus_ops::add_assign(gradient.write(), &grad_u, &backend);
+            coeus_ops::add_assign(gradient.write(), &grad_u, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -189,7 +198,7 @@ where
 /// # Panics
 /// If `a_bar` and `u` differ in shape, or either has rank < 2.
 #[must_use]
-pub fn selective_scan<B>(a_bar: &Var<f32, B>, u: &Var<f32, B>) -> Var<f32, B>
+pub fn selective_scan<B>(a_bar: &Var<f32, B>, u: &Var<f32, B>) -> Result<Var<f32, B>, B::Error>
 where
     B: Backend + coeus_ops::BackendOps<f32> + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
@@ -207,24 +216,28 @@ where
         a_bar.tensor.shape()
     );
 
-    let output = selective_scan_forward(&a_bar.tensor, &u.tensor);
+    let output = selective_scan_forward(&a_bar.tensor, &u.tensor)?;
     let requires_grad =
         crate::grad_mode::should_track_var(a_bar) || crate::grad_mode::should_track_var(u);
     if !requires_grad {
-        return Var::new(output, false);
+        return Ok(Var {
+            tensor: output,
+            grad: None,
+            creator: None,
+        });
     }
 
     let backend = B::default();
-    let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(output.shape(), &backend)));
+    let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(output.shape(), &backend)?));
     let node = SelectiveScanNode::<B> {
         output_grad: output_grad.clone(),
         inputs: vec![a_bar.clone(), u.clone()],
         a_bar: a_bar.tensor.clone(),
         h: output.clone(),
     };
-    Var {
+    Ok(Var {
         tensor: output,
         grad: Some(output_grad),
         creator: Some(Arc::new(node)),
-    }
+    })
 }

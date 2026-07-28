@@ -26,11 +26,11 @@ pub enum InterpolateMode {
 /// Resize a 1-D spatial tensor `[N, C, L]` to `[N, C, new_L]`.
 ///
 /// Supported modes: [`InterpolateMode::Nearest`].
-pub fn interpolate_1d<T: Float, B: coeus_core::Backend>(
+pub fn interpolate_1d<T: Float, B: coeus_core::Backend + Default>(
     input: &Tensor<T, B>,
     new_l: usize,
     mode: InterpolateMode,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -38,7 +38,7 @@ where
     assert_eq!(shape.len(), 3, "interpolate_1d: expected [N,C,L] tensor");
     let (n, c, l) = (shape[0], shape[1], shape[2]);
 
-    let in_cont = input.to_contiguous();
+    let in_cont = input.to_contiguous()?;
     let in_s = in_cont.as_slice();
 
     let out_numel = n * c * new_l;
@@ -76,12 +76,12 @@ where
 /// Resize a 2-D spatial tensor `[N, C, H, W]` to `[N, C, new_H, new_W]`.
 ///
 /// Supported modes: [`InterpolateMode::Nearest`] and [`InterpolateMode::Bilinear`].
-pub fn interpolate_2d<T: Float, B: coeus_core::Backend>(
+pub fn interpolate_2d<T: Float, B: coeus_core::Backend + Default>(
     input: &Tensor<T, B>,
     new_h: usize,
     new_w: usize,
     mode: InterpolateMode,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -89,7 +89,7 @@ where
     assert_eq!(shape.len(), 4, "interpolate_2d: expected [N,C,H,W] tensor");
     let (n, c, h, w) = (shape[0], shape[1], shape[2], shape[3]);
 
-    let in_cont = input.to_contiguous();
+    let in_cont = input.to_contiguous()?;
     let in_s = in_cont.as_slice();
 
     let mut out = vec![T::zero(); n * c * new_h * new_w];

@@ -18,10 +18,10 @@ fn f16_tensor_add_smoke() {
             F16::from_f32(3.0),
             F16::from_f32(4.0),
         ],
-    );
-    let b = Tensor::<F16, SequentialBackend>::from_slice(vec![4], &[F16::from_f32(0.5); 4]);
+    ).expect("valid tensor construction");
+    let b = Tensor::<F16, SequentialBackend>::from_slice(vec![4], &[F16::from_f32(0.5); 4]).expect("valid tensor construction");
     let backend = SequentialBackend::new();
-    let c = coeus_ops::add(&a, &b, &backend);
+    let c = coeus_ops::add(&a, &b, &backend).expect("valid backend operation");
     let expected = [1.5f32, 2.5, 3.5, 4.5];
     for (got, want) in c.as_slice().iter().zip(expected.iter()) {
         let diff = (got.to_f32() - want).abs();
@@ -45,10 +45,10 @@ fn f16_matmul_smoke() {
         .iter()
         .map(|&v| F16::from_f32(v))
         .collect();
-    let a = Tensor::<F16, SequentialBackend>::from_slice(vec![2, 2], &a_data);
-    let b = Tensor::<F16, SequentialBackend>::from_slice(vec![2, 2], &b_data);
+    let a = Tensor::<F16, SequentialBackend>::from_slice(vec![2, 2], &a_data).expect("valid tensor construction");
+    let b = Tensor::<F16, SequentialBackend>::from_slice(vec![2, 2], &b_data).expect("valid tensor construction");
     let backend = SequentialBackend::new();
-    let c = coeus_ops::matmul(&a, &b, &backend);
+    let c = coeus_ops::matmul(&a, &b, &backend).expect("valid backend operation");
     assert_eq!(c.shape(), &[2, 2]);
     // a @ I = a
     let expected_f32 = [1.0f32, 2.0, 3.0, 4.0];
@@ -71,11 +71,14 @@ fn f16_autograd_smoke() {
         Tensor::<F16, SequentialBackend>::from_slice(
             vec![3],
             &[F16::from_f32(1.0), F16::from_f32(2.0), F16::from_f32(3.0)],
-        ),
+        ).expect("valid tensor construction"),
         true,
-    );
-    let y = coeus_autograd::sum(&coeus_autograd::mul(&x, &x));
-    y.backward();
+    ).expect("valid variable construction");
+    let y = coeus_autograd::sum(
+        &coeus_autograd::mul(&x, &x).expect("valid autograd operation"),
+    )
+    .expect("valid autograd operation");
+    y.backward().expect("valid backward propagation");
     let gx = x.grad().expect("F16 sum(x^2) must produce gradient");
     // d/dx(sum(x^2)) = 2x
     let expected_grad = [2.0f32, 4.0, 6.0];

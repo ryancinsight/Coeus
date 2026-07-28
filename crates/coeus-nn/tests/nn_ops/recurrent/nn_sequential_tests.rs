@@ -9,9 +9,9 @@ fn test_sequential_container() {
     assert!(seq.is_empty());
     assert_eq!(seq.len(), 0);
 
-    seq.add(Linear::new(3, 4, true));
+    seq.add(Linear::new(3, 4, true).expect("construct module"));
     seq.add(ReLU);
-    seq.add(Linear::new(4, 2, false));
+    seq.add(Linear::new(4, 2, false).expect("construct module"));
 
     assert!(!seq.is_empty());
     assert_eq!(seq.len(), 3);
@@ -26,15 +26,15 @@ fn test_sequential_container() {
     // Forward pass
     // Input: [batch=2, in_features=3]
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, -1.0, -2.0, -3.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, -1.0, -2.0, -3.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let output = seq.forward(&input);
+    let output = seq.forward(&input).expect("run forward");
     assert_eq!(output.tensor.shape(), &[2, 2]);
 
     // Backward pass
-    output.backward();
+    output.backward().expect("run backward");
     assert!(input.grad().is_some());
     assert!(params[0].grad().is_some()); // weight1
     assert!(params[1].grad().is_some()); // bias1

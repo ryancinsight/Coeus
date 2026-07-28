@@ -18,9 +18,9 @@ const SIZES: [usize; 3] = [256, 1024, 4096];
 fn bench_fft_forward(c: &mut Criterion) {
     let mut group = c.benchmark_group("coeus-fft fft_1d forward");
     for &n in &SIZES {
-        let signal = Tensor::<f64, MoiraiBackend>::from_slice([n], &signal_data(n));
+        let signal = Tensor::<f64, MoiraiBackend>::from_slice([n], &signal_data(n)).expect("construct tensor");
         group.bench_with_input(BenchmarkId::from_parameter(n), &signal, |b, s| {
-            b.iter(|| black_box(fft_1d(black_box(s))));
+            b.iter(|| black_box(fft_1d(black_box(s)).expect("FFT succeeds")));
         });
     }
     group.finish();
@@ -32,10 +32,10 @@ fn bench_fft_autograd_roundtrip(c: &mut Criterion) {
         let data = signal_data(n);
         group.bench_with_input(BenchmarkId::from_parameter(n), &data, |b, d| {
             b.iter(|| {
-                let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([d.len()], d), true);
-                let y = fft_1d_var(black_box(&x));
-                let seed = Tensor::from_slice([d.len()], &vec![Complex::new(1.0, 0.0); d.len()]);
-                y.backward_with_seed(seed);
+                let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([d.len()], d).expect("construct tensor"), true).expect("construct variable");
+                let y = fft_1d_var(black_box(&x)).expect("differentiable FFT succeeds");
+                let seed = Tensor::from_slice([d.len()], &vec![Complex::new(1.0, 0.0); d.len()]).expect("construct tensor");
+                y.backward_with_seed(seed).expect("FFT backward succeeds");
                 black_box(x.grad());
             });
         });

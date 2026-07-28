@@ -16,11 +16,11 @@ use coeus_nn::interpolate::{interpolate_1d, interpolate_2d, InterpolateMode};
 use coeus_tensor::Tensor;
 
 fn t1d(vals: &[f64], l: usize) -> Tensor<f64, SequentialBackend> {
-    Tensor::from_slice(vec![1, 1, l], vals)
+    Tensor::from_slice(vec![1, 1, l], vals).expect("construct tensor")
 }
 
 fn t2d(vals: &[f64], h: usize, w: usize) -> Tensor<f64, SequentialBackend> {
-    Tensor::from_slice(vec![1, 1, h, w], vals)
+    Tensor::from_slice(vec![1, 1, h, w], vals).expect("construct tensor")
 }
 
 fn check_1d_nearest_upsample() {
@@ -28,7 +28,7 @@ fn check_1d_nearest_upsample() {
     // src_idx = floor((xi+0.5)*2/4)
     //   xi=0: 0.25->0->10  xi=1: 0.75->0->10  xi=2: 1.25->1->20  xi=3: 1.75->1->20
     let inp = t1d(&[10.0, 20.0], 2);
-    let out = interpolate_1d(&inp, 4, InterpolateMode::Nearest);
+    let out = interpolate_1d(&inp, 4, InterpolateMode::Nearest).expect("run operation");
     assert_eq!(out.shape(), &[1, 1, 4], "1d nearest upsample shape");
     assert_eq!(
         out.as_slice(),
@@ -42,7 +42,7 @@ fn check_1d_nearest_downsample() {
     // src_idx = floor((xi+0.5)*4/2)
     //   xi=0: 1.0->1->2  xi=1: 3.0->3->4
     let inp = t1d(&[1.0, 2.0, 3.0, 4.0], 4);
-    let out = interpolate_1d(&inp, 2, InterpolateMode::Nearest);
+    let out = interpolate_1d(&inp, 2, InterpolateMode::Nearest).expect("run operation");
     assert_eq!(out.shape(), &[1, 1, 2], "1d nearest downsample shape");
     assert_eq!(out.as_slice(), &[2.0_f64, 4.0], "1d nearest downsample");
 }
@@ -50,7 +50,7 @@ fn check_1d_nearest_downsample() {
 fn check_1d_nearest_identity() {
     // Same-size nearest: each xi maps to itself.
     let inp = t1d(&[5.0, 3.0, 8.0], 3);
-    let out = interpolate_1d(&inp, 3, InterpolateMode::Nearest);
+    let out = interpolate_1d(&inp, 3, InterpolateMode::Nearest).expect("run operation");
     assert_eq!(out.as_slice(), inp.as_slice(), "1d nearest identity");
 }
 
@@ -61,7 +61,7 @@ fn check_1d_bilinear_identity() {
     // For xi=0: frac=0.0, x0=0, x1=1, w1=0.0 -> in[0].
     // For xi=L-1: frac=L-1, x0=L-1, x1=L-1 (clamped), w1=0.0 -> in[L-1].
     let inp = t1d(&[7.0, 11.0, 3.0], 3);
-    let out = interpolate_1d(&inp, 3, InterpolateMode::Bilinear);
+    let out = interpolate_1d(&inp, 3, InterpolateMode::Bilinear).expect("run operation");
     assert_eq!(out.as_slice(), inp.as_slice(), "1d bilinear identity");
 }
 
@@ -73,7 +73,7 @@ fn check_2d_nearest_upsample() {
     // Result row-major: 4 rows x 4 cols
     //   row 0,1: [1,1,2,2]  row 2,3: [3,3,4,4]
     let inp = t2d(&[1.0, 2.0, 3.0, 4.0], 2, 2);
-    let out = interpolate_2d(&inp, 4, 4, InterpolateMode::Nearest);
+    let out = interpolate_2d(&inp, 4, 4, InterpolateMode::Nearest).expect("run operation");
     assert_eq!(out.shape(), &[1, 1, 4, 4], "2d nearest upsample shape");
     assert_eq!(
         out.as_slice(),
@@ -90,7 +90,7 @@ fn check_2d_nearest_downsample() {
     // out[1,0]=in[3,1]=13 out[1,1]=in[3,3]=15
     let data: Vec<f64> = (0u64..16).map(|i| i as f64).collect();
     let inp = t2d(&data, 4, 4);
-    let out = interpolate_2d(&inp, 2, 2, InterpolateMode::Nearest);
+    let out = interpolate_2d(&inp, 2, 2, InterpolateMode::Nearest).expect("run operation");
     assert_eq!(out.shape(), &[1, 1, 2, 2], "2d nearest downsample shape");
     assert_eq!(
         out.as_slice(),
@@ -103,7 +103,7 @@ fn check_2d_bilinear_identity() {
     // Same-size bilinear: align-half-pixel maps (yi,xi) -> (yi,xi) exactly (same
     // reasoning as 1d bilinear identity).
     let inp = t2d(&[10.0, 20.0, 30.0, 40.0], 2, 2);
-    let out = interpolate_2d(&inp, 2, 2, InterpolateMode::Bilinear);
+    let out = interpolate_2d(&inp, 2, 2, InterpolateMode::Bilinear).expect("run operation");
     assert_eq!(out.as_slice(), inp.as_slice(), "2d bilinear identity");
 }
 
@@ -117,7 +117,7 @@ fn check_2d_bilinear_upsample() {
     //   row2: 2.50 2.75 3.25 3.50
     //   row3: 3.00 3.25 3.75 4.00
     let inp = t2d(&[1.0, 2.0, 3.0, 4.0], 2, 2);
-    let out = interpolate_2d(&inp, 4, 4, InterpolateMode::Bilinear);
+    let out = interpolate_2d(&inp, 4, 4, InterpolateMode::Bilinear).expect("run operation");
     let expected = [
         1.0, 1.25, 1.75, 2.0, 1.5, 1.75, 2.25, 2.5, 2.5, 2.75, 3.25, 3.5, 3.0, 3.25, 3.75, 4.0,
     ];
@@ -132,8 +132,8 @@ fn check_2d_bilinear_upsample() {
 fn check_multichannel_nearest() {
     // N=1, C=2, L=2: channels are independent, verify each is handled correctly.
     // ch0=[1,2], ch1=[3,4] -> upsample to L=4 -> ch0=[1,1,2,2], ch1=[3,3,4,4]
-    let inp = Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 2], &[1.0, 2.0, 3.0, 4.0]);
-    let out = interpolate_1d(&inp, 4, InterpolateMode::Nearest);
+    let inp = Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 2], &[1.0, 2.0, 3.0, 4.0]).expect("construct tensor");
+    let out = interpolate_1d(&inp, 4, InterpolateMode::Nearest).expect("run operation");
     assert_eq!(out.shape(), &[1, 2, 4], "multichannel shape");
     assert_eq!(
         out.as_slice(),

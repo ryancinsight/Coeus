@@ -11,8 +11,8 @@ fn state_error<T>(result: std::io::Result<T>) -> std::io::Error {
 #[test]
 fn test_state_dict_save_load() {
     let backend = MoiraiBackend::new();
-    let t1 = Tensor::from_slice_on(vec![2, 3], &[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0], &backend);
-    let t2 = Tensor::from_slice_on(vec![4], &[-1.0f64, -2.0, -3.0, -4.0], &backend);
+    let t1 = Tensor::from_slice_on(vec![2, 3], &[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0], &backend).expect("construct tensor");
+    let t2 = Tensor::from_slice_on(vec![4], &[-1.0f64, -2.0, -3.0, -4.0], &backend).expect("construct tensor");
 
     let mut sd = StateDict::new();
     sd.insert("layer1.weight", t1);
@@ -27,19 +27,26 @@ fn test_state_dict_save_load() {
     let lt1 = loaded.get("layer1.weight").unwrap();
     assert_eq!(lt1.shape(), &[2, 3]);
     assert_eq!(
-        lt1.to_contiguous().as_slice(),
+        lt1.to_contiguous()
+            .expect("materialize contiguous tensor")
+            .as_slice(),
         &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
     );
 
     let lt2 = loaded.get("layer1.bias").unwrap();
     assert_eq!(lt2.shape(), &[4]);
-    assert_eq!(lt2.to_contiguous().as_slice(), &[-1.0, -2.0, -3.0, -4.0]);
+    assert_eq!(
+        lt2.to_contiguous()
+            .expect("materialize contiguous tensor")
+            .as_slice(),
+        &[-1.0, -2.0, -3.0, -4.0]
+    );
 }
 
 #[test]
 fn test_state_dict_alignment_fallback() {
     let backend = MoiraiBackend::new();
-    let t = Tensor::from_slice_on(vec![2], &[1.5f64, 2.5], &backend);
+    let t = Tensor::from_slice_on(vec![2], &[1.5f64, 2.5], &backend).expect("construct tensor");
 
     let mut sd = StateDict::new();
     sd.insert("x", t);
@@ -49,13 +56,18 @@ fn test_state_dict_alignment_fallback() {
 
     let loaded = StateDict::<f64, MoiraiBackend>::load(&mut &buffer[..]).unwrap();
     let lx = loaded.get("x").unwrap();
-    assert_eq!(lx.to_contiguous().as_slice(), &[1.5, 2.5]);
+    assert_eq!(
+        lx.to_contiguous()
+            .expect("materialize contiguous tensor")
+            .as_slice(),
+        &[1.5, 2.5]
+    );
 }
 
 #[test]
 fn archived_tensor_view_borrows_payload_and_shape() {
     let backend = MoiraiBackend::new();
-    let tensor = Tensor::from_slice_on([2], &[1.5_f64, 2.5], &backend);
+    let tensor = Tensor::from_slice_on([2], &[1.5_f64, 2.5], &backend).expect("construct tensor");
     let mut state = StateDict::new();
     state.insert("field.x", tensor);
     let mut bytes = rkyv::util::AlignedVec::<16>::new();
@@ -77,7 +89,7 @@ fn archive_bytes_are_deterministic_across_insertion_order() {
         let mut state = StateDict::new();
         for name in order {
             let value = if name == "a" { 1.0_f64 } else { 2.0 };
-            state.insert(name, Tensor::from_slice_on([1], &[value], &backend));
+            state.insert(name, Tensor::from_slice_on([1], &[value], &backend).expect("construct tensor"));
         }
         let mut bytes = Vec::new();
         state.save(&mut bytes).unwrap();
@@ -91,8 +103,8 @@ fn archive_bytes_are_deterministic_across_insertion_order() {
 fn load_rejects_archive_and_tensor_count_limits() {
     let backend = MoiraiBackend::new();
     let mut state = StateDict::new();
-    state.insert("a", Tensor::from_slice_on([1], &[1.0_f64], &backend));
-    state.insert("b", Tensor::from_slice_on([1], &[2.0_f64], &backend));
+    state.insert("a", Tensor::from_slice_on([1], &[1.0_f64], &backend).expect("construct tensor"));
+    state.insert("b", Tensor::from_slice_on([1], &[2.0_f64], &backend).expect("construct tensor"));
     let mut bytes = Vec::new();
     state.save(&mut bytes).unwrap();
 
@@ -135,7 +147,7 @@ fn load_rejects_archive_and_tensor_count_limits() {
 fn load_rejects_truncation_and_scalar_mismatch() {
     let backend = MoiraiBackend::new();
     let mut state = StateDict::new();
-    state.insert("x", Tensor::from_slice_on([2], &[1.0_f64, 2.0], &backend));
+    state.insert("x", Tensor::from_slice_on([2], &[1.0_f64, 2.0], &backend).expect("construct tensor"));
     let mut bytes = Vec::new();
     state.save(&mut bytes).unwrap();
 

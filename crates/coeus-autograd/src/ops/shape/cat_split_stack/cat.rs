@@ -37,7 +37,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let ndim = self.out_shape.len();
         let dim = self.dim;
@@ -60,7 +64,7 @@ where
                 .collect();
 
             let lock = g.write();
-            let (g_storage, g_layout) = lock.storage_mut_and_layout();
+            let (g_storage, g_layout) = lock.storage_mut_and_layout()?;
             let sliced_out_layout = grad_out.layout().slice(&ranges);
 
             let g_storage_imm: &B::DeviceBuffer<T> =
@@ -73,9 +77,11 @@ where
                 &sliced_out_layout,
                 g_storage,
                 g_layout,
-            );
+            )?;
             offset += sz;
         }
+
+        Ok(())
     }
 }
 
@@ -90,7 +96,7 @@ where
 pub fn cat<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     inputs: &[&Var<T, B>],
     dim: usize,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -100,7 +106,7 @@ where
 
     let split_sizes: Vec<usize> = inputs.iter().map(|v| v.tensor.shape()[dim]).collect();
     let tensors: Vec<&Tensor<T, B>> = inputs.iter().map(|v| &v.tensor).collect();
-    let out_tensor = coeus_ops::cat(&tensors, dim);
+    let out_tensor = coeus_ops::cat(&tensors, dim)?;
 
     let requires_grad = inputs.iter().any(|v| crate::grad_mode::should_track_var(v));
     if !requires_grad {
@@ -111,7 +117,7 @@ where
     let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_shape.clone(),
         &backend,
-    )));
+    )?));
     let grad = Some(output_grad.clone());
 
     let node = CatNode {
@@ -123,9 +129,9 @@ where
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

@@ -6,7 +6,7 @@
 //! Leto through [`super::super::CpuBackend`]. Accelerator implementations must
 //! provide a native operation before those methods are exposed.
 
-use coeus_core::{ComputeBackend, Layout, Scalar};
+use coeus_core::{BackendError, ComputeBackend, Layout, Scalar};
 
 use super::super::CpuBackend;
 use super::super::defaults;
@@ -44,7 +44,8 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         axis: usize,
         c: &mut Self::DeviceBuffer<i64>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
         Self: CpuBackend,
     {
@@ -59,7 +60,8 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         axis: usize,
         c: &mut Self::DeviceBuffer<i64>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
         Self: CpuBackend,
     {
@@ -79,7 +81,8 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         values_layout: &Layout,
         indices: &mut Self::DeviceBuffer<i64>,
         indices_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
         Self: CpuBackend,
     {
@@ -114,8 +117,11 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
     where
         T: leto_ops::Scalar,
     {
-        defaults::reductions::cumsum(self, a, a_layout, axis, c, c_layout);
-        Ok(())
+        let _ = (a, a_layout, axis, c, c_layout);
+        Err(BackendError::UnsupportedOperation {
+            operation: "cumsum",
+        }
+        .into())
     }
 
     /// Inclusive cumulative suffix sum (reverse cumulative sum) along an axis.
@@ -135,8 +141,11 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
     where
         T: leto_ops::Scalar,
     {
-        defaults::reductions::suffix_sum(self, a, a_layout, axis, c, c_layout);
-        Ok(())
+        let _ = (a, a_layout, axis, c, c_layout);
+        Err(BackendError::UnsupportedOperation {
+            operation: "suffix_sum",
+        }
+        .into())
     }
 
     /// Inclusive cumulative product along an axis.
@@ -156,8 +165,11 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
     where
         T: leto_ops::Scalar,
     {
-        defaults::reductions::cumprod(self, a, a_layout, axis, c, c_layout);
-        Ok(())
+        let _ = (a, a_layout, axis, c, c_layout);
+        Err(BackendError::UnsupportedOperation {
+            operation: "cumprod",
+        }
+        .into())
     }
 
     /// Inclusive cumulative suffix product (reverse cumulative product) along
@@ -178,7 +190,10 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
     where
         T: leto_ops::Scalar,
     {
-        defaults::reductions::suffix_prod(self, a, a_layout, axis, c, c_layout);
-        Ok(())
+        let _ = (a, a_layout, axis, c, c_layout);
+        Err(BackendError::UnsupportedOperation {
+            operation: "suffix_prod",
+        }
+        .into())
     }
 }

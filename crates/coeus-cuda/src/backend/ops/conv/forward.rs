@@ -2,6 +2,7 @@ use super::checked_numel;
 use crate::backend::ops::cast::{cast_storage, cast_storage_mut};
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::get_cuda_context;
+use crate::error::CudaBackendError;
 use crate::kernels;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
@@ -20,7 +21,7 @@ impl CudaBackend {
         dilation: usize,
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         let launched = if get_cuda_context().is_some()
             && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
         {
@@ -44,26 +45,23 @@ impl CudaBackend {
                         out_numel,
                     )
                 }
-                None => false,
+                None => {
+                    return Err(CudaBackendError::dispatch_unavailable(
+                        "conv1d",
+                        "output element-count arithmetic overflowed",
+                    ));
+                }
             }
         } else {
             false
         };
         if launched {
-            return;
+            return Ok(());
         }
-        self.fallback_conv1d(
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            bias,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "conv1d",
+            "native CUDA dispatch requires an initialized context and supported f32 layouts",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -79,7 +77,7 @@ impl CudaBackend {
         dilation: usize,
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         let launched = if get_cuda_context().is_some()
             && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
         {
@@ -103,26 +101,23 @@ impl CudaBackend {
                         out_numel,
                     )
                 }
-                None => false,
+                None => {
+                    return Err(CudaBackendError::dispatch_unavailable(
+                        "conv2d",
+                        "output element-count arithmetic overflowed",
+                    ));
+                }
             }
         } else {
             false
         };
         if launched {
-            return;
+            return Ok(());
         }
-        self.fallback_conv2d(
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            bias,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "conv2d",
+            "native CUDA dispatch requires an initialized context and supported f32 layouts",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -138,7 +133,7 @@ impl CudaBackend {
         dilation: usize,
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         let launched = if get_cuda_context().is_some()
             && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
         {
@@ -162,25 +157,22 @@ impl CudaBackend {
                         out_numel,
                     )
                 }
-                None => false,
+                None => {
+                    return Err(CudaBackendError::dispatch_unavailable(
+                        "conv3d",
+                        "output element-count arithmetic overflowed",
+                    ));
+                }
             }
         } else {
             false
         };
         if launched {
-            return;
+            return Ok(());
         }
-        self.fallback_conv3d(
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            bias,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "conv3d",
+            "native CUDA dispatch requires an initialized context and supported f32 layouts",
+        ))
     }
 }

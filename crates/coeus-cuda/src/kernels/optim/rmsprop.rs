@@ -1,9 +1,9 @@
-use crate::driver::{get_cuda_context, CudaDriver};
-use crate::kernels::validation::{
-    checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda, layouts_share_shape,
-    CUDA_BLOCK_SIZE,
-};
+use crate::driver::{CudaDriver, get_cuda_context};
 use crate::kernels::GpuLayoutInfo;
+use crate::kernels::validation::{
+    CUDA_BLOCK_SIZE, checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda,
+    layouts_share_shape,
+};
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
 

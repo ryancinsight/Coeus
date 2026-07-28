@@ -15,9 +15,9 @@ use coeus_tensor::Tensor;
 /// use coeus_ops::add;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[1.0, 2.0]);
-/// let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0]);
-/// let c = add(&a, &b, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[1.0, 2.0]).expect("construct tensor");
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0]).expect("construct tensor");
+/// let c = add(&a, &b, &backend).expect("evaluate operation");
 /// assert_eq!(c.as_slice(), &[4.0, 6.0]);
 /// ```
 #[inline]
@@ -25,8 +25,8 @@ pub fn add<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
-    elementwise_binary(a, b, backend, BinaryOp::Add).expect("add: incompatible shapes")
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_binary(a, b, backend, BinaryOp::Add)
 }
 
 /// Element-wise subtraction.
@@ -39,9 +39,9 @@ pub fn add<T: Scalar, B: BackendOps<T>>(
 /// use coeus_ops::sub;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[5.0, 6.0, 7.0, 8.0]);
-/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
-/// let c = sub(&a, &b, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[5.0, 6.0, 7.0, 8.0]).expect("construct tensor");
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]).expect("construct tensor");
+/// let c = sub(&a, &b, &backend).expect("evaluate operation");
 /// assert_eq!(c.as_slice(), &[4.0, 4.0, 4.0, 4.0]);
 /// ```
 #[inline]
@@ -49,8 +49,8 @@ pub fn sub<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
-    elementwise_binary(a, b, backend, BinaryOp::Sub).expect("sub: incompatible shapes")
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_binary(a, b, backend, BinaryOp::Sub)
 }
 
 /// Element-wise multiplication.
@@ -63,9 +63,9 @@ pub fn sub<T: Scalar, B: BackendOps<T>>(
 /// use coeus_ops::mul;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
-/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[5.0, 6.0, 7.0, 8.0]);
-/// let c = mul(&a, &b, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]).expect("construct tensor");
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[5.0, 6.0, 7.0, 8.0]).expect("construct tensor");
+/// let c = mul(&a, &b, &backend).expect("evaluate operation");
 /// assert_eq!(c.as_slice(), &[5.0, 12.0, 21.0, 32.0]);
 /// ```
 #[inline]
@@ -73,8 +73,8 @@ pub fn mul<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
-    elementwise_binary(a, b, backend, BinaryOp::Mul).expect("mul: incompatible shapes")
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_binary(a, b, backend, BinaryOp::Mul)
 }
 
 /// Element-wise division.
@@ -87,9 +87,9 @@ pub fn mul<T: Scalar, B: BackendOps<T>>(
 /// use coeus_ops::div;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[6.0, 8.0, 10.0, 12.0]);
-/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[2.0, 4.0, 5.0, 6.0]);
-/// let c = div(&a, &b, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[6.0, 8.0, 10.0, 12.0]).expect("construct tensor");
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[2.0, 4.0, 5.0, 6.0]).expect("construct tensor");
+/// let c = div(&a, &b, &backend).expect("evaluate operation");
 /// let s = c.as_slice();
 /// assert!((s[0] - 3.0).abs() < 1e-5);
 /// assert!((s[1] - 2.0).abs() < 1e-5);
@@ -101,8 +101,8 @@ pub fn div<T: Scalar, B: BackendOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
-    elementwise_binary(a, b, backend, BinaryOp::Div).expect("div: incompatible shapes")
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_binary(a, b, backend, BinaryOp::Div)
 }
 
 macro_rules! binary_assign_op {
@@ -131,7 +131,7 @@ macro_rules! binary_assign_op {
                     }));
                 }
             }
-            let (a_dest, a_layout) = a.storage_mut_and_layout();
+            let (a_dest, a_layout) = a.storage_mut_and_layout()?;
             // SAFETY: We cast the mutable reference `a_dest` to an immutable reference `a_src`
             // to pass as the source buffer. This is safe because:
             // 1. `a_dest` has been made unique (Arc count is 1) via `storage_mut()`.
@@ -173,12 +173,10 @@ mod tests {
     #[test]
     fn incompatible_broadcast_panics() {
         let backend = SequentialBackend::new();
-        let lhs = Tensor::from_slice([2], &[1.0_f32, 2.0]);
-        let rhs = Tensor::from_slice([3], &[3.0_f32, 4.0, 5.0]);
+        let lhs = Tensor::from_slice([2], &[1.0_f32, 2.0]).expect("construct tensor");
+        let rhs = Tensor::from_slice([3], &[3.0_f32, 4.0, 5.0]).expect("construct tensor");
 
-        let result = std::panic::catch_unwind(|| {
-            add(&lhs, &rhs, &backend)
-        });
+        let result = std::panic::catch_unwind(|| add(&lhs, &rhs, &backend).expect("run operation"));
         assert!(result.is_err(), "incompatible shapes must panic");
     }
 }

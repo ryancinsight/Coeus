@@ -30,7 +30,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nll
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
             let mut host_grad = [T::zero()];
@@ -38,10 +42,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nll
             let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
                 grad_out
             } else {
-                temp_grad = grad_out.to_contiguous_on(&backend);
+                temp_grad = grad_out.to_contiguous_on(&backend)?;
                 &temp_grad
             };
-            backend.copy_to_host(grad_cont.storage(), &mut host_grad);
+            backend.copy_to_host(grad_cont.storage(), &mut host_grad)?;
             let g_out = host_grad[0];
             let n_t = T::from_f64(self.n as f64);
             // Use T::zero() - x idiom for negation
@@ -51,10 +55,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nll
             for i in 0..self.n {
                 d_log[i * self.c + self.targets[i]] = neg_scale;
             }
-            let grad_tensor = Tensor::from_slice_on([self.n, self.c], &d_log, &backend);
+            let grad_tensor = Tensor::from_slice_on([self.n, self.c], &d_log, &backend)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -63,7 +69,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nll
 pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     log_probs: &Var<T, B>,
     targets: &[usize],
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let shape = log_probs.tensor.shape();
     let n = shape[0];
@@ -74,7 +80,7 @@ pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let log_raw = if log_probs.tensor.is_contiguous() && log_probs.tensor.layout().offset() == 0 {
         &log_probs.tensor
     } else {
-        cont = log_probs.tensor.to_contiguous_on(&backend);
+        cont = log_probs.tensor.to_contiguous_on(&backend)?;
         &cont
     };
 
@@ -82,7 +88,7 @@ pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         std::borrow::Cow::Borrowed(&s[..n * c])
     } else {
         let mut v = vec![T::zero(); n * c];
-        backend.copy_to_host(log_raw.storage(), &mut v);
+        backend.copy_to_host(log_raw.storage(), &mut v)?;
         std::borrow::Cow::Owned(v)
     };
 
@@ -93,17 +99,16 @@ pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     }
     loss_val = loss_val / T::from_f64(n as f64);
 
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
+    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend)?;
     let requires_grad = crate::grad_mode::should_track_var(log_probs);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let node = NllLossNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs: vec![log_probs.clone()],
             targets: targets.to_vec(),
             n,
@@ -113,9 +118,9 @@ pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

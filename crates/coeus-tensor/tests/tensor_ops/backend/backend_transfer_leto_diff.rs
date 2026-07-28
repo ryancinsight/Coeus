@@ -11,11 +11,13 @@ fn sequential_to_moirai_transfer_matches_leto_materialization() {
     let seq = SequentialBackend;
     let moirai = MoiraiBackend;
     let data = (0..12).collect::<Vec<i32>>();
-    let tensor = Tensor::<i32, SequentialBackend>::from_slice_on([3usize, 4], &data, &seq);
+    let tensor = Tensor::<i32, SequentialBackend>::from_slice_on([3usize, 4], &data, &seq).expect("construct tensor");
     let view = tensor.slice(&[(0, 3), (1, 4)]).transpose();
 
     let expected = coeus_leto::contiguous_values(view.layout(), view.storage().as_slice()).unwrap();
-    let transferred = view.to_backend_on(&seq, &moirai);
+    let transferred = view
+        .to_backend_on(&seq, &moirai)
+        .expect("transfer tensor to Moirai");
 
     assert!(transferred.is_contiguous());
     assert_eq!(transferred.shape(), view.shape());
@@ -28,11 +30,13 @@ fn moirai_to_sequential_transfer_matches_leto_materialization() {
     let seq = SequentialBackend;
     let moirai = MoiraiBackend;
     let data = (0..24).collect::<Vec<i32>>();
-    let tensor = Tensor::<i32, MoiraiBackend>::from_slice_on([2usize, 3, 4], &data, &moirai);
+    let tensor = Tensor::<i32, MoiraiBackend>::from_slice_on([2usize, 3, 4], &data, &moirai).expect("construct tensor");
     let view = tensor.slice(&[(0, 2), (1, 3), (0, 4)]).t_nd();
 
     let expected = coeus_leto::contiguous_values(view.layout(), view.storage().as_slice()).unwrap();
-    let transferred = view.to_backend_on(&moirai, &seq);
+    let transferred = view
+        .to_backend_on(&moirai, &seq)
+        .expect("transfer tensor to sequential backend");
 
     assert!(transferred.is_contiguous());
     assert_eq!(transferred.shape(), view.shape());

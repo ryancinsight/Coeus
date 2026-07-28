@@ -8,21 +8,21 @@ fn test_embedding_autograd() {
 
     // Weight matrix of shape [3, 2]
     let w_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
-    let w_tensor = Tensor::from_slice_on(vec![3, 2], &w_data, &backend);
-    let weight = Var::new(w_tensor, true);
+    let w_tensor = Tensor::from_slice_on(vec![3, 2], &w_data, &backend).expect("valid tensor construction");
+    let weight = Var::new(w_tensor, true).expect("valid variable construction");
 
     // Indices of shape [2, 2]
     let idx_data = vec![0i32, 2, 1, 0];
-    let indices = Tensor::from_slice_on(vec![2, 2], &idx_data, &backend);
+    let indices = Tensor::from_slice_on(vec![2, 2], &idx_data, &backend).expect("valid tensor construction");
 
-    let y = embedding(&weight, &indices);
+    let y = embedding(&weight, &indices).expect("valid autograd operation");
     assert_eq!(y.tensor.shape(), &[2, 2, 2]);
     let y_slice = y.tensor.as_slice();
     assert_eq!(y_slice, &[1.0, 2.0, 5.0, 6.0, 3.0, 4.0, 1.0, 2.0]);
 
     let grad_out_data = vec![1.0f32, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0];
-    let grad_out = Tensor::from_slice_on(vec![2, 2, 2], &grad_out_data, &backend);
-    y.backward_with_seed(grad_out);
+    let grad_out = Tensor::from_slice_on(vec![2, 2, 2], &grad_out_data, &backend).expect("valid tensor construction");
+    y.backward_with_seed(grad_out).expect("valid backward propagation");
 
     let gw = weight.grad().unwrap();
     let gw_slice = gw.as_slice();

@@ -16,7 +16,7 @@ where
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    Tensor::from_slice_on(shape.to_vec(), data, backend)
+    Tensor::from_slice_on(shape.to_vec(), data, backend).expect("construct tensor")
 }
 
 fn assert_values<T: Scalar>(got: &[T], expected: &[T], context: &str) {
@@ -62,15 +62,15 @@ where
     .map(T::from_f64)
     .collect();
 
-    let axis0 = coeus_ops::stack(&[&first, &second], 0);
+    let axis0 = coeus_ops::stack(&[&first, &second], 0).expect("run operation");
     assert_eq!(axis0.shape(), &[2, 2, 3]);
     assert_values(axis0.as_slice(), &axis0_expected, "axis-0 stack");
 
-    let axis1 = coeus_ops::stack(&[&first, &second], 1);
+    let axis1 = coeus_ops::stack(&[&first, &second], 1).expect("run operation");
     assert_eq!(axis1.shape(), &[2, 2, 3]);
     assert_values(axis1.as_slice(), &axis1_expected, "axis-1 stack");
 
-    let axis2 = coeus_ops::stack(&[&first, &second], 2);
+    let axis2 = coeus_ops::stack(&[&first, &second], 2).expect("run operation");
     assert_eq!(axis2.shape(), &[2, 3, 2]);
     assert_values(axis2.as_slice(), &axis2_expected, "axis-2 stack");
 }

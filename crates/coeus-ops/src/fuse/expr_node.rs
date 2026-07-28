@@ -1,7 +1,7 @@
 use crate::fuse::op_tags::{BinaryOpTag, UnaryOpTag};
 use coeus_core::{ComputeBackend, Layout, Scalar, Shape, Storage};
-use coeus_tensor::broadcast::broadcast_shapes;
 use coeus_tensor::Tensor;
+use coeus_tensor::broadcast::broadcast_shapes;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -274,12 +274,12 @@ pub struct BinaryExpr<Op: BinaryOpTag, Left, Right> {
 }
 
 impl<
-        Op: BinaryOpTag + Send,
-        Left: ExprNode<T, B>,
-        Right: ExprNode<T, B>,
-        T: Scalar,
-        B: ComputeBackend,
-    > ExprNode<T, B> for BinaryExpr<Op, Left, Right>
+    Op: BinaryOpTag + Send,
+    Left: ExprNode<T, B>,
+    Right: ExprNode<T, B>,
+    T: Scalar,
+    B: ComputeBackend,
+> ExprNode<T, B> for BinaryExpr<Op, Left, Right>
 {
     fn collect_inputs(&self, list: &mut Vec<*const Tensor<T, B>>) {
         self.left.collect_inputs(list);

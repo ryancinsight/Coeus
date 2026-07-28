@@ -1,6 +1,6 @@
 // ── Embedding lookup operations ──
 
-use coeus_core::{ComputeBackend, Scalar, Storage, StorageMut};
+use coeus_core::{BackendError, ComputeBackend, Scalar, Storage, StorageMut};
 use coeus_tensor::Tensor;
 
 /// Apply embedding lookup: maps integer indices to dense vectors from a weight matrix.
@@ -18,13 +18,14 @@ pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     weight: &Tensor<T, B>,
     indices: &Tensor<I, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     let weight_shape = weight.shape();
-    assert_eq!(
-        weight_shape.len(),
-        2,
-        "Weight tensor must be 2D [num_embeddings, embedding_dim]"
-    );
+    if weight_shape.len() != 2 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "embedding",
+            reason: "weight tensor must be 2D [num_embeddings, embedding_dim]".to_owned(),
+        }));
+    }
     let num_embeddings = weight_shape[0];
     let embedding_dim = weight_shape[1];
 
@@ -33,7 +34,7 @@ pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     out_shape.push(embedding_dim);
     let out_shape = coeus_core::Shape::from(out_shape);
 
-    let mut out_tensor = Tensor::zeros_on(out_shape, backend);
+    let mut out_tensor = Tensor::zeros_on(out_shape, backend)?;
 
     let w_layout = weight.layout().clone();
     let idx_layout = indices.layout().clone();
@@ -47,7 +48,7 @@ pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     if let (Some(w_slice), Some(idx_slice), Some(out_slice)) = (
         weight.storage().try_as_slice(),
         indices.storage().try_as_slice(),
-        out_tensor.storage_mut().try_as_mut_slice(),
+        out_tensor.storage_mut()?.try_as_mut_slice()?,
     ) {
         let ndim_idx = indices.ndim();
         let indices_shape_ref = indices.shape();
@@ -59,12 +60,12 @@ pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
             let token_val = idx_slice[physical_idx];
             let token_idx = <I as Scalar>::to_f64(token_val) as isize;
 
-            assert!(
-                token_idx >= 0 && token_idx < num_embeddings as isize,
-                "Embedding index {} out of bounds [0, {})",
-                token_idx,
-                num_embeddings
-            );
+            if token_idx < 0 || token_idx >= num_embeddings as isize {
+                return Err(B::Error::from(BackendError::Storage {
+                    operation: "embedding",
+                    reason: format!("index {token_idx} is outside [0, {num_embeddings})"),
+                }));
+            }
 
             let w_row_start = w_offset + (token_idx as usize) * w_strides[0];
             let out_row_stride = if ndim_idx > 0 {
@@ -89,14 +90,15 @@ pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
             }
         }
     } else {
-        let host_backend = coeus_core::MoiraiBackend::new();
-        let w_host = weight.to_backend(&host_backend);
-        let idx_host = indices.to_backend(&host_backend);
-        let out_host = embedding(&w_host, &idx_host, &host_backend);
-        out_tensor = out_host.to_backend(backend);
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "embedding",
+            reason:
+                "backend storage is not CPU-addressable; a native embedding capability is required"
+                    .to_owned(),
+        }));
     }
 
-    out_tensor
+    Ok(out_tensor)
 }
 
 /// Compute backward pass of embedding lookup, accumulating gradients into weights.
@@ -105,7 +107,7 @@ pub fn embedding_backward<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     indices: &Tensor<I, B>,
     num_embeddings: usize,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     embedding_backward_impl(grad_out, indices, num_embeddings, None, backend)
 }
 
@@ -117,13 +119,13 @@ pub fn embedding_backward_with_padding_idx<T: Scalar, I: Scalar, B: ComputeBacke
     num_embeddings: usize,
     padding_idx: Option<usize>,
     backend: &B,
-) -> Tensor<T, B> {
-    assert!(
-        padding_idx.is_none_or(|idx| idx < num_embeddings),
-        "embedding_backward: padding_idx {:?} out of bounds [0, {})",
-        padding_idx,
-        num_embeddings
-    );
+) -> Result<Tensor<T, B>, B::Error> {
+    if padding_idx.is_some_and(|idx| idx >= num_embeddings) {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "embedding_backward",
+            reason: format!("padding index is outside [0, {num_embeddings})"),
+        }));
+    }
     embedding_backward_impl(
         grad_out,
         indices,
@@ -139,20 +141,27 @@ fn embedding_backward_impl<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     num_embeddings: usize,
     skip_index: Option<isize>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     let grad_shape = grad_out.shape();
     let ndim_grad = grad_shape.len();
-    assert!(ndim_grad >= 2, "grad_out must have at least 2 dimensions");
+    if ndim_grad < 2 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "embedding_backward",
+            reason: "grad_out must have at least two dimensions".to_owned(),
+        }));
+    }
     let embedding_dim = grad_shape[ndim_grad - 1];
 
     let indices_shape = indices.shape();
-    assert_eq!(
-        &grad_shape[..ndim_grad - 1],
-        indices_shape,
-        "grad_out shape prefix must match indices shape"
-    );
+    if &grad_shape[..ndim_grad - 1] != indices_shape {
+        return Err(B::Error::from(BackendError::ShapeMismatch {
+            operation: "embedding_backward",
+            lhs: grad_shape[..ndim_grad - 1].to_vec(),
+            rhs: indices_shape.to_vec(),
+        }));
+    }
 
-    let mut grad_weight = Tensor::zeros_on([num_embeddings, embedding_dim], backend);
+    let mut grad_weight = Tensor::zeros_on([num_embeddings, embedding_dim], backend)?;
 
     let go_layout = grad_out.layout().clone();
     let idx_layout = indices.layout().clone();
@@ -166,7 +175,7 @@ fn embedding_backward_impl<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     if let (Some(go_slice), Some(idx_slice), Some(gw_slice)) = (
         grad_out.storage().try_as_slice(),
         indices.storage().try_as_slice(),
-        grad_weight.storage_mut().try_as_mut_slice(),
+        grad_weight.storage_mut()?.try_as_mut_slice()?,
     ) {
         let ndim_idx = indices.ndim();
         let num_indices = indices.numel();
@@ -205,20 +214,15 @@ fn embedding_backward_impl<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
             }
         }
     } else {
-        let host_backend = coeus_core::MoiraiBackend::new();
-        let go_host = grad_out.to_backend(&host_backend);
-        let idx_host = indices.to_backend(&host_backend);
-        let gw_host = embedding_backward_impl(
-            &go_host,
-            &idx_host,
-            num_embeddings,
-            skip_index,
-            &host_backend,
-        );
-        grad_weight = gw_host.to_backend(backend);
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "embedding_backward",
+            reason:
+                "backend storage is not CPU-addressable; a native embedding capability is required"
+                    .to_owned(),
+        }));
     }
 
-    grad_weight
+    Ok(grad_weight)
 }
 
 #[cfg(test)]
@@ -232,10 +236,10 @@ mod tests {
         let grad_out = Tensor::<f32, SequentialBackend>::from_slice(
             vec![3, 2],
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
-        );
-        let indices = Tensor::<i32, SequentialBackend>::from_slice(vec![3], &[0, 1, 0]);
+        ).expect("construct tensor");
+        let indices = Tensor::<i32, SequentialBackend>::from_slice(vec![3], &[0, 1, 0]).expect("construct tensor");
 
-        let grad = embedding_backward_with_padding_idx(&grad_out, &indices, 2, Some(0), &backend);
+        let grad = embedding_backward_with_padding_idx(&grad_out, &indices, 2, Some(0), &backend).expect("run operation");
 
         assert_eq!(grad.shape(), &[2, 2]);
         assert_eq!(grad.as_slice(), &[0.0, 0.0, 3.0, 4.0]);

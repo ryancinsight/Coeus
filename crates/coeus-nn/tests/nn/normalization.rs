@@ -7,7 +7,8 @@ fn test_groupnorm_forward_and_backward() {
     use coeus_nn::normalization::groupnorm::GroupNorm;
 
     // G=2, C=4: each group contains 2 channels.
-    let gn = GroupNorm::<f64, coeus_core::MoiraiBackend, 2>::new(4, 1e-5);
+    let gn = GroupNorm::<f64, coeus_core::MoiraiBackend, 2>::new(4, 1e-5)
+        .expect("construct GroupNorm");
     let input = Var::new(
         Tensor::from_slice(
             vec![1, 4, 3],
@@ -17,17 +18,19 @@ fn test_groupnorm_forward_and_backward() {
                 7.0, 8.0, 9.0, // ch 2
                 10.0, 11.0, 12.0, // ch 3
             ],
-        ),
+        )
+        .expect("construct input tensor"),
         true,
-    );
-    let output = gn.forward(&input);
+    )
+    .expect("construct input variable");
+    let output = gn.forward(&input).expect("run GroupNorm");
     assert_eq!(output.tensor.shape(), &[1, 4, 3]);
 
     let out_slice = output.tensor.as_slice();
     let group0_sum: f64 = out_slice[..6].iter().sum();
     assert!(group0_sum.abs() < 1e-5, "group0_sum={group0_sum}");
 
-    output.backward();
+    output.backward().expect("run backward");
     assert!(input.grad().is_some());
     assert!(gn.weight.grad().is_some());
     assert!(gn.bias.grad().is_some());
@@ -37,15 +40,18 @@ fn test_groupnorm_forward_and_backward() {
 fn test_groupnorm_g1_is_layernorm() {
     use coeus_nn::normalization::groupnorm::GroupNorm;
 
-    let gn = GroupNorm::<f64, coeus_core::MoiraiBackend, 1>::new(4, 1e-5);
+    let gn = GroupNorm::<f64, coeus_core::MoiraiBackend, 1>::new(4, 1e-5)
+        .expect("construct GroupNorm");
     let input = Var::new(
-        Tensor::from_slice(vec![2, 4], &[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+        Tensor::from_slice(vec![2, 4], &[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("construct input tensor"),
         true,
-    );
-    let output = gn.forward(&input);
+    )
+    .expect("construct input variable");
+    let output = gn.forward(&input).expect("run GroupNorm");
     assert_eq!(output.tensor.shape(), &[2, 4]);
 
-    output.backward();
+    output.backward().expect("run backward");
     assert!(input.grad().is_some());
 }
 
@@ -53,9 +59,14 @@ fn test_groupnorm_g1_is_layernorm() {
 fn test_instancenorm1d_forward_and_backward() {
     use coeus_nn::normalization::instancenorm::InstanceNorm1d;
 
-    let inst = InstanceNorm1d::<f64, coeus_core::MoiraiBackend>::new(3, 1e-5);
-    let input = Var::new(Tensor::zeros(vec![2, 3, 4]), true);
-    let output = inst.forward(&input);
+    let inst = InstanceNorm1d::<f64, coeus_core::MoiraiBackend>::new(3, 1e-5)
+        .expect("construct InstanceNorm1d");
+    let input = Var::new(
+        Tensor::zeros(vec![2, 3, 4]).expect("construct input tensor"),
+        true,
+    )
+    .expect("construct input variable");
+    let output = inst.forward(&input).expect("run InstanceNorm1d");
     assert_eq!(output.tensor.shape(), &[2, 3, 4]);
 
     // All-zero input → output is all-zero
@@ -63,7 +74,7 @@ fn test_instancenorm1d_forward_and_backward() {
         assert!(v.abs() < 1e-5);
     }
 
-    output.backward();
+    output.backward().expect("run backward");
     assert!(input.grad().is_some());
     assert!(inst.weight.grad().is_some());
     assert!(inst.bias.grad().is_some());
@@ -73,7 +84,8 @@ fn test_instancenorm1d_forward_and_backward() {
 fn test_instancenorm1d_non_constant_backward() {
     use coeus_nn::normalization::instancenorm::InstanceNorm1d;
 
-    let inst = InstanceNorm1d::<f64, coeus_core::MoiraiBackend>::new(2, 1e-5);
+    let inst = InstanceNorm1d::<f64, coeus_core::MoiraiBackend>::new(2, 1e-5)
+        .expect("construct InstanceNorm1d");
     let input = Var::new(
         Tensor::from_slice(
             vec![1, 2, 4],
@@ -81,17 +93,19 @@ fn test_instancenorm1d_non_constant_backward() {
                 1.0f64, 2.0, 3.0, 4.0, // ch 0 → mean=2.5
                 0.0, 0.5, 1.0, 1.5, // ch 1 → mean=0.75
             ],
-        ),
+        )
+        .expect("construct input tensor"),
         true,
-    );
-    let output = inst.forward(&input);
+    )
+    .expect("construct input variable");
+    let output = inst.forward(&input).expect("run InstanceNorm1d");
     assert_eq!(output.tensor.shape(), &[1, 2, 4]);
 
     let s = output.tensor.as_slice();
     let mean0: f64 = s[..4].iter().sum::<f64>() / 4.0;
     assert!(mean0.abs() < 1e-5);
 
-    output.backward();
+    output.backward().expect("run backward");
     assert!(input.grad().is_some());
 }
 
@@ -99,10 +113,15 @@ fn test_instancenorm1d_non_constant_backward() {
 fn test_instancenorm2d_forward_and_backward() {
     use coeus_nn::normalization::instancenorm::InstanceNorm2d;
 
-    let inst = InstanceNorm2d::<f64, coeus_core::MoiraiBackend>::new(2, 1e-5);
+    let inst = InstanceNorm2d::<f64, coeus_core::MoiraiBackend>::new(2, 1e-5)
+        .expect("construct InstanceNorm2d");
     let data: Vec<f64> = (0..18).map(|i| i as f64).collect();
-    let input = Var::new(Tensor::from_slice(vec![1, 2, 3, 3], &data), true);
-    let output = inst.forward(&input);
+    let input = Var::new(
+        Tensor::from_slice(vec![1, 2, 3, 3], &data).expect("construct input tensor"),
+        true,
+    )
+    .expect("construct input variable");
+    let output = inst.forward(&input).expect("run InstanceNorm2d");
     assert_eq!(output.tensor.shape(), &[1, 2, 3, 3]);
 
     let s = output.tensor.as_slice();
@@ -111,7 +130,7 @@ fn test_instancenorm2d_forward_and_backward() {
     assert!(mean0.abs() < 1e-5, "mean0={mean0}");
     assert!(mean1.abs() < 1e-5, "mean1={mean1}");
 
-    output.backward();
+    output.backward().expect("run backward");
     assert!(input.grad().is_some());
     assert!(inst.weight.grad().is_some());
     assert!(inst.bias.grad().is_some());

@@ -1,5 +1,5 @@
-use super::super::attention;
 use super::super::CpuBackend;
+use super::super::attention;
 use crate::backend_ops::traits::AttentionOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
 
@@ -25,7 +25,8 @@ where
         output_layout: &Layout,
         attn_weights: &mut Self::DeviceBuffer<T>,
         attn_weights_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         attention::sdp_attention(
@@ -44,7 +45,8 @@ where
             output_layout,
             attn_weights,
             attn_weights_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -64,7 +66,8 @@ where
         grad_q: Option<&mut Self::DeviceBuffer<T>>,
         grad_k: Option<&mut Self::DeviceBuffer<T>>,
         grad_v: Option<&mut Self::DeviceBuffer<T>>,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         attention::sdp_attention_backward(
@@ -83,6 +86,7 @@ where
             grad_q,
             grad_k,
             grad_v,
-        );
+        )?;
+        Ok(())
     }
 }

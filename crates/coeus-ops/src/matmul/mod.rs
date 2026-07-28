@@ -18,8 +18,8 @@ use coeus_tensor::Tensor;
 /// use coeus_ops::bmm;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([1, 2, 2], &[1.0, 2.0, 3.0, 4.0]);
-/// let b = Tensor::<f32, SequentialBackend>::from_slice([1, 2, 2], &[5.0, 6.0, 7.0, 8.0]);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([1, 2, 2], &[1.0, 2.0, 3.0, 4.0]).expect("construct tensor");
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([1, 2, 2], &[5.0, 6.0, 7.0, 8.0]).expect("construct tensor");
 /// let c = bmm(&a, &b, &backend).expect("valid batched matmul doctest inputs");
 /// assert_eq!(c.shape(), &[1, 2, 2]);
 /// let expected = [19.0, 22.0, 43.0, 50.0];
@@ -39,7 +39,7 @@ pub fn bmm<T: Scalar, B: BackendOps<T> + Default>(
     let (_b2, _k2, _n) = (b.shape()[0], b.shape()[1], b.shape()[2]);
     assert_eq!(batch, b.shape()[0], "bmm: batch mismatch");
     assert_eq!(a.shape()[2], b.shape()[1], "bmm: inner dim mismatch");
-    Ok(kernel::matmul(a, b, backend))
+    kernel::matmul(a, b, backend)
 }
 
 /// Outer product: `[M] x [N] -> [M, N]`.
@@ -52,8 +52,8 @@ pub fn bmm<T: Scalar, B: BackendOps<T> + Default>(
 /// use coeus_ops::outer;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[1.0, 2.0, 3.0]);
-/// let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[4.0, 5.0]);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[1.0, 2.0, 3.0]).expect("construct tensor");
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[4.0, 5.0]).expect("construct tensor");
 /// let c = outer(&a, &b, &backend).expect("valid outer-product doctest inputs");
 /// assert_eq!(c.shape(), &[3, 2]);
 /// assert_eq!(c.as_slice(), &[4.0, 5.0, 8.0, 10.0, 12.0, 15.0]);
@@ -70,7 +70,7 @@ pub fn outer<T: Scalar, B: BackendOps<T> + Default>(
     let n = b.shape()[0];
     let a_col = a.clone().reshape([m, 1]);
     let b_row = b.clone().reshape([1, n]);
-    Ok(kernel::matmul(&a_col, &b_row, backend))
+    kernel::matmul(&a_col, &b_row, backend)
 }
 
 #[cfg(test)]
@@ -84,11 +84,11 @@ mod tests {
         let a = Tensor::<f32, SequentialBackend>::from_slice(
             [2, 2, 3],
             &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 0.0, 2.0, 0.0, 1.0, 3.0],
-        );
+        ).expect("construct tensor");
         let b = Tensor::<f32, SequentialBackend>::from_slice(
             [2, 3, 2],
             &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 0.0, 1.0, 3.0, 4.0],
-        );
+        ).expect("construct tensor");
         let out = bmm(&a, &b, &backend).expect("valid batched matmul test shapes");
         assert_eq!(out.shape(), &[2, 2, 2]);
         assert_eq!(
@@ -100,8 +100,8 @@ mod tests {
     #[test]
     fn outer_matches_pairwise_products() {
         let backend = SequentialBackend::new();
-        let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[1.0, 2.0, 3.0]);
-        let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[4.0, 5.0]);
+        let a = Tensor::<f32, SequentialBackend>::from_slice([3], &[1.0, 2.0, 3.0]).expect("construct tensor");
+        let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[4.0, 5.0]).expect("construct tensor");
         let out = outer(&a, &b, &backend).expect("valid outer-product test shapes");
         assert_eq!(out.shape(), &[3, 2]);
         assert_eq!(out.as_slice(), &[4.0, 5.0, 8.0, 10.0, 12.0, 15.0]);

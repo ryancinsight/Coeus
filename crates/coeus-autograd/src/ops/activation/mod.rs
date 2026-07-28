@@ -11,7 +11,7 @@ pub trait UnaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Sen
     const OP_NAME: &'static str;
 
     /// Execute forward pass.
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B>;
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error>;
 
     /// Compute input gradient: computes the derivative and scales by grad_out.
     ///
@@ -22,7 +22,7 @@ pub trait UnaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Sen
         x: &Tensor<T, B>,
         y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B>;
+    ) -> Result<Tensor<T, B>, B::Error>;
 }
 
 /// Autograd node for a generic unary activation operation.
@@ -58,13 +58,18 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: UnaryAutogradOp<T, B>
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
-            let mask = Op::backward(grad_out, &self.a_tensor, &self.out_tensor, &backend);
+            let mask = Op::backward(grad_out, &self.a_tensor, &self.out_tensor, &backend)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &mask, &backend);
+            coeus_ops::add_assign(gl, &mask, &backend)?;
         }
+        Ok(())
     }
 }
 
@@ -76,26 +81,25 @@ pub fn unary_op<
     Op: UnaryAutogradOp<T, B> + 'static,
 >(
     a: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let out_tensor = Op::forward(&a.tensor, &backend);
+    let out_tensor = Op::forward(&a.tensor, &backend)?;
     let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
 
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let inputs = vec![a.clone()];
         let a_tensor = a.tensor.clone();
         let out_t = out_tensor.clone();
         let node: UnaryNode<T, B, Op> = UnaryNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs,
             a_tensor,
             out_tensor: out_t,
@@ -106,11 +110,11 @@ pub fn unary_op<
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 // ── Leaf modules ──
@@ -134,24 +138,24 @@ pub mod tanh_act;
 pub mod trig;
 
 // ── Re-exports ──
-pub use gelu::{gelu, gelu_tanh, GeluOp, GeluTanhOp};
+pub use gelu::{GeluOp, GeluTanhOp, gelu, gelu_tanh};
 pub use math::{
-    abs, ceil, clamp, floor, neg, pow, recip, round, sign, sqrt, trunc, AbsOp, CeilOp, ClampNode,
-    FloorOp, NegOp, PowNode, RecipOp, RoundOp, SignOp, SqrtOp, TruncOp,
+    AbsOp, CeilOp, ClampNode, FloorOp, NegOp, PowNode, RecipOp, RoundOp, SignOp, SqrtOp, TruncOp,
+    abs, ceil, clamp, floor, neg, pow, recip, round, sign, sqrt, trunc,
 };
-pub use relu::{elu, leaky_relu, prelu, relu, EluOp, ReluOp};
-pub use relu::{selu, SeluOp};
-pub use sigmoid::{sigmoid, SigmoidOp};
-pub use silu::{mish, silu, softplus, MishOp, SiluOp, SoftplusOp};
-pub use tanh_act::{tanh, TanhOp};
+pub use relu::{EluOp, ReluOp, elu, leaky_relu, prelu, relu};
+pub use relu::{SeluOp, selu};
+pub use sigmoid::{SigmoidOp, sigmoid};
+pub use silu::{MishOp, SiluOp, SoftplusOp, mish, silu, softplus};
+pub use tanh_act::{TanhOp, tanh};
 pub use trig::{
-    acos, acosh, asin, asinh, atan, atanh, cos, cosh, erf, erfc, exp, exp2, expm1, lgamma_forward,
-    log, log10, log1p, log2, sin, sinh, tan, AcosOp, AcoshOp, AsinOp, AsinhOp, AtanOp, AtanhOp,
-    CosOp, CoshOp, ErfOp, ErfcOp, Exp2Op, ExpOp, Expm1Op, Log10Op, Log1pOp, Log2Op, LogOp, SinOp,
-    SinhOp, TanOp,
+    AcosOp, AcoshOp, AsinOp, AsinhOp, AtanOp, AtanhOp, CosOp, CoshOp, ErfOp, ErfcOp, Exp2Op, ExpOp,
+    Expm1Op, Log1pOp, Log2Op, Log10Op, LogOp, SinOp, SinhOp, TanOp, acos, acosh, asin, asinh, atan,
+    atanh, cos, cosh, erf, erfc, exp, exp2, expm1, lgamma_forward, log, log1p, log2, log10, sin,
+    sinh, tan,
 };
 // Extended-family re-exports (G-037).
 pub use ext::{
-    celu, hardshrink, hardsigmoid, hardswish, hardtanh, pack_pairs, softshrink, softsign,
-    threshold, HardsigmoidOp, HardswishOp, SoftsignOp,
+    HardsigmoidOp, HardswishOp, SoftsignOp, celu, hardshrink, hardsigmoid, hardswish, hardtanh,
+    pack_pairs, softshrink, softsign, threshold,
 };

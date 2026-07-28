@@ -122,18 +122,19 @@ where
         .map(|i| (i as f32 % 7.0 - 3.0) * 0.125)
         .collect();
 
-    let query = Tensor::<f32, B>::from_slice_on([BATCH, SEQ_Q, D_K], &query_data, backend);
-    let key = Tensor::<f32, B>::from_slice_on([BATCH, SEQ_K, D_K], &key_data, backend);
-    let value = Tensor::<f32, B>::from_slice_on([BATCH, SEQ_K, D_V], &value_data, backend);
-    let grad_out = Tensor::<f32, B>::from_slice_on([BATCH, SEQ_Q, D_V], &grad_out_data, backend);
+    let query = Tensor::<f32, B>::from_slice_on([BATCH, SEQ_Q, D_K], &query_data, backend).expect("construct tensor");
+    let key = Tensor::<f32, B>::from_slice_on([BATCH, SEQ_K, D_K], &key_data, backend).expect("construct tensor");
+    let value = Tensor::<f32, B>::from_slice_on([BATCH, SEQ_K, D_V], &value_data, backend).expect("construct tensor");
+    let grad_out = Tensor::<f32, B>::from_slice_on([BATCH, SEQ_Q, D_V], &grad_out_data, backend).expect("construct tensor");
     let scale = 0.25;
 
     let (_, attn_weights) =
-        scaled_dot_product_attention(&query, &key, &value, None, false, scale, backend);
+        scaled_dot_product_attention(&query, &key, &value, None, false, scale, backend)
+            .expect("run attention forward");
 
-    let mut grad_q = Tensor::<f32, B>::zeros_on([BATCH, SEQ_Q, D_K], backend);
-    let mut grad_k = Tensor::<f32, B>::zeros_on([BATCH, SEQ_K, D_K], backend);
-    let mut grad_v = Tensor::<f32, B>::zeros_on([BATCH, SEQ_K, D_V], backend);
+    let mut grad_q = Tensor::<f32, B>::zeros_on([BATCH, SEQ_Q, D_K], backend).expect("construct tensor");
+    let mut grad_k = Tensor::<f32, B>::zeros_on([BATCH, SEQ_K, D_K], backend).expect("construct tensor");
+    let mut grad_v = Tensor::<f32, B>::zeros_on([BATCH, SEQ_K, D_V], backend).expect("construct tensor");
 
     scaled_dot_product_attention_backward(
         &grad_out,
@@ -146,7 +147,7 @@ where
         Some(&mut grad_k),
         Some(&mut grad_v),
         backend,
-    );
+    ).expect("run attention backward");
 
     let aw = attn_weights.as_slice();
     let (expected_q, expected_k, expected_v) = reference_backward(

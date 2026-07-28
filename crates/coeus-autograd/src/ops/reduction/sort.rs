@@ -63,10 +63,14 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let Some(Some(ref g)) = input_grads.first() else {
-            return;
+            return Ok(());
         };
 
         // Scatter grad_out[sorted_pos] -> original_pos using sort_indices.
@@ -74,12 +78,14 @@ where
         //   result[..sort_indices[i].., ..] += grad_out[..i.., ..]
         // This is the inverse of gather, routing sorted grads back to input.
         let input_shape = self.sort_indices.shape_cloned();
-        let zeros = Tensor::zeros_on(input_shape, &backend);
+        let zeros = Tensor::zeros_on(input_shape, &backend)?;
         let grad_in =
-            coeus_ops::scatter_add(&zeros, self.dim, &self.sort_indices, grad_out, &backend);
+            coeus_ops::scatter_add(&zeros, self.dim, &self.sort_indices, grad_out, &backend)?;
 
         let gl = g.write();
-        coeus_ops::add_assign(gl, &grad_in, &backend);
+        coeus_ops::add_assign(gl, &grad_in, &backend)?;
+
+        Ok(())
     }
 }
 
@@ -100,26 +106,26 @@ pub fn sort<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: usize,
     descending: bool,
-) -> (Var<T, B>, Var<T, B>)
+) -> Result<(Var<T, B>, Var<T, B>), B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let (sorted_vals, sort_indices) = coeus_ops::sort(&input.tensor, dim, descending, &backend);
+    let (sorted_vals, sort_indices) = coeus_ops::sort(&input.tensor, dim, descending, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             sorted_vals.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = SortNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: vec![input.clone()],
             sort_indices: sort_indices.clone(),
             dim,
@@ -134,8 +140,8 @@ where
         grad,
         creator,
     };
-    let indices_var = Var::new(sort_indices, false);
-    (sorted_var, indices_var)
+    let indices_var = Var::new(sort_indices, false)?;
+    Ok((sorted_var, indices_var))
 }
 
 #[cfg(test)]
@@ -147,8 +153,8 @@ mod tests {
     #[test]
     fn sort_forward_and_backward_1d() {
         let data = vec![3.0f64, 1.0, 4.0, 1.0, 5.0];
-        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([5], &data), true);
-        let (sorted, indices) = sort(&x, 0, false);
+        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([5], &data).expect("valid tensor construction"), true).expect("valid variable construction");
+        let (sorted, indices) = sort(&x, 0, false).expect("valid autograd operation");
         // sorted ascending: [1, 1, 3, 4, 5]
         let s = sorted.tensor.as_slice().to_vec();
         assert!(
@@ -159,7 +165,7 @@ mod tests {
         assert!(indices.grad.is_none());
 
         // grad_out = [1, 1, 1, 1, 1]; scatter back via sort_indices
-        sorted.backward();
+        sorted.backward().expect("valid backward propagation");
         let dx = x.grad().unwrap();
         let dx_sum: f64 = dx.as_slice().iter().sum();
         assert!(
@@ -171,9 +177,9 @@ mod tests {
     #[test]
     fn sort_backward_dim1() {
         let data = vec![3.0f64, 1.0, 4.0, 2.0, 5.0, 0.0];
-        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([2, 3], &data), true);
-        let (sorted, _) = sort(&x, 1, false);
-        sorted.backward();
+        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([2, 3], &data).expect("valid tensor construction"), true).expect("valid variable construction");
+        let (sorted, _) = sort(&x, 1, false).expect("valid autograd operation");
+        sorted.backward().expect("valid backward propagation");
         let dx = x.grad().unwrap();
         // Each element should receive exactly 1 gradient
         for v in dx.as_slice() {

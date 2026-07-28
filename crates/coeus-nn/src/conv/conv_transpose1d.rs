@@ -37,7 +37,12 @@ pub struct ConvTranspose1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Mo
 
 impl<T: Scalar + coeus_core::Float, B: coeus_ops::BackendOps<T> + Default> ConvTranspose1d<T, B> {
     /// Create with default stride=1, padding=0, output_padding=0, dilation=1.
-    pub fn new(in_channels: usize, out_channels: usize, kernel_size: usize, bias: bool) -> Self
+    pub fn new(
+        in_channels: usize,
+        out_channels: usize,
+        kernel_size: usize,
+        bias: bool,
+    ) -> Result<Self, B::Error>
     where
         T: coeus_leto::RandomScalar,
     {
@@ -55,22 +60,25 @@ impl<T: Scalar + coeus_core::Float, B: coeus_ops::BackendOps<T> + Default> ConvT
         output_padding: usize,
         dilation: usize,
         bias: bool,
-    ) -> Self
+    ) -> Result<Self, B::Error>
     where
         T: coeus_leto::RandomScalar,
     {
         let backend = B::default();
         // Weight: [C_in, C_out, K] — transposed convention.
         let w_shape = [in_channels, out_channels, kernel_size];
-        let w_tensor = Tensor::ones_on(w_shape, &backend);
-        let mut weight = Var::new(w_tensor, true);
-        crate::init::kaiming_uniform(&mut weight, in_channels);
+        let w_tensor = Tensor::ones_on(w_shape, &backend)?;
+        let mut weight = Var::new(w_tensor, true)?;
+        crate::init::kaiming_uniform(&mut weight, in_channels)?;
         let bias_var = if bias {
-            Some(Var::new(Tensor::zeros_on([out_channels], &backend), true))
+            Some(Var::new(
+                Tensor::zeros_on([out_channels], &backend)?,
+                true,
+            )?)
         } else {
             None
         };
-        Self {
+        Ok(Self {
             weight,
             bias: bias_var,
             in_channels,
@@ -80,7 +88,7 @@ impl<T: Scalar + coeus_core::Float, B: coeus_ops::BackendOps<T> + Default> ConvT
             padding,
             output_padding,
             dilation,
-        }
+        })
     }
 
     /// Compute the output length for a given input length.
@@ -96,7 +104,7 @@ impl<T: Scalar + coeus_core::Float, B: coeus_ops::BackendOps<T> + Default> ConvT
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for ConvTranspose1d<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::CpuBackend + Default> Module<T, B> for ConvTranspose1d<T, B>
 where
     T: coeus_leto::RandomScalar,
 {
@@ -108,14 +116,14 @@ where
         p
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let backend = B::default();
         let l = input.tensor.shape()[2];
         let l_out = self.output_len(l);
         let n = input.tensor.shape()[0];
 
-        let mut out_tensor = Tensor::zeros_on([n, self.out_channels, l_out], &backend);
-        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+        let mut out_tensor = Tensor::zeros_on([n, self.out_channels, l_out], &backend)?;
+        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
         backend.conv_transpose1d(
             input.tensor.storage(),
             input.tensor.layout(),
@@ -128,7 +136,7 @@ where
             self.dilation,
             out_storage,
             out_layout,
-        );
+        )?;
 
         coeus_autograd::conv_transpose1d(
             input,

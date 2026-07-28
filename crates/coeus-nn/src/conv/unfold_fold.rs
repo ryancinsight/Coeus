@@ -39,8 +39,12 @@ use std::marker::PhantomData;
 /// use coeus_core::SequentialBackend;
 ///
 /// let m = Unfold1d::<f32, SequentialBackend>::new(3, 1, 0, 1);
-/// let x = Var::new(Tensor::<f32, SequentialBackend>::ones([1, 2, 5]), false);
-/// let y = m.forward(&x);
+/// let x = Var::new(
+///     Tensor::<f32, SequentialBackend>::ones([1, 2, 5]).expect("construct tensor"),
+///     false,
+/// )
+/// .expect("construct variable");
+/// let y = m.forward(&x).expect("run forward");
 /// assert_eq!(y.tensor.shape(), &[1, 6, 3]); // C*k=2*3=6, L_out=3
 /// ```
 #[derive(Clone, Debug)]
@@ -78,7 +82,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Unfold1d
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         // Differentiable im2col: backward is the fold1d col2im transpose.
         coeus_autograd::unfold1d(
             input,
@@ -144,7 +148,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Fold1d<T
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         // Differentiable col2im: backward is the unfold1d im2col adjoint.
         coeus_autograd::fold1d(
             input,
@@ -242,7 +246,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Unfold2d
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         // Differentiable im2col: backward is the fold2d col2im transpose.
         coeus_autograd::unfold2d(
             input,
@@ -324,7 +328,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Fold2d<T
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         // Differentiable col2im: backward is the unfold2d im2col adjoint.
         coeus_autograd::fold2d(
             input,

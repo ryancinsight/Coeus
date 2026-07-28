@@ -27,14 +27,14 @@ fn zeros_var<B: BackendOps<f64> + Default>(shape: &[usize], backend: &B) -> Var<
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Var::new(Tensor::zeros_on(shape.to_vec(), backend), false)
+    Var::new(Tensor::zeros_on(shape.to_vec(), backend).expect("construct tensor"), false).expect("construct variable")
 }
 
 fn v<B: BackendOps<f64> + Default>(shape: &[usize], vals: &[f64], backend: &B) -> Var<f64, B>
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Var::new(Tensor::from_slice_on(shape.to_vec(), vals, backend), false)
+    Var::new(Tensor::from_slice_on(shape.to_vec(), vals, backend).expect("construct tensor"), false).expect("construct variable")
 }
 
 fn check_sinusoidal<B: BackendOps<f64> + Default>(backend: &B)
@@ -42,11 +42,11 @@ where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
     // d_model=4, max_len=2. Pos-0 row: [sin(0),cos(0),sin(0),cos(0)] = [0,1,0,1].
-    let pe = SinusoidalEncoding::<f64, B>::new(2, 4);
+    let pe = SinusoidalEncoding::<f64, B>::new(2, 4).expect("construct module");
 
     // input [1,1,4] (batch=1, seq_len=1): forward adds table[0] = [0,1,0,1].
     let inp = zeros_var(&[1, 1, 4], backend);
-    let out = Module::<f64, B>::forward(&pe, &inp);
+    let out = Module::<f64, B>::forward(&pe, &inp).expect("run forward");
     assert_eq!(
         out.tensor.shape(),
         &[1, 1, 4],
@@ -60,7 +60,7 @@ where
 
     // Non-zero input [1,1,4] = [[[ 1,2,3,4 ]]]: adds [0,1,0,1] → [[[ 1,3,3,5 ]]].
     let inp2 = v(&[1, 1, 4], &[1.0, 2.0, 3.0, 4.0], backend);
-    let out2 = Module::<f64, B>::forward(&pe, &inp2);
+    let out2 = Module::<f64, B>::forward(&pe, &inp2).expect("run forward");
     assert_eq!(
         out2.tensor.as_slice(),
         &[1.0_f64, 3.0, 3.0, 5.0],
@@ -74,9 +74,9 @@ where
 {
     // d_head=4, max_len=4. At pos=0: angle=0 for all i → cos=1, sin=0 → identity.
     // Input shape [batch=1, seq_len=1, heads=1, d_head=4] = [[[[1,2,3,4]]]].
-    let rope = RotaryEmbedding::<f64, B>::new(4, 4, 10000.0);
+    let rope = RotaryEmbedding::<f64, B>::new(4, 4, 10000.0).expect("construct module");
     let inp = v(&[1, 1, 1, 4], &[1.0, 2.0, 3.0, 4.0], backend);
-    let out = rope.forward(&inp);
+    let out = rope.forward(&inp).expect("run forward");
     assert_eq!(
         out.tensor.shape(),
         &[1, 1, 1, 4],
@@ -90,7 +90,7 @@ where
 
     // Zero input: output is zero regardless of rotation.
     let inp_zero = zeros_var(&[1, 1, 1, 4], backend);
-    let out_zero = rope.forward(&inp_zero);
+    let out_zero = rope.forward(&inp_zero).expect("run forward");
     assert_eq!(
         out_zero.tensor.as_slice(),
         &[0.0_f64; 4],

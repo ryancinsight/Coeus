@@ -14,16 +14,17 @@ pub(super) fn scatter_accumulate_into<T: Scalar, B: coeus_ops::BackendOps<T> + D
     target: &mut Tensor<T, B>,
     values: &[T],
     backend: &B,
-) {
+) -> Result<(), B::Error> {
     let numel = target.numel();
     debug_assert_eq!(numel, values.len(), "scatter_accumulate: shape mismatch");
     let mut host = vec![T::zero(); numel];
-    backend.copy_to_host(target.storage(), &mut host);
+    backend.copy_to_host(target.storage(), &mut host)?;
     // Fused host-side accumulate — no second allocation, single round-trip.
     for (h, &v) in host.iter_mut().zip(values.iter()) {
         *h += v;
     }
-    backend.copy_to_device(&host, target.storage_mut());
+    backend.copy_to_device(&host, target.storage_mut()?)?;
+    Ok(())
 }
 
 pub(super) struct ConvBackwardDispatch<'a, T: Float, B: coeus_ops::BackendOps<T> + Default> {
@@ -52,7 +53,7 @@ pub(super) fn dispatch_conv_backward<
     const DIM: usize,
 >(
     request: ConvBackwardDispatch<'_, T, B>,
-) {
+) -> Result<(), B::Error> {
     let ConvBackwardDispatch {
         backend,
         grad_out_storage,
@@ -168,24 +169,28 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
 
         let mut grad_input = if input_grads.get(0).and_then(|g| g.as_ref()).is_some() {
-            Some(Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend))
+            Some(Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend)? )
         } else {
             None
         };
 
         let mut grad_weight = if input_grads.get(1).and_then(|g| g.as_ref()).is_some() {
-            Some(Tensor::zeros_on(self.w_clone.shape_cloned(), &backend))
+            Some(Tensor::zeros_on(self.w_clone.shape_cloned(), &backend)? )
         } else {
             None
         };
 
         let mut grad_bias =
             if self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some() {
-                Some(Tensor::zeros_on([self.w_clone.shape()[0]], &backend))
+                Some(Tensor::zeros_on([self.w_clone.shape()[0]], &backend)? )
             } else {
                 None
             };
@@ -195,7 +200,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
         let mut gi_storage = None;
         let mut gi_layout_val = None;
         if let Some(ref mut gi) = grad_input {
-            let (store, lay) = gi.storage_mut_and_layout();
+            let (store, lay) = gi.storage_mut_and_layout()?;
             gi_storage = Some(store);
             gi_layout_val = Some(lay);
         }
@@ -204,11 +209,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
         let mut gw_storage = None;
         let mut gw_layout_val = None;
         if let Some(ref mut gw) = grad_weight {
-            let (store, lay) = gw.storage_mut_and_layout();
+            let (store, lay) = gw.storage_mut_and_layout()?;
             gw_storage = Some(store);
             gw_layout_val = Some(lay);
         }
         let gw_layout_ref = gw_layout_val.unwrap_or(dummy_layout);
+
+        let mut grad_bias_storage = None;
+        if let Some(ref mut gb) = grad_bias {
+            grad_bias_storage = Some(gb.storage_mut()?);
+        }
 
         dispatch_conv_backward::<T, B, DIM>(ConvBackwardDispatch {
             backend: &backend,
@@ -222,24 +232,26 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
             gi_layout: gi_layout_ref,
             gw_storage,
             gw_layout: gw_layout_ref,
-            grad_bias: grad_bias.as_mut().map(|gb| gb.storage_mut()),
+            grad_bias: grad_bias_storage,
             stride: self.stride,
             padding: self.padding,
             dilation: self.dilation,
-        });
+        })?;
 
         if let Some(gi) = grad_input {
             let gl = input_grads[0].as_ref().unwrap().write();
-            coeus_ops::add_assign(gl, &gi, &backend);
+            coeus_ops::add_assign(gl, &gi, &backend)?;
         }
         if let Some(gw) = grad_weight {
             let gl = input_grads[1].as_ref().unwrap().write();
-            coeus_ops::add_assign(gl, &gw, &backend);
+            coeus_ops::add_assign(gl, &gw, &backend)?;
         }
         if let Some(gb) = grad_bias {
             let gl = input_grads[2].as_ref().unwrap().write();
-            coeus_ops::add_assign(gl, &gb, &backend);
+            coeus_ops::add_assign(gl, &gb, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -252,7 +264,7 @@ pub(super) fn conv_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, con
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input)
         || crate::grad_mode::should_track_var(weight)
@@ -265,13 +277,12 @@ pub(super) fn conv_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, con
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
 
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let inputs = {
             let mut v = vec![input.clone(), weight.clone()];
             if let Some(ref b) = bias {
@@ -284,7 +295,7 @@ pub(super) fn conv_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, con
         let has_bias = bias.is_some();
 
         let node = ConvNode::<T, B, DIM> {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs,
             w_clone,
             inp_clone,
@@ -298,9 +309,9 @@ pub(super) fn conv_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, con
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

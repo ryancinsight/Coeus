@@ -11,10 +11,10 @@ fn test_wgpu_parity_matmul_2d() {
     let a: Vec<f32> = (0..m * k).map(|x| x as f32 * 0.01).collect();
     let b: Vec<f32> = (0..k * n).map(|x| x as f32 * 0.02 - 0.5).collect();
 
-    let at = Tensor::from_slice(vec![m, k], &a);
-    let bt = Tensor::from_slice(vec![k, n], &b);
-    let cpu = coeus_ops::matmul(&at, &bt, &s);
-    let gpu = to_cpu(&coeus_ops::matmul(&to_gpu(&at), &to_gpu(&bt), &wgpu()));
+    let at = Tensor::from_slice(vec![m, k], &a).expect("construct tensor");
+    let bt = Tensor::from_slice(vec![k, n], &b).expect("construct tensor");
+    let cpu = coeus_ops::matmul(&at, &bt, &s).expect("evaluate matmul");
+    let gpu = to_cpu(&coeus_ops::matmul(&to_gpu(&at), &to_gpu(&bt), &wgpu()).expect("evaluate matmul"));
 
     let cs = cpu.as_slice();
     let gs = gpu.as_slice();
@@ -36,10 +36,10 @@ fn test_wgpu_parity_batched_matmul() {
     let a: Vec<f32> = (0..b_sz * m * k).map(|x| x as f32 * 0.01).collect();
     let b: Vec<f32> = (0..b_sz * k * n).map(|x| x as f32 * 0.02 - 0.3).collect();
 
-    let at = Tensor::from_slice(vec![b_sz, m, k], &a);
-    let bt = Tensor::from_slice(vec![b_sz, k, n], &b);
-    let cpu = coeus_ops::matmul(&at, &bt, &s);
-    let gpu = to_cpu(&coeus_ops::matmul(&to_gpu(&at), &to_gpu(&bt), &wgpu()));
+    let at = Tensor::from_slice(vec![b_sz, m, k], &a).expect("construct tensor");
+    let bt = Tensor::from_slice(vec![b_sz, k, n], &b).expect("construct tensor");
+    let cpu = coeus_ops::matmul(&at, &bt, &s).expect("evaluate matmul");
+    let gpu = to_cpu(&coeus_ops::matmul(&to_gpu(&at), &to_gpu(&bt), &wgpu()).expect("evaluate matmul"));
 
     let cs = cpu.as_slice();
     let gs = gpu.as_slice();

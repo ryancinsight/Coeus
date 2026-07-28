@@ -30,7 +30,8 @@ pub trait AttentionOps<T: Scalar>: ComputeBackend {
         output_layout: &Layout,
         attn_weights: &mut Self::DeviceBuffer<T>,
         attn_weights_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: Float;
 
     /// Scaled dot-product attention backward.
@@ -51,6 +52,7 @@ pub trait AttentionOps<T: Scalar>: ComputeBackend {
         grad_q: Option<&mut Self::DeviceBuffer<T>>,
         grad_k: Option<&mut Self::DeviceBuffer<T>>,
         grad_v: Option<&mut Self::DeviceBuffer<T>>,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: Float;
 }

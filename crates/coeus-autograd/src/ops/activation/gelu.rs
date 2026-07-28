@@ -1,5 +1,5 @@
-use super::unary_op;
 use super::UnaryAutogradOp;
+use super::unary_op;
 use crate::var::Var;
 use coeus_core::Float;
 use coeus_tensor::Tensor;
@@ -10,7 +10,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "gelu";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::gelu(x, backend)
     }
 
@@ -20,8 +20,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::GeluGrad).expect("elementwise_unary");
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::GeluGrad)?;
         coeus_ops::mul(grad_out, &deriv, backend)
     }
 }
@@ -32,7 +32,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "gelu_tanh";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::gelu_tanh(x, backend)
     }
 
@@ -42,8 +42,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::GeluTanhGrad).expect("elementwise_unary");
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::GeluTanhGrad)?;
         coeus_ops::mul(grad_out, &deriv, backend)
     }
 }
@@ -51,13 +51,17 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
 /// Tracked GELU activation.
 #[must_use]
 #[inline]
-pub fn gelu<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn gelu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, GeluOp>(a)
 }
 
 /// Tracked GELU tanh approximation.
 #[must_use]
 #[inline]
-pub fn gelu_tanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn gelu_tanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, GeluTanhOp>(a)
 }

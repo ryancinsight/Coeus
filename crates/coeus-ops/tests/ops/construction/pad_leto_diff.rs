@@ -17,7 +17,7 @@ where
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    Tensor::from_slice_on(shape.to_vec(), data, backend)
+    Tensor::from_slice_on(shape.to_vec(), data, backend).expect("construct tensor")
 }
 
 fn assert_values<T: Scalar>(got: &[T], expected: &[T], context: &str) {
@@ -47,7 +47,7 @@ where
     .map(T::from_f64)
     .collect();
 
-    let padded = coeus_ops::pad(&transposed, &[(1, 0), (0, 1)], fill);
+    let padded = coeus_ops::pad(&transposed, &[(1, 0), (0, 1)], fill).expect("run operation");
 
     assert_eq!(padded.shape(), &[3, 4]);
     assert_values(padded.as_slice(), &expected, "transposed pad");

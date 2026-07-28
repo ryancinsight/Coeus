@@ -17,7 +17,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::dispatch_max_pool2d(
             input,
             input_layout,
@@ -28,6 +28,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             output,
             output_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -43,7 +44,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::dispatch_max_pool2d_backward(
             grad_out,
             grad_out_layout,
@@ -56,6 +57,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             grad_input,
             grad_input_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -69,7 +71,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::dispatch_avg_pool2d(
             input,
             input_layout,
@@ -80,6 +82,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             output,
             output_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -93,7 +96,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::dispatch_avg_pool2d_backward(
             grad_out,
             grad_out_layout,
@@ -104,6 +107,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             grad_input,
             grad_input_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -117,7 +121,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::dispatch_max_pool3d(
             input,
             input_layout,
@@ -128,6 +132,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             output,
             output_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -143,7 +148,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::dispatch_max_pool3d_backward(
             grad_out,
             grad_out_layout,
@@ -156,6 +161,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             grad_input,
             grad_input_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -169,7 +175,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::dispatch_avg_pool3d(
             input,
             input_layout,
@@ -180,6 +186,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             output,
             output_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -193,7 +200,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::dispatch_avg_pool3d_backward(
             grad_out,
             grad_out_layout,
@@ -204,6 +211,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             grad_input,
             grad_input_layout,
         );
+        Ok(())
     }
 
     // ── Pool 1D: native WGPU kernels ─────────────────────────────────────────
@@ -219,7 +227,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::dispatch_max_pool1d(
             input,
             input_layout,
@@ -230,6 +238,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             output,
             output_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -245,7 +254,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::dispatch_max_pool1d_backward(
             grad_out,
             grad_out_layout,
@@ -258,6 +267,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             grad_input,
             grad_input_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -271,7 +281,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::dispatch_avg_pool1d(
             input,
             input_layout,
@@ -282,6 +292,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             output,
             output_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -295,7 +306,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         pool::dispatch_avg_pool1d_backward(
             grad_out,
             grad_out_layout,
@@ -306,5 +317,6 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             grad_input,
             grad_input_layout,
         );
+        Ok(())
     }
 }

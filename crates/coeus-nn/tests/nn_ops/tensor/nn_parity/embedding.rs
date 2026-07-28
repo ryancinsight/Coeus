@@ -13,13 +13,13 @@ fn test_embedding_parity() {
     let indices_data = vec![1.0f32, 2.0, 0.0, 4.0, 3.0, 1.0]; // shape [2, 3]
 
     // Coeus setup
-    let mut emb_coeus = coeus_nn::Embedding::<f32, SequentialBackend>::new(5, 4);
+    let mut emb_coeus = coeus_nn::Embedding::<f32, SequentialBackend>::new(5, 4).expect("construct module");
     emb_coeus.weight = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![5, 4], &w_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![5, 4], &w_data).expect("construct tensor"),
         true,
-    );
-    let x_coeus = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &indices_data);
-    let out_coeus = emb_coeus.forward_indices(&x_coeus);
+    ).expect("construct variable");
+    let x_coeus = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &indices_data).expect("construct tensor");
+    let out_coeus = emb_coeus.forward_indices(&x_coeus).expect("run forward");
 
     // Verify forward
     let expected_embedding_out = vec![
@@ -51,8 +51,8 @@ fn test_embedding_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_embedding_out, 1e-4);
 
     // Backward pass
-    let loss_coeus = coeus_autograd::sum(&out_coeus);
-    loss_coeus.backward();
+    let loss_coeus = coeus_autograd::sum(&out_coeus).expect("run operation");
+    loss_coeus.backward().expect("run backward");
 
     let dw_coeus = emb_coeus.weight.grad().unwrap();
     let expected_embedding_dw = vec![

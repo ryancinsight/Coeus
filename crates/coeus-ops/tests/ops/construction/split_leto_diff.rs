@@ -17,7 +17,7 @@ where
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    Tensor::from_slice_on(shape.to_vec(), data, backend)
+    Tensor::from_slice_on(shape.to_vec(), data, backend).expect("construct tensor")
 }
 
 fn assert_values<T: Scalar>(got: &[T], expected: &[T], context: &str) {
@@ -40,7 +40,7 @@ where
     let data = values::<T, 6>([1.0, 4.0, 2.0, 5.0, 3.0, 6.0]);
     let tensor = tensor_from_slice::<T, B>(&[3, 2], &data, backend).transpose();
 
-    let axis1 = coeus_ops::split(&tensor, 2, 1);
+    let axis1 = coeus_ops::split(&tensor, 2, 1).expect("run operation");
     assert_eq!(axis1.len(), 2);
     assert_eq!(axis1[0].shape(), &[2, 2]);
     assert_values(
@@ -51,7 +51,7 @@ where
     assert_eq!(axis1[1].shape(), &[2, 1]);
     assert_values(axis1[1].as_slice(), &values([3.0, 6.0]), "axis-1 chunk 1");
 
-    let axis0 = coeus_ops::split(&tensor, 1, 0);
+    let axis0 = coeus_ops::split(&tensor, 1, 0).expect("run operation");
     assert_eq!(axis0.len(), 2);
     assert_eq!(axis0[0].shape(), &[1, 3]);
     assert_values(

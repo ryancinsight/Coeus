@@ -581,8 +581,8 @@ pub fn group_norm(
     let inner = py.allow_threads(move || {
         use coeus_nn::group_norm as gn;
         gn(&x, num_groups, w.as_ref(), b.as_ref(), eps)
-    });
-    Ok(PyTensor::from_var(coeus_autograd::Var::new(inner, false)))
+    })?;
+    Ok(PyTensor::from_var(coeus_autograd::Var::new(inner, false)?))
 }
 
 /// Functional (stateless) scaled dot-product attention.

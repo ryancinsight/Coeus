@@ -39,11 +39,15 @@ fn test_wgpu_conv_transpose1d() {
         .collect();
     let bias: Vec<f32> = (0..c_out).map(|x| x as f32 * 0.25 - 0.3).collect();
 
-    let in_c = Tensor::<f32, SequentialBackend>::from_slice([n, c_in, l], &input);
-    let w_c = Tensor::<f32, SequentialBackend>::from_slice([c_in, c_out, k], &weight);
-    let b_c = Tensor::<f32, SequentialBackend>::from_slice([c_out], &bias);
+    let in_c = Tensor::<f32, SequentialBackend>::from_slice([n, c_in, l], &input)
+        .expect("construct tensor");
+    let w_c = Tensor::<f32, SequentialBackend>::from_slice([c_in, c_out, k], &weight)
+        .expect("construct tensor");
+    let b_c = Tensor::<f32, SequentialBackend>::from_slice([c_out], &bias)
+        .expect("construct tensor");
 
-    let mut out_c = Tensor::<f32, SequentialBackend>::zeros([n, c_out, l_out]);
+    let mut out_c = Tensor::<f32, SequentialBackend>::zeros([n, c_out, l_out])
+        .expect("construct tensor");
     let out_l = out_c.layout().clone();
     seq.conv_transpose1d(
         in_c.storage(),
@@ -55,14 +59,16 @@ fn test_wgpu_conv_transpose1d() {
         padding,
         output_padding,
         dilation,
-        out_c.storage_mut(),
+        out_c.storage_mut().expect("access tensor storage"),
         &out_l,
-    );
+    )
+    .expect("execute CPU transposed convolution");
 
-    let in_g = in_c.to_backend_on(&seq, &wgpu);
-    let w_g = w_c.to_backend_on(&seq, &wgpu);
-    let b_g = b_c.to_backend_on(&seq, &wgpu);
-    let mut out_g = Tensor::<f32, WgpuBackend>::zeros_on([n, c_out, l_out], &wgpu);
+    let in_g = in_c.to_backend_on(&seq, &wgpu).expect("transfer tensor");
+    let w_g = w_c.to_backend_on(&seq, &wgpu).expect("transfer tensor");
+    let b_g = b_c.to_backend_on(&seq, &wgpu).expect("transfer tensor");
+    let mut out_g = Tensor::<f32, WgpuBackend>::zeros_on([n, c_out, l_out], &wgpu)
+        .expect("construct tensor");
     wgpu.conv_transpose1d(
         in_g.storage(),
         in_g.layout(),
@@ -73,13 +79,17 @@ fn test_wgpu_conv_transpose1d() {
         padding,
         output_padding,
         dilation,
-        out_g.storage_mut(),
+        out_g.storage_mut().expect("access tensor storage"),
         &out_l,
-    );
+    )
+    .expect("execute WGPU transposed convolution");
 
     assert_close(
         "conv_transpose1d",
-        out_g.to_backend_on(&wgpu, &seq).as_slice(),
+        out_g
+            .to_backend_on(&wgpu, &seq)
+            .expect("transfer tensor")
+            .as_slice(),
         out_c.as_slice(),
     );
 }
@@ -101,11 +111,15 @@ fn test_wgpu_conv_transpose2d() {
         .collect();
     let bias: Vec<f32> = (0..c_out).map(|x| x as f32 * 0.2 - 0.2).collect();
 
-    let in_c = Tensor::<f32, SequentialBackend>::from_slice([n, c_in, h, w], &input);
-    let wt_c = Tensor::<f32, SequentialBackend>::from_slice([c_in, c_out, kh, kw], &weight);
-    let b_c = Tensor::<f32, SequentialBackend>::from_slice([c_out], &bias);
+    let in_c = Tensor::<f32, SequentialBackend>::from_slice([n, c_in, h, w], &input)
+        .expect("construct tensor");
+    let wt_c = Tensor::<f32, SequentialBackend>::from_slice([c_in, c_out, kh, kw], &weight)
+        .expect("construct tensor");
+    let b_c = Tensor::<f32, SequentialBackend>::from_slice([c_out], &bias)
+        .expect("construct tensor");
 
-    let mut out_c = Tensor::<f32, SequentialBackend>::zeros([n, c_out, h_out, w_out]);
+    let mut out_c = Tensor::<f32, SequentialBackend>::zeros([n, c_out, h_out, w_out])
+        .expect("construct tensor");
     let out_l = out_c.layout().clone();
     seq.conv_transpose2d(
         in_c.storage(),
@@ -117,14 +131,16 @@ fn test_wgpu_conv_transpose2d() {
         padding,
         output_padding,
         dilation,
-        out_c.storage_mut(),
+        out_c.storage_mut().expect("access tensor storage"),
         &out_l,
-    );
+    )
+    .expect("execute CPU transposed convolution");
 
-    let in_g = in_c.to_backend_on(&seq, &wgpu);
-    let w_g = wt_c.to_backend_on(&seq, &wgpu);
-    let b_g = b_c.to_backend_on(&seq, &wgpu);
-    let mut out_g = Tensor::<f32, WgpuBackend>::zeros_on([n, c_out, h_out, w_out], &wgpu);
+    let in_g = in_c.to_backend_on(&seq, &wgpu).expect("transfer tensor");
+    let w_g = wt_c.to_backend_on(&seq, &wgpu).expect("transfer tensor");
+    let b_g = b_c.to_backend_on(&seq, &wgpu).expect("transfer tensor");
+    let mut out_g = Tensor::<f32, WgpuBackend>::zeros_on([n, c_out, h_out, w_out], &wgpu)
+        .expect("construct tensor");
     wgpu.conv_transpose2d(
         in_g.storage(),
         in_g.layout(),
@@ -135,13 +151,17 @@ fn test_wgpu_conv_transpose2d() {
         padding,
         output_padding,
         dilation,
-        out_g.storage_mut(),
+        out_g.storage_mut().expect("access tensor storage"),
         &out_l,
-    );
+    )
+    .expect("execute WGPU transposed convolution");
 
     assert_close(
         "conv_transpose2d",
-        out_g.to_backend_on(&wgpu, &seq).as_slice(),
+        out_g
+            .to_backend_on(&wgpu, &seq)
+            .expect("transfer tensor")
+            .as_slice(),
         out_c.as_slice(),
     );
 }
@@ -156,13 +176,17 @@ fn test_wgpu_conv_transpose1d_backward_matches_cpu_autograd() {
     let seed = [1.0f32, -0.5, 0.25, 2.0];
 
     let input_cpu = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 3], &input),
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 3], &input)
+            .expect("construct tensor"),
         true,
-    );
+    )
+    .expect("construct variable");
     let weight_cpu = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2], &weight),
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2], &weight)
+            .expect("construct tensor"),
         true,
-    );
+    )
+    .expect("construct variable");
     let out_cpu = coeus_ops::conv_transpose1d(
         &input_cpu.tensor,
         &weight_cpu.tensor,
@@ -172,22 +196,38 @@ fn test_wgpu_conv_transpose1d_backward_matches_cpu_autograd() {
         0,
         1,
         &seq,
-    );
-    let tracked_cpu =
-        coeus_autograd::conv_transpose1d(&input_cpu, &weight_cpu, &None, out_cpu, 1, 0, 0, 1);
-    tracked_cpu.backward_with_seed(Tensor::<f32, SequentialBackend>::from_slice(
-        [1, 1, 4],
-        &seed,
-    ));
+    )
+    .expect("evaluate CPU transposed convolution");
+    let tracked_cpu = coeus_autograd::conv_transpose1d(
+        &input_cpu,
+        &weight_cpu,
+        &None,
+        out_cpu,
+        1,
+        0,
+        0,
+        1,
+    )
+    .expect("track CPU transposed convolution");
+    tracked_cpu
+        .backward_with_seed(
+            Tensor::<f32, SequentialBackend>::from_slice([1, 1, 4], &seed)
+                .expect("construct gradient seed"),
+        )
+        .expect("backward CPU transposed convolution");
 
     let input_gpu = Var::new(
-        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 3], &input, &wgpu),
+        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 3], &input, &wgpu)
+            .expect("construct tensor"),
         true,
-    );
+    )
+    .expect("construct variable");
     let weight_gpu = Var::new(
-        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 2], &weight, &wgpu),
+        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 2], &weight, &wgpu)
+            .expect("construct tensor"),
         true,
-    );
+    )
+    .expect("construct variable");
     let out_gpu = coeus_ops::conv_transpose1d(
         &input_gpu.tensor,
         &weight_gpu.tensor,
@@ -197,17 +237,28 @@ fn test_wgpu_conv_transpose1d_backward_matches_cpu_autograd() {
         0,
         1,
         &wgpu,
-    );
-    let tracked_gpu =
-        coeus_autograd::conv_transpose1d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
-    tracked_gpu.backward_with_seed(Tensor::<f32, WgpuBackend>::from_slice_on(
-        [1, 1, 4],
-        &seed,
-        &wgpu,
-    ));
+    )
+    .expect("evaluate WGPU transposed convolution");
+    let tracked_gpu = coeus_autograd::conv_transpose1d(
+        &input_gpu,
+        &weight_gpu,
+        &None,
+        out_gpu,
+        1,
+        0,
+        0,
+        1,
+    )
+    .expect("track WGPU transposed convolution");
+    tracked_gpu
+        .backward_with_seed(
+            Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 4], &seed, &wgpu)
+                .expect("construct gradient seed"),
+        )
+        .expect("backward WGPU transposed convolution");
 
-    let input_grad_gpu = input_gpu.grad().unwrap().to_backend_on(&wgpu, &seq);
-    let weight_grad_gpu = weight_gpu.grad().unwrap().to_backend_on(&wgpu, &seq);
+    let input_grad_gpu = input_gpu.grad().unwrap().to_backend_on(&wgpu, &seq).expect("transfer tensor");
+    let weight_grad_gpu = weight_gpu.grad().unwrap().to_backend_on(&wgpu, &seq).expect("transfer tensor");
     assert_close(
         "conv_transpose1d_backward_input",
         input_grad_gpu.as_slice(),
@@ -230,13 +281,17 @@ fn test_wgpu_conv_transpose2d_backward_matches_cpu_autograd() {
     let seed: Vec<f32> = (0..9).map(|x| x as f32 * 0.2 - 0.7).collect();
 
     let input_cpu = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2, 2], &input),
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2, 2], &input)
+            .expect("construct tensor"),
         true,
-    );
+    )
+    .expect("construct variable");
     let weight_cpu = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2, 2], &weight),
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2, 2], &weight)
+            .expect("construct tensor"),
         true,
-    );
+    )
+    .expect("construct variable");
     let out_cpu = coeus_ops::conv_transpose2d(
         &input_cpu.tensor,
         &weight_cpu.tensor,
@@ -246,22 +301,38 @@ fn test_wgpu_conv_transpose2d_backward_matches_cpu_autograd() {
         0,
         1,
         &seq,
-    );
-    let tracked_cpu =
-        coeus_autograd::conv_transpose2d(&input_cpu, &weight_cpu, &None, out_cpu, 1, 0, 0, 1);
-    tracked_cpu.backward_with_seed(Tensor::<f32, SequentialBackend>::from_slice(
-        [1, 1, 3, 3],
-        &seed,
-    ));
+    )
+    .expect("evaluate CPU transposed convolution");
+    let tracked_cpu = coeus_autograd::conv_transpose2d(
+        &input_cpu,
+        &weight_cpu,
+        &None,
+        out_cpu,
+        1,
+        0,
+        0,
+        1,
+    )
+    .expect("track CPU transposed convolution");
+    tracked_cpu
+        .backward_with_seed(
+            Tensor::<f32, SequentialBackend>::from_slice([1, 1, 3, 3], &seed)
+                .expect("construct gradient seed"),
+        )
+        .expect("backward CPU transposed convolution");
 
     let input_gpu = Var::new(
-        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 2, 2], &input, &wgpu),
+        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 2, 2], &input, &wgpu)
+            .expect("construct tensor"),
         true,
-    );
+    )
+    .expect("construct variable");
     let weight_gpu = Var::new(
-        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 2, 2], &weight, &wgpu),
+        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 2, 2], &weight, &wgpu)
+            .expect("construct tensor"),
         true,
-    );
+    )
+    .expect("construct variable");
     let out_gpu = coeus_ops::conv_transpose2d(
         &input_gpu.tensor,
         &weight_gpu.tensor,
@@ -271,17 +342,28 @@ fn test_wgpu_conv_transpose2d_backward_matches_cpu_autograd() {
         0,
         1,
         &wgpu,
-    );
-    let tracked_gpu =
-        coeus_autograd::conv_transpose2d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
-    tracked_gpu.backward_with_seed(Tensor::<f32, WgpuBackend>::from_slice_on(
-        [1, 1, 3, 3],
-        &seed,
-        &wgpu,
-    ));
+    )
+    .expect("evaluate WGPU transposed convolution");
+    let tracked_gpu = coeus_autograd::conv_transpose2d(
+        &input_gpu,
+        &weight_gpu,
+        &None,
+        out_gpu,
+        1,
+        0,
+        0,
+        1,
+    )
+    .expect("track WGPU transposed convolution");
+    tracked_gpu
+        .backward_with_seed(
+            Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 3, 3], &seed, &wgpu)
+                .expect("construct gradient seed"),
+        )
+        .expect("backward WGPU transposed convolution");
 
-    let input_grad_gpu = input_gpu.grad().unwrap().to_backend_on(&wgpu, &seq);
-    let weight_grad_gpu = weight_gpu.grad().unwrap().to_backend_on(&wgpu, &seq);
+    let input_grad_gpu = input_gpu.grad().unwrap().to_backend_on(&wgpu, &seq).expect("transfer tensor");
+    let weight_grad_gpu = weight_gpu.grad().unwrap().to_backend_on(&wgpu, &seq).expect("transfer tensor");
     assert_close(
         "conv_transpose2d_backward_input",
         input_grad_gpu.as_slice(),

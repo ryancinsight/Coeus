@@ -34,19 +34,34 @@ impl ComputeBackend for RocmBackend {
         self.0.num_threads()
     }
 
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
+    fn allocate<T: Scalar>(
+        &self,
+        len: usize,
+    ) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         self.0.allocate(len)
     }
 
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
+    fn fill<T: Scalar>(
+        &self,
+        dst: &mut Self::DeviceBuffer<T>,
+        val: T,
+    ) -> Result<(), Self::Error> {
         self.0.fill(dst, val)
     }
 
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error> {
         self.0.copy_to_device(src, dst)
     }
 
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error> {
         self.0.copy_to_host(src, dst)
     }
 }

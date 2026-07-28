@@ -6,7 +6,7 @@
 
 use crate::module::Module;
 use coeus_autograd::Var;
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::{BackendError, Float, MoiraiBackend};
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
 
@@ -27,14 +27,14 @@ fn ensure_cache<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     cache: &mut Option<InstanceNormCache<T, B>>,
     spatial: usize,
     eps: f64,
-) {
+) -> Result<(), B::Error> {
     let needs_rebuild = cache.as_ref().is_none_or(|c| c.spatial != spatial);
     if needs_rebuild {
         let backend = B::default();
-        let ln_weight = Var::new(Tensor::ones_on([spatial], &backend), false);
-        let ln_bias = Var::new(Tensor::zeros_on([spatial], &backend), false);
-        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
-        let d_const = Tensor::full_on([1], T::from_f64(spatial as f64), &backend);
+        let ln_weight = Var::new(Tensor::ones_on([spatial], &backend)?, false)?;
+        let ln_bias = Var::new(Tensor::zeros_on([spatial], &backend)?, false)?;
+        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend)?;
+        let d_const = Tensor::full_on([1], T::from_f64(spatial as f64), &backend)?;
         *cache = Some(InstanceNormCache {
             spatial,
             ln_weight,
@@ -44,6 +44,7 @@ fn ensure_cache<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             ones_cache: RefCell::new(None),
         });
     }
+    Ok(())
 }
 
 // ── Shared normalization body ─────────────────────────────────────────────────
@@ -59,40 +60,38 @@ fn instance_norm_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     n: usize,
     c: usize,
     orig_shape: coeus_core::Shape,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let spatial = cache.spatial;
     let backend = B::default();
     let n_channels = n * c;
 
-    let mean_t = coeus_ops::mean_axis(&flat.tensor, 1, &backend)
-        .expect("invariant: instancenorm feature axis is valid"); // [N*C, 1]
-    let xmu = coeus_ops::sub(&flat.tensor, &mean_t, &backend);
-    let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend);
-    let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend)
-        .expect("invariant: instancenorm feature axis is valid"); // population var
-    coeus_ops::add_assign(&mut stdev, &cache.eps_t, &backend);
-    coeus_ops::sqrt_assign(&mut stdev, &backend);
+    let mean_t = coeus_ops::mean_axis(&flat.tensor, 1, &backend)?; // [N*C, 1]
+    let xmu = coeus_ops::sub(&flat.tensor, &mean_t, &backend)?;
+    let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend)?;
+    let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend)?; // population var
+    coeus_ops::add_assign(&mut stdev, &cache.eps_t, &backend)?;
+    coeus_ops::sqrt_assign(&mut stdev, &backend)?;
 
     let ones = {
         let mut o_cache = cache.ones_cache.borrow_mut();
         match &*o_cache {
             Some((cached_n, ref cached_ones)) if *cached_n == n_channels => cached_ones.clone(),
             _ => {
-                let ones = Tensor::ones_on([n_channels, 1], &backend);
+                let ones = Tensor::ones_on([n_channels, 1], &backend)?;
                 *o_cache = Some((n_channels, ones.clone()));
                 ones
             }
         }
     };
     let mut istdev = ones;
-    coeus_ops::div_assign(&mut istdev, &stdev, &backend);
+    coeus_ops::div_assign(&mut istdev, &stdev, &backend)?;
 
-    let x_hat = coeus_ops::mul(&xmu, &istdev, &backend);
+    let x_hat = coeus_ops::mul(&xmu, &istdev, &backend)?;
 
     let w_reshaped = cache.ln_weight.tensor.reshape([1, spatial]);
     let b_reshaped = cache.ln_bias.tensor.reshape([1, spatial]);
-    let mut out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
-    coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend);
+    let mut out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend)?;
+    coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend)?;
 
     let normed_flat = coeus_autograd::layernorm(
         flat,
@@ -102,14 +101,14 @@ fn instance_norm_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         x_hat,
         istdev,
         cache.d_const.clone(),
-    );
+    )?;
 
     let mut bshape = vec![1usize; orig_shape.len()];
     bshape[1] = c;
-    let normed = coeus_autograd::reshape(&normed_flat, orig_shape);
-    let wv = coeus_autograd::reshape(weight, bshape.as_slice());
-    let bv = coeus_autograd::reshape(bias, bshape.as_slice());
-    let scaled = coeus_autograd::mul(&normed, &wv);
+    let normed = coeus_autograd::reshape(&normed_flat, orig_shape)?;
+    let wv = coeus_autograd::reshape(weight, bshape.as_slice())?;
+    let bv = coeus_autograd::reshape(bias, bshape.as_slice())?;
+    let scaled = coeus_autograd::mul(&normed, &wv)?;
     coeus_autograd::add(&scaled, &bv)
 }
 
@@ -127,9 +126,14 @@ fn instance_norm_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// use coeus_tensor::Tensor;
 /// use coeus_core::SequentialBackend;
 ///
-/// let in1 = InstanceNorm1d::<f32, SequentialBackend>::new(4, 1e-5);
-/// let x = Var::new(Tensor::ones_on([2, 4, 8], &SequentialBackend::new()), false);
-/// let y = in1.forward(&x);
+/// let in1 = InstanceNorm1d::<f32, SequentialBackend>::new(4, 1e-5)
+///     .expect("construct instance norm");
+/// let x = Var::new(
+///     Tensor::ones_on([2, 4, 8], &SequentialBackend::new()).expect("construct tensor"),
+///     false,
+/// )
+/// .expect("construct variable");
+/// let y = in1.forward(&x).expect("run forward");
 /// assert_eq!(y.tensor.shape(), &[2, 4, 8]);
 /// ```
 #[derive(Clone)]
@@ -147,15 +151,15 @@ pub struct InstanceNorm1d<T: Float, B: coeus_ops::BackendOps<T> + Default = Moir
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> InstanceNorm1d<T, B> {
     /// Create an InstanceNorm1d layer.
-    pub fn new(num_features: usize, eps: f64) -> Self {
+    pub fn new(num_features: usize, eps: f64) -> Result<Self, B::Error> {
         let backend = B::default();
-        Self {
-            weight: Var::new(Tensor::ones_on([num_features], &backend), true),
-            bias: Var::new(Tensor::zeros_on([num_features], &backend), true),
+        Ok(Self {
+            weight: Var::new(Tensor::ones_on([num_features], &backend)?, true)?,
+            bias: Var::new(Tensor::zeros_on([num_features], &backend)?, true)?,
             num_features,
             eps,
             cache: RefCell::new(None),
-        }
+        })
     }
 }
 
@@ -166,16 +170,21 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceN
     }
 
     /// Forward: input `[N, C]` or `[N, C, L]`.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let shape = input.tensor.shape_cloned();
         let n = shape[0];
         let c = shape[1];
         let spatial = shape.get(2).copied().unwrap_or(1);
-        let flat = coeus_autograd::reshape(input, [n * c, spatial]);
+        let flat = coeus_autograd::reshape(input, [n * c, spatial])?;
 
         let mut cache = self.cache.borrow_mut();
-        ensure_cache::<T, B>(&mut *cache, spatial, self.eps);
-        let cache = cache.as_ref().unwrap();
+        ensure_cache::<T, B>(&mut *cache, spatial, self.eps)?;
+        let cache = cache.as_ref().ok_or_else(|| {
+            B::Error::from(BackendError::Storage {
+                operation: "instance norm cache",
+                reason: "cache initialization did not produce a value".to_owned(),
+            })
+        })?;
 
         instance_norm_forward(&flat, &self.weight, &self.bias, cache, n, c, shape)
     }
@@ -195,9 +204,15 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceN
 /// use coeus_tensor::Tensor;
 /// use coeus_core::SequentialBackend;
 ///
-/// let in2 = InstanceNorm2d::<f32, SequentialBackend>::new(4, 1e-5);
-/// let x = Var::new(Tensor::ones_on([2, 4, 8, 8], &SequentialBackend::new()), false);
-/// let y = in2.forward(&x);
+/// let in2 = InstanceNorm2d::<f32, SequentialBackend>::new(4, 1e-5)
+///     .expect("construct instance norm");
+/// let x = Var::new(
+///     Tensor::ones_on([2, 4, 8, 8], &SequentialBackend::new())
+///         .expect("construct tensor"),
+///     false,
+/// )
+/// .expect("construct variable");
+/// let y = in2.forward(&x).expect("run forward");
 /// assert_eq!(y.tensor.shape(), &[2, 4, 8, 8]);
 /// ```
 #[derive(Clone)]
@@ -215,15 +230,15 @@ pub struct InstanceNorm2d<T: Float, B: coeus_ops::BackendOps<T> + Default = Moir
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> InstanceNorm2d<T, B> {
     /// Create an InstanceNorm2d layer.
-    pub fn new(num_features: usize, eps: f64) -> Self {
+    pub fn new(num_features: usize, eps: f64) -> Result<Self, B::Error> {
         let backend = B::default();
-        Self {
-            weight: Var::new(Tensor::ones_on([num_features], &backend), true),
-            bias: Var::new(Tensor::zeros_on([num_features], &backend), true),
+        Ok(Self {
+            weight: Var::new(Tensor::ones_on([num_features], &backend)?, true)?,
+            bias: Var::new(Tensor::zeros_on([num_features], &backend)?, true)?,
             num_features,
             eps,
             cache: RefCell::new(None),
-        }
+        })
     }
 }
 
@@ -234,16 +249,21 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceN
     }
 
     /// Forward: input `[N, C, H, W]`.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let shape = input.tensor.shape_cloned();
         let n = shape[0];
         let c = shape[1];
         let spatial = shape.get(2).copied().unwrap_or(1) * shape.get(3).copied().unwrap_or(1);
-        let flat = coeus_autograd::reshape(input, [n * c, spatial]);
+        let flat = coeus_autograd::reshape(input, [n * c, spatial])?;
 
         let mut cache = self.cache.borrow_mut();
-        ensure_cache::<T, B>(&mut *cache, spatial, self.eps);
-        let cache = cache.as_ref().unwrap();
+        ensure_cache::<T, B>(&mut *cache, spatial, self.eps)?;
+        let cache = cache.as_ref().ok_or_else(|| {
+            B::Error::from(BackendError::Storage {
+                operation: "instance norm cache",
+                reason: "cache initialization did not produce a value".to_owned(),
+            })
+        })?;
 
         instance_norm_forward(&flat, &self.weight, &self.bias, cache, n, c, shape)
     }
@@ -263,9 +283,15 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceN
 /// use coeus_tensor::Tensor;
 /// use coeus_core::SequentialBackend;
 ///
-/// let in3 = InstanceNorm3d::<f32, SequentialBackend>::new(4, 1e-5);
-/// let x = Var::new(Tensor::ones_on([1, 4, 4, 4, 4], &SequentialBackend::new()), false);
-/// let y = in3.forward(&x);
+/// let in3 = InstanceNorm3d::<f32, SequentialBackend>::new(4, 1e-5)
+///     .expect("construct instance norm");
+/// let x = Var::new(
+///     Tensor::ones_on([1, 4, 4, 4, 4], &SequentialBackend::new())
+///         .expect("construct tensor"),
+///     false,
+/// )
+/// .expect("construct variable");
+/// let y = in3.forward(&x).expect("run forward");
 /// assert_eq!(y.tensor.shape(), &[1, 4, 4, 4, 4]);
 /// ```
 #[derive(Clone)]
@@ -283,15 +309,15 @@ pub struct InstanceNorm3d<T: Float, B: coeus_ops::BackendOps<T> + Default = Moir
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> InstanceNorm3d<T, B> {
     /// Create an InstanceNorm3d layer.
-    pub fn new(num_features: usize, eps: f64) -> Self {
+    pub fn new(num_features: usize, eps: f64) -> Result<Self, B::Error> {
         let backend = B::default();
-        Self {
-            weight: Var::new(Tensor::ones_on([num_features], &backend), true),
-            bias: Var::new(Tensor::zeros_on([num_features], &backend), true),
+        Ok(Self {
+            weight: Var::new(Tensor::ones_on([num_features], &backend)?, true)?,
+            bias: Var::new(Tensor::zeros_on([num_features], &backend)?, true)?,
             num_features,
             eps,
             cache: RefCell::new(None),
-        }
+        })
     }
 }
 
@@ -302,18 +328,23 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceN
     }
 
     /// Forward: input `[N, C, D, H, W]`.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let shape = input.tensor.shape_cloned();
         let n = shape[0];
         let c = shape[1];
         let spatial = shape.get(2).copied().unwrap_or(1)
             * shape.get(3).copied().unwrap_or(1)
             * shape.get(4).copied().unwrap_or(1);
-        let flat = coeus_autograd::reshape(input, [n * c, spatial]);
+        let flat = coeus_autograd::reshape(input, [n * c, spatial])?;
 
         let mut cache = self.cache.borrow_mut();
-        ensure_cache::<T, B>(&mut *cache, spatial, self.eps);
-        let cache = cache.as_ref().unwrap();
+        ensure_cache::<T, B>(&mut *cache, spatial, self.eps)?;
+        let cache = cache.as_ref().ok_or_else(|| {
+            B::Error::from(BackendError::Storage {
+                operation: "instance norm cache",
+                reason: "cache initialization did not produce a value".to_owned(),
+            })
+        })?;
 
         instance_norm_forward(&flat, &self.weight, &self.bias, cache, n, c, shape)
     }

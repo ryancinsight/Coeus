@@ -1,10 +1,10 @@
 use coeus_core::{
-    CowStorage, CpuAddressableStorage, CpuAddressableStorageMut, CpuStorage, Storage,
+    BackendError, CowStorage, CpuAddressableStorage, CpuAddressableStorageMut, CpuStorage, Storage,
 };
 
 #[test]
 fn cpu_storage_reports_uniqueness_and_detaches_on_mutation() {
-    let original = CpuStorage::from_slice(&[1_i32, 2, 3, 4]);
+    let original = CpuStorage::try_from_slice(&[1_i32, 2, 3, 4]).expect("allocation succeeds");
     assert!(original.is_unique());
 
     let mut shared = original.clone();
@@ -12,7 +12,7 @@ fn cpu_storage_reports_uniqueness_and_detaches_on_mutation() {
     assert!(!shared.is_unique());
     assert_eq!(original.as_slice().as_ptr(), shared.as_slice().as_ptr());
 
-    shared.as_mut_slice()[1] = 20;
+    shared.as_mut_slice().expect("COW allocation")[1] = 20;
 
     assert!(shared.is_unique());
     assert!(original.is_unique());
@@ -23,7 +23,8 @@ fn cpu_storage_reports_uniqueness_and_detaches_on_mutation() {
 
 #[test]
 fn cow_storage_exposes_cpu_uniqueness_without_unwrapping() {
-    let original = CowStorage::new(CpuStorage::from_slice(&[5_i32, 6, 7]));
+    let original =
+        CowStorage::new(CpuStorage::try_from_slice(&[5_i32, 6, 7]).expect("allocation succeeds"));
     assert!(original.is_unique());
 
     let mut shared = original.clone();
@@ -31,7 +32,7 @@ fn cow_storage_exposes_cpu_uniqueness_without_unwrapping() {
     assert!(!shared.is_unique());
     assert_eq!(original.as_slice().as_ptr(), shared.as_slice().as_ptr());
 
-    shared.as_mut_slice()[2] = 70;
+    shared.as_mut_slice().expect("COW allocation")[2] = 70;
 
     assert!(original.is_unique());
     assert!(shared.is_unique());
@@ -41,9 +42,22 @@ fn cow_storage_exposes_cpu_uniqueness_without_unwrapping() {
 
 #[test]
 fn empty_cpu_storage_exposes_valid_zero_length_slices() {
-    let mut storage = CpuStorage::<u128>::new(0);
+    let mut storage = CpuStorage::<u128>::try_new(0).expect("allocation succeeds");
 
     assert_eq!(storage.len(), 0);
     assert_eq!(storage.as_slice(), &[]);
-    assert_eq!(storage.as_mut_slice(), &mut []);
+    assert_eq!(
+        storage.as_mut_slice().expect("empty COW allocation"),
+        &mut []
+    );
+}
+
+#[test]
+fn cpu_storage_reports_byte_size_overflow() {
+    let error = CpuStorage::<u128>::try_new(usize::MAX)
+        .err()
+        .expect("overflow must be fallible");
+    assert!(
+        matches!(error, BackendError::Storage { operation, .. } if operation == "CpuStorage::try_new")
+    );
 }

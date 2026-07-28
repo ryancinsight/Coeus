@@ -21,7 +21,7 @@ fn v<B: BackendOps<f64> + Default>(shape: &[usize], vals: &[f64], backend: &B) -
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Var::new(Tensor::from_slice_on(shape.to_vec(), vals, backend), false)
+    Var::new(Tensor::from_slice_on(shape.to_vec(), vals, backend).expect("construct tensor"), false).expect("construct variable")
 }
 
 fn check_global_pools<B: BackendOps<f64> + Default>(backend: &B)
@@ -32,7 +32,7 @@ where
     // mean([1,2,3,4]) = 10/4 = 2.5 (exact — 2.5 is representable in binary)
     let pool1d = GlobalAvgPool1d::<f64, B>::new();
     let inp1 = v(&[1, 1, 4], &[1.0, 2.0, 3.0, 4.0], backend);
-    let out1 = Module::<f64, B>::forward(&pool1d, &inp1);
+    let out1 = Module::<f64, B>::forward(&pool1d, &inp1).expect("run forward");
     assert_eq!(
         out1.tensor.shape(),
         &[1, 1, 1],
@@ -46,7 +46,7 @@ where
 
     // Uniform input: mean of all-same values = that value (exact).
     let inp1b = v(&[1, 2, 3], &[3.0_f64; 6], backend);
-    let out1b = Module::<f64, B>::forward(&pool1d, &inp1b);
+    let out1b = Module::<f64, B>::forward(&pool1d, &inp1b).expect("run forward");
     assert_eq!(
         out1b.tensor.shape(),
         &[1, 2, 1],
@@ -63,7 +63,7 @@ where
     let pool3d_avg = GlobalAvgPool3d::<f64, B>::new();
     let data3: Vec<f64> = (1u64..=8).map(|i| i as f64).collect();
     let inp3 = v(&[1, 1, 2, 2, 2], &data3, backend);
-    let out3 = Module::<f64, B>::forward(&pool3d_avg, &inp3);
+    let out3 = Module::<f64, B>::forward(&pool3d_avg, &inp3).expect("run forward");
     assert_eq!(
         out3.tensor.shape(),
         &[1, 1, 1, 1, 1],
@@ -78,7 +78,7 @@ where
     // GlobalMaxPool3d: [N=1,C=1,D=2,H=2,W=2] → [1,1,1,1,1]
     // max([1..8]) = 8.0 exactly.
     let pool3d_max = GlobalMaxPool3d::<f64, B>::new();
-    let out3m = Module::<f64, B>::forward(&pool3d_max, &inp3);
+    let out3m = Module::<f64, B>::forward(&pool3d_max, &inp3).expect("run forward");
     assert_eq!(
         out3m.tensor.shape(),
         &[1, 1, 1, 1, 1],

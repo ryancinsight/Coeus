@@ -53,18 +53,24 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let Some(Some(ref g)) = input_grads.first() else {
-            return;
+            return Ok(());
         };
 
-        let zeros = Tensor::zeros_on(self.input_shape.clone(), &backend);
+        let zeros = Tensor::zeros_on(self.input_shape.clone(), &backend)?;
         let grad_in =
-            coeus_ops::scatter_add(&zeros, self.dim, &self.topk_indices, grad_out, &backend);
+            coeus_ops::scatter_add(&zeros, self.dim, &self.topk_indices, grad_out, &backend)?;
 
         let gl = g.write();
-        coeus_ops::add_assign(gl, &grad_in, &backend);
+        coeus_ops::add_assign(gl, &grad_in, &backend)?;
+
+        Ok(())
     }
 }
 
@@ -86,7 +92,7 @@ pub fn topk<T: Scalar + leto_ops::Scalar, B>(
     k: usize,
     dim: usize,
     largest: bool,
-) -> (Var<T, B>, Var<T, B>)
+) -> Result<(Var<T, B>, Var<T, B>), B::Error>
 where
     B: coeus_ops::BackendOps<T> + coeus_ops::BackendOps<i64> + coeus_ops::CpuBackend + Default,
     B::DeviceBuffer<T>:
@@ -95,15 +101,15 @@ where
         coeus_core::CpuAddressableStorage<i64> + coeus_core::CpuAddressableStorageMut<i64>,
 {
     let backend = B::default();
-    let (top_vals, idx_i64) = coeus_ops::topk(&input.tensor, k, dim, largest);
+    let (top_vals, idx_i64) = coeus_ops::topk(&input.tensor, k, dim, largest)?;
 
     let idx_data: Vec<T> = idx_i64
-        .to_contiguous_on(&backend)
+        .to_contiguous_on(&backend)?
         .as_slice()
         .iter()
         .map(|&x| T::from_f64(x as f64))
         .collect();
-    let top_indices = Tensor::from_slice_on(idx_i64.shape().to_vec(), &idx_data, &backend);
+    let top_indices = Tensor::from_slice_on(idx_i64.shape().to_vec(), &idx_data, &backend)?;
 
     let input_shape = input.tensor.shape_cloned().to_vec();
     let requires_grad = crate::grad_mode::should_track_var(input);
@@ -111,13 +117,13 @@ where
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             top_vals.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator = if let Some(ref output_grad) = grad {
         let node = TopkNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: output_grad.clone(),
             inputs: vec![input.clone()],
             topk_indices: top_indices.clone(),
             dim,
@@ -133,8 +139,8 @@ where
         grad,
         creator,
     };
-    let idx_var = Var::new(top_indices, false);
-    (vals_var, idx_var)
+    let idx_var = Var::new(top_indices, false)?;
+    Ok((vals_var, idx_var))
 }
 
 #[cfg(test)]
@@ -146,15 +152,15 @@ mod tests {
     #[test]
     fn topk_forward_and_backward_1d() {
         let data = vec![3.0f64, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0];
-        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([7], &data), true);
-        let (vals, _) = topk(&x, 3, 0, true);
+        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([7], &data).expect("valid tensor construction"), true).expect("valid variable construction");
+        let (vals, _) = topk(&x, 3, 0, true).expect("valid autograd operation");
         let vs = vals.tensor.as_slice().to_vec();
         assert_eq!(vs.len(), 3);
         let mut sorted = vs.clone();
         sorted.sort_by(|a, b| b.partial_cmp(a).unwrap());
         assert_eq!(sorted, vs, "topk should be descending");
 
-        vals.backward();
+        vals.backward().expect("valid backward propagation");
         let dx = x.grad().unwrap();
         let ones: usize = dx
             .as_slice()
@@ -169,9 +175,9 @@ mod tests {
     #[test]
     fn topk_backward_smallest() {
         let data = vec![3.0f64, 1.0, 4.0, 1.0, 5.0];
-        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([5], &data), true);
-        let (vals, _) = topk(&x, 2, 0, false);
-        vals.backward();
+        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([5], &data).expect("valid tensor construction"), true).expect("valid variable construction");
+        let (vals, _) = topk(&x, 2, 0, false).expect("valid autograd operation");
+        vals.backward().expect("valid backward propagation");
         let dx = x.grad().unwrap();
         let grad_sum: f64 = dx.as_slice().iter().sum();
         assert!(

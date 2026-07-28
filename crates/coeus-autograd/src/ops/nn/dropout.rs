@@ -1,4 +1,4 @@
-﻿use crate::grad_buffer::GradBuffer;
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar};
@@ -64,13 +64,19 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Dro
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
-            let prod = coeus_ops::mul(grad_out, &self.mask, &backend);
+            let prod = coeus_ops::mul(grad_out, &self.mask, &backend)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &prod, &backend);
+            coeus_ops::add_assign(gl, &prod, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -80,9 +86,9 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     p: f64,
     is_training: bool,
     seed: u64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     if !is_training || p == 0.0 {
-        return input.clone();
+        return Ok(input.clone());
     }
 
     let scale = 1.0 / (1.0 - p);
@@ -93,32 +99,37 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let mask_cpu =
         Tensor::<T, coeus_core::MoiraiBackend>::from_fn_on(shape.clone(), &cpu_backend, |_| {
             let r = rng.borrow_mut().next_f64();
-            if r < p {
-                T::zero()
-            } else {
-                T::from_f64(scale)
-            }
-        });
+            if r < p { T::zero() } else { T::from_f64(scale) }
+        })?;
 
     let target_backend = B::default();
-    let mask = mask_cpu.to_backend_on(&cpu_backend, &target_backend);
-    let out_tensor = coeus_ops::mul(&input.tensor, &mask, &target_backend);
+    let mask = mask_cpu
+        .to_backend_on(&cpu_backend, &target_backend)
+        .map_err(|error| match error {
+            coeus_tensor::TensorTransferError::Source(source) => B::Error::from(source),
+            coeus_tensor::TensorTransferError::Destination(destination) => destination,
+            coeus_tensor::TensorTransferError::Materialization(error) => B::Error::from(error),
+            other => B::Error::from(coeus_core::BackendError::Storage {
+                operation: "dropout mask transfer",
+                reason: other.to_string(),
+            }),
+        })?;
+    let out_tensor = coeus_ops::mul(&input.tensor, &mask, &target_backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             shape.clone(),
             &target_backend,
-        ))))
+        )?)))
     } else {
         None
     };
 
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let inputs = vec![input.clone()];
         let node = DropoutNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs,
             mask,
         };
@@ -127,9 +138,9 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

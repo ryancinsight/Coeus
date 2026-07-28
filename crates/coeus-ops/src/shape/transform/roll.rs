@@ -4,7 +4,7 @@
 // Elements that would be shifted beyond the boundary wrap around.
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_tensor::Tensor;
 
 /// Circular shift `input` along each of `dims` by the corresponding `shifts`.
@@ -15,28 +15,52 @@ use coeus_tensor::Tensor;
 /// When `shifts` and `dims` have more than one element, the shifts are applied
 /// sequentially from left to right.
 ///
-/// # Panics
-/// - Panics if `shifts.len() != dims.len()`.
-/// - Panics if any `dim >= input.ndim()`.
+/// # Errors
+/// Returns a backend error when shift/axis metadata is invalid or
+/// materialization fails.
 #[inline]
 pub fn roll<T: Scalar, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     shifts: &[isize],
     dims: &[usize],
-    _backend: &B,
-) -> Tensor<T, B>
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    assert_eq!(
-        shifts.len(),
-        dims.len(),
-        "roll: shifts and dims must have equal length"
-    );
+    if shifts.len() != dims.len() {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "roll",
+            reason: "shifts and dims must have equal length".to_owned(),
+        }));
+    }
 
     let ndim = input.ndim();
     let shape = input.shape();
-    let numel: usize = shape.iter().product();
+    let numel = shape.iter().try_fold(1usize, |count, &extent| {
+        count.checked_mul(extent).ok_or_else(|| {
+            B::Error::from(BackendError::Overflow {
+                operation: "roll",
+                reason: "element count",
+            })
+        })
+    })?;
+
+    for &dim in dims {
+        if dim >= ndim {
+            return Err(B::Error::from(BackendError::AxisOutOfRange {
+                operation: "roll",
+                axis: dim,
+                rank: ndim,
+            }));
+        }
+        if shape[dim] == 0 {
+            return Err(B::Error::from(BackendError::Storage {
+                operation: "roll",
+                reason: format!("axis {dim} has zero extent"),
+            }));
+        }
+    }
 
     // Build a lookup table: output_flat_idx → input_flat_idx.
     // We iterate output positions and compute the corresponding input position
@@ -47,10 +71,6 @@ where
             let mut idx = crate::shape::flat_to_nd(flat, shape);
             // Apply each (shift, dim) in reverse order to find source position.
             for (&shift, &dim) in shifts.iter().zip(dims.iter()) {
-                assert!(
-                    dim < ndim,
-                    "roll: dim {dim} out of range for {ndim}-D tensor"
-                );
                 let n = shape[dim] as isize;
                 // Normalise shift to [0, n) to handle negatives and large values.
                 let eff_shift = ((shift % n) + n) % n;
@@ -63,7 +83,7 @@ where
         })
         .collect();
 
-    Tensor::from_slice(shape.to_vec(), &out_vec)
+    Tensor::from_slice_on(shape.to_vec(), &out_vec, backend)
 }
 
 #[cfg(test)]
@@ -75,33 +95,33 @@ mod tests {
     #[test]
     fn roll_1d_shift_1() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![4], &[0.0f32, 1.0, 2.0, 3.0]);
-        let out = roll(&x, &[1], &[0], &b);
+        let x = Tensor::from_slice(vec![4], &[0.0f32, 1.0, 2.0, 3.0]).expect("construct tensor");
+        let out = roll(&x, &[1], &[0], &b).expect("run operation");
         assert_eq!(out.as_slice(), &[3.0, 0.0, 1.0, 2.0]);
     }
 
     #[test]
     fn roll_1d_negative_shift() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![4], &[0.0f32, 1.0, 2.0, 3.0]);
-        let out = roll(&x, &[-1], &[0], &b);
+        let x = Tensor::from_slice(vec![4], &[0.0f32, 1.0, 2.0, 3.0]).expect("construct tensor");
+        let out = roll(&x, &[-1], &[0], &b).expect("run operation");
         assert_eq!(out.as_slice(), &[1.0, 2.0, 3.0, 0.0]);
     }
 
     #[test]
     fn roll_2d_shift_row() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let x = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("construct tensor");
         // roll along rows by 1: row 1 → row 0, row 0 → row 1
-        let out = roll(&x, &[1], &[0], &b);
+        let out = roll(&x, &[1], &[0], &b).expect("run operation");
         assert_eq!(out.as_slice(), &[4.0, 5.0, 6.0, 1.0, 2.0, 3.0]);
     }
 
     #[test]
     fn roll_shift_zero_is_identity() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![3], &[7.0f32, 8.0, 9.0]);
-        let out = roll(&x, &[0], &[0], &b);
+        let x = Tensor::from_slice(vec![3], &[7.0f32, 8.0, 9.0]).expect("construct tensor");
+        let out = roll(&x, &[0], &[0], &b).expect("run operation");
         assert_eq!(out.as_slice(), &[7.0, 8.0, 9.0]);
     }
 }

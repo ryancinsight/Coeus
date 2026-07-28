@@ -1,5 +1,6 @@
 use crate::storage::CudaStorage;
 use coeus_core::{Backend, ComputeBackend, Scalar, Storage};
+use coeus_hephaestus::SharedHephaestusError;
 use hephaestus_cuda::{ComputeDevice, CudaDevice};
 use std::sync::OnceLock;
 
@@ -31,13 +32,14 @@ impl CudaScalar for i32 {
     const CUDA_TYPE: &'static str = "int";
 }
 
-static CUDA_DEVICE: OnceLock<CudaDevice> = OnceLock::new();
+static CUDA_DEVICE: OnceLock<Result<CudaDevice, SharedHephaestusError>> = OnceLock::new();
 
 /// Retrieve a reference to the global lazily-initialized hephaestus CUDA device.
-pub fn get_cuda_device() -> &'static CudaDevice {
-    CUDA_DEVICE.get_or_init(|| {
-        CudaDevice::try_default().expect("Failed to initialize hephaestus-cuda device")
-    })
+pub fn get_cuda_device() -> Result<&'static CudaDevice, crate::CudaBackendError> {
+    CUDA_DEVICE
+        .get_or_init(|| CudaDevice::try_default().map_err(SharedHephaestusError::new))
+        .as_ref()
+        .map_err(|source| crate::CudaBackendError::initialization(source.clone()))
 }
 
 /// NVIDIA CUDA acceleration backend.
@@ -70,19 +72,26 @@ impl ComputeBackend for CudaBackend {
     }
 
     #[inline]
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        CudaStorage::allocate(len)
+    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        CudaStorage::try_new(len)
     }
 
     #[inline]
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
+    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) -> Result<(), Self::Error> {
         let size = dst.len();
         if size == 0 {
-            return;
+            return Ok(());
         }
-        let bytes = size * std::mem::size_of::<T>();
-        let device = get_cuda_device();
-        device.bind().expect("fill: failed to bind CUDA device");
+        let bytes = size.checked_mul(std::mem::size_of::<T>()).ok_or_else(|| {
+            CudaBackendError::from(coeus_core::BackendError::Overflow {
+                operation: "fill",
+                reason: "element-count to byte-size arithmetic overflow",
+            })
+        })?;
+        let device = get_cuda_device()?;
+        device
+            .bind()
+            .map_err(|source| CudaBackendError::provider("fill", source))?;
 
         // Fast path: if the value is bitwise zero, use cuMemsetD8_v2
         let is_zero = Scalar::to_f64(val) == 0.0;
@@ -90,7 +99,7 @@ impl ComputeBackend for CudaBackend {
             unsafe {
                 let res = cuda_core::sys::cuMemsetD8_v2(dst.cu_deviceptr(), 0, bytes);
                 if res == 0 {
-                    return;
+                    return Ok(());
                 }
             }
         }
@@ -109,7 +118,7 @@ impl ComputeBackend for CudaBackend {
             unsafe {
                 let res = cuda_core::sys::cuMemsetD32_v2(dst.cu_deviceptr(), val_u32, size);
                 if res == 0 {
-                    return;
+                    return Ok(());
                 }
             }
         }
@@ -128,27 +137,35 @@ impl ComputeBackend for CudaBackend {
             unsafe {
                 let res = cuda_core::sys::cuMemsetD16_v2(dst.cu_deviceptr(), val_u16, size);
                 if res == 0 {
-                    return;
+                    return Ok(());
                 }
             }
         }
 
         let data = vec![val; size];
-        self.copy_to_device(&data, dst);
+        self.copy_to_device(&data, dst)
     }
 
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
-        let device = get_cuda_device();
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error> {
+        let device = get_cuda_device()?;
         device
             .write_buffer(&dst.buffer, src)
-            .expect("copy_to_device: write_buffer failed");
+            .map_err(|source| CudaBackendError::provider("copy_to_device", source))
     }
 
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
-        let device = get_cuda_device();
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error> {
+        let device = get_cuda_device()?;
         device
             .download(&src.buffer, dst)
-            .expect("copy_to_host: download failed");
+            .map_err(|source| CudaBackendError::provider("copy_to_host", source))
     }
 }
 

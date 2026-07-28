@@ -23,8 +23,12 @@ fn native_reductions_and_scans_match_leto() {
     assert_eq!(backend.name(), "metal");
     let layout = Layout::new([2, 3].into());
     let input = [1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0];
-    let mut device_input = backend.allocate::<f32>(input.len());
-    backend.copy_to_device(&input, &mut device_input);
+    let mut device_input = backend
+        .allocate::<f32>(input.len())
+        .expect("allocate Metal reduction input");
+    backend
+        .copy_to_device(&input, &mut device_input)
+        .expect("upload Metal reduction input");
 
     for (op, expected) in [
         (ReductionOp::Sum, [6.0_f32, 15.0]),
@@ -45,7 +49,9 @@ fn native_reductions_and_scans_match_leto() {
         .expect("Leto reduction oracle failed");
         assert_eq!(expected_values, expected, "Leto oracle contract");
 
-        let mut actual = backend.allocate::<f32>(2);
+        let mut actual = backend
+            .allocate::<f32>(2)
+            .expect("allocate Metal reduction output");
         ReductionOps::reduce(
             &backend,
             op,
@@ -57,24 +63,32 @@ fn native_reductions_and_scans_match_leto() {
         )
         .expect("Metal reduction failed");
         let mut actual_values = [0.0_f32; 2];
-        backend.copy_to_host(&actual, &mut actual_values);
+        backend
+            .copy_to_host(&actual, &mut actual_values)
+            .expect("download Metal reduction output");
         assert_eq!(actual_values, expected_values, "Metal {op:?} parity");
     }
 
     let mut expected_scan = [0.0_f32; 6];
     coeus_leto::cumsum_into(&layout, &input, 1, &layout, &mut expected_scan)
         .expect("Leto cumulative-sum oracle failed");
-    let mut scan = backend.allocate::<f32>(input.len());
+    let mut scan = backend
+        .allocate::<f32>(input.len())
+        .expect("allocate Metal cumulative-sum output");
     ReductionOps::cumsum(&backend, &device_input, &layout, 1, &mut scan, &layout)
         .expect("Metal cumulative sum failed");
     let mut actual_scan = [0.0_f32; 6];
-    backend.copy_to_host(&scan, &mut actual_scan);
+    backend
+        .copy_to_host(&scan, &mut actual_scan)
+        .expect("download Metal cumulative-sum output");
     assert_eq!(actual_scan, expected_scan);
 
     let mut expected_suffix_sum = [0.0_f32; 6];
     coeus_leto::suffix_sum_into(&layout, &input, 1, &layout, &mut expected_suffix_sum)
         .expect("Leto suffix-sum oracle failed");
-    let mut suffix_sum = backend.allocate::<f32>(input.len());
+    let mut suffix_sum = backend
+        .allocate::<f32>(input.len())
+        .expect("allocate Metal suffix-sum output");
     ReductionOps::suffix_sum(
         &backend,
         &device_input,
@@ -85,13 +99,17 @@ fn native_reductions_and_scans_match_leto() {
     )
     .expect("Metal suffix sum failed");
     let mut actual_suffix_sum = [0.0_f32; 6];
-    backend.copy_to_host(&suffix_sum, &mut actual_suffix_sum);
+    backend
+        .copy_to_host(&suffix_sum, &mut actual_suffix_sum)
+        .expect("download Metal suffix-sum output");
     assert_eq!(actual_suffix_sum, expected_suffix_sum);
 
     let mut expected_product_scan = [0.0_f32; 6];
     coeus_leto::cumprod_into(&layout, &input, 1, &layout, &mut expected_product_scan)
         .expect("Leto cumulative-product oracle failed");
-    let mut product_scan = backend.allocate::<f32>(input.len());
+    let mut product_scan = backend
+        .allocate::<f32>(input.len())
+        .expect("allocate Metal cumulative-product output");
     ReductionOps::cumprod(
         &backend,
         &device_input,
@@ -102,13 +120,17 @@ fn native_reductions_and_scans_match_leto() {
     )
     .expect("Metal cumulative product failed");
     let mut actual_product_scan = [0.0_f32; 6];
-    backend.copy_to_host(&product_scan, &mut actual_product_scan);
+    backend
+        .copy_to_host(&product_scan, &mut actual_product_scan)
+        .expect("download Metal cumulative-product output");
     assert_eq!(actual_product_scan, expected_product_scan);
 
     let mut expected_suffix_product = [0.0_f32; 6];
     coeus_leto::suffix_prod_into(&layout, &input, 1, &layout, &mut expected_suffix_product)
         .expect("Leto suffix-product oracle failed");
-    let mut suffix_product = backend.allocate::<f32>(input.len());
+    let mut suffix_product = backend
+        .allocate::<f32>(input.len())
+        .expect("allocate Metal suffix-product output");
     ReductionOps::suffix_prod(
         &backend,
         &device_input,
@@ -119,6 +141,8 @@ fn native_reductions_and_scans_match_leto() {
     )
     .expect("Metal suffix product failed");
     let mut actual_suffix_product = [0.0_f32; 6];
-    backend.copy_to_host(&suffix_product, &mut actual_suffix_product);
+    backend
+        .copy_to_host(&suffix_product, &mut actual_suffix_product)
+        .expect("download Metal suffix-product output");
     assert_eq!(actual_suffix_product, expected_suffix_product);
 }

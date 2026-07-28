@@ -5,7 +5,7 @@ use crate::kernels::{create_layout_buffer, get_cuda_function};
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
-use crate::kernels::validation::{cuda_u32, launch_grid_size, layouts_fit_cuda, CUDA_BLOCK_SIZE};
+use crate::kernels::validation::{CUDA_BLOCK_SIZE, cuda_u32, launch_grid_size, layouts_fit_cuda};
 /// Launch the 1-D convolution kernel on the GPU.
 ///
 /// Computes forward 1-D convolution with optional bias, stride, padding, and dilation.

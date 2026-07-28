@@ -41,10 +41,10 @@ pub mod unary;
 pub use unary::{
     abs, abs_assign, acos, acosh, asin, asinh, atan, atanh, causal_softmax, ceil, ceil_assign, cos,
     cos_assign, cosh, elementwise_unary, elementwise_unary_assign, elementwise_unary_to, elu,
-    elu_assign, erf, erfc, exp, exp2, exp_assign, expm1, floor, floor_assign, gelu, gelu_assign,
-    gelu_tanh, gelu_tanh_assign, glu, leaky_relu, leaky_relu_assign, lgamma, log, log10, log1p,
-    log2, log_assign, log_softmax_axis, masked_softmax, mish, mish_assign, neg, neg_assign, recip,
-    recip_assign, relu, relu_assign, round, round_assign, sigmoid, sigmoid_assign, sign,
+    elu_assign, erf, erfc, exp, exp_assign, exp2, expm1, floor, floor_assign, gelu, gelu_assign,
+    gelu_tanh, gelu_tanh_assign, glu, leaky_relu, leaky_relu_assign, lgamma, log, log_assign,
+    log_softmax_axis, log1p, log2, log10, masked_softmax, mish, mish_assign, neg, neg_assign,
+    recip, recip_assign, relu, relu_assign, round, round_assign, sigmoid, sigmoid_assign, sign,
     sign_assign, silu, silu_assign, sin, sin_assign, sinh, softplus, softplus_assign, sqrt,
     sqrt_assign, tan, tanh, tanh_assign, trunc, trunc_assign,
 };
@@ -55,16 +55,15 @@ pub use binary::{
 };
 pub use embedding::{embedding, embedding_backward, embedding_backward_with_padding_idx};
 pub use interpolation::{
-    linear_interpolation, linear_interpolation_backward, BoundaryPolicy, Dimension,
-    InterpolationError, InterpolationGradients, Replicate, SupportedDimension,
+    BoundaryPolicy, Dimension, InterpolationError, InterpolationGradients, Replicate,
+    SupportedDimension, linear_interpolation, linear_interpolation_backward,
 };
 pub use matmul::{bmm, matmul, matmul_accumulate, outer};
 pub use reduction::{
     amax, amin, argmax, argmin, cross, cumprod, cumsum, dot, frobenius_norm,
     frobenius_norm_batched, max_axis, mean, mean_axis, min_axis, norm, norm_p, norm_p_axis, prod,
     prod_axis, std_dev, std_dev_axis, std_mean, std_mean_axis, suffix_prod, suffix_sum, sum,
-    sum_axis, topk,
-    var, var_axis, var_mean, var_mean_axis,
+    sum_axis, topk, var, var_axis, var_mean, var_mean_axis,
 };
 pub use shape::{
     broadcast_to, cat, chunk, diag, diagonal, einsum, einsum3, flip, gather, index_put,
@@ -79,7 +78,7 @@ pub use sparse::{
 /// Fused expression evaluation DAG for single-pass CPU computation.
 pub mod fuse;
 pub use fuse::{
-    evaluate_fused_cpu, evaluate_fused_reduce_cpu, scalar, Expr, ExprNode, TensorExprExt,
+    Expr, ExprNode, TensorExprExt, evaluate_fused_cpu, evaluate_fused_reduce_cpu, scalar,
 };
 
 /// Scaled dot-product attention with causal and padding mask support.
@@ -111,14 +110,14 @@ pub fn unfold1d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
     padding: usize,
     dilation: usize,
     backend: &B,
-) -> coeus_tensor::Tensor<T, B> {
+) -> Result<coeus_tensor::Tensor<T, B>, B::Error> {
     let shape = input.shape();
     let (n, c, l) = (shape[0], shape[1], shape[2]);
     let l_out = (l + 2 * padding - dilation * (kernel_size - 1) - 1) / stride + 1;
     let ck = c * kernel_size;
     // alloc_on: unfold1d kernel writes every output position — no zero-init needed.
-    let mut out = coeus_tensor::Tensor::alloc_on([n, ck, l_out], backend);
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let mut out = coeus_tensor::Tensor::alloc_on([n, ck, l_out], backend)?;
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.unfold1d(
         input.storage(),
         input.layout(),
@@ -128,8 +127,8 @@ pub fn unfold1d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
         dilation,
         out_storage,
         out_layout,
-    );
-    out
+    )?;
+    Ok(out)
 }
 
 /// Fold 1D: accumulates `[N, C*kernel_size, L_out]` back into `[N, C, output_size]`.
@@ -147,12 +146,12 @@ pub fn fold1d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
     padding: usize,
     dilation: usize,
     backend: &B,
-) -> coeus_tensor::Tensor<T, B> {
+) -> Result<coeus_tensor::Tensor<T, B>, B::Error> {
     let shape = input.shape();
     let n = shape[0];
     let c = shape[1] / kernel_size;
-    let mut out = coeus_tensor::Tensor::zeros_on([n, c, output_size], backend);
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let mut out = coeus_tensor::Tensor::zeros_on([n, c, output_size], backend)?;
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.fold1d(
         input.storage(),
         input.layout(),
@@ -163,8 +162,8 @@ pub fn fold1d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
         dilation,
         out_storage,
         out_layout,
-    );
-    out
+    )?;
+    Ok(out)
 }
 
 /// Unfold 2D: extracts sliding windows from `[N, C, H, W]` into `[N, C*kH*kW, H_out*W_out]`.
@@ -186,7 +185,7 @@ pub fn unfold2d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
     dilation_h: usize,
     dilation_w: usize,
     backend: &B,
-) -> coeus_tensor::Tensor<T, B> {
+) -> Result<coeus_tensor::Tensor<T, B>, B::Error> {
     let shape = input.shape();
     let (n, c, h, w) = (shape[0], shape[1], shape[2], shape[3]);
     let h_out = (h + 2 * padding_h - dilation_h * (kernel_h - 1) - 1) / stride_h + 1;
@@ -194,8 +193,8 @@ pub fn unfold2d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
     let ckk = c * kernel_h * kernel_w;
     let l_out = h_out * w_out;
     // alloc_on: unfold2d kernel writes every output position — no zero-init needed.
-    let mut out = coeus_tensor::Tensor::alloc_on([n, ckk, l_out], backend);
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let mut out = coeus_tensor::Tensor::alloc_on([n, ckk, l_out], backend)?;
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.unfold2d(
         input.storage(),
         input.layout(),
@@ -209,8 +208,8 @@ pub fn unfold2d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
         dilation_w,
         out_storage,
         out_layout,
-    );
-    out
+    )?;
+    Ok(out)
 }
 
 /// Fold 2D: accumulates `[N, C*kH*kW, H_out*W_out]` back into `[N, C, output_h, output_w]`.
@@ -234,12 +233,12 @@ pub fn fold2d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
     dilation_h: usize,
     dilation_w: usize,
     backend: &B,
-) -> coeus_tensor::Tensor<T, B> {
+) -> Result<coeus_tensor::Tensor<T, B>, B::Error> {
     let shape = input.shape();
     let n = shape[0];
     let c = shape[1] / (kernel_h * kernel_w);
-    let mut out = coeus_tensor::Tensor::zeros_on([n, c, output_h, output_w], backend);
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let mut out = coeus_tensor::Tensor::zeros_on([n, c, output_h, output_w], backend)?;
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.fold2d(
         input.storage(),
         input.layout(),
@@ -255,6 +254,6 @@ pub fn fold2d<T: coeus_core::Scalar, B: BackendOps<T> + Default>(
         dilation_w,
         out_storage,
         out_layout,
-    );
-    out
+    )?;
+    Ok(out)
 }

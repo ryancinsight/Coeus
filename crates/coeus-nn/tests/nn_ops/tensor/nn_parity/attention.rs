@@ -31,85 +31,91 @@ fn test_mha_parity() {
 
     // Coeus setup
     let q_coeus = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 8], &q_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 8], &q_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let k_coeus = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 8], &k_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 8], &k_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let v_coeus = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 8], &v_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 8], &v_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
 
-    let mut mha_coeus = coeus_nn::MultiHeadAttention::<f32, SequentialBackend, 2>::new(8, true);
+    let mut mha_coeus = coeus_nn::MultiHeadAttention::<f32, SequentialBackend, 2>::new(8, true).expect("construct module");
     mha_coeus.w_q = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8, 8], &wq_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8, 8], &wq_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     mha_coeus.b_q = Some(CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8], &bq_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8], &bq_data).expect("construct tensor"),
         true,
-    ));
+    ).expect("construct variable"));
     mha_coeus.w_k = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8, 8], &wk_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8, 8], &wk_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     mha_coeus.b_k = Some(CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8], &bk_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8], &bk_data).expect("construct tensor"),
         true,
-    ));
+    ).expect("construct variable"));
     mha_coeus.w_v = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8, 8], &wv_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8, 8], &wv_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     mha_coeus.b_v = Some(CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8], &bv_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8], &bv_data).expect("construct tensor"),
         true,
-    ));
+    ).expect("construct variable"));
     mha_coeus.w_o = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8, 8], &wo_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8, 8], &wo_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     mha_coeus.b_o = Some(CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8], &bo_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8], &bo_data).expect("construct tensor"),
         true,
-    ));
+    ).expect("construct variable"));
 
-    let out_coeus = mha_coeus.forward_cross(&q_coeus, &k_coeus, &v_coeus, None);
+    let out_coeus = mha_coeus.forward_cross(&q_coeus, &k_coeus, &v_coeus, None).expect("run forward");
 
     // Verify Q, K, V projections match
     let q_proj_coeus = {
-        let flat = coeus_autograd::reshape(&q_coeus, [6, 8]);
-        let w_t = coeus_autograd::transpose_2d(&mha_coeus.w_q);
-        let out_flat = coeus_autograd::matmul(&flat, &w_t);
+        let flat = coeus_autograd::reshape(&q_coeus, [6, 8]).expect("run operation");
+        let w_t = coeus_autograd::transpose_2d(&mha_coeus.w_q).expect("run operation");
+        let out_flat = coeus_autograd::matmul(&flat, &w_t).expect("run operation");
         coeus_autograd::add(&out_flat, mha_coeus.b_q.as_ref().unwrap())
+            .expect("run operation")
     };
     let k_proj_coeus = {
-        let flat = coeus_autograd::reshape(&k_coeus, [6, 8]);
-        let w_t = coeus_autograd::transpose_2d(&mha_coeus.w_k);
-        let out_flat = coeus_autograd::matmul(&flat, &w_t);
+        let flat = coeus_autograd::reshape(&k_coeus, [6, 8]).expect("run operation");
+        let w_t = coeus_autograd::transpose_2d(&mha_coeus.w_k).expect("run operation");
+        let out_flat = coeus_autograd::matmul(&flat, &w_t).expect("run operation");
         coeus_autograd::add(&out_flat, mha_coeus.b_k.as_ref().unwrap())
+            .expect("run operation")
     };
     let v_proj_coeus = {
-        let flat = coeus_autograd::reshape(&v_coeus, [6, 8]);
-        let w_t = coeus_autograd::transpose_2d(&mha_coeus.w_v);
-        let out_flat = coeus_autograd::matmul(&flat, &w_t);
+        let flat = coeus_autograd::reshape(&v_coeus, [6, 8]).expect("run operation");
+        let w_t = coeus_autograd::transpose_2d(&mha_coeus.w_v).expect("run operation");
+        let out_flat = coeus_autograd::matmul(&flat, &w_t).expect("run operation");
         coeus_autograd::add(&out_flat, mha_coeus.b_v.as_ref().unwrap())
+            .expect("run operation")
     };
 
-    let q_split = coeus_autograd::reshape(&q_proj_coeus, [2, 3, 2, 4]);
-    let q_perm = coeus_autograd::permute(&q_split, &[0, 2, 1, 3]);
-    let q_heads = coeus_autograd::reshape(&q_perm, [4, 3, 4]);
+    let q_split = coeus_autograd::reshape(&q_proj_coeus, [2, 3, 2, 4])
+        .expect("run operation");
+    let q_perm = coeus_autograd::permute(&q_split, &[0, 2, 1, 3]).expect("run operation");
+    let q_heads = coeus_autograd::reshape(&q_perm, [4, 3, 4]).expect("run operation");
 
-    let k_split = coeus_autograd::reshape(&k_proj_coeus, [2, 3, 2, 4]);
-    let k_perm = coeus_autograd::permute(&k_split, &[0, 2, 1, 3]);
-    let k_heads = coeus_autograd::reshape(&k_perm, [4, 3, 4]);
+    let k_split = coeus_autograd::reshape(&k_proj_coeus, [2, 3, 2, 4])
+        .expect("run operation");
+    let k_perm = coeus_autograd::permute(&k_split, &[0, 2, 1, 3]).expect("run operation");
+    let k_heads = coeus_autograd::reshape(&k_perm, [4, 3, 4]).expect("run operation");
 
-    let v_split = coeus_autograd::reshape(&v_proj_coeus, [2, 3, 2, 4]);
-    let v_perm = coeus_autograd::permute(&v_split, &[0, 2, 1, 3]);
-    let v_heads = coeus_autograd::reshape(&v_perm, [4, 3, 4]);
+    let v_split = coeus_autograd::reshape(&v_proj_coeus, [2, 3, 2, 4])
+        .expect("run operation");
+    let v_perm = coeus_autograd::permute(&v_split, &[0, 2, 1, 3]).expect("run operation");
+    let v_heads = coeus_autograd::reshape(&v_perm, [4, 3, 4]).expect("run operation");
 
     let (out_tensor, _attn_weights_coeus) = coeus_ops::scaled_dot_product_attention(
         &q_heads.tensor,
@@ -119,20 +125,21 @@ fn test_mha_parity() {
         false,
         0.5f32,
         &backend,
-    );
+    ).expect("run operation");
 
-    let out_var = CoeusVar::new(out_tensor, false);
-    let merged_split = coeus_autograd::reshape(&out_var, [2, 2, 3, 4]);
-    let merged_perm = coeus_autograd::permute(&merged_split, &[0, 2, 1, 3]);
-    let _merged = coeus_autograd::reshape(&merged_perm, [2, 3, 8]);
+    let out_var = CoeusVar::new(out_tensor, false).expect("construct variable");
+    let merged_split = coeus_autograd::reshape(&out_var, [2, 2, 3, 4]).expect("run operation");
+    let merged_perm = coeus_autograd::permute(&merged_split, &[0, 2, 1, 3])
+        .expect("run operation");
+    let _merged = coeus_autograd::reshape(&merged_perm, [2, 3, 8]).expect("run operation");
 
     // Verify forward output
     let expected_mha_out = expected::mha_out();
     assert_tensor_eq_data(&out_coeus.tensor, &expected_mha_out, 1e-4);
 
     // Backward
-    let loss_coeus = coeus_autograd::sum(&out_coeus);
-    loss_coeus.backward();
+    let loss_coeus = coeus_autograd::sum(&out_coeus).expect("run operation");
+    loss_coeus.backward().expect("run backward");
 
     // Verify input gradients
     let dq_coeus = q_coeus.grad().unwrap();

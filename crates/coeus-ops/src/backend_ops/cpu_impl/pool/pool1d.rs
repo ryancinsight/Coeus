@@ -20,7 +20,8 @@ pub(crate) fn max_pool1d<T: Scalar, B: Backend>(
     dilation: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let n = input_layout.shape()[0];
@@ -30,7 +31,7 @@ pub(crate) fn max_pool1d<T: Scalar, B: Backend>(
     let out_numel = n * c * l_out;
 
     let input_slice = input.as_slice();
-    let output_slice = output.as_mut_slice();
+    let output_slice = output.as_mut_slice()?;
 
     let input_ptr = Ptr(input_slice.as_ptr());
     let output_ptr = MutPtr(output_slice.as_mut_ptr());
@@ -74,6 +75,7 @@ pub(crate) fn max_pool1d<T: Scalar, B: Backend>(
             output_ptr.write(output_idx, max_val.unwrap_or(T::zero()));
         }
     });
+    Ok(())
 }
 
 // ── Max Pool 1D backward ──
@@ -91,7 +93,8 @@ pub(crate) fn max_pool1d_backward<T: Scalar, B: Backend>(
     dilation: usize,
     grad_input: &mut B::DeviceBuffer<T>,
     grad_input_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let n = input_layout.shape()[0];
@@ -102,7 +105,7 @@ pub(crate) fn max_pool1d_backward<T: Scalar, B: Backend>(
 
     let input_slice = input.as_slice();
     let grad_out_slice = grad_out.as_slice();
-    let grad_input_slice = grad_input.as_mut_slice();
+    let grad_input_slice = grad_input.as_mut_slice()?;
 
     let input_ptr = Ptr(input_slice.as_ptr());
     let grad_out_ptr = Ptr(grad_out_slice.as_ptr());
@@ -155,6 +158,7 @@ pub(crate) fn max_pool1d_backward<T: Scalar, B: Backend>(
         }
     }
     let _ = backend; // backend unused in sequential backward
+    Ok(())
 }
 
 // ── Avg Pool 1D forward ──
@@ -170,7 +174,8 @@ pub(crate) fn avg_pool1d<T: Scalar, B: Backend>(
     dilation: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let n = input_layout.shape()[0];
@@ -180,7 +185,7 @@ pub(crate) fn avg_pool1d<T: Scalar, B: Backend>(
     let out_numel = n * c * l_out;
 
     let input_slice = input.as_slice();
-    let output_slice = output.as_mut_slice();
+    let output_slice = output.as_mut_slice()?;
 
     let input_ptr = Ptr(input_slice.as_ptr());
     let output_ptr = MutPtr(output_slice.as_mut_ptr());
@@ -223,6 +228,7 @@ pub(crate) fn avg_pool1d<T: Scalar, B: Backend>(
             output_ptr.write(output_idx, mean);
         }
     });
+    Ok(())
 }
 
 // ── Avg Pool 1D backward ──
@@ -238,7 +244,8 @@ pub(crate) fn avg_pool1d_backward<T: Scalar, B: Backend>(
     dilation: usize,
     grad_input: &mut B::DeviceBuffer<T>,
     grad_input_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let n = grad_input_layout.shape()[0];
@@ -248,7 +255,7 @@ pub(crate) fn avg_pool1d_backward<T: Scalar, B: Backend>(
     let out_numel = n * c * l_out;
 
     let grad_out_slice = grad_out.as_slice();
-    let grad_input_slice = grad_input.as_mut_slice();
+    let grad_input_slice = grad_input.as_mut_slice()?;
 
     let grad_out_ptr = Ptr(grad_out_slice.as_ptr());
     let grad_input_ptr = MutPtr(grad_input_slice.as_mut_ptr());
@@ -296,4 +303,5 @@ pub(crate) fn avg_pool1d_backward<T: Scalar, B: Backend>(
         }
     }
     let _ = backend;
+    Ok(())
 }

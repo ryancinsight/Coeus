@@ -30,7 +30,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Mul
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let mut host_grad = [T::zero()];
@@ -38,20 +42,22 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Mul
             let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
                 grad_out
             } else {
-                temp_grad = grad_out.to_contiguous_on(&backend);
+                temp_grad = grad_out.to_contiguous_on(&backend)?;
                 &temp_grad
             };
-            backend.copy_to_host(grad_cont.storage(), &mut host_grad);
+            backend.copy_to_host(grad_cont.storage(), &mut host_grad)?;
             let g_out = host_grad[0];
 
             let mut d_x = vec![T::zero(); self.n * self.c];
             for (i, gv) in d_x.iter_mut().enumerate() {
                 *gv = g_out * self.grad_unit[i];
             }
-            let grad_tensor = Tensor::from_slice_on([self.n, self.c], &d_x, &backend);
+            let grad_tensor = Tensor::from_slice_on([self.n, self.c], &d_x, &backend)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -67,7 +73,7 @@ pub fn multi_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     targets: &[usize],
     p: T,
     margin: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let shape = x.tensor.shape();
     assert_eq!(shape.len(), 2, "multi_margin expects 2D [N, C] input");
@@ -79,14 +85,14 @@ pub fn multi_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let x_raw = if x.tensor.is_contiguous() && x.tensor.layout().offset() == 0 {
         &x.tensor
     } else {
-        cont = x.tensor.to_contiguous_on(&backend);
+        cont = x.tensor.to_contiguous_on(&backend)?;
         &cont
     };
     let host: std::borrow::Cow<[T]> = if let Some(s) = x_raw.storage().try_as_slice() {
         std::borrow::Cow::Borrowed(&s[..n * c])
     } else {
         let mut v = vec![T::zero(); n * c];
-        backend.copy_to_host(x_raw.storage(), &mut v);
+        backend.copy_to_host(x_raw.storage(), &mut v)?;
         std::borrow::Cow::Owned(v)
     };
 
@@ -118,17 +124,16 @@ pub fn multi_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     }
     let loss_val = total * inv_nc;
 
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
+    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend)?;
     let requires_grad = crate::grad_mode::should_track_var(x);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let node = MultiMarginNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs: vec![x.clone()],
             grad_unit,
             n,
@@ -138,9 +143,9 @@ pub fn multi_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

@@ -37,7 +37,8 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
     _output_layout: &Layout,
     attn_weights: &mut B::DeviceBuffer<T>,
     _attn_weights_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let q_shape = query_layout.shape();
@@ -54,8 +55,8 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
     let q_slice = query.as_slice();
     let k_slice = key.as_slice();
     let v_slice = value.as_slice();
-    let aw_slice = attn_weights.as_mut_slice();
-    let out_slice = output.as_mut_slice();
+    let aw_slice = attn_weights.as_mut_slice()?;
+    let out_slice = output.as_mut_slice()?;
 
     let q_ptr = Ptr(q_slice.as_ptr());
     let k_ptr = Ptr(k_slice.as_ptr());
@@ -153,6 +154,7 @@ pub(crate) fn sdp_attention<T: Float, B: Backend>(
             }
         }
     });
+    Ok(())
 }
 
 /// Backward: compute gradients for Q, K, V from the stored attention weights.
@@ -181,7 +183,8 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
     mut grad_q: Option<&mut B::DeviceBuffer<T>>,
     mut grad_k: Option<&mut B::DeviceBuffer<T>>,
     mut grad_v: Option<&mut B::DeviceBuffer<T>>,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let q_shape = query_layout.shape();
@@ -209,13 +212,16 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
 
     let gq_ptr = grad_q
         .as_mut()
-        .map(|gq| MutPtr(gq.as_mut_slice().as_mut_ptr()));
+        .map(|gq| gq.as_mut_slice().map(|slice| MutPtr(slice.as_mut_ptr())))
+        .transpose()?;
     let gk_ptr = grad_k
         .as_mut()
-        .map(|gk| MutPtr(gk.as_mut_slice().as_mut_ptr()));
+        .map(|gk| gk.as_mut_slice().map(|slice| MutPtr(slice.as_mut_ptr())))
+        .transpose()?;
     let gv_ptr = grad_v
         .as_mut()
-        .map(|gv| MutPtr(gv.as_mut_slice().as_mut_ptr()));
+        .map(|gv| gv.as_mut_slice().map(|slice| MutPtr(slice.as_mut_ptr())))
+        .transpose()?;
 
     #[inline(always)]
     fn idx3(b: usize, i: usize, j: usize, dim1: usize, dim2: usize) -> usize {
@@ -326,4 +332,5 @@ pub(crate) fn sdp_attention_backward<T: Float, B: Backend>(
             }
         }
     });
+    Ok(())
 }

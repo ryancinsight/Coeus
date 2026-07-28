@@ -12,10 +12,10 @@ fn log_sigmoid_forward_and_backward() {
     let expected_grad: Vec<f64> = data.iter().map(|&x| 1.0 / (1.0 + x.exp())).collect();
 
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data).expect("construct tensor"),
         true,
-    );
-    let output = log_sigmoid(&input);
+    ).expect("construct variable");
+    let output = log_sigmoid(&input).expect("run operation");
     // Tolerance: stable identity vs coeus's `-softplus(-x)`; agreement is ~1e-15
     // for moderate x, 1e-10 is a safe margin.
     assert_close_slice(
@@ -24,7 +24,7 @@ fn log_sigmoid_forward_and_backward() {
         &expected,
         1e-10,
     );
-    output.backward();
+    output.backward().expect("run backward");
     let grad = input.grad().expect("log_sigmoid requires grad");
     assert_close_slice(
         "log_sigmoid_backward",
@@ -44,17 +44,17 @@ fn tanhshrink_forward_and_backward() {
     let expected_grad: Vec<f64> = data.iter().map(|&x| x.tanh().powi(2)).collect();
 
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data).expect("construct tensor"),
         true,
-    );
-    let output = tanhshrink(&input);
+    ).expect("construct variable");
+    let output = tanhshrink(&input).expect("run operation");
     assert_close_slice(
         "tanhshrink_forward",
         output.tensor.as_slice(),
         &expected,
         1e-12,
     );
-    output.backward();
+    output.backward().expect("run backward");
     let grad = input.grad().expect("tanhshrink requires grad");
     assert_close_slice(
         "tanhshrink_backward",

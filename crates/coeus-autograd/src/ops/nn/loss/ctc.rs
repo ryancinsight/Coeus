@@ -69,10 +69,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Ctc
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let Some(Some(ref g)) = input_grads.get(0) else {
-            return;
+            return Ok(());
         };
 
         let t = self.t_steps;
@@ -85,10 +89,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Ctc
         let g_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
             grad_out
         } else {
-            temp = grad_out.to_contiguous_on(&backend);
+            temp = grad_out.to_contiguous_on(&backend)?;
             &temp
         };
-        backend.copy_to_host(g_cont.storage(), &mut host_grad);
+        backend.copy_to_host(g_cont.storage(), &mut host_grad)?;
         let g_upstream = <T as Scalar>::to_f64(host_grad[0]);
 
         // Compute gradient for log_probs [T, N, C].
@@ -124,7 +128,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Ctc
                         continue;
                     }
                     let ab = a + b - log_p; // log(alpha * beta / P)
-                                            // Accumulate into dx[(ti, ni, k)]
+                    // Accumulate into dx[(ti, ni, k)]
                     let idx = ti * n * c + ni * c + k;
                     dx[idx] = log_sum_exp2_f64(dx[idx].ln(), ab).exp();
                 }
@@ -145,9 +149,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Ctc
         }
 
         let dx_t: Vec<T> = dx.iter().map(|&v| T::from_f64(v)).collect();
-        let grad_tensor = Tensor::from_slice_on([t, n, c], &dx_t, &backend);
+        let grad_tensor = Tensor::from_slice_on([t, n, c], &dx_t, &backend)?;
         let gl = g.write();
-        coeus_ops::add_assign(gl, &grad_tensor, &backend);
+        coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
+
+        Ok(())
     }
 }
 
@@ -306,7 +312,7 @@ pub fn ctc_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input_lengths: &[usize],
     target_lengths: &[usize],
     blank: usize,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
 {
@@ -333,13 +339,13 @@ where
     let lp_raw = if log_probs.tensor.is_contiguous() && log_probs.tensor.layout().offset() == 0 {
         &log_probs.tensor
     } else {
-        lp_cont = log_probs.tensor.to_contiguous_on(&backend);
+        lp_cont = log_probs.tensor.to_contiguous_on(&backend)?;
         &lp_cont
     };
     let total = t_steps * batch * num_classes;
     let lp_host: Vec<f64> = {
         let mut v = vec![T::zero(); total];
-        backend.copy_to_host(lp_raw.storage(), &mut v);
+        backend.copy_to_host(lp_raw.storage(), &mut v)?;
         v.iter().map(|&x| <T as Scalar>::to_f64(x)).collect()
     };
 
@@ -390,14 +396,14 @@ where
 
     let mean_loss = total_loss / batch as f64;
     let loss_val = T::from_f64(mean_loss);
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
+    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(log_probs);
     if !requires_grad {
         return Var::new(out_tensor, false);
     }
 
-    let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)));
+    let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?));
     let grad = Some(output_grad.clone());
 
     let node = CtcLossNode {
@@ -416,9 +422,9 @@ where
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

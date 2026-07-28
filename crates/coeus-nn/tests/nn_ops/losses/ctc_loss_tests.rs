@@ -21,11 +21,11 @@ use coeus_tensor::Tensor;
 type B = SequentialBackend;
 
 fn t3(data: &[f64], shape: [usize; 3]) -> Var<f64, B> {
-    Var::new(Tensor::<f64, B>::from_slice(shape.to_vec(), data), true)
+    Var::new(Tensor::<f64, B>::from_slice(shape.to_vec(), data).expect("construct tensor"), true).expect("construct variable")
 }
 
 fn lp(data: &[f64], shape: [usize; 3]) -> Var<f64, B> {
-    Var::new(Tensor::<f64, B>::from_slice(shape.to_vec(), data), false)
+    Var::new(Tensor::<f64, B>::from_slice(shape.to_vec(), data).expect("construct tensor"), false).expect("construct variable")
 }
 
 fn get_loss_val(v: &Var<f64, B>) -> f64 {
@@ -38,7 +38,7 @@ fn ctc_loss_single_frame_single_label() {
     // log_probs: ln(0.1), ln(0.6), ln(0.3)
     // log P = ln(0.6) → CTC loss = -ln(0.6)
     let x = lp(&[0.1_f64.ln(), 0.6_f64.ln(), 0.3_f64.ln()], [1, 1, 3]);
-    let loss = ctc_loss(&x, &[1usize], &[1], &[1], 0);
+    let loss = ctc_loss(&x, &[1usize], &[1], &[1], 0).expect("run operation");
     let expected = -0.6_f64.ln();
     assert!(
         (get_loss_val(&loss) - expected).abs() < 1e-10,
@@ -67,7 +67,7 @@ fn ctc_loss_two_frames_single_label() {
         0.2_f64.ln(),
     ];
     let x = lp(&data, [2, 1, 3]);
-    let loss = ctc_loss(&x, &[1usize], &[2], &[1], 0);
+    let loss = ctc_loss(&x, &[1usize], &[2], &[1], 0).expect("run operation");
     let expected = -(0.44_f64.ln());
     assert!(
         (get_loss_val(&loss) - expected).abs() < 1e-8,
@@ -91,7 +91,7 @@ fn ctc_loss_batch_two_samples() {
         0.6_f64.ln(), // frame0, sample1
     ];
     let x = lp(&data, [1, 2, 3]);
-    let loss = ctc_loss(&x, &[1usize, 2], &[1, 1], &[1, 1], 0);
+    let loss = ctc_loss(&x, &[1usize, 2], &[1, 1], &[1, 1], 0).expect("run operation");
     let expected = -0.6_f64.ln();
     assert!(
         (get_loss_val(&loss) - expected).abs() < 1e-10,
@@ -105,9 +105,9 @@ fn ctc_loss_batch_two_samples() {
 fn ctc_loss_backward_runs() {
     // Verify gradients propagate through log_softmax -> ctc_loss.
     let logits = t3(&[1.0, 2.0, 0.5, 0.8, 1.5, 0.3], [2, 1, 3]);
-    let log_probs = log_softmax(&logits, 2);
-    let loss = ctc_loss(&log_probs, &[1usize], &[2], &[1], 0);
-    loss.backward();
+    let log_probs = log_softmax(&logits, 2).expect("run operation");
+    let loss = ctc_loss(&log_probs, &[1usize], &[2], &[1], 0).expect("run operation");
+    loss.backward().expect("run backward");
     assert!(
         logits.grad().is_some(),
         "gradient must propagate through ctc_loss"
@@ -123,8 +123,8 @@ fn nn_ctc_loss_matches_autograd() {
     let data = [0.1_f64.ln(), 0.6_f64.ln(), 0.3_f64.ln()];
     let x1 = lp(&data, [1, 1, 3]);
     let x2 = lp(&data, [1, 1, 3]);
-    let l1 = ctc_loss(&x1, &[1usize], &[1], &[1], 0);
-    let l2 = nn_ctc_loss(&x2, &[1usize], &[1], &[1], 0);
+    let l1 = ctc_loss(&x1, &[1usize], &[1], &[1], 0).expect("run operation");
+    let l2 = nn_ctc_loss(&x2, &[1usize], &[1], &[1], 0).expect("run operation");
     let v1 = get_loss_val(&l1);
     let v2 = get_loss_val(&l2);
     assert_eq!(v1, v2, "nn and autograd ctc_loss must match: {v1} != {v2}");

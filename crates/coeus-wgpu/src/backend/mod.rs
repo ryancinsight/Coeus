@@ -114,7 +114,9 @@ impl std::ops::Deref for PooledMetadataBuffer {
     type Target = wgpu::Buffer;
     #[inline]
     fn deref(&self) -> &Self::Target {
-        self.buffer.as_ref().unwrap()
+        self.buffer
+            .as_ref()
+            .expect("invariant: pooled metadata buffer remains owned until drop")
     }
 }
 
@@ -127,28 +129,52 @@ impl Drop for PooledMetadataBuffer {
     }
 }
 
-static WGPU_CONTEXT: OnceLock<WgpuContext> = OnceLock::new();
+enum WgpuContextState {
+    Ready(WgpuContext),
+    Failed(String),
+}
+
+static WGPU_CONTEXT: OnceLock<WgpuContextState> = OnceLock::new();
+
+fn initialize_wgpu_context() -> WgpuContextState {
+    #[cfg(target_os = "windows")]
+    std::env::set_var("WGPU_BACKEND", "dx12");
+
+    let hephaestus_device = match hephaestus_wgpu::WgpuDevice::try_default_with_limits(
+        "coeus-wgpu-device",
+        wgpu::Limits::default(),
+    ) {
+        Ok(device) => device,
+        Err(error) => return WgpuContextState::Failed(error.to_string()),
+    };
+    let device = (**hephaestus_device.device()).clone();
+    let queue = (**hephaestus_device.queue()).clone();
+    WgpuContextState::Ready(WgpuContext {
+        hephaestus_device,
+        device,
+        queue,
+        metadata_pool: std::sync::Mutex::new(Vec::new()),
+    })
+}
+
+/// Retrieve the global context while preserving provider initialization errors.
+pub(crate) fn try_get_wgpu_context() -> Result<&'static WgpuContext, WgpuBackendError> {
+    match WGPU_CONTEXT.get_or_init(initialize_wgpu_context) {
+        WgpuContextState::Ready(context) => Ok(context),
+        WgpuContextState::Failed(message) => Err(WgpuBackendError::Initialization {
+            message: message.clone(),
+        }),
+    }
+}
 
 /// Retrieve a reference to the global lazily-initialized wgpu context.
-pub fn get_wgpu_context() -> &'static WgpuContext {
-    WGPU_CONTEXT.get_or_init(|| {
-        #[cfg(target_os = "windows")]
-        std::env::set_var("WGPU_BACKEND", "dx12");
-
-        let hephaestus_device = hephaestus_wgpu::WgpuDevice::try_default_with_limits(
-            "coeus-wgpu-device",
-            wgpu::Limits::default(),
-        )
-        .expect("Failed to initialize hephaestus-wgpu device");
-        let device = (**hephaestus_device.device()).clone();
-        let queue = (**hephaestus_device.queue()).clone();
-        WgpuContext {
-            hephaestus_device,
-            device,
-            queue,
-            metadata_pool: std::sync::Mutex::new(Vec::new()),
+pub(crate) fn get_wgpu_context() -> &'static WgpuContext {
+    match WGPU_CONTEXT.get_or_init(initialize_wgpu_context) {
+        WgpuContextState::Ready(context) => context,
+        WgpuContextState::Failed(message) => {
+            panic!("invariant: WGPU context was validated before dispatch: {message}")
         }
-    })
+    }
 }
 
 /// WebGPU acceleration backend.
@@ -209,29 +235,37 @@ impl ComputeBackend for WgpuBackend {
     }
 
     #[inline]
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        WgpuStorage::allocate(len)
+    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        WgpuStorage::try_new(len)
     }
 
     #[inline]
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
+    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) -> Result<(), Self::Error> {
         let size = dst.len();
         let data = vec![val; size];
-        self.copy_to_device(&data, dst);
+        self.copy_to_device(&data, dst)
     }
 
     #[inline]
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error> {
         let ctx = get_wgpu_context();
         ctx.hephaestus_device
             .write_buffer(dst.buffer.as_ref(), src)
-            .expect("Failed to copy host tensor into WgpuBuffer");
+            .map_err(|source| WgpuBackendError::dispatch("copy_to_device", source))
     }
 
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error> {
         let ctx = get_wgpu_context();
         ctx.hephaestus_device
             .download(src.buffer.as_ref(), dst)
-            .expect("Failed to copy WgpuBuffer into host tensor");
+            .map_err(|source| WgpuBackendError::dispatch("copy_to_host", source))
     }
 }

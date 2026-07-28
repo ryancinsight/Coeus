@@ -3,7 +3,8 @@
 - Status: accepted
 - Date: 2026-07-27
 - Scope: `coeus-core` backend/storage contracts and the Hephaestus-backed
-  Coeus provider implementations
+  Coeus provider implementations, including tensor and optimizer mutation
+  callers
 
 ## Context
 
@@ -43,6 +44,20 @@ callers. The generic backend remains monomorphized. No `dyn` boundary,
 compatibility wrapper, silent CPU fallback, default buffer, or swallowed
 `Result` is introduced.
 
+CPU operation implementations dispatch directly to Leto through the single
+`CpuBackend` implementation family. WGPU, CUDA, ROCm, and Metal operation
+implementations dispatch through their native Hephaestus/provider seams. A
+backend that lacks a native operation returns a typed capability error; it does
+not copy accelerator storage through host memory to reach Leto. Tensor COW
+mutation and optimizer gradient clipping expose the same typed allocation
+failure rather than reintroducing an infallible panic path.
+
+Infallible storage constructors are removed at the migrated boundaries. CPU
+callers use `CpuStorage::try_new` or `try_from_slice`; Hephaestus and WGPU
+callers use `try_new`. This keeps allocation failure on the same typed path as
+backend allocation and avoids a second constructor family with divergent
+failure semantics.
+
 ## Rejected alternatives
 
 - Retain infallible methods and replace `expect` with a default or empty
@@ -61,4 +76,9 @@ value-semantic error matching. Production panic scans cover every migrated
 provider and caller. The exact delivered revision runs warning-denied package
 checks, sanctioned Nextest tests, doctests, and the WGPU/CUDA/ROCm/Metal
 provider matrix; unavailable hardware is reported as a skipped hardware lane,
-not as a passing device test.
+not as a passing device test. The current Coeus-owned evidence is green for
+Metal (3/3 Nextest tests), WGPU all-target compilation, and WGPU (103/103
+Nextest tests). CUDA and ROCm remain blocked before Coeus compilation by the
+peer-owned Hephaestus branch's unresolved prepared-reduction imports and
+device-reference type mismatches; those errors are not converted into CPU
+fallbacks.

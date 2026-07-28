@@ -23,10 +23,10 @@ pub mod private {
 /// use coeus_core::{ComputeBackend, SequentialBackend};
 ///
 /// let backend = SequentialBackend::new();
-/// let mut buf = backend.allocate::<f32>(3);
-/// backend.fill(&mut buf, 42.0);
+/// let mut buf = backend.allocate::<f32>(3).expect("allocation succeeds");
+/// backend.fill(&mut buf, 42.0).expect("fill succeeds");
 /// let mut host = [0.0_f32; 3];
-/// backend.copy_to_host(&buf, &mut host);
+/// backend.copy_to_host(&buf, &mut host).expect("copy succeeds");
 /// assert_eq!(host, [42.0; 3]);
 /// ```
 pub trait ComputeBackend: private::Sealed + Send + Sync + Clone + 'static {
@@ -34,7 +34,7 @@ pub trait ComputeBackend: private::Sealed + Send + Sync + Clone + 'static {
     type Error: std::error::Error + From<BackendError> + Send + Sync + 'static;
 
     /// Memory handle type representing device-allocated storage.
-    type DeviceBuffer<T: Scalar>: StorageMut<T>;
+    type DeviceBuffer<T: Scalar>: StorageMut<T, Error = Self::Error>;
 
     /// Descriptor / configuration params needed for launching/compiling pipelines on this backend.
     type KernelDescriptor;
@@ -49,16 +49,24 @@ pub trait ComputeBackend: private::Sealed + Send + Sync + Clone + 'static {
     fn num_threads(&self) -> usize;
 
     /// Allocate storage on the device (uninitialized).
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T>;
+    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error>;
 
     /// Fill device buffer with a value.
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T);
+    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) -> Result<(), Self::Error>;
 
     /// Copy data from host (CPU) memory to this device buffer.
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>);
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error>;
 
     /// Copy data from this device buffer to host (CPU) memory.
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]);
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error>;
 }
 
 /// Trait for backend execution engines.

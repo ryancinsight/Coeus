@@ -26,9 +26,9 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let shape = [2usize, 3];
-    let mut weight = Var::new(Tensor::<T, B>::zeros_on(shape, backend), true);
+    let mut weight = Var::new(Tensor::<T, B>::zeros_on(shape, backend).expect("construct tensor"), true).expect("construct variable");
 
-    coeus_nn::init::uniform_with_seed(&mut weight, -2.0, 5.0, 42);
+    coeus_nn::init::uniform_with_seed(&mut weight, -2.0, 5.0, 42).expect("initialize parameters");
     let expected_uniform = coeus_leto::uniform_values(
         &shape,
         <T as coeus_core::Scalar>::from_f64(-2.0),
@@ -42,7 +42,7 @@ where
         "uniform initializer",
     );
 
-    coeus_nn::init::normal_with_seed(&mut weight, 1.0, 2.0, 11);
+    coeus_nn::init::normal_with_seed(&mut weight, 1.0, 2.0, 11).expect("initialize parameters");
     let expected_normal = coeus_leto::normal_values(
         &shape,
         <T as coeus_core::Scalar>::from_f64(1.0),
@@ -73,8 +73,8 @@ where
     let fan_in = 4usize;
     let seed = 37u64;
 
-    let mut weight = Var::new(Tensor::<T, B>::zeros_on(shape, backend), true);
-    coeus_nn::init::kaiming_uniform_with_seed(&mut weight, fan_in, seed);
+    let mut weight = Var::new(Tensor::<T, B>::zeros_on(shape, backend).expect("construct tensor"), true).expect("construct variable");
+    coeus_nn::init::kaiming_uniform_with_seed(&mut weight, fan_in, seed).expect("initialize parameters");
 
     let limit = (6.0f64 / fan_in as f64).sqrt();
     let expected_uniform = coeus_leto::uniform_values(
@@ -90,7 +90,7 @@ where
         "kaiming_uniform",
     );
 
-    coeus_nn::init::kaiming_normal_with_seed(&mut weight, fan_in, seed);
+    coeus_nn::init::kaiming_normal_with_seed(&mut weight, fan_in, seed).expect("initialize parameters");
     let std_dev = (2.0f64 / fan_in as f64).sqrt();
     let expected_normal = coeus_leto::normal_values(
         &shape,
@@ -129,8 +129,8 @@ where
     let fan_out = 4usize;
     let seed = 53u64;
 
-    let mut weight = Var::new(Tensor::<T, B>::zeros_on(shape, backend), true);
-    coeus_nn::init::xavier_uniform_with_seed(&mut weight, fan_in, fan_out, seed);
+    let mut weight = Var::new(Tensor::<T, B>::zeros_on(shape, backend).expect("construct tensor"), true).expect("construct variable");
+    coeus_nn::init::xavier_uniform_with_seed(&mut weight, fan_in, fan_out, seed).expect("initialize parameters");
 
     let limit = (6.0f64 / (fan_in + fan_out) as f64).sqrt();
     let expected_uniform = coeus_leto::uniform_values(
@@ -146,7 +146,7 @@ where
         "xavier_uniform",
     );
 
-    coeus_nn::init::xavier_normal_with_seed(&mut weight, fan_in, fan_out, seed);
+    coeus_nn::init::xavier_normal_with_seed(&mut weight, fan_in, fan_out, seed).expect("initialize parameters");
     let std_dev = (2.0f64 / (fan_in + fan_out) as f64).sqrt();
     let expected_normal = coeus_leto::normal_values(
         &shape,

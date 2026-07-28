@@ -12,16 +12,17 @@ pub fn sgd_step<T: Scalar, B: Backend>(
     velocity_layout: &Layout,
     lr: T,
     momentum: T,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let numel = param_layout.numel();
     assert_eq!(numel, grad_layout.numel());
     assert_eq!(numel, velocity_layout.numel());
 
-    let p_slice = param.as_mut_slice();
+    let p_slice = param.as_mut_slice()?;
     let g_slice = grad.as_slice();
-    let v_slice = velocity.as_mut_slice();
+    let v_slice = velocity.as_mut_slice()?;
 
     let p_off = param_layout.offset();
     let g_off = grad_layout.offset();
@@ -85,6 +86,7 @@ pub fn sgd_step<T: Scalar, B: Backend>(
             }
         });
     }
+    Ok(())
 }
 
 pub fn rmsprop_step<T: Scalar, B: Backend>(
@@ -98,16 +100,17 @@ pub fn rmsprop_step<T: Scalar, B: Backend>(
     lr: T,
     alpha: T,
     eps: T,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let numel = param_layout.numel();
     assert_eq!(numel, grad_layout.numel());
     assert_eq!(numel, v_layout.numel());
 
-    let p_slice = param.as_mut_slice();
+    let p_slice = param.as_mut_slice()?;
     let g_slice = grad.as_slice();
-    let v_slice = v.as_mut_slice();
+    let v_slice = v.as_mut_slice()?;
 
     let p_ptr = MutPtr(p_slice.as_mut_ptr());
     let g_ptr = Ptr(g_slice.as_ptr());
@@ -172,6 +175,7 @@ pub fn rmsprop_step<T: Scalar, B: Backend>(
             }
         });
     }
+    Ok(())
 }
 
 pub fn adagrad_step<T: Scalar, B: Backend>(
@@ -184,16 +188,17 @@ pub fn adagrad_step<T: Scalar, B: Backend>(
     history_layout: &Layout,
     lr: T,
     eps: T,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let numel = param_layout.numel();
     assert_eq!(numel, grad_layout.numel());
     assert_eq!(numel, history_layout.numel());
 
-    let p_slice = param.as_mut_slice();
+    let p_slice = param.as_mut_slice()?;
     let g_slice = grad.as_slice();
-    let h_slice = history.as_mut_slice();
+    let h_slice = history.as_mut_slice()?;
 
     let p_ptr = MutPtr(p_slice.as_mut_ptr());
     let g_ptr = Ptr(g_slice.as_ptr());
@@ -258,4 +263,5 @@ pub fn adagrad_step<T: Scalar, B: Backend>(
             }
         });
     }
+    Ok(())
 }

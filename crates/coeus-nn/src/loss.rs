@@ -12,9 +12,9 @@ use coeus_tensor::Tensor;
 pub fn mse_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
-    let diff = coeus_autograd::sub(pred, target);
-    let sq = coeus_autograd::mul(&diff, &diff);
+) -> Result<Var<T, B>, B::Error> {
+    let diff = coeus_autograd::sub(pred, target)?;
+    let sq = coeus_autograd::mul(&diff, &diff)?;
     coeus_autograd::mean(&sq)
 }
 
@@ -26,7 +26,7 @@ pub fn mse_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     logits: &Var<T, B>,
     targets: &[usize],
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let shape = logits.tensor.shape();
     assert_eq!(
         shape.len(),
@@ -43,7 +43,7 @@ pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let logits_cont = if logits.tensor.is_contiguous() && logits.tensor.layout().offset() == 0 {
         &logits.tensor
     } else {
-        temp_logits = logits.tensor.to_contiguous_on(&backend);
+        temp_logits = logits.tensor.to_contiguous_on(&backend)?;
         &temp_logits
     };
 
@@ -51,7 +51,7 @@ pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         std::borrow::Cow::Borrowed(&slice[..logits_cont.numel()])
     } else {
         let mut l_data = vec![T::zero(); logits_cont.numel()];
-        backend.copy_to_host(logits_cont.storage(), &mut l_data);
+        backend.copy_to_host(logits_cont.storage(), &mut l_data)?;
         std::borrow::Cow::Owned(l_data)
     };
 
@@ -93,7 +93,7 @@ pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     }
 
     loss_val = loss_val / T::from_f64(n as f64);
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
+    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend)?;
 
     coeus_autograd::cross_entropy_loss(logits, targets.to_vec(), out_tensor, probs, n, c)
 }
@@ -106,7 +106,7 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     eps: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::binary_cross_entropy(pred, target, eps)
 }
 
@@ -117,7 +117,7 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     logits: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::bce_with_logits(logits, target)
 }
 
@@ -127,7 +127,7 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     log_probs: &Var<T, B>,
     targets: &[usize],
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::nll_loss(log_probs, targets)
 }
 
@@ -140,7 +140,7 @@ pub fn multi_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     targets: &[usize],
     p: T,
     margin: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::multi_margin(x, targets, p, margin)
 }
 
@@ -151,7 +151,7 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     delta: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::huber_loss(pred, target, delta)
 }
 
@@ -161,7 +161,7 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::l1_loss(pred, target)
 }
 
@@ -173,7 +173,7 @@ pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 pub fn poisson_nll<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::poisson_nll(input, target)
 }
 
@@ -183,7 +183,7 @@ pub fn poisson_nll<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 pub fn soft_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::soft_margin(input, target)
 }
 
@@ -195,7 +195,7 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x2: &Var<T, B>,
     p: T,
     eps: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::pairwise_distance(x1, x2, p, eps)
 }
 
@@ -213,11 +213,13 @@ pub fn triplet_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     margin: T,
     p: T,
     eps: T,
-) -> Var<T, B> {
-    let d_ap = coeus_autograd::pairwise_distance(anchor, positive, p, eps);
-    let d_an = coeus_autograd::pairwise_distance(anchor, negative, p, eps);
-    let shifted = coeus_autograd::scalar_add(&coeus_autograd::sub(&d_ap, &d_an), margin);
-    coeus_autograd::mean(&coeus_autograd::relu(&shifted))
+) -> Result<Var<T, B>, B::Error> {
+    let d_ap = coeus_autograd::pairwise_distance(anchor, positive, p, eps)?;
+    let d_an = coeus_autograd::pairwise_distance(anchor, negative, p, eps)?;
+    let difference = coeus_autograd::sub(&d_ap, &d_an)?;
+    let shifted = coeus_autograd::scalar_add(&difference, margin)?;
+    let clamped = coeus_autograd::relu(&shifted)?;
+    coeus_autograd::mean(&clamped)
 }
 
 /// KL divergence loss.
@@ -228,7 +230,7 @@ pub fn triplet_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::kl_divergence(input, target)
 }
 
@@ -242,7 +244,7 @@ pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input2: &Var<T, B>,
     target: &[T],
     margin: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::margin_ranking_loss(input1, input2, target, margin)
 }
 
@@ -254,7 +256,7 @@ pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x2: &Var<T, B>,
     y: &[T],
     margin: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::cosine_embedding_loss(x1, x2, y, margin)
 }
 
@@ -268,7 +270,7 @@ pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     beta: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::smooth_l1_loss(pred, target, beta)
 }
 
@@ -282,7 +284,7 @@ pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x2: &Var<T, B>,
     dim: usize,
     eps: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::cosine_similarity(x1, x2, dim, eps)
 }
 
@@ -293,7 +295,11 @@ pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 ///
 /// Composed from `where_cond`, `relu`, `neg`, and `scalar_sub` — no dedicated autograd node.
 #[inline]
-pub fn hinge_embedding_loss<T, B>(x: &Var<T, B>, target: &[T], margin: T) -> Var<T, B>
+pub fn hinge_embedding_loss<T, B>(
+    x: &Var<T, B>,
+    target: &[T],
+    margin: T,
+) -> Result<Var<T, B>, B::Error>
 where
     T: Float,
     B: ComputeBackend + Default + coeus_ops::BackendOps<T>,
@@ -311,15 +317,17 @@ where
         .iter()
         .map(|&y| if y > zero { T::one() } else { zero })
         .collect();
-    let mask_tensor = Tensor::from_slice_on(x.tensor.shape(), &mask_data, &backend);
-    let mask_var = Var::new(mask_tensor, false);
+    let mask_tensor = Tensor::from_slice_on(x.tensor.shape(), &mask_data, &backend)?;
+    let mask_var = Var::new(mask_tensor, false)?;
 
     // PyTorch HingeEmbeddingLoss: target = +1 → loss = x (identity, no clamp);
     // target = -1 → loss = max(0, margin - x). `mask` is 1 where target > 0, so
     // `where_cond` selects the identity branch there and the hinge branch (the
     // `-1` case) otherwise.
-    let hinge = coeus_autograd::relu(&coeus_autograd::neg(&coeus_autograd::scalar_sub(x, margin)));
-    let selected = coeus_autograd::where_cond(&mask_var, x, &hinge);
+    let shifted = coeus_autograd::scalar_sub(x, margin)?;
+    let negated = coeus_autograd::neg(&shifted)?;
+    let hinge = coeus_autograd::relu(&negated)?;
+    let selected = coeus_autograd::where_cond(&mask_var, x, &hinge)?;
     coeus_autograd::mean(&selected)
 }
 
@@ -333,7 +341,7 @@ where
 pub fn multi_label_soft_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::bce_with_logits(x, target)
 }
 
@@ -349,16 +357,18 @@ pub fn triplet_margin_with_distance_loss<T, B, F>(
     negative: &Var<T, B>,
     distance: F,
     margin: T,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     T: Float,
     B: coeus_ops::BackendOps<T> + Default,
-    F: Fn(&Var<T, B>, &Var<T, B>) -> Var<T, B>,
+    F: Fn(&Var<T, B>, &Var<T, B>) -> Result<Var<T, B>, B::Error>,
 {
-    let d_ap = distance(anchor, positive);
-    let d_an = distance(anchor, negative);
-    let shifted = coeus_autograd::scalar_add(&coeus_autograd::sub(&d_ap, &d_an), margin);
-    coeus_autograd::mean(&coeus_autograd::relu(&shifted))
+    let d_ap = distance(anchor, positive)?;
+    let d_an = distance(anchor, negative)?;
+    let difference = coeus_autograd::sub(&d_ap, &d_an)?;
+    let shifted = coeus_autograd::scalar_add(&difference, margin)?;
+    let clamped = coeus_autograd::relu(&shifted)?;
+    coeus_autograd::mean(&clamped)
 }
 
 /// Multi-label margin loss (PyTorch `MultiLabelMarginLoss` with `reduction="mean"`).
@@ -370,7 +380,7 @@ where
 pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     target: &[isize],
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::multi_label_margin_loss(x, target)
 }
 
@@ -387,21 +397,19 @@ pub fn gaussian_nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     target: &Var<T, B>,
     var: &Var<T, B>,
     full: bool,
-) -> Var<T, B> {
-    let diff = coeus_autograd::sub(input, target);
-    let diff_sq = coeus_autograd::mul(&diff, &diff);
-    let var_term = coeus_autograd::div(&diff_sq, var);
-    let log_var = coeus_autograd::log(var);
-    let loss =
-        coeus_autograd::scalar_mul(&coeus_autograd::add(&var_term, &log_var), T::from_f64(0.5));
+) -> Result<Var<T, B>, B::Error> {
+    let diff = coeus_autograd::sub(input, target)?;
+    let diff_sq = coeus_autograd::mul(&diff, &diff)?;
+    let var_term = coeus_autograd::div(&diff_sq, var)?;
+    let log_var = coeus_autograd::log(var)?;
+    let combined = coeus_autograd::add(&var_term, &log_var)?;
+    let loss = coeus_autograd::scalar_mul(&combined, T::from_f64(0.5))?;
+    let mean = coeus_autograd::mean(&loss)?;
     if full {
         let two_pi = T::from_f64(2.0 * std::f64::consts::PI);
-        coeus_autograd::scalar_add(
-            &coeus_autograd::mean(&loss),
-            T::from_f64(0.5) * two_pi.log_op(),
-        )
+        coeus_autograd::scalar_add(&mean, T::from_f64(0.5) * two_pi.log_op())
     } else {
-        coeus_autograd::mean(&loss)
+        Ok(mean)
     }
 }
 
@@ -426,7 +434,7 @@ pub fn ctc_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input_lengths: &[usize],
     target_lengths: &[usize],
     blank: usize,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
 {
@@ -438,7 +446,7 @@ where
 /// Returns a scalar `Var` (shape `[1]`).
 pub fn nansum<T: coeus_core::Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &coeus_autograd::Var<T, B>,
-) -> coeus_autograd::Var<T, B>
+) -> Result<coeus_autograd::Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -451,7 +459,7 @@ where
 /// Returns a scalar `Var` (shape `[1]`).
 pub fn nanmean<T: coeus_core::Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &coeus_autograd::Var<T, B>,
-) -> coeus_autograd::Var<T, B>
+) -> Result<coeus_autograd::Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,

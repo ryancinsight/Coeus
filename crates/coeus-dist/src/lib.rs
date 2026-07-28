@@ -49,11 +49,14 @@ use coeus_tensor::Tensor;
 ///     handles.push(thread::spawn(move || {
 ///         let backend = SequentialBackend::new();
 ///         let rank = comm.rank() as f32;
-///         let x = Var::new(Tensor::zeros_on([2], &backend), true);
-///         x.set_grad(Tensor::from_slice_on([2], &[rank + 1.0, rank + 10.0], &backend));
+///         let x = Var::new(
+///             Tensor::zeros_on([2], &backend).expect("construct tensor"),
+///             true,
+///         ).expect("construct variable");
+///         x.set_grad(Tensor::from_slice_on([2], &[rank + 1.0, rank + 10.0], &backend).expect("construct gradient"));
 ///
 ///         let mut params = vec![x];
-///         synchronize_gradients(&mut params, &comm);
+///         synchronize_gradients(&mut params, &comm).expect("gradient synchronization succeeds");
 ///
 ///         let synced_grad = params[0].grad().unwrap();
 ///         let data = synced_grad.as_slice();
@@ -73,24 +76,25 @@ pub fn synchronize_gradients<
 >(
     params: &mut [Var<T, B>],
     comm: &C,
-) {
+) -> Result<(), B::Error> {
     let size = comm.size();
     if size <= 1 {
-        return;
+        return Ok(());
     }
     let backend = B::default();
     let scale_val = T::from_f64(1.0 / size as f64);
-    let scale_tensor = Tensor::full_on([1], scale_val, &backend);
+    let scale_tensor = Tensor::full_on([1], scale_val, &backend)?;
 
     for param in params {
         if let Some(ref g) = param.grad {
             let grad_tensor = g.write();
 
             // All-reduce (sum) across processes
-            comm.all_reduce::<T, B, Sum>(grad_tensor, &backend);
+            comm.all_reduce::<T, B, Sum>(grad_tensor, &backend)?;
 
             // Scale by 1 / world_size
-            coeus_ops::mul_assign(grad_tensor, &scale_tensor, &backend);
+            coeus_ops::mul_assign(grad_tensor, &scale_tensor, &backend)?;
         }
     }
+    Ok(())
 }

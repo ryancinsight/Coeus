@@ -1,12 +1,12 @@
 #![allow(clippy::too_many_arguments)]
 
-use super::validation::{
-    checked_pool_parameters, pool_layouts_are_valid, pool_prefix_matches, pool_shapes_match,
-    POOL_BLOCK_SIZE,
-};
 use super::POOL_COMMON_SRC;
+use super::validation::{
+    POOL_BLOCK_SIZE, checked_pool_parameters, pool_layouts_are_valid, pool_prefix_matches,
+    pool_shapes_match,
+};
 use crate::backend::CudaScalar;
-use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
+use crate::driver::{CUdeviceptr, CudaDriver, get_cuda_context};
 use crate::kernels::fuse::get_or_create_kernel;
 use crate::kernels::validation::{checked_numel, cuda_u32, launch_grid_size};
 use crate::storage::CudaStorage;
@@ -166,8 +166,14 @@ fn launch<T: CudaScalar>(
     let Some(_context) = get_cuda_context() else {
         return false;
     };
-    let Some([kernel_size_value, stride_value, padding_value, dilation_value]) =
-        checked_pool_parameters(kernel_size, stride, padding, dilation)
+    let Some(
+        [
+            kernel_size_value,
+            stride_value,
+            padding_value,
+            dilation_value,
+        ],
+    ) = checked_pool_parameters(kernel_size, stride, padding, dilation)
     else {
         return false;
     };

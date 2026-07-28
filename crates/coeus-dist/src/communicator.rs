@@ -25,8 +25,8 @@ use coeus_tensor::Tensor;
 ///         let rank = comm.rank() as f32;
 ///         // rank 0 -> [1.0, 2.0], rank 1 -> [2.0, 3.0]
 ///         let mut tensor =
-///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend);
-///         comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
+///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend).expect("construct tensor");
+///         comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend).expect("all-reduce succeeds");
 ///         // sum across ranks: [1+2, 2+3] = [3, 5]
 ///         let data = tensor.as_slice();
 ///         assert_eq!(data[0], 3.0);
@@ -52,7 +52,7 @@ pub trait Communicator: Send + Sync + 'static {
         &self,
         tensor: &mut Tensor<T, B>,
         backend: &B,
-    );
+    ) -> Result<(), B::Error>;
 
     /// Broadcast a tensor from the root process rank to all other processes in-place.
     fn broadcast<T: Scalar, B: ComputeBackend>(
@@ -60,7 +60,7 @@ pub trait Communicator: Send + Sync + 'static {
         tensor: &mut Tensor<T, B>,
         root: usize,
         backend: &B,
-    );
+    ) -> Result<(), B::Error>;
 
     /// Gather tensors from all processes into a slice of tensors.
     ///
@@ -70,7 +70,7 @@ pub trait Communicator: Send + Sync + 'static {
         tensor: &Tensor<T, B>,
         output: &mut [Tensor<T, B>],
         backend: &B,
-    );
+    ) -> Result<(), B::Error>;
 
     /// Reduce a tensor from all processes to a single root process.
     fn reduce<T: Scalar, B: ComputeBackend, Op: ReduceOpTag>(
@@ -78,7 +78,7 @@ pub trait Communicator: Send + Sync + 'static {
         tensor: &mut Tensor<T, B>,
         root: usize,
         backend: &B,
-    );
+    ) -> Result<(), B::Error>;
 
     /// Gather tensors from all processes into a single slice on the root process.
     fn gather<T: Scalar, B: ComputeBackend>(
@@ -87,7 +87,7 @@ pub trait Communicator: Send + Sync + 'static {
         output: &mut [Tensor<T, B>],
         root: usize,
         backend: &B,
-    );
+    ) -> Result<(), B::Error>;
 
     /// Scatter a slice of tensors from the root process to all processes in-place.
     fn scatter<T: Scalar, B: ComputeBackend>(
@@ -96,5 +96,5 @@ pub trait Communicator: Send + Sync + 'static {
         input: &[Tensor<T, B>],
         root: usize,
         backend: &B,
-    );
+    ) -> Result<(), B::Error>;
 }

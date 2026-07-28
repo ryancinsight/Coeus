@@ -109,11 +109,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for EluGrad {
     const WGSL_TEMPLATE: &'static str = "select(exp({}), 1.0, {} >= 0.0)";
     #[inline(always)]
     fn apply(x: T) -> T {
-        if x >= T::zero() {
-            T::one()
-        } else {
-            x.exp_op()
-        }
+        if x >= T::zero() { T::one() } else { x.exp_op() }
     }
 }
 
@@ -160,8 +156,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for GeluTanh {
 /// Tanh-approximation GELU gradient operation tag.
 pub struct GeluTanhGrad;
 impl<T: Scalar + FloatOps> UnaryOpTag<T> for GeluTanhGrad {
-    const WGSL_TEMPLATE: &'static str =
-        "0.5 * (1.0 + tanh(0.7978845608 * ({} + 0.044715 * {} * {} * {}))) + \
+    const WGSL_TEMPLATE: &'static str = "0.5 * (1.0 + tanh(0.7978845608 * ({} + 0.044715 * {} * {} * {}))) + \
          0.5 * {} * (1.0 - tanh(0.7978845608 * ({} + 0.044715 * {} * {} * {})) * \
          tanh(0.7978845608 * ({} + 0.044715 * {} * {} * {}))) * \
          0.7978845608 * (1.0 + 0.134145 * {} * {})";

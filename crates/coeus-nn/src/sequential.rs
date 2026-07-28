@@ -74,8 +74,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sequenti
             .collect()
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        self.layers.iter().fold(input.clone(), |x, m| m.forward(&x))
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
+        self.layers
+            .iter()
+            .try_fold(input.clone(), |x, m| m.forward(&x))
     }
 
     fn train(&mut self, mode: bool) {
@@ -131,8 +133,11 @@ impl<
     }
 
     #[inline]
-    fn forward(&self, input: &Var<ScalarType, B>) -> Var<ScalarType, B> {
-        let out = self.0.forward(input);
+    fn forward(
+        &self,
+        input: &Var<ScalarType, B>,
+    ) -> Result<Var<ScalarType, B>, B::Error> {
+        let out = self.0.forward(input)?;
         self.1.forward(&out)
     }
 

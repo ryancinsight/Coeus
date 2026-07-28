@@ -16,7 +16,7 @@
 // The non-contiguous slow-path falls back to `get/set`.
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{Backend, BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Float};
 use coeus_tensor::Tensor;
 
 // ── Region helpers ────────────────────────────────────────────────────────────
@@ -46,17 +46,22 @@ pub fn adaptive_avg_pool1d<T: Float, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     output_size: usize,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    assert_eq!(input.ndim(), 3, "adaptive_avg_pool1d expects [N, C, L]");
+    if input.ndim() != 3 || output_size == 0 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "adaptive_avg_pool1d",
+            reason: "expected rank-3 input and non-zero output size".to_owned(),
+        }));
+    }
     let n = input.shape()[0];
     let c = input.shape()[1];
     let l = input.shape()[2];
 
     // alloc_on: every [ni, ci, oi] is written via set — no zero-init needed.
-    let mut out = Tensor::alloc_on([n, c, output_size], backend);
+    let mut out = Tensor::alloc_on([n, c, output_size], backend)?;
 
     for ni in 0..n {
         for ci in 0..c {
@@ -68,12 +73,12 @@ where
                 for li in start..end {
                     acc += input.get(&[ni, ci, li]);
                 }
-                out.set(&[ni, ci, oi], acc / count);
+                out.set(&[ni, ci, oi], acc / count)?;
             }
         }
     }
 
-    out
+    Ok(out)
 }
 
 // ── Adaptive Max Pool 1D ──────────────────────────────────────────────────────
@@ -89,17 +94,22 @@ pub fn adaptive_max_pool1d<T: Float, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     output_size: usize,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    assert_eq!(input.ndim(), 3, "adaptive_max_pool1d expects [N, C, L]");
+    if input.ndim() != 3 || output_size == 0 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "adaptive_max_pool1d",
+            reason: "expected rank-3 input and non-zero output size".to_owned(),
+        }));
+    }
     let n = input.shape()[0];
     let c = input.shape()[1];
     let l = input.shape()[2];
 
     // alloc_on: every [ni, ci, oi] is written via set — no zero-init needed.
-    let mut out = Tensor::alloc_on([n, c, output_size], backend);
+    let mut out = Tensor::alloc_on([n, c, output_size], backend)?;
 
     for ni in 0..n {
         for ci in 0..c {
@@ -111,12 +121,12 @@ where
                     let v = input.get(&[ni, ci, li]);
                     max_val = Some(max_val.map_or(v, |m| if v > m { v } else { m }));
                 }
-                out.set(&[ni, ci, oi], max_val.unwrap_or(T::zero()));
+                out.set(&[ni, ci, oi], max_val.unwrap_or(T::zero()))?;
             }
         }
     }
 
-    out
+    Ok(out)
 }
 
 // ── Adaptive Avg Pool 2D ──────────────────────────────────────────────────────
@@ -134,11 +144,16 @@ pub fn adaptive_avg_pool2d<T: Float, B: BackendOps<T> + Default + Backend>(
     out_h: usize,
     out_w: usize,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    assert_eq!(input.ndim(), 4, "adaptive_avg_pool2d expects [N, C, H, W]");
+    if input.ndim() != 4 || out_h == 0 || out_w == 0 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "adaptive_avg_pool2d",
+            reason: "expected rank-4 input and non-zero output sizes".to_owned(),
+        }));
+    }
     let n = input.shape()[0];
     let c = input.shape()[1];
     let h = input.shape()[2];
@@ -149,14 +164,14 @@ where
     let inp = if input.is_contiguous() && input.layout().offset() == 0 {
         input
     } else {
-        inp_cont = input.to_contiguous_on(backend);
+        inp_cont = input.to_contiguous_on(backend)?;
         &inp_cont
     };
 
     use crate::ptr::{MutPtr, Ptr};
-    let mut out = Tensor::alloc_on([n, c, out_h, out_w], backend);
+    let mut out = Tensor::alloc_on([n, c, out_h, out_w], backend)?;
     let inp_ptr = Ptr(inp.storage().as_slice().as_ptr());
-    let out_ptr = MutPtr(out.storage_mut().as_mut_slice().as_mut_ptr());
+    let out_ptr = MutPtr(out.storage_mut()?.as_mut_slice()?.as_mut_ptr());
 
     let nc = n * c;
     backend.parallel_for(0, nc, move |idx| {
@@ -182,7 +197,7 @@ where
         }
     });
 
-    out
+    Ok(out)
 }
 
 // ── Adaptive Max Pool 2D ──────────────────────────────────────────────────────
@@ -200,11 +215,16 @@ pub fn adaptive_max_pool2d<T: Float, B: BackendOps<T> + Default + Backend>(
     out_h: usize,
     out_w: usize,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    assert_eq!(input.ndim(), 4, "adaptive_max_pool2d expects [N, C, H, W]");
+    if input.ndim() != 4 || out_h == 0 || out_w == 0 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "adaptive_max_pool2d",
+            reason: "expected rank-4 input and non-zero output sizes".to_owned(),
+        }));
+    }
     let n = input.shape()[0];
     let c = input.shape()[1];
     let h = input.shape()[2];
@@ -214,15 +234,15 @@ where
     let inp = if input.is_contiguous() && input.layout().offset() == 0 {
         input
     } else {
-        inp_cont = input.to_contiguous_on(backend);
+        inp_cont = input.to_contiguous_on(backend)?;
         &inp_cont
     };
 
     use crate::ptr::{MutPtr, Ptr};
     // alloc_on: parallel_for writes every out position — no zero-init needed.
-    let mut out = Tensor::alloc_on([n, c, out_h, out_w], backend);
+    let mut out = Tensor::alloc_on([n, c, out_h, out_w], backend)?;
     let inp_ptr = Ptr(inp.storage().as_slice().as_ptr());
-    let out_ptr = MutPtr(out.storage_mut().as_mut_slice().as_mut_ptr());
+    let out_ptr = MutPtr(out.storage_mut()?.as_mut_slice()?.as_mut_ptr());
 
     let nc = n * c;
     backend.parallel_for(0, nc, move |idx| {
@@ -248,5 +268,5 @@ where
         }
     });
 
-    out
+    Ok(out)
 }

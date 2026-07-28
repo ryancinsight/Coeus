@@ -106,6 +106,12 @@ pub enum InterpolationError {
     /// A shape product overflowed `usize`.
     #[error("linear interpolation element count overflow")]
     SizeOverflow,
+    /// The selected backend rejected materialization or output allocation.
+    #[error("linear interpolation backend failure: {reason}")]
+    Backend {
+        /// Backend-provided failure text.
+        reason: String,
+    },
     /// The upstream gradient shape does not match the interpolation output.
     #[error("linear interpolation gradient shape mismatch: expected {expected:?}, got {actual:?}")]
     GradientShape {
@@ -221,8 +227,16 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     let contract = validate::<D>(image.shape(), grid.shape())?;
-    let image = image.to_contiguous();
-    let grid = grid.to_contiguous();
+    let image = image
+        .to_contiguous()
+        .map_err(|error| InterpolationError::Backend {
+            reason: error.to_string(),
+        })?;
+    let grid = grid
+        .to_contiguous()
+        .map_err(|error| InterpolationError::Backend {
+            reason: error.to_string(),
+        })?;
     let image_values = image.as_slice();
     let grid_values = grid.as_slice();
     let output_len = checked_product(&contract.output_shape)?;
@@ -265,11 +279,11 @@ where
         }
     }
 
-    Ok(Tensor::from_slice_on(
-        contract.output_shape,
-        &output,
-        &B::default(),
-    ))
+    Tensor::from_slice_on(contract.output_shape, &output, &B::default()).map_err(|error| {
+        InterpolationError::Backend {
+            reason: error.to_string(),
+        }
+    })
 }
 
 /// Backpropagate through [`linear_interpolation`].
@@ -303,9 +317,21 @@ where
             actual: grad_output.shape().to_vec(),
         });
     }
-    let image = image.to_contiguous();
-    let grid = grid.to_contiguous();
-    let grad_output = grad_output.to_contiguous();
+    let image = image
+        .to_contiguous()
+        .map_err(|error| InterpolationError::Backend {
+            reason: error.to_string(),
+        })?;
+    let grid = grid
+        .to_contiguous()
+        .map_err(|error| InterpolationError::Backend {
+            reason: error.to_string(),
+        })?;
+    let grad_output = grad_output
+        .to_contiguous()
+        .map_err(|error| InterpolationError::Backend {
+            reason: error.to_string(),
+        })?;
     let image_values = image.as_slice();
     let grid_values = grid.as_slice();
     let upstream = grad_output.as_slice();
@@ -376,7 +402,15 @@ where
         .chain(contract.output_spatial)
         .collect::<Vec<_>>();
     Ok(InterpolationGradients {
-        image: Tensor::from_slice_on(image_shape, &image_gradient, &backend),
-        grid: Tensor::from_slice_on(grid_shape, &grid_gradient, &backend),
+        image: Tensor::from_slice_on(image_shape, &image_gradient, &backend).map_err(|error| {
+            InterpolationError::Backend {
+                reason: error.to_string(),
+            }
+        })?,
+        grid: Tensor::from_slice_on(grid_shape, &grid_gradient, &backend).map_err(|error| {
+            InterpolationError::Backend {
+                reason: error.to_string(),
+            }
+        })?,
     })
 }

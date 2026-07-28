@@ -23,7 +23,7 @@ where
     B: coeus_core::ComputeBackend,
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Tensor::from_slice_on(shape.to_vec(), vals, backend)
+    Tensor::from_slice_on(shape.to_vec(), vals, backend).expect("construct tensor")
 }
 
 // GATHER
@@ -42,7 +42,7 @@ where
     // -> [[1,3],[5,4]]
     let inp = t(&[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], backend);
     let idx = t(&[2, 2], &[0.0, 2.0, 1.0, 0.0], backend);
-    let out = coeus_ops::gather(&inp, 1, &idx, backend);
+    let out = coeus_ops::gather(&inp, 1, &idx, backend).expect("run operation");
     assert_eq!(out.shape(), &[2, 2], "gather shape");
     assert_eq!(out.as_slice(), &[1.0_f64, 3.0, 5.0, 4.0], "gather dim=1");
 
@@ -50,7 +50,7 @@ where
     // index [[0,1,0]] shape [1,3]
     // out[0,j]=input[index[0,j],j]: out=[input[0,0],input[1,1],input[0,2]]=[1,5,3]
     let idx0 = t(&[1, 3], &[0.0, 1.0, 0.0], backend);
-    let out0 = coeus_ops::gather(&inp, 0, &idx0, backend);
+    let out0 = coeus_ops::gather(&inp, 0, &idx0, backend).expect("run operation");
     assert_eq!(out0.shape(), &[1, 3], "gather dim=0 shape");
     assert_eq!(out0.as_slice(), &[1.0_f64, 5.0, 3.0], "gather dim=0");
 }
@@ -66,7 +66,7 @@ where
     // selects columns 2 and 0: [[3,1],[6,4]], shape [2,2]
     let inp = t(&[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], backend);
     let idx = t(&[2], &[2.0, 0.0], backend);
-    let out = coeus_ops::index_select(&inp, 1, &idx, backend);
+    let out = coeus_ops::index_select(&inp, 1, &idx, backend).expect("run operation");
     assert_eq!(out.shape(), &[2, 2], "index_select dim=1 shape");
     assert_eq!(
         out.as_slice(),
@@ -76,13 +76,13 @@ where
 
     // dim=0, index=[1] selects row 1: [[4,5,6]], shape [1,3]
     let idx0 = t(&[1], &[1.0], backend);
-    let out0 = coeus_ops::index_select(&inp, 0, &idx0, backend);
+    let out0 = coeus_ops::index_select(&inp, 0, &idx0, backend).expect("run operation");
     assert_eq!(out0.shape(), &[1, 3], "index_select dim=0 shape");
     assert_eq!(out0.as_slice(), &[4.0_f64, 5.0, 6.0], "index_select dim=0");
 
     // Repeated index: [0, 0] duplicates row 0 twice.
     let idx_rep = t(&[2], &[0.0, 0.0], backend);
-    let out_rep = coeus_ops::index_select(&inp, 0, &idx_rep, backend);
+    let out_rep = coeus_ops::index_select(&inp, 0, &idx_rep, backend).expect("run operation");
     assert_eq!(out_rep.shape(), &[2, 3], "index_select repeat shape");
     assert_eq!(
         out_rep.as_slice(),
@@ -103,7 +103,7 @@ where
     let inp = t(&[3, 2], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], backend);
     let indices = t(&[1], &[1.0], backend);
     let values = t(&[1, 2], &[10.0, 20.0], backend);
-    let out = coeus_ops::index_put(&inp, &indices, &values, false, backend);
+    let out = coeus_ops::index_put(&inp, &indices, &values, false, backend).expect("run operation");
     assert_eq!(out.shape(), &[3, 2], "index_put shape");
     assert_eq!(
         out.as_slice(),
@@ -116,7 +116,7 @@ where
     let inp2 = t(&[2, 2], &[1.0, 2.0, 3.0, 4.0], backend);
     let idx2 = t(&[1], &[0.0], backend);
     let vals2 = t(&[1, 2], &[1.0, 1.0], backend);
-    let out2 = coeus_ops::index_put(&inp2, &idx2, &vals2, true, backend);
+    let out2 = coeus_ops::index_put(&inp2, &idx2, &vals2, true, backend).expect("run operation");
     assert_eq!(
         out2.as_slice(),
         &[2.0_f64, 3.0, 3.0, 4.0],
@@ -139,7 +139,7 @@ where
     let inp = t(&[2, 3], &[0.0; 6], backend);
     let idx = t(&[2, 2], &[0.0, 2.0, 1.0, 0.0], backend);
     let src = t(&[2, 2], &[1.0, 2.0, 3.0, 4.0], backend);
-    let out = coeus_ops::scatter_add(&inp, 1, &idx, &src, backend);
+    let out = coeus_ops::scatter_add(&inp, 1, &idx, &src, backend).expect("run operation");
     assert_eq!(out.shape(), &[2, 3], "scatter_add shape");
     assert_eq!(
         out.as_slice(),
@@ -152,7 +152,7 @@ where
     // out[0,0]=10+1=11, out[0,2]=0+2=2, out[1,1]=10+3=13, out[1,0]=0+4=4
     // -> [[11,0,2],[4,13,0]]
     let inp2 = t(&[2, 3], &[10.0, 0.0, 0.0, 0.0, 10.0, 0.0], backend);
-    let out2 = coeus_ops::scatter_add(&inp2, 1, &idx, &src, backend);
+    let out2 = coeus_ops::scatter_add(&inp2, 1, &idx, &src, backend).expect("run operation");
     assert_eq!(
         out2.as_slice(),
         &[11.0_f64, 0.0, 2.0, 4.0, 13.0, 0.0],
@@ -170,20 +170,20 @@ where
     // 1-D: [10,20,30,40,50], mask=[1,0,1,0,1] -> [10,30,50]
     let inp = t(&[5], &[10.0, 20.0, 30.0, 40.0, 50.0], backend);
     let mask = t(&[5], &[1.0, 0.0, 1.0, 0.0, 1.0], backend);
-    let out = coeus_ops::masked_select(&inp, &mask, backend);
+    let out = coeus_ops::masked_select(&inp, &mask, backend).expect("run operation");
     assert_eq!(out.shape(), &[3], "masked_select 1-D shape");
     assert_eq!(out.as_slice(), &[10.0_f64, 30.0, 50.0], "masked_select 1-D");
 
     // 2-D: [[1,2],[3,4]], mask=[[1,0],[0,1]] -> [1,4]
     let inp2 = t(&[2, 2], &[1.0, 2.0, 3.0, 4.0], backend);
     let mask2 = t(&[2, 2], &[1.0, 0.0, 0.0, 1.0], backend);
-    let out2 = coeus_ops::masked_select(&inp2, &mask2, backend);
+    let out2 = coeus_ops::masked_select(&inp2, &mask2, backend).expect("run operation");
     assert_eq!(out2.shape(), &[2], "masked_select 2-D shape");
     assert_eq!(out2.as_slice(), &[1.0_f64, 4.0], "masked_select 2-D");
 
     // All-false mask -> empty result.
     let all_false = t(&[5], &[0.0; 5], backend);
-    let out3 = coeus_ops::masked_select(&inp, &all_false, backend);
+    let out3 = coeus_ops::masked_select(&inp, &all_false, backend).expect("run operation");
     assert!(out3.as_slice().is_empty(), "masked_select all-false");
 }
 

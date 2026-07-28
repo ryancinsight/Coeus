@@ -40,14 +40,18 @@ where
     TransformerDecoder<T, B, H, NUM_DEC, DecSelfM, DecCrossM>: Clone,
 {
     /// Construct a new Seq2Seq Transformer model.
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self
+    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Result<Self, B::Error>
     where
         T: coeus_leto::RandomScalar,
     {
-        Self {
-            encoder: TransformerEncoder::new(d_model, d_ff, dropout_p),
-            decoder: TransformerDecoder::new(d_model, d_ff, dropout_p),
-        }
+        Ok(Self {
+            encoder: TransformerEncoder::<T, B, H, NUM_ENC, EncM>::new(d_model, d_ff, dropout_p)?,
+            decoder: TransformerDecoder::<T, B, H, NUM_DEC, DecSelfM, DecCrossM>::new(
+                d_model,
+                d_ff,
+                dropout_p,
+            )?,
+        })
     }
 
     /// Complete Seq2Seq forward pass.
@@ -56,8 +60,12 @@ where
     /// - `tgt`: target sequence `[batch, seq_tgt, d_model]`
     ///
     /// Returns decoded output `[batch, seq_tgt, d_model]`.
-    pub fn forward_seq2seq(&self, src: &Var<T, B>, tgt: &Var<T, B>) -> Var<T, B> {
-        let memory = self.encoder.forward_with_mask(src, None);
+    pub fn forward_seq2seq(
+        &self,
+        src: &Var<T, B>,
+        tgt: &Var<T, B>,
+    ) -> Result<Var<T, B>, B::Error> {
+        let memory = self.encoder.forward_with_mask(src, None)?;
         self.decoder.forward_decoder(tgt, &memory)
     }
 
@@ -70,8 +78,8 @@ where
         src: &Var<T, B>,
         tgt: &Var<T, B>,
         src_key_padding_mask: Option<&Var<T, B>>,
-    ) -> Var<T, B> {
-        let memory = self.encoder.forward_with_mask(src, src_key_padding_mask);
+    ) -> Result<Var<T, B>, B::Error> {
+        let memory = self.encoder.forward_with_mask(src, src_key_padding_mask)?;
         self.decoder.forward_decoder(tgt, &memory)
     }
 }
@@ -100,7 +108,7 @@ impl<
     }
 
     /// Fallback forward routing to `forward_seq2seq(input, input)`.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         self.forward_seq2seq(input, input)
     }
 

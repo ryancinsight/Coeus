@@ -17,7 +17,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_conv1d(
             input,
             input_layout,
@@ -29,7 +29,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             dilation,
             output,
             output_layout,
-        );
+        )
     }
 
     #[inline]
@@ -49,7 +49,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_conv1d_backward(
             grad_out,
             grad_out_layout,
@@ -65,7 +65,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             stride,
             padding,
             dilation,
-        );
+        )
     }
 
     #[inline]
@@ -81,7 +81,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_conv2d(
             input,
             input_layout,
@@ -93,7 +93,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             dilation,
             output,
             output_layout,
-        );
+        )
     }
 
     #[inline]
@@ -113,7 +113,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_conv2d_backward(
             grad_out,
             grad_out_layout,
@@ -129,7 +129,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             stride,
             padding,
             dilation,
-        );
+        )
     }
 
     fn conv3d(
@@ -144,7 +144,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_conv3d(
             input,
             input_layout,
@@ -175,7 +175,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_conv3d_backward(
             grad_out,
             grad_out_layout,
@@ -191,7 +191,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             stride,
             padding,
             dilation,
-        );
+        )
     }
 
     fn conv_transpose1d(
@@ -207,7 +207,8 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         self.cuda_conv_transpose1d(
@@ -238,7 +239,8 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         self.cuda_conv_transpose2d(

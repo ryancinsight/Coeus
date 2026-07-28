@@ -27,8 +27,8 @@ pub trait ReduceOpTag: 'static + Copy + Clone + Send + Sync {
 ///         let backend = SequentialBackend::new();
 ///         let rank = comm.rank() as f32;
 ///         let mut tensor =
-///             Tensor::from_slice_on([1], &[rank + 1.0], &backend);
-///         comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
+///             Tensor::from_slice_on([1], &[rank + 1.0], &backend).expect("construct tensor");
+///         comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend).expect("all-reduce succeeds");
 ///         // 1 + 2 = 3
 ///         assert_eq!(tensor.as_slice()[0], 3.0);
 ///     }));
@@ -64,8 +64,8 @@ impl ReduceOpTag for Sum {
 ///         let rank = comm.rank() as f32;
 ///         // rank r contributes [r+1, r+2] -> [1,2], [2,3], [3,4]
 ///         let mut tensor =
-///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend);
-///         comm.all_reduce::<f32, _, Max>(&mut tensor, &backend);
+///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend).expect("construct tensor");
+///         comm.all_reduce::<f32, _, Max>(&mut tensor, &backend).expect("all-reduce succeeds");
 ///         // max across 3 ranks: [3, 4]
 ///         assert_eq!(tensor.as_slice(), &[3.0, 4.0]);
 ///     }));
@@ -105,8 +105,8 @@ impl ReduceOpTag for Max {
 ///         let rank = comm.rank() as f32;
 ///         // rank r contributes [r+1, r+2] -> [1,2], [2,3], [3,4]
 ///         let mut tensor =
-///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend);
-///         comm.all_reduce::<f32, _, Min>(&mut tensor, &backend);
+///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend).expect("construct tensor");
+///         comm.all_reduce::<f32, _, Min>(&mut tensor, &backend).expect("all-reduce succeeds");
 ///         // min across 3 ranks: [1, 2]
 ///         assert_eq!(tensor.as_slice(), &[1.0, 2.0]);
 ///     }));
@@ -146,8 +146,8 @@ impl ReduceOpTag for Min {
 ///         let rank = comm.rank() as f32;
 ///         // rank r contributes [r+1, r+2] -> [1,2], [2,3], [3,4]
 ///         let mut tensor =
-///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend);
-///         comm.all_reduce::<f32, _, Product>(&mut tensor, &backend);
+///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend).expect("construct tensor");
+///         comm.all_reduce::<f32, _, Product>(&mut tensor, &backend).expect("all-reduce succeeds");
 ///         // product across 3 ranks: [1*2*3, 2*3*4] = [6, 24]
 ///         assert_eq!(tensor.as_slice(), &[6.0, 24.0]);
 ///     }));

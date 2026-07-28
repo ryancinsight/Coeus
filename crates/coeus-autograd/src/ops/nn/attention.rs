@@ -81,7 +81,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Backward
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
 
         let need_gq = input_grads.first().and_then(|g| g.as_ref()).is_some();
@@ -89,12 +93,24 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Backward
         let need_gv = input_grads.get(2).and_then(|g| g.as_ref()).is_some();
 
         if !need_gq && !need_gk && !need_gv {
-            return;
+            return Ok(());
         }
 
-        let mut grad_q = need_gq.then(|| Tensor::zeros_on(self.q_clone.shape_cloned(), &backend));
-        let mut grad_k = need_gk.then(|| Tensor::zeros_on(self.k_clone.shape_cloned(), &backend));
-        let mut grad_v = need_gv.then(|| Tensor::zeros_on(self.v_clone.shape_cloned(), &backend));
+        let mut grad_q = if need_gq {
+            Some(Tensor::zeros_on(self.q_clone.shape_cloned(), &backend)?)
+        } else {
+            None
+        };
+        let mut grad_k = if need_gk {
+            Some(Tensor::zeros_on(self.k_clone.shape_cloned(), &backend)?)
+        } else {
+            None
+        };
+        let mut grad_v = if need_gv {
+            Some(Tensor::zeros_on(self.v_clone.shape_cloned(), &backend)?)
+        } else {
+            None
+        };
 
         // All six borrow paths handled in coeus_ops::scaled_dot_product_attention_backward.
         coeus_ops::scaled_dot_product_attention_backward(
@@ -108,20 +124,22 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Backward
             grad_k.as_mut(),
             grad_v.as_mut(),
             &backend,
-        );
+        )?;
 
         if let (Some(acc), Some(gq)) = (input_grads.first().and_then(|g| g.as_ref()), grad_q) {
             let lock = acc.write();
-            coeus_ops::add_assign(lock, &gq, &backend);
+            coeus_ops::add_assign(lock, &gq, &backend)?;
         }
         if let (Some(acc), Some(gk)) = (input_grads.get(1).and_then(|g| g.as_ref()), grad_k) {
             let lock = acc.write();
-            coeus_ops::add_assign(lock, &gk, &backend);
+            coeus_ops::add_assign(lock, &gk, &backend)?;
         }
         if let (Some(acc), Some(gv)) = (input_grads.get(2).and_then(|g| g.as_ref()), grad_v) {
             let lock = acc.write();
-            coeus_ops::add_assign(lock, &gv, &backend);
+            coeus_ops::add_assign(lock, &gv, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -141,7 +159,7 @@ pub fn sdp_attention<T: Float, B: coeus_ops::BackendOps<T> + Default, M: Attenti
     value: &Var<T, B>,
     key_padding_mask: Option<&Var<T, B>>,
     scale: T,
-) -> (Var<T, B>, Tensor<T, B>) {
+) -> Result<(Var<T, B>, Tensor<T, B>), B::Error> {
     let backend = B::default();
 
     let (out_tensor, attn_weights) = coeus_ops::scaled_dot_product_attention(
@@ -152,7 +170,7 @@ pub fn sdp_attention<T: Float, B: coeus_ops::BackendOps<T> + Default, M: Attenti
         M::IS_CAUSAL,
         scale,
         &backend,
-    );
+    )?;
 
     let requires_grad = crate::grad_mode::should_track_var(query)
         || crate::grad_mode::should_track_var(key)
@@ -160,13 +178,13 @@ pub fn sdp_attention<T: Float, B: coeus_ops::BackendOps<T> + Default, M: Attenti
         || key_padding_mask.is_some_and(|m| crate::grad_mode::should_track_var(m));
 
     if !requires_grad {
-        return (Var::new(out_tensor, false), attn_weights);
+        return Ok((Var::new(out_tensor, false)?, attn_weights));
     }
 
     let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_tensor.shape_cloned(),
         &backend,
-    )));
+    )?));
     let grad = Some(output_grad.clone());
 
     let mut inputs = vec![query.clone(), key.clone(), value.clone()];
@@ -191,5 +209,5 @@ pub fn sdp_attention<T: Float, B: coeus_ops::BackendOps<T> + Default, M: Attenti
         grad,
         creator,
     };
-    (out_var, attn_weights)
+    Ok((out_var, attn_weights))
 }

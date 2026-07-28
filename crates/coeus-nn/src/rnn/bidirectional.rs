@@ -54,12 +54,12 @@ where
     }
 
     /// `x`: `[batch, seq_len, input_size]` → `[batch, seq_len, 2*hidden_size]`.
-    fn forward(&self, x: &Var<T, B>) -> Var<T, B> {
-        let fwd = self.forward_module.forward(x);
+    fn forward(&self, x: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
+        let fwd = self.forward_module.forward(x)?;
         // Reverse along the time axis, run the backward module, then restore order.
-        let rev_x = coeus_autograd::flip(x, 1);
-        let bwd_rev = self.backward_module.forward(&rev_x);
-        let bwd = coeus_autograd::flip(&bwd_rev, 1);
+        let rev_x = coeus_autograd::flip(x, 1)?;
+        let bwd_rev = self.backward_module.forward(&rev_x)?;
+        let bwd = coeus_autograd::flip(&bwd_rev, 1)?;
         coeus_autograd::cat(&[&fwd, &bwd], 2)
     }
 }

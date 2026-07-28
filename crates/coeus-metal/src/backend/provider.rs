@@ -1,4 +1,4 @@
-use coeus_hephaestus::HephaestusProvider;
+use coeus_hephaestus::{HephaestusBackendError, HephaestusProvider, SharedHephaestusError};
 use hephaestus_metal::MetalDevice;
 use std::sync::OnceLock;
 
@@ -12,8 +12,11 @@ unsafe impl HephaestusProvider for MetalProvider {
     type Device = MetalDevice;
     const NAME: &'static str = "metal";
 
-    fn device() -> &'static Self::Device {
-        static DEVICE: OnceLock<MetalDevice> = OnceLock::new();
-        DEVICE.get_or_init(|| MetalDevice::try_default().expect("Metal device acquisition failed"))
+    fn try_device() -> Result<&'static Self::Device, HephaestusBackendError> {
+        static DEVICE: OnceLock<Result<MetalDevice, SharedHephaestusError>> = OnceLock::new();
+        DEVICE
+            .get_or_init(|| MetalDevice::try_default().map_err(SharedHephaestusError::new))
+            .as_ref()
+            .map_err(|source| HephaestusBackendError::initialization(Self::NAME, source.clone()))
     }
 }

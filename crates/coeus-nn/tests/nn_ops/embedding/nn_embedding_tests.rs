@@ -4,15 +4,15 @@ use coeus_tensor::{Tensor, Transpose};
 
 #[test]
 fn test_embedding_forward_backward_indices() {
-    let mut layer = Embedding::<f64>::new(5, 3);
+    let mut layer = Embedding::<f64>::new(5, 3).expect("construct module");
     // Initialize weight matrix to constant value of 2.0
-    init::constant(&mut layer.weight, 2.0);
+    init::constant(&mut layer.weight, 2.0).expect("initialize parameters");
 
     // Indices to look up: shape [2, 2]
-    let indices = Tensor::<i32, _>::from_slice(vec![2, 2], &[0, 2, 4, 1]);
+    let indices = Tensor::<i32, _>::from_slice(vec![2, 2], &[0, 2, 4, 1]).expect("construct tensor");
 
     // Perform forward pass using forward_indices
-    let output = layer.forward_indices(&indices);
+    let output = layer.forward_indices(&indices).expect("run forward");
 
     // Expected output shape: [2, 2, 3]
     assert_eq!(output.tensor.shape(), &[2, 2, 3]);
@@ -31,9 +31,9 @@ fn test_embedding_forward_backward_indices() {
         4.0, 4.1, 4.2, // row 3
         5.0, 5.1, 5.2, // row 4
     ];
-    layer.weight.tensor = Tensor::from_slice(vec![5, 3], &w_data);
+    layer.weight.tensor = Tensor::from_slice(vec![5, 3], &w_data).expect("construct tensor");
 
-    let output = layer.forward_indices(&indices);
+    let output = layer.forward_indices(&indices).expect("run forward");
     // Indices are:
     // [0, 2]
     // [4, 1]
@@ -51,7 +51,7 @@ fn test_embedding_forward_backward_indices() {
     assert_eq!(&out_slice[9..12], &[2.0, 2.1, 2.2]);
 
     // Backward pass
-    output.backward();
+    output.backward().expect("run backward");
 
     // Verify gradients on weights
     let weight_grad = layer.weight.grad().unwrap();
@@ -73,17 +73,17 @@ fn test_embedding_forward_backward_indices() {
 
 #[test]
 fn test_embedding_module_forward() {
-    let mut layer = Embedding::<f64>::new(3, 2);
+    let mut layer = Embedding::<f64>::new(3, 2).expect("construct module");
     let w_data = vec![
         1.0, 2.0, // row 0
         3.0, 4.0, // row 1
         5.0, 6.0, // row 2
     ];
-    layer.weight.tensor = Tensor::from_slice(vec![3, 2], &w_data);
+    layer.weight.tensor = Tensor::from_slice(vec![3, 2], &w_data).expect("construct tensor");
 
     // Module::forward takes &Var<T, B>
-    let input = Var::new(Tensor::from_slice(vec![2], &[2.0f64, 0.0]), false);
-    let output = layer.forward(&input);
+    let input = Var::new(Tensor::from_slice(vec![2], &[2.0f64, 0.0]).expect("construct tensor"), false).expect("construct variable");
+    let output = layer.forward(&input).expect("run forward");
 
     assert_eq!(output.tensor.shape(), &[2, 2]);
     let out_slice = output.tensor.as_slice();
@@ -95,18 +95,18 @@ fn test_embedding_module_forward() {
 
 #[test]
 fn test_embedding_non_contiguous() {
-    let mut layer = Embedding::<f64>::new(3, 2);
-    let w_raw = Tensor::from_slice(vec![2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let mut layer = Embedding::<f64>::new(3, 2).expect("construct module");
+    let w_raw = Tensor::from_slice(vec![2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("construct tensor");
     let w_t = w_raw.transpose(); // shape [3, 2], non-contiguous
     assert!(!w_t.is_contiguous());
     layer.weight.tensor = w_t;
 
     // Index tensor is also non-contiguous:
-    let idx_raw = Tensor::<i32, _>::from_slice(vec![2, 2], &[0, 1, 2, 0]);
+    let idx_raw = Tensor::<i32, _>::from_slice(vec![2, 2], &[0, 1, 2, 0]).expect("construct tensor");
     let idx_t = idx_raw.transpose(); // shape [2, 2], non-contiguous
     assert!(!idx_t.is_contiguous());
 
-    let output = layer.forward_indices(&idx_t);
+    let output = layer.forward_indices(&idx_t).expect("run forward");
     // idx_t is:
     // [0, 2]
     // [1, 0]
@@ -125,8 +125,8 @@ fn test_embedding_non_contiguous() {
     assert_eq!(&out_slice[6..8], &[1.0, 4.0]);
 
     // Backward pass
-    let grad_out = Tensor::from_slice(vec![2, 2, 2], &[1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]);
-    output.backward_with_seed(grad_out);
+    let grad_out = Tensor::from_slice(vec![2, 2, 2], &[1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).expect("construct tensor");
+    output.backward_with_seed(grad_out).expect("run backward");
 
     let weight_grad = layer.weight.grad().unwrap();
     assert_eq!(weight_grad.shape(), &[3, 2]);

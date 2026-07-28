@@ -23,8 +23,8 @@ use coeus_core::Scalar;
 pub fn maximum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
-    add(a, &relu(&sub(b, a)))
+) -> Result<Var<T, B>, B::Error> {
+    add(a, &relu(&sub(b, a)? )?)
 }
 
 /// Tracked element-wise minimum (`torch.minimum`, Burn `Tensor::min_pair`).
@@ -36,6 +36,6 @@ pub fn maximum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 pub fn minimum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
-    sub(a, &relu(&sub(a, b)))
+) -> Result<Var<T, B>, B::Error> {
+    sub(a, &relu(&sub(a, b)? )?)
 }

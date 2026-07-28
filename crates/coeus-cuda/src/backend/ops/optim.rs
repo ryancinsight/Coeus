@@ -1,6 +1,7 @@
 use super::cast::{cast_storage, cast_storage_mut};
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::get_cuda_context;
+use crate::error::CudaBackendError;
 use crate::kernels;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
@@ -17,7 +18,8 @@ impl CudaBackend {
         velocity_layout: &Layout,
         lr: T,
         momentum: T,
-    ) where
+    ) -> Result<(), CudaBackendError>
+    where
         T: coeus_core::Float,
     {
         if get_cuda_context().is_some()
@@ -39,19 +41,13 @@ impl CudaBackend {
                 lr_f32,
                 momentum_f32,
             ) {
-                return;
+                return Ok(());
             }
         }
-        self.fallback_sgd_step(
-            param,
-            param_layout,
-            grad,
-            grad_layout,
-            velocity,
-            velocity_layout,
-            lr,
-            momentum,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "sgd_step",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments, clippy::multiple_bound_locations)]
@@ -70,7 +66,8 @@ impl CudaBackend {
         beta2: T,
         eps: T,
         t: usize,
-    ) where
+    ) -> Result<(), CudaBackendError>
+    where
         T: coeus_core::Float,
     {
         if get_cuda_context().is_some()
@@ -100,24 +97,13 @@ impl CudaBackend {
                 eps_f32,
                 t,
             ) {
-                return;
+                return Ok(());
             }
         }
-        self.fallback_adam_step(
-            param,
-            param_layout,
-            grad,
-            grad_layout,
-            m,
-            m_layout,
-            v,
-            v_layout,
-            lr,
-            beta1,
-            beta2,
-            eps,
-            t,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "adam_step",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments, clippy::multiple_bound_locations)]
@@ -132,7 +118,8 @@ impl CudaBackend {
         lr: T,
         alpha: T,
         eps: T,
-    ) where
+    ) -> Result<(), CudaBackendError>
+    where
         T: coeus_core::Float,
     {
         if get_cuda_context().is_some()
@@ -156,20 +143,13 @@ impl CudaBackend {
                 alpha_f32,
                 eps_f32,
             ) {
-                return;
+                return Ok(());
             }
         }
-        self.fallback_rmsprop_step(
-            param,
-            param_layout,
-            grad,
-            grad_layout,
-            v,
-            v_layout,
-            lr,
-            alpha,
-            eps,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "rmsprop_step",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments, clippy::multiple_bound_locations)]
@@ -183,7 +163,8 @@ impl CudaBackend {
         history_layout: &Layout,
         lr: T,
         eps: T,
-    ) where
+    ) -> Result<(), CudaBackendError>
+    where
         T: coeus_core::Float,
     {
         if get_cuda_context().is_some()
@@ -205,19 +186,13 @@ impl CudaBackend {
                 lr_f32,
                 eps_f32,
             ) {
-                return;
+                return Ok(());
             }
         }
-        self.fallback_adagrad_step(
-            param,
-            param_layout,
-            grad,
-            grad_layout,
-            history,
-            history_layout,
-            lr,
-            eps,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "adagrad_step",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments, clippy::multiple_bound_locations)]
@@ -237,7 +212,8 @@ impl CudaBackend {
         eps: T,
         weight_decay: T,
         t: usize,
-    ) where
+    ) -> Result<(), CudaBackendError>
+    where
         T: coeus_core::Float,
     {
         if get_cuda_context().is_some()
@@ -269,24 +245,12 @@ impl CudaBackend {
                 weight_decay_f32,
                 t,
             ) {
-                return;
+                return Ok(());
             }
         }
-        self.fallback_adamw_step(
-            param,
-            param_layout,
-            grad,
-            grad_layout,
-            m,
-            m_layout,
-            v,
-            v_layout,
-            lr,
-            beta1,
-            beta2,
-            eps,
-            weight_decay,
-            t,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "adamw_step",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 }

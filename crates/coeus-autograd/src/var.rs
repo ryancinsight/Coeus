@@ -2,7 +2,7 @@
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
-use coeus_core::{ComputeBackend, MoiraiBackend, Scalar};
+use coeus_core::{BackendError, ComputeBackend, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -20,9 +20,12 @@ use std::sync::Arc;
 /// use coeus_core::MoiraiBackend;
 /// use coeus_tensor::Tensor;
 ///
-/// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[3.0, 4.0]), true);
-/// let y = coeus_autograd::mul(&x, &x); // y = x * x
-/// y.backward();
+/// let x = Var::<f32, MoiraiBackend>::new(
+///     Tensor::from_slice([2], &[3.0, 4.0]).expect("construct tensor"),
+///     true,
+/// ).expect("construct variable");
+/// let y = coeus_autograd::mul(&x, &x).expect("multiply variables"); // y = x * x
+/// y.backward().expect("backward propagation");
 /// let grad = x.grad().unwrap();
 /// assert!((grad.as_slice()[0] - 6.0).abs() < 1e-5); // 2 * 3
 /// assert!((grad.as_slice()[1] - 8.0).abs() < 1e-5); // 2 * 4
@@ -54,28 +57,34 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// use coeus_core::MoiraiBackend;
     /// use coeus_tensor::Tensor;
     ///
-    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[1.0, 2.0]), true);
-    /// let c = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[10.0, 20.0]), false);
-    /// let y = coeus_autograd::add(&x, &c);
-    /// y.backward();
+    /// let x = Var::<f32, MoiraiBackend>::new(
+    ///     Tensor::from_slice([2], &[1.0, 2.0]).expect("construct tensor"),
+    ///     true,
+    /// ).expect("construct variable");
+    /// let c = Var::<f32, MoiraiBackend>::new(
+    ///     Tensor::from_slice([2], &[10.0, 20.0]).expect("construct tensor"),
+    ///     false,
+    /// ).expect("construct variable");
+    /// let y = coeus_autograd::add(&x, &c).expect("add variables");
+    /// y.backward().expect("backward propagation");
     /// assert!(x.grad().is_some()); // tracked leaf: gradient present
     /// assert!(c.grad().is_none()); // constant leaf: no gradient state
     /// ```
     #[inline]
-    pub fn new(tensor: Tensor<T, B>, requires_grad: bool) -> Self {
+    pub fn new(tensor: Tensor<T, B>, requires_grad: bool) -> Result<Self, B::Error> {
         let grad = if requires_grad {
             Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
                 tensor.shape(),
                 &B::default(),
-            ))))
+            )?)))
         } else {
             None
         };
-        Self {
+        Ok(Self {
             tensor,
             grad,
             creator: None,
-        }
+        })
     }
 
     /// Create an intermediate variable (result of an op).
@@ -107,11 +116,17 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// use coeus_core::MoiraiBackend;
     /// use coeus_tensor::Tensor;
     ///
-    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0, 2.0, 3.0]), true);
-    /// let one = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0; 3]), false);
-    /// let y = coeus_autograd::add(&x, &one);
-    /// let loss = coeus_autograd::sum(&y);
-    /// loss.backward();
+    /// let x = Var::<f32, MoiraiBackend>::new(
+    ///     Tensor::from_slice([3], &[1.0, 2.0, 3.0]).expect("construct tensor"),
+    ///     true,
+    /// ).expect("construct variable");
+    /// let one = Var::<f32, MoiraiBackend>::new(
+    ///     Tensor::from_slice([3], &[1.0; 3]).expect("construct tensor"),
+    ///     false,
+    /// ).expect("construct variable");
+    /// let y = coeus_autograd::add(&x, &one).expect("add variables");
+    /// let loss = coeus_autograd::sum(&y).expect("sum variables");
+    /// loss.backward().expect("backward propagation");
     /// let grad = x.grad().unwrap();
     /// assert!((grad.as_slice()[0] - 1.0).abs() < 1e-5);
     /// assert!((grad.as_slice()[1] - 1.0).abs() < 1e-5);
@@ -146,22 +161,28 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// use coeus_core::MoiraiBackend;
     /// use coeus_tensor::Tensor;
     ///
-    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[2.0, 3.0]), true);
-    /// let y = coeus_autograd::sum(&x);
+    /// let x = Var::<f32, MoiraiBackend>::new(
+    ///     Tensor::from_slice([2], &[2.0, 3.0]).expect("construct tensor"),
+    ///     true,
+    /// ).expect("construct variable");
+    /// let y = coeus_autograd::sum(&x).expect("sum variables");
     ///
-    /// y.backward();
+    /// y.backward().expect("backward propagation");
     /// let g1 = x.grad().unwrap();
     /// assert!((g1.as_slice()[0] - 1.0).abs() < 1e-5);
     ///
     /// // Second backward would accumulate; zero first.
-    /// x.zero_grad();
+    /// x.zero_grad().expect("zero gradient");
     /// assert!((x.grad().unwrap().as_slice()[0] - 0.0).abs() < 1e-5);
     /// ```
     #[inline]
-    pub fn zero_grad(&self) {
+    pub fn zero_grad(&self) -> Result<(), B::Error> {
         if let Some(ref g) = self.grad {
-            B::default().fill(g.write().storage_mut(), T::zero());
+            let guard = g.write();
+            let storage = guard.storage_mut()?;
+            B::default().fill(storage, T::zero())?;
         }
+        Ok(())
     }
 
     /// Run reverse-mode autodiff from this variable, seeding with `Tensor::ones`.
@@ -178,18 +199,21 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// use coeus_core::MoiraiBackend;
     /// use coeus_tensor::Tensor;
     ///
-    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[3.0, 4.0]), true);
-    /// let y = coeus_autograd::mul(&x, &x);
-    /// let loss = coeus_autograd::sum(&y); // scalar: y_0 + y_1
-    /// loss.backward();
+    /// let x = Var::<f32, MoiraiBackend>::new(
+    ///     Tensor::from_slice([2], &[3.0, 4.0]).expect("construct tensor"),
+    ///     true,
+    /// ).expect("construct variable");
+    /// let y = coeus_autograd::mul(&x, &x).expect("multiply variables");
+    /// let loss = coeus_autograd::sum(&y).expect("sum variables"); // scalar: y_0 + y_1
+    /// loss.backward().expect("backward propagation");
     /// let grad = x.grad().unwrap();
     /// assert!((grad.as_slice()[0] - 6.0).abs() < 1e-5); // 2 * 3
     /// assert!((grad.as_slice()[1] - 8.0).abs() < 1e-5); // 2 * 4
     /// ```
     #[inline]
-    pub fn backward(&self) {
-        let seed = Tensor::ones_on(self.tensor.shape(), &B::default());
-        self.backward_with_seed(seed);
+    pub fn backward(&self) -> Result<(), B::Error> {
+        let seed = Tensor::ones_on(self.tensor.shape(), &B::default())?;
+        self.backward_with_seed(seed)
     }
 
     /// Run reverse-mode autodiff from this variable, seeding with the given gradient.
@@ -201,14 +225,14 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// # Panics
     /// If `seed.shape()` does not match `self.tensor.shape()`.
     #[inline]
-    pub fn backward_with_seed(&self, seed: Tensor<T, B>) {
-        assert_eq!(
-            seed.shape(),
-            self.tensor.shape(),
-            "backward_with_seed: seed shape {:?} must match tensor shape {:?}",
-            seed.shape(),
-            self.tensor.shape()
-        );
+    pub fn backward_with_seed(&self, seed: Tensor<T, B>) -> Result<(), B::Error> {
+        if seed.shape() != self.tensor.shape() {
+            return Err(B::Error::from(BackendError::ShapeMismatch {
+                operation: "backward_with_seed",
+                lhs: seed.shape().to_vec(),
+                rhs: self.tensor.shape().to_vec(),
+            }));
+        }
 
         // Topological sort via DFS
         let mut visited = HashSet::new();
@@ -246,7 +270,8 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
             let out_grad = node.output_grad().read().clone();
             let input_grads: Vec<Option<Arc<GradBuffer<T, B>>>> =
                 node.inputs().iter().map(|v| v.grad.clone()).collect();
-            node.backward(&out_grad, &input_grads);
+            node.backward(&out_grad, &input_grads)?;
         }
+        Ok(())
     }
 }

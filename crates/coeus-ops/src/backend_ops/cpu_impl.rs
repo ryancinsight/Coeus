@@ -37,12 +37,18 @@ mod unfold_fold;
 /// the same canonical operation implementations instead of cloning them.
 pub trait CpuBackend: Backend<Error = BackendError> {
     /// Borrow an `i64` device buffer as a mutable slice.
-    fn as_mut_slice_i64<'a>(&self, buf: &'a mut Self::DeviceBuffer<i64>) -> &'a mut [i64];
+    fn as_mut_slice_i64<'a>(
+        &self,
+        buf: &'a mut Self::DeviceBuffer<i64>,
+    ) -> Result<&'a mut [i64], BackendError>;
 }
 
 impl CpuBackend for coeus_core::SequentialBackend {
     #[inline]
-    fn as_mut_slice_i64<'a>(&self, buf: &'a mut Self::DeviceBuffer<i64>) -> &'a mut [i64] {
+    fn as_mut_slice_i64<'a>(
+        &self,
+        buf: &'a mut Self::DeviceBuffer<i64>,
+    ) -> Result<&'a mut [i64], BackendError> {
         use coeus_core::CpuAddressableStorageMut;
         buf.as_mut_slice()
     }
@@ -50,7 +56,10 @@ impl CpuBackend for coeus_core::SequentialBackend {
 
 impl CpuBackend for coeus_core::MoiraiBackend {
     #[inline]
-    fn as_mut_slice_i64<'a>(&self, buf: &'a mut Self::DeviceBuffer<i64>) -> &'a mut [i64] {
+    fn as_mut_slice_i64<'a>(
+        &self,
+        buf: &'a mut Self::DeviceBuffer<i64>,
+    ) -> Result<&'a mut [i64], BackendError> {
         use coeus_core::CpuAddressableStorageMut;
         buf.as_mut_slice()
     }

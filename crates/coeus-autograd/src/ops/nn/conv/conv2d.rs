@@ -12,6 +12,6 @@ pub fn conv2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     conv_nd_inner::<T, B, 2>(input, weight, bias, out_tensor, stride, padding, dilation)
 }

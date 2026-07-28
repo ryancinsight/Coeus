@@ -48,7 +48,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool2d
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let backend = B::default();
 
         let n = input.tensor.shape()[0];
@@ -78,8 +78,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool2d
             self.padding,
         );
 
-        let mut out_tensor = Tensor::zeros_on([n, c, h_out, w_out], &backend);
-        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+        let mut out_tensor = Tensor::zeros_on([n, c, h_out, w_out], &backend)?;
+        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
 
         backend.avg_pool2d(
             input.tensor.storage(),
@@ -90,7 +90,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool2d
             self.dilation,
             out_storage,
             out_layout,
-        );
+        )?;
 
         coeus_autograd::avg_pool2d(
             input,
@@ -146,7 +146,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool3d
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let backend = B::default();
 
         let n = input.tensor.shape()[0];
@@ -184,8 +184,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool3d
             self.padding,
         );
 
-        let mut out_tensor = Tensor::zeros_on([n, c, d_out, h_out, w_out], &backend);
-        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+        let mut out_tensor = Tensor::zeros_on([n, c, d_out, h_out, w_out], &backend)?;
+        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
 
         backend.avg_pool3d(
             input.tensor.storage(),
@@ -196,7 +196,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool3d
             self.dilation,
             out_storage,
             out_layout,
-        );
+        )?;
 
         coeus_autograd::avg_pool3d(
             input,

@@ -21,7 +21,10 @@ pub unsafe trait HephaestusProvider: Send + Sync + Clone + Copy + Default + 'sta
     const NAME: &'static str;
 
     /// Return the lazily acquired device owned by this provider.
-    fn device() -> &'static Self::Device;
+    ///
+    /// Initialization is cached as a fallible result so an unavailable device
+    /// remains an ordinary backend error rather than a process abort.
+    fn try_device() -> Result<&'static Self::Device, HephaestusBackendError>;
 }
 
 /// Cumulative operation selected by a provider scan dispatch.
@@ -128,27 +131,35 @@ where
         1
     }
 
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        HephaestusStorage::new(len)
+    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        HephaestusStorage::try_new(len)
     }
 
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
+    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) -> Result<(), Self::Error> {
         let values = vec![val; dst.buffer().len()];
-        P::device()
+        P::try_device()?
             .write_buffer(dst.buffer(), &values)
-            .expect("Hephaestus fill failed");
+            .map_err(|source| HephaestusBackendError::device("fill", source))
     }
 
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
-        P::device()
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error> {
+        P::try_device()?
             .write_buffer(dst.buffer(), src)
-            .expect("Hephaestus host-to-device copy failed");
+            .map_err(|source| HephaestusBackendError::device("copy_to_device", source))
     }
 
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
-        P::device()
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error> {
+        P::try_device()?
             .download(src.buffer(), dst)
-            .expect("Hephaestus device-to-host copy failed");
+            .map_err(|source| HephaestusBackendError::device("copy_to_host", source))
     }
 }
 
@@ -169,7 +180,7 @@ where
         let input_layout = ranked::<2>("reduce", a_layout)?;
         let output_layout = ranked::<2>("reduce", c_layout)?;
         P::reduce(
-            P::device(),
+            P::try_device()?,
             op,
             RankedOperand {
                 buffer: a.buffer(),
@@ -277,7 +288,7 @@ where
         let input_layout = ranked::<2>(request.operation, request.input_layout)?;
         let output_layout = ranked::<2>(request.operation, request.output_layout)?;
         P::scan(
-            P::device(),
+            P::try_device()?,
             RankedOperand {
                 buffer: request.input.buffer(),
                 layout: &input_layout,

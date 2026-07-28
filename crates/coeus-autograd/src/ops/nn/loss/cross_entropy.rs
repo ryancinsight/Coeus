@@ -40,18 +40,22 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
             let temp_grad;
             let grad_out_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
                 grad_out
             } else {
-                temp_grad = grad_out.to_contiguous_on(&backend);
+                temp_grad = grad_out.to_contiguous_on(&backend)?;
                 &temp_grad
             };
             let mut host_grad = [T::zero()];
-            backend.copy_to_host(grad_out_cont.storage(), &mut host_grad);
+            backend.copy_to_host(grad_out_cont.storage(), &mut host_grad)?;
             // Scale in T precision — no widening to f64
             let n_t = T::from_f64(self.n as f64);
             let grad_out_val = host_grad[0];
@@ -67,10 +71,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                     d_logits[offset + j] = (p - indicator) * scale;
                 }
             }
-            let grad_tensor = Tensor::from_slice_on([self.n, self.c], &d_logits, &backend);
+            let grad_tensor = Tensor::from_slice_on([self.n, self.c], &d_logits, &backend)?;
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -84,21 +90,20 @@ pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     probs: Vec<T>,
     n: usize,
     c: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(logits);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
 
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let inputs = vec![logits.clone()];
 
         let node = CrossEntropyLossNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs,
             targets,
             probs,
@@ -110,9 +115,9 @@ pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

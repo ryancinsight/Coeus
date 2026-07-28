@@ -4,10 +4,10 @@ use coeus_tensor::Tensor;
 #[test]
 fn test_log_softmax_probabilities() {
     let input: Var<f64> = Var::new(
-        Tensor::from_slice(vec![2, 4], &[1.0f64, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5]),
+        Tensor::from_slice(vec![2, 4], &[1.0f64, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5]).expect("construct tensor"),
         true,
-    );
-    let log_probs = coeus_autograd::log_softmax(&input, 1);
+    ).expect("construct variable");
+    let log_probs = coeus_autograd::log_softmax(&input, 1).expect("run operation");
     assert_eq!(log_probs.tensor.shape(), &[2, 4]);
 
     let s = log_probs.tensor.as_slice();
@@ -19,11 +19,11 @@ fn test_log_softmax_probabilities() {
 
 #[test]
 fn test_log_softmax_backward() {
-    let input: Var<f64> = Var::new(Tensor::from_slice(vec![1, 3], &[1.0f64, 2.0, 3.0]), true);
-    let log_probs = coeus_autograd::log_softmax(&input, 1);
-    let target: Var<f64> = Var::new(Tensor::from_slice(vec![1, 3], &[0.0f64, 1.0, 0.0]), false);
-    let loss = coeus_nn::loss::mse_loss(&log_probs, &target);
-    loss.backward();
+    let input: Var<f64> = Var::new(Tensor::from_slice(vec![1, 3], &[1.0f64, 2.0, 3.0]).expect("construct tensor"), true).expect("construct variable");
+    let log_probs = coeus_autograd::log_softmax(&input, 1).expect("run operation");
+    let target: Var<f64> = Var::new(Tensor::from_slice(vec![1, 3], &[0.0f64, 1.0, 0.0]).expect("construct tensor"), false).expect("construct variable");
+    let loss = coeus_nn::loss::mse_loss(&log_probs, &target).expect("run operation");
+    loss.backward().expect("run backward");
     assert!(input.grad().is_some());
     let g = input.grad().unwrap();
     assert_eq!(g.shape(), &[1, 3]);
@@ -32,9 +32,9 @@ fn test_log_softmax_backward() {
 
 #[test]
 fn test_cat_forward_shape() {
-    let a = Var::<f64>::new(Tensor::zeros(vec![2, 3]), true);
-    let b = Var::<f64>::new(Tensor::zeros(vec![2, 4]), true);
-    let out = coeus_autograd::cat(&[&a, &b], 1);
+    let a = Var::<f64>::new(Tensor::zeros(vec![2, 3]).expect("construct tensor"), true).expect("construct variable");
+    let b = Var::<f64>::new(Tensor::zeros(vec![2, 4]).expect("construct tensor"), true).expect("construct variable");
+    let out = coeus_autograd::cat(&[&a, &b], 1).expect("run operation");
     assert_eq!(out.tensor.shape(), &[2, 7]);
 }
 
@@ -42,10 +42,10 @@ fn test_cat_forward_shape() {
 fn test_cat_backward_gradient_split() {
     let a_data = vec![1.0f64; 6];
     let b_data = vec![2.0f64; 8];
-    let a = Var::<f64>::new(Tensor::from_slice(vec![2, 3], &a_data), true);
-    let b = Var::<f64>::new(Tensor::from_slice(vec![2, 4], &b_data), true);
-    let out = coeus_autograd::cat(&[&a, &b], 1);
-    out.backward();
+    let a = Var::<f64>::new(Tensor::from_slice(vec![2, 3], &a_data).expect("construct tensor"), true).expect("construct variable");
+    let b = Var::<f64>::new(Tensor::from_slice(vec![2, 4], &b_data).expect("construct tensor"), true).expect("construct variable");
+    let out = coeus_autograd::cat(&[&a, &b], 1).expect("run operation");
+    out.backward().expect("run backward");
     assert!(a.grad().is_some());
     assert!(b.grad().is_some());
     let ga = a.grad().unwrap();
@@ -56,12 +56,12 @@ fn test_cat_backward_gradient_split() {
 
 #[test]
 fn test_cat_along_dim0() {
-    let a = Var::<f64>::new(Tensor::zeros(vec![2, 5]), true);
-    let b = Var::<f64>::new(Tensor::zeros(vec![3, 5]), true);
-    let c = Var::<f64>::new(Tensor::zeros(vec![1, 5]), true);
-    let out = coeus_autograd::cat(&[&a, &b, &c], 0);
+    let a = Var::<f64>::new(Tensor::zeros(vec![2, 5]).expect("construct tensor"), true).expect("construct variable");
+    let b = Var::<f64>::new(Tensor::zeros(vec![3, 5]).expect("construct tensor"), true).expect("construct variable");
+    let c = Var::<f64>::new(Tensor::zeros(vec![1, 5]).expect("construct tensor"), true).expect("construct variable");
+    let out = coeus_autograd::cat(&[&a, &b, &c], 0).expect("run operation");
     assert_eq!(out.tensor.shape(), &[6, 5]);
-    out.backward();
+    out.backward().expect("run backward");
     assert_eq!(a.grad().unwrap().shape(), &[2, 5]);
     assert_eq!(b.grad().unwrap().shape(), &[3, 5]);
     assert_eq!(c.grad().unwrap().shape(), &[1, 5]);
@@ -69,8 +69,8 @@ fn test_cat_along_dim0() {
 
 #[test]
 fn test_split_even_chunks() {
-    let input = Var::<f64>::new(Tensor::zeros(vec![1, 6]), true);
-    let chunks = coeus_autograd::split(&input, 2, 1);
+    let input = Var::<f64>::new(Tensor::zeros(vec![1, 6]).expect("construct tensor"), true).expect("construct variable");
+    let chunks = coeus_autograd::split(&input, 2, 1).expect("run operation");
     assert_eq!(chunks.len(), 3);
     for ch in &chunks {
         assert_eq!(ch.tensor.shape(), &[1, 2]);
@@ -79,8 +79,8 @@ fn test_split_even_chunks() {
 
 #[test]
 fn test_split_remainder_chunk() {
-    let input = Var::<f64>::new(Tensor::zeros(vec![1, 7]), true);
-    let chunks = coeus_autograd::split(&input, 3, 1);
+    let input = Var::<f64>::new(Tensor::zeros(vec![1, 7]).expect("construct tensor"), true).expect("construct variable");
+    let chunks = coeus_autograd::split(&input, 3, 1).expect("run operation");
     assert_eq!(chunks.len(), 3);
     assert_eq!(chunks[0].tensor.shape(), &[1, 3]);
     assert_eq!(chunks[1].tensor.shape(), &[1, 3]);
@@ -90,13 +90,13 @@ fn test_split_remainder_chunk() {
 #[test]
 fn test_split_backward_accumulation() {
     let input = Var::<f64>::new(
-        Tensor::from_slice(vec![1, 4], &[1.0f64, 2.0, 3.0, 4.0]),
+        Tensor::from_slice(vec![1, 4], &[1.0f64, 2.0, 3.0, 4.0]).expect("construct tensor"),
         true,
-    );
-    let chunks = coeus_autograd::split(&input, 2, 1);
-    let target = Var::<f64>::new(Tensor::from_slice(vec![1, 2], &[0.0f64, 0.0]), false);
-    let loss = coeus_nn::loss::mse_loss(&chunks[0], &target);
-    loss.backward();
+    ).expect("construct variable");
+    let chunks = coeus_autograd::split(&input, 2, 1).expect("run operation");
+    let target = Var::<f64>::new(Tensor::from_slice(vec![1, 2], &[0.0f64, 0.0]).expect("construct tensor"), false).expect("construct variable");
+    let loss = coeus_nn::loss::mse_loss(&chunks[0], &target).expect("run operation");
+    loss.backward().expect("run backward");
     let g = input.grad().unwrap();
     assert_eq!(g.shape(), &[1, 4]);
     assert_eq!(g.as_slice()[2], 0.0);

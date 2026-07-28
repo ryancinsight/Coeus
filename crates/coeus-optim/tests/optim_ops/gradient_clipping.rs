@@ -1,4 +1,4 @@
-use super::{clip_grad_norm, SequentialBackend, Tensor, Var};
+use super::{SequentialBackend, Tensor, Var, clip_grad_norm};
 
 // ── clip_grad_norm ──
 //
@@ -14,23 +14,23 @@ use super::{clip_grad_norm, SequentialBackend, Tensor, Var};
 #[test]
 fn test_clip_grad_norm_is_global_across_parameters() {
     let a = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[10.0f32, 20.0]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[10.0f32, 20.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     a.set_grad(Tensor::<f32, SequentialBackend>::from_slice(
         vec![2],
         &[3.0f32, 4.0],
-    ));
+    ).expect("construct tensor"));
     let b = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0f32, 2.0, 3.0]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0f32, 2.0, 3.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     b.set_grad(Tensor::<f32, SequentialBackend>::from_slice(
         vec![3],
         &[0.0f32, 0.0, 12.0],
-    ));
+    ).expect("construct tensor"));
 
-    let pre_norm = clip_grad_norm(&[a.clone(), b.clone()], 6.5f32);
+    let pre_norm = clip_grad_norm(&[a.clone(), b.clone()], 6.5f32).expect("clip gradients");
     assert!(
         (pre_norm - 13.0).abs() < 1e-4,
         "global norm across both params: got {pre_norm}, expected 13.0"
@@ -47,15 +47,15 @@ fn test_clip_grad_norm_is_global_across_parameters() {
 #[test]
 fn test_clip_grad_norm_below_threshold_is_noop() {
     let x = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, 1.0]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, 1.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     x.set_grad(Tensor::<f32, SequentialBackend>::from_slice(
         vec![2],
         &[3.0f32, 4.0],
-    ));
+    ).expect("construct tensor"));
 
-    let pre_norm = clip_grad_norm(std::slice::from_ref(&x), 10.0f32);
+    let pre_norm = clip_grad_norm(std::slice::from_ref(&x), 10.0f32).expect("clip gradients");
     assert!((pre_norm - 5.0).abs() < 1e-5);
 
     let g = x.grad().unwrap();
@@ -76,15 +76,15 @@ fn test_clip_grad_norm_below_threshold_is_noop() {
 #[test]
 fn test_clip_grad_norm_exact_boundary_is_noop() {
     let x = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, 1.0]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, 1.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     x.set_grad(Tensor::<f32, SequentialBackend>::from_slice(
         vec![2],
         &[3.0f32, 4.0],
-    ));
+    ).expect("construct tensor"));
 
-    let pre_norm = clip_grad_norm(std::slice::from_ref(&x), 5.0f32);
+    let pre_norm = clip_grad_norm(std::slice::from_ref(&x), 5.0f32).expect("clip gradients");
     assert!((pre_norm - 5.0).abs() < 1e-5);
 
     let g = x.grad().unwrap();
@@ -103,20 +103,21 @@ fn test_clip_grad_norm_exact_boundary_is_noop() {
 #[test]
 fn test_clip_grad_norm_skips_params_without_grad() {
     let with_grad = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, 1.0]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, 1.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     with_grad.set_grad(Tensor::<f32, SequentialBackend>::from_slice(
         vec![2],
         &[3.0f32, 4.0],
-    ));
+    ).expect("construct tensor"));
     // requires_grad = false: no grad buffer at all.
     let without_grad = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[9.0f32, 9.0]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[9.0f32, 9.0]).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
-    let pre_norm = clip_grad_norm(&[with_grad.clone(), without_grad.clone()], 2.5f32);
+    let pre_norm =
+        clip_grad_norm(&[with_grad.clone(), without_grad.clone()], 2.5f32).expect("clip gradients");
     // Norm should reflect only `with_grad`'s [3,4] -> 5.0, not be perturbed by
     // (or panic on) the grad-less parameter.
     assert!(

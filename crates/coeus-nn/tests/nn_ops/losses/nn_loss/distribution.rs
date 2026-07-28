@@ -14,10 +14,10 @@ fn test_poisson_nll() {
     let ys = [2.0_f64, 0.0, 3.0];
     let n = zs.len() as f64;
 
-    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &zs), true);
-    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &ys), true);
+    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &zs).expect("construct tensor"), true).expect("construct variable");
+    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &ys).expect("construct tensor"), true).expect("construct variable");
 
-    let loss = poisson_nll(&input, &target);
+    let loss = poisson_nll(&input, &target).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
 
     let mut expected = 0.0;
@@ -31,7 +31,7 @@ fn test_poisson_nll() {
         "poisson_nll forward: got {loss_val:.17}, expected {expected:.17}"
     );
 
-    loss.backward();
+    loss.backward().expect("run backward");
     let input_grad = input.grad().expect("input must receive a gradient");
     let target_grad = target.grad().expect("target must receive a gradient");
     for (i, ((&z, &y), (&gz, &gt))) in zs
@@ -63,19 +63,19 @@ fn test_kl_divergence_loss() {
     let input_data = [0.25_f64.ln(), 0.75_f64.ln()];
     let target_data = [0.25_f64, 0.75_f64];
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &input_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &input_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &target_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &target_data).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
-    let loss = kl_divergence(&input, &target);
+    let loss = kl_divergence(&input, &target).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
     assert!(loss.tensor.as_slice()[0].abs() <= 2.0 * f64::EPSILON);
 
-    loss.backward();
+    loss.backward().expect("run backward");
     let grad = input.grad().expect("invariant: KL input requires grad");
     let grad_slice = grad.as_slice();
     assert!((grad_slice[0] + 0.125).abs() < 1e-12);
@@ -90,23 +90,23 @@ fn test_gaussian_nll_loss() {
     //   i1: 0.5*(1/2     + ln 2  ) = 0.5*(0.5 + 0.6931472) =  0.5965736
     //   mean = 0.25.
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 2.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 2.0]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.5, 1.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.5, 1.0]).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
     let var = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.5, 2.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.5, 2.0]).expect("construct tensor"),
         false,
-    );
+    ).expect("construct variable");
 
-    let loss = gaussian_nll_loss(&input, &target, &var, false);
+    let loss = gaussian_nll_loss(&input, &target, &var, false).expect("run operation");
     assert_eq!(loss.tensor.shape(), &[1]);
     assert!((loss.tensor.as_slice()[0] - 0.25).abs() < 1e-12);
 
-    loss.backward();
+    loss.backward().expect("run backward");
     // d loss/d input_i = (in_i - t_i)/(N*var_i): [-0.5/1, 1/4] = [-0.5, 0.25].
     let grad = input.grad().expect("gnll input grad");
     let g = grad.as_slice();
@@ -115,10 +115,10 @@ fn test_gaussian_nll_loss() {
 
     // full=true adds the constant 0.5*ln(2π) (mean of a per-element constant).
     let input2 = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 2.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 2.0]).expect("construct tensor"),
         false,
-    );
-    let loss_full = gaussian_nll_loss(&input2, &target, &var, true);
+    ).expect("construct variable");
+    let loss_full = gaussian_nll_loss(&input2, &target, &var, true).expect("run operation");
     let expected_full = 0.25 + 0.5 * (2.0 * std::f64::consts::PI).ln();
     assert!((loss_full.tensor.as_slice()[0] - expected_full).abs() < 1e-12);
 }

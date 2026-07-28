@@ -1,8 +1,8 @@
 use super::fuse::get_or_create_kernel;
 use crate::backend::{CudaBackend, CudaScalar};
-use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
+use crate::driver::{CUdeviceptr, CudaDriver, get_cuda_context};
 use crate::kernels::validation::{
-    checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda, CUDA_BLOCK_SIZE,
+    CUDA_BLOCK_SIZE, checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda,
 };
 use crate::storage::CudaStorage;
 use coeus_core::{ComputeBackend, Layout};

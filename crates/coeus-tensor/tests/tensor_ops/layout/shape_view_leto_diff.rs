@@ -14,7 +14,7 @@ where
 {
     let backend = B::default();
     let data = (0..24).collect::<Vec<i32>>();
-    let tensor = Tensor::<i32, B>::from_slice_on([2usize, 3, 4], &data, &backend);
+    let tensor = Tensor::<i32, B>::from_slice_on([2usize, 3, 4], &data, &backend).expect("construct tensor");
 
     let permuted = tensor.permute(&[2, 0, 1]);
     let expected_permuted = coeus_leto::permute_layout(tensor.layout(), &[2, 0, 1]).unwrap();
@@ -28,12 +28,12 @@ where
     assert_eq!(transposed.strides(), expected_transposed.strides());
     assert_eq!(transposed.get(&[1, 3, 2]), tensor.get(&[1, 2, 3]));
 
-    let matrix = Tensor::<i32, B>::from_slice_on([2usize, 3], &data[..6], &backend);
+    let matrix = Tensor::<i32, B>::from_slice_on([2usize, 3], &data[..6], &backend).expect("construct tensor");
     let matrix_t = matrix.transpose();
     assert_eq!(matrix_t.shape(), &[3, 2]);
     assert_eq!(matrix_t.get(&[2, 1]), matrix.get(&[1, 2]));
 
-    let sliced = Tensor::<i32, B>::from_slice_on([8usize], &data[..8], &backend).slice(&[(2, 6)]);
+    let sliced = Tensor::<i32, B>::from_slice_on([8usize], &data[..8], &backend).expect("construct tensor").slice(&[(2, 6)]);
     let reshaped = sliced.reshape([2usize, 2]);
     let expected_reshaped = coeus_leto::reshape_layout(sliced.layout(), &[2, 2]).unwrap();
     assert_eq!(reshaped.shape(), expected_reshaped.shape());

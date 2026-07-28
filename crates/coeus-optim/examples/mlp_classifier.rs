@@ -11,7 +11,7 @@
 //!
 //! Run with:  `cargo run -p coeus-optim --example mlp_classifier`
 
-use coeus_autograd::{add, log_softmax, matmul, nll_loss, relu, Parameter, Var};
+use coeus_autograd::{Parameter, Var, add, log_softmax, matmul, nll_loss, relu};
 use coeus_core::SequentialBackend;
 use coeus_optim::{Adam, Optimizer};
 use coeus_tensor::Tensor;
@@ -24,7 +24,7 @@ const N: usize = PER_CLASS * CLASSES; // samples
 const D_IN: usize = 2; // input features
 const D_HID: usize = 16; // hidden units
 
-fn main() {
+fn main() -> Result<(), coeus_core::BackendError> {
     // Class centers (well-separated) + small LCG noise -> linearly separable-ish
     // blobs that a small MLP classifies near-perfectly.
     let centers = [[2.0f32, 0.0], [-1.0, 2.0], [-1.0, -2.0]];
@@ -44,19 +44,19 @@ fn main() {
             targets[n] = cls;
         }
     }
-    let x = Var::new(Tensor::<f32, B>::from_slice(vec![N, D_IN], &x_data), false);
+    let x = Var::new(Tensor::<f32, B>::from_slice(vec![N, D_IN], &x_data)?, false)?;
 
     // Parameters: W1 [D_IN, D_HID], b1 [1, D_HID], W2 [D_HID, CLASSES], b2 [1, CLASSES].
     let scale = 0.5;
     let w1: Vec<f32> = (0..D_IN * D_HID).map(|_| scale * uniform()).collect();
     let w2: Vec<f32> = (0..D_HID * CLASSES).map(|_| scale * uniform()).collect();
-    let w1 = Var::new(Tensor::<f32, B>::from_slice(vec![D_IN, D_HID], &w1), true);
-    let b1 = Var::new(Tensor::<f32, B>::zeros(vec![1, D_HID]), true);
+    let w1 = Var::new(Tensor::<f32, B>::from_slice(vec![D_IN, D_HID], &w1)?, true)?;
+    let b1 = Var::new(Tensor::<f32, B>::zeros(vec![1, D_HID])?, true)?;
     let w2 = Var::new(
-        Tensor::<f32, B>::from_slice(vec![D_HID, CLASSES], &w2),
+        Tensor::<f32, B>::from_slice(vec![D_HID, CLASSES], &w2)?,
         true,
-    );
-    let b2 = Var::new(Tensor::<f32, B>::zeros(vec![1, CLASSES]), true);
+    )?;
+    let b2 = Var::new(Tensor::<f32, B>::zeros(vec![1, CLASSES])?, true)?;
 
     let mut opt = Adam::new(
         vec![
@@ -69,18 +69,21 @@ fn main() {
         0.9,
         0.999,
         1e-8,
-    );
+    )
+    ?;
 
     let mut first_loss = 0.0f32;
     let mut last_loss = 0.0f32;
     for epoch in 0..300 {
-        opt.zero_grad();
+        opt.zero_grad()?;
         // h = relu(X·W1 + b1);  logits = h·W2 + b2
-        let h = relu(&add(&matmul(&x, &opt.params[0]), &opt.params[1]));
-        let logits = add(&matmul(&h, &opt.params[2]), &opt.params[3]);
-        let loss = nll_loss(&log_softmax(&logits, 1), &targets);
-        loss.backward();
-        opt.step();
+        let hidden_linear = add(&matmul(&x, &opt.params[0])?, &opt.params[1])?;
+        let h = relu(&hidden_linear)?;
+        let logits = add(&matmul(&h, &opt.params[2])?, &opt.params[3])?;
+        let log_probs = log_softmax(&logits, 1)?;
+        let loss = nll_loss(&log_probs, &targets)?;
+        loss.backward()?;
+        opt.step()?;
 
         last_loss = loss.tensor.as_slice()[0];
         if epoch == 0 {
@@ -89,12 +92,12 @@ fn main() {
         if epoch % 60 == 0 || epoch == 299 {
             println!(
                 "epoch {epoch:3}: nll = {last_loss:.4}, acc = {:.1}%",
-                100.0 * accuracy(&opt, &x, &targets)
+                100.0 * accuracy(&opt, &x, &targets)?
             );
         }
     }
 
-    let acc = accuracy(&opt, &x, &targets);
+    let acc = accuracy(&opt, &x, &targets)?;
     println!("\nfinal accuracy = {:.1}%", 100.0 * acc);
     assert!(
         last_loss < first_loss * 0.5,
@@ -102,12 +105,18 @@ fn main() {
     );
     assert!(acc > 0.9, "classifier did not learn: accuracy {acc:.3}");
     println!("converged: MLP separates the three classes");
+    Ok(())
 }
 
 /// Forward pass + argmax accuracy against the integer labels.
-fn accuracy(opt: &Adam<f32, B>, x: &Var<f32, B>, targets: &[usize]) -> f32 {
-    let h = relu(&add(&matmul(x, &opt.params[0]), &opt.params[1]));
-    let logits = add(&matmul(&h, &opt.params[2]), &opt.params[3]);
+fn accuracy(
+    opt: &Adam<f32, B>,
+    x: &Var<f32, B>,
+    targets: &[usize],
+) -> Result<f32, coeus_core::BackendError> {
+    let hidden_linear = add(&matmul(x, &opt.params[0])?, &opt.params[1])?;
+    let h = relu(&hidden_linear)?;
+    let logits = add(&matmul(&h, &opt.params[2])?, &opt.params[3])?;
     let data = logits.tensor.as_slice();
     let mut correct = 0usize;
     for (n, &t) in targets.iter().enumerate() {
@@ -115,12 +124,12 @@ fn accuracy(opt: &Adam<f32, B>, x: &Var<f32, B>, targets: &[usize]) -> f32 {
         let pred = row
             .iter()
             .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .max_by(|a, b| a.1.total_cmp(b.1))
             .map(|(i, _)| i)
-            .unwrap();
+            .expect("class row is non-empty");
         if pred == t {
             correct += 1;
         }
     }
-    correct as f32 / targets.len() as f32
+    Ok(correct as f32 / targets.len() as f32)
 }

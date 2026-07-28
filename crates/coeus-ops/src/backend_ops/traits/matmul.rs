@@ -30,9 +30,9 @@ pub trait MatmulOps<T: Scalar>: ComputeBackend {
 
     /// Matrix multiplication with accumulation: `c += a * b`.
     ///
-    /// The default uses a temporary buffer and `elementwise_binary(Add)`,
-    /// requiring [`ElementwiseOps`].  Backends with a fused accumulate
-    /// override this method without the cross-trait bound.
+    /// The default composes backend allocation, matmul, fill, and elementwise
+    /// dispatch without moving data through host memory. Backends with a fused
+    /// accumulate kernel may override it.
     fn matmul_accumulate(
         &self,
         a: &Self::DeviceBuffer<T>,
@@ -63,9 +63,9 @@ pub trait MatmulOps<T: Scalar>: ComputeBackend {
 
     /// Rank-3 batched matrix multiplication with accumulation: `c += a * b`.
     ///
-    /// The default uses a temporary buffer and `elementwise_binary(Add)`,
-    /// requiring [`ElementwiseOps`].  Backends with a fused accumulate
-    /// override this method without the cross-trait bound.
+    /// The default composes backend batched-matmul and elementwise dispatch
+    /// without moving data through host memory. Backends with a fused
+    /// accumulate kernel may override it.
     fn batched_matmul_accumulate(
         &self,
         a: &Self::DeviceBuffer<T>,

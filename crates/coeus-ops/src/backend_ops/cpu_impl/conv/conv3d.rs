@@ -2,7 +2,7 @@ use super::brand_mut_slice;
 use crate::ptr::{MutPtr, Ptr};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 use melinoe::brand_scope;
-use melinoe::sync::{partition_for_each_with, PartitionPlan};
+use melinoe::sync::{PartitionPlan, partition_for_each_with};
 
 #[inline]
 pub(crate) fn conv3d<T: Scalar, B: Backend>(
@@ -17,7 +17,8 @@ pub(crate) fn conv3d<T: Scalar, B: Backend>(
     dilation: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let n = input_layout.shape()[0];
@@ -36,7 +37,7 @@ pub(crate) fn conv3d<T: Scalar, B: Backend>(
 
     let input_slice = input.as_slice();
     let weight_slice = weight.as_slice();
-    let output_slice = output.as_mut_slice();
+    let output_slice = output.as_mut_slice()?;
 
     let input_ptr = Ptr(input_slice.as_ptr());
     let weight_ptr = Ptr(weight_slice.as_ptr());
@@ -145,7 +146,7 @@ pub(crate) fn conv3d<T: Scalar, B: Backend>(
                 });
             }
         }
-        return;
+        return Ok(());
     }
 
     backend.parallel_for(0, out_numel, move |i| {
@@ -197,6 +198,7 @@ pub(crate) fn conv3d<T: Scalar, B: Backend>(
             output_ptr.write(output_idx, sum);
         }
     });
+    Ok(())
 }
 
 #[inline]
@@ -216,7 +218,8 @@ pub(crate) fn conv3d_backward<T: Scalar, B: Backend>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let n = input_layout.shape()[0];
@@ -242,7 +245,7 @@ pub(crate) fn conv3d_backward<T: Scalar, B: Backend>(
 
     if let Some(gi) = grad_input {
         let go_layout = go_layout.clone();
-        let gi_slice = gi.as_mut_slice();
+        let gi_slice = gi.as_mut_slice()?;
         let gi_ptr = MutPtr(gi_slice.as_mut_ptr());
         let gi_layout = grad_input_layout.clone();
 
@@ -306,7 +309,7 @@ pub(crate) fn conv3d_backward<T: Scalar, B: Backend>(
 
     if let Some(gw) = grad_weight {
         let go_layout = go_layout.clone();
-        let gw_slice = gw.as_mut_slice();
+        let gw_slice = gw.as_mut_slice()?;
         let gw_ptr = MutPtr(gw_slice.as_mut_ptr());
         let gw_layout = grad_weight_layout.clone();
 
@@ -420,7 +423,7 @@ pub(crate) fn conv3d_backward<T: Scalar, B: Backend>(
 
     if let Some(gb) = grad_bias {
         let go_layout = go_layout.clone();
-        let gb_slice = gb.as_mut_slice();
+        let gb_slice = gb.as_mut_slice()?;
         let gb_ptr = MutPtr(gb_slice.as_mut_ptr());
         let gb_layout = Layout::new([c_out].into());
 
@@ -444,4 +447,5 @@ pub(crate) fn conv3d_backward<T: Scalar, B: Backend>(
             }
         });
     }
+    Ok(())
 }

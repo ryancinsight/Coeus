@@ -1,18 +1,19 @@
-use super::{Adam, AdamW, Optimizer, Parameter, RMSProp, SequentialBackend, Tensor, Var, SGD};
+use super::{Adam, AdamW, Optimizer, Parameter, RMSProp, SGD, SequentialBackend, Tensor, Var};
 
 #[test]
 fn test_sgd_optimizer() {
     let _backend = SequentialBackend::new();
-    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]).expect("construct tensor");
+    let x = Var::new(x_val, true).expect("construct variable");
 
     // Set mock gradient: [1.0, -2.0]
-    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]);
+    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]).expect("construct tensor");
     x.set_grad(grad_val);
 
     // Test SGD step without momentum (momentum = 0.0, lr = 0.1)
-    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32);
-    optimizer.step();
+    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32)
+        .expect("construct SGD optimizer");
+    optimizer.step().expect("run SGD step");
     assert_eq!(optimizer.params[0].name, "x");
 
     // After one step, param = param - lr * grad
@@ -23,7 +24,7 @@ fn test_sgd_optimizer() {
     assert!((updated_x[1] - 3.2).abs() < 1e-5);
 
     // Verify zero_grad works
-    optimizer.zero_grad();
+    optimizer.zero_grad().expect("clear gradients");
     let cleared_grad = optimizer.params[0].grad().unwrap();
     assert_eq!(cleared_grad.as_slice(), &[0.0, 0.0]);
 }
@@ -31,19 +32,20 @@ fn test_sgd_optimizer() {
 #[test]
 fn test_sgd_with_momentum() {
     let _backend = SequentialBackend::new();
-    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]).expect("construct tensor");
+    let x = Var::new(x_val, true).expect("construct variable");
 
     // Let's perform two steps of SGD with momentum = 0.9, lr = 0.1
-    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.9f32);
+    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.9f32)
+        .expect("construct SGD optimizer");
 
     // Step 1
     // grad = [1.0, -2.0]
     // v = momentum * 0 + grad = [1.0, -2.0]
     // param = param - lr * v = [2.0, 3.0] - 0.1 * [1.0, -2.0] = [1.9, 3.2]
-    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]);
+    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]).expect("construct tensor");
     optimizer.params[0].set_grad(grad_val);
-    optimizer.step();
+    optimizer.step().expect("run SGD step");
     assert_eq!(optimizer.params[0].name, "x");
 
     let updated_x = optimizer.params[0].tensor.as_slice();
@@ -55,9 +57,9 @@ fn test_sgd_with_momentum() {
     // v_prev = [1.0, -2.0]
     // v_new = 0.9 * v_prev + grad = 0.9 * [1.0, -2.0] + [0.5, 0.5] = [1.4, -1.3]
     // param = param - lr * v_new = [1.9, 3.2] - 0.1 * [1.4, -1.3] = [1.76, 3.33]
-    let grad_val2 = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[0.5f32, 0.5]);
+    let grad_val2 = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[0.5f32, 0.5]).expect("construct tensor");
     optimizer.params[0].set_grad(grad_val2);
-    optimizer.step();
+    optimizer.step().expect("run SGD step");
     assert_eq!(optimizer.params[0].name, "x");
 
     let updated_x = optimizer.params[0].tensor.as_slice();
@@ -68,11 +70,11 @@ fn test_sgd_with_momentum() {
 #[test]
 fn test_adam_optimizer() {
     let _backend = SequentialBackend::new();
-    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]).expect("construct tensor");
+    let x = Var::new(x_val, true).expect("construct variable");
 
     // Set mock gradient: [1.0, -2.0]
-    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]);
+    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]).expect("construct tensor");
     x.set_grad(grad_val);
 
     // Test Adam (lr = 0.1, beta1 = 0.9, beta2 = 0.999, eps = 1e-8)
@@ -82,8 +84,9 @@ fn test_adam_optimizer() {
         0.9f32,
         0.999f32,
         1e-8f32,
-    );
-    optimizer.step();
+    )
+    .expect("construct Adam optimizer");
+    optimizer.step().expect("run Adam step");
     assert_eq!(optimizer.params[0].name, "x");
 
     // After step 1:
@@ -105,11 +108,11 @@ fn test_adam_optimizer() {
 #[test]
 fn test_rmsprop_optimizer() {
     let _backend = SequentialBackend::new();
-    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]).expect("construct tensor");
+    let x = Var::new(x_val, true).expect("construct variable");
 
     // Set mock gradient: [1.0, -2.0]
-    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]);
+    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]).expect("construct tensor");
     x.set_grad(grad_val);
 
     // Test RMSProp (lr = 0.1, alpha = 0.99, eps = 1e-8)
@@ -118,8 +121,9 @@ fn test_rmsprop_optimizer() {
         0.1f32,
         0.99f32,
         1e-8f32,
-    );
-    optimizer.step();
+    )
+    .expect("construct RMSProp optimizer");
+    optimizer.step().expect("run RMSProp step");
     assert_eq!(optimizer.params[0].name, "x");
 
     // After step 1:
@@ -135,11 +139,11 @@ fn test_rmsprop_optimizer() {
 #[test]
 fn test_adamw_optimizer() {
     let _backend = SequentialBackend::new();
-    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]).expect("construct tensor");
+    let x = Var::new(x_val, true).expect("construct variable");
 
     // Set mock gradient: [1.0, -2.0]
-    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]);
+    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]).expect("construct tensor");
     x.set_grad(grad_val);
 
     // Test AdamW (lr = 0.1, beta1 = 0.9, beta2 = 0.999, eps = 1e-8, weight_decay = 0.01)
@@ -150,8 +154,9 @@ fn test_adamw_optimizer() {
         0.999f32,
         1e-8f32,
         0.01f32,
-    );
-    optimizer.step();
+    )
+    .expect("construct AdamW optimizer");
+    optimizer.step().expect("run AdamW step");
 
     // After step 1:
     // t = 1
@@ -173,17 +178,18 @@ fn test_adamw_optimizer() {
 #[test]
 fn test_adagrad_optimizer() {
     let _backend = SequentialBackend::new();
-    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]).expect("construct tensor");
+    let x = Var::new(x_val, true).expect("construct variable");
 
     // Set mock gradient: [1.0, -2.0]
-    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]);
+    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]).expect("construct tensor");
     x.set_grad(grad_val);
 
     // Test AdaGrad (lr = 0.1, eps = 1e-6)
     let mut optimizer =
-        coeus_optim::AdaGrad::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 1e-6f32);
-    optimizer.step();
+        coeus_optim::AdaGrad::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 1e-6f32)
+            .expect("construct AdaGrad optimizer");
+    optimizer.step().expect("run AdaGrad step");
 
     // After step 1:
     // history = history + grad^2 = [1.0, 4.0]

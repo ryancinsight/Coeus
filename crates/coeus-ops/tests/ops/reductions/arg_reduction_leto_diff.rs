@@ -15,7 +15,7 @@ where
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    Tensor::from_slice_on(shape.to_vec(), data, backend)
+    Tensor::from_slice_on(shape.to_vec(), data, backend).expect("construct tensor")
 }
 
 fn assert_indices(got: &[i64], expected: &[i64], context: &str) {
@@ -35,24 +35,24 @@ where
         .collect();
     let tensor = tensor_from_slice::<T, B>(&[2, 3], &data, backend);
 
-    let axis1_max = coeus_ops::argmax(&tensor, 1);
+    let axis1_max = coeus_ops::argmax(&tensor, 1).expect("run operation");
     assert_eq!(axis1_max.shape(), &[2, 1]);
     assert_indices(axis1_max.as_slice(), &[1, 2], "axis-1 argmax");
 
-    let axis1_min = coeus_ops::argmin(&tensor, 1);
+    let axis1_min = coeus_ops::argmin(&tensor, 1).expect("run operation");
     assert_eq!(axis1_min.shape(), &[2, 1]);
     assert_indices(axis1_min.as_slice(), &[2, 1], "axis-1 argmin");
 
-    let axis0_max = coeus_ops::argmax(&tensor, 0);
+    let axis0_max = coeus_ops::argmax(&tensor, 0).expect("run operation");
     assert_eq!(axis0_max.shape(), &[1, 3]);
     assert_indices(axis0_max.as_slice(), &[1, 0, 1], "axis-0 argmax");
 
-    let axis0_min = coeus_ops::argmin(&tensor, 0);
+    let axis0_min = coeus_ops::argmin(&tensor, 0).expect("run operation");
     assert_eq!(axis0_min.shape(), &[1, 3]);
     assert_indices(axis0_min.as_slice(), &[0, 1, 0], "axis-0 argmin");
 
     let transposed = tensor.transpose();
-    let transposed_axis1_max = coeus_ops::argmax(&transposed, 1);
+    let transposed_axis1_max = coeus_ops::argmax(&transposed, 1).expect("run operation");
     assert_eq!(transposed_axis1_max.shape(), &[3, 1]);
     assert_indices(
         transposed_axis1_max.as_slice(),
@@ -60,7 +60,7 @@ where
         "transposed axis-1 argmax",
     );
 
-    let transposed_axis1_min = coeus_ops::argmin(&transposed, 1);
+    let transposed_axis1_min = coeus_ops::argmin(&transposed, 1).expect("run operation");
     assert_eq!(transposed_axis1_min.shape(), &[3, 1]);
     assert_indices(
         transposed_axis1_min.as_slice(),
@@ -94,13 +94,13 @@ fn topk_dim0_matches_torch_reference() {
         vec![3, 4],
         &[3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0, 5.0, 8.0],
         &backend,
-    );
-    let (vals, idxs) = coeus_ops::topk(&x, 2, 0, false);
+    ).expect("construct tensor");
+    let (vals, idxs) = coeus_ops::topk(&x, 2, 0, false).expect("run operation");
     assert_eq!(vals.shape(), &[2, 4]);
     // Per-column two smallest, sorted ascending, laid out along dim 0:
     // row0 = [3, 1, 2, 1], row1 = [5, 3, 4, 6].
     let expected = [3.0, 1.0, 2.0, 1.0, 5.0, 3.0, 4.0, 6.0];
-    let got = vals.to_contiguous_on(&backend);
+    let got = vals.to_contiguous_on(&backend).expect("make values contiguous");
     for (i, (g, w)) in got.as_slice().iter().zip(expected.iter()).enumerate() {
         assert_eq!(g, w, "vals[{i}]");
     }
@@ -108,7 +108,7 @@ fn topk_dim0_matches_torch_reference() {
     // col0 -> [0, 1] (3 then the row-1 five), col1 -> [0, 2] (1 then 3),
     // col2 -> [1, 0] (2 then 4), col3 -> [0, 1] (1 then 6).
     let expected_idx: [i64; 8] = [0, 0, 1, 0, 1, 2, 0, 1];
-    let gi = idxs.to_contiguous_on(&backend);
+    let gi = idxs.to_contiguous_on(&backend).expect("make indices contiguous");
     for (i, (g, w)) in gi.as_slice().iter().zip(expected_idx.iter()).enumerate() {
         assert_eq!(g, w, "idxs[{i}]");
     }

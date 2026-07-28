@@ -1,5 +1,5 @@
-use super::unary_op;
 use super::UnaryAutogradOp;
+use super::unary_op;
 use crate::var::Var;
 use coeus_core::Float;
 use coeus_tensor::Tensor;
@@ -10,7 +10,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "silu";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::silu(x, backend)
     }
 
@@ -20,8 +20,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::SiluGrad).expect("elementwise_unary");
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::SiluGrad)?;
         coeus_ops::mul(grad_out, &mask, backend)
     }
 }
@@ -32,7 +32,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "mish";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::mish(x, backend)
     }
 
@@ -42,8 +42,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::MishGrad).expect("elementwise_unary");
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::MishGrad)?;
         coeus_ops::mul(grad_out, &mask, backend)
     }
 }
@@ -54,7 +54,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "softplus";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::softplus(x, backend)
     }
 
@@ -64,9 +64,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
+    ) -> Result<Tensor<T, B>, B::Error> {
         // SoftplusGrad = sigmoid(x)
-        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::SoftplusGrad).expect("elementwise_unary");
+        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::SoftplusGrad)?;
         coeus_ops::mul(grad_out, &deriv, backend)
     }
 }
@@ -74,20 +74,26 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
 /// Tracked SiLU activation.
 #[must_use]
 #[inline]
-pub fn silu<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn silu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, SiluOp>(a)
 }
 
 /// Tracked Mish activation.
 #[must_use]
 #[inline]
-pub fn mish<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn mish<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, MishOp>(a)
 }
 
 /// Tracked Softplus activation.
 #[must_use]
 #[inline]
-pub fn softplus<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn softplus<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, SoftplusOp>(a)
 }

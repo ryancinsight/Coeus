@@ -9,7 +9,7 @@ use coeus_core::Float;
 pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: isize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::softmax(input, dim)
 }
 
@@ -32,7 +32,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softmax {
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         softmax(input, self.dim)
     }
 }

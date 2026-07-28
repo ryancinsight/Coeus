@@ -1,5 +1,5 @@
 pub mod backward;
 pub mod forward;
 
-pub use backward::{dispatch_conv3d_backward, Conv3dBackwardDispatch};
-pub use forward::{dispatch_conv3d, Conv3dDispatch};
+pub use backward::{Conv3dBackwardDispatch, dispatch_conv3d_backward};
+pub use forward::{Conv3dDispatch, dispatch_conv3d};

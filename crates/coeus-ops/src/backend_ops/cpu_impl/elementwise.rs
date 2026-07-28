@@ -3,8 +3,8 @@
 
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 
-use super::error::map_leto_error;
 use super::CpuBackend;
+use super::error::map_leto_error;
 use crate::backend_ops::ops::{BinaryOp, UnaryOp};
 
 #[inline]
@@ -30,7 +30,7 @@ where
         b_layout,
         b.as_slice(),
         c_layout,
-        c.as_mut_slice(),
+        c.as_mut_slice()?,
     )
     .map_err(|error| map_leto_error("elementwise binary", error))
 }
@@ -49,6 +49,6 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::elementwise_unary_into(op, a_layout, a.as_slice(), c_layout, c.as_mut_slice())
+    coeus_leto::elementwise_unary_into(op, a_layout, a.as_slice(), c_layout, c.as_mut_slice()?)
         .map_err(|error| map_leto_error("elementwise unary", error))
 }

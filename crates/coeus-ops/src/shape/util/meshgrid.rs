@@ -12,7 +12,7 @@
 //     output[0] (first arg) varies along dim 1, output[1] along dim 0.
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_tensor::Tensor;
 
 /// Create coordinate grids from a slice of 1-D tensors.
@@ -20,28 +20,32 @@ use coeus_tensor::Tensor;
 /// Returns a `Vec<Tensor<T, B>>` of length `tensors.len()`, each with shape
 /// equal to the product of all input lengths.
 ///
-/// # Panics
-/// - Panics if any input tensor is not 1-D.
+/// # Errors
+/// Returns a backend error when indexing or input ranks are invalid, or when
+/// materialization fails.
 #[inline]
 pub fn meshgrid<T: Scalar, B: BackendOps<T> + Default>(
     tensors: &[&Tensor<T, B>],
     indexing: &str,
-    _backend: &B,
-) -> Vec<Tensor<T, B>>
+    backend: &B,
+) -> Result<Vec<Tensor<T, B>>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    assert!(
-        matches!(indexing, "ij" | "xy"),
-        "meshgrid: indexing must be \"ij\" or \"xy\", got {indexing:?}"
-    );
-    for (i, t) in tensors.iter().enumerate() {
-        assert_eq!(
-            t.ndim(),
-            1,
-            "meshgrid: tensor {i} must be 1-D, got {}-D",
-            t.ndim()
-        );
+    if !matches!(indexing, "ij" | "xy") {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "meshgrid",
+            reason: format!("unsupported indexing mode {indexing:?}"),
+        }));
+    }
+    for t in tensors {
+        if t.ndim() != 1 {
+            return Err(B::Error::from(BackendError::UnsupportedRank {
+                operation: "meshgrid",
+                rank: t.ndim(),
+                max_rank: 1,
+            }));
+        }
     }
 
     let n = tensors.len();
@@ -60,15 +64,26 @@ where
         }
     };
 
-    let total: usize = sizes.iter().product();
+    if n == 0 {
+        return Ok(Vec::new());
+    }
+    let total = sizes.iter().try_fold(1usize, |count, &extent| {
+        count.checked_mul(extent).ok_or_else(|| {
+            B::Error::from(BackendError::Overflow {
+                operation: "meshgrid",
+                reason: "grid element count",
+            })
+        })
+    })?;
 
     // For each output tensor `g`, element at multi-dim index `idx` (in the
-    // grid shape) takes the value from `tensors[ij_to_grid(g)]` at
-    // coordinate `idx[ij_to_grid(g)]`.
+    // grid shape) takes the value from input `g` at the output coordinate
+    // dimension selected by the indexing convention. The source tensor index
+    // and coordinate dimension differ for the first two outputs under `xy`.
     (0..n)
         .map(|g| {
-            let src_dim = ij_to_grid(g);
-            let src_cont = tensors[g].to_contiguous();
+            let coord_dim = ij_to_grid(g);
+            let src_cont = tensors[g].to_contiguous()?;
             let src_s = src_cont.as_slice();
 
             // Compute row-major strides for the output shape.
@@ -89,12 +104,12 @@ where
             let data: Vec<T> = (0..total)
                 .map(|flat| {
                     // Decode flat → multi-dim index.
-                    let coord_in_src_dim = (flat / strides[src_dim]) % out_shape[src_dim];
+                    let coord_in_src_dim = (flat / strides[coord_dim]) % out_shape[coord_dim];
                     src_s[coord_in_src_dim]
                 })
                 .collect();
 
-            Tensor::from_slice(out_shape, &data)
+            Tensor::from_slice_on(out_shape, &data, backend)
         })
         .collect()
 }
@@ -108,9 +123,9 @@ mod tests {
     #[test]
     fn meshgrid_ij_2d_creates_correct_grids() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![3], &[0.0f32, 1.0, 2.0]);
-        let y = Tensor::from_slice(vec![2], &[10.0f32, 20.0]);
-        let grids = meshgrid(&[&x, &y], "ij", &b);
+        let x = Tensor::from_slice(vec![3], &[0.0f32, 1.0, 2.0]).expect("construct tensor");
+        let y = Tensor::from_slice(vec![2], &[10.0f32, 20.0]).expect("construct tensor");
+        let grids = meshgrid(&[&x, &y], "ij", &b).expect("run operation");
         assert_eq!(grids.len(), 2);
         // x-grid [3,2]: each row is [0,0], [1,1], [2,2]
         assert_eq!(grids[0].shape(), &[3, 2]);
@@ -123,8 +138,8 @@ mod tests {
     #[test]
     fn meshgrid_ij_1d_is_identity() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0]);
-        let grids = meshgrid(&[&x], "ij", &b);
+        let x = Tensor::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0]).expect("construct tensor");
+        let grids = meshgrid(&[&x], "ij", &b).expect("run operation");
         assert_eq!(grids.len(), 1);
         assert_eq!(grids[0].as_slice(), x.as_slice());
     }
@@ -134,9 +149,9 @@ mod tests {
         // For (x=[0,1,2], y=[0,1]):
         // ij indexing: grid_x varies along axis 0, grid_y along axis 1.
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![3], &[0.0f32, 1.0, 2.0]);
-        let y = Tensor::from_slice(vec![2], &[0.0f32, 1.0]);
-        let grids = meshgrid(&[&x, &y], "ij", &b);
+        let x = Tensor::from_slice(vec![3], &[0.0f32, 1.0, 2.0]).expect("construct tensor");
+        let y = Tensor::from_slice(vec![2], &[0.0f32, 1.0]).expect("construct tensor");
+        let grids = meshgrid(&[&x, &y], "ij", &b).expect("run operation");
         // grid_x[i,j] = x[i]
         for row in 0..3 {
             for col in 0..2 {

@@ -7,8 +7,6 @@
 
 use coeus_core::{ComputeBackend, Float, Layout, Scalar};
 
-use super::super::defaults;
-
 /// Convolution operations.
 ///
 /// This sub-trait is one of seven concerns that compose
@@ -30,7 +28,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 1D Convolution Backward
     fn conv1d_backward(
@@ -49,7 +47,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
         stride: usize,
         padding: usize,
         dilation: usize,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 2D Convolution
     fn conv2d(
@@ -64,7 +62,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 2D Convolution Backward
     fn conv2d_backward(
@@ -83,7 +81,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
         stride: usize,
         padding: usize,
         dilation: usize,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 3D Convolution
     fn conv3d(
@@ -98,7 +96,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 3D Convolution Backward
     fn conv3d_backward(
@@ -117,9 +115,9 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
         stride: usize,
         padding: usize,
         dilation: usize,
-    );
+    ) -> Result<(), Self::Error>;
 
-    /// 1-D Transposed Convolution default (host-side fallback).
+    /// 1-D transposed convolution.
     #[allow(clippy::too_many_arguments)]
     fn conv_transpose1d(
         &self,
@@ -134,26 +132,11 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) where
-        T: Float,
-    {
-        defaults::conv_transpose::conv_transpose1d(
-            self,
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            bias,
-            stride,
-            padding,
-            output_padding,
-            dilation,
-            output,
-            output_layout,
-        )
-    }
+    ) -> Result<(), Self::Error>
+    where
+        T: Float;
 
-    /// 2-D Transposed Convolution default (host-side fallback).
+    /// 2-D transposed convolution.
     #[allow(clippy::too_many_arguments)]
     fn conv_transpose2d(
         &self,
@@ -168,22 +151,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) where
-        T: Float,
-    {
-        defaults::conv_transpose::conv_transpose2d(
-            self,
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            bias,
-            stride,
-            padding,
-            output_padding,
-            dilation,
-            output,
-            output_layout,
-        )
-    }
+    ) -> Result<(), Self::Error>
+    where
+        T: Float;
 }

@@ -48,7 +48,7 @@ pub use reduce::{dispatch_fused_reduce, dispatch_reduce};
 pub use unfold_fold::{dispatch_fold1d, dispatch_fold2d, dispatch_unfold1d, dispatch_unfold2d};
 
 use crate::backend::CudaBackend;
-use crate::driver::{get_cuda_context, CUfunction, CUmodule, CudaDriver};
+use crate::driver::{CUfunction, CUmodule, CudaDriver, get_cuda_context};
 use crate::kernels::ptx::PTX_SOURCE;
 use crate::storage::CudaStorage;
 use coeus_core::{ComputeBackend, Layout};
@@ -202,11 +202,7 @@ pub fn get_cuda_function(name: &str) -> Option<CUfunction> {
     let mut func: CUfunction = std::ptr::null_mut();
     unsafe {
         let res = (drv.cu_module_get_function)(&mut func, module, c_name.as_ptr());
-        if res == 0 {
-            Some(func)
-        } else {
-            None
-        }
+        if res == 0 { Some(func) } else { None }
     }
 }
 
@@ -246,7 +242,7 @@ pub(crate) fn launch_1d(
 
 #[cfg(test)]
 mod tests {
-    use super::{CudaLayoutError, GpuLayoutInfo, CUDA_LAYOUT_MAX_DIMS};
+    use super::{CUDA_LAYOUT_MAX_DIMS, CudaLayoutError, GpuLayoutInfo};
     use coeus_core::Layout;
 
     #[test]

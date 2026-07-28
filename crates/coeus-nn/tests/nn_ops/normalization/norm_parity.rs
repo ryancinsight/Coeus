@@ -42,14 +42,14 @@ fn t<B: BackendOps<f64> + Default>(shape: &[usize], vals: &[f64], backend: &B) -
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Tensor::from_slice_on(shape.to_vec(), vals, backend)
+    Tensor::from_slice_on(shape.to_vec(), vals, backend).expect("construct tensor")
 }
 
 fn v<B: BackendOps<f64> + Default>(shape: &[usize], vals: &[f64], backend: &B) -> Var<f64, B>
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Var::new(t(shape, vals, backend), false)
+    Var::new(t(shape, vals, backend), false).expect("construct variable")
 }
 
 // ── BatchNorm1d ────────────────────────────────────────────────────────────
@@ -66,11 +66,11 @@ where
     let running_mean = t(&[1], &[1.0], backend);
     let running_var = t(&[1], &[3.0], backend);
 
-    let mut bn = BatchNorm1d::from_parts(1, weight, bias, 1.0, 0.1, running_mean, running_var);
+    let mut bn = BatchNorm1d::from_parts(1, weight, bias, 1.0, 0.1, running_mean, running_var).expect("construct module");
     bn.set_training(false);
 
     let inp = v(&[1, 1, 3], &[2.0, 5.0, -1.0], backend);
-    let out = Module::<f64, B>::forward(&bn, &inp);
+    let out = Module::<f64, B>::forward(&bn, &inp).expect("run forward");
 
     assert_eq!(out.tensor.shape(), &[1, 1, 3], "BatchNorm1d output shape");
     assert_eq!(
@@ -93,11 +93,11 @@ where
     let rm2 = t(&[2], &[0.0, 4.0], backend);
     let rv2 = t(&[2], &[3.0, 3.0], backend);
 
-    let mut bn2 = BatchNorm1d::from_parts(2, w2, b2, 1.0, 0.1, rm2, rv2);
+    let mut bn2 = BatchNorm1d::from_parts(2, w2, b2, 1.0, 0.1, rm2, rv2).expect("construct module");
     bn2.set_training(false);
 
     let inp2 = v(&[1, 2, 2], &[1.0, 3.0, 7.0, 9.0], backend);
-    let out2 = Module::<f64, B>::forward(&bn2, &inp2);
+    let out2 = Module::<f64, B>::forward(&bn2, &inp2).expect("run forward");
     assert_eq!(out2.tensor.shape(), &[1, 2, 2], "BatchNorm1d C=2 shape");
     assert_eq!(
         out2.tensor.as_slice(),
@@ -118,9 +118,9 @@ where
     // Group 0: [1,5] → mean=3, var=4, stdev=2 → x_hat=[-1, 1]
     // Group 1: [3,7] → mean=5, var=4, stdev=2 → x_hat=[-1, 1]
     // output = [-1, 1, -1, 1]
-    let gn = GroupNorm::<f64, B, 2>::new(4, 0.0);
+    let gn = GroupNorm::<f64, B, 2>::new(4, 0.0).expect("construct module");
     let inp = v(&[1, 4], &[1.0, 5.0, 3.0, 7.0], backend);
-    let out = Module::<f64, B>::forward(&gn, &inp);
+    let out = Module::<f64, B>::forward(&gn, &inp).expect("run forward");
 
     assert_eq!(out.tensor.shape(), &[1, 4], "GroupNorm output shape");
     assert_eq!(
@@ -132,7 +132,7 @@ where
     // Batch dimension: N=2, C=4, G=2.
     // Same values per batch row → same oracle per row.
     let inp2 = v(&[2, 4], &[1.0, 5.0, 3.0, 7.0, 1.0, 5.0, 3.0, 7.0], backend);
-    let out2 = Module::<f64, B>::forward(&gn, &inp2);
+    let out2 = Module::<f64, B>::forward(&gn, &inp2).expect("run forward");
     assert_eq!(out2.tensor.shape(), &[2, 4], "GroupNorm N=2 shape");
     assert_eq!(
         out2.tensor.as_slice(),
@@ -155,7 +155,7 @@ where
     // Group 0 [1,3]: mean=2, var=1, stdev=1 -> [-1,1].
     // Group 1 [10,14]: mean=12, var=4, stdev=2 -> [-1,1].
     let input = t(&[1, 4, 1], &[1.0, 3.0, 10.0, 14.0], backend);
-    let out = group_norm(&input, 2, None, None, 0.0);
+    let out = group_norm(&input, 2, None, None, 0.0).expect("run operation");
 
     assert_eq!(out.shape(), &[1, 4, 1], "functional GroupNorm shape");
     assert_eq!(
@@ -169,7 +169,7 @@ where
     // -> [-1.5, 1.5, -2.0, 2.0].
     let weight = t(&[4], &[2.0, 2.0, 3.0, 3.0], backend);
     let bias = t(&[4], &[0.5, -0.5, 1.0, -1.0], backend);
-    let affine = group_norm(&input, 2, Some(&weight), Some(&bias), 0.0);
+    let affine = group_norm(&input, 2, Some(&weight), Some(&bias), 0.0).expect("run operation");
 
     assert_eq!(
         affine.as_slice(),
@@ -183,7 +183,7 @@ where
 fn functional_group_norm_rejects_zero_groups() {
     let backend = SequentialBackend;
     let input = t(&[1, 4], &[1.0, 3.0, 10.0, 14.0], &backend);
-    let _ = group_norm(&input, 0, None, None, 0.0);
+    let _ = group_norm(&input, 0, None, None, 0.0).expect("run operation");
 }
 
 // ── RMSNorm ────────────────────────────────────────────────────────────────
@@ -195,9 +195,9 @@ where
     // Input [1, 2] = [[2, 2]], weight=[4, 3], eps=0.
     // x²=[4,4], mean_sq=4, rms=2, x_hat=[1,1], out=[4,3].
     let weight = v(&[2], &[4.0, 3.0], backend);
-    let rms = RMSNorm::from_parts(weight, 0.0);
+    let rms = RMSNorm::from_parts(weight, 0.0).expect("construct module");
     let inp = v(&[1, 2], &[2.0, 2.0], backend);
-    let out = Module::<f64, B>::forward(&rms, &inp);
+    let out = Module::<f64, B>::forward(&rms, &inp).expect("run forward");
 
     assert_eq!(out.tensor.shape(), &[1, 2], "RMSNorm output shape");
     assert_eq!(
@@ -209,9 +209,9 @@ where
     // Scalar: input [[2]], weight=[5], eps=0.
     // rms=2, x_hat=[1], out=[5].
     let weight2 = v(&[1], &[5.0], backend);
-    let rms2 = RMSNorm::from_parts(weight2, 0.0);
+    let rms2 = RMSNorm::from_parts(weight2, 0.0).expect("construct module");
     let inp2 = v(&[1, 1], &[2.0], backend);
-    let out2 = Module::<f64, B>::forward(&rms2, &inp2);
+    let out2 = Module::<f64, B>::forward(&rms2, &inp2).expect("run forward");
     assert_eq!(
         out2.tensor.as_slice(),
         &[5.0_f64],
@@ -220,9 +220,9 @@ where
 
     // Batch: N=3, same values [[2,2],[2,2],[2,2]] → each row same oracle.
     let weight3 = v(&[2], &[4.0, 3.0], backend);
-    let rms3 = RMSNorm::from_parts(weight3, 0.0);
+    let rms3 = RMSNorm::from_parts(weight3, 0.0).expect("construct module");
     let inp3 = v(&[3, 2], &[2.0, 2.0, 2.0, 2.0, 2.0, 2.0], backend);
-    let out3 = Module::<f64, B>::forward(&rms3, &inp3);
+    let out3 = Module::<f64, B>::forward(&rms3, &inp3).expect("run forward");
     assert_eq!(out3.tensor.shape(), &[3, 2], "RMSNorm N=3 shape");
     assert_eq!(
         out3.tensor.as_slice(),
@@ -262,19 +262,19 @@ fn check_batch_norm_1d_training<B: BackendOps<f64> + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    let weight = Var::new(Tensor::from_slice_on(vec![1], &[1.0_f64], backend), true);
-    let bias = Var::new(Tensor::from_slice_on(vec![1], &[0.0_f64], backend), true);
-    let running_mean = Tensor::zeros_on([1], backend);
-    let running_var = Tensor::ones_on([1], backend);
+    let weight = Var::new(Tensor::from_slice_on(vec![1], &[1.0_f64], backend).expect("construct tensor"), true).expect("construct variable");
+    let bias = Var::new(Tensor::from_slice_on(vec![1], &[0.0_f64], backend).expect("construct tensor"), true).expect("construct variable");
+    let running_mean = Tensor::zeros_on([1], backend).expect("construct tensor");
+    let running_var = Tensor::ones_on([1], backend).expect("construct tensor");
 
-    let bn = BatchNorm1d::from_parts(1, weight, bias, 0.0, 0.0, running_mean, running_var);
+    let bn = BatchNorm1d::from_parts(1, weight, bias, 0.0, 0.0, running_mean, running_var).expect("construct module");
     // is_training = true by default
 
     let inp = Var::new(
-        Tensor::from_slice_on(vec![2, 1, 2], &[1.0_f64, 3.0, 5.0, 7.0], backend),
+        Tensor::from_slice_on(vec![2, 1, 2], &[1.0_f64, 3.0, 5.0, 7.0], backend).expect("construct tensor"),
         true,
-    );
-    let out = Module::<f64, B>::forward(&bn, &inp);
+    ).expect("construct variable");
+    let out = Module::<f64, B>::forward(&bn, &inp).expect("run forward");
     assert_eq!(out.tensor.shape(), &[2, 1, 2]);
 
     let s = out.tensor.as_slice();
@@ -295,7 +295,7 @@ where
     }
 
     // Verify backward propagates to weight and bias.
-    out.backward();
+    out.backward().expect("run backward");
     assert!(bn.weight.grad().is_some(), "weight grad must exist");
     assert!(bn.bias.grad().is_some(), "bias grad must exist");
 }

@@ -15,13 +15,15 @@ where
 {
     let backend = B::default();
     let data = (0..12).collect::<Vec<i32>>();
-    let tensor = Tensor::<i32, B>::from_slice_on([3usize, 4], &data, &backend);
+    let tensor = Tensor::<i32, B>::from_slice_on([3usize, 4], &data, &backend).expect("construct tensor");
 
     let view = tensor.slice(&[(0, 3), (1, 4)]).transpose();
     assert_eq!(view.shape(), &[3, 3]);
     assert!(!view.is_contiguous());
 
-    let contiguous = view.to_contiguous_on(&backend);
+    let contiguous = view
+        .to_contiguous_on(&backend)
+        .expect("materialize contiguous tensor");
     let expected = coeus_leto::contiguous_values(view.layout(), view.storage().as_slice()).unwrap();
 
     assert!(contiguous.is_contiguous());

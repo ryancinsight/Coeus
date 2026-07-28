@@ -12,7 +12,8 @@ pub(crate) fn avg_pool2d<T: Scalar, B: Backend>(
     dilation: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let n = input_layout.shape()[0];
@@ -24,7 +25,7 @@ pub(crate) fn avg_pool2d<T: Scalar, B: Backend>(
     let out_numel = n * c * h_out * w_out;
 
     let input_slice = input.as_slice();
-    let output_slice = output.as_mut_slice();
+    let output_slice = output.as_mut_slice()?;
 
     let input_ptr = Ptr(input_slice.as_ptr());
     let output_ptr = MutPtr(output_slice.as_mut_ptr());
@@ -75,6 +76,7 @@ pub(crate) fn avg_pool2d<T: Scalar, B: Backend>(
             output_ptr.write(output_idx, mean);
         }
     });
+    Ok(())
 }
 
 #[inline]
@@ -88,7 +90,8 @@ pub(crate) fn avg_pool2d_backward<T: Scalar, B: Backend>(
     dilation: usize,
     grad_input: &mut B::DeviceBuffer<T>,
     grad_input_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let n = grad_input_layout.shape()[0];
@@ -100,7 +103,7 @@ pub(crate) fn avg_pool2d_backward<T: Scalar, B: Backend>(
     let numel_in = n * c * h * w;
 
     let go_slice = grad_out.as_slice();
-    let gi_slice = grad_input.as_mut_slice();
+    let gi_slice = grad_input.as_mut_slice()?;
 
     let go_ptr = Ptr(go_slice.as_ptr());
     let gi_ptr = MutPtr(gi_slice.as_mut_ptr());
@@ -166,6 +169,7 @@ pub(crate) fn avg_pool2d_backward<T: Scalar, B: Backend>(
             gi_ptr.write(gi_idx, old + sum);
         }
     });
+    Ok(())
 }
 
 #[inline]
@@ -179,7 +183,8 @@ pub(crate) fn avg_pool3d<T: Scalar, B: Backend>(
     dilation: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let n = input_layout.shape()[0];
@@ -193,7 +198,7 @@ pub(crate) fn avg_pool3d<T: Scalar, B: Backend>(
     let out_numel = n * c * d_out * h_out * w_out;
 
     let input_slice = input.as_slice();
-    let output_slice = output.as_mut_slice();
+    let output_slice = output.as_mut_slice()?;
 
     let input_ptr = Ptr(input_slice.as_ptr());
     let output_ptr = MutPtr(output_slice.as_mut_ptr());
@@ -256,6 +261,7 @@ pub(crate) fn avg_pool3d<T: Scalar, B: Backend>(
             output_ptr.write(output_idx, mean);
         }
     });
+    Ok(())
 }
 
 #[inline]
@@ -269,7 +275,8 @@ pub(crate) fn avg_pool3d_backward<T: Scalar, B: Backend>(
     dilation: usize,
     grad_input: &mut B::DeviceBuffer<T>,
     grad_input_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let n = grad_input_layout.shape()[0];
@@ -283,7 +290,7 @@ pub(crate) fn avg_pool3d_backward<T: Scalar, B: Backend>(
     let numel_in = n * c * d * h * w;
 
     let go_slice = grad_out.as_slice();
-    let gi_slice = grad_input.as_mut_slice();
+    let gi_slice = grad_input.as_mut_slice()?;
 
     let go_ptr = Ptr(go_slice.as_ptr());
     let gi_ptr = MutPtr(gi_slice.as_mut_ptr());
@@ -369,4 +376,5 @@ pub(crate) fn avg_pool3d_backward<T: Scalar, B: Backend>(
             gi_ptr.write(gi_idx, old + sum);
         }
     });
+    Ok(())
 }

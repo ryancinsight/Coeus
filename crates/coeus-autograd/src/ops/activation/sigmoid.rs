@@ -1,5 +1,5 @@
-use super::unary_op;
 use super::UnaryAutogradOp;
+use super::unary_op;
 use crate::var::Var;
 use coeus_core::Float;
 use coeus_tensor::Tensor;
@@ -10,7 +10,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "sigmoid";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::sigmoid(x, backend)
     }
 
@@ -20,8 +20,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         _x: &Tensor<T, B>,
         y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let deriv = coeus_ops::elementwise_unary(y, backend, coeus_ops::UnaryOp::SigmoidGrad).expect("elementwise_unary");
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let deriv = coeus_ops::elementwise_unary(y, backend, coeus_ops::UnaryOp::SigmoidGrad)?;
         coeus_ops::mul(grad_out, &deriv, backend)
     }
 }
@@ -38,17 +38,22 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
 /// use coeus_core::MoiraiBackend;
 /// use coeus_tensor::Tensor;
 ///
-/// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[0.0, 0.0]), true);
-/// let y = coeus_autograd::sigmoid(&x);
+/// let x = Var::<f32, MoiraiBackend>::new(
+///     Tensor::from_slice([2], &[0.0, 0.0]).expect("construct tensor"),
+///     true,
+/// ).expect("construct variable");
+/// let y = coeus_autograd::sigmoid(&x).expect("apply sigmoid");
 /// assert!((y.tensor.as_slice()[0] - 0.5).abs() < 1e-5);
-/// let loss = coeus_autograd::sum(&y);
-/// loss.backward();
+/// let loss = coeus_autograd::sum(&y).expect("sum variables");
+/// loss.backward().expect("backward propagation");
 /// let grad = x.grad().unwrap();
 /// assert!((grad.as_slice()[0] - 0.25).abs() < 1e-5); // 0.5 * (1 - 0.5)
 /// assert!((grad.as_slice()[1] - 0.25).abs() < 1e-5);
 /// ```
 #[must_use]
 #[inline]
-pub fn sigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn sigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, SigmoidOp>(a)
 }

@@ -1,8 +1,8 @@
 use super::support::layout;
 use super::{
-    broadcast_layout, broadcast_shape, concat_values, contiguous_values, from_shape_fn_values,
-    normal_values, pad_values, permute_layout, reshape_layout, split_values, stack_values,
-    to_leto_view, uniform_values, CpuStorage, Layout, Shape, Storage, Strides,
+    CpuStorage, Layout, Shape, Storage, Strides, broadcast_layout, broadcast_shape, concat_values,
+    contiguous_values, from_shape_fn_values, normal_values, pad_values, permute_layout,
+    reshape_layout, split_values, stack_values, to_leto_view, uniform_values,
 };
 use coeus_core::CpuAddressableStorage;
 
@@ -19,7 +19,9 @@ fn pad_dispatch_covers_strided_input_view() {
 
     assert_eq!(
         padded,
-        vec![-1.0, -1.0, -1.0, -1.0, 1.0, 2.0, 3.0, -1.0, 4.0, 5.0, 6.0, -1.0]
+        vec![
+            -1.0, -1.0, -1.0, -1.0, 1.0, 2.0, 3.0, -1.0, 4.0, 5.0, 6.0, -1.0
+        ]
     );
 }
 
@@ -42,7 +44,9 @@ fn concat_dispatch_covers_strided_input_views() {
 
     assert_eq!(
         concatenated,
-        vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
+        vec![
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0
+        ]
     );
 }
 
@@ -85,7 +89,9 @@ fn stack_dispatch_covers_strided_input_views() {
     assert_eq!(stacked, direct.storage().as_slice());
     assert_eq!(
         stacked,
-        vec![1.0, 2.0, 3.0, 7.0, 8.0, 9.0, 4.0, 5.0, 6.0, 10.0, 11.0, 12.0]
+        vec![
+            1.0, 2.0, 3.0, 7.0, 8.0, 9.0, 4.0, 5.0, 6.0, 10.0, 11.0, 12.0
+        ]
     );
 }
 
@@ -103,7 +109,7 @@ fn random_dispatch_matches_leto_seeded_constructors() {
 #[test]
 fn contiguous_dispatch_matches_leto_view_materialization() {
     let data = (0..12).collect::<Vec<i32>>();
-    let source = CpuStorage::from_slice(&data);
+    let source = CpuStorage::try_from_slice(&data).expect("allocation succeeds");
     let sliced = layout(&[3, 4]).slice(&[(0, 3), (1, 4)]);
     let view = Layout::from_shape_strides(
         Shape::from(vec![3, 3]),
@@ -189,7 +195,8 @@ fn shape_function_dispatch_matches_leto_coordinate_order() {
 #[test]
 fn view_over_cpu_storage_reads_logical_values() {
     // Prove the adapter binds directly to coeus CpuStorage slices.
-    let storage = CpuStorage::from_slice(&[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let storage = CpuStorage::try_from_slice(&[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0])
+        .expect("allocation succeeds");
     let la = layout(&[2, 3]);
     let view = to_leto_view::<f64, 2>(&la, storage.as_slice()).unwrap();
     assert_eq!(view.shape(), [2, 3]);

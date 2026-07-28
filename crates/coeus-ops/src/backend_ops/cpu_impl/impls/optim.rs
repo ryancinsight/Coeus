@@ -1,5 +1,5 @@
-use super::super::optim;
 use super::super::CpuBackend;
+use super::super::optim;
 use crate::backend_ops::traits::OptimizerOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
 
@@ -19,7 +19,7 @@ where
         velocity_layout: &Layout,
         lr: T,
         momentum: T,
-    ) {
+    ) -> Result<(), Self::Error> {
         optim::sgd_step(
             self,
             param,
@@ -30,7 +30,8 @@ where
             velocity_layout,
             lr,
             momentum,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -49,7 +50,8 @@ where
         beta2: T,
         eps: T,
         t: usize,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         optim::adam_step(
@@ -67,7 +69,8 @@ where
             beta2,
             eps,
             t,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -82,7 +85,7 @@ where
         lr: T,
         alpha: T,
         eps: T,
-    ) {
+    ) -> Result<(), Self::Error> {
         optim::rmsprop_step(
             self,
             param,
@@ -94,7 +97,8 @@ where
             lr,
             alpha,
             eps,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -114,7 +118,8 @@ where
         eps: T,
         weight_decay: T,
         t: usize,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         optim::adamw_step(
@@ -133,7 +138,8 @@ where
             eps,
             weight_decay,
             t,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -147,7 +153,8 @@ where
         history_layout: &Layout,
         lr: T,
         eps: T,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         optim::adagrad_step(
@@ -160,6 +167,7 @@ where
             history_layout,
             lr,
             eps,
-        );
+        )?;
+        Ok(())
     }
 }

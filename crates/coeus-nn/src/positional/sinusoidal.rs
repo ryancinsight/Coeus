@@ -33,33 +33,27 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> SinusoidalEncoding<T, B> {
     ///
     /// - `max_len`: maximum sequence length supported.
     /// - `d_model`: embedding dimension (must be even).
-    pub fn new(max_len: usize, d_model: usize) -> Self {
+    pub fn new(max_len: usize, d_model: usize) -> Result<Self, B::Error> {
         assert!(
             d_model.is_multiple_of(2),
             "SinusoidalEncoding: d_model must be even, got {d_model}"
         );
         let backend = B::default();
-        let mut table = Tensor::zeros_on([max_len, d_model], &backend);
-        {
-            use coeus_core::StorageMut;
-            let data = table
-                .storage_mut()
-                .try_as_mut_slice()
-                .expect("SinusoidalEncoding: backend must be CPU-addressable at construction");
-            for pos in 0..max_len {
-                for i in 0..(d_model / 2) {
-                    let denom = 10_000.0_f64.powf(2.0 * i as f64 / d_model as f64);
-                    let angle = pos as f64 / denom;
-                    data[pos * d_model + 2 * i] = T::from_f64(angle.sin());
-                    data[pos * d_model + 2 * i + 1] = T::from_f64(angle.cos());
-                }
+        let mut values = vec![T::zero(); max_len * d_model];
+        for pos in 0..max_len {
+            for i in 0..(d_model / 2) {
+                let denom = 10_000.0_f64.powf(2.0 * i as f64 / d_model as f64);
+                let angle = pos as f64 / denom;
+                values[pos * d_model + 2 * i] = T::from_f64(angle.sin());
+                values[pos * d_model + 2 * i + 1] = T::from_f64(angle.cos());
             }
         }
-        Self {
+        let table = Tensor::from_slice_on([max_len, d_model], &values, &backend)?;
+        Ok(Self {
             table,
             max_len,
             d_model,
-        }
+        })
     }
 }
 
@@ -73,7 +67,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sinusoida
     /// - `input`: `[batch, seq_len, d_model]`
     ///
     /// Returns `[batch, seq_len, d_model]`.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let backend = B::default();
         let seq_len = input.tensor.shape()[1];
         assert!(
@@ -85,8 +79,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sinusoida
         // Extract the top `seq_len` rows of the PE table as a [seq_len, d_model] tensor.
         // For CPU-addressable storage this is a zero-copy slice; for GPU storage it
         // involves a staging copy limited to `seq_len * d_model` elements.
-        let pe_slice = extract_pe_slice(&self.table, seq_len, self.d_model, &backend);
-        let pe_var = Var::new(pe_slice, false);
+        let pe_slice = extract_pe_slice(&self.table, seq_len, self.d_model, &backend)?;
+        let pe_var = Var::new(pe_slice, false)?;
 
         // Broadcast add: input [B, seq, d] + pe [seq, d] via autograd add.
         // autograd::add handles the broadcast accumulation.
@@ -102,23 +96,21 @@ fn extract_pe_slice<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     seq_len: usize,
     d_model: usize,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     use coeus_core::{Storage, StorageMut};
-    let mut out = Tensor::zeros_on([seq_len, d_model], backend);
+    let mut out = Tensor::zeros_on([seq_len, d_model], backend)?;
     // Zero-copy path: both src and dst are CPU-addressable.
-    if let (Some(src), Some(dst)) = (
-        table.storage().try_as_slice(),
-        out.storage_mut().try_as_mut_slice(),
-    ) {
+    let out_storage = out.storage_mut()?;
+    if let (Some(src), Some(dst)) = (table.storage().try_as_slice(), out_storage.try_as_mut_slice()?) {
         dst.copy_from_slice(&src[..seq_len * d_model]);
     } else {
         // GPU path: stage through host.
         let total = table.numel();
         let mut host = vec![T::zero(); total];
-        backend.copy_to_host(table.storage(), &mut host);
+        backend.copy_to_host(table.storage(), &mut host)?;
         let mut out_host = vec![T::zero(); seq_len * d_model];
         out_host.copy_from_slice(&host[..seq_len * d_model]);
-        backend.copy_to_device(&out_host, out.storage_mut());
+        backend.copy_to_device(&out_host, out_storage)?;
     }
-    out
+    Ok(out)
 }

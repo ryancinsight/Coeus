@@ -27,23 +27,31 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Co
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let gl = g.write();
-            coeus_ops::add_assign(gl, grad_out, &backend);
+            coeus_ops::add_assign(gl, grad_out, &backend)?;
         }
+
+        Ok(())
     }
 }
 
 /// Tracked contiguous operation. Forces a copy to contiguous layout.
 #[inline]
-pub fn contiguous<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(x: &Var<T, B>) -> Var<T, B> {
+pub fn contiguous<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    x: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     if x.tensor.is_contiguous() {
-        return x.clone();
+        return Ok(x.clone());
     }
     let backend = B::default();
-    let out_tensor = x.tensor.to_contiguous();
+    let out_tensor = x.tensor.to_contiguous()?;
 
     let requires_grad = crate::grad_mode::should_track_var(x);
     if !requires_grad {
@@ -53,7 +61,7 @@ pub fn contiguous<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(x: &Var<T, B
     let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_tensor.shape_cloned(),
         &backend,
-    )));
+    )?));
     let grad = Some(output_grad.clone());
 
     let node = ContiguousNode {
@@ -62,9 +70,9 @@ pub fn contiguous<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(x: &Var<T, B
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

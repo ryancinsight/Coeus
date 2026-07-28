@@ -1,10 +1,10 @@
 use crate::backend_ops::CpuBackend;
-use coeus_core::{ComputeBackend, Float, Layout};
+use coeus_core::{Float, Layout};
 
 /// Default host-side 1-D transposed convolution.
 ///
 /// Copies input/weight/bias to host, scatters via stride loop, copies back.
-pub fn conv_transpose1d<T: Float, B: ComputeBackend>(
+pub fn conv_transpose1d<T: Float, B: CpuBackend>(
     backend: &B,
     input: &B::DeviceBuffer<T>,
     input_layout: &Layout,
@@ -17,7 +17,7 @@ pub fn conv_transpose1d<T: Float, B: ComputeBackend>(
     dilation: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) {
+) -> Result<(), B::Error> {
     let n = input_layout.shape()[0];
     let c_in = input_layout.shape()[1];
     let l = input_layout.shape()[2];
@@ -33,8 +33,8 @@ pub fn conv_transpose1d<T: Float, B: ComputeBackend>(
     let mut w_h = vec![T::zero(); w_numel];
     let mut out_h = vec![T::zero(); out_numel];
 
-    backend.copy_to_host(input, &mut in_h);
-    backend.copy_to_host(weight, &mut w_h);
+    backend.copy_to_host(input, &mut in_h)?;
+    backend.copy_to_host(weight, &mut w_h)?;
 
     for ni in 0..n {
         for ic in 0..c_in {
@@ -60,7 +60,7 @@ pub fn conv_transpose1d<T: Float, B: ComputeBackend>(
 
     if let Some(b) = bias {
         let mut b_h = vec![T::zero(); c_out];
-        backend.copy_to_host(b, &mut b_h);
+        backend.copy_to_host(b, &mut b_h)?;
         for ni in 0..n {
             for oc in 0..c_out {
                 for t in 0..l_out {
@@ -71,11 +71,11 @@ pub fn conv_transpose1d<T: Float, B: ComputeBackend>(
     }
 
     let _ = output_padding;
-    backend.copy_to_device(&out_h, output);
+    backend.copy_to_device(&out_h, output)
 }
 
 /// Default host-side 2-D transposed convolution.
-pub fn conv_transpose2d<T: Float, B: ComputeBackend>(
+pub fn conv_transpose2d<T: Float, B: CpuBackend>(
     backend: &B,
     input: &B::DeviceBuffer<T>,
     input_layout: &Layout,
@@ -88,7 +88,7 @@ pub fn conv_transpose2d<T: Float, B: ComputeBackend>(
     dilation: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) {
+) -> Result<(), B::Error> {
     let n = input_layout.shape()[0];
     let c_in = input_layout.shape()[1];
     let h = input_layout.shape()[2];
@@ -107,8 +107,8 @@ pub fn conv_transpose2d<T: Float, B: ComputeBackend>(
     let mut wt_h = vec![T::zero(); weight_numel];
     let mut out_h = vec![T::zero(); out_numel];
 
-    backend.copy_to_host(input, &mut in_h);
-    backend.copy_to_host(weight, &mut wt_h);
+    backend.copy_to_host(input, &mut in_h)?;
+    backend.copy_to_host(weight, &mut wt_h)?;
 
     for ni in 0..n {
         for ic in 0..c_in {
@@ -145,7 +145,7 @@ pub fn conv_transpose2d<T: Float, B: ComputeBackend>(
 
     if let Some(b) = bias {
         let mut b_h = vec![T::zero(); c_out];
-        backend.copy_to_host(b, &mut b_h);
+        backend.copy_to_host(b, &mut b_h)?;
         for ni in 0..n {
             for oc in 0..c_out {
                 for hi in 0..h_out {
@@ -159,7 +159,7 @@ pub fn conv_transpose2d<T: Float, B: ComputeBackend>(
     }
 
     let _ = output_padding;
-    backend.copy_to_device(&out_h, output);
+    backend.copy_to_device(&out_h, output)
 }
 
 /// Default CPU-side 3-D transposed convolution.
@@ -188,7 +188,7 @@ pub fn conv_transpose3d<T: Float, B: CpuBackend>(
     dilation: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) {
+) -> Result<(), B::Error> {
     let n = input_layout.shape()[0];
     let c_in = input_layout.shape()[1];
     let d = input_layout.shape()[2];
@@ -210,8 +210,8 @@ pub fn conv_transpose3d<T: Float, B: CpuBackend>(
     let mut wt_h = vec![T::zero(); weight_numel];
     let mut out_h = vec![T::zero(); out_numel];
 
-    backend.copy_to_host(input, &mut in_h);
-    backend.copy_to_host(weight, &mut wt_h);
+    backend.copy_to_host(input, &mut in_h)?;
+    backend.copy_to_host(weight, &mut wt_h)?;
 
     for ni in 0..n {
         for ic in 0..c_in {
@@ -265,7 +265,7 @@ pub fn conv_transpose3d<T: Float, B: CpuBackend>(
 
     if let Some(b) = bias {
         let mut b_h = vec![T::zero(); c_out];
-        backend.copy_to_host(b, &mut b_h);
+        backend.copy_to_host(b, &mut b_h)?;
         for ni in 0..n {
             for oc in 0..c_out {
                 for di in 0..d_out {
@@ -285,5 +285,5 @@ pub fn conv_transpose3d<T: Float, B: CpuBackend>(
     }
 
     let _ = output_padding;
-    backend.copy_to_device(&out_h, output);
+    backend.copy_to_device(&out_h, output)
 }

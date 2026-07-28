@@ -1,15 +1,15 @@
 use super::GpuLayoutInfo;
 use crate::backend::{CudaBackend, CudaScalar};
-use crate::driver::{get_cuda_context, CUdeviceptr, CUfunction, CUmodule, CudaDriver, NvrtcDriver};
+use crate::driver::{CUdeviceptr, CUfunction, CUmodule, CudaDriver, NvrtcDriver, get_cuda_context};
 use crate::kernels::validation::{
-    checked_layout_storage_len, checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda,
-    CUDA_BLOCK_SIZE,
+    CUDA_BLOCK_SIZE, checked_layout_storage_len, checked_numel, cuda_u32, launch_grid_size,
+    layouts_fit_cuda,
 };
 use crate::storage::CudaStorage;
 use coeus_core::{ComputeBackend, Layout, Storage};
 use coeus_ops::fuse::ExprNode;
-use coeus_tensor::broadcast::broadcast_shapes;
 use coeus_tensor::Tensor;
+use coeus_tensor::broadcast::broadcast_shapes;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
 
@@ -120,8 +120,8 @@ pub fn compile_cuda_to_ptx(src: &str) -> Result<String, String> {
         // `nvrtcGetPTXSize` reports the buffer size *including* the trailing NUL
         // terminator, so `ptx_bytes` ends in one or more NUL bytes. Trim them;
         // otherwise the PTX `String` carries an interior NUL and every
-        // `CString::new(ptx)` downstream fails, silently degrading all JIT
-        // kernels to the CPU fallback.
+        // `CString::new(ptx)` downstream fails, making all JIT kernels
+        // unavailable at the CUDA dispatch boundary.
         while ptx_bytes.last() == Some(&0) {
             ptx_bytes.pop();
         }

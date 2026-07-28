@@ -11,18 +11,18 @@ fn test_dropout_parity() {
 
     // Coeus setup
     let x_coeus = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &x_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &x_data).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let mut dropout_coeus = coeus_nn::Dropout::new(p);
     dropout_coeus.is_training = true;
-    let out_coeus = dropout_coeus.forward(&x_coeus);
+    let out_coeus = dropout_coeus.forward(&x_coeus).expect("run forward");
 
     // Verify forward (with p=0, output is equal to input)
     assert_tensor_eq_data(&out_coeus.tensor, &x_data, 1e-4);
 
     // Backward
-    out_coeus.backward();
+    out_coeus.backward().expect("run backward");
 
     let dx_coeus = x_coeus.grad().unwrap();
 
@@ -32,13 +32,13 @@ fn test_dropout_parity() {
 
     // Stochastic scaling test in Coeus
     let x_coeus2 = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1000], &vec![1.0f32; 1000]),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1000], &vec![1.0f32; 1000]).expect("construct tensor"),
         true,
-    );
+    ).expect("construct variable");
     let mut dropout_coeus2 = coeus_nn::Dropout::new(0.5);
     dropout_coeus2.is_training = true;
-    let out_coeus2 = dropout_coeus2.forward(&x_coeus2);
-    out_coeus2.backward();
+    let out_coeus2 = dropout_coeus2.forward(&x_coeus2).expect("run forward");
+    out_coeus2.backward().expect("run backward");
 
     let slice: &[f32] = out_coeus2.tensor.as_slice();
     for &val in slice {
@@ -63,14 +63,14 @@ fn test_batchnorm2d_parity() {
     let momentum = 0.1;
 
     // Coeus setup
-    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![2, 2, 2, 3], &x_data), true);
+    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![2, 2, 2, 3], &x_data).expect("construct tensor"), true).expect("construct variable");
     let mut bn_coeus =
         coeus_nn::normalization::batchnorm2d::BatchNorm2d::<f32, SequentialBackend>::new(
             2, eps, momentum,
-        );
-    bn_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![2], &w_data), true);
-    bn_coeus.bias = CoeusVar::new(CoeusTensor::from_slice(vec![2], &b_data), true);
-    let out_coeus = bn_coeus.forward(&x_coeus);
+        ).expect("construct module");
+    bn_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![2], &w_data).expect("construct tensor"), true).expect("construct variable");
+    bn_coeus.bias = CoeusVar::new(CoeusTensor::from_slice(vec![2], &b_data).expect("construct tensor"), true).expect("construct variable");
+    let out_coeus = bn_coeus.forward(&x_coeus).expect("run forward");
 
     // Verify forward
     let expected_batchnorm2d_out = vec![
@@ -102,7 +102,7 @@ fn test_batchnorm2d_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_batchnorm2d_out, 1e-3);
 
     // Backward
-    out_coeus.backward();
+    out_coeus.backward().expect("run backward");
 
     let dx_coeus = x_coeus.grad().unwrap();
     let dw_coeus = bn_coeus.weight.grad().unwrap();

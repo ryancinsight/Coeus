@@ -36,17 +36,21 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let mut host_grad = [T::zero()];
         let temp_grad;
         let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
             grad_out
         } else {
-            temp_grad = grad_out.to_contiguous_on(&backend);
+            temp_grad = grad_out.to_contiguous_on(&backend)?;
             &temp_grad
         };
-        backend.copy_to_host(grad_cont.storage(), &mut host_grad);
+        backend.copy_to_host(grad_cont.storage(), &mut host_grad)?;
         let g_out = host_grad[0];
         let n_t = T::from_f64(self.n as f64);
         let scale = g_out / n_t;
@@ -58,19 +62,21 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
             for i in 0..self.n {
                 d1[i] = (T::zero() - self.target_host[i]) * self.mask[i] * scale;
             }
-            let grad_tensor = Tensor::from_slice_on([self.n], &d1, &backend);
+            let grad_tensor = Tensor::from_slice_on([self.n], &d1, &backend)?;
             let gl = g1.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
         if let Some(Some(ref g2)) = input_grads.get(1) {
             let mut d2 = vec![T::zero(); self.n];
             for i in 0..self.n {
                 d2[i] = self.target_host[i] * self.mask[i] * scale;
             }
-            let grad_tensor = Tensor::from_slice_on([self.n], &d2, &backend);
+            let grad_tensor = Tensor::from_slice_on([self.n], &d2, &backend)?;
             let gl = g2.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -85,7 +91,7 @@ pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input2: &Var<T, B>,
     target: &[T],
     margin: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let n = input1.tensor.numel();
     assert_eq!(
@@ -99,14 +105,14 @@ pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let i1_raw = if input1.tensor.is_contiguous() && input1.tensor.layout().offset() == 0 {
         &input1.tensor
     } else {
-        i1_cont = input1.tensor.to_contiguous_on(&backend);
+        i1_cont = input1.tensor.to_contiguous_on(&backend)?;
         &i1_cont
     };
     let i2_cont;
     let i2_raw = if input2.tensor.is_contiguous() && input2.tensor.layout().offset() == 0 {
         &input2.tensor
     } else {
-        i2_cont = input2.tensor.to_contiguous_on(&backend);
+        i2_cont = input2.tensor.to_contiguous_on(&backend)?;
         &i2_cont
     };
 
@@ -114,14 +120,14 @@ pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         std::borrow::Cow::Borrowed(&s[..n])
     } else {
         let mut v = vec![T::zero(); n];
-        backend.copy_to_host(i1_raw.storage(), &mut v);
+        backend.copy_to_host(i1_raw.storage(), &mut v)?;
         std::borrow::Cow::Owned(v)
     };
     let i2_host: std::borrow::Cow<[T]> = if let Some(s) = i2_raw.storage().try_as_slice() {
         std::borrow::Cow::Borrowed(&s[..n])
     } else {
         let mut v = vec![T::zero(); n];
-        backend.copy_to_host(i2_raw.storage(), &mut v);
+        backend.copy_to_host(i2_raw.storage(), &mut v)?;
         std::borrow::Cow::Owned(v)
     };
 
@@ -139,18 +145,17 @@ pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     }
     loss_val = loss_val / T::from_f64(n as f64);
 
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
+    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend)?;
     let requires_grad =
         crate::grad_mode::should_track_var(input1) || crate::grad_mode::should_track_var(input2);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let node = MarginRankingLossNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs: vec![input1.clone(), input2.clone()],
             target_host: target.to_vec(),
             mask,
@@ -160,9 +165,9 @@ pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

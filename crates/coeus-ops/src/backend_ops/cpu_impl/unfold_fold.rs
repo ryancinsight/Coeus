@@ -32,7 +32,8 @@ pub(crate) fn unfold1d<T: Scalar, B: Backend>(
     dilation: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let n = input_layout.shape()[0];
@@ -43,7 +44,7 @@ pub(crate) fn unfold1d<T: Scalar, B: Backend>(
     let out_numel = n * ck * l_out;
 
     let input_ptr = Ptr(input.as_slice().as_ptr());
-    let output_ptr = MutPtr(output.as_mut_slice().as_mut_ptr());
+    let output_ptr = MutPtr(output.as_mut_slice()?.as_mut_ptr());
     let input_layout = input_layout.clone();
     let output_layout = output_layout.clone();
 
@@ -72,6 +73,7 @@ pub(crate) fn unfold1d<T: Scalar, B: Backend>(
         let dst = output_layout.physical_index(&[ni, ck_idx, lo]);
         unsafe { output_ptr.write(dst, val) };
     });
+    Ok(())
 }
 
 // ── Fold 1D ──────────────────────────────────────────────────────────────────
@@ -90,7 +92,8 @@ pub(crate) fn fold1d<T: Scalar, B: Backend>(
     dilation: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let n = input_layout.shape()[0];
@@ -99,12 +102,12 @@ pub(crate) fn fold1d<T: Scalar, B: Backend>(
     let c = ck / kernel_size;
 
     // Zero output first.
-    for v in output.as_mut_slice().iter_mut() {
+    for v in output.as_mut_slice()?.iter_mut() {
         *v = T::zero();
     }
 
     let input_slice = input.as_slice();
-    let output_slice = output.as_mut_slice();
+    let output_slice = output.as_mut_slice()?;
 
     let pad_s = padding as isize;
     let stride_s = stride as isize;
@@ -127,6 +130,7 @@ pub(crate) fn fold1d<T: Scalar, B: Backend>(
     }
 
     let _ = output_slice; // satisfy borrow checker
+    Ok(())
 }
 
 // ── Unfold 2D ────────────────────────────────────────────────────────────────
@@ -148,7 +152,8 @@ pub(crate) fn unfold2d<T: Scalar, B: Backend>(
     dilation_w: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let n = input_layout.shape()[0];
@@ -162,7 +167,7 @@ pub(crate) fn unfold2d<T: Scalar, B: Backend>(
     let out_numel = n * ckk * l_out;
 
     let input_ptr = Ptr(input.as_slice().as_ptr());
-    let output_ptr = MutPtr(output.as_mut_slice().as_mut_ptr());
+    let output_ptr = MutPtr(output.as_mut_slice()?.as_mut_ptr());
     let input_layout = input_layout.clone();
     let output_layout = output_layout.clone();
 
@@ -201,6 +206,7 @@ pub(crate) fn unfold2d<T: Scalar, B: Backend>(
         let dst = output_layout.physical_index(&[ni, ckk_idx, lo]);
         unsafe { output_ptr.write(dst, val) };
     });
+    Ok(())
 }
 
 // ── Fold 2D ──────────────────────────────────────────────────────────────────
@@ -224,7 +230,8 @@ pub(crate) fn fold2d<T: Scalar, B: Backend>(
     dilation_w: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let n = input_layout.shape()[0];
@@ -238,12 +245,12 @@ pub(crate) fn fold2d<T: Scalar, B: Backend>(
     let c = ckk / (kernel_h * kernel_w);
 
     // Zero output first.
-    for v in output.as_mut_slice().iter_mut() {
+    for v in output.as_mut_slice()?.iter_mut() {
         *v = T::zero();
     }
 
     let input_slice = input.as_slice();
-    let output_slice = output.as_mut_slice();
+    let output_slice = output.as_mut_slice()?;
 
     let pad_h_s = padding_h as isize;
     let pad_w_s = padding_w as isize;
@@ -282,4 +289,5 @@ pub(crate) fn fold2d<T: Scalar, B: Backend>(
             }
         }
     }
+    Ok(())
 }

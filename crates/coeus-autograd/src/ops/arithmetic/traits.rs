@@ -1,4 +1,4 @@
-﻿use crate::grad_buffer::GradBuffer;
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Scalar, Shape};
@@ -11,7 +11,7 @@ pub trait BinaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Se
     const OP_NAME: &'static str;
 
     /// Execute forward pass.
-    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Tensor<T, B>;
+    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error>;
 
     /// Compute input gradients backward.
     fn backward(
@@ -22,7 +22,7 @@ pub trait BinaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Se
         b_shape: &Shape,
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
-    );
+    ) -> Result<(), B::Error>;
 }
 
 /// Autograd node for a generic binary operation.
@@ -63,7 +63,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         Op::backward(
             grad_out,
@@ -73,7 +77,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B
             &self.b_shape,
             input_grads,
             &backend,
-        );
+        )?;
+        Ok(())
     }
 }
 
@@ -86,29 +91,28 @@ pub fn binary_op<
 >(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let out_tensor = Op::forward(&a.tensor, &b.tensor, &backend);
+    let out_tensor = Op::forward(&a.tensor, &b.tensor, &backend)?;
     let requires_grad =
         crate::grad_mode::should_track_var(a) || crate::grad_mode::should_track_var(b);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
 
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let inputs = vec![a.clone(), b.clone()];
         let a_shape: Shape = a.tensor.shape_cloned();
         let b_shape: Shape = b.tensor.shape_cloned();
         let a_tensor = a.tensor.clone();
         let b_tensor = b.tensor.clone();
         let node: BinaryNode<T, B, Op> = BinaryNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs,
             a_tensor,
             b_tensor,
@@ -121,11 +125,11 @@ pub fn binary_op<
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 /// Abstract interface for compile-time specialized reduction autograd operations.
@@ -136,10 +140,18 @@ pub trait ReductionAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>:
     const OP_NAME: &'static str;
 
     /// Execute forward pass.
-    fn forward(a: &Tensor<T, B>, param: Option<usize>, backend: &B) -> Tensor<T, B>;
+    fn forward(
+        a: &Tensor<T, B>,
+        param: Option<usize>,
+        backend: &B,
+    ) -> Result<Tensor<T, B>, B::Error>;
 
     /// Return optional scaling tensor for backward propagation.
-    fn scaler(a: &Tensor<T, B>, param: Option<usize>, backend: &B) -> Option<Tensor<T, B>>;
+    fn scaler(
+        a: &Tensor<T, B>,
+        param: Option<usize>,
+        backend: &B,
+    ) -> Result<Option<Tensor<T, B>>, B::Error>;
 }
 
 /// Autograd node for reduction operations (sum, mean, norm, etc.).
@@ -179,18 +191,23 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: ReductionAutogradOp<T
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
             let grad_to_broadcast = if let Some(ref scaler) = self.scaler_tensor {
                 coeus_ops::mul(grad_out, scaler, &backend)
             } else {
-                grad_out.clone()
+                Ok(grad_out.clone())
             };
-            let broadcasted = grad_to_broadcast.broadcast(self.a_shape.clone());
+            let broadcasted = grad_to_broadcast?.broadcast(self.a_shape.clone());
             let gl = g.write();
-            coeus_ops::add_assign(gl, &broadcasted, &backend);
+            coeus_ops::add_assign(gl, &broadcasted, &backend)?;
         }
+        Ok(())
     }
 }
 
@@ -203,26 +220,25 @@ pub fn reduction_op<
 >(
     a: &Var<T, B>,
     param: Option<usize>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let out_tensor = Op::forward(&a.tensor, param, &backend);
+    let out_tensor = Op::forward(&a.tensor, param, &backend)?;
     let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
 
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let inputs = vec![a.clone()];
         let a_shape: Shape = a.tensor.shape_cloned();
-        let scaler_tensor = Op::scaler(&a.tensor, param, &backend);
+        let scaler_tensor = Op::scaler(&a.tensor, param, &backend)?;
         let node: ReductionNode<T, B, Op> = ReductionNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs,
             a_shape,
             scaler_tensor,
@@ -233,9 +249,9 @@ pub fn reduction_op<
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

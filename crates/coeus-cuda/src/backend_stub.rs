@@ -83,30 +83,71 @@ impl ComputeBackend for CudaBackend {
     }
 
     #[inline]
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        CudaStorage::new(len)
+    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        CudaStorage::try_new(len)
     }
 
     #[inline]
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, value: T) {
-        dst.try_as_mut_slice()
-            .expect("invariant: no-CUDA storage is CPU-addressable")
+    fn fill<T: Scalar>(
+        &self,
+        dst: &mut Self::DeviceBuffer<T>,
+        value: T,
+    ) -> Result<(), Self::Error> {
+        dst.try_as_mut_slice()?
+            .ok_or_else(|| BackendError::Storage {
+                operation: "fill",
+                reason: "no-CUDA storage is not CPU-addressable".to_owned(),
+            })?
             .fill(value);
+        Ok(())
     }
 
     #[inline]
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
-        dst.try_as_mut_slice()
-            .expect("invariant: no-CUDA storage is CPU-addressable")
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error> {
+        if src.len() != dst.len() {
+            return Err(BackendError::Storage {
+                operation: "copy_to_device",
+                reason: format!(
+                    "source length {} differs from destination length {}",
+                    src.len(),
+                    dst.len()
+                ),
+            });
+        }
+        dst.try_as_mut_slice()?
+            .ok_or_else(|| BackendError::Storage {
+                operation: "copy_to_device",
+                reason: "no-CUDA storage is not CPU-addressable".to_owned(),
+            })?
             .copy_from_slice(src);
+        Ok(())
     }
 
     #[inline]
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
-        dst.copy_from_slice(
-            src.try_as_slice()
-                .expect("invariant: no-CUDA storage is CPU-addressable"),
-        );
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error> {
+        if src.len() != dst.len() {
+            return Err(BackendError::Storage {
+                operation: "copy_to_host",
+                reason: format!(
+                    "source length {} differs from destination length {}",
+                    src.len(),
+                    dst.len()
+                ),
+            });
+        }
+        dst.copy_from_slice(src.try_as_slice().ok_or_else(|| BackendError::Storage {
+            operation: "copy_to_host",
+            reason: "no-CUDA storage is not CPU-addressable".to_owned(),
+        })?);
+        Ok(())
     }
 }
 
@@ -122,9 +163,15 @@ impl Backend for CudaBackend {
 
 impl coeus_ops::CpuBackend for CudaBackend {
     #[inline]
-    fn as_mut_slice_i64<'a>(&self, buffer: &'a mut Self::DeviceBuffer<i64>) -> &'a mut [i64] {
-        buffer
-            .try_as_mut_slice()
-            .expect("invariant: no-CUDA storage is CPU-addressable")
+    fn as_mut_slice_i64<'a>(
+        &self,
+        buffer: &'a mut Self::DeviceBuffer<i64>,
+    ) -> Result<&'a mut [i64], BackendError> {
+        Ok(buffer
+            .try_as_mut_slice()?
+            .ok_or_else(|| BackendError::Storage {
+                operation: "integer output",
+                reason: "no-CUDA storage is not CPU-addressable".to_owned(),
+            })?)
     }
 }

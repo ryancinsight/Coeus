@@ -12,9 +12,9 @@ use coeus_tensor::Tensor;
 
 fn seq_var(shape: impl Into<coeus_core::Shape>, data: &[f32]) -> Var<f32, SequentialBackend> {
     Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(shape, data),
+        Tensor::<f32, SequentialBackend>::from_slice(shape, data).expect("construct tensor"),
         false,
-    )
+    ).expect("construct variable")
 }
 
 #[test]
@@ -23,7 +23,7 @@ fn maxpool1d_no_pad() {
     // Windows: [1,3]=3, [2,4]=4, [1,5]=5  → output [3, 4, 5]
     let pool = MaxPool1d::<f32, SequentialBackend>::new(2);
     let x = seq_var([1, 1, 6], &[1.0, 3.0, 2.0, 4.0, 1.0, 5.0]);
-    let y = pool.forward(&x);
+    let y = pool.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 1, 3]);
     let s = y.tensor.as_slice();
     assert!((s[0] - 3.0).abs() < 1e-6, "window 0");
@@ -37,7 +37,7 @@ fn maxpool1d_stride1() {
     // Windows: [1,4]=4, [4,2]=4, [2,3]=3  → output [4, 4, 3]
     let pool = MaxPool1d::<f32, SequentialBackend>::with_params(2, 1, 0, 1);
     let x = seq_var([1, 1, 4], &[1.0, 4.0, 2.0, 3.0]);
-    let y = pool.forward(&x);
+    let y = pool.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 1, 3]);
     let s = y.tensor.as_slice();
     assert!((s[0] - 4.0).abs() < 1e-6);
@@ -52,7 +52,7 @@ fn maxpool1d_multi_channel() {
     // Ch1: [5,7]=7, [6,8]=8  → [7, 8]
     let pool = MaxPool1d::<f32, SequentialBackend>::new(2);
     let x = seq_var([1, 2, 4], &[1.0, 3.0, 2.0, 4.0, 5.0, 7.0, 6.0, 8.0]);
-    let y = pool.forward(&x);
+    let y = pool.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 2, 2]);
     let s = y.tensor.as_slice();
     assert!((s[0] - 3.0).abs() < 1e-6, "ch0 w0");
@@ -67,7 +67,7 @@ fn avgpool1d_no_pad() {
     // Windows: (1+3)/2=2.0, (2+4)/2=3.0
     let pool = AvgPool1d::<f32, SequentialBackend>::new(2);
     let x = seq_var([1, 1, 4], &[1.0, 3.0, 2.0, 4.0]);
-    let y = pool.forward(&x);
+    let y = pool.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 1, 2]);
     let s = y.tensor.as_slice();
     assert!((s[0] - 2.0).abs() < 1e-6, "window 0");
@@ -80,7 +80,7 @@ fn avgpool1d_stride1() {
     // Windows: (2+4+6)/3=4.0, (4+6+8)/3=6.0
     let pool = AvgPool1d::<f32, SequentialBackend>::with_params(3, 1, 0, 1);
     let x = seq_var([1, 1, 4], &[2.0, 4.0, 6.0, 8.0]);
-    let y = pool.forward(&x);
+    let y = pool.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 1, 2]);
     let s = y.tensor.as_slice();
     assert!((s[0] - 4.0).abs() < 1e-6, "window 0");
@@ -92,7 +92,7 @@ fn avgpool1d_batch() {
     // Input [2, 1, 4], k=2, s=2: batch of two independent rows
     let pool = AvgPool1d::<f32, SequentialBackend>::new(2);
     let x = seq_var([2, 1, 4], &[1.0, 3.0, 5.0, 7.0, 2.0, 4.0, 6.0, 8.0]);
-    let y = pool.forward(&x);
+    let y = pool.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[2, 1, 2]);
     let s = y.tensor.as_slice();
     // batch0: 2.0, 6.0
@@ -111,7 +111,7 @@ fn provider_var<B: BackendOps<f64> + Default>(
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Var::new(Tensor::from_slice_on(shape.to_vec(), data, backend), false)
+    Var::new(Tensor::from_slice_on(shape.to_vec(), data, backend).expect("construct tensor"), false).expect("construct variable")
 }
 
 fn assert_pool1d_provider_contract<B: BackendOps<f64> + Default>(backend: &B)
@@ -129,7 +129,7 @@ where
     );
 
     let max_pool = MaxPool1d::<f64, B>::with_params(2, 2, 0, 1);
-    let max_output = Module::<f64, B>::forward(&max_pool, &input);
+    let max_output = Module::<f64, B>::forward(&max_pool, &input).expect("run forward");
     assert_eq!(max_output.tensor.shape(), &[1, 2, 4], "MaxPool1d shape");
     assert_eq!(
         max_output.tensor.as_slice(),
@@ -138,7 +138,7 @@ where
     );
 
     let average_pool = AvgPool1d::<f64, B>::with_params(2, 2, 0, 1);
-    let average_output = Module::<f64, B>::forward(&average_pool, &input);
+    let average_output = Module::<f64, B>::forward(&average_pool, &input).expect("run forward");
     assert_eq!(average_output.tensor.shape(), &[1, 2, 4], "AvgPool1d shape");
     assert_eq!(
         average_output.tensor.as_slice(),

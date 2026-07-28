@@ -24,7 +24,7 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 1D Max Pooling Backward.
     fn max_pool1d_backward(
@@ -39,7 +39,7 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 1D Average Pooling over `[N, C, L]` input.
     fn avg_pool1d(
@@ -52,7 +52,7 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 1D Average Pooling Backward.
     fn avg_pool1d_backward(
@@ -65,7 +65,7 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 2D Max Pooling
     fn max_pool2d(
@@ -78,7 +78,7 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 2D Max Pooling Backward
     fn max_pool2d_backward(
@@ -93,7 +93,7 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 2D Average Pooling
     fn avg_pool2d(
@@ -106,7 +106,7 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 2D Average Pooling Backward
     fn avg_pool2d_backward(
@@ -119,7 +119,7 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 3D Max Pooling
     fn max_pool3d(
@@ -132,7 +132,7 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 3D Max Pooling Backward
     fn max_pool3d_backward(
@@ -147,7 +147,7 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 3D Average Pooling
     fn avg_pool3d(
@@ -160,7 +160,7 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 3D Average Pooling Backward
     fn avg_pool3d_backward(
@@ -173,5 +173,5 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 }

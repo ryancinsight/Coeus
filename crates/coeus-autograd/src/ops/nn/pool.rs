@@ -24,7 +24,7 @@ fn dispatch_max_pool_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, c
     request: PoolBackwardInputs<'_, T, B>,
     input_storage: &B::DeviceBuffer<T>,
     input_layout: &coeus_core::Layout,
-) {
+) -> Result<(), B::Error> {
     let PoolBackwardInputs {
         backend,
         grad_out_storage,
@@ -81,7 +81,7 @@ fn dispatch_max_pool_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, c
 #[inline]
 fn dispatch_avg_pool_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize>(
     request: PoolBackwardInputs<'_, T, B>,
-) {
+) -> Result<(), B::Error> {
     let PoolBackwardInputs {
         backend,
         grad_out_storage,
@@ -173,11 +173,15 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g_in)) = input_grads.get(0) {
-            let mut grad_input = Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend);
-            let (gi_storage, gi_layout) = grad_input.storage_mut_and_layout();
+            let mut grad_input = Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend)?;
+            let (gi_storage, gi_layout) = grad_input.storage_mut_and_layout()?;
             dispatch_max_pool_backward::<T, B, DIM>(
                 PoolBackwardInputs {
                     backend: &backend,
@@ -192,10 +196,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
                 },
                 self.inp_clone.storage(),
                 self.inp_clone.layout(),
-            );
+            )?;
             let gl = g_in.write();
-            coeus_ops::add_assign(gl, &grad_input, &backend);
+            coeus_ops::add_assign(gl, &grad_input, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -206,25 +212,24 @@ fn max_pool_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM:
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
 
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let inputs = vec![input.clone()];
         let inp_clone = input.tensor.clone();
 
         let node = MaxPoolNode::<T, B, DIM> {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs,
             inp_clone,
             kernel_size,
@@ -237,11 +242,11 @@ fn max_pool_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM:
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 /// Tracked 1D Max Pooling.
@@ -252,7 +257,7 @@ pub fn max_pool1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     max_pool_nd_inner::<T, B, 1>(input, out_tensor, kernel_size, stride, padding, dilation)
 }
 
@@ -264,7 +269,7 @@ pub fn max_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     max_pool_nd_inner::<T, B, 2>(input, out_tensor, kernel_size, stride, padding, dilation)
 }
 
@@ -276,7 +281,7 @@ pub fn max_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     max_pool_nd_inner::<T, B, 3>(input, out_tensor, kernel_size, stride, padding, dilation)
 }
 
@@ -324,11 +329,15 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g_in)) = input_grads.get(0) {
-            let mut grad_input = Tensor::zeros_on(self.inp_shape.clone(), &backend);
-            let (gi_storage, gi_layout) = grad_input.storage_mut_and_layout();
+            let mut grad_input = Tensor::zeros_on(self.inp_shape.clone(), &backend)?;
+            let (gi_storage, gi_layout) = grad_input.storage_mut_and_layout()?;
             dispatch_avg_pool_backward::<T, B, DIM>(PoolBackwardInputs {
                 backend: &backend,
                 grad_out_storage: grad_out.storage(),
@@ -339,10 +348,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
                 dilation: self.dilation,
                 grad_input: gi_storage,
                 grad_input_layout: gi_layout,
-            });
+            })?;
             let gl = g_in.write();
-            coeus_ops::add_assign(gl, &grad_input, &backend);
+            coeus_ops::add_assign(gl, &grad_input, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -353,25 +364,24 @@ fn avg_pool_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM:
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
 
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let inputs = vec![input.clone()];
         let inp_shape = input.tensor.shape_cloned();
 
         let node = AvgPoolNode::<T, B, DIM> {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs,
             inp_shape,
             kernel_size,
@@ -384,11 +394,11 @@ fn avg_pool_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM:
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 /// Tracked 1D Average Pooling.
@@ -399,7 +409,7 @@ pub fn avg_pool1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     avg_pool_nd_inner::<T, B, 1>(input, out_tensor, kernel_size, stride, padding, dilation)
 }
 
@@ -411,7 +421,7 @@ pub fn avg_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     avg_pool_nd_inner::<T, B, 2>(input, out_tensor, kernel_size, stride, padding, dilation)
 }
 
@@ -423,6 +433,6 @@ pub fn avg_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     avg_pool_nd_inner::<T, B, 3>(input, out_tensor, kernel_size, stride, padding, dilation)
 }

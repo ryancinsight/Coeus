@@ -50,14 +50,14 @@ fn layernorm_3d_from_parts<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     weight: &Var<T, B>,
     bias: &Var<T, B>,
     eps: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let shape = x.tensor.shape_cloned();
     let batch = shape[0];
     let seq = shape[1];
     let d = shape[2];
-    let flat = coeus_autograd::reshape(x, [batch * seq, d]);
-    let norm = LayerNorm::from_parts(weight.clone(), bias.clone(), eps);
-    let normed = norm.forward(&flat);
+    let flat = coeus_autograd::reshape(x, [batch * seq, d])?;
+    let norm = LayerNorm::from_parts(weight.clone(), bias.clone(), eps)?;
+    let normed = norm.forward(&flat)?;
     coeus_autograd::reshape(&normed, [batch, seq, d])
 }
 
@@ -65,7 +65,7 @@ fn apply_dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     p: f64,
     is_training: bool,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let mut dropout = Dropout::new(p);
     dropout.set_training(is_training);
     dropout.forward(x)
@@ -85,23 +85,23 @@ pub fn transformer_encoder_layer<
     input: &Var<T, B>,
     key_padding_mask: Option<&Var<T, B>>,
     params: TransformerEncoderLayerParams<'_, T, B>,
-) -> Var<T, B> {
-    let normed1 = layernorm_3d_from_parts(input, params.norm1_weight, params.norm1_bias, 1e-5);
+) -> Result<Var<T, B>, B::Error> {
+    let normed1 = layernorm_3d_from_parts(input, params.norm1_weight, params.norm1_bias, 1e-5)?;
     let attn_out = multi_head_attention_cross::<T, B, H, M>(
         &normed1,
         &normed1,
         &normed1,
         params.self_attn,
         key_padding_mask,
-    );
+    )?;
     let dropped1 = apply_dropout(
         &attn_out,
         params.attn_residual_dropout_p,
         params.attn_residual_training,
-    );
-    let x = coeus_autograd::add(input, &dropped1);
+    )?;
+    let x = coeus_autograd::add(input, &dropped1)?;
 
-    let normed2 = layernorm_3d_from_parts(&x, params.norm2_weight, params.norm2_bias, 1e-5);
+    let normed2 = layernorm_3d_from_parts(&x, params.norm2_weight, params.norm2_bias, 1e-5)?;
     let linear1 = Linear {
         weight: params.ffn_w1.clone(),
         bias: params.ffn_b1.cloned(),
@@ -110,19 +110,19 @@ pub fn transformer_encoder_layer<
         weight: params.ffn_w2.clone(),
         bias: params.ffn_b2.cloned(),
     };
-    let ff_hidden = linear1.forward(&normed2);
-    let ff_hidden = coeus_autograd::gelu(&ff_hidden);
+    let ff_hidden = linear1.forward(&normed2)?;
+    let ff_hidden = coeus_autograd::gelu(&ff_hidden)?;
     let ff_hidden = apply_dropout(
         &ff_hidden,
         params.ffn_hidden_dropout_p,
         params.ffn_hidden_training,
-    );
-    let ff_out = linear2.forward(&ff_hidden);
+    )?;
+    let ff_out = linear2.forward(&ff_hidden)?;
     let dropped2 = apply_dropout(
         &ff_out,
         params.ffn_residual_dropout_p,
         params.ffn_residual_training,
-    );
+    )?;
     coeus_autograd::add(&x, &dropped2)
 }
 
@@ -157,18 +157,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
     TransformerEncoderLayer<T, B, H, M>
 {
     /// Construct an encoder layer.
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self
+    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Result<Self, B::Error>
     where
         T: coeus_leto::RandomScalar,
     {
-        Self {
-            norm1: LayerNorm::new(d_model, 1e-5),
-            self_attn: MultiHeadAttention::new(d_model, true),
+        Ok(Self {
+            norm1: LayerNorm::<T, B>::new(d_model, 1e-5)?,
+            self_attn: MultiHeadAttention::<T, B, H, M>::new(d_model, true)?,
             dropout1: Dropout::new(dropout_p),
-            norm2: LayerNorm::new(d_model, 1e-5),
-            ffn: FeedForward::new(d_model, d_ff, dropout_p),
+            norm2: LayerNorm::<T, B>::new(d_model, 1e-5)?,
+            ffn: FeedForward::<T, B>::new(d_model, d_ff, dropout_p)?,
             dropout2: Dropout::new(dropout_p),
-        }
+        })
     }
 
     /// Pre-LayerNorm forward with optional key padding mask.
@@ -179,7 +179,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
         &self,
         input: &Var<T, B>,
         key_padding_mask: Option<&Var<T, B>>,
-    ) -> Var<T, B> {
+    ) -> Result<Var<T, B>, B::Error> {
         transformer_encoder_layer::<T, B, H, M>(
             input,
             key_padding_mask,
@@ -233,7 +233,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
     }
 
     /// Pre-LayerNorm forward. Input/output: `[batch, seq, d_model]`.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         self.forward_with_mask(input, None)
     }
 }

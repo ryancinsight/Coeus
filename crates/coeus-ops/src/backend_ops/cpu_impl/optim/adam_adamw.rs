@@ -18,7 +18,8 @@ pub fn adam_step<T: Scalar + FloatOps, B: Backend>(
     beta2: T,
     eps: T,
     t: usize,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let numel = param_layout.numel();
@@ -26,10 +27,10 @@ pub fn adam_step<T: Scalar + FloatOps, B: Backend>(
     assert_eq!(numel, m_layout.numel());
     assert_eq!(numel, v_layout.numel());
 
-    let p_slice = param.as_mut_slice();
+    let p_slice = param.as_mut_slice()?;
     let g_slice = grad.as_slice();
-    let m_slice = m.as_mut_slice();
-    let v_slice = v.as_mut_slice();
+    let m_slice = m.as_mut_slice()?;
+    let v_slice = v.as_mut_slice()?;
 
     let p_ptr = MutPtr(p_slice.as_mut_ptr());
     let g_ptr = Ptr(g_slice.as_ptr());
@@ -117,6 +118,7 @@ pub fn adam_step<T: Scalar + FloatOps, B: Backend>(
             }
         });
     }
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -136,7 +138,8 @@ pub fn adamw_step<T: Scalar + FloatOps, B: Backend>(
     eps: T,
     weight_decay: T,
     t: usize,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let numel = param_layout.numel();
@@ -144,10 +147,10 @@ pub fn adamw_step<T: Scalar + FloatOps, B: Backend>(
     assert_eq!(numel, m_layout.numel());
     assert_eq!(numel, v_layout.numel());
 
-    let p_slice = param.as_mut_slice();
+    let p_slice = param.as_mut_slice()?;
     let g_slice = grad.as_slice();
-    let m_slice = m.as_mut_slice();
-    let v_slice = v.as_mut_slice();
+    let m_slice = m.as_mut_slice()?;
+    let v_slice = v.as_mut_slice()?;
 
     let p_ptr = MutPtr(p_slice.as_mut_ptr());
     let g_ptr = Ptr(g_slice.as_ptr());
@@ -237,4 +240,5 @@ pub fn adamw_step<T: Scalar + FloatOps, B: Backend>(
             }
         });
     }
+    Ok(())
 }

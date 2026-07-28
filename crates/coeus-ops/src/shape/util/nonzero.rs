@@ -12,7 +12,7 @@ use coeus_tensor::Tensor;
 pub fn nonzero<T: Scalar, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -43,8 +43,8 @@ mod tests {
     #[test]
     fn nonzero_1d_returns_positions() {
         let b = SequentialBackend::new();
-        let input = Tensor::from_slice(vec![4], &[0.0f64, 2.0, 0.0, 3.0]);
-        let out = nonzero(&input, &b);
+        let input = Tensor::from_slice(vec![4], &[0.0f64, 2.0, 0.0, 3.0]).expect("construct tensor");
+        let out = nonzero(&input, &b).expect("run operation");
         assert_eq!(out.shape(), &[2, 1]);
         assert_eq!(out.as_slice(), &[1.0, 3.0]);
     }
@@ -52,8 +52,8 @@ mod tests {
     #[test]
     fn nonzero_2d_returns_row_major_indices() {
         let b = SequentialBackend::new();
-        let input = Tensor::from_slice(vec![2, 3], &[0.0f64, 5.0, 0.0, 6.0, 7.0, 0.0]);
-        let out = nonzero(&input, &b);
+        let input = Tensor::from_slice(vec![2, 3], &[0.0f64, 5.0, 0.0, 6.0, 7.0, 0.0]).expect("construct tensor");
+        let out = nonzero(&input, &b).expect("run operation");
         assert_eq!(out.shape(), &[3, 2]);
         assert_eq!(out.as_slice(), &[0.0, 1.0, 1.0, 0.0, 1.0, 1.0]);
     }
@@ -61,8 +61,8 @@ mod tests {
     #[test]
     fn nonzero_all_zero_returns_empty_rows() {
         let b = SequentialBackend::new();
-        let input = Tensor::<f64, SequentialBackend>::zeros(vec![2, 2]);
-        let out = nonzero(&input, &b);
+        let input = Tensor::<f64, SequentialBackend>::zeros(vec![2, 2]).expect("construct tensor");
+        let out = nonzero(&input, &b).expect("run operation");
         assert_eq!(out.shape(), &[0, 2]);
         assert!(out.as_slice().is_empty());
     }
@@ -70,8 +70,8 @@ mod tests {
     #[test]
     fn nonzero_single_element_tensor() {
         let b = SequentialBackend::new();
-        let input = Tensor::from_slice(vec![1], &[4.0f64]);
-        let out = nonzero(&input, &b);
+        let input = Tensor::from_slice(vec![1], &[4.0f64]).expect("construct tensor");
+        let out = nonzero(&input, &b).expect("run operation");
         assert_eq!(out.shape(), &[1, 1]);
         assert_eq!(out.as_slice(), &[0.0]);
     }

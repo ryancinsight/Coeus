@@ -12,11 +12,15 @@ use coeus_tensor::Tensor;
 /// use coeus_optim::{Optimizer, SGD};
 /// use coeus_tensor::Tensor;
 ///
-/// let x: Var<f32> = Var::new(Tensor::from_slice(vec![2], &[2.0f32, 3.0]), true);
-/// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
+/// let x: Var<f32> = Var::new(
+///     Tensor::from_slice(vec![2], &[2.0f32, 3.0]).expect("construct tensor"),
+///     true,
+/// ).expect("construct variable");
+/// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]).expect("construct tensor"));
 ///
-/// let mut opt = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32);
-/// opt.step();
+/// let mut opt = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32)
+///     .expect("construct SGD optimizer");
+/// opt.step().expect("run optimizer step");
 /// // p' = p - lr * grad: [2.0, 3.0] - 0.1 * [1.0, -2.0] = [1.9, 3.2]
 /// let updated = opt.params[0].var.tensor.as_slice();
 /// assert!((updated[0] - 1.9).abs() < 1e-5);
@@ -35,23 +39,23 @@ pub struct SGD<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> 
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> SGD<T, B> {
     /// Create SGD optimizer.
-    pub fn new(params: Vec<Parameter<T, B>>, lr: T, momentum: T) -> Self {
+    pub fn new(params: Vec<Parameter<T, B>>, lr: T, momentum: T) -> Result<Self, B::Error> {
         let backend = B::default();
         let velocity = params
             .iter()
             .map(|p| Tensor::zeros_on(p.var.tensor.shape(), &backend))
-            .collect();
-        Self {
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self {
             params,
             lr,
             momentum,
             velocity,
-        }
+        })
     }
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for SGD<T, B> {
-    fn step(&mut self) {
+    fn step(&mut self) -> Result<(), B::Error> {
         let backend = B::default();
 
         for (i, param) in self.params.iter_mut().enumerate() {
@@ -59,8 +63,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for SGD<T,
                 let grad_tensor = g.read();
                 let velocity_tensor = &mut self.velocity[i];
 
-                let (param_storage, param_layout) = param.var.tensor.storage_mut_and_layout();
-                let (velocity_storage, velocity_layout) = velocity_tensor.storage_mut_and_layout();
+                let (param_storage, param_layout) = param.var.tensor.storage_mut_and_layout()?;
+                let (velocity_storage, velocity_layout) =
+                    velocity_tensor.storage_mut_and_layout()?;
 
                 backend.sgd_step(
                     param_storage,
@@ -71,22 +76,24 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for SGD<T,
                     velocity_layout,
                     self.lr,
                     self.momentum,
-                );
+                )?;
             }
         }
+        Ok(())
     }
 
-    fn zero_grad(&mut self) {
+    fn zero_grad(&mut self) -> Result<(), B::Error> {
         for p in &self.params {
-            p.var.zero_grad();
+            p.var.zero_grad()?;
         }
+        Ok(())
     }
 
     fn set_lr(&mut self, lr: T) {
         self.lr = lr;
     }
 
-    fn clip_grad_norm(&mut self, max_norm: T) -> T
+    fn clip_grad_norm(&mut self, max_norm: T) -> Result<T, B::Error>
     where
         B::DeviceBuffer<T>:
             coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,

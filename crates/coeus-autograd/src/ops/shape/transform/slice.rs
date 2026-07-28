@@ -28,11 +28,15 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sl
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let parent_grad = g.write();
-            let (parent_storage, parent_layout) = parent_grad.storage_mut_and_layout();
+            let (parent_storage, parent_layout) = parent_grad.storage_mut_and_layout()?;
             let sliced_layout = parent_layout.slice(&self.ranges);
 
             let parent_storage_imm: &B::DeviceBuffer<T> =
@@ -45,8 +49,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sl
                 grad_out.layout(),
                 parent_storage,
                 &sliced_layout,
-            );
+            )?;
         }
+
+        Ok(())
     }
 }
 
@@ -55,7 +61,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sl
 pub fn slice<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     ranges: &[(usize, usize)],
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let out_tensor = x.tensor.slice(ranges);
 
@@ -67,7 +73,7 @@ pub fn slice<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_tensor.shape_cloned(),
         &backend,
-    )));
+    )?));
     let grad = Some(output_grad.clone());
 
     let node = SliceNode {
@@ -77,9 +83,9 @@ pub fn slice<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

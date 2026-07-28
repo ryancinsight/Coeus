@@ -13,7 +13,7 @@ mod reduction;
 mod storage;
 
 pub use elementwise::ElementwiseProvider;
-pub use error::HephaestusBackendError;
+pub use error::{HephaestusBackendError, SharedHephaestusError};
 pub use reduction::HephaestusBackend;
 pub use reduction::{HephaestusProvider, RankedOperand, ReductionProvider, ScanOperation};
 pub use storage::HephaestusStorage;

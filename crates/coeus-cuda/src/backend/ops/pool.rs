@@ -1,5 +1,6 @@
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::get_cuda_context;
+use crate::error::CudaBackendError;
 use crate::kernels;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
@@ -16,20 +17,23 @@ impl CudaBackend {
         dilation: usize,
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
-    ) {
-        assert!(
-            kernels::dispatch_max_pool1d(
-                input,
-                input_layout,
-                kernel_size,
-                stride,
-                padding,
-                dilation,
-                output,
-                output_layout
-            ),
-            "CUDA max_pool1d kernel compilation or launch failed"
-        );
+    ) -> Result<(), CudaBackendError> {
+        if kernels::dispatch_max_pool1d(
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        ) {
+            return Ok(());
+        }
+        Err(CudaBackendError::dispatch_unavailable(
+            "max_pool1d",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -45,22 +49,25 @@ impl CudaBackend {
         dilation: usize,
         grad_input: &mut CudaStorage<T>,
         grad_input_layout: &Layout,
-    ) {
-        assert!(
-            kernels::dispatch_max_pool1d_backward(
-                grad_out,
-                grad_out_layout,
-                input,
-                input_layout,
-                kernel_size,
-                stride,
-                padding,
-                dilation,
-                grad_input,
-                grad_input_layout
-            ),
-            "CUDA max_pool1d backward kernel compilation or launch failed"
-        );
+    ) -> Result<(), CudaBackendError> {
+        if kernels::dispatch_max_pool1d_backward(
+            grad_out,
+            grad_out_layout,
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        ) {
+            return Ok(());
+        }
+        Err(CudaBackendError::dispatch_unavailable(
+            "max_pool1d_backward",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -74,20 +81,23 @@ impl CudaBackend {
         dilation: usize,
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
-    ) {
-        assert!(
-            kernels::dispatch_avg_pool1d(
-                input,
-                input_layout,
-                kernel_size,
-                stride,
-                padding,
-                dilation,
-                output,
-                output_layout
-            ),
-            "CUDA avg_pool1d kernel compilation or launch failed"
-        );
+    ) -> Result<(), CudaBackendError> {
+        if kernels::dispatch_avg_pool1d(
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        ) {
+            return Ok(());
+        }
+        Err(CudaBackendError::dispatch_unavailable(
+            "avg_pool1d",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -101,20 +111,23 @@ impl CudaBackend {
         dilation: usize,
         grad_input: &mut CudaStorage<T>,
         grad_input_layout: &Layout,
-    ) {
-        assert!(
-            kernels::dispatch_avg_pool1d_backward(
-                grad_out,
-                grad_out_layout,
-                kernel_size,
-                stride,
-                padding,
-                dilation,
-                grad_input,
-                grad_input_layout
-            ),
-            "CUDA avg_pool1d backward kernel compilation or launch failed"
-        );
+    ) -> Result<(), CudaBackendError> {
+        if kernels::dispatch_avg_pool1d_backward(
+            grad_out,
+            grad_out_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            grad_input,
+            grad_input_layout,
+        ) {
+            return Ok(());
+        }
+        Err(CudaBackendError::dispatch_unavailable(
+            "avg_pool1d_backward",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -128,7 +141,7 @@ impl CudaBackend {
         dilation: usize,
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         if get_cuda_context().is_some()
             && kernels::dispatch_max_pool2d::<T>(
                 input,
@@ -141,18 +154,12 @@ impl CudaBackend {
                 output_layout,
             )
         {
-            return;
+            return Ok(());
         }
-        self.fallback_max_pool2d(
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "max_pool2d",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -168,7 +175,7 @@ impl CudaBackend {
         dilation: usize,
         grad_input: &mut CudaStorage<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         if get_cuda_context().is_some()
             && kernels::dispatch_max_pool2d_backward::<T>(
                 grad_out,
@@ -183,20 +190,12 @@ impl CudaBackend {
                 grad_input_layout,
             )
         {
-            return;
+            return Ok(());
         }
-        self.fallback_max_pool2d_backward(
-            grad_out,
-            grad_out_layout,
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            grad_input,
-            grad_input_layout,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "max_pool2d_backward",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -210,7 +209,7 @@ impl CudaBackend {
         dilation: usize,
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         if get_cuda_context().is_some()
             && kernels::dispatch_avg_pool2d::<T>(
                 input,
@@ -223,18 +222,12 @@ impl CudaBackend {
                 output_layout,
             )
         {
-            return;
+            return Ok(());
         }
-        self.fallback_avg_pool2d(
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "avg_pool2d",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -248,7 +241,7 @@ impl CudaBackend {
         dilation: usize,
         grad_input: &mut CudaStorage<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         if get_cuda_context().is_some()
             && kernels::dispatch_avg_pool2d_backward::<T>(
                 grad_out,
@@ -261,18 +254,12 @@ impl CudaBackend {
                 grad_input_layout,
             )
         {
-            return;
+            return Ok(());
         }
-        self.fallback_avg_pool2d_backward(
-            grad_out,
-            grad_out_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            grad_input,
-            grad_input_layout,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "avg_pool2d_backward",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -286,7 +273,7 @@ impl CudaBackend {
         dilation: usize,
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         if get_cuda_context().is_some()
             && kernels::dispatch_max_pool3d::<T>(
                 input,
@@ -299,18 +286,12 @@ impl CudaBackend {
                 output_layout,
             )
         {
-            return;
+            return Ok(());
         }
-        self.fallback_max_pool3d(
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "max_pool3d",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -326,7 +307,7 @@ impl CudaBackend {
         dilation: usize,
         grad_input: &mut CudaStorage<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         if get_cuda_context().is_some()
             && kernels::dispatch_max_pool3d_backward::<T>(
                 grad_out,
@@ -341,20 +322,12 @@ impl CudaBackend {
                 grad_input_layout,
             )
         {
-            return;
+            return Ok(());
         }
-        self.fallback_max_pool3d_backward(
-            grad_out,
-            grad_out_layout,
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            grad_input,
-            grad_input_layout,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "max_pool3d_backward",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -368,7 +341,7 @@ impl CudaBackend {
         dilation: usize,
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         if get_cuda_context().is_some()
             && kernels::dispatch_avg_pool3d::<T>(
                 input,
@@ -381,18 +354,12 @@ impl CudaBackend {
                 output_layout,
             )
         {
-            return;
+            return Ok(());
         }
-        self.fallback_avg_pool3d(
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "avg_pool3d",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -406,7 +373,7 @@ impl CudaBackend {
         dilation: usize,
         grad_input: &mut CudaStorage<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         if get_cuda_context().is_some()
             && kernels::dispatch_avg_pool3d_backward::<T>(
                 grad_out,
@@ -419,17 +386,11 @@ impl CudaBackend {
                 grad_input_layout,
             )
         {
-            return;
+            return Ok(());
         }
-        self.fallback_avg_pool3d_backward(
-            grad_out,
-            grad_out_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            grad_input,
-            grad_input_layout,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "avg_pool3d_backward",
+            "native CUDA kernel compilation or launch failed",
+        ))
     }
 }

@@ -1,5 +1,5 @@
-use super::super::unfold_fold;
 use super::super::CpuBackend;
+use super::super::unfold_fold;
 use crate::backend_ops::traits::UnfoldFoldOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
 
@@ -19,7 +19,7 @@ where
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         unfold_fold::unfold1d(
             self,
             input,
@@ -30,7 +30,8 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -45,7 +46,7 @@ where
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         unfold_fold::fold1d(
             self,
             input,
@@ -57,7 +58,8 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -75,7 +77,7 @@ where
         dilation_w: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         unfold_fold::unfold2d(
             self,
             input,
@@ -90,7 +92,8 @@ where
             dilation_w,
             output,
             output_layout,
-        );
+        )?;
+        Ok(())
     }
 
     #[inline]
@@ -110,7 +113,7 @@ where
         dilation_w: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         unfold_fold::fold2d(
             self,
             input,
@@ -127,6 +130,7 @@ where
             dilation_w,
             output,
             output_layout,
-        );
+        )?;
+        Ok(())
     }
 }

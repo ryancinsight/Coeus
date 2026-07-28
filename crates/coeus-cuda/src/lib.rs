@@ -24,12 +24,13 @@
 //! 3. uses an explicit capability boundary for operations without a native
 //!    kernel. Cumulative scans are native for rank-two layouts and return
 //!    typed provider errors for unsupported ranks; they do not copy through
-//!    the host. Other documented capability boundaries retain their existing
-//!    CPU reference path where the public contract still requires one.
+//!    the host. Feature-enabled fused operations likewise return a typed
+//!    dispatch error when the device path is unavailable. The no-feature
+//!    build is a distinct compile-time `cuda-cpu` backend, not a runtime
+//!    downgrade.
 //!
-//! The fallback is a capability boundary, never a silent defect mask: the
-//! observable result matches the CPU reference either way, verified by the
-//! differential parity tests in `tests/cuda/`.
+//! The CPU implementation is selected only by that explicit no-feature
+//! backend or by a named CPU evaluator used in differential tests.
 #![deny(missing_docs)]
 
 mod error;
@@ -50,7 +51,6 @@ pub mod driver;
 pub mod driver;
 
 #[cfg(feature = "cuda")]
-mod fallback;
 #[cfg(feature = "cuda")]
 /// CUDA kernel modules and launch helpers for on-device computation.
 pub mod kernels;
@@ -62,70 +62,98 @@ mod storage;
 mod storage;
 
 pub use backend::{CudaBackend, CudaScalar};
-pub use driver::{get_cuda_context, CudaDriver};
+pub use driver::{CudaDriver, get_cuda_context};
 pub use storage::CudaStorage;
 
 #[cfg(feature = "cuda")]
 use coeus_core::Layout;
 use coeus_tensor::Tensor;
 
-/// Evaluate a fused element-wise expression on the CUDA device.
+/// Evaluate a fused element-wise expression on the selected CUDA backend.
 ///
-/// Compiles and dispatches a dynamic kernel on the GPU, falling back to CPU if unavailable.
+/// With the `cuda` feature enabled, a rejected device dispatch is returned to
+/// the caller. It is not replaced with a host computation. Without the
+/// feature, [`CudaBackend`] is explicitly the `cuda-cpu` backend and uses the
+/// canonical CPU evaluator by definition.
+///
+/// # Errors
+/// Returns a typed backend, shape, allocation, or CUDA dispatch failure.
 pub fn evaluate_fused<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend> + Copy>(
     expr: &E,
-) -> Tensor<T, CudaBackend> {
+) -> Result<Tensor<T, CudaBackend>, CudaBackendError> {
     #[cfg(not(feature = "cuda"))]
     {
         coeus_ops::fuse::evaluate_fused_cpu(expr, &CudaBackend::new())
+            .map_err(CudaBackendError::from)
     }
 
     #[cfg(feature = "cuda")]
     {
-        let out_shape = expr
-            .shape()
-            .expect("Fused expression must have at least one tensor input to determine shape");
+        let out_shape = expr.shape().ok_or_else(|| {
+            CudaBackendError::from(coeus_core::BackendError::Storage {
+                operation: "cuda fused evaluation",
+                reason: "expression has no tensor input to determine shape".to_owned(),
+            })
+        })?;
         let out_layout = Layout::new(out_shape.clone());
-        let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new());
+        let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new())?;
 
         if kernels::dispatch_fused(expr, out.storage_mut(), &out_layout) {
-            out
+            Ok(out)
         } else {
-            coeus_ops::fuse::evaluate_fused_cpu(expr, &CudaBackend::new())
+            Err(CudaBackendError::dispatch_unavailable(
+                "fused evaluation",
+                "CUDA kernel compilation or launch rejected the expression",
+            ))
         }
     }
 }
 
-/// Evaluate a fused reduction along an axis on the CUDA device.
+/// Evaluate a fused reduction along an axis on the selected CUDA backend.
+///
+/// # Errors
+/// Returns a typed backend, shape, axis, allocation, or CUDA dispatch failure.
 pub fn evaluate_fused_reduce<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend> + Copy>(
     expr: &E,
     op: coeus_ops::ReductionOp,
     axis: usize,
-) -> Tensor<T, CudaBackend> {
+) -> Result<Tensor<T, CudaBackend>, CudaBackendError> {
     #[cfg(not(feature = "cuda"))]
     {
         coeus_ops::fuse::evaluate_fused_reduce_cpu(expr, op, axis, &CudaBackend::new())
+            .map_err(CudaBackendError::from)
     }
 
     #[cfg(feature = "cuda")]
     {
-        let expr_shape = expr
-            .shape()
-            .expect("Fused expression must have at least one tensor input to determine shape");
-        assert!(
-            axis < expr_shape.len(),
-            "Axis out of bounds in evaluate_fused_reduce"
-        );
+        let expr_shape = expr.shape().ok_or_else(|| {
+            CudaBackendError::from(coeus_core::BackendError::Storage {
+                operation: "cuda fused reduction",
+                reason: "expression has no tensor input to determine shape".to_owned(),
+            })
+        })?;
+        if axis >= expr_shape.len() {
+            return Err(CudaBackendError::from(
+                coeus_core::BackendError::AxisOutOfRange {
+                    operation: "cuda fused reduction",
+                    axis,
+                    rank: expr_shape.len(),
+                },
+            ));
+        }
 
         let mut out_shape = expr_shape;
         out_shape[axis] = 1;
         let out_layout = Layout::new(out_shape.clone());
-        let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new());
+        let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new())?;
 
         if kernels::dispatch_fused_reduce(expr, op, axis, out.storage_mut(), &out_layout) {
-            out
+            Ok(out)
         } else {
-            coeus_ops::fuse::evaluate_fused_reduce_cpu(expr, op, axis, &CudaBackend::new())
+            Err(CudaBackendError::dispatch_unavailable(
+                "fused reduction",
+                "CUDA kernel compilation or launch rejected the expression",
+            ))
         }
     }
 }

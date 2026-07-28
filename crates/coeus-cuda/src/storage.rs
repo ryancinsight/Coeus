@@ -1,4 +1,4 @@
-use crate::driver::CUdeviceptr;
+use crate::{driver::CUdeviceptr, CudaBackendError};
 use coeus_core::{Scalar, Storage, StorageMut};
 use hephaestus_cuda::{ComputeDevice, CudaBuffer, DeviceBuffer};
 use std::sync::Arc;
@@ -25,20 +25,15 @@ unsafe impl<T: Send> Send for CudaStorage<T> {}
 unsafe impl<T: Sync> Sync for CudaStorage<T> {}
 
 impl<T: Scalar> CudaStorage<T> {
-    #[inline]
-    fn alloc_device_zeroed(len: usize) -> CudaBuffer<T> {
-        let device = crate::backend::get_cuda_device();
-        device
+    /// Allocate a CUDA buffer without masking provider failure as a panic.
+    pub fn try_new(len: usize) -> Result<Self, CudaBackendError> {
+        let device = crate::backend::get_cuda_device()?;
+        let buffer = device
             .alloc_zeroed_with_hint(len, PlacementHint::Tier(MemoryTier::Device))
-            .expect("CudaStorage::new failed to allocate GPU buffer in device tier")
-    }
-
-    /// Allocate a new GPU device buffer.
-    pub fn new(len: usize) -> Self {
-        let buffer = Self::alloc_device_zeroed(len);
-        Self {
+            .map_err(|source| CudaBackendError::provider("allocate", source))?;
+        Ok(Self {
             buffer: Arc::new(buffer),
-        }
+        })
     }
 
     /// Retrieve the raw CUDA device pointer.
@@ -49,14 +44,16 @@ impl<T: Scalar> CudaStorage<T> {
 }
 
 impl<T: Scalar> Storage<T> for CudaStorage<T> {
+    type Error = CudaBackendError;
+
     #[inline]
     fn len(&self) -> usize {
         self.buffer.len()
     }
 
     #[inline]
-    fn allocate(len: usize) -> Self {
-        Self::new(len)
+    fn try_allocate(len: usize) -> Result<Self, Self::Error> {
+        Self::try_new(len)
     }
 
     #[inline]
@@ -67,30 +64,46 @@ impl<T: Scalar> Storage<T> for CudaStorage<T> {
 
 impl<T: Scalar> StorageMut<T> for CudaStorage<T> {
     #[inline]
-    fn try_as_mut_slice(&mut self) -> Option<&mut [T]> {
-        None
+    fn try_as_mut_slice(&mut self) -> Result<Option<&mut [T]>, Self::Error> {
+        Ok(None)
     }
 
-    fn make_unique(&mut self) {
+    fn make_unique(&mut self) -> Result<(), Self::Error> {
         if Arc::strong_count(&self.buffer) > 1 {
-            let device = crate::backend::get_cuda_device();
+            let device = crate::backend::get_cuda_device()?;
             let len = self.buffer.len();
-            let new_buffer = Self::alloc_device_zeroed(len);
+            let new_buffer = Self::try_new(len)?;
 
             if len > 0 {
-                let bytes = len * std::mem::size_of::<T>();
-                device.bind().expect("Failed to bind CUDA device");
+                let bytes = len.checked_mul(std::mem::size_of::<T>()).ok_or_else(|| {
+                    CudaBackendError::from(coeus_core::BackendError::Overflow {
+                        operation: "cow copy",
+                        reason: "element-count to byte-size arithmetic overflow",
+                    })
+                })?;
+                device
+                    .bind()
+                    .map_err(|source| CudaBackendError::provider("cow copy", source))?;
                 unsafe {
-                    let res =
-                        cuda_core::sys::cuMemcpyDtoD_v2(new_buffer.raw(), self.buffer.raw(), bytes);
+                    let res = cuda_core::sys::cuMemcpyDtoD_v2(
+                        new_buffer.buffer.raw(),
+                        self.buffer.raw(),
+                        bytes,
+                    );
                     if res != 0 {
-                        panic!("cuMemcpyDtoD_v2 failed with code: {}", res);
+                        return Err(CudaBackendError::provider(
+                            "cow copy",
+                            hephaestus_cuda::HephaestusError::DispatchFailed {
+                                message: format!("cuMemcpyDtoD_v2 failed with code {res}"),
+                            },
+                        ));
                     }
                 }
             }
 
-            self.buffer = Arc::new(new_buffer);
+            self.buffer = new_buffer.buffer;
         }
+        Ok(())
     }
 }
 
@@ -106,7 +119,8 @@ mod tests {
 
     #[test]
     fn host_pinned_hint_uses_truthful_device_tier() {
-        let device = crate::backend::get_cuda_device();
+        let device =
+            crate::backend::get_cuda_device().expect("test requires an available CUDA device");
         let input = vec![1.0f32, -2.5, 3.25, 8.0];
         let staging = device
             .upload_with_hint(&input, PlacementHint::Tier(MemoryTier::HostPinned))

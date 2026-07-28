@@ -37,7 +37,7 @@ fn zeros_var<B: BackendOps<f64> + Default>(shape: &[usize], backend: &B) -> Var<
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Var::new(Tensor::zeros_on(shape.to_vec(), backend), false)
+    Var::new(Tensor::zeros_on(shape.to_vec(), backend).expect("construct tensor"), false).expect("construct variable")
 }
 
 fn check_lstm<B: BackendOps<f64> + Default>(backend: &B)
@@ -50,10 +50,10 @@ where
     //   i=f=o=0.5, g=0 → c_new=0, h_new=0 for every timestep.
     //
     // Shape: [batch=1, seq_len=3, input_size=2] → [1, 3, hidden=2]
-    let lstm = Lstm::<f64, B>::new(2, 2);
+    let lstm = Lstm::<f64, B>::new(2, 2).expect("construct module");
     let inp = zeros_var(&[1, 3, 2], backend);
 
-    let (out, (h_n, c_n)) = lstm.forward_seq(&inp);
+    let (out, (h_n, c_n)) = lstm.forward_seq(&inp).expect("run operation");
 
     assert_eq!(out.tensor.shape(), &[1, 3, 2], "Lstm output shape");
     assert_eq!(
@@ -73,7 +73,7 @@ where
     );
 
     // Module::forward must agree with forward_seq output slice.
-    let module_out = Module::<f64, B>::forward(&lstm, &inp);
+    let module_out = Module::<f64, B>::forward(&lstm, &inp).expect("run forward");
     assert_eq!(
         module_out.tensor.as_slice(),
         out.tensor.as_slice(),
@@ -82,7 +82,7 @@ where
 
     // Single-timestep: seq_len=1 gives [1,1,2] with zeros entry.
     let inp1 = zeros_var(&[1, 1, 2], backend);
-    let (out1, _) = lstm.forward_seq(&inp1);
+    let (out1, _) = lstm.forward_seq(&inp1).expect("run operation");
     assert_eq!(out1.tensor.shape(), &[1, 1, 2], "Lstm seq=1 shape");
     assert_eq!(out1.tensor.as_slice(), &[0.0_f64; 2], "Lstm seq=1 zeros");
 }
@@ -98,10 +98,10 @@ where
     //   h_new = (1−0.5)·0 + 0.5·0 = 0 for every timestep.
     //
     // Shape: [batch=1, seq_len=3, input_size=2] → [1, 3, hidden=2]
-    let gru = Gru::<f64, B>::new(2, 2);
+    let gru = Gru::<f64, B>::new(2, 2).expect("construct module");
     let inp = zeros_var(&[1, 3, 2], backend);
 
-    let (out, h_n) = gru.forward_seq(&inp);
+    let (out, h_n) = gru.forward_seq(&inp).expect("run operation");
 
     assert_eq!(out.tensor.shape(), &[1, 3, 2], "Gru output shape");
     assert_eq!(
@@ -116,7 +116,7 @@ where
     );
 
     // Module::forward must agree with forward_seq output slice.
-    let module_out = Module::<f64, B>::forward(&gru, &inp);
+    let module_out = Module::<f64, B>::forward(&gru, &inp).expect("run forward");
     assert_eq!(
         module_out.tensor.as_slice(),
         out.tensor.as_slice(),
@@ -125,7 +125,7 @@ where
 
     // Batch dimension: batch=2, each sequence element is zeros.
     let inp2 = zeros_var(&[2, 4, 2], backend);
-    let (out2, h_n2) = gru.forward_seq(&inp2);
+    let (out2, h_n2) = gru.forward_seq(&inp2).expect("run operation");
     assert_eq!(out2.tensor.shape(), &[2, 4, 2], "Gru batch=2 shape");
     assert_eq!(out2.tensor.as_slice(), &[0.0_f64; 16], "Gru batch=2 zeros");
     assert_eq!(
@@ -149,13 +149,13 @@ where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
     // Bidirectional<Rnn>: forward over x, backward over reversed x, concat on hidden.
-    let fwd = Rnn::<f64, B>::new(2, 3, RnnNonlinearity::Tanh);
-    let bwd = Rnn::<f64, B>::new(2, 3, RnnNonlinearity::Tanh);
+    let fwd = Rnn::<f64, B>::new(2, 3, RnnNonlinearity::Tanh).expect("construct module");
+    let bwd = Rnn::<f64, B>::new(2, 3, RnnNonlinearity::Tanh).expect("construct module");
     let bi = Bidirectional::new(fwd.clone(), bwd.clone());
 
     // Zero input → zeros, shape [batch, seq, 2*hidden].
-    let xz = Var::new(Tensor::zeros_on([1, 2, 2], backend), false);
-    let oz = Module::<f64, B>::forward(&bi, &xz);
+    let xz = Var::new(Tensor::zeros_on([1, 2, 2], backend).expect("construct tensor"), false).expect("construct variable");
+    let oz = Module::<f64, B>::forward(&bi, &xz).expect("run forward");
     assert_eq!(oz.tensor.shape(), &[1, 2, 6], "bidirectional output shape");
     assert!(
         oz.tensor.as_slice().iter().all(|&v| v == 0.0),
@@ -165,18 +165,18 @@ where
     // Non-zero: the concatenation must place forward output in [0:H] and the
     // re-reversed backward output in [H:2H] at every timestep.
     let x = Var::new(
-        Tensor::from_slice_on([1, 2, 2], &[1.0, 2.0, 3.0, 4.0], backend),
+        Tensor::from_slice_on([1, 2, 2], &[1.0, 2.0, 3.0, 4.0], backend).expect("construct tensor"),
         false,
-    );
-    let o = Module::<f64, B>::forward(&bi, &x);
+    ).expect("construct variable");
+    let o = Module::<f64, B>::forward(&bi, &x).expect("run forward");
     assert_eq!(o.tensor.shape(), &[1, 2, 6]);
     let o_s = o.tensor.as_slice();
 
-    let f_out = Module::<f64, B>::forward(&fwd, &x);
+    let f_out = Module::<f64, B>::forward(&fwd, &x).expect("run forward");
     let b_out = coeus_autograd::flip(
-        &Module::<f64, B>::forward(&bwd, &coeus_autograd::flip(&x, 1)),
+        &Module::<f64, B>::forward(&bwd, &coeus_autograd::flip(&x, 1).expect("run operation")).expect("run forward"),
         1,
-    );
+    ).expect("run operation");
     let f_s = f_out.tensor.as_slice(); // [1,2,3]
     let b_s = b_out.tensor.as_slice(); // [1,2,3]
                                        // Layout per (batch, seq): [forward(3), backward(3)].
@@ -202,15 +202,15 @@ fn moirai_rnn_seq_match_reference() {
 fn bidirectional_lstm_doubles_hidden_dim() {
     // A Bidirectional<Lstm> with hidden=4 should produce [batch, seq, 8] output.
     use coeus_nn::{Bidirectional, Lstm, Module};
-    let fwd = Lstm::<f32, SequentialBackend>::new(2, 4);
-    let bwd = Lstm::<f32, SequentialBackend>::new(2, 4);
+    let fwd = Lstm::<f32, SequentialBackend>::new(2, 4).expect("construct module");
+    let bwd = Lstm::<f32, SequentialBackend>::new(2, 4).expect("construct module");
     let bi = Bidirectional::new(fwd, bwd);
 
     let x = Var::new(
-        coeus_tensor::Tensor::<f32, SequentialBackend>::zeros(vec![2, 3, 2]),
+        coeus_tensor::Tensor::<f32, SequentialBackend>::zeros(vec![2, 3, 2]).expect("construct tensor"),
         false,
-    );
-    let y = bi.forward(&x);
+    ).expect("construct variable");
+    let y = bi.forward(&x).expect("run forward");
     assert_eq!(
         y.tensor.shape(),
         &[2, 3, 8],
@@ -222,15 +222,15 @@ fn bidirectional_lstm_doubles_hidden_dim() {
 fn bidirectional_gru_zeros_output_for_zeros_input() {
     // Zeros input + zeros state → zeros output for any weight init.
     use coeus_nn::{Bidirectional, Gru, Module};
-    let fwd = Gru::<f32, SequentialBackend>::new(2, 4);
-    let bwd = Gru::<f32, SequentialBackend>::new(2, 4);
+    let fwd = Gru::<f32, SequentialBackend>::new(2, 4).expect("construct module");
+    let bwd = Gru::<f32, SequentialBackend>::new(2, 4).expect("construct module");
     let bi = Bidirectional::new(fwd, bwd);
 
     let x = Var::new(
-        coeus_tensor::Tensor::<f32, SequentialBackend>::zeros(vec![1, 5, 2]),
+        coeus_tensor::Tensor::<f32, SequentialBackend>::zeros(vec![1, 5, 2]).expect("construct tensor"),
         false,
-    );
-    let y = bi.forward(&x);
+    ).expect("construct variable");
+    let y = bi.forward(&x).expect("run forward");
     assert_eq!(y.tensor.shape(), &[1, 5, 8]);
     // Zeros input → zeros output (analytically, same as unidirectional).
     for &v in y.tensor.as_slice() {

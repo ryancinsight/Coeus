@@ -77,14 +77,14 @@ where
     let weight_layout = layout(&case.weight_shape);
     let output_layout = layout(&case.output_shape);
 
-    let mut input = backend.allocate::<f32>(case.input.len());
-    let mut weight = backend.allocate::<f32>(case.weight.len());
-    let mut bias = backend.allocate::<f32>(case.bias.len());
-    let mut output = backend.allocate::<f32>(output_layout.numel());
+    let mut input = backend.allocate::<f32>(case.input.len()).expect("backend fixture operation");
+    let mut weight = backend.allocate::<f32>(case.weight.len()).expect("backend fixture operation");
+    let mut bias = backend.allocate::<f32>(case.bias.len()).expect("backend fixture operation");
+    let mut output = backend.allocate::<f32>(output_layout.numel()).expect("backend fixture operation");
 
-    backend.copy_to_device(case.input, &mut input);
-    backend.copy_to_device(case.weight, &mut weight);
-    backend.copy_to_device(case.bias, &mut bias);
+    backend.copy_to_device(case.input, &mut input).expect("backend fixture operation");
+    backend.copy_to_device(case.weight, &mut weight).expect("backend fixture operation");
+    backend.copy_to_device(case.bias, &mut bias).expect("backend fixture operation");
 
     backend.conv2d(
         &input,
@@ -97,10 +97,10 @@ where
         case.dilation,
         &mut output,
         &output_layout,
-    );
+    ).expect("run convolution");
 
     let mut out = vec![0.0; output_layout.numel()];
-    backend.copy_to_host(&output, &mut out);
+    backend.copy_to_host(&output, &mut out).expect("backend fixture operation");
     out
 }
 

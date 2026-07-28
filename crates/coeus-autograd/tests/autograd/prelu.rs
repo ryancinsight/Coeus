@@ -13,20 +13,23 @@ fn test_prelu_scalar_weight_forward_and_backward() {
             vec![5],
             &[-2.0, -1.0, 0.0, 0.5, 1.0],
             &backend,
-        ),
+        ).expect("valid tensor construction"),
         true,
-    );
+    ).expect("valid variable construction");
     let w = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![1], &[0.25], &backend),
+        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![1], &[0.25], &backend).expect("valid tensor construction"),
         true,
-    );
-    let out = prelu(&x, &w);
+    ).expect("valid variable construction");
+    let out = prelu(&x, &w).expect("valid autograd operation");
     assert_eq!(
         out.tensor.as_slice(),
         &[-0.5, -0.25, 0.0, 0.5, 1.0],
         "fwd prelu"
     );
-    sum(&out).backward();
+    sum(&out)
+        .expect("valid autograd operation")
+        .backward()
+        .expect("valid backward propagation");
     // dx = w at x<=0 (INCLUDING the kink x=0), 1 at x>0.
     assert_eq!(
         x.grad().unwrap().as_slice(),
@@ -49,25 +52,28 @@ fn test_prelu_per_channel_weight_broadcasts_on_channel_axis() {
             vec![1, 2, 1, 2],
             &[-1.0, -2.0, -3.0, -4.0],
             &backend,
-        ),
+        ).expect("valid tensor construction"),
         true,
-    );
+    ).expect("valid variable construction");
     // Distinct per-channel slopes: channel 0 -> 0.1, channel 1 -> 0.9. If the
     // weight broadcast against the trailing (W) axis instead of the channel
     // axis, channel 1's second element would incorrectly reuse channel 0's
     // slope (weight index 0 has only 2 elements, W-broadcast would wrap/panic
     // on shape mismatch) — this test fails loudly if the axis is wrong.
     let w = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![2], &[0.1, 0.9], &backend),
+        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![2], &[0.1, 0.9], &backend).expect("valid tensor construction"),
         true,
-    );
-    let out = prelu(&x, &w);
+    ).expect("valid variable construction");
+    let out = prelu(&x, &w).expect("valid autograd operation");
     assert_eq!(
         out.tensor.as_slice(),
         &[-0.1, -0.2, -2.7, -3.6],
         "channel 0 scaled by 0.1, channel 1 by 0.9"
     );
-    sum(&out).backward();
+    sum(&out)
+        .expect("valid autograd operation")
+        .backward()
+        .expect("valid backward propagation");
     // dw[0] = sum over channel 0's elements (both negative): -1 + -2 = -3.
     // dw[1] = sum over channel 1's elements: -3 + -4 = -7.
     assert_eq!(
@@ -87,20 +93,23 @@ fn test_prelu_scalar_weight_broadcasts_over_rank4_input() {
             vec![1, 2, 1, 2],
             &[-1.0, -2.0, 3.0, -4.0],
             &backend,
-        ),
+        ).expect("valid tensor construction"),
         true,
-    );
+    ).expect("valid variable construction");
     let w = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![1], &[0.5], &backend),
+        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![1], &[0.5], &backend).expect("valid tensor construction"),
         true,
-    );
-    let out = prelu(&x, &w);
+    ).expect("valid variable construction");
+    let out = prelu(&x, &w).expect("valid autograd operation");
     assert_eq!(
         out.tensor.as_slice(),
         &[-0.5, -1.0, 3.0, -2.0],
         "scalar weight fwd"
     );
-    sum(&out).backward();
+    sum(&out)
+        .expect("valid autograd operation")
+        .backward()
+        .expect("valid backward propagation");
     // dw = sum of x over x<=0 elements: -1 + -2 + -4 = -7.
     assert_eq!(
         w.grad().unwrap().as_slice(),

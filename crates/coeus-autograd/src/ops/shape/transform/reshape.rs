@@ -28,13 +28,19 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Re
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let reshaped_grad = grad_out.reshape(self.original_shape.clone());
             let gl = g.write();
-            coeus_ops::add_assign(gl, &reshaped_grad, &backend);
+            coeus_ops::add_assign(gl, &reshaped_grad, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -43,10 +49,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Re
 pub fn reshape<T: Scalar, B: coeus_ops::BackendOps<T> + Default, S: Into<Shape>>(
     x: &Var<T, B>,
     shape: S,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let shape = shape.into();
     if !x.tensor.is_contiguous() {
-        let x_cont = make_contiguous(x);
+        let x_cont = make_contiguous(x)?;
         return reshape(&x_cont, shape);
     }
     let backend = B::default();
@@ -60,7 +66,7 @@ pub fn reshape<T: Scalar, B: coeus_ops::BackendOps<T> + Default, S: Into<Shape>>
     let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_tensor.shape_cloned(),
         &backend,
-    )));
+    )?));
     let grad = Some(output_grad.clone());
 
     let node = ReshapeNode {
@@ -70,11 +76,11 @@ pub fn reshape<T: Scalar, B: coeus_ops::BackendOps<T> + Default, S: Into<Shape>>
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 /// Collapse dimensions `start_dim..=end_dim` into a single dimension
@@ -87,7 +93,7 @@ pub fn flatten<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     start_dim: usize,
     end_dim: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let dims = x.tensor.shape();
     let ndim = dims.len();
     assert!(
@@ -109,11 +115,17 @@ mod flatten_tests {
     fn flatten_collapses_dims_and_backprops() {
         // [2,3,4] flatten(1,2) -> [2,12], row-major values preserved.
         let data: Vec<f64> = (0..24).map(|v| v as f64).collect();
-        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([2, 3, 4], &data), true);
-        let flat = flatten(&x, 1, 2);
+        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([2, 3, 4], &data).expect("valid tensor construction"), true).expect("valid variable construction");
+        let flat = flatten(&x, 1, 2).expect("valid autograd operation");
         assert_eq!(flat.tensor.shape(), &[2, 12]);
-        assert_eq!(flat.tensor.to_contiguous().as_slice(), data.as_slice());
-        flat.backward();
+        assert_eq!(
+            flat.tensor
+                .to_contiguous()
+                .expect("valid contiguous conversion")
+                .as_slice(),
+            data.as_slice()
+        );
+        flat.backward().expect("valid backward propagation");
         assert_eq!(x.grad().unwrap().shape(), &[2, 3, 4]);
     }
 }

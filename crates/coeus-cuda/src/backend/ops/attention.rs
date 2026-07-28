@@ -2,13 +2,13 @@
 //
 // Routes scaled dot-product attention to the on-device NVRTC kernels
 // (`kernels::attention`) for contiguous f32 tensors, including rank-1 and
-// rank-2 key-padding masks. Unsupported layouts and mask shapes use the
-// verified CPU reference (`fallback_sdp_attention`) as an explicit capability
-// boundary.
+// rank-2 key-padding masks. Unsupported layouts and mask shapes return a
+// typed capability error instead of changing execution backends.
 
 use super::cast::{cast_storage, cast_storage_mut};
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::get_cuda_context;
+use crate::error::CudaBackendError;
 use crate::kernels;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
@@ -31,7 +31,7 @@ impl CudaBackend {
         output_layout: &Layout,
         attn_weights: &mut CudaStorage<T>,
         attn_weights_layout: &Layout,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         let layouts_on_device = [
             query_layout,
             key_layout,
@@ -58,22 +58,10 @@ impl CudaBackend {
                 && output_layout.shape() == [batch, seq_q, d_v]
                 && attn_weights_layout.shape() == [batch, seq_q, seq_k];
             if !shapes_match {
-                return self.fallback_sdp_attention(
-                    query,
-                    query_layout,
-                    key,
-                    key_layout,
-                    value,
-                    value_layout,
-                    key_padding_mask,
-                    key_padding_mask_layout,
-                    is_causal,
-                    scale,
-                    output,
-                    output_layout,
-                    attn_weights,
-                    attn_weights_layout,
-                );
+                return Err(CudaBackendError::dispatch_unavailable(
+                    "sdp_attention",
+                    "query, key, value, and output shapes are incompatible with the CUDA kernel",
+                ));
             }
             // T is TypeId-confirmed f32 here; f32->f64->f32 round-trips exactly.
             let scale_f32 = coeus_core::Scalar::to_f64(scale) as f32;
@@ -98,22 +86,10 @@ impl CudaBackend {
                 _ => None,
             };
             let Some((mask_ndim, num_heads)) = mask_info else {
-                return self.fallback_sdp_attention(
-                    query,
-                    query_layout,
-                    key,
-                    key_layout,
-                    value,
-                    value_layout,
-                    key_padding_mask,
-                    key_padding_mask_layout,
-                    is_causal,
-                    scale,
-                    output,
-                    output_layout,
-                    attn_weights,
-                    attn_weights_layout,
-                );
+                return Err(CudaBackendError::dispatch_unavailable(
+                    "sdp_attention",
+                    "key-padding mask must be contiguous rank-1 or rank-2 data matching key length",
+                ));
             };
 
             let q32 = cast_storage::<T, f32>(query);
@@ -140,32 +116,20 @@ impl CudaBackend {
                 mask_ndim,
                 num_heads,
             ) {
-                return;
+                return Ok(());
             }
         }
-        self.fallback_sdp_attention(
-            query,
-            query_layout,
-            key,
-            key_layout,
-            value,
-            value_layout,
-            key_padding_mask,
-            key_padding_mask_layout,
-            is_causal,
-            scale,
-            output,
-            output_layout,
-            attn_weights,
-            attn_weights_layout,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "sdp_attention",
+            "native CUDA dispatch requires an initialized context and contiguous f32 layouts",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn cuda_sdp_attention_backward<T: CudaScalar + coeus_core::Float>(
         &self,
         grad_out: &CudaStorage<T>,
-        grad_out_layout: &Layout,
+        _grad_out_layout: &Layout,
         query: &CudaStorage<T>,
         query_layout: &Layout,
         key: &CudaStorage<T>,
@@ -173,12 +137,12 @@ impl CudaBackend {
         value: &CudaStorage<T>,
         value_layout: &Layout,
         attn_weights: &CudaStorage<T>,
-        attn_weights_layout: &Layout,
+        _attn_weights_layout: &Layout,
         scale: T,
         mut grad_q: Option<&mut CudaStorage<T>>,
         mut grad_k: Option<&mut CudaStorage<T>>,
         mut grad_v: Option<&mut CudaStorage<T>>,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         let on_device = get_cuda_context().is_some()
             && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>();
         if on_device {
@@ -217,24 +181,12 @@ impl CudaBackend {
                 d_v,
                 scale_f32,
             ) {
-                return;
+                return Ok(());
             }
         }
-        self.fallback_sdp_attention_backward(
-            grad_out,
-            grad_out_layout,
-            query,
-            query_layout,
-            key,
-            key_layout,
-            value,
-            value_layout,
-            attn_weights,
-            attn_weights_layout,
-            scale,
-            grad_q,
-            grad_k,
-            grad_v,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "sdp_attention_backward",
+            "native CUDA dispatch requires an initialized context and supported f32 layouts",
+        ))
     }
 }

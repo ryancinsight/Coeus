@@ -32,7 +32,12 @@ where
 {
     /// Construct a depthwise convolution with unit stride and dilation.
     #[must_use]
-    pub fn new(channels: usize, kernel_size: usize, padding: usize, bias: bool) -> Self {
+    pub fn new(
+        channels: usize,
+        kernel_size: usize,
+        padding: usize,
+        bias: bool,
+    ) -> Result<Self, B::Error> {
         Self::with_params(channels, kernel_size, 1, padding, 1, bias)
     }
 
@@ -45,26 +50,32 @@ where
         padding: usize,
         dilation: usize,
         bias: bool,
-    ) -> Self {
+    ) -> Result<Self, B::Error> {
         assert!(channels > 0, "DepthwiseConv3d: channels must be positive");
         assert!(stride > 0, "DepthwiseConv3d: stride must be positive");
         assert!(dilation > 0, "DepthwiseConv3d: dilation must be positive");
         let backend = B::default();
-        Self {
-            weight: Var::new(
-                Tensor::ones_on(
-                    [channels, 1, kernel_size, kernel_size, kernel_size],
-                    &backend,
-                ),
-                true,
-            ),
-            bias: bias.then(|| Var::new(Tensor::zeros_on([channels], &backend), true)),
+        let weight = Var::new(
+            Tensor::ones_on(
+                [channels, 1, kernel_size, kernel_size, kernel_size],
+                &backend,
+            )?,
+            true,
+        )?;
+        let bias = if bias {
+            Some(Var::new(Tensor::zeros_on([channels], &backend)?, true)?)
+        } else {
+            None
+        };
+        Ok(Self {
+            weight,
+            bias,
             channels,
             kernel_size,
             stride,
             padding,
             dilation,
-        }
+        })
     }
 }
 
@@ -80,7 +91,7 @@ where
         parameters
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let shape = input.tensor.shape();
         assert_eq!(shape.len(), 5, "DepthwiseConv3d: input must have rank 5");
         assert_eq!(shape[1], self.channels, "DepthwiseConv3d: channel mismatch");
@@ -103,7 +114,7 @@ where
                         (0, shape[3]),
                         (0, shape[4]),
                     ],
-                );
+                )?;
                 let channel_weight = slice(
                     &self.weight,
                     &[
@@ -113,16 +124,18 @@ where
                         (0, self.kernel_size),
                         (0, self.kernel_size),
                     ],
-                );
+                )?;
                 let output =
-                    Conv3d::from_vars(channel_weight, None, params).forward(&channel_input);
-                self.bias.as_ref().map_or(output.clone(), |bias| {
-                    let channel_bias =
-                        reshape(&slice(bias, &[(channel, channel + 1)]), [1, 1, 1, 1, 1]);
+                    Conv3d::from_vars(channel_weight, None, params).forward(&channel_input)?;
+                if let Some(bias) = self.bias.as_ref() {
+                    let bias_slice = slice(bias, &[(channel, channel + 1)])?;
+                    let channel_bias = reshape(&bias_slice, [1, 1, 1, 1, 1])?;
                     add(&output, &channel_bias)
-                })
+                } else {
+                    Ok(output)
+                }
             })
-            .collect();
+            .collect::<Result<Vec<_>, _>>()?;
         cat(&outputs.iter().collect::<Vec<_>>(), 1)
     }
 
@@ -142,25 +155,33 @@ mod tests {
     #[test]
     fn applies_independent_channel_kernels_and_gradients() {
         let backend = MoiraiBackend::new();
-        let mut convolution = DepthwiseConv3d::<f32>::new(2, 1, 0, true);
+        let mut convolution =
+            DepthwiseConv3d::<f32>::new(2, 1, 0, true).expect("construct depthwise convolution");
         convolution.weight = Var::new(
-            Tensor::from_slice_on([2, 1, 1, 1, 1], &[2.0, 3.0], &backend),
+            Tensor::from_slice_on([2, 1, 1, 1, 1], &[2.0, 3.0], &backend)
+                .expect("create convolution weights"),
             true,
-        );
+        )
+        .expect("create weight variable");
         convolution.bias = Some(Var::new(
-            Tensor::from_slice_on([2], &[1.0, -1.0], &backend),
+            Tensor::from_slice_on([2], &[1.0, -1.0], &backend).expect("create convolution bias"),
             true,
-        ));
+        )
+        .expect("create bias variable"));
         let input = Var::new(
-            Tensor::from_slice_on([1, 2, 1, 1, 2], &[4.0, 5.0, 6.0, 7.0], &backend),
+            Tensor::from_slice_on([1, 2, 1, 1, 2], &[4.0, 5.0, 6.0, 7.0], &backend)
+                .expect("create convolution input"),
             true,
-        );
+        )
+        .expect("create input variable");
 
-        let output = convolution.forward(&input);
+        let output = convolution
+            .forward(&input)
+            .expect("run depthwise convolution");
 
         assert_eq!(output.tensor.shape(), &[1, 2, 1, 1, 2]);
         assert_eq!(output.tensor.as_slice(), &[9.0, 11.0, 17.0, 20.0]);
-        output.backward();
+        output.backward().expect("run backward");
         assert_eq!(
             input.grad().expect("input gradient").as_slice(),
             &[2.0, 2.0, 3.0, 3.0]

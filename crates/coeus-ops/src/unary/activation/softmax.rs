@@ -2,7 +2,7 @@
 
 use super::super::kernel::elementwise_unary;
 use crate::backend_ops::{BackendOps, UnaryOp};
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Float};
 use coeus_tensor::Tensor;
 
 /// Numerically-stable log-softmax along `axis`.
@@ -18,13 +18,16 @@ pub fn log_softmax_axis<T: Float, B: BackendOps<T> + Default>(
     backend: &B,
 ) -> Result<Tensor<T, B>, B::Error> {
     let ndim = input.ndim();
-    assert!(
-        axis < ndim,
-        "log_softmax_axis: axis {axis} out of bounds for ndim {ndim}"
-    );
+    if axis >= ndim {
+        return Err(B::Error::from(BackendError::AxisOutOfRange {
+            operation: "log_softmax_axis",
+            axis,
+            rank: ndim,
+        }));
+    }
     // Shift by max for numerical stability: shifted = x - max(x, axis)
     let max_vals = crate::reduction::max_axis(input, axis, backend)?;
-    let shifted = crate::binary::sub(input, &max_vals, backend);
+    let shifted = crate::binary::sub(input, &max_vals, backend)?;
     // exp(shifted)
     let exp_shifted = elementwise_unary(&shifted, backend, UnaryOp::Exp)?;
     // sum(exp(shifted), axis)
@@ -32,7 +35,7 @@ pub fn log_softmax_axis<T: Float, B: BackendOps<T> + Default>(
     // log(sum_exp)
     let log_sum_exp = elementwise_unary(&sum_exp, backend, UnaryOp::Log)?;
     // out = shifted - log_sum_exp  (broadcasts log_sum_exp along axis)
-    Ok(crate::binary::sub(&shifted, &log_sum_exp, backend))
+    Ok(crate::binary::sub(&shifted, &log_sum_exp, backend)?)
 }
 
 /// Masked Softmax: excludes masked positions while computing softmax.
@@ -43,8 +46,9 @@ pub fn log_softmax_axis<T: Float, B: BackendOps<T> + Default>(
 /// Equivalent to `torch.softmax(input.masked_fill(mask == 0, -inf), dim)` for
 /// rows with at least one unmasked element. Fully masked rows return zeros.
 ///
-/// # Panics
-/// Panics if `dim` is out of range or shapes differ.
+/// # Errors
+/// Returns a backend error when `dim` is out of range, shapes differ, or
+/// materialization fails.
 #[inline]
 pub fn masked_softmax<T: Float, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
@@ -55,23 +59,28 @@ pub fn masked_softmax<T: Float, B: BackendOps<T> + Default>(
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    assert_eq!(
-        input.shape(),
-        mask.shape(),
-        "masked_softmax: input and mask must have the same shape"
-    );
+    if input.shape() != mask.shape() {
+        return Err(B::Error::from(BackendError::ShapeMismatch {
+            operation: "masked_softmax",
+            lhs: input.shape().to_vec(),
+            rhs: mask.shape().to_vec(),
+        }));
+    }
     let ndim = input.ndim();
-    assert!(
-        dim < ndim,
-        "masked_softmax: dim {dim} out of bounds for {ndim}D input"
-    );
+    if dim >= ndim {
+        return Err(B::Error::from(BackendError::AxisOutOfRange {
+            operation: "masked_softmax",
+            axis: dim,
+            rank: ndim,
+        }));
+    }
     let shape = input.shape();
     let axis = shape[dim];
     let pre_count: usize = shape[..dim].iter().product();
     let post_count: usize = shape[dim + 1..].iter().product();
 
-    let input_contiguous = input.to_contiguous_on(backend);
-    let mask_contiguous = mask.to_contiguous_on(backend);
+    let input_contiguous = input.to_contiguous_on(backend)?;
+    let mask_contiguous = mask.to_contiguous_on(backend)?;
     let input_values = input_contiguous.as_slice();
     let mask_values = mask_contiguous.as_slice();
     let mut output = vec![T::zero(); input.numel()];
@@ -113,7 +122,7 @@ where
         }
     }
 
-    Ok(Tensor::from_slice_on(shape.to_vec(), &output, backend))
+    Tensor::from_slice_on(shape.to_vec(), &output, backend)
 }
 
 /// Causal (lower-triangular) Softmax along `dim`.
@@ -122,8 +131,9 @@ where
 /// Intended for attention-weight matrices `[..., seq_q, seq_k]` where
 /// `dim == ndim - 1`.
 ///
-/// # Panics
-/// Panics if `dim` is out of range or is not the final axis.
+/// # Errors
+/// Returns a backend error when `dim` is out of range or is not the final
+/// axis, or when materialization fails.
 #[inline]
 pub fn causal_softmax<T: Float, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
@@ -134,14 +144,13 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let ndim = input.ndim();
-    assert!(
-        dim < ndim,
-        "causal_softmax: dim {dim} out of bounds for {ndim}D input"
-    );
-    assert!(
-        dim > 0 && dim + 1 == ndim,
-        "causal_softmax: dim must be the final axis of a rank >= 2 tensor"
-    );
+    if dim >= ndim || dim == 0 || dim + 1 != ndim {
+        return Err(B::Error::from(BackendError::AxisOutOfRange {
+            operation: "causal_softmax",
+            axis: dim,
+            rank: ndim,
+        }));
+    }
     let shape = input.shape();
     let seq_q = shape[dim - 1];
     let seq_k = shape[dim];
@@ -162,6 +171,6 @@ where
             }
         }
     }
-    let mask = Tensor::from_slice_on(shape.to_vec(), &mask_data, backend);
+    let mask = Tensor::from_slice_on(shape.to_vec(), &mask_data, backend)?;
     masked_softmax(input, &mask, dim, backend)
 }

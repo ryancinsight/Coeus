@@ -13,7 +13,7 @@ where
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    Tensor::from_slice_on(shape.to_vec(), data, backend)
+    Tensor::from_slice_on(shape.to_vec(), data, backend).expect("construct tensor")
 }
 
 fn check_backend<T, B>(backend: &B)
@@ -25,25 +25,25 @@ where
     let data: Vec<T> = (1..=6).map(|value| T::from_f64(value as f64)).collect();
     let tensor = tensor_from_slice::<T, B>(&[2, 3], &data, backend);
 
-    let axis1_prefix = coeus_ops::cumsum(&tensor, 1);
+    let axis1_prefix = coeus_ops::cumsum(&tensor, 1).expect("run operation");
     assert_same_bits(
         axis1_prefix.as_slice(),
         [1.0, 3.0, 6.0, 4.0, 9.0, 15.0].map(T::from_f64),
     );
 
-    let axis0_prefix = coeus_ops::cumsum(&tensor, 0);
+    let axis0_prefix = coeus_ops::cumsum(&tensor, 0).expect("run operation");
     assert_same_bits(
         axis0_prefix.as_slice(),
         [1.0, 2.0, 3.0, 5.0, 7.0, 9.0].map(T::from_f64),
     );
 
-    let axis1_suffix = coeus_ops::suffix_sum(&tensor, 1);
+    let axis1_suffix = coeus_ops::suffix_sum(&tensor, 1).expect("run operation");
     assert_same_bits(
         axis1_suffix.as_slice(),
         [6.0, 5.0, 3.0, 15.0, 11.0, 6.0].map(T::from_f64),
     );
 
-    let axis0_suffix = coeus_ops::suffix_sum(&tensor, 0);
+    let axis0_suffix = coeus_ops::suffix_sum(&tensor, 0).expect("run operation");
     assert_same_bits(
         axis0_suffix.as_slice(),
         [5.0, 7.0, 9.0, 4.0, 5.0, 6.0].map(T::from_f64),

@@ -19,7 +19,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         conv::dispatch_conv1d(
             input,
             input_layout,
@@ -32,6 +32,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             output,
             output_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -51,7 +52,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) {
+    ) -> Result<(), Self::Error> {
         conv::dispatch_conv1d_backward(
             grad_out,
             grad_out_layout,
@@ -68,6 +69,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             padding,
             dilation,
         );
+        Ok(())
     }
 
     #[inline]
@@ -83,7 +85,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         conv::dispatch_conv2d(
             input,
             input_layout,
@@ -96,6 +98,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             output,
             output_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -115,7 +118,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) {
+    ) -> Result<(), Self::Error> {
         conv::dispatch_conv2d_backward(
             grad_out,
             grad_out_layout,
@@ -132,6 +135,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             padding,
             dilation,
         );
+        Ok(())
     }
 
     #[inline]
@@ -147,7 +151,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         conv::dispatch_conv3d(
             input,
             input_layout,
@@ -160,6 +164,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             output,
             output_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -179,7 +184,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) {
+    ) -> Result<(), Self::Error> {
         conv::dispatch_conv3d_backward(
             grad_out,
             grad_out_layout,
@@ -196,6 +201,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             padding,
             dilation,
         );
+        Ok(())
     }
 
     #[inline]
@@ -212,7 +218,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         conv::dispatch_conv_transpose1d(
@@ -227,7 +234,7 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             dilation,
             output,
             output_layout,
-        );
+        )
     }
 
     #[inline]
@@ -244,7 +251,8 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: coeus_core::Float,
     {
         conv::dispatch_conv_transpose2d(
@@ -259,6 +267,6 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             dilation,
             output,
             output_layout,
-        );
+        )
     }
 }

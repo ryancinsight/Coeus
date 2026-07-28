@@ -17,16 +17,16 @@ fn test_conv1d_parity() {
     let b_data = vec![0.1f32, -0.1, 0.5];
 
     // Coeus setup
-    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![1, 2, 4], &x_data), true);
-    let mut conv_coeus = CoeusConv1d::<f32, SequentialBackend>::with_params(2, 3, 3, 1, 0, 1, true);
-    conv_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![3, 2, 3], &w_data), true);
+    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![1, 2, 4], &x_data).expect("construct tensor"), true).expect("construct variable");
+    let mut conv_coeus = CoeusConv1d::<f32, SequentialBackend>::with_params(2, 3, 3, 1, 0, 1, true).expect("construct module");
+    conv_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![3, 2, 3], &w_data).expect("construct tensor"), true).expect("construct variable");
     conv_coeus.bias = Some(CoeusVar::new(
-        CoeusTensor::from_slice(vec![3], &b_data),
+        CoeusTensor::from_slice(vec![3], &b_data).expect("construct tensor"),
         true,
-    ));
+    ).expect("construct variable"));
 
     // Coeus forward
-    let out_coeus = conv_coeus.forward(&x_coeus);
+    let out_coeus = conv_coeus.forward(&x_coeus).expect("run forward");
 
     // Verify forward
     let expected_conv1d_out = vec![
@@ -40,7 +40,7 @@ fn test_conv1d_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_conv1d_out, 1e-4);
 
     // Coeus backward
-    out_coeus.backward();
+    out_coeus.backward().expect("run backward");
 
     // Verify gradients
     let dx_coeus = x_coeus.grad().unwrap();
@@ -98,16 +98,16 @@ fn test_conv2d_parity() {
     let b_data = vec![0.1f32, -0.2];
 
     // Coeus setup
-    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![1, 2, 3, 3], &x_data), true);
-    let mut conv_coeus = CoeusConv2d::<f32, SequentialBackend>::with_params(2, 2, 2, 1, 0, 1, true);
-    conv_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![2, 2, 2, 2], &w_data), true);
+    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![1, 2, 3, 3], &x_data).expect("construct tensor"), true).expect("construct variable");
+    let mut conv_coeus = CoeusConv2d::<f32, SequentialBackend>::with_params(2, 2, 2, 1, 0, 1, true).expect("construct module");
+    conv_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![2, 2, 2, 2], &w_data).expect("construct tensor"), true).expect("construct variable");
     conv_coeus.bias = Some(CoeusVar::new(
-        CoeusTensor::from_slice(vec![2], &b_data),
+        CoeusTensor::from_slice(vec![2], &b_data).expect("construct tensor"),
         true,
-    ));
+    ).expect("construct variable"));
 
     // Coeus forward
-    let out_coeus = conv_coeus.forward(&x_coeus);
+    let out_coeus = conv_coeus.forward(&x_coeus).expect("run forward");
 
     // Verify forward
     let expected_conv2d_out = vec![
@@ -123,7 +123,7 @@ fn test_conv2d_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_conv2d_out, 1e-4);
 
     // Coeus backward
-    out_coeus.backward();
+    out_coeus.backward().expect("run backward");
 
     // Verify gradients
     let dx_coeus = x_coeus.grad().unwrap();
@@ -183,23 +183,23 @@ fn test_conv3d_parity() {
     let b_data = vec![0.1f32];
 
     // Coeus setup
-    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![1, 1, 2, 2, 2], &x_data), true);
-    let mut conv_coeus = CoeusConv3d::<f32, SequentialBackend>::with_params(1, 1, 2, 1, 0, 1, true);
-    conv_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![1, 1, 2, 2, 2], &w_data), true);
+    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![1, 1, 2, 2, 2], &x_data).expect("construct tensor"), true).expect("construct variable");
+    let mut conv_coeus = CoeusConv3d::<f32, SequentialBackend>::with_params(1, 1, 2, 1, 0, 1, true).expect("construct module");
+    conv_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![1, 1, 2, 2, 2], &w_data).expect("construct tensor"), true).expect("construct variable");
     conv_coeus.bias = Some(CoeusVar::new(
-        CoeusTensor::from_slice(vec![1], &b_data),
+        CoeusTensor::from_slice(vec![1], &b_data).expect("construct tensor"),
         true,
-    ));
+    ).expect("construct variable"));
 
     // Coeus forward
-    let out_coeus = conv_coeus.forward(&x_coeus);
+    let out_coeus = conv_coeus.forward(&x_coeus).expect("run forward");
 
     // Verify forward
     let expected_conv3d_out = vec![5.600000f32];
     assert_tensor_eq_data(&out_coeus.tensor, &expected_conv3d_out, 1e-4);
 
     // Coeus backward
-    out_coeus.backward();
+    out_coeus.backward().expect("run backward");
 
     // Verify gradients
     let dx_coeus = x_coeus.grad().unwrap();

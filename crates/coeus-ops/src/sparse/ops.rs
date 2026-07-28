@@ -1,5 +1,5 @@
 use crate::ptr::{MutPtr, Ptr};
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{Backend, BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_sparse::CsrTensor;
 use coeus_tensor::Tensor;
 
@@ -12,22 +12,30 @@ pub fn spmv<T: Scalar, B: Backend>(
     a: &CsrTensor<T, B>,
     x: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
 {
     let rows = a.shape()[0];
     let cols = a.shape()[1];
-    assert_eq!(x.ndim(), 1, "x must be 1D vector");
-    assert_eq!(
-        x.shape()[0],
-        cols,
-        "dimension mismatch: x shape must match CSR column count"
-    );
+    if x.ndim() != 1 {
+        return Err(B::Error::from(BackendError::UnsupportedRank {
+            operation: "spmv",
+            rank: x.ndim(),
+            max_rank: 1,
+        }));
+    }
+    if x.shape()[0] != cols {
+        return Err(B::Error::from(BackendError::ShapeMismatch {
+            operation: "spmv",
+            lhs: vec![cols],
+            rhs: x.shape().to_vec(),
+        }));
+    }
 
     // alloc_on: every row r writes y[r] = sum via y_ptr.write — no zero-init needed.
-    let mut y = Tensor::<T, B>::alloc_on([rows], backend);
+    let mut y = Tensor::<T, B>::alloc_on([rows], backend)?;
 
     let val_slice = a.values().as_slice();
     let col_slice = a.col_indices().as_slice();
@@ -36,7 +44,7 @@ where
     let val_ptr = Ptr(val_slice.as_ptr());
     let col_ptr = Ptr(col_slice.as_ptr());
     let row_ptr = Ptr(row_slice.as_ptr());
-    let y_ptr = MutPtr(y.as_mut_slice().as_mut_ptr());
+    let y_ptr = MutPtr(y.as_mut_slice()?.as_mut_ptr());
 
     let x_slice = x.storage().as_slice();
     let x_ptr = Ptr(x_slice.as_ptr());
@@ -56,7 +64,7 @@ where
         y_ptr.write(r, sum);
     });
 
-    y
+    Ok(y)
 }
 
 /// Sparse-Dense Matrix multiplication (SpMM): C = A B
@@ -68,23 +76,32 @@ pub fn spmm<T: Scalar, B: Backend>(
     a: &CsrTensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
 {
-    assert_eq!(b.ndim(), 2, "b must be 2D matrix");
+    if b.ndim() != 2 {
+        return Err(B::Error::from(BackendError::UnsupportedRank {
+            operation: "spmm",
+            rank: b.ndim(),
+            max_rank: 2,
+        }));
+    }
     let m = a.shape()[0];
     let k = a.shape()[1];
     let k2 = b.shape()[0];
     let n = b.shape()[1];
-    assert_eq!(
-        k, k2,
-        "dimension mismatch: CSR column count must match dense row count"
-    );
+    if k != k2 {
+        return Err(B::Error::from(BackendError::ShapeMismatch {
+            operation: "spmm",
+            lhs: vec![k, n],
+            rhs: b.shape().to_vec(),
+        }));
+    }
 
     // alloc_on: parallel_for over rows writes every c[r,j] for j in 0..n — no zero-init needed.
-    let mut c = Tensor::<T, B>::alloc_on([m, n], backend);
+    let mut c = Tensor::<T, B>::alloc_on([m, n], backend)?;
 
     let val_slice = a.values().as_slice();
     let col_slice = a.col_indices().as_slice();
@@ -93,7 +110,7 @@ where
     let val_ptr = Ptr(val_slice.as_ptr());
     let col_ptr = Ptr(col_slice.as_ptr());
     let row_ptr = Ptr(row_slice.as_ptr());
-    let c_ptr = MutPtr(c.as_mut_slice().as_mut_ptr());
+    let c_ptr = MutPtr(c.as_mut_slice()?.as_mut_ptr());
 
     let b_slice = b.storage().as_slice();
     let b_ptr = Ptr(b_slice.as_ptr());
@@ -126,7 +143,7 @@ where
         }
     });
 
-    c
+    Ok(c)
 }
 
 /// Sparse-Dense Matrix multiplication values backward pass.
@@ -139,14 +156,20 @@ pub fn spmm_backward_values<T: Scalar, B: Backend>(
     b: &Tensor<T, B>,
     grad_out: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
 {
+    if a_shape.len() != 2 || b.ndim() != 2 || grad_out.ndim() != 2 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "spmm_backward_values",
+            reason: "expected a rank-2 sparse shape and rank-2 dense tensors".to_owned(),
+        }));
+    }
     let nnz = a_col_indices.numel();
     // alloc_on: every i in 0..nnz is written via grad_values_ptr.write(i, sum) — no zero-init needed.
-    let mut grad_values = Tensor::<T, B>::alloc_on([nnz], backend);
+    let mut grad_values = Tensor::<T, B>::alloc_on([nnz], backend)?;
     let m = a_shape[0];
     let n = b.shape()[1];
 
@@ -159,7 +182,7 @@ where
     let row_ptr = Ptr(row_slice.as_ptr());
     let b_ptr = Ptr(b_slice.as_ptr());
     let grad_out_ptr = Ptr(grad_out_slice.as_ptr());
-    let grad_values_ptr = MutPtr(grad_values.as_mut_slice().as_mut_ptr());
+    let grad_values_ptr = MutPtr(grad_values.as_mut_slice()?.as_mut_ptr());
 
     let b_stride_row = b.layout().strides()[0];
     let b_stride_col = b.layout().strides()[1];
@@ -192,7 +215,7 @@ where
         }
     });
 
-    grad_values
+    Ok(grad_values)
 }
 
 /// Sparse-Dense Matrix multiplication dense matrix backward pass.
@@ -205,16 +228,29 @@ pub fn spmm_backward_dense<T: Scalar, B: Backend>(
     a_shape: &[usize],
     grad_out: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
 {
-    let m = a_shape[0];
-    let k = a_shape[1];
+    let [m, k] = a_shape else {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "spmm_backward_dense",
+            reason: "a_shape must contain exactly two dimensions".to_owned(),
+        }));
+    };
+    if grad_out.ndim() != 2 {
+        return Err(B::Error::from(BackendError::UnsupportedRank {
+            operation: "spmm_backward_dense",
+            rank: grad_out.ndim(),
+            max_rank: 2,
+        }));
+    }
+    let m = *m;
+    let k = *k;
     let n = grad_out.shape()[1];
     // alloc_on: parallel_for over j writes every grad_b[col,j] for col in 0..k — no zero-init needed.
-    let mut grad_b = Tensor::<T, B>::alloc_on([k, n], backend);
+    let mut grad_b = Tensor::<T, B>::alloc_on([k, n], backend)?;
 
     let val_slice = a_values.as_slice();
     let col_slice = a_col_indices.as_slice();
@@ -225,7 +261,7 @@ where
     let col_ptr = Ptr(col_slice.as_ptr());
     let row_ptr = Ptr(row_slice.as_ptr());
     let grad_out_ptr = Ptr(grad_out_slice.as_ptr());
-    let grad_b_ptr = MutPtr(grad_b.as_mut_slice().as_mut_ptr());
+    let grad_b_ptr = MutPtr(grad_b.as_mut_slice()?.as_mut_ptr());
 
     let gb_stride_row = grad_b.layout().strides()[0];
     let gb_stride_col = grad_b.layout().strides()[1];
@@ -263,5 +299,5 @@ where
         }
     });
 
-    grad_b
+    Ok(grad_b)
 }

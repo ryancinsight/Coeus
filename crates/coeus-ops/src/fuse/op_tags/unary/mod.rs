@@ -10,8 +10,8 @@ pub use activation::{
 };
 pub use elementary::{Abs, Ceil, Floor, Neg, Recip, Relu, Round, Sign, Sqrt, Trunc};
 pub use transcendental::{
-    Acos, Acosh, Asin, Asinh, Atan, Atanh, Cos, Cosh, Erf, Erfc, Exp, Exp2, Expm1, Log, Log10,
-    Log1p, Log2, Sigmoid, Sin, Sinh, Tan, Tanh,
+    Acos, Acosh, Asin, Asinh, Atan, Atanh, Cos, Cosh, Erf, Erfc, Exp, Exp2, Expm1, Log, Log1p,
+    Log2, Log10, Sigmoid, Sin, Sinh, Tan, Tanh,
 };
 
 /// Tag trait for unary operations in the fused expression DAG.

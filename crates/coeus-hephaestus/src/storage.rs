@@ -1,4 +1,4 @@
-use crate::reduction::HephaestusProvider;
+use crate::{error::HephaestusBackendError, reduction::HephaestusProvider};
 use coeus_core::{Scalar, Storage, StorageMut};
 use hephaestus_core::{ComputeDevice, DeviceBuffer};
 use std::{marker::PhantomData, sync::Arc};
@@ -32,16 +32,16 @@ where
     P: HephaestusProvider,
     T: Scalar + bytemuck::Pod,
 {
-    /// Allocate zeroed storage in the provider's device tier.
-    #[must_use]
-    pub fn new(len: usize) -> Self {
-        let buffer = P::device()
+    /// Allocate zeroed storage and preserve provider failures at the Coeus
+    /// backend boundary.
+    pub fn try_new(len: usize) -> Result<Self, HephaestusBackendError> {
+        let buffer = P::try_device()?
             .alloc_zeroed_with_hint(len, PlacementHint::Tier(MemoryTier::Device))
-            .expect("Hephaestus provider allocation failed");
-        Self {
+            .map_err(|source| HephaestusBackendError::device("allocate", source))?;
+        Ok(Self {
             buffer: Arc::new(buffer),
             marker: PhantomData,
-        }
+        })
     }
 
     /// Borrow the typed Hephaestus buffer for provider dispatch.
@@ -81,12 +81,14 @@ where
     P: HephaestusProvider,
     T: Scalar + bytemuck::Pod,
 {
+    type Error = HephaestusBackendError;
+
     fn len(&self) -> usize {
         self.buffer.len()
     }
 
-    fn allocate(len: usize) -> Self {
-        Self::new(len)
+    fn try_allocate(len: usize) -> Result<Self, Self::Error> {
+        Self::try_new(len)
     }
 
     fn try_as_slice(&self) -> Option<&[T]> {
@@ -99,21 +101,22 @@ where
     P: HephaestusProvider,
     T: Scalar + bytemuck::Pod,
 {
-    fn try_as_mut_slice(&mut self) -> Option<&mut [T]> {
-        None
+    fn try_as_mut_slice(&mut self) -> Result<Option<&mut [T]>, Self::Error> {
+        Ok(None)
     }
 
-    fn make_unique(&mut self) {
+    fn make_unique(&mut self) -> Result<(), Self::Error> {
         if Arc::strong_count(&self.buffer) <= 1 {
-            return;
+            return Ok(());
         }
         let mut host = vec![T::zero(); self.buffer.len()];
-        P::device()
+        P::try_device()?
             .download(self.buffer.as_ref(), &mut host)
-            .expect("Hephaestus storage uniqueness download failed");
-        let replacement = P::device()
+            .map_err(|source| HephaestusBackendError::device("cow download", source))?;
+        let replacement = P::try_device()?
             .upload(&host)
-            .expect("Hephaestus storage uniqueness upload failed");
+            .map_err(|source| HephaestusBackendError::device("cow upload", source))?;
         self.buffer = Arc::new(replacement);
+        Ok(())
     }
 }

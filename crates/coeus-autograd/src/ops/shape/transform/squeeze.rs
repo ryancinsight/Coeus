@@ -28,7 +28,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sq
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let unsqueezed_grad = if let Some(ax) = self.axis {
@@ -38,8 +42,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sq
                 grad_out.reshape(original_shape)
             };
             let gl = g.write();
-            coeus_ops::add_assign(gl, &unsqueezed_grad, &backend);
+            coeus_ops::add_assign(gl, &unsqueezed_grad, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -48,7 +54,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sq
 pub fn squeeze<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     axis: Option<usize>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let out_tensor = if let Some(ax) = axis {
         x.tensor.squeeze(ax)
     } else {
@@ -64,7 +70,7 @@ pub fn squeeze<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_tensor.shape_cloned(),
         &backend,
-    )));
+    )?));
     let grad = Some(output_grad.clone());
 
     let node = SqueezeNode {
@@ -74,11 +80,11 @@ pub fn squeeze<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 pub struct UnsqueezeNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
@@ -104,13 +110,19 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let squeezed_grad = grad_out.squeeze(self.axis);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &squeezed_grad, &backend);
+            coeus_ops::add_assign(gl, &squeezed_grad, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -119,7 +131,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
 pub fn unsqueeze<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     axis: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let out_tensor = x.tensor.unsqueeze(axis);
 
     let requires_grad = crate::grad_mode::should_track_var(x);
@@ -131,7 +143,7 @@ pub fn unsqueeze<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_tensor.shape_cloned(),
         &backend,
-    )));
+    )?));
     let grad = Some(output_grad.clone());
 
     let node = UnsqueezeNode {
@@ -141,9 +153,9 @@ pub fn unsqueeze<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

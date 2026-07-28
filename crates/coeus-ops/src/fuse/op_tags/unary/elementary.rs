@@ -8,11 +8,7 @@ impl<T: Scalar> UnaryOpTag<T> for Relu {
     const WGSL_TEMPLATE: &'static str = "max(({}), 0.0)";
     #[inline(always)]
     fn apply(x: T) -> T {
-        if x > T::zero() {
-            x
-        } else {
-            T::zero()
-        }
+        if x > T::zero() { x } else { T::zero() }
     }
 }
 

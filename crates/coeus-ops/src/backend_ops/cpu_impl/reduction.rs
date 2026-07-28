@@ -4,8 +4,8 @@
 
 use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 
-use super::error::map_leto_error;
 use super::CpuBackend;
+use super::error::map_leto_error;
 use crate::backend_ops::ReductionOp;
 
 #[inline]
@@ -23,8 +23,15 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::reduce_into(op, a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
-        .map_err(|error| map_leto_error("reduction", error))
+    coeus_leto::reduce_into(
+        op,
+        a_layout,
+        a.as_slice(),
+        axis,
+        c_layout,
+        c.as_mut_slice()?,
+    )
+    .map_err(|error| map_leto_error("reduction", error))
 }
 
 #[inline]
@@ -35,7 +42,8 @@ pub(super) fn argmax<T, B>(
     axis: usize,
     c: &mut B::DeviceBuffer<i64>,
     c_layout: &Layout,
-) where
+) -> Result<(), BackendError>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
@@ -45,9 +53,9 @@ pub(super) fn argmax<T, B>(
         a.as_slice(),
         axis,
         c_layout,
-        backend.as_mut_slice_i64(c),
+        backend.as_mut_slice_i64(c)?,
     )
-    .expect("coeus-leto argmax failed");
+    .map_err(|error| map_leto_error("argmax", error))
 }
 
 #[inline]
@@ -58,7 +66,8 @@ pub(super) fn argmin<T, B>(
     axis: usize,
     c: &mut B::DeviceBuffer<i64>,
     c_layout: &Layout,
-) where
+) -> Result<(), BackendError>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
@@ -68,9 +77,9 @@ pub(super) fn argmin<T, B>(
         a.as_slice(),
         axis,
         c_layout,
-        backend.as_mut_slice_i64(c),
+        backend.as_mut_slice_i64(c)?,
     )
-    .expect("coeus-leto argmin failed");
+    .map_err(|error| map_leto_error("argmin", error))
 }
 
 #[inline]
@@ -85,7 +94,8 @@ pub(super) fn topk<T, B>(
     _values_layout: &Layout,
     indices: &mut B::DeviceBuffer<i64>,
     _indices_layout: &Layout,
-) where
+) -> Result<(), BackendError>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
@@ -96,9 +106,10 @@ pub(super) fn topk<T, B>(
         k,
         axis,
         largest,
-        values.as_mut_slice(),
-        backend.as_mut_slice_i64(indices),
+        values.as_mut_slice()?,
+        backend.as_mut_slice_i64(indices)?,
     );
+    Ok(())
 }
 
 #[inline]
@@ -109,13 +120,14 @@ pub(super) fn cumsum<T, B>(
     axis: usize,
     c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
-) where
+) -> Result<(), BackendError>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::cumsum_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
-        .expect("coeus-leto cumsum failed");
+    coeus_leto::cumsum_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
+        .map_err(|error| map_leto_error("cumsum", error))
 }
 
 #[inline]
@@ -126,13 +138,14 @@ pub(super) fn suffix_sum<T, B>(
     axis: usize,
     c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
-) where
+) -> Result<(), BackendError>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::suffix_sum_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
-        .expect("coeus-leto suffix_sum failed");
+    coeus_leto::suffix_sum_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
+        .map_err(|error| map_leto_error("suffix sum", error))
 }
 
 #[inline]
@@ -143,13 +156,14 @@ pub(super) fn cumprod<T, B>(
     axis: usize,
     c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
-) where
+) -> Result<(), BackendError>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::cumprod_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
-        .expect("coeus-leto cumprod failed");
+    coeus_leto::cumprod_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
+        .map_err(|error| map_leto_error("cumprod", error))
 }
 
 #[inline]
@@ -160,11 +174,12 @@ pub(super) fn suffix_prod<T, B>(
     axis: usize,
     c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
-) where
+) -> Result<(), BackendError>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::suffix_prod_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
-        .expect("coeus-leto suffix_prod failed");
+    coeus_leto::suffix_prod_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
+        .map_err(|error| map_leto_error("suffix product", error))
 }

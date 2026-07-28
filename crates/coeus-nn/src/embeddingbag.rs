@@ -52,16 +52,20 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     /// Create an EmbeddingBag with unit weight matrix.
-    pub fn new(num_embeddings: usize, embedding_dim: usize, mode: EmbeddingBagMode) -> Self {
+    pub fn new(
+        num_embeddings: usize,
+        embedding_dim: usize,
+        mode: EmbeddingBagMode,
+    ) -> Result<Self, B::Error> {
         let backend = B::default();
         let w_tensor = Tensor::ones_on([num_embeddings, embedding_dim], &backend);
-        let weight = Var::new(w_tensor, true);
-        Self {
+        let weight = Var::new(w_tensor?, true)?;
+        Ok(Self {
             weight,
             num_embeddings,
             embedding_dim,
             mode,
-        }
+        })
     }
 
     fn bag_starts(indices_len: usize, offsets: Option<&[usize]>) -> Vec<usize> {
@@ -85,15 +89,20 @@ where
         }
     }
 
-    fn reduce_one_bag(&self, embeddings: &Var<T, B>, start: usize, end: usize) -> Var<T, B> {
+    fn reduce_one_bag(
+        &self,
+        embeddings: &Var<T, B>,
+        start: usize,
+        end: usize,
+    ) -> Result<Var<T, B>, B::Error> {
         let backend = B::default();
         let d = self.embedding_dim;
 
         if start == end {
-            return Var::new(Tensor::zeros_on([1, d], &backend), false);
+            return Ok(Var::new(Tensor::zeros_on([1, d], &backend)?, false)?);
         }
 
-        let bag = slice(embeddings, &[(start, end), (0, d)]);
+        let bag = slice(embeddings, &[(start, end), (0, d)])?;
         match self.mode {
             EmbeddingBagMode::Sum => sum_axis(&bag, 0),
             EmbeddingBagMode::Mean => mean_axis(&bag, 0),
@@ -107,7 +116,11 @@ where
     /// positions into that list. If `offsets` is `None`, `indices` is treated as one bag.
     ///
     /// Returns a tensor of shape `[num_bags, embedding_dim]`.
-    pub fn forward_with_offsets(&self, indices: &[usize], offsets: Option<&[usize]>) -> Var<T, B> {
+    pub fn forward_with_offsets(
+        &self,
+        indices: &[usize],
+        offsets: Option<&[usize]>,
+    ) -> Result<Var<T, B>, B::Error> {
         for &idx in indices {
             assert!(
                 idx < self.num_embeddings,
@@ -119,8 +132,8 @@ where
         let backend = B::default();
         let starts = Self::bag_starts(indices.len(), offsets);
         let idx_data: Vec<i64> = indices.iter().map(|&x| x as i64).collect();
-        let idx_tensor = Tensor::from_slice_on([indices.len()], &idx_data, &backend);
-        let embeddings = embedding(&self.weight, &idx_tensor);
+        let idx_tensor = Tensor::from_slice_on([indices.len()], &idx_data, &backend)?;
+        let embeddings = embedding(&self.weight, &idx_tensor)?;
 
         let rows: Vec<Var<T, B>> = starts
             .iter()
@@ -129,7 +142,7 @@ where
                 let end = starts.get(bag + 1).copied().unwrap_or(indices.len());
                 self.reduce_one_bag(&embeddings, start, end)
             })
-            .collect();
+            .collect::<Result<Vec<_>, _>>()?;
 
         let row_refs: Vec<&Var<T, B>> = rows.iter().collect();
         cat(&row_refs, 0)
@@ -145,7 +158,7 @@ where
     }
 
     /// Forward pass treating `input` as flat index tensor for a single bag.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         let indices: Vec<usize> = input
             .tensor
             .as_slice()

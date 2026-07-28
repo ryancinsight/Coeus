@@ -28,9 +28,15 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     /// Set element at a 1-D flat offset.
+    ///
+    /// # Errors
+    /// Returns the backend storage error if copy-on-write cannot allocate a
+    /// unique mutable buffer.
     #[inline]
-    pub fn set_flat(&mut self, offset: usize, val: T) {
+    pub fn set_flat(&mut self, offset: usize, val: T) -> Result<(), B::Error> {
         let base = self.layout.offset();
-        self.storage.as_mut_slice()[base + offset] = val;
+        let slice = self.storage.as_mut_slice()?;
+        slice[base + offset] = val;
+        Ok(())
     }
 }

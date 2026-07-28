@@ -42,17 +42,20 @@ where
     ///
     /// # Panics
     /// Panics if `N == 0`.
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self
+    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Result<Self, B::Error>
     where
         T: coeus_leto::RandomScalar,
     {
-        assert!(N > 0, "TransformerEncoder: N must be > 0");
-        // `core::array::from_fn` calls the closure N times with indices 0..N.
-        // Each call independently constructs a new layer with fresh parameters.
-        let layers = core::array::from_fn(|_| {
-            TransformerEncoderLayer::<T, B, H, M>::new(d_model, d_ff, dropout_p)
-        });
-        Self { layers }
+        let layers = (0..N)
+            .map(|_| TransformerEncoderLayer::<T, B, H, M>::new(d_model, d_ff, dropout_p))
+            .collect::<Result<Vec<_>, _>>()?;
+        let layers = layers.try_into().map_err(|_| {
+            B::Error::from(coeus_core::BackendError::Storage {
+                operation: "transformer encoder layer array",
+                reason: "layer count changed during fixed-array construction".to_owned(),
+            })
+        })?;
+        Ok(Self { layers })
     }
 
     /// Forward through all N layers sequentially with optional key padding mask.
@@ -63,8 +66,8 @@ where
         &self,
         input: &Var<T, B>,
         key_padding_mask: Option<&Var<T, B>>,
-    ) -> Var<T, B> {
-        self.layers.iter().fold(input.clone(), |x, layer| {
+    ) -> Result<Var<T, B>, B::Error> {
+        self.layers.iter().try_fold(input.clone(), |x, layer| {
             layer.forward_with_mask(&x, key_padding_mask)
         })
     }
@@ -93,7 +96,7 @@ impl<
     /// Forward through all N layers sequentially.
     ///
     /// Input/output shape: `[batch, seq, d_model]`.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, B::Error> {
         self.forward_with_mask(input, None)
     }
 }

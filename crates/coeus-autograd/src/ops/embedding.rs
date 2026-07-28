@@ -42,7 +42,11 @@ where
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref gw)) = input_grads.get(0) {
             let gw_update = coeus_ops::embedding_backward_with_padding_idx(
@@ -51,10 +55,12 @@ where
                 self.num_embeddings,
                 self.padding_idx,
                 &backend,
-            );
+            )?;
             let gl = gw.write();
-            coeus_ops::add_assign(gl, &gw_update, &backend);
+            coeus_ops::add_assign(gl, &gw_update, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -62,7 +68,7 @@ where
 pub fn embedding<T: Scalar, I: Scalar + 'static, B: coeus_ops::BackendOps<T> + Default>(
     weight: &Var<T, B>,
     indices: &Tensor<I, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     embedding_with_padding_idx(weight, indices, None)
 }
 
@@ -76,28 +82,27 @@ pub fn embedding_with_padding_idx<
     weight: &Var<T, B>,
     indices: &Tensor<I, B>,
     padding_idx: Option<usize>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let out_tensor = coeus_ops::embedding(&weight.tensor, indices, &backend);
+    let out_tensor = coeus_ops::embedding(&weight.tensor, indices, &backend)?;
     let requires_grad = crate::grad_mode::should_track_var(weight);
 
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
 
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = if let Some(ref output_grad) = grad {
         let inputs = vec![weight.clone()];
         let indices_clone = indices.clone();
         let num_embeddings = weight.tensor.shape()[0];
 
         let node = EmbeddingNode {
-            output_grad,
+            output_grad: output_grad.clone(),
             inputs,
             indices: indices_clone,
             num_embeddings,
@@ -108,9 +113,9 @@ pub fn embedding_with_padding_idx<
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

@@ -22,11 +22,13 @@ fn wgpu() -> WgpuBackend {
 /// Transfer a CPU tensor to the WgpuBackend.
 fn to_gpu(t: &Tensor<f32, SequentialBackend>) -> Tensor<f32, WgpuBackend> {
     t.to_backend_on(&seq(), &wgpu())
+        .expect("transfer tensor")
 }
 
 /// Transfer a WgpuBackend tensor back to CPU.
 fn to_cpu(t: &Tensor<f32, WgpuBackend>) -> Tensor<f32, SequentialBackend> {
     t.to_backend_on(&wgpu(), &seq())
+        .expect("transfer tensor")
 }
 
 fn assert_parity(label: &str, cpu: &[f32], gpu: &[f32]) {

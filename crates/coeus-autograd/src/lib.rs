@@ -36,10 +36,15 @@ pub mod var;
 
 pub use grad_buffer::GradBuffer;
 pub use grad_mode::{
-    is_grad_enabled, is_no_grad_enabled, no_grad_guard, pop_no_grad, push_no_grad, NoGradGuard,
+    NoGradGuard, is_grad_enabled, is_no_grad_enabled, no_grad_guard, pop_no_grad, push_no_grad,
 };
 pub use node::BackwardNode;
 pub use ops::{
+    AttentionMask,
+    BatchNormArgs,
+    CausalMask,
+    NullMask,
+    VarScalarExt,
     abs,
     acos,
     acosh,
@@ -64,12 +69,12 @@ pub use ops::{
     celu,
     clamp,
     contiguous,
-    conv1d,
-    conv2d,
-    conv3d,
     conv_transpose1d,
     conv_transpose2d,
     conv_transpose3d,
+    conv1d,
+    conv2d,
+    conv3d,
     // Trigonometric
     cos,
     cosh,
@@ -123,11 +128,11 @@ pub use ops::{
     lgamma_forward,
     linear_interpolation,
     log,
-    log10,
-    log1p,
-    log2,
     log_softmax,
     log_sum_exp,
+    log1p,
+    log2,
+    log10,
     lt,
     margin_ranking_loss,
     masked_fill,
@@ -231,11 +236,6 @@ pub use ops::{
     var_mean_axis,
     // Shape ops
     where_cond,
-    AttentionMask,
-    BatchNormArgs,
-    CausalMask,
-    NullMask,
-    VarScalarExt,
 };
 pub use parameter::Parameter;
 

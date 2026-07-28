@@ -1,6 +1,7 @@
 use crate::backend::ops::cast::{cast_storage, cast_storage_mut};
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::get_cuda_context;
+use crate::error::CudaBackendError;
 use crate::kernels;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
@@ -23,7 +24,7 @@ impl CudaBackend {
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         if get_cuda_context().is_some()
             && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
         {
@@ -52,34 +53,22 @@ impl CudaBackend {
                 padding,
                 dilation,
             ) {
-                if let Some(gi) = grad_input.as_mut() {
-                    **gi = cast_storage(&grad_input_f32.unwrap());
+                if let (Some(gi), Some(gi_f32)) = (grad_input.as_mut(), grad_input_f32.as_ref()) {
+                    **gi = cast_storage(gi_f32);
                 }
-                if let Some(gw) = grad_weight.as_mut() {
-                    **gw = cast_storage(&grad_weight_f32.unwrap());
+                if let (Some(gw), Some(gw_f32)) = (grad_weight.as_mut(), grad_weight_f32.as_ref()) {
+                    **gw = cast_storage(gw_f32);
                 }
-                if let Some(gb) = grad_bias.as_mut() {
-                    **gb = cast_storage(&grad_bias_f32.unwrap());
+                if let (Some(gb), Some(gb_f32)) = (grad_bias.as_mut(), grad_bias_f32.as_ref()) {
+                    **gb = cast_storage(gb_f32);
                 }
-                return;
+                return Ok(());
             }
         }
-        self.fallback_conv1d_backward(
-            grad_out,
-            grad_out_layout,
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            grad_input,
-            grad_input_layout,
-            grad_weight,
-            grad_weight_layout,
-            grad_bias,
-            stride,
-            padding,
-            dilation,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "conv1d_backward",
+            "native CUDA dispatch requires an initialized context and supported f32 layouts",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -99,7 +88,7 @@ impl CudaBackend {
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         if get_cuda_context().is_some()
             && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
         {
@@ -128,34 +117,22 @@ impl CudaBackend {
                 padding,
                 dilation,
             ) {
-                if let Some(gi) = grad_input.as_mut() {
-                    **gi = cast_storage(&grad_input_f32.unwrap());
+                if let (Some(gi), Some(gi_f32)) = (grad_input.as_mut(), grad_input_f32.as_ref()) {
+                    **gi = cast_storage(gi_f32);
                 }
-                if let Some(gw) = grad_weight.as_mut() {
-                    **gw = cast_storage(&grad_weight_f32.unwrap());
+                if let (Some(gw), Some(gw_f32)) = (grad_weight.as_mut(), grad_weight_f32.as_ref()) {
+                    **gw = cast_storage(gw_f32);
                 }
-                if let Some(gb) = grad_bias.as_mut() {
-                    **gb = cast_storage(&grad_bias_f32.unwrap());
+                if let (Some(gb), Some(gb_f32)) = (grad_bias.as_mut(), grad_bias_f32.as_ref()) {
+                    **gb = cast_storage(gb_f32);
                 }
-                return;
+                return Ok(());
             }
         }
-        self.fallback_conv2d_backward(
-            grad_out,
-            grad_out_layout,
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            grad_input,
-            grad_input_layout,
-            grad_weight,
-            grad_weight_layout,
-            grad_bias,
-            stride,
-            padding,
-            dilation,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "conv2d_backward",
+            "native CUDA dispatch requires an initialized context and supported f32 layouts",
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -175,7 +152,7 @@ impl CudaBackend {
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) {
+    ) -> Result<(), CudaBackendError> {
         if get_cuda_context().is_some()
             && std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
         {
@@ -204,33 +181,21 @@ impl CudaBackend {
                 padding,
                 dilation,
             ) {
-                if let Some(gi) = grad_input.as_mut() {
-                    **gi = cast_storage(&grad_input_f32.unwrap());
+                if let (Some(gi), Some(gi_f32)) = (grad_input.as_mut(), grad_input_f32.as_ref()) {
+                    **gi = cast_storage(gi_f32);
                 }
-                if let Some(gw) = grad_weight.as_mut() {
-                    **gw = cast_storage(&grad_weight_f32.unwrap());
+                if let (Some(gw), Some(gw_f32)) = (grad_weight.as_mut(), grad_weight_f32.as_ref()) {
+                    **gw = cast_storage(gw_f32);
                 }
-                if let Some(gb) = grad_bias.as_mut() {
-                    **gb = cast_storage(&grad_bias_f32.unwrap());
+                if let (Some(gb), Some(gb_f32)) = (grad_bias.as_mut(), grad_bias_f32.as_ref()) {
+                    **gb = cast_storage(gb_f32);
                 }
-                return;
+                return Ok(());
             }
         }
-        self.fallback_conv3d_backward(
-            grad_out,
-            grad_out_layout,
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            grad_input,
-            grad_input_layout,
-            grad_weight,
-            grad_weight_layout,
-            grad_bias,
-            stride,
-            padding,
-            dilation,
-        );
+        Err(CudaBackendError::dispatch_unavailable(
+            "conv3d_backward",
+            "native CUDA dispatch requires an initialized context and supported f32 layouts",
+        ))
     }
 }

@@ -104,8 +104,17 @@ fn checked_conv_transpose1d_launch(
         return None;
     }
     let values = [n, c_in, l, c_out, k, l_out, stride, padding, dilation].map(cuda_u32);
-    let [Some(n), Some(c_in), Some(l), Some(c_out), Some(k), Some(l_out), Some(stride), Some(padding), Some(dilation)] =
-        values
+    let [
+        Some(n),
+        Some(c_in),
+        Some(l),
+        Some(c_out),
+        Some(k),
+        Some(l_out),
+        Some(stride),
+        Some(padding),
+        Some(dilation),
+    ] = values
     else {
         return None;
     };
@@ -159,8 +168,20 @@ fn checked_conv_transpose2d_launch(
         n, c_in, h, w, c_out, kh, kw, h_out, w_out, stride, padding, dilation,
     ]
     .map(cuda_u32);
-    let [Some(n), Some(c_in), Some(h), Some(w), Some(c_out), Some(kh), Some(kw), Some(h_out), Some(w_out), Some(stride), Some(padding), Some(dilation)] =
-        values
+    let [
+        Some(n),
+        Some(c_in),
+        Some(h),
+        Some(w),
+        Some(c_out),
+        Some(kh),
+        Some(kw),
+        Some(h_out),
+        Some(w_out),
+        Some(stride),
+        Some(padding),
+        Some(dilation),
+    ] = values
     else {
         return None;
     };
@@ -309,8 +330,17 @@ pub fn launch_conv_transpose1d(
     let mut w_ptr = weight.cu_deviceptr();
     let mut b_ptr = bias.map(|b| b.cu_deviceptr()).unwrap_or(0);
     let mut out_ptr = output.cu_deviceptr();
-    let [mut n_v, mut c_in_v, mut l_v, mut c_out_v, mut k_v, mut l_out_v, mut stride_v, mut pad_v, mut dil_v] =
-        dimensions.values;
+    let [
+        mut n_v,
+        mut c_in_v,
+        mut l_v,
+        mut c_out_v,
+        mut k_v,
+        mut l_out_v,
+        mut stride_v,
+        mut pad_v,
+        mut dil_v,
+    ] = dimensions.values;
     let mut has_bias_v = u32::from(bias.is_some());
     let total = dimensions.total_elements;
     let mut total_v = dimensions.total;
@@ -393,8 +423,20 @@ pub fn launch_conv_transpose2d(
     let mut w_ptr = weight.cu_deviceptr();
     let mut b_ptr = bias.map(|b| b.cu_deviceptr()).unwrap_or(0);
     let mut out_ptr = output.cu_deviceptr();
-    let [mut n_v, mut c_in_v, mut h_v, mut w_v, mut c_out_v, mut kh_v, mut kw_v, mut h_out_v, mut w_out_v, mut stride_v, mut pad_v, mut dil_v] =
-        dimensions.values;
+    let [
+        mut n_v,
+        mut c_in_v,
+        mut h_v,
+        mut w_v,
+        mut c_out_v,
+        mut kh_v,
+        mut kw_v,
+        mut h_out_v,
+        mut w_out_v,
+        mut stride_v,
+        mut pad_v,
+        mut dil_v,
+    ] = dimensions.values;
     let mut has_bias_v = u32::from(bias.is_some());
     let total = dimensions.total_elements;
     let mut total_v = dimensions.total;
