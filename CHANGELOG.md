@@ -15,7 +15,11 @@
   WGPU, CUDA, ROCm, and Metal backend contracts. ROCm and Metal use the native
   Hephaestus strided providers; CUDA covers both contiguous and strided ELU
   launch paths; Leto differential tests cover signed inputs and the zero
-  branch boundary. No runtime performance or resident-memory delta is claimed.
+  branch boundary. Exact-head provider/consumer run `30351530489` passed CUDA
+  `90249902958`, WGPU `90249903429`, ROCm `90249902939`, and Metal
+  `90249903016`; required-device ROCm `90249904831` was skipped because no
+  hosted AMD runner was dispatched. No runtime performance or resident-memory
+  delta is claimed.
 
 - [patch] Routes native Coeus WGPU and CUDA copy-on-write detachment through
   the shared Hephaestus `ComputeDevice::copy_buffer` contract. This removes

@@ -109,13 +109,13 @@ available. ADR 0028 owns the exact GELU contract.
 
 ## ATLAS-COEUS-HEPHAESTUS-ACTIVATION-TAIL-PARITY-001 [arch][minor]
 
-- [ ] Route `UnaryOp::Mish`, `MishGrad`, `Elu`, and `EluGrad` through the
+- [x] Route `UnaryOp::Mish`, `MishGrad`, `Elu`, and `EluGrad` through the
       provider-owned Hephaestus ROCm and Metal f32 strided kernels.
-- [ ] Extend the CUDA contiguous and strided launch expressions with ELU and
+- [x] Extend the CUDA contiguous and strided launch expressions with ELU and
       its gradient, preserving the existing Mish expressions.
-- [ ] Extend WGPU, CUDA, ROCm, and Metal contracts with Leto CPU differential
+- [x] Extend WGPU, CUDA, ROCm, and Metal contracts with Leto CPU differential
       coverage for forward and gradient activation paths.
-- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for
+- [x] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for
       the provider and consumer revisions.
 
 Acceptance: all four backends expose the same unparameterized f32 Mish and ELU
@@ -124,6 +124,14 @@ operation errors; backend values match the Leto CPU oracle over signed inputs
 including the zero branch boundary. The existing strided/device-resident
 kernel paths remain in use; no runtime performance or resident-memory delta is
 claimed without a controlled benchmark. ADR 0038 owns the contract.
+
+Status: complete for the unparameterized f32 scope. Exact-head Coeus run
+`30351530489` passed CUDA job `90249902958`, WGPU job `90249903429`, ROCm job
+`90249902939`, and Metal job `90249903016`. Required-device ROCm job
+`90249904831` was skipped because no hosted AMD runner was dispatched; no
+physical-device execution claim is made. The external `recurseml/analysis`
+status returned its recurring analyzer error and is not repository-owned
+verification.
 
 ## ATLAS-COEUS-HEPHAESTUS-ERROR-FUNCTION-PARITY-001 [arch]
 

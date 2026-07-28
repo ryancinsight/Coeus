@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted; implementation is complete locally and exact-head provider CI is
-pending.
+Accepted; implementation and exact-head provider CI are complete for the
+unparameterized f32 scope.
 
 ## Context
 
@@ -47,10 +47,12 @@ the increment adds no host staging or temporary backend buffer.
 ## Verification
 
 Local format, package compilation, lint, and focused provider contracts cover
-the changed dispatch and expression tables. Exact-head WGPU, CUDA, ROCm, and
-Metal provider/consumer CI is required before this item closes. The
-required-device ROCm lane is reported separately from adapterless compilation;
-no physical-device result is inferred when that lane is skipped.
+the changed dispatch and expression tables. Exact-head Coeus run `30351530489`
+passed CUDA job `90249902958`, WGPU job `90249903429`, ROCm job `90249902939`,
+and Metal job `90249903016`. Required-device ROCm job `90249904831` was
+skipped because no hosted AMD runner was dispatched; no physical-device result
+is inferred. The external `recurseml/analysis` status returned its recurring
+analyzer error and is not repository-owned verification.
 
 ## Residual scope
 
