@@ -1,7 +1,7 @@
-use super::shader::{parameter, shader_source, ForwardPoolKind, WORKGROUP_SIZE};
-use crate::backend::WgpuScalar;
+use super::shader::{parameter, shader_source, ForwardPoolKind};
+use super::validation::try_layout;
+use crate::backend::{checked_numel, checked_workgroup_count, WgpuBackendError, WgpuScalar};
 use crate::kernels::cache::PIPELINE_CACHE;
-use crate::kernels::layout::GpuLayoutInfo;
 use coeus_core::Layout;
 
 fn dispatch_forward<T: WgpuScalar>(
@@ -11,14 +11,15 @@ fn dispatch_forward<T: WgpuScalar>(
     output: &wgpu::Buffer,
     output_layout: &Layout,
     params: [u32; 4],
-) {
-    let total = output_layout.shape().iter().product::<usize>();
+) -> Result<(), WgpuBackendError> {
+    let input_layout_gpu = try_layout("pool1d", input_layout)?;
+    let output_layout_gpu = try_layout("pool1d", output_layout)?;
+    let total = checked_numel("pool1d", output_layout.shape())?;
     if total == 0 {
-        return;
+        return Ok(());
     }
+    let workgroups = checked_workgroup_count("pool1d", total)?;
     let ctx = crate::backend::get_wgpu_context();
-    let input_layout_gpu = GpuLayoutInfo::from_layout(input_layout);
-    let output_layout_gpu = GpuLayoutInfo::from_layout(output_layout);
     let input_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let output_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let params_buf = crate::backend::PooledMetadataBuffer::new();
@@ -77,14 +78,10 @@ fn dispatch_forward<T: WgpuScalar>(
         });
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        compute_pass.dispatch_workgroups(
-            u32::try_from(total.div_ceil(WORKGROUP_SIZE))
-                .expect("pool1d dispatch exceeds the WGSL u32 workgroup range"),
-            1,
-            1,
-        );
+        compute_pass.dispatch_workgroups(workgroups, 1, 1);
     }
     ctx.queue.submit(std::iter::once(encoder.finish()));
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -97,7 +94,7 @@ pub fn dispatch_max_pool1d<T: WgpuScalar>(
     dilation: usize,
     output: &wgpu::Buffer,
     output_layout: &Layout,
-) {
+) -> Result<(), WgpuBackendError> {
     dispatch_forward::<T>(
         ForwardPoolKind::Max,
         input,
@@ -105,12 +102,12 @@ pub fn dispatch_max_pool1d<T: WgpuScalar>(
         output,
         output_layout,
         [
-            parameter(kernel_size, "kernel_size"),
-            parameter(stride, "stride"),
-            parameter(padding, "padding"),
-            parameter(dilation, "dilation"),
+            parameter(kernel_size, "kernel_size")?,
+            parameter(stride, "stride")?,
+            parameter(padding, "padding")?,
+            parameter(dilation, "dilation")?,
         ],
-    );
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -123,7 +120,7 @@ pub fn dispatch_avg_pool1d<T: WgpuScalar>(
     dilation: usize,
     output: &wgpu::Buffer,
     output_layout: &Layout,
-) {
+) -> Result<(), WgpuBackendError> {
     dispatch_forward::<T>(
         ForwardPoolKind::Avg,
         input,
@@ -131,10 +128,10 @@ pub fn dispatch_avg_pool1d<T: WgpuScalar>(
         output,
         output_layout,
         [
-            parameter(kernel_size, "kernel_size"),
-            parameter(stride, "stride"),
-            parameter(padding, "padding"),
-            parameter(dilation, "dilation"),
+            parameter(kernel_size, "kernel_size")?,
+            parameter(stride, "stride")?,
+            parameter(padding, "padding")?,
+            parameter(dilation, "dilation")?,
         ],
-    );
+    )
 }

@@ -115,3 +115,11 @@ breaking work rather than a local adapter. The locked `coeus-ops` check,
 110/110 nextest tests, 22/22 doctests, warning-denied Clippy, and no-deps
 Rustdoc pass. No WGPU all-target performance result is claimed because that
 matrix remains outside this provider-identity integration increment.
+
+The 1D pooling family now uses the same typed dispatch boundary. CPU calls
+remain monomorphized to the Leto-backed implementation, WGPU validates rank,
+layout ABI values, pooling parameters, element-count arithmetic, and the
+rounded workgroup count before submitting native WGSL, and CUDA propagates
+native kernel validation and launch failures. The infallible autograd/NN
+boundary retains explicit invariant diagnostics; no host fallback or silent
+success path is introduced.

@@ -4,6 +4,13 @@
 
 ### Changed
 
+- [major] Make Coeus 1D pooling dispatch return the backend-associated
+  `Result`. CPU remains directly Leto-backed, WGPU rejects invalid rank/layout/
+  parameter/workgroup metadata before native WGSL submission, and CUDA
+  propagates native kernel validation and launch failures. The 2D/3D pooling
+  seam remains unchanged in this increment; no performance or memory delta is
+  claimed without controlled measurements.
+
 - [minor] Route Coeus CUDA `GeluTanh`, `GeluTanhGrad`, `Softplus`, and
   `SoftplusGrad` through the existing Hephaestus marker kernels for contiguous
   and runtime-shaped strided layouts. Add CUDA/Leto forward and gradient

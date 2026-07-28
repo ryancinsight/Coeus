@@ -1,6 +1,5 @@
-use crate::backend::WgpuScalar;
-
-pub(super) const WORKGROUP_SIZE: usize = 256;
+use crate::backend::{WgpuBackendError, WgpuScalar};
+use coeus_core::BackendError;
 
 #[derive(Clone, Copy)]
 pub(super) enum PoolKind {
@@ -27,9 +26,39 @@ impl From<ForwardPoolKind> for PoolKind {
     }
 }
 
-pub(super) fn parameter(value: usize, name: &str) -> u32 {
-    u32::try_from(value)
-        .unwrap_or_else(|_| panic!("{name} exceeds the WGSL u32 index range: {value}"))
+pub(super) fn parameter(value: usize, name: &str) -> Result<u32, WgpuBackendError> {
+    u32::try_from(value).map_err(|_| {
+        WgpuBackendError::Validation(BackendError::Storage {
+            operation: "pool1d",
+            reason: format!("{name} value {value} exceeds the WGSL u32 ABI"),
+        })
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parameter;
+    use crate::backend::WgpuBackendError;
+    use coeus_core::BackendError;
+
+    #[test]
+    fn accepts_parameters_representable_by_the_wgsl_abi() {
+        assert!(matches!(parameter(17, "stride"), Ok(17)));
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn rejects_parameters_outside_the_wgsl_abi() {
+        let value = usize::try_from(u64::from(u32::MAX) + 1).expect("u64 value fits usize");
+
+        assert!(matches!(
+            parameter(value, "stride"),
+            Err(WgpuBackendError::Validation(BackendError::Storage {
+                operation: "pool1d",
+                reason,
+            })) if reason == "stride value 4294967296 exceeds the WGSL u32 ABI"
+        ));
+    }
 }
 
 pub(super) fn shader_source<T: WgpuScalar>(kind: PoolKind) -> String {

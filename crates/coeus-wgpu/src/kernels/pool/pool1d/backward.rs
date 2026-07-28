@@ -1,7 +1,7 @@
-use super::shader::{parameter, shader_source, PoolKind, WORKGROUP_SIZE};
-use crate::backend::WgpuScalar;
+use super::shader::{parameter, shader_source, PoolKind};
+use super::validation::try_layout;
+use crate::backend::{checked_numel, checked_workgroup_count, WgpuBackendError, WgpuScalar};
 use crate::kernels::cache::PIPELINE_CACHE;
-use crate::kernels::layout::GpuLayoutInfo;
 use coeus_core::Layout;
 
 #[allow(clippy::too_many_arguments)]
@@ -13,15 +13,16 @@ fn dispatch_max_backward<T: WgpuScalar>(
     grad_input: &wgpu::Buffer,
     grad_input_layout: &Layout,
     params: [u32; 4],
-) {
-    let total = grad_input_layout.shape().iter().product::<usize>();
+) -> Result<(), WgpuBackendError> {
+    let grad_out_layout_gpu = try_layout("max_pool1d_backward", grad_out_layout)?;
+    let input_layout_gpu = try_layout("max_pool1d_backward", input_layout)?;
+    let grad_input_layout_gpu = try_layout("max_pool1d_backward", grad_input_layout)?;
+    let total = checked_numel("max_pool1d_backward", grad_input_layout.shape())?;
     if total == 0 {
-        return;
+        return Ok(());
     }
+    let workgroups = checked_workgroup_count("max_pool1d_backward", total)?;
     let ctx = crate::backend::get_wgpu_context();
-    let grad_out_layout_gpu = GpuLayoutInfo::from_layout(grad_out_layout);
-    let input_layout_gpu = GpuLayoutInfo::from_layout(input_layout);
-    let grad_input_layout_gpu = GpuLayoutInfo::from_layout(grad_input_layout);
     let grad_out_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let input_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let grad_input_layout_buf = crate::backend::PooledMetadataBuffer::new();
@@ -94,14 +95,10 @@ fn dispatch_max_backward<T: WgpuScalar>(
         });
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        compute_pass.dispatch_workgroups(
-            u32::try_from(total.div_ceil(WORKGROUP_SIZE))
-                .expect("pool1d dispatch exceeds the WGSL u32 workgroup range"),
-            1,
-            1,
-        );
+        compute_pass.dispatch_workgroups(workgroups, 1, 1);
     }
     ctx.queue.submit(std::iter::once(encoder.finish()));
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -111,14 +108,15 @@ fn dispatch_avg_backward<T: WgpuScalar>(
     grad_input: &wgpu::Buffer,
     grad_input_layout: &Layout,
     params: [u32; 4],
-) {
-    let total = grad_input_layout.shape().iter().product::<usize>();
+) -> Result<(), WgpuBackendError> {
+    let grad_out_layout_gpu = try_layout("avg_pool1d_backward", grad_out_layout)?;
+    let grad_input_layout_gpu = try_layout("avg_pool1d_backward", grad_input_layout)?;
+    let total = checked_numel("avg_pool1d_backward", grad_input_layout.shape())?;
     if total == 0 {
-        return;
+        return Ok(());
     }
+    let workgroups = checked_workgroup_count("avg_pool1d_backward", total)?;
     let ctx = crate::backend::get_wgpu_context();
-    let grad_out_layout_gpu = GpuLayoutInfo::from_layout(grad_out_layout);
-    let grad_input_layout_gpu = GpuLayoutInfo::from_layout(grad_input_layout);
     let grad_out_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let grad_input_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let params_buf = crate::backend::PooledMetadataBuffer::new();
@@ -180,14 +178,10 @@ fn dispatch_avg_backward<T: WgpuScalar>(
         });
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        compute_pass.dispatch_workgroups(
-            u32::try_from(total.div_ceil(WORKGROUP_SIZE))
-                .expect("pool1d dispatch exceeds the WGSL u32 workgroup range"),
-            1,
-            1,
-        );
+        compute_pass.dispatch_workgroups(workgroups, 1, 1);
     }
     ctx.queue.submit(std::iter::once(encoder.finish()));
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -202,7 +196,7 @@ pub fn dispatch_max_pool1d_backward<T: WgpuScalar>(
     dilation: usize,
     grad_input: &wgpu::Buffer,
     grad_input_layout: &Layout,
-) {
+) -> Result<(), WgpuBackendError> {
     dispatch_max_backward::<T>(
         grad_out,
         grad_out_layout,
@@ -211,12 +205,12 @@ pub fn dispatch_max_pool1d_backward<T: WgpuScalar>(
         grad_input,
         grad_input_layout,
         [
-            parameter(kernel_size, "kernel_size"),
-            parameter(stride, "stride"),
-            parameter(padding, "padding"),
-            parameter(dilation, "dilation"),
+            parameter(kernel_size, "kernel_size")?,
+            parameter(stride, "stride")?,
+            parameter(padding, "padding")?,
+            parameter(dilation, "dilation")?,
         ],
-    );
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -229,17 +223,17 @@ pub fn dispatch_avg_pool1d_backward<T: WgpuScalar>(
     dilation: usize,
     grad_input: &wgpu::Buffer,
     grad_input_layout: &Layout,
-) {
+) -> Result<(), WgpuBackendError> {
     dispatch_avg_backward::<T>(
         grad_out,
         grad_out_layout,
         grad_input,
         grad_input_layout,
         [
-            parameter(kernel_size, "kernel_size"),
-            parameter(stride, "stride"),
-            parameter(padding, "padding"),
-            parameter(dilation, "dilation"),
+            parameter(kernel_size, "kernel_size")?,
+            parameter(stride, "stride")?,
+            parameter(padding, "padding")?,
+            parameter(dilation, "dilation")?,
         ],
-    );
+    )
 }

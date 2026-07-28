@@ -32,6 +32,14 @@ pub enum CudaBackendError {
         #[source]
         source: hephaestus_cuda::HephaestusError,
     },
+    /// A native CUDA kernel could not be validated or launched.
+    #[error("CUDA {operation} kernel failed: {reason}")]
+    Kernel {
+        /// Operation family being dispatched.
+        operation: &'static str,
+        /// Stable reason for the rejected launch.
+        reason: &'static str,
+    },
     /// The explicit CPU capability boundary failed.
     #[error("CUDA {operation} CPU capability path failed: {source}")]
     CpuCapability {
@@ -50,6 +58,10 @@ impl From<BackendError> for CudaBackendError {
 }
 
 impl CudaBackendError {
+    pub(crate) fn kernel(operation: &'static str, reason: &'static str) -> Self {
+        Self::Kernel { operation, reason }
+    }
+
     pub(crate) fn cpu_capability(operation: &'static str, source: BackendError) -> Self {
         Self::CpuCapability { operation, source }
     }

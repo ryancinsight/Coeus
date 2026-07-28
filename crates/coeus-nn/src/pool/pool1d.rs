@@ -93,16 +93,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool1d
         let mut out_tensor = Tensor::alloc_on([n, c, l_out], &backend);
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
 
-        backend.max_pool1d(
-            input.tensor.storage(),
-            input.tensor.layout(),
-            self.kernel_size,
-            self.stride,
-            self.padding,
-            self.dilation,
-            out_storage,
-            out_layout,
-        );
+        backend
+            .max_pool1d(
+                input.tensor.storage(),
+                input.tensor.layout(),
+                self.kernel_size,
+                self.stride,
+                self.padding,
+                self.dilation,
+                out_storage,
+                out_layout,
+            )
+            .expect("invariant: validated MaxPool1d dispatch must succeed");
 
         coeus_autograd::max_pool1d(
             input,
@@ -200,16 +202,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool1d
         let mut out_tensor = Tensor::alloc_on([n, c, l_out], &backend);
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
 
-        backend.avg_pool1d(
-            input.tensor.storage(),
-            input.tensor.layout(),
-            self.kernel_size,
-            self.stride,
-            self.padding,
-            self.dilation,
-            out_storage,
-            out_layout,
-        );
+        backend
+            .avg_pool1d(
+                input.tensor.storage(),
+                input.tensor.layout(),
+                self.kernel_size,
+                self.stride,
+                self.padding,
+                self.dilation,
+                out_storage,
+                out_layout,
+            )
+            .expect("invariant: validated AvgPool1d dispatch must succeed");
 
         coeus_autograd::avg_pool1d(
             input,

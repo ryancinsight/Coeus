@@ -14,6 +14,10 @@ use coeus_core::{ComputeBackend, Layout, Scalar};
 /// [`BackendOps`]: super::super::BackendOps
 pub trait PoolOps<T: Scalar>: ComputeBackend {
     /// 1D Max Pooling over `[N, C, L]` input.
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when the backend cannot validate
+    /// or dispatch the requested kernel.
     fn max_pool1d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -24,9 +28,13 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 1D Max Pooling Backward.
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when the backend cannot validate
+    /// or dispatch the requested kernel.
     fn max_pool1d_backward(
         &self,
         grad_out: &Self::DeviceBuffer<T>,
@@ -39,9 +47,13 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 1D Average Pooling over `[N, C, L]` input.
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when the backend cannot validate
+    /// or dispatch the requested kernel.
     fn avg_pool1d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -52,9 +64,13 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 1D Average Pooling Backward.
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when the backend cannot validate
+    /// or dispatch the requested kernel.
     fn avg_pool1d_backward(
         &self,
         grad_out: &Self::DeviceBuffer<T>,
@@ -65,7 +81,7 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// 2D Max Pooling
     fn max_pool2d(

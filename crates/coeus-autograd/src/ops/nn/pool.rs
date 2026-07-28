@@ -38,18 +38,20 @@ fn dispatch_max_pool_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, c
     } = request;
 
     match DIM {
-        1 => backend.max_pool1d_backward(
-            grad_out_storage,
-            grad_out_layout,
-            input_storage,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            grad_input,
-            grad_input_layout,
-        ),
+        1 => backend
+            .max_pool1d_backward(
+                grad_out_storage,
+                grad_out_layout,
+                input_storage,
+                input_layout,
+                kernel_size,
+                stride,
+                padding,
+                dilation,
+                grad_input,
+                grad_input_layout,
+            )
+            .expect("invariant: validated max_pool1d backward dispatch must succeed"),
         2 => backend.max_pool2d_backward(
             grad_out_storage,
             grad_out_layout,
@@ -95,16 +97,18 @@ fn dispatch_avg_pool_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, c
     } = request;
 
     match DIM {
-        1 => backend.avg_pool1d_backward(
-            grad_out_storage,
-            grad_out_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            grad_input,
-            grad_input_layout,
-        ),
+        1 => backend
+            .avg_pool1d_backward(
+                grad_out_storage,
+                grad_out_layout,
+                kernel_size,
+                stride,
+                padding,
+                dilation,
+                grad_input,
+                grad_input_layout,
+            )
+            .expect("invariant: validated avg_pool1d backward dispatch must succeed"),
         2 => backend.avg_pool2d_backward(
             grad_out_storage,
             grad_out_layout,
