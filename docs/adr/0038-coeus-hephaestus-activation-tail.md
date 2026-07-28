@@ -2,8 +2,7 @@
 
 ## Status
 
-Accepted; the provider-ownership correction is in progress for the
-unparameterized f32 scope.
+Accepted and implemented for the unparameterized f32 scope.
 
 ## Context
 
@@ -50,11 +49,15 @@ increment adds no host staging or temporary backend buffer.
 
 ## Verification
 
-The correction requires format, package compilation, warning-denied Clippy,
-contiguous and strided Leto differential contracts, doctests, and exact-head
-CUDA/WGPU/ROCm/Metal provider CI. The prior targeted run `30353984154` proved
-value parity but did not prove provider ownership because the consumer-local
-expressions computed the same values. No physical-device, runtime-performance,
+Local format, package compilation, warning-denied Clippy, focused WGPU
+contiguous/strided/alias contracts, and CUDA/WGPU doctests passed. Local CUDA
+nextest reached native linking but the MinGW environment had no CUDA import
+library (`ld: cannot find -lcuda`), so no local CUDA runtime result is inferred.
+Exact-head Coeus run `30387168252` passed CUDA job `90369248008`, WGPU job
+`90369248023`, ROCm job `90369247910`, and Metal job `90369248013`.
+Required-device ROCm job `90369248641` was skipped because no hosted AMD runner
+was dispatched. The external `recurseml/analysis` status returned its recurring
+analyzer error and is not repository-owned verification. No runtime-performance
 or resident-memory result is inferred.
 
 ## Residual scope

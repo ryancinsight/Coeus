@@ -1,6 +1,6 @@
 # Coeus Project Backlog & Historical Archives
 
-## ATLAS-COEUS-HEPHAESTUS-ELU-DISPATCH-001 — Own ELU in Hephaestus [arch] — in-progress
+## ATLAS-COEUS-HEPHAESTUS-ELU-DISPATCH-001 — Own ELU in Hephaestus [arch] — complete
 
 - Owner: Codex; scope: CUDA/WGPU contiguous and strided ELU forward/gradient
   dispatch, superseded consumer expressions, differential tests, ADR-0038, and
@@ -14,8 +14,10 @@
   fallback remains; exact-head CUDA/WGPU/ROCm/Metal provider CI passes.
 - Risk/change class: `[arch]` provider-ownership correction with no public API
   change.
-- Status: implementation and value-semantic regressions are present locally;
-  exact-head provider verification remains pending.
+- Status: merged by PR #241 at `fe92e3f7`. Exact-head run `30387168252`
+  passed CUDA `90369248008`, WGPU `90369248023`, ROCm `90369247910`, and
+  Metal `90369248013`; required-device ROCm `90369248641` was skipped because
+  no hosted AMD runner was dispatched.
 
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 — Route exact GELU through Hephaestus [minor] — complete
 
