@@ -1,10 +1,10 @@
 # Coeus Project Backlog & Historical Archives
 
-## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 — Route exact GELU through Hephaestus [minor] — in-progress
+## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 — Route exact GELU through Hephaestus [minor] — complete
 
 - Owner: Codex on `codex/coeus-cuda-common-activation-parity`; scope:
-  `crates/coeus-cuda/src/backend/ops/math.rs`, the CUDA unary parity tests,
-  the backend-parity selector, and owner-local PM evidence.
+  `crates/coeus-cuda/src/backend/ops/math/elementwise.rs`, the CUDA unary
+  parity tests, the backend-parity selector, and owner-local PM evidence.
 - Outcome: route CUDA f32 `Gelu` and `GeluGrad` through the existing
   Hephaestus exact-erf marker kernels for contiguous and runtime-shaped
   strided layouts, matching the already-native ROCm and Metal paths.
@@ -16,8 +16,11 @@
   pass; no runtime or resident-memory delta is claimed without a benchmark.
 - Risk/change class: `[minor]` provider-capability routing with additive CI
   coverage.
-- Status: implementation complete at `a8dcc51c`; final exact-head evidence
-  remains pending.
+- Status: complete at `f861cea6`. Exact-head run `30379272710` passed CUDA
+  `90342897802`, WGPU `90342897872`, ROCm `90342897673`, and Metal
+  `90342897752`. Required-device ROCm `90342898718` was skipped because no
+  hosted AMD runner was dispatched; no physical-device execution, runtime, or
+  resident-memory claim is made.
 - Structural note: the touched CUDA math dispatcher is now vertically split
   into elementwise, matmul, and reduction leaves under
   `crates/coeus-cuda/src/backend/ops/math/`; ADR-0040 records the boundary.
