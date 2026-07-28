@@ -140,6 +140,20 @@ where
             ),
             c,
         ),
+        coeus_ops::UnaryOp::Gelu => run(
+            hephaestus_cuda::unary_elementwise::<hephaestus_cuda::GeluOp, T>(
+                device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::UnaryOp::GeluGrad => run(
+            hephaestus_cuda::unary_elementwise::<hephaestus_cuda::GeluGradOp, T>(
+                device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
         coeus_ops::UnaryOp::GeluTanh => run(
             hephaestus_cuda::unary_elementwise::<hephaestus_cuda::GeluTanhOp, T>(
                 device,
@@ -352,6 +366,24 @@ where
         )),
         coeus_ops::UnaryOp::Recip => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
             hephaestus_cuda::RecipOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Gelu => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::GeluOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::GeluGrad => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::GeluGradOp,
             T,
         >(
             device,
