@@ -1,9 +1,9 @@
 use super::cast::{cast_storage, cast_storage_mut};
+use crate::CudaBackendError;
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::get_cuda_context;
 use crate::kernels;
 use crate::storage::CudaStorage;
-use crate::CudaBackendError;
 use coeus_core::Layout;
 use std::sync::Arc;
 
