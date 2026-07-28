@@ -23,6 +23,12 @@
   checkout substitution, so Coeus resolves directly to provider-owned APIs
   without requiring sibling worktrees or repository-owned patch tables.
 
+- [major] Make Coeus 3D pooling dispatch return the backend-associated `Result`
+  and apply the same canonical WGPU layout/count validation as 1D and 2D.
+  CPU, WGPU, CUDA, autograd, NN, and CUDA parity callers now consume one typed
+  dispatch contract. No runtime performance or memory delta is claimed without
+  controlled measurements.
+
 - [minor] Route Coeus CUDA `GeluTanh`, `GeluTanhGrad`, `Softplus`, and
   `SoftplusGrad` through the existing Hephaestus marker kernels for contiguous
   and runtime-shaped strided layouts. Add CUDA/Leto forward and gradient

@@ -391,6 +391,13 @@
   checkouts without changing Coeus's standalone dependency identity. Locked
   no-deps metadata passes from this worktree; the dirty lockfile and peer
   reduction/error edits remain outside this claim.
+- Pool3d increment: all four 3D `PoolOps` methods now return the
+  backend-associated result across CPU, WGPU, and CUDA. WGPU derives output and
+  gradient counts from canonical layouts, validates rank-five layout metadata,
+  parameter narrowing, checked element counts, and workgroup bounds before
+  native WGSL submission. Autograd, NN, and CUDA parity callers use explicit
+  invariant diagnostics. Package compilation remains blocked by the peer-owned
+  dirty lockfile requiring regeneration after the provider graph repair.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

@@ -157,7 +157,12 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         grad_input_layout: &Layout,
     ) -> Result<(), Self::Error>;
 
-    /// 3D Max Pooling
+    /// 3D Max Pooling.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when the backend cannot validate
+    /// or dispatch the requested kernel.
     fn max_pool3d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -168,9 +173,14 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
-    /// 3D Max Pooling Backward
+    /// 3D Max Pooling Backward.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when the backend cannot validate
+    /// or dispatch the requested kernel.
     fn max_pool3d_backward(
         &self,
         grad_out: &Self::DeviceBuffer<T>,
@@ -183,9 +193,14 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
-    /// 3D Average Pooling
+    /// 3D Average Pooling.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when the backend cannot validate
+    /// or dispatch the requested kernel.
     fn avg_pool3d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -196,9 +211,14 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
-    /// 3D Average Pooling Backward
+    /// 3D Average Pooling Backward.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when the backend cannot validate
+    /// or dispatch the requested kernel.
     fn avg_pool3d_backward(
         &self,
         grad_out: &Self::DeviceBuffer<T>,
@@ -209,5 +229,5 @@ pub trait PoolOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 }

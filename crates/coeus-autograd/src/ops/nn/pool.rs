@@ -66,18 +66,20 @@ fn dispatch_max_pool_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, c
                 grad_input_layout,
             )
             .expect("invariant: validated max_pool2d backward dispatch must succeed"),
-        3 => backend.max_pool3d_backward(
-            grad_out_storage,
-            grad_out_layout,
-            input_storage,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            grad_input,
-            grad_input_layout,
-        ),
+        3 => backend
+            .max_pool3d_backward(
+                grad_out_storage,
+                grad_out_layout,
+                input_storage,
+                input_layout,
+                kernel_size,
+                stride,
+                padding,
+                dilation,
+                grad_input,
+                grad_input_layout,
+            )
+            .expect("invariant: validated max_pool3d backward dispatch must succeed"),
         _ => panic!("max_pool_backward: unsupported dimension {DIM}"),
     }
 }
@@ -123,16 +125,18 @@ fn dispatch_avg_pool_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, c
                 grad_input_layout,
             )
             .expect("invariant: validated avg_pool2d backward dispatch must succeed"),
-        3 => backend.avg_pool3d_backward(
-            grad_out_storage,
-            grad_out_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            grad_input,
-            grad_input_layout,
-        ),
+        3 => backend
+            .avg_pool3d_backward(
+                grad_out_storage,
+                grad_out_layout,
+                kernel_size,
+                stride,
+                padding,
+                dilation,
+                grad_input,
+                grad_input_layout,
+            )
+            .expect("invariant: validated avg_pool3d backward dispatch must succeed"),
         _ => panic!("avg_pool_backward: unsupported dimension {DIM}"),
     }
 }

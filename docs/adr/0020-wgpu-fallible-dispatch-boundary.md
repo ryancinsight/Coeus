@@ -133,3 +133,10 @@ the rounded workgroup count before native WGSL submission. Direct WGPU and CUDA
 parity callers and the infallible autograd/NN boundary consume the result with
 explicit invariant diagnostics. The 3D pooling family remains a separate
 increment.
+
+The 3D pooling family now uses the same boundary. Its WGPU kernels validate
+rank-five layouts, checked WGSL parameter conversions, element-count arithmetic,
+and workgroup limits before device initialization; CPU and CUDA implementations
+return the associated backend result, and high-level callers retain explicit
+invariant diagnostics. The PoolOps trait no longer has a unit-returning pooling
+dimension, so all pooling callers share one typed dispatch contract.
