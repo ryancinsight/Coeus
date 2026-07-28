@@ -4,6 +4,13 @@
 
 ### Changed
 
+- [major] Route WGPU sum, product, mean, minimum, and maximum reductions
+  directly through Hephaestus and delete the duplicate Coeus WGSL reduction
+  dispatcher. Rank-one and rank-two layouts remain supported; higher ranks
+  now return a typed provider-capability error instead of using a
+  consumer-owned kernel. No runtime, memory, or binary-size delta is claimed
+  without matched measurements.
+
 - [major] Make CUDA elementwise, matrix, reduction, and fused entry points
   return typed provider failures instead of silently evaluating through the
   CPU path. Builds without the CUDA provider feature expose no mathematical

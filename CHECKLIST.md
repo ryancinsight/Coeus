@@ -1,5 +1,13 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-WGPU-008 Provider-owned reductions [major][arch]
+
+- [x] Route sum, product, mean, minimum, and maximum through Hephaestus.
+- [x] Delete the duplicate Coeus ordinary-reduction WGSL dispatcher.
+- [x] Verify rank-one and rank-two values against Leto and reject rank three.
+- [x] Select every migrated operation in hosted provider CI.
+- [ ] Pass warning-denied Clippy, doctests, exact-head CI, and merge.
+
 ## ATLAS-COEUS-CUDA-007 Native dispatch boundary [major][arch]
 
 - [x] Delete CUDA binary, unary, matrix, reduction, and fused CPU execution
@@ -7,7 +15,7 @@
 - [x] Route ordinary rank-two CUDA reductions through Hephaestus.
 - [x] Remove mathematical `BackendOps` from disabled-provider builds.
 - [x] Pass no-provider compilation and all three unavailable-provider tests.
-- [ ] Complete provider-feature all-target compilation, focused tests, Clippy,
+- [x] Complete provider-feature all-target compilation, focused tests, Clippy,
       doctests, hosted provider CI, and merge evidence.
 
 ## ATLAS-AUTOGRAD-SAFETY-018 Fallible backward contract [major][arch]

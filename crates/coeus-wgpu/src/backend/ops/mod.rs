@@ -15,7 +15,6 @@ mod impls;
 mod matmul;
 mod optim;
 mod pool;
-mod reduction;
 
 // ── WGPU Hephaestus strided routing helpers ───────────────────────────────────
 

@@ -1,5 +1,25 @@
 # Coeus Gap Audit
 
+## ATLAS-COEUS-WGPU-008: Duplicate ordinary reduction provider
+
+**Location**: `crates/coeus-wgpu/src/backend/ops/impls/reduction.rs` and the
+superseded `backend/ops/reduction.rs` plus ordinary shader path in
+`kernels/reduce.rs`.
+**Gap**: scans called Hephaestus, while sum, product, mean, minimum, and
+maximum generated and submitted a second Coeus-owned WGSL implementation.
+**Resolution**: ADR-0044 routes rank-one and rank-two ordinary reductions
+directly through Hephaestus and deletes the consumer-owned dispatcher, shader,
+metadata staging, and validation tests.
+**Evidence**: package all-target check passes. Focused Nextest run
+`a3a70d2f-37ff-4d75-9754-a6b029850c16` passes all 11 reduction contracts in
+9.143 seconds, including five ordinary operation families, rank-one sum and
+scan, and exact typed rank-three rejection. Warning-denied package Clippy and
+all three WGPU doctests pass.
+**Residual**: fused-expression reduction retains its distinct Coeus kernel
+pending a provider expression contract. Exact-head provider CI and merge
+remain. No runtime, memory, or binary-size improvement is claimed without
+matched measurements.
+
 ## ATLAS-COEUS-CUDA-007: Backend identity changed execution identity
 
 **Location**: `crates/coeus-cuda/src/backend/ops/math/`,
@@ -11,12 +31,13 @@ implemented CPU mathematics while reporting a CUDA backend.
 rank-two reductions through Hephaestus, and leaves disabled-provider builds
 without mathematical backend traits.
 **Residual**: CUDA convolution, attention, and optimizer capability paths still
-copy through host memory. WGPU/CUDA aliased elementwise operations and WGPU
-ordinary reductions still require provider-owned Hephaestus contracts.
-**Evidence**: no-default all-target compilation passes; Nextest passes all
-three disabled-provider identity and typed-error tests. A CUDA-feature library
-check and warning-denied no-provider Clippy pass locally. Pinned CUDA-feature
-Clippy and hosted provider evidence remain open.
+copy through host memory. WGPU/CUDA aliased elementwise operations still
+require provider-owned in-place Hephaestus contracts.
+**Evidence**: no-default all-target compilation and all three disabled-provider
+identity/error tests pass. Exact-head run `30405547693` passed ROCm
+(`90430046827`), Metal/Leto (`90430046863`), WGPU/CPU (`90430046874`), and
+CUDA (`90430046879`); required-device ROCm (`90430047556`) was intentionally
+skipped. PR #245 merged as `77834e37`.
 
 ## ATLAS-AUTOGRAD-SAFETY-018: Infallible backward traversal
 

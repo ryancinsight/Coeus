@@ -1,5 +1,13 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-COEUS-WGPU-008 — Provider-owned reductions
+
+- [x] Route all five ordinary WGPU reductions directly through Hephaestus.
+- [x] Delete the superseded Coeus dispatcher, shader, validation, and tests.
+- [x] Add rank-one/rank-two Leto parity and exact rank-three rejection tests.
+- [x] Select the complete reduction contract in provider CI.
+- [ ] Pass warning-denied Clippy, doctests, exact-head provider CI, and merge.
+
 ## ATLAS-COEUS-CUDA-007 — Native dispatch boundary
 
 - [x] Remove CUDA binary, unary, matrix, reduction, and fused CPU execution
@@ -7,9 +15,10 @@
 - [x] Make disabled-provider builds expose no mathematical `BackendOps`
       implementation.
 - [x] Verify the no-default build and its three focused Nextest contracts.
-- [ ] Verify CUDA-feature all-target builds, focused provider Nextest,
+- [x] Verify CUDA-feature all-target builds, focused provider Nextest,
       doctests, warning-denied Clippy, and exact-head provider CI.
-- [ ] Record terminal evidence and merge the change.
+- [x] Record terminal evidence and merge the change as PR #245 at
+      `77834e37`.
 
 ## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback
 
