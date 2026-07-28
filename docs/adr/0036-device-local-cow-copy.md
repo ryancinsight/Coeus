@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted; the Coeus Hephaestus storage increment is implemented.
+Accepted; the generic Coeus Hephaestus storage increment and native WGPU/CUDA
+consumer cutover are implemented.
 
 ## Context
 
@@ -20,8 +21,11 @@ typed buffer device-to-device, and retains the replacement behind the existing
 `Arc` handle. The shared Hephaestus contract requires the copy to complete
 before returning, so the storage mutation does not expose an in-flight buffer.
 
-The implementation remains generic over the provider and scalar type. It does
-not add vendor imports, host fallback logic, or a second COW algorithm.
+The implementation remains generic over the provider and scalar type. Native
+Coeus WGPU and CUDA storage consumers call the same seam rather than
+reimplementing provider transfer mechanics. The change does not add vendor
+imports to the shared storage contract, host fallback logic, or a second COW
+algorithm.
 
 ## Alternatives rejected
 
@@ -39,6 +43,7 @@ not add vendor imports, host fallback logic, or a second COW algorithm.
 The generic storage contract uses a fake device implementation only as a test
 double for the public provider seam. It asserts copied values, source-tier
 preservation, exactly one device copy, and zero downloads during COW. Provider
-integration compilation and the existing WGPU, CUDA, ROCm, and Metal contract
-suites remain the backend execution evidence. No runtime performance claim is
-made without a matched device benchmark.
+integration compilation and the WGPU, CUDA, ROCm, and Metal contract suites
+remain the backend execution evidence. The native WGPU and CUDA storage tests
+download both COW results and assert equal values. No runtime performance claim
+is made without a matched device benchmark.

@@ -4,6 +4,11 @@
 
 ### Changed
 
+- [patch] Routes native Coeus WGPU and CUDA copy-on-write detachment through
+  the shared Hephaestus `ComputeDevice::copy_buffer` contract. This removes
+  duplicated encoder and CUDA-driver copy logic while preserving device-local
+  values in both the detached and retained buffers.
+
 - [patch] Keeps Coeus Hephaestus storage COW detachment on the provider
   device. Replacement buffers retain the source memory tier and use the
   shared device-local copy contract, removing the full-size host staging
