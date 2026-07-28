@@ -140,6 +140,34 @@ where
             ),
             c,
         ),
+        coeus_ops::UnaryOp::GeluTanh => run(
+            hephaestus_cuda::unary_elementwise::<hephaestus_cuda::GeluTanhOp, T>(
+                device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::UnaryOp::GeluTanhGrad => run(
+            hephaestus_cuda::unary_elementwise::<hephaestus_cuda::GeluTanhGradOp, T>(
+                device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::UnaryOp::Softplus => run(
+            hephaestus_cuda::unary_elementwise::<hephaestus_cuda::SoftplusOp, T>(
+                device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::UnaryOp::SoftplusGrad => run(
+            hephaestus_cuda::unary_elementwise::<hephaestus_cuda::SoftplusGradOp, T>(
+                device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
         _ => Ok(false),
     }
 }
@@ -331,6 +359,46 @@ where
             hephaestus_operand(c, c_layout),
             hephaestus_cuda::BlockWidth::DEFAULT,
         )),
+        coeus_ops::UnaryOp::GeluTanh => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::GeluTanhOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::GeluTanhGrad => {
+            run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+                hephaestus_cuda::GeluTanhGradOp,
+                T,
+            >(
+                device,
+                hephaestus_operand(a, a_layout),
+                hephaestus_operand(c, c_layout),
+                hephaestus_cuda::BlockWidth::DEFAULT,
+            ))
+        }
+        coeus_ops::UnaryOp::Softplus => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::SoftplusOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::SoftplusGrad => {
+            run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+                hephaestus_cuda::SoftplusGradOp,
+                T,
+            >(
+                device,
+                hephaestus_operand(a, a_layout),
+                hephaestus_operand(c, c_layout),
+                hephaestus_cuda::BlockWidth::DEFAULT,
+            ))
+        }
         _ => Ok(false),
     }
 }
