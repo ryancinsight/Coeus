@@ -1,10 +1,10 @@
 # Coeus Project Backlog & Historical Archives
 
-## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 — Route exact GELU through Hephaestus [minor] — in-progress
+## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 — Route exact GELU through Hephaestus [minor] — complete
 
 - Owner: Codex on `codex/coeus-cuda-common-activation-parity`; scope:
-  `crates/coeus-cuda/src/backend/ops/math.rs`, the CUDA unary parity tests,
-  the backend-parity selector, and owner-local PM evidence.
+  `crates/coeus-cuda/src/backend/ops/math/elementwise.rs`, the CUDA unary
+  parity tests, the backend-parity selector, and owner-local PM evidence.
 - Outcome: route CUDA f32 `Gelu` and `GeluGrad` through the existing
   Hephaestus exact-erf marker kernels for contiguous and runtime-shaped
   strided layouts, matching the already-native ROCm and Metal paths.
@@ -16,8 +16,11 @@
   pass; no runtime or resident-memory delta is claimed without a benchmark.
 - Risk/change class: `[minor]` provider-capability routing with additive CI
   coverage.
-- Status: implementation complete at `a8dcc51c`; final exact-head evidence
-  remains pending.
+- Status: complete at `f861cea6`. Exact-head run `30379272710` passed CUDA
+  `90342897802`, WGPU `90342897872`, ROCm `90342897673`, and Metal
+  `90342897752`. Required-device ROCm `90342898718` was skipped because no
+  hosted AMD runner was dispatched; no physical-device execution, runtime, or
+  resident-memory claim is made.
 - Structural note: the touched CUDA math dispatcher is now vertically split
   into elementwise, matmul, and reduction leaves under
   `crates/coeus-cuda/src/backend/ops/math/`; ADR-0040 records the boundary.
@@ -40,9 +43,8 @@
 - Risk/change class: `[arch]` public failure-contract migration.
 - Status: implementation complete at `b5491ef8`; rustfmt, metadata, diff
   hygiene, and residual scans pass. The locked package check, clippy, doctest,
-  and Nextest gates stop before compilation because the peer-owned `Cargo.lock`
-  contains a local overlay change that requires regeneration; the lockfile and
-  peer reduction/error files remain outside this claim.
+  and Nextest gates stop before compilation because the Atlas-overlay-generated
+  `Cargo.lock` requires regeneration; the lockfile remains outside this claim.
 
 ## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback [arch]
 
@@ -314,7 +316,8 @@
   backend-operation return contract.
 - Current claim: shared-tree slice owned by this session; scope is the native
   WGPU PoolOps 3D forward/backward dispatch and its CPU/WGPU/CUDA callers.
-  Peer reduction/error edits and the dirty lockfile remain outside this claim.
+  Stale reduction/error edits were reconciled to the merged implementation;
+  only the Atlas-overlay-generated `Cargo.lock` remains outside this claim.
 - Outcome: replace unchecked `usize`→WGSL `u32` layout metadata narrowing and
   input-dependent dispatch panics with one typed validation/error boundary.
 - Acceptance: every WGPU kernel consumes the validated metadata type; failure
@@ -414,15 +417,16 @@
   Themis, and Melinoe packages and removed the committed sibling-path patch
   tables. The generated Atlas root overlay now supplies local provider
   checkouts without changing Coeus's standalone dependency identity. Locked
-  no-deps metadata passes from this worktree; the dirty lockfile and peer
-  reduction/error edits remain outside this claim.
+  no-deps metadata passes from this worktree; only the Atlas-overlay-generated
+  `Cargo.lock` remains outside this claim.
 - Pool3d increment: all four 3D `PoolOps` methods now return the
   backend-associated result across CPU, WGPU, and CUDA. WGPU derives output and
   gradient counts from canonical layouts, validates rank-five layout metadata,
   parameter narrowing, checked element counts, and workgroup bounds before
   native WGSL submission. Autograd, NN, and CUDA parity callers use explicit
-  invariant diagnostics. Package compilation remains blocked by the peer-owned
-  dirty lockfile requiring regeneration after the provider graph repair.
+  invariant diagnostics. Local package compilation remains blocked by the
+  Atlas-overlay-generated lockfile requiring regeneration after the provider
+  graph repair.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

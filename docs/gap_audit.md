@@ -161,8 +161,8 @@ analyzer error and is not repository-owned verification.
 
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001: exact GELU forward and gradient
 
-**Location**: `crates/coeus-cuda/src/backend/ops/math.rs`, the CUDA unary
-parity tests, and the backend-parity CUDA selector.
+**Location**: `crates/coeus-cuda/src/backend/ops/math/elementwise.rs`, the CUDA
+unary parity tests, and the backend-parity CUDA selector.
 **Gap**: Hephaestus already exposes exact-erf `GeluOp` and `GeluGradOp`, and
 ROCm/Metal route both operations through the shared strided provider seam, but
 CUDA's generic math dispatch left them to the legacy kernel table. The CUDA
@@ -174,10 +174,12 @@ through the Hephaestus exact-erf markers and select
 physical-device execution remain separate evidence scopes. No runtime
 performance or resident-memory delta is claimed without a controlled
 benchmark.
-**Status**: implementation head `a8dcc51c` is complete; exact-head WGPU,
-CUDA, ROCm, and Metal CI remains pending. Local locked CUDA package checking is
-blocked before compilation by the pre-existing dual-local Eunomia lockfile
-collision.
+**Status**: complete at `f861cea6`. Exact-head run `30379272710` passed CUDA
+`90342897802`, WGPU `90342897872`, ROCm `90342897673`, and Metal
+`90342897752`. Required-device ROCm `90342898718` was skipped because no hosted
+AMD runner was dispatched. Local locked CUDA package checking remains blocked
+before compilation by the peer-owned provider-overlay lockfile. No
+physical-device, runtime-performance, or resident-memory claim is made.
 
 ## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001: f32 forward log-gamma
 
@@ -272,11 +274,14 @@ fallback residual, updated no-CUDA and CUDA-feature callers, warning-denied
 package checks, focused Nextest, and CUDA differential tests when a device and
 linker are available.
 **Status**: implementation complete for the claimed files. Rustfmt, locked
-metadata, diff hygiene, and residual scans pass. The locked package check,
-clippy, doctest, and Nextest gates stop before compilation because the
-peer-owned lockfile contains a local overlay change that requires regeneration;
-the peer-owned lockfile/reduction work remains outside this increment. No CUDA
-runtime or performance claim is made.
+metadata, diff hygiene, and residual scans pass. Exact-head run `30379272710`
+passed the CUDA package check, warning-denied Clippy, selected provider
+contracts, and doctests in job `90342897802`; WGPU, ROCm, and Metal provider
+jobs also passed. The local locked package check remains blocked before
+compilation because the Atlas-overlay-generated lockfile requires regeneration;
+the lockfile remains outside this increment. Stale reduction and backend-error
+edits were reconciled to the merged implementation. No CUDA runtime or
+performance claim is made.
 
 ## ATLAS-CUDA-SAFETY-016: Remaining CUDA launch-parameter narrowing
 

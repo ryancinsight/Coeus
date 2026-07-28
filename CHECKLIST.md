@@ -10,11 +10,12 @@
       block the exact-head provider matrix.
 - [x] Split the mixed CUDA math dispatcher into elementwise, matmul, and
       reduction leaves without changing the backend method surface.
-- [ ] Record exact-head WGPU, CUDA, ROCm, and Metal CI evidence without making
+- [x] Record exact-head WGPU, CUDA, ROCm, and Metal CI evidence without making
       an unmeasured runtime or resident-memory claim.
 
 Owner: Codex on `codex/coeus-cuda-common-activation-parity`; claimed scope:
-`crates/coeus-cuda/src/backend/ops/math.rs`,
+`crates/coeus-cuda/src/backend/ops/math.rs` and
+`crates/coeus-cuda/src/backend/ops/math/elementwise.rs`,
 `crates/coeus-cuda/tests/cuda/parity/unfold_fold.rs`,
 `.github/workflows/backend-parity.yml`, `docs/backlog.md`, `CHECKLIST.md`, and
 `docs/gap_audit.md`. The stale pool-wrapper repair additionally claims only
@@ -22,15 +23,18 @@ Owner: Codex on `codex/coeus-cuda-common-activation-parity`; claimed scope:
 `crates/coeus-cuda/src/fallback/ops/{mod,pool}.rs`, and
 `crates/coeus-wgpu/src/backend/ops/{pool,impls/pool}.rs`, plus the migrated
 WGPU pooling contract tests under
-`crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/pooling.rs`. The live peer owns
-the dirty reduction, backend-error, and lockfile files; they remain outside
-this increment.
+`crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/pooling.rs`. The stale
+reduction and backend-error edits were reconciled to the merged implementation;
+only the Atlas-overlay-generated `Cargo.lock` remains outside this increment.
 
-Implementation head `a8dcc51c` is complete. The pool repair propagates WGPU
+Implementation head `f861cea6` is complete. The pool repair propagates WGPU
 kernel errors, removes the CUDA 2-D/3-D host fallback module, and returns typed
-CUDA context or launch failures. Hosted exact-head evidence is pending. The
-local locked package check is blocked before compilation because the live
-peer's provider-overlay lockfile requires regeneration.
+CUDA context or launch failures. Exact-head run `30379272710` passed CUDA
+`90342897802`, WGPU `90342897872`, ROCm `90342897673`, and Metal
+`90342897752`. Required-device ROCm `90342898718` was skipped because no hosted
+AMD runner was dispatched. The local locked package check remains blocked
+before compilation because the live peer's provider-overlay lockfile requires
+regeneration. No runtime or resident-memory claim is made.
 
 ## ATLAS-COEUS-SAFETY-003 Uninitialized COW replacement [arch][minor][perf]
 
@@ -119,8 +123,8 @@ Owner: Codex on `codex/coeus-cuda-common-activation-parity`; completed at
 `crates/coeus-cuda/src/backend/ops/math.rs`,
 `crates/coeus-cuda/tests/cuda/parity/unfold_fold.rs`,
 `.github/workflows/backend-parity.yml`, `CHECKLIST.md`, and
-`docs/gap_audit.md`. Peer-owned reduction and backend-error files remain
-outside this claim.
+`docs/gap_audit.md`. No reduction or backend-error residual remains; the
+Atlas-overlay-generated `Cargo.lock` remains outside this claim.
 
 Evidence: docs-head run `30359324025` passed CUDA job `90274888940`, WGPU job
 `90274889041`, ROCm job `90274889047`, and Metal job `90274888991`.
