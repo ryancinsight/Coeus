@@ -109,13 +109,16 @@ where
         if Arc::strong_count(&self.buffer) <= 1 {
             return Ok(());
         }
-        let mut host = vec![T::zero(); self.buffer.len()];
-        P::try_device()?
-            .download(self.buffer.as_ref(), &mut host)
-            .map_err(|source| HephaestusBackendError::device("cow download", source))?;
-        let replacement = P::try_device()?
-            .upload(&host)
-            .map_err(|source| HephaestusBackendError::device("cow upload", source))?;
+        let device = P::try_device()?;
+        let replacement = device
+            .alloc_zeroed_with_hint(
+                self.buffer.len(),
+                PlacementHint::Tier(self.buffer.tier()),
+            )
+            .map_err(|source| HephaestusBackendError::device("cow allocate", source))?;
+        device
+            .copy_buffer(self.buffer.as_ref(), &replacement)
+            .map_err(|source| HephaestusBackendError::device("cow copy", source))?;
         self.buffer = Arc::new(replacement);
         Ok(())
     }

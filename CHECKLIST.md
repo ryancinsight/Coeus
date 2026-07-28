@@ -1,5 +1,22 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-SAFETY-001 Device-local COW increment [patch]
+
+- [x] Replace Hephaestus storage COW host staging with one source-tier device
+      allocation and the shared completed device-local copy seam.
+- [x] Preserve typed allocation and copy failures at the Coeus provider
+      boundary without a CPU fallback or compatibility adapter.
+- [x] Run the Coeus Hephaestus/provider integration compile and synchronize
+      the changelog and active gap audit; retain the broader failure-boundary
+      item as active.
+
+Evidence: `cargo check --offline -p coeus-hephaestus -p coeus-wgpu
+-p coeus-cuda -p coeus-rocm -p coeus-metal` passes against the local Atlas
+overlay. The exact local Hephaestus provider matrix passes WGPU 169/169,
+CUDA stub 81/81, ROCm stub 52/52, and Metal 32/32 Nextest tests, including
+direct-copy value and length contracts. CUDA and ROCm hardware lanes remain
+environment-dependent; no physical-device result is inferred from stub runs.
+
 ## ATLAS-COEUS-BUILD-001 Locked provider source graph [patch]
 
 - [x] Verify the current manifest graph and active peer provider declarations.

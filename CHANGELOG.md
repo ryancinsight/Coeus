@@ -4,6 +4,11 @@
 
 ### Changed
 
+- [patch] Keep Hephaestus-backed storage copy-on-write detachment on the
+  accelerator: replacement buffers retain the source memory tier and use the
+  provider's device-local copy seam instead of a full host allocation and
+  download/upload round-trip.
+
 - [arch] Routes the 19 unparameterized unary math operations already defined by
   Coeus/Leto through native Hephaestus ROCm and Metal strided providers for
   f32, with valid-domain Leto differential coverage and explicit integer

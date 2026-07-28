@@ -98,8 +98,25 @@ backend matrix before closure.
 **Evidence target**: warning-denied compilation, value-semantic typed-error
 tests for unavailable devices and transfer failures, a production panic scan,
 and provider feature gates on hosts with and without the required hardware.
-**Status**: open; deliberately outside the native comparison-provider item
-because it is a separate public failure-boundary migration.
+**Audit evidence**: the current tree contains 80 production files and 521
+direct allocation/fill/host-device transfer references under `crates/`. The
+associated `ComputeBackend::Error` type currently covers operation dispatch,
+but the four memory methods and `StorageMut::make_unique` remain infallible.
+That contract mismatch is why a local replacement of only the provider
+`OnceLock` call would leave reachable panic paths in tensor construction,
+materialization, and COW mutation.
+**Decision**: ADR-0028 specifies one dependency-ordered breaking migration;
+parallel `try_*` shims, default buffers, and CPU fallback are rejected.
+**Status**: specified and active as `ATLAS-COEUS-SAFETY-001`; deliberately
+outside the native comparison-provider item because it is a separate public
+failure-boundary migration.
+**Increment evidence**: `HephaestusStorage::make_unique` now acquires the
+provider once, allocates the replacement with the source `MemoryTier`, and
+uses `ComputeDevice::copy_buffer` for a completed device-local copy. The prior
+host `Vec`, device-to-host transfer, and host-to-device transfer are removed.
+Hephaestus provider contracts cover the shared copy seam for WGPU, CUDA, ROCm,
+and Metal; Coeus provider integration compilation passes on the exact local
+overlay. The broader failure-boundary migration remains active.
 
 ## ATLAS-CUDA-SAFETY-016: Remaining CUDA launch-parameter narrowing
 
