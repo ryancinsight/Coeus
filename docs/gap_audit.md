@@ -1,5 +1,23 @@
 # Coeus Gap Audit
 
+## ATLAS-COEUS-CUDA-007: Backend identity changed execution identity
+
+**Location**: `crates/coeus-cuda/src/backend/ops/math/`,
+`src/fallback/ops/math.rs`, and the disabled-provider backend.
+**Gap**: CUDA mathematical dispatch misses downloaded device storage, executed
+with `SequentialBackend`, and uploaded results. Disabled-provider builds also
+implemented CPU mathematics while reporting a CUDA backend.
+**Resolution**: ADR-0043 deletes those mathematical fallback paths, routes
+rank-two reductions through Hephaestus, and leaves disabled-provider builds
+without mathematical backend traits.
+**Residual**: CUDA convolution, attention, and optimizer capability paths still
+copy through host memory. WGPU/CUDA aliased elementwise operations and WGPU
+ordinary reductions still require provider-owned Hephaestus contracts.
+**Evidence**: no-default all-target compilation passes; Nextest passes all
+three disabled-provider identity and typed-error tests. A CUDA-feature library
+check and warning-denied no-provider Clippy pass locally. Pinned CUDA-feature
+Clippy and hosted provider evidence remain open.
+
 ## ATLAS-AUTOGRAD-SAFETY-018: Infallible backward traversal
 
 **Location**: `crates/coeus-autograd/src/node.rs`, `var.rs`, and operation

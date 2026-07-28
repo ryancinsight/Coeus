@@ -8,9 +8,9 @@
 //! ## Feature gating
 //!
 //! The real device path is behind the `cuda` feature (NVRTC + the CUDA driver
-//! via `hephaestus-cuda`). Without it, [`CudaBackend`] resolves to a stub so the
-//! workspace builds on machines without a CUDA toolkit; only `--features cuda`
-//! exercises the GPU.
+//! via `hephaestus-cuda`). Without it, [`CudaBackend`] exposes metadata and
+//! storage types so the workspace builds on machines without a CUDA toolkit,
+//! but it implements no mathematical backend traits.
 //!
 //! ## Dispatch architecture
 //!
@@ -21,16 +21,14 @@
 //!    honest without a fake-generic widen/narrow);
 //! 2. launches the on-device kernel (hand-written PTX in the `kernels` module for
 //!    conv/attention, NVRTC CUDA C for fused/elementwise/optimizer paths);
-//! 3. uses an explicit capability boundary for operations without a native
-//!    kernel. Cumulative scans are native for rank-two layouts and return
-//!    typed provider errors for unsupported ranks; they do not copy through
-//!    the host. Other documented capability boundaries retain their existing
-//!    CPU reference path where the public contract still requires one.
+//! 3. returns a typed backend error when the selected CUDA provider cannot
+//!    execute an elementwise, matrix, reduction, or fused request. Those
+//!    operation families never download device buffers for CPU execution.
 //!
-//! Existing non-fused capability boundaries are explicit in their operation
-//! contracts and are covered by differential parity tests in `tests/cuda/`.
-//! Fused CUDA entry points do not cross that boundary: a native provider
-//! failure is returned to the caller rather than evaluated by the CPU path.
+//! Provider capability boundaries are explicit in their operation contracts
+//! and are covered by differential parity tests in `tests/cuda/`. Native and
+//! fused CUDA entry points return provider failures to the caller rather than
+//! changing execution backends.
 #![deny(missing_docs)]
 
 mod error;
@@ -63,7 +61,7 @@ mod storage;
 mod storage;
 
 pub use backend::{CudaBackend, CudaScalar};
-pub use driver::{get_cuda_context, CudaDriver};
+pub use driver::{CudaDriver, get_cuda_context};
 pub use storage::CudaStorage;
 
 #[cfg(feature = "cuda")]
@@ -86,9 +84,10 @@ pub fn evaluate_fused<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend
 ) -> Result<Tensor<T, CudaBackend>, CudaBackendError> {
     #[cfg(not(feature = "cuda"))]
     {
-        Ok(coeus_ops::fuse::evaluate_fused_cpu(
-            expr,
-            &CudaBackend::new(),
+        let _ = expr;
+        Err(CudaBackendError::kernel(
+            "fused elementwise",
+            "the CUDA provider feature is disabled",
         ))
     }
 
@@ -121,11 +120,10 @@ pub fn evaluate_fused_reduce<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, Cuda
 ) -> Result<Tensor<T, CudaBackend>, CudaBackendError> {
     #[cfg(not(feature = "cuda"))]
     {
-        Ok(coeus_ops::fuse::evaluate_fused_reduce_cpu(
-            expr,
-            op,
-            axis,
-            &CudaBackend::new(),
+        let _ = (expr, op, axis);
+        Err(CudaBackendError::kernel(
+            "fused reduction",
+            "the CUDA provider feature is disabled",
         ))
     }
 

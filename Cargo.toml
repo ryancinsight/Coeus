@@ -54,7 +54,7 @@ wgpu       = { version = "30.0", default-features = false, features = ["wgsl", "
 # Path deps for migration (remote hephaestus predates mnemosyne ^0.6.0)
 hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.18.0" }
 hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.18.0" }
-hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.18.0" }
+hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.18.0", default-features = false }
 hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.18.0" }
 hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.18.0" }
 themis = { git = "https://github.com/ryancinsight/themis.git", version = "0.10.1" }
