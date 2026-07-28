@@ -119,6 +119,19 @@ physical-device execution claim is made. The external `recurseml/analysis`
 status returned its recurring analyzer error and is not repository-owned
 verification.
 
+### Native COW seam consolidation
+
+The native Coeus WGPU and CUDA storage implementations now call the shared
+Hephaestus `ComputeDevice::copy_buffer` contract instead of duplicating a
+WGPU command encoder or a raw CUDA driver copy. Each provider storage test
+detaches a shared device buffer, downloads both the detached and retained
+buffers, and asserts value preservation. This consolidates the transfer
+primitive without claiming a runtime speedup; matched device benchmarks remain
+outside this increment. Hosted exact-head run `30339683483` passed CUDA
+(`90212208770`), WGPU (`90212208755`), ROCm (`90212208702`), and Metal
+(`90212208797`) provider contracts. Required-device ROCm (`90212209211`) was
+skipped because no hosted AMD runner was dispatched.
+
 ## ATLAS-CUDA-SAFETY-016: Remaining CUDA launch-parameter narrowing
 
 **Location**: remaining non-convolution launchers under

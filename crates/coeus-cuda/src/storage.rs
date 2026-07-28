@@ -74,20 +74,10 @@ impl<T: Scalar> StorageMut<T> for CudaStorage<T> {
     fn make_unique(&mut self) {
         if Arc::strong_count(&self.buffer) > 1 {
             let device = crate::backend::get_cuda_device();
-            let len = self.buffer.len();
-            let new_buffer = Self::alloc_device_zeroed(len);
-
-            if len > 0 {
-                let bytes = len * std::mem::size_of::<T>();
-                device.bind().expect("Failed to bind CUDA device");
-                unsafe {
-                    let res =
-                        cuda_core::sys::cuMemcpyDtoD_v2(new_buffer.raw(), self.buffer.raw(), bytes);
-                    if res != 0 {
-                        panic!("cuMemcpyDtoD_v2 failed with code: {}", res);
-                    }
-                }
-            }
+            let new_buffer = Self::alloc_device_zeroed(self.buffer.len());
+            device
+                .copy_buffer(self.buffer.as_ref(), &new_buffer)
+                .expect("CudaStorage::make_unique failed to copy the device buffer");
 
             self.buffer = Arc::new(new_buffer);
         }
@@ -120,5 +110,33 @@ mod tests {
             .download(&staging, &mut roundtrip)
             .expect("failed to download from host-pinned tier");
         assert_eq!(roundtrip, input);
+    }
+
+    #[test]
+    fn copy_on_write_preserves_values_in_both_device_buffers() {
+        let device = crate::backend::get_cuda_device();
+        let input = vec![1.0f32, -2.5, 3.25, 8.0];
+        let source = device
+            .upload_with_hint(&input, PlacementHint::Tier(MemoryTier::Device))
+            .expect("failed to upload COW source");
+        let mut writable = CudaStorage {
+            buffer: Arc::new(source),
+        };
+        let retained = writable.clone();
+
+        writable.make_unique();
+
+        assert!(!Arc::ptr_eq(&writable.buffer, &retained.buffer));
+        let mut writable_values = vec![0.0f32; input.len()];
+        let mut retained_values = vec![0.0f32; input.len()];
+        device
+            .download(&writable.buffer, &mut writable_values)
+            .expect("failed to download detached COW buffer");
+        device
+            .download(&retained.buffer, &mut retained_values)
+            .expect("failed to download retained COW buffer");
+
+        assert_eq!(writable_values, input);
+        assert_eq!(retained_values, input);
     }
 }
