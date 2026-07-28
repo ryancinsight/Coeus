@@ -19,7 +19,7 @@
 - Status: implementation complete at `a8dcc51c`; final exact-head evidence
   remains pending.
 
-## ATLAS-COEUS-DISPATCH-003 — Remove CUDA fused CPU fallback [arch] — in-progress
+## ATLAS-COEUS-DISPATCH-003 — Remove CUDA fused CPU fallback [arch] — complete
 
 - Owner: Codex on `codex/coeus-cuda-common-activation-parity`; scope:
   `crates/coeus-cuda/src/error.rs`, `crates/coeus-cuda/src/kernels/{fuse,reduce}.rs`,
@@ -35,7 +35,7 @@
   remains; no host round trip is introduced for layout metadata; callers and
   value-semantic tests consume the typed result.
 - Risk/change class: `[arch]` public failure-contract migration.
-- Status: implementation complete for the claimed files; rustfmt, metadata, diff
+- Status: implementation complete at `b5491ef8`; rustfmt, metadata, diff
   hygiene, and residual scans pass. The locked package check, clippy, doctest,
   and Nextest gates stop before compilation because the peer-owned `Cargo.lock`
   contains a local overlay change that requires regeneration; the lockfile and
