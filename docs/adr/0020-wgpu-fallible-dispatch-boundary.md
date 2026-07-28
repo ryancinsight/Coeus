@@ -140,3 +140,10 @@ and workgroup limits before device initialization; CPU and CUDA implementations
 return the associated backend result, and high-level callers retain explicit
 invariant diagnostics. The PoolOps trait no longer has a unit-returning pooling
 dimension, so all pooling callers share one typed dispatch contract.
+
+The final pooling integration propagates the WGPU 1D kernel result through its
+backend wrapper instead of discarding it. CUDA 2D and 3D dispatch now returns a
+typed context or kernel-contract failure when native launch cannot proceed;
+the superseded host-staging pooling fallback module is removed. This closes the
+backend-substitution and full-buffer allocation path without claiming a
+measured runtime or resident-memory delta.

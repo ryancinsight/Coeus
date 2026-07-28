@@ -4,6 +4,22 @@ use crate::kernels;
 use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
+fn dispatch_native_pool(
+    operation: &'static str,
+    dispatch: impl FnOnce() -> bool,
+) -> Result<(), crate::CudaBackendError> {
+    let _context = get_cuda_context()
+        .ok_or_else(|| crate::CudaBackendError::kernel(operation, "CUDA context is unavailable"))?;
+    if dispatch() {
+        Ok(())
+    } else {
+        Err(crate::CudaBackendError::kernel(
+            operation,
+            "native CUDA kernel rejected the launch contract",
+        ))
+    }
+}
+
 impl CudaBackend {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn cuda_max_pool1d<T: CudaScalar>(
@@ -117,8 +133,8 @@ impl CudaBackend {
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
     ) -> Result<(), crate::CudaBackendError> {
-        if get_cuda_context().is_some()
-            && kernels::dispatch_max_pool2d::<T>(
+        dispatch_native_pool("max pool2d", || {
+            kernels::dispatch_max_pool2d::<T>(
                 input,
                 input_layout,
                 kernel_size,
@@ -128,20 +144,7 @@ impl CudaBackend {
                 output,
                 output_layout,
             )
-        {
-            return;
-        }
-        self.fallback_max_pool2d(
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        );
-        Ok(())
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -158,8 +161,8 @@ impl CudaBackend {
         grad_input: &mut CudaStorage<T>,
         grad_input_layout: &Layout,
     ) -> Result<(), crate::CudaBackendError> {
-        if get_cuda_context().is_some()
-            && kernels::dispatch_max_pool2d_backward::<T>(
+        dispatch_native_pool("max pool2d backward", || {
+            kernels::dispatch_max_pool2d_backward::<T>(
                 grad_out,
                 grad_out_layout,
                 input,
@@ -171,22 +174,7 @@ impl CudaBackend {
                 grad_input,
                 grad_input_layout,
             )
-        {
-            return;
-        }
-        self.fallback_max_pool2d_backward(
-            grad_out,
-            grad_out_layout,
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            grad_input,
-            grad_input_layout,
-        );
-        Ok(())
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -201,8 +189,8 @@ impl CudaBackend {
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
     ) -> Result<(), crate::CudaBackendError> {
-        if get_cuda_context().is_some()
-            && kernels::dispatch_avg_pool2d::<T>(
+        dispatch_native_pool("average pool2d", || {
+            kernels::dispatch_avg_pool2d::<T>(
                 input,
                 input_layout,
                 kernel_size,
@@ -212,20 +200,7 @@ impl CudaBackend {
                 output,
                 output_layout,
             )
-        {
-            return;
-        }
-        self.fallback_avg_pool2d(
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        );
-        Ok(())
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -240,8 +215,8 @@ impl CudaBackend {
         grad_input: &mut CudaStorage<T>,
         grad_input_layout: &Layout,
     ) -> Result<(), crate::CudaBackendError> {
-        if get_cuda_context().is_some()
-            && kernels::dispatch_avg_pool2d_backward::<T>(
+        dispatch_native_pool("average pool2d backward", || {
+            kernels::dispatch_avg_pool2d_backward::<T>(
                 grad_out,
                 grad_out_layout,
                 kernel_size,
@@ -251,20 +226,7 @@ impl CudaBackend {
                 grad_input,
                 grad_input_layout,
             )
-        {
-            return;
-        }
-        self.fallback_avg_pool2d_backward(
-            grad_out,
-            grad_out_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            grad_input,
-            grad_input_layout,
-        );
-        Ok(())
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -279,8 +241,8 @@ impl CudaBackend {
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
     ) -> Result<(), crate::CudaBackendError> {
-        if get_cuda_context().is_some()
-            && kernels::dispatch_max_pool3d::<T>(
+        dispatch_native_pool("max pool3d", || {
+            kernels::dispatch_max_pool3d::<T>(
                 input,
                 input_layout,
                 kernel_size,
@@ -290,20 +252,7 @@ impl CudaBackend {
                 output,
                 output_layout,
             )
-        {
-            return;
-        }
-        self.fallback_max_pool3d(
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        );
-        Ok(())
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -320,8 +269,8 @@ impl CudaBackend {
         grad_input: &mut CudaStorage<T>,
         grad_input_layout: &Layout,
     ) -> Result<(), crate::CudaBackendError> {
-        if get_cuda_context().is_some()
-            && kernels::dispatch_max_pool3d_backward::<T>(
+        dispatch_native_pool("max pool3d backward", || {
+            kernels::dispatch_max_pool3d_backward::<T>(
                 grad_out,
                 grad_out_layout,
                 input,
@@ -333,22 +282,7 @@ impl CudaBackend {
                 grad_input,
                 grad_input_layout,
             )
-        {
-            return;
-        }
-        self.fallback_max_pool3d_backward(
-            grad_out,
-            grad_out_layout,
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            grad_input,
-            grad_input_layout,
-        );
-        Ok(())
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -363,8 +297,8 @@ impl CudaBackend {
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
     ) -> Result<(), crate::CudaBackendError> {
-        if get_cuda_context().is_some()
-            && kernels::dispatch_avg_pool3d::<T>(
+        dispatch_native_pool("average pool3d", || {
+            kernels::dispatch_avg_pool3d::<T>(
                 input,
                 input_layout,
                 kernel_size,
@@ -374,20 +308,7 @@ impl CudaBackend {
                 output,
                 output_layout,
             )
-        {
-            return;
-        }
-        self.fallback_avg_pool3d(
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        );
-        Ok(())
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -402,8 +323,8 @@ impl CudaBackend {
         grad_input: &mut CudaStorage<T>,
         grad_input_layout: &Layout,
     ) -> Result<(), crate::CudaBackendError> {
-        if get_cuda_context().is_some()
-            && kernels::dispatch_avg_pool3d_backward::<T>(
+        dispatch_native_pool("average pool3d backward", || {
+            kernels::dispatch_avg_pool3d_backward::<T>(
                 grad_out,
                 grad_out_layout,
                 kernel_size,
@@ -413,19 +334,6 @@ impl CudaBackend {
                 grad_input,
                 grad_input_layout,
             )
-        {
-            return;
-        }
-        self.fallback_avg_pool3d_backward(
-            grad_out,
-            grad_out_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            grad_input,
-            grad_input_layout,
-        );
-        Ok(())
+        })
     }
 }

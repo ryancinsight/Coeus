@@ -196,7 +196,7 @@ pub(super) fn dispatch_max_pool1d<T: WgpuScalar>(
     dilation: usize,
     output: &mut crate::backend::WgpuStorage<T>,
     output_layout: &Layout,
-) {
+) -> Result<(), crate::backend::WgpuBackendError> {
     kernels::dispatch_max_pool1d::<T>(
         &input.buffer,
         input_layout,
@@ -206,7 +206,7 @@ pub(super) fn dispatch_max_pool1d<T: WgpuScalar>(
         dilation,
         &output.buffer,
         output_layout,
-    );
+    )
 }
 
 pub(super) fn dispatch_max_pool1d_backward<T: WgpuScalar>(
@@ -220,7 +220,7 @@ pub(super) fn dispatch_max_pool1d_backward<T: WgpuScalar>(
     dilation: usize,
     grad_input: &mut crate::backend::WgpuStorage<T>,
     grad_input_layout: &Layout,
-) {
+) -> Result<(), crate::backend::WgpuBackendError> {
     kernels::dispatch_max_pool1d_backward::<T>(
         &grad_out.buffer,
         grad_out_layout,
@@ -232,7 +232,7 @@ pub(super) fn dispatch_max_pool1d_backward<T: WgpuScalar>(
         dilation,
         &grad_input.buffer,
         grad_input_layout,
-    );
+    )
 }
 
 pub(super) fn dispatch_avg_pool1d<T: WgpuScalar>(
@@ -244,7 +244,7 @@ pub(super) fn dispatch_avg_pool1d<T: WgpuScalar>(
     dilation: usize,
     output: &mut crate::backend::WgpuStorage<T>,
     output_layout: &Layout,
-) {
+) -> Result<(), crate::backend::WgpuBackendError> {
     kernels::dispatch_avg_pool1d::<T>(
         &input.buffer,
         input_layout,
@@ -254,7 +254,7 @@ pub(super) fn dispatch_avg_pool1d<T: WgpuScalar>(
         dilation,
         &output.buffer,
         output_layout,
-    );
+    )
 }
 
 pub(super) fn dispatch_avg_pool1d_backward<T: WgpuScalar>(
@@ -266,7 +266,7 @@ pub(super) fn dispatch_avg_pool1d_backward<T: WgpuScalar>(
     dilation: usize,
     grad_input: &mut crate::backend::WgpuStorage<T>,
     grad_input_layout: &Layout,
-) {
+) -> Result<(), crate::backend::WgpuBackendError> {
     kernels::dispatch_avg_pool1d_backward::<T>(
         &grad_out.buffer,
         grad_out_layout,
@@ -276,5 +276,5 @@ pub(super) fn dispatch_avg_pool1d_backward<T: WgpuScalar>(
         dilation,
         &grad_input.buffer,
         grad_input_layout,
-    );
+    )
 }
