@@ -384,6 +384,13 @@
   WGPU/CUDA parity callers and the infallible autograd/NN boundary use explicit
   invariant diagnostics. The 3D family remains the next separate slice. The
   same Eunomia lockfile collision still blocks package compilation and tests.
+- Provider graph repair increment: restored Git+version declarations for the
+  first-party Leto, Hephaestus, Moirai, Mnemosyne, Eunomia, Hermes, Apollo,
+  Themis, and Melinoe packages and removed the committed sibling-path patch
+  tables. The generated Atlas root overlay now supplies local provider
+  checkouts without changing Coeus's standalone dependency identity. Locked
+  no-deps metadata passes from this worktree; the dirty lockfile and peer
+  reduction/error edits remain outside this claim.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

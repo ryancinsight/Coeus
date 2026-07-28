@@ -17,6 +17,12 @@
   preserves native dispatch plus its existing capability boundary. No runtime
   performance or memory delta is claimed without controlled measurements.
 
+- [arch] Restore Coeus's first-party provider declarations to Git+version
+  identities for Leto, Hephaestus, Moirai, Mnemosyne, Eunomia, Hermes, Apollo,
+  Themis, and Melinoe. The generated Atlas root overlay remains the sole local
+  checkout substitution, so Coeus resolves directly to provider-owned APIs
+  without requiring sibling worktrees or repository-owned patch tables.
+
 - [minor] Route Coeus CUDA `GeluTanh`, `GeluTanhGrad`, `Softplus`, and
   `SoftplusGrad` through the existing Hephaestus marker kernels for contiguous
   and runtime-shaped strided layouts. Add CUDA/Leto forward and gradient
