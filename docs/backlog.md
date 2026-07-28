@@ -18,6 +18,9 @@
   coverage.
 - Status: implementation complete at `a8dcc51c`; final exact-head evidence
   remains pending.
+- Structural note: the touched CUDA math dispatcher is now vertically split
+  into elementwise, matmul, and reduction leaves under
+  `crates/coeus-cuda/src/backend/ops/math/`; ADR-0040 records the boundary.
 
 ## ATLAS-COEUS-DISPATCH-003 — Remove CUDA fused CPU fallback [arch] — complete
 
