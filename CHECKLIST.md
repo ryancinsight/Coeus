@@ -173,11 +173,11 @@ available. ADR 0028 owns the exact GELU contract.
 
 - [x] Route `UnaryOp::Mish`, `MishGrad`, `Elu`, and `EluGrad` through the
       provider-owned Hephaestus ROCm and Metal f32 strided kernels.
-- [x] Extend the CUDA contiguous and strided launch expressions with ELU and
-      its gradient, preserving the existing Mish expressions.
+- [x] Replace the consumer-owned CUDA and WGPU ELU expressions with
+      Hephaestus `EluOp` and `EluGradOp` contiguous and strided dispatch.
 - [x] Extend WGPU, CUDA, ROCm, and Metal contracts with Leto CPU differential
       coverage for forward and gradient activation paths.
-- [x] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for
+- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for
       the provider and consumer revisions.
 
 Acceptance: all four backends expose the same unparameterized f32 Mish and ELU
@@ -187,13 +187,11 @@ including the zero branch boundary. The existing strided/device-resident
 kernel paths remain in use; no runtime performance or resident-memory delta is
 claimed without a controlled benchmark. ADR 0038 owns the contract.
 
-Status: complete for the unparameterized f32 scope. Targeted exact-head Coeus
-run `30353984154` passed CUDA job `90257861209`, WGPU job `90257861154`, ROCm
-job `90257861218`, and Metal job `90257861119`; required-device ROCm job
-`90257861858` was skipped because no hosted AMD runner was dispatched. The
-WGPU and CUDA selectors execute the new ELU forward and gradient contracts.
-The external `recurseml/analysis` status returned its recurring analyzer error
-and is not repository-owned verification.
+Status: provider-ownership correction in progress. The previous value-parity
+run `30353984154` did not distinguish the consumer-local expressions from the
+Hephaestus markers. CUDA and WGPU now have no local ELU expression; contiguous
+and transposed-strided forward/gradient contracts exercise the marker routes.
+Exact-head provider CI remains required before closure.
 
 ## ATLAS-COEUS-HEPHAESTUS-ERROR-FUNCTION-PARITY-001 [arch]
 

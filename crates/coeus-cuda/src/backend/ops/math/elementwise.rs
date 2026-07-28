@@ -167,6 +167,20 @@ where
             ),
             c,
         ),
+        coeus_ops::UnaryOp::Elu => run(
+            hephaestus_cuda::unary_elementwise::<hephaestus_cuda::EluOp, T>(
+                device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::UnaryOp::EluGrad => run(
+            hephaestus_cuda::unary_elementwise::<hephaestus_cuda::EluGradOp, T>(
+                device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
         coeus_ops::UnaryOp::Softplus => run(
             hephaestus_cuda::unary_elementwise::<hephaestus_cuda::SoftplusOp, T>(
                 device,
@@ -290,7 +304,7 @@ fn try_hephaestus_strided_unary<T>(
 where
     T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
 {
-    if !can_route_dynamic_strided(&[a_layout], c_layout) {
+    if Arc::ptr_eq(&a.buffer, &c.buffer) || !can_route_dynamic_strided(&[a_layout], c_layout) {
         return Ok(false);
     }
     let device = crate::backend::get_cuda_device();
@@ -410,6 +424,24 @@ where
                 hephaestus_cuda::BlockWidth::DEFAULT,
             ))
         }
+        coeus_ops::UnaryOp::Elu => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::EluOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::EluGrad => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::EluGradOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
         coeus_ops::UnaryOp::Softplus => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
             hephaestus_cuda::SoftplusOp,
             T,
@@ -495,6 +527,12 @@ impl CudaBackend {
     {
         if get_cuda_context().is_some() {
             let Some(n) = kernels::checked_numel(c_layout) else {
+                if matches!(op, coeus_ops::UnaryOp::Elu | coeus_ops::UnaryOp::EluGrad) {
+                    return Err(CudaBackendError::kernel(
+                        "elementwise unary",
+                        "Hephaestus ELU dispatch requires a CUDA-representable element count",
+                    ));
+                }
                 self.fallback_unary(op, a, a_layout, c, c_layout)?;
                 return Ok(());
             };
@@ -512,6 +550,12 @@ impl CudaBackend {
                     return Ok(());
                 }
             }
+        }
+        if matches!(op, coeus_ops::UnaryOp::Elu | coeus_ops::UnaryOp::EluGrad) {
+            return Err(CudaBackendError::kernel(
+                "elementwise unary",
+                "Hephaestus ELU dispatch requirements are not satisfied",
+            ));
         }
         self.fallback_unary(op, a, a_layout, c, c_layout)?;
         Ok(())

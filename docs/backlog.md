@@ -1,5 +1,22 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-COEUS-HEPHAESTUS-ELU-DISPATCH-001 — Own ELU in Hephaestus [arch] — in-progress
+
+- Owner: Codex; scope: CUDA/WGPU contiguous and strided ELU forward/gradient
+  dispatch, superseded consumer expressions, differential tests, ADR-0038, and
+  provider-matrix evidence.
+- Outcome: make the Hephaestus `EluOp` and `EluGradOp` markers the SSOT for
+  accelerator ELU execution while CPU semantics remain in Leto.
+- Non-goals: parameterized activations, Mish ownership, reduced/vector scalar
+  contracts, pooling, and unrelated elementwise operations.
+- Acceptance: CUDA and WGPU contiguous and transposed-strided ELU
+  forward/gradient match Leto; no consumer-local ELU expression or CUDA CPU
+  fallback remains; exact-head CUDA/WGPU/ROCm/Metal provider CI passes.
+- Risk/change class: `[arch]` provider-ownership correction with no public API
+  change.
+- Status: implementation and value-semantic regressions are present locally;
+  exact-head provider verification remains pending.
+
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 — Route exact GELU through Hephaestus [minor] — complete
 
 - Owner: Codex on `codex/coeus-cuda-common-activation-parity`; scope:

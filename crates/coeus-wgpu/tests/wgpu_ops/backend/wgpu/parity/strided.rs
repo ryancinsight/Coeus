@@ -109,6 +109,52 @@ fn test_wgpu_strided_sqrt_transposed_matches_cpu() {
 }
 
 #[test]
+fn test_wgpu_strided_elu_transposed_matches_cpu() {
+    let s = seq();
+    let w = wgpu();
+    let data = [
+        -3.0f32, -2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 3.0, -0.5, 0.5, 1.5,
+    ];
+    let a = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 4], &data);
+    let at = a.t();
+    let cpu_out = coeus_ops::elementwise_unary(&at, &s, coeus_ops::UnaryOp::Elu)
+        .expect("valid CPU strided ELU input");
+    let a_gpu = to_gpu(&a).t();
+    let gpu_out = to_cpu(
+        &coeus_ops::elementwise_unary(&a_gpu, &w, coeus_ops::UnaryOp::Elu)
+            .expect("valid WGPU Hephaestus strided ELU input"),
+    );
+    assert_parity(
+        "strided_elu_transposed",
+        cpu_out.as_slice(),
+        gpu_out.as_slice(),
+    );
+}
+
+#[test]
+fn test_wgpu_strided_elu_gradient_transposed_matches_cpu() {
+    let s = seq();
+    let w = wgpu();
+    let data = [
+        -3.0f32, -2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 3.0, -0.5, 0.5, 1.5,
+    ];
+    let a = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 4], &data);
+    let at = a.t();
+    let cpu_out = coeus_ops::elementwise_unary(&at, &s, coeus_ops::UnaryOp::EluGrad)
+        .expect("valid CPU strided ELU gradient input");
+    let a_gpu = to_gpu(&a).t();
+    let gpu_out = to_cpu(
+        &coeus_ops::elementwise_unary(&a_gpu, &w, coeus_ops::UnaryOp::EluGrad)
+            .expect("valid WGPU Hephaestus strided ELU gradient input"),
+    );
+    assert_parity(
+        "strided_elu_gradient_transposed",
+        cpu_out.as_slice(),
+        gpu_out.as_slice(),
+    );
+}
+
+#[test]
 fn test_wgpu_strided_rank3_binary_matches_cpu() {
     let s = seq();
     let w = wgpu();

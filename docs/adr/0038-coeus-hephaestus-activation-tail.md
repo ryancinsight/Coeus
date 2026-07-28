@@ -2,24 +2,27 @@
 
 ## Status
 
-Accepted; implementation and targeted provider CI are complete for the
+Accepted; the provider-ownership correction is in progress for the
 unparameterized f32 scope.
 
 ## Context
 
 Coeus and Leto define unparameterized f32 `Mish`, `MishGrad`, `Elu`, and
 `EluGrad` operations. Hephaestus already owns native expression markers for
-all four ROCm and Metal operations, and the WGPU expression generator already
-emits their WGSL forms. Coeus ROCm and Metal dispatch rejected all four
-operations. Coeus CUDA implemented Mish in both launch forms but rejected ELU.
+all four accelerator providers. Coeus ROCm and Metal originally rejected all
+four operations. Coeus CUDA and WGPU later implemented ELU with consumer-owned
+runtime expressions, bypassing the Hephaestus operation markers.
 
 ## Decision
 
 Route ROCm and Metal `Mish`, `MishGrad`, `Elu`, and `EluGrad` through the
-existing Hephaestus strided elementwise seam. Add the ELU forward and gradient
-expressions to both CUDA contiguous and strided launch tables. Keep WGPU on its
-existing provider expression path. The supported accelerator type remains
-`f32`; integer providers retain typed unsupported-operation errors.
+existing Hephaestus strided elementwise seam. Route CUDA and WGPU ELU forward
+and gradient through the corresponding Hephaestus contiguous and strided
+operation markers. Delete the superseded consumer-owned CUDA and WGSL
+expressions. A CUDA or WGPU ELU request that cannot satisfy the Hephaestus
+dispatch contract returns a typed backend error; it does not enter a local
+kernel or CPU capability path. The supported accelerator type remains `f32`;
+integer providers retain typed unsupported-operation errors.
 
 The contracts are:
 
@@ -30,8 +33,8 @@ The contracts are:
 
 Backend suites compare forward and gradient values with the Leto CPU oracle
 over signed inputs containing negative, zero, and positive branch regions.
-The existing device-resident strided and launch paths remain authoritative;
-the increment adds no host staging or temporary backend buffer.
+The existing device-resident Hephaestus paths remain authoritative; the
+increment adds no host staging or temporary backend buffer.
 
 ## Alternatives rejected
 
@@ -41,19 +44,18 @@ the increment adds no host staging or temporary backend buffer.
   because dialect-specific provider expressions belong to Hephaestus.
 - Routing missing operations through Leto was rejected because it would hide
   provider capability gaps and violate the device-resident output contract.
-- Adding a second CUDA kernel family was rejected because the existing
-  contiguous and strided launch tables are the canonical CUDA dispatch homes.
+- Keeping the CUDA and WGPU ELU expression copies was rejected because the
+  Hephaestus markers are the operation SSOT and consumer-owned copies can
+  diverge.
 
 ## Verification
 
-Local format, package compilation, lint, and focused provider contracts cover
-the changed dispatch and expression tables. Targeted exact-head Coeus run
-`30353984154` passed CUDA job `90257861209`, WGPU job `90257861154`, ROCm job
-`90257861218`, and Metal job `90257861119`. Required-device ROCm job
-`90257861858` was skipped because no hosted AMD runner was dispatched; no
-physical-device result is inferred. The WGPU and CUDA selectors execute the new
-ELU forward and gradient contracts. The external `recurseml/analysis` status
-returned its recurring analyzer error and is not repository-owned verification.
+The correction requires format, package compilation, warning-denied Clippy,
+contiguous and strided Leto differential contracts, doctests, and exact-head
+CUDA/WGPU/ROCm/Metal provider CI. The prior targeted run `30353984154` proved
+value parity but did not prove provider ownership because the consumer-local
+expressions computed the same values. No physical-device, runtime-performance,
+or resident-memory result is inferred.
 
 ## Residual scope
 

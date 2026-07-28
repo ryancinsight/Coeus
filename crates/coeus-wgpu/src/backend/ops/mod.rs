@@ -3,8 +3,8 @@ use crate::kernels;
 use coeus_core::{Layout, Storage};
 use hephaestus_core::BlockWidth;
 use hephaestus_wgpu::{
-    binary_elementwise_strided_into, unary_elementwise_strided_into, StridedOperand,
-    MAX_STRIDED_RANK,
+    MAX_STRIDED_RANK, StridedOperand, binary_elementwise_strided_into,
+    unary_elementwise_strided_into,
 };
 use leto::Layout as LetoLayout;
 use std::sync::Arc;
@@ -145,6 +145,10 @@ fn try_hephaestus_strided_unary_wgpu<
 ) -> Result<bool, WgpuBackendError> {
     use coeus_ops::UnaryOp;
 
+    if Arc::ptr_eq(&a_buf.buffer, &c_buf.buffer) {
+        return Ok(false);
+    }
+
     macro_rules! dispatch_n {
         ($n:expr) => {{
             let la = coeus_to_leto_layout!(a_layout, $n);
@@ -208,6 +212,16 @@ fn try_hephaestus_strided_unary_wgpu<
                 >(dev, a_op, c_op, BlockWidth::DEFAULT)),
                 UnaryOp::Lgamma => ok(unary_elementwise_strided_into::<
                     hephaestus_wgpu::LgammaOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Elu => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::EluOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::EluGrad => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::EluGradOp,
                     T,
                     $n,
                 >(dev, a_op, c_op, BlockWidth::DEFAULT)),
@@ -378,6 +392,24 @@ fn try_hephaestus_contiguous_unary<
         )),
         coeus_ops::UnaryOp::Lgamma => run(hephaestus_wgpu::unary_elementwise_into::<
             hephaestus_wgpu::LgammaOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Elu => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::EluOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::EluGrad => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::EluGradOp,
             T,
         >(
             &ctx.hephaestus_device,
