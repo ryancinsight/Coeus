@@ -1,9 +1,9 @@
 #![allow(clippy::too_many_arguments)]
 
+use super::validation::{parameter, try_layout};
 use super::PoolParams;
-use crate::backend::WgpuScalar;
+use crate::backend::{checked_numel, checked_workgroup_count, WgpuBackendError, WgpuScalar};
 use crate::kernels::cache::PIPELINE_CACHE;
-use crate::kernels::layout::GpuLayoutInfo;
 
 pub fn dispatch_max_pool2d<T: WgpuScalar>(
     input: &wgpu::Buffer,
@@ -14,19 +14,21 @@ pub fn dispatch_max_pool2d<T: WgpuScalar>(
     dilation: usize,
     output: &wgpu::Buffer,
     output_layout: &coeus_core::Layout,
-    out_numel: usize,
-) {
-    let ctx = crate::backend::get_wgpu_context();
-
-    let in_layout_gpu = GpuLayoutInfo::from_layout(input_layout);
-    let out_layout_gpu = GpuLayoutInfo::from_layout(output_layout);
-
+) -> Result<(), WgpuBackendError> {
+    let in_layout_gpu = try_layout("max_pool2d", input_layout, 4)?;
+    let out_layout_gpu = try_layout("max_pool2d", output_layout, 4)?;
+    let out_numel = checked_numel("max_pool2d", output_layout.shape())?;
+    let workgroups = checked_workgroup_count("max_pool2d", out_numel)?;
     let params_data = PoolParams {
-        kernel_size: kernel_size as u32,
-        stride: stride as u32,
-        padding: padding as u32,
-        dilation: dilation as u32,
+        kernel_size: parameter(kernel_size, "kernel_size")?,
+        stride: parameter(stride, "stride")?,
+        padding: parameter(padding, "padding")?,
+        dilation: parameter(dilation, "dilation")?,
     };
+    if out_numel == 0 {
+        return Ok(());
+    }
+    let ctx = crate::backend::get_wgpu_context();
 
     let in_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let out_layout_buf = crate::backend::PooledMetadataBuffer::new();
@@ -188,11 +190,11 @@ pub fn dispatch_max_pool2d<T: WgpuScalar>(
         });
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        let workgroups = out_numel.div_ceil(256);
-        compute_pass.dispatch_workgroups(workgroups as u32, 1, 1);
+        compute_pass.dispatch_workgroups(workgroups, 1, 1);
     }
 
     ctx.queue.submit(Some(encoder.finish()));
+    Ok(())
 }
 
 pub fn dispatch_max_pool2d_backward<T: WgpuScalar>(
@@ -206,20 +208,22 @@ pub fn dispatch_max_pool2d_backward<T: WgpuScalar>(
     dilation: usize,
     grad_input: &wgpu::Buffer,
     grad_input_layout: &coeus_core::Layout,
-    in_numel: usize,
-) {
-    let ctx = crate::backend::get_wgpu_context();
-
-    let go_layout_gpu = GpuLayoutInfo::from_layout(grad_out_layout);
-    let in_layout_gpu = GpuLayoutInfo::from_layout(input_layout);
-    let gi_layout_gpu = GpuLayoutInfo::from_layout(grad_input_layout);
-
+) -> Result<(), WgpuBackendError> {
+    let go_layout_gpu = try_layout("max_pool2d_backward", grad_out_layout, 4)?;
+    let in_layout_gpu = try_layout("max_pool2d_backward", input_layout, 4)?;
+    let gi_layout_gpu = try_layout("max_pool2d_backward", grad_input_layout, 4)?;
+    let in_numel = checked_numel("max_pool2d_backward", grad_input_layout.shape())?;
+    let workgroups = checked_workgroup_count("max_pool2d_backward", in_numel)?;
     let params_data = PoolParams {
-        kernel_size: kernel_size as u32,
-        stride: stride as u32,
-        padding: padding as u32,
-        dilation: dilation as u32,
+        kernel_size: parameter(kernel_size, "kernel_size")?,
+        stride: parameter(stride, "stride")?,
+        padding: parameter(padding, "padding")?,
+        dilation: parameter(dilation, "dilation")?,
     };
+    if in_numel == 0 {
+        return Ok(());
+    }
+    let ctx = crate::backend::get_wgpu_context();
 
     let go_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let in_layout_buf = crate::backend::PooledMetadataBuffer::new();
@@ -418,9 +422,9 @@ pub fn dispatch_max_pool2d_backward<T: WgpuScalar>(
         });
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        let workgroups = in_numel.div_ceil(256);
-        compute_pass.dispatch_workgroups(workgroups as u32, 1, 1);
+        compute_pass.dispatch_workgroups(workgroups, 1, 1);
     }
 
     ctx.queue.submit(Some(encoder.finish()));
+    Ok(())
 }

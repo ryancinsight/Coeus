@@ -3,6 +3,7 @@ pub mod avg3d;
 pub mod max;
 pub mod max3d;
 pub mod pool1d;
+mod validation;
 
 pub use avg::{dispatch_avg_pool2d, dispatch_avg_pool2d_backward};
 pub use avg3d::{dispatch_avg_pool3d, dispatch_avg_pool3d_backward};

@@ -116,7 +116,7 @@ impl CudaBackend {
         dilation: usize,
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), crate::CudaBackendError> {
         if get_cuda_context().is_some()
             && kernels::dispatch_max_pool2d::<T>(
                 input,
@@ -141,6 +141,7 @@ impl CudaBackend {
             output,
             output_layout,
         );
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -156,7 +157,7 @@ impl CudaBackend {
         dilation: usize,
         grad_input: &mut CudaStorage<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), crate::CudaBackendError> {
         if get_cuda_context().is_some()
             && kernels::dispatch_max_pool2d_backward::<T>(
                 grad_out,
@@ -185,6 +186,7 @@ impl CudaBackend {
             grad_input,
             grad_input_layout,
         );
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -198,7 +200,7 @@ impl CudaBackend {
         dilation: usize,
         output: &mut CudaStorage<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), crate::CudaBackendError> {
         if get_cuda_context().is_some()
             && kernels::dispatch_avg_pool2d::<T>(
                 input,
@@ -223,6 +225,7 @@ impl CudaBackend {
             output,
             output_layout,
         );
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -236,7 +239,7 @@ impl CudaBackend {
         dilation: usize,
         grad_input: &mut CudaStorage<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), crate::CudaBackendError> {
         if get_cuda_context().is_some()
             && kernels::dispatch_avg_pool2d_backward::<T>(
                 grad_out,
@@ -261,6 +264,7 @@ impl CudaBackend {
             grad_input,
             grad_input_layout,
         );
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]

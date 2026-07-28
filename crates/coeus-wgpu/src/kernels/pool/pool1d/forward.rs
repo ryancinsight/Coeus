@@ -1,5 +1,5 @@
-use super::shader::{parameter, shader_source, ForwardPoolKind};
-use super::validation::try_layout;
+use super::super::validation::{parameter, try_layout};
+use super::shader::{shader_source, ForwardPoolKind};
 use crate::backend::{checked_numel, checked_workgroup_count, WgpuBackendError, WgpuScalar};
 use crate::kernels::cache::PIPELINE_CACHE;
 use coeus_core::Layout;
@@ -12,8 +12,8 @@ fn dispatch_forward<T: WgpuScalar>(
     output_layout: &Layout,
     params: [u32; 4],
 ) -> Result<(), WgpuBackendError> {
-    let input_layout_gpu = try_layout("pool1d", input_layout)?;
-    let output_layout_gpu = try_layout("pool1d", output_layout)?;
+    let input_layout_gpu = try_layout("pool1d", input_layout, 3)?;
+    let output_layout_gpu = try_layout("pool1d", output_layout, 3)?;
     let total = checked_numel("pool1d", output_layout.shape())?;
     if total == 0 {
         return Ok(());

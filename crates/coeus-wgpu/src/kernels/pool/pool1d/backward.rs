@@ -1,5 +1,5 @@
-use super::shader::{parameter, shader_source, PoolKind};
-use super::validation::try_layout;
+use super::super::validation::{parameter, try_layout};
+use super::shader::{shader_source, PoolKind};
 use crate::backend::{checked_numel, checked_workgroup_count, WgpuBackendError, WgpuScalar};
 use crate::kernels::cache::PIPELINE_CACHE;
 use coeus_core::Layout;
@@ -14,9 +14,9 @@ fn dispatch_max_backward<T: WgpuScalar>(
     grad_input_layout: &Layout,
     params: [u32; 4],
 ) -> Result<(), WgpuBackendError> {
-    let grad_out_layout_gpu = try_layout("max_pool1d_backward", grad_out_layout)?;
-    let input_layout_gpu = try_layout("max_pool1d_backward", input_layout)?;
-    let grad_input_layout_gpu = try_layout("max_pool1d_backward", grad_input_layout)?;
+    let grad_out_layout_gpu = try_layout("max_pool1d_backward", grad_out_layout, 3)?;
+    let input_layout_gpu = try_layout("max_pool1d_backward", input_layout, 3)?;
+    let grad_input_layout_gpu = try_layout("max_pool1d_backward", grad_input_layout, 3)?;
     let total = checked_numel("max_pool1d_backward", grad_input_layout.shape())?;
     if total == 0 {
         return Ok(());
@@ -109,8 +109,8 @@ fn dispatch_avg_backward<T: WgpuScalar>(
     grad_input_layout: &Layout,
     params: [u32; 4],
 ) -> Result<(), WgpuBackendError> {
-    let grad_out_layout_gpu = try_layout("avg_pool1d_backward", grad_out_layout)?;
-    let grad_input_layout_gpu = try_layout("avg_pool1d_backward", grad_input_layout)?;
+    let grad_out_layout_gpu = try_layout("avg_pool1d_backward", grad_out_layout, 3)?;
+    let grad_input_layout_gpu = try_layout("avg_pool1d_backward", grad_input_layout, 3)?;
     let total = checked_numel("avg_pool1d_backward", grad_input_layout.shape())?;
     if total == 0 {
         return Ok(());

@@ -376,6 +376,14 @@
   families and the infallible autograd/NN public contract remain separate
   increments. Focused compilation is currently blocked before package
   compilation by the shared-tree Eunomia lockfile package collision.
+- Pool2d increment: the four 2D `PoolOps` methods now return the
+  backend-associated result across CPU, WGPU, and CUDA. WGPU derives output and
+  gradient counts from canonical layouts, removes stale storage-length/count
+  arguments, and checks rank, layout ABI values, parameter narrowing, checked
+  element counts, and workgroup bounds before native WGSL submission. Direct
+  WGPU/CUDA parity callers and the infallible autograd/NN boundary use explicit
+  invariant diagnostics. The 3D family remains the next separate slice. The
+  same Eunomia lockfile collision still blocks package compilation and tests.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

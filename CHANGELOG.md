@@ -11,6 +11,12 @@
   seam remains unchanged in this increment; no performance or memory delta is
   claimed without controlled measurements.
 
+- [major] Make Coeus 2D pooling dispatch return the backend-associated `Result`
+  and derive WGPU element/workgroup counts from canonical layouts. CPU remains
+  directly Leto-backed, while WGPU validates its WGSL ABI boundary and CUDA
+  preserves native dispatch plus its existing capability boundary. No runtime
+  performance or memory delta is claimed without controlled measurements.
+
 - [minor] Route Coeus CUDA `GeluTanh`, `GeluTanhGrad`, `Softplus`, and
   `SoftplusGrad` through the existing Hephaestus marker kernels for contiguous
   and runtime-shaped strided layouts. Add CUDA/Leto forward and gradient

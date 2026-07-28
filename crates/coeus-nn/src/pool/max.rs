@@ -81,16 +81,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool2d
         let mut out_tensor = Tensor::zeros_on([n, c, h_out, w_out], &backend);
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
 
-        backend.max_pool2d(
-            input.tensor.storage(),
-            input.tensor.layout(),
-            self.kernel_size,
-            self.stride,
-            self.padding,
-            self.dilation,
-            out_storage,
-            out_layout,
-        );
+        backend
+            .max_pool2d(
+                input.tensor.storage(),
+                input.tensor.layout(),
+                self.kernel_size,
+                self.stride,
+                self.padding,
+                self.dilation,
+                out_storage,
+                out_layout,
+            )
+            .expect("invariant: validated max_pool2d dispatch must succeed");
 
         coeus_autograd::max_pool2d(
             input,

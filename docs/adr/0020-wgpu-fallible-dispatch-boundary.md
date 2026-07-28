@@ -123,3 +123,13 @@ rounded workgroup count before submitting native WGSL, and CUDA propagates
 native kernel validation and launch failures. The infallible autograd/NN
 boundary retains explicit invariant diagnostics; no host fallback or silent
 success path is introduced.
+
+The 2D pooling family now derives output and gradient element counts from the
+canonical `Layout` values at the WGPU operation boundary rather than accepting
+storage-length or caller-supplied count arguments. CPU, WGPU, and CUDA
+implementations return the backend-associated result, and WGPU validates rank,
+layout ABI values, parameter narrowing, checked element-count arithmetic, and
+the rounded workgroup count before native WGSL submission. Direct WGPU and CUDA
+parity callers and the infallible autograd/NN boundary consume the result with
+explicit invariant diagnostics. The 3D pooling family remains a separate
+increment.
