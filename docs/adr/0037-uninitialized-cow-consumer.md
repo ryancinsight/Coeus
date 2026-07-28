@@ -1,6 +1,6 @@
 # ADR 0037: Use overwrite-before-read allocation for accelerator COW
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-07-28
 - Scope: Coeus WGPU, CUDA, and generic Hephaestus storage uniqueness
 - Change class: `[arch]`/`[minor]`
@@ -42,7 +42,11 @@ retained values, tier preservation, one device copy, and zero COW downloads.
 Coeus WGPU and generic Hephaestus all-target checks plus the CUDA feature
 all-target check pass against the provider branch; the focused generic storage
 Nextest test passes. The Hephaestus provider seam merged in PR #136 at
-`da785b53`; exact-head provider/consumer CI remains required for this consumer.
+`da785b53`. Hosted exact-head Coeus run `30345002409` passed CUDA job
+`90229046185`, WGPU job `90229046271`, ROCm job `90229046258`, and Metal job
+`90229046242`. The required-device ROCm job `90229047328` was skipped because
+no hosted AMD runner was dispatched; no physical-device execution claim is
+made.
 This change supplies static allocation-path evidence only; runtime bandwidth,
 latency, and resident-memory claims require
 a controlled benchmark.

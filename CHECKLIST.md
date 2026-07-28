@@ -9,7 +9,7 @@
       device-local copy.
 - [x] Extend the generic Hephaestus test device and preserve detached and
       retained value semantics.
-- [ ] Run exact-head WGPU, CUDA, ROCm, and Metal Coeus provider/consumer CI
+- [x] Run exact-head WGPU, CUDA, ROCm, and Metal Coeus provider/consumer CI
       after the Hephaestus provider seam merges.
 
 Acceptance: every changed COW path fully overwrites the replacement through
@@ -24,6 +24,11 @@ Implementation owner: Codex on `codex/coeus-uninitialized-cow-copy`; ADR 0037.
 Provider prerequisite: Hephaestus PR #136 merged at `da785b53`; the consumer
 branch now targets the merged `ComputeDevice::alloc_uninitialized_with_hint`
 contract in hosted CI.
+
+Hosted exact-head Coeus run `30345002409` passed CUDA job `90229046185`, WGPU
+job `90229046271`, ROCm job `90229046258`, and Metal job `90229046242`. The
+required-device ROCm job `90229047328` was skipped because no hosted AMD
+runner was dispatched; no physical-device execution claim is made.
 
 ## ATLAS-COEUS-SAFETY-002 Native COW seam consolidation [arch][patch]
 
