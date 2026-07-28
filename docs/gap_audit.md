@@ -12,8 +12,8 @@ initialization pass before the full device-to-device copy.
 contract and route only COW replacements through the explicit Hephaestus
 overwrite-before-read allocation seam. The generic Hephaestus test device
 implements the seam without changing the value-semantic copy regression.
-**Residual**: this consumer branch depends on the Hephaestus provider seam
-merging first. Exact-head Coeus provider/consumer CI remains open, and no
+**Residual**: the Hephaestus provider seam prerequisite is satisfied by PR #136
+merged at `da785b53`. Exact-head Coeus provider/consumer CI remains open, and no
 runtime bandwidth, latency, or resident-memory delta is claimed without a
 controlled benchmark. The infallible `StorageMut::make_unique` failure
 boundary remains the separate `ATLAS-COEUS-SAFETY-001` item.

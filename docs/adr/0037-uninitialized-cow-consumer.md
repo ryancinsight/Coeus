@@ -41,9 +41,10 @@ The generic Hephaestus storage regression continues to assert copied values,
 retained values, tier preservation, one device copy, and zero COW downloads.
 Coeus WGPU and generic Hephaestus all-target checks plus the CUDA feature
 all-target check pass against the provider branch; the focused generic storage
-Nextest test passes. Exact-head provider/consumer CI must run after the
-Hephaestus provider seam merges. This change supplies static allocation-path
-evidence only; runtime bandwidth, latency, and resident-memory claims require
+Nextest test passes. The Hephaestus provider seam merged in PR #136 at
+`da785b53`; exact-head provider/consumer CI remains required for this consumer.
+This change supplies static allocation-path evidence only; runtime bandwidth,
+latency, and resident-memory claims require
 a controlled benchmark.
 
 ## Revisit trigger

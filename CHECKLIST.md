@@ -21,6 +21,10 @@ provider CI is required for device execution.
 
 Implementation owner: Codex on `codex/coeus-uninitialized-cow-copy`; ADR 0037.
 
+Provider prerequisite: Hephaestus PR #136 merged at `da785b53`; the consumer
+branch now targets the merged `ComputeDevice::alloc_uninitialized_with_hint`
+contract in hosted CI.
+
 ## ATLAS-COEUS-SAFETY-002 Native COW seam consolidation [arch][patch]
 
 - [x] Route native Coeus WGPU and CUDA COW detachment through
