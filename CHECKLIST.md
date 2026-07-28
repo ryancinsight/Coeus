@@ -23,9 +23,9 @@ Owner: Codex on `codex/coeus-cuda-common-activation-parity`; claimed scope:
 `crates/coeus-cuda/src/fallback/ops/{mod,pool}.rs`, and
 `crates/coeus-wgpu/src/backend/ops/{pool,impls/pool}.rs`, plus the migrated
 WGPU pooling contract tests under
-`crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/pooling.rs`. The live peer owns
-the dirty reduction, backend-error, and lockfile files; they remain outside
-this increment.
+`crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/pooling.rs`. The stale
+reduction and backend-error edits were reconciled to the merged implementation;
+only the Atlas-overlay-generated `Cargo.lock` remains outside this increment.
 
 Implementation head `f861cea6` is complete. The pool repair propagates WGPU
 kernel errors, removes the CUDA 2-D/3-D host fallback module, and returns typed
@@ -123,8 +123,8 @@ Owner: Codex on `codex/coeus-cuda-common-activation-parity`; completed at
 `crates/coeus-cuda/src/backend/ops/math.rs`,
 `crates/coeus-cuda/tests/cuda/parity/unfold_fold.rs`,
 `.github/workflows/backend-parity.yml`, `CHECKLIST.md`, and
-`docs/gap_audit.md`. Peer-owned reduction and backend-error files remain
-outside this claim.
+`docs/gap_audit.md`. No reduction or backend-error residual remains; the
+Atlas-overlay-generated `Cargo.lock` remains outside this claim.
 
 Evidence: docs-head run `30359324025` passed CUDA job `90274888940`, WGPU job
 `90274889041`, ROCm job `90274889047`, and Metal job `90274888991`.

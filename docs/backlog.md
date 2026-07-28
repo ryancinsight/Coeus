@@ -43,9 +43,8 @@
 - Risk/change class: `[arch]` public failure-contract migration.
 - Status: implementation complete at `b5491ef8`; rustfmt, metadata, diff
   hygiene, and residual scans pass. The locked package check, clippy, doctest,
-  and Nextest gates stop before compilation because the peer-owned `Cargo.lock`
-  contains a local overlay change that requires regeneration; the lockfile and
-  peer reduction/error files remain outside this claim.
+  and Nextest gates stop before compilation because the Atlas-overlay-generated
+  `Cargo.lock` requires regeneration; the lockfile remains outside this claim.
 
 ## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback [arch]
 
@@ -317,7 +316,8 @@
   backend-operation return contract.
 - Current claim: shared-tree slice owned by this session; scope is the native
   WGPU PoolOps 3D forward/backward dispatch and its CPU/WGPU/CUDA callers.
-  Peer reduction/error edits and the dirty lockfile remain outside this claim.
+  Stale reduction/error edits were reconciled to the merged implementation;
+  only the Atlas-overlay-generated `Cargo.lock` remains outside this claim.
 - Outcome: replace unchecked `usize`→WGSL `u32` layout metadata narrowing and
   input-dependent dispatch panics with one typed validation/error boundary.
 - Acceptance: every WGPU kernel consumes the validated metadata type; failure
@@ -417,15 +417,16 @@
   Themis, and Melinoe packages and removed the committed sibling-path patch
   tables. The generated Atlas root overlay now supplies local provider
   checkouts without changing Coeus's standalone dependency identity. Locked
-  no-deps metadata passes from this worktree; the dirty lockfile and peer
-  reduction/error edits remain outside this claim.
+  no-deps metadata passes from this worktree; only the Atlas-overlay-generated
+  `Cargo.lock` remains outside this claim.
 - Pool3d increment: all four 3D `PoolOps` methods now return the
   backend-associated result across CPU, WGPU, and CUDA. WGPU derives output and
   gradient counts from canonical layouts, validates rank-five layout metadata,
   parameter narrowing, checked element counts, and workgroup bounds before
   native WGSL submission. Autograd, NN, and CUDA parity callers use explicit
-  invariant diagnostics. Package compilation remains blocked by the peer-owned
-  dirty lockfile requiring regeneration after the provider graph repair.
+  invariant diagnostics. Local package compilation remains blocked by the
+  Atlas-overlay-generated lockfile requiring regeneration after the provider
+  graph repair.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

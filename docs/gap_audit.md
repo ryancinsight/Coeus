@@ -278,9 +278,10 @@ metadata, diff hygiene, and residual scans pass. Exact-head run `30379272710`
 passed the CUDA package check, warning-denied Clippy, selected provider
 contracts, and doctests in job `90342897802`; WGPU, ROCm, and Metal provider
 jobs also passed. The local locked package check remains blocked before
-compilation because the peer-owned lockfile contains a provider-overlay change
-that requires regeneration; the peer-owned lockfile/reduction work remains
-outside this increment. No CUDA runtime or performance claim is made.
+compilation because the Atlas-overlay-generated lockfile requires regeneration;
+the lockfile remains outside this increment. Stale reduction and backend-error
+edits were reconciled to the merged implementation. No CUDA runtime or
+performance claim is made.
 
 ## ATLAS-CUDA-SAFETY-016: Remaining CUDA launch-parameter narrowing
 
