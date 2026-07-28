@@ -27,7 +27,9 @@ fn test_groupnorm_forward_and_backward() {
     let group0_sum: f64 = out_slice[..6].iter().sum();
     assert!(group0_sum.abs() < 1e-5, "group0_sum={group0_sum}");
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     assert!(gn.weight.grad().is_some());
     assert!(gn.bias.grad().is_some());
@@ -45,7 +47,9 @@ fn test_groupnorm_g1_is_layernorm() {
     let output = gn.forward(&input);
     assert_eq!(output.tensor.shape(), &[2, 4]);
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
 }
 
@@ -63,7 +67,9 @@ fn test_instancenorm1d_forward_and_backward() {
         assert!(v.abs() < 1e-5);
     }
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     assert!(inst.weight.grad().is_some());
     assert!(inst.bias.grad().is_some());
@@ -91,7 +97,9 @@ fn test_instancenorm1d_non_constant_backward() {
     let mean0: f64 = s[..4].iter().sum::<f64>() / 4.0;
     assert!(mean0.abs() < 1e-5);
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
 }
 
@@ -111,7 +119,9 @@ fn test_instancenorm2d_forward_and_backward() {
     assert!(mean0.abs() < 1e-5, "mean0={mean0}");
     assert!(mean1.abs() < 1e-5, "mean1={mean1}");
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     assert!(inst.weight.grad().is_some());
     assert!(inst.bias.grad().is_some());

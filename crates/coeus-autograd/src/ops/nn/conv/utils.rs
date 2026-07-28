@@ -168,7 +168,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
 
         let mut grad_input = if input_grads.get(0).and_then(|g| g.as_ref()).is_some() {
@@ -230,16 +234,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
 
         if let Some(gi) = grad_input {
             let gl = input_grads[0].as_ref().unwrap().write();
-            coeus_ops::add_assign(gl, &gi, &backend);
+            coeus_ops::add_assign(gl, &gi, &backend)?;
         }
         if let Some(gw) = grad_weight {
             let gl = input_grads[1].as_ref().unwrap().write();
-            coeus_ops::add_assign(gl, &gw, &backend);
+            coeus_ops::add_assign(gl, &gw, &backend)?;
         }
         if let Some(gb) = grad_bias {
             let gl = input_grads[2].as_ref().unwrap().write();
-            coeus_ops::add_assign(gl, &gb, &backend);
+            coeus_ops::add_assign(gl, &gb, &backend)?;
         }
+
+        Ok(())
     }
 }
 

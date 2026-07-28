@@ -22,7 +22,9 @@ fn test_maximum_forward_and_backward() {
     let b = var(&[4.0, 2.0, 3.0]);
     let out = maximum(&a, &b);
     assert_eq!(out.tensor.as_slice(), &[4.0, 5.0, 3.0], "fwd maximum");
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(a.grad().unwrap().as_slice(), &[0.0, 1.0, 1.0], "grad_a max");
     assert_eq!(b.grad().unwrap().as_slice(), &[1.0, 0.0, 0.0], "grad_b max");
 }
@@ -36,7 +38,9 @@ fn test_minimum_forward_and_backward() {
     let b = var(&[4.0, 2.0, 3.0]);
     let out = minimum(&a, &b);
     assert_eq!(out.tensor.as_slice(), &[1.0, 2.0, 3.0], "fwd minimum");
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(a.grad().unwrap().as_slice(), &[1.0, 0.0, 1.0], "grad_a min");
     assert_eq!(b.grad().unwrap().as_slice(), &[0.0, 1.0, 0.0], "grad_b min");
 }

@@ -75,7 +75,8 @@ fn f16_autograd_smoke() {
         true,
     );
     let y = coeus_autograd::sum(&coeus_autograd::mul(&x, &x));
-    y.backward();
+    y.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().expect("F16 sum(x^2) must produce gradient");
     // d/dx(sum(x^2)) = 2x
     let expected_grad = [2.0f32, 4.0, 6.0];

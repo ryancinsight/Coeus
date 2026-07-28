@@ -71,7 +71,9 @@ fn test_linear_layer() {
     assert_eq!(output.tensor.shape(), &[1, 2]);
     assert_eq!(output.tensor.as_slice(), &[6.5, 6.5]);
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         input
             .grad()
@@ -125,7 +127,9 @@ fn linear_projects_last_axis_for_rank_three_and_preserves_gradients() {
         &[-1.75, 8.5, -1.75, 20.5, -1.75, 0.5, 1.75, -2.75]
     );
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         input
             .grad()
@@ -183,7 +187,9 @@ fn test_load_parameters_applies_optimizer_step_to_the_module() {
 
     let x = Var::new(Tensor::from_slice(vec![1, 2], &[3.0f64, 4.0]), false);
     let output = layer.forward(&x); // w . x + b = 1*3 + 1*4 + 0 = 7
-    output.backward(); // d(output)/d(weight) = x = [3, 4]; d(output)/d(bias) = 1
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward"); // d(output)/d(weight) = x = [3, 4]; d(output)/d(bias) = 1
 
     let lr = 0.1;
     let mut opt = SGD::new(layer.named_parameters(), lr, 0.0);
@@ -229,7 +235,9 @@ fn test_activations() {
     // ReLU
     let out_relu = relu(&input);
     assert_eq!(out_relu.tensor.as_slice(), &[0.0, 0.0, 0.5, 2.0]);
-    out_relu.backward();
+    out_relu
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(input.grad().unwrap().as_slice(), &[0.0, 0.0, 1.0, 1.0]);
 
     // Sigmoid
@@ -256,7 +264,9 @@ fn test_losses() {
     // MSE
     let loss_mse = mse_loss(&pred, &target);
     assert_eq!(loss_mse.tensor.as_slice(), &[0.25]);
-    loss_mse.backward();
+    loss_mse
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         pred.grad()
             .expect("mse prediction gradient must be populated")
@@ -270,7 +280,9 @@ fn test_losses() {
     let targets = vec![1, 2];
     let loss_ce = cross_entropy_loss(&logits, &targets);
     assert_eq!(loss_ce.tensor.shape(), &[1]);
-    loss_ce.backward();
+    loss_ce
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let expected_ce_gradients = expected_cross_entropy_gradients(logits_values, 2, 3, &targets);
     assert_slice_close(
         "cross_entropy_logits_grad",

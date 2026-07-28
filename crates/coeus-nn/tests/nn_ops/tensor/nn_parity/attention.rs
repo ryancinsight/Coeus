@@ -132,7 +132,9 @@ fn test_mha_parity() {
 
     // Backward
     let loss_coeus = coeus_autograd::sum(&out_coeus);
-    loss_coeus.backward();
+    loss_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify input gradients
     let dq_coeus = q_coeus.grad().unwrap();

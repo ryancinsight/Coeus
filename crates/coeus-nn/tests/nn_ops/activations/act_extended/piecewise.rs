@@ -47,7 +47,9 @@ fn hardswish_forward_and_backward() {
         &expected,
         1e-12,
     );
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().expect("hardswish requires grad");
     assert_close_slice("hardswish_backward", grad.as_slice(), &expected_grad, 1e-12);
 }
@@ -83,7 +85,9 @@ fn hardsigmoid_forward_and_backward() {
         &expected,
         1e-12,
     );
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().expect("hardsigmoid requires grad");
     assert_close_slice(
         "hardsigmoid_backward",
@@ -128,7 +132,9 @@ fn hardtanh_forward_and_backward() {
         &expected,
         1e-12,
     );
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().expect("hardtanh requires grad");
     assert_close_slice("hardtanh_backward", grad.as_slice(), &expected_grad, 1e-12);
     // Validate the bit-packing helper is reversible.
@@ -179,7 +185,9 @@ fn softshrink_forward_and_backward() {
         &expected,
         1e-12,
     );
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().expect("softshrink requires grad");
     assert_close_slice(
         "softshrink_backward",
@@ -228,7 +236,9 @@ fn hardshrink_forward_and_backward() {
         &expected,
         1e-12,
     );
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().expect("hardshrink requires grad");
     assert_close_slice(
         "hardshrink_backward",
@@ -265,7 +275,9 @@ fn softsign_forward_and_backward() {
         &expected,
         1e-12,
     );
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().expect("softsign requires grad");
     assert_close_slice("softsign_backward", grad.as_slice(), &expected_grad, 1e-12);
 }
@@ -312,7 +324,9 @@ fn threshold_forward_and_backward() {
         &expected,
         1e-12,
     );
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().expect("threshold requires grad");
     assert_close_slice("threshold_backward", grad.as_slice(), &expected_grad, 1e-12);
 }
@@ -348,7 +362,9 @@ fn celu_forward_and_backward() {
     );
     let output = celu(&input, alpha);
     assert_close_slice("celu_forward", output.tensor.as_slice(), &expected, 1e-12);
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().expect("celu requires grad");
     assert_close_slice("celu_backward", grad.as_slice(), &expected_grad, 1e-12);
 }

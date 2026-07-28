@@ -24,7 +24,9 @@ fn test_group_norm() {
     assert_eq!(output.tensor.shape(), &[2, 6, 4]);
 
     // Backward pass
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     assert!(gn.weight.grad().is_some());
     assert!(gn.bias.grad().is_some());
@@ -49,7 +51,9 @@ fn test_instance_norm_1d() {
     let output = in1d.forward(&input);
     assert_eq!(output.tensor.shape(), &[2, 4, 5]);
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     assert!(in1d.weight.grad().is_some());
     assert!(in1d.bias.grad().is_some());
@@ -72,7 +76,9 @@ fn test_instance_norm_2d() {
     let output = in2d.forward(&input);
     assert_eq!(output.tensor.shape(), &[2, 3, 4, 4]);
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     assert!(in2d.weight.grad().is_some());
     assert!(in2d.bias.grad().is_some());

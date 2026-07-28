@@ -22,7 +22,9 @@ fn test_remainder_forward_and_backward_positive() {
     );
     let out = remainder(&a, &b);
     assert_eq!(out.tensor.as_slice(), &[2.0, 3.0, 2.0], "fwd remainder");
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(a.grad().unwrap().as_slice(), &[1.0, 1.0, 1.0], "grad_a");
     assert_eq!(b.grad().unwrap().as_slice(), &[-1.0, -1.0, -2.0], "grad_b");
 }
@@ -43,7 +45,9 @@ fn test_remainder_sign_of_divisor() {
     );
     let out = remainder(&a, &b);
     assert_eq!(out.tensor.as_slice(), &[-2.0], "fwd sign-of-divisor");
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(a.grad().unwrap().as_slice(), &[1.0], "grad_a");
     assert_eq!(b.grad().unwrap().as_slice(), &[3.0], "grad_b");
 }
@@ -69,7 +73,9 @@ fn test_remainder_broadcast_scalar_divisor() {
         &[1.0, 2.0, 0.0, 1.0],
         "fwd broadcast"
     );
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         a.grad().unwrap().as_slice(),
         &[1.0, 1.0, 1.0, 1.0],

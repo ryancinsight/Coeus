@@ -25,8 +25,12 @@ fn test_wgpu_silu_parity() {
         assert!((out_cpu_slice[i] - out_gpu_slice[i]).abs() < 1e-5);
     }
 
-    out_cpu.backward();
-    out_gpu.backward();
+    out_cpu
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
+    out_gpu
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     let grad_cpu = var_cpu.grad().unwrap();
     let grad_gpu = var_gpu.grad().unwrap();
@@ -63,8 +67,12 @@ fn test_wgpu_mish_parity() {
         assert!((out_cpu_slice[i] - out_gpu_slice[i]).abs() < 1e-5);
     }
 
-    out_cpu.backward();
-    out_gpu.backward();
+    out_cpu
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
+    out_gpu
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     let grad_cpu = var_cpu.grad().unwrap();
     let grad_gpu = var_gpu.grad().unwrap();
@@ -101,8 +109,12 @@ fn test_wgpu_elu_parity() {
         assert!((out_cpu_slice[i] - out_gpu_slice[i]).abs() < 1e-5);
     }
 
-    out_cpu.backward();
-    out_gpu.backward();
+    out_cpu
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
+    out_gpu
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     let grad_cpu = var_cpu.grad().unwrap();
     let grad_gpu = var_gpu.grad().unwrap();

@@ -31,7 +31,8 @@ fn test_poisson_nll() {
         "poisson_nll forward: got {loss_val:.17}, expected {expected:.17}"
     );
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let input_grad = input.grad().expect("input must receive a gradient");
     let target_grad = target.grad().expect("target must receive a gradient");
     for (i, ((&z, &y), (&gz, &gt))) in zs
@@ -75,7 +76,8 @@ fn test_kl_divergence_loss() {
     assert_eq!(loss.tensor.shape(), &[1]);
     assert!(loss.tensor.as_slice()[0].abs() <= 2.0 * f64::EPSILON);
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().expect("invariant: KL input requires grad");
     let grad_slice = grad.as_slice();
     assert!((grad_slice[0] + 0.125).abs() < 1e-12);
@@ -106,7 +108,8 @@ fn test_gaussian_nll_loss() {
     assert_eq!(loss.tensor.shape(), &[1]);
     assert!((loss.tensor.as_slice()[0] - 0.25).abs() < 1e-12);
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     // d loss/d input_i = (in_i - t_i)/(N*var_i): [-0.5/1, 1/4] = [-0.5, 0.25].
     let grad = input.grad().expect("gnll input grad");
     let g = grad.as_slice();

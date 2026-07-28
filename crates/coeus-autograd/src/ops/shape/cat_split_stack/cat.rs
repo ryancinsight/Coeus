@@ -37,7 +37,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let ndim = self.out_shape.len();
         let dim = self.dim;
@@ -73,9 +77,10 @@ where
                 &sliced_out_layout,
                 g_storage,
                 g_layout,
-            );
+            )?;
             offset += sz;
         }
+        Ok(())
     }
 }
 

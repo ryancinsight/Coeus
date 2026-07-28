@@ -28,7 +28,8 @@ fn test_groupnorm_forward_backward() {
 
     // Backward pass
     let loss = coeus_autograd::sum(&output);
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert!(input.grad().is_some());
     assert!(gn.weight.grad().is_some());
@@ -52,7 +53,8 @@ fn test_instancenorm1d_forward_backward() {
     assert_eq!(output.tensor.shape(), &[2, 3, 4]);
 
     let loss = coeus_autograd::sum(&output);
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert!(input.grad().is_some());
     assert!(in1d.weight.grad().is_some());
@@ -76,7 +78,8 @@ fn test_instancenorm2d_forward_backward() {
     assert_eq!(output.tensor.shape(), &[1, 2, 3, 3]);
 
     let loss = coeus_autograd::sum(&output);
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert!(input.grad().is_some());
     assert!(in2d.weight.grad().is_some());
@@ -96,7 +99,8 @@ fn test_sequential_chaining() {
     assert_eq!(output.tensor.shape(), &[2, 2]);
 
     let loss = coeus_autograd::sum(&output);
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert!(input.grad().is_some());
     let params = seq.parameters();
@@ -118,7 +122,8 @@ fn test_binary_cross_entropy_loss() {
     let loss = binary_cross_entropy(&pred, &target, 1e-7);
     assert_eq!(loss.tensor.shape(), &[1]);
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(pred.grad().is_some());
 }
 
@@ -134,7 +139,8 @@ fn test_nll_loss() {
     let loss = nll_loss(&log_probs, &targets);
     assert_eq!(loss.tensor.shape(), &[1]);
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(log_probs.grad().is_some());
 }
 
@@ -150,7 +156,8 @@ fn test_huber_loss() {
     let loss = huber_loss(&pred, &target, 1.0);
     assert_eq!(loss.tensor.shape(), &[1]);
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(pred.grad().is_some());
 }
 
@@ -166,7 +173,8 @@ fn test_static_sequential_chaining() {
     assert_eq!(output.tensor.shape(), &[2, 2]);
 
     let loss = coeus_autograd::sum(&output);
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert!(input.grad().is_some());
     let params = model.parameters();

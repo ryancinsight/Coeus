@@ -150,15 +150,20 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<f32, B>, input_grads: &[Option<Arc<GradBuffer<f32, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<f32, B>,
+        input_grads: &[Option<Arc<GradBuffer<f32, B>>>],
+    ) -> Result<(), B::Error> {
         let (grad_a, grad_u) = selective_scan_backward(&self.a_bar, &self.h, grad_out);
         let backend = B::default();
         if let Some(Some(gradient)) = input_grads.first() {
-            coeus_ops::add_assign(gradient.write(), &grad_a, &backend);
+            coeus_ops::add_assign(gradient.write(), &grad_a, &backend)?;
         }
         if let Some(Some(gradient)) = input_grads.get(1) {
-            coeus_ops::add_assign(gradient.write(), &grad_u, &backend);
+            coeus_ops::add_assign(gradient.write(), &grad_u, &backend)?;
         }
+        Ok(())
     }
 }
 

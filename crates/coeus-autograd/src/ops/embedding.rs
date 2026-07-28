@@ -42,7 +42,11 @@ where
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref gw)) = input_grads.get(0) {
             let gw_update = coeus_ops::embedding_backward_with_padding_idx(
@@ -53,8 +57,9 @@ where
                 &backend,
             );
             let gl = gw.write();
-            coeus_ops::add_assign(gl, &gw_update, &backend);
+            coeus_ops::add_assign(gl, &gw_update, &backend)?;
         }
+        Ok(())
     }
 }
 

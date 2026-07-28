@@ -1,5 +1,31 @@
 # Coeus Gap Audit
 
+## ATLAS-AUTOGRAD-SAFETY-018: Infallible backward traversal
+
+**Location**: `crates/coeus-autograd/src/node.rs`, `var.rs`, and operation
+node implementations.
+**Gap**: 143 fallible backend mutation or direct-dispatch calls discarded
+their `Result` because the autograd graph contract returned `()`. A backend
+failure could leave partial gradients while the caller observed success.
+**Resolution**: ADR-0042 makes the graph traversal and every node return the
+backend's typed error, with no compatibility or fallback path.
+**Evidence**: warning-denied `coeus-autograd` all-target Clippy passes. The
+failure-injection regression observes the exact `BackendError::Storage`.
+Nextest passes 102 autograd/FFT and 268 NN tests. All 24 executable doctests
+pass; two pre-existing NN doctests remain ignored. SemVer checks against
+`origin/main` report the `BackwardNode` and `BinaryAutogradOp` return changes
+as requiring a major release. Exact-head run `30397554467` attempt 2 passes
+WGPU (`90407664433`), ROCm
+(`90407664470`), CUDA (`90407664479`), and Metal (`90407664482`);
+required-device ROCm (`90407665417`) is intentionally skipped. Attempt 1
+failed before Coeus in Leto's missing `T: UnitScalar` stencil contract; Leto
+PR #77 repaired that provider-owned bound before the successful rerun.
+**Residual**: compilation exposes 54 ignored fallible normalization mutations
+in `coeus-nn` and one ignored distributed mutation outside this increment;
+they remain separate typed-propagation work. No runtime, allocation, or
+binary-size improvement is claimed.
+**Status**: complete at `81eeec09`; merge delivery pending.
+
 ## ATLAS-CUDA-SAFETY-017: Pooling physical-index contract
 
 **Location**: `crates/coeus-cuda/src/kernels/validation.rs` and

@@ -40,7 +40,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // Scatter-add the output gradient back to input positions.
@@ -94,8 +98,9 @@ where
 
             // Accumulate increment into the gradient buffer.
             let gi_increment = Tensor::from_slice(in_shape.clone(), &gi_data);
-            coeus_ops::add_assign(gl, &gi_increment, &backend);
+            coeus_ops::add_assign(gl, &gi_increment, &backend)?;
         }
+        Ok(())
     }
 }
 

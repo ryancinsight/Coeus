@@ -70,7 +70,9 @@ fn swiglu_backward_populates_parameter_grads() {
     );
 
     let output = swiglu.forward(&input);
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     for (i, p) in swiglu.parameters().iter().enumerate() {
         let grad = p

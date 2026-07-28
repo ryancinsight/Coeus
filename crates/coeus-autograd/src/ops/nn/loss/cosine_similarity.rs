@@ -54,7 +54,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let temp_grad;
         let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
@@ -69,7 +73,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         let want_x1 = matches!(input_grads.first(), Some(Some(_)));
         let want_x2 = matches!(input_grads.get(1), Some(Some(_)));
         if !want_x1 && !want_x2 {
-            return;
+            return Ok(());
         }
 
         // d/d_x1: grad_unit_x1[n,k] (already computed at forward time).
@@ -87,7 +91,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         if let Some(Some(ref g)) = input_grads.first() {
             let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &dx1, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
             let mut dx2 = vec![T::zero(); self.rows * self.feat];
@@ -100,8 +104,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
             }
             let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &dx2, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
+
+        Ok(())
     }
 }
 

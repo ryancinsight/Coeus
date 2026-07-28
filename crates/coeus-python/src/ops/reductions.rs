@@ -1,7 +1,7 @@
 use crate::tensor::PyTensor;
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 
 #[pyfunction]
@@ -126,11 +126,11 @@ pub fn amax(input: &PyTensor, py: Python<'_>) -> PyResult<f64> {
     if input.inner.tensor.numel() == 0 {
         return Err(PyValueError::new_err("amax: empty tensor has no maximum"));
     }
-    let v = py.allow_threads(|| {
+    py.allow_threads(|| {
         let backend = MoiraiBackend::new();
         coeus_ops::amax::<f64, MoiraiBackend>(&input.inner.tensor, &backend)
-    });
-    Ok(v)
+    })
+    .map_err(|error| PyRuntimeError::new_err(error.to_string()))
 }
 
 #[pyfunction]
@@ -138,11 +138,11 @@ pub fn amin(input: &PyTensor, py: Python<'_>) -> PyResult<f64> {
     if input.inner.tensor.numel() == 0 {
         return Err(PyValueError::new_err("amin: empty tensor has no minimum"));
     }
-    let v = py.allow_threads(|| {
+    py.allow_threads(|| {
         let backend = MoiraiBackend::new();
         coeus_ops::amin::<f64, MoiraiBackend>(&input.inner.tensor, &backend)
-    });
-    Ok(v)
+    })
+    .map_err(|error| PyRuntimeError::new_err(error.to_string()))
 }
 
 #[pyfunction]

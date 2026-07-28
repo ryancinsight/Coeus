@@ -1,5 +1,28 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-AUTOGRAD-SAFETY-018 Fallible backward contract [major][arch]
+
+- [x] Record the typed failure contract and migration in ADR-0042.
+- [x] Return `Result<(), B::Error>` from the graph seam and every operation
+      node.
+- [x] Update every in-repository caller and public doctest.
+- [x] Add failure propagation and existing-gradient regression evidence.
+- [x] Pass warning-denied Clippy, Nextest, doctests, provider CI, and SemVer
+      classification.
+
+Acceptance: no backend mutation result is ignored or converted to a fallback.
+Traversal returns the exact backend error at the first failed node. The
+successful path remains statically dispatched and allocation-neutral.
+Local evidence: warning-denied `coeus-autograd` all-target Clippy passes;
+Nextest passes 102 autograd/FFT and 268 NN tests; 24 executable doctests pass
+(two pre-existing NN doctests remain ignored). SemVer checks against
+`origin/main` identify the two public trait-return changes as requiring a
+major release. Exact-head provider run `30397554467` attempt 2 passes WGPU
+(`90407664433`), ROCm (`90407664470`), CUDA (`90407664479`), and Metal
+(`90407664482`); required-device ROCm (`90407665417`) is intentionally
+skipped. Attempt 1 exposed and triggered the upstream Leto `UnitScalar`
+contract repair merged as Leto PR #77.
+
 ## ATLAS-CUDA-SAFETY-017 Pooling physical-index contract [arch][patch]
 
 - [x] Promote physical layout/allocation validation into the shared CUDA

@@ -31,7 +31,9 @@ fn no_grad_blocks_operation_graph_construction() {
         "tracked op output must carry a backward node"
     );
 
-    sum(&tracked).backward();
+    sum(&tracked)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(x.grad().unwrap().as_slice(), &[1.0, 0.0, 1.0]);
 }
 
@@ -57,6 +59,8 @@ fn no_grad_preserves_explicit_leaf_requires_grad() {
         y.grad.is_some(),
         "tracking must resume for later operations"
     );
-    sum(&y).backward();
+    sum(&y)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(x.grad().unwrap().as_slice(), &[2.0, 2.0]);
 }

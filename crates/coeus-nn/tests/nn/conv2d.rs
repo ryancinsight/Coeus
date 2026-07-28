@@ -65,7 +65,9 @@ fn test_conv2d_backward_gradients_match_reference() {
     );
 
     let output = conv.forward(&input);
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     let input_grad = input.grad().expect("input gradient must be set");
     assert_eq!(input_grad.shape(), &[1, 1, 3, 3]);

@@ -27,7 +27,9 @@ fn test_softmax_parity() {
 
     // Backward
     let loss_coeus = coeus_autograd::sum(&out_coeus);
-    loss_coeus.backward();
+    loss_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     let dx_coeus = x_coeus.grad().unwrap();
     let expected_softmax_dx = vec![
@@ -63,7 +65,9 @@ fn test_cross_entropy_loss_parity() {
     );
 
     // Backward
-    loss_coeus.backward();
+    loss_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     let dlogits_coeus = logits_coeus.grad().unwrap();
     let expected_cross_entropy_dlogits = vec![

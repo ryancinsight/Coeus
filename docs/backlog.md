@@ -1,5 +1,28 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-AUTOGRAD-SAFETY-018 — Propagate backward failures [major] [arch] — complete
+
+- Owner: Codex; scope: `coeus-autograd` graph traversal, every
+  `BackwardNode` implementation, and in-repository callers.
+- Outcome: return the backend's typed error from every failed gradient
+  computation or accumulation without partial-success reporting.
+- Non-goals: gradient formula changes, backend fallback, boxed error erasure,
+  compatibility wrappers, or performance claims.
+- Acceptance: warning-denied all-target Clippy reports no ignored `Result`;
+  a failure-injecting backend regression observes the exact error; existing
+  value-semantic gradients and doctests pass.
+- Risk/change class: `[major] [arch]`; `backward` and `backward_with_seed`
+  change from infallible public methods to typed `Result`.
+- Status: implementation and in-repository caller migration complete. Local
+  warning-denied `coeus-autograd` Clippy passes; Nextest passes 102
+  autograd/FFT and 268 NN tests; 24 executable doctests pass. SemVer checks
+  against `origin/main` classify the public trait-return changes as major.
+  Exact-head run `30397554467` attempt 2 passes WGPU (`90407664433`), ROCm
+  (`90407664470`), CUDA (`90407664479`), and Metal (`90407664482`);
+  required-device ROCm (`90407665417`) is intentionally skipped. Attempt 1
+  exposed the upstream Leto `UnitScalar` contract defect, fixed by Leto PR
+  #77 before the successful rerun.
+
 ## ATLAS-CUDA-SAFETY-017 — Bound pooling physical indices [patch] [arch] — complete
 
 - Owner: Codex; scope: shared CUDA layout/storage validation and the canonical

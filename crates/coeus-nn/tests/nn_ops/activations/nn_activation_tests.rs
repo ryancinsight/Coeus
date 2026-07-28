@@ -25,7 +25,9 @@ fn test_elu_activation() {
     }
 
     // Backward pass
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     let grad_slice = input.grad().unwrap().as_slice().to_vec();
 
@@ -66,7 +68,9 @@ fn test_softplus_activation() {
     }
 
     // Backward pass
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     let grad_slice = input.grad().unwrap().as_slice().to_vec();
 
@@ -113,7 +117,9 @@ fn test_gelu_tanh_activation() {
     }
 
     // Backward pass
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     let grad_slice = input.grad().unwrap().as_slice().to_vec();
 
@@ -162,7 +168,9 @@ fn test_leaky_relu_activation() {
     }
 
     // Backward pass
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     let grad_slice = input.grad().unwrap().as_slice().to_vec();
 
@@ -200,14 +208,18 @@ fn test_non_contiguous_activations() {
     // Test ELU on transposed view
     let output_elu = elu(&input);
     assert_eq!(output_elu.tensor.shape(), &[3, 2]);
-    output_elu.backward();
+    output_elu
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
 
     // Reset gradient for next test
     let input2 = Var::new(input_raw.transpose(), true);
     let output_leaky = leaky_relu(&input2, 0.2);
     assert_eq!(output_leaky.tensor.shape(), &[3, 2]);
-    output_leaky.backward();
+    output_leaky
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input2.grad().is_some());
 }
 
@@ -229,7 +241,8 @@ fn test_glu_forward_and_gradient() {
     assert!((o[1] - 2.0 * s4).abs() < 1e-12, "glu[1]: {}", o[1]);
 
     // grad of sum(glu): d/da_i = sigma(b_i); d/db_i = a_i * sigma(b_i)(1-sigma(b_i)).
-    out.backward();
+    out.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let g = input.grad().expect("glu input grad");
     let gs = g.as_slice();
     let expected = [

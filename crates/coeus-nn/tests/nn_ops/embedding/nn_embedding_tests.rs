@@ -51,7 +51,9 @@ fn test_embedding_forward_backward_indices() {
     assert_eq!(&out_slice[9..12], &[2.0, 2.1, 2.2]);
 
     // Backward pass
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients on weights
     let weight_grad = layer.weight.grad().unwrap();
@@ -126,7 +128,9 @@ fn test_embedding_non_contiguous() {
 
     // Backward pass
     let grad_out = Tensor::from_slice(vec![2, 2, 2], &[1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]);
-    output.backward_with_seed(grad_out);
+    output
+        .backward_with_seed(grad_out)
+        .expect("invariant: valid autograd fixture completes backward");
 
     let weight_grad = layer.weight.grad().unwrap();
     assert_eq!(weight_grad.shape(), &[3, 2]);

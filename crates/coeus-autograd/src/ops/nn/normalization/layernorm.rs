@@ -1,4 +1,4 @@
-﻿use crate::grad_buffer::GradBuffer;
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar};
@@ -40,7 +40,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lay
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let dy = grad_out; // [N, D]
         let mut dy_w = coeus_ops::mul(dy, &self.w_reshaped_captured, &backend);
@@ -49,49 +53,47 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lay
                 &coeus_ops::mul(dy, &self.x_hat_clone, &backend),
                 0,
                 &backend,
-            )
-            .expect("invariant: layernorm gamma gradient axis is valid");
+            )?;
             let dg = dg_t.reshape([self.d]);
             let gl = gw.write();
-            coeus_ops::add_assign(gl, &dg, &backend);
+            coeus_ops::add_assign(gl, &dg, &backend)?;
         }
 
         // ── dL/dbeta = sum(dy, dim=0) [D] ──
         if let Some(Some(ref gb)) = input_grads.get(2) {
-            let db_t = coeus_ops::sum_axis(dy, 0, &backend)
-                .expect("invariant: layernorm beta gradient axis is valid");
+            let db_t = coeus_ops::sum_axis(dy, 0, &backend)?;
             let db = db_t.reshape([self.d]);
             let gl = gb.write();
-            coeus_ops::add_assign(gl, &db, &backend);
+            coeus_ops::add_assign(gl, &db, &backend)?;
         }
 
         // ── dL/dx ──
         if let Some(Some(ref gx)) = input_grads.get(0) {
-            let sum_dy_w = coeus_ops::sum_axis(&dy_w, 1, &backend)
-                .expect("invariant: layernorm backward axis is valid"); // [N, 1]
+            let sum_dy_w = coeus_ops::sum_axis(&dy_w, 1, &backend)?; // [N, 1]
             let dy_w_xhat = coeus_ops::mul(&dy_w, &self.x_hat_clone, &backend); // [N, D]
-            let sum_dy_w_xhat = coeus_ops::sum_axis(&dy_w_xhat, 1, &backend)
-                .expect("invariant: layernorm backward axis is valid"); // [N, 1]
+            let sum_dy_w_xhat = coeus_ops::sum_axis(&dy_w_xhat, 1, &backend)?; // [N, 1]
 
             // term2 = x_hat * sum_dy_w_xhat + sum_dy_w
             let mut term2 = coeus_ops::mul(&self.x_hat_clone, &sum_dy_w_xhat, &backend); // [N, D]
-            coeus_ops::add_assign(&mut term2, &sum_dy_w, &backend);
+            coeus_ops::add_assign(&mut term2, &sum_dy_w, &backend)?;
 
             // dy_w = dy_w * d_const
-            coeus_ops::mul_assign(&mut dy_w, &self.d_const, &backend);
+            coeus_ops::mul_assign(&mut dy_w, &self.d_const, &backend)?;
 
             // term = dy_w - term2
-            coeus_ops::sub_assign(&mut dy_w, &term2, &backend);
+            coeus_ops::sub_assign(&mut dy_w, &term2, &backend)?;
             let mut term = dy_w;
 
             // dx = term * istdev_clone / d_const
-            coeus_ops::mul_assign(&mut term, &self.istdev_clone, &backend);
-            coeus_ops::div_assign(&mut term, &self.d_const, &backend);
+            coeus_ops::mul_assign(&mut term, &self.istdev_clone, &backend)?;
+            coeus_ops::div_assign(&mut term, &self.d_const, &backend)?;
             let dx = term;
 
             let gl = gx.write();
-            coeus_ops::add_assign(gl, &dx, &backend);
+            coeus_ops::add_assign(gl, &dx, &backend)?;
         }
+
+        Ok(())
     }
 }
 

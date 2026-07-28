@@ -160,7 +160,9 @@ mod tests {
 
         assert_eq!(output.tensor.shape(), &[1, 2, 1, 1, 2]);
         assert_eq!(output.tensor.as_slice(), &[9.0, 11.0, 17.0, 20.0]);
-        output.backward();
+        output
+            .backward()
+            .expect("invariant: valid autograd fixture completes backward");
         assert_eq!(
             input.grad().expect("input gradient").as_slice(),
             &[2.0, 2.0, 3.0, 3.0]

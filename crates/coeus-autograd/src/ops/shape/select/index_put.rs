@@ -49,7 +49,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
 
         // ∂/∂x: overwrite zeroes the replaced positions (they no longer depend
@@ -64,7 +68,7 @@ where
                 coeus_ops::index_put(grad_out, &self.index_tensor, &zeros, false, &backend)
             };
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_x, &backend);
+            coeus_ops::add_assign(gl, &grad_x, &backend)?;
         }
 
         // ∂/∂v: each value lands at its `idx` position, so its gradient is the
@@ -72,8 +76,9 @@ where
         if let Some(Some(ref g)) = input_grads.get(1) {
             let grad_v = coeus_ops::index_select(grad_out, 0, &self.index_tensor, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_v, &backend);
+            coeus_ops::add_assign(gl, &grad_v, &backend)?;
         }
+        Ok(())
     }
 }
 

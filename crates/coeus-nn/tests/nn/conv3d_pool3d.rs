@@ -54,7 +54,9 @@ fn test_conv3d_backward_gradients_match_reference() {
     );
 
     let output = conv.forward(&input);
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     let input_grad = input.grad().expect("input gradient must be set");
     assert_eq!(input_grad.shape(), &[1, 1, 2, 2, 2]);
@@ -96,7 +98,9 @@ fn test_batchnorm3d_forward_and_backward() {
         assert!(val.abs() < 1e-7);
     }
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     assert!(bn.weight.grad().is_some());
     assert!(bn.bias.grad().is_some());
@@ -117,7 +121,9 @@ fn test_max_pool3d_forward_and_backward() {
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
     assert_eq!(output.tensor.as_slice(), &[8.0]);
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         input.grad().unwrap().as_slice(),
         &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
@@ -139,7 +145,9 @@ fn test_avg_pool3d_forward_and_backward() {
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
     assert_eq!(output.tensor.as_slice(), &[4.5]);
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().unwrap();
     for &g in grad.as_slice() {
         assert!((g - 0.125).abs() < 1e-7);

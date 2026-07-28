@@ -27,7 +27,8 @@ fn test_index_put_backward_overwrite() {
         &[1.0, 10.0, 3.0, 20.0, 5.0],
         "fwd overwrite"
     );
-    out.backward();
+    out.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         x.grad().unwrap().as_slice(),
         &[1.0, 0.0, 1.0, 0.0, 1.0],
@@ -59,7 +60,8 @@ fn test_index_put_backward_accumulate() {
         &[1.0, 12.0, 3.0, 24.0, 5.0],
         "fwd accumulate"
     );
-    out.backward();
+    out.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         x.grad().unwrap().as_slice(),
         &[1.0, 1.0, 1.0, 1.0, 1.0],

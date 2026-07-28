@@ -24,7 +24,9 @@ fn log_sigmoid_forward_and_backward() {
         &expected,
         1e-10,
     );
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().expect("log_sigmoid requires grad");
     assert_close_slice(
         "log_sigmoid_backward",
@@ -54,7 +56,9 @@ fn tanhshrink_forward_and_backward() {
         &expected,
         1e-12,
     );
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().expect("tanhshrink requires grad");
     assert_close_slice(
         "tanhshrink_backward",

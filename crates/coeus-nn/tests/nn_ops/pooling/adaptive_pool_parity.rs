@@ -207,7 +207,9 @@ fn adaptive_avg_pool1d_backward_matches_numerical_gradient() {
         Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
         true,
     );
-    m.forward(&x).backward();
+    m.forward(&x)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let analytic: Vec<f64> = x
         .grad()
         .expect("adaptive avg pool 1d gradient")
@@ -237,7 +239,9 @@ fn adaptive_avg_pool2d_backward_matches_numerical_gradient() {
         Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
         true,
     );
-    m.forward(&x).backward();
+    m.forward(&x)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let analytic: Vec<f64> = x
         .grad()
         .expect("adaptive avg pool 2d gradient")
@@ -268,7 +272,9 @@ fn adaptive_max_pool1d_backward_matches_numerical_gradient() {
         Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
         true,
     );
-    m.forward(&x).backward();
+    m.forward(&x)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let analytic: Vec<f64> = x
         .grad()
         .expect("adaptive max pool 1d gradient")
@@ -300,7 +306,9 @@ fn adaptive_max_pool2d_backward_matches_numerical_gradient() {
         Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
         true,
     );
-    m.forward(&x).backward();
+    m.forward(&x)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let analytic: Vec<f64> = x
         .grad()
         .expect("adaptive max pool 2d gradient")

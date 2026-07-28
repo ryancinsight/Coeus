@@ -52,21 +52,26 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Log
     //   sum_g  = sum_axis(g, axis)          — shape matches probs after broadcasting
     //   scaled = mul(probs, sum_g)           — element-wise, broadcasts sum_g along axis
     //   dx     = sub(g, scaled)              — element-wise
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let Some(Some(ref acc)) = input_grads.first() else {
-            return;
+            return Ok(());
         };
         let backend = B::default();
         // Σ_j g_j along axis; result shape has axis dimension reduced (broadcast-compatible)
-        let sum_g = coeus_ops::sum_axis(grad_out, self.axis, &backend)
-            .expect("invariant: log_softmax backward axis matches the saved input rank");
+        let sum_g = coeus_ops::sum_axis(grad_out, self.axis, &backend)?;
         // p_i · Σ_j g_j
         let scaled = coeus_ops::mul(&self.probs, &sum_g, &backend);
         // g_i − p_i · Σ_j g_j
         let dx = coeus_ops::sub(grad_out, &scaled, &backend);
 
         let lock = acc.write();
-        coeus_ops::add_assign(lock, &dx, &backend);
+        coeus_ops::add_assign(lock, &dx, &backend)?;
+
+        Ok(())
     }
 }
 

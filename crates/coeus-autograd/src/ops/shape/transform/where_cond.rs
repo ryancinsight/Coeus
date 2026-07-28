@@ -1,4 +1,4 @@
-﻿// ── Tracked where_cond ──
+// ── Tracked where_cond ──
 //
 // Backward of where_cond(cond, on_true, on_false):
 //   d on_true  += grad_out * any_mask
@@ -38,7 +38,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         // inputs: [cond=0, on_true=1, on_false=2]
         // grad cond  = 0 (no derivative through boolean mask)
@@ -47,15 +51,16 @@ where
         if let Some(Some(ref g)) = input_grads.get(1) {
             let d_true = coeus_ops::mul(grad_out, &self.any_mask, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &d_true, &backend);
+            coeus_ops::add_assign(lock, &d_true, &backend)?;
         }
         if let Some(Some(ref g)) = input_grads.get(2) {
             let one = Tensor::full_on(self.any_mask.shape(), T::from_f64(1.0), &backend);
             let inv = coeus_ops::sub(&one, &self.any_mask, &backend);
             let d_false = coeus_ops::mul(grad_out, &inv, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &d_false, &backend);
+            coeus_ops::add_assign(lock, &d_false, &backend)?;
         }
+        Ok(())
     }
 }
 
@@ -81,9 +86,12 @@ where
 
     // Compute mask once; reuse in backward.
     let mask_pos =
-        coeus_ops::elementwise_unary(&cond.tensor, &backend, coeus_ops::UnaryOp::ReluGrad).expect("elementwise_unary");
-    let cond_neg = coeus_ops::elementwise_unary(&cond.tensor, &backend, coeus_ops::UnaryOp::Neg).expect("elementwise_unary");
-    let mask_neg = coeus_ops::elementwise_unary(&cond_neg, &backend, coeus_ops::UnaryOp::ReluGrad).expect("elementwise_unary");
+        coeus_ops::elementwise_unary(&cond.tensor, &backend, coeus_ops::UnaryOp::ReluGrad)
+            .expect("elementwise_unary");
+    let cond_neg = coeus_ops::elementwise_unary(&cond.tensor, &backend, coeus_ops::UnaryOp::Neg)
+        .expect("elementwise_unary");
+    let mask_neg = coeus_ops::elementwise_unary(&cond_neg, &backend, coeus_ops::UnaryOp::ReluGrad)
+        .expect("elementwise_unary");
     let any_mask = coeus_ops::add(&mask_pos, &mask_neg, &backend);
 
     let one = Tensor::full_on(any_mask.shape(), T::from_f64(1.0), &backend);

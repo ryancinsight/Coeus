@@ -58,7 +58,9 @@ fn test_var_ops_overloads() {
     );
     let prod2 = &a2 * &b2;
     let loss2 = coeus_autograd::sum(&prod2);
-    loss2.backward();
+    loss2
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let ga2 = a2.grad().unwrap();
     let gb2 = b2.grad().unwrap();
     assert!((ga2.as_slice()[0] - 4.0).abs() < 1e-10);
