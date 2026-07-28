@@ -79,14 +79,18 @@ verification.
       cases covering positive inputs, reflection, and gamma poles.
 - [x] Replace the WGPU unsupported-operation assertion with a provider
       expression contract assertion.
-- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
+- [x] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
       Hephaestus expression seam and the Coeus consumer head.
 
-Status: source integration and local contract coverage are complete; exact-head
-provider and consumer CI is required before this item closes. The WGPU and
-Metal paths use the provider-owned Lanczos/reflection expression; CUDA and ROCm
-use their native `lgammaf`/`lgamma` device functions. No digamma gradient or
-non-f32 contract is implied.
+Status: complete for f32 forward dispatch. The WGPU and Metal paths use the
+provider-owned Lanczos/reflection expression; CUDA and ROCm use their native
+`lgammaf`/`lgamma` device functions. Hephaestus PR #118 passed WGPU
+`90086428952`, CUDA `90086430178`, ROCm `90086430143`, and Metal `90086428160`.
+Coeus PR #231 merged at `971fab9614b97bd708a716d01684da58fd1331ba`; its
+consumer jobs passed WGPU `90088836682`, CUDA `90088836688`, ROCm `90088836731`,
+and Metal `90088836675`. Required-device ROCm `90088837591` was skipped because
+no hosted AMD runner was dispatched. No digamma gradient or non-f32 contract is
+implied.
 
 ## ATLAS-COEUS-HEPHAESTUS-GELU-PARITY-001 [arch]
 

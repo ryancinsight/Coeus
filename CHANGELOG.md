@@ -25,7 +25,8 @@
   CUDA, ROCm, and Metal f32 implementations. CUDA/ROCm use native device
   functions; WGPU/Metal use the shared Lanczos/reflection expression. Leto
   differential coverage includes positive values, reflection, and poles;
-  exact-head CI remains open for this increment.
+  exact-head provider and consumer CI passes; required-device ROCm remains
+  skipped when no hosted AMD runner is available.
 
 - [arch] Routes Coeus exact `Gelu` and `GeluGrad` through the Hephaestus ROCm
   and Metal f32 providers with Leto CPU differential coverage. Exact-head
