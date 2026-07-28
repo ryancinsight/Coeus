@@ -287,9 +287,9 @@
 - Owner: Codex `/coeus`; last-update: 2026-07-28; scope:
   `crates/coeus-wgpu/src/kernels/layout.rs`, its 23 consumers, and the `coeus-ops`
   backend-operation return contract.
-- Current claim: shared-tree slice owned by this session; scope is the native
-  WGPU PoolOps 2D forward/backward dispatch and its CPU/WGPU callers. Peer
-  reduction/error edits remain outside this claim.
+- Current claim: shared-tree slice owned by this session; scope is the Coeus
+  provider manifest source identity and generated Atlas overlay resolution.
+  Peer reduction/error edits and the dirty lockfile remain outside this claim.
 - Outcome: replace unchecked `usize`→WGSL `u32` layout metadata narrowing and
   input-dependent dispatch panics with one typed validation/error boundary.
 - Acceptance: every WGPU kernel consumes the validated metadata type; failure
