@@ -252,6 +252,32 @@ outside this increment. Hosted exact-head run `30339683483` passed CUDA
 (`90212208797`) provider contracts. Required-device ROCm (`90212209211`) was
 skipped because no hosted AMD runner was dispatched.
 
+## ATLAS-COEUS-DISPATCH-003: CUDA fused dispatch failure boundary
+
+**Location**: coeus-cuda/src/lib.rs, coeus-cuda/src/kernels/{fuse,reduce}.rs,
+and coeus-cuda/src/error.rs.
+**Gap**: CUDA fused elementwise and fused-reduction helpers represented driver,
+context, layout, compilation, cache, transfer, and launch failures as false.
+The public entry points then evaluated the expression through the CPU path,
+which silently changed the selected backend and discarded provider diagnostics.
+**Resolution target**: return typed CudaBackendError values from the native
+helpers and public fused entry points. The CUDA-feature path must either finish
+on CUDA or return an error; the explicitly CPU-backed no-CUDA feature remains a
+separate construction-time backend choice.
+**Invariant**: selecting CudaBackend with the CUDA feature never silently
+executes the Leto CPU evaluator after a native dispatch failure. Fused layout
+metadata remains copied directly into device storage.
+**Evidence target**: no boolean fused-dispatch residual, no CUDA-feature CPU
+fallback residual, updated no-CUDA and CUDA-feature callers, warning-denied
+package checks, focused Nextest, and CUDA differential tests when a device and
+linker are available.
+**Status**: implementation complete for the claimed files. Rustfmt, locked
+metadata, diff hygiene, and residual scans pass. The locked package check,
+clippy, doctest, and Nextest gates stop before compilation because the
+peer-owned lockfile contains a local overlay change that requires regeneration;
+the peer-owned lockfile/reduction work remains outside this increment. No CUDA
+runtime or performance claim is made.
+
 ## ATLAS-CUDA-SAFETY-016: Remaining CUDA launch-parameter narrowing
 
 **Location**: remaining non-convolution launchers under

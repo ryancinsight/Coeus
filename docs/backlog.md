@@ -19,6 +19,28 @@
 - Status: implementation complete at `a8dcc51c`; final exact-head evidence
   remains pending.
 
+## ATLAS-COEUS-DISPATCH-003 — Remove CUDA fused CPU fallback [arch] — in-progress
+
+- Owner: Codex on `codex/coeus-cuda-common-activation-parity`; scope:
+  `crates/coeus-cuda/src/error.rs`, `crates/coeus-cuda/src/kernels/{fuse,reduce}.rs`,
+  the fused public callers/tests, and synchronized ADR/audit artifacts.
+- Outcome: preserve CUDA provider selection for fused elementwise and fused
+  reduction operations by returning typed provider failures instead of routing
+  failed launches through the CPU evaluator.
+- Non-goals: the feature-disabled CPU-backed `CudaBackend`, provider device
+  initialization/COW failure-boundary migration, and unrelated CUDA operation
+  families.
+- Acceptance: native fused helpers return `Result`; public fused entry points
+  return `Result<Tensor<...>, CudaBackendError>`; no CUDA-feature CPU fallback
+  remains; no host round trip is introduced for layout metadata; callers and
+  value-semantic tests consume the typed result.
+- Risk/change class: `[arch]` public failure-contract migration.
+- Status: implementation complete for the claimed files; rustfmt, metadata, diff
+  hygiene, and residual scans pass. The locked package check, clippy, doctest,
+  and Nextest gates stop before compilation because the peer-owned `Cargo.lock`
+  contains a local overlay change that requires regeneration; the lockfile and
+  peer reduction/error files remain outside this claim.
+
 ## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback [arch]
 
 - Owner: Codex; scope: `coeus-ops` and `coeus-autograd` ConvTranspose3d

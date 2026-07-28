@@ -4,6 +4,13 @@
 
 ### Changed
 
+- [major] Make CUDA fused elementwise and fused-reduction entry points return
+  typed provider failures instead of silently evaluating through the CPU path
+  after a native dispatch failure. Native fused dispatch preserves direct
+  device metadata transfer and reports validation, compilation, cache, transfer,
+  and launch errors. The feature-disabled CPU-backed CUDA backend remains
+  explicitly CPU-backed; no runtime or memory delta is claimed.
+
 - [major] Make Coeus 1D pooling dispatch return the backend-associated
   `Result`. CPU remains directly Leto-backed, WGPU rejects invalid rank/layout/
   parameter/workgroup metadata before native WGSL submission, and CUDA

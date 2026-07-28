@@ -6,10 +6,12 @@ use crate::kernels::validation::{
     CUDA_BLOCK_SIZE,
 };
 use crate::storage::CudaStorage;
-use coeus_core::{ComputeBackend, Layout, Storage};
+use crate::CudaBackendError;
+use coeus_core::{Layout, Storage};
 use coeus_ops::fuse::ExprNode;
 use coeus_tensor::broadcast::broadcast_shapes;
 use coeus_tensor::Tensor;
+use hephaestus_cuda::ComputeDevice;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
 
@@ -120,8 +122,8 @@ pub fn compile_cuda_to_ptx(src: &str) -> Result<String, String> {
         // `nvrtcGetPTXSize` reports the buffer size *including* the trailing NUL
         // terminator, so `ptx_bytes` ends in one or more NUL bytes. Trim them;
         // otherwise the PTX `String` carries an interior NUL and every
-        // `CString::new(ptx)` downstream fails, silently degrading all JIT
-        // kernels to the CPU fallback.
+        // `CString::new(ptx)` downstream fails, rejecting the JIT dispatch
+        // without exposing an invalid module to the driver.
         while ptx_bytes.last() == Some(&0) {
             ptx_bytes.pop();
         }
@@ -137,34 +139,44 @@ pub(crate) fn get_or_create_kernel(
     cuda_src: &str,
     func_name: &str,
 ) -> Option<Arc<SafeCachedKernel>> {
+    try_get_or_create_kernel(expr_str, cuda_src, func_name).ok()
+}
+
+pub(crate) fn try_get_or_create_kernel(
+    expr_str: &str,
+    cuda_src: &str,
+    func_name: &str,
+) -> Result<Arc<SafeCachedKernel>, String> {
     let cache = KERNEL_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
 
     // Fast path: read-lock. Concurrent cache hits load the same `Arc<SafeCachedKernel>`
     // reference without serialising through a single critical section.
     {
-        let map = cache.read().ok()?;
+        let map = cache
+            .read()
+            .map_err(|_| "fused CUDA kernel cache read lock poisoned".to_string())?;
         if let Some(kernel) = map.get(expr_str) {
-            return Some(kernel.clone());
+            return Ok(kernel.clone());
         }
     }
 
-    let ptx = compile_cuda_to_ptx(cuda_src).ok()?;
-    let drv = CudaDriver::get()?;
-    let ptx_c = std::ffi::CString::new(ptx).ok()?;
+    let ptx = compile_cuda_to_ptx(cuda_src)?;
+    let drv = CudaDriver::get().ok_or_else(|| "CUDA driver unavailable".to_string())?;
+    let ptx_c = std::ffi::CString::new(ptx).map_err(|error| error.to_string())?;
+    let func_name_c = std::ffi::CString::new(func_name).map_err(|error| error.to_string())?;
     let mut module = std::ptr::null_mut();
 
     let kernel = unsafe {
         let res = (drv.cu_module_load_data)(&mut module, ptx_c.as_ptr() as *const std::ffi::c_void);
         if res != 0 {
-            return None;
+            return Err(format!("cuModuleLoadData returned {res}"));
         }
 
         let mut func = std::ptr::null_mut();
-        let func_name_c = std::ffi::CString::new(func_name).ok()?;
         let res = (drv.cu_module_get_function)(&mut func, module, func_name_c.as_ptr());
         if res != 0 {
             (drv.cu_module_unload)(module);
-            return None;
+            return Err(format!("cuModuleGetFunction returned {res}"));
         }
 
         Arc::new(SafeCachedKernel { module, func })
@@ -173,12 +185,14 @@ pub(crate) fn get_or_create_kernel(
     // Slow path: write-lock on cache insertion. Re-check for an entry inserted by
     // a concurrent thread between our read-lock and write-lock acquisitions so the
     // last writer wins on duplicates rather than leaking the unloaded module.
-    let mut map = cache.write().ok()?;
+    let mut map = cache
+        .write()
+        .map_err(|_| "fused CUDA kernel cache write lock poisoned".to_string())?;
     if let Some(existing) = map.get(expr_str) {
-        return Some(existing.clone());
+        return Ok(existing.clone());
     }
     map.insert(expr_str.to_string(), kernel.clone());
-    Some(kernel)
+    Ok(kernel)
 }
 
 /// Compile and dispatch a dynamically generated fused CUDA kernel.
@@ -186,21 +200,25 @@ pub fn dispatch_fused<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     expr: &E,
     output: &mut CudaStorage<T>,
     out_layout: &Layout,
-) -> bool {
-    let Some(drv) = CudaDriver::get() else {
-        return false;
-    };
-    let Some(_ctx) = get_cuda_context() else {
-        return false;
-    };
-    let Some(total) = checked_numel(out_layout) else {
-        return false;
-    };
-    let Some(grid_size) = launch_grid_size(total) else {
-        return false;
-    };
+) -> Result<(), CudaBackendError> {
+    const OPERATION: &str = "fused elementwise";
+
+    let drv = CudaDriver::get()
+        .ok_or_else(|| CudaBackendError::fusion(OPERATION, "CUDA driver unavailable"))?;
+    get_cuda_context().ok_or_else(|| {
+        CudaBackendError::fusion(OPERATION, "CUDA context is unavailable or cannot be bound")
+    })?;
+    let total = checked_numel(out_layout).ok_or_else(|| {
+        CudaBackendError::fusion(OPERATION, "output element-count arithmetic overflow")
+    })?;
+    let grid_size = launch_grid_size(total).ok_or_else(|| {
+        CudaBackendError::fusion(OPERATION, "output element count cannot be dispatched")
+    })?;
     if out_layout.offset() != 0 || !out_layout.is_contiguous() || output.len() < total {
-        return false;
+        return Err(CudaBackendError::fusion(
+            OPERATION,
+            "output must be contiguous, offset-zero, and large enough for the result",
+        ));
     }
     let cuda_type = T::CUDA_TYPE;
 
@@ -208,11 +226,14 @@ pub fn dispatch_fused<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     let mut input_ptrs = Vec::new();
     expr.collect_inputs(&mut input_ptrs);
     let num_inputs = input_ptrs.len();
-    let Some(layout_count) = num_inputs.checked_add(1) else {
-        return false;
-    };
+    let layout_count = num_inputs
+        .checked_add(1)
+        .ok_or_else(|| CudaBackendError::fusion(OPERATION, "layout count arithmetic overflow"))?;
     if input_ptrs.iter().any(|ptr| ptr.is_null()) {
-        return false;
+        return Err(CudaBackendError::fusion(
+            OPERATION,
+            "expression contains a null tensor input",
+        ));
     }
 
     let inputs: Vec<&Tensor<T, CudaBackend>> = input_ptrs
@@ -228,17 +249,23 @@ pub fn dispatch_fused<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
         let input_layout = input.layout();
         let Some(broadcast_shape) = broadcast_shapes(input_layout.shape(), out_layout.shape())
         else {
-            return false;
+            return Err(CudaBackendError::fusion(
+                OPERATION,
+                "input and output layouts are not broadcast-compatible",
+            ));
         };
-        let Some(required) = checked_layout_storage_len(input_layout) else {
-            return false;
-        };
+        let required = checked_layout_storage_len(input_layout).ok_or_else(|| {
+            CudaBackendError::fusion(OPERATION, "input storage-bound arithmetic overflow")
+        })?;
         if broadcast_shape.as_ref() != out_layout.shape()
             || !layouts_fit_cuda(&[input_layout])
             || required.checked_sub(1).and_then(cuda_u32).is_none()
             || input.storage().len() < required
         {
-            return false;
+            return Err(CudaBackendError::fusion(
+                OPERATION,
+                "input layout or storage exceeds the CUDA launch contract",
+            ));
         }
     }
 
@@ -254,30 +281,34 @@ pub fn dispatch_fused<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     // 4. Create layouts buffer
     let mut layouts_gpu = Vec::new();
     if layouts_gpu.try_reserve_exact(layout_count).is_err() {
-        return false;
+        return Err(CudaBackendError::fusion(
+            OPERATION,
+            "layout metadata allocation failed",
+        ));
     }
     for input in &inputs {
-        let Ok(layout) = GpuLayoutInfo::try_from(input.layout()) else {
-            return false;
-        };
+        let layout = GpuLayoutInfo::try_from(input.layout()).map_err(|error| {
+            CudaBackendError::fusion(OPERATION, format!("input layout rejected: {error}"))
+        })?;
         layouts_gpu.push(layout);
     }
-    let Ok(out_layout_gpu) = GpuLayoutInfo::try_from(out_layout) else {
-        return false;
-    };
+    let out_layout_gpu = GpuLayoutInfo::try_from(out_layout).map_err(|error| {
+        CudaBackendError::fusion(OPERATION, format!("output layout rejected: {error}"))
+    })?;
     layouts_gpu.push(out_layout_gpu);
 
-    let Some(size_u32) = layouts_gpu
+    let size_u32 = layouts_gpu
         .len()
         .checked_mul(std::mem::size_of::<GpuLayoutInfo>() / 4)
-    else {
-        return false;
-    };
-    let mut layout_buf = CudaStorage::<u32>::new(size_u32);
+        .ok_or_else(|| CudaBackendError::fusion(OPERATION, "layout buffer size overflow"))?;
+    let layout_buf = CudaStorage::<u32>::new(size_u32);
     // SAFETY: `GpuLayoutInfo` is `#[repr(C)]` and derives `bytemuck::Pod`, so
     // its initialized contiguous storage can be viewed as `u32` words.
     let slice = unsafe { std::slice::from_raw_parts(layouts_gpu.as_ptr() as *const u32, size_u32) };
-    CudaBackend::new().copy_to_device(slice, &mut layout_buf);
+    let device = crate::backend::get_cuda_device();
+    device
+        .write_buffer(&layout_buf.buffer, slice)
+        .map_err(|source| CudaBackendError::dispatch(OPERATION, source))?;
 
     // 5. Generate C++ CUDA kernel source code
     let mut offset_calcs = String::new();
@@ -346,16 +377,14 @@ extern "C" __global__ void fused_kernel(
 
     // 6. Get or create kernel module
     let key = format!("fused_{}_{}", expr_str, cuda_type);
-    let Some(kernel) = get_or_create_kernel(&key, &cuda_src, "fused_kernel") else {
-        return false;
-    };
+    let kernel = try_get_or_create_kernel(&key, &cuda_src, "fused_kernel")
+        .map_err(|reason| CudaBackendError::fusion(OPERATION, reason))?;
 
     // 7. Marshal arguments and launch
     let mut out_ptr = output.cu_deviceptr();
     let mut layouts_ptr = layout_buf.cu_deviceptr();
-    let Some(mut n_val) = cuda_u32(total) else {
-        return false;
-    };
+    let mut n_val = cuda_u32(total)
+        .ok_or_else(|| CudaBackendError::fusion(OPERATION, "output count exceeds u32"))?;
 
     let mut in_ptrs: Vec<CUdeviceptr> = inputs
         .iter()
@@ -384,6 +413,13 @@ extern "C" __global__ void fused_kernel(
             args.as_mut_ptr(),
             std::ptr::null_mut(),
         );
-        res == 0
+        if res == 0 {
+            Ok(())
+        } else {
+            Err(CudaBackendError::fusion(
+                OPERATION,
+                format!("cuLaunchKernel returned {res}"),
+            ))
+        }
     }
 }
