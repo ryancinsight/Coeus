@@ -37,8 +37,7 @@ fn test_wgpu_parity_conv1d_forward() {
         1,
         cpu_out.storage_mut(),
         &cpu_out_layout,
-    )
-    .expect("invariant: validated CPU max_pool2d dispatch must succeed");
+    );
 
     let in_g = to_gpu(&in_t);
     let w_g = to_gpu(&w_t);
@@ -56,8 +55,7 @@ fn test_wgpu_parity_conv1d_forward() {
         1,
         gpu_out.storage_mut(),
         &gpu_out_layout,
-    )
-    .expect("invariant: validated WGPU max_pool2d dispatch must succeed");
+    );
 
     let gpu_cpu = to_cpu(&gpu_out);
     let cs = cpu_out.as_slice();
@@ -105,8 +103,7 @@ fn test_wgpu_parity_conv2d_forward() {
         1,
         cpu_out.storage_mut(),
         &cpu_out_layout,
-    )
-    .expect("invariant: validated CPU avg_pool2d dispatch must succeed");
+    );
 
     let in_g = to_gpu(&in_t);
     let wg = to_gpu(&wt);
@@ -124,8 +121,7 @@ fn test_wgpu_parity_conv2d_forward() {
         1,
         gpu_out.storage_mut(),
         &gpu_out_layout,
-    )
-    .expect("invariant: validated WGPU avg_pool2d dispatch must succeed");
+    );
 
     let gpu_cpu = to_cpu(&gpu_out);
     let cs = cpu_out.as_slice();
