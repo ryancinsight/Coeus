@@ -243,6 +243,11 @@ test_unary_parity!(
     vec![-2.0, -1.0, 0.0, 0.5, 1.0, 2.0, -0.5, 1.5]
 );
 test_unary_parity!(
+    test_wgpu_parity_elu,
+    coeus_ops::elu,
+    vec![-2.0, -1.0, 0.0, 0.5, 1.0, 2.0, -0.5, 1.5]
+);
+test_unary_parity!(
     test_wgpu_parity_softplus,
     coeus_ops::softplus,
     vec![-2.0, -1.0, 0.0, 0.5, 1.0, 2.0, -0.5, 1.5]

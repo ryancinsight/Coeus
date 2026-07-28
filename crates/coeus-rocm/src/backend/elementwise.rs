@@ -84,6 +84,26 @@ macro_rules! activation_unary_dispatch {
             f32,
             N,
         >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Mish => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::MishOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::MishGrad => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::MishGradOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Elu => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::EluOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::EluGrad => hephaestus_rocm::unary_elementwise_strided_into::<
+            hephaestus_rocm::EluGradOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
             UnaryOp::Tan => hephaestus_rocm::unary_elementwise_strided_into::<
             hephaestus_rocm::TanOp,
             f32,

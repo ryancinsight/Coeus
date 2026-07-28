@@ -11,6 +11,17 @@
   runtime performance and resident-memory changes are not claimed without a
   controlled benchmark.
 
+- [minor] Complete Coeus f32 Mish and ELU forward/gradient routing across the
+  WGPU, CUDA, ROCm, and Metal backend contracts. ROCm and Metal use the native
+  Hephaestus strided providers; CUDA covers both contiguous and strided ELU
+  launch paths; Leto differential tests cover signed inputs and the zero
+  branch boundary. Targeted exact-head run `30353984154` passed CUDA
+  `90257861209`, WGPU `90257861154`, ROCm `90257861218`, and Metal
+  `90257861119`; required-device ROCm `90257861858` was skipped because no
+  hosted AMD runner was dispatched. The selectors execute the new ELU forward
+  and gradient contracts. No runtime performance or resident-memory delta is
+  claimed.
+
 - [patch] Routes native Coeus WGPU and CUDA copy-on-write detachment through
   the shared Hephaestus `ComputeDevice::copy_buffer` contract. This removes
   duplicated encoder and CUDA-driver copy logic while preserving device-local

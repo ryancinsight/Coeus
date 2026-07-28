@@ -157,6 +157,8 @@ pub fn launch_contiguous_unary<T: CudaScalar>(
         coeus_ops::UnaryOp::SiluGrad => "(1.0f / (1.0f + expf(-a[idx]))) * (1.0f + a[idx] * (1.0f - (1.0f / (1.0f + expf(-a[idx])))))",
         coeus_ops::UnaryOp::Mish => "a[idx] * tanhf(logf(1.0f + expf(a[idx])))",
         coeus_ops::UnaryOp::MishGrad => "tanhf(logf(1.0f + expf(a[idx]))) + a[idx] * (1.0f - tanhf(logf(1.0f + expf(a[idx]))) * tanhf(logf(1.0f + expf(a[idx])))) * (1.0f / (1.0f + expf(-a[idx])))",
+        coeus_ops::UnaryOp::Elu => "(a[idx] >= 0.0f) ? a[idx] : (expf(a[idx]) - 1.0f)",
+        coeus_ops::UnaryOp::EluGrad => "(a[idx] >= 0.0f) ? 1.0f : expf(a[idx])",
         coeus_ops::UnaryOp::Recip => "1.0f / a[idx]",
         coeus_ops::UnaryOp::Sign => "(a[idx] > 0.0f) ? 1.0f : ((a[idx] < 0.0f) ? -1.0f : 0.0f)",
         coeus_ops::UnaryOp::Floor => "floorf(a[idx])",

@@ -107,6 +107,34 @@ as `e6ba1c14`. Coeus exact-head run `30273987046` passed WGPU `90003264732`,
 CUDA `90003264777`, ROCm `90003265014`, and Metal `90003264805`; required-device
 ROCm `90003265412` was skipped because no registered AMD runner was available.
 
+## ATLAS-COEUS-HEPHAESTUS-ACTIVATION-TAIL-PARITY-001: Mish and ELU
+
+**Location**: the Coeus ROCm and Metal activation dispatch macros, CUDA
+contiguous and strided unary launch expressions, and the four backend contract
+suites.
+**Gap**: Hephaestus already exports native f32 `Mish`, `MishGrad`, `Elu`, and
+`EluGrad` markers for ROCm and Metal, and WGPU already emits all four
+expressions. Coeus ROCm and Metal rejected all four operations, while CUDA
+implemented Mish but rejected ELU in both launch paths.
+**Resolution**: dispatch ROCm and Metal through the existing Hephaestus
+strided marker seam; add the canonical ELU expressions to CUDA's contiguous and
+strided launch tables; retain WGPU's existing provider expression path. Extend
+the backend suites with Leto CPU differential checks for forward and gradient
+operations.
+**Residual**: parameterized activations, f64/reduced/vector contracts, and
+physical-device execution remain separate evidence scopes.
+**Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal provider/consumer
+CI; required-device ROCm is reported independently from adapterless provider
+compilation.
+**Status**: complete for the unparameterized f32 scope. Targeted exact-head
+Coeus run `30353984154` passed CUDA job `90257861209`, WGPU job `90257861154`,
+ROCm job `90257861218`, and Metal job `90257861119`; required-device ROCm job
+`90257861858` was skipped because no hosted AMD runner was dispatched. The WGPU
+and CUDA selectors execute the new ELU forward and gradient contracts. The
+external `recurseml/analysis` status returned its recurring analyzer error and
+is not repository-owned verification. ADR 0038 owns the provider and consumer
+contract.
+
 ## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001: f32 forward log-gamma
 
 **Location**: the WGPU unary expression, CUDA/ROCm/Metal provider elementwise
