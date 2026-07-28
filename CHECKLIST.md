@@ -71,6 +71,24 @@ physical-device execution claim is made. The external `recurseml/analysis`
 status returned its recurring analyzer error and is not repository-owned
 verification.
 
+## ATLAS-COEUS-HEPHAESTUS-CUDA-ACTIVATION-PARITY-001 [minor]
+
+- [ ] Route CUDA `GeluTanh`, `GeluTanhGrad`, `Softplus`, and `SoftplusGrad`
+      through the existing Hephaestus marker kernels for contiguous and
+      runtime-shaped strided layouts.
+- [ ] Add CUDA/Leto value-semantic forward and gradient parity coverage and
+      select the tests in the CUDA CI contract job.
+- [ ] Record exact-head CUDA, WGPU, ROCm, and Metal CI evidence and preserve
+      the existing typed unsupported-operation behavior for operations outside
+      the common marker seam.
+
+Owner: Codex on `codex/coeus-cuda-common-activation-parity`; claimed scope:
+`crates/coeus-cuda/src/backend/ops/math.rs`,
+`crates/coeus-cuda/tests/cuda/parity/unfold_fold.rs`,
+`.github/workflows/backend-parity.yml`, `CHECKLIST.md`, and
+`docs/gap_audit.md`. Peer-owned reduction and backend-error files remain
+outside this claim.
+
 ## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001 [arch]
 
 - [x] Route `UnaryOp::Lgamma` through the provider-owned Hephaestus WGPU,
