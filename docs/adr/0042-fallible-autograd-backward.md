@@ -62,5 +62,8 @@ The local verification result is:
 - SemVer checks against `origin/main` identify the public trait-return changes
   as requiring a major release.
 
-Hosted provider validation remains required because CUDA and WGPU parity
-callers also migrated to the fallible contract.
+Exact-head provider run `30397554467` attempt 2 passes WGPU, ROCm, CUDA, and
+Metal. Attempt 1 exposed an upstream Leto stencil contract missing
+`T: UnitScalar`; Leto PR #77 repaired that provider-owned bound before the
+successful rerun. The required-device ROCm lane is intentionally skipped by
+workflow policy.

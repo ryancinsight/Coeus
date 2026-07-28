@@ -1,6 +1,6 @@
 # Coeus Project Backlog & Historical Archives
 
-## ATLAS-AUTOGRAD-SAFETY-018 — Propagate backward failures [major] [arch] — in progress
+## ATLAS-AUTOGRAD-SAFETY-018 — Propagate backward failures [major] [arch] — complete
 
 - Owner: Codex; scope: `coeus-autograd` graph traversal, every
   `BackwardNode` implementation, and in-repository callers.
@@ -17,7 +17,11 @@
   warning-denied `coeus-autograd` Clippy passes; Nextest passes 102
   autograd/FFT and 268 NN tests; 24 executable doctests pass. SemVer checks
   against `origin/main` classify the public trait-return changes as major.
-  Hosted provider CI remains pending.
+  Exact-head run `30397554467` attempt 2 passes WGPU (`90407664433`), ROCm
+  (`90407664470`), CUDA (`90407664479`), and Metal (`90407664482`);
+  required-device ROCm (`90407665417`) is intentionally skipped. Attempt 1
+  exposed the upstream Leto `UnitScalar` contract defect, fixed by Leto PR
+  #77 before the successful rerun.
 
 ## ATLAS-CUDA-SAFETY-017 — Bound pooling physical indices [patch] [arch] — complete
 

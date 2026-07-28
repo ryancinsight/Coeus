@@ -14,12 +14,17 @@ failure-injection regression observes the exact `BackendError::Storage`.
 Nextest passes 102 autograd/FFT and 268 NN tests. All 24 executable doctests
 pass; two pre-existing NN doctests remain ignored. SemVer checks against
 `origin/main` report the `BackwardNode` and `BinaryAutogradOp` return changes
-as requiring a major release. Hosted provider CI remains pending.
+as requiring a major release. Exact-head run `30397554467` attempt 2 passes
+WGPU (`90407664433`), ROCm
+(`90407664470`), CUDA (`90407664479`), and Metal (`90407664482`);
+required-device ROCm (`90407665417`) is intentionally skipped. Attempt 1
+failed before Coeus in Leto's missing `T: UnitScalar` stencil contract; Leto
+PR #77 repaired that provider-owned bound before the successful rerun.
 **Residual**: compilation exposes 54 ignored fallible normalization mutations
 in `coeus-nn` and one ignored distributed mutation outside this increment;
 they remain separate typed-propagation work. No runtime, allocation, or
 binary-size improvement is claimed.
-**Status**: in progress.
+**Status**: complete at `81eeec09`; merge delivery pending.
 
 ## ATLAS-CUDA-SAFETY-017: Pooling physical-index contract
 
