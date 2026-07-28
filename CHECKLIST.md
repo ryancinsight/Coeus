@@ -6,7 +6,9 @@
 - [x] Delete the duplicate Coeus ordinary-reduction WGSL dispatcher.
 - [x] Verify rank-one and rank-two values against Leto and reject rank three.
 - [x] Select every migrated operation in hosted provider CI.
-- [ ] Pass warning-denied Clippy, doctests, exact-head CI, and merge.
+- [x] Pass warning-denied Clippy, doctests, and the implementation-head
+      provider matrix.
+- [ ] Pass the terminal documentation-head provider matrix and merge PR #246.
 
 ## ATLAS-COEUS-CUDA-007 Native dispatch boundary [major][arch]
 

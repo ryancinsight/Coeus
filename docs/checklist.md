@@ -6,7 +6,9 @@
 - [x] Delete the superseded Coeus dispatcher, shader, validation, and tests.
 - [x] Add rank-one/rank-two Leto parity and exact rank-three rejection tests.
 - [x] Select the complete reduction contract in provider CI.
-- [ ] Pass warning-denied Clippy, doctests, exact-head provider CI, and merge.
+- [x] Pass warning-denied Clippy, doctests, and implementation-head provider
+      CI.
+- [ ] Pass terminal documentation-head provider CI and merge PR #246.
 
 ## ATLAS-COEUS-CUDA-007 — Native dispatch boundary
 

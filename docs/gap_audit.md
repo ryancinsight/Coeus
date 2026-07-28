@@ -14,11 +14,14 @@ metadata staging, and validation tests.
 `a3a70d2f-37ff-4d75-9754-a6b029850c16` passes all 11 reduction contracts in
 9.143 seconds, including five ordinary operation families, rank-one sum and
 scan, and exact typed rank-three rejection. Warning-denied package Clippy and
-all three WGPU doctests pass.
+all three WGPU doctests pass. Implementation-head run `30407395047` passed
+Metal `90435767524`, ROCm `90435767607`, WGPU `90435767627`, and CUDA
+`90435767639`; required-device ROCm `90435768426` was skipped because no
+hosted AMD runner was dispatched.
 **Residual**: fused-expression reduction retains its distinct Coeus kernel
-pending a provider expression contract. Exact-head provider CI and merge
-remain. No runtime, memory, or binary-size improvement is claimed without
-matched measurements.
+pending a provider expression contract. The terminal documentation-head
+provider matrix and PR #246 merge remain. No runtime, memory, or binary-size
+improvement is claimed without matched measurements.
 
 ## ATLAS-COEUS-CUDA-007: Backend identity changed execution identity
 

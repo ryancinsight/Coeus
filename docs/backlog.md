@@ -15,10 +15,13 @@
   gates and exact-head provider CI pass.
 - Risk/change class: `[arch] [major]`; rank-above-two WGPU requests become
   typed failures instead of invoking the consumer-owned shader.
-- Status: in progress. The direct provider cutover, obsolete dispatcher
-  deletion, CI selection, all-target check, warning-denied package Clippy,
-  three doctests, and 11 focused value-semantic tests pass locally;
-  exact-head CI and merge remain.
+- Status: implementation complete. The direct provider cutover, obsolete
+  dispatcher deletion, CI selection, all-target check, warning-denied package
+  Clippy, three doctests, and 11 focused value-semantic tests pass locally.
+  Implementation-head run `30407395047` passed Metal `90435767524`, ROCm
+  `90435767607`, WGPU `90435767627`, and CUDA `90435767639`; required-device
+  ROCm `90435768426` was skipped because no hosted AMD runner was dispatched.
+  The terminal documentation-head matrix and PR #246 merge remain.
 
 ## ATLAS-COEUS-CUDA-007 — Native dispatch boundary [arch] — complete
 
