@@ -18,7 +18,9 @@ Owner: Codex on `codex/coeus-cuda-common-activation-parity`; claimed scope:
 `docs/gap_audit.md`. The stale pool-wrapper repair additionally claims only
 `crates/coeus-cuda/src/backend/ops/pool.rs`,
 `crates/coeus-cuda/src/fallback/ops/{mod,pool}.rs`, and
-`crates/coeus-wgpu/src/backend/ops/{pool,impls/pool}.rs`. The live peer owns
+`crates/coeus-wgpu/src/backend/ops/{pool,impls/pool}.rs`, plus the migrated
+WGPU pooling contract tests under
+`crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/pooling.rs`. The live peer owns
 the dirty fused-dispatch, reduction, backend-error, lockfile, ADR, and
 changelog files; they remain outside this increment.
 

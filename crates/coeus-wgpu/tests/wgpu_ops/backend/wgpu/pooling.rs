@@ -24,7 +24,8 @@ fn test_wgpu_max_pool2d() {
         1,
         &mut out_wgpu_storage,
         &out_layout,
-    );
+    )
+    .expect("WGPU max_pool2d dispatch");
 
     let out_wgpu_tensor: Tensor<f32, WgpuBackend> =
         Tensor::from_raw_parts(out_wgpu_storage, out_layout.clone());
@@ -54,7 +55,8 @@ fn test_wgpu_max_pool2d() {
         1,
         &mut grad_input_wgpu_storage,
         &gi_layout,
-    );
+    )
+    .expect("WGPU max_pool2d backward dispatch");
 
     let gi_wgpu_tensor: Tensor<f32, WgpuBackend> =
         Tensor::from_raw_parts(grad_input_wgpu_storage, gi_layout);
@@ -91,7 +93,8 @@ fn test_wgpu_avg_pool2d() {
         1,
         &mut out_wgpu_storage,
         &out_layout,
-    );
+    )
+    .expect("WGPU avg_pool2d dispatch");
 
     let out_wgpu_tensor: Tensor<f32, WgpuBackend> =
         Tensor::from_raw_parts(out_wgpu_storage, out_layout.clone());
@@ -119,7 +122,8 @@ fn test_wgpu_avg_pool2d() {
         1,
         &mut grad_input_wgpu_storage,
         &gi_layout,
-    );
+    )
+    .expect("WGPU avg_pool2d backward dispatch");
 
     let gi_wgpu_tensor: Tensor<f32, WgpuBackend> =
         Tensor::from_raw_parts(grad_input_wgpu_storage, gi_layout);
@@ -153,7 +157,8 @@ fn test_wgpu_max_pool3d() {
         1,
         &mut out_wgpu_storage,
         &out_layout,
-    );
+    )
+    .expect("WGPU max_pool3d dispatch");
 
     let out_wgpu_tensor =
         Tensor::<f32, WgpuBackend>::from_raw_parts(out_wgpu_storage, out_layout.clone());
@@ -170,7 +175,8 @@ fn test_wgpu_max_pool3d() {
         1,
         &mut out_expected_storage,
         &out_layout,
-    );
+    )
+    .expect("sequential max_pool3d dispatch");
     let out_expected =
         Tensor::<f32, SequentialBackend>::from_raw_parts(out_expected_storage, out_layout);
 
@@ -198,7 +204,8 @@ fn test_wgpu_max_pool3d() {
         1,
         &mut grad_input_wgpu_storage,
         &gi_layout,
-    );
+    )
+    .expect("WGPU max_pool3d backward dispatch");
 
     let gi_wgpu_tensor =
         Tensor::<f32, WgpuBackend>::from_raw_parts(grad_input_wgpu_storage, gi_layout.clone());
@@ -218,7 +225,8 @@ fn test_wgpu_max_pool3d() {
         1,
         &mut grad_input_expected_storage,
         &gi_layout,
-    );
+    )
+    .expect("sequential max_pool3d backward dispatch");
     let gi_expected =
         Tensor::<f32, SequentialBackend>::from_raw_parts(grad_input_expected_storage, gi_layout);
 
@@ -247,7 +255,8 @@ fn test_wgpu_avg_pool3d() {
         1,
         &mut out_wgpu_storage,
         &out_layout,
-    );
+    )
+    .expect("WGPU avg_pool3d dispatch");
 
     let out_wgpu_tensor =
         Tensor::<f32, WgpuBackend>::from_raw_parts(out_wgpu_storage, out_layout.clone());
@@ -264,7 +273,8 @@ fn test_wgpu_avg_pool3d() {
         1,
         &mut out_expected_storage,
         &out_layout,
-    );
+    )
+    .expect("sequential avg_pool3d dispatch");
     let out_expected =
         Tensor::<f32, SequentialBackend>::from_raw_parts(out_expected_storage, out_layout);
 
@@ -303,7 +313,8 @@ fn test_wgpu_avg_pool3d() {
         1,
         &mut grad_input_wgpu_storage,
         &gi_layout,
-    );
+    )
+    .expect("WGPU avg_pool3d backward dispatch");
 
     let gi_wgpu_tensor =
         Tensor::<f32, WgpuBackend>::from_raw_parts(grad_input_wgpu_storage, gi_layout.clone());
@@ -321,7 +332,8 @@ fn test_wgpu_avg_pool3d() {
         1,
         &mut grad_input_expected_storage,
         &gi_layout,
-    );
+    )
+    .expect("sequential avg_pool3d backward dispatch");
     let gi_expected =
         Tensor::<f32, SequentialBackend>::from_raw_parts(grad_input_expected_storage, gi_layout);
 
