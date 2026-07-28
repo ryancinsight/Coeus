@@ -20,7 +20,7 @@ pub enum CudaBackendError {
         #[source]
         source: BackendError,
     },
-    /// The CUDA provider only has a native scan kernel for rank-two layouts.
+    /// The CUDA provider supports reduction and scan layouts up to rank two.
     #[error("CUDA {operation} does not support layout rank {rank}; maximum rank is {max_rank}")]
     UnsupportedRank {
         /// Operation family that rejected the layout.
@@ -55,24 +55,16 @@ pub enum CudaBackendError {
         /// Stable reason for the rejected launch.
         reason: &'static str,
     },
-    /// The explicit CPU capability boundary failed.
-    #[error("CUDA {operation} CPU capability path failed: {source}")]
-    CpuCapability {
-        /// Operation family being executed by the capability path.
-        operation: &'static str,
-        /// CPU operation failure.
-        #[source]
-        source: BackendError,
-    },
 }
 
 impl From<BackendError> for CudaBackendError {
     fn from(source: BackendError) -> Self {
-        Self::cpu_capability("elementwise", source)
+        Self::validation(source)
     }
 }
 
 impl CudaBackendError {
+    #[cfg(feature = "cuda")]
     pub(crate) fn fusion(operation: &'static str, reason: impl Into<String>) -> Self {
         Self::Fusion {
             operation,
@@ -86,10 +78,6 @@ impl CudaBackendError {
 
     pub(crate) fn kernel(operation: &'static str, reason: &'static str) -> Self {
         Self::Kernel { operation, reason }
-    }
-
-    pub(crate) fn cpu_capability(operation: &'static str, source: BackendError) -> Self {
-        Self::CpuCapability { operation, source }
     }
 
     #[cfg(feature = "cuda")]

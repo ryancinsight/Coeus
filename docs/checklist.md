@@ -1,5 +1,16 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-COEUS-CUDA-007 — Native dispatch boundary
+
+- [x] Remove CUDA binary, unary, matrix, reduction, and fused CPU execution
+      paths.
+- [x] Make disabled-provider builds expose no mathematical `BackendOps`
+      implementation.
+- [x] Verify the no-default build and its three focused Nextest contracts.
+- [ ] Verify CUDA-feature all-target builds, focused provider Nextest,
+      doctests, warning-denied Clippy, and exact-head provider CI.
+- [ ] Record terminal evidence and merge the change.
+
 ## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback
 
 - [x] Record the static CPU/provider boundary in ADR-0027.

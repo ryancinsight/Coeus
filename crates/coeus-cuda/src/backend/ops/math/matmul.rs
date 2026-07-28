@@ -27,6 +27,9 @@ impl CudaBackend {
                 return Ok(());
             }
         }
-        self.fallback_matmul(a, a_layout, b, b_layout, c, c_layout)
+        Err(crate::CudaBackendError::kernel(
+            "matrix multiplication",
+            "native CUDA dispatch requirements are not satisfied",
+        ))
     }
 }

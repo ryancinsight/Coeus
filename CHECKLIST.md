@@ -1,5 +1,15 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-CUDA-007 Native dispatch boundary [major][arch]
+
+- [x] Delete CUDA binary, unary, matrix, reduction, and fused CPU execution
+      paths.
+- [x] Route ordinary rank-two CUDA reductions through Hephaestus.
+- [x] Remove mathematical `BackendOps` from disabled-provider builds.
+- [x] Pass no-provider compilation and all three unavailable-provider tests.
+- [ ] Complete provider-feature all-target compilation, focused tests, Clippy,
+      doctests, hosted provider CI, and merge evidence.
+
 ## ATLAS-AUTOGRAD-SAFETY-018 Fallible backward contract [major][arch]
 
 - [x] Record the typed failure contract and migration in ADR-0042.

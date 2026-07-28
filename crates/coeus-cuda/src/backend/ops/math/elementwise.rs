@@ -482,10 +482,12 @@ impl CudaBackend {
         T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
     {
         if get_cuda_context().is_some() {
-            let Some(n) = kernels::checked_numel(c_layout) else {
-                self.fallback_binary(op, a, a_layout, b, b_layout, c, c_layout)?;
-                return Ok(());
-            };
+            let n = kernels::checked_numel(c_layout).ok_or_else(|| {
+                CudaBackendError::kernel(
+                    "elementwise binary",
+                    "output element count exceeds the CUDA dispatch ABI",
+                )
+            })?;
             // The contiguous kernel computes `c[i] = a[i] op b[i]` with no
             // broadcasting, so it is only valid when both operands already share
             // the output shape. A broadcast operand (e.g. `[3,1]` against
@@ -510,8 +512,10 @@ impl CudaBackend {
                 return Ok(());
             }
         }
-        self.fallback_binary(op, a, a_layout, b, b_layout, c, c_layout)?;
-        Ok(())
+        Err(CudaBackendError::kernel(
+            "elementwise binary",
+            "native CUDA dispatch requirements are not satisfied",
+        ))
     }
 
     pub(crate) fn cuda_elementwise_unary<T>(
@@ -526,16 +530,12 @@ impl CudaBackend {
         T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
     {
         if get_cuda_context().is_some() {
-            let Some(n) = kernels::checked_numel(c_layout) else {
-                if matches!(op, coeus_ops::UnaryOp::Elu | coeus_ops::UnaryOp::EluGrad) {
-                    return Err(CudaBackendError::kernel(
-                        "elementwise unary",
-                        "Hephaestus ELU dispatch requires a CUDA-representable element count",
-                    ));
-                }
-                self.fallback_unary(op, a, a_layout, c, c_layout)?;
-                return Ok(());
-            };
+            let n = kernels::checked_numel(c_layout).ok_or_else(|| {
+                CudaBackendError::kernel(
+                    "elementwise unary",
+                    "output element count exceeds the CUDA dispatch ABI",
+                )
+            })?;
             if a_layout.is_contiguous() && c_layout.is_contiguous() {
                 if try_hephaestus_contiguous_unary(op, a, c)? {
                     return Ok(());
@@ -551,13 +551,9 @@ impl CudaBackend {
                 }
             }
         }
-        if matches!(op, coeus_ops::UnaryOp::Elu | coeus_ops::UnaryOp::EluGrad) {
-            return Err(CudaBackendError::kernel(
-                "elementwise unary",
-                "Hephaestus ELU dispatch requirements are not satisfied",
-            ));
-        }
-        self.fallback_unary(op, a, a_layout, c, c_layout)?;
-        Ok(())
+        Err(CudaBackendError::kernel(
+            "elementwise unary",
+            "native CUDA dispatch requirements are not satisfied",
+        ))
     }
 }

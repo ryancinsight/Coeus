@@ -1,5 +1,26 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-COEUS-CUDA-007 — Native dispatch boundary [arch]
+
+- Owner: Codex on `codex/coeus-cuda-native-dispatch`; scope:
+  `coeus-cuda` mathematical dispatch, disabled-provider behavior, fallback
+  deletion, provider tests, ADR-0043, and active PM artifacts.
+- Outcome: selecting CUDA never executes elementwise, matrix, reduction, or
+  fused mathematics through `SequentialBackend`.
+- Non-goals: convolution, attention, optimizer provider migrations, the
+  fallible `Module` migration, and release/version transitions.
+- Acceptance: supported CUDA operations remain on native device dispatch;
+  unsupported layout, operation, provider, or ABI requests return
+  `CudaBackendError`; a build without the `cuda` feature exposes no
+  mathematical backend implementation; no CUDA mathematical path copies
+  through host memory to execute with Leto; focused no-provider and CUDA
+  feature gates pass.
+- Risk/change class: `[arch] [major]`; removes the documented CPU capability
+  behavior and makes unsupported accelerator execution explicit.
+- Status: in progress. Silent binary, unary, matrix, reduction, and fused CPU
+  execution paths are removed locally. The no-provider graph no longer enables
+  or links CUDA and its three typed-behavior tests pass; provider CI remains.
+
 ## ATLAS-AUTOGRAD-SAFETY-018 — Propagate backward failures [major] [arch] — complete
 
 - Owner: Codex; scope: `coeus-autograd` graph traversal, every
