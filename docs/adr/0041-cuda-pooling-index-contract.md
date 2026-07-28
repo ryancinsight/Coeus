@@ -51,7 +51,10 @@ Pure validation tests cover exact strided storage capacity, undersized
 allocation rejection, physical-offset overflow, writable alias rejection,
 valid forward/backward extrema, and signed-coordinate overflow. The
 feature-enabled package check and warning-denied package Clippy establish the
-compiled contract. Hosted CUDA provider tests are required for device
-execution because the local Windows GNU linker cannot resolve `-lcuda`.
+compiled contract. Exact-head run `30391721824` passes CUDA
+(`90384681039`), WGPU (`90384681127`), Metal (`90384681124`), and ROCm
+(`90384681137`); required-device ROCm (`90384681768`) is intentionally
+skipped. Hosted CUDA execution supplies the device evidence because the local
+Windows GNU linker cannot resolve `-lcuda`.
 No runtime, bandwidth, or resident-memory improvement is claimed without a
 controlled measurement.

@@ -17,12 +17,15 @@ coordinate can overflow. The validation is allocation-free and executes once
 at dispatch; native kernels and scalar monomorphization remain unchanged.
 Feature-enabled all-target check and warning-denied package Clippy pass. Local
 Nextest reaches the Windows GNU linker and fails before execution because
-`-lcuda` is unavailable; hosted CUDA provider CI remains the device evidence
-gate. The broader Clippy graph also exposes 143 pre-existing ignored `Result`
-errors in `coeus-autograd`; package `--no-deps` Clippy isolates this increment.
-A subsequent live-overlay rerun stops in Leto `application/stencil.rs` because
-`T: UnitScalar` is missing; the earlier Git-sourced Coeus check and Clippy
-results remain the local compiled evidence for this diff.
+`-lcuda` is unavailable. Exact-head run `30391721824` passes CUDA
+(`90384681039`), WGPU (`90384681127`), Metal (`90384681124`), and ROCm
+(`90384681137`); required-device ROCm (`90384681768`) is intentionally
+skipped. The broader Clippy graph also exposes 143 pre-existing ignored
+`Result` errors in `coeus-autograd`; package `--no-deps` Clippy isolates this
+increment. A subsequent live-overlay rerun stops in Leto
+`application/stencil.rs` because `T: UnitScalar` is missing; the earlier
+Git-sourced Coeus check and Clippy results remain the local compiled evidence
+for this diff.
 
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 [minor]
 
