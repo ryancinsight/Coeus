@@ -504,6 +504,7 @@ dependencies = [
  "bytemuck",
  "coeus-autograd",
  "coeus-core",
+ "coeus-hephaestus",
  "coeus-ops",
  "coeus-tensor",
  "criterion",
