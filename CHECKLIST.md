@@ -14,7 +14,11 @@ that detachment preserves values in both buffers. Local WGPU compilation,
 warning-denied Clippy, doctests (3/3), and Nextest (104/104) pass. Local CUDA
 feature compilation and warning-denied library Clippy pass; CUDA Nextest and
 doctests are blocked by the Windows MinGW linker error `cannot find -lcuda`.
-Hosted exact-head provider evidence is pending for this increment.
+Hosted exact-head run `30339683483` passed the CUDA provider contracts job
+`90212208770`, WGPU provider contracts job `90212208755`, ROCm provider
+contracts job `90212208702`, and Metal provider contracts job `90212208797`.
+The required-device ROCm job `90212209211` was skipped because no hosted AMD
+runner was dispatched; no physical-device execution claim is made.
 
 ## ATLAS-COEUS-SAFETY-001 Device-local COW increment [patch]
 
