@@ -16,10 +16,11 @@ Owner: Codex on `codex/coeus-cuda-common-activation-parity`; claimed scope:
 `crates/coeus-cuda/tests/cuda/parity/unfold_fold.rs`,
 `.github/workflows/backend-parity.yml`, `docs/backlog.md`, `CHECKLIST.md`, and
 `docs/gap_audit.md`. The stale pool-wrapper repair additionally claims only
-`crates/coeus-cuda/src/backend/ops/pool.rs` and
-`crates/coeus-wgpu/src/backend/ops/impls/pool.rs`. The live peer owns the
-dirty fused-dispatch, reduction, backend-error, lockfile, ADR, and changelog
-files; they remain outside this increment.
+`crates/coeus-cuda/src/backend/ops/pool.rs`,
+`crates/coeus-cuda/src/fallback/ops/{mod,pool}.rs`, and
+`crates/coeus-wgpu/src/backend/ops/{pool,impls/pool}.rs`. The live peer owns
+the dirty fused-dispatch, reduction, backend-error, lockfile, ADR, and
+changelog files; they remain outside this increment.
 
 Implementation head `a8dcc51c` is complete; hosted exact-head evidence is
 pending. The local locked CUDA package check is blocked before compilation by
