@@ -4,6 +4,13 @@
 
 ### Changed
 
+- [minor] Route Coeus CUDA `GeluTanh`, `GeluTanhGrad`, `Softplus`, and
+  `SoftplusGrad` through the existing Hephaestus marker kernels for contiguous
+  and runtime-shaped strided layouts. Add CUDA/Leto forward and gradient
+  parity coverage and select the WGPU/CUDA contracts in CI. No runtime
+  performance or resident-memory delta is claimed without a controlled
+  benchmark.
+
 - [minor] Route Coeus WGPU, CUDA, and generic Hephaestus COW replacement
   allocations through Hephaestus's overwrite-before-read device allocation
   seam while keeping ordinary storage construction zero-initialized. The

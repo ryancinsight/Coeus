@@ -73,21 +73,29 @@ verification.
 
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-ACTIVATION-PARITY-001 [minor]
 
-- [ ] Route CUDA `GeluTanh`, `GeluTanhGrad`, `Softplus`, and `SoftplusGrad`
+- [x] Route CUDA `GeluTanh`, `GeluTanhGrad`, `Softplus`, and `SoftplusGrad`
       through the existing Hephaestus marker kernels for contiguous and
       runtime-shaped strided layouts.
-- [ ] Add CUDA/Leto value-semantic forward and gradient parity coverage and
+- [x] Add CUDA/Leto value-semantic forward and gradient parity coverage and
       select the tests in the CUDA CI contract job.
-- [ ] Record exact-head CUDA, WGPU, ROCm, and Metal CI evidence and preserve
+- [x] Record exact-head CUDA, WGPU, ROCm, and Metal CI evidence and preserve
       the existing typed unsupported-operation behavior for operations outside
       the common marker seam.
 
-Owner: Codex on `codex/coeus-cuda-common-activation-parity`; claimed scope:
+Owner: Codex on `codex/coeus-cuda-common-activation-parity`; completed at
+`dc5dbd5a` pending docs-head rerun. Claimed scope:
 `crates/coeus-cuda/src/backend/ops/math.rs`,
 `crates/coeus-cuda/tests/cuda/parity/unfold_fold.rs`,
 `.github/workflows/backend-parity.yml`, `CHECKLIST.md`, and
 `docs/gap_audit.md`. Peer-owned reduction and backend-error files remain
 outside this claim.
+
+Evidence: implementation-head run `30358001986` passed CUDA job `90270630628`,
+WGPU job `90270630619`, ROCm job `90270630584`, and Metal job `90270630599`.
+Required-device ROCm job `90270631213` was skipped because no hosted AMD
+runner was dispatched. The CUDA selector executed the four new forward and
+gradient tests; WGPU selected the GELU-tanh contract. No runtime speedup or
+resident-memory delta is claimed without a matched benchmark.
 
 ## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001 [arch]
 
