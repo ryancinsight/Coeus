@@ -115,7 +115,7 @@ available. ADR 0028 owns the exact GELU contract.
       its gradient, preserving the existing Mish expressions.
 - [x] Extend WGPU, CUDA, ROCm, and Metal contracts with Leto CPU differential
       coverage for forward and gradient activation paths.
-- [x] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for
+- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for
       the provider and consumer revisions.
 
 Acceptance: all four backends expose the same unparameterized f32 Mish and ELU
@@ -125,13 +125,14 @@ including the zero branch boundary. The existing strided/device-resident
 kernel paths remain in use; no runtime performance or resident-memory delta is
 claimed without a controlled benchmark. ADR 0038 owns the contract.
 
-Status: complete for the unparameterized f32 scope. Exact-head Coeus run
-`30351530489` passed CUDA job `90249902958`, WGPU job `90249903429`, ROCm job
-`90249902939`, and Metal job `90249903016`. Required-device ROCm job
-`90249904831` was skipped because no hosted AMD runner was dispatched; no
-physical-device execution claim is made. The external `recurseml/analysis`
-status returned its recurring analyzer error and is not repository-owned
-verification.
+Status: implementation is complete for the unparameterized f32 scope. Baseline
+exact-head Coeus run `30351530489` passed CUDA job `90249902958`, WGPU job
+`90249903429`, ROCm job `90249902939`, and Metal job `90249903016`; its required-
+device ROCm job `90249904831` was skipped because no hosted AMD runner was
+dispatched. The WGPU and CUDA workflow selectors now include the new ELU
+contracts; the exact-head targeted rerun remains required before closure. The
+external `recurseml/analysis` status returned its recurring analyzer error and
+is not repository-owned verification.
 
 ## ATLAS-COEUS-HEPHAESTUS-ERROR-FUNCTION-PARITY-001 [arch]
 

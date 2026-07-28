@@ -142,7 +142,7 @@ jobs:
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-wgpu --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-wgpu --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-wgpu \
-            -E "test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors) or test(test_wgpu_parity_add) or test(test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer)"
+            -E "test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors) or test(test_wgpu_parity_add) or test(test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer) or test(test_wgpu_elu_parity) or test(test_wgpu_parity_elu)"
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-wgpu --doc
 
   cuda:
@@ -270,7 +270,7 @@ jobs:
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cuda --features cuda --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cuda --features cuda --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --features cuda \
-                -E "test(test_cuda_parity_cumulative_scans) or test(test_cuda_parity_prod_axis) or test(test_cuda_backend_ops)"
+                -E "test(test_cuda_parity_cumulative_scans) or test(test_cuda_parity_prod_axis) or test(test_cuda_backend_ops) or test(test_cuda_parity_elu) or test(test_cuda_parity_elu_grad)"
               cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-cuda --features cuda --doc
             '
 
