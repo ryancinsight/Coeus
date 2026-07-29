@@ -1,7 +1,8 @@
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_nn::{
-    elu, gelu_tanh, glu, leaky_relu, softplus, GeLUTanh, LeakyReLU, Module, Softplus, ELU, GLU,
+    elu, gelu_tanh, glu, leaky_relu, softplus, GeLUTanh, LeakyReLU, Module, ModuleError, Softplus,
+    ELU, GLU,
 };
 use coeus_tensor::{Tensor, Transpose};
 
@@ -43,7 +44,7 @@ fn test_elu_activation() {
         true,
     );
     let elu_mod = ELU;
-    let output_mod = elu_mod.forward(&input_mod);
+    let output_mod = elu_mod.forward(&input_mod).expect("valid ELU input");
     assert_eq!(output_mod.tensor.shape(), &[2, 2]);
     assert_eq!(Module::<f64, MoiraiBackend>::parameters(&elu_mod).len(), 0);
 }
@@ -86,7 +87,9 @@ fn test_softplus_activation() {
         true,
     );
     let softplus_mod = Softplus;
-    let output_mod = softplus_mod.forward(&input_mod);
+    let output_mod = softplus_mod
+        .forward(&input_mod)
+        .expect("valid Softplus input");
     assert_eq!(output_mod.tensor.shape(), &[2, 2]);
     assert_eq!(
         Module::<f64, MoiraiBackend>::parameters(&softplus_mod).len(),
@@ -139,7 +142,9 @@ fn test_gelu_tanh_activation() {
         true,
     );
     let gelu_tanh_mod = GeLUTanh;
-    let output_mod = gelu_tanh_mod.forward(&input_mod);
+    let output_mod = gelu_tanh_mod
+        .forward(&input_mod)
+        .expect("valid GeLUTanh input");
     assert_eq!(output_mod.tensor.shape(), &[2, 2]);
     assert_eq!(
         Module::<f64, MoiraiBackend>::parameters(&gelu_tanh_mod).len(),
@@ -190,7 +195,9 @@ fn test_leaky_relu_activation() {
         true,
     );
     let leaky_mod = LeakyReLU::new(0.05);
-    let output_mod = leaky_mod.forward(&input_mod);
+    let output_mod = leaky_mod
+        .forward(&input_mod)
+        .expect("valid LeakyReLU input");
     assert_eq!(output_mod.tensor.shape(), &[2, 2]);
     assert_eq!(
         Module::<f64, MoiraiBackend>::parameters(&leaky_mod).len(),
@@ -264,7 +271,7 @@ fn test_glu_module_matches_function() {
     let module = GLU::new(0);
     assert!(Module::<f64, MoiraiBackend>::parameters(&module).is_empty());
 
-    let via_module = module.forward(&input);
+    let via_module = module.forward(&input).expect("valid GLU input");
     let via_fn = glu(&input, 0);
     assert_eq!(via_module.tensor.shape(), via_fn.tensor.shape());
     for (i, (&m, &f)) in via_module
@@ -276,4 +283,38 @@ fn test_glu_module_matches_function() {
     {
         assert!((m - f).abs() < 1e-15, "GLU module vs fn [{i}]: {m} vs {f}");
     }
+}
+
+#[test]
+fn glu_module_rejects_invalid_axis_and_odd_extent() {
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &[1.0, 2.0, 3.0]),
+        false,
+    );
+
+    let axis_error = match GLU::new(1).forward(&input) {
+        Ok(_) => panic!("out-of-range GLU axis must fail"),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        axis_error,
+        ModuleError::InvalidAxis {
+            module: "GLU",
+            axis: 1,
+            rank: 1
+        }
+    ));
+
+    let split_error = match GLU::new(0).forward(&input) {
+        Ok(_) => panic!("odd GLU extent must fail"),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        split_error,
+        ModuleError::UnevenSplit {
+            module: "GLU",
+            axis: 0,
+            extent: 3
+        }
+    ));
 }

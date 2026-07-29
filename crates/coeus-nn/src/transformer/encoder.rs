@@ -6,7 +6,7 @@
 // per `(T, B, H, N, M)`.
 
 use super::encoder_layer::TransformerEncoderLayer;
-use crate::module::{prefixed_parameters, Module};
+use crate::module::{prefixed_parameters, Module, ModuleError};
 use coeus_autograd::{AttentionMask, Var};
 use coeus_core::{Float, MoiraiBackend};
 
@@ -63,8 +63,8 @@ where
         &self,
         input: &Var<T, B>,
         key_padding_mask: Option<&Var<T, B>>,
-    ) -> Var<T, B> {
-        self.layers.iter().fold(input.clone(), |x, layer| {
+    ) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        self.layers.iter().try_fold(input.clone(), |x, layer| {
             layer.forward_with_mask(&x, key_padding_mask)
         })
     }
@@ -93,7 +93,7 @@ impl<
     /// Forward through all N layers sequentially.
     ///
     /// Input/output shape: `[batch, seq, d_model]`.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         self.forward_with_mask(input, None)
     }
 }

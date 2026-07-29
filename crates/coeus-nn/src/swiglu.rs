@@ -8,7 +8,7 @@
 
 use crate::activation::silu;
 use crate::linear::Linear;
-use crate::module::{prefixed_parameters, Module};
+use crate::module::{prefixed_parameters, Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 
@@ -49,9 +49,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for SwiGlu<T,
         parameters
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        let gated = silu(&self.linear_inner.forward(input));
-        let outer = self.linear_outer.forward(input);
-        coeus_autograd::mul(&gated, &outer)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        let gated = silu(&self.linear_inner.forward(input)?);
+        let outer = self.linear_outer.forward(input)?;
+        Ok(coeus_autograd::mul(&gated, &outer))
     }
 }

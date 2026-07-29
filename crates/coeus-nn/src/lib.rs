@@ -1,7 +1,9 @@
 //! Neural network layer module system built on [`coeus_autograd`].
 //!
 //! # Module trait
-//! [`Module<T, B>`](module::Module) is the core abstraction: `forward(&self, input: &Var<T, B>) -> Var<T, B>`.
+//! [`Module<T, B>`](module::Module) is the core abstraction. Its `forward`
+//! method returns a typed [`ModuleError`] so backend, input-contract, and
+//! module-state failures cannot be reported as successful execution.
 //!
 //! # Layer families
 //! - **Linear** — [`Linear`], weight + optional bias, Xavier/Kaiming init via [`init`].
@@ -68,18 +70,18 @@ pub mod swiglu;
 pub mod transformer;
 
 pub use activation::{
-    Celu, CeluOp, ELU, GLU, GeLU, GeLUTanh, Hardshrink, HardshrinkOp, Hardsigmoid, HardsigmoidOp,
-    Hardswish, HardswishOp, Hardtanh, HardtanhOp, LeakyReLU, LogSigmoid, Mish, PReLU, ReLU, SiLU,
-    Sigmoid, Softplus, Softshrink, SoftshrinkOp, Softsign, SoftsignOp, Tanh, Tanhshrink, Threshold,
-    ThresholdNode, celu, elu, gelu, gelu_tanh, glu, hardshrink, hardsigmoid, hardswish, hardtanh,
-    leaky_relu, log_sigmoid, mish, prelu, relu, sigmoid, silu, softplus, softshrink, softsign,
-    tanh, tanhshrink, threshold,
+    celu, elu, gelu, gelu_tanh, glu, hardshrink, hardsigmoid, hardswish, hardtanh, leaky_relu,
+    log_sigmoid, mish, prelu, relu, sigmoid, silu, softplus, softshrink, softsign, tanh,
+    tanhshrink, threshold, Celu, CeluOp, GeLU, GeLUTanh, Hardshrink, HardshrinkOp, Hardsigmoid,
+    HardsigmoidOp, Hardswish, HardswishOp, Hardtanh, HardtanhOp, LeakyReLU, LogSigmoid, Mish,
+    PReLU, ReLU, SiLU, Sigmoid, Softplus, Softshrink, SoftshrinkOp, Softsign, SoftsignOp, Tanh,
+    Tanhshrink, Threshold, ThresholdNode, ELU, GLU,
 };
 pub use attention::{
-    AttentionMask, CausalMask, MhaProjectionParams, MultiHeadAttention, NullMask,
-    ScaledDotProductAttention, multi_head_attention_cross,
+    multi_head_attention_cross, AttentionMask, CausalMask, MhaProjectionParams, MultiHeadAttention,
+    NullMask, ScaledDotProductAttention,
 };
-pub use bilinear::{Bilinear, bilinear};
+pub use bilinear::{bilinear, Bilinear};
 pub use conv::{
     Conv, Conv1d, Conv2d, Conv3d, ConvDim, ConvTranspose1d, ConvTranspose2d, ConvTranspose3d,
     DepthwiseConv3d, Dim1D, Dim2D, Dim3D, Fold1d, Fold2d, Unfold1d, Unfold2d,
@@ -88,7 +90,7 @@ pub use dropout::Dropout;
 pub use embedding::Embedding;
 pub use embeddingbag::{EmbeddingBag, EmbeddingBagMode};
 pub use init::{kaiming_uniform, xavier_uniform};
-pub use interpolate::{InterpolateMode, interpolate_1d, interpolate_2d};
+pub use interpolate::{interpolate_1d, interpolate_2d, InterpolateMode};
 pub use linear::Linear;
 pub use loss::{
     bce_with_logits, binary_cross_entropy, cosine_embedding_loss, cosine_similarity,
@@ -99,8 +101,8 @@ pub use loss::{
 };
 pub use module::{Module, ModuleError, ParameterLoadError};
 pub use normalization::{
-    BatchNorm1d, BatchNorm2d, BatchNorm3d, GroupNorm, InstanceNorm1d, InstanceNorm2d,
-    InstanceNorm3d, LayerNorm, RMSNorm, group_norm, layer_norm, rms_norm,
+    group_norm, layer_norm, rms_norm, BatchNorm1d, BatchNorm2d, BatchNorm3d, GroupNorm,
+    InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, LayerNorm, RMSNorm,
 };
 pub use pool::{
     AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveMaxPool1d, AdaptiveMaxPool2d, AvgPool1d,
@@ -111,11 +113,10 @@ pub use positional::{RotaryEmbedding, SinusoidalEncoding};
 pub use regularization::{AlphaDropout, FeatureAlphaDropout, GaussianNoise, LocalResponseNorm};
 pub use rnn::{Bidirectional, GRUCell, Gru, LSTMCell, Lstm, RNNCell, Rnn, RnnNonlinearity};
 pub use sequential::{ModuleExt, Sequential, StaticSeq};
-pub use softmax::{Softmax, softmax};
+pub use softmax::{softmax, Softmax};
 pub use swiglu::SwiGlu;
 pub use transformer::{
-    FeedForward, Transformer, TransformerDecoder, TransformerDecoderLayer,
-    TransformerDecoderLayerParams, TransformerEncoder, TransformerEncoderLayer,
-    TransformerEncoderLayerParams, feed_forward, transformer_decoder_layer,
-    transformer_encoder_layer,
+    feed_forward, transformer_decoder_layer, transformer_encoder_layer, FeedForward, Transformer,
+    TransformerDecoder, TransformerDecoderLayer, TransformerDecoderLayerParams, TransformerEncoder,
+    TransformerEncoderLayer, TransformerEncoderLayerParams,
 };

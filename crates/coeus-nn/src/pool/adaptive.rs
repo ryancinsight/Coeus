@@ -9,7 +9,7 @@
 //
 // ZST phantom markers provide zero-overhead type safety without any allocation.
 
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
@@ -104,13 +104,13 @@ where
 ///
 /// let m = AdaptiveAvgPool1d::<f32, SequentialBackend>::new(2);
 /// let x = Var::new(Tensor::<f32, SequentialBackend>::ones([1, 3, 8]), false);
-/// let y = m.forward(&x);
+/// let y = m.forward(&x).expect("valid AdaptiveAvgPool1d input");
 /// assert_eq!(y.tensor.shape(), &[1, 3, 2]);
 /// ```
 #[derive(Clone, Debug)]
 pub struct AdaptiveAvgPool1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Target spatial output length.
-    pub output_size: usize,
+    output_size: usize,
     _marker: PhantomData<(T, B)>,
 }
 
@@ -132,17 +132,32 @@ where
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         // Differentiable: average each adaptive region via a constant averaging
         // matmul over the length axis.  [N, C, L] -> [N*C, L] @ P_T[L, O].
         let shape = input.tensor.shape_cloned();
+        if shape.len() != 3 {
+            return Err(ModuleError::InvalidRank {
+                module: "AdaptiveAvgPool1d",
+                expected: "3",
+                actual: shape.len(),
+            });
+        }
         let (n, c, l) = (shape[0], shape[1], shape[2]);
         let o = self.output_size;
+        if l == 0 || o == 0 {
+            return Err(ModuleError::ShapeMismatch {
+                module: "AdaptiveAvgPool1d",
+                parameter: "spatial input and output dimensions",
+                expected: vec![1, 1],
+                actual: vec![l, o],
+            });
+        }
         let backend = B::default();
         let p_t = avg_pool_matrix_t::<T, B>(l, o, &backend);
         let x2 = coeus_autograd::reshape(input, [n * c, l]);
         let out2 = coeus_autograd::matmul(&x2, &p_t);
-        coeus_autograd::reshape(&out2, [n, c, o])
+        Ok(coeus_autograd::reshape(&out2, [n, c, o]))
     }
 }
 
@@ -163,15 +178,15 @@ where
 ///
 /// let m = AdaptiveAvgPool2d::<f32, SequentialBackend>::new(1, 1);
 /// let x = Var::new(Tensor::<f32, SequentialBackend>::ones([2, 4, 8, 8]), false);
-/// let y = m.forward(&x);
+/// let y = m.forward(&x).expect("valid AdaptiveAvgPool2d input");
 /// assert_eq!(y.tensor.shape(), &[2, 4, 1, 1]);
 /// ```
 #[derive(Clone, Debug)]
 pub struct AdaptiveAvgPool2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Target output height.
-    pub out_h: usize,
+    out_h: usize,
     /// Target output width.
-    pub out_w: usize,
+    out_w: usize,
     _marker: PhantomData<(T, B)>,
 }
 
@@ -199,20 +214,35 @@ where
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         // Differentiable separable pooling: average over W, then over H, each a
         // constant averaging matmul. Averaging is separable so this equals the
         // joint 2D adaptive average.
         let shape = input.tensor.shape_cloned();
+        if shape.len() != 4 {
+            return Err(ModuleError::InvalidRank {
+                module: "AdaptiveAvgPool2d",
+                expected: "4",
+                actual: shape.len(),
+            });
+        }
         let (n, c, h, w) = (shape[0], shape[1], shape[2], shape[3]);
         let (oh, ow) = (self.out_h, self.out_w);
+        if h == 0 || w == 0 || oh == 0 || ow == 0 {
+            return Err(ModuleError::ShapeMismatch {
+                module: "AdaptiveAvgPool2d",
+                parameter: "spatial input and output dimensions",
+                expected: vec![1; 4],
+                actual: vec![h, w, oh, ow],
+            });
+        }
         let backend = B::default();
 
         // Fast path for global (1×1) pooling: sequential mean_axis reductions
         // avoid allocating the O(H*W) averaging matrix.
         if oh == 1 && ow == 1 {
             let after_h = coeus_autograd::mean_axis(input, 2); // [N, C, 1, W]
-            return coeus_autograd::mean_axis(&after_h, 3); // [N, C, 1, 1]
+            return Ok(coeus_autograd::mean_axis(&after_h, 3)); // [N, C, 1, 1]
         }
 
         // Pool W: [N, C, H, W] -> [N*C*H, W] @ PW_T[W, OW] -> [N, C, H, OW].
@@ -227,7 +257,7 @@ where
         let yh = coeus_autograd::reshape(&yh, [n, c, ow, oh]);
         // Final transpose to [N, C, OH, OW]; reshape materializes it contiguous.
         let out = coeus_autograd::permute(&yh, &[0, 1, 3, 2]);
-        coeus_autograd::reshape(&out, [n, c, oh, ow])
+        Ok(coeus_autograd::reshape(&out, [n, c, oh, ow]))
     }
 }
 
@@ -239,7 +269,7 @@ where
 #[derive(Clone, Debug)]
 pub struct AdaptiveMaxPool1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Target spatial output length.
-    pub output_size: usize,
+    output_size: usize,
     _marker: PhantomData<(T, B)>,
 }
 
@@ -261,15 +291,30 @@ where
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         // Differentiable: masked max over each adaptive region along the length.
         let shape = input.tensor.shape_cloned();
+        if shape.len() != 3 {
+            return Err(ModuleError::InvalidRank {
+                module: "AdaptiveMaxPool1d",
+                expected: "3",
+                actual: shape.len(),
+            });
+        }
         let (n, c, l) = (shape[0], shape[1], shape[2]);
         let o = self.output_size;
+        if l == 0 || o == 0 {
+            return Err(ModuleError::ShapeMismatch {
+                module: "AdaptiveMaxPool1d",
+                parameter: "spatial input and output dimensions",
+                expected: vec![1, 1],
+                actual: vec![l, o],
+            });
+        }
         let backend = B::default();
         let x2 = coeus_autograd::reshape(input, [n * c, l]);
         let pooled = masked_adaptive_max::<T, B>(&x2, n * c, l, o, &backend);
-        coeus_autograd::reshape(&pooled, [n, c, o])
+        Ok(coeus_autograd::reshape(&pooled, [n, c, o]))
     }
 }
 
@@ -281,9 +326,9 @@ where
 #[derive(Clone, Debug)]
 pub struct AdaptiveMaxPool2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Target output height.
-    pub out_h: usize,
+    out_h: usize,
     /// Target output width.
-    pub out_w: usize,
+    out_w: usize,
     _marker: PhantomData<(T, B)>,
 }
 
@@ -311,18 +356,33 @@ where
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         // Differentiable separable max pooling: max over W, then over H (max of a
         // 2D region equals the max of per-axis maxes), each a masked max_axis.
         let shape = input.tensor.shape_cloned();
+        if shape.len() != 4 {
+            return Err(ModuleError::InvalidRank {
+                module: "AdaptiveMaxPool2d",
+                expected: "4",
+                actual: shape.len(),
+            });
+        }
         let (n, c, h, w) = (shape[0], shape[1], shape[2], shape[3]);
         let (oh, ow) = (self.out_h, self.out_w);
+        if h == 0 || w == 0 || oh == 0 || ow == 0 {
+            return Err(ModuleError::ShapeMismatch {
+                module: "AdaptiveMaxPool2d",
+                parameter: "spatial input and output dimensions",
+                expected: vec![1; 4],
+                actual: vec![h, w, oh, ow],
+            });
+        }
         let backend = B::default();
 
         // Fast path for global (1×1) max pooling: sequential max_axis reductions.
         if oh == 1 && ow == 1 {
             let after_h = coeus_autograd::max_axis(input, 2); // [N, C, 1, W]
-            return coeus_autograd::max_axis(&after_h, 3); // [N, C, 1, 1]
+            return Ok(coeus_autograd::max_axis(&after_h, 3)); // [N, C, 1, 1]
         }
 
         // Pool W: [N, C, H, W] -> [N*C*H, W] -> [N*C*H, OW] -> [N, C, H, OW].
@@ -341,6 +401,6 @@ where
         );
         let yh = coeus_autograd::reshape(&ph, [n, c, ow, oh]);
         let out = coeus_autograd::permute(&yh, &[0, 1, 3, 2]);
-        coeus_autograd::reshape(&out, [n, c, oh, ow])
+        Ok(coeus_autograd::reshape(&out, [n, c, oh, ow]))
     }
 }

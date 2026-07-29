@@ -5,7 +5,7 @@
 // Head split/merge use coeus_autograd::reshape (tracked) to preserve gradient flow.
 
 use crate::init::kaiming_uniform;
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::{AttentionMask, Var};
 use coeus_core::{Float, MoiraiBackend, Scalar};
 use std::marker::PhantomData;
@@ -71,9 +71,10 @@ pub struct MhaProjectionParams<'a, T: Scalar, B: coeus_ops::BackendOps<T> + Defa
 /// Applies projections and scaled dot-product attention with explicit weights/biases
 /// and returns output shape `[batch, seq_q, d_model]`.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when `w_q` is not square or when `d_model` is not divisible by `H`.
+/// Returns a typed contract failure before evaluating invalid Q/K/V,
+/// projection, head-count, bias, or mask shapes.
 pub fn multi_head_attention_cross<
     T: Float,
     B: coeus_ops::BackendOps<T> + Default,
@@ -85,28 +86,63 @@ pub fn multi_head_attention_cross<
     value: &Var<T, B>,
     params: MhaProjectionParams<'_, T, B>,
     key_padding_mask: Option<&Var<T, B>>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, ModuleError<B::Error>> {
     let wq_shape = params.w_q.tensor.shape_cloned();
-    assert!(
-        wq_shape.len() == 2 && wq_shape[0] == wq_shape[1],
-        "MultiHeadAttention: w_q must be square [d_model, d_model], got shape {:?}",
-        wq_shape
-    );
+    if wq_shape.len() != 2 || wq_shape[0] != wq_shape[1] || wq_shape[0] == 0 {
+        return Err(super::validation::shape_mismatch(
+            "MultiHeadAttention",
+            "query projection weight",
+            &[1, 1],
+            &wq_shape,
+        ));
+    }
     let d_model = wq_shape[0];
-    assert!(
-        H > 0 && d_model.is_multiple_of(H),
-        "MultiHeadAttention: d_model ({d_model}) must be divisible by H ({H})"
-    );
+    if H == 0 || !d_model.is_multiple_of(H) {
+        return Err(super::validation::shape_mismatch(
+            "MultiHeadAttention",
+            "attention heads",
+            &[d_model],
+            &[H],
+        ));
+    }
+
+    let dimensions = super::validation::sdp_dimensions(
+        "MultiHeadAttention",
+        query,
+        key,
+        value,
+        key_padding_mask,
+        H,
+    )?;
+    for (parameter, actual) in [
+        ("query feature", dimensions.d_k),
+        ("key feature", key.tensor.shape()[2]),
+        ("value feature", dimensions.d_v),
+    ] {
+        if actual != d_model {
+            return Err(super::validation::shape_mismatch(
+                "MultiHeadAttention",
+                parameter,
+                &[d_model],
+                &[actual],
+            ));
+        }
+    }
+    for (parameter, weight, bias) in [
+        ("query projection", params.w_q, params.b_q),
+        ("key projection", params.w_k, params.b_k),
+        ("value projection", params.w_v, params.b_v),
+        ("output projection", params.w_o, params.b_o),
+    ] {
+        super::validation::projection("MultiHeadAttention", parameter, weight, bias, d_model)?;
+    }
 
     let d_head = d_model / H;
     let scale = T::one() / <T as Scalar>::from_f64((d_head as f64).sqrt());
 
-    let q_shape = query.tensor.shape_cloned();
-    let batch = q_shape[0];
-    let seq_q = q_shape[1];
-
-    let k_shape = key.tensor.shape_cloned();
-    let seq_k = k_shape[1];
+    let batch = dimensions.batch;
+    let seq_q = dimensions.seq_q;
+    let seq_k = dimensions.seq_k;
 
     let q_proj = project_3d(query, params.w_q, params.b_q, batch, seq_q, d_model);
     let k_proj = project_3d(key, params.w_k, params.b_k, batch, seq_k, d_model);
@@ -136,7 +172,9 @@ pub fn multi_head_attention_cross<
     let merged_perm = coeus_autograd::permute(&merged_split, &[0, 2, 1, 3]);
     let merged = coeus_autograd::reshape(&merged_perm, [batch, seq_q, d_model]);
 
-    project_3d(&merged, params.w_o, params.b_o, batch, seq_q, d_model)
+    Ok(project_3d(
+        &merged, params.w_o, params.b_o, batch, seq_q, d_model,
+    ))
 }
 
 /// Project a 3D `[batch, seq, d_model]` var via a `[d_model, d_model]` weight:
@@ -218,7 +256,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
         key: &Var<T, B>,
         value: &Var<T, B>,
         key_padding_mask: Option<&Var<T, B>>,
-    ) -> Var<T, B> {
+    ) -> Result<Var<T, B>, ModuleError<B::Error>> {
         multi_head_attention_cross::<T, B, H, M>(
             query,
             key,
@@ -282,7 +320,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
             .collect()
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         self.forward_cross(input, input, input, None)
     }
 }

@@ -1,6 +1,6 @@
 // ── Scaled Dot-Product Attention module ──
 
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::{AttentionMask, Var};
 use coeus_core::{Float, MoiraiBackend};
 use std::marker::PhantomData;
@@ -47,11 +47,20 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask>
         key: &Var<T, B>,
         value: &Var<T, B>,
         key_padding_mask: Option<&Var<T, B>>,
-        scale: T,
-    ) -> Var<T, B> {
+        scale: Option<T>,
+    ) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        let dimensions = super::validation::sdp_dimensions(
+            "ScaledDotProductAttention",
+            query,
+            key,
+            value,
+            key_padding_mask,
+            1,
+        )?;
+        let scale = scale.unwrap_or_else(|| T::one() / T::from_f64((dimensions.d_k as f64).sqrt()));
         let (out, _attn_weights) =
             coeus_autograd::sdp_attention::<T, B, M>(query, key, value, key_padding_mask, scale);
-        out
+        Ok(out)
     }
 }
 
@@ -63,9 +72,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Module<T
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        let d_k = input.tensor.shape()[2];
-        let scale = T::one() / T::from_f64((d_k as f64).sqrt());
-        self.forward(input, input, input, None, scale)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        self.forward(input, input, input, None, None)
     }
 }

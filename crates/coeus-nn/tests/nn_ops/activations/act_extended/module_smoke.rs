@@ -13,7 +13,7 @@ fn hardsigmoid_module_forward() {
         Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
         true,
     );
-    let output = m.forward(&input);
+    let output = m.forward(&input).expect("valid Hardsigmoid input");
     assert_close_slice(
         "hardsigmoid_module_forward",
         output.tensor.as_slice(),
@@ -31,7 +31,7 @@ fn hardswish_module_forward() {
         Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
         true,
     );
-    let output = m.forward(&input);
+    let output = m.forward(&input).expect("valid Hardswish input");
     assert_close_slice(
         "hardswish_module_forward",
         output.tensor.as_slice(),
@@ -49,7 +49,7 @@ fn softsign_module_forward() {
         Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
         true,
     );
-    let output = m.forward(&input);
+    let output = m.forward(&input).expect("valid Softsign input");
     assert_close_slice(
         "softsign_module_forward",
         output.tensor.as_slice(),

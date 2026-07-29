@@ -3,7 +3,7 @@
 // 2-D Transposed (Fractional-Stride) Convolution, matching
 // `torch.nn.ConvTranspose2d(in_channels, out_channels, kernel_size, ...)`.
 
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
@@ -108,11 +108,26 @@ where
         p
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let backend = B::default();
-        let n = input.tensor.shape()[0];
-        let h = input.tensor.shape()[2];
-        let w = input.tensor.shape()[3];
+        let shape = input.tensor.shape();
+        if shape.len() != 4 {
+            return Err(ModuleError::InvalidRank {
+                module: "ConvTranspose2d",
+                expected: "4",
+                actual: shape.len(),
+            });
+        }
+        if shape[1] != self.in_channels {
+            return Err(ModuleError::ChannelMismatch {
+                module: "ConvTranspose2d",
+                expected: self.in_channels,
+                actual: shape[1],
+            });
+        }
+        let n = shape[0];
+        let h = shape[2];
+        let w = shape[3];
         let (h_out, w_out) = self.output_dims(h, w);
 
         let mut out_tensor = Tensor::zeros_on([n, self.out_channels, h_out, w_out], &backend);
@@ -131,7 +146,7 @@ where
             out_layout,
         );
 
-        coeus_autograd::conv_transpose2d(
+        Ok(coeus_autograd::conv_transpose2d(
             input,
             &self.weight,
             &self.bias,
@@ -140,6 +155,6 @@ where
             self.padding,
             self.output_padding,
             self.dilation,
-        )
+        ))
     }
 }

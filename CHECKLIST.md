@@ -4,12 +4,28 @@
 
 - [x] Audit the complete `Module::forward` implementation and consumer graph.
 - [x] Record ADR-0045 and split the module contract into trait and error leaves.
-- [ ] Return `ModuleError<B::Error>` from all 85 module implementations.
-- [ ] Propagate all 54 normalization mutations without panic or suppression.
-- [ ] Make BatchNorm running-stat updates transactional on failure.
-- [ ] Migrate Rust, Python, benchmark, and doctest consumers atomically.
-- [ ] Pass warning-denied Clippy, focused and full Nextest, doctests, SemVer
-      checks, exact-head provider CI, and merge.
+- [x] Return `ModuleError<B::Error>` from all 82 retained module implementations;
+  remove three unary decoder implementations that substituted target input for
+  encoder memory.
+- [x] Propagate all 54 normalization mutations without panic or suppression.
+- [x] Make BatchNorm running-stat updates transactional on failure and reject
+      insufficient training reduction widths before `m - 1`.
+- [x] Migrate Rust, benchmark, and doctest consumers atomically.
+- [x] Complete Python boundary mapping for configuration, backend, and state
+      failures.
+- [x] Replace approximate alpha-dropout with SELU saturation semantics and a
+      channel-shared feature mask.
+- [x] Validate attention, transformer, recurrent, embedding, pooling, and
+      unfold/fold contracts before indexing or unchecked arithmetic.
+- [x] Correct multidimensional Huber reduction and gradient reconstruction;
+      reject invalid shape, empty-reduction, and delta contracts.
+- [x] Preserve LayerNorm trailing-dimension semantics for every rank ≥ 2
+      through the canonical `Module::forward` dispatch.
+- [x] Split touched Python wrappers, unfold/fold operations, and normalization
+      tests into concern-owned leaves below 500 lines.
+- [x] Pass warning-denied Clippy, focused and full Nextest, doctests,
+      benchmark smoke, and SemVer classification; require exact-head provider
+      CI before merge.
 
 ## ATLAS-COEUS-WGPU-008 Provider-owned reductions [major][arch]
 

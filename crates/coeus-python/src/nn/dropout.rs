@@ -1,4 +1,7 @@
-use crate::tensor::{PyStateDict, PyTensor};
+use crate::{
+    nn::error::map_module_error,
+    tensor::{PyStateDict, PyTensor},
+};
 use pyo3::prelude::*;
 
 /// Python-exposed Dropout layer.
@@ -51,7 +54,7 @@ impl PyDropout {
         };
 
         let inner = py.allow_threads(move || rust_dropout.forward(&input_var));
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     fn state_dict(&self) -> PyStateDict {

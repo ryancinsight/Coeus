@@ -21,7 +21,7 @@ fn test_linear_parity() {
     ));
 
     // Coeus forward
-    let out_coeus = linear_coeus.forward(&x_coeus);
+    let out_coeus = linear_coeus.forward(&x_coeus).expect("valid Linear input");
 
     // Verify forward
     let expected_linear_out = vec![2.700000f32, 0.900000f32, 1.950000f32, -1.600000f32];
@@ -75,7 +75,7 @@ fn test_layernorm_parity() {
     ln_coeus.bias = CoeusVar::new(CoeusTensor::from_slice(vec![4], &b_data), true);
 
     // Coeus forward
-    let out_coeus = ln_coeus.forward(&x_coeus);
+    let out_coeus = ln_coeus.forward(&x_coeus).expect("valid LayerNorm input");
 
     // Verify forward
     let expected_layernorm_out = vec![

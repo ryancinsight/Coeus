@@ -7,7 +7,7 @@ fn test_rope_forward_shape() {
 
     let rope = RotaryEmbedding::<f64, coeus_core::MoiraiBackend>::new(16, 4, 10000.0);
     let input = Var::new(Tensor::zeros(vec![2, 4, 3, 4]), true);
-    let output = rope.forward(&input);
+    let output = rope.forward(&input).expect("valid RotaryEmbedding input");
     assert_eq!(output.tensor.shape(), &[2, 4, 3, 4]);
 }
 
@@ -20,7 +20,7 @@ fn test_rope_backward() {
         Tensor::from_slice(vec![1, 2, 1, 4], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
         true,
     );
-    let output = rope.forward(&input);
+    let output = rope.forward(&input).expect("valid RotaryEmbedding input");
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
@@ -45,7 +45,7 @@ fn test_rope_numerical_correctness() {
         false,
     );
 
-    let output = rope.forward(&input);
+    let output = rope.forward(&input).expect("valid RotaryEmbedding input");
     let out_slice = output.tensor.as_slice();
 
     // pos 0: angle = 0 → identity

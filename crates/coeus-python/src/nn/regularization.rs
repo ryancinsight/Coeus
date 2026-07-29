@@ -1,4 +1,4 @@
-use crate::tensor::PyTensor;
+use crate::{nn::error::map_module_error, tensor::PyTensor};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -58,7 +58,7 @@ impl PyLocalResponseNorm {
         let lrn =
             coeus_nn::LocalResponseNorm::with_params(self.size, self.alpha, self.beta, self.k);
         let out = py.allow_threads(move || lrn.forward(&x));
-        Ok(PyTensor::from_var(out))
+        out.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     /// LocalResponseNorm has no learnable parameters.

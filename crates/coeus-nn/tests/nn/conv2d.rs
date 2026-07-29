@@ -6,7 +6,7 @@ use coeus_tensor::Tensor;
 fn test_conv2d_forward_shape() {
     let conv = Conv2d::<f64>::new(3, 8, 3, true);
     let input = Var::new(Tensor::zeros(vec![2, 3, 32, 32]), true);
-    let output = conv.forward(&input);
+    let output = conv.forward(&input).expect("valid Conv2d input");
 
     assert_eq!(output.tensor.shape(), &[2, 8, 30, 30]);
 
@@ -38,7 +38,7 @@ fn test_conv2d_forward_computation() {
         true,
     );
 
-    let output = conv.forward(&input);
+    let output = conv.forward(&input).expect("valid Conv2d input");
     assert_eq!(output.tensor.shape(), &[1, 1, 2, 2]);
 
     let out_slice = output.tensor.as_slice();
@@ -64,7 +64,7 @@ fn test_conv2d_backward_gradients_match_reference() {
         true,
     );
 
-    let output = conv.forward(&input);
+    let output = conv.forward(&input).expect("valid Conv2d input");
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
@@ -96,7 +96,7 @@ fn test_conv2d_with_padding() {
     }
 
     let input = Var::new(Tensor::zeros(vec![1, 1, 4, 4]), true);
-    let output = conv.forward(&input);
+    let output = conv.forward(&input).expect("valid Conv2d input");
     assert_eq!(output.tensor.shape(), &[1, 1, 4, 4]);
 }
 
@@ -109,6 +109,6 @@ fn test_conv2d_with_stride() {
     }
 
     let input = Var::new(Tensor::zeros(vec![1, 1, 7, 7]), true);
-    let output = conv.forward(&input);
+    let output = conv.forward(&input).expect("valid Conv2d input");
     assert_eq!(output.tensor.shape(), &[1, 1, 3, 3]);
 }

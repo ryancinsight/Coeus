@@ -72,7 +72,7 @@ fn test_mish_module_cpu() {
         true,
     );
 
-    let output = mish_mod.forward(&input);
+    let output = mish_mod.forward(&input).expect("valid Mish input");
     assert_eq!(output.tensor.shape(), &[2, 2]);
     assert_mish_values("module_forward", output.tensor.as_slice(), &input_data);
     assert_eq!(Module::<f64, MoiraiBackend>::parameters(&mish_mod).len(), 0);

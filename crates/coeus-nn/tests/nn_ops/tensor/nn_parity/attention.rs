@@ -77,7 +77,9 @@ fn test_mha_parity() {
         true,
     ));
 
-    let out_coeus = mha_coeus.forward_cross(&q_coeus, &k_coeus, &v_coeus, None);
+    let out_coeus = mha_coeus
+        .forward_cross(&q_coeus, &k_coeus, &v_coeus, None)
+        .expect("valid MultiHeadAttention parity input");
 
     // Verify Q, K, V projections match
     let q_proj_coeus = {

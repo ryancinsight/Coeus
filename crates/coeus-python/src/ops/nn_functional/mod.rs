@@ -1,5 +1,8 @@
-use crate::tensor::PyTensor;
-use coeus_tensor::Tensor;
+mod normalization;
+
+pub use normalization::{batch_norm_1d, group_norm, layer_norm, rms_norm};
+
+use crate::{nn::error::map_module_error, tensor::PyTensor};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -10,7 +13,7 @@ pub fn linear(
     weight: &PyTensor,
     bias: Option<&PyTensor>,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let w = weight.inner.clone();
     let b = bias.map(|b| b.inner.clone());
     let x = input.inner.clone();
@@ -20,7 +23,7 @@ pub fn linear(
         use coeus_nn::Module;
         lin.forward(&x)
     });
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_module_error)
 }
 
 #[pyfunction]
@@ -72,59 +75,10 @@ pub fn bilinear(
 }
 
 #[pyfunction]
-#[pyo3(signature = (input, norm_shape, weight = None, bias = None, eps = 1e-5))]
-pub fn layer_norm(
-    input: &PyTensor,
-    norm_shape: usize,
-    weight: Option<&PyTensor>,
-    bias: Option<&PyTensor>,
-    eps: f64,
-    py: Python<'_>,
-) -> PyResult<PyTensor> {
-    if !eps.is_finite() || eps < 0.0 {
-        return Err(PyValueError::new_err(
-            "layer_norm: eps must be finite and non-negative",
-        ));
-    }
-    let shape = input.inner.tensor.shape();
-    if shape.len() < 2 {
-        return Err(PyValueError::new_err(
-            "layer_norm: input must have rank >= 2",
-        ));
-    }
-    let last_dim = shape[shape.len() - 1];
-    if norm_shape != last_dim {
-        return Err(PyValueError::new_err(format!(
-            "layer_norm: norm_shape ({norm_shape}) must match input last dimension ({last_dim})"
-        )));
-    }
-    if let Some(w) = weight {
-        if w.inner.tensor.shape() != [norm_shape] {
-            return Err(PyValueError::new_err(
-                "layer_norm: weight must have shape [norm_shape]",
-            ));
-        }
-    }
-    if let Some(b) = bias {
-        if b.inner.tensor.shape() != [norm_shape] {
-            return Err(PyValueError::new_err(
-                "layer_norm: bias must have shape [norm_shape]",
-            ));
-        }
-    }
-    let w = weight.map(|w| w.inner.clone());
-    let b = bias.map(|b| b.inner.clone());
-    let x = input.inner.clone();
-    let inner =
-        py.allow_threads(move || coeus_nn::layer_norm(&x, norm_shape, w.as_ref(), b.as_ref(), eps));
-    Ok(PyTensor::from_var(inner))
-}
-
-#[pyfunction]
 #[pyo3(signature = (input, p = 0.5, training = false))]
-pub fn dropout(input: &PyTensor, p: f64, training: bool, py: Python<'_>) -> PyTensor {
+pub fn dropout(input: &PyTensor, p: f64, training: bool, py: Python<'_>) -> PyResult<PyTensor> {
     if !training || p == 0.0 {
-        return input.clone();
+        return Ok(input.clone());
     }
     let x = input.inner.clone();
     let inner = py.allow_threads(move || {
@@ -134,7 +88,7 @@ pub fn dropout(input: &PyTensor, p: f64, training: bool, py: Python<'_>) -> PyTe
         drop.set_training(true);
         drop.forward(&x)
     });
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_module_error)
 }
 
 #[pyfunction]
@@ -424,165 +378,6 @@ pub fn f_binary_cross_entropy(
 pub fn f_cross_entropy(input: &PyTensor, targets: Vec<usize>, py: Python<'_>) -> PyTensor {
     let inner = py.allow_threads(|| coeus_nn::cross_entropy_loss(&input.inner, &targets));
     PyTensor::from_var(inner)
-}
-
-/// Functional (stateless) batch normalization for 3-D inputs `[N, C, L]`.
-///
-/// Matches `torch.nn.functional.batch_norm` with `input` of shape
-/// `[N, C, L]`. In eval mode (`training=False`) normalizes with the
-/// supplied `running_mean` / `running_var`; in training mode normalizes
-/// with batch statistics (running stats are updated inside the call but
-/// not returned — manage them externally when persistent state is needed).
-///
-/// `weight` (γ) and `bias` (β) default to ones and zeros respectively.
-#[pyfunction]
-#[allow(clippy::too_many_arguments)] // PyO3 boundary mirrors the functional batch_norm API.
-#[pyo3(signature = (
-    input,
-    running_mean,
-    running_var,
-    weight = None,
-    bias = None,
-    training = false,
-    momentum = 0.1,
-    eps = 1e-5
-))]
-pub fn batch_norm_1d(
-    input: &PyTensor,
-    running_mean: &PyTensor,
-    running_var: &PyTensor,
-    weight: Option<&PyTensor>,
-    bias: Option<&PyTensor>,
-    training: bool,
-    momentum: f64,
-    eps: f64,
-    py: Python<'_>,
-) -> PyTensor {
-    let num_features = input.inner.tensor.shape()[1];
-    let w = weight.map(|w| w.inner.clone());
-    let b = bias.map(|b| b.inner.clone());
-    let x = input.inner.clone();
-    let rm = running_mean.inner.tensor.clone();
-    let rv = running_var.inner.tensor.clone();
-    let inner = py.allow_threads(move || {
-        use coeus_nn::normalization::BatchNorm1d;
-        use coeus_nn::Module;
-        let backend = coeus_core::MoiraiBackend::new();
-        let weight_var = w.unwrap_or_else(|| {
-            coeus_autograd::Var::new(Tensor::ones_on([num_features], &backend), false)
-        });
-        let bias_var = b.unwrap_or_else(|| {
-            coeus_autograd::Var::new(Tensor::zeros_on([num_features], &backend), false)
-        });
-        let mut bn =
-            BatchNorm1d::from_parts(num_features, weight_var, bias_var, eps, momentum, rm, rv);
-        bn.set_training(training);
-        bn.forward(&x)
-    });
-    PyTensor::from_var(inner)
-}
-
-/// Functional (stateless) RMS normalization.
-///
-/// Matches `torch.nn.functional.rms_norm(input, weight, eps)` for 2-D
-/// inputs `[N, D]`. `weight` (γ) defaults to ones.
-#[pyfunction]
-#[pyo3(signature = (input, weight = None, eps = 1e-8))]
-pub fn rms_norm(
-    input: &PyTensor,
-    weight: Option<&PyTensor>,
-    eps: f64,
-    py: Python<'_>,
-) -> PyResult<PyTensor> {
-    if !eps.is_finite() || eps < 0.0 {
-        return Err(PyValueError::new_err(
-            "rms_norm: eps must be finite and non-negative",
-        ));
-    }
-    let shape = input.inner.tensor.shape();
-    if shape.len() != 2 {
-        return Err(PyValueError::new_err(format!(
-            "rms_norm: input must be rank-2 [N, D], got rank {}",
-            shape.len()
-        )));
-    }
-    let d = shape[1];
-    if let Some(w) = weight {
-        if w.inner.tensor.shape() != [d] {
-            return Err(PyValueError::new_err(
-                "rms_norm: weight must have shape [D]",
-            ));
-        }
-    }
-    let w = weight.map(|w| w.inner.clone());
-    let x = input.inner.clone();
-    let inner = py.allow_threads(move || coeus_nn::rms_norm(&x, w.as_ref(), eps));
-    Ok(PyTensor::from_var(inner))
-}
-
-/// Functional (stateless) group normalization.
-///
-/// Matches `torch.nn.functional.group_norm(input, num_groups, weight, bias, eps)`.
-///
-/// # Shapes
-/// - `input`:  `[N, C, *]` where `C % num_groups == 0`
-/// - `weight`: optional `[C]` scale (γ); defaults to ones
-/// - `bias`:   optional `[C]` shift (β); defaults to zeros
-/// - Output:   same shape as `input`
-#[pyfunction]
-#[pyo3(signature = (input, num_groups, weight = None, bias = None, eps = 1e-5))]
-pub fn group_norm(
-    input: &PyTensor,
-    num_groups: usize,
-    weight: Option<&PyTensor>,
-    bias: Option<&PyTensor>,
-    eps: f64,
-    py: Python<'_>,
-) -> PyResult<PyTensor> {
-    let shape = input.inner.tensor.shape();
-    if shape.len() < 2 {
-        return Err(PyValueError::new_err(
-            "group_norm: input must have at least 2 dimensions",
-        ));
-    }
-    if num_groups == 0 {
-        return Err(PyValueError::new_err(
-            "group_norm: num_groups must be greater than 0",
-        ));
-    }
-    if !eps.is_finite() || eps < 0.0 {
-        return Err(PyValueError::new_err(
-            "group_norm: eps must be finite and non-negative",
-        ));
-    }
-    let c = shape[1];
-    if !c.is_multiple_of(num_groups) {
-        return Err(PyValueError::new_err(format!(
-            "group_norm: channels ({c}) must be divisible by num_groups ({num_groups})"
-        )));
-    }
-    if let Some(w) = weight {
-        if w.inner.tensor.shape() != [c] {
-            return Err(PyValueError::new_err(
-                "group_norm: weight must have shape [C]",
-            ));
-        }
-    }
-    if let Some(b) = bias {
-        if b.inner.tensor.shape() != [c] {
-            return Err(PyValueError::new_err(
-                "group_norm: bias must have shape [C]",
-            ));
-        }
-    }
-    let x = input.inner.tensor.clone();
-    let w = weight.map(|w| w.inner.tensor.clone());
-    let b = bias.map(|b| b.inner.tensor.clone());
-    let inner = py.allow_threads(move || {
-        use coeus_nn::group_norm as gn;
-        gn(&x, num_groups, w.as_ref(), b.as_ref(), eps)
-    });
-    Ok(PyTensor::from_var(coeus_autograd::Var::new(inner, false)))
 }
 
 /// Functional (stateless) scaled dot-product attention.

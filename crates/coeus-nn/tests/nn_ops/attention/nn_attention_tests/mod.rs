@@ -9,6 +9,9 @@
 //   6. SinusoidalEncoding shape and non-zero values
 
 #[cfg(test)]
+mod mha_mask;
+
+#[cfg(test)]
 mod tests {
     use coeus_autograd::Var;
     use coeus_core::{MoiraiBackend, Storage};
@@ -162,7 +165,7 @@ mod tests {
         let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
         let x_var = Var::new(x, false);
 
-        let out = mha.forward(&x_var);
+        let out = mha.forward(&x_var).expect("valid MultiHeadAttention input");
         assert_eq!(
             out.tensor.shape(),
             &[batch, seq, d_model],
@@ -184,7 +187,7 @@ mod tests {
         let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
         let x_var = Var::new(x, false);
 
-        let out = mha.forward(&x_var);
+        let out = mha.forward(&x_var).expect("valid MultiHeadAttention input");
         let loss = coeus_autograd::sum(&out);
         loss.backward()
             .expect("invariant: valid autograd fixture completes backward");
@@ -231,7 +234,7 @@ mod tests {
         let x = Tensor::<f32, B>::zeros_on([batch, seq, d_model], &backend);
         let x_var = Var::new(x, false);
 
-        let out = pe.forward(&x_var);
+        let out = pe.forward(&x_var).expect("valid SinusoidalEncoding input");
         assert_eq!(out.tensor.shape(), &[batch, seq, d_model]);
     }
 
@@ -249,7 +252,7 @@ mod tests {
         let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
         let x_var = Var::new(x, false);
 
-        let out = ffn.forward(&x_var);
+        let out = ffn.forward(&x_var).expect("valid FeedForward input");
         assert_eq!(out.tensor.shape(), &[batch, seq, d_model]);
 
         let out_fn = feed_forward(
@@ -259,7 +262,8 @@ mod tests {
             &ffn.linear2.weight,
             ffn.linear2.bias.as_ref(),
             0.0,
-        );
+        )
+        .expect("valid FeedForward functional input");
         assert_eq!(out_fn.tensor.shape(), &[batch, seq, d_model]);
         for (a, b) in out.tensor.as_slice().iter().zip(out_fn.tensor.as_slice()) {
             assert!(
@@ -284,7 +288,9 @@ mod tests {
         let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
         let x_var = Var::new(x, false);
 
-        let out = layer.forward(&x_var);
+        let out = layer
+            .forward(&x_var)
+            .expect("valid TransformerEncoderLayer input");
         assert_eq!(
             out.tensor.shape(),
             &[batch, seq, d_model],
@@ -320,7 +326,8 @@ mod tests {
                 ffn_residual_dropout_p: 0.0,
                 ffn_residual_training: false,
             },
-        );
+        )
+        .expect("valid TransformerEncoderLayer functional input");
         assert_eq!(out_fn.tensor.shape(), &[batch, seq, d_model]);
         for (a, b) in out.tensor.as_slice().iter().zip(out_fn.tensor.as_slice()) {
             assert!(
@@ -343,7 +350,9 @@ mod tests {
         let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
         let x_var = Var::new(x, true);
 
-        let out = layer.forward(&x_var);
+        let out = layer
+            .forward(&x_var)
+            .expect("valid TransformerEncoderLayer input");
         let loss = coeus_autograd::sum(&out);
         loss.backward()
             .expect("invariant: valid autograd fixture completes backward");
@@ -375,7 +384,9 @@ mod tests {
         let mask = Tensor::<f32, B>::from_slice_on([batch, seq], &[1.0, 1.0, 0.0, 0.0], &backend);
         let mask_var = Var::new(mask, false);
 
-        let out = layer.forward_with_mask(&x_var, Some(&mask_var));
+        let out = layer
+            .forward_with_mask(&x_var, Some(&mask_var))
+            .expect("valid masked TransformerEncoderLayer input");
         assert_eq!(
             out.tensor.shape(),
             &[batch, seq, d_model],
@@ -415,8 +426,12 @@ mod tests {
         let mask = Tensor::<f32, B>::ones_on([batch, seq], &backend);
         let mask_var = Var::new(mask, false);
 
-        let unmasked = layer.forward(&x_var);
-        let masked = layer.forward_with_mask(&x_var, Some(&mask_var));
+        let unmasked = layer
+            .forward(&x_var)
+            .expect("valid TransformerEncoderLayer input");
+        let masked = layer
+            .forward_with_mask(&x_var, Some(&mask_var))
+            .expect("valid masked TransformerEncoderLayer input");
         let unmasked_data = unmasked
             .tensor
             .storage()
@@ -438,62 +453,24 @@ mod tests {
     }
 
     #[test]
-    fn test_mha_key_padding_mask() {
+    fn encoder_layer_rejects_rank_before_normalization() {
+        use coeus_nn::ModuleError;
+
         const H: usize = 2;
-        let d_model = 8;
-        let batch = 1;
-        let seq_q = 3;
-        let seq_k = 4;
-        let backend = B::default();
+        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(8, 16, 0.0);
+        let input = Var::new(Tensor::<f32, B>::ones([2, 8]), false);
+        let error = layer
+            .forward(&input)
+            .err()
+            .expect("rank-two encoder input must be rejected");
 
-        let q = Tensor::<f32, B>::ones_on([batch * H, seq_q, d_model / H], &backend);
-        let k = Tensor::<f32, B>::ones_on([batch * H, seq_k, d_model / H], &backend);
-        let v = Tensor::<f32, B>::ones_on([batch * H, seq_k, d_model / H], &backend);
-
-        let q_var = Var::new(q, true);
-        let k_var = Var::new(k, true);
-        let v_var = Var::new(v, true);
-
-        // Mask out the last two key/value elements (indices 2 and 3)
-        // 1.0 means keep, 0.0 means pad
-        let mask_data = vec![1.0_f32, 1.0_f32, 0.0_f32, 0.0_f32];
-        let mask = Tensor::<f32, B>::from_slice_on([batch, seq_k], &mask_data, &backend);
-        let mask_var = Var::new(mask, false);
-
-        let scale = 1.0_f32;
-        let (out, aw) = coeus_autograd::sdp_attention::<f32, B, NullMask>(
-            &q_var,
-            &k_var,
-            &v_var,
-            Some(&mask_var),
-            scale,
-        );
-
-        let aw_data = aw.storage().try_as_slice().unwrap();
-        println!("aw_data: {:?}", aw_data);
-
-        let loss = coeus_autograd::sum(&out);
-        loss.backward()
-            .expect("invariant: valid autograd fixture completes backward");
-
-        let k_grad = k_var.grad.as_ref().unwrap().read();
-        let k_grad_slice = k_grad.storage().try_as_slice().unwrap();
-        println!("k_grad_slice: {:?}", k_grad_slice);
-
-        // Check that gradients for key and value at indices 2 and 3 (the padded elements) are zero
-        // k has shape [2, 4, 4]. Padded indices are seq_idx = 2, 3 for both batch heads.
-        for head in 0..2 {
-            for seq_idx in 2..4 {
-                for d_idx in 0..4 {
-                    let idx = head * 16 + seq_idx * 4 + d_idx;
-                    assert!(
-                        k_grad_slice[idx].abs() < EPS,
-                        "k_grad at index {} should be 0, but got {}",
-                        idx,
-                        k_grad_slice[idx]
-                    );
-                }
+        assert!(matches!(
+            error,
+            ModuleError::InvalidRank {
+                module: "TransformerEncoderLayer",
+                expected: "3",
+                actual: 2,
             }
-        }
+        ));
     }
 }

@@ -1,4 +1,4 @@
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend, Scalar};
 use std::marker::PhantomData;
@@ -29,9 +29,24 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvg
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        assert_eq!(input.tensor.ndim(), 3, "GlobalAvgPool1d expects [N,C,L]");
-        coeus_autograd::mean_axis(input, 2)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        let actual = input.tensor.ndim();
+        if actual != 3 {
+            return Err(ModuleError::InvalidRank {
+                module: "GlobalAvgPool1d",
+                expected: "3",
+                actual,
+            });
+        }
+        if input.tensor.shape()[2] == 0 {
+            return Err(ModuleError::ShapeMismatch {
+                module: "GlobalAvgPool1d",
+                parameter: "spatial dimensions",
+                expected: vec![1],
+                actual: vec![0],
+            });
+        }
+        Ok(coeus_autograd::mean_axis(input, 2))
     }
 }
 
@@ -55,10 +70,26 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvg
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        assert_eq!(input.tensor.ndim(), 4, "GlobalAvgPool2d expects [N,C,H,W]");
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        let actual = input.tensor.ndim();
+        if actual != 4 {
+            return Err(ModuleError::InvalidRank {
+                module: "GlobalAvgPool2d",
+                expected: "4",
+                actual,
+            });
+        }
+        let spatial = &input.tensor.shape()[2..];
+        if spatial.contains(&0) {
+            return Err(ModuleError::ShapeMismatch {
+                module: "GlobalAvgPool2d",
+                parameter: "spatial dimensions",
+                expected: vec![1; 2],
+                actual: spatial.to_vec(),
+            });
+        }
         let after_h = coeus_autograd::mean_axis(input, 2);
-        coeus_autograd::mean_axis(&after_h, 3)
+        Ok(coeus_autograd::mean_axis(&after_h, 3))
     }
 }
 
@@ -82,15 +113,27 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvg
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        assert_eq!(
-            input.tensor.ndim(),
-            5,
-            "GlobalAvgPool3d expects [N,C,D,H,W]"
-        );
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        let actual = input.tensor.ndim();
+        if actual != 5 {
+            return Err(ModuleError::InvalidRank {
+                module: "GlobalAvgPool3d",
+                expected: "5",
+                actual,
+            });
+        }
+        let spatial = &input.tensor.shape()[2..];
+        if spatial.contains(&0) {
+            return Err(ModuleError::ShapeMismatch {
+                module: "GlobalAvgPool3d",
+                parameter: "spatial dimensions",
+                expected: vec![1; 3],
+                actual: spatial.to_vec(),
+            });
+        }
         let after_d = coeus_autograd::mean_axis(input, 2);
         let after_h = coeus_autograd::mean_axis(&after_d, 3);
-        coeus_autograd::mean_axis(&after_h, 4)
+        Ok(coeus_autograd::mean_axis(&after_h, 4))
     }
 }
 
@@ -114,10 +157,26 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalMax
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        assert_eq!(input.tensor.ndim(), 4, "GlobalMaxPool2d expects [N,C,H,W]");
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        let actual = input.tensor.ndim();
+        if actual != 4 {
+            return Err(ModuleError::InvalidRank {
+                module: "GlobalMaxPool2d",
+                expected: "4",
+                actual,
+            });
+        }
+        let spatial = &input.tensor.shape()[2..];
+        if spatial.contains(&0) {
+            return Err(ModuleError::ShapeMismatch {
+                module: "GlobalMaxPool2d",
+                parameter: "spatial dimensions",
+                expected: vec![1; 2],
+                actual: spatial.to_vec(),
+            });
+        }
         let after_h = coeus_autograd::max_axis(input, 2);
-        coeus_autograd::max_axis(&after_h, 3)
+        Ok(coeus_autograd::max_axis(&after_h, 3))
     }
 }
 
@@ -139,14 +198,26 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalMax
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        assert_eq!(
-            input.tensor.ndim(),
-            5,
-            "GlobalMaxPool3d expects [N,C,D,H,W]"
-        );
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        let actual = input.tensor.ndim();
+        if actual != 5 {
+            return Err(ModuleError::InvalidRank {
+                module: "GlobalMaxPool3d",
+                expected: "5",
+                actual,
+            });
+        }
+        let spatial = &input.tensor.shape()[2..];
+        if spatial.contains(&0) {
+            return Err(ModuleError::ShapeMismatch {
+                module: "GlobalMaxPool3d",
+                parameter: "spatial dimensions",
+                expected: vec![1; 3],
+                actual: spatial.to_vec(),
+            });
+        }
         let after_d = coeus_autograd::max_axis(input, 2);
         let after_h = coeus_autograd::max_axis(&after_d, 3);
-        coeus_autograd::max_axis(&after_h, 4)
+        Ok(coeus_autograd::max_axis(&after_h, 4))
     }
 }

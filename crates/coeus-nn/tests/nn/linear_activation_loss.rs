@@ -66,7 +66,7 @@ fn test_linear_layer() {
     }
 
     let input = Var::new(Tensor::from_slice(vec![1, 3], &[1.0f64, 2.0, 3.0]), true);
-    let output = layer.forward(&input);
+    let output = layer.forward(&input).expect("valid Linear input");
 
     assert_eq!(output.tensor.shape(), &[1, 2]);
     assert_eq!(output.tensor.as_slice(), &[6.5, 6.5]);
@@ -119,7 +119,7 @@ fn linear_projects_last_axis_for_rank_three_and_preserves_gradients() {
         ),
         true,
     );
-    let output = layer.forward(&input);
+    let output = layer.forward(&input).expect("valid Linear input");
 
     assert_eq!(output.tensor.shape(), &[2, 2, 2]);
     assert_eq!(
@@ -166,7 +166,7 @@ fn linear_projects_last_axis_for_rank_five() {
         false,
     );
 
-    let output = layer.forward(&input);
+    let output = layer.forward(&input).expect("valid Linear input");
 
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 2, 2]);
     assert_eq!(output.tensor.as_slice(), &[-2.0, 9.0, -2.0, 21.0]);
@@ -186,7 +186,7 @@ fn test_load_parameters_applies_optimizer_step_to_the_module() {
     }
 
     let x = Var::new(Tensor::from_slice(vec![1, 2], &[3.0f64, 4.0]), false);
-    let output = layer.forward(&x); // w . x + b = 1*3 + 1*4 + 0 = 7
+    let output = layer.forward(&x).expect("valid Linear input"); // w . x + b = 1*3 + 1*4 + 0 = 7
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward"); // d(output)/d(weight) = x = [3, 4]; d(output)/d(bias) = 1
@@ -216,7 +216,7 @@ fn test_load_parameters_applies_optimizer_step_to_the_module() {
     // The updated layer must actually be used on the next forward pass:
     // w' . x + b' = 0.7*3 + 0.6*4 - 0.1 = 2.1 + 2.4 - 0.1 = 4.4
     let x2 = Var::new(Tensor::from_slice(vec![1, 2], &[3.0f64, 4.0]), false);
-    let output2 = layer.forward(&x2);
+    let output2 = layer.forward(&x2).expect("valid Linear input");
     assert_slice_close(
         "forward_after_load_parameters",
         output2.tensor.as_slice(),

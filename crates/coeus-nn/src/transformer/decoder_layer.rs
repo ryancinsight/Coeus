@@ -1,10 +1,9 @@
 // ── Transformer Decoder Layer (Pre-LayerNorm) ──
 
-use super::ffn::FeedForward;
+use super::ffn::{feed_forward_with_training, FeedForward};
 use crate::attention::{multi_head_attention_cross, MhaProjectionParams, MultiHeadAttention};
 use crate::dropout::Dropout;
-use crate::linear::Linear;
-use crate::module::{prefixed_parameters, Module};
+use crate::module::{prefixed_parameters, Module, ModuleError};
 use crate::normalization::LayerNorm;
 use coeus_autograd::{AttentionMask, CausalMask, NullMask, Var};
 use coeus_core::{Float, MoiraiBackend};
@@ -53,27 +52,11 @@ pub struct TransformerDecoderLayerParams<'a, T: Float, B: coeus_ops::BackendOps<
     pub ffn_residual_training: bool,
 }
 
-fn layernorm_3d_from_parts<T: Float, B: coeus_ops::BackendOps<T> + Default>(
-    x: &Var<T, B>,
-    weight: &Var<T, B>,
-    bias: &Var<T, B>,
-    eps: f64,
-) -> Var<T, B> {
-    let shape = x.tensor.shape_cloned();
-    let batch = shape[0];
-    let seq = shape[1];
-    let d = shape[2];
-    let flat = coeus_autograd::reshape(x, [batch * seq, d]);
-    let norm = LayerNorm::from_parts(weight.clone(), bias.clone(), eps);
-    let normed = norm.forward(&flat);
-    coeus_autograd::reshape(&normed, [batch, seq, d])
-}
-
 fn apply_dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     p: f64,
     is_training: bool,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, ModuleError<B::Error>> {
     let mut dropout = Dropout::new(p);
     dropout.set_training(is_training);
     dropout.forward(x)
@@ -95,60 +78,91 @@ pub fn transformer_decoder_layer<
     tgt: &Var<T, B>,
     memory: &Var<T, B>,
     params: TransformerDecoderLayerParams<'_, T, B>,
-) -> Var<T, B> {
-    let normed1 = layernorm_3d_from_parts(tgt, params.norm1_weight, params.norm1_bias, 1e-5);
+) -> Result<Var<T, B>, ModuleError<B::Error>> {
+    const MODULE: &str = "TransformerDecoderLayer";
+    let ([_, _, d_model], _) = super::validation::decoder_inputs(MODULE, tgt, memory)?;
+    for (parameter, value) in [
+        ("norm1 weight", params.norm1_weight),
+        ("norm1 bias", params.norm1_bias),
+        ("norm2 weight", params.norm2_weight),
+        ("norm2 bias", params.norm2_bias),
+        ("norm3 weight", params.norm3_weight),
+        ("norm3 bias", params.norm3_bias),
+    ] {
+        super::validation::affine_vector(MODULE, parameter, value, d_model)?;
+    }
+    super::validation::feed_forward(
+        MODULE,
+        d_model,
+        params.ffn_w1,
+        params.ffn_b1,
+        params.ffn_w2,
+        params.ffn_b2,
+    )?;
+    let normed1 = super::normalization::layer_norm_three_dimensional(
+        MODULE,
+        tgt,
+        params.norm1_weight,
+        params.norm1_bias,
+        1e-5,
+    )?;
     let self_attn_out = multi_head_attention_cross::<T, B, H, SelfM>(
         &normed1,
         &normed1,
         &normed1,
         params.self_attn,
         None,
-    );
+    )?;
     let dropped1 = apply_dropout(
         &self_attn_out,
         params.self_attn_residual_dropout_p,
         params.self_attn_residual_training,
-    );
+    )?;
     let x = coeus_autograd::add(tgt, &dropped1);
 
-    let normed2 = layernorm_3d_from_parts(&x, params.norm2_weight, params.norm2_bias, 1e-5);
+    let normed2 = super::normalization::layer_norm_three_dimensional(
+        MODULE,
+        &x,
+        params.norm2_weight,
+        params.norm2_bias,
+        1e-5,
+    )?;
     let cross_attn_out = multi_head_attention_cross::<T, B, H, CrossM>(
         &normed2,
         memory,
         memory,
         params.cross_attn,
         None,
-    );
+    )?;
     let dropped2 = apply_dropout(
         &cross_attn_out,
         params.cross_attn_residual_dropout_p,
         params.cross_attn_residual_training,
-    );
+    )?;
     let x = coeus_autograd::add(&x, &dropped2);
 
-    let normed3 = layernorm_3d_from_parts(&x, params.norm3_weight, params.norm3_bias, 1e-5);
-    let linear1 = Linear {
-        weight: params.ffn_w1.clone(),
-        bias: params.ffn_b1.cloned(),
-    };
-    let linear2 = Linear {
-        weight: params.ffn_w2.clone(),
-        bias: params.ffn_b2.cloned(),
-    };
-    let ff_hidden = linear1.forward(&normed3);
-    let ff_hidden = coeus_autograd::gelu(&ff_hidden);
-    let ff_hidden = apply_dropout(
-        &ff_hidden,
+    let normed3 = super::normalization::layer_norm_three_dimensional(
+        MODULE,
+        &x,
+        params.norm3_weight,
+        params.norm3_bias,
+        1e-5,
+    )?;
+    let ff_out = feed_forward_with_training(
+        &normed3,
+        params.ffn_w1,
+        params.ffn_b1,
+        params.ffn_w2,
+        params.ffn_b2,
         params.ffn_hidden_dropout_p,
         params.ffn_hidden_training,
-    );
-    let ff_out = linear2.forward(&ff_hidden);
+    )?;
     let dropped3 = apply_dropout(
         &ff_out,
         params.ffn_residual_dropout_p,
         params.ffn_residual_training,
-    );
-    coeus_autograd::add(&x, &dropped3)
+    )?;
+    Ok(coeus_autograd::add(&x, &dropped3))
 }
 
 /// Single Transformer decoder layer.
@@ -216,7 +230,11 @@ impl<
     ///
     /// - `tgt`:    target inputs `[batch, seq_tgt, d_model]`
     /// - `memory`: encoder outputs `[batch, seq_src, d_model]`
-    pub fn forward_decoder(&self, tgt: &Var<T, B>, memory: &Var<T, B>) -> Var<T, B> {
+    pub fn forward_decoder(
+        &self,
+        tgt: &Var<T, B>,
+        memory: &Var<T, B>,
+    ) -> Result<Var<T, B>, ModuleError<B::Error>> {
         transformer_decoder_layer::<T, B, H, SelfM, CrossM>(
             tgt,
             memory,
@@ -270,9 +288,10 @@ impl<
         const H: usize,
         SelfM: AttentionMask,
         CrossM: AttentionMask,
-    > Module<T, B> for TransformerDecoderLayer<T, B, H, SelfM, CrossM>
+    > TransformerDecoderLayer<T, B, H, SelfM, CrossM>
 {
-    fn parameters(&self) -> Vec<Var<T, B>> {
+    /// Collect all trainable decoder-layer parameters.
+    pub fn parameters(&self) -> Vec<Var<T, B>> {
         let mut p = self.norm1.parameters();
         p.extend(self.self_attn.parameters());
         p.extend(self.norm2.parameters());
@@ -282,7 +301,8 @@ impl<
         p
     }
 
-    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
+    /// Collect trainable parameters with stable hierarchical names.
+    pub fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
         let mut parameters = prefixed_parameters("norm1", &self.norm1);
         parameters.extend(prefixed_parameters("self_attention", &self.self_attn));
         parameters.extend(prefixed_parameters("norm2", &self.norm2));
@@ -290,11 +310,6 @@ impl<
         parameters.extend(prefixed_parameters("norm3", &self.norm3));
         parameters.extend(prefixed_parameters("feed_forward", &self.ffn));
         parameters
-    }
-
-    /// Fallback forward without cross-attention: `memory = tgt`.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        self.forward_decoder(input, input)
     }
 }
 

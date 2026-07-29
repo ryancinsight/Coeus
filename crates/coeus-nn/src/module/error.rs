@@ -26,6 +26,26 @@ where
         /// Observed input rank.
         actual: usize,
     },
+    /// An operation axis is outside the input rank.
+    #[error("{module} axis {axis} is out of range for rank {rank}")]
+    InvalidAxis {
+        /// Module family rejecting the axis.
+        module: &'static str,
+        /// Requested axis.
+        axis: usize,
+        /// Observed input rank.
+        rank: usize,
+    },
+    /// A split operation requires an even extent.
+    #[error("{module} axis {axis} requires an even extent, got {extent}")]
+    UnevenSplit {
+        /// Module family rejecting the split.
+        module: &'static str,
+        /// Split axis.
+        axis: usize,
+        /// Observed axis extent.
+        extent: usize,
+    },
     /// A parameter or input has an incompatible shape.
     #[error("{module} {parameter} shape mismatch: expected {expected:?}, got {actual:?}")]
     ShapeMismatch {
@@ -58,11 +78,21 @@ where
         /// Configured channel count.
         channels: usize,
     },
-    /// The normalization epsilon is not strictly positive.
-    #[error("{module} epsilon must be positive")]
-    NonPositiveEpsilon {
+    /// The normalization epsilon is negative or not finite.
+    #[error("{module} epsilon must be finite and non-negative")]
+    InvalidEpsilon {
         /// Module family rejecting epsilon.
         module: &'static str,
+    },
+    /// A reduction domain contains too few values for the module statistic.
+    #[error("{module} requires at least {minimum} values per channel, got {actual}")]
+    InsufficientElements {
+        /// Module family rejecting the reduction domain.
+        module: &'static str,
+        /// Minimum supported reduction width.
+        minimum: usize,
+        /// Observed reduction width.
+        actual: usize,
     },
     /// Interior module state is already borrowed.
     #[error("{module} state {state} is already borrowed")]

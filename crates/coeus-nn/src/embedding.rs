@@ -1,6 +1,6 @@
 // ── Embedding layer module ──
 
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
@@ -62,9 +62,22 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Embedding<T, B> {
         }
     }
 
-    /// Forward pass using explicit integer index tensor.
-    pub fn forward_indices<I: Scalar + 'static>(&self, indices: &Tensor<I, B>) -> Var<T, B> {
-        coeus_autograd::embedding_with_padding_idx(&self.weight, indices, self.padding_idx)
+    /// Forward pass using an explicit integer index tensor.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ModuleError::ShapeMismatch`] when an index is negative or
+    /// outside the configured embedding vocabulary.
+    pub fn forward_indices<I: Scalar + 'static>(
+        &self,
+        indices: &Tensor<I, B>,
+    ) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        validate_indices(indices, self.num_embeddings, "Embedding")?;
+        Ok(coeus_autograd::embedding_with_padding_idx(
+            &self.weight,
+            indices,
+            self.padding_idx,
+        ))
     }
 }
 
@@ -73,7 +86,37 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Embeddin
         vec![self.weight.clone()]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        coeus_autograd::embedding_with_padding_idx(&self.weight, &input.tensor, self.padding_idx)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        validate_indices(&input.tensor, self.num_embeddings, "Embedding")?;
+        Ok(coeus_autograd::embedding_with_padding_idx(
+            &self.weight,
+            &input.tensor,
+            self.padding_idx,
+        ))
     }
+}
+
+fn validate_indices<I: Scalar, B: coeus_core::ComputeBackend + Default>(
+    indices: &Tensor<I, B>,
+    num_embeddings: usize,
+    module: &'static str,
+) -> Result<(), ModuleError<B::Error>> {
+    let backend = B::default();
+    for (position, &index) in indices.host_cow_on(&backend).iter().enumerate() {
+        let value = <I as Scalar>::to_f64(index);
+        if !value.is_finite()
+            || value < 0.0
+            || value.trunc() != value
+            || value >= num_embeddings as f64
+        {
+            return Err(ModuleError::ShapeMismatch {
+                module,
+                parameter: "indices must be finite integers within the embedding vocabulary",
+                expected: vec![num_embeddings],
+                actual: vec![position],
+            });
+        }
+    }
+
+    Ok(())
 }

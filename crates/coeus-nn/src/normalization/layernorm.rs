@@ -3,7 +3,8 @@
 //! [`LayerNorm`] normalizes activations over their last dimension and applies
 //! optional trainable affine parameters.
 
-use crate::module::Module;
+use super::validation;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
@@ -15,13 +16,19 @@ use std::cell::RefCell;
 /// [`LayerNorm::forward_nd`] by normalizing the last dimension.
 ///
 /// `weight` and `bias` default to ones/zeros of shape `[normalized_shape]`.
+///
+/// # Errors
+///
+/// Returns a typed module or backend failure when the input rank, trailing
+/// dimension, affine parameter shapes, or epsilon violate the LayerNorm
+/// contract, or when a backend operation fails.
 pub fn layer_norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     normalized_shape: usize,
     weight: Option<&Var<T, B>>,
     bias: Option<&Var<T, B>>,
     eps: f64,
-) -> Var<T, B>
+) -> Result<Var<T, B>, ModuleError<B::Error>>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -43,7 +50,8 @@ where
 
 /// Layer Normalization module.
 ///
-/// Applies Layer Normalization over the last dimension of a 2D tensor `[N, D]`.
+/// Applies Layer Normalization over the last dimension of tensors with rank
+/// two or greater.
 #[derive(Clone)]
 pub struct LayerNorm<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Trainable scale parameter gamma: `[D]`.
@@ -111,24 +119,31 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
         self.bias = params[1].clone();
     }
 
-    /// Forward pass for 2-D input `[N, D]`.
-    ///
-    /// For inputs with rank ≥ 3 (e.g. `[batch, seq, D]`) use
-    /// [`LayerNorm::forward_nd`] instead; it handles all ranks ≥ 2 via reshape.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    /// Forward pass over the final dimension of any input with rank ≥ 2.
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        const MODULE: &str = "LayerNorm";
         let shape = input.tensor.shape_cloned();
-        assert_eq!(
-            shape.len(),
-            2,
-            "LayerNorm::forward expects 2D input [N, D]; for rank-N (N≥3) inputs call forward_nd"
-        );
+        if shape.len() != 2 {
+            return self.forward_nd(input);
+        }
         let _n = shape[0];
         let d = shape[1];
+        for (parameter, actual) in [
+            ("weight", self.weight.tensor.shape()),
+            ("bias", self.bias.tensor.shape()),
+        ] {
+            if actual != [d] {
+                return Err(validation::shape_mismatch(MODULE, parameter, &[d], actual));
+            }
+        }
+        if !self.eps.is_finite() || self.eps < 0.0 {
+            return Err(ModuleError::InvalidEpsilon { module: MODULE });
+        }
         let backend = B::default();
 
         // ── Mean over last dimension ──
         let mean_t = coeus_ops::mean_axis(&input.tensor, 1, &backend)
-            .expect("invariant: layernorm feature axis is valid"); // [N, 1]
+            .map_err(|source| validation::backend(MODULE, source))?; // [N, 1]
 
         // ── Centered: x - mu ──
         let xmu = coeus_ops::sub(&input.tensor, &mean_t, &backend); // [N, D]
@@ -136,14 +151,19 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
         // ── Variance ──
         let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend);
         let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend)
-            .expect("invariant: layernorm feature axis is valid"); // [N, 1]
+            .map_err(|source| validation::backend(MODULE, source))?; // [N, 1]
 
         // ── 1/sqrt(var + eps) ──
-        coeus_ops::add_assign(&mut stdev, &self.eps_t, &backend);
-        coeus_ops::sqrt_assign(&mut stdev, &backend);
+        coeus_ops::add_assign(&mut stdev, &self.eps_t, &backend)
+            .map_err(|source| validation::backend(MODULE, source))?;
+        coeus_ops::sqrt_assign(&mut stdev, &backend)
+            .map_err(|source| validation::backend(MODULE, source))?;
 
         let ones = {
-            let mut cache = self.ones_cache.borrow_mut();
+            let mut cache = self
+                .ones_cache
+                .try_borrow_mut()
+                .map_err(|_| validation::state_borrow(MODULE, "ones_cache"))?;
             if let Some((cached_n, ref cached_ones)) = *cache {
                 if cached_n == shape[0] {
                     cached_ones.clone()
@@ -159,7 +179,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
             }
         };
         let mut istdev = ones;
-        coeus_ops::div_assign(&mut istdev, &stdev, &backend); // [N, 1]
+        coeus_ops::div_assign(&mut istdev, &stdev, &backend)
+            .map_err(|source| validation::backend(MODULE, source))?; // [N, 1]
 
         // ── Normalize ──
         let x_hat = coeus_ops::mul(&xmu, &istdev, &backend); // [N, D]
@@ -168,9 +189,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
         let w_reshaped = self.weight.tensor.reshape([1, d]);
         let b_reshaped = self.bias.tensor.reshape([1, d]);
         let mut out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
-        coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend);
+        coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend)
+            .map_err(|source| validation::backend(MODULE, source))?;
 
-        coeus_autograd::layernorm(
+        Ok(coeus_autograd::layernorm(
             input,
             &self.weight,
             &self.bias,
@@ -178,7 +200,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
             x_hat,
             istdev,
             self.d_const.clone(),
-        )
+        ))
     }
 }
 
@@ -190,6 +212,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
     /// the original shape.  All three operations use tracked `coeus_autograd::reshape`
     /// so gradients flow through the entire reshape→normalize→reshape chain.
     ///
+    /// # Errors
+    ///
+    /// Returns a typed module or backend failure when the input has fewer than
+    /// two dimensions, its trailing dimension differs from the configured
+    /// normalized shape, or normalization execution fails.
+    ///
     /// # Examples
     /// ```text
     /// // 3-D Transformer hidden states [batch, seq, d_model]:
@@ -198,13 +226,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
     /// // 4-D activation map [batch, channels, h, w]:
     /// let output = layer_norm.forward_nd(&x);
     /// ```
-    pub fn forward_nd(&self, input: &Var<T, B>) -> Var<T, B> {
+    pub fn forward_nd(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let shape = input.tensor.shape_cloned();
         let ndim = shape.len();
-        assert!(
-            ndim >= 2,
-            "LayerNorm::forward_nd requires rank ≥ 2, got rank {ndim}"
-        );
+        if ndim < 2 {
+            return Err(validation::invalid_rank("LayerNorm", "at least 2", ndim));
+        }
         if ndim == 2 {
             // Fast path: avoid a no-op reshape pair.
             return self.forward(input);
@@ -214,8 +241,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
         // Tracked flatten [... , D] → [leading, D]
         let flat = coeus_autograd::reshape(input, [leading, d]);
         // Apply 2-D LayerNorm
-        let normed = self.forward(&flat);
+        let normed = self.forward(&flat)?;
         // Tracked unflatten back to original shape
-        coeus_autograd::reshape(&normed, shape)
+        Ok(coeus_autograd::reshape(&normed, shape))
     }
 }

@@ -3,6 +3,28 @@
 use super::super::super::support::run_script;
 
 #[test]
+fn test_module_contract_failure_is_value_error() {
+    run_script(
+        r#"
+import pycoeus
+
+layer = pycoeus.LayerNorm(4)
+rank_one = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [4])
+
+try:
+    layer.forward(rank_one)
+except ValueError as error:
+    message = str(error)
+    assert "LayerNorm" in message
+    assert "expected input rank 2" in message
+    assert "got 1" in message
+else:
+    raise AssertionError("rank-one LayerNorm input must raise ValueError")
+"#,
+    );
+}
+
+#[test]
 fn test_layernorm_3d_forward_nd() {
     run_script(
         r#"

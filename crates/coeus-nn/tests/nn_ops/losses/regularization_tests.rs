@@ -19,7 +19,7 @@ fn alpha_dropout_eval_is_identity() {
     let mut layer = AlphaDropout::new(0.5);
     layer.set_training(false);
     let x = seq_var([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-    let y = layer.forward(&x);
+    let y = layer.forward(&x).expect("valid AlphaDropout input");
     assert_eq!(
         y.tensor.as_slice(),
         x.tensor.as_slice(),
@@ -31,7 +31,7 @@ fn alpha_dropout_eval_is_identity() {
 fn alpha_dropout_p0_is_identity() {
     let layer = AlphaDropout::new(0.0);
     let x = seq_var([4], &[1.0, 2.0, 3.0, 4.0]);
-    let y = layer.forward(&x);
+    let y = layer.forward(&x).expect("valid AlphaDropout input");
     assert_eq!(
         y.tensor.as_slice(),
         x.tensor.as_slice(),
@@ -43,8 +43,32 @@ fn alpha_dropout_p0_is_identity() {
 fn alpha_dropout_shape_preserved() {
     let layer = AlphaDropout::new(0.3);
     let x = seq_var([2, 4, 8], &vec![1.0_f32; 64]);
-    let y = layer.forward(&x);
+    let y = layer.forward(&x).expect("valid AlphaDropout input");
     assert_eq!(y.tensor.shape(), &[2, 4, 8], "shape must be preserved");
+}
+
+#[test]
+fn alpha_dropout_uses_selu_saturation_and_affine_correction() {
+    let layer = AlphaDropout::new(0.5);
+    let x = seq_var([32], &[1.0_f32; 32]);
+    let y = layer
+        .forward(&x)
+        .expect("valid AlphaDropout input")
+        .tensor
+        .as_slice()
+        .to_vec();
+
+    let alpha_prime = -1.673_263_242_354_377_2_f64 * 1.050_700_987_355_480_5;
+    let scale = 1.0 / (0.5 * (1.0 + 0.5 * alpha_prime * alpha_prime)).sqrt();
+    let shift = -scale * 0.5 * alpha_prime;
+    let kept = (scale + shift) as f32;
+    let dropped = (scale * alpha_prime + shift) as f32;
+
+    assert!(y.iter().any(|value| (*value - kept).abs() < 1.0e-6));
+    assert!(y.iter().any(|value| (*value - dropped).abs() < 1.0e-6));
+    assert!(y
+        .iter()
+        .all(|value| (*value - kept).abs() < 1.0e-6 || (*value - dropped).abs() < 1.0e-6));
 }
 
 // ── FeatureAlphaDropout ──
@@ -54,8 +78,56 @@ fn feature_alpha_dropout_eval_is_identity() {
     let mut layer = FeatureAlphaDropout::new(0.5);
     layer.set_training(false);
     let x = seq_var([2, 4], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
-    let y = layer.forward(&x);
+    let y = layer.forward(&x).expect("valid FeatureAlphaDropout input");
     assert_eq!(y.tensor.as_slice(), x.tensor.as_slice());
+}
+
+#[test]
+fn feature_alpha_dropout_shares_each_channel_mask() {
+    let layer = FeatureAlphaDropout::new(0.5);
+    let input = (0..24).map(|value| value as f32).collect::<Vec<_>>();
+    let x = seq_var([2, 3, 4], &input);
+    let y = layer
+        .forward(&x)
+        .expect("valid FeatureAlphaDropout input")
+        .tensor
+        .as_slice()
+        .to_vec();
+
+    let alpha_prime = -1.673_263_242_354_377_2_f64 * 1.050_700_987_355_480_5;
+    let scale = 1.0 / (0.5 * (1.0 + 0.5 * alpha_prime * alpha_prime)).sqrt();
+    let shift = -scale * 0.5 * alpha_prime;
+    let dropped = (scale * alpha_prime + shift) as f32;
+
+    for (input_channel, output_channel) in input.chunks_exact(4).zip(y.chunks_exact(4)) {
+        let channel_dropped = (output_channel[0] - dropped).abs() < 1.0e-6;
+        for (&input_value, &output_value) in input_channel.iter().zip(output_channel) {
+            let expected = if channel_dropped {
+                dropped
+            } else {
+                (scale as f32).mul_add(input_value, shift as f32)
+            };
+            assert!((output_value - expected).abs() < 1.0e-6);
+        }
+    }
+}
+
+#[test]
+fn feature_alpha_dropout_rejects_rank_one_input() {
+    let layer = FeatureAlphaDropout::new(0.5);
+    let x = seq_var([4], &[1.0, 2.0, 3.0, 4.0]);
+    let error = layer
+        .forward(&x)
+        .err()
+        .expect("rank-one feature alpha-dropout must fail");
+    assert!(matches!(
+        error,
+        coeus_nn::ModuleError::InvalidRank {
+            module: "FeatureAlphaDropout",
+            actual: 1,
+            ..
+        }
+    ));
 }
 
 // ── GaussianNoise ──
@@ -66,7 +138,7 @@ fn gaussian_noise_eval_is_identity() {
     layer.set_training(false);
     let data = vec![1.0_f32, 2.0, 3.0, 4.0];
     let x = seq_var([4], &data);
-    let y = layer.forward(&x);
+    let y = layer.forward(&x).expect("valid GaussianNoise input");
     assert_eq!(y.tensor.as_slice(), x.tensor.as_slice());
 }
 
@@ -75,7 +147,7 @@ fn gaussian_noise_std0_is_identity() {
     let layer = GaussianNoise::new(0.0);
     let data = vec![5.0_f32, 6.0, 7.0];
     let x = seq_var([3], &data);
-    let y = layer.forward(&x);
+    let y = layer.forward(&x).expect("valid GaussianNoise input");
     assert_eq!(y.tensor.as_slice(), x.tensor.as_slice());
 }
 
@@ -83,7 +155,7 @@ fn gaussian_noise_std0_is_identity() {
 fn gaussian_noise_adds_noise_in_training() {
     let layer = GaussianNoise::new(1.0);
     let x = seq_var([100], &vec![0.0_f32; 100]);
-    let y = layer.forward(&x);
+    let y = layer.forward(&x).expect("valid GaussianNoise input");
     assert_eq!(y.tensor.shape(), &[100]);
     // With std=1 and 100 elements, at least some should be non-zero.
     let has_nonzero = y.tensor.as_slice().iter().any(|&v| v.abs() > 1e-7);
@@ -96,7 +168,7 @@ fn gaussian_noise_adds_noise_in_training() {
 fn lrn_shape_preserved() {
     let lrn = LocalResponseNorm::new(5);
     let x = seq_var([1, 8, 4, 4], &vec![1.0_f32; 128]);
-    let y = lrn.forward(&x);
+    let y = lrn.forward(&x).expect("valid LocalResponseNorm input");
     assert_eq!(y.tensor.shape(), &[1, 8, 4, 4]);
 }
 
@@ -108,7 +180,7 @@ fn lrn_unit_input_scales_correctly() {
     // Inner channels (1,2) cover 3 neighbours: sum_sq = 3, denom = (1+3/3)^1 = 2.
     let lrn = LocalResponseNorm::with_params(3, 1.0, 1.0, 1.0);
     let x = seq_var([1, 4, 1, 1], &[1.0, 1.0, 1.0, 1.0]);
-    let y = lrn.forward(&x);
+    let y = lrn.forward(&x).expect("valid LocalResponseNorm input");
     let s = y.tensor.as_slice();
     let expected_inner = 1.0 / 2.0_f32;
     assert!(
@@ -129,7 +201,7 @@ fn lrn_k1_defaults_match_pytorch() {
     // All-zero input → all-zero output (denominator = k^beta = 1.0).
     let lrn = LocalResponseNorm::new(5);
     let x = seq_var([1, 3, 2, 2], &[0.0_f32; 12]);
-    let y = lrn.forward(&x);
+    let y = lrn.forward(&x).expect("valid LocalResponseNorm input");
     for &v in y.tensor.as_slice() {
         assert!((v).abs() < 1e-7, "zero input should give zero output");
     }
@@ -151,6 +223,7 @@ fn lrn_backward_matches_numerical_gradient() {
         true,
     );
     lrn.forward(&x)
+        .expect("valid LocalResponseNorm input")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     let analytic: Vec<f64> = x.grad().expect("lrn input gradient").as_slice().to_vec();
@@ -164,6 +237,7 @@ fn lrn_backward_matches_numerical_gradient() {
             false,
         );
         lrn.forward(&xv)
+            .expect("valid LocalResponseNorm input")
             .tensor
             .as_slice()
             .iter()

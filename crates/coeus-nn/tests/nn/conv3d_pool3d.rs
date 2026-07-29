@@ -6,7 +6,7 @@ use coeus_tensor::Tensor;
 fn test_conv3d_forward_shape() {
     let conv = Conv3d::<f64>::new(2, 4, 3, true);
     let input = Var::new(Tensor::zeros(vec![2, 2, 8, 8, 8]), true);
-    let output = conv.forward(&input);
+    let output = conv.forward(&input).expect("valid Conv3d input");
 
     assert_eq!(output.tensor.shape(), &[2, 4, 6, 6, 6]);
 
@@ -30,7 +30,7 @@ fn test_conv3d_forward_computation() {
         true,
     );
 
-    let output = conv.forward(&input);
+    let output = conv.forward(&input).expect("valid Conv3d input");
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
 
     let out_slice = output.tensor.as_slice();
@@ -53,7 +53,7 @@ fn test_conv3d_backward_gradients_match_reference() {
         true,
     );
 
-    let output = conv.forward(&input);
+    let output = conv.forward(&input).expect("valid Conv3d input");
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
@@ -90,7 +90,7 @@ fn test_batchnorm3d_forward_and_backward() {
         true,
     );
 
-    let output = bn.forward(&input);
+    let output = bn.forward(&input).expect("valid BatchNorm3d input");
     assert_eq!(output.tensor.shape(), &[1, 2, 2, 2, 2]);
 
     // Identical values per channel → normalized to 0 → output = gamma*0 + beta = 0.
@@ -117,7 +117,7 @@ fn test_max_pool3d_forward_and_backward() {
         true,
     );
 
-    let output = pool.forward(&input);
+    let output = pool.forward(&input).expect("valid MaxPool3d input");
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
     assert_eq!(output.tensor.as_slice(), &[8.0]);
 
@@ -141,7 +141,7 @@ fn test_avg_pool3d_forward_and_backward() {
         true,
     );
 
-    let output = pool.forward(&input);
+    let output = pool.forward(&input).expect("valid AvgPool3d input");
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
     assert_eq!(output.tensor.as_slice(), &[4.5]);
 

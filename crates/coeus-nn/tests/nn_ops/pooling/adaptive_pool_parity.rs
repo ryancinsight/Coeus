@@ -4,7 +4,7 @@
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
 use coeus_nn::{
-    AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveMaxPool1d, AdaptiveMaxPool2d, Module,
+    AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveMaxPool1d, AdaptiveMaxPool2d, Module, ModuleError,
 };
 use coeus_tensor::Tensor;
 
@@ -19,7 +19,7 @@ fn adaptive_avg_pool1d_output_size_equals_input() {
         Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4], &data),
         false,
     );
-    let y = m.forward(&x);
+    let y = m.forward(&x).expect("valid AdaptiveAvgPool1d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 4]);
     assert_eq!(y.tensor.as_slice(), &data);
 }
@@ -32,7 +32,7 @@ fn adaptive_avg_pool1d_halves_length() {
         Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4], &[2.0_f64, 4.0, 6.0, 8.0]),
         false,
     );
-    let y = m.forward(&x);
+    let y = m.forward(&x).expect("valid AdaptiveAvgPool1d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 2]);
     assert_eq!(y.tensor.as_slice(), &[3.0, 7.0]); // (2+4)/2=3, (6+8)/2=7
 }
@@ -48,7 +48,7 @@ fn adaptive_avg_pool1d_global() {
         ),
         false,
     );
-    let y = m.forward(&x);
+    let y = m.forward(&x).expect("valid AdaptiveAvgPool1d input");
     assert_eq!(y.tensor.shape(), &[1, 2, 1]);
     // channel 0: mean(1,2,3,4)=2.5, channel 1: mean(5,6,7,8)=6.5
     let s = y.tensor.as_slice();
@@ -66,7 +66,7 @@ fn adaptive_max_pool1d_halves_length() {
         Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4], &[1.0_f64, 3.0, 2.0, 4.0]),
         false,
     );
-    let y = m.forward(&x);
+    let y = m.forward(&x).expect("valid AdaptiveMaxPool1d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 2]);
     assert_eq!(y.tensor.as_slice(), &[3.0, 4.0]);
 }
@@ -79,7 +79,7 @@ fn adaptive_max_pool1d_global() {
         Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 5], &[2.0_f64, 7.0, 1.0, 5.0, 3.0]),
         false,
     );
-    let y = m.forward(&x);
+    let y = m.forward(&x).expect("valid AdaptiveMaxPool1d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 1]);
     assert_eq!(y.tensor.as_slice(), &[7.0]);
 }
@@ -94,7 +94,7 @@ fn adaptive_avg_pool2d_global_single_channel() {
         Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &[1.0_f64, 3.0, 5.0, 7.0]),
         false,
     );
-    let y = m.forward(&x);
+    let y = m.forward(&x).expect("valid AdaptiveAvgPool2d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 1, 1]);
     assert!((y.tensor.as_slice()[0] - 4.0).abs() < 1e-10); // mean=4
 }
@@ -108,7 +108,7 @@ fn adaptive_avg_pool2d_halves_each_dim() {
         Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data),
         false,
     );
-    let y = m.forward(&x);
+    let y = m.forward(&x).expect("valid AdaptiveAvgPool2d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 2, 2]);
     let s = y.tensor.as_slice();
     // top-left 2x2: [1,2,5,6] → avg=3.5
@@ -132,7 +132,7 @@ fn adaptive_max_pool2d_halves_each_dim() {
         Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data),
         false,
     );
-    let y = m.forward(&x);
+    let y = m.forward(&x).expect("valid AdaptiveMaxPool2d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 2, 2]);
     let s = y.tensor.as_slice();
     // top-left 2x2: max([1,2,5,6])=6
@@ -157,8 +157,10 @@ fn adaptive_avg_pool2d_matches_global_avg_pool() {
         Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 2, 3], &data),
         false,
     );
-    let ya = m_adaptive.forward(&x);
-    let yg = m_global.forward(&x);
+    let ya = m_adaptive
+        .forward(&x)
+        .expect("valid AdaptiveAvgPool2d input");
+    let yg = m_global.forward(&x).expect("valid GlobalAvgPool2d input");
     assert_eq!(ya.tensor.shape(), &[1, 2, 1, 1]);
     assert_eq!(yg.tensor.shape(), &[1, 2, 1, 1]);
     for (a, b) in ya.tensor.as_slice().iter().zip(yg.tensor.as_slice().iter()) {
@@ -208,6 +210,7 @@ fn adaptive_avg_pool1d_backward_matches_numerical_gradient() {
         true,
     );
     m.forward(&x)
+        .expect("valid AdaptiveAvgPool1d input")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     let analytic: Vec<f64> = x
@@ -221,6 +224,7 @@ fn adaptive_avg_pool1d_backward_matches_numerical_gradient() {
             false,
         );
         m.forward(&xv)
+            .expect("valid AdaptiveAvgPool1d input")
             .tensor
             .as_slice()
             .iter()
@@ -240,6 +244,7 @@ fn adaptive_avg_pool2d_backward_matches_numerical_gradient() {
         true,
     );
     m.forward(&x)
+        .expect("valid AdaptiveAvgPool2d input")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     let analytic: Vec<f64> = x
@@ -253,6 +258,7 @@ fn adaptive_avg_pool2d_backward_matches_numerical_gradient() {
             false,
         );
         m.forward(&xv)
+            .expect("valid AdaptiveAvgPool2d input")
             .tensor
             .as_slice()
             .iter()
@@ -273,6 +279,7 @@ fn adaptive_max_pool1d_backward_matches_numerical_gradient() {
         true,
     );
     m.forward(&x)
+        .expect("valid AdaptiveMaxPool1d input")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     let analytic: Vec<f64> = x
@@ -286,6 +293,7 @@ fn adaptive_max_pool1d_backward_matches_numerical_gradient() {
             false,
         );
         m.forward(&xv)
+            .expect("valid AdaptiveMaxPool1d input")
             .tensor
             .as_slice()
             .iter()
@@ -307,6 +315,7 @@ fn adaptive_max_pool2d_backward_matches_numerical_gradient() {
         true,
     );
     m.forward(&x)
+        .expect("valid AdaptiveMaxPool2d input")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     let analytic: Vec<f64> = x
@@ -320,10 +329,38 @@ fn adaptive_max_pool2d_backward_matches_numerical_gradient() {
             false,
         );
         m.forward(&xv)
+            .expect("valid AdaptiveMaxPool2d input")
             .tensor
             .as_slice()
             .iter()
             .copied()
             .sum::<f64>()
     });
+}
+
+#[test]
+fn adaptive_pool_rejects_zero_output_dimensions() {
+    let input_1d = Var::new(Tensor::<f64, SequentialBackend>::ones([1, 1, 4]), false);
+    let input_2d = Var::new(Tensor::<f64, SequentialBackend>::ones([1, 1, 4, 4]), false);
+
+    for error in [
+        AdaptiveAvgPool1d::<f64, SequentialBackend>::new(0)
+            .forward(&input_1d)
+            .err()
+            .expect("zero AdaptiveAvgPool1d output must be rejected"),
+        AdaptiveMaxPool2d::<f64, SequentialBackend>::new(1, 0)
+            .forward(&input_2d)
+            .err()
+            .expect("zero AdaptiveMaxPool2d output width must be rejected"),
+    ] {
+        match error {
+            ModuleError::ShapeMismatch {
+                parameter, actual, ..
+            } => {
+                assert_eq!(parameter, "spatial input and output dimensions");
+                assert!(actual.contains(&0));
+            }
+            other => panic!("expected typed adaptive-pool configuration error, got {other:?}"),
+        }
+    }
 }

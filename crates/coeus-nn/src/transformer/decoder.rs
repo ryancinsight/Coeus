@@ -1,7 +1,7 @@
 // ── Transformer Decoder stack ──
 
 use super::decoder_layer::TransformerDecoderLayer;
-use crate::module::{prefixed_parameters, Module};
+use crate::module::ModuleError;
 use coeus_autograd::{AttentionMask, CausalMask, NullMask, Var};
 use coeus_core::{Float, MoiraiBackend};
 
@@ -53,12 +53,16 @@ where
     /// Forward decoder sequentially through the stack.
     ///
     /// Input/output shape: `[batch, seq_tgt, d_model]`.
-    pub fn forward_decoder(&self, tgt: &Var<T, B>, memory: &Var<T, B>) -> Var<T, B> {
+    pub fn forward_decoder(
+        &self,
+        tgt: &Var<T, B>,
+        memory: &Var<T, B>,
+    ) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let mut x = tgt.clone();
         for layer in &self.layers {
-            x = layer.forward_decoder(&x, memory);
+            x = layer.forward_decoder(&x, memory)?;
         }
-        x
+        Ok(x)
     }
 }
 
@@ -69,23 +73,26 @@ impl<
         const N: usize,
         SelfM: AttentionMask,
         CrossM: AttentionMask,
-    > Module<T, B> for TransformerDecoder<T, B, H, N, SelfM, CrossM>
+    > TransformerDecoder<T, B, H, N, SelfM, CrossM>
 {
-    fn parameters(&self) -> Vec<Var<T, B>> {
+    /// Collect all trainable decoder-stack parameters.
+    pub fn parameters(&self) -> Vec<Var<T, B>> {
         self.layers.iter().flat_map(|l| l.parameters()).collect()
     }
 
-    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
+    /// Collect trainable parameters with stable hierarchical names.
+    pub fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
         self.layers
             .iter()
             .enumerate()
-            .flat_map(|(index, layer)| prefixed_parameters(&format!("layers.{index}"), layer))
+            .flat_map(|(index, layer)| {
+                let prefix = format!("layers.{index}");
+                layer
+                    .named_parameters()
+                    .into_iter()
+                    .map(move |parameter| parameter.with_prefix(&prefix))
+            })
             .collect()
-    }
-
-    /// Fallback forward without cross-attention.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        self.forward_decoder(input, input)
     }
 }
 

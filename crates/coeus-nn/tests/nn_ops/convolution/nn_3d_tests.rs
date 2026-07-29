@@ -29,7 +29,7 @@ fn test_conv3d_comprehensive() {
     let input = Var::new(sliced_input, true);
 
     // Forward pass
-    let output = conv.forward(&input);
+    let output = conv.forward(&input).expect("valid Conv3d input");
 
     // Expected output shape: [1, 1, 1, 1, 1]
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
@@ -92,7 +92,7 @@ fn test_max_pool3d_comprehensive() {
     let input = Var::new(sliced_input, true);
 
     // Forward pass
-    let output = pool.forward(&input);
+    let output = pool.forward(&input).expect("valid MaxPool3d input");
 
     // Expected output shape: [1, 1, 1, 1, 1]
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
@@ -133,7 +133,7 @@ fn test_avg_pool3d_comprehensive() {
     let input = Var::new(sliced_input, true);
 
     // Forward pass
-    let output = pool.forward(&input);
+    let output = pool.forward(&input).expect("valid AvgPool3d input");
 
     // Expected output shape: [1, 1, 1, 1, 1]
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
@@ -176,7 +176,7 @@ fn test_batchnorm3d_comprehensive() {
     let input = Var::new(sliced_input, true);
 
     // Forward pass
-    let output = bn.forward(&input);
+    let output = bn.forward(&input).expect("valid BatchNorm3d input");
 
     // Expected output shape: [1, 2, 2, 2, 2]
     assert_eq!(output.tensor.shape(), &[1, 2, 2, 2, 2]);

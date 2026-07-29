@@ -70,7 +70,7 @@ fn test_silu_module_cpu() {
         true,
     );
 
-    let output = silu_mod.forward(&input);
+    let output = silu_mod.forward(&input).expect("valid SiLU input");
     assert_eq!(output.tensor.shape(), &[2, 2]);
     assert_silu_values("module_forward", output.tensor.as_slice(), &input_data);
     assert_eq!(Module::<f64, MoiraiBackend>::parameters(&silu_mod).len(), 0);

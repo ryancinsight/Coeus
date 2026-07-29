@@ -1,6 +1,6 @@
 //! Attention and positional-encoding tests.
 
-#[path = "attention/nn_attention_tests.rs"]
+#[path = "attention/nn_attention_tests/mod.rs"]
 mod nn_attention_tests;
 #[path = "attention/nn_transformer_tests.rs"]
 mod nn_transformer_tests;

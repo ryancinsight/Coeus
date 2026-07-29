@@ -1,7 +1,7 @@
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, Scalar};
 
-use super::ParameterLoadError;
+use super::{ModuleError, ParameterLoadError};
 use coeus_autograd::Parameter;
 
 pub(crate) fn prefixed_parameters<T, B, M>(prefix: &str, module: &M) -> Vec<Parameter<T, B>>
@@ -47,8 +47,13 @@ pub trait Module<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBacken
             .collect()
     }
 
-    /// Forward pass.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B>;
+    /// Evaluate this module.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed module or backend failure when the input violates the
+    /// module contract, state cannot be borrowed, or backend execution fails.
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>>;
 
     /// Write optimizer-updated parameter values back into this module's own
     /// fields, consuming `params` in the same order `parameters()` enumerates
