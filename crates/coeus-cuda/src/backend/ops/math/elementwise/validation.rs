@@ -188,4 +188,18 @@ mod tests {
             Ok(())
         ));
     }
+
+    #[test]
+    fn empty_layouts_are_valid_without_storage() {
+        let empty = Layout::new(vec![2, 0, 3].into());
+
+        assert!(matches!(
+            validate_binary_layouts(&empty, 0, &empty, 0, &empty, 0, false, false),
+            Ok(())
+        ));
+        assert!(matches!(
+            validate_unary_layouts(&empty, 0, &empty, 0, false),
+            Ok(())
+        ));
+    }
 }

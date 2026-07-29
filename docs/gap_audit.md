@@ -289,7 +289,8 @@ writable zero-stride layouts and remapped aliases; route offset-bearing
 contiguous views through the offset-aware strided kernel.
 **Evidence target**: allocation-free validation unit tests for each operand,
 offset routing, writable aliasing, and exact-layout in-place operation; package
-check, warning-denied Clippy, Nextest, and exact-head CUDA provider CI.
+check, warning-denied Clippy, Nextest, and exact-head CUDA provider CI. Empty
+layouts remain valid and complete without a device launch.
 **Residual**: CUDA convolution, attention, optimizer, matmul, module-loading,
 and device-acquisition boundaries remain separate accepted audit findings. No
 runtime performance or resident-memory delta is claimed without controlled
@@ -297,9 +298,10 @@ measurements.
 **Status**: implementation complete under
 `ATLAS-COEUS-DISPATCH-SAFETY-020`. CUDA feature test targets compile,
 warning-denied all-target Clippy passes, and disabled-provider Nextest passes
-3/3. Local feature-enabled execution is blocked by the GNU CUDA import library
-and shared-cache MSVC host-artifact collision; hosted CUDA execution remains
-the merge gate.
+3/3. Hosted run `30425069856` passed CUDA `90489643824`, Metal `90489643784`,
+ROCm `90489643831`, and WGPU `90489643864`; review-driven empty-layout coverage
+is pending an exact-head rerun. Local feature-enabled execution is blocked by
+the GNU CUDA import library and shared-cache MSVC host-artifact collision.
 
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001: exact GELU forward and gradient
 

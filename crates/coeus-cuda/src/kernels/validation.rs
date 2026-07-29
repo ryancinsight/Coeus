@@ -58,7 +58,8 @@ pub(crate) fn layout_fits_cuda_storage(
     layouts_fit_cuda(&[layout])
         && (!writable || layout_supports_cuda_output_indexing(layout))
         && checked_layout_storage_len(layout).is_some_and(|required| {
-            required.checked_sub(1).and_then(cuda_u32).is_some() && storage_len >= required
+            required == 0
+                || (required.checked_sub(1).and_then(cuda_u32).is_some() && storage_len >= required)
         })
 }
 
@@ -141,5 +142,13 @@ mod tests {
         assert!(!layout_fits_cuda_storage(&strided, 8, false));
         assert!(layout_fits_cuda_storage(&aliased, 3, false));
         assert!(!layout_fits_cuda_storage(&aliased, 3, true));
+    }
+
+    #[test]
+    fn cuda_storage_validation_accepts_empty_layouts() {
+        let empty = Layout::new(vec![2, 0, 3].into());
+
+        assert!(layout_fits_cuda_storage(&empty, 0, false));
+        assert!(layout_fits_cuda_storage(&empty, 0, true));
     }
 }

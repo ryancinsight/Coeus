@@ -160,13 +160,16 @@ impl CudaBackend {
             Arc::ptr_eq(&a.buffer, &c.buffer),
             Arc::ptr_eq(&b.buffer, &c.buffer),
         )?;
+        let n = kernels::checked_numel(c_layout).ok_or_else(|| {
+            CudaBackendError::kernel(
+                "elementwise binary",
+                "output element count exceeds the CUDA dispatch ABI",
+            )
+        })?;
+        if n == 0 {
+            return Ok(());
+        }
         if get_cuda_context().is_some() {
-            let n = kernels::checked_numel(c_layout).ok_or_else(|| {
-                CudaBackendError::kernel(
-                    "elementwise binary",
-                    "output element count exceeds the CUDA dispatch ABI",
-                )
-            })?;
             let same_shape =
                 a_layout.shape() == c_layout.shape() && b_layout.shape() == c_layout.shape();
             if same_shape

@@ -27,14 +27,17 @@
   layouts are now checked against every physical allocation before raw pointer
   acquisition, offset-bearing views bypass offset-blind contiguous kernels,
   writable zero-stride outputs are rejected, and remapped input/output aliases
-  return typed layout errors. Static audits also retain unresolved typed-error
+  return typed layout errors. Empty layouts remain valid and complete without a
+  device launch. Static audits also retain unresolved typed-error
   and provider-ownership findings for CPU reductions, CUDA
   convolution/attention/optimizers, WGPU attention/elementwise/matmul, and the
   generic ROCm/Metal acquisition and transfer boundary. The CUDA feature test
   targets compile, warning-denied all-target Clippy passes, and the
-  disabled-provider Nextest lane passes 3/3. Local feature-enabled execution is
-  blocked by the GNU CUDA import library and the shared-cache MSVC host-artifact
-  collision; clean hosted CUDA execution remains the merge gate.
+  disabled-provider Nextest lane passes 3/3. Hosted run `30425069856` passed
+  CUDA `90489643824`, Metal `90489643784`, ROCm `90489643831`, and WGPU
+  `90489643864`; review-driven empty-layout coverage is pending an exact-head
+  rerun. Local feature-enabled execution is blocked by the GNU CUDA import
+  library and the shared-cache MSVC host-artifact collision.
 
 ## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution [arch]
 

@@ -366,13 +366,16 @@ impl CudaBackend {
             c.len(),
             Arc::ptr_eq(&a.buffer, &c.buffer),
         )?;
+        let n = kernels::checked_numel(c_layout).ok_or_else(|| {
+            CudaBackendError::kernel(
+                "elementwise unary",
+                "output element count exceeds the CUDA dispatch ABI",
+            )
+        })?;
+        if n == 0 {
+            return Ok(());
+        }
         if get_cuda_context().is_some() {
-            let n = kernels::checked_numel(c_layout).ok_or_else(|| {
-                CudaBackendError::kernel(
-                    "elementwise unary",
-                    "output element count exceeds the CUDA dispatch ABI",
-                )
-            })?;
             if a_layout.is_contiguous()
                 && a_layout.offset() == 0
                 && c_layout.is_contiguous()
