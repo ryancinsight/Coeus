@@ -33,11 +33,12 @@
   convolution/attention/optimizers, WGPU attention/elementwise/matmul, and the
   generic ROCm/Metal acquisition and transfer boundary. The CUDA feature test
   targets compile, warning-denied all-target Clippy passes, and the
-  disabled-provider Nextest lane passes 3/3. Hosted run `30425069856` passed
-  CUDA `90489643824`, Metal `90489643784`, ROCm `90489643831`, and WGPU
-  `90489643864`; review-driven empty-layout coverage is pending an exact-head
-  rerun. Local feature-enabled execution is blocked by the GNU CUDA import
-  library and the shared-cache MSVC host-artifact collision.
+  disabled-provider Nextest lane passes 3/3. Exact implementation-head run
+  `30426667552` passed CUDA `90494509271`, Metal `90494509298`, ROCm
+  `90494509264`, and WGPU `90494509247`; required-device ROCm `90494509665`
+  was skipped because no AMD runner was registered. Local feature-enabled
+  execution is blocked by the GNU CUDA import library and the shared-cache
+  MSVC host-artifact collision.
 
 ## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution [arch]
 

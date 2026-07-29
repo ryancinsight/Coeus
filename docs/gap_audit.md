@@ -298,10 +298,11 @@ measurements.
 **Status**: implementation complete under
 `ATLAS-COEUS-DISPATCH-SAFETY-020`. CUDA feature test targets compile,
 warning-denied all-target Clippy passes, and disabled-provider Nextest passes
-3/3. Hosted run `30425069856` passed CUDA `90489643824`, Metal `90489643784`,
-ROCm `90489643831`, and WGPU `90489643864`; review-driven empty-layout coverage
-is pending an exact-head rerun. Local feature-enabled execution is blocked by
-the GNU CUDA import library and shared-cache MSVC host-artifact collision.
+3/3. Exact implementation-head run `30426667552` passed CUDA `90494509271`,
+Metal `90494509298`, ROCm `90494509264`, and WGPU `90494509247`;
+required-device ROCm `90494509665` was skipped because no AMD runner was
+registered. Local feature-enabled execution is blocked by the GNU CUDA import
+library and shared-cache MSVC host-artifact collision.
 
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001: exact GELU forward and gradient
 
