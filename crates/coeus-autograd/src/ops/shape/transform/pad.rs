@@ -57,7 +57,8 @@ where
         let sliced_grad = grad_out.slice(&ranges);
 
         let lock = acc.write();
-        coeus_ops::add_assign(lock, &sliced_grad, &backend);
+        coeus_ops::add_assign(lock, &sliced_grad, &backend)
+            .expect("autograd gradient accumulation");
     }
 }
 

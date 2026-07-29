@@ -50,7 +50,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
                 self.dilation,
                 &backend,
             );
-            coeus_ops::add_assign(g.write(), &d_input, &backend);
+            coeus_ops::add_assign(g.write(), &d_input, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }
@@ -152,7 +153,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
                 self.dilation_w,
                 &backend,
             );
-            coeus_ops::add_assign(g.write(), &d_input, &backend);
+            coeus_ops::add_assign(g.write(), &d_input, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }
@@ -251,7 +253,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Fo
                 self.dilation,
                 &backend,
             );
-            coeus_ops::add_assign(g.write(), &d_input, &backend);
+            coeus_ops::add_assign(g.write(), &d_input, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }
@@ -343,7 +346,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Fo
                 self.dilation_w,
                 &backend,
             );
-            coeus_ops::add_assign(g.write(), &d_input, &backend);
+            coeus_ops::add_assign(g.write(), &d_input, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

@@ -38,7 +38,8 @@ where
         if let Some(Some(ref g)) = input_grads.first() {
             let suffix_grad = coeus_ops::suffix_sum(grad_out, self.dim);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &suffix_grad, &backend);
+            coeus_ops::add_assign(gl, &suffix_grad, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

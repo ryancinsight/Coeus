@@ -63,8 +63,7 @@ pub use reduction::{
     amax, amin, argmax, argmin, cross, cumprod, cumsum, dot, frobenius_norm,
     frobenius_norm_batched, max_axis, mean, mean_axis, min_axis, norm, norm_p, norm_p_axis, prod,
     prod_axis, std_dev, std_dev_axis, std_mean, std_mean_axis, suffix_prod, suffix_sum, sum,
-    sum_axis, topk,
-    var, var_axis, var_mean, var_mean_axis,
+    sum_axis, topk, var, var_axis, var_mean, var_mean_axis,
 };
 pub use shape::{
     broadcast_to, cat, chunk, diag, diagonal, einsum, einsum3, flip, gather, index_put,

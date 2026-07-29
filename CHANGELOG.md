@@ -4,6 +4,36 @@
 
 ### Changed
 
+- [arch] Routes Coeus `Mish`, `MishGrad`, `Elu`, and `EluGrad` through the
+  provider-owned Hephaestus WGPU, CUDA, ROCm, and Metal f32 APIs. WGPU/CUDA
+  use direct contiguous and strided provider entry points; ROCm/Metal use the
+  shared activation dispatch. Backend suites add forward and gradient Leto
+  CPU differential coverage, including transposed WGPU and CUDA layouts.
+  Locked metadata, focused non-CUDA nextest (307/307), warning-denied Clippy,
+  workspace doctests (153 passed, 2 ignored), warning-denied rustdoc, the MSVC
+  CUDA feature compile check, focused CUDA nextest (6/6), and the focused
+  CPU/WGPU/ROCm/Metal lane (10/10) pass. Exact-head hosted CI remains open.
+
+- [patch] Aligns MSVC CUDA linking on the Rust dynamic CRT. CUDA 13.3's
+  `cuda.lib` requests `LIBCMT`; the CUDA package rejects that default library
+  so test and executable targets keep one CRT and allocator contract.
+
+- [patch] Makes backend failures explicit in the autograd, neural network
+  normalization, distributed gradient, and Python reduction paths. Each
+  operation now reports or maps its backend error at the existing API boundary
+  instead of discarding or nesting the `Result`.
+
+- [arch] Routes Coeus `lgamma` through the provider-owned Hephaestus WGPU,
+  CUDA, ROCm, and Metal f32 implementations. CUDA/ROCm use native device
+  functions; WGPU/Metal use the shared Lanczos/reflection expression. Leto
+  differential coverage includes positive values, reflection, and poles;
+  exact-head CI remains open for this increment.
+
+- [arch] Routes Coeus exact `Gelu` and `GeluGrad` through the Hephaestus ROCm
+  and Metal f32 providers with Leto CPU differential coverage. Exact-head
+  provider and consumer CI passed; hardware-device execution is not claimed
+  because the required-device lanes skipped.
+
 - [arch] Routes Coeus `erf` and `erfc` through the Hephaestus ROCm and Metal
   f32 providers with Leto CPU differential coverage. Exact-head WGPU, CUDA,
   ROCm, and Metal provider CI passed; hardware-device execution is not claimed

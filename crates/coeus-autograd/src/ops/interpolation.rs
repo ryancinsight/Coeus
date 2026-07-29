@@ -55,10 +55,12 @@ where
         .expect("invariant: forward validation fixes backward shapes");
         let backend = B::default();
         if let Some(Some(gradient)) = input_grads.first() {
-            coeus_ops::add_assign(gradient.write(), &updates.image, &backend);
+            coeus_ops::add_assign(gradient.write(), &updates.image, &backend)
+                .expect("autograd gradient accumulation");
         }
         if let Some(Some(gradient)) = input_grads.get(1) {
-            coeus_ops::add_assign(gradient.write(), &updates.grid, &backend);
+            coeus_ops::add_assign(gradient.write(), &updates.grid, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }
@@ -458,10 +460,12 @@ where
         let (input_grad, grid_grad) = grid_sample_3d_backward(&self.input, &self.grid, grad_out);
         let backend = B::default();
         if let Some(Some(gradient)) = input_grads.first() {
-            coeus_ops::add_assign(gradient.write(), &input_grad, &backend);
+            coeus_ops::add_assign(gradient.write(), &input_grad, &backend)
+                .expect("autograd gradient accumulation");
         }
         if let Some(Some(gradient)) = input_grads.get(1) {
-            coeus_ops::add_assign(gradient.write(), &grid_grad, &backend);
+            coeus_ops::add_assign(gradient.write(), &grid_grad, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

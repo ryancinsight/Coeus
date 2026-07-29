@@ -1,5 +1,63 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-HEPHAESTUS-ACTIVATION-TAIL-PARITY-001 [arch]
+
+- [x] Route `Mish`, `MishGrad`, `Elu`, and `EluGrad` through provider-owned
+      Hephaestus WGPU and CUDA contiguous/strided APIs.
+- [x] Route the same f32 operations through the Hephaestus ROCm and Metal
+      activation provider dispatches.
+- [x] Extend WGPU, CUDA, ROCm, and Metal suites with Leto CPU differential
+      coverage for forward and gradient operations.
+- [x] Add ADR-0030 documenting provider ownership and residual scope.
+- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
+      Hephaestus expression seam and the Coeus consumer head.
+
+Status: source integration and local differential coverage are complete. The
+manifest and lock graph now use the declared Git sources; locked metadata,
+focused non-CUDA nextest (307/307), Clippy, workspace doctests (153 passed, 2
+ignored), and warning-denied rustdoc pass.
+The workspace Clippy gate also passes after resolving backend error handling in
+autograd, normalization, distributed gradients, and Python reductions. The
+CUDA-feature compile check and focused MSVC CUDA nextest pass, including
+contiguous and transposed device execution. A focused CPU/WGPU/ROCm/Metal lane
+passes 10/10. No fallback path was added. Exact-head hosted CI remains open for
+this increment. Integer requests remain typed unsupported operations; provider
+rank and aliasing contracts are not expanded, and out-of-contract
+activation-tail requests return typed errors without local-kernel or CPU
+fallback.
+
+## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001 [arch]
+
+- [x] Route `UnaryOp::Lgamma` through the provider-owned Hephaestus WGPU,
+      CUDA, ROCm, and Metal f32 implementations.
+- [x] Extend CUDA, ROCm, and Metal backend suites with Leto CPU differential
+      cases covering positive inputs, reflection, and gamma poles.
+- [x] Replace the WGPU unsupported-operation assertion with a provider
+      expression contract assertion.
+- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
+      Hephaestus expression seam and the Coeus consumer head.
+
+Status: source integration and local contract coverage are complete; exact-head
+provider and consumer CI is required before this item closes. The WGPU and
+Metal paths use the provider-owned Lanczos/reflection expression; CUDA and ROCm
+use their native `lgammaf`/`lgamma` device functions. No digamma gradient or
+non-f32 contract is implied.
+
+## ATLAS-COEUS-HEPHAESTUS-GELU-PARITY-001 [arch]
+
+- [x] Route `UnaryOp::Gelu` and `UnaryOp::GeluGrad` through the shared
+      Hephaestus ROCm and Metal f32 dispatch arms.
+- [x] Extend both backend elementwise suites with Leto CPU differential cases
+      over the existing activation input domain.
+- [x] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
+      Hephaestus expression seam and the Coeus consumer head.
+
+Evidence: Hephaestus provider jobs CUDA `90048504061`, ROCm `90048505968`,
+WGPU `90048506717`, and Metal `90048504635` passed; Coeus consumer jobs CUDA
+`90061390565`, ROCm `90061390546`, WGPU `90061390522`, and Metal `90061390499`
+passed. Hardware-device jobs skipped because no registered runner was
+available. ADR 0028 owns the exact GELU contract.
+
 ## ATLAS-COEUS-HEPHAESTUS-ERROR-FUNCTION-PARITY-001 [arch]
 
 - [x] Route `UnaryOp::Erf` and `UnaryOp::Erfc` through the provider-owned
@@ -176,8 +234,9 @@ Rustdoc now pass; the remaining WGPU all-target and infallible autograd/NN
 residuals are separate migration work.
 
 Unary dispatch increment: both unary kernel entry points now return typed
-backend errors, use checked layout conversion, reject unsupported `lgamma`, and
-validate workgroup rounding before converting to the WGPU `u32` dispatch ABI.
+backend errors, use checked layout conversion, route `lgamma` through the
+provider-owned Hephaestus marker, and validate workgroup rounding before
+converting to the WGPU `u32` dispatch ABI.
 The new unit tests cover supported rounding, arithmetic overflow, ABI range,
 and unsupported-operation behavior without a device. Direct nightly rustfmt
 and `git diff --check` pass; the locked `coeus-ops` check and focused tests pass

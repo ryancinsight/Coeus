@@ -112,15 +112,15 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Backward
 
         if let (Some(acc), Some(gq)) = (input_grads.first().and_then(|g| g.as_ref()), grad_q) {
             let lock = acc.write();
-            coeus_ops::add_assign(lock, &gq, &backend);
+            coeus_ops::add_assign(lock, &gq, &backend).expect("autograd gradient accumulation");
         }
         if let (Some(acc), Some(gk)) = (input_grads.get(1).and_then(|g| g.as_ref()), grad_k) {
             let lock = acc.write();
-            coeus_ops::add_assign(lock, &gk, &backend);
+            coeus_ops::add_assign(lock, &gk, &backend).expect("autograd gradient accumulation");
         }
         if let (Some(acc), Some(gv)) = (input_grads.get(2).and_then(|g| g.as_ref()), grad_v) {
             let lock = acc.write();
-            coeus_ops::add_assign(lock, &gv, &backend);
+            coeus_ops::add_assign(lock, &gv, &backend).expect("autograd gradient accumulation");
         }
     }
 }

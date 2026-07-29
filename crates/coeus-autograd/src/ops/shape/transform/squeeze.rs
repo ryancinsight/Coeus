@@ -38,7 +38,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sq
                 grad_out.reshape(original_shape)
             };
             let gl = g.write();
-            coeus_ops::add_assign(gl, &unsqueezed_grad, &backend);
+            coeus_ops::add_assign(gl, &unsqueezed_grad, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }
@@ -109,7 +110,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
         if let Some(Some(ref g)) = input_grads.first() {
             let squeezed_grad = grad_out.squeeze(self.axis);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &squeezed_grad, &backend);
+            coeus_ops::add_assign(gl, &squeezed_grad, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

@@ -41,7 +41,8 @@ where
             let grad_input =
                 coeus_ops::masked_fill(grad_out, &self.mask_tensor, T::zero(), &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &grad_input, &backend);
+            coeus_ops::add_assign(lock, &grad_input, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

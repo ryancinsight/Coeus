@@ -42,7 +42,8 @@ where
             let neg_shifts: Vec<isize> = self.shifts.iter().map(|&s| -s).collect();
             let unrolled = coeus_ops::roll(grad_out, &neg_shifts, &self.dims, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &unrolled, &backend);
+            coeus_ops::add_assign(lock, &unrolled, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

@@ -1,5 +1,5 @@
-use super::super::CpuBackend;
 use super::super::reduction;
+use super::super::CpuBackend;
 use crate::backend_ops::ops::ReductionOp;
 use crate::backend_ops::traits::ReductionOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};

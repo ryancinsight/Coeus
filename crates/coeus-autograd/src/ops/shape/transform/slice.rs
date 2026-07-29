@@ -37,15 +37,17 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sl
 
             let parent_storage_imm: &B::DeviceBuffer<T> =
                 unsafe { &*(parent_storage as *const B::DeviceBuffer<T>) };
-            backend.elementwise_binary(
-                coeus_ops::BinaryOp::Add,
-                parent_storage_imm,
-                &sliced_layout,
-                grad_out.storage(),
-                grad_out.layout(),
-                parent_storage,
-                &sliced_layout,
-            );
+            backend
+                .elementwise_binary(
+                    coeus_ops::BinaryOp::Add,
+                    parent_storage_imm,
+                    &sliced_layout,
+                    grad_out.storage(),
+                    grad_out.layout(),
+                    parent_storage,
+                    &sliced_layout,
+                )
+                .expect("autograd gradient accumulation");
         }
     }
 }

@@ -63,13 +63,15 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
             if let Some(Some(ref g)) = input_grads.get(0) {
                 let b_t = swap_last_two(b, backend);
                 let gl = g.write();
-                coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend).expect("matmul_accumulate");
+                coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend)
+                    .expect("matmul_accumulate");
             }
             // ∂/∂B: A^T @ grad_C — [batch,k,m] × [batch,m,n] → [batch,k,n]
             if let Some(Some(ref g)) = input_grads.get(1) {
                 let a_t = swap_last_two(a, backend);
                 let gl = g.write();
-                coeus_ops::matmul_accumulate(&a_t, grad_out, gl, backend).expect("matmul_accumulate");
+                coeus_ops::matmul_accumulate(&a_t, grad_out, gl, backend)
+                    .expect("matmul_accumulate");
             }
             return;
         }
@@ -100,7 +102,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
             };
             let a_flat_t = a_flat.t();
             let gl = g.write();
-            coeus_ops::matmul_accumulate(&a_flat_t, &go_flat, gl, backend).expect("matmul_accumulate");
+            coeus_ops::matmul_accumulate(&a_flat_t, &go_flat, gl, backend)
+                .expect("matmul_accumulate");
         }
     }
 }
@@ -256,7 +259,8 @@ where
                 &backend,
             );
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_a_vals, &backend);
+            coeus_ops::add_assign(gl, &grad_a_vals, &backend)
+                .expect("autograd gradient accumulation");
         }
         // ∂/∂B
         if let Some(Some(ref g)) = input_grads.get(1) {
@@ -269,7 +273,7 @@ where
                 &backend,
             );
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_b, &backend);
+            coeus_ops::add_assign(gl, &grad_b, &backend).expect("autograd gradient accumulation");
         }
     }
 }
@@ -319,7 +323,7 @@ where
                 grad_coo_slice[orig] += grad_sorted_slice[i];
             }
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_coo, &backend);
+            coeus_ops::add_assign(gl, &grad_coo, &backend).expect("autograd gradient accumulation");
         }
         // ∂/∂B
         if let Some(Some(ref g)) = input_grads.get(1) {
@@ -332,7 +336,7 @@ where
                 &backend,
             );
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_b, &backend);
+            coeus_ops::add_assign(gl, &grad_b, &backend).expect("autograd gradient accumulation");
         }
     }
 }

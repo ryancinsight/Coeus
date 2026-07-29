@@ -4,8 +4,18 @@ use crate::driver::get_cuda_context;
 use crate::kernels;
 use crate::storage::CudaStorage;
 use crate::CudaBackendError;
-use coeus_core::Layout;
+use coeus_core::{Layout, Storage};
 use std::sync::Arc;
+
+fn activation_tail_operation(op: coeus_ops::UnaryOp) -> Option<&'static str> {
+    match op {
+        coeus_ops::UnaryOp::Mish => Some("Mish"),
+        coeus_ops::UnaryOp::MishGrad => Some("MishGrad"),
+        coeus_ops::UnaryOp::Elu => Some("Elu"),
+        coeus_ops::UnaryOp::EluGrad => Some("EluGrad"),
+        _ => None,
+    }
+}
 
 fn try_hephaestus_contiguous_binary<T>(
     op: coeus_ops::BinaryOp,
@@ -72,10 +82,56 @@ fn try_hephaestus_contiguous_unary<T>(
 where
     T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
 {
+    let device = crate::backend::get_cuda_device();
+    if activation_tail_operation(op).is_some() {
+        let run_into = |result: hephaestus_cuda::Result<()>| {
+            result
+                .map(|_| true)
+                .map_err(|source| CudaBackendError::dispatch("elementwise unary", source))
+        };
+        return match op {
+            coeus_ops::UnaryOp::Mish => run_into(hephaestus_cuda::unary_elementwise_into::<
+                hephaestus_cuda::MishOp,
+                T,
+            >(
+                device,
+                a.buffer.as_ref(),
+                c.buffer.as_ref(),
+                hephaestus_cuda::BlockWidth::DEFAULT,
+            )),
+            coeus_ops::UnaryOp::MishGrad => run_into(hephaestus_cuda::unary_elementwise_into::<
+                hephaestus_cuda::MishGradOp,
+                T,
+            >(
+                device,
+                a.buffer.as_ref(),
+                c.buffer.as_ref(),
+                hephaestus_cuda::BlockWidth::DEFAULT,
+            )),
+            coeus_ops::UnaryOp::Elu => run_into(hephaestus_cuda::unary_elementwise_into::<
+                hephaestus_cuda::EluOp,
+                T,
+            >(
+                device,
+                a.buffer.as_ref(),
+                c.buffer.as_ref(),
+                hephaestus_cuda::BlockWidth::DEFAULT,
+            )),
+            coeus_ops::UnaryOp::EluGrad => run_into(hephaestus_cuda::unary_elementwise_into::<
+                hephaestus_cuda::EluGradOp,
+                T,
+            >(
+                device,
+                a.buffer.as_ref(),
+                c.buffer.as_ref(),
+                hephaestus_cuda::BlockWidth::DEFAULT,
+            )),
+            _ => Ok(false),
+        };
+    }
     if Arc::ptr_eq(&a.buffer, &c.buffer) {
         return Ok(false);
     }
-    let device = crate::backend::get_cuda_device();
     let run = |result: hephaestus_cuda::Result<hephaestus_cuda::CudaBuffer<T>>,
                c: &mut CudaStorage<T>| {
         let buffer =
@@ -331,6 +387,42 @@ where
             hephaestus_operand(c, c_layout),
             hephaestus_cuda::BlockWidth::DEFAULT,
         )),
+        coeus_ops::UnaryOp::Mish => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::MishOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::MishGrad => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::MishGradOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Elu => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::EluOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::EluGrad => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::EluGradOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
         _ => Ok(false),
     }
 }
@@ -394,6 +486,38 @@ impl CudaBackend {
     where
         T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
     {
+        if let Some(operation) = activation_tail_operation(op) {
+            if get_cuda_context().is_none() {
+                return Err(CudaBackendError::ProviderUnavailable {
+                    operation,
+                    reason: "no CUDA context is available",
+                });
+            }
+            let contiguous = a.len() == c.len()
+                && a_layout.shape() == c_layout.shape()
+                && a_layout.is_contiguous()
+                && a_layout.offset() == 0
+                && c_layout.is_contiguous()
+                && c_layout.offset() == 0;
+            if contiguous {
+                if try_hephaestus_contiguous_unary(op, a, c)? {
+                    return Ok(());
+                }
+            } else if can_route_dynamic_strided(&[a_layout], c_layout) {
+                if try_hephaestus_strided_unary(op, a, a_layout, c, c_layout)? {
+                    return Ok(());
+                }
+            } else {
+                return Err(CudaBackendError::InvalidLayout {
+                    operation,
+                    reason: "layout is outside the provider-owned contiguous or strided contract",
+                });
+            }
+            return Err(CudaBackendError::InvalidLayout {
+                operation,
+                reason: "provider-owned activation dispatch was not selected",
+            });
+        }
         if get_cuda_context().is_some() {
             let Some(n) = kernels::checked_numel(c_layout) else {
                 self.fallback_unary(op, a, a_layout, c, c_layout)?;
@@ -457,5 +581,31 @@ impl CudaBackend {
             return Ok(());
         }
         self.fallback_reduce(op, a, a_layout, axis, c, c_layout)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::activation_tail_operation;
+
+    #[test]
+    fn classifies_only_provider_owned_activation_tail_operations() {
+        assert_eq!(
+            activation_tail_operation(coeus_ops::UnaryOp::Mish),
+            Some("Mish")
+        );
+        assert_eq!(
+            activation_tail_operation(coeus_ops::UnaryOp::MishGrad),
+            Some("MishGrad")
+        );
+        assert_eq!(
+            activation_tail_operation(coeus_ops::UnaryOp::Elu),
+            Some("Elu")
+        );
+        assert_eq!(
+            activation_tail_operation(coeus_ops::UnaryOp::EluGrad),
+            Some("EluGrad")
+        );
+        assert_eq!(activation_tail_operation(coeus_ops::UnaryOp::Silu), None);
     }
 }

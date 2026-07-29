@@ -63,9 +63,9 @@ pub(crate) fn accumulate_softmax_grad<T, B>(
     let sum_gy = coeus_ops::sum_axis(&gy, dim_u, &backend)
         .expect("invariant: softmax backward axis matches the input rank");
     let mut dx = coeus_ops::sub(grad_out, &sum_gy, &backend);
-    coeus_ops::mul_assign(&mut dx, y, &backend);
+    coeus_ops::mul_assign(&mut dx, y, &backend).expect("autograd gradient accumulation");
     let gl = g_in.write();
-    coeus_ops::add_assign(gl, &dx, &backend);
+    coeus_ops::add_assign(gl, &dx, &backend).expect("autograd gradient accumulation");
 }
 
 /// Tracked Softmax.

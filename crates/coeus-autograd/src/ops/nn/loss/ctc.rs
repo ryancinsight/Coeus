@@ -147,7 +147,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Ctc
         let dx_t: Vec<T> = dx.iter().map(|&v| T::from_f64(v)).collect();
         let grad_tensor = Tensor::from_slice_on([t, n, c], &dx_t, &backend);
         let gl = g.write();
-        coeus_ops::add_assign(gl, &grad_tensor, &backend);
+        coeus_ops::add_assign(gl, &grad_tensor, &backend).expect("autograd gradient accumulation");
     }
 }
 

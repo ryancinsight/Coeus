@@ -230,15 +230,15 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
 
         if let Some(gi) = grad_input {
             let gl = input_grads[0].as_ref().unwrap().write();
-            coeus_ops::add_assign(gl, &gi, &backend);
+            coeus_ops::add_assign(gl, &gi, &backend).expect("autograd gradient accumulation");
         }
         if let Some(gw) = grad_weight {
             let gl = input_grads[1].as_ref().unwrap().write();
-            coeus_ops::add_assign(gl, &gw, &backend);
+            coeus_ops::add_assign(gl, &gw, &backend).expect("autograd gradient accumulation");
         }
         if let Some(gb) = grad_bias {
             let gl = input_grads[2].as_ref().unwrap().write();
-            coeus_ops::add_assign(gl, &gb, &backend);
+            coeus_ops::add_assign(gl, &gb, &backend).expect("autograd gradient accumulation");
         }
     }
 }

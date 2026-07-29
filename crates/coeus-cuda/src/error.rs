@@ -23,6 +23,14 @@ pub enum CudaBackendError {
         /// Backend-independent layout invariant that failed.
         reason: &'static str,
     },
+    /// The requested operation requires a live CUDA provider context.
+    #[error("CUDA {operation} provider is unavailable: {reason}")]
+    ProviderUnavailable {
+        /// Operation that requires the CUDA provider.
+        operation: &'static str,
+        /// Provider capability that is unavailable.
+        reason: &'static str,
+    },
     /// The CUDA provider rejected a submitted kernel.
     #[error("CUDA {operation} dispatch failed: {source}")]
     Dispatch {

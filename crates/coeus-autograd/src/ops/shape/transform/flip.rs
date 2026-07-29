@@ -41,7 +41,8 @@ where
             // Gradient of flip is flip (self-inverse).
             let flipped_grad = coeus_ops::flip(grad_out, self.axis, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &flipped_grad, &backend);
+            coeus_ops::add_assign(lock, &flipped_grad, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

@@ -25,7 +25,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for
         _y: &Tensor<T, B>,
         backend: &B,
     ) -> Tensor<T, B> {
-        let mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::ReluGrad).expect("elementwise_unary");
+        let mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::ReluGrad)
+            .expect("elementwise_unary");
         coeus_ops::mul(grad_out, &mask, backend)
     }
 }
@@ -88,7 +89,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lea
             .expect("elementwise_unary");
             let mask = coeus_ops::mul(grad_out, &deriv, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &mask, &backend);
+            coeus_ops::add_assign(lock, &mask, &backend).expect("autograd gradient accumulation");
         }
     }
 }
@@ -150,7 +151,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         backend: &B,
     ) -> Tensor<T, B> {
         // EluGrad takes the original input x and returns exp(x) or 1
-        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::EluGrad).expect("elementwise_unary");
+        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::EluGrad)
+            .expect("elementwise_unary");
         coeus_ops::mul(grad_out, &deriv, backend)
     }
 }

@@ -139,8 +139,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
             .expect("invariant: layernorm feature axis is valid"); // [N, 1]
 
         // ── 1/sqrt(var + eps) ──
-        coeus_ops::add_assign(&mut stdev, &self.eps_t, &backend);
-        coeus_ops::sqrt_assign(&mut stdev, &backend);
+        coeus_ops::add_assign(&mut stdev, &self.eps_t, &backend)
+            .expect("normalization backend operation");
+        coeus_ops::sqrt_assign(&mut stdev, &backend).expect("normalization backend operation");
 
         let ones = {
             let mut cache = self.ones_cache.borrow_mut();
@@ -159,7 +160,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
             }
         };
         let mut istdev = ones;
-        coeus_ops::div_assign(&mut istdev, &stdev, &backend); // [N, 1]
+        coeus_ops::div_assign(&mut istdev, &stdev, &backend)
+            .expect("normalization backend operation"); // [N, 1]
 
         // ── Normalize ──
         let x_hat = coeus_ops::mul(&xmu, &istdev, &backend); // [N, D]
@@ -168,7 +170,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
         let w_reshaped = self.weight.tensor.reshape([1, d]);
         let b_reshaped = self.bias.tensor.reshape([1, d]);
         let mut out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
-        coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend);
+        coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend)
+            .expect("normalization backend operation");
 
         coeus_autograd::layernorm(
             input,

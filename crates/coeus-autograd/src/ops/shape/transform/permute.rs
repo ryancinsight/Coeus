@@ -33,7 +33,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Pe
         if let Some(Some(ref g)) = input_grads.first() {
             let permuted_grad = grad_out.permute(&self.inv_dims);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &permuted_grad, &backend);
+            coeus_ops::add_assign(gl, &permuted_grad, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

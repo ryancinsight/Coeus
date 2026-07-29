@@ -176,9 +176,7 @@ mod tests {
         let lhs = Tensor::from_slice([2], &[1.0_f32, 2.0]);
         let rhs = Tensor::from_slice([3], &[3.0_f32, 4.0, 5.0]);
 
-        let result = std::panic::catch_unwind(|| {
-            add(&lhs, &rhs, &backend)
-        });
+        let result = std::panic::catch_unwind(|| add(&lhs, &rhs, &backend));
         assert!(result.is_err(), "incompatible shapes must panic");
     }
 }

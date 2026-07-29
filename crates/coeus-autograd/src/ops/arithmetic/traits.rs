@@ -1,4 +1,4 @@
-﻿use crate::grad_buffer::GradBuffer;
+use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Scalar, Shape};
@@ -189,7 +189,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: ReductionAutogradOp<T
             };
             let broadcasted = grad_to_broadcast.broadcast(self.a_shape.clone());
             let gl = g.write();
-            coeus_ops::add_assign(gl, &broadcasted, &backend);
+            coeus_ops::add_assign(gl, &broadcasted, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

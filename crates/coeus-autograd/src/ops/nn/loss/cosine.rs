@@ -118,12 +118,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         if let Some(Some(ref g)) = input_grads.get(0) {
             let grad_tensor = Tensor::from_slice_on([self.n, self.d], &dg1, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)
+                .expect("autograd gradient accumulation");
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
             let grad_tensor = Tensor::from_slice_on([self.n, self.d], &dg2, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

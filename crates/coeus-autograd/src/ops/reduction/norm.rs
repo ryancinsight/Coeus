@@ -49,7 +49,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nor
         let grad_in = coeus_ops::mul(&scale, &self.input_tensor, &backend);
 
         let lock = g.write();
-        coeus_ops::add_assign(lock, &grad_in, &backend);
+        coeus_ops::add_assign(lock, &grad_in, &backend).expect("autograd gradient accumulation");
     }
 }
 
@@ -160,7 +160,7 @@ where
 
         let grad_t = Tensor::from_slice(self.input_tensor.shape().to_vec(), &grad_host);
         let lock = g.write();
-        coeus_ops::add_assign(lock, &grad_t, &backend);
+        coeus_ops::add_assign(lock, &grad_t, &backend).expect("autograd gradient accumulation");
     }
 }
 
@@ -309,7 +309,7 @@ where
 
         let grad_t = Tensor::from_slice(self.input_tensor.shape().to_vec(), &grad_in_host);
         let lock = g.write();
-        coeus_ops::add_assign(lock, &grad_t, &backend);
+        coeus_ops::add_assign(lock, &grad_t, &backend).expect("autograd gradient accumulation");
     }
 }
 

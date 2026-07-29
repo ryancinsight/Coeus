@@ -149,8 +149,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
             .expect("invariant: groupnorm feature axis is valid"); // [N*G, 1]
 
         // ── 1/sqrt(var + eps) ──
-        coeus_ops::add_assign(&mut stdev, &cache.eps_t, &backend);
-        coeus_ops::sqrt_assign(&mut stdev, &backend);
+        coeus_ops::add_assign(&mut stdev, &cache.eps_t, &backend)
+            .expect("normalization backend operation");
+        coeus_ops::sqrt_assign(&mut stdev, &backend).expect("normalization backend operation");
 
         let ones = {
             let mut o_cache = cache.ones_cache.borrow_mut();
@@ -170,7 +171,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
             }
         };
         let mut istdev = ones;
-        coeus_ops::div_assign(&mut istdev, &stdev, &backend); // [N*G, 1]
+        coeus_ops::div_assign(&mut istdev, &stdev, &backend)
+            .expect("normalization backend operation"); // [N*G, 1]
 
         // ── Normalize ──
         let x_hat = coeus_ops::mul(&xmu, &istdev, &backend); // [N*G, group_size]
@@ -179,7 +181,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
         let w_reshaped = cache.ln_weight.tensor.reshape([1, group_size]);
         let b_reshaped = cache.ln_bias.tensor.reshape([1, group_size]);
         let mut out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
-        coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend);
+        coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend)
+            .expect("normalization backend operation");
 
         let normed_flat = coeus_autograd::layernorm(
             &flat,
@@ -284,13 +287,13 @@ where
 
     // stdev = sqrt(var + eps): reuse var buffer
     let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
-    add_assign(&mut var, &eps_t, &backend);
-    sqrt_assign(&mut var, &backend); // now holds stdev
+    add_assign(&mut var, &eps_t, &backend).expect("normalization backend operation");
+    sqrt_assign(&mut var, &backend).expect("normalization backend operation"); // now holds stdev
 
     // istdev = 1 / stdev
     let ones = Tensor::ones_on([n * num_groups, 1], &backend);
     let mut istdev = ones;
-    div_assign(&mut istdev, &var, &backend);
+    div_assign(&mut istdev, &var, &backend).expect("normalization backend operation");
 
     // x_hat = xmu * istdev (broadcasts [N*G, 1] → [N*G, group_size])
     let x_hat = mul(&xmu, &istdev, &backend);
@@ -308,7 +311,7 @@ where
     }
     if let Some(b) = bias {
         let b_bc = b.reshape(broadcast_shape.clone());
-        add_assign(&mut out, &b_bc, &backend);
+        add_assign(&mut out, &b_bc, &backend).expect("normalization backend operation");
     }
 
     out

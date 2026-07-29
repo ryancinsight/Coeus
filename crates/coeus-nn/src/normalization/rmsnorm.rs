@@ -78,8 +78,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RMSNorm<T
             .expect("invariant: rmsnorm feature axis is valid"); // [N, 1]
 
         // ── RMS ──
-        coeus_ops::add_assign(&mut rms, &self.eps_t, &backend);
-        coeus_ops::sqrt_assign(&mut rms, &backend);
+        coeus_ops::add_assign(&mut rms, &self.eps_t, &backend)
+            .expect("normalization backend operation");
+        coeus_ops::sqrt_assign(&mut rms, &backend).expect("normalization backend operation");
 
         // ── Normalize ──
         let x_hat = coeus_ops::div(&input.tensor, &rms, &backend); // [N, D]

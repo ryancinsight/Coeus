@@ -50,7 +50,8 @@ where
             // d_input = scatter_add(zeros_like(input), dim, index, grad_out)
             let zeros = Tensor::zeros_on(self.input_shape.clone(), &backend);
             let d_input = coeus_ops::scatter_add(&zeros, self.dim, &self.index, grad_out, &backend);
-            coeus_ops::add_assign(g.write(), &d_input, &backend);
+            coeus_ops::add_assign(g.write(), &d_input, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

@@ -42,7 +42,7 @@ where
             // backward of diag(v, k) is diagonal(grad_out, k).
             let gi = coeus_ops::diagonal(grad_out, self.k, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &gi, &backend);
+            coeus_ops::add_assign(gl, &gi, &backend).expect("autograd gradient accumulation");
         }
     }
 }
@@ -136,7 +136,7 @@ where
                 Tensor::from_slice(vec![rows, cols], &data)
             };
             let gl = g.write();
-            coeus_ops::add_assign(gl, &gi, &backend);
+            coeus_ops::add_assign(gl, &gi, &backend).expect("autograd gradient accumulation");
         }
     }
 }

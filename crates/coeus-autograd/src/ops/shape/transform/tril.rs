@@ -43,7 +43,7 @@ where
             // have zero gradient since they contributed nothing to the output.
             let masked = coeus_ops::tril(grad_out, self.k, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &masked, &backend);
+            coeus_ops::add_assign(lock, &masked, &backend).expect("autograd gradient accumulation");
         }
     }
 }
@@ -125,7 +125,7 @@ where
         if let Some(Some(ref g)) = input_grads.first() {
             let masked = coeus_ops::triu(grad_out, self.k, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &masked, &backend);
+            coeus_ops::add_assign(lock, &masked, &backend).expect("autograd gradient accumulation");
         }
     }
 }

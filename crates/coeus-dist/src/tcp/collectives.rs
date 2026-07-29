@@ -1,6 +1,6 @@
 use super::mesh::TcpMesh;
 use crate::communicator::Communicator;
-use crate::helpers::{
+use crate::host_access::{
     copy_host_slice_to_tensor, get_tensor_host_data, recv_slice_data, recv_tensor_data,
     with_tensor_host_bytes,
 };

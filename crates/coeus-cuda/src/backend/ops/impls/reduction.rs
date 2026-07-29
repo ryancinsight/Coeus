@@ -1,5 +1,5 @@
-use crate::CudaBackendError;
 use crate::backend::{CudaBackend, CudaScalar};
+use crate::CudaBackendError;
 use coeus_core::Layout;
 use hephaestus_cuda::StridedOperand;
 use hephaestus_cuda::{CombineExpr, CumProdOp, CumSumOp, IdentityToken, OpIdentity, ScanDirection};
@@ -79,13 +79,13 @@ where
 }
 
 impl<
-    T: CudaScalar
-        + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>
-        + OpIdentity<CumSumOp>
-        + IdentityToken<CumSumOp, hephaestus_cuda::CudaC>
-        + OpIdentity<CumProdOp>
-        + IdentityToken<CumProdOp, hephaestus_cuda::CudaC>,
-> coeus_ops::ReductionOps<T> for CudaBackend
+        T: CudaScalar
+            + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>
+            + OpIdentity<CumSumOp>
+            + IdentityToken<CumSumOp, hephaestus_cuda::CudaC>
+            + OpIdentity<CumProdOp>
+            + IdentityToken<CumProdOp, hephaestus_cuda::CudaC>,
+    > coeus_ops::ReductionOps<T> for CudaBackend
 {
     #[inline]
     fn reduce(

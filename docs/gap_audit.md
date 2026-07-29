@@ -1,5 +1,31 @@
 # Coeus Gap Audit
 
+## ATLAS-COEUS-HEPHAESTUS-006: Activation-tail provider parity
+
+**Location**: `crates/coeus-wgpu/src/backend/ops/mod.rs`,
+`crates/coeus-cuda/src/backend/ops/math.rs`, and the ROCm/Metal elementwise
+provider leaves and parity suites.
+**Gap**: Hephaestus PR #123 provides `Mish`, `MishGrad`, `Elu`, and `EluGrad`
+markers, but Coeus consumer dispatch did not route the four operations through
+the provider-owned APIs on every applicable backend path.
+**Resolution**: add direct contiguous/strided WGPU and CUDA marker dispatches,
+extend the existing ROCm and Metal f32 activation matches, and compare all
+forward/gradient results with the Leto CPU oracle.
+**Residual**: parameterized activations, reduced/vector precision, and
+exact-head hosted CI remain separate evidence or parity scopes. Provider rank
+and aliasing contracts are not expanded; out-of-contract activation-tail
+requests return typed errors without local-kernel or CPU fallback.
+**Evidence target**: focused WGPU, CUDA, ROCm, and Metal nextest plus doctest
+and rustdoc gates; hosted exact-head provider and consumer CI is a separate
+evidence tier.
+**Status**: source integration and differential coverage complete. Locked
+metadata, focused non-CUDA nextest (307/307), warning-denied Clippy, workspace
+doctests (153 passed, 2 ignored), warning-denied rustdoc, and the MSVC CUDA
+feature compile check pass. Focused CUDA nextest passes 6/6 with real
+contiguous and transposed device execution; the focused CPU/WGPU/ROCm/Metal
+activation-tail lane passes 10/10. No fallback path was added. Hosted
+exact-head CI remains open.
+
 ## ATLAS-COEUS-HEPHAESTUS-005: Unary math provider parity
 
 **Location**: `crates/coeus-rocm/src/backend/elementwise.rs`,

@@ -20,9 +20,9 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> Result<String, WgpuBackendError> {
         coeus_ops::UnaryOp::Erfc => {
             format!("(1.0 - ({}))", coeus_ops::fuse::wgsl_erf_approx_expr("val"))
         }
-        coeus_ops::UnaryOp::Lgamma => {
-            return Err(WgpuBackendError::UnsupportedOperation { operation: "lgamma" });
-        }
+        coeus_ops::UnaryOp::Lgamma => <hephaestus_core::LgammaOp as
+            hephaestus_core::UnaryExpr<hephaestus_core::Wgsl>>::EXPR
+            .replace("x", "val"),
         coeus_ops::UnaryOp::Tan => "tan(val)".to_string(),
         coeus_ops::UnaryOp::Asin => "asin(val)".to_string(),
         coeus_ops::UnaryOp::Acos => "acos(val)".to_string(),
@@ -42,10 +42,14 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> Result<String, WgpuBackendError> {
         coeus_ops::UnaryOp::Sqrt => "sqrt(val)".to_string(),
         coeus_ops::UnaryOp::Silu => "val / (1.0 + exp(-val))".to_string(),
         coeus_ops::UnaryOp::SiluGrad => "(1.0 / (1.0 + exp(-val))) * (1.0 + val * (1.0 - (1.0 / (1.0 + exp(-val)))))".to_string(),
-        coeus_ops::UnaryOp::Mish => "val * tanh(log(1.0 + exp(val)))".to_string(),
-        coeus_ops::UnaryOp::MishGrad => "tanh(log(1.0 + exp(val))) + val * (1.0 - tanh(log(1.0 + exp(val))) * tanh(log(1.0 + exp(val)))) * (1.0 / (1.0 + exp(-val)))".to_string(),
-        coeus_ops::UnaryOp::Elu => "select(exp(val) - 1.0, val, val >= 0.0)".to_string(),
-        coeus_ops::UnaryOp::EluGrad => "select(exp(val), 1.0, val >= 0.0)".to_string(),
+        coeus_ops::UnaryOp::Mish
+        | coeus_ops::UnaryOp::MishGrad
+        | coeus_ops::UnaryOp::Elu
+        | coeus_ops::UnaryOp::EluGrad => {
+            return Err(WgpuBackendError::UnsupportedOperation {
+                operation: "provider-owned activation tail",
+            });
+        }
         coeus_ops::UnaryOp::Softplus => "log(1.0 + exp(val))".to_string(),
         coeus_ops::UnaryOp::SoftplusGrad => "1.0 / (1.0 + exp(-val))".to_string(),
         coeus_ops::UnaryOp::GeluTanh => "0.5 * val * (1.0 + tanh(0.7978845608 * (val + 0.044715 * val * val * val)))".to_string(),
@@ -428,15 +432,29 @@ pub fn dispatch_contiguous_unary<T: WgpuScalar>(
 #[cfg(test)]
 mod tests {
     use super::unary_expr;
-    use crate::backend::WgpuBackendError;
 
     #[test]
-    fn rejects_unsupported_lgamma_without_panicking() {
-        assert!(matches!(
-            unary_expr(coeus_ops::UnaryOp::Lgamma),
-            Err(WgpuBackendError::UnsupportedOperation {
-                operation: "lgamma"
-            })
-        ));
+    fn uses_provider_lgamma_expression() {
+        let expression = unary_expr(coeus_ops::UnaryOp::Lgamma).expect("provider expression");
+        assert!(expression.contains("676.5203681218851"));
+        assert!(expression.contains("abs(val) > 3.402823466e+38"));
+        assert!(expression.contains("trunc(val)"));
+    }
+
+    #[test]
+    fn rejects_local_activation_tail_expressions() {
+        for op in [
+            coeus_ops::UnaryOp::Mish,
+            coeus_ops::UnaryOp::MishGrad,
+            coeus_ops::UnaryOp::Elu,
+            coeus_ops::UnaryOp::EluGrad,
+        ] {
+            assert!(matches!(
+                unary_expr(op),
+                Err(crate::backend::WgpuBackendError::UnsupportedOperation {
+                    operation: "provider-owned activation tail"
+                })
+            ));
+        }
     }
 }

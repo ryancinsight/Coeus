@@ -65,3 +65,49 @@ fn test_cuda_strided_ops() {
         }
     }
 }
+
+#[test]
+fn test_cuda_strided_activation_tail_matches_cpu() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err()
+        || coeus_cuda::CudaDriver::get().is_none()
+        || coeus_cuda::get_cuda_context().is_none()
+    {
+        return;
+    }
+
+    let seq = SequentialBackend::new();
+    let cuda = CudaBackend::new();
+    let data = [
+        -2.0_f32, -1.5, -1.0, -0.5, -0.25, 0.0, 0.25, 0.5, 1.0, 1.5, 2.0, 3.0,
+    ];
+    let cpu = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 4], &data).transpose();
+    let gpu_base =
+        Tensor::<f32, SequentialBackend>::from_slice(vec![3, 4], &data).to_backend_on(&seq, &cuda);
+    let gpu = gpu_base.transpose();
+
+    for operation in [
+        coeus_ops::UnaryOp::Mish,
+        coeus_ops::UnaryOp::MishGrad,
+        coeus_ops::UnaryOp::Elu,
+        coeus_ops::UnaryOp::EluGrad,
+    ] {
+        let expected = coeus_ops::elementwise_unary(&cpu, &seq, operation)
+            .expect("valid CPU strided activation-tail input");
+        let actual = coeus_ops::elementwise_unary(&gpu, &cuda, operation)
+            .expect("valid CUDA strided activation-tail input")
+            .to_backend_on(&cuda, &seq);
+
+        for (index, (&reference, &candidate)) in expected
+            .as_slice()
+            .iter()
+            .zip(actual.as_slice())
+            .enumerate()
+        {
+            let tolerance = f32::EPSILON * 512.0 * reference.abs().max(1.0);
+            assert!(
+                (candidate - reference).abs() <= tolerance,
+                "{operation:?} mismatch at {index}: CPU={reference}, CUDA={candidate}, tolerance={tolerance}"
+            );
+        }
+    }
+}

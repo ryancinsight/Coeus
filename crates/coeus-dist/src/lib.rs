@@ -9,7 +9,7 @@
 
 /// Collective communication interface implemented by all communicators.
 pub mod communicator;
-pub(crate) mod helpers;
+pub(crate) mod host_access;
 /// Thread-based simulated communicator for local multi-process verification.
 pub mod local;
 /// Zero-sized reduction-operation tags (`Sum`, `Min`, `Max`, `Product`).
@@ -90,7 +90,9 @@ pub fn synchronize_gradients<
             comm.all_reduce::<T, B, Sum>(grad_tensor, &backend);
 
             // Scale by 1 / world_size
-            coeus_ops::mul_assign(grad_tensor, &scale_tensor, &backend);
+            coeus_ops::mul_assign(grad_tensor, &scale_tensor, &backend)
+                .expect("distributed gradient scaling backend operation");
         }
     }
 }
+

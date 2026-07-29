@@ -70,7 +70,8 @@ where
 
             let gi_increment = Tensor::from_slice(self.input_saved.shape_cloned(), &gi);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &gi_increment, &backend);
+            coeus_ops::add_assign(gl, &gi_increment, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

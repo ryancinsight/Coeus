@@ -44,7 +44,8 @@ where
                     .expect("invariant: broadcast gradient axis is derived from the input shape");
             }
             let lock = g.write();
-            coeus_ops::add_assign(lock, &grad_input, &backend);
+            coeus_ops::add_assign(lock, &grad_input, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

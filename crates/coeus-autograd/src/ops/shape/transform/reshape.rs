@@ -33,7 +33,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Re
         if let Some(Some(ref g)) = input_grads.first() {
             let reshaped_grad = grad_out.reshape(self.original_shape.clone());
             let gl = g.write();
-            coeus_ops::add_assign(gl, &reshaped_grad, &backend);
+            coeus_ops::add_assign(gl, &reshaped_grad, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

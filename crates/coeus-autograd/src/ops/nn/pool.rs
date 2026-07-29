@@ -194,7 +194,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
                 self.inp_clone.layout(),
             );
             let gl = g_in.write();
-            coeus_ops::add_assign(gl, &grad_input, &backend);
+            coeus_ops::add_assign(gl, &grad_input, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }
@@ -341,7 +342,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
                 grad_input_layout: gi_layout,
             });
             let gl = g_in.write();
-            coeus_ops::add_assign(gl, &grad_input, &backend);
+            coeus_ops::add_assign(gl, &grad_input, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

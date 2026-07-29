@@ -1,4 +1,4 @@
-use super::utils::scatter_accumulate_into;
+use super::conv_node::scatter_accumulate_into;
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
@@ -727,3 +727,4 @@ pub fn conv_transpose3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         creator,
     }
 }
+

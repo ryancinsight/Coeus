@@ -31,7 +31,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Co
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let gl = g.write();
-            coeus_ops::add_assign(gl, grad_out, &backend);
+            coeus_ops::add_assign(gl, grad_out, &backend).expect("autograd gradient accumulation");
         }
     }
 }

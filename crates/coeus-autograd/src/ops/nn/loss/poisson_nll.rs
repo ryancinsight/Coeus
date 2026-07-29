@@ -55,7 +55,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Poi
             }
             let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &d_input, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)
+                .expect("autograd gradient accumulation");
         }
 
         // d/d_target = -input / n.
@@ -66,7 +67,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Poi
             }
             let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &d_target, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

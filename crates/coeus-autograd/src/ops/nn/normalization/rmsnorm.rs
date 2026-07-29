@@ -52,7 +52,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for RMS
             .expect("invariant: rmsnorm gamma gradient axis is valid");
             let dg = dg_t.reshape([self.d]);
             let gl = gw.write();
-            coeus_ops::add_assign(gl, &dg, &backend);
+            coeus_ops::add_assign(gl, &dg, &backend).expect("autograd gradient accumulation");
         }
 
         // ── dL/dx ──
@@ -63,13 +63,15 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for RMS
                 .expect("invariant: rmsnorm backward axis is valid"); // [N, 1]
 
             let term_prod = coeus_ops::mul(&self.x_hat_clone, &scaled_sum, &backend); // [N, D]
-            coeus_ops::sub_assign(&mut dy_w, &term_prod, &backend); // [N, D]
+            coeus_ops::sub_assign(&mut dy_w, &term_prod, &backend)
+                .expect("autograd gradient accumulation"); // [N, D]
 
             let mut dx = dy_w;
-            coeus_ops::div_assign(&mut dx, &self.rms_clone, &backend); // [N, D]
+            coeus_ops::div_assign(&mut dx, &self.rms_clone, &backend)
+                .expect("autograd gradient accumulation"); // [N, D]
 
             let gl = gx.write();
-            coeus_ops::add_assign(gl, &dx, &backend);
+            coeus_ops::add_assign(gl, &dx, &backend).expect("autograd gradient accumulation");
         }
     }
 }

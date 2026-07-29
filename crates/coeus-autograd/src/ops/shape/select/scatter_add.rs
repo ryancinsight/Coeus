@@ -56,14 +56,16 @@ where
         // is the output gradient verbatim.
         if let Some(Some(ref g)) = input_grads.first() {
             let grad_input = grad_out.to_contiguous_on(&backend);
-            coeus_ops::add_assign(g.write(), &grad_input, &backend);
+            coeus_ops::add_assign(g.write(), &grad_input, &backend)
+                .expect("autograd gradient accumulation");
         }
 
         // ∂/∂src: each source element lands at `index`, so its gradient gathers
         // the output gradient from that position.
         if let Some(Some(ref g)) = input_grads.get(1) {
             let grad_src = coeus_ops::gather(grad_out, self.dim, &self.index, &backend);
-            coeus_ops::add_assign(g.write(), &grad_src, &backend);
+            coeus_ops::add_assign(g.write(), &grad_src, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

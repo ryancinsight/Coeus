@@ -94,7 +94,8 @@ where
 
             // Accumulate increment into the gradient buffer.
             let gi_increment = Tensor::from_slice(in_shape.clone(), &gi_data);
-            coeus_ops::add_assign(gl, &gi_increment, &backend);
+            coeus_ops::add_assign(gl, &gi_increment, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

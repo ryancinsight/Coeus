@@ -129,7 +129,8 @@ pub fn amax(input: &PyTensor, py: Python<'_>) -> PyResult<f64> {
     let v = py.allow_threads(|| {
         let backend = MoiraiBackend::new();
         coeus_ops::amax::<f64, MoiraiBackend>(&input.inner.tensor, &backend)
-    });
+            .map_err(|error| PyValueError::new_err(error.to_string()))
+    })?;
     Ok(v)
 }
 
@@ -141,7 +142,8 @@ pub fn amin(input: &PyTensor, py: Python<'_>) -> PyResult<f64> {
     let v = py.allow_threads(|| {
         let backend = MoiraiBackend::new();
         coeus_ops::amin::<f64, MoiraiBackend>(&input.inner.tensor, &backend)
-    });
+            .map_err(|error| PyValueError::new_err(error.to_string()))
+    })?;
     Ok(v)
 }
 

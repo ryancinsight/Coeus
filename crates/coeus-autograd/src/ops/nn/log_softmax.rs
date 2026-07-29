@@ -66,7 +66,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Log
         let dx = coeus_ops::sub(grad_out, &scaled, &backend);
 
         let lock = acc.write();
-        coeus_ops::add_assign(lock, &dx, &backend);
+        coeus_ops::add_assign(lock, &dx, &backend).expect("autograd gradient accumulation");
     }
 }
 

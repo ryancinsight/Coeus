@@ -3,10 +3,7 @@ use coeus_core::{
     BinaryOp, CpuUnaryDispatch, CpuUnaryOp as UnaryOp, Layout as CoeusLayout, Scalar as CoeusScalar,
 };
 use leto::{LetoError, Result};
-use leto_ops::{
-    EqOp as LetoEqOp, GeOp as LetoGeOp, GtOp as LetoGtOp, LeOp as LetoLeOp, LtOp as LetoLtOp,
-    NeOp as LetoNeOp, Scalar as LetoScalar,
-};
+use leto_ops::Scalar as LetoScalar;
 
 use super::MAX_DISPATCH_RANK;
 
@@ -91,12 +88,24 @@ fn binary_n<T: LetoScalar, const N: usize>(
         BinaryOp::Sub => leto_ops::sub(&a_view, &b_view, &mut out_view),
         BinaryOp::Mul => leto_ops::mul(&a_view, &b_view, &mut out_view),
         BinaryOp::Div => leto_ops::div(&a_view, &b_view, &mut out_view),
-        BinaryOp::Eq => leto_ops::binary_map::<LetoEqOp, T, N>(&a_view, &b_view, &mut out_view),
-        BinaryOp::Ne => leto_ops::binary_map::<LetoNeOp, T, N>(&a_view, &b_view, &mut out_view),
-        BinaryOp::Lt => leto_ops::binary_map::<LetoLtOp, T, N>(&a_view, &b_view, &mut out_view),
-        BinaryOp::Gt => leto_ops::binary_map::<LetoGtOp, T, N>(&a_view, &b_view, &mut out_view),
-        BinaryOp::Le => leto_ops::binary_map::<LetoLeOp, T, N>(&a_view, &b_view, &mut out_view),
-        BinaryOp::Ge => leto_ops::binary_map::<LetoGeOp, T, N>(&a_view, &b_view, &mut out_view),
+        BinaryOp::Eq => leto_ops::zip2_mut_with(&mut out_view, &a_view, &b_view, |out, a, b| {
+            *out = if a == b { T::ONE } else { T::ZERO };
+        }),
+        BinaryOp::Ne => leto_ops::zip2_mut_with(&mut out_view, &a_view, &b_view, |out, a, b| {
+            *out = if a != b { T::ONE } else { T::ZERO };
+        }),
+        BinaryOp::Lt => leto_ops::zip2_mut_with(&mut out_view, &a_view, &b_view, |out, a, b| {
+            *out = if a < b { T::ONE } else { T::ZERO };
+        }),
+        BinaryOp::Gt => leto_ops::zip2_mut_with(&mut out_view, &a_view, &b_view, |out, a, b| {
+            *out = if a > b { T::ONE } else { T::ZERO };
+        }),
+        BinaryOp::Le => leto_ops::zip2_mut_with(&mut out_view, &a_view, &b_view, |out, a, b| {
+            *out = if a <= b { T::ONE } else { T::ZERO };
+        }),
+        BinaryOp::Ge => leto_ops::zip2_mut_with(&mut out_view, &a_view, &b_view, |out, a, b| {
+            *out = if a >= b { T::ONE } else { T::ZERO };
+        }),
     }
 }
 

@@ -44,6 +44,16 @@ macro_rules! activation_unary_dispatch {
             f32,
             N,
         >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Gelu => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::GeluOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::GeluGrad => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::GeluGradOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
             UnaryOp::GeluTanh => hephaestus_metal::unary_elementwise_strided_into::<
             hephaestus_metal::GeluTanhOp,
             f32,
@@ -71,6 +81,26 @@ macro_rules! activation_unary_dispatch {
         >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
             UnaryOp::SoftplusGrad => hephaestus_metal::unary_elementwise_strided_into::<
             hephaestus_metal::SoftplusGradOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Mish => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::MishOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::MishGrad => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::MishGradOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Elu => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::EluOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::EluGrad => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::EluGradOp,
             f32,
             N,
         >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
@@ -176,6 +206,11 @@ macro_rules! activation_unary_dispatch {
         >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
             UnaryOp::Erfc => hephaestus_metal::unary_elementwise_strided_into::<
             hephaestus_metal::ErfcOp,
+            f32,
+            N,
+        >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),
+            UnaryOp::Lgamma => hephaestus_metal::unary_elementwise_strided_into::<
+            hephaestus_metal::LgammaOp,
             f32,
             N,
         >($device, $input, $output, hephaestus_core::BlockWidth::DEFAULT),

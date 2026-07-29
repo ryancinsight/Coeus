@@ -77,9 +77,11 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradO
         //   pos_mask = ReluGrad(x)      — 1 where x > 0, 0 elsewhere
         //   neg_mask = ReluGrad(-x_neg) — 1 where x < 0, 0 elsewhere
         // sign = pos_mask - neg_mask
-        let pos_mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::ReluGrad).expect("elementwise_unary");
+        let pos_mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::ReluGrad)
+            .expect("elementwise_unary");
         let x_neg = coeus_ops::neg(x, backend);
-        let neg_mask = coeus_ops::elementwise_unary(&x_neg, backend, coeus_ops::UnaryOp::ReluGrad).expect("elementwise_unary");
+        let neg_mask = coeus_ops::elementwise_unary(&x_neg, backend, coeus_ops::UnaryOp::ReluGrad)
+            .expect("elementwise_unary");
         let sign = coeus_ops::sub(&pos_mask, &neg_mask, backend);
         // Ignore the stored forward output `y` here — sign is cheaper directly from x.
         let _ = y;
@@ -286,13 +288,14 @@ where
             let local_grad = coeus_ops::mul(&n_tensor, &x_pow_n_m1, &backend);
             let grad_in = coeus_ops::mul(grad_out, &local_grad, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &grad_in, &backend);
+            coeus_ops::add_assign(lock, &grad_in, &backend)
+                .expect("autograd gradient accumulation");
             return;
         }
 
         let grad_t = Tensor::from_slice(self.input_tensor.shape().to_vec(), &grad_in_host);
         let lock = g.write();
-        coeus_ops::add_assign(lock, &grad_t, &backend);
+        coeus_ops::add_assign(lock, &grad_t, &backend).expect("autograd gradient accumulation");
     }
 }
 
@@ -499,7 +502,8 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
             let lo_t = Tensor::full_on(shape, self.min_val, &backend);
             let lo_minus_x = coeus_ops::sub(&lo_t, &self.input_tensor, &backend);
             let mask_lt_lo =
-                coeus_ops::elementwise_unary(&lo_minus_x, &backend, coeus_ops::UnaryOp::ReluGrad).expect("elementwise_unary");
+                coeus_ops::elementwise_unary(&lo_minus_x, &backend, coeus_ops::UnaryOp::ReluGrad)
+                    .expect("elementwise_unary");
             let mask_lo_ge = coeus_ops::sub(&one_scalar, &mask_lt_lo, &backend);
 
             // 1_{x <= hi} = 1 - 1_{x > hi} = 1 - ReluGrad(x - hi).
@@ -509,14 +513,16 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
             let hi_t = Tensor::full_on(shape, self.max_val, &backend);
             let x_minus_hi = coeus_ops::sub(&self.input_tensor, &hi_t, &backend);
             let mask_gt_hi =
-                coeus_ops::elementwise_unary(&x_minus_hi, &backend, coeus_ops::UnaryOp::ReluGrad).expect("elementwise_unary");
+                coeus_ops::elementwise_unary(&x_minus_hi, &backend, coeus_ops::UnaryOp::ReluGrad)
+                    .expect("elementwise_unary");
             let mask_hi_le = coeus_ops::sub(&one_scalar, &mask_gt_hi, &backend);
 
             // Inside mask = mask_lo_ge AND mask_hi_le (product of indicators)
             let inside = coeus_ops::mul(&mask_lo_ge, &mask_hi_le, &backend);
             let grad_in = coeus_ops::mul(grad_out, &inside, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &grad_in, &backend);
+            coeus_ops::add_assign(lock, &grad_in, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }
@@ -542,11 +548,13 @@ pub fn clamp<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
     let hi_t = Tensor::full_on(a.tensor.shape(), max_val, &backend);
     // x_clamped_lo = relu(x - lo) + lo = max(x, lo)
     let shifted_lo = coeus_ops::sub(&a.tensor, &lo_t, &backend);
-    let relu_lo = coeus_ops::elementwise_unary(&shifted_lo, &backend, coeus_ops::UnaryOp::Relu).expect("elementwise_unary");
+    let relu_lo = coeus_ops::elementwise_unary(&shifted_lo, &backend, coeus_ops::UnaryOp::Relu)
+        .expect("elementwise_unary");
     let clamped_lo = coeus_ops::add(&relu_lo, &lo_t, &backend);
     // max(x, lo) clamped from above: min(clamped_lo, hi) = hi - relu(hi - clamped_lo)
     let shifted_hi = coeus_ops::sub(&hi_t, &clamped_lo, &backend);
-    let relu_hi = coeus_ops::elementwise_unary(&shifted_hi, &backend, coeus_ops::UnaryOp::Relu).expect("elementwise_unary");
+    let relu_hi = coeus_ops::elementwise_unary(&shifted_hi, &backend, coeus_ops::UnaryOp::Relu)
+        .expect("elementwise_unary");
     let out_tensor = coeus_ops::sub(&hi_t, &relu_hi, &backend);
 
     let requires_grad = crate::grad_mode::should_track_var(a);

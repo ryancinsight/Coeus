@@ -53,7 +53,8 @@ where
                 &backend,
             );
             let gl = gw.write();
-            coeus_ops::add_assign(gl, &gw_update, &backend);
+            coeus_ops::add_assign(gl, &gw_update, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

@@ -1,5 +1,26 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-COEUS-HEPHAESTUS-006 — Native activation-tail providers
+
+- [x] Route `Mish`, `MishGrad`, `Elu`, and `EluGrad` through direct Hephaestus
+      WGPU/CUDA contiguous and strided APIs.
+- [x] Route the f32 operations through the existing Hephaestus ROCm and Metal
+      activation provider dispatches.
+- [x] Compare forward and gradient results with the Leto CPU oracle in each
+      backend parity suite.
+- [x] Add ADR-0030 and synchronize the active Coeus parity artifacts.
+- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI.
+- [x] Complete the local locked metadata, focused non-CUDA nextest (307/307),
+      warning-denied Clippy, workspace doctests (153 passed, 2 ignored),
+      warning-denied rustdoc, and CUDA feature compile gates.
+- [x] Complete the workspace Clippy gate after making distributed, autograd,
+      normalization, and Python reduction backend errors explicit.
+- [x] Complete focused CUDA nextest under the x86_64 MSVC toolchain: 6/6
+      activation-tail tests pass, including contiguous and transposed device
+      execution.
+- [x] Complete the focused CPU/WGPU/ROCm/Metal activation-tail lane: 10/10
+      tests pass.
+
 ## ATLAS-COEUS-HEPHAESTUS-005 — Native unary math providers
 
 - [x] Add the shared 19-operation Hephaestus unary math vocabulary and export

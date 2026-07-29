@@ -9,6 +9,16 @@ use hephaestus_wgpu::{
 use leto::Layout as LetoLayout;
 use std::sync::Arc;
 
+fn activation_tail_operation(op: coeus_ops::UnaryOp) -> Option<&'static str> {
+    match op {
+        coeus_ops::UnaryOp::Mish => Some("Mish"),
+        coeus_ops::UnaryOp::MishGrad => Some("MishGrad"),
+        coeus_ops::UnaryOp::Elu => Some("Elu"),
+        coeus_ops::UnaryOp::EluGrad => Some("EluGrad"),
+        _ => None,
+    }
+}
+
 mod attention;
 mod conv;
 mod impls;
@@ -206,6 +216,31 @@ fn try_hephaestus_strided_unary_wgpu<
                     T,
                     $n,
                 >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Lgamma => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::LgammaOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Mish => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::MishOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::MishGrad => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::MishGradOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Elu => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::EluOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::EluGrad => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::EluGradOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
                 _ => Ok(false),
             }
         }};
@@ -289,7 +324,7 @@ fn try_hephaestus_contiguous_unary<
     a: &crate::storage::WgpuStorage<T>,
     c: &mut crate::storage::WgpuStorage<T>,
 ) -> Result<bool, WgpuBackendError> {
-    if Arc::ptr_eq(&a.buffer, &c.buffer) {
+    if Arc::ptr_eq(&a.buffer, &c.buffer) && activation_tail_operation(op).is_none() {
         return Ok(false);
     }
     let ctx = crate::backend::get_wgpu_context();
@@ -371,6 +406,51 @@ fn try_hephaestus_contiguous_unary<
             c.buffer.as_ref(),
             BlockWidth::DEFAULT,
         )),
+        coeus_ops::UnaryOp::Lgamma => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::LgammaOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Mish => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::MishOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::MishGrad => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::MishGradOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Elu => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::EluOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::EluGrad => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::EluGradOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
         _ => Ok(false),
     }
 }
@@ -439,6 +519,25 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
     ) -> Result<(), WgpuBackendError> {
         WgpuBackendError::validate_layout(a_layout)?;
         WgpuBackendError::validate_layout(c_layout)?;
+        if let Some(operation) = activation_tail_operation(op) {
+            let dispatched = if a.len() == c.len()
+                && a_layout.is_contiguous()
+                && a_layout.offset() == 0
+                && c_layout.is_contiguous()
+                && c_layout.offset() == 0
+            {
+                try_hephaestus_contiguous_unary(op, a, c)?
+            } else if can_route_strided_wgpu(&[a_layout], c_layout) {
+                try_hephaestus_strided_unary_wgpu(op, a, a_layout, c, c_layout)?
+            } else {
+                false
+            };
+            return if dispatched {
+                Ok(())
+            } else {
+                Err(WgpuBackendError::UnsupportedOperation { operation })
+            };
+        }
         if a.len() == c.len()
             && a_layout.is_contiguous()
             && a_layout.offset() == 0

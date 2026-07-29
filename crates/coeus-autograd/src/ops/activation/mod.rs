@@ -63,7 +63,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: UnaryAutogradOp<T, B>
         if let Some(Some(ref g)) = input_grads.get(0) {
             let mask = Op::backward(grad_out, &self.a_tensor, &self.out_tensor, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &mask, &backend);
+            coeus_ops::add_assign(gl, &mask, &backend).expect("autograd gradient accumulation");
         }
     }
 }

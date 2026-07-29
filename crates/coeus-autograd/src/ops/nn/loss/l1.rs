@@ -63,7 +63,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for L1L
         if let Some(Some(ref g)) = input_grads.first() {
             let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &d_pred, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)
+                .expect("autograd gradient accumulation");
         }
 
         if let Some(Some(ref g)) = input_grads.get(1) {
@@ -73,7 +74,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for L1L
             }
             let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &d_target, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend);
+            coeus_ops::add_assign(gl, &grad_tensor, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

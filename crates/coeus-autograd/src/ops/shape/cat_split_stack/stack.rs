@@ -53,7 +53,8 @@ where
             // Remove the stacked dimension to match the input rank
             let squeezed = chunk.squeeze(self.dim);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &squeezed, &backend);
+            coeus_ops::add_assign(lock, &squeezed, &backend)
+                .expect("autograd gradient accumulation");
         }
     }
 }

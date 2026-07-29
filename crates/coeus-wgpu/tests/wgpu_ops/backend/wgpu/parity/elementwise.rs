@@ -243,6 +243,11 @@ test_unary_parity!(
     vec![-2.0, -1.0, 0.0, 0.5, 1.0, 2.0, -0.5, 1.5]
 );
 test_unary_parity!(
+    test_wgpu_parity_elu,
+    coeus_ops::elu,
+    vec![-2.0, -1.0, 0.0, 0.5, 1.0, 2.0, -0.5, 1.5]
+);
+test_unary_parity!(
     test_wgpu_parity_softplus,
     coeus_ops::softplus,
     vec![-2.0, -1.0, 0.0, 0.5, 1.0, 2.0, -0.5, 1.5]
@@ -311,4 +316,33 @@ test_unary_parity!(
     test_wgpu_parity_trunc,
     coeus_ops::trunc,
     vec![-2.7, -1.5, -1.2, -0.1, 0.1, 1.2, 1.5, 2.7]
+);
+
+macro_rules! test_unary_grad_parity {
+    ($name:ident, $op:expr, $data:expr) => {
+        #[test]
+        fn $name() {
+            let s = seq();
+            let w = wgpu();
+            let data: Vec<f32> = $data;
+            let x = Tensor::from_slice(vec![data.len()], &data);
+            let cpu = coeus_ops::elementwise_unary(&x, &s, $op).expect("valid CPU unary dispatch");
+            let gpu = to_cpu(
+                &coeus_ops::elementwise_unary(&to_gpu(&x), &w, $op)
+                    .expect("valid WGPU unary dispatch"),
+            );
+            assert_parity(stringify!($name), cpu.as_slice(), gpu.as_slice());
+        }
+    };
+}
+
+test_unary_grad_parity!(
+    test_wgpu_parity_mish_grad,
+    coeus_ops::UnaryOp::MishGrad,
+    vec![-2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 1.5]
+);
+test_unary_grad_parity!(
+    test_wgpu_parity_elu_grad,
+    coeus_ops::UnaryOp::EluGrad,
+    vec![-2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 1.5]
 );

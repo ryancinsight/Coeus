@@ -1,5 +1,5 @@
 use crate::communicator::Communicator;
-use crate::helpers::{copy_host_slice_to_tensor, get_tensor_host_data};
+use crate::host_access::{copy_host_slice_to_tensor, get_tensor_host_data};
 use crate::ops::ReduceOpTag;
 use coeus_core::{ComputeBackend, Scalar};
 use coeus_tensor::Tensor;

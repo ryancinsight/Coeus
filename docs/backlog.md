@@ -1,5 +1,31 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-COEUS-HEPHAESTUS-006 — Native activation-tail providers [arch]
+
+- Owner: Codex `/coeus`; scope: WGPU/CUDA direct provider dispatch, ROCm and
+  Metal activation dispatch, backend differential tests, ADR-0030, and active
+  parity artifacts.
+- Outcome: route `Mish`, `MishGrad`, `Elu`, and `EluGrad` through the
+  Hephaestus PR #123 provider markers for every applicable f32 backend path.
+- Non-goals: parameterized activations, reduced/vector precision contracts,
+  expanding provider rank or aliasing contracts, and release/version
+  transitions.
+- Acceptance: WGPU, CUDA, ROCm, and Metal provider calls use the merged
+  Hephaestus marker APIs directly; each forward/gradient result matches the
+  Leto CPU oracle on signed f32 inputs; no new fallback, adapter, or provider
+  clone exists; an out-of-contract request returns a typed error instead of
+  entering a local kernel or CPU path; focused nextest, doctest, and rustdoc
+  gates pass.
+- Risk/change class: `[arch]` provider-boundary consumer extension; ADR-0030
+  records the ownership decision and residual hosted-CI evidence.
+- Status: source integration and differential coverage complete. Locked
+  metadata, focused non-CUDA nextest (307/307), warning-denied Clippy,
+  workspace doctests (153 passed, 2 ignored), warning-denied rustdoc, and the
+  MSVC CUDA feature compile check pass. Focused CUDA nextest passes 6/6 with
+  real contiguous and transposed device execution; the focused
+  CPU/WGPU/ROCm/Metal lane passes 10/10. No fallback path was added. Exact-head
+  hosted provider/consumer CI remains open.
+
 ## ATLAS-COEUS-HEPHAESTUS-005 — Native unary math providers [arch]
 
 - Owner: Codex on `codex/coeus-unary-math-parity`; scope: shared Hephaestus
@@ -285,11 +311,11 @@
   infallible autograd/NN boundary stay tracked as separate residuals.
 - Unary dispatch increment: `dispatch_unary` and
   `dispatch_contiguous_unary` now return the backend `Result`, consume checked
-  layout metadata, reject unsupported `lgamma` with a typed error, and route
-  workgroup rounding through one checked `u32` ABI helper. Unit tests cover the
-  unsupported operation and workgroup boundaries. Direct nightly rustfmt and
-  `git diff --check` pass; the locked `coeus-ops` check and focused tests pass
-  after the provider-identity cutover.
+  layout metadata, route `lgamma` through the provider-owned Hephaestus
+  expression, and route workgroup rounding through one checked `u32` ABI
+  helper. Unit tests cover the provider expression and workgroup boundaries.
+  Direct nightly rustfmt and `git diff --check` pass; the locked `coeus-ops`
+  check and focused tests pass after the provider-identity cutover.
 - Binary dispatch increment: contiguous and general/broadcasting binary kernels
   now return the backend `Result`, consume checked layout metadata, and use the
   same checked workgroup-count helper. The public WGPU `add` wrapper and the

@@ -107,7 +107,7 @@ where
             };
 
             let gl = g.write();
-            coeus_ops::add_assign(gl, &gi_inc, &backend);
+            coeus_ops::add_assign(gl, &gi_inc, &backend).expect("autograd gradient accumulation");
         }
     }
 }

@@ -69,7 +69,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Dro
         if let Some(Some(ref g)) = input_grads.get(0) {
             let prod = coeus_ops::mul(grad_out, &self.mask, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &prod, &backend);
+            coeus_ops::add_assign(gl, &prod, &backend).expect("autograd gradient accumulation");
         }
     }
 }

@@ -74,7 +74,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         let grad_in = coeus_ops::mul(&grad_broad, &mask, &backend);
 
         let lock = g.write();
-        coeus_ops::add_assign(lock, &grad_in, &backend);
+        coeus_ops::add_assign(lock, &grad_in, &backend).expect("autograd gradient accumulation");
     }
 }
 
@@ -164,7 +164,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         let grad_in = coeus_ops::mul(&grad_broad, &mask, &backend);
 
         let lock = g.write();
-        coeus_ops::add_assign(lock, &grad_in, &backend);
+        coeus_ops::add_assign(lock, &grad_in, &backend).expect("autograd gradient accumulation");
     }
 }
 

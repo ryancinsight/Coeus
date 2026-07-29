@@ -64,7 +64,7 @@ where
                 coeus_ops::index_put(grad_out, &self.index_tensor, &zeros, false, &backend)
             };
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_x, &backend);
+            coeus_ops::add_assign(gl, &grad_x, &backend).expect("autograd gradient accumulation");
         }
 
         // ∂/∂v: each value lands at its `idx` position, so its gradient is the
@@ -72,7 +72,7 @@ where
         if let Some(Some(ref g)) = input_grads.get(1) {
             let grad_v = coeus_ops::index_select(grad_out, 0, &self.index_tensor, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_v, &backend);
+            coeus_ops::add_assign(gl, &grad_v, &backend).expect("autograd gradient accumulation");
         }
     }
 }

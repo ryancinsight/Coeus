@@ -109,6 +109,37 @@ fn test_wgpu_strided_sqrt_transposed_matches_cpu() {
 }
 
 #[test]
+fn test_wgpu_strided_activation_tail_transposed_matches_cpu() {
+    let s = seq();
+    let w = wgpu();
+    let data = [
+        -2.0_f32, -1.5, -1.0, -0.5, -0.25, 0.0, 0.25, 0.5, 1.0, 1.5, 2.0, 3.0,
+    ];
+    let cpu = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 4], &data).t();
+    let gpu_base = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 4], &data);
+    let gpu = to_gpu(&gpu_base).t();
+
+    for operation in [
+        coeus_ops::UnaryOp::Mish,
+        coeus_ops::UnaryOp::MishGrad,
+        coeus_ops::UnaryOp::Elu,
+        coeus_ops::UnaryOp::EluGrad,
+    ] {
+        let expected = coeus_ops::elementwise_unary(&cpu, &s, operation)
+            .expect("valid CPU strided activation-tail input");
+        let actual = to_cpu(
+            &coeus_ops::elementwise_unary(&gpu, &w, operation)
+                .expect("valid WGPU strided activation-tail input"),
+        );
+        assert_parity(
+            "strided_activation_tail_transposed",
+            expected.as_slice(),
+            actual.as_slice(),
+        );
+    }
+}
+
+#[test]
 fn test_wgpu_strided_rank3_binary_matches_cpu() {
     let s = seq();
     let w = wgpu();

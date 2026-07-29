@@ -89,10 +89,10 @@ peer fallible-operation migration. No runtime performance or memory claim is
 made without profile and benchmark evidence.
 
 The unary WGPU kernel family now consumes `GpuLayoutInfo::try_from_layout`,
-returns `Result` through both contiguous and strided dispatch paths, rejects
-the unsupported `lgamma` operation with a typed backend error, and validates
-the rounded workgroup count before the WGPU ABI boundary. Unit tests cover
-rounding, overflow, out-of-range counts, and the unsupported operation without
+returns `Result` through both contiguous and strided dispatch paths, routes
+`lgamma` through the provider-owned Hephaestus expression, and validates the
+rounded workgroup count before the WGPU ABI boundary. Unit tests cover
+rounding, overflow, out-of-range counts, and the provider expression without
 initializing a device. Direct nightly rustfmt and `git diff --check` pass. The
 locked `coeus-ops` check, 110/110 nextest tests, 22/22 doctests, warning-denied
 Clippy, and no-deps Rustdoc now pass; WGPU all-target verification remains

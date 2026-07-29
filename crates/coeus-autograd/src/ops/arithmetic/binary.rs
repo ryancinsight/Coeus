@@ -1,4 +1,4 @@
-﻿use super::traits::{binary_op, BinaryAutogradOp};
+use super::traits::{binary_op, BinaryAutogradOp};
 use crate::backward::reduce_broadcast;
 use crate::grad_buffer::GradBuffer;
 use crate::var::Var;
@@ -29,19 +29,23 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         if let Some(Some(ref g)) = input_grads.get(0) {
             let gl = g.write();
             if grad_out.shape() == &a_shape[..] {
-                coeus_ops::add_assign(gl, grad_out, backend);
+                coeus_ops::add_assign(gl, grad_out, backend)
+                    .expect("autograd gradient accumulation");
             } else {
                 let reduced = reduce_broadcast(grad_out.clone(), a_shape);
-                coeus_ops::add_assign(gl, &reduced, backend);
+                coeus_ops::add_assign(gl, &reduced, backend)
+                    .expect("autograd gradient accumulation");
             }
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
             let gl = g.write();
             if grad_out.shape() == &b_shape[..] {
-                coeus_ops::add_assign(gl, grad_out, backend);
+                coeus_ops::add_assign(gl, grad_out, backend)
+                    .expect("autograd gradient accumulation");
             } else {
                 let reduced = reduce_broadcast(grad_out.clone(), b_shape);
-                coeus_ops::add_assign(gl, &reduced, backend);
+                coeus_ops::add_assign(gl, &reduced, backend)
+                    .expect("autograd gradient accumulation");
             }
         }
     }
@@ -70,19 +74,23 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         if let Some(Some(ref g)) = input_grads.get(0) {
             let gl = g.write();
             if grad_out.shape() == &a_shape[..] {
-                coeus_ops::add_assign(gl, grad_out, backend);
+                coeus_ops::add_assign(gl, grad_out, backend)
+                    .expect("autograd gradient accumulation");
             } else {
                 let reduced = reduce_broadcast(grad_out.clone(), a_shape);
-                coeus_ops::add_assign(gl, &reduced, backend);
+                coeus_ops::add_assign(gl, &reduced, backend)
+                    .expect("autograd gradient accumulation");
             }
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
             let gl = g.write();
             if grad_out.shape() == &b_shape[..] {
-                coeus_ops::sub_assign(gl, grad_out, backend);
+                coeus_ops::sub_assign(gl, grad_out, backend)
+                    .expect("autograd gradient accumulation");
             } else {
                 let reduced = reduce_broadcast(grad_out.clone(), b_shape);
-                coeus_ops::sub_assign(gl, &reduced, backend);
+                coeus_ops::sub_assign(gl, &reduced, backend)
+                    .expect("autograd gradient accumulation");
             }
         }
     }
@@ -112,20 +120,22 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
             let prod = coeus_ops::mul(grad_out, b, backend);
             let gl = g.write();
             if prod.shape() == a.shape() {
-                coeus_ops::add_assign(gl, &prod, backend);
+                coeus_ops::add_assign(gl, &prod, backend).expect("autograd gradient accumulation");
             } else {
                 let reduced = reduce_broadcast(prod, a.shape());
-                coeus_ops::add_assign(gl, &reduced, backend);
+                coeus_ops::add_assign(gl, &reduced, backend)
+                    .expect("autograd gradient accumulation");
             }
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
             let prod = coeus_ops::mul(grad_out, a, backend);
             let gl = g.write();
             if prod.shape() == b.shape() {
-                coeus_ops::add_assign(gl, &prod, backend);
+                coeus_ops::add_assign(gl, &prod, backend).expect("autograd gradient accumulation");
             } else {
                 let reduced = reduce_broadcast(prod, b.shape());
-                coeus_ops::add_assign(gl, &reduced, backend);
+                coeus_ops::add_assign(gl, &reduced, backend)
+                    .expect("autograd gradient accumulation");
             }
         }
     }
@@ -155,10 +165,12 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
             let grad_a = coeus_ops::div(grad_out, b, backend);
             let gl = g.write();
             if grad_a.shape() == a.shape() {
-                coeus_ops::add_assign(gl, &grad_a, backend);
+                coeus_ops::add_assign(gl, &grad_a, backend)
+                    .expect("autograd gradient accumulation");
             } else {
                 let reduced = reduce_broadcast(grad_a, a.shape());
-                coeus_ops::add_assign(gl, &reduced, backend);
+                coeus_ops::add_assign(gl, &reduced, backend)
+                    .expect("autograd gradient accumulation");
             }
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
@@ -166,10 +178,12 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
             let grad_b_pos = coeus_ops::div(&coeus_ops::mul(grad_out, a, backend), &b_sq, backend);
             let gl = g.write();
             if grad_b_pos.shape() == b.shape() {
-                coeus_ops::sub_assign(gl, &grad_b_pos, backend);
+                coeus_ops::sub_assign(gl, &grad_b_pos, backend)
+                    .expect("autograd gradient accumulation");
             } else {
                 let reduced = reduce_broadcast(grad_b_pos, b.shape());
-                coeus_ops::sub_assign(gl, &reduced, backend);
+                coeus_ops::sub_assign(gl, &reduced, backend)
+                    .expect("autograd gradient accumulation");
             }
         }
     }
@@ -210,10 +224,12 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         if let Some(Some(ref g)) = input_grads.get(0) {
             let gl = g.write();
             if grad_out.shape() == a.shape() {
-                coeus_ops::add_assign(gl, grad_out, backend);
+                coeus_ops::add_assign(gl, grad_out, backend)
+                    .expect("autograd gradient accumulation");
             } else {
                 let reduced = reduce_broadcast(grad_out.clone(), a.shape());
-                coeus_ops::add_assign(gl, &reduced, backend);
+                coeus_ops::add_assign(gl, &reduced, backend)
+                    .expect("autograd gradient accumulation");
             }
         }
         // ∂/∂b = −floor(a / b): subtract grad_out · q (broadcast-reduced to b).
@@ -222,10 +238,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
             let prod = coeus_ops::mul(grad_out, &q, backend);
             let gl = g.write();
             if prod.shape() == b.shape() {
-                coeus_ops::sub_assign(gl, &prod, backend);
+                coeus_ops::sub_assign(gl, &prod, backend).expect("autograd gradient accumulation");
             } else {
                 let reduced = reduce_broadcast(prod, b.shape());
-                coeus_ops::sub_assign(gl, &reduced, backend);
+                coeus_ops::sub_assign(gl, &reduced, backend)
+                    .expect("autograd gradient accumulation");
             }
         }
     }

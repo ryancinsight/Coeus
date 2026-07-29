@@ -70,8 +70,9 @@ fn instance_norm_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend);
     let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend)
         .expect("invariant: instancenorm feature axis is valid"); // population var
-    coeus_ops::add_assign(&mut stdev, &cache.eps_t, &backend);
-    coeus_ops::sqrt_assign(&mut stdev, &backend);
+    coeus_ops::add_assign(&mut stdev, &cache.eps_t, &backend)
+        .expect("normalization backend operation");
+    coeus_ops::sqrt_assign(&mut stdev, &backend).expect("normalization backend operation");
 
     let ones = {
         let mut o_cache = cache.ones_cache.borrow_mut();
@@ -85,14 +86,15 @@ fn instance_norm_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         }
     };
     let mut istdev = ones;
-    coeus_ops::div_assign(&mut istdev, &stdev, &backend);
+    coeus_ops::div_assign(&mut istdev, &stdev, &backend).expect("normalization backend operation");
 
     let x_hat = coeus_ops::mul(&xmu, &istdev, &backend);
 
     let w_reshaped = cache.ln_weight.tensor.reshape([1, spatial]);
     let b_reshaped = cache.ln_bias.tensor.reshape([1, spatial]);
     let mut out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
-    coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend);
+    coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend)
+        .expect("normalization backend operation");
 
     let normed_flat = coeus_autograd::layernorm(
         flat,

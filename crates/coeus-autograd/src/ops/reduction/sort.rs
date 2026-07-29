@@ -79,7 +79,7 @@ where
             coeus_ops::scatter_add(&zeros, self.dim, &self.sort_indices, grad_out, &backend);
 
         let gl = g.write();
-        coeus_ops::add_assign(gl, &grad_in, &backend);
+        coeus_ops::add_assign(gl, &grad_in, &backend).expect("autograd gradient accumulation");
     }
 }
 

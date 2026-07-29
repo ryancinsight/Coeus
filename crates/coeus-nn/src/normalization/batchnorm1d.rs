@@ -169,17 +169,19 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm1d<T, B> {
             let rm_row = rm.reshape([1, c]);
             let rv_row = rv.reshape([1, c]);
             let mut istdev = rv_row.clone();
-            coeus_ops::add_assign(&mut istdev, &self.eps_t, &backend);
-            coeus_ops::sqrt_assign(&mut istdev, &backend);
+            coeus_ops::add_assign(&mut istdev, &self.eps_t, &backend)
+                .expect("normalization backend operation");
+            coeus_ops::sqrt_assign(&mut istdev, &backend).expect("normalization backend operation");
             let ones = Tensor::ones_on([1, c], &backend);
             let mut istdev_inv = ones;
-            coeus_ops::div_assign(&mut istdev_inv, &istdev, &backend);
+            coeus_ops::div_assign(&mut istdev_inv, &istdev, &backend)
+                .expect("normalization backend operation");
             let xmu = coeus_ops::sub(&flat, &rm_row, &backend);
             let x_hat = coeus_ops::mul(&xmu, &istdev_inv, &backend);
             let w_r = self.weight.tensor.reshape([1, c]);
             let b_r = self.bias.tensor.reshape([1, c]);
             let mut y = coeus_ops::mul(&x_hat, &w_r, &backend);
-            coeus_ops::add_assign(&mut y, &b_r, &backend);
+            coeus_ops::add_assign(&mut y, &b_r, &backend).expect("normalization backend operation");
             let y_nlc = y.reshape([n, l, c]);
             let out_tensor = y_nlc.permute(&[0, 2, 1]).to_contiguous_on(&backend);
             return Var::new(out_tensor, false);
@@ -235,11 +237,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm1d<T, B> {
 
         // ── 1/sqrt(var + eps) [1, C] ──
         let mut stdev = var_t.clone();
-        coeus_ops::add_assign(&mut stdev, &self.eps_t, &backend);
-        coeus_ops::sqrt_assign(&mut stdev, &backend);
+        coeus_ops::add_assign(&mut stdev, &self.eps_t, &backend)
+            .expect("normalization backend operation");
+        coeus_ops::sqrt_assign(&mut stdev, &backend).expect("normalization backend operation");
 
         let mut istdev = self.ones_c.clone();
-        coeus_ops::div_assign(&mut istdev, &stdev, &backend); // [1, C]
+        coeus_ops::div_assign(&mut istdev, &stdev, &backend)
+            .expect("normalization backend operation"); // [1, C]
 
         // ── x_hat = xmu * istdev [M, C] ──
         let x_hat = coeus_ops::mul(&xmu, &istdev, &backend);
@@ -248,7 +252,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm1d<T, B> {
         let w_reshaped = self.weight.tensor.reshape([1, c]);
         let b_reshaped = self.bias.tensor.reshape([1, c]);
         let mut y_flat = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
-        coeus_ops::add_assign(&mut y_flat, &b_reshaped, &backend);
+        coeus_ops::add_assign(&mut y_flat, &b_reshaped, &backend)
+            .expect("normalization backend operation");
 
         // ── Output: [M, C] → [N, L, C] → permute → [N, C, L] ──
         let y_nlc = y_flat.reshape([n, l, c]);
@@ -262,14 +267,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm1d<T, B> {
             let mean_c = mean_t.reshape([c]);
             let var_c = var_t.reshape([c]);
 
-            coeus_ops::mul_assign(&mut *rm, &self.one_minus_mom_t, &backend);
+            coeus_ops::mul_assign(&mut *rm, &self.one_minus_mom_t, &backend)
+                .expect("normalization backend operation");
             let term_mean = coeus_ops::mul(&mean_c, &self.mom_t, &backend);
-            coeus_ops::add_assign(&mut *rm, &term_mean, &backend);
+            coeus_ops::add_assign(&mut *rm, &term_mean, &backend)
+                .expect("normalization backend operation");
 
-            coeus_ops::mul_assign(&mut *rv, &self.one_minus_mom_t, &backend);
+            coeus_ops::mul_assign(&mut *rv, &self.one_minus_mom_t, &backend)
+                .expect("normalization backend operation");
             let var_corrected = coeus_ops::mul(&var_c, &corr_t, &backend);
             let term_var = coeus_ops::mul(&var_corrected, &self.mom_t, &backend);
-            coeus_ops::add_assign(&mut *rv, &term_var, &backend);
+            coeus_ops::add_assign(&mut *rv, &term_var, &backend)
+                .expect("normalization backend operation");
         }
 
         coeus_autograd::batchnorm1d(

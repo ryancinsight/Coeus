@@ -5,7 +5,7 @@ mod conv2d;
 mod conv3d;
 mod transpose;
 mod unfold_fold;
-mod utils;
+mod conv_node;
 
 pub use conv1d::conv1d;
 pub use conv2d::conv2d;
@@ -15,4 +15,5 @@ pub use transpose::{
     ConvTranspose3dNode,
 };
 pub use unfold_fold::{fold1d, fold2d, unfold1d, unfold2d};
-pub use utils::ConvNode;
+pub use conv_node::ConvNode;
+
