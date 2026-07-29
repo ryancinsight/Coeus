@@ -22,7 +22,7 @@ pub mod reduce;
 pub mod unfold_fold;
 mod validation;
 
-pub(crate) use validation::checked_numel;
+pub(crate) use validation::{checked_numel, layout_fits_cuda_storage};
 
 pub use attention::{launch_sdp_attention, launch_sdp_attention_backward};
 pub use conv_transpose::{launch_conv_transpose1d, launch_conv_transpose2d};

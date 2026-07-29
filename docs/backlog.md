@@ -22,7 +22,19 @@
   accepted finding.
 - Status: in progress. The stale merged lane was fast-forwarded to
   `origin/main`; superseded CUDA/WGPU working files were verified byte-equal to
-  main, while the generated overlay lockfile delta remains excluded.
+  main, while the generated overlay lockfile delta remains excluded. The first
+  accepted finding is a CUDA safe-API storage-boundary defect: elementwise
+  layouts are now checked against every physical allocation before raw pointer
+  acquisition, offset-bearing views bypass offset-blind contiguous kernels,
+  writable zero-stride outputs are rejected, and remapped input/output aliases
+  return typed layout errors. Static audits also retain unresolved typed-error
+  and provider-ownership findings for CPU reductions, CUDA
+  convolution/attention/optimizers, WGPU attention/elementwise/matmul, and the
+  generic ROCm/Metal acquisition and transfer boundary. The CUDA feature test
+  targets compile, warning-denied all-target Clippy passes, and the
+  disabled-provider Nextest lane passes 3/3. Local feature-enabled execution is
+  blocked by the GNU CUDA import library and the shared-cache MSVC host-artifact
+  collision; clean hosted CUDA execution remains the merge gate.
 
 ## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution [arch]
 

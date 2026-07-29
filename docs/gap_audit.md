@@ -276,6 +276,31 @@ Required-device ROCm `90274889835` was skipped because no hosted AMD runner was
 dispatched. The external `recurseml/analysis` status returned its recurring
 analyzer error and is not repository-owned verification.
 
+## ATLAS-COEUS-CUDA-ELEMENTWISE-STORAGE-BOUNDARY-001
+
+**Location**: `crates/coeus-cuda/src/backend/ops/math/elementwise.rs` and its
+`elementwise/validation.rs` leaf.
+**Gap**: the safe elementwise backend accepted layouts whose maximum physical
+offset exceeded the associated CUDA allocation. The contiguous branch also
+accepted nonzero offsets while its raw kernel always indexed from element zero.
+**Resolution**: validate every input and writable output layout against the
+actual allocation at the backend and public raw-launch boundaries; reject
+writable zero-stride layouts and remapped aliases; route offset-bearing
+contiguous views through the offset-aware strided kernel.
+**Evidence target**: allocation-free validation unit tests for each operand,
+offset routing, writable aliasing, and exact-layout in-place operation; package
+check, warning-denied Clippy, Nextest, and exact-head CUDA provider CI.
+**Residual**: CUDA convolution, attention, optimizer, matmul, module-loading,
+and device-acquisition boundaries remain separate accepted audit findings. No
+runtime performance or resident-memory delta is claimed without controlled
+measurements.
+**Status**: implementation complete under
+`ATLAS-COEUS-DISPATCH-SAFETY-020`. CUDA feature test targets compile,
+warning-denied all-target Clippy passes, and disabled-provider Nextest passes
+3/3. Local feature-enabled execution is blocked by the GNU CUDA import library
+and shared-cache MSVC host-artifact collision; hosted CUDA execution remains
+the merge gate.
+
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001: exact GELU forward and gradient
 
 **Location**: `crates/coeus-cuda/src/backend/ops/math/elementwise.rs`, the CUDA

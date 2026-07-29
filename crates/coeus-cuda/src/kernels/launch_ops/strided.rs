@@ -1,10 +1,13 @@
-#![allow(clippy::too_many_arguments)]
+#![expect(
+    clippy::too_many_arguments,
+    reason = "raw launches pass explicit device buffers and layouts"
+)]
 
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::driver::{CUdeviceptr, CudaDriver, get_cuda_context};
 use crate::kernels::GpuLayoutInfo;
 use crate::storage::CudaStorage;
-use coeus_core::{ComputeBackend, Layout};
+use coeus_core::{ComputeBackend, Layout, Storage};
 
 /// Launch a strided binary element-wise kernel on the GPU.
 ///
@@ -27,8 +30,9 @@ pub fn launch_strided_binary<T: CudaScalar>(
     let Some(_ctx) = get_cuda_context() else {
         return false;
     };
-    if !crate::kernels::validation::layouts_fit_cuda(&[a_layout, b_layout, c_layout])
-        || !crate::kernels::validation::layout_supports_cuda_output_indexing(c_layout)
+    if !crate::kernels::layout_fits_cuda_storage(a_layout, a.len(), false)
+        || !crate::kernels::layout_fits_cuda_storage(b_layout, b.len(), false)
+        || !crate::kernels::layout_fits_cuda_storage(c_layout, c.len(), true)
         || a_layout.ndim() > c_layout.ndim()
         || b_layout.ndim() > c_layout.ndim()
     {
@@ -179,8 +183,8 @@ pub fn launch_strided_unary<T: CudaScalar>(
     let Some(_ctx) = get_cuda_context() else {
         return false;
     };
-    if !crate::kernels::validation::layouts_fit_cuda(&[a_layout, c_layout])
-        || !crate::kernels::validation::layout_supports_cuda_output_indexing(c_layout)
+    if !crate::kernels::layout_fits_cuda_storage(a_layout, a.len(), false)
+        || !crate::kernels::layout_fits_cuda_storage(c_layout, c.len(), true)
         || a_layout.ndim() > c_layout.ndim()
     {
         return false;
