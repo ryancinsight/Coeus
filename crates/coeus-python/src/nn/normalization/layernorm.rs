@@ -1,4 +1,7 @@
-use crate::tensor::{PyStateDict, PyTensor};
+use crate::{
+    nn::error::map_module_error,
+    tensor::{PyStateDict, PyTensor},
+};
 use pyo3::prelude::*;
 
 /// Python-exposed Layer Normalization layer.
@@ -80,7 +83,7 @@ impl PyLayerNorm {
                 coeus_nn::normalization::layernorm::LayerNorm::from_parts(w_var, b_var, eps_val);
             ln.forward(&input_var)
         });
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     /// Forward pass accepting any rank ≥ 2 input.
@@ -102,7 +105,7 @@ impl PyLayerNorm {
                 coeus_nn::normalization::layernorm::LayerNorm::from_parts(w_var, b_var, eps_val);
             ln.forward_nd(&input_var)
         });
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {

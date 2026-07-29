@@ -1,5 +1,6 @@
 use crate::tensor::PyTensor;
 use coeus_dist::Communicator;
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 
 /// Python-exposed LocalCommunicator.
@@ -238,11 +239,8 @@ pub fn synchronize_gradients(
         .collect();
 
     let comm_inner = comm.inner.clone();
-    py.allow_threads(move || {
-        coeus_dist::synchronize_gradients(&mut rust_params, &comm_inner);
-    });
-
-    Ok(())
+    py.allow_threads(move || coeus_dist::synchronize_gradients(&mut rust_params, &comm_inner))
+        .map_err(|error| PyRuntimeError::new_err(error.to_string()))
 }
 
 /// Python-exposed TcpMesh.

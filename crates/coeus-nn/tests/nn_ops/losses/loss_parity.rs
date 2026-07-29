@@ -58,7 +58,8 @@ where
     // |err|=2 > delta=1 → linear branch: delta*(|err|-0.5*delta) = 1*(2-0.5) = 1.5
     let hp = v(&[1], &[2.0], backend);
     let ht = v(&[1], &[0.0], backend);
-    let h = huber_loss(&hp, &ht, 1.0_f64);
+    let h = huber_loss(&hp, &ht, 1.0_f64)
+        .expect("invariant: matching non-empty shapes and positive finite delta");
     assert_eq!(
         h.tensor.as_slice(),
         &[1.5_f64],
@@ -68,7 +69,8 @@ where
     // Huber zero error → 0 exactly.
     let hzp = v(&[2], &[1.0, 2.0], backend);
     let hzt = v(&[2], &[1.0, 2.0], backend);
-    let hz = huber_loss(&hzp, &hzt, 1.0_f64);
+    let hz = huber_loss(&hzp, &hzt, 1.0_f64)
+        .expect("invariant: matching non-empty shapes and positive finite delta");
     assert_eq!(hz.tensor.as_slice(), &[0.0_f64], "huber_loss(x,x)=0");
 
     // L1: pred-target=[3,-1,0.5,0] over shape [2,2] → mean = 4.5/4 = 1.125.

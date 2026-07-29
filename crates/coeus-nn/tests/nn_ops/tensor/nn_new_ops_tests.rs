@@ -22,7 +22,7 @@ fn test_groupnorm_forward_backward() {
         Tensor::from_slice_on([2, 4, 3], &input_data, &backend),
         true,
     );
-    let output = gn.forward(&input);
+    let output = gn.forward(&input).expect("valid GroupNorm input");
 
     assert_eq!(output.tensor.shape(), &[2, 4, 3]);
 
@@ -48,7 +48,7 @@ fn test_instancenorm1d_forward_backward() {
         Tensor::from_slice_on([2, 3, 4], &input_data, &backend),
         true,
     );
-    let output = in1d.forward(&input);
+    let output = in1d.forward(&input).expect("valid InstanceNorm1d input");
 
     assert_eq!(output.tensor.shape(), &[2, 3, 4]);
 
@@ -73,7 +73,7 @@ fn test_instancenorm2d_forward_backward() {
         Tensor::from_slice_on([1, 2, 3, 3], &input_data, &backend),
         true,
     );
-    let output = in2d.forward(&input);
+    let output = in2d.forward(&input).expect("valid InstanceNorm2d input");
 
     assert_eq!(output.tensor.shape(), &[1, 2, 3, 3]);
 
@@ -94,7 +94,7 @@ fn test_sequential_chaining() {
     seq.add(Linear::new(3, 2, true));
 
     let input = Var::new(Tensor::ones_on([2, 4], &backend), true);
-    let output = seq.forward(&input);
+    let output = seq.forward(&input).expect("valid Sequential input");
 
     assert_eq!(output.tensor.shape(), &[2, 2]);
 
@@ -153,7 +153,8 @@ fn test_huber_loss() {
         false,
     );
 
-    let loss = huber_loss(&pred, &target, 1.0);
+    let loss = huber_loss(&pred, &target, 1.0)
+        .expect("invariant: matching non-empty shapes and positive finite delta");
     assert_eq!(loss.tensor.shape(), &[1]);
 
     loss.backward()
@@ -168,7 +169,7 @@ fn test_static_sequential_chaining() {
         Linear::<f64, B>::new(4, 3, true).append(Linear::<f64, B>::new(3, 2, true));
 
     let input = Var::new(Tensor::ones_on([2, 4], &backend), true);
-    let output = model.forward(&input);
+    let output = model.forward(&input).expect("valid StaticSeq input");
 
     assert_eq!(output.tensor.shape(), &[2, 2]);
 

@@ -4,6 +4,7 @@ mod float16;
 mod grad_mode;
 mod index_put;
 mod linalg;
+mod losses;
 mod minmax;
 mod nn_conv;
 mod ops_overloads;

@@ -69,7 +69,7 @@ fn prelu_module_weight_learns_via_optimizer_round_trip() {
         Tensor::<f64, MoiraiBackend>::from_slice([2], &[-2.0, 3.0]),
         false,
     );
-    let output = module.forward(&x); // prelu([-2,3], w=0.25) = [-0.5, 3.0]
+    let output = module.forward(&x).expect("valid PReLU input"); // prelu([-2,3], w=0.25) = [-0.5, 3.0]
     coeus_autograd::sum(&output)
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
@@ -91,7 +91,7 @@ fn prelu_module_weight_learns_via_optimizer_round_trip() {
         Tensor::<f64, MoiraiBackend>::from_slice([2], &[-2.0, 3.0]),
         false,
     );
-    let output2 = module.forward(&x2);
+    let output2 = module.forward(&x2).expect("valid PReLU input");
     assert_close_slice(
         "prelu_after_sgd_step",
         output2.tensor.as_slice(),

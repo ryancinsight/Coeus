@@ -22,10 +22,22 @@ pub(crate) fn bench_conv1d_shape(
 
     let mut group = c.benchmark_group(label);
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(conv_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                conv_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid convolution benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(conv_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                conv_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid convolution benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -61,7 +73,9 @@ pub(crate) fn bench_conv1d_forward_backward(c: &mut Criterion) {
         b.iter(|| {
             conv_seq.zero_grad();
             x_seq.zero_grad();
-            let out = conv_seq.forward(black_box(&x_seq));
+            let out = conv_seq
+                .forward(black_box(&x_seq))
+                .expect("valid convolution benchmark input");
             coeus_autograd::sum(&out)
                 .backward()
                 .expect("invariant: valid autograd fixture completes backward");
@@ -71,7 +85,9 @@ pub(crate) fn bench_conv1d_forward_backward(c: &mut Criterion) {
         b.iter(|| {
             conv_moirai.zero_grad();
             x_moirai.zero_grad();
-            let out = conv_moirai.forward(black_box(&x_moirai));
+            let out = conv_moirai
+                .forward(black_box(&x_moirai))
+                .expect("valid convolution benchmark input");
             coeus_autograd::sum(&out)
                 .backward()
                 .expect("invariant: valid autograd fixture completes backward");
@@ -104,10 +120,22 @@ pub(crate) fn bench_conv2d_shape(
 
     let mut group = c.benchmark_group(label);
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(conv_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                conv_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid convolution benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(conv_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                conv_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid convolution benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -145,10 +173,22 @@ pub(crate) fn bench_conv3d_shape(
 
     let mut group = c.benchmark_group(label);
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(conv_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                conv_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid convolution benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(conv_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                conv_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid convolution benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -182,10 +222,22 @@ pub(crate) fn bench_conv_transpose1d_forward(c: &mut Criterion) {
     let mut group =
         c.benchmark_group("Coeus — ConvTranspose1d forward (4x32x16, cin32→cout16 k2 s2)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(ct_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                ct_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid transposed convolution benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(ct_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                ct_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid transposed convolution benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -218,7 +270,9 @@ pub(crate) fn bench_conv2d_forward_backward(c: &mut Criterion) {
         b.iter(|| {
             conv_seq.zero_grad();
             x_seq.zero_grad();
-            let out = conv_seq.forward(black_box(&x_seq));
+            let out = conv_seq
+                .forward(black_box(&x_seq))
+                .expect("valid convolution benchmark input");
             coeus_autograd::sum(&out)
                 .backward()
                 .expect("invariant: valid autograd fixture completes backward");
@@ -228,7 +282,9 @@ pub(crate) fn bench_conv2d_forward_backward(c: &mut Criterion) {
         b.iter(|| {
             conv_moirai.zero_grad();
             x_moirai.zero_grad();
-            let out = conv_moirai.forward(black_box(&x_moirai));
+            let out = conv_moirai
+                .forward(black_box(&x_moirai))
+                .expect("valid convolution benchmark input");
             coeus_autograd::sum(&out)
                 .backward()
                 .expect("invariant: valid autograd fixture completes backward");
@@ -271,10 +327,22 @@ pub(crate) fn bench_conv_transpose3d_forward(c: &mut Criterion) {
     let mut group =
         c.benchmark_group("Coeus — ConvTranspose3d forward (2x8x4x4x4, cin8→cout4 k2 s2)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(ct3_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                ct3_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid three-dimensional transposed convolution benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(ct3_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                ct3_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid three-dimensional transposed convolution benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -306,7 +374,9 @@ pub(crate) fn bench_conv2d_fwd_bwd(c: &mut Criterion) {
     let mut group = c.benchmark_group("Coeus - Conv2d(8,16,k=3) fwd+bwd (4x8x16x16)");
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
-            let out = conv_seq.forward(black_box(&inp_seq));
+            let out = conv_seq
+                .forward(black_box(&inp_seq))
+                .expect("valid convolution benchmark input");
             black_box(out)
                 .backward()
                 .expect("invariant: valid autograd fixture completes backward")
@@ -314,7 +384,9 @@ pub(crate) fn bench_conv2d_fwd_bwd(c: &mut Criterion) {
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
-            let out = conv_moirai.forward(black_box(&inp_moirai));
+            let out = conv_moirai
+                .forward(black_box(&inp_moirai))
+                .expect("valid convolution benchmark input");
             black_box(out)
                 .backward()
                 .expect("invariant: valid autograd fixture completes backward")
@@ -346,10 +418,22 @@ pub(crate) fn bench_conv1d2_forward(c: &mut Criterion) {
     use coeus_nn::Module;
     let mut group = c.benchmark_group("Coeus - Conv1d(16,32,k=3) fwd (8x16x64)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(conv_seq.forward(black_box(&inp_seq))))
+        b.iter(|| {
+            black_box(
+                conv_seq
+                    .forward(black_box(&inp_seq))
+                    .expect("valid convolution benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(conv_moirai.forward(black_box(&inp_moirai))))
+        b.iter(|| {
+            black_box(
+                conv_moirai
+                    .forward(black_box(&inp_moirai))
+                    .expect("valid convolution benchmark input"),
+            )
+        })
     });
     group.finish();
 }

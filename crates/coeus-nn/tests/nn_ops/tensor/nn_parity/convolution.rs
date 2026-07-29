@@ -26,7 +26,7 @@ fn test_conv1d_parity() {
     ));
 
     // Coeus forward
-    let out_coeus = conv_coeus.forward(&x_coeus);
+    let out_coeus = conv_coeus.forward(&x_coeus).expect("valid Conv1d input");
 
     // Verify forward
     let expected_conv1d_out = vec![
@@ -109,7 +109,7 @@ fn test_conv2d_parity() {
     ));
 
     // Coeus forward
-    let out_coeus = conv_coeus.forward(&x_coeus);
+    let out_coeus = conv_coeus.forward(&x_coeus).expect("valid Conv2d input");
 
     // Verify forward
     let expected_conv2d_out = vec![
@@ -196,7 +196,7 @@ fn test_conv3d_parity() {
     ));
 
     // Coeus forward
-    let out_coeus = conv_coeus.forward(&x_coeus);
+    let out_coeus = conv_coeus.forward(&x_coeus).expect("valid Conv3d input");
 
     // Verify forward
     let expected_conv3d_out = vec![5.600000f32];

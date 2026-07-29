@@ -4,7 +4,7 @@
 //! [`sigmoid`], and corresponding [`crate::module::Module`] wrappers for
 //! building models.
 
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, Scalar};
 
@@ -26,8 +26,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for ReLU {
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        relu(input)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        Ok(relu(input))
     }
 }
 
@@ -49,8 +49,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sigmoid {
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        sigmoid(input)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        Ok(sigmoid(input))
     }
 }
 
@@ -72,8 +72,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Tanh {
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        tanh(input)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        Ok(tanh(input))
     }
 }
 
@@ -95,8 +95,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GeLU {
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        gelu(input)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        Ok(gelu(input))
     }
 }
 
@@ -118,8 +118,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for SiLU {
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        silu(input)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        Ok(silu(input))
     }
 }
 
@@ -141,8 +141,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Mish {
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        mish(input)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        Ok(mish(input))
     }
 }
 
@@ -175,8 +175,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Hardsigmo
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        hardsigmoid(input)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        Ok(hardsigmoid(input))
     }
 }
 
@@ -207,8 +207,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Hardswish
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        hardswish(input)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        Ok(hardswish(input))
     }
 }
 
@@ -239,8 +239,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softsign 
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        softsign(input)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        Ok(softsign(input))
     }
 }
 
@@ -262,8 +262,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softplus 
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        softplus(input)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        Ok(softplus(input))
     }
 }
 
@@ -290,8 +290,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LogSigmoi
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        log_sigmoid(input)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        Ok(log_sigmoid(input))
     }
 }
 
@@ -315,7 +315,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Tanhshrin
     }
 
     #[inline]
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        tanhshrink(input)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        Ok(tanhshrink(input))
     }
 }

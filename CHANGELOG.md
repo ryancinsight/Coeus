@@ -4,6 +4,22 @@
 
 ### Changed
 
+- [major] Make all neural-network `Module::forward` implementations return
+  typed module or backend failures. Composite modules stop at the first
+  failure; normalization operations no longer suppress backend errors;
+  BatchNorm computes and commits running statistics transactionally and
+  rejects undersized training reductions before state mutation. Attention,
+  transformer, recurrent, embedding, pooling, and unfold/fold modules reject
+  invalid contracts before indexing or unchecked arithmetic. Alpha-dropout
+  now applies the SELU saturation and affine correction, including
+  channel-shared feature masks. Module-dispatched LayerNorm preserves its
+  documented rank-two-or-greater trailing-dimension contract. Huber loss now
+  reduces every element, restores the complete input shape during backward,
+  and returns typed errors for invalid shape, reduction, and delta contracts.
+  Rust, benchmark, doctest, and Python consumers migrate without a
+  compatibility entry point. No runtime, memory, or binary-size delta is
+  claimed without matched measurements.
+
 - [major] Route WGPU sum, product, mean, minimum, and maximum reductions
   directly through Hephaestus and delete the duplicate Coeus WGSL reduction
   dispatcher. Rank-one and rank-two layouts remain supported; higher ranks

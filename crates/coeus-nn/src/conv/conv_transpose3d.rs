@@ -3,7 +3,7 @@
 // 3-D Transposed (Fractional-Stride) Convolution, matching
 // `torch.nn.ConvTranspose3d(in_channels, out_channels, kernel_size, ...)`.
 
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend, Scalar};
 use coeus_ops::backend_ops::ConvTranspose3dOps;
@@ -110,9 +110,9 @@ impl<T: Scalar + coeus_core::Float, B: coeus_ops::BackendOps<T> + Default> ConvT
 }
 
 impl<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + ConvTranspose3dOps<T> + coeus_ops::CpuBackend + Default,
-> Module<T, B> for ConvTranspose3d<T, B>
+        T: Float,
+        B: coeus_ops::BackendOps<T> + ConvTranspose3dOps<T> + coeus_ops::CpuBackend + Default,
+    > Module<T, B> for ConvTranspose3d<T, B>
 where
     T: coeus_leto::RandomScalar,
 {
@@ -124,12 +124,27 @@ where
         p
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let backend = B::default();
-        let n = input.tensor.shape()[0];
-        let d = input.tensor.shape()[2];
-        let h = input.tensor.shape()[3];
-        let w = input.tensor.shape()[4];
+        let shape = input.tensor.shape();
+        if shape.len() != 5 {
+            return Err(ModuleError::InvalidRank {
+                module: "ConvTranspose3d",
+                expected: "5",
+                actual: shape.len(),
+            });
+        }
+        if shape[1] != self.in_channels {
+            return Err(ModuleError::ChannelMismatch {
+                module: "ConvTranspose3d",
+                expected: self.in_channels,
+                actual: shape[1],
+            });
+        }
+        let n = shape[0];
+        let d = shape[2];
+        let h = shape[3];
+        let w = shape[4];
         let (d_out, h_out, w_out) = self.output_dims(d, h, w);
 
         let mut out_tensor =
@@ -149,7 +164,7 @@ where
             out_layout,
         );
 
-        coeus_autograd::conv_transpose3d(
+        Ok(coeus_autograd::conv_transpose3d(
             input,
             &self.weight,
             &self.bias,
@@ -158,6 +173,6 @@ where
             self.padding,
             self.output_padding,
             self.dilation,
-        )
+        ))
     }
 }

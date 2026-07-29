@@ -106,10 +106,20 @@ pub(crate) fn bench_huber_loss(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — HuberLoss (128x64, delta=1.0)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(huber_loss(black_box(&p_seq), black_box(&t_seq), 1.0)))
+        b.iter(|| {
+            black_box(
+                huber_loss(black_box(&p_seq), black_box(&t_seq), 1.0)
+                    .expect("invariant: benchmark shapes match and delta is positive"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(huber_loss(black_box(&p_moirai), black_box(&t_moirai), 1.0)))
+        b.iter(|| {
+            black_box(
+                huber_loss(black_box(&p_moirai), black_box(&t_moirai), 1.0)
+                    .expect("invariant: benchmark shapes match and delta is positive"),
+            )
+        })
     });
     group.finish();
 }

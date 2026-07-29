@@ -19,7 +19,9 @@ fn test_embedding_parity() {
         true,
     );
     let x_coeus = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &indices_data);
-    let out_coeus = emb_coeus.forward_indices(&x_coeus);
+    let out_coeus = emb_coeus
+        .forward_indices(&x_coeus)
+        .expect("valid Embedding indices");
 
     // Verify forward
     let expected_embedding_out = vec![

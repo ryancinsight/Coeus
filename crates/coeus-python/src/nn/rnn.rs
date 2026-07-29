@@ -1,6 +1,6 @@
 // ── Python wrappers: LSTMCell and GRUCell ──
 
-use crate::tensor::PyTensor;
+use crate::{nn::error::map_module_error, tensor::PyTensor};
 use pyo3::prelude::*;
 
 /// Python-exposed LSTM cell.
@@ -103,17 +103,19 @@ impl PyLSTMCell {
         let c_v = c.inner.clone();
         let hs = self.hidden_size;
 
-        let (h_new, c_new) = py.allow_threads(move || {
-            let mut cell = coeus_nn::rnn::LSTMCell::<f64, coeus_core::MoiraiBackend>::new(
-                w_ih.tensor.shape()[1],
-                hs,
-            );
-            cell.w_ih.weight = w_ih;
-            cell.w_ih.bias = b_ih;
-            cell.w_hh.weight = w_hh;
-            cell.w_hh.bias = b_hh;
-            cell.step(&x_v, &h_v, &c_v)
-        });
+        let (h_new, c_new) = py
+            .allow_threads(move || {
+                let mut cell = coeus_nn::rnn::LSTMCell::<f64, coeus_core::MoiraiBackend>::new(
+                    w_ih.tensor.shape()[1],
+                    hs,
+                );
+                cell.w_ih.weight = w_ih;
+                cell.w_ih.bias = b_ih;
+                cell.w_hh.weight = w_hh;
+                cell.w_hh.bias = b_hh;
+                cell.step(&x_v, &h_v, &c_v)
+            })
+            .map_err(map_module_error)?;
         Ok((PyTensor::from_var(h_new), PyTensor::from_var(c_new)))
     }
 
@@ -241,7 +243,7 @@ impl PyGRUCell {
             cell.w_hh.bias = b_hh;
             cell.step(&x_v, &h_v)
         });
-        Ok(PyTensor::from_var(h_new))
+        h_new.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     /// Return the list of learnable parameters (w_ih, w_hh, b_ih, b_hh).
@@ -393,7 +395,7 @@ impl PyRNNCell {
             cell.w_hh.bias = b_hh;
             cell.step(&x_v, &h_v)
         });
-        Ok(PyTensor::from_var(h_new))
+        h_new.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     /// Learnable parameters (w_ih, w_hh, b_ih, b_hh).
@@ -463,6 +465,7 @@ impl PyBidirectional {
         let input_var = input.inner.clone();
         let bi = coeus_nn::rnn::Bidirectional::new(self.inner_fwd.clone(), self.inner_bwd.clone());
         let out = py.allow_threads(move || bi.forward(&input_var));
-        Ok(crate::tensor::PyTensor::from_var(out))
+        out.map(crate::tensor::PyTensor::from_var)
+            .map_err(map_module_error)
     }
 }

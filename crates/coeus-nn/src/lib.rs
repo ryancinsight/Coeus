@@ -1,7 +1,9 @@
 //! Neural network layer module system built on [`coeus_autograd`].
 //!
 //! # Module trait
-//! [`Module<T, B>`](module::Module) is the core abstraction: `forward(&self, input: &Var<T, B>) -> Var<T, B>`.
+//! [`Module<T, B>`](module::Module) is the core abstraction. Its `forward`
+//! method returns a typed [`ModuleError`] so backend, input-contract, and
+//! module-state failures cannot be reported as successful execution.
 //!
 //! # Layer families
 //! - **Linear** — [`Linear`], weight + optional bias, Xavier/Kaiming init via [`init`].
@@ -97,7 +99,7 @@ pub use loss::{
     multi_margin, nanmean, nansum, nll_loss, pairwise_distance, poisson_nll, smooth_l1_loss,
     soft_margin, triplet_margin_loss, triplet_margin_with_distance_loss,
 };
-pub use module::{Module, ParameterLoadError};
+pub use module::{Module, ModuleError, ParameterLoadError};
 pub use normalization::{
     group_norm, layer_norm, rms_norm, BatchNorm1d, BatchNorm2d, BatchNorm3d, GroupNorm,
     InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, LayerNorm, RMSNorm,

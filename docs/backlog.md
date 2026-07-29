@@ -1,6 +1,28 @@
 # Coeus Project Backlog & Historical Archives
 
-## ATLAS-COEUS-WGPU-008 — Provider-owned reductions [arch]
+## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution [arch]
+
+- Owner: Codex on `codex/coeus-fallible-module-forward`; scope:
+  `coeus-nn::Module`, its implementations, direct Rust/Python consumers,
+  normalization state updates, ADR-0045, and active PM artifacts.
+- Outcome: every module reports backend, input-contract, and state-borrow
+  failures through one typed static-dispatch contract.
+- Non-goals: numerical formula changes, backend fallback, dynamic error
+  erasure, compatibility wrappers, performance claims, and release
+  transitions.
+- Acceptance: all 85 implementations and every direct consumer use the
+  fallible contract; warning-denied Clippy reports no ignored result;
+  BatchNorm state remains unchanged after injected backend or borrow failure;
+  existing value-semantic forward/gradient tests, Python exception tests,
+  doctests, SemVer checks, and exact-head provider CI pass.
+- Risk/change class: `[arch] [major]`; the public `Module::forward` return type
+  changes and all in-repository callers migrate in one cutover.
+- Status: in progress. The complete call graph is audited, ADR-0045 is
+  accepted, and the module bounded context now has separate manifest, trait,
+  and typed-error leaves. The atomic implementation and consumer cutover
+  remains.
+
+## ATLAS-COEUS-WGPU-008 — Provider-owned reductions [arch] — complete
 
 - Owner: Codex on `codex/coeus-wgpu-provider-reductions`; scope: WGPU ordinary
   reduction dispatch, superseded shader deletion, parity/rejection tests,
@@ -15,13 +37,15 @@
   gates and exact-head provider CI pass.
 - Risk/change class: `[arch] [major]`; rank-above-two WGPU requests become
   typed failures instead of invoking the consumer-owned shader.
-- Status: implementation complete. The direct provider cutover, obsolete
+- Status: merged by PR #246 as `7a9811f4`. The direct provider cutover, obsolete
   dispatcher deletion, CI selection, all-target check, warning-denied package
   Clippy, three doctests, and 11 focused value-semantic tests pass locally.
   Implementation-head run `30407395047` passed Metal `90435767524`, ROCm
   `90435767607`, WGPU `90435767627`, and CUDA `90435767639`; required-device
   ROCm `90435768426` was skipped because no hosted AMD runner was dispatched.
-  The terminal documentation-head matrix and PR #246 merge remain.
+  Terminal run `30408820242` passed Metal `90440235821`, CUDA `90440235825`,
+  WGPU `90440235878`, and ROCm `90440236008`; required-device ROCm
+  `90440236263` was skipped because no hosted AMD runner was dispatched.
 
 ## ATLAS-COEUS-CUDA-007 — Native dispatch boundary [arch] — complete
 

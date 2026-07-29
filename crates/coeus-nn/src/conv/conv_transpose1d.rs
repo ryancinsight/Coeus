@@ -3,7 +3,7 @@
 // 1-D Transposed (Fractional-Stride) Convolution, matching
 // `torch.nn.ConvTranspose1d(in_channels, out_channels, kernel_size, ...)`.
 
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
@@ -108,11 +108,26 @@ where
         p
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let backend = B::default();
-        let l = input.tensor.shape()[2];
+        let shape = input.tensor.shape();
+        if shape.len() != 3 {
+            return Err(ModuleError::InvalidRank {
+                module: "ConvTranspose1d",
+                expected: "3",
+                actual: shape.len(),
+            });
+        }
+        if shape[1] != self.in_channels {
+            return Err(ModuleError::ChannelMismatch {
+                module: "ConvTranspose1d",
+                expected: self.in_channels,
+                actual: shape[1],
+            });
+        }
+        let l = shape[2];
         let l_out = self.output_len(l);
-        let n = input.tensor.shape()[0];
+        let n = shape[0];
 
         let mut out_tensor = Tensor::zeros_on([n, self.out_channels, l_out], &backend);
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
@@ -130,7 +145,7 @@ where
             out_layout,
         );
 
-        coeus_autograd::conv_transpose1d(
+        Ok(coeus_autograd::conv_transpose1d(
             input,
             &self.weight,
             &self.bias,
@@ -139,6 +154,6 @@ where
             self.padding,
             self.output_padding,
             self.dilation,
-        )
+        ))
     }
 }

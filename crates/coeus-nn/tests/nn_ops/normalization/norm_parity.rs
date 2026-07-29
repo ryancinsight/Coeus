@@ -34,7 +34,7 @@ use coeus_core::{
     CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, SequentialBackend,
 };
 use coeus_nn::normalization::{group_norm, BatchNorm1d, GroupNorm, RMSNorm};
-use coeus_nn::Module;
+use coeus_nn::{Module, ModuleError};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
@@ -70,7 +70,7 @@ where
     bn.set_training(false);
 
     let inp = v(&[1, 1, 3], &[2.0, 5.0, -1.0], backend);
-    let out = Module::<f64, B>::forward(&bn, &inp);
+    let out = Module::<f64, B>::forward(&bn, &inp).expect("valid BatchNorm1d input");
 
     assert_eq!(out.tensor.shape(), &[1, 1, 3], "BatchNorm1d output shape");
     assert_eq!(
@@ -97,7 +97,7 @@ where
     bn2.set_training(false);
 
     let inp2 = v(&[1, 2, 2], &[1.0, 3.0, 7.0, 9.0], backend);
-    let out2 = Module::<f64, B>::forward(&bn2, &inp2);
+    let out2 = Module::<f64, B>::forward(&bn2, &inp2).expect("valid BatchNorm1d input");
     assert_eq!(out2.tensor.shape(), &[1, 2, 2], "BatchNorm1d C=2 shape");
     assert_eq!(
         out2.tensor.as_slice(),
@@ -120,7 +120,7 @@ where
     // output = [-1, 1, -1, 1]
     let gn = GroupNorm::<f64, B, 2>::new(4, 0.0);
     let inp = v(&[1, 4], &[1.0, 5.0, 3.0, 7.0], backend);
-    let out = Module::<f64, B>::forward(&gn, &inp);
+    let out = Module::<f64, B>::forward(&gn, &inp).expect("valid GroupNorm input");
 
     assert_eq!(out.tensor.shape(), &[1, 4], "GroupNorm output shape");
     assert_eq!(
@@ -132,7 +132,7 @@ where
     // Batch dimension: N=2, C=4, G=2.
     // Same values per batch row → same oracle per row.
     let inp2 = v(&[2, 4], &[1.0, 5.0, 3.0, 7.0, 1.0, 5.0, 3.0, 7.0], backend);
-    let out2 = Module::<f64, B>::forward(&gn, &inp2);
+    let out2 = Module::<f64, B>::forward(&gn, &inp2).expect("valid GroupNorm input");
     assert_eq!(out2.tensor.shape(), &[2, 4], "GroupNorm N=2 shape");
     assert_eq!(
         out2.tensor.as_slice(),
@@ -155,7 +155,7 @@ where
     // Group 0 [1,3]: mean=2, var=1, stdev=1 -> [-1,1].
     // Group 1 [10,14]: mean=12, var=4, stdev=2 -> [-1,1].
     let input = t(&[1, 4, 1], &[1.0, 3.0, 10.0, 14.0], backend);
-    let out = group_norm(&input, 2, None, None, 0.0);
+    let out = group_norm(&input, 2, None, None, 0.0).expect("valid functional GroupNorm input");
 
     assert_eq!(out.shape(), &[1, 4, 1], "functional GroupNorm shape");
     assert_eq!(
@@ -169,7 +169,8 @@ where
     // -> [-1.5, 1.5, -2.0, 2.0].
     let weight = t(&[4], &[2.0, 2.0, 3.0, 3.0], backend);
     let bias = t(&[4], &[0.5, -0.5, 1.0, -1.0], backend);
-    let affine = group_norm(&input, 2, Some(&weight), Some(&bias), 0.0);
+    let affine = group_norm(&input, 2, Some(&weight), Some(&bias), 0.0)
+        .expect("valid affine functional GroupNorm input");
 
     assert_eq!(
         affine.as_slice(),
@@ -179,11 +180,22 @@ where
 }
 
 #[test]
-#[should_panic(expected = "group_norm: num_groups must be greater than 0")]
 fn functional_group_norm_rejects_zero_groups() {
     let backend = SequentialBackend;
     let input = t(&[1, 4], &[1.0, 3.0, 10.0, 14.0], &backend);
-    let _ = group_norm(&input, 0, None, None, 0.0);
+    let error = match group_norm(&input, 0, None, None, 0.0) {
+        Ok(_) => panic!("zero groups must be rejected"),
+        Err(error) => error,
+    };
+
+    assert!(matches!(
+        error,
+        ModuleError::InvalidGroupCount {
+            module: "GroupNorm",
+            groups: 0,
+            channels: 4
+        }
+    ));
 }
 
 // ── RMSNorm ────────────────────────────────────────────────────────────────
@@ -197,7 +209,7 @@ where
     let weight = v(&[2], &[4.0, 3.0], backend);
     let rms = RMSNorm::from_parts(weight, 0.0);
     let inp = v(&[1, 2], &[2.0, 2.0], backend);
-    let out = Module::<f64, B>::forward(&rms, &inp);
+    let out = Module::<f64, B>::forward(&rms, &inp).expect("valid RMSNorm input");
 
     assert_eq!(out.tensor.shape(), &[1, 2], "RMSNorm output shape");
     assert_eq!(
@@ -211,7 +223,7 @@ where
     let weight2 = v(&[1], &[5.0], backend);
     let rms2 = RMSNorm::from_parts(weight2, 0.0);
     let inp2 = v(&[1, 1], &[2.0], backend);
-    let out2 = Module::<f64, B>::forward(&rms2, &inp2);
+    let out2 = Module::<f64, B>::forward(&rms2, &inp2).expect("valid RMSNorm input");
     assert_eq!(
         out2.tensor.as_slice(),
         &[5.0_f64],
@@ -222,7 +234,7 @@ where
     let weight3 = v(&[2], &[4.0, 3.0], backend);
     let rms3 = RMSNorm::from_parts(weight3, 0.0);
     let inp3 = v(&[3, 2], &[2.0, 2.0, 2.0, 2.0, 2.0, 2.0], backend);
-    let out3 = Module::<f64, B>::forward(&rms3, &inp3);
+    let out3 = Module::<f64, B>::forward(&rms3, &inp3).expect("valid RMSNorm input");
     assert_eq!(out3.tensor.shape(), &[3, 2], "RMSNorm N=3 shape");
     assert_eq!(
         out3.tensor.as_slice(),
@@ -274,7 +286,7 @@ where
         Tensor::from_slice_on(vec![2, 1, 2], &[1.0_f64, 3.0, 5.0, 7.0], backend),
         true,
     );
-    let out = Module::<f64, B>::forward(&bn, &inp);
+    let out = Module::<f64, B>::forward(&bn, &inp).expect("valid BatchNorm1d input");
     assert_eq!(out.tensor.shape(), &[2, 1, 2]);
 
     let s = out.tensor.as_slice();

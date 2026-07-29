@@ -1,5 +1,15 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution
+
+- [x] Enumerate all module implementations and direct consumers.
+- [x] Add ADR-0045 and the module error/trait vertical hierarchy.
+- [ ] Change the canonical trait and all implementations in one cutover.
+- [ ] Propagate normalization backend failures and preserve BatchNorm state.
+- [ ] Migrate Rust, Python, benchmark, and doctest call sites.
+- [ ] Pass warning-denied and value-semantic gates, SemVer checks, hosted CI,
+      and merge.
+
 ## ATLAS-COEUS-WGPU-008 — Provider-owned reductions
 
 - [x] Route all five ordinary WGPU reductions directly through Hephaestus.
@@ -8,7 +18,8 @@
 - [x] Select the complete reduction contract in provider CI.
 - [x] Pass warning-denied Clippy, doctests, and implementation-head provider
       CI.
-- [ ] Pass terminal documentation-head provider CI and merge PR #246.
+- [x] Pass terminal provider run `30408820242` and merge PR #246 as
+      `7a9811f4`.
 
 ## ATLAS-COEUS-CUDA-007 — Native dispatch boundary
 

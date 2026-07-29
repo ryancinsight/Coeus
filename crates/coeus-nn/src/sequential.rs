@@ -5,7 +5,7 @@
 // the concrete layer types are genuinely unknown at compile time and type erasure
 // is the domain requirement for a user-constructable heterogeneous module stack.
 
-use crate::module::{prefixed_parameters, Module};
+use crate::module::{prefixed_parameters, Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, Scalar};
 
@@ -19,7 +19,7 @@ use coeus_core::{MoiraiBackend, Scalar};
 /// seq.add(Linear::new(64, 128, true));
 /// seq.add(ReLU);
 /// seq.add(Linear::new(128, 10, true));
-/// let output = seq.forward(&input);
+/// let output = seq.forward(&input).expect("valid Sequential input");
 /// ```
 pub struct Sequential<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Type-erased module list. dyn dispatch is justified: types are unknown at compile time.
@@ -74,8 +74,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sequenti
             .collect()
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        self.layers.iter().fold(input.clone(), |x, m| m.forward(&x))
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        self.layers
+            .iter()
+            .try_fold(input.clone(), |x, module| module.forward(&x))
     }
 
     fn train(&mut self, mode: bool) {
@@ -105,7 +107,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sequenti
 /// let model = Linear::new(64, 128)
 ///     .append(ReLU)
 ///     .append(Linear::new(128, 10));
-/// let output = model.forward(&input);
+/// let output = model.forward(&input).expect("valid Chain input");
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct StaticSeq<H, T>(pub H, pub T);
@@ -131,8 +133,11 @@ impl<
     }
 
     #[inline]
-    fn forward(&self, input: &Var<ScalarType, B>) -> Var<ScalarType, B> {
-        let out = self.0.forward(input);
+    fn forward(
+        &self,
+        input: &Var<ScalarType, B>,
+    ) -> Result<Var<ScalarType, B>, ModuleError<B::Error>> {
+        let out = self.0.forward(input)?;
         self.1.forward(&out)
     }
 

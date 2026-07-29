@@ -84,7 +84,8 @@ fn test_huber_loss() {
     );
 
     let delta = 1.0;
-    let loss = huber_loss(&pred, &target, delta);
+    let loss = huber_loss(&pred, &target, delta)
+        .expect("invariant: matching non-empty shapes and positive finite delta");
     assert_eq!(loss.tensor.shape(), &[1]);
 
     let loss_val = loss.tensor.as_slice()[0];

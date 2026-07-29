@@ -18,7 +18,7 @@ use coeus_autograd::Var;
 use coeus_core::{
     CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, SequentialBackend,
 };
-use coeus_nn::{bilinear as bilinear_fn, Bilinear, Module};
+use coeus_nn::{bilinear as bilinear_fn, Bilinear, Module, ModuleError};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
@@ -83,7 +83,7 @@ where
     );
 
     // Module::forward(x) delegates to bilinear_forward(x, x): must equal [9,9].
-    let out_module = Module::<f64, B>::forward(&bil, &x_same);
+    let out_module = Module::<f64, B>::forward(&bil, &x_same).expect("valid Bilinear input");
     assert_eq!(
         out_module.tensor.as_slice(),
         out_same.tensor.as_slice(),
@@ -165,4 +165,26 @@ fn sequential_bilinear_match_reference() {
 #[test]
 fn moirai_bilinear_match_reference() {
     check_bilinear(&MoiraiBackend);
+}
+
+#[test]
+fn module_bilinear_rejects_incompatible_self_interaction() {
+    let backend = SequentialBackend;
+    let bilinear = ones_bilinear(2, 3, 1, &backend);
+    let input = v(&[1, 2], &[1.0, 2.0], &backend);
+
+    let error = match Module::<f64, SequentialBackend>::forward(&bilinear, &input) {
+        Ok(_) => panic!("incompatible Bilinear self-interaction must fail"),
+        Err(error) => error,
+    };
+
+    assert!(matches!(
+        error,
+        ModuleError::ShapeMismatch {
+            module: "Bilinear",
+            parameter: "self-interaction features",
+            expected,
+            actual
+        } if expected == [3] && actual == [2]
+    ));
 }

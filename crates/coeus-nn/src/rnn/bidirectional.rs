@@ -1,6 +1,7 @@
 // ── Bidirectional recurrent wrapper ──
 
-use crate::module::{prefixed_parameters, Module};
+use crate::module::{prefixed_parameters, Module, ModuleError};
+use crate::rnn::validation;
 use coeus_autograd::Var;
 use coeus_core::Scalar;
 
@@ -54,12 +55,28 @@ where
     }
 
     /// `x`: `[batch, seq_len, input_size]` → `[batch, seq_len, 2*hidden_size]`.
-    fn forward(&self, x: &Var<T, B>) -> Var<T, B> {
-        let fwd = self.forward_module.forward(x);
+    fn forward(&self, x: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        let (batch, sequence) = validation::sequence_layout(x.tensor.shape(), "Bidirectional")?;
+        let fwd = self.forward_module.forward(x)?;
+        validation::child_sequence_output(
+            fwd.tensor.shape(),
+            batch,
+            sequence,
+            "Bidirectional",
+            "forward output",
+        )?;
         // Reverse along the time axis, run the backward module, then restore order.
         let rev_x = coeus_autograd::flip(x, 1);
-        let bwd_rev = self.backward_module.forward(&rev_x);
+        let bwd_rev = self.backward_module.forward(&rev_x)?;
+        validation::child_sequence_output(
+            bwd_rev.tensor.shape(),
+            batch,
+            sequence,
+            "Bidirectional",
+            "backward output",
+        )?;
+        validation::matching_child_outputs(fwd.tensor.shape(), bwd_rev.tensor.shape())?;
         let bwd = coeus_autograd::flip(&bwd_rev, 1);
-        coeus_autograd::cat(&[&fwd, &bwd], 2)
+        Ok(coeus_autograd::cat(&[&fwd, &bwd], 2))
     }
 }

@@ -17,10 +17,22 @@ pub(crate) fn bench_linear_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — Linear forward (128x256 -> 256)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(lin_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                lin_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid linear layer benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(lin_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                lin_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid linear layer benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -94,18 +106,26 @@ pub(crate) fn bench_linear_forward_backward(c: &mut Criterion) {
         b.iter(|| {
             lin_seq.zero_grad();
             x_seq.zero_grad();
-            coeus_autograd::sum(&lin_seq.forward(black_box(&x_seq)))
-                .backward()
-                .expect("invariant: valid autograd fixture completes backward");
+            coeus_autograd::sum(
+                &lin_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid linear layer benchmark input"),
+            )
+            .backward()
+            .expect("invariant: valid autograd fixture completes backward");
         })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
             lin_moirai.zero_grad();
             x_moirai.zero_grad();
-            coeus_autograd::sum(&lin_moirai.forward(black_box(&x_moirai)))
-                .backward()
-                .expect("invariant: valid autograd fixture completes backward");
+            coeus_autograd::sum(
+                &lin_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid linear layer benchmark input"),
+            )
+            .backward()
+            .expect("invariant: valid autograd fixture completes backward");
         })
     });
     group.finish();
@@ -131,10 +151,22 @@ pub(crate) fn bench_dropout_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — Dropout eval forward (128x256, p=0.5)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(do_layer.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                do_layer
+                    .forward(black_box(&x_seq))
+                    .expect("valid dropout layer benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(do_layer.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                do_layer
+                    .forward(black_box(&x_moirai))
+                    .expect("valid dropout layer benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -159,7 +191,9 @@ pub(crate) fn bench_linear_fwd_bwd(c: &mut Criterion) {
     let mut group = c.benchmark_group("Coeus - Linear(256,512) fwd+bwd (128x256)");
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
-            let o = lin_seq.forward(black_box(&inp_seq));
+            let o = lin_seq
+                .forward(black_box(&inp_seq))
+                .expect("valid linear layer benchmark input");
             black_box(o)
                 .backward()
                 .expect("invariant: valid autograd fixture completes backward")
@@ -167,7 +201,9 @@ pub(crate) fn bench_linear_fwd_bwd(c: &mut Criterion) {
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
-            let o = lin_moirai.forward(black_box(&inp_moirai));
+            let o = lin_moirai
+                .forward(black_box(&inp_moirai))
+                .expect("valid linear layer benchmark input");
             black_box(o)
                 .backward()
                 .expect("invariant: valid autograd fixture completes backward")

@@ -90,13 +90,14 @@ crates.io.
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-The default `coeus-cuda` build compiles a CPU-backed fallback provider so the
-full workspace can be checked on hosts without CUDA. Real cutile-backed CUDA
-integration is explicit:
+The default `coeus-cuda` build exposes storage and capability types but no
+mathematical CPU fallback. Native Hephaestus/Cutile CUDA execution is explicit:
 ```bash
 cargo test -p coeus-cuda --features cuda
 ```
 That CUDA feature requires `CUDA_TOOLKIT_PATH` and a working CUDA driver.
+Provider failures are surfaced to callers; a present CUDA provider never
+silently downgrades execution to Leto.
 
 ### Run Benchmarks
 `coeus-tensor` contains Criterion baselines for Coeus Sequential, Coeus Moirai,

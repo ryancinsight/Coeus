@@ -20,7 +20,7 @@ fn test_group_norm() {
         true,
     );
 
-    let output = gn.forward(&input);
+    let output = gn.forward(&input).expect("valid GroupNorm input");
     assert_eq!(output.tensor.shape(), &[2, 6, 4]);
 
     // Backward pass
@@ -48,7 +48,7 @@ fn test_instance_norm_1d() {
         true,
     );
 
-    let output = in1d.forward(&input);
+    let output = in1d.forward(&input).expect("valid InstanceNorm1d input");
     assert_eq!(output.tensor.shape(), &[2, 4, 5]);
 
     output
@@ -73,7 +73,7 @@ fn test_instance_norm_2d() {
         true,
     );
 
-    let output = in2d.forward(&input);
+    let output = in2d.forward(&input).expect("valid InstanceNorm2d input");
     assert_eq!(output.tensor.shape(), &[2, 3, 4, 4]);
 
     output

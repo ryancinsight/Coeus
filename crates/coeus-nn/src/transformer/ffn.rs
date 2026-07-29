@@ -2,7 +2,7 @@
 
 use crate::dropout::Dropout;
 use crate::linear::Linear;
-use crate::module::{prefixed_parameters, Module};
+use crate::module::{prefixed_parameters, Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use std::marker::PhantomData;
@@ -17,21 +17,65 @@ pub fn feed_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     w2: &Var<T, B>,
     b2: Option<&Var<T, B>>,
     dropout_p: f64,
-) -> Var<T, B> {
-    let linear1 = Linear {
-        weight: w1.clone(),
-        bias: b1.cloned(),
-    };
-    let linear2 = Linear {
-        weight: w2.clone(),
-        bias: b2.cloned(),
-    };
-    let x = linear1.forward(input);
+) -> Result<Var<T, B>, ModuleError<B::Error>> {
+    feed_forward_with_training(input, w1, b1, w2, b2, dropout_p, dropout_p > 0.0)
+}
+
+pub(super) fn feed_forward_with_training<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    w1: &Var<T, B>,
+    b1: Option<&Var<T, B>>,
+    w2: &Var<T, B>,
+    b2: Option<&Var<T, B>>,
+    dropout_p: f64,
+    is_training: bool,
+) -> Result<Var<T, B>, ModuleError<B::Error>> {
+    let shape = input.tensor.shape();
+    if shape.len() < 2 {
+        return Err(ModuleError::InvalidRank {
+            module: "FeedForward",
+            expected: "at least 2",
+            actual: shape.len(),
+        });
+    }
+    let d_model = *shape
+        .last()
+        .expect("invariant: feed-forward rank was validated as at least two");
+    super::validation::feed_forward("FeedForward", d_model, w1, b1, w2, b2)?;
+
+    let x = linear_from_parts(input, w1, b1);
     let x = coeus_autograd::gelu(&x);
     let mut dropout = Dropout::new(dropout_p);
-    dropout.set_training(dropout_p > 0.0);
-    let x = dropout.forward(&x);
-    linear2.forward(&x)
+    dropout.set_training(is_training);
+    let x = dropout.forward(&x)?;
+    Ok(linear_from_parts(&x, w2, b2))
+}
+
+fn linear_from_parts<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+    weight: &Var<T, B>,
+    bias: Option<&Var<T, B>>,
+) -> Var<T, B> {
+    let input_shape = input.tensor.shape();
+    let in_features = weight.tensor.shape()[1];
+    let out_features = weight.tensor.shape()[0];
+    let rows = input_shape[..input_shape.len() - 1]
+        .iter()
+        .copied()
+        .product::<usize>();
+    let flattened = coeus_autograd::reshape(input, [rows, in_features]);
+    let weight_transposed = coeus_autograd::transpose_2d(weight);
+    let projected = coeus_autograd::matmul(&flattened, &weight_transposed);
+    let projected = match bias {
+        Some(bias) => coeus_autograd::add(&projected, bias),
+        None => projected,
+    };
+
+    let mut output_shape = input_shape.to_vec();
+    *output_shape
+        .last_mut()
+        .expect("invariant: feed-forward rank was validated as at least two") = out_features;
+    coeus_autograd::reshape(&projected, output_shape)
 }
 
 /// Two-layer feed-forward sub-layer.
@@ -87,7 +131,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for FeedForwa
     ///
     /// Works for any input rank (`[batch, seq, d_model]`, `[batch, d_model]`, etc.)
     /// because `Linear::forward` dispatches to the batched matmul kernel.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         feed_forward(
             input,
             &self.linear1.weight,

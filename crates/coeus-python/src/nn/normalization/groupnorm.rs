@@ -1,4 +1,7 @@
-use crate::tensor::{PyStateDict, PyTensor};
+use crate::{
+    nn::error::map_module_error,
+    tensor::{PyStateDict, PyTensor},
+};
 use pyo3::prelude::*;
 
 /// Python-exposed Group Normalization layer.
@@ -83,16 +86,17 @@ impl PyGroupNorm {
                             gn.bias   = b_var;
                             gn.forward(&input_var)
                         },)*
-                        _ => panic!(
-                            "PyGroupNorm: unsupported num_groups={num_groups}; \
-                             supported: 1,2,4,8,16,32,64"
-                        ),
+                        _ => Err(coeus_nn::ModuleError::InvalidGroupCount {
+                            module: "GroupNorm",
+                            groups: num_groups,
+                            channels: num_features,
+                        }),
                     }
                 }
             }
             dispatch_gn!(1, 2, 4, 8, 16, 32, 64)
         });
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {

@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar, Storage};
+use coeus_core::{BackendError, Float, Scalar, Storage};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -26,6 +26,8 @@ pub struct HuberLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub delta: T,
     /// Number of elements in the loss reduction.
     pub n: usize,
+    /// Original tensor shape for gradient reconstruction.
+    shape: coeus_core::Shape,
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for HuberLossNode<T, B> {
@@ -61,8 +63,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Hub
             let delta = self.delta;
 
             let mut d_pred = vec![T::zero(); self.n];
-            for i in 0..self.n {
-                let diff = self.diffs[i];
+            for (grad, &diff) in d_pred.iter_mut().zip(&self.diffs) {
                 // PyTorch's huber_loss gradient: `z` in the quadratic region
                 // and `sign(z) * delta` in the linear region. (Note: this
                 // differs from smooth_l1_loss, whose quadratic grad is
@@ -83,9 +84,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Hub
                     };
                     sign * delta
                 };
-                d_pred[i] = gradient * scale;
+                *grad = gradient * scale;
             }
-            let grad_tensor = Tensor::from_slice_on([self.n], &d_pred, &backend);
+            let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &d_pred, &backend);
             let gl = g.write();
             coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
@@ -106,13 +107,38 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Hub
 ///
 /// This matches the classical Huber definition; PyTorch's
 /// `smooth_l1_loss` is the `0.5·z²/β`-form alternative.
+///
+/// # Errors
+///
+/// Returns the backend error type when the input shapes differ, the reduction
+/// is empty, or `delta` is non-finite or non-positive.
 pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     delta: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let n = pred.tensor.shape()[0];
+    if pred.tensor.shape() != target.tensor.shape() {
+        return Err(B::Error::from(BackendError::ShapeMismatch {
+            operation: "huber_loss",
+            lhs: pred.tensor.shape().to_vec(),
+            rhs: target.tensor.shape().to_vec(),
+        }));
+    }
+    let n = pred.tensor.numel();
+    if n == 0 {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "huber_loss",
+            reason: "mean reduction requires at least one element".to_owned(),
+        }));
+    }
+    if !Float::is_finite(delta) || delta <= T::zero() {
+        return Err(B::Error::from(BackendError::Storage {
+            operation: "huber_loss",
+            reason: "delta must be finite and greater than zero".to_owned(),
+        }));
+    }
+    let shape = pred.tensor.shape_cloned();
 
     let p_cont;
     let p_raw = if pred.tensor.is_contiguous() && pred.tensor.layout().offset() == 0 {
@@ -185,14 +211,15 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             diffs,
             delta,
             n,
+            shape,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

@@ -3,7 +3,7 @@
 // out = x1 @ W @ x2.T + b  for feature interaction.
 // W shape: [out_features, in1_features, in2_features]
 
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
@@ -168,7 +168,51 @@ where
         p
     }
 
-    fn forward(&self, x1: &Var<T, B>) -> Var<T, B> {
-        self.bilinear_forward(x1, x1)
+    fn forward(&self, x1: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        let shape = x1.tensor.shape();
+        if shape.len() != 2 {
+            return Err(ModuleError::InvalidRank {
+                module: "Bilinear",
+                expected: "2",
+                actual: shape.len(),
+            });
+        }
+        let features = shape[1];
+        if features != self.in1_features {
+            return Err(ModuleError::ShapeMismatch {
+                module: "Bilinear",
+                parameter: "input features",
+                expected: vec![self.in1_features],
+                actual: vec![features],
+            });
+        }
+        if features != self.in2_features {
+            return Err(ModuleError::ShapeMismatch {
+                module: "Bilinear",
+                parameter: "self-interaction features",
+                expected: vec![self.in2_features],
+                actual: vec![features],
+            });
+        }
+        let expected_weight = vec![self.out_features, self.in1_features, self.in2_features];
+        if self.weight.tensor.shape() != expected_weight {
+            return Err(ModuleError::ShapeMismatch {
+                module: "Bilinear",
+                parameter: "weight",
+                expected: expected_weight,
+                actual: self.weight.tensor.shape_cloned().to_vec(),
+            });
+        }
+        if let Some(bias) = &self.bias {
+            if bias.tensor.shape() != [self.out_features] {
+                return Err(ModuleError::ShapeMismatch {
+                    module: "Bilinear",
+                    parameter: "bias",
+                    expected: vec![self.out_features],
+                    actual: bias.tensor.shape_cloned().to_vec(),
+                });
+            }
+        }
+        Ok(self.bilinear_forward(x1, x1))
     }
 }

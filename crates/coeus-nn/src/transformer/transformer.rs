@@ -2,7 +2,7 @@
 
 use super::decoder::TransformerDecoder;
 use super::encoder::TransformerEncoder;
-use crate::module::{prefixed_parameters, Module};
+use crate::module::{prefixed_parameters, Module, ModuleError};
 use coeus_autograd::{AttentionMask, CausalMask, NullMask, Var};
 use coeus_core::{Float, MoiraiBackend};
 
@@ -56,8 +56,12 @@ where
     /// - `tgt`: target sequence `[batch, seq_tgt, d_model]`
     ///
     /// Returns decoded output `[batch, seq_tgt, d_model]`.
-    pub fn forward_seq2seq(&self, src: &Var<T, B>, tgt: &Var<T, B>) -> Var<T, B> {
-        let memory = self.encoder.forward_with_mask(src, None);
+    pub fn forward_seq2seq(
+        &self,
+        src: &Var<T, B>,
+        tgt: &Var<T, B>,
+    ) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        let memory = self.encoder.forward_with_mask(src, None)?;
         self.decoder.forward_decoder(tgt, &memory)
     }
 
@@ -70,8 +74,8 @@ where
         src: &Var<T, B>,
         tgt: &Var<T, B>,
         src_key_padding_mask: Option<&Var<T, B>>,
-    ) -> Var<T, B> {
-        let memory = self.encoder.forward_with_mask(src, src_key_padding_mask);
+    ) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        let memory = self.encoder.forward_with_mask(src, src_key_padding_mask)?;
         self.decoder.forward_decoder(tgt, &memory)
     }
 }
@@ -85,28 +89,25 @@ impl<
         EncM: AttentionMask,
         DecSelfM: AttentionMask,
         DecCrossM: AttentionMask,
-    > Module<T, B> for Transformer<T, B, H, NUM_ENC, NUM_DEC, EncM, DecSelfM, DecCrossM>
+    > Transformer<T, B, H, NUM_ENC, NUM_DEC, EncM, DecSelfM, DecCrossM>
 {
-    fn parameters(&self) -> Vec<Var<T, B>> {
+    /// Collect all trainable encoder and decoder parameters.
+    pub fn parameters(&self) -> Vec<Var<T, B>> {
         let mut p = self.encoder.parameters();
         p.extend(self.decoder.parameters());
         p
     }
 
-    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
+    /// Collect trainable parameters with stable encoder/decoder prefixes.
+    pub fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<T, B>> {
         let mut parameters = prefixed_parameters("encoder", &self.encoder);
-        parameters.extend(prefixed_parameters("decoder", &self.decoder));
+        parameters.extend(
+            self.decoder
+                .named_parameters()
+                .into_iter()
+                .map(|parameter| parameter.with_prefix("decoder")),
+        );
         parameters
-    }
-
-    /// Fallback forward routing to `forward_seq2seq(input, input)`.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        self.forward_seq2seq(input, input)
-    }
-
-    fn train(&mut self, mode: bool) {
-        self.encoder.train(mode);
-        self.decoder.train(mode);
     }
 }
 

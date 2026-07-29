@@ -1,7 +1,7 @@
 //! Depthwise three-dimensional convolution.
 
 use super::{Conv3d, ConvParams};
-use crate::Module;
+use crate::{Module, ModuleError};
 use coeus_autograd::{add, cat, reshape, slice, Var};
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, MoiraiBackend};
 use coeus_tensor::Tensor;
@@ -80,10 +80,22 @@ where
         parameters
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let shape = input.tensor.shape();
-        assert_eq!(shape.len(), 5, "DepthwiseConv3d: input must have rank 5");
-        assert_eq!(shape[1], self.channels, "DepthwiseConv3d: channel mismatch");
+        if shape.len() != 5 {
+            return Err(ModuleError::InvalidRank {
+                module: "DepthwiseConv3d",
+                expected: "5",
+                actual: shape.len(),
+            });
+        }
+        if shape[1] != self.channels {
+            return Err(ModuleError::ChannelMismatch {
+                module: "DepthwiseConv3d",
+                expected: self.channels,
+                actual: shape[1],
+            });
+        }
         let params = ConvParams::new(
             1,
             1,
@@ -92,7 +104,7 @@ where
             self.padding,
             self.dilation,
         );
-        let outputs: Vec<_> = (0..self.channels)
+        let outputs = (0..self.channels)
             .map(|channel| {
                 let channel_input = slice(
                     input,
@@ -115,15 +127,17 @@ where
                     ],
                 );
                 let output =
-                    Conv3d::from_vars(channel_weight, None, params).forward(&channel_input);
-                self.bias.as_ref().map_or(output.clone(), |bias| {
+                    Conv3d::from_vars(channel_weight, None, params).forward(&channel_input)?;
+                Ok(if let Some(bias) = &self.bias {
                     let channel_bias =
                         reshape(&slice(bias, &[(channel, channel + 1)]), [1, 1, 1, 1, 1]);
                     add(&output, &channel_bias)
+                } else {
+                    output
                 })
             })
-            .collect();
-        cat(&outputs.iter().collect::<Vec<_>>(), 1)
+            .collect::<Result<Vec<_>, ModuleError<B::Error>>>()?;
+        Ok(cat(&outputs.iter().collect::<Vec<_>>(), 1))
     }
 
     fn load_parameters(&mut self, parameters: &[Var<T, B>]) {
@@ -156,7 +170,9 @@ mod tests {
             true,
         );
 
-        let output = convolution.forward(&input);
+        let output = convolution
+            .forward(&input)
+            .expect("valid DepthwiseConv3d input");
 
         assert_eq!(output.tensor.shape(), &[1, 2, 1, 1, 2]);
         assert_eq!(output.tensor.as_slice(), &[9.0, 11.0, 17.0, 20.0]);

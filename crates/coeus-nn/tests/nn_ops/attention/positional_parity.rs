@@ -46,7 +46,7 @@ where
 
     // input [1,1,4] (batch=1, seq_len=1): forward adds table[0] = [0,1,0,1].
     let inp = zeros_var(&[1, 1, 4], backend);
-    let out = Module::<f64, B>::forward(&pe, &inp);
+    let out = Module::<f64, B>::forward(&pe, &inp).expect("valid SinusoidalEncoding input");
     assert_eq!(
         out.tensor.shape(),
         &[1, 1, 4],
@@ -60,7 +60,7 @@ where
 
     // Non-zero input [1,1,4] = [[[ 1,2,3,4 ]]]: adds [0,1,0,1] → [[[ 1,3,3,5 ]]].
     let inp2 = v(&[1, 1, 4], &[1.0, 2.0, 3.0, 4.0], backend);
-    let out2 = Module::<f64, B>::forward(&pe, &inp2);
+    let out2 = Module::<f64, B>::forward(&pe, &inp2).expect("valid SinusoidalEncoding input");
     assert_eq!(
         out2.tensor.as_slice(),
         &[1.0_f64, 3.0, 3.0, 5.0],
@@ -76,7 +76,7 @@ where
     // Input shape [batch=1, seq_len=1, heads=1, d_head=4] = [[[[1,2,3,4]]]].
     let rope = RotaryEmbedding::<f64, B>::new(4, 4, 10000.0);
     let inp = v(&[1, 1, 1, 4], &[1.0, 2.0, 3.0, 4.0], backend);
-    let out = rope.forward(&inp);
+    let out = rope.forward(&inp).expect("valid RotaryEmbedding input");
     assert_eq!(
         out.tensor.shape(),
         &[1, 1, 1, 4],
@@ -90,7 +90,9 @@ where
 
     // Zero input: output is zero regardless of rotation.
     let inp_zero = zeros_var(&[1, 1, 1, 4], backend);
-    let out_zero = rope.forward(&inp_zero);
+    let out_zero = rope
+        .forward(&inp_zero)
+        .expect("valid RotaryEmbedding input");
     assert_eq!(
         out_zero.tensor.as_slice(),
         &[0.0_f64; 4],

@@ -146,12 +146,17 @@ pub fn multi_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 
 /// Huber (Smooth L1) Loss.
 /// pred: `[N]`, target: `[N]`, delta: huber threshold.
+///
+/// # Errors
+///
+/// Returns the backend error type when the input shapes differ, the reduction
+/// is empty, or `delta` is non-finite or non-positive.
 #[inline]
 pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     delta: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::huber_loss(pred, target, delta)
 }
 

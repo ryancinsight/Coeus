@@ -30,7 +30,7 @@ fn test_sequential_container() {
         true,
     );
 
-    let output = seq.forward(&input);
+    let output = seq.forward(&input).expect("valid Sequential input");
     assert_eq!(output.tensor.shape(), &[2, 2]);
 
     // Backward pass

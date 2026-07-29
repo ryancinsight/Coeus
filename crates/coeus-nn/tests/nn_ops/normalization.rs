@@ -1,6 +1,6 @@
 //! Normalization tests.
 
-#[path = "normalization/nn_norm_tests.rs"]
+#[path = "normalization/nn_norm_tests/mod.rs"]
 mod nn_norm_tests;
 #[path = "normalization/nn_normalization_tests.rs"]
 mod nn_normalization_tests;
