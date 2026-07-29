@@ -304,6 +304,37 @@ required-device ROCm `90494509665` was skipped because no AMD runner was
 registered. Local feature-enabled execution is blocked by the GNU CUDA import
 library and shared-cache MSVC host-artifact collision.
 
+## ATLAS-COEUS-CUDA-LINALG-CONV-STORAGE-BOUNDARY-002
+
+**Location**: `crates/coeus-cuda/src/kernels/launch_matmul.rs` and
+`kernels/launch_conv/`.
+**Gap**: raw CUDA matmul and convolution launchers checked layout ABI
+representability but not whether each logical layout fit its physical device
+allocation. Convolution also trusted caller-provided output counts and gradient
+buffer capacities. Its embedded PTX computes physical addresses with signed
+32-bit arithmetic while the generic CUDA descriptor admits unsigned values.
+**Resolution**: reuse the shared CUDA storage-bound validator for matmul and
+centralize rank-specialized convolution forward/backward contracts in
+`launch_conv/validation.rs`; reject undersized source, output, gradient, and
+bias allocations plus incompatible batch/channel/spatial shapes, checked
+stride/padding/dilation extent mismatches, count mismatches, and writable
+zero-stride layouts before pointer acquisition. Convolution composes that
+generic proof with PTX-specific signed-field, convolution-parameter,
+derived-coordinate, and maximum-physical-index bounds; NVRTC kernels retain the
+wider unsigned descriptor contract.
+**Evidence**: Rust 1.95 warning-denied feature-enabled Clippy; focused signed,
+shape, and modular-coordinate Nextest 5/5; disabled-provider Nextest 3/3; and
+exact source-head run `30488454769`, which passed CUDA `90700098613`, Metal
+`90700098624`, ROCm `90700098669`, and WGPU `90700098570`. Required-device
+ROCm `90700098948` skipped because no AMD runner was registered.
+**Residual**: convolution still owns a consumer-side CPU fallback and infallible
+backend contract; removing it requires the next fallible provider-ownership
+cutover. No runtime performance or resident-memory delta is claimed without
+controlled measurements.
+**Status**: resolved for the raw matmul and convolution storage and signed-PTX
+boundaries. The residual provider-ownership cutover remains a separate active
+finding.
+
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001: exact GELU forward and gradient
 
 **Location**: `crates/coeus-cuda/src/backend/ops/math/elementwise.rs`, the CUDA

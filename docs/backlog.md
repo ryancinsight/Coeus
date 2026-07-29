@@ -2,7 +2,7 @@
 
 ## ATLAS-COEUS-DISPATCH-SAFETY-020 — Provider routing audit [arch]
 
-- Owner: Codex on `codex/coeus-dispatch-audit`; scope: Coeus CPU and
+- Owner: Codex takeover on `codex/coeus-cuda-layout-safety`; scope: Coeus CPU and
   accelerator dispatch boundaries under `coeus-leto`, `coeus-cuda`,
   `coeus-wgpu`, `coeus-rocm`, and `coeus-metal`, plus the focused contract
   tests, ADR, and active PM evidence required by an accepted finding.
@@ -38,7 +38,23 @@
   `90494509264`, and WGPU `90494509247`; required-device ROCm `90494509665`
   was skipped because no AMD runner was registered. Local feature-enabled
   execution is blocked by the GNU CUDA import library and the shared-cache
-  MSVC host-artifact collision.
+  MSVC host-artifact collision. The active increment validates CUDA matmul and
+  convolution layouts against their physical device allocations before any
+  raw launch. The implementation centralizes rank-specialized convolution
+  contracts in `kernels/launch_conv/validation.rs`; feature-enabled check and
+  warning-denied Clippy pass, and disabled-provider Nextest passes 3/3. The
+  hosted CUDA lane selects the allocation-bound regressions. The prior owner
+  became stale after `4d258052`; takeover review found that the shared
+  validator admitted `u32` layout and convolution-parameter values even though
+  embedded PTX coordinate and address arithmetic is signed 32-bit. The
+  correction bounds layout fields, operation parameters, derived coordinates,
+  and maximum physical indices at `i32::MAX`, while retaining valid modulo
+  low-word intermediates whose final coordinate is representable. Rust 1.95
+  focused Nextest passes 5/5 for the signed and shape boundaries. Exact source
+  head `9ed5d81a` run `30488454769` passed CUDA `90700098613`, Metal
+  `90700098624`, ROCm `90700098669`, and WGPU `90700098570`; required-device
+  ROCm `90700098948` skipped because no AMD runner was registered. Unrelated
+  provider migrations remain outside this increment.
 
 ## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution [arch]
 
