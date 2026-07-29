@@ -322,15 +322,18 @@ zero-stride layouts before pointer acquisition. Convolution composes that
 generic proof with PTX-specific signed-field, convolution-parameter,
 derived-coordinate, and maximum-physical-index bounds; NVRTC kernels retain the
 wider unsigned descriptor contract.
-**Evidence target**: pure allocation-bound regressions selected by hosted CUDA
-Nextest, feature-enabled package check and warning-denied Clippy, disabled
-provider Nextest, and exact-head provider CI.
+**Evidence**: Rust 1.95 warning-denied feature-enabled Clippy; focused signed,
+shape, and modular-coordinate Nextest 5/5; disabled-provider Nextest 3/3; and
+exact source-head run `30488454769`, which passed CUDA `90700098613`, Metal
+`90700098624`, ROCm `90700098669`, and WGPU `90700098570`. Required-device
+ROCm `90700098948` skipped because no AMD runner was registered.
 **Residual**: convolution still owns a consumer-side CPU fallback and infallible
 backend contract; removing it requires the next fallible provider-ownership
 cutover. No runtime performance or resident-memory delta is claimed without
 controlled measurements.
-**Status**: feature-enabled package check and warning-denied Clippy pass;
-disabled-provider Nextest passes 3/3. Hosted CUDA execution remains pending.
+**Status**: resolved for the raw matmul and convolution storage and signed-PTX
+boundaries. The residual provider-ownership cutover remains a separate active
+finding.
 
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001: exact GELU forward and gradient
 
