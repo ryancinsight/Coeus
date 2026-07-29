@@ -4,6 +4,15 @@
 
 ### Changed
 
+- [patch] Validate CUDA elementwise input and output layouts against their
+  physical device allocations at both the backend and public raw-launch
+  boundaries. Writable zero-stride layouts and aliased storage with different
+  logical mappings now return typed layout failures; nonzero-offset contiguous
+  views use the offset-aware strided path, and zero-element operations complete
+  as no-ops without requiring a device launch. The validation is host-side and
+  allocation-free. No runtime performance or resident-memory delta is claimed
+  without matched measurements.
+
 - [major] Make all neural-network `Module::forward` implementations return
   typed module or backend failures. Composite modules stop at the first
   failure; normalization operations no longer suppress backend errors;

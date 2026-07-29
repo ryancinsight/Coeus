@@ -1,8 +1,7 @@
-#![allow(clippy::too_many_arguments)]
-
 use crate::backend::CudaScalar;
 use crate::driver::{CUdeviceptr, CudaDriver, get_cuda_context};
 use crate::storage::CudaStorage;
+use coeus_core::Storage;
 
 /// Launch a contiguous binary element-wise kernel on the GPU.
 ///
@@ -15,6 +14,9 @@ pub fn launch_contiguous_binary<T: CudaScalar>(
     c: &mut CudaStorage<T>,
     n: usize,
 ) -> bool {
+    if n > a.len() || n > b.len() || n > c.len() {
+        return false;
+    }
     let Some(drv) = CudaDriver::get() else {
         return false;
     };
@@ -102,6 +104,9 @@ pub fn launch_contiguous_unary<T: CudaScalar>(
     c: &mut CudaStorage<T>,
     n: usize,
 ) -> bool {
+    if n > a.len() || n > c.len() {
+        return false;
+    }
     let Some(drv) = CudaDriver::get() else {
         return false;
     };
