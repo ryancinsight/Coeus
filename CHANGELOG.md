@@ -9,6 +9,9 @@
   also rejects incompatible batch/channel/spatial shapes, invalid convolution
   parameters, output-count mismatches, undersized bias, and writable
   zero-stride gradient contracts before acquiring pointers or layout buffers.
+  Embedded convolution PTX additionally rejects layout fields, convolution
+  parameters, derived spatial coordinates, and physical indices above its
+  signed 32-bit arithmetic boundary.
   The checks are host-side and allocation-free; no runtime performance or
   resident-memory delta is claimed without matched measurements.
 

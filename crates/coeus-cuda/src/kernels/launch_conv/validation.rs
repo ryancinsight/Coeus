@@ -1,4 +1,4 @@
-use crate::kernels::validation::{checked_numel, layout_fits_cuda_storage};
+use crate::kernels::validation::{checked_numel, layout_fits_signed_ptx_storage};
 use coeus_core::Layout;
 
 pub(super) struct OutputLayout<'layout> {
@@ -27,6 +27,35 @@ fn output_extent(
         .checked_add(1)
 }
 
+fn signed_coordinates_fit(
+    output: usize,
+    kernel: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+) -> bool {
+    if [output, kernel, stride, padding, dilation]
+        .into_iter()
+        .any(|value| i32::try_from(value).is_err())
+    {
+        return false;
+    }
+    let Some(maximum) = output
+        .checked_sub(1)
+        .and_then(|last_output| last_output.checked_mul(stride))
+        .and_then(|last_output| {
+            kernel
+                .checked_sub(1)
+                .and_then(|last_kernel| last_kernel.checked_mul(dilation))
+                .and_then(|kernel_offset| last_output.checked_add(kernel_offset))
+        })
+        .and_then(|maximum_padded| maximum_padded.checked_sub(padding))
+    else {
+        return false;
+    };
+    i32::try_from(maximum).is_ok()
+}
+
 fn shapes_define_convolution<const RANK: usize>(
     input: &Layout,
     weight: &Layout,
@@ -52,6 +81,13 @@ fn shapes_define_convolution<const RANK: usize>(
                 padding,
                 dilation,
             ) == Some(output_shape[axis])
+                && signed_coordinates_fit(
+                    output_shape[axis],
+                    weight_shape[axis],
+                    stride,
+                    padding,
+                    dilation,
+                )
         })
 }
 
@@ -80,9 +116,9 @@ pub(super) fn forward_layouts_fit_storage<const RANK: usize>(
         padding,
         dilation,
     ) && checked_numel(output_layout) == Some(output_elements)
-        && layout_fits_cuda_storage(input_layout, input_len, false)
-        && layout_fits_cuda_storage(weight_layout, weight_len, false)
-        && layout_fits_cuda_storage(output_layout, output_len, true)
+        && layout_fits_signed_ptx_storage(input_layout, input_len, false)
+        && layout_fits_signed_ptx_storage(weight_layout, weight_len, false)
+        && layout_fits_signed_ptx_storage(output_layout, output_len, true)
         && bias_len.is_none_or(|len| {
             weight_layout
                 .shape()
@@ -116,16 +152,16 @@ pub(super) fn backward_layouts_fit_storage<const RANK: usize>(
         stride,
         padding,
         dilation,
-    ) && layout_fits_cuda_storage(grad_output_layout, grad_output_len, false)
-        && layout_fits_cuda_storage(input_layout, input_len, false)
-        && layout_fits_cuda_storage(weight_layout, weight_len, false)
+    ) && layout_fits_signed_ptx_storage(grad_output_layout, grad_output_len, false)
+        && layout_fits_signed_ptx_storage(input_layout, input_len, false)
+        && layout_fits_signed_ptx_storage(weight_layout, weight_len, false)
         && grad_input.is_none_or(|output| {
             output.layout == input_layout
-                && layout_fits_cuda_storage(output.layout, output.storage_len, true)
+                && layout_fits_signed_ptx_storage(output.layout, output.storage_len, true)
         })
         && grad_weight.is_none_or(|output| {
             output.layout == weight_layout
-                && layout_fits_cuda_storage(output.layout, output.storage_len, true)
+                && layout_fits_signed_ptx_storage(output.layout, output.storage_len, true)
         })
         && grad_bias_len.is_none_or(|len| {
             weight_layout
@@ -355,6 +391,68 @@ mod tests {
             0,
             0,
             1,
+        ));
+    }
+
+    #[test]
+    fn convolution_rejects_signed_coordinate_overflow() {
+        let signed_max = usize::try_from(i32::MAX).expect("i32::MAX fits usize");
+        let input = Layout::new([1, 1, 1].into());
+        let weight = Layout::new([1, 1, 1].into());
+        let output = Layout::new([1, 1, 1].into());
+        let padded_weight = Layout::new([1, 1, 3].into());
+
+        assert!(forward_layouts_fit_storage::<3>(
+            &input,
+            1,
+            &padded_weight,
+            3,
+            None,
+            &output,
+            1,
+            1,
+            1,
+            1,
+            1,
+        ));
+        assert!(!forward_layouts_fit_storage::<3>(
+            &input,
+            1,
+            &weight,
+            1,
+            None,
+            &output,
+            1,
+            1,
+            signed_max + 1,
+            0,
+            1,
+        ));
+        assert!(!forward_layouts_fit_storage::<3>(
+            &input,
+            1,
+            &weight,
+            1,
+            None,
+            &output,
+            1,
+            1,
+            1,
+            signed_max + 1,
+            1,
+        ));
+        assert!(!forward_layouts_fit_storage::<3>(
+            &input,
+            1,
+            &weight,
+            1,
+            None,
+            &output,
+            1,
+            1,
+            1,
+            0,
+            signed_max + 1,
         ));
     }
 }

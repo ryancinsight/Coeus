@@ -39,6 +39,17 @@ pub(crate) fn layouts_fit_cuda(layouts: &[&Layout]) -> bool {
     })
 }
 
+fn layouts_fit_signed_ptx(layouts: &[&Layout]) -> bool {
+    layouts.iter().all(|layout| {
+        i32::try_from(layout.offset()).is_ok()
+            && layout
+                .shape()
+                .iter()
+                .chain(layout.strides().iter())
+                .all(|&value| i32::try_from(value).is_ok())
+    })
+}
+
 pub(crate) fn layouts_share_shape(layouts: &[&Layout]) -> bool {
     let Some((first, rest)) = layouts.split_first() else {
         return true;
@@ -63,6 +74,21 @@ pub(crate) fn layout_fits_cuda_storage(
         })
 }
 
+pub(crate) fn layout_fits_signed_ptx_storage(
+    layout: &Layout,
+    storage_len: usize,
+    writable: bool,
+) -> bool {
+    layout_fits_cuda_storage(layout, storage_len, writable)
+        && layouts_fit_signed_ptx(&[layout])
+        && checked_layout_storage_len(layout).is_some_and(|required| {
+            required == 0
+                || required
+                    .checked_sub(1)
+                    .is_some_and(|max_index| i32::try_from(max_index).is_ok())
+        })
+}
+
 pub(crate) fn launch_grid_size(total: usize) -> Option<u32> {
     launch_grid_size_for_block(total, usize::try_from(CUDA_BLOCK_SIZE).ok()?)
 }
@@ -78,7 +104,8 @@ pub(crate) fn launch_grid_size_for_block(total: usize, block_size: usize) -> Opt
 mod tests {
     use super::{
         checked_layout_storage_len, checked_numel, launch_grid_size, launch_grid_size_for_block,
-        layout_fits_cuda_storage, layout_supports_cuda_output_indexing, layouts_share_shape,
+        layout_fits_cuda_storage, layout_fits_signed_ptx_storage,
+        layout_supports_cuda_output_indexing, layouts_share_shape,
     };
     use coeus_core::Layout;
 
@@ -150,5 +177,43 @@ mod tests {
 
         assert!(layout_fits_cuda_storage(&empty, 0, false));
         assert!(layout_fits_cuda_storage(&empty, 0, true));
+    }
+
+    #[test]
+    fn signed_ptx_storage_validation_enforces_address_boundary() {
+        let signed_max = usize::try_from(i32::MAX).expect("i32::MAX fits usize");
+        let at_boundary = Layout::from_shape_strides(vec![1].into(), vec![0].into(), signed_max);
+        let past_boundary =
+            Layout::from_shape_strides(vec![1].into(), vec![0].into(), signed_max + 1);
+        let overflowing_index =
+            Layout::from_shape_strides(vec![2].into(), vec![signed_max].into(), 1);
+
+        assert!(layout_fits_signed_ptx_storage(
+            &at_boundary,
+            signed_max + 1,
+            false
+        ));
+        assert!(!layout_fits_signed_ptx_storage(
+            &past_boundary,
+            signed_max + 2,
+            false
+        ));
+        assert!(!layout_fits_signed_ptx_storage(
+            &overflowing_index,
+            signed_max + 2,
+            false
+        ));
+    }
+
+    #[test]
+    fn signed_ptx_storage_validation_rejects_oversized_shape_and_stride() {
+        let signed_max = usize::try_from(i32::MAX).expect("i32::MAX fits usize");
+        let oversized_shape =
+            Layout::from_shape_strides(vec![signed_max + 1].into(), vec![0].into(), 0);
+        let oversized_stride =
+            Layout::from_shape_strides(vec![1].into(), vec![signed_max + 1].into(), 0);
+
+        assert!(!layout_fits_signed_ptx_storage(&oversized_shape, 1, false));
+        assert!(!layout_fits_signed_ptx_storage(&oversized_stride, 1, false));
     }
 }

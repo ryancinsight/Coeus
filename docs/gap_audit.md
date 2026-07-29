@@ -311,13 +311,17 @@ library and shared-cache MSVC host-artifact collision.
 **Gap**: raw CUDA matmul and convolution launchers checked layout ABI
 representability but not whether each logical layout fit its physical device
 allocation. Convolution also trusted caller-provided output counts and gradient
-buffer capacities.
+buffer capacities. Its embedded PTX computes physical addresses with signed
+32-bit arithmetic while the generic CUDA descriptor admits unsigned values.
 **Resolution**: reuse the shared CUDA storage-bound validator for matmul and
 centralize rank-specialized convolution forward/backward contracts in
 `launch_conv/validation.rs`; reject undersized source, output, gradient, and
 bias allocations plus incompatible batch/channel/spatial shapes, checked
 stride/padding/dilation extent mismatches, count mismatches, and writable
-zero-stride layouts before pointer acquisition.
+zero-stride layouts before pointer acquisition. Convolution composes that
+generic proof with PTX-specific signed-field, convolution-parameter,
+derived-coordinate, and maximum-physical-index bounds; NVRTC kernels retain the
+wider unsigned descriptor contract.
 **Evidence target**: pure allocation-bound regressions selected by hosted CUDA
 Nextest, feature-enabled package check and warning-denied Clippy, disabled
 provider Nextest, and exact-head provider CI.
