@@ -33,6 +33,9 @@ pub fn launch_conv1d(
         output_layout,
         output.len(),
         out_numel,
+        stride,
+        padding,
+        dilation,
     ) {
         return false;
     }
@@ -135,6 +138,9 @@ pub fn launch_conv2d(
         output_layout,
         output.len(),
         out_numel,
+        stride,
+        padding,
+        dilation,
     ) {
         return false;
     }
@@ -237,6 +243,9 @@ pub fn launch_conv3d(
         output_layout,
         output.len(),
         out_numel,
+        stride,
+        padding,
+        dilation,
     ) {
         return false;
     }

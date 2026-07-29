@@ -6,6 +6,55 @@ pub(super) struct OutputLayout<'layout> {
     pub(super) storage_len: usize,
 }
 
+fn output_extent(
+    input: usize,
+    kernel: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+) -> Option<usize> {
+    if kernel == 0 || stride == 0 || dilation == 0 {
+        return None;
+    }
+    let effective_kernel = kernel
+        .checked_sub(1)?
+        .checked_mul(dilation)?
+        .checked_add(1)?;
+    let padded_input = input.checked_add(padding.checked_mul(2)?)?;
+    padded_input
+        .checked_sub(effective_kernel)?
+        .checked_div(stride)?
+        .checked_add(1)
+}
+
+fn shapes_define_convolution<const RANK: usize>(
+    input: &Layout,
+    weight: &Layout,
+    output: &Layout,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+) -> bool {
+    if input.ndim() != RANK || weight.ndim() != RANK || output.ndim() != RANK || RANK < 3 {
+        return false;
+    }
+    let input_shape = input.shape();
+    let weight_shape = weight.shape();
+    let output_shape = output.shape();
+    input_shape[0] == output_shape[0]
+        && input_shape[1] == weight_shape[1]
+        && weight_shape[0] == output_shape[1]
+        && (2..RANK).all(|axis| {
+            output_extent(
+                input_shape[axis],
+                weight_shape[axis],
+                stride,
+                padding,
+                dilation,
+            ) == Some(output_shape[axis])
+        })
+}
+
 #[expect(
     clippy::too_many_arguments,
     reason = "the raw convolution boundary carries three buffer-layout pairs"
@@ -19,11 +68,18 @@ pub(super) fn forward_layouts_fit_storage<const RANK: usize>(
     output_layout: &Layout,
     output_len: usize,
     output_elements: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
 ) -> bool {
-    input_layout.ndim() == RANK
-        && weight_layout.ndim() == RANK
-        && output_layout.ndim() == RANK
-        && checked_numel(output_layout) == Some(output_elements)
+    shapes_define_convolution::<RANK>(
+        input_layout,
+        weight_layout,
+        output_layout,
+        stride,
+        padding,
+        dilation,
+    ) && checked_numel(output_layout) == Some(output_elements)
         && layout_fits_cuda_storage(input_layout, input_len, false)
         && layout_fits_cuda_storage(weight_layout, weight_len, false)
         && layout_fits_cuda_storage(output_layout, output_len, true)
@@ -46,22 +102,29 @@ pub(super) fn backward_layouts_fit_storage<const RANK: usize>(
     input_len: usize,
     weight_layout: &Layout,
     weight_len: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
     grad_input: Option<OutputLayout<'_>>,
     grad_weight: Option<OutputLayout<'_>>,
     grad_bias_len: Option<usize>,
 ) -> bool {
-    grad_output_layout.ndim() == RANK
-        && input_layout.ndim() == RANK
-        && weight_layout.ndim() == RANK
-        && layout_fits_cuda_storage(grad_output_layout, grad_output_len, false)
+    shapes_define_convolution::<RANK>(
+        input_layout,
+        weight_layout,
+        grad_output_layout,
+        stride,
+        padding,
+        dilation,
+    ) && layout_fits_cuda_storage(grad_output_layout, grad_output_len, false)
         && layout_fits_cuda_storage(input_layout, input_len, false)
         && layout_fits_cuda_storage(weight_layout, weight_len, false)
         && grad_input.is_none_or(|output| {
-            output.layout.ndim() == RANK
+            output.layout == input_layout
                 && layout_fits_cuda_storage(output.layout, output.storage_len, true)
         })
         && grad_weight.is_none_or(|output| {
-            output.layout.ndim() == RANK
+            output.layout == weight_layout
                 && layout_fits_cuda_storage(output.layout, output.storage_len, true)
         })
         && grad_bias_len.is_none_or(|len| {
@@ -84,10 +147,58 @@ mod tests {
         let output = Layout::new([1, 2, 2].into());
 
         for valid in [
-            forward_layouts_fit_storage::<3>(&input, 3, &weight, 6, Some(2), &output, 4, 4),
-            forward_layouts_fit_storage::<3>(&input, 4, &weight, 5, Some(2), &output, 4, 4),
-            forward_layouts_fit_storage::<3>(&input, 4, &weight, 6, Some(2), &output, 3, 4),
-            forward_layouts_fit_storage::<3>(&input, 4, &weight, 6, Some(2), &output, 4, 5),
+            forward_layouts_fit_storage::<3>(
+                &input,
+                3,
+                &weight,
+                6,
+                Some(2),
+                &output,
+                4,
+                4,
+                1,
+                0,
+                1,
+            ),
+            forward_layouts_fit_storage::<3>(
+                &input,
+                4,
+                &weight,
+                5,
+                Some(2),
+                &output,
+                4,
+                4,
+                1,
+                0,
+                1,
+            ),
+            forward_layouts_fit_storage::<3>(
+                &input,
+                4,
+                &weight,
+                6,
+                Some(2),
+                &output,
+                3,
+                4,
+                1,
+                0,
+                1,
+            ),
+            forward_layouts_fit_storage::<3>(
+                &input,
+                4,
+                &weight,
+                6,
+                Some(2),
+                &output,
+                4,
+                5,
+                1,
+                0,
+                1,
+            ),
         ] {
             assert!(!valid);
         }
@@ -109,6 +220,9 @@ mod tests {
             &output,
             4,
             4,
+            1,
+            0,
+            1,
         ));
         assert!(!forward_layouts_fit_storage::<3>(
             &input,
@@ -119,6 +233,9 @@ mod tests {
             &output,
             4,
             4,
+            1,
+            0,
+            1,
         ));
         assert!(!forward_layouts_fit_storage::<3>(
             &input,
@@ -129,6 +246,9 @@ mod tests {
             &aliased_output,
             4,
             4,
+            1,
+            0,
+            1,
         ));
     }
 
@@ -147,6 +267,9 @@ mod tests {
             4,
             &weight,
             6,
+            1,
+            0,
+            1,
             Some(OutputLayout {
                 layout: &grad_input,
                 storage_len: 4,
@@ -161,12 +284,77 @@ mod tests {
             4,
             &weight,
             6,
+            1,
+            0,
+            1,
             Some(OutputLayout {
                 layout: &oversized,
                 storage_len: 4,
             }),
             None,
             Some(2),
+        ));
+    }
+
+    #[test]
+    fn convolution_rejects_shape_and_parameter_mismatches() {
+        let input = Layout::new([1, 2, 5].into());
+        let weight = Layout::new([3, 2, 3].into());
+        let output = Layout::new([1, 3, 3].into());
+        let wrong_channels = Layout::new([1, 2, 3].into());
+        let wrong_extent = Layout::new([1, 3, 4].into());
+
+        assert!(forward_layouts_fit_storage::<3>(
+            &input,
+            10,
+            &weight,
+            18,
+            Some(3),
+            &output,
+            9,
+            9,
+            1,
+            0,
+            1,
+        ));
+        assert!(!forward_layouts_fit_storage::<3>(
+            &input,
+            10,
+            &weight,
+            18,
+            Some(3),
+            &wrong_channels,
+            6,
+            6,
+            1,
+            0,
+            1,
+        ));
+        assert!(!forward_layouts_fit_storage::<3>(
+            &input,
+            10,
+            &weight,
+            18,
+            Some(3),
+            &wrong_extent,
+            12,
+            12,
+            1,
+            0,
+            1,
+        ));
+        assert!(!forward_layouts_fit_storage::<3>(
+            &input,
+            10,
+            &weight,
+            18,
+            Some(3),
+            &output,
+            9,
+            9,
+            0,
+            0,
+            1,
         ));
     }
 }

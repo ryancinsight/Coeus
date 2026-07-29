@@ -35,6 +35,9 @@ pub fn launch_conv1d_backward(
         input.len(),
         weight_layout,
         weight.len(),
+        stride,
+        padding,
+        dilation,
         grad_input.as_ref().map(|storage| OutputLayout {
             layout: grad_input_layout,
             storage_len: storage.len(),
