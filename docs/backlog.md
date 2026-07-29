@@ -2,7 +2,7 @@
 
 ## ATLAS-COEUS-DISPATCH-SAFETY-020 — Provider routing audit [arch]
 
-- Owner: Codex on `codex/coeus-cuda-layout-safety`; scope: Coeus CPU and
+- Owner: Codex takeover on `codex/coeus-cuda-layout-safety`; scope: Coeus CPU and
   accelerator dispatch boundaries under `coeus-leto`, `coeus-cuda`,
   `coeus-wgpu`, `coeus-rocm`, and `coeus-metal`, plus the focused contract
   tests, ADR, and active PM evidence required by an accepted finding.
@@ -43,8 +43,12 @@
   raw launch. The implementation centralizes rank-specialized convolution
   contracts in `kernels/launch_conv/validation.rs`; feature-enabled check and
   warning-denied Clippy pass, and disabled-provider Nextest passes 3/3. Hosted
-  CUDA execution remains pending. Unrelated provider migrations remain outside
-  this increment.
+  CUDA execution remains pending. The prior owner became stale after
+  `4d258052`; takeover review found that the shared validator admitted
+  `u32` layout values even though embedded PTX address arithmetic is signed
+  32-bit. The active correction bounds the shared CUDA layout ABI at
+  `i32::MAX` with boundary regressions before PR integration. Unrelated
+  provider migrations remain outside this increment.
 
 ## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution [arch]
 
