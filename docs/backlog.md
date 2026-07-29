@@ -2,7 +2,7 @@
 
 ## ATLAS-COEUS-DISPATCH-SAFETY-020 — Provider routing audit [arch]
 
-- Owner: Codex on `codex/coeus-dispatch-audit`; scope: Coeus CPU and
+- Owner: Codex on `codex/coeus-cuda-layout-safety`; scope: Coeus CPU and
   accelerator dispatch boundaries under `coeus-leto`, `coeus-cuda`,
   `coeus-wgpu`, `coeus-rocm`, and `coeus-metal`, plus the focused contract
   tests, ADR, and active PM evidence required by an accepted finding.
@@ -38,7 +38,9 @@
   `90494509264`, and WGPU `90494509247`; required-device ROCm `90494509665`
   was skipped because no AMD runner was registered. Local feature-enabled
   execution is blocked by the GNU CUDA import library and the shared-cache
-  MSVC host-artifact collision.
+  MSVC host-artifact collision. The active increment validates CUDA matmul and
+  convolution layouts against their physical device allocations before any
+  raw launch; unrelated provider migrations remain outside this increment.
 
 ## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution [arch]
 
