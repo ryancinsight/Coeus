@@ -132,9 +132,13 @@ jobs:
             crates/coeus-ops/src/backend_ops/defaults/reductions.rs \
             crates/coeus-ops/src/reduction/cumsum.rs \
             crates/coeus-wgpu/src/backend/ops/impls/reduction.rs \
+            crates/coeus-wgpu/src/kernels/reduce.rs \
+            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity/reduction.rs \
             crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/reduction.rs \
             crates/coeus-cuda/tests/cuda_ops/unavailable.rs
           rustfmt --check --edition 2024 --config skip_children=true \
+            crates/coeus-wgpu/src/backend/ops/mod.rs \
+            crates/coeus-wgpu/src/kernels/mod.rs \
             crates/coeus-cuda/src/lib.rs \
             crates/coeus-cuda/src/backend_stub.rs \
             crates/coeus-cuda/src/error.rs \
@@ -150,7 +154,7 @@ jobs:
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-wgpu --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-wgpu --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-wgpu \
-            -E "test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors) or test(test_wgpu_parity_add) or test(test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer) or test(test_wgpu_elu_parity) or test(test_wgpu_parity_elu) or test(test_wgpu_strided_elu_transposed_matches_cpu) or test(test_wgpu_strided_elu_gradient_transposed_matches_cpu) or test(test_wgpu_aliasing_elu_rejects_provider_bypass) or test(test_wgpu_parity_gelu_tanh) or test(test_wgpu_parity_softplus)"
+            -E "test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors) or test(test_wgpu_parity_sum_axis0) or test(test_wgpu_parity_sum_axis1) or test(test_wgpu_parity_mean_axis) or test(test_wgpu_parity_max_axis) or test(test_wgpu_parity_min_axis) or test(test_wgpu_parity_prod_axis) or test(test_wgpu_parity_rank_one_sum) or test(test_wgpu_parity_rank_one_scan) or test(test_wgpu_reduction_rejects_unsupported_rank) or test(test_wgpu_parity_add) or test(test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer) or test(test_wgpu_elu_parity) or test(test_wgpu_parity_elu) or test(test_wgpu_strided_elu_transposed_matches_cpu) or test(test_wgpu_strided_elu_gradient_transposed_matches_cpu) or test(test_wgpu_aliasing_elu_rejects_provider_bypass) or test(test_wgpu_parity_gelu_tanh) or test(test_wgpu_parity_softplus)"
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-wgpu --doc
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cuda --no-default-features --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cuda --no-default-features --all-targets --no-deps -- -D warnings

@@ -1,6 +1,29 @@
 # Coeus Project Backlog & Historical Archives
 
-## ATLAS-COEUS-CUDA-007 — Native dispatch boundary [arch]
+## ATLAS-COEUS-WGPU-008 — Provider-owned reductions [arch]
+
+- Owner: Codex on `codex/coeus-wgpu-provider-reductions`; scope: WGPU ordinary
+  reduction dispatch, superseded shader deletion, parity/rejection tests,
+  ADR-0044, provider CI selectors, and active PM artifacts.
+- Outcome: selecting WGPU routes every ordinary reduction directly through
+  Hephaestus, while CPU reductions remain Leto-owned.
+- Non-goals: fused-expression reduction, ranks above two, convolution,
+  attention, optimizers, performance claims, and release transitions.
+- Acceptance: all five ordinary reductions call Hephaestus; rank-one and
+  rank-two Leto differential tests pass; rank three returns the exact typed
+  capability error; no Coeus `dispatch_reduce` symbol remains; focused local
+  gates and exact-head provider CI pass.
+- Risk/change class: `[arch] [major]`; rank-above-two WGPU requests become
+  typed failures instead of invoking the consumer-owned shader.
+- Status: implementation complete. The direct provider cutover, obsolete
+  dispatcher deletion, CI selection, all-target check, warning-denied package
+  Clippy, three doctests, and 11 focused value-semantic tests pass locally.
+  Implementation-head run `30407395047` passed Metal `90435767524`, ROCm
+  `90435767607`, WGPU `90435767627`, and CUDA `90435767639`; required-device
+  ROCm `90435768426` was skipped because no hosted AMD runner was dispatched.
+  The terminal documentation-head matrix and PR #246 merge remain.
+
+## ATLAS-COEUS-CUDA-007 — Native dispatch boundary [arch] — complete
 
 - Owner: Codex on `codex/coeus-cuda-native-dispatch`; scope:
   `coeus-cuda` mathematical dispatch, disabled-provider behavior, fallback
@@ -17,9 +40,10 @@
   feature gates pass.
 - Risk/change class: `[arch] [major]`; removes the documented CPU capability
   behavior and makes unsupported accelerator execution explicit.
-- Status: in progress. Silent binary, unary, matrix, reduction, and fused CPU
-  execution paths are removed locally. The no-provider graph no longer enables
-  or links CUDA and its three typed-behavior tests pass; provider CI remains.
+- Status: complete at `3ec217de`; PR #245 merged as `77834e37`. Exact-head run
+  `30405547693` passed ROCm (`90430046827`), Metal/Leto (`90430046863`),
+  WGPU/CPU (`90430046874`), and CUDA (`90430046879`); required-device ROCm
+  (`90430047556`) was intentionally skipped.
 
 ## ATLAS-AUTOGRAD-SAFETY-018 — Propagate backward failures [major] [arch] — complete
 
