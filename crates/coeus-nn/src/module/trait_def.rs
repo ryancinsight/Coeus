@@ -1,30 +1,8 @@
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, Scalar};
 
+use super::ParameterLoadError;
 use coeus_autograd::Parameter;
-
-/// Contract failures when loading optimizer-owned named parameters.
-#[derive(Debug, thiserror::Error, PartialEq, Eq)]
-pub enum ParameterLoadError {
-    /// The incoming inventory has a different parameter count.
-    #[error("named parameter count mismatch: expected {expected}, got {actual}")]
-    Count {
-        /// Module inventory length.
-        expected: usize,
-        /// Incoming inventory length.
-        actual: usize,
-    },
-    /// A hierarchical name differs at a stable inventory position.
-    #[error("named parameter mismatch at index {index}: expected {expected}, got {actual}")]
-    Name {
-        /// Inventory position.
-        index: usize,
-        /// Module-owned path.
-        expected: String,
-        /// Incoming path.
-        actual: String,
-    },
-}
 
 pub(crate) fn prefixed_parameters<T, B, M>(prefix: &str, module: &M) -> Vec<Parameter<T, B>>
 where

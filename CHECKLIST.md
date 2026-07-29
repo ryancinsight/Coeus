@@ -1,5 +1,16 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-NN-SAFETY-019 Fallible module execution [major][arch]
+
+- [x] Audit the complete `Module::forward` implementation and consumer graph.
+- [x] Record ADR-0045 and split the module contract into trait and error leaves.
+- [ ] Return `ModuleError<B::Error>` from all 85 module implementations.
+- [ ] Propagate all 54 normalization mutations without panic or suppression.
+- [ ] Make BatchNorm running-stat updates transactional on failure.
+- [ ] Migrate Rust, Python, benchmark, and doctest consumers atomically.
+- [ ] Pass warning-denied Clippy, focused and full Nextest, doctests, SemVer
+      checks, exact-head provider CI, and merge.
+
 ## ATLAS-COEUS-WGPU-008 Provider-owned reductions [major][arch]
 
 - [x] Route sum, product, mean, minimum, and maximum through Hephaestus.
@@ -8,7 +19,7 @@
 - [x] Select every migrated operation in hosted provider CI.
 - [x] Pass warning-denied Clippy, doctests, and the implementation-head
       provider matrix.
-- [ ] Pass the terminal documentation-head provider matrix and merge PR #246.
+- [x] Pass terminal run `30408820242` and merge PR #246 as `7a9811f4`.
 
 ## ATLAS-COEUS-CUDA-007 Native dispatch boundary [major][arch]
 

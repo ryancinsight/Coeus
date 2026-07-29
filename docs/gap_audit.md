@@ -1,5 +1,27 @@
 # Coeus Gap Audit
 
+## ATLAS-COEUS-NN-SAFETY-019: Infallible module execution
+
+**Location**: `crates/coeus-nn/src/module/`, 44 module implementation files,
+seven normalization files, and direct Rust/Python consumers.
+**Gap**: `Module::forward` cannot represent backend or module-state failure.
+An all-target check succeeds but emits exactly 54 ignored-result warnings
+across BatchNorm, GroupNorm, InstanceNorm, LayerNorm, and RMSNorm. BatchNorm
+can also partially update running mean before a later variance operation
+fails.
+**Resolution target**: ADR-0045 changes the canonical trait to return
+`ModuleError<B::Error>`, migrates all 85 implementations and every caller
+atomically, replaces input-dependent normalization panics with typed errors,
+and stages both BatchNorm running-stat tensors before committing either.
+**Evidence target**: warning-denied all-target Clippy, failure-injection and
+state-integrity regressions, analytical normalization and gradient parity,
+Rust/Python consumer tests, doctests, SemVer classification, and exact-head
+provider CI.
+**Status**: in progress. The call graph is audited and the module bounded
+context is split into manifest, trait, and typed-error leaves. No runtime,
+allocation, or binary-size improvement is claimed without matched
+measurements.
+
 ## ATLAS-COEUS-WGPU-008: Duplicate ordinary reduction provider
 
 **Location**: `crates/coeus-wgpu/src/backend/ops/impls/reduction.rs` and the
@@ -19,9 +41,11 @@ Metal `90435767524`, ROCm `90435767607`, WGPU `90435767627`, and CUDA
 `90435767639`; required-device ROCm `90435768426` was skipped because no
 hosted AMD runner was dispatched.
 **Residual**: fused-expression reduction retains its distinct Coeus kernel
-pending a provider expression contract. The terminal documentation-head
-provider matrix and PR #246 merge remain. No runtime, memory, or binary-size
-improvement is claimed without matched measurements.
+pending a provider expression contract. Terminal run `30408820242` passed
+Metal `90440235821`, CUDA `90440235825`, WGPU `90440235878`, and ROCm
+`90440236008`; required-device ROCm `90440236263` was skipped because no
+hosted AMD runner was dispatched. PR #246 merged as `7a9811f4`. No runtime,
+memory, or binary-size improvement is claimed without matched measurements.
 
 ## ATLAS-COEUS-CUDA-007: Backend identity changed execution identity
 
