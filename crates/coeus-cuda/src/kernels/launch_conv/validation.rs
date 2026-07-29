@@ -40,6 +40,9 @@ fn signed_coordinates_fit(
     {
         return false;
     }
+    // PTX `*.lo.s32` arithmetic composes modulo 2^32 and does not branch on
+    // an intermediate coordinate. Bounding the exact final value therefore
+    // preserves valid wrapped intermediates whose final bit pattern is signed.
     let Some(maximum) = output
         .checked_sub(1)
         .and_then(|last_output| last_output.checked_mul(stride))
@@ -453,6 +456,19 @@ mod tests {
             1,
             0,
             signed_max + 1,
+        ));
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn convolution_accepts_modular_intermediate_with_signed_final_coordinate() {
+        let signed_max = usize::try_from(i32::MAX).expect("i32::MAX fits usize");
+        let input = Layout::new([1, 1, 1].into());
+        let weight = Layout::new([1, 1, 1].into());
+        let output = Layout::new([1, 1, 3].into());
+
+        assert!(forward_layouts_fit_storage::<3>(
+            &input, 1, &weight, 1, None, &output, 3, 3, signed_max, signed_max, 1,
         ));
     }
 }
