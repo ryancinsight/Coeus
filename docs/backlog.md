@@ -2,7 +2,7 @@
 
 ## ATLAS-COEUS-DISPATCH-SAFETY-020 — Provider routing audit [arch]
 
-- Owner: Codex takeover on `codex/coeus-cuda-layout-safety`; scope: Coeus CPU and
+- Owner: Codex on `codex/coeus-native-convolution-dispatch`; scope: Coeus CPU and
   accelerator dispatch boundaries under `coeus-leto`, `coeus-cuda`,
   `coeus-wgpu`, `coeus-rocm`, and `coeus-metal`, plus the focused contract
   tests, ADR, and active PM evidence required by an accepted finding.
@@ -20,6 +20,16 @@
 - Risk/change class: `[arch]`; the audit can expose provider-ownership or
   failure-contract corrections, with SemVer class determined from the actual
   accepted finding.
+- Active increment: first add the missing regular and transposed-convolution
+  provider contracts to Leto and Hephaestus, then make all eight `ConvOps`
+  methods return the backend error, route CPU and accelerator selection
+  directly through those providers, delete Coeus CUDA convolution host
+  fallbacks and consumer-owned kernels, and propagate failures through
+  autograd, NN, Python, tests, and benchmarks. Claimed Coeus scope:
+  `crates/coeus-ops/src/backend_ops/{traits,cpu_impl}/`,
+  `crates/coeus-{cuda,wgpu}/src/backend/ops/conv/` and their `ConvOps` impls,
+  direct workspace convolution consumers, focused parity tests,
+  `docs/adr/`, and this item's PM evidence.
 - Status: in progress. The stale merged lane was fast-forwarded to
   `origin/main`; superseded CUDA/WGPU working files were verified byte-equal to
   main, while the generated overlay lockfile delta remains excluded. The first
