@@ -40,7 +40,11 @@
   execution is blocked by the GNU CUDA import library and the shared-cache
   MSVC host-artifact collision. The active increment validates CUDA matmul and
   convolution layouts against their physical device allocations before any
-  raw launch; unrelated provider migrations remain outside this increment.
+  raw launch. The implementation centralizes rank-specialized convolution
+  contracts in `kernels/launch_conv/validation.rs`; feature-enabled check and
+  warning-denied Clippy pass, and disabled-provider Nextest passes 3/3. Hosted
+  CUDA execution remains pending. Unrelated provider migrations remain outside
+  this increment.
 
 ## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution [arch]
 

@@ -304,6 +304,29 @@ required-device ROCm `90494509665` was skipped because no AMD runner was
 registered. Local feature-enabled execution is blocked by the GNU CUDA import
 library and shared-cache MSVC host-artifact collision.
 
+## ATLAS-COEUS-CUDA-LINALG-CONV-STORAGE-BOUNDARY-002
+
+**Location**: `crates/coeus-cuda/src/kernels/launch_matmul.rs` and
+`kernels/launch_conv/`.
+**Gap**: raw CUDA matmul and convolution launchers checked layout ABI
+representability but not whether each logical layout fit its physical device
+allocation. Convolution also trusted caller-provided output counts and gradient
+buffer capacities.
+**Resolution**: reuse the shared CUDA storage-bound validator for matmul and
+centralize rank-specialized convolution forward/backward contracts in
+`launch_conv/validation.rs`; reject undersized source, output, gradient, and
+bias allocations plus count mismatches and writable zero-stride layouts before
+pointer acquisition.
+**Evidence target**: pure allocation-bound regressions selected by hosted CUDA
+Nextest, feature-enabled package check and warning-denied Clippy, disabled
+provider Nextest, and exact-head provider CI.
+**Residual**: convolution still owns a consumer-side CPU fallback and infallible
+backend contract; removing it requires the next fallible provider-ownership
+cutover. No runtime performance or resident-memory delta is claimed without
+controlled measurements.
+**Status**: feature-enabled package check and warning-denied Clippy pass;
+disabled-provider Nextest passes 3/3. Hosted CUDA execution remains pending.
+
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001: exact GELU forward and gradient
 
 **Location**: `crates/coeus-cuda/src/backend/ops/math/elementwise.rs`, the CUDA

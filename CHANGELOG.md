@@ -4,6 +4,13 @@
 
 ### Changed
 
+- [patch] Validate CUDA matmul and convolution forward/backward layouts against
+  their physical device allocations at the raw-launch boundary. Convolution
+  also rejects rank, output-count, undersized bias, and writable zero-stride
+  gradient contracts before acquiring pointers or layout buffers. The checks
+  are host-side and allocation-free; no runtime performance or resident-memory
+  delta is claimed without matched measurements.
+
 - [patch] Validate CUDA elementwise input and output layouts against their
   physical device allocations at both the backend and public raw-launch
   boundaries. Writable zero-stride layouts and aliased storage with different

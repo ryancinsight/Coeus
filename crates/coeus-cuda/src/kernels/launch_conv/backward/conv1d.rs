@@ -3,11 +3,10 @@
 use crate::driver::CudaDriver;
 use crate::kernels::{create_layout_buffer, get_cuda_function};
 use crate::storage::CudaStorage;
-use coeus_core::Layout;
+use coeus_core::{Layout, Storage};
 
-use crate::kernels::validation::{
-    checked_numel, cuda_u32, launch_grid_size, layouts_fit_cuda, CUDA_BLOCK_SIZE,
-};
+use super::super::validation::{OutputLayout, backward_layouts_fit_storage};
+use crate::kernels::validation::{CUDA_BLOCK_SIZE, checked_numel, cuda_u32, launch_grid_size};
 /// Launch the 1-D convolution backward kernel on the GPU.
 ///
 /// Computes gradients for input and weight from the 1-D convolution backward pass.
@@ -29,13 +28,23 @@ pub fn launch_conv1d_backward(
     padding: usize,
     dilation: usize,
 ) -> bool {
-    if !layouts_fit_cuda(&[
+    if !backward_layouts_fit_storage::<3>(
         grad_out_layout,
+        grad_out.len(),
         input_layout,
+        input.len(),
         weight_layout,
-        grad_input_layout,
-        grad_weight_layout,
-    ]) {
+        weight.len(),
+        grad_input.as_ref().map(|storage| OutputLayout {
+            layout: grad_input_layout,
+            storage_len: storage.len(),
+        }),
+        grad_weight.as_ref().map(|storage| OutputLayout {
+            layout: grad_weight_layout,
+            storage_len: storage.len(),
+        }),
+        grad_bias.as_ref().map(|storage| storage.len()),
+    ) {
         return false;
     }
     let Some(mut stride_val) = cuda_u32(stride) else {

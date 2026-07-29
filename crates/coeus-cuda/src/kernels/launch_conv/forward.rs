@@ -3,9 +3,10 @@
 use crate::driver::CudaDriver;
 use crate::kernels::{create_layout_buffer, get_cuda_function};
 use crate::storage::CudaStorage;
-use coeus_core::Layout;
+use coeus_core::{Layout, Storage};
 
-use crate::kernels::validation::{cuda_u32, launch_grid_size, layouts_fit_cuda, CUDA_BLOCK_SIZE};
+use super::validation::forward_layouts_fit_storage;
+use crate::kernels::validation::{CUDA_BLOCK_SIZE, cuda_u32, launch_grid_size};
 /// Launch the 1-D convolution kernel on the GPU.
 ///
 /// Computes forward 1-D convolution with optional bias, stride, padding, and dilation.
@@ -23,7 +24,16 @@ pub fn launch_conv1d(
     dilation: usize,
     out_numel: usize,
 ) -> bool {
-    if !layouts_fit_cuda(&[input_layout, weight_layout, output_layout]) {
+    if !forward_layouts_fit_storage::<3>(
+        input_layout,
+        input.len(),
+        weight_layout,
+        weight.len(),
+        bias.map(|storage| storage.len()),
+        output_layout,
+        output.len(),
+        out_numel,
+    ) {
         return false;
     }
     let Some(mut stride_val) = cuda_u32(stride) else {
@@ -116,7 +126,16 @@ pub fn launch_conv2d(
     dilation: usize,
     out_numel: usize,
 ) -> bool {
-    if !layouts_fit_cuda(&[input_layout, weight_layout, output_layout]) {
+    if !forward_layouts_fit_storage::<4>(
+        input_layout,
+        input.len(),
+        weight_layout,
+        weight.len(),
+        bias.map(|storage| storage.len()),
+        output_layout,
+        output.len(),
+        out_numel,
+    ) {
         return false;
     }
     let Some(mut stride_val) = cuda_u32(stride) else {
@@ -209,7 +228,16 @@ pub fn launch_conv3d(
     dilation: usize,
     out_numel: usize,
 ) -> bool {
-    if !layouts_fit_cuda(&[input_layout, weight_layout, output_layout]) {
+    if !forward_layouts_fit_storage::<5>(
+        input_layout,
+        input.len(),
+        weight_layout,
+        weight.len(),
+        bias.map(|storage| storage.len()),
+        output_layout,
+        output.len(),
+        out_numel,
+    ) {
         return false;
     }
     let Some(mut stride_val) = cuda_u32(stride) else {
