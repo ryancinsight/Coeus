@@ -1,5 +1,29 @@
 # Coeus Project Backlog & Historical Archives
 
+## ATLAS-COEUS-DISPATCH-SAFETY-020 — Provider routing audit [arch]
+
+- Owner: Codex on `codex/coeus-dispatch-audit`; scope: Coeus CPU and
+  accelerator dispatch boundaries under `coeus-leto`, `coeus-cuda`,
+  `coeus-wgpu`, `coeus-rocm`, and `coeus-metal`, plus the focused contract
+  tests, ADR, and active PM evidence required by an accepted finding.
+- Outcome: every audited operation executes through Leto for CPU selection and
+  Hephaestus for accelerator selection, with unsupported contracts surfaced as
+  typed errors and no consumer-owned mathematical fallback.
+- Non-goals: release/version transitions, speculative provider capabilities,
+  unrelated public API redesign, and runtime or memory claims without matched
+  measurements.
+- Acceptance: source and dependency scans enumerate every backend-routing
+  branch in scope; each finding is fixed or rejected with evidence; accepted
+  fixes carry value-semantic Leto differential coverage; warning-denied
+  package Clippy, focused and applicable full Nextest, doctests, SemVer
+  classification, and exact-head provider CI pass before merge.
+- Risk/change class: `[arch]`; the audit can expose provider-ownership or
+  failure-contract corrections, with SemVer class determined from the actual
+  accepted finding.
+- Status: in progress. The stale merged lane was fast-forwarded to
+  `origin/main`; superseded CUDA/WGPU working files were verified byte-equal to
+  main, while the generated overlay lockfile delta remains excluded.
+
 ## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution [arch]
 
 - Owner: Codex on `codex/coeus-fallible-module-forward`; scope:
@@ -17,10 +41,11 @@
   doctests, SemVer checks, and exact-head provider CI pass.
 - Risk/change class: `[arch] [major]`; the public `Module::forward` return type
   changes and all in-repository callers migrate in one cutover.
-- Status: in progress. The complete call graph is audited, ADR-0045 is
-  accepted, and the module bounded context now has separate manifest, trait,
-  and typed-error leaves. The atomic implementation and consumer cutover
-  remains.
+- Status: merged by PR #247 as `c5179f47`. All retained module
+  implementations and direct Rust/Python consumers use the fallible contract;
+  538 native tests, package doctests, warning-denied Clippy, benchmark smoke,
+  SemVer classification, and exact-head WGPU/CUDA/ROCm/Metal provider
+  contracts passed.
 
 ## ATLAS-COEUS-WGPU-008 — Provider-owned reductions [arch] — complete
 
