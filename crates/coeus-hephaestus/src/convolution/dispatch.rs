@@ -1,6 +1,6 @@
 use crate::{
-    convolution::provider::ConvolutionProvider, layout::ranked, HephaestusBackendError,
-    HephaestusStorage,
+    HephaestusBackendError, HephaestusStorage, convolution::provider::ConvolutionProvider,
+    layout::ranked,
 };
 use coeus_core::{Layout, Scalar};
 use hephaestus_core::{

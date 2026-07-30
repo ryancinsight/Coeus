@@ -3,7 +3,7 @@
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_ops::ConvOps;
 use coeus_tensor::Tensor;
-use criterion::{black_box, Criterion};
+use criterion::{Criterion, black_box};
 
 pub(crate) fn bench_conv1d(c: &mut Criterion) {
     const BATCH: usize = 2;

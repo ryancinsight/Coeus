@@ -3,7 +3,7 @@
 use leto::{ArrayView, ArrayViewMut, ConvolutionParameters, Result};
 use leto_ops::Scalar;
 
-use super::{bias_layout, ConvolutionBackward, ConvolutionForward};
+use super::{ConvolutionBackward, ConvolutionForward, bias_layout};
 use crate::{to_leto_view, to_leto_view_mut};
 
 /// Execute regular convolution directly through Leto over borrowed Coeus

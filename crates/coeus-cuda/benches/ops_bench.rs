@@ -13,7 +13,7 @@ use coeus_core::SequentialBackend;
 use coeus_cuda::CudaBackend;
 use coeus_ops::conv_transpose2d;
 use coeus_tensor::Tensor;
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 
 fn cuda_available() -> bool {
     coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some()

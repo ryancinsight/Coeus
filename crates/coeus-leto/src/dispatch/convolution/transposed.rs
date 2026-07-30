@@ -3,7 +3,7 @@
 use leto::{ArrayView, ArrayViewMut, Result, TransposedConvolutionParameters};
 use leto_ops::{Scalar, TransposedConvolutionGradients};
 
-use super::{bias_layout, ConvolutionBackward, ConvolutionForward};
+use super::{ConvolutionBackward, ConvolutionForward, bias_layout};
 use crate::{to_leto_view, to_leto_view_mut};
 
 /// Execute transposed convolution directly through Leto over borrowed Coeus

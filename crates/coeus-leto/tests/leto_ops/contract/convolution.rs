@@ -1,8 +1,8 @@
 use coeus_core::Layout;
 use coeus_leto::{
+    ConvolutionBackward, ConvolutionForward, ConvolutionGradients, ReadOperand, WriteOperand,
     convolution_backward_accumulate, convolution_forward_into,
     convolution_transposed_backward_accumulate, convolution_transposed_forward_into,
-    ConvolutionBackward, ConvolutionForward, ConvolutionGradients, ReadOperand, WriteOperand,
 };
 use leto_ops::{ConvolutionParameters, TransposedConvolutionParameters};
 

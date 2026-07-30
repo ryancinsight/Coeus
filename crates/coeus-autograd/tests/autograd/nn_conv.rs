@@ -1,4 +1,4 @@
-use coeus_autograd::{conv_transpose1d, conv_transpose2d, conv_transpose3d, Var};
+use coeus_autograd::{Var, conv_transpose1d, conv_transpose2d, conv_transpose3d};
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 

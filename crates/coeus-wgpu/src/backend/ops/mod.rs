@@ -3,8 +3,8 @@ use crate::kernels;
 use coeus_core::{Layout, Storage};
 use hephaestus_core::BlockWidth;
 use hephaestus_wgpu::{
-    binary_elementwise_strided_into, unary_elementwise_strided_into, StridedOperand,
-    MAX_STRIDED_RANK,
+    MAX_STRIDED_RANK, StridedOperand, binary_elementwise_strided_into,
+    unary_elementwise_strided_into,
 };
 use leto::Layout as LetoLayout;
 use std::sync::Arc;

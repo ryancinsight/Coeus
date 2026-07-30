@@ -15,7 +15,7 @@ pub trait ConvDim: private::Sealed + 'static {
     /// For each element `l` of `in_spatial` computes
     /// `(l + 2*padding - k_eff) / stride + 1`, or 0 on underflow.
     fn out_spatial(in_spatial: &[usize], k_eff: usize, stride: usize, padding: usize)
-        -> Vec<usize>;
+    -> Vec<usize>;
 
     /// Full output shape `[n, oc, out_spatial...]`.
     fn output_shape(n: usize, oc: usize, out_spatial: &[usize]) -> Vec<usize>;

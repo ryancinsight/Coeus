@@ -1,4 +1,4 @@
-use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError, WgpuScalar};
+use crate::backend::{WgpuBackend, WgpuBackendError, WgpuScalar, get_wgpu_context};
 use coeus_core::{BackendError, Float};
 use coeus_ops::{ConvolutionBackward, ConvolutionForward};
 use hephaestus_core::{

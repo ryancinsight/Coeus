@@ -42,10 +42,10 @@ pub mod unary;
 pub use unary::{
     abs, abs_assign, acos, acosh, asin, asinh, atan, atanh, causal_softmax, ceil, ceil_assign, cos,
     cos_assign, cosh, elementwise_unary, elementwise_unary_assign, elementwise_unary_to, elu,
-    elu_assign, erf, erfc, exp, exp2, exp_assign, expm1, floor, floor_assign, gelu, gelu_assign,
-    gelu_tanh, gelu_tanh_assign, glu, leaky_relu, leaky_relu_assign, lgamma, log, log10, log1p,
-    log2, log_assign, log_softmax_axis, masked_softmax, mish, mish_assign, neg, neg_assign, recip,
-    recip_assign, relu, relu_assign, round, round_assign, sigmoid, sigmoid_assign, sign,
+    elu_assign, erf, erfc, exp, exp_assign, exp2, expm1, floor, floor_assign, gelu, gelu_assign,
+    gelu_tanh, gelu_tanh_assign, glu, leaky_relu, leaky_relu_assign, lgamma, log, log_assign,
+    log_softmax_axis, log1p, log2, log10, masked_softmax, mish, mish_assign, neg, neg_assign,
+    recip, recip_assign, relu, relu_assign, round, round_assign, sigmoid, sigmoid_assign, sign,
     sign_assign, silu, silu_assign, sin, sin_assign, sinh, softplus, softplus_assign, sqrt,
     sqrt_assign, tan, tanh, tanh_assign, trunc, trunc_assign,
 };
@@ -56,8 +56,8 @@ pub use binary::{
 };
 pub use embedding::{embedding, embedding_backward, embedding_backward_with_padding_idx};
 pub use interpolation::{
-    linear_interpolation, linear_interpolation_backward, BoundaryPolicy, Dimension,
-    InterpolationError, InterpolationGradients, Replicate, SupportedDimension,
+    BoundaryPolicy, Dimension, InterpolationError, InterpolationGradients, Replicate,
+    SupportedDimension, linear_interpolation, linear_interpolation_backward,
 };
 pub use matmul::{bmm, matmul, matmul_accumulate, outer};
 pub use reduction::{
@@ -79,7 +79,7 @@ pub use sparse::{
 /// Fused expression evaluation DAG for single-pass CPU computation.
 pub mod fuse;
 pub use fuse::{
-    evaluate_fused_cpu, evaluate_fused_reduce_cpu, scalar, Expr, ExprNode, TensorExprExt,
+    Expr, ExprNode, TensorExprExt, evaluate_fused_cpu, evaluate_fused_reduce_cpu, scalar,
 };
 
 /// Scaled dot-product attention with causal and padding mask support.

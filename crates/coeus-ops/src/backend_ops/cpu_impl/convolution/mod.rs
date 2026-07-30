@@ -8,9 +8,9 @@ use leto_ops::Scalar as LetoScalar;
 
 use super::error::map_leto_error;
 use coeus_leto::{
+    ConvolutionBackward, ConvolutionForward, ConvolutionGradients, ReadOperand, WriteOperand,
     convolution_backward_accumulate, convolution_forward_into,
     convolution_transposed_backward_accumulate, convolution_transposed_forward_into,
-    ConvolutionBackward, ConvolutionForward, ConvolutionGradients, ReadOperand, WriteOperand,
 };
 
 pub(super) struct Forward<'a, B: ComputeBackend, T: Scalar> {

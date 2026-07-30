@@ -11,8 +11,8 @@ pub mod unary;
 pub mod unfold_fold;
 
 pub use attention::{
-    dispatch_sdp_attention, dispatch_sdp_attention_backward, AttnBackwardDispatch,
-    AttnForwardDispatch,
+    AttnBackwardDispatch, AttnForwardDispatch, dispatch_sdp_attention,
+    dispatch_sdp_attention_backward,
 };
 pub use binary::{dispatch_binary, dispatch_contiguous_binary};
 pub use fuse::dispatch_fused;

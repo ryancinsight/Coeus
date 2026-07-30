@@ -51,9 +51,9 @@ pub mod sparse;
 pub mod structural;
 
 pub use convolution::{
+    ConvolutionBackward, ConvolutionForward, ConvolutionGradients, ReadOperand, WriteOperand,
     convolution_backward_accumulate, convolution_forward_into,
     convolution_transposed_backward_accumulate, convolution_transposed_forward_into,
-    ConvolutionBackward, ConvolutionForward, ConvolutionGradients, ReadOperand, WriteOperand,
 };
 pub use elementwise::{elementwise_add_into, elementwise_binary_into, elementwise_unary_into};
 pub use init::{from_shape_fn_values, normal_values, uniform_values};
@@ -67,5 +67,5 @@ pub use reductions::{
     argmax_into, argmin_into, cumprod_into, cumsum_into, reduce_into, suffix_prod_into,
     suffix_sum_into,
 };
-pub use sparse::{spmm_into, spmv_into, CsrDispatch};
+pub use sparse::{CsrDispatch, spmm_into, spmv_into};
 pub use structural::{concat_values, pad_values, split_values, stack_values};

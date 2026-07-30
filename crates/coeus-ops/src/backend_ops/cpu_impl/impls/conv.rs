@@ -1,4 +1,4 @@
-use super::super::{convolution, CpuBackend};
+use super::super::{CpuBackend, convolution};
 use crate::backend_ops::traits::{ConvOps, ConvolutionBackward, ConvolutionForward};
 use coeus_core::{CpuAddressableStorageMut, Float, Scalar};
 

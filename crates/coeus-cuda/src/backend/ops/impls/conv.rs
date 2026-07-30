@@ -1,4 +1,4 @@
-use crate::backend::{get_cuda_device, CudaBackend, CudaScalar};
+use crate::backend::{CudaBackend, CudaScalar, get_cuda_device};
 use coeus_core::{BackendError, Float};
 use coeus_ops::{ConvolutionBackward, ConvolutionForward};
 use hephaestus_core::{
