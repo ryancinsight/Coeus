@@ -39,6 +39,7 @@ pub(crate) fn layouts_fit_cuda(layouts: &[&Layout]) -> bool {
     })
 }
 
+#[cfg(test)]
 fn layouts_fit_signed_ptx(layouts: &[&Layout]) -> bool {
     layouts.iter().all(|layout| {
         i32::try_from(layout.offset()).is_ok()
@@ -74,6 +75,7 @@ pub(crate) fn layout_fits_cuda_storage(
         })
 }
 
+#[cfg(test)]
 pub(crate) fn layout_fits_signed_ptx_storage(
     layout: &Layout,
     storage_len: usize,

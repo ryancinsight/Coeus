@@ -3,14 +3,13 @@ use crate::kernels;
 use coeus_core::{Layout, Storage};
 use hephaestus_core::BlockWidth;
 use hephaestus_wgpu::{
-    MAX_STRIDED_RANK, StridedOperand, binary_elementwise_strided_into,
-    unary_elementwise_strided_into,
+    binary_elementwise_strided_into, unary_elementwise_strided_into, StridedOperand,
+    MAX_STRIDED_RANK,
 };
 use leto::Layout as LetoLayout;
 use std::sync::Arc;
 
 mod attention;
-mod conv;
 mod impls;
 mod matmul;
 mod optim;

@@ -18,8 +18,9 @@
 pub mod backend_ops;
 pub(crate) mod ptr;
 pub use backend_ops::{
-    AttentionOps, BackendOps, BinaryOp, ConvOps, CpuBackend, ElementwiseOps, MatmulOps,
-    OptimizerOps, PoolOps, ReductionOp, ReductionOps, UnaryOp, UnfoldFoldOps,
+    AttentionOps, BackendOps, BinaryOp, ConvOps, ConvolutionBackward, ConvolutionForward,
+    CpuBackend, ElementwiseOps, MatmulOps, OptimizerOps, PoolOps, ReductionOp, ReductionOps,
+    UnaryOp, UnfoldFoldOps,
 };
 /// Element-wise binary operations (add, sub, mul, div).
 pub mod binary;
@@ -63,8 +64,7 @@ pub use reduction::{
     amax, amin, argmax, argmin, cross, cumprod, cumsum, dot, frobenius_norm,
     frobenius_norm_batched, max_axis, mean, mean_axis, min_axis, norm, norm_p, norm_p_axis, prod,
     prod_axis, std_dev, std_dev_axis, std_mean, std_mean_axis, suffix_prod, suffix_sum, sum,
-    sum_axis, topk,
-    var, var_axis, var_mean, var_mean_axis,
+    sum_axis, topk, var, var_axis, var_mean, var_mean_axis,
 };
 pub use shape::{
     broadcast_to, cat, chunk, diag, diagonal, einsum, einsum3, flip, gather, index_put,

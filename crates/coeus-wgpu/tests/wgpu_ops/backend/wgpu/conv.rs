@@ -31,7 +31,8 @@ fn test_wgpu_conv() {
         1,
         &mut out_wgpu_storage,
         &out_layout,
-    );
+    )
+    .expect("WGPU conv1d dispatch");
 
     let out_tensor_wgpu: Tensor<f32, WgpuBackend> =
         Tensor::from_raw_parts(out_wgpu_storage, out_layout.clone());
@@ -50,7 +51,8 @@ fn test_wgpu_conv() {
         1,
         &mut out_expected_storage,
         &out_layout,
-    );
+    )
+    .expect("CPU conv1d dispatch");
     let out_expected: Tensor<f32, SequentialBackend> =
         Tensor::from_raw_parts(out_expected_storage, out_layout);
 
@@ -97,7 +99,8 @@ fn test_wgpu_conv() {
         1,
         &mut out_2d_wgpu_storage,
         &out_2d_layout,
-    );
+    )
+    .expect("WGPU conv2d dispatch");
 
     let out_2d_tensor_wgpu: Tensor<f32, WgpuBackend> =
         Tensor::from_raw_parts(out_2d_wgpu_storage, out_2d_layout.clone());
@@ -116,7 +119,8 @@ fn test_wgpu_conv() {
         1,
         &mut out_2d_expected_storage,
         &out_2d_layout,
-    );
+    )
+    .expect("CPU conv2d dispatch");
     let out_2d_expected: Tensor<f32, SequentialBackend> =
         Tensor::from_raw_parts(out_2d_expected_storage, out_2d_layout);
 
@@ -180,7 +184,8 @@ fn test_wgpu_conv_backward() {
         1,
         0,
         1,
-    );
+    )
+    .expect("WGPU conv1d backward dispatch");
 
     let mut gi_expected = seq.allocate::<f32>(6);
     seq.fill(&mut gi_expected, 0.0);
@@ -205,7 +210,8 @@ fn test_wgpu_conv_backward() {
         1,
         0,
         1,
-    );
+    )
+    .expect("CPU conv1d backward dispatch");
 
     let gi_wgpu_tensor: Tensor<f32, WgpuBackend> = Tensor::from_raw_parts(gi_wgpu, gi_layout);
     let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq);

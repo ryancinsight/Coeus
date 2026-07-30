@@ -11,8 +11,8 @@ use coeus_tensor::Tensor;
 /// 1-D Transposed Convolution layer.
 ///
 /// Weight convention: `[C_in, C_out, K]` (groups=1; opposite of Conv1d).
-/// The forward pass delegates to `coeus_ops::conv_transpose1d` which
-/// calls `BackendOps::conv_transpose1d` (default host-side implementation).
+/// The forward pass delegates through `ConvOps::conv_transpose1d`; CPU
+/// backends execute in Leto and accelerator backends execute in Hephaestus.
 #[derive(Clone)]
 pub struct ConvTranspose1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Transposed convolution weight: `[in_channels, out_channels, kernel_size]`.
@@ -131,19 +131,24 @@ where
 
         let mut out_tensor = Tensor::zeros_on([n, self.out_channels, l_out], &backend);
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
-        backend.conv_transpose1d(
-            input.tensor.storage(),
-            input.tensor.layout(),
-            self.weight.tensor.storage(),
-            self.weight.tensor.layout(),
-            self.bias.as_ref().map(|b| b.tensor.storage()),
-            self.stride,
-            self.padding,
-            self.output_padding,
-            self.dilation,
-            out_storage,
-            out_layout,
-        );
+        backend
+            .conv_transpose1d(
+                input.tensor.storage(),
+                input.tensor.layout(),
+                self.weight.tensor.storage(),
+                self.weight.tensor.layout(),
+                self.bias.as_ref().map(|b| b.tensor.storage()),
+                self.stride,
+                self.padding,
+                self.output_padding,
+                self.dilation,
+                out_storage,
+                out_layout,
+            )
+            .map_err(|source| ModuleError::Backend {
+                module: "ConvTranspose1d",
+                source,
+            })?;
 
         Ok(coeus_autograd::conv_transpose1d(
             input,

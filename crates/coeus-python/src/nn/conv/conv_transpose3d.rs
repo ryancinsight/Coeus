@@ -1,4 +1,4 @@
-use crate::tensor::PyTensor;
+use crate::{nn::error::map_backend_error, tensor::PyTensor};
 
 /// Python-exposed 3-D Transposed Convolution layer.
 #[pyo3::pyclass(name = "ConvTranspose3d")]
@@ -85,38 +85,42 @@ impl PyConvTranspose3d {
             self.output_padding,
             self.dilation,
         );
-        let inner = py.allow_threads(move || {
-            let bk = coeus_core::MoiraiBackend::new();
-            let d_in = x_var.tensor.shape()[2];
-            let h_in = x_var.tensor.shape()[3];
-            let w_in = x_var.tensor.shape()[4];
-            let kd = w_var.tensor.shape()[2];
-            let kh = w_var.tensor.shape()[3];
-            let kw = w_var.tensor.shape()[4];
-            let (d_out, h_out, w_out) = coeus_ops::conv_transpose::conv_transpose3d_output_dims(
-                d_in, h_in, w_in, kd, kh, kw, s, p, op, d,
-            );
-            let n = x_var.tensor.shape()[0];
-            let c_out = w_var.tensor.shape()[1];
-            let mut out_tensor =
-                coeus_tensor::Tensor::zeros_on([n, c_out, d_out, h_out, w_out], &bk);
-            let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
-            use coeus_ops::backend_ops::ConvTranspose3dOps;
-            bk.conv_transpose3d(
-                x_var.tensor.storage(),
-                x_var.tensor.layout(),
-                w_var.tensor.storage(),
-                w_var.tensor.layout(),
-                b_var.as_ref().map(|b| b.tensor.storage()),
-                s,
-                p,
-                op,
-                d,
-                out_storage,
-                out_layout,
-            );
-            coeus_autograd::conv_transpose3d(&x_var, &w_var, &b_var, out_tensor, s, p, op, d)
-        });
+        let inner = py
+            .allow_threads(move || {
+                let bk = coeus_core::MoiraiBackend::new();
+                let d_in = x_var.tensor.shape()[2];
+                let h_in = x_var.tensor.shape()[3];
+                let w_in = x_var.tensor.shape()[4];
+                let kd = w_var.tensor.shape()[2];
+                let kh = w_var.tensor.shape()[3];
+                let kw = w_var.tensor.shape()[4];
+                let (d_out, h_out, w_out) = coeus_ops::conv_transpose::conv_transpose3d_output_dims(
+                    d_in, h_in, w_in, kd, kh, kw, s, p, op, d,
+                );
+                let n = x_var.tensor.shape()[0];
+                let c_out = w_var.tensor.shape()[1];
+                let mut out_tensor =
+                    coeus_tensor::Tensor::zeros_on([n, c_out, d_out, h_out, w_out], &bk);
+                let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+                use coeus_ops::ConvOps;
+                bk.conv_transpose3d(
+                    x_var.tensor.storage(),
+                    x_var.tensor.layout(),
+                    w_var.tensor.storage(),
+                    w_var.tensor.layout(),
+                    b_var.as_ref().map(|b| b.tensor.storage()),
+                    s,
+                    p,
+                    op,
+                    d,
+                    out_storage,
+                    out_layout,
+                )?;
+                Ok(coeus_autograd::conv_transpose3d(
+                    &x_var, &w_var, &b_var, out_tensor, s, p, op, d,
+                ))
+            })
+            .map_err(map_backend_error)?;
         Ok(PyTensor::from_var(inner))
     }
 

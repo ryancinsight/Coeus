@@ -105,7 +105,8 @@ fn assert_forward_matches_cpu(case: Conv3dCase) {
         case.dilation,
         &mut out_wgpu_storage,
         &out_layout,
-    );
+    )
+    .expect("WGPU conv3d dispatch");
 
     let out_tensor_wgpu =
         Tensor::<f32, WgpuBackend>::from_raw_parts(out_wgpu_storage, out_layout.clone());
@@ -124,7 +125,8 @@ fn assert_forward_matches_cpu(case: Conv3dCase) {
         case.dilation,
         &mut out_expected_storage,
         &out_layout,
-    );
+    )
+    .expect("CPU conv3d dispatch");
     let out_expected =
         Tensor::<f32, SequentialBackend>::from_raw_parts(out_expected_storage, out_layout);
 
@@ -186,7 +188,8 @@ fn assert_backward_matches_cpu(case: Conv3dCase) {
         case.stride,
         case.padding,
         case.dilation,
-    );
+    )
+    .expect("WGPU conv3d backward dispatch");
 
     let mut gi_expected = seq.allocate::<f32>(input_len);
     seq.fill(&mut gi_expected, 0.0);
@@ -211,7 +214,8 @@ fn assert_backward_matches_cpu(case: Conv3dCase) {
         case.stride,
         case.padding,
         case.dilation,
-    );
+    )
+    .expect("CPU conv3d backward dispatch");
 
     let gi_wgpu_tensor = Tensor::<f32, WgpuBackend>::from_raw_parts(gi_wgpu, gi_layout);
     let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq);

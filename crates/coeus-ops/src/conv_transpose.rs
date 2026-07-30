@@ -4,7 +4,7 @@
 // default implementations.  These forward-only functions are the analogue
 // of `conv1d` / `conv2d` in this crate.
 
-use crate::backend_ops::{BackendOps, ConvTranspose3dOps};
+use crate::backend_ops::BackendOps;
 use coeus_core::Float;
 use coeus_tensor::Tensor;
 
@@ -67,7 +67,7 @@ pub fn conv_transpose1d<T: Float, B: BackendOps<T> + Default>(
     output_padding: usize,
     dilation: usize,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     let n = input.shape()[0];
     let c_out = weight.shape()[1];
     let l = input.shape()[2];
@@ -88,8 +88,8 @@ pub fn conv_transpose1d<T: Float, B: BackendOps<T> + Default>(
         dilation,
         out_storage,
         out_layout,
-    );
-    output
+    )?;
+    Ok(output)
 }
 
 /// 2-D Transposed Convolution.
@@ -115,7 +115,7 @@ pub fn conv_transpose2d<T: Float, B: BackendOps<T> + Default>(
     output_padding: usize,
     dilation: usize,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     let n = input.shape()[0];
     let c_out = weight.shape()[1];
     let h = input.shape()[2];
@@ -139,8 +139,8 @@ pub fn conv_transpose2d<T: Float, B: BackendOps<T> + Default>(
         dilation,
         out_storage,
         out_layout,
-    );
-    output
+    )?;
+    Ok(output)
 }
 
 /// Compute the output spatial dimensions of a transposed 3-D convolution.
@@ -183,7 +183,7 @@ pub fn conv_transpose3d_output_dims(
 /// scattered contributions — uninitialised output would produce incorrect sums.
 #[allow(clippy::too_many_arguments)]
 #[inline]
-pub fn conv_transpose3d<T: Float, B: BackendOps<T> + ConvTranspose3dOps<T> + Default>(
+pub fn conv_transpose3d<T: Float, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     weight: &Tensor<T, B>,
     bias: Option<&Tensor<T, B>>,
@@ -192,7 +192,7 @@ pub fn conv_transpose3d<T: Float, B: BackendOps<T> + ConvTranspose3dOps<T> + Def
     output_padding: usize,
     dilation: usize,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     let n = input.shape()[0];
     let c_out = weight.shape()[1];
     let d = input.shape()[2];
@@ -228,8 +228,8 @@ pub fn conv_transpose3d<T: Float, B: BackendOps<T> + ConvTranspose3dOps<T> + Def
         dilation,
         out_storage,
         out_layout,
-    );
-    output
+    )?;
+    Ok(output)
 }
 
 #[cfg(test)]
@@ -245,7 +245,8 @@ mod tests {
         let input = Tensor::from_slice(vec![1, 1, 4], &[1.0f32, 2.0, 3.0, 4.0]);
         // weight [C_in=1, C_out=1, K=1] = [[[1]]]
         let weight = Tensor::from_slice(vec![1, 1, 1], &[1.0f32]);
-        let out = conv_transpose1d(&input, &weight, None, 1, 0, 0, 1, &b);
+        let out = conv_transpose1d(&input, &weight, None, 1, 0, 0, 1, &b)
+            .expect("identity transposed convolution must succeed");
         assert_eq!(out.shape(), &[1, 1, 4]);
         assert_eq!(out.as_slice(), &[1.0, 2.0, 3.0, 4.0]);
     }
@@ -257,7 +258,8 @@ mod tests {
         let b = SequentialBackend::new();
         let input = Tensor::from_slice(vec![1, 1, 3], &[1.0f32, 2.0, 3.0]);
         let weight = Tensor::from_slice(vec![1, 1, 1], &[1.0f32]);
-        let out = conv_transpose1d(&input, &weight, None, 2, 0, 0, 1, &b);
+        let out = conv_transpose1d(&input, &weight, None, 2, 0, 0, 1, &b)
+            .expect("strided transposed convolution must succeed");
         assert_eq!(out.shape(), &[1, 1, 5]);
         assert_eq!(out.as_slice(), &[1.0, 0.0, 2.0, 0.0, 3.0]);
     }
@@ -267,7 +269,8 @@ mod tests {
         let b = SequentialBackend::new();
         let input = Tensor::from_slice(vec![1, 1, 2, 2], &[1.0f32, 2.0, 3.0, 4.0]);
         let weight = Tensor::from_slice(vec![1, 1, 1, 1], &[1.0f32]);
-        let out = conv_transpose2d(&input, &weight, None, 1, 0, 0, 1, &b);
+        let out = conv_transpose2d(&input, &weight, None, 1, 0, 0, 1, &b)
+            .expect("identity transposed convolution must succeed");
         assert_eq!(out.shape(), &[1, 1, 2, 2]);
         assert_eq!(out.as_slice(), &[1.0, 2.0, 3.0, 4.0]);
     }

@@ -86,7 +86,8 @@ fn bench_conv_transpose2d(c: &mut Criterion) {
                     output_padding,
                     dilation,
                     &seq,
-                ));
+                ))
+                .expect("CPU transposed convolution benchmark dispatch");
             });
         });
         group.bench_with_input(BenchmarkId::new("Coeus CUDA", &id), &id, |bn, _| {
@@ -100,7 +101,8 @@ fn bench_conv_transpose2d(c: &mut Criterion) {
                     output_padding,
                     dilation,
                     &cuda,
-                ));
+                ))
+                .expect("CUDA transposed convolution benchmark dispatch");
             });
         });
     }

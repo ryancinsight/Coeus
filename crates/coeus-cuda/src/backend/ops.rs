@@ -1,6 +1,5 @@
 pub mod attention;
 mod cast;
-pub mod conv;
 pub mod math;
 pub mod optim;
 pub mod pool;

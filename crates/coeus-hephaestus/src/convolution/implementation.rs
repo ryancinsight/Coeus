@@ -1,12 +1,12 @@
-use super::super::{convolution, CpuBackend};
-use crate::backend_ops::traits::{ConvOps, ConvolutionBackward, ConvolutionForward};
-use coeus_core::{CpuAddressableStorageMut, Float, Scalar};
+use super::{dispatch, provider::ConvolutionProvider};
+use crate::HephaestusBackend;
+use coeus_core::{Float, Scalar};
+use coeus_ops::{ConvOps, ConvolutionBackward, ConvolutionForward};
 
-impl<T, B> ConvOps<T> for B
+impl<P, T> ConvOps<T> for HephaestusBackend<P>
 where
+    P: ConvolutionProvider<T>,
     T: Scalar + leto_ops::Scalar,
-    B: CpuBackend,
-    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     fn convolution_forward<const R: usize, const D: usize>(
         &self,
@@ -15,8 +15,8 @@ where
         padding: [usize; D],
         dilation: [usize; D],
     ) -> Result<(), Self::Error> {
-        convolution::regular_forward::<B, T, R, D>(
-            convolution::Forward {
+        dispatch::regular_forward::<P, T, R, D>(
+            dispatch::Forward {
                 input: request.input,
                 input_layout: request.input_layout,
                 weight: request.weight,
@@ -38,8 +38,8 @@ where
         padding: [usize; D],
         dilation: [usize; D],
     ) -> Result<(), Self::Error> {
-        convolution::regular_backward::<B, T, R, D>(
-            convolution::Backward {
+        dispatch::regular_backward::<P, T, R, D>(
+            dispatch::Backward {
                 grad_output: request.grad_output,
                 grad_output_layout: request.grad_output_layout,
                 input: request.input,
@@ -69,8 +69,8 @@ where
     where
         T: Float,
     {
-        convolution::transposed_forward::<B, T, R, D>(
-            convolution::Forward {
+        dispatch::transposed_forward::<P, T, R, D>(
+            dispatch::Forward {
                 input: request.input,
                 input_layout: request.input_layout,
                 weight: request.weight,
@@ -97,8 +97,8 @@ where
     where
         T: Float,
     {
-        convolution::transposed_backward::<B, T, R, D>(
-            convolution::Backward {
+        dispatch::transposed_backward::<P, T, R, D>(
+            dispatch::Backward {
                 grad_output: request.grad_output,
                 grad_output_layout: request.grad_output_layout,
                 input: request.input,

@@ -36,7 +36,6 @@ renumbering migration can update every durable reference.
 | [0025 External framework parity without Burn](0025-external-framework-parity-without-burn.md) | Accepted |
 | [0026 Backend dispatch boundaries](0026-coeus-backend-dispatch-boundaries.md) | Accepted |
 | [0026 Hephaestus unary math providers](0026-coeus-hephaestus-unary-math-providers.md) | Accepted |
-| [0027 Backend dispatch boundaries](0027-coeus-backend-dispatch-boundaries.md) | Accepted |
 | [0028 Hephaestus exact GELU providers](0028-coeus-hephaestus-gelu-providers.md) | Accepted |
 | [0029 Hephaestus lgamma provider](0029-coeus-hephaestus-lgamma-provider.md) | Accepted |
 | [0036 Device-local COW copy](0036-device-local-cow-copy.md) | Accepted |

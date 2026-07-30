@@ -1,4 +1,8 @@
+#[cfg(all(feature = "rocm", target_os = "linux"))]
+use coeus_hephaestus::ConvolutionProvider;
 use coeus_hephaestus::HephaestusProvider;
+#[cfg(all(feature = "rocm", target_os = "linux"))]
+use hephaestus_rocm::RocmConvolutionOps;
 use hephaestus_rocm::RocmDevice;
 use std::sync::OnceLock;
 
@@ -16,4 +20,9 @@ unsafe impl HephaestusProvider for RocmProvider {
         static DEVICE: OnceLock<RocmDevice> = OnceLock::new();
         DEVICE.get_or_init(|| RocmDevice::try_default().expect("ROCm device acquisition failed"))
     }
+}
+
+#[cfg(all(feature = "rocm", target_os = "linux"))]
+impl ConvolutionProvider<f32> for RocmProvider {
+    type Operations = RocmConvolutionOps;
 }

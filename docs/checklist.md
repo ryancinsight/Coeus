@@ -33,23 +33,26 @@
 - [x] Record terminal evidence and merge the change as PR #245 at
       `77834e37`.
 
-## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback
+## ATLAS-COEUS-DISPATCH-SAFETY-020 — Provider-owned convolution
 
-- [x] Record the static CPU/provider boundary in ADR-0027.
-- [x] Split ConvTranspose3d into the `ConvTranspose3dOps` capability seam and
-      keep its default implementation `CpuBackend`-only.
-- [x] Constrain the public NN/autograd ConvTranspose3d path to `CpuBackend`.
-- [x] Constrain the autograd ConvTranspose3d forward/backward node to
-      `CpuBackend`.
-- [x] Migrate the Coeus NN wrapper and CPU differential test bounds.
-- [x] Run pinned formatting, metadata, and diff checks. The local Cargo compile
-      is blocked before Coeus compilation by the Atlas worktree `eunomia`
-      package-identity collision between `repos/` overlay patches and sibling
-      `worktrees/` path dependencies; the exact-head provider matrix passed
-      WGPU `90040778847`, CUDA `90040778811`, ROCm `90040778842`, and Metal
-      `90040778762`. Required-device ROCm `90040779376` was skipped.
-- [x] Commit and publish the verified increment; retain the local provider
-      co-evolution residual in `docs/gap_audit.md`.
+- [x] Add regular/transposed rank-generic forward and backward contracts to
+      Leto and Hephaestus.
+- [x] Consolidate Coeus dispatch into four fallible const-generic `ConvOps`
+      methods with rank-specific zero-cost adapters.
+- [x] Route CPU storage directly to Leto and CUDA/WGPU/ROCm/Metal buffers
+      directly to their Hephaestus providers.
+- [x] Delete Coeus CUDA/WGPU convolution kernels, CUDA host fallbacks, generic
+      transposed host defaults, `ConvTranspose3dOps`, and autograd host
+      backward loops.
+- [x] Propagate typed failures through autograd, NN, Python, benchmarks, and
+      direct tests.
+- [x] Pass warning-denied all-target Clippy excluding peer-owned Metal work.
+- [x] Pass CPU/autograd/NN Nextest 592/592 and WGPU on-device Nextest 114/114.
+- [x] Pass all 46 executable affected-package doctests; retain the two
+      pre-existing ignored NN doctests.
+- [x] Confirm the fallible `ConvOps` contract and removed capability seam as a
+      major change with `cargo-semver-checks`.
+- [ ] Pass exact-head provider CI, merge, and record terminal evidence.
 
 ## ATLAS-COEUS-DISPATCH-001 — Remove host-copy selection fallbacks
 

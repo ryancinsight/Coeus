@@ -5,27 +5,6 @@ use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
-/// Fused scatter-accumulate: copy-to-host the GradBuffer, add `values` element-wise
-/// in-place, then write back — eliminating the intermediate `Tensor::from_slice`.
-///
-/// Saves one device buffer allocation and one `add_assign` copy round-trip.
-#[inline]
-pub(super) fn scatter_accumulate_into<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
-    target: &mut Tensor<T, B>,
-    values: &[T],
-    backend: &B,
-) {
-    let numel = target.numel();
-    debug_assert_eq!(numel, values.len(), "scatter_accumulate: shape mismatch");
-    let mut host = vec![T::zero(); numel];
-    backend.copy_to_host(target.storage(), &mut host);
-    // Fused host-side accumulate — no second allocation, single round-trip.
-    for (h, &v) in host.iter_mut().zip(values.iter()) {
-        *h += v;
-    }
-    backend.copy_to_device(&host, target.storage_mut());
-}
-
 pub(super) struct ConvBackwardDispatch<'a, T: Float, B: coeus_ops::BackendOps<T> + Default> {
     pub backend: &'a B,
     pub grad_out_storage: &'a B::DeviceBuffer<T>,
@@ -52,7 +31,7 @@ pub(super) fn dispatch_conv_backward<
     const DIM: usize,
 >(
     request: ConvBackwardDispatch<'_, T, B>,
-) {
+) -> Result<(), B::Error> {
     let ConvBackwardDispatch {
         backend,
         grad_out_storage,
@@ -120,7 +99,7 @@ pub(super) fn dispatch_conv_backward<
             padding,
             dilation,
         ),
-        _ => panic!("conv_backward: unsupported dimension {DIM}"),
+        _ => unreachable!("invariant: convolution spatial rank is one through three"),
     }
 }
 
@@ -230,7 +209,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
             stride: self.stride,
             padding: self.padding,
             dilation: self.dilation,
-        });
+        })?;
 
         if let Some(gi) = grad_input {
             let gl = input_grads[0].as_ref().unwrap().write();

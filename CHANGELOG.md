@@ -4,14 +4,16 @@
 
 ### Changed
 
-- [major] Begin the provider-owned convolution cutover with zero-copy borrowed
-  Coeus-to-Leto dispatch for regular and transposed forward/additive-backward
-  operations across spatial ranks one through three. The bridge writes into
-  caller-owned storage, validates through Leto's parameter and layout
-  contracts, and introduces no host fallback or compatibility path. Accelerator
-  dispatch and public caller migration remain tracked in
-  `ATLAS-COEUS-CONVOLUTION-020`; no runtime or memory delta is claimed without
-  controlled measurements.
+- [major] Complete provider-owned convolution dispatch across spatial ranks
+  one through three. Four fallible const-generic `ConvOps` methods own
+  regular/transposed forward and additive backward; rank-specific methods are
+  zero-cost default adapters. CPU storage is borrowed directly into Leto,
+  while CUDA/WGPU/ROCm/Metal device storage dispatches directly to
+  Hephaestus. Coeus-owned accelerator kernels, CUDA host fallbacks, the generic
+  transposed host default, the separate 3-D capability seam, and autograd host
+  backward loops are removed. Rust, Python, benchmark, and test callers now
+  propagate typed backend failures. No runtime, memory, or binary-size delta
+  is claimed without controlled measurements.
 
 - [patch] Validate CUDA matmul and convolution forward/backward layouts against
   their physical device allocations at the raw-launch boundary. Convolution
