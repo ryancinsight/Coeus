@@ -15,16 +15,8 @@ where
         padding: [usize; D],
         dilation: [usize; D],
     ) -> Result<(), Self::Error> {
-        dispatch::regular_forward::<P, T, R, D>(
-            dispatch::Forward {
-                input: request.input,
-                input_layout: request.input_layout,
-                weight: request.weight,
-                weight_layout: request.weight_layout,
-                bias: request.bias,
-                output: request.output,
-                output_layout: request.output_layout,
-            },
+        dispatch::regular_forward::<HephaestusBackend<P>, T, R, D>(
+            request.into(),
             stride,
             padding,
             dilation,
@@ -38,20 +30,8 @@ where
         padding: [usize; D],
         dilation: [usize; D],
     ) -> Result<(), Self::Error> {
-        dispatch::regular_backward::<P, T, R, D>(
-            dispatch::Backward {
-                grad_output: request.grad_output,
-                grad_output_layout: request.grad_output_layout,
-                input: request.input,
-                input_layout: request.input_layout,
-                weight: request.weight,
-                weight_layout: request.weight_layout,
-                grad_input: request.grad_input,
-                grad_input_layout: request.grad_input_layout,
-                grad_weight: request.grad_weight,
-                grad_weight_layout: request.grad_weight_layout,
-                grad_bias: request.grad_bias,
-            },
+        dispatch::regular_backward::<HephaestusBackend<P>, T, R, D>(
+            request.into(),
             stride,
             padding,
             dilation,
@@ -69,16 +49,8 @@ where
     where
         T: Float,
     {
-        dispatch::transposed_forward::<P, T, R, D>(
-            dispatch::Forward {
-                input: request.input,
-                input_layout: request.input_layout,
-                weight: request.weight,
-                weight_layout: request.weight_layout,
-                bias: request.bias,
-                output: request.output,
-                output_layout: request.output_layout,
-            },
+        dispatch::transposed_forward::<HephaestusBackend<P>, T, R, D>(
+            request.into(),
             stride,
             padding,
             output_padding,
@@ -97,20 +69,8 @@ where
     where
         T: Float,
     {
-        dispatch::transposed_backward::<P, T, R, D>(
-            dispatch::Backward {
-                grad_output: request.grad_output,
-                grad_output_layout: request.grad_output_layout,
-                input: request.input,
-                input_layout: request.input_layout,
-                weight: request.weight,
-                weight_layout: request.weight_layout,
-                grad_input: request.grad_input,
-                grad_input_layout: request.grad_input_layout,
-                grad_weight: request.grad_weight,
-                grad_weight_layout: request.grad_weight_layout,
-                grad_bias: request.grad_bias,
-            },
+        dispatch::transposed_backward::<HephaestusBackend<P>, T, R, D>(
+            request.into(),
             stride,
             padding,
             output_padding,

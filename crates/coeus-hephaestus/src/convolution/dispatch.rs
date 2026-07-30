@@ -1,75 +1,140 @@
-use crate::{
-    HephaestusBackendError, HephaestusStorage, convolution::provider::ConvolutionProvider,
-    layout::ranked,
-};
+use crate::{convolution::provider::ConvolutionBackend, layout::ranked};
 use coeus_core::{Layout, Scalar};
+use coeus_ops::{
+    ConvolutionBackward as CoeusConvolutionBackward, ConvolutionForward as CoeusConvolutionForward,
+};
 use hephaestus_core::{
     ConvolutionBackwardOperands, ConvolutionForwardOperands, ConvolutionGradientViews,
     ConvolutionOps, DeviceBuffer, StridedView,
 };
 use leto::{ConvolutionParameters, Layout as LetoLayout, TransposedConvolutionParameters};
 
-pub(super) struct Forward<'a, P, T>
+/// Borrowed Coeus operands for provider-owned forward dispatch.
+pub struct Forward<'a, B, T>
 where
-    P: ConvolutionProvider<T>,
+    B: ConvolutionBackend<T>,
     T: Scalar + leto_ops::Scalar,
 {
-    pub input: &'a HephaestusStorage<P, T>,
+    /// Input storage.
+    pub input: &'a B::DeviceBuffer<T>,
+    /// Input layout.
     pub input_layout: &'a Layout,
-    pub weight: &'a HephaestusStorage<P, T>,
+    /// Weight storage.
+    pub weight: &'a B::DeviceBuffer<T>,
+    /// Weight layout.
     pub weight_layout: &'a Layout,
-    pub bias: Option<&'a HephaestusStorage<P, T>>,
-    pub output: &'a mut HephaestusStorage<P, T>,
+    /// Optional bias storage.
+    pub bias: Option<&'a B::DeviceBuffer<T>>,
+    /// Output storage.
+    pub output: &'a mut B::DeviceBuffer<T>,
+    /// Output layout.
     pub output_layout: &'a Layout,
 }
 
-pub(super) struct Backward<'a, P, T>
+impl<'a, B, T> From<CoeusConvolutionForward<'a, B, T>> for Forward<'a, B, T>
 where
-    P: ConvolutionProvider<T>,
+    B: ConvolutionBackend<T>,
     T: Scalar + leto_ops::Scalar,
 {
-    pub grad_output: &'a HephaestusStorage<P, T>,
+    fn from(request: CoeusConvolutionForward<'a, B, T>) -> Self {
+        Self {
+            input: request.input,
+            input_layout: request.input_layout,
+            weight: request.weight,
+            weight_layout: request.weight_layout,
+            bias: request.bias,
+            output: request.output,
+            output_layout: request.output_layout,
+        }
+    }
+}
+
+/// Borrowed Coeus operands for provider-owned backward dispatch.
+pub struct Backward<'a, B, T>
+where
+    B: ConvolutionBackend<T>,
+    T: Scalar + leto_ops::Scalar,
+{
+    /// Output-gradient storage.
+    pub grad_output: &'a B::DeviceBuffer<T>,
+    /// Output-gradient layout.
     pub grad_output_layout: &'a Layout,
-    pub input: &'a HephaestusStorage<P, T>,
+    /// Forward input storage.
+    pub input: &'a B::DeviceBuffer<T>,
+    /// Forward input layout.
     pub input_layout: &'a Layout,
-    pub weight: &'a HephaestusStorage<P, T>,
+    /// Forward weight storage.
+    pub weight: &'a B::DeviceBuffer<T>,
+    /// Forward weight layout.
     pub weight_layout: &'a Layout,
-    pub grad_input: Option<&'a mut HephaestusStorage<P, T>>,
+    /// Optional input-gradient target.
+    pub grad_input: Option<&'a mut B::DeviceBuffer<T>>,
+    /// Input-gradient layout.
     pub grad_input_layout: &'a Layout,
-    pub grad_weight: Option<&'a mut HephaestusStorage<P, T>>,
+    /// Optional weight-gradient target.
+    pub grad_weight: Option<&'a mut B::DeviceBuffer<T>>,
+    /// Weight-gradient layout.
     pub grad_weight_layout: &'a Layout,
-    pub grad_bias: Option<&'a mut HephaestusStorage<P, T>>,
+    /// Optional bias-gradient target.
+    pub grad_bias: Option<&'a mut B::DeviceBuffer<T>>,
 }
 
-fn configuration(operation: &'static str, error: impl std::fmt::Display) -> HephaestusBackendError {
-    HephaestusBackendError::device(
-        operation,
-        hephaestus_core::HephaestusError::InvalidConfiguration {
-            message: error.to_string(),
-        },
-    )
-}
-
-fn bias_layout<P, T>(
-    operation: &'static str,
-    storage: &HephaestusStorage<P, T>,
-) -> Result<LetoLayout<1>, HephaestusBackendError>
+impl<'a, B, T> From<CoeusConvolutionBackward<'a, B, T>> for Backward<'a, B, T>
 where
-    P: ConvolutionProvider<T>,
+    B: ConvolutionBackend<T>,
     T: Scalar + leto_ops::Scalar,
 {
-    LetoLayout::c_contiguous([storage.buffer().len()])
-        .map_err(|error| configuration(operation, error))
+    fn from(request: CoeusConvolutionBackward<'a, B, T>) -> Self {
+        Self {
+            grad_output: request.grad_output,
+            grad_output_layout: request.grad_output_layout,
+            input: request.input,
+            input_layout: request.input_layout,
+            weight: request.weight,
+            weight_layout: request.weight_layout,
+            grad_input: request.grad_input,
+            grad_input_layout: request.grad_input_layout,
+            grad_weight: request.grad_weight,
+            grad_weight_layout: request.grad_weight_layout,
+            grad_bias: request.grad_bias,
+        }
+    }
 }
 
-pub(super) fn regular_forward<P, T, const R: usize, const D: usize>(
-    request: Forward<'_, P, T>,
+fn configuration<B, T>(operation: &'static str, error: impl std::fmt::Display) -> B::Error
+where
+    B: ConvolutionBackend<T>,
+    T: Scalar + leto_ops::Scalar,
+{
+    B::convolution_configuration_error(operation, error.to_string())
+}
+
+fn bias_layout<B, T>(
+    operation: &'static str,
+    storage: &B::DeviceBuffer<T>,
+) -> Result<LetoLayout<1>, B::Error>
+where
+    B: ConvolutionBackend<T>,
+    T: Scalar + leto_ops::Scalar,
+{
+    LetoLayout::c_contiguous([B::convolution_buffer(storage).len()])
+        .map_err(|error| configuration::<B, T>(operation, error))
+}
+
+/// Dispatch regular convolution through the selected provider.
+///
+/// # Errors
+///
+/// Returns the backend error for invalid layouts, parameters, or provider
+/// execution failures.
+pub fn regular_forward<B, T, const R: usize, const D: usize>(
+    request: Forward<'_, B, T>,
     stride: [usize; D],
     padding: [usize; D],
     dilation: [usize; D],
-) -> Result<(), HephaestusBackendError>
+) -> Result<(), B::Error>
 where
-    P: ConvolutionProvider<T>,
+    B: ConvolutionBackend<T>,
     T: Scalar + leto_ops::Scalar,
 {
     let input_layout = ranked::<R>("convolution", request.input_layout)?;
@@ -77,52 +142,64 @@ where
     let output_layout = ranked::<R>("convolution", request.output_layout)?;
     let bias_layout = request
         .bias
-        .map(|bias| bias_layout("convolution", bias))
+        .map(|bias| bias_layout::<B, T>("convolution", bias))
         .transpose()?;
     let parameters = ConvolutionParameters::new(stride, padding, dilation)
-        .map_err(|error| configuration("convolution", error))?;
-    P::Operations::default()
+        .map_err(|error| configuration::<B, T>("convolution", error))?;
+    B::Operations::default()
         .convolution_forward_into(
-            P::device(),
+            B::convolution_device(),
             ConvolutionForwardOperands {
-                input: StridedView::new(request.input.buffer(), &input_layout),
-                weight: StridedView::new(request.weight.buffer(), &weight_layout),
+                input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
+                weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),
                 bias: request
                     .bias
                     .zip(bias_layout.as_ref())
-                    .map(|(bias, layout)| StridedView::new(bias.buffer(), layout)),
-                output: StridedView::new(request.output.buffer(), &output_layout),
+                    .map(|(bias, layout)| StridedView::new(B::convolution_buffer(bias), layout)),
+                output: StridedView::new(B::convolution_buffer(request.output), &output_layout),
             },
             parameters,
         )
-        .map_err(|source| HephaestusBackendError::device("convolution", source))
+        .map_err(|source| B::convolution_dispatch_error("convolution", source))
 }
 
-pub(super) fn regular_backward<P, T, const R: usize, const D: usize>(
-    request: Backward<'_, P, T>,
+/// Dispatch regular-convolution backward through the selected provider.
+///
+/// # Errors
+///
+/// Returns the backend error for invalid layouts, parameters, or provider
+/// execution failures.
+pub fn regular_backward<B, T, const R: usize, const D: usize>(
+    request: Backward<'_, B, T>,
     stride: [usize; D],
     padding: [usize; D],
     dilation: [usize; D],
-) -> Result<(), HephaestusBackendError>
+) -> Result<(), B::Error>
 where
-    P: ConvolutionProvider<T>,
+    B: ConvolutionBackend<T>,
     T: Scalar + leto_ops::Scalar,
 {
-    backward::<P, T, R, D>(
+    backward::<B, T, R, D>(
         request,
         ConvolutionKind::Regular(ConvolutionParameters::new(stride, padding, dilation)),
     )
 }
 
-pub(super) fn transposed_forward<P, T, const R: usize, const D: usize>(
-    request: Forward<'_, P, T>,
+/// Dispatch transposed convolution through the selected provider.
+///
+/// # Errors
+///
+/// Returns the backend error for invalid layouts, parameters, or provider
+/// execution failures.
+pub fn transposed_forward<B, T, const R: usize, const D: usize>(
+    request: Forward<'_, B, T>,
     stride: [usize; D],
     padding: [usize; D],
     output_padding: [usize; D],
     dilation: [usize; D],
-) -> Result<(), HephaestusBackendError>
+) -> Result<(), B::Error>
 where
-    P: ConvolutionProvider<T>,
+    B: ConvolutionBackend<T>,
     T: Scalar + leto_ops::Scalar,
 {
     let input_layout = ranked::<R>("transposed convolution", request.input_layout)?;
@@ -130,40 +207,46 @@ where
     let output_layout = ranked::<R>("transposed convolution", request.output_layout)?;
     let bias_layout = request
         .bias
-        .map(|bias| bias_layout("transposed convolution", bias))
+        .map(|bias| bias_layout::<B, T>("transposed convolution", bias))
         .transpose()?;
     let parameters =
         TransposedConvolutionParameters::new(stride, padding, output_padding, dilation)
-            .map_err(|error| configuration("transposed convolution", error))?;
-    P::Operations::default()
+            .map_err(|error| configuration::<B, T>("transposed convolution", error))?;
+    B::Operations::default()
         .convolution_transposed_forward_into(
-            P::device(),
+            B::convolution_device(),
             ConvolutionForwardOperands {
-                input: StridedView::new(request.input.buffer(), &input_layout),
-                weight: StridedView::new(request.weight.buffer(), &weight_layout),
+                input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
+                weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),
                 bias: request
                     .bias
                     .zip(bias_layout.as_ref())
-                    .map(|(bias, layout)| StridedView::new(bias.buffer(), layout)),
-                output: StridedView::new(request.output.buffer(), &output_layout),
+                    .map(|(bias, layout)| StridedView::new(B::convolution_buffer(bias), layout)),
+                output: StridedView::new(B::convolution_buffer(request.output), &output_layout),
             },
             parameters,
         )
-        .map_err(|source| HephaestusBackendError::device("transposed convolution", source))
+        .map_err(|source| B::convolution_dispatch_error("transposed convolution", source))
 }
 
-pub(super) fn transposed_backward<P, T, const R: usize, const D: usize>(
-    request: Backward<'_, P, T>,
+/// Dispatch transposed-convolution backward through the selected provider.
+///
+/// # Errors
+///
+/// Returns the backend error for invalid layouts, parameters, or provider
+/// execution failures.
+pub fn transposed_backward<B, T, const R: usize, const D: usize>(
+    request: Backward<'_, B, T>,
     stride: [usize; D],
     padding: [usize; D],
     output_padding: [usize; D],
     dilation: [usize; D],
-) -> Result<(), HephaestusBackendError>
+) -> Result<(), B::Error>
 where
-    P: ConvolutionProvider<T>,
+    B: ConvolutionBackend<T>,
     T: Scalar + leto_ops::Scalar,
 {
-    backward::<P, T, R, D>(
+    backward::<B, T, R, D>(
         request,
         ConvolutionKind::Transposed(TransposedConvolutionParameters::new(
             stride,
@@ -179,12 +262,12 @@ enum ConvolutionKind<const D: usize> {
     Transposed(leto::Result<TransposedConvolutionParameters<D>>),
 }
 
-fn backward<P, T, const R: usize, const D: usize>(
-    request: Backward<'_, P, T>,
+fn backward<B, T, const R: usize, const D: usize>(
+    request: Backward<'_, B, T>,
     kind: ConvolutionKind<D>,
-) -> Result<(), HephaestusBackendError>
+) -> Result<(), B::Error>
 where
-    P: ConvolutionProvider<T>,
+    B: ConvolutionBackend<T>,
     T: Scalar + leto_ops::Scalar,
 {
     let operation = match kind {
@@ -207,40 +290,43 @@ where
     let grad_bias_layout = request
         .grad_bias
         .as_ref()
-        .map(|bias| bias_layout(operation, bias))
+        .map(|bias| bias_layout::<B, T>(operation, bias))
         .transpose()?;
     let operands = ConvolutionBackwardOperands {
-        input: StridedView::new(request.input.buffer(), &input_layout),
-        weight: StridedView::new(request.weight.buffer(), &weight_layout),
-        grad_output: StridedView::new(request.grad_output.buffer(), &grad_output_layout),
+        input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
+        weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),
+        grad_output: StridedView::new(
+            B::convolution_buffer(request.grad_output),
+            &grad_output_layout,
+        ),
         gradients: ConvolutionGradientViews {
             input: request
                 .grad_input
                 .zip(grad_input_layout.as_ref())
-                .map(|(buffer, layout)| StridedView::new(buffer.buffer(), layout)),
+                .map(|(buffer, layout)| StridedView::new(B::convolution_buffer(buffer), layout)),
             weight: request
                 .grad_weight
                 .zip(grad_weight_layout.as_ref())
-                .map(|(buffer, layout)| StridedView::new(buffer.buffer(), layout)),
+                .map(|(buffer, layout)| StridedView::new(B::convolution_buffer(buffer), layout)),
             bias: request
                 .grad_bias
                 .zip(grad_bias_layout.as_ref())
-                .map(|(buffer, layout)| StridedView::new(buffer.buffer(), layout)),
+                .map(|(buffer, layout)| StridedView::new(B::convolution_buffer(buffer), layout)),
         },
     };
-    let operations = P::Operations::default();
+    let operations = B::Operations::default();
     let result = match kind {
         ConvolutionKind::Regular(parameters) => operations.convolution_backward_accumulate(
-            P::device(),
+            B::convolution_device(),
             operands,
-            parameters.map_err(|error| configuration(operation, error))?,
+            parameters.map_err(|error| configuration::<B, T>(operation, error))?,
         ),
         ConvolutionKind::Transposed(parameters) => operations
             .convolution_transposed_backward_accumulate(
-                P::device(),
+                B::convolution_device(),
                 operands,
-                parameters.map_err(|error| configuration(operation, error))?,
+                parameters.map_err(|error| configuration::<B, T>(operation, error))?,
             ),
     };
-    result.map_err(|source| HephaestusBackendError::device(operation, source))
+    result.map_err(|source| B::convolution_dispatch_error(operation, source))
 }

@@ -13,7 +13,12 @@ mod layout;
 mod reduction;
 mod storage;
 
-pub use convolution::ConvolutionProvider;
+pub use convolution::{
+    ConvolutionBackend, ConvolutionBackwardDispatch, ConvolutionForwardDispatch,
+    ConvolutionProvider, regular_backward as convolution_backward,
+    regular_forward as convolution_forward, transposed_backward as convolution_transposed_backward,
+    transposed_forward as convolution_transposed_forward,
+};
 pub use elementwise::ElementwiseProvider;
 pub use error::HephaestusBackendError;
 pub use reduction::HephaestusBackend;

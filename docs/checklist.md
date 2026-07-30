@@ -46,8 +46,10 @@
       backward loops.
 - [x] Propagate typed failures through autograd, NN, Python, benchmarks, and
       direct tests.
-- [x] Pass warning-denied all-target Clippy excluding peer-owned Metal work.
-- [x] Pass CPU/autograd/NN Nextest 592/592 and WGPU on-device Nextest 114/114.
+- [x] Pass warning-denied all-target Clippy for the consolidated Leto,
+      Hephaestus, WGPU, CUDA, and operation-contract scope.
+- [x] Pass CPU/autograd/NN Nextest 592/592 and post-review Leto/WGPU Nextest
+      144/144.
 - [x] Pass all 46 executable affected-package doctests; retain the two
       pre-existing ignored NN doctests.
 - [x] Confirm the fallible `ConvOps` contract and removed capability seam as a

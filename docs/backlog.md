@@ -25,22 +25,24 @@
   accelerator seam and CUDA/WGPU/ROCm/Metal providers. Coeus `ConvOps` now has
   four fallible const-generic required methods with rank-specific default
   adapters. CPU routes borrowed layouts and slices to Leto. Accelerator
-  backends route device buffers to Hephaestus. Coeus-owned CUDA/WGPU
-  convolution kernels, CUDA host fallbacks, the generic transposed host
-  default, the separate `ConvTranspose3dOps` seam, and autograd host backward
-  loops are deleted. Rust, Python, benchmark, and test callers propagate or
-  assert the typed result.
+  backends bind their device, buffer, and error types to one generic
+  Hephaestus dispatch implementation. Leto regular and transposed operations
+  share one borrowed-view construction path. Coeus-owned CUDA/WGPU convolution
+  kernels, CUDA host fallbacks, the generic transposed host default, the
+  separate `ConvTranspose3dOps` seam, and autograd host backward loops are
+  deleted. Rust, Python, benchmark, and test callers propagate or assert the
+  typed result.
 - Status: in progress pending terminal CI and merge. Local warning-denied
-  all-target Clippy passes for the complete workspace excluding peer-owned
-  Metal work. CPU/autograd/NN Nextest passes 592/592; WGPU on-device Nextest
-  passes 114/114, including regular/transposed parity and COW storage. All 46
-  executable affected-package doctests pass; two pre-existing NN doctests
-  remain ignored. `cargo-semver-checks` classifies the fallible `ConvOps`
-  contract and removed capability seam as a major change. CUDA feature
-  execution is temporarily blocked by fresh peer-owned Hephaestus
-  reduction/scan seam edits; the Coeus CUDA convolution feature target passed
-  before those edits. No runtime, memory, or binary-size delta is claimed
-  without controlled measurements.
+  all-target Clippy passes for the consolidated Leto, Hephaestus, WGPU, CUDA,
+  and operation-contract scope. CPU/autograd/NN Nextest passes 592/592; the
+  post-review Leto/WGPU suite passes 144/144, including regular/transposed
+  parity and COW storage. All 46 executable affected-package doctests pass;
+  two pre-existing NN doctests remain ignored. `cargo-semver-checks`
+  classifies the fallible `ConvOps` contract and removed capability seam as a
+  major change. Pre-review provider run `30542110211` passed WGPU, CUDA, ROCm,
+  and Metal; the consolidated review head still requires exact-head provider
+  CI. No runtime, memory, or binary-size delta is claimed without controlled
+  measurements.
 
 ## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution [arch]
 

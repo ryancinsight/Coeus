@@ -4,14 +4,14 @@
 
 - [x] Add zero-copy borrowed regular and transposed forward/backward dispatch
       through Leto, with value-semantic CPU contracts.
-- [ ] Make the complete Coeus convolution seam fallible and consolidate
+- [x] Make the complete Coeus convolution seam fallible and consolidate
       transposed ranks into the canonical operation family.
-- [ ] Route CPU implementations directly through Leto.
-- [ ] Route WGPU, CUDA, ROCm, and Metal implementations directly through
+- [x] Route CPU implementations directly through Leto.
+- [x] Route WGPU, CUDA, ROCm, and Metal implementations directly through
       Hephaestus.
-- [ ] Delete Coeus-owned convolution kernels, host fallbacks, and autograd
+- [x] Delete Coeus-owned convolution kernels, host fallbacks, and autograd
       host loops.
-- [ ] Migrate all operation, autograd, neural-network, test, benchmark, and
+- [x] Migrate all operation, autograd, neural-network, test, benchmark, and
       binding consumers.
 - [ ] Pass warning-denied provider gates, focused and full Nextest, doctests,
       SemVer classification, and exact-head provider CI.

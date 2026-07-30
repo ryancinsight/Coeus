@@ -10,6 +10,10 @@
 - Revision 2026-07-30: completed the provider cutover. One fallible
   const-generic `ConvOps` contract now owns regular and transposed forward and
   backward dispatch for spatial ranks one through three.
+- Revision 2026-07-30: consolidated review findings. One generic Hephaestus
+  dispatch implementation now owns request mapping for every accelerator, and
+  one Leto view module owns borrowed operand conversion for regular and
+  transposed operations.
 
 ## Context
 
@@ -31,6 +35,11 @@ generic accelerator convolution contract parameterized by its device API; its
 CUDA, WGPU, ROCm, and Metal implementations contain only provider-specific
 kernel and submission details. Coeus owns tensor/autograd orchestration and
 maps its layouts and buffers directly into the selected provider contract.
+Within Coeus, one generic `ConvolutionBackend` binding supplies device, buffer,
+operation, and typed-error associations to one monomorphized Hephaestus
+dispatch core. Vendor backend modules contain no request-layout or bias
+construction logic. Leto regular and transposed dispatch share one borrowed
+operand-view module.
 
 The migration is implemented in dependency order:
 
@@ -93,9 +102,13 @@ measurements compare the complete pre- and post-cutover operation.
   transposed gradients.
 - Coeus WGPU Nextest executes the selected Hephaestus provider on-device and
   compares regular/transposed forward/backward values with Leto CPU results.
-- Warning-denied all-target Clippy passes. All 46 executable affected-package
-  doctests pass; two pre-existing NN doctests remain ignored.
+- Warning-denied all-target Clippy passes for the consolidated Leto,
+  Hephaestus, WGPU, CUDA, and operation-contract scope. Post-review Leto/WGPU
+  Nextest passes 144/144. All 46 executable affected-package doctests pass;
+  two pre-existing NN doctests remain ignored.
 - `cargo-semver-checks` classifies the fallible contract and removed capability
-  seam as a major change. The exact-head provider matrix gates the merge.
+  seam as a major change. Pre-review provider run `30542110211` passed WGPU,
+  CUDA, ROCm, and Metal; the consolidated exact-head provider matrix gates the
+  merge.
 - Residue scans reject convolution `SequentialBackend`, `copy_to_host`,
   fallback, and consumer-owned kernel paths.

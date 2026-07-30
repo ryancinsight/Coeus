@@ -2,6 +2,7 @@
 
 mod regular;
 mod transposed;
+mod views;
 
 use coeus_core::Layout;
 

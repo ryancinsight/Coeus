@@ -52,6 +52,10 @@ pub struct ConvolutionBackward<'a, B: ComputeBackend, T: Scalar> {
 /// canonical defaults, so backend implementations cannot drift by rank.
 pub trait ConvOps<T: Scalar>: ComputeBackend {
     /// Execute rank-generic regular convolution.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     fn convolution_forward<const R: usize, const D: usize>(
         &self,
         request: ConvolutionForward<'_, Self, T>,
@@ -61,6 +65,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     ) -> Result<(), Self::Error>;
 
     /// Accumulate rank-generic regular-convolution gradients.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     fn convolution_backward<const R: usize, const D: usize>(
         &self,
         request: ConvolutionBackward<'_, Self, T>,
@@ -70,6 +78,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     ) -> Result<(), Self::Error>;
 
     /// Execute rank-generic transposed convolution.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     fn convolution_transposed_forward<const R: usize, const D: usize>(
         &self,
         request: ConvolutionForward<'_, Self, T>,
@@ -82,6 +94,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
         T: Float;
 
     /// Accumulate rank-generic transposed-convolution gradients.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     fn convolution_transposed_backward<const R: usize, const D: usize>(
         &self,
         request: ConvolutionBackward<'_, Self, T>,
@@ -94,6 +110,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
         T: Float;
 
     /// Execute one-dimensional regular convolution.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     #[allow(clippy::too_many_arguments)]
     fn conv1d(
         &self,
@@ -125,6 +145,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     }
 
     /// Accumulate one-dimensional regular-convolution gradients.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     #[allow(clippy::too_many_arguments)]
     fn conv1d_backward(
         &self,
@@ -164,6 +188,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     }
 
     /// Execute two-dimensional regular convolution.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     #[allow(clippy::too_many_arguments)]
     fn conv2d(
         &self,
@@ -195,6 +223,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     }
 
     /// Accumulate two-dimensional regular-convolution gradients.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     #[allow(clippy::too_many_arguments)]
     fn conv2d_backward(
         &self,
@@ -234,6 +266,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     }
 
     /// Execute three-dimensional regular convolution.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     #[allow(clippy::too_many_arguments)]
     fn conv3d(
         &self,
@@ -265,6 +301,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     }
 
     /// Accumulate three-dimensional regular-convolution gradients.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     #[allow(clippy::too_many_arguments)]
     fn conv3d_backward(
         &self,
@@ -304,6 +344,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     }
 
     /// Execute one-dimensional transposed convolution.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     #[allow(clippy::too_many_arguments)]
     fn conv_transpose1d(
         &self,
@@ -340,6 +384,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     }
 
     /// Accumulate one-dimensional transposed-convolution gradients.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     #[allow(clippy::too_many_arguments)]
     fn conv_transpose1d_backward(
         &self,
@@ -384,6 +432,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     }
 
     /// Execute two-dimensional transposed convolution.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     #[allow(clippy::too_many_arguments)]
     fn conv_transpose2d(
         &self,
@@ -420,6 +472,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     }
 
     /// Accumulate two-dimensional transposed-convolution gradients.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     #[allow(clippy::too_many_arguments)]
     fn conv_transpose2d_backward(
         &self,
@@ -464,6 +520,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     }
 
     /// Execute three-dimensional transposed convolution.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     #[allow(clippy::too_many_arguments)]
     fn conv_transpose3d(
         &self,
@@ -500,6 +560,10 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     }
 
     /// Accumulate three-dimensional transposed-convolution gradients.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error when validation or execution fails.
     #[allow(clippy::too_many_arguments)]
     fn conv_transpose3d_backward(
         &self,

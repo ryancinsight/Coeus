@@ -160,23 +160,26 @@ backward loops in autograd.
 **Resolution**: ADR-0046 consolidates regular/transposed forward and backward
 into four fallible const-generic `ConvOps` methods. CPU dispatch borrows
 storage into Leto; CUDA/WGPU/ROCm/Metal dispatch device buffers into
-Hephaestus. Rank-specific methods are default adapters over that SSOT.
-Consumer-owned CUDA/WGPU kernels, CUDA host fallbacks, the generic transposed
-host default, `ConvTranspose3dOps`, and autograd host backward loops are
-deleted.
-**Evidence**: warning-denied all-target Clippy passes for the workspace
-excluding fresh peer-owned Metal work. CPU/autograd/NN Nextest passes 592/592,
-including regular/transposed rank-one through rank-three differentials and
-exact transposed gradients. WGPU on-device Nextest passes 114/114, including
-regular/transposed parity and COW storage. All 46 executable affected-package
-doctests pass; two pre-existing NN doctests remain ignored.
+Hephaestus through one generic static dispatch implementation; vendor modules
+bind only their device, buffer, and error types. Leto regular and transposed
+operations share one borrowed-view construction path. Rank-specific methods
+are default adapters over that SSOT. Consumer-owned CUDA/WGPU kernels, CUDA
+host fallbacks, the generic transposed host default, `ConvTranspose3dOps`, and
+autograd host backward loops are deleted.
+**Evidence**: warning-denied all-target Clippy passes for the consolidated
+Leto, Hephaestus, WGPU, CUDA, and operation-contract scope. CPU/autograd/NN
+Nextest passes 592/592, including regular/transposed rank-one through
+rank-three differentials and exact transposed gradients. Post-review
+Leto/WGPU Nextest passes 144/144, including regular/transposed parity and COW
+storage. All 46 executable affected-package doctests pass; two pre-existing
+NN doctests remain ignored.
 `cargo-semver-checks` confirms the changed failure contract and removed
 capability seam require a major release. Residue scans find no convolution
 `SequentialBackend`, host transfer, fallback, or consumer kernel path.
-**Residual**: CUDA and Metal terminal execution must be recollected after
-fresh peer-owned Hephaestus reduction/scan seam work stabilizes; exact-head
-provider CI and merge remain open. No runtime, memory, or binary-size delta is
-claimed without controlled measurements.
+Pre-review provider run `30542110211` passed WGPU, CUDA, ROCm, and Metal.
+**Residual**: exact-head provider CI for the consolidated review head and
+merge remain open. No runtime, memory, or binary-size delta is claimed without
+controlled measurements.
 **Status**: implementation complete; terminal verification in progress.
 
 ## ATLAS-COEUS-DISPATCH-001: Unsupported reduction selection fallback
