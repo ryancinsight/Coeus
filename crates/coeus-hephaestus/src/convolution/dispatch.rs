@@ -137,30 +137,10 @@ where
     B: ConvolutionBackend<T>,
     T: Scalar + leto_ops::Scalar,
 {
-    let input_layout = ranked::<R>("convolution", request.input_layout)?;
-    let weight_layout = ranked::<R>("convolution", request.weight_layout)?;
-    let output_layout = ranked::<R>("convolution", request.output_layout)?;
-    let bias_layout = request
-        .bias
-        .map(|bias| bias_layout::<B, T>("convolution", bias))
-        .transpose()?;
-    let parameters = ConvolutionParameters::new(stride, padding, dilation)
-        .map_err(|error| configuration::<B, T>("convolution", error))?;
-    B::Operations::default()
-        .convolution_forward_into(
-            B::convolution_device(),
-            ConvolutionForwardOperands {
-                input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
-                weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),
-                bias: request
-                    .bias
-                    .zip(bias_layout.as_ref())
-                    .map(|(bias, layout)| StridedView::new(B::convolution_buffer(bias), layout)),
-                output: StridedView::new(B::convolution_buffer(request.output), &output_layout),
-            },
-            parameters,
-        )
-        .map_err(|source| B::convolution_dispatch_error("convolution", source))
+    forward::<B, T, R, D>(
+        request,
+        ConvolutionKind::Regular(ConvolutionParameters::new(stride, padding, dilation)),
+    )
 }
 
 /// Dispatch regular-convolution backward through the selected provider.
@@ -202,31 +182,15 @@ where
     B: ConvolutionBackend<T>,
     T: Scalar + leto_ops::Scalar,
 {
-    let input_layout = ranked::<R>("transposed convolution", request.input_layout)?;
-    let weight_layout = ranked::<R>("transposed convolution", request.weight_layout)?;
-    let output_layout = ranked::<R>("transposed convolution", request.output_layout)?;
-    let bias_layout = request
-        .bias
-        .map(|bias| bias_layout::<B, T>("transposed convolution", bias))
-        .transpose()?;
-    let parameters =
-        TransposedConvolutionParameters::new(stride, padding, output_padding, dilation)
-            .map_err(|error| configuration::<B, T>("transposed convolution", error))?;
-    B::Operations::default()
-        .convolution_transposed_forward_into(
-            B::convolution_device(),
-            ConvolutionForwardOperands {
-                input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
-                weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),
-                bias: request
-                    .bias
-                    .zip(bias_layout.as_ref())
-                    .map(|(bias, layout)| StridedView::new(B::convolution_buffer(bias), layout)),
-                output: StridedView::new(B::convolution_buffer(request.output), &output_layout),
-            },
-            parameters,
-        )
-        .map_err(|source| B::convolution_dispatch_error("transposed convolution", source))
+    forward::<B, T, R, D>(
+        request,
+        ConvolutionKind::Transposed(TransposedConvolutionParameters::new(
+            stride,
+            padding,
+            output_padding,
+            dilation,
+        )),
+    )
 }
 
 /// Dispatch transposed-convolution backward through the selected provider.
@@ -260,6 +224,50 @@ where
 enum ConvolutionKind<const D: usize> {
     Regular(leto::Result<ConvolutionParameters<D>>),
     Transposed(leto::Result<TransposedConvolutionParameters<D>>),
+}
+
+fn forward<B, T, const R: usize, const D: usize>(
+    request: Forward<'_, B, T>,
+    kind: ConvolutionKind<D>,
+) -> Result<(), B::Error>
+where
+    B: ConvolutionBackend<T>,
+    T: Scalar + leto_ops::Scalar,
+{
+    let operation = match kind {
+        ConvolutionKind::Regular(_) => "convolution",
+        ConvolutionKind::Transposed(_) => "transposed convolution",
+    };
+    let input_layout = ranked::<R>(operation, request.input_layout)?;
+    let weight_layout = ranked::<R>(operation, request.weight_layout)?;
+    let output_layout = ranked::<R>(operation, request.output_layout)?;
+    let bias_layout = request
+        .bias
+        .map(|bias| bias_layout::<B, T>(operation, bias))
+        .transpose()?;
+    let operands = ConvolutionForwardOperands {
+        input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
+        weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),
+        bias: request
+            .bias
+            .zip(bias_layout.as_ref())
+            .map(|(bias, layout)| StridedView::new(B::convolution_buffer(bias), layout)),
+        output: StridedView::new(B::convolution_buffer(request.output), &output_layout),
+    };
+    let operations = B::Operations::default();
+    let result = match kind {
+        ConvolutionKind::Regular(parameters) => operations.convolution_forward_into(
+            B::convolution_device(),
+            operands,
+            parameters.map_err(|error| configuration::<B, T>(operation, error))?,
+        ),
+        ConvolutionKind::Transposed(parameters) => operations.convolution_transposed_forward_into(
+            B::convolution_device(),
+            operands,
+            parameters.map_err(|error| configuration::<B, T>(operation, error))?,
+        ),
+    };
+    result.map_err(|source| B::convolution_dispatch_error(operation, source))
 }
 
 fn backward<B, T, const R: usize, const D: usize>(

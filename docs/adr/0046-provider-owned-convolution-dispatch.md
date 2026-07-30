@@ -14,6 +14,9 @@
   dispatch implementation now owns request mapping for every accelerator, and
   one Leto view module owns borrowed operand conversion for regular and
   transposed operations.
+- Revision 2026-07-30: unified regular/transposed forward setup and regular/
+  transposed autograd accumulation after the final review, removing the last
+  duplicated convolution dispatch and panic-prone gradient indexing.
 
 ## Context
 
@@ -103,9 +106,9 @@ measurements compare the complete pre- and post-cutover operation.
 - Coeus WGPU Nextest executes the selected Hephaestus provider on-device and
   compares regular/transposed forward/backward values with Leto CPU results.
 - Warning-denied all-target Clippy passes for the consolidated Leto,
-  Hephaestus, WGPU, CUDA, and operation-contract scope. Post-review Leto/WGPU
-  Nextest passes 144/144. All 46 executable affected-package doctests pass;
-  two pre-existing NN doctests remain ignored.
+  Hephaestus, WGPU, CUDA, and operation-contract scope. Final-review
+  Leto/Hephaestus/autograd/WGPU Nextest passes 214/214. All 46 executable
+  affected-package doctests pass; two pre-existing NN doctests remain ignored.
 - `cargo-semver-checks` classifies the fallible contract and removed capability
   seam as a major change. Pre-review provider run `30542110211` passed WGPU,
   CUDA, ROCm, and Metal; the consolidated exact-head provider matrix gates the

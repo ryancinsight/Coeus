@@ -5,6 +5,8 @@ use coeus_core::{Float, Layout, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
+use super::utils::accumulate_gradient;
+
 /// Autograd node for an `DIM`-dimensional transposed convolution.
 ///
 /// Backward execution is delegated once at the operation boundary. The
@@ -129,17 +131,6 @@ fn optional_gradient<'a, T: Scalar, B: coeus_ops::BackendOps<T>>(
         }
         None => (None, reference_layout),
     }
-}
-
-fn accumulate_gradient<T: Float, B: coeus_ops::BackendOps<T> + Default>(
-    target: Option<&Option<Arc<GradBuffer<T, B>>>>,
-    gradient: Option<Tensor<T, B>>,
-    backend: &B,
-) -> Result<(), B::Error> {
-    if let (Some(Some(target)), Some(gradient)) = (target, gradient) {
-        coeus_ops::add_assign(target.write(), &gradient, backend)?;
-    }
-    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]

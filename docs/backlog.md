@@ -35,14 +35,14 @@
 - Status: in progress pending terminal CI and merge. Local warning-denied
   all-target Clippy passes for the consolidated Leto, Hephaestus, WGPU, CUDA,
   and operation-contract scope. CPU/autograd/NN Nextest passes 592/592; the
-  post-review Leto/WGPU suite passes 144/144, including regular/transposed
-  parity and COW storage. All 46 executable affected-package doctests pass;
-  two pre-existing NN doctests remain ignored. `cargo-semver-checks`
-  classifies the fallible `ConvOps` contract and removed capability seam as a
-  major change. Pre-review provider run `30542110211` passed WGPU, CUDA, ROCm,
-  and Metal; the consolidated review head still requires exact-head provider
-  CI. No runtime, memory, or binary-size delta is claimed without controlled
-  measurements.
+  final review Leto/Hephaestus/autograd/WGPU suite passes 214/214, including
+  regular/transposed parity, exact gradient accumulation, and COW storage. All
+  46 executable affected-package doctests pass; two pre-existing NN doctests
+  remain ignored. `cargo-semver-checks` classifies the fallible `ConvOps`
+  contract and removed capability seam as a major change. Pre-review provider
+  run `30542110211` passed WGPU, CUDA, ROCm, and Metal; the consolidated final
+  review head still requires exact-head provider CI. No runtime, memory, or
+  binary-size delta is claimed without controlled measurements.
 
 ## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution [arch]
 

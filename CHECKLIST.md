@@ -1,6 +1,6 @@
 # Coeus Development Roadmap Checklist
 
-## ATLAS-COEUS-CONVOLUTION-020 Provider dispatch [major][arch]
+## ATLAS-COEUS-CONVOLUTION-020 Provider dispatch `[major][arch]`
 
 - [x] Add zero-copy borrowed regular and transposed forward/backward dispatch
       through Leto, with value-semantic CPU contracts.

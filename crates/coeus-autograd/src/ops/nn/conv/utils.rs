@@ -5,6 +5,17 @@ use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
+pub(super) fn accumulate_gradient<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    target: Option<&Option<Arc<GradBuffer<T, B>>>>,
+    gradient: Option<Tensor<T, B>>,
+    backend: &B,
+) -> Result<(), B::Error> {
+    if let (Some(Some(target)), Some(gradient)) = (target, gradient) {
+        coeus_ops::add_assign(target.write(), &gradient, backend)?;
+    }
+    Ok(())
+}
+
 pub(super) struct ConvBackwardDispatch<'a, T: Float, B: coeus_ops::BackendOps<T> + Default> {
     pub backend: &'a B,
     pub grad_out_storage: &'a B::DeviceBuffer<T>,
@@ -211,20 +222,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
             dilation: self.dilation,
         })?;
 
-        if let Some(gi) = grad_input {
-            let gl = input_grads[0].as_ref().unwrap().write();
-            coeus_ops::add_assign(gl, &gi, &backend)?;
-        }
-        if let Some(gw) = grad_weight {
-            let gl = input_grads[1].as_ref().unwrap().write();
-            coeus_ops::add_assign(gl, &gw, &backend)?;
-        }
-        if let Some(gb) = grad_bias {
-            let gl = input_grads[2].as_ref().unwrap().write();
-            coeus_ops::add_assign(gl, &gb, &backend)?;
-        }
-
-        Ok(())
+        accumulate_gradient(input_grads.first(), grad_input, &backend)?;
+        accumulate_gradient(input_grads.get(1), grad_weight, &backend)?;
+        accumulate_gradient(input_grads.get(2), grad_bias, &backend)
     }
 }
 

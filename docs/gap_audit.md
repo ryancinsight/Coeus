@@ -169,10 +169,11 @@ autograd host backward loops are deleted.
 **Evidence**: warning-denied all-target Clippy passes for the consolidated
 Leto, Hephaestus, WGPU, CUDA, and operation-contract scope. CPU/autograd/NN
 Nextest passes 592/592, including regular/transposed rank-one through
-rank-three differentials and exact transposed gradients. Post-review
-Leto/WGPU Nextest passes 144/144, including regular/transposed parity and COW
-storage. All 46 executable affected-package doctests pass; two pre-existing
-NN doctests remain ignored.
+rank-three differentials and exact transposed gradients. Final-review
+Leto/Hephaestus/autograd/WGPU Nextest passes 214/214, including
+regular/transposed parity, exact gradient accumulation, and COW storage. All
+46 executable affected-package doctests pass; two pre-existing NN doctests
+remain ignored.
 `cargo-semver-checks` confirms the changed failure contract and removed
 capability seam require a major release. Residue scans find no convolution
 `SequentialBackend`, host transfer, fallback, or consumer kernel path.
