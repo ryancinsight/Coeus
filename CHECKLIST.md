@@ -1,5 +1,21 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-CONVOLUTION-020 Provider dispatch [major][arch]
+
+- [x] Add zero-copy borrowed regular and transposed forward/backward dispatch
+      through Leto, with value-semantic CPU contracts.
+- [ ] Make the complete Coeus convolution seam fallible and consolidate
+      transposed ranks into the canonical operation family.
+- [ ] Route CPU implementations directly through Leto.
+- [ ] Route WGPU, CUDA, ROCm, and Metal implementations directly through
+      Hephaestus.
+- [ ] Delete Coeus-owned convolution kernels, host fallbacks, and autograd
+      host loops.
+- [ ] Migrate all operation, autograd, neural-network, test, benchmark, and
+      binding consumers.
+- [ ] Pass warning-denied provider gates, focused and full Nextest, doctests,
+      SemVer classification, and exact-head provider CI.
+
 ## ATLAS-COEUS-NN-SAFETY-019 Fallible module execution [major][arch]
 
 - [x] Audit the complete `Module::forward` implementation and consumer graph.

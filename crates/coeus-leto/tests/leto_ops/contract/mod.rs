@@ -15,6 +15,8 @@ use leto::Storage;
 mod accumulation;
 #[path = "arithmetic.rs"]
 mod arithmetic;
+#[path = "convolution.rs"]
+mod convolution;
 #[path = "layout.rs"]
 mod layout;
 #[path = "matmul.rs"]

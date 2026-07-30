@@ -4,6 +4,15 @@
 
 ### Changed
 
+- [major] Begin the provider-owned convolution cutover with zero-copy borrowed
+  Coeus-to-Leto dispatch for regular and transposed forward/additive-backward
+  operations across spatial ranks one through three. The bridge writes into
+  caller-owned storage, validates through Leto's parameter and layout
+  contracts, and introduces no host fallback or compatibility path. Accelerator
+  dispatch and public caller migration remain tracked in
+  `ATLAS-COEUS-CONVOLUTION-020`; no runtime or memory delta is claimed without
+  controlled measurements.
+
 - [patch] Validate CUDA matmul and convolution forward/backward layouts against
   their physical device allocations at the raw-launch boundary. Convolution
   also rejects incompatible batch/channel/spatial shapes, invalid convolution
