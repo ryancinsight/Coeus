@@ -181,9 +181,10 @@ Exact-head provider run `30545333101` passed WGPU job `90880014492`, CUDA job
 `90880014608`, ROCm job `90880014606`, and Metal job `90880014508`;
 required-device ROCm job `90880015294` was skipped because no AMD hardware
 runner was dispatched.
-**Residual**: PR #250 merge remains open. No runtime, memory, or binary-size
-delta is claimed without controlled measurements.
-**Status**: implementation and verification complete; merge ready.
+**Residual**: no implementation, migration, build, test, or merge residual
+remains in the authorized convolution scope. No runtime, memory, or
+binary-size delta is claimed without controlled measurements.
+**Status**: complete. PR #250 merged as `0dfab53e`.
 
 ## ATLAS-COEUS-DISPATCH-001: Unsupported reduction selection fallback
 

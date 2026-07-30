@@ -114,5 +114,6 @@ measurements compare the complete pre- and post-cutover operation.
   job `90880014492`, CUDA job `90880014608`, ROCm job `90880014606`, and
   Metal job `90880014508`; required-device ROCm job `90880015294` was skipped
   because no AMD hardware runner was dispatched.
+- PR #250 merged the verified provider cutover as `0dfab53e`.
 - Residue scans reject convolution `SequentialBackend`, `copy_to_host`,
   fallback, and consumer-owned kernel paths.
