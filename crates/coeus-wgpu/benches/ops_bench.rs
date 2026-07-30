@@ -13,7 +13,7 @@ use coeus_core::SequentialBackend;
 use coeus_ops::conv_transpose2d;
 use coeus_tensor::Tensor;
 use coeus_wgpu::WgpuBackend;
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 
 fn fill(n: usize, phase: f32) -> Vec<f32> {
     (0..n).map(|i| ((i as f32 + phase) * 0.013).sin()).collect()
@@ -77,7 +77,8 @@ fn bench_conv_transpose2d(c: &mut Criterion) {
                     output_padding,
                     dilation,
                     &seq,
-                ));
+                ))
+                .expect("CPU transposed convolution benchmark dispatch");
             });
         });
         group.bench_with_input(BenchmarkId::new("Coeus WGPU", &id), &id, |bn, _| {
@@ -91,7 +92,8 @@ fn bench_conv_transpose2d(c: &mut Criterion) {
                     output_padding,
                     dilation,
                     &wgpu,
-                ));
+                ))
+                .expect("WGPU transposed convolution benchmark dispatch");
             });
         });
     }

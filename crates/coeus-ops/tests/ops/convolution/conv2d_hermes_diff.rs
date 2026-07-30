@@ -86,18 +86,20 @@ where
     backend.copy_to_device(case.weight, &mut weight);
     backend.copy_to_device(case.bias, &mut bias);
 
-    backend.conv2d(
-        &input,
-        &input_layout,
-        &weight,
-        &weight_layout,
-        Some(&bias),
-        case.stride,
-        case.padding,
-        case.dilation,
-        &mut output,
-        &output_layout,
-    );
+    backend
+        .conv2d(
+            &input,
+            &input_layout,
+            &weight,
+            &weight_layout,
+            Some(&bias),
+            case.stride,
+            case.padding,
+            case.dilation,
+            &mut output,
+            &output_layout,
+        )
+        .expect("convolution provider dispatch");
 
     let mut out = vec![0.0; output_layout.numel()];
     backend.copy_to_host(&output, &mut out);

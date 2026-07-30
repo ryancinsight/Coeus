@@ -10,6 +10,8 @@ license.workspace = true
 coeus-core   = { workspace = true }
 coeus-tensor = { workspace = true }
 coeus-ops    = { workspace = true, default-features = false }
+coeus-leto   = { path = "../coeus-leto" }
+coeus-hephaestus = { workspace = true }
 leto         = { workspace = true }
 leto-ops     = { workspace = true }
 libloading   = "0.8"
@@ -17,6 +19,7 @@ bytemuck     = { workspace = true }
 thiserror    = { workspace = true }
 eunomia     = { workspace = true }
 hephaestus-cuda = { workspace = true }
+hephaestus-core = { workspace = true }
 themis = { workspace = true, optional = true }
 cutile       = { git = "https://github.com/NVlabs/cutile-rs", optional = true }
 cuda-core    = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-core", optional = true }

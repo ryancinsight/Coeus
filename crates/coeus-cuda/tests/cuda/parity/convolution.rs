@@ -32,7 +32,8 @@ fn test_cuda_parity_conv1d_forward() {
         1,
         cpu_out.storage_mut(),
         &cpu_out_layout,
-    );
+    )
+    .expect("CPU conv1d dispatch");
 
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&w_t, &s, &c);
@@ -50,7 +51,8 @@ fn test_cuda_parity_conv1d_forward() {
         1,
         gpu_out.storage_mut(),
         &gpu_out_layout,
-    );
+    )
+    .expect("CUDA conv1d dispatch");
 
     assert_parity_tol(
         "conv1d_fwd",
@@ -93,7 +95,8 @@ fn test_cuda_parity_conv2d_forward() {
         1,
         cpu_out.storage_mut(),
         &cpu_out_layout,
-    );
+    )
+    .expect("CPU conv2d dispatch");
 
     let in_g = to_gpu(&in_t, &s, &c);
     let wg = to_gpu(&wt, &s, &c);
@@ -111,7 +114,8 @@ fn test_cuda_parity_conv2d_forward() {
         1,
         gpu_out.storage_mut(),
         &gpu_out_layout,
-    );
+    )
+    .expect("CUDA conv2d dispatch");
 
     assert_parity_tol(
         "conv2d_fwd",
@@ -165,7 +169,8 @@ fn test_cuda_parity_conv2d_backward() {
         1,
         0,
         1,
-    );
+    )
+    .expect("CPU conv2d backward dispatch");
 
     // CUDA gradients.
     let in_g = to_gpu(&in_t, &s, &c);
@@ -189,7 +194,8 @@ fn test_cuda_parity_conv2d_backward() {
         1,
         0,
         1,
-    );
+    )
+    .expect("CUDA conv2d backward dispatch");
 
     assert_parity_tol(
         "conv2d_bwd_grad_input",
@@ -246,7 +252,8 @@ fn test_cuda_parity_conv3d_forward() {
         1,
         out_s.storage_mut(),
         &out_l,
-    );
+    )
+    .expect("CPU conv3d dispatch");
 
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&w_t, &s, &c);
@@ -263,7 +270,8 @@ fn test_cuda_parity_conv3d_forward() {
         1,
         out_g.storage_mut(),
         &out_l,
-    );
+    )
+    .expect("CUDA conv3d dispatch");
 
     assert_parity_tol(
         "conv3d_fwd",
@@ -317,7 +325,8 @@ fn test_cuda_parity_conv3d_backward() {
         1,
         0,
         1,
-    );
+    )
+    .expect("CPU conv3d backward dispatch");
 
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&w_t, &s, &c);
@@ -340,7 +349,8 @@ fn test_cuda_parity_conv3d_backward() {
         1,
         0,
         1,
-    );
+    )
+    .expect("CUDA conv3d backward dispatch");
 
     assert_parity_tol(
         "conv3d_bwd_grad_input",

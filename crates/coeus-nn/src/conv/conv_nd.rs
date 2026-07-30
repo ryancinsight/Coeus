@@ -199,7 +199,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, D: ConvDim> Module<T, B> f
                 dilation: self.dilation,
                 out_buf: out_storage,
                 out_layout,
-            });
+            })
+            .map_err(|source| ModuleError::Backend {
+                module: "Conv",
+                source,
+            })?;
         }
         Ok(D::autograd_conv(
             input,

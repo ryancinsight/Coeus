@@ -1,4 +1,4 @@
-use coeus_autograd::{conv_transpose1d, conv_transpose2d, conv_transpose3d, Var};
+use coeus_autograd::{Var, conv_transpose1d, conv_transpose2d, conv_transpose3d};
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 
@@ -24,7 +24,8 @@ fn conv_transpose1d_backward_accumulates_exact_gradients() {
         0,
         1,
         &backend,
-    );
+    )
+    .expect("transposed convolution forward");
     let out = conv_transpose1d(&input, &weight, &Some(bias.clone()), out_tensor, 1, 0, 0, 1);
     assert_eq!(out.tensor.as_slice(), &[21.0, 40.0, 32.0]);
 
@@ -71,7 +72,8 @@ fn conv_transpose2d_backward_accumulates_exact_gradients() {
         0,
         1,
         &backend,
-    );
+    )
+    .expect("transposed convolution forward");
 
     // Verify forward output
     let out = conv_transpose2d(&input, &weight, &Some(bias.clone()), out_tensor, 1, 0, 0, 1);
@@ -120,7 +122,8 @@ fn conv_transpose2d_no_bias_backward() {
     );
 
     let out_tensor =
-        coeus_ops::conv_transpose2d(&input.tensor, &weight.tensor, None, 1, 0, 0, 1, &backend);
+        coeus_ops::conv_transpose2d(&input.tensor, &weight.tensor, None, 1, 0, 0, 1, &backend)
+            .expect("transposed convolution forward");
     // stride=1, pad=0, dil=1, KH=KW=2: out_h = (2-1)*1 + 2 = 3
     assert_eq!(out_tensor.shape(), &[1, 1, 3, 3]);
 
@@ -176,7 +179,8 @@ fn conv_transpose3d_backward_accumulates_exact_gradients() {
         0,
         1,
         &backend,
-    );
+    )
+    .expect("transposed convolution forward");
     let out = conv_transpose3d(&input, &weight, &Some(bias.clone()), out_tensor, 1, 0, 0, 1);
     assert_eq!(
         out.tensor.to_contiguous().as_slice(),

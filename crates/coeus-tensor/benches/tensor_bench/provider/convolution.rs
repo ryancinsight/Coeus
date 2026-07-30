@@ -3,7 +3,7 @@
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_ops::ConvOps;
 use coeus_tensor::Tensor;
-use criterion::{black_box, Criterion};
+use criterion::{Criterion, black_box};
 
 pub(crate) fn bench_conv1d(c: &mut Criterion) {
     const BATCH: usize = 2;
@@ -40,18 +40,20 @@ pub(crate) fn bench_conv1d(c: &mut Criterion) {
             Tensor::<f32, SequentialBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_LENGTH]);
         let output_layout = output.layout().clone();
         bencher.iter(|| {
-            sequential_backend.conv1d(
-                black_box(sequential_input.storage()),
-                black_box(sequential_input.layout()),
-                black_box(sequential_weights.storage()),
-                black_box(sequential_weights.layout()),
-                None,
-                1,
-                0,
-                1,
-                output.storage_mut(),
-                &output_layout,
-            );
+            sequential_backend
+                .conv1d(
+                    black_box(sequential_input.storage()),
+                    black_box(sequential_input.layout()),
+                    black_box(sequential_weights.storage()),
+                    black_box(sequential_weights.layout()),
+                    None,
+                    1,
+                    0,
+                    1,
+                    output.storage_mut(),
+                    &output_layout,
+                )
+                .expect("sequential conv1d benchmark dispatch");
             black_box(output.storage());
         })
     });
@@ -60,18 +62,20 @@ pub(crate) fn bench_conv1d(c: &mut Criterion) {
             Tensor::<f32, MoiraiBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_LENGTH]);
         let output_layout = output.layout().clone();
         bencher.iter(|| {
-            moirai_backend.conv1d(
-                black_box(moirai_input.storage()),
-                black_box(moirai_input.layout()),
-                black_box(moirai_weights.storage()),
-                black_box(moirai_weights.layout()),
-                None,
-                1,
-                0,
-                1,
-                output.storage_mut(),
-                &output_layout,
-            );
+            moirai_backend
+                .conv1d(
+                    black_box(moirai_input.storage()),
+                    black_box(moirai_input.layout()),
+                    black_box(moirai_weights.storage()),
+                    black_box(moirai_weights.layout()),
+                    None,
+                    1,
+                    0,
+                    1,
+                    output.storage_mut(),
+                    &output_layout,
+                )
+                .expect("Moirai conv1d benchmark dispatch");
             black_box(output.storage());
         })
     });
@@ -117,18 +121,20 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
         ]);
         let output_layout = output.layout().clone();
         bencher.iter(|| {
-            sequential_backend.conv2d(
-                black_box(sequential_input.storage()),
-                black_box(sequential_input.layout()),
-                black_box(sequential_weights.storage()),
-                black_box(sequential_weights.layout()),
-                None,
-                1,
-                0,
-                1,
-                output.storage_mut(),
-                &output_layout,
-            );
+            sequential_backend
+                .conv2d(
+                    black_box(sequential_input.storage()),
+                    black_box(sequential_input.layout()),
+                    black_box(sequential_weights.storage()),
+                    black_box(sequential_weights.layout()),
+                    None,
+                    1,
+                    0,
+                    1,
+                    output.storage_mut(),
+                    &output_layout,
+                )
+                .expect("sequential conv2d benchmark dispatch");
             black_box(output.storage());
         })
     });
@@ -137,18 +143,20 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
             Tensor::<f32, MoiraiBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_SIDE, OUTPUT_SIDE]);
         let output_layout = output.layout().clone();
         bencher.iter(|| {
-            moirai_backend.conv2d(
-                black_box(moirai_input.storage()),
-                black_box(moirai_input.layout()),
-                black_box(moirai_weights.storage()),
-                black_box(moirai_weights.layout()),
-                None,
-                1,
-                0,
-                1,
-                output.storage_mut(),
-                &output_layout,
-            );
+            moirai_backend
+                .conv2d(
+                    black_box(moirai_input.storage()),
+                    black_box(moirai_input.layout()),
+                    black_box(moirai_weights.storage()),
+                    black_box(moirai_weights.layout()),
+                    None,
+                    1,
+                    0,
+                    1,
+                    output.storage_mut(),
+                    &output_layout,
+                )
+                .expect("Moirai conv2d benchmark dispatch");
             black_box(output.storage());
         })
     });
@@ -200,6 +208,7 @@ pub(crate) fn bench_conv_transpose2d(c: &mut Criterion) {
                 DILATION,
                 black_box(&sequential_backend),
             ))
+            .expect("sequential transposed convolution benchmark dispatch")
         })
     });
     group.bench_function("Coeus Moirai", |bencher| {
@@ -214,6 +223,7 @@ pub(crate) fn bench_conv_transpose2d(c: &mut Criterion) {
                 DILATION,
                 black_box(&moirai_backend),
             ))
+            .expect("Moirai transposed convolution benchmark dispatch")
         })
     });
     group.finish();

@@ -6,12 +6,19 @@
 //! they do not copy the consumer-side operation orchestration.
 #![deny(missing_docs)]
 
+mod convolution;
 mod elementwise;
 mod error;
 mod layout;
 mod reduction;
 mod storage;
 
+pub use convolution::{
+    ConvolutionBackend, ConvolutionBackwardDispatch, ConvolutionForwardDispatch,
+    ConvolutionProvider, regular_backward as convolution_backward,
+    regular_forward as convolution_forward, transposed_backward as convolution_transposed_backward,
+    transposed_forward as convolution_transposed_forward,
+};
 pub use elementwise::ElementwiseProvider;
 pub use error::HephaestusBackendError;
 pub use reduction::HephaestusBackend;

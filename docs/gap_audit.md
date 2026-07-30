@@ -147,39 +147,43 @@ provider path overlays were restored after verification.
 matrix; physical-device execution and runtime performance measurement remain
 explicit residuals.
 
-## ATLAS-COEUS-DISPATCH-002: Unsupported ConvTranspose3d fallback
+## ATLAS-COEUS-DISPATCH-SAFETY-020: Provider-owned convolution
 
-**Location**: `crates/coeus-ops/src/backend_ops/traits/conv.rs`,
-`crates/coeus-ops/src/backend_ops/defaults/conv_transpose.rs`,
-`crates/coeus-autograd/src/ops/nn/conv/transpose.rs`, and the public Coeus/NN
-ConvTranspose3d callers.
-**Gap**: the generic 3-D transposed-convolution default copied accelerator
-storage to host memory and executed the CPU scatter kernel because no native
-provider method existed. WGPU/CUDA native 1-D and 2-D methods did not cover
-the 3-D default.
-**Resolution**: ADR-0027 and the implementation now place 3-D dispatch behind
-`ConvTranspose3dOps`; only the default, autograd, and NN paths require
-`CpuBackend`. CPU backends retain the canonical scatter kernel and gradient
-loops; native accelerator 3-D work remains provider-owned and can implement
-the capability seam without inheriting a host fallback.
-**Evidence target**: CPU value-semantic differential tests, pinned warning-free
-provider checks, and static absence of an accelerator 3-D call path.
-**Local gate blocker**: `cargo check --locked --offline -p coeus-ops
--p coeus-autograd -p coeus-nn --all-targets` stops before compilation because
-Cargo sees `eunomia v0.7.0` at `D:/atlas/repos/eunomia/crates/eunomia` and
-`D:/atlas/worktrees/eunomia/crates/eunomia` as distinct lockfile identities.
-This is caused by the shared Atlas overlay versus committed sibling-worktree
-path dependencies; the peer-owned manifest migration remains separate from
-this dispatch slice.
-**Evidence**: pinned Rust 1.95 formatting, locked offline metadata, and
-`git diff --check` passed locally. Exact-head provider matrix `30285060032`
-passed WGPU `90040778847`, CUDA `90040778811`, ROCm `90040778842`, and Metal
-`90040778762`; required-device ROCm `90040779376` was skipped because no
-hosted AMD runner was dispatched.
-**Status**: complete for the static Coeus/provider boundary. The local
-worktree package-identity collision remains a separate migration residual;
-native accelerator 3-D kernels and autograd provider gradients remain
-provider-owned follow-up work.
+**Location**: `crates/coeus-ops/src/backend_ops/`,
+`crates/coeus-hephaestus/src/convolution/`, accelerator `ConvOps`
+implementations, and convolution consumers in autograd, NN, Python, tests, and
+benchmarks.
+**Gap**: Coeus owned CPU and accelerator convolution mathematics, exposed
+infallible dispatch, retained a separate 3-D transposed capability, downloaded
+unsupported CUDA requests for CPU execution, and implemented transposed
+backward loops in autograd.
+**Resolution**: ADR-0046 consolidates regular/transposed forward and backward
+into four fallible const-generic `ConvOps` methods. CPU dispatch borrows
+storage into Leto; CUDA/WGPU/ROCm/Metal dispatch device buffers into
+Hephaestus through one generic static dispatch implementation; vendor modules
+bind only their device, buffer, and error types. Leto regular and transposed
+operations share one borrowed-view construction path. Rank-specific methods
+are default adapters over that SSOT. Consumer-owned CUDA/WGPU kernels, CUDA
+host fallbacks, the generic transposed host default, `ConvTranspose3dOps`, and
+autograd host backward loops are deleted.
+**Evidence**: warning-denied all-target Clippy passes for the consolidated
+Leto, Hephaestus, WGPU, CUDA, and operation-contract scope. CPU/autograd/NN
+Nextest passes 592/592, including regular/transposed rank-one through
+rank-three differentials and exact transposed gradients. Final-review
+Leto/Hephaestus/autograd/WGPU Nextest passes 214/214, including
+regular/transposed parity, exact gradient accumulation, and COW storage. All
+46 executable affected-package doctests pass; two pre-existing NN doctests
+remain ignored.
+`cargo-semver-checks` confirms the changed failure contract and removed
+capability seam require a major release. Residue scans find no convolution
+`SequentialBackend`, host transfer, fallback, or consumer kernel path.
+Exact-head provider run `30545333101` passed WGPU job `90880014492`, CUDA job
+`90880014608`, ROCm job `90880014606`, and Metal job `90880014508`;
+required-device ROCm job `90880015294` was skipped because no AMD hardware
+runner was dispatched.
+**Residual**: PR #250 merge remains open. No runtime, memory, or binary-size
+delta is claimed without controlled measurements.
+**Status**: implementation and verification complete; merge ready.
 
 ## ATLAS-COEUS-DISPATCH-001: Unsupported reduction selection fallback
 
@@ -327,13 +331,12 @@ shape, and modular-coordinate Nextest 5/5; disabled-provider Nextest 3/3; and
 exact source-head run `30488454769`, which passed CUDA `90700098613`, Metal
 `90700098624`, ROCm `90700098669`, and WGPU `90700098570`. Required-device
 ROCm `90700098948` skipped because no AMD runner was registered.
-**Residual**: convolution still owns a consumer-side CPU fallback and infallible
-backend contract; removing it requires the next fallible provider-ownership
-cutover. No runtime performance or resident-memory delta is claimed without
-controlled measurements.
-**Status**: resolved for the raw matmul and convolution storage and signed-PTX
-boundaries. The residual provider-ownership cutover remains a separate active
-finding.
+**Residual**: none in this storage-boundary item. ADR-0046 and
+`ATLAS-COEUS-DISPATCH-SAFETY-020` close the former convolution ownership and
+fallibility residual. No runtime performance or resident-memory delta is
+claimed without controlled measurements.
+**Status**: resolved for the raw matmul and historical convolution storage and
+signed-PTX boundaries.
 
 ## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001: exact GELU forward and gradient
 

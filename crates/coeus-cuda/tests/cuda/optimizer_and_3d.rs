@@ -158,20 +158,23 @@ fn test_cuda_conv3d() {
         1,
         out_seq.storage_mut(),
         &out_seq_layout,
-    );
+    )
+    .expect("CPU conv3d dispatch");
 
-    cuda_b.conv3d(
-        input_cuda.storage(),
-        &input_cuda_layout,
-        weight_cuda.storage(),
-        &weight_cuda_layout,
-        None,
-        1,
-        0,
-        1,
-        out_cuda.storage_mut(),
-        &out_cuda_layout,
-    );
+    cuda_b
+        .conv3d(
+            input_cuda.storage(),
+            &input_cuda_layout,
+            weight_cuda.storage(),
+            &weight_cuda_layout,
+            None,
+            1,
+            0,
+            1,
+            out_cuda.storage_mut(),
+            &out_cuda_layout,
+        )
+        .expect("CUDA conv3d dispatch");
 
     let out_cuda_on_cpu = out_cuda.to_backend_on(&cuda_b, &seq);
 
@@ -213,17 +216,18 @@ fn test_cuda_max_pool3d_forward_backward() {
     )
     .expect("invariant: validated CPU max_pool3d dispatch must succeed");
 
-    cuda_b.max_pool3d(
-        input_cuda.storage(),
-        &input_cuda_layout,
-        2,
-        1,
-        0,
-        1,
-        out_cuda.storage_mut(),
-        &out_cuda_layout,
-    )
-    .expect("invariant: validated CUDA max_pool3d dispatch must succeed");
+    cuda_b
+        .max_pool3d(
+            input_cuda.storage(),
+            &input_cuda_layout,
+            2,
+            1,
+            0,
+            1,
+            out_cuda.storage_mut(),
+            &out_cuda_layout,
+        )
+        .expect("invariant: validated CUDA max_pool3d dispatch must succeed");
 
     let out_cuda_on_cpu = out_cuda.to_backend_on(&cuda_b, &seq);
 

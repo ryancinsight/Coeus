@@ -57,7 +57,8 @@ fn test_wgpu_conv_transpose1d() {
         dilation,
         out_c.storage_mut(),
         &out_l,
-    );
+    )
+    .expect("CPU transposed conv1d dispatch");
 
     let in_g = in_c.to_backend_on(&seq, &wgpu);
     let w_g = w_c.to_backend_on(&seq, &wgpu);
@@ -75,7 +76,8 @@ fn test_wgpu_conv_transpose1d() {
         dilation,
         out_g.storage_mut(),
         &out_l,
-    );
+    )
+    .expect("WGPU transposed conv1d dispatch");
 
     assert_close(
         "conv_transpose1d",
@@ -119,7 +121,8 @@ fn test_wgpu_conv_transpose2d() {
         dilation,
         out_c.storage_mut(),
         &out_l,
-    );
+    )
+    .expect("CPU transposed conv2d dispatch");
 
     let in_g = in_c.to_backend_on(&seq, &wgpu);
     let w_g = wt_c.to_backend_on(&seq, &wgpu);
@@ -137,7 +140,8 @@ fn test_wgpu_conv_transpose2d() {
         dilation,
         out_g.storage_mut(),
         &out_l,
-    );
+    )
+    .expect("WGPU transposed conv2d dispatch");
 
     assert_close(
         "conv_transpose2d",
@@ -172,7 +176,8 @@ fn test_wgpu_conv_transpose1d_backward_matches_cpu_autograd() {
         0,
         1,
         &seq,
-    );
+    )
+    .expect("CPU transposed convolution forward");
     let tracked_cpu =
         coeus_autograd::conv_transpose1d(&input_cpu, &weight_cpu, &None, out_cpu, 1, 0, 0, 1);
     tracked_cpu
@@ -199,7 +204,8 @@ fn test_wgpu_conv_transpose1d_backward_matches_cpu_autograd() {
         0,
         1,
         &wgpu,
-    );
+    )
+    .expect("WGPU transposed convolution forward");
     let tracked_gpu =
         coeus_autograd::conv_transpose1d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
     tracked_gpu
@@ -250,7 +256,8 @@ fn test_wgpu_conv_transpose2d_backward_matches_cpu_autograd() {
         0,
         1,
         &seq,
-    );
+    )
+    .expect("CPU transposed convolution forward");
     let tracked_cpu =
         coeus_autograd::conv_transpose2d(&input_cpu, &weight_cpu, &None, out_cpu, 1, 0, 0, 1);
     tracked_cpu
@@ -277,7 +284,8 @@ fn test_wgpu_conv_transpose2d_backward_matches_cpu_autograd() {
         0,
         1,
         &wgpu,
-    );
+    )
+    .expect("WGPU transposed convolution forward");
     let tracked_gpu =
         coeus_autograd::conv_transpose2d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
     tracked_gpu

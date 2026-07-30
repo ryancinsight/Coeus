@@ -73,6 +73,7 @@ pyo3 = { version = "0.23", features = ["extension-module"] }
 coeus-core     = { path = "crates/coeus-core" }
 coeus-tensor   = { path = "crates/coeus-tensor" }
 coeus-ops      = { path = "crates/coeus-ops", default-features = false }
+coeus-hephaestus = { path = "crates/coeus-hephaestus" }
 coeus-autograd = { path = "crates/coeus-autograd", default-features = false }
 coeus-nn       = { path = "crates/coeus-nn", default-features = false }
 coeus-optim    = { path = "crates/coeus-optim", default-features = false }

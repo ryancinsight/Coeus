@@ -34,7 +34,8 @@ fn test_cuda_parity_conv_transpose1d() {
         dilation,
         out_s.storage_mut(),
         &out_l,
-    );
+    )
+    .expect("CPU transposed conv1d dispatch");
 
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&w_t, &s, &c);
@@ -52,7 +53,8 @@ fn test_cuda_parity_conv_transpose1d() {
         dilation,
         out_g.storage_mut(),
         &out_l,
-    );
+    )
+    .expect("CUDA transposed conv1d dispatch");
 
     assert_parity_tol(
         "conv_transpose1d",
@@ -99,7 +101,8 @@ fn test_cuda_parity_conv_transpose2d() {
         dilation,
         out_s.storage_mut(),
         &out_l,
-    );
+    )
+    .expect("CPU transposed conv2d dispatch");
 
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&wt_t, &s, &c);
@@ -117,7 +120,8 @@ fn test_cuda_parity_conv_transpose2d() {
         dilation,
         out_g.storage_mut(),
         &out_l,
-    );
+    )
+    .expect("CUDA transposed conv2d dispatch");
 
     assert_parity_tol(
         "conv_transpose2d",
@@ -146,7 +150,8 @@ fn test_cuda_parity_conv_transpose1d_backward() {
         true,
     );
     let out_cpu =
-        coeus_ops::conv_transpose1d(&input_cpu.tensor, &weight_cpu.tensor, None, 1, 0, 0, 1, &s);
+        coeus_ops::conv_transpose1d(&input_cpu.tensor, &weight_cpu.tensor, None, 1, 0, 0, 1, &s)
+            .expect("CPU transposed convolution forward");
     let tracked_cpu =
         coeus_autograd::conv_transpose1d(&input_cpu, &weight_cpu, &None, out_cpu, 1, 0, 0, 1);
     tracked_cpu
@@ -165,7 +170,8 @@ fn test_cuda_parity_conv_transpose1d_backward() {
         true,
     );
     let out_gpu =
-        coeus_ops::conv_transpose1d(&input_gpu.tensor, &weight_gpu.tensor, None, 1, 0, 0, 1, &c);
+        coeus_ops::conv_transpose1d(&input_gpu.tensor, &weight_gpu.tensor, None, 1, 0, 0, 1, &c)
+            .expect("CUDA transposed convolution forward");
     let tracked_gpu =
         coeus_autograd::conv_transpose1d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
     tracked_gpu
@@ -209,7 +215,8 @@ fn test_cuda_parity_conv_transpose2d_backward() {
         true,
     );
     let out_cpu =
-        coeus_ops::conv_transpose2d(&input_cpu.tensor, &weight_cpu.tensor, None, 1, 0, 0, 1, &s);
+        coeus_ops::conv_transpose2d(&input_cpu.tensor, &weight_cpu.tensor, None, 1, 0, 0, 1, &s)
+            .expect("CPU transposed convolution forward");
     let tracked_cpu =
         coeus_autograd::conv_transpose2d(&input_cpu, &weight_cpu, &None, out_cpu, 1, 0, 0, 1);
     tracked_cpu
@@ -228,7 +235,8 @@ fn test_cuda_parity_conv_transpose2d_backward() {
         true,
     );
     let out_gpu =
-        coeus_ops::conv_transpose2d(&input_gpu.tensor, &weight_gpu.tensor, None, 1, 0, 0, 1, &c);
+        coeus_ops::conv_transpose2d(&input_gpu.tensor, &weight_gpu.tensor, None, 1, 0, 0, 1, &c)
+            .expect("CUDA transposed convolution forward");
     let tracked_gpu =
         coeus_autograd::conv_transpose2d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
     tracked_gpu

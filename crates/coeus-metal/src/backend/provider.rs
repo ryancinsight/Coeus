@@ -1,5 +1,5 @@
-use coeus_hephaestus::HephaestusProvider;
-use hephaestus_metal::MetalDevice;
+use coeus_hephaestus::{ConvolutionProvider, HephaestusProvider};
+use hephaestus_metal::{MetalConvolutionOps, MetalDevice};
 use std::sync::OnceLock;
 
 /// Provider marker for the native Metal device.
@@ -16,4 +16,8 @@ unsafe impl HephaestusProvider for MetalProvider {
         static DEVICE: OnceLock<MetalDevice> = OnceLock::new();
         DEVICE.get_or_init(|| MetalDevice::try_default().expect("Metal device acquisition failed"))
     }
+}
+
+impl ConvolutionProvider<f32> for MetalProvider {
+    type Operations = MetalConvolutionOps;
 }

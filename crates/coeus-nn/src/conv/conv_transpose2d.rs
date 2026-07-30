@@ -132,19 +132,24 @@ where
 
         let mut out_tensor = Tensor::zeros_on([n, self.out_channels, h_out, w_out], &backend);
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
-        backend.conv_transpose2d(
-            input.tensor.storage(),
-            input.tensor.layout(),
-            self.weight.tensor.storage(),
-            self.weight.tensor.layout(),
-            self.bias.as_ref().map(|b| b.tensor.storage()),
-            self.stride,
-            self.padding,
-            self.output_padding,
-            self.dilation,
-            out_storage,
-            out_layout,
-        );
+        backend
+            .conv_transpose2d(
+                input.tensor.storage(),
+                input.tensor.layout(),
+                self.weight.tensor.storage(),
+                self.weight.tensor.layout(),
+                self.bias.as_ref().map(|b| b.tensor.storage()),
+                self.stride,
+                self.padding,
+                self.output_padding,
+                self.dilation,
+                out_storage,
+                out_layout,
+            )
+            .map_err(|source| ModuleError::Backend {
+                module: "ConvTranspose2d",
+                source,
+            })?;
 
         Ok(coeus_autograd::conv_transpose2d(
             input,

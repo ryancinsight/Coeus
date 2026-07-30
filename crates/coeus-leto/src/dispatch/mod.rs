@@ -32,6 +32,8 @@ pub(crate) fn shape_n<const N: usize>(shape: &[usize]) -> Result<[usize; N]> {
     )
 }
 
+/// Provider-owned regular and transposed convolution dispatch.
+pub mod convolution;
 /// Elementwise binary and unary operation dispatch (add, sub, mul, div, map).
 pub mod elementwise;
 /// Tensor initialization dispatch (from_shape_fn, uniform, normal).
@@ -48,6 +50,11 @@ pub mod sparse;
 /// Structural tensor ops dispatch (pad, concat, split, stack).
 pub mod structural;
 
+pub use convolution::{
+    ConvolutionBackward, ConvolutionForward, ConvolutionGradients, ReadOperand, WriteOperand,
+    convolution_backward_accumulate, convolution_forward_into,
+    convolution_transposed_backward_accumulate, convolution_transposed_forward_into,
+};
 pub use elementwise::{elementwise_add_into, elementwise_binary_into, elementwise_unary_into};
 pub use init::{from_shape_fn_values, normal_values, uniform_values};
 pub use layout::{
@@ -60,5 +67,5 @@ pub use reductions::{
     argmax_into, argmin_into, cumprod_into, cumsum_into, reduce_into, suffix_prod_into,
     suffix_sum_into,
 };
-pub use sparse::{spmm_into, spmv_into, CsrDispatch};
+pub use sparse::{CsrDispatch, spmm_into, spmv_into};
 pub use structural::{concat_values, pad_values, split_values, stack_values};

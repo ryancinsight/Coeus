@@ -4,6 +4,19 @@
 
 ### Changed
 
+- [major] Complete provider-owned convolution dispatch across spatial ranks
+  one through three. Four fallible const-generic `ConvOps` methods own
+  regular/transposed forward and additive backward; rank-specific methods are
+  zero-cost default adapters. CPU storage is borrowed directly into Leto,
+  while CUDA/WGPU/ROCm/Metal device storage dispatches directly to
+  one monomorphized Hephaestus implementation through provider-specific
+  device, buffer, and error bindings. Leto regular and transposed paths share
+  one borrowed-view constructor. Coeus-owned accelerator kernels, CUDA host
+  fallbacks, the generic transposed host default, the separate 3-D capability
+  seam, and autograd host backward loops are removed. Rust, Python, benchmark,
+  and test callers now propagate typed backend failures. No runtime, memory,
+  or binary-size delta is claimed without controlled measurements.
+
 - [patch] Validate CUDA matmul and convolution forward/backward layouts against
   their physical device allocations at the raw-launch boundary. Convolution
   also rejects incompatible batch/channel/spatial shapes, invalid convolution

@@ -78,22 +78,24 @@ where
     backend.copy_to_device(case.weight, &mut weight);
     backend.copy_to_device(case.initial_grad_weight, &mut grad_weight);
 
-    backend.conv1d_backward(
-        &grad_out,
-        &grad_out_layout,
-        &input,
-        &input_layout,
-        &weight,
-        &weight_layout,
-        None,
-        &input_layout,
-        Some(&mut grad_weight),
-        &weight_layout,
-        None,
-        case.stride,
-        case.padding,
-        case.dilation,
-    );
+    backend
+        .conv1d_backward(
+            &grad_out,
+            &grad_out_layout,
+            &input,
+            &input_layout,
+            &weight,
+            &weight_layout,
+            None,
+            &input_layout,
+            Some(&mut grad_weight),
+            &weight_layout,
+            None,
+            case.stride,
+            case.padding,
+            case.dilation,
+        )
+        .expect("convolution backward provider dispatch");
 
     let mut out = vec![0.0; case.initial_grad_weight.len()];
     backend.copy_to_host(&grad_weight, &mut out);

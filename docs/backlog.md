@@ -2,8 +2,8 @@
 
 ## ATLAS-COEUS-DISPATCH-SAFETY-020 — Provider routing audit [arch]
 
-- Owner: Codex takeover on `codex/coeus-cuda-layout-safety`; scope: Coeus CPU and
-  accelerator dispatch boundaries under `coeus-leto`, `coeus-cuda`,
+- Owner: Codex on `codex/coeus-native-convolution-dispatch`; scope: Coeus CPU and
+  accelerator dispatch boundaries under `coeus-ops`, `coeus-cuda`,
   `coeus-wgpu`, `coeus-rocm`, and `coeus-metal`, plus the focused contract
   tests, ADR, and active PM evidence required by an accepted finding.
 - Outcome: every audited operation executes through Leto for CPU selection and
@@ -20,41 +20,31 @@
 - Risk/change class: `[arch]`; the audit can expose provider-ownership or
   failure-contract corrections, with SemVer class determined from the actual
   accepted finding.
-- Status: in progress. The stale merged lane was fast-forwarded to
-  `origin/main`; superseded CUDA/WGPU working files were verified byte-equal to
-  main, while the generated overlay lockfile delta remains excluded. The first
-  accepted finding is a CUDA safe-API storage-boundary defect: elementwise
-  layouts are now checked against every physical allocation before raw pointer
-  acquisition, offset-bearing views bypass offset-blind contiguous kernels,
-  writable zero-stride outputs are rejected, and remapped input/output aliases
-  return typed layout errors. Empty layouts remain valid and complete without a
-  device launch. Static audits also retain unresolved typed-error
-  and provider-ownership findings for CPU reductions, CUDA
-  convolution/attention/optimizers, WGPU attention/elementwise/matmul, and the
-  generic ROCm/Metal acquisition and transfer boundary. The CUDA feature test
-  targets compile, warning-denied all-target Clippy passes, and the
-  disabled-provider Nextest lane passes 3/3. Exact implementation-head run
-  `30426667552` passed CUDA `90494509271`, Metal `90494509298`, ROCm
-  `90494509264`, and WGPU `90494509247`; required-device ROCm `90494509665`
-  was skipped because no AMD runner was registered. Local feature-enabled
-  execution is blocked by the GNU CUDA import library and the shared-cache
-  MSVC host-artifact collision. The active increment validates CUDA matmul and
-  convolution layouts against their physical device allocations before any
-  raw launch. The implementation centralizes rank-specialized convolution
-  contracts in `kernels/launch_conv/validation.rs`; feature-enabled check and
-  warning-denied Clippy pass, and disabled-provider Nextest passes 3/3. The
-  hosted CUDA lane selects the allocation-bound regressions. The prior owner
-  became stale after `4d258052`; takeover review found that the shared
-  validator admitted `u32` layout and convolution-parameter values even though
-  embedded PTX coordinate and address arithmetic is signed 32-bit. The
-  correction bounds layout fields, operation parameters, derived coordinates,
-  and maximum physical indices at `i32::MAX`, while retaining valid modulo
-  low-word intermediates whose final coordinate is representable. Rust 1.95
-  focused Nextest passes 5/5 for the signed and shape boundaries. Exact source
-  head `9ed5d81a` run `30488454769` passed CUDA `90700098613`, Metal
-  `90700098624`, ROCm `90700098669`, and WGPU `90700098570`; required-device
-  ROCm `90700098948` skipped because no AMD runner was registered. Unrelated
-  provider migrations remain outside this increment.
+- Delivered scope: Leto owns CPU regular/transposed forward and additive
+  backward mathematics; Hephaestus owns the corresponding rank-generic
+  accelerator seam and CUDA/WGPU/ROCm/Metal providers. Coeus `ConvOps` now has
+  four fallible const-generic required methods with rank-specific default
+  adapters. CPU routes borrowed layouts and slices to Leto. Accelerator
+  backends bind their device, buffer, and error types to one generic
+  Hephaestus dispatch implementation. Leto regular and transposed operations
+  share one borrowed-view construction path. Coeus-owned CUDA/WGPU convolution
+  kernels, CUDA host fallbacks, the generic transposed host default, the
+  separate `ConvTranspose3dOps` seam, and autograd host backward loops are
+  deleted. Rust, Python, benchmark, and test callers propagate or assert the
+  typed result.
+- Status: merge ready pending PR #250 integration. Local warning-denied
+  all-target Clippy passes for the consolidated Leto, Hephaestus, WGPU, CUDA,
+  and operation-contract scope. CPU/autograd/NN Nextest passes 592/592; the
+  final review Leto/Hephaestus/autograd/WGPU suite passes 214/214, including
+  regular/transposed parity, exact gradient accumulation, and COW storage. All
+  46 executable affected-package doctests pass; two pre-existing NN doctests
+  remain ignored. `cargo-semver-checks` classifies the fallible `ConvOps`
+  contract and removed capability seam as a major change. Exact-head provider
+  run `30545333101` passed WGPU job `90880014492`, CUDA job `90880014608`,
+  ROCm job `90880014606`, and Metal job `90880014508`; required-device ROCm
+  job `90880015294` was skipped because no AMD hardware runner was
+  dispatched. No runtime, memory, or binary-size delta is claimed without
+  controlled measurements.
 
 ## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution [arch]
 
@@ -245,15 +235,15 @@
   to host memory when no native provider kernel exists.
 - Non-goals: native accelerator ConvTranspose3d kernels, existing WGPU/CUDA
   ConvTranspose1d/2d paths, and the fallible `ComputeBackend` migration.
-- Acceptance: the default 3-D implementation is `CpuBackend`-only, the public
-  operation dispatches through `ConvTranspose3dOps`, and the current NN/
-  autograd path remains `CpuBackend`-only; CPU scatter and gradient value
-  semantics remain green; provider CI remains green; no generic accelerator
-  host fallback remains for this operation.
+- Acceptance: no generic accelerator host fallback remains; the temporary
+  CPU-only boundary stays valid until a complete provider contract replaces
+  it; CPU scatter and gradient value semantics remain green.
 - Risk/change class: `[arch]` breaking generic capability boundary.
-- Decision: ADR-0027 makes the unimplemented 3-D operation statically
-  CPU-only until its owning provider supplies a native kernel.
-- Status: implementation complete; exact-head provider matrix `30285060032`
+- Decision: the temporary static boundary is superseded by ADR-0046, which
+  supplies the complete Leto/Hephaestus rank-generic provider contract and
+  removes `ConvTranspose3dOps`.
+- Status: closed by `ATLAS-COEUS-DISPATCH-SAFETY-020`. Its interim exact-head
+  provider matrix `30285060032`
   passed WGPU `90040778847`, CUDA `90040778811`, ROCm `90040778842`, and Metal
   `90040778762`. Required-device ROCm `90040779376` was skipped because no
   hosted AMD runner was dispatched. Local package compilation remains blocked

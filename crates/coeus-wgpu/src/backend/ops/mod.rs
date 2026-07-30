@@ -10,7 +10,6 @@ use leto::Layout as LetoLayout;
 use std::sync::Arc;
 
 mod attention;
-mod conv;
 mod impls;
 mod matmul;
 mod optim;
