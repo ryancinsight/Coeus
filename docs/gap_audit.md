@@ -327,10 +327,12 @@ shape, and modular-coordinate Nextest 5/5; disabled-provider Nextest 3/3; and
 exact source-head run `30488454769`, which passed CUDA `90700098613`, Metal
 `90700098624`, ROCm `90700098669`, and WGPU `90700098570`. Required-device
 ROCm `90700098948` skipped because no AMD runner was registered.
-**Residual**: convolution still owns a consumer-side CPU fallback and infallible
-backend contract; removing it requires the next fallible provider-ownership
-cutover. No runtime performance or resident-memory delta is claimed without
-controlled measurements.
+**Residual**: convolution still owns consumer-side CPU kernels and an
+infallible backend contract. The separate 3-D transposed-forward operation and
+all three host-side transposed-backward paths also remain outside the provider
+seam. Removing them requires the next fallible provider-ownership cutover. No
+runtime performance or resident-memory delta is claimed without controlled
+measurements.
 **Status**: resolved for the raw matmul and convolution storage and signed-PTX
 boundaries. The residual provider-ownership cutover remains a separate active
 finding.

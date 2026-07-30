@@ -4,16 +4,21 @@
 - Date: 2026-07-29
 - Board item: `ATLAS-COEUS-DISPATCH-SAFETY-020`
 - Change class: `[arch] [major]`
+- Revision 2026-07-30: expanded the closure after repository-wide caller and
+  implementor audits found the separate 3-D transposed-forward trait and three
+  consumer-owned transposed-backward implementations.
 
 ## Context
 
 `ConvOps` exposes six regular and two transposed-convolution operations as
-infallible mutations. CPU regular convolution delegates to Leto, but
-transposed convolution remains a Coeus-owned host algorithm. CUDA and WGPU
-own local device kernels; CUDA additionally downloads unsupported requests,
-executes them with `SequentialBackend`, and uploads the result. Backend
-selection therefore does not uniquely select the execution provider, and
-provider failures cannot cross the public operation seam.
+infallible mutations. `ConvTranspose3dOps` exposes a ninth infallible forward
+operation outside that aggregate. CPU regular and transposed convolution
+remain Coeus-owned host algorithms. CUDA and WGPU own local device kernels;
+CUDA additionally downloads unsupported requests, executes them with
+`SequentialBackend`, and uploads the result. Transposed autograd owns three
+additional host-side backward loops. Backend selection therefore does not
+uniquely select the execution provider, and provider failures cannot cross the
+public operation seam.
 
 Leto and Hephaestus currently expose no complete regular and transposed
 convolution contract. Changing only the Coeus dispatch code would preserve
@@ -30,16 +35,17 @@ maps its layouts and buffers directly into the selected provider contract.
 
 The migration proceeds in dependency order:
 
-1. Add shared value-semantic regular and transposed-convolution contracts and
-   generic conformance tests to Leto.
+1. Add shared value-semantic regular and transposed-convolution forward and
+   backward contracts plus generic conformance tests to Leto.
 2. Add the corresponding Hephaestus accelerator seam, provider
    implementations, and differential tests against Leto.
-3. Change all eight Coeus `ConvOps` methods to return
-   `Result<(), Self::Error>` and propagate failures through every direct
-   workspace consumer.
+3. Change all eight Coeus `ConvOps` methods and the separate
+   `ConvTranspose3dOps` method to return `Result<(), Self::Error>`, add
+   provider-owned transposed-backward operations, and propagate failures
+   through every direct workspace consumer.
 4. Delete Coeus-owned accelerator convolution kernels, CUDA host fallbacks,
-   and the generic host-side transposed-convolution defaults once every
-   provider call site has cut over.
+   generic host-side transposed-convolution defaults, and autograd
+   transposed-backward loops once every provider call site has cut over.
 
 Runtime provider selection occurs once at the operation boundary. CPU
 selection dispatches to Leto; accelerator selection dispatches to the
@@ -60,8 +66,9 @@ introduced.
   provider dimension.
 - Add a runtime fallback policy. Rejected because reported backend identity
   would still diverge from execution identity.
-- Make only regular convolution fallible. Rejected because the two
-  transposed-convolution defaults retain the same hidden provider transition.
+- Make only regular convolution fallible. Rejected because the transposed
+  forward defaults and host-side backward loops retain the same hidden
+  provider transition.
 - Preserve infallible public methods and record failures out of band.
   Rejected because callers could observe partially written outputs as success.
 
