@@ -110,8 +110,9 @@ measurements compare the complete pre- and post-cutover operation.
   Leto/Hephaestus/autograd/WGPU Nextest passes 214/214. All 46 executable
   affected-package doctests pass; two pre-existing NN doctests remain ignored.
 - `cargo-semver-checks` classifies the fallible contract and removed capability
-  seam as a major change. Pre-review provider run `30542110211` passed WGPU,
-  CUDA, ROCm, and Metal; the consolidated exact-head provider matrix gates the
-  merge.
+  seam as a major change. Exact-head provider run `30545333101` passed WGPU
+  job `90880014492`, CUDA job `90880014608`, ROCm job `90880014606`, and
+  Metal job `90880014508`; required-device ROCm job `90880015294` was skipped
+  because no AMD hardware runner was dispatched.
 - Residue scans reject convolution `SequentialBackend`, `copy_to_host`,
   fallback, and consumer-owned kernel paths.

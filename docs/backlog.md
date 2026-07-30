@@ -32,17 +32,19 @@
   separate `ConvTranspose3dOps` seam, and autograd host backward loops are
   deleted. Rust, Python, benchmark, and test callers propagate or assert the
   typed result.
-- Status: in progress pending terminal CI and merge. Local warning-denied
+- Status: merge ready pending PR #250 integration. Local warning-denied
   all-target Clippy passes for the consolidated Leto, Hephaestus, WGPU, CUDA,
   and operation-contract scope. CPU/autograd/NN Nextest passes 592/592; the
   final review Leto/Hephaestus/autograd/WGPU suite passes 214/214, including
   regular/transposed parity, exact gradient accumulation, and COW storage. All
   46 executable affected-package doctests pass; two pre-existing NN doctests
   remain ignored. `cargo-semver-checks` classifies the fallible `ConvOps`
-  contract and removed capability seam as a major change. Pre-review provider
-  run `30542110211` passed WGPU, CUDA, ROCm, and Metal; the consolidated final
-  review head still requires exact-head provider CI. No runtime, memory, or
-  binary-size delta is claimed without controlled measurements.
+  contract and removed capability seam as a major change. Exact-head provider
+  run `30545333101` passed WGPU job `90880014492`, CUDA job `90880014608`,
+  ROCm job `90880014606`, and Metal job `90880014508`; required-device ROCm
+  job `90880015294` was skipped because no AMD hardware runner was
+  dispatched. No runtime, memory, or binary-size delta is claimed without
+  controlled measurements.
 
 ## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution [arch]
 

@@ -177,11 +177,13 @@ remain ignored.
 `cargo-semver-checks` confirms the changed failure contract and removed
 capability seam require a major release. Residue scans find no convolution
 `SequentialBackend`, host transfer, fallback, or consumer kernel path.
-Pre-review provider run `30542110211` passed WGPU, CUDA, ROCm, and Metal.
-**Residual**: exact-head provider CI for the consolidated review head and
-merge remain open. No runtime, memory, or binary-size delta is claimed without
-controlled measurements.
-**Status**: implementation complete; terminal verification in progress.
+Exact-head provider run `30545333101` passed WGPU job `90880014492`, CUDA job
+`90880014608`, ROCm job `90880014606`, and Metal job `90880014508`;
+required-device ROCm job `90880015294` was skipped because no AMD hardware
+runner was dispatched.
+**Residual**: PR #250 merge remains open. No runtime, memory, or binary-size
+delta is claimed without controlled measurements.
+**Status**: implementation and verification complete; merge ready.
 
 ## ATLAS-COEUS-DISPATCH-001: Unsupported reduction selection fallback
 

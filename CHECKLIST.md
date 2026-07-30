@@ -13,7 +13,7 @@
       host loops.
 - [x] Migrate all operation, autograd, neural-network, test, benchmark, and
       binding consumers.
-- [ ] Pass warning-denied provider gates, focused and full Nextest, doctests,
+- [x] Pass warning-denied provider gates, focused and full Nextest, doctests,
       SemVer classification, and exact-head provider CI.
 
 ## ATLAS-COEUS-NN-SAFETY-019 Fallible module execution [major][arch]

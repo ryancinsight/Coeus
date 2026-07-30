@@ -54,7 +54,10 @@
       pre-existing ignored NN doctests.
 - [x] Confirm the fallible `ConvOps` contract and removed capability seam as a
       major change with `cargo-semver-checks`.
-- [ ] Pass exact-head provider CI, merge, and record terminal evidence.
+- [x] Pass exact-head provider CI and record terminal evidence: run
+      `30545333101` passed WGPU, CUDA, ROCm, and Metal; the required-device
+      ROCm lane was skipped because no AMD hardware runner was dispatched.
+- [ ] Merge PR #250 and record its merge revision.
 
 ## ATLAS-COEUS-DISPATCH-001 — Remove host-copy selection fallbacks
 
