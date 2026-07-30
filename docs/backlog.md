@@ -32,7 +32,7 @@
   separate `ConvTranspose3dOps` seam, and autograd host backward loops are
   deleted. Rust, Python, benchmark, and test callers propagate or assert the
   typed result.
-- Status: merge ready pending PR #250 integration. Local warning-denied
+- Status: complete. PR #250 merged as `0dfab53e`. Local warning-denied
   all-target Clippy passes for the consolidated Leto, Hephaestus, WGPU, CUDA,
   and operation-contract scope. CPU/autograd/NN Nextest passes 592/592; the
   final review Leto/Hephaestus/autograd/WGPU suite passes 214/214, including
