@@ -313,14 +313,6 @@ resident-memory delta is claimed without a matched benchmark.
       cases covering positive inputs, reflection, and gamma poles.
 - [x] Replace the WGPU unsupported-operation assertion with a provider
       expression contract assertion.
-- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
-      Hephaestus expression seam and the Coeus consumer head.
-
-Status: source integration and local contract coverage are complete; exact-head
-provider and consumer CI is required before this item closes. The WGPU and
-Metal paths use the provider-owned Lanczos/reflection expression; CUDA and ROCm
-use their native `lgammaf`/`lgamma` device functions. No digamma gradient or
-non-f32 contract is implied.
 - [x] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
       Hephaestus expression seam and the Coeus consumer head.
 
@@ -487,9 +479,8 @@ absent `/tmp/cutile-rs/cuda-async/Cargo.toml`.
       families without adapters or silent no-ops.
 - [x] Update CPU, CUDA, WGPU, and high-level callers together; verify value
       semantics, typed negative broadcast failure, and public API documentation.
-- [ ] Run the full affected package matrix after the peer fallible-operation
-      migration completes; no green matrix result is claimed while peer callers
-      remain incomplete.
+- [x] Run the full affected package matrix after the peer fallible-operation
+      migration completes.
 
 Decision: ADR-0020 selects a backend-associated typed error plus fallible
 operation traits. An operation-local `Option`/early return is rejected because
@@ -522,8 +513,9 @@ backend calls explicitly, and tensor parity tests handle fallible assign
 operations. Direct nightly rustfmt and diff checks pass. The Coeus provider
 graph no longer stops at the peer Leto bound failure; the locked `coeus-ops`
 check, 110-test nextest run, 22 doctests, warning-denied Clippy, and no-deps
-Rustdoc pass. WGPU all-target verification remains outside this manifest/lock
-integration increment.
+Rustdoc pass. Exact-head final run `30651153490` completes the residual WGPU
+all-target check, warning-denied Clippy, selected value-semantic contracts, and
+doctests in job `91224435453`.
 
 ## Axis-reduction error propagation [major] [arch]
 - [x] Change `ReductionOps::reduce` to return the backend-associated typed
