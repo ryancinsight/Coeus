@@ -1,5 +1,6 @@
 use crate::storage::CudaStorage;
 use coeus_core::{Backend, ComputeBackend, Scalar, Storage};
+use hephaestus_core::{CommandStream, KernelDevice};
 use hephaestus_cuda::{ComputeDevice, CudaDevice};
 use std::sync::OnceLock;
 
@@ -71,7 +72,12 @@ impl ComputeBackend for CudaBackend {
 
     #[inline]
     fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        CudaStorage::allocate(len)
+        CudaStorage::uninitialized(len)
+    }
+
+    #[inline]
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
+        CudaStorage::new(len)
     }
 
     #[inline]
@@ -80,20 +86,14 @@ impl ComputeBackend for CudaBackend {
         if size == 0 {
             return;
         }
-        let bytes = size * std::mem::size_of::<T>();
+
+        if val.has_zero_bit_pattern() {
+            self.fill_zero(dst);
+            return;
+        }
+
         let device = get_cuda_device();
         device.bind().expect("fill: failed to bind CUDA device");
-
-        // Fast path: if the value is bitwise zero, use cuMemsetD8_v2
-        let is_zero = Scalar::to_f64(val) == 0.0;
-        if is_zero {
-            unsafe {
-                let res = cuda_core::sys::cuMemsetD8_v2(dst.cu_deviceptr(), 0, bytes);
-                if res == 0 {
-                    return;
-                }
-            }
-        }
 
         // If T is 32-bit, use cuMemsetD32_v2
         if std::mem::size_of::<T>() == 4 {
@@ -135,6 +135,18 @@ impl ComputeBackend for CudaBackend {
 
         let data = vec![val; size];
         self.copy_to_device(&data, dst);
+    }
+
+    #[inline]
+    fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) {
+        let device = get_cuda_device();
+        let mut stream = device
+            .stream()
+            .expect("CUDA zero fill stream creation failed");
+        stream
+            .fill_zero(dst.buffer.as_ref())
+            .expect("CUDA zero fill encoding failed");
+        stream.submit().expect("CUDA zero fill submission failed");
     }
 
     fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {

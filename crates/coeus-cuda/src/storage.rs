@@ -49,6 +49,14 @@ impl<T: Scalar> CudaStorage<T> {
         }
     }
 
+    #[inline]
+    pub(crate) fn uninitialized(len: usize) -> Self {
+        let buffer = Self::alloc_device_uninitialized(len);
+        Self {
+            buffer: Arc::new(buffer),
+        }
+    }
+
     /// Retrieve the raw CUDA device pointer.
     #[inline]
     pub fn cu_deviceptr(&self) -> CUdeviceptr {

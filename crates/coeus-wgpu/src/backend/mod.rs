@@ -1,5 +1,6 @@
 use crate::storage::WgpuStorage;
 use coeus_core::{ComputeBackend, Scalar, Storage};
+use hephaestus_core::{CommandStream, KernelDevice};
 use hephaestus_wgpu::ComputeDevice;
 use std::sync::OnceLock;
 
@@ -210,14 +211,35 @@ impl ComputeBackend for WgpuBackend {
 
     #[inline]
     fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        WgpuStorage::allocate(len)
+        WgpuStorage::uninitialized(len)
+    }
+
+    #[inline]
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
+        WgpuStorage::new(len)
     }
 
     #[inline]
     fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
+        if val.has_zero_bit_pattern() {
+            self.fill_zero(dst);
+            return;
+        }
         let size = dst.len();
         let data = vec![val; size];
         self.copy_to_device(&data, dst);
+    }
+
+    #[inline]
+    fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) {
+        let device = &get_wgpu_context().hephaestus_device;
+        let mut stream = device
+            .stream()
+            .expect("WGPU zero fill stream creation failed");
+        stream
+            .fill_zero(dst.buffer.as_ref())
+            .expect("WGPU zero fill encoding failed");
+        stream.submit().expect("WGPU zero fill submission failed");
     }
 
     #[inline]

@@ -326,6 +326,15 @@ pub trait Scalar: NumericElement + CpuUnaryDispatch + Pod + Rem<Output = Self> +
     /// Additive identity.
     fn zero() -> Self;
 
+    /// Return whether every byte in this value's representation is zero.
+    ///
+    /// Accelerator fills use this representation-level predicate to select a
+    /// byte-clear operation without changing signed-zero or NaN payload bits.
+    #[inline]
+    fn has_zero_bit_pattern(&self) -> bool {
+        bytemuck::bytes_of(self).iter().all(|&byte| byte == 0)
+    }
+
     /// Multiplicative identity.
     fn one() -> Self;
 
@@ -606,7 +615,15 @@ pub trait Int: Scalar {
 
 #[cfg(test)]
 mod cpu_unary_op_tests {
-    use super::CpuUnaryOp;
+    use super::{CpuUnaryOp, Scalar};
+
+    #[test]
+    fn zero_bit_pattern_distinguishes_signed_zero() {
+        assert!(0.0_f32.has_zero_bit_pattern());
+        assert!(!(-0.0_f32).has_zero_bit_pattern());
+        assert!(0_u32.has_zero_bit_pattern());
+        assert!(!1_u32.has_zero_bit_pattern());
+    }
 
     #[test]
     fn parameter_pairs_preserve_both_bit_patterns() {

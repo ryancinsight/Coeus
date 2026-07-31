@@ -2,12 +2,13 @@ use super::provider::MetalProvider;
 use coeus_core::{ComputeBackend, Layout, Scalar};
 use coeus_hephaestus::{
     ConvolutionProvider, ElementwiseProvider, HephaestusBackend, HephaestusBackendError,
-    HephaestusStorage, ReductionProvider,
+    HephaestusProvider, HephaestusStorage, ReductionProvider,
 };
 use coeus_ops::{
     BinaryOp, ConvOps, ConvolutionBackward, ConvolutionForward, ElementwiseOps, ReductionOp,
     ReductionOps, UnaryOp,
 };
+use hephaestus_core::{CommandStream, KernelDevice};
 
 /// Coeus Metal backend with native Hephaestus storage and rank-2 reductions.
 #[derive(Debug, Clone, Copy, Default)]
@@ -41,8 +42,26 @@ impl ComputeBackend for MetalBackend {
         self.0.allocate(len)
     }
 
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
+        self.0.allocate_zeroed(len)
+    }
+
     fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
+        if val.has_zero_bit_pattern() {
+            self.fill_zero(dst);
+            return;
+        }
         self.0.fill(dst, val)
+    }
+
+    fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) {
+        let mut stream = MetalProvider::device()
+            .stream()
+            .expect("Metal zero fill stream creation failed");
+        stream
+            .fill_zero(dst.buffer())
+            .expect("Metal zero fill encoding failed");
+        stream.submit().expect("Metal zero fill submission failed");
     }
 
     fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {

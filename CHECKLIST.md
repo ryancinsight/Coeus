@@ -1,5 +1,31 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-ZERO-FILL-MEMORY-001 [arch][minor]
+
+- [x] Add explicit zero-allocation and zero-fill operations to the sealed
+      compute-backend contract.
+- [x] Route tensor zero construction and zeroed scratch buffers through the
+      zero-specific contract.
+- [x] Use provider-native zeroed allocation and command-stream clears for
+      WGPU, CUDA, ROCm, and Metal without destination-sized host staging.
+- [x] Verify CPU value semantics, GPU provider integration, warning-denied
+      builds, and exact-head backend CI.
+
+Owner: Codex on `codex/coeus-zero-fill-memory`. Scope is zero initialization
+and zero-fill memory traffic across the compute-backend seam and four GPU
+providers. Arbitrary nonzero fill kernels and unrelated allocator policy are
+excluded.
+
+Acceptance: zero tensor construction performs one zeroed allocation; explicit
+GPU zero fill uses a provider-native device operation; CPU and available GPU
+results are exactly zero; no zero path allocates a destination-sized host
+vector.
+
+Status: complete. Focused Nextest value regressions and warning-denied Clippy
+pass locally. Exact-head backend CI run `30655415266` passes CUDA job
+`91238466890`, ROCm job `91238466911`, WGPU job `91238466914`, and Metal job
+`91238466943`; optional required-device CUDA and ROCm jobs were not requested.
+
 ## ATLAS-COEUS-HEPHAESTUS-PARAMETERIZED-ACTIVATION-001 [arch][minor]
 
 - [x] Decode packed Hardtanh and Threshold parameters as their canonical two

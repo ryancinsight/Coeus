@@ -44,6 +44,16 @@ where
         }
     }
 
+    pub(crate) fn uninitialized(len: usize) -> Self {
+        let buffer = P::device()
+            .alloc_uninitialized_with_hint(len, PlacementHint::Tier(MemoryTier::Device))
+            .expect("Hephaestus provider allocation failed");
+        Self {
+            buffer: Arc::new(buffer),
+            marker: PhantomData,
+        }
+    }
+
     /// Borrow the typed Hephaestus buffer for provider dispatch.
     #[must_use]
     pub fn buffer(&self) -> &<P::Device as ComputeDevice>::Buffer<T> {
@@ -142,11 +152,18 @@ mod tests {
     static DOWNLOADS: AtomicUsize = AtomicUsize::new(0);
     static DEVICE_COPIES: AtomicUsize = AtomicUsize::new(0);
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum TestInitialization {
+        Zeroed,
+        Uninitialized,
+    }
+
     #[derive(Debug, Clone)]
     struct TestBuffer<T: bytemuck::Pod> {
         bytes: Arc<Mutex<Vec<u8>>>,
         len: usize,
         tier: MemoryTier,
+        initialization: TestInitialization,
         marker: PhantomData<T>,
     }
 
@@ -176,11 +193,17 @@ mod tests {
     fn empty_buffer<T: bytemuck::Pod>(
         len: usize,
         tier: MemoryTier,
+        initialization: TestInitialization,
     ) -> hephaestus_core::Result<TestBuffer<T>> {
+        let initial_byte = match initialization {
+            TestInitialization::Zeroed => 0,
+            TestInitialization::Uninitialized => 0xa5,
+        };
         Ok(TestBuffer {
-            bytes: Arc::new(Mutex::new(vec![0; byte_len::<T>(len)?])),
+            bytes: Arc::new(Mutex::new(vec![initial_byte; byte_len::<T>(len)?])),
             len,
             tier,
+            initialization,
             marker: PhantomData,
         })
     }
@@ -217,6 +240,7 @@ mod tests {
                     PlacementHint::Tier(tier) => tier,
                     _ => MemoryTier::Device,
                 },
+                TestInitialization::Zeroed,
             )
         }
 
@@ -231,6 +255,7 @@ mod tests {
                     PlacementHint::Tier(tier) => tier,
                     _ => MemoryTier::Device,
                 },
+                TestInitialization::Uninitialized,
             )
         }
 
@@ -346,6 +371,27 @@ mod tests {
             static DEVICE: TestDevice = TestDevice;
             &DEVICE
         }
+    }
+
+    #[test]
+    fn backend_routes_allocation_by_initialization_contract() {
+        use coeus_core::ComputeBackend;
+
+        let backend = crate::reduction::HephaestusBackend::<TestProvider>::new();
+        let scratch = backend.allocate::<u32>(4);
+        assert_eq!(
+            scratch.buffer.initialization,
+            TestInitialization::Uninitialized
+        );
+        let mut poison = [0; 4];
+        backend.copy_to_host(&scratch, &mut poison);
+        assert_eq!(poison, [0xa5a5_a5a5; 4]);
+
+        let zeroed = backend.allocate_zeroed::<u32>(4);
+        assert_eq!(zeroed.buffer.initialization, TestInitialization::Zeroed);
+        let mut values = [u32::MAX; 4];
+        backend.copy_to_host(&zeroed, &mut values);
+        assert_eq!(values, [0; 4]);
     }
 
     #[test]
