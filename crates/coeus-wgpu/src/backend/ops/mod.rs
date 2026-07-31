@@ -9,21 +9,38 @@ use hephaestus_wgpu::{
 use leto::Layout as LetoLayout;
 use std::sync::Arc;
 
-fn activation_tail_operation(op: coeus_ops::UnaryOp) -> Option<&'static str> {
+fn provider_owned_activation(op: coeus_ops::UnaryOp) -> Option<&'static str> {
     match op {
         coeus_ops::UnaryOp::Mish => Some("Mish"),
         coeus_ops::UnaryOp::MishGrad => Some("MishGrad"),
         coeus_ops::UnaryOp::Elu => Some("Elu"),
         coeus_ops::UnaryOp::EluGrad => Some("EluGrad"),
+        coeus_ops::UnaryOp::Hardtanh(_) => Some("Hardtanh"),
+        coeus_ops::UnaryOp::HardtanhGrad(_) => Some("HardtanhGrad"),
+        coeus_ops::UnaryOp::Threshold(_) => Some("Threshold"),
+        coeus_ops::UnaryOp::ThresholdGrad(_) => Some("ThresholdGrad"),
         _ => None,
     }
+}
+
+fn parameterized_activation(op: coeus_ops::UnaryOp) -> bool {
+    matches!(
+        op,
+        coeus_ops::UnaryOp::Hardtanh(_)
+            | coeus_ops::UnaryOp::HardtanhGrad(_)
+            | coeus_ops::UnaryOp::Threshold(_)
+            | coeus_ops::UnaryOp::ThresholdGrad(_)
+    )
 }
 
 mod attention;
 mod impls;
 mod matmul;
 mod optim;
+mod parameterized_activation;
 mod pool;
+
+use parameterized_activation::ParameterizedActivationScalar;
 
 // ── WGPU Hephaestus strided routing helpers ───────────────────────────────────
 
@@ -143,7 +160,7 @@ fn try_hephaestus_strided_binary_wgpu<
 
 /// Dispatch a unary Hephaestus strided op at the rank determined by `out.ndim()`.
 fn try_hephaestus_strided_unary_wgpu<
-    T: WgpuScalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>,
+    T: ParameterizedActivationScalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>,
 >(
     op: coeus_ops::UnaryOp,
     a_buf: &crate::backend::WgpuStorage<T>,
@@ -175,6 +192,12 @@ fn try_hephaestus_strided_unary_wgpu<
             };
             let dev = &crate::backend::get_wgpu_context().hephaestus_device;
             match op {
+                UnaryOp::Hardtanh(_)
+                | UnaryOp::HardtanhGrad(_)
+                | UnaryOp::Threshold(_)
+                | UnaryOp::ThresholdGrad(_) => {
+                    T::dispatch_parameterized(op, a_buf, &la, c_buf, &lc)
+                }
                 UnaryOp::Sin => ok(unary_elementwise_strided_into::<
                     hephaestus_wgpu::SinOp,
                     T,
@@ -320,13 +343,13 @@ fn try_hephaestus_contiguous_binary<
 }
 
 fn try_hephaestus_contiguous_unary<
-    T: WgpuScalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>,
+    T: ParameterizedActivationScalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>,
 >(
     op: coeus_ops::UnaryOp,
     a: &crate::storage::WgpuStorage<T>,
     c: &mut crate::storage::WgpuStorage<T>,
 ) -> Result<bool, WgpuBackendError> {
-    if Arc::ptr_eq(&a.buffer, &c.buffer) && activation_tail_operation(op).is_none() {
+    if Arc::ptr_eq(&a.buffer, &c.buffer) && provider_owned_activation(op).is_none() {
         return Ok(false);
     }
     let ctx = crate::backend::get_wgpu_context();
@@ -457,8 +480,11 @@ fn try_hephaestus_contiguous_unary<
     }
 }
 
-impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>>
-    coeus_ops::ElementwiseOps<T> for WgpuBackend
+impl<
+        T: ParameterizedActivationScalar
+            + leto_ops::Scalar
+            + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>,
+    > coeus_ops::ElementwiseOps<T> for WgpuBackend
 {
     #[inline]
     fn elementwise_binary(
@@ -521,15 +547,19 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
     ) -> Result<(), WgpuBackendError> {
         WgpuBackendError::validate_layout(a_layout)?;
         WgpuBackendError::validate_layout(c_layout)?;
-        if let Some(operation) = activation_tail_operation(op) {
-            let dispatched = if a.len() == c.len()
+        if let Some(operation) = provider_owned_activation(op) {
+            let is_parameterized = parameterized_activation(op);
+            let dispatched = if is_parameterized && can_route_strided_wgpu(&[a_layout], c_layout) {
+                try_hephaestus_strided_unary_wgpu(op, a, a_layout, c, c_layout)?
+            } else if !is_parameterized
+                && a.len() == c.len()
                 && a_layout.is_contiguous()
                 && a_layout.offset() == 0
                 && c_layout.is_contiguous()
                 && c_layout.offset() == 0
             {
                 try_hephaestus_contiguous_unary(op, a, c)?
-            } else if can_route_strided_wgpu(&[a_layout], c_layout) {
+            } else if !is_parameterized && can_route_strided_wgpu(&[a_layout], c_layout) {
                 try_hephaestus_strided_unary_wgpu(op, a, a_layout, c, c_layout)?
             } else {
                 false

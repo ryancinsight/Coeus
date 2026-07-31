@@ -45,7 +45,11 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> Result<String, WgpuBackendError> {
         coeus_ops::UnaryOp::Mish
         | coeus_ops::UnaryOp::MishGrad
         | coeus_ops::UnaryOp::Elu
-        | coeus_ops::UnaryOp::EluGrad => {
+        | coeus_ops::UnaryOp::EluGrad
+        | coeus_ops::UnaryOp::Hardtanh(_)
+        | coeus_ops::UnaryOp::HardtanhGrad(_)
+        | coeus_ops::UnaryOp::Threshold(_)
+        | coeus_ops::UnaryOp::ThresholdGrad(_) => {
             return Err(WgpuBackendError::UnsupportedOperation {
                 operation: "provider-owned activation tail",
             });
@@ -61,16 +65,6 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> Result<String, WgpuBackendError> {
         coeus_ops::UnaryOp::LeakyReluGrad(slope_bits) => {
             let slope = f64::from_bits(slope_bits);
             format!("select({slope:.17}, 1.0, val >= 0.0)")
-        }
-        coeus_ops::UnaryOp::Hardtanh(bits) => {
-            let min_v = f64::from_bits((bits as u32) as u64);
-            let max_v = f64::from_bits(((bits >> 32) as u32) as u64);
-            format!("clamp(val, {min_v:.17}, {max_v:.17})")
-        }
-        coeus_ops::UnaryOp::HardtanhGrad(bits) => {
-            let min_v = f64::from_bits((bits as u32) as u64);
-            let max_v = f64::from_bits(((bits >> 32) as u32) as u64);
-            format!("select(0.0, 1.0, (val > {min_v:.17}) && (val < {max_v:.17}))")
         }
         coeus_ops::UnaryOp::Hardsigmoid => {
             "clamp(val / 6.0 + 0.5, 0.0, 1.0)".to_string()
@@ -109,15 +103,6 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> Result<String, WgpuBackendError> {
         }
         coeus_ops::UnaryOp::Softsign => "val / (1.0 + abs(val))".to_string(),
         coeus_ops::UnaryOp::SoftsignGrad => "1.0 / ((1.0 + abs(val)) * (1.0 + abs(val)))".to_string(),
-        coeus_ops::UnaryOp::Threshold(bits) => {
-            let thr = f64::from_bits((bits as u32) as u64);
-            let val = f64::from_bits(((bits >> 32) as u32) as u64);
-            format!("select({val:.17}, val, val > {thr:.17})")
-        }
-        coeus_ops::UnaryOp::ThresholdGrad(bits) => {
-            let thr = f64::from_bits((bits as u32) as u64);
-            format!("select(0.0, 1.0, val > {thr:.17})")
-        }
         coeus_ops::UnaryOp::Celu(alpha_bits) => {
             let alpha = f64::from_bits(alpha_bits);
             if alpha == 1.0 {
