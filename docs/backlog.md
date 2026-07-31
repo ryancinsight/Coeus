@@ -15,9 +15,11 @@
   value-semantic coverage; local and exact-head hosted gates pass.
 - Risk/change class: `[major] [arch]`; ADR-0047 records the breaking fallible
   contract and provider ownership.
-- Status: local implementation and verification complete. Leto PRs #82/#83 and
-  Hephaestus PR #167 are merged. Independent architecture and correctness
-  review findings are resolved; exact-head Coeus hosted gates remain.
+- Status: complete. Leto PRs #82/#83 and Hephaestus PR #167 are merged.
+  Independent architecture and correctness review findings are resolved.
+  Exact-head run `30666670100` passes WGPU (`91275219860`), CUDA
+  (`91275219750`), ROCm (`91275219786`), and Metal (`91275219827`); PR #256
+  merged as `ee3bb94f`.
 
 ## ATLAS-COEUS-HEPHAESTUS-006 — Native activation-tail providers [arch]
 

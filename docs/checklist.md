@@ -9,7 +9,8 @@
 - [x] Propagate typed failure through operation, autograd, module, and Python APIs.
 - [x] Delete local kernels, launchers, host fallbacks, tests, and obsolete ADRs.
 - [x] Pass focused local gates and independent architecture/correctness review.
-- [ ] Pass exact-head hosted gates.
+- [x] Pass exact-head hosted run `30666670100` and merge PR #256 as
+      `ee3bb94f`.
 
 ## ATLAS-COEUS-HEPHAESTUS-006 — Native activation-tail providers
 
@@ -37,10 +38,10 @@
 
 - [x] Enumerate all module implementations and direct consumers.
 - [x] Add ADR-0045 and the module error/trait vertical hierarchy.
-- [ ] Change the canonical trait and all implementations in one cutover.
-- [ ] Propagate normalization backend failures and preserve BatchNorm state.
-- [ ] Migrate Rust, Python, benchmark, and doctest call sites.
-- [ ] Pass warning-denied and value-semantic gates, SemVer checks, hosted CI,
+- [x] Change the canonical trait and all implementations in one cutover.
+- [x] Propagate normalization backend failures and preserve BatchNorm state.
+- [x] Migrate Rust, Python, benchmark, and doctest call sites.
+- [x] Pass warning-denied and value-semantic gates, SemVer checks, hosted CI,
       and merge.
 
 ## ATLAS-COEUS-WGPU-008 — Provider-owned reductions
