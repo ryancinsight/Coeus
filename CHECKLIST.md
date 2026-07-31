@@ -18,7 +18,7 @@
 - [x] Preserve mutable destination ownership through provider dispatch, prove
       rank-one masks for both scalar monomorphizations, and close review
       diagnostics and stale migration claims.
-- [ ] Pass exact-head hosted gates.
+- [x] Pass exact-head hosted gates.
 
 Status: local implementation and verification complete on
 `codex/coeus-attention-dispatch`. Leto PRs #82 and #83 are merged through
@@ -29,7 +29,9 @@ attention 28/28, and focused Python mask contracts pass;
 affected warning-denied Clippy and doctest lanes pass. SemVer checks classify
 the fallible trait and removed supertrait as the documented major break.
 Independent architecture and correctness reviews are clean after correction.
-Exact-head hosted gates remain.
+Exact-head hosted run `30665533148` passes WGPU job `91271548171`, CUDA job
+`91271548257`, ROCm job `91271548209`, and Metal job `91271548222` on
+`eaedd804`.
 ## ATLAS-COEUS-ZERO-FILL-MEMORY-001 [arch][minor]
 
 - [x] Add explicit zero-allocation and zero-fill operations to the sealed
