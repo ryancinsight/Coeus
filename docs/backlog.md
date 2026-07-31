@@ -2,9 +2,10 @@
 
 ## ATLAS-COEUS-HEPHAESTUS-006 — Native activation-tail providers [arch]
 
-- Owner: Codex `/coeus`; scope: WGPU/CUDA direct provider dispatch, ROCm and
-  Metal activation dispatch, backend differential tests, ADR-0030, and active
-  parity artifacts.
+- Owner: Codex on `codex/coeus-backend-parity-coherence`; last-update:
+  2026-07-31; scope: WGPU/CUDA direct provider dispatch, ROCm and Metal
+  activation dispatch, backend differential tests, ADR-0030, provider CI
+  toolchain/format coherence, and active parity artifacts.
 - Outcome: route `Mish`, `MishGrad`, `Elu`, and `EluGrad` through the
   Hephaestus PR #123 provider markers for every applicable f32 backend path.
 - Non-goals: parameterized activations, reduced/vector precision contracts,
@@ -23,8 +24,11 @@
   workspace doctests (153 passed, 2 ignored), warning-denied rustdoc, and the
   MSVC CUDA feature compile check pass. Focused CUDA nextest passes 6/6 with
   real contiguous and transposed device execution; the focused
-  CPU/WGPU/ROCm/Metal lane passes 10/10. No fallback path was added. Exact-head
-  hosted provider/consumer CI remains open.
+  CPU/WGPU/ROCm/Metal lane passes 10/10. No fallback path was added. Main runs
+  `30595759145` and `30603872486` fail before compilation because the provider
+  workflow still invokes Rustfmt 1.95 directly on leaf files after the
+  workspace pinned Rust 1.97; restoring one workspace format owner is the
+  active CI-closure increment.
 ## ATLAS-COEUS-DISPATCH-SAFETY-020 — Provider routing audit [arch]
 
 - Owner: Codex on `codex/coeus-native-convolution-dispatch`; scope: Coeus CPU and
