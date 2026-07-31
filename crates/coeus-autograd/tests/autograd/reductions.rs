@@ -22,7 +22,8 @@ fn test_sum_axis_autograd() {
     assert_eq!(y_slice[1], 15.0);
 
     let grad_out = Tensor::from_slice_on(vec![2, 1], &[2.0f32, 3.0f32], &backend);
-    y.backward_with_seed(grad_out);
+    y.backward_with_seed(grad_out)
+        .expect("invariant: valid autograd fixture completes backward");
 
     let gx = x.grad().unwrap();
     let gx_slice = gx.as_slice();
@@ -46,7 +47,8 @@ fn test_mean_axis_autograd() {
     assert!((y_slice[1] - 5.0).abs() < 1e-5);
 
     let grad_out = Tensor::from_slice_on(vec![2, 1], &[3.0f32, 6.0f32], &backend);
-    y.backward_with_seed(grad_out);
+    y.backward_with_seed(grad_out)
+        .expect("invariant: valid autograd fixture completes backward");
 
     let gx = x.grad().unwrap();
     let gx_slice = gx.as_slice();
@@ -75,7 +77,8 @@ fn test_max_axis_autograd() {
     assert_eq!(y.tensor.shape(), &[2, 1]);
 
     let seed = Tensor::from_slice_on(vec![2, 1], &[1.0f64, 1.0], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
     assert!((gx_s[0] - 0.0).abs() < 1e-10, "[0,0]: {}", gx_s[0]);
@@ -93,7 +96,8 @@ fn test_max_axis_tie_normalisation() {
     let x = Var::new(x_val, true);
     let y = max_axis(&x, 0);
     let seed = Tensor::from_slice_on(vec![1], &[1.0f64], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
     assert!((gx_s[0] - 0.5).abs() < 1e-8, "tie pos 0: {}", gx_s[0]);
@@ -112,7 +116,8 @@ fn test_min_axis_autograd() {
     assert!((y_slice[1] - 1.0).abs() < 1e-10);
 
     let seed = Tensor::from_slice_on(vec![2, 1], &[1.0f64, 1.0], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
     assert!((gx_s[0] - 1.0).abs() < 1e-10, "[0,0]: {}", gx_s[0]);
@@ -135,7 +140,8 @@ fn test_norm_p_autograd() {
     assert!((y.tensor.as_slice()[0] - expected_y).abs() < 1e-10);
 
     let seed = Tensor::from_slice_on(vec![1], &[1.5f64], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
     let denom = expected_y.powf(2.0);
@@ -159,7 +165,8 @@ fn test_norm_p_axis_autograd() {
     assert_eq!(y.tensor.as_slice(), &[5.0, 13.0]);
 
     let seed = Tensor::from_slice_on(vec![2, 1], &[2.0f64, 3.0], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
     let expected = [6.0 / 5.0, 8.0 / 5.0, 15.0 / 13.0, 36.0 / 13.0];
@@ -192,7 +199,8 @@ fn test_log_sum_exp_autograd() {
     );
 
     let seed = Tensor::from_slice_on(vec![1], &[1.0f64], &backend);
-    lse.backward_with_seed(seed);
+    lse.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
     let sum_exp = e1 + e2 + e3;
@@ -239,7 +247,8 @@ fn test_cumsum_autograd() {
     assert!((y_s[3] - 10.0).abs() < 1e-10);
 
     let seed = Tensor::from_slice_on(vec![4], &[1.0f64, 2.0, 3.0, 4.0], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
     assert!(
@@ -277,7 +286,8 @@ fn test_var_autograd_matches_analytic() {
 
     // Analytic gradient of the unbiased variance: dv/dx_i = 2(x_i - mean)/(n-1)
     // (the mean-path terms cancel because sum(x_j - mean) = 0).
-    v.backward();
+    v.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx = gx.as_slice();
     for (i, &xi) in data.iter().enumerate() {
@@ -333,7 +343,8 @@ fn test_var_axis_autograd_matches_analytic() {
     assert!((vs[1] - 4.0).abs() < 1e-14, "row1 var: {}", vs[1]);
 
     // Row-local gradient: dv_r/dx_ri = 2(x_ri - mean_r)/(extent-1), extent-1 = 2.
-    v.backward();
+    v.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx = gx.as_slice();
     let means = [2.0, 2.0, 2.0, 6.0, 6.0, 6.0];
@@ -357,7 +368,8 @@ fn test_prod_autograd_matches_analytic() {
     );
     let y = coeus_autograd::prod(&x);
     assert!((y.tensor.as_slice()[0] - 24.0).abs() < 1e-14, "fwd");
-    y.backward();
+    y.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let g = x.grad().unwrap();
     let g = g.as_slice();
     for (i, want) in [24.0, 12.0, 8.0, 6.0].iter().enumerate() {
@@ -372,7 +384,8 @@ fn test_prod_autograd_matches_analytic() {
     );
     let yz = coeus_autograd::prod(&z);
     assert_eq!(yz.tensor.as_slice()[0], 0.0, "fwd zero");
-    yz.backward();
+    yz.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let gz = z.grad().unwrap();
     let gz = gz.as_slice();
     for (i, want) in [0.0, 6.0, 0.0].iter().enumerate() {
@@ -395,7 +408,8 @@ fn test_cumprod_backward_exact_at_zeros() {
         true,
     );
     let y = cumsum_free_cumprod(&x);
-    y.backward();
+    y.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let g = x.grad().unwrap();
     for (i, want) in [9.0, 4.0, 2.0].iter().enumerate() {
         assert!(
@@ -413,7 +427,8 @@ fn test_cumprod_backward_exact_at_zeros() {
         true,
     );
     let y = cumsum_free_cumprod(&x);
-    y.backward();
+    y.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let g = x.grad().unwrap();
     for (i, want) in [1.0, 8.0, 0.0].iter().enumerate() {
         assert!(
@@ -431,7 +446,8 @@ fn test_cumprod_backward_exact_at_zeros() {
         true,
     );
     let y = cumsum_free_cumprod(&x);
-    y.backward();
+    y.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let g = x.grad().unwrap();
     for (i, want) in [1.0, 8.0, 0.0, 0.0, 0.0].iter().enumerate() {
         assert!(

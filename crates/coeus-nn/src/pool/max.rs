@@ -1,5 +1,5 @@
-use crate::module::Module;
-use crate::pool::out_dim;
+use crate::module::{Module, ModuleError};
+use crate::pool::checked_out_dim;
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
@@ -11,13 +11,13 @@ use std::marker::PhantomData;
 #[derive(Clone)]
 pub struct MaxPool2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Pooling window side length.
-    pub kernel_size: usize,
+    kernel_size: usize,
     /// Stride along H and W dimensions.
-    pub stride: usize,
+    stride: usize,
     /// Zero-padding applied to all spatial sides.
-    pub padding: usize,
+    padding: usize,
     /// Spacing between pooling window elements.
-    pub dilation: usize,
+    dilation: usize,
     _marker: PhantomData<(T, B)>,
 }
 
@@ -29,10 +29,6 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> MaxPool2d<T, B> {
 
     /// Create with explicit hyperparameters.
     pub fn with_params(kernel_size: usize, stride: usize, padding: usize, dilation: usize) -> Self {
-        assert!(
-            stride >= 1 && dilation >= 1,
-            "stride and dilation must be >= 1"
-        );
         Self {
             kernel_size,
             stride,
@@ -48,58 +44,61 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool2d
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let backend = B::default();
-
-        let n = input.tensor.shape()[0];
-        let c = input.tensor.shape()[1];
-        let h = input.tensor.shape()[2];
-        let w = input.tensor.shape()[3];
-        let h_out = out_dim(
+        let shape = input.tensor.shape();
+        if shape.len() != 4 {
+            return Err(ModuleError::InvalidRank {
+                module: "MaxPool2d",
+                expected: "4",
+                actual: shape.len(),
+            });
+        }
+        let [n, c, h, w] = [shape[0], shape[1], shape[2], shape[3]];
+        let h_out = checked_out_dim(
+            "MaxPool2d",
             h,
             self.kernel_size,
             self.padding,
             self.stride,
             self.dilation,
-        );
-        let w_out = out_dim(
+        )?;
+        let w_out = checked_out_dim(
+            "MaxPool2d",
             w,
             self.kernel_size,
             self.padding,
             self.stride,
             self.dilation,
-        );
-        assert!(
-            h_out > 0 && w_out > 0,
-            "MaxPool2d: kernel ({}) with dilation ({}) and padding ({}) \
-             does not fit input spatial dims [{h}x{w}]; output would be [{h_out}x{w_out}]",
-            self.kernel_size,
-            self.dilation,
-            self.padding,
-        );
+        )?;
 
         let mut out_tensor = Tensor::zeros_on([n, c, h_out, w_out], &backend);
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
 
-        backend.max_pool2d(
-            input.tensor.storage(),
-            input.tensor.layout(),
-            self.kernel_size,
-            self.stride,
-            self.padding,
-            self.dilation,
-            out_storage,
-            out_layout,
-        );
+        backend
+            .max_pool2d(
+                input.tensor.storage(),
+                input.tensor.layout(),
+                self.kernel_size,
+                self.stride,
+                self.padding,
+                self.dilation,
+                out_storage,
+                out_layout,
+            )
+            .map_err(|source| ModuleError::Backend {
+                module: "MaxPool2d",
+                source,
+            })?;
 
-        coeus_autograd::max_pool2d(
+        Ok(coeus_autograd::max_pool2d(
             input,
             out_tensor,
             self.kernel_size,
             self.stride,
             self.padding,
             self.dilation,
-        )
+        ))
     }
 }
 
@@ -109,13 +108,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool2d
 #[derive(Clone)]
 pub struct MaxPool3d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Cubic pooling window side length.
-    pub kernel_size: usize,
+    kernel_size: usize,
     /// Stride along D, H, and W dimensions.
-    pub stride: usize,
+    stride: usize,
     /// Zero-padding applied to all spatial sides.
-    pub padding: usize,
+    padding: usize,
     /// Spacing between pooling window elements.
-    pub dilation: usize,
+    dilation: usize,
     _marker: PhantomData<(T, B)>,
 }
 
@@ -127,10 +126,6 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> MaxPool3d<T, B> {
 
     /// Create with explicit hyperparameters.
     pub fn with_params(kernel_size: usize, stride: usize, padding: usize, dilation: usize) -> Self {
-        assert!(
-            stride >= 1 && dilation >= 1,
-            "stride and dilation must be >= 1"
-        );
         Self {
             kernel_size,
             stride,
@@ -146,65 +141,68 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool3d
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let backend = B::default();
-
-        let n = input.tensor.shape()[0];
-        let c = input.tensor.shape()[1];
-        let d = input.tensor.shape()[2];
-        let h = input.tensor.shape()[3];
-        let w = input.tensor.shape()[4];
-        let d_out = out_dim(
+        let shape = input.tensor.shape();
+        if shape.len() != 5 {
+            return Err(ModuleError::InvalidRank {
+                module: "MaxPool3d",
+                expected: "5",
+                actual: shape.len(),
+            });
+        }
+        let [n, c, d, h, w] = [shape[0], shape[1], shape[2], shape[3], shape[4]];
+        let d_out = checked_out_dim(
+            "MaxPool3d",
             d,
             self.kernel_size,
             self.padding,
             self.stride,
             self.dilation,
-        );
-        let h_out = out_dim(
+        )?;
+        let h_out = checked_out_dim(
+            "MaxPool3d",
             h,
             self.kernel_size,
             self.padding,
             self.stride,
             self.dilation,
-        );
-        let w_out = out_dim(
+        )?;
+        let w_out = checked_out_dim(
+            "MaxPool3d",
             w,
             self.kernel_size,
             self.padding,
             self.stride,
             self.dilation,
-        );
-        assert!(
-            d_out > 0 && h_out > 0 && w_out > 0,
-            "MaxPool3d: kernel ({}) with dilation ({}) and padding ({}) \
-             does not fit input spatial dims [{d}x{h}x{w}]",
-            self.kernel_size,
-            self.dilation,
-            self.padding,
-        );
+        )?;
 
         let mut out_tensor = Tensor::zeros_on([n, c, d_out, h_out, w_out], &backend);
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
 
-        backend.max_pool3d(
-            input.tensor.storage(),
-            input.tensor.layout(),
-            self.kernel_size,
-            self.stride,
-            self.padding,
-            self.dilation,
-            out_storage,
-            out_layout,
-        );
+        backend
+            .max_pool3d(
+                input.tensor.storage(),
+                input.tensor.layout(),
+                self.kernel_size,
+                self.stride,
+                self.padding,
+                self.dilation,
+                out_storage,
+                out_layout,
+            )
+            .map_err(|source| ModuleError::Backend {
+                module: "MaxPool3d",
+                source,
+            })?;
 
-        coeus_autograd::max_pool3d(
+        Ok(coeus_autograd::max_pool3d(
             input,
             out_tensor,
             self.kernel_size,
             self.stride,
             self.padding,
             self.dilation,
-        )
+        ))
     }
 }

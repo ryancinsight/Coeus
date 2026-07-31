@@ -3,7 +3,7 @@
 // 3-D Transposed (Fractional-Stride) Convolution, matching
 // `torch.nn.ConvTranspose3d(in_channels, out_channels, kernel_size, ...)`.
 
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
@@ -12,8 +12,7 @@ use coeus_tensor::Tensor;
 ///
 /// Weight convention: `[C_in, C_out, KD, KH, KW]` (groups=1; the in/out
 /// channel order is reversed relative to the regular Conv3d).
-/// The forward pass delegates to `coeus_ops::conv_transpose3d` which
-/// calls `BackendOps::conv_transpose3d` (default host-side implementation).
+/// Dispatch follows the selected backend's provider-owned convolution kernel.
 #[derive(Clone)]
 pub struct ConvTranspose3d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Transposed convolution weight: `[in_channels, out_channels, kD, kH, kW]`.
@@ -119,32 +118,52 @@ where
         p
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let backend = B::default();
-        let n = input.tensor.shape()[0];
-        let d = input.tensor.shape()[2];
-        let h = input.tensor.shape()[3];
-        let w = input.tensor.shape()[4];
+        let shape = input.tensor.shape();
+        if shape.len() != 5 {
+            return Err(ModuleError::InvalidRank {
+                module: "ConvTranspose3d",
+                expected: "5",
+                actual: shape.len(),
+            });
+        }
+        if shape[1] != self.in_channels {
+            return Err(ModuleError::ChannelMismatch {
+                module: "ConvTranspose3d",
+                expected: self.in_channels,
+                actual: shape[1],
+            });
+        }
+        let n = shape[0];
+        let d = shape[2];
+        let h = shape[3];
+        let w = shape[4];
         let (d_out, h_out, w_out) = self.output_dims(d, h, w);
 
         let mut out_tensor =
             Tensor::zeros_on([n, self.out_channels, d_out, h_out, w_out], &backend);
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
-        backend.conv_transpose3d(
-            input.tensor.storage(),
-            input.tensor.layout(),
-            self.weight.tensor.storage(),
-            self.weight.tensor.layout(),
-            self.bias.as_ref().map(|b| b.tensor.storage()),
-            self.stride,
-            self.padding,
-            self.output_padding,
-            self.dilation,
-            out_storage,
-            out_layout,
-        );
+        backend
+            .conv_transpose3d(
+                input.tensor.storage(),
+                input.tensor.layout(),
+                self.weight.tensor.storage(),
+                self.weight.tensor.layout(),
+                self.bias.as_ref().map(|b| b.tensor.storage()),
+                self.stride,
+                self.padding,
+                self.output_padding,
+                self.dilation,
+                out_storage,
+                out_layout,
+            )
+            .map_err(|source| ModuleError::Backend {
+                module: "ConvTranspose3d",
+                source,
+            })?;
 
-        coeus_autograd::conv_transpose3d(
+        Ok(coeus_autograd::conv_transpose3d(
             input,
             &self.weight,
             &self.bias,
@@ -153,6 +172,6 @@ where
             self.padding,
             self.output_padding,
             self.dilation,
-        )
+        ))
     }
 }

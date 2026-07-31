@@ -66,7 +66,7 @@ where
     let inp = v(&[1, 1, 3], &[1.0, 2.0, 3.0], backend);
     assert_eq!(ct1.output_len(3), 4, "ConvTranspose1d output_len");
 
-    let out = Module::<f64, B>::forward(&ct1, &inp);
+    let out = Module::<f64, B>::forward(&ct1, &inp).expect("valid ConvTranspose1d input");
     assert_eq!(
         out.tensor.shape(),
         &[1, 1, 4],
@@ -90,7 +90,7 @@ where
         output_padding: 0,
         dilation: 1,
     };
-    let out_id = Module::<f64, B>::forward(&ct_id, &inp);
+    let out_id = Module::<f64, B>::forward(&ct_id, &inp).expect("valid ConvTranspose1d input");
     assert_eq!(
         out_id.tensor.as_slice(),
         inp.tensor.as_slice(),
@@ -116,7 +116,7 @@ where
         6,
         "ConvTranspose1d stride=2 output_len"
     );
-    let out_s2 = Module::<f64, B>::forward(&ct_s2, &inp);
+    let out_s2 = Module::<f64, B>::forward(&ct_s2, &inp).expect("valid ConvTranspose1d input");
     assert_eq!(
         out_s2.tensor.shape(),
         &[1, 1, 6],
@@ -150,7 +150,7 @@ where
     };
 
     let inp = v(&[1, 1, 2, 2], &[1.0, 2.0, 3.0, 4.0], backend);
-    let out = Module::<f64, B>::forward(&ct2, &inp);
+    let out = Module::<f64, B>::forward(&ct2, &inp).expect("valid ConvTranspose2d input");
     assert_eq!(out.tensor.shape(), &[1, 1, 3, 3], "ConvTranspose2d shape");
     assert_eq!(
         out.tensor.as_slice(),
@@ -170,7 +170,7 @@ where
         output_padding: 0,
         dilation: 1,
     };
-    let out_id = Module::<f64, B>::forward(&ct2_id, &inp);
+    let out_id = Module::<f64, B>::forward(&ct2_id, &inp).expect("valid ConvTranspose2d input");
     assert_eq!(
         out_id.tensor.as_slice(),
         inp.tensor.as_slice(),
@@ -178,7 +178,7 @@ where
     );
 }
 
-fn check_all<B: BackendOps<f64> + Default>(backend: &B)
+fn check_all<B: BackendOps<f64> + coeus_ops::CpuBackend + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
@@ -187,7 +187,7 @@ where
     check_conv_transpose3d(backend);
 }
 
-fn check_conv_transpose3d<B: BackendOps<f64> + Default>(backend: &B)
+fn check_conv_transpose3d<B: BackendOps<f64> + coeus_ops::CpuBackend + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
@@ -215,7 +215,7 @@ where
         &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
         backend,
     );
-    let out = Module::<f64, B>::forward(&ct3, &inp);
+    let out = Module::<f64, B>::forward(&ct3, &inp).expect("valid ConvTranspose3d input");
     assert_eq!(
         out.tensor.shape(),
         &[1, 1, 2, 2, 2],
@@ -239,7 +239,7 @@ where
         output_padding: 0,
         dilation: 1,
     };
-    let out_s = Module::<f64, B>::forward(&ct3_scale, &inp);
+    let out_s = Module::<f64, B>::forward(&ct3_scale, &inp).expect("valid ConvTranspose3d input");
     assert_eq!(
         out_s.tensor.as_slice(),
         &[2.0_f64, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0],
@@ -260,7 +260,7 @@ where
         dilation: 1,
     };
     assert_eq!(ct3_s2.output_dims(2, 2, 2), (3, 3, 3), "stride=2 D_out");
-    let out_s2 = Module::<f64, B>::forward(&ct3_s2, &inp);
+    let out_s2 = Module::<f64, B>::forward(&ct3_s2, &inp).expect("valid ConvTranspose3d input");
     assert_eq!(
         out_s2.tensor.shape(),
         &[1, 1, 3, 3, 3],

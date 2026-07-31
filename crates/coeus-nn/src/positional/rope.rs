@@ -7,7 +7,7 @@
 //
 // where rotate_half([x1, x2]) = [-x2, x1].
 
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
@@ -85,7 +85,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
     ///
     /// `x` is assumed to have shape `[batch, seq_len, num_heads, d_head]` or any shape
     /// where dimension 1 is `seq_len` and the last dimension is `d_head`.
-    pub fn forward(&self, x: &Var<T, B>) -> Var<T, B>
+    pub fn forward(&self, x: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>>
     where
         B::DeviceBuffer<T>:
             coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -93,16 +93,31 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
         let backend = B::default();
         let shape = x.tensor.shape();
         let ndim = shape.len();
-        assert!(
-            ndim >= 2,
-            "RotaryEmbedding: input must have at least 2 dimensions"
-        );
+        if ndim < 2 {
+            return Err(ModuleError::InvalidRank {
+                module: "RotaryEmbedding",
+                expected: "at least 2",
+                actual: ndim,
+            });
+        }
         let seq_len = shape[1];
         let d_head = shape[ndim - 1];
-        assert_eq!(
-            d_head, self.d_head,
-            "RotaryEmbedding: input last dimension must match d_head"
-        );
+        if d_head != self.d_head {
+            return Err(ModuleError::ShapeMismatch {
+                module: "RotaryEmbedding",
+                parameter: "input last dimension",
+                expected: vec![self.d_head],
+                actual: vec![d_head],
+            });
+        }
+        if seq_len > self.max_len {
+            return Err(ModuleError::ShapeMismatch {
+                module: "RotaryEmbedding",
+                parameter: "input sequence length",
+                expected: vec![self.max_len],
+                actual: vec![seq_len],
+            });
+        }
 
         // Extract the top `seq_len` rows from the PE tables.
         let cos_slice = extract_pe_slice(&self.cos, seq_len, self.d_head, &backend);
@@ -121,7 +136,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
         let rx = rotate_half(x);
         let rx_sin = coeus_autograd::mul(&rx, &sin_var);
 
-        coeus_autograd::add(&x_cos, &rx_sin)
+        Ok(coeus_autograd::add(&x_cos, &rx_sin))
     }
 }
 
@@ -134,7 +149,7 @@ where
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         self.forward(input)
     }
 }

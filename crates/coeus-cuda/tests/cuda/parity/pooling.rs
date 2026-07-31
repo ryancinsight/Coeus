@@ -9,30 +9,34 @@ fn test_cuda_parity_max_pool1d_forward_and_backward() {
     let grad_out = Tensor::from_slice([1, 1, 5], &[1.0, 2.0, 3.0, 4.0, 5.0]);
     let mut expected = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5]);
     let expected_layout = expected.layout().clone();
-    sequential.max_pool1d(
-        input.storage(),
-        input.layout(),
-        3,
-        1,
-        1,
-        1,
-        expected.storage_mut(),
-        &expected_layout,
-    );
+    sequential
+        .max_pool1d(
+            input.storage(),
+            input.layout(),
+            3,
+            1,
+            1,
+            1,
+            expected.storage_mut(),
+            &expected_layout,
+        )
+        .expect("sequential max_pool1d dispatch");
     let mut expected_gradient = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5]);
     let expected_gradient_layout = expected_gradient.layout().clone();
-    sequential.max_pool1d_backward(
-        grad_out.storage(),
-        grad_out.layout(),
-        input.storage(),
-        input.layout(),
-        3,
-        1,
-        1,
-        1,
-        expected_gradient.storage_mut(),
-        &expected_gradient_layout,
-    );
+    sequential
+        .max_pool1d_backward(
+            grad_out.storage(),
+            grad_out.layout(),
+            input.storage(),
+            input.layout(),
+            3,
+            1,
+            1,
+            1,
+            expected_gradient.storage_mut(),
+            &expected_gradient_layout,
+        )
+        .expect("sequential max_pool1d backward dispatch");
 
     let device_input = to_gpu(&input, &sequential, &cuda);
     let device_grad_out = to_gpu(&grad_out, &sequential, &cuda);
@@ -47,7 +51,8 @@ fn test_cuda_parity_max_pool1d_forward_and_backward() {
         1,
         actual.storage_mut(),
         &actual_layout,
-    );
+    )
+    .expect("CUDA max_pool1d dispatch");
     let mut actual_gradient = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda);
     let actual_gradient_layout = actual_gradient.layout().clone();
     cuda.max_pool1d_backward(
@@ -61,7 +66,8 @@ fn test_cuda_parity_max_pool1d_forward_and_backward() {
         1,
         actual_gradient.storage_mut(),
         &actual_gradient_layout,
-    );
+    )
+    .expect("CUDA max_pool1d backward dispatch");
 
     assert_eq!(expected.as_slice(), &[4.0, 4.0, 5.0, 5.0, 5.0]);
     assert_parity_tol(
@@ -87,28 +93,32 @@ fn test_cuda_parity_avg_pool1d_forward_and_backward() {
     let grad_out = Tensor::from_slice([1, 1, 5], &[1.0, 2.0, 3.0, 4.0, 5.0]);
     let mut expected = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5]);
     let expected_layout = expected.layout().clone();
-    sequential.avg_pool1d(
-        input.storage(),
-        input.layout(),
-        3,
-        1,
-        1,
-        1,
-        expected.storage_mut(),
-        &expected_layout,
-    );
+    sequential
+        .avg_pool1d(
+            input.storage(),
+            input.layout(),
+            3,
+            1,
+            1,
+            1,
+            expected.storage_mut(),
+            &expected_layout,
+        )
+        .expect("sequential avg_pool1d dispatch");
     let mut expected_gradient = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5]);
     let expected_gradient_layout = expected_gradient.layout().clone();
-    sequential.avg_pool1d_backward(
-        grad_out.storage(),
-        grad_out.layout(),
-        3,
-        1,
-        1,
-        1,
-        expected_gradient.storage_mut(),
-        &expected_gradient_layout,
-    );
+    sequential
+        .avg_pool1d_backward(
+            grad_out.storage(),
+            grad_out.layout(),
+            3,
+            1,
+            1,
+            1,
+            expected_gradient.storage_mut(),
+            &expected_gradient_layout,
+        )
+        .expect("sequential avg_pool1d backward dispatch");
 
     let device_input = to_gpu(&input, &sequential, &cuda);
     let device_grad_out = to_gpu(&grad_out, &sequential, &cuda);
@@ -123,7 +133,8 @@ fn test_cuda_parity_avg_pool1d_forward_and_backward() {
         1,
         actual.storage_mut(),
         &actual_layout,
-    );
+    )
+    .expect("CUDA avg_pool1d dispatch");
     let mut actual_gradient = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda);
     let actual_gradient_layout = actual_gradient.layout().clone();
     cuda.avg_pool1d_backward(
@@ -135,7 +146,8 @@ fn test_cuda_parity_avg_pool1d_forward_and_backward() {
         1,
         actual_gradient.storage_mut(),
         &actual_gradient_layout,
-    );
+    )
+    .expect("CUDA avg_pool1d backward dispatch");
 
     assert_parity_tol(
         "avg_pool1d",
@@ -170,7 +182,8 @@ fn test_cuda_parity_max_pool2d() {
         1,
         cpu_out.storage_mut(),
         &cpu_out_layout,
-    );
+    )
+    .expect("invariant: validated CPU max_pool2d dispatch must succeed");
 
     let xg = to_gpu(&x, &s, &c);
     let mut gpu_out = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 2, 2], &c);
@@ -184,7 +197,8 @@ fn test_cuda_parity_max_pool2d() {
         1,
         gpu_out.storage_mut(),
         &gpu_out_layout,
-    );
+    )
+    .expect("invariant: validated CUDA max_pool2d dispatch must succeed");
 
     assert_parity_tol(
         "max_pool2d",
@@ -213,7 +227,8 @@ fn test_cuda_parity_avg_pool2d() {
         1,
         cpu_out.storage_mut(),
         &cpu_out_layout,
-    );
+    )
+    .expect("invariant: validated CPU avg_pool2d dispatch must succeed");
 
     let xg = to_gpu(&x, &s, &c);
     let mut gpu_out = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 2, 2], &c);
@@ -227,7 +242,8 @@ fn test_cuda_parity_avg_pool2d() {
         1,
         gpu_out.storage_mut(),
         &gpu_out_layout,
-    );
+    )
+    .expect("invariant: validated CUDA avg_pool2d dispatch must succeed");
 
     assert_parity_tol(
         "avg_pool2d",
@@ -263,7 +279,8 @@ fn test_cuda_parity_max_pool2d_backward() {
         1,
         gi_c.storage_mut(),
         &gi_l,
-    );
+    )
+    .expect("invariant: validated CPU max_pool2d backward dispatch must succeed");
 
     let xg = to_gpu(&x, &s, &c);
     let gog = to_gpu(&go, &s, &c);
@@ -279,7 +296,8 @@ fn test_cuda_parity_max_pool2d_backward() {
         1,
         gi_g.storage_mut(),
         &gi_l,
-    );
+    )
+    .expect("invariant: validated CUDA max_pool2d backward dispatch must succeed");
 
     assert_parity_tol(
         "max_pool2d_bwd",
@@ -310,7 +328,8 @@ fn test_cuda_parity_avg_pool2d_backward() {
         1,
         gi_c.storage_mut(),
         &gi_l,
-    );
+    )
+    .expect("invariant: validated CPU avg_pool2d backward dispatch must succeed");
 
     let gog = to_gpu(&go, &s, &c);
     let mut gi_g = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 4, 4], &c);
@@ -323,7 +342,8 @@ fn test_cuda_parity_avg_pool2d_backward() {
         1,
         gi_g.storage_mut(),
         &gi_l,
-    );
+    )
+    .expect("invariant: validated CUDA avg_pool2d backward dispatch must succeed");
 
     assert_parity_tol(
         "avg_pool2d_bwd",

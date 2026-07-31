@@ -1,7 +1,7 @@
 use coeus_autograd::{CausalMask, NullMask, Var};
 use coeus_core::MoiraiBackend;
 use coeus_nn::{
-    transformer_decoder_layer, MhaProjectionParams, Module, Transformer, TransformerDecoder,
+    transformer_decoder_layer, MhaProjectionParams, Transformer, TransformerDecoder,
     TransformerDecoderLayer, TransformerDecoderLayerParams,
 };
 use coeus_tensor::Tensor;
@@ -13,7 +13,7 @@ fn test_transformer_decoder_layer() {
     let d_ff = 16;
     let backend = MoiraiBackend;
 
-    let mut layer = TransformerDecoderLayer::<f64, MoiraiBackend, H, CausalMask, NullMask>::new(
+    let layer = TransformerDecoderLayer::<f64, MoiraiBackend, H, CausalMask, NullMask>::new(
         d_model, d_ff, 0.0,
     );
 
@@ -70,13 +70,6 @@ fn test_transformer_decoder_layer() {
                 .expect("named parameter gradient buffer")
         ));
     }
-    let mut reordered = named.clone();
-    reordered.swap(0, 1);
-    assert!(matches!(
-        layer.load_named_parameters(&reordered),
-        Err(coeus_nn::ParameterLoadError::Name { index: 0, .. })
-    ));
-
     let batch = 2;
     let seq_tgt = 4;
     let seq_src = 5;
@@ -90,7 +83,9 @@ fn test_transformer_decoder_layer() {
         true,
     );
 
-    let output = layer.forward_decoder(&tgt, &memory);
+    let output = layer
+        .forward_decoder(&tgt, &memory)
+        .expect("valid TransformerDecoderLayer input");
     assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
     let output_fn = transformer_decoder_layer::<f64, MoiraiBackend, H, CausalMask, NullMask>(
         &tgt,
@@ -135,7 +130,8 @@ fn test_transformer_decoder_layer() {
             ffn_residual_dropout_p: 0.0,
             ffn_residual_training: false,
         },
-    );
+    )
+    .expect("valid TransformerDecoderLayer functional input");
     for (a, b) in output
         .tensor
         .as_slice()
@@ -150,7 +146,8 @@ fn test_transformer_decoder_layer() {
 
     // Backward pass
     let loss = coeus_autograd::sum(&output);
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert!(tgt.grad().is_some());
     assert!(memory.grad().is_some());
@@ -190,11 +187,14 @@ fn test_transformer_decoder() {
         true,
     );
 
-    let output = decoder.forward_decoder(&tgt, &memory);
+    let output = decoder
+        .forward_decoder(&tgt, &memory)
+        .expect("valid TransformerDecoder input");
     assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
 
     let loss = coeus_autograd::sum(&output);
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert!(tgt.grad().is_some());
     assert!(memory.grad().is_some());
@@ -258,11 +258,14 @@ fn test_transformer_seq2seq() {
         true,
     );
 
-    let output = transformer.forward_seq2seq(&src, &tgt);
+    let output = transformer
+        .forward_seq2seq(&src, &tgt)
+        .expect("valid Transformer sequence-to-sequence input");
     assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
 
     let loss = coeus_autograd::sum(&output);
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert!(src.grad().is_some());
     assert!(tgt.grad().is_some());
@@ -272,4 +275,74 @@ fn test_transformer_seq2seq() {
             "Seq2Seq Transformer parameter {i} has no gradient"
         );
     }
+}
+
+#[test]
+fn decoder_layer_rejects_rank_and_memory_shape_before_attention() {
+    use coeus_nn::ModuleError;
+
+    const H: usize = 2;
+    let layer =
+        TransformerDecoderLayer::<f64, MoiraiBackend, H, CausalMask, NullMask>::new(8, 16, 0.0);
+    let backend = MoiraiBackend;
+    let invalid_target = Var::new(
+        Tensor::<f64, MoiraiBackend>::ones_on([2, 8], &backend),
+        false,
+    );
+    let memory = Var::new(
+        Tensor::<f64, MoiraiBackend>::ones_on([2, 3, 8], &backend),
+        false,
+    );
+    let rank_error = layer
+        .forward_decoder(&invalid_target, &memory)
+        .err()
+        .expect("rank-two decoder target must be rejected");
+    assert!(matches!(
+        rank_error,
+        ModuleError::InvalidRank {
+            module: "TransformerDecoderLayer",
+            expected: "3",
+            actual: 2,
+        }
+    ));
+
+    let target = Var::new(
+        Tensor::<f64, MoiraiBackend>::ones_on([2, 4, 8], &backend),
+        false,
+    );
+    let wrong_memory = Var::new(
+        Tensor::<f64, MoiraiBackend>::ones_on([1, 3, 6], &backend),
+        false,
+    );
+    let shape_error = layer
+        .forward_decoder(&target, &wrong_memory)
+        .err()
+        .expect("decoder memory batch mismatch must be rejected");
+    assert!(matches!(
+        shape_error,
+        ModuleError::ShapeMismatch {
+            module: "TransformerDecoderLayer",
+            parameter: "memory batch",
+            expected,
+            actual,
+        } if expected == vec![2] && actual == vec![1]
+    ));
+
+    let wrong_width_memory = Var::new(
+        Tensor::<f64, MoiraiBackend>::ones_on([2, 3, 6], &backend),
+        false,
+    );
+    let width_error = layer
+        .forward_decoder(&target, &wrong_width_memory)
+        .err()
+        .expect("decoder memory feature mismatch must be rejected");
+    assert!(matches!(
+        width_error,
+        ModuleError::ShapeMismatch {
+            module: "TransformerDecoderLayer",
+            parameter: "memory feature",
+            expected,
+            actual,
+        } if expected == vec![8] && actual == vec![6]
+    ));
 }

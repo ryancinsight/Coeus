@@ -1,208 +1,120 @@
-use super::super::conv;
-use super::super::CpuBackend;
-use crate::backend_ops::traits::ConvOps;
-use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
+use super::super::{convolution, CpuBackend};
+use crate::backend_ops::traits::{ConvOps, ConvolutionBackward, ConvolutionForward};
+use coeus_core::{CpuAddressableStorageMut, Float, Scalar};
 
-#[allow(clippy::too_many_arguments)]
-impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> ConvOps<T> for B
+impl<T, B> ConvOps<T> for B
 where
+    T: Scalar + leto_ops::Scalar,
+    B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    #[inline]
-    fn conv1d(
+    fn convolution_forward<const R: usize, const D: usize>(
         &self,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        weight: &Self::DeviceBuffer<T>,
-        weight_layout: &Layout,
-        bias: Option<&Self::DeviceBuffer<T>>,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-        output: &mut Self::DeviceBuffer<T>,
-        output_layout: &Layout,
-    ) {
-        conv::conv1d(
-            self,
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            bias,
+        request: ConvolutionForward<'_, Self, T>,
+        stride: [usize; D],
+        padding: [usize; D],
+        dilation: [usize; D],
+    ) -> Result<(), Self::Error> {
+        convolution::regular_forward::<B, T, R, D>(
+            convolution::Forward {
+                input: request.input,
+                input_layout: request.input_layout,
+                weight: request.weight,
+                weight_layout: request.weight_layout,
+                bias: request.bias,
+                output: request.output,
+                output_layout: request.output_layout,
+            },
             stride,
             padding,
             dilation,
-            output,
-            output_layout,
-        );
+        )
     }
 
-    #[inline]
-    fn conv1d_backward(
+    fn convolution_backward<const R: usize, const D: usize>(
         &self,
-        grad_out: &Self::DeviceBuffer<T>,
-        grad_out_layout: &Layout,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        weight: &Self::DeviceBuffer<T>,
-        weight_layout: &Layout,
-        grad_input: Option<&mut Self::DeviceBuffer<T>>,
-        grad_input_layout: &Layout,
-        grad_weight: Option<&mut Self::DeviceBuffer<T>>,
-        grad_weight_layout: &Layout,
-        grad_bias: Option<&mut Self::DeviceBuffer<T>>,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-    ) {
-        conv::conv1d_backward(
-            self,
-            grad_out,
-            grad_out_layout,
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            grad_input,
-            grad_input_layout,
-            grad_weight,
-            grad_weight_layout,
-            grad_bias,
+        request: ConvolutionBackward<'_, Self, T>,
+        stride: [usize; D],
+        padding: [usize; D],
+        dilation: [usize; D],
+    ) -> Result<(), Self::Error> {
+        convolution::regular_backward::<B, T, R, D>(
+            convolution::Backward {
+                grad_output: request.grad_output,
+                grad_output_layout: request.grad_output_layout,
+                input: request.input,
+                input_layout: request.input_layout,
+                weight: request.weight,
+                weight_layout: request.weight_layout,
+                grad_input: request.grad_input,
+                grad_input_layout: request.grad_input_layout,
+                grad_weight: request.grad_weight,
+                grad_weight_layout: request.grad_weight_layout,
+                grad_bias: request.grad_bias,
+            },
             stride,
             padding,
             dilation,
-        );
+        )
     }
 
-    #[inline]
-    fn conv2d(
+    fn convolution_transposed_forward<const R: usize, const D: usize>(
         &self,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        weight: &Self::DeviceBuffer<T>,
-        weight_layout: &Layout,
-        bias: Option<&Self::DeviceBuffer<T>>,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-        output: &mut Self::DeviceBuffer<T>,
-        output_layout: &Layout,
-    ) {
-        conv::conv2d(
-            self,
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            bias,
+        request: ConvolutionForward<'_, Self, T>,
+        stride: [usize; D],
+        padding: [usize; D],
+        output_padding: [usize; D],
+        dilation: [usize; D],
+    ) -> Result<(), Self::Error>
+    where
+        T: Float,
+    {
+        convolution::transposed_forward::<B, T, R, D>(
+            convolution::Forward {
+                input: request.input,
+                input_layout: request.input_layout,
+                weight: request.weight,
+                weight_layout: request.weight_layout,
+                bias: request.bias,
+                output: request.output,
+                output_layout: request.output_layout,
+            },
             stride,
             padding,
+            output_padding,
             dilation,
-            output,
-            output_layout,
-        );
+        )
     }
 
-    #[inline]
-    fn conv2d_backward(
+    fn convolution_transposed_backward<const R: usize, const D: usize>(
         &self,
-        grad_out: &Self::DeviceBuffer<T>,
-        grad_out_layout: &Layout,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        weight: &Self::DeviceBuffer<T>,
-        weight_layout: &Layout,
-        grad_input: Option<&mut Self::DeviceBuffer<T>>,
-        grad_input_layout: &Layout,
-        grad_weight: Option<&mut Self::DeviceBuffer<T>>,
-        grad_weight_layout: &Layout,
-        grad_bias: Option<&mut Self::DeviceBuffer<T>>,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-    ) {
-        conv::conv2d_backward(
-            self,
-            grad_out,
-            grad_out_layout,
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            grad_input,
-            grad_input_layout,
-            grad_weight,
-            grad_weight_layout,
-            grad_bias,
+        request: ConvolutionBackward<'_, Self, T>,
+        stride: [usize; D],
+        padding: [usize; D],
+        output_padding: [usize; D],
+        dilation: [usize; D],
+    ) -> Result<(), Self::Error>
+    where
+        T: Float,
+    {
+        convolution::transposed_backward::<B, T, R, D>(
+            convolution::Backward {
+                grad_output: request.grad_output,
+                grad_output_layout: request.grad_output_layout,
+                input: request.input,
+                input_layout: request.input_layout,
+                weight: request.weight,
+                weight_layout: request.weight_layout,
+                grad_input: request.grad_input,
+                grad_input_layout: request.grad_input_layout,
+                grad_weight: request.grad_weight,
+                grad_weight_layout: request.grad_weight_layout,
+                grad_bias: request.grad_bias,
+            },
             stride,
             padding,
+            output_padding,
             dilation,
-        );
-    }
-
-    #[inline]
-    fn conv3d(
-        &self,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        weight: &Self::DeviceBuffer<T>,
-        weight_layout: &Layout,
-        bias: Option<&Self::DeviceBuffer<T>>,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-        output: &mut Self::DeviceBuffer<T>,
-        output_layout: &Layout,
-    ) {
-        conv::conv3d(
-            self,
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            bias,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        );
-    }
-
-    #[inline]
-    fn conv3d_backward(
-        &self,
-        grad_out: &Self::DeviceBuffer<T>,
-        grad_out_layout: &Layout,
-        input: &Self::DeviceBuffer<T>,
-        input_layout: &Layout,
-        weight: &Self::DeviceBuffer<T>,
-        weight_layout: &Layout,
-        grad_input: Option<&mut Self::DeviceBuffer<T>>,
-        grad_input_layout: &Layout,
-        grad_weight: Option<&mut Self::DeviceBuffer<T>>,
-        grad_weight_layout: &Layout,
-        grad_bias: Option<&mut Self::DeviceBuffer<T>>,
-        stride: usize,
-        padding: usize,
-        dilation: usize,
-    ) {
-        conv::conv3d_backward(
-            self,
-            grad_out,
-            grad_out_layout,
-            input,
-            input_layout,
-            weight,
-            weight_layout,
-            grad_input,
-            grad_input_layout,
-            grad_weight,
-            grad_weight_layout,
-            grad_bias,
-            stride,
-            padding,
-            dilation,
-        );
+        )
     }
 }

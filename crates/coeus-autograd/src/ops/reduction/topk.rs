@@ -53,10 +53,14 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let Some(Some(ref g)) = input_grads.first() else {
-            return;
+            return Ok(());
         };
 
         let zeros = Tensor::zeros_on(self.input_shape.clone(), &backend);
@@ -64,7 +68,8 @@ where
             coeus_ops::scatter_add(&zeros, self.dim, &self.topk_indices, grad_out, &backend);
 
         let gl = g.write();
-        coeus_ops::add_assign(gl, &grad_in, &backend).expect("autograd gradient accumulation");
+        coeus_ops::add_assign(gl, &grad_in, &backend)?;
+        Ok(())
     }
 }
 
@@ -88,7 +93,7 @@ pub fn topk<T: Scalar + leto_ops::Scalar, B>(
     largest: bool,
 ) -> (Var<T, B>, Var<T, B>)
 where
-    B: coeus_ops::BackendOps<T> + coeus_ops::BackendOps<i64> + Default,
+    B: coeus_ops::BackendOps<T> + coeus_ops::BackendOps<i64> + coeus_ops::CpuBackend + Default,
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>:
@@ -154,7 +159,8 @@ mod tests {
         sorted.sort_by(|a, b| b.partial_cmp(a).unwrap());
         assert_eq!(sorted, vs, "topk should be descending");
 
-        vals.backward();
+        vals.backward()
+            .expect("invariant: valid autograd fixture completes backward");
         let dx = x.grad().unwrap();
         let ones: usize = dx
             .as_slice()
@@ -171,7 +177,8 @@ mod tests {
         let data = vec![3.0f64, 1.0, 4.0, 1.0, 5.0];
         let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([5], &data), true);
         let (vals, _) = topk(&x, 2, 0, false);
-        vals.backward();
+        vals.backward()
+            .expect("invariant: valid autograd fixture completes backward");
         let dx = x.grad().unwrap();
         let grad_sum: f64 = dx.as_slice().iter().sum();
         assert!(

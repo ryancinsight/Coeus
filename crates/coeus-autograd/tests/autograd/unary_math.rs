@@ -15,7 +15,8 @@ fn test_neg_autograd() {
     assert!((y_slice[2] - (-3.0)).abs() < 1e-10);
 
     let seed = Tensor::from_slice_on(vec![4], &[1.0f64, 2.0, 3.0, 4.0], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
     assert!((gx_s[0] - (-1.0)).abs() < 1e-10);
@@ -37,7 +38,8 @@ fn test_abs_autograd() {
     assert!((y_slice[2] - 0.5).abs() < 1e-10);
 
     let seed = Tensor::from_slice_on(vec![3], &[1.0f64, 1.0, 1.0], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
     assert!(
@@ -70,7 +72,8 @@ fn test_sqrt_autograd() {
     assert!((y_slice[2] - 4.0).abs() < 1e-9);
 
     let seed = Tensor::from_slice_on(vec![3], &[1.0f64, 1.0, 1.0], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
     assert!(
@@ -103,7 +106,8 @@ fn test_pow_autograd() {
     assert!((y_slice[2] - 27.0).abs() < 1e-8);
 
     let seed = Tensor::from_slice_on(vec![3], &[1.0f64, 1.0, 1.0], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
     assert!((gx_s[0] - 3.0).abs() < 1e-6, "pow(1,3) grad: {}", gx_s[0]);
@@ -136,7 +140,8 @@ fn test_pow_integer_exp_sign_preserving() {
     // Backward: d/dx x^3 = 3·x^2 — non-negative everywhere; for x = 0 → 0.
     // PyTorch: 3, 12, 3, 0.75, 12 (and 0 at the x = 0 zero index, which we excluded).
     let seed = Tensor::from_slice_on(vec![5], &[1.0f64; 5], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
     assert!((gx_s[0] - 3.0).abs() < 1e-10, "bwd[0] = {}", gx_s[0]);
@@ -161,7 +166,8 @@ fn test_pow_integer_exp_zero() {
     }
 
     let seed = Tensor::from_slice_on(vec![4], &[1.0f64; 4], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     for v in gx.as_slice().iter() {
         assert!(v.abs() < 1e-10, "d/dx x^0 = {} (expected 0)", v);
@@ -220,7 +226,8 @@ fn test_clamp_autograd() {
     );
 
     let seed = Tensor::from_slice_on(vec![4], &[1.0f64, 1.0, 1.0, 1.0], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
     assert!(
@@ -258,7 +265,8 @@ fn test_scalar_mul_autograd() {
     assert!((y_slice[2] - 9.0).abs() < 1e-10);
 
     let seed = Tensor::from_slice_on(vec![3], &[1.0f64, 2.0, 3.0], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_s = gx.as_slice();
     assert!((gx_s[0] - 3.0).abs() < 1e-10);
@@ -284,7 +292,8 @@ fn test_scalar_sub_autograd() {
     assert!((z.tensor.as_slice()[2] - 9.0).abs() < 1e-10);
 
     let seed = Tensor::from_slice_on(vec![3], &[1.0f64, 2.0, 3.0], &backend);
-    y.backward_with_seed(seed.clone());
+    y.backward_with_seed(seed.clone())
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     assert!((gx.as_slice()[0] - 1.0).abs() < 1e-10);
     assert!((gx.as_slice()[1] - 2.0).abs() < 1e-10);
@@ -309,7 +318,8 @@ fn test_scalar_div_autograd() {
     assert!((z.tensor.as_slice()[2] - 6.0).abs() < 1e-10);
 
     let seed = Tensor::from_slice_on(vec![3], &[1.0f64, 2.0, 3.0], &backend);
-    y.backward_with_seed(seed);
+    y.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     assert!((gx.as_slice()[0] - 1.0 / 3.0).abs() < 1e-10);
     assert!((gx.as_slice()[1] - 2.0 / 3.0).abs() < 1e-10);

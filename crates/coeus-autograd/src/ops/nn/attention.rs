@@ -81,7 +81,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Backward
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
 
         let need_gq = input_grads.first().and_then(|g| g.as_ref()).is_some();
@@ -89,7 +93,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Backward
         let need_gv = input_grads.get(2).and_then(|g| g.as_ref()).is_some();
 
         if !need_gq && !need_gk && !need_gv {
-            return;
+            return Ok(());
         }
 
         let mut grad_q = need_gq.then(|| Tensor::zeros_on(self.q_clone.shape_cloned(), &backend));
@@ -112,16 +116,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Backward
 
         if let (Some(acc), Some(gq)) = (input_grads.first().and_then(|g| g.as_ref()), grad_q) {
             let lock = acc.write();
-            coeus_ops::add_assign(lock, &gq, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &gq, &backend)?;
         }
         if let (Some(acc), Some(gk)) = (input_grads.get(1).and_then(|g| g.as_ref()), grad_k) {
             let lock = acc.write();
-            coeus_ops::add_assign(lock, &gk, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &gk, &backend)?;
         }
         if let (Some(acc), Some(gv)) = (input_grads.get(2).and_then(|g| g.as_ref()), grad_v) {
             let lock = acc.write();
-            coeus_ops::add_assign(lock, &gv, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &gv, &backend)?;
         }
+
+        Ok(())
     }
 }
 

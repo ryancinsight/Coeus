@@ -28,14 +28,18 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Re
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let reshaped_grad = grad_out.reshape(self.original_shape.clone());
             let gl = g.write();
-            coeus_ops::add_assign(gl, &reshaped_grad, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &reshaped_grad, &backend)?;
         }
+        Ok(())
     }
 }
 
@@ -114,7 +118,8 @@ mod flatten_tests {
         let flat = flatten(&x, 1, 2);
         assert_eq!(flat.tensor.shape(), &[2, 12]);
         assert_eq!(flat.tensor.to_contiguous().as_slice(), data.as_slice());
-        flat.backward();
+        flat.backward()
+            .expect("invariant: valid autograd fixture completes backward");
         assert_eq!(x.grad().unwrap().shape(), &[2, 3, 4]);
     }
 }

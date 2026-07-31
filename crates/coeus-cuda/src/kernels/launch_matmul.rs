@@ -1,8 +1,21 @@
 use super::GpuLayoutInfo;
 use crate::driver::{get_cuda_context, CudaDriver};
-use crate::kernels::validation::{launch_grid_size_for_block, layouts_fit_cuda};
+use crate::kernels::validation::{launch_grid_size_for_block, layout_fits_cuda_storage};
 use crate::storage::CudaStorage;
-use coeus_core::Layout;
+use coeus_core::{Layout, Storage};
+
+fn layouts_fit_storage(
+    a_layout: &Layout,
+    a_len: usize,
+    b_layout: &Layout,
+    b_len: usize,
+    c_layout: &Layout,
+    c_len: usize,
+) -> bool {
+    layout_fits_cuda_storage(a_layout, a_len, false)
+        && layout_fits_cuda_storage(b_layout, b_len, false)
+        && layout_fits_cuda_storage(c_layout, c_len, true)
+}
 
 /// Launch the tiled matrix multiplication kernel on the GPU.
 ///
@@ -22,7 +35,7 @@ pub fn launch_matmul_tiled(
     let Some(_ctx) = get_cuda_context() else {
         return false;
     };
-    if !layouts_fit_cuda(&[a_layout, b_layout, c_layout]) {
+    if !layouts_fit_storage(a_layout, a.len(), b_layout, b.len(), c_layout, c.len()) {
         return false;
     }
     let [m, k] = a_layout.shape() else {
@@ -129,6 +142,7 @@ extern "C" __global__ void matmul_kernel(
         c[offset_c] = sum;
     }
 }
+
 "#;
 
     let key = "matmul_tiled_f32".to_string();
@@ -174,5 +188,32 @@ extern "C" __global__ void matmul_kernel(
             std::ptr::null_mut(),
         );
         res == 0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::layouts_fit_storage;
+    use coeus_core::Layout;
+
+    #[test]
+    fn matmul_rejects_each_layout_that_exceeds_storage() {
+        let a = Layout::new([2, 3].into());
+        let b = Layout::new([3, 4].into());
+        let c = Layout::new([2, 4].into());
+
+        assert!(!layouts_fit_storage(&a, 5, &b, 12, &c, 8));
+        assert!(!layouts_fit_storage(&a, 6, &b, 11, &c, 8));
+        assert!(!layouts_fit_storage(&a, 6, &b, 12, &c, 7));
+        assert!(layouts_fit_storage(&a, 6, &b, 12, &c, 8));
+    }
+
+    #[test]
+    fn matmul_rejects_writable_zero_stride_output() {
+        let a = Layout::new([2, 3].into());
+        let b = Layout::new([3, 4].into());
+        let c = Layout::from_shape_strides([2, 4].into(), vec![0, 1].into(), 0);
+
+        assert!(!layouts_fit_storage(&a, 6, &b, 12, &c, 4));
     }
 }

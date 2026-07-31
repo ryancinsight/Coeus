@@ -1,16 +1,19 @@
 #![allow(clippy::too_many_arguments)]
 
 use super::validation::{
-    checked_pool_parameters, pool_layouts_are_valid, pool_prefix_matches, pool_shapes_match,
-    POOL_BLOCK_SIZE,
+    checked_pool_parameters, pool_index_arithmetic_is_valid, pool_layouts_are_valid,
+    pool_prefix_matches, pool_shapes_match, POOL_BLOCK_SIZE,
 };
 use super::POOL_COMMON_SRC;
 use crate::backend::CudaScalar;
 use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
 use crate::kernels::fuse::get_or_create_kernel;
-use crate::kernels::validation::{checked_numel, cuda_u32, launch_grid_size};
+use crate::kernels::validation::{
+    checked_numel, cuda_u32, launch_grid_size, layout_fits_cuda_storage,
+};
 use crate::storage::CudaStorage;
-use coeus_core::Layout;
+use crate::CudaBackendError;
+use coeus_core::{Layout, Storage};
 
 fn source<T: CudaScalar>() -> String {
     let scalar = T::CUDA_TYPE;
@@ -150,8 +153,27 @@ extern "C" __global__ void avg_pool_backward(
     )
 }
 
+fn pool1d_contract_is_valid(
+    input_layout: &Layout,
+    input_len: usize,
+    input_writable: bool,
+    output_layout: &Layout,
+    output_len: usize,
+    output_writable: bool,
+    kernel_size: usize,
+    stride: usize,
+    padding: usize,
+    dilation: usize,
+) -> bool {
+    checked_pool_parameters(kernel_size, stride, padding, dilation).is_some_and(|parameters| {
+        pool_index_arithmetic_is_valid(input_layout, output_layout, parameters, 1)
+            && layout_fits_cuda_storage(input_layout, input_len, input_writable)
+            && layout_fits_cuda_storage(output_layout, output_len, output_writable)
+    })
+}
+
 fn launch<T: CudaScalar>(
-    operation: &str,
+    operation: &'static str,
     buffers: &mut [CUdeviceptr],
     layouts: &[&Layout],
     kernel_size: usize,
@@ -159,41 +181,72 @@ fn launch<T: CudaScalar>(
     padding: usize,
     dilation: usize,
     thread_count: Option<usize>,
-) -> bool {
+) -> Result<(), CudaBackendError> {
     let Some(driver) = CudaDriver::get() else {
-        return false;
+        return Err(CudaBackendError::kernel(
+            operation,
+            "CUDA driver unavailable",
+        ));
     };
     let Some(_context) = get_cuda_context() else {
-        return false;
+        return Err(CudaBackendError::kernel(
+            operation,
+            "CUDA context unavailable",
+        ));
     };
     let Some([kernel_size_value, stride_value, padding_value, dilation_value]) =
         checked_pool_parameters(kernel_size, stride, padding, dilation)
     else {
-        return false;
+        return Err(CudaBackendError::kernel(
+            operation,
+            "pool parameters exceed the CUDA u32 ABI",
+        ));
     };
     let Some(thread_count) = thread_count else {
-        return false;
+        return Err(CudaBackendError::kernel(
+            operation,
+            "output element count overflowed",
+        ));
     };
     let Some(thread_count_value) = cuda_u32(thread_count) else {
-        return false;
+        return Err(CudaBackendError::kernel(
+            operation,
+            "output element count exceeds the CUDA u32 ABI",
+        ));
     };
     if !pool_layouts_are_valid(layouts, 3) {
-        return false;
+        return Err(CudaBackendError::kernel(
+            operation,
+            "pool layouts violate the rank or CUDA ABI contract",
+        ));
     }
     let Some(grid_size) = launch_grid_size(thread_count) else {
-        return thread_count == 0;
+        return if thread_count == 0 {
+            Ok(())
+        } else {
+            Err(CudaBackendError::kernel(
+                operation,
+                "launch grid exceeds the CUDA u32 ABI",
+            ))
+        };
     };
     let key = format!("pool1d_{operation}_{}", T::CUDA_TYPE);
     let kernel_source = source::<T>();
     let Some(kernel) = get_or_create_kernel(&key, &kernel_source, operation) else {
-        return false;
+        return Err(CudaBackendError::kernel(
+            operation,
+            "kernel compilation failed",
+        ));
     };
     let Ok(mut gpu_layouts) = layouts
         .iter()
         .map(|layout| crate::kernels::GpuLayoutInfo::try_from(*layout))
         .collect::<Result<Vec<_>, _>>()
     else {
-        return false;
+        return Err(CudaBackendError::kernel(
+            operation,
+            "layout conversion failed",
+        ));
     };
     let mut kernel_size = kernel_size_value;
     let mut stride = stride_value;
@@ -219,7 +272,7 @@ fn launch<T: CudaScalar>(
     // SAFETY: `kernel` belongs to the current Hephaestus context; every
     // pointer references a live device allocation or stack argument through
     // the synchronous launch call, and the grid covers exactly `thread_count`.
-    unsafe {
+    let status = unsafe {
         (driver.cu_launch_kernel)(
             kernel.func,
             grid_size,
@@ -232,7 +285,15 @@ fn launch<T: CudaScalar>(
             std::ptr::null_mut(),
             args.as_mut_ptr(),
             std::ptr::null_mut(),
-        ) == 0
+        )
+    };
+    if status == 0 {
+        Ok(())
+    } else {
+        Err(CudaBackendError::kernel(
+            operation,
+            "CUDA kernel launch failed",
+        ))
     }
 }
 
@@ -246,12 +307,31 @@ pub fn dispatch_max_pool1d<T: CudaScalar>(
     dilation: usize,
     output: &mut CudaStorage<T>,
     output_layout: &Layout,
-) -> bool {
-    if !pool_prefix_matches(input_layout, output_layout) {
-        return false;
+) -> Result<(), CudaBackendError> {
+    if !pool_prefix_matches(input_layout, output_layout)
+        || !pool1d_contract_is_valid(
+            input_layout,
+            input.len(),
+            false,
+            output_layout,
+            output.len(),
+            true,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        )
+    {
+        return Err(CudaBackendError::kernel(
+            "max_pool_forward",
+            "input, output, or signed index range violates the pool contract",
+        ));
     }
     let Some(thread_count) = checked_numel(output_layout) else {
-        return false;
+        return Err(CudaBackendError::kernel(
+            "max_pool_forward",
+            "output element count overflowed",
+        ));
     };
     launch::<T>(
         "max_pool_forward",
@@ -277,14 +357,33 @@ pub fn dispatch_max_pool1d_backward<T: CudaScalar>(
     dilation: usize,
     grad_input: &mut CudaStorage<T>,
     grad_input_layout: &Layout,
-) -> bool {
+) -> Result<(), CudaBackendError> {
     if !pool_prefix_matches(grad_out_layout, grad_input_layout)
         || !pool_shapes_match(input_layout, grad_input_layout)
+        || !pool1d_contract_is_valid(
+            input_layout,
+            input.len(),
+            false,
+            grad_out_layout,
+            grad_out.len(),
+            false,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        )
+        || !layout_fits_cuda_storage(grad_input_layout, grad_input.len(), true)
     {
-        return false;
+        return Err(CudaBackendError::kernel(
+            "max_pool_backward",
+            "pool layouts, storage, or signed index range violate the backward contract",
+        ));
     }
     let Some(thread_count) = checked_numel(grad_input_layout) else {
-        return false;
+        return Err(CudaBackendError::kernel(
+            "max_pool_backward",
+            "input element count overflowed",
+        ));
     };
     launch::<T>(
         "max_pool_backward",
@@ -312,12 +411,31 @@ pub fn dispatch_avg_pool1d<T: CudaScalar>(
     dilation: usize,
     output: &mut CudaStorage<T>,
     output_layout: &Layout,
-) -> bool {
-    if !pool_prefix_matches(input_layout, output_layout) {
-        return false;
+) -> Result<(), CudaBackendError> {
+    if !pool_prefix_matches(input_layout, output_layout)
+        || !pool1d_contract_is_valid(
+            input_layout,
+            input.len(),
+            false,
+            output_layout,
+            output.len(),
+            true,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        )
+    {
+        return Err(CudaBackendError::kernel(
+            "avg_pool_forward",
+            "input, output, or signed index range violates the pool contract",
+        ));
     }
     let Some(thread_count) = checked_numel(output_layout) else {
-        return false;
+        return Err(CudaBackendError::kernel(
+            "avg_pool_forward",
+            "output element count overflowed",
+        ));
     };
     launch::<T>(
         "avg_pool_forward",
@@ -341,12 +459,31 @@ pub fn dispatch_avg_pool1d_backward<T: CudaScalar>(
     dilation: usize,
     grad_input: &mut CudaStorage<T>,
     grad_input_layout: &Layout,
-) -> bool {
-    if !pool_prefix_matches(grad_out_layout, grad_input_layout) {
-        return false;
+) -> Result<(), CudaBackendError> {
+    if !pool_prefix_matches(grad_out_layout, grad_input_layout)
+        || !pool1d_contract_is_valid(
+            grad_input_layout,
+            grad_input.len(),
+            true,
+            grad_out_layout,
+            grad_out.len(),
+            false,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        )
+    {
+        return Err(CudaBackendError::kernel(
+            "avg_pool_backward",
+            "gradient layouts, storage, or signed index range violate the pool contract",
+        ));
     }
     let Some(thread_count) = checked_numel(grad_input_layout) else {
-        return false;
+        return Err(CudaBackendError::kernel(
+            "avg_pool_backward",
+            "input element count overflowed",
+        ));
     };
     launch::<T>(
         "avg_pool_backward",

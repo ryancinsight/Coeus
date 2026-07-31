@@ -1,8 +1,8 @@
 // ── Pool1d ──
 // MaxPool1d and AvgPool1d for 1D spatial inputs `[N, C, L]`.
 
-use crate::module::Module;
-use crate::pool::out_dim;
+use crate::module::{Module, ModuleError};
+use crate::pool::checked_out_dim;
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
@@ -24,19 +24,19 @@ use std::marker::PhantomData;
 ///
 /// let pool = MaxPool1d::<f32, SequentialBackend>::new(2);
 /// let x = Var::new(Tensor::from_slice([1, 1, 4], &[1.0_f32, 3.0, 2.0, 4.0]), false);
-/// let y = pool.forward(&x);
+/// let y = pool.forward(&x).expect("valid MaxPool1d input");
 /// assert_eq!(y.tensor.shape(), &[1, 1, 2]);
 /// ```
 #[derive(Clone)]
 pub struct MaxPool1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Pooling window length.
-    pub kernel_size: usize,
+    kernel_size: usize,
     /// Stride along the L dimension.
-    pub stride: usize,
+    stride: usize,
     /// Zero-padding applied to both sides.
-    pub padding: usize,
+    padding: usize,
     /// Spacing between pooling window elements.
-    pub dilation: usize,
+    dilation: usize,
     _marker: PhantomData<(T, B)>,
 }
 
@@ -48,10 +48,6 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> MaxPool1d<T, B> {
 
     /// Create with explicit hyperparameters.
     pub fn with_params(kernel_size: usize, stride: usize, padding: usize, dilation: usize) -> Self {
-        assert!(
-            stride >= 1 && dilation >= 1,
-            "stride and dilation must be >= 1"
-        );
         Self {
             kernel_size,
             stride,
@@ -67,51 +63,53 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool1d
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let backend = B::default();
-
-        let n = input.tensor.shape()[0];
-        let c = input.tensor.shape()[1];
-        let l = input.tensor.shape()[2];
-        let l_out = out_dim(
+        let shape = input.tensor.shape();
+        if shape.len() != 3 {
+            return Err(ModuleError::InvalidRank {
+                module: "MaxPool1d",
+                expected: "3",
+                actual: shape.len(),
+            });
+        }
+        let [n, c, l] = [shape[0], shape[1], shape[2]];
+        let l_out = checked_out_dim(
+            "MaxPool1d",
             l,
             self.kernel_size,
             self.padding,
             self.stride,
             self.dilation,
-        );
-
-        assert!(
-            l_out > 0,
-            "MaxPool1d: kernel ({}) with dilation ({}) and padding ({}) \
-             does not fit input length {l}; output would be {l_out}",
-            self.kernel_size,
-            self.dilation,
-            self.padding,
-        );
+        )?;
 
         let mut out_tensor = Tensor::alloc_on([n, c, l_out], &backend);
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
 
-        backend.max_pool1d(
-            input.tensor.storage(),
-            input.tensor.layout(),
-            self.kernel_size,
-            self.stride,
-            self.padding,
-            self.dilation,
-            out_storage,
-            out_layout,
-        );
+        backend
+            .max_pool1d(
+                input.tensor.storage(),
+                input.tensor.layout(),
+                self.kernel_size,
+                self.stride,
+                self.padding,
+                self.dilation,
+                out_storage,
+                out_layout,
+            )
+            .map_err(|source| ModuleError::Backend {
+                module: "MaxPool1d",
+                source,
+            })?;
 
-        coeus_autograd::max_pool1d(
+        Ok(coeus_autograd::max_pool1d(
             input,
             out_tensor,
             self.kernel_size,
             self.stride,
             self.padding,
             self.dilation,
-        )
+        ))
     }
 }
 
@@ -131,19 +129,19 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool1d
 ///
 /// let pool = AvgPool1d::<f32, SequentialBackend>::new(2);
 /// let x = Var::new(Tensor::from_slice([1, 1, 4], &[1.0_f32, 3.0, 2.0, 4.0]), false);
-/// let y = pool.forward(&x);
+/// let y = pool.forward(&x).expect("valid AvgPool1d input");
 /// assert_eq!(y.tensor.shape(), &[1, 1, 2]);
 /// ```
 #[derive(Clone)]
 pub struct AvgPool1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Pooling window length.
-    pub kernel_size: usize,
+    kernel_size: usize,
     /// Stride along the L dimension.
-    pub stride: usize,
+    stride: usize,
     /// Zero-padding applied to both sides.
-    pub padding: usize,
+    padding: usize,
     /// Spacing between pooling window elements.
-    pub dilation: usize,
+    dilation: usize,
     _marker: PhantomData<(T, B)>,
 }
 
@@ -155,10 +153,6 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> AvgPool1d<T, B> {
 
     /// Create with explicit hyperparameters.
     pub fn with_params(kernel_size: usize, stride: usize, padding: usize, dilation: usize) -> Self {
-        assert!(
-            stride >= 1 && dilation >= 1,
-            "stride and dilation must be >= 1"
-        );
         Self {
             kernel_size,
             stride,
@@ -174,50 +168,52 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool1d
         vec![]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let backend = B::default();
-
-        let n = input.tensor.shape()[0];
-        let c = input.tensor.shape()[1];
-        let l = input.tensor.shape()[2];
-        let l_out = out_dim(
+        let shape = input.tensor.shape();
+        if shape.len() != 3 {
+            return Err(ModuleError::InvalidRank {
+                module: "AvgPool1d",
+                expected: "3",
+                actual: shape.len(),
+            });
+        }
+        let [n, c, l] = [shape[0], shape[1], shape[2]];
+        let l_out = checked_out_dim(
+            "AvgPool1d",
             l,
             self.kernel_size,
             self.padding,
             self.stride,
             self.dilation,
-        );
-
-        assert!(
-            l_out > 0,
-            "AvgPool1d: kernel ({}) with dilation ({}) and padding ({}) \
-             does not fit input length {l}; output would be {l_out}",
-            self.kernel_size,
-            self.dilation,
-            self.padding,
-        );
+        )?;
 
         let mut out_tensor = Tensor::alloc_on([n, c, l_out], &backend);
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
 
-        backend.avg_pool1d(
-            input.tensor.storage(),
-            input.tensor.layout(),
-            self.kernel_size,
-            self.stride,
-            self.padding,
-            self.dilation,
-            out_storage,
-            out_layout,
-        );
+        backend
+            .avg_pool1d(
+                input.tensor.storage(),
+                input.tensor.layout(),
+                self.kernel_size,
+                self.stride,
+                self.padding,
+                self.dilation,
+                out_storage,
+                out_layout,
+            )
+            .map_err(|source| ModuleError::Backend {
+                module: "AvgPool1d",
+                source,
+            })?;
 
-        coeus_autograd::avg_pool1d(
+        Ok(coeus_autograd::avg_pool1d(
             input,
             out_tensor,
             self.kernel_size,
             self.stride,
             self.padding,
             self.dilation,
-        )
+        ))
     }
 }

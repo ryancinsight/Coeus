@@ -3,6 +3,24 @@ use super::{
     elementwise_add_into, elementwise_binary_into, elementwise_unary_into, BinaryOp, CpuUnaryOp,
 };
 
+fn assert_transcendental_close(actual: &[f64], expected: &[f64]) {
+    assert_eq!(actual.len(), expected.len());
+    for (&actual, &expected) in actual.iter().zip(expected) {
+        if expected.is_infinite() {
+            assert_eq!(actual, expected);
+            continue;
+        }
+        // The provider and scalar reference may select independent libm
+        // implementations. Four epsilon-scaled units budget one final
+        // rounding in each path plus one guard unit per implementation.
+        let tolerance = 4.0 * f64::EPSILON * expected.abs().max(1.0);
+        assert!(
+            (actual - expected).abs() <= tolerance,
+            "{actual} differs from {expected} by more than {tolerance}"
+        );
+    }
+}
+
 #[test]
 fn add_matches_reference_rank2() {
     let a = vec![1.0f64, 2.0, 3.0, 4.0];
@@ -75,13 +93,10 @@ fn unary_dispatch_exp_log_sqrt_matches_scalar_reference() {
     let la = layout(&[2, 2]);
 
     elementwise_unary_into(CpuUnaryOp::Exp, &la, &input, &la, &mut out).unwrap();
-    assert_eq!(out, vec![1.0, 1.0_f64.exp(), 4.0_f64.exp(), 16.0_f64.exp()]);
+    assert_transcendental_close(&out, &[1.0, 1.0_f64.exp(), 4.0_f64.exp(), 16.0_f64.exp()]);
 
     elementwise_unary_into(CpuUnaryOp::Log, &la, &input, &la, &mut out).unwrap();
-    assert_eq!(
-        out,
-        vec![f64::NEG_INFINITY, 0.0, 4.0_f64.ln(), 16.0_f64.ln()]
-    );
+    assert_transcendental_close(&out, &[f64::NEG_INFINITY, 0.0, 4.0_f64.ln(), 16.0_f64.ln()]);
 
     elementwise_unary_into(CpuUnaryOp::Sqrt, &la, &input, &la, &mut out).unwrap();
     assert_eq!(out, vec![0.0, 1.0, 2.0, 4.0]);

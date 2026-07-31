@@ -48,7 +48,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for
 /// assert!((y.tensor.as_slice()[0] - 2.0).abs() < 1e-5);
 /// assert!((y.tensor.as_slice()[1] - 0.0).abs() < 1e-5);
 /// let loss = coeus_autograd::sum(&y);
-/// loss.backward();
+/// loss.backward().expect("invariant: valid autograd fixture completes backward");
 /// let grad = x.grad().unwrap();
 /// assert!((grad.as_slice()[0] - 1.0).abs() < 1e-5); // x > 0
 /// assert!((grad.as_slice()[1] - 0.0).abs() < 1e-5); // x < 0
@@ -78,19 +78,23 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lea
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
             let deriv = coeus_ops::elementwise_unary(
                 &self.input_tensor,
                 &backend,
                 coeus_ops::UnaryOp::LeakyReluGrad(self.negative_slope),
-            )
-            .expect("elementwise_unary");
+            )?;
             let mask = coeus_ops::mul(grad_out, &deriv, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &mask, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &mask, &backend)?;
         }
+        Ok(())
     }
 }
 

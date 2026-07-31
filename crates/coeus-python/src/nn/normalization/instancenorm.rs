@@ -1,4 +1,7 @@
-use crate::tensor::{PyStateDict, PyTensor};
+use crate::{
+    nn::error::map_module_error,
+    tensor::{PyStateDict, PyTensor},
+};
 use pyo3::prelude::*;
 
 /// Python-exposed Instance Normalization 1D layer.
@@ -58,7 +61,7 @@ impl PyInstanceNorm1d {
             inst.bias = b_var;
             inst.forward(&input_var)
         });
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -147,7 +150,7 @@ impl PyInstanceNorm3d {
             inst.bias = b_var;
             inst.forward(&input_var)
         });
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -236,7 +239,7 @@ impl PyInstanceNorm2d {
             inst.bias = b_var;
             inst.forward(&input_var)
         });
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {

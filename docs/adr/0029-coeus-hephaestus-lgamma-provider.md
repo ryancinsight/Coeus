@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted; implementation is complete and exact-head CI is pending.
+Accepted; implementation and exact-head CI are complete for the f32 forward
+provider/consumer boundary.
 
 ## Context
 
@@ -44,10 +45,14 @@ positive infinity rather than applying a finite tolerance to `∞ - ∞`.
 
 ## Verification
 
-The affected Coeus crates require locked local checks and nextest. Exact-head
-WGPU, CUDA, ROCm, and Metal provider workflows plus the Coeus consumer matrix
-are required before closure. Hardware execution remains a separate evidence
-tier and is not claimed when required-device jobs skip.
+The affected Coeus crates require locked local checks and nextest. Hephaestus
+PR #118 passed WGPU `90086428952`, CUDA `90086430178`, ROCm `90086430143`, and
+Metal `90086428160`. Coeus PR #231 merged at
+`971fab9614b97bd708a716d01684da58fd1331ba`; its consumer jobs passed WGPU
+`90088836682`, CUDA `90088836688`, ROCm `90088836731`, and Metal `90088836675`.
+Required-device ROCm `90088837591` was skipped because no hosted AMD runner was
+dispatched. Hardware execution remains a separate evidence tier and is not
+claimed when the required-device job skips.
 
 ## Residual scope
 

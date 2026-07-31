@@ -1,4 +1,5 @@
-use crate::module::Module;
+use super::validation;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
@@ -123,7 +124,32 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for BatchNorm
         self.is_training = mode;
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        const MODULE: &str = "BatchNorm1d";
+        let shape = input.tensor.shape();
+        if !matches!(shape.len(), 2 | 3) {
+            return Err(validation::invalid_rank(MODULE, "2 or 3", shape.len()));
+        }
+        let c = shape[1];
+        if c != self.num_features {
+            return Err(validation::channel_mismatch(MODULE, self.num_features, c));
+        }
+        if !self.eps.is_finite() || self.eps < 0.0 {
+            return Err(ModuleError::InvalidEpsilon { module: MODULE });
+        }
+        for (parameter, actual) in [
+            ("weight", self.weight.tensor.shape()),
+            ("bias", self.bias.tensor.shape()),
+        ] {
+            if actual != [self.num_features] {
+                return Err(validation::shape_mismatch(
+                    MODULE,
+                    parameter,
+                    &[self.num_features],
+                    actual,
+                ));
+            }
+        }
         // PyTorch `nn.BatchNorm1d` accepts both `[N, C]` and `[N, C, L]` inputs;
         // the `[N, C]` form is the degenerate case `L = 1`.  Squeeze-unsqueeze via
         // autograd-tracked `reshape` so the 2D path stays differentiable and the
@@ -137,14 +163,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for BatchNorm
         } else {
             input.clone()
         };
-        let out_3d = self.forward_3d(&upstream);
+        let out_3d = self.forward_3d(&upstream)?;
         if input_is_2d {
             let n = input.tensor.shape()[0];
             let c = input.tensor.shape()[1];
             // [N, C, 1] -> [N, C]; preserve grad-creator.
-            coeus_autograd::reshape(&out_3d, vec![n, c])
+            Ok(coeus_autograd::reshape(&out_3d, vec![n, c]))
         } else {
-            out_3d
+            Ok(out_3d)
         }
     }
 }
@@ -153,7 +179,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm1d<T, B> {
     /// 3D forward path: `[N, C, L] -> [N, C, L]`.  Separated from the `Module`
     /// trait surface so the 2D-input adapter above can call it without going
     /// through the trait vtable.
-    fn forward_3d(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward_3d(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        const MODULE: &str = "BatchNorm1d";
         let n = input.tensor.shape()[0];
         let c = input.tensor.shape()[1];
         let l = input.tensor.shape()[2];
@@ -161,8 +188,24 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm1d<T, B> {
 
         // ── Eval mode: use running stats without updating them ──
         if !self.is_training {
-            let rm = self.running_mean.borrow();
-            let rv = self.running_var.borrow();
+            let rm = self
+                .running_mean
+                .try_borrow()
+                .map_err(|_| validation::state_borrow(MODULE, "running_mean"))?;
+            let rv = self
+                .running_var
+                .try_borrow()
+                .map_err(|_| validation::state_borrow(MODULE, "running_var"))?;
+            for (parameter, actual) in [("running_mean", rm.shape()), ("running_var", rv.shape())] {
+                if actual != [self.num_features] {
+                    return Err(validation::shape_mismatch(
+                        MODULE,
+                        parameter,
+                        &[self.num_features],
+                        actual,
+                    ));
+                }
+            }
             // Normalize using running stats: (x - running_mean) / sqrt(running_var + eps)
             let nlc = input.tensor.permute(&[0, 2, 1]).to_contiguous_on(&backend);
             let flat = nlc.reshape([n * l, c]);
@@ -170,28 +213,36 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm1d<T, B> {
             let rv_row = rv.reshape([1, c]);
             let mut istdev = rv_row.clone();
             coeus_ops::add_assign(&mut istdev, &self.eps_t, &backend)
-                .expect("normalization backend operation");
-            coeus_ops::sqrt_assign(&mut istdev, &backend).expect("normalization backend operation");
+                .map_err(|source| validation::backend(MODULE, source))?;
+            coeus_ops::sqrt_assign(&mut istdev, &backend)
+                .map_err(|source| validation::backend(MODULE, source))?;
             let ones = Tensor::ones_on([1, c], &backend);
             let mut istdev_inv = ones;
             coeus_ops::div_assign(&mut istdev_inv, &istdev, &backend)
-                .expect("normalization backend operation");
+                .map_err(|source| validation::backend(MODULE, source))?;
             let xmu = coeus_ops::sub(&flat, &rm_row, &backend);
             let x_hat = coeus_ops::mul(&xmu, &istdev_inv, &backend);
             let w_r = self.weight.tensor.reshape([1, c]);
             let b_r = self.bias.tensor.reshape([1, c]);
             let mut y = coeus_ops::mul(&x_hat, &w_r, &backend);
-            coeus_ops::add_assign(&mut y, &b_r, &backend).expect("normalization backend operation");
+            coeus_ops::add_assign(&mut y, &b_r, &backend)
+                .map_err(|source| validation::backend(MODULE, source))?;
             let y_nlc = y.reshape([n, l, c]);
             let out_tensor = y_nlc.permute(&[0, 2, 1]).to_contiguous_on(&backend);
-            return Var::new(out_tensor, false);
+            return Ok(Var::new(out_tensor, false));
         }
 
         let m = n * l; // spatial batch size
+        if m < 2 {
+            return Err(validation::insufficient_elements(MODULE, 2, m));
+        }
 
         // Retrieve or update cached m constants
         let (m_const, corr_t) = {
-            let mut cache = self.m_cache.borrow_mut();
+            let mut cache = self
+                .m_cache
+                .try_borrow_mut()
+                .map_err(|_| validation::state_borrow(MODULE, "m_cache"))?;
             if let Some((cached_m, ref cached_m_const, ref cached_corr_t)) = *cache {
                 if cached_m == m {
                     (cached_m_const.clone(), cached_corr_t.clone())
@@ -225,7 +276,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm1d<T, B> {
 
         // ── Per-channel mean [1, C] ──
         let mean_t = coeus_ops::mean_axis(&flat, 0, &backend)
-            .expect("invariant: batchnorm1d channel axis is valid"); // [1, C]
+            .map_err(|source| validation::backend(MODULE, source))?; // [1, C]
 
         // ── Centered: x - mu [M, C] ──
         let xmu = coeus_ops::sub(&flat, &mean_t, &backend);
@@ -233,17 +284,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm1d<T, B> {
         // ── Per-channel variance [1, C] ──
         let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend);
         let var_t = coeus_ops::mean_axis(&xmu_sq, 0, &backend)
-            .expect("invariant: batchnorm1d channel axis is valid"); // [1, C]
+            .map_err(|source| validation::backend(MODULE, source))?; // [1, C]
 
         // ── 1/sqrt(var + eps) [1, C] ──
         let mut stdev = var_t.clone();
         coeus_ops::add_assign(&mut stdev, &self.eps_t, &backend)
-            .expect("normalization backend operation");
-        coeus_ops::sqrt_assign(&mut stdev, &backend).expect("normalization backend operation");
+            .map_err(|source| validation::backend(MODULE, source))?;
+        coeus_ops::sqrt_assign(&mut stdev, &backend)
+            .map_err(|source| validation::backend(MODULE, source))?;
 
         let mut istdev = self.ones_c.clone();
         coeus_ops::div_assign(&mut istdev, &stdev, &backend)
-            .expect("normalization backend operation"); // [1, C]
+            .map_err(|source| validation::backend(MODULE, source))?; // [1, C]
 
         // ── x_hat = xmu * istdev [M, C] ──
         let x_hat = coeus_ops::mul(&xmu, &istdev, &backend);
@@ -253,35 +305,61 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm1d<T, B> {
         let b_reshaped = self.bias.tensor.reshape([1, c]);
         let mut y_flat = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
         coeus_ops::add_assign(&mut y_flat, &b_reshaped, &backend)
-            .expect("normalization backend operation");
+            .map_err(|source| validation::backend(MODULE, source))?;
 
         // ── Output: [M, C] → [N, L, C] → permute → [N, C, L] ──
         let y_nlc = y_flat.reshape([n, l, c]);
         let out_tensor = y_nlc.permute(&[0, 2, 1]).to_contiguous_on(&backend);
 
         // ── Update running stats (exponential moving average) ──
-        if let (Ok(mut rm), Ok(mut rv)) = (
-            self.running_mean.try_borrow_mut(),
-            self.running_var.try_borrow_mut(),
-        ) {
-            let mean_c = mean_t.reshape([c]);
-            let var_c = var_t.reshape([c]);
-
-            coeus_ops::mul_assign(&mut *rm, &self.one_minus_mom_t, &backend)
-                .expect("normalization backend operation");
-            let term_mean = coeus_ops::mul(&mean_c, &self.mom_t, &backend);
-            coeus_ops::add_assign(&mut *rm, &term_mean, &backend)
-                .expect("normalization backend operation");
-
-            coeus_ops::mul_assign(&mut *rv, &self.one_minus_mom_t, &backend)
-                .expect("normalization backend operation");
-            let var_corrected = coeus_ops::mul(&var_c, &corr_t, &backend);
-            let term_var = coeus_ops::mul(&var_corrected, &self.mom_t, &backend);
-            coeus_ops::add_assign(&mut *rv, &term_var, &backend)
-                .expect("normalization backend operation");
+        let mut next_mean = self
+            .running_mean
+            .try_borrow()
+            .map_err(|_| validation::state_borrow(MODULE, "running_mean"))?
+            .clone();
+        let mut next_var = self
+            .running_var
+            .try_borrow()
+            .map_err(|_| validation::state_borrow(MODULE, "running_var"))?
+            .clone();
+        for (parameter, actual) in [
+            ("running_mean", next_mean.shape()),
+            ("running_var", next_var.shape()),
+        ] {
+            if actual != [self.num_features] {
+                return Err(validation::shape_mismatch(
+                    MODULE,
+                    parameter,
+                    &[self.num_features],
+                    actual,
+                ));
+            }
         }
+        let mean_c = mean_t.reshape([c]);
+        let var_c = var_t.reshape([c]);
+        coeus_ops::mul_assign(&mut next_mean, &self.one_minus_mom_t, &backend)
+            .map_err(|source| validation::backend(MODULE, source))?;
+        let term_mean = coeus_ops::mul(&mean_c, &self.mom_t, &backend);
+        coeus_ops::add_assign(&mut next_mean, &term_mean, &backend)
+            .map_err(|source| validation::backend(MODULE, source))?;
+        coeus_ops::mul_assign(&mut next_var, &self.one_minus_mom_t, &backend)
+            .map_err(|source| validation::backend(MODULE, source))?;
+        let var_corrected = coeus_ops::mul(&var_c, &corr_t, &backend);
+        let term_var = coeus_ops::mul(&var_corrected, &self.mom_t, &backend);
+        coeus_ops::add_assign(&mut next_var, &term_var, &backend)
+            .map_err(|source| validation::backend(MODULE, source))?;
+        let mut running_mean = self
+            .running_mean
+            .try_borrow_mut()
+            .map_err(|_| validation::state_borrow(MODULE, "running_mean"))?;
+        let mut running_var = self
+            .running_var
+            .try_borrow_mut()
+            .map_err(|_| validation::state_borrow(MODULE, "running_var"))?;
+        *running_mean = next_mean;
+        *running_var = next_var;
 
-        coeus_autograd::batchnorm1d(
+        Ok(coeus_autograd::batchnorm1d(
             input,
             &self.weight,
             &self.bias,
@@ -298,6 +376,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BatchNorm1d<T, B> {
                 spatial: [l, 1, 1],
                 m,
             },
-        )
+        ))
     }
 }

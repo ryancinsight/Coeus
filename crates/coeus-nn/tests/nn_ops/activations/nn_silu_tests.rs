@@ -51,7 +51,9 @@ fn test_silu_functional_cpu() {
     assert_silu_values("functional_forward", out_slice, &input_data);
 
     // Backward pass
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     let grad_slice = input.grad().unwrap().as_slice().to_vec();
 
@@ -68,12 +70,14 @@ fn test_silu_module_cpu() {
         true,
     );
 
-    let output = silu_mod.forward(&input);
+    let output = silu_mod.forward(&input).expect("valid SiLU input");
     assert_eq!(output.tensor.shape(), &[2, 2]);
     assert_silu_values("module_forward", output.tensor.as_slice(), &input_data);
     assert_eq!(Module::<f64, MoiraiBackend>::parameters(&silu_mod).len(), 0);
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().expect("invariant: SiLU input requires grad");
     assert_silu_grads("module_backward", grad.as_slice(), &input_data);
 }
@@ -94,7 +98,9 @@ fn test_silu_non_contiguous_cpu() {
         &logical_input,
     );
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let grad = input
         .grad()
         .expect("invariant: non-contiguous SiLU input requires grad");

@@ -28,7 +28,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sl
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let parent_grad = g.write();
@@ -37,18 +41,17 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sl
 
             let parent_storage_imm: &B::DeviceBuffer<T> =
                 unsafe { &*(parent_storage as *const B::DeviceBuffer<T>) };
-            backend
-                .elementwise_binary(
-                    coeus_ops::BinaryOp::Add,
-                    parent_storage_imm,
-                    &sliced_layout,
-                    grad_out.storage(),
-                    grad_out.layout(),
-                    parent_storage,
-                    &sliced_layout,
-                )
-                .expect("autograd gradient accumulation");
+            backend.elementwise_binary(
+                coeus_ops::BinaryOp::Add,
+                parent_storage_imm,
+                &sliced_layout,
+                grad_out.storage(),
+                grad_out.layout(),
+                parent_storage,
+                &sliced_layout,
+            )?;
         }
+        Ok(())
     }
 }
 

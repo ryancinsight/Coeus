@@ -16,10 +16,22 @@ pub(crate) fn bench_layernorm_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — LayerNorm forward (128x256)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(ln_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                ln_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid layer normalization benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(ln_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                ln_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid layer normalization benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -44,10 +56,22 @@ pub(crate) fn bench_rmsnorm_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — RMSNorm forward (128x256)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(rn_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                rn_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid RMS normalization benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(rn_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                rn_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid RMS normalization benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -78,10 +102,22 @@ pub(crate) fn bench_batchnorm2d_eval_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — BatchNorm2d eval forward (2x64x32x32)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(bn_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                bn_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid batch normalization benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(bn_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                bn_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid batch normalization benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -111,10 +147,22 @@ pub(crate) fn bench_batchnorm1d_eval_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — BatchNorm1d eval forward (16x128x256)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(bn_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                bn_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid batch normalization benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(bn_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                bn_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid batch normalization benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -152,10 +200,22 @@ pub(crate) fn bench_batchnorm3d_eval_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — BatchNorm3d eval forward (2x32x16x16x16)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(bn_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                bn_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid batch normalization benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(bn_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                bn_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid batch normalization benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -185,10 +245,22 @@ pub(crate) fn bench_groupnorm_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — GroupNorm forward (8x32x16x16, g8)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(gn_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                gn_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid group normalization benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(gn_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                gn_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid group normalization benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -218,10 +290,22 @@ pub(crate) fn bench_instancenorm2d_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — InstanceNorm2d forward (2x32x16x16)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(in_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                in_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid instance normalization benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(in_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                in_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid instance normalization benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -246,10 +330,20 @@ pub(crate) fn bench_local_response_norm_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — LocalResponseNorm forward (8x32x16x16, size=5)");
     group.bench_function("Coeus Sequential", |bench| {
-        bench.iter(|| black_box(lrn.forward(black_box(&input_sequential))))
+        bench.iter(|| {
+            black_box(
+                lrn.forward(black_box(&input_sequential))
+                    .expect("valid local response normalization benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |bench| {
-        bench.iter(|| black_box(lrn.forward(black_box(&input_moirai))))
+        bench.iter(|| {
+            black_box(
+                lrn.forward(black_box(&input_moirai))
+                    .expect("valid local response normalization benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -295,14 +389,22 @@ pub(crate) fn bench_group_norm_forward(c: &mut Criterion) {
     let mut group = c.benchmark_group("Coeus - group_norm(G=2) fwd+bwd (128x8x16)");
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
-            let o = layer_seq.forward(black_box(&x_seq));
-            black_box(o).backward()
+            let o = layer_seq
+                .forward(black_box(&x_seq))
+                .expect("valid group normalization benchmark input");
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
-            let o = layer_moirai.forward(black_box(&x_moirai));
-            black_box(o).backward()
+            let o = layer_moirai
+                .forward(black_box(&x_moirai))
+                .expect("valid group normalization benchmark input");
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.finish();

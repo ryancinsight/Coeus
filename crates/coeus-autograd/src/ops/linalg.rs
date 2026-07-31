@@ -47,7 +47,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         _b_shape: &Shape,
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
-    ) {
+    ) -> Result<(), B::Error> {
         // Batched B ([…,k,n], bmm): per-batch transposes of the last two axes.
         // The permuted view is materialized contiguous because the batched
         // matmul kernels derive strides from shape (they do not honor view
@@ -63,24 +63,22 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
             if let Some(Some(ref g)) = input_grads.get(0) {
                 let b_t = swap_last_two(b, backend);
                 let gl = g.write();
-                coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend)
-                    .expect("matmul_accumulate");
+                coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend)?;
             }
             // ∂/∂B: A^T @ grad_C — [batch,k,m] × [batch,m,n] → [batch,k,n]
             if let Some(Some(ref g)) = input_grads.get(1) {
                 let a_t = swap_last_two(a, backend);
                 let gl = g.write();
-                coeus_ops::matmul_accumulate(&a_t, grad_out, gl, backend)
-                    .expect("matmul_accumulate");
+                coeus_ops::matmul_accumulate(&a_t, grad_out, gl, backend)?;
             }
-            return;
+            return Ok(());
         }
 
         // ∂/∂A: grad_C @ B^T — grad_C may be batched ([batch,m,n] × [n,k] → [batch,m,k])
         if let Some(Some(ref g)) = input_grads.get(0) {
             let b_t = b.t(); // B is 2-D on this path; b.t() is a stride view.
             let gl = g.write();
-            coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend).expect("matmul_accumulate");
+            coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend)?;
         }
         // ∂/∂B: A^T @ grad_C
         // When A is batched ([…,m,k]), flatten to [batch*m, k] to perform 2D matmul.
@@ -102,9 +100,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
             };
             let a_flat_t = a_flat.t();
             let gl = g.write();
-            coeus_ops::matmul_accumulate(&a_flat_t, &go_flat, gl, backend)
-                .expect("matmul_accumulate");
+            coeus_ops::matmul_accumulate(&a_flat_t, &go_flat, gl, backend)?;
         }
+        Ok(())
     }
 }
 
@@ -162,7 +160,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for
 /// let b = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2, 1], &[3.0, 4.0]), true);
 /// let c = coeus_autograd::matmul(&a, &b);
 /// assert!((c.tensor.as_slice()[0] - 11.0).abs() < 1e-5); // 1*3 + 2*4
-/// c.backward(); // scalar output, seed = 1
+/// c.backward().expect("invariant: valid autograd fixture completes backward"); // scalar output, seed = 1
 /// let ga = a.grad().unwrap();
 /// assert!((ga.as_slice()[0] - 3.0).abs() < 1e-5); // dA = B^T
 /// assert!((ga.as_slice()[1] - 4.0).abs() < 1e-5);
@@ -246,7 +244,11 @@ where
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         // ∂/∂A_values
         if let Some(Some(ref g)) = input_grads.get(0) {
@@ -259,8 +261,7 @@ where
                 &backend,
             );
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_a_vals, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &grad_a_vals, &backend)?;
         }
         // ∂/∂B
         if let Some(Some(ref g)) = input_grads.get(1) {
@@ -273,8 +274,9 @@ where
                 &backend,
             );
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_b, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &grad_b, &backend)?;
         }
+        Ok(())
     }
 }
 
@@ -300,7 +302,11 @@ where
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         // ∂/∂A_values (COO values order)
         if let Some(Some(ref g)) = input_grads.first() {
@@ -323,7 +329,7 @@ where
                 grad_coo_slice[orig] += grad_sorted_slice[i];
             }
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_coo, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &grad_coo, &backend)?;
         }
         // ∂/∂B
         if let Some(Some(ref g)) = input_grads.get(1) {
@@ -336,8 +342,9 @@ where
                 &backend,
             );
             let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_b, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &grad_b, &backend)?;
         }
+        Ok(())
     }
 }
 

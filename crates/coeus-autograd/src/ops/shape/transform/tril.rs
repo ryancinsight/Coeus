@@ -36,15 +36,20 @@ where
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // Gradient of tril(x, k) is tril(grad_out, k): zeroed positions
             // have zero gradient since they contributed nothing to the output.
             let masked = coeus_ops::tril(grad_out, self.k, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &masked, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &masked, &backend)?;
         }
+        Ok(())
     }
 }
 
@@ -120,13 +125,18 @@ where
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let masked = coeus_ops::triu(grad_out, self.k, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &masked, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &masked, &backend)?;
         }
+        Ok(())
     }
 }
 

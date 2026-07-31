@@ -24,12 +24,14 @@ fn conv_transpose1d_backward_accumulates_exact_gradients() {
         0,
         1,
         &backend,
-    );
+    )
+    .expect("transposed convolution forward");
     let out = conv_transpose1d(&input, &weight, &Some(bias.clone()), out_tensor, 1, 0, 0, 1);
     assert_eq!(out.tensor.as_slice(), &[21.0, 40.0, 32.0]);
 
     let seed = Tensor::from_slice_on(vec![1, 1, 3], &[1.0_f64, 2.0, 3.0], &backend);
-    out.backward_with_seed(seed);
+    out.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert_eq!(input.grad().unwrap().as_slice(), &[19.0, 31.0]);
     assert_eq!(weight.grad().unwrap().as_slice(), &[8.0, 13.0]);
@@ -70,7 +72,8 @@ fn conv_transpose2d_backward_accumulates_exact_gradients() {
         0,
         1,
         &backend,
-    );
+    )
+    .expect("transposed convolution forward");
 
     // Verify forward output
     let out = conv_transpose2d(&input, &weight, &Some(bias.clone()), out_tensor, 1, 0, 0, 1);
@@ -81,7 +84,8 @@ fn conv_transpose2d_backward_accumulates_exact_gradients() {
     );
 
     let seed = Tensor::from_slice_on(vec![1, 1, 2, 2], &[1.0_f64, 2.0, 3.0, 4.0], &backend);
-    out.backward_with_seed(seed);
+    out.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
 
     // grad_input: each position * weight[0,0,0,0]=1.0 → same as seed
     assert_eq!(
@@ -118,12 +122,15 @@ fn conv_transpose2d_no_bias_backward() {
     );
 
     let out_tensor =
-        coeus_ops::conv_transpose2d(&input.tensor, &weight.tensor, None, 1, 0, 0, 1, &backend);
+        coeus_ops::conv_transpose2d(&input.tensor, &weight.tensor, None, 1, 0, 0, 1, &backend)
+            .expect("transposed convolution forward");
     // stride=1, pad=0, dil=1, KH=KW=2: out_h = (2-1)*1 + 2 = 3
     assert_eq!(out_tensor.shape(), &[1, 1, 3, 3]);
 
     let out = conv_transpose2d(&input, &weight, &None, out_tensor, 1, 0, 0, 1);
-    coeus_autograd::sum(&out).backward();
+    coeus_autograd::sum(&out)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients exist and are non-zero
     let gi = input.grad().unwrap();
@@ -172,7 +179,8 @@ fn conv_transpose3d_backward_accumulates_exact_gradients() {
         0,
         1,
         &backend,
-    );
+    )
+    .expect("transposed convolution forward");
     let out = conv_transpose3d(&input, &weight, &Some(bias.clone()), out_tensor, 1, 0, 0, 1);
     assert_eq!(
         out.tensor.to_contiguous().as_slice(),
@@ -185,7 +193,8 @@ fn conv_transpose3d_backward_accumulates_exact_gradients() {
         &[1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
         &backend,
     );
-    out.backward_with_seed(seed);
+    out.backward_with_seed(seed)
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert_eq!(
         input.grad().unwrap().to_contiguous().as_slice(),

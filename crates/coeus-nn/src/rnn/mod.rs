@@ -6,6 +6,7 @@ pub mod bidirectional;
 pub mod gru;
 /// Long Short-Term Memory cell and sequence module.
 pub mod lstm;
+mod validation;
 /// Vanilla (Elman) RNN cell and sequence module.
 pub mod vanilla;
 

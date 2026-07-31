@@ -12,7 +12,9 @@ fn test_embedding_forward_backward_indices() {
     let indices = Tensor::<i32, _>::from_slice(vec![2, 2], &[0, 2, 4, 1]);
 
     // Perform forward pass using forward_indices
-    let output = layer.forward_indices(&indices);
+    let output = layer
+        .forward_indices(&indices)
+        .expect("valid Embedding indices");
 
     // Expected output shape: [2, 2, 3]
     assert_eq!(output.tensor.shape(), &[2, 2, 3]);
@@ -33,7 +35,9 @@ fn test_embedding_forward_backward_indices() {
     ];
     layer.weight.tensor = Tensor::from_slice(vec![5, 3], &w_data);
 
-    let output = layer.forward_indices(&indices);
+    let output = layer
+        .forward_indices(&indices)
+        .expect("valid Embedding indices");
     // Indices are:
     // [0, 2]
     // [4, 1]
@@ -51,7 +55,9 @@ fn test_embedding_forward_backward_indices() {
     assert_eq!(&out_slice[9..12], &[2.0, 2.1, 2.2]);
 
     // Backward pass
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients on weights
     let weight_grad = layer.weight.grad().unwrap();
@@ -83,7 +89,7 @@ fn test_embedding_module_forward() {
 
     // Module::forward takes &Var<T, B>
     let input = Var::new(Tensor::from_slice(vec![2], &[2.0f64, 0.0]), false);
-    let output = layer.forward(&input);
+    let output = layer.forward(&input).expect("valid Embedding input");
 
     assert_eq!(output.tensor.shape(), &[2, 2]);
     let out_slice = output.tensor.as_slice();
@@ -106,7 +112,9 @@ fn test_embedding_non_contiguous() {
     let idx_t = idx_raw.transpose(); // shape [2, 2], non-contiguous
     assert!(!idx_t.is_contiguous());
 
-    let output = layer.forward_indices(&idx_t);
+    let output = layer
+        .forward_indices(&idx_t)
+        .expect("valid Embedding indices");
     // idx_t is:
     // [0, 2]
     // [1, 0]
@@ -126,7 +134,9 @@ fn test_embedding_non_contiguous() {
 
     // Backward pass
     let grad_out = Tensor::from_slice(vec![2, 2, 2], &[1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]);
-    output.backward_with_seed(grad_out);
+    output
+        .backward_with_seed(grad_out)
+        .expect("invariant: valid autograd fixture completes backward");
 
     let weight_grad = layer.weight.grad().unwrap();
     assert_eq!(weight_grad.shape(), &[3, 2]);
@@ -134,4 +144,61 @@ fn test_embedding_non_contiguous() {
     assert_eq!(&g_slice[0..2], &[5.0, 5.0]);
     assert_eq!(&g_slice[2..4], &[3.0, 3.0]);
     assert_eq!(&g_slice[4..6], &[2.0, 2.0]);
+}
+
+#[test]
+fn embedding_rejects_invalid_float_indices() {
+    use coeus_nn::ModuleError;
+
+    let layer = Embedding::<f64>::new(3, 2);
+    for invalid in [f64::NAN, f64::INFINITY, -1.0, 1.5, 3.0] {
+        let input = Var::new(Tensor::from_slice([1], &[invalid]), false);
+        let error = layer
+            .forward(&input)
+            .err()
+            .expect("invalid Embedding index must be rejected");
+        match error {
+            ModuleError::ShapeMismatch {
+                module,
+                parameter,
+                expected,
+                actual,
+            } => {
+                assert_eq!(module, "Embedding");
+                assert_eq!(
+                    parameter,
+                    "indices must be finite integers within the embedding vocabulary"
+                );
+                assert_eq!(expected, vec![3]);
+                assert_eq!(actual, vec![0]);
+            }
+            other => panic!("expected typed Embedding index error, got {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn embedding_integer_api_rejects_out_of_range_index() {
+    use coeus_nn::ModuleError;
+
+    let layer = Embedding::<f64>::new(3, 2);
+    let indices = Tensor::<i32, _>::from_slice([2], &[0, 3]);
+    let error = layer
+        .forward_indices(&indices)
+        .err()
+        .expect("out-of-range Embedding index must be rejected");
+
+    match error {
+        ModuleError::ShapeMismatch {
+            module,
+            expected,
+            actual,
+            ..
+        } => {
+            assert_eq!(module, "Embedding");
+            assert_eq!(expected, vec![3]);
+            assert_eq!(actual, vec![1]);
+        }
+        other => panic!("expected typed Embedding index error, got {other:?}"),
+    }
 }

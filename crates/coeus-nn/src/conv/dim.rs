@@ -23,7 +23,7 @@ pub trait ConvDim: private::Sealed + 'static {
     /// Invoke the correct backend convolution method.
     fn backend_conv<T: coeus_core::Scalar, B: coeus_ops::BackendOps<T>>(
         dispatch: ConvDispatch<'_, T, B>,
-    );
+    ) -> Result<(), B::Error>;
 
     /// Invoke the correct autograd convolution function and return the output
     /// variable with its backward graph attached.
@@ -135,7 +135,7 @@ impl ConvDim for Dim1D {
     #[inline]
     fn backend_conv<T: coeus_core::Scalar, B: coeus_ops::BackendOps<T>>(
         dispatch: ConvDispatch<'_, T, B>,
-    ) {
+    ) -> Result<(), B::Error> {
         dispatch.backend.conv1d(
             dispatch.input_buf,
             dispatch.input_layout,
@@ -147,7 +147,7 @@ impl ConvDim for Dim1D {
             dispatch.dilation,
             dispatch.out_buf,
             dispatch.out_layout,
-        );
+        )
     }
 
     #[inline]
@@ -190,7 +190,7 @@ impl ConvDim for Dim2D {
     #[inline]
     fn backend_conv<T: coeus_core::Scalar, B: coeus_ops::BackendOps<T>>(
         dispatch: ConvDispatch<'_, T, B>,
-    ) {
+    ) -> Result<(), B::Error> {
         dispatch.backend.conv2d(
             dispatch.input_buf,
             dispatch.input_layout,
@@ -202,7 +202,7 @@ impl ConvDim for Dim2D {
             dispatch.dilation,
             dispatch.out_buf,
             dispatch.out_layout,
-        );
+        )
     }
 
     #[inline]
@@ -245,7 +245,7 @@ impl ConvDim for Dim3D {
     #[inline]
     fn backend_conv<T: coeus_core::Scalar, B: coeus_ops::BackendOps<T>>(
         dispatch: ConvDispatch<'_, T, B>,
-    ) {
+    ) -> Result<(), B::Error> {
         dispatch.backend.conv3d(
             dispatch.input_buf,
             dispatch.input_layout,
@@ -257,7 +257,7 @@ impl ConvDim for Dim3D {
             dispatch.dilation,
             dispatch.out_buf,
             dispatch.out_layout,
-        );
+        )
     }
 
     #[inline]

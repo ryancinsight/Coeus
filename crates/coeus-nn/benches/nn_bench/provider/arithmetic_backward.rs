@@ -29,13 +29,17 @@ pub(crate) fn bench_matmul_backward(c: &mut Criterion) {
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
             let o = coeus_autograd::matmul(black_box(&a_seq), black_box(&b_seq));
-            black_box(o).backward()
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
             let o = coeus_autograd::matmul(black_box(&a_moirai), black_box(&b_moirai));
-            black_box(o).backward()
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.finish();
@@ -57,13 +61,17 @@ pub(crate) fn bench_pow_backward(c: &mut Criterion) {
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
             let o = coeus_autograd::pow(black_box(&x_seq), 2.0);
-            black_box(o).backward()
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
             let o = coeus_autograd::pow(black_box(&x_moirai), 2.0);
-            black_box(o).backward()
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.finish();
@@ -85,13 +93,17 @@ pub(crate) fn bench_scalar_mul_backward(c: &mut Criterion) {
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
             let o = coeus_autograd::scalar_mul(black_box(&x_seq), 3.0);
-            black_box(o).backward()
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
             let o = coeus_autograd::scalar_mul(black_box(&x_moirai), 3.0);
-            black_box(o).backward()
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.finish();

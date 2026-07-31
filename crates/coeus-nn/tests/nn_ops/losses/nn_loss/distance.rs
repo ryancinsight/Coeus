@@ -38,7 +38,9 @@ fn test_pairwise_distance() {
         assert!((out[i] - exp).abs() <= 1e-12, "pd fwd {}", i);
     }
     let total = coeus_autograd::sum(&dist);
-    total.backward();
+    total
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let g1 = x1.grad().expect("x1 grad");
     let g2 = x2.grad().expect("x2 grad");
     for i in 0..2 {
@@ -87,7 +89,8 @@ fn test_triplet_margin_loss() {
         loss.tensor.as_slice()[0]
     );
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let ga = anchor.grad().expect("anchor grad");
     let gp = positive.grad().expect("positive grad");
     let gn = negative.grad().expect("negative grad");
@@ -141,7 +144,8 @@ fn test_margin_ranking_loss() {
     assert_eq!(loss.tensor.shape(), &[1]);
     assert_eq!(loss.tensor.as_slice(), &[0.5_f64]);
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let g1 = input1
         .grad()
         .expect("invariant: margin ranking input1 requires grad");
@@ -231,7 +235,9 @@ fn test_cosine_embedding_loss() {
         Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0_f64, 1.0]),
         true,
     );
-    cosine_embedding_loss(&x1_g, &x2_g, &[1.0_f64], 0.0).backward();
+    cosine_embedding_loss(&x1_g, &x2_g, &[1.0_f64], 0.0)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(x1_g.grad().is_some(), "x1 grad");
     assert!(x2_g.grad().is_some(), "x2 grad");
 }
@@ -258,7 +264,8 @@ fn test_cosine_similarity_forward_and_backward() {
     assert!(s[1].abs() < 1e-9, "row1 cos: got {}", s[1]);
 
     // Backward against a central finite-difference reference on sum(cos).
-    out.backward();
+    out.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let analytic: Vec<f64> = x1.grad().expect("cosine x1 grad").as_slice().to_vec();
     let h = 1e-6;
     let forward_sum = |d: &[f64]| -> f64 {
@@ -310,6 +317,7 @@ fn test_triplet_margin_with_distance_loss() {
     assert_eq!(loss.tensor.shape(), &[1]);
     assert!((loss.tensor.as_slice()[0] - 1.5).abs() < 1e-12);
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(anchor.grad().is_some(), "triplet anchor grad");
 }

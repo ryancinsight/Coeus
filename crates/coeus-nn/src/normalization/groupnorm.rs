@@ -5,7 +5,8 @@
 //! maintain running statistics, so training and inference use the same
 //! computation.
 
-use crate::module::Module;
+use super::validation;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, MoiraiBackend};
 use coeus_tensor::Tensor;
@@ -70,8 +71,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
         }
     }
 
-    fn get_cache(&self, group_size: usize) -> std::cell::RefMut<'_, Option<GroupNormCache<T, B>>> {
-        let mut cache = self.cache.borrow_mut();
+    fn get_cache(
+        &self,
+        group_size: usize,
+    ) -> Result<std::cell::RefMut<'_, Option<GroupNormCache<T, B>>>, ModuleError<B::Error>> {
+        let mut cache = self
+            .cache
+            .try_borrow_mut()
+            .map_err(|_| validation::state_borrow("GroupNorm", "cache"))?;
         let need_recreate = match &*cache {
             Some(c) => c.group_size != group_size,
             None => true,
@@ -91,7 +98,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
                 ones_cache: RefCell::new(None),
             });
         }
-        cache
+        Ok(cache)
     }
 }
 
@@ -108,15 +115,32 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
     /// Input shape: `[N, C]` or `[N, C, L]` or `[N, C, H, W]`.
     /// The implementation flattens to `[N*G, C/G * spatial]`, applies LayerNorm over the last dim,
     /// then reshapes back and applies per-channel weight/bias.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        const MODULE: &str = "GroupNorm";
         let shape = input.tensor.shape_cloned();
-        assert!(shape.len() >= 2, "GroupNorm: input must be at least 2D");
+        if shape.len() < 2 {
+            return Err(validation::invalid_rank(MODULE, "at least 2", shape.len()));
+        }
         let n = shape[0];
         let c = shape[1];
-        assert_eq!(
-            c, self.num_features,
-            "GroupNorm: channel dimension mismatch"
-        );
+        if c != self.num_features {
+            return Err(validation::channel_mismatch(MODULE, self.num_features, c));
+        }
+        if G == 0 || !c.is_multiple_of(G) {
+            return Err(ModuleError::InvalidGroupCount {
+                module: MODULE,
+                groups: G,
+                channels: c,
+            });
+        }
+        for (parameter, actual) in [
+            ("weight", self.weight.tensor.shape()),
+            ("bias", self.bias.tensor.shape()),
+        ] {
+            if actual != [c] {
+                return Err(validation::shape_mismatch(MODULE, parameter, &[c], actual));
+            }
+        }
         let c_per_g = c / G;
 
         // Compute total spatial elements (everything after batch and channel dims)
@@ -131,14 +155,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
         let flat = coeus_autograd::reshape(input, [n * G, group_size]);
 
         // Get cache
-        let cache_borrow = self.get_cache(group_size);
-        let cache = cache_borrow.as_ref().unwrap();
+        let cache_borrow = self.get_cache(group_size)?;
+        let Some(cache) = cache_borrow.as_ref() else {
+            unreachable!("invariant: get_cache initializes the GroupNorm cache")
+        };
 
         let backend = B::default();
 
         // ── Mean over last dimension ──
         let mean_t = coeus_ops::mean_axis(&flat.tensor, 1, &backend)
-            .expect("invariant: groupnorm feature axis is valid"); // [N*G, 1]
+            .map_err(|source| validation::backend(MODULE, source))?; // [N*G, 1]
 
         // ── Centered: x - mu ──
         let xmu = coeus_ops::sub(&flat.tensor, &mean_t, &backend); // [N*G, group_size]
@@ -146,15 +172,19 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
         // ── Variance ──
         let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend);
         let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend)
-            .expect("invariant: groupnorm feature axis is valid"); // [N*G, 1]
+            .map_err(|source| validation::backend(MODULE, source))?; // [N*G, 1]
 
         // ── 1/sqrt(var + eps) ──
         coeus_ops::add_assign(&mut stdev, &cache.eps_t, &backend)
-            .expect("normalization backend operation");
-        coeus_ops::sqrt_assign(&mut stdev, &backend).expect("normalization backend operation");
+            .map_err(|source| validation::backend(MODULE, source))?;
+        coeus_ops::sqrt_assign(&mut stdev, &backend)
+            .map_err(|source| validation::backend(MODULE, source))?;
 
         let ones = {
-            let mut o_cache = cache.ones_cache.borrow_mut();
+            let mut o_cache = cache
+                .ones_cache
+                .try_borrow_mut()
+                .map_err(|_| validation::state_borrow(MODULE, "ones_cache"))?;
             let n_groups = n * G;
             if let Some((cached_n, ref cached_ones)) = *o_cache {
                 if cached_n == n_groups {
@@ -172,7 +202,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
         };
         let mut istdev = ones;
         coeus_ops::div_assign(&mut istdev, &stdev, &backend)
-            .expect("normalization backend operation"); // [N*G, 1]
+            .map_err(|source| validation::backend(MODULE, source))?; // [N*G, 1]
 
         // ── Normalize ──
         let x_hat = coeus_ops::mul(&xmu, &istdev, &backend); // [N*G, group_size]
@@ -182,7 +212,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
         let b_reshaped = cache.ln_bias.tensor.reshape([1, group_size]);
         let mut out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
         coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend)
-            .expect("normalization backend operation");
+            .map_err(|source| validation::backend(MODULE, source))?;
 
         let normed_flat = coeus_autograd::layernorm(
             &flat,
@@ -205,7 +235,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
         let b_reshaped = coeus_autograd::reshape(&self.bias, broadcast_shape.as_slice());
 
         let scaled = coeus_autograd::mul(&normed, &w_reshaped);
-        coeus_autograd::add(&scaled, &b_reshaped)
+        Ok(coeus_autograd::add(&scaled, &b_reshaped))
     }
 }
 
@@ -217,8 +247,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
 /// Input: `[N, C, *]` where `C % num_groups == 0`.
 /// Output: same shape as input.
 ///
-/// # Panics
-/// Panics if:
+/// # Errors
+/// Returns a typed module or backend failure if:
 /// - `input` has fewer than two dimensions.
 /// - `num_groups == 0`.
 /// - `C % num_groups != 0`.
@@ -230,37 +260,43 @@ pub fn group_norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     weight: Option<&Tensor<T, B>>,
     bias: Option<&Tensor<T, B>>,
     eps: f64,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, ModuleError<B::Error>>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
+    const MODULE: &str = "GroupNorm";
     use coeus_ops::{add_assign, div_assign, mean_axis, mul, sqrt_assign, sub};
     let backend = B::default();
     let shape = input.shape_cloned();
-    assert!(
-        shape.len() >= 2,
-        "group_norm: input must have at least 2 dimensions"
-    );
-    assert!(
-        num_groups > 0,
-        "group_norm: num_groups must be greater than 0"
-    );
-    assert!(
-        eps.is_finite() && eps >= 0.0,
-        "group_norm: eps must be finite and non-negative"
-    );
+    if shape.len() < 2 {
+        return Err(validation::invalid_rank(MODULE, "at least 2", shape.len()));
+    }
     let n = shape[0];
     let c = shape[1];
-    assert_eq!(
-        c % num_groups,
-        0,
-        "group_norm: channels ({c}) not divisible by num_groups ({num_groups})"
-    );
+    if num_groups == 0 || !c.is_multiple_of(num_groups) {
+        return Err(ModuleError::InvalidGroupCount {
+            module: MODULE,
+            groups: num_groups,
+            channels: c,
+        });
+    }
+    if !eps.is_finite() || eps < 0.0 {
+        return Err(ModuleError::InvalidEpsilon { module: MODULE });
+    }
     if let Some(w) = weight {
-        assert_eq!(w.shape(), &[c], "group_norm: weight must have shape [C]");
+        if w.shape() != [c] {
+            return Err(validation::shape_mismatch(
+                MODULE,
+                "weight",
+                &[c],
+                w.shape(),
+            ));
+        }
     }
     if let Some(b) = bias {
-        assert_eq!(b.shape(), &[c], "group_norm: bias must have shape [C]");
+        if b.shape() != [c] {
+            return Err(validation::shape_mismatch(MODULE, "bias", &[c], b.shape()));
+        }
     }
     let c_per_g = c / num_groups;
     let spatial: usize = if shape.len() > 2 {
@@ -275,7 +311,7 @@ where
 
     // Mean over last dim: [N*G, 1]
     let mean =
-        mean_axis(&flat, 1, &backend).expect("invariant: groupnorm test feature axis is valid");
+        mean_axis(&flat, 1, &backend).map_err(|source| validation::backend(MODULE, source))?;
 
     // Centre: x − μ  (broadcasts [N*G, 1] → [N*G, group_size])
     let xmu = sub(&flat, &mean, &backend);
@@ -283,17 +319,18 @@ where
     // Variance = mean(xmu²) over last dim: [N*G, 1]
     let xmu_sq = mul(&xmu, &xmu, &backend);
     let mut var =
-        mean_axis(&xmu_sq, 1, &backend).expect("invariant: groupnorm test feature axis is valid");
+        mean_axis(&xmu_sq, 1, &backend).map_err(|source| validation::backend(MODULE, source))?;
 
     // stdev = sqrt(var + eps): reuse var buffer
     let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
-    add_assign(&mut var, &eps_t, &backend).expect("normalization backend operation");
-    sqrt_assign(&mut var, &backend).expect("normalization backend operation"); // now holds stdev
+    add_assign(&mut var, &eps_t, &backend).map_err(|source| validation::backend(MODULE, source))?;
+    sqrt_assign(&mut var, &backend).map_err(|source| validation::backend(MODULE, source))?; // now holds stdev
 
     // istdev = 1 / stdev
     let ones = Tensor::ones_on([n * num_groups, 1], &backend);
     let mut istdev = ones;
-    div_assign(&mut istdev, &var, &backend).expect("normalization backend operation");
+    div_assign(&mut istdev, &var, &backend)
+        .map_err(|source| validation::backend(MODULE, source))?;
 
     // x_hat = xmu * istdev (broadcasts [N*G, 1] → [N*G, group_size])
     let x_hat = mul(&xmu, &istdev, &backend);
@@ -311,8 +348,9 @@ where
     }
     if let Some(b) = bias {
         let b_bc = b.reshape(broadcast_shape.clone());
-        add_assign(&mut out, &b_bc, &backend).expect("normalization backend operation");
+        add_assign(&mut out, &b_bc, &backend)
+            .map_err(|source| validation::backend(MODULE, source))?;
     }
 
-    out
+    Ok(out)
 }

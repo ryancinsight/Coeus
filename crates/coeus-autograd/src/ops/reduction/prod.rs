@@ -45,7 +45,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let go = grad_out.to_contiguous();
@@ -70,9 +74,9 @@ where
 
             let gi_increment = Tensor::from_slice(self.input_saved.shape_cloned(), &gi);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &gi_increment, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &gi_increment, &backend)?;
         }
+        Ok(())
     }
 }
 

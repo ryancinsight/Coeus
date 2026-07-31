@@ -119,7 +119,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
 
         let go_nhwc = bn_permute_to_nhwc::<T, B, DIM>(grad_out, &backend); // [N, ..., C]
@@ -127,65 +131,56 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
 
         // ── dL/dbeta = sum(dy, dim=0) [C] ──
         if let Some(Some(ref gb)) = input_grads.get(2) {
-            let db_t = coeus_ops::sum_axis(&go_flat, 0, &backend)
-                .expect("invariant: batchnorm beta gradient axis is valid"); // [1, C]
+            let db_t = coeus_ops::sum_axis(&go_flat, 0, &backend)?; // [1, C]
             let db = db_t.reshape([self.c]);
             let gl = gb.write();
-            coeus_ops::add_assign(gl, &db, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &db, &backend)?;
         }
 
         // ── dL/dgamma = sum(dy * x_hat, dim=0) [C] ──
         if let Some(Some(ref gw_var)) = input_grads.get(1) {
             let dy_xhat = coeus_ops::mul(&go_flat, &self.x_hat_clone, &backend);
-            let dg_t = coeus_ops::sum_axis(&dy_xhat, 0, &backend)
-                .expect("invariant: batchnorm gamma gradient axis is valid"); // [1, C]
+            let dg_t = coeus_ops::sum_axis(&dy_xhat, 0, &backend)?; // [1, C]
             let dg = dg_t.reshape([self.c]);
             let gl = gw_var.write();
-            coeus_ops::add_assign(gl, &dg, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &dg, &backend)?;
         }
 
         // ── dL/dx ──
         if let Some(Some(ref gx)) = input_grads.get(0) {
             let dxhat = coeus_ops::mul(&go_flat, &self.w_reshaped_captured, &backend); // [M, C]
-            let sum_dxhat = coeus_ops::sum_axis(&dxhat, 0, &backend)
-                .expect("invariant: batchnorm backward axis is valid"); // [1, C]
+            let sum_dxhat = coeus_ops::sum_axis(&dxhat, 0, &backend)?; // [1, C]
             let dxhat_xmu = coeus_ops::mul(&dxhat, &self.xmu_clone, &backend);
-            let sum_dxhat_xmu = coeus_ops::sum_axis(&dxhat_xmu, 0, &backend)
-                .expect("invariant: batchnorm backward axis is valid"); // [1, C]
+            let sum_dxhat_xmu = coeus_ops::sum_axis(&dxhat_xmu, 0, &backend)?; // [1, C]
 
             let mut istdev_cube = coeus_ops::mul(&self.istdev_clone, &self.istdev_clone, &backend);
-            coeus_ops::mul_assign(&mut istdev_cube, &self.istdev_clone, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::mul_assign(&mut istdev_cube, &self.istdev_clone, &backend)?;
 
-            coeus_ops::mul_assign(&mut istdev_cube, &self.minus_half, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::mul_assign(&mut istdev_cube, &self.minus_half, &backend)?;
             let dvar_scale = istdev_cube; // [1, C]
 
             let mut term3 = coeus_ops::mul(&self.istdev_clone, &sum_dxhat, &backend); // [1, C]
-            coeus_ops::div_assign(&mut term3, &self.m_const_captured, &backend)
-                .expect("autograd gradient accumulation"); // [1, C]
+            coeus_ops::div_assign(&mut term3, &self.m_const_captured, &backend)?; // [1, C]
 
             let mut dvar_part = coeus_ops::mul(&dvar_scale, &sum_dxhat_xmu, &backend); // [1, C]
-            coeus_ops::mul_assign(&mut dvar_part, &self.two_const, &backend)
-                .expect("autograd gradient accumulation");
-            coeus_ops::div_assign(&mut dvar_part, &self.m_const_captured, &backend)
-                .expect("autograd gradient accumulation"); // [1, C]
+            coeus_ops::mul_assign(&mut dvar_part, &self.two_const, &backend)?;
+            coeus_ops::div_assign(&mut dvar_part, &self.m_const_captured, &backend)?; // [1, C]
 
             let term2 = coeus_ops::mul(&self.xmu_clone, &dvar_part, &backend); // [M, C]
 
             let mut term1 = coeus_ops::mul(&dxhat, &self.istdev_clone, &backend); // [M, C]
-            coeus_ops::add_assign(&mut term1, &term2, &backend)
-                .expect("autograd gradient accumulation");
-            coeus_ops::sub_assign(&mut term1, &term3, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::add_assign(&mut term1, &term2, &backend)?;
+            coeus_ops::sub_assign(&mut term1, &term3, &backend)?;
             let dx_flat = term1; // [M, C]
 
             let dx_nhwc = bn_reshape_from_flat::<T, B, DIM>(dx_flat, self.n, &self.spatial, self.c);
             let dx_nchw = bn_permute_from_nhwc::<T, B, DIM>(&dx_nhwc, &backend);
 
             let gl = gx.write();
-            coeus_ops::add_assign(gl, &dx_nchw, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &dx_nchw, &backend)?;
         }
+
+        Ok(())
     }
 }
 

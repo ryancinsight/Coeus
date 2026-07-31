@@ -77,7 +77,9 @@ fn test_mha_parity() {
         true,
     ));
 
-    let out_coeus = mha_coeus.forward_cross(&q_coeus, &k_coeus, &v_coeus, None);
+    let out_coeus = mha_coeus
+        .forward_cross(&q_coeus, &k_coeus, &v_coeus, None)
+        .expect("valid MultiHeadAttention parity input");
 
     // Verify Q, K, V projections match
     let q_proj_coeus = {
@@ -132,7 +134,9 @@ fn test_mha_parity() {
 
     // Backward
     let loss_coeus = coeus_autograd::sum(&out_coeus);
-    loss_coeus.backward();
+    loss_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify input gradients
     let dq_coeus = q_coeus.grad().unwrap();

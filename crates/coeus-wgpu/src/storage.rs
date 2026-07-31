@@ -33,6 +33,14 @@ impl<T: Scalar> WgpuStorage<T> {
             .expect("Failed to allocate GPU buffer in device tier")
     }
 
+    #[inline]
+    fn alloc_device_uninitialized(len: usize) -> hephaestus_wgpu::WgpuBuffer<T> {
+        let ctx = get_wgpu_context();
+        ctx.hephaestus_device
+            .alloc_uninitialized_with_hint(len, PlacementHint::Tier(MemoryTier::Device))
+            .expect("Failed to allocate GPU buffer in device tier")
+    }
+
     /// Allocate a new GPU buffer for `len` elements.
     pub fn new(len: usize) -> Self {
         let buffer = Self::alloc_device_zeroed(len);
@@ -67,19 +75,11 @@ impl<T: Scalar> StorageMut<T> for WgpuStorage<T> {
 
     fn make_unique(&mut self) {
         if Arc::strong_count(&self.buffer) > 1 {
-            let len = self.buffer.len();
             let ctx = get_wgpu_context();
-            let new_buffer = Self::alloc_device_zeroed(len);
-
-            let size_in_bytes = (len * std::mem::size_of::<T>()).max(4) as u64;
-
-            let mut encoder = ctx
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("coeus-wgpu-cow-copy"),
-                });
-            encoder.copy_buffer_to_buffer(self.buffer.raw(), 0, new_buffer.raw(), 0, size_in_bytes);
-            ctx.queue.submit(std::iter::once(encoder.finish()));
+            let new_buffer = Self::alloc_device_uninitialized(self.buffer.len());
+            ctx.hephaestus_device
+                .copy_buffer(self.buffer.as_ref(), &new_buffer)
+                .expect("WgpuStorage::make_unique failed to copy the device buffer");
 
             self.buffer = Arc::new(new_buffer);
         }
@@ -127,5 +127,34 @@ mod tests {
             ),
             other => panic!("expected allocation failure, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn copy_on_write_preserves_values_in_both_device_buffers() {
+        let ctx = get_wgpu_context();
+        let input = vec![1.0f32, -2.5, 3.25, 8.0];
+        let source = ctx
+            .hephaestus_device
+            .upload_with_hint(&input, PlacementHint::Tier(MemoryTier::Device))
+            .expect("failed to upload COW source");
+        let mut writable = WgpuStorage {
+            buffer: Arc::new(source),
+        };
+        let retained = writable.clone();
+
+        writable.make_unique();
+
+        assert!(!Arc::ptr_eq(&writable.buffer, &retained.buffer));
+        let mut writable_values = vec![0.0f32; input.len()];
+        let mut retained_values = vec![0.0f32; input.len()];
+        ctx.hephaestus_device
+            .download(&writable.buffer, &mut writable_values)
+            .expect("failed to download detached COW buffer");
+        ctx.hephaestus_device
+            .download(&retained.buffer, &mut retained_values)
+            .expect("failed to download retained COW buffer");
+
+        assert_eq!(writable_values, input);
+        assert_eq!(retained_values, input);
     }
 }

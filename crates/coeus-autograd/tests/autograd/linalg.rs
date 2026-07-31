@@ -42,7 +42,8 @@ fn test_bmm_backward_accumulates_exact_gradients() {
         assert!((got - want).abs() < 1e-14, "fwd {got} vs {want}");
     }
 
-    c.backward();
+    c.backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // grad_A[b] rows = row sums of B[b]: B0 rows sum to [1,1,2]; B1 to [3,3,3].
     let ga = a.grad().unwrap();
@@ -92,7 +93,9 @@ fn rank_four_batched_matmul_preserves_axes_and_exact_gradients() {
         &[4.0, 5.0, 10.0, 11.0, 1.0, 2.0, 4.0, 8.0]
     );
 
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         a.grad().expect("A gradient must be populated").as_slice(),
         &[1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
@@ -122,13 +125,17 @@ fn matmul_view_input_matches_contiguous_forward_and_grad() {
     let q1 = Var::new(Tensor::from_slice_on(shape, &qd, &backend), true);
     let k1 = Var::new(Tensor::from_slice_on(shape, &kd, &backend), true);
     let out_view = matmul(&q1, &transpose(&k1, 2, 3));
-    sum(&out_view).backward();
+    sum(&out_view)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Reference path: materialize the transpose contiguous first.
     let q2 = Var::new(Tensor::from_slice_on(shape, &qd, &backend), true);
     let k2 = Var::new(Tensor::from_slice_on(shape, &kd, &backend), true);
     let out_ref = matmul(&q2, &contiguous(&transpose(&k2, 2, 3)));
-    sum(&out_ref).backward();
+    sum(&out_ref)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert_eq!(
         out_view.tensor.as_slice(),

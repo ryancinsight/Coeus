@@ -16,13 +16,17 @@ fn test_dropout_parity() {
     );
     let mut dropout_coeus = coeus_nn::Dropout::new(p);
     dropout_coeus.is_training = true;
-    let out_coeus = dropout_coeus.forward(&x_coeus);
+    let out_coeus = dropout_coeus
+        .forward(&x_coeus)
+        .expect("valid Dropout input");
 
     // Verify forward (with p=0, output is equal to input)
     assert_tensor_eq_data(&out_coeus.tensor, &x_data, 1e-4);
 
     // Backward
-    out_coeus.backward();
+    out_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     let dx_coeus = x_coeus.grad().unwrap();
 
@@ -37,8 +41,12 @@ fn test_dropout_parity() {
     );
     let mut dropout_coeus2 = coeus_nn::Dropout::new(0.5);
     dropout_coeus2.is_training = true;
-    let out_coeus2 = dropout_coeus2.forward(&x_coeus2);
-    out_coeus2.backward();
+    let out_coeus2 = dropout_coeus2
+        .forward(&x_coeus2)
+        .expect("valid Dropout input");
+    out_coeus2
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     let slice: &[f32] = out_coeus2.tensor.as_slice();
     for &val in slice {
@@ -70,7 +78,7 @@ fn test_batchnorm2d_parity() {
         );
     bn_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![2], &w_data), true);
     bn_coeus.bias = CoeusVar::new(CoeusTensor::from_slice(vec![2], &b_data), true);
-    let out_coeus = bn_coeus.forward(&x_coeus);
+    let out_coeus = bn_coeus.forward(&x_coeus).expect("valid BatchNorm2d input");
 
     // Verify forward
     let expected_batchnorm2d_out = vec![
@@ -102,7 +110,9 @@ fn test_batchnorm2d_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_batchnorm2d_out, 1e-3);
 
     // Backward
-    out_coeus.backward();
+    out_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     let dx_coeus = x_coeus.grad().unwrap();
     let dw_coeus = bn_coeus.weight.grad().unwrap();

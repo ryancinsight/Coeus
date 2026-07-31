@@ -57,7 +57,8 @@ fn test_wgpu_conv_transpose1d() {
         dilation,
         out_c.storage_mut(),
         &out_l,
-    );
+    )
+    .expect("CPU transposed conv1d dispatch");
 
     let in_g = in_c.to_backend_on(&seq, &wgpu);
     let w_g = w_c.to_backend_on(&seq, &wgpu);
@@ -75,7 +76,8 @@ fn test_wgpu_conv_transpose1d() {
         dilation,
         out_g.storage_mut(),
         &out_l,
-    );
+    )
+    .expect("WGPU transposed conv1d dispatch");
 
     assert_close(
         "conv_transpose1d",
@@ -119,7 +121,8 @@ fn test_wgpu_conv_transpose2d() {
         dilation,
         out_c.storage_mut(),
         &out_l,
-    );
+    )
+    .expect("CPU transposed conv2d dispatch");
 
     let in_g = in_c.to_backend_on(&seq, &wgpu);
     let w_g = wt_c.to_backend_on(&seq, &wgpu);
@@ -137,7 +140,8 @@ fn test_wgpu_conv_transpose2d() {
         dilation,
         out_g.storage_mut(),
         &out_l,
-    );
+    )
+    .expect("WGPU transposed conv2d dispatch");
 
     assert_close(
         "conv_transpose2d",
@@ -172,13 +176,16 @@ fn test_wgpu_conv_transpose1d_backward_matches_cpu_autograd() {
         0,
         1,
         &seq,
-    );
+    )
+    .expect("CPU transposed convolution forward");
     let tracked_cpu =
         coeus_autograd::conv_transpose1d(&input_cpu, &weight_cpu, &None, out_cpu, 1, 0, 0, 1);
-    tracked_cpu.backward_with_seed(Tensor::<f32, SequentialBackend>::from_slice(
-        [1, 1, 4],
-        &seed,
-    ));
+    tracked_cpu
+        .backward_with_seed(Tensor::<f32, SequentialBackend>::from_slice(
+            [1, 1, 4],
+            &seed,
+        ))
+        .expect("invariant: valid autograd fixture completes backward");
 
     let input_gpu = Var::new(
         Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 3], &input, &wgpu),
@@ -197,14 +204,17 @@ fn test_wgpu_conv_transpose1d_backward_matches_cpu_autograd() {
         0,
         1,
         &wgpu,
-    );
+    )
+    .expect("WGPU transposed convolution forward");
     let tracked_gpu =
         coeus_autograd::conv_transpose1d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
-    tracked_gpu.backward_with_seed(Tensor::<f32, WgpuBackend>::from_slice_on(
-        [1, 1, 4],
-        &seed,
-        &wgpu,
-    ));
+    tracked_gpu
+        .backward_with_seed(Tensor::<f32, WgpuBackend>::from_slice_on(
+            [1, 1, 4],
+            &seed,
+            &wgpu,
+        ))
+        .expect("invariant: valid autograd fixture completes backward");
 
     let input_grad_gpu = input_gpu.grad().unwrap().to_backend_on(&wgpu, &seq);
     let weight_grad_gpu = weight_gpu.grad().unwrap().to_backend_on(&wgpu, &seq);
@@ -246,13 +256,16 @@ fn test_wgpu_conv_transpose2d_backward_matches_cpu_autograd() {
         0,
         1,
         &seq,
-    );
+    )
+    .expect("CPU transposed convolution forward");
     let tracked_cpu =
         coeus_autograd::conv_transpose2d(&input_cpu, &weight_cpu, &None, out_cpu, 1, 0, 0, 1);
-    tracked_cpu.backward_with_seed(Tensor::<f32, SequentialBackend>::from_slice(
-        [1, 1, 3, 3],
-        &seed,
-    ));
+    tracked_cpu
+        .backward_with_seed(Tensor::<f32, SequentialBackend>::from_slice(
+            [1, 1, 3, 3],
+            &seed,
+        ))
+        .expect("invariant: valid autograd fixture completes backward");
 
     let input_gpu = Var::new(
         Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 2, 2], &input, &wgpu),
@@ -271,14 +284,17 @@ fn test_wgpu_conv_transpose2d_backward_matches_cpu_autograd() {
         0,
         1,
         &wgpu,
-    );
+    )
+    .expect("WGPU transposed convolution forward");
     let tracked_gpu =
         coeus_autograd::conv_transpose2d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
-    tracked_gpu.backward_with_seed(Tensor::<f32, WgpuBackend>::from_slice_on(
-        [1, 1, 3, 3],
-        &seed,
-        &wgpu,
-    ));
+    tracked_gpu
+        .backward_with_seed(Tensor::<f32, WgpuBackend>::from_slice_on(
+            [1, 1, 3, 3],
+            &seed,
+            &wgpu,
+        ))
+        .expect("invariant: valid autograd fixture completes backward");
 
     let input_grad_gpu = input_gpu.grad().unwrap().to_backend_on(&wgpu, &seq);
     let weight_grad_gpu = weight_gpu.grad().unwrap().to_backend_on(&wgpu, &seq);

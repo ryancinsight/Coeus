@@ -40,7 +40,7 @@ fn swiglu_forward_matches_analytic() {
     );
 
     let swiglu = SwiGlu::<f64, MoiraiBackend>::new(d_input, d_output, false);
-    let output = swiglu.forward(&input);
+    let output = swiglu.forward(&input).expect("valid SwiGLU input");
 
     // Tolerance: the only transcendental is silu's sigmoid (~1 ulp); the result
     // magnitude is ~36, so the analytic error is O(1e-14). 1e-10 is a safe
@@ -69,8 +69,10 @@ fn swiglu_backward_populates_parameter_grads() {
         true,
     );
 
-    let output = swiglu.forward(&input);
-    output.backward();
+    let output = swiglu.forward(&input).expect("valid SwiGLU input");
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     for (i, p) in swiglu.parameters().iter().enumerate() {
         let grad = p

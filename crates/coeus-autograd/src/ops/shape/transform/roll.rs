@@ -35,16 +35,20 @@ where
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // Backward of roll(x, shifts, dims) is roll(grad, -shifts, dims).
             let neg_shifts: Vec<isize> = self.shifts.iter().map(|&s| -s).collect();
             let unrolled = coeus_ops::roll(grad_out, &neg_shifts, &self.dims, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &unrolled, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &unrolled, &backend)?;
         }
+        Ok(())
     }
 }
 

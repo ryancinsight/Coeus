@@ -38,10 +38,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nor
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let Some(Some(ref g)) = input_grads.first() else {
-            return;
+            return Ok(());
         };
 
         let norm_broad = self.norm_tensor.broadcast(self.input_tensor.shape_cloned());
@@ -49,7 +53,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nor
         let grad_in = coeus_ops::mul(&scale, &self.input_tensor, &backend);
 
         let lock = g.write();
-        coeus_ops::add_assign(lock, &grad_in, &backend).expect("autograd gradient accumulation");
+        coeus_ops::add_assign(lock, &grad_in, &backend)?;
+        Ok(())
     }
 }
 
@@ -121,10 +126,14 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let Some(Some(ref g)) = input_grads.first() else {
-            return;
+            return Ok(());
         };
 
         let n = self.input_tensor.numel();
@@ -160,7 +169,8 @@ where
 
         let grad_t = Tensor::from_slice(self.input_tensor.shape().to_vec(), &grad_host);
         let lock = g.write();
-        coeus_ops::add_assign(lock, &grad_t, &backend).expect("autograd gradient accumulation");
+        coeus_ops::add_assign(lock, &grad_t, &backend)?;
+        Ok(())
     }
 }
 
@@ -239,10 +249,14 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let Some(Some(ref g)) = input_grads.first() else {
-            return;
+            return Ok(());
         };
 
         let n = self.input_tensor.numel();
@@ -309,7 +323,8 @@ where
 
         let grad_t = Tensor::from_slice(self.input_tensor.shape().to_vec(), &grad_in_host);
         let lock = g.write();
-        coeus_ops::add_assign(lock, &grad_t, &backend).expect("autograd gradient accumulation");
+        coeus_ops::add_assign(lock, &grad_t, &backend)?;
+        Ok(())
     }
 }
 

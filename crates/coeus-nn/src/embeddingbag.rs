@@ -1,4 +1,4 @@
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::{cat, embedding, max_axis, mean_axis, slice, sum_axis, Var};
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
@@ -64,24 +64,26 @@ where
         }
     }
 
-    fn bag_starts(indices_len: usize, offsets: Option<&[usize]>) -> Vec<usize> {
+    fn bag_starts(
+        indices_len: usize,
+        offsets: Option<&[usize]>,
+    ) -> Result<Vec<usize>, ModuleError<B::Error>> {
         match offsets {
             Some(offs) => {
-                assert!(
-                    !offs.is_empty(),
-                    "EmbeddingBag::forward_with_offsets: offsets must be non-empty when provided"
-                );
-                assert!(
-                    offs.windows(2).all(|w| w[0] <= w[1]),
-                    "EmbeddingBag::forward_with_offsets: offsets must be non-decreasing"
-                );
-                assert!(
-                    offs.iter().all(|&o| o <= indices_len),
-                    "EmbeddingBag::forward_with_offsets: offset out of bounds for indices length"
-                );
-                offs.to_vec()
+                if offs.is_empty()
+                    || !offs.windows(2).all(|window| window[0] <= window[1])
+                    || !offs.iter().all(|&offset| offset <= indices_len)
+                {
+                    return Err(ModuleError::ShapeMismatch {
+                        module: "EmbeddingBag",
+                        parameter: "offsets must be non-empty, ordered, and within indices",
+                        expected: vec![indices_len],
+                        actual: offs.to_vec(),
+                    });
+                }
+                Ok(offs.to_vec())
             }
-            None => vec![0],
+            None => Ok(vec![0]),
         }
     }
 
@@ -107,18 +109,36 @@ where
     /// positions into that list. If `offsets` is `None`, `indices` is treated as one bag.
     ///
     /// Returns a tensor of shape `[num_bags, embedding_dim]`.
-    pub fn forward_with_offsets(&self, indices: &[usize], offsets: Option<&[usize]>) -> Var<T, B> {
-        for &idx in indices {
-            assert!(
-                idx < self.num_embeddings,
-                "EmbeddingBag::forward_with_offsets: index {idx} out of bounds [0, {})",
-                self.num_embeddings
-            );
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ModuleError::ShapeMismatch`] when an index is outside the
+    /// vocabulary or offsets are empty, unordered, or outside `indices`.
+    pub fn forward_with_offsets(
+        &self,
+        indices: &[usize],
+        offsets: Option<&[usize]>,
+    ) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        for (position, &index) in indices.iter().enumerate() {
+            if index >= self.num_embeddings || i64::try_from(index).is_err() {
+                return Err(ModuleError::ShapeMismatch {
+                    module: "EmbeddingBag",
+                    parameter: "indices must be within the embedding vocabulary",
+                    expected: vec![self.num_embeddings],
+                    actual: vec![position],
+                });
+            }
         }
 
         let backend = B::default();
-        let starts = Self::bag_starts(indices.len(), offsets);
-        let idx_data: Vec<i64> = indices.iter().map(|&x| x as i64).collect();
+        let starts = Self::bag_starts(indices.len(), offsets)?;
+        let idx_data: Vec<i64> = indices
+            .iter()
+            .map(|&index| {
+                i64::try_from(index)
+                    .expect("invariant: embedding index range was validated before conversion")
+            })
+            .collect();
         let idx_tensor = Tensor::from_slice_on([indices.len()], &idx_data, &backend);
         let embeddings = embedding(&self.weight, &idx_tensor);
 
@@ -132,7 +152,7 @@ where
             .collect();
 
         let row_refs: Vec<&Var<T, B>> = rows.iter().collect();
-        cat(&row_refs, 0)
+        Ok(cat(&row_refs, 0))
     }
 }
 
@@ -145,13 +165,27 @@ where
     }
 
     /// Forward pass treating `input` as flat index tensor for a single bag.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        let indices: Vec<usize> = input
-            .tensor
-            .as_slice()
-            .iter()
-            .map(|&v| <T as Scalar>::to_f64(v) as usize)
-            .collect();
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        let mut indices = Vec::with_capacity(input.tensor.numel());
+        for (position, &index) in input.tensor.as_slice().iter().enumerate() {
+            let value = <T as Scalar>::to_f64(index);
+            if !value.is_finite()
+                || value < 0.0
+                || value.trunc() != value
+                || value >= self.num_embeddings as f64
+                || value > i64::MAX as f64
+            {
+                return Err(ModuleError::ShapeMismatch {
+                    module: "EmbeddingBag",
+                    parameter: "indices must be finite integers within the embedding vocabulary",
+                    expected: vec![self.num_embeddings],
+                    actual: vec![position],
+                });
+            }
+            // SAFETY CONTRACT: the finite, integral, non-negative vocabulary
+            // bounds above make this float-to-index conversion lossless.
+            indices.push(value as usize);
+        }
         self.forward_with_offsets(&indices, None)
     }
 }

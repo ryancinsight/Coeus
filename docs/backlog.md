@@ -25,6 +25,275 @@
   real contiguous and transposed device execution; the focused
   CPU/WGPU/ROCm/Metal lane passes 10/10. No fallback path was added. Exact-head
   hosted provider/consumer CI remains open.
+## ATLAS-COEUS-DISPATCH-SAFETY-020 — Provider routing audit [arch]
+
+- Owner: Codex on `codex/coeus-native-convolution-dispatch`; scope: Coeus CPU and
+  accelerator dispatch boundaries under `coeus-ops`, `coeus-cuda`,
+  `coeus-wgpu`, `coeus-rocm`, and `coeus-metal`, plus the focused contract
+  tests, ADR, and active PM evidence required by an accepted finding.
+- Outcome: every audited operation executes through Leto for CPU selection and
+  Hephaestus for accelerator selection, with unsupported contracts surfaced as
+  typed errors and no consumer-owned mathematical fallback.
+- Non-goals: release/version transitions, speculative provider capabilities,
+  unrelated public API redesign, and runtime or memory claims without matched
+  measurements.
+- Acceptance: source and dependency scans enumerate every backend-routing
+  branch in scope; each finding is fixed or rejected with evidence; accepted
+  fixes carry value-semantic Leto differential coverage; warning-denied
+  package Clippy, focused and applicable full Nextest, doctests, SemVer
+  classification, and exact-head provider CI pass before merge.
+- Risk/change class: `[arch]`; the audit can expose provider-ownership or
+  failure-contract corrections, with SemVer class determined from the actual
+  accepted finding.
+- Delivered scope: Leto owns CPU regular/transposed forward and additive
+  backward mathematics; Hephaestus owns the corresponding rank-generic
+  accelerator seam and CUDA/WGPU/ROCm/Metal providers. Coeus `ConvOps` now has
+  four fallible const-generic required methods with rank-specific default
+  adapters. CPU routes borrowed layouts and slices to Leto. Accelerator
+  backends bind their device, buffer, and error types to one generic
+  Hephaestus dispatch implementation. Leto regular and transposed operations
+  share one borrowed-view construction path. Coeus-owned CUDA/WGPU convolution
+  kernels, CUDA host fallbacks, the generic transposed host default, the
+  separate `ConvTranspose3dOps` seam, and autograd host backward loops are
+  deleted. Rust, Python, benchmark, and test callers propagate or assert the
+  typed result.
+- Status: complete. PR #250 merged as `0dfab53e`. Local warning-denied
+  all-target Clippy passes for the consolidated Leto, Hephaestus, WGPU, CUDA,
+  and operation-contract scope. CPU/autograd/NN Nextest passes 592/592; the
+  final review Leto/Hephaestus/autograd/WGPU suite passes 214/214, including
+  regular/transposed parity, exact gradient accumulation, and COW storage. All
+  46 executable affected-package doctests pass; two pre-existing NN doctests
+  remain ignored. `cargo-semver-checks` classifies the fallible `ConvOps`
+  contract and removed capability seam as a major change. Exact-head provider
+  run `30545333101` passed WGPU job `90880014492`, CUDA job `90880014608`,
+  ROCm job `90880014606`, and Metal job `90880014508`; required-device ROCm
+  job `90880015294` was skipped because no AMD hardware runner was
+  dispatched. No runtime, memory, or binary-size delta is claimed without
+  controlled measurements.
+
+## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution [arch]
+
+- Owner: Codex on `codex/coeus-fallible-module-forward`; scope:
+  `coeus-nn::Module`, its implementations, direct Rust/Python consumers,
+  normalization state updates, ADR-0045, and active PM artifacts.
+- Outcome: every module reports backend, input-contract, and state-borrow
+  failures through one typed static-dispatch contract.
+- Non-goals: numerical formula changes, backend fallback, dynamic error
+  erasure, compatibility wrappers, performance claims, and release
+  transitions.
+- Acceptance: all 85 implementations and every direct consumer use the
+  fallible contract; warning-denied Clippy reports no ignored result;
+  BatchNorm state remains unchanged after injected backend or borrow failure;
+  existing value-semantic forward/gradient tests, Python exception tests,
+  doctests, SemVer checks, and exact-head provider CI pass.
+- Risk/change class: `[arch] [major]`; the public `Module::forward` return type
+  changes and all in-repository callers migrate in one cutover.
+- Status: merged by PR #247 as `c5179f47`. All retained module
+  implementations and direct Rust/Python consumers use the fallible contract;
+  538 native tests, package doctests, warning-denied Clippy, benchmark smoke,
+  SemVer classification, and exact-head WGPU/CUDA/ROCm/Metal provider
+  contracts passed.
+
+## ATLAS-COEUS-WGPU-008 — Provider-owned reductions [arch] — complete
+
+- Owner: Codex on `codex/coeus-wgpu-provider-reductions`; scope: WGPU ordinary
+  reduction dispatch, superseded shader deletion, parity/rejection tests,
+  ADR-0044, provider CI selectors, and active PM artifacts.
+- Outcome: selecting WGPU routes every ordinary reduction directly through
+  Hephaestus, while CPU reductions remain Leto-owned.
+- Non-goals: fused-expression reduction, ranks above two, convolution,
+  attention, optimizers, performance claims, and release transitions.
+- Acceptance: all five ordinary reductions call Hephaestus; rank-one and
+  rank-two Leto differential tests pass; rank three returns the exact typed
+  capability error; no Coeus `dispatch_reduce` symbol remains; focused local
+  gates and exact-head provider CI pass.
+- Risk/change class: `[arch] [major]`; rank-above-two WGPU requests become
+  typed failures instead of invoking the consumer-owned shader.
+- Status: merged by PR #246 as `7a9811f4`. The direct provider cutover, obsolete
+  dispatcher deletion, CI selection, all-target check, warning-denied package
+  Clippy, three doctests, and 11 focused value-semantic tests pass locally.
+  Implementation-head run `30407395047` passed Metal `90435767524`, ROCm
+  `90435767607`, WGPU `90435767627`, and CUDA `90435767639`; required-device
+  ROCm `90435768426` was skipped because no hosted AMD runner was dispatched.
+  Terminal run `30408820242` passed Metal `90440235821`, CUDA `90440235825`,
+  WGPU `90440235878`, and ROCm `90440236008`; required-device ROCm
+  `90440236263` was skipped because no hosted AMD runner was dispatched.
+
+## ATLAS-COEUS-CUDA-007 — Native dispatch boundary [arch] — complete
+
+- Owner: Codex on `codex/coeus-cuda-native-dispatch`; scope:
+  `coeus-cuda` mathematical dispatch, disabled-provider behavior, fallback
+  deletion, provider tests, ADR-0043, and active PM artifacts.
+- Outcome: selecting CUDA never executes elementwise, matrix, reduction, or
+  fused mathematics through `SequentialBackend`.
+- Non-goals: convolution, attention, optimizer provider migrations, the
+  fallible `Module` migration, and release/version transitions.
+- Acceptance: supported CUDA operations remain on native device dispatch;
+  unsupported layout, operation, provider, or ABI requests return
+  `CudaBackendError`; a build without the `cuda` feature exposes no
+  mathematical backend implementation; no CUDA mathematical path copies
+  through host memory to execute with Leto; focused no-provider and CUDA
+  feature gates pass.
+- Risk/change class: `[arch] [major]`; removes the documented CPU capability
+  behavior and makes unsupported accelerator execution explicit.
+- Status: complete at `3ec217de`; PR #245 merged as `77834e37`. Exact-head run
+  `30405547693` passed ROCm (`90430046827`), Metal/Leto (`90430046863`),
+  WGPU/CPU (`90430046874`), and CUDA (`90430046879`); required-device ROCm
+  (`90430047556`) was intentionally skipped.
+
+## ATLAS-AUTOGRAD-SAFETY-018 — Propagate backward failures [major] [arch] — complete
+
+- Owner: Codex; scope: `coeus-autograd` graph traversal, every
+  `BackwardNode` implementation, and in-repository callers.
+- Outcome: return the backend's typed error from every failed gradient
+  computation or accumulation without partial-success reporting.
+- Non-goals: gradient formula changes, backend fallback, boxed error erasure,
+  compatibility wrappers, or performance claims.
+- Acceptance: warning-denied all-target Clippy reports no ignored `Result`;
+  a failure-injecting backend regression observes the exact error; existing
+  value-semantic gradients and doctests pass.
+- Risk/change class: `[major] [arch]`; `backward` and `backward_with_seed`
+  change from infallible public methods to typed `Result`.
+- Status: implementation and in-repository caller migration complete. Local
+  warning-denied `coeus-autograd` Clippy passes; Nextest passes 102
+  autograd/FFT and 268 NN tests; 24 executable doctests pass. SemVer checks
+  against `origin/main` classify the public trait-return changes as major.
+  Exact-head run `30397554467` attempt 2 passes WGPU (`90407664433`), ROCm
+  (`90407664470`), CUDA (`90407664479`), and Metal (`90407664482`);
+  required-device ROCm (`90407665417`) is intentionally skipped. Attempt 1
+  exposed the upstream Leto `UnitScalar` contract defect, fixed by Leto PR
+  #77 before the successful rerun.
+
+## ATLAS-CUDA-SAFETY-017 — Bound pooling physical indices [patch] [arch] — complete
+
+- Owner: Codex; scope: shared CUDA layout/storage validation and the canonical
+  1-D/2-D/3-D pooling dispatch leaves.
+- Outcome: prove complete physical layout offsets, allocation capacity,
+  writable non-aliasing, and signed CUDA window-coordinate extrema before any
+  pooling kernel compilation or launch.
+- Non-goals: pooling algorithm changes, implicit contiguous copies, provider
+  fallback, scalar specialization changes, or unmeasured performance claims.
+- Acceptance: pure tests reject undersized, physical-offset-overflowing,
+  writable-aliased, and signed-coordinate-overflowing contracts; feature
+  check and warning-denied package Clippy pass; hosted CUDA provider CI passes.
+- Risk/change class: `[arch]` validation-ownership consolidation with a
+  backward-compatible rejection of previously unsafe launch contracts.
+- Status: implemented at `8fe4da78`. Exact-head run `30391721824` passes CUDA
+  (`90384681039`), WGPU (`90384681127`), Metal (`90384681124`), and ROCm
+  (`90384681137`); required-device ROCm (`90384681768`) is intentionally
+  skipped. Local Nextest remains blocked before execution by the missing
+  MinGW `-lcuda` link library. The live Atlas overlay later switched to a Leto
+  tree missing the `T: UnitScalar` stencil bound, so repeat compilation
+  currently stops upstream before Coeus.
+
+## ATLAS-COEUS-HEPHAESTUS-ELU-DISPATCH-001 — Own ELU in Hephaestus [arch] — complete
+
+- Owner: Codex; scope: CUDA/WGPU contiguous and strided ELU forward/gradient
+  dispatch, superseded consumer expressions, differential tests, ADR-0038, and
+  provider-matrix evidence.
+- Outcome: make the Hephaestus `EluOp` and `EluGradOp` markers the SSOT for
+  accelerator ELU execution while CPU semantics remain in Leto.
+- Non-goals: parameterized activations, Mish ownership, reduced/vector scalar
+  contracts, pooling, and unrelated elementwise operations.
+- Acceptance: CUDA and WGPU contiguous and transposed-strided ELU
+  forward/gradient match Leto; no consumer-local ELU expression or CUDA CPU
+  fallback remains; exact-head CUDA/WGPU/ROCm/Metal provider CI passes.
+- Risk/change class: `[arch]` provider-ownership correction with no public API
+  change.
+- Status: merged by PR #241 at `fe92e3f7`. Exact-head run `30387168252`
+  passed CUDA `90369248008`, WGPU `90369248023`, ROCm `90369247910`, and
+  Metal `90369248013`; required-device ROCm `90369248641` was skipped because
+  no hosted AMD runner was dispatched.
+
+## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 — Route exact GELU through Hephaestus [minor] — complete
+
+- Owner: Codex on `codex/coeus-cuda-common-activation-parity`; scope:
+  `crates/coeus-cuda/src/backend/ops/math/elementwise.rs`, the CUDA unary
+  parity tests, the backend-parity selector, and owner-local PM evidence.
+- Outcome: route CUDA f32 `Gelu` and `GeluGrad` through the existing
+  Hephaestus exact-erf marker kernels for contiguous and runtime-shaped
+  strided layouts, matching the already-native ROCm and Metal paths.
+- Non-goals: parameterized activations, reduced or vector scalar contracts,
+  pooling, and the peer-owned WGPU fallible-dispatch slice.
+- Acceptance: CUDA contiguous and strided exact GELU forward/gradient paths
+  use the Hephaestus marker seam; CUDA/Leto value-semantic parity tests are
+  selected in CI; exact-head WGPU, CUDA, ROCm, and Metal provider contracts
+  pass; no runtime or resident-memory delta is claimed without a benchmark.
+- Risk/change class: `[minor]` provider-capability routing with additive CI
+  coverage.
+- Status: complete at `f861cea6`. Exact-head run `30379272710` passed CUDA
+  `90342897802`, WGPU `90342897872`, ROCm `90342897673`, and Metal
+  `90342897752`. Required-device ROCm `90342898718` was skipped because no
+  hosted AMD runner was dispatched; no physical-device execution, runtime, or
+  resident-memory claim is made.
+- Structural note: the touched CUDA math dispatcher is now vertically split
+  into elementwise, matmul, and reduction leaves under
+  `crates/coeus-cuda/src/backend/ops/math/`; ADR-0040 records the boundary.
+
+## ATLAS-COEUS-DISPATCH-003 — Remove CUDA fused CPU fallback [arch] — complete
+
+- Owner: Codex on `codex/coeus-cuda-common-activation-parity`; scope:
+  `crates/coeus-cuda/src/error.rs`, `crates/coeus-cuda/src/kernels/{fuse,reduce}.rs`,
+  the fused public callers/tests, and synchronized ADR/audit artifacts.
+- Outcome: preserve CUDA provider selection for fused elementwise and fused
+  reduction operations by returning typed provider failures instead of routing
+  failed launches through the CPU evaluator.
+- Non-goals: the feature-disabled CPU-backed `CudaBackend`, provider device
+  initialization/COW failure-boundary migration, and unrelated CUDA operation
+  families.
+- Acceptance: native fused helpers return `Result`; public fused entry points
+  return `Result<Tensor<...>, CudaBackendError>`; no CUDA-feature CPU fallback
+  remains; no host round trip is introduced for layout metadata; callers and
+  value-semantic tests consume the typed result.
+- Risk/change class: `[arch]` public failure-contract migration.
+- Status: implementation complete at `b5491ef8`; rustfmt, metadata, diff
+  hygiene, and residual scans pass. The locked package check, clippy, doctest,
+  and Nextest gates stop before compilation because the Atlas-overlay-generated
+  `Cargo.lock` requires regeneration; the lockfile remains outside this claim.
+
+## ATLAS-COEUS-DISPATCH-002 — Remove the ConvTranspose3d host fallback [arch]
+
+- Owner: Codex; scope: `coeus-ops` and `coeus-autograd` ConvTranspose3d
+  dispatch, the Coeus NN wrapper, CPU differential tests, and the
+  backend-dispatch ADR.
+- Outcome: prevent an accelerator from silently copying ConvTranspose3d inputs
+  to host memory when no native provider kernel exists.
+- Non-goals: native accelerator ConvTranspose3d kernels, existing WGPU/CUDA
+  ConvTranspose1d/2d paths, and the fallible `ComputeBackend` migration.
+- Acceptance: no generic accelerator host fallback remains; the temporary
+  CPU-only boundary stays valid until a complete provider contract replaces
+  it; CPU scatter and gradient value semantics remain green.
+- Risk/change class: `[arch]` breaking generic capability boundary.
+- Decision: the temporary static boundary is superseded by ADR-0046, which
+  supplies the complete Leto/Hephaestus rank-generic provider contract and
+  removes `ConvTranspose3dOps`.
+- Status: closed by `ATLAS-COEUS-DISPATCH-SAFETY-020`. Its interim exact-head
+  provider matrix `30285060032`
+  passed WGPU `90040778847`, CUDA `90040778811`, ROCm `90040778842`, and Metal
+  `90040778762`. Required-device ROCm `90040779376` was skipped because no
+  hosted AMD runner was dispatched. Local package compilation remains blocked
+  before Coeus compilation by the Atlas `eunomia` repos/worktrees package
+  collision recorded in `docs/gap_audit.md`.
+
+## ATLAS-COEUS-DISPATCH-001 — Remove host-copy selection fallbacks [arch]
+
+- Owner: Codex; scope: `coeus-ops` reduction dispatch and its direct Coeus and
+  autograd callers.
+- Outcome: prevent unsupported accelerator argmax/argmin/topk calls from
+  silently copying through host memory and Leto.
+- Non-goals: native accelerator selection kernels, the fallible
+  `ComputeBackend` migration, and unrelated matmul/convolution defaults.
+- Acceptance: the selection defaults require `CpuBackend`; CPU calls retain
+  direct Leto dispatch; accelerator provider reduction/scan dispatch remains
+  available; focused checks and tests pass.
+- Risk/change class: `[arch]` breaking generic capability boundary.
+- Decision: ADR-0026 makes selection defaults statically CPU-only until the
+  owning Hephaestus/provider operation families provide native kernels.
+- Status: implementation complete; exact-head provider matrix `30278852605`
+  passed WGPU `90019911397`, CUDA `90019911331`, ROCm `90019911264`, and Metal
+  `90019911476`. Required-device ROCm `90019912082` was skipped because no
+  hosted AMD runner was dispatched. Local compile and Nextest remain blocked by
+  the peer-owned Leto path missing the merged comparison marker unit.
 
 ## ATLAS-COEUS-HEPHAESTUS-005 — Native unary math providers [arch]
 
@@ -247,9 +516,13 @@
 
 ## ATLAS-WGPU-SAFETY-002 — Establish fallible WGPU layout/dispatch boundary [arch] — in-progress
 
-- Owner: Codex `/coeus`; last-update: 2026-07-25; scope:
+- Owner: Codex `/coeus`; last-update: 2026-07-28; scope:
   `crates/coeus-wgpu/src/kernels/layout.rs`, its 23 consumers, and the `coeus-ops`
   backend-operation return contract.
+- Current claim: shared-tree slice owned by this session; scope is the native
+  WGPU PoolOps 3D forward/backward dispatch and its CPU/WGPU/CUDA callers.
+  Stale reduction/error edits were reconciled to the merged implementation;
+  only the Atlas-overlay-generated `Cargo.lock` remains outside this claim.
 - Outcome: replace unchecked `usize`→WGSL `u32` layout metadata narrowing and
   input-dependent dispatch panics with one typed validation/error boundary.
 - Acceptance: every WGPU kernel consumes the validated metadata type; failure
@@ -328,6 +601,37 @@
   values requires a separate breaking graph/module migration. Fused reduction
   and default index/cumulative reductions remain outside this increment; no
   compatibility adapter or silent fallback is introduced to mask the residual.
+- Pool1d increment: the `PoolOps` 1D forward/backward methods now return the
+  backend-associated result. CPU preserves direct Leto execution, WGPU
+  validates rank, layout ABI conversion, parameter narrowing, element-count
+  arithmetic, and workgroup bounds before native WGSL submission, and CUDA
+  propagates native kernel validation and launch failures. The 2D/3D pooling
+  families and the infallible autograd/NN public contract remain separate
+  increments. Focused compilation is currently blocked before package
+  compilation by the shared-tree Eunomia lockfile package collision.
+- Pool2d increment: the four 2D `PoolOps` methods now return the
+  backend-associated result across CPU, WGPU, and CUDA. WGPU derives output and
+  gradient counts from canonical layouts, removes stale storage-length/count
+  arguments, and checks rank, layout ABI values, parameter narrowing, checked
+  element counts, and workgroup bounds before native WGSL submission. Direct
+  WGPU/CUDA parity callers and the infallible autograd/NN boundary use explicit
+  invariant diagnostics. The 3D family remains the next separate slice. The
+  same Eunomia lockfile collision still blocks package compilation and tests.
+- Provider graph repair increment: restored Git+version declarations for the
+  first-party Leto, Hephaestus, Moirai, Mnemosyne, Eunomia, Hermes, Apollo,
+  Themis, and Melinoe packages and removed the committed sibling-path patch
+  tables. The generated Atlas root overlay now supplies local provider
+  checkouts without changing Coeus's standalone dependency identity. Locked
+  no-deps metadata passes from this worktree; only the Atlas-overlay-generated
+  `Cargo.lock` remains outside this claim.
+- Pool3d increment: all four 3D `PoolOps` methods now return the
+  backend-associated result across CPU, WGPU, and CUDA. WGPU derives output and
+  gradient counts from canonical layouts, validates rank-five layout metadata,
+  parameter narrowing, checked element counts, and workgroup bounds before
+  native WGSL submission. Autograd, NN, and CUDA parity callers use explicit
+  invariant diagnostics. Local package compilation remains blocked by the
+  Atlas-overlay-generated lockfile requiring regeneration after the provider
+  graph repair.
 
 ## ATLAS-CUDA-TREE-003 — Split fused operation-tag tree [arch] — done
 

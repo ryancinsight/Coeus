@@ -11,6 +11,10 @@ use coeus_core::{ComputeBackend, Scalar};
 use std::cell::Cell;
 
 thread_local! {
+    #[expect(
+        clippy::missing_const_for_thread_local,
+        reason = "false positive: the initializer is already a const block (clippy 1.97, same diagnostic class recorded on the ritk board)"
+    )]
     static NO_GRAD_DEPTH: Cell<usize> = const { Cell::new(0) };
 }
 

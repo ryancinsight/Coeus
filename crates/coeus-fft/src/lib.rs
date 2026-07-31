@@ -145,7 +145,7 @@ where
         &self,
         grad_out: &Tensor<Complex<T>, B>,
         _input_grads: &[Option<Arc<GradBuffer<Complex<T>, B>>>],
-    ) {
+    ) -> Result<(), B::Error> {
         let n = T::from_usize(grad_out.numel());
         let mut dx = ifft_1d(grad_out);
         let mut host = tensor_to_vec(&dx);
@@ -159,9 +159,10 @@ where
         }
         if self.x.creator.is_some() {
             if let Some(current_grad) = self.x.grad() {
-                self.x.backward_with_seed(current_grad);
+                self.x.backward_with_seed(current_grad)?;
             }
         }
+        Ok(())
     }
 }
 
@@ -193,7 +194,11 @@ where
         &[]
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, _input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        _input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let n = T::from_usize(grad_out.numel());
         let mut dy = fft_1d(grad_out);
         let mut host = tensor_to_vec(&dy);
@@ -208,9 +213,10 @@ where
         }
         if self.y.creator.is_some() {
             if let Some(current_grad) = self.y.grad() {
-                self.y.backward_with_seed(current_grad);
+                self.y.backward_with_seed(current_grad)?;
             }
         }
+        Ok(())
     }
 }
 
@@ -304,7 +310,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         if let Some(Some(ref grad)) = input_grads.first() {
             let go = tensor_to_vec(grad_out)[0];
             let factor = go * T::from_f64(2.0);
@@ -324,6 +334,7 @@ where
             dx = Tensor::from_slice_on(dx.shape_cloned(), &dx_host, &B::default());
             accumulate_grad(grad, &dx);
         }
+        Ok(())
     }
 }
 

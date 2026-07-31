@@ -69,10 +69,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Ctc
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let Some(Some(ref g)) = input_grads.get(0) else {
-            return;
+            return Ok(());
         };
 
         let t = self.t_steps;
@@ -147,7 +151,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Ctc
         let dx_t: Vec<T> = dx.iter().map(|&v| T::from_f64(v)).collect();
         let grad_tensor = Tensor::from_slice_on([t, n, c], &dx_t, &backend);
         let gl = g.write();
-        coeus_ops::add_assign(gl, &grad_tensor, &backend).expect("autograd gradient accumulation");
+        coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
+
+        Ok(())
     }
 }
 

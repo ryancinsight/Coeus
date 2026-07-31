@@ -27,7 +27,8 @@ fn test_nll_loss() {
     let expected = -(-0.1 - 0.25 - 0.4) / 3.0;
     assert!((loss_val - expected).abs() < 1e-7);
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(log_probs.grad().is_some());
 
     // Check gradients: -1 / N at target index, 0 elsewhere
@@ -66,7 +67,8 @@ fn test_soft_margin() {
         "soft_margin forward: got {loss_val:.17}, expected {expected:.17}"
     );
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let sigmoid = |z: f64| 1.0 / (1.0 + (-z).exp());
     let input_grad = input.grad().expect("input must receive a gradient");
     let target_grad = target.grad().expect("target must receive a gradient");
@@ -113,7 +115,8 @@ fn test_multi_margin() {
         1.3 / 3.0
     );
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let g = x.grad().expect("x must receive a gradient");
     let third = 1.0 / 3.0;
     let expected = [-third, third, 0.0];
@@ -161,7 +164,8 @@ fn test_hinge_embedding_loss() {
         loss.tensor.as_slice()[0]
     );
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     // d/dx (seed 1/N from mean, N=4): identity branch (y=+1) -> 1/N; hinge
     // branch (y=-1) -> -1/N when margin > x else 0.
     //   i0: y=+1 -> 0.25            i1: y=-1, 1-2<0 -> 0
@@ -198,7 +202,8 @@ fn test_multi_label_soft_margin_loss() {
     let expected = (2.0f64.ln() + -(1.0 - sig2).ln()) / 2.0;
     assert!((loss.tensor.as_slice()[0] - expected).abs() < 1e-10);
 
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     // d BCEWithLogits/dx = (σ(x) - y)/N: i0 (0.5-1)/2=-0.25, i1 (σ(2)-0)/2.
     let grad = x.grad().expect("mlsm x grad");
     let g = grad.as_slice();

@@ -2,13 +2,15 @@
 //!
 //! [`ReductionOps`] is the interface-segregated sub-trait for all reduction
 //! kernel dispatch (reduce, argmax, argmin, topk, cumsum, suffix_sum, cumprod,
-//! suffix_prod). The default implementations for argmax/argmin/topk and host
-//! scans use only [`ComputeBackend`] copy methods.
+//! suffix_prod). The argmax/argmin/topk defaults are CPU-only and route to
+//! Leto through [`super::super::CpuBackend`]. Accelerator implementations must
+//! provide a native operation before those methods are exposed.
 
 use coeus_core::{ComputeBackend, Layout, Scalar};
 
 use super::super::defaults;
 use super::super::ops::ReductionOp;
+use super::super::CpuBackend;
 
 /// Reduction operations along an axis.
 ///
@@ -44,6 +46,7 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         c_layout: &Layout,
     ) where
         T: leto_ops::Scalar,
+        Self: CpuBackend,
     {
         defaults::reductions::argmax(self, a, a_layout, axis, c, c_layout)
     }
@@ -58,6 +61,7 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         c_layout: &Layout,
     ) where
         T: leto_ops::Scalar,
+        Self: CpuBackend,
     {
         defaults::reductions::argmin(self, a, a_layout, axis, c, c_layout)
     }
@@ -77,6 +81,7 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         indices_layout: &Layout,
     ) where
         T: leto_ops::Scalar,
+        Self: CpuBackend,
     {
         defaults::reductions::topk(
             self,

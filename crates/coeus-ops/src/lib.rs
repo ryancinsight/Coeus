@@ -18,8 +18,9 @@
 pub mod backend_ops;
 pub(crate) mod ptr;
 pub use backend_ops::{
-    AttentionOps, BackendOps, BinaryOp, ConvOps, CpuBackend, ElementwiseOps, MatmulOps,
-    OptimizerOps, PoolOps, ReductionOp, ReductionOps, UnaryOp, UnfoldFoldOps,
+    AttentionOps, BackendOps, BinaryOp, ConvOps, ConvolutionBackward, ConvolutionForward,
+    CpuBackend, ElementwiseOps, MatmulOps, OptimizerOps, PoolOps, ReductionOp, ReductionOps,
+    UnaryOp, UnfoldFoldOps,
 };
 /// Element-wise binary operations (add, sub, mul, div).
 pub mod binary;

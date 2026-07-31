@@ -15,7 +15,8 @@ fn test_exp_autograd() {
     assert!((y_slice[2] - 7.389056).abs() < 1e-5);
 
     let grad_out = Tensor::from_slice_on(vec![3], &[1.0f32, 2.0f32, 3.0f32], &backend);
-    y.backward_with_seed(grad_out);
+    y.backward_with_seed(grad_out)
+        .expect("invariant: valid autograd fixture completes backward");
 
     let gx = x.grad().unwrap();
     let gx_slice = gx.as_slice();
@@ -35,7 +36,8 @@ fn test_exp2_autograd() {
     assert!((y_slice[1] - 2.0).abs() < 1e-12, "exp2(1) = 2");
     assert!((y_slice[2] - 4.0).abs() < 1e-12, "exp2(2) = 4");
     let grad_seed = Tensor::from_slice_on(vec![4], &[1.0f64; 4], &backend);
-    y.backward_with_seed(grad_seed);
+    y.backward_with_seed(grad_seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let ln2 = core::f64::consts::LN_2;
     let gx = x.grad().unwrap();
     for (i, &xi) in data.iter().enumerate() {
@@ -65,7 +67,8 @@ fn test_selu_autograd() {
         assert!((y_slice[i] - expected).abs() < 1e-12, "selu[{i}]");
     }
     let grad_seed = Tensor::from_slice_on(vec![5], &[1.0f64; 5], &backend);
-    y.backward_with_seed(grad_seed);
+    y.backward_with_seed(grad_seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     for (i, &xi) in data.iter().enumerate() {
         let expected = if xi > 0.0 {
@@ -97,7 +100,8 @@ fn test_erf_autograd() {
     assert!((y_slice[3] - 0.995_322_265_018_952_7).abs() < 1e-12);
 
     let grad_out = Tensor::from_slice_on(vec![4], &[1.0f64, 1.0, 1.0, 1.0], &backend);
-    y.backward_with_seed(grad_out);
+    y.backward_with_seed(grad_out)
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Analytic gradient: d/dx erf(x) = (2/√π)·e^(−x²).
     let two_over_sqrt_pi = 2.0 / std::f64::consts::PI.sqrt();
@@ -146,7 +150,8 @@ fn test_erfc_autograd() {
         assert!((y_slice[i] - (1.0 - erf_ref[i])).abs() < 1e-12, "erfc[{i}]");
     }
     let grad_seed = Tensor::from_slice_on(vec![4], &[1.0f64; 4], &backend);
-    y.backward_with_seed(grad_seed);
+    y.backward_with_seed(grad_seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let two_over_sqrt_pi = 2.0 / std::f64::consts::PI.sqrt();
     let gx = x.grad().unwrap();
     let gx_slice = gx.as_slice();
@@ -169,7 +174,8 @@ fn test_log_autograd() {
     assert!((y_slice[2] - 2.0f32 * std::f32::consts::LN_2).abs() < 1e-5);
 
     let grad_out = Tensor::from_slice_on(vec![3], &[1.0f32, 2.0f32, 3.0f32], &backend);
-    y.backward_with_seed(grad_out);
+    y.backward_with_seed(grad_out)
+        .expect("invariant: valid autograd fixture completes backward");
 
     let gx = x.grad().unwrap();
     let gx_slice = gx.as_slice();
@@ -191,7 +197,8 @@ fn test_sinh_autograd() {
     }
 
     let grad_seed = Tensor::from_slice_on(vec![5], &[1.0f64; 5], &backend);
-    y.backward_with_seed(grad_seed);
+    y.backward_with_seed(grad_seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_slice = gx.as_slice();
     for (i, &xi) in data.iter().enumerate() {
@@ -212,7 +219,8 @@ fn test_cosh_autograd() {
     }
 
     let grad_seed = Tensor::from_slice_on(vec![5], &[1.0f64; 5], &backend);
-    y.backward_with_seed(grad_seed);
+    y.backward_with_seed(grad_seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_slice = gx.as_slice();
     for (i, &xi) in data.iter().enumerate() {
@@ -233,7 +241,8 @@ fn test_log2_autograd() {
     }
 
     let grad_seed = Tensor::from_slice_on(vec![5], &[1.0f64; 5], &backend);
-    y.backward_with_seed(grad_seed);
+    y.backward_with_seed(grad_seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_slice = gx.as_slice();
     for (i, &xi) in data.iter().enumerate() {
@@ -255,7 +264,8 @@ fn test_log10_autograd() {
     }
 
     let grad_seed = Tensor::from_slice_on(vec![5], &[1.0f64; 5], &backend);
-    y.backward_with_seed(grad_seed);
+    y.backward_with_seed(grad_seed)
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     let gx_slice = gx.as_slice();
     for (i, &xi) in data.iter().enumerate() {

@@ -107,13 +107,276 @@ where
         if Arc::strong_count(&self.buffer) <= 1 {
             return;
         }
-        let mut host = vec![T::zero(); self.buffer.len()];
-        P::device()
-            .download(self.buffer.as_ref(), &mut host)
-            .expect("Hephaestus storage uniqueness download failed");
-        let replacement = P::device()
-            .upload(&host)
-            .expect("Hephaestus storage uniqueness upload failed");
+        // COW detachment is a storage operation, so preserve the provider's
+        // allocation tier and keep the full payload on-device. The device
+        // copy overwrites every element before the detached buffer is exposed,
+        // so the replacement does not require a redundant initialization pass.
+        // The `StorageMut` contract is infallible; provider failures therefore
+        // remain explicit invariant failures until that upstream contract is
+        // made fallible.
+        let device = P::device();
+        let replacement = device
+            .alloc_uninitialized_with_hint(
+                self.buffer.len(),
+                PlacementHint::Tier(self.buffer.tier()),
+            )
+            .expect("Hephaestus storage uniqueness allocation failed");
+        device
+            .copy_buffer(self.buffer.as_ref(), &replacement)
+            .expect("Hephaestus storage uniqueness device copy failed");
         self.buffer = Arc::new(replacement);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::reduction::HephaestusProvider;
+    use hephaestus_core::{ComputeDevice, DeviceBuffer, HephaestusError};
+    use std::{
+        marker::PhantomData,
+        sync::atomic::{AtomicUsize, Ordering},
+        sync::{Arc, Mutex},
+    };
+
+    static DOWNLOADS: AtomicUsize = AtomicUsize::new(0);
+    static DEVICE_COPIES: AtomicUsize = AtomicUsize::new(0);
+
+    #[derive(Debug, Clone)]
+    struct TestBuffer<T: bytemuck::Pod> {
+        bytes: Arc<Mutex<Vec<u8>>>,
+        len: usize,
+        tier: MemoryTier,
+        marker: PhantomData<T>,
+    }
+
+    impl<T: bytemuck::Pod> DeviceBuffer<T> for TestBuffer<T> {
+        fn len(&self) -> usize {
+            self.len
+        }
+
+        fn tier(&self) -> MemoryTier {
+            self.tier
+        }
+    }
+
+    #[derive(Debug, Clone, Copy, Default)]
+    struct TestProvider;
+
+    #[derive(Debug, Clone, Copy, Default)]
+    struct TestDevice;
+
+    fn byte_len<T: bytemuck::Pod>(len: usize) -> hephaestus_core::Result<usize> {
+        len.checked_mul(std::mem::size_of::<T>())
+            .ok_or_else(|| HephaestusError::AllocationFailed {
+                message: "test buffer size overflow".to_owned(),
+            })
+    }
+
+    fn empty_buffer<T: bytemuck::Pod>(
+        len: usize,
+        tier: MemoryTier,
+    ) -> hephaestus_core::Result<TestBuffer<T>> {
+        Ok(TestBuffer {
+            bytes: Arc::new(Mutex::new(vec![0; byte_len::<T>(len)?])),
+            len,
+            tier,
+            marker: PhantomData,
+        })
+    }
+
+    fn require_len<T: bytemuck::Pod>(
+        buffer: &TestBuffer<T>,
+        len: usize,
+    ) -> hephaestus_core::Result<()> {
+        if buffer.len == len {
+            Ok(())
+        } else {
+            Err(HephaestusError::LengthMismatch {
+                host_len: len,
+                device_len: buffer.len,
+            })
+        }
+    }
+
+    impl ComputeDevice for TestDevice {
+        type Buffer<T: bytemuck::Pod> = TestBuffer<T>;
+
+        fn backend_name(&self) -> &'static str {
+            "test"
+        }
+
+        fn alloc_zeroed_with_hint<T: bytemuck::Pod>(
+            &self,
+            len: usize,
+            hint: PlacementHint,
+        ) -> hephaestus_core::Result<Self::Buffer<T>> {
+            empty_buffer(
+                len,
+                match hint {
+                    PlacementHint::Tier(tier) => tier,
+                    _ => MemoryTier::Device,
+                },
+            )
+        }
+
+        fn alloc_uninitialized_with_hint<T: bytemuck::Pod>(
+            &self,
+            len: usize,
+            hint: PlacementHint,
+        ) -> hephaestus_core::Result<Self::Buffer<T>> {
+            empty_buffer(
+                len,
+                match hint {
+                    PlacementHint::Tier(tier) => tier,
+                    _ => MemoryTier::Device,
+                },
+            )
+        }
+
+        fn upload_with_hint<T: bytemuck::Pod>(
+            &self,
+            host: &[T],
+            hint: PlacementHint,
+        ) -> hephaestus_core::Result<Self::Buffer<T>> {
+            let buffer = self.alloc_zeroed_with_hint(host.len(), hint)?;
+            self.write_buffer(&buffer, host)?;
+            Ok(buffer)
+        }
+
+        fn download<T: bytemuck::Pod>(
+            &self,
+            buffer: &Self::Buffer<T>,
+            out: &mut [T],
+        ) -> hephaestus_core::Result<()> {
+            DOWNLOADS.fetch_add(1, Ordering::Relaxed);
+            require_len(buffer, out.len())?;
+            let bytes = buffer
+                .bytes
+                .lock()
+                .map_err(|_| HephaestusError::TransferFailed {
+                    message: "test buffer lock poisoned".to_owned(),
+                })?;
+            bytemuck::cast_slice_mut(out).copy_from_slice(&bytes);
+            Ok(())
+        }
+
+        fn write_buffer<T: bytemuck::Pod>(
+            &self,
+            buffer: &Self::Buffer<T>,
+            host: &[T],
+        ) -> hephaestus_core::Result<()> {
+            require_len(buffer, host.len())?;
+            let mut bytes = buffer
+                .bytes
+                .lock()
+                .map_err(|_| HephaestusError::TransferFailed {
+                    message: "test buffer lock poisoned".to_owned(),
+                })?;
+            bytes.copy_from_slice(bytemuck::cast_slice(host));
+            Ok(())
+        }
+
+        fn write_sub_buffer<T: bytemuck::Pod>(
+            &self,
+            buffer: &Self::Buffer<T>,
+            offset: usize,
+            host: &[T],
+        ) -> hephaestus_core::Result<()> {
+            let end = offset
+                .checked_add(host.len())
+                .ok_or(HephaestusError::LengthMismatch {
+                    host_len: host.len(),
+                    device_len: buffer.len,
+                })?;
+            if end > buffer.len {
+                return Err(HephaestusError::LengthMismatch {
+                    host_len: end,
+                    device_len: buffer.len,
+                });
+            }
+            let mut bytes = buffer
+                .bytes
+                .lock()
+                .map_err(|_| HephaestusError::TransferFailed {
+                    message: "test buffer lock poisoned".to_owned(),
+                })?;
+            let start_bytes = offset * std::mem::size_of::<T>();
+            let host_bytes = bytemuck::cast_slice(host);
+            bytes[start_bytes..start_bytes + host_bytes.len()].copy_from_slice(host_bytes);
+            Ok(())
+        }
+
+        fn copy_buffer<T: bytemuck::Pod>(
+            &self,
+            src: &Self::Buffer<T>,
+            dst: &Self::Buffer<T>,
+        ) -> hephaestus_core::Result<()> {
+            require_len(dst, src.len)?;
+            let src_bytes = src
+                .bytes
+                .lock()
+                .map_err(|_| HephaestusError::TransferFailed {
+                    message: "test source lock poisoned".to_owned(),
+                })?;
+            let mut dst_bytes = dst
+                .bytes
+                .lock()
+                .map_err(|_| HephaestusError::TransferFailed {
+                    message: "test destination lock poisoned".to_owned(),
+                })?;
+            dst_bytes.copy_from_slice(&src_bytes);
+            DEVICE_COPIES.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        }
+
+        fn synchronize(&self) -> hephaestus_core::Result<()> {
+            Ok(())
+        }
+    }
+
+    // SAFETY: The test device uses Arc<Mutex<_>> for buffer storage and has no
+    // thread-affine state, satisfying the provider buffer ownership contract.
+    unsafe impl HephaestusProvider for TestProvider {
+        type Device = TestDevice;
+
+        const NAME: &'static str = "test";
+
+        fn device() -> &'static Self::Device {
+            static DEVICE: TestDevice = TestDevice;
+            &DEVICE
+        }
+    }
+
+    #[test]
+    fn make_unique_copies_device_data_without_host_download() {
+        DOWNLOADS.store(0, Ordering::Relaxed);
+        DEVICE_COPIES.store(0, Ordering::Relaxed);
+
+        let device = TestProvider::device();
+        let mut storage = HephaestusStorage::<TestProvider, u32>::new(4);
+        device
+            .write_buffer(storage.buffer.as_ref(), &[1, 2, 3, 4])
+            .expect("write test storage");
+        let shared = storage.clone();
+        let downloads_before = DOWNLOADS.load(Ordering::Relaxed);
+
+        StorageMut::make_unique(&mut storage);
+
+        assert_eq!(DOWNLOADS.load(Ordering::Relaxed), downloads_before);
+        assert_eq!(DEVICE_COPIES.load(Ordering::Relaxed), 1);
+
+        let mut detached = [0; 4];
+        let mut retained = [0; 4];
+        device
+            .download(storage.buffer.as_ref(), &mut detached)
+            .expect("read detached storage");
+        device
+            .download(shared.buffer.as_ref(), &mut retained)
+            .expect("read retained storage");
+        assert_eq!(detached, [1, 2, 3, 4]);
+        assert_eq!(retained, [1, 2, 3, 4]);
+        assert_eq!(storage.buffer.tier(), MemoryTier::Device);
+        assert_eq!(shared.buffer.tier(), MemoryTier::Device);
     }
 }

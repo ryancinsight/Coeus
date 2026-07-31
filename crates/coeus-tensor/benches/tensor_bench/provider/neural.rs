@@ -111,10 +111,22 @@ pub(crate) fn bench_layernorm(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("LayerNorm (4x64x128)");
     group.bench_function("Coeus Sequential", |bencher| {
-        bencher.iter(|| black_box(sequential_layer.forward(black_box(&sequential_input))))
+        bencher.iter(|| {
+            black_box(
+                sequential_layer
+                    .forward(black_box(&sequential_input))
+                    .expect("valid layer normalization benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |bencher| {
-        bencher.iter(|| black_box(moirai_layer.forward(black_box(&moirai_input))))
+        bencher.iter(|| {
+            black_box(
+                moirai_layer
+                    .forward(black_box(&moirai_input))
+                    .expect("valid layer normalization benchmark input"),
+            )
+        })
     });
     group.finish();
 }

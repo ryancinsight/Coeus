@@ -25,6 +25,215 @@ feature compile check pass. Focused CUDA nextest passes 6/6 with real
 contiguous and transposed device execution; the focused CPU/WGPU/ROCm/Metal
 activation-tail lane passes 10/10. No fallback path was added. Hosted
 exact-head CI remains open.
+## ATLAS-COEUS-NN-SAFETY-019: Infallible module execution
+
+**Location**: `crates/coeus-nn/src/module/`, 44 module implementation files,
+seven normalization files, and direct Rust/Python consumers.
+**Gap**: `Module::forward` cannot represent backend or module-state failure.
+An all-target check succeeds but emits exactly 54 ignored-result warnings
+across BatchNorm, GroupNorm, InstanceNorm, LayerNorm, and RMSNorm. BatchNorm
+can also partially update running mean before a later variance operation
+fails.
+**Resolution target**: ADR-0045 changes the canonical trait to return
+`ModuleError<B::Error>`, migrates all 85 implementations and every caller
+atomically, replaces input-dependent normalization panics with typed errors,
+and stages both BatchNorm running-stat tensors before committing either.
+**Evidence target**: warning-denied all-target Clippy, failure-injection and
+state-integrity regressions, analytical normalization and gradient parity,
+Rust/Python consumer tests, doctests, SemVer classification, and exact-head
+provider CI.
+**Status**: in progress. The call graph is audited and the module bounded
+context is split into manifest, trait, and typed-error leaves. No runtime,
+allocation, or binary-size improvement is claimed without matched
+measurements.
+
+## ATLAS-COEUS-WGPU-008: Duplicate ordinary reduction provider
+
+**Location**: `crates/coeus-wgpu/src/backend/ops/impls/reduction.rs` and the
+superseded `backend/ops/reduction.rs` plus ordinary shader path in
+`kernels/reduce.rs`.
+**Gap**: scans called Hephaestus, while sum, product, mean, minimum, and
+maximum generated and submitted a second Coeus-owned WGSL implementation.
+**Resolution**: ADR-0044 routes rank-one and rank-two ordinary reductions
+directly through Hephaestus and deletes the consumer-owned dispatcher, shader,
+metadata staging, and validation tests.
+**Evidence**: package all-target check passes. Focused Nextest run
+`a3a70d2f-37ff-4d75-9754-a6b029850c16` passes all 11 reduction contracts in
+9.143 seconds, including five ordinary operation families, rank-one sum and
+scan, and exact typed rank-three rejection. Warning-denied package Clippy and
+all three WGPU doctests pass. Implementation-head run `30407395047` passed
+Metal `90435767524`, ROCm `90435767607`, WGPU `90435767627`, and CUDA
+`90435767639`; required-device ROCm `90435768426` was skipped because no
+hosted AMD runner was dispatched.
+**Residual**: fused-expression reduction retains its distinct Coeus kernel
+pending a provider expression contract. Terminal run `30408820242` passed
+Metal `90440235821`, CUDA `90440235825`, WGPU `90440235878`, and ROCm
+`90440236008`; required-device ROCm `90440236263` was skipped because no
+hosted AMD runner was dispatched. PR #246 merged as `7a9811f4`. No runtime,
+memory, or binary-size improvement is claimed without matched measurements.
+
+## ATLAS-COEUS-CUDA-007: Backend identity changed execution identity
+
+**Location**: `crates/coeus-cuda/src/backend/ops/math/`,
+`src/fallback/ops/math.rs`, and the disabled-provider backend.
+**Gap**: CUDA mathematical dispatch misses downloaded device storage, executed
+with `SequentialBackend`, and uploaded results. Disabled-provider builds also
+implemented CPU mathematics while reporting a CUDA backend.
+**Resolution**: ADR-0043 deletes those mathematical fallback paths, routes
+rank-two reductions through Hephaestus, and leaves disabled-provider builds
+without mathematical backend traits.
+**Residual**: CUDA convolution, attention, and optimizer capability paths still
+copy through host memory. WGPU/CUDA aliased elementwise operations still
+require provider-owned in-place Hephaestus contracts.
+**Evidence**: no-default all-target compilation and all three disabled-provider
+identity/error tests pass. Exact-head run `30405547693` passed ROCm
+(`90430046827`), Metal/Leto (`90430046863`), WGPU/CPU (`90430046874`), and
+CUDA (`90430046879`); required-device ROCm (`90430047556`) was intentionally
+skipped. PR #245 merged as `77834e37`.
+
+## ATLAS-AUTOGRAD-SAFETY-018: Infallible backward traversal
+
+**Location**: `crates/coeus-autograd/src/node.rs`, `var.rs`, and operation
+node implementations.
+**Gap**: 143 fallible backend mutation or direct-dispatch calls discarded
+their `Result` because the autograd graph contract returned `()`. A backend
+failure could leave partial gradients while the caller observed success.
+**Resolution**: ADR-0042 makes the graph traversal and every node return the
+backend's typed error, with no compatibility or fallback path.
+**Evidence**: warning-denied `coeus-autograd` all-target Clippy passes. The
+failure-injection regression observes the exact `BackendError::Storage`.
+Nextest passes 102 autograd/FFT and 268 NN tests. All 24 executable doctests
+pass; two pre-existing NN doctests remain ignored. SemVer checks against
+`origin/main` report the `BackwardNode` and `BinaryAutogradOp` return changes
+as requiring a major release. Exact-head run `30397554467` attempt 2 passes
+WGPU (`90407664433`), ROCm
+(`90407664470`), CUDA (`90407664479`), and Metal (`90407664482`);
+required-device ROCm (`90407665417`) is intentionally skipped. Attempt 1
+failed before Coeus in Leto's missing `T: UnitScalar` stencil contract; Leto
+PR #77 repaired that provider-owned bound before the successful rerun.
+**Residual**: compilation exposes 54 ignored fallible normalization mutations
+in `coeus-nn` and one ignored distributed mutation outside this increment;
+they remain separate typed-propagation work. No runtime, allocation, or
+binary-size improvement is claimed.
+**Status**: complete at `81eeec09`; merge delivery pending.
+
+## ATLAS-CUDA-SAFETY-017: Pooling physical-index contract
+
+**Location**: `crates/coeus-cuda/src/kernels/validation.rs` and
+`crates/coeus-cuda/src/kernels/pool/`.
+**Gap**: pooling checked layout fields and parameters independently against
+the CUDA unsigned ABI, but did not prove the derived physical offset or the
+signed window-coordinate expressions representable. Storage capacity and
+writable aliasing were also unchecked at the pooling boundary.
+**Resolution**: ADR-0041 centralizes the physical layout/storage proof shared
+by fusion, unfold/fold, and pooling. Every pooling dimension now validates
+allocation bounds, writable non-aliasing, and complete forward/backward signed
+coordinate extrema before compilation.
+**Evidence**: pure boundary regressions cover exact and undersized strided
+storage, physical-offset overflow, writable zero-stride aliasing, and signed
+coordinate overflow. Feature-enabled all-target check and warning-denied
+package Clippy pass. Local native test linking remains blocked by MinGW
+`cannot find -lcuda`. Exact-head run `30391721824` passes CUDA
+(`90384681039`), WGPU (`90384681127`), Metal (`90384681124`), and ROCm
+(`90384681137`); required-device ROCm (`90384681768`) is intentionally
+skipped.
+**Residual**: the broader warning-denied graph exposes 143 pre-existing
+ignored `Result` errors in `coeus-autograd`. The live Atlas overlay later
+resolved Leto with missing `T: UnitScalar` bounds in
+`application/stencil.rs`, blocking repeat Coeus compilation before the
+touched crate. No runtime, bandwidth, or resident-memory delta is claimed.
+**Status**: complete at `8fe4da78`; merge delivery pending.
+
+## ATLAS-COEUS-SAFETY-003: Uninitialized COW replacement allocation
+
+**Location**: `crates/coeus-hephaestus/src/storage.rs`,
+`crates/coeus-wgpu/src/storage.rs`, and `crates/coeus-cuda/src/storage.rs`.
+**Gap**: device-local COW allocates a replacement and immediately overwrites
+every element through `ComputeDevice::copy_buffer`, but the previous consumer
+path requested zero-initialized storage. CUDA and ROCm therefore paid a full
+initialization pass before the full device-to-device copy.
+**Resolution**: keep public storage construction on the zeroed allocation
+contract and route only COW replacements through the explicit Hephaestus
+overwrite-before-read allocation seam. The generic Hephaestus test device
+implements the seam without changing the value-semantic copy regression.
+**Residual**: the Hephaestus provider seam prerequisite is satisfied by PR #136
+merged at `da785b53`. Hosted exact-head Coeus run `30345002409` passed CUDA job
+`90229046185`, WGPU job `90229046271`, ROCm job `90229046258`, and Metal job
+`90229046242`; required-device ROCm job `90229047328` was skipped because no
+hosted AMD runner was dispatched. No runtime bandwidth, latency, or
+resident-memory delta is claimed without a controlled benchmark. The
+infallible `StorageMut::make_unique` failure boundary remains the separate
+`ATLAS-COEUS-SAFETY-001` item.
+**Local evidence**: Coeus WGPU and generic Hephaestus all-target checks pass
+against the provider branch; the CUDA feature all-target check also passes.
+The focused generic Hephaestus Nextest storage contract passes. Temporary
+provider path overlays were restored after verification.
+**Status**: complete for the consumer allocation path and hosted provider
+matrix; physical-device execution and runtime performance measurement remain
+explicit residuals.
+
+## ATLAS-COEUS-DISPATCH-SAFETY-020: Provider-owned convolution
+
+**Location**: `crates/coeus-ops/src/backend_ops/`,
+`crates/coeus-hephaestus/src/convolution/`, accelerator `ConvOps`
+implementations, and convolution consumers in autograd, NN, Python, tests, and
+benchmarks.
+**Gap**: Coeus owned CPU and accelerator convolution mathematics, exposed
+infallible dispatch, retained a separate 3-D transposed capability, downloaded
+unsupported CUDA requests for CPU execution, and implemented transposed
+backward loops in autograd.
+**Resolution**: ADR-0046 consolidates regular/transposed forward and backward
+into four fallible const-generic `ConvOps` methods. CPU dispatch borrows
+storage into Leto; CUDA/WGPU/ROCm/Metal dispatch device buffers into
+Hephaestus through one generic static dispatch implementation; vendor modules
+bind only their device, buffer, and error types. Leto regular and transposed
+operations share one borrowed-view construction path. Rank-specific methods
+are default adapters over that SSOT. Consumer-owned CUDA/WGPU kernels, CUDA
+host fallbacks, the generic transposed host default, `ConvTranspose3dOps`, and
+autograd host backward loops are deleted.
+**Evidence**: warning-denied all-target Clippy passes for the consolidated
+Leto, Hephaestus, WGPU, CUDA, and operation-contract scope. CPU/autograd/NN
+Nextest passes 592/592, including regular/transposed rank-one through
+rank-three differentials and exact transposed gradients. Final-review
+Leto/Hephaestus/autograd/WGPU Nextest passes 214/214, including
+regular/transposed parity, exact gradient accumulation, and COW storage. All
+46 executable affected-package doctests pass; two pre-existing NN doctests
+remain ignored.
+`cargo-semver-checks` confirms the changed failure contract and removed
+capability seam require a major release. Residue scans find no convolution
+`SequentialBackend`, host transfer, fallback, or consumer kernel path.
+Exact-head provider run `30545333101` passed WGPU job `90880014492`, CUDA job
+`90880014608`, ROCm job `90880014606`, and Metal job `90880014508`;
+required-device ROCm job `90880015294` was skipped because no AMD hardware
+runner was dispatched.
+**Residual**: no implementation, migration, build, test, or merge residual
+remains in the authorized convolution scope. No runtime, memory, or
+binary-size delta is claimed without controlled measurements.
+**Status**: complete. PR #250 merged as `0dfab53e`.
+
+## ATLAS-COEUS-DISPATCH-001: Unsupported reduction selection fallback
+
+**Location**: `crates/coeus-ops/src/backend_ops/traits/reduction.rs`,
+`crates/coeus-ops/src/backend_ops/defaults/reductions.rs`, and the public
+selection callers under `crates/coeus-ops/src/reduction`.
+**Gap**: generic `argmax`, `argmin`, and `topk` defaults copied device buffers
+to host memory and executed the Leto CPU path when an accelerator did not
+provide a native operation. This made unsupported ROCm, Metal, WGPU, CUDA,
+and generic Hephaestus calls look available while violating provider ownership
+and zero-copy dispatch.
+**Resolution**: the defaults and public/autograd selection entry points now
+require `CpuBackend`. CPU backends retain direct Leto dispatch; accelerator
+reduction and scan methods remain provider-owned. Native selection kernels are
+not added downstream and remain a separate Hephaestus/provider item.
+**Evidence**: pinned formatting, metadata, and staged-diff checks passed
+locally. The local package compile, Nextest, and doctest gates remain blocked
+before Coeus compilation because the peer-owned Leto path lacks
+`EqOp`/`GeOp`/`GtOp`/`LeOp`/`LtOp`/`NeOp`. Exact-head provider matrix
+`30278852605` passed WGPU `90019911397`, CUDA `90019911331`, ROCm `90019911264`,
+and Metal `90019911476`; required-device ROCm `90019912082` was skipped because
+no hosted AMD runner was dispatched.
+**Status**: complete for the CPU/provider capability boundary; native
+accelerator arg-reduction and top-k kernels remain a separate provider item.
 
 ## ATLAS-COEUS-HEPHAESTUS-005: Unary math provider parity
 
@@ -37,14 +246,164 @@ ROCm and Metal provider matches.
 **Resolution**: route each operation through the shared Hephaestus marker and
 strided kernel, with valid-domain Leto differential coverage. Keep integer
 providers on their typed arithmetic-only rejection path.
-**Residual**: `erf`, `erfc`, `lgamma`, parameterized activations, and f64/vector
-contracts remain separate capability slices.
+**Residual**: `erf`, `erfc`, parameterized activations, and f64/vector contracts
+remain separate capability slices; `lgamma` is closed by the dedicated item
+below.
 **Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal CI; hardware lanes
 are reported independently from adapterless provider compilation.
 **Status**: complete for the 19-operation f32 scope. Hephaestus PR #112 merged
 as `e6ba1c14`. Coeus exact-head run `30273987046` passed WGPU `90003264732`,
 CUDA `90003264777`, ROCm `90003265014`, and Metal `90003264805`; required-device
 ROCm `90003265412` was skipped because no registered AMD runner was available.
+
+## ATLAS-COEUS-HEPHAESTUS-ACTIVATION-TAIL-PARITY-001: Mish and ELU
+
+**Location**: the Coeus accelerator activation dispatch tables and the four
+backend contract suites.
+**Gap**: Hephaestus already exports native f32 `Mish`, `MishGrad`, `Elu`, and
+`EluGrad` markers for every accelerator provider. Coeus ROCm and Metal
+originally rejected all four operations, while CUDA and WGPU later computed
+ELU through consumer-owned expressions instead of the Hephaestus markers.
+**Resolution**: dispatch ROCm and Metal through the existing Hephaestus
+strided marker seam; dispatch CUDA and WGPU ELU forward and gradient through
+Hephaestus contiguous and strided markers; delete the superseded consumer
+expressions. Extend the backend suites with Leto CPU differential checks for
+contiguous and transposed-strided forward and gradient operations.
+**Residual**: parameterized activations, f64/reduced/vector contracts, and
+physical-device execution remain separate evidence scopes.
+**Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal provider/consumer
+CI; required-device ROCm is reported independently from adapterless provider
+compilation.
+**Status**: complete for the unparameterized f32 scope. CUDA and WGPU reject
+ELU fallthrough rather than entering local-kernel or CPU paths. Exact-head run
+`30387168252` passed CUDA job `90369248008`, WGPU job `90369248023`, ROCm job
+`90369247910`, and Metal job `90369248013`; required-device ROCm job
+`90369248641` was skipped because no hosted AMD runner was dispatched. The
+external `recurseml/analysis` status returned its recurring analyzer error and
+is not repository-owned verification. ADR 0038 owns the provider contract.
+
+## ATLAS-COEUS-HEPHAESTUS-CUDA-ACTIVATION-PARITY-001: GELU-tanh and Softplus
+
+**Location**: `crates/coeus-cuda/src/backend/ops/math.rs`, the CUDA parity
+suite, and the WGPU/CUDA backend-parity selectors.
+**Gap**: Coeus ROCm and Metal already routed `GeluTanh`, `GeluTanhGrad`,
+`Softplus`, and `SoftplusGrad` through Hephaestus strided markers, while CUDA
+had no shared-provider arms for these operations. Contiguous and runtime-shaped
+strided CUDA tensors could therefore reach the legacy capability boundary.
+**Resolution**: route the four operations through Hephaestus's existing CUDA
+marker kernels for both allocation-returning contiguous dispatch and caller-
+owned dynamic-rank strided dispatch. Add CUDA/Leto forward and gradient
+differential cases and a WGPU GELU-tanh contract selection.
+**Residual**: parameterized activations, f64/reduced/vector contracts, and
+physical-device execution remain separate evidence scopes. No runtime
+performance or resident-memory delta is claimed without a controlled benchmark.
+**Evidence target**: exact-head WGPU, CUDA, ROCm, and Metal provider/consumer
+CI; required-device ROCm is reported independently from adapterless provider
+compilation.
+**Status**: docs head `8a38f392` passed run `30359324025`: CUDA
+`90274888940`, WGPU `90274889041`, ROCm `90274889047`, and Metal `90274888991`.
+Required-device ROCm `90274889835` was skipped because no hosted AMD runner was
+dispatched. The external `recurseml/analysis` status returned its recurring
+analyzer error and is not repository-owned verification.
+
+## ATLAS-COEUS-CUDA-ELEMENTWISE-STORAGE-BOUNDARY-001
+
+**Location**: `crates/coeus-cuda/src/backend/ops/math/elementwise.rs` and its
+`elementwise/validation.rs` leaf.
+**Gap**: the safe elementwise backend accepted layouts whose maximum physical
+offset exceeded the associated CUDA allocation. The contiguous branch also
+accepted nonzero offsets while its raw kernel always indexed from element zero.
+**Resolution**: validate every input and writable output layout against the
+actual allocation at the backend and public raw-launch boundaries; reject
+writable zero-stride layouts and remapped aliases; route offset-bearing
+contiguous views through the offset-aware strided kernel.
+**Evidence target**: allocation-free validation unit tests for each operand,
+offset routing, writable aliasing, and exact-layout in-place operation; package
+check, warning-denied Clippy, Nextest, and exact-head CUDA provider CI. Empty
+layouts remain valid and complete without a device launch.
+**Residual**: CUDA convolution, attention, optimizer, matmul, module-loading,
+and device-acquisition boundaries remain separate accepted audit findings. No
+runtime performance or resident-memory delta is claimed without controlled
+measurements.
+**Status**: implementation complete under
+`ATLAS-COEUS-DISPATCH-SAFETY-020`. CUDA feature test targets compile,
+warning-denied all-target Clippy passes, and disabled-provider Nextest passes
+3/3. Exact implementation-head run `30426667552` passed CUDA `90494509271`,
+Metal `90494509298`, ROCm `90494509264`, and WGPU `90494509247`;
+required-device ROCm `90494509665` was skipped because no AMD runner was
+registered. Local feature-enabled execution is blocked by the GNU CUDA import
+library and shared-cache MSVC host-artifact collision.
+
+## ATLAS-COEUS-CUDA-LINALG-CONV-STORAGE-BOUNDARY-002
+
+**Location**: `crates/coeus-cuda/src/kernels/launch_matmul.rs` and
+`kernels/launch_conv/`.
+**Gap**: raw CUDA matmul and convolution launchers checked layout ABI
+representability but not whether each logical layout fit its physical device
+allocation. Convolution also trusted caller-provided output counts and gradient
+buffer capacities. Its embedded PTX computes physical addresses with signed
+32-bit arithmetic while the generic CUDA descriptor admits unsigned values.
+**Resolution**: reuse the shared CUDA storage-bound validator for matmul and
+centralize rank-specialized convolution forward/backward contracts in
+`launch_conv/validation.rs`; reject undersized source, output, gradient, and
+bias allocations plus incompatible batch/channel/spatial shapes, checked
+stride/padding/dilation extent mismatches, count mismatches, and writable
+zero-stride layouts before pointer acquisition. Convolution composes that
+generic proof with PTX-specific signed-field, convolution-parameter,
+derived-coordinate, and maximum-physical-index bounds; NVRTC kernels retain the
+wider unsigned descriptor contract.
+**Evidence**: Rust 1.95 warning-denied feature-enabled Clippy; focused signed,
+shape, and modular-coordinate Nextest 5/5; disabled-provider Nextest 3/3; and
+exact source-head run `30488454769`, which passed CUDA `90700098613`, Metal
+`90700098624`, ROCm `90700098669`, and WGPU `90700098570`. Required-device
+ROCm `90700098948` skipped because no AMD runner was registered.
+**Residual**: none in this storage-boundary item. ADR-0046 and
+`ATLAS-COEUS-DISPATCH-SAFETY-020` close the former convolution ownership and
+fallibility residual. No runtime performance or resident-memory delta is
+claimed without controlled measurements.
+**Status**: resolved for the raw matmul and historical convolution storage and
+signed-PTX boundaries.
+
+## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001: exact GELU forward and gradient
+
+**Location**: `crates/coeus-cuda/src/backend/ops/math/elementwise.rs`, the CUDA
+unary parity tests, and the backend-parity CUDA selector.
+**Gap**: Hephaestus already exposes exact-erf `GeluOp` and `GeluGradOp`, and
+ROCm/Metal route both operations through the shared strided provider seam, but
+CUDA's generic math dispatch left them to the legacy kernel table. The CUDA
+selector also omitted the existing forward and gradient parity tests.
+**Resolution**: route contiguous and runtime-shaped strided CUDA dispatch
+through the Hephaestus exact-erf markers and select
+`test_cuda_parity_gelu`/`test_cuda_parity_gelu_grad` in backend CI.
+**Residual**: parameterized activations, reduced/vector scalar contracts, and
+physical-device execution remain separate evidence scopes. No runtime
+performance or resident-memory delta is claimed without a controlled
+benchmark.
+**Status**: complete at `f861cea6`. Exact-head run `30379272710` passed CUDA
+`90342897802`, WGPU `90342897872`, ROCm `90342897673`, and Metal
+`90342897752`. Required-device ROCm `90342898718` was skipped because no hosted
+AMD runner was dispatched. Local locked CUDA package checking remains blocked
+before compilation by the peer-owned provider-overlay lockfile. No
+physical-device, runtime-performance, or resident-memory claim is made.
+
+## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001: f32 forward log-gamma
+
+**Location**: the WGPU unary expression, CUDA/ROCm/Metal provider elementwise
+dispatch, and their backend contract suites.
+**Resolution**: route `UnaryOp::Lgamma` through the Hephaestus provider marker
+on all four backends. WGPU and Metal use the shared Lanczos/reflection
+expression; CUDA and ROCm use native device functions. Backend tests compare
+positive, reflected non-integer, and non-positive integer pole inputs with the
+Leto CPU oracle, requiring positive infinity at poles.
+**Evidence**: Hephaestus PR #118 passed WGPU `90086428952`, CUDA `90086430178`,
+ROCm `90086430143`, and Metal `90086428160`. Coeus PR #231 merged at
+`971fab9614b97bd708a716d01684da58fd1331ba`; its consumer jobs passed WGPU
+`90088836682`, CUDA `90088836688`, ROCm `90088836731`, and Metal `90088836675`.
+Required-device ROCm `90088837591` was skipped because no hosted AMD runner was
+dispatched; physical-device execution is not claimed.
+**Residual**: digamma gradients, f64/reduced/vector contracts, and complete
+non-elementwise Leto parity remain outside this item.
+**Status**: complete for the f32 forward provider/consumer boundary.
 
 ## ATLAS-COEUS-SAFETY-001: Hephaestus provider failure boundary
 
@@ -68,6 +427,66 @@ tests for unavailable devices and transfer failures, a production panic scan,
 and provider feature gates on hosts with and without the required hardware.
 **Status**: open; deliberately outside the native comparison-provider item
 because it is a separate public failure-boundary migration.
+
+### Device-local COW increment
+
+`crates/coeus-hephaestus/src/storage.rs` now acquires the provider once,
+allocates the replacement with the source buffer's `MemoryTier`, and invokes
+`ComputeDevice::copy_buffer`. The old full-size host allocation and download /
+upload round trip are removed. A generic storage contract verifies copied
+values, tier preservation, one device copy, and no COW-triggered download.
+The `StorageMut::make_unique` method is still infallible, so allocation and
+copy failures remain the explicit residual of this broader failure-boundary
+migration rather than being reclassified as closed here. Hosted exact-head run
+`30336317894` passed the CUDA provider contracts job `90201872163`, WGPU
+provider contracts job `90201872262`, ROCm provider contracts job `90201872299`,
+and Metal provider contracts job `90201872213`. The required-device ROCm job
+`90201873084` was skipped because no hosted AMD runner was dispatched; no
+physical-device execution claim is made. The external `recurseml/analysis`
+status returned its recurring analyzer error and is not repository-owned
+verification.
+
+### Native COW seam consolidation
+
+The native Coeus WGPU and CUDA storage implementations now call the shared
+Hephaestus `ComputeDevice::copy_buffer` contract instead of duplicating a
+WGPU command encoder or a raw CUDA driver copy. Each provider storage test
+detaches a shared device buffer, downloads both the detached and retained
+buffers, and asserts value preservation. This consolidates the transfer
+primitive without claiming a runtime speedup; matched device benchmarks remain
+outside this increment. Hosted exact-head run `30339683483` passed CUDA
+(`90212208770`), WGPU (`90212208755`), ROCm (`90212208702`), and Metal
+(`90212208797`) provider contracts. Required-device ROCm (`90212209211`) was
+skipped because no hosted AMD runner was dispatched.
+
+## ATLAS-COEUS-DISPATCH-003: CUDA fused dispatch failure boundary
+
+**Location**: coeus-cuda/src/lib.rs, coeus-cuda/src/kernels/{fuse,reduce}.rs,
+and coeus-cuda/src/error.rs.
+**Gap**: CUDA fused elementwise and fused-reduction helpers represented driver,
+context, layout, compilation, cache, transfer, and launch failures as false.
+The public entry points then evaluated the expression through the CPU path,
+which silently changed the selected backend and discarded provider diagnostics.
+**Resolution target**: return typed CudaBackendError values from the native
+helpers and public fused entry points. The CUDA-feature path must either finish
+on CUDA or return an error; the explicitly CPU-backed no-CUDA feature remains a
+separate construction-time backend choice.
+**Invariant**: selecting CudaBackend with the CUDA feature never silently
+executes the Leto CPU evaluator after a native dispatch failure. Fused layout
+metadata remains copied directly into device storage.
+**Evidence target**: no boolean fused-dispatch residual, no CUDA-feature CPU
+fallback residual, updated no-CUDA and CUDA-feature callers, warning-denied
+package checks, focused Nextest, and CUDA differential tests when a device and
+linker are available.
+**Status**: implementation complete for the claimed files. Rustfmt, locked
+metadata, diff hygiene, and residual scans pass. Exact-head run `30379272710`
+passed the CUDA package check, warning-denied Clippy, selected provider
+contracts, and doctests in job `90342897802`; WGPU, ROCm, and Metal provider
+jobs also passed. The local locked package check remains blocked before
+compilation because the Atlas-overlay-generated lockfile requires regeneration;
+the lockfile remains outside this increment. Stale reduction and backend-error
+edits were reconciled to the merged implementation. No CUDA runtime or
+performance claim is made.
 
 ## ATLAS-CUDA-SAFETY-016: Remaining CUDA launch-parameter narrowing
 

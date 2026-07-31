@@ -25,6 +25,251 @@ this increment. Integer requests remain typed unsupported operations; provider
 rank and aliasing contracts are not expanded, and out-of-contract
 activation-tail requests return typed errors without local-kernel or CPU
 fallback.
+## ATLAS-COEUS-CONVOLUTION-020 Provider dispatch `[major][arch]`
+
+- [x] Add zero-copy borrowed regular and transposed forward/backward dispatch
+      through Leto, with value-semantic CPU contracts.
+- [x] Make the complete Coeus convolution seam fallible and consolidate
+      transposed ranks into the canonical operation family.
+- [x] Route CPU implementations directly through Leto.
+- [x] Route WGPU, CUDA, ROCm, and Metal implementations directly through
+      Hephaestus.
+- [x] Delete Coeus-owned convolution kernels, host fallbacks, and autograd
+      host loops.
+- [x] Migrate all operation, autograd, neural-network, test, benchmark, and
+      binding consumers.
+- [x] Pass warning-denied provider gates, focused and full Nextest, doctests,
+      SemVer classification, and exact-head provider CI.
+
+## ATLAS-COEUS-NN-SAFETY-019 Fallible module execution [major][arch]
+
+- [x] Audit the complete `Module::forward` implementation and consumer graph.
+- [x] Record ADR-0045 and split the module contract into trait and error leaves.
+- [x] Return `ModuleError<B::Error>` from all 82 retained module implementations;
+  remove three unary decoder implementations that substituted target input for
+  encoder memory.
+- [x] Propagate all 54 normalization mutations without panic or suppression.
+- [x] Make BatchNorm running-stat updates transactional on failure and reject
+      insufficient training reduction widths before `m - 1`.
+- [x] Migrate Rust, benchmark, and doctest consumers atomically.
+- [x] Complete Python boundary mapping for configuration, backend, and state
+      failures.
+- [x] Replace approximate alpha-dropout with SELU saturation semantics and a
+      channel-shared feature mask.
+- [x] Validate attention, transformer, recurrent, embedding, pooling, and
+      unfold/fold contracts before indexing or unchecked arithmetic.
+- [x] Correct multidimensional Huber reduction and gradient reconstruction;
+      reject invalid shape, empty-reduction, and delta contracts.
+- [x] Preserve LayerNorm trailing-dimension semantics for every rank ≥ 2
+      through the canonical `Module::forward` dispatch.
+- [x] Split touched Python wrappers, unfold/fold operations, and normalization
+      tests into concern-owned leaves below 500 lines.
+- [x] Pass warning-denied Clippy, focused and full Nextest, doctests,
+      benchmark smoke, and SemVer classification; require exact-head provider
+      CI before merge.
+
+## ATLAS-COEUS-WGPU-008 Provider-owned reductions [major][arch]
+
+- [x] Route sum, product, mean, minimum, and maximum through Hephaestus.
+- [x] Delete the duplicate Coeus ordinary-reduction WGSL dispatcher.
+- [x] Verify rank-one and rank-two values against Leto and reject rank three.
+- [x] Select every migrated operation in hosted provider CI.
+- [x] Pass warning-denied Clippy, doctests, and the implementation-head
+      provider matrix.
+- [x] Pass terminal run `30408820242` and merge PR #246 as `7a9811f4`.
+
+## ATLAS-COEUS-CUDA-007 Native dispatch boundary [major][arch]
+
+- [x] Delete CUDA binary, unary, matrix, reduction, and fused CPU execution
+      paths.
+- [x] Route ordinary rank-two CUDA reductions through Hephaestus.
+- [x] Remove mathematical `BackendOps` from disabled-provider builds.
+- [x] Pass no-provider compilation and all three unavailable-provider tests.
+- [x] Complete provider-feature all-target compilation, focused tests, Clippy,
+      doctests, hosted provider CI, and merge evidence.
+
+## ATLAS-AUTOGRAD-SAFETY-018 Fallible backward contract [major][arch]
+
+- [x] Record the typed failure contract and migration in ADR-0042.
+- [x] Return `Result<(), B::Error>` from the graph seam and every operation
+      node.
+- [x] Update every in-repository caller and public doctest.
+- [x] Add failure propagation and existing-gradient regression evidence.
+- [x] Pass warning-denied Clippy, Nextest, doctests, provider CI, and SemVer
+      classification.
+
+Acceptance: no backend mutation result is ignored or converted to a fallback.
+Traversal returns the exact backend error at the first failed node. The
+successful path remains statically dispatched and allocation-neutral.
+Local evidence: warning-denied `coeus-autograd` all-target Clippy passes;
+Nextest passes 102 autograd/FFT and 268 NN tests; 24 executable doctests pass
+(two pre-existing NN doctests remain ignored). SemVer checks against
+`origin/main` identify the two public trait-return changes as requiring a
+major release. Exact-head provider run `30397554467` attempt 2 passes WGPU
+(`90407664433`), ROCm (`90407664470`), CUDA (`90407664479`), and Metal
+(`90407664482`); required-device ROCm (`90407665417`) is intentionally
+skipped. Attempt 1 exposed and triggered the upstream Leto `UnitScalar`
+contract repair merged as Leto PR #77.
+
+## ATLAS-CUDA-SAFETY-017 Pooling physical-index contract [arch][patch]
+
+- [x] Promote physical layout/allocation validation into the shared CUDA
+      validation leaf and remove the fused and unfold/fold duplicates.
+- [x] Validate complete 1-D/2-D/3-D pooling forward and backward signed
+      coordinate extrema before kernel compilation.
+- [x] Reject undersized storage, unrepresentable physical offsets, and
+      writable zero-stride output aliasing across every pooling dispatcher.
+- [x] Add pure boundary regressions, select them in hosted CUDA CI, and record
+      ADR-0041.
+
+Acceptance: pooling cannot launch when its maximum physical address exceeds
+the storage allocation or CUDA layout ABI, or when any signed window
+coordinate can overflow. The validation is allocation-free and executes once
+at dispatch; native kernels and scalar monomorphization remain unchanged.
+Feature-enabled all-target check and warning-denied package Clippy pass. Local
+Nextest reaches the Windows GNU linker and fails before execution because
+`-lcuda` is unavailable. Exact-head run `30391721824` passes CUDA
+(`90384681039`), WGPU (`90384681127`), Metal (`90384681124`), and ROCm
+(`90384681137`); required-device ROCm (`90384681768`) is intentionally
+skipped. The broader Clippy graph also exposes 143 pre-existing ignored
+`Result` errors in `coeus-autograd`; package `--no-deps` Clippy isolates this
+increment. A subsequent live-overlay rerun stops in Leto
+`application/stencil.rs` because `T: UnitScalar` is missing; the earlier
+Git-sourced Coeus check and Clippy results remain the local compiled evidence
+for this diff.
+
+## ATLAS-COEUS-HEPHAESTUS-CUDA-GELU-PARITY-001 [minor]
+
+- [x] Route CUDA `Gelu` and `GeluGrad` through the existing Hephaestus exact-
+      erf marker kernels for contiguous and runtime-shaped strided layouts.
+- [x] Select the existing CUDA/Leto forward and gradient parity tests in the
+      backend-parity workflow.
+- [x] Repair the stale CUDA/WGPU fallible pool wrapper return contracts that
+      block the exact-head provider matrix.
+- [x] Split the mixed CUDA math dispatcher into elementwise, matmul, and
+      reduction leaves without changing the backend method surface.
+- [x] Record exact-head WGPU, CUDA, ROCm, and Metal CI evidence without making
+      an unmeasured runtime or resident-memory claim.
+
+Owner: Codex on `codex/coeus-cuda-common-activation-parity`; claimed scope:
+`crates/coeus-cuda/src/backend/ops/math.rs` and
+`crates/coeus-cuda/src/backend/ops/math/elementwise.rs`,
+`crates/coeus-cuda/tests/cuda/parity/unfold_fold.rs`,
+`.github/workflows/backend-parity.yml`, `docs/backlog.md`, `CHECKLIST.md`, and
+`docs/gap_audit.md`. The stale pool-wrapper repair additionally claims only
+`crates/coeus-cuda/src/backend/ops/pool.rs`,
+`crates/coeus-cuda/src/fallback/ops/{mod,pool}.rs`, and
+`crates/coeus-wgpu/src/backend/ops/{pool,impls/pool}.rs`, plus the migrated
+WGPU pooling contract tests under
+`crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/pooling.rs`. The stale
+reduction and backend-error edits were reconciled to the merged implementation;
+only the Atlas-overlay-generated `Cargo.lock` remains outside this increment.
+
+Implementation head `f861cea6` is complete. The pool repair propagates WGPU
+kernel errors, removes the CUDA 2-D/3-D host fallback module, and returns typed
+CUDA context or launch failures. Exact-head run `30379272710` passed CUDA
+`90342897802`, WGPU `90342897872`, ROCm `90342897673`, and Metal
+`90342897752`. Required-device ROCm `90342898718` was skipped because no hosted
+AMD runner was dispatched. The local locked package check remains blocked
+before compilation because the live peer's provider-overlay lockfile requires
+regeneration. No runtime or resident-memory claim is made.
+
+## ATLAS-COEUS-SAFETY-003 Uninitialized COW replacement [arch][minor][perf]
+
+- [x] Keep ordinary WGPU, CUDA, and generic Hephaestus storage construction
+      zero-initialized.
+- [x] Allocate only COW replacement buffers through
+      `ComputeDevice::alloc_uninitialized_with_hint` before the complete
+      device-local copy.
+- [x] Extend the generic Hephaestus test device and preserve detached and
+      retained value semantics.
+- [x] Run exact-head WGPU, CUDA, ROCm, and Metal Coeus provider/consumer CI
+      after the Hephaestus provider seam merges.
+
+Acceptance: every changed COW path fully overwrites the replacement through
+`ComputeDevice::copy_buffer` before it can be read; ordinary defined-content
+allocation remains zero-initialized; focused value-semantic tests pass. This is
+static allocation-path and structural memory-bandwidth evidence, not a runtime
+speed or resident-memory claim. The local CUDA feature check passes; hosted
+provider CI is required for device execution.
+
+Implementation owner: Codex on `codex/coeus-uninitialized-cow-copy`; ADR 0037.
+
+Provider prerequisite: Hephaestus PR #136 merged at `da785b53`; the consumer
+branch now targets the merged `ComputeDevice::alloc_uninitialized_with_hint`
+contract in hosted CI.
+
+Hosted exact-head Coeus run `30345002409` passed CUDA job `90229046185`, WGPU
+job `90229046271`, ROCm job `90229046258`, and Metal job `90229046242`. The
+required-device ROCm job `90229047328` was skipped because no hosted AMD
+runner was dispatched; no physical-device execution claim is made.
+
+## ATLAS-COEUS-SAFETY-002 Native COW seam consolidation [arch][patch]
+
+- [x] Route native Coeus WGPU and CUDA COW detachment through
+      `ComputeDevice::copy_buffer`.
+- [x] Add WGPU and CUDA value-semantic regressions covering detached and
+      retained device buffers.
+- [x] Synchronize the changelog, gap audit, and ADR 0036.
+
+Acceptance: the native WGPU and CUDA storage paths contain no provider-local
+COW transfer implementation, and their focused backend contract suites verify
+that detachment preserves values in both buffers. Local WGPU compilation,
+warning-denied Clippy, doctests (3/3), and Nextest (104/104) pass. Local CUDA
+feature compilation and warning-denied library Clippy pass; CUDA Nextest and
+doctests are blocked by the Windows MinGW linker error `cannot find -lcuda`.
+Hosted exact-head run `30339683483` passed the CUDA provider contracts job
+`90212208770`, WGPU provider contracts job `90212208755`, ROCm provider
+contracts job `90212208702`, and Metal provider contracts job `90212208797`.
+The required-device ROCm job `90212209211` was skipped because no hosted AMD
+runner was dispatched; no physical-device execution claim is made.
+
+## ATLAS-COEUS-SAFETY-001 Device-local COW increment [patch]
+
+- [x] Replace Hephaestus storage COW host staging with one source-tier device
+      allocation and the shared completed device-local copy seam.
+- [x] Add a generic storage regression proving copied values, retained memory
+      tier, one device copy, and zero COW downloads.
+- [x] Synchronize the changelog, gap audit, and ADR 0036.
+
+Evidence: `cargo check` and the focused `coeus-hephaestus` Nextest storage
+contract pass under the local Atlas overlay. This is a static allocation-path
+and value-semantic result; no runtime speedup claim is made without a matched
+device benchmark. The infallible `StorageMut::make_unique` boundary remains a
+separate typed-error migration item. Hosted exact-head run `30336317894`
+passed the CUDA provider contracts job `90201872163`, WGPU provider contracts
+job `90201872262`, ROCm provider contracts job `90201872299`, and Metal
+provider contracts job `90201872213`. The required-device ROCm job
+`90201873084` was skipped because no hosted AMD runner was dispatched; no
+physical-device execution claim is made. The external `recurseml/analysis`
+status returned its recurring analyzer error and is not repository-owned
+verification.
+
+## ATLAS-COEUS-HEPHAESTUS-CUDA-ACTIVATION-PARITY-001 [minor]
+
+- [x] Route CUDA `GeluTanh`, `GeluTanhGrad`, `Softplus`, and `SoftplusGrad`
+      through the existing Hephaestus marker kernels for contiguous and
+      runtime-shaped strided layouts.
+- [x] Add CUDA/Leto value-semantic forward and gradient parity coverage and
+      select the tests in the CUDA CI contract job.
+- [x] Record exact-head CUDA, WGPU, ROCm, and Metal CI evidence and preserve
+      the existing typed unsupported-operation behavior for operations outside
+      the common marker seam.
+
+Owner: Codex on `codex/coeus-cuda-common-activation-parity`; completed at
+`8a38f392`. Claimed scope:
+`crates/coeus-cuda/src/backend/ops/math.rs`,
+`crates/coeus-cuda/tests/cuda/parity/unfold_fold.rs`,
+`.github/workflows/backend-parity.yml`, `CHECKLIST.md`, and
+`docs/gap_audit.md`. No reduction or backend-error residual remains; the
+Atlas-overlay-generated `Cargo.lock` remains outside this claim.
+
+Evidence: docs-head run `30359324025` passed CUDA job `90274888940`, WGPU job
+`90274889041`, ROCm job `90274889047`, and Metal job `90274888991`.
+Required-device ROCm job `90274889835` was skipped because no hosted AMD
+runner was dispatched. The CUDA selector executed the four new forward and
+gradient tests; WGPU selected the GELU-tanh contract. No runtime speedup or
+resident-memory delta is claimed without a matched benchmark.
 
 ## ATLAS-COEUS-HEPHAESTUS-LGAMMA-PARITY-001 [arch]
 
@@ -42,6 +287,18 @@ provider and consumer CI is required before this item closes. The WGPU and
 Metal paths use the provider-owned Lanczos/reflection expression; CUDA and ROCm
 use their native `lgammaf`/`lgamma` device functions. No digamma gradient or
 non-f32 contract is implied.
+- [x] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
+      Hephaestus expression seam and the Coeus consumer head.
+
+Status: complete for f32 forward dispatch. The WGPU and Metal paths use the
+provider-owned Lanczos/reflection expression; CUDA and ROCm use their native
+`lgammaf`/`lgamma` device functions. Hephaestus PR #118 passed WGPU
+`90086428952`, CUDA `90086430178`, ROCm `90086430143`, and Metal `90086428160`.
+Coeus PR #231 merged at `971fab9614b97bd708a716d01684da58fd1331ba`; its
+consumer jobs passed WGPU `90088836682`, CUDA `90088836688`, ROCm `90088836731`,
+and Metal `90088836675`. Required-device ROCm `90088837591` was skipped because
+no hosted AMD runner was dispatched. No digamma gradient or non-f32 contract is
+implied.
 
 ## ATLAS-COEUS-HEPHAESTUS-GELU-PARITY-001 [arch]
 
@@ -57,6 +314,31 @@ WGPU `90048506717`, and Metal `90048504635` passed; Coeus consumer jobs CUDA
 `90061390565`, ROCm `90061390546`, WGPU `90061390522`, and Metal `90061390499`
 passed. Hardware-device jobs skipped because no registered runner was
 available. ADR 0028 owns the exact GELU contract.
+
+## ATLAS-COEUS-HEPHAESTUS-ACTIVATION-TAIL-PARITY-001 [arch][minor]
+
+- [x] Route `UnaryOp::Mish`, `MishGrad`, `Elu`, and `EluGrad` through the
+      provider-owned Hephaestus ROCm and Metal f32 strided kernels.
+- [x] Replace the consumer-owned CUDA and WGPU ELU expressions with
+      Hephaestus `EluOp` and `EluGradOp` contiguous and strided dispatch.
+- [x] Extend WGPU, CUDA, ROCm, and Metal contracts with Leto CPU differential
+      coverage for forward and gradient activation paths.
+- [x] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for
+      the provider and consumer revisions.
+
+Acceptance: all four backends expose the same unparameterized f32 Mish and ELU
+forward/gradient operations; integer providers retain typed unsupported
+operation errors; backend values match the Leto CPU oracle over signed inputs
+including the zero branch boundary. The existing strided/device-resident
+kernel paths remain in use; no runtime performance or resident-memory delta is
+claimed without a controlled benchmark. ADR 0038 owns the contract.
+
+Status: complete for the unparameterized f32 scope. Exact-head Coeus run
+`30387168252` passed CUDA job `90369248008`, WGPU job `90369248023`, ROCm job
+`90369247910`, and Metal job `90369248013`; required-device ROCm job
+`90369248641` was skipped because no hosted AMD runner was dispatched. The
+external `recurseml/analysis` status returned its recurring analyzer error and
+is not repository-owned verification.
 
 ## ATLAS-COEUS-HEPHAESTUS-ERROR-FUNCTION-PARITY-001 [arch]
 

@@ -7,7 +7,7 @@
 // `forward` adds a non-owning slice view (zero-copy for CPU-addressable
 // storage) to the input embedding tensor.
 
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
@@ -73,14 +73,33 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sinusoida
     /// - `input`: `[batch, seq_len, d_model]`
     ///
     /// Returns `[batch, seq_len, d_model]`.
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let backend = B::default();
-        let seq_len = input.tensor.shape()[1];
-        assert!(
-            seq_len <= self.max_len,
-            "SinusoidalEncoding: seq_len ({seq_len}) > max_len ({})",
-            self.max_len
-        );
+        let shape = input.tensor.shape();
+        if shape.len() != 3 {
+            return Err(ModuleError::InvalidRank {
+                module: "SinusoidalEncoding",
+                expected: "3",
+                actual: shape.len(),
+            });
+        }
+        if shape[2] != self.d_model {
+            return Err(ModuleError::ShapeMismatch {
+                module: "SinusoidalEncoding",
+                parameter: "input last dimension",
+                expected: vec![self.d_model],
+                actual: vec![shape[2]],
+            });
+        }
+        let seq_len = shape[1];
+        if seq_len > self.max_len {
+            return Err(ModuleError::ShapeMismatch {
+                module: "SinusoidalEncoding",
+                parameter: "input sequence length",
+                expected: vec![self.max_len],
+                actual: vec![seq_len],
+            });
+        }
 
         // Extract the top `seq_len` rows of the PE table as a [seq_len, d_model] tensor.
         // For CPU-addressable storage this is a zero-copy slice; for GPU storage it
@@ -90,7 +109,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sinusoida
 
         // Broadcast add: input [B, seq, d] + pe [seq, d] via autograd add.
         // autograd::add handles the broadcast accumulation.
-        coeus_autograd::add(input, &pe_var)
+        Ok(coeus_autograd::add(input, &pe_var))
     }
 }
 

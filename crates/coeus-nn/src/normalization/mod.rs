@@ -12,6 +12,7 @@ pub mod instancenorm;
 pub mod layernorm;
 /// RMS normalization layer.
 pub mod rmsnorm;
+mod validation;
 
 pub use batchnorm1d::BatchNorm1d;
 pub use batchnorm2d::BatchNorm2d;

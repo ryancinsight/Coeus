@@ -35,15 +35,19 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // Gradient of flip is flip (self-inverse).
             let flipped_grad = coeus_ops::flip(grad_out, self.axis, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &flipped_grad, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &flipped_grad, &backend)?;
         }
+        Ok(())
     }
 }
 

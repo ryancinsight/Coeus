@@ -39,7 +39,8 @@ fn wgpu_pool1d_max_matches_sequential() {
         DILATION,
         &mut expected_storage,
         &output_layout,
-    );
+    )
+    .expect("sequential max_pool1d dispatch");
     let expected =
         Tensor::<f32, SequentialBackend>::from_raw_parts(expected_storage, output_layout.clone());
 
@@ -54,7 +55,8 @@ fn wgpu_pool1d_max_matches_sequential() {
         DILATION,
         &mut actual_storage,
         &output_layout,
-    );
+    )
+    .expect("WGPU max_pool1d dispatch");
     let actual = Tensor::<f32, WgpuBackend>::from_raw_parts(actual_storage, output_layout.clone())
         .to_backend_on(&wgpu, &sequential);
     assert_close(actual.as_slice(), expected.as_slice());
@@ -76,7 +78,8 @@ fn wgpu_pool1d_max_matches_sequential() {
         DILATION,
         &mut expected_grad_storage,
         &input_layout,
-    );
+    )
+    .expect("sequential max_pool1d backward dispatch");
     let expected_grad = Tensor::<f32, SequentialBackend>::from_raw_parts(
         expected_grad_storage,
         input_layout.clone(),
@@ -96,7 +99,8 @@ fn wgpu_pool1d_max_matches_sequential() {
         DILATION,
         &mut actual_grad_storage,
         &input_layout,
-    );
+    )
+    .expect("WGPU max_pool1d backward dispatch");
     let actual_grad = Tensor::<f32, WgpuBackend>::from_raw_parts(actual_grad_storage, input_layout)
         .to_backend_on(&wgpu, &sequential);
     assert_close(actual_grad.as_slice(), expected_grad.as_slice());
@@ -121,7 +125,8 @@ fn wgpu_pool1d_avg_matches_sequential() {
         DILATION,
         &mut expected_storage,
         &output_layout,
-    );
+    )
+    .expect("sequential avg_pool1d dispatch");
     let expected =
         Tensor::<f32, SequentialBackend>::from_raw_parts(expected_storage, output_layout.clone());
 
@@ -136,7 +141,8 @@ fn wgpu_pool1d_avg_matches_sequential() {
         DILATION,
         &mut actual_storage,
         &output_layout,
-    );
+    )
+    .expect("WGPU avg_pool1d dispatch");
     let actual = Tensor::<f32, WgpuBackend>::from_raw_parts(actual_storage, output_layout)
         .to_backend_on(&wgpu, &sequential);
     assert_close(actual.as_slice(), expected.as_slice());
@@ -156,7 +162,8 @@ fn wgpu_pool1d_avg_matches_sequential() {
         DILATION,
         &mut expected_grad_storage,
         &input_layout,
-    );
+    )
+    .expect("sequential avg_pool1d backward dispatch");
     let expected_grad = Tensor::<f32, SequentialBackend>::from_raw_parts(
         expected_grad_storage,
         input_layout.clone(),
@@ -174,7 +181,8 @@ fn wgpu_pool1d_avg_matches_sequential() {
         DILATION,
         &mut actual_grad_storage,
         &input_layout,
-    );
+    )
+    .expect("WGPU avg_pool1d backward dispatch");
     let actual_grad = Tensor::<f32, WgpuBackend>::from_raw_parts(actual_grad_storage, input_layout)
         .to_backend_on(&wgpu, &sequential);
     assert_close(actual_grad.as_slice(), expected_grad.as_slice());

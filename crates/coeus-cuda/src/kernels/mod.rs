@@ -1,11 +1,7 @@
 /// Kernel module for scaled-dot-product attention operations.
 pub mod attention;
-/// Kernel module for transposed convolution operations.
-pub mod conv_transpose;
 /// Kernel module for fused element-wise expression compilation and dispatch.
 pub mod fuse;
-/// Kernel module for convolution kernel launch helpers.
-pub mod launch_conv;
 /// Kernel module for tiled matrix multiplication kernel launch.
 pub mod launch_matmul;
 /// Kernel module for element-wise operator kernel launches.
@@ -22,15 +18,10 @@ pub mod reduce;
 pub mod unfold_fold;
 mod validation;
 
-pub(crate) use validation::checked_numel;
+pub(crate) use validation::{checked_numel, layout_fits_cuda_storage};
 
 pub use attention::{launch_sdp_attention, launch_sdp_attention_backward};
-pub use conv_transpose::{launch_conv_transpose1d, launch_conv_transpose2d};
 pub use fuse::dispatch_fused;
-pub use launch_conv::{
-    launch_conv1d, launch_conv1d_backward, launch_conv2d, launch_conv2d_backward, launch_conv3d,
-    launch_conv3d_backward,
-};
 pub use launch_matmul::launch_matmul_tiled;
 pub use launch_ops::{
     launch_contiguous_binary, launch_contiguous_unary, launch_strided_binary, launch_strided_unary,
@@ -47,11 +38,9 @@ pub use pool::{
 pub use reduce::{dispatch_fused_reduce, dispatch_reduce};
 pub use unfold_fold::{dispatch_fold1d, dispatch_fold2d, dispatch_unfold1d, dispatch_unfold2d};
 
-use crate::backend::CudaBackend;
 use crate::driver::{get_cuda_context, CUfunction, CUmodule, CudaDriver};
 use crate::kernels::ptx::PTX_SOURCE;
-use crate::storage::CudaStorage;
-use coeus_core::{ComputeBackend, Layout};
+use coeus_core::Layout;
 use std::sync::OnceLock;
 
 /// Maximum rank representable by the CUDA layout descriptor.
@@ -136,16 +125,6 @@ impl TryFrom<&Layout> for GpuLayoutInfo {
             strides: gpu_strides,
         })
     }
-}
-
-/// Create a device buffer containing the serialized GPU layout descriptor.
-pub(crate) fn create_layout_buffer(layout: &Layout) -> Result<CudaStorage<u32>, CudaLayoutError> {
-    let gpu_layout = GpuLayoutInfo::try_from(layout)?;
-    let words = bytemuck::cast_slice(std::slice::from_ref(&gpu_layout));
-    let size_u32 = words.len();
-    let mut storage = CudaStorage::<u32>::new(size_u32);
-    CudaBackend::new().copy_to_device(words, &mut storage);
-    Ok(storage)
 }
 
 struct CudaModuleWrapper {

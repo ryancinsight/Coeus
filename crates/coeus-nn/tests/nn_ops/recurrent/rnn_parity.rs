@@ -20,7 +20,7 @@
 
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
-use coeus_nn::{GRUCell, LSTMCell, Module, RNNCell, RnnNonlinearity};
+use coeus_nn::{GRUCell, LSTMCell, Module, ModuleError, RNNCell, RnnNonlinearity};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
@@ -42,7 +42,7 @@ where
     // x=zeros, h=zeros → h_new = zeros exactly (proven above).
     let x = zeros_var(&[1, 2], backend);
     let h = zeros_var(&[1, 2], backend);
-    let h_new = cell.step(&x, &h);
+    let h_new = cell.step(&x, &h).expect("valid GRUCell input");
     assert_eq!(h_new.tensor.shape(), &[1, 2], "GRU output shape");
     assert_eq!(
         h_new.tensor.as_slice(),
@@ -51,7 +51,7 @@ where
     );
 
     // Module::forward (h_0 = zeros internally) must equal step with h=zeros.
-    let h_new2 = Module::<f64, B>::forward(&cell, &x);
+    let h_new2 = Module::<f64, B>::forward(&cell, &x).expect("valid GRUCell input");
     assert_eq!(
         h_new2.tensor.as_slice(),
         h_new.tensor.as_slice(),
@@ -71,7 +71,7 @@ where
     let x = zeros_var(&[1, 2], backend);
     let h = zeros_var(&[1, 2], backend);
     let c = zeros_var(&[1, 2], backend);
-    let (h_new, c_new) = cell.step(&x, &h, &c);
+    let (h_new, c_new) = cell.step(&x, &h, &c).expect("valid LSTMCell input");
     assert_eq!(h_new.tensor.shape(), &[1, 2], "LSTM h_new shape");
     assert_eq!(c_new.tensor.shape(), &[1, 2], "LSTM c_new shape");
     assert_eq!(
@@ -86,7 +86,7 @@ where
     );
 
     // Module::forward must equal step with h=zeros, c=zeros.
-    let h_new2 = Module::<f64, B>::forward(&cell, &x);
+    let h_new2 = Module::<f64, B>::forward(&cell, &x).expect("valid LSTMCell input");
     assert_eq!(
         h_new2.tensor.as_slice(),
         h_new.tensor.as_slice(),
@@ -116,7 +116,7 @@ where
     // x=0, h=0 → pre=0 → tanh(0)=0 exactly.
     let x0 = zeros_var(&[1, 2], backend);
     let h0 = zeros_var(&[1, 2], backend);
-    let h_z = cell.step(&x0, &h0);
+    let h_z = cell.step(&x0, &h0).expect("valid RNNCell input");
     assert_eq!(h_z.tensor.shape(), &[1, 2], "RNN h_new shape");
     assert_eq!(
         h_z.tensor.as_slice(),
@@ -126,7 +126,7 @@ where
 
     // x=[1,2], h=0, all-ones W_ih → pre = [1+2, 1+2] = [3,3]; h_new = tanh(3).
     let x = Var::new(Tensor::from_slice_on([1, 2], &[1.0, 2.0], backend), false);
-    let h_new = cell.step(&x, &h0);
+    let h_new = cell.step(&x, &h0).expect("valid RNNCell input");
     let t3 = 3.0_f64.tanh();
     let got = h_new.tensor.as_slice();
     assert!(
@@ -136,7 +136,7 @@ where
 
     // Relu nonlinearity: pre=[3,3] → relu(3)=3 exactly.
     let cell_relu = RNNCell::<f64, B>::new(2, 2, RnnNonlinearity::Relu);
-    let h_relu = cell_relu.step(&x, &h0);
+    let h_relu = cell_relu.step(&x, &h0).expect("valid RNNCell input");
     assert_eq!(
         h_relu.tensor.as_slice(),
         &[3.0_f64, 3.0],
@@ -144,7 +144,7 @@ where
     );
 
     // Module::forward (h_0 = zeros) == step with h=zeros.
-    let h_mod = Module::<f64, B>::forward(&cell, &x);
+    let h_mod = Module::<f64, B>::forward(&cell, &x).expect("valid RNNCell input");
     assert_eq!(
         h_mod.tensor.as_slice(),
         h_new.tensor.as_slice(),
@@ -160,4 +160,125 @@ fn sequential_rnn_match_reference() {
 #[test]
 fn moirai_rnn_match_reference() {
     check_all(&MoiraiBackend);
+}
+
+fn expect_invalid_rank(
+    result: Result<Var<f64, SequentialBackend>, ModuleError<coeus_core::BackendError>>,
+    module: &'static str,
+    actual: usize,
+) {
+    match result {
+        Err(ModuleError::InvalidRank {
+            module: actual_module,
+            expected: "2",
+            actual: actual_rank,
+        }) => {
+            assert_eq!(actual_module, module);
+            assert_eq!(actual_rank, actual);
+        }
+        Err(other) => panic!("expected {module} InvalidRank, got {other:?}"),
+        Ok(_) => panic!("expected {module} to reject rank {actual}"),
+    }
+}
+
+fn expect_shape_mismatch(
+    result: Result<Var<f64, SequentialBackend>, ModuleError<coeus_core::BackendError>>,
+    module: &'static str,
+    parameter: &'static str,
+    expected: &[usize],
+    actual: &[usize],
+) {
+    match result {
+        Err(ModuleError::ShapeMismatch {
+            module: actual_module,
+            parameter: actual_parameter,
+            expected: actual_expected,
+            actual: actual_shape,
+        }) => {
+            assert_eq!(actual_module, module);
+            assert_eq!(actual_parameter, parameter);
+            assert_eq!(actual_expected, expected);
+            assert_eq!(actual_shape, actual);
+        }
+        Err(other) => panic!("expected {module} ShapeMismatch, got {other:?}"),
+        Ok(_) => panic!("expected {module} to reject shape {actual:?}"),
+    }
+}
+
+#[test]
+fn recurrent_cells_reject_invalid_input_contracts() {
+    let backend = SequentialBackend;
+    let rank_one = zeros_var(&[2], &backend);
+    let wrong_features = zeros_var(&[1, 3], &backend);
+
+    let rnn = RNNCell::<f64, SequentialBackend>::new(2, 2, RnnNonlinearity::Tanh);
+    expect_invalid_rank(rnn.forward(&rank_one), "RNNCell", 1);
+    expect_shape_mismatch(
+        rnn.forward(&wrong_features),
+        "RNNCell",
+        "input",
+        &[1, 2],
+        &[1, 3],
+    );
+
+    let gru = GRUCell::<f64, SequentialBackend>::new(2, 2);
+    expect_invalid_rank(gru.forward(&rank_one), "GRUCell", 1);
+    expect_shape_mismatch(
+        gru.forward(&wrong_features),
+        "GRUCell",
+        "input",
+        &[1, 2],
+        &[1, 3],
+    );
+
+    let lstm = LSTMCell::<f64, SequentialBackend>::new(2, 2);
+    expect_invalid_rank(lstm.forward(&rank_one), "LSTMCell", 1);
+    expect_shape_mismatch(
+        lstm.forward(&wrong_features),
+        "LSTMCell",
+        "input",
+        &[1, 2],
+        &[1, 3],
+    );
+}
+
+#[test]
+fn recurrent_steps_reject_incompatible_state_shapes() {
+    let backend = SequentialBackend;
+    let input = zeros_var(&[1, 2], &backend);
+    let wrong_state = zeros_var(&[2, 2], &backend);
+    let valid_state = zeros_var(&[1, 2], &backend);
+
+    let rnn = RNNCell::<f64, SequentialBackend>::new(2, 2, RnnNonlinearity::Tanh);
+    expect_shape_mismatch(
+        rnn.step(&input, &wrong_state),
+        "RNNCell",
+        "hidden state",
+        &[1, 2],
+        &[2, 2],
+    );
+
+    let gru = GRUCell::<f64, SequentialBackend>::new(2, 2);
+    expect_shape_mismatch(
+        gru.step(&input, &wrong_state),
+        "GRUCell",
+        "hidden state",
+        &[1, 2],
+        &[2, 2],
+    );
+
+    let lstm = LSTMCell::<f64, SequentialBackend>::new(2, 2);
+    match lstm.step(&input, &valid_state, &wrong_state) {
+        Err(ModuleError::ShapeMismatch {
+            module: "LSTMCell",
+            parameter: "cell state",
+            expected,
+            actual,
+        }) => {
+            assert_eq!(expected, vec![1, 2]);
+            assert_eq!(actual, vec![2, 2]);
+        }
+        Err(other) => panic!("expected LSTMCell cell-state ShapeMismatch, got {other:?}"),
+        Ok(_) => panic!("expected LSTMCell to reject incompatible cell state"),
+    }
 }

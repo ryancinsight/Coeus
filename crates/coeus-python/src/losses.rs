@@ -1,4 +1,4 @@
-use crate::tensor::PyTensor;
+use crate::{nn::error::map_backend_error, tensor::PyTensor};
 use pyo3::prelude::*;
 
 /// Mean Squared Error loss.
@@ -39,9 +39,14 @@ pub fn nll_loss(log_probs: &PyTensor, targets: Vec<usize>, py: Python<'_>) -> Py
 /// Huber Loss.
 #[pyfunction]
 #[pyo3(signature = (pred, target, delta = 1.0))]
-pub fn huber_loss(pred: &PyTensor, target: &PyTensor, delta: f64, py: Python<'_>) -> PyTensor {
+pub fn huber_loss(
+    pred: &PyTensor,
+    target: &PyTensor,
+    delta: f64,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_nn::loss::huber_loss(&pred.inner, &target.inner, delta));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// KL divergence loss.

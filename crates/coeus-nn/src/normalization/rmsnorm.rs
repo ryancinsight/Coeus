@@ -3,7 +3,8 @@
 //! [`RMSNorm`] rescales activations by their root-mean-square value over the
 //! last dimension without subtracting the mean.
 
-use crate::module::Module;
+use super::validation;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
@@ -12,11 +13,17 @@ use coeus_tensor::Tensor;
 ///
 /// Applies RMSNorm over the last dimension of a rank-2 input `[N, D]`.
 /// `weight` defaults to ones of shape `[D]`.
+///
+/// # Errors
+///
+/// Returns a typed module or backend failure when the input is not rank two,
+/// the weight shape differs from the trailing dimension, epsilon is invalid,
+/// or a backend operation fails.
 pub fn rms_norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: Option<&Var<T, B>>,
     eps: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, ModuleError<B::Error>> {
     let d = input.tensor.shape().last().copied().unwrap_or(1);
     let backend = B::default();
     let w = weight
@@ -61,26 +68,37 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RMSNorm<T
         vec![self.weight.clone()]
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        const MODULE: &str = "RMSNorm";
         let shape = input.tensor.shape_cloned();
-        assert_eq!(
-            shape.len(),
-            2,
-            "RMSNorm expects 2D input [batch_size, normalized_shape]"
-        );
+        if shape.len() != 2 {
+            return Err(validation::invalid_rank(MODULE, "2", shape.len()));
+        }
         let _n = shape[0];
         let d = shape[1];
+        if self.weight.tensor.shape() != [d] {
+            return Err(validation::shape_mismatch(
+                MODULE,
+                "weight",
+                &[d],
+                self.weight.tensor.shape(),
+            ));
+        }
+        if !self.eps.is_finite() || self.eps < 0.0 {
+            return Err(ModuleError::InvalidEpsilon { module: MODULE });
+        }
         let backend = B::default();
 
         // ── Mean square ──
         let x_sq = coeus_ops::mul(&input.tensor, &input.tensor, &backend);
         let mut rms = coeus_ops::mean_axis(&x_sq, 1, &backend)
-            .expect("invariant: rmsnorm feature axis is valid"); // [N, 1]
+            .map_err(|source| validation::backend(MODULE, source))?; // [N, 1]
 
         // ── RMS ──
         coeus_ops::add_assign(&mut rms, &self.eps_t, &backend)
-            .expect("normalization backend operation");
-        coeus_ops::sqrt_assign(&mut rms, &backend).expect("normalization backend operation");
+            .map_err(|source| validation::backend(MODULE, source))?;
+        coeus_ops::sqrt_assign(&mut rms, &backend)
+            .map_err(|source| validation::backend(MODULE, source))?;
 
         // ── Normalize ──
         let x_hat = coeus_ops::div(&input.tensor, &rms, &backend); // [N, D]
@@ -89,6 +107,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RMSNorm<T
         let w_reshaped = self.weight.tensor.reshape([1, d]);
         let out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
 
-        coeus_autograd::rmsnorm(input, &self.weight, out_tensor, x_hat, rms)
+        Ok(coeus_autograd::rmsnorm(
+            input,
+            &self.weight,
+            out_tensor,
+            x_hat,
+            rms,
+        ))
     }
 }

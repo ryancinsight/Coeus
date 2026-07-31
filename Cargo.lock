@@ -500,6 +500,8 @@ dependencies = [
  "bytemuck",
  "coeus-autograd",
  "coeus-core",
+ "coeus-hephaestus",
+ "coeus-leto",
  "coeus-ops",
  "coeus-tensor",
  "criterion",
@@ -507,6 +509,7 @@ dependencies = [
  "cuda-core",
  "cutile",
  "eunomia",
+ "hephaestus-core",
  "hephaestus-cuda",
  "leto",
  "leto-ops",
@@ -524,7 +527,7 @@ dependencies = [
  "coeus-ops",
  "coeus-tensor",
  "moirai",
- "moirai-async",
+ "moirai-async 0.4.0 (git+https://github.com/ryancinsight/Moirai.git)",
  "smallvec",
 ]
 
@@ -690,6 +693,8 @@ dependencies = [
  "bytemuck",
  "coeus-autograd",
  "coeus-core",
+ "coeus-hephaestus",
+ "coeus-leto",
  "coeus-nn",
  "coeus-ops",
  "coeus-tensor",
@@ -1279,6 +1284,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-metal"
 version = "0.18.0"
+source = "git+https://github.com/ryancinsight/hephaestus.git#8bc589a47cec53216cf69bcad7732a1dde62b826"
 dependencies = [
  "aequitas",
  "bytemuck",
@@ -1297,6 +1303,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-rocm"
 version = "0.18.0"
+source = "git+https://github.com/ryancinsight/hephaestus.git#8bc589a47cec53216cf69bcad7732a1dde62b826"
 dependencies = [
  "aequitas",
  "bytemuck",
@@ -1711,15 +1718,15 @@ version = "0.4.0"
 dependencies = [
  "melinoe",
  "mnemosyne",
- "moirai-async",
+ "moirai-async 0.4.0",
  "moirai-core",
  "moirai-executor",
  "moirai-iter",
  "moirai-parallel",
- "moirai-scheduler",
+ "moirai-scheduler 0.4.0",
  "moirai-sync",
- "moirai-transport",
- "moirai-utils",
+ "moirai-transport 0.4.0",
+ "moirai-utils 0.4.0",
 ]
 
 [[package]]
@@ -1728,12 +1735,28 @@ version = "0.4.0"
 dependencies = [
  "futures",
  "libc",
- "moirai-async-macros",
+ "moirai-async-macros 0.4.0",
  "moirai-core",
  "moirai-executor",
- "moirai-pal",
- "moirai-transport",
- "moirai-utils",
+ "moirai-pal 0.4.0",
+ "moirai-transport 0.4.0",
+ "moirai-utils 0.4.0",
+ "socket2",
+]
+
+[[package]]
+name = "moirai-async"
+version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#8f8b88ad229834a980fdd251a20d8d27c3dc8925"
+dependencies = [
+ "futures",
+ "libc",
+ "moirai-async-macros 0.4.0 (git+https://github.com/ryancinsight/Moirai.git)",
+ "moirai-core",
+ "moirai-executor",
+ "moirai-pal 0.4.0 (git+https://github.com/ryancinsight/Moirai.git)",
+ "moirai-transport 0.4.0 (git+https://github.com/ryancinsight/Moirai.git)",
+ "moirai-utils 0.4.0 (git+https://github.com/ryancinsight/Moirai.git)",
  "socket2",
 ]
 
@@ -1747,13 +1770,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "moirai-async-macros"
+version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#8f8b88ad229834a980fdd251a20d8d27c3dc8925"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "moirai-core"
 version = "0.4.0"
 dependencies = [
  "bytemuck",
  "libc",
  "mnemosyne",
- "moirai-utils",
+ "moirai-utils 0.4.0",
 ]
 
 [[package]]
@@ -1763,9 +1796,9 @@ dependencies = [
  "melinoe",
  "mnemosyne",
  "moirai-core",
- "moirai-pal",
- "moirai-scheduler",
- "moirai-utils",
+ "moirai-pal 0.4.0",
+ "moirai-scheduler 0.4.0",
+ "moirai-utils 0.4.0",
 ]
 
 [[package]]
@@ -1774,7 +1807,7 @@ version = "0.4.0"
 dependencies = [
  "mnemosyne-core",
  "moirai-core",
- "moirai-utils",
+ "moirai-utils 0.4.0",
  "themis",
 ]
 
@@ -1786,8 +1819,8 @@ dependencies = [
  "libc",
  "moirai-core",
  "moirai-executor",
- "moirai-scheduler",
- "moirai-utils",
+ "moirai-scheduler 0.4.0",
+ "moirai-utils 0.4.0",
  "num_cpus",
  "themis",
  "thiserror 1.0.69",
@@ -1796,6 +1829,21 @@ dependencies = [
 [[package]]
 name = "moirai-pal"
 version = "0.4.0"
+dependencies = [
+ "js-sys",
+ "libc",
+ "melinoe",
+ "moirai-core",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "windows 0.58.0",
+]
+
+[[package]]
+name = "moirai-pal"
+version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#8f8b88ad229834a980fdd251a20d8d27c3dc8925"
 dependencies = [
  "js-sys",
  "libc",
@@ -1822,7 +1870,19 @@ version = "0.4.0"
 dependencies = [
  "mnemosyne",
  "moirai-core",
- "moirai-utils",
+ "moirai-utils 0.4.0",
+ "num_cpus",
+ "themis",
+]
+
+[[package]]
+name = "moirai-scheduler"
+version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#8f8b88ad229834a980fdd251a20d8d27c3dc8925"
+dependencies = [
+ "mnemosyne",
+ "moirai-core",
+ "moirai-utils 0.4.0 (git+https://github.com/ryancinsight/Moirai.git)",
  "num_cpus",
  "themis",
 ]
@@ -1833,7 +1893,7 @@ version = "0.4.0"
 dependencies = [
  "libc",
  "moirai-core",
- "moirai-utils",
+ "moirai-utils 0.4.0",
 ]
 
 [[package]]
@@ -1842,13 +1902,29 @@ version = "0.4.0"
 dependencies = [
  "bytemuck",
  "moirai-core",
- "moirai-scheduler",
- "moirai-utils",
+ "moirai-scheduler 0.4.0",
+ "moirai-utils 0.4.0",
+]
+
+[[package]]
+name = "moirai-transport"
+version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#8f8b88ad229834a980fdd251a20d8d27c3dc8925"
+dependencies = [
+ "bytemuck",
+ "moirai-core",
+ "moirai-scheduler 0.4.0 (git+https://github.com/ryancinsight/Moirai.git)",
+ "moirai-utils 0.4.0 (git+https://github.com/ryancinsight/Moirai.git)",
 ]
 
 [[package]]
 name = "moirai-utils"
 version = "0.4.0"
+
+[[package]]
+name = "moirai-utils"
+version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#8f8b88ad229834a980fdd251a20d8d27c3dc8925"
 
 [[package]]
 name = "munge"
@@ -3637,6 +3713,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
 
 [[patch.unused]]
+name = "horae"
+version = "0.1.0"
+
+[[patch.unused]]
 name = "consus-compression"
 version = "0.1.0"
 
@@ -3665,6 +3745,46 @@ name = "consus-zarr"
 version = "0.1.0"
 
 [[patch.unused]]
+name = "tyche-core"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "apollo-nufft"
+version = "0.7.0"
+
+[[patch.unused]]
+name = "gaia"
+version = "0.3.0"
+
+[[patch.unused]]
+name = "athena-core"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "athena-leto"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "asclepius"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "asclepius-coeus"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "iris"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "proteus"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "moirai-http"
+version = "0.4.0"
+
+[[patch.unused]]
 name = "ritk-core"
 version = "0.9.0"
 
@@ -3681,41 +3801,9 @@ name = "ritk-registration"
 version = "0.53.0"
 
 [[patch.unused]]
-name = "asclepius"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "asclepius-coeus"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "gaia"
-version = "0.3.0"
-
-[[patch.unused]]
-name = "athena-core"
+name = "ritk-vtk"
 version = "0.1.0"
 
 [[patch.unused]]
 name = "hyperion"
 version = "0.1.0"
-
-[[patch.unused]]
-name = "apollo-nufft"
-version = "0.7.0"
-
-[[patch.unused]]
-name = "proteus"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "horae"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "tyche-core"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "moirai-http"
-version = "0.4.0"

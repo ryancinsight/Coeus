@@ -20,6 +20,77 @@
       execution.
 - [x] Complete the focused CPU/WGPU/ROCm/Metal activation-tail lane: 10/10
       tests pass.
+## ATLAS-COEUS-NN-SAFETY-019 — Fallible module execution
+
+- [x] Enumerate all module implementations and direct consumers.
+- [x] Add ADR-0045 and the module error/trait vertical hierarchy.
+- [ ] Change the canonical trait and all implementations in one cutover.
+- [ ] Propagate normalization backend failures and preserve BatchNorm state.
+- [ ] Migrate Rust, Python, benchmark, and doctest call sites.
+- [ ] Pass warning-denied and value-semantic gates, SemVer checks, hosted CI,
+      and merge.
+
+## ATLAS-COEUS-WGPU-008 — Provider-owned reductions
+
+- [x] Route all five ordinary WGPU reductions directly through Hephaestus.
+- [x] Delete the superseded Coeus dispatcher, shader, validation, and tests.
+- [x] Add rank-one/rank-two Leto parity and exact rank-three rejection tests.
+- [x] Select the complete reduction contract in provider CI.
+- [x] Pass warning-denied Clippy, doctests, and implementation-head provider
+      CI.
+- [x] Pass terminal provider run `30408820242` and merge PR #246 as
+      `7a9811f4`.
+
+## ATLAS-COEUS-CUDA-007 — Native dispatch boundary
+
+- [x] Remove CUDA binary, unary, matrix, reduction, and fused CPU execution
+      paths.
+- [x] Make disabled-provider builds expose no mathematical `BackendOps`
+      implementation.
+- [x] Verify the no-default build and its three focused Nextest contracts.
+- [x] Verify CUDA-feature all-target builds, focused provider Nextest,
+      doctests, warning-denied Clippy, and exact-head provider CI.
+- [x] Record terminal evidence and merge the change as PR #245 at
+      `77834e37`.
+
+## ATLAS-COEUS-DISPATCH-SAFETY-020 — Provider-owned convolution
+
+- [x] Add regular/transposed rank-generic forward and backward contracts to
+      Leto and Hephaestus.
+- [x] Consolidate Coeus dispatch into four fallible const-generic `ConvOps`
+      methods with rank-specific zero-cost adapters.
+- [x] Route CPU storage directly to Leto and CUDA/WGPU/ROCm/Metal buffers
+      directly to their Hephaestus providers.
+- [x] Delete Coeus CUDA/WGPU convolution kernels, CUDA host fallbacks, generic
+      transposed host defaults, `ConvTranspose3dOps`, and autograd host
+      backward loops.
+- [x] Propagate typed failures through autograd, NN, Python, benchmarks, and
+      direct tests.
+- [x] Pass warning-denied all-target Clippy for the consolidated Leto,
+      Hephaestus, WGPU, CUDA, and operation-contract scope.
+- [x] Pass CPU/autograd/NN Nextest 592/592 and final-review
+      Leto/Hephaestus/autograd/WGPU Nextest 214/214.
+- [x] Pass all 46 executable affected-package doctests; retain the two
+      pre-existing ignored NN doctests.
+- [x] Confirm the fallible `ConvOps` contract and removed capability seam as a
+      major change with `cargo-semver-checks`.
+- [x] Pass exact-head provider CI and record terminal evidence: run
+      `30545333101` passed WGPU, CUDA, ROCm, and Metal; the required-device
+      ROCm lane was skipped because no AMD hardware runner was dispatched.
+- [x] Merge PR #250 and record merge revision `0dfab53e`.
+
+## ATLAS-COEUS-DISPATCH-001 — Remove host-copy selection fallbacks
+
+- [x] Record the CPU/provider capability boundary in ADR-0026.
+- [x] Constrain `ReductionOps` selection defaults to `CpuBackend`.
+- [x] Migrate Coeus and autograd selection entry points to the bound.
+- [x] Run pinned formatting, metadata, focused checks, and the applicable
+      provider dispatch checks. Local package compile/Nextest/doctest execution
+      remains blocked by the stale peer-owned Leto path.
+- [x] Commit and publish the verified increment; exact-head provider matrix
+      `30278852605` passed WGPU `90019911397`, CUDA `90019911331`, ROCm
+      `90019911264`, and Metal `90019911476`; required-device ROCm
+      `90019912082` was skipped because no hosted AMD runner was dispatched.
 
 ## ATLAS-COEUS-HEPHAESTUS-005 — Native unary math providers
 

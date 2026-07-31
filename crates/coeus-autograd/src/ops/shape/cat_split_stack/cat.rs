@@ -37,7 +37,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let ndim = self.out_shape.len();
         let dim = self.dim;
@@ -65,19 +69,18 @@ where
 
             let g_storage_imm: &B::DeviceBuffer<T> =
                 unsafe { &*(g_storage as *const B::DeviceBuffer<T>) };
-            backend
-                .elementwise_binary(
-                    coeus_ops::BinaryOp::Add,
-                    g_storage_imm,
-                    g_layout,
-                    grad_out.storage(),
-                    &sliced_out_layout,
-                    g_storage,
-                    g_layout,
-                )
-                .expect("autograd gradient accumulation");
+            backend.elementwise_binary(
+                coeus_ops::BinaryOp::Add,
+                g_storage_imm,
+                g_layout,
+                grad_out.storage(),
+                &sliced_out_layout,
+                g_storage,
+                g_layout,
+            )?;
             offset += sz;
         }
+        Ok(())
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::tensor::PyTensor;
+use crate::{nn::error::map_module_error, tensor::PyTensor};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -47,6 +47,6 @@ impl PySinusoidalEncoding {
             let pe = SinusoidalEncoding::<f64, coeus_core::MoiraiBackend>::new(max_len, d_model);
             pe.forward(&x)
         });
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 }

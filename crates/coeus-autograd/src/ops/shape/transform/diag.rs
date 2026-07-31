@@ -36,14 +36,19 @@ where
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // backward of diag(v, k) is diagonal(grad_out, k).
             let gi = coeus_ops::diagonal(grad_out, self.k, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &gi, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &gi, &backend)?;
         }
+        Ok(())
     }
 }
 
@@ -112,7 +117,11 @@ where
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // backward of diagonal(M, k) is a matrix with grad_out on diagonal k.
@@ -136,8 +145,9 @@ where
                 Tensor::from_slice(vec![rows, cols], &data)
             };
             let gl = g.write();
-            coeus_ops::add_assign(gl, &gi, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &gi, &backend)?;
         }
+        Ok(())
     }
 }
 

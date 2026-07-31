@@ -37,7 +37,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // col2im: fold the windowed gradient back onto the input positions.
@@ -50,9 +54,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
                 self.dilation,
                 &backend,
             );
-            coeus_ops::add_assign(g.write(), &d_input, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::add_assign(g.write(), &d_input, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -136,7 +141,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let d_input = coeus_ops::fold2d(
@@ -153,9 +162,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
                 self.dilation_w,
                 &backend,
             );
-            coeus_ops::add_assign(g.write(), &d_input, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::add_assign(g.write(), &d_input, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -241,7 +251,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Fo
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // Adjoint of col2im is im2col over the output-shaped gradient.
@@ -253,9 +267,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Fo
                 self.dilation,
                 &backend,
             );
-            coeus_ops::add_assign(g.write(), &d_input, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::add_assign(g.write(), &d_input, &backend)?;
         }
+
+        Ok(())
     }
 }
 
@@ -331,7 +346,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Fo
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let d_input = coeus_ops::unfold2d(
@@ -346,9 +365,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Fo
                 self.dilation_w,
                 &backend,
             );
-            coeus_ops::add_assign(g.write(), &d_input, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::add_assign(g.write(), &d_input, &backend)?;
         }
+
+        Ok(())
     }
 }
 

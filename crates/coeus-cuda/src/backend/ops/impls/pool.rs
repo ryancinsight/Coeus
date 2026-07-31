@@ -15,7 +15,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_max_pool2d(
             input,
             input_layout,
@@ -25,7 +25,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             dilation,
             output,
             output_layout,
-        );
+        )
     }
 
     #[inline]
@@ -41,7 +41,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_max_pool2d_backward(
             grad_out,
             grad_out_layout,
@@ -53,7 +53,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )
     }
 
     #[inline]
@@ -67,7 +67,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_avg_pool2d(
             input,
             input_layout,
@@ -77,7 +77,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             dilation,
             output,
             output_layout,
-        );
+        )
     }
 
     #[inline]
@@ -91,7 +91,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_avg_pool2d_backward(
             grad_out,
             grad_out_layout,
@@ -101,7 +101,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )
     }
 
     fn max_pool3d(
@@ -114,7 +114,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_max_pool3d(
             input,
             input_layout,
@@ -124,7 +124,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             dilation,
             output,
             output_layout,
-        );
+        )
     }
 
     fn max_pool3d_backward(
@@ -139,7 +139,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_max_pool3d_backward(
             grad_out,
             grad_out_layout,
@@ -151,7 +151,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )
     }
 
     fn avg_pool3d(
@@ -164,7 +164,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_avg_pool3d(
             input,
             input_layout,
@@ -174,7 +174,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             dilation,
             output,
             output_layout,
-        );
+        )
     }
 
     fn avg_pool3d_backward(
@@ -187,7 +187,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_avg_pool3d_backward(
             grad_out,
             grad_out_layout,
@@ -197,7 +197,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )
     }
 
     fn max_pool1d(
@@ -210,7 +210,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_max_pool1d(
             input,
             input_layout,
@@ -220,7 +220,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             dilation,
             output,
             output_layout,
-        );
+        )
     }
 
     fn max_pool1d_backward(
@@ -235,7 +235,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_max_pool1d_backward(
             grad_out,
             grad_out_layout,
@@ -247,7 +247,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )
     }
 
     fn avg_pool1d(
@@ -260,7 +260,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_avg_pool1d(
             input,
             input_layout,
@@ -270,7 +270,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             dilation,
             output,
             output_layout,
-        );
+        )
     }
 
     fn avg_pool1d_backward(
@@ -283,7 +283,7 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
         dilation: usize,
         grad_input: &mut Self::DeviceBuffer<T>,
         grad_input_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         self.cuda_avg_pool1d_backward(
             grad_out,
             grad_out_layout,
@@ -293,6 +293,6 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>> coe
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )
     }
 }

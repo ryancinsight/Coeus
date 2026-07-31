@@ -64,10 +64,22 @@ pub(crate) fn bench_lstm_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — LSTM forward (4x32 seq, in=64 hidden=128)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(lstm_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                lstm_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid LSTM benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(lstm_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                lstm_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid LSTM benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -100,10 +112,22 @@ pub(crate) fn bench_gru_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — GRU forward (4x32 seq, in=64 hidden=128)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(gru_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                gru_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid GRU benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(gru_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                gru_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid GRU benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -131,10 +155,22 @@ pub(crate) fn bench_rnn_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — vanilla RNN forward (4x32 seq, in=64 hidden=128)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(rnn_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                rnn_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid recurrent layer benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(rnn_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                rnn_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid recurrent layer benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -210,10 +246,22 @@ pub(crate) fn bench_bidirectional_rnn_forward(c: &mut Criterion) {
     let mut group =
         c.benchmark_group("Coeus — bidirectional RNN forward (4x32 seq, in=64 hidden=128)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(bi_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                bi_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid bidirectional recurrent layer benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(bi_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                bi_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid bidirectional recurrent layer benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -244,10 +292,22 @@ pub(crate) fn bench_swiglu_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — SwiGLU forward (32 batch, in=256 out=512)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(sg_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                sg_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid SwiGLU benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(sg_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                sg_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid SwiGLU benchmark input"),
+            )
+        })
     });
     group.finish();
 }

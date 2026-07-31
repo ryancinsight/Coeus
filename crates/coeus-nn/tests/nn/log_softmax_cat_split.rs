@@ -23,7 +23,8 @@ fn test_log_softmax_backward() {
     let log_probs = coeus_autograd::log_softmax(&input, 1);
     let target: Var<f64> = Var::new(Tensor::from_slice(vec![1, 3], &[0.0f64, 1.0, 0.0]), false);
     let loss = coeus_nn::loss::mse_loss(&log_probs, &target);
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     let g = input.grad().unwrap();
     assert_eq!(g.shape(), &[1, 3]);
@@ -45,7 +46,8 @@ fn test_cat_backward_gradient_split() {
     let a = Var::<f64>::new(Tensor::from_slice(vec![2, 3], &a_data), true);
     let b = Var::<f64>::new(Tensor::from_slice(vec![2, 4], &b_data), true);
     let out = coeus_autograd::cat(&[&a, &b], 1);
-    out.backward();
+    out.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(a.grad().is_some());
     assert!(b.grad().is_some());
     let ga = a.grad().unwrap();
@@ -61,7 +63,8 @@ fn test_cat_along_dim0() {
     let c = Var::<f64>::new(Tensor::zeros(vec![1, 5]), true);
     let out = coeus_autograd::cat(&[&a, &b, &c], 0);
     assert_eq!(out.tensor.shape(), &[6, 5]);
-    out.backward();
+    out.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(a.grad().unwrap().shape(), &[2, 5]);
     assert_eq!(b.grad().unwrap().shape(), &[3, 5]);
     assert_eq!(c.grad().unwrap().shape(), &[1, 5]);
@@ -96,7 +99,8 @@ fn test_split_backward_accumulation() {
     let chunks = coeus_autograd::split(&input, 2, 1);
     let target = Var::<f64>::new(Tensor::from_slice(vec![1, 2], &[0.0f64, 0.0]), false);
     let loss = coeus_nn::loss::mse_loss(&chunks[0], &target);
-    loss.backward();
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let g = input.grad().unwrap();
     assert_eq!(g.shape(), &[1, 4]);
     assert_eq!(g.as_slice()[2], 0.0);

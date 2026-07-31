@@ -1,4 +1,7 @@
-use crate::tensor::{PyStateDict, PyTensor};
+use crate::{
+    nn::error::map_module_error,
+    tensor::{PyStateDict, PyTensor},
+};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -120,7 +123,7 @@ impl PyEmbedding {
             };
             emb.forward(&input_var)
         });
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -227,7 +230,7 @@ impl PyEmbeddingBag {
             };
             emb.forward_with_offsets(&indices, offsets.as_deref())
         });
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {

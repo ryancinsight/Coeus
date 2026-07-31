@@ -66,19 +66,23 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Har
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let deriv = coeus_ops::elementwise_unary(
                 &self.input_tensor,
                 &backend,
                 coeus_ops::UnaryOp::HardtanhGrad(self.bits),
-            )
-            .expect("elementwise_unary");
+            )?;
             let local = coeus_ops::mul(grad_out, &deriv, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &local, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &local, &backend)?;
         }
+        Ok(())
     }
 }
 
@@ -218,19 +222,23 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Har
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let deriv = coeus_ops::elementwise_unary(
                 &self.input_tensor,
                 &backend,
                 coeus_ops::UnaryOp::HardshrinkGrad(self.bits),
-            )
-            .expect("elementwise_unary");
+            )?;
             let local = coeus_ops::mul(grad_out, &deriv, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &local, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &local, &backend)?;
         }
+        Ok(())
     }
 }
 
@@ -300,19 +308,23 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sof
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let deriv = coeus_ops::elementwise_unary(
                 &self.input_tensor,
                 &backend,
                 coeus_ops::UnaryOp::SoftshrinkGrad(self.bits),
-            )
-            .expect("elementwise_unary");
+            )?;
             let local = coeus_ops::mul(grad_out, &deriv, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &local, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &local, &backend)?;
         }
+        Ok(())
     }
 }
 
@@ -416,19 +428,23 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Thr
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let deriv = coeus_ops::elementwise_unary(
                 &self.input_tensor,
                 &backend,
                 coeus_ops::UnaryOp::ThresholdGrad(self.bits),
-            )
-            .expect("elementwise_unary");
+            )?;
             let local = coeus_ops::mul(grad_out, &deriv, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &local, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &local, &backend)?;
         }
+        Ok(())
     }
 }
 
@@ -499,19 +515,23 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Cel
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let deriv = coeus_ops::elementwise_unary(
                 &self.input_tensor,
                 &backend,
                 coeus_ops::UnaryOp::CeluGrad(self.bits),
-            )
-            .expect("elementwise_unary");
+            )?;
             let local = coeus_ops::mul(grad_out, &deriv, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &local, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &local, &backend)?;
         }
+        Ok(())
     }
 }
 

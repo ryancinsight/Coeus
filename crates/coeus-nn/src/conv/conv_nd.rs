@@ -1,5 +1,5 @@
 use super::dim::{ConvDim, ConvDispatch};
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
@@ -149,16 +149,40 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, D: ConvDim> Module<T, B> f
         p
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let backend = B::default();
         let shape = input.tensor.shape();
+        let expected_rank = D::SPATIAL_RANK + 2;
+        if shape.len() != expected_rank {
+            return Err(ModuleError::InvalidRank {
+                module: "Conv",
+                expected: match expected_rank {
+                    3 => "3",
+                    4 => "4",
+                    5 => "5",
+                    _ => "configured convolution rank",
+                },
+                actual: shape.len(),
+            });
+        }
+        if shape[1] != self.in_channels {
+            return Err(ModuleError::ChannelMismatch {
+                module: "Conv",
+                expected: self.in_channels,
+                actual: shape[1],
+            });
+        }
         let in_spatial = &shape[2..];
         let k_eff = self.k_eff();
         let out_sp = D::out_spatial(in_spatial, k_eff, self.stride, self.padding);
-        assert!(
-            out_sp.iter().all(|&d| d > 0),
-            "Conv: kernel does not fit input — in_spatial={in_spatial:?} k_eff={k_eff}",
-        );
+        if out_sp.contains(&0) {
+            return Err(ModuleError::ShapeMismatch {
+                module: "Conv",
+                parameter: "output spatial dimensions",
+                expected: vec![1; D::SPATIAL_RANK],
+                actual: out_sp,
+            });
+        }
         let out_shape = D::output_shape(shape[0], self.out_channels, &out_sp);
         let mut out_tensor = Tensor::zeros_on(out_shape, &backend);
         {
@@ -175,9 +199,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, D: ConvDim> Module<T, B> f
                 dilation: self.dilation,
                 out_buf: out_storage,
                 out_layout,
-            });
+            })
+            .map_err(|source| ModuleError::Backend {
+                module: "Conv",
+                source,
+            })?;
         }
-        D::autograd_conv(
+        Ok(D::autograd_conv(
             input,
             &self.weight,
             &self.bias,
@@ -185,6 +213,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, D: ConvDim> Module<T, B> f
             self.stride,
             self.padding,
             self.dilation,
-        )
+        ))
     }
 }

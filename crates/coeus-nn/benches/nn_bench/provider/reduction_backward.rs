@@ -18,13 +18,17 @@ pub(crate) fn bench_cumsum_backward(c: &mut Criterion) {
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
             let o = coeus_autograd::cumsum(black_box(&x_seq), 1);
-            black_box(o).backward()
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
             let o = coeus_autograd::cumsum(black_box(&x_moirai), 1);
-            black_box(o).backward()
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.finish();
@@ -46,13 +50,17 @@ pub(crate) fn bench_cumprod_backward(c: &mut Criterion) {
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
             let o = coeus_autograd::cumprod(black_box(&x_seq), 0);
-            black_box(o).backward()
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
             let o = coeus_autograd::cumprod(black_box(&x_moirai), 0);
-            black_box(o).backward()
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.finish();
@@ -74,13 +82,17 @@ pub(crate) fn bench_prod_backward(c: &mut Criterion) {
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
             let o = coeus_autograd::prod(black_box(&x_seq));
-            black_box(o).backward()
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
             let o = coeus_autograd::prod(black_box(&x_moirai));
-            black_box(o).backward()
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.finish();
@@ -102,13 +114,17 @@ pub(crate) fn bench_std_backward(c: &mut Criterion) {
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
             let o = coeus_autograd::std_dev(black_box(&x_seq), true);
-            black_box(o).backward()
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
             let o = coeus_autograd::std_dev(black_box(&x_moirai), true);
-            black_box(o).backward()
+            black_box(o)
+                .backward()
+                .expect("invariant: valid autograd fixture completes backward")
         })
     });
     group.finish();

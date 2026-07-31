@@ -1,7 +1,5 @@
 use crate::backend::WgpuScalar;
 
-pub(super) const WORKGROUP_SIZE: usize = 256;
-
 #[derive(Clone, Copy)]
 pub(super) enum PoolKind {
     MaxForward,
@@ -25,11 +23,6 @@ impl From<ForwardPoolKind> for PoolKind {
             ForwardPoolKind::Avg => Self::AvgForward,
         }
     }
-}
-
-pub(super) fn parameter(value: usize, name: &str) -> u32 {
-    u32::try_from(value)
-        .unwrap_or_else(|_| panic!("{name} exceeds the WGSL u32 index range: {value}"))
 }
 
 pub(super) fn shader_source<T: WgpuScalar>(kind: PoolKind) -> String {

@@ -1,8 +1,5 @@
 use crate::backend::CudaScalar;
-use crate::kernels::validation::{
-    checked_layout_storage_len, checked_numel, cuda_u32, layout_supports_cuda_output_indexing,
-    layouts_fit_cuda,
-};
+use crate::kernels::validation::{checked_numel, cuda_u32, layout_fits_cuda_storage};
 use crate::storage::CudaStorage;
 use coeus_core::{Layout, Storage};
 
@@ -44,11 +41,7 @@ fn layout_storage_is_valid<T: coeus_core::Scalar>(
     layout: &Layout,
     output: bool,
 ) -> bool {
-    layouts_fit_cuda(&[layout])
-        && (!output || layout_supports_cuda_output_indexing(layout))
-        && checked_layout_storage_len(layout).is_some_and(|required| {
-            required.checked_sub(1).and_then(cuda_u32).is_some() && storage.len() >= required
-        })
+    layout_fits_cuda_storage(layout, storage.len(), output)
 }
 
 pub(super) fn checked_output_dim(

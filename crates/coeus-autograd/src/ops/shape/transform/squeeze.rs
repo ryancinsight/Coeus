@@ -28,7 +28,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sq
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let unsqueezed_grad = if let Some(ax) = self.axis {
@@ -38,9 +42,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sq
                 grad_out.reshape(original_shape)
             };
             let gl = g.write();
-            coeus_ops::add_assign(gl, &unsqueezed_grad, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &unsqueezed_grad, &backend)?;
         }
+        Ok(())
     }
 }
 
@@ -105,14 +109,18 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let squeezed_grad = grad_out.squeeze(self.axis);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &squeezed_grad, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &squeezed_grad, &backend)?;
         }
+        Ok(())
     }
 }
 

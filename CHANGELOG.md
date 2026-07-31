@@ -22,12 +22,135 @@
   normalization, distributed gradient, and Python reduction paths. Each
   operation now reports or maps its backend error at the existing API boundary
   instead of discarding or nesting the `Result`.
+- [major] Complete provider-owned convolution dispatch across spatial ranks
+  one through three. Four fallible const-generic `ConvOps` methods own
+  regular/transposed forward and additive backward; rank-specific methods are
+  zero-cost default adapters. CPU storage is borrowed directly into Leto,
+  while CUDA/WGPU/ROCm/Metal device storage dispatches directly to
+  one monomorphized Hephaestus implementation through provider-specific
+  device, buffer, and error bindings. Leto regular and transposed paths share
+  one borrowed-view constructor. Coeus-owned accelerator kernels, CUDA host
+  fallbacks, the generic transposed host default, the separate 3-D capability
+  seam, and autograd host backward loops are removed. Rust, Python, benchmark,
+  and test callers now propagate typed backend failures. No runtime, memory,
+  or binary-size delta is claimed without controlled measurements.
+
+- [patch] Validate CUDA matmul and convolution forward/backward layouts against
+  their physical device allocations at the raw-launch boundary. Convolution
+  also rejects incompatible batch/channel/spatial shapes, invalid convolution
+  parameters, output-count mismatches, undersized bias, and writable
+  zero-stride gradient contracts before acquiring pointers or layout buffers.
+  Embedded convolution PTX additionally rejects layout fields, convolution
+  parameters, derived spatial coordinates, and physical indices above its
+  signed 32-bit arithmetic boundary.
+  The checks are host-side and allocation-free; no runtime performance or
+  resident-memory delta is claimed without matched measurements.
+
+- [patch] Validate CUDA elementwise input and output layouts against their
+  physical device allocations at both the backend and public raw-launch
+  boundaries. Writable zero-stride layouts and aliased storage with different
+  logical mappings now return typed layout failures; nonzero-offset contiguous
+  views use the offset-aware strided path, and zero-element operations complete
+  as no-ops without requiring a device launch. The validation is host-side and
+  allocation-free. No runtime performance or resident-memory delta is claimed
+  without matched measurements.
+
+- [major] Make all neural-network `Module::forward` implementations return
+  typed module or backend failures. Composite modules stop at the first
+  failure; normalization operations no longer suppress backend errors;
+  BatchNorm computes and commits running statistics transactionally and
+  rejects undersized training reductions before state mutation. Attention,
+  transformer, recurrent, embedding, pooling, and unfold/fold modules reject
+  invalid contracts before indexing or unchecked arithmetic. Alpha-dropout
+  now applies the SELU saturation and affine correction, including
+  channel-shared feature masks. Module-dispatched LayerNorm preserves its
+  documented rank-two-or-greater trailing-dimension contract. Huber loss now
+  reduces every element, restores the complete input shape during backward,
+  and returns typed errors for invalid shape, reduction, and delta contracts.
+  Rust, benchmark, doctest, and Python consumers migrate without a
+  compatibility entry point. No runtime, memory, or binary-size delta is
+  claimed without matched measurements.
+
+- [major] Route WGPU sum, product, mean, minimum, and maximum reductions
+  directly through Hephaestus and delete the duplicate Coeus WGSL reduction
+  dispatcher. Rank-one and rank-two layouts remain supported; higher ranks
+  now return a typed provider-capability error instead of using a
+  consumer-owned kernel. No runtime, memory, or binary-size delta is claimed
+  without matched measurements.
+
+- [major] Make CUDA elementwise, matrix, reduction, and fused entry points
+  return typed provider failures instead of silently evaluating through the
+  CPU path. Builds without the CUDA provider feature expose no mathematical
+  backend implementation and do not enable or link Hephaestus CUDA support.
+  No runtime or memory delta is claimed without matched measurements.
+
+- [major] Make Coeus 1D pooling dispatch return the backend-associated
+  `Result`. CPU remains directly Leto-backed, WGPU rejects invalid rank/layout/
+  parameter/workgroup metadata before native WGSL submission, and CUDA
+  propagates native kernel validation and launch failures. The 2D/3D pooling
+  seam remains unchanged in this increment; no performance or memory delta is
+  claimed without controlled measurements.
+
+- [major] Make Coeus 2D pooling dispatch return the backend-associated `Result`
+  and derive WGPU element/workgroup counts from canonical layouts. CPU remains
+  directly Leto-backed, while WGPU validates its WGSL ABI boundary and CUDA
+  preserves native dispatch plus its existing capability boundary. No runtime
+  performance or memory delta is claimed without controlled measurements.
+
+- [arch] Restore Coeus's first-party provider declarations to Git+version
+  identities for Leto, Hephaestus, Moirai, Mnemosyne, Eunomia, Hermes, Apollo,
+  Themis, and Melinoe. The generated Atlas root overlay remains the sole local
+  checkout substitution, so Coeus resolves directly to provider-owned APIs
+  without requiring sibling worktrees or repository-owned patch tables.
+
+- [major] Make Coeus 3D pooling dispatch return the backend-associated `Result`
+  and apply the same canonical WGPU layout/count validation as 1D and 2D.
+  CPU, WGPU, CUDA, autograd, NN, and CUDA parity callers now consume one typed
+  dispatch contract. No runtime performance or memory delta is claimed without
+  controlled measurements.
+
+- [minor] Route Coeus CUDA `GeluTanh`, `GeluTanhGrad`, `Softplus`, and
+  `SoftplusGrad` through the existing Hephaestus marker kernels for contiguous
+  and runtime-shaped strided layouts. Add CUDA/Leto forward and gradient
+  parity coverage and select the WGPU/CUDA contracts in CI. No runtime
+  performance or resident-memory delta is claimed without a controlled
+  benchmark.
+
+- [minor] Route Coeus WGPU, CUDA, and generic Hephaestus COW replacement
+  allocations through Hephaestus's overwrite-before-read device allocation
+  seam while keeping ordinary storage construction zero-initialized. The
+  complete device-local copy remains the value-semantic initialization step;
+  runtime performance and resident-memory changes are not claimed without a
+  controlled benchmark.
+
+- [minor] Complete Coeus f32 Mish and ELU forward/gradient routing across the
+  WGPU, CUDA, ROCm, and Metal backend contracts. ROCm and Metal use the native
+  Hephaestus strided providers; CUDA covers both contiguous and strided ELU
+  launch paths; Leto differential tests cover signed inputs and the zero
+  branch boundary. Targeted exact-head run `30353984154` passed CUDA
+  `90257861209`, WGPU `90257861154`, ROCm `90257861218`, and Metal
+  `90257861119`; required-device ROCm `90257861858` was skipped because no
+  hosted AMD runner was dispatched. The selectors execute the new ELU forward
+  and gradient contracts. No runtime performance or resident-memory delta is
+  claimed.
+
+- [patch] Routes native Coeus WGPU and CUDA copy-on-write detachment through
+  the shared Hephaestus `ComputeDevice::copy_buffer` contract. This removes
+  duplicated encoder and CUDA-driver copy logic while preserving device-local
+  values in both the detached and retained buffers.
+
+- [patch] Keeps Coeus Hephaestus storage COW detachment on the provider
+  device. Replacement buffers retain the source memory tier and use the
+  shared device-local copy contract, removing the full-size host staging
+  allocation and two host/device transfers.
 
 - [arch] Routes Coeus `lgamma` through the provider-owned Hephaestus WGPU,
   CUDA, ROCm, and Metal f32 implementations. CUDA/ROCm use native device
   functions; WGPU/Metal use the shared Lanczos/reflection expression. Leto
   differential coverage includes positive values, reflection, and poles;
   exact-head CI remains open for this increment.
+  exact-head provider and consumer CI passes; required-device ROCm remains
+  skipped when no hosted AMD runner is available.
 
 - [arch] Routes Coeus exact `Gelu` and `GeluGrad` through the Hephaestus ROCm
   and Metal f32 providers with Leto CPU differential coverage. Exact-head

@@ -22,7 +22,7 @@ pub trait BinaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Se
         b_shape: &Shape,
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
-    );
+    ) -> Result<(), B::Error>;
 }
 
 /// Autograd node for a generic binary operation.
@@ -63,7 +63,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         Op::backward(
             grad_out,
@@ -73,7 +77,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B
             &self.b_shape,
             input_grads,
             &backend,
-        );
+        )
     }
 }
 
@@ -179,7 +183,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: ReductionAutogradOp<T
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
             let grad_to_broadcast = if let Some(ref scaler) = self.scaler_tensor {
@@ -189,9 +197,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: ReductionAutogradOp<T
             };
             let broadcasted = grad_to_broadcast.broadcast(self.a_shape.clone());
             let gl = g.write();
-            coeus_ops::add_assign(gl, &broadcasted, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &broadcasted, &backend)?;
         }
+        Ok(())
     }
 }
 

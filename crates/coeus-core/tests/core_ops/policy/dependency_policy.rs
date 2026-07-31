@@ -256,13 +256,14 @@ fn cargo_binary() -> PathBuf {
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .expect("invariant: coeus-core lives directly under the workspace root")
+        .and_then(Path::parent)
+        .expect("invariant: coeus-core lives under crates/ beneath the workspace root")
         .to_path_buf()
 }
 
 fn workspace_crate_dirs(root: &Path) -> Vec<PathBuf> {
-    fs::read_dir(root)
-        .unwrap_or_else(|error| panic!("failed to read workspace root {}: {error}", root.display()))
+    fs::read_dir(root.join("crates"))
+        .unwrap_or_else(|error| panic!("failed to read workspace crates dir {}: {error}", root.display()))
         .filter_map(|entry| {
             let path = entry
                 .unwrap_or_else(|error| panic!("failed to read directory entry: {error}"))

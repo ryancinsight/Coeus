@@ -1,4 +1,7 @@
-use crate::tensor::{PyStateDict, PyTensor};
+use crate::{
+    nn::error::map_module_error,
+    tensor::{PyStateDict, PyTensor},
+};
 use pyo3::prelude::*;
 
 /// Stateless Scaled Dot-Product Attention module.
@@ -52,27 +55,27 @@ impl PyScaledDotProductAttention {
         let k = key.inner.clone();
         let v = value.inner.clone();
         let mask = key_padding_mask.map(|m| m.inner.clone());
-        let d_k = q.tensor.shape().last().copied().unwrap_or(1);
-        let scale = self.scale.unwrap_or_else(|| 1.0 / (d_k as f64).sqrt());
+        let scale = self.scale;
         let is_causal = self.is_causal;
 
         let inner = py.allow_threads(move || {
-            let (out, _attn) = if is_causal {
-                coeus_autograd::sdp_attention::<
+            if is_causal {
+                let attention = coeus_nn::ScaledDotProductAttention::<
                     f64,
                     coeus_core::MoiraiBackend,
                     coeus_autograd::CausalMask,
-                >(&q, &k, &v, mask.as_ref(), scale)
+                >::new();
+                attention.forward(&q, &k, &v, mask.as_ref(), scale)
             } else {
-                coeus_autograd::sdp_attention::<
+                let attention = coeus_nn::ScaledDotProductAttention::<
                     f64,
                     coeus_core::MoiraiBackend,
                     coeus_autograd::NullMask,
-                >(&q, &k, &v, mask.as_ref(), scale)
-            };
-            out
+                >::new();
+                attention.forward(&q, &k, &v, mask.as_ref(), scale)
+            }
         });
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     /// Returns an empty state dict (no learnable parameters).
@@ -225,7 +228,7 @@ impl PyMultiHeadAttention {
             }
             dispatch_mha_fwd!(1, 2, 4, 8, 16, 32)
         });
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     /// Cross-attention forward pass.
@@ -290,7 +293,7 @@ impl PyMultiHeadAttention {
             }
             dispatch_mha_cross!(1, 2, 4, 8, 16, 32)
         });
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -431,7 +434,7 @@ impl PyRotaryEmbedding {
         let rope = self.inner.clone();
 
         let inner = py.allow_threads(move || rope.forward(&input_var));
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     fn state_dict(&self) -> PyStateDict {

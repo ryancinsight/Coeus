@@ -1,10 +1,13 @@
 use super::provider::MetalProvider;
 use coeus_core::{ComputeBackend, Layout, Scalar};
 use coeus_hephaestus::{
-    ElementwiseProvider, HephaestusBackend, HephaestusBackendError, HephaestusStorage,
-    ReductionProvider,
+    ConvolutionProvider, ElementwiseProvider, HephaestusBackend, HephaestusBackendError,
+    HephaestusStorage, ReductionProvider,
 };
-use coeus_ops::{BinaryOp, ElementwiseOps, ReductionOp, ReductionOps, UnaryOp};
+use coeus_ops::{
+    BinaryOp, ConvOps, ConvolutionBackward, ConvolutionForward, ElementwiseOps, ReductionOp,
+    ReductionOps, UnaryOp,
+};
 
 /// Coeus Metal backend with native Hephaestus storage and rank-2 reductions.
 #[derive(Debug, Clone, Copy, Default)]
@@ -48,6 +51,122 @@ impl ComputeBackend for MetalBackend {
 
     fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
         self.0.copy_to_host(src, dst)
+    }
+}
+
+impl<T> ConvOps<T> for MetalBackend
+where
+    T: Scalar + leto_ops::Scalar,
+    MetalProvider: ConvolutionProvider<T>,
+{
+    fn convolution_forward<const R: usize, const D: usize>(
+        &self,
+        request: ConvolutionForward<'_, Self, T>,
+        stride: [usize; D],
+        padding: [usize; D],
+        dilation: [usize; D],
+    ) -> Result<(), Self::Error> {
+        self.0.convolution_forward::<R, D>(
+            ConvolutionForward {
+                input: request.input,
+                input_layout: request.input_layout,
+                weight: request.weight,
+                weight_layout: request.weight_layout,
+                bias: request.bias,
+                output: request.output,
+                output_layout: request.output_layout,
+            },
+            stride,
+            padding,
+            dilation,
+        )
+    }
+
+    fn convolution_backward<const R: usize, const D: usize>(
+        &self,
+        request: ConvolutionBackward<'_, Self, T>,
+        stride: [usize; D],
+        padding: [usize; D],
+        dilation: [usize; D],
+    ) -> Result<(), Self::Error> {
+        self.0.convolution_backward::<R, D>(
+            ConvolutionBackward {
+                grad_output: request.grad_output,
+                grad_output_layout: request.grad_output_layout,
+                input: request.input,
+                input_layout: request.input_layout,
+                weight: request.weight,
+                weight_layout: request.weight_layout,
+                grad_input: request.grad_input,
+                grad_input_layout: request.grad_input_layout,
+                grad_weight: request.grad_weight,
+                grad_weight_layout: request.grad_weight_layout,
+                grad_bias: request.grad_bias,
+            },
+            stride,
+            padding,
+            dilation,
+        )
+    }
+
+    fn convolution_transposed_forward<const R: usize, const D: usize>(
+        &self,
+        request: ConvolutionForward<'_, Self, T>,
+        stride: [usize; D],
+        padding: [usize; D],
+        output_padding: [usize; D],
+        dilation: [usize; D],
+    ) -> Result<(), Self::Error>
+    where
+        T: coeus_core::Float,
+    {
+        self.0.convolution_transposed_forward::<R, D>(
+            ConvolutionForward {
+                input: request.input,
+                input_layout: request.input_layout,
+                weight: request.weight,
+                weight_layout: request.weight_layout,
+                bias: request.bias,
+                output: request.output,
+                output_layout: request.output_layout,
+            },
+            stride,
+            padding,
+            output_padding,
+            dilation,
+        )
+    }
+
+    fn convolution_transposed_backward<const R: usize, const D: usize>(
+        &self,
+        request: ConvolutionBackward<'_, Self, T>,
+        stride: [usize; D],
+        padding: [usize; D],
+        output_padding: [usize; D],
+        dilation: [usize; D],
+    ) -> Result<(), Self::Error>
+    where
+        T: coeus_core::Float,
+    {
+        self.0.convolution_transposed_backward::<R, D>(
+            ConvolutionBackward {
+                grad_output: request.grad_output,
+                grad_output_layout: request.grad_output_layout,
+                input: request.input,
+                input_layout: request.input_layout,
+                weight: request.weight,
+                weight_layout: request.weight_layout,
+                grad_input: request.grad_input,
+                grad_input_layout: request.grad_input_layout,
+                grad_weight: request.grad_weight,
+                grad_weight_layout: request.grad_weight_layout,
+                grad_bias: request.grad_bias,
+            },
+            stride,
+            padding,
+            output_padding,
+            dilation,
+        )
     }
 }
 

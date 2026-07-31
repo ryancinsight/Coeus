@@ -1,4 +1,4 @@
-use crate::tensor::PyTensor;
+use crate::{nn::error::map_module_error, tensor::PyTensor};
 use pyo3::prelude::*;
 
 /// Python-exposed Unfold2d layer (sliding-window extraction).
@@ -67,7 +67,7 @@ impl PyUnfold2d {
             kh, kw, sh, sw, ph, pw, dh, dw,
         );
         let inner = py.allow_threads(move || m.forward(&input_var));
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     /// Return an empty state dict (no learnable parameters).
@@ -158,7 +158,7 @@ impl PyFold2d {
         let dh = self.dilation_h;
         let m = coeus_nn::Fold2d::<f64, coeus_core::MoiraiBackend>::new(oh, ow, kh, sh, ph, dh);
         let inner = py.allow_threads(move || m.forward(&input_var));
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     /// Return an empty state dict (no learnable parameters).
@@ -220,7 +220,7 @@ impl PyUnfold1d {
         let d = self.dilation;
         let m = coeus_nn::Unfold1d::<f64, coeus_core::MoiraiBackend>::new(k, s, p, d);
         let inner = py.allow_threads(move || m.forward(&input_var));
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     /// Return an empty state dict (no learnable parameters).
@@ -291,7 +291,7 @@ impl PyFold1d {
         );
         let m = coeus_nn::Fold1d::<f64, coeus_core::MoiraiBackend>::new(os, k, s, p, d);
         let inner = py.allow_threads(move || m.forward(&input_var));
-        Ok(PyTensor::from_var(inner))
+        inner.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     /// Return an empty state dict (no learnable parameters).

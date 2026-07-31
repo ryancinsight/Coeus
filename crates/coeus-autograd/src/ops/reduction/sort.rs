@@ -63,10 +63,14 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         let Some(Some(ref g)) = input_grads.first() else {
-            return;
+            return Ok(());
         };
 
         // Scatter grad_out[sorted_pos] -> original_pos using sort_indices.
@@ -79,7 +83,8 @@ where
             coeus_ops::scatter_add(&zeros, self.dim, &self.sort_indices, grad_out, &backend);
 
         let gl = g.write();
-        coeus_ops::add_assign(gl, &grad_in, &backend).expect("autograd gradient accumulation");
+        coeus_ops::add_assign(gl, &grad_in, &backend)?;
+        Ok(())
     }
 }
 
@@ -159,7 +164,9 @@ mod tests {
         assert!(indices.grad.is_none());
 
         // grad_out = [1, 1, 1, 1, 1]; scatter back via sort_indices
-        sorted.backward();
+        sorted
+            .backward()
+            .expect("invariant: valid autograd fixture completes backward");
         let dx = x.grad().unwrap();
         let dx_sum: f64 = dx.as_slice().iter().sum();
         assert!(
@@ -173,7 +180,9 @@ mod tests {
         let data = vec![3.0f64, 1.0, 4.0, 2.0, 5.0, 0.0];
         let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([2, 3], &data), true);
         let (sorted, _) = sort(&x, 1, false);
-        sorted.backward();
+        sorted
+            .backward()
+            .expect("invariant: valid autograd fixture completes backward");
         let dx = x.grad().unwrap();
         // Each element should receive exactly 1 gradient
         for v in dx.as_slice() {

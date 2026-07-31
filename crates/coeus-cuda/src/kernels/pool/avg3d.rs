@@ -1,15 +1,16 @@
 #![allow(clippy::too_many_arguments)]
 
 use super::validation::{
-    checked_pool_parameters, checked_pool_work, pool_layouts_are_valid, pool_prefix_matches,
-    POOL_BLOCK_SIZE,
+    checked_pool_parameters, checked_pool_work, pool_index_arithmetic_is_valid,
+    pool_layouts_are_valid, pool_prefix_matches, POOL_BLOCK_SIZE,
 };
 use super::POOL_COMMON_SRC;
 use crate::backend::CudaScalar;
 use crate::driver::{get_cuda_context, CUdeviceptr, CudaDriver};
 use crate::kernels::fuse::get_or_create_kernel;
+use crate::kernels::validation::layout_fits_cuda_storage;
 use crate::storage::CudaStorage;
-use coeus_core::Layout;
+use coeus_core::{Layout, Storage};
 
 /// Dispatch the 3-D average pooling forward kernel on the GPU.
 ///
@@ -38,6 +39,19 @@ pub fn dispatch_avg_pool3d<T: CudaScalar>(
     };
     if !pool_layouts_are_valid(&[input_layout, output_layout], 5)
         || !pool_prefix_matches(input_layout, output_layout)
+        || !pool_index_arithmetic_is_valid(
+            input_layout,
+            output_layout,
+            [
+                kernel_size_value,
+                stride_value,
+                padding_value,
+                dilation_value,
+            ],
+            3,
+        )
+        || !layout_fits_cuda_storage(input_layout, input.len(), false)
+        || !layout_fits_cuda_storage(output_layout, output.len(), true)
     {
         return false;
     }
@@ -196,6 +210,19 @@ pub fn dispatch_avg_pool3d_backward<T: CudaScalar>(
     };
     if !pool_layouts_are_valid(&[grad_out_layout, grad_input_layout], 5)
         || !pool_prefix_matches(grad_out_layout, grad_input_layout)
+        || !pool_index_arithmetic_is_valid(
+            grad_input_layout,
+            grad_out_layout,
+            [
+                kernel_size_value,
+                stride_value,
+                padding_value,
+                dilation_value,
+            ],
+            3,
+        )
+        || !layout_fits_cuda_storage(grad_out_layout, grad_out.len(), false)
+        || !layout_fits_cuda_storage(grad_input_layout, grad_input.len(), true)
     {
         return false;
     }

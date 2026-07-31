@@ -6,6 +6,7 @@ pub mod mask;
 pub mod mha;
 /// Scaled dot-product attention layer.
 pub mod sdp;
+mod validation;
 
 // Re-export from coeus_autograd (the single authoritative source)
 pub use coeus_autograd::{AttentionMask, CausalMask, NullMask};

@@ -30,7 +30,8 @@ fn test_cuda_max_pool2d() {
         1, // dilation
         out_seq_storage,
         out_seq_layout,
-    );
+    )
+    .expect("invariant: validated CPU max_pool2d dispatch must succeed");
 
     let (out_cuda_storage, out_cuda_layout) = output_cuda.storage_mut_and_layout();
     coeus_ops::PoolOps::max_pool2d(
@@ -43,7 +44,8 @@ fn test_cuda_max_pool2d() {
         1, // dilation
         out_cuda_storage,
         out_cuda_layout,
-    );
+    )
+    .expect("invariant: validated CUDA max_pool2d dispatch must succeed");
 
     let output_cuda_on_cpu = output_cuda.to_backend_on(&cuda_b, &seq);
 
@@ -73,7 +75,8 @@ fn test_cuda_max_pool2d() {
         1, // dilation
         gi_seq_storage,
         gi_seq_layout,
-    );
+    )
+    .expect("invariant: validated CPU max_pool2d backward dispatch must succeed");
 
     let (gi_cuda_storage, gi_cuda_layout) = grad_in_cuda.storage_mut_and_layout();
     coeus_ops::PoolOps::max_pool2d_backward(
@@ -88,7 +91,8 @@ fn test_cuda_max_pool2d() {
         1, // dilation
         gi_cuda_storage,
         gi_cuda_layout,
-    );
+    )
+    .expect("invariant: validated CUDA max_pool2d backward dispatch must succeed");
 
     let grad_in_cuda_on_cpu = grad_in_cuda.to_backend_on(&cuda_b, &seq);
 
@@ -123,7 +127,8 @@ fn test_cuda_avg_pool2d() {
         1, // dilation
         out_seq_storage,
         out_seq_layout,
-    );
+    )
+    .expect("invariant: validated CPU avg_pool2d dispatch must succeed");
 
     let (out_cuda_storage, out_cuda_layout) = output_cuda.storage_mut_and_layout();
     coeus_ops::PoolOps::avg_pool2d(
@@ -136,7 +141,8 @@ fn test_cuda_avg_pool2d() {
         1, // dilation
         out_cuda_storage,
         out_cuda_layout,
-    );
+    )
+    .expect("invariant: validated CUDA avg_pool2d dispatch must succeed");
 
     let output_cuda_on_cpu = output_cuda.to_backend_on(&cuda_b, &seq);
 
@@ -164,7 +170,8 @@ fn test_cuda_avg_pool2d() {
         1, // dilation
         gi_seq_storage,
         gi_seq_layout,
-    );
+    )
+    .expect("invariant: validated CPU avg_pool2d backward dispatch must succeed");
 
     let (gi_cuda_storage, gi_cuda_layout) = grad_in_cuda.storage_mut_and_layout();
     coeus_ops::PoolOps::avg_pool2d_backward(
@@ -177,7 +184,8 @@ fn test_cuda_avg_pool2d() {
         1, // dilation
         gi_cuda_storage,
         gi_cuda_layout,
-    );
+    )
+    .expect("invariant: validated CUDA avg_pool2d backward dispatch must succeed");
 
     let grad_in_cuda_on_cpu = grad_in_cuda.to_backend_on(&cuda_b, &seq);
 

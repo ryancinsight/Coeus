@@ -1,4 +1,4 @@
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::Float;
 
@@ -46,7 +46,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Dropout {
         self.set_training(mode);
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        coeus_autograd::dropout(input, self.p, self.is_training, self.seed)
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        Ok(coeus_autograd::dropout(
+            input,
+            self.p,
+            self.is_training,
+            self.seed,
+        ))
     }
 }

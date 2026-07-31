@@ -44,7 +44,8 @@ fn test_cuda_backend_conv_and_reduce() {
         1,
         &mut out_cuda_storage,
         &out_layout,
-    );
+    )
+    .expect("CUDA conv1d dispatch");
 
     let out_tensor_cuda: Tensor<f32, CudaBackend> =
         Tensor::from_raw_parts(out_cuda_storage, out_layout.clone());
@@ -63,7 +64,8 @@ fn test_cuda_backend_conv_and_reduce() {
         1,
         &mut out_expected_storage,
         &out_layout,
-    );
+    )
+    .expect("CPU conv1d dispatch");
     let out_expected: Tensor<f32, SequentialBackend> =
         Tensor::from_raw_parts(out_expected_storage, out_layout);
 
@@ -135,7 +137,8 @@ fn test_cuda_conv_backward() {
             1,
             0,
             1,
-        );
+        )
+        .expect("CUDA conv1d backward dispatch");
 
         let mut gi_expected = seq.allocate::<f32>(6);
         seq.fill(&mut gi_expected, 0.0);
@@ -160,7 +163,8 @@ fn test_cuda_conv_backward() {
             1,
             0,
             1,
-        );
+        )
+        .expect("CPU conv1d backward dispatch");
 
         let gi_cuda_tensor: Tensor<f32, CudaBackend> = Tensor::from_raw_parts(gi_cuda, gi_layout);
         let gi_cuda_cpu = gi_cuda_tensor.to_backend_on(&cuda_b, &seq);

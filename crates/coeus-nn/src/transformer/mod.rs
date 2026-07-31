@@ -11,8 +11,10 @@ pub mod encoder;
 pub mod encoder_layer;
 /// Feed-forward sub-layer (two linear layers with GELU activation).
 pub mod ffn;
+mod normalization;
 /// Full Seq2Seq Transformer model (encoder + decoder).
 pub mod transformer;
+mod validation;
 
 pub use decoder::TransformerDecoder;
 pub use decoder_layer::{

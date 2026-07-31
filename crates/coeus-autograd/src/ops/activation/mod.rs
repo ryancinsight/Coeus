@@ -58,13 +58,18 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: UnaryAutogradOp<T, B>
     }
 
     #[inline]
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
             let mask = Op::backward(grad_out, &self.a_tensor, &self.out_tensor, &backend);
             let gl = g.write();
-            coeus_ops::add_assign(gl, &mask, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(gl, &mask, &backend)?;
         }
+        Ok(())
     }
 }
 

@@ -115,3 +115,35 @@ breaking work rather than a local adapter. The locked `coeus-ops` check,
 110/110 nextest tests, 22/22 doctests, warning-denied Clippy, and no-deps
 Rustdoc pass. No WGPU all-target performance result is claimed because that
 matrix remains outside this provider-identity integration increment.
+
+The 1D pooling family now uses the same typed dispatch boundary. CPU calls
+remain monomorphized to the Leto-backed implementation, WGPU validates rank,
+layout ABI values, pooling parameters, element-count arithmetic, and the
+rounded workgroup count before submitting native WGSL, and CUDA propagates
+native kernel validation and launch failures. The infallible autograd/NN
+boundary retains explicit invariant diagnostics; no host fallback or silent
+success path is introduced.
+
+The 2D pooling family now derives output and gradient element counts from the
+canonical `Layout` values at the WGPU operation boundary rather than accepting
+storage-length or caller-supplied count arguments. CPU, WGPU, and CUDA
+implementations return the backend-associated result, and WGPU validates rank,
+layout ABI values, parameter narrowing, checked element-count arithmetic, and
+the rounded workgroup count before native WGSL submission. Direct WGPU and CUDA
+parity callers and the infallible autograd/NN boundary consume the result with
+explicit invariant diagnostics. The 3D pooling family remains a separate
+increment.
+
+The 3D pooling family now uses the same boundary. Its WGPU kernels validate
+rank-five layouts, checked WGSL parameter conversions, element-count arithmetic,
+and workgroup limits before device initialization; CPU and CUDA implementations
+return the associated backend result, and high-level callers retain explicit
+invariant diagnostics. The PoolOps trait no longer has a unit-returning pooling
+dimension, so all pooling callers share one typed dispatch contract.
+
+The final pooling integration propagates the WGPU 1D kernel result through its
+backend wrapper instead of discarding it. CUDA 2D and 3D dispatch now returns a
+typed context or kernel-contract failure when native launch cannot proceed;
+the superseded host-staging pooling fallback module is removed. This closes the
+backend-substitution and full-buffer allocation path without claiming a
+measured runtime or resident-memory delta.

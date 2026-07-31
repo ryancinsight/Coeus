@@ -101,6 +101,59 @@ fn test_cuda_parity_prod_axis() {
 }
 
 #[test]
+fn test_cuda_parity_rank_one_sum() {
+    let Some((s, c)) = backends() else {
+        return;
+    };
+    let input = Tensor::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0]);
+    let cpu = coeus_ops::sum_axis(&input, 0, &s).expect("valid CPU rank-one sum");
+    let gpu = to_cpu(
+        &coeus_ops::sum_axis(&to_gpu(&input, &s, &c), 0, &c).expect("valid CUDA rank-one sum"),
+        &c,
+        &s,
+    );
+
+    assert_eq!(gpu.shape(), &[1]);
+    assert_parity_tol("rank-one-sum", cpu.as_slice(), gpu.as_slice(), CUDA_TOL);
+}
+
+#[test]
+fn test_cuda_parity_rank_one_scan() {
+    let Some((s, c)) = backends() else {
+        return;
+    };
+    let input = Tensor::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0]);
+    let cpu = coeus_ops::cumsum(&input, 0);
+    let gpu = to_cpu(&coeus_ops::cumsum(&to_gpu(&input, &s, &c), 0), &c, &s);
+
+    assert_eq!(gpu.shape(), &[4]);
+    assert_parity_tol("rank-one-scan", cpu.as_slice(), gpu.as_slice(), CUDA_TOL);
+}
+
+#[test]
+fn test_cuda_reduction_rejects_unsupported_rank() {
+    let Some((s, c)) = backends() else {
+        return;
+    };
+    let input = Tensor::from_slice(vec![2, 2, 2], &[1.0f32; 8]);
+    let gpu_input = to_gpu(&input, &s, &c);
+
+    let error = match coeus_ops::sum_axis(&gpu_input, 1, &c) {
+        Ok(_) => panic!("rank-three CUDA reduction unexpectedly succeeded"),
+        Err(error) => error,
+    };
+
+    assert!(matches!(
+        error,
+        coeus_cuda::CudaBackendError::UnsupportedRank {
+            operation: "reduction",
+            rank: 3,
+            max_rank: 2,
+        }
+    ));
+}
+
+#[test]
 fn test_cuda_parity_cumulative_scans() {
     let Some((s, c)) = backends() else {
         return;

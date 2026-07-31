@@ -28,10 +28,22 @@ pub(crate) fn bench_maxpool2d_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — MaxPool2d forward (8x16x32x32, k2 s2)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                pool_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                pool_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -62,10 +74,22 @@ pub(crate) fn bench_avgpool2d_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — AvgPool2d forward (8x16x32x32, k2 s2)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                pool_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                pool_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -104,10 +128,22 @@ pub(crate) fn bench_maxpool3d_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — MaxPool3d forward (4x8x16x16x16, k2 s2)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                pool_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                pool_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -146,10 +182,22 @@ pub(crate) fn bench_avgpool3d_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — AvgPool3d forward (4x8x16x16x16, k2 s2)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                pool_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                pool_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -232,10 +280,22 @@ pub(crate) fn bench_maxpool1d_forward(c: &mut Criterion) {
     );
     let mut group = c.benchmark_group("Coeus — MaxPool1d forward (8x16x128, k2 s2)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                pool_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                pool_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -261,10 +321,22 @@ pub(crate) fn bench_avgpool1d_forward(c: &mut Criterion) {
     );
     let mut group = c.benchmark_group("Coeus — AvgPool1d forward (8x16x128, k2 s2)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                pool_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                pool_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -295,10 +367,22 @@ pub(crate) fn bench_adaptive_avg_pool2d_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — AdaptiveAvgPool2d(1,1) forward (8x64x7x7)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                pool_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                pool_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -329,10 +413,22 @@ pub(crate) fn bench_adaptive_max_pool2d_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — AdaptiveMaxPool2d(1,1) forward (8x64x7x7)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(pool_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                pool_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(pool_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                pool_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid pooling layer benchmark input"),
+            )
+        })
     });
     group.finish();
 }

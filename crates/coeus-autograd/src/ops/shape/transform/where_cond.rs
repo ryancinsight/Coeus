@@ -38,7 +38,11 @@ where
         &self.inputs
     }
 
-    fn backward(&self, grad_out: &Tensor<T, B>, input_grads: &[Option<Arc<GradBuffer<T, B>>>]) {
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
         let backend = B::default();
         // inputs: [cond=0, on_true=1, on_false=2]
         // grad cond  = 0 (no derivative through boolean mask)
@@ -47,16 +51,16 @@ where
         if let Some(Some(ref g)) = input_grads.get(1) {
             let d_true = coeus_ops::mul(grad_out, &self.any_mask, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &d_true, &backend).expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &d_true, &backend)?;
         }
         if let Some(Some(ref g)) = input_grads.get(2) {
             let one = Tensor::full_on(self.any_mask.shape(), T::from_f64(1.0), &backend);
             let inv = coeus_ops::sub(&one, &self.any_mask, &backend);
             let d_false = coeus_ops::mul(grad_out, &inv, &backend);
             let lock = g.write();
-            coeus_ops::add_assign(lock, &d_false, &backend)
-                .expect("autograd gradient accumulation");
+            coeus_ops::add_assign(lock, &d_false, &backend)?;
         }
+        Ok(())
     }
 }
 

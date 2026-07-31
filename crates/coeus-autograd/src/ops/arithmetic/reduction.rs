@@ -196,7 +196,8 @@ mod nan_reduction_tests {
         let s = nansum(&x);
         let v = s.tensor.as_slice()[0];
         assert!((v - 9.0).abs() < 1e-10, "nansum: expected 9, got {v}");
-        s.backward();
+        s.backward()
+            .expect("invariant: valid autograd fixture completes backward");
         assert_eq!(
             x.grad().unwrap().as_slice(),
             &[1.0, 0.0, 1.0, 0.0, 1.0],
@@ -219,7 +220,8 @@ mod nan_reduction_tests {
         let m = nanmean(&x);
         let v = m.tensor.as_slice()[0];
         assert!((v - 4.0).abs() < 1e-10, "nanmean: expected 4.0, got {v}");
-        m.backward();
+        m.backward()
+            .expect("invariant: valid autograd fixture completes backward");
         let grad = x.grad().unwrap();
         let expected = [1.0 / 3.0, 0.0, 1.0 / 3.0, 0.0, 1.0 / 3.0];
         for (i, (&actual, &expected)) in grad.as_slice().iter().zip(expected.iter()).enumerate() {

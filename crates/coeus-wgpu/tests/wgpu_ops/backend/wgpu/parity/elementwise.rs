@@ -167,6 +167,54 @@ fn test_wgpu_aliasing_unary_neg_matches_cpu() {
 }
 
 #[test]
+fn test_wgpu_aliasing_elu_rejects_provider_bypass() {
+    let w = wgpu();
+    let x_cpu = Tensor::from_slice(vec![2, 2], &[-2.0f32, -0.5, 0.5, 2.0]);
+    let x_gpu = to_gpu(&x_cpu);
+
+    // Hephaestus requires distinct input and output buffers. An aliased ELU
+    // must fail instead of executing a consumer-owned fallback expression.
+    let mut out_storage = x_gpu.storage().clone();
+    let error = w
+        .elementwise_unary(
+            coeus_ops::UnaryOp::Elu,
+            x_gpu.storage(),
+            x_gpu.layout(),
+            &mut out_storage,
+            x_gpu.layout(),
+        )
+        .expect_err("aliased ELU must not bypass Hephaestus");
+
+    // The Hephaestus provider owns the dispatch and rejects the aliased
+    // buffers itself; a silent consumer-owned fallback would return Ok.
+    assert!(
+        format!("{error:?}").contains("must not alias"),
+        "aliased ELU must surface the provider's aliasing rejection, got: {error:?}"
+    );
+
+    let transposed = x_gpu.t();
+    let mut strided_out_storage = transposed.storage().clone();
+    let error = w
+        .elementwise_unary(
+            coeus_ops::UnaryOp::Elu,
+            transposed.storage(),
+            transposed.layout(),
+            &mut strided_out_storage,
+            transposed.layout(),
+        )
+        .expect_err("aliased strided ELU must not bypass Hephaestus");
+
+    // The strided path may reject the operation form before the provider's
+    // aliasing check runs; either typed rejection proves no consumer-owned
+    // fallback executed (a silent fallback would return Ok).
+    let rendered = format!("{error:?}");
+    assert!(
+        rendered.contains("must not alias") || rendered.contains("UnsupportedOperation"),
+        "aliased strided ELU must fail with a typed rejection, got: {error:?}"
+    );
+}
+
+#[test]
 fn test_wgpu_aliasing_binary_add_matches_cpu() {
     let s = seq();
     let w = wgpu();
@@ -231,6 +279,11 @@ test_unary_parity!(
     test_wgpu_parity_gelu,
     coeus_ops::gelu,
     vec![-2.0, -1.0, 0.0, 0.5, 1.0, 2.0, -0.5, 1.5]
+);
+test_unary_parity!(
+    test_wgpu_parity_gelu_tanh,
+    coeus_ops::gelu_tanh,
+    vec![-3.0, -2.3, -1.5, -0.5, 0.5, 1.5, 2.3, 3.0]
 );
 test_unary_parity!(
     test_wgpu_parity_silu,

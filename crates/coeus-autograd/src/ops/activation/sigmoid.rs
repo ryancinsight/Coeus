@@ -43,7 +43,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
 /// let y = coeus_autograd::sigmoid(&x);
 /// assert!((y.tensor.as_slice()[0] - 0.5).abs() < 1e-5);
 /// let loss = coeus_autograd::sum(&y);
-/// loss.backward();
+/// loss.backward().expect("invariant: valid autograd fixture completes backward");
 /// let grad = x.grad().unwrap();
 /// assert!((grad.as_slice()[0] - 0.25).abs() < 1e-5); // 0.5 * (1 - 0.5)
 /// assert!((grad.as_slice()[1] - 0.25).abs() < 1e-5);

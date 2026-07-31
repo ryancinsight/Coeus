@@ -11,7 +11,7 @@
 //! - [`ElementwiseOps`] — binary and unary element-wise ops
 //! - [`MatmulOps`] — matmul, batched matmul, accumulate variants
 //! - [`ReductionOps`] — reduce, argmax/argmin, topk, cumulative sum/product scans
-//! - [`ConvOps`] — 1D/2D/3D conv forward+backward, transposed conv defaults
+//! - [`ConvOps`] — regular convolution and 1D/2D transposed convolution
 //! - [`PoolOps`] — max/avg pool 1D/2D/3D forward+backward
 //! - [`AttentionOps`] — scaled dot-product attention forward+backward
 //! - [`OptimizerOps`] — fused SGD/Adam/RMSProp/AdamW/AdaGrad steps
@@ -29,7 +29,7 @@ pub mod reduction;
 pub mod unfold_fold;
 
 pub use attention::AttentionOps;
-pub use conv::ConvOps;
+pub use conv::{ConvOps, ConvolutionBackward, ConvolutionForward};
 pub use elementwise::ElementwiseOps;
 pub use matmul::MatmulOps;
 pub use optimizer::OptimizerOps;

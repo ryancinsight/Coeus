@@ -20,10 +20,22 @@ pub(crate) fn bench_mha_forward(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — MHA self-attn forward (8x64x256, 8 heads)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(mha_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                mha_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid multi-head attention benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(mha_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                mha_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid multi-head attention benchmark input"),
+            )
+        })
     });
     group.finish();
 }
@@ -109,10 +121,22 @@ pub(crate) fn bench_transformer_encoder_forward(c: &mut Criterion) {
     let mut group =
         c.benchmark_group("Coeus — Transformer encoder layer forward (8x64x256, d_ff=1024)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(enc_seq.forward(black_box(&x_seq))))
+        b.iter(|| {
+            black_box(
+                enc_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid transformer encoder benchmark input"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(enc_moirai.forward(black_box(&x_moirai))))
+        b.iter(|| {
+            black_box(
+                enc_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid transformer encoder benchmark input"),
+            )
+        })
     });
     group.finish();
 }

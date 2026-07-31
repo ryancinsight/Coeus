@@ -30,11 +30,13 @@ fn test_sequential_container() {
         true,
     );
 
-    let output = seq.forward(&input);
+    let output = seq.forward(&input).expect("valid Sequential input");
     assert_eq!(output.tensor.shape(), &[2, 2]);
 
     // Backward pass
-    output.backward();
+    output
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());
     assert!(params[0].grad().is_some()); // weight1
     assert!(params[1].grad().is_some()); // bias1

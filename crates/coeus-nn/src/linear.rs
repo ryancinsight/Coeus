@@ -1,4 +1,4 @@
-use crate::module::Module;
+use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
@@ -44,18 +44,25 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Linear<T
         params
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let input_shape = input.tensor.shape();
-        assert!(
-            input_shape.len() >= 2,
-            "Linear input must have rank >= 2, got shape {input_shape:?}"
-        );
+        if input_shape.len() < 2 {
+            return Err(ModuleError::InvalidRank {
+                module: "Linear",
+                expected: "at least 2",
+                actual: input_shape.len(),
+            });
+        }
         let in_features = self.weight.tensor.shape()[1];
-        assert_eq!(
-            input_shape[input_shape.len() - 1],
-            in_features,
-            "Linear input last dimension must equal in_features"
-        );
+        let actual_features = input_shape[input_shape.len() - 1];
+        if actual_features != in_features {
+            return Err(ModuleError::ShapeMismatch {
+                module: "Linear",
+                parameter: "input trailing dimension",
+                expected: vec![in_features],
+                actual: vec![actual_features],
+            });
+        }
 
         let rows = input_shape[..input_shape.len() - 1]
             .iter()
@@ -74,7 +81,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Linear<T
             projected
         };
 
-        if input_shape.len() == 2 {
+        let output = if input_shape.len() == 2 {
             projected
         } else {
             let mut output_shape = input_shape.to_vec();
@@ -83,7 +90,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Linear<T
                 .expect("invariant: rank was validated as at least two") =
                 self.weight.tensor.shape()[0];
             coeus_autograd::reshape(&projected, output_shape)
-        }
+        };
+        Ok(output)
     }
 
     fn load_parameters(&mut self, params: &[Var<T, B>]) {

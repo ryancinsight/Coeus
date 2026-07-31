@@ -20,12 +20,10 @@ fn activation_tail_operation(op: coeus_ops::UnaryOp) -> Option<&'static str> {
 }
 
 mod attention;
-mod conv;
 mod impls;
 mod matmul;
 mod optim;
 mod pool;
-mod reduction;
 
 // ── WGPU Hephaestus strided routing helpers ───────────────────────────────────
 
@@ -154,6 +152,10 @@ fn try_hephaestus_strided_unary_wgpu<
     c_layout: &Layout,
 ) -> Result<bool, WgpuBackendError> {
     use coeus_ops::UnaryOp;
+
+    if Arc::ptr_eq(&a_buf.buffer, &c_buf.buffer) {
+        return Ok(false);
+    }
 
     macro_rules! dispatch_n {
         ($n:expr) => {{

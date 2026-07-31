@@ -111,7 +111,7 @@ fn test_gradient_synchronization() {
             x.set_grad(grad_val);
 
             let mut params = vec![x];
-            synchronize_gradients(&mut params, &comm);
+            synchronize_gradients(&mut params, &comm).expect("valid distributed gradient layout");
 
             let synced_grad = params[0].grad().unwrap();
             let data = synced_grad.as_slice();

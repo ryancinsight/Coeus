@@ -15,4 +15,3 @@ pub fn conv1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Var<T, B> {
     conv_nd_inner::<T, B, 1>(input, weight, bias, out_tensor, stride, padding, dilation)
 }
-

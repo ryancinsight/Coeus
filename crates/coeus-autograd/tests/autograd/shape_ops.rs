@@ -28,7 +28,8 @@ fn test_pad_autograd() {
     assert_eq!(y_slice[10], 4.0);
 
     let grad_out = Tensor::ones_on(vec![4, 4], &backend);
-    y.backward_with_seed(grad_out);
+    y.backward_with_seed(grad_out)
+        .expect("invariant: valid autograd fixture completes backward");
 
     let gx = x.grad().unwrap();
     let gx_slice = gx.as_slice();
@@ -51,7 +52,8 @@ fn test_squeeze_unsqueeze_autograd() {
         &[10.0f32, 20.0, 30.0, 40.0, 50.0, 60.0],
         &backend,
     );
-    y.backward_with_seed(grad_out);
+    y.backward_with_seed(grad_out)
+        .expect("invariant: valid autograd fixture completes backward");
 
     let gx = x.grad().unwrap();
     assert_eq!(gx.shape(), &[2, 3]);
@@ -69,7 +71,8 @@ fn test_squeeze_unsqueeze_autograd() {
         &[10.0f32, 20.0, 30.0, 40.0, 50.0, 60.0],
         &backend,
     );
-    y2.backward_with_seed(grad_out2);
+    y2.backward_with_seed(grad_out2)
+        .expect("invariant: valid autograd fixture completes backward");
 
     let gx2 = x2.grad().unwrap();
     assert_eq!(gx2.shape(), &[2, 1, 3]);
@@ -91,7 +94,8 @@ fn test_squeeze_unsqueeze_autograd() {
         &[10.0f32, 20.0, 30.0, 40.0, 50.0, 60.0],
         &backend,
     );
-    y3.backward_with_seed(grad_out3);
+    y3.backward_with_seed(grad_out3)
+        .expect("invariant: valid autograd fixture completes backward");
 
     let gx3 = x3.grad().unwrap();
     assert_eq!(gx3.shape(), &[1, 2, 1, 3]);
@@ -108,7 +112,9 @@ fn test_contiguous_backward_is_identity() {
     let y = coeus_autograd::contiguous(&coeus_autograd::permute(&x, &[1, 0]));
     assert_eq!(y.tensor.shape(), &[3, 2]);
     // sum(contiguous(permute(x))).backward() — grad should be all-ones (same as sum backward).
-    coeus_autograd::sum(&y).backward();
+    coeus_autograd::sum(&y)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
     assert_eq!(gx.shape(), &[2, 3]);
     // Every element contributed once to the sum, so all grads = 1.
@@ -140,7 +146,9 @@ fn test_einsum3_matmul_chain_backward() {
     assert_eq!(y.tensor.shape(), &[2, 2]);
     assert_eq!(y.tensor.as_slice(), &[413.0, 454.0, 937.0, 1030.0]);
 
-    coeus_autograd::sum(&y).backward();
+    coeus_autograd::sum(&y)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     assert_close(
         a.grad().unwrap().as_slice(),

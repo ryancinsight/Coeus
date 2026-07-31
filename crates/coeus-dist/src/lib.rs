@@ -53,7 +53,8 @@ use coeus_tensor::Tensor;
 ///         x.set_grad(Tensor::from_slice_on([2], &[rank + 1.0, rank + 10.0], &backend));
 ///
 ///         let mut params = vec![x];
-///         synchronize_gradients(&mut params, &comm);
+///         synchronize_gradients(&mut params, &comm)
+///             .expect("valid distributed gradient layout");
 ///
 ///         let synced_grad = params[0].grad().unwrap();
 ///         let data = synced_grad.as_slice();
@@ -66,6 +67,10 @@ use coeus_tensor::Tensor;
 ///     h.join().unwrap();
 /// }
 /// ```
+///
+/// # Errors
+///
+/// Returns the backend's typed failure if gradient scaling cannot be applied.
 pub fn synchronize_gradients<
     T: Scalar,
     B: ComputeBackend + coeus_ops::BackendOps<T> + Default,
@@ -73,10 +78,10 @@ pub fn synchronize_gradients<
 >(
     params: &mut [Var<T, B>],
     comm: &C,
-) {
+) -> Result<(), B::Error> {
     let size = comm.size();
     if size <= 1 {
-        return;
+        return Ok(());
     }
     let backend = B::default();
     let scale_val = T::from_f64(1.0 / size as f64);
@@ -90,9 +95,8 @@ pub fn synchronize_gradients<
             comm.all_reduce::<T, B, Sum>(grad_tensor, &backend);
 
             // Scale by 1 / world_size
-            coeus_ops::mul_assign(grad_tensor, &scale_tensor, &backend)
-                .expect("distributed gradient scaling backend operation");
+            coeus_ops::mul_assign(grad_tensor, &scale_tensor, &backend)?;
         }
     }
+    Ok(())
 }
-

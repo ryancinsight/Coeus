@@ -29,16 +29,18 @@ pub(crate) fn bench_max_pool2d(c: &mut Criterion) {
             Tensor::<f32, SequentialBackend>::zeros([BATCH, CHANNELS, OUTPUT_SIDE, OUTPUT_SIDE]);
         let output_layout = output.layout().clone();
         bencher.iter(|| {
-            sequential_backend.max_pool2d(
-                black_box(sequential_input.storage()),
-                black_box(sequential_input.layout()),
-                KERNEL,
-                STRIDE,
-                0,
-                1,
-                output.storage_mut(),
-                &output_layout,
-            );
+            sequential_backend
+                .max_pool2d(
+                    black_box(sequential_input.storage()),
+                    black_box(sequential_input.layout()),
+                    KERNEL,
+                    STRIDE,
+                    0,
+                    1,
+                    output.storage_mut(),
+                    &output_layout,
+                )
+                .expect("valid Sequential MaxPool2d benchmark layout");
             black_box(output.storage());
         })
     });
@@ -47,16 +49,18 @@ pub(crate) fn bench_max_pool2d(c: &mut Criterion) {
             Tensor::<f32, MoiraiBackend>::zeros([BATCH, CHANNELS, OUTPUT_SIDE, OUTPUT_SIDE]);
         let output_layout = output.layout().clone();
         bencher.iter(|| {
-            moirai_backend.max_pool2d(
-                black_box(moirai_input.storage()),
-                black_box(moirai_input.layout()),
-                KERNEL,
-                STRIDE,
-                0,
-                1,
-                output.storage_mut(),
-                &output_layout,
-            );
+            moirai_backend
+                .max_pool2d(
+                    black_box(moirai_input.storage()),
+                    black_box(moirai_input.layout()),
+                    KERNEL,
+                    STRIDE,
+                    0,
+                    1,
+                    output.storage_mut(),
+                    &output_layout,
+                )
+                .expect("valid Moirai MaxPool2d benchmark layout");
             black_box(output.storage());
         })
     });

@@ -8,9 +8,9 @@
 //! ## Feature gating
 //!
 //! The real device path is behind the `cuda` feature (NVRTC + the CUDA driver
-//! via `hephaestus-cuda`). Without it, [`CudaBackend`] resolves to a stub so the
-//! workspace builds on machines without a CUDA toolkit; only `--features cuda`
-//! exercises the GPU.
+//! via `hephaestus-cuda`). Without it, [`CudaBackend`] exposes metadata and
+//! storage types so the workspace builds on machines without a CUDA toolkit,
+//! but it implements no mathematical backend traits.
 //!
 //! ## Dispatch architecture
 //!
@@ -21,15 +21,14 @@
 //!    honest without a fake-generic widen/narrow);
 //! 2. launches the on-device kernel (hand-written PTX in the `kernels` module for
 //!    conv/attention, NVRTC CUDA C for fused/elementwise/optimizer paths);
-//! 3. uses an explicit capability boundary for operations without a native
-//!    kernel. Cumulative scans are native for rank-two layouts and return
-//!    typed provider errors for unsupported ranks; they do not copy through
-//!    the host. Other documented capability boundaries retain their existing
-//!    CPU reference path where the public contract still requires one.
+//! 3. returns a typed backend error when the selected CUDA provider cannot
+//!    execute an elementwise, matrix, reduction, or fused request. Those
+//!    operation families never download device buffers for CPU execution.
 //!
-//! The fallback is a capability boundary, never a silent defect mask: the
-//! observable result matches the CPU reference either way, verified by the
-//! differential parity tests in `tests/cuda/`.
+//! Provider capability boundaries are explicit in their operation contracts
+//! and are covered by differential parity tests in `tests/cuda/`. Native and
+//! fused CUDA entry points return provider failures to the caller rather than
+//! changing execution backends.
 #![deny(missing_docs)]
 
 mod error;
@@ -71,61 +70,95 @@ use coeus_tensor::Tensor;
 
 /// Evaluate a fused element-wise expression on the CUDA device.
 ///
-/// Compiles and dispatches a dynamic kernel on the GPU, falling back to CPU if unavailable.
+/// The CUDA feature requires a live provider, a valid expression layout, and
+/// a successful NVRTC compilation and kernel launch. Provider failure is
+/// returned to the caller; this API never changes execution backends after a
+/// CUDA dispatch has been selected.
+///
+/// # Errors
+///
+/// Returns [`CudaBackendError`] when the expression, CUDA provider, generated
+/// kernel, or launch ABI rejects the operation.
 pub fn evaluate_fused<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend> + Copy>(
     expr: &E,
-) -> Tensor<T, CudaBackend> {
+) -> Result<Tensor<T, CudaBackend>, CudaBackendError> {
     #[cfg(not(feature = "cuda"))]
     {
-        coeus_ops::fuse::evaluate_fused_cpu(expr, &CudaBackend::new())
+        let _ = expr;
+        Err(CudaBackendError::kernel(
+            "fused elementwise",
+            "the CUDA provider feature is disabled",
+        ))
     }
 
     #[cfg(feature = "cuda")]
     {
-        let out_shape = expr
-            .shape()
-            .expect("Fused expression must have at least one tensor input to determine shape");
+        let out_shape = expr.shape().ok_or_else(|| {
+            CudaBackendError::validation(coeus_core::BackendError::Storage {
+                operation: "fused elementwise",
+                reason: "expression has no tensor input from which to derive its shape".to_string(),
+            })
+        })?;
         let out_layout = Layout::new(out_shape.clone());
         let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new());
 
-        if kernels::dispatch_fused(expr, out.storage_mut(), &out_layout) {
-            out
-        } else {
-            coeus_ops::fuse::evaluate_fused_cpu(expr, &CudaBackend::new())
-        }
+        kernels::dispatch_fused(expr, out.storage_mut(), &out_layout)?;
+        Ok(out)
     }
 }
 
 /// Evaluate a fused reduction along an axis on the CUDA device.
+///
+/// # Errors
+///
+/// Returns [`CudaBackendError`] when the expression, axis, CUDA provider,
+/// generated kernel, or launch ABI rejects the operation.
 pub fn evaluate_fused_reduce<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend> + Copy>(
     expr: &E,
     op: coeus_ops::ReductionOp,
     axis: usize,
-) -> Tensor<T, CudaBackend> {
+) -> Result<Tensor<T, CudaBackend>, CudaBackendError> {
     #[cfg(not(feature = "cuda"))]
     {
-        coeus_ops::fuse::evaluate_fused_reduce_cpu(expr, op, axis, &CudaBackend::new())
+        let _ = (expr, op, axis);
+        Err(CudaBackendError::kernel(
+            "fused reduction",
+            "the CUDA provider feature is disabled",
+        ))
     }
 
     #[cfg(feature = "cuda")]
     {
-        let expr_shape = expr
-            .shape()
-            .expect("Fused expression must have at least one tensor input to determine shape");
-        assert!(
-            axis < expr_shape.len(),
-            "Axis out of bounds in evaluate_fused_reduce"
-        );
+        let expr_shape = expr.shape().ok_or_else(|| {
+            CudaBackendError::validation(coeus_core::BackendError::Storage {
+                operation: "fused reduction",
+                reason: "expression has no tensor input from which to derive its shape".to_string(),
+            })
+        })?;
+        if axis >= expr_shape.len() {
+            return Err(CudaBackendError::validation(
+                coeus_core::BackendError::AxisOutOfRange {
+                    operation: "fused reduction",
+                    axis,
+                    rank: expr_shape.len(),
+                },
+            ));
+        }
 
         let mut out_shape = expr_shape;
-        out_shape[axis] = 1;
+        let out_rank = out_shape.len();
+        let output_axis = out_shape.get_mut(axis).ok_or_else(|| {
+            CudaBackendError::validation(coeus_core::BackendError::AxisOutOfRange {
+                operation: "fused reduction",
+                axis,
+                rank: out_rank,
+            })
+        })?;
+        *output_axis = 1;
         let out_layout = Layout::new(out_shape.clone());
         let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new());
 
-        if kernels::dispatch_fused_reduce(expr, op, axis, out.storage_mut(), &out_layout) {
-            out
-        } else {
-            coeus_ops::fuse::evaluate_fused_reduce_cpu(expr, op, axis, &CudaBackend::new())
-        }
+        kernels::dispatch_fused_reduce(expr, op, axis, out.storage_mut(), &out_layout)?;
+        Ok(out)
     }
 }

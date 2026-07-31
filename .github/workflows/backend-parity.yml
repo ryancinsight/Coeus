@@ -131,8 +131,28 @@ jobs:
             crates/coeus-ops/src/backend_ops/cpu_impl/impls/reduction.rs \
             crates/coeus-ops/src/backend_ops/defaults/reductions.rs \
             crates/coeus-ops/src/reduction/cumsum.rs \
+            crates/coeus-hephaestus/src/convolution/dispatch.rs \
+            crates/coeus-hephaestus/src/convolution/implementation.rs \
+            crates/coeus-hephaestus/src/convolution/provider.rs \
+            crates/coeus-wgpu/src/backend/ops/impls/conv.rs \
             crates/coeus-wgpu/src/backend/ops/impls/reduction.rs \
-            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/reduction.rs
+            crates/coeus-wgpu/src/kernels/reduce.rs \
+            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/conv.rs \
+            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/conv3d.rs \
+            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/conv_transpose.rs \
+            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity/convolution_pooling.rs \
+            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity/reduction.rs \
+            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/reduction.rs \
+            crates/coeus-cuda/tests/cuda_ops/unavailable.rs
+          rustfmt --check --edition 2024 --config skip_children=true \
+            crates/coeus-wgpu/src/backend/ops/mod.rs \
+            crates/coeus-wgpu/src/kernels/mod.rs \
+            crates/coeus-cuda/src/lib.rs \
+            crates/coeus-cuda/src/backend_stub.rs \
+            crates/coeus-cuda/src/error.rs \
+            crates/coeus-cuda/src/backend/ops/math.rs \
+            crates/coeus-cuda/src/fallback/ops/mod.rs \
+            crates/coeus-cuda/tests/cuda_ops.rs
           cargo "+$RUST_TOOLCHAIN" update \
             --manifest-path "$GITHUB_WORKSPACE/coeus/Cargo.toml" --workspace
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
@@ -142,8 +162,12 @@ jobs:
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-wgpu --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-wgpu --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-wgpu \
-            -E "test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors) or test(test_wgpu_parity_add) or test(test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer)"
+            -E "test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors) or test(test_wgpu_conv) or test(test_wgpu_conv_backward) or test(test_wgpu_conv3d) or test(test_wgpu_conv3d_stride_padding_dilation_matches_cpu) or test(test_wgpu_conv3d_backward) or test(test_wgpu_conv3d_backward_stride_padding_dilation_matches_cpu) or test(test_wgpu_conv_transpose1d) or test(test_wgpu_conv_transpose2d) or test(test_wgpu_conv_transpose1d_backward_matches_cpu_autograd) or test(test_wgpu_conv_transpose2d_backward_matches_cpu_autograd) or test(test_wgpu_parity_conv1d_forward) or test(test_wgpu_parity_conv2d_forward) or test(test_wgpu_parity_sum_axis0) or test(test_wgpu_parity_sum_axis1) or test(test_wgpu_parity_mean_axis) or test(test_wgpu_parity_max_axis) or test(test_wgpu_parity_min_axis) or test(test_wgpu_parity_prod_axis) or test(test_wgpu_parity_rank_one_sum) or test(test_wgpu_parity_rank_one_scan) or test(test_wgpu_reduction_rejects_unsupported_rank) or test(test_wgpu_parity_add) or test(test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer) or test(test_wgpu_elu_parity) or test(test_wgpu_parity_elu) or test(test_wgpu_strided_elu_transposed_matches_cpu) or test(test_wgpu_strided_elu_gradient_transposed_matches_cpu) or test(test_wgpu_aliasing_elu_rejects_provider_bypass) or test(test_wgpu_parity_gelu_tanh) or test(test_wgpu_parity_softplus)"
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-wgpu --doc
+          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cuda --no-default-features --all-targets
+          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cuda --no-default-features --all-targets --no-deps -- -D warnings
+          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --no-default-features
+          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-cuda --no-default-features --doc
 
   cuda:
     name: CUDA Coeus provider contracts
@@ -260,6 +284,22 @@ jobs:
                 crates/coeus-ops/src/backend_ops/defaults/reductions.rs \
                 crates/coeus-ops/src/reduction/cumsum.rs \
                 crates/coeus-cuda/src/backend/ops/impls/reduction.rs \
+                crates/coeus-cuda/src/backend/ops/math/elementwise.rs \
+                crates/coeus-cuda/src/backend/ops/math/matmul.rs \
+                crates/coeus-cuda/src/backend/ops/impls/conv.rs \
+                crates/coeus-cuda/src/kernels/validation.rs \
+                crates/coeus-cuda/src/kernels/launch_matmul.rs \
+                crates/coeus-hephaestus/src/convolution/dispatch.rs \
+                crates/coeus-hephaestus/src/convolution/implementation.rs \
+                crates/coeus-hephaestus/src/convolution/provider.rs \
+                crates/coeus-cuda/tests/cuda/parity/convolution.rs \
+                crates/coeus-cuda/tests/cuda/parity/convolution_transpose.rs \
+                crates/coeus-cuda/src/kernels/pool/validation.rs \
+                crates/coeus-cuda/src/kernels/pool/pool1d.rs \
+                crates/coeus-cuda/src/kernels/pool/max.rs \
+                crates/coeus-cuda/src/kernels/pool/avg.rs \
+                crates/coeus-cuda/src/kernels/pool/max3d.rs \
+                crates/coeus-cuda/src/kernels/pool/avg3d.rs \
                 crates/coeus-cuda/tests/cuda/parity/reduction.rs
               cargo "+$RUST_TOOLCHAIN" update \
                 --manifest-path /workspace/coeus/Cargo.toml --workspace
@@ -270,7 +310,7 @@ jobs:
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cuda --features cuda --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cuda --features cuda --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --features cuda \
-                -E "test(test_cuda_parity_cumulative_scans) or test(test_cuda_parity_prod_axis) or test(test_cuda_backend_ops)"
+                -E "test(matmul_rejects_each_layout_that_exceeds_storage) or test(matmul_rejects_writable_zero_stride_output) or test(cuda_storage_validation_checks_physical_bound_and_writable_aliasing) or test(signed_ptx_storage_validation_enforces_address_boundary) or test(signed_ptx_storage_validation_rejects_oversized_shape_and_stride) or test(pool_storage_validation_rejects_undersized_and_overflowed_layouts) or test(pool_signed_index_validation_covers_forward_and_backward_extrema) or test(test_cuda_backend_conv_and_reduce) or test(test_cuda_conv_backward) or test(test_cuda_conv3d) or test(test_cuda_parity_conv1d_forward) or test(test_cuda_parity_conv2d_forward) or test(test_cuda_parity_conv2d_backward) or test(test_cuda_parity_conv3d_forward) or test(test_cuda_parity_conv3d_backward) or test(test_cuda_parity_conv_transpose1d) or test(test_cuda_parity_conv_transpose2d) or test(test_cuda_parity_conv_transpose1d_backward) or test(test_cuda_parity_conv_transpose2d_backward) or test(test_cuda_parity_sum_axis0) or test(test_cuda_parity_sum_axis1) or test(test_cuda_parity_mean_axis) or test(test_cuda_parity_max_axis) or test(test_cuda_parity_min_axis) or test(test_cuda_parity_prod_axis) or test(test_cuda_parity_rank_one_sum) or test(test_cuda_parity_rank_one_scan) or test(test_cuda_reduction_rejects_unsupported_rank) or test(test_cuda_parity_cumulative_scans) or test(test_cuda_backend_ops) or test(test_cuda_parity_elu) or test(test_cuda_parity_elu_grad) or test(test_cuda_strided_elu_matches_cpu) or test(test_cuda_strided_elu_gradient_matches_cpu) or test(test_cuda_parity_gelu) or test(test_cuda_parity_gelu_grad) or test(test_cuda_parity_gelu_tanh) or test(test_cuda_parity_gelu_tanh_grad) or test(test_cuda_parity_softplus) or test(test_cuda_parity_softplus_grad)"
               cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-cuda --features cuda --doc
             '
 
@@ -387,8 +427,13 @@ jobs:
                 crates/coeus-hephaestus/src/layout.rs \
                 crates/coeus-hephaestus/src/reduction.rs \
                 crates/coeus-hephaestus/src/storage.rs \
+                crates/coeus-hephaestus/src/convolution/dispatch.rs \
+                crates/coeus-hephaestus/src/convolution/implementation.rs \
+                crates/coeus-hephaestus/src/convolution/provider.rs \
                 crates/coeus-rocm/src/lib.rs \
                 crates/coeus-rocm/src/backend.rs \
+                crates/coeus-rocm/src/backend/provider.rs \
+                crates/coeus-rocm/src/backend/runtime.rs \
                 crates/coeus-rocm/tests/reduction.rs \
                 crates/coeus-rocm/tests/elementwise.rs
               cargo "+$RUST_TOOLCHAIN" update --manifest-path /workspace/coeus/Cargo.toml --workspace
@@ -510,8 +555,13 @@ jobs:
             crates/coeus-hephaestus/src/layout.rs \
             crates/coeus-hephaestus/src/reduction.rs \
             crates/coeus-hephaestus/src/storage.rs \
+            crates/coeus-hephaestus/src/convolution/dispatch.rs \
+            crates/coeus-hephaestus/src/convolution/implementation.rs \
+            crates/coeus-hephaestus/src/convolution/provider.rs \
             crates/coeus-metal/src/lib.rs \
             crates/coeus-metal/src/backend.rs \
+            crates/coeus-metal/src/backend/provider.rs \
+            crates/coeus-metal/src/backend/runtime.rs \
             crates/coeus-metal/tests/reduction.rs \
             crates/coeus-metal/tests/elementwise.rs
           cargo "+$RUST_TOOLCHAIN" update --manifest-path "$GITHUB_WORKSPACE/coeus/Cargo.toml" --workspace

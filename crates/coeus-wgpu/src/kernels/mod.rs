@@ -1,8 +1,6 @@
 pub mod attention;
 pub mod binary;
 pub mod cache;
-pub mod conv;
-pub mod conv_transpose;
 pub mod fuse;
 pub mod layout;
 pub mod matmul;
@@ -17,15 +15,6 @@ pub use attention::{
     AttnForwardDispatch,
 };
 pub use binary::{dispatch_binary, dispatch_contiguous_binary};
-pub use conv::{
-    dispatch_conv1d, dispatch_conv1d_backward, dispatch_conv2d, dispatch_conv2d_backward,
-    dispatch_conv3d, dispatch_conv3d_backward, Conv1dBackwardDispatch, Conv1dDispatch,
-    Conv2dBackwardDispatch, Conv2dDispatch, Conv3dBackwardDispatch, Conv3dDispatch,
-};
-pub use conv_transpose::{
-    dispatch_conv_transpose1d, dispatch_conv_transpose2d, ConvTranspose1dDispatch,
-    ConvTranspose2dDispatch,
-};
 pub use fuse::dispatch_fused;
 pub use matmul::dispatch_matmul;
 pub use optim::{
@@ -38,6 +27,6 @@ pub use pool::{
     dispatch_max_pool1d, dispatch_max_pool1d_backward, dispatch_max_pool2d,
     dispatch_max_pool2d_backward, dispatch_max_pool3d, dispatch_max_pool3d_backward,
 };
-pub use reduce::{dispatch_fused_reduce, dispatch_reduce};
+pub use reduce::dispatch_fused_reduce;
 pub use unary::{dispatch_contiguous_unary, dispatch_unary};
 pub use unfold_fold::{dispatch_fold1d, dispatch_fold2d, dispatch_unfold1d, dispatch_unfold2d};

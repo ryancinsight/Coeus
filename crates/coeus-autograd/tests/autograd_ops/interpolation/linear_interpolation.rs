@@ -21,7 +21,9 @@ fn three_dimensional_backward_matches_analytical_derivatives() {
     let sampled = linear_interpolation::<3, _, _>(&image, &grid, Replicate)
         .expect("valid three-dimensional contract");
     assert_eq!(sampled.tensor.as_slice(), &[3.5]);
-    sum(&sampled).backward();
+    sum(&sampled)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         image.grad().expect("tracked image gradient").as_slice(),
         &[0.125; 8]
@@ -46,7 +48,9 @@ fn two_dimensional_backward_matches_analytical_derivatives() {
     let sampled = linear_interpolation::<2, _, _>(&image, &grid, Replicate)
         .expect("valid two-dimensional contract");
     assert_eq!(sampled.tensor.as_slice(), &[1.25]);
-    sum(&sampled).backward();
+    sum(&sampled)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         image.grad().expect("tracked image gradient").as_slice(),
         &[0.1875, 0.5625, 0.0625, 0.1875]
@@ -70,7 +74,9 @@ fn constant_image_has_zero_coordinate_gradient() {
     );
     let sampled = linear_interpolation::<2, _, _>(&image, &grid, Replicate)
         .expect("valid two-dimensional contract");
-    sum(&sampled).backward();
+    sum(&sampled)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
         grid.grad().expect("tracked grid gradient").as_slice(),
         &[0.0, 0.0]

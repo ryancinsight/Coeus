@@ -37,11 +37,11 @@ impl CudaScalar for i32 {
     const CUDA_TYPE: &'static str = "int";
 }
 
-/// CUDA API-compatible backend compiled without CUDA provider support.
+/// CUDA metadata backend compiled without CUDA provider support.
 ///
-/// Its storage is CPU-addressable and all mathematical operations use Coeus'
-/// canonical generic CPU kernels. This preserves value semantics on hosts that
-/// cannot compile CUDA without maintaining a second operation implementation.
+/// This type keeps non-provider builds source-compatible with code that names
+/// CUDA storage, but it does not implement Coeus mathematical backend traits.
+/// Selecting CUDA execution requires the crate's `cuda` feature.
 ///
 /// # Examples
 ///
@@ -50,7 +50,7 @@ impl CudaScalar for i32 {
 /// use coeus_core::ComputeBackend;
 ///
 /// let backend = CudaBackend::new();
-/// assert_eq!(backend.name(), "cuda-cpu");
+/// assert_eq!(backend.name(), "cuda-unavailable");
 /// assert_eq!(backend.num_threads(), 1);
 /// ```
 #[derive(Debug, Clone, Copy, Default)]
@@ -74,7 +74,7 @@ impl ComputeBackend for CudaBackend {
 
     #[inline]
     fn name(&self) -> &'static str {
-        "cuda-cpu"
+        "cuda-unavailable"
     }
 
     #[inline]
@@ -117,14 +117,5 @@ impl Backend for CudaBackend {
         F: Fn(usize) + Send + Sync + 'static,
     {
         coeus_core::SequentialBackend::new().parallel_for(start, end, operation);
-    }
-}
-
-impl coeus_ops::CpuBackend for CudaBackend {
-    #[inline]
-    fn as_mut_slice_i64<'a>(&self, buffer: &'a mut Self::DeviceBuffer<i64>) -> &'a mut [i64] {
-        buffer
-            .try_as_mut_slice()
-            .expect("invariant: no-CUDA storage is CPU-addressable")
     }
 }

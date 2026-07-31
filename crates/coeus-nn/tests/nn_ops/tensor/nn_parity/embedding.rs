@@ -19,7 +19,9 @@ fn test_embedding_parity() {
         true,
     );
     let x_coeus = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &indices_data);
-    let out_coeus = emb_coeus.forward_indices(&x_coeus);
+    let out_coeus = emb_coeus
+        .forward_indices(&x_coeus)
+        .expect("valid Embedding indices");
 
     // Verify forward
     let expected_embedding_out = vec![
@@ -52,7 +54,9 @@ fn test_embedding_parity() {
 
     // Backward pass
     let loss_coeus = coeus_autograd::sum(&out_coeus);
-    loss_coeus.backward();
+    loss_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     let dw_coeus = emb_coeus.weight.grad().unwrap();
     let expected_embedding_dw = vec![

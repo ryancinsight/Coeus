@@ -6,7 +6,7 @@
 // weights (e.g. for PyTorch parity testing).
 
 use crate::nn::linear::PyLinear;
-use crate::tensor::PyTensor;
+use crate::{nn::error::map_module_error, tensor::PyTensor};
 use coeus_nn::Module;
 use pyo3::prelude::*;
 
@@ -125,7 +125,7 @@ impl PySwiGlu {
             };
             swiglu.forward(&x)
         });
-        Ok(PyTensor::from_var(out))
+        out.map(PyTensor::from_var).map_err(map_module_error)
     }
 
     /// Learnable parameters: both projections' weights (and biases if present).

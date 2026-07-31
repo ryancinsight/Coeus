@@ -21,14 +21,16 @@ fn test_linear_parity() {
     ));
 
     // Coeus forward
-    let out_coeus = linear_coeus.forward(&x_coeus);
+    let out_coeus = linear_coeus.forward(&x_coeus).expect("valid Linear input");
 
     // Verify forward
     let expected_linear_out = vec![2.700000f32, 0.900000f32, 1.950000f32, -1.600000f32];
     assert_tensor_eq_data(&out_coeus.tensor, &expected_linear_out, 1e-4);
 
     // Coeus backward
-    out_coeus.backward();
+    out_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients
     let dx_coeus = x_coeus.grad().unwrap();
@@ -73,7 +75,7 @@ fn test_layernorm_parity() {
     ln_coeus.bias = CoeusVar::new(CoeusTensor::from_slice(vec![4], &b_data), true);
 
     // Coeus forward
-    let out_coeus = ln_coeus.forward(&x_coeus);
+    let out_coeus = ln_coeus.forward(&x_coeus).expect("valid LayerNorm input");
 
     // Verify forward
     let expected_layernorm_out = vec![
@@ -89,7 +91,9 @@ fn test_layernorm_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_layernorm_out, 1e-3);
 
     // Coeus backward
-    out_coeus.backward();
+    out_coeus
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients
     let dx_coeus = x_coeus.grad().unwrap();
