@@ -26,6 +26,62 @@ affected warning-denied Clippy and doctest lanes pass. SemVer checks classify
 the fallible trait and removed supertrait as the documented major break.
 Independent architecture and correctness reviews are clean after correction.
 Exact-head hosted gates remain.
+## ATLAS-COEUS-ZERO-FILL-MEMORY-001 [arch][minor]
+
+- [x] Add explicit zero-allocation and zero-fill operations to the sealed
+      compute-backend contract.
+- [x] Route tensor zero construction and zeroed scratch buffers through the
+      zero-specific contract.
+- [x] Use provider-native zeroed allocation and command-stream clears for
+      WGPU, CUDA, ROCm, and Metal without destination-sized host staging.
+- [x] Verify CPU value semantics, GPU provider integration, warning-denied
+      builds, and exact-head backend CI.
+
+Owner: Codex on `codex/coeus-zero-fill-memory`. Scope is zero initialization
+and zero-fill memory traffic across the compute-backend seam and four GPU
+providers. Arbitrary nonzero fill kernels and unrelated allocator policy are
+excluded.
+
+Acceptance: zero tensor construction performs one zeroed allocation; explicit
+GPU zero fill uses a provider-native device operation; CPU and available GPU
+results are exactly zero; no zero path allocates a destination-sized host
+vector.
+
+Status: complete. Focused Nextest value regressions and warning-denied Clippy
+pass locally. Exact-head backend CI run `30655415266` passes CUDA job
+`91238466890`, ROCm job `91238466911`, WGPU job `91238466914`, and Metal job
+`91238466943`; optional required-device CUDA and ROCm jobs were not requested.
+
+## ATLAS-COEUS-HEPHAESTUS-PARAMETERIZED-ACTIVATION-001 [arch][minor]
+
+- [x] Decode packed Hardtanh and Threshold parameters as their canonical two
+      `f32` values and route forward/gradient operations directly through the
+      Hephaestus runtime-parameter unary seam.
+- [x] Delete superseded Coeus-authored Hardtanh and Threshold shader
+      expressions; retain no local-kernel or CPU fallback.
+- [x] Instantiate value-semantic Leto CPU differential coverage across WGPU,
+      CUDA, ROCm, and Metal, including equality boundaries and non-default
+      parameters.
+- [x] Pass warning-denied focused gates and exact-head backend CI after the
+      Hephaestus provider commit merges.
+
+Owner: Codex on `codex/coeus-parameterized-activation`. Scope is the four GPU
+provider integrations, shared differential contracts, PM synchronization, and
+the Hephaestus lock update. Non-f32 activation expansion and unrelated unary
+families are excluded. No compatibility or fallback path is authorized.
+
+Acceptance: each available backend returns Leto-equivalent Hardtanh,
+HardtanhGrad, Threshold, and ThresholdGrad values from provider-owned kernels;
+the incorrect WGPU `f64::from_bits` decoding and every superseded local
+expression are absent; exact-head CI is green.
+
+Status: complete at code head `f74d5ca1`. Locked-source warning-denied Clippy
+passes across the shared integration crate and all four provider crates. The
+CPU parameter-bit contract, live WGPU differential, WGPU alias regression,
+and affected doctests pass locally. Exact-head backend run `30649709774`
+passes WGPU job `91219683142`, CUDA job `91219683201`, ROCm job
+`91219683108`, and Metal job `91219683109`; required-device CUDA and ROCm jobs
+are workflow-dispatch lanes and were skipped on the pull request.
 
 ## ATLAS-COEUS-HEPHAESTUS-ACTIVATION-TAIL-PARITY-001 [arch]
 
@@ -309,14 +365,6 @@ resident-memory delta is claimed without a matched benchmark.
       cases covering positive inputs, reflection, and gamma poles.
 - [x] Replace the WGPU unsupported-operation assertion with a provider
       expression contract assertion.
-- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
-      Hephaestus expression seam and the Coeus consumer head.
-
-Status: source integration and local contract coverage are complete; exact-head
-provider and consumer CI is required before this item closes. The WGPU and
-Metal paths use the provider-owned Lanczos/reflection expression; CUDA and ROCm
-use their native `lgammaf`/`lgamma` device functions. No digamma gradient or
-non-f32 contract is implied.
 - [x] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
       Hephaestus expression seam and the Coeus consumer head.
 
@@ -483,9 +531,8 @@ absent `/tmp/cutile-rs/cuda-async/Cargo.toml`.
       families without adapters or silent no-ops.
 - [x] Update CPU, CUDA, WGPU, and high-level callers together; verify value
       semantics, typed negative broadcast failure, and public API documentation.
-- [ ] Run the full affected package matrix after the peer fallible-operation
-      migration completes; no green matrix result is claimed while peer callers
-      remain incomplete.
+- [x] Run the full affected package matrix after the peer fallible-operation
+      migration completes.
 
 Decision: ADR-0020 selects a backend-associated typed error plus fallible
 operation traits. An operation-local `Option`/early return is rejected because
@@ -518,8 +565,9 @@ backend calls explicitly, and tensor parity tests handle fallible assign
 operations. Direct nightly rustfmt and diff checks pass. The Coeus provider
 graph no longer stops at the peer Leto bound failure; the locked `coeus-ops`
 check, 110-test nextest run, 22 doctests, warning-denied Clippy, and no-deps
-Rustdoc pass. WGPU all-target verification remains outside this manifest/lock
-integration increment.
+Rustdoc pass. Exact-head final run `30651153490` completes the residual WGPU
+all-target check, warning-denied Clippy, selected value-semantic contracts, and
+doctests in job `91224435453`.
 
 ## Axis-reduction error propagation [major] [arch]
 - [x] Change `ReductionOps::reduce` to return the backend-associated typed

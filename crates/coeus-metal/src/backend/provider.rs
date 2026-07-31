@@ -1,5 +1,9 @@
-use coeus_hephaestus::{AttentionProvider, ConvolutionProvider, HephaestusProvider};
-use hephaestus_metal::{MetalAttentionOps, MetalConvolutionOps, MetalDevice};
+use coeus_hephaestus::{
+    AttentionProvider, ConvolutionProvider, HephaestusProvider, ParameterizedElementwiseProvider,
+};
+use hephaestus_metal::{
+    MetalAttentionOps, MetalConvolutionOps, MetalDevice, MetalParameterizedUnaryOps,
+};
 use std::sync::OnceLock;
 
 /// Provider marker for the native Metal device.
@@ -24,4 +28,8 @@ impl ConvolutionProvider<f32> for MetalProvider {
 
 impl AttentionProvider<f32> for MetalProvider {
     type Operations = MetalAttentionOps;
+}
+
+impl ParameterizedElementwiseProvider for MetalProvider {
+    type Operations = MetalParameterizedUnaryOps;
 }

@@ -21,7 +21,7 @@ pub use convolution::{
     transposed_forward as convolution_transposed_forward, ConvolutionBackend,
     ConvolutionBackwardDispatch, ConvolutionForwardDispatch, ConvolutionProvider,
 };
-pub use elementwise::ElementwiseProvider;
+pub use elementwise::{parameterized_unary, ElementwiseProvider, ParameterizedElementwiseProvider};
 pub use error::HephaestusBackendError;
 pub use reduction::HephaestusBackend;
 pub use reduction::{HephaestusProvider, RankedOperand, ReductionProvider, ScanOperation};

@@ -12,6 +12,24 @@
   fallbacks are removed. No runtime, memory, or binary-size delta is claimed
   without controlled measurements.
 
+- [arch] Separate overwrite-before-read allocation from zero initialization
+  in the sealed compute-backend contract. Tensor zero construction now uses
+  one provider-zeroed allocation; ordinary WGPU, CUDA, ROCm, Metal, and
+  generic Hephaestus kernel outputs use uninitialized device allocation; and
+  explicit GPU zero fills use Hephaestus command-stream clears without
+  destination-sized host staging. Matmul scratch requests one provider-zeroed
+  allocation instead of uninitialized allocation followed by a separate fill.
+  This records allocation-path and value-semantic evidence only; no runtime or
+  resident-memory delta is claimed without controlled measurement. See
+  [ADR 0037](docs/adr/0037-uninitialized-cow-consumer.md).
+
+- [arch] Routes f32 `Hardtanh`, `HardtanhGrad`, `Threshold`, and
+  `ThresholdGrad` through the provider-owned Hephaestus WGPU, CUDA, ROCm, and
+  Metal runtime-parameter kernels. Coeus decodes the canonical packed
+  parameter pair once, writes into caller-owned device storage, removes the
+  incorrect consumer WGPU expressions, and adds Leto CPU differential
+  coverage at equality boundaries and non-default parameter values.
+
 - [arch] Routes Coeus `Mish`, `MishGrad`, `Elu`, and `EluGrad` through the
   provider-owned Hephaestus WGPU, CUDA, ROCm, and Metal f32 APIs. WGPU/CUDA
   use direct contiguous and strided provider entry points; ROCm/Metal use the

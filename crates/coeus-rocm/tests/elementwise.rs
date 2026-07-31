@@ -314,6 +314,8 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
     let activation_layout = Layout::new([6].into());
     let mut device_activation_input = backend.allocate::<f32>(activation_input.len());
     backend.copy_to_device(&activation_input, &mut device_activation_input);
+    let hardtanh = u64::from((-1.0_f32).to_bits()) | (u64::from(1.0_f32.to_bits()) << 32);
+    let threshold = u64::from(0.25_f32.to_bits()) | (u64::from((-0.5_f32).to_bits()) << 32);
     for operation in [
         CpuUnaryOp::Relu,
         CpuUnaryOp::Sigmoid,
@@ -333,6 +335,10 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         CpuUnaryOp::MishGrad,
         CpuUnaryOp::EluGrad,
         CpuUnaryOp::SoftplusGrad,
+        CpuUnaryOp::Hardtanh(hardtanh),
+        CpuUnaryOp::HardtanhGrad(hardtanh),
+        CpuUnaryOp::Threshold(threshold),
+        CpuUnaryOp::ThresholdGrad(threshold),
     ] {
         let mut expected = [0.0_f32; 6];
         coeus_leto::elementwise_unary_into(

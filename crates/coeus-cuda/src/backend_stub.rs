@@ -88,6 +88,13 @@ impl ComputeBackend for CudaBackend {
     }
 
     #[inline]
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
+        let mut storage = CudaStorage::new(len);
+        self.fill_zero(&mut storage);
+        storage
+    }
+
+    #[inline]
     fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, value: T) {
         dst.try_as_mut_slice()
             .expect("invariant: no-CUDA storage is CPU-addressable")

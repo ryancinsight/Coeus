@@ -399,3 +399,33 @@ test_unary_grad_parity!(
     coeus_ops::UnaryOp::EluGrad,
     vec![-2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 1.5]
 );
+
+#[test]
+fn test_wgpu_parameterized_activations_match_cpu() {
+    let sequential = seq();
+    let backend = wgpu();
+    let values = [-2.0_f32, -1.0, -0.5, 0.0, 0.25, 0.5, 1.0, 2.0];
+    let input = Tensor::from_slice(vec![values.len()], &values);
+    let device_input = to_gpu(&input);
+    let hardtanh = u64::from((-1.0_f32).to_bits()) | (u64::from(1.0_f32.to_bits()) << 32);
+    let threshold = u64::from(0.25_f32.to_bits()) | (u64::from((-0.5_f32).to_bits()) << 32);
+
+    for operation in [
+        coeus_ops::UnaryOp::Hardtanh(hardtanh),
+        coeus_ops::UnaryOp::HardtanhGrad(hardtanh),
+        coeus_ops::UnaryOp::Threshold(threshold),
+        coeus_ops::UnaryOp::ThresholdGrad(threshold),
+    ] {
+        let expected = coeus_ops::elementwise_unary(&input, &sequential, operation)
+            .expect("valid CPU parameterized activation");
+        let actual = to_cpu(
+            &coeus_ops::elementwise_unary(&device_input, &backend, operation)
+                .expect("valid WGPU parameterized activation"),
+        );
+        assert_parity(
+            "parameterized activation",
+            expected.as_slice(),
+            actual.as_slice(),
+        );
+    }
+}

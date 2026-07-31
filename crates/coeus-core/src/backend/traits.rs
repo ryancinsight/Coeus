@@ -51,8 +51,28 @@ pub trait ComputeBackend: private::Sealed + Send + Sync + Clone + 'static {
     /// Allocate storage on the device (uninitialized).
     fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T>;
 
+    /// Allocate zero-initialized storage on the device.
+    ///
+    /// Backends with native zeroed allocation should override this method so
+    /// construction does not require a separate fill pass.
+    #[inline]
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
+        let mut dst = self.allocate(len);
+        self.fill_zero(&mut dst);
+        dst
+    }
+
     /// Fill device buffer with a value.
     fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T);
+
+    /// Fill a device buffer with the additive identity.
+    ///
+    /// Accelerator backends override this method with their native clear or
+    /// memset operation, avoiding destination-sized host staging.
+    #[inline]
+    fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) {
+        self.fill(dst, T::zero());
+    }
 
     /// Copy data from host (CPU) memory to this device buffer.
     fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>);

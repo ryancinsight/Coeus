@@ -39,7 +39,7 @@ renumbering migration can update every durable reference.
 | [0029 Hephaestus lgamma provider](0029-coeus-hephaestus-lgamma-provider.md) | Accepted |
 | [0030 Hephaestus activation-tail providers](0030-coeus-hephaestus-activation-tail-providers.md) | Accepted |
 | [0036 Device-local COW copy](0036-device-local-cow-copy.md) | Accepted |
-| [0037 Uninitialized COW consumer](0037-uninitialized-cow-consumer.md) | Accepted |
+| [0037 Accelerator initialization contracts](0037-uninitialized-cow-consumer.md) | Accepted |
 | [0038 Hephaestus activation tail](0038-coeus-hephaestus-activation-tail.md) | Accepted |
 | [0039 CUDA fused dispatch errors](0039-cuda-fused-dispatch-errors.md) | Accepted |
 | [0040 CUDA math dispatch hierarchy](0040-cuda-math-dispatch-hierarchy.md) | Accepted |

@@ -1,8 +1,11 @@
 use crate::backend::{CudaBackend, CudaScalar};
 use coeus_core::Layout;
 
-impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
-    coeus_ops::ElementwiseOps<T> for CudaBackend
+impl<
+        T: CudaScalar
+            + crate::backend::ops::math::elementwise::ParameterizedActivationScalar
+            + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
+    > coeus_ops::ElementwiseOps<T> for CudaBackend
 {
     #[inline]
     fn elementwise_binary(

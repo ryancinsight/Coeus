@@ -7,8 +7,13 @@ use coeus_core::{Layout, Storage};
 use std::sync::Arc;
 
 mod binary;
+mod parameterized_activation;
 mod validation;
 
+pub(crate) use parameterized_activation::ParameterizedActivationScalar;
+use parameterized_activation::{
+    parameterized_activation_operation, try_hephaestus_parameterized_unary,
+};
 use validation::validate_unary_layouts;
 
 fn try_hephaestus_contiguous_unary<T>(
@@ -357,7 +362,7 @@ impl CudaBackend {
         c_layout: &Layout,
     ) -> Result<(), CudaBackendError>
     where
-        T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
+        T: ParameterizedActivationScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
     {
         validate_unary_layouts(
             a_layout,
@@ -376,6 +381,16 @@ impl CudaBackend {
             return Ok(());
         }
         if get_cuda_context().is_some() {
+            if let Some(operation) = parameterized_activation_operation(op) {
+                return if try_hephaestus_parameterized_unary(op, a, a_layout, c, c_layout)? {
+                    Ok(())
+                } else {
+                    Err(CudaBackendError::kernel(
+                        operation,
+                        "parameterized activation requires a non-aliasing f32 layout with rank <= 4",
+                    ))
+                };
+            }
             if a_layout.is_contiguous()
                 && a_layout.offset() == 0
                 && c_layout.is_contiguous()
