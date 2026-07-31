@@ -334,8 +334,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     pub fn zeros_on<S: Into<Shape>>(shape: S, backend: &B) -> Self {
         let shape = shape.into();
         let numel: usize = shape.iter().product();
-        let mut storage = backend.allocate(numel);
-        backend.fill(&mut storage, T::zero());
+        let storage = backend.allocate_zeroed(numel);
         let layout = Layout::new(shape);
         Self {
             storage,

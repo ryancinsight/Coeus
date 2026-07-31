@@ -2,12 +2,13 @@ use super::provider::RocmProvider;
 use coeus_core::{ComputeBackend, Layout, Scalar};
 use coeus_hephaestus::{
     ConvolutionProvider, ElementwiseProvider, HephaestusBackend, HephaestusBackendError,
-    HephaestusStorage, ReductionProvider,
+    HephaestusProvider, HephaestusStorage, ReductionProvider,
 };
 use coeus_ops::{
     BinaryOp, ConvOps, ConvolutionBackward, ConvolutionForward, ElementwiseOps, ReductionOp,
     ReductionOps, UnaryOp,
 };
+use hephaestus_core::{CommandStream, KernelDevice};
 
 /// Coeus ROCm backend with native Hephaestus storage and rank-2 reductions.
 #[derive(Debug, Clone, Copy, Default)]
@@ -41,8 +42,26 @@ impl ComputeBackend for RocmBackend {
         self.0.allocate(len)
     }
 
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
+        self.0.allocate_zeroed(len)
+    }
+
     fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
+        if val.has_zero_bit_pattern() {
+            self.fill_zero(dst);
+            return;
+        }
         self.0.fill(dst, val)
+    }
+
+    fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) {
+        let mut stream = RocmProvider::device()
+            .stream()
+            .expect("ROCm zero fill stream creation failed");
+        stream
+            .fill_zero(dst.buffer())
+            .expect("ROCm zero fill encoding failed");
+        stream.submit().expect("ROCm zero fill submission failed");
     }
 
     fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {

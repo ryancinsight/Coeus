@@ -129,6 +129,10 @@ where
     }
 
     fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
+        HephaestusStorage::uninitialized(len)
+    }
+
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
         HephaestusStorage::new(len)
     }
 

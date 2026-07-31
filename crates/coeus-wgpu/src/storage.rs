@@ -48,6 +48,14 @@ impl<T: Scalar> WgpuStorage<T> {
             buffer: Arc::new(buffer),
         }
     }
+
+    #[inline]
+    pub(crate) fn uninitialized(len: usize) -> Self {
+        let buffer = Self::alloc_device_uninitialized(len);
+        Self {
+            buffer: Arc::new(buffer),
+        }
+    }
 }
 
 impl<T: Scalar> Storage<T> for WgpuStorage<T> {
@@ -89,6 +97,7 @@ impl<T: Scalar> StorageMut<T> for WgpuStorage<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use coeus_core::ComputeBackend;
 
     #[test]
     fn storage_allocates_device_tier() {
@@ -110,6 +119,20 @@ mod tests {
             .download(&device_buf, &mut out)
             .expect("failed to download from device tier");
         assert_eq!(out, input);
+    }
+
+    #[test]
+    fn backend_zero_memory_operations_preserve_exact_values() {
+        let backend = crate::backend::WgpuBackend::new();
+        let mut storage = backend.allocate_zeroed::<u32>(4);
+        let mut values = [u32::MAX; 4];
+        backend.copy_to_host(&storage, &mut values);
+        assert_eq!(values, [0; 4]);
+
+        backend.fill(&mut storage, 0xdead_beef);
+        backend.fill(&mut storage, 0);
+        backend.copy_to_host(&storage, &mut values);
+        assert_eq!(values, [0; 4]);
     }
 
     #[test]

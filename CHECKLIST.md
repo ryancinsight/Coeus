@@ -2,11 +2,11 @@
 
 ## ATLAS-COEUS-ZERO-FILL-MEMORY-001 [arch][minor]
 
-- [ ] Add explicit zero-allocation and zero-fill operations to the sealed
+- [x] Add explicit zero-allocation and zero-fill operations to the sealed
       compute-backend contract.
-- [ ] Route tensor zero construction and zeroed scratch buffers through the
+- [x] Route tensor zero construction and zeroed scratch buffers through the
       zero-specific contract.
-- [ ] Use provider-native zeroed allocation and command-stream clears for
+- [x] Use provider-native zeroed allocation and command-stream clears for
       WGPU, CUDA, ROCm, and Metal without destination-sized host staging.
 - [ ] Verify CPU value semantics, GPU provider integration, warning-denied
       builds, and exact-head backend CI.
@@ -21,7 +21,9 @@ GPU zero fill uses a provider-native device operation; CPU and available GPU
 results are exactly zero; no zero path allocates a destination-sized host
 vector.
 
-Status: in progress.
+Status: implementation and local compile checks are complete. Exact-head
+locked-source backend CI remains open; the shared Windows build cache delayed
+focused Nextest collection beyond the shell window without a test diagnostic.
 
 ## ATLAS-COEUS-HEPHAESTUS-PARAMETERIZED-ACTIVATION-001 [arch][minor]
 
