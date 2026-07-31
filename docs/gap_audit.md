@@ -101,8 +101,8 @@ implemented CPU mathematics while reporting a CUDA backend.
 **Resolution**: ADR-0043 deletes those mathematical fallback paths, routes
 rank-two reductions through Hephaestus, and leaves disabled-provider builds
 without mathematical backend traits.
-**Residual**: CUDA convolution and optimizer capability paths still copy
-through host memory. WGPU/CUDA aliased elementwise operations still
+**Residual**: CUDA optimizer capability paths still copy through host memory.
+WGPU/CUDA aliased elementwise operations still
 require provider-owned in-place Hephaestus contracts.
 **Evidence**: no-default all-target compilation and all three disabled-provider
 identity/error tests pass. Exact-head run `30405547693` passed ROCm

@@ -86,15 +86,19 @@ pub fn scaled_dot_product_attention<T: AttentionScalar, B: AttentionOps<T> + Def
     let [batch, seq_q, query_width] = rank_three::<B::Error>(query.shape())?;
     let [key_batch, seq_k, key_width] = rank_three::<B::Error>(key.shape())?;
     let [value_batch, value_sequence, d_v] = rank_three::<B::Error>(value.shape())?;
-    if batch != key_batch
-        || batch != value_batch
-        || query_width != key_width
-        || seq_k != value_sequence
-    {
+    if batch != key_batch || query_width != key_width {
         return Err(BackendError::ShapeMismatch {
             operation: FORWARD_OPERATION,
             lhs: query.shape().to_vec(),
-            rhs: [key.shape(), value.shape()].concat(),
+            rhs: key.shape().to_vec(),
+        }
+        .into());
+    }
+    if batch != value_batch || seq_k != value_sequence {
+        return Err(BackendError::ShapeMismatch {
+            operation: FORWARD_OPERATION,
+            lhs: key.shape().to_vec(),
+            rhs: value.shape().to_vec(),
         }
         .into());
     }

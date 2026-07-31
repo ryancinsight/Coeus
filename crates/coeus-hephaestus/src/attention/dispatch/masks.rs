@@ -15,7 +15,7 @@ pub(in crate::attention) fn bind<'a, B>(
         (None, None) => None,
         (Some(buffer), Some(layout)) => {
             let mask_batches = layout.shape[0];
-            let Some(heads_per_batch) = execution_batches
+            let Some(batches_per_group) = execution_batches
                 .checked_div(mask_batches)
                 .filter(|width| *width > 0 && *width * mask_batches == execution_batches)
                 .and_then(NonZeroUsize::new)
@@ -28,7 +28,7 @@ pub(in crate::attention) fn bind<'a, B>(
             };
             Some(GroupedKeepMask::new(
                 StridedView::new(buffer, layout),
-                heads_per_batch,
+                batches_per_group,
             ))
         }
         _ => {

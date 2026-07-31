@@ -111,9 +111,9 @@ where
             weights,
             weights_layout,
             scale,
-            grad_query: grad_query.map(|(storage, layout)| (&*storage, layout)),
-            grad_key: grad_key.map(|(storage, layout)| (&*storage, layout)),
-            grad_value: grad_value.map(|(storage, layout)| (&*storage, layout)),
+            grad_query,
+            grad_key,
+            grad_value,
         })
     }
 }

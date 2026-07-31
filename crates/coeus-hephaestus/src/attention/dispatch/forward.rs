@@ -18,9 +18,9 @@ where
     pub key_padding_mask_layout: Option<&'a Layout>,
     pub is_causal: bool,
     pub scale: T,
-    pub output: &'a B::DeviceBuffer<T>,
+    pub output: &'a mut B::DeviceBuffer<T>,
     pub output_layout: &'a Layout,
-    pub weights: &'a B::DeviceBuffer<T>,
+    pub weights: &'a mut B::DeviceBuffer<T>,
     pub weights_layout: &'a Layout,
 }
 
@@ -56,8 +56,8 @@ where
                 value: StridedView::new(B::attention_buffer(request.value), &value_layout),
                 mask,
                 scale: request.scale,
-                output: StridedView::new(B::attention_buffer(request.output), &output_layout),
-                weights: StridedView::new(B::attention_buffer(request.weights), &weights_layout),
+                output: StridedView::new(B::attention_buffer(&*request.output), &output_layout),
+                weights: StridedView::new(B::attention_buffer(&*request.weights), &weights_layout),
             },
         )
         .map_err(|source| B::attention_dispatch_error(OPERATION, source))

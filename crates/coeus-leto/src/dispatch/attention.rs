@@ -225,13 +225,10 @@ pub fn scaled_dot_product_attention_into<T: AttentionScalar>(
     let batch = query.shape()[0];
     let groups = mask.shape()[0];
     let target = [batch, query.shape()[1], mask.shape()[1]];
-    if groups == 0 || batch % groups != 0 {
-        return Err(AttentionError::MaskShape {
-            actual: [groups, 1, mask.shape()[1]],
-            target,
-        });
-    }
-    let Some(batches_per_group) = NonZeroUsize::new(batch / groups) else {
+    let batches_per_group = (groups != 0 && batch % groups == 0)
+        .then(|| batch / groups)
+        .and_then(NonZeroUsize::new);
+    let Some(batches_per_group) = batches_per_group else {
         return Err(AttentionError::MaskShape {
             actual: [groups, 1, mask.shape()[1]],
             target,

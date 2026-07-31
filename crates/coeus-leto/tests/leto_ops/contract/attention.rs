@@ -31,6 +31,98 @@ fn read_rank_three(layout: &Layout, storage: &[f64]) -> Vec<f64> {
     values
 }
 
+fn assert_attention_scalar_contract<T: coeus_leto::AttentionScalar>() {
+    let scalar = <T as coeus_core::Scalar>::from_f64;
+    let query_layout = Layout::new([1, 1, 1].into());
+    let key_layout = Layout::new([1, 2, 1].into());
+    let value_layout = Layout::new([1, 2, 1].into());
+    let output_layout = Layout::new([1, 1, 1].into());
+    let weights_layout = Layout::new([1, 1, 2].into());
+    let mask_layout = Layout::new([2].into());
+    let query = [scalar(0.0)];
+    let key = [scalar(0.0), scalar(0.0)];
+    let value = [scalar(2.0), scalar(8.0)];
+    let mask = [scalar(1.0), scalar(0.0)];
+    let mut output = [scalar(-1.0)];
+    let mut weights = [scalar(-1.0), scalar(-1.0)];
+
+    scaled_dot_product_attention_into(AttentionForward {
+        query: ReadOperand {
+            layout: &query_layout,
+            data: &query,
+        },
+        key: ReadOperand {
+            layout: &key_layout,
+            data: &key,
+        },
+        value: ReadOperand {
+            layout: &value_layout,
+            data: &value,
+        },
+        keep_mask: Some(ReadOperand {
+            layout: &mask_layout,
+            data: &mask,
+        }),
+        is_causal: false,
+        scale: scalar(1.0),
+        output: WriteOperand {
+            layout: &output_layout,
+            data: &mut output,
+        },
+        weights: WriteOperand {
+            layout: &weights_layout,
+            data: &mut weights,
+        },
+    })
+    .unwrap();
+
+    assert_eq!(output, [scalar(2.0)]);
+    assert_eq!(weights, [scalar(1.0), scalar(0.0)]);
+
+    let output_gradient = [scalar(2.0)];
+    let mut value_gradient = [scalar(10.0), scalar(20.0)];
+    scaled_dot_product_attention_backward_accumulate(AttentionBackward {
+        output_gradient: ReadOperand {
+            layout: &output_layout,
+            data: &output_gradient,
+        },
+        query: ReadOperand {
+            layout: &query_layout,
+            data: &query,
+        },
+        key: ReadOperand {
+            layout: &key_layout,
+            data: &key,
+        },
+        value: ReadOperand {
+            layout: &value_layout,
+            data: &value,
+        },
+        weights: ReadOperand {
+            layout: &weights_layout,
+            data: &weights,
+        },
+        scale: scalar(1.0),
+        gradients: AttentionGradientTargets {
+            query: None,
+            key: None,
+            value: Some(WriteOperand {
+                layout: &value_layout,
+                data: &mut value_gradient,
+            }),
+        },
+    })
+    .unwrap();
+
+    assert_eq!(value_gradient, [scalar(12.0), scalar(20.0)]);
+}
+
+#[test]
+fn attention_scalar_monomorphizations_cover_rank_one_masks_and_backward() {
+    assert_attention_scalar_contract::<f32>();
+    assert_attention_scalar_contract::<f64>();
+}
+
 #[test]
 fn attention_forward_preserves_strides_and_grouped_mask_borrows() {
     let query_layout = strided_layout(&[4, 1, 1], &[3, 2, 1], 1);

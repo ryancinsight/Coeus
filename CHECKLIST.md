@@ -15,13 +15,17 @@
       dispatch.
 - [x] Pass focused warning-denied, Nextest, doctest, and independent review;
       classify the public break with SemVer checks.
+- [x] Preserve mutable destination ownership through provider dispatch, prove
+      rank-one masks for both scalar monomorphizations, and close review
+      diagnostics and stale migration claims.
 - [ ] Pass exact-head hosted gates.
 
 Status: local implementation and verification complete on
 `codex/coeus-attention-dispatch`. Leto PRs #82 and #83 are merged through
-`b75837a5`; Hephaestus PR #167 is merged at `35d1aa27`. Local evidence:
-Coeus-Leto 35/35, Hephaestus/ROCm/Metal 10/10, WGPU attention 4/4, CUDA
-attention 6/6, NN attention 28/28, and focused Python mask contracts pass;
+`b75837a5`; Hephaestus PR #167 is merged and the lock resolves all provider
+packages at `cbbe3411`. Local evidence: Coeus-Leto attention 5/5,
+Hephaestus/Ops attention 5/5, WGPU attention 4/4, CUDA attention 6/6, NN
+attention 28/28, and focused Python mask contracts pass;
 affected warning-denied Clippy and doctest lanes pass. SemVer checks classify
 the fallible trait and removed supertrait as the documented major break.
 Independent architecture and correctness reviews are clean after correction.
