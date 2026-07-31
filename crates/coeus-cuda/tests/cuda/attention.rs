@@ -1,9 +1,8 @@
 // CudaBackend SDP attention parity differential tests.
 //
-// The unmasked/causal cases exercise the on-device NVRTC kernels
-// (`kernels::attention`); the masked case exercises the CPU-reference capability
-// boundary. Every case asserts element-wise agreement with `SequentialBackend`
-// within a derived tolerance. Skipped unless a live CUDA device/context exists.
+// Every case exercises provider-owned Hephaestus kernels and asserts
+// element-wise agreement with `SequentialBackend` within a derived tolerance.
+// Skipped unless a live CUDA device/context exists.
 
 use coeus_core::SequentialBackend;
 use coeus_cuda::CudaBackend;
@@ -75,9 +74,11 @@ fn run_forward_case(is_causal: bool, label: &str) {
     let v_g = v_cpu.to_backend_on(&seq, &cuda);
 
     let (out_cpu, aw_cpu) =
-        scaled_dot_product_attention(&q_cpu, &k_cpu, &v_cpu, None, is_causal, scale, &seq);
+        scaled_dot_product_attention(&q_cpu, &k_cpu, &v_cpu, None, is_causal, scale, &seq)
+            .expect("CPU attention forward must succeed");
     let (out_g, aw_g) =
-        scaled_dot_product_attention(&q_g, &k_g, &v_g, None, is_causal, scale, &cuda);
+        scaled_dot_product_attention(&q_g, &k_g, &v_g, None, is_causal, scale, &cuda)
+            .expect("CUDA attention forward must succeed");
 
     let out_g = out_g.to_backend_on(&cuda, &seq);
     let aw_g = aw_g.to_backend_on(&cuda, &seq);
@@ -106,19 +107,59 @@ fn test_cuda_attention_forward_causal() {
     run_forward_case(true, "attn_fwd_causal");
 }
 
+#[test]
+fn test_cuda_attention_forward_preserves_native_f64() {
+    let Some((seq, cuda)) = backends() else {
+        return;
+    };
+    let query = Tensor::<f64, SequentialBackend>::from_slice([1, 2, 2], &[0.25, -0.5, 0.75, 0.125]);
+    let key = Tensor::<f64, SequentialBackend>::from_slice(
+        [1, 3, 2],
+        &[0.5, 0.25, -0.75, 1.0, 0.125, -0.25],
+    );
+    let value = Tensor::<f64, SequentialBackend>::from_slice(
+        [1, 3, 2],
+        &[1.0, -1.0, 0.5, 0.25, -0.75, 0.125],
+    );
+    let query_cuda = query.to_backend_on(&seq, &cuda);
+    let key_cuda = key.to_backend_on(&seq, &cuda);
+    let value_cuda = value.to_backend_on(&seq, &cuda);
+
+    let (expected, _) = scaled_dot_product_attention(&query, &key, &value, None, false, 0.5, &seq)
+        .expect("CPU f64 attention forward must succeed");
+    let (actual, _) =
+        scaled_dot_product_attention(&query_cuda, &key_cuda, &value_cuda, None, false, 0.5, &cuda)
+            .expect("CUDA f64 attention forward must succeed");
+    let actual = actual.to_backend_on(&cuda, &seq);
+
+    for (index, (&got, &want)) in actual
+        .as_slice()
+        .iter()
+        .zip(expected.as_slice())
+        .enumerate()
+    {
+        let tolerance = 1024.0 * f64::EPSILON * (1.0 + want.abs());
+        assert!(
+            (got - want).abs() <= tolerance,
+            "f64 attention output[{index}]: got {got}, expected {want}, tolerance {tolerance}",
+        );
+    }
+}
+
 fn run_masked_case(is_causal: bool, label: &str) {
-    // 2-D contiguous key-padding mask [BATCH, SEQ_K] -> on-device masked kernel.
+    // One mask row broadcasts across both execution batches through the
+    // provider's grouped keep-mask contract.
     let Some((seq, cuda)) = backends() else {
         return;
     };
     let (q, k, v, _) = inputs();
-    let mask = vec![1.0f32, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0];
+    let mask = vec![1.0f32, 1.0, 0.0, 1.0];
     let scale = 0.5f32;
 
     let q_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &q);
     let k_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &k);
     let v_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &v);
-    let m_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K], &mask);
+    let m_cpu = Tensor::<f32, SequentialBackend>::from_slice([1, SEQ_K], &mask);
 
     let q_g = q_cpu.to_backend_on(&seq, &cuda);
     let k_g = k_cpu.to_backend_on(&seq, &cuda);
@@ -126,9 +167,11 @@ fn run_masked_case(is_causal: bool, label: &str) {
     let m_g = m_cpu.to_backend_on(&seq, &cuda);
 
     let (out_cpu, aw_cpu) =
-        scaled_dot_product_attention(&q_cpu, &k_cpu, &v_cpu, Some(&m_cpu), is_causal, scale, &seq);
+        scaled_dot_product_attention(&q_cpu, &k_cpu, &v_cpu, Some(&m_cpu), is_causal, scale, &seq)
+            .expect("CPU masked attention forward must succeed");
     let (out_g, aw_g) =
-        scaled_dot_product_attention(&q_g, &k_g, &v_g, Some(&m_g), is_causal, scale, &cuda);
+        scaled_dot_product_attention(&q_g, &k_g, &v_g, Some(&m_g), is_causal, scale, &cuda)
+            .expect("CUDA masked attention forward must succeed");
 
     let out_g = out_g.to_backend_on(&cuda, &seq);
     let aw_g = aw_g.to_backend_on(&cuda, &seq);
@@ -174,8 +217,10 @@ fn test_cuda_attention_backward() {
 
     // Stored attention weights from the forward pass feed the backward.
     let (_, aw_cpu) =
-        scaled_dot_product_attention(&q_cpu, &k_cpu, &v_cpu, None, false, scale, &seq);
-    let (_, aw_g) = scaled_dot_product_attention(&q_g, &k_g, &v_g, None, false, scale, &cuda);
+        scaled_dot_product_attention(&q_cpu, &k_cpu, &v_cpu, None, false, scale, &seq)
+            .expect("CPU attention forward must succeed");
+    let (_, aw_g) = scaled_dot_product_attention(&q_g, &k_g, &v_g, None, false, scale, &cuda)
+        .expect("CUDA attention forward must succeed");
 
     let mut gq_cpu = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_Q, D_K], &seq);
     let mut gk_cpu = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_K, D_K], &seq);
@@ -191,7 +236,8 @@ fn test_cuda_attention_backward() {
         Some(&mut gk_cpu),
         Some(&mut gv_cpu),
         &seq,
-    );
+    )
+    .expect("CPU attention backward must succeed");
 
     let mut gq_g = Tensor::<f32, CudaBackend>::zeros_on([BATCH, SEQ_Q, D_K], &cuda);
     let mut gk_g = Tensor::<f32, CudaBackend>::zeros_on([BATCH, SEQ_K, D_K], &cuda);
@@ -207,7 +253,8 @@ fn test_cuda_attention_backward() {
         Some(&mut gk_g),
         Some(&mut gv_g),
         &cuda,
-    );
+    )
+    .expect("CUDA attention backward must succeed");
 
     assert_close(
         "attn_bwd_grad_q",

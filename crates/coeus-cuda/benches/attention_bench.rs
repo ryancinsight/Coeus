@@ -48,28 +48,34 @@ fn bench_attention_forward(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("Coeus CPU", &id), &id, |bn, _| {
             bn.iter(|| {
-                black_box(scaled_dot_product_attention(
-                    black_box(&q),
-                    black_box(&k),
-                    black_box(&v),
-                    None,
-                    false,
-                    scale,
-                    &seq,
-                ));
+                black_box(
+                    scaled_dot_product_attention(
+                        black_box(&q),
+                        black_box(&k),
+                        black_box(&v),
+                        None,
+                        false,
+                        scale,
+                        &seq,
+                    )
+                    .expect("CPU attention forward must succeed"),
+                );
             })
         });
         group.bench_with_input(BenchmarkId::new("Coeus CUDA", &id), &id, |bn, _| {
             bn.iter(|| {
-                black_box(scaled_dot_product_attention(
-                    black_box(&q_g),
-                    black_box(&k_g),
-                    black_box(&v_g),
-                    None,
-                    false,
-                    scale,
-                    &cuda,
-                ));
+                black_box(
+                    scaled_dot_product_attention(
+                        black_box(&q_g),
+                        black_box(&k_g),
+                        black_box(&v_g),
+                        None,
+                        false,
+                        scale,
+                        &cuda,
+                    )
+                    .expect("CUDA attention forward must succeed"),
+                );
             })
         });
     }
@@ -91,7 +97,8 @@ fn bench_attention_backward(c: &mut Criterion) {
         let k = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dk], &fill(b * sk * dk, 3.0));
         let v = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dv], &fill(b * sk * dv, 5.0));
         let go = Tensor::<f32, SequentialBackend>::from_slice([b, sq, dv], &fill(b * sq * dv, 7.0));
-        let (_, aw) = scaled_dot_product_attention(&q, &k, &v, None, false, scale, &seq);
+        let (_, aw) = scaled_dot_product_attention(&q, &k, &v, None, false, scale, &seq)
+            .expect("CPU attention setup must succeed");
 
         let q_g = q.to_backend_on(&seq, &cuda);
         let k_g = k.to_backend_on(&seq, &cuda);
@@ -115,7 +122,8 @@ fn bench_attention_backward(c: &mut Criterion) {
                     Some(&mut gk),
                     Some(&mut gv),
                     &seq,
-                );
+                )
+                .expect("CPU attention backward must succeed");
                 black_box((gq, gk, gv));
             })
         });
@@ -135,7 +143,8 @@ fn bench_attention_backward(c: &mut Criterion) {
                     Some(&mut gk),
                     Some(&mut gv),
                     &cuda,
-                );
+                )
+                .expect("CUDA attention backward must succeed");
                 black_box((gq, gk, gv));
             })
         });

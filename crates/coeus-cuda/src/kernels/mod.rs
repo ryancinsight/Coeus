@@ -1,5 +1,3 @@
-/// Kernel module for scaled-dot-product attention operations.
-pub mod attention;
 /// Kernel module for fused element-wise expression compilation and dispatch.
 pub mod fuse;
 /// Kernel module for tiled matrix multiplication kernel launch.
@@ -20,7 +18,6 @@ mod validation;
 
 pub(crate) use validation::{checked_numel, layout_fits_cuda_storage};
 
-pub use attention::{launch_sdp_attention, launch_sdp_attention_backward};
 pub use fuse::dispatch_fused;
 pub use launch_matmul::launch_matmul_tiled;
 pub use launch_ops::{
@@ -191,8 +188,8 @@ pub fn get_cuda_function(name: &str) -> Option<CUfunction> {
 
 /// Launch a kernel over a flat 1-D grid of `total` threads (256/block).
 ///
-/// Shared by the NVRTC-compiled kernels (attention, conv_transpose) that map
-/// one thread to one output element. Returns `false` if the driver is absent or
+/// Shared by the NVRTC-compiled transposed-convolution kernels that map one
+/// thread to one output element. Returns `false` if the driver is absent or
 /// the launch fails so the operation boundary can report the dispatch failure.
 pub(crate) fn launch_1d(
     func: CUfunction,

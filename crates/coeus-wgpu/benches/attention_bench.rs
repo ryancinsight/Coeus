@@ -46,29 +46,35 @@ fn bench_attention_forward(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("Coeus CPU", &id), &id, |bn, _| {
             bn.iter(|| {
-                black_box(scaled_dot_product_attention(
-                    black_box(&q_cpu),
-                    black_box(&k_cpu),
-                    black_box(&v_cpu),
-                    None,
-                    false,
-                    scale,
-                    black_box(&seq),
-                ));
+                black_box(
+                    scaled_dot_product_attention(
+                        black_box(&q_cpu),
+                        black_box(&k_cpu),
+                        black_box(&v_cpu),
+                        None,
+                        false,
+                        scale,
+                        black_box(&seq),
+                    )
+                    .expect("CPU attention forward must succeed"),
+                );
             })
         });
 
         group.bench_with_input(BenchmarkId::new("Coeus WGPU", &id), &id, |bn, _| {
             bn.iter(|| {
-                black_box(scaled_dot_product_attention(
-                    black_box(&q_g),
-                    black_box(&k_g),
-                    black_box(&v_g),
-                    None,
-                    false,
-                    scale,
-                    black_box(&wgpu),
-                ));
+                black_box(
+                    scaled_dot_product_attention(
+                        black_box(&q_g),
+                        black_box(&k_g),
+                        black_box(&v_g),
+                        None,
+                        false,
+                        scale,
+                        black_box(&wgpu),
+                    )
+                    .expect("WGPU attention forward must succeed"),
+                );
             })
         });
     }
@@ -94,7 +100,8 @@ fn bench_attention_backward(c: &mut Criterion) {
 
         // Stored attention weights from the forward pass feed the backward.
         let (_, aw_cpu) =
-            scaled_dot_product_attention(&q_cpu, &k_cpu, &v_cpu, None, false, scale, &seq);
+            scaled_dot_product_attention(&q_cpu, &k_cpu, &v_cpu, None, false, scale, &seq)
+                .expect("CPU attention setup must succeed");
 
         let q_g = q_cpu.to_backend_on(&seq, &wgpu);
         let k_g = k_cpu.to_backend_on(&seq, &wgpu);
@@ -118,7 +125,8 @@ fn bench_attention_backward(c: &mut Criterion) {
                     Some(&mut gk),
                     Some(&mut gv),
                     black_box(&seq),
-                );
+                )
+                .expect("CPU attention backward must succeed");
                 black_box((gq, gk, gv));
             })
         });
@@ -139,7 +147,8 @@ fn bench_attention_backward(c: &mut Criterion) {
                     Some(&mut gk),
                     Some(&mut gv),
                     black_box(&wgpu),
-                );
+                )
+                .expect("WGPU attention backward must succeed");
                 black_box((gq, gk, gv));
             })
         });

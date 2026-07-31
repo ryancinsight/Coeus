@@ -4,14 +4,14 @@ use super::decoder::TransformerDecoder;
 use super::encoder::TransformerEncoder;
 use crate::module::{prefixed_parameters, Module, ModuleError};
 use coeus_autograd::{AttentionMask, CausalMask, NullMask, Var};
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::MoiraiBackend;
 
 /// Full Sequence-to-Sequence Transformer model.
 ///
 /// Composes a `TransformerEncoder` and `TransformerDecoder`.
 pub struct Transformer<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default = MoiraiBackend,
+    T: coeus_ops::AttentionScalar,
+    B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default = MoiraiBackend,
     const H: usize = 8,
     const NUM_ENC: usize = 6,
     const NUM_DEC: usize = 6,
@@ -26,8 +26,8 @@ pub struct Transformer<
 }
 
 impl<
-        T: Float,
-        B: coeus_ops::BackendOps<T> + Default,
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const NUM_ENC: usize,
         const NUM_DEC: usize,
@@ -81,8 +81,8 @@ where
 }
 
 impl<
-        T: Float,
-        B: coeus_ops::BackendOps<T> + Default,
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const NUM_ENC: usize,
         const NUM_DEC: usize,
@@ -113,8 +113,8 @@ impl<
 
 /// Manual Clone impl.
 impl<
-        T: Float,
-        B: coeus_ops::BackendOps<T> + Default,
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const NUM_ENC: usize,
         const NUM_DEC: usize,

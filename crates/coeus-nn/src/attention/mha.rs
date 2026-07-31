@@ -76,8 +76,8 @@ pub struct MhaProjectionParams<'a, T: Scalar, B: coeus_ops::BackendOps<T> + Defa
 /// Returns a typed contract failure before evaluating invalid Q/K/V,
 /// projection, head-count, bias, or mask shapes.
 pub fn multi_head_attention_cross<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
+    T: coeus_ops::AttentionScalar,
+    B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
     const H: usize,
     M: AttentionMask,
 >(
@@ -166,7 +166,11 @@ pub fn multi_head_attention_cross<
         &v_heads,
         key_padding_mask,
         scale,
-    );
+    )
+    .map_err(|source| ModuleError::Backend {
+        module: "MultiHeadAttention",
+        source,
+    })?;
 
     let merged_split = coeus_autograd::reshape(&attn_out, [batch, H, seq_q, d_head]);
     let merged_perm = coeus_autograd::permute(&merged_split, &[0, 2, 1, 3]);
@@ -200,8 +204,12 @@ fn project_3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     coeus_autograd::reshape(&out_flat, [batch, seq, d_model])
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: AttentionMask>
-    MultiHeadAttention<T, B, H, M>
+impl<
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
+        const H: usize,
+        M: AttentionMask,
+    > MultiHeadAttention<T, B, H, M>
 {
     /// Construct a MHA layer with Kaiming-uniform initialized projection weights.
     ///
@@ -277,8 +285,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
 }
 
 /// Self-attention `Module` impl (Q = K = V = input).
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: AttentionMask> Module<T, B>
-    for MultiHeadAttention<T, B, H, M>
+impl<
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
+        const H: usize,
+        M: AttentionMask,
+    > Module<T, B> for MultiHeadAttention<T, B, H, M>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         let mut p = vec![

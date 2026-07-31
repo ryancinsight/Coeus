@@ -192,7 +192,7 @@ dependencies = [
  "bitflags",
  "cexpr",
  "clang-sys",
- "itertools 0.12.1",
+ "itertools 0.10.5",
  "lazy_static",
  "lazycell",
  "log",
@@ -505,7 +505,6 @@ dependencies = [
  "coeus-autograd",
  "coeus-core",
  "coeus-hephaestus",
- "coeus-leto",
  "coeus-ops",
  "coeus-tensor",
  "criterion",
@@ -698,7 +697,6 @@ dependencies = [
  "coeus-autograd",
  "coeus-core",
  "coeus-hephaestus",
- "coeus-leto",
  "coeus-nn",
  "coeus-ops",
  "coeus-tensor",
@@ -1258,7 +1256,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 [[package]]
 name = "hephaestus-core"
 version = "0.18.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#426d500713ea00e85cd7da56ec24b670c8b9a86c"
+source = "git+https://github.com/ryancinsight/hephaestus.git#35d1aa279da8013d3bb7e66ecf6542a2b5c42b00"
 dependencies = [
  "aequitas",
  "bytemuck",
@@ -1270,7 +1268,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-cuda"
 version = "0.18.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#426d500713ea00e85cd7da56ec24b670c8b9a86c"
+source = "git+https://github.com/ryancinsight/hephaestus.git#35d1aa279da8013d3bb7e66ecf6542a2b5c42b00"
 dependencies = [
  "bytemuck",
  "cuda-oxide",
@@ -1289,7 +1287,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-metal"
 version = "0.18.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#426d500713ea00e85cd7da56ec24b670c8b9a86c"
+source = "git+https://github.com/ryancinsight/hephaestus.git#35d1aa279da8013d3bb7e66ecf6542a2b5c42b00"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -1303,7 +1301,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-rocm"
 version = "0.18.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#426d500713ea00e85cd7da56ec24b670c8b9a86c"
+source = "git+https://github.com/ryancinsight/hephaestus.git#35d1aa279da8013d3bb7e66ecf6542a2b5c42b00"
 dependencies = [
  "bytemuck",
  "cubecl-hip-sys",
@@ -1318,7 +1316,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-wgpu"
 version = "0.18.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#426d500713ea00e85cd7da56ec24b670c8b9a86c"
+source = "git+https://github.com/ryancinsight/hephaestus.git#35d1aa279da8013d3bb7e66ecf6542a2b5c42b00"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -1444,15 +1442,6 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
@@ -1492,7 +1481,7 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 [[package]]
 name = "leto"
 version = "0.40.0"
-source = "git+https://github.com/ryancinsight/leto.git#4c584e3a658c427c8653413aef0e163f0d23163b"
+source = "git+https://github.com/ryancinsight/leto.git#b75837a5ea091376974ada66e0bdc5189bc313a5"
 dependencies = [
  "aequitas",
  "bytemuck",
@@ -1505,7 +1494,7 @@ dependencies = [
 [[package]]
 name = "leto-ops"
 version = "0.40.0"
-source = "git+https://github.com/ryancinsight/leto.git#4c584e3a658c427c8653413aef0e163f0d23163b"
+source = "git+https://github.com/ryancinsight/leto.git#b75837a5ea091376974ada66e0bdc5189bc313a5"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -2707,7 +2696,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3529,15 +3518,6 @@ name = "windows-sys"
 version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "282be5f36a8ce781fad8c8ae18fa3f9beff57ec1b52cb3de0789201425d9a33d"
-dependencies = [
- "windows-targets",
-]
-
-[[package]]
-name = "windows-sys"
-version = "0.59.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e38bc4d79ed67fd075bcc251a1c39b32a1776bbe92e5bef1f0bf1f8c531853b"
 dependencies = [
  "windows-targets",
 ]

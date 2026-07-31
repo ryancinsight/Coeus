@@ -1,5 +1,24 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-ATTENTION-PROVIDER-001 — Provider-owned attention dispatch [major] [arch]
+
+- Owner: Codex on `codex/coeus-attention-dispatch`; last-update: 2026-07-31;
+  scope: CPU and accelerator attention dispatch, all fallible callers, focused
+  contracts, obsolete implementation deletion, ADR-0047, and parity CI.
+- Outcome: CPU attention executes through Leto and WGPU/CUDA/ROCm/Metal execute
+  through one generic Hephaestus bridge selected by the Coeus backend type.
+- Non-goals: release/version transitions and performance claims without
+  controlled measurements.
+- Acceptance: no Coeus-owned attention mathematics or host fallback remains;
+  provider failures reach Rust and Python callers; CPU/provider forward,
+  backward, masks, selected additive gradients, and preflight failure atomicity have
+  value-semantic coverage; local and exact-head hosted gates pass.
+- Risk/change class: `[major] [arch]`; ADR-0047 records the breaking fallible
+  contract and provider ownership.
+- Status: local implementation and verification complete. Leto PRs #82/#83 and
+  Hephaestus PR #167 are merged. Independent architecture and correctness
+  review findings are resolved; exact-head Coeus hosted gates remain.
+
 ## ATLAS-COEUS-HEPHAESTUS-006 — Native activation-tail providers [arch]
 
 - Owner: Codex on `codex/coeus-backend-parity-coherence`; last-update:
@@ -654,15 +673,9 @@
 
 ## ATLAS-CUDA-TREE-002 — Split attention kernel tree [arch] — done
 
-- Owner: Codex `/coeus`; scope: `crates/coeus-cuda/src/kernels/attention/` and its
-  module declaration.
-- Outcome: replace the 567-line attention kernel module with a manifest and
-  cohesive validation, source, forward, backward, and test leaves while
-  preserving the public launch functions and the checked ABI boundary.
-- Evidence: leaves are 12, 81, 92, 101, 135, and 149 lines; format and diff
-  checks pass. The package compile gates are blocked by an unrelated dirty
-  manifest requesting `mnemosyne ^0.6.0` while locked Moirai requires
-  `mnemosyne ^0.5.0`; no compiled or test result is claimed for this slice.
+- Historical topology increment. ADR-0047 and
+  `COEUS-ATTENTION-PROVIDER-001` supersede it by deleting the complete local
+  CUDA attention kernel tree and routing the backend through Hephaestus.
 
 ## ATLAS-CUDA-TREE-001 — Split convolution backend tree [arch] — done
 
@@ -741,20 +754,9 @@
 
 ## ATLAS-CUDA-SAFETY-011 — Harden attention launch ABI [patch] [arch] — done
 
-- Owner: Codex `/root`; scope: `crates/coeus-cuda/src/kernels/attention.rs`, the
-  shared `kernels::launch_1d` seam, and CUDA attention dispatch.
-- Outcome: attention now validates positive representable dimensions, checked
-  element counts, mask/head relationships, and device-buffer lengths before
-  native compilation or transient allocation. Native dispatch is restricted
-  to compatible contiguous tensors and supported mask layouts.
-- Evidence: pure boundary tests cover valid rank-two mask counts, zero and
-  overflowing dimensions, inconsistent mask rank, and non-divisible heads;
-  feature-enabled package check and warning-denied Clippy pass. Default
-  package Nextest passes 3/3 with zero skipped in 0.171 seconds; default
-  doctests pass 4/4 in 14.21 seconds. CUDA-feature linker status is recorded
-  in the checklist.
-- Limit: CUDA-feature Nextest cannot be claimed when the Windows GNU linker
-  cannot resolve `-lcuda` from `/usr/local/cuda-11.3/lib64/`.
+- Historical safety increment. ADR-0047 and
+  `COEUS-ATTENTION-PROVIDER-001` supersede its consumer-owned launch ABI by
+  deleting the local launcher and using Hephaestus validation and dispatch.
 
 ## ATLAS-CUDA-SAFETY-010 — Harden matmul launch ABI [patch] [arch] — done
 
@@ -4074,11 +4076,9 @@ device SDP attention parity coverage.
 - `crates/coeus-nn/tests/burn_live_parity.rs` grew from 41 → 48 tests.
 - CUDA conv3d forward/backward kernels (PTX)
   (`crates/coeus-cuda/src/kernels/ptx.ptx::conv3d_*`).
-- CUDA SDP attention (`kernels/attention.rs::launch_sdp_attention(…)`)
-  with on-device NVRTC kernels for unmasked/causal forward + backward
-  `grad_q`/`grad_k`/`grad_v`. The masked case (key_padding_mask
-  present) is now an explicit CPU-reference boundary rather than a
-  silent fallback.
+- CUDA SDP attention originally used consumer-owned NVRTC kernels. ADR-0047
+  supersedes that implementation with direct Hephaestus CUDA dispatch,
+  including grouped masks, and deletes the former launch and fallback paths.
 - CUDA max/avg 3D pooling forward + backward JIT kernels.
 - `crates/coeus-wgpu/Cargo.toml`, `crates/coeus-cuda/Cargo.toml` version auto-bumped
   to 0.2.5 via workspace version inheritance.
@@ -4155,14 +4155,9 @@ removed from hermes upstream; coeus owns those.
   reduce kernel route each output's contiguous run to the SSOT; strided axes keep
   the gather fold. Verified: `reduction_simd_diff.rs` — sum within reassociation
   epsilon, min/max bitwise, both backends.
-- **Dot/scale:** added `Scalar::{dot_slice,scale_slice}` seams (scalar default;
-  `f32`/`f64` → `hermes_simd::{dot,scale}`) and routed CPU forward attention's
-  contiguous Q/K row dot products plus softmax row scaling through them. Verified:
-  `cargo nextest run -p coeus-core --test scalar_dot_scale` and
-  `cargo nextest run -p coeus-nn --test nn_attention_tests`.
-- **Backward attention dot products:** routed CPU attention backward's contiguous
-  `dO @ V^T` rows and softmax row products through `Scalar::dot_slice`. Verified:
-  `cargo nextest run -p coeus-ops --test attention_backward_hermes_diff`.
+- **Historical dot/scale path:** CPU attention formerly used the Hermes scalar
+  dot/scale seams. ADR-0047 supersedes that consumer-owned formula with direct
+  borrowed Leto attention dispatch and Leto contract coverage.
 - **Conv1d dot products:** routed contiguous unpadded unit-dilation CPU forward
   kernel rows through `Scalar::dot_slice`, preserving the indexed path for
   padded, dilated, or non-contiguous layouts. Verified:

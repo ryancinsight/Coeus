@@ -46,7 +46,8 @@ mod tests {
 
         let scale = 1.0_f32 / (d_k as f32).sqrt();
         let (out, _aw) =
-            coeus_autograd::sdp_attention::<f32, B, NullMask>(&q_var, &k_var, &v_var, None, scale);
+            coeus_autograd::sdp_attention::<f32, B, NullMask>(&q_var, &k_var, &v_var, None, scale)
+                .expect("valid attention fixture");
 
         assert_eq!(out.tensor.shape(), &[batch, seq_q, d_v]);
     }
@@ -74,7 +75,8 @@ mod tests {
             true,
             1.0_f32 / (d as f32).sqrt(),
             &backend,
-        );
+        )
+        .expect("valid attention fixture");
 
         // attn_weights: [1, seq, seq]
         let aw_data = attn_weights
@@ -126,7 +128,8 @@ mod tests {
         let v = Var::new(v_t, true);
 
         let scale = 1.0_f32 / (d as f32).sqrt();
-        let (out, _) = coeus_autograd::sdp_attention::<f32, B, NullMask>(&q, &k, &v, None, scale);
+        let (out, _) = coeus_autograd::sdp_attention::<f32, B, NullMask>(&q, &k, &v, None, scale)
+            .expect("valid attention fixture");
 
         // Sum-reduce to scalar loss and backprop
         let loss = coeus_autograd::sum(&out);

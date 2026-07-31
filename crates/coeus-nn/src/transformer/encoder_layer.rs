@@ -8,10 +8,14 @@ use crate::dropout::Dropout;
 use crate::module::{prefixed_parameters, Module, ModuleError};
 use crate::normalization::LayerNorm;
 use coeus_autograd::{AttentionMask, Var};
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::MoiraiBackend;
 
 /// Borrowed parameters for functional transformer encoder-layer execution.
-pub struct TransformerEncoderLayerParams<'a, T: Float, B: coeus_ops::BackendOps<T> + Default> {
+pub struct TransformerEncoderLayerParams<
+    'a,
+    T: coeus_ops::AttentionScalar,
+    B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
+> {
     /// LayerNorm1 gamma `[d_model]`.
     pub norm1_weight: &'a Var<T, B>,
     /// LayerNorm1 beta `[d_model]`.
@@ -44,7 +48,7 @@ pub struct TransformerEncoderLayerParams<'a, T: Float, B: coeus_ops::BackendOps<
     pub ffn_residual_training: bool,
 }
 
-fn apply_dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+fn apply_dropout<T: coeus_ops::AttentionScalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     p: f64,
     is_training: bool,
@@ -60,8 +64,8 @@ fn apply_dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// `x1 = x + Dropout(SelfAttn(LN1(x)))`
 /// `x2 = x1 + Dropout(Linear2(Dropout(GELU(Linear1(LN2(x1))))))`.
 pub fn transformer_encoder_layer<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
+    T: coeus_ops::AttentionScalar,
+    B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
     const H: usize,
     M: AttentionMask,
 >(
@@ -136,8 +140,8 @@ pub fn transformer_encoder_layer<
 ///   x₂ = x₁ + Dropout(FFN(LayerNorm(x₁)))
 /// ```
 pub struct TransformerEncoderLayer<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default = MoiraiBackend,
+    T: coeus_ops::AttentionScalar,
+    B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default = MoiraiBackend,
     const H: usize = 8,
     M: AttentionMask = NullMask,
 > {
@@ -155,8 +159,12 @@ pub struct TransformerEncoderLayer<
     pub dropout2: Dropout,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: AttentionMask>
-    TransformerEncoderLayer<T, B, H, M>
+impl<
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
+        const H: usize,
+        M: AttentionMask,
+    > TransformerEncoderLayer<T, B, H, M>
 {
     /// Construct an encoder layer.
     pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self
@@ -215,8 +223,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: AttentionMask> Module<T, B>
-    for TransformerEncoderLayer<T, B, H, M>
+impl<
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
+        const H: usize,
+        M: AttentionMask,
+    > Module<T, B> for TransformerEncoderLayer<T, B, H, M>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         let mut p = self.norm1.parameters();
@@ -241,8 +253,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: Attenti
 }
 
 /// Manual Clone impl.
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const H: usize, M: AttentionMask> Clone
-    for TransformerEncoderLayer<T, B, H, M>
+impl<
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
+        const H: usize,
+        M: AttentionMask,
+    > Clone for TransformerEncoderLayer<T, B, H, M>
 where
     LayerNorm<T, B>: Clone,
     MultiHeadAttention<T, B, H, M>: Clone,

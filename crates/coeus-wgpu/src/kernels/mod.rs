@@ -1,4 +1,3 @@
-pub mod attention;
 pub mod binary;
 pub mod cache;
 pub mod fuse;
@@ -10,10 +9,6 @@ pub mod reduce;
 pub mod unary;
 pub mod unfold_fold;
 
-pub use attention::{
-    dispatch_sdp_attention, dispatch_sdp_attention_backward, AttnBackwardDispatch,
-    AttnForwardDispatch,
-};
 pub use binary::{dispatch_binary, dispatch_contiguous_binary};
 pub use fuse::dispatch_fused;
 pub use matmul::dispatch_matmul;

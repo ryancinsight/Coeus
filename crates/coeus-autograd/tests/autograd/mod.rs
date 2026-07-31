@@ -1,3 +1,4 @@
+mod attention;
 mod embedding;
 mod exp_log;
 mod float16;

@@ -64,28 +64,34 @@ pub(crate) fn bench_attention(c: &mut Criterion) {
     let mut group = c.benchmark_group("Scaled dot-product attention (8x64x32)");
     group.bench_function("Coeus Sequential", |bencher| {
         bencher.iter(|| {
-            black_box(scaled_dot_product_attention(
-                black_box(&sequential_query),
-                black_box(&sequential_key),
-                black_box(&sequential_value),
-                None,
-                false,
-                scale,
-                black_box(&sequential_backend),
-            ))
+            black_box(
+                scaled_dot_product_attention(
+                    black_box(&sequential_query),
+                    black_box(&sequential_key),
+                    black_box(&sequential_value),
+                    None,
+                    false,
+                    scale,
+                    black_box(&sequential_backend),
+                )
+                .expect("valid sequential attention benchmark input"),
+            )
         })
     });
     group.bench_function("Coeus Moirai", |bencher| {
         bencher.iter(|| {
-            black_box(scaled_dot_product_attention(
-                black_box(&moirai_query),
-                black_box(&moirai_key),
-                black_box(&moirai_value),
-                None,
-                false,
-                scale,
-                black_box(&moirai_backend),
-            ))
+            black_box(
+                scaled_dot_product_attention(
+                    black_box(&moirai_query),
+                    black_box(&moirai_key),
+                    black_box(&moirai_value),
+                    None,
+                    false,
+                    scale,
+                    black_box(&moirai_backend),
+                )
+                .expect("valid parallel attention benchmark input"),
+            )
         })
     });
     group.finish();

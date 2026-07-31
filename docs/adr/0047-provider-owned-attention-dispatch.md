@@ -22,15 +22,23 @@ the selected provider's `AttentionOps` implementation. Runtime backend
 selection therefore occurs once at the Coeus backend boundary; mathematical
 loops do not perform backend or capability checks.
 
+The Coeus-Hephaestus `AttentionBackend` seam owns layout validation, operand
+assembly, dispatch, and error mapping defaults. Vendor leaves provide only
+device selection, zero-copy buffer projection, and the typed error constructor.
+Coeus owns the provider-neutral `f32`/`f64` attention scalar marker; only the
+CPU implementation adds Leto's provider-specific scalar bound.
+
 The public attention operation becomes fallible. The `Result` propagates
 through autograd, neural-network modules, and PyO3 error mapping. All
 in-repository callers migrate in the same change. Coeus-owned attention
 kernels, launchers, and host fallbacks are deleted once their callers use the
 provider seam.
 
-Grouped rank-two masks remain borrowed. Where a repeated-head view cannot be
-represented by one affine rank-three layout, the CPU bridge dispatches each
-mask group as a borrowed view without materializing or copying mask data.
+Grouped rank-two masks remain borrowed. The CPU bridge binds the complete
+`[group, key]` view to Leto's `GroupedKeepMask` with a nonzero
+batches-per-group contract, then performs one provider operation. Leto
+validates every group before output mutation without materializing or copying
+mask data.
 
 ## Rejected alternatives
 
@@ -47,5 +55,5 @@ This is a breaking public contract change because attention forward and
 backward return `Result`. Callers use `?` or map the typed backend error.
 The migration removes compatibility paths rather than retaining deprecated
 wrappers. Behavioral evidence consists of shared Leto/Hephaestus differential
-contracts, backend-specific device tests, and failure-atomic negative cases;
-performance claims require separate controlled measurements.
+contracts, backend-specific device tests, and preflight-failure-atomic negative
+cases; performance claims require separate controlled measurements.

@@ -1,5 +1,16 @@
 # Global Progress Checklist: Coeus
 
+## COEUS-ATTENTION-PROVIDER-001 — Provider-owned attention dispatch
+
+- [x] Merge the required Leto and Hephaestus attention provider contracts.
+- [x] Add ADR-0047 and claim the complete caller/deletion closure.
+- [x] Route CPU attention through borrowed Leto storage.
+- [x] Route WGPU, CUDA, ROCm, and Metal through the generic Hephaestus bridge.
+- [x] Propagate typed failure through operation, autograd, module, and Python APIs.
+- [x] Delete local kernels, launchers, host fallbacks, tests, and obsolete ADRs.
+- [x] Pass focused local gates and independent architecture/correctness review.
+- [ ] Pass exact-head hosted gates.
+
 ## ATLAS-COEUS-HEPHAESTUS-006 — Native activation-tail providers
 
 - [x] Route `Mish`, `MishGrad`, `Elu`, and `EluGrad` through direct Hephaestus
@@ -3401,14 +3412,9 @@ GPU backends over Hephaestus; dependency policy hardening.
   batched_matmul_dispatch_covers_rhs_batch_broadcast`, `cargo nextest run -p coeus-ops
   --test batched_matmul_leto_diff`, and `cargo nextest run -p coeus-wgpu
   wgpu::transfers_and_matmul::test_wgpu_backend_ops_unified` pass.
-- [x] [patch] Added `Scalar::{dot_slice, scale_slice}` Hermes SIMD seams and
-  routed CPU forward attention contiguous Q/K row dot products plus softmax row
-  scaling through them. Evidence: `cargo nextest run -p coeus-core --test
-  scalar_dot_scale` and `cargo nextest run -p coeus-nn --test nn_attention_tests`
-  pass.
-- [x] [patch] Routed CPU attention backward contiguous `dO @ V^T` rows and
-  softmax row products through `Scalar::dot_slice`. Evidence: `cargo nextest run -p
-  coeus-ops --test attention_backward_hermes_diff` passes.
+- [x] [patch] Historical CPU attention dot/scale routing is superseded by
+  ADR-0047's direct borrowed Leto forward and additive-backward dispatch; the
+  former Hermes-specific attention regression is removed with its formula.
 - [x] [patch] Routed contiguous unpadded unit-dilation CPU `conv1d` forward
   kernel rows through `Scalar::dot_slice`, preserving the indexed path for
   padded, dilated, or non-contiguous layouts. Evidence: `cargo nextest run -p

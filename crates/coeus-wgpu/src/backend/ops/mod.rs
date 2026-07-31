@@ -19,7 +19,6 @@ fn activation_tail_operation(op: coeus_ops::UnaryOp) -> Option<&'static str> {
     }
 }
 
-mod attention;
 mod impls;
 mod matmul;
 mod optim;

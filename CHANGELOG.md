@@ -4,6 +4,14 @@
 
 ### Changed
 
+- [major] Routes CPU scaled dot-product attention directly through Leto's
+  borrowed forward and additive-backward APIs and routes WGPU, CUDA, ROCm, and
+  Metal through one monomorphized Hephaestus attention bridge. The operation,
+  autograd, module, and Python boundaries now preserve typed provider failures.
+  Superseded Coeus CPU formulas, accelerator kernels, launchers, and host
+  fallbacks are removed. No runtime, memory, or binary-size delta is claimed
+  without controlled measurements.
+
 - [arch] Routes Coeus `Mish`, `MishGrad`, `Elu`, and `EluGrad` through the
   provider-owned Hephaestus WGPU, CUDA, ROCm, and Metal f32 APIs. WGPU/CUDA
   use direct contiguous and strided provider entry points; ROCm/Metal use the
@@ -2305,10 +2313,12 @@ updates the workspace version metadata.
   as `pycoeus.ScaledDotProductAttention`.
 
 - **`pycoeus.scaled_dot_product_attention` functional API** — Free function in
-  `crates/coeus-python/src/ops/nn_functional.rs` with signature
-  `(query, key, value, attn_mask=None, scale=None, is_causal=False)`.
+  `crates/coeus-python/src/ops/nn_functional/mod.rs` with signature
+  `(query, key, value, key_padding_mask=None, scale=None, is_causal=False)`.
   Delegates to `coeus_autograd::sdp_attention` (NullMask or CausalMask ZST dispatch,
-  dead code eliminated at monomorphization).
+  dead code eliminated at monomorphization). The optional mask is an exact
+  binary keep mask; non-binary values raise `ValueError` instead of being
+  interpreted as PyTorch-style additive attention bias.
 
 - **Burn parity tests (+ 4)** — `burn_live_parity.rs` now has 59 tests:
   - `conv_transpose1d_stride2_matches_manual_reference` — ConvTranspose1d stride-2
