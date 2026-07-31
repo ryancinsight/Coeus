@@ -51,3 +51,4 @@ renumbering migration can update every durable reference.
 | [0044 WGPU reduction provider ownership](0044-wgpu-reduction-provider-ownership.md) | Accepted |
 | [0045 Fallible module forward](0045-fallible-module-forward.md) | Accepted |
 | [0046 Provider-owned convolution dispatch](0046-provider-owned-convolution-dispatch.md) | Accepted |
+| [0047 Provider-owned attention dispatch](0047-provider-owned-attention-dispatch.md) | Accepted |
