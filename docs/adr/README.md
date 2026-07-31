@@ -16,13 +16,11 @@ renumbering migration can update every durable reference.
 | [0008 CUDA pool2d launch ABI](0008-cuda-pool2d-launch-abi.md) | Accepted |
 | [0009 CUDA pool3d launch ABI](0009-cuda-pool3d-launch-abi.md) | Accepted |
 | [0010 CUDA matmul launch ABI](0010-cuda-matmul-launch-abi.md) | Accepted |
-| [0011 CUDA attention launch ABI](0011-cuda-attention-launch-abi.md) | Accepted |
 | [0012 CUDA unfold/fold launch ABI](0012-cuda-unfold-fold-launch-abi.md) | Accepted |
 | [0013 CUDA transposed-convolution launch ABI](0013-cuda-convolution-transpose-launch-abi.md) | Accepted |
 | [0014 CUDA fused dispatch ABI](0014-cuda-fused-dispatch-abi.md) | Accepted |
 | [0015 CUDA elementwise backend boundary](0015-cuda-elementwise-backend-boundary.md) | Accepted |
 | [0016 CUDA convolution backend tree](0016-cuda-convolution-backend-tree.md) | Accepted |
-| [0017 CUDA attention kernel tree](0017-cuda-attention-kernel-tree.md) | Accepted |
 | [0018 Fused operation tag tree](0018-fused-operation-tag-tree.md) | Accepted |
 | [0019 WGPU pool1d dispatch modes](0019-wgpu-pool1d-dispatch-modes.md) | Accepted |
 | [0020 WGPU fallible dispatch boundary](0020-wgpu-fallible-dispatch-boundary.md) | Accepted |
@@ -51,3 +49,4 @@ renumbering migration can update every durable reference.
 | [0044 WGPU reduction provider ownership](0044-wgpu-reduction-provider-ownership.md) | Accepted |
 | [0045 Fallible module forward](0045-fallible-module-forward.md) | Accepted |
 | [0046 Provider-owned convolution dispatch](0046-provider-owned-convolution-dispatch.md) | Accepted |
+| [0047 Provider-owned attention dispatch](0047-provider-owned-attention-dispatch.md) | Accepted |

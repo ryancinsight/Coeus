@@ -1,7 +1,10 @@
 //! Interface-segregated sub-traits for [`BackendOps`].
 //!
-//! `BackendOps` is a super-trait composed of eight single-concern sub-traits.
-//! Backends implement each sub-trait independently; the blanket impl in
+//! This module exports eight single-concern capability traits. `BackendOps`
+//! composes the seven capabilities shared by every backend; attention remains
+//! an optional `AttentionOps` capability so unrelated scalar kernels do not
+//! acquire an unsupported bound. Backends implement each trait independently;
+//! the blanket impl in
 //! [`crate::backend_ops::trait_def`] provides `BackendOps` automatically.  This satisfies
 //! the interface-segregation principle: call sites can bound on only the
 //! sub-trait they need (e.g. `B: ElementwiseOps<T>`) instead of pulling in
@@ -28,7 +31,7 @@ pub mod pool;
 pub mod reduction;
 pub mod unfold_fold;
 
-pub use attention::AttentionOps;
+pub use attention::{AttentionOps, AttentionScalar};
 pub use conv::{ConvOps, ConvolutionBackward, ConvolutionForward};
 pub use elementwise::ElementwiseOps;
 pub use matmul::MatmulOps;

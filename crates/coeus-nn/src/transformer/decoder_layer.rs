@@ -6,10 +6,14 @@ use crate::dropout::Dropout;
 use crate::module::{prefixed_parameters, Module, ModuleError};
 use crate::normalization::LayerNorm;
 use coeus_autograd::{AttentionMask, CausalMask, NullMask, Var};
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::MoiraiBackend;
 
 /// Borrowed parameters for functional transformer decoder-layer execution.
-pub struct TransformerDecoderLayerParams<'a, T: Float, B: coeus_ops::BackendOps<T> + Default> {
+pub struct TransformerDecoderLayerParams<
+    'a,
+    T: coeus_ops::AttentionScalar,
+    B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
+> {
     /// LayerNorm1 gamma `[d_model]`.
     pub norm1_weight: &'a Var<T, B>,
     /// LayerNorm1 beta `[d_model]`.
@@ -52,7 +56,7 @@ pub struct TransformerDecoderLayerParams<'a, T: Float, B: coeus_ops::BackendOps<
     pub ffn_residual_training: bool,
 }
 
-fn apply_dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+fn apply_dropout<T: coeus_ops::AttentionScalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     p: f64,
     is_training: bool,
@@ -69,8 +73,8 @@ fn apply_dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// `x2 = x1 + Dropout(CrossAttn(LN2(x1), memory, memory))`
 /// `x3 = x2 + Dropout(Linear2(Dropout(GELU(Linear1(LN3(x2))))))`.
 pub fn transformer_decoder_layer<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
+    T: coeus_ops::AttentionScalar,
+    B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
     const H: usize,
     SelfM: AttentionMask,
     CrossM: AttentionMask,
@@ -174,8 +178,8 @@ pub fn transformer_decoder_layer<
 ///   x₃ = x₂ + Dropout(FFN(LayerNorm(x₂)))
 /// ```
 pub struct TransformerDecoderLayer<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default = MoiraiBackend,
+    T: coeus_ops::AttentionScalar,
+    B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default = MoiraiBackend,
     const H: usize = 8,
     SelfM: AttentionMask = CausalMask,
     CrossM: AttentionMask = NullMask,
@@ -201,8 +205,8 @@ pub struct TransformerDecoderLayer<
 }
 
 impl<
-        T: Float,
-        B: coeus_ops::BackendOps<T> + Default,
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         SelfM: AttentionMask,
         CrossM: AttentionMask,
@@ -283,8 +287,8 @@ impl<
 }
 
 impl<
-        T: Float,
-        B: coeus_ops::BackendOps<T> + Default,
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         SelfM: AttentionMask,
         CrossM: AttentionMask,
@@ -315,8 +319,8 @@ impl<
 
 /// Manual Clone impl.
 impl<
-        T: Float,
-        B: coeus_ops::BackendOps<T> + Default,
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         SelfM: AttentionMask,
         CrossM: AttentionMask,

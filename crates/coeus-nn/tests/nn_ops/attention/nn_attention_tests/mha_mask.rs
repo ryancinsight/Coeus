@@ -36,7 +36,8 @@ fn key_padding_mask_zeroes_padded_key_gradients() {
         &v_var,
         Some(&mask),
         1.0,
-    );
+    )
+    .expect("valid masked attention fixture");
     coeus_autograd::sum(&output)
         .backward()
         .expect("invariant: valid attention graph completes backward");

@@ -121,7 +121,8 @@ fn test_mha_parity() {
         false,
         0.5f32,
         &backend,
-    );
+    )
+    .expect("valid attention parity fixture");
 
     let out_var = CoeusVar::new(out_tensor, false);
     let merged_split = coeus_autograd::reshape(&out_var, [2, 2, 3, 4]);

@@ -2,7 +2,7 @@
 
 use crate::module::{Module, ModuleError};
 use coeus_autograd::{AttentionMask, Var};
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::MoiraiBackend;
 use std::marker::PhantomData;
 
 /// Scaled dot-product attention layer.
@@ -32,8 +32,11 @@ impl<T: coeus_core::Scalar, B: coeus_ops::BackendOps<T> + Default, M: AttentionM
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask>
-    ScaledDotProductAttention<T, B, M>
+impl<
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
+        M: AttentionMask,
+    > ScaledDotProductAttention<T, B, M>
 {
     /// Create a new `ScaledDotProductAttention` layer (stateless, no parameters).
     pub fn new() -> Self {
@@ -57,16 +60,25 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask>
             key_padding_mask,
             1,
         )?;
-        let scale = scale.unwrap_or_else(|| T::one() / T::from_f64((dimensions.d_k as f64).sqrt()));
+        let scale = scale.unwrap_or_else(|| {
+            T::one() / <T as coeus_core::Scalar>::from_f64((dimensions.d_k as f64).sqrt())
+        });
         let (out, _attn_weights) =
-            coeus_autograd::sdp_attention::<T, B, M>(query, key, value, key_padding_mask, scale);
+            coeus_autograd::sdp_attention::<T, B, M>(query, key, value, key_padding_mask, scale)
+                .map_err(|source| ModuleError::Backend {
+                    module: "ScaledDotProductAttention",
+                    source,
+                })?;
         Ok(out)
     }
 }
 
 /// Convenience `Module` impl — self-attention: Q = K = V = input.
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Module<T, B>
-    for ScaledDotProductAttention<T, B, M>
+impl<
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
+        M: AttentionMask,
+    > Module<T, B> for ScaledDotProductAttention<T, B, M>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]

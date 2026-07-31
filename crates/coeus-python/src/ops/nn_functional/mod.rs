@@ -2,7 +2,10 @@ mod normalization;
 
 pub use normalization::{batch_norm_1d, group_norm, layer_norm, rms_norm};
 
-use crate::{nn::error::map_module_error, tensor::PyTensor};
+use crate::{
+    nn::error::{map_backend_error, map_module_error},
+    tensor::PyTensor,
+};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -382,8 +385,11 @@ pub fn f_cross_entropy(input: &PyTensor, targets: Vec<usize>, py: Python<'_>) ->
 
 /// Functional (stateless) scaled dot-product attention.
 ///
-/// Equivalent to `torch.nn.functional.scaled_dot_product_attention` /
-/// `F.scaled_dot_product_attention`.
+/// Scaled dot-product attention with an optional binary keep mask.
+///
+/// Unlike PyTorch's additive `attn_mask`, `key_padding_mask` accepts only 0
+/// (masked) and 1 (kept). This explicit contract prevents floating values from
+/// being silently reinterpreted as predicates.
 ///
 /// # Shapes
 /// - `query`:  `[batch, seq_q, d_k]`
@@ -392,20 +398,21 @@ pub fn f_cross_entropy(input: &PyTensor, targets: Vec<usize>, py: Python<'_>) ->
 ///
 /// Returns the attended output `[batch, seq_q, d_v]`.
 #[pyfunction]
-#[pyo3(signature = (query, key, value, attn_mask = None, scale = None, is_causal = false))]
+#[pyo3(signature = (query, key, value, key_padding_mask = None, scale = None, is_causal = false))]
 pub fn scaled_dot_product_attention(
     query: &PyTensor,
     key: &PyTensor,
     value: &PyTensor,
-    attn_mask: Option<&PyTensor>,
+    key_padding_mask: Option<&PyTensor>,
     scale: Option<f64>,
     is_causal: bool,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
+    crate::nn::attention::validate_key_padding_mask(key_padding_mask)?;
     let q = query.inner.clone();
     let k = key.inner.clone();
     let v = value.inner.clone();
-    let mask = attn_mask.map(|m| m.inner.clone());
+    let mask = key_padding_mask.map(|m| m.inner.clone());
     let d_k = q.tensor.shape().last().copied().unwrap_or(1);
     let scale = scale.unwrap_or_else(|| 1.0 / (d_k as f64).sqrt());
 
@@ -416,15 +423,15 @@ pub fn scaled_dot_product_attention(
                     f64,
                     coeus_core::MoiraiBackend,
                     coeus_autograd::CausalMask,
-                >(&q, &k, &v, mask.as_ref(), scale)
+                >(&q, &k, &v, mask.as_ref(), scale)?
             } else {
                 coeus_autograd::sdp_attention::<
                     f64,
                     coeus_core::MoiraiBackend,
                     coeus_autograd::NullMask,
-                >(&q, &k, &v, mask.as_ref(), scale)
+                >(&q, &k, &v, mask.as_ref(), scale)?
             };
-        out
+        Ok(out)
     });
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }

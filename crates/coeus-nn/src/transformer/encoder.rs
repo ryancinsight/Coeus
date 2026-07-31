@@ -8,7 +8,7 @@
 use super::encoder_layer::TransformerEncoderLayer;
 use crate::module::{prefixed_parameters, Module, ModuleError};
 use coeus_autograd::{AttentionMask, Var};
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::MoiraiBackend;
 
 /// Stack of N `TransformerEncoderLayer`s.
 ///
@@ -18,8 +18,8 @@ use coeus_core::{Float, MoiraiBackend};
 /// - `M` — masking strategy ZST
 #[derive(Clone)]
 pub struct TransformerEncoder<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default = MoiraiBackend,
+    T: coeus_ops::AttentionScalar,
+    B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default = MoiraiBackend,
     const H: usize = 8,
     const N: usize = 6,
     M: AttentionMask = coeus_autograd::NullMask,
@@ -29,8 +29,8 @@ pub struct TransformerEncoder<
 }
 
 impl<
-        T: Float,
-        B: coeus_ops::BackendOps<T> + Default,
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const N: usize,
         M: AttentionMask,
@@ -71,8 +71,8 @@ where
 }
 
 impl<
-        T: Float,
-        B: coeus_ops::BackendOps<T> + Default,
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const N: usize,
         M: AttentionMask,

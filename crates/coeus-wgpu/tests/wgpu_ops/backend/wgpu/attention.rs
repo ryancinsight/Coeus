@@ -12,9 +12,8 @@ const D_V: usize = 3;
 fn assert_close(label: &str, actual: &[f32], expected: &[f32]) {
     assert_eq!(actual.len(), expected.len(), "{label}: length mismatch");
     for (index, (&got, &want)) in actual.iter().zip(expected).enumerate() {
-        // WGPU attention currently routes through the CPU reference path and
-        // performs device transfers around it. The tolerance covers f32
-        // roundoff in the public attention equations and backend transfer.
+        // The CPU and provider kernels preserve the same evaluation order for
+        // this backward contract; the bound covers f32 roundoff.
         let tol = 512.0 * f32::EPSILON * (1.0 + want.abs());
         assert!(
             (got - want).abs() <= tol,
@@ -72,10 +71,12 @@ fn run_device_forward(is_causal: bool, label: &str) {
     // No mask -> on-device WGSL kernel.
     let (expected_out, expected_weights) = scaled_dot_product_attention(
         &query_cpu, &key_cpu, &value_cpu, None, is_causal, scale, &seq,
-    );
+    )
+    .expect("CPU attention forward must succeed");
     let (actual_out, actual_weights) = scaled_dot_product_attention(
         &query_gpu, &key_gpu, &value_gpu, None, is_causal, scale, &wgpu,
-    );
+    )
+    .expect("WGPU attention forward must succeed");
 
     let actual_out = actual_out.to_backend_on(&wgpu, &seq);
     let actual_weights = actual_weights.to_backend_on(&wgpu, &seq);
@@ -131,7 +132,8 @@ fn wgpu_attention_forward_matches_cpu_with_mask_and_causal() {
         true,
         scale,
         &seq,
-    );
+    )
+    .expect("CPU masked attention forward must succeed");
     let (actual_out, actual_weights) = scaled_dot_product_attention(
         &query_gpu,
         &key_gpu,
@@ -140,7 +142,8 @@ fn wgpu_attention_forward_matches_cpu_with_mask_and_causal() {
         true,
         scale,
         &wgpu,
-    );
+    )
+    .expect("WGPU masked attention forward must succeed");
 
     let actual_out = actual_out.to_backend_on(&wgpu, &seq);
     let actual_weights = actual_weights.to_backend_on(&wgpu, &seq);
@@ -178,9 +181,11 @@ fn wgpu_attention_backward_matches_cpu() {
     let grad_out_gpu = grad_out_cpu.to_backend_on(&seq, &wgpu);
 
     let (_, weights_cpu) =
-        scaled_dot_product_attention(&query_cpu, &key_cpu, &value_cpu, None, false, scale, &seq);
+        scaled_dot_product_attention(&query_cpu, &key_cpu, &value_cpu, None, false, scale, &seq)
+            .expect("CPU attention forward must succeed");
     let (_, weights_gpu) =
-        scaled_dot_product_attention(&query_gpu, &key_gpu, &value_gpu, None, false, scale, &wgpu);
+        scaled_dot_product_attention(&query_gpu, &key_gpu, &value_gpu, None, false, scale, &wgpu)
+            .expect("WGPU attention forward must succeed");
 
     let mut expected_q = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_Q, D_K], &seq);
     let mut expected_k = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_K, D_K], &seq);
@@ -196,7 +201,8 @@ fn wgpu_attention_backward_matches_cpu() {
         Some(&mut expected_k),
         Some(&mut expected_v),
         &seq,
-    );
+    )
+    .expect("CPU attention backward must succeed");
 
     let mut actual_q = Tensor::<f32, WgpuBackend>::zeros_on([BATCH, SEQ_Q, D_K], &wgpu);
     let mut actual_k = Tensor::<f32, WgpuBackend>::zeros_on([BATCH, SEQ_K, D_K], &wgpu);
@@ -212,7 +218,8 @@ fn wgpu_attention_backward_matches_cpu() {
         Some(&mut actual_k),
         Some(&mut actual_v),
         &wgpu,
-    );
+    )
+    .expect("WGPU attention backward must succeed");
 
     let actual_q = actual_q.to_backend_on(&wgpu, &seq);
     let actual_k = actual_k.to_backend_on(&wgpu, &seq);

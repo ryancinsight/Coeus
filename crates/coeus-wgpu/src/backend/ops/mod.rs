@@ -33,7 +33,6 @@ fn parameterized_activation(op: coeus_ops::UnaryOp) -> bool {
     )
 }
 
-mod attention;
 mod impls;
 mod matmul;
 mod optim;

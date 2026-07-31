@@ -49,9 +49,10 @@ This is a breaking behavioral correction. It removes host staging allocations
 from the affected CUDA paths and makes missing provider coverage observable;
 no performance gain is claimed without matched measurements.
 
-Convolution, attention, and optimizer CPU capability paths remain separate
-tracked migrations. WGPU/CUDA reduction and aliased elementwise kernels also
-require provider-owned Hephaestus contracts before the dispatch audit closes.
+Optimizer CPU capability paths remain a separate tracked migration. Convolution,
+attention, and reduction now use provider-owned CPU and accelerator contracts.
+Aliased elementwise kernels require provider-owned in-place Hephaestus contracts
+before the dispatch audit closes.
 
 ## Verification
 

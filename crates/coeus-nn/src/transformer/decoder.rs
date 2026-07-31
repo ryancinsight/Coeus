@@ -3,7 +3,7 @@
 use super::decoder_layer::TransformerDecoderLayer;
 use crate::module::ModuleError;
 use coeus_autograd::{AttentionMask, CausalMask, NullMask, Var};
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::MoiraiBackend;
 
 /// Stack of N `TransformerDecoderLayer`s.
 ///
@@ -13,8 +13,8 @@ use coeus_core::{Float, MoiraiBackend};
 /// - `SelfM` — self-attention masking strategy ZST
 /// - `CrossM` — cross-attention masking strategy ZST
 pub struct TransformerDecoder<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default = MoiraiBackend,
+    T: coeus_ops::AttentionScalar,
+    B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default = MoiraiBackend,
     const H: usize = 8,
     const N: usize = 6,
     SelfM: AttentionMask = CausalMask,
@@ -25,8 +25,8 @@ pub struct TransformerDecoder<
 }
 
 impl<
-        T: Float,
-        B: coeus_ops::BackendOps<T> + Default,
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const N: usize,
         SelfM: AttentionMask,
@@ -67,8 +67,8 @@ where
 }
 
 impl<
-        T: Float,
-        B: coeus_ops::BackendOps<T> + Default,
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const N: usize,
         SelfM: AttentionMask,
@@ -98,8 +98,8 @@ impl<
 
 /// Manual Clone impl.
 impl<
-        T: Float,
-        B: coeus_ops::BackendOps<T> + Default,
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const N: usize,
         SelfM: AttentionMask,

@@ -4,9 +4,30 @@ use crate::{
 };
 use pyo3::prelude::*;
 
+pub(crate) fn validate_key_padding_mask(mask: Option<&PyTensor>) -> PyResult<()> {
+    let Some(mask) = mask else {
+        return Ok(());
+    };
+    let values = mask.inner.tensor.to_contiguous();
+    if let Some((index, value)) = values
+        .as_slice()
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, value)| *value != 0.0 && *value != 1.0)
+    {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "key_padding_mask[{index}] must be 0 or 1, got {value}"
+        )));
+    }
+    Ok(())
+}
+
 /// Stateless Scaled Dot-Product Attention module.
 ///
-/// Implements `F.scaled_dot_product_attention` semantics as a callable `nn.Module`.
+/// Implements scaled dot-product attention as a callable `nn.Module`.
+/// `key_padding_mask` is an exact binary mask: `0` excludes a key and `1`
+/// keeps it. Additive PyTorch `attn_mask` values are not accepted.
 ///
 /// # Shapes
 /// - `query`:  `[batch, seq_q, d_k]`
@@ -51,6 +72,7 @@ impl PyScaledDotProductAttention {
         key_padding_mask: Option<&PyTensor>,
         py: Python<'_>,
     ) -> PyResult<PyTensor> {
+        validate_key_padding_mask(key_padding_mask)?;
         let q = query.inner.clone();
         let k = key.inner.clone();
         let v = value.inner.clone();
@@ -184,6 +206,7 @@ impl PyMultiHeadAttention {
         key_padding_mask: Option<&PyTensor>,
         py: Python<'_>,
     ) -> PyResult<PyTensor> {
+        validate_key_padding_mask(key_padding_mask)?;
         let wq = self.w_q.bind(py).borrow().inner.clone();
         let bq = self.b_q.as_ref().map(|b| b.bind(py).borrow().inner.clone());
         let wk = self.w_k.bind(py).borrow().inner.clone();
@@ -247,6 +270,7 @@ impl PyMultiHeadAttention {
         key_padding_mask: Option<&PyTensor>,
         py: Python<'_>,
     ) -> PyResult<PyTensor> {
+        validate_key_padding_mask(key_padding_mask)?;
         let wq = self.w_q.bind(py).borrow().inner.clone();
         let bq = self.b_q.as_ref().map(|b| b.bind(py).borrow().inner.clone());
         let wk = self.w_k.bind(py).borrow().inner.clone();

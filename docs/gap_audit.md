@@ -1,5 +1,22 @@
 # Coeus Gap Audit
 
+## COEUS-ATTENTION-PROVIDER-001: Consumer-owned attention dispatch
+
+**Location**: `coeus-ops`, `coeus-wgpu`, `coeus-cuda`, `coeus-rocm`, and
+`coeus-metal` attention implementations.
+**Gap**: Coeus duplicated scaled dot-product attention mathematics for CPU,
+WGPU, and CUDA, retained a CUDA host fallback, and exposed no shared ROCm/Metal
+provider dispatch or typed operation failure.
+**Resolution**: call Leto directly for CPU storage, bind all accelerator storage
+through one monomorphized Coeus-Hephaestus bridge, make the public operation
+fallible, migrate every caller, and delete superseded implementations.
+**Residual**: exact-head hosted device lanes remain the closure gate. No
+performance or memory delta is claimed without matched measurements.
+**Status**: local implementation, provider differential verification, and
+independent architecture/correctness review complete under ADR-0047. Review
+findings consolidated all accelerator request assembly in `AttentionBackend`,
+made Coeus's scalar marker provider-neutral, and closed Python mask validation.
+
 ## ATLAS-COEUS-HEPHAESTUS-006: Activation-tail provider parity
 
 **Location**: `crates/coeus-wgpu/src/backend/ops/mod.rs`,
@@ -84,8 +101,8 @@ implemented CPU mathematics while reporting a CUDA backend.
 **Resolution**: ADR-0043 deletes those mathematical fallback paths, routes
 rank-two reductions through Hephaestus, and leaves disabled-provider builds
 without mathematical backend traits.
-**Residual**: CUDA convolution, attention, and optimizer capability paths still
-copy through host memory. WGPU/CUDA aliased elementwise operations still
+**Residual**: CUDA optimizer capability paths still copy through host memory.
+WGPU/CUDA aliased elementwise operations still
 require provider-owned in-place Hephaestus contracts.
 **Evidence**: no-default all-target compilation and all three disabled-provider
 identity/error tests pass. Exact-head run `30405547693` passed ROCm
@@ -323,8 +340,8 @@ contiguous views through the offset-aware strided kernel.
 offset routing, writable aliasing, and exact-layout in-place operation; package
 check, warning-denied Clippy, Nextest, and exact-head CUDA provider CI. Empty
 layouts remain valid and complete without a device launch.
-**Residual**: CUDA convolution, attention, optimizer, matmul, module-loading,
-and device-acquisition boundaries remain separate accepted audit findings. No
+**Residual**: CUDA convolution, optimizer, matmul, module-loading, and
+device-acquisition boundaries remain separate accepted audit findings. No
 runtime performance or resident-memory delta is claimed without controlled
 measurements.
 **Status**: implementation complete under

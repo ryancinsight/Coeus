@@ -173,28 +173,34 @@ pub(crate) fn bench_sdp_attention_forward(c: &mut Criterion) {
     let mut group = c.benchmark_group("Coeus — sdp_attention forward (4x8x64)");
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
-            black_box(coeus_ops::scaled_dot_product_attention(
-                black_box(&q_seq),
-                black_box(&k_seq),
-                black_box(&v_seq),
-                None,
-                false,
-                scale,
-                &backend_seq,
-            ))
+            black_box(
+                coeus_ops::scaled_dot_product_attention(
+                    black_box(&q_seq),
+                    black_box(&k_seq),
+                    black_box(&v_seq),
+                    None,
+                    false,
+                    scale,
+                    &backend_seq,
+                )
+                .expect("valid sequential attention benchmark input"),
+            )
         })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
-            black_box(coeus_ops::scaled_dot_product_attention(
-                black_box(&q_moirai),
-                black_box(&k_moirai),
-                black_box(&v_moirai),
-                None,
-                false,
-                scale,
-                &backend_moirai,
-            ))
+            black_box(
+                coeus_ops::scaled_dot_product_attention(
+                    black_box(&q_moirai),
+                    black_box(&k_moirai),
+                    black_box(&v_moirai),
+                    None,
+                    false,
+                    scale,
+                    &backend_moirai,
+                )
+                .expect("valid parallel attention benchmark input"),
+            )
         })
     });
     group.finish();

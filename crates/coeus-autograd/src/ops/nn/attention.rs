@@ -7,7 +7,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -42,7 +42,7 @@ impl AttentionMask for NullMask {
 /// computing gradients w.r.t. Q, K, and V.
 pub struct ScaledDotProductAttnNode<
     T: Scalar,
-    B: coeus_ops::BackendOps<T> + Default,
+    B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
     M: AttentionMask,
 > {
     /// Accumulated gradient buffer for the output of this node.
@@ -63,8 +63,11 @@ pub struct ScaledDotProductAttnNode<
     pub _mask: std::marker::PhantomData<M>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> BackwardNode<T, B>
-    for ScaledDotProductAttnNode<T, B, M>
+impl<
+        T: coeus_ops::AttentionScalar,
+        B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
+        M: AttentionMask,
+    > BackwardNode<T, B> for ScaledDotProductAttnNode<T, B, M>
 {
     #[inline]
     fn op_name(&self) -> &'static str {
@@ -112,7 +115,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Backward
             grad_k.as_mut(),
             grad_v.as_mut(),
             &backend,
-        );
+        )?;
 
         if let (Some(acc), Some(gq)) = (input_grads.first().and_then(|g| g.as_ref()), grad_q) {
             let lock = acc.write();
@@ -141,13 +144,21 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask> Backward
 /// Returns `(attn_output, attn_weights)`. `attn_weights` is detached (no
 /// further gradient tracking needed for the basic use-case; MHA uses it
 /// as an intermediate).
-pub fn sdp_attention<T: Float, B: coeus_ops::BackendOps<T> + Default, M: AttentionMask>(
+///
+/// # Errors
+///
+/// Returns the backend's typed attention validation or dispatch failure.
+pub fn sdp_attention<
+    T: coeus_ops::AttentionScalar,
+    B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
+    M: AttentionMask,
+>(
     query: &Var<T, B>,
     key: &Var<T, B>,
     value: &Var<T, B>,
     key_padding_mask: Option<&Var<T, B>>,
     scale: T,
-) -> (Var<T, B>, Tensor<T, B>) {
+) -> Result<(Var<T, B>, Tensor<T, B>), B::Error> {
     let backend = B::default();
 
     let (out_tensor, attn_weights) = coeus_ops::scaled_dot_product_attention(
@@ -158,15 +169,14 @@ pub fn sdp_attention<T: Float, B: coeus_ops::BackendOps<T> + Default, M: Attenti
         M::IS_CAUSAL,
         scale,
         &backend,
-    );
+    )?;
 
     let requires_grad = crate::grad_mode::should_track_var(query)
         || crate::grad_mode::should_track_var(key)
-        || crate::grad_mode::should_track_var(value)
-        || key_padding_mask.is_some_and(|m| crate::grad_mode::should_track_var(m));
+        || crate::grad_mode::should_track_var(value);
 
     if !requires_grad {
-        return (Var::new(out_tensor, false), attn_weights);
+        return Ok((Var::new(out_tensor, false), attn_weights));
     }
 
     let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
@@ -175,14 +185,9 @@ pub fn sdp_attention<T: Float, B: coeus_ops::BackendOps<T> + Default, M: Attenti
     )));
     let grad = Some(output_grad.clone());
 
-    let mut inputs = vec![query.clone(), key.clone(), value.clone()];
-    if let Some(mask) = key_padding_mask {
-        inputs.push(mask.clone());
-    }
-
     let node = ScaledDotProductAttnNode::<T, B, M> {
         output_grad,
-        inputs,
+        inputs: vec![query.clone(), key.clone(), value.clone()],
         q_clone: query.tensor.clone(),
         k_clone: key.tensor.clone(),
         v_clone: value.tensor.clone(),
@@ -197,5 +202,5 @@ pub fn sdp_attention<T: Float, B: coeus_ops::BackendOps<T> + Default, M: Attenti
         grad,
         creator,
     };
-    (out_var, attn_weights)
+    Ok((out_var, attn_weights))
 }

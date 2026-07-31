@@ -272,6 +272,16 @@ try:
     v_mha = pycoeus.Tensor([0.1 * i for i in range(40)], [1, 5, 8], requires_grad=False)
     out_cross = mha2.forward_cross(q_mha, k_mha, v_mha)
     assert out_cross.shape == [1, 3, 8], f'MHA cross-attention shape is {out_cross.shape}'
+    try:
+        mha2.forward_cross(
+            q_mha,
+            k_mha,
+            v_mha,
+            key_padding_mask=pycoeus.Tensor([1.0, 0.5, 1.0, 0.0, 1.0], [1, 5]),
+        )
+        raise AssertionError('non-binary cross-attention key_padding_mask should raise')
+    except ValueError as error:
+        assert 'must be 0 or 1' in str(error)
     out_cross.backward()
     assert q_mha.grad is not None, 'MHA cross-attention query grad is None'
 

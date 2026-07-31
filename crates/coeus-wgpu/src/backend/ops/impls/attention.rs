@@ -1,33 +1,58 @@
-use super::super::attention;
-use crate::backend::{WgpuBackend, WgpuScalar};
+use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError};
 use coeus_core::Layout;
+use coeus_hephaestus::{AttentionBackend, AttentionProvider, HephaestusProvider};
+use hephaestus_core::{ComputeDevice, HephaestusError};
+use hephaestus_wgpu::{WgpuAttentionOps, WgpuDevice};
 
-#[allow(clippy::too_many_arguments)]
-impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>>
-    coeus_ops::AttentionOps<T> for WgpuBackend
-{
-    #[inline]
+// SAFETY: `WgpuStorage` retains the provider buffer behind `Arc`, and the
+// process-global device owns queue synchronization for every submitted kernel.
+unsafe impl HephaestusProvider for WgpuBackend {
+    type Device = WgpuDevice;
+
+    const NAME: &'static str = "wgpu";
+
+    fn device() -> &'static Self::Device {
+        &get_wgpu_context().hephaestus_device
+    }
+}
+
+impl AttentionProvider<f32> for WgpuBackend {
+    type Operations = WgpuAttentionOps;
+}
+
+impl AttentionBackend<f32> for WgpuBackend {
+    type Provider = Self;
+
+    fn attention_buffer(
+        storage: &Self::DeviceBuffer<f32>,
+    ) -> &<WgpuDevice as ComputeDevice>::Buffer<f32> {
+        storage.buffer.as_ref()
+    }
+
+    fn attention_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
+        WgpuBackendError::dispatch(operation, source)
+    }
+}
+
+impl coeus_ops::AttentionOps<f32> for WgpuBackend {
     fn sdp_attention(
         &self,
-        query: &Self::DeviceBuffer<T>,
+        query: &Self::DeviceBuffer<f32>,
         query_layout: &Layout,
-        key: &Self::DeviceBuffer<T>,
+        key: &Self::DeviceBuffer<f32>,
         key_layout: &Layout,
-        value: &Self::DeviceBuffer<T>,
+        value: &Self::DeviceBuffer<f32>,
         value_layout: &Layout,
-        key_padding_mask: Option<&Self::DeviceBuffer<T>>,
+        key_padding_mask: Option<&Self::DeviceBuffer<f32>>,
         key_padding_mask_layout: Option<&Layout>,
         is_causal: bool,
-        scale: T,
-        output: &mut Self::DeviceBuffer<T>,
+        scale: f32,
+        output: &mut Self::DeviceBuffer<f32>,
         output_layout: &Layout,
-        attn_weights: &mut Self::DeviceBuffer<T>,
+        attn_weights: &mut Self::DeviceBuffer<f32>,
         attn_weights_layout: &Layout,
-    ) where
-        T: coeus_core::Float,
-    {
-        attention::sdp_attention(attention::AttentionForward {
-            backend: self,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_attention_forward(
             query,
             query_layout,
             key,
@@ -42,32 +67,29 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             output_layout,
             attn_weights,
             attn_weights_layout,
-        });
+        )
     }
 
-    #[inline]
-    #[allow(clippy::too_many_arguments)]
     fn sdp_attention_backward(
         &self,
-        grad_out: &Self::DeviceBuffer<T>,
-        _grad_out_layout: &Layout,
-        query: &Self::DeviceBuffer<T>,
+        grad_out: &Self::DeviceBuffer<f32>,
+        grad_out_layout: &Layout,
+        query: &Self::DeviceBuffer<f32>,
         query_layout: &Layout,
-        key: &Self::DeviceBuffer<T>,
+        key: &Self::DeviceBuffer<f32>,
         key_layout: &Layout,
-        value: &Self::DeviceBuffer<T>,
+        value: &Self::DeviceBuffer<f32>,
         value_layout: &Layout,
-        attn_weights: &Self::DeviceBuffer<T>,
-        _attn_weights_layout: &Layout,
-        scale: T,
-        grad_q: Option<&mut Self::DeviceBuffer<T>>,
-        grad_k: Option<&mut Self::DeviceBuffer<T>>,
-        grad_v: Option<&mut Self::DeviceBuffer<T>>,
-    ) where
-        T: coeus_core::Float,
-    {
-        attention::sdp_attention_backward(attention::AttentionBackward {
+        attn_weights: &Self::DeviceBuffer<f32>,
+        attn_weights_layout: &Layout,
+        scale: f32,
+        grad_q: Option<(&mut Self::DeviceBuffer<f32>, &Layout)>,
+        grad_k: Option<(&mut Self::DeviceBuffer<f32>, &Layout)>,
+        grad_v: Option<(&mut Self::DeviceBuffer<f32>, &Layout)>,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_attention_backward(
             grad_out,
+            grad_out_layout,
             query,
             query_layout,
             key,
@@ -75,10 +97,11 @@ impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestu
             value,
             value_layout,
             attn_weights,
+            attn_weights_layout,
             scale,
             grad_q,
             grad_k,
             grad_v,
-        });
+        )
     }
 }

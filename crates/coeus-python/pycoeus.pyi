@@ -425,7 +425,7 @@ def scaled_dot_product_attention(
     query: Tensor,
     key: Tensor,
     value: Tensor,
-    attn_mask: Optional[Tensor] = None,
+    key_padding_mask: Optional[Tensor] = None,
     scale: Optional[float] = None,
     is_causal: bool = False,
 ) -> Tensor: ...

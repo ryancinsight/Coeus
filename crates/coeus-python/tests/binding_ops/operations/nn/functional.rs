@@ -237,6 +237,24 @@ assert out.shape == [batch, seq_q, d_v], f"sdpa shape: {out.shape}"
 for val in out.data:
     assert abs(val - 1.0) < 1e-5, f"sdpa val: {val}"
 
+keep = pycoeus.Tensor([1.0, 1.0, 0.0, 0.0], [1, seq_k])
+masked_v = pycoeus.Tensor(
+    [1.0] * (2 * d_v) + [9.0] * (2 * d_v),
+    [batch, seq_k, d_v],
+)
+masked = pycoeus.scaled_dot_product_attention(q, k, masked_v, key_padding_mask=keep)
+assert masked.shape == [batch, seq_q, d_v]
+for val in masked.data:
+    assert abs(val - 1.0) < 1e-5, f"masked key contributed to output: {val}"
+try:
+    pycoeus.scaled_dot_product_attention(
+        q, k, v,
+        key_padding_mask=pycoeus.Tensor([1.0, 0.5, 0.0, 1.0], [1, seq_k]),
+    )
+    raise AssertionError("non-binary key_padding_mask should raise")
+except ValueError:
+    pass
+
 # ── PyScaledDotProductAttention module ────────────────────────────────
 sdpa_mod = pycoeus.ScaledDotProductAttention(scale=None, is_causal=False)
 out_mod = sdpa_mod.forward(q, k, v)

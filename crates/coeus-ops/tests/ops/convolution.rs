@@ -1,7 +1,4 @@
-//! Convolution and attention differential tests.
-
-#[path = "convolution/attention_backward_hermes_diff.rs"]
-mod attention_backward_hermes_diff;
+//! Convolution differential tests.
 #[path = "convolution/conv1d_backward_hermes_diff.rs"]
 mod conv1d_backward_hermes_diff;
 #[path = "convolution/conv1d_hermes_diff.rs"]

@@ -14,16 +14,11 @@
 //!
 //! ## Dispatch architecture
 //!
-//! Each `BackendOps<T>` method routes to a `cuda_*` method that:
-//! 1. checks a live CUDA context exists and `T == f32` (the kernels are
-//!    monomorphized for `f32`; the [`TypeId`](std::any::TypeId) guard plus the
-//!    zero-copy reinterpret in `backend::ops::cast` keep the generic surface
-//!    honest without a fake-generic widen/narrow);
-//! 2. launches the on-device kernel (hand-written PTX in the `kernels` module for
-//!    conv/attention, NVRTC CUDA C for fused/elementwise/optimizer paths);
-//! 3. returns a typed backend error when the selected CUDA provider cannot
-//!    execute an elementwise, matrix, reduction, or fused request. Those
-//!    operation families never download device buffers for CPU execution.
+//! Attention and convolution bind directly to provider-owned Hephaestus
+//! operation markers over borrowed CUDA buffers. Other `BackendOps<T>` methods
+//! route to monomorphized on-device kernels and return typed backend errors when
+//! the selected provider rejects validation, compilation, or dispatch. No
+//! operation changes execution backend after CUDA has been selected.
 //!
 //! Provider capability boundaries are explicit in their operation contracts
 //! and are covered by differential parity tests in `tests/cuda/`. Native and

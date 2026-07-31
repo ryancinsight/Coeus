@@ -1,6 +1,5 @@
 use coeus_core::{Backend, BackendError};
 
-mod attention;
 mod convolution;
 mod elementwise;
 mod error;

@@ -1,5 +1,37 @@
 # Coeus Development Roadmap Checklist
 
+## COEUS-ATTENTION-PROVIDER-001 [major] [arch]
+
+- [x] Route CPU scaled dot-product attention directly through Leto's borrowed
+      forward and additive-backward APIs.
+- [x] Route WGPU, CUDA, ROCm, and Metal attention directly through the
+      provider-owned Hephaestus `AttentionOps` seam.
+- [x] Make attention failure explicit through operation, autograd, module, and
+      Python boundaries; update every in-repository caller.
+- [x] Delete superseded Coeus attention kernels, launchers, host fallbacks, and
+      stale CUDA ownership ADRs.
+- [x] Prove CPU/provider value semantics, arbitrary-layout masks, selected
+      additive gradients, preflight failure atomicity, and native CUDA `f64`
+      dispatch.
+- [x] Pass focused warning-denied, Nextest, doctest, and independent review;
+      classify the public break with SemVer checks.
+- [x] Preserve mutable destination ownership through provider dispatch, prove
+      rank-one masks for both scalar monomorphizations, and close review
+      diagnostics and stale migration claims.
+- [x] Pass exact-head hosted gates.
+
+Status: local implementation and verification complete on
+`codex/coeus-attention-dispatch`. Leto PRs #82 and #83 are merged through
+`b75837a5`; Hephaestus PR #167 is merged and the lock resolves all provider
+packages at `cbbe3411`. Local evidence: Coeus-Leto attention 5/5,
+Hephaestus/Ops attention 5/5, WGPU attention 4/4, CUDA attention 6/6, NN
+attention 28/28, and focused Python mask contracts pass;
+affected warning-denied Clippy and doctest lanes pass. SemVer checks classify
+the fallible trait and removed supertrait as the documented major break.
+Independent architecture and correctness reviews are clean after correction.
+Exact-head hosted run `30665533148` passes WGPU job `91271548171`, CUDA job
+`91271548257`, ROCm job `91271548209`, and Metal job `91271548222` on
+`eaedd804`.
 ## ATLAS-COEUS-ZERO-FILL-MEMORY-001 [arch][minor]
 
 - [x] Add explicit zero-allocation and zero-fill operations to the sealed
@@ -613,17 +645,10 @@ by the unrelated dirty provider dependency manifest; no compiled or test result
 is claimed for this slice.
 
 ## CUDA attention kernel tree [arch]
-- [x] Split the 567-line attention kernel module into a manifest and cohesive
-      validation, source, forward, backward, and test leaves.
-- [x] Preserve the public launch functions, checked dimensions, device-buffer
-      ownership, and explicit CPU capability boundary without adapters.
-- [x] Verify all leaves remain below 500 lines and run format and diff checks;
-      record the package-gate blocker without claiming compiled or test output.
 
-Evidence: leaves are 12, 81, 92, 101, 135, and 149 lines. Format and diff
-checks pass. The prior package-gate dependency-resolution blocker is resolved
-in the current locked graph; no new CUDA feature-test result is claimed by
-this topology slice.
+Historical topology increment. ADR-0047 and
+`COEUS-ATTENTION-PROVIDER-001` supersede it by deleting the complete local
+CUDA attention kernel tree and routing the backend through Hephaestus.
 
 ## CUDA convolution backend tree [arch]
 - [x] Split the former 614-line convolution backend into a manifest and
@@ -711,26 +736,10 @@ Windows GNU linker and fails before execution because `-lcuda` is absent from
 `/usr/local/cuda-11.3/lib64/`.
 
 ## CUDA attention launch ABI [patch] [arch]
-- [x] Validate positive attention dimensions, checked element counts, mask
-      contracts, and device-buffer lengths before native compilation or
-      transient backward allocation.
-- [x] Restrict native dispatch to contiguous offset-zero rank-three tensors
-      with compatible shapes and supported contiguous rank-one/rank-two masks;
-      route unsupported layouts through the explicit CPU capability path.
-- [x] Reuse checked shared 1-D grid launch validation and add pure boundary
-      tests for zero, overflow, and mask-shape cases.
-- [x] Add the co-located ADR and verify format, diff, feature-enabled check,
-      warning-denied Clippy, and default Nextest.
 
-Evidence: attention launch dimensions and buffer lengths are checked before
-kernel compilation or transient allocation; the shared `launch_1d` path has no
-input-dependent grid narrowing. Pure boundary tests cover valid rank-two mask
-counts, zero dimensions, mask-rank inconsistency, non-divisible heads, and
-product overflow. Feature-enabled package check and warning-denied Clippy
-pass; default package Nextest passes 3/3 with zero skipped in 0.171 seconds;
-default doctests pass 4/4 in 14.21 seconds. CUDA-feature Nextest reaches the
-Windows GNU linker and fails before execution because `-lcuda` is absent from
-`/usr/local/cuda-11.3/lib64/`.
+Historical safety increment. ADR-0047 and
+`COEUS-ATTENTION-PROVIDER-001` supersede its consumer-owned launch ABI by
+deleting the local launcher and using Hephaestus validation and dispatch.
 
 ## CUDA matmul launch ABI [patch] [arch]
 - [x] Reject non-rank-two, zero-sized, incompatible, or output-mismatched

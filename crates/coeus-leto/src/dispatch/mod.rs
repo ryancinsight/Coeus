@@ -32,6 +32,8 @@ pub(crate) fn shape_n<const N: usize>(shape: &[usize]) -> Result<[usize; N]> {
     )
 }
 
+/// Provider-owned scaled dot-product attention dispatch.
+pub mod attention;
 /// Provider-owned regular and transposed convolution dispatch.
 pub mod convolution;
 /// Elementwise binary and unary operation dispatch (add, sub, mul, div, map).
@@ -50,6 +52,10 @@ pub mod sparse;
 /// Structural tensor ops dispatch (pad, concat, split, stack).
 pub mod structural;
 
+pub use attention::{
+    scaled_dot_product_attention_backward_accumulate, scaled_dot_product_attention_into,
+    AttentionBackward, AttentionForward, AttentionGradientTargets, AttentionScalar,
+};
 pub use convolution::{
     convolution_backward_accumulate, convolution_forward_into,
     convolution_transposed_backward_accumulate, convolution_transposed_forward_into,

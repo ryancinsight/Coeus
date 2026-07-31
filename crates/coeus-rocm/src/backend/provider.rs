@@ -1,9 +1,9 @@
 #[cfg(all(feature = "rocm", target_os = "linux"))]
-use coeus_hephaestus::ConvolutionProvider;
+use coeus_hephaestus::{AttentionProvider, ConvolutionProvider};
 use coeus_hephaestus::{HephaestusProvider, ParameterizedElementwiseProvider};
-#[cfg(all(feature = "rocm", target_os = "linux"))]
-use hephaestus_rocm::RocmConvolutionOps;
 use hephaestus_rocm::RocmDevice;
+#[cfg(all(feature = "rocm", target_os = "linux"))]
+use hephaestus_rocm::{RocmAttentionOps, RocmConvolutionOps};
 use std::sync::OnceLock;
 
 /// Provider marker for the native ROCm device.
@@ -25,6 +25,11 @@ unsafe impl HephaestusProvider for RocmProvider {
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 impl ConvolutionProvider<f32> for RocmProvider {
     type Operations = RocmConvolutionOps;
+}
+
+#[cfg(all(feature = "rocm", target_os = "linux"))]
+impl AttentionProvider<f32> for RocmProvider {
+    type Operations = RocmAttentionOps;
 }
 
 impl ParameterizedElementwiseProvider for RocmProvider {
