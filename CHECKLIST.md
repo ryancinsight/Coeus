@@ -8,7 +8,7 @@
       zero-specific contract.
 - [x] Use provider-native zeroed allocation and command-stream clears for
       WGPU, CUDA, ROCm, and Metal without destination-sized host staging.
-- [ ] Verify CPU value semantics, GPU provider integration, warning-denied
+- [x] Verify CPU value semantics, GPU provider integration, warning-denied
       builds, and exact-head backend CI.
 
 Owner: Codex on `codex/coeus-zero-fill-memory`. Scope is zero initialization
@@ -21,9 +21,10 @@ GPU zero fill uses a provider-native device operation; CPU and available GPU
 results are exactly zero; no zero path allocates a destination-sized host
 vector.
 
-Status: implementation and local compile checks are complete. Exact-head
-locked-source backend CI remains open; the shared Windows build cache delayed
-focused Nextest collection beyond the shell window without a test diagnostic.
+Status: complete. Focused Nextest value regressions and warning-denied Clippy
+pass locally. Exact-head backend CI run `30655415266` passes CUDA job
+`91238466890`, ROCm job `91238466911`, WGPU job `91238466914`, and Metal job
+`91238466943`; optional required-device CUDA and ROCm jobs were not requested.
 
 ## ATLAS-COEUS-HEPHAESTUS-PARAMETERIZED-ACTIVATION-001 [arch][minor]
 

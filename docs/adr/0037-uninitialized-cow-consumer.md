@@ -71,7 +71,10 @@ The generic Hephaestus regression distinguishes uninitialized and zeroed
 allocation paths and verifies exact zero values. The live WGPU regression
 verifies both zeroed allocation and clear-after-nonzero values. The existing
 Hephaestus backend contracts cover command-stream zero fill for WGPU, CUDA,
-ROCm, and Metal. Exact-head backend CI is required before closure.
+ROCm, and Metal. Exact-head backend CI run `30655415266` passes CUDA job
+`91238466890`, ROCm job `91238466911`, WGPU job `91238466914`, and Metal job
+`91238466943`. Optional required-device CUDA and ROCm jobs were not requested,
+so physical-device behavior remains outside this increment's evidence.
 
 This change supplies static allocation-path and value-semantic evidence only;
 runtime bandwidth, latency, and resident-memory claims require a controlled
