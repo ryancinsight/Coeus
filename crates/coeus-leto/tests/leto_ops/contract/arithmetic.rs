@@ -54,6 +54,37 @@ fn add_broadcasts_rowvec_into_matrix() {
 }
 
 #[test]
+fn comparisons_broadcast_row_into_matrix() {
+    let lhs_layout = layout(&[2, 3]);
+    let rhs_layout = layout(&[1, 3]);
+    let output_layout = layout(&[2, 3]);
+    let lhs = [1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0];
+    let rhs = [2.0_f64, 4.0, 6.0];
+
+    for (operation, expected) in [
+        (BinaryOp::Eq, [0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
+        (BinaryOp::Ne, [1.0, 1.0, 1.0, 1.0, 1.0, 0.0]),
+        (BinaryOp::Lt, [1.0, 1.0, 1.0, 0.0, 0.0, 0.0]),
+        (BinaryOp::Gt, [0.0, 0.0, 0.0, 1.0, 1.0, 0.0]),
+        (BinaryOp::Le, [1.0, 1.0, 1.0, 0.0, 0.0, 1.0]),
+        (BinaryOp::Ge, [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]),
+    ] {
+        let mut actual = [0.0; 6];
+        elementwise_binary_into(
+            operation,
+            &lhs_layout,
+            &lhs,
+            &rhs_layout,
+            &rhs,
+            &output_layout,
+            &mut actual,
+        )
+        .expect("broadcast comparison dispatch");
+        assert_eq!(actual, expected, "{operation:?}");
+    }
+}
+
+#[test]
 fn binary_dispatch_covers_arithmetic_ops() {
     let la = layout(&[2, 2]);
     let a = vec![8.0f64, 9.0, 10.0, 12.0];

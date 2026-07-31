@@ -263,7 +263,12 @@ fn workspace_root() -> PathBuf {
 
 fn workspace_crate_dirs(root: &Path) -> Vec<PathBuf> {
     fs::read_dir(root.join("crates"))
-        .unwrap_or_else(|error| panic!("failed to read workspace crates dir {}: {error}", root.display()))
+        .unwrap_or_else(|error| {
+            panic!(
+                "failed to read workspace crates dir {}: {error}",
+                root.display()
+            )
+        })
         .filter_map(|entry| {
             let path = entry
                 .unwrap_or_else(|error| panic!("failed to read directory entry: {error}"))

@@ -88,24 +88,24 @@ fn binary_n<T: LetoScalar, const N: usize>(
         BinaryOp::Sub => leto_ops::sub(&a_view, &b_view, &mut out_view),
         BinaryOp::Mul => leto_ops::mul(&a_view, &b_view, &mut out_view),
         BinaryOp::Div => leto_ops::div(&a_view, &b_view, &mut out_view),
-        BinaryOp::Eq => leto_ops::zip2_mut_with(&mut out_view, &a_view, &b_view, |out, a, b| {
-            *out = if a == b { T::ONE } else { T::ZERO };
-        }),
-        BinaryOp::Ne => leto_ops::zip2_mut_with(&mut out_view, &a_view, &b_view, |out, a, b| {
-            *out = if a != b { T::ONE } else { T::ZERO };
-        }),
-        BinaryOp::Lt => leto_ops::zip2_mut_with(&mut out_view, &a_view, &b_view, |out, a, b| {
-            *out = if a < b { T::ONE } else { T::ZERO };
-        }),
-        BinaryOp::Gt => leto_ops::zip2_mut_with(&mut out_view, &a_view, &b_view, |out, a, b| {
-            *out = if a > b { T::ONE } else { T::ZERO };
-        }),
-        BinaryOp::Le => leto_ops::zip2_mut_with(&mut out_view, &a_view, &b_view, |out, a, b| {
-            *out = if a <= b { T::ONE } else { T::ZERO };
-        }),
-        BinaryOp::Ge => leto_ops::zip2_mut_with(&mut out_view, &a_view, &b_view, |out, a, b| {
-            *out = if a >= b { T::ONE } else { T::ZERO };
-        }),
+        BinaryOp::Eq => {
+            leto_ops::binary_map::<leto_ops::EqOp, T, N>(&a_view, &b_view, &mut out_view)
+        }
+        BinaryOp::Ne => {
+            leto_ops::binary_map::<leto_ops::NeOp, T, N>(&a_view, &b_view, &mut out_view)
+        }
+        BinaryOp::Lt => {
+            leto_ops::binary_map::<leto_ops::LtOp, T, N>(&a_view, &b_view, &mut out_view)
+        }
+        BinaryOp::Gt => {
+            leto_ops::binary_map::<leto_ops::GtOp, T, N>(&a_view, &b_view, &mut out_view)
+        }
+        BinaryOp::Le => {
+            leto_ops::binary_map::<leto_ops::LeOp, T, N>(&a_view, &b_view, &mut out_view)
+        }
+        BinaryOp::Ge => {
+            leto_ops::binary_map::<leto_ops::GeOp, T, N>(&a_view, &b_view, &mut out_view)
+        }
     }
 }
 
