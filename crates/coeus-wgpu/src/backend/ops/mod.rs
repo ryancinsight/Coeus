@@ -23,6 +23,16 @@ fn provider_owned_activation(op: coeus_ops::UnaryOp) -> Option<&'static str> {
     }
 }
 
+fn parameterized_activation(op: coeus_ops::UnaryOp) -> bool {
+    matches!(
+        op,
+        coeus_ops::UnaryOp::Hardtanh(_)
+            | coeus_ops::UnaryOp::HardtanhGrad(_)
+            | coeus_ops::UnaryOp::Threshold(_)
+            | coeus_ops::UnaryOp::ThresholdGrad(_)
+    )
+}
+
 mod attention;
 mod impls;
 mod matmul;
@@ -538,7 +548,18 @@ impl<
         WgpuBackendError::validate_layout(a_layout)?;
         WgpuBackendError::validate_layout(c_layout)?;
         if let Some(operation) = provider_owned_activation(op) {
-            let dispatched = if can_route_strided_wgpu(&[a_layout], c_layout) {
+            let is_parameterized = parameterized_activation(op);
+            let dispatched = if is_parameterized && can_route_strided_wgpu(&[a_layout], c_layout) {
+                try_hephaestus_strided_unary_wgpu(op, a, a_layout, c, c_layout)?
+            } else if !is_parameterized
+                && a.len() == c.len()
+                && a_layout.is_contiguous()
+                && a_layout.offset() == 0
+                && c_layout.is_contiguous()
+                && c_layout.offset() == 0
+            {
+                try_hephaestus_contiguous_unary(op, a, c)?
+            } else if !is_parameterized && can_route_strided_wgpu(&[a_layout], c_layout) {
                 try_hephaestus_strided_unary_wgpu(op, a, a_layout, c, c_layout)?
             } else {
                 false
