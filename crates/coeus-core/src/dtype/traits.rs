@@ -254,6 +254,34 @@ pub enum CpuUnaryOp {
     Trunc,
 }
 
+impl CpuUnaryOp {
+    /// Decode the low and high halves of a packed activation parameter pair.
+    #[must_use]
+    pub const fn decode_parameter_pair(bits: u64) -> [f32; 2] {
+        [
+            f32::from_bits(bits as u32),
+            f32::from_bits((bits >> 32) as u32),
+        ]
+    }
+
+    /// Decode the two runtime parameters carried by a parameterized activation.
+    ///
+    /// The low and high halves of the packed value are interpreted as the
+    /// first and second `f32` bit patterns, respectively. Non-parameterized
+    /// operations return `None`.
+    #[must_use]
+    pub const fn parameter_pair(self) -> Option<[f32; 2]> {
+        let bits = match self {
+            Self::Hardtanh(bits)
+            | Self::HardtanhGrad(bits)
+            | Self::Threshold(bits)
+            | Self::ThresholdGrad(bits) => bits,
+            _ => return None,
+        };
+        Some(Self::decode_parameter_pair(bits))
+    }
+}
+
 /// CPU dispatch trait for unary operations.
 ///
 /// Implemented for all `Scalar` types that support CPU-side unary kernels.
@@ -574,4 +602,22 @@ pub trait Int: Scalar {
     fn pow(self, exp: u32) -> Self;
     /// Absolute value.
     fn abs(self) -> Self;
+}
+
+#[cfg(test)]
+mod cpu_unary_op_tests {
+    use super::CpuUnaryOp;
+
+    #[test]
+    fn parameter_pairs_preserve_both_bit_patterns() {
+        let first = -1.25_f32;
+        let second = 2.5_f32;
+        let bits = u64::from(first.to_bits()) | (u64::from(second.to_bits()) << 32);
+
+        assert_eq!(
+            CpuUnaryOp::Hardtanh(bits).parameter_pair(),
+            Some([first, second])
+        );
+        assert_eq!(CpuUnaryOp::Relu.parameter_pair(), None);
+    }
 }

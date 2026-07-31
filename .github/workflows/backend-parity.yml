@@ -10,6 +10,11 @@ on:
       - "**/*.md"
   workflow_dispatch:
     inputs:
+      run_cuda_hardware:
+        description: Run the CUDA Coeus contracts on the registered NVIDIA runner
+        required: true
+        default: false
+        type: boolean
       run_rocm_hardware:
         description: Run the ROCm Coeus contracts on the registered AMD runner
         required: true
@@ -142,7 +147,7 @@ jobs:
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-wgpu --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-wgpu --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-wgpu \
-            -E "test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors) or test(test_wgpu_conv) or test(test_wgpu_conv_backward) or test(test_wgpu_conv3d) or test(test_wgpu_conv3d_stride_padding_dilation_matches_cpu) or test(test_wgpu_conv3d_backward) or test(test_wgpu_conv3d_backward_stride_padding_dilation_matches_cpu) or test(test_wgpu_conv_transpose1d) or test(test_wgpu_conv_transpose2d) or test(test_wgpu_conv_transpose1d_backward_matches_cpu_autograd) or test(test_wgpu_conv_transpose2d_backward_matches_cpu_autograd) or test(test_wgpu_parity_conv1d_forward) or test(test_wgpu_parity_conv2d_forward) or test(test_wgpu_parity_sum_axis0) or test(test_wgpu_parity_sum_axis1) or test(test_wgpu_parity_mean_axis) or test(test_wgpu_parity_max_axis) or test(test_wgpu_parity_min_axis) or test(test_wgpu_parity_prod_axis) or test(test_wgpu_parity_rank_one_sum) or test(test_wgpu_parity_rank_one_scan) or test(test_wgpu_reduction_rejects_unsupported_rank) or test(test_wgpu_parity_add) or test(test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer) or test(test_wgpu_elu_parity) or test(test_wgpu_parity_elu) or test(test_wgpu_strided_elu_transposed_matches_cpu) or test(test_wgpu_strided_elu_gradient_transposed_matches_cpu) or test(test_wgpu_aliasing_elu_rejects_provider_bypass) or test(test_wgpu_parity_gelu_tanh) or test(test_wgpu_parity_softplus)"
+            -E "test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors) or test(test_wgpu_conv) or test(test_wgpu_conv_backward) or test(test_wgpu_conv3d) or test(test_wgpu_conv3d_stride_padding_dilation_matches_cpu) or test(test_wgpu_conv3d_backward) or test(test_wgpu_conv3d_backward_stride_padding_dilation_matches_cpu) or test(test_wgpu_conv_transpose1d) or test(test_wgpu_conv_transpose2d) or test(test_wgpu_conv_transpose1d_backward_matches_cpu_autograd) or test(test_wgpu_conv_transpose2d_backward_matches_cpu_autograd) or test(test_wgpu_parity_conv1d_forward) or test(test_wgpu_parity_conv2d_forward) or test(test_wgpu_parity_sum_axis0) or test(test_wgpu_parity_sum_axis1) or test(test_wgpu_parity_mean_axis) or test(test_wgpu_parity_max_axis) or test(test_wgpu_parity_min_axis) or test(test_wgpu_parity_prod_axis) or test(test_wgpu_parity_rank_one_sum) or test(test_wgpu_parity_rank_one_scan) or test(test_wgpu_reduction_rejects_unsupported_rank) or test(test_wgpu_parity_add) or test(test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer) or test(test_wgpu_elu_parity) or test(test_wgpu_parity_elu) or test(test_wgpu_strided_elu_transposed_matches_cpu) or test(test_wgpu_strided_elu_gradient_transposed_matches_cpu) or test(test_wgpu_aliasing_elu_rejects_provider_bypass) or test(test_wgpu_parity_gelu_tanh) or test(test_wgpu_parity_softplus) or test(test_wgpu_parameterized_activations_match_cpu)"
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-wgpu --doc
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cuda --no-default-features --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cuda --no-default-features --all-targets --no-deps -- -D warnings
@@ -266,9 +271,33 @@ jobs:
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cuda --features cuda --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cuda --features cuda --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --features cuda \
-                -E "test(matmul_rejects_each_layout_that_exceeds_storage) or test(matmul_rejects_writable_zero_stride_output) or test(cuda_storage_validation_checks_physical_bound_and_writable_aliasing) or test(signed_ptx_storage_validation_enforces_address_boundary) or test(signed_ptx_storage_validation_rejects_oversized_shape_and_stride) or test(pool_storage_validation_rejects_undersized_and_overflowed_layouts) or test(pool_signed_index_validation_covers_forward_and_backward_extrema) or test(test_cuda_backend_conv_and_reduce) or test(test_cuda_conv_backward) or test(test_cuda_conv3d) or test(test_cuda_parity_conv1d_forward) or test(test_cuda_parity_conv2d_forward) or test(test_cuda_parity_conv2d_backward) or test(test_cuda_parity_conv3d_forward) or test(test_cuda_parity_conv3d_backward) or test(test_cuda_parity_conv_transpose1d) or test(test_cuda_parity_conv_transpose2d) or test(test_cuda_parity_conv_transpose1d_backward) or test(test_cuda_parity_conv_transpose2d_backward) or test(test_cuda_parity_sum_axis0) or test(test_cuda_parity_sum_axis1) or test(test_cuda_parity_mean_axis) or test(test_cuda_parity_max_axis) or test(test_cuda_parity_min_axis) or test(test_cuda_parity_prod_axis) or test(test_cuda_parity_rank_one_sum) or test(test_cuda_parity_rank_one_scan) or test(test_cuda_reduction_rejects_unsupported_rank) or test(test_cuda_parity_cumulative_scans) or test(test_cuda_backend_ops) or test(test_cuda_parity_elu) or test(test_cuda_parity_elu_grad) or test(test_cuda_strided_elu_matches_cpu) or test(test_cuda_strided_elu_gradient_matches_cpu) or test(test_cuda_parity_gelu) or test(test_cuda_parity_gelu_grad) or test(test_cuda_parity_gelu_tanh) or test(test_cuda_parity_gelu_tanh_grad) or test(test_cuda_parity_softplus) or test(test_cuda_parity_softplus_grad)"
+                -E "test(matmul_rejects_each_layout_that_exceeds_storage) or test(matmul_rejects_writable_zero_stride_output) or test(cuda_storage_validation_checks_physical_bound_and_writable_aliasing) or test(signed_ptx_storage_validation_enforces_address_boundary) or test(signed_ptx_storage_validation_rejects_oversized_shape_and_stride) or test(pool_storage_validation_rejects_undersized_and_overflowed_layouts) or test(pool_signed_index_validation_covers_forward_and_backward_extrema) or test(test_cuda_backend_conv_and_reduce) or test(test_cuda_conv_backward) or test(test_cuda_conv3d) or test(test_cuda_parity_conv1d_forward) or test(test_cuda_parity_conv2d_forward) or test(test_cuda_parity_conv2d_backward) or test(test_cuda_parity_conv3d_forward) or test(test_cuda_parity_conv3d_backward) or test(test_cuda_parity_conv_transpose1d) or test(test_cuda_parity_conv_transpose2d) or test(test_cuda_parity_conv_transpose1d_backward) or test(test_cuda_parity_conv_transpose2d_backward) or test(test_cuda_parity_sum_axis0) or test(test_cuda_parity_sum_axis1) or test(test_cuda_parity_mean_axis) or test(test_cuda_parity_max_axis) or test(test_cuda_parity_min_axis) or test(test_cuda_parity_prod_axis) or test(test_cuda_parity_rank_one_sum) or test(test_cuda_parity_rank_one_scan) or test(test_cuda_reduction_rejects_unsupported_rank) or test(test_cuda_parity_cumulative_scans) or test(test_cuda_backend_ops) or test(test_cuda_parity_elu) or test(test_cuda_parity_elu_grad) or test(test_cuda_strided_elu_matches_cpu) or test(test_cuda_strided_elu_gradient_matches_cpu) or test(test_cuda_parity_gelu) or test(test_cuda_parity_gelu_grad) or test(test_cuda_parity_gelu_tanh) or test(test_cuda_parity_gelu_tanh_grad) or test(test_cuda_parity_softplus) or test(test_cuda_parity_softplus_grad) or test(test_cuda_strided_parameterized_activations_match_cpu)"
               cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-cuda --features cuda --doc
             '
+
+  cuda-hardware:
+    name: CUDA Coeus required-device contracts
+    if: github.event_name == 'workflow_dispatch' && inputs.run_cuda_hardware
+    runs-on: [self-hosted, linux, x64, cuda]
+    timeout-minutes: 30
+    steps:
+      - name: Check out Coeus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the pinned Rust toolchain and nextest
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+      - name: Install nextest
+        shell: bash
+        run: cargo install cargo-nextest --locked
+      - name: Run required-device CUDA provider contracts
+        env:
+          HEPHAESTUS_CUDA_REQUIRE_DEVICE: "1"
+        run: cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --features cuda \
+          -E "test(test_cuda_strided_parameterized_activations_match_cpu)"
 
   rocm:
     name: ROCm Coeus provider contracts

@@ -1,2 +1,2 @@
-mod elementwise;
+pub(crate) mod elementwise;
 mod matmul;

@@ -2,12 +2,12 @@
 
 ## ATLAS-COEUS-HEPHAESTUS-PARAMETERIZED-ACTIVATION-001 [arch][minor]
 
-- [ ] Decode packed Hardtanh and Threshold parameters as their canonical two
+- [x] Decode packed Hardtanh and Threshold parameters as their canonical two
       `f32` values and route forward/gradient operations directly through the
       Hephaestus runtime-parameter unary seam.
-- [ ] Delete superseded Coeus-authored Hardtanh and Threshold shader
+- [x] Delete superseded Coeus-authored Hardtanh and Threshold shader
       expressions; retain no local-kernel or CPU fallback.
-- [ ] Instantiate value-semantic Leto CPU differential coverage across WGPU,
+- [x] Instantiate value-semantic Leto CPU differential coverage across WGPU,
       CUDA, ROCm, and Metal, including equality boundaries and non-default
       parameters.
 - [ ] Pass warning-denied focused gates and exact-head backend CI after the

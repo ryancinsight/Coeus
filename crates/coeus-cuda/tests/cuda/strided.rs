@@ -111,3 +111,42 @@ fn test_cuda_strided_activation_tail_matches_cpu() {
         }
     }
 }
+
+#[test]
+fn test_cuda_strided_parameterized_activations_match_cpu() {
+    let available = hephaestus_cuda::CudaDevice::try_default().is_ok()
+        && coeus_cuda::CudaDriver::get().is_some()
+        && coeus_cuda::get_cuda_context().is_some();
+    if !available {
+        assert_ne!(
+            std::env::var("HEPHAESTUS_CUDA_REQUIRE_DEVICE").as_deref(),
+            Ok("1"),
+            "CUDA CI requires an acquired device"
+        );
+        return;
+    }
+    let sequential = SequentialBackend::new();
+    let backend = CudaBackend::new();
+    let values = [-2.0_f32, -1.0, -0.5, 0.0, 0.25, 0.5, 1.0, 2.0];
+    let input = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &values).transpose();
+    let device_input = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &values)
+        .to_backend_on(&sequential, &backend)
+        .transpose();
+    let hardtanh = u64::from((-1.0_f32).to_bits()) | (u64::from(1.0_f32.to_bits()) << 32);
+    let threshold = u64::from(0.25_f32.to_bits()) | (u64::from((-0.5_f32).to_bits()) << 32);
+
+    for operation in [
+        coeus_ops::UnaryOp::Hardtanh(hardtanh),
+        coeus_ops::UnaryOp::HardtanhGrad(hardtanh),
+        coeus_ops::UnaryOp::Threshold(threshold),
+        coeus_ops::UnaryOp::ThresholdGrad(threshold),
+    ] {
+        let expected = coeus_ops::elementwise_unary(&input, &sequential, operation)
+            .expect("valid CPU strided parameterized activation");
+        let actual = coeus_ops::elementwise_unary(&device_input, &backend, operation)
+            .expect("valid CUDA strided parameterized activation")
+            .to_backend_on(&backend, &sequential);
+
+        assert_eq!(actual.as_slice(), expected.as_slice(), "{operation:?}");
+    }
+}

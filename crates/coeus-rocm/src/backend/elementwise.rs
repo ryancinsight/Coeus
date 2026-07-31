@@ -14,6 +14,23 @@ fn unsupported_unary_operation(operation: UnaryOp) -> HephaestusError {
 macro_rules! activation_unary_dispatch {
     (activations, $operation:expr, $device:expr, $input:expr, $output:expr) => {
         match $operation {
+            UnaryOp::Hardtanh(_)
+            | UnaryOp::HardtanhGrad(_)
+            | UnaryOp::Threshold(_)
+            | UnaryOp::ThresholdGrad(_) => coeus_hephaestus::parameterized_unary::<
+                RocmProvider,
+                N,
+            >(
+                $operation,
+                RankedOperand {
+                    buffer: $input.buffer,
+                    layout: $input.layout,
+                },
+                RankedOperand {
+                    buffer: $output.buffer,
+                    layout: $output.layout,
+                },
+            ),
             UnaryOp::Relu => hephaestus_rocm::unary_elementwise_strided_into::<
             hephaestus_rocm::ReluOp,
             f32,

@@ -1,5 +1,5 @@
-use coeus_hephaestus::{ConvolutionProvider, HephaestusProvider};
-use hephaestus_metal::{MetalConvolutionOps, MetalDevice};
+use coeus_hephaestus::{ConvolutionProvider, HephaestusProvider, ParameterizedElementwiseProvider};
+use hephaestus_metal::{MetalConvolutionOps, MetalDevice, MetalParameterizedUnaryOps};
 use std::sync::OnceLock;
 
 /// Provider marker for the native Metal device.
@@ -20,4 +20,8 @@ unsafe impl HephaestusProvider for MetalProvider {
 
 impl ConvolutionProvider<f32> for MetalProvider {
     type Operations = MetalConvolutionOps;
+}
+
+impl ParameterizedElementwiseProvider for MetalProvider {
+    type Operations = MetalParameterizedUnaryOps;
 }

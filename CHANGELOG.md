@@ -4,6 +4,13 @@
 
 ### Changed
 
+- [arch] Routes f32 `Hardtanh`, `HardtanhGrad`, `Threshold`, and
+  `ThresholdGrad` through the provider-owned Hephaestus WGPU, CUDA, ROCm, and
+  Metal runtime-parameter kernels. Coeus decodes the canonical packed
+  parameter pair once, writes into caller-owned device storage, removes the
+  incorrect consumer WGPU expressions, and adds Leto CPU differential
+  coverage at equality boundaries and non-default parameter values.
+
 - [arch] Routes Coeus `Mish`, `MishGrad`, `Elu`, and `EluGrad` through the
   provider-owned Hephaestus WGPU, CUDA, ROCm, and Metal f32 APIs. WGPU/CUDA
   use direct contiguous and strided provider entry points; ROCm/Metal use the

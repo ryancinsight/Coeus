@@ -1,6 +1,6 @@
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use coeus_hephaestus::ConvolutionProvider;
-use coeus_hephaestus::HephaestusProvider;
+use coeus_hephaestus::{HephaestusProvider, ParameterizedElementwiseProvider};
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use hephaestus_rocm::RocmConvolutionOps;
 use hephaestus_rocm::RocmDevice;
@@ -25,4 +25,8 @@ unsafe impl HephaestusProvider for RocmProvider {
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 impl ConvolutionProvider<f32> for RocmProvider {
     type Operations = RocmConvolutionOps;
+}
+
+impl ParameterizedElementwiseProvider for RocmProvider {
+    type Operations = hephaestus_rocm::RocmParameterizedUnaryOps;
 }
