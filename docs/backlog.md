@@ -2,9 +2,10 @@
 
 ## ATLAS-COEUS-HEPHAESTUS-006 — Native activation-tail providers [arch]
 
-- Owner: Codex `/coeus`; scope: WGPU/CUDA direct provider dispatch, ROCm and
-  Metal activation dispatch, backend differential tests, ADR-0030, and active
-  parity artifacts.
+- Owner: Codex on `codex/coeus-backend-parity-coherence`; last-update:
+  2026-07-31; scope: WGPU/CUDA direct provider dispatch, ROCm and Metal
+  activation dispatch, backend differential tests, ADR-0030, provider CI
+  toolchain/format coherence, and active parity artifacts.
 - Outcome: route `Mish`, `MishGrad`, `Elu`, and `EluGrad` through the
   Hephaestus PR #123 provider markers for every applicable f32 backend path.
 - Non-goals: parameterized activations, reduced/vector precision contracts,
@@ -18,13 +19,19 @@
   gates pass.
 - Risk/change class: `[arch]` provider-boundary consumer extension; ADR-0030
   records the ownership decision and residual hosted-CI evidence.
-- Status: source integration and differential coverage complete. Locked
-  metadata, focused non-CUDA nextest (307/307), warning-denied Clippy,
+- Status: complete. Source integration and differential coverage are
+  complete. Locked metadata, focused non-CUDA nextest (307/307),
+  warning-denied Clippy,
   workspace doctests (153 passed, 2 ignored), warning-denied rustdoc, and the
   MSVC CUDA feature compile check pass. Focused CUDA nextest passes 6/6 with
   real contiguous and transposed device execution; the focused
   CPU/WGPU/ROCm/Metal lane passes 10/10. No fallback path was added. Exact-head
-  hosted provider/consumer CI remains open.
+  backend run `30623370603` passes WGPU/CPU/Leto (`91132945368`), Metal
+  (`91132945402`), ROCm (`91132945438`), and CUDA (`91132945439`); the
+  manual-only hardware ROCm job (`91132945943`) is skipped by design. The
+  workflow now uses the pinned Rust 1.97 workspace formatter, consumes the
+  committed standalone lock without local overlays or updates, and executes
+  the full `coeus-leto` contract suite.
 ## ATLAS-COEUS-DISPATCH-SAFETY-020 — Provider routing audit [arch]
 
 - Owner: Codex on `codex/coeus-native-convolution-dispatch`; scope: Coeus CPU and

@@ -51,7 +51,7 @@ half       = { version = "2.7", features = ["bytemuck"] }
 smallvec   = "1.13"
 rkyv       = { version = "0.8.17", features = ["bytecheck", "std"] }
 wgpu       = { version = "30.0", default-features = false, features = ["wgsl", "vulkan", "metal"] }
-# Path deps for migration (remote hephaestus predates mnemosyne ^0.6.0)
+# Accelerator providers remain Git-sourced and lockfile-pinned.
 hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.18.0" }
 hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.18.0" }
 hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.18.0", default-features = false }

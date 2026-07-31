@@ -1,4 +1,7 @@
-use crate::backend::{CudaBackend, CudaScalar};
+use crate::{
+    backend::{CudaBackend, CudaScalar},
+    CudaBackendError,
+};
 use coeus_core::{BackendError, Layout};
 use hephaestus_cuda::StridedOperand;
 use hephaestus_cuda::{

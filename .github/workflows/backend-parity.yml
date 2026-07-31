@@ -3,7 +3,11 @@ name: Backend parity
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
   pull_request:
+    paths-ignore:
+      - "**/*.md"
   workflow_dispatch:
     inputs:
       run_rocm_hardware:
@@ -20,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUST_TOOLCHAIN: 1.95.0
+  RUST_TOOLCHAIN: 1.97.0
 
 jobs:
   wgpu:
@@ -126,35 +130,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rustfmt --check --edition 2024 \
-            crates/coeus-ops/src/backend_ops/traits/reduction.rs \
-            crates/coeus-ops/src/backend_ops/cpu_impl/impls/reduction.rs \
-            crates/coeus-ops/src/backend_ops/defaults/reductions.rs \
-            crates/coeus-ops/src/reduction/cumsum.rs \
-            crates/coeus-hephaestus/src/convolution/dispatch.rs \
-            crates/coeus-hephaestus/src/convolution/implementation.rs \
-            crates/coeus-hephaestus/src/convolution/provider.rs \
-            crates/coeus-wgpu/src/backend/ops/impls/conv.rs \
-            crates/coeus-wgpu/src/backend/ops/impls/reduction.rs \
-            crates/coeus-wgpu/src/kernels/reduce.rs \
-            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/conv.rs \
-            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/conv3d.rs \
-            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/conv_transpose.rs \
-            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity/convolution_pooling.rs \
-            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity/reduction.rs \
-            crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/reduction.rs \
-            crates/coeus-cuda/tests/cuda_ops/unavailable.rs
-          rustfmt --check --edition 2024 --config skip_children=true \
-            crates/coeus-wgpu/src/backend/ops/mod.rs \
-            crates/coeus-wgpu/src/kernels/mod.rs \
-            crates/coeus-cuda/src/lib.rs \
-            crates/coeus-cuda/src/backend_stub.rs \
-            crates/coeus-cuda/src/error.rs \
-            crates/coeus-cuda/src/backend/ops/math.rs \
-            crates/coeus-cuda/src/fallback/ops/mod.rs \
-            crates/coeus-cuda/tests/cuda_ops.rs
-          cargo "+$RUST_TOOLCHAIN" update \
-            --manifest-path "$GITHUB_WORKSPACE/coeus/Cargo.toml" --workspace
+          cargo "+$RUST_TOOLCHAIN" fmt --all --check
+          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-leto --all-targets
+          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-leto --all-targets --no-deps -- -D warnings
+          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-leto
+          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-leto --doc
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
@@ -278,31 +258,7 @@ jobs:
                 ln -s libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
               fi
               export LD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs:/usr/local/cuda/compat:/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}
-              rustfmt --check --edition 2024 \
-                crates/coeus-ops/src/backend_ops/traits/reduction.rs \
-                crates/coeus-ops/src/backend_ops/cpu_impl/impls/reduction.rs \
-                crates/coeus-ops/src/backend_ops/defaults/reductions.rs \
-                crates/coeus-ops/src/reduction/cumsum.rs \
-                crates/coeus-cuda/src/backend/ops/impls/reduction.rs \
-                crates/coeus-cuda/src/backend/ops/math/elementwise.rs \
-                crates/coeus-cuda/src/backend/ops/math/matmul.rs \
-                crates/coeus-cuda/src/backend/ops/impls/conv.rs \
-                crates/coeus-cuda/src/kernels/validation.rs \
-                crates/coeus-cuda/src/kernels/launch_matmul.rs \
-                crates/coeus-hephaestus/src/convolution/dispatch.rs \
-                crates/coeus-hephaestus/src/convolution/implementation.rs \
-                crates/coeus-hephaestus/src/convolution/provider.rs \
-                crates/coeus-cuda/tests/cuda/parity/convolution.rs \
-                crates/coeus-cuda/tests/cuda/parity/convolution_transpose.rs \
-                crates/coeus-cuda/src/kernels/pool/validation.rs \
-                crates/coeus-cuda/src/kernels/pool/pool1d.rs \
-                crates/coeus-cuda/src/kernels/pool/max.rs \
-                crates/coeus-cuda/src/kernels/pool/avg.rs \
-                crates/coeus-cuda/src/kernels/pool/max3d.rs \
-                crates/coeus-cuda/src/kernels/pool/avg3d.rs \
-                crates/coeus-cuda/tests/cuda/parity/reduction.rs
-              cargo "+$RUST_TOOLCHAIN" update \
-                --manifest-path /workspace/coeus/Cargo.toml --workspace
+              cargo "+$RUST_TOOLCHAIN" fmt --all --check
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
@@ -418,25 +374,7 @@ jobs:
               rustup component add rustfmt clippy --toolchain "$RUST_TOOLCHAIN"
               rustup toolchain install stable --profile minimal
               cargo +stable install cargo-nextest --locked
-              mkdir -p /workspace/.cargo
-              cp /workspace/hephaestus/.github/rocm-cargo-config.toml /workspace/.cargo/config.toml
-              rustfmt --check --edition 2024 \
-                crates/coeus-hephaestus/src/lib.rs \
-                crates/coeus-hephaestus/src/error.rs \
-                crates/coeus-hephaestus/src/elementwise.rs \
-                crates/coeus-hephaestus/src/layout.rs \
-                crates/coeus-hephaestus/src/reduction.rs \
-                crates/coeus-hephaestus/src/storage.rs \
-                crates/coeus-hephaestus/src/convolution/dispatch.rs \
-                crates/coeus-hephaestus/src/convolution/implementation.rs \
-                crates/coeus-hephaestus/src/convolution/provider.rs \
-                crates/coeus-rocm/src/lib.rs \
-                crates/coeus-rocm/src/backend.rs \
-                crates/coeus-rocm/src/backend/provider.rs \
-                crates/coeus-rocm/src/backend/runtime.rs \
-                crates/coeus-rocm/tests/reduction.rs \
-                crates/coeus-rocm/tests/elementwise.rs
-              cargo "+$RUST_TOOLCHAIN" update --manifest-path /workspace/coeus/Cargo.toml --workspace
+              cargo "+$RUST_TOOLCHAIN" fmt --all --check
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-hephaestus --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-rocm --features rocm --all-targets
@@ -544,27 +482,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$GITHUB_WORKSPACE/.cargo"
-          sed "s|/workspace|$GITHUB_WORKSPACE|g" \
-            "$GITHUB_WORKSPACE/hephaestus/.github/rocm-cargo-config.toml" \
-            > "$GITHUB_WORKSPACE/.cargo/config.toml"
-          rustfmt --check --edition 2024 \
-            crates/coeus-hephaestus/src/lib.rs \
-            crates/coeus-hephaestus/src/error.rs \
-            crates/coeus-hephaestus/src/elementwise.rs \
-            crates/coeus-hephaestus/src/layout.rs \
-            crates/coeus-hephaestus/src/reduction.rs \
-            crates/coeus-hephaestus/src/storage.rs \
-            crates/coeus-hephaestus/src/convolution/dispatch.rs \
-            crates/coeus-hephaestus/src/convolution/implementation.rs \
-            crates/coeus-hephaestus/src/convolution/provider.rs \
-            crates/coeus-metal/src/lib.rs \
-            crates/coeus-metal/src/backend.rs \
-            crates/coeus-metal/src/backend/provider.rs \
-            crates/coeus-metal/src/backend/runtime.rs \
-            crates/coeus-metal/tests/reduction.rs \
-            crates/coeus-metal/tests/elementwise.rs
-          cargo "+$RUST_TOOLCHAIN" update --manifest-path "$GITHUB_WORKSPACE/coeus/Cargo.toml" --workspace
+          cargo "+$RUST_TOOLCHAIN" fmt --all --check
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-hephaestus --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-metal --all-targets
@@ -652,15 +570,6 @@ jobs:
       - name: Install nextest
         shell: bash
         run: cargo install cargo-nextest --locked
-      - name: Configure the checkout-local Cargo graph
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$GITHUB_WORKSPACE/.cargo"
-          sed "s|/workspace|$GITHUB_WORKSPACE|g" \
-            "$GITHUB_WORKSPACE/hephaestus/.github/rocm-cargo-config.toml" \
-            > "$GITHUB_WORKSPACE/.cargo/config.toml"
-          cargo "+$RUST_TOOLCHAIN" update --manifest-path "$GITHUB_WORKSPACE/coeus/Cargo.toml" --workspace
       - name: Run required-device ROCm provider contracts
         working-directory: coeus
         env:
