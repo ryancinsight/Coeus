@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted. The original f32 activation-tail scope is implemented; the
-runtime-parameterized extension is pending exact-head CI verification.
+Accepted and implemented for the f32 activation-tail and runtime-parameterized
+scope.
 
 Revision 2026-07-31: the decision now includes runtime-parameterized
 Hardtanh and Threshold forward and gradient operations after Hephaestus added
@@ -76,10 +76,17 @@ The original activation-tail increment passed exact-head Coeus run
 
 For the parameterized extension, local locked-source format, compilation, and
 warning-denied Clippy pass across `coeus-hephaestus`, WGPU, CUDA, ROCm, and
-Metal. Focused value-semantic tests and exact-head CI remain the completion
-gate. The CUDA container lane compiles and selects the differential test but
-may skip when no NVIDIA device is present; a workflow-dispatch hardware lane
-sets `HEPHAESTUS_CUDA_REQUIRE_DEVICE=1` and fails if acquisition is unavailable.
+Metal. The CPU parameter-bit contract, live WGPU differential, WGPU alias
+regression, shared provider validation, and affected doctests pass. Initial
+hosted run `30648108124` exposed a WGPU alias-error routing regression; the
+original failing contract and the parameterized differential pass after the
+fix. Corrected exact-head run `30649709774` passes WGPU job `91219683142`, CUDA
+job `91219683201`, ROCm job `91219683108`, and Metal job `91219683109`.
+
+The CUDA container lane compiles and selects the differential test but may
+skip when no NVIDIA device is present. Workflow-dispatch hardware lanes set
+`HEPHAESTUS_CUDA_REQUIRE_DEVICE=1` or `HEPHAESTUS_ROCM_REQUIRE_DEVICE=1` and
+fail if acquisition is unavailable; both were skipped on the pull request.
 No runtime-performance or resident-memory result is inferred.
 
 ## Residual scope

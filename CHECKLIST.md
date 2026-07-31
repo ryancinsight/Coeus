@@ -10,7 +10,7 @@
 - [x] Instantiate value-semantic Leto CPU differential coverage across WGPU,
       CUDA, ROCm, and Metal, including equality boundaries and non-default
       parameters.
-- [ ] Pass warning-denied focused gates and exact-head backend CI after the
+- [x] Pass warning-denied focused gates and exact-head backend CI after the
       Hephaestus provider commit merges.
 
 Owner: Codex on `codex/coeus-parameterized-activation`. Scope is the four GPU
@@ -22,6 +22,14 @@ Acceptance: each available backend returns Leto-equivalent Hardtanh,
 HardtanhGrad, Threshold, and ThresholdGrad values from provider-owned kernels;
 the incorrect WGPU `f64::from_bits` decoding and every superseded local
 expression are absent; exact-head CI is green.
+
+Status: complete at code head `f74d5ca1`. Locked-source warning-denied Clippy
+passes across the shared integration crate and all four provider crates. The
+CPU parameter-bit contract, live WGPU differential, WGPU alias regression,
+and affected doctests pass locally. Exact-head backend run `30649709774`
+passes WGPU job `91219683142`, CUDA job `91219683201`, ROCm job
+`91219683108`, and Metal job `91219683109`; required-device CUDA and ROCm jobs
+are workflow-dispatch lanes and were skipped on the pull request.
 
 ## ATLAS-COEUS-HEPHAESTUS-ACTIVATION-TAIL-PARITY-001 [arch]
 
