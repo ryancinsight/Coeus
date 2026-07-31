@@ -1,5 +1,24 @@
 # Coeus Development Roadmap Checklist
 
+## COEUS-ATTENTION-PROVIDER-001 [major] [arch]
+
+- [ ] Route CPU scaled dot-product attention directly through Leto's borrowed
+      forward and additive-backward APIs.
+- [ ] Route WGPU, CUDA, ROCm, and Metal attention directly through the
+      provider-owned Hephaestus `AttentionOps` seam.
+- [ ] Make attention failure explicit through operation, autograd, module, and
+      Python boundaries; update every in-repository caller.
+- [ ] Delete superseded Coeus attention kernels, launchers, host fallbacks, and
+      stale CUDA ownership ADRs.
+- [ ] Prove CPU/provider value semantics, arbitrary-layout masks, selected
+      additive gradients, failure atomicity, and native CUDA `f64` dispatch.
+- [ ] Pass focused and full warning-denied, Nextest, doctest, SemVer, and
+      exact-head hosted gates with independent review.
+
+Status: in progress on `codex/coeus-attention-dispatch`. Provider prerequisite:
+Leto PR #82 is merged at `a76e1422`; Hephaestus PR #167 is green locally and
+running exact-head hosted backend gates.
+
 ## ATLAS-COEUS-HEPHAESTUS-ACTIVATION-TAIL-PARITY-001 [arch]
 
 - [x] Route `Mish`, `MishGrad`, `Elu`, and `EluGrad` through provider-owned
@@ -1362,4 +1381,3 @@ Implemented a native NVIDIA GPU backend dynamically loading the CUDA driver.
   WGPU provider boundary; Coeus-local CUDA kernels remain for aliasing,
   strided/dynamic layout coverage, and NN-specific convolution, pooling,
   optimizer, and activation formulas.
-
