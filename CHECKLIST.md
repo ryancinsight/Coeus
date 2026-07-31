@@ -1,5 +1,28 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-HEPHAESTUS-PARAMETERIZED-ACTIVATION-001 [arch][minor]
+
+- [ ] Decode packed Hardtanh and Threshold parameters as their canonical two
+      `f32` values and route forward/gradient operations directly through the
+      Hephaestus runtime-parameter unary seam.
+- [ ] Delete superseded Coeus-authored Hardtanh and Threshold shader
+      expressions; retain no local-kernel or CPU fallback.
+- [ ] Instantiate value-semantic Leto CPU differential coverage across WGPU,
+      CUDA, ROCm, and Metal, including equality boundaries and non-default
+      parameters.
+- [ ] Pass warning-denied focused gates and exact-head backend CI after the
+      Hephaestus provider commit merges.
+
+Owner: Codex on `codex/coeus-parameterized-activation`. Scope is the four GPU
+provider integrations, shared differential contracts, PM synchronization, and
+the Hephaestus lock update. Non-f32 activation expansion and unrelated unary
+families are excluded. No compatibility or fallback path is authorized.
+
+Acceptance: each available backend returns Leto-equivalent Hardtanh,
+HardtanhGrad, Threshold, and ThresholdGrad values from provider-owned kernels;
+the incorrect WGPU `f64::from_bits` decoding and every superseded local
+expression are absent; exact-head CI is green.
+
 ## ATLAS-COEUS-HEPHAESTUS-ACTIVATION-TAIL-PARITY-001 [arch]
 
 - [x] Route `Mish`, `MishGrad`, `Elu`, and `EluGrad` through provider-owned
@@ -1362,4 +1385,3 @@ Implemented a native NVIDIA GPU backend dynamically loading the CUDA driver.
   WGPU provider boundary; Coeus-local CUDA kernels remain for aliasing,
   strided/dynamic layout coverage, and NN-specific convolution, pooling,
   optimizer, and activation formulas.
-
