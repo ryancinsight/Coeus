@@ -9,8 +9,10 @@
 - [x] Extend WGPU, CUDA, ROCm, and Metal suites with Leto CPU differential
       coverage for forward and gradient operations.
 - [x] Add ADR-0030 documenting provider ownership and residual scope.
-- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
-      Hephaestus expression seam and the Coeus consumer head.
+- [x] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI for the
+      Hephaestus expression seam and the Coeus consumer head: run
+      `30623370603` passes all four software provider lanes; hardware ROCm is
+      manual-only and skipped by design.
 
 Status: source integration and local differential coverage are complete. The
 manifest and lock graph now use the declared Git sources; locked metadata,
@@ -20,9 +22,10 @@ The workspace Clippy gate also passes after resolving backend error handling in
 autograd, normalization, distributed gradients, and Python reductions. The
 CUDA-feature compile check and focused MSVC CUDA nextest pass, including
 contiguous and transposed device execution. A focused CPU/WGPU/ROCm/Metal lane
-passes 10/10. No fallback path was added. Exact-head hosted CI remains open for
-this increment. Integer requests remain typed unsupported operations; provider
-rank and aliasing contracts are not expanded, and out-of-contract
+passes 10/10. No fallback path was added. Exact-head backend run `30623370603`
+passes WGPU/CPU/Leto, CUDA, ROCm, and Metal. Integer requests remain typed
+unsupported operations; provider rank and aliasing contracts are not expanded,
+and out-of-contract
 activation-tail requests return typed errors without local-kernel or CPU
 fallback.
 ## ATLAS-COEUS-CONVOLUTION-020 Provider dispatch `[major][arch]`

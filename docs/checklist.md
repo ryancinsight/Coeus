@@ -9,7 +9,9 @@
 - [x] Compare forward and gradient results with the Leto CPU oracle in each
       backend parity suite.
 - [x] Add ADR-0030 and synchronize the active Coeus parity artifacts.
-- [ ] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI.
+- [x] Run and record exact-head WGPU, CUDA, ROCm, and Metal provider CI:
+      backend run `30623370603` passes all four software provider lanes; the
+      hardware ROCm lane is manual-only and skipped by design.
 - [x] Complete the local locked metadata, focused non-CUDA nextest (307/307),
       warning-denied Clippy, workspace doctests (153 passed, 2 ignored),
       warning-denied rustdoc, and CUDA feature compile gates.
