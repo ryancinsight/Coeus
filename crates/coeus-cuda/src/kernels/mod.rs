@@ -4,8 +4,6 @@ pub mod fuse;
 pub mod launch_matmul;
 /// Kernel module for element-wise operator kernel launches.
 pub mod launch_ops;
-/// Kernel module for optimizer step kernels.
-pub mod optim;
 /// Kernel module for pooling operations.
 pub mod pool;
 /// Kernel module for embedded PTX kernel source.
@@ -22,9 +20,6 @@ pub use fuse::dispatch_fused;
 pub use launch_matmul::launch_matmul_tiled;
 pub use launch_ops::{
     launch_contiguous_binary, launch_contiguous_unary, launch_strided_binary, launch_strided_unary,
-};
-pub use optim::{
-    launch_adagrad_step, launch_adam_step, launch_adamw_step, launch_rmsprop_step, launch_sgd_step,
 };
 pub use pool::{
     dispatch_avg_pool1d, dispatch_avg_pool1d_backward, dispatch_avg_pool2d,

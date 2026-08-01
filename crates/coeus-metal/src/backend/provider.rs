@@ -1,5 +1,6 @@
 use coeus_hephaestus::{
     AttentionProvider, ConvolutionProvider, HephaestusProvider, ParameterizedElementwiseProvider,
+    StatefulUpdateProvider,
 };
 use hephaestus_metal::{
     MetalAttentionOps, MetalConvolutionOps, MetalDevice, MetalParameterizedUnaryOps,
@@ -32,4 +33,8 @@ impl AttentionProvider<f32> for MetalProvider {
 
 impl ParameterizedElementwiseProvider for MetalProvider {
     type Operations = MetalParameterizedUnaryOps;
+}
+
+impl StatefulUpdateProvider for MetalProvider {
+    type Operations = hephaestus_metal::MetalStatefulUpdateOps;
 }

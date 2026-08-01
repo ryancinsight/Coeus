@@ -1,5 +1,30 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-STATEFUL-UPDATE-PROVIDER-001 — Provider-owned optimizer dispatch [major] [arch]
+
+- Owner: Codex on `codex/coeus-stateful-dispatch`; last-update: 2026-08-01;
+  scope: CPU and accelerator optimizer dispatch, the fallible optimizer and
+  scheduler caller closure, focused contracts, obsolete implementation
+  deletion, ADR-0048, provider lock migration, and parity CI.
+- Outcome: CPU stateful updates execute through Leto and WGPU/CUDA/ROCm/Metal
+  execute through one generic Hephaestus bridge selected by backend type.
+- Non-goals: release/version transitions and performance claims without
+  controlled measurements.
+- Acceptance: no Coeus-owned optimizer mathematics or host fallback remains;
+  provider failures reach Rust and Python callers; all five rules have CPU and
+  accelerator value-semantic coverage plus preflight failure atomicity; local
+  and exact-head hosted gates pass.
+- Risk/change class: `[major] [arch]`; ADR-0048 records the breaking fallible
+  contract and provider ownership.
+- Status: review-ready. Leto PRs #85/#86 and Hephaestus PRs #174/#177 are
+  merged; the standalone lock resolves their exact merge revisions. Local CPU,
+  Leto, optimizer, Python, all-target, CUDA-feature, Clippy, and doctest gates
+  pass. A single typed preflight request validates every gradient-bearing
+  parameter before mutation; the multi-parameter regression covers all five
+  optimizers, CPU and accelerator Adam share the `i32::MAX` step domain, and
+  CPU plus hosted accelerator suites cover nonempty ranks zero through eight.
+  Independent re-review and exact-head Coeus hosted provider CI remain.
+
 ## COEUS-ATTENTION-PROVIDER-001 — Provider-owned attention dispatch [major] [arch]
 
 - Owner: Codex on `codex/coeus-attention-dispatch`; last-update: 2026-07-31;
@@ -853,13 +878,13 @@
   because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
   test execution is claimed. Other pooling dimensions remain in the next gap.
 
-## ATLAS-CUDA-SAFETY-006 — Harden optimizer launch ABI [patch] [arch] — done
+## ATLAS-CUDA-SAFETY-006 — Retired CUDA optimizer launch ABI [patch] [arch] — done
 
-- Owner: Codex `/root`; scope: `crates/coeus-cuda/src/kernels/optim` and the shared
-  `kernels::validation` seam.
-- Outcome: AdaGrad, Adam, AdamW, RMSprop, and SGD now use checked counts and
-  grids, shared layout and same-shape validation, and the canonical block
-  size. Adam-family step exponents reject values outside `i32`.
+- Owner: Codex `/root`; historical scope: the former consumer-owned CUDA
+  optimizer kernels and their shared validation seam.
+- Outcome: this hardening protected the former launch ABI. ADR-0048 later
+  removed that ABI when all accelerator stateful updates moved to the single
+  Hephaestus-owned provider bridge.
 - Evidence: feature-enabled package check and warning-denied Clippy pass;
   default package Nextest passes 3/3 with zero skipped; validation tests cover
   shape mismatch and the existing overflow/zero-work cases; optimizer source

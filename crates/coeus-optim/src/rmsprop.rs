@@ -1,6 +1,7 @@
 use crate::traits::Optimizer;
 use coeus_autograd::Parameter;
 use coeus_core::{Float, MoiraiBackend};
+use coeus_ops::{OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation};
 use coeus_tensor::Tensor;
 
 /// RMSProp optimizer.
@@ -16,7 +17,7 @@ use coeus_tensor::Tensor;
 /// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
 ///
 /// let mut opt = RMSProp::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.99f32, 1e-8f32);
-/// opt.step();
+/// opt.step().unwrap();
 /// // v = (1-alpha) * grad^2 = 0.01 * [1.0, 4.0] = [0.01, 0.04]
 /// // update = lr * grad / (sqrt(v) + eps) = 0.1 * [1.0, -2.0] / [0.1, 0.2] = [1.0, -1.0]
 /// // p' = [2.0, 3.0] - [1.0, -1.0] = [1.0, 4.0]
@@ -56,9 +57,27 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RMSProp<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for RMSProp<T, B> {
-    fn step(&mut self) {
+impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Default> Optimizer<T, B>
+    for RMSProp<T, B>
+{
+    fn step(&mut self) -> Result<(), B::Error> {
         let backend = B::default();
+
+        for (i, param) in self.params.iter().enumerate() {
+            if let Some(ref g) = param.var.grad {
+                let grad_tensor = g.read();
+                backend.validate_optimizer_step(OptimizerStepValidation {
+                    parameter: (param.var.tensor.storage(), param.var.tensor.layout()),
+                    gradient: (grad_tensor.storage(), grad_tensor.layout()),
+                    state: OptimizerStateRef::One(self.v[i].storage(), self.v[i].layout()),
+                    rule: OptimizerStepRule::RmsProp {
+                        learning_rate: self.lr,
+                        alpha: self.alpha,
+                        epsilon: self.eps,
+                    },
+                })?;
+            }
+        }
 
         for (i, param) in self.params.iter_mut().enumerate() {
             if let Some(ref g) = param.var.grad {
@@ -78,9 +97,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for RMSPro
                     self.lr,
                     self.alpha,
                     self.eps,
-                );
+                )?;
             }
         }
+        Ok(())
     }
 
     fn zero_grad(&mut self) {

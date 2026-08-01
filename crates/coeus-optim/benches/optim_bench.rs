@@ -29,7 +29,7 @@ fn bench_sgd_step(c: &mut Criterion) {
         opt.params[0].set_grad(grad_of(n));
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| {
-                opt.step();
+                opt.step().expect("SGD benchmark step");
                 black_box(&opt.params[0].tensor);
             });
         });
@@ -50,7 +50,7 @@ fn bench_adam_step(c: &mut Criterion) {
         opt.params[0].set_grad(grad_of(n));
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| {
-                opt.step();
+                opt.step().expect("Adam benchmark step");
                 black_box(&opt.params[0].tensor);
             });
         });
@@ -72,7 +72,7 @@ fn bench_adamw_step(c: &mut Criterion) {
         opt.params[0].set_grad(grad_of(n));
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| {
-                opt.step();
+                opt.step().expect("AdamW benchmark step");
                 black_box(&opt.params[0].tensor);
             });
         });

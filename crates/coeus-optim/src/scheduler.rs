@@ -160,15 +160,15 @@ impl SchedulerStrategy for WarmupCosine {
 /// let mut scheduler = LrScheduler::new(opt, StepDecay { step_size: 2, gamma: 0.5 }, 1e-3);
 ///
 /// assert!((scheduler.current_lr() - 1e-3).abs() < 1e-7); // step 0
-/// scheduler.step();
+/// scheduler.step().unwrap();
 /// assert!((scheduler.current_lr() - 1e-3).abs() < 1e-7); // step 1
-/// scheduler.step();
+/// scheduler.step().unwrap();
 /// assert!((scheduler.current_lr() - 5e-4).abs() < 1e-7); // step 2: gamma^1
 /// ```
 pub struct LrScheduler<T, B, O, S>
 where
     T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
+    B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Default,
     O: Optimizer<T, B>,
     S: SchedulerStrategy,
 {
@@ -186,7 +186,7 @@ where
 impl<T, B, O, S> LrScheduler<T, B, O, S>
 where
     T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
+    B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Default,
     O: Optimizer<T, B>,
     S: SchedulerStrategy,
 {
@@ -208,12 +208,17 @@ where
     /// 2. Set LR on the optimizer (`T::from_f64` conversion at boundary).
     /// 3. Call `optimizer.step()`.
     /// 4. Increment `self.step`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the wrapped optimizer's backend failure.
     #[inline]
-    pub fn step(&mut self) {
+    pub fn step(&mut self) -> Result<(), B::Error> {
         let new_lr = self.strategy.lr(self.base_lr, self.step);
         self.optimizer.set_lr(T::from_f64(new_lr));
-        self.optimizer.step();
+        self.optimizer.step()?;
         self.step += 1;
+        Ok(())
     }
 
     /// Zero gradients on the underlying optimizer.

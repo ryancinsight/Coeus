@@ -76,7 +76,7 @@ fn prelu_module_weight_learns_via_optimizer_round_trip() {
 
     let lr = 0.1;
     let mut opt = SGD::new(module.named_parameters(), lr, 0.0);
-    opt.step();
+    opt.step().expect("optimizer step");
     module
         .load_named_parameters(&opt.params)
         .expect("optimizer inventory must match module paths");

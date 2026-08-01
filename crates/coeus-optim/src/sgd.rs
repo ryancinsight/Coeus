@@ -1,6 +1,7 @@
 use crate::traits::Optimizer;
 use coeus_autograd::Parameter;
 use coeus_core::{Float, MoiraiBackend};
+use coeus_ops::{OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation};
 use coeus_tensor::Tensor;
 
 /// SGD with optional momentum.
@@ -16,7 +17,7 @@ use coeus_tensor::Tensor;
 /// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
 ///
 /// let mut opt = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32);
-/// opt.step();
+/// opt.step().unwrap();
 /// // p' = p - lr * grad: [2.0, 3.0] - 0.1 * [1.0, -2.0] = [1.9, 3.2]
 /// let updated = opt.params[0].var.tensor.as_slice();
 /// assert!((updated[0] - 1.9).abs() < 1e-5);
@@ -50,9 +51,27 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> SGD<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for SGD<T, B> {
-    fn step(&mut self) {
+impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Default> Optimizer<T, B>
+    for SGD<T, B>
+{
+    fn step(&mut self) -> Result<(), B::Error> {
         let backend = B::default();
+
+        for (i, param) in self.params.iter().enumerate() {
+            if let Some(ref g) = param.var.grad {
+                let grad_tensor = g.read();
+                let velocity = &self.velocity[i];
+                backend.validate_optimizer_step(OptimizerStepValidation {
+                    parameter: (param.var.tensor.storage(), param.var.tensor.layout()),
+                    gradient: (grad_tensor.storage(), grad_tensor.layout()),
+                    state: OptimizerStateRef::One(velocity.storage(), velocity.layout()),
+                    rule: OptimizerStepRule::Sgd {
+                        learning_rate: self.lr,
+                        momentum: self.momentum,
+                    },
+                })?;
+            }
+        }
 
         for (i, param) in self.params.iter_mut().enumerate() {
             if let Some(ref g) = param.var.grad {
@@ -71,9 +90,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for SGD<T,
                     velocity_layout,
                     self.lr,
                     self.momentum,
-                );
+                )?;
             }
         }
+        Ok(())
     }
 
     fn zero_grad(&mut self) {

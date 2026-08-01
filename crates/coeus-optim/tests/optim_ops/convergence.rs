@@ -26,7 +26,7 @@ fn test_sgd_convergence_quadratic_50steps() {
         let current = optimizer.params[0].tensor.as_slice()[0];
         let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current]);
         optimizer.params[0].set_grad(grad);
-        optimizer.step();
+        optimizer.step().expect("optimizer convergence step");
     }
 
     let x_n = optimizer.params[0].tensor.as_slice()[0];
@@ -61,7 +61,7 @@ fn test_sgd_momentum_convergence_100steps() {
         let current = optimizer.params[0].tensor.as_slice()[0];
         let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current]);
         optimizer.params[0].set_grad(grad);
-        optimizer.step();
+        optimizer.step().expect("optimizer convergence step");
     }
 
     let x_n = optimizer.params[0].tensor.as_slice()[0];
@@ -99,7 +99,7 @@ fn test_adam_convergence_quadratic_200steps() {
             &[2.0f32 * vals[0], 2.0f32 * vals[1]],
         );
         optimizer.params[0].set_grad(grad);
-        optimizer.step();
+        optimizer.step().expect("optimizer convergence step");
     }
 
     let final_p = optimizer.params[0].tensor.as_slice();
@@ -143,7 +143,7 @@ fn test_adamw_weight_decay_shrinkage_50steps() {
             vec![1],
             &[0.0f32],
         ));
-        optimizer.step();
+        optimizer.step().expect("optimizer convergence step");
     }
 
     let p_n = optimizer.params[0].tensor.as_slice()[0];
@@ -191,7 +191,7 @@ fn test_rmsprop_convergence_quadratic_300steps() {
         prev = obj;
         let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current]);
         optimizer.params[0].set_grad(grad);
-        optimizer.step();
+        optimizer.step().expect("optimizer convergence step");
     }
 
     let x_n = optimizer.params[0].tensor.as_slice()[0];
@@ -228,7 +228,7 @@ fn test_adagrad_convergence_quadratic_400steps() {
         prev = obj;
         let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current]);
         optimizer.params[0].set_grad(grad);
-        optimizer.step();
+        optimizer.step().expect("optimizer convergence step");
     }
 
     let x_n = optimizer.params[0].tensor.as_slice()[0];

@@ -1,5 +1,20 @@
 # Global Progress Checklist: Coeus
 
+## COEUS-STATEFUL-UPDATE-PROVIDER-001 — Provider-owned optimizer dispatch
+
+- [x] Merge the required Leto and Hephaestus stateful-update contracts.
+- [x] Add ADR-0048 and claim the complete caller, deletion, and lock closure.
+- [x] Route CPU optimizer updates through borrowed Leto storage.
+- [x] Route WGPU, CUDA, ROCm, and Metal through the generic Hephaestus bridge.
+- [x] Propagate typed failure through optimizer, scheduler, and Python APIs.
+- [x] Delete local formulas, kernels, launchers, host fallbacks, and obsolete
+      optimizer-launch documentation.
+- [x] Add value-semantic provider differential and failure-atomic contracts.
+- [x] Preflight the complete parameter set before mutation, align the CPU and
+      accelerator Adam step domain, and cover nonempty ranks zero through eight.
+- [x] Pass focused local gates and independent architecture/correctness review.
+- [ ] Pass exact-head hosted provider CI, merge, and reconcile PM state.
+
 ## ATLAS-WGPU-SAFETY-002 — Checked unfold/fold dispatch
 
 - [x] Make `UnfoldFoldOps` return the backend-associated typed error across CPU,

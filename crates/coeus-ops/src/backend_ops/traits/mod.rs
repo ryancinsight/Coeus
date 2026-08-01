@@ -35,7 +35,7 @@ pub use attention::{AttentionOps, AttentionScalar};
 pub use conv::{ConvOps, ConvolutionBackward, ConvolutionForward};
 pub use elementwise::ElementwiseOps;
 pub use matmul::MatmulOps;
-pub use optimizer::OptimizerOps;
+pub use optimizer::{OptimizerOps, OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation};
 pub use pool::PoolOps;
 pub use reduction::ReductionOps;
 pub use unfold_fold::UnfoldFoldOps;

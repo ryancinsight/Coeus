@@ -8,6 +8,7 @@
 use crate::traits::Optimizer;
 use coeus_autograd::Parameter;
 use coeus_core::{Float, MoiraiBackend};
+use coeus_ops::{OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation};
 use coeus_tensor::Tensor;
 
 /// AdamW optimizer.
@@ -32,7 +33,7 @@ use coeus_tensor::Tensor;
 /// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
 ///
 /// let mut opt = AdamW::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.9f32, 0.999f32, 1e-8f32, 0.01f32);
-/// opt.step();
+/// opt.step().unwrap();
 /// // adam_update ≈ lr * [1.0, -1.0] = [0.1, -0.1]; wd_update = lr * wd * p = [0.002, 0.003]
 /// // p' = [2.0, 3.0] - [0.1, -0.1] - [0.002, 0.003] = [1.898, 3.097]
 /// let updated = opt.params[0].var.tensor.as_slice();
@@ -114,10 +115,36 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> AdamW<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for AdamW<T, B> {
-    fn step(&mut self) {
-        self.t += 1;
+impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Default> Optimizer<T, B>
+    for AdamW<T, B>
+{
+    fn step(&mut self) -> Result<(), B::Error> {
+        let next_t = self.t + 1;
         let backend = B::default();
+
+        for (i, param) in self.params.iter().enumerate() {
+            if let Some(ref g) = param.var.grad {
+                let grad_tensor = g.read();
+                backend.validate_optimizer_step(OptimizerStepValidation {
+                    parameter: (param.var.tensor.storage(), param.var.tensor.layout()),
+                    gradient: (grad_tensor.storage(), grad_tensor.layout()),
+                    state: OptimizerStateRef::Two(
+                        self.m[i].storage(),
+                        self.m[i].layout(),
+                        self.v[i].storage(),
+                        self.v[i].layout(),
+                    ),
+                    rule: OptimizerStepRule::AdamW {
+                        learning_rate: self.lr,
+                        beta_one: self.beta1,
+                        beta_two: self.beta2,
+                        epsilon: self.eps,
+                        weight_decay: self.weight_decay,
+                        step: next_t,
+                    },
+                })?;
+            }
+        }
 
         for (i, param) in self.params.iter_mut().enumerate() {
             if let Some(ref g) = param.var.grad {
@@ -143,10 +170,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for AdamW<
                     self.beta2,
                     self.eps,
                     self.weight_decay,
-                    self.t,
-                );
+                    next_t,
+                )?;
             }
         }
+        self.t = next_t;
+        Ok(())
     }
 
     fn zero_grad(&mut self) {

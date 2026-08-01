@@ -1,6 +1,8 @@
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use coeus_hephaestus::{AttentionProvider, ConvolutionProvider};
-use coeus_hephaestus::{HephaestusProvider, ParameterizedElementwiseProvider};
+use coeus_hephaestus::{
+    HephaestusProvider, ParameterizedElementwiseProvider, StatefulUpdateProvider,
+};
 use hephaestus_rocm::RocmDevice;
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use hephaestus_rocm::{RocmAttentionOps, RocmConvolutionOps};
@@ -34,4 +36,8 @@ impl AttentionProvider<f32> for RocmProvider {
 
 impl ParameterizedElementwiseProvider for RocmProvider {
     type Operations = hephaestus_rocm::RocmParameterizedUnaryOps;
+}
+
+impl StatefulUpdateProvider for RocmProvider {
+    type Operations = hephaestus_rocm::RocmStatefulUpdateOps;
 }

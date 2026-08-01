@@ -16,7 +16,7 @@ use coeus_core::{MoiraiBackend, Scalar};
 ///
 /// let mut opt: SGD<f32> = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32);
 /// // `step`, `zero_grad`, and `set_lr` come from the `Optimizer` trait.
-/// opt.step();
+/// opt.step().unwrap();
 /// // x' = x - lr * grad = 1.0 - 0.1 * (-2.0) = 1.2
 /// assert!((opt.params[0].tensor.as_slice()[0] - 1.2).abs() < 1e-5);
 ///
@@ -26,9 +26,17 @@ use coeus_core::{MoiraiBackend, Scalar};
 /// opt.set_lr(0.5f32);
 /// assert_eq!(opt.lr, 0.5f32);
 /// ```
-pub trait Optimizer<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
+pub trait Optimizer<
+    T: Scalar,
+    B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Default = MoiraiBackend,
+>
+{
     /// Perform one optimization step using accumulated gradients.
-    fn step(&mut self);
+    ///
+    /// # Errors
+    ///
+    /// Returns the selected backend's typed validation or dispatch failure.
+    fn step(&mut self) -> Result<(), B::Error>;
 
     /// Zero all parameter gradients.
     fn zero_grad(&mut self);

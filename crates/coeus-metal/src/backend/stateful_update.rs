@@ -1,43 +1,40 @@
-use crate::backend::{CudaBackend, CudaStorage};
-use crate::CudaBackendError;
+use super::{MetalBackend, MetalProvider};
 use coeus_core::Layout;
-use coeus_hephaestus::{StatefulUpdateBackend, StatefulUpdateProvider};
+use coeus_hephaestus::{HephaestusBackendError, HephaestusStorage, StatefulUpdateBackend};
+use coeus_ops::{OptimizerOps, OptimizerStepValidation};
 use hephaestus_core::{ComputeDevice, HephaestusError};
-use hephaestus_cuda::{CudaDevice, CudaStatefulUpdateOps};
 
-impl StatefulUpdateProvider for CudaBackend {
-    type Operations = CudaStatefulUpdateOps;
-}
+type Storage = HephaestusStorage<MetalProvider, f32>;
 
-impl StatefulUpdateBackend for CudaBackend {
-    type Provider = Self;
+impl StatefulUpdateBackend for MetalBackend {
+    type Provider = MetalProvider;
 
     fn stateful_update_buffer(
         storage: &Self::DeviceBuffer<f32>,
-    ) -> &<CudaDevice as ComputeDevice>::Buffer<f32> {
-        storage.buffer.as_ref()
+    ) -> &<hephaestus_metal::MetalDevice as ComputeDevice>::Buffer<f32> {
+        storage.buffer()
     }
 
     fn stateful_update_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        CudaBackendError::dispatch(operation, source)
+        HephaestusBackendError::Device { operation, source }
     }
 }
 
-impl coeus_ops::OptimizerOps<f32> for CudaBackend {
+impl OptimizerOps<f32> for MetalBackend {
     fn validate_optimizer_step(
         &self,
-        validation: coeus_ops::OptimizerStepValidation<'_, f32, Self>,
+        validation: OptimizerStepValidation<'_, f32, Self>,
     ) -> Result<(), Self::Error> {
         StatefulUpdateBackend::validate_optimizer_step(self, validation)
     }
 
     fn sgd_step(
         &self,
-        p: &mut CudaStorage<f32>,
+        p: &mut Storage,
         pl: &Layout,
-        g: &CudaStorage<f32>,
+        g: &Storage,
         gl: &Layout,
-        s: &mut CudaStorage<f32>,
+        s: &mut Storage,
         sl: &Layout,
         lr: f32,
         momentum: f32,
@@ -47,30 +44,30 @@ impl coeus_ops::OptimizerOps<f32> for CudaBackend {
 
     fn adam_step(
         &self,
-        p: &mut CudaStorage<f32>,
+        p: &mut Storage,
         pl: &Layout,
-        g: &CudaStorage<f32>,
+        g: &Storage,
         gl: &Layout,
-        first: &mut CudaStorage<f32>,
-        fl: &Layout,
-        second: &mut CudaStorage<f32>,
-        sl: &Layout,
+        a: &mut Storage,
+        al: &Layout,
+        b: &mut Storage,
+        bl: &Layout,
         lr: f32,
         b1: f32,
         b2: f32,
         eps: f32,
         step: usize,
     ) -> Result<(), Self::Error> {
-        self.dispatch_adam_step(p, pl, g, gl, first, fl, second, sl, lr, b1, b2, eps, step)
+        self.dispatch_adam_step(p, pl, g, gl, a, al, b, bl, lr, b1, b2, eps, step)
     }
 
     fn rmsprop_step(
         &self,
-        p: &mut CudaStorage<f32>,
+        p: &mut Storage,
         pl: &Layout,
-        g: &CudaStorage<f32>,
+        g: &Storage,
         gl: &Layout,
-        s: &mut CudaStorage<f32>,
+        s: &mut Storage,
         sl: &Layout,
         lr: f32,
         alpha: f32,
@@ -81,14 +78,14 @@ impl coeus_ops::OptimizerOps<f32> for CudaBackend {
 
     fn adamw_step(
         &self,
-        p: &mut CudaStorage<f32>,
+        p: &mut Storage,
         pl: &Layout,
-        g: &CudaStorage<f32>,
+        g: &Storage,
         gl: &Layout,
-        first: &mut CudaStorage<f32>,
-        fl: &Layout,
-        second: &mut CudaStorage<f32>,
-        sl: &Layout,
+        a: &mut Storage,
+        al: &Layout,
+        b: &mut Storage,
+        bl: &Layout,
         lr: f32,
         b1: f32,
         b2: f32,
@@ -96,18 +93,16 @@ impl coeus_ops::OptimizerOps<f32> for CudaBackend {
         decay: f32,
         step: usize,
     ) -> Result<(), Self::Error> {
-        self.dispatch_adamw_step(
-            p, pl, g, gl, first, fl, second, sl, lr, b1, b2, eps, decay, step,
-        )
+        self.dispatch_adamw_step(p, pl, g, gl, a, al, b, bl, lr, b1, b2, eps, decay, step)
     }
 
     fn adagrad_step(
         &self,
-        p: &mut CudaStorage<f32>,
+        p: &mut Storage,
         pl: &Layout,
-        g: &CudaStorage<f32>,
+        g: &Storage,
         gl: &Layout,
-        s: &mut CudaStorage<f32>,
+        s: &mut Storage,
         sl: &Layout,
         lr: f32,
         eps: f32,

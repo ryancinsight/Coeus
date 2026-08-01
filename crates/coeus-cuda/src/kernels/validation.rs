@@ -51,6 +51,7 @@ fn layouts_fit_signed_ptx(layouts: &[&Layout]) -> bool {
     })
 }
 
+#[cfg(test)]
 pub(crate) fn layouts_share_shape(layouts: &[&Layout]) -> bool {
     let Some((first, rest)) = layouts.split_first() else {
         return true;
