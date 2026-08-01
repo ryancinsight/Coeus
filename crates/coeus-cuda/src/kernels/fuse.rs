@@ -9,7 +9,6 @@ use crate::CudaBackendError;
 use coeus_core::{Layout, Storage};
 use coeus_ops::fuse::ExprNode;
 use coeus_tensor::broadcast::broadcast_shapes;
-use coeus_tensor::Tensor;
 use hephaestus_cuda::ComputeDevice;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};

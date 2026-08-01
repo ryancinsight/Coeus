@@ -8,7 +8,6 @@ use crate::storage::CudaStorage;
 use crate::CudaBackendError;
 use coeus_core::Layout;
 use coeus_ops::fuse::ExprNode;
-use coeus_tensor::Tensor;
 use hephaestus_cuda::ComputeDevice;
 use std::collections::HashMap;
 
