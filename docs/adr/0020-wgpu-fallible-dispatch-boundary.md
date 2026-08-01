@@ -163,3 +163,13 @@ codegen emits scalar-specific literals for every `WgpuScalar`. The hot kernel
 remains statically dispatched over `T: WgpuScalar`; validation is
 operation-boundary work and adds no per-element branch or vtable. No runtime or
 memory improvement is claimed without controlled measurements.
+
+The unfold/fold family now follows the associated backend-error contract across
+CPU, CUDA, and WGPU. WGPU geometry validation lives in a dedicated leaf and
+checks exact ranks and dimensions, nonzero kernel/stride/dilation parameters,
+checked effective-kernel and output-shape arithmetic, WGSL `u32` conversion,
+layout metadata, output element counts, and dispatch grids before acquiring the
+device context. CUDA converts rejected native launches to its typed kernel error
+instead of asserting. Public tensor, autograd, and neural-network callers
+propagate or map the backend error; no CPU or host fallback is introduced. The validation
+path is operation-boundary work and the element kernels remain monomorphized.

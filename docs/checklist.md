@@ -1,5 +1,18 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-WGPU-SAFETY-002 — Checked unfold/fold dispatch
+
+- [x] Make `UnfoldFoldOps` return the backend-associated typed error across CPU,
+      CUDA, and WGPU implementations.
+- [x] Isolate WGPU unfold/fold validation in a dedicated leaf and remove
+      input-dependent parameter, arithmetic, layout, and dispatch panics.
+- [x] Preserve the existing generic kernels and CPU/WGPU differential contract;
+      do not add a fallback or compatibility route.
+- [x] Pass focused Nextest, doctests, formatting, SemVer analysis, and
+      warning-denied Clippy on the final revision.
+- [x] Pass independent architecture/correctness review and exact-head provider
+      CI, then merge and reconcile the umbrella item.
+
 ## ATLAS-WGPU-SAFETY-002 — Checked reduction dispatch
 
 - [x] Replace every unchecked fused-reduction layout and dispatch conversion with

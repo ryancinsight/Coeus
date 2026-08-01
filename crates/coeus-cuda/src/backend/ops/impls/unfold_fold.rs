@@ -15,47 +15,61 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
-        assert!(
-            crate::kernels::dispatch_unfold1d(
-                input,
-                input_layout,
-                kernel_size,
-                stride,
-                padding,
-                dilation,
-                output,
-                output_layout,
-            ),
-            "CUDA unfold1d kernel compilation or launch failed"
-        );
+    ) -> Result<(), Self::Error> {
+        if crate::kernels::dispatch_unfold1d(
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        ) {
+            Ok(())
+        } else {
+            Err(crate::CudaBackendError::kernel(
+                "unfold1d",
+                "native CUDA kernel rejected the launch contract",
+            ))
+        }
     }
 
     fn fold1d(
         &self,
         input: &Self::DeviceBuffer<T>,
         input_layout: &Layout,
-        _output_size: usize,
+        output_size: usize,
         kernel_size: usize,
         stride: usize,
         padding: usize,
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
-        assert!(
-            crate::kernels::dispatch_fold1d(
-                input,
-                input_layout,
-                kernel_size,
-                stride,
-                padding,
-                dilation,
-                output,
-                output_layout,
-            ),
-            "CUDA fold1d kernel compilation or launch failed"
-        );
+    ) -> Result<(), Self::Error> {
+        if output_layout.shape().get(2).copied() != Some(output_size) {
+            return Err(crate::CudaBackendError::kernel(
+                "fold1d",
+                "output_size does not match the output layout",
+            ));
+        }
+        if crate::kernels::dispatch_fold1d(
+            input,
+            input_layout,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output,
+            output_layout,
+        ) {
+            Ok(())
+        } else {
+            Err(crate::CudaBackendError::kernel(
+                "fold1d",
+                "native CUDA kernel rejected the launch contract",
+            ))
+        }
     }
 
     fn unfold2d(
@@ -72,32 +86,36 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
         dilation_w: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
-        assert!(
-            crate::kernels::dispatch_unfold2d(
-                input,
-                input_layout,
-                kernel_h,
-                kernel_w,
-                stride_h,
-                stride_w,
-                padding_h,
-                padding_w,
-                dilation_h,
-                dilation_w,
-                output,
-                output_layout,
-            ),
-            "CUDA unfold2d kernel compilation or launch failed"
-        );
+    ) -> Result<(), Self::Error> {
+        if crate::kernels::dispatch_unfold2d(
+            input,
+            input_layout,
+            kernel_h,
+            kernel_w,
+            stride_h,
+            stride_w,
+            padding_h,
+            padding_w,
+            dilation_h,
+            dilation_w,
+            output,
+            output_layout,
+        ) {
+            Ok(())
+        } else {
+            Err(crate::CudaBackendError::kernel(
+                "unfold2d",
+                "native CUDA kernel rejected the launch contract",
+            ))
+        }
     }
 
     fn fold2d(
         &self,
         input: &Self::DeviceBuffer<T>,
         input_layout: &Layout,
-        _output_h: usize,
-        _output_w: usize,
+        output_h: usize,
+        output_w: usize,
         kernel_h: usize,
         kernel_w: usize,
         stride_h: usize,
@@ -108,23 +126,35 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
         dilation_w: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
-        assert!(
-            crate::kernels::dispatch_fold2d(
-                input,
-                input_layout,
-                kernel_h,
-                kernel_w,
-                stride_h,
-                stride_w,
-                padding_h,
-                padding_w,
-                dilation_h,
-                dilation_w,
-                output,
-                output_layout,
-            ),
-            "CUDA fold2d kernel compilation or launch failed"
-        );
+    ) -> Result<(), Self::Error> {
+        if output_layout.shape().get(2).copied() != Some(output_h)
+            || output_layout.shape().get(3).copied() != Some(output_w)
+        {
+            return Err(crate::CudaBackendError::kernel(
+                "fold2d",
+                "output dimensions do not match the output layout",
+            ));
+        }
+        if crate::kernels::dispatch_fold2d(
+            input,
+            input_layout,
+            kernel_h,
+            kernel_w,
+            stride_h,
+            stride_w,
+            padding_h,
+            padding_w,
+            dilation_h,
+            dilation_w,
+            output,
+            output_layout,
+        ) {
+            Ok(())
+        } else {
+            Err(crate::CudaBackendError::kernel(
+                "fold2d",
+                "native CUDA kernel rejected the launch contract",
+            ))
+        }
     }
 }

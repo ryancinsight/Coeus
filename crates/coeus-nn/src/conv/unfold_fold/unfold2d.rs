@@ -130,7 +130,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Unfold2d
                 )
             })?;
 
-        Ok(coeus_autograd::unfold2d(
+        coeus_autograd::unfold2d(
             input,
             self.kernel_h,
             self.kernel_w,
@@ -140,6 +140,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Unfold2d
             self.padding_w,
             self.dilation_h,
             self.dilation_w,
-        ))
+        )
+        .map_err(|source| ModuleError::Backend {
+            module: "Unfold2d",
+            source,
+        })
     }
 }
