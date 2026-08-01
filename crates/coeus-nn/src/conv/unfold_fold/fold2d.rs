@@ -119,7 +119,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Fold2d<T
             });
         }
 
-        Ok(coeus_autograd::fold2d(
+        coeus_autograd::fold2d(
             input,
             self.output_h,
             self.output_w,
@@ -131,6 +131,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Fold2d<T
             self.padding_w,
             self.dilation_h,
             self.dilation_w,
-        ))
+        )
+        .map_err(|source| ModuleError::Backend {
+            module: "Fold2d",
+            source,
+        })
     }
 }

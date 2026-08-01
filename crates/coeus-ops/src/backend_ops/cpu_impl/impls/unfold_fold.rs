@@ -1,7 +1,7 @@
 use super::super::unfold_fold;
 use super::super::CpuBackend;
 use crate::backend_ops::traits::UnfoldFoldOps;
-use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{CpuAddressableStorageMut, Layout, Scalar, Storage};
 
 #[allow(clippy::too_many_arguments)]
 impl<T: Scalar, B: CpuBackend> UnfoldFoldOps<T> for B
@@ -19,7 +19,17 @@ where
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
+        unfold_fold::validation::unfold1d(
+            input_layout,
+            input.len(),
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output_layout,
+            output.len(),
+        )?;
         unfold_fold::unfold1d(
             self,
             input,
@@ -31,6 +41,7 @@ where
             output,
             output_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -45,7 +56,18 @@ where
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
+        unfold_fold::validation::fold1d(
+            input_layout,
+            input.len(),
+            output_size,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output_layout,
+            output.len(),
+        )?;
         unfold_fold::fold1d(
             self,
             input,
@@ -58,6 +80,7 @@ where
             output,
             output_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -75,7 +98,21 @@ where
         dilation_w: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
+        unfold_fold::validation::unfold2d(
+            input_layout,
+            input.len(),
+            kernel_h,
+            kernel_w,
+            stride_h,
+            stride_w,
+            padding_h,
+            padding_w,
+            dilation_h,
+            dilation_w,
+            output_layout,
+            output.len(),
+        )?;
         unfold_fold::unfold2d(
             self,
             input,
@@ -91,6 +128,7 @@ where
             output,
             output_layout,
         );
+        Ok(())
     }
 
     #[inline]
@@ -110,7 +148,23 @@ where
         dilation_w: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
+        unfold_fold::validation::fold2d(
+            input_layout,
+            input.len(),
+            output_h,
+            output_w,
+            kernel_h,
+            kernel_w,
+            stride_h,
+            stride_w,
+            padding_h,
+            padding_w,
+            dilation_h,
+            dilation_w,
+            output_layout,
+            output.len(),
+        )?;
         unfold_fold::fold2d(
             self,
             input,
@@ -128,5 +182,6 @@ where
             output,
             output_layout,
         );
+        Ok(())
     }
 }

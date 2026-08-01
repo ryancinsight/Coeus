@@ -548,6 +548,18 @@
   scope: the `UnfoldFoldOps` CPU/CUDA/WGPU dispatch contract,
   `crates/coeus-wgpu/src/kernels/unfold_fold/`, focused parity/validation tests,
   ADR-0020, and synchronized PM records.
+- Active increment: migrate the unfold/fold operation family to typed
+  CPU/CUDA/WGPU results. CPU direct dispatch validates rank, geometry, checked
+  shape and signed-coordinate arithmetic, writable layout, and physical storage
+  spans before pointer access. WGPU validates the same contracts plus WGSL ABI,
+  buffer spans, and active-device workgroup limits before submission. CUDA launch
+  rejection is a typed kernel failure. Focused Nextest passes 201/201 operations,
+  398/398 autograd/NN, 11/11 WGPU unfold/fold, and 3/3 disabled-provider CUDA;
+  53 doctests pass with 2 unrelated ignored NN examples. Focused warning-denied
+  Clippy, formatting, full workspace all-target check, and major SemVer
+  classification pass. The full all-target Clippy remains blocked only by
+  pre-existing `coeus-optim` least-squares assignment-pattern diagnostics.
+  Independent architecture/correctness re-review reports no actionable findings.
 - Most recent increment: complete the fused reduction launch boundary in
   `crates/coeus-wgpu/src/kernels/reduce.rs` and its focused tests by replacing
   unchecked layout, axis, binding, input-count, and workgroup narrowing with

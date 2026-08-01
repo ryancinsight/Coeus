@@ -3,7 +3,9 @@ use super::layout::GpuLayoutInfo;
 use crate::backend::WgpuScalar;
 use coeus_core::Layout;
 
-const WORKGROUP_SIZE: usize = 256;
+mod validation;
+
+use validation::{dispatch_count, require_rank, require_storage_span, require_writable_layout};
 
 #[derive(Clone, Copy)]
 enum KernelKind {
@@ -11,43 +13,6 @@ enum KernelKind {
     Fold1d,
     Unfold2d,
     Fold2d,
-}
-
-fn parameter(value: usize, name: &str) -> u32 {
-    u32::try_from(value)
-        .unwrap_or_else(|_| panic!("{name} exceeds the WGSL u32 index range: {value}"))
-}
-
-fn output_width(
-    layout: &Layout,
-    kernel: usize,
-    stride: usize,
-    padding: usize,
-    dilation: usize,
-) -> usize {
-    let width = layout
-        .shape()
-        .last()
-        .copied()
-        .expect("unfold/fold requires a non-empty layout shape");
-    let effective_kernel = dilation
-        .checked_mul(kernel.saturating_sub(1))
-        .and_then(|value| value.checked_add(1))
-        .expect("unfold/fold effective kernel exceeds usize");
-    let padded = width
-        .checked_add(
-            padding
-                .checked_mul(2)
-                .expect("unfold/fold padding exceeds usize"),
-        )
-        .expect("unfold/fold padded width exceeds usize");
-    padded
-        .checked_sub(effective_kernel)
-        .expect("unfold/fold kernel exceeds padded input")
-        .checked_div(stride)
-        .expect("unfold/fold stride must be non-zero")
-        .checked_add(1)
-        .expect("unfold/fold output width exceeds usize")
 }
 
 fn shader_source<T: WgpuScalar>(kind: KernelKind) -> String {
@@ -241,15 +206,43 @@ fn dispatch<T: WgpuScalar>(
     output: &wgpu::Buffer,
     output_layout: &Layout,
     params: [u32; 9],
-) {
-    let total = output_layout.shape().iter().product::<usize>();
+) -> Result<(), crate::backend::WgpuBackendError> {
+    let operation = match kind {
+        KernelKind::Unfold1d => "unfold1d",
+        KernelKind::Fold1d => "fold1d",
+        KernelKind::Unfold2d => "unfold2d",
+        KernelKind::Fold2d => "fold2d",
+    };
+    let (input_rank, output_rank) = match kind {
+        KernelKind::Unfold1d | KernelKind::Fold1d => (3, 3),
+        KernelKind::Unfold2d => (4, 3),
+        KernelKind::Fold2d => (3, 4),
+    };
+    require_rank(operation, input_layout, input_rank)?;
+    require_rank(operation, output_layout, output_rank)?;
+    let (total, workgroups) = dispatch_count(operation, output_layout)?;
+    crate::backend::checked_u32_parameter(operation, "output element count", total)?;
+    let input_layout_gpu =
+        GpuLayoutInfo::try_from_layout(input_layout).map_err(crate::backend::LayoutError::from)?;
+    let output_layout_gpu =
+        GpuLayoutInfo::try_from_layout(output_layout).map_err(crate::backend::LayoutError::from)?;
+    require_storage_span::<T>(operation, input, input_layout)?;
+    require_writable_layout(operation, output_layout)?;
+    require_storage_span::<T>(operation, output, output_layout)?;
     if total == 0 {
-        return;
+        return Ok(());
     }
 
     let ctx = crate::backend::get_wgpu_context();
-    let input_layout_gpu = GpuLayoutInfo::from_layout(input_layout);
-    let output_layout_gpu = GpuLayoutInfo::from_layout(output_layout);
+    let workgroup_limit = ctx.device.limits().max_compute_workgroups_per_dimension;
+    if workgroups > workgroup_limit {
+        return Err(crate::backend::WgpuBackendError::ResourceLimitExceeded {
+            operation,
+            resource: "compute workgroups per dimension",
+            requested: u64::from(workgroups),
+            limit: u64::from(workgroup_limit),
+        });
+    }
     let input_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let output_layout_buf = crate::backend::PooledMetadataBuffer::new();
     let params_buf = crate::backend::PooledMetadataBuffer::new();
@@ -313,169 +306,11 @@ fn dispatch<T: WgpuScalar>(
         });
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        compute_pass.dispatch_workgroups(
-            u32::try_from(total.div_ceil(WORKGROUP_SIZE))
-                .expect("unfold/fold dispatch exceeds the WGSL u32 workgroup range"),
-            1,
-            1,
-        );
+        compute_pass.dispatch_workgroups(workgroups, 1, 1);
     }
     ctx.queue.submit(std::iter::once(encoder.finish()));
+    Ok(())
 }
 
-/// Dispatch one-dimensional sliding-window extraction on the device.
-#[allow(clippy::too_many_arguments)]
-pub fn dispatch_unfold1d<T: WgpuScalar>(
-    input: &wgpu::Buffer,
-    input_layout: &Layout,
-    kernel_size: usize,
-    stride: usize,
-    padding: usize,
-    dilation: usize,
-    output: &wgpu::Buffer,
-    output_layout: &Layout,
-) {
-    let params = [
-        parameter(kernel_size, "kernel_size"),
-        parameter(stride, "stride"),
-        parameter(padding, "padding"),
-        parameter(dilation, "dilation"),
-        0,
-        0,
-        0,
-        0,
-        parameter(
-            output_width(input_layout, kernel_size, stride, padding, dilation),
-            "output_width",
-        ),
-    ];
-    dispatch::<T>(
-        KernelKind::Unfold1d,
-        input,
-        input_layout,
-        output,
-        output_layout,
-        params,
-    );
-}
-
-/// Dispatch one-dimensional adjoint fold accumulation on the device.
-#[allow(clippy::too_many_arguments)]
-pub fn dispatch_fold1d<T: WgpuScalar>(
-    input: &wgpu::Buffer,
-    input_layout: &Layout,
-    kernel_size: usize,
-    stride: usize,
-    padding: usize,
-    dilation: usize,
-    output: &wgpu::Buffer,
-    output_layout: &Layout,
-) {
-    let params = [
-        parameter(kernel_size, "kernel_size"),
-        parameter(stride, "stride"),
-        parameter(padding, "padding"),
-        parameter(dilation, "dilation"),
-        0,
-        0,
-        0,
-        0,
-        0,
-    ];
-    dispatch::<T>(
-        KernelKind::Fold1d,
-        input,
-        input_layout,
-        output,
-        output_layout,
-        params,
-    );
-}
-
-/// Dispatch two-dimensional sliding-window extraction on the device.
-#[allow(clippy::too_many_arguments)]
-pub fn dispatch_unfold2d<T: WgpuScalar>(
-    input: &wgpu::Buffer,
-    input_layout: &Layout,
-    kernel_h: usize,
-    kernel_w: usize,
-    stride_h: usize,
-    stride_w: usize,
-    padding_h: usize,
-    padding_w: usize,
-    dilation_h: usize,
-    dilation_w: usize,
-    output: &wgpu::Buffer,
-    output_layout: &Layout,
-) {
-    let params = [
-        parameter(kernel_h, "kernel_h"),
-        parameter(kernel_w, "kernel_w"),
-        parameter(stride_h, "stride_h"),
-        parameter(stride_w, "stride_w"),
-        parameter(padding_h, "padding_h"),
-        parameter(padding_w, "padding_w"),
-        parameter(dilation_h, "dilation_h"),
-        parameter(dilation_w, "dilation_w"),
-        parameter(
-            output_width(input_layout, kernel_w, stride_w, padding_w, dilation_w),
-            "output_width",
-        ),
-    ];
-    dispatch::<T>(
-        KernelKind::Unfold2d,
-        input,
-        input_layout,
-        output,
-        output_layout,
-        params,
-    );
-}
-
-/// Dispatch two-dimensional adjoint fold accumulation on the device.
-#[allow(clippy::too_many_arguments)]
-pub fn dispatch_fold2d<T: WgpuScalar>(
-    input: &wgpu::Buffer,
-    input_layout: &Layout,
-    output_h: usize,
-    output_w: usize,
-    kernel_h: usize,
-    kernel_w: usize,
-    stride_h: usize,
-    stride_w: usize,
-    padding_h: usize,
-    padding_w: usize,
-    dilation_h: usize,
-    dilation_w: usize,
-    output: &wgpu::Buffer,
-    output_layout: &Layout,
-) {
-    let params = [
-        parameter(kernel_h, "kernel_h"),
-        parameter(kernel_w, "kernel_w"),
-        parameter(stride_h, "stride_h"),
-        parameter(stride_w, "stride_w"),
-        parameter(padding_h, "padding_h"),
-        parameter(padding_w, "padding_w"),
-        parameter(dilation_h, "dilation_h"),
-        parameter(dilation_w, "dilation_w"),
-        parameter(
-            output_width(
-                &Layout::new([output_h, output_w].into()),
-                kernel_w,
-                stride_w,
-                padding_w,
-                dilation_w,
-            ),
-            "output_width",
-        ),
-    ];
-    dispatch::<T>(
-        KernelKind::Fold2d,
-        input,
-        input_layout,
-        output,
-        output_layout,
-        params,
-    );
-}
+mod operations;
+pub use operations::{dispatch_fold1d, dispatch_fold2d, dispatch_unfold1d, dispatch_unfold2d};

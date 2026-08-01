@@ -4,6 +4,15 @@
 
 ### Changed
 
+- [major] Make the shared CPU/CUDA/WGPU unfold/fold dispatch contract fallible.
+  CPU and WGPU now reject invalid ranks, inconsistent geometry, arithmetic
+  overflow, overlapping writable layouts, and out-of-bounds physical storage
+  spans before memory access. WGPU additionally checks WGSL representation and
+  active-device dispatch limits; CUDA reports native launch rejection instead
+  of panicking. Validation remains outside the monomorphized element kernels,
+  and no runtime or memory delta is claimed without controlled measurements. See
+  [ADR 0020](docs/adr/0020-wgpu-fallible-dispatch-boundary.md).
+
 - [major] Make fused expression shape resolution fallible and replace the shared
   CPU/CUDA/WGPU raw-pointer input contract with borrowed tensor references. WGPU
   fused reduction now validates axes, layouts, output arithmetic, WGSL narrowing,
