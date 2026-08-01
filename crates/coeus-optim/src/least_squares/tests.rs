@@ -43,7 +43,7 @@ impl<T: Scalar> LeastSquaresProblem<T> for LinearProblem<T> {
             let base = row * self.parameters;
             let mut sum = T::zero();
             for (column, parameter) in parameters.iter().enumerate() {
-                sum = sum + self.matrix[base + column] * *parameter;
+                sum += self.matrix[base + column] * *parameter;
             }
             *slot = sum - self.target[row];
         }
@@ -378,8 +378,6 @@ fn parameter_count_mismatch_is_rejected<T: LeastSquaresScalar>() {
 macro_rules! scalar_suite {
     ($module:ident, $scalar:ty) => {
         mod $module {
-            use super::*;
-
             #[test]
             fn linear_problem_is_solved_exactly() {
                 super::linear_problem_is_solved_exactly::<$scalar>();
