@@ -11,7 +11,9 @@
       identities/errors, and signed/unsigned WGSL generation.
 - [x] Pass the final four-package Nextest suite (393/393), warning-denied
       all-target Clippy, 61 doctests, formatting, and independent re-review.
-- [ ] Pass exact-head provider CI on the repository-native lockfile.
+- [x] Pass exact-head provider CI on the repository-native lockfile: run
+      `30680050203` passed WGPU, CUDA, ROCm, and Metal at `253c0da5`; PR #259
+      merged as `5193764a`.
 
 ## COEUS-ATTENTION-PROVIDER-001 — Provider-owned attention dispatch
 

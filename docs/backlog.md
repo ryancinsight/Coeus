@@ -544,11 +544,10 @@
 
 ## ATLAS-WGPU-SAFETY-002 — Establish fallible WGPU layout/dispatch boundary [arch] — in-progress
 
-- Owner: Codex on `codex/coeus-wgpu-reduction-safety`; last-update:
-  2026-07-31; scope:
+- Owner: unclaimed after fused-reduction merge; last-update: 2026-08-01; scope:
   `crates/coeus-wgpu/src/kernels/layout.rs`, its 23 consumers, and the `coeus-ops`
   backend-operation return contract.
-- Current claim: complete the fused reduction launch boundary in
+- Most recent increment: complete the fused reduction launch boundary in
   `crates/coeus-wgpu/src/kernels/reduce.rs` and its focused tests by replacing
   unchecked layout, axis, binding, input-count, and workgroup narrowing with
   typed failures. Fusion, unfold/fold, optimizer, and matmul kernels remain
@@ -568,7 +567,10 @@
   final CPU/Moirai 9/9 and active-device WGPU 10/10 fusion regressions.
   Warning-denied all-target Clippy passes, as do all 61 doctests and formatting.
   Independent review is clean after restoring overlay-generated `Cargo.lock`
-  churn. Exact-head hosted evidence remains the closure gate.
+  churn. Exact-head run `30680050203` passed WGPU, CUDA, ROCm, and Metal at
+  `253c0da5`; PR #259 merged as `5193764a`. The fused-reduction increment is
+  complete; the remaining operation-family increments keep this umbrella item
+  in progress.
 - Outcome: replace unchecked `usize`→WGSL `u32` layout metadata narrowing and
   input-dependent dispatch panics with one typed validation/error boundary.
 - Acceptance: every WGPU kernel consumes the validated metadata type; failure
