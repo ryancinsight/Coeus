@@ -544,9 +544,10 @@
 
 ## ATLAS-WGPU-SAFETY-002 — Establish fallible WGPU layout/dispatch boundary [arch] — in-progress
 
-- Owner: unclaimed after fused-reduction merge; last-update: 2026-08-01; scope:
-  `crates/coeus-wgpu/src/kernels/layout.rs`, its 23 consumers, and the `coeus-ops`
-  backend-operation return contract.
+- Owner: Codex `codex/coeus-wgpu-unfold-fold-safety`; last-update: 2026-07-31;
+  scope: the `UnfoldFoldOps` CPU/CUDA/WGPU dispatch contract,
+  `crates/coeus-wgpu/src/kernels/unfold_fold/`, focused parity/validation tests,
+  ADR-0020, and synchronized PM records.
 - Most recent increment: complete the fused reduction launch boundary in
   `crates/coeus-wgpu/src/kernels/reduce.rs` and its focused tests by replacing
   unchecked layout, axis, binding, input-count, and workgroup narrowing with
