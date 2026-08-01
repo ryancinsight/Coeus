@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-const MAX_WGSL_RANK: usize = 8;
+pub(crate) const MAX_WGSL_RANK: usize = 8;
 
 #[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
 pub(crate) enum GpuLayoutError {

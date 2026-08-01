@@ -4,10 +4,14 @@ use hephaestus_wgpu::{ComputeDevice, DeviceBuffer};
 use std::sync::Arc;
 use themis::{MemoryTier, PlacementHint};
 
+/// Opaque identity of one WGPU device allocation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct WgpuAllocationId(*const ());
+
 /// GPU-allocated buffer managed by hephaestus-wgpu.
 pub struct WgpuStorage<T> {
     /// Underlying GPU buffer handle.
-    pub buffer: Arc<hephaestus_wgpu::WgpuBuffer<T>>,
+    pub(crate) buffer: Arc<hephaestus_wgpu::WgpuBuffer<T>>,
 }
 
 impl<T> coeus_core::storage::private::Sealed for WgpuStorage<T> {}
@@ -47,6 +51,12 @@ impl<T: Scalar> WgpuStorage<T> {
         Self {
             buffer: Arc::new(buffer),
         }
+    }
+
+    /// Return an opaque identity suitable for allocation-reuse diagnostics.
+    #[must_use]
+    pub fn allocation_id(&self) -> WgpuAllocationId {
+        WgpuAllocationId(Arc::as_ptr(&self.buffer).cast())
     }
 
     #[inline]

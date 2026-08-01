@@ -7,10 +7,10 @@ use std::sync::OnceLock;
 mod error;
 pub mod ops;
 
-pub(crate) use error::{checked_numel, checked_workgroup_count};
+pub(crate) use error::{checked_numel, checked_u32_parameter, checked_workgroup_count};
 pub use error::{LayoutError, WgpuBackendError};
 
-const METADATA_BUFFER_SIZE: u64 = 1024;
+pub(crate) const METADATA_BUFFER_SIZE: u64 = 1024;
 const METADATA_POOL_CAPACITY: usize = 64;
 
 /// Trait mapping CPU types to their WGSL representation types on the GPU.
@@ -37,24 +37,34 @@ pub trait WgpuScalar: Scalar + bytemuck::Pod {
     const WGSL_ZERO: &'static str;
     /// WGSL one literal string (e.g. `"1.0"`).
     const WGSL_ONE: &'static str;
+    /// Lowest finite WGSL value used to initialize maximum reductions.
+    const WGSL_LOWEST: &'static str;
+    /// Highest finite WGSL value used to initialize minimum reductions.
+    const WGSL_HIGHEST: &'static str;
 }
 
 impl WgpuScalar for f32 {
     const WGSL_TYPE: &'static str = "f32";
     const WGSL_ZERO: &'static str = "0.0";
     const WGSL_ONE: &'static str = "1.0";
+    const WGSL_LOWEST: &'static str = "-3.40282347e+38";
+    const WGSL_HIGHEST: &'static str = "3.40282347e+38";
 }
 
 impl WgpuScalar for i32 {
     const WGSL_TYPE: &'static str = "i32";
     const WGSL_ZERO: &'static str = "0";
     const WGSL_ONE: &'static str = "1";
+    const WGSL_LOWEST: &'static str = "(-2147483647 - 1)";
+    const WGSL_HIGHEST: &'static str = "2147483647";
 }
 
 impl WgpuScalar for u32 {
     const WGSL_TYPE: &'static str = "u32";
     const WGSL_ZERO: &'static str = "0u";
     const WGSL_ONE: &'static str = "1u";
+    const WGSL_LOWEST: &'static str = "0u";
+    const WGSL_HIGHEST: &'static str = "4294967295u";
 }
 
 /// Context holding the active wgpu connection.

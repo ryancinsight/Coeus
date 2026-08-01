@@ -553,6 +553,22 @@
   unchecked layout, axis, binding, input-count, and workgroup narrowing with
   typed failures. Fusion, unfold/fold, optimizer, and matmul kernels remain
   separate increments under this item.
+- Fused-reduction increment: implemented. The public WGPU entry point and kernel
+  dispatcher now return `Result`; validate expression shape, axis, WGSL rank and
+  parameter widths, checked output element/workgroup counts, input layouts,
+  metadata capacity, active-device workgroup and storage-buffer limits; and
+  submit only a fully validated dispatch plan. The shared CPU/CUDA/WGPU
+  expression seam now borrows tensor inputs and reports incompatible broadcasts
+  through `BackendError`, removing its safe raw-pointer contract and
+  input-dependent shape panic. Independent review also made the synchronous
+  execution contract unsafe, closed external WGPU buffer construction, unified
+  empty-axis identities and typed failures across CPU/CUDA/WGPU, and generated
+  scalar-specific WGSL reduction literals. The pre-review four-package Nextest
+  baseline passed 389/389; the final four-package suite passes 393/393, including
+  final CPU/Moirai 9/9 and active-device WGPU 10/10 fusion regressions.
+  Warning-denied all-target Clippy passes, as do all 61 doctests and formatting.
+  Independent review is clean after restoring overlay-generated `Cargo.lock`
+  churn. Exact-head hosted evidence remains the closure gate.
 - Outcome: replace unchecked `usize`→WGSL `u32` layout metadata narrowing and
   input-dependent dispatch panics with one typed validation/error boundary.
 - Acceptance: every WGPU kernel consumes the validated metadata type; failure

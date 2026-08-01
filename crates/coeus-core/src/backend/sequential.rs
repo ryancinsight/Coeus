@@ -85,7 +85,8 @@ impl ComputeBackend for SequentialBackend {
     }
 }
 
-impl Backend for SequentialBackend {
+// SAFETY: the loop invokes every closure call inline before returning.
+unsafe impl Backend for SequentialBackend {
     #[inline]
     fn parallel_for<F>(&self, start: usize, end: usize, f: F)
     where

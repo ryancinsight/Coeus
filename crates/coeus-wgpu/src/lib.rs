@@ -32,7 +32,7 @@ mod storage;
 pub use backend::{LayoutError, WgpuBackend, WgpuBackendError, WgpuScalar};
 pub use storage::WgpuStorage;
 
-use coeus_core::{BackendError, Layout};
+use coeus_core::{BackendError, ComputeBackend, Layout};
 use coeus_ops::fuse::ExprNode;
 use coeus_tensor::Tensor;
 
@@ -129,40 +129,107 @@ pub fn matmul<T: WgpuScalar>(
 }
 
 /// Evaluate a fused element-wise expression on the WebGPU device.
+///
+/// # Errors
+///
+/// Returns [`WgpuBackendError`] when the expression has no tensor input or its
+/// child shapes cannot be broadcast.
 pub fn evaluate_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     expr: &E,
-) -> Tensor<T, WgpuBackend> {
-    let out_shape = expr
-        .shape()
-        .expect("Fused expression must have at least one tensor input to determine shape");
-    let out_layout = Layout::new(out_shape.clone());
+) -> Result<Tensor<T, WgpuBackend>, WgpuBackendError> {
+    let out_shape = expr.shape()?.ok_or_else(|| {
+        WgpuBackendError::Validation(coeus_core::BackendError::Storage {
+            operation: "fused expression",
+            reason: "expression has no tensor input from which to derive its shape".to_string(),
+        })
+    })?;
+    let out_layout = Layout::new(out_shape);
     let mut out_storage = WgpuStorage::new(out_layout.numel());
 
     kernels::dispatch_fused(expr, &mut out_storage, &out_layout);
 
-    Tensor::from_raw_parts(out_storage, out_layout)
+    Ok(Tensor::from_raw_parts(out_storage, out_layout))
 }
 
 /// Evaluate a fused reduction along an axis on the WebGPU device.
+///
+/// # Errors
+///
+/// Returns [`WgpuBackendError`] when the expression has no tensor input, the
+/// axis is invalid, an empty axis is used with mean, maximum, or minimum, or
+/// the layout and dispatch cannot be represented by the active WebGPU device.
 pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     expr: &E,
     op: coeus_ops::ReductionOp,
     axis: usize,
-) -> Tensor<T, WgpuBackend> {
-    let expr_shape = expr
-        .shape()
-        .expect("Fused expression must have at least one tensor input to determine shape");
-    assert!(
-        axis < expr_shape.len(),
-        "Axis out of bounds in evaluate_fused_reduce"
-    );
+) -> Result<Tensor<T, WgpuBackend>, WgpuBackendError> {
+    const OPERATION: &str = "fused reduction";
 
-    let mut out_shape = expr_shape;
-    out_shape[axis] = 1;
+    let mut inputs = Vec::new();
+    expr.collect_inputs(&mut inputs);
+    if inputs.is_empty() {
+        return Err(WgpuBackendError::Validation(
+            coeus_core::BackendError::Storage {
+                operation: OPERATION,
+                reason: "expression contains no tensor inputs".to_string(),
+            },
+        ));
+    }
+    let expr_shape = expr.shape()?.ok_or_else(|| {
+        WgpuBackendError::Validation(coeus_core::BackendError::Storage {
+            operation: OPERATION,
+            reason: "expression has no tensor input from which to derive its shape".to_string(),
+        })
+    })?;
+
+    let out_rank = expr_shape.len();
+    let axis_len = *expr_shape.get(axis).ok_or({
+        WgpuBackendError::Validation(coeus_core::BackendError::AxisOutOfRange {
+            operation: OPERATION,
+            axis,
+            rank: out_rank,
+        })
+    })?;
+    let mut out_shape = expr_shape.clone();
+    let output_axis = out_shape.get_mut(axis).ok_or({
+        WgpuBackendError::Validation(coeus_core::BackendError::AxisOutOfRange {
+            operation: OPERATION,
+            axis,
+            rank: out_rank,
+        })
+    })?;
+    *output_axis = 1;
     let out_layout = Layout::new(out_shape.clone());
-    let mut out_storage = WgpuStorage::new(out_layout.numel());
+    let context = backend::get_wgpu_context();
+    kernels::reduce::validation::validate_reduction(
+        &expr_shape,
+        op,
+        axis,
+        &out_layout,
+        &context.device.limits(),
+    )?;
+    let out_numel = backend::checked_numel(OPERATION, out_layout.shape())?;
+    kernels::reduce::validation::validate_output_allocation::<T>(
+        out_numel,
+        &context.device.limits(),
+    )?;
+    let mut out_storage = WgpuStorage::new(out_numel);
 
-    kernels::dispatch_fused_reduce(expr, op, axis, &mut out_storage, &out_layout);
+    if axis_len == 0 {
+        let identity = match op {
+            coeus_ops::ReductionOp::Sum => T::zero(),
+            coeus_ops::ReductionOp::Prod => T::one(),
+            coeus_ops::ReductionOp::Mean
+            | coeus_ops::ReductionOp::Max
+            | coeus_ops::ReductionOp::Min => {
+                unreachable!("invariant: undefined empty reductions were rejected")
+            }
+        };
+        WgpuBackend::new().fill(&mut out_storage, identity);
+        return Ok(Tensor::from_raw_parts(out_storage, out_layout));
+    }
 
-    Tensor::from_raw_parts(out_storage, out_layout)
+    kernels::dispatch_fused_reduce(expr, op, axis, &mut out_storage, &out_layout)?;
+
+    Ok(Tensor::from_raw_parts(out_storage, out_layout))
 }

@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::ReductionOp;
+
 /// Failure categories shared by CPU-backed operation implementations.
 ///
 /// Backend-specific crates define richer errors for device dispatch. This
@@ -47,6 +49,14 @@ pub enum BackendError {
         axis: usize,
         /// Number of dimensions in the input layout.
         rank: usize,
+    },
+    /// A reduction without an identity received an empty axis.
+    #[error("{operation} {reduction:?} is undefined for an empty axis")]
+    EmptyReduction {
+        /// Operation family that rejected the empty axis.
+        operation: &'static str,
+        /// Reduction whose result is undefined without an input value.
+        reduction: ReductionOp,
     },
     /// The operation received shapes that cannot be broadcast.
     #[error("{operation} incompatible broadcast: {from:?} to {to:?}")]

@@ -2,12 +2,16 @@
 
 ## ATLAS-WGPU-SAFETY-002 — Checked reduction dispatch
 
-- [ ] Replace every unchecked reduction layout and dispatch conversion with
+- [x] Replace every unchecked fused-reduction layout and dispatch conversion with
       the canonical typed WGPU error boundary.
-- [ ] Add negative overflow/layout contracts and preserve value-semantic
+- [x] Add negative overflow/layout contracts and preserve value-semantic
       fused-reduction execution.
-- [ ] Pass focused Nextest, warning-denied Clippy, exact-head provider CI, and
-      independent review.
+- [x] Pass focused CPU/Moirai and active-device WGPU fusion Nextest regressions,
+      including borrowed lifetimes, typed invalid broadcasts, empty-axis
+      identities/errors, and signed/unsigned WGSL generation.
+- [x] Pass the final four-package Nextest suite (393/393), warning-denied
+      all-target Clippy, 61 doctests, formatting, and independent re-review.
+- [ ] Pass exact-head provider CI on the repository-native lockfile.
 
 ## COEUS-ATTENTION-PROVIDER-001 — Provider-owned attention dispatch
 
