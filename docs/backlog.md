@@ -16,14 +16,16 @@
   and exact-head hosted gates pass.
 - Risk/change class: `[major] [arch]`; ADR-0048 records the breaking fallible
   contract and provider ownership.
-- Status: review-ready. Leto PRs #85/#86 and Hephaestus PRs #174/#177 are
+- Status: complete. Leto PRs #85/#86 and Hephaestus PRs #174/#177 are
   merged; the standalone lock resolves their exact merge revisions. Local CPU,
   Leto, optimizer, Python, all-target, CUDA-feature, Clippy, and doctest gates
   pass. A single typed preflight request validates every gradient-bearing
   parameter before mutation; the multi-parameter regression covers all five
   optimizers, CPU and accelerator Adam share the `i32::MAX` step domain, and
   CPU plus hosted accelerator suites cover nonempty ranks zero through eight.
-  Independent re-review and exact-head Coeus hosted provider CI remain.
+  Independent re-review approved with no findings. Exact-head hosted run
+  `30720390380` passed WGPU `91423080685`, CUDA `91423080680`, ROCm
+  `91423080613`, and Metal `91423080688`; PR #262 merged as `0951e30e`.
 
 ## COEUS-ATTENTION-PROVIDER-001 — Provider-owned attention dispatch [major] [arch]
 
