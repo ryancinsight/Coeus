@@ -1,5 +1,24 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-STATEFUL-UPDATE-PROVIDER-001 — Provider-owned optimizer dispatch [major] [arch]
+
+- Owner: Codex on `codex/coeus-stateful-dispatch`; last-update: 2026-08-01;
+  scope: CPU and accelerator optimizer dispatch, the fallible optimizer and
+  scheduler caller closure, focused contracts, obsolete implementation
+  deletion, ADR-0048, provider lock migration, and parity CI.
+- Outcome: CPU stateful updates execute through Leto and WGPU/CUDA/ROCm/Metal
+  execute through one generic Hephaestus bridge selected by backend type.
+- Non-goals: release/version transitions and performance claims without
+  controlled measurements.
+- Acceptance: no Coeus-owned optimizer mathematics or host fallback remains;
+  provider failures reach Rust and Python callers; all five rules have CPU and
+  accelerator value-semantic coverage plus preflight failure atomicity; local
+  and exact-head hosted gates pass.
+- Risk/change class: `[major] [arch]`; ADR-0048 records the breaking fallible
+  contract and provider ownership.
+- Status: in progress. Leto PR #85 and Hephaestus PR #174 are merged; Coeus's
+  standalone lock still predates both provider revisions.
+
 ## COEUS-ATTENTION-PROVIDER-001 — Provider-owned attention dispatch [major] [arch]
 
 - Owner: Codex on `codex/coeus-attention-dispatch`; last-update: 2026-07-31;
