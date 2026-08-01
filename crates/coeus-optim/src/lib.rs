@@ -26,6 +26,7 @@ mod adam;
 mod adamw;
 /// Gradient-clipping utilities.
 pub mod clip;
+pub mod least_squares;
 mod rmsprop;
 /// Learning-rate schedulers and schedule strategies.
 pub mod scheduler;
@@ -37,6 +38,10 @@ pub use adagrad::AdaGrad;
 pub use adam::Adam;
 pub use adamw::AdamW;
 pub use clip::clip_grad_norm;
+pub use least_squares::{
+    levenberg_marquardt, LeastSquaresProblem, LeastSquaresReport, LeastSquaresScalar,
+    LevenbergMarquardtConfig, ProblemError, SolverError, Termination,
+};
 pub use rmsprop::RMSProp;
 pub use scheduler::{
     CosineAnneal, LinearWarmup, LrScheduler, SchedulerStrategy, StepDecay, WarmupCosine,
