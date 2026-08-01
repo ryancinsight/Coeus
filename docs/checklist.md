@@ -1,5 +1,14 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-WGPU-SAFETY-002 — Checked reduction dispatch
+
+- [ ] Replace every unchecked reduction layout and dispatch conversion with
+      the canonical typed WGPU error boundary.
+- [ ] Add negative overflow/layout contracts and preserve value-semantic
+      fused-reduction execution.
+- [ ] Pass focused Nextest, warning-denied Clippy, exact-head provider CI, and
+      independent review.
+
 ## COEUS-ATTENTION-PROVIDER-001 — Provider-owned attention dispatch
 
 - [x] Merge the required Leto and Hephaestus attention provider contracts.
