@@ -13,7 +13,9 @@
 - [x] Preflight the complete parameter set before mutation, align the CPU and
       accelerator Adam step domain, and cover nonempty ranks zero through eight.
 - [x] Pass focused local gates and independent architecture/correctness review.
-- [ ] Pass exact-head hosted provider CI, merge, and reconcile PM state.
+- [x] Pass exact-head hosted run `30720390380`: WGPU `91423080685`, CUDA
+      `91423080680`, ROCm `91423080613`, and Metal `91423080688`; merge PR
+      #262 as `0951e30e` and reconcile PM state.
 
 ## ATLAS-WGPU-SAFETY-002 — Checked unfold/fold dispatch
 
