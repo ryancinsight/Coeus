@@ -20,6 +20,16 @@ fn split_parameters(
     (python, rust)
 }
 
+fn sync_parameters(
+    py: Python<'_>,
+    python: &[Py<PyTensor>],
+    rust: &[Parameter<f64, coeus_core::MoiraiBackend>],
+) {
+    for (parameter, source) in python.iter().zip(rust) {
+        parameter.borrow_mut(py).inner.tensor = source.var.tensor.clone();
+    }
+}
+
 /// Python-exposed SGD optimizer.
 #[pyclass(name = "SGD")]
 pub struct PySGD {
@@ -45,13 +55,9 @@ impl PySGD {
     /// Perform a single optimization step.
     pub fn step(&mut self, py: Python<'_>) -> PyResult<()> {
         use coeus_optim::traits::Optimizer;
-        py.allow_threads(|| self.inner.step())
-            .map_err(map_backend_error)?;
-        for (i, p) in self.params.iter().enumerate() {
-            let mut p_borrow = p.borrow_mut(py);
-            p_borrow.inner.tensor = self.inner.params[i].var.tensor.clone();
-        }
-        Ok(())
+        let result = py.allow_threads(|| self.inner.step());
+        sync_parameters(py, &self.params, &self.inner.params);
+        result.map_err(map_backend_error)
     }
 
     /// Zero all parameter gradients.
@@ -99,13 +105,9 @@ impl PyAdam {
     /// Perform a single optimization step.
     pub fn step(&mut self, py: Python<'_>) -> PyResult<()> {
         use coeus_optim::traits::Optimizer;
-        py.allow_threads(|| self.inner.step())
-            .map_err(map_backend_error)?;
-        for (i, p) in self.params.iter().enumerate() {
-            let mut p_borrow = p.borrow_mut(py);
-            p_borrow.inner.tensor = self.inner.params[i].var.tensor.clone();
-        }
-        Ok(())
+        let result = py.allow_threads(|| self.inner.step());
+        sync_parameters(py, &self.params, &self.inner.params);
+        result.map_err(map_backend_error)
     }
 
     /// Zero all parameter gradients.
@@ -152,13 +154,9 @@ impl PyRMSProp {
     /// Perform a single optimization step.
     pub fn step(&mut self, py: Python<'_>) -> PyResult<()> {
         use coeus_optim::traits::Optimizer;
-        py.allow_threads(|| self.inner.step())
-            .map_err(map_backend_error)?;
-        for (i, p) in self.params.iter().enumerate() {
-            let mut p_borrow = p.borrow_mut(py);
-            p_borrow.inner.tensor = self.inner.params[i].var.tensor.clone();
-        }
-        Ok(())
+        let result = py.allow_threads(|| self.inner.step());
+        sync_parameters(py, &self.params, &self.inner.params);
+        result.map_err(map_backend_error)
     }
 
     /// Zero all parameter gradients.
@@ -199,13 +197,9 @@ impl PyAdaGrad {
     /// Perform a single optimization step.
     pub fn step(&mut self, py: Python<'_>) -> PyResult<()> {
         use coeus_optim::traits::Optimizer;
-        py.allow_threads(|| self.inner.step())
-            .map_err(map_backend_error)?;
-        for (i, p) in self.params.iter().enumerate() {
-            let mut p_borrow = p.borrow_mut(py);
-            p_borrow.inner.tensor = self.inner.params[i].var.tensor.clone();
-        }
-        Ok(())
+        let result = py.allow_threads(|| self.inner.step());
+        sync_parameters(py, &self.params, &self.inner.params);
+        result.map_err(map_backend_error)
     }
 
     /// Zero all parameter gradients.
@@ -254,13 +248,9 @@ impl PyAdamW {
     /// Perform a single optimization step.
     pub fn step(&mut self, py: Python<'_>) -> PyResult<()> {
         use coeus_optim::traits::Optimizer;
-        py.allow_threads(|| self.inner.step())
-            .map_err(map_backend_error)?;
-        for (i, p) in self.params.iter().enumerate() {
-            let mut p_borrow = p.borrow_mut(py);
-            p_borrow.inner.tensor = self.inner.params[i].var.tensor.clone();
-        }
-        Ok(())
+        let result = py.allow_threads(|| self.inner.step());
+        sync_parameters(py, &self.params, &self.inner.params);
+        result.map_err(map_backend_error)
     }
 
     /// Zero all parameter gradients.

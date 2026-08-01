@@ -10,6 +10,8 @@
 - [x] Delete local formulas, kernels, launchers, host fallbacks, and obsolete
       optimizer-launch documentation.
 - [x] Add value-semantic provider differential and failure-atomic contracts.
+- [x] Preflight the complete parameter set before mutation, align the CPU and
+      accelerator Adam step domain, and cover nonempty ranks zero through eight.
 - [x] Pass focused local gates and independent architecture/correctness review.
 - [ ] Pass exact-head hosted provider CI, merge, and reconcile PM state.
 

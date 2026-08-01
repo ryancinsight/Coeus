@@ -23,8 +23,13 @@ the complete provider kernel monomorphizes without per-element dispatch.
 `OptimizerOps` returns the backend-associated typed error. The public
 `Optimizer::step` contract and scheduler step become fallible, and Rust and
 PyO3 callers propagate or map those failures. Parameter construction and all
-layout/storage validation complete before provider dispatch; rejected updates
-do not mutate parameters or persistent state.
+layout/storage validation complete across every gradient-bearing parameter
+before any provider dispatch; a later invalid tuple cannot partially mutate
+earlier parameters or persistent state. The typed preflight request is the
+validation SSOT for all five rules and every backend. CPU and accelerator
+Adam-family steps share Hephaestus's `i32::MAX` step bound. Python synchronizes
+its parameter mirrors before propagating any execution error, so a
+post-preflight device fault cannot leave hidden Rust-side mutation.
 
 Accelerator stateful updates remain the provider's native `f32` contract.
 Coeus does not widen, narrow, download, or route unsupported scalar contracts

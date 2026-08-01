@@ -19,9 +19,11 @@
 - Status: review-ready. Leto PRs #85/#86 and Hephaestus PRs #174/#177 are
   merged; the standalone lock resolves their exact merge revisions. Local CPU,
   Leto, optimizer, Python, all-target, CUDA-feature, Clippy, and doctest gates
-  pass. Independent review findings on bias-counter atomicity, rank parity,
-  failure contracts, and stale ownership documentation are resolved. Exact-head
-  Coeus hosted provider CI and merge remain.
+  pass. A single typed preflight request validates every gradient-bearing
+  parameter before mutation; the multi-parameter regression covers all five
+  optimizers, CPU and accelerator Adam share the `i32::MAX` step domain, and
+  CPU plus hosted accelerator suites cover nonempty ranks zero through eight.
+  Independent re-review and exact-head Coeus hosted provider CI remain.
 
 ## COEUS-ATTENTION-PROVIDER-001 — Provider-owned attention dispatch [major] [arch]
 

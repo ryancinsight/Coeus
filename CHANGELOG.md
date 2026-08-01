@@ -7,9 +7,12 @@
 - [major] Route CPU optimizer updates through Leto's borrowed stateful-update
   API and WGPU, CUDA, ROCm, and Metal through one monomorphized Hephaestus
   bridge selected by backend type. Optimizer, scheduler, and Python entry points
-  now preserve typed provider failures; superseded Coeus formulas, accelerator
-  kernels, launchers, and host fallback code are removed. No runtime, memory, or
-  binary-size delta is claimed without controlled measurements. See
+  now preserve typed provider failures. A zero-copy read-only preflight validates
+  every parameter/state tuple before the first mutation, CPU and accelerators
+  share the Adam step domain, and Python synchronizes parameter mirrors before
+  propagating execution errors. Superseded Coeus formulas, accelerator kernels,
+  launchers, and host fallback code are removed. No runtime, memory, or binary-size
+  delta is claimed without controlled measurements. See
   [ADR 0048](docs/adr/0048-provider-owned-stateful-update-dispatch.md).
 
 - [major] Make the shared CPU/CUDA/WGPU unfold/fold dispatch contract fallible.

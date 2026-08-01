@@ -16,5 +16,6 @@ pub use ops::{BinaryOp, ReductionOp, UnaryOp};
 pub use trait_def::BackendOps;
 pub use traits::{
     AttentionOps, AttentionScalar, ConvOps, ConvolutionBackward, ConvolutionForward,
-    ElementwiseOps, MatmulOps, OptimizerOps, PoolOps, ReductionOps, UnfoldFoldOps,
+    ElementwiseOps, MatmulOps, OptimizerOps, OptimizerStateRef, OptimizerStepRule,
+    OptimizerStepValidation, PoolOps, ReductionOps, UnfoldFoldOps,
 };

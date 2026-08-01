@@ -1,4 +1,4 @@
-use leto::{ArrayViewMut, LetoError, Result};
+use leto::{ArrayView, ArrayViewMut, LetoError, Result};
 use leto_ops::{
     stateful_update as provider_update, AdaGrad, AdaGradParameters, Adam, AdamParameters, AdamW,
     AdamWParameters, RealScalar, RmsProp, RmsPropParameters, Sgd, SgdParameters,
@@ -8,6 +8,24 @@ use leto_ops::{
 use crate::{to_leto_view, to_leto_view_mut};
 
 use super::{ReadOperand, WriteOperand};
+
+/// Read-only persistent state supplied to update preflight.
+pub enum StatefulUpdateValidationState<'a, T> {
+    /// One persistent state tensor.
+    One(ReadOperand<'a, T>),
+    /// Two persistent state tensors.
+    Two(ReadOperand<'a, T>, ReadOperand<'a, T>),
+}
+
+/// Borrowed operands for a mutation-free stateful-update preflight.
+pub struct StatefulUpdateValidation<'a, T> {
+    /// Parameter storage that would be updated.
+    pub parameter: ReadOperand<'a, T>,
+    /// Read-only gradient storage.
+    pub gradient: ReadOperand<'a, T>,
+    /// Persistent optimizer state that would be updated.
+    pub state: StatefulUpdateValidationState<'a, T>,
+}
 
 /// Mutable persistent state supplied to one provider-owned update.
 pub enum StatefulUpdateState<'a, T> {
@@ -47,6 +65,68 @@ fn invalid_state(rule: &'static str, expected: usize) -> LetoError {
     LetoError::InvalidInput(format!(
         "{rule} requires exactly {expected} persistent state tensor(s)"
     ))
+}
+
+fn validate_output<T, const N: usize>(operand: ReadOperand<'_, T>) -> Result<ArrayView<'_, T, N>> {
+    let view = to_leto_view::<T, N>(operand.layout, operand.data)?;
+    if !view.layout().is_injective()? {
+        return Err(LetoError::InvalidInput(
+            "stateful update writable layouts must be injective".to_string(),
+        ));
+    }
+    Ok(view)
+}
+
+fn validate_rank<T, const N: usize>(operands: StatefulUpdateValidation<'_, T>) -> Result<()> {
+    let parameter = validate_output::<T, N>(operands.parameter)?;
+    let gradient = to_leto_view::<T, N>(operands.gradient.layout, operands.gradient.data)?;
+    if gradient.shape() != parameter.shape() {
+        return Err(LetoError::ShapeMismatch {
+            lhs: parameter.shape().to_vec(),
+            rhs: gradient.shape().to_vec(),
+        });
+    }
+    let validate_state = |state: ReadOperand<'_, T>| -> Result<()> {
+        let state = validate_output::<T, N>(state)?;
+        if state.shape() != parameter.shape() {
+            return Err(LetoError::ShapeMismatch {
+                lhs: parameter.shape().to_vec(),
+                rhs: state.shape().to_vec(),
+            });
+        }
+        Ok(())
+    };
+    match operands.state {
+        StatefulUpdateValidationState::One(state) => validate_state(state),
+        StatefulUpdateValidationState::Two(first, second) => {
+            validate_state(first)?;
+            validate_state(second)
+        }
+    }
+}
+
+/// Validate a provider-owned update without mutating borrowed storage.
+///
+/// # Errors
+///
+/// Returns a typed provider error for unsupported rank, invalid storage,
+/// mismatched shapes, or a non-injective writable layout.
+pub fn validate_stateful_update<T>(operands: StatefulUpdateValidation<'_, T>) -> Result<()> {
+    let rank = operands.parameter.layout.ndim();
+    match rank {
+        0 => validate_rank::<T, 0>(operands),
+        1 => validate_rank::<T, 1>(operands),
+        2 => validate_rank::<T, 2>(operands),
+        3 => validate_rank::<T, 3>(operands),
+        4 => validate_rank::<T, 4>(operands),
+        5 => validate_rank::<T, 5>(operands),
+        6 => validate_rank::<T, 6>(operands),
+        7 => validate_rank::<T, 7>(operands),
+        8 => validate_rank::<T, 8>(operands),
+        _ => Err(LetoError::InvalidInput(format!(
+            "stateful update does not support rank {rank}; maximum rank is {MAX_STATEFUL_UPDATE_RANK}"
+        ))),
+    }
 }
 
 fn apply_one<T, Rule, const N: usize>(

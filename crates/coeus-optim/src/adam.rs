@@ -1,6 +1,7 @@
 use crate::traits::Optimizer;
 use coeus_autograd::Parameter;
 use coeus_core::{Float, MoiraiBackend};
+use coeus_ops::{OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation};
 use coeus_tensor::Tensor;
 
 /// Adam optimizer.
@@ -72,6 +73,29 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Defaul
     fn step(&mut self) -> Result<(), B::Error> {
         let next_t = self.t + 1;
         let backend = B::default();
+
+        for (i, param) in self.params.iter().enumerate() {
+            if let Some(ref g) = param.var.grad {
+                let grad_tensor = g.read();
+                backend.validate_optimizer_step(OptimizerStepValidation {
+                    parameter: (param.var.tensor.storage(), param.var.tensor.layout()),
+                    gradient: (grad_tensor.storage(), grad_tensor.layout()),
+                    state: OptimizerStateRef::Two(
+                        self.m[i].storage(),
+                        self.m[i].layout(),
+                        self.v[i].storage(),
+                        self.v[i].layout(),
+                    ),
+                    rule: OptimizerStepRule::Adam {
+                        learning_rate: self.lr,
+                        beta_one: self.beta1,
+                        beta_two: self.beta2,
+                        epsilon: self.eps,
+                        step: next_t,
+                    },
+                })?;
+            }
+        }
 
         for (i, param) in self.params.iter_mut().enumerate() {
             if let Some(ref g) = param.var.grad {

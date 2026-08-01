@@ -1,5 +1,6 @@
 use crate::HephaestusProvider;
 use coeus_core::{backend::ComputeBackend, Layout};
+use coeus_ops::{OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation};
 use hephaestus_core::{
     AdaGrad, AdaGradParameters, Adam, AdamParameters, AdamW, AdamWParameters, ComputeDevice,
     HephaestusError, RmsProp, RmsPropParameters, Sgd, SgdParameters, StatefulUpdateOps,
@@ -23,6 +24,140 @@ pub trait StatefulUpdateBackend: ComputeBackend {
 
     #[doc(hidden)]
     fn stateful_update_error(operation: &'static str, source: HephaestusError) -> Self::Error;
+
+    #[doc(hidden)]
+    fn validate_optimizer_step(
+        &self,
+        validation: OptimizerStepValidation<'_, f32, Self>,
+    ) -> Result<(), Self::Error>
+    where
+        Self: Sized,
+    {
+        let (parameter, parameter_layout) = validation.parameter;
+        let (gradient, gradient_layout) = validation.gradient;
+        match (validation.rule, validation.state) {
+            (
+                OptimizerStepRule::Sgd {
+                    learning_rate,
+                    momentum,
+                },
+                OptimizerStateRef::One(state, state_layout),
+            ) => {
+                SgdParameters::new(learning_rate, momentum)
+                    .map_err(|source| Self::stateful_update_error("SGD step", source))?;
+                super::dispatch::validate_one::<Self, Sgd>(
+                    "SGD step",
+                    parameter,
+                    parameter_layout,
+                    gradient,
+                    gradient_layout,
+                    state,
+                    state_layout,
+                )
+            }
+            (
+                OptimizerStepRule::Adam {
+                    learning_rate,
+                    beta_one,
+                    beta_two,
+                    epsilon,
+                    step,
+                },
+                OptimizerStateRef::Two(first, first_layout, second, second_layout),
+            ) => {
+                AdamParameters::new(learning_rate, beta_one, beta_two, epsilon, step)
+                    .map_err(|source| Self::stateful_update_error("Adam step", source))?;
+                super::dispatch::validate_two::<Self, Adam>(
+                    "Adam step",
+                    parameter,
+                    parameter_layout,
+                    gradient,
+                    gradient_layout,
+                    first,
+                    first_layout,
+                    second,
+                    second_layout,
+                )
+            }
+            (
+                OptimizerStepRule::RmsProp {
+                    learning_rate,
+                    alpha,
+                    epsilon,
+                },
+                OptimizerStateRef::One(state, state_layout),
+            ) => {
+                RmsPropParameters::new(learning_rate, alpha, epsilon)
+                    .map_err(|source| Self::stateful_update_error("RMSProp step", source))?;
+                super::dispatch::validate_one::<Self, RmsProp>(
+                    "RMSProp step",
+                    parameter,
+                    parameter_layout,
+                    gradient,
+                    gradient_layout,
+                    state,
+                    state_layout,
+                )
+            }
+            (
+                OptimizerStepRule::AdamW {
+                    learning_rate,
+                    beta_one,
+                    beta_two,
+                    epsilon,
+                    weight_decay,
+                    step,
+                },
+                OptimizerStateRef::Two(first, first_layout, second, second_layout),
+            ) => {
+                AdamWParameters::new(
+                    learning_rate,
+                    beta_one,
+                    beta_two,
+                    epsilon,
+                    weight_decay,
+                    step,
+                )
+                .map_err(|source| Self::stateful_update_error("AdamW step", source))?;
+                super::dispatch::validate_two::<Self, AdamW>(
+                    "AdamW step",
+                    parameter,
+                    parameter_layout,
+                    gradient,
+                    gradient_layout,
+                    first,
+                    first_layout,
+                    second,
+                    second_layout,
+                )
+            }
+            (
+                OptimizerStepRule::AdaGrad {
+                    learning_rate,
+                    epsilon,
+                },
+                OptimizerStateRef::One(state, state_layout),
+            ) => {
+                AdaGradParameters::new(learning_rate, epsilon)
+                    .map_err(|source| Self::stateful_update_error("AdaGrad step", source))?;
+                super::dispatch::validate_one::<Self, AdaGrad>(
+                    "AdaGrad step",
+                    parameter,
+                    parameter_layout,
+                    gradient,
+                    gradient_layout,
+                    state,
+                    state_layout,
+                )
+            }
+            _ => Err(Self::stateful_update_error(
+                "optimizer step preflight",
+                HephaestusError::InvalidConfiguration {
+                    message: "optimizer rule and persistent state cardinality disagree".to_string(),
+                },
+            )),
+        }
+    }
 
     #[doc(hidden)]
     #[expect(clippy::too_many_arguments, reason = "mirrors OptimizerOps")]

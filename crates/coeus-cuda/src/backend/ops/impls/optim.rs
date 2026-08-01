@@ -24,6 +24,13 @@ impl StatefulUpdateBackend for CudaBackend {
 }
 
 impl coeus_ops::OptimizerOps<f32> for CudaBackend {
+    fn validate_optimizer_step(
+        &self,
+        validation: coeus_ops::OptimizerStepValidation<'_, f32, Self>,
+    ) -> Result<(), Self::Error> {
+        StatefulUpdateBackend::validate_optimizer_step(self, validation)
+    }
+
     fn sgd_step(
         &self,
         p: &mut CudaStorage<f32>,

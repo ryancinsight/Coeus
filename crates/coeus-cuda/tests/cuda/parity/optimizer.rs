@@ -151,6 +151,61 @@ fn test_cuda_parity_sgd_step() {
 }
 
 #[test]
+fn test_cuda_parity_sgd_ranks_zero_through_eight() {
+    let Some((s, c)) = backends() else {
+        return;
+    };
+    for rank in 0..=8 {
+        let shape = vec![1; rank];
+        let mut p_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[2.0]);
+        let g_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[1.0]);
+        let mut v_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[0.0]);
+        let mut p_g = to_gpu(&p_c, &s, &c);
+        let g_g = to_gpu(&g_c, &s, &c);
+        let mut v_g = to_gpu(&v_c, &s, &c);
+        let pl = p_c.layout().clone();
+        let gl = g_c.layout().clone();
+        let vl = v_c.layout().clone();
+
+        s.sgd_step(
+            p_c.storage_mut(),
+            &pl,
+            g_c.storage(),
+            &gl,
+            v_c.storage_mut(),
+            &vl,
+            0.1,
+            0.0,
+        )
+        .unwrap_or_else(|error| panic!("rank-{rank} CPU SGD failed: {error}"));
+        c.sgd_step(
+            p_g.storage_mut(),
+            &pl,
+            g_g.storage(),
+            &gl,
+            v_g.storage_mut(),
+            &vl,
+            0.1,
+            0.0,
+        )
+        .unwrap_or_else(|error| panic!("rank-{rank} CUDA SGD failed: {error}"));
+
+        assert_parity_tol(
+            &format!("rank-{rank} parameter"),
+            p_c.as_slice(),
+            to_cpu(&p_g, &c, &s).as_slice(),
+            CUDA_TOL,
+        );
+        assert_parity_tol(
+            &format!("rank-{rank} velocity"),
+            v_c.as_slice(),
+            to_cpu(&v_g, &c, &s).as_slice(),
+            CUDA_TOL,
+        );
+    }
+}
+
+#[test]
 fn test_cuda_parity_adam_step() {
     let Some((s, c)) = backends() else {
         return;

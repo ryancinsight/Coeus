@@ -23,6 +23,13 @@ impl StatefulUpdateBackend for WgpuBackend {
 }
 
 impl coeus_ops::OptimizerOps<f32> for WgpuBackend {
+    fn validate_optimizer_step(
+        &self,
+        validation: coeus_ops::OptimizerStepValidation<'_, f32, Self>,
+    ) -> Result<(), Self::Error> {
+        StatefulUpdateBackend::validate_optimizer_step(self, validation)
+    }
+
     fn sgd_step(
         &self,
         p: &mut WgpuStorage<f32>,

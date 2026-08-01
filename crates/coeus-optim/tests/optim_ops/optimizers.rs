@@ -1,5 +1,31 @@
 use super::{Adam, AdamW, Optimizer, Parameter, RMSProp, SequentialBackend, Tensor, Var, SGD};
 
+fn failure_atomic_parameters() -> Vec<Parameter<f32, SequentialBackend>> {
+    let first = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0]),
+        true,
+    );
+    first.set_grad(Tensor::from_slice(vec![1], &[1.0]));
+    let second = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[3.0]),
+        true,
+    );
+    second.set_grad(Tensor::from_slice(vec![2], &[1.0, 1.0]));
+    vec![
+        Parameter::new(first, "first"),
+        Parameter::new(second, "second"),
+    ]
+}
+
+fn assert_failed_pair_unchanged(params: &[Parameter<f32, SequentialBackend>]) {
+    assert_eq!(params[0].tensor.as_slice(), &[2.0]);
+    assert_eq!(params[1].tensor.as_slice(), &[3.0]);
+}
+
+fn repair_second_gradient(params: &mut [Parameter<f32, SequentialBackend>]) {
+    params[1].set_grad(Tensor::from_slice(vec![1], &[1.0]));
+}
+
 #[test]
 fn test_sgd_optimizer() {
     let _backend = SequentialBackend::new();
@@ -240,4 +266,54 @@ fn failed_adam_family_steps_preserve_bias_counter() {
     adamw.step().expect("retry AdamW step");
     assert_eq!(adamw.t, 1);
     assert!((adamw.params[0].tensor.as_slice()[0] - 1.898).abs() < 1.0e-4);
+}
+
+#[test]
+fn multi_parameter_validation_is_failure_atomic() {
+    let mut sgd = SGD::new(failure_atomic_parameters(), 0.1, 0.9);
+    sgd.step()
+        .expect_err("second SGD shape must fail preflight");
+    assert_failed_pair_unchanged(&sgd.params);
+    repair_second_gradient(&mut sgd.params);
+    sgd.step().expect("repaired SGD step");
+    assert!((sgd.params[0].tensor.as_slice()[0] - 1.9).abs() < 1.0e-6);
+
+    let mut adam = Adam::new(failure_atomic_parameters(), 0.1, 0.9, 0.999, 1.0e-8);
+    adam.step()
+        .expect_err("second Adam shape must fail preflight");
+    assert_failed_pair_unchanged(&adam.params);
+    assert_eq!(adam.t, 0);
+    repair_second_gradient(&mut adam.params);
+    adam.step().expect("repaired Adam step");
+    assert_eq!(adam.t, 1);
+    assert!((adam.params[0].tensor.as_slice()[0] - 1.9).abs() < 1.0e-4);
+
+    let mut rmsprop = RMSProp::new(failure_atomic_parameters(), 0.1, 0.99, 1.0e-8);
+    rmsprop
+        .step()
+        .expect_err("second RMSProp shape must fail preflight");
+    assert_failed_pair_unchanged(&rmsprop.params);
+    repair_second_gradient(&mut rmsprop.params);
+    rmsprop.step().expect("repaired RMSProp step");
+    assert!((rmsprop.params[0].tensor.as_slice()[0] - 1.0).abs() < 1.0e-4);
+
+    let mut adamw = AdamW::new(failure_atomic_parameters(), 0.1, 0.9, 0.999, 1.0e-8, 0.01);
+    adamw
+        .step()
+        .expect_err("second AdamW shape must fail preflight");
+    assert_failed_pair_unchanged(&adamw.params);
+    assert_eq!(adamw.t, 0);
+    repair_second_gradient(&mut adamw.params);
+    adamw.step().expect("repaired AdamW step");
+    assert_eq!(adamw.t, 1);
+    assert!((adamw.params[0].tensor.as_slice()[0] - 1.898).abs() < 1.0e-4);
+
+    let mut adagrad = coeus_optim::AdaGrad::new(failure_atomic_parameters(), 0.1, 1.0e-6);
+    adagrad
+        .step()
+        .expect_err("second AdaGrad shape must fail preflight");
+    assert_failed_pair_unchanged(&adagrad.params);
+    repair_second_gradient(&mut adagrad.params);
+    adagrad.step().expect("repaired AdaGrad step");
+    assert!((adagrad.params[0].tensor.as_slice()[0] - 1.9).abs() < 1.0e-4);
 }

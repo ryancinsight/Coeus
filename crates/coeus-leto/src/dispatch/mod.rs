@@ -77,7 +77,8 @@ pub use reductions::{
 };
 pub use sparse::{spmm_into, spmv_into, CsrDispatch};
 pub use stateful_update::{
-    stateful_update, StatefulUpdateDispatchRule, StatefulUpdateOperands, StatefulUpdateState,
+    stateful_update, validate_stateful_update, StatefulUpdateDispatchRule, StatefulUpdateOperands,
+    StatefulUpdateState, StatefulUpdateValidation, StatefulUpdateValidationState,
     MAX_STATEFUL_UPDATE_RANK,
 };
 pub use structural::{concat_values, pad_values, split_values, stack_values};

@@ -1,7 +1,10 @@
 use super::{StatefulUpdateBackend, StatefulUpdateProvider};
 use crate::{layout::ranked, HephaestusProvider};
 use coeus_core::{BackendError, Layout};
-use hephaestus_core::{StatefulUpdateOperands, StatefulUpdateOps, StatefulUpdateRule, StridedView};
+use hephaestus_core::{
+    plan_stateful_update, StatefulUpdateAliasing, StatefulUpdateOperands, StatefulUpdateOps,
+    StatefulUpdateRule, StridedView,
+};
 
 type Operations<B> = <<B as StatefulUpdateBackend>::Provider as StatefulUpdateProvider>::Operations;
 type Provider<B> = <B as StatefulUpdateBackend>::Provider;
@@ -26,6 +29,58 @@ enum State<'a, B: StatefulUpdateBackend> {
         &'a B::DeviceBuffer<f32>,
         &'a Layout,
     ),
+}
+
+pub(super) fn validate_one<B, Rule>(
+    operation: &'static str,
+    parameter: &B::DeviceBuffer<f32>,
+    parameter_layout: &Layout,
+    gradient: &B::DeviceBuffer<f32>,
+    gradient_layout: &Layout,
+    state: &B::DeviceBuffer<f32>,
+    state_layout: &Layout,
+) -> Result<(), B::Error>
+where
+    B: StatefulUpdateBackend,
+    Rule: StatefulUpdateRule<Dialect<B>>,
+{
+    validate::<B, Rule>(Request {
+        operation,
+        parameter,
+        parameter_layout,
+        gradient,
+        gradient_layout,
+        states: State::One(state, state_layout),
+    })
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "validates two-state provider operands"
+)]
+pub(super) fn validate_two<B, Rule>(
+    operation: &'static str,
+    parameter: &B::DeviceBuffer<f32>,
+    parameter_layout: &Layout,
+    gradient: &B::DeviceBuffer<f32>,
+    gradient_layout: &Layout,
+    first: &B::DeviceBuffer<f32>,
+    first_layout: &Layout,
+    second: &B::DeviceBuffer<f32>,
+    second_layout: &Layout,
+) -> Result<(), B::Error>
+where
+    B: StatefulUpdateBackend,
+    Rule: StatefulUpdateRule<Dialect<B>>,
+{
+    validate::<B, Rule>(Request {
+        operation,
+        parameter,
+        parameter_layout,
+        gradient,
+        gradient_layout,
+        states: State::Two(first, first_layout, second, second_layout),
+    })
 }
 
 #[expect(
@@ -117,6 +172,82 @@ where
         }
         .into()),
     }
+}
+
+fn validate<B, Rule>(request: Request<'_, B>) -> Result<(), B::Error>
+where
+    B: StatefulUpdateBackend,
+    Rule: StatefulUpdateRule<Dialect<B>>,
+{
+    match request.parameter_layout.ndim() {
+        0 => validate_rank::<B, Rule, 0>(request),
+        1 => validate_rank::<B, Rule, 1>(request),
+        2 => validate_rank::<B, Rule, 2>(request),
+        3 => validate_rank::<B, Rule, 3>(request),
+        4 => validate_rank::<B, Rule, 4>(request),
+        5 => validate_rank::<B, Rule, 5>(request),
+        6 => validate_rank::<B, Rule, 6>(request),
+        7 => validate_rank::<B, Rule, 7>(request),
+        8 => validate_rank::<B, Rule, 8>(request),
+        rank => Err(BackendError::UnsupportedRank {
+            operation: request.operation,
+            rank,
+            max_rank: 8,
+        }
+        .into()),
+    }
+}
+
+fn validate_rank<B, Rule, const N: usize>(request: Request<'_, B>) -> Result<(), B::Error>
+where
+    B: StatefulUpdateBackend,
+    Rule: StatefulUpdateRule<Dialect<B>>,
+{
+    let parameter_layout = ranked::<N>(request.operation, request.parameter_layout)?;
+    let gradient_layout = ranked::<N>(request.operation, request.gradient_layout)?;
+    let parameter = StridedView::new(
+        B::stateful_update_buffer(request.parameter),
+        &parameter_layout,
+    );
+    let gradient = StridedView::new(
+        B::stateful_update_buffer(request.gradient),
+        &gradient_layout,
+    );
+    let result = match request.states {
+        State::One(state, layout) => {
+            let layout = ranked::<N>(request.operation, layout)?;
+            let states = [StridedView::new(B::stateful_update_buffer(state), &layout)];
+            plan_stateful_update(
+                StatefulUpdateOperands {
+                    parameter,
+                    gradient,
+                    states: &states,
+                },
+                Rule::STATE_COUNT,
+                StatefulUpdateAliasing::default(),
+            )
+        }
+        State::Two(first, first_layout, second, second_layout) => {
+            let first_layout = ranked::<N>(request.operation, first_layout)?;
+            let second_layout = ranked::<N>(request.operation, second_layout)?;
+            let states = [
+                StridedView::new(B::stateful_update_buffer(first), &first_layout),
+                StridedView::new(B::stateful_update_buffer(second), &second_layout),
+            ];
+            plan_stateful_update(
+                StatefulUpdateOperands {
+                    parameter,
+                    gradient,
+                    states: &states,
+                },
+                Rule::STATE_COUNT,
+                StatefulUpdateAliasing::default(),
+            )
+        }
+    };
+    result
+        .map(|_| ())
+        .map_err(|source| B::stateful_update_error(request.operation, source))
 }
 
 fn execute<B, Rule, const N: usize>(

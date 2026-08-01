@@ -59,8 +59,8 @@ try:
     adagrad.step()
     assert abs(param_adagrad.data[0] - 9.9) < 1e-5, f'AdaGrad step failed, data is {param_adagrad.data[0]}'
 
-    # Backend failures surface as Python exceptions and do not synchronize
-    # partially updated Rust state into the Python-owned tensor.
+    # Preflight failures surface as Python exceptions and unconditional
+    # Rust-to-Python synchronization preserves the unchanged parameter.
     rejected = pycoeus.Tensor([10.0], requires_grad=True)
     invalid_sgd = pycoeus.SGD([('weight', rejected)], lr=-0.1)
     (rejected * pycoeus.Tensor([2.0])).backward()

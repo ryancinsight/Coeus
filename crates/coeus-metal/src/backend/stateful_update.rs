@@ -1,11 +1,33 @@
 use super::{MetalBackend, MetalProvider};
 use coeus_core::Layout;
-use coeus_hephaestus::{HephaestusBackend, HephaestusStorage};
-use coeus_ops::OptimizerOps;
+use coeus_hephaestus::{HephaestusBackendError, HephaestusStorage, StatefulUpdateBackend};
+use coeus_ops::{OptimizerOps, OptimizerStepValidation};
+use hephaestus_core::{ComputeDevice, HephaestusError};
 
 type Storage = HephaestusStorage<MetalProvider, f32>;
 
+impl StatefulUpdateBackend for MetalBackend {
+    type Provider = MetalProvider;
+
+    fn stateful_update_buffer(
+        storage: &Self::DeviceBuffer<f32>,
+    ) -> &<hephaestus_metal::MetalDevice as ComputeDevice>::Buffer<f32> {
+        storage.buffer()
+    }
+
+    fn stateful_update_error(operation: &'static str, source: HephaestusError) -> Self::Error {
+        HephaestusBackendError::Device { operation, source }
+    }
+}
+
 impl OptimizerOps<f32> for MetalBackend {
+    fn validate_optimizer_step(
+        &self,
+        validation: OptimizerStepValidation<'_, f32, Self>,
+    ) -> Result<(), Self::Error> {
+        StatefulUpdateBackend::validate_optimizer_step(self, validation)
+    }
+
     fn sgd_step(
         &self,
         p: &mut Storage,
@@ -17,8 +39,9 @@ impl OptimizerOps<f32> for MetalBackend {
         lr: f32,
         momentum: f32,
     ) -> Result<(), Self::Error> {
-        HephaestusBackend::<MetalProvider>::new().sgd_step(p, pl, g, gl, s, sl, lr, momentum)
+        self.dispatch_sgd_step(p, pl, g, gl, s, sl, lr, momentum)
     }
+
     fn adam_step(
         &self,
         p: &mut Storage,
@@ -35,9 +58,9 @@ impl OptimizerOps<f32> for MetalBackend {
         eps: f32,
         step: usize,
     ) -> Result<(), Self::Error> {
-        HephaestusBackend::<MetalProvider>::new()
-            .adam_step(p, pl, g, gl, a, al, b, bl, lr, b1, b2, eps, step)
+        self.dispatch_adam_step(p, pl, g, gl, a, al, b, bl, lr, b1, b2, eps, step)
     }
+
     fn rmsprop_step(
         &self,
         p: &mut Storage,
@@ -50,8 +73,9 @@ impl OptimizerOps<f32> for MetalBackend {
         alpha: f32,
         eps: f32,
     ) -> Result<(), Self::Error> {
-        HephaestusBackend::<MetalProvider>::new().rmsprop_step(p, pl, g, gl, s, sl, lr, alpha, eps)
+        self.dispatch_rmsprop_step(p, pl, g, gl, s, sl, lr, alpha, eps)
     }
+
     fn adamw_step(
         &self,
         p: &mut Storage,
@@ -69,9 +93,9 @@ impl OptimizerOps<f32> for MetalBackend {
         decay: f32,
         step: usize,
     ) -> Result<(), Self::Error> {
-        HephaestusBackend::<MetalProvider>::new()
-            .adamw_step(p, pl, g, gl, a, al, b, bl, lr, b1, b2, eps, decay, step)
+        self.dispatch_adamw_step(p, pl, g, gl, a, al, b, bl, lr, b1, b2, eps, decay, step)
     }
+
     fn adagrad_step(
         &self,
         p: &mut Storage,
@@ -83,6 +107,6 @@ impl OptimizerOps<f32> for MetalBackend {
         lr: f32,
         eps: f32,
     ) -> Result<(), Self::Error> {
-        HephaestusBackend::<MetalProvider>::new().adagrad_step(p, pl, g, gl, s, sl, lr, eps)
+        self.dispatch_adagrad_step(p, pl, g, gl, s, sl, lr, eps)
     }
 }
