@@ -10,7 +10,7 @@
       do not add a fallback or compatibility route.
 - [x] Pass focused Nextest, doctests, formatting, SemVer analysis, and
       warning-denied Clippy on the final revision.
-- [ ] Pass independent architecture/correctness review and exact-head provider
+- [x] Pass independent architecture/correctness review and exact-head provider
       CI, then merge and reconcile the umbrella item.
 
 ## ATLAS-WGPU-SAFETY-002 — Checked reduction dispatch
