@@ -8,7 +8,6 @@ use crate::storage::CudaStorage;
 use crate::CudaBackendError;
 use coeus_core::Layout;
 use coeus_ops::fuse::ExprNode;
-use coeus_tensor::Tensor;
 use hephaestus_cuda::ComputeDevice;
 use std::collections::HashMap;
 
@@ -170,7 +169,7 @@ pub fn dispatch_fused_reduce<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     get_cuda_context().ok_or_else(|| {
         CudaBackendError::fusion(OPERATION, "CUDA context is unavailable or cannot be bound")
     })?;
-    let expr_shape = expr.shape().ok_or_else(|| {
+    let expr_shape = expr.shape()?.ok_or_else(|| {
         CudaBackendError::fusion(
             OPERATION,
             "expression has no tensor input from which to derive its shape",
@@ -216,29 +215,14 @@ pub fn dispatch_fused_reduce<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     let cuda_type = T::CUDA_TYPE;
 
     // 1. Collect unique input tensors
-    let mut input_ptrs = Vec::new();
-    expr.collect_inputs(&mut input_ptrs);
-    let num_inputs = input_ptrs.len();
-    if input_ptrs.iter().any(|ptr| ptr.is_null()) {
-        return Err(CudaBackendError::fusion(
-            OPERATION,
-            "expression contains a null tensor input",
-        ));
-    }
-
-    let inputs: Vec<&Tensor<T, CudaBackend>> = input_ptrs
-        .iter()
-        .map(|&p| {
-            // SAFETY: ExprNode input collection returns pointers to the tensors
-            // captured by the expression; null pointers were rejected above.
-            unsafe { &*p }
-        })
-        .collect();
+    let mut inputs = Vec::new();
+    expr.collect_inputs(&mut inputs);
+    let num_inputs = inputs.len();
 
     // 2. Build input pointer to index map
     let mut input_map = HashMap::new();
-    for (i, &p) in input_ptrs.iter().enumerate() {
-        input_map.insert(p, i);
+    for (i, &input) in inputs.iter().enumerate() {
+        input_map.insert(std::ptr::from_ref(input), i);
     }
 
     // 3. Generate the shader expression string

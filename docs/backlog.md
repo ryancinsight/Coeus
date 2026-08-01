@@ -544,13 +544,31 @@
 
 ## ATLAS-WGPU-SAFETY-002 — Establish fallible WGPU layout/dispatch boundary [arch] — in-progress
 
-- Owner: Codex `/coeus`; last-update: 2026-07-28; scope:
+- Owner: Codex on `codex/coeus-wgpu-reduction-safety`; last-update:
+  2026-07-31; scope:
   `crates/coeus-wgpu/src/kernels/layout.rs`, its 23 consumers, and the `coeus-ops`
   backend-operation return contract.
-- Current claim: shared-tree slice owned by this session; scope is the native
-  WGPU PoolOps 3D forward/backward dispatch and its CPU/WGPU/CUDA callers.
-  Stale reduction/error edits were reconciled to the merged implementation;
-  only the Atlas-overlay-generated `Cargo.lock` remains outside this claim.
+- Current claim: complete the fused reduction launch boundary in
+  `crates/coeus-wgpu/src/kernels/reduce.rs` and its focused tests by replacing
+  unchecked layout, axis, binding, input-count, and workgroup narrowing with
+  typed failures. Fusion, unfold/fold, optimizer, and matmul kernels remain
+  separate increments under this item.
+- Fused-reduction increment: implemented. The public WGPU entry point and kernel
+  dispatcher now return `Result`; validate expression shape, axis, WGSL rank and
+  parameter widths, checked output element/workgroup counts, input layouts,
+  metadata capacity, active-device workgroup and storage-buffer limits; and
+  submit only a fully validated dispatch plan. The shared CPU/CUDA/WGPU
+  expression seam now borrows tensor inputs and reports incompatible broadcasts
+  through `BackendError`, removing its safe raw-pointer contract and
+  input-dependent shape panic. Independent review also made the synchronous
+  execution contract unsafe, closed external WGPU buffer construction, unified
+  empty-axis identities and typed failures across CPU/CUDA/WGPU, and generated
+  scalar-specific WGSL reduction literals. The pre-review four-package Nextest
+  baseline passed 389/389; the final four-package suite passes 393/393, including
+  final CPU/Moirai 9/9 and active-device WGPU 10/10 fusion regressions.
+  Warning-denied all-target Clippy passes, as do all 61 doctests and formatting.
+  Independent review is clean after restoring overlay-generated `Cargo.lock`
+  churn. Exact-head hosted evidence remains the closure gate.
 - Outcome: replace unchecked `usize`→WGSL `u32` layout metadata narrowing and
   input-dependent dispatch panics with one typed validation/error boundary.
 - Acceptance: every WGPU kernel consumes the validated metadata type; failure

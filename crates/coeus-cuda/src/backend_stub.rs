@@ -117,7 +117,8 @@ impl ComputeBackend for CudaBackend {
     }
 }
 
-impl Backend for CudaBackend {
+// SAFETY: the feature-disabled backend delegates to synchronous CPU dispatch.
+unsafe impl Backend for CudaBackend {
     #[inline]
     fn parallel_for<F>(&self, start: usize, end: usize, operation: F)
     where

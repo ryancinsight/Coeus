@@ -100,11 +100,17 @@ pub trait ComputeBackend: private::Sealed + Send + Sync + Clone + 'static {
 ///     // SequentialBackend executes in order: 0, 1, 2, 3, 4.
 /// });
 /// ```
-pub trait Backend: ComputeBackend + Default {
+/// # Safety
+///
+/// Implementations must not return from [`Backend::parallel_for`] until every
+/// invocation of the supplied closure has completed. CPU kernels may use this
+/// synchronization guarantee to keep scoped borrows alive across dispatch.
+pub unsafe trait Backend: ComputeBackend + Default {
     /// Execute `f(i)` for `i` in `[start, end)` — possibly in parallel.
     ///
     /// The backend decides whether to parallelize (Moirai) or
     /// run sequentially (SequentialBackend).
+    /// This method returns only after every invocation of `f` has completed.
     fn parallel_for<F>(&self, start: usize, end: usize, f: F)
     where
         F: Fn(usize) + Send + Sync + 'static;

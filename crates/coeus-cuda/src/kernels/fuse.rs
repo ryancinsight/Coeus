@@ -9,7 +9,6 @@ use crate::CudaBackendError;
 use coeus_core::{Layout, Storage};
 use coeus_ops::fuse::ExprNode;
 use coeus_tensor::broadcast::broadcast_shapes;
-use coeus_tensor::Tensor;
 use hephaestus_cuda::ComputeDevice;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
@@ -222,28 +221,12 @@ pub fn dispatch_fused<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
     let cuda_type = T::CUDA_TYPE;
 
     // 1. Collect unique input tensors
-    let mut input_ptrs = Vec::new();
-    expr.collect_inputs(&mut input_ptrs);
-    let num_inputs = input_ptrs.len();
+    let mut inputs = Vec::new();
+    expr.collect_inputs(&mut inputs);
+    let num_inputs = inputs.len();
     let layout_count = num_inputs
         .checked_add(1)
         .ok_or_else(|| CudaBackendError::fusion(OPERATION, "layout count arithmetic overflow"))?;
-    if input_ptrs.iter().any(|ptr| ptr.is_null()) {
-        return Err(CudaBackendError::fusion(
-            OPERATION,
-            "expression contains a null tensor input",
-        ));
-    }
-
-    let inputs: Vec<&Tensor<T, CudaBackend>> = input_ptrs
-        .iter()
-        .map(|&p| {
-            // SAFETY: ExprNode input collection returns pointers to the tensors
-            // captured by the expression; null pointers were rejected above.
-            unsafe { &*p }
-        })
-        .collect();
-
     for input in &inputs {
         let input_layout = input.layout();
         let Some(broadcast_shape) = broadcast_shapes(input_layout.shape(), out_layout.shape())
@@ -265,8 +248,8 @@ pub fn dispatch_fused<T: CudaScalar, E: ExprNode<T, CudaBackend>>(
 
     // 2. Build input pointer to index map
     let mut input_map = HashMap::new();
-    for (i, &p) in input_ptrs.iter().enumerate() {
-        input_map.insert(p, i);
+    for (i, &input) in inputs.iter().enumerate() {
+        input_map.insert(std::ptr::from_ref(input), i);
     }
 
     // 3. Generate the shader expression string

@@ -60,7 +60,7 @@ pub use driver::{get_cuda_context, CudaDriver};
 pub use storage::CudaStorage;
 
 #[cfg(feature = "cuda")]
-use coeus_core::Layout;
+use coeus_core::{ComputeBackend, Layout};
 use coeus_tensor::Tensor;
 
 /// Evaluate a fused element-wise expression on the CUDA device.
@@ -88,7 +88,7 @@ pub fn evaluate_fused<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend
 
     #[cfg(feature = "cuda")]
     {
-        let out_shape = expr.shape().ok_or_else(|| {
+        let out_shape = expr.shape()?.ok_or_else(|| {
             CudaBackendError::validation(coeus_core::BackendError::Storage {
                 operation: "fused elementwise",
                 reason: "expression has no tensor input from which to derive its shape".to_string(),
@@ -107,7 +107,8 @@ pub fn evaluate_fused<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend
 /// # Errors
 ///
 /// Returns [`CudaBackendError`] when the expression, axis, CUDA provider,
-/// generated kernel, or launch ABI rejects the operation.
+/// generated kernel, or launch ABI rejects the operation. Empty mean, maximum,
+/// and minimum reductions are undefined and rejected.
 pub fn evaluate_fused_reduce<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend> + Copy>(
     expr: &E,
     op: coeus_ops::ReductionOp,
@@ -124,7 +125,7 @@ pub fn evaluate_fused_reduce<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, Cuda
 
     #[cfg(feature = "cuda")]
     {
-        let expr_shape = expr.shape().ok_or_else(|| {
+        let expr_shape = expr.shape()?.ok_or_else(|| {
             CudaBackendError::validation(coeus_core::BackendError::Storage {
                 operation: "fused reduction",
                 reason: "expression has no tensor input from which to derive its shape".to_string(),
@@ -139,6 +140,9 @@ pub fn evaluate_fused_reduce<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, Cuda
                 },
             ));
         }
+        let axis_len = expr_shape[axis];
+        coeus_ops::fuse::validate_fused_reduction_axis(op, axis_len)
+            .map_err(CudaBackendError::validation)?;
 
         let mut out_shape = expr_shape;
         let out_rank = out_shape.len();
@@ -152,6 +156,20 @@ pub fn evaluate_fused_reduce<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, Cuda
         *output_axis = 1;
         let out_layout = Layout::new(out_shape.clone());
         let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new());
+
+        if axis_len == 0 {
+            let identity = match op {
+                coeus_ops::ReductionOp::Sum => T::zero(),
+                coeus_ops::ReductionOp::Prod => T::one(),
+                coeus_ops::ReductionOp::Mean
+                | coeus_ops::ReductionOp::Max
+                | coeus_ops::ReductionOp::Min => {
+                    unreachable!("invariant: undefined empty reductions were rejected")
+                }
+            };
+            CudaBackend::new().fill(out.storage_mut(), identity);
+            return Ok(out);
+        }
 
         kernels::dispatch_fused_reduce(expr, op, axis, out.storage_mut(), &out_layout)?;
         Ok(out)

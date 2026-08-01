@@ -164,7 +164,8 @@ impl ComputeBackend for CudaBackend {
     }
 }
 
-impl Backend for CudaBackend {
+// SAFETY: CPU fallback dispatch joins every invocation before returning.
+unsafe impl Backend for CudaBackend {
     #[inline]
     fn parallel_for<F>(&self, start: usize, end: usize, f: F)
     where

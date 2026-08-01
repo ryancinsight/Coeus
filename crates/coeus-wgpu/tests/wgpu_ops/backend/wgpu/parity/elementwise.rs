@@ -64,8 +64,6 @@ fn test_wgpu_parity_div() {
 
 #[test]
 fn test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer() {
-    use std::sync::Arc;
-
     let s = seq();
     let w = wgpu();
     let a = Tensor::from_slice(vec![4, 4], &(0..16).map(|x| x as f32).collect::<Vec<_>>());
@@ -77,7 +75,7 @@ fn test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer() {
     let b_gpu = to_gpu(&b);
     let mut out_gpu = Tensor::<f32, WgpuBackend>::zeros_on(vec![4, 4], &w);
     let out_layout = out_gpu.layout().clone();
-    let before = Arc::as_ptr(&out_gpu.storage().buffer);
+    let allocation_id = out_gpu.storage().allocation_id();
 
     w.elementwise_binary(
         coeus_ops::BinaryOp::Add,
@@ -90,9 +88,8 @@ fn test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer() {
     )
     .expect("valid WGPU addition output buffer");
 
-    let after = Arc::as_ptr(&out_gpu.storage().buffer);
-    assert_eq!(
-        before, after,
+    assert!(
+        out_gpu.storage().allocation_id() == allocation_id,
         "delegated binary path reallocated output buffer"
     );
 
@@ -107,15 +104,13 @@ fn test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer() {
 
 #[test]
 fn test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer() {
-    use std::sync::Arc;
-
     let s = seq();
     let w = wgpu();
     let x = Tensor::from_slice(vec![8], &[-4.0f32, -2.0, -1.0, -0.5, 0.5, 1.0, 2.0, 4.0]);
     let x_gpu = to_gpu(&x);
     let mut out_gpu = Tensor::<f32, WgpuBackend>::zeros_on(vec![8], &w);
     let out_layout = out_gpu.layout().clone();
-    let before = Arc::as_ptr(&out_gpu.storage().buffer);
+    let allocation_id = out_gpu.storage().allocation_id();
 
     w.elementwise_unary(
         coeus_ops::UnaryOp::Recip,
@@ -126,9 +121,8 @@ fn test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer() {
     )
     .expect("valid WGPU reciprocal output buffer");
 
-    let after = Arc::as_ptr(&out_gpu.storage().buffer);
-    assert_eq!(
-        before, after,
+    assert!(
+        out_gpu.storage().allocation_id() == allocation_id,
         "delegated unary path reallocated output buffer"
     );
 
