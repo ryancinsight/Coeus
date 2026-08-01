@@ -49,6 +49,8 @@ pub mod linalg;
 pub mod reductions;
 /// Sparse matrix dispatch (CSR mat-vec and mat-mat).
 pub mod sparse;
+/// Scalar-preserving stateful parameter-update dispatch.
+pub mod stateful_update;
 /// Structural tensor ops dispatch (pad, concat, split, stack).
 pub mod structural;
 
@@ -74,4 +76,8 @@ pub use reductions::{
     suffix_sum_into,
 };
 pub use sparse::{spmm_into, spmv_into, CsrDispatch};
+pub use stateful_update::{
+    stateful_update, StatefulUpdateDispatchRule, StatefulUpdateOperands, StatefulUpdateState,
+    MAX_STATEFUL_UPDATE_RANK,
+};
 pub use structural::{concat_values, pad_values, split_values, stack_values};

@@ -81,7 +81,7 @@ fn main() {
         let loss = nll_loss(&log_softmax(&logits, 1), &targets);
         loss.backward()
             .expect("invariant: valid autograd fixture completes backward");
-        opt.step();
+        opt.step().expect("optimizer step");
 
         last_loss = loss.tensor.as_slice()[0];
         if epoch == 0 {

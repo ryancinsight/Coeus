@@ -68,7 +68,7 @@ fn main() {
         let loss = mean(&mul(&diff, &diff)); // MSE
         loss.backward()
             .expect("invariant: valid autograd fixture completes backward");
-        opt.step();
+        opt.step().expect("optimizer step");
 
         last_loss = loss.tensor.as_slice()[0];
         if epoch == 0 {

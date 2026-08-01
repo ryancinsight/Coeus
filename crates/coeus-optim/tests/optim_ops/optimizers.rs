@@ -12,7 +12,7 @@ fn test_sgd_optimizer() {
 
     // Test SGD step without momentum (momentum = 0.0, lr = 0.1)
     let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32);
-    optimizer.step();
+    optimizer.step().expect("SGD step");
     assert_eq!(optimizer.params[0].name, "x");
 
     // After one step, param = param - lr * grad
@@ -43,7 +43,7 @@ fn test_sgd_with_momentum() {
     // param = param - lr * v = [2.0, 3.0] - 0.1 * [1.0, -2.0] = [1.9, 3.2]
     let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]);
     optimizer.params[0].set_grad(grad_val);
-    optimizer.step();
+    optimizer.step().expect("SGD momentum step");
     assert_eq!(optimizer.params[0].name, "x");
 
     let updated_x = optimizer.params[0].tensor.as_slice();
@@ -57,7 +57,7 @@ fn test_sgd_with_momentum() {
     // param = param - lr * v_new = [1.9, 3.2] - 0.1 * [1.4, -1.3] = [1.76, 3.33]
     let grad_val2 = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[0.5f32, 0.5]);
     optimizer.params[0].set_grad(grad_val2);
-    optimizer.step();
+    optimizer.step().expect("second SGD momentum step");
     assert_eq!(optimizer.params[0].name, "x");
 
     let updated_x = optimizer.params[0].tensor.as_slice();
@@ -83,7 +83,7 @@ fn test_adam_optimizer() {
         0.999f32,
         1e-8f32,
     );
-    optimizer.step();
+    optimizer.step().expect("Adam step");
     assert_eq!(optimizer.params[0].name, "x");
 
     // After step 1:
@@ -119,7 +119,7 @@ fn test_rmsprop_optimizer() {
         0.99f32,
         1e-8f32,
     );
-    optimizer.step();
+    optimizer.step().expect("RMSProp step");
     assert_eq!(optimizer.params[0].name, "x");
 
     // After step 1:
@@ -151,7 +151,7 @@ fn test_adamw_optimizer() {
         1e-8f32,
         0.01f32,
     );
-    optimizer.step();
+    optimizer.step().expect("AdamW step");
 
     // After step 1:
     // t = 1
@@ -183,7 +183,7 @@ fn test_adagrad_optimizer() {
     // Test AdaGrad (lr = 0.1, eps = 1e-6)
     let mut optimizer =
         coeus_optim::AdaGrad::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 1e-6f32);
-    optimizer.step();
+    optimizer.step().expect("AdaGrad step");
 
     // After step 1:
     // history = history + grad^2 = [1.0, 4.0]
@@ -193,4 +193,51 @@ fn test_adagrad_optimizer() {
     let updated_x = optimizer.params[0].tensor.as_slice();
     assert!((updated_x[0] - 1.9).abs() < 1e-4);
     assert!((updated_x[1] - 3.1).abs() < 1e-4);
+}
+
+#[test]
+fn failed_adam_family_steps_preserve_bias_counter() {
+    let gradient = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[1.0]);
+
+    let adam_var = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0]),
+        true,
+    );
+    adam_var.set_grad(gradient.clone());
+    let mut adam = Adam::new(vec![Parameter::new(adam_var, "adam")], 0.1, 0.9, 0.999, 0.0);
+    adam.step()
+        .expect_err("zero Adam epsilon must reject the update");
+    assert_eq!(adam.t, 0);
+    assert_eq!(adam.params[0].tensor.as_slice(), &[2.0]);
+    assert_eq!(adam.m[0].as_slice(), &[0.0]);
+    assert_eq!(adam.v[0].as_slice(), &[0.0]);
+    adam.eps = 1.0e-8;
+    adam.step().expect("retry Adam step");
+    assert_eq!(adam.t, 1);
+    assert!((adam.params[0].tensor.as_slice()[0] - 1.9).abs() < 1.0e-4);
+
+    let adamw_var = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0]),
+        true,
+    );
+    adamw_var.set_grad(gradient);
+    let mut adamw = AdamW::new(
+        vec![Parameter::new(adamw_var, "adamw")],
+        0.1,
+        0.9,
+        0.999,
+        0.0,
+        0.01,
+    );
+    adamw
+        .step()
+        .expect_err("zero AdamW epsilon must reject the update");
+    assert_eq!(adamw.t, 0);
+    assert_eq!(adamw.params[0].tensor.as_slice(), &[2.0]);
+    assert_eq!(adamw.m[0].as_slice(), &[0.0]);
+    assert_eq!(adamw.v[0].as_slice(), &[0.0]);
+    adamw.eps = 1.0e-8;
+    adamw.step().expect("retry AdamW step");
+    assert_eq!(adamw.t, 1);
+    assert!((adamw.params[0].tensor.as_slice()[0] - 1.898).abs() < 1.0e-4);
 }

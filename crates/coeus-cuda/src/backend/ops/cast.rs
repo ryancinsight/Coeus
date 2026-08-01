@@ -4,7 +4,7 @@
 // `BackendOps<T>` trait is generic. After a `TypeId` check confirms `T == f32`,
 // these helpers reinterpret a `CudaStorage<T>` as `CudaStorage<f32>` (and back)
 // without copying device memory. This is the single authoritative definition;
-// the op modules (conv, math, optim, attention) call into it rather than
+// the op modules (conv, math, attention) call into it rather than
 // redefining it.
 
 use crate::storage::CudaStorage;

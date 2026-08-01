@@ -5,7 +5,6 @@ mod elementwise;
 mod error;
 mod impls;
 mod matmul;
-mod optim;
 mod pool;
 mod reduction;
 mod unfold_fold;

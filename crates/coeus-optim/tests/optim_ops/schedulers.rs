@@ -38,10 +38,10 @@ fn test_lr_schedulers() {
         let mut scheduler = LrScheduler::new(optimizer, strategy, 1e-3);
 
         assert!((scheduler.current_lr() - 1e-3).abs() < 1e-7);
-        scheduler.step();
+        scheduler.step().expect("first scheduled step");
 
         assert!((scheduler.current_lr() - 1e-3).abs() < 1e-7);
-        scheduler.step();
+        scheduler.step().expect("second scheduled step");
 
         assert!((scheduler.current_lr() - 5e-4).abs() < 1e-7);
     }
@@ -104,8 +104,39 @@ fn test_linear_warmup_drives_optimizer_lr() {
     let mut sched = LrScheduler::new(opt, LinearWarmup { warmup_steps: 2 }, 0.2);
 
     assert!((sched.current_lr() - 0.0).abs() < 1e-7); // step 0
-    sched.step();
+    sched.step().expect("first warmup step");
     assert!((sched.current_lr() - 0.1).abs() < 1e-7); // step 1: 0.2 * 1/2
-    sched.step();
+    sched.step().expect("second warmup step");
     assert!((sched.current_lr() - 0.2).abs() < 1e-7); // step 2: full
+}
+
+#[test]
+fn failed_optimizer_step_does_not_advance_scheduler() {
+    use coeus_optim::scheduler::{LrScheduler, StepDecay};
+
+    let parameter = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0]),
+        true,
+    );
+    parameter.set_grad(Tensor::from_slice(vec![1], &[1.0]));
+    let optimizer = SGD::new(vec![Parameter::new(parameter, "weight")], -0.1, 0.0);
+    let mut scheduler = LrScheduler::new(
+        optimizer,
+        StepDecay {
+            step_size: 1,
+            gamma: 0.5,
+        },
+        -0.1,
+    );
+
+    scheduler
+        .step()
+        .expect_err("negative scheduled learning rate must fail");
+    assert_eq!(scheduler.step, 0);
+    assert_eq!(scheduler.optimizer.params[0].tensor.as_slice(), &[2.0]);
+
+    scheduler.base_lr = 0.1;
+    scheduler.step().expect("retry scheduled step");
+    assert_eq!(scheduler.step, 1);
+    assert_eq!(scheduler.optimizer.params[0].tensor.as_slice(), &[1.9]);
 }

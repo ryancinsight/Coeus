@@ -32,7 +32,7 @@ use coeus_tensor::Tensor;
 /// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
 ///
 /// let mut opt = AdamW::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.9f32, 0.999f32, 1e-8f32, 0.01f32);
-/// opt.step();
+/// opt.step().unwrap();
 /// // adam_update ≈ lr * [1.0, -1.0] = [0.1, -0.1]; wd_update = lr * wd * p = [0.002, 0.003]
 /// // p' = [2.0, 3.0] - [0.1, -0.1] - [0.002, 0.003] = [1.898, 3.097]
 /// let updated = opt.params[0].var.tensor.as_slice();
@@ -114,9 +114,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> AdamW<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for AdamW<T, B> {
-    fn step(&mut self) {
-        self.t += 1;
+impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Default> Optimizer<T, B>
+    for AdamW<T, B>
+{
+    fn step(&mut self) -> Result<(), B::Error> {
+        let next_t = self.t + 1;
         let backend = B::default();
 
         for (i, param) in self.params.iter_mut().enumerate() {
@@ -143,10 +145,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for AdamW<
                     self.beta2,
                     self.eps,
                     self.weight_decay,
-                    self.t,
-                );
+                    next_t,
+                )?;
             }
         }
+        self.t = next_t;
+        Ok(())
     }
 
     fn zero_grad(&mut self) {

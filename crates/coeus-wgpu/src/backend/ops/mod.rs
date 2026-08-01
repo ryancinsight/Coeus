@@ -35,7 +35,6 @@ fn parameterized_activation(op: coeus_ops::UnaryOp) -> bool {
 
 mod impls;
 mod matmul;
-mod optim;
 mod parameterized_activation;
 mod pool;
 

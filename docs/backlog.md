@@ -16,8 +16,12 @@
   and exact-head hosted gates pass.
 - Risk/change class: `[major] [arch]`; ADR-0048 records the breaking fallible
   contract and provider ownership.
-- Status: in progress. Leto PR #85 and Hephaestus PR #174 are merged; Coeus's
-  standalone lock still predates both provider revisions.
+- Status: review-ready. Leto PRs #85/#86 and Hephaestus PRs #174/#177 are
+  merged; the standalone lock resolves their exact merge revisions. Local CPU,
+  Leto, optimizer, Python, all-target, CUDA-feature, Clippy, and doctest gates
+  pass. Independent review findings on bias-counter atomicity, rank parity,
+  failure contracts, and stale ownership documentation are resolved. Exact-head
+  Coeus hosted provider CI and merge remain.
 
 ## COEUS-ATTENTION-PROVIDER-001 — Provider-owned attention dispatch [major] [arch]
 
@@ -872,13 +876,13 @@
   because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
   test execution is claimed. Other pooling dimensions remain in the next gap.
 
-## ATLAS-CUDA-SAFETY-006 — Harden optimizer launch ABI [patch] [arch] — done
+## ATLAS-CUDA-SAFETY-006 — Retired CUDA optimizer launch ABI [patch] [arch] — done
 
-- Owner: Codex `/root`; scope: `crates/coeus-cuda/src/kernels/optim` and the shared
-  `kernels::validation` seam.
-- Outcome: AdaGrad, Adam, AdamW, RMSprop, and SGD now use checked counts and
-  grids, shared layout and same-shape validation, and the canonical block
-  size. Adam-family step exponents reject values outside `i32`.
+- Owner: Codex `/root`; historical scope: the former consumer-owned CUDA
+  optimizer kernels and their shared validation seam.
+- Outcome: this hardening protected the former launch ABI. ADR-0048 later
+  removed that ABI when all accelerator stateful updates moved to the single
+  Hephaestus-owned provider bridge.
 - Evidence: feature-enabled package check and warning-denied Clippy pass;
   default package Nextest passes 3/3 with zero skipped; validation tests cover
   shape mismatch and the existing overflow/zero-work cases; optimizer source

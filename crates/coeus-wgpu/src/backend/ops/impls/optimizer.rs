@@ -1,162 +1,109 @@
-use super::super::optim;
-use crate::backend::{WgpuBackend, WgpuScalar};
+use crate::backend::{WgpuBackend, WgpuBackendError, WgpuStorage};
 use coeus_core::Layout;
+use coeus_hephaestus::{StatefulUpdateBackend, StatefulUpdateProvider};
+use hephaestus_core::{ComputeDevice, HephaestusError};
+use hephaestus_wgpu::{WgpuDevice, WgpuStatefulUpdateOps};
 
-#[allow(clippy::too_many_arguments)]
-impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>>
-    coeus_ops::OptimizerOps<T> for WgpuBackend
-{
-    #[inline]
+impl StatefulUpdateProvider for WgpuBackend {
+    type Operations = WgpuStatefulUpdateOps;
+}
+
+impl StatefulUpdateBackend for WgpuBackend {
+    type Provider = Self;
+
+    fn stateful_update_buffer(
+        storage: &Self::DeviceBuffer<f32>,
+    ) -> &<WgpuDevice as ComputeDevice>::Buffer<f32> {
+        storage.buffer.as_ref()
+    }
+
+    fn stateful_update_error(operation: &'static str, source: HephaestusError) -> Self::Error {
+        WgpuBackendError::dispatch(operation, source)
+    }
+}
+
+impl coeus_ops::OptimizerOps<f32> for WgpuBackend {
     fn sgd_step(
         &self,
-        param: &mut Self::DeviceBuffer<T>,
-        param_layout: &Layout,
-        grad: &Self::DeviceBuffer<T>,
-        grad_layout: &Layout,
-        velocity: &mut Self::DeviceBuffer<T>,
-        velocity_layout: &Layout,
-        lr: T,
-        momentum: T,
-    ) where
-        T: coeus_core::Float,
-    {
-        optim::dispatch_sgd_step(
-            param,
-            param_layout,
-            grad,
-            grad_layout,
-            velocity,
-            velocity_layout,
-            lr,
-            momentum,
-        );
+        p: &mut WgpuStorage<f32>,
+        pl: &Layout,
+        g: &WgpuStorage<f32>,
+        gl: &Layout,
+        s: &mut WgpuStorage<f32>,
+        sl: &Layout,
+        lr: f32,
+        momentum: f32,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_sgd_step(p, pl, g, gl, s, sl, lr, momentum)
     }
 
-    #[inline]
     fn adam_step(
         &self,
-        param: &mut Self::DeviceBuffer<T>,
-        param_layout: &Layout,
-        grad: &Self::DeviceBuffer<T>,
-        grad_layout: &Layout,
-        m: &mut Self::DeviceBuffer<T>,
-        m_layout: &Layout,
-        v: &mut Self::DeviceBuffer<T>,
-        v_layout: &Layout,
-        lr: T,
-        beta1: T,
-        beta2: T,
-        eps: T,
-        t: usize,
-    ) where
-        T: coeus_core::Float,
-    {
-        optim::dispatch_adam_step(
-            param,
-            param_layout,
-            grad,
-            grad_layout,
-            m,
-            m_layout,
-            v,
-            v_layout,
-            lr,
-            beta1,
-            beta2,
-            eps,
-            t,
-        );
+        p: &mut WgpuStorage<f32>,
+        pl: &Layout,
+        g: &WgpuStorage<f32>,
+        gl: &Layout,
+        first: &mut WgpuStorage<f32>,
+        fl: &Layout,
+        second: &mut WgpuStorage<f32>,
+        sl: &Layout,
+        lr: f32,
+        b1: f32,
+        b2: f32,
+        eps: f32,
+        step: usize,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_adam_step(p, pl, g, gl, first, fl, second, sl, lr, b1, b2, eps, step)
     }
 
-    #[inline]
     fn rmsprop_step(
         &self,
-        param: &mut Self::DeviceBuffer<T>,
-        param_layout: &Layout,
-        grad: &Self::DeviceBuffer<T>,
-        grad_layout: &Layout,
-        v: &mut Self::DeviceBuffer<T>,
-        v_layout: &Layout,
-        lr: T,
-        alpha: T,
-        eps: T,
-    ) where
-        T: coeus_core::Float,
-    {
-        optim::dispatch_rmsprop_step(
-            param,
-            param_layout,
-            grad,
-            grad_layout,
-            v,
-            v_layout,
-            lr,
-            alpha,
-            eps,
-        );
+        p: &mut WgpuStorage<f32>,
+        pl: &Layout,
+        g: &WgpuStorage<f32>,
+        gl: &Layout,
+        s: &mut WgpuStorage<f32>,
+        sl: &Layout,
+        lr: f32,
+        alpha: f32,
+        eps: f32,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_rmsprop_step(p, pl, g, gl, s, sl, lr, alpha, eps)
     }
 
-    #[inline]
     fn adamw_step(
         &self,
-        param: &mut Self::DeviceBuffer<T>,
-        param_layout: &Layout,
-        grad: &Self::DeviceBuffer<T>,
-        grad_layout: &Layout,
-        m: &mut Self::DeviceBuffer<T>,
-        m_layout: &Layout,
-        v: &mut Self::DeviceBuffer<T>,
-        v_layout: &Layout,
-        lr: T,
-        beta1: T,
-        beta2: T,
-        eps: T,
-        weight_decay: T,
-        t: usize,
-    ) where
-        T: coeus_core::Float,
-    {
-        optim::dispatch_adamw_step(
-            param,
-            param_layout,
-            grad,
-            grad_layout,
-            m,
-            m_layout,
-            v,
-            v_layout,
-            lr,
-            beta1,
-            beta2,
-            eps,
-            weight_decay,
-            t,
-        );
+        p: &mut WgpuStorage<f32>,
+        pl: &Layout,
+        g: &WgpuStorage<f32>,
+        gl: &Layout,
+        first: &mut WgpuStorage<f32>,
+        fl: &Layout,
+        second: &mut WgpuStorage<f32>,
+        sl: &Layout,
+        lr: f32,
+        b1: f32,
+        b2: f32,
+        eps: f32,
+        decay: f32,
+        step: usize,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_adamw_step(
+            p, pl, g, gl, first, fl, second, sl, lr, b1, b2, eps, decay, step,
+        )
     }
 
-    #[inline]
     fn adagrad_step(
         &self,
-        param: &mut Self::DeviceBuffer<T>,
-        param_layout: &Layout,
-        grad: &Self::DeviceBuffer<T>,
-        grad_layout: &Layout,
-        history: &mut Self::DeviceBuffer<T>,
-        history_layout: &Layout,
-        lr: T,
-        eps: T,
-    ) where
-        T: coeus_core::Float,
-    {
-        optim::dispatch_adagrad_step(
-            param,
-            param_layout,
-            grad,
-            grad_layout,
-            history,
-            history_layout,
-            lr,
-            eps,
-        );
+        p: &mut WgpuStorage<f32>,
+        pl: &Layout,
+        g: &WgpuStorage<f32>,
+        gl: &Layout,
+        s: &mut WgpuStorage<f32>,
+        sl: &Layout,
+        lr: f32,
+        eps: f32,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_adagrad_step(p, pl, g, gl, s, sl, lr, eps)
     }
 }

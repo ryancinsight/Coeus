@@ -12,6 +12,7 @@ mod elementwise;
 mod error;
 mod layout;
 mod reduction;
+mod stateful_update;
 mod storage;
 
 pub use attention::{AttentionBackend, AttentionProvider};
@@ -25,4 +26,5 @@ pub use elementwise::{parameterized_unary, ElementwiseProvider, ParameterizedEle
 pub use error::HephaestusBackendError;
 pub use reduction::HephaestusBackend;
 pub use reduction::{HephaestusProvider, RankedOperand, ReductionProvider, ScanOperation};
+pub use stateful_update::{StatefulUpdateBackend, StatefulUpdateProvider};
 pub use storage::HephaestusStorage;

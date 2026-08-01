@@ -8,7 +8,8 @@
 //! - **Pooling** — max and average pooling (2-D/3-D) with backward gradients.
 //! - **Attention** — [`attention::scaled_dot_product_attention`] with causal/padding mask support.
 //! - **Fused expressions** — [`fuse`] lazy expression DAG evaluated in a single pass on CPU.
-//! - **Optimizer steps** — fused `sgd_step`, `adam_step`, `adamw_step`, `rmsprop_step`, `adagrad_step` on [`BackendOps`].
+//! - **Optimizer steps** — provider-dispatched `sgd_step`, `adam_step`,
+//!   `adamw_step`, `rmsprop_step`, and `adagrad_step` on [`OptimizerOps`].
 
 // ── Coeus Ops ──
 // Tensor operations: unary, binary, matmul, reductions, FFT.

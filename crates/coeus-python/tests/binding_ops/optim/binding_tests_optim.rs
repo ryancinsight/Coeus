@@ -59,6 +59,19 @@ try:
     adagrad.step()
     assert abs(param_adagrad.data[0] - 9.9) < 1e-5, f'AdaGrad step failed, data is {param_adagrad.data[0]}'
 
+    # Backend failures surface as Python exceptions and do not synchronize
+    # partially updated Rust state into the Python-owned tensor.
+    rejected = pycoeus.Tensor([10.0], requires_grad=True)
+    invalid_sgd = pycoeus.SGD([('weight', rejected)], lr=-0.1)
+    (rejected * pycoeus.Tensor([2.0])).backward()
+    before = rejected.data[0]
+    try:
+        invalid_sgd.step()
+        raise AssertionError('invalid optimizer parameters did not raise')
+    except ValueError as error:
+        assert 'learning rate' in str(error).lower(), str(error)
+    assert rejected.data[0] == before, rejected.data[0]
+
 except Exception as e:
     traceback.print_exc()
     sys.exit(1)

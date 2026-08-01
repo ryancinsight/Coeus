@@ -1,17 +1,15 @@
 //! Fused optimizer step sub-trait.
 //!
 //! [`OptimizerOps`] is the interface-segregated sub-trait for fused
-//! optimizer kernel dispatch (SGD, Adam, RMSProp, AdamW, AdaGrad).
+//! provider-owned stateful updates (SGD, Adam, RMSProp, AdamW, AdaGrad).
 
 use coeus_core::{ComputeBackend, Float, Layout, Scalar};
 
 /// Fused optimizer step operations.
 ///
-/// This sub-trait is one of seven concerns that compose
-/// [`BackendOps`].  Backends implement `OptimizerOps` directly; the
-/// blanket impl provides `BackendOps` automatically.
-///
-/// [`BackendOps`]: super::super::BackendOps
+/// Backends implement this optional capability independently from
+/// [`BackendOps`](super::super::BackendOps), so integer and inference-only
+/// backends do not inherit an optimizer requirement.
 pub trait OptimizerOps<T: Scalar>: ComputeBackend {
     /// Fused SGD step update.
     fn sgd_step(
@@ -24,7 +22,8 @@ pub trait OptimizerOps<T: Scalar>: ComputeBackend {
         velocity_layout: &Layout,
         lr: T,
         momentum: T,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: Float;
 
     /// Fused Adam step update.
@@ -43,7 +42,8 @@ pub trait OptimizerOps<T: Scalar>: ComputeBackend {
         beta2: T,
         eps: T,
         t: usize,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: Float;
 
     /// Fused RMSProp step update.
@@ -58,7 +58,8 @@ pub trait OptimizerOps<T: Scalar>: ComputeBackend {
         lr: T,
         alpha: T,
         eps: T,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: Float;
 
     /// Fused AdamW step update (decoupled weight decay).
@@ -78,7 +79,8 @@ pub trait OptimizerOps<T: Scalar>: ComputeBackend {
         eps: T,
         weight_decay: T,
         t: usize,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: Float;
 
     /// Fused AdaGrad step update.
@@ -92,6 +94,7 @@ pub trait OptimizerOps<T: Scalar>: ComputeBackend {
         history_layout: &Layout,
         lr: T,
         eps: T,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: Float;
 }

@@ -16,7 +16,7 @@ use coeus_tensor::Tensor;
 /// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
 ///
 /// let mut opt = AdaGrad::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 1e-6f32);
-/// opt.step();
+/// opt.step().unwrap();
 /// // history = grad^2 = [1.0, 4.0]; denom = sqrt(history) + eps ≈ [1.0, 2.0]
 /// // update = lr * grad / denom ≈ 0.1 * [1.0, -1.0] = [0.1, -0.1]
 /// // p' = [2.0, 3.0] - [0.1, -0.1] = [1.9, 3.1]
@@ -52,8 +52,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> AdaGrad<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for AdaGrad<T, B> {
-    fn step(&mut self) {
+impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Default> Optimizer<T, B>
+    for AdaGrad<T, B>
+{
+    fn step(&mut self) -> Result<(), B::Error> {
         let backend = B::default();
 
         for (i, param) in self.params.iter_mut().enumerate() {
@@ -73,9 +75,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Optimizer<T, B> for AdaGra
                     history_layout,
                     self.lr,
                     self.eps,
-                );
+                )?;
             }
         }
+        Ok(())
     }
 
     fn zero_grad(&mut self) {

@@ -31,8 +31,10 @@ pub use dispatch::{
     from_shape_fn_values, matmul_accumulate_into, matmul_into, normal_values, pad_values,
     permute_layout, reduce_into, reshape_layout, scaled_dot_product_attention_backward_accumulate,
     scaled_dot_product_attention_into, split_values, spmm_into, spmv_into, stack_values,
-    suffix_prod_into, suffix_sum_into, uniform_values, AttentionBackward, AttentionForward,
-    AttentionGradientTargets, AttentionScalar, ConvolutionBackward, ConvolutionForward,
-    ConvolutionGradients, CsrDispatch, ReadOperand, WriteOperand, MAX_DISPATCH_RANK,
+    stateful_update, suffix_prod_into, suffix_sum_into, uniform_values, AttentionBackward,
+    AttentionForward, AttentionGradientTargets, AttentionScalar, ConvolutionBackward,
+    ConvolutionForward, ConvolutionGradients, CsrDispatch, ReadOperand, StatefulUpdateDispatchRule,
+    StatefulUpdateOperands, StatefulUpdateState, WriteOperand, MAX_DISPATCH_RANK,
+    MAX_STATEFUL_UPDATE_RANK,
 };
 pub use leto_ops::RealScalar as RandomScalar;

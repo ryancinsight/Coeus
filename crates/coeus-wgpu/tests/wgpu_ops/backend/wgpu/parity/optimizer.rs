@@ -38,7 +38,8 @@ fn test_wgpu_parity_adamw_step() {
         1e-8,
         0.01,
         1,
-    );
+    )
+    .expect("CPU AdamW step");
 
     let p_g = to_gpu(&p_c);
     let g_g = to_gpu(&g_c);
@@ -64,7 +65,8 @@ fn test_wgpu_parity_adamw_step() {
         1e-8,
         0.01,
         1,
-    );
+    )
+    .expect("WGPU AdamW step");
 
     assert_parity(
         "adamw_step",

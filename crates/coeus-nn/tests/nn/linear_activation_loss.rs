@@ -193,7 +193,7 @@ fn test_load_parameters_applies_optimizer_step_to_the_module() {
 
     let lr = 0.1;
     let mut opt = SGD::new(layer.named_parameters(), lr, 0.0);
-    opt.step();
+    opt.step().expect("optimizer step");
     layer
         .load_named_parameters(&opt.params)
         .expect("optimizer inventory must match module paths");

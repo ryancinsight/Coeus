@@ -1,5 +1,23 @@
 # Coeus Gap Audit
 
+## COEUS-STATEFUL-UPDATE-PROVIDER-001: Consumer-owned optimizer dispatch
+
+**Location**: `coeus-ops`, `coeus-wgpu`, `coeus-cuda`, `coeus-rocm`, and
+`coeus-metal` optimizer implementations.
+**Gap**: Coeus duplicated stateful-update mathematics for CPU, WGPU, and CUDA,
+retained a CUDA host fallback, and lacked shared ROCm/Metal provider dispatch.
+**Resolution**: call Leto over borrowed CPU storage and bind accelerator storage
+through one monomorphized Coeus-Hephaestus bridge selected by backend type;
+propagate typed failures and delete the superseded implementations.
+**Residual**: exact-head Coeus hosted provider CI and merge confirmation remain
+pending. Local WGPU execution reports no compatible adapter; provider runtime
+semantics are covered by Hephaestus's green WGPU/CUDA/ROCm/Metal matrix, while
+Coeus adapter value parity remains a hosted-CI gate. No performance, memory, or
+binary-size delta is claimed without controlled measurements.
+**Status**: review-ready under ADR-0048. CPU/Leto, optimizer/scheduler, Python,
+all-target, CUDA-feature, warning-denied Clippy, and doctest gates pass;
+independent review findings are resolved.
+
 ## COEUS-ATTENTION-PROVIDER-001: Consumer-owned attention dispatch
 
 **Location**: `coeus-ops`, `coeus-wgpu`, `coeus-cuda`, `coeus-rocm`, and

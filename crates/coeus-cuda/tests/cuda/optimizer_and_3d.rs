@@ -50,24 +50,27 @@ fn test_cuda_adamw_step() {
         1e-8,
         0.01,
         1,
-    );
+    )
+    .expect("CPU AdamW step");
 
-    cuda_b.adamw_step(
-        param_cuda.storage_mut(),
-        &p_cuda_layout,
-        grad_cuda.storage(),
-        &g_cuda_layout,
-        m_cuda.storage_mut(),
-        &m_cuda_layout,
-        v_cuda.storage_mut(),
-        &v_cuda_layout,
-        0.001,
-        0.9,
-        0.999,
-        1e-8,
-        0.01,
-        1,
-    );
+    cuda_b
+        .adamw_step(
+            param_cuda.storage_mut(),
+            &p_cuda_layout,
+            grad_cuda.storage(),
+            &g_cuda_layout,
+            m_cuda.storage_mut(),
+            &m_cuda_layout,
+            v_cuda.storage_mut(),
+            &v_cuda_layout,
+            0.001,
+            0.9,
+            0.999,
+            1e-8,
+            0.01,
+            1,
+        )
+        .expect("CUDA AdamW step");
 
     let param_cuda_on_cpu = param_cuda.to_backend_on(&cuda_b, &seq);
     let m_cuda_on_cpu = m_cuda.to_backend_on(&cuda_b, &seq);

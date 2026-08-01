@@ -35,7 +35,8 @@ fn test_cuda_parity_adamw_step() {
         1e-8,
         0.01,
         1,
-    );
+    )
+    .expect("CPU AdamW step");
 
     let p_g = to_gpu(&p_c, &s, &c);
     let g_g = to_gpu(&g_c, &s, &c);
@@ -61,7 +62,8 @@ fn test_cuda_parity_adamw_step() {
         1e-8,
         0.01,
         1,
-    );
+    )
+    .expect("CUDA AdamW step");
 
     assert_parity_tol(
         "adamw_step",
@@ -84,10 +86,10 @@ fn test_cuda_parity_roundtrip_identity() {
     assert_parity_tol("roundtrip", x.as_slice(), back.as_slice(), CUDA_TOL);
 }
 
-// ── Fused optimizer step parity (sgd / adam / rmsprop / adagrad) ──
+// ── Provider-owned optimizer step parity (sgd / adam / rmsprop / adagrad) ──
 //
 // adamw is covered by `test_cuda_parity_adamw_step` above. These cover the
-// remaining four on-device optimizer kernels, checking both the updated
+// remaining four Hephaestus stateful updates, checking both the updated
 // parameter and the optimizer state against the CPU reference.
 
 #[test]
@@ -116,7 +118,8 @@ fn test_cuda_parity_sgd_step() {
         &vl,
         lr,
         momentum,
-    );
+    )
+    .expect("CPU SGD step");
 
     let g_g = to_gpu(&g_c, &s, &c);
     let mut p_g = Tensor::from_slice_on(vec![n], &param, &c);
@@ -130,7 +133,8 @@ fn test_cuda_parity_sgd_step() {
         &vl,
         lr,
         momentum,
-    );
+    )
+    .expect("CUDA SGD step");
 
     assert_parity_tol(
         "sgd_p",
@@ -180,7 +184,8 @@ fn test_cuda_parity_adam_step() {
         beta2,
         eps,
         t,
-    );
+    )
+    .expect("CPU Adam step");
 
     let g_g = to_gpu(&g_c, &s, &c);
     let mut p_g = Tensor::from_slice_on(vec![n], &param, &c);
@@ -200,7 +205,8 @@ fn test_cuda_parity_adam_step() {
         beta2,
         eps,
         t,
-    );
+    )
+    .expect("CUDA Adam step");
 
     assert_parity_tol(
         "adam_p",
@@ -249,7 +255,8 @@ fn test_cuda_parity_rmsprop_step() {
         lr,
         alpha,
         eps,
-    );
+    )
+    .expect("CPU RMSProp step");
 
     let g_g = to_gpu(&g_c, &s, &c);
     let mut p_g = Tensor::from_slice_on(vec![n], &param, &c);
@@ -264,7 +271,8 @@ fn test_cuda_parity_rmsprop_step() {
         lr,
         alpha,
         eps,
-    );
+    )
+    .expect("CUDA RMSProp step");
 
     assert_parity_tol(
         "rmsprop_p",
@@ -306,7 +314,8 @@ fn test_cuda_parity_adagrad_step() {
         &hl,
         lr,
         eps,
-    );
+    )
+    .expect("CPU AdaGrad step");
 
     let g_g = to_gpu(&g_c, &s, &c);
     let mut p_g = Tensor::from_slice_on(vec![n], &param, &c);
@@ -320,7 +329,8 @@ fn test_cuda_parity_adagrad_step() {
         &hl,
         lr,
         eps,
-    );
+    )
+    .expect("CUDA AdaGrad step");
 
     assert_parity_tol(
         "adagrad_p",

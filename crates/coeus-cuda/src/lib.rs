@@ -14,11 +14,12 @@
 //!
 //! ## Dispatch architecture
 //!
-//! Attention and convolution bind directly to provider-owned Hephaestus
-//! operation markers over borrowed CUDA buffers. Other `BackendOps<T>` methods
-//! route to monomorphized on-device kernels and return typed backend errors when
-//! the selected provider rejects validation, compilation, or dispatch. No
-//! operation changes execution backend after CUDA has been selected.
+//! Attention, convolution, and stateful optimizer updates bind directly to
+//! provider-owned Hephaestus operation markers over borrowed CUDA buffers.
+//! Other `BackendOps<T>` methods route to monomorphized on-device kernels and
+//! return typed backend errors when the selected provider rejects validation,
+//! compilation, or dispatch. No operation changes execution backend after CUDA
+//! has been selected.
 //!
 //! Provider capability boundaries are explicit in their operation contracts
 //! and are covered by differential parity tests in `tests/cuda/`. Native and
@@ -43,8 +44,6 @@ pub mod driver;
 /// Stub CUDA driver surface used when the `cuda` feature is disabled.
 pub mod driver;
 
-#[cfg(feature = "cuda")]
-mod fallback;
 #[cfg(feature = "cuda")]
 /// CUDA kernel modules and launch helpers for on-device computation.
 pub mod kernels;

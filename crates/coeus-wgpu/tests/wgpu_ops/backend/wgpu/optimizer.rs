@@ -1,6 +1,6 @@
 // On-device optimizer step parity against the CPU reference.
 //
-// Each fused optimizer kernel (`sgd`, `adam`, `rmsprop`, `adamw`, `adagrad`)
+// Each provider-owned stateful update (`sgd`, `adam`, `rmsprop`, `adamw`, `adagrad`)
 // runs the same step on `WgpuBackend` and `SequentialBackend` with identical
 // inputs and asserts element-wise agreement on the updated parameter and
 // optimizer state. The updates are element-wise (no cross-element reduction),
@@ -53,12 +53,14 @@ fn test_wgpu_sgd_step() {
     {
         let (p, pl) = p_c.storage_mut_and_layout();
         let (vel, vl) = vel_c.storage_mut_and_layout();
-        seq.sgd_step(p, pl, g_c.storage(), g_c.layout(), vel, vl, lr, momentum);
+        seq.sgd_step(p, pl, g_c.storage(), g_c.layout(), vel, vl, lr, momentum)
+            .expect("CPU SGD step");
     }
     {
         let (p, pl) = p_g.storage_mut_and_layout();
         let (vel, vl) = vel_g.storage_mut_and_layout();
-        wgpu.sgd_step(p, pl, g_g.storage(), g_g.layout(), vel, vl, lr, momentum);
+        wgpu.sgd_step(p, pl, g_g.storage(), g_g.layout(), vel, vl, lr, momentum)
+            .expect("WGPU SGD step");
     }
     assert_close(
         "sgd_p",
@@ -100,7 +102,8 @@ fn test_wgpu_adam_step() {
             beta2,
             eps,
             t,
-        );
+        )
+        .expect("CPU Adam step");
     }
     {
         let (p, pl) = p_g.storage_mut_and_layout();
@@ -120,7 +123,8 @@ fn test_wgpu_adam_step() {
             beta2,
             eps,
             t,
-        );
+        )
+        .expect("WGPU Adam step");
     }
     assert_close(
         "adam_p",
@@ -151,12 +155,14 @@ fn test_wgpu_rmsprop_step() {
     {
         let (p, pl) = p_c.storage_mut_and_layout();
         let (v, vl) = v_c.storage_mut_and_layout();
-        seq.rmsprop_step(p, pl, g_c.storage(), g_c.layout(), v, vl, lr, alpha, eps);
+        seq.rmsprop_step(p, pl, g_c.storage(), g_c.layout(), v, vl, lr, alpha, eps)
+            .expect("CPU RMSProp step");
     }
     {
         let (p, pl) = p_g.storage_mut_and_layout();
         let (v, vl) = v_g.storage_mut_and_layout();
-        wgpu.rmsprop_step(p, pl, g_g.storage(), g_g.layout(), v, vl, lr, alpha, eps);
+        wgpu.rmsprop_step(p, pl, g_g.storage(), g_g.layout(), v, vl, lr, alpha, eps)
+            .expect("WGPU RMSProp step");
     }
     assert_close(
         "rmsprop_p",
@@ -182,12 +188,14 @@ fn test_wgpu_adagrad_step() {
     {
         let (p, pl) = p_c.storage_mut_and_layout();
         let (h, hl) = h_c.storage_mut_and_layout();
-        seq.adagrad_step(p, pl, g_c.storage(), g_c.layout(), h, hl, lr, eps);
+        seq.adagrad_step(p, pl, g_c.storage(), g_c.layout(), h, hl, lr, eps)
+            .expect("CPU AdaGrad step");
     }
     {
         let (p, pl) = p_g.storage_mut_and_layout();
         let (h, hl) = h_g.storage_mut_and_layout();
-        wgpu.adagrad_step(p, pl, g_g.storage(), g_g.layout(), h, hl, lr, eps);
+        wgpu.adagrad_step(p, pl, g_g.storage(), g_g.layout(), h, hl, lr, eps)
+            .expect("WGPU AdaGrad step");
     }
     assert_close(
         "adagrad_p",
@@ -230,7 +238,8 @@ fn test_wgpu_adamw_step() {
             eps,
             wd,
             t,
-        );
+        )
+        .expect("CPU AdamW step");
     }
     {
         let (p, pl) = p_g.storage_mut_and_layout();
@@ -251,7 +260,8 @@ fn test_wgpu_adamw_step() {
             eps,
             wd,
             t,
-        );
+        )
+        .expect("WGPU AdamW step");
     }
     assert_close(
         "adamw_p",

@@ -4,13 +4,13 @@
 
 - [x] Merge the required Leto and Hephaestus stateful-update contracts.
 - [x] Add ADR-0048 and claim the complete caller, deletion, and lock closure.
-- [ ] Route CPU optimizer updates through borrowed Leto storage.
-- [ ] Route WGPU, CUDA, ROCm, and Metal through the generic Hephaestus bridge.
-- [ ] Propagate typed failure through optimizer, scheduler, and Python APIs.
-- [ ] Delete local formulas, kernels, launchers, host fallbacks, and obsolete
+- [x] Route CPU optimizer updates through borrowed Leto storage.
+- [x] Route WGPU, CUDA, ROCm, and Metal through the generic Hephaestus bridge.
+- [x] Propagate typed failure through optimizer, scheduler, and Python APIs.
+- [x] Delete local formulas, kernels, launchers, host fallbacks, and obsolete
       optimizer-launch documentation.
-- [ ] Add value-semantic provider differential and failure-atomic contracts.
-- [ ] Pass focused local gates and independent architecture/correctness review.
+- [x] Add value-semantic provider differential and failure-atomic contracts.
+- [x] Pass focused local gates and independent architecture/correctness review.
 - [ ] Pass exact-head hosted provider CI, merge, and reconcile PM state.
 
 ## ATLAS-WGPU-SAFETY-002 — Checked unfold/fold dispatch
