@@ -1,40 +1,61 @@
 use super::cache::PIPELINE_CACHE;
 use super::layout::GpuLayoutInfo;
-use crate::backend::{WgpuBackend, WgpuScalar};
+use crate::backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
 use crate::storage::WgpuStorage;
 use coeus_ops::fuse::ExprNode;
-use coeus_tensor::Tensor;
 use std::collections::HashMap;
 
+pub(crate) mod validation;
+
+use validation::{validate_bindings, validate_reduction, validate_storage_bindings, OPERATION};
+
 /// Dispatch a WGSL shader for fused element-wise and reduction along an axis.
+///
+/// # Errors
+///
+/// Returns [`WgpuBackendError`] when expression metadata, tensor layouts,
+/// dispatch arithmetic, or adapter resource limits reject the operation.
 pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     expr: &E,
     op: coeus_ops::ReductionOp,
     axis: usize,
     c: &mut WgpuStorage<T>,
     c_layout: &coeus_core::Layout,
-) {
+) -> Result<(), WgpuBackendError> {
+    let mut inputs = Vec::new();
+    expr.collect_inputs(&mut inputs);
+    if inputs.is_empty() {
+        return Err(WgpuBackendError::Validation(
+            coeus_core::BackendError::Storage {
+                operation: OPERATION,
+                reason: "expression contains no tensor inputs".to_string(),
+            },
+        ));
+    }
+    let expression_shape = expr.shape()?.ok_or_else(|| {
+        WgpuBackendError::Validation(coeus_core::BackendError::Storage {
+            operation: OPERATION,
+            reason: "expression has no tensor input from which to derive its shape".to_string(),
+        })
+    })?;
+    let num_inputs = inputs.len();
+
     let ctx = crate::backend::get_wgpu_context();
+    let dispatch = validate_reduction(&expression_shape, op, axis, c_layout, &ctx.device.limits())?;
+    let bindings = validate_bindings(num_inputs, &ctx.device.limits())?;
+    validate_storage_bindings(
+        inputs
+            .iter()
+            .map(|input| input.storage().buffer.raw().size()),
+        c.buffer.raw().size(),
+        &ctx.device.limits(),
+    )?;
     let wgsl_type = T::WGSL_TYPE;
-
-    let expr_shape = expr
-        .shape()
-        .expect("Fused expression must have at least one tensor input");
-    let expr_ndim = expr_shape.len() as u32;
-    let axis_len_gpu = expr_shape[axis] as u32;
-    let axis_gpu = axis as u32;
-
-    // 1. Collect unique input tensors
-    let mut input_ptrs = Vec::new();
-    expr.collect_inputs(&mut input_ptrs);
-    let num_inputs = input_ptrs.len();
-
-    let inputs: Vec<&Tensor<T, WgpuBackend>> = input_ptrs.iter().map(|&p| unsafe { &*p }).collect();
 
     // 2. Build input pointer to index map
     let mut input_map = HashMap::new();
-    for (i, &p) in input_ptrs.iter().enumerate() {
-        input_map.insert(p, i);
+    for (i, &input) in inputs.iter().enumerate() {
+        input_map.insert(std::ptr::from_ref(input), i);
     }
     // 3. Generate the shader expression string
     let expr_str = expr.to_shader_expr(&input_map);
@@ -42,16 +63,22 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     // 4. Create the unified layout buffer
     let mut layouts_gpu = Vec::with_capacity(num_inputs + 1);
     for input in &inputs {
-        layouts_gpu.push(GpuLayoutInfo::from_layout(input.layout()));
+        layouts_gpu.push(
+            GpuLayoutInfo::try_from_layout(input.layout())
+                .map_err(|error| WgpuBackendError::Layout(error.into()))?,
+        );
     }
     // We add c_layout as the last one to decode output coordinates
-    layouts_gpu.push(GpuLayoutInfo::from_layout(c_layout));
+    layouts_gpu.push(
+        GpuLayoutInfo::try_from_layout(c_layout)
+            .map_err(|error| WgpuBackendError::Layout(error.into()))?,
+    );
 
     let layout_buf = crate::backend::PooledMetadataBuffer::new();
     ctx.queue
         .write_buffer(&layout_buf, 0, bytemuck::cast_slice(&layouts_gpu));
 
-    let axis_info = [axis_gpu, axis_len_gpu];
+    let axis_info = [dispatch.axis, dispatch.axis_length];
     let axis_buf = crate::backend::PooledMetadataBuffer::new();
     ctx.queue
         .write_buffer(&axis_buf, 0, bytemuck::cast_slice(&axis_info));
@@ -76,20 +103,33 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
                 }}\n\
             }}\n\
             let val_{} = t_{}[off_{}];\n\n",
-            i, i, expr_ndim, expr_ndim, i, i, expr_ndim, i, i, i, i, i, i, i
+            i,
+            i,
+            dispatch.expression_rank,
+            dispatch.expression_rank,
+            i,
+            i,
+            dispatch.expression_rank,
+            i,
+            i,
+            i,
+            i,
+            i,
+            i,
+            i
         ));
     }
 
     let (init_expr, update_expr) = match op {
-        coeus_ops::ReductionOp::Sum => ("0.0", "acc = acc + val;"),
-        coeus_ops::ReductionOp::Prod => ("1.0", "acc = acc * val;"),
-        coeus_ops::ReductionOp::Mean => ("0.0", "acc = acc + val;"),
-        coeus_ops::ReductionOp::Max => ("-3.40282347e+38", "acc = max(acc, val);"),
-        coeus_ops::ReductionOp::Min => ("3.40282347e+38", "acc = min(acc, val);"),
+        coeus_ops::ReductionOp::Sum => (T::WGSL_ZERO, "acc = acc + val;"),
+        coeus_ops::ReductionOp::Prod => (T::WGSL_ONE, "acc = acc * val;"),
+        coeus_ops::ReductionOp::Mean => (T::WGSL_ZERO, "acc = acc + val;"),
+        coeus_ops::ReductionOp::Max => (T::WGSL_LOWEST, "acc = max(acc, val);"),
+        coeus_ops::ReductionOp::Min => (T::WGSL_HIGHEST, "acc = min(acc, val);"),
     };
     let final_expr = match op {
-        coeus_ops::ReductionOp::Mean => "acc / f32(axis_len)",
-        _ => "acc",
+        coeus_ops::ReductionOp::Mean => format!("acc / {wgsl_type}(axis_len)"),
+        _ => "acc".to_string(),
     };
 
     let shader_src = format!(
@@ -144,14 +184,15 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
         "#,
         inputs_decl = inputs_decl,
         wgsl_type = wgsl_type,
-        binding_out = num_inputs,
-        binding_layouts = num_inputs + 1,
-        binding_axis = num_inputs + 2,
-        binding_c = num_inputs,
+        binding_out = bindings.output,
+        binding_layouts = bindings.layouts,
+        binding_axis = bindings.axis,
+        binding_c = bindings.output,
         init_expr = init_expr,
         offset_calcs = offset_calcs,
         expr_str = expr_str,
-        update_expr = update_expr
+        update_expr = update_expr,
+        final_expr = final_expr
     );
 
     // 6. Create cache key
@@ -162,20 +203,20 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     let mut entries = Vec::with_capacity(num_inputs + 3);
     for (i, input) in inputs.iter().enumerate() {
         entries.push(wgpu::BindGroupEntry {
-            binding: i as u32,
+            binding: u32::try_from(i).expect("invariant: validated input binding fits u32"),
             resource: input.storage().buffer.raw().as_entire_binding(),
         });
     }
     entries.push(wgpu::BindGroupEntry {
-        binding: num_inputs as u32,
+        binding: bindings.output,
         resource: c.buffer.raw().as_entire_binding(),
     });
     entries.push(wgpu::BindGroupEntry {
-        binding: (num_inputs + 1) as u32,
+        binding: bindings.layouts,
         resource: layout_buf.as_entire_binding(),
     });
     entries.push(wgpu::BindGroupEntry {
-        binding: (num_inputs + 2) as u32,
+        binding: bindings.axis,
         resource: axis_buf.as_entire_binding(),
     });
 
@@ -200,10 +241,9 @@ pub fn dispatch_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
         compute_pass.set_pipeline(&pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
 
-        let out_numel = c_layout.shape().iter().product::<usize>();
-        let workgroups = out_numel.div_ceil(256);
-        compute_pass.dispatch_workgroups(workgroups as u32, 1, 1);
+        compute_pass.dispatch_workgroups(dispatch.workgroups, 1, 1);
     }
 
     ctx.queue.submit(Some(encoder.finish()));
+    Ok(())
 }

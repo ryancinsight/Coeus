@@ -94,12 +94,16 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Unfold1d
                 )
             })?;
 
-        Ok(coeus_autograd::unfold1d(
+        coeus_autograd::unfold1d(
             input,
             self.kernel_size,
             self.stride,
             self.padding,
             self.dilation,
-        ))
+        )
+        .map_err(|source| ModuleError::Backend {
+            module: "Unfold1d",
+            source,
+        })
     }
 }

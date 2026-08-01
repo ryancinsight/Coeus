@@ -10,12 +10,12 @@ provider dispatch or typed operation failure.
 **Resolution**: call Leto directly for CPU storage, bind all accelerator storage
 through one monomorphized Coeus-Hephaestus bridge, make the public operation
 fallible, migrate every caller, and delete superseded implementations.
-**Residual**: exact-head hosted device lanes remain the closure gate. No
-performance or memory delta is claimed without matched measurements.
-**Status**: local implementation, provider differential verification, and
-independent architecture/correctness review complete under ADR-0047. Review
-findings consolidated all accelerator request assembly in `AttentionBackend`,
-made Coeus's scalar marker provider-neutral, and closed Python mask validation.
+**Residual**: none for the migrated provider-dispatch boundary. No performance
+or memory delta is claimed without matched measurements.
+**Status**: merged in PR #256 as `ee3bb94f`. Exact-head hosted run
+`30666670100` passed CPU/Leto, WGPU, CUDA, ROCm, and Metal lanes. Review findings
+consolidated all accelerator request assembly in `AttentionBackend`, made
+Coeus's scalar marker provider-neutral, and closed Python mask validation.
 
 ## ATLAS-COEUS-HEPHAESTUS-006: Activation-tail provider parity
 

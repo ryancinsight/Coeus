@@ -13,12 +13,10 @@ pub(super) fn kernel<T: CudaScalar>(
 }
 
 pub(super) fn launch(
-    name: &str,
+    _name: &str,
     total: usize,
     function: crate::driver::CUfunction,
     args: &mut [*mut std::ffi::c_void],
 ) -> bool {
-    let launched = crate::kernels::launch_1d(function, total, args);
-    debug_assert!(launched, "{name} CUDA launch failed");
-    launched
+    crate::kernels::launch_1d(function, total, args)
 }

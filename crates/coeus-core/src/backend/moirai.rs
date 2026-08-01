@@ -117,7 +117,8 @@ impl ComputeBackend for MoiraiBackend {
     }
 }
 
-impl Backend for MoiraiBackend {
+// SAFETY: `for_each_index_with` joins all policy tasks before returning.
+unsafe impl Backend for MoiraiBackend {
     #[inline]
     fn parallel_for<F>(&self, start: usize, end: usize, f: F)
     where

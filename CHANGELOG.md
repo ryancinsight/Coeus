@@ -4,6 +4,27 @@
 
 ### Changed
 
+- [major] Make the shared CPU/CUDA/WGPU unfold/fold dispatch contract fallible.
+  CPU and WGPU now reject invalid ranks, inconsistent geometry, arithmetic
+  overflow, overlapping writable layouts, and out-of-bounds physical storage
+  spans before memory access. WGPU additionally checks WGSL representation and
+  active-device dispatch limits; CUDA reports native launch rejection instead
+  of panicking. Validation remains outside the monomorphized element kernels,
+  and no runtime or memory delta is claimed without controlled measurements. See
+  [ADR 0020](docs/adr/0020-wgpu-fallible-dispatch-boundary.md).
+
+- [major] Make fused expression shape resolution fallible and replace the shared
+  CPU/CUDA/WGPU raw-pointer input contract with borrowed tensor references. WGPU
+  fused reduction now validates axes, layouts, output arithmetic, WGSL narrowing,
+  metadata capacity, and active-device workgroup and storage-buffer limits before
+  kernel submission. The synchronous CPU execution seam is now an unsafe
+  implementor contract, WGPU storage no longer permits external raw-buffer
+  construction, empty axes return sum/product identities and reject undefined
+  reductions, and generated WGSL uses scalar-specific integer or float literals.
+  The generated reduction kernel remains monomorphized over the WGPU scalar
+  type; no runtime or memory delta is claimed without controlled measurements. See
+  [ADR 0020](docs/adr/0020-wgpu-fallible-dispatch-boundary.md).
+
 - [major] Routes CPU scaled dot-product attention directly through Leto's
   borrowed forward and additive-backward APIs and routes WGPU, CUDA, ROCm, and
   Metal through one monomorphized Hephaestus attention bridge. The operation,

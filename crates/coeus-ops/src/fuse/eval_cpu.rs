@@ -1,8 +1,32 @@
 use crate::fuse::expr_node::{CachedTensor, ExprNode, CPU_EVAL_CACHE};
 use crate::ptr::MutPtr;
-use coeus_core::{Backend, Layout, Scalar, Storage, StorageMut};
+use coeus_core::{Backend, BackendError, Layout, Scalar, Storage, StorageMut};
 use coeus_tensor::Tensor;
 use std::marker::PhantomData;
+
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+struct ScopedExpression(*const ());
+
+// SAFETY: the wrapper exposes no safe dereference operation. Its only use in
+// this module is bounded by Backend::parallel_for, which joins all invocations
+// before returning and therefore before the borrowed expression is dropped.
+unsafe impl Send for ScopedExpression {}
+// SAFETY: expression reads are shared and ExprNode requires Sync; callers of
+// read additionally uphold the pointee type and lifetime contract.
+unsafe impl Sync for ScopedExpression {}
+
+impl ScopedExpression {
+    fn new<E>(expression: &E) -> Self {
+        Self(std::ptr::from_ref(expression).cast())
+    }
+
+    unsafe fn read<E: Copy>(self) -> E {
+        // SAFETY: callers provide the original pointee type and keep it alive
+        // until the synchronous parallel_for invocation has joined.
+        unsafe { self.0.cast::<E>().read() }
+    }
+}
 
 #[inline(always)]
 fn logical_to_coords(mut temp: usize, ndim: usize, out_strides: &[usize], coords: &mut [usize]) {
@@ -62,24 +86,21 @@ impl<T> CachedInputs<T> {
         expr.collect_inputs(&mut inputs);
 
         let mut addresses = Vec::new();
-        for &input_ptr in &inputs {
-            unsafe {
-                let tensor = &*input_ptr;
-                if tensor.storage().try_as_slice().is_none() {
-                    let contiguous = tensor.to_contiguous_on(backend);
-                    let mut host_data = vec![T::zero(); contiguous.numel()];
-                    backend.copy_to_host(contiguous.storage(), &mut host_data);
-                    let cached_tensor = CachedTensor {
-                        data: host_data,
-                        layout: contiguous.layout().clone(),
-                    };
-                    let bytes = Box::new(cached_tensor) as Box<dyn std::any::Any>;
-                    let addr = input_ptr as usize;
-                    CPU_EVAL_CACHE.with(|cache| {
-                        cache.borrow_mut().insert(addr, bytes);
-                    });
-                    addresses.push(addr);
-                }
+        for tensor in inputs {
+            if tensor.storage().try_as_slice().is_none() {
+                let contiguous = tensor.to_contiguous_on(backend);
+                let mut host_data = vec![T::zero(); contiguous.numel()];
+                backend.copy_to_host(contiguous.storage(), &mut host_data);
+                let cached_tensor = CachedTensor {
+                    data: host_data,
+                    layout: contiguous.layout().clone(),
+                };
+                let bytes = Box::new(cached_tensor) as Box<dyn std::any::Any>;
+                let addr = std::ptr::from_ref(tensor) as usize;
+                CPU_EVAL_CACHE.with(|cache| {
+                    cache.borrow_mut().insert(addr, bytes);
+                });
+                addresses.push(addr);
             }
         }
 
@@ -114,14 +135,19 @@ fn write_fused_values<E, T, B>(
 {
     let ndim = out_layout.ndim();
     let out_strides = out_layout.strides_cloned();
+    let expression = ScopedExpression::new(&expr);
 
     if contiguous_fast_path {
         backend.parallel_for(0, out_numel, move |idx| unsafe {
+            let expr = expression.read::<E>();
             let val = expr.eval_cpu_flat(idx);
             out_ptr.write(idx, val);
         });
     } else {
         backend.parallel_for(0, out_numel, move |idx| {
+            // SAFETY: parallel_for joins before write_fused_values returns,
+            // keeping the borrowed expression alive for every invocation.
+            let expr = unsafe { expression.read::<E>() };
             if ndim <= 8 {
                 let mut coords = [0usize; 8];
                 logical_to_coords(idx, ndim, &out_strides, &mut coords[..ndim]);
@@ -212,8 +238,12 @@ fn write_fused_reductions<E, T, B>(
 {
     let ndim = plan.out_layout.ndim();
     let out_strides = plan.out_layout.strides_cloned();
+    let expression = ScopedExpression::new(&expr);
 
     backend.parallel_for(0, out_numel, move |idx| {
+        // SAFETY: parallel_for joins before write_fused_reductions returns,
+        // keeping the borrowed expression alive for every invocation.
+        let expr = unsafe { expression.read::<E>() };
         if ndim <= 8 {
             let mut coords = [0usize; 8];
             logical_to_coords(idx, ndim, &out_strides, &mut coords[..ndim]);
@@ -233,14 +263,47 @@ fn write_fused_reductions<E, T, B>(
     });
 }
 
+/// Validate the shared empty-axis contract for fused reductions.
+///
+/// Sum and product retain their additive and multiplicative identities. Mean,
+/// maximum, and minimum require at least one input value.
+///
+/// # Errors
+///
+/// Returns [`BackendError::EmptyReduction`] when `axis_len` is zero and `op`
+/// has no identity.
+pub fn validate_fused_reduction_axis(
+    op: crate::ReductionOp,
+    axis_len: usize,
+) -> Result<(), BackendError> {
+    if axis_len == 0
+        && matches!(
+            op,
+            crate::ReductionOp::Mean | crate::ReductionOp::Max | crate::ReductionOp::Min
+        )
+    {
+        return Err(BackendError::EmptyReduction {
+            operation: "fused reduction",
+            reduction: op,
+        });
+    }
+    Ok(())
+}
+
 /// Evaluate a fused expression DAG on the CPU, returning a new tensor with the result.
+///
+/// # Errors
+///
+/// Returns [`BackendError`] when the expression has no tensor input or its
+/// child shapes cannot be broadcast.
 pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend>(
     expr: &E,
     backend: &B,
-) -> Tensor<T, B> {
-    let out_shape = expr
-        .shape()
-        .expect("Fused expression must have at least one tensor input to determine shape");
+) -> Result<Tensor<T, B>, BackendError> {
+    let out_shape = expr.shape()?.ok_or_else(|| BackendError::Storage {
+        operation: "fused expression",
+        reason: "expression has no tensor input from which to derive its shape".to_string(),
+    })?;
     let out_layout = Layout::new(out_shape.clone());
     let mut out = Tensor::alloc_on(out_shape, backend);
 
@@ -276,23 +339,33 @@ pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend
         backend.copy_to_device(&host_out, out.storage_mut());
     }
 
-    out
+    Ok(out)
 }
 
 /// Evaluate a fused expression DAG with a reduction along `axis` on the CPU.
+///
+/// # Errors
+///
+/// Returns [`BackendError`] when the expression has no tensor input, child
+/// shapes cannot be broadcast, `axis` is outside the expression rank, or an
+/// empty axis is used with mean, maximum, or minimum.
 pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend>(
     expr: &E,
     op: crate::ReductionOp,
     axis: usize,
     backend: &B,
-) -> Tensor<T, B> {
-    let expr_shape = expr
-        .shape()
-        .expect("Fused expression must have at least one tensor input to determine shape");
-    assert!(
-        axis < expr_shape.len(),
-        "Axis out of bounds in evaluate_fused_reduce_cpu"
-    );
+) -> Result<Tensor<T, B>, BackendError> {
+    let expr_shape = expr.shape()?.ok_or_else(|| BackendError::Storage {
+        operation: "fused reduction",
+        reason: "expression has no tensor input from which to derive its shape".to_string(),
+    })?;
+    if axis >= expr_shape.len() {
+        return Err(BackendError::AxisOutOfRange {
+            operation: "fused reduction",
+            axis,
+            rank: expr_shape.len(),
+        });
+    }
 
     let mut out_shape = expr_shape.clone();
     out_shape[axis] = 1;
@@ -301,21 +374,20 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
 
     let out_numel = out.numel();
     let axis_len = expr_shape[axis];
+    validate_fused_reduction_axis(op, axis_len)?;
 
     let _cached_inputs = CachedInputs::<T>::new(expr, backend);
 
     if axis_len == 0 {
-        let slice_result = out.storage_mut().try_as_mut_slice();
-        if let Some(slice) = slice_result {
-            let out_ptr = MutPtr(slice.as_mut_ptr());
-            backend.parallel_for(0, out_numel, move |i| unsafe {
-                out_ptr.write(i, T::zero());
-            });
-        } else {
-            let host_out = vec![T::zero(); out_numel];
-            backend.copy_to_device(&host_out, out.storage_mut());
-        }
-        return out;
+        let identity = match op {
+            crate::ReductionOp::Sum => T::zero(),
+            crate::ReductionOp::Prod => T::one(),
+            crate::ReductionOp::Mean | crate::ReductionOp::Max | crate::ReductionOp::Min => {
+                unreachable!("invariant: undefined empty reductions were rejected")
+            }
+        };
+        backend.fill(out.storage_mut(), identity);
+        return Ok(out);
     }
 
     // 2. Perform parallel evaluation with reduction
@@ -337,5 +409,5 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
         backend.copy_to_device(&host_out, out.storage_mut());
     }
 
-    out
+    Ok(out)
 }

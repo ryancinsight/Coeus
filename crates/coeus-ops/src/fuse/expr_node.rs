@@ -1,5 +1,5 @@
 use crate::fuse::op_tags::{BinaryOpTag, UnaryOpTag};
-use coeus_core::{ComputeBackend, Layout, Scalar, Shape, Storage};
+use coeus_core::{BackendError, ComputeBackend, Layout, Scalar, Shape, Storage};
 use coeus_tensor::broadcast::broadcast_shapes;
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
@@ -22,9 +22,9 @@ thread_local! {
 ///
 /// Implementors describe how to collect input tensors, emit a WGSL shader
 /// fragment, and evaluate the node on the CPU.
-pub trait ExprNode<T: Scalar, B: ComputeBackend>: 'static + Send + Sync {
-    /// Collect all input tensor pointers reachable from this node.
-    fn collect_inputs(&self, list: &mut Vec<*const Tensor<T, B>>);
+pub trait ExprNode<T: Scalar, B: ComputeBackend>: Send + Sync {
+    /// Collect all input tensors borrowed by this node.
+    fn collect_inputs<'expression>(&'expression self, list: &mut Vec<&'expression Tensor<T, B>>);
     /// Emit a WGSL expression string referencing the inputs by index.
     fn to_shader_expr(&self, input_map: &HashMap<*const Tensor<T, B>, usize>) -> String;
 
@@ -35,7 +35,11 @@ pub trait ExprNode<T: Scalar, B: ComputeBackend>: 'static + Send + Sync {
     /// and that the underlying input tensors are still valid.
     unsafe fn eval_cpu(&self, coords: &[usize]) -> T;
     /// Returns the output shape of this node, or `None` for scalar nodes.
-    fn shape(&self) -> Option<Shape>;
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BackendError`] when child shapes cannot be broadcast.
+    fn shape(&self) -> Result<Option<Shape>, BackendError>;
 
     /// Returns `true` if this node is contiguous and matches `out_shape`.
     fn is_contiguous_and_same_shape(&self, out_shape: &[usize]) -> bool;
@@ -46,37 +50,33 @@ pub trait ExprNode<T: Scalar, B: ComputeBackend>: 'static + Send + Sync {
     unsafe fn eval_cpu_flat(&self, idx: usize) -> T;
 }
 
-/// A raw pointer reference to a tensor, used as a leaf node in the fused expression DAG.
-pub struct TensorRef<T: Scalar, B: ComputeBackend>(pub *const Tensor<T, B>);
+/// A borrowed tensor leaf in the fused expression DAG.
+pub struct TensorRef<'tensor, T: Scalar, B: ComputeBackend>(&'tensor Tensor<T, B>);
 
-unsafe impl<T: Scalar, B: ComputeBackend> Send for TensorRef<T, B> {}
-unsafe impl<T: Scalar, B: ComputeBackend> Sync for TensorRef<T, B> {}
-
-impl<T: Scalar, B: ComputeBackend> Clone for TensorRef<T, B> {
+impl<T: Scalar, B: ComputeBackend> Clone for TensorRef<'_, T, B> {
     #[inline(always)]
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T: Scalar, B: ComputeBackend> Copy for TensorRef<T, B> {}
+impl<T: Scalar, B: ComputeBackend> Copy for TensorRef<'_, T, B> {}
 
-impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for TensorRef<T, B> {
-    fn collect_inputs(&self, list: &mut Vec<*const Tensor<T, B>>) {
-        let ptr = self.0;
-        if !list.contains(&ptr) {
-            list.push(ptr);
+impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for TensorRef<'_, T, B> {
+    fn collect_inputs<'expression>(&'expression self, list: &mut Vec<&'expression Tensor<T, B>>) {
+        if !list.iter().any(|tensor| std::ptr::eq(*tensor, self.0)) {
+            list.push(self.0);
         }
     }
 
     fn to_shader_expr(&self, input_map: &HashMap<*const Tensor<T, B>, usize>) -> String {
-        let ptr = self.0;
+        let ptr = std::ptr::from_ref(self.0);
         let idx = input_map.get(&ptr).expect("Input tensor not found in map");
         format!("val_{}", idx)
     }
 
     unsafe fn eval_cpu(&self, coords: &[usize]) -> T {
-        let tensor = &*self.0;
+        let tensor = self.0;
         if let Some(slice) = tensor.storage().try_as_slice() {
             let layout = tensor.layout();
             let shape = layout.shape();
@@ -97,7 +97,7 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for TensorRef<T, B> {
             CPU_EVAL_CACHE.with(|cache| {
                 let cache_ref = cache.borrow();
                 let any_ref = cache_ref
-                    .get(&(self.0 as usize))
+                    .get(&(std::ptr::from_ref(self.0) as usize))
                     .expect("Device tensor not cached for CPU evaluation");
                 if let Some(cached) = any_ref.downcast_ref::<CachedTensor<T>>() {
                     let layout = &cached.layout;
@@ -138,20 +138,17 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for TensorRef<T, B> {
         }
     }
 
-    fn shape(&self) -> Option<Shape> {
-        unsafe { Some((*self.0).shape_cloned()) }
+    fn shape(&self) -> Result<Option<Shape>, BackendError> {
+        Ok(Some(self.0.shape_cloned()))
     }
 
     fn is_contiguous_and_same_shape(&self, out_shape: &[usize]) -> bool {
-        unsafe {
-            let tensor = &*self.0;
-            let layout = tensor.layout();
-            layout.is_contiguous() && layout.shape() == out_shape
-        }
+        let layout = self.0.layout();
+        layout.is_contiguous() && layout.shape() == out_shape
     }
 
     unsafe fn eval_cpu_flat(&self, idx: usize) -> T {
-        let tensor = &*self.0;
+        let tensor = self.0;
         if let Some(slice) = tensor.storage().try_as_slice() {
             let layout = tensor.layout();
             let off = layout.offset() + idx;
@@ -160,7 +157,7 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for TensorRef<T, B> {
             CPU_EVAL_CACHE.with(|cache| {
                 let cache_ref = cache.borrow();
                 let any_ref = cache_ref
-                    .get(&(self.0 as usize))
+                    .get(&(std::ptr::from_ref(self.0) as usize))
                     .expect("Device tensor not cached for CPU evaluation");
                 if let Some(cached) = any_ref.downcast_ref::<CachedTensor<T>>() {
                     let layout = &cached.layout;
@@ -183,7 +180,7 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for TensorRef<T, B> {
 pub struct ScalarVal<T: Scalar>(pub T);
 
 impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for ScalarVal<T> {
-    fn collect_inputs(&self, _list: &mut Vec<*const Tensor<T, B>>) {}
+    fn collect_inputs<'expression>(&'expression self, _list: &mut Vec<&'expression Tensor<T, B>>) {}
 
     fn to_shader_expr(&self, _input_map: &HashMap<*const Tensor<T, B>, usize>) -> String {
         let val = <T as Scalar>::to_f64(self.0);
@@ -209,8 +206,8 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for ScalarVal<T> {
         self.0
     }
 
-    fn shape(&self) -> Option<Shape> {
-        None
+    fn shape(&self) -> Result<Option<Shape>, BackendError> {
+        Ok(None)
     }
 
     fn is_contiguous_and_same_shape(&self, _out_shape: &[usize]) -> bool {
@@ -234,7 +231,7 @@ pub struct UnaryExpr<Op, Child> {
 impl<Op: UnaryOpTag<T> + Send, Child: ExprNode<T, B>, T: Scalar, B: ComputeBackend> ExprNode<T, B>
     for UnaryExpr<Op, Child>
 {
-    fn collect_inputs(&self, list: &mut Vec<*const Tensor<T, B>>) {
+    fn collect_inputs<'expression>(&'expression self, list: &mut Vec<&'expression Tensor<T, B>>) {
         self.child.collect_inputs(list);
     }
 
@@ -248,7 +245,7 @@ impl<Op: UnaryOpTag<T> + Send, Child: ExprNode<T, B>, T: Scalar, B: ComputeBacke
         Op::apply(val)
     }
 
-    fn shape(&self) -> Option<Shape> {
+    fn shape(&self) -> Result<Option<Shape>, BackendError> {
         self.child.shape()
     }
 
@@ -281,7 +278,7 @@ impl<
         B: ComputeBackend,
     > ExprNode<T, B> for BinaryExpr<Op, Left, Right>
 {
-    fn collect_inputs(&self, list: &mut Vec<*const Tensor<T, B>>) {
+    fn collect_inputs<'expression>(&'expression self, list: &mut Vec<&'expression Tensor<T, B>>) {
         self.left.collect_inputs(list);
         self.right.collect_inputs(list);
     }
@@ -298,18 +295,23 @@ impl<
         Op::apply(left_val, right_val)
     }
 
-    fn shape(&self) -> Option<Shape> {
-        let left_shape = self.left.shape();
-        let right_shape = self.right.shape();
+    fn shape(&self) -> Result<Option<Shape>, BackendError> {
+        let left_shape = self.left.shape()?;
+        let right_shape = self.right.shape()?;
         match (left_shape, right_shape) {
             (Some(l), Some(r)) => {
-                let out =
-                    broadcast_shapes(&l, &r).expect("Incompatible shapes in fused expression");
-                Some(out)
+                let out = broadcast_shapes(&l, &r).ok_or_else(|| {
+                    BackendError::IncompatibleBroadcast {
+                        operation: "fused expression",
+                        from: l.to_vec(),
+                        to: r.to_vec(),
+                    }
+                })?;
+                Ok(Some(out))
             }
-            (Some(l), None) => Some(l),
-            (None, Some(r)) => Some(r),
-            (None, None) => None,
+            (Some(l), None) => Ok(Some(l)),
+            (None, Some(r)) => Ok(Some(r)),
+            (None, None) => Ok(None),
         }
     }
 
@@ -331,7 +333,7 @@ pub struct Expr<E>(pub E);
 
 impl<E: ExprNode<T, B>, T: Scalar, B: ComputeBackend> ExprNode<T, B> for Expr<E> {
     #[inline(always)]
-    fn collect_inputs(&self, list: &mut Vec<*const Tensor<T, B>>) {
+    fn collect_inputs<'expression>(&'expression self, list: &mut Vec<&'expression Tensor<T, B>>) {
         self.0.collect_inputs(list);
     }
 
@@ -346,7 +348,7 @@ impl<E: ExprNode<T, B>, T: Scalar, B: ComputeBackend> ExprNode<T, B> for Expr<E>
     }
 
     #[inline(always)]
-    fn shape(&self) -> Option<Shape> {
+    fn shape(&self) -> Result<Option<Shape>, BackendError> {
         self.0.shape()
     }
 
@@ -364,13 +366,13 @@ impl<E: ExprNode<T, B>, T: Scalar, B: ComputeBackend> ExprNode<T, B> for Expr<E>
 /// Extension trait that converts a [`Tensor`] into a fused expression leaf.
 pub trait TensorExprExt<T: Scalar, B: ComputeBackend> {
     /// Create a fused expression leaf referencing this tensor.
-    fn expr(&self) -> Expr<TensorRef<T, B>>;
+    fn expr(&self) -> Expr<TensorRef<'_, T, B>>;
 }
 
 impl<T: Scalar, B: ComputeBackend> TensorExprExt<T, B> for Tensor<T, B> {
     #[inline(always)]
-    fn expr(&self) -> Expr<TensorRef<T, B>> {
-        Expr(TensorRef(self as *const Tensor<T, B>))
+    fn expr(&self) -> Expr<TensorRef<'_, T, B>> {
+        Expr(TensorRef(self))
     }
 }
 

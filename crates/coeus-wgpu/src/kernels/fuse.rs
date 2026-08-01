@@ -4,7 +4,6 @@ use crate::backend::{WgpuBackend, WgpuScalar};
 use crate::storage::WgpuStorage;
 use coeus_core::Layout;
 use coeus_ops::fuse::ExprNode;
-use coeus_tensor::Tensor;
 use std::collections::HashMap;
 
 /// Compile and dispatch a dynamically generated fused WGSL compute shader on the GPU.
@@ -17,17 +16,14 @@ pub fn dispatch_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     let wgsl_type = T::WGSL_TYPE;
 
     // 1. Collect unique input tensors
-    let mut input_ptrs = Vec::new();
-    expr.collect_inputs(&mut input_ptrs);
-    let num_inputs = input_ptrs.len();
-
-    // Convert raw pointers back to safe references
-    let inputs: Vec<&Tensor<T, WgpuBackend>> = input_ptrs.iter().map(|&p| unsafe { &*p }).collect();
+    let mut inputs = Vec::new();
+    expr.collect_inputs(&mut inputs);
+    let num_inputs = inputs.len();
 
     // 2. Build input pointer to index map
     let mut input_map = HashMap::new();
-    for (i, &p) in input_ptrs.iter().enumerate() {
-        input_map.insert(p, i);
+    for (i, &input) in inputs.iter().enumerate() {
+        input_map.insert(std::ptr::from_ref(input), i);
     }
 
     // 3. Generate the shader expression string

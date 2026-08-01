@@ -1,5 +1,33 @@
 # Global Progress Checklist: Coeus
 
+## ATLAS-WGPU-SAFETY-002 — Checked unfold/fold dispatch
+
+- [x] Make `UnfoldFoldOps` return the backend-associated typed error across CPU,
+      CUDA, and WGPU implementations.
+- [x] Isolate WGPU unfold/fold validation in a dedicated leaf and remove
+      input-dependent parameter, arithmetic, layout, and dispatch panics.
+- [x] Preserve the existing generic kernels and CPU/WGPU differential contract;
+      do not add a fallback or compatibility route.
+- [x] Pass focused Nextest, doctests, formatting, SemVer analysis, and
+      warning-denied Clippy on the final revision.
+- [x] Pass independent architecture/correctness review and exact-head provider
+      CI, then merge and reconcile the umbrella item.
+
+## ATLAS-WGPU-SAFETY-002 — Checked reduction dispatch
+
+- [x] Replace every unchecked fused-reduction layout and dispatch conversion with
+      the canonical typed WGPU error boundary.
+- [x] Add negative overflow/layout contracts and preserve value-semantic
+      fused-reduction execution.
+- [x] Pass focused CPU/Moirai and active-device WGPU fusion Nextest regressions,
+      including borrowed lifetimes, typed invalid broadcasts, empty-axis
+      identities/errors, and signed/unsigned WGSL generation.
+- [x] Pass the final four-package Nextest suite (393/393), warning-denied
+      all-target Clippy, 61 doctests, formatting, and independent re-review.
+- [x] Pass exact-head provider CI on the repository-native lockfile: run
+      `30680050203` passed WGPU, CUDA, ROCm, and Metal at `253c0da5`; PR #259
+      merged as `5193764a`.
+
 ## COEUS-ATTENTION-PROVIDER-001 — Provider-owned attention dispatch
 
 - [x] Merge the required Leto and Hephaestus attention provider contracts.

@@ -11,6 +11,8 @@
 use crate::ptr::{MutPtr, Ptr};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 
+pub(super) mod validation;
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 #[inline]

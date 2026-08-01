@@ -14,7 +14,7 @@ impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         kernels::dispatch_unfold1d::<T>(
             input.buffer.as_ref(),
             input_layout,
@@ -24,31 +24,32 @@ impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
             dilation,
             output.buffer.as_ref(),
             output_layout,
-        );
+        )
     }
 
     fn fold1d(
         &self,
         input: &Self::DeviceBuffer<T>,
         input_layout: &Layout,
-        _output_size: usize,
+        output_size: usize,
         kernel_size: usize,
         stride: usize,
         padding: usize,
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         kernels::dispatch_fold1d::<T>(
             input.buffer.as_ref(),
             input_layout,
+            output_size,
             kernel_size,
             stride,
             padding,
             dilation,
             output.buffer.as_ref(),
             output_layout,
-        );
+        )
     }
 
     fn unfold2d(
@@ -65,7 +66,7 @@ impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
         dilation_w: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         kernels::dispatch_unfold2d::<T>(
             input.buffer.as_ref(),
             input_layout,
@@ -79,7 +80,7 @@ impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
             dilation_w,
             output.buffer.as_ref(),
             output_layout,
-        );
+        )
     }
 
     fn fold2d(
@@ -98,7 +99,7 @@ impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
         dilation_w: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    ) {
+    ) -> Result<(), Self::Error> {
         kernels::dispatch_fold2d::<T>(
             input.buffer.as_ref(),
             input_layout,
@@ -114,6 +115,6 @@ impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
             dilation_w,
             output.buffer.as_ref(),
             output_layout,
-        );
+        )
     }
 }

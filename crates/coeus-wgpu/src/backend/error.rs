@@ -3,7 +3,7 @@ use coeus_core::BackendError;
 use hephaestus_core::HephaestusError;
 use thiserror::Error;
 
-/// Failure returned by WGPU elementwise dispatch.
+/// Failure returned by WGPU operation dispatch.
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum WgpuBackendError {
@@ -43,6 +43,30 @@ pub enum WgpuBackendError {
         operation: &'static str,
         /// Unrepresentable workgroup count.
         count: usize,
+    },
+    /// A kernel parameter cannot be represented by the WGSL `u32` ABI.
+    #[error("WGPU {operation} parameter {parameter} value {value} exceeds the u32 ABI")]
+    AbiValueOutOfRange {
+        /// Operation family being dispatched.
+        operation: &'static str,
+        /// Kernel parameter that could not be represented.
+        parameter: &'static str,
+        /// Unrepresentable parameter value.
+        value: usize,
+    },
+    /// A dispatch requires more of a device resource than the adapter exposes.
+    #[error(
+        "WGPU {operation} requires {requested} {resource}, exceeding the device limit {limit}"
+    )]
+    ResourceLimitExceeded {
+        /// Operation family being dispatched.
+        operation: &'static str,
+        /// Limited device resource.
+        resource: &'static str,
+        /// Resource count or byte length requested by the dispatch.
+        requested: u64,
+        /// Maximum resource count or byte length available.
+        limit: u64,
     },
 }
 
@@ -152,9 +176,21 @@ pub(crate) fn checked_numel(
     })
 }
 
+pub(crate) fn checked_u32_parameter(
+    operation: &'static str,
+    parameter: &'static str,
+    value: usize,
+) -> Result<u32, WgpuBackendError> {
+    u32::try_from(value).map_err(|_| WgpuBackendError::AbiValueOutOfRange {
+        operation,
+        parameter,
+        value,
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{checked_numel, checked_workgroup_count, WgpuBackendError};
+    use super::{checked_numel, checked_u32_parameter, checked_workgroup_count, WgpuBackendError};
     use coeus_core::BackendError;
 
     #[test]
@@ -199,6 +235,21 @@ mod tests {
                 operation: "reduction",
                 reason: "output element-count arithmetic overflow",
             }))
+        ));
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn rejects_kernel_parameters_outside_the_u32_abi() {
+        let value = usize::try_from(u64::from(u32::MAX) + 1).expect("test value fits usize");
+
+        assert!(matches!(
+            checked_u32_parameter("reduction", "axis length", value),
+            Err(WgpuBackendError::AbiValueOutOfRange {
+                operation: "reduction",
+                parameter: "axis length",
+                value: rejected,
+            }) if rejected == value
         ));
     }
 }

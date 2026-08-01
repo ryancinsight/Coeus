@@ -147,3 +147,29 @@ typed context or kernel-contract failure when native launch cannot proceed;
 the superseded host-staging pooling fallback module is removed. This closes the
 backend-substitution and full-buffer allocation path without claiming a
 measured runtime or resident-memory delta.
+
+The fused-reduction family now follows the same boundary. Its public WGPU entry
+point and generated-kernel dispatcher return the backend-associated result and
+validate expression shape, axis, fixed-rank layout metadata, output arithmetic,
+WGSL parameter widths, metadata-buffer capacity, and active-device workgroup and
+storage-buffer limits before submission. The shared expression seam holds
+borrowed tensor references and returns typed incompatible-broadcast failures;
+CPU, CUDA, and WGPU no longer depend on a safe raw-pointer input contract. The
+CPU execution seam marks its synchronous-join obligation as unsafe, and WGPU
+storage keeps provider buffers crate-private so foreign-device buffers cannot be
+constructed through the public type. One shared empty-axis contract returns the
+sum and product identities while rejecting mean, maximum, and minimum; WGPU
+codegen emits scalar-specific literals for every `WgpuScalar`. The hot kernel
+remains statically dispatched over `T: WgpuScalar`; validation is
+operation-boundary work and adds no per-element branch or vtable. No runtime or
+memory improvement is claimed without controlled measurements.
+
+The unfold/fold family now follows the associated backend-error contract across
+CPU, CUDA, and WGPU. WGPU geometry validation lives in a dedicated leaf and
+checks exact ranks and dimensions, nonzero kernel/stride/dilation parameters,
+checked effective-kernel and output-shape arithmetic, WGSL `u32` conversion,
+layout metadata, output element counts, and dispatch grids before acquiring the
+device context. CUDA converts rejected native launches to its typed kernel error
+instead of asserting. Public tensor, autograd, and neural-network callers
+propagate or map the backend error; no CPU or host fallback is introduced. The validation
+path is operation-boundary work and the element kernels remain monomorphized.

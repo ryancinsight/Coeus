@@ -542,15 +542,51 @@
   peer `coeus-nn` fallible-operation migration; that residual is tracked by
   ATLAS-WGPU-SAFETY-002.
 
-## ATLAS-WGPU-SAFETY-002 — Establish fallible WGPU layout/dispatch boundary [arch] — in-progress
+## ATLAS-WGPU-SAFETY-002 — Establish fallible WGPU layout/dispatch boundary [arch] — complete
 
-- Owner: Codex `/coeus`; last-update: 2026-07-28; scope:
-  `crates/coeus-wgpu/src/kernels/layout.rs`, its 23 consumers, and the `coeus-ops`
-  backend-operation return contract.
-- Current claim: shared-tree slice owned by this session; scope is the native
-  WGPU PoolOps 3D forward/backward dispatch and its CPU/WGPU/CUDA callers.
-  Stale reduction/error edits were reconciled to the merged implementation;
-  only the Atlas-overlay-generated `Cargo.lock` remains outside this claim.
+- Owner: Codex `codex/coeus-wgpu-unfold-fold-safety`; last-update: 2026-07-31;
+  scope: the `UnfoldFoldOps` CPU/CUDA/WGPU dispatch contract,
+  `crates/coeus-wgpu/src/kernels/unfold_fold/`, focused parity/validation tests,
+  ADR-0020, and synchronized PM records.
+- Active increment: migrate the unfold/fold operation family to typed
+  CPU/CUDA/WGPU results. CPU direct dispatch validates rank, geometry, checked
+  shape and signed-coordinate arithmetic, writable layout, and physical storage
+  spans before pointer access. WGPU validates the same contracts plus WGSL ABI,
+  buffer spans, and active-device workgroup limits before submission. CUDA launch
+  rejection is a typed kernel failure. Focused Nextest passes 201/201 operations,
+  398/398 autograd/NN, 11/11 WGPU unfold/fold, and 3/3 disabled-provider CUDA;
+  53 doctests pass with 2 unrelated ignored NN examples. Focused warning-denied
+  Clippy, formatting, full workspace all-target check, and major SemVer
+  classification pass. The full all-target Clippy remains blocked only by
+  pre-existing `coeus-optim` least-squares assignment-pattern diagnostics.
+  Independent architecture/correctness re-review reports no actionable findings.
+  Exact code-head provider run `30683976712` passes CUDA (`91326220420`),
+  ROCm (`91326220436`), Metal (`91326220449`), and WGPU (`91326220453`) at
+  `55747c42`; PR #261 carries the synchronized closure record.
+- Most recent increment: complete the fused reduction launch boundary in
+  `crates/coeus-wgpu/src/kernels/reduce.rs` and its focused tests by replacing
+  unchecked layout, axis, binding, input-count, and workgroup narrowing with
+  typed failures. Fusion, unfold/fold, optimizer, and matmul kernels remain
+  separate increments under this item.
+- Fused-reduction increment: implemented. The public WGPU entry point and kernel
+  dispatcher now return `Result`; validate expression shape, axis, WGSL rank and
+  parameter widths, checked output element/workgroup counts, input layouts,
+  metadata capacity, active-device workgroup and storage-buffer limits; and
+  submit only a fully validated dispatch plan. The shared CPU/CUDA/WGPU
+  expression seam now borrows tensor inputs and reports incompatible broadcasts
+  through `BackendError`, removing its safe raw-pointer contract and
+  input-dependent shape panic. Independent review also made the synchronous
+  execution contract unsafe, closed external WGPU buffer construction, unified
+  empty-axis identities and typed failures across CPU/CUDA/WGPU, and generated
+  scalar-specific WGSL reduction literals. The pre-review four-package Nextest
+  baseline passed 389/389; the final four-package suite passes 393/393, including
+  final CPU/Moirai 9/9 and active-device WGPU 10/10 fusion regressions.
+  Warning-denied all-target Clippy passes, as do all 61 doctests and formatting.
+  Independent review is clean after restoring overlay-generated `Cargo.lock`
+  churn. Exact-head run `30680050203` passed WGPU, CUDA, ROCm, and Metal at
+  `253c0da5`; PR #259 merged as `5193764a`. The fused-reduction increment is
+  complete; the remaining operation-family increments keep this umbrella item
+  in progress.
 - Outcome: replace unchecked `usize`→WGSL `u32` layout metadata narrowing and
   input-dependent dispatch panics with one typed validation/error boundary.
 - Acceptance: every WGPU kernel consumes the validated metadata type; failure

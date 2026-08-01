@@ -10,14 +10,18 @@ fn test_cuda_unfold_fold_matches_cpu_reference() {
         &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
     );
     let device = to_gpu(&host, &sequential, &cuda);
-    let cpu_unfold = coeus_ops::unfold2d(&host, 2, 2, 1, 1, 0, 0, 1, 1, &sequential);
-    let cuda_unfold = coeus_ops::unfold2d(&device, 2, 2, 1, 1, 0, 0, 1, 1, &cuda);
+    let cpu_unfold = coeus_ops::unfold2d(&host, 2, 2, 1, 1, 0, 0, 1, 1, &sequential)
+        .expect("valid CPU unfold dispatch");
+    let cuda_unfold = coeus_ops::unfold2d(&device, 2, 2, 1, 1, 0, 0, 1, 1, &cuda)
+        .expect("valid CUDA unfold dispatch");
     assert_eq!(
         to_cpu(&cuda_unfold, &cuda, &sequential).as_slice(),
         cpu_unfold.as_slice()
     );
-    let cpu_fold = coeus_ops::fold2d(&cpu_unfold, 3, 3, 2, 2, 1, 1, 0, 0, 1, 1, &sequential);
-    let cuda_fold = coeus_ops::fold2d(&cuda_unfold, 3, 3, 2, 2, 1, 1, 0, 0, 1, 1, &cuda);
+    let cpu_fold = coeus_ops::fold2d(&cpu_unfold, 3, 3, 2, 2, 1, 1, 0, 0, 1, 1, &sequential)
+        .expect("valid CPU fold dispatch");
+    let cuda_fold = coeus_ops::fold2d(&cuda_unfold, 3, 3, 2, 2, 1, 1, 0, 0, 1, 1, &cuda)
+        .expect("valid CUDA fold dispatch");
     assert_eq!(
         to_cpu(&cuda_fold, &cuda, &sequential).as_slice(),
         cpu_fold.as_slice()

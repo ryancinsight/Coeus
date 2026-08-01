@@ -29,6 +29,11 @@ use coeus_core::{ComputeBackend, Layout, Scalar};
 /// [`trait_def`]: super::super::trait_def
 pub trait UnfoldFoldOps<T: Scalar>: ComputeBackend {
     /// Unfold 1D: extract sliding windows from `[N, C, L]` into `[N, C*kernel, L_out]`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when layout, geometry, or dispatch
+    /// validation fails.
     fn unfold1d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -39,9 +44,14 @@ pub trait UnfoldFoldOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// Fold 1D: accumulate `[N, C*kernel, L_out]` back into `[N, C, L]`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when layout, geometry, or dispatch
+    /// validation fails.
     fn fold1d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -53,9 +63,14 @@ pub trait UnfoldFoldOps<T: Scalar>: ComputeBackend {
         dilation: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// Unfold 2D: extract sliding windows from `[N, C, H, W]` into `[N, C*kH*kW, H_out*W_out]`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when layout, geometry, or dispatch
+    /// validation fails.
     fn unfold2d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -70,9 +85,14 @@ pub trait UnfoldFoldOps<T: Scalar>: ComputeBackend {
         dilation_w: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// Fold 2D: accumulate `[N, C*kH*kW, L]` back into `[N, C, H, W]`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when layout, geometry, or dispatch
+    /// validation fails.
     fn fold2d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -89,5 +109,5 @@ pub trait UnfoldFoldOps<T: Scalar>: ComputeBackend {
         dilation_w: usize,
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
-    );
+    ) -> Result<(), Self::Error>;
 }
