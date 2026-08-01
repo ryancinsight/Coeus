@@ -172,7 +172,7 @@ where
 
         let accepted = trial_cost.is_some_and(|trial| trial < cost);
         if !accepted {
-            damping = damping * config.damping_increase;
+            damping *= config.damping_increase;
             continue;
         }
 
@@ -264,7 +264,7 @@ fn solve_damped<T: LeastSquaresScalar>(
             }
         }
 
-        *damping = *damping * config.damping_increase;
+        *damping *= config.damping_increase;
     }
 
     None
@@ -279,7 +279,7 @@ fn jacobian_transpose_jacobian<T: Scalar>(jacobian: &[T], parameter_count: usize
             let mut sum = T::zero();
             for residual in 0..residual_count {
                 let base = residual * parameter_count;
-                sum = sum + jacobian[base + row] * jacobian[base + column];
+                sum += jacobian[base + row] * jacobian[base + column];
             }
             product[row * parameter_count + column] = sum;
             product[column * parameter_count + row] = sum;
@@ -298,7 +298,7 @@ fn jacobian_transpose_times<T: Scalar>(
     for (residual_index, residual) in residuals.iter().enumerate() {
         let base = residual_index * parameter_count;
         for (parameter, slot) in gradient.iter_mut().enumerate() {
-            *slot = *slot + jacobian[base + parameter] * *residual;
+            *slot += jacobian[base + parameter] * *residual;
         }
     }
     gradient
