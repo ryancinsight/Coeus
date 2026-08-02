@@ -4,6 +4,11 @@
 
 ### Changed
 
+- [patch] Add a machine-validated NN evidence manifest that keeps the 21 public
+  operation families synchronized with Criterion, Rust contract, and PyTorch
+  differential locators. Missing, partial, and inapplicable evidence is now
+  explicit instead of implied by stale benchmark prose.
+
 - [patch] Refresh the standalone Apollo FFT lock to the first revision carrying
   the published `mnemosyne-memory` package identity. Restore 22 PyTorch parity
   cases that duplicate Python test names previously shadowed at module import,

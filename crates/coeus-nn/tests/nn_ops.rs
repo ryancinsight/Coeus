@@ -15,6 +15,8 @@ mod attention;
 mod convolution;
 #[path = "nn_ops/embedding.rs"]
 mod embedding;
+#[path = "nn_ops/evidence_manifest.rs"]
+mod evidence_manifest;
 #[path = "nn_ops/interpolation.rs"]
 mod interpolation;
 #[path = "nn_ops/losses.rs"]

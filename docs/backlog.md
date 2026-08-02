@@ -1690,7 +1690,7 @@ value and failure-contract tests pass on Sequential and Moirai.
 - [ ] [patch] G-043: Expand the Coeus-vs-Burn/PyTorch benchmark/parity manifest
   so every implemented NN family has an explicit measurement or differential
   row.
-  - Owner: Codex on `codex/coeus-parity-manifest`; last-update: 2026-08-02;
+  - Owner: Codex on `codex/coeus-family-manifest`; last-update: 2026-08-02;
     scope: the NN family inventory, its benchmark/differential coverage SSOT,
     focused coverage regressions, and active PM reconciliation.
   - Outcome: one mechanically checked manifest maps every implemented NN family
@@ -1708,7 +1708,22 @@ value and failure-contract tests pass on Sequential and Moirai.
     duplicates are removed. Locked metadata, warning-denied Python-crate
     Clippy, 78/78 binding Nextest cases, 80/80 Leto/Hephaestus/optimizer
     Nextest cases, doctests, a fresh CPython 3.13 wheel, and 19 selected Python
-    cases pass. The every-family manifest remains the next slice.
+    cases pass. Exact-head run `30752337798` passed WGPU `91508474817`, CUDA
+    `91508474772`, ROCm `91508474796`, and Metal `91508474807`; PR #266 merged
+    as `e1a720ee`. The every-family manifest is active on
+    `codex/coeus-family-manifest`.
+  - 2026-08-02 manifest increment: `evidence.tsv` now maps all 21 public NN
+    families to validated Criterion, Rust contract, and Python differential
+    locators. The existing `nn_ops` integration binary rejects inventory drift,
+    duplicate rows, invalid status/locator combinations, unsafe relative paths,
+    missing files, and stale symbols without adding a parser dependency or test
+    binary. The manifest exposes three missing and eleven partial Criterion
+    families and two missing plus four partial Python families; all 21 families
+    have Rust contract evidence. G-043 remains open until those applicable gaps
+    are closed. Warning-denied benchmark and integration-target Clippy, focused
+    manifest Nextest run `4f22c236-a1be-43f4-bda5-47a2567c919a`, full 299-case
+    `nn_ops` run `a82ddc5a-8792-4fc3-87c9-35485b3793ab`, and eight runnable
+    doctests pass.
 ## Sprint MS-243: cumprod backward zero decomposition fix [COMPLETE]
 
 - [x] [patch] Replaced the naive suffix-sum cumprod backward that produced NaN at
