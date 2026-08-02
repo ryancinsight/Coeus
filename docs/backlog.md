@@ -1736,7 +1736,9 @@ value and failure-contract tests pass on Sequential and Moirai.
     partial. Warning-denied benchmark Clippy, manifest Nextest run
     `4ce7d22b-e394-4b02-8505-3ce294cda5df`, and all eight new Criterion rows in
     single-iteration test mode pass. No timing delta is claimed without
-    controlled measurements.
+    controlled measurements. Exact-head run `30757289411` passed ROCm
+    `91521546392`, Metal `91521546438`, CUDA `91521546424`, and WGPU
+    `91521546425`; PR #269 merged as `78fd9932`.
 ## Sprint MS-243: cumprod backward zero decomposition fix [COMPLETE]
 
 - [x] [patch] Replaced the naive suffix-sum cumprod backward that produced NaN at

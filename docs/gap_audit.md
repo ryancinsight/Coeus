@@ -873,6 +873,8 @@ values. Criterion dispositions are now 7 present, 13 partial, and 1
 inapplicable; no family remains missing. These are executable measurement
 instruments, not performance claims. Warning-denied benchmark Clippy, the
 manifest consistency suite, and all eight new rows in Criterion test mode pass.
+Exact-head run `30757289411` passes ROCm, Metal, CUDA, and WGPU; PR #269 is
+merged as `78fd9932`.
 **2026-07-08 update**: added `bench_maxpool3d_forward`/`bench_avgpool3d_forward`
 (Coeus Sequential vs Moirai only — no Burn 0.16.1 `max_pool3d`/`avg_pool3d` op
 exists to compare against, confirmed against the pinned `burn-tensor` source).
