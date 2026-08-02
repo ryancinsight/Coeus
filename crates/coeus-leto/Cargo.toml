@@ -8,6 +8,6 @@ license.workspace = true
 description = "Const-rank dispatch shim adapting coeus dynamic-rank layouts onto leto array kernels (leto ADR 0002)."
 
 [dependencies]
-coeus-core = { path = "../coeus-core" }
+coeus-core = { version = "0.9.0", path = "../coeus-core" }
 leto = { workspace = true }
 leto-ops = { workspace = true }
