@@ -1,5 +1,24 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-RANDOM-INIT-PROVIDER-001 — Provider-owned random initialization [major] [arch]
+
+- Owner: Codex on `codex/coeus-random-init-dispatch`; last-update: 2026-08-02;
+  scope: random initializer dispatch, fallible Rust/Python caller closure,
+  provider parity contracts, ADR-0049, and exact-head backend CI.
+- Outcome: CPU initialization executes through Leto and WGPU/CUDA/ROCm/Metal
+  initialization executes through one generic Hephaestus bridge selected by
+  backend type, with provider failures propagated as typed results.
+- Non-goals: release/version transitions, a Coeus-local random kernel, silent
+  accelerator-to-CPU fallback, or performance claims without measurements.
+- Acceptance: uniform, normal, Xavier, and Kaiming initialization replace the
+  current Leto-only host-vector path; every in-repo Rust and Python caller
+  handles the fallible contract; invalid rank and fan domains are
+  value-semantically tested; CPU/provider differential tests and exact-head
+  CUDA/WGPU/ROCm/Metal CI pass.
+- Risk/change class: `[major] [arch]`; changing public initializer return types
+  and canonical backend ownership requires ADR-0049 and migration notes.
+- Status: in-progress.
+
 ## COEUS-STATEFUL-UPDATE-PROVIDER-001 — Provider-owned optimizer dispatch [major] [arch]
 
 - Owner: Codex on `codex/coeus-stateful-dispatch`; last-update: 2026-08-01;
