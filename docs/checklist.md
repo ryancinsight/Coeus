@@ -1,5 +1,28 @@
 # Global Progress Checklist: Coeus
 
+## G-043 — Benchmark and parity evidence manifest
+
+- [x] Reproduce the post-release standalone resolver failure caused by the
+      obsolete Apollo revision requesting the removed `mnemosyne` package.
+- [x] Advance only Apollo FFT, its macro crate, and its Leto interop crate to
+      the first current revision using `mnemosyne-memory`; retain the verified
+      Leto, Hephaestus, Cutile, and registry package pins.
+- [x] Audit top-level PyTorch parity names, restore all 22 shadowed test bodies,
+      delete 12 semantically redundant copies, and retain distinct cases under
+      precise names.
+- [x] Add a stdlib AST regression that rejects duplicate top-level pytest names.
+- [x] Verify locked metadata, warning-denied `coeus-python` all-target Clippy,
+      78/78 `coeus-python` Nextest cases (run
+      `b0a3d117-c158-462c-a9db-63c29ac927b7`), and Python-crate doctests.
+- [x] Verify the unchanged provider pins and dispatch closure with 80/80
+      `coeus-leto`, `coeus-hephaestus`, and `coeus-optim` Nextest cases (run
+      `4639617d-a163-403b-ba57-2f2ab17d719c`).
+- [x] Build and install the CPython 3.13 wheel from the exact standalone lock;
+      the 19 selected restored differential and suite-integrity cases pass in
+      2.16 seconds with 385 unrelated cases deselected.
+- [ ] Add and mechanically validate the every-family benchmark/differential
+      evidence manifest; reconcile unsupported Burn rows explicitly.
+
 ## COEUS-STATEFUL-UPDATE-PROVIDER-001 — Provider-owned optimizer dispatch
 
 - [x] Merge the required Leto and Hephaestus stateful-update contracts.

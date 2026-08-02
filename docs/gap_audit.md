@@ -827,21 +827,33 @@ match G-043 expansion (already has AvgPool families).
 `crates/coeus-python/tests/test_pytorch_parity.py`
 **Compared against**: Burn `burn::nn` module families and PyTorch `torch.nn`
 module families.
-**Gap**: Current Coeus-vs-Burn benchmarks cover selected forward rows
+**Gap**: Current Coeus backend benchmarks cover selected forward rows
 (Linear, LayerNorm, RMSNorm, LSTM, GRU, InstanceNorm2d, CrossEntropyLoss, MSELoss,
 HuberLoss, ReLU, GeLU, PReLU, Sigmoid, Tanh, SiLU, LeakyReLU, Mish, SwiGLU,
 Softmax, Dropout eval, Conv1d/2d/2d-backward/3d, ConvTranspose1d/3d, MHA self-attention,
 Transformer encoder layer, Embedding lookup, EmbeddingBag sum, AdaptiveAvgPool2d(1,1),
 AdaptiveMaxPool2d(1,1), BatchNorm1d/2d/3d eval forward, GroupNorm forward,
 MaxPool1d/2d/3d forward, AvgPool1d/2d/3d forward),
-not the full NN family set needed to claim Burn-level performance parity.
-PyTorch differential coverage similarly remains module-family selective.
+not the full NN family set needed for complete backend measurement coverage.
+The current Criterion tree contains no Burn imports or rows, so earlier claims
+of selected Coeus-vs-Burn measurements are stale. PyTorch differential coverage
+similarly remains module-family selective.
 **Acceptance**: Add a benchmark/parity manifest keyed by module family, then add
 rows for every newly implemented G-035..G-042 family with Coeus sequential,
 Moirai, WGPU/CUDA where applicable, Burn NdArray where comparable, and PyTorch
 Python differential tests at f64. Report median/confidence intervals for
 benchmarks and analytical tolerance derivations for numerical comparisons.
 **Evidence tier**: source-surface audit plus external API documentation audit.
+**2026-08-02 update**: the every-family source audit found 22 duplicate
+top-level names in `test_pytorch_parity.py`; Python module construction silently
+discarded each earlier body. All distinct cases now have unique names, 12
+redundant copies are deleted, and `test_suite_integrity.py` rejects recurrence
+through AST inspection. The same audit confirms the refactored Criterion tree
+has no Burn rows; the manifest must record external baseline status explicitly
+instead of inheriting the stale prose claim. Verification passes locked
+metadata, warning-denied Python-crate Clippy, 78/78 binding Nextest cases,
+80/80 Leto/Hephaestus/optimizer dispatch cases, doctests, and 19 selected tests
+against a freshly built CPython 3.13 wheel.
 **2026-07-08 update**: added `bench_maxpool3d_forward`/`bench_avgpool3d_forward`
 (Coeus Sequential vs Moirai only — no Burn 0.16.1 `max_pool3d`/`avg_pool3d` op
 exists to compare against, confirmed against the pinned `burn-tensor` source).

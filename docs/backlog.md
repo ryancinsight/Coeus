@@ -1701,6 +1701,14 @@ value and failure-contract tests pass on Sequential and Moirai.
     missing rows are fixed; metadata, warning-denied benchmark Clippy, focused
     Nextest, doctests, and the manifest consistency check pass.
   - Status: in-progress.
+  - 2026-08-02 correction: refreshed the stale Apollo lock pin that prevented
+    standalone resolution after the `mnemosyne-memory` package rename. The
+    source audit also found 22 shadowed Python parity cases; unique naming plus
+    a static AST regression restores their collection, while 12 exact/subset
+    duplicates are removed. Locked metadata, warning-denied Python-crate
+    Clippy, 78/78 binding Nextest cases, 80/80 Leto/Hephaestus/optimizer
+    Nextest cases, doctests, a fresh CPython 3.13 wheel, and 19 selected Python
+    cases pass. The every-family manifest remains the next slice.
 ## Sprint MS-243: cumprod backward zero decomposition fix [COMPLETE]
 
 - [x] [patch] Replaced the naive suffix-sum cumprod backward that produced NaN at
