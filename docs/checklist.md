@@ -38,6 +38,9 @@
 - [x] Pass warning-denied benchmark Clippy, manifest Nextest run
       `4ce7d22b-e394-4b02-8505-3ce294cda5df`, and all eight new benchmark rows
       in Criterion single-iteration test mode.
+- [x] Pass exact-head run `30757289411`: ROCm `91521546392`, Metal
+      `91521546438`, CUDA `91521546424`, and WGPU `91521546425`; merge PR #269
+      as `78fd9932`.
 - [ ] Close the manifest's explicit residuals: thirteen partial Criterion
       families, and two missing plus four partial Python differential families.
       All 21 families have Rust contract evidence.
