@@ -28,6 +28,9 @@
 - [x] Pass warning-denied `coeus-nn` benchmark and `nn_ops` Clippy, the full
       299-case `nn_ops` Nextest harness (run
       `a82ddc5a-8792-4fc3-87c9-35485b3793ab`), and eight runnable doctests.
+- [x] Pass exact-head run `30754320242`: ROCm `91513760707`, WGPU
+      `91513760721`, CUDA `91513760730`, and Metal `91513760733`; merge PR #267
+      as `86466e9b`.
 - [ ] Close the manifest's explicit residuals: three missing and eleven partial
       Criterion families, and two missing plus four partial Python differential
       families. All 21 families have Rust contract evidence.

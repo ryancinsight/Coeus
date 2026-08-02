@@ -863,7 +863,8 @@ partial, 3 missing, and 1 inapplicable; Rust contracts as 21 present; Python
 differential evidence as 14 present, 4 partial, 2 missing, and 1 inapplicable.
 These are explicit residuals, not performance or parity claims. Warning-denied
 benchmark and integration-target Clippy, the complete 299-case `nn_ops`
-Nextest harness, and eight runnable doctests pass.
+Nextest harness, and eight runnable doctests pass. Exact-head run `30754320242`
+passes ROCm, WGPU, CUDA, and Metal; PR #267 is merged as `86466e9b`.
 **2026-07-08 update**: added `bench_maxpool3d_forward`/`bench_avgpool3d_forward`
 (Coeus Sequential vs Moirai only — no Burn 0.16.1 `max_pool3d`/`avg_pool3d` op
 exists to compare against, confirmed against the pinned `burn-tensor` source).
