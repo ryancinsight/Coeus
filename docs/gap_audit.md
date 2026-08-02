@@ -875,6 +875,12 @@ instruments, not performance claims. Warning-denied benchmark Clippy, the
 manifest consistency suite, and all eight new rows in Criterion test mode pass.
 Exact-head run `30757289411` passes ROCm, Metal, CUDA, and WGPU; PR #269 is
 merged as `78fd9932`.
+**2026-08-02 Python sequential update**: the existing Python `Sequential`
+surface now has deterministic PyTorch differential coverage for composed
+forward values, input and every child-parameter gradient, parameter ordering,
+append/index behavior, gradient clearing, and empty-container identity. The
+Python evidence dispositions are now 15 present, 4 partial, 1 missing, and 1
+inapplicable; initialization remains the sole missing family.
 **2026-07-08 update**: added `bench_maxpool3d_forward`/`bench_avgpool3d_forward`
 (Coeus Sequential vs Moirai only — no Burn 0.16.1 `max_pool3d`/`avg_pool3d` op
 exists to compare against, confirmed against the pinned `burn-tensor` source).
