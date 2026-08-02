@@ -4,6 +4,11 @@
 
 ### Changed
 
+- [patch] Add deterministic PyTorch differential evidence for Python
+  `Sequential` composition, including forward values, input and parameter
+  gradients, parameter ordering, append/index behavior, gradient clearing, and
+  empty-container identity semantics.
+
 - [patch] Add a machine-validated NN evidence manifest that keeps the 21 public
   operation families synchronized with Criterion, Rust contract, and PyTorch
   differential locators. Missing, partial, and inapplicable evidence is now
