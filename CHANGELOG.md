@@ -4,6 +4,12 @@
 
 ### Changed
 
+- [patch] Refresh the standalone Apollo FFT lock to the first revision carrying
+  the published `mnemosyne-memory` package identity. Restore 22 PyTorch parity
+  cases that duplicate Python test names previously shadowed at module import,
+  delete 12 redundant copies, and add a static uniqueness regression for the
+  binding test suite.
+
 - [patch] Bind the existing `moirai`, `mnemosyne`, and `themis` Rust crate
   aliases to their published package identities so registry archives resolve
   the provider graph without changing imports.
