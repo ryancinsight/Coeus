@@ -23,8 +23,14 @@
 - [x] Pass exact-head run `30752337798`: WGPU `91508474817`, CUDA
       `91508474772`, ROCm `91508474796`, and Metal `91508474807`; merge PR
       #266 as `e1a720ee`.
-- [ ] Add and mechanically validate the every-family benchmark/differential
+- [x] Add and mechanically validate the every-family benchmark/differential
       evidence manifest; reconcile unsupported Burn rows explicitly.
+- [x] Pass warning-denied `coeus-nn` benchmark and `nn_ops` Clippy, the full
+      299-case `nn_ops` Nextest harness (run
+      `a82ddc5a-8792-4fc3-87c9-35485b3793ab`), and eight runnable doctests.
+- [ ] Close the manifest's explicit residuals: three missing and eleven partial
+      Criterion families, and two missing plus four partial Python differential
+      families. All 21 families have Rust contract evidence.
 
 ## COEUS-STATEFUL-UPDATE-PROVIDER-001 — Provider-owned optimizer dispatch
 
