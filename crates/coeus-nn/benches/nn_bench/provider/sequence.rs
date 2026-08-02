@@ -2,6 +2,114 @@
 
 use super::*;
 
+pub(crate) fn bench_sequential_composition_forward(c: &mut Criterion) {
+    const BATCH: usize = 128;
+    const INPUT: usize = 256;
+    const HIDDEN: usize = 512;
+    const OUTPUT: usize = 256;
+
+    let mut dynamic_sequential = Sequential::<f32, SequentialBackend>::new();
+    dynamic_sequential
+        .add(Linear::new(INPUT, HIDDEN, true))
+        .add(ReLU)
+        .add(Linear::new(HIDDEN, OUTPUT, true));
+    let mut static_sequential = Linear::<f32, SequentialBackend>::new(INPUT, HIDDEN, true)
+        .append(ReLU)
+        .append(Linear::new(HIDDEN, OUTPUT, true));
+    static_sequential.load_parameters(&dynamic_sequential.parameters());
+
+    let mut dynamic_moirai = Sequential::<f32, MoiraiBackend>::new();
+    dynamic_moirai
+        .add(Linear::new(INPUT, HIDDEN, true))
+        .add(ReLU)
+        .add(Linear::new(HIDDEN, OUTPUT, true));
+    let mut static_moirai = Linear::<f32, MoiraiBackend>::new(INPUT, HIDDEN, true)
+        .append(ReLU)
+        .append(Linear::new(HIDDEN, OUTPUT, true));
+    static_moirai.load_parameters(&dynamic_moirai.parameters());
+
+    let input_data: Vec<f32> = (0..(BATCH * INPUT))
+        .map(|index| (index as f32 * 0.0013).sin())
+        .collect();
+    let input_sequential = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT], &input_data),
+        false,
+    );
+    let input_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT], &input_data),
+        false,
+    );
+
+    let dynamic_sequential_output = dynamic_sequential
+        .forward(&input_sequential)
+        .expect("valid dynamic sequential benchmark input");
+    let static_sequential_output = static_sequential
+        .forward(&input_sequential)
+        .expect("valid static sequential benchmark input");
+    assert_eq!(
+        dynamic_sequential_output.tensor.as_slice(),
+        static_sequential_output.tensor.as_slice(),
+        "dynamic and static Sequential composition must be value-equivalent"
+    );
+
+    let dynamic_moirai_output = dynamic_moirai
+        .forward(&input_moirai)
+        .expect("valid dynamic Moirai sequential benchmark input");
+    let static_moirai_output = static_moirai
+        .forward(&input_moirai)
+        .expect("valid static Moirai sequential benchmark input");
+    assert_eq!(
+        dynamic_moirai_output.tensor.as_slice(),
+        static_moirai_output.tensor.as_slice(),
+        "dynamic and static Moirai composition must be value-equivalent"
+    );
+    drop((
+        dynamic_sequential_output,
+        static_sequential_output,
+        dynamic_moirai_output,
+        static_moirai_output,
+    ));
+
+    let mut group = c.benchmark_group("Coeus — sequential composition forward (128x256)");
+    group.bench_function("Sequential backend, dynamic modules", |b| {
+        b.iter(|| {
+            black_box(
+                dynamic_sequential
+                    .forward(black_box(&input_sequential))
+                    .expect("valid dynamic sequential benchmark input"),
+            )
+        })
+    });
+    group.bench_function("Sequential backend, static modules", |b| {
+        b.iter(|| {
+            black_box(
+                static_sequential
+                    .forward(black_box(&input_sequential))
+                    .expect("valid static sequential benchmark input"),
+            )
+        })
+    });
+    group.bench_function("Moirai backend, dynamic modules", |b| {
+        b.iter(|| {
+            black_box(
+                dynamic_moirai
+                    .forward(black_box(&input_moirai))
+                    .expect("valid dynamic Moirai sequential benchmark input"),
+            )
+        })
+    });
+    group.bench_function("Moirai backend, static modules", |b| {
+        b.iter(|| {
+            black_box(
+                static_moirai
+                    .forward(black_box(&input_moirai))
+                    .expect("valid static Moirai sequential benchmark input"),
+            )
+        })
+    });
+    group.finish();
+}
+
 pub(crate) fn bench_embedding_forward(c: &mut Criterion) {
     // Embedding lookup on [batch=2, seq=16] into [vocab=4096, d_model=256].
     // forward path used by the module via `forward_indices`.

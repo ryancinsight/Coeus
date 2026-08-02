@@ -31,9 +31,16 @@
 - [x] Pass exact-head run `30754320242`: ROCm `91513760707`, WGPU
       `91513760721`, CUDA `91513760730`, and Metal `91513760733`; merge PR #267
       as `86466e9b`.
-- [ ] Close the manifest's explicit residuals: three missing and eleven partial
-      Criterion families, and two missing plus four partial Python differential
-      families. All 21 families have Rust contract evidence.
+- [x] Add Criterion rows for seeded uniform initialization, sinusoidal encoding,
+      and dynamic-versus-monomorphized sequential composition across Sequential
+      and Moirai backends; exact untimed output oracles validate the composition
+      comparison, and no family remains without a Criterion disposition.
+- [x] Pass warning-denied benchmark Clippy, manifest Nextest run
+      `4ce7d22b-e394-4b02-8505-3ce294cda5df`, and all eight new benchmark rows
+      in Criterion single-iteration test mode.
+- [ ] Close the manifest's explicit residuals: thirteen partial Criterion
+      families, and two missing plus four partial Python differential families.
+      All 21 families have Rust contract evidence.
 
 ## COEUS-STATEFUL-UPDATE-PROVIDER-001 — Provider-owned optimizer dispatch
 

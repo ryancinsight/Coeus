@@ -9,6 +9,12 @@
   differential locators. Missing, partial, and inapplicable evidence is now
   explicit instead of implied by stale benchmark prose.
 
+- [patch] Add Criterion rows for seeded initialization, sinusoidal positional
+  encoding, and sequential composition. The sequential row compares runtime
+  module erasure with monomorphized static composition across both CPU execution
+  backends after an untimed exact-output oracle confirms identical parameters
+  and values; no performance delta is claimed without controlled measurements.
+
 - [patch] Refresh the standalone Apollo FFT lock to the first revision carrying
   the published `mnemosyne-memory` package identity. Restore 22 PyTorch parity
   cases that duplicate Python test names previously shadowed at module import,

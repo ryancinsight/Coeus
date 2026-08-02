@@ -18,8 +18,9 @@ use coeus_nn::{
     BatchNorm1d, BatchNorm2d, BatchNorm3d, Bidirectional, Bilinear, Conv1d, Conv2d, Conv3d,
     ConvTranspose1d, ConvTranspose3d, Dropout, Embedding, EmbeddingBag, EmbeddingBagMode,
     GroupNorm, Gru as CoeusGru, InstanceNorm2d, InterpolateMode as CoeusInterpolateMode, LayerNorm,
-    Linear, LocalResponseNorm, Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, MultiHeadAttention,
-    NullMask, RMSNorm, RNNCell, Rnn, RnnNonlinearity, SwiGlu, TransformerEncoderLayer,
+    Linear, LocalResponseNorm, Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, ModuleExt,
+    MultiHeadAttention, NullMask, RMSNorm, RNNCell, ReLU, Rnn, RnnNonlinearity, Sequential,
+    SinusoidalEncoding, SwiGlu, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -47,6 +48,8 @@ mod gating_backward;
 mod gating_forward;
 #[path = "nn_bench/provider/indexing.rs"]
 mod indexing;
+#[path = "nn_bench/provider/initialization.rs"]
+mod initialization;
 #[path = "nn_bench/provider/loss_backward.rs"]
 mod loss_backward;
 #[path = "nn_bench/provider/loss_forward.rs"]
@@ -57,6 +60,8 @@ mod normalization_backward;
 mod normalization_forward;
 #[path = "nn_bench/provider/pooling_interpolation.rs"]
 mod pooling_interpolation;
+#[path = "nn_bench/provider/positional.rs"]
+mod positional;
 #[path = "nn_bench/provider/rectifier_backward.rs"]
 mod rectifier_backward;
 #[path = "nn_bench/provider/rectifier_forward.rs"]
@@ -88,11 +93,13 @@ use exponential_forward::*;
 use gating_backward::*;
 use gating_forward::*;
 use indexing::*;
+use initialization::*;
 use loss_backward::*;
 use loss_forward::*;
 use normalization_backward::*;
 use normalization_forward::*;
 use pooling_interpolation::*;
+use positional::*;
 use rectifier_backward::*;
 use rectifier_forward::*;
 use reduction_backward::*;
@@ -109,6 +116,9 @@ criterion_group!(
     bench_maximum_forward,
     bench_minimum_forward,
     bench_remainder_forward,
+    bench_uniform_initializer,
+    bench_sinusoidal_encoding_forward,
+    bench_sequential_composition_forward,
     bench_linear_forward,
     bench_layernorm_forward,
     bench_rmsnorm_forward,
