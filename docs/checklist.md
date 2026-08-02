@@ -20,6 +20,9 @@
 - [x] Build and install the CPython 3.13 wheel from the exact standalone lock;
       the 19 selected restored differential and suite-integrity cases pass in
       2.16 seconds with 385 unrelated cases deselected.
+- [x] Pass exact-head run `30752337798`: WGPU `91508474817`, CUDA
+      `91508474772`, ROCm `91508474796`, and Metal `91508474807`; merge PR
+      #266 as `e1a720ee`.
 - [ ] Add and mechanically validate the every-family benchmark/differential
       evidence manifest; reconcile unsupported Burn rows explicitly.
 

@@ -853,7 +853,8 @@ has no Burn rows; the manifest must record external baseline status explicitly
 instead of inheriting the stale prose claim. Verification passes locked
 metadata, warning-denied Python-crate Clippy, 78/78 binding Nextest cases,
 80/80 Leto/Hephaestus/optimizer dispatch cases, doctests, and 19 selected tests
-against a freshly built CPython 3.13 wheel.
+against a freshly built CPython 3.13 wheel. Exact-head run `30752337798` passes
+WGPU, CUDA, ROCm, and Metal; PR #266 is merged as `e1a720ee`.
 **2026-07-08 update**: added `bench_maxpool3d_forward`/`bench_avgpool3d_forward`
 (Coeus Sequential vs Moirai only — no Burn 0.16.1 `max_pool3d`/`avg_pool3d` op
 exists to compare against, confirmed against the pinned `burn-tensor` source).
