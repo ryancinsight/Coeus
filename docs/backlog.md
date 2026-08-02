@@ -1727,6 +1727,16 @@ value and failure-contract tests pass on Sequential and Moirai.
     doctests pass. Exact-head run `30754320242` passed ROCm `91513760707`, WGPU
     `91513760721`, CUDA `91513760730`, and Metal `91513760733`; PR #267 merged
     as `86466e9b`.
+  - 2026-08-02 Criterion increment: added seeded uniform initialization,
+    sinusoidal encoding, and sequential-composition rows. The composition row
+    compares runtime type erasure with monomorphized `StaticSeq` execution on
+    Sequential and Moirai backends after an untimed exact-output oracle confirms
+    identical parameters and values. Every family now has a Criterion locator or
+    an explicit support-contract inapplicability; thirteen family rows remain
+    partial. Warning-denied benchmark Clippy, manifest Nextest run
+    `4ce7d22b-e394-4b02-8505-3ce294cda5df`, and all eight new Criterion rows in
+    single-iteration test mode pass. No timing delta is claimed without
+    controlled measurements.
 ## Sprint MS-243: cumprod backward zero decomposition fix [COMPLETE]
 
 - [x] [patch] Replaced the naive suffix-sum cumprod backward that produced NaN at

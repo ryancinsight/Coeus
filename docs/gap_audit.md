@@ -865,6 +865,14 @@ These are explicit residuals, not performance or parity claims. Warning-denied
 benchmark and integration-target Clippy, the complete 299-case `nn_ops`
 Nextest harness, and eight runnable doctests pass. Exact-head run `30754320242`
 passes ROCm, WGPU, CUDA, and Metal; PR #267 is merged as `86466e9b`.
+**2026-08-02 Criterion update**: seeded uniform initialization, sinusoidal
+encoding, and sequential composition now have direct rows. Sequential compares
+runtime-dynamic modules against monomorphized `StaticSeq` on both CPU execution
+backends after an untimed exact-output oracle validates identical parameters and
+values. Criterion dispositions are now 7 present, 13 partial, and 1
+inapplicable; no family remains missing. These are executable measurement
+instruments, not performance claims. Warning-denied benchmark Clippy, the
+manifest consistency suite, and all eight new rows in Criterion test mode pass.
 **2026-07-08 update**: added `bench_maxpool3d_forward`/`bench_avgpool3d_forward`
 (Coeus Sequential vs Moirai only — no Burn 0.16.1 `max_pool3d`/`avg_pool3d` op
 exists to compare against, confirmed against the pinned `burn-tensor` source).
