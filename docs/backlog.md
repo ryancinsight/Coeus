@@ -1690,6 +1690,17 @@ value and failure-contract tests pass on Sequential and Moirai.
 - [ ] [patch] G-043: Expand the Coeus-vs-Burn/PyTorch benchmark/parity manifest
   so every implemented NN family has an explicit measurement or differential
   row.
+  - Owner: Codex on `codex/coeus-parity-manifest`; last-update: 2026-08-02;
+    scope: the NN family inventory, its benchmark/differential coverage SSOT,
+    focused coverage regressions, and active PM reconciliation.
+  - Outcome: one mechanically checked manifest maps every implemented NN family
+    to applicable Coeus backend measurements and independent differential
+    evidence without fabricating unsupported external-framework rows.
+  - Acceptance: the inventory derives from the public NN module surface; every
+    family has an explicit benchmark and differential disposition; stale or
+    missing rows are fixed; metadata, warning-denied benchmark Clippy, focused
+    Nextest, doctests, and the manifest consistency check pass.
+  - Status: in-progress.
 ## Sprint MS-243: cumprod backward zero decomposition fix [COMPLETE]
 
 - [x] [patch] Replaced the naive suffix-sum cumprod backward that produced NaN at
