@@ -16,6 +16,10 @@
 - [x] Pass exact-head hosted run `30720390380`: WGPU `91423080685`, CUDA
       `91423080680`, ROCm `91423080613`, and Metal `91423080688`; merge PR
       #262 as `0951e30e` and reconcile PM state.
+- [x] Run the CUDA required-device and stateful-update contracts locally on the
+      RTX 5080 at `5856cde9` with `HEPHAESTUS_CUDA_REQUIRE_DEVICE=1`: Nextest
+      run `110d9c3a-bf0f-4ae3-9368-258a1a541a77` passed 8/8. ROCm evidence
+      remains GitHub CI job `91423080613`.
 
 ## ATLAS-WGPU-SAFETY-002 — Checked unfold/fold dispatch
 

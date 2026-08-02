@@ -9,14 +9,15 @@ retained a CUDA host fallback, and lacked shared ROCm/Metal provider dispatch.
 **Resolution**: call Leto over borrowed CPU storage and bind accelerator storage
 through one monomorphized Coeus-Hephaestus bridge selected by backend type;
 propagate typed failures and delete the superseded implementations.
-**Residual**: exact-head Coeus hosted provider CI and merge confirmation remain
-pending. Local WGPU execution reports no compatible adapter; provider runtime
-semantics are covered by Hephaestus's green WGPU/CUDA/ROCm/Metal matrix, while
-Coeus adapter value parity remains a hosted-CI gate. No performance, memory, or
-binary-size delta is claimed without controlled measurements.
-**Status**: review-ready under ADR-0048. CPU/Leto, optimizer/scheduler, Python,
-all-target, CUDA-feature, warning-denied Clippy, and doctest gates pass;
-independent review findings are resolved.
+**Residual**: local WGPU execution reports no compatible adapter, and ROCm
+remains GitHub CI evidence. No performance, memory, or binary-size delta is
+claimed without controlled measurements.
+**Status**: merged in PR #262 as `0951e30e` under ADR-0048. Exact-head hosted
+run `30720390380` passed WGPU, CUDA, ROCm, and Metal provider contracts. Local
+RTX 5080 verification at `5856cde9` required a CUDA device and passed all eight
+selected activation and stateful-update contracts in Nextest run
+`110d9c3a-bf0f-4ae3-9368-258a1a541a77`. Independent review found no remaining
+architecture or correctness defect.
 
 ## COEUS-ATTENTION-PROVIDER-001: Consumer-owned attention dispatch
 
