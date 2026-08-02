@@ -67,6 +67,10 @@ impl ComputeDevice for TestDevice {
         "attention-bridge-test"
     }
 
+    fn topology(&self) -> Option<&themis::GpuTopology> {
+        None
+    }
+
     fn alloc_zeroed_with_hint<T: Pod>(
         &self,
         len: usize,

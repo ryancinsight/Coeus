@@ -229,6 +229,10 @@ mod tests {
             "test"
         }
 
+        fn topology(&self) -> Option<&themis::GpuTopology> {
+            None
+        }
+
         fn alloc_zeroed_with_hint<T: bytemuck::Pod>(
             &self,
             len: usize,
