@@ -1690,11 +1690,11 @@ value and failure-contract tests pass on Sequential and Moirai.
 - [ ] [patch] G-043: Expand the Coeus-vs-Burn/PyTorch benchmark/parity manifest
   so every implemented NN family has an explicit measurement or differential
   row.
-  - Owner: Codex on `codex/coeus-python-evidence`; last-update:
+  - Owner: Codex on `codex/coeus-init-safety`; last-update:
     2026-08-02;
     scope: the NN family inventory, its benchmark/differential coverage SSOT,
-    focused coverage regressions, the stale initializer/Sequential Python
-    dispositions, and active PM reconciliation.
+    focused coverage regressions, initialization parity and Python boundary
+    safety, and active PM reconciliation.
   - Outcome: one mechanically checked manifest maps every implemented NN family
     to applicable Coeus backend measurements and independent differential
     evidence without fabricating unsupported external-framework rows.
@@ -1746,6 +1746,13 @@ value and failure-contract tests pass on Sequential and Moirai.
     empty identity semantics. The Python dispositions are now 15 present, 4
     partial, 1 missing, and 1 inapplicable; initialization is the sole missing
     family.
+  - 2026-08-02 Python initialization increment: added exact constant-fill and
+    analytically bounded random-distribution comparisons against PyTorch for all
+    nine exposed initialization functions. Python now rejects invalid random
+    domains before Leto dispatch, and the type stub includes the full `init`
+    submodule. Python dispositions are now 16 present, 4 partial, 0 missing, and
+    1 inapplicable. Direct Rust calls with unsupported random-initializer ranks
+    still require a typed-result API migration.
 ## Sprint MS-243: cumprod backward zero decomposition fix [COMPLETE]
 
 - [x] [patch] Replaced the naive suffix-sum cumprod backward that produced NaN at

@@ -4,6 +4,12 @@
 
 ### Changed
 
+- [patch] Add PyTorch contract evidence for all Python initialization functions
+  and synchronize the missing `pycoeus.init` type stubs. Random initializers now
+  reject non-finite parameters, invalid distribution bounds, zero fan values,
+  fan-size overflow, and unsupported tensor ranks at the Python boundary.
+  Remove an expired thread-local Clippy expectation that failed under Rust 1.97.
+
 - [patch] Add deterministic PyTorch differential evidence for Python
   `Sequential` composition, including forward values, input and parameter
   gradients, parameter ordering, append/index behavior, gradient clearing, and
