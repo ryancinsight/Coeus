@@ -4,6 +4,10 @@
 
 ### Changed
 
+- [patch] Bind the existing `moirai`, `mnemosyne`, and `themis` Rust crate
+  aliases to their published package identities so registry archives resolve
+  the provider graph without changing imports.
+
 - [major] Route CPU optimizer updates through Leto's borrowed stateful-update
   API and WGPU, CUDA, ROCm, and Metal through one monomorphized Hephaestus
   bridge selected by backend type. Optimizer, scheduler, and Python entry points

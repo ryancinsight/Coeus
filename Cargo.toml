@@ -31,9 +31,9 @@ license = "MIT OR Apache-2.0"
 # First-party providers remain Git-sourced for standalone and CI resolution.
 # The Atlas stack overlay redirects these exact sources to one local checkout
 # during development, so a worktree never creates a second package identity.
-moirai = { git = "https://github.com/ryancinsight/Moirai.git", version = "0.4.0", features = ["melinoe"] }
+moirai = { package = "moirai-runtime", git = "https://github.com/ryancinsight/Moirai.git", version = "0.4.0", features = ["melinoe"] }
 moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", version = "0.4.0" }
-mnemosyne = { git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.6.0" }
+mnemosyne = { package = "mnemosyne-memory", git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.6.0" }
 # SIMD-effect SSOT.
 hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0.5.0" }
 eunomia = { git = "https://github.com/ryancinsight/eunomia.git", version = "0.7.0", default-features = false }
@@ -57,7 +57,7 @@ hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", vers
 hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.18.0", default-features = false }
 hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.18.0" }
 hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.18.0" }
-themis = { git = "https://github.com/ryancinsight/themis.git", version = "0.10.1" }
+themis = { package = "themis-topology", git = "https://github.com/ryancinsight/themis.git", version = "0.10.1" }
 melinoe = { git = "https://github.com/ryancinsight/melinoe.git", version = "0.9.0" }
 
 # ── Error ──

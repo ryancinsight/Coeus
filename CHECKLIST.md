@@ -1,5 +1,14 @@
 # Coeus Development Roadmap Checklist
 
+## COEUS-REGISTRY-PACKAGE-1 [patch] — Owner: Codex `/root`
+
+- [x] Bind Moirai, Mnemosyne, and Themis imports to their published packages.
+- [x] Refresh the exact external lock graph after Apollo `816a5c89`,
+  Hephaestus `48fba669`, Moirai `b7988419`, and Mnemosyne `213fead9`
+  merge.
+- [ ] Pass exact-head provider CI and merge the release-preparation branch.
+- [ ] Publish reusable crates in dependency order through Trusted Publishing.
+
 ## COEUS-ATTENTION-PROVIDER-001 [major] [arch]
 
 - [x] Route CPU scaled dot-product attention directly through Leto's borrowed
