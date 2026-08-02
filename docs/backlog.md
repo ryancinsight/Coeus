@@ -1746,6 +1746,13 @@ value and failure-contract tests pass on Sequential and Moirai.
     empty identity semantics. The Python dispositions are now 15 present, 4
     partial, 1 missing, and 1 inapplicable; initialization is the sole missing
     family.
+  - 2026-08-02 Python initialization increment: added exact constant-fill and
+    analytically bounded random-distribution comparisons against PyTorch for all
+    nine exposed initialization functions. Python now rejects invalid random
+    domains before Leto dispatch, and the type stub includes the full `init`
+    submodule. Python dispositions are now 16 present, 4 partial, 0 missing, and
+    1 inapplicable. Direct Rust calls with unsupported random-initializer ranks
+    still require a typed-result API migration.
 ## Sprint MS-243: cumprod backward zero decomposition fix [COMPLETE]
 
 - [x] [patch] Replaced the naive suffix-sum cumprod backward that produced NaN at

@@ -4,6 +4,9 @@ use coeus_autograd::Var;
 use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 
+/// Maximum tensor rank supported by provider-owned random initialization.
+pub const MAX_INITIALIZER_RANK: usize = coeus_leto::MAX_DISPATCH_RANK;
+
 /// Initialize weights with values from a uniform distribution U(a, b).
 pub fn uniform_with_seed<
     T: Float + coeus_leto::RandomScalar,
