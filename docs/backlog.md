@@ -26,6 +26,9 @@
   Independent re-review approved with no findings. Exact-head hosted run
   `30720390380` passed WGPU `91423080685`, CUDA `91423080680`, ROCm
   `91423080613`, and Metal `91423080688`; PR #262 merged as `0951e30e`.
+  Local RTX 5080 required-device verification at `5856cde9` passed all eight
+  selected CUDA activation and stateful-update contracts in Nextest run
+  `110d9c3a-bf0f-4ae3-9368-258a1a541a77`; ROCm remains GitHub CI evidence.
 
 ## COEUS-ATTENTION-PROVIDER-001 — Provider-owned attention dispatch [major] [arch]
 
