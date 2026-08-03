@@ -144,6 +144,9 @@ jobs:
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-ops --doc
+          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-autograd \
+            -E "test(remainder)"
+          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-autograd --doc
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-wgpu --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-wgpu --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-wgpu \
