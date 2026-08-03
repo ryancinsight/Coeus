@@ -24,6 +24,18 @@ where
     }
 
     #[inline]
+    fn elementwise_binary_assign(
+        &self,
+        op: BinaryOp,
+        a: &mut Self::DeviceBuffer<T>,
+        a_layout: &mut Layout,
+        b: &Self::DeviceBuffer<T>,
+        b_layout: &Layout,
+    ) -> Result<(), Self::Error> {
+        elementwise::elementwise_binary_assign(self, op, a, a_layout, b, b_layout)
+    }
+
+    #[inline]
     fn elementwise_unary(
         &self,
         op: UnaryOp,

@@ -156,6 +156,79 @@ pub fn elementwise_binary_into<T: LetoScalar>(
     }
 }
 
+fn binary_assign_n<T: LetoScalar + CoeusScalar, const N: usize>(
+    op: BinaryOp,
+    a_layout: &CoeusLayout,
+    a: &mut [T],
+    b_layout: &CoeusLayout,
+    b: &[T],
+) -> Result<()> {
+    let mut a_view = to_leto_view_mut::<T, N>(a_layout, a)?;
+    let b_view = to_leto_view::<T, N>(b_layout, b)?.broadcast(a_view.shape())?;
+    macro_rules! assign {
+        ($body:expr) => {
+            leto_ops::zip_mut_with(&mut a_view, &b_view, $body)
+        };
+    }
+    match op {
+        BinaryOp::Add => assign!(|left: &mut T, right: &T| *left += *right),
+        BinaryOp::Sub => assign!(|left: &mut T, right: &T| *left -= *right),
+        BinaryOp::Mul => assign!(|left: &mut T, right: &T| *left *= *right),
+        BinaryOp::Div => assign!(|left: &mut T, right: &T| {
+            *left = std::ops::Div::div(*left, *right);
+        }),
+        BinaryOp::Eq => assign!(|left: &mut T, right: &T| {
+            *left = if *left == *right { T::one() } else { T::zero() };
+        }),
+        BinaryOp::Ne => assign!(|left: &mut T, right: &T| {
+            *left = if *left != *right { T::one() } else { T::zero() };
+        }),
+        BinaryOp::Lt => assign!(|left: &mut T, right: &T| {
+            *left = if *left < *right { T::one() } else { T::zero() };
+        }),
+        BinaryOp::Gt => assign!(|left: &mut T, right: &T| {
+            *left = if *left > *right { T::one() } else { T::zero() };
+        }),
+        BinaryOp::Le => assign!(|left: &mut T, right: &T| {
+            *left = if *left <= *right { T::one() } else { T::zero() };
+        }),
+        BinaryOp::Ge => assign!(|left: &mut T, right: &T| {
+            *left = if *left >= *right { T::one() } else { T::zero() };
+        }),
+    }
+}
+
+/// Apply an elementwise binary operation directly to mutable CPU storage.
+///
+/// The right operand is broadcast as a borrowed view; no temporary output or
+/// broadcast materialization is allocated.
+///
+/// # Errors
+///
+/// Returns a typed Leto error for unsupported rank, invalid storage, layout,
+/// or broadcast shape.
+pub fn elementwise_binary_assign<T: LetoScalar + CoeusScalar>(
+    op: BinaryOp,
+    a_layout: &CoeusLayout,
+    a: &mut [T],
+    b_layout: &CoeusLayout,
+    b: &[T],
+) -> Result<()> {
+    match a_layout.ndim() {
+        1 => binary_assign_n::<T, 1>(op, a_layout, a, b_layout, b),
+        2 => binary_assign_n::<T, 2>(op, a_layout, a, b_layout, b),
+        3 => binary_assign_n::<T, 3>(op, a_layout, a, b_layout, b),
+        4 => binary_assign_n::<T, 4>(op, a_layout, a, b_layout, b),
+        5 => binary_assign_n::<T, 5>(op, a_layout, a, b_layout, b),
+        6 => binary_assign_n::<T, 6>(op, a_layout, a, b_layout, b),
+        rank => Err(LetoError::StorageError {
+            reason: format!(
+                "coeus-leto binary assign supports rank 1..={MAX_DISPATCH_RANK}, got {rank}"
+            ),
+        }),
+    }
+}
+
 #[inline(always)]
 fn unary_n<T: LetoScalar + CoeusScalar + CpuUnaryDispatch, const N: usize>(
     op: UnaryOp,

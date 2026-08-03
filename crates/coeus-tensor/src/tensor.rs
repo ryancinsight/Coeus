@@ -153,6 +153,18 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
         (&mut self.storage, &self.layout)
     }
 
+    /// Mutable references to storage and layout without eagerly making the
+    /// storage unique.
+    ///
+    /// Backend operations that mutate the existing allocation must preserve
+    /// copy-on-write through [`StorageMut::make_unique`]. Operations that
+    /// replace the allocation can instead read the shared storage and install
+    /// a compact result without first copying the source allocation.
+    #[inline]
+    pub fn storage_and_layout_mut(&mut self) -> (&mut B::DeviceBuffer<T>, &mut Layout) {
+        (&mut self.storage, &mut self.layout)
+    }
+
     /// True if the layout is row-major contiguous.
     #[inline]
     pub fn is_contiguous(&self) -> bool {

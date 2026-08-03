@@ -36,6 +36,24 @@ where
 }
 
 #[inline]
+pub(super) fn elementwise_binary_assign<T, B>(
+    _backend: &B,
+    op: BinaryOp,
+    a: &mut B::DeviceBuffer<T>,
+    a_layout: &Layout,
+    b: &B::DeviceBuffer<T>,
+    b_layout: &Layout,
+) -> Result<(), B::Error>
+where
+    T: Scalar + leto_ops::Scalar,
+    B: CpuBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
+    coeus_leto::elementwise_binary_assign(op, a_layout, a.as_mut_slice(), b_layout, b.as_slice())
+        .map_err(|error| map_leto_error("elementwise binary assign", error))
+}
+
+#[inline]
 pub(super) fn elementwise_unary<T, B>(
     _backend: &B,
     op: UnaryOp,

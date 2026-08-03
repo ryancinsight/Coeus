@@ -42,6 +42,17 @@ CPU-addressable storage bounds. Provider failures propagate through the typed
 module error; no backend may download to the host or fall back to another
 provider.
 
+Autograd accumulation calls the `ElementwiseOps` assignment capability rather
+than fabricating an immutable reference from its mutable destination. CPU
+overrides the capability with one borrowed Leto zip traversal, preserving the
+allocation when storage is uniquely owned and detaching it through COW when
+shared. Accelerator backends use the default distinct device output and
+replace the destination with a compact contiguous result after dispatch because
+WGPU prohibits one buffer from being bound read-only and read-write in the same
+usage scope. The replacement path reads shared source storage without eagerly
+detaching it, avoiding a redundant full-device COW copy and ensuring every slot
+in the installed allocation is initialized.
+
 ## Alternatives rejected
 
 - General device concatenation or gather: rejected because rotate-half is two
@@ -52,6 +63,9 @@ provider.
   already owns the required provider operations and strided dispatch.
 - Fall back to Leto after an accelerator error: rejected because it hides a
   provider fault and silently changes device placement.
+- Retain the overlapping-reference assignment path: rejected because its
+  safety claim depended on backend behavior and WGPU rejects the underlying
+  simultaneous read/write binding.
 
 ## Verification
 

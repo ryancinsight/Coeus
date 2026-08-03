@@ -29,6 +29,27 @@ pub trait ElementwiseOps<T: Scalar>: ComputeBackend {
         c_layout: &Layout,
     ) -> Result<(), Self::Error>;
 
+    /// Apply a binary operation to `a` and `b`, replacing `a` with the result.
+    ///
+    /// The default uses a distinct output allocation because accelerator APIs
+    /// may prohibit binding one buffer for simultaneous read and write. CPU
+    /// backends override this with provider-owned in-place traversal.
+    fn elementwise_binary_assign(
+        &self,
+        op: BinaryOp,
+        a: &mut Self::DeviceBuffer<T>,
+        a_layout: &mut Layout,
+        b: &Self::DeviceBuffer<T>,
+        b_layout: &Layout,
+    ) -> Result<(), Self::Error> {
+        let output_layout = Layout::new(a_layout.shape_cloned());
+        let mut output = self.allocate(output_layout.numel());
+        self.elementwise_binary(op, a, a_layout, b, b_layout, &mut output, &output_layout)?;
+        *a = output;
+        *a_layout = output_layout;
+        Ok(())
+    }
+
     /// Element-wise unary operations.
     fn elementwise_unary(
         &self,

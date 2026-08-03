@@ -114,8 +114,12 @@
   CUDA forward-plus-gradient dispatch passes on the installed device, and
   warning-denied Clippy plus host-compatible semver checks pass. Windows
   Defender error 225 blocked two pre-existing core and two Leto doctest
-  executables after the remaining doctests passed. Exact-head hosted provider
-  CI is pending.
+  executables after the remaining doctests passed. Exact-head run `30858644563`
+  passed CUDA, ROCm, and Metal; WGPU exposed an invalid overlapping
+  read/write assignment binding. The unsafe assumption is removed, CPU
+  allocation identity is covered, and accelerator assignment now compacts
+  shared strided inputs into fully initialized replacement storage without an
+  eager COW copy. Exact-head provider CI rerun is pending.
 
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Provider-owned random initialization [major] [arch]
 
