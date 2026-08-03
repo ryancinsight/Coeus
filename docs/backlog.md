@@ -2,7 +2,7 @@
 
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Provider-owned random initialization [major] [arch]
 
-- Owner: Codex on `codex/coeus-random-init-dispatch`; last-update: 2026-08-02;
+- Owner: Codex; last-update: 2026-08-02;
   scope: random initializer dispatch, fallible Rust/Python caller closure,
   provider parity contracts, ADR-0049, and exact-head backend CI.
 - Outcome: CPU initialization executes through Leto and WGPU/CUDA/ROCm/Metal
@@ -28,13 +28,13 @@
   architecture and soundness re-review approves the corrected diff. Targeted
   Miri passes the initialized-storage regression 1/1; Mnemosyne emits existing
   exposed-provenance warnings, so this is not strict-provenance evidence.
-  Exact-head hosted run `30776550993` passes WGPU, CUDA, ROCm, and Metal provider
-  lanes. The optional ROCm required-device dispatch could not start because the
-  repository has no registered self-hosted runner. `cargo-semver-checks` did not
-  reach API comparison because its isolated baseline rustdoc build terminated
-  while compiling `futures-channel`; the breaking contract is declared and
-  documented under ADR-0049.
-- Status: review; exact final-head CI and PR #273 merge remain.
+  Final exact-head hosted run `30777614311` passes WGPU, CUDA, ROCm, and Metal
+  provider lanes at `8e3652c5`. The optional ROCm required-device dispatch could
+  not start because the repository has no registered self-hosted runner.
+  `cargo-semver-checks` did not reach API comparison because its isolated
+  baseline rustdoc build terminated while compiling `futures-channel`; the
+  breaking contract is declared and documented under ADR-0049.
+- Status: complete; PR #273 merged as `c3f71f98`.
 
 ## COEUS-STATEFUL-UPDATE-PROVIDER-001 — Provider-owned optimizer dispatch [major] [arch]
 
