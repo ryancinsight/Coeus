@@ -80,7 +80,13 @@
   affected Clippy, doctests, and exact-head backend CI pass.
 - Risk/change class: `[major] [arch]`; tightening the public backend bound and
   deleting the device fallback requires ADR-0050 and migration notes.
-- Status: in-progress; ADR-0050 accepted and implementation claimed.
+- Evidence: cache/transfer residue scan is empty; `cargo check -p coeus-ops
+  --all-targets`, warning-denied Clippy, and local CUDA feature compilation
+  pass; focused fused contracts pass 9/9; `cargo semver-checks` identifies the
+  intended major break. Local Coeus Ops doctests pass 22/22, but two exceed the
+  committed 60-second budget, so exact-head hosted timing remains required.
+- Status: in-progress; implementation is complete locally and awaits the
+  independent architecture verdict plus exact-head provider CI.
 
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Provider-owned random initialization [major] [arch]
 

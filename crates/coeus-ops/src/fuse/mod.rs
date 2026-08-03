@@ -5,8 +5,7 @@ mod ops_impl;
 
 pub use eval_cpu::{evaluate_fused_cpu, evaluate_fused_reduce_cpu, validate_fused_reduction_axis};
 pub use expr_node::{
-    scalar, BinaryExpr, Expr, ExprNode, ScalarVal, TensorExprExt, TensorRef, UnaryExpr,
-    CPU_EVAL_CACHE,
+    scalar, BinaryExpr, CpuExprNode, Expr, ExprNode, ScalarVal, TensorExprExt, TensorRef, UnaryExpr,
 };
 pub use op_tags::{
     wgsl_erf_approx_expr, wgsl_gelu_expr, wgsl_gelu_grad_expr, Abs, Acos, Acosh, Add, Asin, Asinh,

@@ -1,8 +1,8 @@
-use crate::fuse::expr_node::{CachedTensor, ExprNode, CPU_EVAL_CACHE};
+use crate::fuse::expr_node::CpuExprNode;
 use crate::ptr::MutPtr;
-use coeus_core::{Backend, BackendError, Layout, Scalar, Storage, StorageMut};
+use crate::CpuBackend;
+use coeus_core::{BackendError, CpuAddressableStorageMut, Layout, Scalar};
 use coeus_tensor::Tensor;
-use std::marker::PhantomData;
 
 #[repr(transparent)]
 #[derive(Clone, Copy)]
@@ -68,59 +68,6 @@ fn logical_to_coords(mut temp: usize, ndim: usize, out_strides: &[usize], coords
     }
 }
 
-// ── CPU evaluator ──
-
-struct CachedInputs<T> {
-    addresses: Vec<usize>,
-    _marker: PhantomData<T>,
-}
-
-impl<T> CachedInputs<T> {
-    fn new<E, B>(expr: &E, backend: &B) -> Self
-    where
-        E: ExprNode<T, B>,
-        T: Scalar,
-        B: Backend,
-    {
-        let mut inputs = Vec::new();
-        expr.collect_inputs(&mut inputs);
-
-        let mut addresses = Vec::new();
-        for tensor in inputs {
-            if tensor.storage().try_as_slice().is_none() {
-                let contiguous = tensor.to_contiguous_on(backend);
-                let mut host_data = vec![T::zero(); contiguous.numel()];
-                backend.copy_to_host(contiguous.storage(), &mut host_data);
-                let cached_tensor = CachedTensor {
-                    data: host_data,
-                    layout: contiguous.layout().clone(),
-                };
-                let bytes = Box::new(cached_tensor) as Box<dyn std::any::Any>;
-                let addr = std::ptr::from_ref(tensor) as usize;
-                CPU_EVAL_CACHE.with(|cache| {
-                    cache.borrow_mut().insert(addr, bytes);
-                });
-                addresses.push(addr);
-            }
-        }
-
-        Self {
-            addresses,
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<T> Drop for CachedInputs<T> {
-    fn drop(&mut self) {
-        for addr in self.addresses.drain(..) {
-            CPU_EVAL_CACHE.with(|cache| {
-                cache.borrow_mut().remove(&addr);
-            });
-        }
-    }
-}
-
 fn write_fused_values<E, T, B>(
     expr: E,
     out_ptr: MutPtr<T>,
@@ -129,9 +76,9 @@ fn write_fused_values<E, T, B>(
     contiguous_fast_path: bool,
     backend: &B,
 ) where
-    E: ExprNode<T, B> + Copy + Send,
+    E: CpuExprNode<T, B> + Copy + Send,
     T: Scalar,
-    B: Backend,
+    B: CpuBackend,
 {
     let ndim = out_layout.ndim();
     let out_strides = out_layout.strides_cloned();
@@ -205,9 +152,9 @@ unsafe fn eval_reduction_at<E, T, B>(
     op: crate::ReductionOp,
 ) -> T
 where
-    E: ExprNode<T, B> + Copy,
+    E: CpuExprNode<T, B> + Copy,
     T: Scalar,
-    B: Backend,
+    B: CpuBackend,
 {
     coords[axis] = 0;
     let mut acc = expr.eval_cpu(coords);
@@ -232,9 +179,9 @@ fn write_fused_reductions<E, T, B>(
     plan: FusedReductionPlan<'_>,
     backend: &B,
 ) where
-    E: ExprNode<T, B> + Copy + Send,
+    E: CpuExprNode<T, B> + Copy + Send,
     T: Scalar,
-    B: Backend,
+    B: CpuBackend,
 {
     let ndim = plan.out_layout.ndim();
     let out_strides = plan.out_layout.strides_cloned();
@@ -296,10 +243,13 @@ pub fn validate_fused_reduction_axis(
 ///
 /// Returns [`BackendError`] when the expression has no tensor input or its
 /// child shapes cannot be broadcast.
-pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend>(
-    expr: &E,
-    backend: &B,
-) -> Result<Tensor<T, B>, BackendError> {
+pub fn evaluate_fused_cpu<E, T, B>(expr: &E, backend: &B) -> Result<Tensor<T, B>, BackendError>
+where
+    E: CpuExprNode<T, B> + Copy + Send,
+    T: Scalar,
+    B: CpuBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
     let out_shape = expr.shape()?.ok_or_else(|| BackendError::Storage {
         operation: "fused expression",
         reason: "expression has no tensor input from which to derive its shape".to_string(),
@@ -308,36 +258,16 @@ pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend
     let mut out = Tensor::alloc_on(out_shape, backend);
 
     let out_numel = out.numel();
-    let _cached_inputs = CachedInputs::<T>::new(expr, backend);
-
-    // 2. Perform parallel evaluation
     let contiguous_fast_path = expr.is_contiguous_and_same_shape(out_layout.shape());
-    let slice_result = out.storage_mut().try_as_mut_slice();
-    if let Some(slice) = slice_result {
-        // CPU output fast path
-        let out_ptr = MutPtr(slice.as_mut_ptr());
-        write_fused_values(
-            *expr,
-            out_ptr,
-            out_numel,
-            &out_layout,
-            contiguous_fast_path,
-            backend,
-        );
-    } else {
-        // GPU output fallback path: evaluate on a temporary CPU buffer and copy back to GPU
-        let mut host_out = vec![T::zero(); out_numel];
-        let out_ptr = MutPtr(host_out.as_mut_ptr());
-        write_fused_values(
-            *expr,
-            out_ptr,
-            out_numel,
-            &out_layout,
-            contiguous_fast_path,
-            backend,
-        );
-        backend.copy_to_device(&host_out, out.storage_mut());
-    }
+    let out_ptr = MutPtr(out.storage_mut().as_mut_slice().as_mut_ptr());
+    write_fused_values(
+        *expr,
+        out_ptr,
+        out_numel,
+        &out_layout,
+        contiguous_fast_path,
+        backend,
+    );
 
     Ok(out)
 }
@@ -349,12 +279,18 @@ pub fn evaluate_fused_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend
 /// Returns [`BackendError`] when the expression has no tensor input, child
 /// shapes cannot be broadcast, `axis` is outside the expression rank, or an
 /// empty axis is used with mean, maximum, or minimum.
-pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: Backend>(
+pub fn evaluate_fused_reduce_cpu<E, T, B>(
     expr: &E,
     op: crate::ReductionOp,
     axis: usize,
     backend: &B,
-) -> Result<Tensor<T, B>, BackendError> {
+) -> Result<Tensor<T, B>, BackendError>
+where
+    E: CpuExprNode<T, B> + Copy + Send,
+    T: Scalar,
+    B: CpuBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
     let expr_shape = expr.shape()?.ok_or_else(|| BackendError::Storage {
         operation: "fused reduction",
         reason: "expression has no tensor input from which to derive its shape".to_string(),
@@ -376,8 +312,6 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
     let axis_len = expr_shape[axis];
     validate_fused_reduction_axis(op, axis_len)?;
 
-    let _cached_inputs = CachedInputs::<T>::new(expr, backend);
-
     if axis_len == 0 {
         let identity = match op {
             crate::ReductionOp::Sum => T::zero(),
@@ -390,24 +324,14 @@ pub fn evaluate_fused_reduce_cpu<E: ExprNode<T, B> + Copy + Send, T: Scalar, B: 
         return Ok(out);
     }
 
-    // 2. Perform parallel evaluation with reduction
     let plan = FusedReductionPlan {
         out_layout: &out_layout,
         axis,
         axis_len,
         op,
     };
-    let slice_result = out.storage_mut().try_as_mut_slice();
-    if let Some(slice) = slice_result {
-        let out_ptr = MutPtr(slice.as_mut_ptr());
-        write_fused_reductions(*expr, out_ptr, out_numel, plan, backend);
-    } else {
-        // GPU fallback path: evaluate on a temporary CPU buffer and copy back to GPU
-        let mut host_out = vec![T::zero(); out_numel];
-        let out_ptr = MutPtr(host_out.as_mut_ptr());
-        write_fused_reductions(*expr, out_ptr, out_numel, plan, backend);
-        backend.copy_to_device(&host_out, out.storage_mut());
-    }
+    let out_ptr = MutPtr(out.storage_mut().as_mut_slice().as_mut_ptr());
+    write_fused_reductions(*expr, out_ptr, out_numel, plan, backend);
 
     Ok(out)
 }

@@ -81,7 +81,8 @@ pub use sparse::{
 /// Fused expression evaluation DAG for single-pass CPU computation.
 pub mod fuse;
 pub use fuse::{
-    evaluate_fused_cpu, evaluate_fused_reduce_cpu, scalar, Expr, ExprNode, TensorExprExt,
+    evaluate_fused_cpu, evaluate_fused_reduce_cpu, scalar, CpuExprNode, Expr, ExprNode,
+    TensorExprExt,
 };
 
 /// Scaled dot-product attention with causal and padding mask support.

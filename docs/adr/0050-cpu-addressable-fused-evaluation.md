@@ -22,8 +22,9 @@ forces device expression leaves to carry host fallback behavior.
 
 Keep `ExprNode` as the device-neutral expression-shape and shader contract.
 Move host scalar evaluation into a `CpuExprNode` subtrait implemented only for
-expressions whose backend implements `CpuBackend`. CPU evaluators require both
-traits and borrow input and output storage through the CPU backend contract.
+expressions whose backend implements `CpuBackend`. CPU evaluators require the
+`CpuExprNode` capability, which inherits `ExprNode`, and borrow input and output
+storage through the CPU backend contract.
 
 Delete the thread-local cache, device downloads, host output staging, runtime
 type erasure, and upload branches. Accelerator fusion remains owned by each
