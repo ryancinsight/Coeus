@@ -1,5 +1,24 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-FUSED-CPU-BOUNDARY-001 — Remove device fallback from CPU fusion [major] [arch]
+
+- Owner: Codex on `codex/coeus-fused-cpu-boundary`; last-update: 2026-08-03;
+  scope: `coeus-ops` fused CPU evaluation, in-repo callers and contracts,
+  ADR-0050, active PM evidence, and exact-head provider CI.
+- Outcome: fused CPU evaluation is statically restricted to CPU backends and
+  borrows CPU-addressable storage directly, with no device download cache,
+  host output staging, upload branch, or runtime type erasure.
+- Non-goals: inventing a Coeus-to-Hephaestus compatibility adapter, changing
+  WGPU/CUDA native fused APIs, or claiming performance gains without matched
+  measurements.
+- Acceptance: the public CPU evaluator requires `CpuBackend`; all in-repo
+  callers compile unchanged; device fallback/cache residue is absent; fused
+  value, broadcasting, empty-axis, and reduction contracts pass; warning-denied
+  affected Clippy, doctests, and exact-head backend CI pass.
+- Risk/change class: `[major] [arch]`; tightening the public backend bound and
+  deleting the device fallback requires ADR-0050 and migration notes.
+- Status: in-progress.
+
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Provider-owned random initialization [major] [arch]
 
 - Owner: Codex; last-update: 2026-08-02;
