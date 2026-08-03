@@ -17,4 +17,4 @@ smallvec     = { workspace = true }
 # Dev-only: exercise the sparse ops (which live in coeus-ops, itself a consumer
 # of coeus-sparse) against a dense matmul oracle. A dev-dependency cycle, which
 # Cargo permits since it does not affect the normal build graph.
-coeus-ops = { workspace = true, default-features = false }
+coeus-ops = { path = "../coeus-ops", default-features = false }
