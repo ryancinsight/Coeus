@@ -1817,11 +1817,11 @@ value and failure-contract tests pass on Sequential and Moirai.
 - [ ] [patch] G-043: Expand the Coeus-vs-Burn/PyTorch benchmark/parity manifest
   so every implemented NN family has an explicit measurement or differential
   row.
-  - Owner: Codex on `codex/coeus-init-safety`; last-update:
-    2026-08-02;
-    scope: the NN family inventory, its benchmark/differential coverage SSOT,
-    focused coverage regressions, initialization parity and Python boundary
-    safety, and active PM reconciliation.
+  - Owner: Codex on `codex/coeus-family-manifest`; last-update: 2026-08-03;
+    takeover scope: close the positional-family Criterion residual with a
+    rotary-embedding measurement, update its manifest disposition, and run the
+    focused manifest and benchmark gates. The remaining partial families stay
+    outside this increment.
   - Outcome: one mechanically checked manifest maps every implemented NN family
     to applicable Coeus backend measurements and independent differential
     evidence without fabricating unsupported external-framework rows.
