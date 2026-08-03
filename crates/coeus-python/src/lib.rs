@@ -39,8 +39,6 @@ pub fn shutdown(py: Python<'_>) {
     });
 }
 
-
-
 /// PyCoeus extension module definition.
 #[pymodule]
 pub fn pycoeus(m: &Bound<'_, PyModule>) -> PyResult<()> {
