@@ -22,7 +22,7 @@ rkyv        = { workspace = true }
 criterion = { workspace = true }
 coeus-ops = { workspace = true }
 coeus-nn = { path = "../coeus-nn" }
-coeus-autograd = { workspace = true, default-features = false }
+coeus-autograd = { path = "../coeus-autograd", default-features = false }
 leto = { workspace = true }
 leto-ops = { workspace = true }
 bincode = { version = "=2.0.0-rc.3", features = ["serde"] }
