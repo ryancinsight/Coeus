@@ -16,6 +16,14 @@ use parameterized_activation::{
 };
 use validation::validate_unary_layouts;
 
+#[inline]
+fn provider_owned_unary(op: coeus_ops::UnaryOp) -> Option<&'static str> {
+    match op {
+        coeus_ops::UnaryOp::ReluGrad => Some("ReluGrad"),
+        _ => None,
+    }
+}
+
 fn try_hephaestus_contiguous_unary<T>(
     op: coeus_ops::UnaryOp,
     a: &CudaStorage<T>,
@@ -87,6 +95,13 @@ where
         ),
         coeus_ops::UnaryOp::Recip => run(
             hephaestus_cuda::unary_elementwise::<hephaestus_cuda::RecipOp, T>(
+                device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::UnaryOp::ReluGrad => run(
+            hephaestus_cuda::unary_elementwise::<hephaestus_cuda::ReluGradOp, T>(
                 device,
                 a.buffer.as_ref(),
             ),
@@ -272,6 +287,15 @@ where
             hephaestus_operand(c, c_layout),
             hephaestus_cuda::BlockWidth::DEFAULT,
         )),
+        coeus_ops::UnaryOp::ReluGrad => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::ReluGradOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
         coeus_ops::UnaryOp::Gelu => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
             hephaestus_cuda::GeluOp,
             T,
@@ -399,13 +423,26 @@ impl CudaBackend {
                 if try_hephaestus_contiguous_unary(op, a, c)? {
                     return Ok(());
                 }
+                if let Some(operation) = provider_owned_unary(op) {
+                    return Err(CudaBackendError::kernel(
+                        operation,
+                        "Hephaestus provider dispatch requirements are not satisfied",
+                    ));
+                }
                 if kernels::launch_contiguous_unary(op, a, c, n) {
                     return Ok(());
                 }
             } else {
-                if try_hephaestus_strided_unary(op, a, a_layout, c, c_layout)?
-                    || kernels::launch_strided_unary(op, a, a_layout, c, c_layout, n)
-                {
+                if try_hephaestus_strided_unary(op, a, a_layout, c, c_layout)? {
+                    return Ok(());
+                }
+                if let Some(operation) = provider_owned_unary(op) {
+                    return Err(CudaBackendError::kernel(
+                        operation,
+                        "Hephaestus provider dispatch requirements are not satisfied",
+                    ));
+                }
+                if kernels::launch_strided_unary(op, a, a_layout, c, c_layout, n) {
                     return Ok(());
                 }
             }

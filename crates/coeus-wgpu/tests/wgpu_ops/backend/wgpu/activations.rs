@@ -3,6 +3,68 @@ use coeus_tensor::Tensor;
 use coeus_wgpu::WgpuBackend;
 
 #[test]
+fn cosine_similarity_dispatches_with_wgpu_parity() {
+    let cpu = SequentialBackend::new();
+    let wgpu = WgpuBackend::new();
+    let x1_cpu = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[0.0, 0.0, 2.0, 1.0]);
+    let x2_cpu = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[1.0, 0.0, 1.0, 0.0]);
+    let x1_wgpu = x1_cpu.to_backend_on(&cpu, &wgpu);
+    let x2_wgpu = x2_cpu.to_backend_on(&cpu, &wgpu);
+
+    let x1_cpu = coeus_autograd::Var::new(x1_cpu, true);
+    let x2_cpu = coeus_autograd::Var::new(x2_cpu, true);
+    let x1_wgpu = coeus_autograd::Var::new(x1_wgpu, true);
+    let x2_wgpu = coeus_autograd::Var::new(x2_wgpu, true);
+    let cpu_output = coeus_autograd::cosine_similarity(&x1_cpu, &x2_cpu, 1, 0.5);
+    let wgpu_output = coeus_autograd::cosine_similarity(&x1_wgpu, &x2_wgpu, 1, 0.5);
+
+    cpu_output
+        .backward()
+        .expect("CPU cosine backward must succeed");
+    wgpu_output
+        .backward()
+        .expect("WGPU cosine backward must succeed");
+
+    let wgpu_result = wgpu_output.tensor.to_backend_on(&wgpu, &cpu);
+    let wgpu_x1_gradient = x1_wgpu
+        .grad()
+        .expect("tracked WGPU x1 gradient")
+        .to_backend_on(&wgpu, &cpu);
+    let wgpu_x2_gradient = x2_wgpu
+        .grad()
+        .expect("tracked WGPU x2 gradient")
+        .to_backend_on(&wgpu, &cpu);
+    let cpu_x1_gradient = x1_cpu.grad().expect("tracked CPU x1 gradient");
+    let cpu_x2_gradient = x2_cpu.grad().expect("tracked CPU x2 gradient");
+
+    for (operation, expected, actual) in [
+        (
+            "forward",
+            cpu_output.tensor.as_slice(),
+            wgpu_result.as_slice(),
+        ),
+        (
+            "x1 gradient",
+            cpu_x1_gradient.as_slice(),
+            wgpu_x1_gradient.as_slice(),
+        ),
+        (
+            "x2 gradient",
+            cpu_x2_gradient.as_slice(),
+            wgpu_x2_gradient.as_slice(),
+        ),
+    ] {
+        assert_eq!(expected.len(), actual.len());
+        for (index, (&expected, &actual)) in expected.iter().zip(actual).enumerate() {
+            assert!(
+                (expected - actual).abs() <= 8.0 * f32::EPSILON,
+                "{operation}[{index}]: expected {expected}, got {actual}"
+            );
+        }
+    }
+}
+
+#[test]
 fn test_wgpu_silu_parity() {
     let seq = SequentialBackend::new();
     let wgpu_b = WgpuBackend::new();

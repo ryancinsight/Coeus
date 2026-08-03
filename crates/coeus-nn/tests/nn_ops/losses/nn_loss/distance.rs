@@ -293,6 +293,132 @@ fn test_cosine_similarity_forward_and_backward() {
 }
 
 #[test]
+fn test_cosine_similarity_clamp_region_gradients() {
+    const EPS: f64 = 1.0;
+    const STEP: f64 = 1.0e-6;
+    // Central differences incur O(STEP^2) truncation plus O(epsilon / STEP)
+    // rounding. For these unit-scale fixtures, 1e-8 bounds both terms with a
+    // conservative factor of two.
+    const TOLERANCE: f64 = 1.0e-8;
+
+    #[derive(Clone, Copy)]
+    enum DifferentiatedInput {
+        First,
+        Second,
+    }
+
+    let x2_data = [1.0_f64, 0.0];
+    let finite_difference =
+        |x1_data: [f64; 2], x2_data: [f64; 2], input: DifferentiatedInput, index: usize| {
+            let evaluate = |first: [f64; 2], second: [f64; 2]| {
+                let x1 = Var::new(
+                    Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &first),
+                    false,
+                );
+                let x2 = Var::new(
+                    Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &second),
+                    false,
+                );
+                cosine_similarity(&x1, &x2, 1, EPS).tensor.as_slice()[0]
+            };
+            let (mut plus_x1, mut minus_x1) = (x1_data, x1_data);
+            let (mut plus_x2, mut minus_x2) = (x2_data, x2_data);
+            match input {
+                DifferentiatedInput::First => {
+                    plus_x1[index] += STEP;
+                    minus_x1[index] -= STEP;
+                }
+                DifferentiatedInput::Second => {
+                    plus_x2[index] += STEP;
+                    minus_x2[index] -= STEP;
+                }
+            }
+            (evaluate(plus_x1, plus_x2) - evaluate(minus_x1, minus_x2)) / (2.0 * STEP)
+        };
+
+    for x1_data in [[0.0, 0.0], [0.5, 0.25], [2.0, 1.0]] {
+        let x1 = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &x1_data),
+            true,
+        );
+        let x2 = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &x2_data),
+            true,
+        );
+        cosine_similarity(&x1, &x2, 1, EPS)
+            .backward()
+            .expect("invariant: valid clamp-region fixture completes backward");
+
+        let x1_gradient = x1.grad().expect("tracked x1 gradient");
+        let x2_gradient = x2.grad().expect("tracked x2 gradient");
+        for (name, input, gradient) in [
+            ("x1", DifferentiatedInput::First, &x1_gradient),
+            ("x2", DifferentiatedInput::Second, &x2_gradient),
+        ] {
+            for index in 0..2 {
+                let analytic = gradient.as_slice()[index];
+                let numeric = finite_difference(x1_data, x2_data, input, index);
+                assert!(
+                    analytic.is_finite(),
+                    "{name} gradient {index} must be finite"
+                );
+                assert!(
+                    (analytic - numeric).abs() <= TOLERANCE,
+                    "{name} gradient {index}: analytic {analytic}, numeric {numeric}"
+                );
+            }
+        }
+    }
+
+    // The max operation is non-differentiable at norm_product == eps. Coeus
+    // follows the existing inclusive clamp convention and retains the norm
+    // derivative at equality; for collinear unit vectors this derivative is 0.
+    let boundary_x1 = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[1.0, 0.0]),
+        true,
+    );
+    let boundary_x2 = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &x2_data),
+        false,
+    );
+    cosine_similarity(&boundary_x1, &boundary_x2, 1, EPS)
+        .backward()
+        .expect("invariant: boundary fixture completes backward");
+    let boundary_gradient = boundary_x1.grad().expect("tracked boundary gradient");
+    assert_eq!(boundary_gradient.as_slice(), &[0.0, 0.0]);
+}
+
+#[test]
+#[should_panic(expected = "cosine_similarity requires finite eps > 0")]
+fn test_cosine_similarity_rejects_zero_epsilon() {
+    let x = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 1], &[1.0]),
+        false,
+    );
+    let _ = cosine_similarity(&x, &x, 1, 0.0);
+}
+
+#[test]
+#[should_panic(expected = "cosine_similarity requires finite eps > 0")]
+fn test_cosine_similarity_rejects_nan_epsilon() {
+    let x = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 1], &[1.0]),
+        false,
+    );
+    let _ = cosine_similarity(&x, &x, 1, f64::NAN);
+}
+
+#[test]
+#[should_panic(expected = "cosine_similarity requires finite eps > 0")]
+fn test_cosine_similarity_rejects_infinite_epsilon() {
+    let x = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 1], &[1.0]),
+        false,
+    );
+    let _ = cosine_similarity(&x, &x, 1, f64::INFINITY);
+}
+
+#[test]
 fn test_triplet_margin_with_distance_loss() {
     // distance(a,b) = mean(|a - b|). anchor=[0,0], positive=[2,2], negative=[1,1], margin=0.5.
     //   d_ap = mean(|[-2,-2]|) = 2 ; d_an = mean(|[-1,-1]|) = 1

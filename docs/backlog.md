@@ -10,14 +10,44 @@
   derivative of the clamped forward contract, without host-compute fallback.
 - Non-goals: unrelated loss redesign, tolerance weakening, or performance
   claims without matched measurements.
-- Acceptance: central finite differences cover zero, below-clamp, boundary,
-  and above-clamp inputs; gradients are finite and value-correct; CPU execution
-  routes through canonical tensor operations; accelerator execution uses the
-  selected provider path or returns a typed provider error; affected
+- Acceptance: central finite differences cover zero, below-clamp, and
+  above-clamp inputs; an analytical assertion pins the inclusive derivative at
+  the non-differentiable boundary; gradients are finite and value-correct; CPU
+  execution routes through canonical tensor operations; accelerator execution
+  uses the selected provider path or returns a typed provider error; affected
   warning-denied, Nextest, doctest, and exact-head provider gates pass.
 - Risk/change class: `[patch]`; the public signature is unchanged and behavior
   is corrected to match the existing clamped forward contract.
-- Status: in-progress.
+- Local evidence: focused autograd/NN library check passes; CPU Nextest run
+  `7ce3170b-fabb-4c3d-a092-3b7ea2fb97d6` passes 5/5 cosine contracts with
+  bilateral finite differences; CUDA Nextest run
+  `7f560a56-2526-44a2-a14d-afc1c9d275a9` passes the provider differential 1/1
+  on local hardware; warning-denied all-target Clippy passes for autograd, NN,
+  CUDA, and WGPU with CUDA enabled. Autograd/NN doctests pass 24/24 with two
+  existing ignored NN examples; the remainder example crosses the slow bound
+  and is tracked separately as `COEUS-DOCTEST-BUDGET-001`. Local WGPU runtime
+  verification did not reach test execution before the five-minute shared-cache
+  timeout; hosted WGPU remains required. Independent final review approves with
+  no P0-P3 findings.
+- Status: review; exact-head hosted provider gates pending.
+
+## COEUS-DOCTEST-BUDGET-001 — Bound remainder example latency [patch]
+
+- Owner: unclaimed; last-update: 2026-08-03; scope: the `remainder` Rustdoc
+  example, its Moirai execution path, and the committed doctest runtime bound.
+- Outcome: the one-element remainder example completes below the ordinary
+  30-second slow threshold without weakening its value or gradient assertions.
+- Non-goals: switching the example to a cheaper backend without proving that
+  the Moirai latency is example-only, or raising the runtime budget.
+- Acceptance: a profile identifies build/process startup versus production
+  execution cost; the root cause is corrected; the isolated remainder doctest
+  and the full affected doctest set pass below the committed slow threshold.
+- Risk/change class: `[patch]`; no public contract change is expected.
+- Evidence: the full autograd doctest pass took 60.45 seconds on this shared
+  host, and the isolated remainder doctest reproduced 30.89 seconds of test
+  runtime after 13.27 seconds of cache contention.
+- Status: todo; discovered while verifying
+  `COEUS-COSINE-CLAMP-GRADIENT-001` and does not affect its computation.
 
 ## COEUS-FUSED-CPU-BOUNDARY-001 — Remove device fallback from CPU fusion [major] [arch]
 
