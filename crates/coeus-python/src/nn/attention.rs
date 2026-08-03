@@ -1,4 +1,5 @@
 use crate::{
+    init::map_initialization_error,
     nn::error::map_module_error,
     tensor::{PyStateDict, PyTensor},
 };
@@ -175,7 +176,7 @@ impl PyMultiHeadAttention {
                     $($h => {
                         let mha = coeus_nn::attention::mha::MultiHeadAttention::<
                             f64, coeus_core::MoiraiBackend, $h, coeus_autograd::NullMask,
-                        >::new(d_model, bias);
+                        >::new(d_model, bias).map_err(map_initialization_error)?;
                         let w_q = Py::new(py, PyTensor { inner: mha.w_q })?;
                         let b_q = if let Some(b) = mha.b_q { Some(Py::new(py, PyTensor { inner: b })?) } else { None };
                         let w_k = Py::new(py, PyTensor { inner: mha.w_k })?;

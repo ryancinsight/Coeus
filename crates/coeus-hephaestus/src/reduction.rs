@@ -22,6 +22,13 @@ pub unsafe trait HephaestusProvider: Send + Sync + Clone + Copy + Default + 'sta
 
     /// Return the lazily acquired device owned by this provider.
     fn device() -> &'static Self::Device;
+
+    /// Try to acquire the provider device without panicking.
+    ///
+    /// # Errors
+    ///
+    /// Returns the provider's typed acquisition failure.
+    fn try_device() -> hephaestus_core::Result<&'static Self::Device>;
 }
 
 /// Cumulative operation selected by a provider scan dispatch.

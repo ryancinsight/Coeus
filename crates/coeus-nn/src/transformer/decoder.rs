@@ -37,17 +37,29 @@ where
 {
     /// Construct N independently-initialized decoder layers.
     ///
-    /// # Panics
-    /// Panics if `N == 0`.
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self
+    /// # Errors
+    /// Returns an initialization error when `N == 0` or a layer cannot be
+    /// initialized by the selected backend.
+    pub fn new(
+        d_model: usize,
+        d_ff: usize,
+        dropout_p: f64,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
         T: coeus_leto::RandomScalar,
+        B: coeus_ops::RandomInitOps<T>,
     {
-        assert!(N > 0, "TransformerDecoder: N must be > 0");
-        let layers = core::array::from_fn(|_| {
-            TransformerDecoderLayer::<T, B, H, SelfM, CrossM>::new(d_model, d_ff, dropout_p)
-        });
-        Self { layers }
+        if N == 0 {
+            return Err(crate::init::InitializationError::InvalidLayerCount { layers: N });
+        }
+        let layers = (0..N)
+            .map(|_| {
+                TransformerDecoderLayer::<T, B, H, SelfM, CrossM>::new(d_model, d_ff, dropout_p)
+            })
+            .collect::<Result<Vec<_>, _>>()?
+            .try_into()
+            .map_err(|_| crate::init::InitializationError::InvalidLayerCount { layers: N })?;
+        Ok(Self { layers })
     }
 
     /// Forward decoder sequentially through the stack.

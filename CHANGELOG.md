@@ -4,11 +4,23 @@
 
 ### Changed
 
+- [major] Route CPU random initialization through Leto destination-writing
+  operations and WGPU, CUDA, ROCm, and Metal through one monomorphized
+  Hephaestus bridge selected by backend type. Uniform, normal, Xavier, Kaiming,
+  and dependent module constructors now return typed initialization failures;
+  Python preserves successful call syntax while mapping invalid domains to
+  `ValueError` and provider failures to `RuntimeError`. The migration removes
+  Coeus's intermediate host-vector copy and silent accelerator host path. CPU
+  storage now initializes raw allocation before exposing readable typed slices,
+  including COW copies; no runtime or memory-performance delta is claimed
+  without measurement.
+
 - [patch] Add PyTorch contract evidence for all Python initialization functions
   and synchronize the missing `pycoeus.init` type stubs. Random initializers now
   reject non-finite parameters, invalid distribution bounds, zero fan values,
   fan-size overflow, and unsupported tensor ranks at the Python boundary.
-  Remove an expired thread-local Clippy expectation that failed under Rust 1.97.
+  Scope a Rust 1.97 Clippy false-positive expectation to the already-const
+  thread-local initializer.
 
 - [patch] Add deterministic PyTorch differential evidence for Python
   `Sequential` composition, including forward values, input and parameter

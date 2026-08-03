@@ -115,29 +115,47 @@ pub struct Bilinear<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBack
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Bilinear<T, B> {
     /// Create with Xavier-initialized weight and zero bias.
-    pub fn new(in1_features: usize, in2_features: usize, out_features: usize, bias: bool) -> Self
+    ///
+    /// # Errors
+    ///
+    /// Returns an initialization error when the input fan product overflows,
+    /// a fan is zero, or the selected backend cannot initialize the weight.
+    pub fn new(
+        in1_features: usize,
+        in2_features: usize,
+        out_features: usize,
+        bias: bool,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
         T: coeus_leto::RandomScalar,
+        B: coeus_ops::RandomInitOps<T>,
     {
-        let _backend = B::default();
-        let fan_in = in1_features * in2_features;
+        let backend = B::default();
+        let fan_in = in1_features.checked_mul(in2_features).ok_or(
+            crate::init::InitializationError::FanProductOverflow {
+                lhs_name: "in1_features",
+                lhs: in1_features,
+                rhs_name: "in2_features",
+                rhs: in2_features,
+            },
+        )?;
         let mut w = Var::new(
-            Tensor::zeros_on([out_features, in1_features, in2_features], &_backend),
+            Tensor::zeros_on([out_features, in1_features, in2_features], &backend),
             true,
         );
-        crate::init::xavier_uniform(&mut w, fan_in, out_features);
+        crate::init::xavier_uniform(&mut w, fan_in, out_features)?;
         let b = if bias {
-            Some(Var::new(Tensor::zeros_on([out_features], &_backend), true))
+            Some(Var::new(Tensor::zeros_on([out_features], &backend), true))
         } else {
             None
         };
-        Self {
+        Ok(Self {
             weight: w,
             bias: b,
             in1_features,
             in2_features,
             out_features,
-        }
+        })
     }
 
     /// Forward pass.

@@ -213,21 +213,31 @@ impl<
     > TransformerDecoderLayer<T, B, H, SelfM, CrossM>
 {
     /// Construct a decoder layer.
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed error when attention dimensions are invalid or the
+    /// selected backend cannot initialize projection weights.
+    pub fn new(
+        d_model: usize,
+        d_ff: usize,
+        dropout_p: f64,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
         T: coeus_leto::RandomScalar,
+        B: coeus_ops::RandomInitOps<T>,
     {
-        Self {
+        Ok(Self {
             norm1: LayerNorm::new(d_model, 1e-5),
-            self_attn: MultiHeadAttention::new(d_model, true),
+            self_attn: MultiHeadAttention::new(d_model, true)?,
             dropout1: Dropout::new(dropout_p),
             norm2: LayerNorm::new(d_model, 1e-5),
-            cross_attn: MultiHeadAttention::new(d_model, true),
+            cross_attn: MultiHeadAttention::new(d_model, true)?,
             dropout2: Dropout::new(dropout_p),
             norm3: LayerNorm::new(d_model, 1e-5),
             ffn: FeedForward::new(d_model, d_ff, dropout_p),
             dropout3: Dropout::new(dropout_p),
-        }
+        })
     }
 
     /// Decode forward pass with cross-attention.

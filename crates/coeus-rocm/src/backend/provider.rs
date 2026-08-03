@@ -8,6 +8,8 @@ use hephaestus_rocm::RocmDevice;
 use hephaestus_rocm::{RocmAttentionOps, RocmConvolutionOps};
 use std::sync::OnceLock;
 
+static ROCM_DEVICE: OnceLock<RocmDevice> = OnceLock::new();
+
 /// Provider marker for the native ROCm device.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct RocmProvider;
@@ -19,8 +21,22 @@ unsafe impl HephaestusProvider for RocmProvider {
     const NAME: &'static str = "rocm";
 
     fn device() -> &'static Self::Device {
-        static DEVICE: OnceLock<RocmDevice> = OnceLock::new();
-        DEVICE.get_or_init(|| RocmDevice::try_default().expect("ROCm device acquisition failed"))
+        ROCM_DEVICE
+            .get_or_init(|| RocmDevice::try_default().expect("ROCm device acquisition failed"))
+    }
+
+    fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
+        if let Some(device) = ROCM_DEVICE.get() {
+            return Ok(device);
+        }
+        let candidate = RocmDevice::try_default()?;
+        let _ = ROCM_DEVICE.set(candidate);
+        ROCM_DEVICE
+            .get()
+            .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
+                message: "ROCm device initialization did not publish the acquired device"
+                    .to_owned(),
+            })
     }
 }
 

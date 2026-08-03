@@ -1,5 +1,7 @@
-use crate::nn::feedforward::transformer::encoder_layer::PyTransformerEncoderLayer;
-use crate::tensor::PyTensor;
+use crate::{
+    init::map_initialization_error,
+    nn::feedforward::transformer::encoder_layer::PyTransformerEncoderLayer, tensor::PyTensor,
+};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -58,7 +60,8 @@ impl PyTransformerEncoder {
                         use coeus_autograd::NullMask;
                         let enc = TransformerEncoder::<
                             f64, coeus_core::MoiraiBackend, $h, $n, NullMask,
-                        >::new(d_model, d_ff, dropout_p);
+                        >::new(d_model, d_ff, dropout_p)
+                            .map_err(map_initialization_error)?;
                         enc.layers.into_iter()
                             .map(|layer| PyTransformerEncoderLayer::from_rust_layer::<$h>(
                                 py, layer, d_model, d_ff, dropout_p,

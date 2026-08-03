@@ -2,6 +2,7 @@ use leto::{Array, LetoError, Result, Storage};
 use leto_ops::RealScalar;
 
 use super::{shape_n, MAX_DISPATCH_RANK};
+use crate::to_leto_view_mut;
 
 fn from_shape_fn_values_n<T: Clone, F, const N: usize>(shape: &[usize], f: &F) -> Result<Vec<T>>
 where
@@ -134,6 +135,80 @@ pub fn normal_values<T: RealScalar>(
         6 => normal_values_n::<T, 6>(shape, mean, std_dev, seed),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
+}
+
+fn uniform_values_into_n<T: RealScalar, const N: usize>(
+    layout: &coeus_core::Layout,
+    data: &mut [T],
+    low: T,
+    high: T,
+    seed: u64,
+) -> Result<()> {
+    let mut output = to_leto_view_mut::<T, N>(layout, data)?;
+    leto_ops::uniform_with_seed_into(&mut output, low, high, seed)
+}
+
+/// Fill caller-owned contiguous CPU storage with deterministic uniform values.
+///
+/// The dynamic rank is selected once and forwarded to Leto's monomorphized
+/// destination-writing implementation, avoiding an intermediate allocation.
+pub fn uniform_values_into<T: RealScalar>(
+    layout: &coeus_core::Layout,
+    data: &mut [T],
+    low: T,
+    high: T,
+    seed: u64,
+) -> Result<()> {
+    match layout.ndim() {
+        1 => uniform_values_into_n::<T, 1>(layout, data, low, high, seed),
+        2 => uniform_values_into_n::<T, 2>(layout, data, low, high, seed),
+        3 => uniform_values_into_n::<T, 3>(layout, data, low, high, seed),
+        4 => uniform_values_into_n::<T, 4>(layout, data, low, high, seed),
+        5 => uniform_values_into_n::<T, 5>(layout, data, low, high, seed),
+        6 => uniform_values_into_n::<T, 6>(layout, data, low, high, seed),
+        rank => Err(LetoError::StorageError {
+            reason: format!(
+                "coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {rank}"
+            ),
+        }),
+    }
+}
+
+fn normal_values_into_n<T: RealScalar, const N: usize>(
+    layout: &coeus_core::Layout,
+    data: &mut [T],
+    mean: T,
+    std_dev: T,
+    seed: u64,
+) -> Result<()> {
+    let mut output = to_leto_view_mut::<T, N>(layout, data)?;
+    leto_ops::normal_with_seed_into(&mut output, mean, std_dev, seed)
+}
+
+/// Fill caller-owned contiguous CPU storage with deterministic normal values.
+///
+/// The dynamic rank is selected once and forwarded to Leto's monomorphized
+/// destination-writing implementation, avoiding an intermediate allocation.
+pub fn normal_values_into<T: RealScalar>(
+    layout: &coeus_core::Layout,
+    data: &mut [T],
+    mean: T,
+    std_dev: T,
+    seed: u64,
+) -> Result<()> {
+    match layout.ndim() {
+        1 => normal_values_into_n::<T, 1>(layout, data, mean, std_dev, seed),
+        2 => normal_values_into_n::<T, 2>(layout, data, mean, std_dev, seed),
+        3 => normal_values_into_n::<T, 3>(layout, data, mean, std_dev, seed),
+        4 => normal_values_into_n::<T, 4>(layout, data, mean, std_dev, seed),
+        5 => normal_values_into_n::<T, 5>(layout, data, mean, std_dev, seed),
+        6 => normal_values_into_n::<T, 6>(layout, data, mean, std_dev, seed),
+        rank => Err(LetoError::StorageError {
+            reason: format!(
+                "coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {rank}"
+            ),
         }),
     }
 }

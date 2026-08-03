@@ -163,7 +163,8 @@ mod tests {
         let batch = 2;
         let seq = 5;
 
-        let mha = MultiHeadAttention::<f32, B, H, NullMask>::new(d_model, true);
+        let mha = MultiHeadAttention::<f32, B, H, NullMask>::new(d_model, true)
+            .expect("valid attention shape fixture");
         let backend = B::default();
         let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
         let x_var = Var::new(x, false);
@@ -185,7 +186,8 @@ mod tests {
         let batch = 1;
         let seq = 3;
 
-        let mha = MultiHeadAttention::<f32, B, H, NullMask>::new(d_model, true);
+        let mha = MultiHeadAttention::<f32, B, H, NullMask>::new(d_model, true)
+            .expect("valid attention gradient fixture");
         let backend = B::default();
         let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
         let x_var = Var::new(x, false);
@@ -284,7 +286,8 @@ mod tests {
         let d_model = 8;
         let d_ff = 32;
 
-        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0);
+        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0)
+            .expect("valid encoder layer shape fixture");
         let backend = B::default();
         let batch = 1;
         let seq = 4;
@@ -346,7 +349,8 @@ mod tests {
         let d_model = 8;
         let d_ff = 32;
 
-        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0);
+        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0)
+            .expect("valid encoder layer gradient fixture");
         let backend = B::default();
         let batch = 1;
         let seq = 4;
@@ -375,7 +379,8 @@ mod tests {
         let d_model = 8;
         let d_ff = 32;
 
-        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0);
+        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0)
+            .expect("valid masked encoder layer fixture");
         let backend = B::default();
         let batch = 1;
         let seq = 4;
@@ -415,7 +420,8 @@ mod tests {
         let d_model = 8;
         let d_ff = 32;
 
-        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0);
+        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(d_model, d_ff, 0.0)
+            .expect("valid encoder mask parity fixture");
         let backend = B::default();
         let batch = 1;
         let seq = 4;
@@ -460,7 +466,8 @@ mod tests {
         use coeus_nn::ModuleError;
 
         const H: usize = 2;
-        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(8, 16, 0.0);
+        let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(8, 16, 0.0)
+            .expect("valid encoder rank-validation fixture");
         let input = Var::new(Tensor::<f32, B>::ones([2, 8]), false);
         let error = layer
             .forward(&input)

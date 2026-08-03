@@ -1,6 +1,9 @@
 // ── PyBilinear — Python wrapper for coeus_nn::Bilinear ──
 
-use crate::tensor::{PyStateDict, PyTensor};
+use crate::{
+    init::map_initialization_error,
+    tensor::{PyStateDict, PyTensor},
+};
 use pyo3::prelude::*;
 
 /// Python-exposed Bilinear interaction layer.
@@ -51,7 +54,8 @@ impl PyBilinear {
             in2_features,
             out_features,
             bias,
-        );
+        )
+        .map_err(map_initialization_error)?;
         let weight = Py::new(py, PyTensor { inner: bil.weight })?;
         let b = if let Some(bv) = bil.bias {
             Some(Py::new(py, PyTensor { inner: bv })?)

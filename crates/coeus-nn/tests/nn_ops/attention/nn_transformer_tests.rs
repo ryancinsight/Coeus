@@ -15,7 +15,8 @@ fn test_transformer_decoder_layer() {
 
     let layer = TransformerDecoderLayer::<f64, MoiraiBackend, H, CausalMask, NullMask>::new(
         d_model, d_ff, 0.0,
-    );
+    )
+    .expect("valid decoder layer fixture");
 
     // parameters check
     let params = layer.parameters();
@@ -169,7 +170,8 @@ fn test_transformer_decoder() {
 
     let decoder = TransformerDecoder::<f64, MoiraiBackend, H, N, CausalMask, NullMask>::new(
         d_model, d_ff, 0.0,
-    );
+    )
+    .expect("valid decoder stack fixture");
 
     let params = decoder.parameters();
     assert_eq!(params.len(), 26 * N);
@@ -224,7 +226,8 @@ fn test_transformer_seq2seq() {
         NullMask,
         CausalMask,
         NullMask,
-    >::new(d_model, d_ff, 0.0);
+    >::new(d_model, d_ff, 0.0)
+    .expect("valid sequence-to-sequence transformer fixture");
 
     let params = transformer.parameters();
     // Encoder layer: norm1 (2), self_attn (8), norm2 (2), ffn (4) = 16 parameters
@@ -283,7 +286,8 @@ fn decoder_layer_rejects_rank_and_memory_shape_before_attention() {
 
     const H: usize = 2;
     let layer =
-        TransformerDecoderLayer::<f64, MoiraiBackend, H, CausalMask, NullMask>::new(8, 16, 0.0);
+        TransformerDecoderLayer::<f64, MoiraiBackend, H, CausalMask, NullMask>::new(8, 16, 0.0)
+            .expect("valid decoder validation fixture");
     let backend = MoiraiBackend;
     let invalid_target = Var::new(
         Tensor::<f64, MoiraiBackend>::ones_on([2, 8], &backend),

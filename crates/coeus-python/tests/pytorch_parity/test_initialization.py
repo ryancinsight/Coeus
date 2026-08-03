@@ -151,6 +151,7 @@ def test_initializers_reject_invalid_domains() -> None:
     vector = pycoeus.Tensor([0.0, 0.0], [2])
     scalar = pycoeus.Tensor([0.0], [])
     rank_seven = pycoeus.Tensor([0.0], [1, 1, 1, 1, 1, 1, 1])
+    original_vector = vector.data
     invalid_calls = (
         lambda: pycoeus.init.uniform_(vector, 2.0, 1.0),
         lambda: pycoeus.init.uniform_(vector, math.nan, 1.0),
@@ -165,7 +166,10 @@ def test_initializers_reject_invalid_domains() -> None:
         lambda: pycoeus.init.xavier_normal_(vector, 2 * sys.maxsize + 1, 1),
         lambda: pycoeus.init.uniform_(scalar, 0.0, 1.0),
         lambda: pycoeus.init.normal_(rank_seven, 0.0, 1.0),
+        lambda: pycoeus.rand([]),
+        lambda: pycoeus.randn([1, 1, 1, 1, 1, 1, 1]),
     )
     for call in invalid_calls:
         with pytest.raises(ValueError):
             call()
+        assert vector.data == original_vector

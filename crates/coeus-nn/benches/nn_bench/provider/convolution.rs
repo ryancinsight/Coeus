@@ -208,9 +208,11 @@ pub(crate) fn bench_conv_transpose1d_forward(c: &mut Criterion) {
         .collect();
     let ct_seq = ConvTranspose1d::<f32, SequentialBackend>::with_params(
         CT_CIN, CT_COUT, 2, 2, 0, 0, 1, true,
-    );
+    )
+    .expect("valid sequential transposed convolution benchmark fixture");
     let ct_moirai =
-        ConvTranspose1d::<f32, MoiraiBackend>::with_params(CT_CIN, CT_COUT, 2, 2, 0, 0, 1, true);
+        ConvTranspose1d::<f32, MoiraiBackend>::with_params(CT_CIN, CT_COUT, 2, 2, 0, 0, 1, true)
+            .expect("valid parallel transposed convolution benchmark fixture");
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![CT_B, CT_CIN, CT_L], &input_data),
         false,
@@ -307,9 +309,11 @@ pub(crate) fn bench_conv_transpose3d_forward(c: &mut Criterion) {
 
     let ct3_seq = ConvTranspose3d::<f32, SequentialBackend>::with_params(
         CT3_CIN, CT3_COUT, 2, 2, 0, 0, 1, true,
-    );
+    )
+    .expect("valid sequential 3D transposed convolution benchmark fixture");
     let ct3_moirai =
-        ConvTranspose3d::<f32, MoiraiBackend>::with_params(CT3_CIN, CT3_COUT, 2, 2, 0, 0, 1, true);
+        ConvTranspose3d::<f32, MoiraiBackend>::with_params(CT3_CIN, CT3_COUT, 2, 2, 0, 0, 1, true)
+            .expect("valid parallel 3D transposed convolution benchmark fixture");
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(
             vec![CT3_B, CT3_CIN, CT3_D, CT3_H, CT3_W],

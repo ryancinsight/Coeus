@@ -7,6 +7,8 @@ use hephaestus_metal::{
 };
 use std::sync::OnceLock;
 
+static METAL_DEVICE: OnceLock<MetalDevice> = OnceLock::new();
+
 /// Provider marker for the native Metal device.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MetalProvider;
@@ -18,8 +20,22 @@ unsafe impl HephaestusProvider for MetalProvider {
     const NAME: &'static str = "metal";
 
     fn device() -> &'static Self::Device {
-        static DEVICE: OnceLock<MetalDevice> = OnceLock::new();
-        DEVICE.get_or_init(|| MetalDevice::try_default().expect("Metal device acquisition failed"))
+        METAL_DEVICE
+            .get_or_init(|| MetalDevice::try_default().expect("Metal device acquisition failed"))
+    }
+
+    fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
+        if let Some(device) = METAL_DEVICE.get() {
+            return Ok(device);
+        }
+        let candidate = MetalDevice::try_default()?;
+        let _ = METAL_DEVICE.set(candidate);
+        METAL_DEVICE
+            .get()
+            .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
+                message: "Metal device initialization did not publish the acquired device"
+                    .to_owned(),
+            })
     }
 }
 

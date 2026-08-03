@@ -2,6 +2,7 @@ mod convolution_pooling;
 mod elementwise;
 mod matmul;
 mod optimizer;
+mod random_init;
 mod reduction;
 mod strided;
 

@@ -6,6 +6,7 @@ mod error;
 mod impls;
 mod matmul;
 mod pool;
+mod random_init;
 mod reduction;
 mod unfold_fold;
 

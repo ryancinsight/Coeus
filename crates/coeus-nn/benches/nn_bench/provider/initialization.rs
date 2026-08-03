@@ -21,7 +21,8 @@ pub(crate) fn bench_uniform_initializer(c: &mut Criterion) {
                 black_box(-1.0),
                 black_box(1.0),
                 black_box(SEED),
-            );
+            )
+            .expect("valid sequential uniform initializer benchmark fixture");
             black_box(sequential.tensor.as_slice().first().copied())
         })
     });
@@ -32,7 +33,8 @@ pub(crate) fn bench_uniform_initializer(c: &mut Criterion) {
                 black_box(-1.0),
                 black_box(1.0),
                 black_box(SEED),
-            );
+            )
+            .expect("valid parallel uniform initializer benchmark fixture");
             black_box(moirai.tensor.as_slice().first().copied())
         })
     });

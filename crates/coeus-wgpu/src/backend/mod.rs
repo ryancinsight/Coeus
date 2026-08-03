@@ -142,24 +142,39 @@ static WGPU_CONTEXT: OnceLock<WgpuContext> = OnceLock::new();
 
 /// Retrieve a reference to the global lazily-initialized wgpu context.
 pub fn get_wgpu_context() -> &'static WgpuContext {
-    WGPU_CONTEXT.get_or_init(|| {
-        #[cfg(target_os = "windows")]
-        std::env::set_var("WGPU_BACKEND", "dx12");
+    try_get_wgpu_context().expect("Failed to initialize hephaestus-wgpu device")
+}
 
-        let hephaestus_device = hephaestus_wgpu::WgpuDevice::try_default_with_limits(
-            "coeus-wgpu-device",
-            wgpu::Limits::default(),
-        )
-        .expect("Failed to initialize hephaestus-wgpu device");
-        let device = (**hephaestus_device.device()).clone();
-        let queue = (**hephaestus_device.queue()).clone();
-        WgpuContext {
-            hephaestus_device,
-            device,
-            queue,
-            metadata_pool: std::sync::Mutex::new(Vec::new()),
-        }
-    })
+/// Try to retrieve the process-global WGPU context.
+///
+/// # Errors
+///
+/// Returns the typed Hephaestus acquisition failure when WGPU is unavailable.
+pub fn try_get_wgpu_context() -> hephaestus_core::Result<&'static WgpuContext> {
+    if let Some(context) = WGPU_CONTEXT.get() {
+        return Ok(context);
+    }
+    #[cfg(target_os = "windows")]
+    std::env::set_var("WGPU_BACKEND", "dx12");
+
+    let hephaestus_device = hephaestus_wgpu::WgpuDevice::try_default_with_limits(
+        "coeus-wgpu-device",
+        wgpu::Limits::default(),
+    )?;
+    let device = (**hephaestus_device.device()).clone();
+    let queue = (**hephaestus_device.queue()).clone();
+    let candidate = WgpuContext {
+        hephaestus_device,
+        device,
+        queue,
+        metadata_pool: std::sync::Mutex::new(Vec::new()),
+    };
+    let _ = WGPU_CONTEXT.set(candidate);
+    WGPU_CONTEXT
+        .get()
+        .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
+            message: "WGPU context initialization did not publish the acquired device".to_owned(),
+        })
 }
 
 /// WebGPU acceleration backend.

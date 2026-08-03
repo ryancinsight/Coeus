@@ -1,5 +1,22 @@
 # Global Progress Checklist: Coeus
 
+## COEUS-RANDOM-INIT-PROVIDER-001 — Codex
+
+- [x] Record and index ADR-0049 for backend-selected provider ownership.
+- [x] Add destination-writing CPU initialization through Leto.
+- [x] Add one generic Hephaestus random bridge with WGPU, CUDA, ROCm, and Metal
+      provider adapters and direct storage adoption.
+- [x] Convert random initializers and dependent Rust/Python constructors to
+      typed fallible contracts without compatibility paths.
+- [x] Add domain rejection, failure-atomicity, default-seed, CPU differential,
+      and accelerator provider-parity contracts.
+- [x] Pass full warning-denied, Nextest, doctest, Python-wheel, and local CUDA
+      gates at the exact implementation revision.
+- [x] Pass exact-head hosted run `30776550993`: WGPU, CUDA, ROCm, and Metal
+      provider lanes pass; optional ROCm hardware execution is unavailable
+      because the repository has no registered self-hosted runner.
+- [ ] Pass final documentation-head CI and merge PR #273.
+
 ## G-043 — Benchmark and parity evidence manifest
 
 - [x] Reproduce the post-release standalone resolver failure caused by the

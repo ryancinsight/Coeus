@@ -17,5 +17,5 @@ pub use trait_def::BackendOps;
 pub use traits::{
     AttentionOps, AttentionScalar, ConvOps, ConvolutionBackward, ConvolutionForward,
     ElementwiseOps, MatmulOps, OptimizerOps, OptimizerStateRef, OptimizerStepRule,
-    OptimizerStepValidation, PoolOps, ReductionOps, UnfoldFoldOps,
+    OptimizerStepValidation, PoolOps, RandomInitOps, ReductionOps, UnfoldFoldOps,
 };

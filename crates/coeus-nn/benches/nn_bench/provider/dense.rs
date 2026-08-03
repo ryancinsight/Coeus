@@ -53,8 +53,10 @@ pub(crate) fn bench_bilinear_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.0027).cos())
         .collect();
 
-    let bl_seq = Bilinear::<f32, SequentialBackend>::new(BL_IN1, BL_IN2, BL_OUT, true);
-    let bl_moirai = Bilinear::<f32, MoiraiBackend>::new(BL_IN1, BL_IN2, BL_OUT, true);
+    let bl_seq = Bilinear::<f32, SequentialBackend>::new(BL_IN1, BL_IN2, BL_OUT, true)
+        .expect("valid sequential bilinear benchmark fixture");
+    let bl_moirai = Bilinear::<f32, MoiraiBackend>::new(BL_IN1, BL_IN2, BL_OUT, true)
+        .expect("valid parallel bilinear benchmark fixture");
     let x1_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BL_BATCH, BL_IN1], &x1_data),
         false,

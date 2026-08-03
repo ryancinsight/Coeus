@@ -41,9 +41,18 @@ fn cow_storage_exposes_cpu_uniqueness_without_unwrapping() {
 
 #[test]
 fn empty_cpu_storage_exposes_valid_zero_length_slices() {
-    let mut storage = CpuStorage::<u128>::new(0);
+    let mut storage = CpuStorage::<u64>::new(0);
 
     assert_eq!(storage.len(), 0);
     assert_eq!(storage.as_slice(), &[]);
     assert_eq!(storage.as_mut_slice(), &mut []);
+}
+
+#[test]
+fn cpu_storage_is_initialized_before_readable_slices_exist() {
+    let zeros = CpuStorage::<f32>::new(4);
+    assert_eq!(zeros.as_slice(), &[0.0; 4]);
+
+    let filled = CpuStorage::filled(4, 3_i32);
+    assert_eq!(filled.as_slice(), &[3; 4]);
 }

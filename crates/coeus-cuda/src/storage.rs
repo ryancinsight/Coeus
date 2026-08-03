@@ -25,6 +25,12 @@ unsafe impl<T: Send> Send for CudaStorage<T> {}
 unsafe impl<T: Sync> Sync for CudaStorage<T> {}
 
 impl<T: Scalar> CudaStorage<T> {
+    pub(crate) fn from_buffer(buffer: CudaBuffer<T>) -> Self {
+        Self {
+            buffer: Arc::new(buffer),
+        }
+    }
+
     #[inline]
     fn alloc_device_zeroed(len: usize) -> CudaBuffer<T> {
         let device = crate::backend::get_cuda_device();
@@ -44,17 +50,13 @@ impl<T: Scalar> CudaStorage<T> {
     /// Allocate a new GPU device buffer.
     pub fn new(len: usize) -> Self {
         let buffer = Self::alloc_device_zeroed(len);
-        Self {
-            buffer: Arc::new(buffer),
-        }
+        Self::from_buffer(buffer)
     }
 
     #[inline]
     pub(crate) fn uninitialized(len: usize) -> Self {
         let buffer = Self::alloc_device_uninitialized(len);
-        Self {
-            buffer: Arc::new(buffer),
-        }
+        Self::from_buffer(buffer)
     }
 
     /// Retrieve the raw CUDA device pointer.

@@ -21,7 +21,9 @@ pub enum HephaestusBackendError {
 }
 
 impl HephaestusBackendError {
-    pub(crate) fn device(operation: &'static str, source: HephaestusError) -> Self {
+    /// Preserve a provider failure with its Coeus operation context.
+    #[must_use]
+    pub fn device(operation: &'static str, source: HephaestusError) -> Self {
         Self::Device { operation, source }
     }
 }

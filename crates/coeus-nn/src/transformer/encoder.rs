@@ -40,19 +40,27 @@ where
 {
     /// Construct N independently-initialized encoder layers.
     ///
-    /// # Panics
-    /// Panics if `N == 0`.
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self
+    /// # Errors
+    /// Returns an initialization error when `N == 0` or a layer cannot be
+    /// initialized by the selected backend.
+    pub fn new(
+        d_model: usize,
+        d_ff: usize,
+        dropout_p: f64,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
         T: coeus_leto::RandomScalar,
+        B: coeus_ops::RandomInitOps<T>,
     {
-        assert!(N > 0, "TransformerEncoder: N must be > 0");
-        // `core::array::from_fn` calls the closure N times with indices 0..N.
-        // Each call independently constructs a new layer with fresh parameters.
-        let layers = core::array::from_fn(|_| {
-            TransformerEncoderLayer::<T, B, H, M>::new(d_model, d_ff, dropout_p)
-        });
-        Self { layers }
+        if N == 0 {
+            return Err(crate::init::InitializationError::InvalidLayerCount { layers: N });
+        }
+        let layers = (0..N)
+            .map(|_| TransformerEncoderLayer::<T, B, H, M>::new(d_model, d_ff, dropout_p))
+            .collect::<Result<Vec<_>, _>>()?
+            .try_into()
+            .map_err(|_| crate::init::InitializationError::InvalidLayerCount { layers: N })?;
+        Ok(Self { layers })
     }
 
     /// Forward through all N layers sequentially with optional key padding mask.

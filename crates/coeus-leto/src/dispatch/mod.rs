@@ -64,7 +64,9 @@ pub use convolution::{
     ConvolutionBackward, ConvolutionForward, ConvolutionGradients, ReadOperand, WriteOperand,
 };
 pub use elementwise::{elementwise_add_into, elementwise_binary_into, elementwise_unary_into};
-pub use init::{from_shape_fn_values, normal_values, uniform_values};
+pub use init::{
+    from_shape_fn_values, normal_values, normal_values_into, uniform_values, uniform_values_into,
+};
 pub use layout::{
     broadcast_layout, broadcast_shape, contiguous_values, permute_layout, reshape_layout,
 };
