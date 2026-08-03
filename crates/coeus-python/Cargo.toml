@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Python bindings for Coeus numerical tensors."
 publish = false
 
 [lib]

@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Core numerical traits and execution primitives for Coeus."
 [lib]
 path = "src/lib.rs"
 

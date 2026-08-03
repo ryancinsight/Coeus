@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Sparse tensor operations for Coeus."
 
 [dependencies]
 coeus-core   = { workspace = true }

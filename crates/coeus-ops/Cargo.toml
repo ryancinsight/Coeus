@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Numerical tensor operators for Coeus."
 
 [dependencies]
 coeus-core   = { workspace = true }

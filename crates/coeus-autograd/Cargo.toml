@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Automatic differentiation primitives for the Coeus tensor stack."
 
 [dependencies]
 coeus-core   = { workspace = true }

@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Optimization algorithms for Coeus."
 
 [dependencies]
 coeus-core     = { workspace = true }
@@ -22,4 +23,3 @@ criterion = "0.5"
 name = "optim_bench"
 path = "benches/optim_bench.rs"
 harness = false
-
