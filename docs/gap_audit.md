@@ -896,13 +896,14 @@ Targeted Miri executes the corrected CPU initialization path successfully, but
 reports exposed-provenance casts in the locked Mnemosyne allocator. The result
 checks Coeus's initialization sequence under permissive provenance; it does not
 establish strict-provenance coverage for the upstream allocator.
-Exact-head backend run `30776550993` passes WGPU, CUDA, ROCm, and Metal provider
-lanes with the random-initialization contracts selected. Local CUDA executes
-the seeded parity contract on physical hardware. The optional ROCm
-required-device dispatch remains unavailable because the repository reports no
-registered self-hosted runner; the feature-enabled ROCm container result is not
-reported as physical-device execution. No runtime, memory, or binary-size delta
-is claimed without controlled measurements.
+Final exact-head backend run `30777614311` passes WGPU, CUDA, ROCm, and Metal
+provider lanes at `8e3652c5` with the random-initialization contracts selected;
+PR #273 merged as `c3f71f98`. Local CUDA executes the seeded parity contract on
+physical hardware. The optional ROCm required-device dispatch remains
+unavailable because the repository reports no registered self-hosted runner;
+the feature-enabled ROCm container result is not reported as physical-device
+execution. No runtime, memory, or binary-size delta is claimed without
+controlled measurements.
 **2026-07-08 update**: added `bench_maxpool3d_forward`/`bench_avgpool3d_forward`
 (Coeus Sequential vs Moirai only — no Burn 0.16.1 `max_pool3d`/`avg_pool3d` op
 exists to compare against, confirmed against the pinned `burn-tensor` source).

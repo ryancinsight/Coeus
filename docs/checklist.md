@@ -15,7 +15,8 @@
 - [x] Pass exact-head hosted run `30776550993`: WGPU, CUDA, ROCm, and Metal
       provider lanes pass; optional ROCm hardware execution is unavailable
       because the repository has no registered self-hosted runner.
-- [ ] Pass final documentation-head CI and merge PR #273.
+- [x] Pass final exact-head run `30777614311` at `8e3652c5` and merge PR #273
+      as `c3f71f98`.
 
 ## G-043 — Benchmark and parity evidence manifest
 
