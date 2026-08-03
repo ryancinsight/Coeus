@@ -1880,6 +1880,18 @@ value and failure-contract tests pass on Sequential and Moirai.
     submodule. Python dispositions are now 16 present, 4 partial, 0 missing, and
     1 inapplicable. Direct Rust calls with unsupported random-initializer ranks
     still require a typed-result API migration.
+  - 2026-08-03 positional increment: added Sequential and Moirai
+    rotary-embedding Criterion rows and changed the positional disposition from
+    partial to present. RoPE table prefixes are now zero-copy tensor views;
+    construction uploads each precomputed table once and the per-forward
+    allocation/host-transfer fallback is deleted. Criterion dispositions are
+    now 8 present, 12 partial, and 1 inapplicable. Focused positional/manifest
+    Nextest passes 4/4, warning-denied benchmark Clippy passes, and both
+    Criterion rows pass single-iteration test mode. No timing delta is claimed.
+  - Residual provider boundary: RoPE rotation still depends on CPU-addressable
+    `split`/`cat` operations. Native accelerator support requires a
+    provider-owned permutation/concatenation contract; it must not be hidden by
+    a Coeus host fallback.
 ## Sprint MS-243: cumprod backward zero decomposition fix [COMPLETE]
 
 - [x] [patch] Replaced the naive suffix-sum cumprod backward that produced NaN at

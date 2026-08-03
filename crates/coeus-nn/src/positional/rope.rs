@@ -41,37 +41,25 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
         );
         let backend = B::default();
 
-        let mut cos_table = Tensor::zeros_on([max_len, d_head], &backend);
-        let mut sin_table = Tensor::zeros_on([max_len, d_head], &backend);
+        let mut cos_values = vec![T::zero(); max_len * d_head];
+        let mut sin_values = vec![T::zero(); max_len * d_head];
+        let half_dim = d_head / 2;
+        for pos in 0..max_len {
+            for i in 0..half_dim {
+                let theta = base.powf(-2.0 * (i as f64) / (d_head as f64));
+                let angle = (pos as f64) * theta;
+                let c = T::from_f64(angle.cos());
+                let s = T::from_f64(angle.sin());
 
-        {
-            use coeus_core::StorageMut;
-            let cos_slice = cos_table
-                .storage_mut()
-                .try_as_mut_slice()
-                .expect("RotaryEmbedding: backend must be CPU-addressable at construction");
-            let sin_slice = sin_table
-                .storage_mut()
-                .try_as_mut_slice()
-                .expect("RotaryEmbedding: backend must be CPU-addressable at construction");
-
-            let half_dim = d_head / 2;
-            for pos in 0..max_len {
-                for i in 0..half_dim {
-                    let theta = base.powf(-2.0 * (i as f64) / (d_head as f64));
-                    let angle = (pos as f64) * theta;
-                    let c = T::from_f64(angle.cos());
-                    let s = T::from_f64(angle.sin());
-
-                    // Store duplicated (GPT-NeoX/LLaMA style)
-                    cos_slice[pos * d_head + i] = c;
-                    cos_slice[pos * d_head + i + half_dim] = c;
-
-                    sin_slice[pos * d_head + i] = s;
-                    sin_slice[pos * d_head + i + half_dim] = s;
-                }
+                // GPT-NeoX/LLaMA stores each frequency in both half-vectors.
+                cos_values[pos * d_head + i] = c;
+                cos_values[pos * d_head + i + half_dim] = c;
+                sin_values[pos * d_head + i] = s;
+                sin_values[pos * d_head + i + half_dim] = s;
             }
         }
+        let cos_table = Tensor::from_slice_on([max_len, d_head], &cos_values, &backend);
+        let sin_table = Tensor::from_slice_on([max_len, d_head], &sin_values, &backend);
 
         Self {
             cos: cos_table,
@@ -90,7 +78,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
         B::DeviceBuffer<T>:
             coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
     {
-        let backend = B::default();
         let shape = x.tensor.shape();
         let ndim = shape.len();
         if ndim < 2 {
@@ -120,8 +107,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
         }
 
         // Extract the top `seq_len` rows from the PE tables.
-        let cos_slice = extract_pe_slice(&self.cos, seq_len, self.d_head, &backend);
-        let sin_slice = extract_pe_slice(&self.sin, seq_len, self.d_head, &backend);
+        let cos_slice = extract_pe_slice(&self.cos, seq_len, self.d_head);
+        let sin_slice = extract_pe_slice(&self.sin, seq_len, self.d_head);
 
         // Reshape cos and sin slices to [1, seq_len, 1, ..., d_head] for broadcasting
         let mut broadcast_shape = vec![1; ndim];
@@ -159,24 +146,8 @@ fn extract_pe_slice<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     table: &Tensor<T, B>,
     seq_len: usize,
     d_model: usize,
-    backend: &B,
 ) -> Tensor<T, B> {
-    use coeus_core::{Storage, StorageMut};
-    let mut out = Tensor::zeros_on([seq_len, d_model], backend);
-    if let (Some(src), Some(dst)) = (
-        table.storage().try_as_slice(),
-        out.storage_mut().try_as_mut_slice(),
-    ) {
-        dst.copy_from_slice(&src[..seq_len * d_model]);
-    } else {
-        let total = table.numel();
-        let mut host = vec![T::zero(); total];
-        backend.copy_to_host(table.storage(), &mut host);
-        let mut out_host = vec![T::zero(); seq_len * d_model];
-        out_host.copy_from_slice(&host[..seq_len * d_model]);
-        backend.copy_to_device(&out_host, out.storage_mut());
-    }
-    out
+    table.slice(&[(0, seq_len), (0, d_model)])
 }
 
 /// Helper to compute rotate_half(x).

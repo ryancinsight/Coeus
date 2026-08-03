@@ -19,8 +19,8 @@ use coeus_nn::{
     ConvTranspose1d, ConvTranspose3d, Dropout, Embedding, EmbeddingBag, EmbeddingBagMode,
     GroupNorm, Gru as CoeusGru, InstanceNorm2d, InterpolateMode as CoeusInterpolateMode, LayerNorm,
     Linear, LocalResponseNorm, Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, ModuleExt,
-    MultiHeadAttention, NullMask, RMSNorm, RNNCell, ReLU, Rnn, RnnNonlinearity, Sequential,
-    SinusoidalEncoding, SwiGlu, TransformerEncoderLayer,
+    MultiHeadAttention, NullMask, RMSNorm, RNNCell, ReLU, Rnn, RnnNonlinearity, RotaryEmbedding,
+    Sequential, SinusoidalEncoding, SwiGlu, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -118,6 +118,7 @@ criterion_group!(
     bench_remainder_forward,
     bench_uniform_initializer,
     bench_sinusoidal_encoding_forward,
+    bench_rotary_embedding_forward,
     bench_sequential_composition_forward,
     bench_linear_forward,
     bench_layernorm_forward,
