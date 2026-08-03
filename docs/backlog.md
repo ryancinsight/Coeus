@@ -1,8 +1,27 @@
 # Coeus Project Backlog & Historical Archives
 
-## COEUS-FUSED-CPU-BOUNDARY-001 — Remove device fallback from CPU fusion [major] [arch]
+## COEUS-COSINE-CLAMP-GRADIENT-001 — Correct clamped cosine backward [patch]
 
 - Owner: Codex on `codex/coeus-fused-cpu-boundary`; last-update: 2026-08-03;
+  scope: cosine-similarity forward/backward clamp semantics, provider-safe
+  gradient execution, focused analytical/differential contracts, and active PM
+  evidence.
+- Outcome: zero and clamp-region norms produce finite gradients matching the
+  derivative of the clamped forward contract, without host-compute fallback.
+- Non-goals: unrelated loss redesign, tolerance weakening, or performance
+  claims without matched measurements.
+- Acceptance: central finite differences cover zero, below-clamp, boundary,
+  and above-clamp inputs; gradients are finite and value-correct; CPU execution
+  routes through canonical tensor operations; accelerator execution uses the
+  selected provider path or returns a typed provider error; affected
+  warning-denied, Nextest, doctest, and exact-head provider gates pass.
+- Risk/change class: `[patch]`; the public signature is unchanged and behavior
+  is corrected to match the existing clamped forward contract.
+- Status: in-progress.
+
+## COEUS-FUSED-CPU-BOUNDARY-001 — Remove device fallback from CPU fusion [major] [arch]
+
+- Owner: unclaimed; last-update: 2026-08-03;
   scope: `coeus-ops` fused CPU evaluation, in-repo callers and contracts,
   ADR-0050, active PM evidence, and exact-head provider CI.
 - Outcome: fused CPU evaluation is statically restricted to CPU backends and
@@ -17,7 +36,8 @@
   affected Clippy, doctests, and exact-head backend CI pass.
 - Risk/change class: `[major] [arch]`; tightening the public backend bound and
   deleting the device fallback requires ADR-0050 and migration notes.
-- Status: in-progress.
+- Status: todo; preempted before source edits by the higher-priority
+  `COEUS-COSINE-CLAMP-GRADIENT-001` numerical correctness defect.
 
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Provider-owned random initialization [major] [arch]
 
