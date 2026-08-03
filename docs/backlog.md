@@ -65,7 +65,7 @@
 
 ## COEUS-FUSED-CPU-BOUNDARY-001 — Remove device fallback from CPU fusion [major] [arch]
 
-- Owner: unclaimed; last-update: 2026-08-03;
+- Owner: Codex on `codex/coeus-fused-cpu-ownership`; last-update: 2026-08-03;
   scope: `coeus-ops` fused CPU evaluation, in-repo callers and contracts,
   ADR-0050, active PM evidence, and exact-head provider CI.
 - Outcome: fused CPU evaluation is statically restricted to CPU backends and
@@ -80,8 +80,7 @@
   affected Clippy, doctests, and exact-head backend CI pass.
 - Risk/change class: `[major] [arch]`; tightening the public backend bound and
   deleting the device fallback requires ADR-0050 and migration notes.
-- Status: todo; preempted before source edits by the higher-priority
-  `COEUS-COSINE-CLAMP-GRADIENT-001` numerical correctness defect.
+- Status: in-progress; ADR-0050 accepted and implementation claimed.
 
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Provider-owned random initialization [major] [arch]
 

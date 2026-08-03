@@ -51,3 +51,4 @@ renumbering migration can update every durable reference.
 | [0047 Provider-owned attention dispatch](0047-provider-owned-attention-dispatch.md) | Accepted |
 | [0048 Provider-owned stateful update dispatch](0048-provider-owned-stateful-update-dispatch.md) | Accepted |
 | [0049 Provider-owned random initialization](0049-provider-owned-random-initialization.md) | Accepted |
+| [0050 CPU-addressable fused evaluation](0050-cpu-addressable-fused-evaluation.md) | Accepted |
