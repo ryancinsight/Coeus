@@ -25,6 +25,9 @@ pub mod optim;
 /// Tensor type and supporting utilities (state dict, iterator).
 pub mod tensor;
 
+mod grad_ctx;
+pub use grad_ctx::NoGradCtx;
+
 use dist::{PyLocalCommunicator, PyTcpCommunicator, PyTcpMesh};
 use tensor::{PyTensor, PyTensorIterator};
 
@@ -36,57 +39,7 @@ pub fn shutdown(py: Python<'_>) {
     });
 }
 
-/// Context manager that disables gradient tracking within its scope.
-///
-/// Usage:
-/// ```python
-/// with pycoeus.no_grad():
-///     y = model(x)   # no gradients computed
-/// ```
-///
-/// The context manager tracks nested scopes on the current Python thread. Values
-/// returned through PyO3 operation wrappers inside the scope are detached from
-/// the autograd graph; explicit tensor factories still honor `requires_grad`.
-#[pyclass(name = "no_grad")]
-pub struct NoGradCtx {
-    active: std::sync::atomic::AtomicBool,
-}
 
-#[pymethods]
-impl NoGradCtx {
-    #[new]
-    fn new() -> Self {
-        Self {
-            active: std::sync::atomic::AtomicBool::new(false),
-        }
-    }
-
-    fn __enter__(&self) {
-        if !self.active.swap(true, std::sync::atomic::Ordering::AcqRel) {
-            grad_mode::push_no_grad();
-        }
-    }
-
-    fn __exit__(
-        &self,
-        _exc_type: pyo3::Bound<'_, pyo3::types::PyAny>,
-        _exc_val: pyo3::Bound<'_, pyo3::types::PyAny>,
-        _exc_tb: pyo3::Bound<'_, pyo3::types::PyAny>,
-    ) -> bool {
-        if self.active.swap(false, std::sync::atomic::Ordering::AcqRel) {
-            grad_mode::pop_no_grad();
-        }
-        false // do not suppress exceptions
-    }
-}
-
-impl Drop for NoGradCtx {
-    fn drop(&mut self) {
-        if self.active.swap(false, std::sync::atomic::Ordering::AcqRel) {
-            grad_mode::pop_no_grad();
-        }
-    }
-}
 
 /// PyCoeus extension module definition.
 #[pymodule]
