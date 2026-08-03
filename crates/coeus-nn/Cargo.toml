@@ -17,8 +17,8 @@ smallvec       = { workspace = true }
 thiserror      = { workspace = true }
 
 [dev-dependencies]
-coeus-autograd = { workspace = true, default-features = false }
-coeus-ops      = { workspace = true, default-features = false }
+coeus-autograd = { path = "../coeus-autograd", default-features = false }
+coeus-ops      = { path = "../coeus-ops", default-features = false }
 coeus-optim    = { path = "../coeus-optim" }
 criterion      = { workspace = true }
 

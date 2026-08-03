@@ -23,8 +23,8 @@ leto         = { workspace = true }
 themis       = { workspace = true }
 
 [dev-dependencies]
-coeus-autograd = { workspace = true, default-features = false }
-coeus-nn       = { workspace = true, default-features = false }
+coeus-autograd = { path = "../coeus-autograd", default-features = false }
+coeus-nn       = { path = "../coeus-nn", default-features = false }
 criterion      = "0.5"
 
 [[bench]]

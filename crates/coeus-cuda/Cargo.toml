@@ -29,7 +29,7 @@ cuda-async   = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-as
 cuda = ["dep:cutile", "dep:cuda-core", "dep:cuda-async", "dep:themis", "hephaestus-cuda/cuda"]
 
 [dev-dependencies]
-coeus-autograd = { workspace = true, default-features = false }
+coeus-autograd = { path = "../coeus-autograd", default-features = false }
 criterion = "0.5"
 
 [[bench]]
