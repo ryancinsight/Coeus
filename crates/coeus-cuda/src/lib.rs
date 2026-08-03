@@ -73,6 +73,19 @@ use coeus_tensor::Tensor;
 ///
 /// Returns [`CudaBackendError`] when the expression, CUDA provider, generated
 /// kernel, or launch ABI rejects the operation.
+///
+/// Accelerator expressions cannot enter the CPU evaluator:
+///
+/// ```compile_fail,E0277
+/// use coeus_cuda::CudaBackend;
+/// use coeus_ops::fuse::{evaluate_fused_cpu, TensorExprExt};
+/// use coeus_tensor::Tensor;
+///
+/// fn reject_cpu_evaluator(tensor: &Tensor<f32, CudaBackend>, backend: &CudaBackend) {
+///     let expression = tensor.expr();
+///     let _ = evaluate_fused_cpu(&expression, backend);
+/// }
+/// ```
 pub fn evaluate_fused<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend> + Copy>(
     expr: &E,
 ) -> Result<Tensor<T, CudaBackend>, CudaBackendError> {
@@ -108,6 +121,20 @@ pub fn evaluate_fused<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend
 /// Returns [`CudaBackendError`] when the expression, axis, CUDA provider,
 /// generated kernel, or launch ABI rejects the operation. Empty mean, maximum,
 /// and minimum reductions are undefined and rejected.
+///
+/// Accelerator expressions cannot enter the CPU reduction evaluator:
+///
+/// ```compile_fail,E0277
+/// use coeus_cuda::CudaBackend;
+/// use coeus_ops::fuse::{evaluate_fused_reduce_cpu, TensorExprExt};
+/// use coeus_ops::ReductionOp;
+/// use coeus_tensor::Tensor;
+///
+/// fn reject_cpu_evaluator(tensor: &Tensor<f32, CudaBackend>, backend: &CudaBackend) {
+///     let expression = tensor.expr();
+///     let _ = evaluate_fused_reduce_cpu(&expression, ReductionOp::Sum, 0, backend);
+/// }
+/// ```
 pub fn evaluate_fused_reduce<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend> + Copy>(
     expr: &E,
     op: coeus_ops::ReductionOp,

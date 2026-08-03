@@ -134,6 +134,19 @@ pub fn matmul<T: WgpuScalar>(
 ///
 /// Returns [`WgpuBackendError`] when the expression has no tensor input or its
 /// child shapes cannot be broadcast.
+///
+/// Accelerator expressions cannot enter the CPU evaluator:
+///
+/// ```compile_fail,E0277
+/// use coeus_ops::fuse::{evaluate_fused_cpu, TensorExprExt};
+/// use coeus_tensor::Tensor;
+/// use coeus_wgpu::WgpuBackend;
+///
+/// fn reject_cpu_evaluator(tensor: &Tensor<f32, WgpuBackend>, backend: &WgpuBackend) {
+///     let expression = tensor.expr();
+///     let _ = evaluate_fused_cpu(&expression, backend);
+/// }
+/// ```
 pub fn evaluate_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     expr: &E,
 ) -> Result<Tensor<T, WgpuBackend>, WgpuBackendError> {
@@ -158,6 +171,20 @@ pub fn evaluate_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
 /// Returns [`WgpuBackendError`] when the expression has no tensor input, the
 /// axis is invalid, an empty axis is used with mean, maximum, or minimum, or
 /// the layout and dispatch cannot be represented by the active WebGPU device.
+///
+/// Accelerator expressions cannot enter the CPU reduction evaluator:
+///
+/// ```compile_fail,E0277
+/// use coeus_ops::fuse::{evaluate_fused_reduce_cpu, TensorExprExt};
+/// use coeus_ops::ReductionOp;
+/// use coeus_tensor::Tensor;
+/// use coeus_wgpu::WgpuBackend;
+///
+/// fn reject_cpu_evaluator(tensor: &Tensor<f32, WgpuBackend>, backend: &WgpuBackend) {
+///     let expression = tensor.expr();
+///     let _ = evaluate_fused_reduce_cpu(&expression, ReductionOp::Sum, 0, backend);
+/// }
+/// ```
 pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     expr: &E,
     op: coeus_ops::ReductionOp,

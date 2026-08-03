@@ -83,8 +83,10 @@
 - Evidence: cache/transfer residue scan is empty; `cargo check -p coeus-ops
   --all-targets`, warning-denied Clippy, and local CUDA feature compilation
   pass; focused fused contracts pass 9/9; `cargo semver-checks` identifies the
-  intended major break. Local Coeus Ops doctests pass 22/22, but two exceed the
-  committed 60-second budget, so exact-head hosted timing remains required.
+  intended major break. WGPU and CUDA compile-fail doctests prove both CPU
+  evaluator entry points reject accelerator expressions. Local Coeus Ops
+  doctests pass 22/22, but two exceed the committed 60-second budget, so
+  exact-head hosted timing remains required.
 - Status: in-progress; implementation is complete locally and awaits the
   independent architecture verdict plus exact-head provider CI.
 
