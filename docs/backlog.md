@@ -29,7 +29,10 @@
   verification did not reach test execution before the five-minute shared-cache
   timeout; hosted WGPU remains required. Independent final review approves with
   no P0-P3 findings.
-- Status: review; exact-head hosted provider gates pending.
+- Hosted evidence: exact-head backend-parity run `30835062422` passes WGPU,
+  CUDA, ROCm, and Metal at `b5d8dd06`; the optional required-device jobs are
+  correctly skipped on pull requests. PR #279 merged as `ee832117`.
+- Status: complete.
 
 ## COEUS-DOCTEST-BUDGET-001 — Bound remainder example latency [patch]
 
