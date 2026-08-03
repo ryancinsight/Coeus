@@ -21,9 +21,9 @@ eunomia     = { workspace = true }
 hephaestus-cuda = { workspace = true }
 hephaestus-core = { workspace = true }
 themis = { workspace = true, optional = true }
-cutile       = { git = "https://github.com/NVlabs/cutile-rs", optional = true }
-cuda-core    = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-core", optional = true }
-cuda-async   = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-async", optional = true }
+cutile       = { git = "https://github.com/NVlabs/cutile-rs", version = "0.2.0", optional = true }
+cuda-core    = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-core", version = "0.2.0", optional = true }
+cuda-async   = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-async", version = "0.2.0", optional = true }
 
 [features]
 cuda = ["dep:cutile", "dep:cuda-core", "dep:cuda-async", "dep:themis", "hephaestus-cuda/cuda"]
