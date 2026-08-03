@@ -19,6 +19,7 @@ fn provider_owned_activation(op: coeus_ops::UnaryOp) -> Option<&'static str> {
         coeus_ops::UnaryOp::HardtanhGrad(_) => Some("HardtanhGrad"),
         coeus_ops::UnaryOp::Threshold(_) => Some("Threshold"),
         coeus_ops::UnaryOp::ThresholdGrad(_) => Some("ThresholdGrad"),
+        coeus_ops::UnaryOp::ReluGrad => Some("ReluGrad"),
         _ => None,
     }
 }
@@ -239,6 +240,11 @@ fn try_hephaestus_strided_unary_wgpu<
                     T,
                     $n,
                 >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::ReluGrad => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::ReluGradOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
                 UnaryOp::Lgamma => ok(unary_elementwise_strided_into::<
                     hephaestus_wgpu::LgammaOp,
                     T,
@@ -422,6 +428,15 @@ fn try_hephaestus_contiguous_unary<
         )),
         coeus_ops::UnaryOp::Recip => run(hephaestus_wgpu::unary_elementwise_into::<
             hephaestus_wgpu::RecipOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::ReluGrad => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::ReluGradOp,
             T,
         >(
             &ctx.hephaestus_device,

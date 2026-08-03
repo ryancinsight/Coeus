@@ -280,7 +280,13 @@ pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Row-wise cosine similarity along `dim=1`
 /// (PyTorch `F.cosine_similarity(x1, x2, dim=1, eps=...)`).
 /// `x1` and `x2` must share shape `[N, D]`; returns `[N]` where
-/// `out_i = <x1_i, x2_i> / (||x1_i|| * ||x2_i|| + eps)`.
+/// `out_i = <x1_i, x2_i> / max(||x1_i|| * ||x2_i||, eps)`.
+///
+/// # Panics
+///
+/// Panics when the inputs do not share a two-dimensional non-empty shape,
+/// `dim` is not one, or `eps` is not finite and strictly positive.
+#[must_use]
 #[inline]
 pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x1: &Var<T, B>,

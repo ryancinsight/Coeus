@@ -4,6 +4,15 @@
 
 ### Changed
 
+- [patch] Keep cosine-similarity forward and backward execution on the selected
+  backend, replacing host downloads and staged gradient vectors with
+  monomorphized reduction and elementwise operations. Correct the derivative
+  below the denominator clamp, keep zero-norm gradients finite, transfer the
+  runtime epsilon once as a broadcast scalar, and validate that `eps` is finite
+  and strictly positive. CUDA and WGPU now route the required `ReluGrad` mask
+  through Hephaestus for contiguous and strided layouts without a consumer-local
+  fallback. No performance delta is claimed without controlled measurements.
+
 - [major] Route CPU random initialization through Leto destination-writing
   operations and WGPU, CUDA, ROCm, and Metal through one monomorphized
   Hephaestus bridge selected by backend type. Uniform, normal, Xavier, Kaiming,

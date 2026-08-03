@@ -3,6 +3,9 @@
 //! Leaf modules retain their original `cuda`/`not(feature = "cuda")` gates;
 //! one Cargo target replaces the previous flat target-per-file topology.
 
+#[cfg(feature = "cuda")]
+#[path = "cuda/cosine_similarity.rs"]
+mod cosine_similarity;
 #[path = "cuda_ops/device.rs"]
 mod device;
 #[cfg(feature = "cuda")]
