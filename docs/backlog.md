@@ -56,7 +56,10 @@
   isolating the defect to local rustdoc orchestration rather than production
   remainder or Moirai execution. Backend CI now runs the focused native
   contract and the full autograd doctest set on its pinned Linux toolchain.
-- Status: in-progress; awaiting exact-head hosted verification of the new gate.
+  Exact-head run `30838034724` passed the three remainder contracts in 0.009
+  seconds and all 16 autograd doctests in 29.88 seconds; WGPU, CUDA, ROCm, and
+  Metal provider jobs all passed at `887b7be9`. PR #281 merged as `e74b7baa`.
+- Status: complete.
   Discovered while verifying
   `COEUS-COSINE-CLAMP-GRADIENT-001` and does not affect its computation.
 
