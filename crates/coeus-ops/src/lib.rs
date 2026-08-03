@@ -78,10 +78,11 @@ pub use sparse::{
     spmm_backward_values, spmv,
 };
 
-/// Fused expression evaluation DAG for single-pass CPU computation.
+/// Device-neutral fused expression DAG with CPU-addressable evaluation support.
 pub mod fuse;
 pub use fuse::{
-    evaluate_fused_cpu, evaluate_fused_reduce_cpu, scalar, Expr, ExprNode, TensorExprExt,
+    evaluate_fused_cpu, evaluate_fused_reduce_cpu, scalar, CpuExprNode, Expr, ExprNode,
+    TensorExprExt,
 };
 
 /// Scaled dot-product attention with causal and padding mask support.

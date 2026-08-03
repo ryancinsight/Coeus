@@ -1,39 +1,20 @@
 use crate::fuse::op_tags::{BinaryOpTag, UnaryOpTag};
-use coeus_core::{BackendError, ComputeBackend, Layout, Scalar, Shape, Storage};
+use crate::CpuBackend;
+use coeus_core::{BackendError, ComputeBackend, CpuAddressableStorage, Scalar, Shape};
 use coeus_tensor::broadcast::broadcast_shapes;
 use coeus_tensor::Tensor;
-use std::cell::RefCell;
 use std::collections::HashMap;
-
-/// Cached tensor data and layout for CPU evaluation of device-resident tensors.
-pub struct CachedTensor<T> {
-    /// Flat data buffer.
-    pub data: Vec<T>,
-    /// Tensor layout descriptor.
-    pub layout: Layout,
-}
-
-thread_local! {
-    /// Thread-local cache mapping tensor pointers to CPU-cached data for fused evaluation.
-    pub static CPU_EVAL_CACHE: RefCell<HashMap<usize, Box<dyn std::any::Any>>> = RefCell::new(HashMap::new());
-}
 
 /// A node in the fused expression DAG.
 ///
-/// Implementors describe how to collect input tensors, emit a WGSL shader
-/// fragment, and evaluate the node on the CPU.
+/// Implementors describe how to collect input tensors and emit an accelerator
+/// shader fragment. CPU scalar evaluation is isolated in [`CpuExprNode`].
 pub trait ExprNode<T: Scalar, B: ComputeBackend>: Send + Sync {
     /// Collect all input tensors borrowed by this node.
     fn collect_inputs<'expression>(&'expression self, list: &mut Vec<&'expression Tensor<T, B>>);
     /// Emit a WGSL expression string referencing the inputs by index.
     fn to_shader_expr(&self, input_map: &HashMap<*const Tensor<T, B>, usize>) -> String;
 
-    /// Evaluates the expression node on the CPU at the specified coordinates.
-    ///
-    /// # Safety
-    /// The caller must ensure that the coordinates are within bounds for the expression shape,
-    /// and that the underlying input tensors are still valid.
-    unsafe fn eval_cpu(&self, coords: &[usize]) -> T;
     /// Returns the output shape of this node, or `None` for scalar nodes.
     ///
     /// # Errors
@@ -43,7 +24,22 @@ pub trait ExprNode<T: Scalar, B: ComputeBackend>: Send + Sync {
 
     /// Returns `true` if this node is contiguous and matches `out_shape`.
     fn is_contiguous_and_same_shape(&self, out_shape: &[usize]) -> bool;
-    /// Evaluates the expression node on the CPU at a flat index for contiguous tensors.
+}
+
+/// CPU-addressable scalar evaluation for a fused expression node.
+///
+/// This capability is implemented only when every tensor leaf uses storage
+/// directly readable by a [`CpuBackend`]. Accelerator expressions retain the
+/// device-neutral [`ExprNode`] contract without acquiring a host fallback.
+pub trait CpuExprNode<T: Scalar, B: CpuBackend>: ExprNode<T, B> {
+    /// Evaluate the node at the specified coordinates.
+    ///
+    /// # Safety
+    /// The caller must ensure that the coordinates are within bounds for the
+    /// expression shape and that the underlying input tensors remain valid.
+    unsafe fn eval_cpu(&self, coords: &[usize]) -> T;
+
+    /// Evaluate the node at a flat index for contiguous tensors.
     ///
     /// # Safety
     /// The caller must ensure that the index is within flat offset bounds.
@@ -75,69 +71,6 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for TensorRef<'_, T, B> {
         format!("val_{}", idx)
     }
 
-    unsafe fn eval_cpu(&self, coords: &[usize]) -> T {
-        let tensor = self.0;
-        if let Some(slice) = tensor.storage().try_as_slice() {
-            let layout = tensor.layout();
-            let shape = layout.shape();
-            let strides = layout.strides();
-            let ndim = layout.ndim();
-            let out_ndim = coords.len();
-
-            let mut off = layout.offset();
-            let diff = out_ndim.saturating_sub(ndim);
-            for d in diff..out_ndim {
-                let ad = d - diff;
-                if shape[ad] > 1 {
-                    off += coords[d] * strides[ad];
-                }
-            }
-            slice[off]
-        } else {
-            CPU_EVAL_CACHE.with(|cache| {
-                let cache_ref = cache.borrow();
-                let any_ref = cache_ref
-                    .get(&(std::ptr::from_ref(self.0) as usize))
-                    .expect("Device tensor not cached for CPU evaluation");
-                if let Some(cached) = any_ref.downcast_ref::<CachedTensor<T>>() {
-                    let layout = &cached.layout;
-                    let shape = layout.shape();
-                    let strides = layout.strides();
-                    let ndim = layout.ndim();
-                    let out_ndim = coords.len();
-
-                    let mut off = layout.offset();
-                    let diff = out_ndim.saturating_sub(ndim);
-                    for d in diff..out_ndim {
-                        let ad = d - diff;
-                        if shape[ad] > 1 {
-                            off += coords[d] * strides[ad];
-                        }
-                    }
-                    cached.data[off]
-                } else if let Some(slice) = any_ref.downcast_ref::<Vec<T>>() {
-                    let layout = tensor.layout();
-                    let shape = layout.shape();
-                    let strides = layout.strides();
-                    let ndim = layout.ndim();
-                    let out_ndim = coords.len();
-
-                    let mut off = layout.offset();
-                    let diff = out_ndim.saturating_sub(ndim);
-                    for d in diff..out_ndim {
-                        let ad = d - diff;
-                        if shape[ad] > 1 {
-                            off += coords[d] * strides[ad];
-                        }
-                    }
-                    slice[off]
-                } else {
-                    panic!("Incorrect type in cache");
-                }
-            })
-        }
-    }
-
     fn shape(&self) -> Result<Option<Shape>, BackendError> {
         Ok(Some(self.0.shape_cloned()))
     }
@@ -146,32 +79,37 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for TensorRef<'_, T, B> {
         let layout = self.0.layout();
         layout.is_contiguous() && layout.shape() == out_shape
     }
+}
+
+impl<T, B> CpuExprNode<T, B> for TensorRef<'_, T, B>
+where
+    T: Scalar,
+    B: CpuBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    unsafe fn eval_cpu(&self, coords: &[usize]) -> T {
+        let tensor = self.0;
+        let layout = tensor.layout();
+        let shape = layout.shape();
+        let strides = layout.strides();
+        let ndim = layout.ndim();
+        let out_ndim = coords.len();
+
+        let mut off = layout.offset();
+        let diff = out_ndim.saturating_sub(ndim);
+        for d in diff..out_ndim {
+            let ad = d - diff;
+            if shape[ad] > 1 {
+                off += coords[d] * strides[ad];
+            }
+        }
+        tensor.storage().as_slice()[off]
+    }
 
     unsafe fn eval_cpu_flat(&self, idx: usize) -> T {
         let tensor = self.0;
-        if let Some(slice) = tensor.storage().try_as_slice() {
-            let layout = tensor.layout();
-            let off = layout.offset() + idx;
-            slice[off]
-        } else {
-            CPU_EVAL_CACHE.with(|cache| {
-                let cache_ref = cache.borrow();
-                let any_ref = cache_ref
-                    .get(&(std::ptr::from_ref(self.0) as usize))
-                    .expect("Device tensor not cached for CPU evaluation");
-                if let Some(cached) = any_ref.downcast_ref::<CachedTensor<T>>() {
-                    let layout = &cached.layout;
-                    let off = layout.offset() + idx;
-                    cached.data[off]
-                } else if let Some(slice) = any_ref.downcast_ref::<Vec<T>>() {
-                    let layout = tensor.layout();
-                    let off = layout.offset() + idx;
-                    slice[off]
-                } else {
-                    panic!("Incorrect type in cache");
-                }
-            })
-        }
+        let off = tensor.layout().offset() + idx;
+        tensor.storage().as_slice()[off]
     }
 }
 
@@ -202,16 +140,18 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for ScalarVal<T> {
         }
     }
 
-    unsafe fn eval_cpu(&self, _coords: &[usize]) -> T {
-        self.0
-    }
-
     fn shape(&self) -> Result<Option<Shape>, BackendError> {
         Ok(None)
     }
 
     fn is_contiguous_and_same_shape(&self, _out_shape: &[usize]) -> bool {
         true
+    }
+}
+
+impl<T: Scalar, B: CpuBackend> CpuExprNode<T, B> for ScalarVal<T> {
+    unsafe fn eval_cpu(&self, _coords: &[usize]) -> T {
+        self.0
     }
 
     unsafe fn eval_cpu_flat(&self, _idx: usize) -> T {
@@ -240,17 +180,21 @@ impl<Op: UnaryOpTag<T> + Send, Child: ExprNode<T, B>, T: Scalar, B: ComputeBacke
         Op::wgsl_expr(&child_str)
     }
 
-    unsafe fn eval_cpu(&self, coords: &[usize]) -> T {
-        let val = self.child.eval_cpu(coords);
-        Op::apply(val)
-    }
-
     fn shape(&self) -> Result<Option<Shape>, BackendError> {
         self.child.shape()
     }
 
     fn is_contiguous_and_same_shape(&self, out_shape: &[usize]) -> bool {
         self.child.is_contiguous_and_same_shape(out_shape)
+    }
+}
+
+impl<Op: UnaryOpTag<T> + Send, Child: CpuExprNode<T, B>, T: Scalar, B: CpuBackend> CpuExprNode<T, B>
+    for UnaryExpr<Op, Child>
+{
+    unsafe fn eval_cpu(&self, coords: &[usize]) -> T {
+        let val = self.child.eval_cpu(coords);
+        Op::apply(val)
     }
 
     unsafe fn eval_cpu_flat(&self, idx: usize) -> T {
@@ -289,12 +233,6 @@ impl<
         format!("(({}) {} ({}))", left_str, Op::WGSL_SYMBOL, right_str)
     }
 
-    unsafe fn eval_cpu(&self, coords: &[usize]) -> T {
-        let left_val = self.left.eval_cpu(coords);
-        let right_val = self.right.eval_cpu(coords);
-        Op::apply(left_val, right_val)
-    }
-
     fn shape(&self) -> Result<Option<Shape>, BackendError> {
         let left_shape = self.left.shape()?;
         let right_shape = self.right.shape()?;
@@ -318,6 +256,21 @@ impl<
     fn is_contiguous_and_same_shape(&self, out_shape: &[usize]) -> bool {
         self.left.is_contiguous_and_same_shape(out_shape)
             && self.right.is_contiguous_and_same_shape(out_shape)
+    }
+}
+
+impl<
+        Op: BinaryOpTag + Send,
+        Left: CpuExprNode<T, B>,
+        Right: CpuExprNode<T, B>,
+        T: Scalar,
+        B: CpuBackend,
+    > CpuExprNode<T, B> for BinaryExpr<Op, Left, Right>
+{
+    unsafe fn eval_cpu(&self, coords: &[usize]) -> T {
+        let left_val = self.left.eval_cpu(coords);
+        let right_val = self.right.eval_cpu(coords);
+        Op::apply(left_val, right_val)
     }
 
     unsafe fn eval_cpu_flat(&self, idx: usize) -> T {
@@ -343,11 +296,6 @@ impl<E: ExprNode<T, B>, T: Scalar, B: ComputeBackend> ExprNode<T, B> for Expr<E>
     }
 
     #[inline(always)]
-    unsafe fn eval_cpu(&self, coords: &[usize]) -> T {
-        self.0.eval_cpu(coords)
-    }
-
-    #[inline(always)]
     fn shape(&self) -> Result<Option<Shape>, BackendError> {
         self.0.shape()
     }
@@ -355,6 +303,13 @@ impl<E: ExprNode<T, B>, T: Scalar, B: ComputeBackend> ExprNode<T, B> for Expr<E>
     #[inline(always)]
     fn is_contiguous_and_same_shape(&self, out_shape: &[usize]) -> bool {
         self.0.is_contiguous_and_same_shape(out_shape)
+    }
+}
+
+impl<E: CpuExprNode<T, B>, T: Scalar, B: CpuBackend> CpuExprNode<T, B> for Expr<E> {
+    #[inline(always)]
+    unsafe fn eval_cpu(&self, coords: &[usize]) -> T {
+        self.0.eval_cpu(coords)
     }
 
     #[inline(always)]

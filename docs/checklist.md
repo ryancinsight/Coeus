@@ -3573,6 +3573,10 @@ GPU backends over Hephaestus; dependency policy hardening.
   sum/mean/max/min reductions. Evidence: `cargo clippy -p coeus-ops
   --all-targets -- -D warnings` and `cargo nextest run -p coeus-tensor --test
   fused_ops_tests` pass.
+- [x] [major] Superseded the fused CPU host cache with the `CpuExprNode`
+  capability from ADR-0050. CPU evaluation now borrows CPU-addressable inputs
+  and final COW output storage directly; accelerator expressions retain only
+  the device-neutral shader contract and cannot enter the CPU evaluator.
 - [x] [patch] Fixed the Python distributed binding timeout by splitting the
   monolithic local/TCP collective script into independently timed value-semantic
   tests, and added missing Rust TCP reduce/gather/scatter coverage. Evidence:

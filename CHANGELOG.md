@@ -4,6 +4,16 @@
 
 ### Changed
 
+- [major] Restrict `evaluate_fused_cpu` and `evaluate_fused_reduce_cpu` to
+  CPU-addressable backends through the new `CpuExprNode` capability. The
+  migration deletes device downloads, thread-local type-erased input caching,
+  host output staging, and upload fallback; accelerator expression structure
+  remains on the device-neutral `ExprNode` contract and executes through its
+  selected provider. CPU evaluation borrows input storage and writes directly
+  into final COW output storage. No runtime or memory-performance delta is
+  claimed without controlled measurements. See
+  [ADR 0050](docs/adr/0050-cpu-addressable-fused-evaluation.md).
+
 - [patch] Keep cosine-similarity forward and backward execution on the selected
   backend, replacing host downloads and staged gradient vectors with
   monomorphized reduction and elementwise operations. Correct the derivative
