@@ -86,9 +86,10 @@
   intended major break. WGPU and CUDA compile-fail doctests prove both CPU
   evaluator entry points reject accelerator expressions. Local Coeus Ops
   doctests pass 22/22, but two exceed the committed 60-second budget, so
-  exact-head hosted timing remains required.
-- Status: in-progress; implementation is complete locally and awaits the
-  independent architecture verdict plus exact-head provider CI.
+  hosted timing remains the authoritative budget evidence. Independent
+  architecture re-review passed with no blocking findings. Exact-head run
+  `30842860058` passed WGPU, CUDA, ROCm, and Metal at `129ac00a`.
+- Status: complete; PR #283 merged as `8ed81ebb`.
 
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Provider-owned random initialization [major] [arch]
 
