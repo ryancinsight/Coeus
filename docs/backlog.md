@@ -36,7 +36,8 @@
 
 ## COEUS-DOCTEST-BUDGET-001 — Bound remainder example latency [patch]
 
-- Owner: unclaimed; last-update: 2026-08-03; scope: the `remainder` Rustdoc
+- Owner: Codex on `codex/coeus-remainder-budget`; last-update: 2026-08-03;
+  scope: the `remainder` Rustdoc
   example, its Moirai execution path, and the committed doctest runtime bound.
 - Outcome: the one-element remainder example completes below the ordinary
   30-second slow threshold without weakening its value or gradient assertions.
@@ -49,7 +50,8 @@
 - Evidence: the full autograd doctest pass took 60.45 seconds on this shared
   host, and the isolated remainder doctest reproduced 30.89 seconds of test
   runtime after 13.27 seconds of cache contention.
-- Status: todo; discovered while verifying
+- Status: in-progress; profiling the isolated executable and provider path.
+  Discovered while verifying
   `COEUS-COSINE-CLAMP-GRADIENT-001` and does not affect its computation.
 
 ## COEUS-FUSED-CPU-BOUNDARY-001 — Remove device fallback from CPU fusion [major] [arch]
