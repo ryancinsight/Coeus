@@ -4,6 +4,14 @@
 
 ### Changed
 
+- [major] Route rotary half-vector permutation through the selected backend.
+  Sequential and Moirai execute destination-writing Leto maps; WGPU, CUDA,
+  ROCm, and Metal execute one generic Hephaestus bridge over provider-owned
+  negation and identity kernels. The tracked operation uses the exact transpose
+  `R^T = -R`, and rotary embedding no longer requires CPU-addressable storage or
+  a host fallback. See
+  [ADR 0051](docs/adr/0051-provider-owned-rotate-half-dispatch.md).
+
 - [patch] Add Sequential and Moirai Criterion coverage for rotary positional
   embedding and mark the positional-family measurement disposition complete.
   RoPE now uploads each precomputed trigonometric table once and borrows the

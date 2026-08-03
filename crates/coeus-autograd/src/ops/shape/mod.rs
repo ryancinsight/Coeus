@@ -13,7 +13,7 @@ pub use cat_split_stack::{cat, split, stack};
 pub use mask::masked_fill;
 pub use select::{gather, index_put, index_select, scatter_add};
 pub use transform::{
-    broadcast_to, diag, diagonal, flatten, flip, movedim, pad, permute, reshape, roll, slice,
-    squeeze, swapaxes, tile, transpose, tril, triu, unsqueeze, where_cond,
+    broadcast_to, diag, diagonal, flatten, flip, movedim, pad, permute, reshape, roll, rotate_half,
+    slice, squeeze, swapaxes, tile, transpose, tril, triu, unsqueeze, where_cond,
 };
 pub use util::{contiguous, cumprod, cumsum, diff, einsum, einsum3};

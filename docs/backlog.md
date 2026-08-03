@@ -110,7 +110,12 @@
   in the migrated closure; warning-denied Clippy, focused Nextest, doctests,
   semver classification, independent architecture review, and exact-head
   provider CI pass.
-- Status: in-progress; provider capability audit and ADR drafting active.
+- Status: review; CPU layout and adjoint contracts pass under Nextest, local
+  CUDA forward-plus-gradient dispatch passes on the installed device, and
+  warning-denied Clippy plus host-compatible semver checks pass. Windows
+  Defender error 225 blocked two pre-existing core and two Leto doctest
+  executables after the remaining doctests passed. Exact-head hosted provider
+  CI is pending.
 
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Provider-owned random initialization [major] [arch]
 

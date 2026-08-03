@@ -22,7 +22,7 @@ pub use backend_ops::{
     AttentionOps, AttentionScalar, BackendOps, BinaryOp, ConvOps, ConvolutionBackward,
     ConvolutionForward, CpuBackend, ElementwiseOps, MatmulOps, OptimizerOps, OptimizerStateRef,
     OptimizerStepRule, OptimizerStepValidation, PoolOps, RandomInitOps, ReductionOp, ReductionOps,
-    UnaryOp, UnfoldFoldOps,
+    RotateHalfOps, UnaryOp, UnfoldFoldOps,
 };
 /// Element-wise binary operations (add, sub, mul, div).
 pub mod binary;
@@ -34,6 +34,8 @@ pub mod interpolation;
 pub mod matmul;
 /// Reduction operations (sum, mean, max, min, norms, variance).
 pub mod reduction;
+/// Provider-selected half-vector rotation.
+pub mod rotate_half;
 /// Shape manipulation operations (cat, stack, reshape, flip, sort, etc.).
 pub mod shape;
 /// Sparse tensor operations (SpMM, SpMV, format conversions).
@@ -68,6 +70,7 @@ pub use reduction::{
     prod_axis, std_dev, std_dev_axis, std_mean, std_mean_axis, suffix_prod, suffix_sum, sum,
     sum_axis, topk, var, var_axis, var_mean, var_mean_axis,
 };
+pub use rotate_half::rotate_half;
 pub use shape::{
     broadcast_to, cat, chunk, diag, diagonal, einsum, einsum3, flip, gather, index_put,
     index_select, masked_fill, masked_select, meshgrid, nonzero, one_hot, pad, repeat_interleave,

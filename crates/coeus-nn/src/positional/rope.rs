@@ -75,8 +75,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
     /// where dimension 1 is `seq_len` and the last dimension is `d_head`.
     pub fn forward(&self, x: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>>
     where
-        B::DeviceBuffer<T>:
-            coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+        B: coeus_ops::RotateHalfOps<T>,
     {
         let shape = x.tensor.shape();
         let ndim = shape.len();
@@ -120,7 +119,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
 
         // x_rot = x * cos + rotate_half(x) * sin
         let x_cos = coeus_autograd::mul(x, &cos_var);
-        let rx = rotate_half(x);
+        let rx = coeus_autograd::rotate_half(x).map_err(|source| ModuleError::Backend {
+            module: "RotaryEmbedding",
+            source,
+        })?;
         let rx_sin = coeus_autograd::mul(&rx, &sin_var);
 
         Ok(coeus_autograd::add(&x_cos, &rx_sin))
@@ -129,8 +131,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RotaryEmbedding<T, B>
 where
-    B::DeviceBuffer<T>:
-        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+    B: coeus_ops::RotateHalfOps<T>,
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
@@ -148,35 +149,4 @@ fn extract_pe_slice<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     d_model: usize,
 ) -> Tensor<T, B> {
     table.slice(&[(0, seq_len), (0, d_model)])
-}
-
-/// Helper to compute rotate_half(x).
-///
-/// rotate_half([x1, x2]) = [-x2, x1]
-fn rotate_half<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(x: &Var<T, B>) -> Var<T, B>
-where
-    B::DeviceBuffer<T>:
-        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
-{
-    let shape = x.tensor.shape();
-    let ndim = shape.len();
-    let d_head = shape[ndim - 1];
-    let half = d_head / 2;
-
-    // Split along the last dimension.
-    let chunks = coeus_autograd::split(x, half, ndim - 1);
-    assert_eq!(
-        chunks.len(),
-        2,
-        "rotate_half: split should yield exactly 2 chunks"
-    );
-
-    let x1 = &chunks[0];
-    let x2 = &chunks[1];
-
-    let backend = B::default();
-    let minus_one = Var::new(Tensor::full_on([1], T::from_f64(-1.0), &backend), false);
-    let neg_x2 = coeus_autograd::mul(x2, &minus_one);
-
-    coeus_autograd::cat(&[&neg_x2, x1], ndim - 1)
 }

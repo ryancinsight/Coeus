@@ -13,6 +13,7 @@ mod error;
 mod layout;
 mod random_init;
 mod reduction;
+mod rotate_half;
 mod stateful_update;
 mod storage;
 
@@ -28,5 +29,6 @@ pub use error::HephaestusBackendError;
 pub use random_init::{normal as random_normal, uniform as random_uniform, RandomInitProvider};
 pub use reduction::HephaestusBackend;
 pub use reduction::{HephaestusProvider, RankedOperand, ReductionProvider, ScanOperation};
+pub use rotate_half::{rotate_half, RotateHalfProvider};
 pub use stateful_update::{StatefulUpdateBackend, StatefulUpdateProvider};
 pub use storage::HephaestusStorage;

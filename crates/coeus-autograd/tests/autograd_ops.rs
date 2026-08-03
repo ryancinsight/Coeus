@@ -11,5 +11,7 @@ mod autograd;
 mod grid_sample;
 #[path = "autograd_ops/interpolation.rs"]
 mod interpolation;
+#[path = "autograd_ops/rotate_half.rs"]
+mod rotate_half;
 #[path = "autograd_ops/scan.rs"]
 mod scan;

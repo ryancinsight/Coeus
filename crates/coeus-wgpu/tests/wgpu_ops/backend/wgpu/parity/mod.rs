@@ -4,6 +4,7 @@ mod matmul;
 mod optimizer;
 mod random_init;
 mod reduction;
+mod rotate_half;
 mod strided;
 
 use coeus_core::SequentialBackend;

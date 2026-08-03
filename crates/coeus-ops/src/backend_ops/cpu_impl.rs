@@ -8,6 +8,7 @@ mod matmul;
 mod pool;
 mod random_init;
 mod reduction;
+mod rotate_half;
 mod unfold_fold;
 
 /// CPU execution backend marker trait.

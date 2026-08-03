@@ -1,7 +1,27 @@
 use coeus_core::{BinaryOp, ComputeBackend, CpuUnaryOp, Layout, Scalar};
 use coeus_ops::ElementwiseOps;
+#[cfg(all(feature = "rocm", target_os = "linux"))]
+use coeus_ops::RotateHalfOps;
 use coeus_rocm::RocmBackend;
 use std::fmt::Debug;
+
+#[test]
+#[cfg(all(feature = "rocm", target_os = "linux"))]
+fn rotate_half_dispatches_with_rocm_parity() {
+    if !require_device() {
+        return;
+    }
+    let rocm = RocmBackend::new();
+    let layout = Layout::new([2, 4].into());
+    let mut input = rocm.allocate::<f32>(8);
+    rocm.copy_to_device(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &mut input);
+    let output = rocm
+        .rotate_half_storage(&input, &layout)
+        .expect("ROCm rotate-half dispatch");
+    let mut actual = vec![0.0; 8];
+    rocm.copy_to_host(&output, &mut actual);
+    assert_eq!(actual, [-3.0, -4.0, 1.0, 2.0, -7.0, -8.0, 5.0, 6.0]);
+}
 
 fn require_device() -> bool {
     let available = hephaestus_rocm::RocmDevice::try_default().is_ok();

@@ -47,6 +47,8 @@ pub mod linalg;
 /// Reduction and scan dispatch (sum, mean, max, min, cumulative sum/product,
 /// argmax, argmin).
 pub mod reductions;
+/// Rotary half-vector dispatch.
+pub mod rotary;
 /// Sparse matrix dispatch (CSR mat-vec and mat-mat).
 pub mod sparse;
 /// Scalar-preserving stateful parameter-update dispatch.
@@ -77,6 +79,7 @@ pub use reductions::{
     argmax_into, argmin_into, cumprod_into, cumsum_into, reduce_into, suffix_prod_into,
     suffix_sum_into,
 };
+pub use rotary::{prepare_rotate_half_input, rotate_half_into, RotateHalfPlan};
 pub use sparse::{spmm_into, spmv_into, CsrDispatch};
 pub use stateful_update::{
     stateful_update, validate_stateful_update, StatefulUpdateDispatchRule, StatefulUpdateOperands,

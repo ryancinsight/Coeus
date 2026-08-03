@@ -11,5 +11,8 @@ mod device;
 #[cfg(feature = "cuda")]
 #[path = "cuda/random_init.rs"]
 mod random_init;
+#[cfg(feature = "cuda")]
+#[path = "cuda/rotate_half.rs"]
+mod rotate_half;
 #[path = "cuda_ops/unavailable.rs"]
 mod unavailable;

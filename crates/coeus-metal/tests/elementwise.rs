@@ -1,7 +1,24 @@
 use coeus_core::{BinaryOp, ComputeBackend, CpuUnaryOp, Layout, Scalar};
 use coeus_metal::MetalBackend;
-use coeus_ops::ElementwiseOps;
+use coeus_ops::{ElementwiseOps, RotateHalfOps};
 use std::fmt::Debug;
+
+#[test]
+fn rotate_half_dispatches_with_metal_parity() {
+    if !require_device() {
+        return;
+    }
+    let metal = MetalBackend::new();
+    let layout = Layout::new([2, 4].into());
+    let mut input = metal.allocate::<f32>(8);
+    metal.copy_to_device(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &mut input);
+    let output = metal
+        .rotate_half_storage(&input, &layout)
+        .expect("Metal rotate-half dispatch");
+    let mut actual = vec![0.0; 8];
+    metal.copy_to_host(&output, &mut actual);
+    assert_eq!(actual, [-3.0, -4.0, 1.0, 2.0, -7.0, -8.0, 5.0, 6.0]);
+}
 
 fn require_device() -> bool {
     let available = hephaestus_metal::MetalDevice::try_default().is_ok();
