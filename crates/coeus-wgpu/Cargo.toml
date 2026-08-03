@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "WebGPU backend integration for Coeus tensor operations."
 
 [dependencies]
 coeus-core   = { workspace = true }
