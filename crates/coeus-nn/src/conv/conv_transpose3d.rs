@@ -37,15 +37,31 @@ pub struct ConvTranspose3d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Mo
 
 impl<T: Scalar + coeus_core::Float, B: coeus_ops::BackendOps<T> + Default> ConvTranspose3d<T, B> {
     /// Create with default stride=1, padding=0, output_padding=0, dilation=1.
-    pub fn new(in_channels: usize, out_channels: usize, kernel_size: usize, bias: bool) -> Self
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed error when the fan is invalid or the selected backend
+    /// cannot initialize the weight.
+    pub fn new(
+        in_channels: usize,
+        out_channels: usize,
+        kernel_size: usize,
+        bias: bool,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
         T: coeus_leto::RandomScalar,
+        B: coeus_ops::RandomInitOps<T>,
     {
         Self::with_params(in_channels, out_channels, kernel_size, 1, 0, 0, 1, bias)
     }
 
     /// Create with explicit hyperparameters.
-    #[allow(clippy::too_many_arguments)]
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed error when the fan is invalid or the selected backend
+    /// cannot initialize the weight.
+    #[expect(clippy::too_many_arguments, reason = "transposed convolution contract")]
     pub fn with_params(
         in_channels: usize,
         out_channels: usize,
@@ -55,9 +71,10 @@ impl<T: Scalar + coeus_core::Float, B: coeus_ops::BackendOps<T> + Default> ConvT
         output_padding: usize,
         dilation: usize,
         bias: bool,
-    ) -> Self
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
         T: coeus_leto::RandomScalar,
+        B: coeus_ops::RandomInitOps<T>,
     {
         let backend = B::default();
         // Weight: [C_in, C_out, K, K, K] — transposed convention.
@@ -70,13 +87,13 @@ impl<T: Scalar + coeus_core::Float, B: coeus_ops::BackendOps<T> + Default> ConvT
         ];
         let w_tensor = Tensor::ones_on(w_shape, &backend);
         let mut weight = Var::new(w_tensor, true);
-        crate::init::kaiming_uniform(&mut weight, in_channels);
+        crate::init::kaiming_uniform(&mut weight, in_channels)?;
         let bias_var = if bias {
             Some(Var::new(Tensor::zeros_on([out_channels], &backend), true))
         } else {
             None
         };
-        Self {
+        Ok(Self {
             weight,
             bias: bias_var,
             in_channels,
@@ -86,7 +103,7 @@ impl<T: Scalar + coeus_core::Float, B: coeus_ops::BackendOps<T> + Default> ConvT
             padding,
             output_padding,
             dilation,
-        }
+        })
     }
 
     /// Compute the output spatial dimensions for a given input shape.

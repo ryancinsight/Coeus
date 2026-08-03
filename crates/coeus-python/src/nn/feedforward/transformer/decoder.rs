@@ -1,5 +1,7 @@
-use crate::nn::feedforward::transformer::decoder_layer::PyTransformerDecoderLayer;
-use crate::tensor::PyTensor;
+use crate::{
+    init::map_initialization_error,
+    nn::feedforward::transformer::decoder_layer::PyTransformerDecoderLayer, tensor::PyTensor,
+};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -58,7 +60,8 @@ impl PyTransformerDecoder {
                         use coeus_autograd::{CausalMask, NullMask};
                         let dec = TransformerDecoder::<
                             f64, coeus_core::MoiraiBackend, $h, $n, CausalMask, NullMask,
-                        >::new(d_model, d_ff, dropout_p);
+                        >::new(d_model, d_ff, dropout_p)
+                            .map_err(map_initialization_error)?;
                         dec.layers.into_iter()
                             .map(|layer| PyTransformerDecoderLayer::from_rust_layer::<$h>(
                                 py, layer, d_model, d_ff, dropout_p,

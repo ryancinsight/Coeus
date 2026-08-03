@@ -107,7 +107,22 @@ unsafe impl<T: Send> Send for CpuStorage<T> {}
 unsafe impl<T: Sync> Sync for CpuStorage<T> {}
 
 impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
-    /// Allocate a new buffer for `len` elements of type `T`.
+    #[inline]
+    fn allocate_uninitialized(len: usize) -> Self {
+        let byte_size = len
+            .checked_mul(std::mem::size_of::<T>())
+            .expect("CpuStorage allocation size overflow");
+        let align = std::mem::align_of::<T>();
+        let block =
+            RawBlock::new(byte_size, align).expect("Mnemosyne allocation failed in CpuStorage");
+        Self {
+            block: Arc::new(block),
+            len,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Allocate a new zero-initialized buffer for `len` elements of type `T`.
     ///
     /// # Panics
     /// If Mnemosyne allocation fails.
@@ -122,16 +137,26 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     /// assert_eq!(s.len(), 8);
     /// ```
     #[inline]
-    pub fn new(len: usize) -> Self {
-        let byte_size = len * std::mem::size_of::<T>();
-        let align = std::mem::align_of::<T>();
-        let block =
-            RawBlock::new(byte_size, align).expect("Mnemosyne allocation failed in CpuStorage");
-        Self {
-            block: Arc::new(block),
-            len,
-            _marker: PhantomData,
+    pub fn new(len: usize) -> Self
+    where
+        T: crate::Scalar,
+    {
+        Self::filled(len, T::zero())
+    }
+
+    /// Allocate and initialize every element with `value` without first
+    /// constructing a typed slice over uninitialized memory.
+    #[inline]
+    pub fn filled(len: usize, value: T) -> Self {
+        let storage = Self::allocate_uninitialized(len);
+        let destination = storage.block.as_mut_ptr().cast::<T>();
+        for index in 0..len {
+            // SAFETY: `destination` is aligned and allocated for `len`
+            // elements. Each index is written exactly once before `storage`
+            // is returned through its safe readable API.
+            unsafe { destination.add(index).write(value) };
         }
+        storage
     }
 
     /// Create from existing slice (copies data).
@@ -147,9 +172,19 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     /// ```
     #[inline]
     pub fn from_slice(data: &[T]) -> Self {
-        let mut s = Self::new(data.len());
-        s.raw_slice_mut_cow().copy_from_slice(data);
-        s
+        let storage = Self::allocate_uninitialized(data.len());
+        // SAFETY: the destination is aligned and allocated for `data.len()`
+        // elements, the source is a valid non-overlapping slice, and `T:
+        // Copy` needs no per-element drop handling. The whole destination is
+        // initialized before the storage escapes.
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                data.as_ptr(),
+                storage.block.as_mut_ptr().cast::<T>(),
+                data.len(),
+            );
+        }
+        storage
     }
 
     /// Consume and return the underlying raw block.
@@ -186,11 +221,7 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     pub fn raw_slice_mut_cow(&mut self) -> &mut [T] {
         if Arc::strong_count(&self.block) > 1 {
             let old_slice = self.raw_slice();
-            let mut new_storage = Self::new(self.len);
-            // SAFETY: `new_storage` is a newly allocated, unique storage block, so writing to it is safe, and `old_slice` points to a valid memory block.
-            unsafe {
-                new_storage.raw_slice_mut().copy_from_slice(old_slice);
-            }
+            let new_storage = Self::from_slice(old_slice);
             *self = new_storage;
         }
         // SAFETY: The strong count check and potential copy-on-write reallocation guarantee that we hold the unique reference to the memory block, making mutable slicing safe.
@@ -198,7 +229,7 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     }
 }
 
-impl<T: Copy + Send + Sync + 'static> Storage<T> for CpuStorage<T> {
+impl<T: crate::Scalar> Storage<T> for CpuStorage<T> {
     #[inline]
     fn allocate(len: usize) -> Self {
         Self::new(len)
@@ -215,7 +246,7 @@ impl<T: Copy + Send + Sync + 'static> Storage<T> for CpuStorage<T> {
     }
 }
 
-impl<T: Copy + Send + Sync + 'static> StorageMut<T> for CpuStorage<T> {
+impl<T: crate::Scalar> StorageMut<T> for CpuStorage<T> {
     #[inline]
     fn try_as_mut_slice(&mut self) -> Option<&mut [T]> {
         Some(self.raw_slice_mut_cow())
@@ -227,14 +258,14 @@ impl<T: Copy + Send + Sync + 'static> StorageMut<T> for CpuStorage<T> {
     }
 }
 
-impl<T: Copy + Send + Sync + 'static> CpuAddressableStorage<T> for CpuStorage<T> {
+impl<T: crate::Scalar> CpuAddressableStorage<T> for CpuStorage<T> {
     #[inline]
     fn as_slice(&self) -> &[T] {
         self.raw_slice()
     }
 }
 
-impl<T: Copy + Send + Sync + 'static> CpuAddressableStorageMut<T> for CpuStorage<T> {
+impl<T: crate::Scalar> CpuAddressableStorageMut<T> for CpuStorage<T> {
     #[inline]
     fn as_mut_slice(&mut self) -> &mut [T] {
         self.raw_slice_mut_cow()

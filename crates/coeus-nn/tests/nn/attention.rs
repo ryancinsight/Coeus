@@ -7,7 +7,8 @@ fn test_mha_self_attention_shape() {
     use coeus_autograd::NullMask;
     use coeus_nn::attention::mha::MultiHeadAttention;
 
-    let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 4, NullMask>::new(8, true);
+    let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 4, NullMask>::new(8, true)
+        .expect("valid four-head attention fixture");
     let input = Var::new(Tensor::zeros(vec![1, 5, 8]), true);
     let output = mha.forward(&input).expect("valid MultiHeadAttention input");
     assert_eq!(output.tensor.shape(), &[1, 5, 8]);
@@ -20,7 +21,8 @@ fn test_mha_cross_attention_shape() {
     use coeus_nn::multi_head_attention_cross;
     use coeus_nn::MhaProjectionParams;
 
-    let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true);
+    let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true)
+        .expect("valid two-head cross-attention fixture");
     let query = Var::new(Tensor::zeros(vec![1, 3, 4]), true);
     let key = Var::new(Tensor::zeros(vec![1, 5, 4]), false);
     let value = Var::new(Tensor::zeros(vec![1, 5, 4]), false);
@@ -64,7 +66,8 @@ fn test_mha_backward_gradients_exist() {
     use coeus_autograd::NullMask;
     use coeus_nn::attention::mha::MultiHeadAttention;
 
-    let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true);
+    let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true)
+        .expect("valid two-head backward fixture");
     let input = Var::new(
         Tensor::from_slice(vec![1, 2, 4], &[0.1f64, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]),
         true,
@@ -110,7 +113,8 @@ fn mha_rejects_non_divisible_head_count() {
     use coeus_autograd::NullMask;
     use coeus_nn::{MhaProjectionParams, ModuleError, MultiHeadAttention};
 
-    let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true);
+    let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true)
+        .expect("valid projection fixture");
     let input = Var::new(Tensor::zeros(vec![1, 2, 4]), false);
     let error =
         coeus_nn::multi_head_attention_cross::<f64, coeus_core::MoiraiBackend, 3, NullMask>(
@@ -148,7 +152,8 @@ fn mha_rejects_projection_and_mask_shapes() {
     use coeus_autograd::NullMask;
     use coeus_nn::{ModuleError, MultiHeadAttention};
 
-    let mut mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true);
+    let mut mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true)
+        .expect("valid mutable projection fixture");
     let input = Var::new(Tensor::zeros(vec![1, 3, 4]), false);
     mha.w_k = Var::new(Tensor::zeros(vec![3, 4]), true);
     let projection_error = mha
@@ -187,7 +192,8 @@ fn mha_rejects_incompatible_query_key_value_shapes() {
     use coeus_autograd::NullMask;
     use coeus_nn::{ModuleError, MultiHeadAttention};
 
-    let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true);
+    let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true)
+        .expect("valid incompatible-shape fixture");
     let query = Var::new(Tensor::zeros(vec![2, 3, 4]), false);
     let key = Var::new(Tensor::zeros(vec![1, 5, 4]), false);
     let value = Var::new(Tensor::zeros(vec![2, 5, 4]), false);

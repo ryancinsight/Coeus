@@ -40,14 +40,24 @@ where
     TransformerDecoder<T, B, H, NUM_DEC, DecSelfM, DecCrossM>: Clone,
 {
     /// Construct a new Seq2Seq Transformer model.
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed error when either stack has no layers, attention
+    /// dimensions are invalid, or provider initialization fails.
+    pub fn new(
+        d_model: usize,
+        d_ff: usize,
+        dropout_p: f64,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
         T: coeus_leto::RandomScalar,
+        B: coeus_ops::RandomInitOps<T>,
     {
-        Self {
-            encoder: TransformerEncoder::new(d_model, d_ff, dropout_p),
-            decoder: TransformerDecoder::new(d_model, d_ff, dropout_p),
-        }
+        Ok(Self {
+            encoder: TransformerEncoder::new(d_model, d_ff, dropout_p)?,
+            decoder: TransformerDecoder::new(d_model, d_ff, dropout_p)?,
+        })
     }
 
     /// Complete Seq2Seq forward pass.

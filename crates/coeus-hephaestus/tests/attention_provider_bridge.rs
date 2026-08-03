@@ -174,6 +174,10 @@ unsafe impl HephaestusProvider for TestProvider {
     fn device() -> &'static Self::Device {
         &DEVICE
     }
+
+    fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
+        Ok(Self::device())
+    }
 }
 
 #[derive(Clone, Copy, Default)]

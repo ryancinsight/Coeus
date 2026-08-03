@@ -299,13 +299,13 @@ fn test_losses() {
 fn test_initializers() {
     let mut weight = Var::<f64>::new(Tensor::zeros(vec![1000]), true);
 
-    init::normal(&mut weight, 5.0, 2.0);
+    init::normal(&mut weight, 5.0, 2.0).expect("valid normal initializer fixture");
     let w_slice = weight.tensor.as_slice();
     let sum: f64 = w_slice.iter().sum();
     let mean = sum / w_slice.len() as f64;
     assert!((mean - 5.0).abs() < 0.2);
 
-    init::xavier_uniform(&mut weight, 100, 100);
+    init::xavier_uniform(&mut weight, 100, 100).expect("valid Xavier uniform initializer fixture");
     let limit = (6.0f64 / 200.0).sqrt();
     for &val in weight.tensor.as_slice() {
         assert!(val >= -limit && val <= limit);

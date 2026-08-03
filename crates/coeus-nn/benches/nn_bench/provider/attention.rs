@@ -10,8 +10,10 @@ pub(crate) fn bench_mha_forward(c: &mut Criterion) {
     const D: usize = 256;
     const H: usize = 8;
 
-    let mha_seq = MultiHeadAttention::<f32, SequentialBackend, H, NullMask>::new(D, true);
-    let mha_moirai = MultiHeadAttention::<f32, MoiraiBackend, H, NullMask>::new(D, true);
+    let mha_seq = MultiHeadAttention::<f32, SequentialBackend, H, NullMask>::new(D, true)
+        .expect("valid sequential attention benchmark fixture");
+    let mha_moirai = MultiHeadAttention::<f32, MoiraiBackend, H, NullMask>::new(D, true)
+        .expect("valid parallel attention benchmark fixture");
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::ones(vec![B, SEQ, D]),
         false,
@@ -56,8 +58,10 @@ pub(crate) fn bench_mha_cross_attention_forward(c: &mut Criterion) {
     let memory_data: Vec<f32> = (0..(B * MEMORY_SEQ * D))
         .map(|index| (index as f32 * 0.0007).cos())
         .collect();
-    let mha_seq = MultiHeadAttention::<f32, SequentialBackend, H, NullMask>::new(D, true);
-    let mha_moirai = MultiHeadAttention::<f32, MoiraiBackend, H, NullMask>::new(D, true);
+    let mha_seq = MultiHeadAttention::<f32, SequentialBackend, H, NullMask>::new(D, true)
+        .expect("valid sequential cross-attention benchmark fixture");
+    let mha_moirai = MultiHeadAttention::<f32, MoiraiBackend, H, NullMask>::new(D, true)
+        .expect("valid parallel cross-attention benchmark fixture");
     let query_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![B, QUERY_SEQ, D], &query_data),
         false,
@@ -110,8 +114,10 @@ pub(crate) fn bench_transformer_encoder_forward(c: &mut Criterion) {
     const D_FF: usize = 1024;
     const H: usize = 8;
 
-    let enc_seq = TransformerEncoderLayer::<f32, SequentialBackend, H, NullMask>::new(D, D_FF, 0.0);
-    let enc_moirai = TransformerEncoderLayer::<f32, MoiraiBackend, H, NullMask>::new(D, D_FF, 0.0);
+    let enc_seq = TransformerEncoderLayer::<f32, SequentialBackend, H, NullMask>::new(D, D_FF, 0.0)
+        .expect("valid sequential encoder benchmark fixture");
+    let enc_moirai = TransformerEncoderLayer::<f32, MoiraiBackend, H, NullMask>::new(D, D_FF, 0.0)
+        .expect("valid parallel encoder benchmark fixture");
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::ones(vec![B, SEQ, D]),
         false,

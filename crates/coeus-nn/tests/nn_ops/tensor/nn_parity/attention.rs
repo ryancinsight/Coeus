@@ -43,7 +43,8 @@ fn test_mha_parity() {
         true,
     );
 
-    let mut mha_coeus = coeus_nn::MultiHeadAttention::<f32, SequentialBackend, 2>::new(8, true);
+    let mut mha_coeus = coeus_nn::MultiHeadAttention::<f32, SequentialBackend, 2>::new(8, true)
+        .expect("valid attention parity fixture");
     mha_coeus.w_q = CoeusVar::new(
         CoeusTensor::<f32, SequentialBackend>::from_slice(vec![8, 8], &wq_data),
         true,

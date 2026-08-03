@@ -32,26 +32,29 @@ where
     P: HephaestusProvider,
     T: Scalar + bytemuck::Pod,
 {
-    /// Allocate zeroed storage in the provider's device tier.
+    /// Adopt an initialized provider buffer without copying its contents.
     #[must_use]
-    pub fn new(len: usize) -> Self {
-        let buffer = P::device()
-            .alloc_zeroed_with_hint(len, PlacementHint::Tier(MemoryTier::Device))
-            .expect("Hephaestus provider allocation failed");
+    pub fn from_buffer(buffer: <P::Device as ComputeDevice>::Buffer<T>) -> Self {
         Self {
             buffer: Arc::new(buffer),
             marker: PhantomData,
         }
     }
 
+    /// Allocate zeroed storage in the provider's device tier.
+    #[must_use]
+    pub fn new(len: usize) -> Self {
+        let buffer = P::device()
+            .alloc_zeroed_with_hint(len, PlacementHint::Tier(MemoryTier::Device))
+            .expect("Hephaestus provider allocation failed");
+        Self::from_buffer(buffer)
+    }
+
     pub(crate) fn uninitialized(len: usize) -> Self {
         let buffer = P::device()
             .alloc_uninitialized_with_hint(len, PlacementHint::Tier(MemoryTier::Device))
             .expect("Hephaestus provider allocation failed");
-        Self {
-            buffer: Arc::new(buffer),
-            marker: PhantomData,
-        }
+        Self::from_buffer(buffer)
     }
 
     /// Borrow the typed Hephaestus buffer for provider dispatch.
@@ -374,6 +377,10 @@ mod tests {
         fn device() -> &'static Self::Device {
             static DEVICE: TestDevice = TestDevice;
             &DEVICE
+        }
+
+        fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
+            Ok(Self::device())
         }
     }
 

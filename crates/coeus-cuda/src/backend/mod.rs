@@ -36,9 +36,25 @@ static CUDA_DEVICE: OnceLock<CudaDevice> = OnceLock::new();
 
 /// Retrieve a reference to the global lazily-initialized hephaestus CUDA device.
 pub fn get_cuda_device() -> &'static CudaDevice {
-    CUDA_DEVICE.get_or_init(|| {
-        CudaDevice::try_default().expect("Failed to initialize hephaestus-cuda device")
-    })
+    try_get_cuda_device().expect("Failed to initialize hephaestus-cuda device")
+}
+
+/// Try to retrieve the process-global CUDA device.
+///
+/// # Errors
+///
+/// Returns the typed Hephaestus acquisition failure when CUDA is unavailable.
+pub fn try_get_cuda_device() -> hephaestus_core::Result<&'static CudaDevice> {
+    if let Some(device) = CUDA_DEVICE.get() {
+        return Ok(device);
+    }
+    let candidate = CudaDevice::try_default()?;
+    let _ = CUDA_DEVICE.set(candidate);
+    CUDA_DEVICE
+        .get()
+        .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
+            message: "CUDA device initialization did not publish the acquired device".to_owned(),
+        })
 }
 
 /// NVIDIA CUDA acceleration backend.

@@ -1,4 +1,4 @@
-use crate::tensor::PyTensor;
+use crate::{init::map_initialization_error, tensor::PyTensor};
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
@@ -132,12 +132,12 @@ pub fn geomspace(start: f64, end: f64, steps: usize) -> PyResult<PyTensor> {
 
 #[pyfunction]
 #[pyo3(signature = (shape, requires_grad = false))]
-pub fn randn(shape: Vec<usize>, requires_grad: bool) -> PyTensor {
+pub fn randn(shape: Vec<usize>, requires_grad: bool) -> PyResult<PyTensor> {
     let seed = time_seed(12345, 0x2d35_8b72_a4c9_6e1d);
     let zeros_t = Tensor::<f64, MoiraiBackend>::zeros(shape);
     let mut v = Var::new(zeros_t, requires_grad);
-    coeus_nn::init::normal_with_seed(&mut v, 0.0, 1.0, seed);
-    PyTensor { inner: v }
+    coeus_nn::init::normal_with_seed(&mut v, 0.0, 1.0, seed).map_err(map_initialization_error)?;
+    Ok(PyTensor { inner: v })
 }
 
 #[pyfunction]
@@ -177,12 +177,12 @@ pub fn eye(n: usize, requires_grad: bool) -> PyTensor {
 /// Equivalent to `torch.rand(shape)`.
 #[pyfunction]
 #[pyo3(signature = (shape, requires_grad = false))]
-pub fn rand(shape: Vec<usize>, requires_grad: bool) -> PyTensor {
+pub fn rand(shape: Vec<usize>, requires_grad: bool) -> PyResult<PyTensor> {
     let seed = time_seed(54321, 0x9e37_79b9_7f4a_7c15);
     let zeros_t = Tensor::<f64, MoiraiBackend>::zeros(shape);
     let mut v = Var::new(zeros_t, requires_grad);
-    coeus_nn::init::uniform_with_seed(&mut v, 0.0, 1.0, seed);
-    PyTensor { inner: v }
+    coeus_nn::init::uniform_with_seed(&mut v, 0.0, 1.0, seed).map_err(map_initialization_error)?;
+    Ok(PyTensor { inner: v })
 }
 
 /// Random integer tensor in `[low, high)` stored as f64.

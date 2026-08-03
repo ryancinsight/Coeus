@@ -11,6 +11,7 @@ mod convolution;
 mod elementwise;
 mod error;
 mod layout;
+mod random_init;
 mod reduction;
 mod stateful_update;
 mod storage;
@@ -24,6 +25,7 @@ pub use convolution::{
 };
 pub use elementwise::{parameterized_unary, ElementwiseProvider, ParameterizedElementwiseProvider};
 pub use error::HephaestusBackendError;
+pub use random_init::{normal as random_normal, uniform as random_uniform, RandomInitProvider};
 pub use reduction::HephaestusBackend;
 pub use reduction::{HephaestusProvider, RankedOperand, ReductionProvider, ScanOperation};
 pub use stateful_update::{StatefulUpdateBackend, StatefulUpdateProvider};

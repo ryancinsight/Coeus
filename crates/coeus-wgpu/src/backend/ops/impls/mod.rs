@@ -3,5 +3,6 @@ mod conv;
 mod matmul;
 mod optimizer;
 mod pool;
+mod random_init;
 mod reduction;
 mod unfold_fold;

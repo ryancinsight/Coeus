@@ -881,15 +881,21 @@ forward values, input and every child-parameter gradient, parameter ordering,
 append/index behavior, gradient clearing, and empty-container identity. The
 Python evidence dispositions are now 15 present, 4 partial, 1 missing, and 1
 inapplicable; initialization remains the sole missing family.
-**2026-08-02 Python initialization update**: exact constant-fill comparisons
-and analytically bounded distribution tests now cover uniform, normal, Xavier,
-and Kaiming initialization against PyTorch. The binding validates finite
-distribution parameters, ordered bounds, positive fan values, fan-size
-overflow, and the Leto-supported rank domain before calling the infallible Rust
-initializer. Python evidence is now 16 present, 4 partial, 0 missing, and 1
-inapplicable. The public Rust initializer still panics when called directly with
-an unsupported random-initializer rank; converting that API to a typed result is
-a separate public-contract migration rather than a Python compatibility path.
+**2026-08-02 provider-owned initialization update**: exact constant-fill
+comparisons and analytically bounded distribution tests cover uniform, normal,
+Xavier, and Kaiming initialization against PyTorch. Rust now owns finite-value,
+ordered-bound, positive-fan, checked-arithmetic, and rank validation through a
+typed fallible contract. CPU storage is initialized directly through Leto;
+WGPU, CUDA, ROCm, and Metal dispatch through the generic Hephaestus bridge
+selected by backend type, with no accelerator-to-CPU fallback in Coeus. Python
+maps domain failures to `ValueError` and provider failures to `RuntimeError`.
+Python evidence remains 16 present, 4 partial, 0 missing, and 1 inapplicable;
+provider differential evidence and exact-head backend CI are tracked by
+`COEUS-RANDOM-INIT-PROVIDER-001` and ADR-0049.
+Targeted Miri executes the corrected CPU initialization path successfully, but
+reports exposed-provenance casts in the locked Mnemosyne allocator. The result
+checks Coeus's initialization sequence under permissive provenance; it does not
+establish strict-provenance coverage for the upstream allocator.
 **2026-07-08 update**: added `bench_maxpool3d_forward`/`bench_avgpool3d_forward`
 (Coeus Sequential vs Moirai only — no Burn 0.16.1 `max_pool3d`/`avg_pool3d` op
 exists to compare against, confirmed against the pinned `burn-tensor` source).

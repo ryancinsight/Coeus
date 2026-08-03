@@ -67,6 +67,11 @@ impl ComputeBackend for SequentialBackend {
     }
 
     #[inline]
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
+        CpuStorage::new(len)
+    }
+
+    #[inline]
     fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
         use crate::storage::CpuAddressableStorageMut;
         dst.as_mut_slice().fill(val);

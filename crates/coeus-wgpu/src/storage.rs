@@ -29,6 +29,12 @@ unsafe impl<T: Send> Send for WgpuStorage<T> {}
 unsafe impl<T: Sync> Sync for WgpuStorage<T> {}
 
 impl<T: Scalar> WgpuStorage<T> {
+    pub(crate) fn from_buffer(buffer: hephaestus_wgpu::WgpuBuffer<T>) -> Self {
+        Self {
+            buffer: Arc::new(buffer),
+        }
+    }
+
     #[inline]
     fn alloc_device_zeroed(len: usize) -> hephaestus_wgpu::WgpuBuffer<T> {
         let ctx = get_wgpu_context();
@@ -48,9 +54,7 @@ impl<T: Scalar> WgpuStorage<T> {
     /// Allocate a new GPU buffer for `len` elements.
     pub fn new(len: usize) -> Self {
         let buffer = Self::alloc_device_zeroed(len);
-        Self {
-            buffer: Arc::new(buffer),
-        }
+        Self::from_buffer(buffer)
     }
 
     /// Return an opaque identity suitable for allocation-reuse diagnostics.
@@ -62,9 +66,7 @@ impl<T: Scalar> WgpuStorage<T> {
     #[inline]
     pub(crate) fn uninitialized(len: usize) -> Self {
         let buffer = Self::alloc_device_uninitialized(len);
-        Self {
-            buffer: Arc::new(buffer),
-        }
+        Self::from_buffer(buffer)
     }
 }
 

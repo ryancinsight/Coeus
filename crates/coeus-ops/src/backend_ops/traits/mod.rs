@@ -28,6 +28,7 @@ pub mod elementwise;
 pub mod matmul;
 pub mod optimizer;
 pub mod pool;
+pub mod random_init;
 pub mod reduction;
 pub mod unfold_fold;
 
@@ -37,5 +38,6 @@ pub use elementwise::ElementwiseOps;
 pub use matmul::MatmulOps;
 pub use optimizer::{OptimizerOps, OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation};
 pub use pool::PoolOps;
+pub use random_init::RandomInitOps;
 pub use reduction::ReductionOps;
 pub use unfold_fold::UnfoldFoldOps;

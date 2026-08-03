@@ -1,4 +1,4 @@
-use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError};
+use crate::backend::{get_wgpu_context, try_get_wgpu_context, WgpuBackend, WgpuBackendError};
 use coeus_core::Layout;
 use coeus_hephaestus::{AttentionBackend, AttentionProvider, HephaestusProvider};
 use hephaestus_core::{ComputeDevice, HephaestusError};
@@ -13,6 +13,10 @@ unsafe impl HephaestusProvider for WgpuBackend {
 
     fn device() -> &'static Self::Device {
         &get_wgpu_context().hephaestus_device
+    }
+
+    fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
+        try_get_wgpu_context().map(|context| &context.hephaestus_device)
     }
 }
 

@@ -1,6 +1,7 @@
 mod construction;
 
 use super::super::PyFeedForward;
+use crate::init::map_initialization_error;
 use crate::nn::attention::PyMultiHeadAttention;
 use crate::nn::error::map_module_error;
 use crate::nn::normalization::layernorm::PyLayerNorm;
@@ -89,7 +90,8 @@ impl PyTransformerDecoderLayer {
                         use coeus_autograd::{CausalMask, NullMask};
                         let dec = TransformerDecoderLayer::<
                             f64, coeus_core::MoiraiBackend, $h, CausalMask, NullMask,
-                        >::new(d_model, d_ff, dropout_p);
+                        >::new(d_model, d_ff, dropout_p)
+                            .map_err(map_initialization_error)?;
                         Self::build_from_layer::<$h>(py, dec, d_model, d_ff, dropout_p)
                     },)*
                     _ => Err(PyValueError::new_err(format!(

@@ -4,5 +4,6 @@ mod elementwise;
 mod matmul;
 mod optim;
 mod pool;
+mod random_init;
 mod reduction;
 mod unfold_fold;

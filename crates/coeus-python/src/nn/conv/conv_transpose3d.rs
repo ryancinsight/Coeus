@@ -1,4 +1,4 @@
-use crate::{nn::error::map_backend_error, tensor::PyTensor};
+use crate::{init::map_initialization_error, nn::error::map_backend_error, tensor::PyTensor};
 
 /// Python-exposed 3-D Transposed Convolution layer.
 #[pyo3::pyclass(name = "ConvTranspose3d")]
@@ -51,7 +51,8 @@ impl PyConvTranspose3d {
             output_padding,
             dilation,
             bias,
-        );
+        )
+        .map_err(map_initialization_error)?;
         let weight = pyo3::Py::new(py, PyTensor { inner: rust.weight })?;
         let bias = if let Some(b) = rust.bias {
             Some(pyo3::Py::new(py, PyTensor { inner: b })?)

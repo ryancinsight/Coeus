@@ -213,23 +213,31 @@ impl<
 {
     /// Construct a MHA layer with Kaiming-uniform initialized projection weights.
     ///
-    /// # Panics
-    /// Panics if `d_model % H != 0`.
-    pub fn new(d_model: usize, bias: bool) -> Self
+    /// # Errors
+    ///
+    /// Returns an initialization error when the model width cannot be divided
+    /// across `H` heads or the selected backend cannot initialize a weight.
+    pub fn new(
+        d_model: usize,
+        bias: bool,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
         T: coeus_leto::RandomScalar,
+        B: coeus_ops::RandomInitOps<T>,
     {
-        assert!(
-            H > 0 && d_model.is_multiple_of(H),
-            "MultiHeadAttention: d_model ({d_model}) must be divisible by H ({H})"
-        );
-        let make_weight = || -> Var<T, B> {
+        if H == 0 || d_model == 0 || !d_model.is_multiple_of(H) {
+            return Err(crate::init::InitializationError::InvalidHeadConfiguration {
+                d_model,
+                heads: H,
+            });
+        }
+        let make_weight = || -> Result<Var<T, B>, crate::init::InitializationError<B::Error>> {
             let mut v = Var::new(
                 coeus_tensor::Tensor::zeros_on([d_model, d_model], &B::default()),
                 true,
             );
-            kaiming_uniform(&mut v, d_model);
-            v
+            kaiming_uniform(&mut v, d_model)?;
+            Ok(v)
         };
         let make_bias = || -> Var<T, B> {
             Var::new(
@@ -237,18 +245,18 @@ impl<
                 true,
             )
         };
-        Self {
-            w_q: make_weight(),
+        Ok(Self {
+            w_q: make_weight()?,
             b_q: if bias { Some(make_bias()) } else { None },
-            w_k: make_weight(),
+            w_k: make_weight()?,
             b_k: if bias { Some(make_bias()) } else { None },
-            w_v: make_weight(),
+            w_v: make_weight()?,
             b_v: if bias { Some(make_bias()) } else { None },
-            w_o: make_weight(),
+            w_o: make_weight()?,
             b_o: if bias { Some(make_bias()) } else { None },
             d_model,
             _mask: PhantomData,
-        }
+        })
     }
 
     /// Cross-attention forward.
