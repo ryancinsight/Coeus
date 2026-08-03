@@ -4,6 +4,13 @@
 
 ### Changed
 
+- [patch] Add Sequential and Moirai Criterion coverage for rotary positional
+  embedding and mark the positional-family measurement disposition complete.
+  RoPE now uploads each precomputed trigonometric table once and borrows the
+  active sequence prefix as a zero-copy tensor view, deleting per-forward table
+  allocation and device/host transfer fallback. No runtime or memory delta is
+  claimed without controlled measurements.
+
 - [major] Restrict `evaluate_fused_cpu` and `evaluate_fused_reduce_cpu` to
   CPU-addressable backends through the new `CpuExprNode` capability. The
   migration deletes device downloads, thread-local type-erased input caching,

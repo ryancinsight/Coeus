@@ -875,6 +875,17 @@ instruments, not performance claims. Warning-denied benchmark Clippy, the
 manifest consistency suite, and all eight new rows in Criterion test mode pass.
 Exact-head run `30757289411` passes ROCm, Metal, CUDA, and WGPU; PR #269 is
 merged as `78fd9932`.
+**2026-08-03 positional update**: rotary positional embedding now has direct
+Sequential and Moirai Criterion rows. Active table prefixes are zero-copy
+tensor views, replacing per-forward allocation and device/host transfer
+fallback; construction uploads each precomputed table once. Criterion
+dispositions are now 8 present, 12 partial, and 1 inapplicable. Focused
+positional/manifest contracts pass 4/4 and both new rows pass Criterion
+single-iteration test mode. These are instrument and structural-memory
+results, not runtime or memory-performance claims. RoPE remains CPU-addressable
+because its rotation depends on `split`/`cat`; accelerator support requires
+a provider-owned permutation/concatenation contract rather than a host
+fallback.
 **2026-08-02 Python sequential update**: the existing Python `Sequential`
 surface now has deterministic PyTorch differential coverage for composed
 forward values, input and every child-parameter gradient, parameter ordering,

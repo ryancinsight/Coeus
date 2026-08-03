@@ -59,9 +59,11 @@
 - [x] Pass exact-head run `30757289411`: ROCm `91521546392`, Metal
       `91521546438`, CUDA `91521546424`, and WGPU `91521546425`; merge PR #269
       as `78fd9932`.
-- [ ] Close the manifest's explicit residuals: thirteen partial Criterion
-      families, and two missing plus four partial Python differential families.
-      All 21 families have Rust contract evidence.
+- [x] Add Sequential and Moirai rotary-embedding Criterion rows and replace
+      per-forward positional-table staging with zero-copy tensor views.
+- [ ] Close the manifest's explicit residuals: twelve partial Criterion
+      families and four partial Python differential families. All 21 families
+      have Rust contract evidence; no Criterion or Python family is missing.
 
 ## COEUS-STATEFUL-UPDATE-PROVIDER-001 — Provider-owned optimizer dispatch
 
