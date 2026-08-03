@@ -28,7 +28,13 @@
   architecture and soundness re-review approves the corrected diff. Targeted
   Miri passes the initialized-storage regression 1/1; Mnemosyne emits existing
   exposed-provenance warnings, so this is not strict-provenance evidence.
-- Status: in-progress; exact-head hosted backend checks remain.
+  Exact-head hosted run `30776550993` passes WGPU, CUDA, ROCm, and Metal provider
+  lanes. The optional ROCm required-device dispatch could not start because the
+  repository has no registered self-hosted runner. `cargo-semver-checks` did not
+  reach API comparison because its isolated baseline rustdoc build terminated
+  while compiling `futures-channel`; the breaking contract is declared and
+  documented under ADR-0049.
+- Status: review; exact final-head CI and PR #273 merge remain.
 
 ## COEUS-STATEFUL-UPDATE-PROVIDER-001 — Provider-owned optimizer dispatch [major] [arch]
 

@@ -12,7 +12,10 @@
       and accelerator provider-parity contracts.
 - [x] Pass full warning-denied, Nextest, doctest, Python-wheel, and local CUDA
       gates at the exact implementation revision.
-- [ ] Pass exact-head hosted WGPU, CUDA, ROCm, and Metal checks and merge.
+- [x] Pass exact-head hosted run `30776550993`: WGPU, CUDA, ROCm, and Metal
+      provider lanes pass; optional ROCm hardware execution is unavailable
+      because the repository has no registered self-hosted runner.
+- [ ] Pass final documentation-head CI and merge PR #273.
 
 ## G-043 — Benchmark and parity evidence manifest
 
