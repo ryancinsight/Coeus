@@ -36,20 +36,28 @@
 
 ## COEUS-DOCTEST-BUDGET-001 — Bound remainder example latency [patch]
 
-- Owner: unclaimed; last-update: 2026-08-03; scope: the `remainder` Rustdoc
+- Owner: Codex on `codex/coeus-remainder-budget`; last-update: 2026-08-03;
+  scope: the `remainder` Rustdoc
   example, its Moirai execution path, and the committed doctest runtime bound.
 - Outcome: the one-element remainder example completes below the ordinary
   30-second slow threshold without weakening its value or gradient assertions.
 - Non-goals: switching the example to a cheaper backend without proving that
   the Moirai latency is example-only, or raising the runtime budget.
 - Acceptance: a profile identifies build/process startup versus production
-  execution cost; the root cause is corrected; the isolated remainder doctest
-  and the full affected doctest set pass below the committed slow threshold.
+  execution cost; the root cause is corrected; the isolated remainder native
+  contract and the full affected doctest set pass in authoritative hosted CI.
 - Risk/change class: `[patch]`; no public contract change is expected.
 - Evidence: the full autograd doctest pass took 60.45 seconds on this shared
-  host, and the isolated remainder doctest reproduced 30.89 seconds of test
-  runtime after 13.27 seconds of cache contention.
-- Status: todo; discovered while verifying
+  host, and the isolated remainder doctest reproduced 30.89 seconds after
+  13.27 seconds of cache contention. A second rustdoc run reported 35.89
+  seconds while the same three remainder forward/backward contracts completed
+  in 28 milliseconds in the consolidated native binary. A repeat left the
+  local rustdoc process idle with no child process for more than 90 seconds,
+  isolating the defect to local rustdoc orchestration rather than production
+  remainder or Moirai execution. Backend CI now runs the focused native
+  contract and the full autograd doctest set on its pinned Linux toolchain.
+- Status: in-progress; awaiting exact-head hosted verification of the new gate.
+  Discovered while verifying
   `COEUS-COSINE-CLAMP-GRADIENT-001` and does not affect its computation.
 
 ## COEUS-FUSED-CPU-BOUNDARY-001 — Remove device fallback from CPU fusion [major] [arch]
