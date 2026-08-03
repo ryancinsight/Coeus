@@ -91,6 +91,27 @@
   `30842860058` passed WGPU, CUDA, ROCm, and Metal at `129ac00a`.
 - Status: complete; PR #283 merged as `8ed81ebb`.
 
+## COEUS-ROPE-PROVIDER-001 — Provider-owned structural dispatch [major] [arch]
+
+- Owner: Codex on `codex/coeus-rope-provider`; last-update: 2026-08-03;
+  scope: the structural-operation seam required by rotary embedding, CPU Leto
+  and accelerator Hephaestus dispatch, tracked split/concatenation callers,
+  ADR-0051, focused provider contracts, and exact-head backend CI.
+- Outcome: rotary embedding and its tracked structural primitives execute on
+  the selected backend without CPU-addressable bounds, host staging, or a
+  consumer-owned fallback.
+- Non-goals: unrelated shape-operation migration, release/version transitions,
+  compatibility adapters, or runtime/memory claims without controlled
+  measurements.
+- Acceptance: the canonical operation trait routes CPU work through Leto and
+  WGPU/CUDA/ROCm/Metal work through their accelerator provider; RoPE forward
+  and gradient values match the CPU oracle; unsupported provider contracts
+  return typed errors; residue scans find no host transfer or CPU-storage bound
+  in the migrated closure; warning-denied Clippy, focused Nextest, doctests,
+  semver classification, independent architecture review, and exact-head
+  provider CI pass.
+- Status: in-progress; provider capability audit and ADR drafting active.
+
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Provider-owned random initialization [major] [arch]
 
 - Owner: Codex; last-update: 2026-08-02;
