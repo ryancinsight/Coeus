@@ -73,6 +73,7 @@ fn test_wgpu_assign_compacts_shared_rank_five_view() {
 
     let mut expected = base.slice(&ranges);
     coeus_ops::add_assign(&mut expected, &rhs, &s).expect("valid CPU rank-five assignment");
+    let expected = expected.to_vec_on(&s);
 
     let mut actual = to_gpu(&base).slice(&ranges);
     let shared = actual.clone();
@@ -83,11 +84,7 @@ fn test_wgpu_assign_compacts_shared_rank_five_view() {
     assert!(actual.is_contiguous(), "replacement output must be compact");
     assert_eq!(actual.layout().offset(), 0);
     let actual = to_cpu(&actual);
-    assert_parity(
-        "shared_rank_five_assign",
-        expected.as_slice(),
-        actual.as_slice(),
-    );
+    assert_parity("shared_rank_five_assign", &expected, actual.as_slice());
     let shared_after = to_cpu(&shared);
     assert_parity(
         "shared_rank_five_source",

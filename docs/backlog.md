@@ -119,7 +119,10 @@
   read/write assignment binding. The unsafe assumption is removed, CPU
   allocation identity is covered, and accelerator assignment now compacts
   shared strided inputs into fully initialized replacement storage without an
-  eager COW copy. Exact-head provider CI rerun is pending.
+  eager COW copy. Exact-head run `30863204695` passed CUDA, ROCm, and Metal;
+  WGPU reached the required-device regression and exposed a non-contiguous CPU
+  oracle read in the test itself. The oracle now materializes logical values
+  through the backend-aware view path; exact-head provider CI rerun is pending.
 
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Provider-owned random initialization [major] [arch]
 
