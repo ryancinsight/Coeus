@@ -21,7 +21,7 @@
 - Risk/change class: `[major] [arch]`; the new provider capability is additive,
   while the Rust loss function now returns `Result` and therefore requires
   caller migration under ADR-0052.
-- Status: in-progress; Leto `912b9918` and Hephaestus `1e1f12cc` own the merged
+- Status: complete; Leto `912b9918` and Hephaestus `1e1f12cc` own the merged
   provider operations. Coeus CPU, physical WGPU, physical CUDA, typed Python
   failure, all-targets check, warning-denied Clippy, residue-scan, and
   failure-atomic candidate-buffer and final independent-review gates pass.
@@ -29,7 +29,9 @@
   `coeus-ops` negative doctest executable is externally blocked by Windows
   Defender OS error 225. SemVer comparison is externally blocked
   because the baseline requires Eunomia `^0.7` after its source advanced to
-  `0.8`; exact-head hosted WGPU/CUDA/ROCm/Metal and integration gates remain.
+  `0.8`. Exact-head run `30956117301` passes WGPU `92149439454`, CUDA
+  `92149439430`, ROCm `92149439429`, and Metal `92149439434`; PR #290 merged as
+  `a756b3f4`.
 
 ## COEUS-ASSIGNMENT-ALIASING-001 — Remove invalid assignment aliases [minor] [arch]
 

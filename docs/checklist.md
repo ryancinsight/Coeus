@@ -17,9 +17,11 @@
       residue-scan, failure-atomic candidate-buffer, and final independent-review
       gates. Autograd/NN/backend doctests pass; one `coeus-ops` negative doctest
       executable is blocked by Windows Defender OS error 225.
-- [ ] Pass exact-head hosted WGPU/CUDA/ROCm/Metal gates and merge; SemVer comparison is
-      blocked by the baseline Eunomia `^0.7` requirement after the provider
-      source advanced to `0.8`.
+- [x] Pass exact-head hosted run `30956117301`: WGPU `92149439454`, CUDA
+      `92149439430`, ROCm `92149439429`, and Metal `92149439434`.
+- [x] Merge PR #290 as `a756b3f4`. SemVer comparison remains externally blocked
+      by the baseline Eunomia `^0.7` requirement after the provider source
+      advanced to `0.8`.
 
 ## COEUS-ASSIGNMENT-ALIASING-001 — Codex
 

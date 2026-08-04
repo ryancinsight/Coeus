@@ -12,14 +12,16 @@ uploads them. Leto and Hephaestus expose no cross-entropy role.
 Hephaestus, keep saved probabilities provider-resident, dispatch by backend type,
 propagate typed validation/provider errors, and delete all host formulas and
 transfers from the Coeus closure.
-**Status**: provider ownership and the Coeus cutover are implemented under
+**Status**: complete under
 ADR-0052. CPU, physical WGPU, physical CUDA, Python typed-failure,
 warning-denied Clippy, residue-scan, failure-atomic candidate-buffer, and final
 independent-review gates pass.
 Autograd/NN/backend doctests pass; one `coeus-ops` negative doctest executable
-is blocked by Windows Defender OS error 225. SemVer comparison is blocked before API analysis because baseline Coeus
-requires Eunomia `^0.7` while the source now exposes `0.8`; exact-head hosted
-WGPU/CUDA/ROCm/Metal and integration gates remain.
+is blocked by Windows Defender OS error 225. SemVer comparison is blocked before
+API analysis because baseline Coeus requires Eunomia `^0.7` while the source now
+exposes `0.8`. Exact-head run `30956117301` passes WGPU `92149439454`, CUDA
+`92149439430`, ROCm `92149439429`, and Metal `92149439434`; PR #290 merged as
+`a756b3f4`.
 
 ## COEUS-ASSIGNMENT-ALIASING-001: Invalid mutable-buffer aliases
 
