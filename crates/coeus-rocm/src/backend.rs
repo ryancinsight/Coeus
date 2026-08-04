@@ -1,6 +1,7 @@
 //! Rocm backend implementations partitioned by provider, operation family,
 //! and runtime boundary.
 
+mod cross_entropy;
 mod elementwise;
 mod provider;
 mod random_init;

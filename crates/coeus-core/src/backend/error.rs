@@ -40,6 +40,34 @@ pub enum BackendError {
         /// Right-hand shape.
         rhs: Vec<usize>,
     },
+    /// An operation requires a non-empty named dimension.
+    #[error("{operation} requires a non-empty {dimension} dimension")]
+    EmptyDimension {
+        /// Operation family that rejected the dimension.
+        operation: &'static str,
+        /// Semantic dimension that must be non-empty.
+        dimension: &'static str,
+    },
+    /// An index does not identify an element within its semantic bound.
+    #[error("{operation} index {index} at position {position} is outside 0..{bound}")]
+    IndexOutOfRange {
+        /// Operation family that rejected the index.
+        operation: &'static str,
+        /// Position containing the invalid index.
+        position: usize,
+        /// Invalid index value.
+        index: usize,
+        /// Exclusive upper bound.
+        bound: usize,
+    },
+    /// Numeric input violates an operation's finite-value contract.
+    #[error("{operation} invalid numeric input: {reason}")]
+    InvalidNumericInput {
+        /// Operation family that rejected the value.
+        operation: &'static str,
+        /// Provider-preserved numeric failure detail.
+        reason: String,
+    },
     /// The operation received an axis outside the layout rank.
     #[error("{operation} axis {axis} is out of bounds for rank {rank}")]
     AxisOutOfRange {

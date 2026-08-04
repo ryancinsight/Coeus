@@ -1,7 +1,7 @@
 // ── Loss functions ──
 
 use coeus_autograd::Var;
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, Storage};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
 use coeus_tensor::Tensor;
 
 /// Mean Squared Error loss.
@@ -23,79 +23,84 @@ pub fn mse_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Logits shape: `[N, C]` where N is batch size, C is number of classes.
 /// Targets: slice of N target indices in `[0, C)`.
 /// Returns a scalar Var (shape `[1]`).
-pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+///
+/// # Errors
+///
+/// Returns a typed validation error for an invalid rank, target count, empty
+/// class axis, or out-of-range target. Provider preparation and dispatch
+/// failures propagate without registering a partial autograd node.
+pub fn cross_entropy_loss<T, B>(
     logits: &Var<T, B>,
     targets: &[usize],
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error>
+where
+    T: Float,
+    B: coeus_ops::BackendOps<T> + coeus_ops::CrossEntropyOps<T> + Default,
+{
     let shape = logits.tensor.shape();
-    assert_eq!(
-        shape.len(),
-        2,
-        "logits must be 2D matrix [batch_size, num_classes]"
-    );
+    if shape.len() != 2 {
+        return Err(coeus_core::BackendError::UnsupportedRank {
+            operation: "cross_entropy_forward",
+            rank: shape.len(),
+            max_rank: 2,
+        }
+        .into());
+    }
     let n = shape[0];
     let c = shape[1];
-    assert_eq!(targets.len(), n, "targets length must match batch size");
-    let backend = B::default();
-
-    // Ensure logits are contiguous before copying to host
-    let temp_logits;
-    let logits_cont = if logits.tensor.is_contiguous() && logits.tensor.layout().offset() == 0 {
-        &logits.tensor
-    } else {
-        temp_logits = logits.tensor.to_contiguous_on(&backend);
-        &temp_logits
-    };
-
-    let host_data = if let Some(slice) = logits_cont.storage().try_as_slice() {
-        std::borrow::Cow::Borrowed(&slice[..logits_cont.numel()])
-    } else {
-        let mut l_data = vec![T::zero(); logits_cont.numel()];
-        backend.copy_to_host(logits_cont.storage(), &mut l_data);
-        std::borrow::Cow::Owned(l_data)
-    };
-
-    // Compute log-sum-exp in T precision — no widening to f64
-    let mut loss_val = T::zero();
-    let mut probs = vec![T::zero(); n * c];
-
-    for i in 0..n {
-        let offset = i * c;
-        // Find max for numerical stability (log-sum-exp subtraction trick)
-        let mut max_val = host_data[offset];
-        for j in 1..c {
-            let val = host_data[offset + j];
-            if val > max_val {
-                max_val = val;
-            }
+    if n == 0 {
+        return Err(coeus_core::BackendError::EmptyDimension {
+            operation: "cross_entropy_forward",
+            dimension: "batch",
         }
-
-        // Sum exp(x - max) in T precision
-        let mut sum_exp = T::zero();
-        for j in 0..c {
-            let diff = host_data[offset + j] - max_val;
-            let val_exp = diff.exp_op();
-            probs[offset + j] = val_exp;
-            sum_exp += val_exp;
-        }
-
-        // Compute sample loss: log(sum(exp(x_j))) - x_y, in T precision
-        let log_sum_exp = sum_exp.log_op() + max_val;
-        let target_idx = targets[i];
-        assert!(target_idx < c, "target index out of bounds");
-        let target_logit = host_data[offset + target_idx];
-        loss_val += log_sum_exp - target_logit;
-
-        // Compute softmax probabilities for backward pass
-        for j in 0..c {
-            probs[offset + j] = probs[offset + j] / sum_exp;
-        }
+        .into());
     }
+    if c == 0 {
+        return Err(coeus_core::BackendError::EmptyDimension {
+            operation: "cross_entropy_forward",
+            dimension: "class",
+        }
+        .into());
+    }
+    if targets.len() != n {
+        return Err(coeus_core::BackendError::ShapeMismatch {
+            operation: "cross_entropy_forward",
+            lhs: vec![targets.len()],
+            rhs: vec![n],
+        }
+        .into());
+    }
+    if let Some((position, &index)) = targets.iter().enumerate().find(|(_, index)| **index >= c) {
+        return Err(coeus_core::BackendError::IndexOutOfRange {
+            operation: "cross_entropy_target",
+            position,
+            index,
+            bound: c,
+        }
+        .into());
+    }
+    let backend = B::default();
+    let saved_targets = backend.prepare_cross_entropy_targets(targets)?;
+    let mut output = Tensor::alloc_on([1], &backend);
+    let mut probabilities = Tensor::alloc_on([n, c], &backend);
+    let (output_storage, output_layout) = output.storage_mut_and_layout();
+    let (probability_storage, probability_layout) = probabilities.storage_mut_and_layout();
+    backend.cross_entropy_forward(
+        logits.tensor.storage(),
+        logits.tensor.layout(),
+        &saved_targets,
+        output_storage,
+        output_layout,
+        probability_storage,
+        probability_layout,
+    )?;
 
-    loss_val = loss_val / T::from_f64(n as f64);
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
-
-    coeus_autograd::cross_entropy_loss(logits, targets.to_vec(), out_tensor, probs, n, c)
+    Ok(coeus_autograd::cross_entropy_loss(
+        logits,
+        saved_targets,
+        output,
+        probabilities,
+    ))
 }
 
 /// Binary Cross-Entropy Loss.

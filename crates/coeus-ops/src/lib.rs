@@ -20,9 +20,9 @@ pub mod backend_ops;
 pub(crate) mod ptr;
 pub use backend_ops::{
     AttentionOps, AttentionScalar, BackendOps, BinaryOp, ConvOps, ConvolutionBackward,
-    ConvolutionForward, CpuBackend, ElementwiseOps, MatmulOps, OptimizerOps, OptimizerStateRef,
-    OptimizerStepRule, OptimizerStepValidation, PoolOps, RandomInitOps, ReductionOp, ReductionOps,
-    RotateHalfOps, UnaryOp, UnfoldFoldOps,
+    ConvolutionForward, CpuBackend, CrossEntropyOps, ElementwiseOps, MatmulOps, OptimizerOps,
+    OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation, PoolOps, RandomInitOps,
+    ReductionOp, ReductionOps, RotateHalfOps, UnaryOp, UnfoldFoldOps,
 };
 /// Element-wise binary operations (add, sub, mul, div).
 pub mod binary;

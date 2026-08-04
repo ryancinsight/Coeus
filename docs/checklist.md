@@ -1,5 +1,26 @@
 # Global Progress Checklist: Coeus
 
+## COEUS-CROSS-ENTROPY-PROVIDER-001 — Codex
+
+- [x] Verify the Coeus host-staging closure and absence of Leto/Hephaestus loss
+      capabilities.
+- [x] Record and index ADR-0052 with dependency-ordered provider ownership.
+- [x] Add shared generic cross-entropy contracts and CPU implementation to Leto.
+- [x] Add one generic accelerator contract plus WGPU/CUDA/ROCm/Metal providers
+      to Hephaestus.
+- [x] Replace Coeus host computation and saved `Vec<T>` state with direct
+      provider dispatch and provider-resident tensors.
+- [x] Migrate callers to backend-independent typed failures, preserve the
+      categories through CPU/accelerator/Python wrappers, and delete
+      superseded host paths.
+- [x] Pass local CPU, physical WGPU, physical CUDA, warning-denied Clippy,
+      residue-scan, failure-atomic candidate-buffer, and final independent-review
+      gates. Autograd/NN/backend doctests pass; one `coeus-ops` negative doctest
+      executable is blocked by Windows Defender OS error 225.
+- [ ] Pass exact-head hosted WGPU/CUDA/ROCm/Metal gates and merge; SemVer comparison is
+      blocked by the baseline Eunomia `^0.7` requirement after the provider
+      source advanced to `0.8`.
+
 ## COEUS-ASSIGNMENT-ALIASING-001 — Codex
 
 - [x] Delete the four raw immutable-reference casts from active mutable device
@@ -14,7 +35,7 @@
 - [x] Pass independent architecture review after adding failure-atomic and all
       provider partial-update contracts.
 - [x] Pass exact-head WGPU, CUDA, ROCm, and Metal CI in run `30875294728`.
-- [ ] Merge PR #288 and record the integrated revision.
+- [x] Merge PR #288 as `2a96cd1c` and record the integrated revision.
 
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Codex
 

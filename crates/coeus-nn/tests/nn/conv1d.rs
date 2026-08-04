@@ -158,7 +158,8 @@ fn test_non_contiguous_cross_entropy() {
     let logits = Var::new(logits_t, true);
     let targets = vec![1, 2];
 
-    let loss_ce = cross_entropy_loss(&logits, &targets);
+    let loss_ce = cross_entropy_loss(&logits, &targets)
+        .expect("invariant: test inputs have valid cross-entropy shapes and targets");
     assert_eq!(loss_ce.tensor.shape(), &[1]);
 
     let logits_cont = Var::new(
@@ -168,7 +169,8 @@ fn test_non_contiguous_cross_entropy() {
         ),
         true,
     );
-    let loss_ce_cont = cross_entropy_loss(&logits_cont, &targets);
+    let loss_ce_cont = cross_entropy_loss(&logits_cont, &targets)
+        .expect("invariant: contiguous test inputs have valid cross-entropy shapes and targets");
     assert!((loss_ce.tensor.as_slice()[0] - loss_ce_cont.tensor.as_slice()[0]).abs() < 1e-7);
 
     loss_ce
@@ -194,7 +196,8 @@ fn test_sliced_offset_cross_entropy() {
     let logits = Var::new(logits_sliced, true);
     let targets = vec![1, 2];
 
-    let loss_ce = cross_entropy_loss(&logits, &targets);
+    let loss_ce = cross_entropy_loss(&logits, &targets)
+        .expect("invariant: test inputs have valid cross-entropy shapes and targets");
     assert_eq!(loss_ce.tensor.shape(), &[1]);
 
     let logits_cont = Var::new(
@@ -204,7 +207,8 @@ fn test_sliced_offset_cross_entropy() {
         ),
         true,
     );
-    let loss_ce_cont = cross_entropy_loss(&logits_cont, &targets);
+    let loss_ce_cont = cross_entropy_loss(&logits_cont, &targets)
+        .expect("invariant: contiguous test inputs have valid cross-entropy shapes and targets");
     assert!((loss_ce.tensor.as_slice()[0] - loss_ce_cont.tensor.as_slice()[0]).abs() < 1e-7);
 
     loss_ce

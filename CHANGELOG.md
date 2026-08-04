@@ -4,6 +4,18 @@
 
 ### Changed
 
+- [major] Route mean cross-entropy forward and additive backward through the
+  selected provider. Sequential and Moirai borrow storage through Leto; WGPU,
+  CUDA, ROCm, and Metal retain targets and probabilities on-device and execute
+  one Hephaestus contract. Remove Coeus host softmax, loss, gradient staging,
+  and saved `Vec` state. `coeus_nn::cross_entropy_loss` now returns `Result`;
+  Rust callers must handle provider and validation failures. The public
+  `coeus_autograd::cross_entropy_loss` assembly function now accepts
+  backend-native targets plus provider-resident output and probability tensors
+  instead of host vectors and explicit dimensions. Python maps failures to
+  exceptions. See
+  [ADR 0052](docs/adr/0052-provider-owned-cross-entropy-dispatch.md).
+
 - [major] Route rotary half-vector permutation through the selected backend.
   Sequential and Moirai execute destination-writing Leto maps; WGPU, CUDA,
   ROCm, and Metal execute one generic Hephaestus bridge over provider-owned

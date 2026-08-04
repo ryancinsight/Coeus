@@ -1,9 +1,10 @@
 use coeus_hephaestus::{
-    AttentionProvider, ConvolutionProvider, HephaestusProvider, ParameterizedElementwiseProvider,
-    StatefulUpdateProvider,
+    AttentionProvider, ConvolutionProvider, CrossEntropyProvider, HephaestusProvider,
+    ParameterizedElementwiseProvider, StatefulUpdateProvider,
 };
 use hephaestus_metal::{
-    MetalAttentionOps, MetalConvolutionOps, MetalDevice, MetalParameterizedUnaryOps,
+    MetalAttentionOps, MetalConvolutionOps, MetalCrossEntropyOps, MetalDevice,
+    MetalParameterizedUnaryOps,
 };
 use std::sync::OnceLock;
 
@@ -45,6 +46,10 @@ impl ConvolutionProvider<f32> for MetalProvider {
 
 impl AttentionProvider<f32> for MetalProvider {
     type Operations = MetalAttentionOps;
+}
+
+impl CrossEntropyProvider for MetalProvider {
+    type Operations = MetalCrossEntropyOps;
 }
 
 impl ParameterizedElementwiseProvider for MetalProvider {

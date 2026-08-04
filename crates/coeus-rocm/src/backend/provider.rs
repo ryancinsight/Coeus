@@ -1,7 +1,8 @@
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use coeus_hephaestus::{AttentionProvider, ConvolutionProvider};
 use coeus_hephaestus::{
-    HephaestusProvider, ParameterizedElementwiseProvider, StatefulUpdateProvider,
+    CrossEntropyProvider, HephaestusProvider, ParameterizedElementwiseProvider,
+    StatefulUpdateProvider,
 };
 use hephaestus_rocm::RocmDevice;
 #[cfg(all(feature = "rocm", target_os = "linux"))]
@@ -48,6 +49,10 @@ impl ConvolutionProvider<f32> for RocmProvider {
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 impl AttentionProvider<f32> for RocmProvider {
     type Operations = RocmAttentionOps;
+}
+
+impl CrossEntropyProvider for RocmProvider {
+    type Operations = hephaestus_rocm::RocmCrossEntropyOps;
 }
 
 impl ParameterizedElementwiseProvider for RocmProvider {

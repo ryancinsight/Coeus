@@ -1,5 +1,6 @@
 mod attention;
 mod conv;
+mod cross_entropy;
 mod matmul;
 mod optimizer;
 mod pool;

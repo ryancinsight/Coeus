@@ -378,9 +378,13 @@ pub fn f_binary_cross_entropy(
 }
 
 #[pyfunction]
-pub fn f_cross_entropy(input: &PyTensor, targets: Vec<usize>, py: Python<'_>) -> PyTensor {
+pub fn f_cross_entropy(
+    input: &PyTensor,
+    targets: Vec<usize>,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_nn::cross_entropy_loss(&input.inner, &targets));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Functional (stateless) scaled dot-product attention.
