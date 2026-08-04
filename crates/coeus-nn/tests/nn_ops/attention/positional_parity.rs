@@ -68,7 +68,7 @@ where
     );
 }
 
-fn check_rope<B: BackendOps<f64> + Default>(backend: &B)
+fn check_rope<B: BackendOps<f64> + coeus_ops::RotateHalfOps<f64> + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
@@ -100,7 +100,7 @@ where
     );
 }
 
-fn check_all<B: BackendOps<f64> + Default>(backend: &B)
+fn check_all<B: BackendOps<f64> + coeus_ops::RotateHalfOps<f64> + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {

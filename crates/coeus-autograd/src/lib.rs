@@ -171,6 +171,7 @@ pub use ops::{
     reshape,
     rmsnorm,
     roll,
+    rotate_half,
     round,
     scalar_add,
     scalar_div,

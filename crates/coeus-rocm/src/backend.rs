@@ -5,6 +5,8 @@ mod elementwise;
 mod provider;
 mod random_init;
 mod reduction;
+#[cfg(all(feature = "rocm", target_os = "linux"))]
+mod rotate_half;
 mod runtime;
 mod stateful_update;
 

@@ -223,6 +223,42 @@ impl Layout {
         }
     }
 
+    /// Split one logical axis into two zero-copy layouts.
+    ///
+    /// Returns `None` when `axis` or `index` is out of bounds, or when the
+    /// second layout's physical offset cannot be represented by `usize`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use coeus_core::Layout;
+    ///
+    /// let layout = Layout::new([2, 4].into());
+    /// let (first, second) = layout.split_axis(1, 2).expect("valid split");
+    /// assert_eq!(first.shape(), &[2, 2]);
+    /// assert_eq!(second.shape(), &[2, 2]);
+    /// assert_eq!(first.offset(), 0);
+    /// assert_eq!(second.offset(), 2);
+    /// ```
+    #[inline]
+    pub fn split_axis(&self, axis: usize, index: usize) -> Option<(Self, Self)> {
+        let &extent = self.shape.get(axis)?;
+        if index > extent {
+            return None;
+        }
+        let second_offset = index
+            .checked_mul(*self.strides.get(axis)?)?
+            .checked_add(self.offset)?;
+        let mut first_shape = self.shape.clone();
+        first_shape[axis] = index;
+        let mut second_shape = self.shape.clone();
+        second_shape[axis] = extent - index;
+        Some((
+            Self::from_shape_strides(first_shape, self.strides.clone(), self.offset),
+            Self::from_shape_strides(second_shape, self.strides.clone(), second_offset),
+        ))
+    }
+
     /// Create a zero-copy unsqueezed layout by inserting a dimension of size 1 at `axis`.
     ///
     /// # Panics
@@ -472,5 +508,22 @@ mod tests {
         let l_squeezed = l_multi.squeeze_all();
         assert_eq!(l_squeezed.shape(), &[2, 3]);
         assert_eq!(l_squeezed.strides(), &[3, 1]);
+    }
+
+    #[test]
+    fn split_axis_preserves_strides_and_checked_offsets() {
+        let layout = Layout::from_shape_strides([2, 4].into(), smallvec::smallvec![9, 2], 3);
+        let (first, second) = layout.split_axis(1, 2).expect("valid split");
+        assert_eq!(first.shape(), &[2, 2]);
+        assert_eq!(second.shape(), &[2, 2]);
+        assert_eq!(first.strides(), &[9, 2]);
+        assert_eq!(second.strides(), &[9, 2]);
+        assert_eq!(first.offset(), 3);
+        assert_eq!(second.offset(), 7);
+        assert!(layout.split_axis(2, 0).is_none());
+        assert!(layout.split_axis(1, 5).is_none());
+
+        let overflow = Layout::from_shape_strides([2].into(), smallvec::smallvec![usize::MAX], 1);
+        assert!(overflow.split_axis(0, 1).is_none());
     }
 }

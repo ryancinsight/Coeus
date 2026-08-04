@@ -5,6 +5,7 @@ mod elementwise;
 mod provider;
 mod random_init;
 mod reduction;
+mod rotate_half;
 mod runtime;
 mod stateful_update;
 

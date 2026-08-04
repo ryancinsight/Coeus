@@ -882,10 +882,12 @@ fallback; construction uploads each precomputed table once. Criterion
 dispositions are now 8 present, 12 partial, and 1 inapplicable. Focused
 positional/manifest contracts pass 4/4 and both new rows pass Criterion
 single-iteration test mode. These are instrument and structural-memory
-results, not runtime or memory-performance claims. RoPE remains CPU-addressable
-because its rotation depends on `split`/`cat`; accelerator support requires
-a provider-owned permutation/concatenation contract rather than a host
-fallback.
+results, not runtime or memory-performance claims. The follow-up provider
+migration now routes half-vector rotation through destination-writing Leto maps
+on CPU and a generic Hephaestus bridge on WGPU, CUDA, ROCm, and Metal. The
+tracked RoPE closure no longer depends on CPU-addressable `split`/`cat` or a
+host fallback; see
+[ADR 0051](adr/0051-provider-owned-rotate-half-dispatch.md).
 **2026-08-02 Python sequential update**: the existing Python `Sequential`
 surface now has deterministic PyTorch differential coverage for composed
 forward values, input and every child-parameter gradient, parameter ordering,

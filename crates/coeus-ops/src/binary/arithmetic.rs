@@ -131,22 +131,8 @@ macro_rules! binary_assign_op {
                     }));
                 }
             }
-            let (a_dest, a_layout) = a.storage_mut_and_layout();
-            // SAFETY: We cast the mutable reference `a_dest` to an immutable reference `a_src`
-            // to pass as the source buffer. This is safe because:
-            // 1. `a_dest` has been made unique (Arc count is 1) via `storage_mut()`.
-            // 2. The backend supports in-place / overlapping reads and writes to the same device buffer.
-            // 3. We avoid cloning the device buffer (Arc clone), preventing copy-on-write reallocation.
-            let a_src: &B::DeviceBuffer<T> = unsafe { &*(a_dest as *const B::DeviceBuffer<T>) };
-            backend.elementwise_binary(
-                $op,
-                a_src,
-                a_layout,
-                b.storage(),
-                b.layout(),
-                a_dest,
-                a_layout,
-            )?;
+            let (a_dest, a_layout) = a.storage_and_layout_mut();
+            backend.elementwise_binary_assign($op, a_dest, a_layout, b.storage(), b.layout())?;
             Ok(())
         }
     };
@@ -178,5 +164,18 @@ mod tests {
 
         let result = std::panic::catch_unwind(|| add(&lhs, &rhs, &backend));
         assert!(result.is_err(), "incompatible shapes must panic");
+    }
+
+    #[test]
+    fn cpu_assign_broadcasts_without_replacing_storage() {
+        let backend = SequentialBackend::new();
+        let mut lhs = Tensor::from_slice([2, 2], &[1.0_f32, 2.0, 3.0, 4.0]);
+        let rhs = Tensor::from_slice([1, 2], &[10.0_f32, 20.0]);
+        let allocation = lhs.as_slice().as_ptr();
+
+        add_assign(&mut lhs, &rhs, &backend).expect("valid row broadcast");
+
+        assert_eq!(lhs.as_slice(), &[11.0, 22.0, 13.0, 24.0]);
+        assert_eq!(lhs.as_slice().as_ptr(), allocation);
     }
 }

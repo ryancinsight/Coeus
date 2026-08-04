@@ -91,6 +91,39 @@
   `30842860058` passed WGPU, CUDA, ROCm, and Metal at `129ac00a`.
 - Status: complete; PR #283 merged as `8ed81ebb`.
 
+## COEUS-ROPE-PROVIDER-001 — Provider-owned structural dispatch [major] [arch]
+
+- Owner: Codex on `codex/coeus-rope-provider`; last-update: 2026-08-03;
+  scope: the structural-operation seam required by rotary embedding, CPU Leto
+  and accelerator Hephaestus dispatch, tracked split/concatenation callers,
+  ADR-0051, focused provider contracts, and exact-head backend CI.
+- Outcome: rotary embedding and its tracked structural primitives execute on
+  the selected backend without CPU-addressable bounds, host staging, or a
+  consumer-owned fallback.
+- Non-goals: unrelated shape-operation migration, release/version transitions,
+  compatibility adapters, or runtime/memory claims without controlled
+  measurements.
+- Acceptance: the canonical operation trait routes CPU work through Leto and
+  WGPU/CUDA/ROCm/Metal work through their accelerator provider; RoPE forward
+  and gradient values match the CPU oracle; unsupported provider contracts
+  return typed errors; residue scans find no host transfer or CPU-storage bound
+  in the migrated closure; warning-denied Clippy, focused Nextest, doctests,
+  semver classification, independent architecture review, and exact-head
+  provider CI pass.
+- Status: review; CPU layout and adjoint contracts pass under Nextest, local
+  CUDA forward-plus-gradient dispatch passes on the installed device, and
+  warning-denied Clippy plus host-compatible semver checks pass. Windows
+  Defender error 225 blocked two pre-existing core and two Leto doctest
+  executables after the remaining doctests passed. Exact-head run `30858644563`
+  passed CUDA, ROCm, and Metal; WGPU exposed an invalid overlapping
+  read/write assignment binding. The unsafe assumption is removed, CPU
+  allocation identity is covered, and accelerator assignment now compacts
+  shared strided inputs into fully initialized replacement storage without an
+  eager COW copy. Exact-head run `30863204695` passed CUDA, ROCm, and Metal;
+  WGPU reached the required-device regression and exposed a non-contiguous CPU
+  oracle read in the test itself. The oracle now materializes logical values
+  through the backend-aware view path; exact-head provider CI rerun is pending.
+
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Provider-owned random initialization [major] [arch]
 
 - Owner: Codex; last-update: 2026-08-02;

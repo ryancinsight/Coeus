@@ -63,6 +63,37 @@ fn test_wgpu_parity_div() {
 }
 
 #[test]
+fn test_wgpu_assign_compacts_shared_rank_five_view() {
+    let s = seq();
+    let w = wgpu();
+    let values: Vec<f32> = (0..64).map(|value| value as f32).collect();
+    let base = Tensor::from_slice([2, 2, 2, 2, 4], &values);
+    let rhs = Tensor::from_slice([1, 1, 1, 1, 2], &[10.0, 20.0]);
+    let ranges = [(0, 2), (0, 2), (0, 2), (0, 2), (1, 3)];
+
+    let mut expected = base.slice(&ranges);
+    coeus_ops::add_assign(&mut expected, &rhs, &s).expect("valid CPU rank-five assignment");
+    let expected = expected.to_vec_on(&s);
+
+    let mut actual = to_gpu(&base).slice(&ranges);
+    let shared = actual.clone();
+    let shared_before = to_cpu(&shared);
+    let rhs_gpu = to_gpu(&rhs);
+    coeus_ops::add_assign(&mut actual, &rhs_gpu, &w).expect("valid WGPU rank-five assignment");
+
+    assert!(actual.is_contiguous(), "replacement output must be compact");
+    assert_eq!(actual.layout().offset(), 0);
+    let actual = to_cpu(&actual);
+    assert_parity("shared_rank_five_assign", &expected, actual.as_slice());
+    let shared_after = to_cpu(&shared);
+    assert_parity(
+        "shared_rank_five_source",
+        shared_before.as_slice(),
+        shared_after.as_slice(),
+    );
+}
+
+#[test]
 fn test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer() {
     let s = seq();
     let w = wgpu();
