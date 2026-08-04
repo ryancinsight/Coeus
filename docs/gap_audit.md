@@ -1,5 +1,27 @@
 # Coeus Gap Audit
 
+## COEUS-ASSIGNMENT-ALIASING-001: Invalid mutable-buffer aliases
+
+**Location**: generic unary assignment and cat, split, and slice gradient
+accumulation in `coeus-ops` and `coeus-autograd`.
+**Gap**: four operation paths fabricated immutable device-buffer references from
+active mutable references. Backend behavior could not make those Rust aliases
+valid, and WGPU additionally prohibits one buffer from occupying conflicting
+read and write usages.
+**Resolution**: route whole-tensor unary replacement through the selected
+provider into a distinct compact allocation. Route partial accumulation through
+a dedicated update contract: CPU mutates through Leto; accelerators snapshot the
+source handle, detach a candidate through device-local COW, then dispatch
+through Hephaestus and install only on success while preserving untouched parent
+elements.
+**Residual**: local WGPU execution has no compatible adapter; hosted parity CI
+is the runtime oracle. Miri passes the focused CPU COW contract but reports
+pre-existing permissive-provenance warnings in Mnemosyne's allocator. No
+runtime, memory, or binary-size delta is claimed without controlled
+measurements.
+**Status**: implementation, focused local verification, and independent review
+complete; exact-head CI pending under ADR-0051.
+
 ## COEUS-STATEFUL-UPDATE-PROVIDER-001: Consumer-owned optimizer dispatch
 
 **Location**: `coeus-ops`, `coeus-wgpu`, `coeus-cuda`, `coeus-rocm`, and

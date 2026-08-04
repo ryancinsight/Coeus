@@ -1,6 +1,6 @@
 # Coeus Project Backlog & Historical Archives
 
-## COEUS-ASSIGNMENT-ALIASING-001 — Remove invalid assignment aliases [patch] [arch]
+## COEUS-ASSIGNMENT-ALIASING-001 — Remove invalid assignment aliases [minor] [arch]
 
 - Owner: Codex on `codex/coeus-sinusoidal-provider`; last-update: 2026-08-03;
   scope: generic unary assignment plus cat, split, and slice gradient
@@ -17,9 +17,11 @@
   provider contracts return typed errors; warning-denied focused checks,
   Nextest, Miri or the applicable substitute, doctests, independent review, and
   exact-head WGPU/CUDA/ROCm/Metal CI pass.
-- Risk/change class: `[patch] [arch]`; public signatures remain unchanged, while
+- Risk/change class: `[minor] [arch]`; existing signatures remain unchanged and
+  the public backend capability gains defaulted assignment methods, while
   provider ownership and internal reference validity extend ADR-0051.
-- Status: in-progress.
+- Status: in-progress; focused CPU and physical CUDA contracts pass, and the
+  corrected candidate passes independent review. Exact-head provider CI remains.
 
 ## COEUS-SINUSOIDAL-PROVIDER-001 — Remove positional host fallback [patch]
 

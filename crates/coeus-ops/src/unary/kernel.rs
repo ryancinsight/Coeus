@@ -30,14 +30,8 @@ pub fn elementwise_unary_assign<T: Scalar, B: BackendOps<T>>(
     backend: &B,
     op: UnaryOp,
 ) -> Result<(), B::Error> {
-    let (c, layout) = input.storage_mut_and_layout();
-    // SAFETY: We cast the mutable reference `c` to an immutable reference `a`
-    // to pass as the source buffer. This is safe because:
-    // 1. `c` has been made unique (Arc count is 1) via `storage_mut()`.
-    // 2. The backend supports in-place / overlapping reads and writes to the same device buffer.
-    // 3. We avoid cloning the device buffer (Arc clone), preventing copy-on-write reallocation.
-    let a: &B::DeviceBuffer<T> = unsafe { &*(c as *const B::DeviceBuffer<T>) };
-    backend.elementwise_unary(op, a, layout, c, layout)
+    let (storage, layout) = input.storage_and_layout_mut();
+    backend.elementwise_unary_assign(op, storage, layout)
 }
 
 /// Apply element-wise unary operation to `input`, writing result to `out`.
@@ -50,4 +44,39 @@ pub fn elementwise_unary_to<T: Scalar, B: BackendOps<T>>(
 ) -> Result<(), B::Error> {
     let (out_storage, out_layout) = out.storage_mut_and_layout();
     backend.elementwise_unary(op, input.storage(), input.layout(), out_storage, out_layout)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::elementwise_unary_assign;
+    use crate::{ElementwiseOps, UnaryOp};
+    use coeus_core::{ComputeBackend, CpuAddressableStorage, Layout, SequentialBackend};
+    use coeus_tensor::Tensor;
+
+    #[test]
+    fn unary_assignment_detaches_shared_storage() {
+        let backend = SequentialBackend::new();
+        let original = Tensor::from_slice([4], &[-3.0_f32, -1.0, 0.0, 2.0]);
+        let mut assigned = original.clone();
+
+        elementwise_unary_assign(&mut assigned, &backend, UnaryOp::Neg).expect("neg assignment");
+
+        assert_eq!(assigned.as_slice(), &[3.0, 1.0, 0.0, -2.0]);
+        assert_eq!(original.as_slice(), &[-3.0, -1.0, 0.0, 2.0]);
+    }
+
+    #[test]
+    fn unary_assignment_preserves_input_on_provider_error() {
+        let backend = SequentialBackend::new();
+        let mut storage = backend.allocate::<f32>(2);
+        backend.copy_to_device(&[-3.0, 2.0], &mut storage);
+        let mut invalid_layout = Layout::new([3].into());
+
+        backend
+            .elementwise_unary_assign(UnaryOp::Neg, &mut storage, &mut invalid_layout)
+            .expect_err("layout exceeding storage must fail");
+
+        assert_eq!(storage.as_slice(), &[-3.0, 2.0]);
+        assert_eq!(invalid_layout.shape(), &[3]);
+    }
 }

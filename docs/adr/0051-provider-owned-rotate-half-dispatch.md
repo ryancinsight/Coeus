@@ -8,7 +8,8 @@
 - Board item: `COEUS-ROPE-PROVIDER-001`
 - Revision: 2026-08-03 — extend the provider-safe assignment decision to the
   remaining generic unary assignment and structural-gradient accumulation
-  sites after an audit found four raw-reference aliases.
+  sites after an audit found four raw-reference aliases. This additive backend
+  capability revision is `[minor] [arch]`.
 
 ## Context
 
@@ -57,12 +58,14 @@ detaching it, avoiding a redundant full-device COW copy and ensuring every slot
 in the installed allocation is initialized.
 
 Unary assignment follows the same whole-tensor replacement rule. CPU backends
-override it with one Leto mutable traversal; accelerator backends write a
-distinct compact result and replace the destination. Structural-gradient
+route the destination write through Leto; accelerator backends route it through
+Hephaestus. Both write a distinct compact result and replace the destination.
+Structural-gradient
 accumulation has a different contract because only a sublayout changes: the
-default snapshots the source handle, detaches the mutable destination through
-device-local COW, and dispatches into the selected sublayout, preserving every
-untouched parent element. CPU backends override this with direct Leto mutation.
+default snapshots the source handle, detaches a candidate through device-local
+COW, dispatches into the selected sublayout, and installs the candidate only on
+success, preserving every untouched parent element. CPU backends override this
+with direct Leto mutation.
 No implementation may create simultaneous shared and mutable Rust references
 to one device-buffer object.
 

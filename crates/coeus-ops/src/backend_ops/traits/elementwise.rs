@@ -5,7 +5,7 @@
 //! backends implement this trait directly and receive `BackendOps` via the
 //! blanket impl.
 
-use coeus_core::{ComputeBackend, Layout, Scalar};
+use coeus_core::{ComputeBackend, Layout, Scalar, StorageMut};
 
 use super::super::ops::{BinaryOp, UnaryOp};
 
@@ -50,6 +50,37 @@ pub trait ElementwiseOps<T: Scalar>: ComputeBackend {
         Ok(())
     }
 
+    /// Update one layout inside `destination` while preserving all elements
+    /// outside that layout.
+    ///
+    /// The default snapshots the original storage handle, detaches a candidate
+    /// through device-local COW, then dispatches between distinct allocations.
+    /// The candidate replaces the destination only after successful dispatch.
+    /// CPU backends override this with direct Leto mutation.
+    fn elementwise_binary_update(
+        &self,
+        op: BinaryOp,
+        destination: &mut Self::DeviceBuffer<T>,
+        destination_layout: &Layout,
+        rhs: &Self::DeviceBuffer<T>,
+        rhs_layout: &Layout,
+    ) -> Result<(), Self::Error> {
+        let source = destination.clone();
+        let mut candidate = source.clone();
+        candidate.make_unique();
+        self.elementwise_binary(
+            op,
+            &source,
+            destination_layout,
+            rhs,
+            rhs_layout,
+            &mut candidate,
+            destination_layout,
+        )?;
+        *destination = candidate;
+        Ok(())
+    }
+
     /// Element-wise unary operations.
     fn elementwise_unary(
         &self,
@@ -59,4 +90,23 @@ pub trait ElementwiseOps<T: Scalar>: ComputeBackend {
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) -> Result<(), Self::Error>;
+
+    /// Apply a unary operation to `input`, replacing it with the result.
+    ///
+    /// A distinct output avoids simultaneous shared and mutable references and
+    /// accelerator read/write binding conflicts. The compact output allocation
+    /// is fully initialized by [`Self::elementwise_unary`] before installation.
+    fn elementwise_unary_assign(
+        &self,
+        op: UnaryOp,
+        input: &mut Self::DeviceBuffer<T>,
+        input_layout: &mut Layout,
+    ) -> Result<(), Self::Error> {
+        let output_layout = Layout::new(input_layout.shape_cloned());
+        let mut output = self.allocate(output_layout.numel());
+        self.elementwise_unary(op, input, input_layout, &mut output, &output_layout)?;
+        *input = output;
+        *input_layout = output_layout;
+        Ok(())
+    }
 }

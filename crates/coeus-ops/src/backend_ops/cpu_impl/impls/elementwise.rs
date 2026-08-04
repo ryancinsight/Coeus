@@ -36,6 +36,25 @@ where
     }
 
     #[inline]
+    fn elementwise_binary_update(
+        &self,
+        op: BinaryOp,
+        destination: &mut Self::DeviceBuffer<T>,
+        destination_layout: &Layout,
+        rhs: &Self::DeviceBuffer<T>,
+        rhs_layout: &Layout,
+    ) -> Result<(), Self::Error> {
+        elementwise::elementwise_binary_assign(
+            self,
+            op,
+            destination,
+            destination_layout,
+            rhs,
+            rhs_layout,
+        )
+    }
+
+    #[inline]
     fn elementwise_unary(
         &self,
         op: UnaryOp,

@@ -14,7 +14,10 @@
   distinct compact output buffer where simultaneous read/write bindings are
   illegal. Accelerator replacement reads shared input storage directly instead
   of first performing a full-device COW copy. This removes the prior unsafe
-  overlapping-reference assumption. See
+  overlapping-reference assumption. Generic unary assignment and cat, split,
+  and slice gradient accumulation now use the same provider-safe contract:
+  whole-tensor assignment installs a compact provider result, while partial
+  updates detach through COW and preserve untouched parent regions. See
   [ADR 0051](docs/adr/0051-provider-owned-rotate-half-dispatch.md).
 
 - [patch] Add Sequential and Moirai Criterion coverage for rotary positional
