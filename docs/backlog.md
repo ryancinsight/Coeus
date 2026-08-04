@@ -1,6 +1,6 @@
 # Coeus Project Backlog & Historical Archives
 
-## COEUS-CROSS-ENTROPY-PROVIDER-001 — Remove loss host staging [minor] [arch]
+## COEUS-CROSS-ENTROPY-PROVIDER-001 — Remove loss host staging [major] [arch]
 
 - Owner: Codex on `codex/coeus-cross-entropy-provider`; last-update:
   2026-08-04; scope: provider-owned mean cross-entropy forward/backward in Leto
@@ -18,11 +18,15 @@
   analytical/PyTorch oracles for contiguous and strided inputs; saved
   probabilities remain provider-resident; CPU plus WGPU/CUDA/ROCm/Metal feature,
   Nextest, doctest, Clippy, SemVer, independent-review, and exact-head gates pass.
-- Risk/change class: `[minor] [arch]`; provider capability and fallible public
-  loss contracts are additive/breaking-classified by SemVer evidence under
-  ADR-0052.
-- Status: in-progress; upstream Leto and Hephaestus capabilities are absent and
-  are the first dependency-ordered increments.
+- Risk/change class: `[major] [arch]`; the new provider capability is additive,
+  while the Rust loss function now returns `Result` and therefore requires
+  caller migration under ADR-0052.
+- Status: in-progress; Leto `912b9918` and Hephaestus `1e1f12cc` own the merged
+  provider operations. Coeus CPU, physical WGPU, physical CUDA, typed Python
+  failure, all-targets check, warning-denied Clippy, doctest, residue-scan, and
+  independent-review gates pass. SemVer comparison is externally blocked
+  because the baseline requires Eunomia `^0.7` after its source advanced to
+  `0.8`; exact-head hosted ROCm/Metal and integration gates remain.
 
 ## COEUS-ASSIGNMENT-ALIASING-001 — Remove invalid assignment aliases [minor] [arch]
 

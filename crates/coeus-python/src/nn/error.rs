@@ -8,6 +8,9 @@ pub(crate) fn map_backend_error(error: BackendError) -> PyErr {
         BackendError::UnsupportedRank { .. }
         | BackendError::LayoutRankMismatch { .. }
         | BackendError::ShapeMismatch { .. }
+        | BackendError::EmptyDimension { .. }
+        | BackendError::IndexOutOfRange { .. }
+        | BackendError::InvalidNumericInput { .. }
         | BackendError::AxisOutOfRange { .. }
         | BackendError::IncompatibleBroadcast { .. }
         | BackendError::Storage { .. } => PyValueError::new_err(error.to_string()),
@@ -35,7 +38,7 @@ pub(crate) fn map_module_error(error: ModuleError<BackendError>) -> PyErr {
 
 #[cfg(test)]
 mod tests {
-    use super::map_module_error;
+    use super::{map_backend_error, map_module_error};
     use coeus_core::BackendError;
     use coeus_nn::ModuleError;
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
@@ -55,6 +58,22 @@ mod tests {
             assert!(error
                 .to_string()
                 .contains("LayerNorm expected input rank 2"));
+        });
+    }
+
+    #[test]
+    fn cross_entropy_target_failure_maps_to_value_error() {
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let error = map_backend_error(BackendError::IndexOutOfRange {
+                operation: "cross_entropy_target",
+                position: 1,
+                index: 3,
+                bound: 3,
+            });
+
+            assert!(error.is_instance_of::<PyValueError>(py));
+            assert!(error.to_string().contains("index 3 at position 1"));
         });
     }
 

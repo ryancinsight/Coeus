@@ -24,14 +24,19 @@ pub(crate) fn bench_cross_entropy_loss(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Coeus — CrossEntropyLoss (128x10)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(cross_entropy_loss(black_box(&x_seq), black_box(&targets))))
+        b.iter(|| {
+            black_box(
+                cross_entropy_loss(black_box(&x_seq), black_box(&targets))
+                    .expect("invariant: benchmark shapes and targets are valid"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
-            black_box(cross_entropy_loss(
-                black_box(&x_moirai),
-                black_box(&targets),
-            ))
+            black_box(
+                cross_entropy_loss(black_box(&x_moirai), black_box(&targets))
+                    .expect("invariant: benchmark shapes and targets are valid"),
+            )
         })
     });
     group.finish();

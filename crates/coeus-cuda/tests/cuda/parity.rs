@@ -10,6 +10,8 @@ pub(super) use coeus_tensor::Tensor;
 mod convolution;
 #[path = "parity/convolution_transpose.rs"]
 mod convolution_transpose;
+#[path = "parity/cross_entropy.rs"]
+mod cross_entropy;
 #[path = "parity/matmul.rs"]
 mod matmul;
 #[path = "parity/optimizer.rs"]

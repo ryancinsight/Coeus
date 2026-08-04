@@ -5,13 +5,19 @@
 - [x] Verify the Coeus host-staging closure and absence of Leto/Hephaestus loss
       capabilities.
 - [x] Record and index ADR-0052 with dependency-ordered provider ownership.
-- [ ] Add shared generic cross-entropy contracts and CPU implementation to Leto.
-- [ ] Add one generic accelerator contract plus WGPU/CUDA/ROCm/Metal providers
+- [x] Add shared generic cross-entropy contracts and CPU implementation to Leto.
+- [x] Add one generic accelerator contract plus WGPU/CUDA/ROCm/Metal providers
       to Hephaestus.
-- [ ] Replace Coeus host computation and saved `Vec<T>` state with direct
+- [x] Replace Coeus host computation and saved `Vec<T>` state with direct
       provider dispatch and provider-resident tensors.
-- [ ] Migrate callers to typed failure, delete superseded paths, and pass local,
-      independent-review, SemVer, and exact-head provider gates.
+- [x] Migrate callers to backend-independent typed failures, preserve the
+      categories through CPU/accelerator/Python wrappers, and delete
+      superseded host paths.
+- [x] Pass local CPU, physical WGPU, physical CUDA, warning-denied Clippy,
+      doctest, residue-scan, and independent-review gates.
+- [ ] Pass exact-head hosted ROCm/Metal gates and merge; SemVer comparison is
+      blocked by the baseline Eunomia `^0.7` requirement after the provider
+      source advanced to `0.8`.
 
 ## COEUS-ASSIGNMENT-ALIASING-001 — Codex
 

@@ -27,6 +27,7 @@
 
 pub mod attention;
 pub mod conv;
+pub mod cross_entropy;
 pub mod elementwise;
 pub mod matmul;
 pub mod optimizer;
@@ -39,6 +40,7 @@ pub mod unfold_fold;
 
 pub use attention::{AttentionOps, AttentionScalar};
 pub use conv::{ConvOps, ConvolutionBackward, ConvolutionForward};
+pub use cross_entropy::CrossEntropyOps;
 pub use elementwise::ElementwiseOps;
 pub use matmul::MatmulOps;
 pub use optimizer::{OptimizerOps, OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation};

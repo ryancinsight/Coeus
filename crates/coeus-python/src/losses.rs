@@ -10,9 +10,13 @@ pub fn mse_loss(pred: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor 
 
 /// Cross-entropy loss.
 #[pyfunction]
-pub fn cross_entropy_loss(logits: &PyTensor, targets: Vec<usize>, py: Python<'_>) -> PyTensor {
+pub fn cross_entropy_loss(
+    logits: &PyTensor,
+    targets: Vec<usize>,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_nn::loss::cross_entropy_loss(&logits.inner, &targets));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Binary Cross-Entropy Loss.

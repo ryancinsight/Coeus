@@ -53,4 +53,4 @@ renumbering migration can update every durable reference.
 | [0049 Provider-owned random initialization](0049-provider-owned-random-initialization.md) | Accepted |
 | [0050 CPU-addressable fused evaluation](0050-cpu-addressable-fused-evaluation.md) | Accepted |
 | [0051 Provider-owned rotate-half dispatch](0051-provider-owned-rotate-half-dispatch.md) | Accepted |
-| [0052 Provider-owned cross-entropy dispatch](0052-provider-owned-cross-entropy-dispatch.md) | Proposed |
+| [0052 Provider-owned cross-entropy dispatch](0052-provider-owned-cross-entropy-dispatch.md) | Accepted |

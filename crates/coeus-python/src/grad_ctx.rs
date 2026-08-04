@@ -15,6 +15,7 @@ use crate::grad_mode;
 ///     y = model(x)   # no gradients computed
 /// ```
 #[pyclass(name = "no_grad")]
+#[derive(Default)]
 pub struct NoGradCtx {
     active: std::sync::atomic::AtomicBool,
 }

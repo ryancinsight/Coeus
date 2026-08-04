@@ -8,6 +8,7 @@
 
 mod attention;
 mod convolution;
+mod cross_entropy;
 mod elementwise;
 mod error;
 mod layout;
@@ -23,6 +24,9 @@ pub use convolution::{
     transposed_backward as convolution_transposed_backward,
     transposed_forward as convolution_transposed_forward, ConvolutionBackend,
     ConvolutionBackwardDispatch, ConvolutionForwardDispatch, ConvolutionProvider,
+};
+pub use cross_entropy::{
+    prepare_targets as prepare_cross_entropy_targets, CrossEntropyBackend, CrossEntropyProvider,
 };
 pub use elementwise::{parameterized_unary, ElementwiseProvider, ParameterizedElementwiseProvider};
 pub use error::HephaestusBackendError;

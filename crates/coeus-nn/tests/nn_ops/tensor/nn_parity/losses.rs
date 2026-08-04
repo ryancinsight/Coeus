@@ -1,6 +1,6 @@
 use super::assert_tensor_eq_data;
 use coeus_autograd::Var as CoeusVar;
-use coeus_core::SequentialBackend;
+use coeus_core::{BackendError, SequentialBackend};
 use coeus_tensor::Tensor as CoeusTensor;
 
 #[test]
@@ -54,7 +54,8 @@ fn test_cross_entropy_loss_parity() {
         CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &logits_data),
         true,
     );
-    let loss_coeus = coeus_nn::cross_entropy_loss(&logits_coeus, &targets_data);
+    let loss_coeus = coeus_nn::cross_entropy_loss(&logits_coeus, &targets_data)
+        .expect("invariant: parity inputs have valid cross-entropy shapes and targets");
 
     // Verify forward (Mean Cross Entropy: mean(-log(softmax(logits)[target])))
     let expected_cross_entropy_out = vec![0.288726f32];
@@ -84,4 +85,46 @@ fn test_cross_entropy_loss_parity() {
         &expected_cross_entropy_dlogits,
         1e-4,
     );
+}
+
+#[test]
+fn cross_entropy_rejects_invalid_contracts_before_autograd_registration() {
+    let rank_one = CoeusVar::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice([3], &[1.0, 2.0, 3.0]),
+        true,
+    );
+    assert!(matches!(
+        coeus_nn::cross_entropy_loss(&rank_one, &[0]),
+        Err(BackendError::UnsupportedRank { rank: 1, .. })
+    ));
+
+    let logits = CoeusVar::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+        true,
+    );
+    assert!(matches!(
+        coeus_nn::cross_entropy_loss(&logits, &[0]),
+        Err(BackendError::ShapeMismatch { .. })
+    ));
+    assert!(matches!(
+        coeus_nn::cross_entropy_loss(&logits, &[0, 3]),
+        Err(BackendError::IndexOutOfRange {
+            position: 1,
+            index: 3,
+            bound: 3,
+            ..
+        })
+    ));
+
+    let empty_classes = CoeusVar::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice([2, 0], &[]),
+        true,
+    );
+    assert!(matches!(
+        coeus_nn::cross_entropy_loss(&empty_classes, &[0, 0]),
+        Err(BackendError::EmptyDimension {
+            dimension: "class",
+            ..
+        })
+    ));
 }

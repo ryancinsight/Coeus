@@ -30,6 +30,7 @@ cuda = ["dep:cutile", "dep:cuda-core", "dep:cuda-async", "dep:themis", "hephaest
 
 [dev-dependencies]
 coeus-autograd = { path = "../coeus-autograd", default-features = false }
+coeus-nn = { path = "../coeus-nn", default-features = false }
 criterion = "0.5"
 
 [[bench]]

@@ -1,4 +1,5 @@
 mod convolution_pooling;
+mod cross_entropy;
 mod elementwise;
 mod matmul;
 mod optimizer;

@@ -1,10 +1,10 @@
 # ADR-0052: Route cross-entropy through Leto and Hephaestus
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-04
 - Scope: mean cross-entropy forward/backward, saved probabilities, CPU Leto
   dispatch, and WGPU/CUDA/ROCm/Metal Hephaestus dispatch
-- Change class: `[minor] [arch]`, subject to SemVer verification
+- Change class: `[major] [arch]`
 - Board item: `COEUS-CROSS-ENTROPY-PROVIDER-001`
 
 ## Context
@@ -15,8 +15,8 @@ Backward downloads the upstream scalar, computes every logits gradient on the
 host, and uploads the result. This silently changes accelerator execution to
 CPU execution and duplicates provider mathematics.
 
-Leto and Hephaestus currently expose no cross-entropy role. The provider APIs
-therefore land before the Coeus consumer cutover.
+Leto and Hephaestus did not expose a cross-entropy role. Their provider APIs
+landed before the Coeus consumer cutover.
 
 ## Decision
 
@@ -31,6 +31,22 @@ operation. The tracked node stores a tensor, not a host vector, and backward
 writes provider-resident logits gradients. Validation and provider failures are
 typed and propagate through NN and Python callers. No CPU, local-kernel, or
 compatibility fallback remains.
+
+The public `coeus_nn::cross_entropy_loss` and Python wrappers now propagate
+typed provider failures. Rust callers migrate by handling the returned
+`Result`; Python callers retain the same call shape and receive exceptions for
+invalid contracts or provider failures. The public
+`coeus_autograd::cross_entropy_loss` assembly surface replaces host-owned
+`Vec` targets/probabilities plus explicit `n` and `c` arguments with a
+backend-native target representation and provider-resident output and
+probability tensors. Direct callers must prepare targets through
+`CrossEntropyOps`, dispatch forward through the same backend, and pass the
+resulting provider state to the autograd assembly function.
+
+Backend-independent semantic validation uses `BackendError::EmptyDimension`
+and `BackendError::IndexOutOfRange`; accelerator errors retain those categories
+inside their validation variants. Provider numeric and storage failures remain
+distinct rather than being stringified into one storage category.
 
 ## Alternatives rejected
 

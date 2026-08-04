@@ -2,122 +2,91 @@ use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar};
+use coeus_ops::CrossEntropyOps;
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
-/// Autograd node for cross-entropy loss.
-pub struct CrossEntropyLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+/// Autograd node retaining provider-native cross-entropy backward state.
+pub struct CrossEntropyLossNode<T, B>
+where
+    T: Scalar,
+    B: coeus_ops::BackendOps<T> + CrossEntropyOps<T> + Default,
+{
     /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
     /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
-    /// Target class indices for each sample.
-    pub targets: Vec<usize>,
-    /// Softmax probabilities stored as `Vec<T>` — no f64 widening.
-    pub probs: Vec<T>,
-    /// Batch size.
-    pub n: usize,
-    /// Number of classes.
-    pub c: usize,
+    /// Provider-native targets retained from forward.
+    pub targets: <B as CrossEntropyOps<T>>::Targets,
+    /// Provider-resident probabilities retained from forward.
+    pub probabilities: Tensor<T, B>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for CrossEntropyLossNode<T, B>
+impl<T, B> BackwardNode<T, B> for CrossEntropyLossNode<T, B>
+where
+    T: Float,
+    B: coeus_ops::BackendOps<T> + CrossEntropyOps<T> + Default,
 {
-    #[inline]
     fn op_name(&self) -> &'static str {
         "cross_entropy_loss"
     }
 
-    #[inline]
     fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
-    #[inline]
     fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
 
-    #[inline]
     fn backward(
         &self,
         grad_out: &Tensor<T, B>,
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
-        let backend = B::default();
-        if let Some(Some(ref g)) = input_grads.get(0) {
-            let temp_grad;
-            let grad_out_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
-                grad_out
-            } else {
-                temp_grad = grad_out.to_contiguous_on(&backend);
-                &temp_grad
-            };
-            let mut host_grad = [T::zero()];
-            backend.copy_to_host(grad_out_cont.storage(), &mut host_grad);
-            // Scale in T precision — no widening to f64
-            let n_t = T::from_f64(self.n as f64);
-            let grad_out_val = host_grad[0];
-            let scale = grad_out_val / n_t;
-
-            let mut d_logits = vec![T::zero(); self.n * self.c];
-            for i in 0..self.n {
-                let offset = i * self.c;
-                let target_idx = self.targets[i];
-                for j in 0..self.c {
-                    let p = self.probs[offset + j];
-                    let indicator = if j == target_idx { T::one() } else { T::zero() };
-                    d_logits[offset + j] = (p - indicator) * scale;
-                }
-            }
-            let grad_tensor = Tensor::from_slice_on([self.n, self.c], &d_logits, &backend);
-            let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
+        if let Some(Some(gradient)) = input_grads.first() {
+            let backend = B::default();
+            let destination = gradient.write();
+            let (destination_storage, destination_layout) = destination.storage_mut_and_layout();
+            backend.cross_entropy_backward_accumulate(
+                grad_out.storage(),
+                grad_out.layout(),
+                self.probabilities.storage(),
+                self.probabilities.layout(),
+                &self.targets,
+                destination_storage,
+                destination_layout,
+            )?;
         }
-
         Ok(())
     }
 }
 
-/// Tracked Cross-Entropy Loss.
-/// Called from crates/coeus-nn/src/loss.rs after host-side log-sum-exp computation.
-/// `probs` must be `Vec<T>`, computed in T precision.
-pub fn cross_entropy_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+/// Attach provider-resident mean cross-entropy state to the autograd graph.
+pub fn cross_entropy_loss<T, B>(
     logits: &Var<T, B>,
-    targets: Vec<usize>,
-    out_tensor: Tensor<T, B>,
-    probs: Vec<T>,
-    n: usize,
-    c: usize,
-) -> Var<T, B> {
+    targets: <B as CrossEntropyOps<T>>::Targets,
+    output: Tensor<T, B>,
+    probabilities: Tensor<T, B>,
+) -> Var<T, B>
+where
+    T: Float,
+    B: coeus_ops::BackendOps<T> + CrossEntropyOps<T> + Default,
+{
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(logits);
-    let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
-    } else {
-        None
-    };
-
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
-        let inputs = vec![logits.clone()];
-
-        let node = CrossEntropyLossNode {
-            output_grad,
-            inputs,
+    let grad = requires_grad.then(|| Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))));
+    let creator = grad.as_ref().map(|output_grad| {
+        Arc::new(CrossEntropyLossNode {
+            output_grad: Arc::clone(output_grad),
+            inputs: vec![logits.clone()],
             targets,
-            probs,
-            n,
-            c,
-        };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
+            probabilities,
+        }) as Arc<dyn BackwardNode<T, B>>
+    });
 
     Var {
-        tensor: out_tensor,
+        tensor: output,
         grad,
         creator,
     }

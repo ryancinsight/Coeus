@@ -278,7 +278,8 @@ fn test_losses() {
     let logits_values = &[1.0f64, 2.0, 0.0, 0.0, 2.0, 1.0];
     let logits: Var<f64> = Var::new(Tensor::from_slice(vec![2, 3], logits_values), true);
     let targets = vec![1, 2];
-    let loss_ce = cross_entropy_loss(&logits, &targets);
+    let loss_ce = cross_entropy_loss(&logits, &targets)
+        .expect("invariant: test inputs have valid cross-entropy shapes and targets");
     assert_eq!(loss_ce.tensor.shape(), &[1]);
     loss_ce
         .backward()
