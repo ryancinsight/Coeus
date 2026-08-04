@@ -1,5 +1,18 @@
 # Global Progress Checklist: Coeus
 
+## COEUS-CROSS-ENTROPY-PROVIDER-001 — Codex
+
+- [x] Verify the Coeus host-staging closure and absence of Leto/Hephaestus loss
+      capabilities.
+- [x] Record and index ADR-0052 with dependency-ordered provider ownership.
+- [ ] Add shared generic cross-entropy contracts and CPU implementation to Leto.
+- [ ] Add one generic accelerator contract plus WGPU/CUDA/ROCm/Metal providers
+      to Hephaestus.
+- [ ] Replace Coeus host computation and saved `Vec<T>` state with direct
+      provider dispatch and provider-resident tensors.
+- [ ] Migrate callers to typed failure, delete superseded paths, and pass local,
+      independent-review, SemVer, and exact-head provider gates.
+
 ## COEUS-ASSIGNMENT-ALIASING-001 — Codex
 
 - [x] Delete the four raw immutable-reference casts from active mutable device
@@ -14,7 +27,7 @@
 - [x] Pass independent architecture review after adding failure-atomic and all
       provider partial-update contracts.
 - [x] Pass exact-head WGPU, CUDA, ROCm, and Metal CI in run `30875294728`.
-- [ ] Merge PR #288 and record the integrated revision.
+- [x] Merge PR #288 as `2a96cd1c` and record the integrated revision.
 
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Codex
 

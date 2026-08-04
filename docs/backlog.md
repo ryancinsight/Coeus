@@ -1,5 +1,29 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-CROSS-ENTROPY-PROVIDER-001 — Remove loss host staging [minor] [arch]
+
+- Owner: Codex on `codex/coeus-cross-entropy-provider`; last-update:
+  2026-08-04; scope: provider-owned mean cross-entropy forward/backward in Leto
+  and Hephaestus, Coeus backend dispatch, tracked saved tensors, callers,
+  differentials, docs, and exact-head provider CI.
+- Outcome: CPU executes directly through Leto over borrowed storage; WGPU,
+  CUDA, ROCm, and Metal execute through one Hephaestus loss contract. Coeus
+  retains no host formula, probability vector, full-payload transfer, or
+  provider fallback.
+- Non-goals: other loss families, sparse targets, label smoothing, reduction
+  variants beyond the current mean contract, or performance claims without
+  controlled measurements.
+- Acceptance: invalid rank, target count, empty classes, and out-of-range labels
+  return typed errors; forward loss and backward logits match the independent
+  analytical/PyTorch oracles for contiguous and strided inputs; saved
+  probabilities remain provider-resident; CPU plus WGPU/CUDA/ROCm/Metal feature,
+  Nextest, doctest, Clippy, SemVer, independent-review, and exact-head gates pass.
+- Risk/change class: `[minor] [arch]`; provider capability and fallible public
+  loss contracts are additive/breaking-classified by SemVer evidence under
+  ADR-0052.
+- Status: in-progress; upstream Leto and Hephaestus capabilities are absent and
+  are the first dependency-ordered increments.
+
 ## COEUS-ASSIGNMENT-ALIASING-001 — Remove invalid assignment aliases [minor] [arch]
 
 - Owner: Codex on `codex/coeus-sinusoidal-provider`; last-update: 2026-08-03;
@@ -20,9 +44,9 @@
 - Risk/change class: `[minor] [arch]`; existing signatures remain unchanged and
   the public backend capability gains defaulted assignment methods, while
   provider ownership and internal reference validity extend ADR-0051.
-- Status: review-ready; focused CPU and physical CUDA contracts pass, the
-  corrected candidate passes independent review, and exact-head provider run
-  `30875294728` is green. PR #288 remains pending merge.
+- Status: complete; focused CPU and physical CUDA contracts pass, the corrected
+  candidate passes independent review, exact-head run `30876621244` is green,
+  and PR #288 merged as `2a96cd1c`.
 
 ## COEUS-SINUSOIDAL-PROVIDER-001 — Remove positional host fallback [patch]
 

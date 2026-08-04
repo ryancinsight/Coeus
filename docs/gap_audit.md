@@ -1,5 +1,19 @@
 # Coeus Gap Audit
 
+## COEUS-CROSS-ENTROPY-PROVIDER-001: Loss host staging
+
+**Location**: `coeus-nn/src/loss.rs` and
+`coeus-autograd/src/ops/nn/loss/cross_entropy.rs`.
+**Gap**: forward downloads all logits, computes log-sum-exp and probabilities
+in Coeus, uploads one scalar, and stores probabilities as `Vec<T>`; backward
+downloads the upstream scalar, computes all logits gradients on the host, and
+uploads them. Leto and Hephaestus expose no cross-entropy role.
+**Resolution target**: add one mean cross-entropy contract upstream in Leto and
+Hephaestus, keep saved probabilities provider-resident, dispatch by backend type,
+propagate typed validation/provider errors, and delete all host formulas and
+transfers from the Coeus closure.
+**Status**: in-progress under ADR-0052.
+
 ## COEUS-ASSIGNMENT-ALIASING-001: Invalid mutable-buffer aliases
 
 **Location**: generic unary assignment and cat, split, and slice gradient
@@ -19,9 +33,8 @@ is the runtime oracle. Miri passes the focused CPU COW contract but reports
 pre-existing permissive-provenance warnings in Mnemosyne's allocator. No
 runtime, memory, or binary-size delta is claimed without controlled
 measurements.
-**Status**: implementation, focused local verification, and independent review
-complete. Exact-head run `30875294728` passes WGPU/CPU, CUDA, ROCm, and Metal;
-PR #288 remains pending merge under ADR-0051.
+**Status**: complete. Exact-head run `30876621244` passes WGPU/CPU, CUDA, ROCm,
+and Metal; PR #288 merged as `2a96cd1c` under ADR-0051.
 
 ## COEUS-STATEFUL-UPDATE-PROVIDER-001: Consumer-owned optimizer dispatch
 
