@@ -63,6 +63,14 @@ where
 }
 
 /// Attach provider-resident mean cross-entropy state to the autograd graph.
+///
+/// # Invariants
+///
+/// `targets`, `output`, and `probabilities` must come from one successful
+/// [`CrossEntropyOps::cross_entropy_forward`] call on the same backend as
+/// `logits`. The probabilities shape must be `[batch, classes]`, and its batch
+/// extent must equal the retained target count. This assembly function does
+/// not repeat those provider validations; backward dispatch depends on them.
 pub fn cross_entropy_loss<T, B>(
     logits: &Var<T, B>,
     targets: <B as CrossEntropyOps<T>>::Targets,

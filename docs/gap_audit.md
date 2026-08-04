@@ -14,10 +14,12 @@ propagate typed validation/provider errors, and delete all host formulas and
 transfers from the Coeus closure.
 **Status**: provider ownership and the Coeus cutover are implemented under
 ADR-0052. CPU, physical WGPU, physical CUDA, Python typed-failure,
-warning-denied Clippy, doctest, residue-scan, and independent-review gates pass.
-SemVer comparison is blocked before API analysis because baseline Coeus
+warning-denied Clippy, residue-scan, failure-atomic candidate-buffer, and final
+independent-review gates pass.
+Autograd/NN/backend doctests pass; one `coeus-ops` negative doctest executable
+is blocked by Windows Defender OS error 225. SemVer comparison is blocked before API analysis because baseline Coeus
 requires Eunomia `^0.7` while the source now exposes `0.8`; exact-head hosted
-ROCm/Metal and integration gates remain.
+WGPU/CUDA/ROCm/Metal and integration gates remain.
 
 ## COEUS-ASSIGNMENT-ALIASING-001: Invalid mutable-buffer aliases
 

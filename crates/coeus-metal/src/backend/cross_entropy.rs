@@ -1,7 +1,7 @@
 use super::{provider::MetalProvider, MetalBackend};
 use coeus_core::Layout;
 use coeus_hephaestus::{
-    prepare_cross_entropy_targets, CrossEntropyBackend, HephaestusBackendError,
+    prepare_candidate, prepare_cross_entropy_targets, CrossEntropyBackend, HephaestusBackendError,
 };
 use hephaestus_core::{ComputeDevice, HephaestusError};
 use hephaestus_metal::MetalDevice;
@@ -13,6 +13,21 @@ impl CrossEntropyBackend for MetalBackend {
         storage: &Self::DeviceBuffer<f32>,
     ) -> &<MetalDevice as ComputeDevice>::Buffer<f32> {
         storage.buffer()
+    }
+
+    fn cross_entropy_candidate(
+        storage: &Self::DeviceBuffer<f32>,
+        preserve_contents: bool,
+        operation: &'static str,
+    ) -> Result<Self::DeviceBuffer<f32>, Self::Error> {
+        prepare_candidate::<MetalProvider>(storage, preserve_contents, operation)
+    }
+
+    fn install_cross_entropy_candidate(
+        storage: &mut Self::DeviceBuffer<f32>,
+        candidate: Self::DeviceBuffer<f32>,
+    ) {
+        *storage = candidate;
     }
 
     fn cross_entropy_target_buffer(

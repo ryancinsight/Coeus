@@ -1,5 +1,7 @@
 use super::{assert_parity, seq, to_cpu, to_gpu};
 use coeus_autograd::Var;
+use coeus_core::{BackendError, ComputeBackend, Layout};
+use coeus_ops::CrossEntropyOps;
 use coeus_tensor::Tensor;
 use coeus_wgpu::WgpuBackendError;
 
@@ -68,5 +70,102 @@ fn cross_entropy_dispatches_with_wgpu_value_and_gradient_parity() {
         "cross-entropy logits gradient",
         cpu_gradient.as_slice(),
         wgpu_gradient.as_slice(),
+    );
+
+    let backend = super::wgpu();
+    let logits_layout = Layout::new([3, 4].into());
+    let scalar_layout = Layout::new([1].into());
+    let mut loss = backend.allocate::<f32>(1);
+    let mut probabilities = backend.allocate::<f32>(12);
+    let targets = backend
+        .prepare_cross_entropy_targets(&targets)
+        .expect("WGPU target preparation must succeed");
+
+    let malformed_layout = Layout::new([12].into());
+    let error = backend
+        .cross_entropy_forward(
+            wgpu_logits.tensor.storage(),
+            &malformed_layout,
+            &targets,
+            &mut loss,
+            &scalar_layout,
+            &mut probabilities,
+            &logits_layout,
+        )
+        .expect_err("rank-one logits must fail before provider dispatch");
+    assert!(matches!(
+        error,
+        WgpuBackendError::Validation(BackendError::UnsupportedRank { rank: 1, .. })
+    ));
+
+    let short_targets = backend
+        .prepare_cross_entropy_targets(&[0, 1])
+        .expect("WGPU short target preparation must succeed");
+    let error = backend
+        .cross_entropy_forward(
+            wgpu_logits.tensor.storage(),
+            &logits_layout,
+            &short_targets,
+            &mut loss,
+            &scalar_layout,
+            &mut probabilities,
+            &logits_layout,
+        )
+        .expect_err("provider-native target count must match the batch");
+    assert!(matches!(
+        error,
+        WgpuBackendError::Validation(BackendError::ShapeMismatch { .. })
+    ));
+
+    let loss_parent = loss.clone();
+    let probabilities_parent = probabilities.clone();
+    backend
+        .cross_entropy_forward(
+            wgpu_logits.tensor.storage(),
+            &logits_layout,
+            &targets,
+            &mut loss,
+            &scalar_layout,
+            &mut probabilities,
+            &logits_layout,
+        )
+        .expect("direct WGPU forward must succeed");
+    let mut parent_loss = [f32::NAN; 1];
+    let mut parent_probabilities = [f32::NAN; 12];
+    backend.copy_to_host(&loss_parent, &mut parent_loss);
+    backend.copy_to_host(&probabilities_parent, &mut parent_probabilities);
+    assert_eq!(parent_loss, [0.0]);
+    assert_eq!(parent_probabilities, [0.0; 12]);
+
+    let mut output_gradient = backend.allocate::<f32>(1);
+    backend.copy_to_device(&[1.0], &mut output_gradient);
+    let mut logit_gradient = backend.allocate::<f32>(12);
+    backend.copy_to_device(&[0.25; 12], &mut logit_gradient);
+    let gradient_parent = logit_gradient.clone();
+    backend
+        .cross_entropy_backward_accumulate(
+            &output_gradient,
+            &scalar_layout,
+            &probabilities,
+            &logits_layout,
+            &targets,
+            &mut logit_gradient,
+            &logits_layout,
+        )
+        .expect("direct WGPU backward must succeed");
+    let mut parent_gradient = [f32::NAN; 12];
+    let mut accumulated_gradient = [f32::NAN; 12];
+    backend.copy_to_host(&gradient_parent, &mut parent_gradient);
+    backend.copy_to_host(&logit_gradient, &mut accumulated_gradient);
+    assert_eq!(parent_gradient, [0.25; 12]);
+    let expected_accumulated = cpu_gradient
+        .as_slice()
+        .iter()
+        .map(|gradient| gradient + 0.25)
+        .collect::<Vec<_>>();
+    assert_parity(
+        "cross-entropy additive candidate gradient",
+        &expected_accumulated,
+        &accumulated_gradient,
     );
 }

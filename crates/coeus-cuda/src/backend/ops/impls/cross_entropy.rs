@@ -2,8 +2,9 @@ use crate::backend::CudaBackend;
 use crate::CudaBackendError;
 use coeus_core::Layout;
 use coeus_hephaestus::{prepare_cross_entropy_targets, CrossEntropyBackend, CrossEntropyProvider};
-use hephaestus_core::{ComputeDevice, HephaestusError};
+use hephaestus_core::{ComputeDevice, DeviceBuffer, HephaestusError};
 use hephaestus_cuda::{CudaCrossEntropyOps, CudaDevice};
+use themis::PlacementHint;
 
 impl CrossEntropyProvider for CudaBackend {
     type Operations = CudaCrossEntropyOps;
@@ -16,6 +17,33 @@ impl CrossEntropyBackend for CudaBackend {
         storage: &Self::DeviceBuffer<f32>,
     ) -> &<CudaDevice as ComputeDevice>::Buffer<f32> {
         storage.buffer.as_ref()
+    }
+
+    fn cross_entropy_candidate(
+        storage: &Self::DeviceBuffer<f32>,
+        preserve_contents: bool,
+        operation: &'static str,
+    ) -> Result<Self::DeviceBuffer<f32>, Self::Error> {
+        let device = crate::backend::get_cuda_device();
+        let candidate = device
+            .alloc_uninitialized_with_hint(
+                storage.buffer.len(),
+                PlacementHint::Tier(storage.buffer.tier()),
+            )
+            .map_err(|source| CudaBackendError::dispatch(operation, source))?;
+        if preserve_contents {
+            device
+                .copy_buffer(storage.buffer.as_ref(), &candidate)
+                .map_err(|source| CudaBackendError::dispatch(operation, source))?;
+        }
+        Ok(crate::storage::CudaStorage::from_buffer(candidate))
+    }
+
+    fn install_cross_entropy_candidate(
+        storage: &mut Self::DeviceBuffer<f32>,
+        candidate: Self::DeviceBuffer<f32>,
+    ) {
+        *storage = candidate;
     }
 
     fn cross_entropy_target_buffer(

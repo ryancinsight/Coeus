@@ -26,7 +26,8 @@ pub use convolution::{
     ConvolutionBackwardDispatch, ConvolutionForwardDispatch, ConvolutionProvider,
 };
 pub use cross_entropy::{
-    prepare_targets as prepare_cross_entropy_targets, CrossEntropyBackend, CrossEntropyProvider,
+    prepare_candidate, prepare_targets as prepare_cross_entropy_targets, CrossEntropyBackend,
+    CrossEntropyProvider,
 };
 pub use elementwise::{parameterized_unary, ElementwiseProvider, ParameterizedElementwiseProvider};
 pub use error::HephaestusBackendError;

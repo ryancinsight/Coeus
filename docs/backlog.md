@@ -23,10 +23,13 @@
   caller migration under ADR-0052.
 - Status: in-progress; Leto `912b9918` and Hephaestus `1e1f12cc` own the merged
   provider operations. Coeus CPU, physical WGPU, physical CUDA, typed Python
-  failure, all-targets check, warning-denied Clippy, doctest, residue-scan, and
-  independent-review gates pass. SemVer comparison is externally blocked
+  failure, all-targets check, warning-denied Clippy, residue-scan, and
+  failure-atomic candidate-buffer and final independent-review gates pass.
+  Autograd/NN/backend doctests pass; one
+  `coeus-ops` negative doctest executable is externally blocked by Windows
+  Defender OS error 225. SemVer comparison is externally blocked
   because the baseline requires Eunomia `^0.7` after its source advanced to
-  `0.8`; exact-head hosted ROCm/Metal and integration gates remain.
+  `0.8`; exact-head hosted WGPU/CUDA/ROCm/Metal and integration gates remain.
 
 ## COEUS-ASSIGNMENT-ALIASING-001 — Remove invalid assignment aliases [minor] [arch]
 

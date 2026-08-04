@@ -14,8 +14,10 @@
       categories through CPU/accelerator/Python wrappers, and delete
       superseded host paths.
 - [x] Pass local CPU, physical WGPU, physical CUDA, warning-denied Clippy,
-      doctest, residue-scan, and independent-review gates.
-- [ ] Pass exact-head hosted ROCm/Metal gates and merge; SemVer comparison is
+      residue-scan, failure-atomic candidate-buffer, and final independent-review
+      gates. Autograd/NN/backend doctests pass; one `coeus-ops` negative doctest
+      executable is blocked by Windows Defender OS error 225.
+- [ ] Pass exact-head hosted WGPU/CUDA/ROCm/Metal gates and merge; SemVer comparison is
       blocked by the baseline Eunomia `^0.7` requirement after the provider
       source advanced to `0.8`.
 

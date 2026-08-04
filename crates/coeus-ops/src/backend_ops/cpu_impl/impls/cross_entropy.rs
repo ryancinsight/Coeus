@@ -45,14 +45,8 @@ fn cross_entropy_error(source: leto_ops::CrossEntropyError) -> BackendError {
             bound: classes,
         },
         CrossEntropyError::Layout { source, .. } => provider_error("cross_entropy", source),
-        source @ (CrossEntropyError::ScalarExtent { .. }
-        | CrossEntropyError::ProbabilityResolution { .. }
-        | CrossEntropyError::NonFinite { .. }
-        | CrossEntropyError::ArithmeticNonFinite { .. }
-        | CrossEntropyError::InvalidProbabilities { .. }) => BackendError::InvalidNumericInput {
-            operation: "cross_entropy",
-            reason: source.to_string(),
-        },
+        // The upstream enum is non-exhaustive. All current and future
+        // non-layout numeric failures retain a numeric-input category here.
         source => BackendError::InvalidNumericInput {
             operation: "cross_entropy",
             reason: source.to_string(),

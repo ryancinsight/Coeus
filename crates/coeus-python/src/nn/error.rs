@@ -74,6 +74,20 @@ mod tests {
 
             assert!(error.is_instance_of::<PyValueError>(py));
             assert!(error.to_string().contains("index 3 at position 1"));
+
+            let error = map_backend_error(BackendError::EmptyDimension {
+                operation: "cross_entropy_forward",
+                dimension: "class",
+            });
+            assert!(error.is_instance_of::<PyValueError>(py));
+            assert!(error.to_string().contains("non-empty class dimension"));
+
+            let error = map_backend_error(BackendError::InvalidNumericInput {
+                operation: "cross_entropy",
+                reason: "logits contain a non-finite value".to_owned(),
+            });
+            assert!(error.is_instance_of::<PyValueError>(py));
+            assert!(error.to_string().contains("non-finite value"));
         });
     }
 

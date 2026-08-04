@@ -127,4 +127,16 @@ fn cross_entropy_rejects_invalid_contracts_before_autograd_registration() {
             ..
         })
     ));
+
+    let empty_batch = CoeusVar::new(
+        CoeusTensor::<f32, SequentialBackend>::from_slice([0, 3], &[]),
+        true,
+    );
+    assert!(matches!(
+        coeus_nn::cross_entropy_loss(&empty_batch, &[]),
+        Err(BackendError::EmptyDimension {
+            dimension: "batch",
+            ..
+        })
+    ));
 }

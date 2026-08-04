@@ -1,7 +1,8 @@
 use super::{RocmBackend, RocmProvider};
 use coeus_core::Layout;
 use coeus_hephaestus::{
-    prepare_cross_entropy_targets, CrossEntropyBackend, HephaestusBackendError, HephaestusStorage,
+    prepare_candidate, prepare_cross_entropy_targets, CrossEntropyBackend, HephaestusBackendError,
+    HephaestusStorage,
 };
 use coeus_ops::CrossEntropyOps;
 use hephaestus_core::{ComputeDevice, HephaestusError};
@@ -15,6 +16,21 @@ impl CrossEntropyBackend for RocmBackend {
         storage: &Self::DeviceBuffer<f32>,
     ) -> &<hephaestus_rocm::RocmDevice as ComputeDevice>::Buffer<f32> {
         storage.buffer()
+    }
+
+    fn cross_entropy_candidate(
+        storage: &Self::DeviceBuffer<f32>,
+        preserve_contents: bool,
+        operation: &'static str,
+    ) -> Result<Self::DeviceBuffer<f32>, Self::Error> {
+        prepare_candidate::<RocmProvider>(storage, preserve_contents, operation)
+    }
+
+    fn install_cross_entropy_candidate(
+        storage: &mut Self::DeviceBuffer<f32>,
+        candidate: Self::DeviceBuffer<f32>,
+    ) {
+        *storage = candidate;
     }
 
     fn cross_entropy_target_buffer(

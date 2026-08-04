@@ -1,6 +1,7 @@
-use crate::{reduction::HephaestusBackend, HephaestusProvider};
-use coeus_core::Layout;
-use hephaestus_core::{CrossEntropyOps, HephaestusError};
+use crate::{reduction::HephaestusBackend, HephaestusProvider, HephaestusStorage};
+use coeus_core::{Layout, Storage};
+use hephaestus_core::{ComputeDevice, CrossEntropyOps, DeviceBuffer, HephaestusError};
+use themis::PlacementHint;
 
 /// Hephaestus provider owning mean cross-entropy kernels.
 pub trait CrossEntropyProvider: HephaestusProvider {
@@ -17,6 +18,19 @@ pub trait CrossEntropyBackend: coeus_core::ComputeBackend {
     fn cross_entropy_buffer(
         storage: &Self::DeviceBuffer<f32>,
     ) -> &<<Self::Provider as HephaestusProvider>::Device as hephaestus_core::ComputeDevice>::Buffer<f32>;
+
+    #[doc(hidden)]
+    fn cross_entropy_candidate(
+        storage: &Self::DeviceBuffer<f32>,
+        preserve_contents: bool,
+        operation: &'static str,
+    ) -> Result<Self::DeviceBuffer<f32>, Self::Error>;
+
+    #[doc(hidden)]
+    fn install_cross_entropy_candidate(
+        storage: &mut Self::DeviceBuffer<f32>,
+        candidate: Self::DeviceBuffer<f32>,
+    );
 
     #[doc(hidden)]
     fn cross_entropy_target_buffer(
@@ -102,6 +116,21 @@ where
         storage.buffer()
     }
 
+    fn cross_entropy_candidate(
+        storage: &Self::DeviceBuffer<f32>,
+        preserve_contents: bool,
+        operation: &'static str,
+    ) -> Result<Self::DeviceBuffer<f32>, Self::Error> {
+        prepare_candidate::<P>(storage, preserve_contents, operation)
+    }
+
+    fn install_cross_entropy_candidate(
+        storage: &mut Self::DeviceBuffer<f32>,
+        candidate: Self::DeviceBuffer<f32>,
+    ) {
+        *storage = candidate;
+    }
+
     fn cross_entropy_target_buffer(
         storage: &Self::DeviceBuffer<u32>,
     ) -> &<P::Device as hephaestus_core::ComputeDevice>::Buffer<u32> {
@@ -114,4 +143,30 @@ where
     ) -> Self::Error {
         crate::HephaestusBackendError::device(operation, source)
     }
+}
+
+/// Allocate a fallible provider-native candidate for failure-atomic writes.
+///
+/// # Errors
+///
+/// Returns the provider allocation or device-copy failure without changing the
+/// source storage.
+pub fn prepare_candidate<P>(
+    storage: &HephaestusStorage<P, f32>,
+    preserve_contents: bool,
+    operation: &'static str,
+) -> Result<HephaestusStorage<P, f32>, crate::HephaestusBackendError>
+where
+    P: CrossEntropyProvider,
+{
+    let device = P::device();
+    let candidate = device
+        .alloc_uninitialized_with_hint(storage.len(), PlacementHint::Tier(storage.buffer().tier()))
+        .map_err(|source| crate::HephaestusBackendError::device(operation, source))?;
+    if preserve_contents {
+        device
+            .copy_buffer(storage.buffer(), &candidate)
+            .map_err(|source| crate::HephaestusBackendError::device(operation, source))?;
+    }
+    Ok(HephaestusStorage::from_buffer(candidate))
 }

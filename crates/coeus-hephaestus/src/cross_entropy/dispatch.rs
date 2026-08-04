@@ -19,12 +19,25 @@ pub(super) fn forward<B: CrossEntropyBackend>(
     probabilities: &mut B::DeviceBuffer<f32>,
     probabilities_layout: &Layout,
 ) -> Result<(), B::Error> {
-    let target_layout = Layout::new([logits_layout.shape()[0]].into());
     let logits_layout = ranked::<2>("cross_entropy_forward_logits", logits_layout)?;
+    let batch = logits_layout.shape[0];
+    let target_count = coeus_core::Storage::len(targets);
+    if target_count != batch {
+        return Err(coeus_core::BackendError::ShapeMismatch {
+            operation: "cross_entropy_forward_targets",
+            lhs: vec![target_count],
+            rhs: vec![batch],
+        }
+        .into());
+    }
+    let target_layout = Layout::new([batch].into());
     let target_layout = ranked::<1>("cross_entropy_forward_targets", &target_layout)?;
     let loss_layout = ranked::<1>("cross_entropy_forward_loss", loss_layout)?;
     let probabilities_layout =
         ranked::<2>("cross_entropy_forward_probabilities", probabilities_layout)?;
+    let loss_candidate = B::cross_entropy_candidate(loss, false, "cross_entropy_forward_loss")?;
+    let probabilities_candidate =
+        B::cross_entropy_candidate(probabilities, false, "cross_entropy_forward_probabilities")?;
     let operations = <B::Provider as CrossEntropyProvider>::Operations::default();
     operations
         .cross_entropy_forward_into(
@@ -32,14 +45,17 @@ pub(super) fn forward<B: CrossEntropyBackend>(
             CrossEntropyForwardOperands {
                 logits: StridedView::new(B::cross_entropy_buffer(logits), &logits_layout),
                 targets: StridedView::new(B::cross_entropy_target_buffer(targets), &target_layout),
-                loss: StridedView::new(B::cross_entropy_buffer(loss), &loss_layout),
+                loss: StridedView::new(B::cross_entropy_buffer(&loss_candidate), &loss_layout),
                 probabilities: StridedView::new(
-                    B::cross_entropy_buffer(probabilities),
+                    B::cross_entropy_buffer(&probabilities_candidate),
                     &probabilities_layout,
                 ),
             },
         )
-        .map_err(|source| B::cross_entropy_dispatch_error("cross_entropy_forward", source))
+        .map_err(|source| B::cross_entropy_dispatch_error("cross_entropy_forward", source))?;
+    B::install_cross_entropy_candidate(loss, loss_candidate);
+    B::install_cross_entropy_candidate(probabilities, probabilities_candidate);
+    Ok(())
 }
 
 #[expect(
@@ -56,17 +72,32 @@ pub(super) fn backward<B: CrossEntropyBackend>(
     logit_gradient: &mut B::DeviceBuffer<f32>,
     logit_gradient_layout: &Layout,
 ) -> Result<(), B::Error> {
-    let target_layout = Layout::new([probabilities_layout.shape()[0]].into());
     let output_gradient_layout = ranked::<1>(
         "cross_entropy_backward_output_gradient",
         output_gradient_layout,
     )?;
     let probabilities_layout =
         ranked::<2>("cross_entropy_backward_probabilities", probabilities_layout)?;
+    let batch = probabilities_layout.shape[0];
+    let target_count = coeus_core::Storage::len(targets);
+    if target_count != batch {
+        return Err(coeus_core::BackendError::ShapeMismatch {
+            operation: "cross_entropy_backward_targets",
+            lhs: vec![target_count],
+            rhs: vec![batch],
+        }
+        .into());
+    }
+    let target_layout = Layout::new([batch].into());
     let target_layout = ranked::<1>("cross_entropy_backward_targets", &target_layout)?;
     let logit_gradient_layout = ranked::<2>(
         "cross_entropy_backward_logit_gradient",
         logit_gradient_layout,
+    )?;
+    let logit_gradient_candidate = B::cross_entropy_candidate(
+        logit_gradient,
+        true,
+        "cross_entropy_backward_logit_gradient",
     )?;
     let operations = <B::Provider as CrossEntropyProvider>::Operations::default();
     operations
@@ -83,10 +114,12 @@ pub(super) fn backward<B: CrossEntropyBackend>(
                 ),
                 targets: StridedView::new(B::cross_entropy_target_buffer(targets), &target_layout),
                 logit_gradient: StridedView::new(
-                    B::cross_entropy_buffer(logit_gradient),
+                    B::cross_entropy_buffer(&logit_gradient_candidate),
                     &logit_gradient_layout,
                 ),
             },
         )
-        .map_err(|source| B::cross_entropy_dispatch_error("cross_entropy_backward", source))
+        .map_err(|source| B::cross_entropy_dispatch_error("cross_entropy_backward", source))?;
+    B::install_cross_entropy_candidate(logit_gradient, logit_gradient_candidate);
+    Ok(())
 }
