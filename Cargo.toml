@@ -36,7 +36,7 @@ moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", version = "
 mnemosyne = { package = "mnemosyne-memory", git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.6.0" }
 # SIMD-effect SSOT.
 hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0.5.0" }
-eunomia = { git = "https://github.com/ryancinsight/eunomia.git", version = "0.7.0", default-features = false }
+eunomia = { git = "https://github.com/ryancinsight/eunomia.git", version = "0.8.0", default-features = false }
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
 leto = { git = "https://github.com/ryancinsight/leto.git", version = "0.40.0" }
 leto-ops = { git = "https://github.com/ryancinsight/leto.git", version = "0.40.0" }

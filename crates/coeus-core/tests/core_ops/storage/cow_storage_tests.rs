@@ -44,8 +44,11 @@ fn empty_cpu_storage_exposes_valid_zero_length_slices() {
     let mut storage = CpuStorage::<u64>::new(0);
 
     assert_eq!(storage.len(), 0);
-    assert_eq!(storage.as_slice(), &[]);
-    assert_eq!(storage.as_mut_slice(), &mut []);
+    // The element type is spelled out because rkyv 0.8's `rend` adds
+    // `PartialEq` impls for the primitive integers, so an untyped empty slice
+    // literal no longer resolves to a single candidate.
+    assert_eq!(storage.as_slice(), &[] as &[u64]);
+    assert_eq!(storage.as_mut_slice(), &mut [] as &mut [u64]);
 }
 
 #[test]
