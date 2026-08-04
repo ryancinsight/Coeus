@@ -1,5 +1,26 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-SINUSOIDAL-PROVIDER-001 — Remove positional host fallback [patch]
+
+- Owner: Codex on `codex/coeus-sinusoidal-provider`; last-update: 2026-08-03;
+  scope: sinusoidal positional table construction, prefix-view extraction,
+  focused CPU/accelerator contracts, and active PM evidence.
+- Outcome: construction initializes the table once on the selected backend and
+  forward borrows the active prefix as a tensor view, without requiring
+  CPU-addressable accelerator storage or downloading and re-uploading the
+  table.
+- Non-goals: changing the public constructor contract, adding a positional
+  kernel where no runtime computation exists, or claiming runtime/memory gains
+  without controlled measurements.
+- Acceptance: CPU and local CUDA construction plus forward values match the
+  analytical sinusoidal oracle; prefix extraction shares storage and preserves
+  layout; residue scans find no CPU-storage expectation or host-transfer branch
+  in the migrated file; focused warning-denied checks, Nextest, doctests, and
+  exact-head WGPU/CUDA/ROCm/Metal CI pass.
+- Risk/change class: `[patch]`; the public API and mathematical contract remain
+  unchanged while an accelerator panic and host-transfer fallback are removed.
+- Status: in-progress.
+
 ## COEUS-COSINE-CLAMP-GRADIENT-001 — Correct clamped cosine backward [patch]
 
 - Owner: Codex on `codex/coeus-fused-cpu-boundary`; last-update: 2026-08-03;
