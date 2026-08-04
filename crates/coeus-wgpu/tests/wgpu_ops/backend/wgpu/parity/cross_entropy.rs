@@ -95,7 +95,7 @@ fn cross_entropy_dispatches_with_wgpu_value_and_gradient_parity() {
         .expect_err("rank-one logits must fail before provider dispatch");
     assert!(matches!(
         error,
-        WgpuBackendError::Validation(BackendError::UnsupportedRank { rank: 1, .. })
+        WgpuBackendError::Validation(BackendError::LayoutRankMismatch { lhs: 1, rhs: 2, .. })
     ));
 
     let short_targets = backend

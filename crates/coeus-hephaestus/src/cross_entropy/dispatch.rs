@@ -5,6 +5,21 @@ use hephaestus_core::{
     CrossEntropyBackwardOperands, CrossEntropyForwardOperands, CrossEntropyOps, StridedView,
 };
 
+fn exactly_ranked<const N: usize>(
+    operation: &'static str,
+    layout: &Layout,
+) -> Result<leto::Layout<N>, coeus_core::BackendError> {
+    let rank = layout.ndim();
+    if rank != N {
+        return Err(coeus_core::BackendError::LayoutRankMismatch {
+            operation,
+            lhs: rank,
+            rhs: N,
+        });
+    }
+    ranked::<N>(operation, layout)
+}
+
 #[expect(
     clippy::too_many_arguments,
     reason = "the function assembles the complete provider forward request"
@@ -19,7 +34,7 @@ pub(super) fn forward<B: CrossEntropyBackend>(
     probabilities: &mut B::DeviceBuffer<f32>,
     probabilities_layout: &Layout,
 ) -> Result<(), B::Error> {
-    let logits_layout = ranked::<2>("cross_entropy_forward_logits", logits_layout)?;
+    let logits_layout = exactly_ranked::<2>("cross_entropy_forward_logits", logits_layout)?;
     let batch = logits_layout.shape[0];
     let target_count = coeus_core::Storage::len(targets);
     if target_count != batch {
@@ -32,9 +47,9 @@ pub(super) fn forward<B: CrossEntropyBackend>(
     }
     let target_layout = Layout::new([batch].into());
     let target_layout = ranked::<1>("cross_entropy_forward_targets", &target_layout)?;
-    let loss_layout = ranked::<1>("cross_entropy_forward_loss", loss_layout)?;
+    let loss_layout = exactly_ranked::<1>("cross_entropy_forward_loss", loss_layout)?;
     let probabilities_layout =
-        ranked::<2>("cross_entropy_forward_probabilities", probabilities_layout)?;
+        exactly_ranked::<2>("cross_entropy_forward_probabilities", probabilities_layout)?;
     let loss_candidate = B::cross_entropy_candidate(loss, false, "cross_entropy_forward_loss")?;
     let probabilities_candidate =
         B::cross_entropy_candidate(probabilities, false, "cross_entropy_forward_probabilities")?;
@@ -72,12 +87,12 @@ pub(super) fn backward<B: CrossEntropyBackend>(
     logit_gradient: &mut B::DeviceBuffer<f32>,
     logit_gradient_layout: &Layout,
 ) -> Result<(), B::Error> {
-    let output_gradient_layout = ranked::<1>(
+    let output_gradient_layout = exactly_ranked::<1>(
         "cross_entropy_backward_output_gradient",
         output_gradient_layout,
     )?;
     let probabilities_layout =
-        ranked::<2>("cross_entropy_backward_probabilities", probabilities_layout)?;
+        exactly_ranked::<2>("cross_entropy_backward_probabilities", probabilities_layout)?;
     let batch = probabilities_layout.shape[0];
     let target_count = coeus_core::Storage::len(targets);
     if target_count != batch {
@@ -90,7 +105,7 @@ pub(super) fn backward<B: CrossEntropyBackend>(
     }
     let target_layout = Layout::new([batch].into());
     let target_layout = ranked::<1>("cross_entropy_backward_targets", &target_layout)?;
-    let logit_gradient_layout = ranked::<2>(
+    let logit_gradient_layout = exactly_ranked::<2>(
         "cross_entropy_backward_logit_gradient",
         logit_gradient_layout,
     )?;
@@ -122,4 +137,21 @@ pub(super) fn backward<B: CrossEntropyBackend>(
         .map_err(|source| B::cross_entropy_dispatch_error("cross_entropy_backward", source))?;
     B::install_cross_entropy_candidate(logit_gradient, logit_gradient_candidate);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::exactly_ranked;
+    use coeus_core::{BackendError, Layout};
+
+    #[test]
+    fn cross_entropy_rank_gate_rejects_left_padding() {
+        let error = exactly_ranked::<2>("cross_entropy_forward_logits", &Layout::new([12].into()))
+            .expect_err("cross-entropy matrices require exactly rank two");
+
+        assert!(matches!(
+            error,
+            BackendError::LayoutRankMismatch { lhs: 1, rhs: 2, .. }
+        ));
+    }
 }
