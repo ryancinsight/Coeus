@@ -102,6 +102,59 @@ fn test_squeeze_unsqueeze_autograd() {
     assert_eq!(gx3.as_slice(), &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
 }
 
+#[test]
+fn structural_gradients_preserve_untouched_parent_regions() {
+    let backend = MoiraiBackend::new();
+
+    let sliced_input = Var::new(
+        Tensor::from_slice_on([4], &[1.0_f32, 2.0, 3.0, 4.0], &backend),
+        true,
+    );
+    let sliced = coeus_autograd::slice(&sliced_input, &[(1, 3)]);
+    coeus_autograd::sum(&sliced)
+        .backward()
+        .expect("slice backward");
+    assert_eq!(
+        sliced_input
+            .grad()
+            .expect("slice input gradient")
+            .as_slice(),
+        &[0.0, 1.0, 1.0, 0.0]
+    );
+
+    let split_input = Var::new(
+        Tensor::from_slice_on([4], &[1.0_f32, 2.0, 3.0, 4.0], &backend),
+        true,
+    );
+    let chunks = coeus_autograd::split(&split_input, 2, 0);
+    coeus_autograd::sum(&chunks[1])
+        .backward()
+        .expect("split backward");
+    assert_eq!(
+        split_input.grad().expect("split input gradient").as_slice(),
+        &[0.0, 0.0, 1.0, 1.0]
+    );
+
+    let left = Var::new(Tensor::from_slice_on([2], &[1.0_f32, 2.0], &backend), true);
+    let right = Var::new(Tensor::from_slice_on([2], &[3.0_f32, 4.0], &backend), true);
+    let concatenated = coeus_autograd::cat(&[&left, &right], 0);
+    concatenated
+        .backward_with_seed(Tensor::from_slice_on(
+            [4],
+            &[10.0_f32, 20.0, 30.0, 40.0],
+            &backend,
+        ))
+        .expect("cat backward");
+    assert_eq!(
+        left.grad().expect("left gradient").as_slice(),
+        &[10.0, 20.0]
+    );
+    assert_eq!(
+        right.grad().expect("right gradient").as_slice(),
+        &[30.0, 40.0]
+    );
+}
+
 /// Verify contiguous() backward is identity — gradient flows through unchanged.
 #[test]
 fn test_contiguous_backward_is_identity() {

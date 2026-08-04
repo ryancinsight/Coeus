@@ -64,19 +64,15 @@ where
                 .collect();
 
             let lock = g.write();
-            let (g_storage, g_layout) = lock.storage_mut_and_layout();
+            let (g_storage, g_layout) = lock.storage_and_layout_mut();
             let sliced_out_layout = grad_out.layout().slice(&ranges);
 
-            let g_storage_imm: &B::DeviceBuffer<T> =
-                unsafe { &*(g_storage as *const B::DeviceBuffer<T>) };
-            backend.elementwise_binary(
+            backend.elementwise_binary_update(
                 coeus_ops::BinaryOp::Add,
-                g_storage_imm,
+                g_storage,
                 g_layout,
                 grad_out.storage(),
                 &sliced_out_layout,
-                g_storage,
-                g_layout,
             )?;
             offset += sz;
         }

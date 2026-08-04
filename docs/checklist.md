@@ -1,5 +1,21 @@
 # Global Progress Checklist: Coeus
 
+## COEUS-ASSIGNMENT-ALIASING-001 — Codex
+
+- [x] Delete the four raw immutable-reference casts from active mutable device
+      buffers.
+- [x] Add one provider-neutral partial-update contract with direct Leto CPU
+      mutation and Hephaestus-compatible device-local COW dispatch.
+- [x] Route unary assignment through distinct provider-owned output storage.
+- [x] Add shared-storage unary and untouched-parent structural-gradient value
+      contracts.
+- [x] Pass focused CPU and physical CUDA Nextest, affected feature checks,
+      warning-denied Clippy, and focused Miri.
+- [x] Pass independent architecture review after adding failure-atomic and all
+      provider partial-update contracts.
+- [x] Pass exact-head WGPU, CUDA, ROCm, and Metal CI in run `30875294728`.
+- [ ] Merge PR #288 and record the integrated revision.
+
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Codex
 
 - [x] Record and index ADR-0049 for backend-selected provider ownership.

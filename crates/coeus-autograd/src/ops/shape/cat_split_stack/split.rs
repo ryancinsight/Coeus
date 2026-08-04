@@ -61,19 +61,15 @@ where
             .collect();
 
         let lock = acc.write();
-        let (parent_storage, parent_layout) = lock.storage_mut_and_layout();
+        let (parent_storage, parent_layout) = lock.storage_and_layout_mut();
         let sliced_layout = parent_layout.slice(&ranges);
 
-        let parent_storage_imm: &B::DeviceBuffer<T> =
-            unsafe { &*(parent_storage as *const B::DeviceBuffer<T>) };
-        backend.elementwise_binary(
+        backend.elementwise_binary_update(
             coeus_ops::BinaryOp::Add,
-            parent_storage_imm,
+            parent_storage,
             &sliced_layout,
             grad_out.storage(),
             grad_out.layout(),
-            parent_storage,
-            &sliced_layout,
         )?;
         Ok(())
     }

@@ -47,6 +47,15 @@ where
     // sign: -1, -1, 0, 1
     let s = coeus_ops::sign(&v, backend);
     assert_eq!(s.as_slice(), &[-1.0_f64, -1.0, 0.0, 1.0], "sign");
+
+    let mut assigned = v.clone();
+    coeus_ops::neg_assign(&mut assigned, backend).expect("neg assignment");
+    assert_eq!(assigned.as_slice(), &[3.0_f64, 1.0, 0.0, -2.0]);
+    assert_eq!(
+        v.as_slice(),
+        &[-3.0_f64, -1.0, 0.0, 2.0],
+        "assignment must detach shared storage before mutation"
+    );
 }
 
 // RECIP / SQRT

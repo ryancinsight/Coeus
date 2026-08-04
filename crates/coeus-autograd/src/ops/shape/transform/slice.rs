@@ -36,19 +36,15 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sl
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let parent_grad = g.write();
-            let (parent_storage, parent_layout) = parent_grad.storage_mut_and_layout();
+            let (parent_storage, parent_layout) = parent_grad.storage_and_layout_mut();
             let sliced_layout = parent_layout.slice(&self.ranges);
 
-            let parent_storage_imm: &B::DeviceBuffer<T> =
-                unsafe { &*(parent_storage as *const B::DeviceBuffer<T>) };
-            backend.elementwise_binary(
+            backend.elementwise_binary_update(
                 coeus_ops::BinaryOp::Add,
-                parent_storage_imm,
+                parent_storage,
                 &sliced_layout,
                 grad_out.storage(),
                 grad_out.layout(),
-                parent_storage,
-                &sliced_layout,
             )?;
         }
         Ok(())

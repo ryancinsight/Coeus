@@ -1,5 +1,52 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-ASSIGNMENT-ALIASING-001 — Remove invalid assignment aliases [minor] [arch]
+
+- Owner: Codex on `codex/coeus-sinusoidal-provider`; last-update: 2026-08-03;
+  scope: generic unary assignment plus cat, split, and slice gradient
+  accumulation seams; provider implementations; focused COW/gradient contracts;
+  ADR and active PM evidence.
+- Outcome: no operation constructs a shared Rust reference from an active mutable
+  reference. CPU assignment routes through destination-writing Leto operations;
+  accelerators route through Hephaestus using storage contracts that are valid
+  under Rust aliasing and COW.
+- Non-goals: unrelated loss, norm, matmul, or consumer-kernel migrations; runtime
+  or memory claims without controlled measurements.
+- Acceptance: all four raw-reference casts are deleted; shared-storage unary
+  assignment and cat/split/slice gradients are value-correct; unsupported
+  provider contracts return typed errors; warning-denied focused checks,
+  Nextest, Miri or the applicable substitute, doctests, independent review, and
+  exact-head WGPU/CUDA/ROCm/Metal CI pass.
+- Risk/change class: `[minor] [arch]`; existing signatures remain unchanged and
+  the public backend capability gains defaulted assignment methods, while
+  provider ownership and internal reference validity extend ADR-0051.
+- Status: review-ready; focused CPU and physical CUDA contracts pass, the
+  corrected candidate passes independent review, and exact-head provider run
+  `30875294728` is green. PR #288 remains pending merge.
+
+## COEUS-SINUSOIDAL-PROVIDER-001 — Remove positional host fallback [patch]
+
+- Owner: Codex on `codex/coeus-sinusoidal-provider`; last-update: 2026-08-03;
+  scope: sinusoidal positional table construction, prefix-view extraction,
+  focused CPU/accelerator contracts, and active PM evidence.
+- Outcome: construction initializes the table once on the selected backend and
+  forward borrows the active prefix as a tensor view, without requiring
+  CPU-addressable accelerator storage or downloading and re-uploading the
+  table.
+- Non-goals: changing the public constructor contract, adding a positional
+  kernel where no runtime computation exists, or claiming runtime/memory gains
+  without controlled measurements.
+- Acceptance: CPU and local CUDA construction plus forward values match the
+  analytical sinusoidal oracle; prefix extraction shares storage and preserves
+  layout; residue scans find no CPU-storage expectation or host-transfer branch
+  in the migrated file; focused warning-denied checks, Nextest, doctests, and
+  exact-head WGPU/CUDA/ROCm/Metal CI pass.
+- Risk/change class: `[patch]`; the public API and mathematical contract remain
+  unchanged while an accelerator panic and host-transfer fallback are removed.
+- Status: blocked. Re-open after accelerator `BackendOps` no longer inherits
+  CPU-addressable matmul requirements: WGPU/CUDA instantiate the intended
+  module path, but ROCm/Metal fail the bound before sinusoidal construction.
+
 ## COEUS-COSINE-CLAMP-GRADIENT-001 — Correct clamped cosine backward [patch]
 
 - Owner: Codex on `codex/coeus-fused-cpu-boundary`; last-update: 2026-08-03;
