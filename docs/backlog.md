@@ -1,5 +1,26 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-ASSIGNMENT-ALIASING-001 — Remove invalid assignment aliases [patch] [arch]
+
+- Owner: Codex on `codex/coeus-sinusoidal-provider`; last-update: 2026-08-03;
+  scope: generic unary assignment plus cat, split, and slice gradient
+  accumulation seams; provider implementations; focused COW/gradient contracts;
+  ADR and active PM evidence.
+- Outcome: no operation constructs a shared Rust reference from an active mutable
+  reference. CPU assignment routes through destination-writing Leto operations;
+  accelerators route through Hephaestus using storage contracts that are valid
+  under Rust aliasing and COW.
+- Non-goals: unrelated loss, norm, matmul, or consumer-kernel migrations; runtime
+  or memory claims without controlled measurements.
+- Acceptance: all four raw-reference casts are deleted; shared-storage unary
+  assignment and cat/split/slice gradients are value-correct; unsupported
+  provider contracts return typed errors; warning-denied focused checks,
+  Nextest, Miri or the applicable substitute, doctests, independent review, and
+  exact-head WGPU/CUDA/ROCm/Metal CI pass.
+- Risk/change class: `[patch] [arch]`; public signatures remain unchanged, while
+  provider ownership and internal reference validity extend ADR-0051.
+- Status: in-progress.
+
 ## COEUS-SINUSOIDAL-PROVIDER-001 — Remove positional host fallback [patch]
 
 - Owner: Codex on `codex/coeus-sinusoidal-provider`; last-update: 2026-08-03;
@@ -19,7 +40,9 @@
   exact-head WGPU/CUDA/ROCm/Metal CI pass.
 - Risk/change class: `[patch]`; the public API and mathematical contract remain
   unchanged while an accelerator panic and host-transfer fallback are removed.
-- Status: in-progress.
+- Status: blocked. Re-open after accelerator `BackendOps` no longer inherits
+  CPU-addressable matmul requirements: WGPU/CUDA instantiate the intended
+  module path, but ROCm/Metal fail the bound before sinusoidal construction.
 
 ## COEUS-COSINE-CLAMP-GRADIENT-001 — Correct clamped cosine backward [patch]
 
