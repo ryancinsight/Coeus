@@ -13,7 +13,8 @@
       warning-denied Clippy, and focused Miri.
 - [x] Pass independent architecture review after adding failure-atomic and all
       provider partial-update contracts.
-- [ ] Pass exact-head WGPU, CUDA, ROCm, and Metal CI; merge the delivery branch.
+- [x] Pass exact-head WGPU, CUDA, ROCm, and Metal CI in run `30875294728`.
+- [ ] Merge PR #288 and record the integrated revision.
 
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Codex
 

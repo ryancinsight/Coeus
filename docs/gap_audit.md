@@ -20,7 +20,8 @@ pre-existing permissive-provenance warnings in Mnemosyne's allocator. No
 runtime, memory, or binary-size delta is claimed without controlled
 measurements.
 **Status**: implementation, focused local verification, and independent review
-complete; exact-head CI pending under ADR-0051.
+complete. Exact-head run `30875294728` passes WGPU/CPU, CUDA, ROCm, and Metal;
+PR #288 remains pending merge under ADR-0051.
 
 ## COEUS-STATEFUL-UPDATE-PROVIDER-001: Consumer-owned optimizer dispatch
 

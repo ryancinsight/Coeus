@@ -20,8 +20,9 @@
 - Risk/change class: `[minor] [arch]`; existing signatures remain unchanged and
   the public backend capability gains defaulted assignment methods, while
   provider ownership and internal reference validity extend ADR-0051.
-- Status: in-progress; focused CPU and physical CUDA contracts pass, and the
-  corrected candidate passes independent review. Exact-head provider CI remains.
+- Status: review-ready; focused CPU and physical CUDA contracts pass, the
+  corrected candidate passes independent review, and exact-head provider run
+  `30875294728` is green. PR #288 remains pending merge.
 
 ## COEUS-SINUSOIDAL-PROVIDER-001 — Remove positional host fallback [patch]
 
