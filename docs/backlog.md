@@ -110,7 +110,7 @@
   in the migrated closure; warning-denied Clippy, focused Nextest, doctests,
   semver classification, independent architecture review, and exact-head
   provider CI pass.
-- Status: review; CPU layout and adjoint contracts pass under Nextest, local
+- Status: completed; CPU layout and adjoint contracts pass under Nextest, local
   CUDA forward-plus-gradient dispatch passes on the installed device, and
   warning-denied Clippy plus host-compatible semver checks pass. Windows
   Defender error 225 blocked two pre-existing core and two Leto doctest
@@ -122,7 +122,9 @@
   eager COW copy. Exact-head run `30863204695` passed CUDA, ROCm, and Metal;
   WGPU reached the required-device regression and exposed a non-contiguous CPU
   oracle read in the test itself. The oracle now materializes logical values
-  through the backend-aware view path; exact-head provider CI rerun is pending.
+  through the backend-aware view path. Final exact-head run `30864331976`
+  passed CUDA, WGPU, Metal, and ROCm at `fdfb83fe`; PR #286 merged as
+  `706dc716`.
 
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Provider-owned random initialization [major] [arch]
 
