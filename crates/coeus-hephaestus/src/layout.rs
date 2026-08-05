@@ -35,3 +35,43 @@ pub(crate) fn ranked<const N: usize>(
 
     Ok(LetoLayout::new(shape, strides, layout.offset()))
 }
+
+/// Map a logical Coeus axis to the corresponding left-padded provider axis.
+pub(crate) fn ranked_axis<const N: usize>(
+    operation: &'static str,
+    layout: &Layout,
+    axis: usize,
+) -> Result<usize, BackendError> {
+    let rank = layout.ndim();
+    if rank > N {
+        return Err(BackendError::UnsupportedRank {
+            operation,
+            rank,
+            max_rank: N,
+        });
+    }
+    if axis >= rank {
+        return Err(BackendError::AxisOutOfRange {
+            operation,
+            axis,
+            rank,
+        });
+    }
+    Ok(axis + (N - rank))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ranked_axis;
+    use coeus_core::Layout;
+
+    #[test]
+    fn ranked_axis_maps_left_padded_rank() {
+        let vector = Layout::new([6].into());
+        let matrix = Layout::new([2, 3].into());
+
+        assert_eq!(ranked_axis::<2>("reduce", &vector, 0), Ok(1));
+        assert_eq!(ranked_axis::<2>("reduce", &matrix, 0), Ok(0));
+        assert_eq!(ranked_axis::<2>("reduce", &matrix, 1), Ok(1));
+    }
+}
