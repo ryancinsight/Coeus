@@ -4,6 +4,12 @@
 
 ### Changed
 
+- [major] Require `coeus_ops::ReductionOps` implementations to provide
+  cumulative sum and product scans directly. Sequential and Moirai continue
+  through Leto; CUDA, WGPU, ROCm, and Metal retain their Hephaestus dispatch.
+  Delete the generic host download/compute/upload defaults so a new backend
+  cannot silently inherit CPU staging. See [ADR 0054](docs/adr/0054-provider-owned-cumulative-scans.md).
+
 - [patch] [arch] Narrow module and binary-autograd capability bounds to the
   operations they use. Sinusoidal positional encoding now computes its table
   in native scalar precision, uploads it once to the selected backend, and

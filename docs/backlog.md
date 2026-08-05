@@ -1,5 +1,29 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-SCAN-DISPATCH-001 — Require provider-owned cumulative scans [major] [arch]
+
+- Owner: Codex on `codex/coeus-direct-scan-dispatch`; last-update:
+  2026-08-04; scope: `coeus-ops::ReductionOps` cumulative scan methods, their
+  CPU Leto implementation, accelerator provider implementations, and the
+  dispatch ADR and verification evidence.
+- Outcome: cumulative sum and product operations have no generic host-staging
+  default. Sequential and Moirai route through Leto; CUDA, WGPU, ROCm, and
+  Metal route through their selected Hephaestus provider implementation.
+- Non-goals: argmax/argmin/top-k CPU-only helpers, new scan kernels in Leto or
+  Hephaestus, public release/version finalization, or runtime/memory claims
+  without controlled measurements.
+- Acceptance: every current `ReductionOps` implementation supplies all four
+  cumulative scan methods; the host staging helpers are deleted; CPU value
+  contracts and provider compile contracts pass; no Coeus scan path calls
+  `copy_to_host` or `copy_to_device`; the architecture record and changelog
+  identify the public breaking change.
+- Risk/change class: `[major] [arch]`; removing default trait methods requires
+  external `ReductionOps` implementors to provide provider-owned scan methods.
+  In-repository implementors are migrated in this change without a
+  compatibility adapter.
+- Status: in-progress; claim commit records the bounded scope before source
+  changes.
+
 ## COEUS-CROSS-ENTROPY-PROVIDER-001 — Remove loss host staging [major] [arch]
 
 - Owner: Codex on `codex/coeus-cross-entropy-provider`; last-update:
