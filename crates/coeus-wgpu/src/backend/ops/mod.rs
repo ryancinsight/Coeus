@@ -3,8 +3,8 @@ use crate::kernels;
 use coeus_core::{Layout, Storage};
 use hephaestus_core::BlockWidth;
 use hephaestus_wgpu::{
-    binary_elementwise_strided_into, unary_elementwise_strided_into, StridedOperand,
-    MAX_STRIDED_RANK,
+    binary_elementwise_strided_into, scalar_elementwise_strided_into,
+    unary_elementwise_strided_into, StridedOperand, MAX_STRIDED_RANK,
 };
 use leto::Layout as LetoLayout;
 use std::sync::Arc;
@@ -294,6 +294,59 @@ fn try_hephaestus_strided_unary_wgpu<
     }
 
     match c_layout.ndim().max(a_layout.ndim()) {
+        1 => dispatch_n!(1),
+        2 => dispatch_n!(2),
+        3 => dispatch_n!(3),
+        4 => dispatch_n!(4),
+        _ => Ok(false),
+    }
+}
+
+/// Dispatch scalar power through the Hephaestus strided scalar kernel.
+fn try_hephaestus_strided_scalar_power_wgpu<
+    T: coeus_core::Float
+        + WgpuScalar
+        + leto_ops::Scalar
+        + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>,
+>(
+    input: &crate::backend::WgpuStorage<T>,
+    input_layout: &Layout,
+    exponent: T,
+    output: &crate::backend::WgpuStorage<T>,
+    output_layout: &Layout,
+) -> Result<bool, WgpuBackendError> {
+    if Arc::ptr_eq(&input.buffer, &output.buffer)
+        || !can_route_strided_wgpu(&[input_layout], output_layout)
+    {
+        return Ok(false);
+    }
+
+    macro_rules! dispatch_n {
+        ($n:expr) => {{
+            let input_layout = coeus_to_leto_layout!(input_layout, $n);
+            let output_layout = coeus_to_leto_layout!(output_layout, $n);
+            let input = StridedOperand {
+                buffer: input.buffer.as_ref(),
+                layout: &input_layout,
+            };
+            let output = StridedOperand {
+                buffer: output.buffer.as_ref(),
+                layout: &output_layout,
+            };
+            let result = scalar_elementwise_strided_into::<hephaestus_wgpu::PowOp, T, $n>(
+                &crate::backend::get_wgpu_context().hephaestus_device,
+                input,
+                exponent,
+                output,
+                BlockWidth::DEFAULT,
+            );
+            result
+                .map(|_| true)
+                .map_err(|source| WgpuBackendError::dispatch("elementwise scalar power", source))
+        }};
+    }
+
+    match input_layout.ndim().max(output_layout.ndim()) {
         1 => dispatch_n!(1),
         2 => dispatch_n!(2),
         3 => dispatch_n!(3),
@@ -644,5 +697,39 @@ impl<
             kernels::dispatch_unary::<T>(op, &a.buffer, a_layout, &c.buffer, c_layout, c.len())?;
         }
         Ok(())
+    }
+}
+
+impl<T> coeus_ops::ScalarPowerOps<T> for WgpuBackend
+where
+    T: coeus_core::Float
+        + WgpuScalar
+        + leto_ops::Scalar
+        + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>,
+{
+    #[inline]
+    fn elementwise_pow_scalar(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        exponent: T,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) -> Result<(), WgpuBackendError> {
+        WgpuBackendError::validate_layout(input_layout)?;
+        WgpuBackendError::validate_layout(output_layout)?;
+        if try_hephaestus_strided_scalar_power_wgpu(
+            input,
+            input_layout,
+            exponent,
+            output,
+            output_layout,
+        )? {
+            Ok(())
+        } else {
+            Err(WgpuBackendError::UnsupportedOperation {
+                operation: "scalar power",
+            })
+        }
     }
 }

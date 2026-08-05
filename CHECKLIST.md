@@ -1,5 +1,54 @@
 # Coeus Development Roadmap Checklist
 
+## COEUS-AUTOGRAD-LP-NORM-PROVIDER-001 [major] [arch]
+
+- [x] Confirm the residual: `norm_p`, `norm_p_axis`, and both tracked
+      backward nodes stage complete tensors through host storage.
+- [x] Confirm provider ownership: Leto `PowfOp` and Hephaestus scalar-strided
+      `PowOp` exist for the selected CPU and accelerator providers.
+- [x] Record the provider scalar-power seam and migration contract in ADR 0056.
+- [x] Add the scalar-power capability to Coeus elementwise/provider traits and
+      migrate CPU, WGPU, CUDA, ROCm, and Metal implementations.
+- [x] Rewrite Lp forward and backward as provider-resident compositions and
+      remove CPU-addressable bounds and host payloads.
+- [x] Add analytical, differential, strided, zero-input, seed, additive
+      backward, COW, and backend CI coverage.
+- [x] Run local format, warning-denied Ops/autograd Clippy, full Ops Nextest
+      (208/208), full autograd Nextest (103/103), and the focused strided/COW
+      regression; Ops doctests (22/22) and autograd doctests (16/16) also pass.
+- [ ] Run locked backend package checks, doctests, SemVer against the intended
+      release baseline, and exact hosted backend gates. The local locked graph
+      is blocked by the shared overlay's dirty provider patches; the local
+      accelerator graph is blocked by peer-owned Hephaestus cross-entropy API
+      changes. SemVer against the published 0.9.0 baseline reports three
+      pre-existing major failures from cumulative scans and fusion APIs.
+
+Status: blocked on `codex/coeus-lp-norm-provider`; reopen after the shared lock
+graph and peer Hephaestus cross-entropy exports converge.
+
+## COEUS-AUTOGRAD-PROD-PROVIDER-001 [minor] [arch]
+
+- [x] Confirm `coeus_ops::prod` copies the full input to host and
+      `ProdNode::backward` rebuilds an input-sized host gradient.
+- [x] Confirm existing Leto and Hephaestus product-axis providers cover CPU,
+      WGPU, CUDA, ROCm, and Metal dispatch.
+- [x] Record the provider-owned product contract in ADR 0057.
+- [x] Route global product through provider axis reductions and one final
+      scalar read.
+- [x] Rewrite exact zero-aware product backward using provider elementwise and
+      reduction composition; retain only provider tensors in the node.
+- [x] Add zero-free, one-zero, multi-zero, non-unit-seed, strided, and COW
+      differential coverage plus host-residue checks.
+- [x] Run format, warning-denied Clippy, focused/full Nextest, and doctests.
+- [x] Run the public-surface check; it reports the same three pre-existing
+      0.9.0 baseline failures and no product-specific failure.
+- [ ] Run locked backend package checks and exact hosted backend provider gates;
+      local verification is blocked by the shared overlay lock graph and the
+      peer-owned Hephaestus cross-entropy export mismatch.
+
+Status: blocked on `codex/coeus-lp-norm-provider`; reopen after the shared lock
+graph and peer Hephaestus cross-entropy exports converge.
+
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Owner: Codex `/root`
 
 - [x] Bind Moirai, Mnemosyne, and Themis imports to their published packages.

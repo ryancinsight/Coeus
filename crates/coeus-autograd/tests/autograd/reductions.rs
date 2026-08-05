@@ -179,6 +179,22 @@ fn test_norm_p_axis_autograd() {
 }
 
 #[test]
+fn test_norm_p_subunit_exponent_masks_zero_input_gradient() {
+    let backend = MoiraiBackend::new();
+    let x_val = Tensor::from_slice_on(vec![2], &[0.0f64, 4.0], &backend);
+    let x = Var::new(x_val, true);
+
+    let y = norm_p(&x, 0.5);
+    assert!((y.tensor.as_slice()[0] - 4.0).abs() < 1e-12);
+
+    y.backward_with_seed(Tensor::from_slice_on(vec![1], &[1.0f64], &backend))
+        .expect("invariant: valid subunit norm backward completes");
+    let gradient = x.grad().expect("gradient is enabled");
+    assert_eq!(gradient.as_slice()[0], 0.0);
+    assert!((gradient.as_slice()[1] - 1.0).abs() < 1e-12);
+}
+
+#[test]
 fn test_log_sum_exp_autograd() {
     let backend = MoiraiBackend::new();
     let vals = [1.0f64, 2.0, 3.0];
@@ -395,6 +411,38 @@ fn test_prod_autograd_matches_analytic() {
             gz[i]
         );
     }
+
+    // A non-unit seed scales the exact one-zero derivative.
+    let seeded = Var::new(
+        Tensor::from_slice_on(vec![3], &[2.0f64, 0.0, 3.0], &backend),
+        true,
+    );
+    let seeded_product = coeus_autograd::prod(&seeded);
+    seeded_product
+        .backward_with_seed(Tensor::from_slice_on(vec![1], &[7.0], &backend))
+        .expect("invariant: seeded product backward completes");
+    let seeded_grad = seeded.grad().unwrap();
+    for (i, want) in [0.0, 42.0, 0.0].iter().enumerate() {
+        assert!(
+            (seeded_grad.as_slice()[i] - want).abs() < 1e-14,
+            "seeded zero dx[{i}]: {} vs {want}",
+            seeded_grad.as_slice()[i]
+        );
+    }
+
+    // Two zeros annihilate every partial product, so every derivative is zero.
+    let multiple = Var::new(
+        Tensor::from_slice_on(vec![5], &[2.0f64, 0.0, 3.0, 0.0, 5.0], &backend),
+        true,
+    );
+    let multiple_product = coeus_autograd::prod(&multiple);
+    multiple_product
+        .backward()
+        .expect("invariant: multi-zero product backward completes");
+    assert_eq!(
+        multiple.grad().unwrap().as_slice(),
+        &[0.0, 0.0, 0.0, 0.0, 0.0]
+    );
 }
 
 #[test]

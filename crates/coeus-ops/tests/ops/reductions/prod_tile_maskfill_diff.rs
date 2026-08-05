@@ -16,7 +16,6 @@ use coeus_tensor::Tensor;
 fn t<B>(shape: &[usize], vals: &[f64], backend: &B) -> Tensor<f64, B>
 where
     B: coeus_core::ComputeBackend,
-    B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
     Tensor::from_slice_on(shape.to_vec(), vals, backend)
 }
@@ -26,7 +25,6 @@ where
 fn check_prod<B>(backend: &B)
 where
     B: coeus_ops::BackendOps<f64> + Default,
-    B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
     // prod([1,2,3,4]) = 24
     let v = t(&[4], &[1.0, 2.0, 3.0, 4.0], backend);

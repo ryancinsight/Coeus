@@ -275,7 +275,7 @@ where
 
 fn check_norm_p<B>(backend: &B)
 where
-    B: coeus_ops::BackendOps<f64> + Default,
+    B: coeus_ops::BackendOps<f64> + coeus_ops::ScalarPowerOps<f64> + Default,
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
     // L1: [3,-4,12] -> |3|+|-4|+|12| = 19.0
@@ -314,7 +314,7 @@ where
 
 fn check_norm_p_axis<B>(backend: &B)
 where
-    B: coeus_ops::BackendOps<f64> + Default,
+    B: coeus_ops::BackendOps<f64> + coeus_ops::ScalarPowerOps<f64> + Default,
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
     // M = [[3,4],[0,5]], shape [2,2]
@@ -374,7 +374,7 @@ where
 
 fn check_all<B>(backend: &B)
 where
-    B: coeus_ops::BackendOps<f64> + Default,
+    B: coeus_ops::BackendOps<f64> + coeus_ops::ScalarPowerOps<f64> + Default,
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
     check_var_std(backend);

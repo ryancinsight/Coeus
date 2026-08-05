@@ -22,7 +22,7 @@ pub use backend_ops::{
     AttentionOps, AttentionScalar, BackendOps, BinaryOp, ConvOps, ConvolutionBackward,
     ConvolutionForward, CpuBackend, CrossEntropyOps, ElementwiseOps, MatmulOps, OptimizerOps,
     OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation, PoolOps, RandomInitOps,
-    ReductionOp, ReductionOps, RotateHalfOps, UnaryOp, UnfoldFoldOps,
+    ReductionOp, ReductionOps, RotateHalfOps, ScalarPowerOps, UnaryOp, UnfoldFoldOps,
 };
 /// Element-wise binary operations (add, sub, mul, div).
 pub mod binary;
@@ -48,10 +48,10 @@ pub use unary::{
     cos_assign, cosh, elementwise_unary, elementwise_unary_assign, elementwise_unary_to, elu,
     elu_assign, erf, erfc, exp, exp2, exp_assign, expm1, floor, floor_assign, gelu, gelu_assign,
     gelu_tanh, gelu_tanh_assign, glu, leaky_relu, leaky_relu_assign, lgamma, log, log10, log1p,
-    log2, log_assign, log_softmax_axis, masked_softmax, mish, mish_assign, neg, neg_assign, recip,
-    recip_assign, relu, relu_assign, round, round_assign, sigmoid, sigmoid_assign, sign,
-    sign_assign, silu, silu_assign, sin, sin_assign, sinh, softplus, softplus_assign, sqrt,
-    sqrt_assign, tan, tanh, tanh_assign, trunc, trunc_assign,
+    log2, log_assign, log_softmax_axis, masked_softmax, mish, mish_assign, neg, neg_assign,
+    pow_scalar, recip, recip_assign, relu, relu_assign, round, round_assign, sigmoid,
+    sigmoid_assign, sign, sign_assign, silu, silu_assign, sin, sin_assign, sinh, softplus,
+    softplus_assign, sqrt, sqrt_assign, tan, tanh, tanh_assign, trunc, trunc_assign,
 };
 
 pub use binary::{
@@ -66,9 +66,9 @@ pub use interpolation::{
 pub use matmul::{bmm, matmul, matmul_accumulate, outer};
 pub use reduction::{
     amax, amin, argmax, argmin, cross, cumprod, cumsum, dot, frobenius_norm,
-    frobenius_norm_batched, max_axis, mean, mean_axis, min_axis, norm, norm_p, norm_p_axis, prod,
-    prod_axis, std_dev, std_dev_axis, std_mean, std_mean_axis, suffix_prod, suffix_sum, sum,
-    sum_axis, topk, var, var_axis, var_mean, var_mean_axis,
+    frobenius_norm_batched, max_axis, mean, mean_axis, min_axis, norm, norm_p, norm_p_axis,
+    norm_p_tensor, prod, prod_axis, prod_tensor, std_dev, std_dev_axis, std_mean, std_mean_axis,
+    suffix_prod, suffix_sum, sum, sum_axis, topk, var, var_axis, var_mean, var_mean_axis,
 };
 pub use rotate_half::rotate_half;
 pub use shape::{

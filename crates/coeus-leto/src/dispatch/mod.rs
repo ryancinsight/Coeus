@@ -67,7 +67,7 @@ pub use convolution::{
 };
 pub use elementwise::{
     elementwise_add_into, elementwise_binary_assign, elementwise_binary_into,
-    elementwise_unary_into,
+    elementwise_pow_scalar_into, elementwise_unary_into,
 };
 pub use init::{
     from_shape_fn_values, normal_values, normal_values_into, uniform_values, uniform_values_into,

@@ -6,8 +6,8 @@ use crate::{
     reduction::{HephaestusBackend, HephaestusProvider, RankedOperand},
     storage::HephaestusStorage,
 };
-use coeus_core::{BackendError, Layout, Scalar};
-use coeus_ops::{BinaryOp, ElementwiseOps, UnaryOp};
+use coeus_core::{BackendError, Float, Layout, Scalar};
+use coeus_ops::{BinaryOp, ElementwiseOps, ScalarPowerOps, UnaryOp};
 use hephaestus_core::{
     ComputeDevice, HardtanhGradOp, HardtanhOp, ParameterizedUnaryExpr, ParameterizedUnaryOps,
     StridedView, ThresholdGradOp, ThresholdOp,
@@ -32,6 +32,20 @@ where
         device: &Self::Device,
         operation: UnaryOp,
         input: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, N>,
+        output: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, N>,
+    ) -> hephaestus_core::Result<()>;
+}
+
+/// Provider implementation of scalar exponentiation over strided views.
+pub trait ScalarPowerProvider<T>: HephaestusProvider
+where
+    T: Float + leto_ops::Scalar,
+{
+    /// Execute `output = input.powf(exponent)` at a fixed logical rank.
+    fn scalar_power<const N: usize>(
+        device: &Self::Device,
+        input: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, N>,
+        exponent: T,
         output: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, N>,
     ) -> hephaestus_core::Result<()>;
 }
@@ -310,6 +324,94 @@ where
             },
         )
         .map_err(|source| HephaestusBackendError::device("elementwise_unary", source))
+    }
+}
+
+impl<P, T> ScalarPowerOps<T> for HephaestusBackend<P>
+where
+    P: ScalarPowerProvider<T>,
+    T: Float + leto_ops::Scalar,
+{
+    fn elementwise_pow_scalar(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        exponent: T,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) -> Result<(), Self::Error> {
+        reject_broadcast_output("elementwise scalar power", output_layout)?;
+        let rank = input_layout.ndim().max(output_layout.ndim());
+        match rank {
+            1 => self.dispatch_scalar_power_rank::<T, 1>(
+                input,
+                input_layout,
+                exponent,
+                output,
+                output_layout,
+            ),
+            2 => self.dispatch_scalar_power_rank::<T, 2>(
+                input,
+                input_layout,
+                exponent,
+                output,
+                output_layout,
+            ),
+            3 => self.dispatch_scalar_power_rank::<T, 3>(
+                input,
+                input_layout,
+                exponent,
+                output,
+                output_layout,
+            ),
+            4 => self.dispatch_scalar_power_rank::<T, 4>(
+                input,
+                input_layout,
+                exponent,
+                output,
+                output_layout,
+            ),
+            rank => Err(BackendError::UnsupportedRank {
+                operation: "elementwise scalar power",
+                rank,
+                max_rank: 4,
+            }
+            .into()),
+        }
+    }
+}
+
+impl<P> HephaestusBackend<P>
+where
+    P: HephaestusProvider,
+{
+    fn dispatch_scalar_power_rank<T, const N: usize>(
+        &self,
+        input: &HephaestusStorage<P, T>,
+        input_layout: &Layout,
+        exponent: T,
+        output: &mut HephaestusStorage<P, T>,
+        output_layout: &Layout,
+    ) -> Result<(), HephaestusBackendError>
+    where
+        P: ScalarPowerProvider<T>,
+        T: Float + leto_ops::Scalar,
+    {
+        let input_layout = ranked::<N>("elementwise scalar power", input_layout)?;
+        let output_layout = ranked::<N>("elementwise scalar power", output_layout)?;
+        P::scalar_power(
+            P::device(),
+            RankedOperand {
+                buffer: input.buffer(),
+                layout: &input_layout,
+            },
+            exponent,
+            RankedOperand {
+                buffer: output.buffer(),
+                layout: &output_layout,
+            },
+        )
+        .map_err(|source| HephaestusBackendError::device("elementwise scalar power", source))
     }
 }
 

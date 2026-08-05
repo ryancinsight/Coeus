@@ -122,3 +122,32 @@ fn native_reductions_and_scans_match_leto() {
     backend.copy_to_host(&suffix_product, &mut actual_suffix_product);
     assert_eq!(actual_suffix_product, expected_suffix_product);
 }
+
+#[test]
+#[cfg(all(feature = "rocm", target_os = "linux"))]
+fn norm_p_dispatches_with_rocm_provider_parity() {
+    require_device();
+    if hephaestus_rocm::RocmDevice::try_default().is_err() {
+        return;
+    }
+
+    let backend = RocmBackend::new();
+    let input = coeus_tensor::Tensor::<f32, RocmBackend>::from_slice_on(
+        vec![2, 3],
+        &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0],
+        &backend,
+    );
+    let actual = coeus_ops::norm_p(&input, 2.0, &backend);
+    let expected = 91.0_f32.sqrt();
+    assert!((actual - expected).abs() <= f32::EPSILON * 1024.0 * expected);
+
+    let actual_axis = coeus_ops::norm_p_axis(&input, 2.0, 1, &backend);
+    let mut actual_axis_values = [0.0_f32; 2];
+    backend.copy_to_host(actual_axis.storage(), &mut actual_axis_values);
+    for (&actual, expected) in actual_axis_values
+        .iter()
+        .zip([14.0_f32.sqrt(), 77.0_f32.sqrt()])
+    {
+        assert!((actual - expected).abs() <= f32::EPSILON * 1024.0 * expected);
+    }
+}

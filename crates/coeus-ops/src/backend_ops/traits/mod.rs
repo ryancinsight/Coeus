@@ -1,6 +1,6 @@
 //! Interface-segregated sub-traits for [`BackendOps`].
 //!
-//! This module exports ten single-concern capability traits. `BackendOps`
+//! This module exports eleven single-concern capability traits. `BackendOps`
 //! composes the six capabilities shared by every backend; attention, optimizer,
 //! random initialization, and half-vector rotation remain optional capabilities
 //! so unrelated kernels do not acquire unsupported bounds. Backends implement
@@ -41,7 +41,7 @@ pub mod unfold_fold;
 pub use attention::{AttentionOps, AttentionScalar};
 pub use conv::{ConvOps, ConvolutionBackward, ConvolutionForward};
 pub use cross_entropy::CrossEntropyOps;
-pub use elementwise::ElementwiseOps;
+pub use elementwise::{ElementwiseOps, ScalarPowerOps};
 pub use matmul::MatmulOps;
 pub use optimizer::{OptimizerOps, OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation};
 pub use pool::PoolOps;

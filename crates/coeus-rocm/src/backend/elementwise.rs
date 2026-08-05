@@ -1,5 +1,5 @@
 use super::provider::RocmProvider;
-use coeus_hephaestus::{ElementwiseProvider, RankedOperand};
+use coeus_hephaestus::{ElementwiseProvider, RankedOperand, ScalarPowerProvider};
 use coeus_ops::{BinaryOp, UnaryOp};
 use hephaestus_core::{ComputeDevice, HephaestusError};
 
@@ -462,6 +462,29 @@ macro_rules! impl_elementwise_provider {
 impl_elementwise_provider!(f32, activations);
 impl_elementwise_provider!(u32, arithmetic_only);
 impl_elementwise_provider!(i32, arithmetic_only);
+
+impl ScalarPowerProvider<f32> for RocmProvider {
+    fn scalar_power<const N: usize>(
+        device: &Self::Device,
+        input: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<f32>, N>,
+        exponent: f32,
+        output: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<f32>, N>,
+    ) -> hephaestus_core::Result<()> {
+        hephaestus_rocm::scalar_elementwise_strided_into::<hephaestus_rocm::PowOp, f32, N>(
+            device,
+            hephaestus_rocm::StridedOperand {
+                buffer: input.buffer,
+                layout: input.layout,
+            },
+            exponent,
+            hephaestus_rocm::StridedOperand {
+                buffer: output.buffer,
+                layout: output.layout,
+            },
+            hephaestus_core::BlockWidth::DEFAULT,
+        )
+    }
+}
 
 #[cfg(test)]
 mod tests {

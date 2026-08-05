@@ -1,5 +1,5 @@
 use crate::backend::{CudaBackend, CudaScalar};
-use coeus_core::Layout;
+use coeus_core::{Float, Layout};
 
 impl<
         T: CudaScalar
@@ -31,5 +31,28 @@ impl<
         c_layout: &Layout,
     ) -> Result<(), Self::Error> {
         self.cuda_elementwise_unary(op, a, a_layout, c, c_layout)
+    }
+}
+
+impl<T> coeus_ops::ScalarPowerOps<T> for CudaBackend
+where
+    T: Float + CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>,
+{
+    #[inline]
+    fn elementwise_pow_scalar(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        exponent: T,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) -> Result<(), Self::Error> {
+        crate::backend::ops::math::elementwise::elementwise_pow_scalar(
+            input,
+            input_layout,
+            exponent,
+            output,
+            output_layout,
+        )
     }
 }

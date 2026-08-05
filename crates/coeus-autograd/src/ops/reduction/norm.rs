@@ -1,11 +1,10 @@
-﻿// ── Autograd nodes: norm reductions (norm, norm_p, norm_p_axis) ──
+// ── Autograd nodes: norm reductions (norm, norm_p, norm_p_axis) ──
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, Scalar};
+use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
-use std::ops::Neg;
 use std::sync::Arc;
 
 // ── NormNode (L2 short-circuit) ────────────────────────────────────────────
@@ -97,21 +96,19 @@ pub fn norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
 /// Bespoke autograd node for `norm_p` (general Lp norm, scalar `[1]` output).
 ///
 /// Forward: `y = (Σ|xᵢ|^p)^(1/p)`, output shape `[1]`.
-/// Backward: `∂y/∂x_i = y^(1-p) * |xᵢ|^(p-1) * sign(xᵢ)`, computed as a
-/// host-side fold since `T::powf` is not available as a tensor op.
+/// Backward: `∂y/∂x_i = y^(1-p) * |xᵢ|^(p-1) * sign(xᵢ)`, composed from
+/// provider-resident scalar-power and elementwise operations.
 pub struct NormPNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub input_tensor: Tensor<T, B>,
     pub p: T,
-    /// Scalar norm value (forward output).
-    pub norm_value: T,
+    /// Provider-resident scalar norm output.
+    pub norm_tensor: Tensor<T, B>,
 }
 
-impl<T: Float + Neg<Output = T>, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for NormPNode<T, B>
-where
-    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default>
+    BackwardNode<T, B> for NormPNode<T, B>
 {
     #[inline]
     fn op_name(&self) -> &'static str {
@@ -136,38 +133,28 @@ where
             return Ok(());
         };
 
-        let n = self.input_tensor.numel();
-        let grad_val = grad_out.to_contiguous_on(&backend).as_slice()[0];
+        let shape = self.input_tensor.shape_cloned();
+        let ones = Tensor::full_on(shape.clone(), T::one(), &backend);
+        let zeros = Tensor::zeros_on(shape.clone(), &backend);
+        let abs_x = coeus_ops::abs(&self.input_tensor, &backend);
+        let safe_abs = coeus_ops::where_cond(&abs_x, &abs_x, &ones, &backend)
+            .expect("norm_p backward: safe absolute value");
+        let abs_power = coeus_ops::pow_scalar(&safe_abs, self.p - T::one(), &backend);
 
-        let input_contig =
-            if self.input_tensor.is_contiguous() && self.input_tensor.layout().offset() == 0 {
-                self.input_tensor.reshape([n])
-            } else {
-                self.input_tensor.to_contiguous_on(&backend).reshape([n])
-            };
-        let mut host = vec![T::zero(); n];
-        backend.copy_to_host(input_contig.storage(), &mut host);
-
-        let y = self.norm_value;
-        let p = self.p;
-        let mut grad_host = vec![T::zero(); n];
-
-        if y != T::zero() {
-            let scale = y.powf(T::one() - p) * grad_val;
-            for i in 0..n {
-                let abs_x = <T as Float>::abs(host[i]);
-                if abs_x != T::zero() {
-                    let sign = if host[i] > T::zero() {
-                        T::one()
-                    } else {
-                        -T::one()
-                    };
-                    grad_host[i] = scale * abs_x.powf(p - T::one()) * sign;
-                }
-            }
-        }
-
-        let grad_t = Tensor::from_slice(self.input_tensor.shape().to_vec(), &grad_host);
+        let norm_broad = self.norm_tensor.broadcast(shape.clone());
+        let safe_norm = coeus_ops::where_cond(&norm_broad, &norm_broad, &ones, &backend)
+            .expect("norm_p backward: safe norm");
+        let norm_factor = coeus_ops::pow_scalar(&safe_norm, T::one() - self.p, &backend);
+        let signed = coeus_ops::mul(
+            &coeus_ops::sign(&self.input_tensor, &backend),
+            &abs_power,
+            &backend,
+        );
+        let scaled = coeus_ops::mul(&signed, &norm_factor, &backend);
+        let grad_broad = grad_out.broadcast(shape);
+        let local = coeus_ops::mul(&scaled, &grad_broad, &backend);
+        let grad_t = coeus_ops::where_cond(&self.input_tensor, &local, &zeros, &backend)
+            .expect("norm_p backward: zero-input mask");
         let lock = g.write();
         coeus_ops::add_assign(lock, &grad_t, &backend)?;
         Ok(())
@@ -178,16 +165,12 @@ where
 ///
 /// Matches `coeus_ops::norm_p` but returns a `[1]` tensor for autograd.
 #[inline]
-pub fn norm_p<T: Float + Neg<Output = T>, B: coeus_ops::BackendOps<T> + Default>(
+pub fn norm_p<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default>(
     a: &Var<T, B>,
     p: T,
-) -> Var<T, B>
-where
-    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
-{
+) -> Var<T, B> {
     let backend = B::default();
-    let norm_val = coeus_ops::norm_p(&a.tensor, p, &backend);
-    let out_tensor = Tensor::full_on([1], norm_val, &backend);
+    let out_tensor = coeus_ops::norm_p_tensor(&a.tensor, p, &backend);
 
     let requires_grad = crate::grad_mode::should_track_var(a);
     let grad = requires_grad.then(|| {
@@ -204,7 +187,7 @@ where
             inputs: vec![a.clone()],
             input_tensor: a.tensor.clone(),
             p,
-            norm_value: norm_val,
+            norm_tensor: out_tensor.clone(),
         }) as Arc<dyn BackwardNode<T, B>>
     });
     Var {
@@ -219,22 +202,19 @@ where
 /// Bespoke autograd node for `norm_p_axis`.
 ///
 /// Forward: per-axis `(Σ|xⱼₖ|^p)^(1/p)` where `k` indexes the reduced axis.
-/// Backward: `∂yⱼ/∂xⱼₖ = yⱼ^(1-p) * |xⱼₖ|^(p-1) * sign(xⱼₖ)`, computed as a
-/// host-side fold.
+/// Backward: `∂yⱼ/∂xⱼₖ = yⱼ^(1-p) * |xⱼₖ|^(p-1) * sign(xⱼₖ)`, composed from
+/// provider-resident scalar-power and elementwise operations.
 pub struct NormPAxisNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub input_tensor: Tensor<T, B>,
     pub p: T,
-    pub axis: usize,
     /// Forward output tensor (norm values, axis dim = 1).
     pub norm_tensor: Tensor<T, B>,
 }
 
-impl<T: Float + Neg<Output = T>, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for NormPAxisNode<T, B>
-where
-    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default>
+    BackwardNode<T, B> for NormPAxisNode<T, B>
 {
     #[inline]
     fn op_name(&self) -> &'static str {
@@ -259,69 +239,28 @@ where
             return Ok(());
         };
 
-        let n = self.input_tensor.numel();
-        let input_contig =
-            if self.input_tensor.is_contiguous() && self.input_tensor.layout().offset() == 0 {
-                self.input_tensor
-                    .reshape(self.input_tensor.shape().to_vec())
-            } else {
-                self.input_tensor.to_contiguous_on(&backend)
-            };
-        let mut host = vec![T::zero(); n];
-        backend.copy_to_host(input_contig.storage(), &mut host);
+        let shape = self.input_tensor.shape_cloned();
+        let ones = Tensor::full_on(shape.clone(), T::one(), &backend);
+        let zeros = Tensor::zeros_on(shape.clone(), &backend);
+        let abs_x = coeus_ops::abs(&self.input_tensor, &backend);
+        let safe_abs = coeus_ops::where_cond(&abs_x, &abs_x, &ones, &backend)
+            .expect("norm_p_axis backward: safe absolute value");
+        let abs_power = coeus_ops::pow_scalar(&safe_abs, self.p - T::one(), &backend);
 
-        let norm_n = self.norm_tensor.numel();
-        let norm_contig =
-            if self.norm_tensor.is_contiguous() && self.norm_tensor.layout().offset() == 0 {
-                self.norm_tensor.reshape(self.norm_tensor.shape().to_vec())
-            } else {
-                self.norm_tensor.to_contiguous_on(&backend)
-            };
-        let mut norm_host = vec![T::zero(); norm_n];
-        backend.copy_to_host(norm_contig.storage(), &mut norm_host);
-
-        let mut grad_host_vec = vec![T::zero(); norm_n];
-        backend.copy_to_host(
-            grad_out
-                .to_contiguous_on(&backend)
-                .reshape(norm_contig.shape().to_vec())
-                .storage(),
-            &mut grad_host_vec,
+        let norm_broad = self.norm_tensor.broadcast(shape.clone());
+        let safe_norm = coeus_ops::where_cond(&norm_broad, &norm_broad, &ones, &backend)
+            .expect("norm_p_axis backward: safe norm");
+        let norm_factor = coeus_ops::pow_scalar(&safe_norm, T::one() - self.p, &backend);
+        let signed = coeus_ops::mul(
+            &coeus_ops::sign(&self.input_tensor, &backend),
+            &abs_power,
+            &backend,
         );
-
-        let p = self.p;
-        let axis = self.axis;
-        let shape = self.input_tensor.shape();
-        let axis_dim = shape[axis];
-        let pre_count: usize = shape[..axis].iter().product();
-        let post_count: usize = shape[axis + 1..].iter().product();
-
-        let mut grad_in_host = vec![T::zero(); n];
-
-        for pre_idx in 0..pre_count {
-            for post_idx in 0..post_count {
-                let out_idx = pre_idx * post_count + post_idx;
-                let y_j = norm_host[out_idx];
-                let grad_j = grad_host_vec[out_idx];
-                if y_j == T::zero() || grad_j == T::zero() {
-                    continue;
-                }
-                let scale = y_j.powf(T::one() - p) * grad_j;
-                let base = pre_idx * (axis_dim * post_count) + post_idx;
-                for k in 0..axis_dim {
-                    let linear = base + k * post_count;
-                    let val = host[linear];
-                    let abs_x = <T as Float>::abs(val);
-                    if abs_x == T::zero() {
-                        continue;
-                    }
-                    let sign = if val > T::zero() { T::one() } else { -T::one() };
-                    grad_in_host[linear] = scale * abs_x.powf(p - T::one()) * sign;
-                }
-            }
-        }
-
-        let grad_t = Tensor::from_slice(self.input_tensor.shape().to_vec(), &grad_in_host);
+        let scaled = coeus_ops::mul(&signed, &norm_factor, &backend);
+        let grad_broad = grad_out.broadcast(shape.clone());
+        let local = coeus_ops::mul(&scaled, &grad_broad, &backend);
+        let grad_t = coeus_ops::where_cond(&self.input_tensor, &local, &zeros, &backend)
+            .expect("norm_p_axis backward: zero-input mask");
         let lock = g.write();
         coeus_ops::add_assign(lock, &grad_t, &backend)?;
         Ok(())
@@ -330,14 +269,14 @@ where
 
 /// Tracked per-axis Lp norm, output has `axis` reduced to size 1.
 #[inline]
-pub fn norm_p_axis<T: Float + Neg<Output = T>, B: coeus_ops::BackendOps<T> + Default>(
+pub fn norm_p_axis<
+    T: Float,
+    B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
+>(
     a: &Var<T, B>,
     p: T,
     axis: usize,
-) -> Var<T, B>
-where
-    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
-{
+) -> Var<T, B> {
     let backend = B::default();
     let out_tensor = coeus_ops::norm_p_axis(&a.tensor, p, axis, &backend);
 
@@ -356,7 +295,6 @@ where
             inputs: vec![a.clone()],
             input_tensor: a.tensor.clone(),
             p,
-            axis,
             norm_tensor: out_tensor.clone(),
         }) as Arc<dyn BackwardNode<T, B>>
     });

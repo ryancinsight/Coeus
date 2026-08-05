@@ -4,6 +4,7 @@ mod activation;
 mod kernel;
 /// Element-wise math functions (exp, log, sin, cos, sqrt, abs, neg, etc.).
 pub mod math;
+mod power;
 
 pub use activation::{
     causal_softmax, elu, elu_assign, gelu, gelu_assign, gelu_tanh, gelu_tanh_assign, glu,
@@ -18,3 +19,4 @@ pub use math::{
     log2, log_assign, neg, neg_assign, recip, recip_assign, round, round_assign, sign, sign_assign,
     sin, sin_assign, sinh, sqrt, sqrt_assign, tan, trunc, trunc_assign,
 };
+pub use power::pow_scalar;

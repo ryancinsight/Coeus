@@ -69,3 +69,31 @@ fn test_cuda_backend_ops() {
         assert_eq!(mish_seq.shape(), &[2, 2]);
     }
 }
+
+#[test]
+fn test_cuda_norm_p_provider_dispatch() {
+    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+        return;
+    }
+
+    let backend = CudaBackend::new();
+    let sequential = SequentialBackend::new();
+    let input =
+        Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
+    let device_input = input.to_backend_on(&sequential, &backend);
+
+    let actual = coeus_ops::norm_p(&device_input, 2.0, &backend);
+    let expected = 91.0_f32.sqrt();
+    assert!((actual - expected).abs() <= f32::EPSILON * 1024.0 * expected);
+
+    let actual_axis = coeus_ops::norm_p_axis(&device_input, 2.0, 1, &backend)
+        .to_backend_on(&backend, &sequential);
+    assert_eq!(actual_axis.shape(), &[2, 1]);
+    for (&actual, expected) in actual_axis
+        .as_slice()
+        .iter()
+        .zip([14.0_f32.sqrt(), 77.0_f32.sqrt()])
+    {
+        assert!((actual - expected).abs() <= f32::EPSILON * 1024.0 * expected);
+    }
+}

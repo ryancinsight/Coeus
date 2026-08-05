@@ -1,4 +1,8 @@
-use crate::{error::HephaestusBackendError, layout::ranked, storage::HephaestusStorage};
+use crate::{
+    error::HephaestusBackendError,
+    layout::{ranked, ranked_axis},
+    storage::HephaestusStorage,
+};
 use coeus_core::{ComputeBackend, Layout, Scalar};
 use coeus_ops::ReductionOp;
 use hephaestus_core::{ComputeDevice, DeviceBuffer, ScanDirection};
@@ -179,6 +183,7 @@ where
     ) -> Result<(), Self::Error> {
         let input_layout = ranked::<2>("reduce", a_layout)?;
         let output_layout = ranked::<2>("reduce", c_layout)?;
+        let provider_axis = ranked_axis::<2>("reduce", a_layout, axis)?;
         P::reduce(
             P::device(),
             op,
@@ -186,7 +191,7 @@ where
                 buffer: a.buffer(),
                 layout: &input_layout,
             },
-            axis,
+            provider_axis,
             RankedOperand {
                 buffer: c.buffer(),
                 layout: &output_layout,
@@ -287,13 +292,15 @@ where
     {
         let input_layout = ranked::<2>(request.operation, request.input_layout)?;
         let output_layout = ranked::<2>(request.operation, request.output_layout)?;
+        let provider_axis =
+            ranked_axis::<2>(request.operation, request.input_layout, request.axis)?;
         P::scan(
             P::device(),
             RankedOperand {
                 buffer: request.input.buffer(),
                 layout: &input_layout,
             },
-            request.axis,
+            provider_axis,
             request.operation_kind,
             request.direction,
             RankedOperand {

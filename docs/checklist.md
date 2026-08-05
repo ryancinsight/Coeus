@@ -3412,6 +3412,9 @@ tests; workspace at 621/621.
   (matches `torch.linalg.vector_norm(ord=p)`). Host-side fold with
   `T::powf` accumulation and final `^(1/p)`; no `BinaryOp::Pow` opcode
   added. `coeus_ops::norm(x, backend)` retained as the L2 short-circuit.
+  Historical implementation; superseded by ADR 0056 on 2026-08-05, which
+  routes Lp power and reduction through the selected Leto or Hephaestus
+  provider.
   Evidence tier: empirical differential validation (Burn 0.16 oracle).
   Eight unit tests in `reduction/stats.rs::tests` and three new Burn
   parity assertions covering p ∈ {1, 2, 3} in

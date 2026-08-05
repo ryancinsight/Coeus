@@ -57,3 +57,5 @@
 | [0053](0053-minimal-module-capability-bounds.md) | Use minimal module capability bounds | Accepted |
 | [0054](0054-provider-owned-cumulative-scans.md) | Require provider-owned cumulative scans | Accepted |
 | [0055](0055-provider-owned-bce-with-logits.md) | Provider-owned binary cross-entropy with logits | Accepted |
+| [0056](0056-provider-owned-lp-norms.md) | Provider-owned Lp norms | Accepted |
+| [0057](0057-provider-owned-product.md) | Provider-owned global product | Accepted |

@@ -1,7 +1,7 @@
 // ── Unary math ops ──
 
 use super::kernel::{elementwise_unary, elementwise_unary_assign};
-use crate::backend_ops::{BackendOps, UnaryOp};
+use crate::backend_ops::{BackendOps, ElementwiseOps, UnaryOp};
 use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 
@@ -199,7 +199,7 @@ pub fn neg<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Te
 
 /// Element-wise absolute value.
 #[inline]
-pub fn abs<T: Scalar, B: BackendOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+pub fn abs<T: Scalar, B: ElementwiseOps<T>>(input: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
     elementwise_unary(input, backend, UnaryOp::Abs).expect("abs")
 }
 
@@ -277,7 +277,7 @@ pub fn neg_assign<T: Scalar, B: BackendOps<T>>(
 
 /// In-place element-wise absolute value.
 #[inline]
-pub fn abs_assign<T: Scalar, B: BackendOps<T>>(
+pub fn abs_assign<T: Scalar, B: ElementwiseOps<T>>(
     input: &mut Tensor<T, B>,
     backend: &B,
 ) -> Result<(), B::Error> {

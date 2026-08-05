@@ -1,7 +1,7 @@
 // ── Unary kernel ──
 // Generic element-wise unary operation kernel.
 
-use crate::backend_ops::{BackendOps, UnaryOp};
+use crate::backend_ops::{ElementwiseOps, UnaryOp};
 use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 
@@ -10,7 +10,7 @@ use coeus_tensor::Tensor;
 /// Uses `Tensor::alloc_on` (no zero-init) because every output element is
 /// unconditionally overwritten by the kernel.
 #[inline]
-pub fn elementwise_unary<T: Scalar, B: BackendOps<T>>(
+pub fn elementwise_unary<T: Scalar, B: ElementwiseOps<T>>(
     input: &Tensor<T, B>,
     backend: &B,
     op: UnaryOp,
@@ -25,7 +25,7 @@ pub fn elementwise_unary<T: Scalar, B: BackendOps<T>>(
 
 /// Apply element-wise unary operation to `input` in-place.
 #[inline]
-pub fn elementwise_unary_assign<T: Scalar, B: BackendOps<T>>(
+pub fn elementwise_unary_assign<T: Scalar, B: ElementwiseOps<T>>(
     input: &mut Tensor<T, B>,
     backend: &B,
     op: UnaryOp,
@@ -36,7 +36,7 @@ pub fn elementwise_unary_assign<T: Scalar, B: BackendOps<T>>(
 
 /// Apply element-wise unary operation to `input`, writing result to `out`.
 #[inline]
-pub fn elementwise_unary_to<T: Scalar, B: BackendOps<T>>(
+pub fn elementwise_unary_to<T: Scalar, B: ElementwiseOps<T>>(
     input: &Tensor<T, B>,
     out: &mut Tensor<T, B>,
     backend: &B,
