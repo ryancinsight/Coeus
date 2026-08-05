@@ -59,7 +59,7 @@
 
 ## COEUS-SINUSOIDAL-PROVIDER-001 — Remove positional host fallback [patch]
 
-- Owner: Codex on `codex/coeus-sinusoidal-provider`; last-update: 2026-08-04;
+- Owner: Codex; last-update: 2026-08-05;
   scope: sinusoidal positional table construction, prefix-view extraction,
   the minimal Coeus elementwise/reduction capability closure required by
   autograd, focused CPU/accelerator contracts, and active PM evidence.
@@ -77,10 +77,16 @@
   exact-head WGPU/CUDA/ROCm/Metal CI pass.
 - Risk/change class: `[patch] [arch]`; the public API and mathematical contract remain
   unchanged while an accelerator panic and host-transfer fallback are removed.
-- Status: in-progress. The dependency closure narrows `Module`, Coeus binary
-  kernels, and binary autograd to the capabilities they actually use, so
-  ROCm/Metal can instantiate the sinusoidal path without aggregate matmul,
-  pooling, convolution, or unfold/fold bounds.
+- Status: complete; ADR-0053, CPU storage-sharing coverage, and ROCm/Metal
+  compile-time capability contracts landed in PR #292 as merge commit
+  `7ea9170d`. Exact-head hosted run `30969244754` passed WGPU
+  (`92189788131`), CUDA (`92189788165`), ROCm (`92189788122`), and Metal
+  (`92189788108`). The external `recurseml/analysis` status reported an
+  error without a GitHub Actions run or retrievable log and is not part of the
+  provider workflow. Package-scoped SemVer checks pass for `coeus-nn`; they
+  report pre-existing major API changes in `coeus-autograd` and `coeus-ops`
+  from earlier provider migrations, so release versioning remains a separate
+  major-version item.
 
 ## COEUS-COSINE-CLAMP-GRADIENT-001 — Correct clamped cosine backward [patch]
 

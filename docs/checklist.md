@@ -35,8 +35,11 @@
       forward.
 - [x] Add CPU storage-sharing and ROCm/Metal compile-time capability
       contracts.
-- [ ] Complete warning-denied focused gates, exact-head WGPU/CUDA/ROCm/Metal
-      provider CI, and merge the change.
+- [x] Complete warning-denied focused gates, exact-head WGPU/CUDA/ROCm/Metal
+      provider CI in run `30969244754`, and merge PR #292 as `7ea9170d`.
+- [x] Record the package-scoped SemVer result: `coeus-nn` passes; the
+      `coeus-autograd` and `coeus-ops` failures are pre-existing major API
+      migrations from earlier merged work and require a separate release item.
 
 ## COEUS-ASSIGNMENT-ALIASING-001 — Codex
 
