@@ -16,15 +16,18 @@
 - [x] Run local format, warning-denied Ops/autograd Clippy, full Ops Nextest
       (208/208), full autograd Nextest (103/103), and the focused strided/COW
       regression; Ops doctests (22/22) and autograd doctests (16/16) also pass.
-- [ ] Run locked backend package checks, doctests, SemVer against the intended
-      release baseline, and exact hosted backend gates. The local locked graph
-      is blocked by the shared overlay's dirty provider patches; the local
-      accelerator graph is blocked by peer-owned Hephaestus cross-entropy API
-      changes. SemVer against the published 0.9.0 baseline reports three
-      pre-existing major failures from cumulative scans and fusion APIs.
+- [x] Run the exact hosted backend gates on the merged provider-dispatch head:
+      Backend parity run `31052471989` passes Metal (`92462650249`), ROCm
+      (`92462650268`), CUDA (`92462650313`), and WGPU (`92462650323`).
+- [ ] Run local locked backend package checks, doctests, and SemVer against the
+      intended release baseline. The current working tree contains an
+      uncommitted local-overlay rewrite of `Cargo.lock`; restoring the
+      committed Git-source lock is required before this local gate can run.
+      SemVer against the published 0.9.0 baseline reports three pre-existing
+      major failures from cumulative scans and fusion APIs.
 
-Status: blocked on `codex/coeus-lp-norm-provider`; reopen after the shared lock
-graph and peer Hephaestus cross-entropy exports converge.
+Status: merged at `d775cd90`; local locked-graph verification remains blocked
+by the uncommitted overlay rewrite described above.
 
 ## COEUS-AUTOGRAD-PROD-PROVIDER-001 [minor] [arch]
 
@@ -42,12 +45,13 @@ graph and peer Hephaestus cross-entropy exports converge.
 - [x] Run format, warning-denied Clippy, focused/full Nextest, and doctests.
 - [x] Run the public-surface check; it reports the same three pre-existing
       0.9.0 baseline failures and no product-specific failure.
-- [ ] Run locked backend package checks and exact hosted backend provider gates;
-      local verification is blocked by the shared overlay lock graph and the
-      peer-owned Hephaestus cross-entropy export mismatch.
+- [x] Run the exact hosted backend provider gates on the merged head:
+      Backend parity run `31052471989` passes Metal, ROCm, CUDA, and WGPU.
+- [ ] Run local locked backend package checks; local verification is blocked by
+      the uncommitted overlay rewrite of `Cargo.lock` described above.
 
-Status: blocked on `codex/coeus-lp-norm-provider`; reopen after the shared lock
-graph and peer Hephaestus cross-entropy exports converge.
+Status: merged at `d775cd90`; local locked-graph verification remains blocked
+by the uncommitted overlay rewrite described above.
 
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Owner: Codex `/root`
 
