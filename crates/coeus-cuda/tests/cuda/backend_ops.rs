@@ -89,7 +89,7 @@ fn test_cuda_norm_p_provider_dispatch() {
     let actual_axis = coeus_ops::norm_p_axis(&device_input, 2.0, 1, &backend)
         .to_backend_on(&backend, &sequential);
     assert_eq!(actual_axis.shape(), &[2, 1]);
-    for (&actual, &expected) in actual_axis
+    for (&actual, expected) in actual_axis
         .as_slice()
         .iter()
         .zip([14.0_f32.sqrt(), 77.0_f32.sqrt()])

@@ -12,6 +12,7 @@ mod power;
 mod validation;
 
 pub(crate) use parameterized_activation::ParameterizedActivationScalar;
+pub(crate) use power::elementwise_pow_scalar;
 use parameterized_activation::{
     parameterized_activation_operation, try_hephaestus_parameterized_unary,
 };
