@@ -19,15 +19,17 @@
 - [x] Run the exact hosted backend gates on the merged provider-dispatch head:
       Backend parity run `31052471989` passes Metal (`92462650249`), ROCm
       (`92462650268`), CUDA (`92462650313`), and WGPU (`92462650323`).
-- [ ] Run local locked backend package checks, doctests, and SemVer against the
-      intended release baseline. The current working tree contains an
-      uncommitted local-overlay rewrite of `Cargo.lock`; restoring the
-      committed Git-source lock is required before this local gate can run.
-      SemVer against the published 0.9.0 baseline reports three pre-existing
-      major failures from cumulative scans and fusion APIs.
+- [x] Restore the committed Git-source lock and pass locked metadata, format,
+      provider-package checks, warning-denied provider Clippy, and the focused
+      Hephaestus 7/7 regression suite.
+- [ ] Run the remaining workspace doctests and SemVer check against the
+      intended release baseline. SemVer against the published 0.9.0 baseline
+      reports three pre-existing major failures from cumulative scans and
+      fusion APIs; the full Ops Nextest wrapper exceeded 180 seconds without
+      returning a test result and requires a separate bounded investigation.
 
-Status: merged at `d775cd90`; local locked-graph verification remains blocked
-by the uncommitted overlay rewrite described above.
+Status: merged at `d775cd90`; locked provider verification is green. Doctest,
+SemVer, and the full Ops timeout remain open.
 
 ## COEUS-AUTOGRAD-PROD-PROVIDER-001 [minor] [arch]
 
@@ -47,11 +49,13 @@ by the uncommitted overlay rewrite described above.
       0.9.0 baseline failures and no product-specific failure.
 - [x] Run the exact hosted backend provider gates on the merged head:
       Backend parity run `31052471989` passes Metal, ROCm, CUDA, and WGPU.
-- [ ] Run local locked backend package checks; local verification is blocked by
-      the uncommitted overlay rewrite of `Cargo.lock` described above.
+- [x] Restore the committed Git-source lock and pass locked provider-package
+      checks and warning-denied provider Clippy.
+- [ ] Run the remaining workspace doctests and exact SemVer check; the full Ops
+      Nextest wrapper exceeded 180 seconds without returning a test result.
 
-Status: merged at `d775cd90`; local locked-graph verification remains blocked
-by the uncommitted overlay rewrite described above.
+Status: merged at `d775cd90`; locked provider verification is green. Doctest,
+SemVer, and the full Ops timeout remain open.
 
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Owner: Codex `/root`
 
