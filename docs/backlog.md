@@ -1,5 +1,45 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-BCE-LOGITS-PROVIDER-001 — Keep BCE with logits on the selected provider [patch] [arch]
+
+- Owner: Codex on `codex/coeus-bce-logits-provider`; last-update:
+  2026-08-05; scope: `coeus-autograd::bce_with_logits`, WGPU/CUDA
+  Hephaestus unary dispatch tables, CPU value tests, provider compile/runtime
+  coverage, ADR, checklist, and changelog.
+- Outcome: forward and backward remain provider-resident. CPU dispatches
+  through Leto; CUDA, WGPU, ROCm, and Metal dispatch through their selected
+  Hephaestus-backed Coeus operations.
+- Non-goals: other host-staged loss families, norm-pow provider capabilities,
+  benchmark claims, release publication, or provider changes in Leto/Hephaestus.
+- Acceptance: no host copies, CPU-addressable bounds, host vectors, or
+  backend-default tensor construction remain in the operation; WGPU/CUDA BCE
+  unary primitives are fail-closed Hephaestus dispatches; existing independent
+  CPU forward/gradient contracts pass; locked build, lint, doctest, focused
+  Nextest, and exact-head provider CI pass.
+- Risk/change class: `[patch] [arch]`; the public signature is unchanged, but
+  the implementation's ownership boundary changes from host staging to the
+  existing provider graph. The ADR records the bounded residuals.
+- Status: in-progress; implementation and verification are active.
+
+## COEUS-AUTOGRAD-HOST-STAGING-RESIDUALS-001 — Migrate remaining host-staged autograd families [arch]
+
+- Owner: unclaimed; last-update: 2026-08-05; scope: the remaining
+  `coeus-autograd` loss and norm families whose generic implementations still
+  require CPU-addressable storage or retain host payloads, after provider
+  capability inventory.
+- Outcome: each family either composes existing provider operations or adds one
+  upstream Leto/Hephaestus capability and dispatches directly through it.
+- Non-goals: compatibility adapters, silent CPU fallback, broad benchmark
+  claims, or changing a mathematical contract without an independent oracle.
+- Acceptance: every family has a bounded provider owner, value/gradient
+  differential coverage, no host-staging residue, and exact backend CI evidence;
+  unsupported provider capabilities are implemented upstream rather than
+  approximated downstream.
+- Risk/change class: `[arch]`; this is a follow-on queue item, not part of the
+  BCE-with-logits increment.
+- Status: todo; the BCE-with-logits slice closes one family and leaves this
+  explicit residual for dependency-ordered continuation.
+
 ## COEUS-SCAN-DISPATCH-001 — Require provider-owned cumulative scans [major] [arch]
 
 - Owner: Codex on `codex/coeus-direct-scan-dispatch`; last-update:

@@ -56,3 +56,4 @@ renumbering migration can update every durable reference.
 | [0052 Provider-owned cross-entropy dispatch](0052-provider-owned-cross-entropy-dispatch.md) | Accepted |
 | [0053 Minimal module capability bounds](0053-minimal-module-capability-bounds.md) | Accepted |
 | [0054 Provider-owned cumulative scans](0054-provider-owned-cumulative-scans.md) | Accepted |
+| [0055 Provider-owned BCE with logits](0055-provider-owned-bce-with-logits.md) | Accepted |

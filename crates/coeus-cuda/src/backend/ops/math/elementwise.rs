@@ -19,7 +19,10 @@ use validation::validate_unary_layouts;
 #[inline]
 fn provider_owned_unary(op: coeus_ops::UnaryOp) -> Option<&'static str> {
     match op {
+        coeus_ops::UnaryOp::Log1p => Some("Log1p"),
+        coeus_ops::UnaryOp::Relu => Some("Relu"),
         coeus_ops::UnaryOp::ReluGrad => Some("ReluGrad"),
+        coeus_ops::UnaryOp::Sigmoid => Some("Sigmoid"),
         _ => None,
     }
 }
@@ -65,6 +68,13 @@ where
             ),
             c,
         ),
+        coeus_ops::UnaryOp::Log1p => run(
+            hephaestus_cuda::unary_elementwise::<hephaestus_cuda::Log1pOp, T>(
+                device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
         coeus_ops::UnaryOp::Log => run(
             hephaestus_cuda::unary_elementwise::<hephaestus_cuda::LnOp, T>(
                 device,
@@ -86,6 +96,13 @@ where
             ),
             c,
         ),
+        coeus_ops::UnaryOp::Relu => run(
+            hephaestus_cuda::unary_elementwise::<hephaestus_cuda::ReluOp, T>(
+                device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
         coeus_ops::UnaryOp::Sqrt => run(
             hephaestus_cuda::unary_elementwise::<hephaestus_cuda::SqrtOp, T>(
                 device,
@@ -102,6 +119,13 @@ where
         ),
         coeus_ops::UnaryOp::ReluGrad => run(
             hephaestus_cuda::unary_elementwise::<hephaestus_cuda::ReluGradOp, T>(
+                device,
+                a.buffer.as_ref(),
+            ),
+            c,
+        ),
+        coeus_ops::UnaryOp::Sigmoid => run(
+            hephaestus_cuda::unary_elementwise::<hephaestus_cuda::SigmoidOp, T>(
                 device,
                 a.buffer.as_ref(),
             ),
@@ -242,6 +266,15 @@ where
             hephaestus_operand(c, c_layout),
             hephaestus_cuda::BlockWidth::DEFAULT,
         )),
+        coeus_ops::UnaryOp::Log1p => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::Log1pOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
         coeus_ops::UnaryOp::Log => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
             hephaestus_cuda::LnOp,
             T,
@@ -269,6 +302,15 @@ where
             hephaestus_operand(c, c_layout),
             hephaestus_cuda::BlockWidth::DEFAULT,
         )),
+        coeus_ops::UnaryOp::Relu => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::ReluOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
         coeus_ops::UnaryOp::Sqrt => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
             hephaestus_cuda::SqrtOp,
             T,
@@ -289,6 +331,15 @@ where
         )),
         coeus_ops::UnaryOp::ReluGrad => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
             hephaestus_cuda::ReluGradOp,
+            T,
+        >(
+            device,
+            hephaestus_operand(a, a_layout),
+            hephaestus_operand(c, c_layout),
+            hephaestus_cuda::BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Sigmoid => run(hephaestus_cuda::unary_elementwise_strided_dyn_into::<
+            hephaestus_cuda::SigmoidOp,
             T,
         >(
             device,

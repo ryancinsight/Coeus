@@ -1,21 +1,9 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar, Storage};
+use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
-
-/// Numerically stable sigmoid `1 / (1 + exp(-z))` without intermediate overflow.
-#[inline]
-fn stable_sigmoid<T: Float>(z: T) -> T {
-    let one = T::one();
-    if z >= T::zero() {
-        one / (one + (T::zero() - z).exp_op())
-    } else {
-        let ez = z.exp_op();
-        ez / (one + ez)
-    }
-}
 
 /// Autograd node for binary cross-entropy computed from logits.
 pub struct BceWithLogitsNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
@@ -23,14 +11,13 @@ pub struct BceWithLogitsNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<GradBuffer<T, B>>,
     /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
-    /// Per-element `sigmoid(logit) - target`, the `d/d_logit` factor before scaling.
-    pub sig_minus_target: Vec<T>,
-    /// Per-element logits, the `-d/d_target` factor before scaling.
-    pub logits: Vec<T>,
-    /// Number of elements in the mean reduction.
-    pub n: usize,
-    /// Original tensor shape for gradient reconstruction.
-    pub shape: coeus_core::Shape,
+    /// Provider-resident `sigmoid(logit) - target` derivative factor.
+    pub sig_minus_target: Tensor<T, B>,
+    /// Provider-resident logits used for the target derivative.
+    pub logits: Tensor<T, B>,
+    /// Provider-resident mean scale multiplied by the upstream output gradient
+    /// during backward.
+    pub scale: Tensor<T, B>,
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
@@ -52,39 +39,20 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        let mut host_grad = [T::zero()];
-        let temp_grad;
-        let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
-            grad_out
-        } else {
-            temp_grad = grad_out.to_contiguous_on(&backend);
-            &temp_grad
-        };
-        backend.copy_to_host(grad_cont.storage(), &mut host_grad);
-        let g_out = host_grad[0];
-        let n_t = T::from_f64(self.n as f64);
-        let scale = g_out / n_t;
+        let scale = coeus_ops::mul(grad_out, &self.scale, &backend);
 
-        // d/d_logit = (sigmoid(z) - y) / n.
-        if let Some(Some(ref g)) = input_grads.first() {
-            let mut d_logit = vec![T::zero(); self.n];
-            for (i, grad) in d_logit.iter_mut().enumerate() {
-                *grad = self.sig_minus_target[i] * scale;
-            }
-            let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &d_logit, &backend);
-            let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
+        // d/d_logit = (sigmoid(z) - y) / n, with all arithmetic on the
+        // selected provider.
+        if let Some(Some(gradient)) = input_grads.first() {
+            let grad_logits = coeus_ops::mul(&self.sig_minus_target, &scale, &backend);
+            coeus_ops::add_assign(gradient.write(), &grad_logits, &backend)?;
         }
 
-        // d/d_target = -z / n.
-        if let Some(Some(ref g)) = input_grads.get(1) {
-            let mut d_target = vec![T::zero(); self.n];
-            for (i, grad) in d_target.iter_mut().enumerate() {
-                *grad = (T::zero() - self.logits[i]) * scale;
-            }
-            let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &d_target, &backend);
-            let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
+        // d/d_target = -z / n, with the logits retained as a provider tensor.
+        if let Some(Some(gradient)) = input_grads.get(1) {
+            let neg_logits = coeus_ops::neg(&self.logits, &backend);
+            let grad_target = coeus_ops::mul(&neg_logits, &scale, &backend);
+            coeus_ops::add_assign(gradient.write(), &grad_target, &backend)?;
         }
 
         Ok(())
@@ -109,55 +77,27 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     );
     let n = logits.tensor.numel();
     assert!(n > 0, "bce_with_logits requires at least one element");
-    let shape = logits.tensor.shape_cloned();
 
-    let z_cont;
-    let z_raw = if logits.tensor.is_contiguous() && logits.tensor.layout().offset() == 0 {
-        &logits.tensor
-    } else {
-        z_cont = logits.tensor.to_contiguous_on(&backend);
-        &z_cont
-    };
-    let t_cont;
-    let t_raw = if target.tensor.is_contiguous() && target.tensor.layout().offset() == 0 {
-        &target.tensor
-    } else {
-        t_cont = target.tensor.to_contiguous_on(&backend);
-        &t_cont
-    };
+    // Stable BCE-with-logits expression. Each operation remains in the
+    // backend's provider implementation: Leto for CPU and Hephaestus for
+    // accelerator backends.
+    let positive_logits = coeus_ops::relu(&logits.tensor, &backend);
+    let absolute_logits = coeus_ops::abs(&logits.tensor, &backend);
+    let negative_absolute_logits = coeus_ops::neg(&absolute_logits, &backend);
+    let exponential_tail = coeus_ops::exp(&negative_absolute_logits, &backend);
+    let log_tail = coeus_ops::log1p(&exponential_tail, &backend);
+    let weighted_target = coeus_ops::mul(&logits.tensor, &target.tensor, &backend);
+    let signed_terms = coeus_ops::sub(&positive_logits, &weighted_target, &backend);
+    let loss_terms = coeus_ops::add(&signed_terms, &log_tail, &backend);
+    let loss = coeus_ops::mean_axis(&loss_terms.reshape([n]), 0, &backend)
+        .expect("invariant: validated non-empty BCE reduction has axis zero");
 
-    let z_host: std::borrow::Cow<[T]> = if let Some(s) = z_raw.storage().try_as_slice() {
-        std::borrow::Cow::Borrowed(&s[..n])
-    } else {
-        let mut v = vec![T::zero(); n];
-        backend.copy_to_host(z_raw.storage(), &mut v);
-        std::borrow::Cow::Owned(v)
-    };
-    let t_host: std::borrow::Cow<[T]> = if let Some(s) = t_raw.storage().try_as_slice() {
-        std::borrow::Cow::Borrowed(&s[..n])
-    } else {
-        let mut v = vec![T::zero(); n];
-        backend.copy_to_host(t_raw.storage(), &mut v);
-        std::borrow::Cow::Owned(v)
-    };
-
-    let one = T::one();
-    let mut sig_minus_target = vec![T::zero(); n];
-    let mut logits_v = vec![T::zero(); n];
-    let mut loss_val = T::zero();
-    for i in 0..n {
-        let z = z_host[i];
-        let y = t_host[i];
-        logits_v[i] = z;
-        // Stable: max(z,0) - z*y + log(1 + exp(-|z|)).
-        let max_z0 = if z > T::zero() { z } else { T::zero() };
-        let elem = max_z0 - z * y + (one + (T::zero() - <T as Float>::abs(z)).exp_op()).log_op();
-        loss_val += elem;
-        sig_minus_target[i] = stable_sigmoid(z) - y;
-    }
-    loss_val = loss_val / T::from_f64(n as f64);
-
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
+    let sig_minus_target = coeus_ops::sub(
+        &coeus_ops::sigmoid(&logits.tensor, &backend),
+        &target.tensor,
+        &backend,
+    );
+    let scale = Tensor::full_on([1], T::from_f64(1.0 / n as f64), &backend);
     let requires_grad =
         crate::grad_mode::should_track_var(logits) || crate::grad_mode::should_track_var(target);
     let grad = if requires_grad {
@@ -166,21 +106,23 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
     let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad
+            .as_ref()
+            .expect("invariant: tracked output has a gradient buffer")
+            .clone();
         let node = BceWithLogitsNode {
             output_grad,
             inputs: vec![logits.clone(), target.clone()],
             sig_minus_target,
-            logits: logits_v,
-            n,
-            shape,
+            logits: logits.tensor.clone(),
+            scale,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
     } else {
         None
     };
     Var {
-        tensor: out_tensor,
+        tensor: loss,
         grad,
         creator,
     }

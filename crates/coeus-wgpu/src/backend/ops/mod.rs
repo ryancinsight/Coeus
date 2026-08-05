@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 fn provider_owned_activation(op: coeus_ops::UnaryOp) -> Option<&'static str> {
     match op {
+        coeus_ops::UnaryOp::Log1p => Some("Log1p"),
         coeus_ops::UnaryOp::Mish => Some("Mish"),
         coeus_ops::UnaryOp::MishGrad => Some("MishGrad"),
         coeus_ops::UnaryOp::Elu => Some("Elu"),
@@ -19,7 +20,9 @@ fn provider_owned_activation(op: coeus_ops::UnaryOp) -> Option<&'static str> {
         coeus_ops::UnaryOp::HardtanhGrad(_) => Some("HardtanhGrad"),
         coeus_ops::UnaryOp::Threshold(_) => Some("Threshold"),
         coeus_ops::UnaryOp::ThresholdGrad(_) => Some("ThresholdGrad"),
+        coeus_ops::UnaryOp::Relu => Some("Relu"),
         coeus_ops::UnaryOp::ReluGrad => Some("ReluGrad"),
+        coeus_ops::UnaryOp::Sigmoid => Some("Sigmoid"),
         _ => None,
     }
 }
@@ -212,6 +215,11 @@ fn try_hephaestus_strided_unary_wgpu<
                     T,
                     $n,
                 >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Log1p => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::Log1pOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
                 UnaryOp::Log => ok(
                     unary_elementwise_strided_into::<hephaestus_wgpu::LnOp, T, $n>(
                         dev,
@@ -230,6 +238,11 @@ fn try_hephaestus_strided_unary_wgpu<
                     T,
                     $n,
                 >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Relu => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::ReluOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
                 UnaryOp::Sqrt => ok(unary_elementwise_strided_into::<
                     hephaestus_wgpu::SqrtOp,
                     T,
@@ -242,6 +255,11 @@ fn try_hephaestus_strided_unary_wgpu<
                 >(dev, a_op, c_op, BlockWidth::DEFAULT)),
                 UnaryOp::ReluGrad => ok(unary_elementwise_strided_into::<
                     hephaestus_wgpu::ReluGradOp,
+                    T,
+                    $n,
+                >(dev, a_op, c_op, BlockWidth::DEFAULT)),
+                UnaryOp::Sigmoid => ok(unary_elementwise_strided_into::<
+                    hephaestus_wgpu::SigmoidOp,
                     T,
                     $n,
                 >(dev, a_op, c_op, BlockWidth::DEFAULT)),
@@ -390,6 +408,15 @@ fn try_hephaestus_contiguous_unary<
             c.buffer.as_ref(),
             BlockWidth::DEFAULT,
         )),
+        coeus_ops::UnaryOp::Log1p => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::Log1pOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
         coeus_ops::UnaryOp::Log => run(hephaestus_wgpu::unary_elementwise_into::<
             hephaestus_wgpu::LnOp,
             T,
@@ -417,6 +444,15 @@ fn try_hephaestus_contiguous_unary<
             c.buffer.as_ref(),
             BlockWidth::DEFAULT,
         )),
+        coeus_ops::UnaryOp::Relu => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::ReluOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
         coeus_ops::UnaryOp::Sqrt => run(hephaestus_wgpu::unary_elementwise_into::<
             hephaestus_wgpu::SqrtOp,
             T,
@@ -437,6 +473,15 @@ fn try_hephaestus_contiguous_unary<
         )),
         coeus_ops::UnaryOp::ReluGrad => run(hephaestus_wgpu::unary_elementwise_into::<
             hephaestus_wgpu::ReluGradOp,
+            T,
+        >(
+            &ctx.hephaestus_device,
+            a.buffer.as_ref(),
+            c.buffer.as_ref(),
+            BlockWidth::DEFAULT,
+        )),
+        coeus_ops::UnaryOp::Sigmoid => run(hephaestus_wgpu::unary_elementwise_into::<
+            hephaestus_wgpu::SigmoidOp,
             T,
         >(
             &ctx.hephaestus_device,
