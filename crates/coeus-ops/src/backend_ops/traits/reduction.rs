@@ -3,8 +3,8 @@
 //! [`ReductionOps`] is the interface-segregated sub-trait for all reduction
 //! kernel dispatch (reduce, argmax, argmin, topk, cumsum, suffix_sum, cumprod,
 //! suffix_prod). The argmax/argmin/topk defaults are CPU-only and route to
-//! Leto through [`super::super::CpuBackend`]. Accelerator implementations must
-//! provide a native operation before those methods are exposed.
+//! Leto through [`super::super::CpuBackend`]. Cumulative scan methods are
+//! required provider operations; no host-staging default is available.
 
 use coeus_core::{ComputeBackend, Layout, Scalar};
 
@@ -97,12 +97,7 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         )
     }
 
-    /// Inclusive cumulative sum along an axis.
-    ///
-    /// # Errors
-    ///
-    /// Returns the backend-associated error when the layout or provider
-    /// dispatch is rejected.
+    /// Inclusive cumulative sum along an axis through the selected provider.
     fn cumsum(
         &self,
         a: &Self::DeviceBuffer<T>,
@@ -112,18 +107,9 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         c_layout: &Layout,
     ) -> Result<(), Self::Error>
     where
-        T: leto_ops::Scalar,
-    {
-        defaults::reductions::cumsum(self, a, a_layout, axis, c, c_layout);
-        Ok(())
-    }
+        T: leto_ops::Scalar;
 
-    /// Inclusive cumulative suffix sum (reverse cumulative sum) along an axis.
-    ///
-    /// # Errors
-    ///
-    /// Returns the backend-associated error when the layout or provider
-    /// dispatch is rejected.
+    /// Inclusive cumulative suffix sum through the selected provider.
     fn suffix_sum(
         &self,
         a: &Self::DeviceBuffer<T>,
@@ -133,18 +119,9 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         c_layout: &Layout,
     ) -> Result<(), Self::Error>
     where
-        T: leto_ops::Scalar,
-    {
-        defaults::reductions::suffix_sum(self, a, a_layout, axis, c, c_layout);
-        Ok(())
-    }
+        T: leto_ops::Scalar;
 
-    /// Inclusive cumulative product along an axis.
-    ///
-    /// # Errors
-    ///
-    /// Returns the backend-associated error when the layout or provider
-    /// dispatch is rejected.
+    /// Inclusive cumulative product through the selected provider.
     fn cumprod(
         &self,
         a: &Self::DeviceBuffer<T>,
@@ -154,19 +131,9 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         c_layout: &Layout,
     ) -> Result<(), Self::Error>
     where
-        T: leto_ops::Scalar,
-    {
-        defaults::reductions::cumprod(self, a, a_layout, axis, c, c_layout);
-        Ok(())
-    }
+        T: leto_ops::Scalar;
 
-    /// Inclusive cumulative suffix product (reverse cumulative product) along
-    /// an axis.
-    ///
-    /// # Errors
-    ///
-    /// Returns the backend-associated error when the layout or provider
-    /// dispatch is rejected.
+    /// Inclusive cumulative suffix product through the selected provider.
     fn suffix_prod(
         &self,
         a: &Self::DeviceBuffer<T>,
@@ -176,9 +143,5 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         c_layout: &Layout,
     ) -> Result<(), Self::Error>
     where
-        T: leto_ops::Scalar,
-    {
-        defaults::reductions::suffix_prod(self, a, a_layout, axis, c, c_layout);
-        Ok(())
-    }
+        T: leto_ops::Scalar;
 }

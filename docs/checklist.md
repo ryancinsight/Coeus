@@ -1,5 +1,18 @@
 # Global Progress Checklist: Coeus
 
+## COEUS-SCAN-DISPATCH-001 — Codex
+
+- [x] Claim the cumulative-scan dispatch seam and record ADR-0054 before
+      source changes.
+- [x] Remove the generic host-staging cumulative defaults and require direct
+      provider implementations.
+- [x] Verify CPU Leto values, accelerator compile contracts, warning-denied
+      checks, doctests, and residue scans.
+- [x] Record the exact revision and remaining external provider/build limits;
+      the package-wide integration compile remained uncollected in `rustc` for
+      `tests/ops.rs` after the command wrapper timeout, without an assertion
+      failure.
+
 ## COEUS-CROSS-ENTROPY-PROVIDER-001 — Codex
 
 - [x] Verify the Coeus host-staging closure and absence of Leto/Hephaestus loss
