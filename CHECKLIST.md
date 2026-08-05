@@ -23,7 +23,31 @@
       changes. SemVer against the published 0.9.0 baseline reports three
       pre-existing major failures from cumulative scans and fusion APIs.
 
-Status: in progress on `codex/coeus-lp-norm-provider`.
+Status: blocked on `codex/coeus-lp-norm-provider`; reopen after the shared lock
+graph and peer Hephaestus cross-entropy exports converge.
+
+## COEUS-AUTOGRAD-PROD-PROVIDER-001 [minor] [arch]
+
+- [x] Confirm `coeus_ops::prod` copies the full input to host and
+      `ProdNode::backward` rebuilds an input-sized host gradient.
+- [x] Confirm existing Leto and Hephaestus product-axis providers cover CPU,
+      WGPU, CUDA, ROCm, and Metal dispatch.
+- [x] Record the provider-owned product contract in ADR 0057.
+- [x] Route global product through provider axis reductions and one final
+      scalar read.
+- [x] Rewrite exact zero-aware product backward using provider elementwise and
+      reduction composition; retain only provider tensors in the node.
+- [x] Add zero-free, one-zero, multi-zero, non-unit-seed, strided, and COW
+      differential coverage plus host-residue checks.
+- [x] Run format, warning-denied Clippy, focused/full Nextest, and doctests.
+- [x] Run the public-surface check; it reports the same three pre-existing
+      0.9.0 baseline failures and no product-specific failure.
+- [ ] Run locked backend package checks and exact hosted backend provider gates;
+      local verification is blocked by the shared overlay lock graph and the
+      peer-owned Hephaestus cross-entropy export mismatch.
+
+Status: blocked on `codex/coeus-lp-norm-provider`; reopen after the shared lock
+graph and peer Hephaestus cross-entropy exports converge.
 
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Owner: Codex `/root`
 

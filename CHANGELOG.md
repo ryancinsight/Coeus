@@ -4,6 +4,12 @@
 
 ### Changed
 
+- [minor] [arch] Route global product reduction and exact zero-aware tracked
+  backward through the selected Leto or Hephaestus provider. Preserve strided
+  layouts and retain only provider tensors plus scalar boundary reads. No
+  runtime or memory delta is claimed without controlled measurements. See
+  [ADR 0057](docs/adr/0057-provider-owned-product.md).
+
 - [major] [arch] Route `norm_p` and `norm_p_axis` forward and tracked
   backward computation through the selected provider. CPU uses Leto's native
   `PowfOp`; WGPU, CUDA, ROCm, and Metal use Hephaestus scalar-strided power.

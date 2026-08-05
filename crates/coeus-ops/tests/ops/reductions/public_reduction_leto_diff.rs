@@ -116,6 +116,21 @@ where
         [2.5, 3.5, 4.5].map(T::from_f64),
         "transposed axis-1 mean",
     );
+
+    let transposed_product =
+        coeus_ops::prod_tensor(&transposed, backend).expect("valid strided product");
+    assert_same_bits(
+        transposed_product.as_slice(),
+        [720.0].map(T::from_f64),
+        "strided global product",
+    );
+    let shared = transposed.clone();
+    let _ = coeus_ops::prod(&shared, backend);
+    assert_same_bits(
+        &shared.to_vec(),
+        [1.0, 4.0, 2.0, 5.0, 3.0, 6.0].map(T::from_f64),
+        "COW product input",
+    );
 }
 
 fn check_empty_mean<B>(backend: &B)
