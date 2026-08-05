@@ -1,14 +1,14 @@
 use super::provider::RocmProvider;
-use coeus_core::{ComputeBackend, Layout, Scalar};
+use coeus_core::{ComputeBackend, Float, Layout, Scalar};
 use coeus_hephaestus::{
     ConvolutionProvider, ElementwiseProvider, HephaestusBackend, HephaestusBackendError,
-    HephaestusProvider, HephaestusStorage, ReductionProvider,
+    HephaestusProvider, HephaestusStorage, ReductionProvider, ScalarPowerProvider,
 };
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use coeus_ops::AttentionOps;
 use coeus_ops::{
     BinaryOp, ConvOps, ConvolutionBackward, ConvolutionForward, ElementwiseOps, ReductionOp,
-    ReductionOps, UnaryOp,
+    ReductionOps, ScalarPowerOps, UnaryOp,
 };
 use hephaestus_core::{CommandStream, KernelDevice};
 
@@ -362,5 +362,23 @@ where
     ) -> Result<(), Self::Error> {
         self.0
             .elementwise_unary(operation, input, input_layout, output, output_layout)
+    }
+}
+
+impl<T> ScalarPowerOps<T> for RocmBackend
+where
+    T: Float + leto_ops::Scalar,
+    RocmProvider: ScalarPowerProvider<T>,
+{
+    fn elementwise_pow_scalar(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        exponent: T,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) -> Result<(), Self::Error> {
+        self.0
+            .elementwise_pow_scalar(input, input_layout, exponent, output, output_layout)
     }
 }

@@ -1,12 +1,12 @@
 use super::provider::MetalProvider;
-use coeus_core::{ComputeBackend, Layout, Scalar};
+use coeus_core::{ComputeBackend, Float, Layout, Scalar};
 use coeus_hephaestus::{
     ConvolutionProvider, ElementwiseProvider, HephaestusBackend, HephaestusBackendError,
-    HephaestusProvider, HephaestusStorage, ReductionProvider,
+    HephaestusProvider, HephaestusStorage, ReductionProvider, ScalarPowerProvider,
 };
 use coeus_ops::{
     AttentionOps, BinaryOp, ConvOps, ConvolutionBackward, ConvolutionForward, ElementwiseOps,
-    ReductionOp, ReductionOps, UnaryOp,
+    ReductionOp, ReductionOps, ScalarPowerOps, UnaryOp,
 };
 use hephaestus_core::{CommandStream, KernelDevice};
 
@@ -359,5 +359,23 @@ where
     ) -> Result<(), Self::Error> {
         self.0
             .elementwise_unary(operation, input, input_layout, output, output_layout)
+    }
+}
+
+impl<T> ScalarPowerOps<T> for MetalBackend
+where
+    T: Float + leto_ops::Scalar,
+    MetalProvider: ScalarPowerProvider<T>,
+{
+    fn elementwise_pow_scalar(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        exponent: T,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) -> Result<(), Self::Error> {
+        self.0
+            .elementwise_pow_scalar(input, input_layout, exponent, output, output_layout)
     }
 }

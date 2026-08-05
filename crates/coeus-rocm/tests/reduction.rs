@@ -144,7 +144,7 @@ fn norm_p_dispatches_with_rocm_provider_parity() {
     let actual_axis = coeus_ops::norm_p_axis(&input, 2.0, 1, &backend);
     let mut actual_axis_values = [0.0_f32; 2];
     backend.copy_to_host(actual_axis.storage(), &mut actual_axis_values);
-    for (&actual, &expected) in actual_axis_values
+    for (&actual, expected) in actual_axis_values
         .iter()
         .zip([14.0_f32.sqrt(), 77.0_f32.sqrt()])
     {
