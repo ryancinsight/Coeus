@@ -1,6 +1,6 @@
 //! Provider-owned scalar exponentiation.
 
-use crate::backend_ops::{BackendOps, ScalarPowerOps};
+use crate::backend_ops::{ElementwiseOps, ScalarPowerOps};
 use coeus_core::Float;
 use coeus_tensor::Tensor;
 
@@ -9,7 +9,7 @@ use coeus_tensor::Tensor;
 /// The backend captures the exponent as a scalar kernel parameter and keeps
 /// input/output storage on the selected provider.
 #[inline]
-pub fn pow_scalar<T: Float, B: BackendOps<T> + ScalarPowerOps<T>>(
+pub fn pow_scalar<T: Float, B: ElementwiseOps<T> + ScalarPowerOps<T>>(
     input: &Tensor<T, B>,
     exponent: T,
     backend: &B,

@@ -12,7 +12,7 @@
 // to match `torch.linalg.matrix_norm(A, ord='fro')` for 2-D and ≥3-D
 // inputs respectively.
 
-use crate::backend_ops::{BackendOps, ScalarPowerOps};
+use crate::backend_ops::{BackendOps, ElementwiseOps, ReductionOps, ScalarPowerOps};
 use crate::binary;
 use coeus_core::Float;
 use coeus_tensor::Tensor;
@@ -49,7 +49,10 @@ pub fn norm<T: Float, B: BackendOps<T> + Default>(
 /// # Panics
 /// Panics if `p <= 0`, `p` is not finite, or the input is empty.
 #[inline]
-pub fn norm_p_tensor<T: Float, B: BackendOps<T> + ScalarPowerOps<T> + Default>(
+pub fn norm_p_tensor<
+    T: Float,
+    B: ElementwiseOps<T> + ReductionOps<T> + ScalarPowerOps<T> + Default,
+>(
     a: &Tensor<T, B>,
     p: T,
     backend: &B,
@@ -73,7 +76,7 @@ pub fn norm_p_tensor<T: Float, B: BackendOps<T> + ScalarPowerOps<T> + Default>(
 /// output element. Tracked autograd uses this tensor form to retain the norm
 /// on the selected provider for backward.
 #[inline]
-pub fn norm_p<T: Float, B: BackendOps<T> + ScalarPowerOps<T> + Default>(
+pub fn norm_p<T: Float, B: ElementwiseOps<T> + ReductionOps<T> + ScalarPowerOps<T> + Default>(
     a: &Tensor<T, B>,
     p: T,
     backend: &B,
@@ -97,7 +100,10 @@ pub fn norm_p<T: Float, B: BackendOps<T> + ScalarPowerOps<T> + Default>(
 /// Panics if `axis` is out of range, the axis has zero elements, `p <= 0`,
 /// or `p` is not finite.
 #[inline]
-pub fn norm_p_axis<T: Float, B: BackendOps<T> + ScalarPowerOps<T> + Default>(
+pub fn norm_p_axis<
+    T: Float,
+    B: ElementwiseOps<T> + ReductionOps<T> + ScalarPowerOps<T> + Default,
+>(
     a: &Tensor<T, B>,
     p: T,
     axis: usize,

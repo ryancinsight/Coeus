@@ -47,7 +47,7 @@ where
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        crate::backend::ops::math::elementwise_pow_scalar(
+        crate::backend::ops::math::elementwise::elementwise_pow_scalar(
             input,
             input_layout,
             exponent,
