@@ -60,7 +60,8 @@ pub(crate) fn layouts_share_shape(layouts: &[&Layout]) -> bool {
 }
 
 pub(crate) fn layout_supports_cuda_output_indexing(layout: &Layout) -> bool {
-    layouts_fit_cuda(&[layout]) && layout.strides().iter().all(|&stride| stride != 0)
+    layouts_fit_cuda(&[layout])
+        && (checked_numel(layout) == Some(0) || layout.strides().iter().all(|&stride| stride != 0))
 }
 
 pub(crate) fn layout_fits_cuda_storage(
