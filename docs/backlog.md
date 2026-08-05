@@ -71,8 +71,9 @@
 - Status: in-progress; design accepted in
   [ADR 0056](docs/adr/0056-provider-owned-lp-norms.md).
 - Local evidence: `cargo fmt --all -- --check`, Ops and autograd warning-denied
-  Clippy, Ops Nextest 208/208, autograd Nextest 103/103, and the focused
-  strided/COW regression pass. Final locked accelerator checks remain blocked
+  Clippy, Ops Nextest 208/208, autograd Nextest 103/103, Ops doctests 22/22,
+  autograd doctests 16/16, and the focused strided/COW regression pass. Final
+  locked accelerator checks remain blocked
   by the shared overlay's dirty provider patches and the peer-owned
   Hephaestus cross-entropy API break; hosted WGPU/CUDA/ROCm/Metal execution is
   still required.

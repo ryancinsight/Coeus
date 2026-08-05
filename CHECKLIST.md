@@ -15,7 +15,7 @@
       backward, COW, and backend CI coverage.
 - [x] Run local format, warning-denied Ops/autograd Clippy, full Ops Nextest
       (208/208), full autograd Nextest (103/103), and the focused strided/COW
-      regression.
+      regression; Ops doctests (22/22) and autograd doctests (16/16) also pass.
 - [ ] Run locked backend package checks, doctests, SemVer against the intended
       release baseline, and exact hosted backend gates. The local locked graph
       is blocked by the shared overlay's dirty provider patches; the local
