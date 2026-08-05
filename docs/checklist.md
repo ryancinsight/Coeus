@@ -18,7 +18,9 @@
       warning-denied checks, doctests, full affected-package Nextest, and local
       CUDA parity; the local WGPU parity test is adapter-gated and was exercised
       only through its no-adapter path on this host.
-- [ ] Pass exact-head provider CI for WGPU, CUDA, ROCm, and Metal.
+- [x] Pass exact-head provider CI run `31015800540` for WGPU, CUDA, ROCm,
+      and Metal; the PR hardware-only CUDA/ROCm jobs are intentionally
+      skipped.
 - [x] Record remaining host-staged loss families as the separate bounded item
       `COEUS-AUTOGRAD-HOST-STAGING-RESIDUALS-001`; do not claim repository-wide
       host-staging removal from this slice.

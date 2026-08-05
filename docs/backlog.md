@@ -19,7 +19,12 @@
 - Risk/change class: `[patch] [arch]`; the public signature is unchanged, but
   the implementation's ownership boundary changes from host staging to the
   existing provider graph. The ADR records the bounded residuals.
-- Status: in-progress; implementation and verification are active.
+- Status: complete; commits `c5a62517`, `e11475bf`, and `58dae42a` are
+  published in PR #295. Exact-head provider run `31015800540` passes WGPU,
+  CUDA, ROCm, and Metal contracts; the PR hardware-only jobs are correctly
+  skipped. The shared local Atlas overlay remains a separate environment
+  constraint because dirty provider trees cannot satisfy Coeus's committed
+  lockfile under local `--locked` resolution.
 
 ## COEUS-AUTOGRAD-HOST-STAGING-RESIDUALS-001 — Migrate remaining host-staged autograd families [arch]
 
