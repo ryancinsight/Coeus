@@ -3,7 +3,7 @@ use coeus_core::{
     BinaryOp, CpuUnaryDispatch, CpuUnaryOp as UnaryOp, Layout as CoeusLayout, Scalar as CoeusScalar,
 };
 use leto::{LetoError, Result};
-use leto_ops::Scalar as LetoScalar;
+use leto_ops::{PowfOp, Scalar as LetoScalar};
 
 use super::MAX_DISPATCH_RANK;
 
@@ -366,6 +366,44 @@ pub fn elementwise_unary_into<T: LetoScalar + CoeusScalar + CpuUnaryDispatch>(
         6 => unary_n::<T, 6>(op, a_layout, a, out_layout, out),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
+}
+
+fn pow_scalar_n<T: leto_ops::RealScalar, const N: usize>(
+    exponent: T,
+    a_layout: &CoeusLayout,
+    a: &[T],
+    out_layout: &CoeusLayout,
+    out: &mut [T],
+) -> Result<()> {
+    let a_view = to_leto_view::<T, N>(a_layout, a)?;
+    let mut out_view = to_leto_view_mut::<T, N>(out_layout, out)?;
+    leto_ops::unary_map_into(PowfOp { exponent }, &a_view, &mut out_view)
+}
+
+/// Apply provider-owned scalar exponentiation through Leto's `PowfOp`.
+///
+/// The exponent remains a native `T` value and input/output views retain their
+/// layouts; no exponent tensor or host-side materialization is created.
+pub fn elementwise_pow_scalar_into<T: LetoScalar + CoeusScalar + leto_ops::RealScalar>(
+    exponent: T,
+    a_layout: &CoeusLayout,
+    a: &[T],
+    out_layout: &CoeusLayout,
+    out: &mut [T],
+) -> Result<()> {
+    match out_layout.ndim() {
+        1 => pow_scalar_n::<T, 1>(exponent, a_layout, a, out_layout, out),
+        2 => pow_scalar_n::<T, 2>(exponent, a_layout, a, out_layout, out),
+        3 => pow_scalar_n::<T, 3>(exponent, a_layout, a, out_layout, out),
+        4 => pow_scalar_n::<T, 4>(exponent, a_layout, a, out_layout, out),
+        5 => pow_scalar_n::<T, 5>(exponent, a_layout, a, out_layout, out),
+        6 => pow_scalar_n::<T, 6>(exponent, a_layout, a, out_layout, out),
+        rank => Err(LetoError::StorageError {
+            reason: format!(
+                "coeus-leto scalar power dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {rank}"
+            ),
         }),
     }
 }

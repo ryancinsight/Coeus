@@ -29,7 +29,9 @@ pub use cross_entropy::{
     prepare_candidate, prepare_targets as prepare_cross_entropy_targets, CrossEntropyBackend,
     CrossEntropyProvider,
 };
-pub use elementwise::{parameterized_unary, ElementwiseProvider, ParameterizedElementwiseProvider};
+pub use elementwise::{
+    parameterized_unary, ElementwiseProvider, ParameterizedElementwiseProvider, ScalarPowerProvider,
+};
 pub use error::HephaestusBackendError;
 pub use random_init::{normal as random_normal, uniform as random_uniform, RandomInitProvider};
 pub use reduction::HephaestusBackend;

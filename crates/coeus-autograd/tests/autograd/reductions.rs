@@ -179,6 +179,22 @@ fn test_norm_p_axis_autograd() {
 }
 
 #[test]
+fn test_norm_p_subunit_exponent_masks_zero_input_gradient() {
+    let backend = MoiraiBackend::new();
+    let x_val = Tensor::from_slice_on(vec![2], &[0.0f64, 4.0], &backend);
+    let x = Var::new(x_val, true);
+
+    let y = norm_p(&x, 0.5);
+    assert!((y.tensor.as_slice()[0] - 4.0).abs() < 1e-12);
+
+    y.backward_with_seed(Tensor::from_slice_on(vec![1], &[1.0f64], &backend))
+        .expect("invariant: valid subunit norm backward completes");
+    let gradient = x.grad().expect("gradient is enabled");
+    assert_eq!(gradient.as_slice()[0], 0.0);
+    assert!((gradient.as_slice()[1] - 1.0).abs() < 1e-12);
+}
+
+#[test]
 fn test_log_sum_exp_autograd() {
     let backend = MoiraiBackend::new();
     let vals = [1.0f64, 2.0, 3.0];

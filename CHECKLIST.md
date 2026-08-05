@@ -1,5 +1,30 @@
 # Coeus Development Roadmap Checklist
 
+## COEUS-AUTOGRAD-LP-NORM-PROVIDER-001 [major] [arch]
+
+- [x] Confirm the residual: `norm_p`, `norm_p_axis`, and both tracked
+      backward nodes stage complete tensors through host storage.
+- [x] Confirm provider ownership: Leto `PowfOp` and Hephaestus scalar-strided
+      `PowOp` exist for the selected CPU and accelerator providers.
+- [x] Record the provider scalar-power seam and migration contract in ADR 0056.
+- [x] Add the scalar-power capability to Coeus elementwise/provider traits and
+      migrate CPU, WGPU, CUDA, ROCm, and Metal implementations.
+- [x] Rewrite Lp forward and backward as provider-resident compositions and
+      remove CPU-addressable bounds and host payloads.
+- [x] Add analytical, differential, strided, zero-input, seed, additive
+      backward, COW, and backend CI coverage.
+- [x] Run local format, warning-denied Ops/autograd Clippy, full Ops Nextest
+      (208/208), full autograd Nextest (103/103), and the focused strided/COW
+      regression.
+- [ ] Run locked backend package checks, doctests, SemVer against the intended
+      release baseline, and exact hosted backend gates. The local locked graph
+      is blocked by the shared overlay's dirty provider patches; the local
+      accelerator graph is blocked by peer-owned Hephaestus cross-entropy API
+      changes. SemVer against the published 0.9.0 baseline reports three
+      pre-existing major failures from cumulative scans and fusion APIs.
+
+Status: in progress on `codex/coeus-lp-norm-provider`.
+
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Owner: Codex `/root`
 
 - [x] Bind Moirai, Mnemosyne, and Themis imports to their published packages.

@@ -5,13 +5,13 @@
 //! backends implement this trait directly and receive `BackendOps` via the
 //! blanket impl.
 
-use coeus_core::{ComputeBackend, Layout, Scalar, StorageMut};
+use coeus_core::{ComputeBackend, Float, Layout, Scalar, StorageMut};
 
 use super::super::ops::{BinaryOp, UnaryOp};
 
 /// Element-wise binary and unary operations.
 ///
-/// This sub-trait is one of seven concerns that compose
+/// This sub-trait is one of the concerns that compose
 /// [`BackendOps`].  Backends implement `ElementwiseOps` directly; the
 /// blanket impl provides `BackendOps` automatically.
 ///
@@ -109,4 +109,17 @@ pub trait ElementwiseOps<T: Scalar>: ComputeBackend {
         *input_layout = output_layout;
         Ok(())
     }
+}
+
+/// Provider-owned scalar exponentiation.
+pub trait ScalarPowerOps<T: Float>: ComputeBackend {
+    /// Compute `output = input.powf(exponent)` over the input layout.
+    fn elementwise_pow_scalar(
+        &self,
+        input: &Self::DeviceBuffer<T>,
+        input_layout: &Layout,
+        exponent: T,
+        output: &mut Self::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) -> Result<(), Self::Error>;
 }

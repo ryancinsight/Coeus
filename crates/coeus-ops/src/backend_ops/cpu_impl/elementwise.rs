@@ -1,7 +1,7 @@
 //! Elementwise CPU kernel delegations: unary and binary ops.
 #![allow(clippy::too_many_arguments)]
 
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, Layout, Scalar};
 
 use super::error::map_leto_error;
 use super::CpuBackend;
@@ -69,4 +69,28 @@ where
 {
     coeus_leto::elementwise_unary_into(op, a_layout, a.as_slice(), c_layout, c.as_mut_slice())
         .map_err(|error| map_leto_error("elementwise unary", error))
+}
+
+#[inline]
+pub(super) fn elementwise_pow_scalar<T, B>(
+    _backend: &B,
+    exponent: T,
+    a: &B::DeviceBuffer<T>,
+    a_layout: &Layout,
+    c: &mut B::DeviceBuffer<T>,
+    c_layout: &Layout,
+) -> Result<(), B::Error>
+where
+    T: Scalar + Float + leto_ops::Scalar + leto_ops::RealScalar,
+    B: CpuBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
+    coeus_leto::elementwise_pow_scalar_into(
+        exponent,
+        a_layout,
+        a.as_slice(),
+        c_layout,
+        c.as_mut_slice(),
+    )
+    .map_err(|error| map_leto_error("elementwise scalar power", error))
 }

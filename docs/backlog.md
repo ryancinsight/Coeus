@@ -45,6 +45,38 @@
 - Status: todo; the BCE-with-logits slice closes one family and leaves this
   explicit residual for dependency-ordered continuation.
 
+## COEUS-AUTOGRAD-LP-NORM-PROVIDER-001 — Keep Lp norms on the selected provider [major] [arch]
+
+- Owner: Codex on `codex/coeus-lp-norm-provider`; last-update:
+  2026-08-05; scope: the scalar-power elementwise seam, `coeus-ops` Lp norm
+  forward paths, tracked scalar and axis autograd nodes, CPU and accelerator
+  provider bridges, differential tests, backend CI, ADR, checklist, and
+  changelog.
+- Outcome: `norm_p` and `norm_p_axis` perform provider-resident forward and
+  backward computation. CPU dispatch reaches Leto `PowfOp`; WGPU, CUDA, ROCm,
+  and Metal dispatch reach Hephaestus scalar-strided `PowOp`.
+- Non-goals: compatibility adapters, host fallback, `exp(log())` power
+  approximations, unrelated loss families, release publication, or runtime
+  and memory claims without controlled measurements.
+- Acceptance: no Lp norm operation or autograd node requires CPU-addressable
+  storage, input-sized `copy_to_host`, or saved host payloads; the scalar
+  `norm_p` boundary may read its final one-element result; contiguous and permuted
+  forward/backward parity passes for p values `{0.5, 1, 2, 3}`; zero inputs,
+  non-unit seeds, additive backward, and COW preservation are covered; all
+  backend provider compile/runtime contracts and the declared major semver
+  check pass.
+- Risk/change class: `[major] [arch]`; adding scalar-power methods to public
+  elementwise/provider traits is a breaking contract change. In-repository
+  implementations migrate without compatibility shims.
+- Status: in-progress; design accepted in
+  [ADR 0056](docs/adr/0056-provider-owned-lp-norms.md).
+- Local evidence: `cargo fmt --all -- --check`, Ops and autograd warning-denied
+  Clippy, Ops Nextest 208/208, autograd Nextest 103/103, and the focused
+  strided/COW regression pass. Final locked accelerator checks remain blocked
+  by the shared overlay's dirty provider patches and the peer-owned
+  Hephaestus cross-entropy API break; hosted WGPU/CUDA/ROCm/Metal execution is
+  still required.
+
 ## COEUS-SCAN-DISPATCH-001 — Require provider-owned cumulative scans [major] [arch]
 
 - Owner: Codex on `codex/coeus-direct-scan-dispatch`; last-update:
@@ -4422,6 +4454,11 @@ operators accept either a `Tensor` or a Python `float`. Target version
 ---
 
 ## Sprint MS-66: vector_norm(ord-p) Torch/JAX parity [minor]
+
+> Historical note: the host-fold implementation described in this sprint was
+> superseded by [ADR 0056](docs/adr/0056-provider-owned-lp-norms.md) on
+> 2026-08-05. Current Lp forward and tracked backward paths dispatch through
+> Leto or Hephaestus according to the selected backend.
 
 Closes the `L_p` norm gap inherited from MS-65's deferred norm family.
 `torch.linalg.vector_norm(x, ord=p)` is a core Torch/Numpy/JAX contract

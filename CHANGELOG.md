@@ -4,6 +4,13 @@
 
 ### Changed
 
+- [major] [arch] Route `norm_p` and `norm_p_axis` forward and tracked
+  backward computation through the selected provider. CPU uses Leto's native
+  `PowfOp`; WGPU, CUDA, ROCm, and Metal use Hephaestus scalar-strided power.
+  This removes complete-tensor host staging and saved host payloads. No
+  runtime or memory delta is claimed without controlled measurements. See
+  [ADR 0056](docs/adr/0056-provider-owned-lp-norms.md).
+
 - [patch] [arch] Keep `bce_with_logits` forward and backward on the selected
   provider. CPU uses the existing Leto-backed Coeus operations; CUDA, WGPU,
   ROCm, and Metal use the selected Hephaestus-backed operations. Remove host

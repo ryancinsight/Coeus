@@ -2,17 +2,17 @@
 //
 // `norm` is the L2 vector norm over all elements: `sqrt(Σ x²)`, matching
 // `torch.linalg.vector_norm(x, ord=2)` (flattened). It is a performance-
-// critical short-circuit over the general `norm_p` — no `powf` allocation.
+// critical short-circuit over the general `norm_p` — no scalar-power kernel.
 //
-// `norm_p` / `norm_p_axis` support arbitrary finite `p > 0` via a host-side
-// fold with `T::powf`, avoiding a new `BinaryOp::Pow` opcode (deferred per
-// MS-62). Per-element `T::powf` runs at the native precision of `T`.
+// `norm_p` / `norm_p_axis` support arbitrary finite `p > 0` through provider
+// scalar-power dispatch. CPU execution uses Leto `PowfOp`; accelerators use
+// the selected Hephaestus scalar-power kernel.
 //
 // `frobenius_norm` / `frobenius_norm_batched` compose on `mul + sum + sqrt`
 // to match `torch.linalg.matrix_norm(A, ord='fro')` for 2-D and ≥3-D
 // inputs respectively.
 
-use crate::backend_ops::BackendOps;
+use crate::backend_ops::{BackendOps, ScalarPowerOps};
 use crate::binary;
 use coeus_core::Float;
 use coeus_tensor::Tensor;
@@ -20,8 +20,8 @@ use coeus_tensor::Tensor;
 /// Euclidean (L2) norm over all elements: `sqrt(sum(x²))`.
 ///
 /// Special case of [`norm_p`] with `p = 2`. Retained as the performance-
-/// critical short-circuit when only L2 is needed — the ord-p variant
-/// uses a host-side fold with `T::powf` and a final per-element `^(1/p)`.
+/// critical short-circuit when only L2 is needed; the general ord-p variant
+/// dispatches scalar powers through the selected provider.
 #[inline]
 pub fn norm<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
@@ -42,45 +42,54 @@ pub fn norm<T: Float, B: BackendOps<T> + Default>(
 /// `L_p` norm over all elements: `(Σ|xᵢ|^p)^(1/p)` for finite `p > 0`.
 ///
 /// Matches `torch.linalg.vector_norm(x, ord=p)` over a flattened view for
-/// any `p` in `(0, ∞)`. Implemented as a single host-side fold with the
-/// native `T::powf` accumulation so the input can stay on any backend
-/// (`B::DeviceBuffer<T>` only requires `copy_to_host`-read access via
-/// the existing `BackendOps` surface) and no new `BinaryOp::Pow` opcode
-/// is needed. Per-element `T::powf` runs at hardware-mapped precision of
-/// `T`, matching the `Scalar`/native-precision execution rule.
+/// any `p` in `(0, ∞)`. The complete computation stays on the selected
+/// provider; only the scalar-returning API copies its final one-element result
+/// to the caller.
 ///
 /// # Panics
 /// Panics if `p <= 0`, `p` is not finite, or the input is empty.
 #[inline]
-pub fn norm_p<T: Float, B: BackendOps<T> + Default>(a: &Tensor<T, B>, p: T, backend: &B) -> T {
+pub fn norm_p_tensor<T: Float, B: BackendOps<T> + ScalarPowerOps<T> + Default>(
+    a: &Tensor<T, B>,
+    p: T,
+    backend: &B,
+) -> Tensor<T, B> {
     let n = a.numel();
     assert!(n > 0, "norm_p: empty tensor has no norm");
     assert!(
         p > T::zero() && <T as Float>::is_finite(p),
         "norm_p: ord must be a finite positive number, got {p:?}"
     );
-    let flattened = if a.is_contiguous() && a.layout().offset() == 0 {
-        a.reshape([n])
-    } else {
-        a.to_contiguous_on(backend).reshape([n])
-    };
-    let mut host = vec![T::zero(); n];
-    backend.copy_to_host(flattened.storage(), &mut host);
-    let mut acc = T::zero();
-    for &v in &host {
-        acc += <T as Float>::powf(<T as Float>::abs(v), p);
-    }
-    <T as Float>::powf(acc, T::one() / p)
+    let magnitudes = crate::abs(a, backend);
+    let powered = crate::pow_scalar(&magnitudes, p, backend);
+    let flattened = powered.reshape([n]);
+    let summed = super::sum_axis(&flattened, 0, backend).expect("norm_p: provider sum");
+    crate::pow_scalar(&summed, T::one() / p, backend)
+}
+
+/// `L_p` norm over all elements returned as a provider-resident `[1]` tensor.
+///
+/// The scalar [`norm_p`] API is a compatibility boundary that reads this one
+/// output element. Tracked autograd uses this tensor form to retain the norm
+/// on the selected provider for backward.
+#[inline]
+pub fn norm_p<T: Float, B: BackendOps<T> + ScalarPowerOps<T> + Default>(
+    a: &Tensor<T, B>,
+    p: T,
+    backend: &B,
+) -> T {
+    let result = norm_p_tensor(a, p, backend);
+    let mut scalar = [T::zero()];
+    backend.copy_to_host(result.storage(), &mut scalar);
+    scalar[0]
 }
 
 /// Per-axis `L_p` norm: tensor reduced along `axis` to size 1, with each
 /// slice evaluated as `(Σ|xᵢ|^p)^(1/p)` for finite `p > 0`.
 ///
 /// Matches `torch.linalg.vector_norm(x, ord=p, dim=axis)` over a flattened
-/// view of every `axis`-slice. Implemented as a host-side fold with
-/// `T::powf` accumulation so the input can stay on any backend (the
-/// storage only requires `copy_to_host`-read access via `BackendOps`),
-/// and no new `BinaryOp::Pow` opcode is added.
+/// view of every `axis`-slice. The complete computation stays on the selected
+/// provider and the reduced axis remains a size-one dimension.
 ///
 /// Output shape is `input.shape` with `axis` reduced to size 1.
 ///
@@ -88,7 +97,7 @@ pub fn norm_p<T: Float, B: BackendOps<T> + Default>(a: &Tensor<T, B>, p: T, back
 /// Panics if `axis` is out of range, the axis has zero elements, `p <= 0`,
 /// or `p` is not finite.
 #[inline]
-pub fn norm_p_axis<T: Float, B: BackendOps<T> + Default>(
+pub fn norm_p_axis<T: Float, B: BackendOps<T> + ScalarPowerOps<T> + Default>(
     a: &Tensor<T, B>,
     p: T,
     axis: usize,
@@ -102,46 +111,10 @@ pub fn norm_p_axis<T: Float, B: BackendOps<T> + Default>(
         "norm_p_axis: ord must be a finite positive number, got {p:?}"
     );
 
-    let n = a.numel();
-    let contiguous = if a.is_contiguous() && a.layout().offset() == 0 {
-        a.reshape(a.shape().to_vec())
-    } else {
-        a.to_contiguous_on(backend)
-    };
-    let mut host = vec![T::zero(); n];
-    backend.copy_to_host(contiguous.storage(), &mut host);
-
-    let out_shape: Vec<usize> = {
-        let mut s = contiguous.shape().to_vec();
-        s[axis] = 1;
-        s
-    };
-    let out_numel: usize = out_shape.iter().product();
-
-    let shape = contiguous.shape();
-    let axis_dim = shape[axis];
-    let pre_dims = &shape[..axis];
-    let post_dims = &shape[axis + 1..];
-    let pre_count: usize = pre_dims.iter().product();
-    let post_count: usize = post_dims.iter().product();
-
-    let mut out_host = vec![T::zero(); out_numel];
-    let inv_p = T::one() / p;
-
-    for pre_idx in 0..pre_count {
-        for post_idx in 0..post_count {
-            let base = pre_idx * (axis_dim * post_count) + post_idx;
-            let mut acc = T::zero();
-            for k in 0..axis_dim {
-                let linear = base + k * post_count;
-                acc += <T as Float>::powf(<T as Float>::abs(host[linear]), p);
-            }
-            let out_idx = pre_idx * post_count + post_idx;
-            out_host[out_idx] = <T as Float>::powf(acc, inv_p);
-        }
-    }
-
-    Tensor::from_slice_on(out_shape, &out_host, backend)
+    let magnitudes = crate::abs(a, backend);
+    let powered = crate::pow_scalar(&magnitudes, p, backend);
+    let summed = super::sum_axis(&powered, axis, backend).expect("norm_p_axis: provider sum");
+    crate::pow_scalar(&summed, T::one() / p, backend)
 }
 
 /// Frobenius (matrix L2) norm over a single 2-D tensor: `sqrt(Σ aᵢⱼ²)`.
@@ -375,6 +348,28 @@ mod tests {
                 "norm_p_axis(3D, axis=1) = {g}, want {w}"
             );
         }
+    }
+
+    #[test]
+    fn norm_p_accepts_zero_copy_strided_views() {
+        let b = SequentialBackend::new();
+        let x = Tensor::<f64, SequentialBackend>::from_slice(
+            vec![2, 3],
+            &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0],
+        );
+        let shared = x.clone();
+        let transposed = x.permute(&[1, 0]);
+        let got = norm_p(&transposed, 2.0, &b);
+        let want = (91.0_f64).sqrt();
+        assert!((got - want).abs() < 1e-12);
+
+        let rows = norm_p_axis(&transposed, 2.0, 1, &b);
+        let expected = [17.0_f64.sqrt(), 29.0_f64.sqrt(), 45.0_f64.sqrt()];
+        assert_eq!(rows.shape(), &[3, 1]);
+        for (&actual, expected) in rows.as_slice().iter().zip(expected) {
+            assert!((actual - expected).abs() < 1e-12);
+        }
+        assert_eq!(shared.as_slice(), &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
     }
 
     #[test]

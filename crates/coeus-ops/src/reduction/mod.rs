@@ -16,7 +16,7 @@ pub use cumprod::{cumprod, suffix_prod};
 pub use cumsum::{cumsum, suffix_sum};
 pub use linalg::{cross, dot};
 pub use mean::{mean, mean_axis};
-pub use norms::{frobenius_norm, frobenius_norm_batched, norm, norm_p, norm_p_axis};
+pub use norms::{frobenius_norm, frobenius_norm_batched, norm, norm_p, norm_p_axis, norm_p_tensor};
 pub use sum::{amax, amin, max_axis, min_axis, prod, prod_axis, sum, sum_axis};
 pub use topk::{argmax, argmin, topk};
 pub use variance::{

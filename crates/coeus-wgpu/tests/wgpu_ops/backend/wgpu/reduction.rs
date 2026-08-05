@@ -61,3 +61,28 @@ fn product_axis_matches_cpu_on_rank_two_device_tensors() {
     assert_eq!(actual.shape(), &[2, 1]);
     assert_eq!(actual.as_slice(), expected.as_slice());
 }
+
+#[test]
+fn norm_p_dispatches_with_wgpu_provider_parity() {
+    if hephaestus_wgpu::WgpuDevice::try_default("coeus-wgpu-norm-p-test").is_err() {
+        return;
+    }
+
+    let sequential = SequentialBackend::new();
+    let wgpu = WgpuBackend::new();
+    let input =
+        Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
+    let device_input = input.to_backend_on(&sequential, &wgpu);
+
+    let expected = coeus_ops::norm_p(&input, 2.0, &sequential);
+    let actual = coeus_ops::norm_p(&device_input, 2.0, &wgpu);
+    assert!((actual - expected).abs() <= f32::EPSILON * 1024.0 * expected);
+
+    let expected_axis = coeus_ops::norm_p_axis(&input, 2.0, 1, &sequential);
+    let actual_axis =
+        coeus_ops::norm_p_axis(&device_input, 2.0, 1, &wgpu).to_backend_on(&wgpu, &sequential);
+    assert_eq!(actual_axis.shape(), &[2, 1]);
+    for (&actual, &expected) in actual_axis.as_slice().iter().zip(expected_axis.as_slice()) {
+        assert!((actual - expected).abs() <= f32::EPSILON * 1024.0 * expected);
+    }
+}
