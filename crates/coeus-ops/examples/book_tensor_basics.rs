@@ -19,8 +19,8 @@ fn main() {
     // ── Scalar sum and mean ──
     let s = coeus_ops::sum(&a, &backend).expect("sum");
     let m = coeus_ops::mean(&a, &backend).expect("mean");
-    println!("sum  = {s}");  // 15.0
-    println!("mean = {m}");  // 3.0
+    println!("sum  = {s}"); // 15.0
+    println!("mean = {m}"); // 3.0
     assert!((s - 15.0).abs() < 1e-10);
     assert!((m - 3.0).abs() < 1e-10);
 
@@ -29,7 +29,7 @@ fn main() {
         Tensor::from_slice_on(vec![3, 2], &[1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0], &backend);
     assert_eq!(mat.shape(), &[3, 2]);
     let mat_sum = coeus_ops::sum(&mat, &backend).expect("mat sum");
-    println!("3×2 matrix sum = {mat_sum}");  // 21.0
+    println!("3×2 matrix sum = {mat_sum}"); // 21.0
     assert!((mat_sum - 21.0).abs() < 1e-10);
 
     println!("all tensor-basics assertions passed");
