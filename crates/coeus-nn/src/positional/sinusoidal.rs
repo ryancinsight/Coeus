@@ -4,22 +4,18 @@
 // PE(pos, 2i+1) = cos(pos / 10000^(2i / d_model))
 //
 // The full `[max_len, d_model]` table is precomputed at construction.
-// `forward` adds a non-owning slice view (zero-copy for CPU-addressable
-// storage) to the input embedding tensor.
+// `forward` adds a non-owning slice view over the selected backend allocation.
 
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::{ComputeBackend, Float, MoiraiBackend};
 use coeus_tensor::Tensor;
 
 /// Sinusoidal (non-learnable) positional encoding layer.
 ///
 /// Precomputes a `[max_len, d_model]` table and adds a row-slice of it to
 /// the input at forward time.
-pub struct SinusoidalEncoding<
-    T: coeus_core::Scalar,
-    B: coeus_ops::BackendOps<T> + Default = MoiraiBackend,
-> {
+pub struct SinusoidalEncoding<T: coeus_core::Scalar, B: ComputeBackend + Default = MoiraiBackend> {
     /// Precomputed PE table: `[max_len, d_model]`.
     pub table: Tensor<T, B>,
     /// Maximum sequence length the precomputed table covers.
@@ -28,7 +24,7 @@ pub struct SinusoidalEncoding<
     pub d_model: usize,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> SinusoidalEncoding<T, B> {
+impl<T: Float, B: ComputeBackend + Default> SinusoidalEncoding<T, B> {
     /// Build the encoding table.
     ///
     /// - `max_len`: maximum sequence length supported.
@@ -39,22 +35,25 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> SinusoidalEncoding<T, B> {
             "SinusoidalEncoding: d_model must be even, got {d_model}"
         );
         let backend = B::default();
-        let mut table = Tensor::zeros_on([max_len, d_model], &backend);
-        {
-            use coeus_core::StorageMut;
-            let data = table
-                .storage_mut()
-                .try_as_mut_slice()
-                .expect("SinusoidalEncoding: backend must be CPU-addressable at construction");
-            for pos in 0..max_len {
-                for i in 0..(d_model / 2) {
-                    let denom = 10_000.0_f64.powf(2.0 * i as f64 / d_model as f64);
-                    let angle = pos as f64 / denom;
-                    data[pos * d_model + 2 * i] = T::from_f64(angle.sin());
-                    data[pos * d_model + 2 * i + 1] = T::from_f64(angle.cos());
-                }
+        let table_len = max_len
+            .checked_mul(d_model)
+            .expect("SinusoidalEncoding: table element count overflows usize");
+        let mut values = Vec::with_capacity(table_len);
+        let base = T::from_usize(10_000);
+        let dimension = T::from_usize(d_model);
+        for pos in 0..max_len {
+            let position = T::from_usize(pos);
+            for i in 0..(d_model / 2) {
+                let exponent = T::from_usize(
+                    i.checked_mul(2)
+                        .expect("SinusoidalEncoding: frequency index overflows usize"),
+                ) / dimension;
+                let angle = position / base.powf(exponent);
+                values.push(angle.sin());
+                values.push(angle.cos());
             }
         }
+        let table = Tensor::from_slice_on([max_len, d_model], &values, &backend);
         Self {
             table,
             max_len,
@@ -63,7 +62,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> SinusoidalEncoding<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for SinusoidalEncoding<T, B> {
+impl<T: Float, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default> Module<T, B>
+    for SinusoidalEncoding<T, B>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![] // non-learnable
     }
@@ -74,7 +75,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sinusoida
     ///
     /// Returns `[batch, seq_len, d_model]`.
     fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        let backend = B::default();
         let shape = input.tensor.shape();
         if shape.len() != 3 {
             return Err(ModuleError::InvalidRank {
@@ -101,10 +101,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sinusoida
             });
         }
 
-        // Extract the top `seq_len` rows of the PE table as a [seq_len, d_model] tensor.
-        // For CPU-addressable storage this is a zero-copy slice; for GPU storage it
-        // involves a staging copy limited to `seq_len * d_model` elements.
-        let pe_slice = extract_pe_slice(&self.table, seq_len, self.d_model, &backend);
+        // The view keeps the selected backend allocation. The elementwise
+        // provider consumes the view layout directly, so forward never stages
+        // or downloads the precomputed table.
+        let pe_slice = prefix_view(&self.table, seq_len, self.d_model);
         let pe_var = Var::new(pe_slice, false);
 
         // Broadcast add: input [B, seq, d] + pe [seq, d] via autograd add.
@@ -113,31 +113,39 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Sinusoida
     }
 }
 
-/// Extract the first `seq_len` rows from the PE table.
-///
-/// Returns a contiguous `[seq_len, d_model]` tensor.
-fn extract_pe_slice<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+/// Borrow the active sequence prefix without changing its backend storage.
+#[inline]
+fn prefix_view<T: coeus_core::Scalar, B: ComputeBackend>(
     table: &Tensor<T, B>,
     seq_len: usize,
     d_model: usize,
-    backend: &B,
 ) -> Tensor<T, B> {
-    use coeus_core::{Storage, StorageMut};
-    let mut out = Tensor::zeros_on([seq_len, d_model], backend);
-    // Zero-copy path: both src and dst are CPU-addressable.
-    if let (Some(src), Some(dst)) = (
-        table.storage().try_as_slice(),
-        out.storage_mut().try_as_mut_slice(),
-    ) {
-        dst.copy_from_slice(&src[..seq_len * d_model]);
-    } else {
-        // GPU path: stage through host.
-        let total = table.numel();
-        let mut host = vec![T::zero(); total];
-        backend.copy_to_host(table.storage(), &mut host);
-        let mut out_host = vec![T::zero(); seq_len * d_model];
-        out_host.copy_from_slice(&host[..seq_len * d_model]);
-        backend.copy_to_device(&out_host, out.storage_mut());
+    table.slice(&[(0, seq_len), (0, d_model)])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::prefix_view;
+    use coeus_core::{SequentialBackend, Storage};
+    use coeus_tensor::Tensor;
+
+    #[test]
+    fn prefix_view_shares_cpu_storage() {
+        let backend = SequentialBackend;
+        let table = Tensor::from_slice_on([4, 6], &[0.0_f32; 24], &backend);
+        let prefix = prefix_view(&table, 2, 6);
+
+        let table_ptr = table
+            .storage()
+            .try_as_slice()
+            .expect("SequentialBackend storage is CPU-addressable")
+            .as_ptr();
+        let prefix_ptr = prefix
+            .storage()
+            .try_as_slice()
+            .expect("SequentialBackend storage is CPU-addressable")
+            .as_ptr();
+        assert_eq!(prefix_ptr, table_ptr);
+        assert_eq!(prefix.shape(), &[2, 6]);
     }
-    out
 }

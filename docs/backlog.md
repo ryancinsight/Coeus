@@ -59,9 +59,10 @@
 
 ## COEUS-SINUSOIDAL-PROVIDER-001 — Remove positional host fallback [patch]
 
-- Owner: Codex on `codex/coeus-sinusoidal-provider`; last-update: 2026-08-03;
+- Owner: Codex on `codex/coeus-sinusoidal-provider`; last-update: 2026-08-04;
   scope: sinusoidal positional table construction, prefix-view extraction,
-  focused CPU/accelerator contracts, and active PM evidence.
+  the minimal Coeus elementwise/reduction capability closure required by
+  autograd, focused CPU/accelerator contracts, and active PM evidence.
 - Outcome: construction initializes the table once on the selected backend and
   forward borrows the active prefix as a tensor view, without requiring
   CPU-addressable accelerator storage or downloading and re-uploading the
@@ -74,11 +75,12 @@
   layout; residue scans find no CPU-storage expectation or host-transfer branch
   in the migrated file; focused warning-denied checks, Nextest, doctests, and
   exact-head WGPU/CUDA/ROCm/Metal CI pass.
-- Risk/change class: `[patch]`; the public API and mathematical contract remain
+- Risk/change class: `[patch] [arch]`; the public API and mathematical contract remain
   unchanged while an accelerator panic and host-transfer fallback are removed.
-- Status: blocked. Re-open after accelerator `BackendOps` no longer inherits
-  CPU-addressable matmul requirements: WGPU/CUDA instantiate the intended
-  module path, but ROCm/Metal fail the bound before sinusoidal construction.
+- Status: in-progress. The dependency closure narrows `Module`, Coeus binary
+  kernels, and binary autograd to the capabilities they actually use, so
+  ROCm/Metal can instantiate the sinusoidal path without aggregate matmul,
+  pooling, convolution, or unfold/fold bounds.
 
 ## COEUS-COSINE-CLAMP-GRADIENT-001 — Correct clamped cosine backward [patch]
 

@@ -6,7 +6,11 @@ use coeus_tensor::Tensor;
 use std::sync::Arc;
 
 /// Abstract interface for compile-time specialized binary autograd operations.
-pub trait BinaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Send + Sync {
+pub trait BinaryAutogradOp<
+    T: Scalar,
+    B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
+>: Send + Sync
+{
     /// Human-readable operation name for tracking.
     const OP_NAME: &'static str;
 
@@ -26,8 +30,11 @@ pub trait BinaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Se
 }
 
 /// Autograd node for a generic binary operation.
-pub struct BinaryNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B>>
-{
+pub struct BinaryNode<
+    T: Scalar,
+    B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
+    Op: BinaryAutogradOp<T, B>,
+> {
     /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
     /// Input variables tracked for backward propagation.
@@ -44,8 +51,11 @@ pub struct BinaryNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: Bina
     pub _phantom: std::marker::PhantomData<Op>,
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B>>
-    BackwardNode<T, B> for BinaryNode<T, B, Op>
+impl<
+        T: Scalar,
+        B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
+        Op: BinaryAutogradOp<T, B>,
+    > BackwardNode<T, B> for BinaryNode<T, B, Op>
 {
     #[inline]
     fn op_name(&self) -> &'static str {
@@ -85,7 +95,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: BinaryAutogradOp<T, B
 #[inline]
 pub fn binary_op<
     T: Scalar,
-    B: coeus_ops::BackendOps<T> + Default,
+    B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
     Op: BinaryAutogradOp<T, B> + 'static,
 >(
     a: &Var<T, B>,

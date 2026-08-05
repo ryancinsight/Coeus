@@ -1,6 +1,6 @@
 // ── Sum reduction ──
 
-use crate::backend_ops::{BackendOps, ReductionOp};
+use crate::backend_ops::{BackendOps, ReductionOp, ReductionOps};
 use coeus_core::{BackendError, Scalar};
 use coeus_tensor::Tensor;
 
@@ -54,7 +54,7 @@ pub fn sum<T: Scalar, B: BackendOps<T> + Default>(
 /// assert_eq!(result.as_slice(), &[6.0, 15.0]);
 /// ```
 #[inline]
-pub fn sum_axis<T: Scalar, B: BackendOps<T> + Default>(
+pub fn sum_axis<T: Scalar, B: ReductionOps<T> + Default>(
     a: &Tensor<T, B>,
     axis: usize,
     backend: &B,

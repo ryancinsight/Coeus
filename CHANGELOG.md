@@ -4,6 +4,15 @@
 
 ### Changed
 
+- [patch] [arch] Narrow module and binary-autograd capability bounds to the
+  operations they use. Sinusoidal positional encoding now computes its table
+  in native scalar precision, uploads it once to the selected backend, and
+  forwards a zero-copy prefix view. CPU backends dispatch through their
+  Leto-backed elementwise/reduction implementations; ROCm and Metal compile
+  through the same capability seam without unrelated aggregate `BackendOps`
+  requirements. No runtime or memory delta is claimed without controlled
+  measurements. See [ADR 0053](docs/adr/0053-minimal-module-capability-bounds.md).
+
 - [major] Route mean cross-entropy forward and additive backward through the
   selected provider. Sequential and Moirai borrow storage through Leto; WGPU,
   CUDA, ROCm, and Metal retain targets and probabilities on-device and execute

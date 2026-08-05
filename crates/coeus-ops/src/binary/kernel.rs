@@ -1,7 +1,7 @@
 // ── Binary kernel ──
 // Generic element-wise binary kernel with broadcasting.
 
-use crate::backend_ops::{BackendOps, BinaryOp};
+use crate::backend_ops::{BinaryOp, ElementwiseOps};
 use coeus_core::{BackendError, Scalar};
 use coeus_tensor::broadcast::broadcast_shapes;
 use coeus_tensor::Tensor;
@@ -11,7 +11,7 @@ use coeus_tensor::Tensor;
 /// Uses `Tensor::alloc_on` (no zero-init) because every output element is
 /// unconditionally overwritten by the broadcast kernel.
 #[inline]
-pub fn elementwise_binary<T: Scalar, B: BackendOps<T>>(
+pub fn elementwise_binary<T: Scalar, B: ElementwiseOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
@@ -43,7 +43,7 @@ pub fn elementwise_binary<T: Scalar, B: BackendOps<T>>(
 
 /// Apply element-wise binary operation to `a` and `b`, writing result to `out`.
 #[inline]
-pub fn elementwise_binary_to<T: Scalar, B: BackendOps<T>>(
+pub fn elementwise_binary_to<T: Scalar, B: ElementwiseOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     out: &mut Tensor<T, B>,

@@ -8,7 +8,10 @@ use coeus_tensor::Tensor;
 /// This function sums over the broadcast dimensions in a **single pass**:
 /// reduction axes are computed once and applied left-to-right, avoiding
 /// repeated intermediate tensor allocation.
-pub fn reduce_broadcast<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn reduce_broadcast<
+    T: Scalar,
+    B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
+>(
     grad: Tensor<T, B>,
     target_shape: &[usize],
 ) -> Tensor<T, B> {
