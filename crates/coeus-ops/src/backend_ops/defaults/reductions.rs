@@ -1,5 +1,5 @@
 use crate::backend_ops::CpuBackend;
-use coeus_core::{ComputeBackend, Layout, Scalar};
+use coeus_core::{Layout, Scalar};
 
 /// Default: copy to host, run `coeus_leto::argmax_into`, copy back.
 pub fn argmax<T, B>(
@@ -80,92 +80,4 @@ pub fn topk<T, B>(
 
     backend.copy_to_device(&host_values, values);
     backend.copy_to_device(&host_indices, indices);
-}
-
-/// Default: copy to host, run `coeus_leto::cumsum_into`, copy back.
-pub fn cumsum<T, B>(
-    backend: &B,
-    a: &B::DeviceBuffer<T>,
-    a_layout: &Layout,
-    axis: usize,
-    c: &mut B::DeviceBuffer<T>,
-    c_layout: &Layout,
-) where
-    T: Scalar + leto_ops::Scalar,
-    B: ComputeBackend,
-{
-    let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
-    backend.copy_to_host(a, &mut host_a);
-
-    let mut host_c = vec![T::zero(); c_layout.shape().iter().product()];
-    coeus_leto::cumsum_into(a_layout, &host_a, axis, c_layout, &mut host_c)
-        .expect("cumsum default impl failed");
-
-    backend.copy_to_device(&host_c, c);
-}
-
-/// Default: copy to host, run `coeus_leto::suffix_sum_into`, copy back.
-pub fn suffix_sum<T, B>(
-    backend: &B,
-    a: &B::DeviceBuffer<T>,
-    a_layout: &Layout,
-    axis: usize,
-    c: &mut B::DeviceBuffer<T>,
-    c_layout: &Layout,
-) where
-    T: Scalar + leto_ops::Scalar,
-    B: ComputeBackend,
-{
-    let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
-    backend.copy_to_host(a, &mut host_a);
-
-    let mut host_c = vec![T::zero(); c_layout.shape().iter().product()];
-    coeus_leto::suffix_sum_into(a_layout, &host_a, axis, c_layout, &mut host_c)
-        .expect("suffix_sum default impl failed");
-
-    backend.copy_to_device(&host_c, c);
-}
-
-/// Default: copy to host, run `coeus_leto::cumprod_into`, copy back.
-pub fn cumprod<T, B>(
-    backend: &B,
-    a: &B::DeviceBuffer<T>,
-    a_layout: &Layout,
-    axis: usize,
-    c: &mut B::DeviceBuffer<T>,
-    c_layout: &Layout,
-) where
-    T: Scalar + leto_ops::Scalar,
-    B: ComputeBackend,
-{
-    let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
-    backend.copy_to_host(a, &mut host_a);
-
-    let mut host_c = vec![T::zero(); c_layout.shape().iter().product()];
-    coeus_leto::cumprod_into(a_layout, &host_a, axis, c_layout, &mut host_c)
-        .expect("cumprod default impl failed");
-
-    backend.copy_to_device(&host_c, c);
-}
-
-/// Default: copy to host, run `coeus_leto::suffix_prod_into`, copy back.
-pub fn suffix_prod<T, B>(
-    backend: &B,
-    a: &B::DeviceBuffer<T>,
-    a_layout: &Layout,
-    axis: usize,
-    c: &mut B::DeviceBuffer<T>,
-    c_layout: &Layout,
-) where
-    T: Scalar + leto_ops::Scalar,
-    B: ComputeBackend,
-{
-    let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
-    backend.copy_to_host(a, &mut host_a);
-
-    let mut host_c = vec![T::zero(); c_layout.shape().iter().product()];
-    coeus_leto::suffix_prod_into(a_layout, &host_a, axis, c_layout, &mut host_c)
-        .expect("suffix_prod default impl failed");
-
-    backend.copy_to_device(&host_c, c);
 }

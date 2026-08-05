@@ -21,8 +21,15 @@
   external `ReductionOps` implementors to provide provider-owned scan methods.
   In-repository implementors are migrated in this change without a
   compatibility adapter.
-- Status: in-progress; claim commit records the bounded scope before source
-  changes.
+- Status: complete; direct provider implementations compile for
+  Coeus-Hephaestus, CUDA, WGPU, ROCm, and Metal against locked Hephaestus
+  `1e1f12cc`. Coeus-ops library Nextest passes 122/122 in run
+  `cbb97bd6-49e4-45d8-b803-dae9e3669f29`; its doctests pass 22/22; full locked
+  workspace all-targets check, CUDA-feature check, and warning-denied Clippy
+  pass. SemVer reports the intended major break for the four removed default
+  implementations. The broader package Nextest integration compile remained
+  uncollected at the Windows command wrapper timeout in `rustc` for
+  `tests/ops.rs`; no assertion failure was emitted.
 
 ## COEUS-CROSS-ENTROPY-PROVIDER-001 — Remove loss host staging [major] [arch]
 

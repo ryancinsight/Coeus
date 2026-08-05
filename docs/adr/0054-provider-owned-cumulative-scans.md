@@ -49,7 +49,7 @@ implementations and do not provide an accelerator fallback.
 
 The implementation will compile every current `ReductionOps` provider and run
 the CPU cumulative value contracts. Static residue scans will confirm that the
-Coes cumulative scan path contains no host transfer. Accelerator package and
+Coeus cumulative scan path contains no host transfer. Accelerator package and
 provider CI remain the runtime authority for Hephaestus dispatch; the local
 Atlas overlay is not a valid substitute when its peer Hephaestus checkout is
 dirty or does not contain the locked provider APIs. These checks establish

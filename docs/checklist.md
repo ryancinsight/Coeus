@@ -4,11 +4,14 @@
 
 - [x] Claim the cumulative-scan dispatch seam and record ADR-0054 before
       source changes.
-- [ ] Remove the generic host-staging cumulative defaults and require direct
+- [x] Remove the generic host-staging cumulative defaults and require direct
       provider implementations.
-- [ ] Verify CPU Leto values, accelerator compile contracts, warning-denied
+- [x] Verify CPU Leto values, accelerator compile contracts, warning-denied
       checks, doctests, and residue scans.
-- [ ] Record the exact revision and remaining external provider/build limits.
+- [x] Record the exact revision and remaining external provider/build limits;
+      the package-wide integration compile remained uncollected in `rustc` for
+      `tests/ops.rs` after the command wrapper timeout, without an assertion
+      failure.
 
 ## COEUS-CROSS-ENTROPY-PROVIDER-001 — Codex
 
