@@ -1,7 +1,7 @@
 // ── Binary arithmetic ops ──
 
 use super::kernel::elementwise_binary;
-use crate::backend_ops::{BackendOps, BinaryOp};
+use crate::backend_ops::{BinaryOp, ElementwiseOps};
 use coeus_core::{BackendError, Scalar};
 use coeus_tensor::Tensor;
 
@@ -21,7 +21,7 @@ use coeus_tensor::Tensor;
 /// assert_eq!(c.as_slice(), &[4.0, 6.0]);
 /// ```
 #[inline]
-pub fn add<T: Scalar, B: BackendOps<T>>(
+pub fn add<T: Scalar, B: ElementwiseOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
@@ -45,7 +45,7 @@ pub fn add<T: Scalar, B: BackendOps<T>>(
 /// assert_eq!(c.as_slice(), &[4.0, 4.0, 4.0, 4.0]);
 /// ```
 #[inline]
-pub fn sub<T: Scalar, B: BackendOps<T>>(
+pub fn sub<T: Scalar, B: ElementwiseOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
@@ -69,7 +69,7 @@ pub fn sub<T: Scalar, B: BackendOps<T>>(
 /// assert_eq!(c.as_slice(), &[5.0, 12.0, 21.0, 32.0]);
 /// ```
 #[inline]
-pub fn mul<T: Scalar, B: BackendOps<T>>(
+pub fn mul<T: Scalar, B: ElementwiseOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
@@ -97,7 +97,7 @@ pub fn mul<T: Scalar, B: BackendOps<T>>(
 /// assert!((s[3] - 2.0).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn div<T: Scalar, B: BackendOps<T>>(
+pub fn div<T: Scalar, B: ElementwiseOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
@@ -109,7 +109,7 @@ macro_rules! binary_assign_op {
     ($name:ident, $op:expr, $doc:expr) => {
         #[doc = $doc]
         #[inline]
-        pub fn $name<T: Scalar, B: BackendOps<T>>(
+        pub fn $name<T: Scalar, B: ElementwiseOps<T>>(
             a: &mut Tensor<T, B>,
             b: &Tensor<T, B>,
             backend: &B,

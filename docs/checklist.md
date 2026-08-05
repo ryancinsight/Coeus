@@ -23,6 +23,21 @@
       by the baseline Eunomia `^0.7` requirement after the provider source
       advanced to `0.8`.
 
+## COEUS-SINUSOIDAL-PROVIDER-001 — Codex
+
+- [x] Claim the dependency-ordered sinusoidal provider slice and record
+      ADR-0053 for minimal module capability bounds.
+- [x] Narrow binary Coeus kernels and binary autograd to elementwise plus
+      reduction capabilities; retain aggregate bounds where an operation still
+      requires them.
+- [x] Construct the sinusoidal table with native `T` arithmetic, upload once
+      to the selected backend, and use a provider-resident prefix view during
+      forward.
+- [x] Add CPU storage-sharing and ROCm/Metal compile-time capability
+      contracts.
+- [ ] Complete warning-denied focused gates, exact-head WGPU/CUDA/ROCm/Metal
+      provider CI, and merge the change.
+
 ## COEUS-ASSIGNMENT-ALIASING-001 — Codex
 
 - [x] Delete the four raw immutable-reference casts from active mutable device

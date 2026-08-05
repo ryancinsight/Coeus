@@ -1,5 +1,5 @@
 use coeus_autograd::Var;
-use coeus_core::{MoiraiBackend, Scalar};
+use coeus_core::{ComputeBackend, MoiraiBackend, Scalar};
 
 use super::{ModuleError, ParameterLoadError};
 use coeus_autograd::Parameter;
@@ -7,7 +7,7 @@ use coeus_autograd::Parameter;
 pub(crate) fn prefixed_parameters<T, B, M>(prefix: &str, module: &M) -> Vec<Parameter<T, B>>
 where
     T: Scalar,
-    B: coeus_ops::BackendOps<T> + Default,
+    B: ComputeBackend + Default,
     M: Module<T, B> + ?Sized,
 {
     module
@@ -20,7 +20,7 @@ where
 /// Trait for neural network modules.
 ///
 /// Each module owns `Parameter`s, can contain sub-modules, and can support train/eval modes.
-pub trait Module<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
+pub trait Module<T: Scalar, B: ComputeBackend + Default = MoiraiBackend> {
     /// Collect all trainable parameters (including from sub-modules).
     fn parameters(&self) -> Vec<Var<T, B>>;
 

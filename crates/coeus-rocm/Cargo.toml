@@ -21,3 +21,4 @@ leto-ops = { workspace = true }
 
 [dev-dependencies]
 coeus-leto = { version = "0.9.0", path = "../coeus-leto" }
+coeus-nn = { version = "0.9.0", path = "../coeus-nn", default-features = false }

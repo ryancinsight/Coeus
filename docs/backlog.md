@@ -75,7 +75,7 @@
   layout; residue scans find no CPU-storage expectation or host-transfer branch
   in the migrated file; focused warning-denied checks, Nextest, doctests, and
   exact-head WGPU/CUDA/ROCm/Metal CI pass.
-- Risk/change class: `[patch]`; the public API and mathematical contract remain
+- Risk/change class: `[patch] [arch]`; the public API and mathematical contract remain
   unchanged while an accelerator panic and host-transfer fallback are removed.
 - Status: in-progress. The dependency closure narrows `Module`, Coeus binary
   kernels, and binary autograd to the capabilities they actually use, so
