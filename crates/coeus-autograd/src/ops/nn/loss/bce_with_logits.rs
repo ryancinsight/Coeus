@@ -97,7 +97,8 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         &target.tensor,
         &backend,
     );
-    let scale = Tensor::full_on([1], T::from_f64(1.0 / n as f64), &backend);
+    let mean_scale = T::one() / T::from_f64(n as f64);
+    let scale = Tensor::full_on([1], mean_scale, &backend);
     let requires_grad =
         crate::grad_mode::should_track_var(logits) || crate::grad_mode::should_track_var(target);
     let grad = if requires_grad {
