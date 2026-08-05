@@ -4,6 +4,12 @@
 
 ### Changed
 
+- [patch] [arch] Keep `bce_with_logits` forward and backward on the selected
+  provider. CPU uses the existing Leto-backed Coeus operations; CUDA, WGPU,
+  ROCm, and Metal use the selected Hephaestus-backed operations. Remove host
+  staging and saved per-element `Vec` state. No runtime or memory delta is
+  claimed without controlled measurements. See [ADR 0055](docs/adr/0055-provider-owned-bce-with-logits.md).
+
 - [major] Require `coeus_ops::ReductionOps` implementations to provide
   cumulative sum and product scans directly. Sequential and Moirai continue
   through Leto; CUDA, WGPU, ROCm, and Metal retain their Hephaestus dispatch.

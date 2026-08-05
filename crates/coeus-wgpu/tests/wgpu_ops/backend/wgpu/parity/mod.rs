@@ -1,3 +1,4 @@
+mod bce_with_logits;
 mod convolution_pooling;
 mod cross_entropy;
 mod elementwise;

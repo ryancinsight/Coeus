@@ -1,5 +1,30 @@
 # Global Progress Checklist: Coeus
 
+## COEUS-BCE-LOGITS-PROVIDER-001 — Codex
+
+- [x] Confirm the current generic operation still stages logits, targets,
+      output gradients, and saved derivative state through host memory.
+- [x] Record ADR-0055 and define the existing provider operation composition as
+      the single implementation path.
+- [x] Replace host formula and `Vec<T>` backward state with provider-native
+      tensors and provider reductions.
+- [x] Close the WGPU/CUDA unary dispatch gap: `Relu`, `Log1p`, and `Sigmoid`
+      route through Hephaestus for contiguous and strided storage and fail
+      closed when the provider layout contract is not met.
+- [x] Extend CPU, WGPU, and CUDA BCE parity inputs to large finite logits and
+      transposed rank-two views; local CUDA executes and local WGPU skips only
+      when no adapter is present.
+- [x] Pass independent CPU value/gradient tests, source residue scans,
+      warning-denied checks, doctests, full affected-package Nextest, and local
+      CUDA parity; the local WGPU parity test is adapter-gated and was exercised
+      only through its no-adapter path on this host.
+- [x] Pass exact-head provider CI run `31015800540` for WGPU, CUDA, ROCm,
+      and Metal; the PR hardware-only CUDA/ROCm jobs are intentionally
+      skipped.
+- [x] Record remaining host-staged loss families as the separate bounded item
+      `COEUS-AUTOGRAD-HOST-STAGING-RESIDUALS-001`; do not claim repository-wide
+      host-staging removal from this slice.
+
 ## COEUS-SCAN-DISPATCH-001 — Codex
 
 - [x] Claim the cumulative-scan dispatch seam and record ADR-0054 before

@@ -6,6 +6,8 @@ pub(super) use coeus_cuda::CudaBackend;
 pub(super) use coeus_ops::{ConvOps, OptimizerOps, PoolOps};
 pub(super) use coeus_tensor::Tensor;
 
+#[path = "parity/bce_with_logits.rs"]
+mod bce_with_logits;
 #[path = "parity/convolution.rs"]
 mod convolution;
 #[path = "parity/convolution_transpose.rs"]

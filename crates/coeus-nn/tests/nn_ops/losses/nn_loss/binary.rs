@@ -236,6 +236,36 @@ fn test_bce_with_logits_matches_bce_of_sigmoid() {
 }
 
 #[test]
+fn test_bce_with_logits_large_logits_stay_finite() {
+    let logits = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[100.0, -100.0]),
+        true,
+    );
+    let target = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 0.0]),
+        true,
+    );
+    let loss = bce_with_logits(&logits, &target);
+    let expected = 0.5
+        * ((100.0_f64.max(0.0) - 100.0 + (-100.0_f64.abs()).exp().ln_1p())
+            + ((-100.0_f64).max(0.0) + (-(-100.0_f64).abs()).exp().ln_1p()));
+
+    assert!(loss.tensor.as_slice()[0].is_finite());
+    assert!(loss.tensor.as_slice()[0] > 0.0);
+    assert!((loss.tensor.as_slice()[0] - expected).abs() <= 1e-15);
+
+    loss.backward()
+        .expect("invariant: finite large-logit backward completes");
+    assert_eq!(
+        target
+            .grad()
+            .expect("target gradient is tracked")
+            .as_slice(),
+        &[-50.0, 50.0]
+    );
+}
+
+#[test]
 fn test_l1_loss_zero_when_equal() {
     // l1_loss(x, x) = 0 exactly (all diffs zero).
     let pred = Var::new(
