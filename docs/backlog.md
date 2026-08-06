@@ -48,10 +48,10 @@
 
 ## COEUS-AUTOGRAD-HOST-STAGING-RESIDUALS-001 — Migrate remaining host-staged autograd families [arch]
 
-- Owner: unclaimed; last-update: 2026-08-05; scope: the remaining
-  `coeus-autograd` loss and norm families whose generic implementations still
-  require CPU-addressable storage or retain host payloads, after provider
-  capability inventory.
+- Owner: Codex on `codex/coeus-frobenius-provider`; last-update: 2026-08-06;
+  current slice scope: `coeus-ops::frobenius_norm_batched` and its provider
+  reduction contracts. The remaining `coeus-autograd` loss and norm families
+  stay in the parent queue after this slice.
 - Outcome: each family either composes existing provider operations or adds one
   upstream Leto/Hephaestus capability and dispatches directly through it.
 - Non-goals: compatibility adapters, silent CPU fallback, broad benchmark
@@ -62,8 +62,9 @@
   approximated downstream.
 - Risk/change class: `[arch]`; this is a follow-on queue item, not part of the
   BCE-with-logits increment.
-- Status: todo; the BCE-with-logits slice closes one family and leaves this
-  explicit residual for dependency-ordered continuation.
+- Status: in-progress; this branch claims the provider-resident batched
+  Frobenius norm slice. Acceptance and non-goals remain bounded to this
+  operation; no other host-staged family is included.
 
 ## COEUS-AUTOGRAD-LP-NORM-PROVIDER-001 — Keep Lp norms on the selected provider [major] [arch]
 
