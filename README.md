@@ -9,21 +9,21 @@ Coeus is an experimental, high-performance, N-dimensional strided tensor library
 Coeus is partitioned into a deep vertical hierarchy of workspace crates, enforcing absolute Separation of Concerns (SoC) and the Dependency Inversion Principle (DIP).
 
 ### Crate Structure
-- **[coeus-core](file:///d:/coeus/crates/coeus-core)**: Core primitives. Defines `Scalar` and `Float` traits, strided `Layout`, the `Storage` and `StorageMut` allocation interface, and the `Backend` execution trait.
-- **[coeus-tensor](file:///d:/coeus/crates/coeus-tensor)**: The fundamental `Tensor<T, B, S>` type with Copy-on-Write (COW) semantics and layout views (slicing, transposing, broadcasting).
-- **[coeus-ops](file:///d:/coeus/crates/coeus-ops)**: Optimized mathematical kernels (unary, binary, matmul, reductions) and signal processing routines.
-- **[coeus-autograd](file:///d:/coeus/crates/coeus-autograd)**: A tape-based automatic differentiation engine supporting reverse-mode autodiff.
-- **[coeus-nn](file:///d:/coeus/crates/coeus-nn)**: Neural network modules (Linear, Conv2d, LayerNorm, RMSNorm, BatchNorm2d) and activation functions.
-- **[coeus-optim](file:///d:/coeus/crates/coeus-optim)**: Parameter optimizers (SGD, Adam, RMSProp).
-- **[coeus-sparse](file:///d:/coeus/crates/coeus-sparse)**: Sparse storage representations (COO, CSR).
-- **[coeus-python](file:///d:/coeus/crates/coeus-python)**: Lightweight PyO3 bindings exposing the Rust core to Python.
+- **[coeus-core](crates/coeus-core)**: Core primitives. Defines `Scalar` and `Float` traits, strided `Layout`, the `Storage` and `StorageMut` allocation interface, and the `Backend` execution trait.
+- **[coeus-tensor](crates/coeus-tensor)**: The fundamental `Tensor<T, B>` type with Copy-on-Write (COW) semantics and layout views (slicing, transposing, broadcasting).
+- **[coeus-ops](crates/coeus-ops)**: Optimized mathematical kernels (unary, binary, matmul, reductions) and signal processing routines.
+- **[coeus-autograd](crates/coeus-autograd)**: A tape-based automatic differentiation engine supporting reverse-mode autodiff.
+- **[coeus-nn](crates/coeus-nn)**: Neural network modules (Linear, Conv2d, LayerNorm, RMSNorm, BatchNorm2d) and activation functions.
+- **[coeus-optim](crates/coeus-optim)**: Parameter optimizers (SGD, Adam, RMSProp).
+- **[coeus-sparse](crates/coeus-sparse)**: Sparse storage representations (COO, CSR).
+- **[coeus-python](crates/coeus-python)**: Lightweight PyO3 bindings exposing the Rust core to Python.
 
 ### Architectural Invariants
 
 1. **Zero-Copy Layout Traversal**
    All kernels in `coeus-ops` traverse tensors natively using strides and physical offsets. Memory allocation and copying (e.g. `to_contiguous()`) are completely eliminated during layout manipulation, slicing, broadcasting, or transposition.
 2. **Monomorphized Kernel Dispatch**
-   Operations are parameterized by generic parameters `<T: Scalar, B: Backend, S: Storage<T>>`. Downstream compiles evaluate to direct, fully inlined specialization blocks with zero virtual dispatch or heap overhead.
+   Operations are parameterized by generic parameters such as `<T: Scalar, B: ComputeBackend>`. Downstream compiles evaluate to direct specialization blocks with zero virtual dispatch on the provider path.
 3. **Moirai Parallel Execution**
    Multithreading is driven by the [Moirai Threading Engine](https://github.com/ryancinsight/Moirai.git), utilizing a work-stealing parallel execution queue via `MoiraiBackend::parallel_for`.
 4. **Mnemosyne Memory Allocator**
@@ -39,8 +39,8 @@ Coeus is partitioned into a deep vertical hierarchy of workspace crates, enforci
 The current development focus is transitioning Coeus to a heterogeneous execution model supporting GPU acceleration as first-class targets.
 
 Refer to the global checklist and backlog documents:
-- **Checklist**: [docs/checklist.md](file:///d:/coeus/docs/checklist.md)
-- **Backlog**: [docs/backlog.md](file:///d:/coeus/docs/backlog.md)
+- **Checklist**: [CHECKLIST.md](CHECKLIST.md)
+- **Backlog**: [docs/backlog.md](docs/backlog.md)
 
 ---
 
@@ -101,9 +101,9 @@ silently downgrades execution to Leto.
 
 ### Run Benchmarks
 `coeus-tensor` contains Criterion baselines for Coeus Sequential, Coeus Moirai,
-direct Leto, the Coeus-Leto dispatch seam, and dev-only Burn comparison rows.
-Native analytical and backend-conformance tests own correctness evidence;
-benchmarks measure the implemented provider paths. The workspace bench profile
+direct Leto, and the Coeus-Leto dispatch seam. Native analytical and
+backend-conformance tests own correctness evidence; benchmarks measure the
+implemented provider paths. The workspace bench profile
 uses thin LTO and one codegen unit so generic cross-crate kernels are measured
 with production-grade monomorphization:
 ```bash
