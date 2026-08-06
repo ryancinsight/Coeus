@@ -77,7 +77,7 @@ residual remain open.
 - [x] Pass format, locked all-target WGPU compilation, and warning-denied
       WGPU Clippy.
 - [x] Pass the exact-head hosted provider contract gate and merge the
-      architectural increment.
+      architectural increment in PR #303 at `af2c86ee`.
 
 Status: local refactor is complete and statically preserves provider routing.
 The routing leaf now owns one activation metadata table and checked
@@ -88,10 +88,11 @@ tests were still running; no local native-test pass is claimed for this
 increment.
 The local WGPU suite compiled 151 tests; 35 host-side tests passed and 116
 adapter-dependent tests were blocked by `AdapterUnavailable` on this host.
-Final-head provider run `31066806945` on `742c98e2` passes WGPU job
-`92506115501`, CUDA job `92506115489`, ROCm job `92506115503`, and Metal job
-`92506115518`; required-device CUDA and ROCm jobs were skipped because
-hardware execution was not requested.
+Final-head provider run `31113333932` on `5034d8f0` passes WGPU job
+`92656480115`, CUDA job `92656480141`, ROCm job `92656480117`, and Metal job
+`92656480221`; required-device CUDA and ROCm jobs were skipped because
+hardware execution was not requested. The recurring `recurseml/analysis`
+status failed independently of the provider-contract workflow.
 
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Owner: Codex `/root`
 
