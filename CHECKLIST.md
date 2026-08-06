@@ -114,6 +114,25 @@ slice passes `coeus-ops` Nextest 209/209, including 7 Frobenius tests, and 23
 doctests. No performance or resident-memory claim is made without controlled
 measurements.
 
+## COEUS-CTC-PROVIDER-SAFETY-AUDIT-001 [major] [arch]
+
+- [ ] Remove the CTC `CpuAddressableStorage` requirement and full
+      `copy_to_host`/host-gradient path; route CPU execution through Leto and
+      accelerator execution through Hephaestus without a consumer fallback.
+- [ ] Eliminate the retained `log_probs_host` payload and the f64
+      widen-and-narrow computation from the autograd node, or record the
+      numerical contract and measured justification in an accepted ADR.
+- [ ] Replace input-dependent `assert!`/`expect` validation in the public CTC
+      boundary with the repository's typed error path, including Python error
+      mapping.
+- [ ] Correct the stale CTC gradient Rustdoc and replace existence-only
+      regression assertions with value-semantic checks.
+
+Status: audit findings are recorded against the current uncommitted CTC
+increment. Focused CTC gates are blocked before compilation by the shared
+Atlas overlay's locked metadata failure; no CTC implementation change is
+accepted by this audit.
+
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Owner: Codex `/root`
 
 - [x] Bind Moirai, Mnemosyne, and Themis imports to their published packages.
