@@ -157,6 +157,26 @@ Final-head provider run `31113333932` on `5034d8f0` passes WGPU job
 hardware execution was not requested. The recurring `recurseml/analysis`
 status failed independently of the provider-contract workflow.
 
+## COEUS-FROBENIUS-NORM-PROVIDER-001 [patch] [arch]
+
+- [x] Replace the rank-3-and-higher host fold in
+      `coeus_ops::frobenius_norm_batched` with provider elementwise,
+      reduction, and square-root composition.
+- [x] Preserve rank-2 scalar behavior, batched output shape, strided-input
+      materialization, and source-storage immutability.
+- [x] Record provider ownership and the no-host-staging boundary in ADR-0060.
+- [x] Add analytical contiguous, rank-4, and strided CPU coverage.
+- [x] Pass locked workspace all-targets check, warning-denied `coeus-ops`
+      Clippy, full `coeus-ops` Nextest, focused Frobenius Nextest, and
+      `coeus-ops` doctests.
+- [ ] Run exact-head hosted WGPU, CUDA, ROCm, and Metal provider contracts.
+
+Status: implementation is complete locally and the parent host-staging queue
+remains in progress for other loss and norm families. The provider-composed
+slice passes `coeus-ops` Nextest 209/209, including 7 Frobenius tests, and 23
+doctests. No performance or resident-memory claim is made without controlled
+measurements.
+
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Owner: Codex `/root`
 
 - [x] Bind Moirai, Mnemosyne, and Themis imports to their published packages.
