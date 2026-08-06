@@ -25,11 +25,13 @@
 - [ ] Run the remaining workspace doctests and SemVer check against the
       intended release baseline. SemVer against the published 0.9.0 baseline
       reports three pre-existing major failures from cumulative scans and
-      fusion APIs; the full Ops Nextest wrapper exceeded 180 seconds without
-      returning a test result and requires a separate bounded investigation.
+      fusion APIs. The exact shared-target full Ops Nextest run now passes
+      208/208 after the initial wrapper timeout was isolated to compilation
+      under concurrent Cargo locks.
 
-Status: merged at `d775cd90`; locked provider verification is green. Doctest,
-SemVer, and the full Ops timeout remain open.
+Status: merged at `d775cd90`; locked provider verification and full Ops
+Nextest are green. Workspace doctests and the documented SemVer baseline
+residual remain open.
 
 ## COEUS-AUTOGRAD-PROD-PROVIDER-001 [minor] [arch]
 
@@ -51,11 +53,13 @@ SemVer, and the full Ops timeout remain open.
       Backend parity run `31052471989` passes Metal, ROCm, CUDA, and WGPU.
 - [x] Restore the committed Git-source lock and pass locked provider-package
       checks and warning-denied provider Clippy.
-- [ ] Run the remaining workspace doctests and exact SemVer check; the full Ops
-      Nextest wrapper exceeded 180 seconds without returning a test result.
+- [ ] Run the remaining workspace doctests and exact SemVer check. The exact
+      shared-target full Ops Nextest run passes 208/208 after the initial
+      wrapper timeout was isolated to compilation under concurrent Cargo locks.
 
-Status: merged at `d775cd90`; locked provider verification is green. Doctest,
-SemVer, and the full Ops timeout remain open.
+Status: merged at `d775cd90`; locked provider verification and full Ops
+Nextest are green. Workspace doctests and the documented SemVer baseline
+residual remain open.
 
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Owner: Codex `/root`
 
