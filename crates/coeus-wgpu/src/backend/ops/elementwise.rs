@@ -1,87 +1,17 @@
+mod routing;
+
 use crate::backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
 use crate::kernels;
 use coeus_core::{Layout, Storage};
 use hephaestus_core::BlockWidth;
 use hephaestus_wgpu::{
     binary_elementwise_strided_into, scalar_elementwise_strided_into,
-    unary_elementwise_strided_into, StridedOperand, MAX_STRIDED_RANK,
+    unary_elementwise_strided_into, StridedOperand,
 };
-use leto::Layout as LetoLayout;
+use routing::{can_route_strided_wgpu, provider_owned_activation};
 use std::sync::Arc;
 
-fn provider_owned_activation(op: coeus_ops::UnaryOp) -> Option<&'static str> {
-    match op {
-        coeus_ops::UnaryOp::Log1p => Some("Log1p"),
-        coeus_ops::UnaryOp::Mish => Some("Mish"),
-        coeus_ops::UnaryOp::MishGrad => Some("MishGrad"),
-        coeus_ops::UnaryOp::Elu => Some("Elu"),
-        coeus_ops::UnaryOp::EluGrad => Some("EluGrad"),
-        coeus_ops::UnaryOp::Hardtanh(_) => Some("Hardtanh"),
-        coeus_ops::UnaryOp::HardtanhGrad(_) => Some("HardtanhGrad"),
-        coeus_ops::UnaryOp::Threshold(_) => Some("Threshold"),
-        coeus_ops::UnaryOp::ThresholdGrad(_) => Some("ThresholdGrad"),
-        coeus_ops::UnaryOp::Relu => Some("Relu"),
-        coeus_ops::UnaryOp::ReluGrad => Some("ReluGrad"),
-        coeus_ops::UnaryOp::Sigmoid => Some("Sigmoid"),
-        _ => None,
-    }
-}
-
-fn parameterized_activation(op: coeus_ops::UnaryOp) -> bool {
-    matches!(
-        op,
-        coeus_ops::UnaryOp::Hardtanh(_)
-            | coeus_ops::UnaryOp::HardtanhGrad(_)
-            | coeus_ops::UnaryOp::Threshold(_)
-            | coeus_ops::UnaryOp::ThresholdGrad(_)
-    )
-}
-
 use super::parameterized_activation::ParameterizedActivationScalar;
-
-// ── WGPU Hephaestus strided routing helpers ───────────────────────────────────
-
-/// Guard: all layouts have rank ≤ MAX_STRIDED_RANK and the output has no
-/// broadcast (zero-stride) dimensions where dim > 1.
-fn can_route_strided_wgpu(layouts: &[&Layout], out: &Layout) -> bool {
-    let max_rank = MAX_STRIDED_RANK;
-    layouts
-        .iter()
-        .chain(std::iter::once(&out))
-        .all(|l| l.ndim() <= max_rank)
-        && !out
-            .shape()
-            .iter()
-            .zip(out.strides())
-            .any(|(&dim, &stride)| dim > 1 && stride == 0)
-}
-
-/// Convert a dynamic Coeus Layout to a `leto::Layout<N>`.
-/// Pads a shorter layout on the left with size-1/stride-0 dimensions
-/// so it can be broadcast against the target rank N.
-macro_rules! coeus_to_leto_layout {
-    ($layout:expr, $n:expr) => {{
-        let rank = $layout.ndim();
-        let pad = $n - rank.min($n);
-        let shape: [usize; $n] = {
-            let s = $layout.shape();
-            let mut arr = [1usize; $n];
-            for i in 0..rank.min($n) {
-                arr[pad + i] = s[i];
-            }
-            arr
-        };
-        let strides: [isize; $n] = {
-            let st = $layout.strides();
-            let mut arr = [0isize; $n];
-            for i in 0..rank.min($n) {
-                arr[pad + i] = st[i] as isize;
-            }
-            arr
-        };
-        LetoLayout::new(shape, strides, $layout.offset())
-    }};
-}
 
 /// Dispatch a binary Hephaestus strided op at the rank determined by `out.ndim()`.
 /// Returns `Ok(true)` when dispatched, `Ok(false)` when unsupported.
@@ -100,9 +30,9 @@ fn try_hephaestus_strided_binary_wgpu<
 
     macro_rules! dispatch_n {
         ($n:expr) => {{
-            let la = coeus_to_leto_layout!(a_layout, $n);
-            let lb = coeus_to_leto_layout!(b_layout, $n);
-            let lc = coeus_to_leto_layout!(c_layout, $n);
+            let la = routing::coeus_to_leto_layout::<$n>(a_layout)?;
+            let lb = routing::coeus_to_leto_layout::<$n>(b_layout)?;
+            let lc = routing::coeus_to_leto_layout::<$n>(c_layout)?;
             let a_op = StridedOperand {
                 buffer: a_buf.buffer.as_ref(),
                 layout: &la,
@@ -173,8 +103,8 @@ fn try_hephaestus_strided_unary_wgpu<
 
     macro_rules! dispatch_n {
         ($n:expr) => {{
-            let la = coeus_to_leto_layout!(a_layout, $n);
-            let lc = coeus_to_leto_layout!(c_layout, $n);
+            let la = routing::coeus_to_leto_layout::<$n>(a_layout)?;
+            let lc = routing::coeus_to_leto_layout::<$n>(c_layout)?;
             let a_op = StridedOperand {
                 buffer: a_buf.buffer.as_ref(),
                 layout: &la,
@@ -318,8 +248,8 @@ fn try_hephaestus_strided_scalar_power_wgpu<
 
     macro_rules! dispatch_n {
         ($n:expr) => {{
-            let input_layout = coeus_to_leto_layout!(input_layout, $n);
-            let output_layout = coeus_to_leto_layout!(output_layout, $n);
+            let input_layout = routing::coeus_to_leto_layout::<$n>(input_layout)?;
+            let output_layout = routing::coeus_to_leto_layout::<$n>(output_layout)?;
             let input = StridedOperand {
                 buffer: input.buffer.as_ref(),
                 layout: &input_layout,
@@ -654,7 +584,7 @@ impl<
         WgpuBackendError::validate_layout(a_layout)?;
         WgpuBackendError::validate_layout(c_layout)?;
         if let Some(operation) = provider_owned_activation(op) {
-            let is_parameterized = parameterized_activation(op);
+            let is_parameterized = operation.parameterized;
             let dispatched = if is_parameterized && can_route_strided_wgpu(&[a_layout], c_layout) {
                 try_hephaestus_strided_unary_wgpu(op, a, a_layout, c, c_layout)?
             } else if !is_parameterized
@@ -673,7 +603,9 @@ impl<
             return if dispatched {
                 Ok(())
             } else {
-                Err(WgpuBackendError::UnsupportedOperation { operation })
+                Err(WgpuBackendError::UnsupportedOperation {
+                    operation: operation.name,
+                })
             };
         }
         if a.len() == c.len()

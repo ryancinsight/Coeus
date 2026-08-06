@@ -112,6 +112,14 @@ pub enum LayoutError {
         /// Unrepresentable stride value.
         value: usize,
     },
+    /// A stride cannot be represented by the signed provider layout ABI.
+    #[error("stride axis {axis} value {value} exceeds the signed provider range")]
+    SignedStrideOutOfRange {
+        /// Axis containing the unrepresentable stride.
+        axis: usize,
+        /// Unrepresentable stride value.
+        value: usize,
+    },
 }
 
 impl From<GpuLayoutError> for LayoutError {

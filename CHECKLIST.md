@@ -65,16 +65,27 @@ residual remain open.
 
 - [x] Move WGPU elementwise and scalar-power provider dispatch out of the
       `ops` manifest into the named `elementwise` module.
+- [x] Move provider activation metadata, strided capability checks, and the
+      dynamic-to-const-rank Leto layout bridge into the named routing leaf.
+- [x] Replace the duplicated activation classification with one metadata table
+      and reject signed-stride narrowing before Leto dispatch.
 - [x] Remove the hidden parent-import dependency from the WGPU `matmul` and
       `pool` leaves by declaring their required crate modules explicitly.
 - [x] Record the module boundary and preserved Leto/Hephaestus dispatch in
       ADR-0058.
+- [x] Record the routing leaf and signed-stride safety boundary in ADR-0059.
 - [x] Pass format, locked all-target WGPU compilation, and warning-denied
       WGPU Clippy.
 - [x] Pass the exact-head hosted provider contract gate and merge the
       architectural increment.
 
 Status: local refactor is complete and statically preserves provider routing.
+The routing leaf now owns one activation metadata table and checked
+const-generic Leto layout conversion. The affected WGPU package passes locked
+all-targets check, warning-denied Clippy, and five doctests. The native WGPU
+nextest collection exceeded the local wrapper bound while adapter-dependent
+tests were still running; no local native-test pass is claimed for this
+increment.
 The local WGPU suite compiled 151 tests; 35 host-side tests passed and 116
 adapter-dependent tests were blocked by `AdapterUnavailable` on this host.
 Final-head provider run `31066806945` on `742c98e2` passes WGPU job
