@@ -1,5 +1,22 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-WGPU-ELEMENTWISE-LEAVES-001 — Split provider dispatch leaves [patch] [arch]
+
+- Owner: Codex on `codex/coeus-wgpu-elementwise-leaves`; last-update:
+  2026-08-06; scope: `coeus-wgpu` elementwise routing, contiguous and strided
+  Hephaestus dispatch helpers, trait implementations, ADR, checklist, and
+  structural verification.
+- Outcome: the WGPU elementwise family has named single-concern leaves below
+  its module manifest without changing the public API or provider ownership.
+- Non-goals: new kernels, runtime dispatch, host staging, fallback paths,
+  provider API changes, benchmark claims, or unrelated file-tree migration.
+- Acceptance: each implementation leaf is below the repository's 500-line
+  target where cohesion permits; imports are explicit; CPU remains Leto-owned;
+  WGPU remains Hephaestus-owned; locked package check, warning-denied Clippy,
+  focused Nextest, doctests, format, and diff hygiene pass.
+- Status: in-progress; branch owns the WGPU elementwise module subtree. ADR
+  number 0059 is reserved for the split decision.
+
 ## COEUS-BCE-LOGITS-PROVIDER-001 — Keep BCE with logits on the selected provider [patch] [arch]
 
 - Owner: Codex on `codex/coeus-bce-logits-provider`; last-update:
