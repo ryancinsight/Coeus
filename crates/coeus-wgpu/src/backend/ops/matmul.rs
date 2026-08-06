@@ -1,4 +1,6 @@
-use super::*;
+use crate::backend::{WgpuBackendError, WgpuScalar};
+use crate::kernels;
+use coeus_core::Layout;
 
 pub(super) fn dispatch_matmul<T: WgpuScalar>(
     a: &crate::backend::WgpuStorage<T>,

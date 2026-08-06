@@ -61,6 +61,23 @@ Status: merged at `d775cd90`; locked provider verification and full Ops
 Nextest are green. Workspace doctests and the documented SemVer baseline
 residual remain open.
 
+## COEUS-WGPU-ELEMENTWISE-TREE-001 [patch] [arch]
+
+- [x] Move WGPU elementwise and scalar-power provider dispatch out of the
+      `ops` manifest into the named `elementwise` module.
+- [x] Remove the hidden parent-import dependency from the WGPU `matmul` and
+      `pool` leaves by declaring their required crate modules explicitly.
+- [x] Record the module boundary and preserved Leto/Hephaestus dispatch in
+      ADR-0058.
+- [x] Pass format, locked all-target WGPU compilation, and warning-denied
+      WGPU Clippy.
+- [ ] Pass the exact-head hosted WGPU provider contract gate and merge the
+      architectural increment.
+
+Status: local refactor is complete and statically preserves provider routing.
+The local WGPU suite compiled 151 tests; 35 host-side tests passed and 116
+adapter-dependent tests were blocked by `AdapterUnavailable` on this host.
+
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Owner: Codex `/root`
 
 - [x] Bind Moirai, Mnemosyne, and Themis imports to their published packages.
