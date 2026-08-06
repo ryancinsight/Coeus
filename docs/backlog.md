@@ -2,8 +2,8 @@
 
 ## COEUS-WGPU-ELEMENTWISE-LEAVES-001 — Split provider dispatch leaves [patch] [arch]
 
-- Owner: Codex on `codex/coeus-wgpu-elementwise-leaves`; last-update:
-  2026-08-06; scope: `coeus-wgpu` elementwise routing, contiguous and strided
+- Owner: Codex; delivered by PR #303 on 2026-08-06; scope:
+  `coeus-wgpu` elementwise routing, contiguous and strided
   Hephaestus dispatch helpers, trait implementations, ADR, checklist, and
   structural verification.
 - Outcome: the WGPU elementwise family has named single-concern leaves below
@@ -14,8 +14,11 @@
   target where cohesion permits; imports are explicit; CPU remains Leto-owned;
   WGPU remains Hephaestus-owned; locked package check, warning-denied Clippy,
   focused Nextest, doctests, format, and diff hygiene pass.
-- Status: in-progress; branch owns the WGPU elementwise module subtree. ADR
-  number 0059 is reserved for the split decision.
+- Status: complete; merged as `af2c86ee`. ADR-0059 records the split decision;
+  the exact-head hosted provider contracts passed for WGPU, CUDA, ROCm, and
+  Metal. Required-device CUDA and ROCm jobs were skipped because hardware
+  execution was not requested. The recurring `recurseml/analysis` status
+  failed independently of the provider-contract workflow.
 
 ## COEUS-BCE-LOGITS-PROVIDER-001 — Keep BCE with logits on the selected provider [patch] [arch]
 
