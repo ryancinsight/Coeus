@@ -62,9 +62,10 @@
   approximated downstream.
 - Risk/change class: `[arch]`; this is a follow-on queue item, not part of the
   BCE-with-logits increment.
-- Status: in-progress; this branch claims the provider-resident batched
-  Frobenius norm slice. Acceptance and non-goals remain bounded to this
-  operation; no other host-staged family is included.
+- Status: in-progress; the provider-resident batched Frobenius norm slice is
+  implemented locally under ADR-0060. The parent item remains open for the
+  remaining loss and norm families; exact-head hosted provider contracts are
+  the next gate for this slice.
 
 ## COEUS-AUTOGRAD-LP-NORM-PROVIDER-001 — Keep Lp norms on the selected provider [major] [arch]
 
