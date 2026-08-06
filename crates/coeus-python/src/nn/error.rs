@@ -28,6 +28,7 @@ pub(crate) fn map_module_error(error: ModuleError<BackendError>) -> PyErr {
         | ModuleError::InvalidAxis { .. }
         | ModuleError::UnevenSplit { .. }
         | ModuleError::ShapeMismatch { .. }
+        | ModuleError::Interpolation(_)
         | ModuleError::ChannelMismatch { .. }
         | ModuleError::InvalidGroupCount { .. }
         | ModuleError::InvalidEpsilon { .. }
@@ -88,6 +89,19 @@ mod tests {
             });
             assert!(error.is_instance_of::<PyValueError>(py));
             assert!(error.to_string().contains("non-finite value"));
+        });
+    }
+
+    #[test]
+    fn interpolation_failure_maps_to_value_error() {
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let error = map_module_error(ModuleError::Interpolation(
+                coeus_ops::InterpolationError::NonFiniteCoordinate { axis: 0, point: 0 },
+            ));
+
+            assert!(error.is_instance_of::<PyValueError>(py));
+            assert!(error.to_string().contains("coordinate axis 0"));
         });
     }
 

@@ -16,6 +16,9 @@ where
         #[source]
         source: E,
     },
+    /// A spatial interpolation operation rejected its image or coordinate grid.
+    #[error(transparent)]
+    Interpolation(#[from] coeus_ops::InterpolationError),
     /// The input rank violates the module contract.
     #[error("{module} expected input rank {expected}, got {actual}")]
     InvalidRank {

@@ -545,6 +545,10 @@
 
 ### Added
 
+- `ModuleError` gains an `Interpolation` variant mapping
+  `coeus_ops::InterpolationError` transparently, and the Python error mapper
+  routes it to `ValueError`. A value-semantic test pins the mapping for the
+  `NonFiniteCoordinate` failure.
 - G-043 benchmark coverage now includes the vanilla RNN sequence path through
   Coeus Sequential and Moirai rows; Burn has no comparable pinned module.
 - G-043 benchmark coverage now also isolates vanilla `RNNCell::step` through
