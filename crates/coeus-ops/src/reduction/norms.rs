@@ -173,24 +173,13 @@ pub fn frobenius_norm_batched<T: Float, B: BackendOps<T> + Default>(
     } else {
         a.to_contiguous_on(backend)
     };
-    let n = contiguous.numel();
-    let mut host = vec![T::zero(); n];
-    backend.copy_to_host(contiguous.storage(), &mut host);
-
-    let last_two: usize = contiguous.shape()[ndim - 1] * contiguous.shape()[ndim - 2];
-    let pre: usize = n / last_two;
-    let mut out_host = Vec::with_capacity(pre);
-    for batch_idx in 0..pre {
-        let mut acc = T::zero();
-        for j in 0..last_two {
-            let v = host[batch_idx * last_two + j];
-            acc += v * v;
-        }
-        out_host.push(<T as Float>::sqrt(acc));
-    }
+    let squared = binary::mul(&contiguous, &contiguous, backend);
+    let reduced_last = super::sum_axis(&squared, ndim - 1, backend)?;
+    let reduced_matrix = super::sum_axis(&reduced_last, ndim - 2, backend)?;
+    let norms = crate::unary::sqrt(&reduced_matrix, backend);
 
     let out_shape: Vec<usize> = contiguous.shape()[..ndim - 2].to_vec();
-    Ok(Tensor::from_slice_on(out_shape, &out_host, backend))
+    Ok(norms.reshape(out_shape))
 }
 
 #[cfg(test)]
@@ -475,6 +464,33 @@ mod tests {
         for g in got.as_slice() {
             assert!((*g - want).abs() < 1e-12, "got {g}, want {want}");
         }
+    }
+
+    #[test]
+    fn frobenius_norm_batched_strided_matches_analytical_reference() {
+        let b = SequentialBackend::new();
+        let source = Tensor::<f64, SequentialBackend>::from_slice(
+            vec![2, 2, 3],
+            &[
+                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, -1.0, -2.0, -3.0, -4.0, -5.0, -6.0,
+            ],
+        );
+        let strided = source.permute(&[0, 2, 1]);
+        let got = frobenius_norm_batched(&strided, &b).expect("valid strided norm input");
+
+        assert_eq!(got.shape(), &[2]);
+        let want = 91.0_f64.sqrt();
+        assert!(
+            got.as_slice()
+                .iter()
+                .all(|value| (*value - want).abs() < 1e-12),
+            "strided Frobenius norms = {:?}, want [{want}, {want}]",
+            got.as_slice()
+        );
+        assert_eq!(
+            source.as_slice(),
+            &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, -1.0, -2.0, -3.0, -4.0, -5.0, -6.0]
+        );
     }
 
     #[test]

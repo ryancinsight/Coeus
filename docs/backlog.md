@@ -1,27 +1,5 @@
 # Coeus Project Backlog & Historical Archives
 
-## COEUS-HEPHAESTUS-METAL-ROCM-001 — Delete duplicated accelerator routing [major] [arch]
-
-- Owner: Codex; scope: the Coeus Hephaestus bridge plus Metal and ROCm
-  provider declarations, deleted vendor operation modules, tests, ADR, and
-  changelog.
-- Outcome: Metal and ROCm use `HephaestusBackend<P>` directly and retain only
-  provider/device wiring; ordinary elementwise, scalar-power, reductions,
-  scans, initialization, rotate-half, stateful updates, and cross-entropy have
-  one generic consumer bridge.
-- Non-goals: CUDA/WGPU migration, release publication, hardware performance
-  claims, or host/CPU fallback paths.
-- Acceptance: the deleted modules have no callers; provider bundles compile
-  for f32/u32/i32 where previously supported; value-semantic tests and
-  warning-denied focused gates pass; Hephaestus and Coeus exact-head hosted
-  provider contracts remain required before merge.
-- Risk/change class: `[major] [arch]`; the removed `MetalBackend` and
-  `RocmBackend` names require external consumers to migrate to the generic
-  `HephaestusBackend<P>` surface. See [ADR 0060](adr/0060-provider-owned-metal-rocm-bridge.md).
-- Status: local implementation and focused gates complete on
-  `codex/coeus-provider-deletion-metal-rocm`; exact-head hosted provider
-  contracts remain pending after Hephaestus seam delivery.
-
 ## COEUS-WGPU-ELEMENTWISE-LEAVES-001 — Split provider dispatch leaves [patch] [arch]
 
 - Owner: Codex; delivered by PR #303 on 2026-08-06; scope:
@@ -70,10 +48,10 @@
 
 ## COEUS-AUTOGRAD-HOST-STAGING-RESIDUALS-001 — Migrate remaining host-staged autograd families [arch]
 
-- Owner: shared queue; last-update: 2026-08-08; scope: the remaining
-  `coeus-autograd` loss and norm families whose generic implementations still
-  require CPU-addressable storage or retain host payloads, after provider
-  capability inventory.
+- Owner: Codex on `codex/coeus-frobenius-provider`; last-update: 2026-08-06;
+  current slice scope: `coeus-ops::frobenius_norm_batched` and its provider
+  reduction contracts. The remaining `coeus-autograd` loss and norm families
+  stay in the parent queue after this slice.
 - Outcome: each family either composes existing provider operations or adds one
   upstream Leto/Hephaestus capability and dispatches directly through it.
 - Non-goals: compatibility adapters, silent CPU fallback, broad benchmark
@@ -84,53 +62,10 @@
   approximated downstream.
 - Risk/change class: `[arch]`; this is a follow-on queue item, not part of the
   BCE-with-logits increment.
-- Status: active queue. The L1 child below is delivered in the current slice;
-  the canonical tracked norm API (`ops::reduction::{norm, norm_p,
-  norm_p_axis}`) gained 8 value-semantic tests in the coeus next-phase slice
-  (forward/backward references plus panic guards; no API surface change). The
-  next-phase slice then migrated 11 host-staged loss families to provider
-  ownership (huber, smooth_l1, soft_margin, poisson_nll, kl_div, margin
-  ranking, pairwise distance, nll, binary cross-entropy, cosine embedding,
-  multi margin) with 45 value-semantic tests; a following slice migrated
-  multi_label_margin via gather + one-hot scatter with 4 more tests. The sole
-  remaining host-staged family is CTC, whose log-space forward-backward DP is
-  a sequential algorithm not expressible as a tensor composition; per the
-  umbrella's outcome it requires an upstream Leto/Hephaestus CTC kernel
-  (the `upstream capability` path), tracked separately. The norm/product
-  children retain their blocked/todo status until their hosted evidence is
-  available.
-
-## COEUS-AUTOGRAD-L1-PROVIDER-001 — Keep L1 loss on the selected provider [patch] [arch]
-
-- Owner: current session; last-update: 2026-08-08; scope:
-  `coeus-autograd::l1_loss`, its tracked backward node, CPU/provider parity
-  coverage, and synchronized PM records.
-- Outcome: L1 forward and backward compose the existing provider `sub`, `abs`,
-  `mean_axis`, `sign`, `mul`, and `neg` operations. The node retains a
-  provider-resident difference tensor and scalar mean scale rather than an
-  input-sized host `Vec<T>`.
-- Non-goals: other host-staged losses, new provider kernels, compatibility
-  adapters, silent CPU fallback, or runtime/memory claims without matched
-  measurements.
-- Acceptance: no L1 path calls `copy_to_host` or computes its formula on a host
-  vector; contiguous and transposed inputs preserve the existing mean-absolute
-  value and signed subgradient contracts for both operands; focused package
-  checks, strict Clippy, Nextest, doctests, and residue scans pass.
-- Risk/change class: `[patch] [arch]`; the public loss function signature
-  remains unchanged while ownership moves to the selected provider through
-  existing operation contracts. The pre-1.0 `L1LossNode` field
-  `diffs: Vec<T>` becomes provider-resident `Tensor<T, B>`; its retained `n`
-  and `shape` metadata preserve the diagnostic surface, and the representation
-  change is recorded for the package's next SemVer review.
-- Status: implementation and local verification complete; exact hosted
-  WGPU/CUDA/ROCm/Metal evidence remains pending before this child can close.
-  Local `coeus-autograd` and `coeus-nn` checks, warning-denied Clippy,
-  focused Nextest (3/3), doctests (`coeus-autograd` 16/16 and `coeus-nn`
-  8/8 with 2 intentionally ignored), formatting, residue scan, and diff
-  hygiene pass. The residual queue remains open for the other loss and norm
-  families, and the exported pre-1.0 node representation change requires the
-  package SemVer review recorded above.
-
+- Status: in-progress; the provider-resident batched Frobenius norm slice is
+  implemented locally under ADR-0060. The parent item remains open for the
+  remaining loss and norm families; exact-head hosted provider contracts are
+  the next gate for this slice.
 
 ## COEUS-AUTOGRAD-LP-NORM-PROVIDER-001 — Keep Lp norms on the selected provider [major] [arch]
 
@@ -191,11 +126,10 @@
   tests, the `prod_tensor` doctest, and host-residue scans pass. SemVer reports
   the same three pre-existing failures from the published 0.9.0 baseline and
   no product-specific failure.
-- Status: complete. The blocked accelerator verification is resolved: the
-  backend-parity provider contracts (WGPU/CUDA/ROCm/Metal) pass on the
-  eunomia-0.8 cascade heads, and the exact zero-aware backward (zero-free,
-  one-zero, multi-zero, negative-factor) is covered by 6 value-semantic tests
-  added in the coeus provider-loss slice. Implementation follows
+- Status: blocked; local implementation and package gates pass, but locked
+  accelerator verification awaits the shared overlay lock graph and the peer
+  Hephaestus checkout's cross-entropy exports. Reopen on a clean provider graph
+  and exact hosted backend results. Implementation follows
   [ADR 0057](docs/adr/0057-provider-owned-product.md).
 
 ## COEUS-SCAN-DISPATCH-001 — Require provider-owned cumulative scans [major] [arch]
@@ -2181,13 +2115,7 @@ value and failure-contract tests pass on Sequential and Moirai.
     family has an explicit benchmark and differential disposition; stale or
     missing rows are fixed; metadata, warning-denied benchmark Clippy, focused
     Nextest, doctests, and the manifest consistency check pass.
-  - Status: complete. The consistency check lives in
-    `crates/coeus-nn/tests/nn_ops/evidence_manifest.rs` (family coverage
-    against the public `pub mod` inventory, status-set validation, locator
-    presence rules, and symbol resolution against the real sources) and passes
-    with the 21-row `evidence.tsv` (positional present, swiglu/transformer
-    present, module inapplicable). The 2026-08-11 eunomia-0.8 provider
-    cascade re-resolution keeps the manifest green on the new provider heads.
+  - Status: in-progress.
   - 2026-08-02 correction: refreshed the stale Apollo lock pin that prevented
     standalone resolution after the `mnemosyne-memory` package rename. The
     source audit also found 22 shadowed Python parity cases; unique naming plus
