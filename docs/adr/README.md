@@ -60,3 +60,4 @@
 | [0056](0056-provider-owned-lp-norms.md) | Provider-owned Lp norms | Accepted |
 | [0057](0057-provider-owned-product.md) | Provider-owned global product | Accepted |
 | [0058](0058-wgpu-elementwise-module-boundary.md) | WGPU elementwise module boundary | Accepted |
+| [0059](0059-wgpu-elementwise-routing-leaves.md) | WGPU elementwise routing leaves | Accepted |
