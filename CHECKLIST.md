@@ -77,10 +77,10 @@ residual remain open.
 Status: local refactor is complete and statically preserves provider routing.
 The local WGPU suite compiled 151 tests; 35 host-side tests passed and 116
 adapter-dependent tests were blocked by `AdapterUnavailable` on this host.
-Exact-head provider run `31065511561` passes WGPU job `92502277426`, CUDA job
-`92502276851`, ROCm job `92502276905`, and Metal job `92502276909`; required
-device CUDA and ROCm jobs were skipped because hardware execution was not
-requested.
+Final-head provider run `31066806945` on `742c98e2` passes WGPU job
+`92506115501`, CUDA job `92506115489`, ROCm job `92506115503`, and Metal job
+`92506115518`; required-device CUDA and ROCm jobs were skipped because
+hardware execution was not requested.
 
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Owner: Codex `/root`
 
