@@ -1,7 +1,9 @@
 // Delegation functions mirror BackendOps trait signatures verbatim; argument
 // counts cannot be reduced without breaking the trait contract.
 #![allow(clippy::too_many_arguments)]
-use super::*;
+use crate::backend::WgpuScalar;
+use crate::kernels;
+use coeus_core::Layout;
 
 pub(super) fn dispatch_max_pool2d<T: WgpuScalar>(
     input: &crate::backend::WgpuStorage<T>,
