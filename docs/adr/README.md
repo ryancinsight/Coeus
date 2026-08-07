@@ -62,3 +62,4 @@
 | [0058](0058-wgpu-elementwise-module-boundary.md) | WGPU elementwise module boundary | Accepted |
 | [0059](0059-wgpu-elementwise-routing-leaves.md) | WGPU elementwise routing leaves | Accepted |
 | [0060](0060-provider-owned-batched-frobenius-norm.md) | Provider-owned batched Frobenius norm | Accepted |
+| [0061](0061-provider-owned-huber-loss.md) | Provider-owned Huber loss | Accepted |

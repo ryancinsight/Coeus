@@ -133,6 +133,37 @@ increment. Focused CTC gates are blocked before compilation by the shared
 Atlas overlay's locked metadata failure; no CTC implementation change is
 accepted by this audit.
 
+## COEUS-HUBER-PROVIDER-001 [major] [arch]
+
+- [x] Confirm Huber forward and backward copy full tensors to host and retain
+      an input-sized host `Vec<T>` in `HuberLossNode`.
+- [x] Confirm the existing generic elementwise, conditional-select, and mean
+      seams cover the classical Huber formula for CPU and accelerator paths.
+- [x] Rewrite Huber forward and backward as provider-resident composition;
+      retain only provider-native saved differences and the final scalar read
+      needed to seed backward.
+- [x] Make `where_cond` propagate provider dispatch errors through its
+      fallible result instead of hiding them behind infallible wrappers.
+- [x] Add analytical CPU coverage for both Huber regions, the boundary, the
+      gradient, and input-storage preservation.
+- [x] Run locked workspace checks, warning-denied workspace Clippy, full
+      provider-package Nextest, focused Huber and Ops regressions, and package
+      doctests against the committed Git-source lock.
+- [ ] Run the exact SemVer comparison and exact-head CPU/WGPU/CUDA/ROCm/Metal
+      provider contracts.
+
+Status: implementation is complete locally. The Huber public node field
+changes from a host `Vec<T>` to a provider tensor, so the increment is a
+documented major architectural change. Locked workspace check and
+warning-denied Clippy pass; the full `coeus-autograd`/`coeus-ops` native
+collection passes 313/313, focused Huber coverage passes 3/3, the provider
+constructor regression passes 2/2, and the touched package doctests previously
+passed 39/39. The decomposed workspace doctest run is blocked by Windows
+Defender error 225 in unchanged doctest binaries: two `coeus-leto` doctests and
+one `coeus-ops` `exp` doctest were rejected as potentially unwanted software.
+No runtime, allocation, or resident-memory improvement claim is made without
+controlled measurements.
+
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Owner: Codex `/root`
 
 - [x] Bind Moirai, Mnemosyne, and Themis imports to their published packages.
