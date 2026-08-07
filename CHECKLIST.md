@@ -149,8 +149,9 @@ accepted by this audit.
 - [x] Run locked workspace checks, warning-denied workspace Clippy, full
       provider-package Nextest, focused Huber and Ops regressions, and package
       doctests against the committed Git-source lock.
-- [ ] Run the exact SemVer comparison and exact-head CPU/WGPU/CUDA/ROCm/Metal
-      provider contracts.
+- [x] Run `cargo semver-checks` against `HEAD^` for patch, minor, and major
+      release modes; all three complete with no required update.
+- [ ] Run the exact-head CPU/WGPU/CUDA/ROCm/Metal provider contracts.
 
 Status: implementation is complete locally. The Huber public node field
 changes from a host `Vec<T>` to a provider tensor, so the increment is a
@@ -163,6 +164,9 @@ Defender error 225 in unchanged doctest binaries: two `coeus-leto` doctests and
 one `coeus-ops` `exp` doctest were rejected as potentially unwanted software.
 No runtime, allocation, or resident-memory improvement claim is made without
 controlled measurements.
+The SemVer tool does not report the public generic field type change; the
+source-level contract remains classified as major because downstream struct
+field construction changes from `Vec<T>` to `Tensor<T, B>`.
 
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Owner: Codex `/root`
 

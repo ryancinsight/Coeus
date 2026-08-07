@@ -62,8 +62,13 @@ selected Hephaestus-backed Coeus backend.
   `coeus-autograd`/`coeus-ops` native collection passes 313/313; focused Huber
   coverage passes 3/3; the provider constructor regression passes 2/2; and
   the touched package doctests previously pass 39/39.
-- SemVer comparison and exact-head CPU/WGPU/CUDA/ROCm/Metal provider contracts
-  remain merge gates. The decomposed workspace doctest run is blocked by
+- `cargo semver-checks` against `HEAD^` completes for patch, minor, and major
+  release modes with no required update. The tool does not report the public
+  generic field type change; the source-level contract remains classified as
+  major because downstream struct field construction changes from `Vec<T>` to
+  `Tensor<T, B>`.
+- Exact-head CPU/WGPU/CUDA/ROCm/Metal provider contracts remain merge gates. The
+  decomposed workspace doctest run is blocked by
   Windows Defender error 225 in unchanged doctest binaries: two `coeus-leto`
   doctests and one `coeus-ops` `exp` doctest were rejected as potentially
   unwanted software. No Defender exclusion was added.
