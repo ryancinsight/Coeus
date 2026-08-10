@@ -4,6 +4,11 @@
 
 ### Changed
 
+- [patch] Route `coeus_core::MoiraiBackend::num_threads()` hardware-parallelism
+  discovery through Themis `CpuTopology::detect().logical_processors()` with
+  `std::thread::available_parallelism()` fallback, replacing direct syscall-only
+  probing at the backend boundary.
+
 - [minor] [arch] Route global product reduction and exact zero-aware tracked
   backward through the selected Leto or Hephaestus provider. Preserve strided
   layouts and retain only provider tensors plus scalar boundary reads. No
@@ -795,6 +800,15 @@
   forward + mirrored + unary (neg/ab) operator surface on a single
   2×3 input, mirroring how PyTorch / JAX / MLX test ergonomics for
   scalar ops. ([patch])
+
+- [patch] Add tracked `coeus_autograd` Lp-norm API completing
+  [ADR 0056](docs/adr/0056-provider-owned-lp-norms.md): `l2_norm`,
+  `l_p_norm`, and `l_p_norm_axis` build `Var` graphs whose forward and backward
+  compose provider `abs`, `sign`, `pow_scalar`, `sum_axis`, `mul`, and
+  `add_assign` operations with no input-sized host staging. The global nodes
+  return a provider-resident `[1]` norm; the axis node reduces one axis to
+  size one and broadcasts the per-slice gradient back on backward. Kink
+  subgradients at zero match `sign(0) = 0`.
 
 ## [Unreleased]
 

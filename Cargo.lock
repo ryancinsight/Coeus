@@ -445,6 +445,7 @@ dependencies = [
  "mnemosyne-memory",
  "moirai-runtime",
  "smallvec",
+ "themis-topology",
  "thiserror 2.0.19",
 ]
 
@@ -1661,6 +1662,7 @@ dependencies = [
  "libc",
  "mnemosyne-memory",
  "moirai-utils",
+ "themis-topology",
 ]
 
 [[package]]
@@ -1673,6 +1675,7 @@ dependencies = [
  "moirai-pal",
  "moirai-scheduler",
  "moirai-utils",
+ "themis-topology",
 ]
 
 [[package]]
@@ -1721,6 +1724,7 @@ dependencies = [
  "melinoe",
  "moirai-core",
  "moirai-executor",
+ "themis-topology",
 ]
 
 [[package]]
@@ -3485,6 +3489,34 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
 
 [[patch.unused]]
+name = "asclepius"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "asclepius-coeus"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "iris"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "gaia"
+version = "0.3.0"
+
+[[patch.unused]]
+name = "apollo-nufft"
+version = "0.7.0"
+
+[[patch.unused]]
+name = "apollo-sht"
+version = "0.7.0"
+
+[[patch.unused]]
+name = "proteus"
+version = "0.1.0"
+
+[[patch.unused]]
 name = "athena-core"
 version = "0.1.0"
 
@@ -3493,7 +3525,7 @@ name = "athena-leto"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "proteus"
+name = "hyperion"
 version = "0.1.0"
 
 [[patch.unused]]
@@ -3525,36 +3557,8 @@ name = "consus-zarr"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "hyperion"
+name = "tyche-core"
 version = "0.1.0"
-
-[[patch.unused]]
-name = "horae"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "iris"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "apollo-nufft"
-version = "0.7.0"
-
-[[patch.unused]]
-name = "apollo-sht"
-version = "0.7.0"
-
-[[patch.unused]]
-name = "asclepius"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "asclepius-coeus"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "moirai-http"
-version = "0.4.0"
 
 [[patch.unused]]
 name = "ritk-core"
@@ -3585,9 +3589,9 @@ name = "ritk-vtk"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "gaia"
-version = "0.3.0"
+name = "moirai-http"
+version = "0.4.0"
 
 [[patch.unused]]
-name = "tyche-core"
+name = "horae"
 version = "0.1.0"

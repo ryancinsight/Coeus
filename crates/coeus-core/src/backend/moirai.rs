@@ -7,29 +7,27 @@ use crate::storage::{CpuStorage, Storage};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
 
-/// Cached `available_parallelism()` snapshot.
+/// Cached hardware-parallelism snapshot.
 ///
-/// `std::thread::available_parallelism()` executes a syscall per invocation
-/// on most platforms (Linux reads cgroup limits; Windows queries the
-/// process affinity mask). Hot-path callers — the conv1d/conv2d/conv3d
+/// Themis topology detection and `std::thread::available_parallelism()`
+/// both execute platform queries. Hot-path callers — the conv1d/conv2d/conv3d
 /// `Backend` kernels — invoke `num_threads()` per kernel call to decide
 /// between the parallel row-partition and the sequential short-circuit.
 /// Cache the result once with a relaxed-atomic snapshot so subsequent
 /// reads are lock-free and syscall-free.
 ///
 /// # Invariant
-/// `available_parallelism()` is monotonic within a process — the kernel
-/// may advertise fewer cores at boot via affinity adjustments but never
-/// advertises more. A single snapshot therefore remains correct for the
-/// entire process lifetime; the relaxed load returns the value observed
-/// on the first call.
+/// Topology is process-stable for Coeus backend dispatch purposes. A single
+/// snapshot therefore remains correct for the process lifetime; the relaxed
+/// load returns the value observed on the first call.
 static AVAILABLE_PARALLELISM: OnceLock<AtomicUsize> = OnceLock::new();
 
 #[inline]
 fn cached_parallelism() -> usize {
     let cell = AVAILABLE_PARALLELISM.get_or_init(|| {
-        let n = std::thread::available_parallelism()
-            .map(|n| n.get())
+        let n = themis::CpuTopology::detect()
+            .map(|topology| topology.logical_processors())
+            .or_else(|| std::thread::available_parallelism().ok().map(usize::from))
             .unwrap_or(1);
         AtomicUsize::new(n.max(1))
     });
@@ -87,7 +85,7 @@ impl ComputeBackend for MoiraiBackend {
         "moirai"
     }
 
-    /// Cached `available_parallelism()` snapshot (lock-free, syscall-free).
+    /// Cached topology-parallelism snapshot (lock-free, query-free).
     #[inline]
     fn num_threads(&self) -> usize {
         cached_parallelism()

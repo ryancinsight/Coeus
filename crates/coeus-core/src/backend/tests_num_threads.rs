@@ -1,8 +1,8 @@
 // ── num_threads cache invariant tests ──
 //
-// Verify the cached `available_parallelism()` value (once per process) is
-// identical to the live syscall result, and that repeated `num_threads()`
-// reads are syscall-free (value remains stable across calls).
+// Verify the cached hardware-parallelism value (once per process) is
+// identical to the live Themis/syscall probe result, and that repeated
+// `num_threads()` reads are stable across calls.
 
 #[cfg(test)]
 mod tests {
@@ -13,13 +13,14 @@ mod tests {
     fn moirai_num_threads_matches_available_parallelism() {
         let backend = MoiraiBackend::new();
         let cached = backend.num_threads();
-        let live = std::thread::available_parallelism()
-            .map(|n| n.get())
+        let live = themis::CpuTopology::detect()
+            .map(|topology| topology.logical_processors())
+            .or_else(|| std::thread::available_parallelism().ok().map(usize::from))
             .unwrap_or(1)
             .max(1);
         assert_eq!(
             cached, live,
-            "MoiraiBackend::num_threads() ({cached}) must equal available_parallelism() ({live})"
+            "MoiraiBackend::num_threads() ({cached}) must equal topology-probed parallelism ({live})"
         );
     }
 

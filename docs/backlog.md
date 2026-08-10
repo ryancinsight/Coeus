@@ -48,7 +48,7 @@
 
 ## COEUS-AUTOGRAD-HOST-STAGING-RESIDUALS-001 — Migrate remaining host-staged autograd families [arch]
 
-- Owner: unclaimed; last-update: 2026-08-05; scope: the remaining
+- Owner: shared queue; last-update: 2026-08-08; scope: the remaining
   `coeus-autograd` loss and norm families whose generic implementations still
   require CPU-addressable storage or retain host payloads, after provider
   capability inventory.
@@ -62,8 +62,44 @@
   approximated downstream.
 - Risk/change class: `[arch]`; this is a follow-on queue item, not part of the
   BCE-with-logits increment.
-- Status: todo; the BCE-with-logits slice closes one family and leaves this
-  explicit residual for dependency-ordered continuation.
+- Status: active queue. The L1 child below is delivered in the current slice;
+  the tracked autograd Lp-norm API (`l2_norm`, `l_p_norm`, `l_p_norm_axis`)
+  is delivered in the coeus next-phase slice (completing the
+  ADR 0056 tracked layer with 8 value-semantic tests); the remaining loss
+  families and norm/product children retain their own blocked or todo status
+  until their provider capability and hosted evidence are available.
+
+## COEUS-AUTOGRAD-L1-PROVIDER-001 — Keep L1 loss on the selected provider [patch] [arch]
+
+- Owner: current session; last-update: 2026-08-08; scope:
+  `coeus-autograd::l1_loss`, its tracked backward node, CPU/provider parity
+  coverage, and synchronized PM records.
+- Outcome: L1 forward and backward compose the existing provider `sub`, `abs`,
+  `mean_axis`, `sign`, `mul`, and `neg` operations. The node retains a
+  provider-resident difference tensor and scalar mean scale rather than an
+  input-sized host `Vec<T>`.
+- Non-goals: other host-staged losses, new provider kernels, compatibility
+  adapters, silent CPU fallback, or runtime/memory claims without matched
+  measurements.
+- Acceptance: no L1 path calls `copy_to_host` or computes its formula on a host
+  vector; contiguous and transposed inputs preserve the existing mean-absolute
+  value and signed subgradient contracts for both operands; focused package
+  checks, strict Clippy, Nextest, doctests, and residue scans pass.
+- Risk/change class: `[patch] [arch]`; the public loss function signature
+  remains unchanged while ownership moves to the selected provider through
+  existing operation contracts. The pre-1.0 `L1LossNode` field
+  `diffs: Vec<T>` becomes provider-resident `Tensor<T, B>`; its retained `n`
+  and `shape` metadata preserve the diagnostic surface, and the representation
+  change is recorded for the package's next SemVer review.
+- Status: implementation and local verification complete; exact hosted
+  WGPU/CUDA/ROCm/Metal evidence remains pending before this child can close.
+  Local `coeus-autograd` and `coeus-nn` checks, warning-denied Clippy,
+  focused Nextest (3/3), doctests (`coeus-autograd` 16/16 and `coeus-nn`
+  8/8 with 2 intentionally ignored), formatting, residue scan, and diff
+  hygiene pass. The residual queue remains open for the other loss and norm
+  families, and the exported pre-1.0 node representation change requires the
+  package SemVer review recorded above.
+
 
 ## COEUS-AUTOGRAD-LP-NORM-PROVIDER-001 — Keep Lp norms on the selected provider [major] [arch]
 
