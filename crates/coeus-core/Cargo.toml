@@ -14,6 +14,7 @@ mnemosyne = { workspace = true }
 moirai    = { workspace = true }
 hermes-simd = { workspace = true }
 eunomia = { workspace = true }
+themis = { workspace = true }
 bytemuck   = { workspace = true }
 smallvec   = { workspace = true }
 thiserror  = { workspace = true }

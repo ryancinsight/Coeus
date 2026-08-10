@@ -16,6 +16,8 @@ pub mod huber;
 pub mod kl_div;
 /// L1 (mean absolute error) loss.
 pub mod l1;
+/// Global and per-axis Lp-norm (tracked `l2_norm` / `l_p_norm` / `l_p_norm_axis`).
+pub mod lp_norm;
 /// Margin ranking loss.
 pub mod margin_ranking;
 /// Multi-label margin loss.
@@ -42,6 +44,7 @@ pub use ctc::{ctc_loss, CtcLossNode};
 pub use huber::{huber_loss, HuberLossNode};
 pub use kl_div::{kl_divergence, KlDivLossNode};
 pub use l1::{l1_loss, L1LossNode};
+pub use lp_norm::{l2_norm, l_p_norm, l_p_norm_axis, LpNormAxisNode, LpNormNode};
 pub use margin_ranking::{margin_ranking_loss, MarginRankingLossNode};
 pub use multi_label_margin::{multi_label_margin_loss, MultiLabelMarginLossNode};
 pub use multi_margin::{multi_margin, MultiMarginNode};

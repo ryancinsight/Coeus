@@ -160,6 +160,51 @@ fn test_l1_loss() {
 }
 
 #[test]
+fn test_l1_loss_transposed_provider_layout() {
+    // A transposed view must remain logical-order correct without host staging.
+    let pred_base =
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[3.0, -1.0, 0.5, 4.0, 2.0, -2.0]);
+    let target_base =
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[0.0, 0.0, 0.0, 1.0, 1.0, -1.0]);
+    let pred = Var::new(pred_base.permute(&[1, 0]), true);
+    let target = Var::new(target_base.permute(&[1, 0]), true);
+
+    let loss = l1_loss(&pred, &target);
+    assert_eq!(loss.tensor.shape(), &[1]);
+    // Logical differences are [3, 3, -1, 1, 0.5, -1], so mean abs = 9.5 / 6.
+    assert!((loss.tensor.as_slice()[0] - (9.5 / 6.0)).abs() < 1e-12);
+
+    loss.backward()
+        .expect("invariant: transposed L1 backward completes");
+    let pred_grad = pred.grad().expect("transposed pred gradient");
+    let target_grad = target.grad().expect("transposed target gradient");
+    assert_eq!(pred_grad.shape(), &[3, 2]);
+    assert_eq!(target_grad.shape(), &[3, 2]);
+    let expected_pred = [
+        1.0 / 6.0,
+        1.0 / 6.0,
+        -1.0 / 6.0,
+        1.0 / 6.0,
+        1.0 / 6.0,
+        -1.0 / 6.0,
+    ];
+    for (i, (&actual, &expected)) in pred_grad
+        .as_slice()
+        .iter()
+        .zip(expected_pred.iter())
+        .enumerate()
+    {
+        assert!(
+            (actual - expected).abs() < 1e-12,
+            "transposed L1 pred grad[{i}] = {actual}, expected {expected}"
+        );
+    }
+    for (actual, expected) in target_grad.as_slice().iter().zip(expected_pred.iter()) {
+        assert!((*actual + expected).abs() < 1e-12);
+    }
+}
+
+#[test]
 fn test_bce_with_logits() {
     // Oracle: BCEWithLogits(z, y) == BCE(sigmoid(z), y), computed independently in f64.
     // logits z=[0, 2, -1], target y=[1, 0, 1].

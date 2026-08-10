@@ -137,6 +137,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # The committed lock pins provider git revisions; the runner checks
+          # out each provider at its current default-branch head, so normalize
+          # the ephemeral lock before --locked builds (mirrors the benchmark
+          # gate's baseline normalization).
+          cargo "+$RUST_TOOLCHAIN" metadata --format-version 1 --all-features > /dev/null
           cargo "+$RUST_TOOLCHAIN" fmt --all --check
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-leto --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-leto --all-targets --no-deps -- -D warnings
@@ -272,6 +277,7 @@ jobs:
                 ln -s libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
               fi
               export LD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs:/usr/local/cuda/compat:/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}
+              cargo "+$RUST_TOOLCHAIN" metadata --format-version 1 --all-features > /dev/null
               cargo "+$RUST_TOOLCHAIN" fmt --all --check
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
@@ -412,6 +418,7 @@ jobs:
               rustup component add rustfmt clippy --toolchain "$RUST_TOOLCHAIN"
               rustup toolchain install stable --profile minimal
               cargo +stable install cargo-nextest --locked
+              cargo "+$RUST_TOOLCHAIN" metadata --format-version 1 --all-features > /dev/null
               cargo "+$RUST_TOOLCHAIN" fmt --all --check
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-hephaestus --all-targets --no-deps -- -D warnings
@@ -520,6 +527,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cargo "+$RUST_TOOLCHAIN" metadata --format-version 1 --all-features > /dev/null
           cargo "+$RUST_TOOLCHAIN" fmt --all --check
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-hephaestus --all-targets --no-deps -- -D warnings
