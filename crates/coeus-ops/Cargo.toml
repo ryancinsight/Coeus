@@ -11,7 +11,7 @@ description = "Numerical tensor operators for Coeus."
 coeus-core   = { workspace = true }
 coeus-tensor = { workspace = true }
 coeus-sparse = { workspace = true }
-coeus-leto   = { version = "0.9.0", path = "../coeus-leto" }
+coeus-leto   = { version = "0.10.0", path = "../coeus-leto" }
 leto-ops     = { workspace = true }
 leto         = { workspace = true }
 smallvec     = { workspace = true }
