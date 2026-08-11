@@ -7,4 +7,4 @@
 
 mod backend;
 
-pub use backend::{RocmBackend, RocmProvider};
+pub use backend::{HephaestusBackend, RocmProvider};

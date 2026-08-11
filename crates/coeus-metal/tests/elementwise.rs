@@ -1,14 +1,17 @@
 use coeus_core::{BinaryOp, ComputeBackend, CpuUnaryOp, Layout, Scalar};
-use coeus_metal::MetalBackend;
+use coeus_hephaestus::HephaestusBackend;
+use coeus_metal::MetalProvider;
 use coeus_ops::{ElementwiseOps, RotateHalfOps};
 use std::fmt::Debug;
+
+type Backend = HephaestusBackend<MetalProvider>;
 
 #[test]
 fn rotate_half_dispatches_with_metal_parity() {
     if !require_device() {
         return;
     }
-    let metal = MetalBackend::new();
+    let metal = Backend::new();
     let layout = Layout::new([2, 4].into());
     let mut input = metal.allocate::<f32>(8);
     metal.copy_to_device(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &mut input);
@@ -26,7 +29,7 @@ fn partial_update_preserves_metal_parent_and_shared_source() {
         return;
     }
 
-    let backend = MetalBackend::new();
+    let backend = Backend::new();
     let parent_layout = Layout::new([2, 3].into());
     let destination_layout = parent_layout.slice(&[(0, 2), (1, 3)]);
     let rhs_layout = Layout::new([2, 2].into());
@@ -95,7 +98,7 @@ fn assert_close(actual: &[f32], expected: &[f32], operation: &str) {
     }
 }
 
-fn assert_integer_comparisons<T>(backend: &MetalBackend, lhs: &[T], rhs: &[T])
+fn assert_integer_comparisons<T>(backend: &Backend, lhs: &[T], rhs: &[T])
 where
     T: Scalar + leto_ops::Scalar + Debug + PartialEq,
     coeus_metal::MetalProvider: coeus_hephaestus::ElementwiseProvider<T>,
@@ -152,7 +155,7 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         return;
     }
 
-    let backend = MetalBackend::new();
+    let backend = Backend::new();
     assert_eq!(backend.name(), "metal");
     let lhs_layout = Layout::new([2, 3].into());
     let rhs_layout = Layout::new([1, 3].into());

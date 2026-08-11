@@ -1,7 +1,11 @@
 //! Compile-time contract for the Metal sinusoidal module capability boundary.
 
+use coeus_hephaestus::HephaestusBackend;
+use coeus_metal::MetalProvider;
 use coeus_nn::{Module, SinusoidalEncoding};
 use coeus_ops::{ElementwiseOps, ReductionOps};
+
+type Backend = HephaestusBackend<MetalProvider>;
 
 fn assert_module<T, B, M>()
 where
@@ -20,5 +24,5 @@ where
 
 #[test]
 fn metal_backend_satisfies_sinusoidal_capability_boundary() {
-    assert_sinusoidal_capabilities::<coeus_metal::MetalBackend>();
+    assert_sinusoidal_capabilities::<Backend>();
 }

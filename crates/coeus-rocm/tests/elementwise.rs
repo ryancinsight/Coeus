@@ -1,9 +1,12 @@
 use coeus_core::{BinaryOp, ComputeBackend, CpuUnaryOp, Layout, Scalar};
+use coeus_hephaestus::HephaestusBackend;
 use coeus_ops::ElementwiseOps;
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use coeus_ops::RotateHalfOps;
-use coeus_rocm::RocmBackend;
+use coeus_rocm::RocmProvider;
 use std::fmt::Debug;
+
+type Backend = HephaestusBackend<RocmProvider>;
 
 #[test]
 #[cfg(all(feature = "rocm", target_os = "linux"))]
@@ -11,7 +14,7 @@ fn rotate_half_dispatches_with_rocm_parity() {
     if !require_device() {
         return;
     }
-    let rocm = RocmBackend::new();
+    let rocm = Backend::new();
     let layout = Layout::new([2, 4].into());
     let mut input = rocm.allocate::<f32>(8);
     rocm.copy_to_device(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &mut input);
@@ -29,7 +32,7 @@ fn partial_update_preserves_rocm_parent_and_shared_source() {
         return;
     }
 
-    let backend = RocmBackend::new();
+    let backend = Backend::new();
     let parent_layout = Layout::new([2, 3].into());
     let destination_layout = parent_layout.slice(&[(0, 2), (1, 3)]);
     let rhs_layout = Layout::new([2, 2].into());
@@ -98,7 +101,7 @@ fn assert_close(actual: &[f32], expected: &[f32], operation: &str) {
     }
 }
 
-fn assert_integer_comparisons<T>(backend: &RocmBackend, lhs: &[T], rhs: &[T])
+fn assert_integer_comparisons<T>(backend: &Backend, lhs: &[T], rhs: &[T])
 where
     T: Scalar + leto_ops::Scalar + Debug + PartialEq,
     coeus_rocm::RocmProvider: coeus_hephaestus::ElementwiseProvider<T>,
@@ -155,7 +158,7 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         return;
     }
 
-    let backend = RocmBackend::new();
+    let backend = Backend::new();
     assert_eq!(backend.name(), "rocm");
     let lhs_layout = Layout::new([2, 3].into());
     let rhs_layout = Layout::new([1, 3].into());

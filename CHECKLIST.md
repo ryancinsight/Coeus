@@ -1,5 +1,21 @@
 # Coeus Development Roadmap Checklist
 
+## COEUS-HEPHAESTUS-METAL-ROCM-001 [major] [arch]
+
+- [x] Confirm the residual: Metal and ROCm duplicate consumer-owned runtime,
+      elementwise, reduction, initialization, rotate-half, stateful-update,
+      and cross-entropy routing.
+- [x] Extend the Hephaestus axis-reduction seam with provider-neutral min/max
+      defaults and expose the real ROCm elementwise, axis-reduction, and scan
+      seams in no-feature builds.
+- [x] Move all remaining Metal/ROCm operation selection into the generic
+      Coeus Hephaestus bridge and provider operation-bundle declarations.
+- [x] Delete the superseded vendor modules and migrate tests to
+      `HephaestusBackend<Provider>` without public aliases or fallback paths.
+- [x] Record the replacement and external migration contract in ADR 0060.
+- [ ] Run focused native Nextest, doctests, and exact-head hosted provider
+      contracts; report physical-device and local overlay limitations.
+
 ## COEUS-AUTOGRAD-LP-NORM-PROVIDER-001 [major] [arch]
 
 - [x] Confirm the residual: `norm_p`, `norm_p_axis`, and both tracked

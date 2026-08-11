@@ -3,13 +3,15 @@
 #![cfg(all(feature = "rocm", target_os = "linux"))]
 
 use coeus_core::{ComputeBackend, Layout};
-use coeus_hephaestus::HephaestusBackendError;
+use coeus_hephaestus::{HephaestusBackend, HephaestusBackendError};
 use coeus_ops::AttentionOps;
-use coeus_rocm::RocmBackend;
+use coeus_rocm::RocmProvider;
 
-fn device() -> Option<RocmBackend> {
+type Backend = HephaestusBackend<RocmProvider>;
+
+fn device() -> Option<Backend> {
     match hephaestus_rocm::RocmDevice::try_default() {
-        Ok(_) => Some(RocmBackend::new()),
+        Ok(_) => Some(Backend::new()),
         Err(error) if std::env::var_os("HEPHAESTUS_ROCM_REQUIRE_DEVICE").is_none() => {
             eprintln!("skip ROCm attention bridge: device unavailable ({error})");
             None

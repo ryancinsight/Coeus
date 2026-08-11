@@ -1,7 +1,11 @@
 //! Compile-time contract for the ROCm sinusoidal module capability boundary.
 
+use coeus_hephaestus::HephaestusBackend;
 use coeus_nn::{Module, SinusoidalEncoding};
 use coeus_ops::{ElementwiseOps, ReductionOps};
+use coeus_rocm::RocmProvider;
+
+type Backend = HephaestusBackend<RocmProvider>;
 
 fn assert_module<T, B, M>()
 where
@@ -20,5 +24,5 @@ where
 
 #[test]
 fn rocm_backend_satisfies_sinusoidal_capability_boundary() {
-    assert_sinusoidal_capabilities::<coeus_rocm::RocmBackend>();
+    assert_sinusoidal_capabilities::<Backend>();
 }

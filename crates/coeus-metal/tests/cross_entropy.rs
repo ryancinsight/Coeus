@@ -3,12 +3,15 @@
 #![cfg(target_os = "macos")]
 
 use coeus_core::{ComputeBackend, Layout};
-use coeus_metal::MetalBackend;
+use coeus_hephaestus::HephaestusBackend;
+use coeus_metal::MetalProvider;
 use coeus_ops::CrossEntropyOps;
+
+type Backend = HephaestusBackend<MetalProvider>;
 
 #[test]
 fn cross_entropy_dispatches_with_metal_value_and_gradient_contract() {
-    let backend = MetalBackend::new();
+    let backend = Backend::new();
     let logits_layout = Layout::new([2, 3].into());
     let scalar_layout = Layout::new([1].into());
     let mut logits = backend.allocate::<f32>(6);

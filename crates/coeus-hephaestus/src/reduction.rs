@@ -5,7 +5,10 @@ use crate::{
 };
 use coeus_core::{ComputeBackend, Layout, Scalar};
 use coeus_ops::ReductionOp;
-use hephaestus_core::{ComputeDevice, DeviceBuffer, ScanDirection};
+use hephaestus_core::{
+    AxisReductionOps, CombineExpr, ComputeDevice, DeviceBuffer, IdentityToken, MaxOp, MinOp,
+    OpIdentity, ScanDirection, ScanOps, StridedView, SumOp,
+};
 use leto::Layout as LetoLayout;
 use std::future::Ready;
 
@@ -44,6 +47,113 @@ pub enum ScanOperation {
     Product,
 }
 
+/// Dispatches Coeus reduction requests through one Hephaestus axis seam.
+pub trait AxisReductionDispatch<D: ComputeDevice, T: bytemuck::Pod> {
+    /// Execute one Coeus reduction operation.
+    fn reduce(
+        device: &D,
+        operation: ReductionOp,
+        input: RankedOperand<'_, D::Buffer<T>, 2>,
+        axis: usize,
+        output: RankedOperand<'_, D::Buffer<T>, 2>,
+    ) -> hephaestus_core::Result<()>;
+}
+
+impl<D, T, R> AxisReductionDispatch<D, T> for R
+where
+    D: ComputeDevice,
+    T: bytemuck::Pod
+        + hephaestus_core::DialectScalar<R::Dialect>
+        + OpIdentity<SumOp>
+        + OpIdentity<hephaestus_core::ProdOp>
+        + OpIdentity<MinOp>
+        + OpIdentity<MaxOp>
+        + IdentityToken<SumOp, R::Dialect>
+        + IdentityToken<hephaestus_core::ProdOp, R::Dialect>
+        + IdentityToken<MinOp, R::Dialect>
+        + IdentityToken<MaxOp, R::Dialect>,
+    R: AxisReductionOps<D, T> + Default,
+    SumOp: CombineExpr<R::Dialect>,
+    hephaestus_core::ProdOp: CombineExpr<R::Dialect>,
+    MinOp: CombineExpr<R::Dialect>,
+    MaxOp: CombineExpr<R::Dialect>,
+{
+    fn reduce(
+        device: &D,
+        operation: ReductionOp,
+        input: RankedOperand<'_, D::Buffer<T>, 2>,
+        axis: usize,
+        output: RankedOperand<'_, D::Buffer<T>, 2>,
+    ) -> hephaestus_core::Result<()> {
+        let operations = R::default();
+        let input = StridedView::new(input.buffer, input.layout);
+        let output = StridedView::new(output.buffer, output.layout);
+        match operation {
+            ReductionOp::Sum => operations.reduce_axis_into::<SumOp>(device, input, axis, output),
+            ReductionOp::Prod => {
+                operations.reduce_axis_into::<hephaestus_core::ProdOp>(device, input, axis, output)
+            }
+            ReductionOp::Mean => operations.mean_axis_into(device, input, axis, output),
+            ReductionOp::Min => operations.min_axis_into(device, input, axis, output),
+            ReductionOp::Max => operations.max_axis_into(device, input, axis, output),
+        }
+    }
+}
+
+/// Dispatches Coeus scans through one Hephaestus scan seam.
+pub trait ScanDispatch<D: ComputeDevice, T: bytemuck::Pod> {
+    /// Execute one Coeus scan operation.
+    fn scan(
+        device: &D,
+        input: RankedOperand<'_, D::Buffer<T>, 2>,
+        axis: usize,
+        operation: ScanOperation,
+        direction: ScanDirection,
+        output: RankedOperand<'_, D::Buffer<T>, 2>,
+    ) -> hephaestus_core::Result<()>;
+}
+
+impl<D, T, S> ScanDispatch<D, T> for S
+where
+    D: ComputeDevice,
+    T: bytemuck::Pod
+        + hephaestus_core::DialectScalar<S::Dialect>
+        + OpIdentity<hephaestus_core::CumSumOp>
+        + OpIdentity<hephaestus_core::CumProdOp>
+        + IdentityToken<hephaestus_core::CumSumOp, S::Dialect>
+        + IdentityToken<hephaestus_core::CumProdOp, S::Dialect>,
+    S: ScanOps<D, T> + Default,
+    hephaestus_core::CumSumOp: CombineExpr<S::Dialect>,
+    hephaestus_core::CumProdOp: CombineExpr<S::Dialect>,
+{
+    fn scan(
+        device: &D,
+        input: RankedOperand<'_, D::Buffer<T>, 2>,
+        axis: usize,
+        operation: ScanOperation,
+        direction: ScanDirection,
+        output: RankedOperand<'_, D::Buffer<T>, 2>,
+    ) -> hephaestus_core::Result<()> {
+        let operations = S::default();
+        let input = StridedView::new(input.buffer, input.layout);
+        let output = StridedView::new(output.buffer, output.layout);
+        match operation {
+            ScanOperation::Sum => {
+                let prepared = operations.prepare_scan_axis::<hephaestus_core::CumSumOp, 2>(
+                    device, input, axis, direction, output,
+                )?;
+                operations.dispatch_scan(device, &prepared)
+            }
+            ScanOperation::Product => {
+                let prepared = operations.prepare_scan_axis::<hephaestus_core::CumProdOp, 2>(
+                    device, input, axis, direction, output,
+                )?;
+                operations.dispatch_scan(device, &prepared)
+            }
+        }
+    }
+}
+
 /// A fixed-rank Hephaestus buffer paired with its logical Leto layout.
 #[derive(Clone, Copy)]
 pub struct RankedOperand<'a, B, const N: usize> {
@@ -59,6 +169,14 @@ pub trait ReductionProvider<T>: HephaestusProvider
 where
     T: Scalar + leto_ops::Scalar,
 {
+    /// Provider-owned axis-reduction kernel bundle.
+    type AxisOperations: AxisReductionOps<Self::Device, T>
+        + AxisReductionDispatch<Self::Device, T>
+        + Default;
+
+    /// Provider-owned scan kernel bundle.
+    type ScanOperations: ScanOps<Self::Device, T> + ScanDispatch<Self::Device, T> + Default;
+
     /// Reduce a rank-2 strided input into a keep-dimension output.
     fn reduce(
         device: &Self::Device,
@@ -66,7 +184,9 @@ where
         input: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
         axis: usize,
         output: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
-    ) -> hephaestus_core::Result<()>;
+    ) -> hephaestus_core::Result<()> {
+        Self::AxisOperations::reduce(device, op, input, axis, output)
+    }
 
     /// Execute an inclusive prefix or suffix scan over a rank-2 strided input.
     fn scan(
@@ -76,7 +196,9 @@ where
         operation: ScanOperation,
         direction: ScanDirection,
         output: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
-    ) -> hephaestus_core::Result<()>;
+    ) -> hephaestus_core::Result<()> {
+        Self::ScanOperations::scan(device, input, axis, operation, direction, output)
+    }
 }
 
 /// Generic Coeus backend implementation over one Hephaestus provider.

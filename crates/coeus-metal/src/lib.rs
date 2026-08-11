@@ -7,4 +7,4 @@
 
 mod backend;
 
-pub use backend::{MetalBackend, MetalProvider};
+pub use backend::{HephaestusBackend, MetalProvider};
