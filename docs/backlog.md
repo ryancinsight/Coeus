@@ -169,10 +169,11 @@
   tests, the `prod_tensor` doctest, and host-residue scans pass. SemVer reports
   the same three pre-existing failures from the published 0.9.0 baseline and
   no product-specific failure.
-- Status: blocked; local implementation and package gates pass, but locked
-  accelerator verification awaits the shared overlay lock graph and the peer
-  Hephaestus checkout's cross-entropy exports. Reopen on a clean provider graph
-  and exact hosted backend results. Implementation follows
+- Status: complete. The blocked accelerator verification is resolved: the
+  backend-parity provider contracts (WGPU/CUDA/ROCm/Metal) pass on the
+  eunomia-0.8 cascade heads, and the exact zero-aware backward (zero-free,
+  one-zero, multi-zero, negative-factor) is covered by 6 value-semantic tests
+  added in the coeus provider-loss slice. Implementation follows
   [ADR 0057](docs/adr/0057-provider-owned-product.md).
 
 ## COEUS-SCAN-DISPATCH-001 — Require provider-owned cumulative scans [major] [arch]
@@ -2158,7 +2159,13 @@ value and failure-contract tests pass on Sequential and Moirai.
     family has an explicit benchmark and differential disposition; stale or
     missing rows are fixed; metadata, warning-denied benchmark Clippy, focused
     Nextest, doctests, and the manifest consistency check pass.
-  - Status: in-progress.
+  - Status: complete. The consistency check lives in
+    `crates/coeus-nn/tests/nn_ops/evidence_manifest.rs` (family coverage
+    against the public `pub mod` inventory, status-set validation, locator
+    presence rules, and symbol resolution against the real sources) and passes
+    with the 21-row `evidence.tsv` (positional present, swiglu/transformer
+    present, module inapplicable). The 2026-08-11 eunomia-0.8 provider
+    cascade re-resolution keeps the manifest green on the new provider heads.
   - 2026-08-02 correction: refreshed the stale Apollo lock pin that prevented
     standalone resolution after the `mnemosyne-memory` package rename. The
     source audit also found 22 shadowed Python parity cases; unique naming plus
