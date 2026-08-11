@@ -1,18 +1,27 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar, Storage};
+use coeus_core::Float;
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
 /// Autograd node for the row-wise p-norm pairwise distance.
-pub struct PairwiseDistanceNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
+///
+/// Forward and backward stay on the selected provider: the node retains the
+/// provider-resident `s = sum_k |x1 - x2 + eps|^p` row sums and the `[N,D]`
+/// signed powered magnitudes rather than host `Vec<T>` payloads.
+pub struct PairwiseDistanceNode<
+    T: Float,
+    B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
+> {
     /// Accumulated gradient buffer for the output of this node (shape `[N]`).
     pub output_grad: Arc<GradBuffer<T, B>>,
     /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
-    /// Per-element `d(distance_i)/d(diff_ik)` factors, row-major `[N*D]`.
-    pub grad_unit: Vec<T>,
+    /// Provider-resident `s^(1/p - 1)` row scales (shape `[N, 1]`).
+    pub row_scale: Tensor<T, B>,
+    /// Provider-resident `sign(diff) * |diff|^(p-1)` (shape `[N, D]`).
+    pub grad_unit: Tensor<T, B>,
     /// Number of rows `N`.
     pub rows: usize,
     /// Feature dimension `D`.
@@ -21,8 +30,8 @@ pub struct PairwiseDistanceNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default
     pub shape: coeus_core::Shape,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for PairwiseDistanceNode<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default>
+    BackwardNode<T, B> for PairwiseDistanceNode<T, B>
 {
     fn op_name(&self) -> &'static str {
         "pairwise_distance"
@@ -40,46 +49,32 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        let temp_grad;
-        let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
-            grad_out
-        } else {
-            temp_grad = grad_out.to_contiguous_on(&backend);
-            &temp_grad
-        };
-        let mut g_rows = vec![T::zero(); self.rows];
-        backend.copy_to_host(grad_cont.storage(), &mut g_rows);
-
         let want_x1 = matches!(input_grads.first(), Some(Some(_)));
         let want_x2 = matches!(input_grads.get(1), Some(Some(_)));
         if !want_x1 && !want_x2 {
             return Ok(());
         }
+        // grad_rows broadcasts [N] over [N, D]; d/dx1 = grad_unit * row_scale
+        // * grad_rows. All on-provider.
+        let row_grad = grad_out.reshape([self.rows, 1]);
+        let broadcast = coeus_ops::mul(&self.grad_unit, &self.row_scale, &backend);
+        let dx1 = coeus_ops::mul(
+            &broadcast,
+            &row_grad.broadcast(self.shape.clone()),
+            &backend,
+        );
 
-        let mut dx1 = vec![T::zero(); self.rows * self.feat];
-        for i in 0..self.rows {
-            let gi = g_rows[i];
-            let base = i * self.feat;
-            for k in 0..self.feat {
-                dx1[base + k] = gi * self.grad_unit[base + k];
+        if want_x1 {
+            if let Some(Some(ref g)) = input_grads.first() {
+                coeus_ops::add_assign(g.write(), &dx1, &backend)?;
             }
         }
-
-        if let Some(Some(ref g)) = input_grads.first() {
-            let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &dx1, &backend);
-            let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
-        }
-        if let Some(Some(ref g)) = input_grads.get(1) {
-            let mut dx2 = dx1;
-            for v in &mut dx2 {
-                *v = T::zero() - *v;
+        if want_x2 {
+            if let Some(Some(ref g)) = input_grads.get(1) {
+                let dx2 = coeus_ops::neg(&dx1, &backend);
+                coeus_ops::add_assign(g.write(), &dx2, &backend)?;
             }
-            let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &dx2, &backend);
-            let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
         }
-
         Ok(())
     }
 }
@@ -90,7 +85,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 /// `torch.nn.functional.pairwise_distance` (`at::norm(x1 - x2 + eps, p)`)
 /// exactly: `eps` is added to the difference, keeping the summed norm
 /// strictly positive so the `s^(1/p - 1)` gradient factor stays finite.
-pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+///
+/// The complete forward and backward computation stays on the selected
+/// provider; no input-sized host staging occurs.
+pub fn pairwise_distance<
+    T: Float,
+    B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
+>(
     x1: &Var<T, B>,
     x2: &Var<T, B>,
     p: T,
@@ -110,75 +111,35 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     );
     let rows = shape_ref[0];
     let feat = shape_ref[1];
-    let n = rows * feat;
     let shape = x1.tensor.shape_cloned();
 
-    let x1_cont;
-    let x1_raw = if x1.tensor.is_contiguous() && x1.tensor.layout().offset() == 0 {
-        &x1.tensor
-    } else {
-        x1_cont = x1.tensor.to_contiguous_on(&backend);
-        &x1_cont
-    };
-    let x2_cont;
-    let x2_raw = if x2.tensor.is_contiguous() && x2.tensor.layout().offset() == 0 {
-        &x2.tensor
-    } else {
-        x2_cont = x2.tensor.to_contiguous_on(&backend);
-        &x2_cont
-    };
+    // diff = x1 - x2 + eps; out_i = norm_p_axis(diff, p, axis=1) — the same
+    // row-wise p-norm as PyTorch's at::norm(x1 - x2 + eps, p), composed from
+    // provider abs/pow_scalar/sum_axis with the exact dtype bounds.
+    let diff = coeus_ops::sub(&x1.tensor, &x2.tensor, &backend);
+    let shifted = coeus_ops::add(
+        &diff,
+        &Tensor::full_on(shape.clone(), eps, &backend),
+        &backend,
+    );
+    let row_norm = coeus_ops::norm_p_axis(&shifted, p, 1, &backend);
+    let out = row_norm.reshape([rows]);
 
-    let x1_host: std::borrow::Cow<[T]> = if let Some(s) = x1_raw.storage().try_as_slice() {
-        std::borrow::Cow::Borrowed(&s[..n])
-    } else {
-        let mut v = vec![T::zero(); n];
-        backend.copy_to_host(x1_raw.storage(), &mut v);
-        std::borrow::Cow::Owned(v)
-    };
-    let x2_host: std::borrow::Cow<[T]> = if let Some(s) = x2_raw.storage().try_as_slice() {
-        std::borrow::Cow::Borrowed(&s[..n])
-    } else {
-        let mut v = vec![T::zero(); n];
-        backend.copy_to_host(x2_raw.storage(), &mut v);
-        std::borrow::Cow::Owned(v)
-    };
+    // Backward factors: row_scale = out^(1-p) reshaped to [N, 1] (the
+    // `s^(1/p-1)` factor equals `out^(1-p)` since out = s^(1/p));
+    // grad_unit = sign(diff) * |diff|^(p-1).
+    let one_minus_p = T::one() - p;
+    let row_scale = coeus_ops::pow_scalar(&row_norm, one_minus_p, &backend);
+    let row_scale = row_scale.reshape([rows, 1]);
+    let p_minus_one = p - T::one();
+    let magnitudes = coeus_ops::abs(&shifted, &backend);
+    let grad_unit = coeus_ops::mul(
+        &coeus_ops::sign(&shifted, &backend),
+        &coeus_ops::pow_scalar(&magnitudes, p_minus_one, &backend),
+        &backend,
+    );
 
-    let one = T::one();
-    let inv_p = one / p;
-    let p_minus_one = p - one;
-    let mut out = vec![T::zero(); rows];
-    let mut grad_unit = vec![T::zero(); n];
-    for i in 0..rows {
-        let base = i * feat;
-        // PyTorch computes `at::norm(x1 - x2 + eps, p)`: `eps` is added to the
-        // difference itself, not clamped onto the summed norm. Because every
-        // shifted term contributes `eps^p > 0`, the norm is strictly positive,
-        // which is exactly what keeps the `s^(1/p - 1)` gradient factor finite
-        // (the reason torch adds `eps` here). It also resolves boundary cases —
-        // e.g. an exactly-at-margin triplet — the same way torch does.
-        let mut s = T::zero();
-        for k in 0..feat {
-            let diff = x1_host[base + k] - x2_host[base + k] + eps;
-            s += <T as Float>::powf(<T as Float>::abs(diff), p);
-        }
-        let s_scaled = s.powf(inv_p);
-        out[i] = s_scaled;
-        let scale = s.powf(inv_p - one);
-        for k in 0..feat {
-            let diff = x1_host[base + k] - x2_host[base + k] + eps;
-            let mag = <T as Float>::powf(<T as Float>::abs(diff), p_minus_one);
-            let sign = if diff > T::zero() {
-                one
-            } else if diff < T::zero() {
-                T::zero() - one
-            } else {
-                T::zero()
-            };
-            grad_unit[base + k] = scale * mag * sign;
-        }
-    }
-
-    let out_tensor = Tensor::from_slice_on([rows], &out, &backend);
+    let out_tensor = out;
     let requires_grad =
         crate::grad_mode::should_track_var(x1) || crate::grad_mode::should_track_var(x2);
     let grad = if requires_grad {
@@ -189,23 +150,118 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = grad.as_ref().cloned().map(|output_grad| {
         let node = PairwiseDistanceNode {
             output_grad,
             inputs: vec![x1.clone(), x2.clone()],
+            row_scale,
             grad_unit,
             rows,
             feat,
             shape,
         };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
+        Arc::new(node) as Arc<dyn BackwardNode<T, B>>
+    });
     Var {
         tensor: out_tensor,
         grad,
         creator,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::MoiraiBackend;
+
+    #[test]
+    fn pairwise_distance_forward_matches_reference() {
+        // x1 = [[3, 4]], x2 = [[0, 0]], p = 2, eps = 1e-6:
+        //   diff = [3, 4], s = 9 + 16 = 25, out = 5.
+        let x1 = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[3.0, 4.0]),
+            true,
+        );
+        let x2 = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]),
+            true,
+        );
+        let out = pairwise_distance(&x1, &x2, 2.0, 1e-6);
+        assert_eq!(out.tensor.shape(), &[1]);
+        // eps is added to each diff: norm of [3+eps, 4+eps].
+        let eps = 1e-6;
+        let expected = ((3.0 + eps).powi(2) + (4.0 + eps).powi(2)).sqrt();
+        assert!((out.tensor.as_slice()[0] - expected).abs() < 1e-9);
+    }
+
+    #[test]
+    fn pairwise_distance_backward_matches_analytic_gradient() {
+        // x1 = [[3, 4]], x2 = [[0, 0]], p = 2: d/dx1 = (x1 - x2 + eps)/||diff + eps||;
+        // d/dx2 = -d/dx1. With eps = 1e-6 the shifted norm is 5.0000014.
+        let eps = 1e-6;
+        let x1 = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[3.0, 4.0]),
+            true,
+        );
+        let x2 = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]),
+            true,
+        );
+        let out = pairwise_distance(&x1, &x2, 2.0, eps);
+        out.backward().expect("invariant: backward completes");
+        let g1 = x1.grad().expect("x1 must receive a gradient");
+        let g2 = x2.grad().expect("x2 must receive a gradient");
+        let norm = ((3.0 + eps).powi(2) + (4.0 + eps).powi(2)).sqrt();
+        let expected = [(3.0 + eps) / norm, (4.0 + eps) / norm];
+        for (i, (&g, &e)) in g1.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (g - e).abs() < 1e-9,
+                "pairwise_distance d/dx1[{i}]: got {g}, expected {e}"
+            );
+        }
+        for (i, (&g, &e)) in g2.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (g + e).abs() < 1e-9,
+                "pairwise_distance d/dx2[{i}]: got {g}, expected {}",
+                -e
+            );
+        }
+    }
+
+    #[test]
+    fn pairwise_distance_p1_backward_matches_analytic() {
+        // p = 1: out = sum|diff|; d/dx1 = sign(diff).
+        let x1 = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[1.0, -2.0]),
+            true,
+        );
+        let x2 = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]),
+            true,
+        );
+        let out = pairwise_distance(&x1, &x2, 1.0, 1e-6);
+        out.backward().expect("invariant: backward completes");
+        let g1 = x1.grad().expect("x1 must receive a gradient");
+        let expected = [1.0, -1.0];
+        for (i, (&g, &e)) in g1.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (g - e).abs() < 1e-6,
+                "pairwise_distance p=1 grad[{i}]: got {g}, expected {e}"
+            );
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "2D")]
+    fn pairwise_distance_rejects_non_2d() {
+        let x1 = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 2.0]),
+            true,
+        );
+        let x2 = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.0, 1.0]),
+            true,
+        );
+        let _ = pairwise_distance(&x1, &x2, 2.0, 1e-6);
     }
 }

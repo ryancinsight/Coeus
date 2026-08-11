@@ -63,11 +63,16 @@
 - Risk/change class: `[arch]`; this is a follow-on queue item, not part of the
   BCE-with-logits increment.
 - Status: active queue. The L1 child below is delivered in the current slice;
-  the tracked autograd Lp-norm API (`l2_norm`, `l_p_norm`, `l_p_norm_axis`)
-  is delivered in the coeus next-phase slice (completing the
-  ADR 0056 tracked layer with 8 value-semantic tests); the remaining loss
-  families and norm/product children retain their own blocked or todo status
-  until their provider capability and hosted evidence are available.
+  the canonical tracked norm API (`ops::reduction::{norm, norm_p,
+  norm_p_axis}`) gained 8 value-semantic tests in the coeus next-phase slice
+  (forward/backward references plus panic guards; no API surface change). The
+  next-phase slice then migrated 11 host-staged loss families to provider
+  ownership (huber, smooth_l1, soft_margin, poisson_nll, kl_div, margin
+  ranking, pairwise distance, nll, binary cross-entropy, cosine embedding,
+  multi margin) with 45 value-semantic tests; only the sequential DP families
+  (CTC, multi-label margin) and the norm/product children retain their own
+  blocked or todo status until their provider capability and hosted evidence
+  are available.
 
 ## COEUS-AUTOGRAD-L1-PROVIDER-001 — Keep L1 loss on the selected provider [patch] [arch]
 

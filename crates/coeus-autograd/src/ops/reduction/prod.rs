@@ -132,3 +132,98 @@ pub fn prod<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>)
         creator,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::MoiraiBackend;
+
+    fn var_from(data: &[f64]) -> Var<f64, MoiraiBackend> {
+        Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data),
+            true,
+        )
+    }
+
+    #[test]
+    fn prod_forward_matches_reference() {
+        let input = var_from(&[2.0, -3.0, 4.0]);
+        let out = prod(&input);
+        assert_eq!(out.tensor.shape(), &[1]);
+        assert!((out.tensor.as_slice()[0] - (-24.0)).abs() < 1e-12);
+    }
+
+    #[test]
+    fn prod_backward_zero_free_matches_analytic() {
+        // x = [2, 3, 4], ∏ = 24. d/dx_i = 24 / x_i.
+        let input = var_from(&[2.0, 3.0, 4.0]);
+        let out = prod(&input);
+        out.backward().expect("invariant: backward completes");
+        let grad = input.grad().expect("input must receive a gradient");
+        let expected = [12.0, 8.0, 6.0];
+        for (i, (&g, &e)) in grad.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (g - e).abs() < 1e-12,
+                "prod zero-free grad[{i}]: got {g}, expected {e}"
+            );
+        }
+    }
+
+    #[test]
+    fn prod_backward_single_zero_matches_analytic() {
+        // x = [2, 0, 4], ∏ = 0. The exact product derivative is
+        // d/dx_i = ∏_{j≠i} x_j: nonzero elements get 0, the zero element
+        // gets 2·4 = 8 (the product of the nonzero elements).
+        let input = var_from(&[2.0, 0.0, 4.0]);
+        let out = prod(&input);
+        out.backward().expect("invariant: backward completes");
+        let grad = input.grad().expect("input must receive a gradient");
+        let expected = [0.0, 8.0, 0.0];
+        for (i, (&g, &e)) in grad.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (g - e).abs() < 1e-12,
+                "prod one-zero grad[{i}]: got {g}, expected {e}"
+            );
+        }
+    }
+
+    #[test]
+    fn prod_backward_multi_zero_is_zero() {
+        // x = [0, 0, 4]: two zeros → every d/dx_i = 0 (the true derivative of
+        // a product with ≥2 zero factors). A naive 0/0 shortcut would be NaN.
+        let input = var_from(&[0.0, 0.0, 4.0]);
+        let out = prod(&input);
+        out.backward().expect("invariant: backward completes");
+        let grad = input.grad().expect("input must receive a gradient");
+        for (i, &g) in grad.as_slice().iter().enumerate() {
+            assert!(
+                g.is_finite() && g.abs() < 1e-15,
+                "prod multi-zero grad[{i}]: got {g}, expected 0"
+            );
+        }
+    }
+
+    #[test]
+    fn prod_backward_matches_product_derivative_with_negative_factors() {
+        // x = [-2, 3, -4], ∏ = 24. d/dx_0 = 3·(-4) = -12;
+        // d/dx_1 = (-2)·(-4) = 8; d/dx_2 = (-2)·3 = -6.
+        let input = var_from(&[-2.0, 3.0, -4.0]);
+        let out = prod(&input);
+        out.backward().expect("invariant: backward completes");
+        let grad = input.grad().expect("input must receive a gradient");
+        let expected = [-12.0, 8.0, -6.0];
+        for (i, (&g, &e)) in grad.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (g - e).abs() < 1e-12,
+                "prod negative grad[{i}]: got {g}, expected {e}"
+            );
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "empty")]
+    fn prod_panics_on_empty_input() {
+        let input = var_from(&[]);
+        let _ = prod(&input);
+    }
+}
