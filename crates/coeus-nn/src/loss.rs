@@ -403,7 +403,11 @@ where
 pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     target: &[isize],
-) -> Var<T, B> {
+) -> Var<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
     coeus_autograd::multi_label_margin_loss(x, target)
 }
 

@@ -4,6 +4,21 @@
 
 ### Changed
 
+- [patch] Migrate `multi_label_margin_loss` to provider-resident forward and
+  backward, closing the last non-sequential host-staged loss family. The
+  pairwise formulation builds an `[N, C, C]` active tensor via broadcast:
+  per-row target scores are gathered with `index_select` on a safe
+  (`-1 → 0`) flattened target index, `m = 1 - x[target] + x[j]` is masked by
+  the valid-position flag, a `j != target` one-hot exclusion, and the
+  positive hinge; backward scatters each active pair's `-scale` into the
+  target columns via a one-hot matmul-composition and `+scale` into sibling
+  columns via the axis sum. The node retains only provider tensors; the
+  `target: &[isize]` slice is a boundary upload. Added 4 value-semantic tests
+  (single/multi-target forward, target-column scatter backward, padding
+  validation). CTC remains the sole sequential-DP exception (its log-space
+  forward-backward recurrence is not tensor-composable; the umbrella's
+  upstream-capability path applies).
+
 - [patch] Migrate the remaining host-staged `coeus-autograd` loss families to
   provider-resident forward/backward with no input-sized `copy_to_host`
   staging: `huber_loss`, `smooth_l1_loss`, `soft_margin`, `poisson_nll`,
