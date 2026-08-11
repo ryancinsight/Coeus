@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{BackendError, Float, Scalar, Storage};
+use coeus_core::{BackendError, Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -15,19 +15,27 @@ use std::sync::Arc;
 ///   forward linear    (`|z| ≥ δ`): `δ * |z| - 0.5 * δ²`
 ///   backward quadratic: `z`
 ///   backward linear:   `sign(z) * δ`
+///
+/// Forward and backward stay on the selected provider: the node retains the
+/// provider-resident difference tensor and the `|z| <= δ` mask rather than a
+/// host `Vec<T>` payload.
 pub struct HuberLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
     /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
-    /// Element-wise differences `pred[i] - target[i]`, stored for backward.
-    pub diffs: Vec<T>,
+    /// Provider-resident element-wise differences `pred - target`.
+    pub diffs: Tensor<T, B>,
+    /// Provider-resident quadratic-region mask `|z| <= delta`.
+    pub quad_mask: Tensor<T, B>,
     /// Delta threshold separating quadratic from linear regions.
     pub delta: T,
     /// Number of elements in the loss reduction.
     pub n: usize,
     /// Original tensor shape for gradient reconstruction.
-    shape: coeus_core::Shape,
+    pub shape: coeus_core::Shape,
+    /// Provider-resident mean scale `1 / element_count`.
+    pub mean_scale: Tensor<T, B>,
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for HuberLossNode<T, B> {
@@ -47,50 +55,29 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Hub
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        if let Some(Some(ref g)) = input_grads.get(0) {
-            let mut host_grad = [T::zero()];
-            let temp_grad;
-            let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
-                grad_out
-            } else {
-                temp_grad = grad_out.to_contiguous_on(&backend);
-                &temp_grad
-            };
-            backend.copy_to_host(grad_cont.storage(), &mut host_grad);
-            let g_out = host_grad[0];
-            let n_t = T::from_f64(self.n as f64);
-            let scale = g_out / n_t;
-            let delta = self.delta;
+        // d/dz: `z` in the quadratic region, `sign(z) * delta` in the linear
+        // region, scaled by `grad_out / n`. Composed from provider ops only.
+        let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
+        let quad = coeus_ops::mul(&self.diffs, &scale, &backend);
+        let delta_scale = coeus_ops::mul(
+            &scale,
+            &Tensor::full_on(scale.shape_cloned(), self.delta, &backend),
+            &backend,
+        );
+        let linear = coeus_ops::mul(
+            &coeus_ops::sign(&self.diffs, &backend),
+            &delta_scale,
+            &backend,
+        );
+        let d_pred = coeus_ops::where_cond(&self.quad_mask, &quad, &linear, &backend)?;
 
-            let mut d_pred = vec![T::zero(); self.n];
-            for (grad, &diff) in d_pred.iter_mut().zip(&self.diffs) {
-                // PyTorch's huber_loss gradient: `z` in the quadratic region
-                // and `sign(z) * delta` in the linear region. (Note: this
-                // differs from smooth_l1_loss, whose quadratic grad is
-                // `z / beta` — huber_loss uses the classical definition.)
-                let abs_diff = if diff < T::zero() {
-                    T::zero() - diff
-                } else {
-                    diff
-                };
-                let gradient = if abs_diff <= delta {
-                    diff
-                } else {
-                    // Preserve the sign of `diff` (i.e. `sign(diff) * delta`).
-                    let sign = if diff < T::zero() {
-                        T::zero() - T::one()
-                    } else {
-                        T::one()
-                    };
-                    sign * delta
-                };
-                *grad = gradient * scale;
-            }
-            let grad_tensor = Tensor::from_slice_on(self.shape.clone(), &d_pred, &backend);
-            let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
+        if let Some(Some(ref g)) = input_grads.first() {
+            coeus_ops::add_assign(g.write(), &d_pred, &backend)?;
         }
-
+        if let Some(Some(ref g)) = input_grads.get(1) {
+            let d_target = coeus_ops::neg(&d_pred, &backend);
+            coeus_ops::add_assign(g.write(), &d_target, &backend)?;
+        }
         Ok(())
     }
 }
@@ -107,6 +94,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Hub
 ///
 /// This matches the classical Huber definition; PyTorch's
 /// `smooth_l1_loss` is the `0.5·z²/β`-form alternative.
+///
+/// The complete forward and backward computation stays on the selected
+/// provider; no input-sized host staging occurs.
 ///
 /// # Errors
 ///
@@ -140,63 +130,30 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     }
     let shape = pred.tensor.shape_cloned();
 
-    let p_cont;
-    let p_raw = if pred.tensor.is_contiguous() && pred.tensor.layout().offset() == 0 {
-        &pred.tensor
-    } else {
-        p_cont = pred.tensor.to_contiguous_on(&backend);
-        &p_cont
-    };
-    let t_cont;
-    let t_raw = if target.tensor.is_contiguous() && target.tensor.layout().offset() == 0 {
-        &target.tensor
-    } else {
-        t_cont = target.tensor.to_contiguous_on(&backend);
-        &t_cont
-    };
-
-    let p_host: std::borrow::Cow<[T]> = if let Some(s) = p_raw.storage().try_as_slice() {
-        std::borrow::Cow::Borrowed(&s[..n])
-    } else {
-        let mut v = vec![T::zero(); n];
-        backend.copy_to_host(p_raw.storage(), &mut v);
-        std::borrow::Cow::Owned(v)
-    };
-    let t_host: std::borrow::Cow<[T]> = if let Some(s) = t_raw.storage().try_as_slice() {
-        std::borrow::Cow::Borrowed(&s[..n])
-    } else {
-        let mut v = vec![T::zero(); n];
-        backend.copy_to_host(t_raw.storage(), &mut v);
-        std::borrow::Cow::Owned(v)
-    };
-
+    // z = pred - target, |z|, and the quadratic-region mask, all on-provider.
+    let diffs = coeus_ops::sub(&pred.tensor, &target.tensor, &backend);
+    let abs_z = coeus_ops::abs(&diffs, &backend);
+    let delta_tensor = Tensor::full_on([1], delta, &backend);
+    let quad_mask = coeus_ops::le(&abs_z, &delta_tensor.broadcast(shape.clone()), &backend);
+    // Classical Huber branch selection:
+    //   quadratic: 0.5 * z²
+    //   linear:    delta * |z| - 0.5 * delta²
     let half = T::from_f64(0.5);
-    let mut diffs = vec![T::zero(); n];
-    let mut loss_val = T::zero();
-    for i in 0..n {
-        let diff = p_host[i] - t_host[i];
-        diffs[i] = diff;
-        // abs_diff using T::zero() - diff for negation
-        let abs_diff = if diff < T::zero() {
-            T::zero() - diff
-        } else {
-            diff
-        };
-        // Classical Huber: `0.5*z²` for |z|<δ, `δ*|z| - 0.5*δ²` otherwise.
-        // (PyTorch's huber_loss differs from smooth_l1_loss by omitting the
-        // `1/δ` factor in the quadratic region:
-        //   smooth_l1: 0.5*z²/β for |z|<β, |z|-0.5*β otherwise
-        //   huber:     0.5*z²   for |z|<δ, δ*|z|-0.5*δ² otherwise)
-        let elem = if abs_diff <= delta {
-            half * diff * diff
-        } else {
-            delta * abs_diff - half * delta * delta
-        };
-        loss_val += elem;
-    }
-    loss_val = loss_val / T::from_f64(n as f64);
+    let half_sq = half * delta * delta;
+    let quadratic = coeus_ops::mul(
+        &coeus_ops::mul(&diffs, &diffs, &backend),
+        &Tensor::full_on(shape.clone(), half, &backend),
+        &backend,
+    );
+    let linear = coeus_ops::sub(
+        &coeus_ops::mul(&abs_z, &delta_tensor.broadcast(shape.clone()), &backend),
+        &Tensor::full_on(shape.clone(), half_sq, &backend),
+        &backend,
+    );
+    let per_elem = coeus_ops::where_cond(&quad_mask, &quadratic, &linear, &backend)?;
+    let loss = coeus_ops::mean_axis(&per_elem.reshape([n]), 0, &backend)
+        .expect("invariant: validated non-empty Huber reduction has axis zero");
 
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
     let requires_grad = crate::grad_mode::should_track_var(pred);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
@@ -207,19 +164,122 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let output_grad = grad.as_ref().unwrap().clone();
         let node = HuberLossNode {
             output_grad,
-            inputs: vec![pred.clone()],
+            inputs: vec![pred.clone(), target.clone()],
             diffs,
+            quad_mask,
             delta,
             n,
             shape,
+            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
     } else {
         None
     };
     Ok(Var {
-        tensor: out_tensor,
+        tensor: loss,
         grad,
         creator,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::MoiraiBackend;
+
+    fn var_from(data: &[f64]) -> Var<f64, MoiraiBackend> {
+        Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data),
+            true,
+        )
+    }
+
+    #[test]
+    fn huber_forward_matches_classical_reference() {
+        // z = [1, -2, 3], delta = 1.5:
+        //   |1| <= 1.5 → 0.5·1 = 0.5
+        //   |−2| > 1.5 → 1.5·2 − 0.5·2.25 = 3 − 1.125 = 1.875
+        //   |3| > 1.5  → 1.5·3 − 0.5·2.25 = 4.5 − 1.125 = 3.375
+        //   mean = (0.5 + 1.875 + 3.375) / 3 = 5.75 / 3
+        let pred = var_from(&[1.0, 2.0, 5.0]);
+        let target = var_from(&[0.0, 4.0, 2.0]);
+        let loss = huber_loss(&pred, &target, 1.5).expect("valid huber loss");
+        assert_eq!(loss.tensor.shape(), &[1]);
+        assert!((loss.tensor.as_slice()[0] - 5.75 / 3.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn huber_backward_matches_analytic_gradient() {
+        // z = [1, -2, 3], delta = 1.5:
+        //   grad = [1, sign(−2)·1.5 = −1.5, 1.5] / 3
+        let pred = var_from(&[1.0, 2.0, 5.0]);
+        let target = var_from(&[0.0, 4.0, 2.0]);
+        let loss = huber_loss(&pred, &target, 1.5).expect("valid huber loss");
+        loss.backward().expect("invariant: backward completes");
+        let pred_grad = pred.grad().expect("pred must receive a gradient");
+        let target_grad = target.grad().expect("target must receive a gradient");
+        let expected = [1.0 / 3.0, -1.5 / 3.0, 1.5 / 3.0];
+        for (i, (&g, &e)) in pred_grad.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (g - e).abs() < 1e-12,
+                "huber pred grad[{i}]: got {g}, expected {e}"
+            );
+        }
+        for (i, (&g, &e)) in target_grad
+            .as_slice()
+            .iter()
+            .zip(expected.iter())
+            .enumerate()
+        {
+            assert!(
+                (g + e).abs() < 1e-12,
+                "huber target grad[{i}]: got {g}, expected {}",
+                -e
+            );
+        }
+    }
+
+    #[test]
+    fn huber_zero_difference_uses_quadratic_branch() {
+        // z = 0 is in the quadratic region: gradient contribution 0.
+        let pred = var_from(&[2.0, 0.0]);
+        let target = var_from(&[0.0, 0.0]);
+        let loss = huber_loss(&pred, &target, 1.0).expect("valid huber loss");
+        loss.backward().expect("invariant: backward completes");
+        let grad = pred.grad().expect("pred must receive a gradient");
+        let expected = [1.0 / 2.0, 0.0];
+        for (i, (&g, &e)) in grad.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (g - e).abs() < 1e-12,
+                "huber zero-diff grad[{i}]: got {g}, expected {e}"
+            );
+        }
+    }
+
+    #[test]
+    fn huber_rejects_shape_mismatch() {
+        let pred = var_from(&[1.0, 2.0]);
+        let target = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([3], &[1.0, 2.0, 3.0]),
+            true,
+        );
+        assert!(huber_loss(&pred, &target, 1.0).is_err());
+    }
+
+    #[test]
+    #[should_panic(expected = "mean reduction requires at least one element")]
+    fn huber_rejects_empty_input() {
+        let pred = var_from(&[]);
+        let target = var_from(&[]);
+        let _ = huber_loss(&pred, &target, 1.0).expect("valid huber loss");
+    }
+
+    #[test]
+    fn huber_rejects_non_positive_delta() {
+        let pred = var_from(&[1.0, 2.0]);
+        let target = var_from(&[0.0, 1.0]);
+        assert!(huber_loss(&pred, &target, 0.0).is_err());
+        assert!(huber_loss(&pred, &target, f64::NAN).is_err());
+    }
 }

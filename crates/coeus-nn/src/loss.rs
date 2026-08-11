@@ -132,7 +132,11 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     log_probs: &Var<T, B>,
     targets: &[usize],
-) -> Var<T, B> {
+) -> Var<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
     coeus_autograd::nll_loss(log_probs, targets)
 }
 
@@ -140,12 +144,19 @@ pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// x: `[N, C]` scores, targets: `[N]` class indices, p >= 1, margin.
 /// Computes `mean_i (1/C) sum_{j != y_i} max(0, margin - x[i,y_i] + x[i,j])^p`.
 #[inline]
-pub fn multi_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn multi_margin<
+    T: Float,
+    B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
+>(
     x: &Var<T, B>,
     targets: &[usize],
     p: T,
     margin: T,
-) -> Var<T, B> {
+) -> Var<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
     coeus_autograd::multi_margin(x, targets, p, margin)
 }
 
@@ -200,7 +211,10 @@ pub fn soft_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Row-wise p-norm pairwise distance (PyTorch `PairwiseDistance`).
 /// x1, x2: `[N, D]`; returns `[N]` with `out_i = (sum_k |x1-x2|^p + eps)^(1/p)`.
 #[inline]
-pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn pairwise_distance<
+    T: Float,
+    B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
+>(
     x1: &Var<T, B>,
     x2: &Var<T, B>,
     p: T,
@@ -216,7 +230,10 @@ pub fn pairwise_distance<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// and mean ops, so backward (including the anchor's two gradient paths) is the
 /// autograd graph's — no bespoke node.
 #[inline]
-pub fn triplet_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn triplet_margin_loss<
+    T: Float,
+    B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
+>(
     anchor: &Var<T, B>,
     positive: &Var<T, B>,
     negative: &Var<T, B>,

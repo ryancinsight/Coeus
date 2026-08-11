@@ -1,22 +1,28 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar, Storage};
+use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
 /// Autograd node for negative log-likelihood loss.
+///
+/// Forward and backward stay on the selected provider: the node retains the
+/// provider-resident one-hot target mask and mean scale rather than host
+/// `Vec<T>` payloads. The `targets: &[usize]` host slice is a boundary upload.
 pub struct NllLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
     /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
-    /// Target class indices for each sample.
-    pub targets: Vec<usize>,
+    /// Provider-resident one-hot target mask (shape `[N, C]`).
+    pub target_mask: Tensor<T, B>,
     /// Batch size.
     pub n: usize,
     /// Number of classes.
     pub c: usize,
+    /// Provider-resident mean scale `1 / batch_size`.
+    pub mean_scale: Tensor<T, B>,
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for NllLossNode<T, B> {
@@ -37,91 +43,122 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nll
     ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
-            let mut host_grad = [T::zero()];
-            let temp_grad;
-            let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
-                grad_out
-            } else {
-                temp_grad = grad_out.to_contiguous_on(&backend);
-                &temp_grad
-            };
-            backend.copy_to_host(grad_cont.storage(), &mut host_grad);
-            let g_out = host_grad[0];
-            let n_t = T::from_f64(self.n as f64);
-            // Use T::zero() - x idiom for negation
-            let neg_scale = T::zero() - (g_out / n_t);
-
-            let mut d_log = vec![T::zero(); self.n * self.c];
-            for i in 0..self.n {
-                d_log[i * self.c + self.targets[i]] = neg_scale;
-            }
-            let grad_tensor = Tensor::from_slice_on([self.n, self.c], &d_log, &backend);
-            let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
+            // d/dlog_probs = -mask * grad_out / n, all on-provider.
+            let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
+            let d_log = coeus_ops::mul(
+                &coeus_ops::neg(&self.target_mask, &backend),
+                &scale,
+                &backend,
+            );
+            coeus_ops::add_assign(g.write(), &d_log, &backend)?;
         }
-
         Ok(())
     }
 }
 
 /// Tracked Negative Log-Likelihood Loss.
-/// log_probs: `[N, C]` (already log-probabilities), targets: `[N]` class indices.
+/// `log_probs`: `[N, C]` (already log-probabilities), `targets`: `[N]` class
+/// indices. The complete forward and backward computation stays on the
+/// selected provider; no input-sized host staging occurs beyond the one-hot
+/// target-mask boundary upload.
 pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     log_probs: &Var<T, B>,
     targets: &[usize],
-) -> Var<T, B> {
+) -> Var<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
     let backend = B::default();
     let shape = log_probs.tensor.shape();
     let n = shape[0];
     let c = shape[1];
-    assert_eq!(targets.len(), n);
+    assert_eq!(targets.len(), n, "targets length must match batch size");
 
-    let cont;
-    let log_raw = if log_probs.tensor.is_contiguous() && log_probs.tensor.layout().offset() == 0 {
-        &log_probs.tensor
-    } else {
-        cont = log_probs.tensor.to_contiguous_on(&backend);
-        &cont
-    };
+    // One-hot target mask on-provider; selected = mask * log_probs.
+    let target_f: Vec<T> = targets.iter().map(|&i| T::from_usize(i)).collect();
+    let target_tensor = Tensor::from_slice_on([n], &target_f, &backend);
+    let target_mask = coeus_ops::one_hot(&target_tensor, c, &backend);
+    let selected = coeus_ops::mul(&log_probs.tensor, &target_mask, &backend);
+    // loss = -mean_i selected[i, target[i]] = -sum over batch / n.
+    let row_sum = coeus_ops::sum_axis(&selected, 1, &backend)
+        .expect("invariant: validated [N, C] NLL axis-one reduction");
+    let neg_sum = coeus_ops::neg(&row_sum, &backend);
+    let loss = coeus_ops::mean_axis(&neg_sum.reshape([n]), 0, &backend)
+        .expect("invariant: validated non-empty NLL reduction has axis zero");
 
-    let host: std::borrow::Cow<[T]> = if let Some(s) = log_raw.storage().try_as_slice() {
-        std::borrow::Cow::Borrowed(&s[..n * c])
-    } else {
-        let mut v = vec![T::zero(); n * c];
-        backend.copy_to_host(log_raw.storage(), &mut v);
-        std::borrow::Cow::Owned(v)
-    };
-
-    let mut loss_val = T::zero();
-    for i in 0..n {
-        // T::zero() - x for negation
-        loss_val += T::zero() - host[i * c + targets[i]];
-    }
-    loss_val = loss_val / T::from_f64(n as f64);
-
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
     let requires_grad = crate::grad_mode::should_track_var(log_probs);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
     } else {
         None
     };
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = grad.as_ref().cloned().map(|output_grad| {
         let node = NllLossNode {
             output_grad,
             inputs: vec![log_probs.clone()],
-            targets: targets.to_vec(),
+            target_mask,
             n,
             c,
+            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
         };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
+        Arc::new(node) as Arc<dyn BackwardNode<T, B>>
+    });
     Var {
-        tensor: out_tensor,
+        tensor: loss,
         grad,
         creator,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::MoiraiBackend;
+
+    #[test]
+    fn nll_forward_matches_reference() {
+        // log_probs = [[-1, -2], [-3, -4]], targets = [0, 1]:
+        //   loss = mean(-(-1), -(-4)) = mean(1, 4) = 2.5.
+        let log_probs = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, -2.0, -3.0, -4.0]),
+            true,
+        );
+        let targets = [0usize, 1];
+        let loss = nll_loss(&log_probs, &targets);
+        assert_eq!(loss.tensor.shape(), &[1]);
+        assert!((loss.tensor.as_slice()[0] - 2.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn nll_backward_matches_analytic_gradient() {
+        // d/dlog_probs = -one_hot(targets) / n.
+        let log_probs = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, -2.0, -3.0, -4.0]),
+            true,
+        );
+        let targets = [0usize, 1];
+        let loss = nll_loss(&log_probs, &targets);
+        loss.backward().expect("invariant: backward completes");
+        let grad = log_probs.grad().expect("log_probs must receive a gradient");
+        let expected = [[-0.5, 0.0], [0.0, -0.5]];
+        for (i, &g) in grad.as_slice().iter().enumerate() {
+            let e = expected[i / 2][i % 2];
+            assert!(
+                (g - e).abs() < 1e-12,
+                "nll grad[{i}]: got {g}, expected {e}"
+            );
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "targets")]
+    fn nll_rejects_target_length_mismatch() {
+        let log_probs = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, -2.0, -3.0, -4.0]),
+            true,
+        );
+        let targets = [0usize];
+        let _ = nll_loss(&log_probs, &targets);
     }
 }

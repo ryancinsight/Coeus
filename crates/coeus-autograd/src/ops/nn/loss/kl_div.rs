@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar, Storage};
+use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -9,18 +9,22 @@ use std::sync::Arc;
 ///
 /// Computes `mean(target * (log(target) - input))` where `input` holds
 /// log-probabilities and `target` holds probabilities. The gradient w.r.t.
-/// `input` is `-target / N * grad_out` per element.
+/// `input` is `-target / N * grad_out` per element. Forward and backward stay
+/// on the selected provider; the node retains the provider-resident target
+/// tensor rather than a host `Vec<T>` payload.
 pub struct KlDivLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     /// Accumulated gradient buffer for the output of this node.
     pub output_grad: Arc<GradBuffer<T, B>>,
     /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
-    /// Target probabilities copied to host for backward.
-    pub target_host: Vec<T>,
+    /// Provider-resident target probabilities, saved for backward.
+    pub target_saved: Tensor<T, B>,
     /// Original input shape for backward gradient materialization.
     pub input_shape: Vec<usize>,
     /// Number of elements in the loss reduction.
     pub n: usize,
+    /// Provider-resident mean scale `1 / element_count`.
+    pub mean_scale: Tensor<T, B>,
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for KlDivLossNode<T, B> {
@@ -41,29 +45,15 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for KlD
     ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.get(0) {
-            let mut host_grad = [T::zero()];
-            let temp_grad;
-            let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
-                grad_out
-            } else {
-                temp_grad = grad_out.to_contiguous_on(&backend);
-                &temp_grad
-            };
-            backend.copy_to_host(grad_cont.storage(), &mut host_grad);
-            let g_out = host_grad[0];
-            let n_t = T::from_f64(self.n as f64);
-            let scale = g_out / n_t;
-
             // d(loss)/d(input_i) = -target_i / N * grad_out
-            let mut d_input = vec![T::zero(); self.n];
-            for i in 0..self.n {
-                d_input[i] = (T::zero() - self.target_host[i]) * scale;
-            }
-            let grad_tensor = Tensor::from_slice_on(self.input_shape.clone(), &d_input, &backend);
-            let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
+            let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
+            let d_input = coeus_ops::mul(
+                &coeus_ops::neg(&self.target_saved, &backend),
+                &scale,
+                &backend,
+            );
+            coeus_ops::add_assign(g.write(), &d_input, &backend)?;
         }
-
         Ok(())
     }
 }
@@ -71,7 +61,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for KlD
 /// Tracked KL Divergence loss (PyTorch `F.kl_div` with `reduction='mean'`).
 ///
 /// `input`: log-probabilities (log Q), `target`: probabilities (P).
-/// Computes `mean(target * (log(target) - input))`.
+/// Computes `mean(target * (log(target) - input))` with the `target == 0`
+/// term taken as `0` by convention (`0 * log(0) = 0`). The complete forward
+/// and backward computation stays on the selected provider; no input-sized
+/// host staging occurs.
+///
 /// Returns a scalar Var (shape `[1]`).
 pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
@@ -91,76 +85,93 @@ pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         "input and target must have the same shape"
     );
 
-    let i_cont;
-    let i_raw = if input.tensor.is_contiguous() && input.tensor.layout().offset() == 0 {
-        &input.tensor
-    } else {
-        i_cont = input.tensor.to_contiguous_on(&backend);
-        &i_cont
-    };
-    let t_cont;
-    let t_raw = if target.tensor.is_contiguous() && target.tensor.layout().offset() == 0 {
-        &target.tensor
-    } else {
-        t_cont = target.tensor.to_contiguous_on(&backend);
-        &t_cont
-    };
+    // loss = mean(target * (log(target) - input)), with the target == 0 term
+    // taken as 0 by convention. All on-provider. `log(target)` is evaluated
+    // on a safe copy (0 → 1) so no -inf lane exists; the original target
+    // (0 at those positions) zeroes the term, avoiding `0 * -inf = NaN`.
+    let ones = Tensor::full_on(target.tensor.shape_cloned(), T::one(), &backend);
+    let zeros = Tensor::zeros_on(target.tensor.shape_cloned(), &backend);
+    let zero_mask = coeus_ops::eq(&target.tensor, &zeros, &backend);
+    let safe_target = coeus_ops::where_cond(&zero_mask, &ones, &target.tensor, &backend)
+        .expect("kl_divergence: provider safe-target mask");
+    let log_target = coeus_ops::log(&safe_target, &backend);
+    let diff = coeus_ops::sub(&log_target, &input.tensor, &backend);
+    let term = coeus_ops::mul(&target.tensor, &diff, &backend);
+    let loss = coeus_ops::mean_axis(&term.reshape([n]), 0, &backend)
+        .expect("invariant: validated non-empty KL divergence reduction has axis zero");
 
-    let i_host: std::borrow::Cow<[T]> = if let Some(s) = i_raw.storage().try_as_slice() {
-        std::borrow::Cow::Borrowed(&s[..n])
-    } else {
-        let mut v = vec![T::zero(); n];
-        backend.copy_to_host(i_raw.storage(), &mut v);
-        std::borrow::Cow::Owned(v)
-    };
-    let t_host: std::borrow::Cow<[T]> = if let Some(s) = t_raw.storage().try_as_slice() {
-        std::borrow::Cow::Borrowed(&s[..n])
-    } else {
-        let mut v = vec![T::zero(); n];
-        backend.copy_to_host(t_raw.storage(), &mut v);
-        std::borrow::Cow::Owned(v)
-    };
-
-    // loss = mean(target * (log(target) - input))
-    // For target == 0, the term is 0 (0 * log(0) = 0 by convention).
-    let mut loss_val = T::zero();
-    let mut target_owned = vec![T::zero(); n];
-    for i in 0..n {
-        let p = t_host[i];
-        target_owned[i] = p;
-        let log_q = i_host[i];
-        let term = if p == T::zero() {
-            T::zero()
-        } else {
-            p * (p.log_op() - log_q)
-        };
-        loss_val += term;
-    }
-    loss_val = loss_val / T::from_f64(n as f64);
-
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
     } else {
         None
     };
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = grad.as_ref().cloned().map(|output_grad| {
         let node = KlDivLossNode {
             output_grad,
             inputs: vec![input.clone()],
-            target_host: target_owned,
+            target_saved: target.tensor.clone(),
             input_shape,
             n,
+            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
         };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
+        Arc::new(node) as Arc<dyn BackwardNode<T, B>>
+    });
     Var {
-        tensor: out_tensor,
+        tensor: loss,
         grad,
         creator,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::MoiraiBackend;
+
+    fn var_from(data: &[f64]) -> Var<f64, MoiraiBackend> {
+        Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data),
+            true,
+        )
+    }
+
+    #[test]
+    fn kl_div_forward_matches_reference() {
+        // target = [0.5, 0.0, 0.25], input (log-probabilities) = [-1, 0, -2]:
+        //   term0 = 0.5 * (log(0.5) - (-1))
+        //   term1 = 0 (target == 0 convention)
+        //   term2 = 0.25 * (log(0.25) - (-2))
+        let target = var_from(&[0.5, 0.0, 0.25]);
+        let input = var_from(&[-1.0, 0.0, -2.0]);
+        let loss = kl_divergence(&input, &target);
+        let expected = (0.5 * (0.5_f64.ln() + 1.0) + 0.25 * (0.25_f64.ln() + 2.0)) / 3.0;
+        assert_eq!(loss.tensor.shape(), &[1]);
+        assert!((loss.tensor.as_slice()[0] - expected).abs() < 1e-12);
+    }
+
+    #[test]
+    fn kl_div_backward_matches_analytic_gradient() {
+        // d/dinput = -target / n.
+        let target = var_from(&[0.5, 0.0, 0.25]);
+        let input = var_from(&[-1.0, 0.0, -2.0]);
+        let loss = kl_divergence(&input, &target);
+        loss.backward().expect("invariant: backward completes");
+        let grad = input.grad().expect("input must receive a gradient");
+        let expected = [-0.5 / 3.0, 0.0 / 3.0, -0.25 / 3.0];
+        for (i, (&g, &e)) in grad.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (g - e).abs() < 1e-12,
+                "kl_div grad[{i}]: got {g}, expected {e}"
+            );
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "same number of elements")]
+    fn kl_div_rejects_element_mismatch() {
+        let target = var_from(&[0.5, 0.5]);
+        let input = var_from(&[-1.0]);
+        let _ = kl_divergence(&input, &target);
     }
 }

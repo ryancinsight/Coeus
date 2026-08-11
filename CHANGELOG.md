@@ -4,6 +4,22 @@
 
 ### Changed
 
+- [patch] Migrate the remaining host-staged `coeus-autograd` loss families to
+  provider-resident forward/backward with no input-sized `copy_to_host`
+  staging: `huber_loss`, `smooth_l1_loss`, `soft_margin`, `poisson_nll`,
+  `kl_divergence`, `margin_ranking_loss`, `pairwise_distance`, `nll_loss`,
+  `binary_cross_entropy`, `cosine_embedding_loss`, and `multi_margin`. Each
+  composes provider `sub`/`abs`/`pow_scalar`/`sum_axis`/`mean_axis`/
+  `where_cond`/`sigmoid`/`softplus`/`one_hot`/`index_select` ops; the nodes
+  retain provider-resident tensors (differences, masks, row scales, target
+  tensors) instead of host `Vec<T>` payloads. Boundary-only host uploads
+  remain for `targets: &[usize]` / `y: &[T]` index tensors (one-hot) and the
+  scalar-output read. The KL-divergence `target == 0` term avoids `0 · -inf`
+  by evaluating `log` on a safe 0→1 copy. The multi-margin gradient masks
+  inactive hinges so `0^(p-1)` never activates a dead sibling. Added 45
+  value-semantic tests (forward references, analytic/numeric backward,
+  clamping, kink right-limit, panic guards).
+
 - [patch] Route `coeus_core::MoiraiBackend::num_threads()` hardware-parallelism
   discovery through Themis `CpuTopology::detect().logical_processors()` with
   `std::thread::available_parallelism()` fallback, replacing direct syscall-only
@@ -801,14 +817,14 @@
   2×3 input, mirroring how PyTorch / JAX / MLX test ergonomics for
   scalar ops. ([patch])
 
-- [patch] Add tracked `coeus_autograd` Lp-norm API completing
-  [ADR 0056](docs/adr/0056-provider-owned-lp-norms.md): `l2_norm`,
-  `l_p_norm`, and `l_p_norm_axis` build `Var` graphs whose forward and backward
-  compose provider `abs`, `sign`, `pow_scalar`, `sum_axis`, `mul`, and
-  `add_assign` operations with no input-sized host staging. The global nodes
-  return a provider-resident `[1]` norm; the axis node reduces one axis to
-  size one and broadcasts the per-slice gradient back on backward. Kink
-  subgradients at zero match `sign(0) = 0`.
+- [patch] Add value-semantic test coverage to the existing tracked norm API
+  ([ADR 0056](docs/adr/0056-provider-owned-lp-norms.md)): 8 tests over
+  `ops::reduction::{norm, norm_p, norm_p_axis}` asserting L2/L1/L3 forward
+  references, analytic p=2 and numeric p=3 backward gradients, per-axis
+  forward/backward preserving the reduced dimension, and panic guards for
+  invalid ord and out-of-range axes. No API surface change — the canonical
+  tracked norm nodes already compose provider `abs`, `sign`, `pow_scalar`,
+  `sum_axis`, `mul`, and `add_assign` with zero-input masking.
 
 ## [Unreleased]
 

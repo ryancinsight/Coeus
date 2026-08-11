@@ -304,3 +304,125 @@ pub fn norm_p_axis<
         creator,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::MoiraiBackend;
+
+    fn var_from(data: &[f64]) -> Var<f64, MoiraiBackend> {
+        Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data),
+            true,
+        )
+    }
+
+    #[test]
+    fn norm_forward_matches_reference() {
+        let input = var_from(&[3.0, -4.0, 12.0]);
+        let norm = norm(&input);
+        assert_eq!(norm.tensor.shape(), &[1]);
+        // sqrt(9 + 16 + 144) = sqrt(169) = 13.
+        assert!((norm.tensor.as_slice()[0] - 13.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn norm_p_forward_matches_reference_for_p1_and_p3() {
+        let input = var_from(&[2.0, -3.0, 4.0]);
+        // p = 1: |2| + |3| + |4| = 9.
+        let p1 = norm_p(&input, 1.0);
+        assert!((p1.tensor.as_slice()[0] - 9.0).abs() < 1e-12);
+        // p = 3: (8 + 27 + 64)^(1/3) = 99^(1/3).
+        let p3 = norm_p(&input, 3.0);
+        let expected = 99.0_f64.powf(1.0 / 3.0);
+        assert!((p3.tensor.as_slice()[0] - expected).abs() < 1e-9);
+    }
+
+    #[test]
+    fn norm_p_backward_matches_analytic_gradient() {
+        // x = [3, -4, 12], p = 2 → ||x|| = 13.
+        // d/dx ||x||_2 = x / ||x||.
+        let input = var_from(&[3.0, -4.0, 12.0]);
+        let norm = norm_p(&input, 2.0);
+        norm.backward().expect("invariant: backward completes");
+        let grad = input.grad().expect("input must receive a gradient");
+        let expected = [3.0 / 13.0, -4.0 / 13.0, 12.0 / 13.0];
+        for (i, (&g, &e)) in grad.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (g - e).abs() < 1e-12,
+                "norm_p p=2 grad[{i}]: got {g}, expected {e}"
+            );
+        }
+    }
+
+    #[test]
+    fn norm_p_p3_backward_matches_numeric_gradient() {
+        // x = [2, -3, 4], p = 3, ||x||_3 = 99^(1/3).
+        // d/dx = sign(x)·|x|^2·norm^(1-3).
+        let input = var_from(&[2.0, -3.0, 4.0]);
+        let norm = norm_p(&input, 3.0);
+        norm.backward().expect("invariant: backward completes");
+        let grad = input.grad().expect("input must receive a gradient");
+        let norm_val = 99.0_f64.powf(1.0 / 3.0);
+        let expected = [
+            4.0 * norm_val.powf(-2.0),
+            -9.0 * norm_val.powf(-2.0),
+            16.0 * norm_val.powf(-2.0),
+        ];
+        for (i, (&g, &e)) in grad.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (g - e).abs() < 1e-9,
+                "norm_p p=3 grad[{i}]: got {g}, expected {e}"
+            );
+        }
+    }
+
+    #[test]
+    fn norm_p_axis_forward_and_backward_preserve_axis() {
+        // Matrix [[1, 2], [3, 4]] with p = 2 along axis 0:
+        // slice 0: sqrt(1 + 9) = sqrt(10); slice 1: sqrt(4 + 16) = sqrt(20).
+        let base = Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]);
+        let input = Var::new(base, true);
+        let norm = norm_p_axis(&input, 2.0, 0);
+        assert_eq!(norm.tensor.shape(), &[1, 2]);
+        assert!((norm.tensor.as_slice()[0] - 10.0_f64.sqrt()).abs() < 1e-12);
+        assert!((norm.tensor.as_slice()[1] - 20.0_f64.sqrt()).abs() < 1e-12);
+
+        norm.backward().expect("invariant: axis backward completes");
+        let grad = input.grad().expect("input must receive a gradient");
+        // d/dx_ij = x_ij / slice_norm_j.
+        let expected = [
+            1.0 / 10.0_f64.sqrt(),
+            2.0 / 20.0_f64.sqrt(),
+            3.0 / 10.0_f64.sqrt(),
+            4.0 / 20.0_f64.sqrt(),
+        ];
+        for (i, (&g, &e)) in grad.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (g - e).abs() < 1e-12,
+                "norm_p_axis grad[{i}]: got {g}, expected {e}"
+            );
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "finite positive")]
+    fn norm_p_panics_on_zero_ord() {
+        let input = var_from(&[1.0, 2.0]);
+        let _ = norm_p(&input, 0.0);
+    }
+
+    #[test]
+    #[should_panic(expected = "finite positive")]
+    fn norm_p_panics_on_non_finite_ord() {
+        let input = var_from(&[1.0, 2.0]);
+        let _ = norm_p(&input, f64::NAN);
+    }
+
+    #[test]
+    #[should_panic(expected = "out of bounds")]
+    fn norm_p_axis_panics_on_bad_axis() {
+        let input = var_from(&[1.0, 2.0]);
+        let _ = norm_p_axis(&input, 2.0, 3);
+    }
+}
