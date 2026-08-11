@@ -69,10 +69,14 @@
   next-phase slice then migrated 11 host-staged loss families to provider
   ownership (huber, smooth_l1, soft_margin, poisson_nll, kl_div, margin
   ranking, pairwise distance, nll, binary cross-entropy, cosine embedding,
-  multi margin) with 45 value-semantic tests; only the sequential DP families
-  (CTC, multi-label margin) and the norm/product children retain their own
-  blocked or todo status until their provider capability and hosted evidence
-  are available.
+  multi margin) with 45 value-semantic tests; a following slice migrated
+  multi_label_margin via gather + one-hot scatter with 4 more tests. The sole
+  remaining host-staged family is CTC, whose log-space forward-backward DP is
+  a sequential algorithm not expressible as a tensor composition; per the
+  umbrella's outcome it requires an upstream Leto/Hephaestus CTC kernel
+  (the `upstream capability` path), tracked separately. The norm/product
+  children retain their blocked/todo status until their hosted evidence is
+  available.
 
 ## COEUS-AUTOGRAD-L1-PROVIDER-001 — Keep L1 loss on the selected provider [patch] [arch]
 

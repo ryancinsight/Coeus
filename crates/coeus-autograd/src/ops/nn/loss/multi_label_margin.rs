@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar, Storage};
+use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -11,15 +11,23 @@ use std::sync::Arc;
 /// x: `(N, C)`, target: `(N, C)` with `-1` = ignore padding.
 /// Loss per sample: sum over valid targets `t` of sum over `j != t` of
 /// `max(0, 1 - (x[t] - x[j]))`, normalized by `(N * C)`.
+///
+/// Forward and backward stay on the selected provider: the node retains the
+/// provider-resident pairwise-active tensor `[N, C, C]` rather than host
+/// `Vec<T>` payloads. The `target: &[isize]` host slice is a boundary upload;
+/// the per-row target scores are gathered via the class-index boundary.
 pub struct MultiLabelMarginLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     /// Gradient buffer for the output scalar.
     pub output_grad: Arc<GradBuffer<T, B>>,
     /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
-    /// Input x copied to host: `(N, C)` contiguous.
-    pub x_host: Vec<T>,
-    /// Target indices: `(N, C)` with `-1` = ignore, as `isize`.
-    pub target: Vec<isize>,
+    /// Provider-resident pairwise-active mask `[N, C, C]` where `active[i,k,j]`
+    /// is 1 when target position `k` holds a valid class, `j != target_val`,
+    /// and `1 - x[i, target_val] + x[i, j] > 0`.
+    pub active: Tensor<T, B>,
+    /// Provider-resident one-hot of the target class values `[N, C]` (the
+    /// `-1` padding mapped to 0), used to scatter the target-column gradient.
+    pub target_onehot: Tensor<T, B>,
     /// Number of samples.
     pub n: usize,
     /// Number of classes.
@@ -45,47 +53,41 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        let mut host_grad = [T::zero()];
-        let temp_grad;
-        let grad_cont = if grad_out.is_contiguous() && grad_out.layout().offset() == 0 {
-            grad_out
-        } else {
-            temp_grad = grad_out.to_contiguous_on(&backend);
-            &temp_grad
-        };
-        backend.copy_to_host(grad_cont.storage(), &mut host_grad);
-        let g_out = host_grad[0];
-        let scale = g_out / T::from_f64((self.n * self.c) as f64);
-
         if let Some(Some(ref g)) = input_grads.get(0) {
-            let mut dx = vec![T::zero(); self.n * self.c];
-            for i in 0..self.n {
-                let base = i * self.c;
-                for k in 0..self.c {
-                    let t_raw = self.target[base + k];
-                    if t_raw < 0 {
-                        continue;
-                    }
-                    let t = t_raw as usize;
-                    for j in 0..self.c {
-                        if j == t {
-                            continue;
-                        }
-                        let diff = self.x_host[base + t] - self.x_host[base + j];
-                        if diff < T::one() {
-                            // d/d x[t] (1 - (x[t] - x[j])) = -1
-                            dx[base + t] -= scale;
-                            // d/d x[j] (1 - (x[t] - x[j])) = +1
-                            dx[base + j] += scale;
-                        }
-                    }
-                }
-            }
-            let grad_tensor = Tensor::from_slice_on([self.n, self.c], &dx, &backend);
-            let gl = g.write();
-            coeus_ops::add_assign(gl, &grad_tensor, &backend)?;
+            // Each active (k, j) pair contributes +scale to x[j] and -scale to
+            // x[target_val(k)]. incoming[j] = sum_k active[k, j] (the sibling
+            // accumulation); outgoing[t] = sum over k of rowsum(k) scattered
+            // to the target column via the one-hot of the target values.
+            let scale = coeus_ops::mul(
+                grad_out,
+                &Tensor::full_on(
+                    [1],
+                    T::one() / T::from_f64((self.n * self.c) as f64),
+                    &backend,
+                ),
+                &backend,
+            );
+            let incoming = coeus_ops::sum_axis(&self.active, 1, &backend)
+                .expect("invariant: validated [N, C, C] active axis-1 reduction")
+                .reshape([self.n, self.c]);
+            // rowsum[i,k] = sum_j active[i,k,j]; scatter to target columns.
+            let rowsum = coeus_ops::sum_axis(&self.active, 2, &backend)
+                .expect("invariant: validated [N, C, C] active axis-2 reduction");
+            // outgoing[i,t] = sum_k onehot[i,k,t] * rowsum[i,k]:
+            // onehot is already [N, C, C] = (i, k, t); expand rowsum to match.
+            let oh_kt = self.target_onehot.clone();
+            let rowsum_kt = rowsum
+                .reshape([self.n, self.c, 1])
+                .broadcast([self.n, self.c, self.c])
+                .to_contiguous_on(&backend);
+            let scattered = coeus_ops::mul(&oh_kt, &rowsum_kt, &backend);
+            let outgoing = coeus_ops::sum_axis(&scattered, 1, &backend)
+                .expect("invariant: validated [N, C, C] outgoing axis-1 reduction")
+                .reshape([self.n, self.c]);
+            let per_elem = coeus_ops::sub(&incoming, &outgoing, &backend);
+            let d_x = coeus_ops::mul(&per_elem, &scale, &backend);
+            coeus_ops::add_assign(g.write(), &d_x, &backend)?;
         }
-
         Ok(())
     }
 }
@@ -95,10 +97,19 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 ///
 /// `x`: shape `(N, C)`, target: `(N, C)` where `target[i][j] >= 0` are valid
 /// class indices and `-1` means ignore. Returns a scalar `Var`.
+///
+/// The complete forward and backward computation stays on the selected
+/// provider; no input-sized host staging occurs beyond the target boundary
+/// upload (the per-row target scores are gathered with `index_select`). The
+/// pairwise formulation builds an `[N, C, C]` active tensor via broadcast.
 pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     target: &[isize],
-) -> Var<T, B> {
+) -> Var<T, B>
+where
+    B::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
+{
     let shape = x.tensor.shape();
     assert_eq!(shape.len(), 2, "x must be 2D [batch_size, num_classes]");
     let n = shape[0];
@@ -107,73 +118,170 @@ pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 
     let backend = B::default();
 
-    let x_cont;
-    let x_raw = if x.tensor.is_contiguous() && x.tensor.layout().offset() == 0 {
-        &x.tensor
-    } else {
-        x_cont = x.tensor.to_contiguous_on(&backend);
-        &x_cont
-    };
-
-    let x_host: Vec<T> = if let Some(s) = x_raw.storage().try_as_slice() {
-        s[..n * c].to_vec()
-    } else {
-        let mut v = vec![T::zero(); n * c];
-        backend.copy_to_host(x_raw.storage(), &mut v);
-        v
-    };
-
-    let zero = T::zero();
-    let one = T::one();
-    let mut loss_val = zero;
-
-    for i in 0..n {
-        let base = i * c;
-        for k in 0..c {
-            let t_raw = target[base + k];
-            if t_raw < 0 {
-                continue;
-            }
-            let t = t_raw as usize;
-            for j in 0..c {
-                if j == t {
-                    continue;
-                }
-                let diff = x_host[base + t] - x_host[base + j];
-                let hinge = if one - diff > zero { one - diff } else { zero };
-                loss_val += hinge;
-            }
-        }
+    // Target position k holds a class value (or -1 padding). Gather the
+    // per-position target scores x[i, target_val] with a safe 0 sentinel for
+    // the padding, and record which positions are valid.
+    let mut safe_flat: Vec<T> = Vec::with_capacity(n * c);
+    let mut valid_flat: Vec<T> = Vec::with_capacity(n * c);
+    let mut target_flat: Vec<T> = Vec::with_capacity(n * c);
+    for &v in target {
+        valid_flat.push(if v >= 0 { T::one() } else { T::zero() });
+        let safe = if v >= 0 { v as usize } else { 0 };
+        target_flat.push(T::from_usize(safe));
+        safe_flat.push(T::from_usize(safe));
     }
-    loss_val = loss_val / T::from_f64((n * c) as f64);
+    let valid = Tensor::from_slice_on([n, c], &valid_flat, &backend);
+    let safe_idx = Tensor::from_slice_on([n * c], &safe_flat, &backend);
+    let x_gathered = coeus_ops::index_select(&x.tensor, 1, &safe_idx, &backend).reshape([n, c]);
 
-    let out_tensor = Tensor::from_slice_on([1], &[loss_val], &backend);
+    // Pairwise margin: m[i,k,j] = 1 - x[i, target_val(k)] + x[i, j] over all
+    // target positions k and classes j. Materialize contiguous.
+    let x_target_col = x_gathered.reshape([n, c, 1]);
+    let x_row = x.tensor.reshape([n, 1, c]);
+    let diff = coeus_ops::sub(&x_target_col, &x_row, &backend);
+    let diff = diff.to_contiguous_on(&backend);
+    let m = coeus_ops::add(
+        &coeus_ops::neg(&diff, &backend),
+        &Tensor::full_on([n, c, c], T::one(), &backend),
+        &backend,
+    );
+
+    let hinge = coeus_ops::relu(&m, &backend);
+    let active_margin = coeus_ops::gt(&hinge, &Tensor::zeros_on([n, c, c], &backend), &backend);
+    // Valid target position k.
+    let valid_k = valid.reshape([n, c, 1]);
+    let valid_k_b = valid_k.broadcast([n, c, c]).to_contiguous_on(&backend);
+    // j != target_val(k): one-hot of the target values over the flattened
+    // positions [n*c, c], reshaped to [N, C, C], then negated (1 at j != t).
+    let target_onehot = coeus_ops::one_hot(&safe_idx, c, &backend).reshape([n, c, c]);
+    let same = target_onehot.reshape([n, c, c]).to_contiguous_on(&backend);
+    let not_same = coeus_ops::where_cond(
+        &same,
+        &Tensor::zeros_on([n, c, c], &backend),
+        &Tensor::full_on([n, c, c], T::one(), &backend),
+        &backend,
+    )
+    .expect("multi_label_margin: j != target mask");
+    // active = valid_k AND not_same AND active_margin.
+    let active = coeus_ops::mul(&valid_k_b, &not_same, &backend);
+    let active = coeus_ops::mul(&active, &active_margin, &backend);
+
+    // loss = (1/(N*C)) * sum over all active pairs of hinge value.
+    let weighted = coeus_ops::mul(&active, &hinge, &backend);
+    let sum_c = coeus_ops::sum_axis(&weighted, 2, &backend)
+        .expect("invariant: validated [N, C, C] active axis-2 reduction");
+    let sum_t = coeus_ops::sum_axis(&sum_c, 1, &backend)
+        .expect("invariant: validated [N, C] active axis-1 reduction");
+    let loss_sum = coeus_ops::sum_axis(&sum_t, 0, &backend)
+        .expect("invariant: validated [N] active axis-0 reduction");
+    let loss = coeus_ops::mul(
+        &loss_sum,
+        &Tensor::full_on([1], T::one() / T::from_f64((n * c) as f64), &backend),
+        &backend,
+    );
+
+    let out_tensor = loss.reshape([1]);
     let requires_grad = crate::grad_mode::should_track_var(x);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
-            x.tensor.shape(),
-            &backend,
-        ))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
     } else {
         None
     };
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+    let creator = grad.as_ref().cloned().map(|output_grad| {
         let node = MultiLabelMarginLossNode {
             output_grad,
             inputs: vec![x.clone()],
-            x_host,
-            target: target.to_vec(),
+            active,
+            target_onehot,
             n,
             c,
         };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
+        Arc::new(node) as Arc<dyn BackwardNode<T, B>>
+    });
     Var {
         tensor: out_tensor,
         grad,
         creator,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::MoiraiBackend;
+
+    #[test]
+    fn multi_label_margin_forward_matches_reference() {
+        // x = [[0.5, 0.8, -0.6]], target = [0, -1, -1] (one valid target):
+        //   t_val=0, j=1: 1 - 0.5 + 0.8 = 1.3 > 0 (active)
+        //   t_val=0, j=2: 1 - 0.5 - 0.6 = -0.1 (inactive)
+        //   loss = 1.3 / (1*3) = 1.3/3.
+        let x = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[0.5, 0.8, -0.6]),
+            true,
+        );
+        let target = [0isize, -1, -1];
+        let loss = multi_label_margin_loss(&x, &target);
+        assert_eq!(loss.tensor.shape(), &[1]);
+        assert!((loss.tensor.as_slice()[0] - 1.3 / 3.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn multi_label_margin_backward_matches_analytic() {
+        // x = [[0.5, 0.8, -0.6]], target = [0, -1, -1]:
+        //   active (k=0 → t_val=0, j=1) pair → dx[0] -= scale, dx[1] += scale.
+        let x = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[0.5, 0.8, -0.6]),
+            true,
+        );
+        let target = [0isize, -1, -1];
+        let loss = multi_label_margin_loss(&x, &target);
+        loss.backward().expect("invariant: backward completes");
+        let g = x.grad().expect("x must receive a gradient");
+        let expected = [-1.0 / 3.0, 1.0 / 3.0, 0.0];
+        for (i, (&got, &e)) in g.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (got - e).abs() < 1e-12,
+                "multi_label_margin grad[{i}]: got {got}, expected {e}"
+            );
+        }
+    }
+
+    #[test]
+    fn multi_label_margin_two_valid_targets() {
+        // x = [[0.5, 0.8, -0.6]], target = [0, 2, -1]:
+        //   k=0 → t_val=0: j=1 active (1.3), j=2 inactive (-0.1)
+        //   k=1 → t_val=2: j=0: 1 - (-0.6) + 0.5 = 2.1 active; j=1: 2.4 active
+        //   loss = (1.3 + 2.1 + 2.4) / 3 = 5.8/3.
+        let x = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[0.5, 0.8, -0.6]),
+            true,
+        );
+        let target = [0isize, 2, -1];
+        let loss = multi_label_margin_loss(&x, &target);
+        assert!((loss.tensor.as_slice()[0] - 5.8 / 3.0).abs() < 1e-12);
+
+        loss.backward().expect("invariant: backward completes");
+        let g = x.grad().expect("x must receive a gradient");
+        // Active pairs: (t=0,j=1), (t=2,j=0), (t=2,j=1) →
+        //   dx[0] = -1/3 + 1/3 = 0; dx[1] = 1/3 + 1/3 = 2/3; dx[2] = -2/3.
+        let expected = [0.0, 2.0 / 3.0, -2.0 / 3.0];
+        for (i, (&got, &e)) in g.as_slice().iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (got - e).abs() < 1e-12,
+                "multi_label_margin two-target grad[{i}]: got {got}, expected {e}"
+            );
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "target length must match N*C")]
+    fn multi_label_margin_rejects_target_length_mismatch() {
+        let x = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[0.5, 0.8, -0.6]),
+            true,
+        );
+        let target = [0isize];
+        let _ = multi_label_margin_loss(&x, &target);
     }
 }
