@@ -13,8 +13,10 @@
 - [x] Delete the superseded vendor modules and migrate tests to
       `HephaestusBackend<Provider>` without public aliases or fallback paths.
 - [x] Record the replacement and external migration contract in ADR 0060.
-- [ ] Run focused native Nextest, doctests, and exact-head hosted provider
-      contracts; report physical-device and local overlay limitations.
+- [x] Run focused native Nextest (17/17), doctests (0/0), format, warning-denied
+      Clippy, and diff hygiene; physical-device execution is not claimed.
+- [ ] Run exact-head hosted provider contracts after Hephaestus lands; report
+      physical-device and local overlay limitations.
 
 ## COEUS-AUTOGRAD-LP-NORM-PROVIDER-001 [major] [arch]
 

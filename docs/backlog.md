@@ -18,7 +18,9 @@
 - Risk/change class: `[major] [arch]`; the removed `MetalBackend` and
   `RocmBackend` names require external consumers to migrate to the generic
   `HephaestusBackend<P>` surface. See [ADR 0060](adr/0060-provider-owned-metal-rocm-bridge.md).
-- Status: in progress on `codex/coeus-provider-deletion-metal-rocm`.
+- Status: local implementation and focused gates complete on
+  `codex/coeus-provider-deletion-metal-rocm`; exact-head hosted provider
+  contracts remain pending after Hephaestus seam delivery.
 
 ## COEUS-WGPU-ELEMENTWISE-LEAVES-001 — Split provider dispatch leaves [patch] [arch]
 
