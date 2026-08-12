@@ -1,5 +1,22 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-HEPHAESTUS-WGPU-001 — Route WGPU reduction/scan through the generic bridge [major] [arch]
+
+- Owner: Codex; scope: the Coeus WGPU crate (final SUBSTRATE-002 vendor
+  deletion row).
+- Outcome: `WgpuBackend` declares `ReductionProvider` with the
+  hephaestus-wgpu seam bundles (`WgpuAxisReductionOps`/`WgpuScanOps`), and its
+  `coeus_ops::ReductionOps` impls delegate through
+  `HephaestusBackend<WgpuBackend>`; the duplicated rank-2 layout/axis
+  conversion and free-function dispatch helpers are deleted. The fused
+  reduction path stays.
+- Non-goals: host/CPU fallback paths, hardware performance claims, GPU
+  contract-test execution (external hardware gate); the f64 elementwise gap is
+  tracked under COEUS-HEPHAESTUS-CUDA-001.
+- Acceptance: check rc=0 with 0 code warnings, strict clippy `-D warnings`
+  rc=0, fmt/diff-check clean, doc tests 5/5, and the pre-existing
+  `AdapterUnavailable` device-suite failures unchanged from the parent commit.
+
 ## COEUS-HEPHAESTUS-CUDA-001 — Route CUDA elementwise/reduction through the generic bridge [major] [arch]
 
 - Owner: Codex; scope: the Coeus CUDA crate plus the Coeus-Hephaestus bridge.

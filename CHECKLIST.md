@@ -34,6 +34,29 @@
       comparison `TypedBinaryExpr<CudaC, f64>` operations (recorded in
       `docs/gap_audit.md`); `f64` scalar-power already routes through the
       bridge.
+
+## COEUS-HEPHAESTUS-WGPU-001 [major] [arch]
+
+- [x] Route WGPU reduction/scan through the generic Coeus-Hephaestus bridge:
+      `WgpuBackend` declares `ReductionProvider` with
+      `type AxisOperations = WgpuAxisReductionOps` and
+      `type ScanOperations = WgpuScanOps`, and its `coeus_ops::ReductionOps`
+      impls delegate through `HephaestusBackend<WgpuBackend>` over the same
+      `Arc<WgpuBuffer<T>>` handles via `HephaestusStorage::from_arc`.
+- [x] Delete the duplicated rank-2 layout/axis conversion and free-function
+      dispatch helpers (`provider_layout`, `provider_axis`, `dispatch_scan`,
+      `dispatch_reduction`) from `backend/ops/impls/reduction.rs` (301 → 84
+      lines); the fused reduction path (`kernels/reduce.rs` +
+      `evaluate_fused_reduce`) is unchanged.
+- [x] Add `From<HephaestusBackendError> for WgpuBackendError` preserving the
+      historical `Validation(BackendError::UnsupportedRank { operation:
+      "reduction", max_rank: 2 })` wire contract via label normalization.
+- [x] Run the strict gate under the overlay: check rc=0 with 0 code warnings
+      (lib, tests, benches), strict clippy `-D warnings` rc=0, fmt +
+      `git diff --check` clean, doc tests 5/5. The 5 storage unit tests and
+      the device integration suite fail only with the pre-existing
+      `AdapterUnavailable` hardware gate (verified identical on the parent
+      commit; GPU contract-test execution is external).
 - [x] Record the replacement and external migration contract in ADR 0060.
 - [x] Run focused native Nextest (17/17), doctests (0/0), format, warning-denied
       Clippy, and diff hygiene; physical-device execution is not claimed.

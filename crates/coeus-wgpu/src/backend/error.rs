@@ -144,6 +144,37 @@ impl From<GpuLayoutError> for LayoutError {
     }
 }
 
+impl From<coeus_hephaestus::HephaestusBackendError> for WgpuBackendError {
+    fn from(source: coeus_hephaestus::HephaestusBackendError) -> Self {
+        match source {
+            // The historical WGPU backend reported rank rejection for axis
+            // reductions under the operation label "reduction"; the bridge
+            // labels the same dispatch "reduce". Normalize so the public
+            // `Validation(UnsupportedRank)` contract is unchanged for
+            // consumers.
+            coeus_hephaestus::HephaestusBackendError::Backend(BackendError::UnsupportedRank {
+                operation: "reduce",
+                rank,
+                max_rank,
+            }) => Self::Validation(BackendError::UnsupportedRank {
+                operation: "reduction",
+                rank,
+                max_rank,
+            }),
+            coeus_hephaestus::HephaestusBackendError::Backend(error) => Self::Validation(error),
+            coeus_hephaestus::HephaestusBackendError::Device { operation, source } => {
+                Self::Dispatch { operation, source }
+            }
+            // The bridge error is non-exhaustive so future provider categories
+            // degrade to a typed backend validation failure rather than panic.
+            _ => Self::Validation(BackendError::Storage {
+                operation: "hephaestus dispatch",
+                reason: "unclassified Hephaestus backend failure".to_string(),
+            }),
+        }
+    }
+}
+
 impl WgpuBackendError {
     pub(crate) fn dispatch(operation: &'static str, source: HephaestusError) -> Self {
         Self::Dispatch { operation, source }

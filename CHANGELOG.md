@@ -31,9 +31,24 @@
   `CudaBackendError::UnsupportedRank` wire contract (operation label
   normalized `"reduce"` → `"reduction"`, max rank 2). `f64` elementwise is
   intentionally not wired: hephaestus-cuda implements the bridge's required
-  comparison `TypedBinaryExpr<CudaC, T>` set for `f32`/`u32`/`i32` but not
-  `f64` at the pinned gitlink; `f64` scalar-power remains available and
+  comparison `TypedBinaryExpr<CudaC, T>` set for `f32`/`u32`/`i32` but  not `f64` at the pinned gitlink; `f64` scalar-power remains available and
   restoring `f64` elementwise is a hephaestus-cuda capability follow-up.
+
+- [major] [arch] Route WGPU reduction and scan operations through the generic
+  `HephaestusBackend<WgpuBackend>` bridge, completing the SUBSTRATE-002
+  deletion ledger. `WgpuBackend` declares the `ReductionProvider` operation
+  bundle (`WgpuAxisReductionOps`/`WgpuScanOps`), and its
+  `coeus_ops::ReductionOps` impls (reduce/cumsum/suffix_sum/cumprod/
+  suffix_prod) delegate over the same `Arc<WgpuBuffer<T>>` handles via the
+  zero-copy `HephaestusStorage::from_arc` seam. The duplicated rank-2
+  layout/axis conversion and free-function dispatch helpers in
+  `backend/ops/impls/reduction.rs` are deleted (301 → 84 lines); the fused
+  reduction path (`kernels/reduce.rs` and `evaluate_fused_reduce`) is
+  unchanged. Rank rejection keeps the historical
+  `Validation(BackendError::UnsupportedRank { operation: "reduction",
+  max_rank: 2 })` wire contract through the new
+  `From<HephaestusBackendError> for WgpuBackendError` mapping (operation
+  label normalized `"reduce"` → `"reduction"`).
 
 - [patch] Migrate `multi_label_margin_loss` to provider-resident forward and
   backward, closing the last non-sequential host-staged loss family. The
