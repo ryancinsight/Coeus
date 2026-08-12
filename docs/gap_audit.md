@@ -320,9 +320,9 @@ accelerator arg-reduction and top-k kernels remain a separate provider item.
 
 ## ATLAS-COEUS-HEPHAESTUS-005: Unary math provider parity
 
-**Location**: `crates/coeus-rocm/src/backend/elementwise.rs`,
-`crates/coeus-metal/src/backend/elementwise.rs`, and their elementwise
-contracts.
+**Location**: the generic bridge in `crates/coeus-hephaestus/src/elementwise.rs`
+and the Metal/ROCm provider declarations under
+`crates/coeus-{metal,rocm}/src/backend/provider.rs`.
 **Gap**: Coeus/Leto defined 19 unparameterized f32 unary math operations that
 were available to the WGPU/CUDA shader paths but were rejected by the native
 ROCm and Metal provider matches.

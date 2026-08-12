@@ -3,13 +3,15 @@
 #![cfg(target_os = "macos")]
 
 use coeus_core::{ComputeBackend, Layout};
-use coeus_hephaestus::HephaestusBackendError;
-use coeus_metal::MetalBackend;
+use coeus_hephaestus::{HephaestusBackend, HephaestusBackendError};
+use coeus_metal::MetalProvider;
 use coeus_ops::AttentionOps;
+
+type Backend = HephaestusBackend<MetalProvider>;
 
 #[test]
 fn native_attention_dispatches_and_preserves_provider_errors() {
-    let backend = MetalBackend::new();
+    let backend = Backend::new();
     let layout = Layout::new([1, 1, 1].into());
     let mut query = backend.allocate::<f32>(1);
     let mut key = backend.allocate::<f32>(1);

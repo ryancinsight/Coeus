@@ -1,5 +1,27 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-HEPHAESTUS-METAL-ROCM-001 — Delete duplicated accelerator routing [major] [arch]
+
+- Owner: Codex; scope: the Coeus Hephaestus bridge plus Metal and ROCm
+  provider declarations, deleted vendor operation modules, tests, ADR, and
+  changelog.
+- Outcome: Metal and ROCm use `HephaestusBackend<P>` directly and retain only
+  provider/device wiring; ordinary elementwise, scalar-power, reductions,
+  scans, initialization, rotate-half, stateful updates, and cross-entropy have
+  one generic consumer bridge.
+- Non-goals: CUDA/WGPU migration, release publication, hardware performance
+  claims, or host/CPU fallback paths.
+- Acceptance: the deleted modules have no callers; provider bundles compile
+  for f32/u32/i32 where previously supported; value-semantic tests and
+  warning-denied focused gates pass; Hephaestus and Coeus exact-head hosted
+  provider contracts remain required before merge.
+- Risk/change class: `[major] [arch]`; the removed `MetalBackend` and
+  `RocmBackend` names require external consumers to migrate to the generic
+  `HephaestusBackend<P>` surface. See [ADR 0060](adr/0060-provider-owned-metal-rocm-bridge.md).
+- Status: local implementation and focused gates complete on
+  `codex/coeus-provider-deletion-metal-rocm`; exact-head hosted provider
+  contracts remain pending after Hephaestus seam delivery.
+
 ## COEUS-WGPU-ELEMENTWISE-LEAVES-001 — Split provider dispatch leaves [patch] [arch]
 
 - Owner: Codex; delivered by PR #303 on 2026-08-06; scope:

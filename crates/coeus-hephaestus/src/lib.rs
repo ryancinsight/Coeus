@@ -30,12 +30,17 @@ pub use cross_entropy::{
     CrossEntropyProvider,
 };
 pub use elementwise::{
-    parameterized_unary, ElementwiseProvider, ParameterizedElementwiseProvider, ScalarPowerProvider,
+    parameterized_unary, ActivationUnaryOperations, ArithmeticUnaryOperations,
+    BinaryElementwiseDispatch, ElementwiseProvider, ParameterizedElementwiseProvider,
+    ScalarPowerDispatch, ScalarPowerProvider, UnaryElementwiseDispatch,
 };
 pub use error::HephaestusBackendError;
 pub use random_init::{normal as random_normal, uniform as random_uniform, RandomInitProvider};
 pub use reduction::HephaestusBackend;
-pub use reduction::{HephaestusProvider, RankedOperand, ReductionProvider, ScanOperation};
+pub use reduction::{
+    AxisReductionDispatch, HephaestusProvider, RankedOperand, ReductionProvider, ScanDispatch,
+    ScanOperation,
+};
 pub use rotate_half::{rotate_half, RotateHalfProvider};
 pub use stateful_update::{StatefulUpdateBackend, StatefulUpdateProvider};
 pub use storage::HephaestusStorage;

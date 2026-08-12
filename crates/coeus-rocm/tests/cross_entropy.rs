@@ -3,8 +3,11 @@
 #![cfg(all(feature = "rocm", target_os = "linux"))]
 
 use coeus_core::{ComputeBackend, Layout};
+use coeus_hephaestus::HephaestusBackend;
 use coeus_ops::CrossEntropyOps;
-use coeus_rocm::RocmBackend;
+use coeus_rocm::RocmProvider;
+
+type Backend = HephaestusBackend<RocmProvider>;
 
 #[test]
 fn cross_entropy_dispatches_with_rocm_value_and_gradient_contract() {
@@ -15,7 +18,7 @@ fn cross_entropy_dispatches_with_rocm_value_and_gradient_contract() {
         );
         return;
     }
-    let backend = RocmBackend::new();
+    let backend = Backend::new();
     let logits_layout = Layout::new([2, 3].into());
     let scalar_layout = Layout::new([1].into());
     let mut logits = backend.allocate::<f32>(6);

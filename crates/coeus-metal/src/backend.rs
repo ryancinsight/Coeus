@@ -1,14 +1,6 @@
-//! Metal backend implementations partitioned by provider, operation family,
-//! and runtime boundary.
+//! Metal provider wiring for the generic Hephaestus backend.
 
-mod cross_entropy;
-mod elementwise;
 mod provider;
-mod random_init;
-mod reduction;
-mod rotate_half;
-mod runtime;
-mod stateful_update;
 
+pub use coeus_hephaestus::HephaestusBackend;
 pub use provider::MetalProvider;
-pub use runtime::MetalBackend;

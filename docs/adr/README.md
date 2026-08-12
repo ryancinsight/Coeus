@@ -61,3 +61,4 @@
 | [0057](0057-provider-owned-product.md) | Provider-owned global product | Accepted |
 | [0058](0058-wgpu-elementwise-module-boundary.md) | WGPU elementwise module boundary | Accepted |
 | [0059](0059-wgpu-elementwise-routing-leaves.md) | WGPU elementwise routing leaves | Accepted |
+| [0060](0060-provider-owned-metal-rocm-bridge.md) | Provider-owned Metal and ROCm bridge | Accepted |

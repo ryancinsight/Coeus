@@ -1,6 +1,9 @@
 use coeus_core::{ComputeBackend, Layout, ReductionOp};
+use coeus_hephaestus::HephaestusBackend;
 use coeus_ops::ReductionOps;
-use coeus_rocm::RocmBackend;
+use coeus_rocm::RocmProvider;
+
+type Backend = HephaestusBackend<RocmProvider>;
 
 fn require_device() {
     if hephaestus_rocm::RocmDevice::try_default().is_err() {
@@ -19,7 +22,7 @@ fn native_reductions_and_scans_match_leto() {
         return;
     }
 
-    let backend = RocmBackend::new();
+    let backend = Backend::new();
     assert_eq!(backend.name(), "rocm");
     let layout = Layout::new([2, 3].into());
     let input = [1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0];
@@ -131,8 +134,8 @@ fn norm_p_dispatches_with_rocm_provider_parity() {
         return;
     }
 
-    let backend = RocmBackend::new();
-    let input = coeus_tensor::Tensor::<f32, RocmBackend>::from_slice_on(
+    let backend = Backend::new();
+    let input = coeus_tensor::Tensor::<f32, Backend>::from_slice_on(
         vec![2, 3],
         &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0],
         &backend,

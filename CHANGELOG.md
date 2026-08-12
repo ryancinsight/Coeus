@@ -4,6 +4,15 @@
 
 ### Changed
 
+- [major] [arch] Delete duplicated Metal and ROCm consumer operation
+  dispatch. Both crates now expose the generic
+  `HephaestusBackend<Provider>` over provider-owned elementwise,
+  scalar-power, axis-reduction, scan, initialization, rotate-half,
+  stateful-update, and cross-entropy seams. The removed `MetalBackend` and
+  `RocmBackend` names require external callers to migrate; no compatibility
+  aliases or host fallbacks remain. See
+  [ADR 0060](docs/adr/0060-provider-owned-metal-rocm-bridge.md).
+
 - [patch] Migrate `multi_label_margin_loss` to provider-resident forward and
   backward, closing the last non-sequential host-staged loss family. The
   pairwise formulation builds an `[N, C, C]` active tensor via broadcast:

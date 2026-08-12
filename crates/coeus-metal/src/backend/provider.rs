@@ -1,10 +1,12 @@
 use coeus_hephaestus::{
-    AttentionProvider, ConvolutionProvider, CrossEntropyProvider, HephaestusProvider,
-    ParameterizedElementwiseProvider, StatefulUpdateProvider,
+    ActivationUnaryOperations, ArithmeticUnaryOperations, AttentionProvider, ConvolutionProvider,
+    CrossEntropyProvider, ElementwiseProvider, HephaestusProvider,
+    ParameterizedElementwiseProvider, RandomInitProvider, ReductionProvider, RotateHalfProvider,
+    ScalarPowerProvider, StatefulUpdateProvider,
 };
 use hephaestus_metal::{
-    MetalAttentionOps, MetalConvolutionOps, MetalCrossEntropyOps, MetalDevice,
-    MetalParameterizedUnaryOps,
+    MetalAttentionOps, MetalAxisReductionOps, MetalConvolutionOps, MetalCrossEntropyOps,
+    MetalDevice, MetalElementwiseOps, MetalParameterizedUnaryOps, MetalRandomOps, MetalScanOps,
 };
 use std::sync::OnceLock;
 
@@ -48,8 +50,50 @@ impl AttentionProvider<f32> for MetalProvider {
     type Operations = MetalAttentionOps;
 }
 
+impl ElementwiseProvider<f32> for MetalProvider {
+    type Operations = MetalElementwiseOps;
+    type UnaryOperations = ActivationUnaryOperations;
+}
+
+impl ElementwiseProvider<u32> for MetalProvider {
+    type Operations = MetalElementwiseOps;
+    type UnaryOperations = ArithmeticUnaryOperations;
+}
+
+impl ElementwiseProvider<i32> for MetalProvider {
+    type Operations = MetalElementwiseOps;
+    type UnaryOperations = ArithmeticUnaryOperations;
+}
+
+impl ScalarPowerProvider<f32> for MetalProvider {
+    type Operations = MetalElementwiseOps;
+}
+
+impl ReductionProvider<f32> for MetalProvider {
+    type AxisOperations = MetalAxisReductionOps;
+    type ScanOperations = MetalScanOps;
+}
+
+impl ReductionProvider<u32> for MetalProvider {
+    type AxisOperations = MetalAxisReductionOps;
+    type ScanOperations = MetalScanOps;
+}
+
+impl ReductionProvider<i32> for MetalProvider {
+    type AxisOperations = MetalAxisReductionOps;
+    type ScanOperations = MetalScanOps;
+}
+
 impl CrossEntropyProvider for MetalProvider {
     type Operations = MetalCrossEntropyOps;
+}
+
+impl RandomInitProvider<f32> for MetalProvider {
+    type Operations = MetalRandomOps;
+}
+
+impl RotateHalfProvider<f32> for MetalProvider {
+    type Operations = MetalElementwiseOps;
 }
 
 impl ParameterizedElementwiseProvider for MetalProvider {
