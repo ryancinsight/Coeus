@@ -1,5 +1,39 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-HEPHAESTUS-WGPU-001 — Route WGPU reduction/scan through the generic bridge [major] [arch]
+
+- Owner: Codex; scope: the Coeus WGPU crate (final SUBSTRATE-002 vendor
+  deletion row).
+- Outcome: `WgpuBackend` declares `ReductionProvider` with the
+  hephaestus-wgpu seam bundles (`WgpuAxisReductionOps`/`WgpuScanOps`), and its
+  `coeus_ops::ReductionOps` impls delegate through
+  `HephaestusBackend<WgpuBackend>`; the duplicated rank-2 layout/axis
+  conversion and free-function dispatch helpers are deleted. The fused
+  reduction path stays.
+- Non-goals: host/CPU fallback paths, hardware performance claims, GPU
+  contract-test execution (external hardware gate); the f64 elementwise gap is
+  tracked under COEUS-HEPHAESTUS-CUDA-001.
+- Acceptance: check rc=0 with 0 code warnings, strict clippy `-D warnings`
+  rc=0, fmt/diff-check clean, doc tests 5/5, and the pre-existing
+  `AdapterUnavailable` device-suite failures unchanged from the parent commit.
+
+## COEUS-HEPHAESTUS-CUDA-001 — Route CUDA elementwise/reduction through the generic bridge [major] [arch]
+
+- Owner: Codex; scope: the Coeus CUDA crate plus the Coeus-Hephaestus bridge.
+- Outcome: CUDA elementwise, scalar-power, reduction, and scan operations
+  delegate through `HephaestusBackend<CudaBackend>` with provider
+  operation-bundle declarations on `CudaBackend`; the cloned NVRTC elementwise
+  fallback layer and contiguous/strided launchers are deleted.
+- Non-goals: wgpu deletion (separate ledger row), publication, hardware
+  performance claims, or host/CPU fallback paths; `f64` elementwise stays a
+  hephaestus-cuda capability follow-up until the comparison operations exist
+  at a pinned gitlink.
+- Acceptance: the deleted modules have no callers; provider bundles compile
+  under the overlay with the `cuda` feature; strict check has 0 code
+  warnings, 25 lib + 99 parity + 2 doctests pass, strict clippy `-D warnings`
+  rc=0, fmt/diff-check clean, and the version-guard scan on the delivery
+  range reports 0 defects.
+
 ## COEUS-HEPHAESTUS-METAL-ROCM-001 — Delete duplicated accelerator routing [major] [arch]
 
 - Owner: Codex; scope: the Coeus Hephaestus bridge plus Metal and ROCm

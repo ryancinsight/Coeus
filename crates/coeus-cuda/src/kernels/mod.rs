@@ -2,8 +2,6 @@
 pub mod fuse;
 /// Kernel module for tiled matrix multiplication kernel launch.
 pub mod launch_matmul;
-/// Kernel module for element-wise operator kernel launches.
-pub mod launch_ops;
 /// Kernel module for pooling operations.
 pub mod pool;
 /// Kernel module for embedded PTX kernel source.
@@ -14,13 +12,8 @@ pub mod reduce;
 pub mod unfold_fold;
 mod validation;
 
-pub(crate) use validation::{checked_numel, layout_fits_cuda_storage};
-
 pub use fuse::dispatch_fused;
 pub use launch_matmul::launch_matmul_tiled;
-pub use launch_ops::{
-    launch_contiguous_binary, launch_contiguous_unary, launch_strided_binary, launch_strided_unary,
-};
 pub use pool::{
     dispatch_avg_pool1d, dispatch_avg_pool1d_backward, dispatch_avg_pool2d,
     dispatch_avg_pool2d_backward, dispatch_avg_pool3d, dispatch_avg_pool3d_backward,

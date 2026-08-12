@@ -1,5 +1,21 @@
 # Coeus Gap Audit
 
+## COEUS-HEPHAESTUS-CUDA-001: `f64` elementwise comparison coverage
+
+**Location**: `hephaestus-cuda` application elementwise seam (provider-owned,
+consumed by `coeus-cuda` through `coeus-hephaestus`).
+**Gap**: the generic bridge's `BinaryElementwiseDispatch` contract requires the
+six comparison `TypedBinaryExpr<CudaC, T>` operations (`Eq`/`Ne`/`Lt`/`Gt`/`Le`/
+`Ge`) for every scalar it advertises. hephaestus-cuda implements them for
+`f32`/`u32`/`i32` but not `f64` at the pinned gitlink, so `coeus-cuda` wires
+`ElementwiseProvider<f32|i32>` only (matching the Metal/ROCM coverage) and
+keeps `f64` scalar-power via `ScalarPowerProvider<f64>`. The pre-bridge NVRTC
+kernel-string path had no such dialect gate and supported `f64` comparisons.
+**Resolution target**: add `TypedBinaryExpr<CudaC, f64>` for the six comparison
+operations in hephaestus-cuda, then restore `ElementwiseProvider<f64>` in
+`coeus-cuda` (`crates/coeus-cuda/src/backend/ops/impls/elementwise.rs`) and
+re-run the cuda parity suite.
+
 ## COEUS-CROSS-ENTROPY-PROVIDER-001: Loss host staging
 
 **Location**: `coeus-nn/src/loss.rs` and

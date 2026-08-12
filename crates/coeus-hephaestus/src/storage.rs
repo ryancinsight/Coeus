@@ -41,6 +41,20 @@ where
         }
     }
 
+    /// Adopt a shared provider buffer handle without copying its contents.
+    ///
+    /// Vendor crates that keep their own storage wrapper (for example Coeus
+    /// CUDA's `CudaStorage`) can share the same `Arc` handle with the bridge,
+    /// so the generic backend implementations dispatch over the identical
+    /// device buffer with zero copies and no re-allocation.
+    #[must_use]
+    pub fn from_arc(buffer: Arc<<P::Device as ComputeDevice>::Buffer<T>>) -> Self {
+        Self {
+            buffer,
+            marker: PhantomData,
+        }
+    }
+
     /// Allocate zeroed storage in the provider's device tier.
     #[must_use]
     pub fn new(len: usize) -> Self {
