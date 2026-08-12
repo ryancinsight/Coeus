@@ -233,6 +233,47 @@ mod tests {
     use coeus_core::BackendError;
 
     #[test]
+    fn bridge_rank_rejection_keeps_the_historical_reduction_label() {
+        let bridge_error =
+            coeus_hephaestus::HephaestusBackendError::Backend(BackendError::UnsupportedRank {
+                operation: "reduce",
+                rank: 3,
+                max_rank: 2,
+            });
+
+        let mapped: WgpuBackendError = bridge_error.into();
+
+        assert!(matches!(
+            mapped,
+            WgpuBackendError::Validation(BackendError::UnsupportedRank {
+                operation: "reduction",
+                rank: 3,
+                max_rank: 2,
+            })
+        ));
+    }
+
+    #[test]
+    fn bridge_device_failures_surface_as_typed_dispatch_errors() {
+        let bridge_error = coeus_hephaestus::HephaestusBackendError::device(
+            "reduce",
+            hephaestus_core::HephaestusError::DispatchFailed {
+                message: "provider rejected the kernel".to_owned(),
+            },
+        );
+
+        let mapped: WgpuBackendError = bridge_error.into();
+
+        assert!(matches!(
+            mapped,
+            WgpuBackendError::Dispatch {
+                operation: "reduce",
+                source: hephaestus_core::HephaestusError::DispatchFailed { .. },
+            }
+        ));
+    }
+
+    #[test]
     fn rounds_lengths_without_narrowing_loss() {
         assert!(matches!(checked_workgroup_count("test", 0), Ok(0)));
         assert!(matches!(checked_workgroup_count("test", 256), Ok(1)));
