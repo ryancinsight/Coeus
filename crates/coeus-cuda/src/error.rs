@@ -71,6 +71,45 @@ impl From<BackendError> for CudaBackendError {
     }
 }
 
+impl From<coeus_hephaestus::HephaestusBackendError> for CudaBackendError {
+    fn from(source: coeus_hephaestus::HephaestusBackendError) -> Self {
+        match source {
+            // The historical CUDA backend reported rank rejection for axis
+            // reductions under the operation label "reduction"; the bridge
+            // labels the same dispatch "reduce". Normalize so the public
+            // `UnsupportedRank` contract is unchanged for consumers.
+            coeus_hephaestus::HephaestusBackendError::Backend(BackendError::UnsupportedRank {
+                operation: "reduce",
+                rank,
+                max_rank,
+            }) => Self::UnsupportedRank {
+                operation: "reduction",
+                rank,
+                max_rank,
+            },
+            coeus_hephaestus::HephaestusBackendError::Backend(BackendError::UnsupportedRank {
+                operation,
+                rank,
+                max_rank,
+            }) => Self::UnsupportedRank {
+                operation,
+                rank,
+                max_rank,
+            },
+            coeus_hephaestus::HephaestusBackendError::Backend(error) => Self::validation(error),
+            coeus_hephaestus::HephaestusBackendError::Device { operation, source } => {
+                Self::Dispatch { operation, source }
+            }
+            // The bridge error is non-exhaustive so future provider categories
+            // degrade to a typed backend validation failure rather than panic.
+            _ => Self::validation(BackendError::Storage {
+                operation: "hephaestus dispatch",
+                reason: "unclassified Hephaestus backend failure".to_string(),
+            }),
+        }
+    }
+}
+
 impl CudaBackendError {
     #[cfg(feature = "cuda")]
     pub(crate) fn fusion(operation: &'static str, reason: impl Into<String>) -> Self {

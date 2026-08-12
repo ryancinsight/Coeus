@@ -13,6 +13,28 @@
   aliases or host fallbacks remain. See
   [ADR 0060](docs/adr/0060-provider-owned-metal-rocm-bridge.md).
 
+- [major] [arch] Route CUDA elementwise and reduction/scan operations through
+  the generic `HephaestusBackend<CudaBackend>` bridge and delete the cloned
+  NVRTC fallback layers. `CudaBackend` now declares the provider
+  operation-bundle impls (`ElementwiseProvider<f32|i32>`,
+  `ScalarPowerProvider<f32|f64>`, `ReductionProvider`, and the existing
+  parameterized/random/rotate-half/cross-entropy bundles) exactly like the
+  Metal and ROCm crates, and its `coeus_ops::ElementwiseOps`/`ScalarPowerOps`/
+  `ReductionOps` impls delegate through the bridge over the same
+  `Arc<CudaBuffer<T>>` handles via the new zero-copy
+  `HephaestusStorage::from_arc` seam. The superseded `math/elementwise/*`
+  kernel-codegen layer and the `kernels/launch_ops/*` contiguous/strided
+  launchers are deleted (−273 net lines); the removed public names
+  `coeus_cuda::kernels::{launch_contiguous_binary, launch_contiguous_unary,
+  launch_strided_binary, launch_strided_unary}` require external callers to
+  migrate. Rank rejection for axis reductions keeps the historical
+  `CudaBackendError::UnsupportedRank` wire contract (operation label
+  normalized `"reduce"` → `"reduction"`, max rank 2). `f64` elementwise is
+  intentionally not wired: hephaestus-cuda implements the bridge's required
+  comparison `TypedBinaryExpr<CudaC, T>` set for `f32`/`u32`/`i32` but not
+  `f64` at the pinned gitlink; `f64` scalar-power remains available and
+  restoring `f64` elementwise is a hephaestus-cuda capability follow-up.
+
 - [patch] Migrate `multi_label_margin_loss` to provider-resident forward and
   backward, closing the last non-sequential host-staged loss family. The
   pairwise formulation builds an `[N, C, C]` active tensor via broadcast:

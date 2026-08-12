@@ -12,6 +12,28 @@
       Coeus Hephaestus bridge and provider operation-bundle declarations.
 - [x] Delete the superseded vendor modules and migrate tests to
       `HephaestusBackend<Provider>` without public aliases or fallback paths.
+
+## COEUS-HEPHAESTUS-CUDA-001 [major] [arch]
+
+- [x] Route CUDA elementwise/scalar-power/reduction/scan through the generic
+      Coeus-Hephaestus bridge with provider operation bundles on `CudaBackend`
+      (`ElementwiseProvider<f32|i32>`, `ScalarPowerProvider<f32|f64>`,
+      `ReductionProvider`, plus the existing parameterized/random/rotate-half/
+      cross-entropy bundles).
+- [x] Add the zero-copy `HephaestusStorage::from_arc` seam so `CudaStorage<T>`
+      (`Arc<CudaBuffer<T>>`) shares the identical device handle with the
+      bridge; add `From<HephaestusBackendError> for CudaBackendError` that
+      preserves the historical `UnsupportedRank` contract for axis reductions.
+- [x] Delete the cloned NVRTC elementwise fallback layer
+      (`backend/ops/math/elementwise/*`) and the contiguous/strided launchers
+      (`kernels/launch_ops/*`); remove the public launch helper re-exports.
+- [x] Run the strict gate under the overlay with the `cuda` feature: check
+      (0 warnings), 25 lib + 99 parity + 2 doctests pass, strict clippy
+      `-D warnings` rc=0, fmt + `git diff --check` clean, stub path green.
+- [ ] Restore `f64` elementwise once hephaestus-cuda implements the six
+      comparison `TypedBinaryExpr<CudaC, f64>` operations (recorded in
+      `docs/gap_audit.md`); `f64` scalar-power already routes through the
+      bridge.
 - [x] Record the replacement and external migration contract in ADR 0060.
 - [x] Run focused native Nextest (17/17), doctests (0/0), format, warning-denied
       Clippy, and diff hygiene; physical-device execution is not claimed.
