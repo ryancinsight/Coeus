@@ -4,6 +4,16 @@
 
 ### Changed
 
+- [minor] Extend `LayerNorm` to normalize any configured non-empty positive
+  trailing shape, not only a single final dimension. `NormalizedShape` is
+  shared by Rust and Python surfaces; forward validates the input suffix,
+  flattens it for the existing provider kernel, restores the input shape, and
+  restores weight/bias gradients to their configured shape. Python accepts an
+  integer or a positive sequence for both `LayerNorm` and functional
+  `layer_norm`. Added CPU and Python value-semantic coverage for forward,
+  backward shape restoration, and mismatch rejection. No performance claim is
+  made without a controlled comparison.
+
 - [major] [arch] Delete duplicated Metal and ROCm consumer operation
   dispatch. Both crates now expose the generic
   `HephaestusBackend<Provider>` over provider-owned elementwise,

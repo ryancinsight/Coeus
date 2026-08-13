@@ -1,3 +1,4 @@
+use crate::nn::normalization::layernorm::parse_normalized_shape;
 use crate::{nn::error::map_module_error, tensor::PyTensor};
 use coeus_tensor::Tensor;
 use pyo3::exceptions::PyValueError;
@@ -7,7 +8,7 @@ use pyo3::prelude::*;
 #[pyo3(signature = (input, norm_shape, weight = None, bias = None, eps = 1e-5))]
 pub fn layer_norm(
     input: &PyTensor,
-    norm_shape: usize,
+    norm_shape: &Bound<'_, PyAny>,
     weight: Option<&PyTensor>,
     bias: Option<&PyTensor>,
     eps: f64,
@@ -18,29 +19,18 @@ pub fn layer_norm(
             "layer_norm: eps must be finite and non-negative",
         ));
     }
-    let shape = input.inner.tensor.shape();
-    if shape.len() < 2 {
-        return Err(PyValueError::new_err(
-            "layer_norm: input must have rank >= 2",
-        ));
-    }
-    let last_dim = shape[shape.len() - 1];
-    if norm_shape != last_dim {
-        return Err(PyValueError::new_err(format!(
-            "layer_norm: norm_shape ({norm_shape}) must match input last dimension ({last_dim})"
-        )));
-    }
+    let norm_shape = parse_normalized_shape(norm_shape)?;
     if let Some(w) = weight {
-        if w.inner.tensor.shape() != [norm_shape] {
+        if w.inner.tensor.shape() != norm_shape.as_slice() {
             return Err(PyValueError::new_err(
-                "layer_norm: weight must have shape [norm_shape]",
+                "layer_norm: weight must have shape normalized_shape",
             ));
         }
     }
     if let Some(b) = bias {
-        if b.inner.tensor.shape() != [norm_shape] {
+        if b.inner.tensor.shape() != norm_shape.as_slice() {
             return Err(PyValueError::new_err(
-                "layer_norm: bias must have shape [norm_shape]",
+                "layer_norm: bias must have shape normalized_shape",
             ));
         }
     }

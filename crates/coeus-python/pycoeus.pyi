@@ -478,7 +478,9 @@ class LayerNorm:
     weight: Tensor
     bias: Tensor
     eps: float
-    def __init__(self, normalized_shape: int, eps: float = 1e-5) -> None: ...
+    def __init__(
+        self, normalized_shape: Union[int, Sequence[int]], eps: float = 1e-5
+    ) -> None: ...
     def forward(self, input: Tensor) -> Tensor: ...
     def forward_nd(self, input: Tensor) -> Tensor: ...
     def parameters(self) -> List[Tensor]: ...
@@ -888,7 +890,7 @@ class no_grad:
 def shutdown() -> None: ...
 def layer_norm(
     input: Tensor,
-    norm_shape: int,
+    norm_shape: Union[int, Sequence[int]],
     weight: Optional[Tensor] = None,
     bias: Optional[Tensor] = None,
     eps: float = 1e-5,
