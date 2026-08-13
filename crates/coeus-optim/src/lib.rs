@@ -39,7 +39,8 @@ pub use adam::Adam;
 pub use adamw::AdamW;
 pub use clip::clip_grad_norm;
 pub use least_squares::{
-    levenberg_marquardt, LeastSquaresProblem, LeastSquaresReport, LeastSquaresScalar,
+    batched_levenberg_marquardt, levenberg_marquardt, BatchedLeastSquaresProblem,
+    BatchedSolverError, LeastSquaresProblem, LeastSquaresReport, LeastSquaresScalar,
     LevenbergMarquardtConfig, ProblemError, SolverError, Termination,
 };
 pub use rmsprop::RMSProp;

@@ -56,6 +56,60 @@ impl<T: Scalar> LeastSquaresProblem<T> for LinearProblem<T> {
     }
 }
 
+/// Two independent 2×2 linear systems sharing one residual/parameter shape.
+struct BatchedLinearProblem<T> {
+    matrix: Vec<T>,
+    target: Vec<T>,
+    problems: usize,
+    residuals: usize,
+    parameters: usize,
+}
+
+impl<T: Scalar> BatchedLeastSquaresProblem<T> for BatchedLinearProblem<T> {
+    fn problem_count(&self) -> usize {
+        self.problems
+    }
+
+    fn residual_count(&self) -> usize {
+        self.residuals
+    }
+
+    fn parameter_count(&self) -> usize {
+        self.parameters
+    }
+
+    fn residuals(
+        &self,
+        problem_index: usize,
+        parameters: &[T],
+        residuals: &mut [T],
+    ) -> Result<(), ProblemError> {
+        let matrix_start = problem_index * self.residuals * self.parameters;
+        let target_start = problem_index * self.residuals;
+        for (row, slot) in residuals.iter_mut().enumerate() {
+            let row_start = matrix_start + row * self.parameters;
+            let mut sum = T::zero();
+            for (column, parameter) in parameters.iter().enumerate() {
+                sum += self.matrix[row_start + column] * *parameter;
+            }
+            *slot = sum - self.target[target_start + row];
+        }
+        Ok(())
+    }
+
+    fn jacobian(
+        &self,
+        problem_index: usize,
+        _parameters: &[T],
+        jacobian: &mut [T],
+    ) -> Result<(), ProblemError> {
+        let start = problem_index * self.residuals * self.parameters;
+        let end = start + self.residuals * self.parameters;
+        jacobian.copy_from_slice(&self.matrix[start..end]);
+        Ok(())
+    }
+}
+
 /// Monoexponential decay `S(b) = s0 · exp(-b · d)`, the shape every diffusion
 /// signal model is built from.
 ///
@@ -370,6 +424,60 @@ fn parameter_count_mismatch_is_rejected<T: LeastSquaresScalar>() {
     ));
 }
 
+fn batched_linear_problems_recover_independent_minima<T: LeastSquaresScalar>() {
+    let problem = BatchedLinearProblem::<T> {
+        // A₀ = I, target₀ = [2, -1]; A₁ = [[2, 1], [1, 3]], target₁ = [4, 7].
+        matrix: [1.0, 0.0, 0.0, 1.0, 2.0, 1.0, 1.0, 3.0]
+            .map(<T as Scalar>::from_f64)
+            .to_vec(),
+        target: [2.0, -1.0, 4.0, 7.0].map(<T as Scalar>::from_f64).to_vec(),
+        problems: 2,
+        residuals: 2,
+        parameters: 2,
+    };
+
+    let reports = batched_levenberg_marquardt(
+        &problem,
+        &[T::zero(), T::zero(), T::zero(), T::zero()],
+        &LevenbergMarquardtConfig::default(),
+    )
+    .expect("both independent linear systems are solvable");
+
+    assert_eq!(reports.len(), 2, "the leading problem axis is preserved");
+    let tolerance = sqrt_epsilon::<T>() * <T as Scalar>::from_f64(100.0);
+    let expected = [[2.0, -1.0], [1.0, 2.0]];
+    for (report, expected_parameters) in reports.iter().zip(expected) {
+        assert!(report.termination.is_converged());
+        for (actual, expected) in report.parameters.iter().zip(expected_parameters) {
+            assert!(((*actual - <T as Scalar>::from_f64(expected)).abs_val()) < tolerance);
+        }
+    }
+}
+
+fn batched_parameter_count_mismatch_is_rejected<T: LeastSquaresScalar>() {
+    let problem = BatchedLinearProblem::<T> {
+        matrix: [1.0, 0.0, 0.0, 1.0].map(<T as Scalar>::from_f64).to_vec(),
+        target: [1.0, 1.0].map(<T as Scalar>::from_f64).to_vec(),
+        problems: 1,
+        residuals: 2,
+        parameters: 2,
+    };
+
+    let error =
+        batched_levenberg_marquardt(&problem, &[T::zero()], &LevenbergMarquardtConfig::default())
+            .expect_err("the flattened leading-axis buffer has the wrong length");
+
+    assert!(matches!(
+        error,
+        BatchedSolverError::ParameterCount {
+            expected: 2,
+            problems: 1,
+            parameters_per_problem: 2,
+            actual: 1
+        }
+    ));
+}
+
 /// Instantiate every generic body across the shipped scalar types.
 ///
 /// A solver verified at one concrete type is unverified for the rest; `f32` in
@@ -416,6 +524,16 @@ macro_rules! scalar_suite {
             #[test]
             fn parameter_count_mismatch_is_rejected() {
                 super::parameter_count_mismatch_is_rejected::<$scalar>();
+            }
+
+            #[test]
+            fn batched_linear_problems_recover_independent_minima() {
+                super::batched_linear_problems_recover_independent_minima::<$scalar>();
+            }
+
+            #[test]
+            fn batched_parameter_count_mismatch_is_rejected() {
+                super::batched_parameter_count_mismatch_is_rejected::<$scalar>();
             }
         }
     };

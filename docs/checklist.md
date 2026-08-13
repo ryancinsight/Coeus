@@ -1,5 +1,17 @@
 # Global Progress Checklist: Coeus
 
+## COEUS-NLLS-BATCH-001 — Batch independent nonlinear least-squares fits
+
+- [x] Add the generic `BatchedLeastSquaresProblem` contract with explicit
+      leading-axis, residual-count, and parameter-count semantics.
+- [x] Route each indexed slice through the existing
+      `levenberg_marquardt` implementation; preserve the single-problem
+      numerical source of truth and return typed indexed failures.
+- [x] Add f32/f64 value-semantic linear-fit recovery and flattened-parameter
+      rejection tests.
+- [x] Pass formatting, locked all-target check, warning-denied all-target
+      Clippy, Nextest 43/43, 10 doctests, and rustdoc.
+
 ## COEUS-BCE-LOGITS-PROVIDER-001 — Codex
 
 - [x] Confirm the current generic operation still stages logits, targets,

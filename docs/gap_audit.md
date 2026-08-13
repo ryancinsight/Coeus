@@ -1,5 +1,17 @@
 # Coeus Gap Audit
 
+## COEUS-NLLS-BATCH-001: Batched nonlinear least-squares closure
+
+`coeus-optim` now exposes `BatchedLeastSquaresProblem` and
+`batched_levenberg_marquardt`. The contract keeps each problem's parameter
+and residual slices contiguous, passes the leading-axis index to the model,
+and returns reports in input order. Each slice delegates to the existing
+Levenberg–Marquardt solver, so damping, convergence, domain rejection, and
+finite-value checks remain one implementation. `BatchedSolverError` preserves
+flattened-input validation and the failing problem index. Evidence: locked
+all-target check, warning-denied Clippy, Nextest 43/43 across f32/f64,
+10 doctests, rustdoc, and format checks. This item makes no performance claim.
+
 ## COEUS-HEPHAESTUS-CUDA-001: `f64` elementwise comparison coverage
 
 **Location**: `hephaestus-cuda` application elementwise seam (provider-owned,
