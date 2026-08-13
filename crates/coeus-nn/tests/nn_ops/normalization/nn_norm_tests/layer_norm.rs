@@ -103,6 +103,73 @@ fn layernorm_module_normalizes_rank_three_trailing_dimension() {
 }
 
 #[test]
+fn layernorm_normalizes_multiple_trailing_dimensions_and_restores_gradients() {
+    let layer = LayerNorm::<f64>::from_shape([2, 3], 1e-5);
+    let input = Var::new(
+        Tensor::from_slice(
+            [2, 2, 3],
+            &[
+                1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0,
+            ],
+        ),
+        true,
+    );
+
+    let output = layer
+        .forward(&input)
+        .expect("configured trailing shape matches rank-three input");
+    assert_eq!(output.tensor.shape(), &[2, 2, 3]);
+    for window in output.tensor.as_slice().chunks_exact(6) {
+        let mean = window.iter().sum::<f64>() / 6.0;
+        let variance = window
+            .iter()
+            .map(|value| (value - mean).powi(2))
+            .sum::<f64>()
+            / 6.0;
+        assert!(mean.abs() < 1e-12);
+        assert!((variance - 1.0).abs() < 1e-4);
+    }
+
+    output
+        .backward()
+        .expect("invariant: multi-dimensional LayerNorm backward completes");
+    assert_eq!(
+        input
+            .grad()
+            .expect("tracked multi-dimensional input receives a gradient")
+            .shape(),
+        &[2, 2, 3]
+    );
+    let bias_grad = layer
+        .bias
+        .grad()
+        .expect("tracked multi-dimensional bias receives a gradient");
+    assert_eq!(bias_grad.shape(), &[2, 3]);
+    assert!(bias_grad
+        .as_slice()
+        .iter()
+        .all(|value| (*value - 2.0).abs() < 1e-12));
+}
+
+#[test]
+fn layernorm_rejects_mismatched_trailing_shape() {
+    let layer = LayerNorm::<f64>::from_shape([2, 3], 1e-5);
+    let input = Var::new(Tensor::zeros([2, 3, 4]), false);
+
+    let error = match layer.forward(&input) {
+        Ok(_) => panic!("input trailing dimensions must match normalized_shape"),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        error,
+        ModuleError::ShapeMismatch {
+            parameter: "input trailing dimensions",
+            ..
+        }
+    ));
+}
+
+#[test]
 fn test_rmsnorm() {
     let mut rms = RMSNorm::<f64>::new(3, 1e-5);
     init::constant(&mut rms.weight, 1.0);

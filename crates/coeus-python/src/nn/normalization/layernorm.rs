@@ -4,13 +4,31 @@ use crate::{
 };
 use pyo3::prelude::*;
 
+pub(crate) fn parse_normalized_shape(value: &Bound<'_, PyAny>) -> PyResult<Vec<usize>> {
+    let shape = if let Ok(dimension) = value.extract::<usize>() {
+        vec![dimension]
+    } else {
+        value.extract::<Vec<usize>>().map_err(|_| {
+            pyo3::exceptions::PyTypeError::new_err(
+                "LayerNorm: normalized_shape must be int or sequence of ints",
+            )
+        })?
+    };
+    if shape.is_empty() || shape.iter().any(|&dimension| dimension == 0) {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "LayerNorm: normalized_shape must contain positive dimensions",
+        ));
+    }
+    Ok(shape)
+}
+
 /// Python-exposed Layer Normalization layer.
 #[pyclass(name = "LayerNorm")]
 pub struct PyLayerNorm {
-    /// Learnable scale (gamma), shape `[normalized_shape]`.
+    /// Learnable scale with shape `normalized_shape`.
     #[pyo3(get)]
     pub weight: Py<PyTensor>,
-    /// Learnable shift (beta), shape `[normalized_shape]`.
+    /// Learnable shift with shape `normalized_shape`.
     #[pyo3(get)]
     pub bias: Py<PyTensor>,
     /// Numerical stability epsilon added to the denominator.
@@ -21,79 +39,42 @@ pub struct PyLayerNorm {
 #[pymethods]
 impl PyLayerNorm {
     #[new]
-    /// Create a LayerNorm layer normalizing over `normalized_shape` dimensions.
+    /// Create a LayerNorm layer over one or more trailing dimensions.
     ///
-    /// Mirrors `torch.nn.LayerNorm` constructor argument conventions: accepts a
-    /// single `int` (like `nn.LayerNorm(8)`) or a length-1 sequence
-    /// (`nn.LayerNorm([8])` / `nn.LayerNorm((8,))`).  Sequences of length > 1
-    /// currently reduce to the product of their elements minus the trailing
-    /// dims — i.e. only single-dim normalization is supported by the Rust core,
-    /// matching the existing `LayerNorm::new(usize, f64)` contract.  Multi-dim
-    /// LayerNorm is a deferred surface.
+    /// Mirrors `torch.nn.LayerNorm`: `normalized_shape` accepts an integer or
+    /// a non-empty sequence of positive integers.
     #[pyo3(signature = (normalized_shape, eps=None))]
     pub fn new(
         py: Python<'_>,
         normalized_shape: &Bound<'_, PyAny>,
         eps: Option<f64>,
     ) -> PyResult<Self> {
+        let normalized_shape = parse_normalized_shape(normalized_shape)?;
         let eps = eps.unwrap_or(1e-5);
-        // Prefer int — the cheaper path and the canonical Coeus form.
-        let shape_int: usize = match normalized_shape.extract() {
-            Ok(v) => v,
-            Err(_) => {
-                // Fall back to a sequence (list/tuple) of ints.  Length-1 reduces
-                // to the inner shape; longer sequences are not yet supported by
-                // the Rust core LayerNorm.
-                let seq: Vec<usize> = normalized_shape.extract().map_err(|_| {
-                    pyo3::exceptions::PyTypeError::new_err(
-                        "LayerNorm: normalized_shape must be int or sequence of ints",
-                    )
-                })?;
-                if seq.len() != 1 {
-                    return Err(pyo3::exceptions::PyNotImplementedError::new_err(format!(
-                        "LayerNorm: multi-dim normalized_shape {seq:?} not supported \
-                         (Coeus LayerNorm::new takes a single usize)"
-                    )));
-                }
-                seq[0]
-            }
-        };
-        let ln =
-            coeus_nn::normalization::layernorm::LayerNorm::<f64, coeus_core::MoiraiBackend>::new(
-                shape_int, eps,
-            );
-        let weight = Py::new(py, PyTensor { inner: ln.weight })?;
-        let bias = Py::new(py, PyTensor { inner: ln.bias })?;
+        let layer = coeus_nn::normalization::layernorm::LayerNorm::<
+            f64,
+            coeus_core::MoiraiBackend,
+        >::from_shape(normalized_shape, eps);
+        let weight = Py::new(
+            py,
+            PyTensor {
+                inner: layer.weight,
+            },
+        )?;
+        let bias = Py::new(py, PyTensor { inner: layer.bias })?;
         Ok(Self { weight, bias, eps })
     }
 
-    /// Forward pass through the LayerNorm layer.
-    ///
-    /// Accepts 2-D input `[N, D]`. For higher-rank inputs (`[batch, seq, D]`, etc.)
-    /// call `forward_nd` which handles any rank ≥ 2 via transparent reshape.
+    /// Forward pass through LayerNorm over the configured trailing dimensions.
     pub fn forward(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
-        use coeus_nn::Module;
-        let w_var = self.weight.bind(py).borrow().inner.clone();
-        let b_var = self.bias.bind(py).borrow().inner.clone();
-        let input_var = input.inner.clone();
-        let eps_val = self.eps;
-
-        let inner = py.allow_threads(move || {
-            let ln =
-                coeus_nn::normalization::layernorm::LayerNorm::from_parts(w_var, b_var, eps_val);
-            ln.forward(&input_var)
-        });
-        inner.map(PyTensor::from_var).map_err(map_module_error)
+        self.forward_nd(input, py)
     }
 
     /// Forward pass accepting any rank ≥ 2 input.
     ///
-    /// Applies LayerNorm over the last dimension regardless of the number of leading
-    /// dimensions.  Equivalent to `torch.nn.LayerNorm` called on 3-D Transformer
-    /// hidden states `[batch, seq, d_model]` or any other rank-N tensor.
-    ///
-    /// All reshape operations are tracked, so gradients flow through the entire
-    /// flatten → normalize → unflatten chain.
+    /// The configured suffix is normalized as one feature domain and the
+    /// original input shape is preserved. All reshape operations are tracked,
+    /// so gradients flow through the flatten → normalize → unflatten chain.
     pub fn forward_nd(&self, input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         let w_var = self.weight.bind(py).borrow().inner.clone();
         let b_var = self.bias.bind(py).borrow().inner.clone();
@@ -101,9 +82,9 @@ impl PyLayerNorm {
         let eps_val = self.eps;
 
         let inner = py.allow_threads(move || {
-            let ln =
+            let layer =
                 coeus_nn::normalization::layernorm::LayerNorm::from_parts(w_var, b_var, eps_val);
-            ln.forward_nd(&input_var)
+            layer.forward_nd(&input_var)
         });
         inner.map(PyTensor::from_var).map_err(map_module_error)
     }

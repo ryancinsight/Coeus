@@ -8,7 +8,7 @@ pub mod batchnorm3d;
 pub mod groupnorm;
 /// Instance normalization layers (1D, 2D, 3D).
 pub mod instancenorm;
-/// Layer normalization (normalize over the last dimension).
+/// Layer normalization over a configured trailing shape.
 pub mod layernorm;
 /// RMS normalization layer.
 pub mod rmsnorm;
@@ -19,5 +19,5 @@ pub use batchnorm2d::BatchNorm2d;
 pub use batchnorm3d::BatchNorm3d;
 pub use groupnorm::{group_norm, GroupNorm};
 pub use instancenorm::{InstanceNorm1d, InstanceNorm2d, InstanceNorm3d};
-pub use layernorm::{layer_norm, LayerNorm};
+pub use layernorm::{layer_norm, LayerNorm, NormalizedShape};
 pub use rmsnorm::{rms_norm, RMSNorm};
