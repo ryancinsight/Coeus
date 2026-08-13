@@ -10,8 +10,13 @@
 - Acceptance: all six comparison masks match the CPU provider exactly on a
   transposed rank-two f64 tensor; locked check, warning-denied Clippy, Nextest,
   doctests, and exact-head hosted CUDA contracts pass.
-- Status: in progress; provider PR #204 merged at
-  `b34b50787df636891d281b5011c6a17dd46edcb0`; consumer delivery pending.
+- Status: complete 2026-08-13. Coeus PR #324 source `fe4e57e6592b3b0abaed5451e763c0625e0553af`
+  merged as default `aabdec67a0f5baa415c4abb6dded69db41b2f2d6`. Exact default
+  backend-parity run `31672329963` passes WGPU, CUDA, ROCm, and Metal provider
+  contracts. Required-device CUDA and ROCm jobs were skipped because hosted
+  hardware was unavailable; no physical-device execution claim is made. The
+  PR's CUDA, Metal, ROCm, and WGPU provider checks passed; the independent
+  `recurseml/analysis` status failed and is not provider evidence.
 
 ## COEUS-NLLS-BATCH-001 — Batch independent nonlinear least-squares fits [minor]
 

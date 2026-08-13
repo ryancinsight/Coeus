@@ -8,9 +8,11 @@
       dispatch and no fallback path.
 - [x] Add exact CPU/CUDA parity coverage for all six comparisons over a
       transposed rank-two tensor.
-- [ ] Pass locked Coeus CUDA checks, strict Clippy, Nextest, doctests, and the
-      exact-head hosted CUDA adapterless gate; merge the consumer and refresh
-      the Atlas gitlink.
+- [x] Pass the locked Coeus CUDA check, warning-denied Clippy, focused Nextest,
+      doctest, and exact-head hosted backend contracts through PR #324.
+- [x] Merge the consumer as default `aabdec67` and record exact default run
+      `31672329963`; WGPU, CUDA, ROCm, and Metal provider contracts pass, while
+      required-device CUDA/ROCm jobs remain skipped without a hardware claim.
 
 ## COEUS-NLLS-BATCH-001 — Batch independent nonlinear least-squares fits
 

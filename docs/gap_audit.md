@@ -20,8 +20,13 @@ consumed by `coeus-cuda` through `coeus-hephaestus`).
 `b34b50787df636891d281b5011c6a17dd46edcb0`, and Coeus restores
 `ElementwiseProvider<f64>` with the arithmetic unary contract. The CUDA parity
 test covers all six comparisons over a transposed rank-two tensor and asserts
-exact mask equality against the CPU provider. Hosted CUDA adapterless contracts
-and local compile/test gates are required evidence before closure.
+exact mask equality against the CPU provider. PR #324 merged the consumer at
+`aabdec67a0f5baa415c4abb6dded69db41b2f2d6`. Exact default backend-parity run
+`31672329963` passes WGPU, CUDA, ROCm, and Metal provider contracts; the
+required-device CUDA and ROCm jobs were skipped, so no physical-device
+execution claim is made. The PR's locked CUDA check, warning-denied Clippy,
+focused Nextest, doctest, and backend checks passed. The independent
+`recurseml/analysis` status failed and is not provider evidence.
 
 **Historical gap**: the generic bridge's `BinaryElementwiseDispatch` contract
 required the six comparison `TypedBinaryExpr<CudaC, T>` operations (`Eq`/`Ne`/
@@ -30,8 +35,8 @@ hephaestus-cuda implemented them for `f32`/`u32`/`i32` but not `f64`, so
 `coeus-cuda` wired `ElementwiseProvider<f32|i32>` only and kept `f64`
 scalar-power via `ScalarPowerProvider<f64>`. The pre-bridge NVRTC kernel-string
 path had no such dialect gate and supported `f64` comparisons.
-**Resolution**: provider and consumer work is complete in the active branch;
-the Coeus PR and exact-head hosted gate remain the delivery boundary.
+**Resolution**: provider and consumer work is complete at their merged default
+heads; Atlas integration records the Coeus pointer separately.
 
 ## COEUS-CROSS-ENTROPY-PROVIDER-001: Loss host staging
 
