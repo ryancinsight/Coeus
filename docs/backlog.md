@@ -1,5 +1,18 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons [major]
+
+- Owner: Codex; scope: `coeus-cuda` provider declaration, CUDA parity tests,
+  locked provider graph, workflow filter, and PM artifacts.
+- Outcome: consume Hephaestus's provider-owned CUDA f64 comparison expressions
+  through the generic Coeus-Hephaestus bridge; no host fallback or compatibility
+  path is retained.
+- Acceptance: all six comparison masks match the CPU provider exactly on a
+  transposed rank-two f64 tensor; locked check, warning-denied Clippy, Nextest,
+  doctests, and exact-head hosted CUDA contracts pass.
+- Status: in progress; provider PR #204 merged at
+  `b34b50787df636891d281b5011c6a17dd46edcb0`; consumer delivery pending.
+
 ## COEUS-NLLS-BATCH-001 — Batch independent nonlinear least-squares fits [minor]
 
 - Owner: Codex; scope: `coeus-optim::least_squares`.

@@ -113,6 +113,70 @@ fn test_cuda_strided_activation_tail_matches_cpu() {
 }
 
 #[test]
+fn test_cuda_f64_comparisons_match_cpu() {
+    let available = hephaestus_cuda::CudaDevice::try_default().is_ok()
+        && coeus_cuda::CudaDriver::get().is_some()
+        && coeus_cuda::get_cuda_context().is_some();
+    if !available {
+        assert_ne!(
+            std::env::var("HEPHAESTUS_CUDA_REQUIRE_DEVICE").as_deref(),
+            Ok("1"),
+            "CUDA CI requires an acquired device"
+        );
+        return;
+    }
+
+    let sequential = SequentialBackend::new();
+    let cuda = CudaBackend::new();
+    let lhs_values = [-2.0_f64, -0.5, 0.0, 0.5, 2.0, 3.0];
+    let rhs_values = [-1.0_f64, -0.5, 0.25, 0.5, 4.0, 3.0];
+    let lhs = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 3], &lhs_values).transpose();
+    let rhs = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 3], &rhs_values).transpose();
+    let lhs_cuda = lhs.to_backend_on(&sequential, &cuda);
+    let rhs_cuda = rhs.to_backend_on(&sequential, &cuda);
+
+    for (operation, cpu, gpu) in [
+        (
+            "eq",
+            coeus_ops::eq(&lhs, &rhs, &sequential),
+            coeus_ops::eq(&lhs_cuda, &rhs_cuda, &cuda),
+        ),
+        (
+            "ne",
+            coeus_ops::ne(&lhs, &rhs, &sequential),
+            coeus_ops::ne(&lhs_cuda, &rhs_cuda, &cuda),
+        ),
+        (
+            "lt",
+            coeus_ops::lt(&lhs, &rhs, &sequential),
+            coeus_ops::lt(&lhs_cuda, &rhs_cuda, &cuda),
+        ),
+        (
+            "gt",
+            coeus_ops::gt(&lhs, &rhs, &sequential),
+            coeus_ops::gt(&lhs_cuda, &rhs_cuda, &cuda),
+        ),
+        (
+            "le",
+            coeus_ops::le(&lhs, &rhs, &sequential),
+            coeus_ops::le(&lhs_cuda, &rhs_cuda, &cuda),
+        ),
+        (
+            "ge",
+            coeus_ops::ge(&lhs, &rhs, &sequential),
+            coeus_ops::ge(&lhs_cuda, &rhs_cuda, &cuda),
+        ),
+    ] {
+        let gpu = gpu.to_backend_on(&cuda, &sequential);
+        assert_eq!(
+            gpu.as_slice(),
+            cpu.as_slice(),
+            "f64 CUDA comparison {operation}"
+        );
+    }
+}
+
+#[test]
 fn test_cuda_strided_parameterized_activations_match_cpu() {
     let available = hephaestus_cuda::CudaDevice::try_default().is_ok()
         && coeus_cuda::CudaDriver::get().is_some()

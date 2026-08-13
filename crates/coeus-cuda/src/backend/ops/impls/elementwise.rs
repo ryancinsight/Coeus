@@ -15,12 +15,10 @@ impl ElementwiseProvider<f32> for CudaBackend {
     type UnaryOperations = ActivationUnaryOperations;
 }
 
-// `f64` elementwise is not wired here: the bridge's `BinaryElementwiseDispatch`
-// contract requires the six comparison `TypedBinaryExpr<CudaC, T>` operations,
-// which hephaestus-cuda implements for `f32`/`u32`/`i32` but not `f64` at the
-// pinned gitlink. `f64` scalar power remains available through
-// `ScalarPowerProvider<f64>` below; restoring `f64` elementwise is a
-// hephaestus-cuda capability follow-up (recorded in the SUBSTRATE-002 ledger).
+impl ElementwiseProvider<f64> for CudaBackend {
+    type Operations = CudaElementwiseOps;
+    type UnaryOperations = ArithmeticUnaryOperations;
+}
 
 impl ElementwiseProvider<i32> for CudaBackend {
     type Operations = CudaElementwiseOps;
