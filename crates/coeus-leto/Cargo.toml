@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+readme.workspace = true
+categories.workspace = true
+keywords = ["tensor", "array", "dispatch", "const-generics", "leto"]
 description = "Const-rank dispatch shim adapting coeus dynamic-rank layouts onto leto array kernels (leto ADR 0002)."
 
 [dependencies]

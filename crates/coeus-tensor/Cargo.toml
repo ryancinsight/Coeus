@@ -5,7 +5,11 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Tensor data structures and kernels for Coeus."
+repository.workspace = true
+readme.workspace = true
+categories.workspace = true
+keywords = ["tensor", "strided", "views", "copy-on-write", "checkpoint"]
+description = "Strided tensor type with copy-on-write storage, layout views, and checkpointing for Coeus."
 [lib]
 path = "src/lib.rs"
 

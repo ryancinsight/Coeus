@@ -26,6 +26,10 @@ edition = "2021"
 rust-version = "1.95"
 authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/ryancinsight/Coeus.git"
+readme = "README.md"
+keywords = ["tensor", "autodiff", "gpu", "machine-learning", "simd"]
+categories = ["science", "mathematics", "data-structures"]
 
 [workspace.dependencies]
 # First-party providers remain Git-sourced for standalone and CI resolution.

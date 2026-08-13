@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+readme.workspace = true
+categories.workspace = true
+keywords = ["tensor", "traits", "backend", "layout", "scalar"]
 description = "Core numerical traits and execution primitives for Coeus."
 [lib]
 path = "src/lib.rs"

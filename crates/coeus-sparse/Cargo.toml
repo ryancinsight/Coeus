@@ -5,7 +5,11 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Sparse tensor operations for Coeus."
+repository.workspace = true
+readme.workspace = true
+categories.workspace = true
+keywords = ["sparse", "coo", "csr", "tensor", "storage"]
+description = "Sparse tensor storage formats (COO, CSR) for Coeus."
 
 [dependencies]
 coeus-core   = { workspace = true }

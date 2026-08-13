@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+readme.workspace = true
+categories.workspace = true
+keywords = ["autodiff", "autograd", "gradients", "tensor", "deep-learning"]
 description = "Automatic differentiation primitives for the Coeus tensor stack."
 
 [dependencies]

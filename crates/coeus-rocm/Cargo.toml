@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+readme.workspace = true
+categories = ["science", "hardware-support", "mathematics"]
+keywords = ["rocm", "amd", "gpu", "hip", "accelerator"]
 description = "ROCm backend integration for Coeus through Hephaestus."
 
 [features]

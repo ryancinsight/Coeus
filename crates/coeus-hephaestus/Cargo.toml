@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+readme.workspace = true
+categories = ["science", "hardware-support", "mathematics"]
+keywords = ["gpu", "accelerator", "device", "backend", "hephaestus"]
 description = "Generic Coeus integration layer for Hephaestus device providers."
 
 [dependencies]
