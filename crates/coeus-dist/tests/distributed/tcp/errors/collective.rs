@@ -12,6 +12,7 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_tcp_all_reduce_mismatched_numel_panics() {
+    let _guard = super::super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
@@ -38,6 +39,7 @@ fn test_tcp_all_reduce_mismatched_numel_panics() {
 
 #[test]
 fn test_tcp_all_reduce_zero_numel_mismatched_numel_panics() {
+    let _guard = super::super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
@@ -64,6 +66,7 @@ fn test_tcp_all_reduce_zero_numel_mismatched_numel_panics() {
 
 #[test]
 fn test_tcp_broadcast_mismatched_numel_panics() {
+    let _guard = super::super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
 
@@ -92,6 +95,7 @@ fn test_tcp_broadcast_mismatched_numel_panics() {
 
 #[test]
 fn test_tcp_all_gather_mismatched_peer_numel_panics() {
+    let _guard = super::super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
@@ -130,6 +134,7 @@ fn test_tcp_all_gather_mismatched_peer_numel_panics() {
 
 #[test]
 fn test_tcp_all_gather_zero_numel_mismatched_peer_numel_panics() {
+    let _guard = super::super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
@@ -168,6 +173,7 @@ fn test_tcp_all_gather_zero_numel_mismatched_peer_numel_panics() {
 
 #[test]
 fn test_tcp_reduce_mismatched_numel_panics() {
+    let _guard = super::super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
 
@@ -196,6 +202,7 @@ fn test_tcp_reduce_mismatched_numel_panics() {
 
 #[test]
 fn test_tcp_gather_mismatched_peer_numel_panics() {
+    let _guard = super::super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
@@ -230,6 +237,7 @@ fn test_tcp_gather_mismatched_peer_numel_panics() {
 
 #[test]
 fn test_tcp_gather_zero_numel_mismatched_peer_numel_panics() {
+    let _guard = super::super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
@@ -264,6 +272,7 @@ fn test_tcp_gather_zero_numel_mismatched_peer_numel_panics() {
 
 #[test]
 fn test_tcp_scatter_mismatched_target_numel_panics() {
+    let _guard = super::super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
     let mut handles = vec![];
@@ -299,6 +308,7 @@ fn test_tcp_scatter_mismatched_target_numel_panics() {
 
 #[test]
 fn test_tcp_scatter_zero_numel_mismatched_target_numel_panics() {
+    let _guard = super::super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
     let mut handles = vec![];

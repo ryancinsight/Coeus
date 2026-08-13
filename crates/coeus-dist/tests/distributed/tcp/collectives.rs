@@ -10,6 +10,7 @@ use std::thread;
 
 #[test]
 fn test_tcp_all_reduce() {
+    let _guard = super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
 
@@ -38,6 +39,7 @@ fn test_tcp_all_reduce() {
 
 #[test]
 fn test_tcp_broadcast() {
+    let _guard = super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
 
@@ -70,6 +72,7 @@ fn test_tcp_broadcast() {
 
 #[test]
 fn test_tcp_all_gather() {
+    let _guard = super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
 
@@ -101,6 +104,7 @@ fn test_tcp_all_gather() {
 
 #[test]
 fn test_tcp_barrier() {
+    let _guard = super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
 
@@ -122,6 +126,7 @@ fn test_tcp_barrier() {
 
 #[test]
 fn test_tcp_reduce() {
+    let _guard = super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
 
@@ -152,6 +157,7 @@ fn test_tcp_reduce() {
 
 #[test]
 fn test_tcp_gather() {
+    let _guard = super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
 
@@ -189,6 +195,7 @@ fn test_tcp_gather() {
 
 #[test]
 fn test_tcp_scatter() {
+    let _guard = super::super::support::tcp_lock();
     let world_size = 2;
     let meshes = loopback_meshes(world_size);
 

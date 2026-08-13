@@ -1,2 +1,7 @@
 [env]
 PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
+# TCP collective integration tests use real loopback sockets and are sensitive
+# to parallel execution: simultaneous mesh setup/teardown on Windows causes RST
+# races that abort in-flight receives.  Single-threaded execution serializes
+# all test cases and eliminates these spurious failures.
+RUST_TEST_THREADS = { value = "1", force = false }

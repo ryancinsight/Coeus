@@ -270,3 +270,28 @@ impl TcpMesh {
         });
     }
 }
+
+impl Drop for TcpMesh {
+    fn drop(&mut self) {
+        // 1. Gracefully half-close (FIN) every peer TCP stream before the
+        //    struct fields drop in declaration order.  Without this, dropping
+        //    a TcpStream on Windows sends RST when there is unread kernel
+        //    buffer data, which aborts the peer's in-flight receive.
+        self.runtime.block_on(async {
+            for slot in &mut self.streams {
+                if let Some(mutex) = slot {
+                    if let Ok(mut stream) = mutex.lock() {
+                        // Best-effort; the peer may already have sent FIN.
+                        let _ = stream.shutdown().await;
+                    }
+                }
+            }
+        });
+        // 2. Explicitly join the runtime's worker and async threads so they
+        //    are fully stopped before this `TcpMesh` is considered gone.
+        //    Without this, accumulated idle Moirai worker threads from
+        //    sequential tests starve the CPU and cause the next test's
+        //    collective operations to time out.
+        self.runtime.shutdown();
+    }
+}
