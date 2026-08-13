@@ -53,6 +53,31 @@ where
     let out0 = coeus_ops::gather(&inp, 0, &idx0, backend);
     assert_eq!(out0.shape(), &[1, 3], "gather dim=0 shape");
     assert_eq!(out0.as_slice(), &[1.0_f64, 5.0, 3.0], "gather dim=0");
+
+    // Rank-3 with an interior gather axis. This is the shape that exercises the
+    // flat-index decode on both sides of `dim` at once: a leading coordinate
+    // that must survive the decode and a trailing one that must not be folded
+    // into the gathered axis. The 2-D cases above leave one side degenerate.
+    //
+    // input is 1..=12 shaped [2,3,2], so input[i,j,k] = 6i + 2j + k + 1.
+    // index shaped [2,2,2] selects j per (i,k); out[i,j',k] = input[i,idx,k].
+    let inp3 = t(
+        &[2, 3, 2],
+        &[
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+        ],
+        backend,
+    );
+    let idx3 = t(&[2, 2, 2], &[2.0, 0.0, 1.0, 2.0, 0.0, 1.0, 2.0, 0.0], backend);
+    let out3 = coeus_ops::gather(&inp3, 1, &idx3, backend);
+    assert_eq!(out3.shape(), &[2, 2, 2], "gather rank3 dim=1 shape");
+    // i=0: [j=2,k=0]=5, [j=0,k=1]=2, [j=1,k=0]=3, [j=2,k=1]=6
+    // i=1: [j=0,k=0]=7, [j=1,k=1]=10, [j=2,k=0]=11, [j=0,k=1]=8
+    assert_eq!(
+        out3.as_slice(),
+        &[5.0_f64, 2.0, 3.0, 6.0, 7.0, 10.0, 11.0, 8.0],
+        "gather rank3 dim=1"
+    );
 }
 
 // INDEX_SELECT

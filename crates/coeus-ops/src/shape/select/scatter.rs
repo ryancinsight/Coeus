@@ -85,14 +85,6 @@ where
     }
 
     for flat in 0..idx_numel {
-        // Decode flat index into multi-dim coordinates.
-        let mut coords = vec![0usize; ndim];
-        let mut rem = flat;
-        for d in 0..ndim {
-            coords[d] = rem / idx_strides[d];
-            rem %= idx_strides[d];
-        }
-
         let scatter_idx = <T as Scalar>::to_f64(idx_s[flat]) as usize;
         assert!(
             scatter_idx < out_shape[dim],
@@ -100,10 +92,16 @@ where
             out_shape[dim]
         );
 
-        // Compute the output flat offset.
+        // Decode `flat` against the index strides and accumulate the output
+        // offset in one pass; `dim` takes the scattered coordinate instead.
+        // Each coordinate is consumed by the iteration that produces it, so no
+        // per-element coordinate buffer exists.
+        let mut rem = flat;
         let mut out_flat = 0usize;
         for d in 0..ndim {
-            let c = if d == dim { scatter_idx } else { coords[d] };
+            let coord = rem / idx_strides[d];
+            rem %= idx_strides[d];
+            let c = if d == dim { scatter_idx } else { coord };
             out_flat += c * out_strides[d];
         }
 

@@ -44,27 +44,31 @@ pub fn topk_impl<T: Scalar>(
         out_strides[d] = out_strides[d + 1] * out_shape[d + 1];
     }
 
+    // Reused across slices: `select_nth_unstable_by` and `truncate` only shrink
+    // the length, so the capacity survives every iteration and the refill below
+    // never reallocates.
+    let mut pairs: Vec<(T, usize)> = Vec::with_capacity(dim_size);
+
     for outer_idx in 0..outer {
-        // Map outer_idx to coordinates excluding dim.
-        let mut coords = vec![0usize; ndim];
+        // Map outer_idx to coordinates excluding dim, accumulating both offsets
+        // in the same pass. Each coordinate is consumed by the iteration that
+        // produces it, so no per-slice coordinate buffer exists.
         let mut rem = outer_idx;
+        let mut base = 0usize;
+        let mut out_base = 0usize;
         for d in (0..ndim).rev() {
             if d == dim {
                 continue;
             }
-            coords[d] = rem % a_shape[d];
+            let c = rem % a_shape[d];
             rem /= a_shape[d];
+            base += c * in_strides[d];
+            out_base += c * out_strides[d];
         }
-        let base: usize = coords
-            .iter()
-            .enumerate()
-            .map(|(d, &c)| if d != dim { c * in_strides[d] } else { 0 })
-            .sum();
 
         // Collect (value, index) pairs for this slice.
-        let mut pairs: Vec<(T, usize)> = (0..dim_size)
-            .map(|k_idx| (a_slice[base + k_idx * in_strides[dim]], k_idx))
-            .collect();
+        pairs.clear();
+        pairs.extend((0..dim_size).map(|k_idx| (a_slice[base + k_idx * in_strides[dim]], k_idx)));
 
         // Partial sort: select k elements.
         if largest {
@@ -87,11 +91,6 @@ pub fn topk_impl<T: Scalar>(
             });
         }
 
-        let out_base: usize = coords
-            .iter()
-            .enumerate()
-            .map(|(d, &c)| if d != dim { c * out_strides[d] } else { 0 })
-            .sum();
         for (rank, (v, orig_idx)) in pairs.iter().enumerate() {
             let flat_out = out_base + rank * out_strides[dim];
             val_slice[flat_out] = *v;

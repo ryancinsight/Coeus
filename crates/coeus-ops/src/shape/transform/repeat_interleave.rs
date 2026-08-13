@@ -55,29 +55,25 @@ where
     }
 
     let out_numel: usize = out_shape.iter().product();
-    let mut out_data = vec![T::zero(); out_numel];
 
-    for flat_out in 0..out_numel {
-        // Decode flat output index into multi-dim coords.
-        let mut coords = vec![0usize; ndim];
-        let mut rem = flat_out;
-        for d in 0..ndim {
-            coords[d] = rem / out_strides[d];
-            rem %= out_strides[d];
-        }
-
-        // Map dim coordinate back to input: element i repeats at positions
-        // [i*repeats, i*repeats+1, ..., i*repeats+repeats-1].
-        let in_dim_coord = coords[dim] / repeats;
-
-        let mut in_flat = 0usize;
-        for d in 0..ndim {
-            let c = if d == dim { in_dim_coord } else { coords[d] };
-            in_flat += c * in_strides[d];
-        }
-
-        out_data[flat_out] = in_s[in_flat];
-    }
+    // Coordinate decode is fused into the offset accumulation, so no
+    // per-element coordinate buffer exists; collecting rather than filling a
+    // zeroed vector drops an initialising pass over the output. At `dim` the
+    // decoded coordinate maps back to the input by integer division, since
+    // element i repeats at positions [i*repeats, .., i*repeats+repeats-1].
+    let out_data: Vec<T> = (0..out_numel)
+        .map(|flat_out| {
+            let mut rem = flat_out;
+            let mut in_flat = 0usize;
+            for d in 0..ndim {
+                let coord = rem / out_strides[d];
+                rem %= out_strides[d];
+                let c = if d == dim { coord / repeats } else { coord };
+                in_flat += c * in_strides[d];
+            }
+            in_s[in_flat]
+        })
+        .collect();
 
     Tensor::from_slice(out_shape, &out_data)
 }

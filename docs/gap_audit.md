@@ -1,5 +1,47 @@
 # Coeus Gap Audit
 
+## Slop pattern: per-element coordinate buffer in flat-index decode loops
+
+**Shape**: a kernel walks a flat output index, decodes it into multi-dimensional
+coordinates through a `vec![0usize; ndim]` allocated *inside* the loop, and then
+consumes those coordinates only to accumulate one or two flat offsets.
+
+```rust
+for flat in 0..out_numel {
+    let mut coords = vec![0usize; ndim];   // one heap allocation per element
+    let mut rem = flat;
+    for d in 0..ndim { coords[d] = rem / strides[d]; rem %= strides[d]; }
+    let mut off = 0usize;
+    for d in 0..ndim { off += coords[d] * other_strides[d]; }
+    ...
+}
+```
+
+**Why it is a defect**: the buffer never outlives the iteration that fills it,
+so each coordinate can be consumed by the iteration that produces it. The
+allocation is pure waste, and on an element-indexed loop it recurs once per
+output element — millions of `malloc`/`free` pairs on a large gather.
+
+**Fix**: fuse the decode into the accumulation. Where a coordinate must be
+mapped first (`index_select` routes `dim` through the index tensor), hold back
+only that one axis and add its contribution after the loop. Where the output is
+then filled positionally, `collect` instead of `vec![T::zero(); n]` followed by
+overwrite, which also drops an initialising pass.
+
+**Found at** (all fixed under COEUS-OPS-INDEX-DECODE-ALLOC-001): `shape/select/
+gather.rs`, `shape/select/index_select.rs`, `shape/select/scatter.rs`,
+`shape/transform/repeat_interleave.rs`, `reduction/topk.rs`. In `topk` the
+coordinate buffer fed *two* separate sum passes, both of which fold into the
+single decode.
+
+**Mechanization**: no existing Clippy lint covers this — the allocation is
+locally well-formed and only the liveness argument makes it waste. Detection
+today is the grep below; promote to a lint if it recurs.
+
+```
+rg --multiline 'for \w+ in 0\.\.[^\n]*\{[^}]{0,200}?vec!\[0usize;'
+```
+
 ## COEUS-NLLS-BATCH-001: Batched nonlinear least-squares closure
 
 `coeus-optim` now exposes `BatchedLeastSquaresProblem` and

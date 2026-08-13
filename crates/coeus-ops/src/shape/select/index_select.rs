@@ -75,7 +75,6 @@ where
     }
 
     let out_numel: usize = out_shape.iter().product();
-    let mut out_data = vec![T::zero(); out_numel];
 
     // Compute row-major strides for the output.
     let mut out_strides = vec![1usize; ndim];
@@ -83,32 +82,38 @@ where
         out_strides[d] = out_strides[d + 1] * out_shape[d + 1];
     }
 
-    for out_flat in 0..out_numel {
-        // Decode output flat → multi-dim.
-        let mut coords = vec![0usize; ndim];
-        let mut rem = out_flat;
-        for d in 0..ndim {
-            coords[d] = rem / out_strides[d];
-            rem %= out_strides[d];
-        }
+    // Coordinate decode is fused into the offset accumulation: every axis but
+    // `dim` contributes as soon as it is decoded, and `dim`'s coordinate is
+    // held back only because it must first be mapped through `index`. No
+    // per-element coordinate buffer exists, and collecting rather than filling
+    // a zeroed vector drops an initialising pass over the output.
+    let out_data: Vec<T> = (0..out_numel)
+        .map(|out_flat| {
+            let mut rem = out_flat;
+            let mut in_flat = 0usize;
+            let mut dim_coord = 0usize;
+            for d in 0..ndim {
+                let coord = rem / out_strides[d];
+                rem %= out_strides[d];
+                if d == dim {
+                    dim_coord = coord;
+                } else {
+                    in_flat += coord * in_strides[d];
+                }
+            }
 
-        // The `dim`-th coordinate indexes into `index`, giving us the
-        // source position in the input along `dim`.
-        let sel = <T as Scalar>::to_f64(idx_s[coords[dim]]) as usize;
-        assert!(
-            sel < in_shape[dim],
-            "index_select: index value {sel} out of bounds for dim {dim} size {}",
-            in_shape[dim]
-        );
+            // The `dim`-th coordinate indexes into `index`, giving us the
+            // source position in the input along `dim`.
+            let sel = <T as Scalar>::to_f64(idx_s[dim_coord]) as usize;
+            assert!(
+                sel < in_shape[dim],
+                "index_select: index value {sel} out of bounds for dim {dim} size {}",
+                in_shape[dim]
+            );
 
-        // Compute input flat offset, substituting `sel` at `dim`.
-        let mut in_flat = 0usize;
-        for d in 0..ndim {
-            let c = if d == dim { sel } else { coords[d] };
-            in_flat += c * in_strides[d];
-        }
-        out_data[out_flat] = in_s[in_flat];
-    }
+            in_s[in_flat + sel * in_strides[dim]]
+        })
+        .collect();
 
     Tensor::from_slice(out_shape, &out_data)
 }

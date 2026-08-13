@@ -1,5 +1,36 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-OPS-INDEX-DECODE-ALLOC-001 — Remove per-element coordinate buffers [patch]
+
+- Owner: Claude; scope: the flat-index decode loops in `coeus-ops`
+  `shape/select/{gather,index_select,scatter}`,
+  `shape/transform/repeat_interleave`, and `reduction/topk`. Kernel selection,
+  provider dispatch, and the ops' public signatures are non-goals.
+- Outcome: none of these kernels allocates per iteration. Each allocated a
+  `vec![0usize; ndim]` coordinate buffer inside its loop and consumed it only
+  to build flat offsets; the decode is now fused into the accumulation so each
+  coordinate is used by the iteration that produces it. `gather`,
+  `index_select`, and `repeat_interleave` additionally build their output by
+  `collect` instead of filling a zeroed vector, dropping an initialising pass.
+  `topk` also hoists its per-slice `pairs` vector, whose capacity survives
+  because `select_nth_unstable_by` and `truncate` only shrink the length.
+  In `gather` the buffer was allocated **per output element**, so the removal
+  scales with output size rather than with rank.
+- Acceptance: value semantics unchanged for every op at rank 2 and rank 3, with
+  the reduction/selection axis both interior and terminal; existing reference
+  and torch-parity tests unchanged.
+- Evidence: warning-denied all-target Clippy on `coeus-ops`; targeted
+  gather/topk/index suite 12/12 including both backend variants of
+  `index_ops_diff`; new rank-3 interior-axis `gather` coverage added, since the
+  prior tests left one side of `dim` degenerate at rank 2 and the fused decode
+  is exactly what a rank-3 interior axis exercises.
+- Non-goals / not claimed: no runtime delta is claimed. The allocations are
+  removed by construction and were not benchmarked; `coeus-ops` has no bench
+  target to measure them with.
+- Pattern recorded in `gap_audit.md` — this shape recurred five times, so it is
+  filed as a slop pattern with a detection grep rather than as five fixes.
+- Status: complete 2026-08-13.
+
 ## COEUS-AUTOGRAD-BROADCAST-ALLOC-001 — Allocation-free broadcast gradient reduction [patch]
 
 - Owner: Claude; scope: `coeus_autograd::backward::reduce_broadcast` and its
