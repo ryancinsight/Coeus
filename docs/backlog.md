@@ -1,5 +1,21 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-NLLS-BATCH-001 — Batch independent nonlinear least-squares fits [minor]
+
+- Owner: Codex; scope: `coeus-optim::least_squares`.
+- Outcome: expose one generic leading-axis contract for independent
+  least-squares problems and solve every slice through the canonical
+  Levenberg–Marquardt implementation.
+- Acceptance: flattened parameters use one contiguous slice per problem;
+  residual/Jacobian evaluation receives the leading-axis index; reports retain
+  input order; malformed lengths and indexed solver failures are typed; no
+  host/device or compatibility path is added.
+- Evidence: `cargo check -p coeus-optim --all-targets --locked`, warning-denied
+  all-target Clippy, Nextest 43/43 with f32/f64 batch recovery and malformed
+  input coverage, 10/10 doctests, rustdoc, and format checks pass against the
+  standalone provider source from outside the Atlas overlay.
+- Status: complete in `codex/coeus-nlls-batch`; no performance claim is made.
+
 ## COEUS-HEPHAESTUS-WGPU-001 — Route WGPU reduction/scan through the generic bridge [major] [arch]
 
 - Owner: Codex; scope: the Coeus WGPU crate (final SUBSTRATE-002 vendor

@@ -10,6 +10,7 @@
 //! This module owns that shape. Define a [`LeastSquaresProblem`] and solve it
 //! with [`levenberg_marquardt`].
 
+mod batch;
 mod config;
 mod levenberg_marquardt;
 mod problem;
@@ -17,6 +18,7 @@ mod problem;
 #[cfg(test)]
 mod tests;
 
+pub use batch::{batched_levenberg_marquardt, BatchedLeastSquaresProblem, BatchedSolverError};
 pub use config::{LeastSquaresReport, LevenbergMarquardtConfig, Termination};
 pub use levenberg_marquardt::{levenberg_marquardt, LeastSquaresScalar, SolverError};
 pub use problem::{LeastSquaresProblem, ProblemError};
