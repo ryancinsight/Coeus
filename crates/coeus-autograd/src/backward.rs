@@ -5,9 +5,14 @@ use coeus_tensor::Tensor;
 ///
 /// When an op broadcasts (e.g., `[3,1] + [1,4] → [3,4]`), the gradient
 /// flowing back has shape `[3,4]` but the input's gradient should be `[3,1]`.
-/// This function sums over the broadcast dimensions in a **single pass**:
-/// reduction axes are computed once and applied left-to-right, avoiding
-/// repeated intermediate tensor allocation.
+/// Broadcast axes are summed left-to-right, one [`coeus_ops::sum_axis`] call
+/// per axis that actually needs reducing; a non-broadcast axis costs nothing.
+///
+/// The reduction predicate is evaluated against the running tensor rather than
+/// precomputed into a side buffer, so the call allocates nothing of its own.
+/// This is sound because `sum_axis` keeps the reduced axis at size 1: axis `d`
+/// is only ever read before any reduction has touched index `d` or higher, so
+/// its extent still equals the corresponding extent of the incoming gradient.
 pub fn reduce_broadcast<
     T: Scalar,
     B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
@@ -24,21 +29,8 @@ pub fn reduce_broadcast<
         return grad;
     }
 
-    // ── Pass 1: collect axes to reduce ──────────────────────────────────────
-
     // Leading extra dims (grad has more dims than target): reduce axes 0..extra_dims.
     let extra_dims = grad_ndim.saturating_sub(target_ndim);
-
-    // For each aligned dim after the leading extra dims, if target[d] == 1
-    // and grad.shape[extra_dims + d] > 1 → that axis needs reducing.
-    let aligned: Vec<bool> = (0..target_ndim)
-        .map(|d| {
-            let grad_d = extra_dims + d;
-            grad_d < grad_ndim && target_shape[d] == 1 && grad.shape()[grad_d] > 1
-        })
-        .collect();
-
-    // ── Pass 2: apply reductions ──────────────────────────────────────────
 
     let mut current = grad;
 
@@ -59,11 +51,11 @@ pub fn reduce_broadcast<
     // Sum out aligned broadcast dims. `sum_axis` keeps the reduced dimension at
     // size 1, so each target dimension still maps to the next axis position in
     // `current` after either branch.
-    for (axis, &needs_reduce) in aligned.iter().enumerate() {
+    for axis in 0..target_ndim {
         if axis >= current.ndim() {
             break;
         }
-        if needs_reduce {
+        if target_shape[axis] == 1 && current.shape()[axis] > 1 {
             current = coeus_ops::sum_axis(&current, axis, &backend)
                 .expect("invariant: broadcast reduction axis is validated");
         }
