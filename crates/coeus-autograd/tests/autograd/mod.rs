@@ -10,6 +10,7 @@ mod minmax;
 mod nn_conv;
 mod ops_overloads;
 mod prelu;
+mod reduce_broadcast;
 mod reductions;
 mod remainder;
 mod scatter_add;

@@ -1,5 +1,32 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-AUTOGRAD-BROADCAST-ALLOC-001 — Allocation-free broadcast gradient reduction [patch]
+
+- Owner: Claude; scope: `coeus_autograd::backward::reduce_broadcast` and its
+  regression coverage. Reduction kernels, the `sum_axis` provider path, and
+  autograd op signatures are non-goals.
+- Outcome: `reduce_broadcast` allocates nothing of its own. It previously built
+  a `Vec<bool>` of per-axis reduction flags on every call; the predicate is now
+  evaluated against the running tensor, which is sound because `sum_axis` keeps
+  a reduced axis at extent 1, so axis `d` is read before any reduction has
+  touched index `d` or higher. The function is on the backward path of every
+  broadcasting binary op (11 call sites in `ops::arithmetic::binary` alone), so
+  the removed allocation is per-op, per-step in a training loop.
+- Non-goals: fusing the per-axis `sum_axis` calls into one multi-axis
+  reduction. The op layer exposes no multi-axis sum, so the intermediates
+  remain; the stale doc claim that the old code avoided them is corrected
+  rather than restated.
+- Acceptance: shape and value semantics unchanged across matching shapes,
+  leading extra dims, aligned unit axes, both composed, full reduction to a
+  scalar shape, and the no-op case where no aligned axis may be reduced.
+- Evidence: eight new value-semantic cases in
+  `tests/autograd/reduce_broadcast.rs` use a ramp gradient rather than ones, so
+  an omitted or duplicated axis cannot coincide with the expected sum; 8/8 pass
+  and the package suite is green. Warning-denied all-target Clippy passes. No
+  runtime delta is claimed — the change removes an allocation by construction
+  and was not benchmarked.
+- Status: complete 2026-08-13.
+
 ## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons [major]
 
 - Owner: Codex; scope: `coeus-cuda` provider declaration, CUDA parity tests,
