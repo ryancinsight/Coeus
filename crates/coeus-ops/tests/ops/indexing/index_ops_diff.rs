@@ -68,7 +68,11 @@ where
         ],
         backend,
     );
-    let idx3 = t(&[2, 2, 2], &[2.0, 0.0, 1.0, 2.0, 0.0, 1.0, 2.0, 0.0], backend);
+    let idx3 = t(
+        &[2, 2, 2],
+        &[2.0, 0.0, 1.0, 2.0, 0.0, 1.0, 2.0, 0.0],
+        backend,
+    );
     let out3 = coeus_ops::gather(&inp3, 1, &idx3, backend);
     assert_eq!(out3.shape(), &[2, 2, 2], "gather rank3 dim=1 shape");
     // i=0: [j=2,k=0]=5, [j=0,k=1]=2, [j=1,k=0]=3, [j=2,k=1]=6

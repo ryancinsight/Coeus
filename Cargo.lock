@@ -564,6 +564,7 @@ dependencies = [
  "coeus-leto",
  "coeus-sparse",
  "coeus-tensor",
+ "criterion",
  "eunomia",
  "leto",
  "leto-ops",
