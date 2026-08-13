@@ -16,17 +16,22 @@ all-target check, warning-denied Clippy, Nextest 43/43 across f32/f64,
 
 **Location**: `hephaestus-cuda` application elementwise seam (provider-owned,
 consumed by `coeus-cuda` through `coeus-hephaestus`).
-**Gap**: the generic bridge's `BinaryElementwiseDispatch` contract requires the
-six comparison `TypedBinaryExpr<CudaC, T>` operations (`Eq`/`Ne`/`Lt`/`Gt`/`Le`/
-`Ge`) for every scalar it advertises. hephaestus-cuda implements them for
-`f32`/`u32`/`i32` but not `f64` at the pinned gitlink, so `coeus-cuda` wires
-`ElementwiseProvider<f32|i32>` only (matching the Metal/ROCM coverage) and
-keeps `f64` scalar-power via `ScalarPowerProvider<f64>`. The pre-bridge NVRTC
-kernel-string path had no such dialect gate and supported `f64` comparisons.
-**Resolution target**: add `TypedBinaryExpr<CudaC, f64>` for the six comparison
-operations in hephaestus-cuda, then restore `ElementwiseProvider<f64>` in
-`coeus-cuda` (`crates/coeus-cuda/src/backend/ops/impls/elementwise.rs`) and
-re-run the cuda parity suite.
+**Resolved**: Hephaestus now provides all six typed CUDA f64 comparisons at
+`b34b50787df636891d281b5011c6a17dd46edcb0`, and Coeus restores
+`ElementwiseProvider<f64>` with the arithmetic unary contract. The CUDA parity
+test covers all six comparisons over a transposed rank-two tensor and asserts
+exact mask equality against the CPU provider. Hosted CUDA adapterless contracts
+and local compile/test gates are required evidence before closure.
+
+**Historical gap**: the generic bridge's `BinaryElementwiseDispatch` contract
+required the six comparison `TypedBinaryExpr<CudaC, T>` operations (`Eq`/`Ne`/
+`Lt`/`Gt`/`Le`/`Ge`) for every scalar it advertised. Before the provider fix,
+hephaestus-cuda implemented them for `f32`/`u32`/`i32` but not `f64`, so
+`coeus-cuda` wired `ElementwiseProvider<f32|i32>` only and kept `f64`
+scalar-power via `ScalarPowerProvider<f64>`. The pre-bridge NVRTC kernel-string
+path had no such dialect gate and supported `f64` comparisons.
+**Resolution**: provider and consumer work is complete in the active branch;
+the Coeus PR and exact-head hosted gate remain the delivery boundary.
 
 ## COEUS-CROSS-ENTROPY-PROVIDER-001: Loss host staging
 

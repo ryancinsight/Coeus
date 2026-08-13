@@ -1,5 +1,17 @@
 # Global Progress Checklist: Coeus
 
+## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons
+
+- [x] Add provider-owned `TypedBinaryExpr<CudaC, f64>` implementations for
+      equality, inequality, and the four ordered comparisons in Hephaestus.
+- [x] Restore `ElementwiseProvider<f64>` in Coeus with native arithmetic unary
+      dispatch and no fallback path.
+- [x] Add exact CPU/CUDA parity coverage for all six comparisons over a
+      transposed rank-two tensor.
+- [ ] Pass locked Coeus CUDA checks, strict Clippy, Nextest, doctests, and the
+      exact-head hosted CUDA adapterless gate; merge the consumer and refresh
+      the Atlas gitlink.
+
 ## COEUS-NLLS-BATCH-001 — Batch independent nonlinear least-squares fits
 
 - [x] Add the generic `BatchedLeastSquaresProblem` contract with explicit

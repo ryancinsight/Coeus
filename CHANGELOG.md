@@ -16,7 +16,7 @@
 - [major] [arch] Route CUDA elementwise and reduction/scan operations through
   the generic `HephaestusBackend<CudaBackend>` bridge and delete the cloned
   NVRTC fallback layers. `CudaBackend` now declares the provider
-  operation-bundle impls (`ElementwiseProvider<f32|i32>`,
+  operation-bundle impls (`ElementwiseProvider<f32|f64|i32>`,
   `ScalarPowerProvider<f32|f64>`, `ReductionProvider`, and the existing
   parameterized/random/rotate-half/cross-entropy bundles) exactly like the
   Metal and ROCm crates, and its `coeus_ops::ElementwiseOps`/`ScalarPowerOps`/
@@ -29,10 +29,10 @@
   launch_strided_binary, launch_strided_unary}` require external callers to
   migrate. Rank rejection for axis reductions keeps the historical
   `CudaBackendError::UnsupportedRank` wire contract (operation label
-  normalized `"reduce"` → `"reduction"`, max rank 2). `f64` elementwise is
-  intentionally not wired: hephaestus-cuda implements the bridge's required
-  comparison `TypedBinaryExpr<CudaC, T>` set for `f32`/`u32`/`i32` but  not `f64` at the pinned gitlink; `f64` scalar-power remains available and
-  restoring `f64` elementwise is a hephaestus-cuda capability follow-up.
+  normalized `"reduce"` → `"reduction"`, max rank 2). CUDA `f64`
+  elementwise now consumes Hephaestus's provider-owned six-way comparison
+  seam at `b34b5078`; Coeus covers exact CPU/CUDA mask parity over a transposed
+  rank-two tensor. No host fallback or compatibility path is retained.
 
 - [major] [arch] Route WGPU reduction and scan operations through the generic
   `HephaestusBackend<WgpuBackend>` bridge, completing the SUBSTRATE-002
