@@ -75,6 +75,56 @@ assert out4.shape == [b2, c, h, w], f"4D forward_nd shape: {out4.shape}"
 }
 
 #[test]
+fn test_layernorm_multi_dimensional_shape() {
+    run_script(
+        r#"
+import pycoeus
+
+shape = [2, 3]
+x_data = [float(i) for i in range(12)]
+x = pycoeus.Tensor(x_data, [2, 2, 3], requires_grad=True)
+ln = pycoeus.LayerNorm(shape, eps=1e-5)
+assert ln.weight.shape == shape
+assert ln.bias.shape == shape
+
+out = ln.forward(x)
+assert out.shape == [2, 2, 3]
+for offset in (0, 6):
+    window = out.data[offset : offset + 6]
+    mean = sum(window) / 6.0
+    variance = sum((value - mean) ** 2 for value in window) / 6.0
+    assert abs(mean) < 1e-12
+    assert abs(variance - 1.0) < 1e-4
+
+out.backward()
+assert x.grad is not None
+assert ln.weight.grad is not None
+assert ln.bias.grad is not None
+assert len(ln.bias.grad) == 6
+
+x_functional = pycoeus.Tensor(x_data, [2, 2, 3])
+functional = pycoeus.layer_norm(x_functional, shape)
+for actual, expected in zip(functional.data, out.data):
+    assert abs(actual - expected) < 1e-6
+
+try:
+    ln.forward(pycoeus.Tensor([1.0] * 12, [2, 3, 2]))
+except ValueError as error:
+    assert "input trailing dimensions" in str(error)
+else:
+    raise AssertionError("LayerNorm must reject mismatched trailing dimensions")
+
+try:
+    pycoeus.LayerNorm(0)
+except ValueError as error:
+    assert "positive dimensions" in str(error)
+else:
+    raise AssertionError("LayerNorm must reject a zero normalized dimension")
+"#,
+    );
+}
+
+#[test]
 fn test_batchnorm_eval_mode() {
     run_script(
         r#"

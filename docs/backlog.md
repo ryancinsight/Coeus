@@ -83,6 +83,24 @@
   and was not benchmarked.
 - Status: complete 2026-08-13.
 
+## COEUS-LAYERNORM-SHAPE-001 — Support multi-dimensional LayerNorm [minor]
+
+- Owner: Codex on `codex/coeus-layernorm-shape`; scope:
+  `coeus-nn` LayerNorm, `coeus-autograd` gradient restoration,
+  `coeus-python` module and functional bindings, tests, book, changelog, and
+  audit artifacts.
+- Outcome: normalize exactly the configured non-empty positive trailing shape
+  for rank-two-or-greater inputs through the existing provider kernel, with
+  native-shape affine parameters and gradients; Python exposes the same
+  contract without domain logic in the binding.
+- Acceptance: positive multi-dimensional CPU and Python value tests, exact
+  trailing-shape mismatch rejection, boundary rank/shape coverage, formatting,
+  warning-denied Clippy, focused Nextest, doctests, rustdoc, and exact-head
+  hosted checks. No fallback, compatibility adapter, or performance claim.
+- Status: in progress; local `cargo check -p coeus-nn --tests --offline` and
+  format checks pass. Focused Nextest is pending shared-target build
+  contention.
+
 ## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons [major]
 
 - Owner: Codex; scope: `coeus-cuda` provider declaration, CUDA parity tests,

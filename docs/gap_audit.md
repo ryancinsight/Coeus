@@ -42,6 +42,27 @@ today is the grep below; promote to a lint if it recurs.
 rg --multiline 'for \w+ in 0\.\.[^\n]*\{[^}]{0,200}?vec!\[0usize;'
 ```
 
+## COEUS-LAYERNORM-SHAPE-001: Multi-dimensional trailing-shape LayerNorm
+
+**Location**: `coeus-nn` LayerNorm, `coeus-autograd` backward state, and the
+`coeus-python` module and functional binding.
+**Gap**: LayerNorm stored one-dimensional affine parameters and normalized
+only the final input axis. The book described the intended last-D-dimensions
+contract, but Rust and Python rejected or could not represent a shape such as
+`[2, 3]`.
+**Resolution**: `NormalizedShape` is the provider-neutral shape value. Rust
+LayerNorm validates the configured suffix, flattens that suffix only for the
+existing provider kernel, restores the original input shape, and restores
+affine gradients to the configured parameter shape. Python accepts an integer
+or a positive non-empty sequence and delegates to the Rust implementation.
+**Evidence target**: multi-dimensional CPU forward/backward value tests,
+Python binding value tests including mismatch rejection, warning-denied
+Clippy, doctests, and the exact hosted Coeus checks. No performance claim is
+made without a controlled comparison.
+**Status**: in progress on `codex/coeus-layernorm-shape`; local compile and
+format checks pass, while focused Nextest is pending shared-target build
+contention.
+
 ## COEUS-NLLS-BATCH-001: Batched nonlinear least-squares closure
 
 `coeus-optim` now exposes `BatchedLeastSquaresProblem` and

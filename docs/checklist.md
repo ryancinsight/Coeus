@@ -1,5 +1,23 @@
 # Global Progress Checklist: Coeus
 
+## COEUS-LAYERNORM-SHAPE-001 — Multi-dimensional trailing-shape LayerNorm
+
+- [x] Replace the final-axis-only contract with a validated
+      `NormalizedShape` and flatten/restore the configured suffix through the
+      existing provider kernel.
+- [x] Restore affine parameter gradients to the configured multi-dimensional
+      shape in the autograd node.
+- [x] Extend the Rust and Python module/functional surfaces without retaining
+      a deferred or placeholder path.
+- [x] Synchronize the `pycoeus.pyi` type stub with integer-or-sequence
+      normalized-shape inputs.
+- [x] Add CPU and Python value-semantic tests for multi-dimensional forward,
+      backward shape restoration, and mismatch rejection.
+- [ ] Pass focused Nextest, warning-denied Clippy, doctests, rustdoc, and
+      exact-head hosted provider checks.
+- [ ] Update this item and `COEUS-LAYERNORM-SHAPE-001` in `gap_audit.md` with
+      the final revision and exact evidence.
+
 ## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons
 
 - [x] Add provider-owned `TypedBinaryExpr<CudaC, f64>` implementations for

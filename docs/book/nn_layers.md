@@ -31,10 +31,16 @@ let out = linear.forward(x)?;  // [N, in] -> [N, out]
 
 | Layer | Description |
 |-------|-------------|
-| `LayerNorm` | Normalize over last D dimensions |
+| `LayerNorm` | Normalize over the configured trailing dimensions |
 | `RMSNorm` | Root mean square normalization |
 | `BatchNorm1d/2d/3d` | Batch normalization with running stats |
 | `GroupNorm` | Group normalization |
+
+`LayerNorm::from_shape([d_model, head_dim], eps)` normalizes each input over
+the configured suffix `[d_model, head_dim]`. The input rank must be at least
+two, and its trailing dimensions must match the affine parameter shape.
+Coeus flattens that suffix only at the provider-kernel boundary and restores
+the input shape and affine gradient shapes in the autograd graph.
 
 ## Attention
 

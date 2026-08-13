@@ -11,8 +11,10 @@ pub struct LayerNormNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<GradBuffer<T, B>>,
     /// Input variables tracked for backward propagation.
     pub inputs: Vec<Var<T, B>>,
-    /// Normalized feature dimension.
+    /// Number of values in the normalized trailing shape.
     pub d: usize,
+    /// Original affine-parameter shape for gradient restoration.
+    pub parameter_shape: Vec<usize>,
     /// Captured weight tensor reshaped for broadcasting.
     pub w_reshaped_captured: Tensor<T, B>,
     /// Saved normalized input `x_hat = (x - mean) / std` for backward.
@@ -54,7 +56,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lay
                 0,
                 &backend,
             )?;
-            let dg = dg_t.reshape([self.d]);
+            let dg = dg_t.reshape(self.parameter_shape.clone());
             let gl = gw.write();
             coeus_ops::add_assign(gl, &dg, &backend)?;
         }
@@ -62,7 +64,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lay
         // ── dL/dbeta = sum(dy, dim=0) [D] ──
         if let Some(Some(ref gb)) = input_grads.get(2) {
             let db_t = coeus_ops::sum_axis(dy, 0, &backend)?;
-            let db = db_t.reshape([self.d]);
+            let db = db_t.reshape(self.parameter_shape.clone());
             let gl = gb.write();
             coeus_ops::add_assign(gl, &db, &backend)?;
         }
@@ -123,7 +125,8 @@ pub fn layernorm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let creator = if requires_grad {
         let output_grad = grad.as_ref().unwrap().clone();
         let inputs = vec![input.clone(), weight.clone(), bias.clone()];
-        let d = weight.tensor.shape()[0];
+        let parameter_shape = weight.tensor.shape_cloned();
+        let d = weight.tensor.numel();
         let w_reshaped_captured = weight.tensor.reshape([1, d]);
         let x_hat_clone = x_hat.clone();
         let istdev_clone = istdev.clone();
@@ -133,6 +136,7 @@ pub fn layernorm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             output_grad,
             inputs,
             d,
+            parameter_shape: parameter_shape.to_vec(),
             w_reshaped_captured,
             x_hat_clone,
             istdev_clone,

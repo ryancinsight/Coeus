@@ -102,7 +102,7 @@ pub use loss::{
 pub use module::{Module, ModuleError, ParameterLoadError};
 pub use normalization::{
     group_norm, layer_norm, rms_norm, BatchNorm1d, BatchNorm2d, BatchNorm3d, GroupNorm,
-    InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, LayerNorm, RMSNorm,
+    InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, LayerNorm, NormalizedShape, RMSNorm,
 };
 pub use pool::{
     AdaptiveAvgPool1d, AdaptiveAvgPool2d, AdaptiveMaxPool1d, AdaptiveMaxPool2d, AvgPool1d,
