@@ -65,7 +65,7 @@ fn allocations_during<R>(body: impl FnOnce() -> R) -> usize {
 }
 
 fn tensor(shape: &[usize], values: &[f64]) -> Tensor<f64, SequentialBackend> {
-    Tensor::from_slice_on(shape.to_vec(), values, &SequentialBackend::default())
+    Tensor::from_slice_on(shape.to_vec(), values, &SequentialBackend::new())
 }
 
 fn ramp(n: usize) -> Vec<f64> {
@@ -101,7 +101,7 @@ fn assert_size_independent(
 
 #[test]
 fn gather_allocation_count_is_independent_of_output_size() {
-    let backend = SequentialBackend::default();
+    let backend = SequentialBackend::new();
     let build = |s: [usize; 3]| {
         let input = tensor(&s, &ramp(s.iter().product()));
         let idx_shape = [s[0], s[1] / 2, s[2]];
@@ -121,7 +121,7 @@ fn gather_allocation_count_is_independent_of_output_size() {
 
 #[test]
 fn index_select_allocation_count_is_independent_of_output_size() {
-    let backend = SequentialBackend::default();
+    let backend = SequentialBackend::new();
     let build = |s: [usize; 3]| {
         let input = tensor(&s, &ramp(s.iter().product()));
         let take = s[1] / 2;
@@ -140,7 +140,7 @@ fn index_select_allocation_count_is_independent_of_output_size() {
 
 #[test]
 fn repeat_interleave_allocation_count_is_independent_of_output_size() {
-    let backend = SequentialBackend::default();
+    let backend = SequentialBackend::new();
     let small = tensor(&[4, 8, 4], &ramp(4 * 8 * 4));
     let large = tensor(&[16, 32, 16], &ramp(16 * 32 * 16));
 
@@ -153,7 +153,7 @@ fn repeat_interleave_allocation_count_is_independent_of_output_size() {
 
 #[test]
 fn scatter_add_allocation_count_is_independent_of_index_size() {
-    let backend = SequentialBackend::default();
+    let backend = SequentialBackend::new();
     let build = |s: [usize; 3]| {
         let input = tensor(&s, &ramp(s.iter().product()));
         let src_shape = [s[0], s[1] / 2, s[2]];

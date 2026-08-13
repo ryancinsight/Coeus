@@ -54,7 +54,7 @@ const SAMPLE_SIZE: usize = 30;
 const SHAPES: [(&str, [usize; 3]); 2] = [("small", [8, 16, 8]), ("large", [32, 64, 32])];
 
 fn tensor(shape: &[usize], values: &[f64]) -> Tensor<f64, SequentialBackend> {
-    Tensor::from_slice_on(shape.to_vec(), values, &SequentialBackend::default())
+    Tensor::from_slice_on(shape.to_vec(), values, &SequentialBackend::new())
 }
 
 /// Ramp so every element is distinct — a wrong index cannot alias a right one.
@@ -74,7 +74,7 @@ fn bench_gather(c: &mut Criterion, label: &str, shape: [usize; 3]) {
     let idx_shape = [shape[0], shape[1] / 2, shape[2]];
     let idx_numel = idx_shape.iter().product::<usize>();
     let index = tensor(&idx_shape, &indices(idx_numel, shape[1]));
-    let backend = SequentialBackend::default();
+    let backend = SequentialBackend::new();
 
     c.bench_function(&format!("gather/dim1/{label}"), |b| {
         b.iter(|| {
@@ -89,7 +89,7 @@ fn bench_index_select(c: &mut Criterion, label: &str, shape: [usize; 3]) {
     let input = tensor(&shape, &ramp(numel));
     let take = shape[1] / 2;
     let index = tensor(&[take], &indices(take, shape[1]));
-    let backend = SequentialBackend::default();
+    let backend = SequentialBackend::new();
 
     c.bench_function(&format!("index_select/dim1/{label}"), |b| {
         b.iter(|| {
@@ -108,7 +108,7 @@ fn bench_scatter_add(c: &mut Criterion, label: &str, shape: [usize; 3]) {
     let src_numel = src_shape.iter().product::<usize>();
     let src = tensor(&src_shape, &ramp(src_numel));
     let index = tensor(&src_shape, &indices(src_numel, shape[1]));
-    let backend = SequentialBackend::default();
+    let backend = SequentialBackend::new();
 
     c.bench_function(&format!("scatter_add/dim1/{label}"), |b| {
         b.iter(|| {
@@ -127,7 +127,7 @@ fn bench_scatter_add(c: &mut Criterion, label: &str, shape: [usize; 3]) {
 fn bench_repeat_interleave(c: &mut Criterion, label: &str, shape: [usize; 3]) {
     let numel = shape.iter().product::<usize>();
     let input = tensor(&shape, &ramp(numel));
-    let backend = SequentialBackend::default();
+    let backend = SequentialBackend::new();
 
     c.bench_function(&format!("repeat_interleave/dim1/{label}"), |b| {
         b.iter(|| {
