@@ -1,8 +1,8 @@
-# ADR-0026: Add native unary math providers
+# ADR-0064: Add native unary math providers
 
 ## Status
 
-Accepted; implementation is in progress pending the exact-head backend matrix.
+Accepted — implementation is in progress pending the exact-head backend matrix.
 
 ## Decision
 

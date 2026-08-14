@@ -1,6 +1,6 @@
 # ADR-0020: Fallible WGPU layout and dispatch boundary
 
-- Status: accepted
+- Status: Accepted
 - Date: 2026-07-23
 - Scope: `coeus-core`, `coeus-ops`, `coeus-wgpu`, and the matching CUDA/CPU
   operation implementations

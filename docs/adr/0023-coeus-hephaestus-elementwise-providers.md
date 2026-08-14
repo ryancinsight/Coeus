@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted; implemented in the native ROCm and Metal elementwise increment.
+Accepted — implemented in the native ROCm and Metal elementwise increment.
 
 ## Decision
 

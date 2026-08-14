@@ -164,7 +164,7 @@ status failed independently of the provider-contract workflow.
       reduction, and square-root composition.
 - [x] Preserve rank-2 scalar behavior, batched output shape, strided-input
       materialization, and source-storage immutability.
-- [x] Record provider ownership and the no-host-staging boundary in ADR-0060.
+- [x] Record provider ownership and the no-host-staging boundary in ADR-0065.
 - [x] Add analytical contiguous, rank-4, and strided CPU coverage.
 - [x] Pass locked workspace all-targets check, warning-denied `coeus-ops`
       Clippy, full `coeus-ops` Nextest, focused Frobenius Nextest, and
