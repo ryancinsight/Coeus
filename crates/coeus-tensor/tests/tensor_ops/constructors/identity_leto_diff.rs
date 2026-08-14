@@ -2,6 +2,7 @@
 //!
 //! `Tensor::eye_on` routes coordinate generation through
 //! `coeus-leto::from_shape_fn_values`.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_tensor::Tensor;
@@ -16,17 +17,8 @@ where
 
     let tensor = Tensor::<i32, B>::eye_on(4, &backend);
     let expected =
-        coeus_leto::from_shape_fn_values(
-            &[4usize, 4],
-            |index| {
-                if index[0] == index[1] {
-                    1
-                } else {
-                    0
-                }
-            },
-        )
-        .unwrap();
+        coeus_leto::from_shape_fn_values(&[4usize, 4], |index| i32::from(index[0] == index[1]))
+            .unwrap();
 
     assert!(tensor.is_contiguous());
     assert_eq!(tensor.shape(), &[4, 4]);
@@ -38,17 +30,8 @@ where
 
     let empty = Tensor::<i32, B>::eye_on(0, &backend);
     let expected_empty =
-        coeus_leto::from_shape_fn_values(
-            &[0usize, 0],
-            |index| {
-                if index[0] == index[1] {
-                    1
-                } else {
-                    0
-                }
-            },
-        )
-        .unwrap();
+        coeus_leto::from_shape_fn_values(&[0usize, 0], |index| i32::from(index[0] == index[1]))
+            .unwrap();
 
     assert!(empty.is_contiguous());
     assert_eq!(empty.shape(), &[0, 0]);

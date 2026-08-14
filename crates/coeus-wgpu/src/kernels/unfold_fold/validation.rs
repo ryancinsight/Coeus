@@ -90,7 +90,7 @@ pub(super) fn require_signed_coordinates(
             operation,
             reason: "signed-coordinate arithmetic overflow",
         })?;
-    if maximum <= i32::MAX as usize {
+    if i32::try_from(maximum).is_ok() {
         Ok(())
     } else {
         Err(BackendError::Storage {

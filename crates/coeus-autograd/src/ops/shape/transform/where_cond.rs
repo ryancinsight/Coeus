@@ -4,6 +4,7 @@
 //   d on_true  += grad_out * any_mask
 //   d on_false += grad_out * (1 - any_mask)
 //   d cond     = 0  (indicator function; no gradient through the condition)
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

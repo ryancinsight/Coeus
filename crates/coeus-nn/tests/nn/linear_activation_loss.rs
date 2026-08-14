@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use coeus_autograd::Var;
 use coeus_nn::{cross_entropy_loss, gelu, init, mse_loss, relu, sigmoid, tanh, Linear, Module};
 use coeus_optim::{Optimizer, SGD};

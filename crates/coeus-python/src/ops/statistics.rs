@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use crate::tensor::PyTensor;
 use coeus_core::{ComputeBackend, MoiraiBackend};
 use pyo3::exceptions::PyValueError;

@@ -2,6 +2,7 @@
 //!
 //! Non-contiguous cross-backend transfers route through
 //! `coeus-leto::contiguous_values` before copying into the destination backend.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use coeus_core::{CpuAddressableStorage, MoiraiBackend, SequentialBackend};
 use coeus_tensor::{Tensor, Transpose};

@@ -18,6 +18,7 @@
 //
 // All parameterized scalar values pass through `f64::to_bits` packed into a
 // `u64` field on `CpuUnaryOp` (see `coeus-core::CpuUnaryOp` decode conventions).
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use super::unary_op;
 use super::UnaryAutogradOp;

@@ -2,6 +2,7 @@
 //!
 //! `Tensor::arange_on` routes index-derived value generation through
 //! `coeus-leto::from_shape_fn_values` and `Scalar::from_usize`.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use coeus_core::{MoiraiBackend, Scalar, SequentialBackend};
 use coeus_tensor::Tensor;

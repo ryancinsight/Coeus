@@ -47,7 +47,7 @@ pub fn layer_norm(
 /// Matches `torch.nn.functional.batch_norm` with `input` of shape
 /// `[N, C, L]`.
 #[pyfunction]
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 #[pyo3(signature = (
     input,
     running_mean,

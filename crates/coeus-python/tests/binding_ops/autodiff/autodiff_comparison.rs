@@ -1,3 +1,8 @@
+#![expect(
+    clippy::print_stdout,
+    reason = "ratchet COEUS-LINT-1: demonstration/diagnostic output"
+)]
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 fn find_working_python() -> Option<(String, String)> {
     let candidates = [
         "C:\\Users\\RyanClanton\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
@@ -37,7 +42,8 @@ fn find_working_python() -> Option<(String, String)> {
             Ok(output) => {
                 if output.status.success() {
                     return Some((candidate.to_string(), clean_path));
-                } else {
+                }
+                {
                     println!(
                         "Candidate {} failed. stdout: {}, stderr: {}",
                         candidate,

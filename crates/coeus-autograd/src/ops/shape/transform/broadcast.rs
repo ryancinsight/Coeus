@@ -2,6 +2,7 @@
 //
 // Backward reduces the output gradient over every dimension that was
 // broadcast from size 1 in the input.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

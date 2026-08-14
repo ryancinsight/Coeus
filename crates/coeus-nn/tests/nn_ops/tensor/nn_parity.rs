@@ -1,5 +1,3 @@
-#![allow(clippy::excessive_precision)]
-
 #[path = "nn_parity/attention.rs"]
 mod attention;
 #[path = "nn_parity/convolution.rs"]

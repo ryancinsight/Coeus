@@ -31,3 +31,6 @@ criterion = { workspace = true }
 name = "index_ops_bench"
 path = "benches/index_ops_bench.rs"
 harness = false
+
+[lints]
+workspace = true

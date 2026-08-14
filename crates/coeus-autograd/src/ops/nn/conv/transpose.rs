@@ -133,7 +133,7 @@ fn optional_gradient<'a, T: Scalar, B: coeus_ops::BackendOps<T>>(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 fn dispatch_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize>(
     backend: &B,
     grad_output: &Tensor<T, B>,
@@ -209,7 +209,7 @@ fn dispatch_backward<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM:
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 fn conv_transpose<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
@@ -260,7 +260,7 @@ fn conv_transpose<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: us
 }
 
 /// Track a one-dimensional transposed convolution.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 pub fn conv_transpose1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
@@ -284,7 +284,7 @@ pub fn conv_transpose1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Track a two-dimensional transposed convolution.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 pub fn conv_transpose2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
@@ -308,7 +308,7 @@ pub fn conv_transpose2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Track a three-dimensional transposed convolution.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 pub fn conv_transpose3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: &Var<T, B>,

@@ -2,6 +2,7 @@
 //!
 //! `Tensor::{reshape, permute}` route metadata validation through `coeus-leto`
 //! while preserving zero-copy storage sharing.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_tensor::{Tensor, Transpose};

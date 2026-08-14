@@ -1,5 +1,8 @@
+#![expect(
+    clippy::module_inception,
+    reason = "ratchet COEUS-LINT-1: transformer::transformer is the canonical composite module"
+)]
 // ── Transformer module root ──
-#![allow(clippy::module_inception)]
 
 /// Transformer decoder stack (N layers).
 pub mod decoder;

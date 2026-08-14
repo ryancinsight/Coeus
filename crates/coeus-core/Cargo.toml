@@ -22,3 +22,6 @@ themis = { workspace = true }
 bytemuck   = { workspace = true }
 smallvec   = { workspace = true }
 thiserror  = { workspace = true }
+
+[lints]
+workspace = true

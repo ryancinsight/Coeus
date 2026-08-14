@@ -22,7 +22,7 @@ fn unary_expr(op: coeus_ops::UnaryOp) -> Result<String, WgpuBackendError> {
         }
         coeus_ops::UnaryOp::Lgamma => <hephaestus_core::LgammaOp as
             hephaestus_core::UnaryExpr<hephaestus_core::Wgsl>>::EXPR
-            .replace("x", "val"),
+            .replace('x', "val"),
         coeus_ops::UnaryOp::Tan => "tan(val)".to_string(),
         coeus_ops::UnaryOp::Asin => "asin(val)".to_string(),
         coeus_ops::UnaryOp::Acos => "acos(val)".to_string(),

@@ -14,6 +14,7 @@
 //
 // A zero-free line (z1 = n) reduces to the classic
 // suffix_sum(grad_out · out) / x_i over the whole line.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

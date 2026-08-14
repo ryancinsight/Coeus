@@ -1,5 +1,4 @@
 //! Elementwise CPU kernel delegations: unary and binary ops.
-#![allow(clippy::too_many_arguments)]
 
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, Layout, Scalar};
 

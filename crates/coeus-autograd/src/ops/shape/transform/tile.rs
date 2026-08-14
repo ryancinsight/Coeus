@@ -4,6 +4,7 @@
 // copy. For each output element, its gradient contributes to exactly one
 // input element; when reps > 1, multiple output elements share the same
 // source so we sum their gradients.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

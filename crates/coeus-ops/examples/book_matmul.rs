@@ -4,6 +4,10 @@
 //! and batched N-D inputs.  The backend is a zero-sized unit struct; switching
 //! from [`SequentialBackend`] to [`MoiraiBackend`] or a GPU backend changes
 //! the execution policy without changing the call site.
+#![expect(
+    clippy::print_stdout,
+    reason = "ratchet COEUS-LINT-1: demonstration/diagnostic output"
+)]
 
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_ops::matmul;

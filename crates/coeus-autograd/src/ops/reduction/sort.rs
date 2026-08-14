@@ -16,6 +16,7 @@
 //
 //   Implemented as `scatter_add(zeros_like(input), dim, sort_indices, grad_out)`
 //   which maps sorted gradient positions back to original positions.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

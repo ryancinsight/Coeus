@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use super::support::layout;
 use super::{batched_matmul_accumulate_into, elementwise_add_into, matmul_accumulate_into};
 

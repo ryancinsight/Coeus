@@ -2,6 +2,7 @@
 //
 // Backward passes gradient through unmasked positions and zeros it where
 // the mask selected the fill value. The mask itself is non-differentiable.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

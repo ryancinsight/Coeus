@@ -11,6 +11,10 @@
 //! the gradients the optimizer reads.
 //!
 //! Run with:  `cargo run -p coeus-optim --example linear_regression`
+#![expect(
+    clippy::print_stdout,
+    reason = "ratchet COEUS-LINT-1: demonstration/diagnostic output"
+)]
 
 use coeus_autograd::{add, matmul, mean, mul, sub, Parameter, Var};
 use coeus_core::SequentialBackend;

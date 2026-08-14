@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use moirai::Moirai;
 use moirai_async::{AsyncReadExt, AsyncWriteExt, TcpListener, TcpStream};
 use std::net::SocketAddr;

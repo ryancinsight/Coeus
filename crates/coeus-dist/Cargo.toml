@@ -21,3 +21,6 @@ moirai = { workspace = true }
 moirai-async = { workspace = true }
 
 
+
+[lints]
+workspace = true

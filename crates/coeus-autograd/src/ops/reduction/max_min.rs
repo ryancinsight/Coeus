@@ -12,6 +12,7 @@
 //     mask = mask_raw / broadcast(tie_count, input_shape)
 //     grad_in = broadcast(grad_out, input_shape) * mask
 //   eps = T::from_f64(1e-30) — exploits the fact that floating-point max is exact.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

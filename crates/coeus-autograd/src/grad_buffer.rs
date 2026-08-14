@@ -61,7 +61,7 @@ impl<T: Scalar, B: ComputeBackend + Default> GradBuffer<T, B> {
     /// lint is suppressed because this is the canonical interior-mutability
     /// pattern: the `UnsafeCell` explicitly grants permission for this.
     #[inline]
-    #[allow(clippy::mut_from_ref)]
+    #[expect(clippy::mut_from_ref, reason = "ratchet COEUS-LINT-1")]
     pub fn write(&self) -> &mut Tensor<T, B> {
         // SAFETY: upheld by the serialized gradient-access invariant.
         unsafe { &mut *self.0.get() }

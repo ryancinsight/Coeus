@@ -4,6 +4,7 @@
 //! Scatters the k output gradients back to their original positions using the
 //! topk indices. Positions not in the top-k receive zero gradient.
 //! Equivalent to PyTorch's `torch.topk` backward.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

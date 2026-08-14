@@ -2,7 +2,7 @@ use super::super::pool;
 use crate::backend::{WgpuBackend, WgpuScalar};
 use coeus_core::Layout;
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 impl<T: WgpuScalar + leto_ops::Scalar + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>>
     coeus_ops::PoolOps<T> for WgpuBackend
 {

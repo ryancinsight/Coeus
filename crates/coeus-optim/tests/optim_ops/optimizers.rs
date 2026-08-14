@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use super::{Adam, AdamW, Optimizer, Parameter, RMSProp, SequentialBackend, Tensor, Var, SGD};
 
 fn failure_atomic_parameters() -> Vec<Parameter<f32, SequentialBackend>> {

@@ -1,4 +1,5 @@
 //! TCP loopback collective contracts.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use super::super::support::loopback_meshes;
 use coeus_core::SequentialBackend;

@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use coeus_core::{Layout, Shape, Strides};
 use coeus_leto::{
     scaled_dot_product_attention_backward_accumulate, scaled_dot_product_attention_into,

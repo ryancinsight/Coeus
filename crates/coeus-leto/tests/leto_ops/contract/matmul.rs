@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use super::support::layout;
 use super::{batched_matmul_into, matmul_into, Layout, Shape, Strides};
 

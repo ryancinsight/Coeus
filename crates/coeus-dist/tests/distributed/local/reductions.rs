@@ -1,4 +1,5 @@
 //! Local reduction-operator contracts.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use coeus_core::SequentialBackend;
 use coeus_dist::Communicator;

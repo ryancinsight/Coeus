@@ -1,6 +1,5 @@
 //! Reduction CPU kernel delegations: reduce, argmax/argmin, topk, cumulative
 //! sum/product scans.
-#![allow(clippy::too_many_arguments)]
 
 use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 

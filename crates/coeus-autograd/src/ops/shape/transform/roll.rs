@@ -2,6 +2,7 @@
 //
 // roll has a straight-through gradient: the backward is roll with negated shifts
 // (unroll = reverse roll, which is roll by -shift).
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

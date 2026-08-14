@@ -102,3 +102,84 @@ opt-level = 1
 opt-level = 1
 
 # ATLAS-PATH-DEP-AUDIT-2 round-4 closure
+
+[workspace.lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+
+# Pedantic floor ratchet: every class listed below already fires in this
+# workspace and is allowed at its measured baseline; every class NOT listed
+# is a hard error. Counts are `cargo clippy --all-targets` hits at the time
+# the floor was established (total / production, production excluding
+# `#[cfg(test)]` modules and test, bench and example targets). Burn a class
+# down to zero, then delete its line -- the floor tightens, never loosens.
+
+# --- Documentation debt (1359 sites, 795 in production) ---
+doc_markdown = "allow"                # 583 (281 prod)
+must_use_candidate = "allow"          # 275 (131 prod)
+missing_errors_doc = "allow"          # 269 (151 prod)
+missing_panics_doc = "allow"          # 162 (162 prod)
+return_self_not_must_use = "allow"    # 70 (70 prod)
+
+# --- Numeric conversion debt (1481 sites, 529 in production) ---
+cast_precision_loss = "allow"         # 533 (115 prod)
+unreadable_literal = "allow"          # 326 (6 prod)
+cast_possible_wrap = "allow"          # 250 (174 prod)
+cast_sign_loss = "allow"              # 197 (142 prod)
+cast_possible_truncation = "allow"    # 116 (70 prod)
+cast_lossless = "allow"               # 43 (15 prod)
+float_cmp = "allow"                   # 14 (7 prod)
+manual_range_contains = "allow"       # 3 (3 prod)
+manual_midpoint = "allow"             # 1 (1 prod)
+
+# --- Raw-pointer / layout debt (10 sites, 10 in production) ---
+ptr_as_ptr = "allow"                  # 7 (7 prod)
+ref_as_ptr = "allow"                  # 3 (3 prod)
+
+# --- Signature and shape debt (211 sites, 126 in production) ---
+inline_always = "allow"               # 226 (226 prod)
+needless_pass_by_value = "allow"      # 64 (26 prod)
+too_many_arguments = "allow"          # 59 (59 prod)
+too_many_lines = "allow"              # 44 (29 prod)
+type_complexity = "allow"             # 12 (12 prod)
+trivially_copy_pass_by_ref = "allow"  # 10 (6 prod)
+unnecessary_wraps = "allow"           # 105 (0 prod)
+unused_self = "allow"                 # 17 (4 prod)
+ref_option = "allow"                  # 3 (3 prod)
+struct_excessive_bools = "allow"      # 1 (1 prod)
+struct_field_names = "allow"          # 1 (1 prod)
+
+# --- Style debt (1153 sites, 249 in production) ---
+semicolon_if_nothing_returned = "allow"    # 599 (3 prod)
+similar_names = "allow"                    # 243 (54 prod)
+uninlined_format_args = "allow"            # 95 (66 prod)
+needless_raw_string_hashes = "allow"       # 57 (36 prod)
+wildcard_imports = "allow"                 # 54 (0 prod)
+many_single_char_names = "allow"           # 35 (20 prod)
+get_first = "allow"                        # 29 (29 prod)
+items_after_statements = "allow"           # 25 (9 prod)
+manual_let_else = "allow"                  # 21 (2 prod)
+option_as_ref_cloned = "allow"             # 14 (14 prod)
+needless_range_loop = "allow"              # 12 (9 prod)
+redundant_closure_for_method_calls = "allow" # 7 (6 prod)
+match_same_arms = "allow"                  # 7 (6 prod)
+elidable_lifetime_names = "allow"          # 5 (5 prod)
+map_unwrap_or = "allow"                    # 4 (2 prod)
+if_not_else = "allow"                      # 4 (3 prod)
+format_push_string = "allow"               # 4 (4 prod)
+explicit_iter_loop = "allow"               # 3 (1 prod)
+single_match_else = "allow"                # 2 (1 prod)
+comparison_chain = "allow"                 # 1 (1 prod)
+expl_impl_clone_on_copy = "allow"          # 1 (1 prod)
+
+# --- Restriction floor ---
+# `unwrap_used` is denied outright: no workspace-wide allow. The 460 existing
+# sites (97 in production) are pinned per file by
+# `#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]`, which
+# self-expires the moment a file's last unwrap goes.
+unwrap_used = "deny"
+# Library output belongs to `tracing` or the application layer. The example,
+# bench and integration-test sites that legitimately print carry per-file
+# `#![expect(..., reason = "ratchet COEUS-LINT-1")]`.
+print_stdout = "deny"
+print_stderr = "deny"
+dbg_macro = "deny"

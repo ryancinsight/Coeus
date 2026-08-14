@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use super::support::layout;
 use super::{
     argmax_into, argmin_into, cumprod_into, cumsum_into, reduce_into, suffix_prod_into,

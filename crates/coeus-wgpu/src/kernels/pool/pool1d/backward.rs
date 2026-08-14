@@ -4,7 +4,7 @@ use crate::backend::{checked_numel, checked_workgroup_count, WgpuBackendError, W
 use crate::kernels::cache::PIPELINE_CACHE;
 use coeus_core::Layout;
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 fn dispatch_max_backward<T: WgpuScalar>(
     grad_out: &wgpu::Buffer,
     grad_out_layout: &Layout,
@@ -101,7 +101,7 @@ fn dispatch_max_backward<T: WgpuScalar>(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 fn dispatch_avg_backward<T: WgpuScalar>(
     grad_out: &wgpu::Buffer,
     grad_out_layout: &Layout,
@@ -184,7 +184,7 @@ fn dispatch_avg_backward<T: WgpuScalar>(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 pub fn dispatch_max_pool1d_backward<T: WgpuScalar>(
     grad_out: &wgpu::Buffer,
     grad_out_layout: &Layout,
@@ -213,7 +213,7 @@ pub fn dispatch_max_pool1d_backward<T: WgpuScalar>(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 pub fn dispatch_avg_pool1d_backward<T: WgpuScalar>(
     grad_out: &wgpu::Buffer,
     grad_out_layout: &Layout,

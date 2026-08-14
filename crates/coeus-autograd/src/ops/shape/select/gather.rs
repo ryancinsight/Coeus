@@ -6,6 +6,7 @@
 // Backward:
 //   d_input = scatter_add(zeros_like(input), dim, index, grad_out)
 //   d_index = 0 (integer index, non-differentiable)
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

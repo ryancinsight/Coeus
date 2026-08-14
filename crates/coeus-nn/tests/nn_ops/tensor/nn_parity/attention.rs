@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use super::assert_tensor_eq_data;
 #[path = "attention/expected.rs"]
 mod expected;

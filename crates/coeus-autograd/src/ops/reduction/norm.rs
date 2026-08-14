@@ -1,4 +1,5 @@
 // ── Autograd nodes: norm reductions (norm, norm_p, norm_p_axis) ──
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

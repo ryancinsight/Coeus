@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use coeus_autograd::Var;
 use coeus_core::{Complex, MoiraiBackend};
 use coeus_fft::{fft_1d, fft_1d_var, fft_energy, ifft_1d};

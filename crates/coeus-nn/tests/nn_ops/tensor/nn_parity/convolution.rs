@@ -1,3 +1,8 @@
+#![expect(
+    clippy::excessive_precision,
+    reason = "ratchet COEUS-LINT-1: reference values transcribed at source precision"
+)]
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use super::assert_tensor_eq_data;
 use coeus_autograd::Var as CoeusVar;
 use coeus_core::SequentialBackend;

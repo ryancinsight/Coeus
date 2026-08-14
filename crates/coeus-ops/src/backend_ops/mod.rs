@@ -1,6 +1,5 @@
 // ── Backend-parameterized execution operations ──
 // Unifies CPU and GPU dispatch via monomorphized associated traits.
-#![allow(clippy::too_many_arguments)]
 
 mod cpu_impl;
 pub(crate) mod defaults;

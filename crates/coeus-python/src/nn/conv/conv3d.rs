@@ -37,7 +37,7 @@ pub struct PyConv3d {
 impl PyConv3d {
     #[new]
     #[pyo3(signature = (in_channels, out_channels, kernel_size, stride = 1, padding = 0, dilation = 1, bias = true))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
     /// Create a Conv3d layer with the specified parameters.
     pub fn new(
         py: Python<'_>,

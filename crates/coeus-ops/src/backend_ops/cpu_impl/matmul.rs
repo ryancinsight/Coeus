@@ -1,5 +1,4 @@
 //! Matrix-multiply CPU kernel delegations.
-#![allow(clippy::too_many_arguments)]
 
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 

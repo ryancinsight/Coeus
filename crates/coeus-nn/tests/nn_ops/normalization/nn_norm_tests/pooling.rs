@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use coeus_autograd::Var;
 use coeus_nn::{AvgPool2d, MaxPool2d, Module, ModuleError};
 use coeus_tensor::Tensor;
@@ -41,7 +42,7 @@ fn test_max_pool2d_forward_backward() {
     assert_eq!(grad.shape(), &[1, 1, 4, 4]);
     let grad_slice = grad.as_slice();
 
-    #[allow(clippy::needless_range_loop)]
+    #[expect(clippy::needless_range_loop, reason = "ratchet COEUS-LINT-1")]
     for i in 0..16 {
         if i == 5 || i == 7 || i == 13 || i == 15 {
             assert_eq!(grad_slice[i], 1.0);

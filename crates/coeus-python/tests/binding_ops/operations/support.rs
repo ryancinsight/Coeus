@@ -1,4 +1,5 @@
 //! Shared Python interpreter setup for operation-family contracts.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;

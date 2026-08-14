@@ -134,7 +134,7 @@ mod tests {
         let input = var_from(&[0.0, 1.0]);
         let target = var_from(&[1.0, 2.0]);
         let loss = poisson_nll(&input, &target);
-        let expected = (1.0 + (std::f64::consts::E - 2.0)) / 2.0;
+        let expected = f64::midpoint(1.0, std::f64::consts::E - 2.0);
         assert_eq!(loss.tensor.shape(), &[1]);
         assert!((loss.tensor.as_slice()[0] - expected).abs() < 1e-12);
     }

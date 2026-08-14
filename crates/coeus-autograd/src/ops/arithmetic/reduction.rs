@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use super::traits::{reduction_op, ReductionAutogradOp};
 use crate::var::Var;
 use coeus_core::{Float, Scalar};

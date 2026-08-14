@@ -3,6 +3,7 @@
 // Backward: scatter gradient back to source positions (each output gradient
 // element is added to the input gradient at the selected index position).
 // Multiple selections of the same index accumulate (scatter-add semantics).
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

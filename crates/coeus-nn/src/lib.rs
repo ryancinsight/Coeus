@@ -18,12 +18,6 @@
 // ── Coeus NN ──
 // Neural network building blocks.
 #![deny(missing_docs)]
-#![allow(
-    clippy::needless_range_loop,
-    clippy::get_first,
-    clippy::manual_range_contains,
-    clippy::type_complexity
-)]
 
 /// Activation functions (ReLU, GeLU, SiLU, etc.).
 pub mod activation;

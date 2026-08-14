@@ -10,6 +10,11 @@
 //! initialization (LCG) to break hidden-unit symmetry; biases start at zero.
 //!
 //! Run with:  `cargo run -p coeus-optim --example mlp_classifier`
+#![expect(
+    clippy::print_stdout,
+    reason = "ratchet COEUS-LINT-1: demonstration/diagnostic output"
+)]
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use coeus_autograd::{add, log_softmax, matmul, nll_loss, relu, Parameter, Var};
 use coeus_core::SequentialBackend;
