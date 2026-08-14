@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use coeus_leto::{spmm_into, spmv_into, CsrDispatch};
 use leto::{ArrayView1, ArrayView2, Layout};
 use leto_ops::{spmm_into as leto_spmm_into, spmv_into as leto_spmv_into, CsrMatrix};

@@ -2,6 +2,7 @@
 //
 // diag: backward of diag(v) is diagonal(grad_out).
 // diagonal: backward of diagonal(M) is diag(grad_out).
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 // On-device WGPU transposed convolution forward parity vs the CPU reference.
 //
 // The WGSL gather kernels must match the verified CPU scatter reference

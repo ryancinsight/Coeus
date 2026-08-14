@@ -18,6 +18,7 @@ pub fn broadcast_shapes(a: &[usize], b: &[usize]) -> Option<Shape> {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
     use super::*;
 
     #[test]

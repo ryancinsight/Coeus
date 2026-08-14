@@ -3,6 +3,7 @@
 // `stack(inputs, dim)` inserts a new dimension at `dim` and concatenates all
 // input tensors along it.  The backward is an `unstuck` via `split` + squeeze
 // on each resulting chunk.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

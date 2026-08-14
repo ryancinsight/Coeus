@@ -1,4 +1,5 @@
 //! Local in-process collective and gradient contracts.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;

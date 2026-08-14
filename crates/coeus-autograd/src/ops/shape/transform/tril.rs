@@ -2,6 +2,7 @@
 //
 // tril and triu have pass-through gradients: the backward simply applies
 // the same mask to the incoming gradient (grad of a zeroed element stays 0).
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

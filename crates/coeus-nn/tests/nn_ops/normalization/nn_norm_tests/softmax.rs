@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use coeus_autograd::Var;
 use coeus_nn::{softmax, Module, ModuleError, Softmax};
 use coeus_tensor::Tensor;

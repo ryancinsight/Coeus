@@ -20,3 +20,6 @@ leto-ops = { workspace = true }
 bytemuck = { workspace = true }
 themis = { workspace = true }
 thiserror = { workspace = true }
+
+[lints]
+workspace = true

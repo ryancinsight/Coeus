@@ -1,9 +1,10 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use coeus_autograd::{sparse_matmul, sparse_matmul_coo, Var};
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 
 #[test]
-#[allow(clippy::needless_range_loop)]
+#[allow(clippy::needless_range_loop, reason = "ratchet COEUS-LINT-1")]
 fn test_sparse_matmul_backward() {
     let backend = MoiraiBackend::new();
 
@@ -98,7 +99,7 @@ fn test_sparse_matmul_backward() {
 }
 
 #[test]
-#[allow(clippy::needless_range_loop)]
+#[allow(clippy::needless_range_loop, reason = "ratchet COEUS-LINT-1")]
 fn test_sparse_coo_matmul_backward() {
     let backend = MoiraiBackend::new();
 

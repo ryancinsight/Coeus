@@ -13,11 +13,6 @@
 
 // ── Coeus Autograd ──
 // Automatic differentiation engine with computational graph.
-#![allow(
-    clippy::type_complexity,
-    clippy::needless_range_loop,
-    clippy::get_first
-)]
 #![deny(missing_docs)]
 
 /// Backward-pass graph traversal and gradient propagation.

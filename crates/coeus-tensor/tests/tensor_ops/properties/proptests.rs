@@ -1,4 +1,3 @@
-#![allow(clippy::needless_range_loop)]
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_tensor::{Tensor, Transpose};
 use proptest::prelude::*;

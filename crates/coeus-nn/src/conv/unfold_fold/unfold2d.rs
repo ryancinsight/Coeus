@@ -41,7 +41,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Unfold2d<T, B> {
     }
 
     /// Create `Unfold2d` with per-axis hyperparameters.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
     pub fn with_params(
         kernel_h: usize,
         kernel_w: usize,

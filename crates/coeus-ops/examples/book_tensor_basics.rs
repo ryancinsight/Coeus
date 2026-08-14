@@ -3,6 +3,10 @@
 //! [`MoiraiBackend`] is the moirai-integrated CPU execution backend.
 //! [`Tensor::from_slice_on`] creates a dense tensor from a host slice;
 //! [`coeus_ops::sum`] and [`coeus_ops::mean`] reduce over all elements.
+#![expect(
+    clippy::print_stdout,
+    reason = "ratchet COEUS-LINT-1: demonstration/diagnostic output"
+)]
 
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;

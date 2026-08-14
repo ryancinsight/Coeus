@@ -1,5 +1,3 @@
-#![allow(clippy::too_many_arguments)]
-
 use super::validation::{
     checked_pool_parameters, checked_pool_work, pool_index_arithmetic_is_valid,
     pool_layouts_are_valid, pool_prefix_matches, pool_shapes_match, POOL_BLOCK_SIZE,

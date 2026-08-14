@@ -3,6 +3,7 @@
 //! `Tensor::linspace_on` routes coordinate traversal through
 //! `coeus-leto::from_shape_fn_values` while preserving its `Scalar::from_f64`
 //! value contract.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use coeus_core::{MoiraiBackend, Scalar, SequentialBackend};
 use coeus_tensor::Tensor;

@@ -1,4 +1,5 @@
 //! Classification and margin loss contracts.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
@@ -199,7 +200,7 @@ fn test_multi_label_soft_margin_loss() {
     let loss = multi_label_soft_margin_loss(&x, &target);
     assert_eq!(loss.tensor.shape(), &[1]);
     let sig2 = 1.0 / (1.0 + (-2.0f64).exp());
-    let expected = (2.0f64.ln() + -(1.0 - sig2).ln()) / 2.0;
+    let expected = f64::midpoint(2.0f64.ln(), -(1.0 - sig2).ln());
     assert!((loss.tensor.as_slice()[0] - expected).abs() < 1e-10);
 
     loss.backward()

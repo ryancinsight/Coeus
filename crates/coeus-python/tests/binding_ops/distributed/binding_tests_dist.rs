@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::ffi::CString;

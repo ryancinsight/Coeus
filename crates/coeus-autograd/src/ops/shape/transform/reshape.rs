@@ -107,6 +107,7 @@ pub fn flatten<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 
 #[cfg(test)]
 mod flatten_tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
     use super::*;
     use coeus_core::MoiraiBackend;
 

@@ -7,7 +7,7 @@ use crate::storage::CudaStorage;
 use coeus_core::Layout;
 
 /// Dispatch one-dimensional sliding-window extraction.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 pub fn dispatch_unfold1d<T: CudaScalar>(
     input: &CudaStorage<T>,
     input_layout: &Layout,
@@ -78,7 +78,7 @@ pub fn dispatch_unfold1d<T: CudaScalar>(
 }
 
 /// Dispatch one-dimensional adjoint fold accumulation.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 pub fn dispatch_fold1d<T: CudaScalar>(
     input: &CudaStorage<T>,
     input_layout: &Layout,
@@ -104,7 +104,7 @@ pub fn dispatch_fold1d<T: CudaScalar>(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 fn dispatch_unfold_or_fold1d<T: CudaScalar>(
     name: &str,
     input: &CudaStorage<T>,

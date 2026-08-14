@@ -114,7 +114,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     /// # Errors
     ///
     /// Returns the backend error when validation or execution fails.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
     fn conv1d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -149,7 +149,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     /// # Errors
     ///
     /// Returns the backend error when validation or execution fails.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
     fn conv1d_backward(
         &self,
         grad_output: &Self::DeviceBuffer<T>,
@@ -192,7 +192,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     /// # Errors
     ///
     /// Returns the backend error when validation or execution fails.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
     fn conv2d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -227,7 +227,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     /// # Errors
     ///
     /// Returns the backend error when validation or execution fails.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
     fn conv2d_backward(
         &self,
         grad_output: &Self::DeviceBuffer<T>,
@@ -270,7 +270,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     /// # Errors
     ///
     /// Returns the backend error when validation or execution fails.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
     fn conv3d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -305,7 +305,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     /// # Errors
     ///
     /// Returns the backend error when validation or execution fails.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
     fn conv3d_backward(
         &self,
         grad_output: &Self::DeviceBuffer<T>,
@@ -348,7 +348,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     /// # Errors
     ///
     /// Returns the backend error when validation or execution fails.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
     fn conv_transpose1d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -388,7 +388,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     /// # Errors
     ///
     /// Returns the backend error when validation or execution fails.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
     fn conv_transpose1d_backward(
         &self,
         grad_output: &Self::DeviceBuffer<T>,
@@ -436,7 +436,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     /// # Errors
     ///
     /// Returns the backend error when validation or execution fails.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
     fn conv_transpose2d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -476,7 +476,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     /// # Errors
     ///
     /// Returns the backend error when validation or execution fails.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
     fn conv_transpose2d_backward(
         &self,
         grad_output: &Self::DeviceBuffer<T>,
@@ -524,7 +524,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     /// # Errors
     ///
     /// Returns the backend error when validation or execution fails.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
     fn conv_transpose3d(
         &self,
         input: &Self::DeviceBuffer<T>,
@@ -564,7 +564,7 @@ pub trait ConvOps<T: Scalar>: ComputeBackend {
     /// # Errors
     ///
     /// Returns the backend error when validation or execution fails.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
     fn conv_transpose3d_backward(
         &self,
         grad_output: &Self::DeviceBuffer<T>,

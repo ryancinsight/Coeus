@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use coeus_autograd::Var;
 use coeus_nn::{AvgPool3d, BatchNorm3d, Conv3d, MaxPool3d, Module};
 use coeus_tensor::Tensor;

@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use coeus_autograd::{
     cumsum, log_sum_exp, max_axis, mean_axis, min_axis, norm_p, norm_p_axis, std_dev, sum_axis,
     var, var_mean, var_mean_axis, Var,

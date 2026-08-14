@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use super::assert_tensor_eq_data;
 use coeus_autograd::Var as CoeusVar;
 use coeus_core::SequentialBackend;

@@ -46,7 +46,7 @@ fn try_hephaestus_strided_binary_wgpu<
                 layout: &lc,
             };
             let ok = |r: hephaestus_wgpu::Result<()>| {
-                r.map(|_| true)
+                r.map(|()| true)
                     .map_err(|source| WgpuBackendError::dispatch("elementwise binary", source))
             };
             let dev = &crate::backend::get_wgpu_context().hephaestus_device;
@@ -114,7 +114,7 @@ fn try_hephaestus_strided_unary_wgpu<
                 layout: &lc,
             };
             let ok = |r: hephaestus_wgpu::Result<()>| {
-                r.map(|_| true)
+                r.map(|()| true)
                     .map_err(|source| WgpuBackendError::dispatch("elementwise unary", source))
             };
             let dev = &crate::backend::get_wgpu_context().hephaestus_device;
@@ -266,7 +266,7 @@ fn try_hephaestus_strided_scalar_power_wgpu<
                 BlockWidth::DEFAULT,
             );
             result
-                .map(|_| true)
+                .map(|()| true)
                 .map_err(|source| WgpuBackendError::dispatch("elementwise scalar power", source))
         }};
     }
@@ -294,7 +294,7 @@ fn try_hephaestus_contiguous_binary<
     let ctx = crate::backend::get_wgpu_context();
     let run = |result: hephaestus_wgpu::Result<()>| {
         result
-            .map(|_| true)
+            .map(|()| true)
             .map_err(|source| WgpuBackendError::dispatch("elementwise binary", source))
     };
     match op {
@@ -355,7 +355,7 @@ fn try_hephaestus_contiguous_unary<
     let ctx = crate::backend::get_wgpu_context();
     let run = |result: hephaestus_wgpu::Result<()>| {
         result
-            .map(|_| true)
+            .map(|()| true)
             .map_err(|source| WgpuBackendError::dispatch("elementwise unary", source))
     };
     match op {

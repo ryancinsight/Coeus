@@ -30,6 +30,10 @@
 //!   `cargo bench -p coeus-ops --bench index_ops_bench`
 //! Run one kernel:
 //!   `cargo bench -p coeus-ops --bench index_ops_bench -- gather`
+#![expect(
+    clippy::print_stderr,
+    reason = "ratchet COEUS-LINT-1: benchmark diagnostic output"
+)]
 
 use std::time::{Duration, Instant};
 

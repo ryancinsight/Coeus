@@ -3,6 +3,7 @@
 //! `Tensor::to_contiguous_on` routes CPU-addressable views through
 //! `coeus-leto::contiguous_values`; this test asserts exact value parity for
 //! offset, strided, and transposed layouts.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use coeus_core::{CpuAddressableStorage, MoiraiBackend, SequentialBackend};
 use coeus_tensor::{Tensor, Transpose};

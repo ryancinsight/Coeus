@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use crate::communicator::Communicator;
 use crate::host_access::{copy_host_slice_to_tensor, get_tensor_host_data};
 use crate::ops::ReduceOpTag;
@@ -246,7 +247,7 @@ impl Communicator for LocalCommunicator {
             let bufs = self.shared.buffers.lock().unwrap();
             let root_data = Self::slot_vec_ref::<T>(&bufs[root], root, "broadcast");
             Self::assert_numel(root_data.len(), numel, root, "broadcast");
-            broadcasted = root_data.clone();
+            broadcasted.clone_from(root_data);
         }
 
         self.barrier();
@@ -345,7 +346,7 @@ impl Communicator for LocalCommunicator {
                 let bufs = self.shared.buffers.lock().unwrap();
                 Self::snapshot_payloads::<T>(&bufs, self.size, numel, "reduce")
             };
-            reduced = staged[0].clone();
+            reduced.clone_from(&staged[0]);
             for r_data in staged.iter().skip(1) {
                 for i in 0..numel {
                     reduced[i] = Op::apply(reduced[i], r_data[i]);

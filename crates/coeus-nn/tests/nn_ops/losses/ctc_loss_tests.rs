@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 /// CTC (Connectionist Temporal Classification) Loss tests.
 ///
 /// Analytical oracles derived from the log-space forward-backward DP.

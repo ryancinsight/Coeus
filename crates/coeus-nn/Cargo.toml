@@ -30,3 +30,6 @@ criterion      = { workspace = true }
 name = "nn_bench"
 path = "benches/nn_bench.rs"
 harness = false
+
+[lints]
+workspace = true

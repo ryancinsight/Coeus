@@ -1,5 +1,3 @@
-#![allow(clippy::too_many_arguments)]
-
 use super::validation::{parameter, try_layout};
 use super::PoolParams;
 use crate::backend::{checked_numel, checked_workgroup_count, WgpuBackendError, WgpuScalar};

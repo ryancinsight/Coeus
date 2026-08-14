@@ -46,7 +46,7 @@ fn native_float_scale_slice_matches_scalar_reference_exactly() {
         }
 
         for (i, (&actual, &reference)) in got.iter().zip(&expected).enumerate() {
-            assert_eq!(actual.to_bits(), reference.to_bits(), "scale n={n} i={i}",);
+            assert_eq!(actual.to_bits(), reference.to_bits(), "scale n={n} i={i}");
         }
     }
 }
@@ -65,7 +65,7 @@ fn axpy_slice_matches_scalar_reference_exactly_for_native_float() {
         }
 
         for (i, (&actual, &reference)) in got.iter().zip(&expected).enumerate() {
-            assert_eq!(actual.to_bits(), reference.to_bits(), "axpy n={n} i={i}",);
+            assert_eq!(actual.to_bits(), reference.to_bits(), "axpy n={n} i={i}");
         }
     }
 }

@@ -87,7 +87,7 @@ pub(crate) fn require_signed_coordinates(
             operation,
             reason: "signed-coordinate arithmetic overflow",
         })?;
-    if maximum <= isize::MAX as usize {
+    if isize::try_from(maximum).is_ok() {
         Ok(())
     } else {
         Err(BackendError::Storage {

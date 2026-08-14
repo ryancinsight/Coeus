@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use crate::storage::WgpuStorage;
 use coeus_core::{ComputeBackend, Scalar, Storage};
 use hephaestus_core::{CommandStream, KernelDevice};

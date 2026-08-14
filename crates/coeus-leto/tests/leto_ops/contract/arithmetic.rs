@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use super::support::layout;
 use super::{
     elementwise_add_into, elementwise_binary_into, elementwise_unary_into, BinaryOp, CpuUnaryOp,

@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use coeus_autograd::{cosh, erf, erfc, exp, exp2, log, log10, log2, selu, sinh, Var};
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;

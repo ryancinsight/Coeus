@@ -2,6 +2,7 @@
 //
 // flip has a straight-through gradient: the gradient is just flipped back
 // along the same axis.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

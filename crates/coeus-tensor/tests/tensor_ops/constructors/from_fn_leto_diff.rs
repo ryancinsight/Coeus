@@ -2,6 +2,7 @@
 //!
 //! `Tensor::from_fn_on` routes coordinate generation through
 //! `coeus-leto::from_shape_fn_values`.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_tensor::Tensor;

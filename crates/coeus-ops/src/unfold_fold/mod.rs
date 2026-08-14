@@ -106,7 +106,7 @@ pub fn fold1d<T: Scalar, B: BackendOps<T> + Default>(
 ///
 /// Returns the backend-associated error when geometry, shape arithmetic, or
 /// backend dispatch validation fails.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 pub fn unfold2d<T: Scalar, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     kernel_h: usize,
@@ -151,7 +151,7 @@ pub fn unfold2d<T: Scalar, B: BackendOps<T> + Default>(
 ///
 /// Returns the backend-associated error when geometry, shape arithmetic, or
 /// backend dispatch validation fails.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 pub fn fold2d<T: Scalar, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     output_h: usize,

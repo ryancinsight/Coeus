@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use super::support::layout;
 use super::{
     broadcast_layout, broadcast_shape, concat_values, contiguous_values, from_shape_fn_values,

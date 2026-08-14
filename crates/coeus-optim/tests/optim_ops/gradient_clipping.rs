@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use super::{clip_grad_norm, SequentialBackend, Tensor, Var};
 
 // ── clip_grad_norm ──

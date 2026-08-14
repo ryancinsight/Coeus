@@ -7,6 +7,7 @@
 //   d_input = fold1d(grad_out, output_size = L, kernel, stride, padding, dilation)
 //   i.e. col2im — the exact transpose of im2col (each input position accumulates
 //   the gradient of every window it participated in).
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
@@ -179,7 +180,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
 ///
 /// Returns the backend error when unfold validation or dispatch fails.
 #[inline]
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 pub fn unfold2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     kernel_h: usize,
@@ -388,7 +389,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Fo
 ///
 /// Returns the backend error when fold validation or dispatch fails.
 #[inline]
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet COEUS-LINT-1")]
 pub fn fold2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     output_h: usize,

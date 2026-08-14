@@ -142,6 +142,7 @@ pub fn movedim<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 
 #[cfg(test)]
 mod movedim_tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
     use super::*;
     use coeus_core::MoiraiBackend;
     use coeus_tensor::Tensor;

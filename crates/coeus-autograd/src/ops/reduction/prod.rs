@@ -12,6 +12,7 @@
 //
 // The branch avoids `0 / 0` and remains exact for any number of zeros while
 // keeping the input-sized computation on the selected provider.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;

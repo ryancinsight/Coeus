@@ -3,6 +3,7 @@
 // Verify the cached hardware-parallelism value (once per process) is
 // identical to the live Themis/syscall probe result, and that repeated
 // `num_threads()` reads are stable across calls.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 #[cfg(test)]
 mod tests {

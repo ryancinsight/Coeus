@@ -1,4 +1,5 @@
 //! Gated activation kernels.
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 
 use super::super::kernel::elementwise_unary;
 use crate::backend_ops::{BackendOps, UnaryOp};

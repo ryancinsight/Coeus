@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet COEUS-UNWRAP-1")]
 use coeus_core::{CpuAddressableStorage, Layout, SequentialBackend, Shape, Strides};
 use coeus_tensor::{broadcast::broadcast_shapes, Tensor};
 

@@ -1,3 +1,7 @@
+#![expect(
+    clippy::excessive_precision,
+    reason = "ratchet COEUS-LINT-1: reference values transcribed at source precision"
+)]
 fn repeated(groups: &[f32]) -> Vec<f32> {
     let mut values = Vec::with_capacity(groups.len() * 8);
     for &group in groups {

@@ -1,4 +1,7 @@
-#![allow(clippy::excessive_precision)]
+#![expect(
+    clippy::print_stdout,
+    reason = "ratchet COEUS-LINT-1: demonstration/diagnostic output"
+)]
 
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_tensor::Tensor;
