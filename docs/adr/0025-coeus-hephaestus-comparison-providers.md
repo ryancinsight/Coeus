@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted; implementation and hosted backend-parity verification are complete.
+Accepted — implementation and hosted backend-parity verification are complete.
 
 ## Decision
 

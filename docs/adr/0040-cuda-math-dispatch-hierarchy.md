@@ -1,6 +1,6 @@
 # ADR-0040: Vertical CUDA math dispatch modules
 
-- Status: accepted
+- Status: Accepted
 - Date: 2026-07-28
 - Scope: `coeus-cuda` backend math dispatch
 

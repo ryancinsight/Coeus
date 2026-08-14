@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted; implementation is complete. Locked metadata, focused non-CUDA
+Accepted — implementation is complete. Locked metadata, focused non-CUDA
 nextest, warning-denied Clippy, workspace doctests, warning-denied rustdoc, and
 the MSVC CUDA feature compile check pass. Focused CUDA nextest passes 6/6 with
 real device execution; exact-head provider CI remains pending.

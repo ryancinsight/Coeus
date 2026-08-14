@@ -1,6 +1,6 @@
 # ADR-0019: Type-state WGPU pool1d dispatch modes
 
-- Status: accepted
+- Status: Accepted
 - Date: 2026-07-23
 - Scope: `crates/coeus-wgpu/src/kernels/pool/pool1d/`
 

@@ -1,8 +1,8 @@
-# ADR-0025: External-framework parity evidence without Burn
+# ADR-0063: External-framework parity evidence without Burn
 
 ## Status
 
-Accepted. Ratifies the already-landed removal in `a365b25e`
+Accepted — ratifies the already-landed removal in `a365b25e`
 (`refactor(coeus-nn): remove legacy Burn benchmark`, MS-442) and
 `1c460223` (`feat(coeus)!: Complete provider refresh`, which deleted
 `burn_live_parity.rs`).
