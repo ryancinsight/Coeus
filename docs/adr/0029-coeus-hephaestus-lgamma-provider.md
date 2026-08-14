@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted; implementation and exact-head CI are complete for the f32 forward
+Accepted — implementation and exact-head CI are complete for the f32 forward
 provider/consumer boundary.
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR-0026: Make unsupported reduction dispatch statically unavailable
 
-- Status: accepted
+- Status: Accepted
 - Date: 2026-07-27
 - Scope: `coeus-ops` reduction traits and their Coeus/autograd callers
 

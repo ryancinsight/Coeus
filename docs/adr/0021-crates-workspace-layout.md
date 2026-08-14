@@ -1,6 +1,6 @@
 # ADR-0021: Place workspace crates under `crates/`
 
-- Status: accepted
+- Status: Accepted
 - Date: 2026-07-24
 - Scope: Coeus workspace topology, Cargo manifests, release workflow paths,
   and repository documentation

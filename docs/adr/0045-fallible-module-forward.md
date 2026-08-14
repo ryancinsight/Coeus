@@ -1,6 +1,6 @@
 # ADR-0045: Fallible neural-network module execution
 
-- Status: accepted
+- Status: Accepted
 - Date: 2026-07-28
 - Scope: `coeus-nn` module execution and direct workspace consumers
 - Change class: `[major] [arch]`

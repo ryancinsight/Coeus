@@ -1,6 +1,6 @@
 # ADR-0039: Typed CUDA fused-dispatch failures
 
-- Status: accepted
+- Status: Accepted
 - Date: 2026-07-28
 - Scope: `coeus-cuda` fused elementwise and fused reduction entry points
 

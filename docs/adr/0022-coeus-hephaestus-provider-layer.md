@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted; implemented as the first ROCm/Metal reduction increment.
+Accepted — implemented as the first ROCm/Metal reduction increment.
 
 ## Decision
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted; implementation is complete locally and code-head CI passed. The
+Accepted — implementation is complete locally and code-head CI passed. The
 documentation-only head requires one final matrix rerun before merge.
 
 ## Decision
