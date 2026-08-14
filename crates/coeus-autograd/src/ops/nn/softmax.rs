@@ -150,7 +150,7 @@ mod tests {
     use coeus_core::MoiraiBackend;
 
     #[test]
-    fn softmin_equals_softmax_of_negation_and_is_differentiable() {
+    fn softmin_equals_softmax_of_negation() {
         let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0, 2.0, 3.0]), true);
         let out = softmin(&x, 0);
 
@@ -174,9 +174,28 @@ mod tests {
             "softmin must rank inversely to input"
         );
         assert!((y.iter().sum::<f64>() - 1.0).abs() < 1e-12);
+    }
 
-        out.backward()
-            .expect("invariant: valid autograd fixture completes backward");
-        assert!(x.grad().is_some(), "softmin must be differentiable");
+    #[test]
+    fn softmin_backward_matches_finite_differences() {
+        // This replaces an `assert!(x.grad().is_some())`, which was the only
+        // backward assertion softmin had. Existence is not a gradient check: it
+        // holds just as well for a `backward` that writes zeros — and zeros are
+        // exactly what softmin's backward *does* produce under the uniform seed
+        // that a bare `.backward()` supplies, because softmax rows sum to 1 and
+        // its Jacobian rows therefore sum to 0. The weighting below breaks that
+        // uniformity so real Jacobian entries are compared; without it the
+        // helper rejects the check as vacuous rather than passing it.
+        let backend = MoiraiBackend::new();
+        let x = Tensor::<f64, MoiraiBackend>::from_slice_on([3], &[1.0, 2.0, 3.0], &backend);
+        let weighting = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice_on([3], &[1.0, -2.0, 0.5], &backend),
+            false,
+        );
+
+        crate::gradcheck::gradcheck(&[x], |v| {
+            crate::ops::sum(&crate::ops::mul(&softmin(&v[0], 0), &weighting))
+        })
+        .expect("softmin backward must match central differences");
     }
 }

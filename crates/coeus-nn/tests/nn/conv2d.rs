@@ -1,4 +1,4 @@
-use coeus_autograd::Var;
+use coeus_autograd::{gradcheck, mul, sum, Var};
 use coeus_nn::{init, Conv2d, Module};
 use coeus_tensor::Tensor;
 
@@ -85,6 +85,56 @@ fn test_conv2d_backward_gradients_match_reference() {
         assert_eq!(bias_grad.shape(), &[1]);
         assert_eq!(bias_grad.as_slice(), &[4.0]);
     }
+}
+
+#[test]
+fn conv2d_backward_matches_finite_differences() {
+    // The reference test above pins conv2d against all-ones weights, a uniform
+    // upstream seed, one channel and unit stride — a configuration in which
+    // every gradient is a small integer and a transposed kernel, a mishandled
+    // padding edge, or a swapped channel axis can all still agree. This check
+    // removes that symmetry: two input channels, three output channels,
+    // stride 2, padding 1, irregular values, and a non-uniform output
+    // weighting, verified by central differences that never read the backward.
+    //
+    // Output spatial extent: (5 + 2·1 − 3)/2 + 1 = 3, so the result is
+    // [1, 3, 3, 3] and the weighting below matches it.
+    const IN_CHANNELS: usize = 2;
+    const OUT_CHANNELS: usize = 3;
+    const KERNEL: usize = 3;
+    const STRIDE: usize = 2;
+    const PADDING: usize = 1;
+
+    // Deterministic irregular values, distinct per index and free of the
+    // repetition that lets a wrong index order still agree.
+    let ramp = |count: usize, offset: f64, slope: f64| -> Vec<f64> {
+        (0..count)
+            .map(|i| (slope.mul_add(i as f64, offset) % 1.7) - 0.85)
+            .collect()
+    };
+
+    let input = Tensor::<f64>::from_slice(vec![1, IN_CHANNELS, 5, 5], &ramp(50, -0.4, 0.37));
+    let weight = Tensor::<f64>::from_slice(
+        vec![OUT_CHANNELS, IN_CHANNELS, KERNEL, KERNEL],
+        &ramp(OUT_CHANNELS * IN_CHANNELS * KERNEL * KERNEL, 0.21, -0.29),
+    );
+    let bias = Tensor::<f64>::from_slice(vec![OUT_CHANNELS], &ramp(OUT_CHANNELS, 0.13, 0.41));
+    let weighting = Var::new(
+        Tensor::<f64>::from_slice(vec![1, OUT_CHANNELS, 3, 3], &ramp(27, 0.31, 0.23)),
+        false,
+    );
+
+    gradcheck(&[input, weight, bias], |v| {
+        let mut conv =
+            Conv2d::<f64>::with_params(IN_CHANNELS, OUT_CHANNELS, KERNEL, STRIDE, PADDING, 1, true);
+        // Cloning a Var shares its gradient buffer, so the layer accumulates
+        // into the same tracked parameters the check compares against.
+        conv.weight = v[1].clone();
+        conv.bias = Some(v[2].clone());
+        let output = conv.forward(&v[0]).expect("valid Conv2d input");
+        sum(&mul(&output, &weighting))
+    })
+    .expect("conv2d backward must match central differences");
 }
 
 #[test]

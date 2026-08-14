@@ -356,7 +356,15 @@ mod tests {
     }
 
     #[test]
-    fn norm_p_p3_backward_matches_numeric_gradient() {
+    fn norm_p_p3_backward_matches_analytic_gradient() {
+        // Renamed from `..._matches_numeric_gradient`, which it never was: the
+        // body below is a closed form typed in by hand, with no perturbation of
+        // the input and no finite difference anywhere in it. The name made the
+        // test read as an independent numeric oracle to anyone grepping for
+        // finite-difference coverage. The real numeric check is the separate
+        // `norm_p_p3_backward_matches_finite_differences` below; this one keeps
+        // the analytic oracle under an honest name.
+        //
         // x = [2, -3, 4], p = 3, ||x||_3 = 99^(1/3).
         // d/dx = sign(x)·|x|^2·norm^(1-3).
         let input = var_from(&[2.0, -3.0, 4.0]);
@@ -375,6 +383,24 @@ mod tests {
                 "norm_p p=3 grad[{i}]: got {g}, expected {e}"
             );
         }
+    }
+
+    #[test]
+    fn norm_p_p3_backward_matches_finite_differences() {
+        // The oracle the renamed test above only claimed to be: the gradient is
+        // reconstructed from forward evaluations of `norm_p` alone, so it is
+        // independent of both the backward implementation and of the
+        // sign(x)·|x|^(p-1)·norm^(1-p) derivation asserted there. Agreement
+        // between the two is then real corroboration rather than one author's
+        // algebra checked against itself.
+        //
+        // `norm_p` already reduces to a scalar, so no output weighting is
+        // needed and the gradient is nowhere near zero. Mixed signs keep the
+        // sign(x) factor in the comparison.
+        let input = Tensor::<f64, MoiraiBackend>::from_slice([3], &[2.0, -3.0, 4.0]);
+
+        crate::gradcheck::gradcheck(&[input], |v| norm_p(&v[0], 3.0))
+            .expect("norm_p p=3 backward must match central differences");
     }
 
     #[test]
