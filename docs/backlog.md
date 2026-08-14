@@ -1,5 +1,61 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-OPS-INDEX-DECODE-ALLOC-001 — Remove per-element coordinate buffers [patch]
+
+- Owner: Claude; scope: the flat-index decode loops in `coeus-ops`
+  `shape/select/{gather,index_select,scatter}`,
+  `shape/transform/repeat_interleave`, and `reduction/topk`. Kernel selection,
+  provider dispatch, and the ops' public signatures are non-goals.
+- Outcome: none of these kernels allocates per iteration. Each allocated a
+  `vec![0usize; ndim]` coordinate buffer inside its loop and consumed it only
+  to build flat offsets; the decode is now fused into the accumulation so each
+  coordinate is used by the iteration that produces it. `gather`,
+  `index_select`, and `repeat_interleave` additionally build their output by
+  `collect` instead of filling a zeroed vector, dropping an initialising pass.
+  `topk` also hoists its per-slice `pairs` vector, whose capacity survives
+  because `select_nth_unstable_by` and `truncate` only shrink the length.
+  In `gather` the buffer was allocated **per output element**, so the removal
+  scales with output size rather than with rank.
+- Acceptance: value semantics unchanged for every op at rank 2 and rank 3, with
+  the reduction/selection axis both interior and terminal; existing reference
+  and torch-parity tests unchanged.
+- Evidence: warning-denied all-target Clippy on `coeus-ops`; targeted
+  gather/topk/index suite 12/12 including both backend variants of
+  `index_ops_diff`; new rank-3 interior-axis `gather` coverage added, since the
+  prior tests left one side of `dim` degenerate at rank 2 and the fused decode
+  is exactly what a rank-3 interior axis exercises.
+- Measured evidence (`tests/alloc_budget.rs`, counting `#[global_allocator]`,
+  same binary and host, only the five kernel bodies differing between columns;
+  workloads `[4,8,4]` vs `[16,32,16]`, a 64x element difference, except `topk`
+  which holds `k` and the reduced extent fixed and varies only the outer slice
+  count):
+
+  | kernel | before (small -> large) | after | removed at large size |
+  | --- | --- | --- | ---: |
+  | `gather` | 70 -> 4102 | equal | 4032 |
+  | `index_select` | 70 -> 4102 | equal | 4032 |
+  | `repeat_interleave` | 262 -> 16390 | equal | 16128 |
+  | `scatter_add` | 71 -> 4103 | equal | 4032 |
+  | `topk` | 37 -> 517 | equal | 480 |
+
+  Three kernels each shed exactly `4096 - 64 = 4032` — one allocation per
+  element of the size difference. That the deltas match the structure exactly
+  is the check that the counter measures what it claims.
+- Discriminating power demonstrated, not assumed: `alloc_budget` run against
+  `origin/main`'s kernels fails 5/5 with the deltas above, and passes 5/5
+  against the fix. A test that passes on both revisions would be a surviving
+  mutant rather than evidence.
+- Not claimed: **no runtime delta**. Wall-clock timing was not measured. The
+  host carried 12-25 concurrent stack builds throughout; the identical 209-test
+  `coeus-ops` suite ran 30.3 s and then 39.9 s on unchanged code, a 31% swing
+  from contention alone, so a criterion run would have measured the host.
+  `index_ops_bench` is committed and budget-enforced for a quiet host, but
+  allocation counts are the exact measure of this change and timing only its
+  noisy proxy.
+- Pattern recorded in `gap_audit.md` — this shape recurred five times, so it is
+  filed as a slop pattern with a detection grep rather than as five fixes.
+- Status: complete 2026-08-13.
+
 ## COEUS-AUTOGRAD-BROADCAST-ALLOC-001 — Allocation-free broadcast gradient reduction [patch]
 
 - Owner: Claude; scope: `coeus_autograd::backward::reduce_broadcast` and its

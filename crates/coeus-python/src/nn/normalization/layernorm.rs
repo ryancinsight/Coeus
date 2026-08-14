@@ -14,7 +14,7 @@ pub(crate) fn parse_normalized_shape(value: &Bound<'_, PyAny>) -> PyResult<Vec<u
             )
         })?
     };
-    if shape.is_empty() || shape.iter().any(|&dimension| dimension == 0) {
+    if shape.is_empty() || shape.contains(&0) {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "LayerNorm: normalized_shape must contain positive dimensions",
         ));

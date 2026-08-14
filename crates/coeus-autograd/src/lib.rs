@@ -25,6 +25,8 @@ pub mod backward;
 pub(crate) mod grad_buffer;
 /// Thread-local autograd recording mode (no-grad scopes).
 pub mod grad_mode;
+/// Backward-pass verification against central finite differences.
+pub mod gradcheck;
 /// Computation graph node trait and implementations.
 pub mod node;
 /// Differentiable operations that build the autograd graph.
@@ -38,6 +40,7 @@ pub use grad_buffer::GradBuffer;
 pub use grad_mode::{
     is_grad_enabled, is_no_grad_enabled, no_grad_guard, pop_no_grad, push_no_grad, NoGradGuard,
 };
+pub use gradcheck::{gradcheck, gradcheck_with, GradcheckConfig, GradcheckError};
 pub use node::BackwardNode;
 pub use ops::{
     abs,

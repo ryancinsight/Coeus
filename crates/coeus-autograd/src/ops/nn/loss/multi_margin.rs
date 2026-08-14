@@ -215,7 +215,16 @@ mod tests {
     }
 
     #[test]
-    fn multi_margin_p2_backward_matches_numeric() {
+    fn multi_margin_p2_backward_is_zero_at_a_stationary_point() {
+        // Renamed from `..._backward_matches_numeric`, which it was not: there
+        // is no perturbation and no finite difference below, only a hand-derived
+        // closed form. The name is the more serious half of the problem — the
+        // expected gradient here is identically zero, so the assertion passes
+        // unchanged against a `backward` that writes zeros or does nothing at
+        // all. It is kept because a stationary point is a real property worth
+        // pinning, under a name that says so; the discriminating check is
+        // `multi_margin_p2_backward_matches_finite_differences` below.
+        //
         // x = [[0, 1]], target = [1], p = 2, margin = 0.5:
         //   m_j = 0.5 - x[1] + x[j] = [-0.5, 0.5]; hinge = [0, 0.5].
         //   coef = p*hinge^(p-1) = [0, 1]; grad_unit = [0, 1/2].
@@ -231,6 +240,24 @@ mod tests {
         for (i, &g) in grad.as_slice().iter().enumerate() {
             assert!((g - 0.0).abs() < 1e-12, "multi_margin p=2 grad[{i}] = {g}");
         }
+    }
+
+    #[test]
+    fn multi_margin_p2_backward_matches_finite_differences() {
+        // The independent oracle the renamed test above only claimed to be.
+        //
+        // Both non-target margins must stay strictly off the hinge: the loss is
+        // piecewise and a finite difference straddling `m_j = 0` would measure a
+        // one-sided slope. With target 1 and margin 0.5,
+        // `m_j = 0.5 - x[1] + x[j]` gives `m_0 = 1.3` and `m_2 = 1.0`, both far
+        // outside the `~6e-6` perturbation, so every evaluation stays on one
+        // smooth piece. p = 2 makes that piece `hinge²`, whose gradient is
+        // non-zero here — so unlike the test above, this one discriminates.
+        let x = Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[1.2, 0.4, 0.9]);
+        let targets = [1usize];
+
+        crate::gradcheck::gradcheck(&[x], |v| multi_margin(&v[0], &targets, 2.0, 0.5))
+            .expect("multi_margin p=2 backward must match central differences");
     }
 
     #[test]

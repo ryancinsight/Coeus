@@ -272,7 +272,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
         }
 
         let normalized_shape = self.weight.tensor.shape_cloned();
-        if normalized_shape.is_empty() || normalized_shape.iter().any(|&dimension| dimension == 0) {
+        if normalized_shape.is_empty() || normalized_shape.contains(&0) {
             return Err(validation::shape_mismatch(
                 MODULE,
                 "normalized_shape",

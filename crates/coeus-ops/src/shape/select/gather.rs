@@ -95,7 +95,6 @@ where
     }
 
     let out_numel: usize = idx_shape.iter().product();
-    let mut out_data = vec![T::zero(); out_numel];
 
     // Compute strides for index/output (row-major).
     let mut idx_strides = vec![1usize; ndim];
@@ -103,32 +102,34 @@ where
         idx_strides[d] = idx_strides[d + 1] * idx_shape[d + 1];
     }
 
-    for flat in 0..out_numel {
-        // Decode flat index into multi-dim coordinates.
-        let mut coords = vec![0usize; ndim];
-        let mut rem = flat;
-        for d in 0..ndim {
-            coords[d] = rem / idx_strides[d];
-            rem %= idx_strides[d];
-        }
+    // Coordinate decode is fused into the offset accumulation: each coordinate
+    // is consumed by the same iteration that produces it, so no per-element
+    // coordinate buffer exists. Collecting rather than filling a zeroed vector
+    // also drops a full initialising pass over the output.
+    let out_data: Vec<T> = (0..out_numel)
+        .map(|flat| {
+            // Look up the gather index (stored as T, cast to usize).
+            let gather_idx = <T as Scalar>::to_f64(idx_s[flat]) as usize;
+            assert!(
+                gather_idx < in_shape[dim],
+                "gather: index {gather_idx} out of bounds for dim {dim} size {}",
+                in_shape[dim]
+            );
 
-        // Look up the gather index (stored as T, cast to usize).
-        let gather_idx = <T as Scalar>::to_f64(idx_s[flat]) as usize;
-        assert!(
-            gather_idx < in_shape[dim],
-            "gather: index {gather_idx} out of bounds for dim {dim} size {}",
-            in_shape[dim]
-        );
+            // Decode `flat` against the index strides and accumulate the input
+            // offset in one pass; `dim` takes the gathered coordinate instead.
+            let mut rem = flat;
+            let mut in_flat = 0usize;
+            for d in 0..ndim {
+                let coord = rem / idx_strides[d];
+                rem %= idx_strides[d];
+                let c = if d == dim { gather_idx } else { coord };
+                in_flat += c * in_strides[d];
+            }
 
-        // Compute the input flat offset.
-        let mut in_flat = 0usize;
-        for d in 0..ndim {
-            let c = if d == dim { gather_idx } else { coords[d] };
-            in_flat += c * in_strides[d];
-        }
-
-        out_data[flat] = in_s[in_flat];
-    }
+            in_s[in_flat]
+        })
+        .collect();
 
     Tensor::from_slice(idx_shape.to_vec(), &out_data)
 }

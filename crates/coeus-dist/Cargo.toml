@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+readme.workspace = true
+categories.workspace = true
+keywords = ["distributed", "collectives", "allreduce", "tcp", "tensor"]
 description = "Distributed tensor and numerical operations for Coeus."
 
 [dependencies]

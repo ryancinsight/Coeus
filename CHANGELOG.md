@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### Added
+
+- [minor] `coeus_autograd::gradcheck` — verify a backward pass against central
+  finite differences of its forward. The step is derived from the scalar
+  type's machine epsilon as `h = ε^(1/3)·max(|x|,1)`, which minimises the sum
+  of the `O(h²)` truncation and `O(ε/h)` round-off terms and yields an
+  `O(ε^(2/3))` accuracy floor; the derivation and the resulting tolerances are
+  documented at the module. The denominator is the realized `x₊ − x₋` after
+  rounding into the scalar type, not the nominal `2h`. A comparison in which
+  both the analytic and the numeric gradient are zero is rejected as vacuous
+  (`GradcheckError::TriviallyZero`) rather than passed — the `sum(softmax(x))`
+  case, whose gradient is identically zero. Public so consumer crates can
+  verify their own compositions and custom `BackwardNode` implementations.
+  Wired to `matmul`, `softmax`/`softmin`, `layernorm`, `conv2d` and `gather`;
+  each was confirmed to fail against a deliberately mutated backward before
+  being accepted.
+
+### Fixed
+
+- [patch] Three backward tests asserted nothing a wrong implementation would
+  violate. `softmin`'s only backward assertion was `assert!(grad.is_some())`,
+  which holds for a `backward` that writes zeros; `norm_p` p=3 and
+  `multi_margin` p=2 were named `..._matches_numeric` but contained no
+  perturbation and no finite difference, and `multi_margin`'s expected
+  gradient was identically zero, so it passed against a no-op backward. All
+  three now have real finite-difference oracles; the two closed-form tests are
+  renamed to describe what they actually assert.
+
 ### Changed
 
 - [minor] Extend `LayerNorm` to normalize any configured non-empty positive
