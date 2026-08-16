@@ -198,7 +198,7 @@ impl HephaestusAttentionOps<TestDevice, f32> for TestAttentionOps {
         _device: &'a TestDevice,
         operands: AttentionForwardOperands<'a, TestBuffer<f32>, f32>,
     ) -> hephaestus_core::Result<Self::PreparedForward<'a>> {
-        FORWARD_BATCHES.store(operands.query.layout.shape[0], Ordering::SeqCst);
+        FORWARD_BATCHES.store(operands.query.layout.shape()[0], Ordering::SeqCst);
         FORWARD_CAUSAL.store(
             operands.mask.causality() == AttentionCausality::Causal,
             Ordering::SeqCst,

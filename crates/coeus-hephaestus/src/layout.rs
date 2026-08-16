@@ -33,7 +33,10 @@ pub(crate) fn ranked<const N: usize>(
         })?;
     }
 
-    Ok(LetoLayout::new(shape, strides, layout.offset()))
+    LetoLayout::try_new(shape, strides, layout.offset()).map_err(|_| BackendError::Overflow {
+        operation,
+        reason: "coeus layout violates the leto layout invariant",
+    })
 }
 
 /// Map a logical Coeus axis to the corresponding left-padded provider axis.
