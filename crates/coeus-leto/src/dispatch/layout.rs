@@ -6,7 +6,7 @@ use super::{shape_n, MAX_DISPATCH_RANK};
 
 fn from_leto_layout<const N: usize>(layout: leto::Layout<N>) -> Result<CoeusLayout> {
     let strides = layout
-        .strides
+        .strides()
         .iter()
         .map(|&stride| {
             usize::try_from(stride).map_err(|_| LetoError::StorageError {
@@ -15,9 +15,9 @@ fn from_leto_layout<const N: usize>(layout: leto::Layout<N>) -> Result<CoeusLayo
         })
         .collect::<Result<Vec<_>>>()?;
     Ok(CoeusLayout::from_shape_strides(
-        layout.shape.to_vec().into(),
+        layout.shape().to_vec().into(),
         strides.as_slice().into(),
-        layout.offset,
+        layout.offset(),
     ))
 }
 

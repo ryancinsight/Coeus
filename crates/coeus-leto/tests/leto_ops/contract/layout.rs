@@ -129,7 +129,7 @@ fn reshape_layout_dispatch_matches_leto_validation() {
         .reshape::<2>([2, 2])
         .unwrap();
 
-    assert_eq!(reshaped.shape(), direct.shape);
+    assert_eq!(reshaped.shape(), direct.shape());
     assert_eq!(reshaped.strides(), &[2, 1]);
     assert_eq!(reshaped.offset(), 2);
 
@@ -147,7 +147,7 @@ fn permute_layout_dispatch_matches_leto_validation() {
         .transpose([2, 0, 1])
         .unwrap();
 
-    assert_eq!(permuted.shape(), direct.shape);
+    assert_eq!(permuted.shape(), direct.shape());
     assert_eq!(permuted.strides(), &[1, 12, 4]);
     assert_eq!(permuted.offset(), 0);
     assert!(permute_layout(&source, &[0, 0, 1]).is_err());
@@ -162,7 +162,7 @@ fn broadcast_layout_dispatch_matches_leto_validation() {
         .broadcast::<2>([2, 3])
         .unwrap();
 
-    assert_eq!(broadcasted.shape(), direct.shape);
+    assert_eq!(broadcasted.shape(), direct.shape());
     assert_eq!(broadcasted.strides(), &[0, 1]);
     assert_eq!(broadcasted.offset(), 0);
     assert_eq!(broadcast_shape(&[2, 1], &[1, 3]).unwrap(), vec![2, 3]);
