@@ -19,9 +19,9 @@ use leto::{ArrayView, ArrayViewMut, Layout, LetoError, Result};
 ///
 /// let layout = Layout::new([2, 3].into());
 /// let leto_layout = to_leto_layout::<2>(&layout).unwrap();
-/// assert_eq!(leto_layout.shape, [2, 3]);
-/// assert_eq!(leto_layout.strides, [3, 1]);
-/// assert_eq!(leto_layout.offset, 0);
+/// assert_eq!(leto_layout.shape(), [2, 3]);
+/// assert_eq!(leto_layout.strides(), [3, 1]);
+/// assert_eq!(leto_layout.offset(), 0);
 /// ```
 ///
 /// A coeus layout whose rank exceeds `N` is rejected:
@@ -56,7 +56,7 @@ pub fn to_leto_layout<const N: usize>(layout: &CoeusLayout) -> Result<Layout<N>>
         };
     }
 
-    Ok(Layout::new(shape_arr, stride_arr, layout.offset()))
+    Layout::try_new(shape_arr, stride_arr, layout.offset())
 }
 
 /// Build a read-only leto view of rank `N` over a coeus storage slice.
