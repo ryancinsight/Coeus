@@ -43,7 +43,7 @@ where
         OPERATION,
         request.key_padding_mask.map(B::attention_buffer),
         mask_layout.as_ref(),
-        query_layout.shape[0],
+        query_layout.shape()[0],
         request.is_causal,
     )?;
     let operations = <<B as AttentionBackend<T>>::Provider as super::super::provider::AttentionProvider<T>>::Operations::default();

@@ -14,7 +14,7 @@ pub(in crate::attention) fn bind<'a, B>(
     let keep = match (buffer, layout) {
         (None, None) => None,
         (Some(buffer), Some(layout)) => {
-            let mask_batches = layout.shape[0];
+            let mask_batches = layout.shape()[0];
             let Some(batches_per_group) = execution_batches
                 .checked_div(mask_batches)
                 .filter(|width| *width > 0 && *width * mask_batches == execution_batches)
@@ -22,8 +22,8 @@ pub(in crate::attention) fn bind<'a, B>(
             else {
                 return Err(BackendError::IncompatibleBroadcast {
                     operation,
-                    from: layout.shape.to_vec(),
-                    to: vec![execution_batches, layout.shape[1]],
+                    from: layout.shape().to_vec(),
+                    to: vec![execution_batches, layout.shape()[1]],
                 });
             };
             Some(GroupedKeepMask::new(

@@ -56,7 +56,7 @@ pub fn to_leto_layout<const N: usize>(layout: &CoeusLayout) -> Result<Layout<N>>
         };
     }
 
-    Ok(Layout::new(shape_arr, stride_arr, layout.offset()))
+    Layout::try_new(shape_arr, stride_arr, layout.offset())
 }
 
 /// Build a read-only leto view of rank `N` over a coeus storage slice.
