@@ -3,7 +3,10 @@ use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 
 #[test]
-#[allow(clippy::needless_range_loop)]
+#[expect(
+    clippy::needless_range_loop,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 fn test_sparse_matmul_backward() {
     let backend = MoiraiBackend::new();
 
@@ -98,7 +101,10 @@ fn test_sparse_matmul_backward() {
 }
 
 #[test]
-#[allow(clippy::needless_range_loop)]
+#[expect(
+    clippy::needless_range_loop,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 fn test_sparse_coo_matmul_backward() {
     let backend = MoiraiBackend::new();
 

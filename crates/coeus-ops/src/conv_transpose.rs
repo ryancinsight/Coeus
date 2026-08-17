@@ -26,7 +26,10 @@ pub fn conv_transpose1d_output_len(
 /// Compute the output spatial dimensions of a transposed 2-D convolution.
 ///
 /// `h_out = (h - 1) * stride - 2 * padding + dilation * (kh - 1) + output_padding + 1`
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 #[inline]
 pub fn conv_transpose2d_output_dims(
     h: usize,
@@ -56,7 +59,10 @@ pub fn conv_transpose2d_output_dims(
 /// Output is `zeros_on` (not `alloc_on`) because transposed convolution
 /// **accumulates** input contributions into overlapping output positions via
 /// scatter-add — any uninitialized position would sum garbage.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 #[inline]
 pub fn conv_transpose1d<T: Float, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
@@ -104,7 +110,10 @@ pub fn conv_transpose1d<T: Float, B: BackendOps<T> + Default>(
 /// # Memory
 /// Output is `zeros_on` because transposed convolution accumulates overlapping
 /// scattered contributions — uninitialised output would produce incorrect sums.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 #[inline]
 pub fn conv_transpose2d<T: Float, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
@@ -148,7 +157,10 @@ pub fn conv_transpose2d<T: Float, B: BackendOps<T> + Default>(
 /// Mirrors `torch.nn.ConvTranspose3d`'s output-shape formula per spatial axis:
 /// `d_out = (d - 1) * stride - 2 * padding + dilation * (kd - 1) + output_padding + 1`
 /// (analogous for `h_out`, `w_out`).
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 #[inline]
 pub fn conv_transpose3d_output_dims(
     d: usize,
@@ -181,7 +193,10 @@ pub fn conv_transpose3d_output_dims(
 /// # Memory
 /// Output is `zeros_on` because transposed convolution accumulates overlapping
 /// scattered contributions — uninitialised output would produce incorrect sums.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 #[inline]
 pub fn conv_transpose3d<T: Float, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,

@@ -110,7 +110,6 @@ pub fn embedding_backward<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
 }
 
 /// Compute embedding lookup gradients while suppressing an optional padding row.
-#[allow(clippy::unnecessary_map_or)]
 pub fn embedding_backward_with_padding_idx<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     grad_out: &Tensor<T, B>,
     indices: &Tensor<I, B>,

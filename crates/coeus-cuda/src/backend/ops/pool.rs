@@ -21,7 +21,10 @@ fn dispatch_native_pool(
 }
 
 impl CudaBackend {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+    )]
     pub(crate) fn cuda_max_pool1d<T: CudaScalar>(
         &self,
         input: &CudaStorage<T>,
@@ -45,7 +48,10 @@ impl CudaBackend {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+    )]
     pub(crate) fn cuda_max_pool1d_backward<T: CudaScalar>(
         &self,
         grad_out: &CudaStorage<T>,
@@ -73,7 +79,10 @@ impl CudaBackend {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+    )]
     pub(crate) fn cuda_avg_pool1d<T: CudaScalar>(
         &self,
         input: &CudaStorage<T>,
@@ -97,7 +106,10 @@ impl CudaBackend {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+    )]
     pub(crate) fn cuda_avg_pool1d_backward<T: CudaScalar>(
         &self,
         grad_out: &CudaStorage<T>,
@@ -121,7 +133,10 @@ impl CudaBackend {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+    )]
     pub(crate) fn cuda_max_pool2d<T: CudaScalar>(
         &self,
         input: &CudaStorage<T>,
@@ -147,7 +162,10 @@ impl CudaBackend {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+    )]
     pub(crate) fn cuda_max_pool2d_backward<T: CudaScalar>(
         &self,
         grad_out: &CudaStorage<T>,
@@ -177,7 +195,10 @@ impl CudaBackend {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+    )]
     pub(crate) fn cuda_avg_pool2d<T: CudaScalar>(
         &self,
         input: &CudaStorage<T>,
@@ -203,7 +224,10 @@ impl CudaBackend {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+    )]
     pub(crate) fn cuda_avg_pool2d_backward<T: CudaScalar>(
         &self,
         grad_out: &CudaStorage<T>,
@@ -229,7 +253,10 @@ impl CudaBackend {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+    )]
     pub(crate) fn cuda_max_pool3d<T: CudaScalar>(
         &self,
         input: &CudaStorage<T>,
@@ -255,7 +282,10 @@ impl CudaBackend {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+    )]
     pub(crate) fn cuda_max_pool3d_backward<T: CudaScalar>(
         &self,
         grad_out: &CudaStorage<T>,
@@ -285,7 +315,10 @@ impl CudaBackend {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+    )]
     pub(crate) fn cuda_avg_pool3d<T: CudaScalar>(
         &self,
         input: &CudaStorage<T>,
@@ -311,7 +344,10 @@ impl CudaBackend {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+    )]
     pub(crate) fn cuda_avg_pool3d_backward<T: CudaScalar>(
         &self,
         grad_out: &CudaStorage<T>,

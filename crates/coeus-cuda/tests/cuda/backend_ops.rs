@@ -21,7 +21,10 @@ fn test_cuda_backend_transfer_roundtrip() {
     assert_eq!(a_seq_back.shape(), &[3]);
 }
 
-#[allow(clippy::excessive_precision)]
+#[expect(
+    clippy::excessive_precision,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 #[test]
 fn test_cuda_backend_ops() {
     if hephaestus_cuda::CudaDevice::try_default().is_err() {

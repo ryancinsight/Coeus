@@ -198,7 +198,6 @@ fn shader_source<T: WgpuScalar>(kind: KernelKind) -> String {
     .replace("{ZERO}", T::WGSL_ZERO)
 }
 
-#[allow(clippy::too_many_arguments)]
 fn dispatch<T: WgpuScalar>(
     kind: KernelKind,
     input: &wgpu::Buffer,

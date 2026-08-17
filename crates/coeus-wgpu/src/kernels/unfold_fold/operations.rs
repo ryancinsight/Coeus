@@ -12,7 +12,10 @@ use coeus_core::Layout;
 ///
 /// Returns a typed validation error before device access when the layouts,
 /// window geometry, WGSL parameters, or dispatch count are not representable.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub fn dispatch_unfold1d<T: WgpuScalar>(
     input: &wgpu::Buffer,
     input_layout: &Layout,
@@ -71,7 +74,10 @@ pub fn dispatch_unfold1d<T: WgpuScalar>(
 ///
 /// Returns a typed validation error before device access when the layouts,
 /// window geometry, WGSL parameters, or dispatch count are not representable.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub fn dispatch_fold1d<T: WgpuScalar>(
     input: &wgpu::Buffer,
     input_layout: &Layout,
@@ -138,7 +144,10 @@ pub fn dispatch_fold1d<T: WgpuScalar>(
 ///
 /// Returns a typed validation error before device access when the layouts,
 /// window geometry, WGSL parameters, or dispatch count are not representable.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub fn dispatch_unfold2d<T: WgpuScalar>(
     input: &wgpu::Buffer,
     input_layout: &Layout,
@@ -216,7 +225,10 @@ pub fn dispatch_unfold2d<T: WgpuScalar>(
 ///
 /// Returns a typed validation error before device access when the layouts,
 /// window geometry, WGSL parameters, or dispatch count are not representable.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub fn dispatch_fold2d<T: WgpuScalar>(
     input: &wgpu::Buffer,
     input_layout: &Layout,

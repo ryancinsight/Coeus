@@ -2,7 +2,6 @@ use crate::backend::{WgpuBackend, WgpuScalar};
 use crate::kernels;
 use coeus_core::Layout;
 
-#[allow(clippy::too_many_arguments)]
 impl<T: WgpuScalar> coeus_ops::UnfoldFoldOps<T> for WgpuBackend {
     fn unfold1d(
         &self,

@@ -4,7 +4,6 @@ use crate::backend_ops::ops::{BinaryOp, UnaryOp};
 use crate::backend_ops::traits::{ElementwiseOps, ScalarPowerOps};
 use coeus_core::{CpuAddressableStorageMut, Float, Layout, Scalar};
 
-#[allow(clippy::too_many_arguments)]
 impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> ElementwiseOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,

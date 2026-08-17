@@ -6,7 +6,6 @@
 //! `f32`/`f64`; the products and sums stay below the exact-integer range, so
 //! bitwise equality is the correct oracle for both scalar widths.
 
-#[allow(unused_imports)]
 use coeus_core::Layout;
 use coeus_core::{
     ComputeBackend, CpuAddressableStorageMut, MoiraiBackend, Scalar, SequentialBackend, Shape,

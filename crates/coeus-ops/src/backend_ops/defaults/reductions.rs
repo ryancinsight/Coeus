@@ -46,7 +46,10 @@ pub fn argmin<T, B>(
 }
 
 /// Default: copy to host, run `topk_impl`, copy back.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub fn topk<T, B>(
     backend: &B,
     a: &B::DeviceBuffer<T>,

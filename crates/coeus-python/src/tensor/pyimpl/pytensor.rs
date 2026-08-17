@@ -620,7 +620,7 @@ impl PyTensor {
     }
 
     #[getter]
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case, reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097")]
     fn T(&self, py: Python<'_>) -> PyResult<Self> {
         let ndim = self.inner.tensor.ndim();
         if ndim != 2 {
