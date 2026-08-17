@@ -15,8 +15,11 @@
 // Automatic differentiation engine with computational graph.
 #![deny(missing_docs)]
 
-/// Backward-pass graph traversal and gradient propagation.
+/// Computation graph caching for autodiff compilation overhead reduction.
+pub mod autodiff_cache;
+/// Backward-pass graph traversal and caching integration.
 pub mod backward;
+pub mod backward_cache;
 pub(crate) mod grad_buffer;
 /// Thread-local autograd recording mode (no-grad scopes).
 pub mod grad_mode;
@@ -37,6 +40,12 @@ pub use grad_mode::{
 };
 pub use gradcheck::{gradcheck, gradcheck_with, GradcheckConfig, GradcheckError};
 pub use node::BackwardNode;
+pub use autodiff_cache::{
+    CacheConfig, CacheStats, ComputeGraphCache, ComputeGraphKey, DefaultCacheConfig, GraphInfo,
+    compute_graph_fingerprint,
+};
+pub use backward_cache::topological_sort_with_cache;
+pub use var::{get_backward_cache, reset_backward_cache_stats};
 pub use ops::{
     abs,
     acos,
