@@ -1,4 +1,4 @@
-# ADR-0060: Provider-owned Metal and ROCm bridge
+# ADR-0065: Provider-owned Metal and ROCm bridge
 
 Status: Accepted
 Date: 2026-08-11

@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted. Ratifies the already-landed removal in `a365b25e`
+Accepted
+
+Revision note: Ratifies the already-landed removal in `a365b25e`
 (`refactor(coeus-nn): remove legacy Burn benchmark`, MS-442) and
 `1c460223` (`feat(coeus)!: Complete provider refresh`, which deleted
 `burn_live_parity.rs`).

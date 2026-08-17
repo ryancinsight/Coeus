@@ -1,6 +1,6 @@
 # ADR-0041: CUDA pooling index contract
 
-- Status: accepted
+- Status: Accepted
 - Date: 2026-07-28
 - Scope: `coeus-cuda` pooling launch validation
 

@@ -1,6 +1,6 @@
-# ADR-0021: Native cumulative-scan dispatch boundary
+# ADR-0062: Native cumulative-scan dispatch boundary
 
-- Status: accepted
+- Status: Accepted
 - Date: 2026-07-26
 - Scope: `coeus-ops`, `coeus-wgpu`, and `coeus-cuda`
 - Change class: `[major]`

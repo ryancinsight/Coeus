@@ -21,32 +21,28 @@
 | [0015](0015-cuda-elementwise-backend-boundary.md) | CUDA elementwise backend boundary | Accepted |
 | [0016](0016-cuda-convolution-backend-tree.md) | CUDA convolution backend tree | Accepted |
 | [0018](0018-fused-operation-tag-tree.md) | Fused operation-tag tree | Accepted |
-| [0019](0019-wgpu-pool1d-dispatch-modes.md) | Type-state WGPU pool1d dispatch modes | accepted |
-| [0020](0020-wgpu-fallible-dispatch-boundary.md) | Fallible WGPU layout and dispatch boundary | accepted |
-| [0021](0021-coeus-ops-activation-tree.md) | Separate Activation Operation Families | accepted |
-| [0021](0021-crates-workspace-layout.md) | Place workspace crates under `crates/` | accepted |
-| [0021](0021-native-cumulative-scan-dispatch.md) | Native cumulative-scan dispatch boundary | accepted |
-| [0022](0022-coeus-hephaestus-provider-layer.md) | Share Coeus Hephaestus provider integration | Accepted; |
-| [0023](0023-coeus-hephaestus-elementwise-providers.md) | Add ranked Coeus Hephaestus elementwise providers | Accepted; |
-| [0024](0024-coeus-hephaestus-activation-providers.md) | Add common Hephaestus activation providers | Accepted; |
-| [0025](0025-coeus-hephaestus-comparison-providers.md) | Add native comparison providers | Accepted; |
-| [0025](0025-external-framework-parity-without-burn.md) | External-framework parity evidence without Burn | Accepted. |
-| [0026](0026-coeus-backend-dispatch-boundaries.md) | Make unsupported reduction dispatch statically unavailable | accepted |
-| [0026](0026-coeus-hephaestus-unary-math-providers.md) | Add native unary math providers | Accepted; |
-| [0027](0027-coeus-hephaestus-error-function-providers.md) | Add Hephaestus error-function providers | Accepted; |
-| [0028](0028-coeus-hephaestus-gelu-providers.md) | Add Hephaestus exact GELU providers | Accepted; |
-| [0029](0029-coeus-hephaestus-lgamma-provider.md) | Route Coeus lgamma through Hephaestus providers | Accepted; |
-| [0030](0030-coeus-hephaestus-activation-tail-providers.md) | Route Coeus activation-tail operations through Hephaestus | Accepted; |
-| [0036](0036-device-local-cow-copy.md) | Keep accelerator COW copies on-device | Accepted; |
+| [0019](0019-wgpu-pool1d-dispatch-modes.md) | Type-state WGPU pool1d dispatch modes | Accepted |
+| [0020](0020-wgpu-fallible-dispatch-boundary.md) | Fallible WGPU layout and dispatch boundary | Accepted |
+| [0021](0021-crates-workspace-layout.md) | Place workspace crates under `crates/` | Accepted |
+| [0022](0022-coeus-hephaestus-provider-layer.md) | Share Coeus Hephaestus provider integration | Accepted |
+| [0023](0023-coeus-hephaestus-elementwise-providers.md) | Add ranked Coeus Hephaestus elementwise providers | Accepted |
+| [0024](0024-coeus-hephaestus-activation-providers.md) | Add common Hephaestus activation providers | Accepted |
+| [0025](0025-external-framework-parity-without-burn.md) | External-framework parity evidence without Burn | Accepted |
+| [0026](0026-coeus-backend-dispatch-boundaries.md) | Make unsupported reduction dispatch statically unavailable | Accepted |
+| [0027](0027-coeus-hephaestus-error-function-providers.md) | Add Hephaestus error-function providers | Accepted |
+| [0028](0028-coeus-hephaestus-gelu-providers.md) | Add Hephaestus exact GELU providers | Accepted |
+| [0029](0029-coeus-hephaestus-lgamma-provider.md) | Route Coeus lgamma through Hephaestus providers | Accepted |
+| [0030](0030-coeus-hephaestus-activation-tail-providers.md) | Route Coeus activation-tail operations through Hephaestus | Accepted |
+| [0036](0036-device-local-cow-copy.md) | Keep accelerator COW copies on-device | Accepted |
 | [0037](0037-uninitialized-cow-consumer.md) | Separate accelerator initialization contracts | Accepted |
 | [0038](0038-coeus-hephaestus-activation-tail.md) | Complete Hephaestus activation provider parity | Accepted |
-| [0039](0039-cuda-fused-dispatch-errors.md) | Typed CUDA fused-dispatch failures | accepted |
-| [0040](0040-cuda-math-dispatch-hierarchy.md) | Vertical CUDA math dispatch modules | accepted |
-| [0041](0041-cuda-pooling-index-contract.md) | CUDA pooling index contract | accepted |
-| [0042](0042-fallible-autograd-backward.md) | Fallible autograd backward contract | accepted |
+| [0039](0039-cuda-fused-dispatch-errors.md) | Typed CUDA fused-dispatch failures | Accepted |
+| [0040](0040-cuda-math-dispatch-hierarchy.md) | Vertical CUDA math dispatch modules | Accepted |
+| [0041](0041-cuda-pooling-index-contract.md) | CUDA pooling index contract | Accepted |
+| [0042](0042-fallible-autograd-backward.md) | Fallible autograd backward contract | Accepted |
 | [0043](0043-cuda-native-dispatch-boundary.md) | CUDA native dispatch boundary | Accepted |
 | [0044](0044-wgpu-reduction-provider-ownership.md) | WGPU reduction provider ownership | Accepted |
-| [0045](0045-fallible-module-forward.md) | Fallible neural-network module execution | accepted |
+| [0045](0045-fallible-module-forward.md) | Fallible neural-network module execution | Accepted |
 | [0046](0046-provider-owned-convolution-dispatch.md) | Route convolution through Leto and Hephaestus | Accepted |
 | [0047](0047-provider-owned-attention-dispatch.md) | Provider-owned attention dispatch | Accepted |
 | [0048](0048-provider-owned-stateful-update-dispatch.md) | Provider-owned stateful update dispatch | Accepted |
@@ -62,4 +58,8 @@
 | [0058](0058-wgpu-elementwise-module-boundary.md) | WGPU elementwise module boundary | Accepted |
 | [0059](0059-wgpu-elementwise-routing-leaves.md) | WGPU elementwise routing leaves | Accepted |
 | [0060](0060-provider-owned-batched-frobenius-norm.md) | Provider-owned batched Frobenius norm | Accepted |
-| [0060](0060-provider-owned-metal-rocm-bridge.md) | Provider-owned Metal and ROCm bridge | Accepted |
+| [0061](0061-coeus-ops-activation-tree.md) | Separate Activation Operation Families | Accepted |
+| [0062](0062-native-cumulative-scan-dispatch.md) | Native cumulative-scan dispatch boundary | Accepted |
+| [0063](0063-coeus-hephaestus-comparison-providers.md) | Add native comparison providers | Accepted |
+| [0064](0064-coeus-hephaestus-unary-math-providers.md) | Add native unary math providers | Accepted |
+| [0065](0065-provider-owned-metal-rocm-bridge.md) | Provider-owned Metal and ROCm bridge | Accepted |
