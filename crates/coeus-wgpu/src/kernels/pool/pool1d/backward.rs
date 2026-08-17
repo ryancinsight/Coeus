@@ -4,10 +4,6 @@ use crate::backend::{checked_numel, checked_workgroup_count, WgpuBackendError, W
 use crate::kernels::cache::PIPELINE_CACHE;
 use coeus_core::Layout;
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
-)]
 fn dispatch_max_backward<T: WgpuScalar>(
     grad_out: &wgpu::Buffer,
     grad_out_layout: &Layout,
@@ -104,10 +100,6 @@ fn dispatch_max_backward<T: WgpuScalar>(
     Ok(())
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
-)]
 fn dispatch_avg_backward<T: WgpuScalar>(
     grad_out: &wgpu::Buffer,
     grad_out_layout: &Layout,

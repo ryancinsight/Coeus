@@ -198,10 +198,6 @@ fn shader_source<T: WgpuScalar>(kind: KernelKind) -> String {
     .replace("{ZERO}", T::WGSL_ZERO)
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
-)]
 fn dispatch<T: WgpuScalar>(
     kind: KernelKind,
     input: &wgpu::Buffer,
