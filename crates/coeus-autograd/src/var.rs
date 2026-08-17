@@ -2,10 +2,26 @@
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
+use crate::autodiff_cache::ComputeGraphCache;
 use coeus_core::{ComputeBackend, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::cell::RefCell;
+
+thread_local! {
+    static BACKWARD_CACHE: RefCell<ComputeGraphCache> = RefCell::new(ComputeGraphCache::new());
+}
+
+/// Get the thread-local backward pass cache for autodiff compilation.
+pub fn get_backward_cache() -> ComputeGraphCache {
+    BACKWARD_CACHE.with(|cache| cache.borrow().clone())
+}
+
+/// Reset the thread-local backward pass cache statistics.
+pub fn reset_backward_cache_stats() {
+    BACKWARD_CACHE.with(|cache| cache.borrow().reset_stats());
+}
 
 /// A differentiable variable wrapping a tensor and its gradient accumulator.
 ///
