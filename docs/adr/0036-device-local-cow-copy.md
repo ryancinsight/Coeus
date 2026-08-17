@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted; the generic Coeus Hephaestus storage increment and native WGPU/CUDA
+Accepted
+
+Implementation note: the generic Coeus Hephaestus storage increment and native WGPU/CUDA
 consumer cutover are implemented.
 
 ## Context

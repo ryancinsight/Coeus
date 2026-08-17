@@ -1,6 +1,6 @@
 # ADR-0042: Fallible autograd backward contract
 
-- Status: accepted
+- Status: Accepted
 - Date: 2026-07-28
 - Scope: `coeus-autograd` graph traversal and operation nodes
 - Change class: `[major] [arch]`

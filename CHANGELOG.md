@@ -49,7 +49,7 @@
   stateful-update, and cross-entropy seams. The removed `MetalBackend` and
   `RocmBackend` names require external callers to migrate; no compatibility
   aliases or host fallbacks remain. See
-  [ADR 0060](docs/adr/0060-provider-owned-metal-rocm-bridge.md).
+  [ADR 0065](docs/adr/0065-provider-owned-metal-rocm-bridge.md).
 
 - [major] [arch] Route CUDA elementwise and reduction/scan operations through
   the generic `HephaestusBackend<CudaBackend>` bridge and delete the cloned

@@ -57,7 +57,7 @@
       the device integration suite fail only with the pre-existing
       `AdapterUnavailable` hardware gate (verified identical on the parent
       commit; GPU contract-test execution is external).
-- [x] Record the replacement and external migration contract in ADR 0060.
+- [x] Record the replacement and external migration contract in ADR 0065.
 - [x] Run focused native Nextest (17/17), doctests (0/0), format, warning-denied
       Clippy, and diff hygiene; physical-device execution is not claimed.
 - [ ] Run exact-head hosted provider contracts after Hephaestus lands; report

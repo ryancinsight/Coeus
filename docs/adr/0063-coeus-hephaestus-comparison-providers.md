@@ -1,8 +1,10 @@
-# ADR-0025: Add native comparison providers
+# ADR-0063: Add native comparison providers
 
 ## Status
 
-Accepted; implementation and hosted backend-parity verification are complete.
+Accepted
+
+Implementation note: implementation and hosted backend-parity verification are complete.
 
 ## Decision
 

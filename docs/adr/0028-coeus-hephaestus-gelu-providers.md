@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted; implementation is complete and exact-head CI is pending.
+Accepted
+
+Implementation note: implementation is complete and exact-head CI is pending.
 
 ## Context
 

@@ -186,7 +186,7 @@
   provider contracts remain required before merge.
 - Risk/change class: `[major] [arch]`; the removed `MetalBackend` and
   `RocmBackend` names require external consumers to migrate to the generic
-  `HephaestusBackend<P>` surface. See [ADR 0060](adr/0060-provider-owned-metal-rocm-bridge.md).
+  `HephaestusBackend<P>` surface. See [ADR 0065](adr/0065-provider-owned-metal-rocm-bridge.md).
 - Status: local implementation and focused gates complete on
   `codex/coeus-provider-deletion-metal-rocm`; exact-head hosted provider
   contracts remain pending after Hephaestus seam delivery.

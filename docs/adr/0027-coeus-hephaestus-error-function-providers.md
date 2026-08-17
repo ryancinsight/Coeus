@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted; implementation and exact-head provider CI are complete.
+Accepted
+
+Implementation note: implementation and exact-head provider CI are complete.
 
 ## Context
 
