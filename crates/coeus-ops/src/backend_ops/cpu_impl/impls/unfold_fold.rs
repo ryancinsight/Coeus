@@ -3,7 +3,10 @@ use super::super::CpuBackend;
 use crate::backend_ops::traits::UnfoldFoldOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar, Storage};
 
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 impl<T: Scalar, B: CpuBackend> UnfoldFoldOps<T> for B
 where
     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,

@@ -1,7 +1,10 @@
 // ── Layout module ──
 // Shape, strides, and multi-dimensional layout descriptors.
 
-#[allow(clippy::module_inception)]
+#[expect(
+    clippy::module_inception,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 mod layout;
 mod shape;
 mod strides;

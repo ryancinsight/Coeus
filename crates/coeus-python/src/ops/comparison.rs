@@ -38,7 +38,10 @@ pub fn ge(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
 }
 
 #[pyfunction]
-#[allow(clippy::needless_pass_by_ref_mut)]
+#[expect(
+    clippy::needless_pass_by_ref_mut,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub fn where_fn(
     cond: &PyTensor,
     on_true: &PyTensor,

@@ -134,7 +134,10 @@ pub(crate) fn fold1d<T: Scalar, B: Backend>(
 // ── Unfold 2D ────────────────────────────────────────────────────────────────
 
 /// Extract sliding windows from `[N, C, H, W]` into `[N, C*kH*kW, H_out*W_out]`.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 #[inline]
 pub(crate) fn unfold2d<T: Scalar, B: Backend>(
     backend: &B,
@@ -208,7 +211,10 @@ pub(crate) fn unfold2d<T: Scalar, B: Backend>(
 // ── Fold 2D ──────────────────────────────────────────────────────────────────
 
 /// Accumulate `[N, C*kH*kW, H_out*W_out]` back into `[N, C, output_h, output_w]`.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 #[inline]
 pub(crate) fn fold2d<T: Scalar, B: Backend>(
     _backend: &B,

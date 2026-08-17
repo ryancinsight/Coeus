@@ -67,7 +67,10 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
     }
 
     /// Return the `k` largest (or smallest) values and their indices along an axis.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+    )]
     fn topk(
         &self,
         a: &Self::DeviceBuffer<T>,

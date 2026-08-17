@@ -84,7 +84,10 @@ fn dispatch_forward<T: WgpuScalar>(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub fn dispatch_max_pool1d<T: WgpuScalar>(
     input: &wgpu::Buffer,
     input_layout: &Layout,
@@ -110,7 +113,10 @@ pub fn dispatch_max_pool1d<T: WgpuScalar>(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub fn dispatch_avg_pool1d<T: WgpuScalar>(
     input: &wgpu::Buffer,
     input_layout: &Layout,

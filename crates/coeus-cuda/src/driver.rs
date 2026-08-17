@@ -63,7 +63,7 @@ pub struct CudaDriver {
     /// Function pointer to `cuModuleUnload` — unloads a loaded CUDA module.
     pub cu_module_unload: unsafe extern "C" fn(hmod: CUmodule) -> CUresult,
     /// Function pointer to `cuLaunchKernel` — launches a CUDA kernel on the device.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case, reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097")]
     pub cu_launch_kernel: unsafe extern "C" fn(
         f: CUfunction,
         gridDimX: u32,
@@ -160,7 +160,7 @@ unsafe extern "C" fn local_cu_module_unload(hmod: CUmodule) -> CUresult {
     cuda_core::sys::cuModuleUnload(hmod as *mut _) as CUresult
 }
 
-#[allow(non_snake_case)]
+#[expect(non_snake_case, reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097")]
 unsafe extern "C" fn local_cu_launch_kernel(
     f: CUfunction,
     gridDimX: u32,
@@ -254,15 +254,15 @@ pub fn get_borrowed_stream() -> Option<Arc<cuda_core::Stream>> {
         .clone()
 }
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types, reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097")]
 /// NVRTC program handle type alias matching the C API.
 pub type nvrtcProgram = *mut std::ffi::c_void;
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types, reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097")]
 /// NVRTC result code type alias matching the C API.
 pub type nvrtcResult = i32;
 
 /// Dynamically loaded NVRTC library function pointers.
-#[allow(non_snake_case)]
+#[expect(non_snake_case, reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097")]
 pub struct NvrtcDriver {
     /// Owning handle to the dynamically loaded NVRTC library.
     _lib: Library,
@@ -303,7 +303,7 @@ static NVRTC_DRIVER: OnceLock<Option<NvrtcDriver>> = OnceLock::new();
 
 impl NvrtcDriver {
     /// Retrieve a reference to the dynamically loaded NVRTC driver singleton if available.
-    #[allow(non_snake_case)]
+    #[expect(non_snake_case, reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097")]
     pub fn get() -> Option<&'static Self> {
         NVRTC_DRIVER
             .get_or_init(|| {

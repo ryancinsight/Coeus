@@ -29,7 +29,10 @@ fn wgsl_rhs_expr(op: coeus_ops::BinaryOp, wgsl_type: &str, a: &str, b: &str) -> 
 }
 
 /// Dispatch a WGSL shader for general elementwise binary operations with layout traversal and broadcasting.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub fn dispatch_binary<T: WgpuScalar>(
     op: coeus_ops::BinaryOp,
     a: &wgpu::Buffer,

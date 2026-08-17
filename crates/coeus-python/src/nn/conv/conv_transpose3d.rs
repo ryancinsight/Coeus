@@ -29,7 +29,10 @@ pub struct PyConvTranspose3d {
 impl PyConvTranspose3d {
     #[new]
     #[pyo3(signature = (in_channels, out_channels, kernel_size, stride=1, padding=0, output_padding=0, dilation=1, bias=true))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+    )]
     /// Create a ConvTranspose3d layer with the specified parameters.
     pub fn new(
         py: pyo3::Python<'_>,

@@ -79,7 +79,10 @@ fn require_writable_layout(operation: &'static str, layout: &Layout) -> Result<(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub(crate) fn unfold1d(
     input: &Layout,
     input_len: usize,
@@ -110,7 +113,10 @@ pub(crate) fn unfold1d(
     require_storage_span(OPERATION, output, output_len)
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub(crate) fn fold1d(
     input: &Layout,
     input_len: usize,
@@ -141,7 +147,10 @@ pub(crate) fn fold1d(
     require_storage_span(OPERATION, output, output_len)
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub(crate) fn unfold2d(
     input: &Layout,
     input_len: usize,
@@ -190,7 +199,10 @@ pub(crate) fn unfold2d(
     require_storage_span(OPERATION, output, output_len)
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub(crate) fn fold2d(
     input: &Layout,
     input_len: usize,

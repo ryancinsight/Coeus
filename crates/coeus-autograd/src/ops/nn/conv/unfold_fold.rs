@@ -179,7 +179,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Un
 ///
 /// Returns the backend error when unfold validation or dispatch fails.
 #[inline]
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub fn unfold2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     kernel_h: usize,
@@ -388,7 +391,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Fo
 ///
 /// Returns the backend error when fold validation or dispatch fails.
 #[inline]
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
+)]
 pub fn fold2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     output_h: usize,
