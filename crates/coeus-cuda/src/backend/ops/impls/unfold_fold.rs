@@ -1,10 +1,6 @@
 use crate::backend::{CudaBackend, CudaScalar};
 use coeus_core::Layout;
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
-)]
 impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
     coeus_ops::UnfoldFoldOps<T> for CudaBackend
 {

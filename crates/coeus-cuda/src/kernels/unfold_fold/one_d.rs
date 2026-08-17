@@ -110,10 +110,6 @@ pub fn dispatch_fold1d<T: CudaScalar>(
     )
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
-)]
 fn dispatch_unfold_or_fold1d<T: CudaScalar>(
     name: &str,
     input: &CudaStorage<T>,
