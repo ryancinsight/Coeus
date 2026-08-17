@@ -4,10 +4,6 @@ use crate::backend_ops::ops::ReductionOp;
 use crate::backend_ops::traits::ReductionOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
-)]
 impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> ReductionOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
