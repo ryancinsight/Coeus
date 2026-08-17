@@ -15,7 +15,7 @@ Foundation and CPU stack:
 - **[coeus-core](crates/coeus-core/README.md)**: Core primitives. Defines `Scalar` and `Float` traits, strided `Layout`, the `Storage`/`StorageMut` allocation interface, and the `ComputeBackend` device abstraction with its `SequentialBackend` and `MoiraiBackend` CPU implementations.
 - **[coeus-tensor](crates/coeus-tensor/README.md)**: The fundamental `Tensor<T, B>` type with Copy-on-Write (COW) semantics, layout views (slicing, transposing, broadcasting), and rkyv-backed checkpointing. Holds no math kernels.
 - **[coeus-ops](crates/coeus-ops/README.md)**: The kernel library and `BackendOps` dispatch surface — elementwise, matmul, reductions, scans, convolution, pooling, embedding, interpolation, attention, and a lazy fused-expression DAG.
-- **[coeus-autograd](crates/coeus-autograd/README.md)**: A tape-based reverse-mode automatic differentiation engine over `Var<T, B>`.
+- **[coeus-autograd](crates/coeus-autograd/README.md)**: A tape-based reverse-mode automatic differentiation engine over `Var<T, B>` with experimental computation-graph caching scaffolding in the autodiff layer.
 - **[coeus-nn](crates/coeus-nn/README.md)**: Neural network modules (Linear, Conv1/2/3d, the normalization family, pooling, attention, transformer blocks, RNN) and activations.
 - **[coeus-optim](crates/coeus-optim/README.md)**: Parameter optimizers (SGD, Adam, AdamW, RMSProp, AdaGrad), gradient clipping, and LR schedulers.
 - **[coeus-sparse](crates/coeus-sparse/README.md)**: Sparse storage representations (`CooTensor`, `CsrTensor`). Data structures only.
@@ -145,6 +145,19 @@ with production-grade monomorphization:
 ```bash
 cargo bench -p coeus-tensor --bench tensor_bench
 ```
+
+### Experimental Autodiff Cache
+The `coeus-autograd` crate contains experimental computation-graph caching
+scaffolding (`autodiff_cache`, `backward_cache`). Note: the cache currently
+records graph statistics only — it does not yet replay backward traversals, so
+the benchmark suite below is a work-in-progress measuring the gap, not a
+shipping optimization:
+```bash
+# Run the cache benchmark suite (currently demonstrates 0-hit baseline)
+cargo test -p coeus-autograd --test cache_benchmarks -- --ignored --nocapture
+```
+
+For cache design notes and known limitations, see [docs/autodiff_caching.md](docs/autodiff_caching.md).
 
 ## License
 

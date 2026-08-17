@@ -35,7 +35,7 @@ pub(super) fn forward<B: CrossEntropyBackend>(
     probabilities_layout: &Layout,
 ) -> Result<(), B::Error> {
     let logits_layout = exactly_ranked::<2>("cross_entropy_forward_logits", logits_layout)?;
-    let batch = logits_layout.shape[0];
+    let batch = logits_layout.shape()[0];
     let target_count = coeus_core::Storage::len(targets);
     if target_count != batch {
         return Err(coeus_core::BackendError::ShapeMismatch {
@@ -93,7 +93,7 @@ pub(super) fn backward<B: CrossEntropyBackend>(
     )?;
     let probabilities_layout =
         exactly_ranked::<2>("cross_entropy_backward_probabilities", probabilities_layout)?;
-    let batch = probabilities_layout.shape[0];
+    let batch = probabilities_layout.shape()[0];
     let target_count = coeus_core::Storage::len(targets);
     if target_count != batch {
         return Err(coeus_core::BackendError::ShapeMismatch {

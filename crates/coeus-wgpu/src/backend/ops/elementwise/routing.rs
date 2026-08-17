@@ -79,7 +79,11 @@ pub(super) fn coeus_to_leto_layout<const N: usize>(
             })
         })?;
     }
-    Ok(LetoLayout::new(shape, strides, layout.offset()))
+    LetoLayout::try_new(shape, strides, layout.offset()).map_err(|_| {
+        WgpuBackendError::Layout(LayoutError::OffsetOutOfRange {
+            value: layout.offset(),
+        })
+    })
 }
 
 #[cfg(test)]
@@ -92,9 +96,9 @@ mod tests {
         let layout = Layout::from_shape_strides(vec![2, 3].into(), vec![3, 1].into(), 4);
         let converted = coeus_to_leto_layout::<3>(&layout).expect("representable layout");
 
-        assert_eq!(converted.shape, [1, 2, 3]);
-        assert_eq!(converted.strides, [0, 3, 1]);
-        assert_eq!(converted.offset, 4);
+        assert_eq!(converted.shape(), [1, 2, 3]);
+        assert_eq!(converted.strides(), [0, 3, 1]);
+        assert_eq!(converted.offset(), 4);
     }
 
     #[cfg(target_pointer_width = "32")]
