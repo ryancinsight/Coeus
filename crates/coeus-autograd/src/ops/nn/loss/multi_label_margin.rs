@@ -100,7 +100,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 ///
 /// The complete forward and backward computation stays on the selected
 /// provider; no input-sized host staging occurs beyond the target boundary
-/// upload (the per-row target scores are gathered with `index_select`). The
+/// upload (the per-row target scores are gathered with `gather`). The
 /// pairwise formulation builds an `[N, C, C]` active tensor via broadcast.
 pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
@@ -132,7 +132,12 @@ where
     }
     let valid = Tensor::from_slice_on([n, c], &valid_flat, &backend);
     let safe_idx = Tensor::from_slice_on([n * c], &safe_flat, &backend);
-    let x_gathered = coeus_ops::index_select(&x.tensor, 1, &safe_idx, &backend).reshape([n, c]);
+    // Row i must take its own target columns, so this is a per-row gather with
+    // an [N, C] index, not an `index_select` — the latter applies one column set
+    // to every row and returns [N, N*C], which reshapes to [N, C] only when
+    // N == 1.
+    let safe_idx_rows = Tensor::from_slice_on([n, c], &safe_flat, &backend);
+    let x_gathered = coeus_ops::gather(&x.tensor, 1, &safe_idx_rows, &backend);
 
     // Pairwise margin: m[i,k,j] = 1 - x[i, target_val(k)] + x[i, j] over all
     // target positions k and classes j. Materialize contiguous.
@@ -272,6 +277,37 @@ mod tests {
                 "multi_label_margin two-target grad[{i}]: got {got}, expected {e}"
             );
         }
+    }
+
+    #[test]
+    fn multi_label_margin_forward_is_correct_for_a_batch() {
+        // Regression: every other test of this op uses N = 1, the single batch
+        // size at which its per-row target gather is shape-correct. At N = 2 the
+        // op used to panic reshaping an [N, N*C] selection to [N, C].
+        //
+        // x = [[0.9, -0.3, 0.2, -1.1], [0.4, 1.5, -0.6, 0.75]],
+        // targets: row 0 = {0}, row 1 = {1, 3}. Hinges 1 - (x[t] - x[j]) over
+        // j != t, per this op's documented convention:
+        //   row 0, t=0: [-0.2, 0.3, -1.0]   → 0.30
+        //   row 1, t=1: [-0.1, -1.1, 0.25]  → 0.25
+        //   row 1, t=3: [0.65, 1.75, -0.35] → 2.40
+        //   total 2.95, normalized by N*C = 8 → 0.36875
+        let x = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice(
+                [2, 4],
+                &[0.9, -0.3, 0.2, -1.1, 0.4, 1.5, -0.6, 0.75],
+            ),
+            true,
+        );
+        let target = [0isize, -1, -1, -1, 1, 3, -1, -1];
+        let loss = multi_label_margin_loss(&x, &target);
+        assert_eq!(loss.tensor.shape(), &[1]);
+        let expected = 0.368_75;
+        let actual = loss.tensor.as_slice()[0];
+        assert!(
+            (actual - expected).abs() < 1e-12,
+            "batched multi_label_margin: got {actual}, expected {expected}"
+        );
     }
 
     #[test]

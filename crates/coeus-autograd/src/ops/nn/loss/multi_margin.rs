@@ -96,10 +96,15 @@ where
     let c = shape[1];
     assert_eq!(targets.len(), n, "targets length must match batch size");
 
-    // x[·, y] via index-select; m = margin - x[i,y] + x[i,j] (all j).
+    // x[i, y_i] is a *per-row* selection: row i takes its own target column, so
+    // the gather index must carry one entry per row and the result is [N, 1].
+    // `index_select` is the wrong operation here — it applies the same column
+    // set to every row, yielding [N, N], which reshapes cleanly only when
+    // N == 1. m = margin - x[i,y_i] + x[i,j] (all j).
     let target_f: Vec<T> = targets.iter().map(|&i| T::from_usize(i)).collect();
     let target_tensor = Tensor::from_slice_on([n], &target_f, &backend);
-    let x_target = coeus_ops::index_select(&x.tensor, 1, &target_tensor, &backend).reshape([n, 1]);
+    let target_column = Tensor::from_slice_on([n, 1], &target_f, &backend);
+    let x_target = coeus_ops::gather(&x.tensor, 1, &target_column, &backend);
     let margin_tensor = Tensor::full_on([n, 1], margin, &backend);
     let m = coeus_ops::add(
         &coeus_ops::sub(&margin_tensor, &x_target, &backend),
@@ -114,7 +119,10 @@ where
     let row_sum = coeus_ops::sum_axis(&powered, 1, &backend)
         .expect("invariant: validated [N, C] multi-margin row reduction");
     let margin_p = coeus_ops::pow_scalar(&margin_tensor, p, &backend);
-    let row_net = coeus_ops::sub(&row_sum, &margin_p.reshape([n]), &backend);
+    // `row_sum` keeps the reduced axis, so it is [N, 1]. Flattening `margin_p`
+    // to [N] here would broadcast the subtraction to [N, N] instead of
+    // subtracting element-wise — again invisible at N == 1.
+    let row_net = coeus_ops::sub(&row_sum, &margin_p, &backend);
     // loss = sum_i row_net_i / (N * C). `mean_axis` divides by N, so scale
     // the mean by 1/C.
     let inv_c = T::one() / T::from_f64(c as f64);
@@ -190,6 +198,34 @@ mod tests {
         let loss = multi_margin(&x, &targets, 1.0, 1.0);
         assert_eq!(loss.tensor.shape(), &[1]);
         assert!((loss.tensor.as_slice()[0] - 5.0 / 3.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn multi_margin_forward_is_correct_for_a_batch() {
+        // Regression: every other test of this op uses N = 1, the single batch
+        // size at which its per-row target gather and its row-wise margin
+        // subtraction are both shape-correct. At N = 2 the op used to panic
+        // reshaping an [N, N] selection to [N, 1].
+        //
+        // x = [[1.4, 1.2, -0.6], [-0.2, 1.9, 1.6]], targets = [0, 1],
+        // p = 1, margin = 0.5. Per PyTorch `MultiMarginLoss(reduction="mean")`,
+        // loss = mean_i( sum_{j != y_i} max(0, margin - x[i,y_i] + x[i,j]) / C ):
+        //   row 0: m = [·, 0.3, -1.5] → 0.3 / 3
+        //   row 1: m = [-1.6, ·, 0.2] → 0.2 / 3
+        //   mean  = 1/12
+        let x = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[1.4, 1.2, -0.6, -0.2, 1.9, 1.6]),
+            true,
+        );
+        let targets = [0usize, 1];
+        let loss = multi_margin(&x, &targets, 1.0, 0.5);
+        assert_eq!(loss.tensor.shape(), &[1]);
+        let expected = 1.0 / 12.0;
+        let actual = loss.tensor.as_slice()[0];
+        assert!(
+            (actual - expected).abs() < 1e-12,
+            "batched multi_margin: got {actual}, expected {expected}"
+        );
     }
 
     #[test]
