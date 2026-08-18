@@ -77,7 +77,12 @@ pub fn add<T: WgpuScalar>(
 ///
 /// Returns [`WgpuBackendError`] when the input ranks, inner dimensions, output
 /// element count, or WGSL layout metadata violate the backend contract.
-pub fn matmul<T: WgpuScalar>(
+pub fn matmul<
+    T: WgpuScalar
+        + leto_ops::Scalar
+        + hephaestus_wgpu::DialectScalar<hephaestus_wgpu::Wgsl>
+        + hephaestus_wgpu::MatmulZero,
+>(
     a: &Tensor<T, WgpuBackend>,
     b: &Tensor<T, WgpuBackend>,
 ) -> Result<Tensor<T, WgpuBackend>, WgpuBackendError> {
@@ -112,18 +117,18 @@ pub fn matmul<T: WgpuScalar>(
         operation: "matmul",
         reason: "output element count overflow",
     })?;
-    let c_storage = WgpuStorage::new(element_count);
+    let mut c_storage = WgpuStorage::new(element_count);
     let c_layout = Layout::new([*m, *n].into());
 
-    kernels::dispatch_matmul::<T>(
-        a.storage().buffer.raw(),
+    coeus_ops::MatmulOps::matmul(
+        &WgpuBackend,
+        a.storage(),
         a.layout(),
-        b.storage().buffer.raw(),
+        b.storage(),
         b.layout(),
-        c_storage.buffer.raw(),
+        &mut c_storage,
         &c_layout,
-    )
-    .map_err(|error| WgpuBackendError::Layout(error.into()))?;
+    )?;
 
     Ok(Tensor::from_raw_parts(c_storage, c_layout))
 }

@@ -56,8 +56,6 @@ impl CudaScalar for i32 {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CudaBackend;
 
-impl coeus_core::backend::private::Sealed for CudaBackend {}
-
 impl CudaBackend {
     /// Create a new backend instance.
     #[inline]

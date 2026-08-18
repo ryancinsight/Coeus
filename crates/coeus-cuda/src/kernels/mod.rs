@@ -1,7 +1,6 @@
 /// Kernel module for fused element-wise expression compilation and dispatch.
 pub mod fuse;
 /// Kernel module for tiled matrix multiplication kernel launch.
-pub mod launch_matmul;
 /// Kernel module for pooling operations.
 pub mod pool;
 /// Kernel module for embedded PTX kernel source.
@@ -13,7 +12,6 @@ pub mod unfold_fold;
 mod validation;
 
 pub use fuse::dispatch_fused;
-pub use launch_matmul::launch_matmul_tiled;
 pub use pool::{
     dispatch_avg_pool1d, dispatch_avg_pool1d_backward, dispatch_avg_pool2d,
     dispatch_avg_pool2d_backward, dispatch_avg_pool3d, dispatch_avg_pool3d_backward,

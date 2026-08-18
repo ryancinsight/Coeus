@@ -13,6 +13,46 @@
 - [x] Delete the superseded vendor modules and migrate tests to
       `HephaestusBackend<Provider>` without public aliases or fallback paths.
 
+## ATLAS-COEUS-BACKEND-045 [minor] [arch]
+
+Outcome: remove the forked matmul implementation and unseal `ComputeBackend`.
+Acceptance: matmul reaches every provider through one generic dispatch; no
+vendor crate carries a matmul kernel. ADR-0066.
+
+- [x] Unseal `ComputeBackend`: delete `coeus_core::backend::private`, the
+      supertrait, and all five `Sealed` impls. The implementor set is
+      cross-crate (one per vendor), and the marker was publicly re-exported,
+      so the seal was both wrong and inoperative.
+- [x] Add the `coeus-hephaestus` `matmul` family (`MatmulProvider`,
+      `MatmulBackend`, `matmul`) over `hephaestus_core::DenseProductOps`.
+      No Hephaestus change was needed: the seam and all four vendor impls
+      already existed.
+- [x] Migrate `CudaBackend` and `WgpuBackend` onto the seam; delete
+      `coeus-cuda/src/kernels/launch_matmul.rs`, `backend/ops/math/`,
+      `coeus-wgpu/src/kernels/matmul.rs`, and `backend/ops/matmul.rs`. Route
+      the duplicate public `coeus_wgpu::matmul` through the same dispatch.
+- [x] Declare `MatmulProvider<f32>` for `MetalProvider` and `RocmProvider`.
+- [ ] **Blocked — needs upstream Hephaestus seams.** `HephaestusBackend<P>`
+      still lacks `PoolOps` and `UnfoldFoldOps`, so it does not satisfy
+      `BackendOps<f32>` and Metal/ROCm remain partial. `hephaestus-core` has
+      no pooling or sliding-window device trait; matmul was completable only
+      because `DenseProductOps` already existed. Re-open trigger: a
+      `PoolOps<D, T>` and `UnfoldFoldOps<D, T>` seam in `hephaestus-core`
+      with CUDA/WGPU/Metal/ROCm impls. Until then ~2.8k lines of pool and
+      ~0.9k–1.0k lines of unfold/fold per vendor crate stay forked; the
+      device primitive both dialects already agree on is a 1-D launch over
+      `numel(output)` at block/workgroup 256 taking per-operand layout
+      descriptors plus 4 (pool) or 9 (unfold/fold) `u32` params.
+- [ ] Device-side equivalence of the provider matmul kernel against the
+      deleted consumer kernel is unverified: no GPU adapter on the
+      development host. Re-open trigger: a GPU-capable CI run of the
+      unmodified matmul parity suites.
+- [ ] `cargo semver-checks` reports a pre-existing major break in
+      `coeus-hephaestus` against the published 0.10.0 baseline — five
+      associated types on `ElementwiseProvider`, `ScalarPowerProvider`, and
+      `ReductionProvider` added since publish. Unrelated to this item;
+      needs a version decision before the next release.
+
 ## COEUS-HEPHAESTUS-CUDA-001 [major] [arch]
 
 - [x] Route CUDA elementwise/scalar-power/reduction/scan through the generic

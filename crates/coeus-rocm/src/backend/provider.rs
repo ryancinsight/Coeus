@@ -1,14 +1,15 @@
 use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, CrossEntropyProvider,
-    ElementwiseProvider, HephaestusProvider, ParameterizedElementwiseProvider, RandomInitProvider,
-    ReductionProvider, RotateHalfProvider, ScalarPowerProvider, StatefulUpdateProvider,
+    ElementwiseProvider, HephaestusProvider, MatmulProvider, ParameterizedElementwiseProvider,
+    RandomInitProvider, ReductionProvider, RotateHalfProvider, ScalarPowerProvider,
+    StatefulUpdateProvider,
 };
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use coeus_hephaestus::{AttentionProvider, ConvolutionProvider};
 use hephaestus_rocm::RocmDevice;
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use hephaestus_rocm::{RocmAttentionOps, RocmConvolutionOps};
-use hephaestus_rocm::{RocmAxisReductionOps, RocmElementwiseOps, RocmScanOps};
+use hephaestus_rocm::{RocmAxisReductionOps, RocmDenseProductOps, RocmElementwiseOps, RocmScanOps};
 use std::sync::OnceLock;
 
 static ROCM_DEVICE: OnceLock<RocmDevice> = OnceLock::new();
@@ -75,6 +76,10 @@ impl ScalarPowerProvider<f32> for RocmProvider {
 impl ReductionProvider<f32> for RocmProvider {
     type AxisOperations = RocmAxisReductionOps;
     type ScanOperations = RocmScanOps;
+}
+
+impl MatmulProvider<f32> for RocmProvider {
+    type Operations = RocmDenseProductOps;
 }
 
 impl ReductionProvider<u32> for RocmProvider {

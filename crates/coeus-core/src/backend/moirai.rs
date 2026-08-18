@@ -55,8 +55,6 @@ fn cached_parallelism() -> usize {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MoiraiBackend;
 
-impl crate::backend::traits::private::Sealed for MoiraiBackend {}
-
 impl MoiraiBackend {
     /// Create a new handle (ZST, no allocation).
     ///

@@ -19,6 +19,25 @@
   each was confirmed to fail against a deliberately mutated backward before
   being accepted.
 
+- [minor] `coeus_hephaestus::{matmul, MatmulBackend, MatmulProvider}` — a
+  generic dense-product family over the `hephaestus_core::DenseProductOps`
+  device seam, following the crate's existing convolution shape. Layout
+  validation and dispatch live once and monomorphize per provider;
+  `MatmulBackend` carries only the device accessor, buffer accessor, and error
+  mapper. `HephaestusBackend<P>` now implements `MatmulOps<T>` whenever `P`
+  declares `MatmulProvider<T>`, so `HephaestusBackend<MetalProvider>` and
+  `HephaestusBackend<RocmProvider>` gain matmul for the first time. See
+  ADR-0066.
+
+### Removed
+
+- [patch] The consumer-owned matmul kernels in `coeus-cuda`
+  (`kernels/launch_matmul.rs`, `backend/ops/math/`) and `coeus-wgpu`
+  (`kernels/matmul.rs`, `backend/ops/matmul.rs`). Both were transliterations of
+  the same 16x16 tiled algorithm the provider seam already owns. `CudaBackend`
+  and `WgpuBackend` implement `MatmulBackend` and delegate; no forwarding
+  wrapper is retained.
+
 ### Fixed
 
 - [patch] Three backward tests asserted nothing a wrong implementation would
@@ -31,6 +50,16 @@
   renamed to describe what they actually assert.
 
 ### Changed
+
+- [minor] `coeus_core::ComputeBackend` is no longer sealed. Its implementor set
+  spans one sibling crate per accelerator vendor, which is precisely the case a
+  seal must not cover; the `private::Sealed` marker was also re-exported
+  publicly from `coeus_core::backend`, so it sealed nothing. That module is
+  removed. See ADR-0066.
+
+- [minor] `coeus_wgpu::matmul` additionally requires
+  `T: leto_ops::Scalar + DialectScalar<Wgsl> + MatmulZero`, now that it
+  dispatches through the provider seam instead of its own WGSL kernel.
 
 - [minor] Extend `LayerNorm` to normalize any configured non-empty positive
   trailing shape, not only a single final dimension. `NormalizedShape` is

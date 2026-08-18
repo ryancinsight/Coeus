@@ -12,4 +12,4 @@ mod tests_num_threads;
 pub use error::BackendError;
 pub use moirai::MoiraiBackend;
 pub use sequential::SequentialBackend;
-pub use traits::{private, Backend, ComputeBackend};
+pub use traits::{Backend, ComputeBackend};

@@ -8,14 +8,11 @@ use crate::storage::StorageMut;
 use crate::backend::BackendError;
 use crate::dtype::Scalar;
 
-/// Private module for sealing compute backend.
-#[doc(hidden)]
-pub mod private {
-    /// Sealed trait to prevent downstream user implementation.
-    pub trait Sealed {}
-}
-
 /// General interface for hardware execution backends (CPU, GPU, etc.)
+///
+/// The trait is deliberately open. Its implementor set spans sibling crates —
+/// one per accelerator vendor — so a seal would make the prescribed
+/// cross-crate implementations uncompilable.
 ///
 /// # Examples
 ///
@@ -29,7 +26,7 @@ pub mod private {
 /// backend.copy_to_host(&buf, &mut host);
 /// assert_eq!(host, [42.0; 3]);
 /// ```
-pub trait ComputeBackend: private::Sealed + Send + Sync + Clone + 'static {
+pub trait ComputeBackend: Send + Sync + Clone + 'static {
     /// Typed failure returned by fallible backend operation traits.
     type Error: std::error::Error + From<BackendError> + Send + Sync + 'static;
 

@@ -198,8 +198,6 @@ pub fn try_get_wgpu_context() -> hephaestus_core::Result<&'static WgpuContext> {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct WgpuBackend;
 
-impl coeus_core::backend::private::Sealed for WgpuBackend {}
-
 impl WgpuBackend {
     /// Create a new instance of the WebGPU backend ZST.
     ///

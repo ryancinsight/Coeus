@@ -26,8 +26,6 @@ use crate::storage::{CpuStorage, Storage};
 #[derive(Debug, Clone, Copy, Default)]
 pub struct SequentialBackend;
 
-impl crate::backend::traits::private::Sealed for SequentialBackend {}
-
 impl SequentialBackend {
     /// Create a new handle (ZST).
     ///

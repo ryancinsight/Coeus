@@ -242,8 +242,6 @@ impl<P> HephaestusBackend<P> {
     }
 }
 
-impl<P> coeus_core::backend::private::Sealed for HephaestusBackend<P> where P: HephaestusProvider {}
-
 impl<P> ComputeBackend for HephaestusBackend<P>
 where
     P: HephaestusProvider,

@@ -63,3 +63,4 @@
 | [0063](0063-coeus-hephaestus-comparison-providers.md) | Add native comparison providers | Accepted |
 | [0064](0064-coeus-hephaestus-unary-math-providers.md) | Add native unary math providers | Accepted |
 | [0065](0065-provider-owned-metal-rocm-bridge.md) | Provider-owned Metal and ROCm bridge | Accepted |
+| [0066](0066-provider-owned-dense-product-bridge.md) | Provider-owned dense product bridge | Accepted |

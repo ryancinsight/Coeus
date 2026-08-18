@@ -1,12 +1,13 @@
 use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, AttentionProvider, ConvolutionProvider,
-    CrossEntropyProvider, ElementwiseProvider, HephaestusProvider,
+    CrossEntropyProvider, ElementwiseProvider, HephaestusProvider, MatmulProvider,
     ParameterizedElementwiseProvider, RandomInitProvider, ReductionProvider, RotateHalfProvider,
     ScalarPowerProvider, StatefulUpdateProvider,
 };
 use hephaestus_metal::{
     MetalAttentionOps, MetalAxisReductionOps, MetalConvolutionOps, MetalCrossEntropyOps,
-    MetalDevice, MetalElementwiseOps, MetalParameterizedUnaryOps, MetalRandomOps, MetalScanOps,
+    MetalDenseProductOps, MetalDevice, MetalElementwiseOps, MetalParameterizedUnaryOps,
+    MetalRandomOps, MetalScanOps,
 };
 use std::sync::OnceLock;
 
@@ -44,6 +45,10 @@ unsafe impl HephaestusProvider for MetalProvider {
 
 impl ConvolutionProvider<f32> for MetalProvider {
     type Operations = MetalConvolutionOps;
+}
+
+impl MatmulProvider<f32> for MetalProvider {
+    type Operations = MetalDenseProductOps;
 }
 
 impl AttentionProvider<f32> for MetalProvider {

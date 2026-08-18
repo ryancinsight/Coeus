@@ -12,6 +12,7 @@ mod cross_entropy;
 mod elementwise;
 mod error;
 mod layout;
+mod matmul;
 mod random_init;
 mod reduction;
 mod rotate_half;
@@ -35,6 +36,7 @@ pub use elementwise::{
     ScalarPowerDispatch, ScalarPowerProvider, UnaryElementwiseDispatch,
 };
 pub use error::HephaestusBackendError;
+pub use matmul::{matmul, MatmulBackend, MatmulProvider};
 pub use random_init::{normal as random_normal, uniform as random_uniform, RandomInitProvider};
 pub use reduction::HephaestusBackend;
 pub use reduction::{

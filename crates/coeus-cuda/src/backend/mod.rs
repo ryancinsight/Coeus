@@ -61,8 +61,6 @@ pub fn try_get_cuda_device() -> hephaestus_core::Result<&'static CudaDevice> {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CudaBackend;
 
-impl coeus_core::backend::private::Sealed for CudaBackend {}
-
 impl CudaBackend {
     /// Construct a new CUDA backend instance.
     pub const fn new() -> Self {

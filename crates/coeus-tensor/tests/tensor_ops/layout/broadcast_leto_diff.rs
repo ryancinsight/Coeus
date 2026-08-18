@@ -12,7 +12,7 @@ fn tensor_broadcast_matches_leto_layout_metadata_and_values() {
         .broadcast::<2>([2, 3])
         .unwrap();
 
-    assert_eq!(broadcasted.shape(), direct.shape);
+    assert_eq!(broadcasted.shape(), direct.shape());
     assert_eq!(broadcasted.strides(), &[0, 1]);
     assert_eq!(broadcasted.storage().as_slice(), row.storage().as_slice());
     assert_eq!(
@@ -103,7 +103,7 @@ fn leto_bridge_matches_manual_strided_layout_case() {
         .broadcast::<2>([2, 3])
         .unwrap();
 
-    assert_eq!(bridge.shape(), direct.shape);
+    assert_eq!(bridge.shape(), direct.shape());
     assert_eq!(bridge.strides(), &[0, 1]);
     assert_eq!(bridge.offset(), 4);
 }
