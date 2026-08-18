@@ -44,7 +44,7 @@ eunomia = { git = "https://github.com/ryancinsight/eunomia.git", version = "0.8.
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
 leto = { git = "https://github.com/ryancinsight/leto.git", version = "0.42.0" }
 leto-ops = { git = "https://github.com/ryancinsight/leto.git", version = "0.42.0" }
-apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", version = "0.26.0", default-features = false }
+apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", version = "0.27.0", default-features = false }
 
 # ── Numerical ──
 bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }

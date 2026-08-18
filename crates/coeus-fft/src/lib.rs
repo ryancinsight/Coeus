@@ -1,7 +1,7 @@
 //! Differentiable 1-D FFT for Coeus, routed through the Atlas-owned Apollo FFT library.
 //!
 //! Apollo owns the FFT itself (core slice/array transforms); this crate is Coeus's
-//! **autograd for Apollo's FFT** — it wraps `apollo-fft`'s core `fft_1d_slice_typed`
+//! **autograd for Apollo's FFT** — it wraps `apollo-fft`'s core `fft_1d_slice`
 //! into tensor-level `fft_1d`/`ifft_1d` and the reverse-mode nodes [`Fft1DNode`],
 //! [`Ifft1DNode`], and [`fft_energy`], building on the [`coeus_autograd`] engine
 //! ([`Var`], [`BackwardNode`], [`GradBuffer`]). No dependency on `rustfft`.
@@ -36,24 +36,24 @@ pub trait FftScalar: Float + Neg<Output = Self> {
 impl FftScalar for f32 {
     #[inline]
     fn fft_1d_impl(signal: &[Self]) -> Vec<Complex<Self>> {
-        apollo_fft::fft_1d_slice_typed::<f32>(signal)
+        apollo_fft::fft_1d_slice::<f32>(signal)
     }
 
     #[inline]
     fn ifft_1d_impl(spectrum: &[Complex<Self>]) -> Vec<Self> {
-        apollo_fft::ifft_1d_slice_typed::<f32>(spectrum)
+        apollo_fft::ifft_1d_slice::<f32>(spectrum)
     }
 }
 
 impl FftScalar for f64 {
     #[inline]
     fn fft_1d_impl(signal: &[Self]) -> Vec<Complex<Self>> {
-        apollo_fft::fft_1d_slice_typed::<f64>(signal)
+        apollo_fft::fft_1d_slice::<f64>(signal)
     }
 
     #[inline]
     fn ifft_1d_impl(spectrum: &[Complex<Self>]) -> Vec<Self> {
-        apollo_fft::ifft_1d_slice_typed::<f64>(spectrum)
+        apollo_fft::ifft_1d_slice::<f64>(spectrum)
     }
 }
 
