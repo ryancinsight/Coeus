@@ -130,7 +130,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Ctc
                     let ab = a + b - log_p; // log(alpha * beta / P)
                                             // Accumulate into dx[(ti, ni, k)]
                     let idx = ti * n * c + ni * c + k;
-                    dx[idx] = log_sum_exp2_f64(dx[idx].ln(), ab).exp();
+                    dx[idx] = log_sum_exp2_f64(dx[idx].ln(), ab);
                 }
             }
 
@@ -170,17 +170,13 @@ fn log_sum_exp2(a: f64, b: f64) -> f64 {
     mx + ((a - mx).exp() + (b - mx).exp()).ln()
 }
 
-/// log_sum_exp2 operating on raw f64 values (not log-space inputs).
-/// Here both values are treated as regular f64, with b in log-space but a is linear.
-/// Actually just a convenience alias.
+/// Linear-space accumulation: returns exp(a) + exp(b) where a and b are log-space.
+/// Used to accumulate probability masses in the CTC backward pass.
 #[inline]
 fn log_sum_exp2_f64(a: f64, b: f64) -> f64 {
-    // Both are in log-space for accumulation.
     if a == f64::NEG_INFINITY || a.is_nan() {
         return b.exp();
     }
-    // a is the previous accumulated sum (linear), b is a new log-space term.
-    // We accumulate in linear: result = a + exp(b)
     a.exp() + b.exp()
 }
 
