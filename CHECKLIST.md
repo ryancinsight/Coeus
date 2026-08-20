@@ -1,5 +1,15 @@
 # Coeus Development Roadmap Checklist
 
+## ATLAS-COEUS-BOOK-TEST-2026-08-20 [patch]
+
+- [x] Diagnose PR #340 job 96544630144: package build passed; mdBook
+      compilation failed because the included examples lacked explicit
+      extern crate declarations for their staged crates.
+- [x] Add the Coeus core, ops, and tensor declarations to both included
+      examples and repin the shared workflow to Atlas 20c9398.
+- [x] Pass local formatting, mdBook build, strict links, and diff checks.
+- [ ] Collect the exact-head hosted rerun, then merge and verify the default.
+
 ## COEUS-HEPHAESTUS-METAL-ROCM-001 [major] [arch]
 
 - [x] Confirm the residual: Metal and ROCm duplicate consumer-owned runtime,
