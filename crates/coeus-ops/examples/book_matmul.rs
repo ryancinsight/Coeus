@@ -5,6 +5,10 @@
 //! from [`SequentialBackend`] to [`MoiraiBackend`] or a GPU backend changes
 //! the execution policy without changing the call site.
 
+extern crate coeus_core;
+extern crate coeus_ops;
+extern crate coeus_tensor;
+
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_ops::matmul;
 use coeus_tensor::Tensor;
