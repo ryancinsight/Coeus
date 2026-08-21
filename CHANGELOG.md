@@ -40,6 +40,15 @@
 
 ### Fixed
 
+- [patch] `coeus-wgpu` no longer sets `WGPU_BACKEND=dx12` from inside
+  `try_get_wgpu_context`. Hephaestus tries DX12 before Vulkan on Windows only
+  when no such variable is set, so the override disabled the path it was asking
+  for and every device acquisition failed with `AdapterUnavailable` on hosts with
+  a working adapter. The whole `coeus-wgpu` GPU suite — 59 tests spanning
+  matmul, reductions, pooling, strided elementwise, unfold/fold, and fusion —
+  was failing at device construction and now runs against a real device.
+  Removing the process-global `set_var` also removes an unsound write to the
+  environment from library code.
 - [patch] Three backward tests asserted nothing a wrong implementation would
   violate. `softmin`'s only backward assertion was `assert!(grad.is_some())`,
   which holds for a `backward` that writes zeros; `norm_p` p=3 and
