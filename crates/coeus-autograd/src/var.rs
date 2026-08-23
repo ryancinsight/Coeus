@@ -1,11 +1,26 @@
 // ── Differentiable variable ──
 
+use crate::autodiff_cache::ComputeGraphCache;
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use coeus_core::{ComputeBackend, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
-use std::collections::HashSet;
+use std::cell::RefCell;
 use std::sync::Arc;
+
+thread_local! {
+    static BACKWARD_CACHE: RefCell<ComputeGraphCache> = RefCell::new(ComputeGraphCache::new());
+}
+
+/// Get the thread-local backward pass cache for autodiff compilation.
+pub fn get_backward_cache() -> ComputeGraphCache {
+    BACKWARD_CACHE.with(|cache| cache.borrow().clone())
+}
+
+/// Reset the thread-local backward pass cache statistics.
+pub fn reset_backward_cache_stats() {
+    BACKWARD_CACHE.with(|cache| cache.borrow().reset_stats());
+}
 
 /// A differentiable variable wrapping a tensor and its gradient accumulator.
 ///
@@ -220,31 +235,12 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
             self.tensor.shape()
         );
 
-        // Topological sort via DFS
-        let mut visited = HashSet::new();
-        let mut order: Vec<Arc<dyn BackwardNode<T, B>>> = Vec::new();
-
-        fn dfs<T: Scalar, B: ComputeBackend + Default>(
-            node: &Arc<dyn BackwardNode<T, B>>,
-            visited: &mut HashSet<*const ()>,
-            order: &mut Vec<Arc<dyn BackwardNode<T, B>>>,
-        ) {
-            let ptr = Arc::as_ptr(node) as *const ();
-            if visited.contains(&ptr) {
-                return;
-            }
-            visited.insert(ptr);
-            for input in node.inputs() {
-                if let Some(ref cr) = input.creator {
-                    dfs(cr, visited, order);
-                }
-            }
-            order.push(node.clone());
-        }
-
-        if let Some(ref creator) = self.creator {
-            dfs(creator, &mut visited, &mut order);
-        }
+        // Topological sort with graph metadata caching. The helper always
+        // returns live node Arcs for this graph; cached metadata is used only
+        // for repeated-pattern accounting and hit/miss tracking.
+        let cache = get_backward_cache();
+        let order =
+            crate::backward_cache::topological_sort_with_cache(self.creator.as_ref(), &cache);
 
         // Seed with the provided gradient
         if let Some(ref g) = self.grad {

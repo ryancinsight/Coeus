@@ -3959,3 +3959,81 @@ Target version: 0.5.6.
 - [x] **Numerical Parity**: Parity tests verify absolute numerical equivalence between CPU, `wgpu`, and `cuda` execution (absolute tolerance $\le 10^{-5}$).
 - [x] **Test Coverage**: 100% of tensor operations have verification tests covering contiguous, non-contiguous, broadcasted, and sliced tensor views.
 - [x] **Memory Safety**: No memory leaks or data races on GPU backends under parallel operations (RAII wrapper verification).
+
+## gap-audit-2026-08-20 (owner: atlas-gap-audit)
+
+Execution order for the items filed under "Replenishment 2026-08-20" in
+`docs/backlog.md`. Ordered by evidence value per unit of effort: the two items
+that close known-defect-harbouring blind spots come first, then the gates that
+would have caught them, then the conformance and documentation debt.
+
+- [x] Audit pass: static scope-vs-delivery measurement of the workspace at
+      `79f05dfd`. No cargo invocation was run; every figure is a file read or a
+      grep. Finding recorded in `docs/gap_audit.md`; eleven DoR-shaped items
+      filed in `docs/backlog.md`.
+
+### Tier 1 — close the blind spots that have already hidden defects
+
+- [ ] `COEUS-GRADCHECK-CONV-POOL-001` — extend the finite-difference suite to
+      the conv, pooling, unfold/fold, interpolation, einsum, CTC,
+      batchnorm2d/3d, cross-entropy, index_put, rotate_half, dropout and FFT
+      paths. Take the families in that order: conv and pooling carry the most
+      downstream weight, and each needs its forward reconstructed inside the
+      closure exactly as `normalization.rs` already does for `rmsnorm` and
+      `batchnorm1d`.
+- [ ] For each new check, confirm it fails against a deliberately mutated
+      backward before accepting it. A finite-difference test that passes
+      against a broken gradient is a surviving mutant, not coverage.
+- [ ] Record the resulting covered/total figure against the 102/137 baseline
+      stated in commit `59a6a95c`, and correct the denominator if the
+      differentiable-path count has moved since.
+
+### Tier 2 — make the gates span what they claim to
+
+- [ ] `COEUS-CI-PACKAGE-COVERAGE-001` — add CI lanes for the seven ungated
+      members. Start with `coeus-core` and `coeus-tensor`: every other member
+      depends on them and neither is currently gated by anything.
+- [ ] `COEUS-GPU-SKIP-VISIBILITY-001` — make the 47 absent-device early
+      returns in `coeus-cuda/tests` report as skips, and assert a nonzero
+      executed count in the `cuda-hardware` and `rocm-hardware` jobs.
+- [ ] `COEUS-SUPPLY-CHAIN-GATES-001` — add `deny.toml` plus the vulnerability,
+      licence, ban, duplicate and unused-dependency lane; then
+      `cargo-semver-checks` on public-surface merges; then a `miri` lane for
+      the `unsafe impl HephaestusProvider` sites; then the criterion smoke run
+      with a committed wall-clock bound.
+
+### Tier 3 — backend completeness
+
+- [ ] `COEUS-HEPHAESTUS-POOL-UNFOLD-001` — re-verify the upstream Hephaestus
+      ADR 0052 blocker against fetched origin before assuming it still holds,
+      then implement `PoolOps` and `UnfoldFoldOps` for `HephaestusBackend<P>`
+      and add the compile-time `BackendOps<f32>` assertions for the Metal and
+      ROCm providers.
+- [ ] `COEUS-PARITY-TOLERANCE-DERIVATION-001` — derive each GPU parity
+      tolerance and convert the absolute comparisons to relative ones, taking
+      `conv_transpose.rs:8-14` as the model. Expect the derived values to be
+      tighter than or equal to the current constants; a value that must widen
+      is a divergence to root-cause, not a tolerance to accept.
+
+### Tier 4 — conformance floor and documentation
+
+- [ ] `COEUS-LINT-FLOOR-001` — add `[workspace.lints]` with pedantic and
+      `unwrap_used`, set `lints.workspace = true` on every member, convert the
+      18 blanket file-scope `#![allow(...)]` attributes to per-site
+      `#[expect(..., reason = "...")]`, and record a non-increasing ratchet
+      baseline for the 155 production `unwrap()` sites rather than rewriting
+      them in one change.
+- [ ] `COEUS-ADR-INDEX-GENERATOR-001` — decide between restoring
+      `scripts/adr-index.py` with a CI freshness check and removing the
+      generator banner. The index is presently correct at 58/58, so this is
+      about enforcement, not repair.
+- [ ] `COEUS-PM-CHECKLIST-SSOT-001` — merge `CHECKLIST.md` and
+      `docs/checklist.md` into one file and fix the README links. Preserve
+      every unchecked item from both; `ATLAS-COEUS-BACKEND-045` lives in one
+      and `COEUS-LAYERNORM-SHAPE-001` in the other.
+- [ ] `COEUS-PYTHON-TYPING-DELIVERY-001` — add `py.typed` and the packaging
+      directive that carries it and `pycoeus.pyi` into the wheel.
+- [ ] `COEUS-FFT-TRANSFORM-BREADTH-001` — decide whether the differentiable
+      transform surface extends past 1-D or whether the README states the
+      current bound; the documentation half is the cheap increment and can
+      land first.

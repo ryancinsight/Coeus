@@ -6,9 +6,12 @@
 //! create a leaf that requires gradients inside the scope, but operations
 //! executed in the scope do not allocate gradient buffers or creator nodes.
 
-#![expect(
-    clippy::missing_const_for_thread_local,
-    reason = "the initializer is already const; rust 1.97 reports the expanded static"
+#![cfg_attr(
+    all(windows, target_env = "gnu"),
+    expect(
+        clippy::missing_const_for_thread_local,
+        reason = "the initializer is already const; rust 1.97 reports the expanded static"
+    )
 )]
 
 use crate::var::Var;

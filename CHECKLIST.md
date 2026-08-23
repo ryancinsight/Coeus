@@ -32,17 +32,29 @@ vendor crate carries a matmul kernel. ADR-0066.
       `coeus-wgpu/src/kernels/matmul.rs`, and `backend/ops/matmul.rs`. Route
       the duplicate public `coeus_wgpu::matmul` through the same dispatch.
 - [x] Declare `MatmulProvider<f32>` for `MetalProvider` and `RocmProvider`.
-- [ ] **Blocked — needs upstream Hephaestus seams.** `HephaestusBackend<P>`
+- [ ] **Blocked — staged upstream as hephaestus ADR 0052.** `HephaestusBackend<P>`
       still lacks `PoolOps` and `UnfoldFoldOps`, so it does not satisfy
-      `BackendOps<f32>` and Metal/ROCm remain partial. `hephaestus-core` has
-      no pooling or sliding-window device trait; matmul was completable only
-      because `DenseProductOps` already existed. Re-open trigger: a
-      `PoolOps<D, T>` and `UnfoldFoldOps<D, T>` seam in `hephaestus-core`
-      with CUDA/WGPU/Metal/ROCm impls. Until then ~2.8k lines of pool and
-      ~0.9k–1.0k lines of unfold/fold per vendor crate stay forked; the
-      device primitive both dialects already agree on is a 1-D launch over
-      `numel(output)` at block/workgroup 256 taking per-operand layout
-      descriptors plus 4 (pool) or 9 (unfold/fold) `u32` params.
+      `BackendOps<f32>` and Metal/ROCm remain partial. The seam is real and
+      the shared primitive is confirmed — a file-level read of both trees
+      found the dialects to be a transliteration, not merely a matching
+      launch convention: same gather-per-output-element forward, same
+      atomics-free inverse-stride gather backward with argmax recomputed
+      rather than stored (`coeus-cuda/src/kernels/pool/max.rs:303-349` vs
+      `coeus-wgpu/src/kernels/pool/max.rs:320-366`), same
+      `(in + 2p - d(k-1) - 1)/s + 1` derivation, same `ceil(n/256)` launch.
+      About 35% of each tree is dialect-neutral shape math computed twice.
+      The blocker is **not** the missing `hephaestus-core` trait, which is a
+      day's work mirroring `ConvolutionPlan<S>`. It is that nothing exists
+      upstream to implement it against: `leto-ops` has no pooling and no
+      unfold/fold, so `hephaestus-host` (the ADR 0046 reference substrate)
+      has nothing to adapt, and the four vendor crates have no pooling
+      kernels. A seam added now would have no implementor, and the Coeus
+      collapse cannot precede the vendor impls without a half-migrated
+      family. ADR 0052 stages it: leto-ops CPU ops → core plan+seam →
+      host impl + conformance (all CPU-verifiable) → vendor impls → Coeus
+      collapse. Re-open trigger: leto-ops gains the pooling family.
+      Until then ~2.8k lines of pool and ~0.9k–1.0k of unfold/fold per
+      vendor crate stay forked, with ADR 0052 as the record of why.
 - [ ] Device-side equivalence of the provider matmul kernel against the
       deleted consumer kernel is unverified: no GPU adapter on the
       development host. Re-open trigger: a GPU-capable CI run of the

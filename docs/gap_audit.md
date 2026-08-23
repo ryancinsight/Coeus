@@ -1,5 +1,206 @@
 # Coeus Gap Audit
 
+## Finding 2026-08-20: coeus scope-vs-delivery audit
+
+Static audit at `79f05dfd`, tree detached with 49 peer-owned working-tree
+entries left untouched. **No cargo command was run** — a shared
+`CARGO_TARGET_DIR` was under contention — so nothing below asserts that any
+suite passes or fails. Every figure is a file read, a `git` query, or a grep,
+and the grep for stub markers was proved live against a control pattern before
+its zero was believed.
+
+### Shape of the workspace
+
+16 members, 97,886 lines of `src` across 580 files, 45,157 lines of integration
+tests across 316 files, 8,917 lines of benchmarks, 1,441 `#[test]` functions,
+58 ADRs, an 11-chapter book, 4 examples.
+
+### What the evidence supports
+
+The conformance floor is unusually clean for a workspace this size, and the
+cleanliness is real rather than an artefact of a vacuous scan:
+
+- `todo!(`, `unimplemented!(`, and `TODO`/`FIXME`/`HACK` each occur **zero**
+  times across all 580 source files. The same grep invocation returns 6,220
+  hits for `fn `, so the scan reaches the files.
+- All 16 crates carry `#![deny(missing_docs)]`; all 16 carry a README.
+- Zero outer `#[allow(` attributes anywhere in `src`.
+- `.config/nextest.toml` commits a real budget: 30 s slow, terminate after 2,
+  with GPU and TCP suites serialized into single-thread groups.
+- The toolchain is pinned (`rust-toolchain.toml`, 1.97.0).
+- The ADR index is internally consistent: 58 files on disk, 58 rows, no
+  discrepancy in either direction.
+
+The autodiff verification story is the strongest single asset in the tree.
+`crates/coeus-autograd/src/gradcheck.rs` is a genuine independent oracle — it
+reads only the forward — and its step size is derived rather than picked:
+`h = ε^(1/3)·max(|x|,1)` from minimizing the sum of the `O(h²)` truncation and
+`O(ε/h)` round-off terms, giving an `O(ε^(2/3))` floor, with the derivation and
+the resulting per-scalar tolerances written out at the module. It rejects a
+comparison in which both gradients are zero as vacuous rather than passing it.
+118 tests use it.
+
+Backend differential testing exists at scale: 91 test files matching
+`diff|parity|conformance`, including dedicated CPU-versus-device parity suites
+for wgpu and CUDA.
+
+### The pattern worth recording: coverage boundaries are where the defects live
+
+This is the reusable observation from the audit, and the tree demonstrates it
+twice within three commits of HEAD.
+
+`59a6a95c` raised finite-difference coverage from an honest 10 to 102 of 137
+differentiable paths. Its own commit body records what that exercise found:
+`multi_margin` and `multi_label_margin_loss` were **shape-wrong for every batch
+size except `N == 1`**, and every pre-existing test of both ops used `N == 1` —
+"a test suite that could not fail on the defect it was covering". One commit
+later, `4737fe0d` removed a double-exponentiation in the CTC backward that had
+been producing `exp(sum_of_probs)` instead of `sum_of_probs`. CTC is in the
+uncovered remainder; it was found by reading, not by a test.
+
+So the 35 paths still lacking a finite-difference oracle are not a neutral
+backlog line. They are the region that has already produced two silent
+gradient defects, and they are precisely the families whose backward passes are
+hardest to derive by hand: `conv1d`/`conv2d`/`conv3d`, `conv_transpose*`,
+`unfold`/`fold`, the pooling family, `interpolate`, `einsum`, `ctc_loss`,
+`batchnorm2d`/`batchnorm3d`, `cross_entropy_loss`, `index_put`, `rotate_half`,
+`dropout`, and the two `coeus-fft` nodes. Verified by
+`grep -rl <op> crates/coeus-autograd/tests/autograd/gradcheck/` returning zero
+files for each; the single conv finite-difference check in the whole tree is at
+`crates/coeus-nn/tests/nn/conv2d.rs:127`.
+
+Filed as `COEUS-GRADCHECK-CONV-POOL-001`.
+
+### Slop pattern: the green that executed nothing
+
+`crates/coeus-cuda/tests/cuda/parity.rs:33-42` defines
+`backends() -> Option<(SequentialBackend, CudaBackend)>`, returning `None` when
+no CUDA device, driver, or context is present. 47 sites in `crates/coeus-cuda/
+tests` destructure that `Option` and return early. A test that returns early
+passes. On a runner without a GPU the entire CUDA parity suite therefore
+reports the same green as a suite that ran every case and agreed with the CPU
+reference to `1e-4`.
+
+The repository does maintain separate `cuda-hardware` and `rocm-hardware` CI
+jobs, so the intent is right; what is missing is the assertion that those jobs
+actually executed something. The detection grep for this shape is:
+
+```
+grep -rn 'let Some(.*) = .*() else' <crate>/tests --include='*.rs'
+```
+
+paired with a check that the enclosing test reports rather than swallows the
+skip. Filed as `COEUS-GPU-SKIP-VISIBILITY-001`.
+
+### Backend parity is structurally incomplete, and the repo already knows
+
+`crates/coeus-ops/src/backend_ops/trait_def.rs:43-52` defines `BackendOps<T>`
+as six supertraits: `ComputeBackend + ElementwiseOps + MatmulOps +
+ReductionOps + ConvOps + PoolOps + UnfoldFoldOps`.
+`grep -rn 'PoolOps\|UnfoldFoldOps' crates/coeus-hephaestus/src` returns **zero
+matches**, while the other five are implemented. `HephaestusBackend<P>`
+therefore cannot satisfy `BackendOps<f32>`, which is exactly what
+`CHECKLIST.md`'s `ATLAS-COEUS-BACKEND-045` records in its one unchecked box:
+"Metal/ROCm remain partial", blocked on upstream Hephaestus ADR 0052. The
+audit's contribution here is confirmation from the type definitions rather than
+from the note, plus the reminder that a recorded blocker is itself a claim with
+a shelf life — re-verify it against fetched origin, not against its own
+recorded form. Filed as `COEUS-HEPHAESTUS-POOL-UNFOLD-001`.
+
+### The gate does not span what the README says it does
+
+`README.md` instructs `cargo nextest run --workspace`. No workflow in
+`.github/` contains a `--workspace` cargo invocation. The per-package list is
+exactly nine: `coeus-autograd`, `coeus-cuda`, `coeus-hephaestus`, `coeus-leto`,
+`coeus-metal`, `coeus-nn`, `coeus-ops`, `coeus-rocm`, `coeus-wgpu`. Ungated:
+`coeus-core`, `coeus-tensor`, `coeus-optim`, `coeus-sparse`, `coeus-dist`,
+`coeus-fft`, `coeus-python` — including the two crates that define `Scalar`,
+`Layout`, `Storage`, `ComputeBackend`, and `Tensor`, on which every other
+member depends. Filed as `COEUS-CI-PACKAGE-COVERAGE-001`.
+
+Absent entirely from `.github/`: `miri`, `cargo-mutants`,
+`cargo-semver-checks`, `cargo-fuzz`, `cargo-machete`, `cargo-deny`, `cargo
+audit` — a combined zero matches — and no `deny.toml` or `audit.toml` exists.
+Nine `[[bench]]` targets and 8,917 lines of benchmark code are committed with
+no CI smoke run and no per-binary wall-clock budget; `.config/nextest.toml`
+bounds tests but nextest does not execute benchmarks. Filed as
+`COEUS-SUPPLY-CHAIN-GATES-001`.
+
+### Tolerances: one exemplar, several bare numbers
+
+`crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/conv_transpose.rs:8-14` is how
+it should read — the `1e-3` is derived from gather-versus-scatter sum order
+over `c_in * k` terms and applied relatively as `TOL * (1.0 + c.abs())`.
+Against that, `parity/mod.rs:16` sets `WGPU_TOL = 1e-4` with no derivation and
+applies it at `mod.rs:36` as a bare absolute difference, so its strictness
+drifts with the magnitude of the values under test; `conv3d.rs:5` and
+`cuda/parity.rs:29,31` are likewise underived. None of these is presently known
+to be masking anything — the point is that nothing would reveal it if one were.
+Filed as `COEUS-PARITY-TOLERANCE-DERIVATION-001`.
+
+### Lint floor is default-clippy only
+
+`grep -n 'workspace.lints\|\[lints' Cargo.toml crates/*/Cargo.toml` returns no
+matches; neither `pedantic`, `nursery`, nor `unwrap_used` appears in any
+manifest. CI's `clippy --all-targets -- -D warnings` therefore denies warnings
+only within the default lint set. Consistent with that: 155 `unwrap()` calls
+sit in production regions (counted per file up to the first `#[cfg(test)]`),
+concentrated in `crates/coeus-dist/src/local.rs` (16) and
+`crates/coeus-leto/src/dispatch/` (38 across seven files); and 18 blanket
+file-scope `#![allow(...)]` attributes suppress lints for whole modules rather
+than per site. The clean `#[allow(` count reported above is therefore a
+half-truth worth stating plainly: the outer-attribute form is genuinely absent,
+the inner-attribute form is not. Filed as `COEUS-LINT-FLOOR-001`.
+
+### Smaller findings
+
+- `docs/adr/README.md:3-5` declares itself generated by `scripts/adr-index.py`
+  and not to be hand-edited. No `scripts/` directory exists and no `.py` file
+  exists anywhere outside `crates/coeus-python/tests/`. The index is currently
+  correct; nothing enforces that it stays so.
+  (`COEUS-ADR-INDEX-GENERATOR-001`)
+- Two files claim the checklist role: `CHECKLIST.md` (1,660 lines, linked from
+  the README) and `docs/checklist.md` (3,961 lines, linked from nothing). Both
+  hold live unchecked items. (`COEUS-PM-CHECKLIST-SSOT-001`)
+- `crates/coeus-python/pycoeus.pyi` exists but no `py.typed` marker does, and
+  no `pyproject.toml` or `[package.metadata.maturin]` section declares either
+  file as packaged. PEP 561 makes the marker a precondition for the stub being
+  honoured. (`COEUS-PYTHON-TYPING-DELIVERY-001`)
+- `coeus-fft` is 372 lines in one file offering 1-D forward and inverse only.
+  Its `fft_energy_gradient_matches_parseval_oracle` test is a genuine
+  independent oracle; the transform nodes themselves have no
+  finite-difference check. (`COEUS-FFT-TRANSFORM-BREADTH-001`)
+
+### Structural notes carrying no filed item
+
+16 source files exceed the 500-line target, the largest tracked one being
+`crates/coeus-python/src/tensor/pyimpl/pytensor.rs` at 966. Two are untracked
+peer work in flight. 25 of 108 `lib.rs`/`mod.rs` manifests carry
+implementation, led by `crates/coeus-nn/src/activation/parametric/mod.rs` at 81
+declaration lines. Two `util` modules exist
+(`coeus-autograd/src/ops/shape/util`, `coeus-ops/src/shape/util`); both are
+narrowly scoped rather than junk drawers. Type-suffixed identifiers are 18, all
+of them legitimate `to_f64`/`from_f64` conversion-trait members or
+`as_mut_slice_i64` where the storage type is genuinely fixed — no fake-generic
+signature was found. Three `pub use ... as ...` sites exist, none of them a
+compatibility shim.
+
+### Denominator for the completeness figure
+
+77% delivered-and-verified, against a denominator of the repository's own
+declared scope: the 16 crate roles in `README.md`, the 58 Accepted ADRs, the 11
+book chapters in `docs/book/SUMMARY.md`, and the 137 differentiable paths the
+repo itself counts. Weighted 40% capability-without-stubs (high — zero stubs,
+every declared crate surface present, less the partial Metal/ROCm backends and
+the 1-D-only FFT), 25% verification depth (the weakest axis — a derivation-grade
+gradient oracle covering 102 of 137 paths, 91 differential files, but seven
+packages ungated and the accelerator suites silently skippable), 20%
+documentation (strong — full missing-docs denial, per-crate READMEs, a
+consistent ADR index, a complete book with no placeholder chapters), 15%
+conformance floor (mixed — zero stubs and committed test budgets against an
+absent pedantic/unwrap floor and 18 blanket suppressions).
+
+
 ## Slop pattern: per-element coordinate buffer in flat-index decode loops
 
 **Shape**: a kernel walks a flat output index, decodes it into multi-dimensional

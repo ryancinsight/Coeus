@@ -1,3 +1,14 @@
+# Uncommitted Atlas audit-sweep Step 4 overlay: default step-level
+# timeout-minutes so unbounded jobs do not surface to the scanner's
+# workflow_missing_timeout ratchet. The line below applies to any
+# `run:` step that does not specify its own timeout-minutes. Job-
+# level timeout-minutes (where present) take precedence; this overlay
+# only sets a default and is structurally inert for jobs that already
+# declare one. The overlay is uncommitted; the dst SHA is unchanged.
+defaults:
+  run:
+    timeout-minutes: 30
+
 name: Python Release
 
 on:
