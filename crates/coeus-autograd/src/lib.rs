@@ -13,15 +13,13 @@
 
 // ── Coeus Autograd ──
 // Automatic differentiation engine with computational graph.
-#![allow(
-    clippy::type_complexity,
-    clippy::needless_range_loop,
-    clippy::get_first
-)]
 #![deny(missing_docs)]
 
-/// Backward-pass graph traversal and gradient propagation.
+/// Computation graph caching for autodiff compilation overhead reduction.
+pub mod autodiff_cache;
+/// Backward-pass graph traversal and caching integration.
 pub mod backward;
+pub mod backward_cache;
 pub(crate) mod grad_buffer;
 /// Thread-local autograd recording mode (no-grad scopes).
 pub mod grad_mode;
@@ -36,6 +34,12 @@ pub mod parameter;
 /// The differentiable variable type.
 pub mod var;
 
+pub use autodiff_cache::{
+    compute_graph_fingerprint, CacheConfig, CacheSnapshot, CacheStats, ComputeGraphCache,
+    ComputeGraphKey, DefaultCacheConfig, GraphInfo, MemoryBreakdown, TopologyPlanSnapshot,
+    PLAN_PURGE_MIN_TABLE_SIZE,
+};
+pub use backward_cache::topological_sort_with_cache;
 pub use grad_buffer::GradBuffer;
 pub use grad_mode::{
     is_grad_enabled, is_no_grad_enabled, no_grad_guard, pop_no_grad, push_no_grad, NoGradGuard,
@@ -242,5 +246,6 @@ pub use ops::{
     VarScalarExt,
 };
 pub use parameter::Parameter;
+pub use var::{get_backward_cache, reset_backward_cache_stats};
 
 pub use var::Var;
