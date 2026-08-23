@@ -75,6 +75,10 @@ println!("Cache hits: {}", stats.hits);
 println!("Cache misses: {}", stats.misses);
 println!("Hit rate: {:.1}%", stats.hit_rate());
 println!("Memory used: {} bytes", stats.memory_bytes);
+println!("Metadata residency: {} entries, {} evictions", stats.metadata_entries, stats.metadata_evictions);
+println!("Plan residency: {} entries, {} bytes", stats.plan_entries, stats.plan_memory_bytes);
+// Monotonic high-water marks; reset with reset_stats().
+println!("Plan peak: {} entries, {} bytes", stats.peak_plan_entries, stats.peak_plan_memory_bytes);
 println!("Plan reuse: {:.1}%", stats.plan_hit_rate());
 println!("Plan lookups: {}", stats.total_plan_ops());
 ```
@@ -217,6 +221,10 @@ impl CacheConfig for MyConfig {
 
     fn max_plan_memory(&self) -> usize {
         128 * 1024 * 1024  // 128MB across topology plans
+    }
+
+    fn plan_purge_interval(&self) -> u64 {
+        32  // Full expired-plan scan every 32 ops once the table is large
     }
     
     fn is_enabled(&self) -> bool {

@@ -40,7 +40,7 @@ The cache uses a **deterministic fingerprint** based on the computation graph st
 The `ComputeGraphCache` is thread-local and stores:
 - **Cached graph info** (node count, depth, operation sequence)
 - **Weak-root topology plans** (live post-order references for retained graphs)
-- **Statistics** (hits, misses, invalidations, memory, and plan residency)
+- **Statistics** (hits, misses, metadata residency/evictions, generation invalidations, memory, and plan residency)
 - **LRU metadata** (internal access ticks for eviction; snapshots expose per-plan access counts separately)
 
 ```rust
@@ -134,7 +134,14 @@ let cache = get_backward_cache();
 let stats = cache.stats();
 println!("Hit rate: {:.1}%", stats.hit_rate());
 println!("Memory used: {} bytes", stats.memory_bytes);
+println!("Metadata residency: {} entries, {} evictions", stats.metadata_entries, stats.metadata_evictions);
 println!("Plan residency: {} entries, {} bytes", stats.plan_entries, stats.plan_memory_bytes);
+// `peak_plan_entries` / `peak_plan_memory_bytes` are monotonic high-water marks:
+// they survive `clear()` and only reset via `reset_stats()`, so monitoring can
+// see how close the plan table has come to its budget even after evictions.
+println!("Plan peak: {} entries, {} bytes", stats.peak_plan_entries, stats.peak_plan_memory_bytes);
+// `invalidations` counts generation-change purges only; LRU pressure is
+// reported separately via `metadata_evictions` and `plan_evictions`.
 
 // Capture resident plan details without exposing graph node ownership.
 let snapshot = cache.snapshot();
@@ -150,6 +157,19 @@ for plan in &snapshot.plans {
 }
 // `residency_age` is measured in topology-cache access ticks since insertion.
 // `access_count` is per-plan usage; it is distinct from the internal LRU clock.
+
+// The per-category memory breakdown is reported in one consistent read:
+// metadata + plan bytes always sum to the total, no caller-side subtraction.
+let memory = &snapshot.memory;
+println!("Metadata: {} bytes | Plans: {} bytes | Total: {} bytes",
+    memory.metadata_bytes, memory.plan_bytes, memory.total_bytes);
+
+// Expired weak-root plans are reclaimed on an amortized schedule: small plan
+// tables purge on every operation; large tables defer the full scan to every
+// N-th operation (default 64, tunable via `CacheConfig::plan_purge_interval`)
+// so repeated lookups stay O(1) amortized. `snapshot()` always performs an
+// exact purge before reporting, so residency counters read from a snapshot (or
+// after calling `snapshot()`) are current.
 
 // Plan reuse rate: 100% means every backward reused a retained plan.
 println!("Plan reuse: {:.1}%", stats.plan_hit_rate());
@@ -182,6 +202,10 @@ impl CacheConfig for SolverCacheConfig {
 
     fn max_plan_memory(&self) -> usize {
         128 * 1024 * 1024  // 128MB across topology plans
+    }
+
+    fn plan_purge_interval(&self) -> u64 {
+        32  // Full expired-plan scan every 32 ops once the table is large
     }
     
     fn is_enabled(&self) -> bool {
