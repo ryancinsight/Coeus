@@ -1,0 +1,67 @@
+name: CI
+
+# This repository ran no general verification. `backend-parity.yml` exercises
+# the WGPU, CUDA and Metal provider contracts on device-specific runners, and
+# the rest of the workflows publish or build the book -- so 1365 native tests
+# and 18 doctests were committed, maintained, and executed by nothing.
+#
+# All of them pass, and so do `cargo fmt --check` and `cargo doc` with
+# `RUSTDOCFLAGS=-D warnings`. Clippy does not yet: 76 diagnostics remain, 30 of
+# them a single mechanical `.get(0)` to `.first()` across 22 files. It runs here
+# without `-D warnings` so a regression in a cleared class is visible while the
+# standing debt is not a merge blocker, and the burn-down is tracked separately.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coeus-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@ea4c0b50b0d394ee91c5bb68a6a295b0556feb8e # nextest
+        with:
+          tool: nextest
+
+      # Cheapest gate first: a formatting slip costs seconds, not a build.
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Native tests
+        run: cargo nextest run --locked --workspace
+
+      - name: Documentation tests
+        run: cargo test --locked --doc --workspace
+
+      - name: Documentation
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --locked --workspace --no-deps
+
+      # Deliberately not denying: see the header. Raised to `-D warnings` when
+      # the standing count reaches zero.
+      - name: Clippy (ratchet)
+        run: cargo clippy --locked --workspace --all-targets

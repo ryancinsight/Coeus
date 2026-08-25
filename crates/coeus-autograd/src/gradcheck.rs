@@ -3,7 +3,7 @@
 //! A backward implementation and a hand-derived closed form typed into a test
 //! are not independent oracles when one author produces both: a mistake in the
 //! derivation and a matching mistake in the implementation agree with each
-//! other. [`gradcheck`] supplies the independent oracle — it never reads the
+//! other. [`fn@gradcheck`] supplies the independent oracle — it never reads the
 //! backward code, only the *forward* function, and reconstructs the gradient
 //! from forward evaluations alone.
 //!
@@ -78,7 +78,7 @@
 //! writes zeros and against a correct one. This is a real hazard rather than a
 //! hypothetical: `sum(softmax(x))` is identically `1`, so its gradient is
 //! *exactly* zero for every input, and a gradcheck built on that loss is
-//! vacuous. [`gradcheck`] rejects such a comparison with
+//! vacuous. [`fn@gradcheck`] rejects such a comparison with
 //! [`GradcheckError::TriviallyZero`]; give the loss a non-uniform weighting so
 //! the output Jacobian is actually probed.
 
@@ -113,7 +113,7 @@ fn narrow<T: Scalar>(value: f64) -> T {
 /// `MIN_POSITIVE`, `NAN` and the infinities, but no `EPSILON`. The obvious
 /// substitute, `eunomia::RealField::EPSILON`, is unavailable here: `eunomia` is
 /// a dev-dependency of this crate, and promoting it to name the constant would
-/// put `RealField` into the public bound of [`gradcheck`], excluding the
+/// put `RealField` into the public bound of [`fn@gradcheck`], excluding the
 /// reduced-precision types that implement [`Float`] but not `RealField`.
 ///
 /// Halving a power of two is exact in every binary format until subnormals, and
@@ -148,7 +148,7 @@ const DEFAULT_TOLERANCE_SCALE: f64 = 64.0;
 /// meaningfully compared is never rejected as trivially zero.
 const ZERO_FLOOR_SCALE: f64 = 8.0;
 
-/// Why a [`gradcheck`] run did not establish agreement.
+/// Why a [`fn@gradcheck`] run did not establish agreement.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum GradcheckError {
@@ -233,7 +233,7 @@ impl core::fmt::Display for GradcheckError {
 
 impl std::error::Error for GradcheckError {}
 
-/// Tuning for a [`gradcheck`] run.
+/// Tuning for a [`fn@gradcheck`] run.
 ///
 /// [`Default`] derives every value from the scalar type's machine epsilon; see
 /// the module documentation. Construct with [`GradcheckConfig::default`] and
@@ -302,11 +302,11 @@ where
     gradcheck_with(inputs, loss_fn, GradcheckConfig::default())
 }
 
-/// [`gradcheck`] with an explicit [`GradcheckConfig`].
+/// [`fn@gradcheck`] with an explicit [`GradcheckConfig`].
 ///
 /// # Errors
 ///
-/// As [`gradcheck`].
+/// As [`fn@gradcheck`].
 pub fn gradcheck_with<T, B, F>(
     inputs: &[Tensor<T, B>],
     loss_fn: F,
