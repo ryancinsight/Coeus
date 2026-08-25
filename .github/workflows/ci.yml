@@ -50,11 +50,17 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
 
+      # `coeus-python` is excluded from both: PyO3's `extension-module` tells
+      # it not to link libpython, because a loaded extension gets those symbols
+      # from the interpreter. A standalone test binary has no interpreter, so
+      # linking fails with `undefined symbol: _Py_DecRef`. It builds on Windows,
+      # which links pythonXY.lib regardless, which is why this passed locally
+      # and not here. `python-release.yml` owns that crate's verification.
       - name: Native tests
-        run: cargo nextest run --locked --workspace
+        run: cargo nextest run --locked --workspace --exclude coeus-python
 
       - name: Documentation tests
-        run: cargo test --locked --doc --workspace
+        run: cargo test --locked --doc --workspace --exclude coeus-python
 
       - name: Documentation
         env:
