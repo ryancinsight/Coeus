@@ -26,6 +26,13 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
+  # `rust-toolchain.toml` pins 1.97.0, so every cargo call here uses it whatever
+  # the action installs. Without this the action defaults to `stable` -- its own
+  # log line reads `toolchain: stable` -- and rustup then fetches 1.97.0 as a
+  # second toolchain on first use, with the action's `components:` having been
+  # installed for the one that does not run. Same value and same mechanism as
+  # backend-parity.yml.
+  RUST_TOOLCHAIN: 1.97.0
 
 jobs:
   verify:
@@ -36,8 +43,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
         with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
         with:
@@ -50,6 +58,11 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
 
+      # `coeus-wgpu` is excluded because its tests acquire a GPU adapter and
+      # fail on a bare runner with `AdapterUnavailable`. It is not skipped
+      # coverage: backend-parity.yml runs its check, clippy at -D warnings,
+      # nextest and doctests on a runner with mesa-vulkan-drivers installed.
+      #
       # `coeus-python` is excluded from both: PyO3's `extension-module` tells
       # it not to link libpython, because a loaded extension gets those symbols
       # from the interpreter. A standalone test binary has no interpreter, so
@@ -57,10 +70,10 @@ jobs:
       # which links pythonXY.lib regardless, which is why this passed locally
       # and not here. `python-release.yml` owns that crate's verification.
       - name: Native tests
-        run: cargo nextest run --locked --workspace --exclude coeus-python
+        run: cargo nextest run --locked --workspace --exclude coeus-python --exclude coeus-wgpu
 
       - name: Documentation tests
-        run: cargo test --locked --doc --workspace --exclude coeus-python
+        run: cargo test --locked --doc --workspace --exclude coeus-python --exclude coeus-wgpu
 
       - name: Documentation
         env:
