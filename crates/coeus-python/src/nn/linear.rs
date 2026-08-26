@@ -21,7 +21,8 @@ impl PyLinear {
     #[new]
     #[pyo3(signature = (in_features, out_features, bias = true))]
     fn new(py: Python<'_>, in_features: usize, out_features: usize, bias: bool) -> PyResult<Self> {
-        let linear = coeus_nn::linear::Linear::new(in_features, out_features, bias);
+        let linear = coeus_nn::linear::Linear::new(in_features, out_features, bias)
+            .map_err(crate::init::map_initialization_error)?;
         let weight = Py::new(
             py,
             PyTensor {

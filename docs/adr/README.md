@@ -64,4 +64,4 @@
 | [0064](0064-coeus-hephaestus-unary-math-providers.md) | Add native unary math providers | Accepted |
 | [0065](0065-provider-owned-metal-rocm-bridge.md) | Provider-owned Metal and ROCm bridge | Accepted |
 | [0066](0066-provider-owned-dense-product-bridge.md) | Provider-owned dense product bridge | Accepted |
-| [0067](0067-linear-default-initialisation.md) | `Linear::new` must break unit symmetry | Proposed |
+| [0067](0067-linear-default-initialisation.md) | `Linear::new` must break unit symmetry | Accepted |

@@ -10,22 +10,42 @@ pub(crate) fn bench_sequential_composition_forward(c: &mut Criterion) {
 
     let mut dynamic_sequential = Sequential::<f32, SequentialBackend>::new();
     dynamic_sequential
-        .add(Linear::new(INPUT, HIDDEN, true))
+        .add(
+            Linear::new(INPUT, HIDDEN, true)
+                .expect("invariant: the fixture's layer dimensions are non-zero"),
+        )
         .add(ReLU)
-        .add(Linear::new(HIDDEN, OUTPUT, true));
+        .add(
+            Linear::new(HIDDEN, OUTPUT, true)
+                .expect("invariant: the fixture's layer dimensions are non-zero"),
+        );
     let mut static_sequential = Linear::<f32, SequentialBackend>::new(INPUT, HIDDEN, true)
+        .expect("invariant: the fixture's layer dimensions are non-zero")
         .append(ReLU)
-        .append(Linear::new(HIDDEN, OUTPUT, true));
+        .append(
+            Linear::new(HIDDEN, OUTPUT, true)
+                .expect("invariant: the fixture's layer dimensions are non-zero"),
+        );
     static_sequential.load_parameters(&dynamic_sequential.parameters());
 
     let mut dynamic_moirai = Sequential::<f32, MoiraiBackend>::new();
     dynamic_moirai
-        .add(Linear::new(INPUT, HIDDEN, true))
+        .add(
+            Linear::new(INPUT, HIDDEN, true)
+                .expect("invariant: the fixture's layer dimensions are non-zero"),
+        )
         .add(ReLU)
-        .add(Linear::new(HIDDEN, OUTPUT, true));
+        .add(
+            Linear::new(HIDDEN, OUTPUT, true)
+                .expect("invariant: the fixture's layer dimensions are non-zero"),
+        );
     let mut static_moirai = Linear::<f32, MoiraiBackend>::new(INPUT, HIDDEN, true)
+        .expect("invariant: the fixture's layer dimensions are non-zero")
         .append(ReLU)
-        .append(Linear::new(HIDDEN, OUTPUT, true));
+        .append(
+            Linear::new(HIDDEN, OUTPUT, true)
+                .expect("invariant: the fixture's layer dimensions are non-zero"),
+        );
     static_moirai.load_parameters(&dynamic_moirai.parameters());
 
     let input_data: Vec<f32> = (0..(BATCH * INPUT))
@@ -155,9 +175,11 @@ pub(crate) fn bench_lstm_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.0017).cos())
         .collect();
 
-    // Coeus: Lstm::new(input_size, hidden_size).
-    let lstm_seq = Lstm::<f32, SequentialBackend>::new(LSTM_IN, LSTM_H);
-    let lstm_moirai = Lstm::<f32, MoiraiBackend>::new(LSTM_IN, LSTM_H);
+    // Coeus: Lstm::new(input_size, hidden_size).expect("invariant: the fixture's layer dimensions are non-zero").
+    let lstm_seq = Lstm::<f32, SequentialBackend>::new(LSTM_IN, LSTM_H)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
+    let lstm_moirai = Lstm::<f32, MoiraiBackend>::new(LSTM_IN, LSTM_H)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(
             vec![LSTM_BATCH, LSTM_SEQ, LSTM_IN],
@@ -206,9 +228,11 @@ pub(crate) fn bench_gru_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.0023).sin())
         .collect();
 
-    // Coeus: Gru::new(input_size, hidden_size).
-    let gru_seq = CoeusGru::<f32, SequentialBackend>::new(GRU_IN, GRU_H);
-    let gru_moirai = CoeusGru::<f32, MoiraiBackend>::new(GRU_IN, GRU_H);
+    // Coeus: Gru::new(input_size, hidden_size).expect("invariant: the fixture's layer dimensions are non-zero").
+    let gru_seq = CoeusGru::<f32, SequentialBackend>::new(GRU_IN, GRU_H)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
+    let gru_moirai = CoeusGru::<f32, MoiraiBackend>::new(GRU_IN, GRU_H)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![GRU_BATCH, GRU_SEQ, GRU_IN], &input_data),
         false,
@@ -250,8 +274,10 @@ pub(crate) fn bench_rnn_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(RNN_BATCH * RNN_SEQ * RNN_IN))
         .map(|index| (index as f32 * 0.0011).sin())
         .collect();
-    let rnn_seq = Rnn::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh);
-    let rnn_moirai = Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh);
+    let rnn_seq = Rnn::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
+    let rnn_moirai = Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data),
         false,
@@ -295,8 +321,10 @@ pub(crate) fn bench_rnn_cell_forward(c: &mut Criterion) {
     let hidden_data: Vec<f32> = (0..(RNN_BATCH * RNN_H))
         .map(|index| (index as f32 * 0.0017).sin())
         .collect();
-    let cell_seq = RNNCell::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh);
-    let cell_moirai = RNNCell::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh);
+    let cell_seq = RNNCell::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
+    let cell_moirai = RNNCell::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_IN], &input_data),
         false,
@@ -335,12 +363,16 @@ pub(crate) fn bench_bidirectional_rnn_forward(c: &mut Criterion) {
         .map(|index| (index as f32 * 0.0009).cos())
         .collect();
     let bi_seq = Bidirectional::new(
-        Rnn::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh),
-        Rnn::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh),
+        Rnn::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh)
+            .expect("invariant: the fixture's layer dimensions are non-zero"),
+        Rnn::<f32, SequentialBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh)
+            .expect("invariant: the fixture's layer dimensions are non-zero"),
     );
     let bi_moirai = Bidirectional::new(
-        Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh),
-        Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh),
+        Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh)
+            .expect("invariant: the fixture's layer dimensions are non-zero"),
+        Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh)
+            .expect("invariant: the fixture's layer dimensions are non-zero"),
     );
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data),
@@ -386,9 +418,11 @@ pub(crate) fn bench_swiglu_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.0017).sin())
         .collect();
 
-    // Coeus: SwiGlu::new(d_input, d_output, bias=false).
-    let sg_seq = SwiGlu::<f32, SequentialBackend>::new(SG_IN, SG_OUT, false);
-    let sg_moirai = SwiGlu::<f32, MoiraiBackend>::new(SG_IN, SG_OUT, false);
+    // Coeus: SwiGlu::new(d_input, d_output, bias=false).expect("invariant: the fixture's layer dimensions are non-zero").
+    let sg_seq = SwiGlu::<f32, SequentialBackend>::new(SG_IN, SG_OUT, false)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
+    let sg_moirai = SwiGlu::<f32, MoiraiBackend>::new(SG_IN, SG_OUT, false)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![SG_BATCH, SG_IN], &input_data),
         false,

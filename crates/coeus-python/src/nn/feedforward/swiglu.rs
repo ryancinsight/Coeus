@@ -37,7 +37,8 @@ impl PySwiGlu {
     /// Create a SwiGLU unit projecting `d_input → d_output`, with optional bias
     /// on both linear layers (default `false`, matching Burn).
     pub fn new(py: Python<'_>, d_input: usize, d_output: usize, bias: bool) -> PyResult<Self> {
-        let init = coeus_nn::SwiGlu::<f64, coeus_core::MoiraiBackend>::new(d_input, d_output, bias);
+        let init = coeus_nn::SwiGlu::<f64, coeus_core::MoiraiBackend>::new(d_input, d_output, bias)
+            .map_err(crate::init::map_initialization_error)?;
         let linear_inner = Py::new(
             py,
             PyLinear {

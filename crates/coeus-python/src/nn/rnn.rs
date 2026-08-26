@@ -41,7 +41,8 @@ impl PyLSTMCell {
         bias: bool,
     ) -> PyResult<Self> {
         let cell =
-            coeus_nn::rnn::LSTMCell::<f64, coeus_core::MoiraiBackend>::new(input_size, hidden_size);
+            coeus_nn::rnn::LSTMCell::<f64, coeus_core::MoiraiBackend>::new(input_size, hidden_size)
+                .map_err(crate::init::map_initialization_error)?;
         let w_ih = Py::new(
             py,
             PyTensor {
@@ -103,18 +104,23 @@ impl PyLSTMCell {
         let c_v = c.inner.clone();
         let hs = self.hidden_size;
 
+        // Built before the GIL is released: constructing a cell can fail, and
+        // a `PyErr` cannot be raised without the GIL. Every weight below is
+        // overwritten by the tensors this wrapper already holds, so the draw
+        // the constructor performs is discarded -- keeping it outside the
+        // compute region at least keeps it off the timed path.
+        let mut cell = coeus_nn::rnn::LSTMCell::<f64, coeus_core::MoiraiBackend>::new(
+            w_ih.tensor.shape()[1],
+            hs,
+        )
+        .map_err(crate::init::map_initialization_error)?;
+        cell.w_ih.weight = w_ih;
+        cell.w_ih.bias = b_ih;
+        cell.w_hh.weight = w_hh;
+        cell.w_hh.bias = b_hh;
+
         let (h_new, c_new) = py
-            .allow_threads(move || {
-                let mut cell = coeus_nn::rnn::LSTMCell::<f64, coeus_core::MoiraiBackend>::new(
-                    w_ih.tensor.shape()[1],
-                    hs,
-                );
-                cell.w_ih.weight = w_ih;
-                cell.w_ih.bias = b_ih;
-                cell.w_hh.weight = w_hh;
-                cell.w_hh.bias = b_hh;
-                cell.step(&x_v, &h_v, &c_v)
-            })
+            .allow_threads(move || cell.step(&x_v, &h_v, &c_v))
             .map_err(map_module_error)?;
         Ok((PyTensor::from_var(h_new), PyTensor::from_var(c_new)))
     }
@@ -177,7 +183,8 @@ impl PyGRUCell {
         bias: bool,
     ) -> PyResult<Self> {
         let cell =
-            coeus_nn::rnn::GRUCell::<f64, coeus_core::MoiraiBackend>::new(input_size, hidden_size);
+            coeus_nn::rnn::GRUCell::<f64, coeus_core::MoiraiBackend>::new(input_size, hidden_size)
+                .map_err(crate::init::map_initialization_error)?;
         let w_ih = Py::new(
             py,
             PyTensor {
@@ -232,17 +239,22 @@ impl PyGRUCell {
         let h_v = h.inner.clone();
         let hs = self.hidden_size;
 
-        let h_new = py.allow_threads(move || {
-            let mut cell = coeus_nn::rnn::GRUCell::<f64, coeus_core::MoiraiBackend>::new(
-                w_ih.tensor.shape()[1],
-                hs,
-            );
-            cell.w_ih.weight = w_ih;
-            cell.w_ih.bias = b_ih;
-            cell.w_hh.weight = w_hh;
-            cell.w_hh.bias = b_hh;
-            cell.step(&x_v, &h_v)
-        });
+        // Built before the GIL is released: constructing a cell can fail, and
+        // a `PyErr` cannot be raised without the GIL. Every weight below is
+        // overwritten by the tensors this wrapper already holds, so the draw
+        // the constructor performs is discarded -- keeping it outside the
+        // compute region at least keeps it off the timed path.
+        let mut cell = coeus_nn::rnn::GRUCell::<f64, coeus_core::MoiraiBackend>::new(
+            w_ih.tensor.shape()[1],
+            hs,
+        )
+        .map_err(crate::init::map_initialization_error)?;
+        cell.w_ih.weight = w_ih;
+        cell.w_ih.bias = b_ih;
+        cell.w_hh.weight = w_hh;
+        cell.w_hh.bias = b_hh;
+
+        let h_new = py.allow_threads(move || cell.step(&x_v, &h_v));
         h_new.map(PyTensor::from_var).map_err(map_module_error)
     }
 
@@ -327,7 +339,8 @@ impl PyRNNCell {
             input_size,
             hidden_size,
             nl,
-        );
+        )
+        .map_err(crate::init::map_initialization_error)?;
         let w_ih = Py::new(
             py,
             PyTensor {
@@ -383,18 +396,23 @@ impl PyRNNCell {
         let h_v = h.inner.clone();
         let hs = self.hidden_size;
         let nl = self.nonlinearity;
-        let h_new = py.allow_threads(move || {
-            let mut cell = coeus_nn::rnn::RNNCell::<f64, coeus_core::MoiraiBackend>::new(
-                w_ih.tensor.shape()[1],
-                hs,
-                nl,
-            );
-            cell.w_ih.weight = w_ih;
-            cell.w_ih.bias = b_ih;
-            cell.w_hh.weight = w_hh;
-            cell.w_hh.bias = b_hh;
-            cell.step(&x_v, &h_v)
-        });
+        // Built before the GIL is released: constructing a cell can fail, and
+        // a `PyErr` cannot be raised without the GIL. Every weight below is
+        // overwritten by the tensors this wrapper already holds, so the draw
+        // the constructor performs is discarded -- keeping it outside the
+        // compute region at least keeps it off the timed path.
+        let mut cell = coeus_nn::rnn::RNNCell::<f64, coeus_core::MoiraiBackend>::new(
+            w_ih.tensor.shape()[1],
+            hs,
+            nl,
+        )
+        .map_err(crate::init::map_initialization_error)?;
+        cell.w_ih.weight = w_ih;
+        cell.w_ih.bias = b_ih;
+        cell.w_hh.weight = w_hh;
+        cell.w_hh.bias = b_hh;
+
+        let h_new = py.allow_threads(move || cell.step(&x_v, &h_v));
         h_new.map(PyTensor::from_var).map_err(map_module_error)
     }
 
@@ -443,17 +461,19 @@ pub struct PyBidirectional {
 impl PyBidirectional {
     /// Create a Bidirectional LSTM with independent forward/backward weights.
     #[new]
-    pub fn new(input_size: usize, hidden_size: usize) -> Self {
-        Self {
+    pub fn new(input_size: usize, hidden_size: usize) -> PyResult<Self> {
+        Ok(Self {
             inner_fwd: coeus_nn::rnn::Lstm::<f64, coeus_core::MoiraiBackend>::new(
                 input_size,
                 hidden_size,
-            ),
+            )
+            .map_err(crate::init::map_initialization_error)?,
             inner_bwd: coeus_nn::rnn::Lstm::<f64, coeus_core::MoiraiBackend>::new(
                 input_size,
                 hidden_size,
-            ),
-        }
+            )
+            .map_err(crate::init::map_initialization_error)?,
+        })
     }
 
     /// Forward: `x [N, T, D_in]` → `[N, T, 2*D_hidden]`.

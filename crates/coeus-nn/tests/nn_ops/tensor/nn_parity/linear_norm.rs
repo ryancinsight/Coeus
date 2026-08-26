@@ -13,7 +13,8 @@ fn test_linear_parity() {
 
     // Coeus setup
     let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![2, 3], &x_data), true);
-    let mut linear_coeus = CoeusLinear::<f32, SequentialBackend>::new(3, 2, true);
+    let mut linear_coeus = CoeusLinear::<f32, SequentialBackend>::new(3, 2, true)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     linear_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![2, 3], &w_data), true);
     linear_coeus.bias = Some(CoeusVar::new(
         CoeusTensor::from_slice(vec![2], &b_data),

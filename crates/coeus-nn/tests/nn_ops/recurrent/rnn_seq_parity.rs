@@ -33,14 +33,17 @@ use coeus_nn::{Bidirectional, Gru, Lstm, Module, ModuleError, Rnn, RnnNonlineari
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
-fn zeros_var<B: BackendOps<f64> + Default>(shape: &[usize], backend: &B) -> Var<f64, B>
+fn zeros_var<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(
+    shape: &[usize],
+    backend: &B,
+) -> Var<f64, B>
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
     Var::new(Tensor::zeros_on(shape.to_vec(), backend), false)
 }
 
-fn check_lstm<B: BackendOps<f64> + Default>(backend: &B)
+fn check_lstm<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
@@ -50,7 +53,8 @@ where
     //   i=f=o=0.5, g=0 → c_new=0, h_new=0 for every timestep.
     //
     // Shape: [batch=1, seq_len=3, input_size=2] → [1, 3, hidden=2]
-    let lstm = Lstm::<f64, B>::new(2, 2);
+    let lstm =
+        Lstm::<f64, B>::new(2, 2).expect("invariant: the fixture's layer dimensions are non-zero");
     let inp = zeros_var(&[1, 3, 2], backend);
 
     let (out, (h_n, c_n)) = lstm.forward_seq(&inp).expect("valid Lstm sequence input");
@@ -87,7 +91,7 @@ where
     assert_eq!(out1.tensor.as_slice(), &[0.0_f64; 2], "Lstm seq=1 zeros");
 }
 
-fn check_gru<B: BackendOps<f64> + Default>(backend: &B)
+fn check_gru<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
@@ -98,7 +102,8 @@ where
     //   h_new = (1−0.5)·0 + 0.5·0 = 0 for every timestep.
     //
     // Shape: [batch=1, seq_len=3, input_size=2] → [1, 3, hidden=2]
-    let gru = Gru::<f64, B>::new(2, 2);
+    let gru =
+        Gru::<f64, B>::new(2, 2).expect("invariant: the fixture's layer dimensions are non-zero");
     let inp = zeros_var(&[1, 3, 2], backend);
 
     let (out, h_n) = gru.forward_seq(&inp).expect("valid Gru sequence input");
@@ -135,7 +140,7 @@ where
     );
 }
 
-fn check_all<B: BackendOps<f64> + Default>(backend: &B)
+fn check_all<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
@@ -144,13 +149,15 @@ where
     check_bidirectional(backend);
 }
 
-fn check_bidirectional<B: BackendOps<f64> + Default>(backend: &B)
+fn check_bidirectional<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
     // Bidirectional<Rnn>: forward over x, backward over reversed x, concat on hidden.
-    let fwd = Rnn::<f64, B>::new(2, 3, RnnNonlinearity::Tanh);
-    let bwd = Rnn::<f64, B>::new(2, 3, RnnNonlinearity::Tanh);
+    let fwd = Rnn::<f64, B>::new(2, 3, RnnNonlinearity::Tanh)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
+    let bwd = Rnn::<f64, B>::new(2, 3, RnnNonlinearity::Tanh)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     let bi = Bidirectional::new(fwd.clone(), bwd.clone());
 
     // Zero input → zeros, shape [batch, seq, 2*hidden].
@@ -201,8 +208,10 @@ fn moirai_rnn_seq_match_reference() {
 fn bidirectional_lstm_doubles_hidden_dim() {
     // A Bidirectional<Lstm> with hidden=4 should produce [batch, seq, 8] output.
     use coeus_nn::{Bidirectional, Lstm, Module};
-    let fwd = Lstm::<f32, SequentialBackend>::new(2, 4);
-    let bwd = Lstm::<f32, SequentialBackend>::new(2, 4);
+    let fwd = Lstm::<f32, SequentialBackend>::new(2, 4)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
+    let bwd = Lstm::<f32, SequentialBackend>::new(2, 4)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     let bi = Bidirectional::new(fwd, bwd);
 
     let x = Var::new(
@@ -221,8 +230,10 @@ fn bidirectional_lstm_doubles_hidden_dim() {
 fn bidirectional_gru_zeros_output_for_zeros_input() {
     // Zeros input + zeros state → zeros output for any weight init.
     use coeus_nn::{Bidirectional, Gru, Module};
-    let fwd = Gru::<f32, SequentialBackend>::new(2, 4);
-    let bwd = Gru::<f32, SequentialBackend>::new(2, 4);
+    let fwd = Gru::<f32, SequentialBackend>::new(2, 4)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
+    let bwd = Gru::<f32, SequentialBackend>::new(2, 4)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     let bi = Bidirectional::new(fwd, bwd);
 
     let x = Var::new(
@@ -294,17 +305,20 @@ fn recurrent_sequences_reject_invalid_input_contracts() {
     let wrong_features = zeros_var(&[1, 2, 3], &backend);
     let empty = zeros_var(&[1, 0, 2], &backend);
 
-    let rnn = Rnn::<f64, SequentialBackend>::new(2, 2, RnnNonlinearity::Tanh);
+    let rnn = Rnn::<f64, SequentialBackend>::new(2, 2, RnnNonlinearity::Tanh)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     expect_sequence_invalid_rank(rnn.forward(&rank_two), "Rnn");
     expect_sequence_feature_mismatch(rnn.forward(&wrong_features), "Rnn");
     expect_empty_sequence(rnn.forward(&empty), "Rnn");
 
-    let gru = Gru::<f64, SequentialBackend>::new(2, 2);
+    let gru = Gru::<f64, SequentialBackend>::new(2, 2)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     expect_sequence_invalid_rank(gru.forward(&rank_two), "Gru");
     expect_sequence_feature_mismatch(gru.forward(&wrong_features), "Gru");
     expect_empty_sequence(gru.forward(&empty), "Gru");
 
-    let lstm = Lstm::<f64, SequentialBackend>::new(2, 2);
+    let lstm = Lstm::<f64, SequentialBackend>::new(2, 2)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     expect_sequence_invalid_rank(lstm.forward(&rank_two), "Lstm");
     expect_sequence_feature_mismatch(lstm.forward(&wrong_features), "Lstm");
     expect_empty_sequence(lstm.forward(&empty), "Lstm");

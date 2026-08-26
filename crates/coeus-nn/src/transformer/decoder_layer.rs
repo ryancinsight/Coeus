@@ -235,7 +235,7 @@ impl<
             cross_attn: MultiHeadAttention::new(d_model, true)?,
             dropout2: Dropout::new(dropout_p),
             norm3: LayerNorm::new(d_model, 1e-5),
-            ffn: FeedForward::new(d_model, d_ff, dropout_p),
+            ffn: FeedForward::new(d_model, d_ff, dropout_p)?,
             dropout3: Dropout::new(dropout_p),
         })
     }

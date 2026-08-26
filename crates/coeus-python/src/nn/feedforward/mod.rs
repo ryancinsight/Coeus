@@ -51,7 +51,8 @@ impl PyFeedForward {
         let ffn_init =
             coeus_nn::transformer::ffn::FeedForward::<f64, coeus_core::MoiraiBackend>::new(
                 d_model, d_ff, dropout_p,
-            );
+            )
+            .map_err(crate::init::map_initialization_error)?;
         let linear1 = Py::new(
             py,
             PyLinear {

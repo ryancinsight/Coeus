@@ -9,9 +9,13 @@ fn test_sequential_container() {
     assert!(seq.is_empty());
     assert_eq!(seq.len(), 0);
 
-    seq.add(Linear::new(3, 4, true));
+    seq.add(
+        Linear::new(3, 4, true).expect("invariant: the fixture's layer dimensions are non-zero"),
+    );
     seq.add(ReLU);
-    seq.add(Linear::new(4, 2, false));
+    seq.add(
+        Linear::new(4, 2, false).expect("invariant: the fixture's layer dimensions are non-zero"),
+    );
 
     assert!(!seq.is_empty());
     assert_eq!(seq.len(), 3);

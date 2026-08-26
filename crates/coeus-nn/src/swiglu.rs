@@ -28,11 +28,24 @@ pub struct SwiGlu<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBacken
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> SwiGlu<T, B> {
     /// Create a SwiGLU unit projecting `d_input -> d_output`, with optional bias
     /// on both linear layers.
-    pub fn new(d_input: usize, d_output: usize, bias: bool) -> Self {
-        Self {
-            linear_inner: Linear::new(d_input, d_output, bias),
-            linear_outer: Linear::new(d_input, d_output, bias),
-        }
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::init::InitializationError`] when a size is zero or the
+    /// backend's draw fails.
+    pub fn new(
+        d_input: usize,
+        d_output: usize,
+        bias: bool,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
+    where
+        T: coeus_leto::RandomScalar,
+        B: coeus_ops::RandomInitOps<T>,
+    {
+        Ok(Self {
+            linear_inner: Linear::new(d_input, d_output, bias)?,
+            linear_outer: Linear::new(d_input, d_output, bias)?,
+        })
     }
 }
 

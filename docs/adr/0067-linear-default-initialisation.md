@@ -1,6 +1,6 @@
 # 0067. `Linear::new` must break unit symmetry
 
-Status: Proposed
+Status: Accepted
 
 Date: 2026-08-26
 
@@ -66,19 +66,62 @@ exactly this reason.
 
 ## Consequences
 
-This changes the numbers every fresh `Linear` produces, and 50 call sites
-construct one — 29 in this workspace, 21 in kwavers. Tests that assert on the
-output of an untrained layer will change, and each has to be re-derived rather
-than re-baselined: an assertion that happened to hold for all-ones weights was
-asserting on the defect.
+Measured by applying the change, not estimated:
 
-Reproducibility gets better rather than worse. Today a network is reproducible
-because it is degenerate; afterwards it is reproducible because the seed is
-carried, which is the property kwavers' `collocation_seed` already establishes
-for the other half of a PINN run.
+| Where | Sites |
+|---|---|
+| `coeus-nn` lib (RNN cells, SwiGLU, transformer FFN) | 10 |
+| `coeus-nn` tests and benches | 68 |
+| `coeus-python` bindings | 11 |
+| kwavers, 7 files | 21 |
 
-The change is `[major]` and crosses a repository boundary, so it lands upstream
-here first and kwavers follows per the co-evolution protocol.
+The composite layers that build a `Linear` internally -- `GRUCell`,
+`LSTMCell`, `RNNCell`, `SwiGlu`, `FeedForward` -- become fallible too, and
+their wrappers after them. Their bounds sit on the constructors rather than the
+impl blocks: `step`, `forward_seq` and the rest draw nothing and keep the
+bounds they had.
+
+Three of those constructors documented an initialisation they never performed.
+`GRUCell::new`, `LSTMCell::new` and `RNNCell::new` each said "Xavier-initialized
+weights" directly above a call to the all-ones constructor. The documentation
+described the intent; the code had lost it. They now say Kaiming and do it.
+
+Three tests out of 1130 failed, all of the predicted kind, and each was
+re-derived rather than re-baselined:
+
+- `swiglu_forward_matches_analytic` opened with "ones-weight projection => each
+  output column equals the input row sum S". Its oracle came from the defect.
+  It now sets both projections to all-ones explicitly, which keeps the closed
+  form and makes the test independent of how a layer is initialised.
+- `rnn_parity::{sequential,moirai}_rnn_match_reference` expected `tanh(3)` and
+  `relu(3)`, derived from all-ones weights the same way. Same treatment.
+
+In the Python bindings, three constructions sat inside `py.allow_threads`,
+where a `PyErr` cannot be raised without the GIL. They are hoisted out. Each
+overwrites every weight it just built with the tensors the wrapper already
+holds, so the draw was discarded work on a compute path either way.
+
+`tests/nn/linear_initialisation.rs` is the regression: units start distinct,
+compute distinct outputs, take distinct gradients under a weight-dependent
+loss, `with_seed` reproduces, and a zero `in_features` is rejected. Four of the
+six fail against the old initialisation, which was checked by restoring it.
+
+One correction worth recording, because the first version of that test asserted
+something false. Under `L = sum(y)` the weight gradient is
+`dL/dW[j,i] = sum_n x[n,i]` for every unit `j` -- identical across units
+whatever `W` holds. That is correct arithmetic rather than a symmetry, and a
+test asserting otherwise would fail against a correct implementation. The test
+uses `L = sum(y * y)`, whose gradient `2 * y[n,j] * x[n,i]` does depend on the
+unit's own weights.
+
+Reproducibility improves rather than degrading. A network was reproducible
+before because it was degenerate; it is reproducible now because
+`kaiming_uniform` draws from a fixed seed and `with_seed` lets a caller choose
+one -- the property kwavers' `collocation_seed` already establishes for the
+other half of a PINN run.
+
+kwavers follows per the co-evolution protocol: 21 sites across 7 files, after
+which `PINN3DNetwork` stops training two effective units per layer.
 
 ## Alternatives rejected
 
