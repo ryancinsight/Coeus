@@ -97,7 +97,19 @@ opt-level = 3
 
 [profile.dev]
 opt-level = 1
+# Backtraces resolve to file and line without the full DWARF that dominates
+# both compile time and target size for a workspace this generic-heavy.
+debug = "line-tables-only"
 
+# Dependency debuginfo is the larger half again, and nothing here steps into a
+# dependency. Re-enable per package, locally and uncommitted, to do so.
+[profile.dev.package."*"]
+debug = false
+
+[profile.dev.build-override]
+debug = false
+
+# Inherits every debug setting above from `dev`.
 [profile.test]
 opt-level = 1
 

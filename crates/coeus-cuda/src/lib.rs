@@ -1,6 +1,6 @@
 //! # coeus-cuda
 //!
-//! NVIDIA CUDA implementation of the Coeus [`ComputeBackend`]
+//! NVIDIA CUDA implementation of the Coeus [`ComputeBackend`](coeus_core::ComputeBackend)
 //! / [`BackendOps`](coeus_ops::BackendOps) surface. The crate is a pure backend:
 //! it adds no domain logic, only on-device realizations of the kernel contract
 //! the CPU [`SequentialBackend`](coeus_core::SequentialBackend) defines.
