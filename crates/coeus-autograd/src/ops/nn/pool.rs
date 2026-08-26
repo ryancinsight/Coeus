@@ -181,7 +181,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        if let Some(Some(ref g_in)) = input_grads.get(0) {
+        if let Some(Some(ref g_in)) = input_grads.first() {
             let mut grad_input = Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend);
             let (gi_storage, gi_layout) = grad_input.storage_mut_and_layout();
             dispatch_max_pool_backward::<T, B, DIM>(
@@ -338,7 +338,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        if let Some(Some(ref g_in)) = input_grads.get(0) {
+        if let Some(Some(ref g_in)) = input_grads.first() {
             let mut grad_input = Tensor::zeros_on(self.inp_shape.clone(), &backend);
             let (gi_storage, gi_layout) = grad_input.storage_mut_and_layout();
             dispatch_avg_pool_backward::<T, B, DIM>(PoolBackwardInputs {

@@ -60,7 +60,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
                  (broadcast batching is not differentiable yet)"
             );
             // ∂/∂A: grad_C @ B^T — [batch,m,n] × [batch,n,k] → [batch,m,k]
-            if let Some(Some(ref g)) = input_grads.get(0) {
+            if let Some(Some(ref g)) = input_grads.first() {
                 let b_t = swap_last_two(b, backend);
                 let gl = g.write();
                 coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend)?;
@@ -75,7 +75,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         }
 
         // ∂/∂A: grad_C @ B^T — grad_C may be batched ([batch,m,n] × [n,k] → [batch,m,k])
-        if let Some(Some(ref g)) = input_grads.get(0) {
+        if let Some(Some(ref g)) = input_grads.first() {
             let b_t = b.t(); // B is 2-D on this path; b.t() is a stride view.
             let gl = g.write();
             coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend)?;
@@ -251,7 +251,7 @@ where
     ) -> Result<(), B::Error> {
         let backend = B::default();
         // ∂/∂A_values
-        if let Some(Some(ref g)) = input_grads.get(0) {
+        if let Some(Some(ref g)) = input_grads.first() {
             let grad_a_vals = coeus_ops::spmm_backward_values(
                 &self.a_col_indices,
                 &self.a_row_offsets,
@@ -348,12 +348,17 @@ where
     }
 }
 
+/// CSR values, column indices and row offsets, plus the permutation carrying
+/// each CSR slot back to the COO entry it came from -- the backward pass needs
+/// that last one to scatter gradients to the original positions.
+type CsrPartsWithPermutation<T, B> = (Tensor<T, B>, Tensor<i64, B>, Tensor<i64, B>, Tensor<i64, B>);
+
 fn coo_to_csr_parts_with_permutation<T: Scalar, B: coeus_ops::BackendOps<T> + coeus_core::Backend>(
     a_values: &Tensor<T, B>,
     a_indices: &Tensor<i64, B>,
     a_shape: &Shape,
     backend: &B,
-) -> (Tensor<T, B>, Tensor<i64, B>, Tensor<i64, B>, Tensor<i64, B>)
+) -> CsrPartsWithPermutation<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64> + CpuAddressableStorageMut<i64>,

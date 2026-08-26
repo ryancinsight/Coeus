@@ -74,7 +74,6 @@ where
             let go_s = go_cont.as_slice();
 
             let in_numel: usize = eff_in.iter().product();
-            let out_numel: usize = out_shape.iter().product();
 
             // Row-major strides.
             let mut out_strides = vec![1usize; n];
@@ -88,7 +87,7 @@ where
 
             // Sum output gradients over repeated copies into the input gradient.
             let mut gi_data = vec![T::zero(); in_numel];
-            for out_flat in 0..out_numel {
+            for (out_flat, &grad_out_element) in go_s.iter().enumerate() {
                 let mut in_flat = 0usize;
                 let mut rem = out_flat;
                 for d in 0..n {
@@ -97,7 +96,7 @@ where
                     let in_coord = out_coord % eff_in[d];
                     in_flat += in_coord * in_strides[d];
                 }
-                gi_data[in_flat] += go_s[out_flat];
+                gi_data[in_flat] += grad_out_element;
             }
 
             // Reshape from eff_in back to original in_shape.

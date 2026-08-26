@@ -39,7 +39,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sof
         grad_out: &Tensor<T, B>,
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
-        if let Some(Some(ref g_in)) = input_grads.get(0) {
+        if let Some(Some(ref g_in)) = input_grads.first() {
             accumulate_softmax_grad(grad_out, &self.y_clone, self.dim_u, g_in)?;
         }
 

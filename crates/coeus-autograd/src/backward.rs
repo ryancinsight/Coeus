@@ -51,11 +51,11 @@ pub fn reduce_broadcast<
     // Sum out aligned broadcast dims. `sum_axis` keeps the reduced dimension at
     // size 1, so each target dimension still maps to the next axis position in
     // `current` after either branch.
-    for axis in 0..target_ndim {
+    for (axis, &target_dim) in target_shape.iter().enumerate() {
         if axis >= current.ndim() {
             break;
         }
-        if target_shape[axis] == 1 && current.shape()[axis] > 1 {
+        if target_dim == 1 && current.shape()[axis] > 1 {
             current = coeus_ops::sum_axis(&current, axis, &backend)
                 .expect("invariant: broadcast reduction axis is validated");
         }

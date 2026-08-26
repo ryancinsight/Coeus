@@ -147,7 +147,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
         }
 
         // ── dL/dx ──
-        if let Some(Some(ref gx)) = input_grads.get(0) {
+        if let Some(Some(ref gx)) = input_grads.first() {
             let dxhat = coeus_ops::mul(&go_flat, &self.w_reshaped_captured, &backend); // [M, C]
             let sum_dxhat = coeus_ops::sum_axis(&dxhat, 0, &backend)?; // [1, C]
             let dxhat_xmu = coeus_ops::mul(&dxhat, &self.xmu_clone, &backend);

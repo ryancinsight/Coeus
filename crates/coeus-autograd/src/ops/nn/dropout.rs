@@ -70,7 +70,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Dro
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        if let Some(Some(ref g)) = input_grads.get(0) {
+        if let Some(Some(ref g)) = input_grads.first() {
             let prod = coeus_ops::mul(grad_out, &self.mask, &backend);
             let gl = g.write();
             coeus_ops::add_assign(gl, &prod, &backend)?;

@@ -3,10 +3,6 @@ use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 
 #[test]
-#[expect(
-    clippy::needless_range_loop,
-    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
-)]
 fn test_sparse_matmul_backward() {
     let backend = MoiraiBackend::new();
 
@@ -75,8 +71,8 @@ fn test_sparse_matmul_backward() {
     for r in 0..3 {
         let start = row_slice[r] as usize;
         let end = row_slice[r + 1] as usize;
-        for i in start..end {
-            let c = col_slice[i] as usize;
+        for &col in &col_slice[start..end] {
+            let c = col as usize;
             let dense_idx = r * 4 + c;
             let expected = expected_grad_a_slice[dense_idx];
             let actual = grad_a_vals_slice[val_idx];
@@ -95,16 +91,12 @@ fn test_sparse_matmul_backward() {
     // Verify backward dense parity
     let grad_b_sparse_slice = grad_b_sparse.as_slice();
     let expected_grad_b_slice = expected_grad_b.as_slice();
-    for i in 0..grad_b_sparse_slice.len() {
-        assert!((grad_b_sparse_slice[i] - expected_grad_b_slice[i]).abs() < 1e-5);
+    for (actual, expected) in grad_b_sparse_slice.iter().zip(expected_grad_b_slice) {
+        assert!((actual - expected).abs() < 1e-5);
     }
 }
 
 #[test]
-#[expect(
-    clippy::needless_range_loop,
-    reason = "ratchet ATLAS-COEUS-LINT-RATCHET-097"
-)]
 fn test_sparse_coo_matmul_backward() {
     let backend = MoiraiBackend::new();
 

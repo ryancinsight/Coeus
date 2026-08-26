@@ -767,7 +767,7 @@ impl ComputeGraphCache {
             return;
         }
         let ops = self.plan_purge_ops.fetch_add(1, Ordering::Relaxed);
-        if ops % interval == 0 {
+        if ops.is_multiple_of(interval) {
             self.purge_expired_plans(plans);
         }
     }

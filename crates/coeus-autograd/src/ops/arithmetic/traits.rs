@@ -199,7 +199,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: ReductionAutogradOp<T
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        if let Some(Some(ref g)) = input_grads.get(0) {
+        if let Some(Some(ref g)) = input_grads.first() {
             let grad_to_broadcast = if let Some(ref scaler) = self.scaler_tensor {
                 coeus_ops::mul(grad_out, scaler, &backend)
             } else {
