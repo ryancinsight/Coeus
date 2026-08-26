@@ -2,14 +2,31 @@ name: CI
 
 # This repository ran no general verification. `backend-parity.yml` exercises
 # the WGPU, CUDA and Metal provider contracts on device-specific runners, and
-# the rest of the workflows publish or build the book -- so 1365 native tests
-# and 18 doctests were committed, maintained, and executed by nothing.
+# the rest of the workflows publish or build the book -- so the workspace's
+# native tests and doctests were committed, maintained, and executed by
+# nothing. This runs 1130 of them; the two exclusions below account for the
+# rest and are covered by the workflows named there.
 #
 # All of them pass, and so do `cargo fmt --check` and `cargo doc` with
 # `RUSTDOCFLAGS=-D warnings`. Clippy does not yet: 76 diagnostics remain, 30 of
 # them a single mechanical `.get(0)` to `.first()` across 22 files. It runs here
 # without `-D warnings` so a regression in a cleared class is visible while the
 # standing debt is not a merge blocker, and the burn-down is tracked separately.
+#
+# The work is split across two jobs because it is compile-bound, not test-bound:
+# the first attempt ran everything in one job and was killed at the 30-minute
+# limit inside `cargo doc`, having spent 26m52s compiling the workspace at the
+# `test` profile to then run all 1130 tests in 4.1 seconds. The `test`, `doc`
+# and clippy profiles each need their own compile, so serially they do not fit
+# any reasonable bound; in parallel each job carries one and does. Splitting
+# also gives each job its own cache entry, which is why `save-if` matters below:
+# no pull-request run may write one, so the entries come from `main`, and until
+# `main` has run this workflow once every job here pays a cold compile.
+#
+# The 45-minute bounds are sized for that cold compile, not for steady state:
+# a restored cache should put both jobs in single digits. If it does not once
+# `main` has populated one, the bound is hiding something and the job is owed
+# an investigation rather than more minutes.
 
 on:
   push:
@@ -35,10 +52,12 @@ env:
   RUST_TOOLCHAIN: 1.97.0
 
 jobs:
-  verify:
-    name: Verify
+  # Cheapest gate on its own runner: a formatting slip reports in under a
+  # minute instead of behind a compile.
+  format:
+    name: Format
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -46,17 +65,26 @@ jobs:
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
-          components: clippy, rustfmt
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: taiki-e/install-action@ea4c0b50b0d394ee91c5bb68a6a295b0556feb8e # nextest
         with:
           tool: nextest
-
-      # Cheapest gate first: a formatting slip costs seconds, not a build.
-      - name: Format
-        run: cargo fmt --all -- --check
 
       # `coeus-wgpu` is excluded because its tests acquire a GPU adapter and
       # fail on a bare runner with `AdapterUnavailable`. It is not skipped
@@ -72,15 +100,33 @@ jobs:
       - name: Native tests
         run: cargo nextest run --locked --workspace --exclude coeus-python --exclude coeus-wgpu
 
+      # Shares the `test` profile compile above, so this costs only its own
+      # doctest binaries.
       - name: Documentation tests
         run: cargo test --locked --doc --workspace --exclude coeus-python --exclude coeus-wgpu
 
-      - name: Documentation
-        env:
-          RUSTDOCFLAGS: -D warnings
-        run: cargo doc --locked --workspace --no-deps
+  lint:
+    name: Lint and documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       # Deliberately not denying: see the header. Raised to `-D warnings` when
       # the standing count reaches zero.
       - name: Clippy (ratchet)
         run: cargo clippy --locked --workspace --all-targets
+
+      - name: Documentation
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --locked --workspace --no-deps
