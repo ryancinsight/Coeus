@@ -7,11 +7,12 @@ name: CI
 # nothing. This runs 1130 of them; the two exclusions below account for the
 # rest and are covered by the workflows named there.
 #
-# All of them pass, and so do `cargo fmt --check` and `cargo doc` with
-# `RUSTDOCFLAGS=-D warnings`. Clippy does not yet: 76 diagnostics remain, 30 of
-# them a single mechanical `.get(0)` to `.first()` across 22 files. It runs here
-# without `-D warnings` so a regression in a cleared class is visible while the
-# standing debt is not a merge blocker, and the burn-down is tracked separately.
+# All of them pass, and so now do `cargo fmt --check`, `cargo doc` with
+# `RUSTDOCFLAGS=-D warnings`, and clippy at `-D warnings` across the workspace.
+# Clippy did not when this workflow landed: 41 diagnostics stood, 31 of them a
+# mechanical `.get(0)` to `.first()` across 23 files, so it ran without `-D
+# warnings` while the burn-down was tracked separately. That is finished, and
+# the gate is a gate.
 #
 # The work is split across two jobs because it is compile-bound, not test-bound:
 # the first attempt ran everything in one job and was killed at the 30-minute
@@ -121,10 +122,8 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      # Deliberately not denying: see the header. Raised to `-D warnings` when
-      # the standing count reaches zero.
-      - name: Clippy (ratchet)
-        run: cargo clippy --locked --workspace --all-targets
+      - name: Clippy
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
 
       - name: Documentation
         env:

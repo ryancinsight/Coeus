@@ -44,7 +44,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for KlD
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        if let Some(Some(ref g)) = input_grads.get(0) {
+        if let Some(Some(ref g)) = input_grads.first() {
             // d(loss)/d(input_i) = -target_i / N * grad_out
             let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
             let d_input = coeus_ops::mul(

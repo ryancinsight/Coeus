@@ -28,7 +28,7 @@ impl<T: Scalar, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + D
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
     ) -> Result<(), B::Error> {
-        if let Some(Some(ref g)) = input_grads.get(0) {
+        if let Some(Some(ref g)) = input_grads.first() {
             let gl = g.write();
             if grad_out.shape() == &a_shape[..] {
                 coeus_ops::add_assign(gl, grad_out, backend)?;
@@ -72,7 +72,7 @@ impl<T: Scalar, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + D
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
     ) -> Result<(), B::Error> {
-        if let Some(Some(ref g)) = input_grads.get(0) {
+        if let Some(Some(ref g)) = input_grads.first() {
             let gl = g.write();
             if grad_out.shape() == &a_shape[..] {
                 coeus_ops::add_assign(gl, grad_out, backend)?;
@@ -116,7 +116,7 @@ impl<T: Scalar, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + D
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
     ) -> Result<(), B::Error> {
-        if let Some(Some(ref g)) = input_grads.get(0) {
+        if let Some(Some(ref g)) = input_grads.first() {
             let prod = coeus_ops::mul(grad_out, b, backend);
             let gl = g.write();
             if prod.shape() == a.shape() {
@@ -162,7 +162,7 @@ impl<T: Scalar, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + D
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
         backend: &B,
     ) -> Result<(), B::Error> {
-        if let Some(Some(ref g)) = input_grads.get(0) {
+        if let Some(Some(ref g)) = input_grads.first() {
             let grad_a = coeus_ops::div(grad_out, b, backend);
             let gl = g.write();
             if grad_a.shape() == a.shape() {
@@ -219,7 +219,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         backend: &B,
     ) -> Result<(), B::Error> {
         // ∂/∂a = 1: identity passthrough (broadcast-reduced to a's shape).
-        if let Some(Some(ref g)) = input_grads.get(0) {
+        if let Some(Some(ref g)) = input_grads.first() {
             let gl = g.write();
             if grad_out.shape() == a.shape() {
                 coeus_ops::add_assign(gl, grad_out, backend)?;

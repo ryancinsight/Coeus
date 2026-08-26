@@ -70,7 +70,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lay
         }
 
         // ── dL/dx ──
-        if let Some(Some(ref gx)) = input_grads.get(0) {
+        if let Some(Some(ref gx)) = input_grads.first() {
             let sum_dy_w = coeus_ops::sum_axis(&dy_w, 1, &backend)?; // [N, 1]
             let dy_w_xhat = coeus_ops::mul(&dy_w, &self.x_hat_clone, &backend); // [N, D]
             let sum_dy_w_xhat = coeus_ops::sum_axis(&dy_w_xhat, 1, &backend)?; // [N, 1]

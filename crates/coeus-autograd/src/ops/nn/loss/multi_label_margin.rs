@@ -53,7 +53,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        if let Some(Some(ref g)) = input_grads.get(0) {
+        if let Some(Some(ref g)) = input_grads.first() {
             // Each active (k, j) pair contributes +scale to x[j] and -scale to
             // x[target_val(k)]. incoming[j] = sum_k active[k, j] (the sibling
             // accumulation); outgoing[t] = sum over k of rowsum(k) scattered

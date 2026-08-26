@@ -136,6 +136,10 @@ impl<
 
 // ── Public tracked function ────────────────────────────────────────────────
 
+/// The attention output and the weights that produced it, the latter kept for
+/// the backward pass rather than recomputed.
+type AttentionOutput<T, B> = (Var<T, B>, Tensor<T, B>);
+
 /// Tracked scaled dot-product attention.
 ///
 /// `M::IS_CAUSAL` selects the masking strategy; dead code is eliminated at
@@ -158,7 +162,7 @@ pub fn sdp_attention<
     value: &Var<T, B>,
     key_padding_mask: Option<&Var<T, B>>,
     scale: T,
-) -> Result<(Var<T, B>, Tensor<T, B>), B::Error> {
+) -> Result<AttentionOutput<T, B>, B::Error> {
     let backend = B::default();
 
     let (out_tensor, attn_weights) = coeus_ops::scaled_dot_product_attention(

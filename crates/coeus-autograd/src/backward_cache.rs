@@ -8,7 +8,9 @@
 use crate::autodiff_cache::{ComputeGraphCache, GraphInfo};
 use crate::node::BackwardNode;
 use coeus_core::{ComputeBackend, Scalar};
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
+use std::hash::Hasher;
 use std::sync::Arc;
 
 /// Compute a fingerprint of a computation graph rooted at a given node.
@@ -27,97 +29,89 @@ pub fn compute_graph_structure_fingerprint<T: Scalar, B: ComputeBackend + Defaul
     (fingerprint, graph_info)
 }
 
+/// A graph's structural hash, its metadata, and the post-order the caller
+/// asked for -- `None` when it did not.
+type CollectedGraph<T, B> = (u64, GraphInfo, Option<Vec<Arc<dyn BackwardNode<T, B>>>>);
+
 /// Collect graph metadata and a live post-order in one traversal.
 fn collect_graph<T: Scalar, B: ComputeBackend + Default>(
     root_node: &Arc<dyn BackwardNode<T, B>>,
     collect_order: bool,
-) -> (u64, GraphInfo, Option<Vec<Arc<dyn BackwardNode<T, B>>>>) {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::Hasher;
+) -> CollectedGraph<T, B> {
+    let mut traversal = Traversal {
+        visited: HashSet::new(),
+        hasher: DefaultHasher::new(),
+        op_sequence: Vec::new(),
+        order: collect_order.then(Vec::new),
+        node_count: 0,
+        leaf_count: 0,
+        max_depth: 0,
+    };
+    traversal.visit(root_node, 0);
+    traversal.finish()
+}
 
-    let mut hasher = DefaultHasher::new();
-    let mut visited = HashSet::new();
-    let mut op_sequence = Vec::new();
-    let mut order = collect_order.then(Vec::new);
-    let mut node_count = 0;
-    let mut leaf_count = 0;
-    let mut max_depth = 0;
+/// Everything one traversal accumulates.
+///
+/// These were eight `&mut` parameters threaded through a recursive function,
+/// which meant every call site restated the whole set in order and a new
+/// statistic meant touching all of them.
+struct Traversal<T: Scalar, B: ComputeBackend + Default> {
+    visited: HashSet<*const ()>,
+    hasher: DefaultHasher,
+    op_sequence: Vec<String>,
+    order: Option<Vec<Arc<dyn BackwardNode<T, B>>>>,
+    node_count: usize,
+    leaf_count: usize,
+    max_depth: usize,
+}
 
-    fn traverse<T: Scalar, B: ComputeBackend + Default>(
-        node: &Arc<dyn BackwardNode<T, B>>,
-        visited: &mut HashSet<*const ()>,
-        hasher: &mut std::collections::hash_map::DefaultHasher,
-        op_sequence: &mut Vec<String>,
-        order: &mut Option<Vec<Arc<dyn BackwardNode<T, B>>>>,
-        node_count: &mut usize,
-        leaf_count: &mut usize,
-        max_depth: &mut usize,
-        depth: usize,
-    ) {
+impl<T: Scalar, B: ComputeBackend + Default> Traversal<T, B> {
+    /// Visit `node` and everything reachable from it, once each.
+    fn visit(&mut self, node: &Arc<dyn BackwardNode<T, B>>, depth: usize) {
         use std::hash::Hash;
 
         let ptr = Arc::as_ptr(node) as *const ();
-        if visited.contains(&ptr) {
+        if !self.visited.insert(ptr) {
             return;
         }
-        visited.insert(ptr);
 
-        *node_count += 1;
-        *max_depth = (*max_depth).max(depth);
+        self.node_count += 1;
+        self.max_depth = self.max_depth.max(depth);
 
         let op_name = node.op_name();
-        op_name.hash(hasher);
-        op_sequence.push(op_name.to_string());
+        op_name.hash(&mut self.hasher);
+        self.op_sequence.push(op_name.to_string());
 
         let inputs = node.inputs();
-        inputs.len().hash(hasher);
+        inputs.len().hash(&mut self.hasher);
         for input in inputs {
-            input.tensor.shape().hash(hasher);
+            input.tensor.shape().hash(&mut self.hasher);
             if input.creator.is_none() {
-                *leaf_count += 1;
+                self.leaf_count += 1;
             }
 
             if let Some(ref creator) = input.creator {
-                traverse(
-                    creator,
-                    visited,
-                    hasher,
-                    op_sequence,
-                    order,
-                    node_count,
-                    leaf_count,
-                    max_depth,
-                    depth + 1,
-                );
+                self.visit(creator, depth + 1);
             }
         }
 
         // Post-order is the order required by reverse-mode propagation.
-        if let Some(order) = order {
+        if let Some(order) = &mut self.order {
             order.push(node.clone());
         }
     }
 
-    traverse(
-        root_node,
-        &mut visited,
-        &mut hasher,
-        &mut op_sequence,
-        &mut order,
-        &mut node_count,
-        &mut leaf_count,
-        &mut max_depth,
-        0,
-    );
-
-    let graph_info = GraphInfo {
-        node_count,
-        leaf_count,
-        max_depth,
-        op_sequence,
-    };
-
-    (hasher.finish(), graph_info, order)
+    /// Consume the traversal into its fingerprint, metadata and post-order.
+    fn finish(self) -> CollectedGraph<T, B> {
+        let graph_info = GraphInfo {
+            node_count: self.node_count,
+            leaf_count: self.leaf_count,
+            max_depth: self.max_depth,
+            op_sequence: self.op_sequence,
+        };
+        (self.hasher.finish(), graph_info, self.order)
+    }
 }
 
 /// Perform topological sort using the cache when available.
@@ -530,7 +524,7 @@ mod tests {
     #[test]
     fn peak_residency_tracks_the_plan_tables_high_water_mark() {
         let cache = ComputeGraphCache::new();
-        let mut roots: Vec<_> = (0..5).map(|_| test_graph()).collect();
+        let roots: Vec<_> = (0..5).map(|_| test_graph()).collect();
         for root in &roots {
             let _ = topological_sort_with_cache(Some(root), &cache);
         }

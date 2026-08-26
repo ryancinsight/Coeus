@@ -165,7 +165,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
     ) -> Result<(), B::Error> {
         let backend = B::default();
 
-        let mut grad_input = if input_grads.get(0).and_then(|g| g.as_ref()).is_some() {
+        let mut grad_input = if input_grads.first().and_then(|g| g.as_ref()).is_some() {
             Some(Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend))
         } else {
             None

@@ -42,7 +42,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nll
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        if let Some(Some(ref g)) = input_grads.get(0) {
+        if let Some(Some(ref g)) = input_grads.first() {
             // d/dlog_probs = -mask * grad_out / n, all on-provider.
             let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
             let d_log = coeus_ops::mul(

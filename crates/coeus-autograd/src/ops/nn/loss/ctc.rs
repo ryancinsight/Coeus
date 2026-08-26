@@ -75,7 +75,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Ctc
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        let Some(Some(ref g)) = input_grads.get(0) else {
+        let Some(Some(ref g)) = input_grads.first() else {
             return Ok(());
         };
 
@@ -361,9 +361,9 @@ where
         // Build extended target: blank, label_0, blank, label_1, ..., blank
         let ls = 2 * s_n + 1;
         let mut ext = Vec::with_capacity(ls);
-        for i in 0..s_n {
+        for &target in sample_targets {
             ext.push(blank);
-            ext.push(sample_targets[i]);
+            ext.push(target);
         }
         ext.push(blank);
 

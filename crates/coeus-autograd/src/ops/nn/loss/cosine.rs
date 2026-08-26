@@ -59,7 +59,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        let need_g1 = input_grads.get(0).and_then(|g| g.as_ref()).is_some();
+        let need_g1 = input_grads.first().and_then(|g| g.as_ref()).is_some();
         let need_g2 = input_grads.get(1).and_then(|g| g.as_ref()).is_some();
         if !need_g1 && !need_g2 {
             return Ok(());
@@ -77,7 +77,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
             let proj = coeus_ops::mul(&self.dot_over_n1sq, x1, &backend);
             let diff = coeus_ops::sub(x2, &proj, &backend);
             let dg1 = coeus_ops::mul(&diff, &combined, &backend);
-            if let Some(Some(ref g)) = input_grads.get(0) {
+            if let Some(Some(ref g)) = input_grads.first() {
                 coeus_ops::add_assign(g.write(), &dg1, &backend)?;
             }
         }

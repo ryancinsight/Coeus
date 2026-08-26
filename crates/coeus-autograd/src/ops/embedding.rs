@@ -48,7 +48,7 @@ where
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        if let Some(Some(ref gw)) = input_grads.get(0) {
+        if let Some(Some(ref gw)) = input_grads.first() {
             let gw_update = coeus_ops::embedding_backward_with_padding_idx(
                 grad_out,
                 &self.indices,

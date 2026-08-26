@@ -51,7 +51,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         // d/d(input1) = -target * mask / N; d/d(input2) = +target * mask / N.
         let target_mask = coeus_ops::mul(&self.target_tensor, &self.mask, &backend);
 
-        if let Some(Some(ref g1)) = input_grads.get(0) {
+        if let Some(Some(ref g1)) = input_grads.first() {
             let d1 = coeus_ops::mul(&coeus_ops::neg(&target_mask, &backend), &scale, &backend);
             coeus_ops::add_assign(g1.write(), &d1, &backend)?;
         }

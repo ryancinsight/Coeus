@@ -78,9 +78,8 @@ where
 
             // Scatter output gradient back into input positions.
             let in_numel: usize = in_shape.iter().product();
-            let out_numel = go_s.len();
             let mut gi_data = vec![T::zero(); in_numel];
-            for out_flat in 0..out_numel {
+            for (out_flat, &grad_out_element) in go_s.iter().enumerate() {
                 let mut coords = vec![0usize; ndim];
                 let mut rem = out_flat;
                 for d in 0..ndim {
@@ -93,7 +92,7 @@ where
                     let c = if d == dim { sel } else { coords[d] };
                     in_flat += c * in_strides[d];
                 }
-                gi_data[in_flat] += go_s[out_flat];
+                gi_data[in_flat] += grad_out_element;
             }
 
             // Accumulate increment into the gradient buffer.

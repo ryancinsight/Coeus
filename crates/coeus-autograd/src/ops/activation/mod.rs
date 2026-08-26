@@ -64,7 +64,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: UnaryAutogradOp<T, B>
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        if let Some(Some(ref g)) = input_grads.get(0) {
+        if let Some(Some(ref g)) = input_grads.first() {
             let mask = Op::backward(grad_out, &self.a_tensor, &self.out_tensor, &backend);
             let gl = g.write();
             coeus_ops::add_assign(gl, &mask, &backend)?;
