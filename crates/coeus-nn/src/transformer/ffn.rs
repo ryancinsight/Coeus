@@ -104,13 +104,26 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> FeedForward<T, B> {
     /// - `d_model`: input and output feature dimension
     /// - `d_ff`:    hidden (inner) feature dimension
     /// - `dropout_p`: dropout probability
-    pub fn new(d_model: usize, d_ff: usize, dropout_p: f64) -> Self {
-        Self {
-            linear1: Linear::new(d_model, d_ff, true),
-            linear2: Linear::new(d_ff, d_model, true),
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::init::InitializationError`] when a size is zero or the
+    /// backend's draw fails.
+    pub fn new(
+        d_model: usize,
+        d_ff: usize,
+        dropout_p: f64,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
+    where
+        T: coeus_leto::RandomScalar,
+        B: coeus_ops::RandomInitOps<T>,
+    {
+        Ok(Self {
+            linear1: Linear::new(d_model, d_ff, true)?,
+            linear2: Linear::new(d_ff, d_model, true)?,
             dropout: Dropout::new(dropout_p),
             _marker: PhantomData,
-        }
+        })
     }
 }
 

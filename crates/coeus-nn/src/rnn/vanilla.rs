@@ -39,15 +39,27 @@ pub struct RNNCell<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBacke
 }
 
 impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default> RNNCell<T, B> {
-    /// Create with Xavier-initialized weights, zero biases, and the given nonlinearity.
-    pub fn new(input_size: usize, hidden_size: usize, nonlinearity: RnnNonlinearity) -> Self {
-        Self {
-            w_ih: Linear::new(input_size, hidden_size, true),
-            w_hh: Linear::new(hidden_size, hidden_size, true),
+    /// Create with Kaiming-initialized weights, zero biases, and the given nonlinearity.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::init::InitializationError`] when a size is zero or the
+    /// backend's draw fails.
+    pub fn new(
+        input_size: usize,
+        hidden_size: usize,
+        nonlinearity: RnnNonlinearity,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
+    where
+        B: coeus_ops::RandomInitOps<T>,
+    {
+        Ok(Self {
+            w_ih: Linear::new(input_size, hidden_size, true)?,
+            w_hh: Linear::new(hidden_size, hidden_size, true)?,
             nonlinearity,
             input_size,
             hidden_size,
-        }
+        })
     }
 
     /// Forward step.
@@ -127,13 +139,25 @@ where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
-    /// Create with Xavier-initialized weights, zero biases, and the given nonlinearity.
-    pub fn new(input_size: usize, hidden_size: usize, nonlinearity: RnnNonlinearity) -> Self {
-        Self {
-            cell: RNNCell::new(input_size, hidden_size, nonlinearity),
+    /// Create with Kaiming-initialized weights, zero biases, and the given nonlinearity.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::init::InitializationError`] when a size is zero or the
+    /// backend's draw fails.
+    pub fn new(
+        input_size: usize,
+        hidden_size: usize,
+        nonlinearity: RnnNonlinearity,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
+    where
+        B: coeus_ops::RandomInitOps<T>,
+    {
+        Ok(Self {
+            cell: RNNCell::new(input_size, hidden_size, nonlinearity)?,
             input_size,
             hidden_size,
-        }
+        })
     }
 
     /// Unroll over the sequence dimension with a zero initial hidden state.

@@ -1,6 +1,8 @@
+use crate::init::InitializationError;
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{MoiraiBackend, Scalar};
+use coeus_core::{Float, MoiraiBackend, Scalar};
+use coeus_ops::RandomInitOps;
 use coeus_tensor::Tensor;
 
 /// Fully-connected linear layer.
@@ -12,26 +14,72 @@ pub struct Linear<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBacke
     pub bias: Option<Var<T, B>>,
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Linear<T, B> {
+/// Construction needs more of `T` and `B` than holding a layer does -- the
+/// weights are drawn, so the scalar must be sampleable and the backend must be
+/// able to sample it. The bounds sit here rather than on the type so
+/// `Linear<T, B>` stays nameable for any scalar.
+impl<T, B> Linear<T, B>
+where
+    T: Scalar + Float + coeus_leto::RandomScalar,
+    B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
+{
     /// Create a Linear layer with given input/output features.
-    pub fn new(in_features: usize, out_features: usize, bias: bool) -> Self {
+    ///
+    /// Weights are drawn Kaiming-uniform over `in_features` from a fixed seed,
+    /// so a layer built the same way twice is the same layer; use
+    /// [`Linear::with_seed`] to choose the draw. Biases are zero.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InitializationError`] when `in_features` is zero, or when the
+    /// backend's draw fails.
+    pub fn new(
+        in_features: usize,
+        out_features: usize,
+        bias: bool,
+    ) -> Result<Self, InitializationError<B::Error>> {
+        Self::build(in_features, out_features, bias, None)
+    }
+
+    /// Create a Linear layer whose weights are drawn from `seed`.
+    ///
+    /// # Errors
+    ///
+    /// As [`Linear::new`].
+    pub fn with_seed(
+        in_features: usize,
+        out_features: usize,
+        bias: bool,
+        seed: u64,
+    ) -> Result<Self, InitializationError<B::Error>> {
+        Self::build(in_features, out_features, bias, Some(seed))
+    }
+
+    fn build(
+        in_features: usize,
+        out_features: usize,
+        bias: bool,
+        seed: Option<u64>,
+    ) -> Result<Self, InitializationError<B::Error>> {
         let backend = B::default();
-        let w_shape = [out_features, in_features];
-        let w_tensor = Tensor::ones_on(w_shape, &backend);
-        let weight = Var::new(w_tensor, true);
+        let w_tensor = Tensor::zeros_on([out_features, in_features], &backend);
+        let mut weight = Var::new(w_tensor, true);
 
-        let bias_var = if bias {
-            let b_shape = [out_features];
-            let b_tensor = Tensor::zeros_on(b_shape, &backend);
-            Some(Var::new(b_tensor, true))
-        } else {
-            None
-        };
+        // Every weight was 1.0 here. Each unit in the layer then computed the
+        // same value from the same input, took the same gradient and applied
+        // the same update -- identical at step zero and identical forever, so a
+        // layer of any width had the capacity of one unit. See ADR 0067.
+        match seed {
+            Some(seed) => crate::init::kaiming_uniform_with_seed(&mut weight, in_features, seed)?,
+            None => crate::init::kaiming_uniform(&mut weight, in_features)?,
+        }
 
-        Self {
+        let bias_var = bias.then(|| Var::new(Tensor::zeros_on([out_features], &backend), true));
+
+        Ok(Self {
             weight,
             bias: bias_var,
-        }
+        })
     }
 }
 

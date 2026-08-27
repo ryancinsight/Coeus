@@ -249,7 +249,8 @@ mod tests {
     fn ffn_forward_shape() {
         let d_model = 16;
         let d_ff = 64;
-        let ffn = FeedForward::<f32, B>::new(d_model, d_ff, 0.0);
+        let ffn = FeedForward::<f32, B>::new(d_model, d_ff, 0.0)
+            .expect("invariant: the fixture's layer dimensions are non-zero");
 
         let backend = B::default();
         let batch = 2;

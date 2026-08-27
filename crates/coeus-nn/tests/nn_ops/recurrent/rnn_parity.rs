@@ -24,20 +24,24 @@ use coeus_nn::{GRUCell, LSTMCell, Module, ModuleError, RNNCell, RnnNonlinearity}
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
-fn zeros_var<B: BackendOps<f64> + Default>(shape: &[usize], backend: &B) -> Var<f64, B>
+fn zeros_var<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(
+    shape: &[usize],
+    backend: &B,
+) -> Var<f64, B>
 where
     B::DeviceBuffer<f64>: coeus_core::CpuAddressableStorageMut<f64>,
 {
     Var::new(Tensor::zeros_on(shape.to_vec(), backend), false)
 }
 
-fn check_gru_cell<B: BackendOps<f64> + Default>(backend: &B)
+fn check_gru_cell<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>:
         coeus_core::CpuAddressableStorage<f64> + coeus_core::CpuAddressableStorageMut<f64>,
 {
     // input_size=2, hidden_size=2 — small but non-trivial.
-    let cell = GRUCell::<f64, B>::new(2, 2);
+    let cell = GRUCell::<f64, B>::new(2, 2)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
 
     // x=zeros, h=zeros → h_new = zeros exactly (proven above).
     let x = zeros_var(&[1, 2], backend);
@@ -59,13 +63,14 @@ where
     );
 }
 
-fn check_lstm_cell<B: BackendOps<f64> + Default>(backend: &B)
+fn check_lstm_cell<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>:
         coeus_core::CpuAddressableStorage<f64> + coeus_core::CpuAddressableStorageMut<f64>,
 {
     // input_size=2, hidden_size=2.
-    let cell = LSTMCell::<f64, B>::new(2, 2);
+    let cell = LSTMCell::<f64, B>::new(2, 2)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
 
     // x=zeros, h=zeros, c=zeros → h_new=zeros, c_new=zeros exactly.
     let x = zeros_var(&[1, 2], backend);
@@ -94,7 +99,7 @@ where
     );
 }
 
-fn check_all<B: BackendOps<f64> + Default>(backend: &B)
+fn check_all<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>:
         coeus_core::CpuAddressableStorage<f64> + coeus_core::CpuAddressableStorageMut<f64>,
@@ -104,14 +109,34 @@ where
     check_rnn_cell(backend);
 }
 
-fn check_rnn_cell<B: BackendOps<f64> + Default>(backend: &B)
+/// Pin a cell's two projections to all-ones, so `step` has a closed form.
+///
+/// They used to arrive that way from `Linear::new`, which initialised every
+/// weight to 1.0 -- the defect ADR 0067 removes. The derivations below want a
+/// known `W`, not whatever the initialiser draws, so they set one. The
+/// property under test is the step formula, not the initialisation.
+fn pin_ones<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(
+    cell: &mut RNNCell<f64, B>,
+    backend: &B,
+) where
+    B::DeviceBuffer<f64>:
+        coeus_core::CpuAddressableStorage<f64> + coeus_core::CpuAddressableStorageMut<f64>,
+{
+    let ones = [1.0_f64; 4];
+    cell.w_ih.weight = Var::new(Tensor::from_slice_on([2, 2], &ones, backend), true);
+    cell.w_hh.weight = Var::new(Tensor::from_slice_on([2, 2], &ones, backend), true);
+}
+
+fn check_rnn_cell<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>:
         coeus_core::CpuAddressableStorage<f64> + coeus_core::CpuAddressableStorageMut<f64>,
 {
-    // Linear::new → all-ones weights, zero bias. RNNCell step:
-    //   h_new = f(x @ W_ih.T + h @ W_hh.T) with W all-ones.
-    let cell = RNNCell::<f64, B>::new(2, 2, RnnNonlinearity::Tanh);
+    // With both projections all-ones and zero bias, the RNNCell step is
+    //   h_new = f(x @ W_ih.T + h @ W_hh.T) = f(sum(x) broadcast).
+    let mut cell = RNNCell::<f64, B>::new(2, 2, RnnNonlinearity::Tanh)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
+    pin_ones(&mut cell, backend);
 
     // x=0, h=0 → pre=0 → tanh(0)=0 exactly.
     let x0 = zeros_var(&[1, 2], backend);
@@ -135,7 +160,9 @@ where
     );
 
     // Relu nonlinearity: pre=[3,3] → relu(3)=3 exactly.
-    let cell_relu = RNNCell::<f64, B>::new(2, 2, RnnNonlinearity::Relu);
+    let mut cell_relu = RNNCell::<f64, B>::new(2, 2, RnnNonlinearity::Relu)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
+    pin_ones(&mut cell_relu, backend);
     let h_relu = cell_relu.step(&x, &h0).expect("valid RNNCell input");
     assert_eq!(
         h_relu.tensor.as_slice(),
@@ -211,7 +238,8 @@ fn recurrent_cells_reject_invalid_input_contracts() {
     let rank_one = zeros_var(&[2], &backend);
     let wrong_features = zeros_var(&[1, 3], &backend);
 
-    let rnn = RNNCell::<f64, SequentialBackend>::new(2, 2, RnnNonlinearity::Tanh);
+    let rnn = RNNCell::<f64, SequentialBackend>::new(2, 2, RnnNonlinearity::Tanh)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     expect_invalid_rank(rnn.forward(&rank_one), "RNNCell", 1);
     expect_shape_mismatch(
         rnn.forward(&wrong_features),
@@ -221,7 +249,8 @@ fn recurrent_cells_reject_invalid_input_contracts() {
         &[1, 3],
     );
 
-    let gru = GRUCell::<f64, SequentialBackend>::new(2, 2);
+    let gru = GRUCell::<f64, SequentialBackend>::new(2, 2)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     expect_invalid_rank(gru.forward(&rank_one), "GRUCell", 1);
     expect_shape_mismatch(
         gru.forward(&wrong_features),
@@ -231,7 +260,8 @@ fn recurrent_cells_reject_invalid_input_contracts() {
         &[1, 3],
     );
 
-    let lstm = LSTMCell::<f64, SequentialBackend>::new(2, 2);
+    let lstm = LSTMCell::<f64, SequentialBackend>::new(2, 2)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     expect_invalid_rank(lstm.forward(&rank_one), "LSTMCell", 1);
     expect_shape_mismatch(
         lstm.forward(&wrong_features),
@@ -249,7 +279,8 @@ fn recurrent_steps_reject_incompatible_state_shapes() {
     let wrong_state = zeros_var(&[2, 2], &backend);
     let valid_state = zeros_var(&[1, 2], &backend);
 
-    let rnn = RNNCell::<f64, SequentialBackend>::new(2, 2, RnnNonlinearity::Tanh);
+    let rnn = RNNCell::<f64, SequentialBackend>::new(2, 2, RnnNonlinearity::Tanh)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     expect_shape_mismatch(
         rnn.step(&input, &wrong_state),
         "RNNCell",
@@ -258,7 +289,8 @@ fn recurrent_steps_reject_incompatible_state_shapes() {
         &[2, 2],
     );
 
-    let gru = GRUCell::<f64, SequentialBackend>::new(2, 2);
+    let gru = GRUCell::<f64, SequentialBackend>::new(2, 2)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     expect_shape_mismatch(
         gru.step(&input, &wrong_state),
         "GRUCell",
@@ -267,7 +299,8 @@ fn recurrent_steps_reject_incompatible_state_shapes() {
         &[2, 2],
     );
 
-    let lstm = LSTMCell::<f64, SequentialBackend>::new(2, 2);
+    let lstm = LSTMCell::<f64, SequentialBackend>::new(2, 2)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     match lstm.step(&input, &valid_state, &wrong_state) {
         Err(ModuleError::ShapeMismatch {
             module: "LSTMCell",

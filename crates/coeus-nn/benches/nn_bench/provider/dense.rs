@@ -4,8 +4,10 @@ use super::*;
 
 pub(crate) fn bench_linear_forward(c: &mut Criterion) {
     // Coeus: same dims; forward builds the autograd graph (production path).
-    let lin_seq = Linear::<f32, SequentialBackend>::new(FEATURES, FEATURES, true);
-    let lin_moirai = Linear::<f32, MoiraiBackend>::new(FEATURES, FEATURES, true);
+    let lin_seq = Linear::<f32, SequentialBackend>::new(FEATURES, FEATURES, true)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
+    let lin_moirai = Linear::<f32, MoiraiBackend>::new(FEATURES, FEATURES, true)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::ones(vec![BATCH, FEATURES]),
         false,
@@ -90,8 +92,10 @@ pub(crate) fn bench_linear_forward_backward(c: &mut Criterion) {
     // Full autograd cycle — forward + sum-loss + backward — for Linear
     // uses its Autodiff<provider> backend over the same manual linear expression.
 
-    let lin_seq = Linear::<f32, SequentialBackend>::new(FEATURES, FEATURES, true);
-    let lin_moirai = Linear::<f32, MoiraiBackend>::new(FEATURES, FEATURES, true);
+    let lin_seq = Linear::<f32, SequentialBackend>::new(FEATURES, FEATURES, true)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
+    let lin_moirai = Linear::<f32, MoiraiBackend>::new(FEATURES, FEATURES, true)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::ones(vec![BATCH, FEATURES]),
         true,
@@ -188,8 +192,10 @@ pub(crate) fn bench_linear_fwd_bwd(c: &mut Criterion) {
         Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, IN_F], &inp_data),
         true,
     );
-    let lin_seq = coeus_nn::Linear::<f32, SequentialBackend>::new(IN_F, OUT_F, false);
-    let lin_moirai = coeus_nn::Linear::<f32, MoiraiBackend>::new(IN_F, OUT_F, false);
+    let lin_seq = coeus_nn::Linear::<f32, SequentialBackend>::new(IN_F, OUT_F, false)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
+    let lin_moirai = coeus_nn::Linear::<f32, MoiraiBackend>::new(IN_F, OUT_F, false)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     let mut group = c.benchmark_group("Coeus - Linear(256,512) fwd+bwd (128x256)");
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {

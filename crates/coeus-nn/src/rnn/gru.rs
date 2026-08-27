@@ -32,16 +32,27 @@ pub struct GRUCell<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBacke
 }
 
 impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default> GRUCell<T, B> {
-    /// Create with Xavier-initialized weights and zero biases.
-    pub fn new(input_size: usize, hidden_size: usize) -> Self {
-        let w_ih = Linear::new(input_size, 3 * hidden_size, true);
-        let w_hh = Linear::new(hidden_size, 3 * hidden_size, true);
-        Self {
+    /// Create with Kaiming-initialized weights and zero biases.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::init::InitializationError`] when a size is zero or the
+    /// backend's draw fails.
+    pub fn new(
+        input_size: usize,
+        hidden_size: usize,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
+    where
+        B: coeus_ops::RandomInitOps<T>,
+    {
+        let w_ih = Linear::new(input_size, 3 * hidden_size, true)?;
+        let w_hh = Linear::new(hidden_size, 3 * hidden_size, true)?;
+        Ok(Self {
             w_ih,
             w_hh,
             input_size,
             hidden_size,
-        }
+        })
     }
 
     /// Forward step.
@@ -160,13 +171,24 @@ where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
-    /// Create with Xavier-initialized weights and zero biases.
-    pub fn new(input_size: usize, hidden_size: usize) -> Self {
-        Self {
-            cell: GRUCell::new(input_size, hidden_size),
+    /// Create with Kaiming-initialized weights and zero biases.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::init::InitializationError`] when a size is zero or the
+    /// backend's draw fails.
+    pub fn new(
+        input_size: usize,
+        hidden_size: usize,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
+    where
+        B: coeus_ops::RandomInitOps<T>,
+    {
+        Ok(Self {
+            cell: GRUCell::new(input_size, hidden_size)?,
             input_size,
             hidden_size,
-        }
+        })
     }
 
     /// Unroll over the sequence dimension with zero initial hidden state.

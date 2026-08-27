@@ -1,11 +1,17 @@
 // ── SwiGLU gated feed-forward unit: value-semantic tests ──
 //
-// `SwiGlu::new` builds two ones-initialised Linear layers, so each projection
-// maps a row to its element sum: inner(row) = outer(row) = S = sum(row). With
-// no bias the forward is therefore the closed form
+// With both projections set to all-ones, each maps a row to its element sum:
+// inner(row) = outer(row) = S = sum(row). With no bias the forward is then the
+// closed form
 //     SwiGLU(row)[j] = silu(S) * S   for every output column j,
 // which we assert exactly (analytic oracle), plus the parameter inventory and
 // gradient flow through the composed silu/mul/matmul graph.
+//
+// The weights are set here rather than inherited from `SwiGlu::new`. They used
+// to be inherited, because `Linear::new` initialised every weight to 1.0 --
+// which is the defect ADR 0067 removes, and an oracle derived from it was
+// testing the initialiser as much as the unit. Pinning them keeps the closed
+// form and makes the test independent of how a layer is initialised.
 
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
@@ -39,7 +45,17 @@ fn swiglu_forward_matches_analytic() {
         true,
     );
 
-    let swiglu = SwiGlu::<f64, MoiraiBackend>::new(d_input, d_output, false);
+    let mut swiglu = SwiGlu::<f64, MoiraiBackend>::new(d_input, d_output, false)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
+    let ones = vec![1.0_f64; d_output * d_input];
+    swiglu.linear_inner.weight = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([d_output, d_input], &ones),
+        true,
+    );
+    swiglu.linear_outer.weight = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([d_output, d_input], &ones),
+        true,
+    );
     let output = swiglu.forward(&input).expect("valid SwiGLU input");
 
     // Tolerance: the only transcendental is silu's sigmoid (~1 ulp); the result
@@ -54,15 +70,18 @@ fn swiglu_forward_matches_analytic() {
 #[test]
 fn swiglu_parameter_inventory() {
     // No bias: two weight matrices. With bias: two weights + two bias vectors.
-    let no_bias = SwiGlu::<f64, MoiraiBackend>::new(4, 8, false);
+    let no_bias = SwiGlu::<f64, MoiraiBackend>::new(4, 8, false)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     assert_eq!(no_bias.parameters().len(), 2);
-    let with_bias = SwiGlu::<f64, MoiraiBackend>::new(4, 8, true);
+    let with_bias = SwiGlu::<f64, MoiraiBackend>::new(4, 8, true)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     assert_eq!(with_bias.parameters().len(), 4);
 }
 
 #[test]
 fn swiglu_backward_populates_parameter_grads() {
-    let swiglu = SwiGlu::<f64, MoiraiBackend>::new(3, 2, true);
+    let swiglu = SwiGlu::<f64, MoiraiBackend>::new(3, 2, true)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     let data = vec![0.5_f64, -1.0, 2.0];
     let input = Var::new(
         Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &data),

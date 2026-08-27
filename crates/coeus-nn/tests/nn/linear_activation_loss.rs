@@ -59,7 +59,8 @@ fn expected_cross_entropy_gradients(
 
 #[test]
 fn test_linear_layer() {
-    let mut layer = Linear::<f64>::new(3, 2, true);
+    let mut layer = Linear::<f64>::new(3, 2, true)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     init::constant(&mut layer.weight, 1.0);
     if let Some(ref mut b) = layer.bias {
         init::constant(b, 0.5);
@@ -101,7 +102,8 @@ fn test_linear_layer() {
 
 #[test]
 fn linear_projects_last_axis_for_rank_three_and_preserves_gradients() {
-    let mut layer = Linear::<f64>::new(3, 2, true);
+    let mut layer = Linear::<f64>::new(3, 2, true)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     layer.weight.tensor = Tensor::from_slice(vec![2, 3], &[1.0, 0.0, -1.0, 0.5, 2.0, 1.5]);
     if let Some(ref mut bias) = layer.bias {
         bias.tensor = Tensor::from_slice(vec![2], &[0.25, -0.5]);
@@ -159,7 +161,8 @@ fn linear_projects_last_axis_for_rank_three_and_preserves_gradients() {
 
 #[test]
 fn linear_projects_last_axis_for_rank_five() {
-    let mut layer = Linear::<f64>::new(3, 2, false);
+    let mut layer = Linear::<f64>::new(3, 2, false)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     layer.weight.tensor = Tensor::from_slice(vec![2, 3], &[1.0, 0.0, -1.0, 0.5, 2.0, 1.5]);
     let input = Var::new(
         Tensor::from_slice(vec![1, 1, 1, 2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
@@ -179,7 +182,8 @@ fn test_load_parameters_applies_optimizer_step_to_the_module() {
     // via `parameters()`), so without `load_parameters` writing the updated
     // values back into the layer's own fields, this would silently leave
     // `layer.weight`/`layer.bias` unchanged after training.
-    let mut layer = Linear::<f64>::new(2, 1, true);
+    let mut layer = Linear::<f64>::new(2, 1, true)
+        .expect("invariant: the fixture's layer dimensions are non-zero");
     init::constant(&mut layer.weight, 1.0);
     if let Some(ref mut b) = layer.bias {
         init::constant(b, 0.0);

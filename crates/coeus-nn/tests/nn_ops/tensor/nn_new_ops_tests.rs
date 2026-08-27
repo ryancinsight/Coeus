@@ -90,8 +90,12 @@ fn test_instancenorm2d_forward_backward() {
 fn test_sequential_chaining() {
     let backend = B::default();
     let mut seq = Sequential::<f64, B>::new();
-    seq.add(Linear::new(4, 3, true));
-    seq.add(Linear::new(3, 2, true));
+    seq.add(
+        Linear::new(4, 3, true).expect("invariant: the fixture's layer dimensions are non-zero"),
+    );
+    seq.add(
+        Linear::new(3, 2, true).expect("invariant: the fixture's layer dimensions are non-zero"),
+    );
 
     let input = Var::new(Tensor::ones_on([2, 4], &backend), true);
     let output = seq.forward(&input).expect("valid Sequential input");
@@ -165,8 +169,12 @@ fn test_huber_loss() {
 #[test]
 fn test_static_sequential_chaining() {
     let backend = B::default();
-    let model: StaticSeq<Linear<f64, B>, Linear<f64, B>> =
-        Linear::<f64, B>::new(4, 3, true).append(Linear::<f64, B>::new(3, 2, true));
+    let model: StaticSeq<Linear<f64, B>, Linear<f64, B>> = Linear::<f64, B>::new(4, 3, true)
+        .expect("invariant: the fixture's layer dimensions are non-zero")
+        .append(
+            Linear::<f64, B>::new(3, 2, true)
+                .expect("invariant: the fixture's layer dimensions are non-zero"),
+        );
 
     let input = Var::new(Tensor::ones_on([2, 4], &backend), true);
     let output = model.forward(&input).expect("valid StaticSeq input");
