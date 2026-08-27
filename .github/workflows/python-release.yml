@@ -35,6 +35,10 @@ jobs:
     name: Publish wheels to PyPI
     needs: wheels
     runs-on: ubuntu-latest
+    # Matches the same job in kwavers and CFDrs. This workflow is mixed -- one
+    # job calls the shared wheel builder, which owns its own bounds, and this
+    # one runs locally and needs its own.
+    timeout-minutes: 30
     environment:
       name: pypi
       url: https://pypi.org/p/coeus-python
