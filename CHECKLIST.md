@@ -1,5 +1,33 @@
 # Coeus Development Roadmap Checklist
 
+## COEUS-ALLOC-BUDGET-INTERMITTENT — the scatter_add allocation budget fails intermittently on Linux CI [patch] — todo
+
+- **Observed:** `scatter_add_allocation_count_is_independent_of_index_size`
+  failed once on a pull-request run with `small=7, large=11`. The same commit
+  passes: 12 of 12 local runs on Windows, and the `Tests` job on `main` three
+  runs in a row. The pull request it failed on changed one `timeout-minutes`
+  line in `python-release.yml`, which that job does not run, so the change
+  cannot be the cause.
+- **Why this is not "just flaky":** the test is built to be deterministic and
+  documents the reasoning. `CountingAllocator` leaves `realloc` and
+  `alloc_zeroed` to the `GlobalAlloc` defaults so that collection growth routes
+  through `alloc` and is counted rather than hidden by the system's in-place
+  paths -- "slightly pessimistic and never optimistic". Under that design the
+  count should not vary by platform, and it did.
+- **What the numbers rule out:** the difference is 4 allocations for a 64x
+  larger workload (128 elements against 8192). Per-slice allocation, the defect
+  the test exists to catch, would give roughly 16 against 256, not 4. A
+  logarithmic growth pattern fits better -- log2(64) is 6 -- which points at a
+  `Vec` grown by pushing somewhere on the path rather than a returned
+  per-element allocation.
+- **Not reproducible from Windows.** Twelve runs, no failure. This needs a
+  Linux runner, ideally the failing job re-run with the counter printed at each
+  step of the measured window rather than only at its ends.
+- **Two candidates, neither confirmed:** a size-dependent `Vec` growth inside
+  the kernel that the local allocator absorbs and glibc's does not; or an
+  allocation from outside the kernel entering the measured window, which the
+  global counter cannot distinguish from the kernel's own.
+
 ## ATLAS-COEUS-BOOK-TEST-2026-08-20 [patch]
 
 - [x] Diagnose PR #340 job 96544630144: package build passed; mdBook
