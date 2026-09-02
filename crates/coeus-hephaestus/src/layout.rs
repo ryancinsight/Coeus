@@ -39,6 +39,21 @@ pub(crate) fn ranked<const N: usize>(
     })
 }
 
+/// Convert a dynamic Coeus layout to a fixed-rank Leto layout without adding
+/// implicit leading axes.
+pub(crate) fn ranked_exact<const N: usize>(
+    operation: &'static str,
+    layout: &Layout,
+) -> Result<LetoLayout<N>, BackendError> {
+    if layout.ndim() != N {
+        return Err(BackendError::Storage {
+            operation,
+            reason: format!("layout rank {} must equal {N}", layout.ndim()),
+        });
+    }
+    ranked::<N>(operation, layout)
+}
+
 /// Map a logical Coeus axis to the corresponding left-padded provider axis.
 pub(crate) fn ranked_axis<const N: usize>(
     operation: &'static str,
