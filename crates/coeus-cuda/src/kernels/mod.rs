@@ -1,25 +1,14 @@
 /// Kernel module for fused element-wise expression compilation and dispatch.
 pub mod fuse;
 /// Kernel module for tiled matrix multiplication kernel launch.
-/// Kernel module for pooling operations.
-pub mod pool;
 /// Kernel module for embedded PTX kernel source.
 pub mod ptx;
 /// Kernel module for reduction operations.
 pub mod reduce;
-/// Kernel module for sliding-window unfold and adjoint fold operations.
-pub mod unfold_fold;
 mod validation;
 
 pub use fuse::dispatch_fused;
-pub use pool::{
-    dispatch_avg_pool1d, dispatch_avg_pool1d_backward, dispatch_avg_pool2d,
-    dispatch_avg_pool2d_backward, dispatch_avg_pool3d, dispatch_avg_pool3d_backward,
-    dispatch_max_pool1d, dispatch_max_pool1d_backward, dispatch_max_pool2d,
-    dispatch_max_pool2d_backward, dispatch_max_pool3d, dispatch_max_pool3d_backward,
-};
 pub use reduce::{dispatch_fused_reduce, dispatch_reduce};
-pub use unfold_fold::{dispatch_fold1d, dispatch_fold2d, dispatch_unfold1d, dispatch_unfold2d};
 
 use crate::driver::{get_cuda_context, CUfunction, CUmodule, CudaDriver};
 use crate::kernels::ptx::PTX_SOURCE;

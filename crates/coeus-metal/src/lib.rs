@@ -19,8 +19,8 @@ mod tests {
     /// this backend: the bound resolves only through
     /// `coeus_hephaestus::MatmulProvider`.
     ///
-    /// `BackendOps<f32>` is not yet assertable here because `PoolOps` and
-    /// `UnfoldFoldOps` have no `hephaestus-core` device seam (ADR-0066).
+    /// Pooling and unfold/fold are supplied by the generic Hephaestus Metal
+    /// window providers alongside matmul.
     #[test]
     fn backend_satisfies_matmul_through_the_provider_seam() {
         fn require<B: coeus_ops::MatmulOps<f32>>() {}

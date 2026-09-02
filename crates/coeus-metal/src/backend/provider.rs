@@ -1,13 +1,15 @@
+use coeus_core::Scalar;
 use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, AttentionProvider, ConvolutionProvider,
     CrossEntropyProvider, ElementwiseProvider, HephaestusProvider, MatmulProvider,
-    ParameterizedElementwiseProvider, RandomInitProvider, ReductionProvider, RotateHalfProvider,
-    ScalarPowerProvider, StatefulUpdateProvider,
+    ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider, ReductionProvider,
+    RotateHalfProvider, ScalarPowerProvider, StatefulUpdateProvider, UnfoldFoldProvider,
 };
+use hephaestus_core::{PoolingOps, SlidingWindowOps};
 use hephaestus_metal::{
     MetalAttentionOps, MetalAxisReductionOps, MetalConvolutionOps, MetalCrossEntropyOps,
     MetalDenseProductOps, MetalDevice, MetalElementwiseOps, MetalParameterizedUnaryOps,
-    MetalRandomOps, MetalScanOps,
+    MetalPoolingOps, MetalRandomOps, MetalScanOps, MetalSlidingWindowOps,
 };
 use std::sync::OnceLock;
 
@@ -107,4 +109,20 @@ impl ParameterizedElementwiseProvider for MetalProvider {
 
 impl StatefulUpdateProvider for MetalProvider {
     type Operations = hephaestus_metal::MetalStatefulUpdateOps;
+}
+
+impl<T> PoolingProvider<T> for MetalProvider
+where
+    T: Scalar + leto_ops::Scalar,
+    MetalPoolingOps: PoolingOps<MetalDevice, T>,
+{
+    type Operations = MetalPoolingOps;
+}
+
+impl<T> UnfoldFoldProvider<T> for MetalProvider
+where
+    T: Scalar + leto_ops::Scalar,
+    MetalSlidingWindowOps: SlidingWindowOps<MetalDevice, T>,
+{
+    type Operations = MetalSlidingWindowOps;
 }

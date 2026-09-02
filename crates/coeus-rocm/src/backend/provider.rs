@@ -1,15 +1,20 @@
+use coeus_core::Scalar;
 use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, CrossEntropyProvider,
     ElementwiseProvider, HephaestusProvider, MatmulProvider, ParameterizedElementwiseProvider,
-    RandomInitProvider, ReductionProvider, RotateHalfProvider, ScalarPowerProvider,
-    StatefulUpdateProvider,
+    PoolingProvider, RandomInitProvider, ReductionProvider, RotateHalfProvider,
+    ScalarPowerProvider, StatefulUpdateProvider, UnfoldFoldProvider,
 };
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use coeus_hephaestus::{AttentionProvider, ConvolutionProvider};
+use hephaestus_core::{PoolingOps, SlidingWindowOps};
 use hephaestus_rocm::RocmDevice;
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use hephaestus_rocm::{RocmAttentionOps, RocmConvolutionOps};
-use hephaestus_rocm::{RocmAxisReductionOps, RocmDenseProductOps, RocmElementwiseOps, RocmScanOps};
+use hephaestus_rocm::{
+    RocmAxisReductionOps, RocmDenseProductOps, RocmElementwiseOps, RocmPoolingOps, RocmScanOps,
+    RocmSlidingWindowOps,
+};
 use std::sync::OnceLock;
 
 static ROCM_DEVICE: OnceLock<RocmDevice> = OnceLock::new();
@@ -110,4 +115,20 @@ impl ParameterizedElementwiseProvider for RocmProvider {
 
 impl StatefulUpdateProvider for RocmProvider {
     type Operations = hephaestus_rocm::RocmStatefulUpdateOps;
+}
+
+impl<T> PoolingProvider<T> for RocmProvider
+where
+    T: Scalar + leto_ops::Scalar,
+    RocmPoolingOps: PoolingOps<RocmDevice, T>,
+{
+    type Operations = RocmPoolingOps;
+}
+
+impl<T> UnfoldFoldProvider<T> for RocmProvider
+where
+    T: Scalar + leto_ops::Scalar,
+    RocmSlidingWindowOps: SlidingWindowOps<RocmDevice, T>,
+{
+    type Operations = RocmSlidingWindowOps;
 }

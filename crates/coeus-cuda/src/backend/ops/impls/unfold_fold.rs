@@ -1,8 +1,51 @@
-use crate::backend::{CudaBackend, CudaScalar};
-use coeus_core::Layout;
+use crate::backend::{get_cuda_device, CudaBackend, CudaBackendError, CudaScalar};
+use crate::storage::CudaStorage;
+use coeus_core::{BackendError, Layout};
+use coeus_hephaestus::{UnfoldFoldBackend, UnfoldFoldProvider};
+use hephaestus_core::{ComputeDevice, CudaC, DialectScalar, HephaestusError};
+use hephaestus_cuda::{CudaDevice, CudaSlidingWindowOps};
+use leto::WindowParameters;
 
-impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
-    coeus_ops::UnfoldFoldOps<T> for CudaBackend
+use super::window::WindowConfiguration;
+
+impl<T> UnfoldFoldProvider<T> for CudaBackend
+where
+    T: CudaScalar + DialectScalar<CudaC>,
+{
+    type Operations = CudaSlidingWindowOps;
+}
+
+impl<T> UnfoldFoldBackend<T> for CudaBackend
+where
+    T: CudaScalar + DialectScalar<CudaC>,
+{
+    type Device = CudaDevice;
+    type Operations = CudaSlidingWindowOps;
+
+    fn unfold_fold_device() -> &'static Self::Device {
+        get_cuda_device()
+    }
+
+    fn unfold_fold_buffer(
+        storage: &Self::DeviceBuffer<T>,
+    ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
+        storage.buffer.as_ref()
+    }
+
+    fn unfold_fold_configuration_error(operation: &'static str, reason: String) -> Self::Error {
+        CudaBackendError::Validation {
+            source: BackendError::Storage { operation, reason },
+        }
+    }
+
+    fn unfold_fold_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
+        CudaBackendError::dispatch(operation, source)
+    }
+}
+
+impl<T> coeus_ops::UnfoldFoldOps<T> for CudaBackend
+where
+    T: CudaScalar + DialectScalar<CudaC>,
 {
     fn unfold1d(
         &self,
@@ -15,23 +58,17 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        if crate::kernels::dispatch_unfold1d(
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        ) {
-            Ok(())
-        } else {
-            Err(crate::CudaBackendError::kernel(
-                "unfold1d",
-                "native CUDA kernel rejected the launch contract",
-            ))
-        }
+        unfold::<T, 3, 1>(
+            "unfold1d",
+            (input, input_layout),
+            WindowConfiguration {
+                kernel: [kernel_size],
+                stride: [stride],
+                padding: [padding],
+                dilation: [dilation],
+            },
+            (output, output_layout),
+        )
     }
 
     fn fold1d(
@@ -46,29 +83,18 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        if output_layout.shape().get(2).copied() != Some(output_size) {
-            return Err(crate::CudaBackendError::kernel(
-                "fold1d",
-                "output_size does not match the output layout",
-            ));
-        }
-        if crate::kernels::dispatch_fold1d(
-            input,
-            input_layout,
-            kernel_size,
-            stride,
-            padding,
-            dilation,
-            output,
-            output_layout,
-        ) {
-            Ok(())
-        } else {
-            Err(crate::CudaBackendError::kernel(
-                "fold1d",
-                "native CUDA kernel rejected the launch contract",
-            ))
-        }
+        fold::<T, 3, 1>(
+            "fold1d",
+            (input, input_layout),
+            [output_size],
+            WindowConfiguration {
+                kernel: [kernel_size],
+                stride: [stride],
+                padding: [padding],
+                dilation: [dilation],
+            },
+            (output, output_layout),
+        )
     }
 
     fn unfold2d(
@@ -86,27 +112,17 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        if crate::kernels::dispatch_unfold2d(
-            input,
-            input_layout,
-            kernel_h,
-            kernel_w,
-            stride_h,
-            stride_w,
-            padding_h,
-            padding_w,
-            dilation_h,
-            dilation_w,
-            output,
-            output_layout,
-        ) {
-            Ok(())
-        } else {
-            Err(crate::CudaBackendError::kernel(
-                "unfold2d",
-                "native CUDA kernel rejected the launch contract",
-            ))
-        }
+        unfold::<T, 4, 2>(
+            "unfold2d",
+            (input, input_layout),
+            WindowConfiguration {
+                kernel: [kernel_h, kernel_w],
+                stride: [stride_h, stride_w],
+                padding: [padding_h, padding_w],
+                dilation: [dilation_h, dilation_w],
+            },
+            (output, output_layout),
+        )
     }
 
     fn fold2d(
@@ -126,34 +142,76 @@ impl<T: CudaScalar + hephaestus_cuda::DialectScalar<hephaestus_cuda::CudaC>>
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        if output_layout.shape().get(2).copied() != Some(output_h)
-            || output_layout.shape().get(3).copied() != Some(output_w)
-        {
-            return Err(crate::CudaBackendError::kernel(
-                "fold2d",
-                "output dimensions do not match the output layout",
-            ));
-        }
-        if crate::kernels::dispatch_fold2d(
-            input,
-            input_layout,
-            kernel_h,
-            kernel_w,
-            stride_h,
-            stride_w,
-            padding_h,
-            padding_w,
-            dilation_h,
-            dilation_w,
-            output,
-            output_layout,
-        ) {
-            Ok(())
-        } else {
-            Err(crate::CudaBackendError::kernel(
-                "fold2d",
-                "native CUDA kernel rejected the launch contract",
-            ))
-        }
+        fold::<T, 4, 2>(
+            "fold2d",
+            (input, input_layout),
+            [output_h, output_w],
+            WindowConfiguration {
+                kernel: [kernel_h, kernel_w],
+                stride: [stride_h, stride_w],
+                padding: [padding_h, padding_w],
+                dilation: [dilation_h, dilation_w],
+            },
+            (output, output_layout),
+        )
     }
+}
+
+fn unfold<T, const R: usize, const S: usize>(
+    operation: &'static str,
+    input: (&CudaStorage<T>, &Layout),
+    window: WindowConfiguration<S>,
+    output: (&CudaStorage<T>, &Layout),
+) -> Result<(), CudaBackendError>
+where
+    T: CudaScalar + DialectScalar<CudaC>,
+    CudaBackend: UnfoldFoldBackend<T>,
+{
+    let parameters = WindowParameters::new(
+        window.kernel,
+        window.stride,
+        window.padding,
+        window.dilation,
+    )
+    .map_err(|error| CudaBackendError::Validation {
+        source: BackendError::Storage {
+            operation,
+            reason: error.to_string(),
+        },
+    })?;
+    coeus_hephaestus::unfold_fold_unfold::<CudaBackend, T, R, S>(
+        operation, input, parameters, output,
+    )
+}
+
+fn fold<T, const R: usize, const S: usize>(
+    operation: &'static str,
+    input: (&CudaStorage<T>, &Layout),
+    output_spatial_shape: [usize; S],
+    window: WindowConfiguration<S>,
+    output: (&CudaStorage<T>, &Layout),
+) -> Result<(), CudaBackendError>
+where
+    T: CudaScalar + DialectScalar<CudaC>,
+    CudaBackend: UnfoldFoldBackend<T>,
+{
+    let parameters = WindowParameters::new(
+        window.kernel,
+        window.stride,
+        window.padding,
+        window.dilation,
+    )
+    .map_err(|error| CudaBackendError::Validation {
+        source: BackendError::Storage {
+            operation,
+            reason: error.to_string(),
+        },
+    })?;
+    coeus_hephaestus::unfold_fold_fold::<CudaBackend, T, R, S>(
+        operation,
+        input,
+        output_spatial_shape,
+        parameters,
+        output,
+    )
 }
