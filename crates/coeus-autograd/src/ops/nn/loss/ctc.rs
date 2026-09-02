@@ -26,6 +26,7 @@ use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
+use mnemosyne::AlignedVec;
 use std::sync::Arc;
 
 const NEG_INF: f64 = f64::NEG_INFINITY;
@@ -37,17 +38,17 @@ pub struct CtcLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     /// Log-probability input `[T, N, C]`.
     pub inputs: Vec<Var<T, B>>,
     /// Per-sample log α table: `[N][T*(2S+1)]` (ragged in S dimension).
-    pub log_alpha: Vec<Vec<f64>>,
+    pub log_alpha: Vec<AlignedVec<f64>>,
     /// Per-sample log β table: `[N][T*(2S+1)]`.
-    pub log_beta: Vec<Vec<f64>>,
+    pub log_beta: Vec<AlignedVec<f64>>,
     /// Per-sample extended targets (blank-interleaved): `[N][2*S+1]`.
-    pub ext_targets: Vec<Vec<usize>>,
+    pub ext_targets: Vec<AlignedVec<usize>>,
     /// Per-sample valid frame counts.
-    pub input_lengths: Vec<usize>,
+    pub input_lengths: AlignedVec<usize>,
     /// Per-sample target lengths.
-    pub target_lengths: Vec<usize>,
+    pub target_lengths: AlignedVec<usize>,
     /// Log-probability host copy: flat `[T * N * C]`.
-    pub log_probs_host: Vec<f64>,
+    pub log_probs_host: AlignedVec<f64>,
     /// Blank label index.
     pub blank: usize,
     /// Number of time steps T.
@@ -190,12 +191,12 @@ fn ctc_forward_one(
     ext: &[usize],          // [2*S+1]
     t_valid: usize,
     num_classes: usize,
-) -> (Vec<f64>, Vec<f64>, f64) {
+) -> (AlignedVec<f64>, AlignedVec<f64>, f64) {
     let ls = ext.len();
     let t = t_valid;
 
     // ── Forward variables α ─────────────────────────────────────
-    let mut alpha = vec![NEG_INF; t * ls];
+    let mut alpha = AlignedVec::filled(t * ls, NEG_INF);
 
     // Init t=0.
     if ls >= 1 {
@@ -242,7 +243,7 @@ fn ctc_forward_one(
     let loss = if log_p == NEG_INF { 0.0 } else { -log_p };
 
     // ── Backward variables β ─────────────────────────────────────
-    let mut beta = vec![NEG_INF; t * ls];
+    let mut beta = AlignedVec::filled(t * ls, NEG_INF);
 
     // Init t = T-1.
     if ls >= 1 {
@@ -339,16 +340,16 @@ where
         &lp_cont
     };
     let total = t_steps * batch * num_classes;
-    let lp_host: Vec<f64> = {
+    let lp_host: AlignedVec<f64> = {
         let mut v = vec![T::zero(); total];
         backend.copy_to_host(lp_raw.storage(), &mut v);
-        v.iter().map(|&x| <T as Scalar>::to_f64(x)).collect()
+        AlignedVec::from_slice(&v.iter().map(|&x| <T as Scalar>::to_f64(x)).collect::<Vec<_>>())
     };
 
     // Per-sample DP.
-    let mut log_alphas: Vec<Vec<f64>> = Vec::with_capacity(batch);
-    let mut log_betas: Vec<Vec<f64>> = Vec::with_capacity(batch);
-    let mut ext_targets_all: Vec<Vec<usize>> = Vec::with_capacity(batch);
+    let mut log_alphas: Vec<AlignedVec<f64>> = Vec::with_capacity(batch);
+    let mut log_betas: Vec<AlignedVec<f64>> = Vec::with_capacity(batch);
+    let mut ext_targets_all: Vec<AlignedVec<usize>> = Vec::with_capacity(batch);
     let mut total_loss = 0.0f64;
     let mut target_offset = 0usize;
 
@@ -360,7 +361,7 @@ where
 
         // Build extended target: blank, label_0, blank, label_1, ..., blank
         let ls = 2 * s_n + 1;
-        let mut ext = Vec::with_capacity(ls);
+        let mut ext = AlignedVec::with_capacity(ls);
         for &target in sample_targets {
             ext.push(blank);
             ext.push(target);
@@ -368,7 +369,7 @@ where
         ext.push(blank);
 
         // Extract per-sample log-probs as [T_n * C].
-        let mut sample_lp = vec![0.0f64; t_n * num_classes];
+        let mut sample_lp = AlignedVec::zeroed(t_n * num_classes);
         for ti in 0..t_n {
             for ki in 0..num_classes {
                 sample_lp[ti * num_classes + ki] =
@@ -379,7 +380,7 @@ where
         let (alpha, beta, loss) = if t_n > 0 && s_n > 0 {
             ctc_forward_one(&sample_lp, &ext, t_n, num_classes)
         } else {
-            (vec![NEG_INF; ls.max(1)], vec![NEG_INF; ls.max(1)], 0.0)
+            (AlignedVec::filled(ls.max(1), NEG_INF), AlignedVec::filled(ls.max(1), NEG_INF), 0.0)
         };
 
         // reduction='mean' (torch default): each sample's negative log-
@@ -408,8 +409,8 @@ where
         log_alpha: log_alphas,
         log_beta: log_betas,
         ext_targets: ext_targets_all,
-        input_lengths: input_lengths.to_vec(),
-        target_lengths: target_lengths.to_vec(),
+        input_lengths: AlignedVec::from_slice(input_lengths),
+        target_lengths: AlignedVec::from_slice(target_lengths),
         log_probs_host: lp_host,
         blank,
         t_steps,
