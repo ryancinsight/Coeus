@@ -930,7 +930,7 @@ impl PyTensor {
             .to_contiguous()
             .as_slice()
             .iter()
-            .map(|&v| f64::from(half::f16::from_f64(v)))
+            .map(|&v| f64::from(eunomia::F16::from_f64(v).to_f32()))
             .collect();
         let shape = self.inner.tensor.shape().to_vec();
         let t = coeus_tensor::Tensor::from_slice(shape, &data);

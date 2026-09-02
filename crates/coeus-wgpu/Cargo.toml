@@ -21,7 +21,6 @@ hephaestus-core = { workspace = true }
 wgpu         = { workspace = true }
 bytemuck     = { workspace = true }
 thiserror    = { workspace = true }
-half         = { workspace = true }
 leto-ops     = { workspace = true }
 leto         = { workspace = true }
 themis       = { workspace = true }
