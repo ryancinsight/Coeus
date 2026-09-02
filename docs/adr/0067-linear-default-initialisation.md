@@ -1,4 +1,4 @@
-# 0067. `Linear::new` must break unit symmetry
+# ADR 0067: `Linear::new` must break unit symmetry
 
 Status: Accepted
 

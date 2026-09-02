@@ -1,4 +1,4 @@
-# ADR-0059: WGPU elementwise routing leaves
+# ADR 0059: WGPU elementwise routing leaves
 
 Status: Accepted
 Date: 2026-08-06

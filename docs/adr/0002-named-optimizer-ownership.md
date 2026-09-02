@@ -1,4 +1,4 @@
-# ADR 0002 — Named optimizer ownership
+# ADR 0002: Named optimizer ownership
 
 - Status: Accepted
 - Date: 2026-07-11

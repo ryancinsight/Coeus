@@ -1,4 +1,4 @@
-# ADR-0022: Share Coeus Hephaestus provider integration
+# ADR 0022: Share Coeus Hephaestus provider integration
 
 ## Status
 

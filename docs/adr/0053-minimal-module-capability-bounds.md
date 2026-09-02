@@ -1,4 +1,4 @@
-# ADR-0053: Use minimal module capability bounds
+# ADR 0053: Use minimal module capability bounds
 
 - Status: Accepted
 - Date: 2026-08-04

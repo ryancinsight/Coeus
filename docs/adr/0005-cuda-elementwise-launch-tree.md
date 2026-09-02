@@ -1,4 +1,4 @@
-# ADR 0005 — CUDA elementwise launch tree
+# ADR 0005: CUDA elementwise launch tree
 
 - Status: Accepted
 - Date: 2026-07-23

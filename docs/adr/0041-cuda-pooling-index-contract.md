@@ -1,4 +1,4 @@
-# ADR-0041: CUDA pooling index contract
+# ADR 0041: CUDA pooling index contract
 
 - Status: Accepted
 - Date: 2026-07-28

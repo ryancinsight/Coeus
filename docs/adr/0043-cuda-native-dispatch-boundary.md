@@ -1,4 +1,4 @@
-# ADR-0043: CUDA native dispatch boundary
+# ADR 0043: CUDA native dispatch boundary
 
 - Status: Accepted
 - Date: 2026-07-28

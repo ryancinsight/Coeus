@@ -1,4 +1,4 @@
-# ADR-0020: Fallible WGPU layout and dispatch boundary
+# ADR 0020: Fallible WGPU layout and dispatch boundary
 
 - Status: Accepted
 - Date: 2026-07-23

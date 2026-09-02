@@ -1,4 +1,4 @@
-# ADR 0009 — CUDA pool3d launch ABI
+# ADR 0009: CUDA pool3d launch ABI
 
 - Status: Accepted
 - Date: 2026-07-23

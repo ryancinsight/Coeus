@@ -1,4 +1,4 @@
-# ADR 0016 — CUDA convolution backend tree
+# ADR 0016: CUDA convolution backend tree
 
 - Status: Accepted
 - Date: 2026-07-23

@@ -1,4 +1,4 @@
-# ADR 0014 — CUDA fused-dispatch launch ABI
+# ADR 0014: CUDA fused-dispatch launch ABI
 
 - Status: Accepted
 - Date: 2026-07-23

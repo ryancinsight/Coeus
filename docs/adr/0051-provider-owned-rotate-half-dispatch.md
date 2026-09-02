@@ -1,4 +1,4 @@
-# ADR-0051: Route rotate-half through Leto and Hephaestus
+# ADR 0051: Route rotate-half through Leto and Hephaestus
 
 - Status: Accepted
 - Date: 2026-08-03

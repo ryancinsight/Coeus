@@ -1,4 +1,4 @@
-# ADR-0060: Provider-owned batched Frobenius norm
+# ADR 0060: Provider-owned batched Frobenius norm
 
 - Status: Accepted
 - Date: 2026-08-06

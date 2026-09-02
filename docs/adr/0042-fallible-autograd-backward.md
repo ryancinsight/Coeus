@@ -1,4 +1,4 @@
-# ADR-0042: Fallible autograd backward contract
+# ADR 0042: Fallible autograd backward contract
 
 - Status: Accepted
 - Date: 2026-07-28

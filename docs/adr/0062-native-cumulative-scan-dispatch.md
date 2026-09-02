@@ -1,4 +1,4 @@
-# ADR-0062: Native cumulative-scan dispatch boundary
+# ADR 0062: Native cumulative-scan dispatch boundary
 
 - Status: Accepted
 - Date: 2026-07-26

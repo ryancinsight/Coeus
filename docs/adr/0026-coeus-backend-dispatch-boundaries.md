@@ -1,4 +1,4 @@
-# ADR-0026: Make unsupported reduction dispatch statically unavailable
+# ADR 0026: Make unsupported reduction dispatch statically unavailable
 
 - Status: Accepted
 - Date: 2026-07-27

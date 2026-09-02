@@ -1,4 +1,4 @@
-# ADR 0013 — CUDA transposed-convolution launch ABI
+# ADR 0013: CUDA transposed-convolution launch ABI
 
 - Status: Accepted
 - Date: 2026-07-23

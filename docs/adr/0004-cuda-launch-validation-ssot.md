@@ -1,4 +1,4 @@
-# ADR 0004 — Shared CUDA launch validation SSOT
+# ADR 0004: Shared CUDA launch validation SSOT
 
 - Status: Accepted
 - Date: 2026-07-23

@@ -1,4 +1,4 @@
-# ADR 0007 — CUDA pool1d launch ABI
+# ADR 0007: CUDA pool1d launch ABI
 
 - Status: Accepted
 - Date: 2026-07-23

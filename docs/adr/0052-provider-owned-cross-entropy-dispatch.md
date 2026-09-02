@@ -1,4 +1,4 @@
-# ADR-0052: Route cross-entropy through Leto and Hephaestus
+# ADR 0052: Route cross-entropy through Leto and Hephaestus
 
 - Status: Accepted
 - Date: 2026-08-04

@@ -1,4 +1,4 @@
-# ADR-0044: WGPU reduction provider ownership
+# ADR 0044: WGPU reduction provider ownership
 
 - Status: Accepted
 - Date: 2026-07-28

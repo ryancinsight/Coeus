@@ -1,4 +1,4 @@
-# ADR 0010 — CUDA matmul launch ABI
+# ADR 0010: CUDA matmul launch ABI
 
 - Status: Accepted
 - Date: 2026-07-23

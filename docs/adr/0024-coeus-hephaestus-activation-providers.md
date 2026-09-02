@@ -1,4 +1,4 @@
-# ADR-0024: Add common Hephaestus activation providers
+# ADR 0024: Add common Hephaestus activation providers
 
 ## Status
 

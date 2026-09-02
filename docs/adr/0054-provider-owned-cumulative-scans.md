@@ -1,4 +1,4 @@
-# ADR-0054: Require provider-owned cumulative scans
+# ADR 0054: Require provider-owned cumulative scans
 
 - Status: Accepted
 - Date: 2026-08-04

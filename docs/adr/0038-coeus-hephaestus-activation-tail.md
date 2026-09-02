@@ -1,4 +1,4 @@
-# ADR-0038: Complete Hephaestus activation provider parity
+# ADR 0038: Complete Hephaestus activation provider parity
 
 ## Status
 
