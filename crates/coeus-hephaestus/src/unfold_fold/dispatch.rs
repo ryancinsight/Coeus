@@ -21,7 +21,8 @@ where
         .map_err(|error| B::unfold_fold_configuration_error(operation, error.to_string()))
 }
 
-pub(super) fn unfold<B, T, const R: usize, const S: usize>(
+/// Dispatch an unfold operation through the selected provider.
+pub fn unfold<B, T, const R: usize, const S: usize>(
     operation: &'static str,
     input: (&B::DeviceBuffer<T>, &Layout),
     parameters: WindowParameters<S>,
@@ -42,7 +43,8 @@ where
         .map_err(|source| B::unfold_fold_dispatch_error(operation, source))
 }
 
-pub(super) fn fold<B, T, const R: usize, const S: usize>(
+/// Dispatch a fold operation through the selected provider.
+pub fn fold<B, T, const R: usize, const S: usize>(
     operation: &'static str,
     input: (&B::DeviceBuffer<T>, &Layout),
     output_spatial_shape: [usize; S],

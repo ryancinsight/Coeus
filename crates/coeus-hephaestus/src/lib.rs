@@ -39,7 +39,7 @@ pub use elementwise::{
 };
 pub use error::HephaestusBackendError;
 pub use matmul::{MatmulBackend, MatmulProvider, matmul};
-pub use pooling::{PoolingBackend, PoolingProvider};
+pub use pooling::{PoolingBackend, PoolingProvider, pooling_backward, pooling_forward};
 pub use random_init::{RandomInitProvider, normal as random_normal, uniform as random_uniform};
 pub use reduction::HephaestusBackend;
 pub use reduction::{
@@ -49,4 +49,6 @@ pub use reduction::{
 pub use rotate_half::{RotateHalfProvider, rotate_half};
 pub use stateful_update::{StatefulUpdateBackend, StatefulUpdateProvider};
 pub use storage::HephaestusStorage;
-pub use unfold_fold::{UnfoldFoldBackend, UnfoldFoldProvider};
+pub use unfold_fold::{
+    UnfoldFoldBackend, UnfoldFoldProvider, unfold_fold_fold, unfold_fold_unfold,
+};

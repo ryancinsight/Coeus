@@ -21,7 +21,8 @@ where
         .map_err(|error| B::pooling_configuration_error(operation, error.to_string()))
 }
 
-pub(super) fn forward<B, T, const R: usize, const S: usize>(
+/// Dispatch a pooling forward operation through the selected provider.
+pub fn forward<B, T, const R: usize, const S: usize>(
     operation: &'static str,
     input: (&B::DeviceBuffer<T>, &Layout),
     parameters: WindowParameters<S>,
@@ -43,7 +44,8 @@ where
         .map_err(|source| B::pooling_dispatch_error(operation, source))
 }
 
-pub(super) fn backward<B, T, const R: usize, const S: usize>(
+/// Dispatch a pooling backward operation through the selected provider.
+pub fn backward<B, T, const R: usize, const S: usize>(
     operation: &'static str,
     grad_output: (&B::DeviceBuffer<T>, &Layout),
     input: Option<(&B::DeviceBuffer<T>, &Layout)>,
