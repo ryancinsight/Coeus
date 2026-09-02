@@ -1,4 +1,4 @@
-# ADR-0046: Route convolution through Leto and Hephaestus
+# ADR 0046: Route convolution through Leto and Hephaestus
 
 - Status: Accepted
 - Date: 2026-07-29

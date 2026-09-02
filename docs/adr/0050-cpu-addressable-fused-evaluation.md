@@ -1,4 +1,4 @@
-# ADR-0050: Restrict CPU fusion to CPU-addressable backends
+# ADR 0050: Restrict CPU fusion to CPU-addressable backends
 
 - Status: Accepted
 - Date: 2026-08-03

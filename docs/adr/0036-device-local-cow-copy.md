@@ -1,4 +1,4 @@
-# ADR-0036: Keep accelerator COW copies on-device
+# ADR 0036: Keep accelerator COW copies on-device
 
 ## Status
 

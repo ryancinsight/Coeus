@@ -1,4 +1,4 @@
-# ADR-0045: Fallible neural-network module execution
+# ADR 0045: Fallible neural-network module execution
 
 - Status: Accepted
 - Date: 2026-07-28

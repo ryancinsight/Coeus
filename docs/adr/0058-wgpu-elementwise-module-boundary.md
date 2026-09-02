@@ -1,4 +1,4 @@
-# ADR-0058: WGPU elementwise module boundary
+# ADR 0058: WGPU elementwise module boundary
 
 Status: Accepted
 Date: 2026-08-06

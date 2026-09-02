@@ -1,4 +1,4 @@
-# ADR 0018 — Fused operation-tag tree
+# ADR 0018: Fused operation-tag tree
 
 - Status: Accepted
 - Date: 2026-07-23

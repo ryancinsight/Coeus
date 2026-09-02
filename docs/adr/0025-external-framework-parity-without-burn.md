@@ -1,4 +1,4 @@
-# ADR-0025: External-framework parity evidence without Burn
+# ADR 0025: External-framework parity evidence without Burn
 
 ## Status
 

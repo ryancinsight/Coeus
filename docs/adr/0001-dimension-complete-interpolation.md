@@ -1,4 +1,4 @@
-# ADR 0001 — Dimension-complete interpolation
+# ADR 0001: Dimension-complete interpolation
 
 - Status: Accepted
 - Date: 2026-07-11

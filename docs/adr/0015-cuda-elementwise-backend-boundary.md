@@ -1,4 +1,4 @@
-# ADR 0015 — CUDA elementwise backend boundary
+# ADR 0015: CUDA elementwise backend boundary
 
 - Status: Accepted
 - Date: 2026-07-23

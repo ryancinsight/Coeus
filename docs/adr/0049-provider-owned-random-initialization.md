@@ -1,4 +1,4 @@
-# ADR-0049: Route random initialization through Leto and Hephaestus
+# ADR 0049: Route random initialization through Leto and Hephaestus
 
 - Status: Accepted
 - Date: 2026-08-02

@@ -1,4 +1,4 @@
-# ADR-0028: Add Hephaestus exact GELU providers
+# ADR 0028: Add Hephaestus exact GELU providers
 
 ## Status
 

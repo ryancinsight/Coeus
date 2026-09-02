@@ -1,4 +1,4 @@
-# ADR-0027: Add Hephaestus error-function providers
+# ADR 0027: Add Hephaestus error-function providers
 
 ## Status
 

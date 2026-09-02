@@ -1,4 +1,4 @@
-# ADR-0039: Typed CUDA fused-dispatch failures
+# ADR 0039: Typed CUDA fused-dispatch failures
 
 - Status: Accepted
 - Date: 2026-07-28

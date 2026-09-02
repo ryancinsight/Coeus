@@ -1,4 +1,4 @@
-# ADR 0012 — CUDA unfold/fold launch ABI
+# ADR 0012: CUDA unfold/fold launch ABI
 
 - Status: Accepted
 - Date: 2026-07-23

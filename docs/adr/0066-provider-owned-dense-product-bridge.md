@@ -1,4 +1,4 @@
-# ADR-0066: Provider-owned dense product bridge
+# ADR 0066: Provider-owned dense product bridge
 
 Status: Accepted
 Date: 2026-08-17

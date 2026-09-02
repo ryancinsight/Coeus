@@ -1,4 +1,4 @@
-# ADR-0029: Route Coeus lgamma through Hephaestus providers
+# ADR 0029: Route Coeus lgamma through Hephaestus providers
 
 ## Status
 

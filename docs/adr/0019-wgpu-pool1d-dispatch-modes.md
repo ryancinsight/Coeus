@@ -1,4 +1,4 @@
-# ADR-0019: Type-state WGPU pool1d dispatch modes
+# ADR 0019: Type-state WGPU pool1d dispatch modes
 
 - Status: Accepted
 - Date: 2026-07-23

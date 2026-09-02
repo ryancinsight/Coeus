@@ -1,4 +1,4 @@
-# ADR 0003 — Checked CUDA layout ABI boundary
+# ADR 0003: Checked CUDA layout ABI boundary
 
 - Status: Accepted
 - Date: 2026-07-23

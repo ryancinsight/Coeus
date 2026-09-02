@@ -1,4 +1,4 @@
-# ADR-0040: Vertical CUDA math dispatch modules
+# ADR 0040: Vertical CUDA math dispatch modules
 
 - Status: Accepted
 - Date: 2026-07-28

@@ -1,4 +1,4 @@
-# ADR-0061: Separate Activation Operation Families
+# ADR 0061: Separate Activation Operation Families
 
 - Status: Accepted
 - Date: 2026-07-26

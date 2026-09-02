@@ -1,4 +1,4 @@
-# ADR-0023: Add ranked Coeus Hephaestus elementwise providers
+# ADR 0023: Add ranked Coeus Hephaestus elementwise providers
 
 ## Status
 

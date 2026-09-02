@@ -1,4 +1,4 @@
-# ADR-0021: Place workspace crates under `crates/`
+# ADR 0021: Place workspace crates under `crates/`
 
 - Status: Accepted
 - Date: 2026-07-24

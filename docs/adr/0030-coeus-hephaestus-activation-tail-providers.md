@@ -1,4 +1,4 @@
-# ADR-0030: Route Coeus activation-tail operations through Hephaestus
+# ADR 0030: Route Coeus activation-tail operations through Hephaestus
 
 ## Status
 
