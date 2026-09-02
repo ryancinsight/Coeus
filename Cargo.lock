@@ -3618,40 +3618,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
 
 [[patch.unused]]
-name = "gaia-mesh"
-version = "0.4.0"
-
-[[patch.unused]]
-name = "harmonia"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "proteus-mat"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "hyperion"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "athena-core"
-version = "0.1.1"
-
-[[patch.unused]]
-name = "athena-leto"
-version = "0.1.1"
-
-[[patch.unused]]
-name = "asclepius"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "asclepius-coeus"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "horae"
-version = "0.1.0"
+name = "tyche-core"
+version = "0.2.0"
 
 [[patch.unused]]
 name = "consus-compression"
@@ -3682,8 +3650,24 @@ name = "consus-zarr"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "iris-viz"
+name = "athena-core"
+version = "0.1.1"
+
+[[patch.unused]]
+name = "athena-leto"
+version = "0.1.1"
+
+[[patch.unused]]
+name = "proteus-mat"
 version = "0.1.0"
+
+[[patch.unused]]
+name = "apollo-nufft"
+version = "0.7.0"
+
+[[patch.unused]]
+name = "apollo-sht"
+version = "0.7.0"
 
 [[patch.unused]]
 name = "ritk-block-matching"
@@ -3718,13 +3702,29 @@ name = "ritk-vtk"
 version = "0.2.0"
 
 [[patch.unused]]
-name = "tyche-core"
-version = "0.2.0"
+name = "harmonia"
+version = "0.1.0"
 
 [[patch.unused]]
-name = "apollo-nufft"
-version = "0.7.0"
+name = "gaia-mesh"
+version = "0.4.0"
 
 [[patch.unused]]
-name = "apollo-sht"
-version = "0.7.0"
+name = "iris-viz"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "horae"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "asclepius"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "asclepius-coeus"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "hyperion"
+version = "0.1.0"
