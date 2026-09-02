@@ -75,7 +75,6 @@ dependencies = [
  "apollo-leto-interop",
  "bytemuck",
  "eunomia",
- "half",
  "hermes-simd",
  "leto",
  "leto-ops",
@@ -1166,11 +1165,9 @@ version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ea2d84b969582b4b1864a92dc5d27cd2b77b622a8d79306834f1be5ba20d84b"
 dependencies = [
- "bytemuck",
  "cfg-if",
  "crunchy",
  "num-traits",
- "serde",
  "zerocopy",
 ]
 
@@ -1299,7 +1296,6 @@ dependencies = [
 name = "hermes-simd-core"
 version = "0.7.0"
 dependencies = [
- "bytemuck",
  "eunomia",
  "mnemosyne-memory",
  "rkyv",
@@ -3622,6 +3618,42 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
 
 [[patch.unused]]
+name = "gaia-mesh"
+version = "0.4.0"
+
+[[patch.unused]]
+name = "harmonia"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "proteus-mat"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "hyperion"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "athena-core"
+version = "0.1.1"
+
+[[patch.unused]]
+name = "athena-leto"
+version = "0.1.1"
+
+[[patch.unused]]
+name = "asclepius"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "asclepius-coeus"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "horae"
+version = "0.1.0"
+
+[[patch.unused]]
 name = "consus-compression"
 version = "0.1.0"
 
@@ -3650,8 +3682,8 @@ name = "consus-zarr"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "gaia-mesh"
-version = "0.4.0"
+name = "iris-viz"
+version = "0.1.0"
 
 [[patch.unused]]
 name = "ritk-block-matching"
@@ -3686,49 +3718,13 @@ name = "ritk-vtk"
 version = "0.2.0"
 
 [[patch.unused]]
+name = "tyche-core"
+version = "0.2.0"
+
+[[patch.unused]]
 name = "apollo-nufft"
 version = "0.7.0"
 
 [[patch.unused]]
 name = "apollo-sht"
 version = "0.7.0"
-
-[[patch.unused]]
-name = "tyche-core"
-version = "0.2.0"
-
-[[patch.unused]]
-name = "asclepius"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "asclepius-coeus"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "athena-core"
-version = "0.1.1"
-
-[[patch.unused]]
-name = "athena-leto"
-version = "0.1.1"
-
-[[patch.unused]]
-name = "horae"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "hyperion"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "proteus-mat"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "harmonia"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "iris-viz"
-version = "0.1.0"
