@@ -343,7 +343,11 @@ where
     let lp_host: AlignedVec<f64> = {
         let mut v = vec![T::zero(); total];
         backend.copy_to_host(lp_raw.storage(), &mut v);
-        AlignedVec::from_slice(&v.iter().map(|&x| <T as Scalar>::to_f64(x)).collect::<Vec<_>>())
+        AlignedVec::from_slice(
+            &v.iter()
+                .map(|&x| <T as Scalar>::to_f64(x))
+                .collect::<Vec<_>>(),
+        )
     };
 
     // Per-sample DP.
@@ -380,7 +384,11 @@ where
         let (alpha, beta, loss) = if t_n > 0 && s_n > 0 {
             ctc_forward_one(&sample_lp, &ext, t_n, num_classes)
         } else {
-            (AlignedVec::filled(ls.max(1), NEG_INF), AlignedVec::filled(ls.max(1), NEG_INF), 0.0)
+            (
+                AlignedVec::filled(ls.max(1), NEG_INF),
+                AlignedVec::filled(ls.max(1), NEG_INF),
+                0.0,
+            )
         };
 
         // reduction='mean' (torch default): each sample's negative log-
