@@ -27,7 +27,7 @@ coeus-dist     = { workspace = true, default-features = false }
 moirai         = { workspace = true }
 pyo3           = { workspace = true }
 smallvec       = { workspace = true }
-half           = { workspace = true }
+eunomia        = { workspace = true }
 # Allocation SSOT — registered as the global allocator (see lib.rs). Optional so
 # `--no-default-features` cleanly drops it (system allocator for sanitizers/profiling).
 mnemosyne      = { workspace = true, optional = true }

@@ -18,6 +18,7 @@ coeus-ops    = { workspace = true, default-features = false }
 coeus-sparse = { workspace = true }
 apollo-fft   = { workspace = true }
 leto-ops     = { workspace = true }
+mnemosyne    = { workspace = true }
 smallvec     = { workspace = true }
 thiserror    = { workspace = true }
 
