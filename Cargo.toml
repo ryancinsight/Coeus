@@ -37,7 +37,7 @@ categories = ["science", "mathematics", "data-structures"]
 # during development, so a worktree never creates a second package identity.
 moirai = { package = "moirai-runtime", git = "https://github.com/ryancinsight/Moirai.git", version = "0.5.0", features = ["melinoe"] }
 moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", version = "0.5.0" }
-mnemosyne = { package = "mnemosyne-memory", git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.7.0", rev = "062dda8" }
+mnemosyne = { package = "mnemosyne-memory", git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.7.0", rev = "01f207c" }
 # SIMD-effect SSOT.
 hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0.7.0" }
 eunomia = { git = "https://github.com/ryancinsight/eunomia.git", version = "0.8.0", default-features = false }
