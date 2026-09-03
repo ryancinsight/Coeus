@@ -1,12 +1,12 @@
-use crate::backend::{get_cuda_device, CudaBackend, CudaBackendError, CudaScalar};
+use crate::CudaBackendError;
+use crate::backend::{get_cuda_device, CudaBackend, CudaScalar};
 use crate::storage::CudaStorage;
 use coeus_core::{BackendError, Layout};
-use coeus_hephaestus::{UnfoldFoldBackend, UnfoldFoldProvider};
+use coeus_hephaestus::{UnfoldFoldBackend, UnfoldFoldProvider, WindowConfiguration};
 use hephaestus_core::{ComputeDevice, CudaC, DialectScalar, HephaestusError};
 use hephaestus_cuda::{CudaDevice, CudaSlidingWindowOps};
 use leto::WindowParameters;
 
-use super::window::WindowConfiguration;
 
 impl<T> UnfoldFoldProvider<T> for CudaBackend
 where

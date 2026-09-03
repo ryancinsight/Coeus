@@ -8,4 +8,3 @@ mod random_init;
 mod reduction;
 mod rotate_half;
 mod unfold_fold;
-mod window;

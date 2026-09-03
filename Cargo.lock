@@ -71,7 +71,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 [[package]]
 name = "apollo-fft"
 version = "0.27.0"
-source = "git+https://github.com/ryancinsight/apollo.git#022a74e0ba6fb6b82dca355f1d12225b34f74b9c"
+source = "git+https://github.com/ryancinsight/apollo.git#0f5dfd3790b527f7e04da72d48f51be2ca6f20c2"
 dependencies = [
  "apollo-fft-macros",
  "apollo-leto-interop",
@@ -94,7 +94,7 @@ dependencies = [
 [[package]]
 name = "apollo-fft-macros"
 version = "0.2.0"
-source = "git+https://github.com/ryancinsight/apollo.git#022a74e0ba6fb6b82dca355f1d12225b34f74b9c"
+source = "git+https://github.com/ryancinsight/apollo.git#0f5dfd3790b527f7e04da72d48f51be2ca6f20c2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -104,7 +104,7 @@ dependencies = [
 [[package]]
 name = "apollo-leto-interop"
 version = "0.18.0"
-source = "git+https://github.com/ryancinsight/apollo.git#022a74e0ba6fb6b82dca355f1d12225b34f74b9c"
+source = "git+https://github.com/ryancinsight/apollo.git#0f5dfd3790b527f7e04da72d48f51be2ca6f20c2"
 dependencies = [
  "leto",
 ]
@@ -966,7 +966,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1214,7 +1214,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 [[package]]
 name = "hephaestus-core"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#f00175fe593f9b990eb71504897356e531bf6fff"
+source = "git+https://github.com/ryancinsight/hephaestus.git#89e50a9eae33988efd749ca36b0271dd2a97e5ed"
 dependencies = [
  "aequitas",
  "bytemuck",
@@ -1227,7 +1227,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-cuda"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#f00175fe593f9b990eb71504897356e531bf6fff"
+source = "git+https://github.com/ryancinsight/hephaestus.git#89e50a9eae33988efd749ca36b0271dd2a97e5ed"
 dependencies = [
  "bytemuck",
  "cuda-oxide",
@@ -1246,7 +1246,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-metal"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#f00175fe593f9b990eb71504897356e531bf6fff"
+source = "git+https://github.com/ryancinsight/hephaestus.git#89e50a9eae33988efd749ca36b0271dd2a97e5ed"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -1260,7 +1260,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-rocm"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#f00175fe593f9b990eb71504897356e531bf6fff"
+source = "git+https://github.com/ryancinsight/hephaestus.git#89e50a9eae33988efd749ca36b0271dd2a97e5ed"
 dependencies = [
  "bytemuck",
  "cubecl-hip-sys",
@@ -1275,7 +1275,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-wgpu"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#f00175fe593f9b990eb71504897356e531bf6fff"
+source = "git+https://github.com/ryancinsight/hephaestus.git#89e50a9eae33988efd749ca36b0271dd2a97e5ed"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -1388,7 +1388,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1937,7 +1937,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2650,7 +2650,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2878,7 +2878,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3353,7 +3353,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

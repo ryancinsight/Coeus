@@ -1,12 +1,11 @@
 use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError, WgpuScalar};
 use crate::storage::WgpuStorage;
 use coeus_core::{BackendError, Layout};
-use coeus_hephaestus::{PoolingBackend, PoolingProvider};
+use coeus_hephaestus::{PoolingBackend, PoolingProvider, WindowConfiguration};
 use hephaestus_core::{ComputeDevice, HephaestusError, PoolingMode};
 use hephaestus_wgpu::{WgpuDevice, WgpuPoolingOps, WgpuWindowScalar};
 use leto::WindowParameters;
 
-use super::window::WindowConfiguration;
 
 impl<T> PoolingProvider<T> for WgpuBackend
 where

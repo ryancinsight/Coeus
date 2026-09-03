@@ -20,6 +20,7 @@ mod rotate_half;
 mod stateful_update;
 mod storage;
 mod unfold_fold;
+mod window;
 
 pub use attention::{AttentionBackend, AttentionProvider};
 pub use convolution::{
@@ -52,3 +53,4 @@ pub use storage::HephaestusStorage;
 pub use unfold_fold::{
     unfold_fold_fold, unfold_fold_unfold, UnfoldFoldBackend, UnfoldFoldProvider,
 };
+pub use window::WindowConfiguration;

@@ -1,12 +1,11 @@
 use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError, WgpuScalar};
 use crate::storage::WgpuStorage;
 use coeus_core::{BackendError, Layout};
-use coeus_hephaestus::{UnfoldFoldBackend, UnfoldFoldProvider};
+use coeus_hephaestus::{UnfoldFoldBackend, UnfoldFoldProvider, WindowConfiguration};
 use hephaestus_core::{ComputeDevice, HephaestusError};
 use hephaestus_wgpu::{WgpuDevice, WgpuSlidingWindowOps, WgpuWindowScalar};
 use leto::WindowParameters;
 
-use super::window::WindowConfiguration;
 
 impl<T> UnfoldFoldProvider<T> for WgpuBackend
 where
