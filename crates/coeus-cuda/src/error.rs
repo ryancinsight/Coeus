@@ -123,6 +123,10 @@ impl CudaBackendError {
         Self::Validation { source }
     }
 
+    // Both callers sit under `#[cfg(not(feature = "cuda"))]`: with the
+    // provider built there is a real dispatch path and nothing constructs
+    // this. Ungated it was dead code in the configuration CI builds.
+    #[cfg(not(feature = "cuda"))]
     pub(crate) fn kernel(operation: &'static str, reason: &'static str) -> Self {
         Self::Kernel { operation, reason }
     }

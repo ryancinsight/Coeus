@@ -161,40 +161,6 @@ pub fn get_cuda_function(name: &str) -> Option<CUfunction> {
     }
 }
 
-/// Launch a kernel over a flat 1-D grid of `total` threads (256/block).
-///
-/// Shared by the NVRTC-compiled transposed-convolution kernels that map one
-/// thread to one output element. Returns `false` if the driver is absent or
-/// the launch fails so the operation boundary can report the dispatch failure.
-pub(crate) fn launch_1d(
-    func: CUfunction,
-    total: usize,
-    args: &mut [*mut std::ffi::c_void],
-) -> bool {
-    let Some(drv) = CudaDriver::get() else {
-        return false;
-    };
-    let Some(grid_size) = crate::kernels::validation::launch_grid_size(total) else {
-        return false;
-    };
-    unsafe {
-        let res = (drv.cu_launch_kernel)(
-            func,
-            grid_size,
-            1,
-            1,
-            crate::kernels::validation::CUDA_BLOCK_SIZE,
-            1,
-            1,
-            0,
-            std::ptr::null_mut(),
-            args.as_mut_ptr(),
-            std::ptr::null_mut(),
-        );
-        res == 0
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::{CudaLayoutError, GpuLayoutInfo, CUDA_LAYOUT_MAX_DIMS};
