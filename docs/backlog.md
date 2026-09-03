@@ -135,7 +135,7 @@
   standalone provider source from outside the Atlas overlay.
 - Status: complete in `codex/coeus-nlls-batch`; no performance claim is made.
 
-## COEUS-HEPHAESTUS-WGPU-001 — Route WGPU reduction/scan through the generic bridge [major] [arch]
+## COEUS-HEPHAESTUS-WGPU-001 — Route WGPU reduction/scan through the generic bridge [major] [arch] — complete
 
 - Owner: Codex; scope: the Coeus WGPU crate (final SUBSTRATE-002 vendor
   deletion row).
@@ -151,6 +151,13 @@
 - Acceptance: check rc=0 with 0 code warnings, strict clippy `-D warnings`
   rc=0, fmt/diff-check clean, doc tests 5/5, and the pre-existing
   `AdapterUnavailable` device-suite failures unchanged from the parent commit.
+- Status: complete through the merged provider cutover in PR #246
+  (`7a9811f4`). Current `coeus-wgpu` validation passes locked all-target check,
+  warning-denied all-target Clippy, configured Nextest 142/142 with no
+  skipped cases on the local WGPU adapter, doctests 5/5, warning-denied
+  rustdoc, and the lockfile checker. The Mnemosyne revision advance in the
+  current mainline is now represented in `Cargo.lock`, restoring the locked
+  reproducibility gate.
 
 ## COEUS-HEPHAESTUS-CUDA-001 — Route CUDA elementwise/reduction through the generic bridge [major] [arch]
 
