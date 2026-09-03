@@ -1214,7 +1214,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 [[package]]
 name = "hephaestus-core"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#89e50a9eae33988efd749ca36b0271dd2a97e5ed"
+source = "git+https://github.com/ryancinsight/hephaestus.git#108db9f83fc31ae16831eaa618e072c7735c98ea"
 dependencies = [
  "aequitas",
  "bytemuck",
@@ -1227,7 +1227,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-cuda"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#89e50a9eae33988efd749ca36b0271dd2a97e5ed"
+source = "git+https://github.com/ryancinsight/hephaestus.git#108db9f83fc31ae16831eaa618e072c7735c98ea"
 dependencies = [
  "bytemuck",
  "cuda-oxide",
@@ -1246,7 +1246,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-metal"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#89e50a9eae33988efd749ca36b0271dd2a97e5ed"
+source = "git+https://github.com/ryancinsight/hephaestus.git#108db9f83fc31ae16831eaa618e072c7735c98ea"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -1260,7 +1260,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-rocm"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#89e50a9eae33988efd749ca36b0271dd2a97e5ed"
+source = "git+https://github.com/ryancinsight/hephaestus.git#108db9f83fc31ae16831eaa618e072c7735c98ea"
 dependencies = [
  "bytemuck",
  "cubecl-hip-sys",
@@ -1275,7 +1275,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-wgpu"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#89e50a9eae33988efd749ca36b0271dd2a97e5ed"
+source = "git+https://github.com/ryancinsight/hephaestus.git#108db9f83fc31ae16831eaa618e072c7735c98ea"
 dependencies = [
  "bytemuck",
  "eunomia",
