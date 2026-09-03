@@ -1,12 +1,11 @@
-use crate::CudaBackendError;
 use crate::backend::{get_cuda_device, CudaBackend, CudaScalar};
 use crate::storage::CudaStorage;
+use crate::CudaBackendError;
 use coeus_core::{BackendError, Layout};
 use coeus_hephaestus::{PoolingBackend, PoolingProvider, WindowConfiguration};
 use hephaestus_core::{ComputeDevice, CudaC, DialectScalar, HephaestusError, PoolingMode};
 use hephaestus_cuda::{CudaDevice, CudaPoolingOps};
 use leto::WindowParameters;
-
 
 impl<T> PoolingProvider<T> for CudaBackend
 where
