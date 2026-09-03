@@ -1,5 +1,16 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-SEMVER-BUDGET-IDENTITY-2026-09-03 — Pin Hephaestus budget facade [patch] [arch]
+
+- Owner/integrator: Codex; scope: workspace Hephaestus provider revisions and the
+  lockfile required by PR #366. Non-goals: provider API changes or CUDA/ROCm
+  implementation changes.
+- Acceptance: the hosted SemVer graph resolves all Hephaestus packages to the
+  budget-facade commit `076fe32`; standalone lockfile regeneration and the
+  affected workspace gates pass; the temporary pin is removed after Hephaestus
+  PR #270 merges.
+- Status: in-progress.
+
 ## COEUS-OPS-INDEX-DECODE-ALLOC-001 — Remove per-element coordinate buffers [patch]
 
 - Owner: Claude; scope: the flat-index decode loops in `coeus-ops`
