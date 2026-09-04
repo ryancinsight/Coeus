@@ -15,7 +15,9 @@
   `^0.2.0` requirements and they now target the available `0.3.1` packages;
   Leto PR #163 is merged and its temporary revision pin is removed. Hephaestus
   PR #270 now carries the merged-Leto/Moirai source edge at `7ca992d`. The
-  exact standalone Coeus gates pass: check, warning-denied all-target Clippy,
+  informational SemVer check also exposed stale Atlas workflow pin `fcbc520`;
+  both Coeus callers now follow Atlas `1ba4a8a`. The exact standalone Coeus
+  gates pass: check, warning-denied all-target Clippy,
   nextest 1,359/1,359 with 8 skipped, 160 doctests with 2 ignored, warning-
   denied rustdoc, format, lock freshness, and diff hygiene.
 
