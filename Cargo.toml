@@ -38,12 +38,17 @@ categories = ["science", "mathematics", "data-structures"]
 moirai = { package = "moirai-runtime", git = "https://github.com/ryancinsight/Moirai.git", version = "0.5.0", features = ["melinoe"] }
 moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", version = "0.5.0" }
 mnemosyne = { package = "mnemosyne-memory", git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.7.0", rev = "03fe32f4ea669538402bf8fae8d9809610a101a8" }
-# SIMD-effect SSOT.
-hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0.7.0" }
-eunomia = { git = "https://github.com/ryancinsight/eunomia.git", version = "0.8.0", default-features = false }
+# Temporary co-evolution pin for Hermes PR #155; remove `rev` after the
+# unified Eunomia source identity merges to main and regenerate Cargo.lock.
+hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0.7.0", rev = "2ecace2" }
+# Temporary co-evolution pin for Eunomia PR #87; remove `rev` after the
+# provider derive delivery merges to main and regenerate Cargo.lock.
+eunomia = { git = "https://github.com/ryancinsight/eunomia.git", version = "0.8.0", rev = "fdbf12275d35aa1545060a4277644c497ddcda37", default-features = false }
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
-leto = { git = "https://github.com/ryancinsight/leto.git", version = "0.43.0" }
-leto-ops = { git = "https://github.com/ryancinsight/leto.git", version = "0.43.0" }
+# Temporary co-evolution pin for Leto PR #163; remove `rev` after the
+# first-party source-identity correction merges to main and regenerate lock.
+leto = { git = "https://github.com/ryancinsight/leto.git", version = "0.43.0", rev = "bf0054b" }
+leto-ops = { git = "https://github.com/ryancinsight/leto.git", version = "0.43.0", rev = "bf0054b" }
 apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", version = "0.27.0", default-features = false }
 
 # ── Numerical ──
@@ -55,11 +60,13 @@ smallvec   = "1.13"
 rkyv       = { version = "0.8.17", features = ["bytecheck", "std"] }
 wgpu       = { version = "30.0", default-features = false, features = ["wgsl", "vulkan", "metal"] }
 # Accelerator providers remain Git-sourced and lockfile-pinned.
-hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0" }
-hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0" }
-hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", default-features = false }
-hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0" }
-hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0" }
+# Temporary coherence pin: Hephaestus PR #270 exports the Moirai-owned budget
+# facade used by every provider. Remove `rev` after that PR merges.
+hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "076fe32" }
+hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "076fe32" }
+hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", default-features = false, rev = "076fe32" }
+hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "076fe32" }
+hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "076fe32" }
 themis = { package = "themis-topology", git = "https://github.com/ryancinsight/themis.git", version = "0.10.1" }
 melinoe = { git = "https://github.com/ryancinsight/melinoe.git", version = "0.9.0" }
 
@@ -113,7 +120,6 @@ debug = false
 opt-level = 1
 
 # ATLAS-PATH-DEP-AUDIT-2 round-4 closure
-
 
 
 

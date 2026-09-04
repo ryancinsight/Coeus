@@ -2,14 +2,15 @@
 // Sealed trait hierarchy for numeric scalar types used in tensors.
 //
 // Design notes:
-// - `Scalar` is the base: Copy + Pod + Send + Sync + 'static
+// - `Scalar` is the base: Copy + bytemuck::Pod + eunomia::Pod + Send + Sync +
+//   'static
 // - `Float` extends Scalar with transcendental and rounding ops
 // - `Int` extends Scalar with bitwise and modular ops
 // - All traits are sealed (private Sealed supertrait) for monomorphization
-// - bytemuck::Pod guarantees safe transmutation to/from [u8]
+// - bytemuck::Pod and eunomia::Pod guarantee safe host/device byte layouts
 
 use bytemuck::Pod;
-use eunomia::NumericElement;
+use eunomia::{NumericElement, Pod as EunomiaPod};
 use std::fmt::Debug;
 use std::ops::Rem;
 
@@ -294,6 +295,9 @@ pub trait CpuUnaryDispatch: private::Sealed {
 ///
 /// # Safety / Design
 /// - `Pod` enables zero-copy byte transmutation (bytemuck).
+/// - `EunomiaPod` is the canonical device-buffer layout contract consumed by
+///   Hephaestus; keeping it on `Scalar` prevents backend seams from accepting
+///   a host-only numeric type that cannot cross a device boundary.
 /// - `NumericElement` is the eunomia SSOT element vocabulary (constants
 ///   `ZERO`/`ONE`/etc., `abs`/`sqrt`/`is_finite`/`is_nan`/`to_f64`/`from_f64`/
 ///   `from_usize`, plus `Add`/`Sub`/`Mul`/`Div`/`Assigns`/`Copy`/`Send`/`Sync`/
@@ -322,7 +326,9 @@ pub trait CpuUnaryDispatch: private::Sealed {
 /// f32::axpy_slice(2.0, &a, &mut acc);
 /// assert_eq!(acc, [12.0, 14.0, 16.0]); // 10 + 2*[1,2,3]
 /// ```
-pub trait Scalar: NumericElement + CpuUnaryDispatch + Pod + Rem<Output = Self> + Clone {
+pub trait Scalar:
+    NumericElement + CpuUnaryDispatch + Pod + EunomiaPod + Rem<Output = Self> + Clone
+{
     /// Additive identity.
     fn zero() -> Self;
 

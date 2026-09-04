@@ -3,7 +3,6 @@ use std::sync::{
     Mutex,
 };
 
-use bytemuck::Pod;
 use coeus_core::Layout;
 use coeus_hephaestus::{
     AttentionProvider, HephaestusBackend, HephaestusBackendError, HephaestusProvider,
@@ -61,7 +60,7 @@ fn length_mismatch<T>(host_len: usize, buffer: &TestBuffer<T>) -> HephaestusErro
 }
 
 impl ComputeDevice for TestDevice {
-    type Buffer<T: Pod> = TestBuffer<T>;
+    type Buffer<T: eunomia::Pod> = TestBuffer<T>;
 
     fn backend_name(&self) -> &'static str {
         "attention-bridge-test"
@@ -71,7 +70,7 @@ impl ComputeDevice for TestDevice {
         None
     }
 
-    fn alloc_zeroed_with_hint<T: Pod>(
+    fn alloc_zeroed_with_hint<T: eunomia::Pod>(
         &self,
         len: usize,
         hint: PlacementHint,
@@ -79,7 +78,7 @@ impl ComputeDevice for TestDevice {
         Ok(TestBuffer::new(vec![T::zeroed(); len], tier(hint)))
     }
 
-    fn alloc_uninitialized_with_hint<T: Pod>(
+    fn alloc_uninitialized_with_hint<T: eunomia::Pod>(
         &self,
         len: usize,
         hint: PlacementHint,
@@ -87,7 +86,7 @@ impl ComputeDevice for TestDevice {
         self.alloc_zeroed_with_hint(len, hint)
     }
 
-    fn upload_with_hint<T: Pod>(
+    fn upload_with_hint<T: eunomia::Pod>(
         &self,
         host: &[T],
         hint: PlacementHint,
@@ -95,7 +94,7 @@ impl ComputeDevice for TestDevice {
         Ok(TestBuffer::new(host.to_vec(), tier(hint)))
     }
 
-    fn download<T: Pod>(
+    fn download<T: eunomia::Pod>(
         &self,
         buffer: &Self::Buffer<T>,
         out: &mut [T],
@@ -108,7 +107,7 @@ impl ComputeDevice for TestDevice {
         Ok(())
     }
 
-    fn write_buffer<T: Pod>(
+    fn write_buffer<T: eunomia::Pod>(
         &self,
         buffer: &Self::Buffer<T>,
         host: &[T],
@@ -121,7 +120,7 @@ impl ComputeDevice for TestDevice {
         Ok(())
     }
 
-    fn write_sub_buffer<T: Pod>(
+    fn write_sub_buffer<T: eunomia::Pod>(
         &self,
         buffer: &Self::Buffer<T>,
         offset: usize,
@@ -145,7 +144,7 @@ impl ComputeDevice for TestDevice {
         Ok(())
     }
 
-    fn copy_buffer<T: Pod>(
+    fn copy_buffer<T: eunomia::Pod>(
         &self,
         src: &Self::Buffer<T>,
         dst: &Self::Buffer<T>,

@@ -15,6 +15,7 @@ description = "Generic Coeus integration layer for Hephaestus device providers."
 coeus-core = { workspace = true }
 coeus-ops = { workspace = true, default-features = false }
 hephaestus-core = { workspace = true }
+eunomia = { workspace = true }
 leto = { workspace = true }
 leto-ops = { workspace = true }
 bytemuck = { workspace = true }

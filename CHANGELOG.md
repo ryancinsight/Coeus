@@ -40,6 +40,13 @@
 
 ### Fixed
 
+- [patch] `coeus_core::Scalar` and the generic Hephaestus storage/dispatch
+  surfaces now carry Eunomia's `Pod` device-layout contract alongside the
+  existing bytemuck host-layout contract. This closes the typed
+  `ComputeDevice::Buffer<T>` boundary without a conversion shim and restores
+  all-feature CUDA compilation; `coeus-cuda` aligns its Cutile dependencies
+  on the available `0.3.1` package family. See ADR-0068.
+
 - [patch] `coeus-wgpu` no longer sets `WGPU_BACKEND=dx12` from inside
   `try_get_wgpu_context`. Hephaestus tries DX12 before Vulkan on Windows only
   when no such variable is set, so the override disabled the path it was asking
