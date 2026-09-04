@@ -1,26 +1,30 @@
 # Coeus Project Backlog & Historical Archives
 
-## COEUS-HEPHAESTUS-CUDA-FUSION-001 — Remove Coeus-owned fused CUDA kernels [major] [arch] <a id="coeus-hephaestus-cuda-fusion-001"></a>
+## COEUS-HEPHAESTUS-CUDA-FUSION-001 — Remove Coeus-owned GPU kernels [major] [arch] <a id="coeus-hephaestus-cuda-fusion-001"></a>
 
-- **Owner:** atlas-session; scope: `coeus-cuda` fused elementwise/reduction
-  adapters, consumer kernel deletion, and provider-contract tests.
-- **Outcome:** Hephaestus owns CUDA fusion source generation, signed layout
+- **Owner:** atlas-session; scope: `coeus-cuda` fusion and `coeus-wgpu`
+  elementwise adapters, consumer kernel deletion, and provider-contract tests.
+- **Outcome:** Hephaestus owns CUDA/WGPU source generation, signed layout
   metadata, pipeline caching, and launch; Coeus keeps tensor shape and
   expression adaptation at the provider boundary.
-- **Acceptance:** fused CUDA elementwise/reduction value and error contracts
-  pass through `CudaFusionOps`; consumer-owned fused runtime/source/cache/
-  launch code is deleted with all callers migrated; exact locked compile,
-  Clippy, Nextest, doctest, format, diff, and lockfile checks pass.
-- **Status:** review; integrator: atlas-session; branch:
-  `arch/coeus-hephaestus-cuda-fusion-001`; dependency:
-  `HEPH-CUDA-FUSION-2026-09-04`.
+- **Acceptance:** CUDA fusion and WGPU elementwise value/error contracts pass
+  through Hephaestus; consumer-owned CUDA/WGPU runtime/source/cache/launch code
+  is deleted with all callers migrated; exact locked compile, Clippy, Nextest,
+  doctest, format, diff, and lockfile checks pass.
+- **Status:** in-progress; integrator: atlas-session; branch:
+  `arch/coeus-hephaestus-cuda-fusion-001`; lease: atlas-session
+  `crates/coeus-wgpu/src/{backend/ops/elementwise.rs,backend/ops/elementwise/routing.rs,backend/ops/parameterized_activation.rs,backend/mod.rs,kernels/,lib.rs}`;
+  dependency: `HEPH-CUDA-FUSION-2026-09-04`.
 - **Evidence:** CUDA Nextest 103/103, no-feature Nextest 3/3, strict Clippy,
   checks, doctests, docs, format, diff, and lockfile pass; semver reports 189
   pass and 7 intentional major breaks.
 - **Delivery:** consumer PR [#368](https://github.com/ryancinsight/Coeus/pull/368)
   depends on provider PR [#274](https://github.com/ryancinsight/hephaestus/pull/274);
-  both require independent architectural review before merge.
-- **ADR claim:** next Coeus architectural record is `0070`.
+  conflicting WGPU PR #366 is absorbed by this branch and will not retain a
+  parallel implementation. Both provider-boundary changes require independent
+  architectural review before merge.
+- **ADR claim:** `0070` covers CUDA; `0071` will record the WGPU elementwise
+  provider cutover.
 - **Last-update:** 2026-09-04.
 
 ## COEUS-HEPHAESTUS-WGPU-FUSION-001 — Remove Coeus-owned fused WGPU kernels [patch] [arch] <a id="coeus-hephaestus-wgpu-fusion-001"></a>
