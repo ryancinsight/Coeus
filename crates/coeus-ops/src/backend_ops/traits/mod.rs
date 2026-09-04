@@ -13,6 +13,8 @@
 //!
 //! Sub-traits and their concerns:
 //! - [`ElementwiseOps`] — binary and unary element-wise ops
+//! - [`FiniteDifference3DOps`] — 3-D first-derivative stencils, fixed schemes
+//!   and the arbitrary-order staggered gradient/divergence pair
 //! - [`MatmulOps`] — matmul, batched matmul, accumulate variants
 //! - [`ReductionOps`] — reduce, argmax/argmin, topk, cumulative sum/product scans
 //! - [`ConvOps`] — regular convolution and 1D/2D transposed convolution
@@ -29,6 +31,8 @@ pub mod attention;
 pub mod conv;
 pub mod cross_entropy;
 pub mod elementwise;
+/// Three-dimensional first-derivative stencils.
+pub mod finite_difference;
 pub mod matmul;
 pub mod optimizer;
 pub mod pool;
@@ -42,6 +46,7 @@ pub use attention::{AttentionOps, AttentionScalar};
 pub use conv::{ConvOps, ConvolutionBackward, ConvolutionForward};
 pub use cross_entropy::CrossEntropyOps;
 pub use elementwise::{ElementwiseOps, ScalarPowerOps};
+pub use finite_difference::{Axis, FiniteDifference3DOps, FiniteDifference3DScheme};
 pub use matmul::MatmulOps;
 pub use optimizer::{OptimizerOps, OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation};
 pub use pool::PoolOps;

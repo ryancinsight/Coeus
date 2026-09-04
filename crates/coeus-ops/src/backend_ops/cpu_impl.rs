@@ -3,6 +3,7 @@ use coeus_core::{Backend, BackendError};
 mod convolution;
 mod elementwise;
 mod error;
+mod finite_difference;
 mod impls;
 mod matmul;
 mod pool;
