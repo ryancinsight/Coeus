@@ -25,9 +25,6 @@ fn backends() -> Option<(SequentialBackend, CudaBackend)> {
     if hephaestus_cuda::CudaDevice::try_default().is_err() {
         return None;
     }
-    if coeus_cuda::CudaDriver::get().is_none() || coeus_cuda::get_cuda_context().is_none() {
-        return None;
-    }
     Some((SequentialBackend::new(), CudaBackend::new()))
 }
 

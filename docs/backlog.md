@@ -13,18 +13,26 @@
   doctest, format, diff, and lockfile checks pass.
 - **Status:** in-progress; integrator: atlas-session; branch:
   `arch/coeus-hephaestus-cuda-fusion-001`; lease: atlas-session
-  `crates/coeus-wgpu/src/{backend/ops/elementwise.rs,backend/ops/elementwise/routing.rs,backend/ops/parameterized_activation.rs,backend/mod.rs,kernels/,lib.rs}`;
+  `crates/coeus-cuda/`, `crates/coeus-hephaestus/`,
+  `crates/coeus-wgpu/`, `crates/coeus-core/src/dtype/traits.rs`,
+  `Cargo.toml`, `Cargo.lock`, and affected ADR/README/test tooling;
   dependency: `HEPH-CUDA-FUSION-2026-09-04`.
-- **Evidence:** CUDA Nextest 103/103, no-feature Nextest 3/3, strict Clippy,
-  checks, doctests, docs, format, diff, and lockfile pass; semver reports 189
-  pass and 7 intentional major breaks.
+- **Evidence:** provider Hephaestus revision `f8811d1` passes no-feature
+  Nextest 111/111 and CUDA Nextest 177/177. Coeus passes no-feature Nextest
+  134/134 and CUDA Nextest 110/110, strict Clippy in both configurations,
+  doctests (9 no-feature, 2 CUDA), all-target checks, rustdoc, format, diff,
+  and standalone lockfile validation. The source audit finds no Coeus-owned
+  WGPU kernel tree, CUDA driver facade, PTX, direct raw `wgpu`/CUDA imports,
+  or direct `half` dependency; `half` remains only as Criterion's transitive
+  development dependency. Semver reports 189 pass and 7 intentional major
+  breaks.
 - **Delivery:** consumer PR [#368](https://github.com/ryancinsight/Coeus/pull/368)
   depends on provider PR [#274](https://github.com/ryancinsight/hephaestus/pull/274);
   conflicting WGPU PR #366 is absorbed by this branch and will not retain a
   parallel implementation. Both provider-boundary changes require independent
   architectural review before merge.
-- **ADR claim:** `0070` covers CUDA; `0071` will record the WGPU elementwise
-  provider cutover.
+- **ADR claim:** `0070` covers CUDA; `0071` records the provider-owned CUDA and
+  WGPU accelerator cutover.
 - **Last-update:** 2026-09-04.
 
 ## COEUS-HEPHAESTUS-WGPU-FUSION-001 — Remove Coeus-owned fused WGPU kernels [patch] [arch] <a id="coeus-hephaestus-wgpu-fusion-001"></a>

@@ -20,11 +20,13 @@ downgrades execution to the CPU.
 
 ## What is here
 
-- CUDA C kernels for matmul launch, reductions, fused elementwise, 2D and 3D
-  max and average pooling, 1D pooling, and unfold/fold, plus a checked-in
-  `ptx.ptx`.
-- Attention, convolution, and optimizer operations bound to Hephaestus CUDA
-  operation markers.
+- Coeus storage and operation adapters bound to Hephaestus CUDA operation
+  markers.
+- Provider-owned device acquisition, source generation, compilation caching,
+  memory transfers, fills, and kernel launch. Coeus contains no CUDA source,
+  driver facade, PTX artifact, or launch/cache implementation.
+- Attention, convolution, optimizer, pooling, reduction, and fused operations
+  routed through Hephaestus CUDA.
 
 ## Documentation
 

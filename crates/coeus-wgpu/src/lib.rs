@@ -26,10 +26,9 @@
 
 mod backend;
 mod fusion;
-mod kernels;
 mod storage;
 
-pub use backend::{LayoutError, WgpuBackend, WgpuBackendError, WgpuScalar};
+pub use backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
 pub use storage::WgpuStorage;
 
 use coeus_core::{BackendError, ComputeBackend, Layout};

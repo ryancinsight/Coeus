@@ -230,28 +230,31 @@ fn test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer() {
 }
 
 #[test]
-fn test_wgpu_aliasing_unary_neg_matches_cpu() {
-    let s = seq();
+fn test_wgpu_aliasing_unary_neg_rejects_provider_bypass() {
     let w = wgpu();
     let data = vec![-4.0f32, -1.5, -0.5, 0.0, 0.5, 1.0, 2.0, 3.0];
     let x_cpu = Tensor::from_slice(vec![data.len()], &data);
     let x_gpu = to_gpu(&x_cpu);
 
-    // Clone shares storage; output aliases input and must use non-hephaestus fallback.
-    let mut out_gpu = x_gpu.clone();
-    let out_layout = out_gpu.layout().clone();
-    w.elementwise_unary(
-        coeus_ops::UnaryOp::Neg,
-        x_gpu.storage(),
-        x_gpu.layout(),
-        out_gpu.storage_mut(),
-        &out_layout,
-    )
-    .expect("valid WGPU negation output buffer");
-
-    let expected = coeus_ops::neg(&x_cpu, &s);
-    let got = to_cpu(&out_gpu);
-    assert_parity("aliasing_unary_neg", expected.as_slice(), got.as_slice());
+    // Clone shares storage; Hephaestus owns the rejection of aliased buffers.
+    let mut out_storage = x_gpu.storage().clone();
+    let before = to_cpu(&x_gpu);
+    let error = w
+        .elementwise_unary(
+            coeus_ops::UnaryOp::Neg,
+            x_gpu.storage(),
+            x_gpu.layout(),
+            &mut out_storage,
+            x_gpu.layout(),
+        )
+        .expect_err("aliased negation must not bypass Hephaestus");
+    assert!(
+        format!("{error:?}").contains("must not alias"),
+        "aliased negation must surface the provider rejection, got: {error:?}"
+    );
+    let mut after = vec![0.0; before.as_slice().len()];
+    w.copy_to_host(&out_storage, &mut after);
+    assert_eq!(after.as_slice(), before.as_slice());
 }
 
 #[test]
@@ -297,14 +300,13 @@ fn test_wgpu_aliasing_elu_rejects_provider_bypass() {
     // fallback executed (a silent fallback would return Ok).
     let rendered = format!("{error:?}");
     assert!(
-        rendered.contains("must not alias") || rendered.contains("UnsupportedOperation"),
+        rendered.contains("must not alias"),
         "aliased strided ELU must fail with a typed rejection, got: {error:?}"
     );
 }
 
 #[test]
-fn test_wgpu_aliasing_binary_add_matches_cpu() {
-    let s = seq();
+fn test_wgpu_aliasing_binary_add_rejects_provider_bypass() {
     let w = wgpu();
     let a_data: Vec<f32> = (0..16).map(|x| x as f32 * 0.25 - 2.0).collect();
     let b_data: Vec<f32> = (0..16).map(|x| x as f32 * 0.1 + 0.5).collect();
@@ -314,23 +316,27 @@ fn test_wgpu_aliasing_binary_add_matches_cpu() {
     let a_gpu = to_gpu(&a_cpu);
     let b_gpu = to_gpu(&b_cpu);
 
-    // Clone shares storage; output aliases left input and must use non-hephaestus fallback.
-    let mut out_gpu = a_gpu.clone();
-    let out_layout = out_gpu.layout().clone();
-    w.elementwise_binary(
-        coeus_ops::BinaryOp::Add,
-        a_gpu.storage(),
-        a_gpu.layout(),
-        b_gpu.storage(),
-        b_gpu.layout(),
-        out_gpu.storage_mut(),
-        &out_layout,
-    )
-    .expect("valid WGPU aliased addition output buffer");
-
-    let expected = coeus_ops::add(&a_cpu, &b_cpu, &s);
-    let got = to_cpu(&out_gpu);
-    assert_parity("aliasing_binary_add", expected.as_slice(), got.as_slice());
+    // Clone shares storage; Hephaestus owns the rejection of aliased buffers.
+    let mut out_storage = a_gpu.storage().clone();
+    let before = to_cpu(&a_gpu);
+    let error = w
+        .elementwise_binary(
+            coeus_ops::BinaryOp::Add,
+            a_gpu.storage(),
+            a_gpu.layout(),
+            b_gpu.storage(),
+            b_gpu.layout(),
+            &mut out_storage,
+            a_gpu.layout(),
+        )
+        .expect_err("aliased addition must not bypass Hephaestus");
+    assert!(
+        format!("{error:?}").contains("must not alias"),
+        "aliased addition must surface the provider rejection, got: {error:?}"
+    );
+    let mut after = vec![0.0; before.as_slice().len()];
+    w.copy_to_host(&out_storage, &mut after);
+    assert_eq!(after.as_slice(), before.as_slice());
 }
 
 macro_rules! test_unary_parity {

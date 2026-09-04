@@ -4,9 +4,12 @@ use super::provider::{parameterized_unary, ParameterizedElementwiseProvider};
 use crate::reduction::{HephaestusProvider, RankedOperand};
 use coeus_ops::{BinaryOp, UnaryOp};
 use hephaestus_core::{
-    BinaryExpr, ComputeDevice, DialectScalar, ElementwiseOps as HephaestusElementwiseOps,
-    HardtanhGradOp, HardtanhOp, ParameterizedUnaryExpr, ParameterizedUnaryOps, StridedView,
-    ThresholdGradOp, ThresholdOp, TypedBinaryExpr, UnaryExpr,
+    BinaryExpr, CeluGradOp, CeluOp, ComputeDevice, DialectScalar,
+    ElementwiseOps as HephaestusElementwiseOps, HardshrinkGradOp, HardshrinkOp, HardsigmoidGradOp,
+    HardsigmoidOp, HardswishGradOp, HardswishOp, HardtanhGradOp, HardtanhOp, LeakyReluGradOp,
+    LeakyReluOp, ParameterizedUnaryExpr, ParameterizedUnaryOps, SoftshrinkGradOp, SoftshrinkOp,
+    SoftsignGradOp, SoftsignOp, StridedView, ThresholdGradOp, ThresholdOp, TypedBinaryExpr,
+    UnaryExpr,
 };
 
 fn unsupported_unary_operation(operation: UnaryOp) -> hephaestus_core::HephaestusError {
@@ -257,9 +260,30 @@ where
     hephaestus_core::ErfOp: UnaryExpr<E::Dialect>,
     hephaestus_core::ErfcOp: UnaryExpr<E::Dialect>,
     hephaestus_core::LgammaOp: UnaryExpr<E::Dialect>,
+    HardsigmoidOp: UnaryExpr<E::Dialect>,
+    HardsigmoidGradOp: UnaryExpr<E::Dialect>,
+    HardswishOp: UnaryExpr<E::Dialect>,
+    HardswishGradOp: UnaryExpr<E::Dialect>,
+    SoftsignOp: UnaryExpr<E::Dialect>,
+    SoftsignGradOp: UnaryExpr<E::Dialect>,
     HardtanhOp:
         ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
     HardtanhGradOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    LeakyReluOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    LeakyReluGradOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    HardshrinkOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    HardshrinkGradOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    SoftshrinkOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    SoftshrinkGradOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    CeluOp: ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    CeluGradOp:
         ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
     ThresholdOp:
         ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
@@ -278,8 +302,16 @@ where
         match operation {
             UnaryOp::Hardtanh(_)
             | UnaryOp::HardtanhGrad(_)
+            | UnaryOp::LeakyRelu(_)
+            | UnaryOp::LeakyReluGrad(_)
+            | UnaryOp::Hardshrink(_)
+            | UnaryOp::HardshrinkGrad(_)
+            | UnaryOp::Softshrink(_)
+            | UnaryOp::SoftshrinkGrad(_)
             | UnaryOp::Threshold(_)
-            | UnaryOp::ThresholdGrad(_) => parameterized_unary::<P, N>(operation, input, output),
+            | UnaryOp::ThresholdGrad(_)
+            | UnaryOp::Celu(_)
+            | UnaryOp::CeluGrad(_) => parameterized_unary::<P, N>(operation, input, output),
             UnaryOp::Sin => {
                 operations.unary_into::<hephaestus_core::SinOp, N>(device, input_view, output_view)
             }
@@ -384,6 +416,24 @@ where
                 input_view,
                 output_view,
             ),
+            UnaryOp::Hardsigmoid => {
+                operations.unary_into::<HardsigmoidOp, N>(device, input_view, output_view)
+            }
+            UnaryOp::HardsigmoidGrad => {
+                operations.unary_into::<HardsigmoidGradOp, N>(device, input_view, output_view)
+            }
+            UnaryOp::Hardswish => {
+                operations.unary_into::<HardswishOp, N>(device, input_view, output_view)
+            }
+            UnaryOp::HardswishGrad => {
+                operations.unary_into::<HardswishGradOp, N>(device, input_view, output_view)
+            }
+            UnaryOp::Softsign => {
+                operations.unary_into::<SoftsignOp, N>(device, input_view, output_view)
+            }
+            UnaryOp::SoftsignGrad => {
+                operations.unary_into::<SoftsignGradOp, N>(device, input_view, output_view)
+            }
             UnaryOp::Tan => {
                 operations.unary_into::<hephaestus_core::TanOp, N>(device, input_view, output_view)
             }
@@ -470,7 +520,6 @@ where
                 input_view,
                 output_view,
             ),
-            _ => Err(unsupported_unary_operation(operation)),
         }
     }
 }

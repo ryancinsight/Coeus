@@ -8,7 +8,7 @@
 //! ## Feature gating
 //!
 //! The real device path is behind the `cuda` feature (NVRTC + the CUDA driver
-//! via `hephaestus-cuda`). Without it, [`CudaBackend`] exposes metadata and
+//! through `hephaestus-cuda`). Without it, [`CudaBackend`] exposes metadata and
 //! storage types so the workspace builds on machines without a CUDA toolkit,
 //! but it implements no mathematical backend traits.
 //!
@@ -16,10 +16,10 @@
 //!
 //! Attention, convolution, and stateful optimizer updates bind directly to
 //! provider-owned Hephaestus operation markers over borrowed CUDA buffers.
-//! Other `BackendOps<T>` methods route to monomorphized on-device kernels and
-//! return typed backend errors when the selected provider rejects validation,
-//! compilation, or dispatch. No operation changes execution backend after CUDA
-//! has been selected.
+//! All mathematical operations route to monomorphized provider-owned
+//! Hephaestus kernels and return typed backend errors when the selected
+//! provider rejects validation, compilation, or dispatch. No operation changes
+//! execution backend after CUDA has been selected.
 //!
 //! Provider capability boundaries are explicit in their operation contracts
 //! and are covered by differential parity tests in `tests/cuda/`. Native and
@@ -37,14 +37,6 @@ mod backend;
 mod backend;
 
 #[cfg(feature = "cuda")]
-/// CUDA driver context management for the real device backend.
-pub mod driver;
-#[cfg(not(feature = "cuda"))]
-#[path = "driver_stub.rs"]
-/// Stub CUDA driver surface used when the `cuda` feature is disabled.
-pub mod driver;
-
-#[cfg(feature = "cuda")]
 mod storage;
 #[cfg(not(feature = "cuda"))]
 #[path = "storage_stub.rs"]
@@ -54,7 +46,6 @@ mod storage;
 mod fusion;
 
 pub use backend::{CudaBackend, CudaScalar};
-pub use driver::{get_cuda_context, CudaDriver};
 pub use storage::CudaStorage;
 
 #[cfg(feature = "cuda")]

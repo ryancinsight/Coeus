@@ -60,15 +60,14 @@ bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }
 # than rustfft or a Coeus-local array dependency.
 smallvec   = "1.13"
 rkyv       = { version = "0.8.17", features = ["bytecheck", "std"] }
-wgpu       = { version = "30.0", default-features = false, features = ["wgsl", "vulkan", "metal"] }
 # Accelerator providers remain Git-sourced and lockfile-pinned.
 # Temporary co-evolution pin for the provider-owned fusion route; remove `rev`
 # after the Hephaestus provider change merges and regenerate Cargo.lock.
-hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "5755a96" }
-hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "5755a96" }
-hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", default-features = false, rev = "5755a96" }
-hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "5755a96" }
-hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "5755a96" }
+hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "f8811d1" }
+hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "f8811d1" }
+hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", default-features = false, rev = "f8811d1" }
+hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "f8811d1" }
+hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "f8811d1" }
 themis = { package = "themis-topology", git = "https://github.com/ryancinsight/themis.git", version = "0.10.1" }
 melinoe = { git = "https://github.com/ryancinsight/melinoe.git", version = "0.9.0" }
 

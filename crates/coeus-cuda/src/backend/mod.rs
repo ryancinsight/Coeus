@@ -1,7 +1,7 @@
 use crate::storage::CudaStorage;
 use coeus_core::{Backend, ComputeBackend, Scalar, Storage};
-use hephaestus_core::{CommandStream, KernelDevice};
-use hephaestus_cuda::{ComputeDevice, CudaDevice};
+use hephaestus_core::CommandStream;
+use hephaestus_cuda::{ComputeDevice, CudaDevice, KernelDevice};
 use std::sync::OnceLock;
 
 pub mod ops;
@@ -87,47 +87,6 @@ impl ComputeBackend for CudaBackend {
         if val.has_zero_bit_pattern() {
             self.fill_zero(dst);
             return;
-        }
-
-        let device = get_cuda_device();
-        device.bind().expect("fill: failed to bind CUDA device");
-
-        // If T is 32-bit, use cuMemsetD32_v2
-        if std::mem::size_of::<T>() == 4 {
-            let val_u32 = unsafe {
-                let mut tmp = 0u32;
-                std::ptr::copy_nonoverlapping(
-                    &val as *const T as *const u8,
-                    &mut tmp as *mut u32 as *mut u8,
-                    4,
-                );
-                tmp
-            };
-            unsafe {
-                let res = cuda_core::sys::cuMemsetD32_v2(dst.cu_deviceptr(), val_u32, size);
-                if res == 0 {
-                    return;
-                }
-            }
-        }
-
-        // If T is 16-bit, use cuMemsetD16_v2
-        if std::mem::size_of::<T>() == 2 {
-            let val_u16 = unsafe {
-                let mut tmp = 0u16;
-                std::ptr::copy_nonoverlapping(
-                    &val as *const T as *const u8,
-                    &mut tmp as *mut u16 as *mut u8,
-                    2,
-                );
-                tmp
-            };
-            unsafe {
-                let res = cuda_core::sys::cuMemsetD16_v2(dst.cu_deviceptr(), val_u16, size);
-                if res == 0 {
-                    return;
-                }
-            }
         }
 
         let data = vec![val; size];

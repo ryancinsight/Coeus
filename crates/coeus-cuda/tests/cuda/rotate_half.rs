@@ -5,9 +5,7 @@ use coeus_ops::{BinaryOp, ElementwiseOps};
 use coeus_tensor::Tensor;
 
 fn require_device() -> bool {
-    let available = hephaestus_cuda::CudaDevice::try_default().is_ok()
-        && coeus_cuda::CudaDriver::get().is_some()
-        && coeus_cuda::get_cuda_context().is_some();
+    let available = hephaestus_cuda::CudaDevice::try_default().is_ok();
     if !available {
         assert_ne!(
             std::env::var("HEPHAESTUS_CUDA_REQUIRE_DEVICE").as_deref(),

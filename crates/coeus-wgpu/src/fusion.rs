@@ -54,19 +54,20 @@ fn provider_layout(
     operation: &'static str,
 ) -> Result<LayoutDyn, WgpuBackendError> {
     if layout.shape().len() != layout.strides().len() {
-        return Err(WgpuBackendError::Layout(
-            crate::backend::LayoutError::RankMismatch {
-                shape_rank: layout.shape().len(),
-                stride_rank: layout.strides().len(),
+        return Err(WgpuBackendError::Validation(
+            BackendError::LayoutRankMismatch {
+                operation,
+                lhs: layout.shape().len(),
+                rhs: layout.strides().len(),
             },
         ));
     }
     let mut strides = Vec::with_capacity(layout.strides().len());
-    for (axis, &stride) in layout.strides().iter().enumerate() {
+    for &stride in layout.strides() {
         strides.push(isize::try_from(stride).map_err(|_| {
-            WgpuBackendError::Layout(crate::backend::LayoutError::SignedStrideOutOfRange {
-                axis,
-                value: stride,
+            WgpuBackendError::Validation(BackendError::Overflow {
+                operation,
+                reason: "layout stride exceeds isize range",
             })
         })?);
     }

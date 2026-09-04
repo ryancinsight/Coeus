@@ -273,10 +273,18 @@ impl CpuUnaryOp {
     #[must_use]
     pub const fn parameter_pair(self) -> Option<[f32; 2]> {
         let bits = match self {
-            Self::Hardtanh(bits)
+            Self::LeakyRelu(bits)
+            | Self::LeakyReluGrad(bits)
+            | Self::Hardtanh(bits)
             | Self::HardtanhGrad(bits)
+            | Self::Hardshrink(bits)
+            | Self::HardshrinkGrad(bits)
+            | Self::Softshrink(bits)
+            | Self::SoftshrinkGrad(bits)
             | Self::Threshold(bits)
-            | Self::ThresholdGrad(bits) => bits,
+            | Self::ThresholdGrad(bits)
+            | Self::Celu(bits)
+            | Self::CeluGrad(bits) => bits,
             _ => return None,
         };
         Some(Self::decode_parameter_pair(bits))

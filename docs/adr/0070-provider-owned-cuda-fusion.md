@@ -61,11 +61,11 @@ precision types; Coeus does not maintain a second CUDA scalar mapping.
 Hephaestus provider contract tests cover runtime-rank elementwise broadcast,
 runtime-rank reduction, signed-stride reversal, empty reduction identities
 and errors, output injectivity, reduced-precision source preludes, and CUDA
-physical dispatch. Coeus's CUDA-enabled package check passes with the locked
-provider revision `5755a96` (Hephaestus PR #274); focused Coeus CUDA Nextest
-and full package gates are the delivery checks for this consumer revision.
-The consumer manifest follows the provider's canonical Git source URLs; the
-lockfile pins the commits, preventing duplicate same-commit package identities.
+physical dispatch. Coeus's CUDA-enabled package check, focused CUDA tests, and
+full package gates run against the locked provider revision `f8811d1` from
+Hephaestus PR #274. The consumer manifest follows the provider's canonical Git
+source URLs; the lockfile pins the commits, preventing duplicate same-commit
+package identities.
 
 `cargo semver-checks` compares the current package with the pre-change
 revision: 189 checks pass and seven intentional removals or bound changes

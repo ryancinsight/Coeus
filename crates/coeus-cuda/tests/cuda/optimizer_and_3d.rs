@@ -76,49 +76,47 @@ fn test_cuda_adamw_step() {
     let m_cuda_on_cpu = m_cuda.to_backend_on(&cuda_b, &seq);
     let v_cuda_on_cpu = v_cuda.to_backend_on(&cuda_b, &seq);
 
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        for (i, (&res, &exp)) in param_cuda_on_cpu
-            .as_slice()
-            .iter()
-            .zip(param_seq.as_slice().iter())
-            .enumerate()
-        {
-            assert!(
-                (res - exp).abs() < 1e-5,
-                "Param mismatch at {}: {} vs expected {}",
-                i,
-                res,
-                exp
-            );
-        }
-        for (i, (&res, &exp)) in m_cuda_on_cpu
-            .as_slice()
-            .iter()
-            .zip(m_seq.as_slice().iter())
-            .enumerate()
-        {
-            assert!(
-                (res - exp).abs() < 1e-5,
-                "M mismatch at {}: {} vs expected {}",
-                i,
-                res,
-                exp
-            );
-        }
-        for (i, (&res, &exp)) in v_cuda_on_cpu
-            .as_slice()
-            .iter()
-            .zip(v_seq.as_slice().iter())
-            .enumerate()
-        {
-            assert!(
-                (res - exp).abs() < 1e-5,
-                "V mismatch at {}: {} vs expected {}",
-                i,
-                res,
-                exp
-            );
-        }
+    for (i, (&res, &exp)) in param_cuda_on_cpu
+        .as_slice()
+        .iter()
+        .zip(param_seq.as_slice().iter())
+        .enumerate()
+    {
+        assert!(
+            (res - exp).abs() < 1e-5,
+            "Param mismatch at {}: {} vs expected {}",
+            i,
+            res,
+            exp
+        );
+    }
+    for (i, (&res, &exp)) in m_cuda_on_cpu
+        .as_slice()
+        .iter()
+        .zip(m_seq.as_slice().iter())
+        .enumerate()
+    {
+        assert!(
+            (res - exp).abs() < 1e-5,
+            "M mismatch at {}: {} vs expected {}",
+            i,
+            res,
+            exp
+        );
+    }
+    for (i, (&res, &exp)) in v_cuda_on_cpu
+        .as_slice()
+        .iter()
+        .zip(v_seq.as_slice().iter())
+        .enumerate()
+    {
+        assert!(
+            (res - exp).abs() < 1e-5,
+            "V mismatch at {}: {} vs expected {}",
+            i,
+            res,
+            exp
+        );
     }
 }
 
@@ -181,9 +179,7 @@ fn test_cuda_conv3d() {
 
     let out_cuda_on_cpu = out_cuda.to_backend_on(&cuda_b, &seq);
 
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        assert_eq!(out_cuda_on_cpu.as_slice(), out_seq.as_slice());
-    }
+    assert_eq!(out_cuda_on_cpu.as_slice(), out_seq.as_slice());
 }
 
 #[test]
@@ -234,9 +230,7 @@ fn test_cuda_max_pool3d_forward_backward() {
 
     let out_cuda_on_cpu = out_cuda.to_backend_on(&cuda_b, &seq);
 
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        assert_eq!(out_cuda_on_cpu.as_slice(), out_seq.as_slice());
-    }
+    assert_eq!(out_cuda_on_cpu.as_slice(), out_seq.as_slice());
 
     let grad_out_data: Vec<f32> = (1..=8).map(|x| x as f32).collect();
     let grad_out_seq =
@@ -282,9 +276,7 @@ fn test_cuda_max_pool3d_forward_backward() {
 
     let grad_input_cuda_on_cpu = grad_input_cuda.to_backend_on(&cuda_b, &seq);
 
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        assert_eq!(grad_input_cuda_on_cpu.as_slice(), grad_input_seq.as_slice());
-    }
+    assert_eq!(grad_input_cuda_on_cpu.as_slice(), grad_input_seq.as_slice());
 }
 
 #[test]
@@ -335,9 +327,7 @@ fn test_cuda_avg_pool3d_forward_backward() {
 
     let out_cuda_on_cpu = out_cuda.to_backend_on(&cuda_b, &seq);
 
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        assert_close(out_cuda_on_cpu.as_slice(), out_seq.as_slice(), "avg_pool3d");
-    }
+    assert_close(out_cuda_on_cpu.as_slice(), out_seq.as_slice(), "avg_pool3d");
 
     let grad_out_data: Vec<f32> = (1..=8).map(|x| x as f32).collect();
     let grad_out_seq =
@@ -379,13 +369,11 @@ fn test_cuda_avg_pool3d_forward_backward() {
 
     let grad_input_cuda_on_cpu = grad_input_cuda.to_backend_on(&cuda_b, &seq);
 
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        assert_close(
-            grad_input_cuda_on_cpu.as_slice(),
-            grad_input_seq.as_slice(),
-            "avg_pool3d_backward",
-        );
-    }
+    assert_close(
+        grad_input_cuda_on_cpu.as_slice(),
+        grad_input_seq.as_slice(),
+        "avg_pool3d_backward",
+    );
 }
 
 fn assert_close(actual: &[f32], expected: &[f32], label: &str) {

@@ -41,7 +41,10 @@ discovery.
 
 from __future__ import annotations
 
+import atexit
 import argparse
+import ctypes
+import os
 import re
 import subprocess
 import sys
@@ -60,13 +63,42 @@ FIRST_PARTY_SOURCE = re.compile(r'^source = "git\+https://github\.com/ryancinsig
 def run_outside_the_overlay(arguments: list[str]) -> subprocess.CompletedProcess[str]:
     """Run cargo with a working directory outside the stack root.
 
-    Cargo resolves `.cargo/config.toml` by walking up from the working
-    directory, never from `--manifest-path`, so this is what excludes the
-    overlay. Running from the repository itself would silently include it.
+    Cargo resolves `.cargo/config.toml` by walking up from the workspace root
+    as well as the working directory. On Windows, an absolute manifest path
+    therefore still finds the Atlas overlay even when Cargo is launched from a
+    neutral temporary directory. A temporary drive mapping makes the
+    repository itself the filesystem root for this invocation, so only the
+    repository's own configuration remains visible.
     """
     with tempfile.TemporaryDirectory() as neutral_directory:
+        drive = unused_windows_drive()
+        manifest = MANIFEST
+        if drive is not None:
+            mapped = subprocess.run(
+                ["subst", drive, str(REPOSITORY)],
+                capture_output=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            if mapped.returncode != 0:
+                return subprocess.CompletedProcess(
+                    ["cargo", *arguments],
+                    mapped.returncode,
+                    mapped.stdout,
+                    f"failed to map repository drive {drive}: {mapped.stderr}",
+                )
+            manifest = Path(f"{drive}\\{MANIFEST.relative_to(REPOSITORY)}")
+            atexit.register(
+                subprocess.run,
+                ["subst", drive, "/d"],
+                capture_output=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
         return subprocess.run(
-            ["cargo", *arguments, "--manifest-path", str(MANIFEST)],
+            ["cargo", *arguments, "--manifest-path", str(manifest)],
             cwd=neutral_directory,
             capture_output=True,
             # `text=True` alone decodes with the locale codepage. Cargo emits
@@ -79,6 +111,18 @@ def run_outside_the_overlay(arguments: list[str]) -> subprocess.CompletedProcess
             errors="replace",
             check=False,
         )
+
+
+def unused_windows_drive() -> str | None:
+    """Return an unused Windows drive root, or ``None`` on other hosts."""
+    if os.name != "nt":
+        return None
+
+    drive_mask = ctypes.windll.kernel32.GetLogicalDrives()
+    for index in range(25, 2, -1):
+        if drive_mask & (1 << index) == 0:
+            return f"{chr(ord('A') + index)}:"
+    return None
 
 
 def check() -> int:

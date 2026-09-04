@@ -55,10 +55,8 @@ The consumer kernels and their reduction-only validation module are deleted.
 
 ## Verification
 
-The focused Coeus WGPU fusion suite verifies value parity for elementwise and
-Sum/Product/Mean/Min/Max reductions, integer reduction typing, empty-axis
-contracts, and invalid axes. The exact locked workspace gate remains coupled
-to the current Mnemosyne source revision; local provider checks use the clean
-source-identity worktree while the peer allocator tree contains a duplicate
-impl defect. Hardware-specific parity remains a hosted-provider concern.
-
+The focused and full locked Coeus WGPU suites verify value parity for
+elementwise and Sum/Product/Mean/Min/Max reductions, integer reduction typing,
+empty-axis contracts, invalid axes, alias rejection, and provider-owned
+storage. The exact provider revision is recorded by the active CUDA/WGPU
+consolidation ADR; hardware-specific parity remains a hosted-provider concern.

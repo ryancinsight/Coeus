@@ -9,12 +9,7 @@ use coeus_wgpu::WgpuBackendError;
 fn cross_entropy_dispatches_with_wgpu_value_and_gradient_parity() {
     #[cfg(target_os = "windows")]
     std::env::set_var("WGPU_BACKEND", "dx12");
-    if hephaestus_wgpu::WgpuDevice::try_default_with_limits(
-        "coeus-wgpu-cross-entropy-test",
-        wgpu::Limits::default(),
-    )
-    .is_err()
-    {
+    if hephaestus_wgpu::WgpuDevice::try_default("coeus-wgpu-cross-entropy-test").is_err() {
         assert_ne!(
             std::env::var("HEPHAESTUS_WGPU_REQUIRE_DEVICE").as_deref(),
             Ok("1"),
