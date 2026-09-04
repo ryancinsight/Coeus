@@ -1,27 +1,27 @@
 # Coeus Project Backlog & Historical Archives
 
-## COEUS-SEMVER-BUDGET-IDENTITY-2026-09-03 — Pin Hephaestus budget facade [patch] [arch]
+## COEUS-SEMVER-BUDGET-IDENTITY-2026-09-03 — Reunify provider identities [patch] [arch] <a id="coeus-semver-budget-identity-2026-09-03"></a>
 
-- Owner/integrator: Codex; scope: workspace Hephaestus provider revisions,
-  Cutile CUDA package requirements, and the lockfile required by PR #366.
-  Non-goals: Hephaestus provider implementation changes and CUDA/ROCm kernel
-  changes.
-- Acceptance: Coeus `Scalar` and its generic Hephaestus bridge surfaces carry
-  Eunomia `Pod`; the hosted SemVer graph resolves all Hephaestus packages to
-  the budget-facade commit `7ca992d` and shares its Eunomia/Leto/Hermes
-  identities; standalone lockfile regeneration and the affected workspace
-  gates pass; the temporary pins are removed after the provider PRs merge.
-- Status: in-progress; integrator: atlas-session; branch:
-  `refactor/coeus-hephaestus-wgpu-001`; regions: merged-provider pins and
-  `Cargo.lock`. The standalone resolver exposed the stale Cutile
-  `^0.2.0` requirements and they now target the available `0.3.1` packages;
-  Leto PR #163 is merged and its temporary revision pin is removed. Hephaestus
-  PR #270 now carries the merged-Leto/Moirai source edge at `7ca992d`. The
-  informational SemVer check also exposed stale Atlas workflow pin `fcbc520`;
-  both Coeus callers now follow Atlas `1ba4a8a`. The exact standalone Coeus
-  gates pass: check, warning-denied all-target Clippy,
-  nextest 1,359/1,359 with 8 skipped, 160 doctests with 2 ignored, warning-
-  denied rustdoc, format, lock freshness, and diff hygiene.
+- **Outcome:** keep Coeus' Hephaestus, Eunomia, Leto, Moirai, and Cutile graph
+  type-compatible while PR #366 closes the generic GPU provider seam.
+- **Scope/non-goals:** provider revisions, `Cargo.lock`, and bounded graph/
+  parity tests; Coeus CUDA/ROCm kernels remain unchanged.
+- **Acceptance:** Coeus `Scalar` and bridge surfaces carry Eunomia `Pod`; all
+  Hephaestus packages use PR #272 revision `2c6ffc2`; Cutile uses `0.3.1`;
+  standalone lock regeneration and the affected workspace gates pass. Pins
+  remain until each upstream graph converges; removing one independently
+  creates distinct same-version Rust crate identities.
+- **Status:** in-progress; integrator: atlas-session; branch:
+  `refactor/coeus-hephaestus-wgpu-001`; regions: provider manifests, lock,
+  graph-audit test, and PyTorch parity test.
+- **Evidence:** standalone check, warning-denied all-target Clippy, focused
+  graph/parity tests, format, and lock freshness pass. Hephaestus PR #272
+  fixes both absent-backend probing and the default WGPU mask at `2c6ffc2`;
+  Coeus WGPU Nextest partitions pass 58/58 and 58/58, and the focused default
+  norm regression passes in `0.767s` before the final provider revision.
+- **Residual:** the full workspace gates and hosted PR checks remain to be
+  collected after this consumer commit; the upstream provider pin remains
+  until PR #272 merges.
 
 ## COEUS-OPS-INDEX-DECODE-ALLOC-001 — Remove per-element coordinate buffers [patch]
 

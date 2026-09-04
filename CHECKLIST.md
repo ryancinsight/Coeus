@@ -1646,7 +1646,7 @@ Established a clean, warning-free compiler baseline and resolved lifetime and bo
 - [x] **Apollo FFT Integration**: Decoupled FFT operations from coeus crates, supporting them directly inside the `apollo-fft` crate in the `apollo` workspace.
 - [x] **Autograd & Optimizers**: Resolved lifetime and borrow checker errors (SGD, Adam, RMSProp step loops, and LayerNorm/BatchNorm backward closures).
 - [x] **Numerical Parity Validation**: Verified mathematical outputs (relu, matmul, reductions, FFT, sparse operations) against `ndarray` and PyTorch references inside `crates/coeus-tensor/tests/parity_tests.rs`.
-- [x] **Autodiff PyTorch Comparison**: Implemented integration benchmarks in `crates/coeus-python/tests/autodiff_comparison.rs` verifying 100% mathematical gradient parity (X, weight, and bias gradients) and measuring step time comparison.
+- [x] **Autodiff PyTorch Comparison**: Implemented a differential integration test in `crates/coeus-python/tests/binding_ops/autodiff/autodiff_comparison.rs` verifying mathematical gradient parity for X, weight, and bias. Timing belongs to the dedicated benchmark gates rather than the bounded native test runner.
 
 ---
 

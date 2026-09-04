@@ -154,10 +154,15 @@ fn production_manifests_do_not_depend_on_non_ssot_runtime_or_replacement_crates(
 fn resolved_normal_dependency_tree_excludes_non_ssot_runtime_or_replacement_crates() {
     let root = workspace_root();
     let mut violations = Vec::new();
+    let cargo_tree_directory = std::env::temp_dir();
 
     for forbidden_crate in FORBIDDEN_PRODUCTION_CRATES {
         let output = Command::new(cargo_binary())
-            .current_dir(&root)
+            // Resolve the standalone git-sourced graph rather than the Atlas
+            // overlay. The lockfile audit must be read-only; running from the
+            // workspace root lets Cargo discover the overlay and rewrite the
+            // lockfile while evaluating the tree.
+            .current_dir(&cargo_tree_directory)
             .args([
                 "tree",
                 "--quiet",
@@ -166,6 +171,9 @@ fn resolved_normal_dependency_tree_excludes_non_ssot_runtime_or_replacement_crat
                 "normal",
                 "-i",
                 forbidden_crate.manifest_name,
+                "--locked",
+                "--manifest-path",
+                root.join("Cargo.toml").to_str().unwrap(),
             ])
             .output()
             .unwrap_or_else(|error| {
