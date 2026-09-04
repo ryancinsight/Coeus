@@ -11,7 +11,9 @@
   the budget-facade commit `7ca992d` and shares its Eunomia/Leto/Hermes
   identities; standalone lockfile regeneration and the affected workspace
   gates pass; the temporary pins are removed after the provider PRs merge.
-- Status: in-progress; the standalone resolver exposed the stale Cutile
+- Status: in-progress; integrator: atlas-session; branch:
+  `refactor/coeus-hephaestus-wgpu-001`; regions: merged-provider pins and
+  `Cargo.lock`. The standalone resolver exposed the stale Cutile
   `^0.2.0` requirements and they now target the available `0.3.1` packages;
   Leto PR #163 is merged and its temporary revision pin is removed. Hephaestus
   PR #270 now carries the merged-Leto/Moirai source edge at `7ca992d`. The
