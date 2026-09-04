@@ -47,6 +47,9 @@
   all-feature CUDA compilation; `coeus-cuda` aligns its Cutile dependencies
   on the available `0.3.1` package family. See ADR-0068.
 
+- [patch] Coeus now follows Hephaestus PR #270's Leto/Moirai source identity,
+  preventing duplicate `leto::Layout` types at the provider boundary.
+
 - [patch] `coeus-wgpu` no longer sets `WGPU_BACKEND=dx12` from inside
   `try_get_wgpu_context`. Hephaestus tries DX12 before Vulkan on Windows only
   when no such variable is set, so the override disabled the path it was asking

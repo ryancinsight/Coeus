@@ -63,7 +63,9 @@ families that receive Coeus scalars.
 The Coeus-Hephaestus crate gains a direct Eunomia dependency because its public
 generic bounds name the provider-owned marker. Existing direct `cutile-rs`
 requirements move to the available `0.3.1` package set so the CUDA feature
-graph resolves as one version family. The local CUDA build requires the
+graph resolves as one version family. Hephaestus PR #270 now carries the
+merged-Leto/Moirai source-identity correction at `7ca992d`, and Coeus pins that
+revision until the provider PR lands. The local CUDA build requires the
 installed CUDA 13.3 toolkit and a DLL search path with Windows system DLLs and
 MSYS2 UCRT before Codex/miniforge native-DLL directories; this is environment
 setup, not a repository fallback.
@@ -72,10 +74,19 @@ setup, not a repository fallback.
 
 - Coeus core semver check against `origin/main`: 196 checks passed, 58 skipped;
   no semver update required.
+- Hephaestus PR #270 includes the merged-Leto/Moirai source correction at
+  `7ca992d`; its provider graph has one Leto, Moirai, and Mnemosyne source
+  identity.
 - Hephaestus, WGPU, and CUDA all-target checks and warning-denied Clippy pass.
 - Hephaestus nextest passes 7/7; WGPU nextest passes 142/142; CUDA nextest
   passes 118/118.
 - Coeus core and WGPU doctests pass 33/33 and 5/5; CUDA doctests pass 2/2.
+- The standalone Coeus workspace gates pass against the 42-source lock:
+  check, warning-denied all-target Clippy, nextest 1,359/1,359 with 8 skipped,
+  and no-default-feature doctests 160/160 with 2 ignored; warning-denied
+  rustdoc, format, lock freshness, and diff hygiene also pass. The default
+  doctest invocation still triggers Cargo's known Atlas overlay lock rewrite;
+  the no-default feature run is the valid standalone documentation evidence.
 - The Hephaestus semver baseline cannot be built against the current provider
   revision because the historical Coeus source predates the required Eunomia
   `Pod` bound; this is recorded as an upstream-coevolution baseline limitation,

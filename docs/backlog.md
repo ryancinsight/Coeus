@@ -8,11 +8,16 @@
   changes.
 - Acceptance: Coeus `Scalar` and its generic Hephaestus bridge surfaces carry
   Eunomia `Pod`; the hosted SemVer graph resolves all Hephaestus packages to
-  the budget-facade commit `076fe32` and shares its Eunomia/Leto/Hermes
+  the budget-facade commit `7ca992d` and shares its Eunomia/Leto/Hermes
   identities; standalone lockfile regeneration and the affected workspace
   gates pass; the temporary pins are removed after the provider PRs merge.
 - Status: in-progress; the standalone resolver exposed the stale Cutile
-  `^0.2.0` requirements and they now target the available `0.3.1` packages.
+  `^0.2.0` requirements and they now target the available `0.3.1` packages;
+  Leto PR #163 is merged and its temporary revision pin is removed. Hephaestus
+  PR #270 now carries the merged-Leto/Moirai source edge at `7ca992d`. The
+  exact standalone Coeus gates pass: check, warning-denied all-target Clippy,
+  nextest 1,359/1,359 with 8 skipped, 160 doctests with 2 ignored, warning-
+  denied rustdoc, format, lock freshness, and diff hygiene.
 
 ## COEUS-OPS-INDEX-DECODE-ALLOC-001 — Remove per-element coordinate buffers [patch]
 
