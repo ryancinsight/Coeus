@@ -1,5 +1,26 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-HEPHAESTUS-WGPU-FUSION-001 — Remove Coeus-owned fused WGPU kernels [patch] [arch] <a id="coeus-hephaestus-wgpu-fusion-001"></a>
+
+- **Owner:** Codex; scope: `coeus-wgpu` fused elementwise/reduction adapters,
+  the public `add` entry point, and their focused provider-contract tests.
+- **Outcome:** Hephaestus owns WGPU fusion source generation, layout metadata,
+  pipeline caching, and command submission; Coeus keeps only tensor shape and
+  expression adaptation at the provider boundary.
+- **Acceptance:** fused elementwise and reduction tests retain their value and
+  error contracts through `WgpuFusionOps`; `add` uses the canonical
+  `ElementwiseOps` route; the deleted consumer kernel files have no callers;
+  locked check, strict Clippy, focused Nextest, doctests, format, and diff
+  hygiene pass. No direct Coeus fusion pipeline or metadata implementation
+  remains.
+- **Status:** in-progress; integrator: atlas-session; branch:
+  `refactor/coeus-hephaestus-wgpu-001`; regions: `crates/coeus-wgpu/src/lib.rs`,
+  `crates/coeus-wgpu/src/fusion.rs`, `crates/coeus-wgpu/src/kernels/fuse.rs`,
+  `crates/coeus-wgpu/src/kernels/reduce.rs`, `crates/coeus-wgpu/src/kernels/mod.rs`,
+  `docs/adr/0069-provider-owned-wgpu-fusion.md`.
+- **Dependency:** Hephaestus PR #272 revision `2c6ffc2`; no downstream WGPU
+  implementation is added while the provider seam is available.
+
 ## COEUS-SEMVER-BUDGET-IDENTITY-2026-09-03 — Reunify provider identities [patch] [arch] <a id="coeus-semver-budget-identity-2026-09-03"></a>
 
 - **Outcome:** keep Coeus' Hephaestus, Eunomia, Leto, Moirai, and Cutile graph
