@@ -13,7 +13,11 @@
   locked check, strict Clippy, focused Nextest, doctests, format, and diff
   hygiene pass. No direct Coeus fusion pipeline or metadata implementation
   remains.
-- **Status:** in-progress; integrator: atlas-session; branch:
+- **Status:** review; integrator: atlas-session; implementation: `6134dad2`;
+  local exact locked gates pass: `cargo nextest` 134/134, all-target Clippy
+  with `-D warnings`, 5/5 doctests, format, diff, and the standalone lockfile
+  check. Independent architectural review and post-push PR collection remain.
+  Branch:
   `refactor/coeus-hephaestus-wgpu-001`; regions: `crates/coeus-wgpu/src/lib.rs`,
   `crates/coeus-wgpu/src/fusion.rs`, `crates/coeus-wgpu/src/backend/`,
   `crates/coeus-wgpu/src/kernels/{fuse.rs,reduce.rs,layout.rs,mod.rs}`,
