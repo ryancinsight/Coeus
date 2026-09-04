@@ -1,6 +1,6 @@
 # Coeus Project Backlog & Historical Archives
 
-## COEUS-HEPHAESTUS-CUDA-FUSION-001 — Remove Coeus-owned fused CUDA kernels [patch] [arch] <a id="coeus-hephaestus-cuda-fusion-001"></a>
+## COEUS-HEPHAESTUS-CUDA-FUSION-001 — Remove Coeus-owned fused CUDA kernels [major] [arch] <a id="coeus-hephaestus-cuda-fusion-001"></a>
 
 - **Owner:** atlas-session; scope: `coeus-cuda` fused elementwise/reduction
   adapters, consumer kernel deletion, and provider-contract tests.
@@ -11,11 +11,12 @@
   pass through `CudaFusionOps`; consumer-owned fused runtime/source/cache/
   launch code is deleted with all callers migrated; exact locked compile,
   Clippy, Nextest, doctest, format, diff, and lockfile checks pass.
-- **Status:** in-progress; integrator: atlas-session; branch:
-  `arch/coeus-hephaestus-cuda-fusion-001`; regions:
-  `crates/coeus-cuda/src/{lib.rs,fusion.rs,kernels/{fuse.rs,reduce.rs,mod.rs}}`,
-  CUDA tests, provider pin/lock, ADR 0070; dependency:
+- **Status:** review; integrator: atlas-session; branch:
+  `arch/coeus-hephaestus-cuda-fusion-001`; dependency:
   `HEPH-CUDA-FUSION-2026-09-04`.
+- **Evidence:** CUDA Nextest 103/103, no-feature Nextest 3/3, strict Clippy,
+  checks, doctests, docs, format, diff, and lockfile pass; semver reports 189
+  pass and 7 intentional major breaks.
 - **ADR claim:** next Coeus architectural record is `0070`.
 - **Last-update:** 2026-09-04.
 

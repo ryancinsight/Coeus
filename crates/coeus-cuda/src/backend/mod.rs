@@ -6,31 +6,14 @@ use std::sync::OnceLock;
 
 pub mod ops;
 
-/// Trait combining [`Scalar`] with the CUDA type-name mapping required for kernel codegen.
-pub trait CudaScalar: Scalar + leto_ops::Scalar {
-    /// CUDA C type name string used in NVRTC-compiled kernel source.
-    const CUDA_TYPE: &'static str;
-}
+/// Scalar types supported by the CUDA backend and Hephaestus fusion.
+pub trait CudaScalar: Scalar + leto_ops::Scalar + hephaestus_cuda::CudaFusionScalar {}
 
-impl CudaScalar for f32 {
-    const CUDA_TYPE: &'static str = "float";
-}
-
-impl CudaScalar for f64 {
-    const CUDA_TYPE: &'static str = "double";
-}
-
-impl CudaScalar for eunomia::F16 {
-    const CUDA_TYPE: &'static str = "__half";
-}
-
-impl CudaScalar for eunomia::Bf16 {
-    const CUDA_TYPE: &'static str = "__nv_bfloat16";
-}
-
-impl CudaScalar for i32 {
-    const CUDA_TYPE: &'static str = "int";
-}
+impl CudaScalar for f32 {}
+impl CudaScalar for f64 {}
+impl CudaScalar for eunomia::F16 {}
+impl CudaScalar for eunomia::Bf16 {}
+impl CudaScalar for i32 {}
 
 static CUDA_DEVICE: OnceLock<CudaDevice> = OnceLock::new();
 

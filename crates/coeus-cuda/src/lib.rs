@@ -45,21 +45,20 @@ pub mod driver;
 pub mod driver;
 
 #[cfg(feature = "cuda")]
-/// CUDA kernel modules and launch helpers for on-device computation.
-pub mod kernels;
-
-#[cfg(feature = "cuda")]
 mod storage;
 #[cfg(not(feature = "cuda"))]
 #[path = "storage_stub.rs"]
 mod storage;
+
+#[cfg(feature = "cuda")]
+mod fusion;
 
 pub use backend::{CudaBackend, CudaScalar};
 pub use driver::{get_cuda_context, CudaDriver};
 pub use storage::CudaStorage;
 
 #[cfg(feature = "cuda")]
-use coeus_core::{ComputeBackend, Layout};
+use coeus_core::Layout;
 use coeus_tensor::Tensor;
 
 /// Evaluate a fused element-wise expression on the CUDA device.
@@ -109,7 +108,7 @@ pub fn evaluate_fused<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend
         let out_layout = Layout::new(out_shape.clone());
         let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new());
 
-        kernels::dispatch_fused(expr, out.storage_mut(), &out_layout)?;
+        fusion::dispatch_fused(expr, out.storage_mut(), &out_layout)?;
         Ok(out)
     }
 }
@@ -183,21 +182,7 @@ pub fn evaluate_fused_reduce<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, Cuda
         let out_layout = Layout::new(out_shape.clone());
         let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new());
 
-        if axis_len == 0 {
-            let identity = match op {
-                coeus_ops::ReductionOp::Sum => T::zero(),
-                coeus_ops::ReductionOp::Prod => T::one(),
-                coeus_ops::ReductionOp::Mean
-                | coeus_ops::ReductionOp::Max
-                | coeus_ops::ReductionOp::Min => {
-                    unreachable!("invariant: undefined empty reductions were rejected")
-                }
-            };
-            CudaBackend::new().fill(out.storage_mut(), identity);
-            return Ok(out);
-        }
-
-        kernels::dispatch_fused_reduce(expr, op, axis, out.storage_mut(), &out_layout)?;
+        fusion::dispatch_fused_reduce(expr, op, axis, out.storage_mut(), &out_layout)?;
         Ok(out)
     }
 }
