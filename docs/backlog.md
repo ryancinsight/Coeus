@@ -17,6 +17,9 @@
 - **Evidence:** CUDA Nextest 103/103, no-feature Nextest 3/3, strict Clippy,
   checks, doctests, docs, format, diff, and lockfile pass; semver reports 189
   pass and 7 intentional major breaks.
+- **Delivery:** consumer PR [#368](https://github.com/ryancinsight/Coeus/pull/368)
+  depends on provider PR [#274](https://github.com/ryancinsight/hephaestus/pull/274);
+  both require independent architectural review before merge.
 - **ADR claim:** next Coeus architectural record is `0070`.
 - **Last-update:** 2026-09-04.
 
