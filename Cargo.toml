@@ -42,18 +42,15 @@ moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", version = "
 # Temporary co-evolution pin for Mnemosyne PR #123; remove `rev` after the
 # Eunomia source-identity correction merges to main and regenerate the lock.
 mnemosyne = { package = "mnemosyne-memory", git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.7.0", rev = "39d116d579826d16e2c2d1070e548a78964cdd06" }
-# Temporary co-evolution pin for Hermes PR #155; remove `rev` after the
-# unified Eunomia source identity merges to main and regenerate Cargo.lock.
-hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0.7.0", rev = "5a399ee" }
-# Keep the merged Eunomia #87 identity until all pinned Atlas consumers
-# converge on one source revision; Leto and the open Hermes/Mnemosyne paths
-# currently consume this exact revision.
-eunomia = { git = "https://github.com/ryancinsight/eunomia.git", version = "0.8.0", rev = "fdbf12275d35aa1545060a4277644c497ddcda37", default-features = false }
+# Keep the Hermes source aligned with the current Hephaestus/Leto operation
+# graph so Eunomia remains one source identity across the active providers.
+hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0.7.0" }
+# Keep the Eunomia source aligned with the current Hephaestus provider graph.
+eunomia = { git = "https://github.com/ryancinsight/eunomia", version = "0.8.0", default-features = false }
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
-# Keep the Leto identity consumed by Hephaestus and Apollo until their
-# provider graphs converge on the current main source.
-leto = { git = "https://github.com/ryancinsight/leto.git", version = "0.43.0", rev = "1caa846" }
-leto-ops = { git = "https://github.com/ryancinsight/leto.git", version = "0.43.0", rev = "1caa846" }
+# Keep the Leto source aligned with the current Hephaestus provider graph.
+leto = { git = "https://github.com/ryancinsight/leto.git", version = "0.43.0" }
+leto-ops = { git = "https://github.com/ryancinsight/leto.git", version = "0.43.0" }
 apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", version = "0.27.0", default-features = false }
 
 # ── Numerical ──
@@ -67,11 +64,11 @@ wgpu       = { version = "30.0", default-features = false, features = ["wgsl", "
 # Accelerator providers remain Git-sourced and lockfile-pinned.
 # Temporary co-evolution pin for the provider-owned fusion route; remove `rev`
 # after the Hephaestus provider change merges and regenerate Cargo.lock.
-hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "6d59a4d" }
-hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "6d59a4d" }
-hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", default-features = false, rev = "6d59a4d" }
-hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "6d59a4d" }
-hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "6d59a4d" }
+hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "5755a96" }
+hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "5755a96" }
+hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", default-features = false, rev = "5755a96" }
+hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "5755a96" }
+hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", rev = "5755a96" }
 themis = { package = "themis-topology", git = "https://github.com/ryancinsight/themis.git", version = "0.10.1" }
 melinoe = { git = "https://github.com/ryancinsight/melinoe.git", version = "0.9.0" }
 
