@@ -1,5 +1,24 @@
 # Coeus Project Backlog & Historical Archives
 
+## COEUS-HEPHAESTUS-CUDA-FUSION-001 — Remove Coeus-owned fused CUDA kernels [patch] [arch] <a id="coeus-hephaestus-cuda-fusion-001"></a>
+
+- **Owner:** atlas-session; scope: `coeus-cuda` fused elementwise/reduction
+  adapters, consumer kernel deletion, and provider-contract tests.
+- **Outcome:** Hephaestus owns CUDA fusion source generation, signed layout
+  metadata, pipeline caching, and launch; Coeus keeps tensor shape and
+  expression adaptation at the provider boundary.
+- **Acceptance:** fused CUDA elementwise/reduction value and error contracts
+  pass through `CudaFusionOps`; consumer-owned fused runtime/source/cache/
+  launch code is deleted with all callers migrated; exact locked compile,
+  Clippy, Nextest, doctest, format, diff, and lockfile checks pass.
+- **Status:** in-progress; integrator: atlas-session; branch:
+  `arch/coeus-hephaestus-cuda-fusion-001`; regions:
+  `crates/coeus-cuda/src/{lib.rs,fusion.rs,kernels/{fuse.rs,reduce.rs,mod.rs}}`,
+  CUDA tests, provider pin/lock, ADR 0070; dependency:
+  `HEPH-CUDA-FUSION-2026-09-04`.
+- **ADR claim:** next Coeus architectural record is `0070`.
+- **Last-update:** 2026-09-04.
+
 ## COEUS-HEPHAESTUS-WGPU-FUSION-001 — Remove Coeus-owned fused WGPU kernels [patch] [arch] <a id="coeus-hephaestus-wgpu-fusion-001"></a>
 
 - **Owner:** Codex; scope: `coeus-wgpu` fused elementwise/reduction adapters,
