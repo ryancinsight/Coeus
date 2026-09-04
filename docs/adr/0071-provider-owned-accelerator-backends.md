@@ -70,4 +70,4 @@ oracle; optimized accelerator results are compared with the existing Coeus
 CPU paths under their documented numerical bounds.
 
 The implementation is delivered in Coeus PR #368 against Hephaestus PR #274,
-locked to provider revision `f8811d1`.
+locked to provider revision `1d3d5df`.

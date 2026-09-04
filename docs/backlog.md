@@ -11,77 +11,38 @@
   through Hephaestus; consumer-owned CUDA/WGPU runtime/source/cache/launch code
   is deleted with all callers migrated; exact locked compile, Clippy, Nextest,
   doctest, format, diff, and lockfile checks pass.
-- **Status:** in-progress; integrator: atlas-session; branch:
-  `arch/coeus-hephaestus-cuda-fusion-001`; lease: atlas-session
-  `crates/coeus-cuda/`, `crates/coeus-hephaestus/`,
-  `crates/coeus-wgpu/`, `crates/coeus-core/src/dtype/traits.rs`,
-  `Cargo.toml`, `Cargo.lock`, and affected ADR/README/test tooling;
-  dependency: `HEPH-CUDA-FUSION-2026-09-04`.
-- **Evidence:** provider Hephaestus revision `f8811d1` passes no-feature
-  Nextest 111/111 and CUDA Nextest 177/177. Coeus passes no-feature Nextest
-  134/134 and CUDA Nextest 110/110, strict Clippy in both configurations,
-  doctests (9 no-feature, 2 CUDA), all-target checks, rustdoc, format, diff,
-  and standalone lockfile validation. The source audit finds no Coeus-owned
-  WGPU kernel tree, CUDA driver facade, PTX, direct raw `wgpu`/CUDA imports,
-  or direct `half` dependency; `half` remains only as Criterion's transitive
-  development dependency. Semver reports 189 pass and 7 intentional major
-  breaks.
+- **Status:** review; integrator: atlas-session; branch:
+  `arch/coeus-hephaestus-cuda-fusion-001`; dependency:
+  `HEPH-CUDA-FUSION-2026-09-04`.
+- **Evidence:** Hephaestus revision `1d3d5df` passes combined no-feature
+  Nextest 142/142 and CUDA Nextest 177/177. Coeus revision `4013da45` passes
+  no-feature Nextest 134/134 and CUDA Nextest 234/234, full-workspace strict
+  Clippy in both configurations, workspace doctests, rustdoc, format, diff,
+  and standalone lockfile validation. Source audit finds no Coeus-owned WGPU
+  kernel tree, CUDA driver facade, PTX, direct raw `wgpu`/CUDA imports, or
+  direct `half` dependency; reduced precision remains on Eunomia/provider
+  contracts. Semver reports 189 pass and 7 intentional major breaks.
 - **Delivery:** consumer PR [#368](https://github.com/ryancinsight/Coeus/pull/368)
-  depends on provider PR [#274](https://github.com/ryancinsight/hephaestus/pull/274);
-  conflicting WGPU PR #366 is absorbed by this branch and will not retain a
-  parallel implementation. Both provider-boundary changes require independent
-  architectural review before merge.
+  depends on provider PR [#274](https://github.com/ryancinsight/hephaestus/pull/274)
+  at `1d3d5df`; superseded WGPU PR #366 is closed after this branch update.
+  Both provider-boundary changes require independent architectural review
+  before merge.
 - **ADR claim:** `0070` covers CUDA; `0071` records the provider-owned CUDA and
   WGPU accelerator cutover.
 - **Last-update:** 2026-09-04.
 
 ## COEUS-HEPHAESTUS-WGPU-FUSION-001 — Remove Coeus-owned fused WGPU kernels [patch] [arch] <a id="coeus-hephaestus-wgpu-fusion-001"></a>
 
-- **Owner:** Codex; scope: `coeus-wgpu` fused elementwise/reduction adapters,
-  the public `add` entry point, and their focused provider-contract tests.
-- **Outcome:** Hephaestus owns WGPU fusion source generation, layout metadata,
-  pipeline caching, and command submission; Coeus keeps only tensor shape and
-  expression adaptation at the provider boundary.
-- **Acceptance:** fused elementwise and reduction tests retain their value and
-  error contracts through `WgpuFusionOps`; `add` uses the canonical
-  `ElementwiseOps` route; the deleted consumer kernel files have no callers;
-  locked check, strict Clippy, focused Nextest, doctests, format, and diff
-  hygiene pass. No direct Coeus fusion pipeline or metadata implementation
-  remains.
-- **Status:** review; integrator: atlas-session; implementation: `6134dad2`;
-  local exact locked gates pass: `cargo nextest` 134/134, all-target Clippy
-  with `-D warnings`, 5/5 doctests, format, diff, and the standalone lockfile
-  check. Independent architectural review and post-push PR collection remain.
-  Branch:
-  `refactor/coeus-hephaestus-wgpu-001`; regions: `crates/coeus-wgpu/src/lib.rs`,
-  `crates/coeus-wgpu/src/fusion.rs`, `crates/coeus-wgpu/src/backend/`,
-  `crates/coeus-wgpu/src/kernels/{fuse.rs,reduce.rs,layout.rs,mod.rs}`,
-  `docs/adr/0069-provider-owned-wgpu-fusion.md`.
-- **Dependency:** Hephaestus PR #272 revision `2c6ffc2`; no downstream WGPU
-  implementation is added while the provider seam is available.
+- **Status:** done; superseded by the combined provider-owned cutover in PR
+  [#368](https://github.com/ryancinsight/Coeus/pull/368) at `4013da45`.
+- **Outcome:** PR #366 is closed; no parallel Coeus WGPU implementation remains.
 
 ## COEUS-SEMVER-BUDGET-IDENTITY-2026-09-03 — Reunify provider identities [patch] [arch] <a id="coeus-semver-budget-identity-2026-09-03"></a>
 
-- **Outcome:** keep Coeus' Hephaestus, Eunomia, Leto, Moirai, and Cutile graph
-  type-compatible while PR #366 closes the generic GPU provider seam.
-- **Scope/non-goals:** provider revisions, `Cargo.lock`, and bounded graph/
-  parity tests; Coeus CUDA/ROCm kernels remain unchanged.
-- **Acceptance:** Coeus `Scalar` and bridge surfaces carry Eunomia `Pod`; all
-  Hephaestus packages use PR #272 revision `2c6ffc2`; Cutile uses `0.3.1`;
-  standalone lock regeneration and the affected workspace gates pass. Pins
-  remain until each upstream graph converges; removing one independently
-  creates distinct same-version Rust crate identities.
-- **Status:** in-progress; integrator: atlas-session; branch:
-  `refactor/coeus-hephaestus-wgpu-001`; regions: provider manifests, lock,
-  graph-audit test, and PyTorch parity test.
-- **Evidence:** standalone check, warning-denied all-target Clippy, focused
-  graph/parity tests, format, and lock freshness pass. Hephaestus PR #272
-  fixes both absent-backend probing and the default WGPU mask at `2c6ffc2`;
-  Coeus WGPU Nextest partitions pass 58/58 and 58/58, and the focused default
-  norm regression passes in `0.767s` before the final provider revision.
-- **Residual:** the full workspace gates and hosted PR checks remain to be
-  collected after this consumer commit; the upstream provider pin remains
-  until PR #272 merges.
+- **Status:** done; absorbed by `COEUS-HEPHAESTUS-CUDA-FUSION-001` at
+  `4013da45`, with all provider identities locked to Hephaestus `1d3d5df`.
+- **Outcome:** no Cutile or consumer GPU implementation remains in the active
+  provider graph; lock and source identity validation is owned by the combined item.
 
 ## COEUS-OPS-INDEX-DECODE-ALLOC-001 — Remove per-element coordinate buffers [patch]
 

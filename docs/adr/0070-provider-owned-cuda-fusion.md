@@ -62,7 +62,7 @@ Hephaestus provider contract tests cover runtime-rank elementwise broadcast,
 runtime-rank reduction, signed-stride reversal, empty reduction identities
 and errors, output injectivity, reduced-precision source preludes, and CUDA
 physical dispatch. Coeus's CUDA-enabled package check, focused CUDA tests, and
-full package gates run against the locked provider revision `f8811d1` from
+full package gates run against the locked provider revision `1d3d5df` from
 Hephaestus PR #274. The consumer manifest follows the provider's canonical Git
 source URLs; the lockfile pins the commits, preventing duplicate same-commit
 package identities.
