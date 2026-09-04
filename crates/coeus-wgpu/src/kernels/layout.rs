@@ -68,11 +68,6 @@ impl GpuLayoutInfo {
             strides,
         })
     }
-
-    /// Convert a core layout after its WGSL ABI bounds have been validated.
-    pub(crate) fn from_layout(layout: &coeus_core::Layout) -> Self {
-        Self::try_from_layout(layout).expect("invariant: layout fits the WGPU WGSL ABI")
-    }
 }
 
 #[cfg(test)]

@@ -15,8 +15,8 @@
   remains.
 - **Status:** in-progress; integrator: atlas-session; branch:
   `refactor/coeus-hephaestus-wgpu-001`; regions: `crates/coeus-wgpu/src/lib.rs`,
-  `crates/coeus-wgpu/src/fusion.rs`, `crates/coeus-wgpu/src/kernels/fuse.rs`,
-  `crates/coeus-wgpu/src/kernels/reduce.rs`, `crates/coeus-wgpu/src/kernels/mod.rs`,
+  `crates/coeus-wgpu/src/fusion.rs`, `crates/coeus-wgpu/src/backend/`,
+  `crates/coeus-wgpu/src/kernels/{fuse.rs,reduce.rs,layout.rs,mod.rs}`,
   `docs/adr/0069-provider-owned-wgpu-fusion.md`.
 - **Dependency:** Hephaestus PR #272 revision `2c6ffc2`; no downstream WGPU
   implementation is added while the provider seam is available.

@@ -69,3 +69,4 @@
 | [0066](0066-provider-owned-dense-product-bridge.md) | Provider-owned dense product bridge | Accepted |
 | [0067](0067-linear-default-initialisation.md) | `Linear::new` must break unit symmetry | Accepted |
 | [0068](0068-coeus-eunomia-device-layout.md) | Bind Coeus scalar storage to Eunomia device layout | Accepted |
+| [0069](0069-provider-owned-wgpu-fusion.md) | Provider-owned WGPU fusion | Accepted |

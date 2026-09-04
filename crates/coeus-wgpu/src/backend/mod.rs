@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 mod error;
 pub mod ops;
 
-pub(crate) use error::{checked_numel, checked_u32_parameter, checked_workgroup_count};
+pub(crate) use error::{checked_numel, checked_workgroup_count};
 pub use error::{LayoutError, WgpuBackendError};
 
 pub(crate) const METADATA_BUFFER_SIZE: u64 = 1024;
@@ -30,7 +30,7 @@ const METADATA_POOL_CAPACITY: usize = 64;
 /// assert_eq!(u32::WGSL_TYPE, "u32");
 /// assert_eq!(u32::WGSL_ZERO, "0u");
 /// ```
-pub trait WgpuScalar: Scalar + bytemuck::Pod {
+pub trait WgpuScalar: Scalar + hephaestus_wgpu::WgpuFusionScalar {
     /// WGSL type name string (e.g. `"f32"`).
     const WGSL_TYPE: &'static str;
     /// WGSL zero literal string (e.g. `"0.0"`).

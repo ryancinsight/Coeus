@@ -215,21 +215,9 @@ pub(crate) fn checked_numel(
     })
 }
 
-pub(crate) fn checked_u32_parameter(
-    operation: &'static str,
-    parameter: &'static str,
-    value: usize,
-) -> Result<u32, WgpuBackendError> {
-    u32::try_from(value).map_err(|_| WgpuBackendError::AbiValueOutOfRange {
-        operation,
-        parameter,
-        value,
-    })
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{checked_numel, checked_u32_parameter, checked_workgroup_count, WgpuBackendError};
+    use super::{checked_numel, checked_workgroup_count, WgpuBackendError};
     use coeus_core::BackendError;
 
     #[test]
@@ -315,21 +303,6 @@ mod tests {
                 operation: "reduction",
                 reason: "output element-count arithmetic overflow",
             }))
-        ));
-    }
-
-    #[cfg(target_pointer_width = "64")]
-    #[test]
-    fn rejects_kernel_parameters_outside_the_u32_abi() {
-        let value = usize::try_from(u64::from(u32::MAX) + 1).expect("test value fits usize");
-
-        assert!(matches!(
-            checked_u32_parameter("reduction", "axis length", value),
-            Err(WgpuBackendError::AbiValueOutOfRange {
-                operation: "reduction",
-                parameter: "axis length",
-                value: rejected,
-            }) if rejected == value
         ));
     }
 }
