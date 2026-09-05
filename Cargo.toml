@@ -37,8 +37,8 @@ categories = ["science", "mathematics", "data-structures"]
 # during development, so a worktree never creates a second package identity.
 # Keep the provider-graph identity consumed by the current Hephaestus and
 # open Mnemosyne paths until their source revisions converge.
-moirai = { package = "moirai-runtime", git = "https://github.com/ryancinsight/Moirai.git", version = "0.5.0", rev = "773c117", features = ["melinoe"] }
-moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", version = "0.5.0", rev = "773c117" }
+moirai = { package = "moirai-runtime", git = "https://github.com/ryancinsight/Moirai.git", version = "0.5.0", rev = "f532b0e", features = ["melinoe"] }
+moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", version = "0.5.0", rev = "f532b0e" }
 # Temporary co-evolution pin for Mnemosyne PR #123; remove `rev` after the
 # Eunomia source-identity correction merges to main and regenerate the lock.
 mnemosyne = { package = "mnemosyne-memory", git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.7.0", rev = "3a5f2a6e6426613fe821a52c5b1405dfe4742d57" }
