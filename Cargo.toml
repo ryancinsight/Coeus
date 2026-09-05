@@ -41,7 +41,7 @@ moirai = { package = "moirai-runtime", git = "https://github.com/ryancinsight/Mo
 moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", version = "0.5.0", rev = "773c117" }
 # Temporary co-evolution pin for Mnemosyne PR #123; remove `rev` after the
 # Eunomia source-identity correction merges to main and regenerate the lock.
-mnemosyne = { package = "mnemosyne-memory", git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.7.0", rev = "39d116d579826d16e2c2d1070e548a78964cdd06" }
+mnemosyne = { package = "mnemosyne-memory", git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.7.0", rev = "92e840b4990c12d675046863460be7d822ea2929" }
 # Keep the Hermes source aligned with the current Hephaestus/Leto operation
 # graph so Eunomia remains one source identity across the active providers.
 hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0.7.0" }
