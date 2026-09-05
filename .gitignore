@@ -83,3 +83,6 @@ docs/.doctrees/
 
 # CI/CD artifacts
 .github/workflows/*.log
+
+# Built Python wheels are release artefacts, never sources.
+*.whl

@@ -1,0 +1,65 @@
+[build-system]
+requires = ["maturin>=1.9.4,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "coeus-python"
+# Single source of truth: maturin reads the version from Cargo.toml, which
+# inherits the workspace version.
+dynamic = ["version"]
+description = "Tensors, automatic differentiation, and neural-network layers over the Coeus Rust stack"
+readme = "README.md"
+# Matches the wheel matrix in .github/workflows/python-release.yml. The
+# bindings are not abi3, so this floor is the lowest interpreter built rather
+# than an abi3 minimum.
+requires-python = ">=3.9"
+license = { text = "MIT OR Apache-2.0" }
+authors = [
+    { name = "Ryan Clanton", email = "ryanclanton@outlook.com" },
+]
+keywords = ["tensor", "autograd", "deep-learning", "neural-network", "rust"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+
+[project.optional-dependencies]
+# The parity suites difference the bindings against each framework in turn.
+test = [
+    "pytest>=7.0",
+    "numpy>=1.21",
+    "torch>=2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ryancinsight/Coeus"
+Repository = "https://github.com/ryancinsight/Coeus"
+Issues = "https://github.com/ryancinsight/Coeus/issues"
+
+[tool.maturin]
+module-name = "pycoeus"
+# The stub is not a PEP 561 inline-stub distribution — a single top-level
+# extension module has no package directory to hold `py.typed` — but shipping
+# it still gives editors that read a root-level stub the full surface.
+include = [{ path = "pycoeus.pyi", format = "wheel" }]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v"
