@@ -127,7 +127,7 @@
   implementing `Scalar` outside the workspace.
 - **Last-update:** 2026-09-06.
 
-## COEUS-STAGGERED-BACKEND-BINDING — Bind the device staggered pair [minor] — blocked <a id="coeus-staggered-backend-binding"></a>
+## COEUS-STAGGERED-BACKEND-BINDING — Bind the device staggered pair [minor] — todo <a id="coeus-staggered-backend-binding"></a>
 
 - **Outcome:** the Hephaestus-backed backend implements
   `FiniteDifference3DOps<T>`, so a consumer binding
@@ -145,10 +145,13 @@
   accelerator backend and match the CPU implementation within the derived
   reduction-order tolerance, on every axis; the adjoint identity holds through
   the seam; the taps come from the provider derivation, not a second copy.
-- **Blocked on:** `COEUS-CUTILE-REQUIREMENT-UNRESOLVABLE` — the lock cannot be
-  advanced to pick up the provider seam until that requirement resolves. The
-  Eunomia diamond that blocked this item first is closed; this is a second,
-  independent blocker found while taking the item's first step.
+- **Unblocked 2026-09-06.** Both prior blockers are cleared: the Eunomia
+  diamond closed at its root (Moirai PR #260), and the frozen lock plus the
+  provider's `Pod` contract closed together in
+  `COEUS-CUTILE-REQUIREMENT-UNRESOLVABLE` / `COEUS-HEPHAESTUS-POD-BOUND`. The
+  seam is reachable from the pin already committed: `hephaestus-core` at
+  `1779c788` exports `Staggered3DOps`, so no dependency work precedes the
+  implementation.
 - **Note the topology caveat below:** this lands in the crate
   `COEUS-SIBLING-NAMED-CRATES` renames, and moves with it.
 - **Last-update:** 2026-09-06.
