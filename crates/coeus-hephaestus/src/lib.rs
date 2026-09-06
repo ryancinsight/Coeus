@@ -17,6 +17,7 @@ mod pooling;
 mod random_init;
 mod reduction;
 mod rotate_half;
+mod staggered;
 mod stateful_update;
 mod storage;
 mod unfold_fold;
@@ -48,6 +49,10 @@ pub use reduction::{
     ScanOperation,
 };
 pub use rotate_half::{rotate_half, RotateHalfProvider};
+pub use staggered::{
+    staggered_divergence, staggered_gradient, PreparedStaggeredPair, StaggeredBackend,
+    StaggeredProvider,
+};
 pub use stateful_update::{StatefulUpdateBackend, StatefulUpdateProvider};
 pub use storage::HephaestusStorage;
 pub use unfold_fold::{

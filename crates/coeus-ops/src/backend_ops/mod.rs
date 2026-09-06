@@ -19,5 +19,5 @@ pub use traits::{
     AttentionOps, AttentionScalar, ConvOps, ConvolutionBackward, ConvolutionForward,
     CrossEntropyOps, ElementwiseOps, FiniteDifference3DOps, FiniteDifference3DScheme, MatmulOps,
     OptimizerOps, OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation, PoolOps,
-    RandomInitOps, ReductionOps, RotateHalfOps, ScalarPowerOps, UnfoldFoldOps,
+    RandomInitOps, ReductionOps, RotateHalfOps, ScalarPowerOps, StaggeredPairOps, UnfoldFoldOps,
 };
