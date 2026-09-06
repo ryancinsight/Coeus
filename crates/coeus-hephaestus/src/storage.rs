@@ -8,7 +8,7 @@ use themis::{MemoryTier, PlacementHint};
 pub struct HephaestusStorage<P, T>
 where
     P: HephaestusProvider,
-    T: bytemuck::Pod,
+    T: eunomia::Pod,
 {
     pub(crate) buffer: Arc<<P::Device as ComputeDevice>::Buffer<T>>,
     marker: PhantomData<P>,
@@ -17,7 +17,7 @@ where
 impl<P, T> Clone for HephaestusStorage<P, T>
 where
     P: HephaestusProvider,
-    T: bytemuck::Pod,
+    T: eunomia::Pod,
 {
     fn clone(&self) -> Self {
         Self {
@@ -30,7 +30,7 @@ where
 impl<P, T> HephaestusStorage<P, T>
 where
     P: HephaestusProvider,
-    T: Scalar + bytemuck::Pod,
+    T: Scalar + eunomia::Pod,
 {
     /// Adopt an initialized provider buffer without copying its contents.
     #[must_use]
@@ -81,7 +81,7 @@ where
 impl<P, T> coeus_core::storage::private::Sealed for HephaestusStorage<P, T>
 where
     P: HephaestusProvider,
-    T: bytemuck::Pod,
+    T: eunomia::Pod,
 {
 }
 
@@ -90,7 +90,7 @@ where
 unsafe impl<P, T> Send for HephaestusStorage<P, T>
 where
     P: HephaestusProvider,
-    T: bytemuck::Pod + Send,
+    T: eunomia::Pod + Send,
 {
 }
 
@@ -99,14 +99,14 @@ where
 unsafe impl<P, T> Sync for HephaestusStorage<P, T>
 where
     P: HephaestusProvider,
-    T: bytemuck::Pod + Sync,
+    T: eunomia::Pod + Sync,
 {
 }
 
 impl<P, T> Storage<T> for HephaestusStorage<P, T>
 where
     P: HephaestusProvider,
-    T: Scalar + bytemuck::Pod,
+    T: Scalar + eunomia::Pod,
 {
     fn len(&self) -> usize {
         self.buffer.len()
@@ -124,7 +124,7 @@ where
 impl<P, T> StorageMut<T> for HephaestusStorage<P, T>
 where
     P: HephaestusProvider,
-    T: Scalar + bytemuck::Pod,
+    T: Scalar + eunomia::Pod,
 {
     fn try_as_mut_slice(&mut self) -> Option<&mut [T]> {
         None
@@ -176,7 +176,7 @@ mod tests {
     }
 
     #[derive(Debug, Clone)]
-    struct TestBuffer<T: bytemuck::Pod> {
+    struct TestBuffer<T: eunomia::Pod> {
         bytes: Arc<Mutex<Vec<u8>>>,
         len: usize,
         tier: MemoryTier,
@@ -184,7 +184,7 @@ mod tests {
         marker: PhantomData<T>,
     }
 
-    impl<T: bytemuck::Pod> DeviceBuffer<T> for TestBuffer<T> {
+    impl<T: eunomia::Pod> DeviceBuffer<T> for TestBuffer<T> {
         fn len(&self) -> usize {
             self.len
         }
@@ -200,14 +200,14 @@ mod tests {
     #[derive(Debug, Clone, Copy, Default)]
     struct TestDevice;
 
-    fn byte_len<T: bytemuck::Pod>(len: usize) -> hephaestus_core::Result<usize> {
+    fn byte_len<T: eunomia::Pod>(len: usize) -> hephaestus_core::Result<usize> {
         len.checked_mul(std::mem::size_of::<T>())
             .ok_or_else(|| HephaestusError::AllocationFailed {
                 message: "test buffer size overflow".to_owned(),
             })
     }
 
-    fn empty_buffer<T: bytemuck::Pod>(
+    fn empty_buffer<T: eunomia::Pod>(
         len: usize,
         tier: MemoryTier,
         initialization: TestInitialization,
@@ -225,7 +225,7 @@ mod tests {
         })
     }
 
-    fn require_len<T: bytemuck::Pod>(
+    fn require_len<T: eunomia::Pod>(
         buffer: &TestBuffer<T>,
         len: usize,
     ) -> hephaestus_core::Result<()> {
@@ -240,7 +240,7 @@ mod tests {
     }
 
     impl ComputeDevice for TestDevice {
-        type Buffer<T: bytemuck::Pod> = TestBuffer<T>;
+        type Buffer<T: eunomia::Pod> = TestBuffer<T>;
 
         fn backend_name(&self) -> &'static str {
             "test"
@@ -250,7 +250,7 @@ mod tests {
             None
         }
 
-        fn alloc_zeroed_with_hint<T: bytemuck::Pod>(
+        fn alloc_zeroed_with_hint<T: eunomia::Pod>(
             &self,
             len: usize,
             hint: PlacementHint,
@@ -265,7 +265,7 @@ mod tests {
             )
         }
 
-        fn alloc_uninitialized_with_hint<T: bytemuck::Pod>(
+        fn alloc_uninitialized_with_hint<T: eunomia::Pod>(
             &self,
             len: usize,
             hint: PlacementHint,
@@ -280,7 +280,7 @@ mod tests {
             )
         }
 
-        fn upload_with_hint<T: bytemuck::Pod>(
+        fn upload_with_hint<T: eunomia::Pod>(
             &self,
             host: &[T],
             hint: PlacementHint,
@@ -290,7 +290,7 @@ mod tests {
             Ok(buffer)
         }
 
-        fn download<T: bytemuck::Pod>(
+        fn download<T: eunomia::Pod>(
             &self,
             buffer: &Self::Buffer<T>,
             out: &mut [T],
@@ -303,11 +303,11 @@ mod tests {
                 .map_err(|_| HephaestusError::TransferFailed {
                     message: "test buffer lock poisoned".to_owned(),
                 })?;
-            bytemuck::cast_slice_mut(out).copy_from_slice(&bytes);
+            eunomia::layout::cast_slice_mut(out).copy_from_slice(&bytes);
             Ok(())
         }
 
-        fn write_buffer<T: bytemuck::Pod>(
+        fn write_buffer<T: eunomia::Pod>(
             &self,
             buffer: &Self::Buffer<T>,
             host: &[T],
@@ -319,11 +319,11 @@ mod tests {
                 .map_err(|_| HephaestusError::TransferFailed {
                     message: "test buffer lock poisoned".to_owned(),
                 })?;
-            bytes.copy_from_slice(bytemuck::cast_slice(host));
+            bytes.copy_from_slice(eunomia::layout::cast_slice(host));
             Ok(())
         }
 
-        fn write_sub_buffer<T: bytemuck::Pod>(
+        fn write_sub_buffer<T: eunomia::Pod>(
             &self,
             buffer: &Self::Buffer<T>,
             offset: usize,
@@ -348,12 +348,12 @@ mod tests {
                     message: "test buffer lock poisoned".to_owned(),
                 })?;
             let start_bytes = offset * std::mem::size_of::<T>();
-            let host_bytes = bytemuck::cast_slice(host);
+            let host_bytes = eunomia::layout::cast_slice(host);
             bytes[start_bytes..start_bytes + host_bytes.len()].copy_from_slice(host_bytes);
             Ok(())
         }
 
-        fn copy_buffer<T: bytemuck::Pod>(
+        fn copy_buffer<T: eunomia::Pod>(
             &self,
             src: &Self::Buffer<T>,
             dst: &Self::Buffer<T>,

@@ -48,7 +48,7 @@ pub enum ScanOperation {
 }
 
 /// Dispatches Coeus reduction requests through one Hephaestus axis seam.
-pub trait AxisReductionDispatch<D: ComputeDevice, T: bytemuck::Pod> {
+pub trait AxisReductionDispatch<D: ComputeDevice, T: eunomia::Pod> {
     /// Execute one Coeus reduction operation.
     fn reduce(
         device: &D,
@@ -62,7 +62,7 @@ pub trait AxisReductionDispatch<D: ComputeDevice, T: bytemuck::Pod> {
 impl<D, T, R> AxisReductionDispatch<D, T> for R
 where
     D: ComputeDevice,
-    T: bytemuck::Pod
+    T: eunomia::Pod
         + hephaestus_core::DialectScalar<R::Dialect>
         + OpIdentity<SumOp>
         + OpIdentity<hephaestus_core::ProdOp>
@@ -101,7 +101,7 @@ where
 }
 
 /// Dispatches Coeus scans through one Hephaestus scan seam.
-pub trait ScanDispatch<D: ComputeDevice, T: bytemuck::Pod> {
+pub trait ScanDispatch<D: ComputeDevice, T: eunomia::Pod> {
     /// Execute one Coeus scan operation.
     fn scan(
         device: &D,
@@ -116,7 +116,7 @@ pub trait ScanDispatch<D: ComputeDevice, T: bytemuck::Pod> {
 impl<D, T, S> ScanDispatch<D, T> for S
 where
     D: ComputeDevice,
-    T: bytemuck::Pod
+    T: eunomia::Pod
         + hephaestus_core::DialectScalar<S::Dialect>
         + OpIdentity<hephaestus_core::CumSumOp>
         + OpIdentity<hephaestus_core::CumProdOp>
@@ -208,7 +208,7 @@ pub struct HephaestusBackend<P>(std::marker::PhantomData<P>);
 struct ScanRequest<'a, P, T>
 where
     P: HephaestusProvider,
-    T: bytemuck::Pod,
+    T: eunomia::Pod,
 {
     input: &'a HephaestusStorage<P, T>,
     input_layout: &'a Layout,

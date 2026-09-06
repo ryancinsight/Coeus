@@ -18,5 +18,9 @@ hephaestus-core = { workspace = true }
 leto = { workspace = true }
 leto-ops = { workspace = true }
 bytemuck = { workspace = true }
+# Eunomia owns the datatype law the provider's buffer contract is stated in
+# (`ComputeDevice::Buffer<T: Pod>`); bytemuck above remains for the byte-cast
+# helpers the test doubles use.
+eunomia = { workspace = true }
 themis = { workspace = true }
 thiserror = { workspace = true }

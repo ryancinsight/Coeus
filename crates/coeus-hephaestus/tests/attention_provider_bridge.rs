@@ -3,13 +3,13 @@ use std::sync::{
     Mutex,
 };
 
-use bytemuck::Pod;
 use coeus_core::Layout;
 use coeus_hephaestus::{
     AttentionProvider, HephaestusBackend, HephaestusBackendError, HephaestusProvider,
     HephaestusStorage,
 };
 use coeus_ops::AttentionOps as CoeusAttentionOps;
+use eunomia::Pod;
 use hephaestus_core::{
     AttentionBackwardOperands, AttentionCausality, AttentionForwardOperands,
     AttentionOps as HephaestusAttentionOps, ComputeDevice, DeviceBuffer, HephaestusError,
