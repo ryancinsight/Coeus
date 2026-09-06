@@ -6,16 +6,12 @@
 //! binds the trait, not a device.
 
 use coeus_core::{ComputeBackend, Layout, SequentialBackend};
-use coeus_ops::{FiniteDifferenceAxis, StaggeredPairOps};
+use coeus_ops::{Axis, StaggeredPairOps};
 use coeus_tensor::Tensor;
 use coeus_wgpu::WgpuBackend;
 
 const SHAPE: [usize; 3] = [8, 6, 10];
-const AXES: [FiniteDifferenceAxis; 3] = [
-    FiniteDifferenceAxis::X,
-    FiniteDifferenceAxis::Y,
-    FiniteDifferenceAxis::Z,
-];
+const AXES: [Axis; 3] = [Axis::X, Axis::Y, Axis::Z];
 const SPACING: [f32; 3] = [1.5e-3, 2.5e-3, 0.5e-3];
 
 fn cells() -> usize {
@@ -57,11 +53,7 @@ fn assert_close(actual: &[f32], expected: &[f32], what: &str) {
     }
 }
 
-fn through_both(
-    axis: FiniteDifferenceAxis,
-    order: usize,
-    divergence: bool,
-) -> (Vec<f32>, Vec<f32>) {
+fn through_both(axis: Axis, order: usize, divergence: bool) -> (Vec<f32>, Vec<f32>) {
     let sequential = SequentialBackend;
     let wgpu = WgpuBackend::new();
     let host = field();
@@ -240,7 +232,7 @@ fn wgpu_staggered_rejects_a_grid_thinner_than_the_stencil() {
     assert!(StaggeredPairOps::<f32>::staggered_gradient(
         &wgpu,
         &pair,
-        FiniteDifferenceAxis::X,
+        Axis::X,
         &input,
         &thin_layout,
         &mut output,

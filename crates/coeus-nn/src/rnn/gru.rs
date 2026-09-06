@@ -31,7 +31,7 @@ pub struct GRUCell<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBacke
     pub hidden_size: usize,
 }
 
-impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default> GRUCell<T, B> {
+impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> GRUCell<T, B> {
     /// Create with Kaiming-initialized weights and zero biases.
     ///
     /// # Errors
@@ -115,7 +115,7 @@ impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default>
     }
 }
 
-impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for GRUCell<T, B>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -166,7 +166,7 @@ pub struct Gru<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> 
     pub hidden_size: usize,
 }
 
-impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default> Gru<T, B>
+impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Gru<T, B>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -224,7 +224,7 @@ where
     }
 }
 
-impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for Gru<T, B>
 where
     B::DeviceBuffer<T>:

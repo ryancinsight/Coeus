@@ -22,7 +22,7 @@ fn assert_values<T: Scalar>(got: &[T], expected: &[T], context: &str) {
 
 fn check_backend<T, B>(backend: &B)
 where
-    T: coeus_core::Float + coeus_leto::RandomScalar,
+    T: coeus_core::Float + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::RandomInitOps<T> + ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -68,7 +68,7 @@ where
 // kaiming_normal std_dev: sigma = sqrt(2 / fan_in)
 fn check_kaiming<T, B>(backend: &B)
 where
-    T: coeus_core::Float + coeus_leto::RandomScalar,
+    T: coeus_core::Float + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::RandomInitOps<T> + ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -117,7 +117,7 @@ fn moirai_initializers_match_leto_dispatch() {
 // xavier_normal std_dev: sigma = sqrt(2 / (fan_in + fan_out))
 fn check_xavier<T, B>(backend: &B)
 where
-    T: coeus_core::Float + coeus_leto::RandomScalar,
+    T: coeus_core::Float + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::RandomInitOps<T> + ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

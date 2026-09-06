@@ -39,7 +39,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> SwiGlu<T, B> {
         bias: bool,
     ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
-        T: coeus_leto::RandomScalar,
+        T: coeus_leto::RealScalar,
         B: coeus_ops::RandomInitOps<T>,
     {
         Ok(Self {

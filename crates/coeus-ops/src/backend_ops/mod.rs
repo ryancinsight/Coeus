@@ -14,7 +14,7 @@ pub mod traits;
 pub use cpu_impl::CpuBackend;
 pub use ops::{BinaryOp, ReductionOp, UnaryOp};
 pub use trait_def::BackendOps;
-pub use traits::Axis as FiniteDifferenceAxis;
+pub use traits::Axis;
 pub use traits::{
     AttentionOps, AttentionScalar, ConvOps, ConvolutionBackward, ConvolutionForward,
     CrossEntropyOps, ElementwiseOps, FiniteDifference3DOps, FiniteDifference3DScheme, MatmulOps,

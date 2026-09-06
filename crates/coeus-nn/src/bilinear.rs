@@ -127,7 +127,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Bilinear<T, B> {
         bias: bool,
     ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
-        T: coeus_leto::RandomScalar,
+        T: coeus_leto::RealScalar,
         B: coeus_ops::RandomInitOps<T>,
     {
         let backend = B::default();
@@ -172,7 +172,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Bilinear<T, B> {
     }
 }
 
-impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for Bilinear<T, B>
 where
     B::DeviceBuffer<T>:
