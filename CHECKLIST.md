@@ -1,5 +1,54 @@
 # Coeus Development Roadmap Checklist
 
+## COEUS-STAGGERED-BACKEND-BINDING — Bind the device staggered pair [minor] — todo <a id="coeus-staggered-backend-binding"></a>
+
+- **Outcome:** the Hephaestus-backed backend implements
+  `FiniteDifference3DOps<T>`, so a consumer binding
+  `<B: ComputeBackend + FiniteDifference3DOps<T>>` reaches a GPU staggered pair
+  through the same call sites the CPU implementation already serves. Completes
+  the seam Coeus PR #369 opened with only a CPU side.
+- **Now unblocked:** the Eunomia version diamond that broke `coeus-hephaestus`
+  on `eunomia::layout::marker::Pod` closed on 2026-09-06 at its root — an
+  expired Mnemosyne quarantine in Moirai (Moirai PR #260). Advancing the lock
+  is the first step of this item.
+- **Provider surface it binds:** `hephaestus_core::Staggered3DOps<D>` with
+  `Staggered3DParams`, implemented for WGPU and Metal (hephaestus PR #275) and
+  CUDA (PR #279). ROCm is parked upstream for want of a device.
+- **Acceptance:** the seam's existing contract tests instantiate against the
+  accelerator backend and match the CPU implementation within the derived
+  reduction-order tolerance, on every axis; the adjoint identity holds through
+  the seam; the taps come from the provider derivation, not a second copy.
+- **Note the topology caveat below:** this lands in the crate
+  `COEUS-SIBLING-NAMED-CRATES` renames, and moves with it.
+- **Last-update:** 2026-09-06.
+
+## COEUS-SIBLING-NAMED-CRATES — Crates named after their dependencies [minor] [arch] — todo <a id="coeus-sibling-named-crates"></a>
+
+- **Finding:** `coeus-leto` and `coeus-hephaestus` name stack members. The
+  agent instruction set now states the rule directly: "A stack member's name
+  never appears in another member's crate, module, feature, or item names:
+  `<host>-<sibling>` names an adapter after its dependency — implementation-source
+  naming — and reuses the sibling's identity for a second concept, so
+  `git grep <sibling>` matches both, and the name rots on the sibling's rename
+  or replacement." A crate is named for its concern; the dependency is a
+  manifest fact.
+- **Scope:** the two sibling-named crates. `coeus-cuda`, `coeus-rocm`,
+  `coeus-metal`, and `coeus-wgpu` name vendors rather than stack members, and
+  their thinning is already decided by
+  [ADR 0071](docs/adr/0071-provider-owned-accelerator-backends.md) — this item
+  does not re-open that; it addresses the names ADR 0071 leaves standing.
+- **Recommended target (for the ADR this item drafts):** name each crate for
+  the concern it owns — the CPU array adaptation and the accelerator
+  adaptation — so the manifest, not the crate name, records which provider
+  supplies it. A rename is a mechanical transform over every call site in one
+  change (no re-export bridge), and it is `[minor]` for consumers only because
+  the crate names are the published surface.
+- **Why filed rather than executed now:** it is `[arch]`, so an ADR with a
+  recommended option is its first planning step, and it touches the crate
+  topology `COEUS-STAGGERED-BACKEND-BINDING` is about to add code to —
+  sequencing the binding first keeps the rename a pure move.
+- **Last-update:** 2026-09-06.
+
 ## COEUS-ALLOC-BUDGET-INTERMITTENT — the scatter_add allocation budget fails intermittently on Linux CI [patch] — todo
 
 - **Observed:** `scatter_add_allocation_count_is_independent_of_index_size`
