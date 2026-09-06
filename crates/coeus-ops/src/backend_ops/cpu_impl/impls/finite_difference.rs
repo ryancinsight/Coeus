@@ -1,10 +1,12 @@
 use super::super::finite_difference::{self, FdScalar};
 use super::super::CpuBackend;
-use crate::backend_ops::traits::{Axis, FiniteDifference3DOps, FiniteDifference3DScheme};
+use crate::backend_ops::traits::{
+    Axis, FiniteDifference3DOps, FiniteDifference3DScheme, StaggeredPairOps,
+};
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Layout};
 use leto_ops::StaggeredLeapfrog3D;
 
-impl<T: FdScalar, B: CpuBackend> FiniteDifference3DOps<T> for B
+impl<T: FdScalar, B: CpuBackend> StaggeredPairOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -63,7 +65,12 @@ where
             output_layout,
         )
     }
+}
 
+impl<T: FdScalar, B: CpuBackend> FiniteDifference3DOps<T> for B
+where
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
     #[inline]
     fn finite_difference(
         &self,

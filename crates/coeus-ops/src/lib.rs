@@ -23,7 +23,7 @@ pub use backend_ops::{
     ConvolutionForward, CpuBackend, CrossEntropyOps, ElementwiseOps, FiniteDifference3DOps,
     FiniteDifference3DScheme, FiniteDifferenceAxis, MatmulOps, OptimizerOps, OptimizerStateRef,
     OptimizerStepRule, OptimizerStepValidation, PoolOps, RandomInitOps, ReductionOp, ReductionOps,
-    RotateHalfOps, ScalarPowerOps, UnaryOp, UnfoldFoldOps,
+    RotateHalfOps, ScalarPowerOps, StaggeredPairOps, UnaryOp, UnfoldFoldOps,
 };
 /// Element-wise binary operations (add, sub, mul, div).
 pub mod binary;

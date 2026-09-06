@@ -127,7 +127,7 @@
   implementing `Scalar` outside the workspace.
 - **Last-update:** 2026-09-06.
 
-## COEUS-STAGGERED-BACKEND-BINDING — Bind the device staggered pair [minor] — todo <a id="coeus-staggered-backend-binding"></a>
+## COEUS-STAGGERED-BACKEND-BINDING — Bind the device staggered pair [major] — review <a id="coeus-staggered-backend-binding"></a>
 
 - **Outcome:** the Hephaestus-backed backend implements
   `FiniteDifference3DOps<T>`, so a consumer binding
@@ -154,6 +154,59 @@
   implementation.
 - **Note the topology caveat below:** this lands in the crate
   `COEUS-SIBLING-NAMED-CRATES` renames, and moves with it.
+- **Delivered 2026-09-06.** `coeus_ops::StaggeredPairOps` is implemented for the
+  Hephaestus-backed backend and for the WGPU backend, so one call site reaches
+  either device. Generic machinery lives once in `coeus-hephaestus::staggered`
+  (provider marker, backend binding, layout-to-parameters dispatch); the WGPU
+  crate supplies only its provider wiring.
+- **The trait was split, not extended.** `FiniteDifference3DOps` bundled the
+  fixed central/Yee schemes with the staggered pair, and the two capabilities do
+  not arrive together: the provider has the pair and not the fixed 3-D family.
+  Keeping them bundled would have obliged the accelerator backend to supply a
+  body for what it cannot do, which is a mock wearing a trait impl. The pair is
+  now `StaggeredPairOps`; the CPU backend implements both.
+- **`f32` at the accelerator boundary.** The provider states the pair in `f32`
+  because WGSL does not guarantee `f64` storage, so the device impl binds that
+  scalar concretely. A generic impl there would be falsely generic; the CPU
+  impl stays generic over `T`.
+- **Taps derive once.** `PreparedStaggeredPair` holds the compiled kernels and
+  the provider-derived taps. The grid is deliberately not part of preparation:
+  the provider's parameter block binds dimensions and axis with the taps, and
+  both are known only at dispatch, from the operand layout and the caller's axis.
+- **Evidence, on a live adapter:** four tests call the same trait methods on the
+  CPU backend and the WGPU backend and compare — gradient and divergence on
+  every axis at orders 2 and 4, the adjoint identity measured on the device's
+  own outputs with a non-degeneracy guard, and the typed rejection of a grid
+  thinner than the stencil. **4/4.** Gate: `cargo fmt --check`,
+  `cargo check --locked -p coeus-cuda --no-default-features --all-targets`,
+  `cargo clippy --locked --workspace --all-targets -- -D warnings`,
+  `cargo nextest run --locked --workspace --exclude coeus-python --exclude
+  coeus-wgpu` **1141/1141**, `cargo test --locked --doc --workspace ...`,
+  `cargo doc --locked --workspace --no-deps` warning-free.
+- **The seam tests were proven live:** mapping `Axis::X` to the provider's `Y`
+  failed the gradient differential, the divergence differential, and the
+  thin-grid rejection. The adjoint clause correctly stayed green — the identity
+  holds for any *consistent* axis choice, since both operators used the same
+  wrong one, which is precisely why the differential and the adjoint check
+  different things and both are kept.
+- **CUDA and Metal wiring deferred, with a reason:** each is the same ~80 lines
+  of provider wiring, neither is verifiable on this host, and ADR 0071's
+  thinning of the vendor crates may remove the per-crate duplication entirely.
+  Writing three unverifiable near-copies ahead of a decided refactor is work the
+  refactor deletes. Filed as `COEUS-STAGGERED-VENDOR-WIRING`.
+- **Last-update:** 2026-09-06.
+
+## COEUS-STAGGERED-VENDOR-WIRING — Bind the remaining vendor backends [minor] — todo <a id="coeus-staggered-vendor-wiring"></a>
+
+- **Outcome:** `StaggeredPairOps<f32>` for the CUDA and Metal backends, whose
+  Hephaestus providers already have the kernels (`CudaStaggered3DOps`,
+  `MetalStaggered3DOps`). ROCm has no provider kernels yet and is upstream work.
+- **Sequencing:** check ADR 0071's vendor-crate thinning first. Each backend
+  currently needs its own `StaggeredBackend` and `StaggeredPairOps` impl because
+  it is a standalone backend type rather than `HephaestusBackend<P>`; if the
+  thinning collapses that, the wiring is one impl instead of three.
+- **Verification:** CUDA is verifiable on a host with a working `libclang` for
+  `cuda-bindings`; Metal needs Apple hardware or the container CI job.
 - **Last-update:** 2026-09-06.
 
 ## COEUS-SIBLING-NAMED-CRATES — Crates named after their dependencies [minor] [arch] — todo <a id="coeus-sibling-named-crates"></a>

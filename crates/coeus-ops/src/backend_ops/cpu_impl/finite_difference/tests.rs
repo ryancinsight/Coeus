@@ -6,7 +6,7 @@
 //! recomputation) and the adjoint identity the FDTD leapfrog rests on.
 
 use super::*;
-use crate::backend_ops::traits::FiniteDifference3DOps;
+use crate::backend_ops::traits::{FiniteDifference3DOps, StaggeredPairOps};
 use coeus_core::{ComputeBackend, CpuAddressableStorage, Layout, SequentialBackend};
 
 const SHAPE: [usize; 3] = [6, 5, 7];

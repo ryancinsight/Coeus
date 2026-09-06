@@ -27,11 +27,18 @@ use coeus_core::{ComputeBackend, Layout, Scalar};
 
 pub use leto_ops::{Axis, FiniteDifference3DScheme};
 
-/// Three-dimensional first-derivative stencils.
+/// The staggered gradient/divergence pair at arbitrary even order.
+///
+/// Split from [`FiniteDifference3DOps`] because the two capabilities do not
+/// arrive together: an accelerator can serve this pair — the operator an FDTD
+/// leapfrog actually runs — long before it has the fixed central and Yee
+/// schemes. Bundling them would oblige such a backend to supply a body for
+/// what it cannot do, and a body that returns an error is a mock wearing a
+/// trait impl.
 ///
 /// Buffers are row-major `[nx, ny, nz]` fields. Every method writes into a
 /// caller-supplied destination; none allocates.
-pub trait FiniteDifference3DOps<T: Scalar>: ComputeBackend {
+pub trait StaggeredPairOps<T: Scalar>: ComputeBackend {
     /// Backend-side form of a prepared staggered gradient/divergence pair.
     type StaggeredPair;
 
@@ -84,7 +91,15 @@ pub trait FiniteDifference3DOps<T: Scalar>: ComputeBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error>;
+}
 
+/// Fixed-scheme three-dimensional first derivatives.
+///
+/// The central and Yee families whose coefficients are fixed by the scheme
+/// rather than derived per order. A backend implements this when it has those
+/// kernels; the staggered pair is [`StaggeredPairOps`], which arrives first on
+/// an accelerator.
+pub trait FiniteDifference3DOps<T: Scalar>: ComputeBackend {
     /// Fixed-scheme first derivative along `axis`.
     ///
     /// The central schemes keep the field's shape; the staggered schemes

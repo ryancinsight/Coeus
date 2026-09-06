@@ -8,5 +8,6 @@ mod parity;
 mod pool1d;
 mod pooling;
 mod reduction;
+mod staggered;
 mod transfers_and_matmul;
 mod unfold_fold;
