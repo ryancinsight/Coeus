@@ -29,7 +29,45 @@
   trigger. The first is preferred — a pin against a moving third-party branch
   is what produced this — and ADR 0071's thinning of the vendor crates may
   reduce how much of the `0.3` surface is actually touched.
+- **Probed 2026-09-06, and the fix works:** widening the three requirements to
+  `0.3.1` makes `scripts/lockfile.py --regenerate` succeed — the lock is
+  resolvable again. Two things surface behind it, so the widening is filed
+  rather than landed half-verified:
+  1. `cuda-bindings 0.3.1`'s build script needs `libclang`, which this Windows
+     host does not provide, so `--features cuda` cannot be compiled here. Not a
+     version-change defect: CI checks `coeus-cuda --no-default-features` on the
+     normal runners and the real feature inside an `nvidia/cuda` container, so
+     this is a local coverage limit to state, not a blocker.
+  2. With the lock regenerated, `coeus-hephaestus` fails to compile with 246
+     errors of the form ``the trait bound `T: eunomia::layout::marker::Pod` is
+     not satisfied``, rustc noting "`T` implements similarly named trait
+     `bytemuck::Pod`". This is **not** the Eunomia diamond — the lock holds
+     exactly one Eunomia — it is a co-evolution gap: `hephaestus-core` at
+     `425bdc05` tightened `ComputeDevice::Buffer<T: Pod>` to Eunomia's marker
+     and Coeus's generic bounds have not followed.
+- **Splits into:** the requirement widening (this item) and
+  `COEUS-HEPHAESTUS-POD-BOUND` below, which the widening exposes and which is
+  the real remaining work.
 - **Blocks:** `COEUS-STAGGERED-BACKEND-BINDING`.
+- **Last-update:** 2026-09-06.
+
+## COEUS-HEPHAESTUS-POD-BOUND — Follow the provider's tightened buffer bound [patch] — todo <a id="coeus-hephaestus-pod-bound"></a>
+
+- **Symptom:** advancing the Hephaestus pin to `425bdc05` or later fails
+  `coeus-hephaestus` with 246 errors of ``the trait bound
+  `T: eunomia::layout::marker::Pod` is not satisfied``, at
+  `convolution/provider.rs`, `elementwise/dispatch.rs`, `matmul/provider.rs`
+  and their siblings.
+- **Cause:** `hephaestus_core::ComputeDevice::Buffer<T: Pod>` now requires
+  Eunomia's `Pod` marker — the stack's datatype law — where Coeus's generic
+  functions bound only `T: Scalar + leto_ops::Scalar`. rustc names the fix at
+  every site: add `eunomia::layout::marker::Pod` to the bound.
+- **Scope:** propagate the bound through the generic surface of
+  `coeus-hephaestus`. Mechanical, but wide; ADR 0071's thinning of that crate
+  may shrink the surface first, so check the sequencing before starting.
+- **Why it is blocking now:** every first-party lock advance in Coeus goes
+  through a Hephaestus revision at or past `425bdc05`, so this gates the
+  staggered binding as much as the cutile requirement does.
 - **Last-update:** 2026-09-06.
 
 ## COEUS-STAGGERED-BACKEND-BINDING — Bind the device staggered pair [minor] — blocked <a id="coeus-staggered-backend-binding"></a>
