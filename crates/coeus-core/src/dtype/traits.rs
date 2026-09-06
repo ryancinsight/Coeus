@@ -322,7 +322,9 @@ pub trait CpuUnaryDispatch: private::Sealed {
 /// f32::axpy_slice(2.0, &a, &mut acc);
 /// assert_eq!(acc, [12.0, 14.0, 16.0]); // 10 + 2*[1,2,3]
 /// ```
-pub trait Scalar: NumericElement + CpuUnaryDispatch + Pod + Rem<Output = Self> + Clone {
+pub trait Scalar:
+    NumericElement + CpuUnaryDispatch + Pod + eunomia::Pod + Rem<Output = Self> + Clone
+{
     /// Additive identity.
     fn zero() -> Self;
 

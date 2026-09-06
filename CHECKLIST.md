@@ -1,6 +1,6 @@
 # Coeus Development Roadmap Checklist
 
-## COEUS-CUTILE-REQUIREMENT-UNRESOLVABLE — the lock cannot be advanced [patch] — todo <a id="coeus-cutile-requirement-unresolvable"></a>
+## COEUS-CUTILE-REQUIREMENT-UNRESOLVABLE — the lock cannot be advanced [patch] — review <a id="coeus-cutile-requirement-unresolvable"></a>
 
 - **Symptom:** any resolution that re-resolves the whole graph fails with
   `failed to select a version for the requirement cuda-async = "^0.2.0";
@@ -29,7 +29,102 @@
   trigger. The first is preferred — a pin against a moving third-party branch
   is what produced this — and ADR 0071's thinning of the vendor crates may
   reduce how much of the `0.3` surface is actually touched.
+- **Probed 2026-09-06, and the fix works:** widening the three requirements to
+  `0.3.1` makes `scripts/lockfile.py --regenerate` succeed — the lock is
+  resolvable again. Two things surface behind it, so the widening is filed
+  rather than landed half-verified:
+  1. `cuda-bindings 0.3.1`'s build script needs `libclang`, which this Windows
+     host does not provide, so `--features cuda` cannot be compiled here. Not a
+     version-change defect: CI checks `coeus-cuda --no-default-features` on the
+     normal runners and the real feature inside an `nvidia/cuda` container, so
+     this is a local coverage limit to state, not a blocker.
+  2. With the lock regenerated, `coeus-hephaestus` fails to compile with 246
+     errors of the form ``the trait bound `T: eunomia::layout::marker::Pod` is
+     not satisfied``, rustc noting "`T` implements similarly named trait
+     `bytemuck::Pod`". This is **not** the Eunomia diamond — the lock holds
+     exactly one Eunomia — it is a co-evolution gap: `hephaestus-core` at
+     `425bdc05` tightened `ComputeDevice::Buffer<T: Pod>` to Eunomia's marker
+     and Coeus's generic bounds have not followed.
+- **Delivered 2026-09-06:** the three requirements move to `0.3.1` and the lock
+  regenerates. `--features cuda` still cannot be compiled on this Windows host —
+  `cuda-bindings 0.3.1`'s build script needs `libclang` — which is a local
+  coverage limit, not a version-change defect: CI checks
+  `coeus-cuda --no-default-features` on the normal runners and the real feature
+  inside an `nvidia/cuda` container, and
+  `cargo check --locked -p coeus-cuda --no-default-features --all-targets`
+  passes here.
+- **Lockfile-script finding:** `scripts/lockfile.py --regenerate` resolves a
+  narrower set than `cargo doc --workspace` needs, so its output failed the doc
+  targets under `--locked` until the resolution was iterated to a fixpoint (two
+  passes). The lock landing here is that fixpoint. Filed separately below as
+  `COEUS-LOCKFILE-SCRIPT-NARROW`, since a regeneration whose output the gate
+  then rejects is what made this lock fragile in the first place.
 - **Blocks:** `COEUS-STAGGERED-BACKEND-BINDING`.
+- **Last-update:** 2026-09-06.
+
+## COEUS-HEPHAESTUS-POD-BOUND — Follow the provider's tightened buffer bound [major] — review <a id="coeus-hephaestus-pod-bound"></a>
+
+- **Symptom:** advancing the Hephaestus pin to `425bdc05` or later fails
+  `coeus-hephaestus` with 246 errors of ``the trait bound
+  `T: eunomia::layout::marker::Pod` is not satisfied``, at
+  `convolution/provider.rs`, `elementwise/dispatch.rs`, `matmul/provider.rs`
+  and their siblings.
+- **Cause:** `hephaestus_core::ComputeDevice::Buffer<T: Pod>` now requires
+  Eunomia's `Pod` marker — the stack's datatype law — where Coeus's generic
+  functions bound only `T: Scalar + leto_ops::Scalar`. rustc names the fix at
+  every site: add `eunomia::layout::marker::Pod` to the bound.
+- **Delivered 2026-09-06, at the root rather than site by site.** 230 errors
+  became 9 by adding Eunomia's `Pod` as a supertrait of `coeus_core::Scalar` —
+  one line, and the architecturally correct one: Eunomia owns the datatype law
+  the provider states its buffer contract in, and Coeus already depended on it
+  while bounding the same concept through bytemuck. bytemuck's marker stays
+  alongside because `Scalar::has_zero_bit_pattern` uses `bytemuck::bytes_of`.
+  The remaining 9 sites bounded `bytemuck::Pod` directly to satisfy the device
+  contract; those now bound the provider's marker, and the test doubles moved to
+  Eunomia's byte helpers (`eunomia::layout::cast_slice`) so their `ComputeDevice`
+  impls are not stricter than the trait. `coeus-hephaestus` no longer references
+  bytemuck at all.
+- **Evidence:** `cargo fmt --check`, `cargo check --locked -p coeus-cuda
+  --no-default-features --all-targets`, `cargo clippy --locked --workspace
+  --all-targets -- -D warnings`, `cargo nextest run --locked --workspace
+  --exclude coeus-python --exclude coeus-wgpu` **1141/1141**, `cargo test
+  --locked --doc --workspace ...`, `cargo doc --locked --workspace --no-deps`
+  warning-free. The lock holds exactly one Eunomia.
+- **Residual:** Coeus still carries bytemuck for `Scalar`'s byte predicate while
+  the stack's datatype law is Eunomia's. Filed as
+  `COEUS-BYTEMUCK-RESIDUE` rather than widened into this change.
+- **Why it is blocking now:** every first-party lock advance in Coeus goes
+  through a Hephaestus revision at or past `425bdc05`, so this gates the
+  staggered binding as much as the cutile requirement does.
+- **Last-update:** 2026-09-06.
+
+## COEUS-LOCKFILE-SCRIPT-NARROW — the regeneration resolves less than the gate [patch] — todo <a id="coeus-lockfile-script-narrow"></a>
+
+- **Symptom:** `scripts/lockfile.py --regenerate` produces a lock that
+  `cargo doc --locked --workspace --no-deps` and `cargo test --locked --doc
+  --workspace` then reject, demanding a re-resolve. Iterating the resolution to
+  a fixpoint (running the doc target twice unlocked) produces a lock all gates
+  accept; the script's single pass does not reach it.
+- **Why it matters:** the script is the repository's sanctioned way to repair a
+  lock, and the `pre-push` hook refuses every push — documentation included —
+  while the committed lock is stale. A repair path whose output the gate rejects
+  is how the lock reached the state that blocked all pushes.
+- **Scope:** have the script resolve the set the gate resolves (the doc target's
+  workspace-wide activation) and iterate to a fixpoint, then assert
+  regenerate-and-diff idempotence — running it twice must change nothing, per
+  the generator contract.
+- **Last-update:** 2026-09-06.
+
+## COEUS-BYTEMUCK-RESIDUE — one concept, two markers [patch] — todo <a id="coeus-bytemuck-residue"></a>
+
+- **Finding:** `coeus_core::Scalar` now carries both `bytemuck::Pod` and
+  Eunomia's `Pod` as supertraits. Eunomia is the stack's datatype law and owns
+  this concept; bytemuck is the third-party equivalent, retained only because
+  `Scalar::has_zero_bit_pattern`'s default body calls `bytemuck::bytes_of`.
+- **Scope:** move that body to `eunomia::layout::bytes_of` and drop the bytemuck
+  supertrait, so one marker states the contract. Check the blast radius first:
+  the supertrait is public surface, so removing it is `[major]` for anyone
+  implementing `Scalar` outside the workspace.
 - **Last-update:** 2026-09-06.
 
 ## COEUS-STAGGERED-BACKEND-BINDING — Bind the device staggered pair [minor] — blocked <a id="coeus-staggered-backend-binding"></a>
