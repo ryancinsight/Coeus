@@ -1,6 +1,38 @@
 # Coeus Development Roadmap Checklist
 
-## COEUS-STAGGERED-BACKEND-BINDING — Bind the device staggered pair [minor] — todo <a id="coeus-staggered-backend-binding"></a>
+## COEUS-CUTILE-REQUIREMENT-UNRESOLVABLE — the lock cannot be advanced [patch] — todo <a id="coeus-cutile-requirement-unresolvable"></a>
+
+- **Symptom:** any resolution that re-resolves the whole graph fails with
+  `failed to select a version for the requirement cuda-async = "^0.2.0";
+  candidate versions found which didn't match: 0.3.1`. That includes
+  `scripts/lockfile.py --regenerate` and, after any partial `cargo update`,
+  the `--locked` doc and doctest targets — which resolve a wider set than
+  clippy and nextest and so are the first to need a re-resolve.
+- **Cause:** `crates/coeus-cuda/Cargo.toml` requires `cutile`, `cuda-core`, and
+  `cuda-async` at `version = "0.2.0"` from the `NVlabs/cutile-rs` git repo,
+  whose branch tip now publishes `0.3.1`. A git dependency resolves against the
+  tip, so the requirement no longer matches anything reachable. The committed
+  lock still holds the older resolution, which is why `main` stays green: CI
+  consumes the lock as-is and never re-resolves.
+- **Why it matters now:** the lock is frozen. Any first-party advance —
+  including the one `COEUS-STAGGERED-BACKEND-BINDING` needs to pick up the
+  Hephaestus staggered seam — perturbs the lock enough that the doc targets
+  demand a re-resolve, which then hits this wall. Measured, not inferred:
+  `cargo update -p leto -p leto-ops` left clippy and `nextest` green
+  (1141/1141) while `cargo test --locked --doc --workspace` and
+  `cargo doc --locked --workspace` both failed on the lock, and the full
+  regeneration failed on the requirement itself. The lock advance was reverted
+  rather than landed, because landing it would turn a green `main` red.
+- **Scope:** widen the three requirements to the version the tip provides and
+  absorb the `0.2` to `0.3` API change in `coeus-cuda`, or pin the `cutile-rs`
+  revision that still provides `0.2` as explicit quarantine with a removal
+  trigger. The first is preferred — a pin against a moving third-party branch
+  is what produced this — and ADR 0071's thinning of the vendor crates may
+  reduce how much of the `0.3` surface is actually touched.
+- **Blocks:** `COEUS-STAGGERED-BACKEND-BINDING`.
+- **Last-update:** 2026-09-06.
+
+## COEUS-STAGGERED-BACKEND-BINDING — Bind the device staggered pair [minor] — blocked <a id="coeus-staggered-backend-binding"></a>
 
 - **Outcome:** the Hephaestus-backed backend implements
   `FiniteDifference3DOps<T>`, so a consumer binding
@@ -18,6 +50,10 @@
   accelerator backend and match the CPU implementation within the derived
   reduction-order tolerance, on every axis; the adjoint identity holds through
   the seam; the taps come from the provider derivation, not a second copy.
+- **Blocked on:** `COEUS-CUTILE-REQUIREMENT-UNRESOLVABLE` — the lock cannot be
+  advanced to pick up the provider seam until that requirement resolves. The
+  Eunomia diamond that blocked this item first is closed; this is a second,
+  independent blocker found while taking the item's first step.
 - **Note the topology caveat below:** this lands in the crate
   `COEUS-SIBLING-NAMED-CRATES` renames, and moves with it.
 - **Last-update:** 2026-09-06.
