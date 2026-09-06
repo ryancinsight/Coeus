@@ -51,7 +51,7 @@ where
         dropout_p: f64,
     ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
-        T: coeus_leto::RandomScalar,
+        T: coeus_leto::RealScalar,
         B: coeus_ops::RandomInitOps<T>,
     {
         Ok(Self {

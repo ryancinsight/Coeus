@@ -2,7 +2,7 @@ use super::dispatch::{self, PreparedStaggeredPair};
 use super::provider::StaggeredProvider;
 use crate::HephaestusBackend;
 use coeus_core::Layout;
-use coeus_ops::{FiniteDifferenceAxis as Axis, StaggeredPairOps};
+use coeus_ops::{Axis, StaggeredPairOps};
 
 /// The provider states the pair in `f32`, so the accelerator backend binds the
 /// Coeus seam at that scalar rather than generically — the device contract

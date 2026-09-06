@@ -1,7 +1,7 @@
 use super::provider::StaggeredBackend;
 use crate::layout::ranked_exact;
 use coeus_core::Layout;
-use coeus_ops::FiniteDifferenceAxis as Axis;
+use coeus_ops::Axis;
 use hephaestus_core::{Staggered3DOps, Staggered3DParams, StaggeredAxis};
 use leto_ops::{staggered_first_derivative_coefficients, TapCoefficients};
 

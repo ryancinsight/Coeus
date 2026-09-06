@@ -38,7 +38,7 @@ pub struct RNNCell<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBacke
     pub hidden_size: usize,
 }
 
-impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default> RNNCell<T, B> {
+impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> RNNCell<T, B> {
     /// Create with Kaiming-initialized weights, zero biases, and the given nonlinearity.
     ///
     /// # Errors
@@ -95,7 +95,7 @@ impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default>
     }
 }
 
-impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for RNNCell<T, B>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -134,7 +134,7 @@ pub struct Rnn<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> 
     pub hidden_size: usize,
 }
 
-impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default> Rnn<T, B>
+impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Rnn<T, B>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -192,7 +192,7 @@ where
     }
 }
 
-impl<T: Float + coeus_leto::RandomScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for Rnn<T, B>
 where
     B::DeviceBuffer<T>:

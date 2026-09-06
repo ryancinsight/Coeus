@@ -12,7 +12,7 @@ fn provider_error(operation: &'static str, source: leto::LetoError) -> BackendEr
 
 impl<T, B> RandomInitOps<T> for B
 where
-    T: Scalar + coeus_leto::RandomScalar,
+    T: Scalar + coeus_leto::RealScalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
