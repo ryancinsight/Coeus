@@ -4,7 +4,8 @@
 
 Execution steps: [active checklist](docs/checklist.md#codex-01a079ad).
 Acceptance and findings: [CTC sequence correctness](docs/backlog.md#coeus-ctc-sequence-contract).
-GPU integration is merged in [PR #368](https://github.com/ryancinsight/Coeus/pull/368).
+GPU integration is merged in [PR #368](https://github.com/ryancinsight/Coeus/pull/368);
+CTC sequence correctness is merged in [PR #380](https://github.com/ryancinsight/Coeus/pull/380).
 The historical completed-phase labels below do not establish current gate status.
 
 

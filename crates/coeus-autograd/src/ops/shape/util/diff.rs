@@ -5,7 +5,7 @@ use coeus_core::Scalar;
 ///
 /// Each pass computes `out[i] = x[i + 1] - x[i]` along `dim`, shrinking that
 /// dimension's extent by one; applied `n` times. `n == 0` returns `x` unchanged.
-/// The inverse of [`cumsum`](super::cumsum). Differentiable via composition of the
+/// The inverse of [`cumsum`](super::cumsum()). Differentiable via composition of the
 /// tracked `slice` and `sub`.
 ///
 /// # Panics

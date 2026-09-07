@@ -3,25 +3,9 @@
 <a id="coeus-ctc-sequence-contract"></a>
 ## COEUS-CTC-SEQUENCE-CONTRACT — Correct CTC boundaries and precision
 
-- Status: review; integrator: codex-01a079ad; priority: correctness; [major] [arch].
-- Branch: `codex/coeus-ctc-sequences`; last-update: 2026-09-07.
-- Delivery: [PR #380](https://github.com/ryancinsight/Coeus/pull/380), ready against
-  `main` after GPU merge `f5ccfd68`; source `4275bae1` is unchanged.
-- Outcome: CTC loss and gradients obey the log-probability sequence contract.
-- Scope: provider recurrence, CPU seam, shared layouts, Rust/Python callers and migration.
-- Acceptance: native scalar path sums/gradients, empty/impossible semantics,
-  typed invalid input, and unchanged gradient destinations on failure.
-- Oracle: short-path enumeration and analytical large-gap posterior weights.
-- Provider: [Leto CTC](../../leto/backlog.md#leto-ctc-loss), merged PR #177,
-  merge `ba8a879b`; 950 workspace tests, release CTC 10/10, independent review pass.
-- Consumer: native `461dbdc4` passes 1,144 with eight existing skips; the final
-  wheel passes 10/10. Regressions `77051874` and `69a19362` fail before correction.
-- Gates: release `ab0ee790`, 155 doctests, strict Clippy/docs and compatibility
-  classification pass; [migration](adr/0072-ctc-sequence-loss.md#migration) records the break.
-- Devices: required CUDA/WGPU `a2dc2625` passes 234/234 with no skips;
-  source/build/lock hashes remain unchanged across tracking merge `0d40a8c6`.
-- Parent: [remaining loss families](#coeus-autograd-host-staging-residuals-001).
-- Design/migration: [ADR 0072](adr/0072-ctc-sequence-loss.md).
+- Status: done; [PR #380](https://github.com/ryancinsight/Coeus/pull/380) merged as `971cc649` on 2026-09-07.
+- Outcome: native-scalar CTC sequence loss and fallible gradients; [contract/migration](adr/0072-ctc-sequence-loss.md), [provider](../../leto/backlog.md#leto-ctc-loss), [remaining losses](#coeus-autograd-host-staging-residuals-001).
+- Evidence: 1,144 native tests, 234 required CUDA/WGPU tests, 155 doctests and 10 installed-wheel Python cases pass; exact runs and limits are in PR #380. Test-setup follow-up: PR #382.
 
 <a id="coeus-fallible-unary-execution"></a>
 ## COEUS-FALLIBLE-UNARY-EXECUTION — Propagate unary provider failures
@@ -29,12 +13,31 @@
 - Status: todo; priority: correctness; [major] [arch].
 - Scope: shared unary autograd execution and its Rust/Python callers.
 - Evidence: `d1c5ca4c` on `codex/coeus-comparison-parity-comparisons`
-  contains unique fallible execution; current ReLU still returns `Var`.
+  contains unique fallible execution across 555 files; recover the unary closure only.
 - Outcome: provider failures reach callers without input-dependent panics.
 - Acceptance: complete caller migration, typed failure/gradient tests,
   full native/device gates, and SemVer classification with an updated ADR.
-- Dependency: land GPU/CTC integration; recover against current contracts.
+- Dependency: [fallible tensor storage](#coeus-fallible-tensor-storage), then unary
+  primitives, derivative arithmetic, NN/Python callers and owned/borrowed `Neg`.
+- Review: wrapping unary results alone retains allocation/COW/binary panics;
+  ADRs 0042/0045 already cover backward/module contracts. Reserve a new forward ADR.
 - Non-goal: resurrect superseded dependency pins or storage implementations.
+
+<a id="coeus-fallible-tensor-storage"></a>
+## COEUS-FALLIBLE-TENSOR-STORAGE — Propagate tensor storage failures
+
+- Status: todo; priority: correctness; [major] [arch].
+- Outcome: allocation, zero-fill and copy-on-write failures reach typed callers.
+- Scope: current ComputeBackend storage methods, Tensor constructors/materialization,
+  provider implementations and their complete caller closure; preserve current providers.
+- Evidence: backend/traits.rs allocation/fill methods return no error; tensor.rs
+  alloc_on/zeros_on call them before unary dispatch can return its existing error.
+- Acceptance: no provider-error expects on the migrated paths; real malformed-size,
+  layout and device error tests; no partial writes claimed as whole-graph rollback.
+- Dependency: CTC integration. Driver: [unary consumer](#coeus-fallible-unary-execution).
+- Authority: change through merge; no release. Reserve an ADR before implementation.
+- Verification: focused storage/provider tests, native/device gates, Python wheel,
+  caller/doc synchronization and SemVer; classify allocation limits explicitly.
 
 <a id="coeus-workspace-lint-floor"></a>
 ## COEUS-WORKSPACE-LINT-FLOOR — Recover the inherited lint floor
@@ -66,24 +69,30 @@
 <a id="coeus-private-rustdoc-links"></a>
 ## COEUS-PRIVATE-RUSTDOC-LINKS — Disambiguate the cumulative-sum link
 
-- Status: todo; priority: documentation; [patch].
+- Status: review; integrator: codex-01a079ad; priority: documentation; [patch].
+- Branch: `codex/coeus-private-rustdoc`; last-update: 2026-09-07.
+- Delivery: [PR #382](https://github.com/ryancinsight/Coeus/pull/382), with the reviewed hook correction and Python setup documentation.
 - Scope: `coeus-autograd/src/ops/shape/util/diff.rs` function link.
 - Finding: private-item Rustdoc reports `super::cumsum` as both module/function.
 - Acceptance: link the function explicitly; warning-denied private and public
   Rustdoc resolve it, with the existing difference doctest unchanged.
+- Evidence: ambiguous link fails before correction; strict private/public docs,
+  18 autograd doctests and formatting pass. Rendered link targets `fn.cumsum.html`.
 
 <a id="coeus-lockfile-hook-enforcement-2026-09-07"></a>
 ## COEUS-LOCKFILE-HOOK-ENFORCEMENT-2026-09-07 — Reject unverified hook execution
 
-- Status: in-progress; integrator: codex-01a079ad/integration_judge; [patch].
-- Scope: `.githooks/pre-commit`, `.githooks/pre-push`, and executable hook tests.
-- Lease: integration_judge; scoped hook/test files; 2026-09-07T06:48:49Z.
-- Finding: missing checker/interpreter and `SKIP_LOCKFILE_CHECK=1` return success.
+- Status: review; integrator: codex-01a079ad; [patch]; last-update: 2026-09-07.
+- Delivery: source `03385dd4` reviewed in [PR #381](https://github.com/ryancinsight/Coeus/pull/381);
+  preserved in the combined follow-up [PR #382](https://github.com/ryancinsight/Coeus/pull/382).
+- Scope: Git hook entry points, shared checker invocation, and executable tests.
+- Finding: missing prerequisites/bypass return success; mode 100644 disables Unix hooks.
 - Outcome: configured hooks fail when their required verification cannot execute.
 - Acceptance: remove the bypass, preserve command diagnostics, and reject each
   missing prerequisite; ordinary valid staged-lock and push checks still pass.
-- Verification: execute installed hooks with controlled prerequisite failures and
-  real Cargo fixtures; no skipped hooks or simulated checker success.
+- Verification: 14 automation tests pass, including real Git/Cargo execution and
+  index mode 100755; three Bash syntax checks pass. Both defects reproduce first.
+- Platforms: Windows Git Bash and Ubuntu CI job `101655309993` pass the hook suite.
 - Non-goal: replace the existing lockfile tool or alter dependency requirements.
 
 <a id="coeus-provider-resolution-2026-09-07"></a>
@@ -104,12 +113,14 @@
 <a id="coeus-tracking-consolidation-2026-09-07"></a>
 ## COEUS-TRACKING-CONSOLIDATION-2026-09-07 — Consolidate development records
 
-- Status: todo; scope: backlog, both checklists, and their incoming links; [patch].
+- Status: todo; scope: remaining root-file migration and cross-file reconciliation; [patch].
 - Outcome: one root backlog owns status/acceptance and one root checklist owns steps.
 - Finding: active items occur in three files; historical completion labels coexist
   with unresolved verification. LayerNorm and book delivery records are reconciled.
 - Reconciliation: 144 heading IDs recur across files; some name distinct concerns.
   Preserve section-level residuals, including LP-norm's narrower post-merge checks.
+- Completed increment: 21 build-structure records consolidate under one anchored
+  campaign; 315 lines removed, all delivery commits verified and duplicate-ID lint passes.
 - Acceptance: preserve open items and unique evidence, compact closed items to
   commit references, migrate links, and delete superseded tracking files.
 - Verification: unique item IDs, valid local links, and no pending merged items.
@@ -1831,327 +1842,12 @@
 - Limit: this closes correctness and device-path coverage; no performance or
   allocation improvement is claimed without a controlled benchmark baseline.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-Leto contract-family split [patch] — done
+<a id="atlas-build-structure-001"></a>
+## ATLAS-BUILD-STRUCTURE-001 — Historical test-harness consolidation [patch] — done
 
-- Owner: Codex `/root`; scope: `crates/coeus-leto/tests/leto_ops/contract*` and active
-  references to the contract harness.
-- Outcome: the live 505-line contract leaf is now a manifest with arithmetic,
-  reductions, matmul, layout, and accumulation families under
-  `crates/coeus-leto/tests/leto_ops/contract/`. The shared layout oracle remains in a
-  single support owner; production Leto dispatch code and contract assertions
-  are unchanged.
-- Evidence: pre/post source census remains 26 unique contract tests and all 26
-  extracted Rust test function bodies compare equal. The largest new leaf is
-  `layout.rs` at 197 lines; every new leaf is below 200 lines. Locked metadata
-  reports one `leto_ops` integration target. Exact package Nextest passes 28/28
-  with zero skipped in 0.325 seconds. Package check, warning-denied Clippy,
-  format, and diff checks pass.
-- Limit: this is a test-topology and maintainability change only; no
-  production Leto runtime, memory, or zero-copy behavior delta is claimed.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN extended activation contract split [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-nn/tests/nn_ops/activations/act_extended*`.
-- Outcome: the live 648-line extended activation leaf is now an
-  `act_extended` manifest with piecewise, parameterized, module-smoke, and
-  smooth families. Shared close/slice assertion helpers have one support
-  owner; production NN code, fixtures, formulas, and tolerances are unchanged.
-- Evidence: pre/post source census remains 17 unique test functions and all 17
-  extracted Rust test function bodies compare equal. The largest new leaf is
-  `piecewise.rs` at 354 lines; every new leaf is below 360. Exact package
-  Nextest passes 268/268 with zero skipped in 3.155 seconds. Package check,
-  warning-denied Clippy, format, and diff checks pass.
-- Limit: this is a test-topology and maintainability change only; no
-  production activation runtime, memory, or numerical behavior delta is
-  claimed.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-optim contract-family harness split [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-optim/tests/optim_tests.rs` and active
-  references to that test target.
-- Outcome: the live 676-line leaf is now one `optim_ops` manifest with
-  optimizer, scheduler, convergence, and gradient-clipping family modules
-  under `crates/coeus-optim/tests/optim_ops/`. Production optimizer code and all
-  analytical oracles are unchanged.
-- Evidence: pre/post source census remains 20 unique test functions and all 20
-  extracted Rust function bodies compare equal. Locked metadata reports one
-  `optim_ops` integration target. The largest new leaf is `convergence.rs` at
-  239 lines; every new leaf is below 250. Exact package Nextest passes 20/20
-  with zero skipped in 0.188 seconds. Package check, warning-denied Clippy,
-  format, and diff checks pass.
-- Limit: this is a test-topology and maintainability change only; no
-  production optimizer runtime, memory, or numerical behavior delta is
-  claimed.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN loss-contract family split [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-nn/tests/nn_ops/losses/nn_loss*`.
-- Outcome: the live 902-line loss-contract leaf is now a nested `nn_loss`
-  manifest with binary, classification, distance, and distribution families.
-  Production NN code, fixtures, tolerances, and sibling loss files are
-  unchanged.
-- Evidence: pre/post source census remains 24 unique test functions and all 24
-  extracted Rust function bodies compare equal. The largest new leaf is
-  `distance.rs` at 315 lines; every new leaf is below 500. Exact package
-  Nextest passes 268/268 with zero skipped in 2.270 seconds. Package check,
-  warning-denied Clippy, format, and diff checks pass.
-- Limit: this is a test-topology and maintainability change only; no
-  production-kernel, memory, or runtime-performance delta is claimed.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-CUDA parity-family split [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-cuda/tests/cuda/parity*` only.
-- Outcome: the live 1,672-line multi-family parity leaf is now a shared oracle
-  manifest plus seven operation-family modules: convolution,
-  convolution-transpose, matmul, optimizer, pooling, reduction, and
-  unfold/fold. Production CUDA code, fixtures, and tolerances are unchanged.
-- Evidence: pre/post source-name census remains 29 unique parity test
-  functions; every new parity leaf is below 500 lines, with `convolution.rs`
-  the largest at 365 lines. Default package Nextest passes 3/3 with zero
-  skipped. Default and `--features cuda` package Clippy pass with `-D
-  warnings`; package checks and format/diff checks pass.
-- Limit: feature-enabled Nextest cannot link on this host because
-  `x86_64-w64-mingw32-gcc` cannot find `-lcuda` while searching
-  `/usr/local/cuda-11.3/lib64/`; no live CUDA parity execution is claimed.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-Python operation binding-family split [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-python/tests/binding_ops/operations/**`.
-- Outcome: the live 3,160-line `binding_tests_ops.rs` leaf is now fourteen
-  operation-family leaves with nested NN functional and module directories.
-  Python interpreter setup has one shared support module; production PyO3,
-  Python parity scripts, generated artifacts, and embedded test assertions are
-  unchanged.
-- Evidence: pre/post source census remains 61 unique test functions and all 61
-  extracted Rust function bodies compare equal. The largest test-family leaf is
-  `reductions.rs` at 391 lines; every leaf is below 400 lines. Exact package
-  Nextest passes 75/75 with zero skipped in 8.079 seconds. Package check,
-  warning-denied Clippy, format, and diff checks pass.
-- Limit: this is a Rust test-topology and maintainability change; it does not
-  claim Python-wheel, production-kernel, memory, or runtime-performance
-  coverage.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-dist distributed-contract harness [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-dist/tests/**` and active references to
-  the former `dist_tests` target.
-- Outcome: the live 1,262-line `dist_tests.rs` leaf is now one `dist_ops`
-  manifest with local and TCP transport subtrees, separated into collective,
-  reduction, invalid-input, and mesh-boundary families. Shared thread and
-  loopback-mesh helpers have one support owner; production distributed code is
-  unchanged.
-- Evidence: locked metadata reports one `dist_ops` integration target; the
-  pre/post source census remains 64 unique test functions, all 64 `#[test]`
-  attributes remain present, and all 64 extracted Rust function bodies compare
-  equal. The largest test-family leaf is
-  `distributed/tcp/errors/collective.rs` at 464 lines; every leaf is below 500
-  lines. Exact package Nextest passes 64/64 with zero skipped in 0.444 seconds,
-  with no slow tests. Package check, warning-denied Clippy, format, and diff
-  checks pass.
-- Limit: this is a test-topology and maintainability change only; no
-  production distributed-kernel, memory, or runtime-performance delta is
-  claimed.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN tensor parity-family split [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-nn/tests/nn_ops/tensor/nn_parity*` only.
-- Outcome: the 1,317-line multi-family parity leaf is now a shared assertion
-  manifest plus attention, convolution, embedding, linear/normalization,
-  losses, and regularization operation-family modules. Production NN code,
-  fixtures, and tolerances are unchanged.
-- Evidence: pre/post source-name census remains 11 unique parity test
-  functions; exact package Nextest passes 268/268 with zero skipped in 2.405
-  seconds. The attention operation leaf is 182 lines and its expected-value
-  oracle leaf is 91 lines; all six operation-family leaves remain below 250
-  lines. Package check, warning-denied Clippy, format, and diff checks pass.
-- Limit: this is a test-topology and maintainability change only; it does not
-  claim a production-kernel speedup, memory reduction, or whole-workspace
-  debug-tree delta.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN integration harness [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-nn/tests/**` target topology only.
-- Outcome: the established NN module tree and the operation-family modules now
-  share one hierarchical `nn_ops` harness; the redundant `nn_tests.rs` target
-  manifest is removed. Test bodies and production code are unchanged.
-- Evidence: locked Cargo metadata reports one `nn_ops` integration target;
-  exact package Nextest passes 268/268 with zero skipped in 4.463 seconds.
-  Package check, warning-denied Clippy, format, and diff checks pass.
-- Limit: this is a test-topology and build-artifact change only; it does not
-  claim a production NN speedup, memory reduction, or whole-workspace
-  debug-tree delta.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-autograd/tests/**` target topology only.
-- Outcome: the established autograd module tree and the standalone operation
-  families now share one hierarchical `autograd_ops` harness; the redundant
-  `autograd_tests` target manifest is removed. Test bodies and production code
-  are unchanged.
-- Evidence: locked Cargo metadata reports one `autograd_ops` integration target
-  instead of two; exact package Nextest passes 94/94 with zero skipped in 1.535
-  seconds. Package check, warning-denied Clippy, format, and diff checks pass.
-- Limit: this is a test-topology and build-artifact change only; it does not
-  claim a production autograd speedup, memory reduction, or whole-workspace
-  debug-tree delta.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-Leto integration harness [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-leto/tests/**` target topology only.
-- Outcome: the two flat integration targets now share one `leto_ops` harness;
-  contract and sparse-dispatch tests live under explicit operation-family
-  modules. Production APIs, fixtures, tolerances, and assertions are unchanged.
-- Evidence: locked Cargo metadata reports one `leto_ops` integration target;
-  exact package Nextest passes 28/28 with zero skipped in 1.064 seconds.
-  Package check, warning-denied Clippy, format, and diff checks pass. The live
-  census is 26 contract tests plus 2 sparse-dispatch tests; this corrects the
-  prior 26-test tracking claim.
-- Limit: this is a test-topology and maintainability change only; it does not
-  claim a production-kernel speedup, memory reduction, or whole-workspace
-  debug-tree delta.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-WGPU parity-family split [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity/**`.
-- Outcome: the 808-line multi-family parity leaf is now a shared oracle
-  manifest plus seven operation-family modules: elementwise, reduction,
-  matmul, convolution/pooling, optimizer, and strided.
-- Evidence: pre/post source-name census remains 47 unique parity identifiers;
-  exact package Nextest passes 85/85 with zero skipped in 80.113 seconds.
-  Every new parity leaf is below 500 lines (largest: 287); package check,
-  warning-denied Clippy, format, and diff checks pass.
-- Limit: this is a test-topology and maintainability change only; it does not
-  claim a production-kernel speedup, memory reduction, or whole-workspace
-  debug-tree delta.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-WGPU integration harness [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-wgpu/tests/**` target topology only.
-- Outcome: the two flat integration targets now share one `wgpu_ops` harness;
-  fused operations live under `fusion.rs`, and the existing WGPU operation
-  tree lives under `backend/wgpu/`. All moved source files are content-
-  identical renames; production kernels and test assertions are unchanged.
-- Evidence: locked Cargo metadata reports one `wgpu_ops` integration target;
-  the exact package Nextest run passes 85/85 with zero skipped in 84.155 seconds.
-  Package check, warning-denied Clippy, format, and diff checks pass.
-- Limit: the 808-line `backend/wgpu/parity.rs` multi-family leaf remains a
-  separate follow-up for operation-family splitting; this slice claims no
-  whole-workspace debug-tree size delta.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-Python integration harness [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-python/tests/*.rs` only.
-- Outcome: the six flat Rust integration-test files now sit under activation,
-  distributed, NN, operation, optimizer, and autodiff directories behind one
-  `binding_ops` target. The shared `tests/common` lock module is owned once at
-  the harness root; Python parity scripts and generated artifacts are unchanged.
-- Evidence: locked Cargo metadata now reports one `coeus-python` integration
-  target; the exact all-features package Nextest run passes 75/75 with zero
-  skipped in 6.585 seconds. Warning-denied Clippy, package check, format, and
-  diff checks pass.
-- Limit: this proves Rust integration-test topology and count preservation,
-  not Python wheel or external-interpreter coverage.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-CUDA integration harness [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-cuda/tests/**` only.
-- Outcome: the three feature-gated Rust integration-test files now sit under
-  device and fallback directories behind one `cuda_ops` target. The existing
-  nested `tests/cuda/` module tree remains intact through an explicit path in
-  the moved `cuda_tests` leaf; no production CUDA code moved.
-- Evidence: locked metadata now reports one `coeus-cuda` integration target;
-  default package Nextest passes 3/3 with zero skipped in 0.053 seconds.
-  Default and all-features warning-denied Clippy plus package checks pass.
-- Limit: all-features executable Nextest remains unverified because the GNU
-  linker cannot find `/usr/local/cuda-11.3/lib64/libcuda` on this host. The
-  failure is an external CUDA installation/linker dependency.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-core integration harness [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-core/tests/**` only.
-- Outcome: the four flat Rust integration-test files now sit under storage,
-  dependency-policy, and scalar directories behind one `core_ops` target. The
-  existing library unit-test modules remain in `src`; no production core code
-  moved.
-- Evidence: locked Cargo metadata now reports one `coeus-core` integration
-  target; the exact package Nextest run passes 21/21 with zero skipped,
-  comprising 14 integration cases and seven unchanged library unit tests.
-  Warning-denied Clippy, package check, format, and diff checks pass.
-- Limit: this proves test-topology and test-count preservation, not a complete
-  workspace debug-tree size reduction.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-sparse integration harness [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-sparse/tests/**` only.
-- Outcome: the three flat Rust integration-test files now sit under conversion,
-  differential, and invariant directories behind one `sparse_ops` target. The
-  sparse-format value-semantic and dense-oracle assertions are unchanged; no
-  production sparse code moved.
-- Evidence: locked Cargo metadata now reports one `coeus-sparse` integration
-  target; the exact package Nextest run passes 19/19 with zero skipped in
-  0.713 seconds. Warning-denied Clippy, package check, format, and diff checks
-  pass.
-- Limit: this proves test-topology and test-count preservation, not a complete
-  workspace debug-tree size reduction.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-tensor integration harness [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-tensor/tests/**` only.
-- Outcome: the 13 flat Rust integration-test files now sit under six
-  operation-family directories behind one `tensor_ops` target. The leaf test
-  bodies and value-semantic/property assertions are unchanged; no production
-  tensor code moved.
-- Evidence: locked Cargo metadata now reports one `coeus-tensor` integration
-  target; the source census remains 53 annotated integration tests and the
-  exact package Nextest run passes 58/58 with zero skipped. Warning-denied
-  Clippy, package check, format, and diff checks pass.
-- Limit: this proves test-topology and source-census preservation, not a
-  complete workspace debug-tree size reduction.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness [patch] — done
-
-- Owner: Codex `/root`; scope: three standalone files under
-  `crates/coeus-autograd/tests/**`.
-- Outcome: `grid_sample_3d`, `linear_interpolation`, and `selective_scan` now
-  share one `autograd_ops` target with nested operation-family manifests. The
-  existing `autograd_tests` target and `tests/autograd/` module tree remain
-  unchanged; no production autograd code moved.
-- Evidence: the pre-change tree contained four integration targets; locked
-  metadata now reports two. The exact package Nextest run passes 94/94 with
-  zero skipped; warning-denied Clippy, package check, format, and diff checks
-  pass.
-- Limit: this proves target-count and test-count preservation, not a complete
-  workspace debug-tree size reduction.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN integration harness [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-nn/tests` top-level leaf files only.
-- Outcome: 33 flat integration-test files now sit under ten operation-family
-  directories behind one `nn_ops` target. The existing `nn_tests` target and
-  its `tests/nn/` module tree remain unchanged; no production NN code moved.
-- Evidence: the pre-change tree contained 34 direct test files/targets; locked
-  metadata now reports two integration targets, `nn_ops` and `nn_tests`.
-  The exact package Nextest run passes 268/268 with 0 skipped; 218 tests run
-  from `nn_ops`, 49 from `nn_tests`, and one library unit test completes the
-  package total.
-- Limit: this proves target-count and test-count preservation. It does not
-  claim a whole-workspace debug-tree size reduction.
-
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-ops integration harness [patch] — done
-
-- Owner: Codex `/root`; scope: `crates/coeus-ops/tests/**` only.
-- Outcome: the 36 flat Rust integration-test binaries are now one `ops`
-  integration target with ten operation-family manifests and nested leaf
-  modules. The source files retain their test bodies and value-semantic
-  assertions; no production code or Cargo dependency changes were made.
-- Evidence: the pre-change `HEAD` tree contained 36 test files; locked Cargo
-  metadata now reports one `coeus-ops` integration target; `cargo nextest
-  list --locked -p coeus-ops --all-features` reports 87 harness tests; the
-  exact package run passes 196/196; warning-denied Clippy and package check
-  pass.
-- Limit: this slice proves target-count and test-count preservation. It does
-  not claim a whole-workspace debug-tree size reduction; that requires a
-  clean before/after workspace measurement in a later bounded slice.
+- Status: done. Consolidated integration harnesses across 12 crates and split operation-family test leaves without changing production behavior or test assertions.
+- Delivery: `f67789c4` through `97d94566`; all 21 slice records, scope details, source censuses and package-test results remain in `97d94566:docs/backlog.md`. The WGPU parity-split follow-up closes in `149aadb5`.
+- Limits: historical CUDA evidence covers default tests and feature compilation, not device execution (missing GNU CUDA linker library); Python evidence covers Rust binding tests, not wheels. No production-performance or workspace artifact-size improvement is established. Later cache tests (`fac64780`) and allocation-budget tests (`9e388010`) add separate autograd/ops targets; this campaign does not assert current single-target topology there.
 
 ## MS-446 provider identity and TCP teardown [patch] — done
 

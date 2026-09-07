@@ -68,6 +68,19 @@ the Rust crates it wraps. One implementation means one place to verify, and
 the suite differences the bindings against PyTorch, JAX, and MLX on identical
 inputs rather than against themselves.
 
+## Testing the CTC binding
+
+Use an environment containing the wheel built from the current source and its
+`test` extra dependencies: pytest, NumPy and PyTorch. From the repository root:
+
+```sh
+python -c "import pycoeus, torch; print(pycoeus.__file__)"
+python -m pytest --import-mode=importlib -p no:cacheprovider crates/coeus-python/tests/pytorch_parity/test_ctc.py
+```
+
+Confirm that the import belongs to the intended wheel installation. The suite
+contains ten tests; missing PyTorch skips the module and does not verify parity.
+
 ## Links
 
 - [Source and issues](https://github.com/ryancinsight/Coeus)
