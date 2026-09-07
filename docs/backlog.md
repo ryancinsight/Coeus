@@ -29,12 +29,31 @@
 - Status: todo; priority: correctness; [major] [arch].
 - Scope: shared unary autograd execution and its Rust/Python callers.
 - Evidence: `d1c5ca4c` on `codex/coeus-comparison-parity-comparisons`
-  contains unique fallible execution; current ReLU still returns `Var`.
+  contains unique fallible execution across 555 files; recover the unary closure only.
 - Outcome: provider failures reach callers without input-dependent panics.
 - Acceptance: complete caller migration, typed failure/gradient tests,
   full native/device gates, and SemVer classification with an updated ADR.
-- Dependency: land GPU/CTC integration; recover against current contracts.
+- Dependency: [fallible tensor storage](#coeus-fallible-tensor-storage), then unary
+  primitives, derivative arithmetic, NN/Python callers and owned/borrowed `Neg`.
+- Review: wrapping unary results alone retains allocation/COW/binary panics;
+  ADRs 0042/0045 already cover backward/module contracts. Reserve a new forward ADR.
 - Non-goal: resurrect superseded dependency pins or storage implementations.
+
+<a id="coeus-fallible-tensor-storage"></a>
+## COEUS-FALLIBLE-TENSOR-STORAGE — Propagate tensor storage failures
+
+- Status: todo; priority: correctness; [major] [arch].
+- Outcome: allocation, zero-fill and copy-on-write failures reach typed callers.
+- Scope: current ComputeBackend storage methods, Tensor constructors/materialization,
+  provider implementations and their complete caller closure; preserve current providers.
+- Evidence: backend/traits.rs allocation/fill methods return no error; tensor.rs
+  alloc_on/zeros_on call them before unary dispatch can return its existing error.
+- Acceptance: no provider-error expects on the migrated paths; real malformed-size,
+  layout and device error tests; no partial writes claimed as whole-graph rollback.
+- Dependencies: CTC integration; [unary consumer](#coeus-fallible-unary-execution).
+- Authority: change through merge; no release. Reserve an ADR before implementation.
+- Verification: focused storage/provider tests, native/device gates, Python wheel,
+  caller/doc synchronization and SemVer; classify allocation limits explicitly.
 
 <a id="coeus-workspace-lint-floor"></a>
 ## COEUS-WORKSPACE-LINT-FLOOR — Recover the inherited lint floor
@@ -66,12 +85,14 @@
 <a id="coeus-private-rustdoc-links"></a>
 ## COEUS-PRIVATE-RUSTDOC-LINKS — Disambiguate the cumulative-sum link
 
-- Status: in-progress; integrator: codex-01a079ad; priority: documentation; [patch].
+- Status: review; integrator: codex-01a079ad; priority: documentation; [patch].
 - Branch: `codex/coeus-private-rustdoc`; last-update: 2026-09-07.
 - Scope: `coeus-autograd/src/ops/shape/util/diff.rs` function link.
 - Finding: private-item Rustdoc reports `super::cumsum` as both module/function.
 - Acceptance: link the function explicitly; warning-denied private and public
   Rustdoc resolve it, with the existing difference doctest unchanged.
+- Evidence: ambiguous link fails before correction; strict private/public docs,
+  18 autograd doctests and formatting pass. Rendered link targets `fn.cumsum.html`.
 
 <a id="coeus-lockfile-hook-enforcement-2026-09-07"></a>
 ## COEUS-LOCKFILE-HOOK-ENFORCEMENT-2026-09-07 — Reject unverified hook execution
